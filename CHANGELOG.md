@@ -1,5 +1,50 @@
 # Changelog
 
+## [1.8.0](https://github.com/y3owk1n/neru/compare/v1.7.1...v1.8.0) (2025-11-16)
+
+
+### Features
+
+* add `action` cli that act on current cursor position ([#126](https://github.com/y3owk1n/neru/issues/126)) ([52aaba6](https://github.com/y3owk1n/neru/commit/52aaba6c32cbabb68f294f7f3773d46a2b0ab50d))
+* add submode for action that is configurable and allow to &lt;tab&gt; through ([#144](https://github.com/y3owk1n/neru/issues/144)) ([770fc42](https://github.com/y3owk1n/neru/commit/770fc4256ccf24bdc79a83be16957b8cdacda198))
+* allow different action colors configuration for grid, same as hints ([#129](https://github.com/y3owk1n/neru/issues/129)) ([61307c8](https://github.com/y3owk1n/neru/commit/61307c8ebb6f5d029fb49d4663fb9ade892bd83e))
+* centralize overlay into a single manager and window ([#146](https://github.com/y3owk1n/neru/issues/146)) ([70c4fbe](https://github.com/y3owk1n/neru/commit/70c4fbecba67a794229458f03b023cb3a0a38a3f))
+* grid based navigation mode ([#111](https://github.com/y3owk1n/neru/issues/111)) ([441192b](https://github.com/y3owk1n/neru/commit/441192bde26215ec873ef41204e389eaabfeef29))
+* **grid:** optimize for square cells across all screen types ([#122](https://github.com/y3owk1n/neru/issues/122)) ([d40d990](https://github.com/y3owk1n/neru/commit/d40d9908e397dee095d5fcde415add9efa382467))
+* simplify actions ([#141](https://github.com/y3owk1n/neru/issues/141)) ([49629ff](https://github.com/y3owk1n/neru/commit/49629ff9bfe32bd2183510b767581f7f31176138))
+
+
+### Bug Fixes
+
+* add missing grid cli for various actions ([#125](https://github.com/y3owk1n/neru/issues/125)) ([c92d09e](https://github.com/y3owk1n/neru/commit/c92d09e941eed56dace5fa26e0449f5b1f9f9251))
+* add more loggings throughout the program for better viewabilitiy ([#130](https://github.com/y3owk1n/neru/issues/130)) ([a6ab8d7](https://github.com/y3owk1n/neru/commit/a6ab8d7ea6437d795c57fa7bc2e8ec72e9696238))
+* allow hiding unmatched in grid ([#113](https://github.com/y3owk1n/neru/issues/113)) ([59bcca6](https://github.com/y3owk1n/neru/commit/59bcca60a139fe102537c56bf9857d538a6dd511))
+* do not clear hintOverlay when cleaning up grid ([#142](https://github.com/y3owk1n/neru/issues/142)) ([d31648f](https://github.com/y3owk1n/neru/commit/d31648f75957d38033cd7c496386c528f070e146))
+* ensure backspace can successfully return back to main grid with state ([#136](https://github.com/y3owk1n/neru/issues/136)) ([ae139b1](https://github.com/y3owk1n/neru/commit/ae139b1ec4d996e3c8846ab3626469e73c32a48c))
+* ensure different screen sizes and resolution gets the best grid ([#115](https://github.com/y3owk1n/neru/issues/115)) ([6016fce](https://github.com/y3owk1n/neru/commit/6016fce12d2fbba894193a51733f06cfe12419cb))
+* ensure grid and hint dont sleep when refresh overlays ([#124](https://github.com/y3owk1n/neru/issues/124)) ([e35c486](https://github.com/y3owk1n/neru/commit/e35c486ff5eb22390be0fcf5bb44850885f4ddfe))
+* ensure grid is clicking on absolute point, not relative points ([#118](https://github.com/y3owk1n/neru/issues/118)) ([c08b2a9](https://github.com/y3owk1n/neru/commit/c08b2a95473dd04c045d2f45b47cb2d1342acc5f))
+* ensure hints working across multi displays ([#117](https://github.com/y3owk1n/neru/issues/117)) ([29cf0cb](https://github.com/y3owk1n/neru/commit/29cf0cb6dea89d569f4411826bdab8498cd587b4))
+* **grid:** only call `ResizeToActiveScreen` when it is needed, not every activation ([#123](https://github.com/y3owk1n/neru/issues/123)) ([856f0b6](https://github.com/y3owk1n/neru/commit/856f0b6a9098dab18a37bc612b9fd124ebdb7ae5))
+* improve linting with more checks ([#147](https://github.com/y3owk1n/neru/issues/147)) ([6091077](https://github.com/y3owk1n/neru/commit/609107742cfe8f7ff40e959542161dd87c9d1e37))
+* improve log retention with rotation with more configurable options ([#145](https://github.com/y3owk1n/neru/issues/145)) ([87a85e7](https://github.com/y3owk1n/neru/commit/87a85e73d525f5bf761f765608ce4bd4dee32690))
+* improve matched_text highlihts to only highlight the prefix text ([#137](https://github.com/y3owk1n/neru/issues/137)) ([6d6e639](https://github.com/y3owk1n/neru/commit/6d6e639e664a119c01f83fbe01b9294325e44d38))
+* improve perf for grid by caching the labels plus more optim ([#139](https://github.com/y3owk1n/neru/issues/139)) ([41fc4ed](https://github.com/y3owk1n/neru/commit/41fc4ed1893a1bb10ff9b87b951bf02de5c04145))
+* improve resize callback handling for better UX ([#132](https://github.com/y3owk1n/neru/issues/132)) ([38dbdd9](https://github.com/y3owk1n/neru/commit/38dbdd9d1704b04dd3f3139d42c5db80b93fb608))
+* make actions point based instead of element based ([#110](https://github.com/y3owk1n/neru/issues/110)) ([472a390](https://github.com/y3owk1n/neru/commit/472a39011d28c845b16faa6637bb2302076d9df6))
+* make grids more predictable than always linearly showing the labels ([#131](https://github.com/y3owk1n/neru/issues/131)) ([808ca14](https://github.com/y3owk1n/neru/commit/808ca14a73d1b9720e11c4dea73c041194e9e7ae))
+* more improvements on linting configuration and fixes ([#148](https://github.com/y3owk1n/neru/issues/148)) ([80e0544](https://github.com/y3owk1n/neru/commit/80e054476789909336d2d3db3e8901608a86b8f3))
+* more perf for grids and hints ([#140](https://github.com/y3owk1n/neru/issues/140)) ([013025c](https://github.com/y3owk1n/neru/commit/013025c6bbd52ae02c5fad82d6b036127bfb2e2b))
+* only use default hotkey when not configured ([#143](https://github.com/y3owk1n/neru/issues/143)) ([f6629cf](https://github.com/y3owk1n/neru/commit/f6629cf16b2af6c373b072a26e83ff8b0ff0cf79))
+* react to screen changes and support extended displays for grid ([#116](https://github.com/y3owk1n/neru/issues/116)) ([1fd81c2](https://github.com/y3owk1n/neru/commit/1fd81c27e33d3c16854cf039be516cfe7e1ec02e))
+* refactoring and move domain based implementation to internals ([#108](https://github.com/y3owk1n/neru/issues/108)) ([9675949](https://github.com/y3owk1n/neru/commit/96759497600c02b732e4f9273873b93a4c4aac50))
+* remove subgrid cell and row config, as we are fixing it to square 3x3 ([#127](https://github.com/y3owk1n/neru/issues/127)) ([56d89d2](https://github.com/y3owk1n/neru/commit/56d89d2de225d8b0bbdfe177c5440b3226923f26))
+* restrict keys to only available cells ([#114](https://github.com/y3owk1n/neru/issues/114)) ([d819d72](https://github.com/y3owk1n/neru/commit/d819d7278c4642a0f64af7b74582de44fccb2ad0))
+* restructure config and move ax related to hints section instead ([#128](https://github.com/y3owk1n/neru/issues/128)) ([a9947dc](https://github.com/y3owk1n/neru/commit/a9947dcba9c6e8331980c32a4e1e00973539064a))
+* separated restore cursor for grid ([#112](https://github.com/y3owk1n/neru/issues/112)) ([f91567f](https://github.com/y3owk1n/neru/commit/f91567f59ee93f12c2a6111f2d08f8cccb23edb4))
+* slightly improve memory for overlay.m ([#138](https://github.com/y3owk1n/neru/issues/138)) ([84bd351](https://github.com/y3owk1n/neru/commit/84bd3519fac4883eb1b562d605693c1bdc96252d))
+* update default values ([#119](https://github.com/y3owk1n/neru/issues/119)) ([7a946bb](https://github.com/y3owk1n/neru/commit/7a946bbe1cdd3a667f8d2204fed51381b2f95770))
+
 ## [1.7.1](https://github.com/y3owk1n/neru/compare/v1.7.0...v1.7.1) (2025-11-09)
 
 
