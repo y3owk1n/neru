@@ -26,10 +26,8 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	// Global logger instance for the bridge package.
-	bridgeLogger *zap.Logger
-)
+// Global logger instance for the bridge package.
+var bridgeLogger *zap.Logger
 
 // InitializeLogger initializes the logger for the bridge package.
 func InitializeLogger(logger *zap.Logger) {

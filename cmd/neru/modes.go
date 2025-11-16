@@ -510,7 +510,10 @@ func (a *App) handleModeSpecificKey(key string) {
 				a.exitMode()
 				return
 			}
-			center := image.Point{X: info.Position.X + info.Size.X/2, Y: info.Position.Y + info.Size.Y/2}
+			center := image.Point{
+				X: info.Position.X + info.Size.X/2,
+				Y: info.Position.Y + info.Size.Y/2,
+			}
 
 			a.logger.Info("Found element", zap.String("label", a.hintManager.GetInput()))
 			accessibility.MoveMouseToPoint(center)
@@ -551,7 +554,11 @@ func (a *App) handleModeSpecificKey(key string) {
 				Y: targetPoint.Y + screenBounds.Min.Y,
 			}
 
-			a.logger.Info("Grid move mouse", zap.Int("x", absolutePoint.X), zap.Int("y", absolutePoint.Y))
+			a.logger.Info(
+				"Grid move mouse",
+				zap.Int("x", absolutePoint.X),
+				zap.Int("y", absolutePoint.Y),
+			)
 			accessibility.MoveMouseToPoint(absolutePoint)
 
 			// No need to exit grid mode, just let it going
@@ -607,7 +614,11 @@ func (a *App) handleGenericScrollKey(key string, lastScrollKey *string) {
 	}
 
 	// Regular keys
-	a.logger.Debug("Entering switch statement", zap.String("key", key), zap.String("keyHex", fmt.Sprintf("%#v", key)))
+	a.logger.Debug(
+		"Entering switch statement",
+		zap.String("key", key),
+		zap.String("keyHex", fmt.Sprintf("%#v", key)),
+	)
 	switch key {
 	case "j":
 		op, _, ok := scroll.ParseKey(key, *lastScrollKey, a.logger)
@@ -739,7 +750,12 @@ func (a *App) drawScrollHighlightBorder() {
 	localBounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
 
 	// Draw scroll highlight using scroll overlay
-	a.scrollOverlay.DrawScrollHighlight(localBounds.Min.X, localBounds.Min.Y, localBounds.Dx(), localBounds.Dy())
+	a.scrollOverlay.DrawScrollHighlight(
+		localBounds.Min.X,
+		localBounds.Min.Y,
+		localBounds.Dx(),
+		localBounds.Dy(),
+	)
 	if overlay.Get() != nil {
 		overlay.Get().SwitchTo(overlay.ModeScroll)
 	}

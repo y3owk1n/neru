@@ -51,18 +51,30 @@ func EnsureElectronAccessibility(bundleID string) bool {
 	electronPIDsMu.Unlock()
 
 	if already {
-		logger.Debug("Already enabled Electron support", zap.Int("pid", pid), zap.String("bundle_id", bundleID))
+		logger.Debug(
+			"Already enabled Electron support",
+			zap.Int("pid", pid),
+			zap.String("bundle_id", bundleID),
+		)
 		return true
 	}
 
 	successSetElectron := bridge.SetApplicationAttribute(pid, electronAttributeName, true)
 
 	if successSetElectron {
-		logger.Debug("Enabled AXManualAccessibility", zap.Int("pid", pid), zap.String("bundle_id", bundleID))
+		logger.Debug(
+			"Enabled AXManualAccessibility",
+			zap.Int("pid", pid),
+			zap.String("bundle_id", bundleID),
+		)
 	}
 
 	if !successSetElectron {
-		logger.Warn("Failed to enable AXManualAccessibility", zap.Int("pid", pid), zap.String("bundle_id", bundleID))
+		logger.Warn(
+			"Failed to enable AXManualAccessibility",
+			zap.Int("pid", pid),
+			zap.String("bundle_id", bundleID),
+		)
 		return false
 	}
 
@@ -77,7 +89,12 @@ func EnsureElectronAccessibility(bundleID string) bool {
 }
 
 // ensureAccessibility enables AXEnhancedUserInterface for the specified application.
-func ensureAccessibility(bundleID string, appType string, enabledPIDs map[int]struct{}, pidsMu *sync.Mutex) bool {
+func ensureAccessibility(
+	bundleID string,
+	appType string,
+	enabledPIDs map[int]struct{},
+	pidsMu *sync.Mutex,
+) bool {
 	app := accessibility.GetApplicationByBundleID(bundleID)
 
 	info, err := app.GetInfo()
@@ -170,7 +187,10 @@ func ShouldEnableElectronSupport(bundleID string, additionalBundles []string) bo
 	}
 
 	if matchesAdditionalBundle(bundleID, additionalBundles) {
-		logger.Debug("Bundle matches additional Electron bundles", zap.String("bundle_id", bundleID))
+		logger.Debug(
+			"Bundle matches additional Electron bundles",
+			zap.String("bundle_id", bundleID),
+		)
 		return true
 	}
 
@@ -188,7 +208,10 @@ func ShouldEnableChromiumSupport(bundleID string, additionalBundles []string) bo
 	}
 
 	if matchesAdditionalBundle(bundleID, additionalBundles) {
-		logger.Debug("Bundle matches additional Chromium bundles", zap.String("bundle_id", bundleID))
+		logger.Debug(
+			"Bundle matches additional Chromium bundles",
+			zap.String("bundle_id", bundleID),
+		)
 		return true
 	}
 

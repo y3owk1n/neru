@@ -4,9 +4,8 @@ package appwatcher
 import (
 	"sync"
 
-	"go.uber.org/zap"
-
 	"github.com/y3owk1n/neru/internal/bridge"
+	"go.uber.org/zap"
 )
 
 // Package appwatcher provides functionality for monitoring application lifecycle events

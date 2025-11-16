@@ -1,18 +1,17 @@
 on:
   pull_request:
     branches: ["*"]
-    tags-ignore:
-      - "release-please--*" # Exclude tags containing "staging"
 name: CI
 permissions:
   contents: read
 jobs:
-  lint:
-    name: lint
+  checks:
+    name: ${{ matrix.check }}
     strategy:
       matrix:
         go: ["1.25.2"]
         os: [macos-latest]
+        check: [lint, formatting, vet, test]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -23,37 +22,27 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
       - name: golangci-lint
+        if: ${{ matrix.check == 'lint' || matrix.check == 'formatting' }}
         uses: golangci/golangci-lint-action@v8
         with:
           version: v2.6
-  go-checks:
-    name: ${{ matrix.check }}
-    strategy:
-      matrix:
-        go: ["1.25.2"]
-        os: [macos-latest]
-        check: [formatting, vet, test]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.head_ref }}
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go }}
-      - name: Check code formatting (Unix)
-        shell: bash
+          install-only: true
+      - name: Install just
+        uses: extractions/setup-just@v2
+      - name: Setup clang-tools
+        if: ${{ matrix.check == 'formatting' }}
         run: |
-          fmt_out=$(go fmt ./...)
-          if [ -n "$fmt_out" ]; then
-            echo "The following files are not formatted:"
-            echo "$fmt_out"
-            exit 1
-          fi
-      - name: Run vet
+          brew install llvm
+          echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
+      - name: Run just lint
+        if: ${{ matrix.check == 'lint' }}
+        run: just lint
+      - name: Run just fmt-check
+        if: ${{ matrix.check == 'formatting' }}
+        run: just fmt-check
+      - name: Run just vet
         if: ${{ matrix.check == 'vet' }}
-        run: go vet ./...
-      - name: Run test
+        run: just vet
+      - name: Run just test
         if: ${{ matrix.check == 'test' }}
-        run: go test ./... -v
+        run: just test

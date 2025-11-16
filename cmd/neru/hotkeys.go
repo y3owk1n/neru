@@ -42,7 +42,11 @@ func (a *App) registerHotkeys() {
 			continue
 		}
 
-		a.logger.Info("Registering hotkey binding", zap.String("key", key), zap.String("action", action))
+		a.logger.Info(
+			"Registering hotkey binding",
+			zap.String("key", key),
+			zap.String("action", action),
+		)
 		// Capture values for closure
 		bindKey := key
 		bindAction := action
@@ -53,7 +57,11 @@ func (a *App) registerHotkeys() {
 			go func() {
 				defer func() {
 					if r := recover(); r != nil {
-						a.logger.Error("panic in hotkey handler", zap.Any("recover", r), zap.String("key", bindKey))
+						a.logger.Error(
+							"panic in hotkey handler",
+							zap.Any("recover", r),
+							zap.String("key", bindKey),
+						)
 					}
 				}()
 
@@ -67,7 +75,12 @@ func (a *App) registerHotkeys() {
 			}()
 		})
 		if err != nil {
-			a.logger.Error("Failed to register hotkey binding", zap.String("key", key), zap.String("action", action), zap.Error(err))
+			a.logger.Error(
+				"Failed to register hotkey binding",
+				zap.String("key", key),
+				zap.String("action", action),
+				zap.Error(err),
+			)
 			// continue registering other bindings
 			continue
 		}
@@ -104,18 +117,33 @@ func (a *App) executeShellCommand(key, action string) error {
 		return errors.New("empty command")
 	}
 
-	a.logger.Debug("Executing shell command from hotkey", zap.String("key", key), zap.String("cmd", cmdStr))
+	a.logger.Debug(
+		"Executing shell command from hotkey",
+		zap.String("key", key),
+		zap.String("cmd", cmdStr),
+	)
 	// Create a context with a reasonable timeout for shell commands
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "/bin/bash", "-lc", cmdStr) //nolint:gosec
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		a.logger.Error("hotkey exec failed", zap.String("key", key), zap.String("cmd", cmdStr), zap.ByteString("output", out), zap.Error(err))
+		a.logger.Error(
+			"hotkey exec failed",
+			zap.String("key", key),
+			zap.String("cmd", cmdStr),
+			zap.ByteString("output", out),
+			zap.Error(err),
+		)
 		return fmt.Errorf("hotkey exec failed: %w", err)
 	}
 
-	a.logger.Info("hotkey exec completed", zap.String("key", key), zap.String("cmd", cmdStr), zap.ByteString("output", out))
+	a.logger.Info(
+		"hotkey exec completed",
+		zap.String("key", key),
+		zap.String("cmd", cmdStr),
+		zap.ByteString("output", out),
+	)
 	return nil
 }
 

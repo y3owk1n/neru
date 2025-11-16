@@ -81,7 +81,11 @@ func NewOverlay(cfg config.HintsConfig, logger *zap.Logger) (*Overlay, error) {
 }
 
 // NewOverlayWithWindow creates an overlay using a shared window.
-func NewOverlayWithWindow(cfg config.HintsConfig, logger *zap.Logger, windowPtr unsafe.Pointer) (*Overlay, error) {
+func NewOverlayWithWindow(
+	cfg config.HintsConfig,
+	logger *zap.Logger,
+	windowPtr unsafe.Pointer,
+) (*Overlay, error) {
 	hintDataPool = sync.Pool{New: func() any { s := make([]C.HintData, 0); return &s }}
 	cLabelSlicePool = sync.Pool{New: func() any { s := make([]*C.char, 0); return &s }}
 	return &Overlay{
@@ -94,27 +98,27 @@ func NewOverlayWithWindow(cfg config.HintsConfig, logger *zap.Logger, windowPtr 
 // Show shows the overlay.
 func (o *Overlay) Show() {
 	o.logger.Debug("Showing hint overlay")
-	C.showOverlayWindow(o.window)
+	C.NeruShowOverlayWindow(o.window)
 	o.logger.Debug("Hint overlay shown successfully")
 }
 
 // Hide hides the overlay.
 func (o *Overlay) Hide() {
 	o.logger.Debug("Hiding hint overlay")
-	C.hideOverlayWindow(o.window)
+	C.NeruHideOverlayWindow(o.window)
 	o.logger.Debug("Hint overlay hidden successfully")
 }
 
 // Clear clears all hints from the overlay.
 func (o *Overlay) Clear() {
 	o.logger.Debug("Clearing hint overlay")
-	C.clearOverlay(o.window)
+	C.NeruClearOverlay(o.window)
 	o.logger.Debug("Hint overlay cleared successfully")
 }
 
 // ResizeToActiveScreen resizes the overlay window to the screen containing the mouse cursor.
 func (o *Overlay) ResizeToActiveScreen() {
-	C.resizeOverlayToActiveScreen(o.window)
+	C.NeruResizeOverlayToActiveScreen(o.window)
 }
 
 // ResizeToActiveScreenSync resizes the overlay window synchronously with callback notification.
@@ -135,9 +139,11 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 
 	// Pass ID as context (safe - no Go pointers)
 	// Note: uintptr conversion must happen in same expression to satisfy go vet
-	C.resizeOverlayToActiveScreenWithCallback(
+	C.NeruResizeOverlayToActiveScreenWithCallback(
 		o.window,
-		(C.ResizeCompletionCallback)(unsafe.Pointer(C.resizeHintCompletionCallback)), //nolint:unconvert
+		(C.ResizeCompletionCallback)(
+			unsafe.Pointer(C.resizeHintCompletionCallback), //nolint:unconvert
+		),
 		*(*unsafe.Pointer)(unsafe.Pointer(&callbackID)),
 	)
 
@@ -146,14 +152,20 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 	// Start a goroutine to handle cleanup when callback eventually arrives
 	go func() {
 		if o.logger != nil {
-			o.logger.Debug("Hint overlay resize background cleanup started", zap.Uint64("callback_id", callbackID))
+			o.logger.Debug(
+				"Hint overlay resize background cleanup started",
+				zap.Uint64("callback_id", callbackID),
+			)
 		}
 
 		select {
 		case <-done:
 			// Callback received, normal cleanup already handled in callback
 			if o.logger != nil {
-				o.logger.Debug("Hint overlay resize callback received", zap.Uint64("callback_id", callbackID))
+				o.logger.Debug(
+					"Hint overlay resize callback received",
+					zap.Uint64("callback_id", callbackID),
+				)
 			}
 		case <-time.After(2 * time.Second):
 			// Long timeout for cleanup only - callback likely failed
@@ -180,7 +192,12 @@ func (o *Overlay) GetWindow() C.OverlayWindow {
 }
 
 // DrawTargetDot draws a small circular dot at the target position.
-func (o *Overlay) DrawTargetDot(x, y int, radius float64, color, borderColor string, borderWidth float64) error {
+func (o *Overlay) DrawTargetDot(
+	x, y int,
+	radius float64,
+	color, borderColor string,
+	borderWidth float64,
+) error {
 	center := C.CGPoint{
 		x: C.double(x),
 		y: C.double(y),
@@ -195,13 +212,24 @@ func (o *Overlay) DrawTargetDot(x, y int, radius float64, color, borderColor str
 		defer C.free(unsafe.Pointer(cBorderColor))
 	}
 
-	C.drawTargetDot(o.window, center, C.double(radius), cColor, cBorderColor, C.double(borderWidth))
+	C.NeruDrawTargetDot(
+		o.window,
+		center,
+		C.double(radius),
+		cColor,
+		cBorderColor,
+		C.double(borderWidth),
+	)
 
 	return nil
 }
 
 // DrawScrollHighlight draws a highlight around a scroll area.
-func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height int, color string, borderWidth int) {
+func (o *Overlay) DrawScrollHighlight(
+	xCoordinate, yCoordinate, width, height int,
+	color string,
+	borderWidth int,
+) {
 	o.logger.Debug("DrawScrollHighlight called")
 
 	renderBounds := C.CGRect{
@@ -218,7 +246,7 @@ func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height in
 	cColor := C.CString(color)
 	defer C.free(unsafe.Pointer(cColor))
 
-	C.drawScrollHighlight(o.window, renderBounds, cColor, C.int(borderWidth))
+	C.NeruDrawScrollHighlight(o.window, renderBounds, cColor, C.int(borderWidth))
 }
 
 // BuildStyle returns StyleMode based on action name using the provided config.
@@ -242,7 +270,7 @@ func BuildStyle(cfg config.HintsConfig) StyleMode {
 // Destroy destroys the overlay.
 func (o *Overlay) Destroy() {
 	if o.window != nil {
-		C.destroyOverlayWindow(o.window)
+		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
 	}
 }
@@ -333,7 +361,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	}
 
 	// Draw hints
-	C.drawHints(o.window, &cHints[0], C.int(len(cHints)), finalStyle)
+	C.NeruDrawHints(o.window, &cHints[0], C.int(len(cHints)), finalStyle)
 
 	// Free all C strings
 	for _, cLabel := range cLabels {

@@ -37,7 +37,11 @@ func NewGenerator(characters string) *Generator {
 	charCount := len(characters)
 	maxHints := charCount * charCount * charCount
 
-	logger.Debug("Considered characters", zap.String("characters", characters), zap.Int("charCount", charCount))
+	logger.Debug(
+		"Considered characters",
+		zap.String("characters", characters),
+		zap.Int("charCount", charCount),
+	)
 	logger.Debug("Setting maxHints", zap.Int("maxHints", maxHints))
 
 	return &Generator{

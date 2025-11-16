@@ -1,21 +1,35 @@
+//
+//  appwatcher.m
+//  Neru
+//
+//  Copyright © 2025 Neru. All rights reserved.
+//
+
 #import "appwatcher.h"
 #import <Cocoa/Cocoa.h>
 
-extern void handleAppLaunch(const char* appName, const char* bundleID);
-extern void handleAppTerminate(const char* appName, const char* bundleID);
-extern void handleAppActivate(const char* appName, const char* bundleID);
-extern void handleAppDeactivate(const char* appName, const char* bundleID);
+#pragma mark - External Function Declarations
+
+extern void handleAppLaunch(const char *appName, const char *bundleID);
+extern void handleAppTerminate(const char *appName, const char *bundleID);
+extern void handleAppActivate(const char *appName, const char *bundleID);
+extern void handleAppDeactivate(const char *appName, const char *bundleID);
 extern void handleScreenParametersChanged(void);
+
+#pragma mark - App Watcher Delegate Implementation
 
 @interface AppWatcherDelegate : NSObject
 @end
 
 @implementation AppWatcherDelegate
 
+/// Handle application launch notification
+/// @param notification Notification object
 - (void)applicationDidLaunch:(NSNotification *)notification {
     @autoreleasepool {
         NSRunningApplication *app = notification.userInfo[NSWorkspaceApplicationKey];
-        if (!app) return;
+        if (!app)
+            return;
 
         // Copy strings to prevent dangling pointers
         NSString *appName = app.localizedName ?: @"Unknown";
@@ -35,10 +49,13 @@ extern void handleScreenParametersChanged(void);
     }
 }
 
+/// Handle application termination notification
+/// @param notification Notification object
 - (void)applicationDidTerminate:(NSNotification *)notification {
     @autoreleasepool {
         NSRunningApplication *app = notification.userInfo[NSWorkspaceApplicationKey];
-        if (!app) return;
+        if (!app)
+            return;
 
         NSString *appName = app.localizedName ?: @"Unknown";
         NSString *bundleID = app.bundleIdentifier ?: @"unknown.bundle";
@@ -56,10 +73,13 @@ extern void handleScreenParametersChanged(void);
     }
 }
 
+/// Handle application activation notification
+/// @param notification Notification object
 - (void)applicationDidActivate:(NSNotification *)notification {
     @autoreleasepool {
         NSRunningApplication *app = notification.userInfo[NSWorkspaceApplicationKey];
-        if (!app) return;
+        if (!app)
+            return;
 
         NSString *appName = app.localizedName ?: @"Unknown";
         NSString *bundleID = app.bundleIdentifier ?: @"unknown.bundle";
@@ -88,10 +108,13 @@ extern void handleScreenParametersChanged(void);
     }
 }
 
+/// Handle application deactivation notification
+/// @param notification Notification object
 - (void)applicationDidDeactivate:(NSNotification *)notification {
     @autoreleasepool {
         NSRunningApplication *app = notification.userInfo[NSWorkspaceApplicationKey];
-        if (!app) return;
+        if (!app)
+            return;
 
         NSString *appName = app.localizedName ?: @"Unknown";
         NSString *bundleID = app.bundleIdentifier ?: @"unknown.bundle";
@@ -109,20 +132,26 @@ extern void handleScreenParametersChanged(void);
     }
 }
 
+/// Handle screen parameters change notification
+/// @param notification Notification object
 - (void)screenParametersDidChange:(NSNotification *)notification {
     @autoreleasepool {
         // Debounce to allow system to settle, then invoke Go handler on watcherQueue (not main thread)
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-            handleScreenParametersChanged();
-        });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
+                       dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+                           handleScreenParametersChanged();
+                       });
     }
 }
 
 @end
 
+#pragma mark - App Watcher Functions
+
 static AppWatcherDelegate *delegate = nil;
 static dispatch_queue_t watcherQueue = nil;
 
+/// Start the application watcher
 void startAppWatcher(void) {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -137,24 +166,24 @@ void startAppWatcher(void) {
             NSNotificationCenter *center = [workspace notificationCenter];
 
             [center addObserver:delegate
-                      selector:@selector(applicationDidLaunch:)
-                          name:NSWorkspaceDidLaunchApplicationNotification
-                        object:nil];
+                       selector:@selector(applicationDidLaunch:)
+                           name:NSWorkspaceDidLaunchApplicationNotification
+                         object:nil];
 
             [center addObserver:delegate
-                      selector:@selector(applicationDidTerminate:)
-                          name:NSWorkspaceDidTerminateApplicationNotification
-                        object:nil];
+                       selector:@selector(applicationDidTerminate:)
+                           name:NSWorkspaceDidTerminateApplicationNotification
+                         object:nil];
 
             [center addObserver:delegate
-                      selector:@selector(applicationDidActivate:)
-                          name:NSWorkspaceDidActivateApplicationNotification
-                        object:nil];
+                       selector:@selector(applicationDidActivate:)
+                           name:NSWorkspaceDidActivateApplicationNotification
+                         object:nil];
 
             [center addObserver:delegate
-                      selector:@selector(applicationDidDeactivate:)
-                          name:NSWorkspaceDidDeactivateApplicationNotification
-                        object:nil];
+                       selector:@selector(applicationDidDeactivate:)
+                           name:NSWorkspaceDidDeactivateApplicationNotification
+                         object:nil];
 
             // Observe screen parameter changes (display add/remove, resolution changes)
             [[NSNotificationCenter defaultCenter] addObserver:delegate
@@ -165,13 +194,14 @@ void startAppWatcher(void) {
     });
 }
 
+/// Stop the application watcher
 void stopAppWatcher(void) {
     dispatch_sync(watcherQueue, ^{
         if (delegate != nil) {
             NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
             NSNotificationCenter *center = [workspace notificationCenter];
             [center removeObserver:delegate];
-            delegate = nil;  // ARC will handle deallocation
+            delegate = nil; // ARC will handle deallocation
         }
     });
 }

@@ -98,7 +98,10 @@ func (a *App) collectClickableElements(missionControlActive bool) []*accessibili
 }
 
 // addSupplementaryElements adds menubar, dock, and notification center elements.
-func (a *App) addSupplementaryElements(elements []*accessibility.TreeNode, missionControlActive bool) []*accessibility.TreeNode {
+func (a *App) addSupplementaryElements(
+	elements []*accessibility.TreeNode,
+	missionControlActive bool,
+) []*accessibility.TreeNode {
 	// Menubar elements
 	if !missionControlActive {
 		elements = a.addMenubarElements(elements)
@@ -176,7 +179,9 @@ func (a *App) addDockElements(elements []*accessibility.TreeNode) []*accessibili
 }
 
 // addNotificationCenterElements adds notification center clickable elements.
-func (a *App) addNotificationCenterElements(elements []*accessibility.TreeNode) []*accessibility.TreeNode {
+func (a *App) addNotificationCenterElements(
+	elements []*accessibility.TreeNode,
+) []*accessibility.TreeNode {
 	if !a.config.Hints.IncludeNCHints {
 		return elements
 	}

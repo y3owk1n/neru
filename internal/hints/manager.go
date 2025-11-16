@@ -44,13 +44,20 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 		return nil, false
 	}
 
-	m.logger.Debug("Hint manager: Processing input", zap.String("key", key), zap.String("current_input", m.currentInput))
+	m.logger.Debug(
+		"Hint manager: Processing input",
+		zap.String("key", key),
+		zap.String("current_input", m.currentInput),
+	)
 
 	// Handle backspace
 	if key == "\x7f" || key == "delete" || key == "backspace" {
 		if len(m.currentInput) > 0 {
 			m.currentInput = m.currentInput[:len(m.currentInput)-1]
-			m.logger.Debug("Hint manager: Backspace processed", zap.String("new_input", m.currentInput))
+			m.logger.Debug(
+				"Hint manager: Backspace processed",
+				zap.String("new_input", m.currentInput),
+			)
 			m.updateHints()
 		} else {
 			m.logger.Debug("Hint manager: Resetting on backspace with empty input")

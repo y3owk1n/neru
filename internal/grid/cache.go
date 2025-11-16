@@ -33,8 +33,10 @@ type Cache struct {
 	capacity int
 }
 
-var gridCache = newCache(8)
-var gridCacheEnabled = true
+var (
+	gridCache        = newCache(8)
+	gridCacheEnabled = true
+)
 
 // SetGridCacheEnabled enables or disables the grid cache.
 func SetGridCacheEnabled(enabled bool) {
@@ -56,7 +58,11 @@ func Prewarm(characters string, sizes []image.Rectangle) {
 }
 
 func newCache(capacity int) *Cache {
-	return &Cache{items: make(map[gridCacheKey]*list.Element), order: list.New(), capacity: capacity}
+	return &Cache{
+		items:    make(map[gridCacheKey]*list.Element),
+		order:    list.New(),
+		capacity: capacity,
+	}
 }
 
 func (c *Cache) get(characters string, bounds image.Rectangle) ([]*Cell, bool) {

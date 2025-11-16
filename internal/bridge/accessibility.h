@@ -1,74 +1,221 @@
+//
+//  accessibility.h
+//  Neru
+//
+//  Copyright © 2025 Neru. All rights reserved.
+//
+
 #ifndef ACCESSIBILITY_H
 #define ACCESSIBILITY_H
 
-#import <Foundation/Foundation.h>
 #import <ApplicationServices/ApplicationServices.h>
+#import <Foundation/Foundation.h>
 
-// Element information structure
+#pragma mark - Element Information
+
+/// Structure containing information about an accessibility element
 typedef struct {
-    CGPoint position;
-    CGSize size;
-    char* title;
-    char* role;
-    char* roleDescription;
-    bool isEnabled;
-    bool isFocused;
-    int pid;
+    CGPoint position;      ///< Element position
+    CGSize size;           ///< Element size
+    char *title;           ///< Element title
+    char *role;            ///< Element role
+    char *roleDescription; ///< Element role description
+    bool isEnabled;        ///< Whether element is enabled
+    bool isFocused;        ///< Whether element is focused
+    int pid;               ///< Process identifier
 } ElementInfo;
 
-// Function declarations
-int checkAccessibilityPermissions();
+#pragma mark - Permission Functions
 
-void* getSystemWideElement();
-void* getFocusedApplication();
-void* getApplicationByPID(int pid);
-void* getApplicationByBundleId(const char* bundle_id);
-void* getMenuBar(void* app);
+/// Check if accessibility permissions are granted
+/// @return 1 if permissions are granted, 0 otherwise
+int checkAccessibilityPermissions(void);
 
-ElementInfo* getElementInfo(void* element);
-void freeElementInfo(ElementInfo* info);
+#pragma mark - Application Functions
 
-void* getElementAtPosition(CGPoint position);
+/// Get system-wide accessibility element
+/// @return System-wide element reference
+void *getSystemWideElement(void);
 
-int getChildrenCount(void* element);
-void** getChildren(void* element, int* count);
-void** getVisibleRows(void* element, int* count);
+/// Get currently focused application
+/// @return Focused application reference
+void *getFocusedApplication(void);
 
-int getElementCenter(void* element, CGPoint* outPoint);
+/// Get application by process identifier
+/// @param pid Process identifier
+/// @return Application reference
+void *getApplicationByPID(int pid);
 
+/// Get application by bundle identifier
+/// @param bundle_id Bundle identifier
+/// @return Application reference
+void *getApplicationByBundleId(const char *bundle_id);
+
+/// Get menu bar of an application
+/// @param app Application reference
+/// @return Menu bar reference
+void *getMenuBar(void *app);
+
+#pragma mark - Element Functions
+
+/// Get information about an element
+/// @param element Element reference
+/// @return Element information structure
+ElementInfo *getElementInfo(void *element);
+
+/// Free element information structure
+/// @param info Element information structure
+void freeElementInfo(ElementInfo *info);
+
+/// Get element at screen position
+/// @param position Screen position
+/// @return Element reference
+void *getElementAtPosition(CGPoint position);
+
+/// Get number of child elements
+/// @param element Element reference
+/// @return Number of children
+int getChildrenCount(void *element);
+
+/// Get child elements
+/// @param element Element reference
+/// @param count Output parameter for number of children
+/// @return Array of child element references
+void **getChildren(void *element, int *count);
+
+/// Get visible rows of an element
+/// @param element Element reference
+/// @param count Output parameter for number of rows
+/// @return Array of row element references
+void **getVisibleRows(void *element, int *count);
+
+/// Get center point of an element
+/// @param element Element reference
+/// @param outPoint Output parameter for center point
+/// @return 1 on success, 0 on failure
+int getElementCenter(void *element, CGPoint *outPoint);
+
+#pragma mark - Mouse Functions
+
+/// Move mouse cursor to position
+/// @param position Target position
 void moveMouse(CGPoint position);
 
-// Click functions - perform click actions on accessibility elements and restore cursor position
+/// Check if element has click action
+/// @param element Element reference
+/// @return 1 if element is clickable, 0 otherwise
+int hasClickAction(void *element);
 
-int hasClickAction(void* element);
-int setFocus(void* element);
+/// Set focus to element
+/// @param element Element reference
+/// @return 1 on success, 0 on failure
+int setFocus(void *element);
 
-char* getElementAttribute(void* element, const char* attribute);
-void freeString(char* str);
-void releaseElement(void* element);
+/// Get element attribute value
+/// @param element Element reference
+/// @param attribute Attribute name
+/// @return Attribute value string
+char *getElementAttribute(void *element, const char *attribute);
 
-// Window and application functions
-void** getAllWindows(int* count);
-void* getFrontmostWindow();
-char* getApplicationName(void* app);
-char* getBundleIdentifier(void* app);
-int setApplicationAttribute(int pid, const char* attribute, int value);
+/// Free string allocated by getElementAttribute
+/// @param str String to free
+void freeString(char *str);
 
-// Scroll functions
-CGRect getScrollBounds(void* element);
+/// Release element reference
+/// @param element Element reference
+void releaseElement(void *element);
+
+#pragma mark - Window Functions
+
+/// Get all windows of focused application
+/// @param count Output parameter for number of windows
+/// @return Array of window references
+void **getAllWindows(int *count);
+
+/// Get frontmost window
+/// @return Frontmost window reference
+void *getFrontmostWindow(void);
+
+/// Get application name
+/// @param app Application reference
+/// @return Application name string
+char *getApplicationName(void *app);
+
+/// Get bundle identifier
+/// @param app Application reference
+/// @return Bundle identifier string
+char *getBundleIdentifier(void *app);
+
+/// Set application attribute
+/// @param pid Process identifier
+/// @param attribute Attribute name
+/// @param value Attribute value
+/// @return 1 on success, 0 on failure
+int setApplicationAttribute(int pid, const char *attribute, int value);
+
+#pragma mark - Scroll Functions
+
+/// Get scroll bounds of element
+/// @param element Element reference
+/// @return Scroll bounds rectangle
+CGRect getScrollBounds(void *element);
+
+/// Scroll at cursor position
+/// @param deltaX Horizontal scroll amount
+/// @param deltaY Vertical scroll amount
+/// @return 1 on success, 0 on failure
 int scrollAtCursor(int deltaX, int deltaY);
 
-// Point-based mouse actions
+#pragma mark - Mouse Action Functions
+
+/// Perform left click at position
+/// @param position Target position
+/// @param restoreCursor Whether to restore cursor position after click
+/// @return 1 on success, 0 on failure
 int performLeftClickAtPosition(CGPoint position, bool restoreCursor);
+
+/// Perform right click at position
+/// @param position Target position
+/// @param restoreCursor Whether to restore cursor position after click
+/// @return 1 on success, 0 on failure
 int performRightClickAtPosition(CGPoint position, bool restoreCursor);
+
+/// Perform middle click at position
+/// @param position Target position
+/// @param restoreCursor Whether to restore cursor position after click
+/// @return 1 on success, 0 on failure
 int performMiddleClickAtPosition(CGPoint position, bool restoreCursor);
+
+/// Perform left mouse down at position
+/// @param position Target position
+/// @return 1 on success, 0 on failure
 int performLeftMouseDownAtPosition(CGPoint position);
+
+/// Perform left mouse up at position
+/// @param position Target position
+/// @return 1 on success, 0 on failure
 int performLeftMouseUpAtPosition(CGPoint position);
+
+/// Perform left mouse up at cursor position
+/// @return 1 on success, 0 on failure
 int performLeftMouseUpAtCursor(void);
 
-bool isMissionControlActive();
-CGRect getMainScreenBounds();
-CGRect getActiveScreenBounds();
-CGPoint getCurrentCursorPosition();
+#pragma mark - Screen Functions
+
+/// Check if Mission Control is active
+/// @return true if Mission Control is active, false otherwise
+bool isMissionControlActive(void);
+
+/// Get main screen bounds
+/// @return Main screen bounds rectangle
+CGRect getMainScreenBounds(void);
+
+/// Get active screen bounds (screen containing cursor)
+/// @return Active screen bounds rectangle
+CGRect getActiveScreenBounds(void);
+
+/// Get current cursor position
+/// @return Current cursor position
+CGPoint getCurrentCursorPosition(void);
 
 #endif // ACCESSIBILITY_H

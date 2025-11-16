@@ -561,19 +561,25 @@ func (c *Config) validateHints() error {
 
 	for _, bundle := range c.Hints.AdditionalAXSupport.AdditionalElectronBundles {
 		if strings.TrimSpace(bundle) == "" {
-			return errors.New("hints.electron_support.additional_electron_bundles cannot contain empty values")
+			return errors.New(
+				"hints.electron_support.additional_electron_bundles cannot contain empty values",
+			)
 		}
 	}
 
 	for _, bundle := range c.Hints.AdditionalAXSupport.AdditionalChromiumBundles {
 		if strings.TrimSpace(bundle) == "" {
-			return errors.New("hints.electron_support.additional_chromium_bundles cannot contain empty values")
+			return errors.New(
+				"hints.electron_support.additional_chromium_bundles cannot contain empty values",
+			)
 		}
 	}
 
 	for _, bundle := range c.Hints.AdditionalAXSupport.AdditionalFirefoxBundles {
 		if strings.TrimSpace(bundle) == "" {
-			return errors.New("hints.electron_support.additional_firefox_bundles cannot contain empty values")
+			return errors.New(
+				"hints.electron_support.additional_firefox_bundles cannot contain empty values",
+			)
 		}
 	}
 
@@ -603,7 +609,10 @@ func (c *Config) validateAppConfigs() error {
 		}
 		for _, role := range appConfig.AdditionalClickable {
 			if strings.TrimSpace(role) == "" {
-				return fmt.Errorf("hints.app_configs[%d].additional_clickable_roles cannot contain empty values", index)
+				return fmt.Errorf(
+					"hints.app_configs[%d].additional_clickable_roles cannot contain empty values",
+					index,
+				)
 			}
 		}
 	}
@@ -664,7 +673,10 @@ func (c *Config) validateGrid() error {
 		// Subgrid is always 3x3, requiring at least 9 characters
 		const required = 9
 		if len([]rune(keys)) < required {
-			return fmt.Errorf("grid.sublayer_keys must contain at least %d characters for 3x3 subgrid selection", required)
+			return fmt.Errorf(
+				"grid.sublayer_keys must contain at least %d characters for 3x3 subgrid selection",
+				required,
+			)
 		}
 	}
 	return nil
@@ -710,8 +722,12 @@ func validateHotkey(hotkey, fieldName string) error {
 	for i := range parts[:len(parts)-1] {
 		modifier := strings.TrimSpace(parts[i])
 		if !validModifiers[modifier] {
-			return fmt.Errorf("%s has invalid modifier '%s' in: %s (valid: Cmd, Ctrl, Alt, Shift, Option)",
-				fieldName, modifier, hotkey)
+			return fmt.Errorf(
+				"%s has invalid modifier '%s' in: %s (valid: Cmd, Ctrl, Alt, Shift, Option)",
+				fieldName,
+				modifier,
+				hotkey,
+			)
 		}
 	}
 
@@ -734,8 +750,11 @@ func validateColor(color, fieldName string) error {
 	hexColorRegex := regexp.MustCompile(`^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$`)
 
 	if !hexColorRegex.MatchString(color) {
-		return fmt.Errorf("%s has invalid hex color format: %s (expected #RGB, #RRGGBB, or #RRGGBBAA)",
-			fieldName, color)
+		return fmt.Errorf(
+			"%s has invalid hex color format: %s (expected #RGB, #RRGGBB, or #RRGGBBAA)",
+			fieldName,
+			color,
+		)
 	}
 
 	return nil

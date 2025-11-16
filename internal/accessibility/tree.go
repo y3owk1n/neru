@@ -112,7 +112,12 @@ var interactiveLeafRoles = map[string]bool{
 	"AXMenuItem":           true,
 }
 
-func buildTreeRecursive(parent *TreeNode, depth int, opts TreeOptions, windowBounds image.Rectangle) {
+func buildTreeRecursive(
+	parent *TreeNode,
+	depth int,
+	opts TreeOptions,
+	windowBounds image.Rectangle,
+) {
 	// Early exit for roles that can't have interactive children
 	if nonInteractiveRoles[parent.Info.Role] {
 		logger.Debug("Skipping non-interactive role",
@@ -161,7 +166,13 @@ func buildTreeRecursive(parent *TreeNode, depth int, opts TreeOptions, windowBou
 	}
 }
 
-func buildChildrenSequential(parent *TreeNode, children []*Element, depth int, opts TreeOptions, windowBounds image.Rectangle) {
+func buildChildrenSequential(
+	parent *TreeNode,
+	children []*Element,
+	depth int,
+	opts TreeOptions,
+	windowBounds image.Rectangle,
+) {
 	parent.Children = make([]*TreeNode, 0, len(children))
 
 	validCount := 0
@@ -203,7 +214,13 @@ func buildChildrenSequential(parent *TreeNode, children []*Element, depth int, o
 		zap.Int("total_children", len(children)))
 }
 
-func buildChildrenParallel(parent *TreeNode, children []*Element, depth int, opts TreeOptions, windowBounds image.Rectangle) {
+func buildChildrenParallel(
+	parent *TreeNode,
+	children []*Element,
+	depth int,
+	opts TreeOptions,
+	windowBounds image.Rectangle,
+) {
 	logger.Debug("Starting parallel child processing",
 		zap.String("parent_role", parent.Info.Role),
 		zap.Int("child_count", len(children)),
@@ -230,7 +247,10 @@ func buildChildrenParallel(parent *TreeNode, children []*Element, depth int, opt
 				var err error
 				info, err = elem.GetInfo()
 				if err != nil {
-					logger.Debug("Failed to get child element info in parallel processing", zap.Error(err))
+					logger.Debug(
+						"Failed to get child element info in parallel processing",
+						zap.Error(err),
+					)
 					return
 				}
 				opts.Cache.Set(elem, info)

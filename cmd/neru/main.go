@@ -105,7 +105,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 	// Check accessibility permissions
 	if cfg.General.AccessibilityCheckOnStart {
 		if !accessibility.CheckAccessibilityPermissions() {
-			log.Warn("Accessibility permissions not granted. Please grant permissions in System Settings.")
+			log.Warn(
+				"Accessibility permissions not granted. Please grant permissions in System Settings.",
+			)
 			log.Info("⚠️  Neru requires Accessibility permissions to function.")
 			log.Info("Please go to: System Settings → Privacy & Security → Accessibility")
 			log.Info("and enable Neru.")
@@ -144,7 +146,11 @@ func NewApp(cfg *config.Config) (*App, error) {
 	// Create scroll controller
 	scrollCtrl := scroll.NewController(cfg.Scroll, log)
 
-	scrollOverlay, err := scroll.NewOverlayWithWindow(cfg.Scroll, log, overlayManager.GetWindowPtr())
+	scrollOverlay, err := scroll.NewOverlayWithWindow(
+		cfg.Scroll,
+		log,
+		overlayManager.GetWindowPtr(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create scroll overlay: %w", err)
 	}
@@ -186,7 +192,11 @@ func NewApp(cfg *config.Config) (*App, error) {
 	}
 
 	// Create action overlay after hints overlay is created
-	actionOverlay, err := action.NewOverlayWithWindow(cfg.Action, log, overlayManager.GetWindowPtr())
+	actionOverlay, err := action.NewOverlayWithWindow(
+		cfg.Action,
+		log,
+		overlayManager.GetWindowPtr(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create action overlay: %w", err)
 	}

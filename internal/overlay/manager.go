@@ -85,16 +85,16 @@ func Get() *Manager {
 func (m *Manager) GetWindowPtr() unsafe.Pointer { return unsafe.Pointer(m.window) }
 
 // Show shows the overlay window.
-func (m *Manager) Show() { C.showOverlayWindow(m.window) }
+func (m *Manager) Show() { C.NeruShowOverlayWindow(m.window) }
 
 // Hide hides the overlay window.
-func (m *Manager) Hide() { C.hideOverlayWindow(m.window) }
+func (m *Manager) Hide() { C.NeruHideOverlayWindow(m.window) }
 
 // Clear clears the overlay window.
-func (m *Manager) Clear() { C.clearOverlay(m.window) }
+func (m *Manager) Clear() { C.NeruClearOverlay(m.window) }
 
 // ResizeToActiveScreenSync resizes the overlay window to the active screen synchronously.
-func (m *Manager) ResizeToActiveScreenSync() { C.resizeOverlayToActiveScreen(m.window) }
+func (m *Manager) ResizeToActiveScreenSync() { C.NeruResizeOverlayToActiveScreen(m.window) }
 
 // SwitchTo switches the overlay to the specified mode.
 func (m *Manager) SwitchTo(next Mode) {
@@ -103,7 +103,11 @@ func (m *Manager) SwitchTo(next Mode) {
 	m.mode = next
 	m.mu.Unlock()
 	if m.logger != nil {
-		m.logger.Debug("Overlay mode switch", zap.String("prev", string(prev)), zap.String("next", string(next)))
+		m.logger.Debug(
+			"Overlay mode switch",
+			zap.String("prev", string(prev)),
+			zap.String("next", string(next)),
+		)
 	}
 	m.publish(StateChange{Prev: prev, Next: next})
 }
@@ -128,7 +132,7 @@ func (m *Manager) Unsubscribe(id uint64) {
 // Destroy destroys the overlay window.
 func (m *Manager) Destroy() {
 	if m.window != nil {
-		C.destroyOverlayWindow(m.window)
+		C.NeruDestroyOverlayWindow(m.window)
 		m.window = nil
 	}
 }

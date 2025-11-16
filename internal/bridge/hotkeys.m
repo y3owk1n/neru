@@ -1,17 +1,29 @@
+//
+//  hotkeys.m
+//  Neru
+//
+//  Copyright © 2025 Neru. All rights reserved.
+//
+
 #import "hotkeys.h"
 #import <Carbon/Carbon.h>
 #import <Cocoa/Cocoa.h>
 
-// Forward declaration
+#pragma mark - Forward Declarations
+
 static OSStatus hotkeyHandler(EventHandlerCallRef nextHandler, EventRef event, void *userData);
+
+#pragma mark - Global Variables
 
 static NSMutableDictionary *hotkeyRefs = nil;
 static NSMutableDictionary *hotkeyCallbacks = nil;
 static EventHandlerRef eventHandlerRef = NULL;
 static dispatch_queue_t hotkeyQueue = nil;
 
-// Initialize storage
-static void initializeStorage() {
+#pragma mark - Storage Functions
+
+/// Initialize storage
+static void initializeStorage(void) {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         hotkeyRefs = [NSMutableDictionary dictionary];
@@ -26,7 +38,13 @@ static void initializeStorage() {
     });
 }
 
-// Hotkey handler
+#pragma mark - Event Handler Functions
+
+/// Hotkey handler
+/// @param nextHandler Next event handler
+/// @param event Event reference
+/// @param userData User data pointer
+/// @return OSStatus
 static OSStatus hotkeyHandler(EventHandlerCallRef nextHandler, EventRef event, void *userData) {
     EventHotKeyID hotkeyID;
     GetEventParameter(event, kEventParamDirectObject, typeEventHotKeyID, NULL, sizeof(hotkeyID), NULL, &hotkeyID);
@@ -54,16 +72,28 @@ static OSStatus hotkeyHandler(EventHandlerCallRef nextHandler, EventRef event, v
     return noErr;
 }
 
-// Register hotkey
-int registerHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback callback, void* userData) {
+#pragma mark - Hotkey Functions
+
+/// Register hotkey
+/// @param keyCode Key code
+/// @param modifiers Modifier keys
+/// @param hotkeyId Hotkey identifier
+/// @param callback Callback function
+/// @param userData User data pointer
+/// @return 1 on success, 0 on failure
+int registerHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback callback, void *userData) {
     initializeStorage();
 
     // Convert modifiers
     UInt32 carbonModifiers = 0;
-    if (modifiers & ModifierCmd) carbonModifiers |= cmdKey;
-    if (modifiers & ModifierShift) carbonModifiers |= shiftKey;
-    if (modifiers & ModifierAlt) carbonModifiers |= optionKey;
-    if (modifiers & ModifierCtrl) carbonModifiers |= controlKey;
+    if (modifiers & ModifierCmd)
+        carbonModifiers |= cmdKey;
+    if (modifiers & ModifierShift)
+        carbonModifiers |= shiftKey;
+    if (modifiers & ModifierAlt)
+        carbonModifiers |= optionKey;
+    if (modifiers & ModifierCtrl)
+        carbonModifiers |= controlKey;
 
     // Create hotkey ID
     EventHotKeyID hotkeyID;
@@ -72,8 +102,8 @@ int registerHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback call
 
     // Register hotkey
     EventHotKeyRef hotkeyRef;
-    OSStatus status = RegisterEventHotKey(keyCode, carbonModifiers, hotkeyID,
-                                         GetApplicationEventTarget(), 0, &hotkeyRef);
+    OSStatus status =
+        RegisterEventHotKey(keyCode, carbonModifiers, hotkeyID, GetApplicationEventTarget(), 0, &hotkeyRef);
 
     if (status != noErr) {
         return 0;
@@ -81,10 +111,8 @@ int registerHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback call
 
     // Store reference and callback (thread-safe)
     NSNumber *key = @(hotkeyId);
-    NSDictionary *callbackInfo = @{
-        @"callback": [NSValue valueWithPointer:callback],
-        @"userData": [NSValue valueWithPointer:userData]
-    };
+    NSDictionary *callbackInfo =
+        @{@"callback" : [NSValue valueWithPointer:callback], @"userData" : [NSValue valueWithPointer:userData]};
 
     dispatch_sync(hotkeyQueue, ^{
         hotkeyRefs[key] = [NSValue valueWithPointer:hotkeyRef];
@@ -94,9 +122,11 @@ int registerHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback call
     return 1;
 }
 
-// Unregister hotkey
+/// Unregister hotkey
+/// @param hotkeyId Hotkey identifier
 void unregisterHotkey(int hotkeyId) {
-    if (!hotkeyRefs) return;
+    if (!hotkeyRefs)
+        return;
 
     NSNumber *key = @(hotkeyId);
 
@@ -118,9 +148,10 @@ void unregisterHotkey(int hotkeyId) {
     }
 }
 
-// Unregister all hotkeys
-void unregisterAllHotkeys() {
-    if (!hotkeyRefs) return;
+/// Unregister all hotkeys
+void unregisterAllHotkeys(void) {
+    if (!hotkeyRefs)
+        return;
 
     __block NSArray *allRefs = nil;
 
@@ -138,8 +169,8 @@ void unregisterAllHotkeys() {
     }
 }
 
-// Cleanup (call this before app termination)
-void cleanupHotkeys() {
+/// Cleanup (call this before app termination)
+void cleanupHotkeys(void) {
     unregisterAllHotkeys();
 
     if (eventHandlerRef) {
@@ -153,9 +184,14 @@ void cleanupHotkeys() {
     }
 }
 
-// Parse key string (e.g., "Cmd+Shift+Space")
-int parseKeyString(const char* keyString, int* keyCode, int* modifiers) {
-    if (!keyString || !keyCode || !modifiers) return 0;
+/// Parse key string (e.g., "Cmd+Shift+Space")
+/// @param keyString Key string
+/// @param keyCode Output parameter for key code
+/// @param modifiers Output parameter for modifiers
+/// @return 1 on success, 0 on failure
+int parseKeyString(const char *keyString, int *keyCode, int *modifiers) {
+    if (!keyString || !keyCode || !modifiers)
+        return 0;
 
     @autoreleasepool {
         NSString *keyStr = @(keyString);
@@ -180,37 +216,78 @@ int parseKeyString(const char* keyString, int* keyCode, int* modifiers) {
             }
         }
 
-        if (!mainKey) return 0;
+        if (!mainKey)
+            return 0;
 
         // Map key names to key codes
         NSDictionary *keyMap = @{
-            @"Space": @(49),
-            @"Return": @(36),
-            @"Enter": @(36),
-            @"Escape": @(53),
-            @"Tab": @(48),
-            @"Delete": @(51),
-            @"Backspace": @(51),
+            @"Space" : @(49),
+            @"Return" : @(36),
+            @"Enter" : @(36),
+            @"Escape" : @(53),
+            @"Tab" : @(48),
+            @"Delete" : @(51),
+            @"Backspace" : @(51),
 
             // Letters
-            @"A": @(0), @"B": @(11), @"C": @(8), @"D": @(2), @"E": @(14),
-            @"F": @(3), @"G": @(5), @"H": @(4), @"I": @(34), @"J": @(38),
-            @"K": @(40), @"L": @(37), @"M": @(46), @"N": @(45), @"O": @(31),
-            @"P": @(35), @"Q": @(12), @"R": @(15), @"S": @(1), @"T": @(17),
-            @"U": @(32), @"V": @(9), @"W": @(13), @"X": @(7), @"Y": @(16),
-            @"Z": @(6),
+            @"A" : @(0),
+            @"B" : @(11),
+            @"C" : @(8),
+            @"D" : @(2),
+            @"E" : @(14),
+            @"F" : @(3),
+            @"G" : @(5),
+            @"H" : @(4),
+            @"I" : @(34),
+            @"J" : @(38),
+            @"K" : @(40),
+            @"L" : @(37),
+            @"M" : @(46),
+            @"N" : @(45),
+            @"O" : @(31),
+            @"P" : @(35),
+            @"Q" : @(12),
+            @"R" : @(15),
+            @"S" : @(1),
+            @"T" : @(17),
+            @"U" : @(32),
+            @"V" : @(9),
+            @"W" : @(13),
+            @"X" : @(7),
+            @"Y" : @(16),
+            @"Z" : @(6),
 
             // Numbers
-            @"0": @(29), @"1": @(18), @"2": @(19), @"3": @(20), @"4": @(21),
-            @"5": @(23), @"6": @(22), @"7": @(26), @"8": @(28), @"9": @(25),
+            @"0" : @(29),
+            @"1" : @(18),
+            @"2" : @(19),
+            @"3" : @(20),
+            @"4" : @(21),
+            @"5" : @(23),
+            @"6" : @(22),
+            @"7" : @(26),
+            @"8" : @(28),
+            @"9" : @(25),
 
             // Function keys
-            @"F1": @(122), @"F2": @(120), @"F3": @(99), @"F4": @(118),
-            @"F5": @(96), @"F6": @(97), @"F7": @(98), @"F8": @(100),
-            @"F9": @(101), @"F10": @(109), @"F11": @(103), @"F12": @(111),
+            @"F1" : @(122),
+            @"F2" : @(120),
+            @"F3" : @(99),
+            @"F4" : @(118),
+            @"F5" : @(96),
+            @"F6" : @(97),
+            @"F7" : @(98),
+            @"F8" : @(100),
+            @"F9" : @(101),
+            @"F10" : @(109),
+            @"F11" : @(103),
+            @"F12" : @(111),
 
             // Arrow keys
-            @"Left": @(123), @"Right": @(124), @"Down": @(125), @"Up": @(126),
+            @"Left" : @(123),
+            @"Right" : @(124),
+            @"Down" : @(125),
+            @"Up" : @(126),
         };
 
         NSNumber *keyCodeNum = keyMap[mainKey];
@@ -219,7 +296,9 @@ int parseKeyString(const char* keyString, int* keyCode, int* modifiers) {
             keyCodeNum = keyMap[[mainKey uppercaseString]];
         }
 
-        if (!keyCodeNum) return 0;
+        if (!keyCodeNum) {
+            return 0;
+        }
 
         *keyCode = [keyCodeNum intValue];
         return 1;

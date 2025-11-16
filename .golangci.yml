@@ -1,6 +1,13 @@
 version: "2"
 run:
   tests: true
+formatters:
+  enable:
+    - gci
+    - goimports
+    - gofmt
+    - gofumpt
+    - golines
 linters:
   default: all
   disable:

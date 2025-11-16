@@ -23,7 +23,12 @@ var (
 // using the zap logging library with file rotation support.
 
 // Init initializes the global logger.
-func Init(logLevel, logFilePath string, structured bool, disableFileLogging bool, maxFileSize, maxBackups, maxAge int) error {
+func Init(
+	logLevel, logFilePath string,
+	structured bool,
+	disableFileLogging bool,
+	maxFileSize, maxBackups, maxAge int,
+) error {
 	logFileMu.Lock()
 	defer logFileMu.Unlock()
 
@@ -88,7 +93,7 @@ func Init(logLevel, logFilePath string, structured bool, disableFileLogging bool
 
 		// Create log directory
 		logDir := filepath.Dir(logFilePath)
-		err := os.MkdirAll(logDir, 0750)
+		err := os.MkdirAll(logDir, 0o750)
 		if err != nil {
 			return fmt.Errorf("failed to create log directory: %w", err)
 		}

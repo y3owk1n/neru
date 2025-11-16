@@ -61,7 +61,11 @@ func NewOverlay(cfg config.ScrollConfig, logger *zap.Logger) (*Overlay, error) {
 }
 
 // NewOverlayWithWindow creates a scroll overlay using a shared window.
-func NewOverlayWithWindow(cfg config.ScrollConfig, logger *zap.Logger, windowPtr unsafe.Pointer) (*Overlay, error) {
+func NewOverlayWithWindow(
+	cfg config.ScrollConfig,
+	logger *zap.Logger,
+	windowPtr unsafe.Pointer,
+) (*Overlay, error) {
 	return &Overlay{
 		window: (C.OverlayWindow)(windowPtr),
 		config: cfg,
@@ -72,27 +76,27 @@ func NewOverlayWithWindow(cfg config.ScrollConfig, logger *zap.Logger, windowPtr
 // Show shows the overlay.
 func (o *Overlay) Show() {
 	o.logger.Debug("Showing scroll overlay")
-	C.showOverlayWindow(o.window)
+	C.NeruShowOverlayWindow(o.window)
 	o.logger.Debug("Scroll overlay shown successfully")
 }
 
 // Hide hides the overlay.
 func (o *Overlay) Hide() {
 	o.logger.Debug("Hiding scroll overlay")
-	C.hideOverlayWindow(o.window)
+	C.NeruHideOverlayWindow(o.window)
 	o.logger.Debug("Scroll overlay hidden successfully")
 }
 
 // Clear clears all scroll from the overlay.
 func (o *Overlay) Clear() {
 	o.logger.Debug("Clearing scroll overlay")
-	C.clearOverlay(o.window)
+	C.NeruClearOverlay(o.window)
 	o.logger.Debug("Scroll overlay cleared successfully")
 }
 
 // ResizeToActiveScreen resizes the overlay window to the screen containing the mouse cursor.
 func (o *Overlay) ResizeToActiveScreen() {
-	C.resizeOverlayToActiveScreen(o.window)
+	C.NeruResizeOverlayToActiveScreen(o.window)
 }
 
 // ResizeToActiveScreenSync resizes the overlay window synchronously with callback notification.
@@ -113,9 +117,11 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 
 	// Pass ID as context (safe - no Go pointers)
 	// Note: uintptr conversion must happen in same expression to satisfy go vet
-	C.resizeOverlayToActiveScreenWithCallback(
+	C.NeruResizeOverlayToActiveScreenWithCallback(
 		o.window,
-		(C.ResizeCompletionCallback)(unsafe.Pointer(C.resizeScrollCompletionCallback)), //nolint:unconvert
+		(C.ResizeCompletionCallback)(
+			unsafe.Pointer(C.resizeScrollCompletionCallback), //nolint:unconvert
+		),
 		*(*unsafe.Pointer)(unsafe.Pointer(&callbackID)),
 	)
 
@@ -124,14 +130,20 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 	// Start a goroutine to handle cleanup when callback eventually arrives
 	go func() {
 		if o.logger != nil {
-			o.logger.Debug("Scroll overlay resize background cleanup started", zap.Uint64("callback_id", callbackID))
+			o.logger.Debug(
+				"Scroll overlay resize background cleanup started",
+				zap.Uint64("callback_id", callbackID),
+			)
 		}
 
 		select {
 		case <-done:
 			// Callback received, normal cleanup already handled in callback
 			if o.logger != nil {
-				o.logger.Debug("Scroll overlay resize callback received", zap.Uint64("callback_id", callbackID))
+				o.logger.Debug(
+					"Scroll overlay resize callback received",
+					zap.Uint64("callback_id", callbackID),
+				)
 			}
 		case <-time.After(2 * time.Second):
 			// Long timeout for cleanup only - callback likely failed
@@ -169,8 +181,11 @@ func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height in
 
 	// Top
 	lines[1] = C.CGRect{
-		origin: C.CGPoint{x: C.double(xCoordinate), y: C.double(yCoordinate + height - borderWidth)},
-		size:   C.CGSize{width: C.double(width), height: C.double(borderWidth)},
+		origin: C.CGPoint{
+			x: C.double(xCoordinate),
+			y: C.double(yCoordinate + height - borderWidth),
+		},
+		size: C.CGSize{width: C.double(width), height: C.double(borderWidth)},
 	}
 
 	// Left
@@ -185,13 +200,13 @@ func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height in
 		size:   C.CGSize{width: C.double(borderWidth), height: C.double(height)},
 	}
 
-	C.drawGridLines(o.window, &lines[0], C.int(4), cColor, C.int(borderWidth), C.double(1.0))
+	C.NeruDrawGridLines(o.window, &lines[0], C.int(4), cColor, C.int(borderWidth), C.double(1.0))
 }
 
 // Destroy destroys the overlay.
 func (o *Overlay) Destroy() {
 	if o.window != nil {
-		C.destroyOverlayWindow(o.window)
+		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
 	}
 }

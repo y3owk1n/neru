@@ -266,7 +266,15 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 					// First 2 chars = region, third char = column, fourth char = row
 					char3 := chars[colIndex%numChars] // column
 					char4 := chars[rowIndex%numChars] // row
-					coord = string(regionChar1) + string(regionChar2) + string(char3) + string(char4)
+					coord = string(
+						regionChar1,
+					) + string(
+						regionChar2,
+					) + string(
+						char3,
+					) + string(
+						char4,
+					)
 				}
 
 				// Calculate cell dimensions with remainder distribution
@@ -368,7 +376,10 @@ func calculateLabelLength(totalCells, numChars int) int {
 }
 
 // selectBestCandidate picks the candidate with the best (lowest) score.
-func selectBestCandidate(candidates []candidate, width, height, minCellSize, maxCellSize int) (int, int) {
+func selectBestCandidate(
+	candidates []candidate,
+	width, height, minCellSize, maxCellSize int,
+) (int, int) {
 	var gridCols, gridRows int
 
 	if len(candidates) > 0 {

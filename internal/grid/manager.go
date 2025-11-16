@@ -25,7 +25,15 @@ type Manager struct {
 }
 
 // NewManager creates a new grid manager.
-func NewManager(grid *Grid, subRows int, subCols int, subKeys string, onUpdate func(redraw bool), onShowSub func(cell *Cell), logger *zap.Logger) *Manager {
+func NewManager(
+	grid *Grid,
+	subRows int,
+	subCols int,
+	subKeys string,
+	onUpdate func(redraw bool),
+	onShowSub func(cell *Cell),
+	logger *zap.Logger,
+) *Manager {
 	// Determine label length from first cell (if grid exists)
 	labelLength := 3 // Default
 	if grid != nil && len(grid.cells) > 0 {
@@ -47,7 +55,11 @@ func NewManager(grid *Grid, subRows int, subCols int, subKeys string, onUpdate f
 // HandleInput processes variable-length coordinate input
 // Returns the target point when complete (labelLength characters entered or subgrid selection).
 func (m *Manager) HandleInput(key string) (image.Point, bool) {
-	m.logger.Debug("Grid manager: Processing input", zap.String("key", key), zap.String("current_input", m.currentInput))
+	m.logger.Debug(
+		"Grid manager: Processing input",
+		zap.String("key", key),
+		zap.String("current_input", m.currentInput),
+	)
 
 	resetKey := "<"
 
@@ -140,7 +152,10 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 				// Save the main grid input for restoring after subgrid
 				m.mainGridInput = m.currentInput
 				m.currentInput = ""
-				m.logger.Debug("Grid manager: Showing subgrid for cell", zap.String("coordinate", coord))
+				m.logger.Debug(
+					"Grid manager: Showing subgrid for cell",
+					zap.String("coordinate", coord),
+				)
 				if m.onShowSub != nil {
 					m.onShowSub(cell)
 				}
@@ -177,7 +192,10 @@ func (m *Manager) validateInputKey(key string) bool {
 
 	// If this key doesn't lead to any valid coordinate, ignore it
 	if !validPrefix {
-		m.logger.Debug("Grid manager: Key does not lead to valid coordinate", zap.String("input", potentialInput))
+		m.logger.Debug(
+			"Grid manager: Key does not lead to valid coordinate",
+			zap.String("input", potentialInput),
+		)
 		return false
 	}
 

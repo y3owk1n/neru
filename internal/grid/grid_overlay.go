@@ -81,7 +81,11 @@ func NewOverlay(cfg config.GridConfig, logger *zap.Logger) *Overlay {
 }
 
 // NewOverlayWithWindow creates a grid overlay using a shared window.
-func NewOverlayWithWindow(cfg config.GridConfig, logger *zap.Logger, windowPtr unsafe.Pointer) *Overlay {
+func NewOverlayWithWindow(
+	cfg config.GridConfig,
+	logger *zap.Logger,
+	windowPtr unsafe.Pointer,
+) *Overlay {
 	gridCellSlicePool = sync.Pool{New: func() any { s := make([]C.GridCell, 0); return &s }}
 	gridLabelSlicePool = sync.Pool{New: func() any { s := make([]*C.char, 0); return &s }}
 	subgridCellSlicePool = sync.Pool{New: func() any { s := make([]C.GridCell, 0); return &s }}
@@ -113,7 +117,7 @@ func (o *Overlay) UpdateConfig(cfg config.GridConfig) {
 
 // SetHideUnmatched sets whether to hide unmatched cells.
 func (o *Overlay) SetHideUnmatched(hide bool) {
-	C.setHideUnmatched(o.window, C.int(boolToInt(hide)))
+	C.NeruSetHideUnmatched(o.window, C.int(boolToInt(hide)))
 }
 
 // boolToInt converts a boolean to an integer (1 for true, 0 for false).
@@ -126,22 +130,22 @@ func boolToInt(b bool) int {
 
 // Show displays the grid overlay.
 func (o *Overlay) Show() {
-	C.showOverlayWindow(o.window)
+	C.NeruShowOverlayWindow(o.window)
 }
 
 // Hide hides the grid overlay.
 func (o *Overlay) Hide() {
-	C.hideOverlayWindow(o.window)
+	C.NeruHideOverlayWindow(o.window)
 }
 
 // Clear clears the grid overlay.
 func (o *Overlay) Clear() {
-	C.clearOverlay(o.window)
+	C.NeruClearOverlay(o.window)
 }
 
 // Destroy destroys the grid overlay window.
 func (o *Overlay) Destroy() {
-	C.destroyOverlayWindow(o.window)
+	C.NeruDestroyOverlayWindow(o.window)
 }
 
 // CleanupCallbackMap cleans up any pending callbacks in the map
@@ -149,17 +153,17 @@ func (o *Overlay) Destroy() {
 
 // ReplaceWindow atomically replaces the underlying overlay window on the main thread.
 func (o *Overlay) ReplaceWindow() {
-	C.replaceOverlayWindow(&o.window)
+	C.NeruReplaceOverlayWindow(&o.window)
 }
 
 // ResizeToMainScreen resizes the overlay window to the current main screen.
 func (o *Overlay) ResizeToMainScreen() {
-	C.resizeOverlayToMainScreen(o.window)
+	C.NeruResizeOverlayToMainScreen(o.window)
 }
 
 // ResizeToActiveScreen resizes the overlay window to the screen containing the mouse cursor.
 func (o *Overlay) ResizeToActiveScreen() {
-	C.resizeOverlayToActiveScreen(o.window)
+	C.NeruResizeOverlayToActiveScreen(o.window)
 }
 
 // ResizeToActiveScreenSync resizes the overlay window synchronously with callback notification.
@@ -180,9 +184,11 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 
 	// Pass ID as context (safe - no Go pointers)
 	// Note: uintptr conversion must happen in same expression to satisfy go vet
-	C.resizeOverlayToActiveScreenWithCallback(
+	C.NeruResizeOverlayToActiveScreenWithCallback(
 		o.window,
-		(C.ResizeCompletionCallback)(unsafe.Pointer(C.gridResizeCompletionCallback)), //nolint:unconvert
+		(C.ResizeCompletionCallback)(
+			unsafe.Pointer(C.gridResizeCompletionCallback), //nolint:unconvert
+		),
 		*(*unsafe.Pointer)(unsafe.Pointer(&callbackID)),
 	)
 
@@ -191,14 +197,20 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 	// Start a goroutine to handle cleanup when callback eventually arrives
 	go func() {
 		if o.logger != nil {
-			o.logger.Debug("Grid overlay resize background cleanup started", zap.Uint64("callback_id", callbackID))
+			o.logger.Debug(
+				"Grid overlay resize background cleanup started",
+				zap.Uint64("callback_id", callbackID),
+			)
 		}
 
 		select {
 		case <-done:
 			// Callback received, normal cleanup already handled in callback
 			if o.logger != nil {
-				o.logger.Debug("Grid overlay resize callback received", zap.Uint64("callback_id", callbackID))
+				o.logger.Debug(
+					"Grid overlay resize callback received",
+					zap.Uint64("callback_id", callbackID),
+				)
 			}
 		case <-time.After(2 * time.Second):
 			// Long timeout for cleanup only - callback likely failed
@@ -253,7 +265,7 @@ func (o *Overlay) UpdateMatches(prefix string) {
 
 	cPrefix := C.CString(prefix)
 	defer C.free(unsafe.Pointer(cPrefix))
-	C.updateGridMatchPrefix(o.window, cPrefix)
+	C.NeruUpdateGridMatchPrefix(o.window, cPrefix)
 
 	o.logger.Debug("Grid matches updated successfully")
 }
@@ -364,8 +376,8 @@ func (o *Overlay) ShowSubgrid(cell *Cell, style Style) {
 		textOpacity:            C.double(1.0),
 	}
 
-	C.clearOverlay(o.window)
-	C.drawGridCells(o.window, &cells[0], C.int(len(cells)), finalStyle)
+	C.NeruClearOverlay(o.window)
+	C.NeruDrawGridCells(o.window, &cells[0], C.int(len(cells)), finalStyle)
 
 	for labelIndex := range labels {
 		C.free(unsafe.Pointer(labels[labelIndex]))
@@ -386,7 +398,11 @@ func (o *Overlay) ShowSubgrid(cell *Cell, style Style) {
 }
 
 // DrawScrollHighlight draws a scroll highlight.
-func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height int, color string, borderWidth int) {
+func (o *Overlay) DrawScrollHighlight(
+	xCoordinate, yCoordinate, width, height int,
+	color string,
+	borderWidth int,
+) {
 	cColor := C.CString(color)
 	defer C.free(unsafe.Pointer(cColor))
 	// Build 4 border lines around the rectangle
@@ -398,8 +414,11 @@ func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height in
 	}
 	// Top
 	lines[1] = C.CGRect{
-		origin: C.CGPoint{x: C.double(xCoordinate), y: C.double(yCoordinate + height - borderWidth)},
-		size:   C.CGSize{width: C.double(width), height: C.double(borderWidth)},
+		origin: C.CGPoint{
+			x: C.double(xCoordinate),
+			y: C.double(yCoordinate + height - borderWidth),
+		},
+		size: C.CGSize{width: C.double(width), height: C.double(borderWidth)},
 	}
 	// Left
 	lines[2] = C.CGRect{
@@ -411,7 +430,7 @@ func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height in
 		origin: C.CGPoint{x: C.double(xCoordinate + width - borderWidth), y: C.double(yCoordinate)},
 		size:   C.CGSize{width: C.double(borderWidth), height: C.double(height)},
 	}
-	C.drawGridLines(o.window, &lines[0], C.int(4), cColor, C.int(borderWidth), C.double(1.0))
+	C.NeruDrawGridLines(o.window, &lines[0], C.int(4), cColor, C.int(borderWidth), C.double(1.0))
 }
 
 // drawGridCells draws all grid cells with their labels.
@@ -502,8 +521,8 @@ func (o *Overlay) drawGridCells(cellsGo []*Cell, currentInput string, style Styl
 		textOpacity:            C.double(1.0),
 	}
 
-	C.clearOverlay(o.window)
-	C.drawGridCells(o.window, &cGridCells[0], C.int(len(cGridCells)), finalStyle)
+	C.NeruClearOverlay(o.window)
+	C.NeruDrawGridCells(o.window, &cGridCells[0], C.int(len(cGridCells)), finalStyle)
 
 	for labelIndex := range cLabels {
 		C.free(unsafe.Pointer(cLabels[labelIndex]))

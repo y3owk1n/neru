@@ -27,7 +27,9 @@
               gotools
               gofumpt
               golangci-lint
+              golines
               just # just a command runner like make
+              clang-tools
             ];
           };
         }

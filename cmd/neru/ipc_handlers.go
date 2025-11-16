@@ -14,7 +14,11 @@ import (
 
 // handleIPCCommand handles IPC commands from the CLI.
 func (a *App) handleIPCCommand(cmd ipc.Command) ipc.Response {
-	a.logger.Info("Handling IPC command", zap.String("action", cmd.Action), zap.String("params", strings.Join(cmd.Args, ", ")))
+	a.logger.Info(
+		"Handling IPC command",
+		zap.String("action", cmd.Action),
+		zap.String("params", strings.Join(cmd.Args, ", ")),
+	)
 
 	switch cmd.Action {
 	case "ping":
@@ -135,7 +139,9 @@ func (a *App) handleAction(cmd ipc.Command) ipc.Response {
 			}
 
 			a.logger.Info("Interactive scroll activated")
-			a.logger.Info("Use j/k to scroll, Ctrl+D/U for half-page, g/G for top/bottom, Esc to exit")
+			a.logger.Info(
+				"Use j/k to scroll, Ctrl+D/U for half-page, g/G for top/bottom, Esc to exit",
+			)
 			return ipc.Response{Success: true, Message: "scroll mode activated"}
 		default:
 			return ipc.Response{Success: false, Message: "unknown action: " + param}

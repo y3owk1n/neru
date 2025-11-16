@@ -53,7 +53,14 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.SetVersionTemplate(fmt.Sprintf("Neru version %s\nGit commit: %s\nBuild date: %s\n", Version, GitCommit, BuildDate))
+	rootCmd.SetVersionTemplate(
+		fmt.Sprintf(
+			"Neru version %s\nGit commit: %s\nBuild date: %s\n",
+			Version,
+			GitCommit,
+			BuildDate,
+		),
+	)
 }
 
 // isRunningFromAppBundle checks if the binary is running from a macOS app bundle.
