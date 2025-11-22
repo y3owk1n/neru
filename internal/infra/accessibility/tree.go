@@ -72,6 +72,10 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 		opts.Cache.Set(root, info)
 	}
 
+	if info == nil {
+		return nil, errors.New("root element info is nil")
+	}
+
 	logger.Debug("Building tree from root element",
 		zap.String("role", info.Role),
 		zap.String("title", info.Title),
@@ -342,6 +346,11 @@ func shouldIncludeElement(info *ElementInfo, opts TreeOptions, windowBounds imag
 		// For non-zero sized elements, check if they overlap with window bounds
 		if elementRect.Dx() > 0 && elementRect.Dy() > 0 {
 			if !elementRect.Overlaps(windowBounds) {
+				logger.Debug("Element filtered out (no overlap)",
+					zap.String("role", info.Role),
+					zap.String("title", info.Title),
+					zap.Any("element_rect", elementRect),
+					zap.Any("window_bounds", windowBounds))
 				return false
 			}
 		}
@@ -358,7 +367,7 @@ func shouldIncludeElement(info *ElementInfo, opts TreeOptions, windowBounds imag
 func (n *TreeNode) FindClickableElements() []*TreeNode {
 	var result []*TreeNode
 	n.walkTree(func(node *TreeNode) bool {
-		if node.Element.IsClickable() {
+		if node.Element.IsClickable(node.Info) {
 			result = append(result, node)
 		}
 		return true

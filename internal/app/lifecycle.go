@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -74,7 +75,9 @@ func (a *App) handleScreenParametersChange() {
 			}
 
 			// Regenerate the grid cells with updated screen bounds
-			err := a.modes.SetupGrid()
+			// We re-trigger ShowGrid which will use the new screen bounds
+			ctx := context.Background()
+			err := a.gridService.ShowGrid(ctx, 0, 0)
 			if err != nil {
 				a.logger.Error("Failed to refresh grid after screen change", zap.Error(err))
 				return
@@ -96,19 +99,13 @@ func (a *App) handleScreenParametersChange() {
 			}
 
 			// Regenerate hints for current action
-			a.UpdateRolesForCurrentApp()
-			elements := a.CollectElements()
-			if len(elements) > 0 {
-				err := a.modes.SetupHints(elements)
-				if err != nil {
-					a.logger.Error("Failed to refresh hints after screen change", zap.Error(err))
-					return
-				}
-				a.logger.Info("Hint overlay resized and regenerated for new screen bounds")
-			} else {
-				a.logger.Warn("No elements found after screen change")
-				a.ExitMode()
+			ctx := context.Background()
+			err := a.hintService.RefreshHints(ctx)
+			if err != nil {
+				a.logger.Error("Failed to refresh hints after screen change", zap.Error(err))
+				return
 			}
+			a.logger.Info("Hint overlay resized and regenerated for new screen bounds")
 		}
 	}
 

@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -22,8 +23,15 @@ func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) erro
 		return fmt.Errorf("mode %s is disabled", modeName)
 	}
 
-	if h.Accessibility.IsFocusedAppExcluded() {
-		// isFocusedAppExcluded already logs the exclusion
+	// Check if focused app is excluded
+	// Use a short timeout context for this check
+	ctx := context.Background() // TODO: Use proper context with timeout
+	isExcluded, err := h.ActionService.IsFocusedAppExcluded(ctx)
+	if err != nil {
+		// Log error but default to not excluded to allow operation if check fails?
+		// Or fail safe? Let's fail safe and allow operation but log warning.
+		h.Logger.Warn("Failed to check if app is excluded", zap.Error(err))
+	} else if isExcluded {
 		return errors.New("focused app is excluded")
 	}
 

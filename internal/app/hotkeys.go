@@ -146,7 +146,14 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 	}
 
 	if bundleID == "" {
-		bundleID = a.accessibility.GetFocusedBundleID()
+		// Use ActionService to get focused bundle ID
+		ctx := context.Background()
+		var err error
+		bundleID, err = a.actionService.GetFocusedAppBundleID(ctx)
+		if err != nil {
+			a.logger.Warn("Failed to get focused app bundle ID", zap.Error(err))
+			return
+		}
 	}
 
 	if a.config.IsAppExcluded(bundleID) {

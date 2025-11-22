@@ -130,8 +130,6 @@ func createScrollComponent(
 	log *zap.Logger,
 	overlayManager *overlay.Manager,
 ) (*components.ScrollComponent, error) {
-	scrollCtrl := scroll.NewController(cfg.Scroll, log)
-
 	scrollOverlay, err := scroll.NewOverlayWithWindow(
 		cfg.Scroll,
 		log,
@@ -142,9 +140,8 @@ func createScrollComponent(
 	}
 
 	return &components.ScrollComponent{
-		Controller: scrollCtrl,
-		Overlay:    scrollOverlay,
-		Context:    &scroll.Context{},
+		Overlay: scrollOverlay,
+		Context: &scroll.Context{},
 	}, nil
 }
 

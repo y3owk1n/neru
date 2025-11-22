@@ -39,13 +39,12 @@ func LaunchDaemon(configPath string) {
 		}()
 	}
 
-	a, err := app.New(result.Config)
+	a, err := app.New(result.Config, result.ConfigPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating app: %v\n", err)
 		os.Exit(1)
 	}
 
-	a.ConfigPath = result.ConfigPath
 	globalApp = a
 
 	go func() {

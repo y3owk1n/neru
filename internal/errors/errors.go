@@ -5,190 +5,159 @@ import (
 	"fmt"
 )
 
-// Common sentinel errors that can be used for error checking with errors.Is.
-var (
-	// ErrNotRunning indicates that the Neru daemon is not running.
-	ErrNotRunning = errors.New("neru is not running")
+// Code represents a domain-specific error code.
+type Code string
 
-	// ErrAlreadyRunning indicates that the Neru daemon is already running.
-	ErrAlreadyRunning = errors.New("neru is already running")
+// Error codes for different failure scenarios.
+const (
+	// CodeAccessibilityDenied indicates accessibility permissions are not granted.
+	CodeAccessibilityDenied Code = "ACCESSIBILITY_DENIED"
 
-	// ErrAccessibilityPermission indicates missing accessibility permissions.
-	ErrAccessibilityPermission = errors.New("accessibility permissions not granted")
+	// CodeAccessibilityFailed indicates an accessibility API call failed.
+	CodeAccessibilityFailed Code = "ACCESSIBILITY_FAILED"
 
-	// ErrInvalidConfig indicates configuration validation failure.
-	ErrInvalidConfig = errors.New("invalid configuration")
+	// CodeElementNotFound indicates a UI element could not be found.
+	CodeElementNotFound Code = "ELEMENT_NOT_FOUND"
 
-	// ErrModeDisabled indicates an attempt to use a disabled mode.
-	ErrModeDisabled = errors.New("mode is disabled")
+	// CodeInvalidConfig indicates configuration validation failed.
+	CodeInvalidConfig Code = "INVALID_CONFIG"
 
-	// ErrInvalidInput indicates invalid user input.
-	ErrInvalidInput = errors.New("invalid input")
+	// CodeInvalidInput indicates invalid input parameters.
+	CodeInvalidInput Code = "INVALID_INPUT"
 
-	// ErrActionFailed indicates an action execution failure.
-	ErrActionFailed = errors.New("action failed")
+	// CodeIPCFailed indicates IPC communication failed.
+	CodeIPCFailed Code = "IPC_FAILED"
 
-	// ErrUnknownCommand indicates an unknown IPC command.
-	ErrUnknownCommand = errors.New("unknown command")
+	// CodeIPCServerNotRunning indicates the IPC server is not running.
+	CodeIPCServerNotRunning Code = "IPC_SERVER_NOT_RUNNING"
 
-	// ErrTimeout indicates an operation timeout.
-	ErrTimeout = errors.New("operation timed out")
+	// CodeOverlayFailed indicates overlay rendering failed.
+	CodeOverlayFailed Code = "OVERLAY_FAILED"
+
+	// CodeHintGenerationFailed indicates hint generation failed.
+	CodeHintGenerationFailed Code = "HINT_GENERATION_FAILED"
+
+	// CodeActionFailed indicates an action execution failed.
+	CodeActionFailed Code = "ACTION_FAILED"
+
+	// CodeContextCanceled indicates the operation was canceled.
+	CodeContextCanceled Code = "CONTEXT_CANCELED"
+
+	// CodeTimeout indicates the operation timed out.
+	CodeTimeout Code = "TIMEOUT"
+
+	// CodeInternal indicates an internal error occurred.
+	CodeInternal Code = "INTERNAL"
 )
 
-// ConfigError represents a configuration-related error with additional context.
-type ConfigError struct {
-	Field   string // Configuration field that caused the error
-	Value   string // The problematic value (if applicable)
-	Message string // Error message
-	Err     error  // Underlying error (if any)
+// Error represents a domain error with code, message, and optional cause.
+type Error struct {
+	Code    Code
+	Message string
+	Cause   error
+	Context map[string]interface{}
 }
 
-// NewConfigError creates a new ConfigError with the specified field and message.
-func NewConfigError(field, message string) *ConfigError {
-	return &ConfigError{
-		Field:   field,
+// Error implements the error interface.
+func (e *Error) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("[%s] %s: %v", e.Code, e.Message, e.Cause)
+	}
+	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
+}
+
+// Unwrap returns the underlying cause error.
+func (e *Error) Unwrap() error {
+	return e.Cause
+}
+
+// Is implements error matching for errors.Is.
+func (e *Error) Is(target error) bool {
+	t, ok := target.(*Error)
+	if !ok {
+		return false
+	}
+	return e.Code == t.Code
+}
+
+// WithContext adds context information to the error.
+func (e *Error) WithContext(key string, value interface{}) *Error {
+	if e.Context == nil {
+		e.Context = make(map[string]interface{})
+	}
+	e.Context[key] = value
+	return e
+}
+
+// New creates a new domain error with the given code and message.
+func New(code Code, message string) *Error {
+	return &Error{
+		Code:    code,
 		Message: message,
 	}
 }
 
-// NewConfigErrorWithValue creates a new ConfigError with field, value, and message.
-func NewConfigErrorWithValue(field, value, message string) *ConfigError {
-	return &ConfigError{
-		Field:   field,
-		Value:   value,
+// Newf creates a new domain error with formatted message.
+func Newf(code Code, format string, args ...interface{}) *Error {
+	return &Error{
+		Code:    code,
+		Message: fmt.Sprintf(format, args...),
+	}
+}
+
+// Wrap wraps an existing error with a domain error code and message.
+func Wrap(err error, code Code, message string) *Error {
+	if err == nil {
+		return nil
+	}
+	return &Error{
+		Code:    code,
 		Message: message,
+		Cause:   err,
 	}
 }
 
-// WrapConfigError wraps an existing error as a ConfigError.
-func WrapConfigError(field string, err error) *ConfigError {
-	return &ConfigError{
-		Field:   field,
-		Message: err.Error(),
-		Err:     err,
+// Wrapf wraps an existing error with formatted message.
+func Wrapf(err error, code Code, format string, args ...interface{}) *Error {
+	if err == nil {
+		return nil
+	}
+	return &Error{
+		Code:    code,
+		Message: fmt.Sprintf(format, args...),
+		Cause:   err,
 	}
 }
 
-func (e *ConfigError) Error() string {
-	if e.Field != "" {
-		if e.Value != "" {
-			return fmt.Sprintf(
-				"config error in field '%s' (value: '%s'): %s",
-				e.Field,
-				e.Value,
-				e.Message,
-			)
-		}
-		return fmt.Sprintf("config error in field '%s': %s", e.Field, e.Message)
+// IsCode checks if an error has the specified error code.
+func IsCode(err error, code Code) bool {
+	var domainErr *Error
+	if errors.As(err, &domainErr) {
+		return domainErr.Code == code
 	}
-	return fmt.Sprintf("config error: %s", e.Message)
+	return false
 }
 
-func (e *ConfigError) Unwrap() error {
-	return e.Err
-}
-
-// IPCError represents an IPC-related error.
-type IPCError struct {
-	Operation string // The IPC operation (e.g., "send", "connect", "decode")
-	Message   string // Error message
-	Err       error  // Underlying error
-}
-
-// NewIPCError creates a new IPCError.
-func NewIPCError(operation, message string) *IPCError {
-	return &IPCError{
-		Operation: operation,
-		Message:   message,
+// GetCode extracts the error code from an error, or returns CodeInternal if not a domain error.
+func GetCode(err error) Code {
+	var domainErr *Error
+	if errors.As(err, &domainErr) {
+		return domainErr.Code
 	}
+	return CodeInternal
 }
 
-// WrapIPCError wraps an existing error as an IPCError.
-func WrapIPCError(operation string, err error) *IPCError {
-	return &IPCError{
-		Operation: operation,
-		Message:   err.Error(),
-		Err:       err,
-	}
+// IsAccessibilityError checks if an error is accessibility-related.
+func IsAccessibilityError(err error) bool {
+	return IsCode(err, CodeAccessibilityDenied) || IsCode(err, CodeAccessibilityFailed)
 }
 
-func (e *IPCError) Error() string {
-	if e.Operation != "" {
-		return fmt.Sprintf("IPC %s error: %s", e.Operation, e.Message)
-	}
-	return fmt.Sprintf("IPC error: %s", e.Message)
+// IsUserError checks if an error is due to user input/configuration.
+func IsUserError(err error) bool {
+	return IsCode(err, CodeInvalidConfig) || IsCode(err, CodeInvalidInput)
 }
 
-func (e *IPCError) Unwrap() error {
-	return e.Err
-}
-
-// AccessibilityError represents an accessibility-related error.
-type AccessibilityError struct {
-	Operation string // The accessibility operation (e.g., "click", "scroll", "query")
-	Message   string // Error message
-	Err       error  // Underlying error
-}
-
-// NewAccessibilityError creates a new AccessibilityError.
-func NewAccessibilityError(operation, message string) *AccessibilityError {
-	return &AccessibilityError{
-		Operation: operation,
-		Message:   message,
-	}
-}
-
-// WrapAccessibilityError wraps an existing error as an AccessibilityError.
-func WrapAccessibilityError(operation string, err error) *AccessibilityError {
-	return &AccessibilityError{
-		Operation: operation,
-		Message:   err.Error(),
-		Err:       err,
-	}
-}
-
-func (e *AccessibilityError) Error() string {
-	if e.Operation != "" {
-		return fmt.Sprintf("accessibility %s error: %s", e.Operation, e.Message)
-	}
-	return fmt.Sprintf("accessibility error: %s", e.Message)
-}
-
-func (e *AccessibilityError) Unwrap() error {
-	return e.Err
-}
-
-// HotkeyError represents a hotkey-related error.
-type HotkeyError struct {
-	Hotkey  string // The hotkey string (e.g., "cmd+shift+space")
-	Message string // Error message
-	Err     error  // Underlying error
-}
-
-// NewHotkeyError creates a new HotkeyError.
-func NewHotkeyError(hotkey, message string) *HotkeyError {
-	return &HotkeyError{
-		Hotkey:  hotkey,
-		Message: message,
-	}
-}
-
-// WrapHotkeyError wraps an existing error as a HotkeyError.
-func WrapHotkeyError(hotkey string, err error) *HotkeyError {
-	return &HotkeyError{
-		Hotkey:  hotkey,
-		Message: err.Error(),
-		Err:     err,
-	}
-}
-
-func (e *HotkeyError) Error() string {
-	if e.Hotkey != "" {
-		return fmt.Sprintf("hotkey '%s' error: %s", e.Hotkey, e.Message)
-	}
-	return fmt.Sprintf("hotkey error: %s", e.Message)
-}
-
-func (e *HotkeyError) Unwrap() error {
-	return e.Err
+// IsTransient checks if an error is potentially transient (retryable).
+func IsTransient(err error) bool {
+	return IsCode(err, CodeTimeout) || IsCode(err, CodeIPCFailed)
 }

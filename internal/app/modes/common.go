@@ -1,10 +1,10 @@
 package modes
 
 import (
+	"context"
 	"image"
 
 	"github.com/y3owk1n/neru/internal/domain"
-	infra "github.com/y3owk1n/neru/internal/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
@@ -173,13 +173,18 @@ func (h *Handler) handleModeSpecificKey(key string) {
 			}
 
 			h.Logger.Info("Found element", zap.String("label", h.Hints.Manager.GetInput()))
-			infra.MoveMouseToPoint(center)
+			ctx := context.Background()
+			if err := h.ActionService.MoveCursorToPoint(ctx, center); err != nil {
+				h.Logger.Error("Failed to move cursor", zap.Error(err))
+			}
 
 			// Check if there's a pending action to execute
 			pendingAction := h.Hints.Context.GetPendingAction()
 			if pendingAction != nil {
 				h.Logger.Info("Executing pending action", zap.String("action", *pendingAction))
-				err := h.Accessibility.PerformActionAtPoint(*pendingAction, center)
+				// Use ActionService
+				ctx := context.Background()
+				err := h.ActionService.PerformAction(ctx, *pendingAction, center)
 				if err != nil {
 					h.Logger.Error("Failed to perform pending action", zap.Error(err))
 				}
@@ -223,13 +228,18 @@ func (h *Handler) handleModeSpecificKey(key string) {
 				zap.Int("x", absolutePoint.X),
 				zap.Int("y", absolutePoint.Y),
 			)
-			infra.MoveMouseToPoint(absolutePoint)
+			ctx := context.Background()
+			if err := h.ActionService.MoveCursorToPoint(ctx, absolutePoint); err != nil {
+				h.Logger.Error("Failed to move cursor", zap.Error(err))
+			}
 
 			// Check if there's a pending action to execute
 			pendingAction := h.Grid.Context.GetPendingAction()
 			if pendingAction != nil {
 				h.Logger.Info("Executing pending action", zap.String("action", *pendingAction))
-				err := h.Accessibility.PerformActionAtPoint(*pendingAction, absolutePoint)
+				// Use ActionService
+				ctx := context.Background()
+				err := h.ActionService.PerformAction(ctx, *pendingAction, absolutePoint)
 				if err != nil {
 					h.Logger.Error("Failed to perform pending action", zap.Error(err))
 				}
@@ -339,7 +349,10 @@ func (h *Handler) handleCursorRestoration() {
 			h.Cursor.GetInitialScreenBounds(),
 			currentBounds,
 		)
-		infra.MoveMouseToPoint(target)
+		ctx := context.Background()
+		if err := h.ActionService.MoveCursorToPoint(ctx, target); err != nil {
+			h.Logger.Error("Failed to restore cursor position", zap.Error(err))
+		}
 	}
 	h.Cursor.Reset()
 	// Always reset scroll context regardless of whether we performed cursor restoration.
@@ -358,7 +371,12 @@ func (h *Handler) CaptureInitialCursorPosition() {
 	if h.Cursor.IsCaptured() {
 		return
 	}
-	pos := infra.GetCurrentCursorPosition()
+	ctx := context.Background()
+	pos, err := h.ActionService.GetCursorPosition(ctx)
+	if err != nil {
+		h.Logger.Error("Failed to get cursor position", zap.Error(err))
+		return
+	}
 	bounds := bridge.GetActiveScreenBounds()
 	h.Cursor.Capture(pos, bounds)
 }
@@ -382,7 +400,12 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 
 // handleActionKey handles action keys for both hints and grid modes.
 func (h *Handler) handleActionKey(key string, mode string) {
-	cursorPos := infra.GetCurrentCursorPosition()
+	ctx := context.Background()
+	cursorPos, err := h.ActionService.GetCursorPosition(ctx)
+	if err != nil {
+		h.Logger.Error("Failed to get cursor position", zap.Error(err))
+		return
+	}
 
 	var act string
 	switch key {
@@ -405,7 +428,9 @@ func (h *Handler) handleActionKey(key string, mode string) {
 		h.Logger.Debug("Unknown "+mode+" action key", zap.String("key", key))
 		return
 	}
-	err := h.Accessibility.PerformActionAtPoint(act, cursorPos)
+
+	// Use ActionService
+	err = h.ActionService.PerformAction(ctx, act, cursorPos)
 	if err != nil {
 		h.Logger.Error("Failed to perform action", zap.Error(err))
 	}

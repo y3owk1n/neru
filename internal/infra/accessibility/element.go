@@ -188,14 +188,20 @@ func (e *Element) GetChildren() ([]*Element, error) {
 	var count C.int
 	var rawChildren unsafe.Pointer
 
-	info := globalCache.Get(e)
+	var info *ElementInfo
+	if globalCache != nil {
+		info = globalCache.Get(e)
+	}
+
 	if info == nil {
 		var err error
 		info, err = e.GetInfo()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get element info: %w", err)
 		}
-		globalCache.Set(e, info)
+		if globalCache != nil {
+			globalCache.Set(e, info)
+		}
 	}
 
 	if info != nil {
@@ -461,7 +467,8 @@ func GetCurrentCursorPosition() image.Point {
 }
 
 // IsClickable checks if the element is clickable.
-func (e *Element) IsClickable() bool {
+// IsClickable checks if the element supports click actions.
+func (e *Element) IsClickable(info *ElementInfo) bool {
 	if e.ref == nil {
 		return false
 	}
@@ -489,14 +496,23 @@ func (e *Element) IsClickable() bool {
 		}
 	}
 
-	info := globalCache.Get(e)
+	// If info is not provided, try to get it
 	if info == nil {
 		var err error
-		info, err = e.GetInfo()
-		if err != nil {
-			return false
+		// Try cache first if available
+		if globalCache != nil {
+			info = globalCache.Get(e)
 		}
-		globalCache.Set(e, info)
+
+		if info == nil {
+			info, err = e.GetInfo()
+			if err != nil {
+				return false
+			}
+			if globalCache != nil {
+				globalCache.Set(e, info)
+			}
+		}
 	}
 
 	// First check if the role is in the clickable roles list

@@ -1,13 +1,12 @@
 package modes
 
 import (
-	"fmt"
+	"context"
 	"image"
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/features/grid"
-	infra "github.com/y3owk1n/neru/internal/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
@@ -33,15 +32,51 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 
 	// Always resize overlay to the active screen (where mouse is) before drawing grid.
 	// This ensures proper positioning when switching between multiple displays.
-	h.Renderer.ResizeActive()
+	h.OverlayManager.ResizeToActiveScreenSync()
 	h.State.SetGridOverlayNeedsRefresh(false)
 
-	err = h.SetupGrid()
+	// Use GridService to show grid
+	// Note: We still need to initialize the grid manager for input handling
+	// This is a hybrid approach until we fully migrate the grid logic
+
+	// 1. Initialize legacy grid manager (needed for input handling)
+	gridInstance := h.createGridInstance()
+	h.updateGridOverlayConfig()
+
+	// Reset the grid manager state when setting up the grid
+	if h.Grid.Manager != nil {
+		h.Grid.Manager.Reset()
+	}
+
+	h.initializeGridManager(gridInstance)
+	h.Grid.Router = grid.NewRouter(h.Grid.Manager, h.Logger)
+
+	// 2. Show grid using new service
+	ctx := context.Background() // TODO: Use proper context
+	// We use the grid instance bounds to determine rows/cols if needed,
+	// but for now we just show the overlay and let the legacy manager handle drawing
+	// via the overlay adapter's SwitchTo("grid") call
+
+	// The adapter's ShowGrid implementation switches mode to "grid"
+	// The actual drawing is handled by the legacy overlay which is already set up
+	// via h.Renderer.DrawGrid in the legacy code, but here we use the service
+
+	// Wait, the service calls adapter.ShowGrid which calls manager.SwitchTo("grid")
+	// But we still need to populate the grid overlay with data
+
+	// Let's call the legacy draw first to populate the overlay
+	initErr := h.Renderer.DrawGrid(gridInstance, "")
+	if initErr != nil {
+		h.Logger.Error("Failed to draw grid", zap.Error(initErr))
+		return
+	}
+
+	// Then use the service to show it (this is redundant but correct for migration)
+	err = h.GridService.ShowGrid(ctx, 0, 0) // Rows/cols ignored by adapter for now
 	if err != nil {
-		h.Logger.Error("Failed to setup grid",
+		h.Logger.Error("Failed to show grid",
 			zap.Error(err),
-			zap.String("action", actionString),
-			zap.Any("screen_bounds", bridge.GetActiveScreenBounds()))
+			zap.String("action", actionString))
 		return
 	}
 
@@ -57,32 +92,8 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	h.Logger.Info("Type a grid label to select a location")
 }
 
-// SetupGrid generates grid and draws it.
+// SetupGrid is deprecated and replaced by GridService.ShowGrid logic
 func (h *Handler) SetupGrid() error {
-	// Create grid with active screen bounds (screen containing mouse cursor).
-	// This ensures proper multi-monitor support.
-	gridInstance := h.createGridInstance()
-
-	h.updateGridOverlayConfig()
-
-	// Ensure the overlay is properly sized for the active screen
-	h.OverlayManager.ResizeToActiveScreenSync()
-
-	// Reset the grid manager state when setting up the grid
-	if h.Grid.Manager != nil {
-		h.Grid.Manager.Reset()
-	}
-
-	h.initializeGridManager(gridInstance)
-
-	h.Grid.Router = grid.NewRouter(h.Grid.Manager, h.Logger)
-
-	initErr := h.Renderer.DrawGrid(gridInstance, "")
-	if initErr != nil {
-		return fmt.Errorf("failed to draw grid: %w", initErr)
-	}
-	h.Renderer.Show()
-
 	return nil
 }
 
@@ -179,7 +190,10 @@ func (h *Handler) initializeGridManager(gridInstance *grid.Grid) {
 			}
 
 			// Move mouse to center of cell before showing subgrid
-			infra.MoveMouseToPoint(cell.Center)
+			ctx := context.Background()
+			if err := h.ActionService.MoveCursorToPoint(ctx, cell.Center); err != nil {
+				h.Logger.Error("Failed to move cursor", zap.Error(err))
+			}
 
 			// Draw 3x3 subgrid inside selected cell
 			h.Renderer.ShowSubgrid(cell)

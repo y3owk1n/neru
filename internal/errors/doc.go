@@ -1,41 +1,48 @@
-// Package errors provides custom error types and utilities for the Neru application.
+// Package errors provides domain-specific error types and utilities.
 //
-// This package centralizes error handling patterns and provides domain-specific error types
-// with better context and error wrapping capabilities. It follows Go's best practices for
-// error handling while adding structure and consistency to error management across the application.
+// This package implements a structured error handling system with error codes,
+// wrapping, and context information. It follows Go 1.13+ error handling patterns
+// with errors.Is and errors.As support.
 //
-// Key Features:
-//   - Domain-Specific Errors: Custom error types for common Neru-specific error conditions
-//   - Error Wrapping: Utilities for wrapping errors with additional context
-//   - Error Codes: Machine-readable error codes for programmatic error handling
-//   - Structured Errors: Errors with consistent structure for logging and debugging
+// # Usage
 //
-// Error Categories:
-//   - Configuration Errors: Issues with configuration loading or validation
-//   - Accessibility Errors: Problems with macOS accessibility permissions or APIs
-//   - IPC Errors: Issues with inter-process communication
-//   - Mode Errors: Problems related to mode activation or management
-//   - System Errors: Low-level system or OS-related issues
+//	// Creating errors
+//	err := errors.New(errors.CodeInvalidInput, "username cannot be empty")
+//	err := errors.Newf(errors.CodeElementNotFound, "element %s not found", id)
 //
-// Error Handling Patterns:
-//   - Contextual Errors: Errors include relevant context information
-//   - Wrapping: Errors can be wrapped to provide additional context
-//   - Codes: Each error type has a unique code for programmatic identification
-//   - Logging: Errors are designed to be informative in logs
-//
-// The package provides both generic error utilities and specific error types for
-// common error conditions in the Neru application. This approach ensures consistent
-// error handling while maintaining the flexibility to handle specific error cases
-// appropriately.
-//
-// Example Usage:
-//
-//	err := errors.New("failed to load config", errors.ConfigError)
-//	if err != nil {
-//	    log.Error("Config load failed", zap.Error(err))
-//	    return err
+//	// Wrapping errors
+//	if err := doSomething(); err != nil {
+//		return errors.Wrap(err, errors.CodeAccessibilityFailed, "failed to get elements")
 //	}
 //
-// Error codes follow a consistent naming convention and are documented to enable
-// reliable programmatic error handling in both the application and external tools.
+//	// Adding context
+//	err := errors.New(errors.CodeActionFailed, "click failed").
+//		WithContext("element_id", elemID).
+//		WithContext("action", "left_click")
+//
+//	// Checking error codes
+//	if errors.IsCode(err, errors.CodeAccessibilityDenied) {
+//		// Handle permission error
+//	}
+//
+//	// Using errors.Is
+//	if errors.Is(err, errors.New(errors.CodeTimeout, "")) {
+//		// Handle timeout
+//	}
+//
+// # Error Codes
+//
+// Error codes are organized by domain:
+//   - Accessibility: CodeAccessibilityDenied, CodeAccessibilityFailed
+//   - Configuration: CodeInvalidConfig
+//   - IPC: CodeIPCFailed, CodeIPCServerNotRunning
+//   - Actions: CodeActionFailed, CodeElementNotFound
+//   - System: CodeTimeout, CodeContextCancelled, CodeInternal
+//
+// # Design Principles
+//
+//   - Structured: Errors have codes, messages, and optional context
+//   - Wrappable: Errors can wrap underlying causes
+//   - Matchable: Support for errors.Is and errors.As
+//   - Informative: Context can be attached for debugging
 package errors

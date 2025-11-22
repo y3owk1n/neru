@@ -1,13 +1,17 @@
 package app
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/y3owk1n/neru/internal/app/accessibility"
+	accAdapter "github.com/y3owk1n/neru/internal/adapter/accessibility"
+	ovAdapter "github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/modes"
+	"github.com/y3owk1n/neru/internal/application/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/features/grid"
 	"github.com/y3owk1n/neru/internal/features/hints"
@@ -48,8 +52,14 @@ type App struct {
 	ipcServer      ipcServer
 	appWatcher     *appwatcher.Watcher
 
-	accessibility *accessibility.Service
-	modes         *modes.Handler
+	modes *modes.Handler
+
+	// New Architecture Services
+	hintService   *services.HintService
+	gridService   *services.GridService
+	actionService *services.ActionService
+	scrollService *services.ScrollService
+	configService *config.Service
 
 	// Feature components
 	hintsComponent  *components.HintsComponent
@@ -65,11 +75,11 @@ type App struct {
 }
 
 // New creates a new App instance.
-func New(cfg *config.Config) (*App, error) {
-	return newWithDeps(cfg, nil)
+func New(cfg *config.Config, configPath string) (*App, error) {
+	return newWithDeps(cfg, configPath, nil)
 }
 
-func newWithDeps(cfg *config.Config, deps *deps) (*App, error) {
+func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error) {
 	// Initialize logger
 	log, err := initializeLogger(cfg)
 	if err != nil {
@@ -85,25 +95,64 @@ func newWithDeps(cfg *config.Config, deps *deps) (*App, error) {
 		return nil, err
 	}
 
-	// Initialize accessibility service
-	accService := accessibility.NewService(cfg, log)
-
-	// Initialize services
+	// Initialize services (Legacy)
 	appWatcher := initializeAppWatcher(log)
 	hotkeySvc := initializeHotkeyService(deps, log)
+
+	// --- New Architecture Initialization ---
+
+	// 1. Initialize Config Service
+	cfgService := config.NewService(cfg, configPath)
+
+	// 2. Initialize Adapters
+	// Accessibility Adapter
+	// Note: We need to get excluded bundles and clickable roles from config
+	excludedBundles := []string{} // TODO: Get from config
+	clickableRoles := cfg.Hints.ClickableRoles
+	accAdapter := accAdapter.NewAdapter(log, excludedBundles, clickableRoles)
+
+	// Overlay Adapter
+	ovAdapter := ovAdapter.NewAdapter(overlayManager, log)
+
+	// 3. Initialize Domain Services
+	// Hint Generator
+	hintGen, err := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create hint generator: %w", err)
+	}
+
+	// Hint Service
+	hintService := services.NewHintService(accAdapter, ovAdapter, hintGen, log)
+
+	// Grid Service
+	gridService := services.NewGridService(ovAdapter, log)
+
+	// Action Service
+	actionService := services.NewActionService(accAdapter, ovAdapter, cfg.Action, log)
+
+	// Scroll Service
+	scrollService := services.NewScrollService(accAdapter, ovAdapter, cfg.Scroll, log)
 
 	// Create app instance with basic dependencies
 	app := &App{
 		config:         cfg,
+		ConfigPath:     configPath,
 		logger:         log,
 		state:          state.NewAppState(),
 		cursor:         state.NewCursorState(cfg.General.RestoreCursorPosition),
 		overlayManager: overlayManager,
 		hotkeyManager:  hotkeySvc,
 		appWatcher:     appWatcher,
-		accessibility:  accService,
-		renderer:       &ui.OverlayRenderer{}, // Will be properly initialized later
-		cmdHandlers:    make(map[string]func(ipc.Command) ipc.Response),
+
+		// Inject new services
+		hintService:   hintService,
+		gridService:   gridService,
+		actionService: actionService,
+		scrollService: scrollService,
+		configService: cfgService,
+
+		renderer:    &ui.OverlayRenderer{}, // Will be properly initialized later
+		cmdHandlers: make(map[string]func(ipc.Command) ipc.Response),
 	}
 
 	// Initialize components using factory functions
@@ -134,7 +183,10 @@ func newWithDeps(cfg *config.Config, deps *deps) (*App, error) {
 	// Initialize mode handler
 	app.modes = modes.NewHandler(
 		cfg, log, app.state, app.cursor, overlayManager, app.renderer,
-		accService,
+		app.hintService,
+		app.gridService,
+		app.actionService,
+		app.scrollService,
 		app.hintsComponent, app.gridComponent, app.scrollComponent, app.actionComponent,
 		app.enableEventTap, app.disableEventTap,
 		func() { app.refreshHotkeysForAppOrCurrent("") },
@@ -289,13 +341,22 @@ func (a *App) SetHintOverlayNeedsRefresh(value bool) { a.state.SetHintOverlayNee
 func (a *App) CaptureInitialCursorPosition() { a.modes.CaptureInitialCursorPosition() }
 
 // UpdateRolesForCurrentApp updates roles for the current app.
-func (a *App) UpdateRolesForCurrentApp() { a.accessibility.UpdateRolesForCurrentApp() }
-
-// CollectElements collects elements.
-func (a *App) CollectElements() []*infra.TreeNode { return a.accessibility.CollectElements() }
+// Deprecated: Use ActionService or HintService internally
+func (a *App) UpdateRolesForCurrentApp() {
+	// No-op as this is handled by adapters now
+}
 
 // IsFocusedAppExcluded checks if the focused app is excluded.
-func (a *App) IsFocusedAppExcluded() bool { return a.accessibility.IsFocusedAppExcluded() }
+func (a *App) IsFocusedAppExcluded() bool {
+	// Use ActionService to check exclusion
+	ctx := context.Background()
+	excluded, err := a.actionService.IsFocusedAppExcluded(ctx)
+	if err != nil {
+		a.logger.Warn("Failed to check exclusion", zap.Error(err))
+		return false
+	}
+	return excluded
+}
 
 // ExitMode exits the current mode.
 func (a *App) ExitMode() { a.modes.ExitMode() }
@@ -317,9 +378,6 @@ func (a *App) HintsRouter() *hints.Router { return a.hintsComponent.Router }
 
 // EventTap returns the event tap.
 func (a *App) EventTap() eventTap { return a.eventTap }
-
-// ScrollController returns the scroll controller.
-func (a *App) ScrollController() *scroll.Controller { return a.scrollComponent.Controller }
 
 // CurrentMode returns the current mode.
 func (a *App) CurrentMode() Mode { return a.state.CurrentMode() }

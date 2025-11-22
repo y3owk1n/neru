@@ -71,16 +71,12 @@ func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 
 // ScrollComponent encapsulates all scroll-related functionality.
 type ScrollComponent struct {
-	Controller *scroll.Controller
-	Overlay    *scroll.Overlay
-	Context    *scroll.Context
+	Overlay *scroll.Overlay
+	Context *scroll.Context
 }
 
 // UpdateConfig updates the scroll component with new configuration.
 func (s *ScrollComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
-	if s.Controller != nil {
-		s.Controller.UpdateConfig(cfg.Scroll)
-	}
 	if s.Overlay != nil {
 		s.Overlay.UpdateConfig(cfg.Scroll)
 	}

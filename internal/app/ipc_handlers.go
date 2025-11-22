@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -148,7 +149,9 @@ func (a *App) handleAction(cmd ipc.Command) ipc.Response {
 					Code:    ipc.CodeInvalidInput,
 				}
 			}
-			err = a.accessibility.PerformActionAtPoint(param, cursorPos)
+			// Use ActionService
+			ctx := context.Background()
+			err = a.actionService.PerformAction(ctx, param, cursorPos)
 		}
 
 		if err != nil {

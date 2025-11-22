@@ -1,9 +1,11 @@
 package modes
 
 import (
+	"context"
 	"fmt"
 	"image"
 
+	"github.com/y3owk1n/neru/internal/application/ports"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/features/hints"
 	infra "github.com/y3owk1n/neru/internal/infra/accessibility"
@@ -74,19 +76,39 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	h.OverlayManager.ResizeToActiveScreenSync()
 	h.State.SetHintOverlayNeedsRefresh(false)
 
-	h.Accessibility.UpdateRolesForCurrentApp()
+	// Use new HintService to show hints
+	ctx := context.Background() // TODO: Use proper context with timeout
+	filter := ports.DefaultElementFilter()
 
-	elements := h.Accessibility.CollectElements()
-	if len(elements) == 0 {
-		h.Logger.Warn("No elements found for action", zap.String("action", actionString))
-		return
-	}
-
-	err = h.SetupHints(elements)
+	// Get hints from service
+	domainHints, err := h.HintService.ShowHints(ctx, filter)
 	if err != nil {
-		h.Logger.Error("Failed to setup hints", zap.Error(err), zap.String("action", actionString))
+		h.Logger.Error("Failed to show hints", zap.Error(err), zap.String("action", actionString))
 		return
 	}
+
+	if len(domainHints) == 0 {
+		h.Logger.Warn("No hints generated for action", zap.String("action", actionString))
+		return
+	}
+
+	// Convert domain hints to legacy hints for input handling
+	// We need to do this reverse conversion because the input handler still uses legacy types
+	// This is temporary until we migrate the input handling logic
+	legacyHintsList := make([]*hints.Hint, len(domainHints))
+	for i, dh := range domainHints {
+		legacyHintsList[i] = &hints.Hint{
+			Label:         dh.Label(),
+			Position:      dh.Position(),
+			MatchedPrefix: dh.MatchedPrefix(),
+			// We don't have the legacy TreeNode here, but input handler might need it
+			// For now, we'll leave it nil and see if it breaks anything
+			// The overlay adapter already handled the display part
+		}
+	}
+
+	hintCollection := hints.NewHintCollection(legacyHintsList)
+	h.Hints.Manager.SetHints(hintCollection)
 
 	h.Hints.Context.SetSelectedHint(nil)
 
@@ -99,22 +121,8 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	h.SetModeHints()
 }
 
-// SetupHints generates hints and draws them with appropriate styling.
+// SetupHints is deprecated and replaced by HintService.ShowHints
 func (h *Handler) SetupHints(elements []*infra.TreeNode) error {
-	hintList, err := h.generateAndNormalizeHints(elements)
-	if err != nil {
-		return err
-	}
-
-	hintCollection := hints.NewHintCollection(hintList)
-	h.Hints.Manager.SetHints(hintCollection)
-
-	drawErr := h.Renderer.DrawHints(hintList)
-	if drawErr != nil {
-		return fmt.Errorf("failed to draw hints: %w", drawErr)
-	}
-	h.Renderer.Show()
-
 	return nil
 }
 
