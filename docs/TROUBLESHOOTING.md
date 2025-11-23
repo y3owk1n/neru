@@ -96,9 +96,9 @@ brew doctor
 4. Ensure checkbox is enabled
 5. Restart Neru:
 
-   ```bash
-   pkill neru && neru launch
-   ```
+    ```bash
+    pkill neru && neru launch
+    ```
 
 ### "Operation not permitted" errors in logs
 
@@ -537,9 +537,9 @@ enable = false  # Keep this off if using tiling WM
 
 1. Use Neru's grid-based hints (works without AX modifications)
 2. Use browser extensions for in-page navigation:
-   - Vimium (Chrome)
-   - Vimium-FF (Firefox)
-   - Surfingkeys
+    - Vimium (Chrome)
+    - Vimium-FF (Firefox)
+    - Surfingkeys
 3. Keep Neru for OS-level navigation (menubar, Dock, native apps)
 
 **Restart your tiling WM after disabling:**
@@ -687,24 +687,27 @@ pkill neru && neru launch
 If none of these solutions work:
 
 1. **Gather information:**
-   - macOS version: `sw_vers`
-   - Neru version: `neru --version`
-   - App name and version where issue occurs
-   - Config file (anonymize if needed)
-   - Relevant logs
+
+    - macOS version: `sw_vers`
+    - Neru version: `neru --version`
+    - App name and version where issue occurs
+    - Config file (anonymize if needed)
+    - Relevant logs
 
 2. **Search existing issues:**
-   - <https://github.com/y3owk1n/neru/issues>
+
+    - <https://github.com/y3owk1n/neru/issues>
 
 3. **Open an issue:**
-   - Include all gathered information
-   - Describe expected vs actual behavior
-   - Steps to reproduce
+
+    - Include all gathered information
+    - Describe expected vs actual behavior
+    - Steps to reproduce
 
 4. **Consider a PR:**
-   - Pull requests are more likely to be reviewed than issues
-   - Fix the problem yourself and contribute back
-   - See [DEVELOPMENT.md](DEVELOPMENT.md) for contribution guidelines
+    - Pull requests are more likely to be reviewed than issues
+    - Fix the problem yourself and contribute back
+    - See [DEVELOPMENT.md](DEVELOPMENT.md) for contribution guidelines
 
 ---
 

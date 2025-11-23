@@ -23,15 +23,15 @@ Contributing to Neru: build instructions, architecture overview, and contributio
 - **Xcode Command Line Tools** - `xcode-select --install`
 - **Just** - Command runner ([Install](https://github.com/casey/just))
 
-  ```bash
-  brew install just
-  ```
+    ```bash
+    brew install just
+    ```
 
 - **golangci-lint** - Linter ([Install](https://golangci-lint.run/usage/install/))
 
-  ```bash
-  brew install golangci-lint
-  ```
+    ```bash
+    brew install golangci-lint
+    ```
 
 ### Clone Repository
 
@@ -131,14 +131,11 @@ just test
 # With race detection
 just test-race
 
-# Specific package
-go test ./internal/config/...
+# With integration tests
+just test-integration
 
-# Verbose output
-go test -v ./...
-
-# With coverage
-go test -cover ./...
+# Coverage
+just test-coverage
 ```
 
 ### Run Linter
@@ -272,16 +269,19 @@ TOML configuration parsing and validation.
 #### Cursor Position Restoration
 
 **Overview:**
+
 - Stores the initial cursor coordinates and screen bounds when entering a mode.
 - Restores the cursor on exit if enabled via `general.restore_cursor_position`.
 - Adjusts for screen resolution/origin changes by mapping the original position proportionally to the current active screen.
 
 **Key points:**
+
 - Config flag: `general.restore_cursor_position` (default `true`).
 - Entry points: Mode activation functions capture once per activation.
 - Exit path: Mode exit functions restore and clear state.
 
 **Usage example (config API):**
+
 ```go
 cfg := config.Global()
 if cfg != nil && cfg.General.RestoreCursorPosition {
@@ -309,37 +309,37 @@ Cobra-based CLI commands.
 1. **Fork the repository**
 2. **Create a feature branch**
 
-   ```bash
-   git checkout -b feature/amazing-feature
-   ```
+    ```bash
+    git checkout -b feature/amazing-feature
+    ```
 
 3. **Make your changes**
-   - Write clean, documented code
-   - Follow existing code style
-   - Add tests for new features
+    - Write clean, documented code
+    - Follow existing code style
+    - Add tests for new features
 4. **Test thoroughly**
 
-   ```bash
-   just test && just lint
-   ```
+    ```bash
+    just test && just lint
+    ```
 
 5. **Commit with conventional commit**
 
-   ```bash
-   git commit -m "feat: description of what it does"
-   git commit -m "fix(scope): description of what it does"
-   ```
+    ```bash
+    git commit -m "feat: description of what it does"
+    git commit -m "fix(scope): description of what it does"
+    ```
 
 6. **Push to your branch**
 
-   ```bash
-   git push origin feature/amazing-feature
-   ```
+    ```bash
+    git push origin feature/amazing-feature
+    ```
 
 7. **Open a Pull Request**
-   - Describe what the PR does
-   - Reference any related issues
-   - Include screenshots/demos if applicable
+    - Describe what the PR does
+    - Reference any related issues
+    - Include screenshots/demos if applicable
 
 ### Code Style
 
