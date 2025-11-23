@@ -33,7 +33,7 @@ var doctorCmd = &cobra.Command{
 		if resp.Data != nil {
 			// Convert map[string]interface{} to map[string]string for display
 			// JSON decoding unmarshals to map[string]interface{}
-			data, ok := resp.Data.(map[string]interface{})
+			data, ok := resp.Data.(map[string]any)
 			if !ok {
 				// Try to re-marshal and unmarshal if it's not the expected type
 				// This handles cases where the type info is lost

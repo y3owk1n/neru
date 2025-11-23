@@ -56,7 +56,10 @@ type eventTapFactory interface {
 // This factory pattern enables dependency injection and testing.
 type ipcServerFactory interface {
 	// New creates a new IPC server with the given handler and logger.
-	New(handler func(context.Context, ipc.Command) ipc.Response, logger *zap.Logger) (ipcServer, error)
+	New(
+		handler func(context.Context, ipc.Command) ipc.Response,
+		logger *zap.Logger,
+	) (ipcServer, error)
 }
 
 // deps holds optional dependencies for testing and dependency injection.

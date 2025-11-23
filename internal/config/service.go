@@ -39,6 +39,11 @@ func (s *Service) Path() string {
 	return s.path
 }
 
+// GetConfigPath is an alias for Path for compatibility.
+func (s *Service) GetConfigPath() string {
+	return s.Path()
+}
+
 // Reload reloads the configuration from the specified path.
 func (s *Service) Reload(ctx context.Context, path string) error {
 	// Load and validate new config
@@ -69,6 +74,11 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 	}
 
 	return nil
+}
+
+// ReloadConfig reloads the configuration from the specified path (compatibility wrapper).
+func (s *Service) ReloadConfig(path string) error {
+	return s.Reload(context.Background(), path)
 }
 
 // Watch returns a channel that receives configuration updates.

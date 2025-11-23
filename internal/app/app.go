@@ -72,8 +72,8 @@ type App struct {
 	// Renderer
 	renderer *ui.OverlayRenderer
 
-	// Command handlers
-	cmdHandlers map[string]func(context.Context, ipc.Command) ipc.Response
+	// IPC Controller
+	ipcController *IPCController
 }
 
 // New creates a new App instance.
@@ -161,8 +161,7 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 		scrollService: scrollService,
 		configService: cfgService,
 
-		renderer:    &ui.OverlayRenderer{}, // Will be properly initialized later
-		cmdHandlers: make(map[string]func(context.Context, ipc.Command) ipc.Response),
+		renderer: &ui.OverlayRenderer{}, // Will be properly initialized later
 	}
 
 	// Initialize components using factory functions
@@ -202,6 +201,21 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 		func() { app.refreshHotkeysForAppOrCurrent("") },
 	)
 
+	// Initialize IPC Controller
+	app.ipcController = NewIPCController(
+		hintService,
+		gridService,
+		actionService,
+		scrollService,
+		cfgService,
+		app.state,
+		app.config,
+		app.modes,
+		log,
+		metricsCollector,
+		configPath,
+	)
+
 	// Initialize event tap
 	// Note: We pass app.HandleKeyPress which delegates to modes handler
 	if deps != nil && deps.EventTapFactory != nil {
@@ -217,13 +231,13 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 
 	// Initialize IPC server
 	if deps != nil && deps.IPCServerFactory != nil {
-		srv, srvErr := deps.IPCServerFactory.New(app.handleIPCCommand, log)
+		srv, srvErr := deps.IPCServerFactory.New(app.ipcController.HandleCommand, log)
 		if srvErr != nil {
 			return nil, fmt.Errorf("failed to create IPC server: %w", srvErr)
 		}
 		app.ipcServer = srv
 	} else {
-		srv, srvErr := ipc.NewServer(app.handleIPCCommand, log)
+		srv, srvErr := ipc.NewServer(app.ipcController.HandleCommand, log)
 		if srvErr != nil {
 			return nil, fmt.Errorf("failed to create IPC server: %w", srvErr)
 		}
@@ -232,9 +246,6 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 
 	// Register overlays with overlay manager
 	app.registerOverlays()
-
-	// Register IPC command handlers
-	app.registerCommandHandlers()
 
 	return app, nil
 }

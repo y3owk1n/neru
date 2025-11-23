@@ -88,11 +88,10 @@ func (h *Handler) handleTabKey() {
 			h.Grid.Context.SetInActionMode(false)
 			h.OverlayManager.Clear()
 			h.OverlayManager.Hide()
-			// Re-setup grid to show grid again with proper refresh
-			err := h.SetupGrid()
-			if err != nil {
-				h.Logger.Error("Failed to re-setup grid", zap.Error(err))
-			}
+
+			// Re-activate grid mode (similar to hints mode pattern)
+			h.activateGridModeWithAction(nil)
+
 			h.Logger.Info("Switched back to grid overlay mode")
 			h.overlaySwitch(overlay.ModeGrid)
 		} else {
@@ -258,7 +257,7 @@ func (h *Handler) ExitMode() {
 		return
 	}
 
-	h.Logger.Info("Exiting current mode", zap.String("mode", h.getCurrModeString()))
+	h.Logger.Info("Exiting current mode", zap.String("mode", h.GetCurrModeString()))
 
 	h.performModeSpecificCleanup()
 	h.performCommonCleanup()
@@ -353,8 +352,8 @@ func (h *Handler) handleCursorRestoration() {
 	h.Scroll.Context.SetLastKey("")
 }
 
-// getCurrModeString returns the current mode as a string.
-func (h *Handler) getCurrModeString() string {
+// GetCurrModeString returns the current mode as a string.
+func (h *Handler) GetCurrModeString() string {
 	return domain.GetModeString(h.State.CurrentMode())
 }
 

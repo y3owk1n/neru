@@ -140,19 +140,3 @@ func (a *App) registerOverlays() {
 		a.overlayManager.UseGridOverlay(*a.gridComponent.Context.GetGridOverlay())
 	}
 }
-
-// registerCommandHandlers registers all IPC command handlers.
-func (a *App) registerCommandHandlers() {
-	a.cmdHandlers[domain.CommandPing] = a.handlePing
-	a.cmdHandlers[domain.CommandStart] = a.handleStart
-	a.cmdHandlers[domain.CommandStop] = a.handleStop
-	a.cmdHandlers[domain.GetModeString(domain.ModeHints)] = a.handleHints
-	a.cmdHandlers[domain.GetModeString(domain.ModeGrid)] = a.handleGrid
-	a.cmdHandlers[domain.CommandAction] = a.handleAction
-	a.cmdHandlers[domain.GetModeString(domain.ModeIdle)] = a.handleIdle
-	a.cmdHandlers[domain.CommandStatus] = a.handleStatus
-	a.cmdHandlers[domain.CommandConfig] = a.handleConfig
-	a.cmdHandlers[domain.CommandReloadConfig] = a.handleReloadConfig
-	a.cmdHandlers[domain.CommandHealth] = a.handleHealth
-	a.cmdHandlers[domain.CommandMetrics] = a.handleMetrics
-}

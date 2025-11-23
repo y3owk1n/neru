@@ -87,7 +87,10 @@ func (a *App) executeHotkeyAction(key, action string) error {
 	action = actionParts[0]
 	params := actionParts[1:]
 
-	resp := a.handleIPCCommand(context.Background(), ipc.Command{Action: action, Args: params})
+	resp := a.ipcController.HandleCommand(
+		context.Background(),
+		ipc.Command{Action: action, Args: params},
+	)
 	if !resp.Success {
 		return errors.New(resp.Message)
 	}

@@ -51,7 +51,12 @@ func (c *Collector) ObserveHistogram(name string, value float64, labels map[stri
 	c.addMetric(name, TypeHistogram, value, labels)
 }
 
-func (c *Collector) addMetric(name string, typ MetricType, value float64, labels map[string]string) {
+func (c *Collector) addMetric(
+	name string,
+	typ MetricType,
+	value float64,
+	labels map[string]string,
+) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

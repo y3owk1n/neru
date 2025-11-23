@@ -18,7 +18,10 @@ type MetricsDecorator struct {
 }
 
 // NewMetricsDecorator creates a new MetricsDecorator.
-func NewMetricsDecorator(next ports.AccessibilityPort, collector *metrics.Collector) *MetricsDecorator {
+func NewMetricsDecorator(
+	next ports.AccessibilityPort,
+	collector *metrics.Collector,
+) *MetricsDecorator {
 	return &MetricsDecorator{
 		next:      next,
 		collector: collector,
@@ -37,12 +40,19 @@ func (d *MetricsDecorator) recordError(name string, err error) {
 }
 
 // GetClickableElements implements ports.AccessibilityPort.
-func (d *MetricsDecorator) GetClickableElements(ctx context.Context, filter ports.ElementFilter) ([]*element.Element, error) {
+func (d *MetricsDecorator) GetClickableElements(
+	ctx context.Context,
+	filter ports.ElementFilter,
+) ([]*element.Element, error) {
 	defer d.recordDuration("accessibility_get_clickable_elements_duration", time.Now())
 	elems, err := d.next.GetClickableElements(ctx, filter)
 	d.recordError("accessibility_get_clickable_elements", err)
 	if err == nil {
-		d.collector.ObserveHistogram("accessibility_clickable_elements_count", float64(len(elems)), nil)
+		d.collector.ObserveHistogram(
+			"accessibility_clickable_elements_count",
+			float64(len(elems)),
+			nil,
+		)
 	}
 	return elems, err
 }
@@ -56,7 +66,11 @@ func (d *MetricsDecorator) GetScrollableElements(ctx context.Context) ([]*elemen
 }
 
 // PerformAction implements ports.AccessibilityPort.
-func (d *MetricsDecorator) PerformAction(ctx context.Context, elem *element.Element, actionType action.Type) error {
+func (d *MetricsDecorator) PerformAction(
+	ctx context.Context,
+	elem *element.Element,
+	actionType action.Type,
+) error {
 	defer d.recordDuration("accessibility_perform_action_duration", time.Now())
 	err := d.next.PerformAction(ctx, elem, actionType)
 	d.recordError("accessibility_perform_action", err)
@@ -64,7 +78,11 @@ func (d *MetricsDecorator) PerformAction(ctx context.Context, elem *element.Elem
 }
 
 // PerformActionAtPoint implements ports.AccessibilityPort.
-func (d *MetricsDecorator) PerformActionAtPoint(ctx context.Context, actionType action.Type, point image.Point) error {
+func (d *MetricsDecorator) PerformActionAtPoint(
+	ctx context.Context,
+	actionType action.Type,
+	point image.Point,
+) error {
 	defer d.recordDuration("accessibility_perform_action_at_point_duration", time.Now())
 	err := d.next.PerformActionAtPoint(ctx, actionType, point)
 	d.recordError("accessibility_perform_action_at_point", err)

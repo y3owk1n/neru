@@ -71,7 +71,7 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	}
 
 	// Show the overlay (the grid is already drawn with proper style)
-	h.Renderer.Show()
+	h.OverlayManager.Show()
 
 	// Store pending action if provided
 	h.Grid.Context.SetPendingAction(action)
@@ -161,13 +161,13 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 			// special case to handle only when exiting subgrid
 			if forceRedraw {
-				h.Renderer.Clear()
+				h.OverlayManager.Clear()
 				gridErr := h.Renderer.DrawGrid(gridInstance, input)
 				if gridErr != nil {
 					h.Logger.Error("Failed to redraw grid", zap.Error(gridErr))
 					return
 				}
-				h.Renderer.Show()
+				h.OverlayManager.Show()
 			}
 
 			// Set hideUnmatched based on whether we have input and the config setting
