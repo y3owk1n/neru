@@ -54,7 +54,12 @@ func (m *MockOverlayPort) DrawScrollHighlight(
 }
 
 // DrawActionHighlight implements ports.OverlayPort.
-func (m *MockOverlayPort) DrawActionHighlight(ctx context.Context, rect image.Rectangle, color string, width int) error {
+func (m *MockOverlayPort) DrawActionHighlight(
+	ctx context.Context,
+	rect image.Rectangle,
+	color string,
+	width int,
+) error {
 	if m.DrawActionHighlightFunc != nil {
 		return m.DrawActionHighlightFunc(ctx, rect, color, width)
 	}

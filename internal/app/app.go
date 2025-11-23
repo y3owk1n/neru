@@ -319,12 +319,6 @@ func (a *App) Logger() *zap.Logger { return a.logger }
 // OverlayManager returns the overlay manager.
 func (a *App) OverlayManager() *overlay.Manager { return a.overlayManager }
 
-// HintGenerator returns the hint generator.
-func (a *App) HintGenerator() *hints.Generator { return a.hintsComponent.Generator }
-
-// HintManager returns the hint manager.
-func (a *App) HintManager() *hints.Manager { return a.hintsComponent.Manager }
-
 // HintsContext returns the hints context.
 func (a *App) HintsContext() *hints.Context { return a.hintsComponent.Context }
 
@@ -339,12 +333,6 @@ func (a *App) SetHintOverlayNeedsRefresh(value bool) { a.state.SetHintOverlayNee
 
 // CaptureInitialCursorPosition captures the initial cursor position.
 func (a *App) CaptureInitialCursorPosition() { a.modes.CaptureInitialCursorPosition() }
-
-// UpdateRolesForCurrentApp updates roles for the current app.
-// Deprecated: Use ActionService or HintService internally
-func (a *App) UpdateRolesForCurrentApp() {
-	// No-op as this is handled by adapters now
-}
 
 // IsFocusedAppExcluded checks if the focused app is excluded.
 func (a *App) IsFocusedAppExcluded() bool {
@@ -361,20 +349,11 @@ func (a *App) IsFocusedAppExcluded() bool {
 // ExitMode exits the current mode.
 func (a *App) ExitMode() { a.modes.ExitMode() }
 
-// GridManager returns the grid manager.
-func (a *App) GridManager() *grid.Manager { return a.gridComponent.Manager }
-
 // GridContext returns the grid context.
 func (a *App) GridContext() *grid.Context { return a.gridComponent.Context }
 
-// GridRouter returns the grid router.
-func (a *App) GridRouter() *grid.Router { return a.gridComponent.Router }
-
 // ScrollContext returns the scroll context.
 func (a *App) ScrollContext() *scroll.Context { return a.scrollComponent.Context }
-
-// HintsRouter returns the hints router.
-func (a *App) HintsRouter() *hints.Router { return a.hintsComponent.Router }
 
 // EventTap returns the event tap.
 func (a *App) EventTap() eventTap { return a.eventTap }

@@ -100,7 +100,12 @@ func (a *Adapter) GetClickableElements(
 		}
 	}
 
-	a.logger.Info("Converted to domain elements", zap.Int("count", len(elements)))
+	a.logger.Info("Converted frontmost window elements", zap.Int("count", len(elements)))
+
+	// Add supplementary elements based on filter
+	elements = a.addSupplementaryElements(ctx, elements, filter)
+
+	a.logger.Info("Total elements after supplementary collection", zap.Int("count", len(elements)))
 	return elements, nil
 }
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/features/grid"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
@@ -49,10 +49,9 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	}
 
 	h.initializeGridManager(gridInstance)
-	h.Grid.Router = grid.NewRouter(h.Grid.Manager, h.Logger)
+	h.Grid.Router = domainGrid.NewRouter(h.Grid.Manager, h.Logger)
 
 	// 2. Show grid using new service
-	ctx := context.Background() // TODO: Use proper context
 	// We use the grid instance bounds to determine rows/cols if needed,
 	// but for now we just show the overlay and let the legacy manager handle drawing
 	// via the overlay adapter's SwitchTo("grid") call
@@ -71,14 +70,8 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 		return
 	}
 
-	// Then use the service to show it (this is redundant but correct for migration)
-	err = h.GridService.ShowGrid(ctx, 0, 0) // Rows/cols ignored by adapter for now
-	if err != nil {
-		h.Logger.Error("Failed to show grid",
-			zap.Error(err),
-			zap.String("action", actionString))
-		return
-	}
+	// Show the overlay (the grid is already drawn with proper style)
+	h.Renderer.Show()
 
 	// Store pending action if provided
 	h.Grid.Context.SetPendingAction(action)
@@ -98,7 +91,7 @@ func (h *Handler) SetupGrid() error {
 }
 
 // createGridInstance creates a new grid instance with proper bounds and characters.
-func (h *Handler) createGridInstance() *grid.Grid {
+func (h *Handler) createGridInstance() *domainGrid.Grid {
 	screenBounds := bridge.GetActiveScreenBounds()
 
 	// Normalize bounds to window-local coordinates using helper function
@@ -108,7 +101,7 @@ func (h *Handler) createGridInstance() *grid.Grid {
 	if strings.TrimSpace(characters) == "" {
 		characters = h.Config.Hints.HintCharacters
 	}
-	gridInstance := grid.NewGrid(characters, bounds, h.Logger)
+	gridInstance := domainGrid.NewGrid(characters, bounds, h.Logger)
 	h.Grid.Context.SetGridInstanceValue(gridInstance)
 
 	return gridInstance
@@ -120,7 +113,7 @@ func (h *Handler) updateGridOverlayConfig() {
 }
 
 // initializeGridManager initializes the grid manager with the new grid instance.
-func (h *Handler) initializeGridManager(gridInstance *grid.Grid) {
+func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 	const defaultGridCharacters = "asdfghjkl"
 
 	// Defensive check for grid instance
@@ -128,7 +121,7 @@ func (h *Handler) initializeGridManager(gridInstance *grid.Grid) {
 		h.Logger.Warn("Grid instance is nil, creating with default bounds")
 		screenBounds := bridge.GetActiveScreenBounds()
 		bounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
-		gridInstance = grid.NewGrid(h.Config.Grid.Characters, bounds, h.Logger)
+		gridInstance = domainGrid.NewGrid(h.Config.Grid.Characters, bounds, h.Logger)
 	}
 
 	// Subgrid configuration and keys (fallback to grid characters): always 3x3
@@ -152,7 +145,7 @@ func (h *Handler) initializeGridManager(gridInstance *grid.Grid) {
 	const subRows = 3
 	const subCols = 3
 
-	h.Grid.Manager = grid.NewManager(
+	h.Grid.Manager = domainGrid.NewManager(
 		gridInstance,
 		subRows,
 		subCols,
@@ -182,7 +175,7 @@ func (h *Handler) initializeGridManager(gridInstance *grid.Grid) {
 			h.Renderer.SetHideUnmatched(hideUnmatched)
 			h.Renderer.UpdateGridMatches(input)
 		},
-		func(cell *grid.Cell) {
+		func(cell *domainGrid.Cell) {
 			// Defensive check for cell
 			if cell == nil {
 				h.Logger.Warn("Attempted to show subgrid for nil cell")

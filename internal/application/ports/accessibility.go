@@ -58,12 +58,28 @@ type ElementFilter struct {
 
 	// ExcludeRoles specifies roles to exclude.
 	ExcludeRoles []element.Role
+
+	// IncludeMenubar includes menubar elements.
+	IncludeMenubar bool
+
+	// AdditionalMenubarTargets specifies additional bundle IDs to scan for menubar elements.
+	AdditionalMenubarTargets []string
+
+	// IncludeDock includes dock elements.
+	IncludeDock bool
+
+	// IncludeNotificationCenter includes notification center elements.
+	IncludeNotificationCenter bool
 }
 
 // DefaultElementFilter returns a filter with sensible defaults.
 func DefaultElementFilter() ElementFilter {
 	return ElementFilter{
-		IncludeOffscreen: false,
-		MinSize:          image.Point{X: 1, Y: 1},
+		IncludeOffscreen:          false,
+		MinSize:                   image.Point{X: 1, Y: 1},
+		IncludeMenubar:            false,
+		AdditionalMenubarTargets:  []string{},
+		IncludeDock:               false,
+		IncludeNotificationCenter: false,
 	}
 }

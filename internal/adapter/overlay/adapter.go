@@ -6,11 +6,11 @@ import (
 	"image"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/errors"
 	gridFeature "github.com/y3owk1n/neru/internal/features/grid"
 	legacyHints "github.com/y3owk1n/neru/internal/features/hints"
-	infra "github.com/y3owk1n/neru/internal/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/infra/bridge"
 	uiOverlay "github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -44,22 +44,10 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Hint) error {
 	// Convert domain hints to legacy hints for the overlay manager
 	legacyHintList := make([]*legacyHints.Hint, len(hints))
 	for i, h := range hints {
-		// Create a dummy TreeNode for the legacy hint
-		// The overlay only needs position and size for drawing
-		// We don't need the actual AXElement here since we're not using it for actions
-		bounds := h.Bounds()
-		dummyNode := &infra.TreeNode{
-			Info: &infra.ElementInfo{
-				Position: bounds.Min,
-				Size:     bounds.Size(),
-			},
-		}
-
 		legacyHintList[i] = &legacyHints.Hint{
 			Label:         h.Label(),
-			Element:       dummyNode,
 			Position:      h.Position(),
-			Size:          bounds.Size(),
+			Size:          h.Bounds().Size(),
 			MatchedPrefix: h.MatchedPrefix(),
 		}
 	}
@@ -98,7 +86,7 @@ func (a *Adapter) ShowGrid(ctx context.Context, rows, cols int) error {
 	// The legacy implementation used config.
 	// We can assume the manager or grid package handles defaults.
 	// For now, let's use a safe default.
-	g := gridFeature.NewGrid("abcdefghijklmnopqrstuvwxyz", bounds, a.logger)
+	g := domainGrid.NewGrid("abcdefghijklmnopqrstuvwxyz", bounds, a.logger)
 
 	// Draw grid
 	// Note: DrawGrid takes input string (for filtering) and style.

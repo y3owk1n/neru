@@ -20,6 +20,7 @@ import (
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/config"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"go.uber.org/zap"
 )
 
@@ -72,7 +73,7 @@ func NewOverlay(cfg config.GridConfig, logger *zap.Logger) *Overlay {
 	if strings.TrimSpace(chars) == "" {
 		chars = cfg.Characters
 	}
-	go Prewarm(chars, []image.Rectangle{
+	go domainGrid.Prewarm(chars, []image.Rectangle{
 		image.Rect(0, 0, 1280, 800),
 		image.Rect(0, 0, 1366, 768),
 		image.Rect(0, 0, 1440, 900),
@@ -99,7 +100,7 @@ func NewOverlayWithWindow(
 	if strings.TrimSpace(chars) == "" {
 		chars = cfg.Characters
 	}
-	go Prewarm(chars, []image.Rectangle{
+	go domainGrid.Prewarm(chars, []image.Rectangle{
 		image.Rect(0, 0, 1280, 800),
 		image.Rect(0, 0, 1366, 768),
 		image.Rect(0, 0, 1440, 900),
@@ -243,7 +244,7 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 }
 
 // Draw renders the flat grid with all 3-char cells visible.
-func (o *Overlay) Draw(grid *Grid, currentInput string, style Style) error {
+func (o *Overlay) Draw(grid *domainGrid.Grid, currentInput string, style Style) error {
 	o.logger.Debug("Drawing grid overlay",
 		zap.Int("cell_count", len(grid.GetAllCells())),
 		zap.String("current_input", currentInput))
@@ -287,7 +288,7 @@ func (o *Overlay) UpdateMatches(prefix string) {
 }
 
 // ShowSubgrid draws a 3x3 subgrid inside the selected cell.
-func (o *Overlay) ShowSubgrid(cell *Cell, style Style) {
+func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	o.logger.Debug("Showing subgrid",
 		zap.Int("cell_x", cell.GetBounds().Min.X),
 		zap.Int("cell_y", cell.GetBounds().Min.Y),
@@ -450,7 +451,7 @@ func (o *Overlay) DrawScrollHighlight(
 }
 
 // drawGridCells draws all grid cells with their labels.
-func (o *Overlay) drawGridCells(cellsGo []*Cell, currentInput string, style Style) {
+func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string, style Style) {
 	o.logger.Debug("Drawing grid cells",
 		zap.Int("cell_count", len(cellsGo)),
 		zap.String("current_input", currentInput))

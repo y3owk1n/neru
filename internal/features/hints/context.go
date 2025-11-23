@@ -1,20 +1,49 @@
 package hints
 
+import (
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+)
+
 // Context holds the state and context for hint mode operations.
 type Context struct {
-	SelectedHint  *Hint
+	Manager       *domainHint.Manager
+	Router        *domainHint.Router
+	Hints         *domainHint.Collection
 	InActionMode  bool
 	PendingAction *string
 }
 
-// SetSelectedHint sets the currently selected hint.
-func (c *Context) SetSelectedHint(hint *Hint) {
-	c.SelectedHint = hint
+// SetManager sets the domain hint manager.
+func (c *Context) SetManager(manager *domainHint.Manager) {
+	c.Manager = manager
 }
 
-// GetSelectedHint returns the currently selected hint.
-func (c *Context) GetSelectedHint() *Hint {
-	return c.SelectedHint
+// GetManager returns the domain hint manager.
+func (c *Context) GetManager() *domainHint.Manager {
+	return c.Manager
+}
+
+// SetRouter sets the domain hint router.
+func (c *Context) SetRouter(router *domainHint.Router) {
+	c.Router = router
+}
+
+// GetRouter() returns the domain hint router.
+func (c *Context) GetRouter() *domainHint.Router {
+	return c.Router
+}
+
+// SetHints sets the current hint collection.
+func (c *Context) SetHints(hints *domainHint.Collection) {
+	c.Hints = hints
+	if c.Manager != nil {
+		c.Manager.SetHints(hints)
+	}
+}
+
+// GetHints returns the current hint collection.
+func (c *Context) GetHints() *domainHint.Collection {
+	return c.Hints
 }
 
 // SetInActionMode sets whether hint mode is in action mode.
@@ -39,7 +68,9 @@ func (c *Context) GetPendingAction() *string {
 
 // Reset resets the hints context to its initial state.
 func (c *Context) Reset() {
-	c.SelectedHint = nil
+	if c.Manager != nil {
+		c.Manager.Reset()
+	}
 	c.InActionMode = false
 	c.PendingAction = nil
 }

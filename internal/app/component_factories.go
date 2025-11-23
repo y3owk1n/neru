@@ -7,6 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/features/action"
 	"github.com/y3owk1n/neru/internal/features/grid"
 	"github.com/y3owk1n/neru/internal/features/hints"
@@ -23,32 +24,12 @@ func createHintsComponent(
 ) (*components.HintsComponent, error) {
 	component := &components.HintsComponent{}
 
-	// Ensure hint characters are configured
-	hintChars := cfg.Hints.HintCharacters
-	if strings.TrimSpace(hintChars) == "" {
-		hintChars = domain.DefaultHintCharacters
-		log.Warn("No hint characters configured, using default: " + domain.DefaultHintCharacters)
-	}
-
-	// Always initialize generator to prevent nil pointer dereferences
-	component.Generator = hints.NewGenerator(hintChars)
-
-	// Only initialize full component if hints are enabled
+	// Only initialize component if hints are enabled
 	if !cfg.Hints.Enabled {
 		return component, nil
 	}
 
 	component.Style = hints.BuildStyle(cfg.Hints)
-	component.Manager = hints.NewManager(func(hs []*hints.Hint) {
-		if component.Overlay == nil {
-			return
-		}
-		err := component.Overlay.DrawHintsWithStyle(hs, component.Style)
-		if err != nil {
-			log.Error("Failed to redraw hints", zap.Error(err))
-		}
-	}, log)
-	component.Router = hints.NewRouter(component.Manager, log)
 	component.Context = &hints.Context{}
 
 	hintOverlay, err := hints.NewOverlayWithWindow(cfg.Hints, log, overlayManager.GetWindowPtr())
@@ -70,7 +51,7 @@ func createGridComponent(
 
 	// Initialize minimal context even when disabled
 	if !cfg.Grid.Enabled {
-		var gridInstance *grid.Grid
+		var gridInstance *domainGrid.Grid
 		component.Context = &grid.Context{
 			GridInstance: &gridInstance,
 		}
@@ -86,7 +67,7 @@ func createGridComponent(
 
 	component.Style = grid.BuildStyle(cfg.Grid)
 	gridOverlay := grid.NewOverlayWithWindow(cfg.Grid, log, overlayManager.GetWindowPtr())
-	var gridInstance *grid.Grid
+	var gridInstance *domainGrid.Grid
 
 	// Determine sublayer keys with fallback chain
 	keys := strings.TrimSpace(cfg.Grid.SublayerKeys)
@@ -99,7 +80,7 @@ func createGridComponent(
 	}
 
 	// Create grid manager with callbacks
-	component.Manager = grid.NewManager(
+	component.Manager = domainGrid.NewManager(
 		nil,
 		domain.SubgridRows,
 		domain.SubgridCols,
@@ -110,7 +91,7 @@ func createGridComponent(
 			}
 			gridOverlay.UpdateMatches(component.Manager.GetInput())
 		},
-		func(cell *grid.Cell) {
+		func(cell *domainGrid.Cell) {
 			gridOverlay.ShowSubgrid(cell, component.Style)
 		},
 		log,

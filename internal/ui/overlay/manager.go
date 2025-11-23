@@ -12,6 +12,7 @@ import (
 	"sync"
 	"unsafe"
 
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/features/action"
 	"github.com/y3owk1n/neru/internal/features/grid"
 	"github.com/y3owk1n/neru/internal/features/hints"
@@ -197,7 +198,7 @@ func (m *Manager) DrawScrollHighlight(x, y, w, h int) {
 }
 
 // DrawGrid renders a grid with the specified style using the grid overlay renderer.
-func (m *Manager) DrawGrid(g *grid.Grid, input string, style grid.Style) error {
+func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error {
 	if m.gridOverlay == nil {
 		return nil
 	}
@@ -217,7 +218,7 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 }
 
 // ShowSubgrid shows a subgrid for the specified cell.
-func (m *Manager) ShowSubgrid(cell *grid.Cell, style grid.Style) {
+func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
 	if m.gridOverlay == nil {
 		return
 	}

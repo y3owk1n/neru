@@ -1,25 +1,29 @@
 package grid
 
+import (
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+)
+
 // Context holds the state and context for grid mode operations.
 type Context struct {
-	GridInstance  **Grid
+	GridInstance  **domainGrid.Grid
 	GridOverlay   **Overlay
 	InActionMode  bool
 	PendingAction *string
 }
 
 // SetGridInstance sets the grid instance.
-func (c *Context) SetGridInstance(gridInstance **Grid) {
+func (c *Context) SetGridInstance(gridInstance **domainGrid.Grid) {
 	c.GridInstance = gridInstance
 }
 
 // SetGridInstanceValue sets the value of the grid instance pointer.
-func (c *Context) SetGridInstanceValue(gridInstance *Grid) {
+func (c *Context) SetGridInstanceValue(gridInstance *domainGrid.Grid) {
 	*c.GridInstance = gridInstance
 }
 
 // GetGridInstance returns the grid instance.
-func (c *Context) GetGridInstance() **Grid {
+func (c *Context) GetGridInstance() **domainGrid.Grid {
 	return c.GridInstance
 }
 

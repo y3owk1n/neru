@@ -2,14 +2,12 @@ package modes
 
 import (
 	"context"
-	"fmt"
-	"image"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
 	"github.com/y3owk1n/neru/internal/domain"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/features/hints"
 	infra "github.com/y3owk1n/neru/internal/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/infra/bridge"
 	"go.uber.org/zap"
 )
 
@@ -80,6 +78,12 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	ctx := context.Background() // TODO: Use proper context with timeout
 	filter := ports.DefaultElementFilter()
 
+	// Populate filter with configuration
+	filter.IncludeMenubar = h.Config.Hints.IncludeMenubarHints
+	filter.AdditionalMenubarTargets = h.Config.Hints.AdditionalMenubarHintsTargets
+	filter.IncludeDock = h.Config.Hints.IncludeDockHints
+	filter.IncludeNotificationCenter = h.Config.Hints.IncludeNCHints
+
 	// Get hints from service
 	domainHints, err := h.HintService.ShowHints(ctx, filter)
 	if err != nil {
@@ -92,25 +96,42 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 		return
 	}
 
-	// Convert domain hints to legacy hints for input handling
-	// We need to do this reverse conversion because the input handler still uses legacy types
-	// This is temporary until we migrate the input handling logic
-	legacyHintsList := make([]*hints.Hint, len(domainHints))
-	for i, dh := range domainHints {
-		legacyHintsList[i] = &hints.Hint{
-			Label:         dh.Label(),
-			Position:      dh.Position(),
-			MatchedPrefix: dh.MatchedPrefix(),
-			// We don't have the legacy TreeNode here, but input handler might need it
-			// For now, we'll leave it nil and see if it breaks anything
-			// The overlay adapter already handled the display part
-		}
+	// Create domain hint collection
+	hintCollection := domainHint.NewCollection(domainHints)
+
+	// Initialize domain manager with overlay update callback
+	if h.Hints.Context.Manager == nil {
+		manager := domainHint.NewManager(h.Logger)
+		// Set callback to update overlay when hints are filtered
+		manager.SetUpdateCallback(func(filteredHints []*domainHint.Hint) {
+			if h.Hints.Overlay == nil {
+				return
+			}
+			// Convert domain hints to legacy hints for overlay rendering
+			legacyHints := make([]*hints.Hint, len(filteredHints))
+			for i, dh := range filteredHints {
+				legacyHints[i] = &hints.Hint{
+					Label:         dh.Label(),
+					Position:      dh.Position(),
+					Size:          dh.Element().Bounds().Size(),
+					MatchedPrefix: dh.MatchedPrefix(),
+				}
+			}
+			err := h.Hints.Overlay.DrawHintsWithStyle(legacyHints, h.Hints.Style)
+			if err != nil {
+				h.Logger.Error("Failed to update hints overlay", zap.Error(err))
+			}
+		})
+		h.Hints.Context.SetManager(manager)
 	}
 
-	hintCollection := hints.NewHintCollection(legacyHintsList)
-	h.Hints.Manager.SetHints(hintCollection)
+	// Initialize domain router
+	if h.Hints.Context.Router == nil {
+		h.Hints.Context.SetRouter(domainHint.NewRouter(h.Hints.Context.Manager, h.Logger))
+	}
 
-	h.Hints.Context.SetSelectedHint(nil)
+	// Set hints in context (this also updates the manager)
+	h.Hints.Context.SetHints(hintCollection)
 
 	// Store pending action if provided
 	h.Hints.Context.SetPendingAction(action)
@@ -124,51 +145,6 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 // SetupHints is deprecated and replaced by HintService.ShowHints
 func (h *Handler) SetupHints(elements []*infra.TreeNode) error {
 	return nil
-}
-
-// generateAndNormalizeHints generates hints and normalizes their positions.
-func (h *Handler) generateAndNormalizeHints(elements []*infra.TreeNode) ([]*hints.Hint, error) {
-	// Get active screen bounds to calculate offset for normalization
-	screenBounds := bridge.GetActiveScreenBounds()
-	screenOffsetX := screenBounds.Min.X
-	screenOffsetY := screenBounds.Min.Y
-
-	hintList, err := h.Hints.Generator.Generate(elements)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate hints: %w", err)
-	}
-
-	// Check if we have any hints
-	if len(hintList) == 0 {
-		h.Logger.Warn("No hints generated",
-			zap.Int("elements_count", len(elements)),
-			zap.Any("screen_bounds", screenBounds))
-		return hintList, nil
-	}
-
-	// Normalize hint positions to window-local coordinates.
-	// The overlay window is positioned at the screen origin, but the view uses local coordinates.
-	for _, hint := range hintList {
-		pos := hint.GetPosition()
-		hint.Position.X = pos.X - screenOffsetX
-		hint.Position.Y = pos.Y - screenOffsetY
-	}
-
-	localBounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
-	// Pre-allocate with estimated capacity (typically 70-90% of hints are visible)
-	filtered := make([]*hints.Hint, 0, len(hintList)*9/10)
-	for _, h := range hintList {
-		if h.IsVisible(localBounds) {
-			filtered = append(filtered, h)
-		}
-	}
-
-	h.Logger.Debug("Hints generated and normalized",
-		zap.Int("generated", len(hintList)),
-		zap.Int("visible", len(filtered)),
-		zap.Int("elements", len(elements)))
-
-	return filtered, nil
 }
 
 // handleHintsActionKey handles action keys when in hints action mode.

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/config"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/features/action"
 	"github.com/y3owk1n/neru/internal/features/grid"
 	"github.com/y3owk1n/neru/internal/features/hints"
@@ -13,12 +14,9 @@ import (
 
 // HintsComponent encapsulates all hints-related functionality.
 type HintsComponent struct {
-	Generator *hints.Generator
-	Overlay   *hints.Overlay
-	Manager   *hints.Manager
-	Router    *hints.Router
-	Context   *hints.Context
-	Style     hints.StyleMode
+	Overlay *hints.Overlay
+	Context *hints.Context
+	Style   hints.StyleMode
 }
 
 // UpdateConfig updates the hints component with new configuration.
@@ -27,16 +25,12 @@ func (h *HintsComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
 		h.Style = hints.BuildStyle(cfg.Hints)
 		h.Overlay.UpdateConfig(cfg.Hints)
 	}
-	// Update generator characters if they changed
-	if h.Generator != nil && cfg.Hints.HintCharacters != "" {
-		h.Generator.UpdateCharacters(cfg.Hints.HintCharacters)
-	}
 }
 
 // GridComponent encapsulates all grid-related functionality.
 type GridComponent struct {
-	Manager *grid.Manager
-	Router  *grid.Router
+	Manager *domainGrid.Manager
+	Router  *domainGrid.Router
 	Context *grid.Context
 	Style   grid.Style
 }
@@ -55,7 +49,7 @@ func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 			if oldGrid != nil && cfg.Grid.Characters != "" &&
 				strings.ToUpper(cfg.Grid.Characters) != oldGrid.GetCharacters() {
 				logger.Debug("Recreating grid with new characters")
-				newGrid := grid.NewGrid(cfg.Grid.Characters, oldGrid.GetBounds(), logger)
+				newGrid := domainGrid.NewGrid(cfg.Grid.Characters, oldGrid.GetBounds(), logger)
 				g.Manager.UpdateGrid(newGrid)
 			}
 

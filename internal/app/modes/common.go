@@ -2,7 +2,6 @@ package modes
 
 import (
 	"context"
-	"image"
 
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/infra/bridge"
@@ -151,8 +150,14 @@ func (h *Handler) handleModeSpecificKey(key string) {
 			return
 		}
 
-		// Route hint-specific keys via hints router
-		res := h.Hints.Router.RouteKey(key, h.Hints.Context.SelectedHint != nil)
+		// Route hint-specific keys via domain hints router
+		if h.Hints.Context.Router == nil {
+			h.Logger.Error("Hints router is nil")
+			h.ExitMode()
+			return
+		}
+
+		res := h.Hints.Context.Router.RouteKey(key)
 		if res.Exit {
 			h.ExitMode()
 			return
@@ -161,18 +166,10 @@ func (h *Handler) handleModeSpecificKey(key string) {
 		// Hint input processed by router; if exact match, perform action
 		if res.ExactHint != nil {
 			hint := res.ExactHint
-			info, err := hint.Element.Element.GetInfo()
-			if err != nil {
-				h.Logger.Error("Failed to get element info", zap.Error(err))
-				h.ExitMode()
-				return
-			}
-			center := image.Point{
-				X: info.Position.X + info.Size.X/2,
-				Y: info.Position.Y + info.Size.Y/2,
-			}
+			// Use the domain element's center point
+			center := hint.Element().Center()
 
-			h.Logger.Info("Found element", zap.String("label", h.Hints.Manager.GetInput()))
+			h.Logger.Info("Found element", zap.String("label", hint.Label()))
 			ctx := context.Background()
 			if err := h.ActionService.MoveCursorToPoint(ctx, center); err != nil {
 				h.Logger.Error("Failed to move cursor", zap.Error(err))
@@ -193,13 +190,9 @@ func (h *Handler) handleModeSpecificKey(key string) {
 				return
 			}
 
-			if h.Hints.Manager != nil {
-				h.Hints.Manager.Reset()
-			}
-			h.Hints.Context.SetSelectedHint(nil)
-
-			h.activateHintModeWithAction(nil)
-
+			// No pending action - re-activate hints mode to show hints again
+			h.Logger.Info("Re-activating hints mode after cursor movement")
+			h.activateHintModeInternal(false, nil)
 			return
 		}
 	case domain.ModeGrid:
@@ -285,11 +278,7 @@ func (h *Handler) performModeSpecificCleanup() {
 // cleanupHintsMode handles cleanup for hints mode.
 func (h *Handler) cleanupHintsMode() {
 	h.Hints.Context.SetInActionMode(false)
-
-	if h.Hints.Manager != nil {
-		h.Hints.Manager.Reset()
-	}
-	h.Hints.Context.SetSelectedHint(nil)
+	h.Hints.Context.Reset()
 
 	h.OverlayManager.Clear()
 	h.OverlayManager.Hide()

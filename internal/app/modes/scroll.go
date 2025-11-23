@@ -74,6 +74,12 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 			*lastScrollKey = newLast
 			return
 		}
+		if operation == "start_g" {
+			// First 'g' pressed, wait for second 'g'
+			h.Logger.Info("First g pressed, press again for top")
+			*lastScrollKey = newLast
+			return
+		}
 		if operation == "top" {
 			h.Logger.Info("gg detected - scroll to top")
 			err = h.ScrollService.Scroll(ctx, services.ScrollDirectionUp, services.ScrollAmountEnd)
@@ -97,7 +103,8 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 		return
 	}
 
-	*lastScrollKey = ""
+	// Only reset lastScrollKey if we didn't just set it for a multi-key sequence
+	// This is handled in each case above
 
 done:
 	if err != nil {

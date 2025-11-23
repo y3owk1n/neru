@@ -1,0 +1,57 @@
+package hint
+
+import "go.uber.org/zap"
+
+// Router handles hint-related key routing and returns routing results.
+type Router struct {
+	manager *Manager
+	logger  *zap.Logger
+}
+
+// RouteResult contains the result of routing a key press in hint mode.
+type RouteResult struct {
+	Exit      bool  // Whether to exit hint mode
+	ExactHint *Hint // The exact matched hint (domain hint)
+}
+
+// NewRouter creates a new hint router with the specified manager and logger.
+func NewRouter(manager *Manager, logger *zap.Logger) *Router {
+	return &Router{
+		manager: manager,
+		logger:  logger,
+	}
+}
+
+// RouteKey processes a key press and returns the routing result.
+func (r *Router) RouteKey(key string) RouteResult {
+	if r.logger != nil {
+		r.logger.Debug("Hints router processing key", zap.String("key", key))
+	}
+
+	// Handle escape key
+	if key == "\x1b" || key == "escape" {
+		if r.logger != nil {
+			r.logger.Debug("Hints router: Escape pressed, exiting")
+		}
+		return RouteResult{Exit: true}
+	}
+
+	// Process input through manager
+	hint, exactMatch := r.manager.HandleInput(key)
+	if exactMatch {
+		if r.logger != nil {
+			r.logger.Debug("Hints router: Exact hint match found",
+				zap.String("label", hint.Label()))
+		}
+		return RouteResult{
+			Exit:      false,
+			ExactHint: hint,
+		}
+	}
+
+	// No exact match, continue in hint mode
+	return RouteResult{
+		Exit:      false,
+		ExactHint: nil,
+	}
+}
