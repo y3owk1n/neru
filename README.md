@@ -217,7 +217,7 @@ This project thrives on community contributions. I'm happy to merge PRs that ali
 
 ### Roadmap / Future Ideas
 
-- [ ] Test suites (contributions welcome!)
+- [x] Test suites (contributions welcome!)
 - [ ] Launch agent with `start-service`/`stop-service` commands
 - [ ] Better app icon and menubar icon
 

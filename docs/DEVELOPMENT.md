@@ -178,21 +178,29 @@ neru/
 │   ├── domain/            # Core domain entities (DDD)
 │   │   ├── element/       # UI Element entity
 │   │   ├── hint/          # Hint entity
+│   │   ├── grid/          # Grid entity
 │   │   └── action/        # Action definitions
 │   ├── application/       # Application layer (Ports & Services)
 │   │   ├── ports/         # Interface definitions
 │   │   └── services/      # Business logic services
 │   ├── adapter/           # Interface implementations
 │   │   ├── accessibility/ # Accessibility adapter
-│   │   ├── overlay/       # Overlay adapter
-│   │   └── config/        # Config adapter
-│   ├── features/          # Feature-specific types
+│   │   ├── config/        # Config adapter
+│   │   ├── eventtap/      # Event tap adapter
+│   │   ├── hotkey/        # Hotkey adapter
+│   │   ├── ipc/           # IPC adapter
+│   │   └── overlay/       # Overlay adapter
+│   ├── features/          # View Models and UI Adapters
 │   ├── infra/             # Infrastructure components
 │   │   ├── accessibility/ # Low-level CGo wrappers
+│   │   ├── appwatcher/    # Application focus watcher
 │   │   ├── bridge/        # Objective-C bridges
-│   │   ├── eventtap/      # Event tap management
+│   │   ├── electron/      # Electron app support
+│   │   ├── eventtap/      # System event tap
+│   │   ├── hotkeys/       # Global hotkey management
 │   │   ├── ipc/           # IPC server/client
-│   │   └── logger/        # Logging infrastructure
+│   │   ├── logger/        # Logging infrastructure
+│   │   └── metrics/       # Telemetry and metrics
 │   └── ui/                # UI components
 ├── configs/               # Default configuration files
 ├── demos/                 # Demonstration files
@@ -232,8 +240,9 @@ Implements the application's use cases using Ports and Adapters.
 Concrete implementations of the application ports.
 
 - **Accessibility**: Adapts `internal/infra/accessibility` to `AccessibilityPort`.
-- **Overlay**: Adapts `internal/ui` to `OverlayPort`.
+- **Overlay**: Adapts `internal/features` (View Models) and `internal/infra/bridge` to `OverlayPort`.
 - **Config**: Adapts `internal/config` to `ConfigPort`.
+- **Hotkey**: Adapts `internal/infra/hotkeys` to `HotkeyPort`.
 
 #### `internal/infra`
 
@@ -241,11 +250,13 @@ Low-level infrastructure code, including CGo and OS interactions.
 
 - **Accessibility**: Direct CGo calls to macOS Accessibility APIs.
 - **EventTap**: System-wide input interception.
+- **Hotkeys**: Global hotkey registration via Carbon APIs.
 - **IPC**: Unix socket communication.
+- **Metrics**: Prometheus/OpenTelemetry metrics.
 
 #### `internal/features`
 
-Contains feature-specific types and logic that are gradually being migrated or used as shared utilities by the application layer.
+Contains View Models and UI-specific adapters that bridge the Domain layer with the Overlay infrastructure. This layer handles the presentation logic for Hints, Grid, and Scroll modes.
 
 #### `internal/config`
 
