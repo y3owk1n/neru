@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.10.0](https://github.com/y3owk1n/neru/compare/v1.9.0...v1.10.0) (2025-11-23)
+
+
+### Features
+
+* **cli:** add --action flag for hints and grid commands ([#167](https://github.com/y3owk1n/neru/issues/167)) ([d41bc99](https://github.com/y3owk1n/neru/commit/d41bc99db5ff73cb28d9f94fcf89cbb35ed64c73))
+* **config:** remove subgrid_enabled option and make subgrid always enabled ([#171](https://github.com/y3owk1n/neru/issues/171)) ([970962e](https://github.com/y3owk1n/neru/commit/970962ef6677fa803381c00fb3f9634bccd54d64))
+* implement program wide DI and initial testing suite ([#175](https://github.com/y3owk1n/neru/issues/175)) ([bf29d4e](https://github.com/y3owk1n/neru/commit/bf29d4eb368be696d3b9116766e3b5cd49257fb3))
+
+
+### Bug Fixes
+
+* add IPC timeout with flags and 5 sec default ([#155](https://github.com/y3owk1n/neru/issues/155)) ([6e5bd24](https://github.com/y3owk1n/neru/commit/6e5bd24bc67f3b76623d83b29a51496543735bd6))
+* allow smooth mouse movement ([#159](https://github.com/y3owk1n/neru/issues/159)) ([63cb580](https://github.com/y3owk1n/neru/commit/63cb580124ffa7628b7d26c3e280edc542f749ae))
+* **config:** ensure reliable reload and improve startup validation UX ([#169](https://github.com/y3owk1n/neru/issues/169)) ([8127e49](https://github.com/y3owk1n/neru/commit/8127e49ad332d94ba2c1cd1dbe5493b4e29eba1d))
+* do not restore cursor if switches to scroll action ([#152](https://github.com/y3owk1n/neru/issues/152)) ([d5ed1d5](https://github.com/y3owk1n/neru/commit/d5ed1d5d4c9eb46dd36c8dd2abbe32203bf9d3f5))
+* domain based refactoring & update comments ([#157](https://github.com/y3owk1n/neru/issues/157)) ([b5d6c96](https://github.com/y3owk1n/neru/commit/b5d6c96f19747448f9df732cba67a814e56e57a7))
+* enhance codebase robustness and error handling ([#165](https://github.com/y3owk1n/neru/issues/165)) ([b3e6188](https://github.com/y3owk1n/neru/commit/b3e6188f07a04cabf21073e606b1c8d0b171e615))
+* ensure clean scroll context when switching mode ([#163](https://github.com/y3owk1n/neru/issues/163)) ([cd69912](https://github.com/y3owk1n/neru/commit/cd69912c18fb8ab01f9ff4d475e9fbb8ca6dcb4f))
+* ensure just fmt pointing to new bridge location [skip ci] ([#162](https://github.com/y3owk1n/neru/issues/162)) ([1089e10](https://github.com/y3owk1n/neru/commit/1089e104ab8b460f377b4b4c674b40191e645cba))
+* focus on performance optimisation ([#173](https://github.com/y3owk1n/neru/issues/173)) ([74b61f4](https://github.com/y3owk1n/neru/commit/74b61f4d320366c77ef077c7e1cf8051d53e7eaa))
+* **grid:** move mouse to cell center when showing subgrid ([#172](https://github.com/y3owk1n/neru/issues/172)) ([bcedcd0](https://github.com/y3owk1n/neru/commit/bcedcd05f7ebaed81387af110dc8659886de1c45))
+* **hints:** prevent cursor restoration during hint mode transitions ([#170](https://github.com/y3owk1n/neru/issues/170)) ([83922f0](https://github.com/y3owk1n/neru/commit/83922f08da64a2a17ea30ea54a4e68bf71514c22))
+* improve godoc and remove noises for obvious or not needed comments [skip ci] ([#164](https://github.com/y3owk1n/neru/issues/164)) ([3a3c2b2](https://github.com/y3owk1n/neru/commit/3a3c2b255968eb2c432cd228f71f8060318d16e4))
+* improve logging and add config dumps ([#154](https://github.com/y3owk1n/neru/issues/154)) ([bc99f53](https://github.com/y3owk1n/neru/commit/bc99f53f0514cbdd03bd7b760e902e30af82ed6e))
+* make uuid direct in go.mod ([#176](https://github.com/y3owk1n/neru/issues/176)) ([bb2bbe2](https://github.com/y3owk1n/neru/commit/bb2bbe2e0b2e910257f7528f71514bf6ccfe917c))
+* **modes:** reset cursor state when exiting scroll mode via ESC ([#174](https://github.com/y3owk1n/neru/issues/174)) ([12f2124](https://github.com/y3owk1n/neru/commit/12f2124eb91622ac4bcbbeebb4716b882e2d0d12))
+* more tests ([#177](https://github.com/y3owk1n/neru/issues/177)) ([a019a53](https://github.com/y3owk1n/neru/commit/a019a53d64fdf9cf4b08b4c064bea1e1633c39e1))
+* remove `:` from exec ([#168](https://github.com/y3owk1n/neru/issues/168)) ([385f2ce](https://github.com/y3owk1n/neru/commit/385f2ce5307b64a25e555c4fdca5f20f02b84610))
+* restructure the codebase to be more concise ([#161](https://github.com/y3owk1n/neru/issues/161)) ([a089c13](https://github.com/y3owk1n/neru/commit/a089c13f100299e7d53bfe8007fef90770b52b54))
+* use faster default smooth cursor for config ([#160](https://github.com/y3owk1n/neru/issues/160)) ([97c8af7](https://github.com/y3owk1n/neru/commit/97c8af711abab4e3c59bc3faed3e1e7624073e9f))
+
 ## [1.9.0](https://github.com/y3owk1n/neru/compare/v1.8.0...v1.9.0) (2025-11-16)
 
 
