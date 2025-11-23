@@ -24,7 +24,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			direction: services.ScrollDirectionDown,
 			amount:    services.ScrollAmountChar,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(ctx context.Context, deltaX, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
 					if deltaY >= 0 {
 						t.Errorf("Expected negative deltaY for scroll down, got %d", deltaY)
 					}
@@ -38,7 +38,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			direction: services.ScrollDirectionUp,
 			amount:    services.ScrollAmountChar,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(ctx context.Context, deltaX, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
 					if deltaY <= 0 {
 						t.Errorf("Expected positive deltaY for scroll up, got %d", deltaY)
 					}
@@ -84,10 +84,10 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 		{
 			name: "successful show",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
-				acc.GetScreenBoundsFunc = func(ctx context.Context) (image.Rectangle, error) {
+				acc.GetScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
 					return image.Rect(0, 0, 1920, 1080), nil
 				}
-				ov.DrawScrollHighlightFunc = func(ctx context.Context, rect image.Rectangle, color string, width int) error {
+				ov.DrawScrollHighlightFunc = func(_ context.Context, rect image.Rectangle, _ string, _ int) error {
 					if rect.Dx() != 1920 || rect.Dy() != 1080 {
 						t.Errorf("Unexpected rect dimensions: %v", rect)
 					}

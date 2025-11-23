@@ -28,7 +28,7 @@ func (c *Context) SetRouter(router *domainHint.Router) {
 	c.Router = router
 }
 
-// GetRouter() returns the domain hint router.
+// GetRouter returns the domain hint router.
 func (c *Context) GetRouter() *domainHint.Router {
 	return c.Router
 }

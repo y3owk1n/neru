@@ -1,4 +1,3 @@
-// Package mocks provides mock implementations of port interfaces for testing.
 package mocks
 
 import (
@@ -133,5 +132,5 @@ func (m *MockAccessibilityPort) GetCursorPosition(ctx context.Context) (image.Po
 	return image.Point{}, nil
 }
 
-// Ensure MockAccessibilityPort implements ports.AccessibilityPort
+// Ensure MockAccessibilityPort implements ports.AccessibilityPort.
 var _ ports.AccessibilityPort = (*MockAccessibilityPort)(nil)

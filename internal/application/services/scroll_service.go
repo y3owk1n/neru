@@ -72,7 +72,8 @@ func (s *ScrollService) Scroll(
 		zap.Int("deltaX", deltaX),
 		zap.Int("deltaY", deltaY))
 
-	if err := s.accessibility.Scroll(ctx, deltaX, deltaY); err != nil {
+	err := s.accessibility.Scroll(ctx, deltaX, deltaY)
+	if err != nil {
 		return fmt.Errorf("failed to scroll: %w", err)
 	}
 
@@ -88,7 +89,13 @@ func (s *ScrollService) ShowScrollOverlay(ctx context.Context) error {
 	}
 
 	// Draw highlight
-	if err := s.overlay.DrawScrollHighlight(ctx, bounds, s.config.HighlightColor, s.config.HighlightWidth); err != nil {
+	err = s.overlay.DrawScrollHighlight(
+		ctx,
+		bounds,
+		s.config.HighlightColor,
+		s.config.HighlightWidth,
+	)
+	if err != nil {
 		return fmt.Errorf("failed to draw scroll highlight: %w", err)
 	}
 
@@ -113,7 +120,8 @@ func (s *ScrollService) ShowScrollOverlay(ctx context.Context) error {
 
 // HideScrollOverlay hides the scroll overlay.
 func (s *ScrollService) HideScrollOverlay(ctx context.Context) error {
-	if err := s.overlay.Hide(ctx); err != nil {
+	err := s.overlay.Hide(ctx)
+	if err != nil {
 		return fmt.Errorf("failed to hide overlay: %w", err)
 	}
 	return nil
@@ -121,7 +129,7 @@ func (s *ScrollService) HideScrollOverlay(ctx context.Context) error {
 
 // UpdateConfig updates the scroll configuration.
 // This allows changing scroll behavior at runtime.
-func (s *ScrollService) UpdateConfig(ctx context.Context, cfg config.ScrollConfig) {
+func (s *ScrollService) UpdateConfig(_ context.Context, cfg config.ScrollConfig) {
 	s.config = cfg
 	s.logger.Info("Scroll configuration updated",
 		zap.Int("scroll_step", cfg.ScrollStep),

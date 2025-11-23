@@ -55,7 +55,23 @@ type Error struct {
 	Code    Code
 	Message string
 	Cause   error
-	Context map[string]interface{}
+	Context map[string]any
+}
+
+// New creates a new domain error with the given code and message.
+func New(code Code, message string) *Error {
+	return &Error{
+		Code:    code,
+		Message: message,
+	}
+}
+
+// Newf creates a new domain error with formatted message.
+func Newf(code Code, format string, args ...any) *Error {
+	return &Error{
+		Code:    code,
+		Message: fmt.Sprintf(format, args...),
+	}
 }
 
 // Error implements the error interface.
@@ -81,28 +97,12 @@ func (e *Error) Is(target error) bool {
 }
 
 // WithContext adds context information to the error.
-func (e *Error) WithContext(key string, value interface{}) *Error {
+func (e *Error) WithContext(key string, value any) *Error {
 	if e.Context == nil {
-		e.Context = make(map[string]interface{})
+		e.Context = make(map[string]any)
 	}
 	e.Context[key] = value
 	return e
-}
-
-// New creates a new domain error with the given code and message.
-func New(code Code, message string) *Error {
-	return &Error{
-		Code:    code,
-		Message: message,
-	}
-}
-
-// Newf creates a new domain error with formatted message.
-func Newf(code Code, format string, args ...interface{}) *Error {
-	return &Error{
-		Code:    code,
-		Message: fmt.Sprintf(format, args...),
-	}
 }
 
 // Wrap wraps an existing error with a domain error code and message.
@@ -118,7 +118,7 @@ func Wrap(err error, code Code, message string) *Error {
 }
 
 // Wrapf wraps an existing error with formatted message.
-func Wrapf(err error, code Code, format string, args ...interface{}) *Error {
+func Wrapf(err error, code Code, format string, args ...any) *Error {
 	if err == nil {
 		return nil
 	}

@@ -1,3 +1,4 @@
+// Package eventtap implements the event tap adapter.
 package eventtap
 
 import (
@@ -25,14 +26,14 @@ func NewAdapter(tap *eventtap.EventTap, logger *zap.Logger) *Adapter {
 }
 
 // Enable enables the event tap.
-func (a *Adapter) Enable(ctx context.Context) error {
+func (a *Adapter) Enable(_ context.Context) error {
 	a.tap.Enable()
 	a.enabled = true
 	return nil
 }
 
 // Disable disables the event tap.
-func (a *Adapter) Disable(ctx context.Context) error {
+func (a *Adapter) Disable(_ context.Context) error {
 	a.tap.Disable()
 	a.enabled = false
 	return nil
@@ -46,11 +47,11 @@ func (a *Adapter) IsEnabled() bool {
 // SetHandler sets the function to call when a key is pressed.
 // Note: The legacy EventTap takes the callback in NewEventTap, so this is a no-op.
 // The handler should be set when creating the EventTap instance.
-func (a *Adapter) SetHandler(handler func(key string)) {
+func (a *Adapter) SetHandler(_ func(key string)) {
 	// The legacy EventTap doesn't support changing the handler after creation.
 	// This is a limitation of the current design.
 	a.logger.Warn("SetHandler called but EventTap doesn't support changing handler after creation")
 }
 
-// Ensure Adapter implements ports.EventTapPort
+// Ensure Adapter implements ports.EventTapPort.
 var _ ports.EventTapPort = (*Adapter)(nil)

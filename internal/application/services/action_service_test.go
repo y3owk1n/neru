@@ -25,7 +25,7 @@ func TestActionService_PerformAction(t *testing.T) {
 			action: "left_click",
 			point:  image.Point{X: 100, Y: 100},
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.PerformActionAtPointFunc = func(ctx context.Context, actionType action.Type, point image.Point) error {
+				acc.PerformActionAtPointFunc = func(_ context.Context, actionType action.Type, point image.Point) error {
 					if actionType != action.TypeLeftClick {
 						t.Errorf("Expected action TypeLeftClick, got '%v'", actionType)
 					}
@@ -76,10 +76,10 @@ func TestActionService_IsFocusedAppExcluded(t *testing.T) {
 		{
 			name: "app is excluded",
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.GetFocusedAppBundleIDFunc = func(ctx context.Context) (string, error) {
+				acc.GetFocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
 					return "com.excluded.app", nil
 				}
-				acc.IsAppExcludedFunc = func(ctx context.Context, bundleID string) bool {
+				acc.IsAppExcludedFunc = func(_ context.Context, bundleID string) bool {
 					return bundleID == "com.excluded.app"
 				}
 			},
@@ -89,10 +89,10 @@ func TestActionService_IsFocusedAppExcluded(t *testing.T) {
 		{
 			name: "app is not excluded",
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.GetFocusedAppBundleIDFunc = func(ctx context.Context) (string, error) {
+				acc.GetFocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
 					return "com.normal.app", nil
 				}
-				acc.IsAppExcludedFunc = func(ctx context.Context, bundleID string) bool {
+				acc.IsAppExcludedFunc = func(_ context.Context, _ string) bool {
 					return false
 				}
 			},
@@ -137,7 +137,7 @@ func TestActionService_GetFocusedAppBundleID(t *testing.T) {
 		{
 			name: "success",
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.GetFocusedAppBundleIDFunc = func(ctx context.Context) (string, error) {
+				acc.GetFocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
 					return "com.example.app", nil
 				}
 			},

@@ -136,7 +136,8 @@ func (s *Service) Validate(cfg *Config) error {
 
 // Update updates the configuration (for testing/internal use).
 func (s *Service) Update(cfg *Config) error {
-	if err := s.Validate(cfg); err != nil {
+	err := s.Validate(cfg)
+	if err != nil {
 		return err
 	}
 

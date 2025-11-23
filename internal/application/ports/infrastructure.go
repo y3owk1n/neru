@@ -41,7 +41,7 @@ type IPCPort interface {
 	Serve(ctx context.Context) error
 
 	// Send sends a command to the IPC server.
-	Send(ctx context.Context, command interface{}) (interface{}, error)
+	Send(ctx context.Context, command any) (any, error)
 
 	// IsRunning returns true if the IPC server is running.
 	IsRunning() bool

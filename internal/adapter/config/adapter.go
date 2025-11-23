@@ -44,5 +44,5 @@ func (a *Adapter) Path() string {
 	return a.service.Path()
 }
 
-// Ensure Adapter implements ports.ConfigPort
+// Ensure Adapter implements ports.ConfigPort.
 var _ ports.ConfigPort = (*Adapter)(nil)

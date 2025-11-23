@@ -10,6 +10,8 @@ import (
 
 // AccessibilityPort defines the interface for interacting with the macOS accessibility API.
 // Implementations should handle all CGo/Objective-C bridge complexity.
+//
+//nolint:interfacebloat // The port needs to expose all accessibility capabilities
 type AccessibilityPort interface {
 	// GetClickableElements retrieves all clickable UI elements matching the filter.
 	GetClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)

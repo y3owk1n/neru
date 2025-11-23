@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image"
 
@@ -46,7 +47,8 @@ func (s *ActionService) ExecuteAction(
 		zap.String("element_id", string(elem.ID())),
 		zap.String("element_role", string(elem.Role())))
 
-	if err := s.accessibility.PerformAction(ctx, elem, actionType); err != nil {
+	err := s.accessibility.PerformAction(ctx, elem, actionType)
+	if err != nil {
 		s.logger.Error("Failed to perform action",
 			zap.Error(err),
 			zap.String("action", actionType.String()))
@@ -76,7 +78,8 @@ func (s *ActionService) PerformAction(
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y))
 
-	if err := s.accessibility.PerformActionAtPoint(ctx, actionType, point); err != nil {
+	err = s.accessibility.PerformActionAtPoint(ctx, actionType, point)
+	if err != nil {
 		s.logger.Error("Failed to perform action at point",
 			zap.Error(err),
 			zap.String("action", actionType.String()))
@@ -89,14 +92,14 @@ func (s *ActionService) PerformAction(
 // ExecuteActionByID performs an action on an element identified by ID.
 // This is a convenience method that looks up the element first.
 func (s *ActionService) ExecuteActionByID(
-	ctx context.Context,
-	elementID element.ID,
-	actionType action.Type,
+	_ context.Context,
+	_ element.ID,
+	_ action.Type,
 ) error {
 	// Note: This would require an element repository or cache
 	// For now, this is a placeholder showing the intended API
 	// For now, this is a placeholder showing the intended API
-	return fmt.Errorf("ExecuteActionByID not yet implemented")
+	return errors.New("ExecuteActionByID not yet implemented")
 }
 
 // IsFocusedAppExcluded checks if the currently focused application is in the exclusion list.
@@ -128,7 +131,13 @@ func (s *ActionService) ShowActionHighlight(ctx context.Context) error {
 	}
 
 	// Draw highlight using overlay
-	if err := s.overlay.DrawActionHighlight(ctx, bounds, s.config.HighlightColor, s.config.HighlightWidth); err != nil {
+	err = s.overlay.DrawActionHighlight(
+		ctx,
+		bounds,
+		s.config.HighlightColor,
+		s.config.HighlightWidth,
+	)
+	if err != nil {
 		return fmt.Errorf("failed to draw action highlight: %w", err)
 	}
 

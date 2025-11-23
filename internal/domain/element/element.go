@@ -1,7 +1,7 @@
 package element
 
 import (
-	"fmt"
+	"errors"
 	"image"
 )
 
@@ -44,11 +44,11 @@ type Element struct {
 // NewElement creates a new element with validation.
 func NewElement(id ID, bounds image.Rectangle, role Role, opts ...Option) (*Element, error) {
 	if id == "" {
-		return nil, fmt.Errorf("element ID cannot be empty")
+		return nil, errors.New("element ID cannot be empty")
 	}
 
 	if bounds.Empty() {
-		return nil, fmt.Errorf("element bounds cannot be empty")
+		return nil, errors.New("element bounds cannot be empty")
 	}
 
 	e := &Element{

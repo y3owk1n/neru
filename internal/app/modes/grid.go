@@ -37,8 +37,8 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 
 	// Use GridService to show grid
 	// Note: We still need to initialize the grid manager for input handling
-	// This is a hybrid approach until we fully migrate the grid logic
-
+	// Note: This is a hybrid approach during migration.
+	// We still use the old grid overlay for rendering but will eventually
 	// 1. Initialize grid manager (needed for input handling)
 	gridInstance := h.createGridInstance()
 	h.updateGridOverlayConfig()
@@ -85,7 +85,7 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	h.Logger.Info("Type a grid label to select a location")
 }
 
-// SetupGrid is deprecated and replaced by GridService.ShowGrid logic
+// SetupGrid is deprecated and replaced by GridService.ShowGrid logic.
 func (h *Handler) SetupGrid() error {
 	return nil
 }
@@ -184,7 +184,8 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 			// Move mouse to center of cell before showing subgrid
 			ctx := context.Background()
-			if err := h.ActionService.MoveCursorToPoint(ctx, cell.Center); err != nil {
+			err := h.ActionService.MoveCursorToPoint(ctx, cell.Center)
+			if err != nil {
 				h.Logger.Error("Failed to move cursor", zap.Error(err))
 			}
 

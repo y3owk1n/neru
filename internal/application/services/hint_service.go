@@ -64,9 +64,10 @@ func (s *HintService) ShowHints(
 	s.logger.Info("Generated hints", zap.Int("count", len(hints)))
 
 	// Display hints
-	if err := s.overlay.ShowHints(ctx, hints); err != nil {
+	err = s.overlay.ShowHints(ctx, hints)
+	if err != nil {
 		s.logger.Error("Failed to show hints overlay", zap.Error(err))
-		return nil, fmt.Errorf("failed to show hints overlay: %w", err)
+		return nil, fmt.Errorf("failed to show hints: %w", err)
 	}
 
 	s.logger.Info("Hints displayed successfully")
@@ -77,7 +78,8 @@ func (s *HintService) ShowHints(
 func (s *HintService) HideHints(ctx context.Context) error {
 	s.logger.Info("Hiding hints")
 
-	if err := s.overlay.Hide(ctx); err != nil {
+	err := s.overlay.Hide(ctx)
+	if err != nil {
 		s.logger.Error("Failed to hide overlay", zap.Error(err))
 		return fmt.Errorf("failed to hide overlay: %w", err)
 	}
@@ -95,7 +97,8 @@ func (s *HintService) RefreshHints(ctx context.Context) error {
 		return nil
 	}
 
-	if err := s.overlay.Refresh(ctx); err != nil {
+	err := s.overlay.Refresh(ctx)
+	if err != nil {
 		s.logger.Error("Failed to refresh overlay", zap.Error(err))
 		return fmt.Errorf("failed to refresh overlay: %w", err)
 	}
@@ -106,7 +109,7 @@ func (s *HintService) RefreshHints(ctx context.Context) error {
 
 // UpdateGenerator updates the hint generator.
 // This allows changing the hint generation strategy at runtime.
-func (s *HintService) UpdateGenerator(ctx context.Context, generator hint.Generator) {
+func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generator) {
 	if generator == nil {
 		s.logger.Warn("Attempted to set nil generator, ignoring")
 		return

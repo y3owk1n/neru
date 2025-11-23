@@ -91,5 +91,5 @@ func (m *MockOverlayPort) Refresh(ctx context.Context) error {
 	return nil
 }
 
-// Ensure MockOverlayPort implements ports.OverlayPort
+// Ensure MockOverlayPort implements ports.OverlayPort.
 var _ ports.OverlayPort = (*MockOverlayPort)(nil)

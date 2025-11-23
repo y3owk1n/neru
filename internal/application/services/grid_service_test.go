@@ -22,7 +22,7 @@ func TestGridService_ShowGrid(t *testing.T) {
 			rows: 3,
 			cols: 3,
 			setupMocks: func(ov *mocks.MockOverlayPort) {
-				ov.ShowGridFunc = func(ctx context.Context, rows, cols int) error {
+				ov.ShowGridFunc = func(_ context.Context, rows, cols int) error {
 					if rows != 3 || cols != 3 {
 						t.Errorf("ShowGrid called with rows=%d, cols=%d; want 3, 3", rows, cols)
 					}

@@ -68,7 +68,7 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Hint) error {
 }
 
 // ShowGrid displays the grid overlay.
-func (a *Adapter) ShowGrid(ctx context.Context, rows, cols int) error {
+func (a *Adapter) ShowGrid(ctx context.Context, _ int, _ int) error {
 	// Check context
 	select {
 	case <-ctx.Done():
@@ -91,7 +91,8 @@ func (a *Adapter) ShowGrid(ctx context.Context, rows, cols int) error {
 	// Draw grid
 	// Note: DrawGrid takes input string (for filtering) and style.
 	// We start with empty input and default style.
-	if err := a.manager.DrawGrid(g, "", gridFeature.Style{}); err != nil {
+	err := a.manager.DrawGrid(g, "", gridFeature.Style{})
+	if err != nil {
 		return errors.Wrap(err, errors.CodeActionFailed, "failed to draw grid")
 	}
 
@@ -106,8 +107,8 @@ func (a *Adapter) ShowGrid(ctx context.Context, rows, cols int) error {
 func (a *Adapter) DrawScrollHighlight(
 	ctx context.Context,
 	rect image.Rectangle,
-	color string,
-	width int,
+	_ string,
+	_ int,
 ) error {
 	select {
 	case <-ctx.Done():
@@ -151,8 +152,8 @@ func (a *Adapter) DrawScrollHighlight(
 func (a *Adapter) DrawActionHighlight(
 	ctx context.Context,
 	rect image.Rectangle,
-	color string,
-	width int,
+	_ string,
+	_ int,
 ) error {
 	select {
 	case <-ctx.Done():
@@ -207,8 +208,8 @@ func (a *Adapter) Refresh(ctx context.Context) error {
 	return nil
 }
 
-// Ensure Adapter implements ports.OverlayPort
+// Ensure Adapter implements ports.OverlayPort.
 var _ ports.OverlayPort = (*Adapter)(nil)
 
-// Ensure Adapter implements ports.OverlayPort
+// Ensure Adapter implements ports.OverlayPort.
 var _ ports.OverlayPort = (*Adapter)(nil)

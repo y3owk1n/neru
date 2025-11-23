@@ -1,3 +1,4 @@
+// Package hotkey implements the hotkey adapter.
 package hotkey
 
 import (
@@ -31,12 +32,13 @@ func NewAdapter(manager LegacyHotkeyManager, logger *zap.Logger) *Adapter {
 	}
 }
 
-// Register registers a global hotkey.
+// Register registers a hotkey with a callback.
 // The callback signature differs from the legacy manager (func() error vs func()),
-// so we wrap it to handle the error return.
-func (a *Adapter) Register(ctx context.Context, key string, callback func() error) error {
+// so we wrap it.
+func (a *Adapter) Register(_ context.Context, key string, callback func() error) error {
 	wrappedCallback := func() {
-		if err := callback(); err != nil {
+		err := callback()
+		if err != nil {
 			a.logger.Error("Hotkey callback error", zap.String("key", key), zap.Error(err))
 		}
 	}
@@ -50,17 +52,17 @@ func (a *Adapter) Register(ctx context.Context, key string, callback func() erro
 	return nil
 }
 
-// Unregister removes a previously registered hotkey.
-func (a *Adapter) Unregister(ctx context.Context, hotkey string) error {
-	if id, ok := a.registeredIDs[hotkey]; ok {
+// Unregister removes a hotkey registration.
+func (a *Adapter) Unregister(_ context.Context, key string) error {
+	if id, ok := a.registeredIDs[key]; ok {
 		a.manager.Unregister(id)
-		delete(a.registeredIDs, hotkey)
+		delete(a.registeredIDs, key)
 	}
 	return nil
 }
 
-// UnregisterAll unregisters all global hotkeys.
-func (a *Adapter) UnregisterAll(ctx context.Context) error {
+// UnregisterAll removes all hotkey registrations.
+func (a *Adapter) UnregisterAll(_ context.Context) error {
 	a.manager.UnregisterAll()
 	a.registeredIDs = make(map[string]int)
 	return nil
@@ -72,5 +74,5 @@ func (a *Adapter) IsRegistered(hotkey string) bool {
 	return ok
 }
 
-// Ensure Adapter implements ports.HotkeyPort
+// Ensure Adapter implements ports.HotkeyPort.
 var _ ports.HotkeyPort = (*Adapter)(nil)

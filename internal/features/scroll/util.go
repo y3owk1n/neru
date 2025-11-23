@@ -8,7 +8,7 @@ import (
 func ParseKey(
 	key string,
 	lastKey string,
-	logger *zap.Logger,
+	_ *zap.Logger,
 ) (operation string, newLastKey string, ok bool) {
 	// Handle multi-key sequences (g -> g = top)
 	if lastKey == "g" {

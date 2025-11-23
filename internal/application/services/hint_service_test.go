@@ -32,8 +32,8 @@ func TestHintService_ShowHints(t *testing.T) {
 	}{
 		{
 			name: "successful hint display",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
-				acc.GetClickableElementsFunc = func(ctx context.Context, filter ports.ElementFilter) ([]*element.Element, error) {
+			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
+				acc.GetClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
 					return testElements, nil
 				}
 			},
@@ -44,6 +44,7 @@ func TestHintService_ShowHints(t *testing.T) {
 			wantErr:       false,
 			wantHintCount: 3, // We have 3 test elements
 			checkHints: func(t *testing.T, hints []*hint.Hint) {
+				t.Helper()
 				if len(hints) != 3 {
 					t.Errorf("Expected 3 hints, got %d", len(hints))
 					return
@@ -54,6 +55,7 @@ func TestHintService_ShowHints(t *testing.T) {
 				}
 			},
 			checkOverlay: func(t *testing.T, ov *mocks.MockOverlayPort) {
+				t.Helper()
 				if !ov.IsVisible() {
 					t.Error("Overlay should be visible after ShowHints")
 				}
@@ -61,8 +63,8 @@ func TestHintService_ShowHints(t *testing.T) {
 		},
 		{
 			name: "no elements found",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
-				acc.GetClickableElementsFunc = func(ctx context.Context, filter ports.ElementFilter) ([]*element.Element, error) {
+			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
+				acc.GetClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
 					return []*element.Element{}, nil
 				}
 			},
@@ -73,6 +75,7 @@ func TestHintService_ShowHints(t *testing.T) {
 			wantErr:       false,
 			wantHintCount: 0, // No elements means no hints
 			checkHints: func(t *testing.T, hints []*hint.Hint) {
+				t.Helper()
 				if len(hints) != 0 {
 					t.Errorf("Expected 0 hints, got %d", len(hints))
 				}
@@ -166,7 +169,7 @@ func TestHintService_RefreshHints(t *testing.T) {
 			mockOverlay.IsVisibleFunc = func() bool {
 				return tt.overlayVisible
 			}
-			mockOverlay.RefreshFunc = func(ctx context.Context) error {
+			mockOverlay.RefreshFunc = func(_ context.Context) error {
 				refreshCalled = true
 				return nil
 			}
@@ -189,19 +192,11 @@ func TestHintService_RefreshHints(t *testing.T) {
 	}
 }
 
-// Helper functions
+// Helper functions.
 func mustNewElement(id string, bounds image.Rectangle) *element.Element {
 	elem, err := element.NewElement(element.ID(id), bounds, element.RoleButton)
 	if err != nil {
 		panic(err)
 	}
 	return elem
-}
-
-func mustNewHint(label string, elem *element.Element) *hint.Hint {
-	h, err := hint.NewHint(label, elem, image.Point{})
-	if err != nil {
-		panic(err)
-	}
-	return h
 }

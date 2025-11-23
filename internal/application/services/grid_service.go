@@ -27,7 +27,8 @@ func (s *GridService) ShowGrid(ctx context.Context, rows, cols int) error {
 	s.logger.Info("Showing grid", zap.Int("rows", rows), zap.Int("cols", cols))
 
 	// Show grid overlay
-	if err := s.overlay.ShowGrid(ctx, rows, cols); err != nil {
+	err := s.overlay.ShowGrid(ctx, rows, cols)
+	if err != nil {
 		s.logger.Error("Failed to show grid overlay", zap.Error(err))
 		return fmt.Errorf("failed to show grid overlay: %w", err)
 	}
@@ -40,7 +41,8 @@ func (s *GridService) ShowGrid(ctx context.Context, rows, cols int) error {
 func (s *GridService) HideGrid(ctx context.Context) error {
 	s.logger.Info("Hiding grid")
 
-	if err := s.overlay.Hide(ctx); err != nil {
+	err := s.overlay.Hide(ctx)
+	if err != nil {
 		s.logger.Error("Failed to hide overlay", zap.Error(err))
 		return fmt.Errorf("failed to hide overlay: %w", err)
 	}

@@ -2,7 +2,7 @@ package hint
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"image"
 
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -20,11 +20,11 @@ type Hint struct {
 // NewHint creates a new hint with validation.
 func NewHint(label string, elem *element.Element, position image.Point) (*Hint, error) {
 	if label == "" {
-		return nil, fmt.Errorf("hint label cannot be empty")
+		return nil, errors.New("hint label cannot be empty")
 	}
 
 	if elem == nil {
-		return nil, fmt.Errorf("hint element cannot be nil")
+		return nil, errors.New("hint element cannot be nil")
 	}
 
 	return &Hint{

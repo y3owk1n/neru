@@ -1,8 +1,9 @@
+// Package ipc implements the IPC adapter.
 package ipc
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
@@ -27,7 +28,7 @@ func NewAdapter(server *ipc.Server, logger *zap.Logger) *Adapter {
 }
 
 // Start starts the IPC server.
-func (a *Adapter) Start(ctx context.Context) error {
+func (a *Adapter) Start(_ context.Context) error {
 	// The existing IPC server Start() is non-blocking and runs in a goroutine
 	// but doesn't take a context.
 	a.mu.Lock()
@@ -41,7 +42,7 @@ func (a *Adapter) Start(ctx context.Context) error {
 }
 
 // Stop stops the IPC server.
-func (a *Adapter) Stop(ctx context.Context) error {
+func (a *Adapter) Stop(_ context.Context) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if !a.running {
@@ -67,7 +68,7 @@ func (a *Adapter) Serve(ctx context.Context) error {
 	a.mu.Lock()
 	if a.running {
 		a.mu.Unlock()
-		return fmt.Errorf("server already running")
+		return errors.New("server already running")
 	}
 	a.server.Start()
 	a.running = true
@@ -91,11 +92,11 @@ func (a *Adapter) Serve(ctx context.Context) error {
 
 // Send sends a command to the IPC server.
 // This is a placeholder - the adapter wraps the server, not the client.
-func (a *Adapter) Send(ctx context.Context, command interface{}) (interface{}, error) {
+func (a *Adapter) Send(_ context.Context, _ any) (any, error) {
 	// This method doesn't make sense for the server adapter.
 	// It should be implemented by a client adapter if needed.
-	return nil, fmt.Errorf("Send not implemented for server adapter")
+	return nil, errors.New("Send not implemented for server adapter")
 }
 
-// Ensure Adapter implements ports.IPCPort
+// Ensure Adapter implements ports.IPCPort.
 var _ ports.IPCPort = (*Adapter)(nil)

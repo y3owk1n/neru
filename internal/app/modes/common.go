@@ -171,7 +171,8 @@ func (h *Handler) handleModeSpecificKey(key string) {
 
 			h.Logger.Info("Found element", zap.String("label", hint.Label()))
 			ctx := context.Background()
-			if err := h.ActionService.MoveCursorToPoint(ctx, center); err != nil {
+			err := h.ActionService.MoveCursorToPoint(ctx, center)
+			if err != nil {
 				h.Logger.Error("Failed to move cursor", zap.Error(err))
 			}
 
@@ -222,7 +223,8 @@ func (h *Handler) handleModeSpecificKey(key string) {
 				zap.Int("y", absolutePoint.Y),
 			)
 			ctx := context.Background()
-			if err := h.ActionService.MoveCursorToPoint(ctx, absolutePoint); err != nil {
+			err := h.ActionService.MoveCursorToPoint(ctx, absolutePoint)
+			if err != nil {
 				h.Logger.Error("Failed to move cursor", zap.Error(err))
 			}
 
@@ -339,7 +341,8 @@ func (h *Handler) handleCursorRestoration() {
 			currentBounds,
 		)
 		ctx := context.Background()
-		if err := h.ActionService.MoveCursorToPoint(ctx, target); err != nil {
+		err := h.ActionService.MoveCursorToPoint(ctx, target)
+		if err != nil {
 			h.Logger.Error("Failed to restore cursor position", zap.Error(err))
 		}
 	}

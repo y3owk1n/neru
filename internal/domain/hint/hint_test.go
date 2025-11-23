@@ -264,7 +264,7 @@ func TestCollection_FilterByPrefix(t *testing.T) {
 	}
 }
 
-// Helper function for tests
+// Helper function for tests.
 func mustNewHint(label string, elem *element.Element) *hint.Hint {
 	h, err := hint.NewHint(label, elem, image.Point{})
 	if err != nil {
@@ -287,8 +287,7 @@ func BenchmarkAlphabetGenerator_Generate(b *testing.B) {
 
 	ctx := context.Background()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = gen.Generate(ctx, elements)
 	}
 }
@@ -304,8 +303,7 @@ func BenchmarkCollection_FilterByPrefix(b *testing.B) {
 
 	collection := hint.NewCollection(hints)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = collection.FilterByPrefix("A")
 	}
 }

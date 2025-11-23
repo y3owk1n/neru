@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"slices"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
 	"github.com/y3owk1n/neru/internal/config"
@@ -246,21 +247,24 @@ func (a *Adapter) PerformActionAtPoint(
 }
 
 // Scroll performs a scroll action at the current cursor position.
-func (a *Adapter) Scroll(ctx context.Context, deltaX, deltaY int) error {
+func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
 	a.logger.Debug("Performing scroll",
 		zap.Int("deltaX", deltaX),
 		zap.Int("deltaY", deltaY))
 
 	// Use the infra layer to perform the actual scroll
-	// The infra.ScrollAtCursor function handles the CGo bridge to macOS
-	infra.ScrollAtCursor(deltaX, deltaY)
+	// The infra.ScrollAtCursor function	// Scroll at the current cursor position
+	err := infra.ScrollAtCursor(deltaX, deltaY)
+	if err != nil {
+		return errors.Wrap(err, errors.CodeActionFailed, "failed to scroll")
+	}
 
 	a.logger.Debug("Scroll completed")
 	return nil
 }
 
 // MoveCursorToPoint moves the mouse cursor to the specified point.
-func (a *Adapter) MoveCursorToPoint(ctx context.Context, point image.Point) error {
+func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point) error {
 	a.logger.Debug("Moving cursor to point",
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y))
@@ -270,7 +274,7 @@ func (a *Adapter) MoveCursorToPoint(ctx context.Context, point image.Point) erro
 }
 
 // GetCursorPosition returns the current cursor position.
-func (a *Adapter) GetCursorPosition(ctx context.Context) (image.Point, error) {
+func (a *Adapter) GetCursorPosition(_ context.Context) (image.Point, error) {
 	pos := infra.GetCurrentCursorPosition()
 	a.logger.Debug("Got cursor position",
 		zap.Int("x", pos.X),
@@ -302,7 +306,7 @@ func (a *Adapter) GetFocusedAppBundleID(ctx context.Context) (string, error) {
 }
 
 // IsAppExcluded checks if the given bundle ID is in the exclusion list.
-func (a *Adapter) IsAppExcluded(ctx context.Context, bundleID string) bool {
+func (a *Adapter) IsAppExcluded(_ context.Context, bundleID string) bool {
 	return a.excludedBundles[bundleID]
 }
 
@@ -355,7 +359,7 @@ func (a *Adapter) UpdateExcludedBundles(bundles []string) {
 // convertToDomainElement converts an infrastructure TreeNode to a domain Element.
 func (a *Adapter) convertToDomainElement(node *infra.TreeNode) (*element.Element, error) {
 	if node == nil || node.Info == nil {
-		return nil, fmt.Errorf("node or node info is nil")
+		return nil, errors.New(errors.CodeInvalidInput, "node or node info is nil")
 	}
 
 	info := node.Info
@@ -403,27 +407,15 @@ func (a *Adapter) matchesFilter(elem *element.Element, filter ports.ElementFilte
 
 	// Check role inclusion
 	if len(filter.Roles) > 0 {
-		found := false
-		for _, role := range filter.Roles {
-			if elem.Role() == role {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(filter.Roles, elem.Role())
 		if !found {
 			return false
 		}
 	}
 
 	// Check role exclusion
-	for _, role := range filter.ExcludeRoles {
-		if elem.Role() == role {
-			return false
-		}
-	}
-
-	return true
+	return !slices.Contains(filter.ExcludeRoles, elem.Role())
 }
 
-// Ensure Adapter implements ports.AccessibilityPort
+// Ensure Adapter implements ports.AccessibilityPort.
 var _ ports.AccessibilityPort = (*Adapter)(nil)

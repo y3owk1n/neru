@@ -122,6 +122,36 @@ func (g *AlphabetGenerator) Characters() string {
 	return g.characters
 }
 
+// UpdateCharacters updates the character set and recalculates max hints.
+func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
+	if len(characters) < 2 {
+		return fmt.Errorf("characters must have at least 2 characters, got %d", len(characters))
+	}
+
+	// Build uppercase mapping
+	uppercaseRuneMap := make(map[rune]rune)
+	var uppercaseBuilder strings.Builder
+
+	for _, r := range characters {
+		upper := unicode.ToUpper(r)
+		uppercaseRuneMap[r] = upper
+		uppercaseBuilder.WriteRune(upper)
+	}
+
+	uppercaseChars := uppercaseBuilder.String()
+	charCount := len(characters)
+	// Max capacity for length 3 prefix-free code is N^3
+	n := charCount
+	maxHints := n * n * n
+
+	g.characters = characters
+	g.uppercaseChars = uppercaseChars
+	g.maxHints = maxHints
+	g.uppercaseRuneMap = uppercaseRuneMap
+
+	return nil
+}
+
 // generateLabels generates alphabet-based hint labels using a prefix-avoidance strategy.
 // Returns uppercase labels.
 func (g *AlphabetGenerator) generateLabels(count int) []string {
@@ -179,34 +209,4 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 	})
 
 	return pool[:count]
-}
-
-// UpdateCharacters updates the character set and recalculates max hints.
-func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
-	if len(characters) < 2 {
-		return fmt.Errorf("characters must have at least 2 characters, got %d", len(characters))
-	}
-
-	// Build uppercase mapping
-	uppercaseRuneMap := make(map[rune]rune)
-	var uppercaseBuilder strings.Builder
-
-	for _, r := range characters {
-		upper := unicode.ToUpper(r)
-		uppercaseRuneMap[r] = upper
-		uppercaseBuilder.WriteRune(upper)
-	}
-
-	uppercaseChars := uppercaseBuilder.String()
-	charCount := len(characters)
-	// Max capacity for length 3 prefix-free code is N^3
-	n := charCount
-	maxHints := n * n * n
-
-	g.characters = characters
-	g.uppercaseChars = uppercaseChars
-	g.maxHints = maxHints
-	g.uppercaseRuneMap = uppercaseRuneMap
-
-	return nil
 }

@@ -16,7 +16,7 @@ type ConfigPort interface {
 	Reload(ctx context.Context, path string) error
 
 	// Watch returns a channel that receives config updates.
-	// The channel is closed when the context is cancelled.
+	// The channel is closed when the context is canceled.
 	Watch(ctx context.Context) <-chan *config.Config
 
 	// Validate validates the given configuration.

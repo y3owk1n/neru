@@ -10,7 +10,8 @@ import (
 // This is used by both hints and grid modes when in action mode.
 func (h *Handler) drawActionHighlight() {
 	ctx := context.Background()
-	if err := h.ActionService.ShowActionHighlight(ctx); err != nil {
+	err := h.ActionService.ShowActionHighlight(ctx)
+	if err != nil {
 		h.Logger.Error("Failed to draw action highlight", zap.Error(err))
 	}
 }

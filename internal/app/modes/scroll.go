@@ -22,7 +22,8 @@ func (h *Handler) StartInteractiveScroll() {
 	// But ScrollService.ShowScrollOverlay needs context.
 	// We'll use a background context for now or create one.
 	ctx := context.Background()
-	if err := h.ScrollService.ShowScrollOverlay(ctx); err != nil {
+	err := h.ScrollService.ShowScrollOverlay(ctx)
+	if err != nil {
 		h.Logger.Error("Failed to show scroll overlay", zap.Error(err))
 	}
 

@@ -145,8 +145,8 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	h.SetModeHints()
 }
 
-// SetupHints is deprecated and replaced by HintService.ShowHints
-func (h *Handler) SetupHints(elements []*infra.TreeNode) error {
+// SetupHints is deprecated and replaced by HintService.ShowHints.
+func (h *Handler) SetupHints(_ []*infra.TreeNode) error {
 	return nil
 }
 

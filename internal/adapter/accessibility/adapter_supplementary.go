@@ -44,7 +44,7 @@ func (a *Adapter) addSupplementaryElements(
 
 // addMenubarElements adds menubar clickable elements.
 func (a *Adapter) addMenubarElements(
-	ctx context.Context,
+	_ context.Context,
 	elements []*element.Element,
 	filter ports.ElementFilter,
 ) []*element.Element {
@@ -52,7 +52,9 @@ func (a *Adapter) addMenubarElements(
 
 	// Temporarily add AXMenuBarItem to clickable roles
 	originalRoles := infra.GetClickableRoles()
-	menubarRoles := append(originalRoles, "AXMenuBarItem")
+	menubarRoles := make([]string, len(originalRoles)+1)
+	copy(menubarRoles, originalRoles)
+	menubarRoles[len(originalRoles)] = "AXMenuBarItem"
 	infra.SetClickableRoles(menubarRoles)
 	defer infra.SetClickableRoles(originalRoles) // Restore original roles when done
 
@@ -103,14 +105,16 @@ func (a *Adapter) addMenubarElements(
 
 // addDockElements adds dock clickable elements.
 func (a *Adapter) addDockElements(
-	ctx context.Context,
+	_ context.Context,
 	elements []*element.Element,
 ) []*element.Element {
 	const dockBundleID = "com.apple.dock"
 
 	// Temporarily add AXDockItem to clickable roles
 	originalRoles := infra.GetClickableRoles()
-	dockRoles := append(originalRoles, "AXDockItem")
+	dockRoles := make([]string, len(originalRoles)+1)
+	copy(dockRoles, originalRoles)
+	dockRoles[len(originalRoles)] = "AXDockItem"
 	infra.SetClickableRoles(dockRoles)
 	defer infra.SetClickableRoles(originalRoles) // Restore original roles when done
 
@@ -168,7 +172,7 @@ func (a *Adapter) addDockElements(
 
 // addNotificationCenterElements adds notification center clickable elements.
 func (a *Adapter) addNotificationCenterElements(
-	ctx context.Context,
+	_ context.Context,
 	elements []*element.Element,
 ) []*element.Element {
 	const ncBundleID = "com.apple.notificationcenterui"
