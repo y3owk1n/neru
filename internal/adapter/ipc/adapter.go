@@ -63,7 +63,7 @@ func (a *Adapter) IsRunning() bool {
 }
 
 // Serve starts the IPC server and blocks until context is canceled.
-// Note: The legacy server's Start() is non-blocking, so we need to adapt it.
+
 func (a *Adapter) Serve(ctx context.Context) error {
 	a.mu.Lock()
 	if a.running {
@@ -91,7 +91,7 @@ func (a *Adapter) Serve(ctx context.Context) error {
 }
 
 // Send sends a command to the IPC server.
-// This is a placeholder - the adapter wraps the server, not the client.
+// Send is not supported by the server adapter.
 func (a *Adapter) Send(_ context.Context, _ any) (any, error) {
 	// This method doesn't make sense for the server adapter.
 	// It should be implemented by a client adapter if needed.

@@ -186,7 +186,7 @@ neru/
 │   │   ├── accessibility/ # Accessibility adapter
 │   │   ├── overlay/       # Overlay adapter
 │   │   └── config/        # Config adapter
-│   ├── features/          # Feature-specific types (Legacy/Shared)
+│   ├── features/          # Feature-specific types
 │   ├── infra/             # Infrastructure components
 │   │   ├── accessibility/ # Low-level CGo wrappers
 │   │   ├── bridge/        # Objective-C bridges

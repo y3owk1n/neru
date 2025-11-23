@@ -154,59 +154,148 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 
 // generateLabels generates alphabet-based hint labels using a prefix-avoidance strategy.
 // Returns uppercase labels.
+// generateLabels generates alphabet-based hint labels using a prefix-avoidance strategy.
+// Returns uppercase labels sorted by length then alphabetically.
 func (g *AlphabetGenerator) generateLabels(count int) []string {
 	if count == 0 {
 		return nil
 	}
 
 	chars := []rune(g.uppercaseChars)
+	numChars := len(chars)
+	labels := make([]string, 0, count)
 
-	// Start with single characters
-	pool := make([]string, len(chars))
-	for i, c := range chars {
-		pool[i] = string(c)
+	// Calculate how many labels of each length we need
+	// counts[i] stores number of labels of length i+1
+	// We assume max length won't exceed 10 for reasonable counts
+	counts := make([]int, 0, 5)
+
+	remainingTarget := count
+	availableSlots := numChars // Slots available at current level
+
+	// Determine counts for each level
+	for remainingTarget > 0 {
+		// Calculate max capacity if we expand everything to next level
+		// We check if next level can hold the target to decide if we keep any at current level
+		nextLevelCapacity := availableSlots * numChars
+
+		var keep int
+		if availableSlots >= remainingTarget {
+			// We can satisfy the rest of the target at this level
+			keep = remainingTarget
+		} else if nextLevelCapacity < remainingTarget {
+			// Even expanding everything isn't enough for next level?
+			// This implies we need to go deeper.
+			// We keep 0 at this level to maximize expansion capacity.
+			keep = 0
+		} else {
+			// We can satisfy target at next level.
+			// We want to keep as many as possible at this level.
+			// Formula: available*N - k*(N-1) >= target
+			// k <= (available*N - target) / (N-1)
+			keep = (availableSlots*numChars - remainingTarget) / (numChars - 1)
+		}
+
+		counts = append(counts, keep)
+		remainingTarget -= keep
+
+		// Update available slots for next level
+		// We used 'keep' slots. The remaining 'availableSlots - keep' are expanded.
+		availableSlots = (availableSlots - keep) * numChars
+
+		if availableSlots == 0 && remainingTarget > 0 {
+			// Should not happen if maxHints check passed
+			break
+		}
 	}
 
-	// Expand until we have enough labels
-	for len(pool) < count {
-		// Find the last element with minimal length to expand
-		// This ensures we exhaust shorter labels before longer ones,
-		// and by picking the last one, we preserve the "best" keys (start of alphabet)
-		// for as long as possible.
-		victimIdx := -1
-		minLen := 1000 // Arbitrary large number
+	// Generate labels
+	// We maintain a "prefix" state.
+	// At level 1, prefixes are single chars.
+	// At level 2, prefixes are 2 chars, etc.
+	// But we can just generate them sequentially.
 
-		for i := len(pool) - 1; i >= 0; i-- {
-			if len(pool[i]) < minLen {
-				minLen = len(pool[i])
-				victimIdx = i
+	// Current indices into the character set for each position
+	// indices[0] is the index of the first char, indices[1] second, etc.
+
+	// We need to skip the "kept" prefixes from previous levels when starting a new level.
+	// Actually, it's simpler:
+	// Level 1 labels use chars[0]...chars[k1-1].
+	// The expansion for Level 2 starts from chars[k1]...
+
+	// Let's track the "start index" for the current level's generation.
+	// But it's multidimensional.
+
+	// Alternative generation strategy:
+	// We know we need counts[0] labels of length 1.
+	// These will be chars[0]...chars[counts[0]-1].
+	// The remaining chars[counts[0]]...chars[N-1] are expanded.
+	// So Level 2 labels start with chars[counts[0]] as the first character.
+
+	// Let's implement a recursive generator or a stack-based one.
+	// Since we just need to generate 'count' labels in order, and we know the structure:
+	// The structure is a tree where we traverse leaves.
+	// We prune the tree at depth L if we have generated enough L-length labels.
+
+	// Actually, we can just iterate.
+	// We have a "cursor" that represents the current label path.
+	// [0] -> "A"
+	// [1] -> "B"
+	// ...
+	// [k1-1] -> last len-1 label.
+	// [k1, 0] -> first len-2 label.
+
+	var current []int
+
+	for level, keep := range counts {
+		length := level + 1
+
+		// If this is the first level
+		if length == 1 {
+			for i := 0; i < keep; i++ {
+				labels = append(labels, string(chars[i]))
+			}
+			// The start for next level is 'keep'
+			current = []int{keep}
+		} else {
+			// We need to generate 'keep' labels of 'length'.
+			// 'current' holds the prefix indices for this level.
+			// e.g. if L1 kept 2 (A, B), current is [2] (C).
+			// We expand current.
+
+			// We need to generate 'keep' labels starting from 'current'.
+			// We treat 'current' as a number in base-N.
+			// We increment it 'keep' times.
+
+			// Ensure current has correct length
+			for len(current) < length {
+				current = append(current, 0)
+			}
+
+			for i := 0; i < keep; i++ {
+				// Build string from current indices
+				var b strings.Builder
+				b.Grow(length)
+				for _, idx := range current {
+					b.WriteRune(chars[idx])
+				}
+				labels = append(labels, b.String())
+
+				// Increment current
+				// Go from right to left
+				for pos := len(current) - 1; pos >= 0; pos-- {
+					current[pos]++
+					if current[pos] < numChars {
+						break
+					}
+					// Carry over
+					current[pos] = 0
+					// If we overflow the first digit, it means we are done with this block?
+					// But we loop 'keep' times, so we shouldn't overflow invalidly.
+				}
 			}
 		}
-
-		if victimIdx == -1 {
-			break // Should not happen
-		}
-
-		// Expand the victim
-		victim := pool[victimIdx]
-
-		// Remove victim
-		pool = append(pool[:victimIdx], pool[victimIdx+1:]...)
-
-		// Add expansions
-		for _, c := range chars {
-			pool = append(pool, victim+string(c))
-		}
 	}
 
-	// Sort pool by length then alphabetically to ensure deterministic assignment
-	// and that shortest hints are assigned to first elements
-	sort.Slice(pool, func(i, j int) bool {
-		if len(pool[i]) != len(pool[j]) {
-			return len(pool[i]) < len(pool[j])
-		}
-		return pool[i] < pool[j]
-	})
-
-	return pool[:count]
+	return labels
 }

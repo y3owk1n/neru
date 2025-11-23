@@ -103,7 +103,7 @@ func (s *ScrollService) ShowScrollOverlay(ctx context.Context) error {
 	// Note: OverlayPort doesn't have a generic Show() method, but ShowGrid/ShowHints imply mode switch.
 	// DrawScrollHighlight in adapter calls manager.DrawScrollHighlight.
 	// We might need to ensure the overlay window is shown.
-	// The legacy implementation called overlay.Show().
+
 	// We should probably add ShowScroll(ctx) to OverlayPort or rely on DrawScrollHighlight to do it.
 	// For now, let's assume DrawScrollHighlight handles it or we need to add a mode switch.
 	// Actually, OverlayAdapter.DrawScrollHighlight calls manager.DrawScrollHighlight.

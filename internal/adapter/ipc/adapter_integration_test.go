@@ -27,7 +27,7 @@ func TestIPCAdapterIntegration(t *testing.T) {
 	log := logger.Get()
 
 	// Dummy handler for testing
-	handler := func(cmd ipc.Command) ipc.Response {
+	handler := func(ctx context.Context, cmd ipc.Command) ipc.Response {
 		return ipc.Response{Success: true}
 	}
 
@@ -121,7 +121,7 @@ func TestIPCAdapterContextCancellation(t *testing.T) {
 	}
 
 	log := logger.Get()
-	handler := func(cmd ipc.Command) ipc.Response {
+	handler := func(ctx context.Context, cmd ipc.Command) ipc.Response {
 		return ipc.Response{Success: true}
 	}
 

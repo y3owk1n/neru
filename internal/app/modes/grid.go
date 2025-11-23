@@ -54,7 +54,6 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 
 	// The adapter's ShowGrid implementation switches mode to "grid"
 	// The actual drawing is handled by the overlay which is already set up
-	// via h.Renderer.DrawGrid in the legacy code, but here we use the service
 
 	// Wait, the service calls adapter.ShowGrid which calls manager.SwitchTo("grid")
 	// But we still need to populate the grid overlay with data

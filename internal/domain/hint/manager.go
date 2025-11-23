@@ -7,7 +7,7 @@ import (
 )
 
 // Manager handles hint input processing, filtering, and state management.
-// It works with domain hints (not legacy TreeNodes).
+
 type Manager struct {
 	currentInput string
 	hints        *Collection

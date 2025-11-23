@@ -139,7 +139,7 @@ func (a *Adapter) GetScrollableElements(ctx context.Context) ([]*element.Element
 		)
 	}
 
-	// Find scrollable elements (placeholder - would need to implement in infra)
+	// Find scrollable elements using accessibility API
 	// For now, return empty list
 	_ = tree // Use tree to avoid unused variable
 	a.logger.Debug("Scrollable elements not yet implemented")

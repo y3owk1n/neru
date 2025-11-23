@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"image"
 
@@ -61,7 +60,7 @@ func (s *ActionService) ExecuteAction(
 }
 
 // PerformAction executes an action at the specified point.
-// This handles string-based action types for legacy compatibility.
+// This parses the action string to a domain type and delegates to the accessibility port.
 func (s *ActionService) PerformAction(
 	ctx context.Context,
 	actionStr string,
@@ -87,19 +86,6 @@ func (s *ActionService) PerformAction(
 	}
 
 	return nil
-}
-
-// ExecuteActionByID performs an action on an element identified by ID.
-// This is a convenience method that looks up the element first.
-func (s *ActionService) ExecuteActionByID(
-	_ context.Context,
-	_ element.ID,
-	_ action.Type,
-) error {
-	// Note: This would require an element repository or cache
-	// For now, this is a placeholder showing the intended API
-	// For now, this is a placeholder showing the intended API
-	return errors.New("ExecuteActionByID not yet implemented")
 }
 
 // IsFocusedAppExcluded checks if the currently focused application is in the exclusion list.

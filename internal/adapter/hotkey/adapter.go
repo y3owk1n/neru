@@ -8,9 +8,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// LegacyHotkeyManager defines the interface for the legacy hotkey manager.
-// This is needed because the legacy manager is not exported as a type but used via interface in app.go.
-type LegacyHotkeyManager interface {
+// InfraManager defines the interface for the infrastructure hotkey manager.
+// This interface allows the adapter to interact with the low-level hotkey implementation.
+type InfraManager interface {
 	Register(key string, callback func()) (int, error)
 	Unregister(id int)
 	UnregisterAll()
@@ -18,13 +18,13 @@ type LegacyHotkeyManager interface {
 
 // Adapter implements ports.HotkeyPort by wrapping the existing hotkey manager.
 type Adapter struct {
-	manager       LegacyHotkeyManager
+	manager       InfraManager
 	logger        *zap.Logger
 	registeredIDs map[string]int // Track registered hotkey IDs
 }
 
 // NewAdapter creates a new hotkey adapter.
-func NewAdapter(manager LegacyHotkeyManager, logger *zap.Logger) *Adapter {
+func NewAdapter(manager InfraManager, logger *zap.Logger) *Adapter {
 	return &Adapter{
 		manager:       manager,
 		logger:        logger,
@@ -33,7 +33,7 @@ func NewAdapter(manager LegacyHotkeyManager, logger *zap.Logger) *Adapter {
 }
 
 // Register registers a hotkey with a callback.
-// The callback signature differs from the legacy manager (func() error vs func()),
+// The callback signature differs from the infrastructure manager (func() error vs func()),
 // so we wrap it.
 func (a *Adapter) Register(_ context.Context, key string, callback func() error) error {
 	wrappedCallback := func() {
