@@ -32,7 +32,8 @@ func BenchmarkAlphabetGenerator_Generate(b *testing.B) {
 
 // BenchmarkAlphabetGenerator_Generate_Large benchmarks with many elements.
 func BenchmarkAlphabetGenerator_Generate_Large(b *testing.B) {
-	gen, _ := NewAlphabetGenerator("asdfghjkl")
+	// Use full alphabet to support >1000 elements (26^2 = 676, 26^3 = 17576)
+	gen, _ := NewAlphabetGenerator("abcdefghijklmnopqrstuvwxyz")
 	ctx := context.Background()
 
 	// Create 1000 test elements
