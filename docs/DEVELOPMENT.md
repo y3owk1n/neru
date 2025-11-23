@@ -175,24 +175,25 @@ neru/
 │   ├── app/               # Main application orchestration
 │   ├── cli/               # CLI commands (Cobra-based)
 │   ├── config/            # TOML configuration parsing
-│   ├── domain/            # Core domain models and constants
-│   ├── errors/            # Error definitions
-│   ├── features/          # Feature implementations
-│   │   ├── action/        # Action mode implementation
-│   │   ├── grid/          # Grid mode implementation
-│   │   ├── hints/         # Hints mode implementation
-│   │   └── scroll/        # Scroll mode implementation
+│   ├── domain/            # Core domain entities (DDD)
+│   │   ├── element/       # UI Element entity
+│   │   ├── hint/          # Hint entity
+│   │   └── action/        # Action definitions
+│   ├── application/       # Application layer (Ports & Services)
+│   │   ├── ports/         # Interface definitions
+│   │   └── services/      # Business logic services
+│   ├── adapter/           # Interface implementations
+│   │   ├── accessibility/ # Accessibility adapter
+│   │   ├── overlay/       # Overlay adapter
+│   │   └── config/        # Config adapter
+│   ├── features/          # Feature-specific types (Legacy/Shared)
 │   ├── infra/             # Infrastructure components
-│   │   ├── accessibility/ # Accessibility API wrappers
-│   │   ├── appwatcher/    # App watcher with callbacks
-│   │   ├── bridge/        # CGo/Objective-C bridges
-│   │   ├── electron/      # Electron/Chromium/Firefox manager
+│   │   ├── accessibility/ # Low-level CGo wrappers
+│   │   ├── bridge/        # Objective-C bridges
 │   │   ├── eventtap/      # Event tap management
-│   │   ├── hotkeys/       # Global hotkey management
-│   │   ├── ipc/           # IPC server/client for daemon control
+│   │   ├── ipc/           # IPC server/client
 │   │   └── logger/        # Logging infrastructure
 │   └── ui/                # UI components
-│       └── overlay/       # Overlay manager
 ├── configs/               # Default configuration files
 ├── demos/                 # Demonstration files
 ├── docs/                  # Documentation
@@ -211,61 +212,40 @@ neru/
 
 ### Key Packages
 
-#### `internal/features/hints`
+#### `internal/domain`
 
-Grid-based or Accessibility hint generation and overlay rendering. This is the core of Neru's navigation system.
+Contains the core business logic and entities. This package is pure Go and has no external dependencies.
 
-**Responsibilities:**
+- **Element**: Represents a UI element with bounds, role, and state.
+- **Hint**: Represents a visual hint overlay.
+- **Action**: Defines types of actions (click, scroll, etc.).
 
-- Generate grid of hint labels
-- Overlay hints on screen
-- Handle hint selection
-- Dispatch click actions
+#### `internal/application`
 
-**Why Accessibility based?**
+Implements the application's use cases using Ports and Adapters.
 
-- More familiar to vimium users
-- Able to get accurate click coordinates from AX API
+- **Ports**: Interfaces that define interactions with the outside world (`AccessibilityPort`, `OverlayPort`).
+- **Services**: Orchestrate logic using domain entities and ports (`HintService`, `ActionService`).
 
-**Why grid-based?**
+#### `internal/adapter`
 
-- Works everywhere (no accessibility tree dependency)
-- Fast and reliable
-- Simple to maintain
+Concrete implementations of the application ports.
 
-#### `internal/infra/accessibility`
+- **Accessibility**: Adapts `internal/infra/accessibility` to `AccessibilityPort`.
+- **Overlay**: Adapts `internal/ui` to `OverlayPort`.
+- **Config**: Adapts `internal/config` to `ConfigPort`.
 
-CGo wrappers around macOS Accessibility APIs.
+#### `internal/infra`
 
-**Responsibilities:**
+Low-level infrastructure code, including CGo and OS interactions.
 
-- Query UI elements
-- Determine clickable/scrollable elements
-- Perform clicks and scrolls
-- Enable AX support for Electron/Chromium
+- **Accessibility**: Direct CGo calls to macOS Accessibility APIs.
+- **EventTap**: System-wide input interception.
+- **IPC**: Unix socket communication.
 
-#### `internal/infra/hotkeys`
+#### `internal/features`
 
-Global hotkey registration and management.
-
-**Responsibilities:**
-
-- Register system-wide hotkeys
-- Dispatch hotkey events to hint/scroll modes
-- Handle modifier key combinations
-
-#### `internal/infra/ipc`
-
-Unix socket-based IPC for CLI ↔ daemon communication.
-
-**Responsibilities:**
-
-- Server: Accept connections from CLI
-- Client: Send commands to daemon
-- Protocol: JSON messages
-- Error handling and timeouts
-- Structured response codes (`code` field) for reliable scripting
-- Per-connection correlation IDs (`req_id`) for log tracing
+Contains feature-specific types and logic that are gradually being migrated or used as shared utilities by the application layer.
 
 #### `internal/config`
 
@@ -277,37 +257,6 @@ TOML configuration parsing and validation.
 - Parse TOML into structs
 - Validate configuration
 - Provide defaults
-
-#### `internal/features/grid`
-
-Grid-based navigation implementation.
-
-**Responsibilities:**
-
-- Generate coordinate-based grid overlay
-- Handle grid cell selection
-- Manage subgrid precision layer
-- Dispatch click actions
-
-#### `internal/features/scroll`
-
-Scroll mode implementation.
-
-**Responsibilities:**
-
-- Handle Vim-style scrolling keys (j/k, gg/G, Ctrl+D/U)
-- Provide visual scroll feedback
-- Manage scroll state
-
-#### `internal/features/action`
-
-Action mode implementation.
-
-**Responsibilities:**
-
-- Handle different click types (left, right, middle, etc.)
-- Provide visual action feedback
-- Manage action state
 
 #### Cursor Position Restoration
 

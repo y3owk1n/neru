@@ -210,6 +210,3 @@ func (a *Adapter) Refresh(ctx context.Context) error {
 
 // Ensure Adapter implements ports.OverlayPort.
 var _ ports.OverlayPort = (*Adapter)(nil)
-
-// Ensure Adapter implements ports.OverlayPort.
-var _ ports.OverlayPort = (*Adapter)(nil)
