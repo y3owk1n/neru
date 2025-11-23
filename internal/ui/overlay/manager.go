@@ -42,6 +42,38 @@ type StateChange struct {
 	Next Mode
 }
 
+// ManagerInterface defines the interface for overlay window management.
+type ManagerInterface interface {
+	Show()
+	Hide()
+	Clear()
+	ResizeToActiveScreenSync()
+	SwitchTo(next Mode)
+	Subscribe(fn func(StateChange)) uint64
+	Unsubscribe(id uint64)
+	Destroy()
+	GetMode() Mode
+	GetWindowPtr() unsafe.Pointer
+
+	UseHintOverlay(o *hints.Overlay)
+	UseGridOverlay(o *grid.Overlay)
+	UseActionOverlay(o *action.Overlay)
+	UseScrollOverlay(o *scroll.Overlay)
+
+	GetHintOverlay() *hints.Overlay
+	GetGridOverlay() *grid.Overlay
+	GetActionOverlay() *action.Overlay
+	GetScrollOverlay() *scroll.Overlay
+
+	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
+	DrawActionHighlight(x, y, w, h int)
+	DrawScrollHighlight(x, y, w, h int)
+	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
+	UpdateGridMatches(prefix string)
+	ShowSubgrid(cell *domainGrid.Cell, style grid.Style)
+	SetHideUnmatched(hide bool)
+}
+
 // Manager coordinates overlay window management and mode transitions for all overlay types.
 type Manager struct {
 	window C.OverlayWindow

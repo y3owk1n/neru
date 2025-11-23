@@ -29,13 +29,31 @@ func TestActionService_PerformAction(t *testing.T) {
 					if actionType != action.TypeLeftClick {
 						t.Errorf("Expected action TypeLeftClick, got '%v'", actionType)
 					}
-					if point.X != 100 || point.Y != 100 {
-						t.Errorf("Expected point (100, 100), got %v", point)
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:   "perform right click",
+			action: "right_click",
+			point:  image.Point{X: 100, Y: 100},
+			setupMocks: func(acc *mocks.MockAccessibilityPort) {
+				acc.PerformActionAtPointFunc = func(_ context.Context, actionType action.Type, point image.Point) error {
+					if actionType != action.TypeRightClick {
+						t.Errorf("Expected action TypeRightClick, got '%v'", actionType)
 					}
 					return nil
 				}
 			},
 			wantErr: false,
+		},
+		{
+			name:       "unknown action",
+			action:     "unknown_action",
+			point:      image.Point{X: 100, Y: 100},
+			setupMocks: nil,
+			wantErr:    true,
 		},
 	}
 

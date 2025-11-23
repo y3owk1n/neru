@@ -18,12 +18,12 @@ import (
 
 // Adapter implements ports.OverlayPort by wrapping the existing overlay.Manager.
 type Adapter struct {
-	manager *uiOverlay.Manager
+	manager uiOverlay.ManagerInterface
 	logger  *zap.Logger
 }
 
 // NewAdapter creates a new overlay adapter.
-func NewAdapter(manager *uiOverlay.Manager, logger *zap.Logger) *Adapter {
+func NewAdapter(manager uiOverlay.ManagerInterface, logger *zap.Logger) *Adapter {
 	return &Adapter{
 		manager: manager,
 		logger:  logger,

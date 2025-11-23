@@ -12,7 +12,6 @@ import (
 	"github.com/y3owk1n/neru/internal/features/grid"
 	"github.com/y3owk1n/neru/internal/features/hints"
 	"github.com/y3owk1n/neru/internal/features/scroll"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
 )
 
@@ -20,7 +19,7 @@ import (
 func createHintsComponent(
 	cfg *config.Config,
 	log *zap.Logger,
-	overlayManager *overlay.Manager,
+	overlayManager OverlayManager,
 ) (*components.HintsComponent, error) {
 	component := &components.HintsComponent{}
 
@@ -45,7 +44,7 @@ func createHintsComponent(
 func createGridComponent(
 	cfg *config.Config,
 	log *zap.Logger,
-	overlayManager *overlay.Manager,
+	overlayManager OverlayManager,
 ) *components.GridComponent {
 	component := &components.GridComponent{}
 
@@ -109,7 +108,7 @@ func createGridComponent(
 func createScrollComponent(
 	cfg *config.Config,
 	log *zap.Logger,
-	overlayManager *overlay.Manager,
+	overlayManager OverlayManager,
 ) (*components.ScrollComponent, error) {
 	scrollOverlay, err := scroll.NewOverlayWithWindow(
 		cfg.Scroll,
@@ -130,7 +129,7 @@ func createScrollComponent(
 func createActionComponent(
 	cfg *config.Config,
 	log *zap.Logger,
-	overlayManager *overlay.Manager,
+	overlayManager OverlayManager,
 ) (*components.ActionComponent, error) {
 	actionOverlay, err := action.NewOverlayWithWindow(
 		cfg.Action,

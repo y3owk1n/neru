@@ -3,14 +3,16 @@ package app
 import (
 	"context"
 
+	"github.com/y3owk1n/neru/internal/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/infra/ipc"
+	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
 )
 
-// hotkeyService defines the interface for hotkey management.
+// HotkeyService defines the interface for hotkey management.
 // It provides methods for registering and unregistering global hotkeys.
-type hotkeyService interface {
+type HotkeyService interface {
 	// Register registers a new hotkey with the given key string and callback.
 	// Returns a HotkeyID that can be used to unregister the hotkey later.
 	Register(keyString string, callback hotkeys.Callback) (hotkeys.HotkeyID, error)
@@ -19,9 +21,9 @@ type hotkeyService interface {
 	UnregisterAll()
 }
 
-// eventTap defines the interface for event tap management.
+// EventTap defines the interface for event tap management.
 // Event taps are used to intercept and handle keyboard events globally.
-type eventTap interface {
+type EventTap interface {
 	// Enable enables the event tap to start capturing events.
 	Enable()
 
@@ -35,9 +37,9 @@ type eventTap interface {
 	SetHotkeys(hotkeys []string)
 }
 
-// ipcServer defines the interface for IPC server management.
+// IPCServer defines the interface for IPC server management.
 // The IPC server handles communication between the daemon and CLI client.
-type ipcServer interface {
+type IPCServer interface {
 	// Start starts the IPC server to begin accepting commands.
 	Start()
 
@@ -49,7 +51,7 @@ type ipcServer interface {
 // This factory pattern enables dependency injection and testing.
 type eventTapFactory interface {
 	// New creates a new event tap with the given callback and logger.
-	New(callback func(string), logger *zap.Logger) eventTap
+	New(callback func(string), logger *zap.Logger) EventTap
 }
 
 // ipcServerFactory defines the interface for creating IPC server instances.
@@ -59,18 +61,47 @@ type ipcServerFactory interface {
 	New(
 		handler func(context.Context, ipc.Command) ipc.Response,
 		logger *zap.Logger,
-	) (ipcServer, error)
+	) (IPCServer, error)
+}
+
+// OverlayManager defines the interface for overlay window management.
+type OverlayManager = overlay.ManagerInterface
+
+// AppWatcher defines the interface for application lifecycle monitoring.
+type AppWatcher interface {
+	Start()
+	Stop()
+	OnActivate(callback appwatcher.AppCallback)
+	OnDeactivate(callback appwatcher.AppCallback)
+	OnTerminate(callback appwatcher.AppCallback)
+	OnScreenParametersChanged(callback func())
+}
+
+// overlayManagerFactory defines the interface for creating overlay managers.
+type overlayManagerFactory interface {
+	New(logger *zap.Logger) OverlayManager
+}
+
+// appWatcherFactory defines the interface for creating app watchers.
+type appWatcherFactory interface {
+	New(logger *zap.Logger) AppWatcher
 }
 
 // deps holds optional dependencies for testing and dependency injection.
 // When nil, default implementations are used.
 type deps struct {
 	// Hotkeys is an optional hotkey service implementation.
-	Hotkeys hotkeyService
+	Hotkeys HotkeyService
 
 	// EventTapFactory is an optional event tap factory implementation.
 	EventTapFactory eventTapFactory
 
 	// IPCServerFactory is an optional IPC server factory implementation.
 	IPCServerFactory ipcServerFactory
+
+	// OverlayManagerFactory is an optional overlay manager factory implementation.
+	OverlayManagerFactory overlayManagerFactory
+
+	// AppWatcherFactory is an optional app watcher factory implementation.
+	AppWatcherFactory appWatcherFactory
 }

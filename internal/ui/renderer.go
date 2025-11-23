@@ -9,13 +9,13 @@ import (
 
 // OverlayRenderer manages rendering operations for all application overlays.
 type OverlayRenderer struct {
-	mgr       *overlay.Manager
+	mgr       overlay.ManagerInterface
 	hintStyle hints.StyleMode
 	gridStyle grid.Style
 }
 
 // NewOverlayRenderer initializes a new overlay renderer with the specified components.
-func NewOverlayRenderer(mgr *overlay.Manager, hs hints.StyleMode, gs grid.Style) *OverlayRenderer {
+func NewOverlayRenderer(mgr overlay.ManagerInterface, hs hints.StyleMode, gs grid.Style) *OverlayRenderer {
 	return &OverlayRenderer{mgr: mgr, hintStyle: hs, gridStyle: gs}
 }
 

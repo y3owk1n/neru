@@ -17,13 +17,11 @@ import (
 	"github.com/y3owk1n/neru/internal/features/hints"
 	"github.com/y3owk1n/neru/internal/features/scroll"
 	infra "github.com/y3owk1n/neru/internal/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/infra/bridge"
 	"github.com/y3owk1n/neru/internal/infra/eventtap"
 	"github.com/y3owk1n/neru/internal/infra/ipc"
 	"github.com/y3owk1n/neru/internal/infra/metrics"
 	"github.com/y3owk1n/neru/internal/ui"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
 )
 
@@ -47,11 +45,11 @@ type App struct {
 	cursor *state.CursorState
 
 	// Core services
-	overlayManager *overlay.Manager
-	hotkeyManager  hotkeyService
-	eventTap       eventTap
-	ipcServer      ipcServer
-	appWatcher     *appwatcher.Watcher
+	overlayManager OverlayManager
+	hotkeyManager  HotkeyService
+	eventTap       EventTap
+	ipcServer      IPCServer
+	appWatcher     AppWatcher
 	metrics        *metrics.Collector
 
 	modes *modes.Handler
@@ -76,9 +74,15 @@ type App struct {
 	ipcController *IPCController
 }
 
-// New creates a new App instance.
+// New creates a new application instance with default dependencies.
 func New(cfg *config.Config, configPath string) (*App, error) {
 	return newWithDeps(cfg, configPath, nil)
+}
+
+// NewWithDeps creates a new application instance with injected dependencies.
+// This is primarily used for testing.
+func NewWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error) {
+	return newWithDeps(cfg, configPath, deps)
 }
 
 func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error) {
@@ -89,7 +93,7 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 	}
 
 	// Initialize overlay manager
-	overlayManager := initializeOverlayManager(log)
+	overlayManager := initializeOverlayManager(deps, log)
 
 	// Initialize and check accessibility infrastructure
 	err = initializeAccessibility(cfg, log)
@@ -98,7 +102,7 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 	}
 
 	// Initialize infrastructure services
-	appWatcher := initializeAppWatcher(log)
+	appWatcher := initializeAppWatcher(deps, log)
 	hotkeySvc := initializeHotkeyService(deps, log)
 
 	// --- New Architecture Initialization ---
@@ -338,7 +342,7 @@ func (a *App) Config() *config.Config { return a.config }
 func (a *App) Logger() *zap.Logger { return a.logger }
 
 // OverlayManager returns the overlay manager.
-func (a *App) OverlayManager() *overlay.Manager { return a.overlayManager }
+func (a *App) OverlayManager() OverlayManager { return a.overlayManager }
 
 // HintsContext returns the hints context.
 func (a *App) HintsContext() *hints.Context { return a.hintsComponent.Context }
@@ -377,7 +381,7 @@ func (a *App) GridContext() *grid.Context { return a.gridComponent.Context }
 func (a *App) ScrollContext() *scroll.Context { return a.scrollComponent.Context }
 
 // EventTap returns the event tap.
-func (a *App) EventTap() eventTap { return a.eventTap }
+func (a *App) EventTap() EventTap { return a.eventTap }
 
 // CurrentMode returns the current mode.
 func (a *App) CurrentMode() Mode { return a.state.CurrentMode() }

@@ -16,7 +16,7 @@ type Handler struct {
 	Logger         *zap.Logger
 	State          *state.AppState
 	Cursor         *state.CursorState
-	OverlayManager *overlay.Manager
+	OverlayManager overlay.ManagerInterface
 	Renderer       *ui.OverlayRenderer
 	// New Services
 	HintService   *services.HintService
@@ -41,7 +41,7 @@ func NewHandler(
 	log *zap.Logger,
 	st *state.AppState,
 	cursor *state.CursorState,
-	overlayManager *overlay.Manager,
+	overlayManager overlay.ManagerInterface,
 	renderer *ui.OverlayRenderer,
 	hintService *services.HintService,
 	gridService *services.GridService,
