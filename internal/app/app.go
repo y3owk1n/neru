@@ -97,7 +97,7 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 		return nil, err
 	}
 
-	// Initialize services (Legacy)
+	// Initialize infrastructure services
 	appWatcher := initializeAppWatcher(log)
 	hotkeySvc := initializeHotkeyService(deps, log)
 

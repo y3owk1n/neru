@@ -35,11 +35,7 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	h.OverlayManager.ResizeToActiveScreenSync()
 	h.State.SetGridOverlayNeedsRefresh(false)
 
-	// Use GridService to show grid
-	// Note: We still need to initialize the grid manager for input handling
-	// Note: This is a hybrid approach during migration.
-	// We still use the old grid overlay for rendering but will eventually
-	// 1. Initialize grid manager (needed for input handling)
+	// Initialize grid manager (needed for input handling)
 	gridInstance := h.createGridInstance()
 	h.updateGridOverlayConfig()
 
@@ -83,11 +79,6 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 
 	h.Logger.Info("Grid mode activated", zap.String("action", actionString))
 	h.Logger.Info("Type a grid label to select a location")
-}
-
-// SetupGrid is deprecated and replaced by GridService.ShowGrid logic.
-func (h *Handler) SetupGrid() error {
-	return nil
 }
 
 // createGridInstance creates a new grid instance with proper bounds and characters.

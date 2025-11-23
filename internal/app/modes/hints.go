@@ -8,7 +8,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/features/hints"
-	infra "github.com/y3owk1n/neru/internal/infra/accessibility"
 	"go.uber.org/zap"
 )
 
@@ -143,11 +142,6 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	}
 
 	h.SetModeHints()
-}
-
-// SetupHints is deprecated and replaced by HintService.ShowHints.
-func (h *Handler) SetupHints(_ []*infra.TreeNode) error {
-	return nil
 }
 
 // handleHintsActionKey handles action keys when in hints action mode.
