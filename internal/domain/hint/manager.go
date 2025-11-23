@@ -8,6 +8,7 @@ import (
 
 // Manager handles hint input processing, filtering, and state management.
 
+// Manager handles hint generation and management.
 type Manager struct {
 	currentInput string
 	hints        *Collection

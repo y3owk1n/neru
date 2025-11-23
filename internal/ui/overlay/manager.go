@@ -43,6 +43,9 @@ type StateChange struct {
 }
 
 // ManagerInterface defines the interface for overlay window management.
+// ManagerInterface defines the interface for the overlay manager.
+//
+//nolint:interfacebloat
 type ManagerInterface interface {
 	Show()
 	Hide()

@@ -18,23 +18,26 @@ import (
 	"go.uber.org/zap"
 )
 
-// Mock factories
+// Mock factories.
 type mockEventTapFactory struct{}
 
-func (m *mockEventTapFactory) New(callback func(string), logger *zap.Logger) EventTap {
+func (m *mockEventTapFactory) New(_ func(string), _ *zap.Logger) EventTap {
 	return &mockEventTap{}
 }
 
 type mockEventTap struct{}
 
-func (m *mockEventTap) Enable()                     {}
-func (m *mockEventTap) Disable()                    {}
-func (m *mockEventTap) Destroy()                    {}
-func (m *mockEventTap) SetHotkeys(hotkeys []string) {}
+func (m *mockEventTap) Enable()               {}
+func (m *mockEventTap) Disable()              {}
+func (m *mockEventTap) Destroy()              {}
+func (m *mockEventTap) SetHotkeys(_ []string) {}
 
 type mockIPCServerFactory struct{}
 
-func (m *mockIPCServerFactory) New(handler func(context.Context, ipc.Command) ipc.Response, logger *zap.Logger) (IPCServer, error) {
+func (m *mockIPCServerFactory) New(
+	_ func(context.Context, ipc.Command) ipc.Response,
+	_ *zap.Logger,
+) (IPCServer, error) {
 	return &mockIPCServer{}, nil
 }
 
@@ -45,56 +48,76 @@ func (m *mockIPCServer) Stop() error { return nil }
 
 type mockOverlayManagerFactory struct{}
 
-func (m *mockOverlayManagerFactory) New(logger *zap.Logger) OverlayManager {
+func (m *mockOverlayManagerFactory) New(_ *zap.Logger) OverlayManager {
 	return &mockOverlayManager{}
 }
 
 type mockOverlayManager struct{}
 
-func (m *mockOverlayManager) Show()                                         {}
-func (m *mockOverlayManager) Hide()                                         {}
-func (m *mockOverlayManager) Clear()                                        {}
-func (m *mockOverlayManager) ResizeToActiveScreenSync()                     {}
-func (m *mockOverlayManager) SwitchTo(next overlay.Mode)                    {}
-func (m *mockOverlayManager) Subscribe(fn func(overlay.StateChange)) uint64 { return 0 }
-func (m *mockOverlayManager) Unsubscribe(id uint64)                         {}
-func (m *mockOverlayManager) Destroy()                                      {}
-func (m *mockOverlayManager) GetMode() overlay.Mode                         { return overlay.ModeIdle }
-func (m *mockOverlayManager) GetWindowPtr() unsafe.Pointer                  { return nil }
-func (m *mockOverlayManager) UseHintOverlay(o *hints.Overlay)               {}
-func (m *mockOverlayManager) UseGridOverlay(o *grid.Overlay)                {}
-func (m *mockOverlayManager) UseActionOverlay(o *action.Overlay)            {}
-func (m *mockOverlayManager) UseScrollOverlay(o *scroll.Overlay)            {}
-func (m *mockOverlayManager) GetHintOverlay() *hints.Overlay                { return nil }
-func (m *mockOverlayManager) GetGridOverlay() *grid.Overlay                 { return nil }
-func (m *mockOverlayManager) GetActionOverlay() *action.Overlay             { return nil }
-func (m *mockOverlayManager) GetScrollOverlay() *scroll.Overlay             { return nil }
-func (m *mockOverlayManager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error {
+func (m *mockOverlayManager) Show()                     {}
+func (m *mockOverlayManager) Hide()                     {}
+func (m *mockOverlayManager) Clear()                    {}
+func (m *mockOverlayManager) ResizeToActiveScreenSync() {}
+func (m *mockOverlayManager) SwitchTo(_ overlay.Mode)   {}
+
+func (m *mockOverlayManager) Subscribe(
+	_ func(overlay.StateChange),
+) uint64 {
+	return 0
+}
+func (m *mockOverlayManager) Unsubscribe(_ uint64) {}
+func (m *mockOverlayManager) Destroy()             {}
+
+func (m *mockOverlayManager) GetMode() overlay.Mode { return overlay.ModeIdle }
+
+func (m *mockOverlayManager) GetWindowPtr() unsafe.Pointer       { return nil }
+func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)    {}
+func (m *mockOverlayManager) UseGridOverlay(_ *grid.Overlay)     {}
+func (m *mockOverlayManager) UseActionOverlay(_ *action.Overlay) {}
+func (m *mockOverlayManager) UseScrollOverlay(_ *scroll.Overlay) {}
+
+func (m *mockOverlayManager) GetHintOverlay() *hints.Overlay { return nil }
+
+func (m *mockOverlayManager) GetGridOverlay() *grid.Overlay { return nil }
+
+func (m *mockOverlayManager) GetActionOverlay() *action.Overlay { return nil }
+
+func (m *mockOverlayManager) GetScrollOverlay() *scroll.Overlay { return nil }
+
+func (m *mockOverlayManager) DrawHintsWithStyle(
+	_ []*hints.Hint,
+	_ hints.StyleMode,
+) error {
 	return nil
 }
-func (m *mockOverlayManager) DrawActionHighlight(x, y, w, h int) {}
-func (m *mockOverlayManager) DrawScrollHighlight(x, y, w, h int) {}
-func (m *mockOverlayManager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error {
+func (m *mockOverlayManager) DrawActionHighlight(_, _, _, _ int) {}
+func (m *mockOverlayManager) DrawScrollHighlight(_, _, _, _ int) {}
+
+func (m *mockOverlayManager) DrawGrid(
+	_ *domainGrid.Grid,
+	_ string,
+	_ grid.Style,
+) error {
 	return nil
 }
-func (m *mockOverlayManager) UpdateGridMatches(prefix string)                     {}
-func (m *mockOverlayManager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {}
-func (m *mockOverlayManager) SetHideUnmatched(hide bool)                          {}
+func (m *mockOverlayManager) UpdateGridMatches(_ string)                   {}
+func (m *mockOverlayManager) ShowSubgrid(_ *domainGrid.Cell, _ grid.Style) {}
+func (m *mockOverlayManager) SetHideUnmatched(_ bool)                      {}
 
 type mockAppWatcherFactory struct{}
 
-func (m *mockAppWatcherFactory) New(logger *zap.Logger) AppWatcher {
+func (m *mockAppWatcherFactory) New(_ *zap.Logger) Watcher {
 	return &mockAppWatcher{}
 }
 
 type mockAppWatcher struct{}
 
-func (m *mockAppWatcher) Start()                                       {}
-func (m *mockAppWatcher) Stop()                                        {}
-func (m *mockAppWatcher) OnActivate(callback appwatcher.AppCallback)   {}
-func (m *mockAppWatcher) OnDeactivate(callback appwatcher.AppCallback) {}
-func (m *mockAppWatcher) OnTerminate(callback appwatcher.AppCallback)  {}
-func (m *mockAppWatcher) OnScreenParametersChanged(callback func())    {}
+func (m *mockAppWatcher) Start()                                {}
+func (m *mockAppWatcher) Stop()                                 {}
+func (m *mockAppWatcher) OnActivate(_ appwatcher.AppCallback)   {}
+func (m *mockAppWatcher) OnDeactivate(_ appwatcher.AppCallback) {}
+func (m *mockAppWatcher) OnTerminate(_ appwatcher.AppCallback)  {}
+func (m *mockAppWatcher) OnScreenParametersChanged(_ func())    {}
 
 func TestApp_ModeIntegration(t *testing.T) {
 	// Setup minimal config
@@ -108,7 +131,7 @@ func TestApp_ModeIntegration(t *testing.T) {
 		EventTapFactory:       &mockEventTapFactory{},
 		IPCServerFactory:      &mockIPCServerFactory{},
 		OverlayManagerFactory: &mockOverlayManagerFactory{},
-		AppWatcherFactory:     &mockAppWatcherFactory{},
+		WatcherFactory:        &mockAppWatcherFactory{},
 	}
 
 	application, err := newWithDeps(cfg, "", d)

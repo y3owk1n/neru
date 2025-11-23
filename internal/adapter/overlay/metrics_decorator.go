@@ -24,11 +24,6 @@ func NewMetricsDecorator(next ports.OverlayPort, collector *metrics.Collector) *
 	}
 }
 
-func (d *MetricsDecorator) recordDuration(name string, start time.Time) {
-	duration := time.Since(start).Seconds()
-	d.collector.ObserveHistogram(name, duration, nil)
-}
-
 // ShowHints implements ports.OverlayPort.
 func (d *MetricsDecorator) ShowHints(ctx context.Context, hints []*hint.Hint) error {
 	defer d.recordDuration("overlay_show_hints_duration", time.Now())
@@ -82,4 +77,9 @@ func (d *MetricsDecorator) Refresh(ctx context.Context) error {
 // Health implements ports.OverlayPort.
 func (d *MetricsDecorator) Health(ctx context.Context) error {
 	return d.next.Health(ctx)
+}
+
+func (d *MetricsDecorator) recordDuration(name string, start time.Time) {
+	duration := time.Since(start).Seconds()
+	d.collector.ObserveHistogram(name, duration, nil)
 }

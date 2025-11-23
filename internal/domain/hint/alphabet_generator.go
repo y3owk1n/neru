@@ -180,15 +180,16 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 		nextLevelCapacity := availableSlots * numChars
 
 		var keep int
-		if availableSlots >= remainingTarget {
+		switch {
+		case availableSlots >= remainingTarget:
 			// We can satisfy the rest of the target at this level
 			keep = remainingTarget
-		} else if nextLevelCapacity < remainingTarget {
+		case nextLevelCapacity < remainingTarget:
 			// Even expanding everything isn't enough for next level?
 			// This implies we need to go deeper.
 			// We keep 0 at this level to maximize expansion capacity.
 			keep = 0
-		} else {
+		default:
 			// We can satisfy target at next level.
 			// We want to keep as many as possible at this level.
 			// Formula: available*N - k*(N-1) >= target
@@ -252,7 +253,7 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 
 		// If this is the first level
 		if length == 1 {
-			for i := 0; i < keep; i++ {
+			for i := range keep {
 				labels = append(labels, string(chars[i]))
 			}
 			// The start for next level is 'keep'
@@ -272,7 +273,7 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 				current = append(current, 0)
 			}
 
-			for i := 0; i < keep; i++ {
+			for range keep {
 				// Build string from current indices
 				var b strings.Builder
 				b.Grow(length)

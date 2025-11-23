@@ -1,3 +1,4 @@
+// Package main is the entry point for the Neru application.
 package main
 
 import (
@@ -28,7 +29,8 @@ func LaunchDaemon(configPath string) {
 	if pprofAddr := os.Getenv("NERU_PPROF"); pprofAddr != "" {
 		go func() {
 			fmt.Fprintf(os.Stderr, "Starting pprof server on %s\\n", pprofAddr)
-			if err := http.ListenAndServe(pprofAddr, nil); err != nil {
+			err := http.ListenAndServe(pprofAddr, nil)
+			if err != nil {
 				fmt.Fprintf(os.Stderr, "pprof server error: %v\\n", err)
 			}
 		}()

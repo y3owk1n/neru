@@ -84,10 +84,9 @@ func initializeHotkeyService(deps *deps, log *zap.Logger) HotkeyService {
 	return mgr
 }
 
-// initializeAppWatcher creates and returns a new application watcher.
-func initializeAppWatcher(deps *deps, log *zap.Logger) AppWatcher {
-	if deps != nil && deps.AppWatcherFactory != nil {
-		return deps.AppWatcherFactory.New(log)
+func initializeAppWatcher(deps *deps, log *zap.Logger) Watcher {
+	if deps != nil && deps.WatcherFactory != nil {
+		return deps.WatcherFactory.New(log)
 	}
 	return appwatcher.NewWatcher(log)
 }

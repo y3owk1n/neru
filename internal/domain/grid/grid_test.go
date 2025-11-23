@@ -64,7 +64,12 @@ func TestGrid_GetCellByCoordinate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cell := g.GetCellByCoordinate(tt.coord)
 			if (cell != nil) != tt.want {
-				t.Errorf("GetCellByCoordinate(%q) exists = %v, want %v", tt.coord, cell != nil, tt.want)
+				t.Errorf(
+					"GetCellByCoordinate(%q) exists = %v, want %v",
+					tt.coord,
+					cell != nil,
+					tt.want,
+				)
 			}
 		})
 	}

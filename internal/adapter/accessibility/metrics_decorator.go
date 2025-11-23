@@ -28,17 +28,6 @@ func NewMetricsDecorator(
 	}
 }
 
-func (d *MetricsDecorator) recordDuration(name string, start time.Time) {
-	duration := time.Since(start).Seconds()
-	d.collector.ObserveHistogram(name, duration, nil)
-}
-
-func (d *MetricsDecorator) recordError(name string, err error) {
-	if err != nil {
-		d.collector.IncCounter(name+"_errors", nil)
-	}
-}
-
 // GetClickableElements implements ports.AccessibilityPort.
 func (d *MetricsDecorator) GetClickableElements(
 	ctx context.Context,
@@ -130,4 +119,15 @@ func (d *MetricsDecorator) CheckPermissions(ctx context.Context) error {
 // Health implements ports.AccessibilityPort.
 func (d *MetricsDecorator) Health(ctx context.Context) error {
 	return d.next.Health(ctx)
+}
+
+func (d *MetricsDecorator) recordDuration(name string, start time.Time) {
+	duration := time.Since(start).Seconds()
+	d.collector.ObserveHistogram(name, duration, nil)
+}
+
+func (d *MetricsDecorator) recordError(name string, err error) {
+	if err != nil {
+		d.collector.IncCounter(name+"_errors", nil)
+	}
 }

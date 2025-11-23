@@ -49,7 +49,7 @@ type App struct {
 	hotkeyManager  HotkeyService
 	eventTap       EventTap
 	ipcServer      IPCServer
-	appWatcher     AppWatcher
+	appWatcher     Watcher
 	metrics        *metrics.Collector
 
 	modes *modes.Handler

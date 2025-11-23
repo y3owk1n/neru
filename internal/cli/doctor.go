@@ -12,9 +12,9 @@ import (
 var doctorCmd = &cobra.Command{
 	Use:   "doctor",
 	Short: "Check the health of Neru components",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		if !ipc.IsServerRunning() {
-			fmt.Println("❌ Neru is not running")
+			cmd.Println("❌ Neru is not running")
 			return nil
 		}
 
@@ -25,29 +25,38 @@ var doctorCmd = &cobra.Command{
 		}
 
 		if !resp.Success {
-			fmt.Println("⚠️  Some components are unhealthy:")
+			cmd.Println("⚠️  Some components are unhealthy:")
 		} else {
-			fmt.Println("✅ All systems operational")
+			cmd.Println("✅ All systems operational")
+		}
+		if resp.Success {
+			cmd.Println("✅ All systems operational")
+			return nil
 		}
 
+		// Parse error details if available
+		var data map[string]string
 		if resp.Data != nil {
-			// Convert map[string]interface{} to map[string]string for display
-			// JSON decoding unmarshals to map[string]interface{}
-			data, ok := resp.Data.(map[string]any)
-			if !ok {
-				// Try to re-marshal and unmarshal if it's not the expected type
-				// This handles cases where the type info is lost
-				b, _ := json.Marshal(resp.Data)
-				json.Unmarshal(b, &data)
+			b, err := json.Marshal(resp.Data)
+			if err != nil {
+				return fmt.Errorf("failed to marshal error data: %w", err)
 			}
+			err = json.Unmarshal(b, &data)
+			if err != nil {
+				return fmt.Errorf("failed to parse error data: %w", err)
+			}
+		}
 
-			for k, v := range data {
-				status := fmt.Sprintf("%v", v)
-				if status == "healthy" {
-					fmt.Printf("  ✅ %s: %s\n", k, status)
-				} else {
-					fmt.Printf("  ❌ %s: %s\n", k, status)
-				}
+		cmd.Println("⚠️  Some components are unhealthy:")
+		for k, v := range data {
+			status := "OK"
+			if v != "" {
+				status = v
+			}
+			if status == "OK" {
+				cmd.Printf("  ✅ %s: %s\n", k, status)
+			} else {
+				cmd.Printf("  ❌ %s: %s\n", k, status)
 			}
 		}
 

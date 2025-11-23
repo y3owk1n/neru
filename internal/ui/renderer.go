@@ -15,7 +15,11 @@ type OverlayRenderer struct {
 }
 
 // NewOverlayRenderer initializes a new overlay renderer with the specified components.
-func NewOverlayRenderer(mgr overlay.ManagerInterface, hs hints.StyleMode, gs grid.Style) *OverlayRenderer {
+func NewOverlayRenderer(
+	mgr overlay.ManagerInterface,
+	hs hints.StyleMode,
+	gs grid.Style,
+) *OverlayRenderer {
 	return &OverlayRenderer{mgr: mgr, hintStyle: hs, gridStyle: gs}
 }
 

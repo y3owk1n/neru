@@ -67,8 +67,8 @@ type ipcServerFactory interface {
 // OverlayManager defines the interface for overlay window management.
 type OverlayManager = overlay.ManagerInterface
 
-// AppWatcher defines the interface for application lifecycle monitoring.
-type AppWatcher interface {
+// Watcher defines the interface for application lifecycle monitoring.
+type Watcher interface {
 	Start()
 	Stop()
 	OnActivate(callback appwatcher.AppCallback)
@@ -82,9 +82,11 @@ type overlayManagerFactory interface {
 	New(logger *zap.Logger) OverlayManager
 }
 
-// appWatcherFactory defines the interface for creating app watchers.
-type appWatcherFactory interface {
-	New(logger *zap.Logger) AppWatcher
+// watcherFactory defines the interface for creating watcher instances.
+// This factory pattern enables dependency injection and testing.
+type watcherFactory interface {
+	// New creates a new watcher with the given logger.
+	New(logger *zap.Logger) Watcher
 }
 
 // deps holds optional dependencies for testing and dependency injection.
@@ -102,6 +104,6 @@ type deps struct {
 	// OverlayManagerFactory is an optional overlay manager factory implementation.
 	OverlayManagerFactory overlayManagerFactory
 
-	// AppWatcherFactory is an optional app watcher factory implementation.
-	AppWatcherFactory appWatcherFactory
+	// WatcherFactory is an optional app watcher factory implementation.
+	WatcherFactory watcherFactory
 }

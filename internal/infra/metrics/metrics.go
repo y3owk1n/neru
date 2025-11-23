@@ -1,3 +1,4 @@
+// Package metrics provides metrics collection and reporting.
 package metrics
 
 import (
@@ -5,12 +6,15 @@ import (
 	"time"
 )
 
-// MetricType represents the type of metric.
+// MetricType defines the type of metric.
 type MetricType int
 
 const (
+	// TypeCounter represents a counter metric.
 	TypeCounter MetricType = iota
+	// TypeGauge represents a gauge metric.
 	TypeGauge
+	// TypeHistogram represents a histogram metric.
 	TypeHistogram
 )
 
@@ -51,6 +55,23 @@ func (c *Collector) ObserveHistogram(name string, value float64, labels map[stri
 	c.addMetric(name, TypeHistogram, value, labels)
 }
 
+// Reset clears all collected metrics.
+func (c *Collector) Reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.metrics = c.metrics[:0]
+}
+
+// Snapshot returns a copy of current metrics.
+func (c *Collector) Snapshot() []Metric {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	snapshot := make([]Metric, len(c.metrics))
+	copy(snapshot, c.metrics)
+	return snapshot
+}
+
 func (c *Collector) addMetric(
 	name string,
 	typ MetricType,
@@ -67,21 +88,4 @@ func (c *Collector) addMetric(
 		Labels:    labels,
 		Timestamp: time.Now(),
 	})
-}
-
-// Reset clears all collected metrics.
-func (c *Collector) Reset() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.metrics = c.metrics[:0]
-}
-
-// Snapshot returns a copy of current metrics.
-func (c *Collector) Snapshot() []Metric {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	snapshot := make([]Metric, len(c.metrics))
-	copy(snapshot, c.metrics)
-	return snapshot
 }
