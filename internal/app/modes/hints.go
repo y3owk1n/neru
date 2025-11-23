@@ -2,6 +2,7 @@ package modes
 
 import (
 	"context"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -75,7 +76,9 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	h.State.SetHintOverlayNeedsRefresh(false)
 
 	// Use new HintService to show hints
-	ctx := context.Background() // TODO: Use proper context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	filter := ports.DefaultElementFilter()
 
 	// Populate filter with configuration
@@ -107,17 +110,17 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 			if h.Hints.Overlay == nil {
 				return
 			}
-			// Convert domain hints to legacy hints for overlay rendering
-			legacyHints := make([]*hints.Hint, len(filteredHints))
+			// Convert domain hints to overlay hints for rendering
+			overlayHints := make([]*hints.Hint, len(filteredHints))
 			for i, dh := range filteredHints {
-				legacyHints[i] = &hints.Hint{
+				overlayHints[i] = &hints.Hint{
 					Label:         dh.Label(),
 					Position:      dh.Position(),
 					Size:          dh.Element().Bounds().Size(),
 					MatchedPrefix: dh.MatchedPrefix(),
 				}
 			}
-			err := h.Hints.Overlay.DrawHintsWithStyle(legacyHints, h.Hints.Style)
+			err := h.Hints.Overlay.DrawHintsWithStyle(overlayHints, h.Hints.Style)
 			if err != nil {
 				h.Logger.Error("Failed to update hints overlay", zap.Error(err))
 			}

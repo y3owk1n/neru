@@ -39,7 +39,7 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	// Note: We still need to initialize the grid manager for input handling
 	// This is a hybrid approach until we fully migrate the grid logic
 
-	// 1. Initialize legacy grid manager (needed for input handling)
+	// 1. Initialize grid manager (needed for input handling)
 	gridInstance := h.createGridInstance()
 	h.updateGridOverlayConfig()
 
@@ -53,17 +53,17 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 
 	// 2. Show grid using new service
 	// We use the grid instance bounds to determine rows/cols if needed,
-	// but for now we just show the overlay and let the legacy manager handle drawing
-	// via the overlay adapter's SwitchTo("grid") call
+	// but for now we just show the overlay and let the manager handle drawing
+	// Show the grid overlay
 
 	// The adapter's ShowGrid implementation switches mode to "grid"
-	// The actual drawing is handled by the legacy overlay which is already set up
+	// The actual drawing is handled by the overlay which is already set up
 	// via h.Renderer.DrawGrid in the legacy code, but here we use the service
 
 	// Wait, the service calls adapter.ShowGrid which calls manager.SwitchTo("grid")
 	// But we still need to populate the grid overlay with data
 
-	// Let's call the legacy draw first to populate the overlay
+	// Draw the grid to populate the overlay
 	initErr := h.Renderer.DrawGrid(gridInstance, "")
 	if initErr != nil {
 		h.Logger.Error("Failed to draw grid", zap.Error(initErr))

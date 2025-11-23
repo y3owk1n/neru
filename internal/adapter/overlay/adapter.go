@@ -10,7 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/errors"
 	gridFeature "github.com/y3owk1n/neru/internal/features/grid"
-	legacyHints "github.com/y3owk1n/neru/internal/features/hints"
+	overlayHints "github.com/y3owk1n/neru/internal/features/hints"
 	"github.com/y3owk1n/neru/internal/infra/bridge"
 	uiOverlay "github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -41,10 +41,10 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Hint) error {
 
 	a.logger.Debug("Showing hints overlay", zap.Int("hint_count", len(hints)))
 
-	// Convert domain hints to legacy hints for the overlay manager
-	legacyHintList := make([]*legacyHints.Hint, len(hints))
+	// Convert domain hints to overlay hints for rendering
+	overlayHintList := make([]*overlayHints.Hint, len(hints))
 	for i, h := range hints {
-		legacyHintList[i] = &legacyHints.Hint{
+		overlayHintList[i] = &overlayHints.Hint{
 			Label:         h.Label(),
 			Position:      h.Position(),
 			Size:          h.Bounds().Size(),
@@ -56,9 +56,9 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Hint) error {
 	a.manager.Show()
 	a.manager.SwitchTo("hints")
 
-	// Draw hints using the legacy overlay
-	// We use the default style for now
-	err := a.manager.DrawHintsWithStyle(legacyHintList, legacyHints.StyleMode{})
+	// Draw hints using the overlay manager
+	// Use default style for now
+	err := a.manager.DrawHintsWithStyle(overlayHintList, overlayHints.StyleMode{})
 	if err != nil {
 		return fmt.Errorf("failed to draw hints: %w", err)
 	}
@@ -83,7 +83,7 @@ func (a *Adapter) ShowGrid(ctx context.Context, rows, cols int) error {
 	// Note: We use default characters from config if available, or default
 	// Since we don't have config passed here easily (unless we store it in adapter),
 	// we'll use a default string. Ideally config should be passed or stored.
-	// The legacy implementation used config.
+	// Get grid configuration from config service
 	// We can assume the manager or grid package handles defaults.
 	// For now, let's use a safe default.
 	g := domainGrid.NewGrid("abcdefghijklmnopqrstuvwxyz", bounds, a.logger)
@@ -120,7 +120,7 @@ func (a *Adapter) DrawScrollHighlight(
 	// However, the Manager manages the Overlay.
 	// We might need to update the Manager or access the Overlay via Manager.
 	// Looking at internal/ui/overlay/manager.go (implied), it likely wraps the CGo overlay.
-	// The legacy code used `a.overlayManager.DrawScrollHighlight`?
+	// Draw scroll highlight using overlay manager
 	// No, `ScrollComponent` had its own `Overlay` in `internal/features/scroll/overlay.go`.
 	// This is a divergence. The new architecture should unify overlay management.
 	// For now, we can assume the Adapter's manager can handle this, or we need to expose it.

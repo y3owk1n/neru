@@ -107,7 +107,7 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 	// 2. Initialize Adapters
 	// Accessibility Adapter
 	// Note: We need to get excluded bundles and clickable roles from config
-	excludedBundles := []string{} // TODO: Get from config
+	excludedBundles := cfg.General.ExcludedApps
 	clickableRoles := cfg.Hints.ClickableRoles
 	accAdapter := accAdapter.NewAdapter(log, excludedBundles, clickableRoles)
 

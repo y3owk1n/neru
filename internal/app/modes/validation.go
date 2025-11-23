@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -25,7 +26,9 @@ func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) erro
 
 	// Check if focused app is excluded
 	// Use a short timeout context for this check
-	ctx := context.Background() // TODO: Use proper context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
 	isExcluded, err := h.ActionService.IsFocusedAppExcluded(ctx)
 	if err != nil {
 		// Log error but default to not excluded to allow operation if check fails?

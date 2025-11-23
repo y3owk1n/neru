@@ -190,12 +190,3 @@ func (h *Handler) handleDirectionalScrollKey(key string, lastKey string) error {
 	}
 	return nil
 }
-
-// DrawScrollHighlightBorder renders the highlight border for scroll mode on the active screen.
-// Deprecated: Use ScrollService.ShowScrollOverlay instead.
-func (h *Handler) DrawScrollHighlightBorder() {
-	ctx := context.Background()
-	if err := h.ScrollService.ShowScrollOverlay(ctx); err != nil {
-		h.Logger.Error("Failed to show scroll overlay", zap.Error(err))
-	}
-}
