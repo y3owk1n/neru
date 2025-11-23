@@ -55,6 +55,21 @@ test-race:
     @echo "Running tests with race detection..."
     go test -race -v ./...
 
+test-integration:
+    @echo "Running integration tests..."
+    go test -tags=integration -v ./...
+
+test-coverage:
+    @echo "Running tests with coverage..."
+    go test -coverprofile=coverage.out -covermode=atomic ./...
+
+test-coverage-html:
+    @echo "Running tests with coverage (HTML)..."
+    go test -coverprofile=coverage.out -covermode=atomic ./...
+    go tool cover -html=coverage.out -o coverage.html
+
+test-all: test test-race test-integration test-coverage
+
 # Check if files are formatted correctly
 fmt-check:
     #!/usr/bin/env bash
