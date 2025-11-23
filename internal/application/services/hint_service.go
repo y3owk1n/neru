@@ -117,3 +117,11 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 	s.generator = generator
 	s.logger.Info("Hint generator updated")
 }
+
+// Health checks the health of the service's dependencies.
+func (s *HintService) Health(ctx context.Context) map[string]error {
+	return map[string]error{
+		"accessibility": s.accessibility.Health(ctx),
+		"overlay":       s.overlay.Health(ctx),
+	}
+}

@@ -15,7 +15,7 @@ import (
 )
 
 // handleIPCCommand processes IPC commands received from the CLI interface.
-func (a *App) handleIPCCommand(cmd ipc.Command) ipc.Response {
+func (a *App) handleIPCCommand(ctx context.Context, cmd ipc.Command) ipc.Response {
 	a.logger.Info(
 		"Handling IPC command",
 		zap.String("action", cmd.Action),
@@ -23,7 +23,7 @@ func (a *App) handleIPCCommand(cmd ipc.Command) ipc.Response {
 	)
 
 	if h, ok := a.cmdHandlers[cmd.Action]; ok {
-		return h(cmd)
+		return h(ctx, cmd)
 	}
 	return ipc.Response{
 		Success: false,
@@ -32,11 +32,11 @@ func (a *App) handleIPCCommand(cmd ipc.Command) ipc.Response {
 	}
 }
 
-func (a *App) handlePing(_ ipc.Command) ipc.Response {
+func (a *App) handlePing(_ context.Context, _ ipc.Command) ipc.Response {
 	return ipc.Response{Success: true, Message: "pong", Code: ipc.CodeOK}
 }
 
-func (a *App) handleStart(_ ipc.Command) ipc.Response {
+func (a *App) handleStart(_ context.Context, _ ipc.Command) ipc.Response {
 	if a.state.IsEnabled() {
 		return ipc.Response{
 			Success: false,
@@ -48,7 +48,7 @@ func (a *App) handleStart(_ ipc.Command) ipc.Response {
 	return ipc.Response{Success: true, Message: "neru started", Code: ipc.CodeOK}
 }
 
-func (a *App) handleStop(_ ipc.Command) ipc.Response {
+func (a *App) handleStop(_ context.Context, _ ipc.Command) ipc.Response {
 	if !a.state.IsEnabled() {
 		return ipc.Response{
 			Success: false,
@@ -61,7 +61,7 @@ func (a *App) handleStop(_ ipc.Command) ipc.Response {
 	return ipc.Response{Success: true, Message: "neru stopped", Code: ipc.CodeOK}
 }
 
-func (a *App) handleHints(cmd ipc.Command) ipc.Response {
+func (a *App) handleHints(_ context.Context, cmd ipc.Command) ipc.Response {
 	if !a.state.IsEnabled() {
 		return ipc.Response{
 			Success: false,
@@ -88,7 +88,7 @@ func (a *App) handleHints(cmd ipc.Command) ipc.Response {
 	return ipc.Response{Success: true, Message: "hint mode activated", Code: ipc.CodeOK}
 }
 
-func (a *App) handleGrid(cmd ipc.Command) ipc.Response {
+func (a *App) handleGrid(_ context.Context, cmd ipc.Command) ipc.Response {
 	if !a.state.IsEnabled() {
 		return ipc.Response{
 			Success: false,
@@ -115,7 +115,7 @@ func (a *App) handleGrid(cmd ipc.Command) ipc.Response {
 	return ipc.Response{Success: true, Message: "grid mode activated", Code: ipc.CodeOK}
 }
 
-func (a *App) handleAction(cmd ipc.Command) ipc.Response {
+func (a *App) handleAction(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if !a.state.IsEnabled() {
 		return ipc.Response{
 			Success: false,
@@ -150,7 +150,7 @@ func (a *App) handleAction(cmd ipc.Command) ipc.Response {
 				}
 			}
 			// Use ActionService
-			ctx := context.Background()
+			// ctx is already available from argument
 			err = a.actionService.PerformAction(ctx, param, cursorPos)
 		}
 
@@ -170,7 +170,7 @@ func (a *App) handleAction(cmd ipc.Command) ipc.Response {
 	return ipc.Response{Success: true, Message: "action performed at cursor", Code: ipc.CodeOK}
 }
 
-func (a *App) handleIdle(_ ipc.Command) ipc.Response {
+func (a *App) handleIdle(_ context.Context, _ ipc.Command) ipc.Response {
 	if !a.state.IsEnabled() {
 		return ipc.Response{
 			Success: false,
@@ -182,7 +182,7 @@ func (a *App) handleIdle(_ ipc.Command) ipc.Response {
 	return ipc.Response{Success: true, Message: "mode set to idle", Code: ipc.CodeOK}
 }
 
-func (a *App) handleStatus(_ ipc.Command) ipc.Response {
+func (a *App) handleStatus(_ context.Context, _ ipc.Command) ipc.Response {
 	cfgPath := a.resolveConfigPath()
 	statusData := ipc.StatusData{
 		Enabled: a.state.IsEnabled(),
@@ -192,14 +192,14 @@ func (a *App) handleStatus(_ ipc.Command) ipc.Response {
 	return ipc.Response{Success: true, Data: statusData, Code: ipc.CodeOK}
 }
 
-func (a *App) handleConfig(_ ipc.Command) ipc.Response {
+func (a *App) handleConfig(_ context.Context, _ ipc.Command) ipc.Response {
 	if a.config == nil {
 		return ipc.Response{Success: false, Message: "config unavailable", Code: ipc.CodeNotRunning}
 	}
 	return ipc.Response{Success: true, Data: a.config, Code: ipc.CodeOK}
 }
 
-func (a *App) handleReloadConfig(_ ipc.Command) ipc.Response {
+func (a *App) handleReloadConfig(_ context.Context, _ ipc.Command) ipc.Response {
 	if !a.state.IsEnabled() {
 		return ipc.Response{
 			Success: false,
@@ -225,6 +225,65 @@ func (a *App) handleReloadConfig(_ ipc.Command) ipc.Response {
 	return ipc.Response{
 		Success: true,
 		Message: "configuration reloaded successfully",
+		Code:    ipc.CodeOK,
+	}
+}
+
+func (a *App) handleHealth(ctx context.Context, _ ipc.Command) ipc.Response {
+	// ctx is already available from argument
+	healthStatus := a.hintService.Health(ctx)
+
+	status := make(map[string]string)
+	allHealthy := true
+
+	for component, err := range healthStatus {
+		if err != nil {
+			status[component] = fmt.Sprintf("unhealthy: %v", err)
+			allHealthy = false
+		} else {
+			status[component] = "healthy"
+		}
+	}
+
+	// Check Config Service (if it has health check, otherwise skip or check file)
+	// We can check if config is loaded
+	if a.config == nil {
+		status["config"] = "unhealthy: config not loaded"
+		allHealthy = false
+	} else {
+		status["config"] = "healthy"
+	}
+
+	if !allHealthy {
+		return ipc.Response{
+			Success: false,
+			Message: "some components are unhealthy",
+			Code:    ipc.CodeActionFailed,
+			Data:    status,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "all systems operational",
+		Code:    ipc.CodeOK,
+		Data:    status,
+	}
+}
+
+func (a *App) handleMetrics(_ context.Context, _ ipc.Command) ipc.Response {
+	if a.metrics == nil {
+		return ipc.Response{
+			Success: false,
+			Message: "metrics collector not initialized",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	snapshot := a.metrics.Snapshot()
+	return ipc.Response{
+		Success: true,
+		Data:    snapshot,
 		Code:    ipc.CodeOK,
 	}
 }

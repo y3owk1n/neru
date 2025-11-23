@@ -9,4 +9,6 @@ const (
 	CommandStatus       = "status"
 	CommandConfig       = "config"
 	CommandReloadConfig = "reload"
+	CommandHealth       = "health"
+	CommandMetrics      = "metrics"
 )

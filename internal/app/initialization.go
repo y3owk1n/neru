@@ -153,4 +153,6 @@ func (a *App) registerCommandHandlers() {
 	a.cmdHandlers[domain.CommandStatus] = a.handleStatus
 	a.cmdHandlers[domain.CommandConfig] = a.handleConfig
 	a.cmdHandlers[domain.CommandReloadConfig] = a.handleReloadConfig
+	a.cmdHandlers[domain.CommandHealth] = a.handleHealth
+	a.cmdHandlers[domain.CommandMetrics] = a.handleMetrics
 }

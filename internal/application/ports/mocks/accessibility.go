@@ -29,6 +29,7 @@ type MockAccessibilityPort struct {
 
 	// GetCursorPositionFunc mocks GetCursorPosition.
 	GetCursorPositionFunc func(ctx context.Context) (image.Point, error)
+	HealthFunc            func(context.Context) error
 }
 
 // GetClickableElements implements ports.AccessibilityPort.
@@ -130,6 +131,14 @@ func (m *MockAccessibilityPort) GetCursorPosition(ctx context.Context) (image.Po
 		return m.GetCursorPositionFunc(ctx)
 	}
 	return image.Point{}, nil
+}
+
+// Health checks if the accessibility permissions are granted.
+func (m *MockAccessibilityPort) Health(ctx context.Context) error {
+	if m.HealthFunc != nil {
+		return m.HealthFunc(ctx)
+	}
+	return nil
 }
 
 // Ensure MockAccessibilityPort implements ports.AccessibilityPort.

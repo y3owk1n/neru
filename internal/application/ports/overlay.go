@@ -10,6 +10,8 @@ import (
 // OverlayPort defines the interface for managing UI overlays.
 // Implementations handle the platform-specific rendering of hints and grids.
 type OverlayPort interface {
+	HealthCheck
+
 	// ShowHints displays hint labels on the screen.
 	ShowHints(ctx context.Context, hints []*hint.Hint) error
 

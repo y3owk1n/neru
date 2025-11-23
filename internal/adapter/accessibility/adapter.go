@@ -340,6 +340,11 @@ func (a *Adapter) CheckPermissions(ctx context.Context) error {
 	return nil
 }
 
+// Health checks if the accessibility permissions are granted.
+func (a *Adapter) Health(ctx context.Context) error {
+	return a.CheckPermissions(ctx)
+}
+
 // UpdateClickableRoles updates the list of clickable roles.
 func (a *Adapter) UpdateClickableRoles(roles []string) {
 	a.logger.Info("Updating clickable roles", zap.Int("count", len(roles)))

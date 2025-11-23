@@ -18,6 +18,7 @@ type MockOverlayPort struct {
 	HideFunc                func(context.Context) error
 	IsVisibleFunc           func() bool
 	RefreshFunc             func(context.Context) error
+	HealthFunc              func(context.Context) error
 
 	// State tracking for tests
 	visible bool
@@ -87,6 +88,14 @@ func (m *MockOverlayPort) IsVisible() bool {
 func (m *MockOverlayPort) Refresh(ctx context.Context) error {
 	if m.RefreshFunc != nil {
 		return m.RefreshFunc(ctx)
+	}
+	return nil
+}
+
+// Health checks if the overlay manager is responsive.
+func (m *MockOverlayPort) Health(ctx context.Context) error {
+	if m.HealthFunc != nil {
+		return m.HealthFunc(ctx)
 	}
 	return nil
 }

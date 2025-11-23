@@ -13,6 +13,8 @@ import (
 //
 //nolint:interfacebloat // The port needs to expose all accessibility capabilities
 type AccessibilityPort interface {
+	HealthCheck
+
 	// GetClickableElements retrieves all clickable UI elements matching the filter.
 	GetClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)
 

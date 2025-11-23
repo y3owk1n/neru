@@ -208,5 +208,12 @@ func (a *Adapter) Refresh(ctx context.Context) error {
 	return nil
 }
 
+// Health checks if the overlay manager is responsive.
+func (a *Adapter) Health(ctx context.Context) error {
+	// For now, we assume if we can call methods, it's healthy.
+	// Ideally, we'd ping the UI process.
+	return nil
+}
+
 // Ensure Adapter implements ports.OverlayPort.
 var _ ports.OverlayPort = (*Adapter)(nil)

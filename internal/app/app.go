@@ -21,6 +21,7 @@ import (
 	"github.com/y3owk1n/neru/internal/infra/bridge"
 	"github.com/y3owk1n/neru/internal/infra/eventtap"
 	"github.com/y3owk1n/neru/internal/infra/ipc"
+	"github.com/y3owk1n/neru/internal/infra/metrics"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -51,6 +52,7 @@ type App struct {
 	eventTap       eventTap
 	ipcServer      ipcServer
 	appWatcher     *appwatcher.Watcher
+	metrics        *metrics.Collector
 
 	modes *modes.Handler
 
@@ -71,7 +73,7 @@ type App struct {
 	renderer *ui.OverlayRenderer
 
 	// Command handlers
-	cmdHandlers map[string]func(ipc.Command) ipc.Response
+	cmdHandlers map[string]func(context.Context, ipc.Command) ipc.Response
 }
 
 // New creates a new App instance.
@@ -104,17 +106,24 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 	// 1. Initialize Config Service
 	cfgService := config.NewService(cfg, configPath)
 
-	// 2. Initialize Adapters
+	// 2. Initialize Metrics
+	metricsCollector := metrics.NewCollector()
+
+	// 3. Initialize Adapters
 	// Accessibility Adapter
 	// Note: We need to get excluded bundles and clickable roles from config
 	excludedBundles := cfg.General.ExcludedApps
 	clickableRoles := cfg.Hints.ClickableRoles
-	accAdapter := accAdapter.NewAdapter(log, excludedBundles, clickableRoles)
+	baseAccAdapter := accAdapter.NewAdapter(log, excludedBundles, clickableRoles)
+	// Wrap with metrics decorator
+	accAdapter := accAdapter.NewMetricsDecorator(baseAccAdapter, metricsCollector)
 
 	// Overlay Adapter
-	ovAdapter := ovAdapter.NewAdapter(overlayManager, log)
+	baseOvAdapter := ovAdapter.NewAdapter(overlayManager, log)
+	// Wrap with metrics decorator
+	ovAdapter := ovAdapter.NewMetricsDecorator(baseOvAdapter, metricsCollector)
 
-	// 3. Initialize Domain Services
+	// 4. Initialize Domain Services
 	// Hint Generator
 	hintGen, err := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
 	if err != nil {
@@ -143,6 +152,7 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 		overlayManager: overlayManager,
 		hotkeyManager:  hotkeySvc,
 		appWatcher:     appWatcher,
+		metrics:        metricsCollector,
 
 		// Inject new services
 		hintService:   hintService,
@@ -152,7 +162,7 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 		configService: cfgService,
 
 		renderer:    &ui.OverlayRenderer{}, // Will be properly initialized later
-		cmdHandlers: make(map[string]func(ipc.Command) ipc.Response),
+		cmdHandlers: make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
 
 	// Initialize components using factory functions

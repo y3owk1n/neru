@@ -8,10 +8,10 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/domain/trace"
 	"go.uber.org/zap"
 )
 
@@ -69,7 +69,7 @@ type Server struct {
 }
 
 // CommandHandler defines the interface for processing IPC commands.
-type CommandHandler func(cmd Command) Response
+type CommandHandler func(ctx context.Context, cmd Command) Response
 
 // GetSocketPath returns the filesystem path to the IPC Unix socket.
 func GetSocketPath() string {
@@ -170,8 +170,12 @@ func (s *Server) Stop() error {
 
 // handleConnection processes a single client connection and executes the received command.
 func (s *Server) handleConnection(conn net.Conn) {
-	reqID := strconv.FormatInt(time.Now().UnixNano(), 10)
-	log := s.logger.With(zap.String("req_id", reqID))
+	traceID := trace.NewID()
+	log := s.logger.With(zap.String("trace_id", traceID.String()))
+
+	// Create context with trace ID
+	ctx := trace.WithTraceID(context.Background(), traceID)
+
 	defer func() {
 		err := conn.Close()
 		if err != nil {
@@ -208,7 +212,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	log.Info("Received command", zap.String("action", cmd.Action))
 
-	response := s.handler(cmd)
+	response := s.handler(ctx, cmd)
 	err = encoder.Encode(response)
 	if err != nil {
 		log.Error("Failed to encode response", zap.Error(err))
