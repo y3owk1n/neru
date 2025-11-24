@@ -1,13 +1,13 @@
 package accessibility
 
 import (
-	"errors"
 	"fmt"
 	"image"
 	"strings"
 	"sync"
 	"time"
 
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 	"go.uber.org/zap"
 )
@@ -17,7 +17,7 @@ var (
 	cacheOnce   sync.Once
 
 	// Pre-allocated common errors.
-	errNoFrontmostWindow = errors.New("no frontmost window found")
+	errNoFrontmostWindow = derrors.New(derrors.CodeAccessibilityFailed, "no frontmost window found")
 )
 
 func rectFromInfo(info *ElementInfo) image.Rectangle {

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/ipc"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 	"go.uber.org/zap"
@@ -110,7 +110,10 @@ func sendCommand(action string, args []string) error {
 	if !ipc.IsServerRunning() {
 		logger.Warn("Neru is not running")
 
-		return errors.New("neru is not running. Start it first with 'neru' or 'neru launch'")
+		return derrors.New(
+			derrors.CodeIPCServerNotRunning,
+			"neru is not running. Start it first with 'neru' or 'neru launch'",
+		)
 	}
 
 	ipcClient := ipc.NewClient()
@@ -124,7 +127,7 @@ func sendCommand(action string, args []string) error {
 			zap.String("action", action),
 			zap.Error(ipcResponseErr))
 
-		return fmt.Errorf("failed to send command: %w", ipcResponseErr)
+		return derrors.Wrap(ipcResponseErr, derrors.CodeIPCFailed, "failed to send command")
 	}
 
 	if !ipcResponse.Success {
@@ -134,10 +137,15 @@ func sendCommand(action string, args []string) error {
 			zap.String("code", ipcResponse.Code))
 
 		if ipcResponse.Code != "" {
-			return fmt.Errorf("%s (code: %s)", ipcResponse.Message, ipcResponse.Code)
+			return derrors.Newf(
+				derrors.CodeIPCFailed,
+				"%s (code: %s)",
+				ipcResponse.Message,
+				ipcResponse.Code,
+			)
 		}
 
-		return fmt.Errorf("%s", ipcResponse.Message)
+		return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
 	}
 
 	logger.Debug("Command succeeded",

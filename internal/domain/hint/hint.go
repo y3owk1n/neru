@@ -2,10 +2,10 @@ package hint
 
 import (
 	"context"
-	"errors"
 	"image"
 
 	"github.com/y3owk1n/neru/internal/domain/element"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 )
 
 // Hint represents a labeled UI element for keyboard-driven navigation.
@@ -20,11 +20,11 @@ type Hint struct {
 // NewHint creates a new hint with validation.
 func NewHint(label string, element *element.Element, position image.Point) (*Hint, error) {
 	if label == "" {
-		return nil, errors.New("hint label cannot be empty")
+		return nil, derrors.New(derrors.CodeInvalidInput, "hint label cannot be empty")
 	}
 
 	if element == nil {
-		return nil, errors.New("hint element cannot be nil")
+		return nil, derrors.New(derrors.CodeInvalidInput, "hint element cannot be nil")
 	}
 
 	return &Hint{

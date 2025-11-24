@@ -2,13 +2,13 @@ package services_test
 
 import (
 	"context"
-	"errors"
 	"image"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/application/ports/mocks"
 	"github.com/y3owk1n/neru/internal/application/services"
 	"github.com/y3owk1n/neru/internal/config"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 )
 
@@ -120,7 +120,10 @@ func TestScrollService_Scroll(t *testing.T) {
 			amount:    services.ScrollAmountChar,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
 				acc.ScrollFunc = func(_ context.Context, _, _ int) error {
-					return errors.New("scroll permission denied")
+					return derrors.New(
+						derrors.CodeAccessibilityFailed,
+						"scroll permission denied",
+					)
 				}
 			},
 			wantErr: true,
@@ -180,7 +183,10 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 			name: "screen bounds error",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
 				acc.GetScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
-					return image.Rectangle{}, errors.New("failed to get screen bounds")
+					return image.Rectangle{}, derrors.New(
+						derrors.CodeAccessibilityFailed,
+						"failed to get screen bounds",
+					)
 				}
 			},
 			wantErr: true,
@@ -192,7 +198,10 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 					return image.Rect(0, 0, 1920, 1080), nil
 				}
 				ov.DrawScrollHighlightFunc = func(_ context.Context, _ image.Rectangle, _ string, _ int) error {
-					return errors.New("failed to draw scroll highlight")
+					return derrors.New(
+						derrors.CodeOverlayFailed,
+						"failed to draw scroll highlight",
+					)
 				}
 			},
 			wantErr: true,

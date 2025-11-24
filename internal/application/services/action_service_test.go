@@ -2,7 +2,6 @@ package services_test
 
 import (
 	"context"
-	"errors"
 	"image"
 	"testing"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/application/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 )
 
@@ -124,7 +124,10 @@ func TestActionService_PerformAction(t *testing.T) {
 			point:  image.Point{X: 100, Y: 100},
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
 				acc.PerformActionAtPointFunc = func(_ context.Context, _ action.Type, _ image.Point) error {
-					return errors.New("accessibility permission denied")
+					return derrors.New(
+						derrors.CodeAccessibilityFailed,
+						"accessibility permission denied",
+					)
 				}
 			},
 			wantErr: true,
@@ -291,7 +294,10 @@ func TestActionService_GetFocusedAppBundleID(t *testing.T) {
 			name: "error getting bundle ID",
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
 				acc.GetFocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
-					return "", errors.New("failed to get focused app")
+					return "", derrors.New(
+						derrors.CodeAccessibilityFailed,
+						"failed to get focused app",
+					)
 				}
 			},
 			want:    "",

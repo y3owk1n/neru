@@ -9,17 +9,17 @@ package accessibility
 import "C"
 
 import (
-	"errors"
 	"image"
 	"sync"
 	"time"
 
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 	"go.uber.org/zap"
 )
 
 // Pre-allocated common errors.
-var errRootElementNil = errors.New("root element is nil")
+var errRootElementNil = derrors.New(derrors.CodeAccessibilityFailed, "root element is nil")
 
 // TreeNode represents a node in the accessibility element hierarchy.
 type TreeNode struct {
@@ -71,7 +71,7 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 	}
 
 	if info == nil {
-		return nil, errors.New("root element info is nil")
+		return nil, derrors.New(derrors.CodeAccessibilityFailed, "root element info is nil")
 	}
 
 	logger.Debug("Building tree from root element",

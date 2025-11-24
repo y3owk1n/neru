@@ -1,6 +1,6 @@
 package action
 
-import "fmt"
+import derrors "github.com/y3owk1n/neru/internal/errors"
 
 // Type represents the type of action to perform on a UI element.
 type Type int
@@ -62,7 +62,7 @@ func ParseType(actionString string) (Type, error) {
 	case "scroll":
 		return TypeScroll, nil
 	default:
-		return 0, fmt.Errorf("unknown action type: %s", actionString)
+		return 0, derrors.Newf(derrors.CodeInvalidInput, "unknown action type: %s", actionString)
 	}
 }
 

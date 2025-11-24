@@ -5,7 +5,7 @@ import (
 	"image"
 
 	"github.com/y3owk1n/neru/internal/domain/action"
-	"github.com/y3owk1n/neru/internal/errors"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	infra "github.com/y3owk1n/neru/internal/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/infra/bridge"
 )
@@ -22,7 +22,7 @@ func NewInfraAXClient() *InfraAXClient {
 func (c *InfraAXClient) GetFrontmostWindow() (AXWindow, error) {
 	window := infra.GetFrontmostWindow()
 	if window == nil {
-		return nil, errors.New(errors.CodeAccessibilityFailed, "failed to get frontmost window")
+		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get frontmost window")
 	}
 
 	return &infraWindow{element: window}, nil
@@ -32,7 +32,7 @@ func (c *InfraAXClient) GetFrontmostWindow() (AXWindow, error) {
 func (c *InfraAXClient) GetFocusedApplication() (AXApp, error) {
 	app := infra.GetFocusedApplication()
 	if app == nil {
-		return nil, errors.New(errors.CodeAccessibilityFailed, "failed to get focused app")
+		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get focused app")
 	}
 
 	return &infraApp{element: app}, nil
@@ -48,11 +48,11 @@ func (c *InfraAXClient) GetClickableNodes(root AXElement, includeOffscreen bool)
 	case *infraApp:
 		element = elementType.element
 	default:
-		return nil, errors.New(errors.CodeInvalidInput, "invalid element type")
+		return nil, derrors.New(derrors.CodeInvalidInput, "invalid element type")
 	}
 
 	if element == nil {
-		return nil, errors.New(errors.CodeInvalidInput, "element is nil")
+		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
 	}
 
 	opts := infra.DefaultTreeOptions()
@@ -60,9 +60,9 @@ func (c *InfraAXClient) GetClickableNodes(root AXElement, includeOffscreen bool)
 
 	tree, treeErr := infra.BuildTree(element, opts)
 	if treeErr != nil {
-		return nil, errors.Wrap(
+		return nil, derrors.Wrap(
 			treeErr,
-			errors.CodeAccessibilityFailed,
+			derrors.CodeAccessibilityFailed,
 			"failed to build accessibility tree",
 		)
 	}
@@ -81,7 +81,7 @@ func (c *InfraAXClient) GetClickableNodes(root AXElement, includeOffscreen bool)
 func (c *InfraAXClient) GetApplicationByBundleID(bundleID string) (AXApp, error) {
 	app := infra.GetApplicationByBundleID(bundleID)
 	if app == nil {
-		return nil, errors.New(errors.CodeAccessibilityFailed, "application not found")
+		return nil, derrors.New(derrors.CodeAccessibilityFailed, "application not found")
 	}
 
 	return &infraApp{element: app}, nil
@@ -91,9 +91,9 @@ func (c *InfraAXClient) GetApplicationByBundleID(bundleID string) (AXApp, error)
 func (c *InfraAXClient) GetMenuBarClickableElements() ([]AXNode, error) {
 	nodes, nodesErr := infra.GetMenuBarClickableElements()
 	if nodesErr != nil {
-		return nil, errors.Wrap(
+		return nil, derrors.Wrap(
 			nodesErr,
-			errors.CodeAccessibilityFailed,
+			derrors.CodeAccessibilityFailed,
 			"failed to get menu bar elements",
 		)
 	}
@@ -110,9 +110,9 @@ func (c *InfraAXClient) GetMenuBarClickableElements() ([]AXNode, error) {
 func (c *InfraAXClient) GetClickableElementsFromBundleID(bundleID string) ([]AXNode, error) {
 	nodes, nodesErr := infra.GetClickableElementsFromBundleID(bundleID)
 	if nodesErr != nil {
-		return nil, errors.Wrap(
+		return nil, derrors.Wrap(
 			nodesErr,
-			errors.CodeAccessibilityFailed,
+			derrors.CodeAccessibilityFailed,
 			"failed to get elements from bundle ID",
 		)
 	}
@@ -155,17 +155,17 @@ func (c *InfraAXClient) PerformAction(
 		return nil
 	case action.TypeScroll:
 		// Scroll actions are handled separately via the Scroll method
-		return errors.Newf(
-			errors.CodeInvalidInput,
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
 			"scroll actions should use Scroll method: %s",
 			actionType,
 		)
 	default:
-		return errors.Newf(errors.CodeInvalidInput, "unsupported action type: %s", actionType)
+		return derrors.Newf(derrors.CodeInvalidInput, "unsupported action type: %s", actionType)
 	}
 
 	if performActionErr != nil {
-		return errors.Wrap(performActionErr, errors.CodeActionFailed, "failed to perform action")
+		return derrors.Wrap(performActionErr, derrors.CodeActionFailed, "failed to perform action")
 	}
 
 	return nil
@@ -175,7 +175,7 @@ func (c *InfraAXClient) PerformAction(
 func (c *InfraAXClient) Scroll(deltaX, deltaY int) error {
 	scrollErr := infra.ScrollAtCursor(deltaX, deltaY)
 	if scrollErr != nil {
-		return errors.Wrap(scrollErr, errors.CodeActionFailed, "failed to scroll")
+		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
 	}
 
 	return nil
@@ -243,7 +243,7 @@ func (a *infraApp) GetBundleIdentifier() string {
 
 func (a *infraApp) GetInfo() (*AXAppInfo, error) {
 	if a.element == nil {
-		return nil, errors.New(errors.CodeInvalidInput, "element is nil")
+		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
 	}
 
 	info, infoErr := a.element.GetInfo()

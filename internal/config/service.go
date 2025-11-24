@@ -2,10 +2,9 @@ package config
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
-	"github.com/y3owk1n/neru/internal/errors"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 )
 
 // Service manages application configuration with thread-safe access and change notifications.
@@ -52,7 +51,7 @@ func (s *Service) Reload(context context.Context, path string) error {
 	configResult := LoadWithValidation(path)
 
 	if configResult.ValidationError != nil {
-		return errors.Wrap(configResult.ValidationError, errors.CodeInvalidConfig,
+		return derrors.Wrap(configResult.ValidationError, derrors.CodeInvalidConfig,
 			"configuration validation failed")
 	}
 
@@ -69,7 +68,7 @@ func (s *Service) Reload(context context.Context, path string) error {
 		select {
 		case watcher <- configResult.Config:
 		case <-context.Done():
-			return context.Err()
+			return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 		default:
 			// Skip if watcher is not ready
 		}
@@ -120,19 +119,19 @@ func (s *Service) Watch(context context.Context) <-chan *Config {
 // Validate validates the given configuration.
 func (s *Service) Validate(config *Config) error {
 	if config == nil {
-		return errors.New(errors.CodeInvalidConfig, "configuration cannot be nil")
+		return derrors.New(derrors.CodeInvalidConfig, "configuration cannot be nil")
 	}
 
 	// Validate hints configuration
 	if config.Hints.Enabled {
 		if len(config.Hints.HintCharacters) < 2 {
-			return errors.Newf(errors.CodeInvalidConfig,
+			return derrors.Newf(derrors.CodeInvalidConfig,
 				"hints.hint_characters must have at least 2 characters, got %d",
 				len(config.Hints.HintCharacters))
 		}
 
 		if len(config.Hints.ClickableRoles) == 0 {
-			return errors.New(errors.CodeInvalidConfig,
+			return derrors.New(derrors.CodeInvalidConfig,
 				"hints.clickable_roles cannot be empty when hints are enabled")
 		}
 	}
@@ -140,7 +139,7 @@ func (s *Service) Validate(config *Config) error {
 	// Validate grid configuration
 	if config.Grid.Enabled {
 		if len(config.Grid.Characters) < 2 {
-			return errors.Newf(errors.CodeInvalidConfig,
+			return derrors.Newf(derrors.CodeInvalidConfig,
 				"grid.characters must have at least 2 characters, got %d",
 				len(config.Grid.Characters))
 		}
@@ -185,9 +184,10 @@ func LoadOrDefault(path string) (*Service, error) {
 		return NewService(
 				defaultConfig,
 				"",
-			), fmt.Errorf(
-				"failed to load config: %w",
+			), derrors.Wrap(
 				configResult.ValidationError,
+				derrors.CodeInvalidConfig,
+				"failed to load config",
 			)
 	}
 

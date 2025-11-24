@@ -2,10 +2,10 @@ package services
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
 	"github.com/y3owk1n/neru/internal/config"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"go.uber.org/zap"
 )
 
@@ -74,7 +74,7 @@ func (s *ScrollService) Scroll(
 
 	scrollErr := s.accessibility.Scroll(context, deltaX, deltaY)
 	if scrollErr != nil {
-		return fmt.Errorf("failed to scroll: %w", scrollErr)
+		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
 	}
 
 	return nil
@@ -85,7 +85,11 @@ func (s *ScrollService) ShowScrollOverlay(context context.Context) error {
 	// Get screen screenBounds to draw highlight around active screen
 	screenBounds, screenBoundsErr := s.accessibility.GetScreenBounds(context)
 	if screenBoundsErr != nil {
-		return fmt.Errorf("failed to get screen bounds: %w", screenBoundsErr)
+		return derrors.Wrap(
+			screenBoundsErr,
+			derrors.CodeAccessibilityFailed,
+			"failed to get screen bounds",
+		)
 	}
 
 	// Draw highlight
@@ -96,7 +100,11 @@ func (s *ScrollService) ShowScrollOverlay(context context.Context) error {
 		s.config.HighlightWidth,
 	)
 	if drawScrollHighlightErr != nil {
-		return fmt.Errorf("failed to draw scroll highlight: %w", drawScrollHighlightErr)
+		return derrors.Wrap(
+			drawScrollHighlightErr,
+			derrors.CodeOverlayFailed,
+			"failed to draw scroll highlight",
+		)
 	}
 
 	return nil
@@ -106,7 +114,7 @@ func (s *ScrollService) ShowScrollOverlay(context context.Context) error {
 func (s *ScrollService) HideScrollOverlay(context context.Context) error {
 	hideOverlayErr := s.overlay.Hide(context)
 	if hideOverlayErr != nil {
-		return fmt.Errorf("failed to hide overlay: %w", hideOverlayErr)
+		return derrors.Wrap(hideOverlayErr, derrors.CodeOverlayFailed, "failed to hide overlay")
 	}
 
 	return nil

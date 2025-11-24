@@ -2,11 +2,11 @@ package services_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/application/ports/mocks"
 	"github.com/y3owk1n/neru/internal/application/services"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 )
 
@@ -69,7 +69,10 @@ func TestGridService_ShowGrid(t *testing.T) {
 			cols: 3,
 			setupMocks: func(ov *mocks.MockOverlayPort) {
 				ov.ShowGridFunc = func(_ context.Context, _, _ int) error {
-					return errors.New("overlay initialization failed")
+					return derrors.New(
+						derrors.CodeOverlayFailed,
+						"overlay initialization failed",
+					)
 				}
 			},
 			wantErr: true,
@@ -131,7 +134,10 @@ func TestGridService_HideGrid(t *testing.T) {
 			name: "overlay hide error",
 			setupMocks: func(ov *mocks.MockOverlayPort) {
 				ov.HideFunc = func(_ context.Context) error {
-					return errors.New("failed to hide overlay")
+					return derrors.New(
+						derrors.CodeOverlayFailed,
+						"failed to hide overlay",
+					)
 				}
 			},
 			wantErr: true,

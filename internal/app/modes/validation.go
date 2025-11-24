@@ -2,10 +2,9 @@ package modes
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"time"
 
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"go.uber.org/zap"
 )
 
@@ -16,14 +15,14 @@ func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) erro
 		h.Logger.Debug("Neru is disabled, ignoring mode activation",
 			zap.String("mode", modeName))
 
-		return errors.New("neru is disabled")
+		return derrors.New(derrors.CodeInvalidInput, "neru is disabled")
 	}
 
 	if !modeEnabled {
 		h.Logger.Debug("Mode disabled by config, ignoring activation",
 			zap.String("mode", modeName))
 
-		return fmt.Errorf("mode %s is disabled", modeName)
+		return derrors.Newf(derrors.CodeInvalidInput, "mode %s is disabled", modeName)
 	}
 
 	// Check if focused app is excluded
@@ -35,7 +34,7 @@ func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) erro
 	if isExcludedErr != nil {
 		h.Logger.Warn("Failed to check if app is excluded", zap.Error(isExcludedErr))
 	} else if isExcluded {
-		return errors.New("focused app is excluded")
+		return derrors.New(derrors.CodeInvalidInput, "focused app is excluded")
 	}
 
 	return nil

@@ -2,13 +2,13 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"image"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"go.uber.org/zap"
 )
 
@@ -52,7 +52,7 @@ func (s *ActionService) ExecuteAction(
 			zap.Error(performActionErr),
 			zap.String("action", actionType.String()))
 
-		return fmt.Errorf("failed to perform %s action: %w", actionType, performActionErr)
+		return derrors.Wrap(performActionErr, derrors.CodeActionFailed, "failed to perform action")
 	}
 
 	s.logger.Info("Action executed successfully",
@@ -71,7 +71,7 @@ func (s *ActionService) PerformAction(
 	// Parse action string to domain type
 	actionType, actionTypeErr := action.ParseType(actionString)
 	if actionTypeErr != nil {
-		return fmt.Errorf("invalid action type: %w", actionTypeErr)
+		return derrors.Wrap(actionTypeErr, derrors.CodeInvalidInput, "invalid action type")
 	}
 
 	s.logger.Info("Performing action at point",
@@ -85,7 +85,11 @@ func (s *ActionService) PerformAction(
 			zap.Error(performActionErr),
 			zap.String("action", actionType.String()))
 
-		return fmt.Errorf("failed to perform %s action at point: %w", actionType, performActionErr)
+		return derrors.Wrap(
+			performActionErr,
+			derrors.CodeActionFailed,
+			"failed to perform action at point",
+		)
 	}
 
 	return nil
@@ -95,7 +99,11 @@ func (s *ActionService) PerformAction(
 func (s *ActionService) IsFocusedAppExcluded(context context.Context) (bool, error) {
 	bundleID, bundleIDErr := s.accessibility.GetFocusedAppBundleID(context)
 	if bundleIDErr != nil {
-		return false, fmt.Errorf("failed to get focused app bundle ID: %w", bundleIDErr)
+		return false, derrors.Wrap(
+			bundleIDErr,
+			derrors.CodeAccessibilityFailed,
+			"failed to get focused app bundle ID",
+		)
 	}
 
 	isExcluded := s.accessibility.IsAppExcluded(context, bundleID)
@@ -116,7 +124,11 @@ func (s *ActionService) ShowActionHighlight(context context.Context) error {
 	// Get active screen screenBounds
 	screenBounds, screenBoundsErr := s.accessibility.GetScreenBounds(context)
 	if screenBoundsErr != nil {
-		return fmt.Errorf("failed to get screen bounds: %w", screenBoundsErr)
+		return derrors.Wrap(
+			screenBoundsErr,
+			derrors.CodeAccessibilityFailed,
+			"failed to get screen bounds",
+		)
 	}
 
 	// Draw highlight using overlay
@@ -127,7 +139,11 @@ func (s *ActionService) ShowActionHighlight(context context.Context) error {
 		s.config.HighlightWidth,
 	)
 	if DrawActionHighlightErr != nil {
-		return fmt.Errorf("failed to draw action highlight: %w", DrawActionHighlightErr)
+		return derrors.Wrap(
+			DrawActionHighlightErr,
+			derrors.CodeOverlayFailed,
+			"failed to draw action highlight",
+		)
 	}
 
 	s.logger.Debug("Action highlight displayed")

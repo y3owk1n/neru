@@ -1,10 +1,9 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/neru/internal/domain"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 )
 
@@ -22,7 +21,8 @@ var hintsCmd = &cobra.Command{
 		if action != "" {
 			// Validate action
 			if !domain.IsKnownActionName(domain.ActionName(action)) {
-				return fmt.Errorf(
+				return derrors.Newf(
+					derrors.CodeInvalidInput,
 					"invalid action: %s. Supported actions: left_click, right_click, middle_click, mouse_up, mouse_down",
 					action,
 				)

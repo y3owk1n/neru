@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 
 	accessibilityAdapter "github.com/y3owk1n/neru/internal/adapter/accessibility"
 	overlayAdapter "github.com/y3owk1n/neru/internal/adapter/overlay"
@@ -13,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/domain/state"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/features/grid"
 	"github.com/y3owk1n/neru/internal/features/hints"
 	"github.com/y3owk1n/neru/internal/features/scroll"
@@ -144,7 +144,11 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 	// Hint Generator
 	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
 	if hintGenErr != nil {
-		return nil, fmt.Errorf("failed to create hint generator: %w", hintGenErr)
+		return nil, derrors.Wrap(
+			hintGenErr,
+			derrors.CodeHintGenerationFailed,
+			"failed to create hint generator",
+		)
 	}
 
 	// Hint Service
@@ -257,14 +261,18 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 	if deps != nil && deps.IPCServerFactory != nil {
 		server, serverErr := deps.IPCServerFactory.New(app.ipcController.HandleCommand, logger)
 		if serverErr != nil {
-			return nil, fmt.Errorf("failed to create IPC server: %w", serverErr)
+			return nil, derrors.Wrap(
+				serverErr,
+				derrors.CodeIPCFailed,
+				"failed to create IPC server",
+			)
 		}
 
 		app.ipcServer = server
 	} else {
 		server, serverErr := ipc.NewServer(app.ipcController.HandleCommand, logger)
 		if serverErr != nil {
-			return nil, fmt.Errorf("failed to create IPC server: %w", serverErr)
+			return nil, derrors.Wrap(serverErr, derrors.CodeIPCFailed, "failed to create IPC server")
 		}
 
 		app.ipcServer = server
@@ -295,7 +303,11 @@ func (a *App) ReloadConfig(configPath string) error {
 			configResult.ConfigPath,
 		)
 
-		return fmt.Errorf("config validation failed: %w", configResult.ValidationError)
+		return derrors.Wrap(
+			configResult.ValidationError,
+			derrors.CodeInvalidConfig,
+			"config validation failed",
+		)
 	}
 
 	// Exit current mode before updating config

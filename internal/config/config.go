@@ -1,13 +1,12 @@
 package config
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 	"go.uber.org/zap"
 )
@@ -187,7 +186,11 @@ func LoadWithValidation(path string) *LoadResult {
 
 	_, decodeErr := toml.DecodeFile(configResult.ConfigPath, configResult.Config)
 	if decodeErr != nil {
-		configResult.ValidationError = fmt.Errorf("failed to parse config file: %w", decodeErr)
+		configResult.ValidationError = derrors.Wrap(
+			decodeErr,
+			derrors.CodeInvalidConfig,
+			"failed to parse config file",
+		)
 		configResult.Config = DefaultConfig()
 
 		return configResult
@@ -206,7 +209,8 @@ func LoadWithValidation(path string) *LoadResult {
 			for key, value := range hot {
 				str, ok := value.(string)
 				if !ok {
-					configResult.ValidationError = fmt.Errorf(
+					configResult.ValidationError = derrors.Newf(
+						derrors.CodeInvalidConfig,
 						"hotkeys.%s must be a string action",
 						key,
 					)
@@ -222,7 +226,11 @@ func LoadWithValidation(path string) *LoadResult {
 
 	validateErr := configResult.Config.Validate()
 	if validateErr != nil {
-		configResult.ValidationError = fmt.Errorf("invalid configuration: %w", validateErr)
+		configResult.ValidationError = derrors.Wrap(
+			validateErr,
+			derrors.CodeInvalidConfig,
+			"invalid configuration",
+		)
 		configResult.Config = DefaultConfig()
 
 		return configResult
@@ -409,7 +417,10 @@ func FindConfigFile() string {
 func (c *Config) Validate() error {
 	// At least one mode must be enabled
 	if !c.Hints.Enabled && !c.Grid.Enabled {
-		return errors.New("at least one mode must be enabled: hints.enabled or grid.enabled")
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"at least one mode must be enabled: hints.enabled or grid.enabled",
+		)
 	}
 
 	// Validate hints configuration
@@ -426,20 +437,29 @@ func (c *Config) Validate() error {
 		"error": true,
 	}
 	if !validLogLevels[c.Logging.LogLevel] {
-		return errors.New("log_level must be one of: debug, info, warn, error")
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"log_level must be one of: debug, info, warn, error",
+		)
 	}
 
 	// Validate scroll settings
 	if c.Scroll.ScrollStep < 1 {
-		return errors.New("scroll.scroll_speed must be at least 1")
+		return derrors.New(derrors.CodeInvalidConfig, "scroll.scroll_speed must be at least 1")
 	}
 
 	if c.Scroll.ScrollStepHalf < 1 {
-		return errors.New("scroll.half_page_multiplier must be at least 1")
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"scroll.half_page_multiplier must be at least 1",
+		)
 	}
 
 	if c.Scroll.ScrollStepFull < 1 {
-		return errors.New("scroll.full_page_multiplier must be at least 1")
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"scroll.full_page_multiplier must be at least 1",
+		)
 	}
 
 	// Validate app configs
@@ -476,7 +496,11 @@ func (c *Config) Save(path string) error {
 
 	mkdirErr := os.MkdirAll(dir, 0o750)
 	if mkdirErr != nil {
-		return fmt.Errorf("failed to create config directory: %w", mkdirErr)
+		return derrors.Wrap(
+			mkdirErr,
+			derrors.CodeConfigIOFailed,
+			"failed to create config directory",
+		)
 	}
 
 	// Create file
@@ -484,13 +508,13 @@ func (c *Config) Save(path string) error {
 	// #nosec G304 -- Path is validated and controlled by the application
 	file, fileErr := os.Create(path)
 	if fileErr != nil {
-		return fmt.Errorf("failed to create config file: %w", fileErr)
+		return derrors.Wrap(fileErr, derrors.CodeConfigIOFailed, "failed to create config file")
 	}
 
 	defer func() {
 		cerr := file.Close()
 		if cerr != nil && closeErr == nil {
-			closeErr = fmt.Errorf("failed to close config file: %w", cerr)
+			closeErr = derrors.Wrap(cerr, derrors.CodeConfigIOFailed, "failed to close config file")
 		}
 	}()
 
@@ -499,7 +523,7 @@ func (c *Config) Save(path string) error {
 
 	encodeErr := encoder.Encode(c)
 	if encodeErr != nil {
-		return fmt.Errorf("failed to encode config: %w", encodeErr)
+		return derrors.Wrap(encodeErr, derrors.CodeSerializationFailed, "failed to encode config")
 	}
 
 	return closeErr

@@ -2,10 +2,10 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/neru/internal/domain"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/ipc"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 	"go.uber.org/zap"
@@ -29,15 +29,24 @@ var configDumpCmd = &cobra.Command{
 		ipcClient := ipc.NewClient()
 		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: domain.CommandConfig})
 		if ipcResponseErr != nil {
-			return fmt.Errorf("failed to send config command: %w", ipcResponseErr)
+			return derrors.Wrap(
+				ipcResponseErr,
+				derrors.CodeIPCFailed,
+				"failed to send config command",
+			)
 		}
 
 		if !ipcResponse.Success {
 			if ipcResponse.Code != "" {
-				return fmt.Errorf("%s (code: %s)", ipcResponse.Message, ipcResponse.Code)
+				return derrors.Newf(
+					derrors.CodeIPCFailed,
+					"%s (code: %s)",
+					ipcResponse.Message,
+					ipcResponse.Code,
+				)
 			}
 
-			return fmt.Errorf("%s", ipcResponse.Message)
+			return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
 		}
 
 		// Marshal pretty JSON
@@ -45,7 +54,11 @@ var configDumpCmd = &cobra.Command{
 		if ipcResponseDataErr != nil {
 			logger.Error("Failed to marshal config to JSON", zap.Error(ipcResponseDataErr))
 
-			return fmt.Errorf("failed to marshal config: %w", ipcResponseDataErr)
+			return derrors.Wrap(
+				ipcResponseDataErr,
+				derrors.CodeSerializationFailed,
+				"failed to marshal config",
+			)
 		}
 
 		logger.Info(string(ipcResponseData))

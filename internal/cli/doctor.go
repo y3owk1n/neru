@@ -2,10 +2,10 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/neru/internal/domain"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/ipc"
 )
 
@@ -22,7 +22,7 @@ var doctorCmd = &cobra.Command{
 		ipcClient := ipc.NewClient()
 		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: domain.CommandHealth})
 		if ipcResponseErr != nil {
-			return fmt.Errorf("failed to check health: %w", ipcResponseErr)
+			return derrors.Wrap(ipcResponseErr, derrors.CodeIPCFailed, "failed to check health")
 		}
 
 		if !ipcResponse.Success {
@@ -41,11 +41,19 @@ var doctorCmd = &cobra.Command{
 		if ipcResponse.Data != nil {
 			ipcResponseData, ipcResponseDataErr := json.Marshal(ipcResponse.Data)
 			if ipcResponseDataErr != nil {
-				return fmt.Errorf("failed to marshal error data: %w", ipcResponseDataErr)
+				return derrors.Wrap(
+					ipcResponseDataErr,
+					derrors.CodeSerializationFailed,
+					"failed to marshal error data",
+				)
 			}
 			ipcResponseDataErr = json.Unmarshal(ipcResponseData, &data)
 			if ipcResponseDataErr != nil {
-				return fmt.Errorf("failed to parse error data: %w", ipcResponseDataErr)
+				return derrors.Wrap(
+					ipcResponseDataErr,
+					derrors.CodeSerializationFailed,
+					"failed to parse error data",
+				)
 			}
 		}
 

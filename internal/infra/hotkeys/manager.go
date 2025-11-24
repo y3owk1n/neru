@@ -10,10 +10,10 @@ extern void hotkeyCallbackBridge(int hotkeyId, void* userData);
 import "C"
 
 import (
-	"fmt"
 	"sync"
 	"unsafe"
 
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 	"go.uber.org/zap"
 )
@@ -64,7 +64,11 @@ func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error
 	if result == 0 {
 		m.logger.Error("Failed to parse key string", zap.String("key", keyString))
 
-		return 0, fmt.Errorf("failed to parse key string: %s", keyString)
+		return 0, derrors.Newf(
+			derrors.CodeInvalidInput,
+			"failed to parse key string: %s",
+			keyString,
+		)
 	}
 
 	// Generate hotkey ID
@@ -84,7 +88,11 @@ func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error
 	if success == 0 {
 		m.logger.Error("Failed to register hotkey", zap.String("key", keyString))
 
-		return 0, fmt.Errorf("failed to register hotkey: %s", keyString)
+		return 0, derrors.Newf(
+			derrors.CodeHotkeyRegisterFailed,
+			"failed to register hotkey: %s",
+			keyString,
+		)
 	}
 
 	// Store callback

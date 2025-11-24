@@ -2,10 +2,10 @@ package ipc
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/ipc"
 	"go.uber.org/zap"
 )
@@ -75,7 +75,7 @@ func (a *Adapter) Serve(context context.Context) error {
 	if a.running {
 		a.mu.Unlock()
 
-		return errors.New("server already running")
+		return derrors.New(derrors.CodeIPCAlreadyRunning, "server already running")
 	}
 
 	a.server.Start()
@@ -106,7 +106,7 @@ func (a *Adapter) Serve(context context.Context) error {
 func (a *Adapter) Send(_ context.Context, _ any) (any, error) {
 	// This method doesn't make sense for the server adapter.
 	// It should be implemented by a client adapter if needed.
-	return nil, errors.New("Send not implemented for server adapter")
+	return nil, derrors.New(derrors.CodeInternal, "Send not implemented for server adapter")
 }
 
 // Ensure Adapter implements ports.IPCPort.

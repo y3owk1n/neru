@@ -2,12 +2,12 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/neru/internal/domain"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/ipc"
 )
 
@@ -24,11 +24,11 @@ var metricsCmd = &cobra.Command{
 		ipcClient := ipc.NewClient()
 		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: domain.CommandMetrics})
 		if ipcResponseErr != nil {
-			return fmt.Errorf("failed to get metrics: %w", ipcResponseErr)
+			return derrors.Wrap(ipcResponseErr, derrors.CodeIPCFailed, "failed to get metrics")
 		}
 
 		if !ipcResponse.Success {
-			return fmt.Errorf("failed to get metrics: %s", ipcResponse.Message)
+			return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
 		}
 
 		if ipcResponse.Data == nil {
@@ -40,7 +40,11 @@ var metricsCmd = &cobra.Command{
 		// Decode metrics
 		ipcResponseData, ipcResponseDataErr := json.Marshal(ipcResponse.Data)
 		if ipcResponseDataErr != nil {
-			return fmt.Errorf("failed to marshal metrics data: %w", ipcResponseDataErr)
+			return derrors.Wrap(
+				ipcResponseDataErr,
+				derrors.CodeSerializationFailed,
+				"failed to marshal metrics data",
+			)
 		}
 
 		var metrics []struct {
@@ -51,7 +55,11 @@ var metricsCmd = &cobra.Command{
 
 		ipcResponseDataErr = json.Unmarshal(ipcResponseData, &metrics)
 		if ipcResponseDataErr != nil {
-			return fmt.Errorf("failed to parse metrics: %w", ipcResponseDataErr)
+			return derrors.Wrap(
+				ipcResponseDataErr,
+				derrors.CodeSerializationFailed,
+				"failed to parse metrics",
+			)
 		}
 
 		if len(metrics) == 0 {

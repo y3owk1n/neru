@@ -2,13 +2,12 @@ package overlay
 
 import (
 	"context"
-	"fmt"
 	"image"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/domain/hint"
-	"github.com/y3owk1n/neru/internal/errors"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	gridFeature "github.com/y3owk1n/neru/internal/features/grid"
 	overlayHints "github.com/y3owk1n/neru/internal/features/hints"
 	"github.com/y3owk1n/neru/internal/infra/bridge"
@@ -35,7 +34,7 @@ func (a *Adapter) ShowHints(context context.Context, hints []*hint.Hint) error {
 	// Check context
 	select {
 	case <-context.Done():
-		return context.Err()
+		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -60,7 +59,7 @@ func (a *Adapter) ShowHints(context context.Context, hints []*hint.Hint) error {
 	// Use default style for now
 	drawHintsErr := a.manager.DrawHintsWithStyle(overlayHintList, overlayHints.StyleMode{})
 	if drawHintsErr != nil {
-		return fmt.Errorf("failed to draw hints: %w", drawHintsErr)
+		return derrors.Wrap(drawHintsErr, derrors.CodeOverlayFailed, "failed to draw hints")
 	}
 
 	a.logger.Info("Hints overlay displayed", zap.Int("count", len(hints)))
@@ -73,7 +72,7 @@ func (a *Adapter) ShowGrid(context context.Context, _ int, _ int) error {
 	// Check context
 	select {
 	case <-context.Done():
-		return context.Err()
+		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -86,7 +85,7 @@ func (a *Adapter) ShowGrid(context context.Context, _ int, _ int) error {
 	// Draw grid
 	drawGridErr := a.manager.DrawGrid(grid, "", gridFeature.Style{})
 	if drawGridErr != nil {
-		return errors.Wrap(drawGridErr, errors.CodeActionFailed, "failed to draw grid")
+		return derrors.Wrap(drawGridErr, derrors.CodeActionFailed, "failed to draw grid")
 	}
 
 	// Show overlay and switch mode
@@ -105,7 +104,7 @@ func (a *Adapter) DrawScrollHighlight(
 ) error {
 	select {
 	case <-context.Done():
-		return context.Err()
+		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -132,7 +131,7 @@ func (a *Adapter) DrawActionHighlight(
 ) error {
 	select {
 	case <-context.Done():
-		return context.Err()
+		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -152,7 +151,7 @@ func (a *Adapter) Hide(context context.Context) error {
 	// Check context
 	select {
 	case <-context.Done():
-		return context.Err()
+		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -174,7 +173,7 @@ func (a *Adapter) Refresh(context context.Context) error {
 	// Check context
 	select {
 	case <-context.Done():
-		return context.Err()
+		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 

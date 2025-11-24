@@ -55,7 +55,9 @@ func TestError_Error(t *testing.T) {
 			err: &Error{
 				Code:    CodeAccessibilityFailed,
 				Message: "failed to get element",
-				Cause:   errors.New("underlying error"),
+				Cause: errors.New( //nolint:err113 // dynamic errors needed for testing
+					"underlying error",
+				),
 			},
 			expected: "[ACCESSIBILITY_FAILED] failed to get element: underlying error",
 		},
@@ -72,7 +74,7 @@ func TestError_Error(t *testing.T) {
 }
 
 func TestError_Unwrap(t *testing.T) {
-	cause := errors.New("underlying error")
+	cause := errors.New("underlying error") //nolint:err113 // dynamic errors needed for testing
 	err := &Error{
 		Code:    CodeIPCFailed,
 		Message: "IPC failed",
@@ -80,8 +82,7 @@ func TestError_Unwrap(t *testing.T) {
 	}
 
 	unwrapped := err.Unwrap()
-	//nolint:errorlint // Direct comparison needed for test
-	if unwrapped != cause {
+	if unwrapped != cause { //nolint:err113,errorlint // dynamic errors needed for testing
 		t.Errorf("Unwrap() = %v, want %v", unwrapped, cause)
 	}
 
@@ -97,15 +98,14 @@ func TestError_Unwrap(t *testing.T) {
 }
 
 func TestWrap(t *testing.T) {
-	cause := errors.New("underlying error")
+	cause := errors.New("underlying error") //nolint:err113 // dynamic errors needed for testing
 
 	err := Wrap(cause, CodeActionFailed, "action failed")
 	if err == nil {
 		t.Fatal("Wrap() returned nil")
 	}
 
-	//nolint:errorlint // Direct comparison needed for test
-	if err.Cause != cause {
+	if err.Cause != cause { //nolint:err113,errorlint // dynamic errors needed for testing
 		t.Errorf("Wrap() cause = %v, want %v", err.Cause, cause)
 	}
 
@@ -155,7 +155,7 @@ func TestError_Is(t *testing.T) {
 	}
 
 	// Test with standard error
-	stdErr := errors.New("standard error")
+	stdErr := errors.New("standard error") //nolint:err113 // dynamic errors needed for testing
 	if err1.Is(stdErr) {
 		t.Error("Is() should return false for non-Error types")
 	}
