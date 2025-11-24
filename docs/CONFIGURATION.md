@@ -160,7 +160,7 @@ include_nc_hints = false
 
 ### Accessibility Configuration
 
-Define which UI elements are clickable or scrollable:
+Define which UI elements are clickable:
 
 ```toml
 [hints]
@@ -478,7 +478,6 @@ include_menubar_hints = false
 include_dock_hints = false
 include_nc_hints = false
 clickable_roles = ["AXButton", "AXLink", "AXTextField", "AXCheckBox"]
-scrollable_roles = ["AXWebArea", "AXScrollArea", "AXTable"]
 ignore_clickable_check = false
 
 [[hints.app_configs]]

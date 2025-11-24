@@ -12,7 +12,6 @@ import (
 // MockAccessibilityPort is a mock implementation of ports.AccessibilityPort.
 type MockAccessibilityPort struct {
 	GetClickableElementsFunc  func(context.Context, ports.ElementFilter) ([]*element.Element, error)
-	GetScrollableElementsFunc func(context.Context) ([]*element.Element, error)
 	PerformActionFunc         func(context.Context, *element.Element, action.Type) error
 	GetFocusedAppBundleIDFunc func(context.Context) (string, error)
 	IsAppExcludedFunc         func(context.Context, string) bool
@@ -39,17 +38,6 @@ func (m *MockAccessibilityPort) GetClickableElements(
 ) ([]*element.Element, error) {
 	if m.GetClickableElementsFunc != nil {
 		return m.GetClickableElementsFunc(context, filter)
-	}
-
-	return nil, nil
-}
-
-// GetScrollableElements implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) GetScrollableElements(
-	context context.Context,
-) ([]*element.Element, error) {
-	if m.GetScrollableElementsFunc != nil {
-		return m.GetScrollableElementsFunc(context)
 	}
 
 	return nil, nil

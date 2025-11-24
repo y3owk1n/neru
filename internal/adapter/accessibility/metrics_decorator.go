@@ -49,16 +49,6 @@ func (d *MetricsDecorator) GetClickableElements(
 	return elements, elementsErr
 }
 
-// GetScrollableElements implements ports.AccessibilityPort.
-func (d *MetricsDecorator) GetScrollableElements(ctx context.Context) ([]*element.Element, error) {
-	defer d.recordDuration("accessibility_get_scrollable_elements_duration", time.Now())
-
-	elements, elementsErr := d.next.GetScrollableElements(ctx)
-	d.recordError("accessibility_get_scrollable_elements", elementsErr)
-
-	return elements, elementsErr
-}
-
 // PerformAction implements ports.AccessibilityPort.
 func (d *MetricsDecorator) PerformAction(
 	context context.Context,
