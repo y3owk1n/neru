@@ -30,10 +30,10 @@ func TestGrid_Initialization(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := grid.NewGrid(tt.chars, tt.bounds, log)
-			if len(g.GetAllCells()) == 0 {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			grid := grid.NewGrid(test.chars, test.bounds, log)
+			if len(grid.GetAllCells()) == 0 {
 				t.Error("Expected cells to be generated")
 			}
 		})
@@ -41,34 +41,35 @@ func TestGrid_Initialization(t *testing.T) {
 }
 
 func TestGrid_GetCellByCoordinate(t *testing.T) {
-	log := logger.Get()
-	g := grid.NewGrid("ABC", image.Rect(0, 0, 300, 300), log)
+	logger := logger.Get()
+	grid := grid.NewGrid("ABC", image.Rect(0, 0, 300, 300), logger)
 
 	// Get a valid coordinate from the generated grid
-	cells := g.GetAllCells()
+	cells := grid.GetAllCells()
 	if len(cells) == 0 {
 		t.Fatal("Expected cells to be generated")
 	}
-	validCoord := cells[0].GetCoordinate()
+
+	validCoordinate := cells[0].GetCoordinate()
 
 	tests := []struct {
 		name  string
 		coord string
 		want  bool // exists
 	}{
-		{"valid " + validCoord, validCoord, true},
+		{"valid " + validCoordinate, validCoordinate, true},
 		{"invalid ZZZ", "ZZZ", false},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cell := g.GetCellByCoordinate(tt.coord)
-			if (cell != nil) != tt.want {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cell := grid.GetCellByCoordinate(test.coord)
+			if (cell != nil) != test.want {
 				t.Errorf(
 					"GetCellByCoordinate(%q) exists = %v, want %v",
-					tt.coord,
+					test.coord,
 					cell != nil,
-					tt.want,
+					test.want,
 				)
 			}
 		})

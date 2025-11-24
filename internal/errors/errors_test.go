@@ -7,7 +7,6 @@ import (
 
 func TestNew(t *testing.T) {
 	err := New(CodeInvalidInput, "test error")
-
 	if err == nil {
 		t.Fatal("New() returned nil")
 	}
@@ -23,7 +22,6 @@ func TestNew(t *testing.T) {
 
 func TestNewf(t *testing.T) {
 	err := Newf(CodeInvalidConfig, "invalid value: %d", 42)
-
 	if err == nil {
 		t.Fatal("Newf() returned nil")
 	}
@@ -100,8 +98,8 @@ func TestError_Unwrap(t *testing.T) {
 
 func TestWrap(t *testing.T) {
 	cause := errors.New("underlying error")
-	err := Wrap(cause, CodeActionFailed, "action failed")
 
+	err := Wrap(cause, CodeActionFailed, "action failed")
 	if err == nil {
 		t.Fatal("Wrap() returned nil")
 	}
@@ -186,6 +184,7 @@ func TestErrorCodes(t *testing.T) {
 		if seen[code] {
 			t.Errorf("Duplicate error code: %v", code)
 		}
+
 		seen[code] = true
 
 		// Verify code is not empty

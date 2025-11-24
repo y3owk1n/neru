@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	accAdapter "github.com/y3owk1n/neru/internal/adapter/accessibility"
-	ovAdapter "github.com/y3owk1n/neru/internal/adapter/overlay"
+	accessibilityAdapter "github.com/y3owk1n/neru/internal/adapter/accessibility"
+	overlayAdapter "github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/application/services"
@@ -41,8 +41,8 @@ type App struct {
 	ConfigPath string
 	logger     *zap.Logger
 
-	state  *state.AppState
-	cursor *state.CursorState
+	appState    *state.AppState
+	cursorState *state.CursorState
 
 	// Core services
 	overlayManager OverlayManager
@@ -75,88 +75,92 @@ type App struct {
 }
 
 // New creates a new application instance with default dependencies.
-func New(cfg *config.Config, configPath string) (*App, error) {
-	return newWithDeps(cfg, configPath, nil)
+func New(config *config.Config, configPath string) (*App, error) {
+	return newWithDeps(config, configPath, nil)
 }
 
 // NewWithDeps creates a new application instance with injected dependencies.
 // This is primarily used for testing.
-func NewWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error) {
-	return newWithDeps(cfg, configPath, deps)
+func NewWithDeps(config *config.Config, configPath string, deps *deps) (*App, error) {
+	return newWithDeps(config, configPath, deps)
 }
 
 func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error) {
 	// Initialize logger
-	log, err := initializeLogger(cfg)
-	if err != nil {
-		return nil, err
+	logger, loggerErr := initializeLogger(cfg)
+	if loggerErr != nil {
+		return nil, loggerErr
 	}
 
 	// Initialize overlay manager
-	overlayManager := initializeOverlayManager(deps, log)
+	overlayManager := initializeOverlayManager(deps, logger)
 
 	// Initialize and check accessibility infrastructure
-	err = initializeAccessibility(cfg, log)
-	if err != nil {
-		return nil, err
+	accessibilityErr := initializeAccessibility(cfg, logger)
+	if accessibilityErr != nil {
+		return nil, accessibilityErr
 	}
 
 	// Initialize infrastructure services
-	appWatcher := initializeAppWatcher(deps, log)
-	hotkeySvc := initializeHotkeyService(deps, log)
+	appWatcher := initializeAppWatcher(deps, logger)
+	hotkeySvc := initializeHotkeyService(deps, logger)
 
-	// --- New Architecture Initialization ---
-
-	// 1. Initialize Config Service
+	// Initialize Config Service
 	cfgService := config.NewService(cfg, configPath)
 
-	// 2. Initialize Metrics
+	// Initialize Metrics
 	metricsCollector := metrics.NewCollector()
 
-	// 3. Initialize Adapters
-	// Accessibility Adapter
-	// Note: We need to get excluded bundles and clickable roles from config
+	// Initialize Adapters
 	excludedBundles := cfg.General.ExcludedApps
 	clickableRoles := cfg.Hints.ClickableRoles
 
 	// Create infrastructure client
-	axClient := accAdapter.NewInfraAXClient()
+	axClient := accessibilityAdapter.NewInfraAXClient()
 
-	baseAccAdapter := accAdapter.NewAdapter(log, excludedBundles, clickableRoles, axClient)
+	baseAccessibilityAdapter := accessibilityAdapter.NewAdapter(
+		logger,
+		excludedBundles,
+		clickableRoles,
+		axClient,
+	)
 	// Wrap with metrics decorator
-	accAdapter := accAdapter.NewMetricsDecorator(baseAccAdapter, metricsCollector)
+	accAdapter := accessibilityAdapter.NewMetricsDecorator(
+		baseAccessibilityAdapter,
+		metricsCollector,
+	)
 
 	// Overlay Adapter
-	baseOvAdapter := ovAdapter.NewAdapter(overlayManager, log)
+	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)
 	// Wrap with metrics decorator
-	ovAdapter := ovAdapter.NewMetricsDecorator(baseOvAdapter, metricsCollector)
+	overlayAdapter := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
 
 	// 4. Initialize Domain Services
 	// Hint Generator
-	hintGen, err := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create hint generator: %w", err)
+	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
+	if hintGenErr != nil {
+		return nil, fmt.Errorf("failed to create hint generator: %w", hintGenErr)
 	}
 
 	// Hint Service
-	hintService := services.NewHintService(accAdapter, ovAdapter, hintGen, log)
+	hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, logger)
 
 	// Grid Service
-	gridService := services.NewGridService(ovAdapter, log)
+	gridService := services.NewGridService(overlayAdapter, logger)
 
 	// Action Service
-	actionService := services.NewActionService(accAdapter, ovAdapter, cfg.Action, log)
+	actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Action, logger)
 
 	// Scroll Service
-	scrollService := services.NewScrollService(accAdapter, ovAdapter, cfg.Scroll, log)
+	scrollService := services.NewScrollService(accAdapter, overlayAdapter, cfg.Scroll, logger)
 
 	// Create app instance with basic dependencies
 	app := &App{
 		config:         cfg,
 		ConfigPath:     configPath,
-		logger:         log,
-		state:          state.NewAppState(),
-		cursor:         state.NewCursorState(cfg.General.RestoreCursorPosition),
+		logger:         logger,
+		appState:       state.NewAppState(),
+		cursorState:    state.NewCursorState(cfg.General.RestoreCursorPosition),
 		overlayManager: overlayManager,
 		hotkeyManager:  hotkeySvc,
 		appWatcher:     appWatcher,
@@ -173,22 +177,28 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 	}
 
 	// Initialize components using factory functions
-	app.hintsComponent, err = createHintsComponent(cfg, log, overlayManager)
-	if err != nil {
-		return nil, err
+	hintsComponent, hintsComponentErr := createHintsComponent(cfg, logger, overlayManager)
+	if hintsComponentErr != nil {
+		return nil, hintsComponentErr
 	}
 
-	app.gridComponent = createGridComponent(cfg, log, overlayManager)
+	app.hintsComponent = hintsComponent
 
-	app.scrollComponent, err = createScrollComponent(cfg, log, overlayManager)
-	if err != nil {
-		return nil, err
+	app.gridComponent = createGridComponent(cfg, logger, overlayManager)
+
+	scrollComponent, scrollComponentErr := createScrollComponent(cfg, logger, overlayManager)
+	if scrollComponentErr != nil {
+		return nil, scrollComponentErr
 	}
 
-	app.actionComponent, err = createActionComponent(cfg, log, overlayManager)
-	if err != nil {
-		return nil, err
+	app.scrollComponent = scrollComponent
+
+	actionComponent, actionComponentErr := createActionComponent(cfg, logger, overlayManager)
+	if actionComponentErr != nil {
+		return nil, actionComponentErr
 	}
+
+	app.actionComponent = actionComponent
 
 	// Initialize renderer with component styles
 	app.renderer = ui.NewOverlayRenderer(
@@ -199,7 +209,7 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 
 	// Initialize mode handler
 	app.modes = modes.NewHandler(
-		cfg, log, app.state, app.cursor, overlayManager, app.renderer,
+		cfg, logger, app.appState, app.cursorState, overlayManager, app.renderer,
 		app.hintService,
 		app.gridService,
 		app.actionService,
@@ -216,10 +226,10 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 		actionService,
 		scrollService,
 		cfgService,
-		app.state,
+		app.appState,
 		app.config,
 		app.modes,
-		log,
+		logger,
 		metricsCollector,
 		configPath,
 	)
@@ -227,29 +237,32 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 	// Initialize event tap
 	// Note: We pass app.HandleKeyPress which delegates to modes handler
 	if deps != nil && deps.EventTapFactory != nil {
-		app.eventTap = deps.EventTapFactory.New(app.HandleKeyPress, log)
+		app.eventTap = deps.EventTapFactory.New(app.HandleKeyPress, logger)
 	} else {
-		app.eventTap = eventtap.NewEventTap(app.HandleKeyPress, log)
+		app.eventTap = eventtap.NewEventTap(app.HandleKeyPress, logger)
 	}
+
 	if app.eventTap == nil {
-		log.Warn("Event tap creation failed - key capture won't work")
+		logger.Warn("Event tap creation failed - key capture won't work")
 	} else {
-		app.configureEventTapHotkeys(cfg, log)
+		app.configureEventTapHotkeys(cfg, logger)
 	}
 
 	// Initialize IPC server
 	if deps != nil && deps.IPCServerFactory != nil {
-		srv, srvErr := deps.IPCServerFactory.New(app.ipcController.HandleCommand, log)
-		if srvErr != nil {
-			return nil, fmt.Errorf("failed to create IPC server: %w", srvErr)
+		server, serverErr := deps.IPCServerFactory.New(app.ipcController.HandleCommand, logger)
+		if serverErr != nil {
+			return nil, fmt.Errorf("failed to create IPC server: %w", serverErr)
 		}
-		app.ipcServer = srv
+
+		app.ipcServer = server
 	} else {
-		srv, srvErr := ipc.NewServer(app.ipcController.HandleCommand, log)
-		if srvErr != nil {
-			return nil, fmt.Errorf("failed to create IPC server: %w", srvErr)
+		server, serverErr := ipc.NewServer(app.ipcController.HandleCommand, logger)
+		if serverErr != nil {
+			return nil, fmt.Errorf("failed to create IPC server: %w", serverErr)
 		}
-		app.ipcServer = srv
+
+		app.ipcServer = server
 	}
 
 	// Register overlays with overlay manager
@@ -263,64 +276,68 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 // Preserves the current app state (enabled/disabled, current mode).
 func (a *App) ReloadConfig(configPath string) error {
 	// Load new config with validation
-	result := config.LoadWithValidation(configPath)
+	configResult := config.LoadWithValidation(configPath)
 
 	// If there's a validation error, show alert and keep current config
-	if result.ValidationError != nil {
+	if configResult.ValidationError != nil {
 		a.logger.Warn("Config validation failed during reload",
-			zap.Error(result.ValidationError),
-			zap.String("config_path", result.ConfigPath))
+			zap.Error(configResult.ValidationError),
+			zap.String("config_path", configResult.ConfigPath))
 
 		// Show alert dialog
-		bridge.ShowConfigValidationError(result.ValidationError.Error(), result.ConfigPath)
+		bridge.ShowConfigValidationError(
+			configResult.ValidationError.Error(),
+			configResult.ConfigPath,
+		)
 
-		return fmt.Errorf("config validation failed: %w", result.ValidationError)
+		return fmt.Errorf("config validation failed: %w", configResult.ValidationError)
 	}
 
 	// Exit current mode before updating config
-	if a.state.CurrentMode() != ModeIdle {
+	if a.appState.CurrentMode() != ModeIdle {
 		a.ExitMode()
 	}
 
 	// Unregister all current hotkeys before updating config
-	if a.state.HotkeysRegistered() {
+	if a.appState.HotkeysRegistered() {
 		a.logger.Info("Unregistering current hotkeys before reload")
 		a.hotkeyManager.UnregisterAll()
-		a.state.SetHotkeysRegistered(false)
+		a.appState.SetHotkeysRegistered(false)
 	}
 
 	// Update config
-	a.config = result.Config
-	a.ConfigPath = result.ConfigPath
+	a.config = configResult.Config
+	a.ConfigPath = configResult.ConfigPath
 
 	// Update global config for accessibility package
-	config.SetGlobal(result.Config)
+	config.SetGlobal(configResult.Config)
 
 	// Update accessibility roles if hints config changed
-	if result.Config.Hints.Enabled {
+	if configResult.Config.Hints.Enabled {
 		a.logger.Info("Updating clickable roles",
-			zap.Int("count", len(result.Config.Hints.ClickableRoles)))
-		infra.SetClickableRoles(result.Config.Hints.ClickableRoles)
+			zap.Int("count", len(configResult.Config.Hints.ClickableRoles)))
+		infra.SetClickableRoles(configResult.Config.Hints.ClickableRoles)
 	}
 
 	// Reconfigure event tap hotkeys with new config
-	a.configureEventTapHotkeys(result.Config, a.logger)
+	a.configureEventTapHotkeys(configResult.Config, a.logger)
 
 	// Update all components with new config
-	a.hintsComponent.UpdateConfig(result.Config, a.logger)
-	a.gridComponent.UpdateConfig(result.Config, a.logger)
-	a.scrollComponent.UpdateConfig(result.Config, a.logger)
-	a.actionComponent.UpdateConfig(result.Config, a.logger)
+	a.hintsComponent.UpdateConfig(configResult.Config, a.logger)
+	a.gridComponent.UpdateConfig(configResult.Config, a.logger)
+	a.scrollComponent.UpdateConfig(configResult.Config, a.logger)
+	a.actionComponent.UpdateConfig(configResult.Config, a.logger)
 
 	// Update modes handler with new config
 	if a.modes != nil {
-		a.modes.UpdateConfig(result.Config)
+		a.modes.UpdateConfig(configResult.Config)
 	}
 
 	// Re-register global hotkeys with new config
 	a.refreshHotkeysForAppOrCurrent("")
 
 	a.logger.Info("Configuration reloaded successfully")
+
 	return nil
 }
 
@@ -328,10 +345,10 @@ func (a *App) ReloadConfig(configPath string) error {
 func (a *App) ActivateMode(mode Mode) { a.modes.ActivateMode(mode) }
 
 // SetEnabled sets the enabled state of the application.
-func (a *App) SetEnabled(v bool) { a.state.SetEnabled(v) }
+func (a *App) SetEnabled(v bool) { a.appState.SetEnabled(v) }
 
 // IsEnabled returns the enabled state of the application.
-func (a *App) IsEnabled() bool { return a.state.IsEnabled() }
+func (a *App) IsEnabled() bool { return a.appState.IsEnabled() }
 
 // HintsEnabled returns true if hints are enabled.
 func (a *App) HintsEnabled() bool { return a.config != nil && a.config.Hints.Enabled }
@@ -358,7 +375,11 @@ func (a *App) Renderer() *ui.OverlayRenderer { return a.renderer }
 func (a *App) GetConfigPath() string { return a.ConfigPath }
 
 // SetHintOverlayNeedsRefresh sets the hint overlay needs refresh flag.
-func (a *App) SetHintOverlayNeedsRefresh(value bool) { a.state.SetHintOverlayNeedsRefresh(value) }
+func (a *App) SetHintOverlayNeedsRefresh(
+	value bool,
+) {
+	a.appState.SetHintOverlayNeedsRefresh(value)
+}
 
 // CaptureInitialCursorPosition captures the initial cursor position.
 func (a *App) CaptureInitialCursorPosition() { a.modes.CaptureInitialCursorPosition() }
@@ -366,12 +387,15 @@ func (a *App) CaptureInitialCursorPosition() { a.modes.CaptureInitialCursorPosit
 // IsFocusedAppExcluded checks if the focused app is excluded.
 func (a *App) IsFocusedAppExcluded() bool {
 	// Use ActionService to check exclusion
-	ctx := context.Background()
-	excluded, err := a.actionService.IsFocusedAppExcluded(ctx)
-	if err != nil {
-		a.logger.Warn("Failed to check exclusion", zap.Error(err))
+	context := context.Background()
+
+	excluded, excludedErr := a.actionService.IsFocusedAppExcluded(context)
+	if excludedErr != nil {
+		a.logger.Warn("Failed to check exclusion", zap.Error(excludedErr))
+
 		return false
 	}
+
 	return excluded
 }
 
@@ -388,7 +412,7 @@ func (a *App) ScrollContext() *scroll.Context { return a.scrollComponent.Context
 func (a *App) EventTap() EventTap { return a.eventTap }
 
 // CurrentMode returns the current mode.
-func (a *App) CurrentMode() Mode { return a.state.CurrentMode() }
+func (a *App) CurrentMode() Mode { return a.appState.CurrentMode() }
 
 // SetModeHints sets the mode to hints.
 func (a *App) SetModeHints() { a.modes.SetModeHints() }

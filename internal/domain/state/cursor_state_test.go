@@ -21,18 +21,18 @@ func TestNewCursorState(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			state := NewCursorState(tt.restoreEnabled)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			state := NewCursorState(test.restoreEnabled)
 
 			if state == nil {
 				t.Fatal("NewCursorState() returned nil")
 			}
 
-			if state.IsRestoreEnabled() != tt.restoreEnabled {
+			if state.IsRestoreEnabled() != test.restoreEnabled {
 				t.Errorf(
 					"Expected restore enabled = %v, got %v",
-					tt.restoreEnabled,
+					test.restoreEnabled,
 					state.IsRestoreEnabled(),
 				)
 			}
@@ -128,21 +128,21 @@ func TestCursorState_ShouldRestore(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			state := NewCursorState(tt.restoreEnabled)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			state := NewCursorState(test.restoreEnabled)
 
-			if tt.captured {
+			if test.captured {
 				state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
 			}
 
-			if tt.skipOnce {
+			if test.skipOnce {
 				state.SkipNextRestore()
 			}
 
 			got := state.ShouldRestore()
-			if got != tt.expected {
-				t.Errorf("ShouldRestore() = %v, want %v", got, tt.expected)
+			if got != test.expected {
+				t.Errorf("ShouldRestore() = %v, want %v", got, test.expected)
 			}
 		})
 	}
@@ -194,32 +194,36 @@ func TestCursorState_SkipNextRestore(t *testing.T) {
 // TestCursorState_Concurrency tests thread-safe access to cursor state.
 func TestCursorState_Concurrency(_ *testing.T) {
 	state := NewCursorState(true)
-	var wg sync.WaitGroup
+
+	var waitGroup sync.WaitGroup
 
 	// Concurrent reads and writes
 	for range 100 {
-		wg.Add(3)
+		waitGroup.Add(3)
 
 		go func() {
-			defer wg.Done()
+			defer waitGroup.Done()
+
 			state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
 			_ = state.IsCaptured()
 		}()
 
 		go func() {
-			defer wg.Done()
+			defer waitGroup.Done()
+
 			_ = state.GetInitialPosition()
 			_ = state.GetInitialScreenBounds()
 		}()
 
 		go func() {
-			defer wg.Done()
+			defer waitGroup.Done()
+
 			state.SetRestoreEnabled(true)
 			_ = state.ShouldRestore()
 		}()
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 }
 
 // Benchmark tests.
@@ -265,11 +269,13 @@ func TestCursorState_RapidStateTransitions(t *testing.T) {
 		bounds := image.Rect(0, 0, 1920, 1080)
 
 		state.Capture(pos, bounds)
+
 		if !state.IsCaptured() {
 			t.Error("State should be captured after Capture()")
 		}
 
 		state.Reset()
+
 		if state.IsCaptured() {
 			t.Error("State should not be captured after Reset()")
 		}
@@ -305,23 +311,23 @@ func TestCursorState_ExtremeValues(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			state := NewCursorState(true)
-			state.Capture(tt.pos, tt.bounds)
+			state.Capture(test.pos, test.bounds)
 
 			if !state.IsCaptured() {
 				t.Error("State should be captured")
 			}
 
 			gotPos := state.GetInitialPosition()
-			if gotPos != tt.pos {
-				t.Errorf("GetInitialPosition() = %v, want %v", gotPos, tt.pos)
+			if gotPos != test.pos {
+				t.Errorf("GetInitialPosition() = %v, want %v", gotPos, test.pos)
 			}
 
 			gotBounds := state.GetInitialScreenBounds()
-			if gotBounds != tt.bounds {
-				t.Errorf("GetInitialScreenBounds() = %v, want %v", gotBounds, tt.bounds)
+			if gotBounds != test.bounds {
+				t.Errorf("GetInitialScreenBounds() = %v, want %v", gotBounds, test.bounds)
 			}
 		})
 	}
@@ -334,19 +340,22 @@ func TestCursorState_ConcurrentStressTest(t *testing.T) {
 	}
 
 	state := NewCursorState(true)
-	var wg sync.WaitGroup
+
+	var waitGroup sync.WaitGroup
+
 	errors := make(chan error, 1000)
 
 	// Run 1000 concurrent goroutines
-	for i := range 1000 {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
+	for index := range 1000 {
+		waitGroup.Add(1)
+
+		go func(index int) {
+			defer waitGroup.Done()
 
 			// Each goroutine performs multiple operations
 			for j := range 10 {
-				pos := image.Point{X: id * 10, Y: j * 10}
-				bounds := image.Rect(0, 0, id*100, j*100)
+				pos := image.Point{X: index * 10, Y: j * 10}
+				bounds := image.Rect(0, 0, index*100, j*100)
 
 				state.Capture(pos, bounds)
 
@@ -360,10 +369,10 @@ func TestCursorState_ConcurrentStressTest(t *testing.T) {
 
 				state.Reset()
 			}
-		}(i)
+		}(index)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 	close(errors)
 
 	// Check for any errors
@@ -379,18 +388,21 @@ func TestCursorState_StateInvariants(t *testing.T) {
 	// Invariant 1: After Reset(), IsCaptured() should be false
 	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
 	state.Reset()
+
 	if state.IsCaptured() {
 		t.Error("Invariant violated: IsCaptured() should be false after Reset()")
 	}
 
 	// Invariant 2: ShouldRestore() should match IsRestoreEnabled() when not captured
 	state.SetRestoreEnabled(true)
+
 	if state.ShouldRestore() {
 		t.Error("Invariant violated: ShouldRestore() should be false when not captured")
 	}
 
 	// Invariant 3: After Capture(), IsCaptured() should be true
 	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
+
 	if !state.IsCaptured() {
 		t.Error("Invariant violated: IsCaptured() should be true after Capture()")
 	}
@@ -404,6 +416,7 @@ func TestCursorState_StateInvariants(t *testing.T) {
 
 	// Invariant 5: Disabling restore should affect ShouldRestore()
 	state.SetRestoreEnabled(false)
+
 	if state.ShouldRestore() {
 		t.Error("Invariant violated: ShouldRestore() should be false when restore disabled")
 	}

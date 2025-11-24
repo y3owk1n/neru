@@ -25,8 +25,8 @@ type IPCController struct {
 	configService *config.Service
 
 	// State
-	state  *state.AppState
-	config *config.Config
+	appState *state.AppState
+	config   *config.Config
 
 	// Infrastructure
 	logger  *zap.Logger
@@ -50,20 +50,20 @@ func NewIPCController(
 	scrollService *services.ScrollService,
 	configService *config.Service,
 	appState *state.AppState,
-	cfg *config.Config,
+	config *config.Config,
 	modesHandler *modes.Handler,
 	logger *zap.Logger,
 	metricsCollector *metrics.Collector,
 	configPath string,
 ) *IPCController {
-	ctrl := &IPCController{
+	ipcController := &IPCController{
 		hintService:   hintService,
 		gridService:   gridService,
 		actionService: actionService,
 		scrollService: scrollService,
 		configService: configService,
-		state:         appState,
-		config:        cfg,
+		appState:      appState,
+		config:        config,
 		modes:         modesHandler,
 		logger:        logger,
 		metrics:       metricsCollector,
@@ -72,25 +72,25 @@ func NewIPCController(
 	}
 
 	// Register command handlers
-	ctrl.registerHandlers()
+	ipcController.registerHandlers()
 
-	return ctrl
+	return ipcController
 }
 
 // HandleCommand routes an IPC command to the appropriate handler.
-func (c *IPCController) HandleCommand(ctx context.Context, cmd ipc.Command) ipc.Response {
+func (c *IPCController) HandleCommand(context context.Context, command ipc.Command) ipc.Response {
 	c.logger.Info(
 		"Handling IPC command",
-		zap.String("action", cmd.Action),
+		zap.String("action", command.Action),
 	)
 
-	if handler, ok := c.handlers[cmd.Action]; ok {
-		return handler(ctx, cmd)
+	if handler, ok := c.handlers[command.Action]; ok {
+		return handler(context, command)
 	}
 
 	return ipc.Response{
 		Success: false,
-		Message: "unknown command: " + cmd.Action,
+		Message: "unknown command: " + command.Action,
 		Code:    ipc.CodeUnknownCommand,
 	}
 }
@@ -116,40 +116,46 @@ func (c *IPCController) handlePing(_ context.Context, _ ipc.Command) ipc.Respons
 }
 
 func (c *IPCController) handleStart(_ context.Context, _ ipc.Command) ipc.Response {
-	if c.state.IsEnabled() {
+	if c.appState.IsEnabled() {
 		return ipc.Response{
 			Success: false,
 			Message: "neru is already running",
 			Code:    ipc.CodeAlreadyRunning,
 		}
 	}
-	c.state.SetEnabled(true)
+
+	c.appState.SetEnabled(true)
+
 	return ipc.Response{Success: true, Message: "neru started", Code: ipc.CodeOK}
 }
 
 func (c *IPCController) handleStop(_ context.Context, _ ipc.Command) ipc.Response {
-	if !c.state.IsEnabled() {
+	if !c.appState.IsEnabled() {
 		return ipc.Response{
 			Success: false,
 			Message: "neru is already stopped",
 			Code:    ipc.CodeNotRunning,
 		}
 	}
-	c.state.SetEnabled(false)
+
+	c.appState.SetEnabled(false)
+
 	if c.modes != nil {
 		c.modes.ExitMode()
 	}
+
 	return ipc.Response{Success: true, Message: "neru stopped", Code: ipc.CodeOK}
 }
 
 func (c *IPCController) handleHints(_ context.Context, cmd ipc.Command) ipc.Response {
-	if !c.state.IsEnabled() {
+	if !c.appState.IsEnabled() {
 		return ipc.Response{
 			Success: false,
 			Message: "neru is not running",
 			Code:    ipc.CodeNotRunning,
 		}
 	}
+
 	if !c.config.Hints.Enabled {
 		return ipc.Response{
 			Success: false,
@@ -172,13 +178,14 @@ func (c *IPCController) handleHints(_ context.Context, cmd ipc.Command) ipc.Resp
 }
 
 func (c *IPCController) handleGrid(_ context.Context, cmd ipc.Command) ipc.Response {
-	if !c.state.IsEnabled() {
+	if !c.appState.IsEnabled() {
 		return ipc.Response{
 			Success: false,
 			Message: "neru is not running",
 			Code:    ipc.CodeNotRunning,
 		}
 	}
+
 	if !c.config.Grid.Enabled {
 		return ipc.Response{
 			Success: false,
@@ -201,7 +208,7 @@ func (c *IPCController) handleGrid(_ context.Context, cmd ipc.Command) ipc.Respo
 }
 
 func (c *IPCController) handleAction(ctx context.Context, cmd ipc.Command) ipc.Response {
-	if !c.state.IsEnabled() {
+	if !c.appState.IsEnabled() {
 		return ipc.Response{
 			Success: false,
 			Message: "neru is not running",
@@ -222,11 +229,13 @@ func (c *IPCController) handleAction(ctx context.Context, cmd ipc.Command) ipc.R
 
 	for _, param := range params {
 		var err error
+
 		switch param {
 		case "scroll":
 			if c.modes != nil {
 				c.modes.StartInteractiveScroll()
 			}
+
 			return ipc.Response{Success: true, Message: "scroll mode activated", Code: ipc.CodeOK}
 		default:
 			if !domain.IsKnownActionName(domain.ActionName(param)) {
@@ -236,8 +245,7 @@ func (c *IPCController) handleAction(ctx context.Context, cmd ipc.Command) ipc.R
 					Code:    ipc.CodeInvalidInput,
 				}
 			}
-			// Use ActionService
-			// ctx is already available from argument
+
 			err = c.actionService.PerformAction(ctx, param, cursorPos)
 		}
 
@@ -246,6 +254,7 @@ func (c *IPCController) handleAction(ctx context.Context, cmd ipc.Command) ipc.R
 				zap.Error(err),
 				zap.String("action", param),
 				zap.String("point", fmt.Sprintf("%+v", cursorPos)))
+
 			return ipc.Response{
 				Success: false,
 				Message: "action failed: " + err.Error(),
@@ -258,30 +267,35 @@ func (c *IPCController) handleAction(ctx context.Context, cmd ipc.Command) ipc.R
 }
 
 func (c *IPCController) handleIdle(_ context.Context, _ ipc.Command) ipc.Response {
-	if !c.state.IsEnabled() {
+	if !c.appState.IsEnabled() {
 		return ipc.Response{
 			Success: false,
 			Message: "neru is not running",
 			Code:    ipc.CodeNotRunning,
 		}
 	}
+
 	if c.modes != nil {
 		c.modes.ExitMode()
 	}
+
 	return ipc.Response{Success: true, Message: "mode set to idle", Code: ipc.CodeOK}
 }
 
 func (c *IPCController) handleStatus(_ context.Context, _ ipc.Command) ipc.Response {
-	cfgPath := c.resolveConfigPath()
+	configPath := c.resolveConfigPath()
+
 	modeString := "idle"
 	if c.modes != nil {
 		modeString = c.modes.GetCurrModeString()
 	}
+
 	statusData := ipc.StatusData{
-		Enabled: c.state.IsEnabled(),
+		Enabled: c.appState.IsEnabled(),
 		Mode:    modeString,
-		Config:  cfgPath,
+		Config:  configPath,
 	}
+
 	return ipc.Response{Success: true, Data: statusData, Code: ipc.CodeOK}
 }
 
@@ -289,11 +303,12 @@ func (c *IPCController) handleConfig(_ context.Context, _ ipc.Command) ipc.Respo
 	if c.config == nil {
 		return ipc.Response{Success: false, Message: "config unavailable", Code: ipc.CodeNotRunning}
 	}
+
 	return ipc.Response{Success: true, Data: c.config, Code: ipc.CodeOK}
 }
 
 func (c *IPCController) handleReloadConfig(_ context.Context, _ ipc.Command) ipc.Response {
-	if !c.state.IsEnabled() {
+	if !c.appState.IsEnabled() {
 		return ipc.Response{
 			Success: false,
 			Message: "neru is not running",
@@ -306,11 +321,11 @@ func (c *IPCController) handleReloadConfig(_ context.Context, _ ipc.Command) ipc
 		configPath = config.FindConfigFile()
 	}
 
-	err := c.configService.ReloadConfig(configPath)
-	if err != nil {
+	reloadConfigErr := c.configService.ReloadConfig(configPath)
+	if reloadConfigErr != nil {
 		return ipc.Response{
 			Success: false,
-			Message: fmt.Sprintf("failed to reload config: %v", err),
+			Message: fmt.Sprintf("failed to reload config: %v", reloadConfigErr),
 			Code:    ipc.CodeActionFailed,
 		}
 	}
@@ -374,6 +389,7 @@ func (c *IPCController) handleMetrics(_ context.Context, _ ipc.Command) ipc.Resp
 	}
 
 	snapshot := c.metrics.Snapshot()
+
 	return ipc.Response{
 		Success: true,
 		Data:    snapshot,

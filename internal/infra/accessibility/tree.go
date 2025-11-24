@@ -18,12 +18,8 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	treeLogger = logger.Get()
-
-	// Pre-allocated common errors.
-	errRootElementNil = errors.New("root element is nil")
-)
+// Pre-allocated common errors.
+var errRootElementNil = errors.New("root element is nil")
 
 // TreeNode represents a node in the accessibility element hierarchy.
 type TreeNode struct {
@@ -57,17 +53,19 @@ func DefaultTreeOptions() TreeOptions {
 func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 	if root == nil {
 		logger.Debug("BuildTree called with nil root element")
+
 		return nil, errRootElementNil
 	}
 
 	// Try to get from cache first
 	info := opts.Cache.Get(root)
 	if info == nil {
-		var err error
-		info, err = root.GetInfo()
-		if err != nil {
-			logger.Warn("Failed to get root element info", zap.Error(err))
-			return nil, err
+		var infoErr error
+		info, infoErr = root.GetInfo()
+		if infoErr != nil {
+			logger.Warn("Failed to get root element info", zap.Error(infoErr))
+
+			return nil, infoErr
 		}
 		opts.Cache.Set(root, info)
 	}
@@ -134,6 +132,7 @@ func buildTreeRecursive(
 		logger.Debug("Skipping non-interactive role",
 			zap.String("role", parent.Info.Role),
 			zap.Int("depth", depth))
+
 		return
 	}
 
@@ -142,6 +141,7 @@ func buildTreeRecursive(
 		logger.Debug("Stopping at interactive leaf role",
 			zap.String("role", parent.Info.Role),
 			zap.Int("depth", depth))
+
 		return
 	}
 
@@ -157,6 +157,7 @@ func buildTreeRecursive(
 				zap.String("role", parent.Info.Role),
 				zap.Int("depth", depth))
 		}
+
 		return
 	}
 
@@ -199,6 +200,7 @@ func buildChildrenSequential(
 			info, err = child.GetInfo()
 			if err != nil {
 				logger.Debug("Failed to get child element info", zap.Error(err))
+
 				continue
 			}
 			opts.Cache.Set(child, info)
@@ -208,6 +210,7 @@ func buildChildrenSequential(
 			logger.Debug("Skipping child element (filtered out)",
 				zap.String("role", info.Role),
 				zap.String("title", info.Title))
+
 			continue
 		}
 
@@ -274,6 +277,7 @@ func buildChildrenParallel(
 						"Failed to get child element info in parallel processing",
 						zap.Error(err),
 					)
+
 					return
 				}
 				opts.Cache.Set(elem, info)
@@ -283,6 +287,7 @@ func buildChildrenParallel(
 				logger.Debug("Skipping child element in parallel processing (filtered out)",
 					zap.String("role", info.Role),
 					zap.String("title", info.Title))
+
 				return
 			}
 
@@ -351,6 +356,7 @@ func shouldIncludeElement(info *ElementInfo, opts TreeOptions, windowBounds imag
 					zap.String("title", info.Title),
 					zap.Any("element_rect", elementRect),
 					zap.Any("window_bounds", windowBounds))
+
 				return false
 			}
 		}
@@ -370,12 +376,12 @@ func (n *TreeNode) FindClickableElements() []*TreeNode {
 		if node.Element.IsClickable(node.Info) {
 			result = append(result, node)
 		}
+
 		return true
 	})
+
 	return result
 }
-
-// FindScrollableElements finds all scrollable elements in the tree
 
 // walkTree walks the tree and calls the visitor function for each node.
 func (n *TreeNode) walkTree(visitor func(*TreeNode) bool) {

@@ -14,6 +14,7 @@ var idleCmd = &cobra.Command{
 	},
 	RunE: func(_ *cobra.Command, args []string) error {
 		logger.Debug("Setting mode to idle")
+
 		return sendCommand("idle", args)
 	},
 }

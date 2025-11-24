@@ -17,28 +17,30 @@ var metricsCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if !ipc.IsServerRunning() {
 			cmd.Println("❌ Neru is not running")
+
 			return nil
 		}
 
-		client := ipc.NewClient()
-		resp, err := client.Send(ipc.Command{Action: domain.CommandMetrics})
-		if err != nil {
-			return fmt.Errorf("failed to get metrics: %w", err)
+		ipcClient := ipc.NewClient()
+		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: domain.CommandMetrics})
+		if ipcResponseErr != nil {
+			return fmt.Errorf("failed to get metrics: %w", ipcResponseErr)
 		}
 
-		if !resp.Success {
-			return fmt.Errorf("failed to get metrics: %s", resp.Message)
+		if !ipcResponse.Success {
+			return fmt.Errorf("failed to get metrics: %s", ipcResponse.Message)
 		}
 
-		if resp.Data == nil {
+		if ipcResponse.Data == nil {
 			cmd.Println("No metrics recorded yet")
+
 			return nil
 		}
 
 		// Decode metrics
-		b, err := json.Marshal(resp.Data)
-		if err != nil {
-			return fmt.Errorf("failed to marshal metrics data: %w", err)
+		ipcResponseData, ipcResponseDataErr := json.Marshal(ipcResponse.Data)
+		if ipcResponseDataErr != nil {
+			return fmt.Errorf("failed to marshal metrics data: %w", ipcResponseDataErr)
 		}
 
 		var snapshot struct {
@@ -49,13 +51,14 @@ var metricsCmd = &cobra.Command{
 			} `json:"metrics"`
 		}
 
-		err = json.Unmarshal(b, &snapshot)
-		if err != nil {
-			return fmt.Errorf("failed to parse metrics: %w", err)
+		ipcResponseDataErr = json.Unmarshal(ipcResponseData, &snapshot)
+		if ipcResponseDataErr != nil {
+			return fmt.Errorf("failed to parse metrics: %w", ipcResponseDataErr)
 		}
 
 		if len(snapshot.Metrics) == 0 {
 			cmd.Println("No metrics recorded yet")
+
 			return nil
 		}
 
@@ -67,18 +70,19 @@ var metricsCmd = &cobra.Command{
 		cmd.Println("📊 Application Metrics:")
 		cmd.Println("-----------------------")
 
-		for _, m := range snapshot.Metrics {
-			switch m.Type {
+		for _, metric := range snapshot.Metrics {
+			switch metric.Type {
 			case "counter":
-				cmd.Printf("%-40s %d\n", m.Name, int(m.Value))
+				cmd.Printf("%-40s %d\n", metric.Name, int(metric.Value))
 			case "gauge":
-				cmd.Printf("%-40s %.2f\n", m.Name, m.Value)
+				cmd.Printf("%-40s %.2f\n", metric.Name, metric.Value)
 			default: // Assuming histogram or other time-based metrics
-				cmd.Printf("%-40s %.4fs\n", m.Name, m.Value)
+				cmd.Printf("%-40s %.4fs\n", metric.Name, metric.Value)
 			}
 		}
 
 		cmd.Printf("\nLast updated: %s\n", time.Now().Format(time.RFC1123))
+
 		return nil
 	},
 }

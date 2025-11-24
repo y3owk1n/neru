@@ -1,9 +1,8 @@
-//go:build integration
-
 package ipc_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 )
 
 // TestIPCAdapterImplementsPort verifies the adapter implements the port interface.
-func TestIPCAdapterImplementsPort(t *testing.T) {
+func TestIPCAdapterImplementsPort(_ *testing.T) {
 	var _ ports.IPCPort = (*adapterIPC.Adapter)(nil)
 }
 
@@ -24,28 +23,29 @@ func TestIPCAdapterIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	log := logger.Get()
+	logger := logger.Get()
 
 	// Dummy handler for testing
-	handler := func(ctx context.Context, cmd ipc.Command) ipc.Response {
+	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
 		return ipc.Response{Success: true}
 	}
 
 	// Use a unique port for testing to avoid conflicts
 	// Note: NewServer uses a fixed socket path, so we can't easily run parallel tests
-	server, err := ipc.NewServer(handler, log)
-	if err != nil {
-		t.Fatalf("Failed to create server: %v", err)
+	server, serverErr := ipc.NewServer(handler, logger)
+	if serverErr != nil {
+		t.Fatalf("Failed to create server: %v", serverErr)
 	}
-	adapter := adapterIPC.NewAdapter(server, log)
+
+	adapter := adapterIPC.NewAdapter(server, logger)
 
 	ctx := context.Background()
 
 	t.Run("Start and Stop", func(t *testing.T) {
 		// Start should initialize server
-		err := adapter.Start(ctx)
-		if err != nil {
-			t.Fatalf("Start() error = %v, want nil", err)
+		startErr := adapter.Start(ctx)
+		if startErr != nil {
+			t.Fatalf("Start() error = %v, want nil", startErr)
 		}
 
 		// IsRunning should return true after start
@@ -54,9 +54,9 @@ func TestIPCAdapterIntegration(t *testing.T) {
 		}
 
 		// Stop should shut down server
-		err = adapter.Stop(ctx)
-		if err != nil {
-			t.Errorf("Stop() error = %v, want nil", err)
+		stopErr := adapter.Stop(ctx)
+		if stopErr != nil {
+			t.Errorf("Stop() error = %v, want nil", stopErr)
 		}
 
 		// IsRunning should return false after stop
@@ -67,11 +67,12 @@ func TestIPCAdapterIntegration(t *testing.T) {
 
 	t.Run("Serve blocks until context canceled", func(t *testing.T) {
 		// Create new adapter for this test
-		server, err := ipc.NewServer(handler, log)
-		if err != nil {
-			t.Fatalf("Failed to create server: %v", err)
+		server, serverErr := ipc.NewServer(handler, logger)
+		if serverErr != nil {
+			t.Fatalf("Failed to create server: %v", serverErr)
 		}
-		adapter := adapterIPC.NewAdapter(server, log)
+
+		adapter := adapterIPC.NewAdapter(server, logger)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
@@ -85,7 +86,7 @@ func TestIPCAdapterIntegration(t *testing.T) {
 		// Wait for context timeout
 		select {
 		case err := <-done:
-			if err != nil && err != context.DeadlineExceeded {
+			if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 				t.Errorf("Serve() error = %v, want nil or DeadlineExceeded", err)
 			}
 		case <-time.After(200 * time.Millisecond):
@@ -94,23 +95,27 @@ func TestIPCAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("Multiple Start calls", func(t *testing.T) {
-		server, err := ipc.NewServer(handler, log)
-		if err != nil {
-			t.Fatalf("Failed to create server: %v", err)
+		var serverErr error
+
+		server, serverErr = ipc.NewServer(handler, logger)
+		if serverErr != nil {
+			t.Fatalf("Failed to create server: %v", serverErr)
 		}
-		adapter := adapterIPC.NewAdapter(server, log)
-		defer adapter.Stop(context.Background())
+
+		adapter := adapterIPC.NewAdapter(server, logger)
+
+		defer adapter.Stop(context.Background()) //nolint:errcheck
 
 		// First start should succeed
-		err = adapter.Start(ctx)
-		if err != nil {
-			t.Fatalf("First Start() error = %v, want nil", err)
+		serverErr = adapter.Start(ctx)
+		if serverErr != nil {
+			t.Fatalf("First Start() error = %v, want nil", serverErr)
 		}
 
 		// Second start should handle gracefully (implementation dependent)
-		err = adapter.Start(ctx)
+		serverErr = adapter.Start(ctx)
 		// We don't assert error here as behavior may vary
-		_ = err
+		_ = serverErr
 	})
 }
 
@@ -120,25 +125,26 @@ func TestIPCAdapterContextCancellation(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	log := logger.Get()
-	handler := func(ctx context.Context, cmd ipc.Command) ipc.Response {
+	logger := logger.Get()
+	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
 		return ipc.Response{Success: true}
 	}
 
-	server, err := ipc.NewServer(handler, log)
-	if err != nil {
-		t.Fatalf("Failed to create server: %v", err)
+	server, serverErr := ipc.NewServer(handler, logger)
+	if serverErr != nil {
+		t.Fatalf("Failed to create server: %v", serverErr)
 	}
-	adapter := adapterIPC.NewAdapter(server, log)
+
+	adapter := adapterIPC.NewAdapter(server, logger)
 
 	// Create canceled context
-	ctx, cancel := context.WithCancel(context.Background())
+	context, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	t.Run("Start with canceled context", func(t *testing.T) {
+	t.Run("Start with canceled context", func(_ *testing.T) {
 		// Start might still succeed as it's non-blocking
 		// This tests that it handles canceled context gracefully
-		err := adapter.Start(ctx)
+		err := adapter.Start(context)
 		_ = err // Implementation dependent
 	})
 }

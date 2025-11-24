@@ -121,22 +121,22 @@ func (m *mockAppWatcher) OnScreenParametersChanged(_ func())    {}
 
 func TestApp_ModeIntegration(t *testing.T) {
 	// Setup minimal config
-	cfg := config.DefaultConfig()
-	cfg.Hints.Enabled = true
-	cfg.Grid.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false // Disable OS check
+	config := config.DefaultConfig()
+	config.Hints.Enabled = true
+	config.Grid.Enabled = true
+	config.General.AccessibilityCheckOnStart = false // Disable OS check
 
 	// Mock dependencies
-	d := &deps{
+	deps := &deps{
 		EventTapFactory:       &mockEventTapFactory{},
 		IPCServerFactory:      &mockIPCServerFactory{},
 		OverlayManagerFactory: &mockOverlayManagerFactory{},
 		WatcherFactory:        &mockAppWatcherFactory{},
 	}
 
-	application, err := newWithDeps(cfg, "", d)
-	if err != nil {
-		t.Fatalf("Failed to create app: %v", err)
+	application, applicationErr := newWithDeps(config, "", deps)
+	if applicationErr != nil {
+		t.Fatalf("Failed to create app: %v", applicationErr)
 	}
 
 	// Verify initial state
@@ -146,16 +146,19 @@ func TestApp_ModeIntegration(t *testing.T) {
 
 	// Test Mode Transitions
 	application.SetModeHints()
+
 	if application.CurrentMode() != domain.ModeHints {
 		t.Errorf("Expected mode Hints, got %v", application.CurrentMode())
 	}
 
 	application.SetModeGrid()
+
 	if application.CurrentMode() != domain.ModeGrid {
 		t.Errorf("Expected mode Grid, got %v", application.CurrentMode())
 	}
 
 	application.SetModeIdle()
+
 	if application.CurrentMode() != domain.ModeIdle {
 		t.Errorf("Expected mode Idle, got %v", application.CurrentMode())
 	}

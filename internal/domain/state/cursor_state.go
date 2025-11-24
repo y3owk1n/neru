@@ -33,6 +33,7 @@ func NewCursorState(restoreEnabled bool) *CursorState {
 func (c *CursorState) Capture(pos image.Point, bounds image.Rectangle) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	c.initialPos = pos
 	c.initialScreenBounds = bounds
 	c.captured = true
@@ -42,6 +43,7 @@ func (c *CursorState) Capture(pos image.Point, bounds image.Rectangle) {
 func (c *CursorState) IsCaptured() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
 	return c.captured
 }
 
@@ -49,6 +51,7 @@ func (c *CursorState) IsCaptured() bool {
 func (c *CursorState) Reset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	c.captured = false
 	c.skipRestoreOnce = false
 }
@@ -57,6 +60,7 @@ func (c *CursorState) Reset() {
 func (c *CursorState) GetInitialPosition() image.Point {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
 	return c.initialPos
 }
 
@@ -64,6 +68,7 @@ func (c *CursorState) GetInitialPosition() image.Point {
 func (c *CursorState) GetInitialScreenBounds() image.Rectangle {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
 	return c.initialScreenBounds
 }
 
@@ -72,6 +77,7 @@ func (c *CursorState) GetInitialScreenBounds() image.Rectangle {
 func (c *CursorState) ShouldRestore() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
 	return c.restoreEnabled && c.captured && !c.skipRestoreOnce
 }
 
@@ -80,6 +86,7 @@ func (c *CursorState) ShouldRestore() bool {
 func (c *CursorState) SkipNextRestore() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	c.skipRestoreOnce = true
 }
 
@@ -87,6 +94,7 @@ func (c *CursorState) SkipNextRestore() {
 func (c *CursorState) SetRestoreEnabled(enabled bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	c.restoreEnabled = enabled
 }
 
@@ -94,5 +102,6 @@ func (c *CursorState) SetRestoreEnabled(enabled bool) {
 func (c *CursorState) IsRestoreEnabled() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
 	return c.restoreEnabled
 }

@@ -57,11 +57,13 @@ func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error
 	// Parse key string
 	var keyCode, modifiers C.int
 	cKeyString := C.CString(keyString)
-	defer C.free(unsafe.Pointer(cKeyString))
+
+	defer C.free(unsafe.Pointer(cKeyString)) //nolint:nlreturn
 
 	result := C.parseKeyString(cKeyString, &keyCode, &modifiers)
 	if result == 0 {
 		m.logger.Error("Failed to parse key string", zap.String("key", keyString))
+
 		return 0, fmt.Errorf("failed to parse key string: %s", keyString)
 	}
 
@@ -81,6 +83,7 @@ func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error
 
 	if success == 0 {
 		m.logger.Error("Failed to register hotkey", zap.String("key", keyString))
+
 		return 0, fmt.Errorf("failed to register hotkey: %s", keyString)
 	}
 

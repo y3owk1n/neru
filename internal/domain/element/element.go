@@ -42,8 +42,8 @@ type Element struct {
 }
 
 // NewElement creates a new element with validation.
-func NewElement(id ID, bounds image.Rectangle, role Role, opts ...Option) (*Element, error) {
-	if id == "" {
+func NewElement(elementID ID, bounds image.Rectangle, role Role, opts ...Option) (*Element, error) {
+	if elementID == "" {
 		return nil, errors.New("element ID cannot be empty")
 	}
 
@@ -51,18 +51,18 @@ func NewElement(id ID, bounds image.Rectangle, role Role, opts ...Option) (*Elem
 		return nil, errors.New("element bounds cannot be empty")
 	}
 
-	e := &Element{
-		id:     id,
+	element := &Element{
+		id:     elementID,
 		bounds: bounds,
 		role:   role,
 	}
 
 	// Apply options
 	for _, opt := range opts {
-		opt(e)
+		opt(element)
 	}
 
-	return e, nil
+	return element, nil
 }
 
 // Option configures an Element.

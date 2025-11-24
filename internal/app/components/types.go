@@ -36,28 +36,29 @@ type GridComponent struct {
 }
 
 // UpdateConfig updates the grid component with new configuration.
-func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
-	if cfg.Grid.Enabled {
-		g.Style = grid.BuildStyle(cfg.Grid)
+func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) {
+	if config.Grid.Enabled {
+		g.Style = grid.BuildStyle(config.Grid)
 		if g.Context != nil && g.Context.GetGridOverlay() != nil {
-			(*g.Context.GetGridOverlay()).UpdateConfig(cfg.Grid)
+			(*g.Context.GetGridOverlay()).UpdateConfig(config.Grid)
 		}
 
 		if g.Manager != nil {
 			// Recreate grid if characters changed
 			oldGrid := g.Manager.GetGrid()
-			if oldGrid != nil && cfg.Grid.Characters != "" &&
-				strings.ToUpper(cfg.Grid.Characters) != oldGrid.GetCharacters() {
+			if oldGrid != nil && config.Grid.Characters != "" &&
+				strings.ToUpper(config.Grid.Characters) != oldGrid.GetCharacters() {
 				logger.Debug("Recreating grid with new characters")
-				newGrid := domainGrid.NewGrid(cfg.Grid.Characters, oldGrid.GetBounds(), logger)
+				newGrid := domainGrid.NewGrid(config.Grid.Characters, oldGrid.GetBounds(), logger)
 				g.Manager.UpdateGrid(newGrid)
 			}
 
 			// Update manager subgrid keys if they changed
-			subKeys := cfg.Grid.SublayerKeys
+			subKeys := config.Grid.SublayerKeys
 			if subKeys == "" {
-				subKeys = cfg.Grid.Characters
+				subKeys = config.Grid.Characters
 			}
+
 			g.Manager.UpdateSubKeys(subKeys)
 		}
 	}

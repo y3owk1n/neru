@@ -9,7 +9,7 @@ func ParseKey(
 	key string,
 	lastKey string,
 	_ *zap.Logger,
-) (operation string, newLastKey string, ok bool) {
+) (string, string, bool) {
 	// Handle multi-key sequences (g -> g = top)
 	if lastKey == "g" {
 		if key == "g" {
@@ -43,6 +43,7 @@ func ParseKey(
 		if byteVal == 4 { // Ctrl+D
 			return "half_down", "", true
 		}
+
 		if byteVal == 21 { // Ctrl+U
 			return "half_up", "", true
 		}

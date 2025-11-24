@@ -1,5 +1,3 @@
-//go:build integration
-
 package accessibility_test
 
 import (
@@ -14,7 +12,7 @@ import (
 )
 
 // TestAccessibilityAdapterImplementsPort verifies the adapter implements the port interface.
-func TestAccessibilityAdapterImplementsPort(t *testing.T) {
+func TestAccessibilityAdapterImplementsPort(_ *testing.T) {
 	var _ ports.AccessibilityPort = (*accessibility.Adapter)(nil)
 }
 
@@ -25,24 +23,25 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	log := logger.Get()
+	logger := logger.Get()
 	client := accessibility.NewInfraAXClient()
-	adapter := accessibility.NewAdapter(log, nil, nil, client)
+	adapter := accessibility.NewAdapter(logger, nil, nil, client)
 
-	ctx := context.Background()
+	context := context.Background()
 
 	t.Run("GetScreenBounds", func(t *testing.T) {
-		bounds, err := adapter.GetScreenBounds(ctx)
-		if err != nil {
-			t.Fatalf("GetScreenBounds() error = %v, want nil", err)
+		screenBounds, screenBoundsErr := adapter.GetScreenBounds(context)
+		if screenBoundsErr != nil {
+			t.Fatalf("GetScreenBounds() error = %v, want nil", screenBoundsErr)
 		}
-		if bounds.Empty() {
+
+		if screenBounds.Empty() {
 			t.Error("GetScreenBounds() returned empty bounds")
 		}
 	})
 
 	t.Run("GetCursorPosition", func(t *testing.T) {
-		pos, err := adapter.GetCursorPosition(ctx)
+		pos, err := adapter.GetCursorPosition(context)
 		if err != nil {
 			t.Fatalf("GetCursorPosition() error = %v, want nil", err)
 		}
@@ -53,22 +52,23 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 
 	t.Run("MoveCursorToPoint", func(t *testing.T) {
 		// Get current position
-		startPos, err := adapter.GetCursorPosition(ctx)
-		if err != nil {
-			t.Fatalf("GetCursorPosition() error = %v, want nil", err)
+		startPos, startPosErr := adapter.GetCursorPosition(context)
+		if startPosErr != nil {
+			t.Fatalf("GetCursorPosition() error = %v, want nil", startPosErr)
 		}
 
 		// Move slightly
 		target := image.Point{X: startPos.X + 10, Y: startPos.Y + 10}
-		err = adapter.MoveCursorToPoint(ctx, target)
-		if err != nil {
-			t.Errorf("MoveCursorToPoint() error = %v, want nil", err)
+
+		startPosErr = adapter.MoveCursorToPoint(context, target)
+		if startPosErr != nil {
+			t.Errorf("MoveCursorToPoint() error = %v, want nil", startPosErr)
 		}
 
 		// Verify position (might be slightly off due to OS acceleration/constraints)
-		newPos, err := adapter.GetCursorPosition(ctx)
-		if err != nil {
-			t.Fatalf("GetCursorPosition() error = %v, want nil", err)
+		newPos, newPosErr := adapter.GetCursorPosition(context)
+		if newPosErr != nil {
+			t.Fatalf("GetCursorPosition() error = %v, want nil", newPosErr)
 		}
 
 		// Just verify it moved or didn't error. Exact position check is flaky.
@@ -81,12 +81,16 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		filter := ports.ElementFilter{
 			MinSize: image.Point{X: 10, Y: 10},
 		}
-		elements, err := adapter.GetClickableElements(ctx, filter)
-		if err != nil {
+
+		clickableElements, clickableElementsErr := adapter.GetClickableElements(context, filter)
+		if clickableElementsErr != nil {
 			// It might error if no permissions or no focused window
-			t.Logf("GetClickableElements() error = %v (expected if no permissions)", err)
+			t.Logf(
+				"GetClickableElements() error = %v (expected if no permissions)",
+				clickableElementsErr,
+			)
 		} else {
-			t.Logf("Found %d elements", len(elements))
+			t.Logf("Found %d elements", len(clickableElements))
 		}
 	})
 }

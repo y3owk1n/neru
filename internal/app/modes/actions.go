@@ -9,9 +9,10 @@ import (
 // drawActionHighlight draws a highlight border around the active screen for action mode.
 // This is used by both hints and grid modes when in action mode.
 func (h *Handler) drawActionHighlight() {
-	ctx := context.Background()
-	err := h.ActionService.ShowActionHighlight(ctx)
-	if err != nil {
-		h.Logger.Error("Failed to draw action highlight", zap.Error(err))
+	context := context.Background()
+
+	showActionHighlightErr := h.ActionService.ShowActionHighlight(context)
+	if showActionHighlightErr != nil {
+		h.Logger.Error("Failed to draw action highlight", zap.Error(showActionHighlightErr))
 	}
 }

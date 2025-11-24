@@ -12,24 +12,24 @@ import (
 // Hints are immutable after creation.
 type Hint struct {
 	label         string
-	elem          *element.Element
+	element       *element.Element
 	position      image.Point
 	matchedPrefix string
 }
 
 // NewHint creates a new hint with validation.
-func NewHint(label string, elem *element.Element, position image.Point) (*Hint, error) {
+func NewHint(label string, element *element.Element, position image.Point) (*Hint, error) {
 	if label == "" {
 		return nil, errors.New("hint label cannot be empty")
 	}
 
-	if elem == nil {
+	if element == nil {
 		return nil, errors.New("hint element cannot be nil")
 	}
 
 	return &Hint{
 		label:    label,
-		elem:     elem,
+		element:  element,
 		position: position,
 	}, nil
 }
@@ -41,7 +41,7 @@ func (h *Hint) Label() string {
 
 // Element returns the associated element.
 func (h *Hint) Element() *element.Element {
-	return h.elem
+	return h.element
 }
 
 // Position returns the hint display position.
@@ -58,7 +58,7 @@ func (h *Hint) MatchedPrefix() string {
 func (h *Hint) WithMatchedPrefix(prefix string) *Hint {
 	return &Hint{
 		label:         h.label,
-		elem:          h.elem,
+		element:       h.element,
 		position:      h.position,
 		matchedPrefix: prefix,
 	}
@@ -66,12 +66,12 @@ func (h *Hint) WithMatchedPrefix(prefix string) *Hint {
 
 // Bounds returns the bounding rectangle for the hint.
 func (h *Hint) Bounds() image.Rectangle {
-	return h.elem.Bounds()
+	return h.element.Bounds()
 }
 
 // IsVisible checks if the hint is visible within the given screen bounds.
 func (h *Hint) IsVisible(screenBounds image.Rectangle) bool {
-	return h.elem.IsVisible(screenBounds)
+	return h.element.IsVisible(screenBounds)
 }
 
 // MatchesLabel checks if the hint label matches the given input.
@@ -84,6 +84,7 @@ func (h *Hint) HasPrefix(prefix string) bool {
 	if len(prefix) > len(h.label) {
 		return false
 	}
+
 	return h.label[:len(prefix)] == prefix
 }
 
@@ -109,7 +110,7 @@ type Collection struct {
 
 // NewCollection creates a new hint collection with indexed lookups.
 func NewCollection(hints []*Hint) *Collection {
-	c := &Collection{
+	collector := &Collection{
 		hints:   hints,
 		byLabel: make(map[string]*Hint, len(hints)),
 		prefix1: make(map[byte][]*Hint),
@@ -117,22 +118,22 @@ func NewCollection(hints []*Hint) *Collection {
 	}
 
 	// Build indexes
-	for _, h := range hints {
-		label := h.Label()
-		c.byLabel[label] = h
+	for _, hint := range hints {
+		label := hint.Label()
+		collector.byLabel[label] = hint
 
 		if len(label) >= 1 {
 			first := label[0]
-			c.prefix1[first] = append(c.prefix1[first], h)
+			collector.prefix1[first] = append(collector.prefix1[first], hint)
 		}
 
 		if len(label) >= 2 {
 			prefix := label[:2]
-			c.prefix2[prefix] = append(c.prefix2[prefix], h)
+			collector.prefix2[prefix] = append(collector.prefix2[prefix], hint)
 		}
 	}
 
-	return c
+	return collector
 }
 
 // All returns all hints in the collection.
@@ -162,13 +163,15 @@ func (c *Collection) FilterByPrefix(prefix string) []*Hint {
 	}
 
 	// Slow path for longer prefixes
-	var result []*Hint
-	for _, h := range c.hints {
-		if h.HasPrefix(prefix) {
-			result = append(result, h)
+	var filteredHints []*Hint
+
+	for _, hint := range c.hints {
+		if hint.HasPrefix(prefix) {
+			filteredHints = append(filteredHints, hint)
 		}
 	}
-	return result
+
+	return filteredHints
 }
 
 // Count returns the number of hints in the collection.

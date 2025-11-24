@@ -29,6 +29,7 @@ func TestScrollService_Scroll(t *testing.T) {
 					if deltaY >= 0 {
 						t.Errorf("Expected negative deltaY for scroll down, got %d", deltaY)
 					}
+
 					return nil
 				}
 			},
@@ -43,6 +44,7 @@ func TestScrollService_Scroll(t *testing.T) {
 					if deltaY <= 0 {
 						t.Errorf("Expected positive deltaY for scroll up, got %d", deltaY)
 					}
+
 					return nil
 				}
 			},
@@ -58,6 +60,7 @@ func TestScrollService_Scroll(t *testing.T) {
 					if deltaY >= 0 {
 						t.Errorf("Expected negative deltaY for scroll down, got %d", deltaY)
 					}
+
 					return nil
 				}
 			},
@@ -73,6 +76,7 @@ func TestScrollService_Scroll(t *testing.T) {
 					if deltaY <= 0 {
 						t.Errorf("Expected positive deltaY for scroll up, got %d", deltaY)
 					}
+
 					return nil
 				}
 			},
@@ -88,6 +92,7 @@ func TestScrollService_Scroll(t *testing.T) {
 					if deltaX <= 0 {
 						t.Errorf("Expected positive deltaX for scroll left, got %d", deltaX)
 					}
+
 					return nil
 				}
 			},
@@ -103,6 +108,7 @@ func TestScrollService_Scroll(t *testing.T) {
 					if deltaX >= 0 {
 						t.Errorf("Expected negative deltaX for scroll right, got %d", deltaX)
 					}
+
 					return nil
 				}
 			},
@@ -121,28 +127,28 @@ func TestScrollService_Scroll(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
-			cfg := config.ScrollConfig{
+			config := config.ScrollConfig{
 				ScrollStep:     10,
 				ScrollStepHalf: 30,
 				ScrollStepFull: 50,
 			}
-			log := logger.Get()
+			logger := logger.Get()
 
-			if tt.setupMocks != nil {
-				tt.setupMocks(mockAcc)
+			if test.setupMocks != nil {
+				test.setupMocks(mockAcc)
 			}
 
-			service := services.NewScrollService(mockAcc, mockOverlay, cfg, log)
-			ctx := context.Background()
+			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
+			context := context.Background()
 
-			err := service.Scroll(ctx, tt.direction, tt.amount)
+			scrollErr := service.Scroll(context, test.direction, test.amount)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Scroll() error = %v, wantErr %v", err, tt.wantErr)
+			if (scrollErr != nil) != test.wantErr {
+				t.Errorf("Scroll() error = %v, wantErr %v", scrollErr, test.wantErr)
 			}
 		})
 	}
@@ -164,6 +170,7 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 					if rect.Dx() != 1920 || rect.Dy() != 1080 {
 						t.Errorf("Unexpected rect dimensions: %v", rect)
 					}
+
 					return nil
 				}
 			},
@@ -192,27 +199,31 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
-			cfg := config.ScrollConfig{
+			config := config.ScrollConfig{
 				HighlightColor: "#ff0000",
 				HighlightWidth: 5,
 			}
-			log := logger.Get()
+			logger := logger.Get()
 
-			if tt.setupMocks != nil {
-				tt.setupMocks(mockAcc, mockOverlay)
+			if test.setupMocks != nil {
+				test.setupMocks(mockAcc, mockOverlay)
 			}
 
-			service := services.NewScrollService(mockAcc, mockOverlay, cfg, log)
-			ctx := context.Background()
+			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
+			context := context.Background()
 
-			err := service.ShowScrollOverlay(ctx)
+			showScrollOverlayErr := service.ShowScrollOverlay(context)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ShowScrollOverlay() error = %v, wantErr %v", err, tt.wantErr)
+			if (showScrollOverlayErr != nil) != test.wantErr {
+				t.Errorf(
+					"ShowScrollOverlay() error = %v, wantErr %v",
+					showScrollOverlayErr,
+					test.wantErr,
+				)
 			}
 		})
 	}

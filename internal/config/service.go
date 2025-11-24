@@ -29,6 +29,7 @@ func NewService(cfg *Config, path string) *Service {
 func (s *Service) Get() *Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	return s.config
 }
 
@@ -36,6 +37,7 @@ func (s *Service) Get() *Config {
 func (s *Service) Path() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	return s.path
 }
 
@@ -45,19 +47,19 @@ func (s *Service) GetConfigPath() string {
 }
 
 // Reload reloads the configuration from the specified path.
-func (s *Service) Reload(ctx context.Context, path string) error {
+func (s *Service) Reload(context context.Context, path string) error {
 	// Load and validate new config
-	result := LoadWithValidation(path)
+	configResult := LoadWithValidation(path)
 
-	if result.ValidationError != nil {
-		return errors.Wrap(result.ValidationError, errors.CodeInvalidConfig,
+	if configResult.ValidationError != nil {
+		return errors.Wrap(configResult.ValidationError, errors.CodeInvalidConfig,
 			"configuration validation failed")
 	}
 
 	// Update configuration atomically
 	s.mu.Lock()
-	s.config = result.Config
-	s.path = result.ConfigPath
+	s.config = configResult.Config
+	s.path = configResult.ConfigPath
 	watchers := make([]chan<- *Config, len(s.watchers))
 	copy(watchers, s.watchers)
 	s.mu.Unlock()
@@ -65,9 +67,9 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 	// Notify watchers (outside the lock to avoid deadlock)
 	for _, watcher := range watchers {
 		select {
-		case watcher <- result.Config:
-		case <-ctx.Done():
-			return ctx.Err()
+		case watcher <- configResult.Config:
+		case <-context.Done():
+			return context.Err()
 		default:
 			// Skip if watcher is not ready
 		}
@@ -83,61 +85,64 @@ func (s *Service) ReloadConfig(path string) error {
 
 // Watch returns a channel that receives configuration updates.
 // The channel is closed when the context is canceled.
-func (s *Service) Watch(ctx context.Context) <-chan *Config {
-	ch := make(chan *Config, 1)
+func (s *Service) Watch(context context.Context) <-chan *Config {
+	channel := make(chan *Config, 1)
 
 	s.mu.Lock()
-	s.watchers = append(s.watchers, ch)
+	s.watchers = append(s.watchers, channel)
 	s.mu.Unlock()
 
 	// Send current config immediately
-	ch <- s.Get()
+	channel <- s.Get()
 
 	// Clean up when context is done
 	go func() {
-		<-ctx.Done()
+		<-context.Done()
+
 		s.mu.Lock()
 		defer s.mu.Unlock()
 
 		// Remove watcher from list
 		for i, w := range s.watchers {
-			if w == ch {
+			if w == channel {
 				s.watchers = append(s.watchers[:i], s.watchers[i+1:]...)
+
 				break
 			}
 		}
-		close(ch)
+
+		close(channel)
 	}()
 
-	return ch
+	return channel
 }
 
 // Validate validates the given configuration.
-func (s *Service) Validate(cfg *Config) error {
-	if cfg == nil {
+func (s *Service) Validate(config *Config) error {
+	if config == nil {
 		return errors.New(errors.CodeInvalidConfig, "configuration cannot be nil")
 	}
 
 	// Validate hints configuration
-	if cfg.Hints.Enabled {
-		if len(cfg.Hints.HintCharacters) < 2 {
+	if config.Hints.Enabled {
+		if len(config.Hints.HintCharacters) < 2 {
 			return errors.Newf(errors.CodeInvalidConfig,
 				"hints.hint_characters must have at least 2 characters, got %d",
-				len(cfg.Hints.HintCharacters))
+				len(config.Hints.HintCharacters))
 		}
 
-		if len(cfg.Hints.ClickableRoles) == 0 {
+		if len(config.Hints.ClickableRoles) == 0 {
 			return errors.New(errors.CodeInvalidConfig,
 				"hints.clickable_roles cannot be empty when hints are enabled")
 		}
 	}
 
 	// Validate grid configuration
-	if cfg.Grid.Enabled {
-		if len(cfg.Grid.Characters) < 2 {
+	if config.Grid.Enabled {
+		if len(config.Grid.Characters) < 2 {
 			return errors.Newf(errors.CodeInvalidConfig,
 				"grid.characters must have at least 2 characters, got %d",
-				len(cfg.Grid.Characters))
+				len(config.Grid.Characters))
 		}
 	}
 
@@ -145,14 +150,14 @@ func (s *Service) Validate(cfg *Config) error {
 }
 
 // Update updates the configuration (for testing/internal use).
-func (s *Service) Update(cfg *Config) error {
-	err := s.Validate(cfg)
-	if err != nil {
-		return err
+func (s *Service) Update(config *Config) error {
+	validateErr := s.Validate(config)
+	if validateErr != nil {
+		return validateErr
 	}
 
 	s.mu.Lock()
-	s.config = cfg
+	s.config = config
 	watchers := make([]chan<- *Config, len(s.watchers))
 	copy(watchers, s.watchers)
 	s.mu.Unlock()
@@ -160,7 +165,7 @@ func (s *Service) Update(cfg *Config) error {
 	// Notify watchers
 	for _, watcher := range watchers {
 		select {
-		case watcher <- cfg:
+		case watcher <- config:
 		default:
 			// Skip if watcher is not ready
 		}
@@ -171,19 +176,20 @@ func (s *Service) Update(cfg *Config) error {
 
 // LoadOrDefault loads configuration from the given path, or returns default config if it fails.
 func LoadOrDefault(path string) (*Service, error) {
-	result := LoadWithValidation(path)
+	configResult := LoadWithValidation(path)
 
-	if result.ValidationError != nil {
+	if configResult.ValidationError != nil {
 		// Return default config with error
-		defaultCfg := DefaultConfig()
+		defaultConfig := DefaultConfig()
+
 		return NewService(
-				defaultCfg,
+				defaultConfig,
 				"",
 			), fmt.Errorf(
 				"failed to load config: %w",
-				result.ValidationError,
+				configResult.ValidationError,
 			)
 	}
 
-	return NewService(result.Config, result.ConfigPath), nil
+	return NewService(configResult.Config, configResult.ConfigPath), nil
 }

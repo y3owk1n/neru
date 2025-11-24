@@ -56,13 +56,13 @@ func TestInitializeLogger(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			// Should not panic
-			InitializeLogger(tt.logger)
+			InitializeLogger(test.logger)
 
 			// Verify logger was set
-			if tt.logger != nil && bridgeLogger == nil {
+			if test.logger != nil && bridgeLogger == nil {
 				t.Error("Expected logger to be set")
 			}
 		})
@@ -84,16 +84,16 @@ func TestSetAppWatcher(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			// Initialize logger for testing
 			InitializeLogger(zap.NewNop())
 
 			// Should not panic
-			SetAppWatcher(tt.watcher)
+			SetAppWatcher(test.watcher)
 
 			// Verify watcher was set
-			if tt.watcher != nil && appWatcher == nil {
+			if test.watcher != nil && appWatcher == nil {
 				t.Error("Expected watcher to be set")
 			}
 		})
@@ -114,9 +114,11 @@ func TestCallbacks(t *testing.T) {
 		if len(mock.launchCalls) != 1 {
 			t.Errorf("Expected 1 launch call, got %d", len(mock.launchCalls))
 		}
+
 		if mock.launchCalls[0].appName != "TestApp" {
 			t.Errorf("Expected app name 'TestApp', got '%s'", mock.launchCalls[0].appName)
 		}
+
 		if mock.launchCalls[0].bundleID != "com.test.app" {
 			t.Errorf("Expected bundle ID 'com.test.app', got '%s'", mock.launchCalls[0].bundleID)
 		}
@@ -168,14 +170,14 @@ func TestHasClickAction(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			// Initialize logger for testing
 			InitializeLogger(zap.NewNop())
 
-			got := HasClickAction(tt.element)
-			if got != tt.want {
-				t.Errorf("HasClickAction() = %v, want %v", got, tt.want)
+			got := HasClickAction(test.element)
+			if got != test.want {
+				t.Errorf("HasClickAction() = %v, want %v", got, test.want)
 			}
 		})
 	}
@@ -229,8 +231,8 @@ func TestShowConfigValidationError(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			// Initialize logger for testing
 			InitializeLogger(zap.NewNop())
 
@@ -268,8 +270,8 @@ func TestSetApplicationAttribute(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			// Initialize logger for testing
 			InitializeLogger(zap.NewNop())
 

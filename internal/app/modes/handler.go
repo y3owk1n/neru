@@ -14,8 +14,8 @@ import (
 type Handler struct {
 	Config         *config.Config
 	Logger         *zap.Logger
-	State          *state.AppState
-	Cursor         *state.CursorState
+	AppState       *state.AppState
+	CursorState    *state.CursorState
 	OverlayManager overlay.ManagerInterface
 	Renderer       *ui.OverlayRenderer
 	// New Services
@@ -37,10 +37,10 @@ type Handler struct {
 
 // NewHandler creates a new mode handler.
 func NewHandler(
-	cfg *config.Config,
-	log *zap.Logger,
-	st *state.AppState,
-	cursor *state.CursorState,
+	config *config.Config,
+	logger *zap.Logger,
+	appState *state.AppState,
+	cursorState *state.CursorState,
 	overlayManager overlay.ManagerInterface,
 	renderer *ui.OverlayRenderer,
 	hintService *services.HintService,
@@ -56,10 +56,10 @@ func NewHandler(
 	refreshHotkeys func(),
 ) *Handler {
 	return &Handler{
-		Config:          cfg,
-		Logger:          log,
-		State:           st,
-		Cursor:          cursor,
+		Config:          config,
+		Logger:          logger,
+		AppState:        appState,
+		CursorState:     cursorState,
 		OverlayManager:  overlayManager,
 		Renderer:        renderer,
 		HintService:     hintService,
@@ -77,6 +77,6 @@ func NewHandler(
 }
 
 // UpdateConfig updates the handler with new configuration.
-func (h *Handler) UpdateConfig(cfg *config.Config) {
-	h.Config = cfg
+func (h *Handler) UpdateConfig(config *config.Config) {
+	h.Config = config
 }

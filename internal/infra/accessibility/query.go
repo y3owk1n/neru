@@ -34,10 +34,12 @@ func PrintTree(node *TreeNode, depth int) {
 	if node == nil || node.Info == nil {
 		return
 	}
+
 	var indent strings.Builder
 	for range depth {
 		indent.WriteString("  ")
 	}
+
 	logger.Info(fmt.Sprintf("%sRole: %s, Title: %s, Size: %dx%d",
 		indent.String(), node.Info.Role, node.Info.Title, node.Info.Size.X, node.Info.Size.Y))
 
@@ -57,6 +59,7 @@ func GetClickableElements() ([]*TreeNode, error) {
 	window := GetFrontmostWindow()
 	if window == nil {
 		logger.Warn("No frontmost window found")
+
 		return nil, errNoFrontmostWindow
 	}
 	defer window.Release()
@@ -67,11 +70,13 @@ func GetClickableElements() ([]*TreeNode, error) {
 	tree, err := BuildTree(window, opts)
 	if err != nil {
 		logger.Error("Failed to build tree for frontmost window", zap.Error(err))
+
 		return nil, err
 	}
 
 	elements := tree.FindClickableElements()
 	logger.Debug("Found clickable elements", zap.Int("count", len(elements)))
+
 	return elements, nil
 }
 
@@ -88,6 +93,7 @@ func GetMenuBarClickableElements() ([]*TreeNode, error) {
 	app := GetFocusedApplication()
 	if app == nil {
 		logger.Debug("No focused application found")
+
 		return []*TreeNode{}, nil
 	}
 	defer app.Release()
@@ -95,6 +101,7 @@ func GetMenuBarClickableElements() ([]*TreeNode, error) {
 	menubar := app.GetMenuBar()
 	if menubar == nil {
 		logger.Debug("No menu bar found")
+
 		return []*TreeNode{}, nil
 	}
 	defer menubar.Release()
@@ -105,15 +112,19 @@ func GetMenuBarClickableElements() ([]*TreeNode, error) {
 	tree, err := BuildTree(menubar, opts)
 	if err != nil {
 		logger.Error("Failed to build tree for menu bar", zap.Error(err))
+
 		return nil, err
 	}
+
 	if tree == nil {
 		logger.Debug("No tree built for menu bar")
+
 		return []*TreeNode{}, nil
 	}
 
 	elements := tree.FindClickableElements()
 	logger.Debug("Found menu bar clickable elements", zap.Int("count", len(elements)))
+
 	return elements, nil
 }
 
@@ -128,6 +139,7 @@ func GetClickableElementsFromBundleID(bundleID string) ([]*TreeNode, error) {
 	app := GetApplicationByBundleID(bundleID)
 	if app == nil {
 		logger.Debug("Application not found for bundle ID", zap.String("bundle_id", bundleID))
+
 		return []*TreeNode{}, nil
 	}
 	defer app.Release()
@@ -141,10 +153,13 @@ func GetClickableElementsFromBundleID(bundleID string) ([]*TreeNode, error) {
 		logger.Error("Failed to build tree for application",
 			zap.String("bundle_id", bundleID),
 			zap.Error(err))
+
 		return nil, err
 	}
+
 	if tree == nil {
 		logger.Debug("No tree built for application", zap.String("bundle_id", bundleID))
+
 		return []*TreeNode{}, nil
 	}
 
@@ -152,5 +167,6 @@ func GetClickableElementsFromBundleID(bundleID string) ([]*TreeNode, error) {
 	logger.Debug("Found clickable elements for application",
 		zap.String("bundle_id", bundleID),
 		zap.Int("count", len(elements)))
+
 	return elements, nil
 }

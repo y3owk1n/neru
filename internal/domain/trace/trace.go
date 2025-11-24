@@ -31,6 +31,7 @@ func FromContext(ctx context.Context) ID {
 	if !ok {
 		return ""
 	}
+
 	return id
 }
 

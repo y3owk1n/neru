@@ -20,16 +20,22 @@ func (h *Handler) ActivateMode(mode domain.Mode) {
 func (h *Handler) ActivateModeWithAction(mode domain.Mode, action *string) {
 	if mode == domain.ModeIdle {
 		h.ExitMode()
+
 		return
 	}
+
 	if mode == domain.ModeHints {
 		h.activateHintModeWithAction(action)
+
 		return
 	}
+
 	if mode == domain.ModeGrid {
 		h.activateGridModeWithAction(action)
+
 		return
 	}
+
 	h.Logger.Warn("Unknown mode", zap.String("mode", domain.GetModeString(mode)))
 }
 
@@ -41,8 +47,8 @@ func (h *Handler) activateHintModeWithAction(action *string) {
 // activateHintModeInternal activates hint mode with option to preserve action mode state and optional action.
 func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *string) {
 	// Validate mode activation
-	err := h.validateModeActivation("hints", h.Config.Hints.Enabled)
-	if err != nil {
+	domainHintsErr := h.validateModeActivation("hints", h.Config.Hints.Enabled)
+	if domainHintsErr != nil {
 		return
 	}
 
@@ -55,7 +61,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 
 	if !preserveActionMode {
 		// Skip cursor restoration when transitioning within hint mode
-		if h.State.CurrentMode() == domain.ModeHints {
+		if h.AppState.CurrentMode() == domain.ModeHints {
 			h.performModeSpecificCleanup()
 			h.performCommonCleanup()
 			// Skip cursor restoration
@@ -66,16 +72,17 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 
 	if actionString == domain.UnknownAction {
 		h.Logger.Warn("Unknown action string, ignoring")
+
 		return
 	}
 
 	// Always resize overlay to the active screen (where mouse is) before collecting elements.
 	// This ensures proper positioning when switching between multiple displays.
 	h.OverlayManager.ResizeToActiveScreenSync()
-	h.State.SetHintOverlayNeedsRefresh(false)
+	h.AppState.SetHintOverlayNeedsRefresh(false)
 
 	// Use new HintService to show hints
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	context, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	filter := ports.DefaultElementFilter()
@@ -87,14 +94,20 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	filter.IncludeNotificationCenter = h.Config.Hints.IncludeNCHints
 
 	// Get hints from service
-	domainHints, err := h.HintService.ShowHints(ctx, filter)
-	if err != nil {
-		h.Logger.Error("Failed to show hints", zap.Error(err), zap.String("action", actionString))
+	domainHints, domainHintsErr := h.HintService.ShowHints(context, filter)
+	if domainHintsErr != nil {
+		h.Logger.Error(
+			"Failed to show hints",
+			zap.Error(domainHintsErr),
+			zap.String("action", actionString),
+		)
+
 		return
 	}
 
 	if len(domainHints) == 0 {
 		h.Logger.Warn("No hints generated for action", zap.String("action", actionString))
+
 		return
 	}
 
@@ -111,17 +124,18 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 			}
 			// Convert domain hints to overlay hints for rendering
 			overlayHints := make([]*hints.Hint, len(filteredHints))
-			for i, dh := range filteredHints {
-				overlayHints[i] = &hints.Hint{
-					Label:         dh.Label(),
-					Position:      dh.Position(),
-					Size:          dh.Element().Bounds().Size(),
-					MatchedPrefix: dh.MatchedPrefix(),
+			for index, hint := range filteredHints {
+				overlayHints[index] = &hints.Hint{
+					Label:         hint.Label(),
+					Position:      hint.Position(),
+					Size:          hint.Element().Bounds().Size(),
+					MatchedPrefix: hint.MatchedPrefix(),
 				}
 			}
-			err := h.Hints.Overlay.DrawHintsWithStyle(overlayHints, h.Hints.Style)
-			if err != nil {
-				h.Logger.Error("Failed to update hints overlay", zap.Error(err))
+
+			drawHintsErr := h.Hints.Overlay.DrawHintsWithStyle(overlayHints, h.Hints.Style)
+			if drawHintsErr != nil {
+				h.Logger.Error("Failed to update hints overlay", zap.Error(drawHintsErr))
 			}
 		})
 		h.Hints.Context.SetManager(manager)
@@ -137,6 +151,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 
 	// Store pending action if provided
 	h.Hints.Context.SetPendingAction(action)
+
 	if action != nil {
 		h.Logger.Info("Hints mode activated with pending action", zap.String("action", *action))
 	}

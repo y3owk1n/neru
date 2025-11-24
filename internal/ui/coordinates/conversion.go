@@ -7,34 +7,34 @@ import (
 
 // ComputeRestoredPosition calculates the restored cursor position when switching screens.
 // It maintains the relative position of the cursor within the screen bounds.
-func ComputeRestoredPosition(initPos image.Point, from, to image.Rectangle) image.Point {
+func ComputeRestoredPosition(initPos image.Point, fromPoint, toPoint image.Rectangle) image.Point {
 	// If screens are the same, no adjustment needed
-	if from == to {
+	if fromPoint == toPoint {
 		return initPos
 	}
 
 	// Validate screen bounds
-	if from.Dx() == 0 || from.Dy() == 0 || to.Dx() == 0 || to.Dy() == 0 {
+	if fromPoint.Dx() == 0 || fromPoint.Dy() == 0 || toPoint.Dx() == 0 || toPoint.Dy() == 0 {
 		return initPos
 	}
 
 	// Calculate relative position (0.0 to 1.0) within the original screen
-	rx := float64(initPos.X-from.Min.X) / float64(from.Dx())
-	ry := float64(initPos.Y-from.Min.Y) / float64(from.Dy())
+	relativeX := float64(initPos.X-fromPoint.Min.X) / float64(fromPoint.Dx())
+	relativeY := float64(initPos.Y-fromPoint.Min.Y) / float64(fromPoint.Dy())
 
 	// Clamp relative positions to valid range
-	rx = ClampFloat(rx, 0, 1)
-	ry = ClampFloat(ry, 0, 1)
+	relativeX = ClampFloat(relativeX, 0, 1)
+	relativeY = ClampFloat(relativeY, 0, 1)
 
 	// Calculate new position in target screen
-	nx := to.Min.X + int(math.Round(rx*float64(to.Dx())))
-	ny := to.Min.Y + int(math.Round(ry*float64(to.Dy())))
+	newX := toPoint.Min.X + int(math.Round(relativeX*float64(toPoint.Dx())))
+	newY := toPoint.Min.Y + int(math.Round(relativeY*float64(toPoint.Dy())))
 
 	// Clamp to target screen bounds
-	nx = ClampInt(nx, to.Min.X, to.Max.X)
-	ny = ClampInt(ny, to.Min.Y, to.Max.Y)
+	newX = ClampInt(newX, toPoint.Min.X, toPoint.Max.X)
+	newY = ClampInt(newY, toPoint.Min.Y, toPoint.Max.Y)
 
-	return image.Point{X: nx, Y: ny}
+	return image.Point{X: newX, Y: newY}
 }
 
 // NormalizeToLocalCoordinates converts screen-absolute coordinates to window-local coordinates.
@@ -59,9 +59,11 @@ func ClampFloat(value, minVal, maxVal float64) float64 {
 	if value < minVal {
 		return minVal
 	}
+
 	if value > maxVal {
 		return maxVal
 	}
+
 	return value
 }
 
@@ -70,8 +72,10 @@ func ClampInt(value, minVal, maxVal int) int {
 	if value < minVal {
 		return minVal
 	}
+
 	if value > maxVal {
 		return maxVal
 	}
+
 	return value
 }

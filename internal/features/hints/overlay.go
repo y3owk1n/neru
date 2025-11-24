@@ -68,45 +68,73 @@ type StyleMode struct {
 }
 
 // GetFontSize returns the font size.
-func (s StyleMode) GetFontSize() int { return s.FontSize }
+func (s StyleMode) GetFontSize() int {
+	return s.FontSize
+}
 
 // GetFontFamily returns the font family.
-func (s StyleMode) GetFontFamily() string { return s.FontFamily }
+func (s StyleMode) GetFontFamily() string {
+	return s.FontFamily
+}
 
 // GetBorderRadius returns the border radius.
-func (s StyleMode) GetBorderRadius() int { return s.BorderRadius }
+func (s StyleMode) GetBorderRadius() int {
+	return s.BorderRadius
+}
 
 // GetPadding returns the padding.
-func (s StyleMode) GetPadding() int { return s.Padding }
+func (s StyleMode) GetPadding() int {
+	return s.Padding
+}
 
 // GetBorderWidth returns the border width.
-func (s StyleMode) GetBorderWidth() int { return s.BorderWidth }
+func (s StyleMode) GetBorderWidth() int {
+	return s.BorderWidth
+}
 
 // GetOpacity returns the opacity.
-func (s StyleMode) GetOpacity() float64 { return s.Opacity }
+func (s StyleMode) GetOpacity() float64 {
+	return s.Opacity
+}
 
 // GetBackgroundColor returns the background color.
-func (s StyleMode) GetBackgroundColor() string { return s.BackgroundColor }
+func (s StyleMode) GetBackgroundColor() string {
+	return s.BackgroundColor
+}
 
 // GetTextColor returns the text color.
-func (s StyleMode) GetTextColor() string { return s.TextColor }
+func (s StyleMode) GetTextColor() string {
+	return s.TextColor
+}
 
 // GetMatchedTextColor returns the matched text color.
-func (s StyleMode) GetMatchedTextColor() string { return s.MatchedTextColor }
+func (s StyleMode) GetMatchedTextColor() string {
+	return s.MatchedTextColor
+}
 
 // GetBorderColor returns the border color.
-func (s StyleMode) GetBorderColor() string { return s.BorderColor }
+func (s StyleMode) GetBorderColor() string {
+	return s.BorderColor
+}
 
 // initPools initializes the object pools once.
 func initPools() {
 	hintPoolOnce.Do(func() {
-		hintDataPool = sync.Pool{New: func() any { s := make([]C.HintData, 0); return &s }}
-		cLabelSlicePool = sync.Pool{New: func() any { s := make([]*C.char, 0); return &s }}
+		hintDataPool = sync.Pool{New: func() any {
+			s := make([]C.HintData, 0)
+
+			return &s
+		}}
+		cLabelSlicePool = sync.Pool{New: func() any {
+			s := make([]*C.char, 0)
+
+			return &s
+		}}
 	})
 }
 
 // NewOverlay creates a new hint overlay instance with its own window.
-func NewOverlay(cfg config.HintsConfig, logger *zap.Logger) (*Overlay, error) {
+func NewOverlay(config config.HintsConfig, logger *zap.Logger) (*Overlay, error) {
 	window := C.createOverlayWindow()
 	if window == nil {
 		return nil, errCreateOverlayWindow
@@ -115,21 +143,22 @@ func NewOverlay(cfg config.HintsConfig, logger *zap.Logger) (*Overlay, error) {
 
 	return &Overlay{
 		window: window,
-		config: cfg,
+		config: config,
 		logger: logger,
 	}, nil
 }
 
 // NewOverlayWithWindow creates a hint overlay instance using a shared window.
 func NewOverlayWithWindow(
-	cfg config.HintsConfig,
+	config config.HintsConfig,
 	logger *zap.Logger,
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
 	initPools()
+
 	return &Overlay{
 		window: (C.OverlayWindow)(windowPtr),
-		config: cfg,
+		config: config,
 		logger: logger,
 	}, nil
 }
@@ -243,23 +272,23 @@ func (o *Overlay) DrawHintsWithStyle(hints []*Hint, style StyleMode) error {
 
 // DrawTargetDot draws a small circular dot at the target position.
 func (o *Overlay) DrawTargetDot(
-	x, y int,
+	pointX, pointY int,
 	radius float64,
 	color, borderColor string,
 	borderWidth float64,
 ) error {
 	center := C.CGPoint{
-		x: C.double(x),
-		y: C.double(y),
+		x: C.double(pointX),
+		y: C.double(pointY),
 	}
 
 	cColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cColor))
+	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
 
 	var cBorderColor *C.char
 	if borderColor != "" {
 		cBorderColor = C.CString(borderColor)
-		defer C.free(unsafe.Pointer(cBorderColor))
+		defer C.free(unsafe.Pointer(cBorderColor)) //nolint:nlreturn
 	}
 
 	C.NeruDrawTargetDot(
@@ -294,7 +323,7 @@ func (o *Overlay) DrawScrollHighlight(
 	}
 
 	cColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cColor))
+	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
 
 	C.NeruDrawScrollHighlight(o.window, renderBounds, cColor, C.int(borderWidth))
 }
@@ -318,8 +347,8 @@ func BuildStyle(cfg config.HintsConfig) StyleMode {
 }
 
 // UpdateConfig updates the overlay configuration.
-func (o *Overlay) UpdateConfig(cfg config.HintsConfig) {
-	o.config = cfg
+func (o *Overlay) UpdateConfig(config config.HintsConfig) {
+	o.config = config
 }
 
 // Destroy destroys the overlay.
@@ -339,6 +368,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	if len(hints) == 0 {
 		o.Clear()
 		o.logger.Debug("No hints to draw, cleared overlay")
+
 		return nil
 	}
 
@@ -432,5 +462,6 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 
 	o.logger.Debug("Hints drawn successfully",
 		zap.Duration("duration", time.Since(start)))
+
 	return nil
 }

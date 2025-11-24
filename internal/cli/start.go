@@ -14,6 +14,7 @@ var startCmd = &cobra.Command{
 	},
 	RunE: func(_ *cobra.Command, args []string) error {
 		logger.Debug("Starting/resuming program")
+
 		return sendCommand("start", args)
 	},
 }

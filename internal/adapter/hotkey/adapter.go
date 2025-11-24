@@ -1,4 +1,3 @@
-// Package hotkey implements the hotkey adapter.
 package hotkey
 
 import (
@@ -43,21 +42,25 @@ func (a *Adapter) Register(_ context.Context, key string, callback func() error)
 		}
 	}
 
-	id, err := a.manager.Register(key, wrappedCallback)
-	if err != nil {
-		return err
+	registeredID, registeredIDErr := a.manager.Register(key, wrappedCallback)
+	if registeredIDErr != nil {
+		return registeredIDErr
 	}
 
-	a.registeredIDs[key] = id
+	a.registeredIDs[key] = registeredID
+
 	return nil
 }
 
 // Unregister removes a hotkey registration.
 func (a *Adapter) Unregister(_ context.Context, key string) error {
-	if id, ok := a.registeredIDs[key]; ok {
-		a.manager.Unregister(id)
+	registeredID, ok := a.registeredIDs[key]
+
+	if ok {
+		a.manager.Unregister(registeredID)
 		delete(a.registeredIDs, key)
 	}
+
 	return nil
 }
 
@@ -65,12 +68,14 @@ func (a *Adapter) Unregister(_ context.Context, key string) error {
 func (a *Adapter) UnregisterAll(_ context.Context) error {
 	a.manager.UnregisterAll()
 	a.registeredIDs = make(map[string]int)
+
 	return nil
 }
 
 // IsRegistered reports whether a hotkey is currently registered.
 func (a *Adapter) IsRegistered(hotkey string) bool {
 	_, ok := a.registeredIDs[hotkey]
+
 	return ok
 }
 

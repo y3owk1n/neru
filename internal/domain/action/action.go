@@ -45,8 +45,8 @@ func (t Type) String() string {
 }
 
 // ParseType parses a string into an action type.
-func ParseType(s string) (Type, error) {
-	switch s {
+func ParseType(actionString string) (Type, error) {
+	switch actionString {
 	case "left_click":
 		return TypeLeftClick, nil
 	case "right_click":
@@ -62,7 +62,7 @@ func ParseType(s string) (Type, error) {
 	case "scroll":
 		return TypeScroll, nil
 	default:
-		return 0, fmt.Errorf("unknown action type: %s", s)
+		return 0, fmt.Errorf("unknown action type: %s", actionString)
 	}
 }
 

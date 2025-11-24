@@ -14,6 +14,7 @@ var stopCmd = &cobra.Command{
 	},
 	RunE: func(_ *cobra.Command, args []string) error {
 		logger.Debug("Stopping/pausing program")
+
 		return sendCommand("stop", args)
 	},
 }

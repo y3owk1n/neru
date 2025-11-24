@@ -36,6 +36,7 @@ func TestKnownActionNames(t *testing.T) {
 		if seen[name] {
 			t.Errorf("KnownActionNames() contains duplicate: %s", name)
 		}
+
 		seen[name] = true
 	}
 }
@@ -98,11 +99,11 @@ func TestIsKnownActionName(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := IsKnownActionName(tt.action)
-			if got != tt.want {
-				t.Errorf("IsKnownActionName(%q) = %v, want %v", tt.action, got, tt.want)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := IsKnownActionName(test.action)
+			if got != test.want {
+				t.Errorf("IsKnownActionName(%q) = %v, want %v", test.action, got, test.want)
 			}
 		})
 	}
@@ -139,10 +140,10 @@ func TestActionConstants(t *testing.T) {
 		{"ActionNameScroll", ActionNameScroll, "scroll"},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if string(tt.constant) != tt.expected {
-				t.Errorf("%s = %q, want %q", tt.name, tt.constant, tt.expected)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if string(test.constant) != test.expected {
+				t.Errorf("%s = %q, want %q", test.name, test.constant, test.expected)
 			}
 		})
 	}
@@ -161,21 +162,27 @@ func TestActionEnumValues(t *testing.T) {
 	if ActionLeftClick != 0 {
 		t.Errorf("ActionLeftClick = %d, want 0", ActionLeftClick)
 	}
+
 	if ActionRightClick != 1 {
 		t.Errorf("ActionRightClick = %d, want 1", ActionRightClick)
 	}
+
 	if ActionMouseUp != 2 {
 		t.Errorf("ActionMouseUp = %d, want 2", ActionMouseUp)
 	}
+
 	if ActionMouseDown != 3 {
 		t.Errorf("ActionMouseDown = %d, want 3", ActionMouseDown)
 	}
+
 	if ActionMiddleClick != 4 {
 		t.Errorf("ActionMiddleClick = %d, want 4", ActionMiddleClick)
 	}
+
 	if ActionMoveMouse != 5 {
 		t.Errorf("ActionMoveMouse = %d, want 5", ActionMoveMouse)
 	}
+
 	if ActionScroll != 6 {
 		t.Errorf("ActionScroll = %d, want 6", ActionScroll)
 	}

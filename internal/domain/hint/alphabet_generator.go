@@ -31,11 +31,12 @@ func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
 
 	// Build uppercase mapping
 	uppercaseRuneMap := make(map[rune]rune)
+
 	var uppercaseBuilder strings.Builder
 
-	for _, r := range characters {
-		upper := unicode.ToUpper(r)
-		uppercaseRuneMap[r] = upper
+	for _, rune := range characters {
+		upper := unicode.ToUpper(rune)
+		uppercaseRuneMap[rune] = upper
 		uppercaseBuilder.WriteRune(upper)
 	}
 
@@ -57,7 +58,7 @@ func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
 
 // Generate creates hints for the given elements.
 func (g *AlphabetGenerator) Generate(
-	ctx context.Context,
+	context context.Context,
 	elements []*element.Element,
 ) ([]*Hint, error) {
 	if len(elements) == 0 {
@@ -74,8 +75,8 @@ func (g *AlphabetGenerator) Generate(
 
 	// Check context cancellation
 	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	case <-context.Done():
+		return nil, context.Err()
 	default:
 	}
 
@@ -83,13 +84,13 @@ func (g *AlphabetGenerator) Generate(
 	sorted := make([]*element.Element, len(elements))
 	copy(sorted, elements)
 	sort.Slice(sorted, func(i, j int) bool {
-		bi, bj := sorted[i].Bounds(), sorted[j].Bounds()
+		boundI, boundJ := sorted[i].Bounds(), sorted[j].Bounds()
 		// Compare Y first (top to bottom)
-		if bi.Min.Y != bj.Min.Y {
-			return bi.Min.Y < bj.Min.Y
+		if boundI.Min.Y != boundJ.Min.Y {
+			return boundI.Min.Y < boundJ.Min.Y
 		}
 		// Then X (left to right)
-		return bi.Min.X < bj.Min.X
+		return boundI.Min.X < boundJ.Min.X
 	})
 
 	// Generate labels
@@ -97,16 +98,16 @@ func (g *AlphabetGenerator) Generate(
 
 	// Create hints
 	hints := make([]*Hint, len(sorted))
-	for i, elem := range sorted {
+	for index, element := range sorted {
 		// Use element center as hint position
-		position := elem.Center()
+		position := element.Center()
 
-		hint, err := NewHint(labels[i], elem, position)
+		hint, err := NewHint(labels[index], element, position)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create hint %d: %w", i, err)
+			return nil, fmt.Errorf("failed to create hint %d: %w", index, err)
 		}
 
-		hints[i] = hint
+		hints[index] = hint
 	}
 
 	return hints, nil
@@ -130,11 +131,12 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 
 	// Build uppercase mapping
 	uppercaseRuneMap := make(map[rune]rune)
+
 	var uppercaseBuilder strings.Builder
 
-	for _, r := range characters {
-		upper := unicode.ToUpper(r)
-		uppercaseRuneMap[r] = upper
+	for _, rune := range characters {
+		upper := unicode.ToUpper(rune)
+		uppercaseRuneMap[rune] = upper
 		uppercaseBuilder.WriteRune(upper)
 	}
 
@@ -180,6 +182,7 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 		nextLevelCapacity := availableSlots * numChars
 
 		var keep int
+
 		switch {
 		case availableSlots >= remainingTarget:
 			// We can satisfy the rest of the target at this level
@@ -210,42 +213,6 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 		}
 	}
 
-	// Generate labels
-	// We maintain a "prefix" state.
-	// At level 1, prefixes are single chars.
-	// At level 2, prefixes are 2 chars, etc.
-	// But we can just generate them sequentially.
-
-	// Current indices into the character set for each position
-	// indices[0] is the index of the first char, indices[1] second, etc.
-
-	// We need to skip the "kept" prefixes from previous levels when starting a new level.
-	// Actually, it's simpler:
-	// Level 1 labels use chars[0]...chars[k1-1].
-	// The expansion for Level 2 starts from chars[k1]...
-
-	// Let's track the "start index" for the current level's generation.
-	// But it's multidimensional.
-
-	// Alternative generation strategy:
-	// We know we need counts[0] labels of length 1.
-	// These will be chars[0]...chars[counts[0]-1].
-	// The remaining chars[counts[0]]...chars[N-1] are expanded.
-	// So Level 2 labels start with chars[counts[0]] as the first character.
-
-	// Let's implement a recursive generator or a stack-based one.
-	// Since we just need to generate 'count' labels in order, and we know the structure:
-	// The structure is a tree where we traverse leaves.
-	// We prune the tree at depth L if we have generated enough L-length labels.
-
-	// Actually, we can just iterate.
-	// We have a "cursor" that represents the current label path.
-	// [0] -> "A"
-	// [1] -> "B"
-	// ...
-	// [k1-1] -> last len-1 label.
-	// [k1, 0] -> first len-2 label.
-
 	var current []int
 
 	for level, keep := range counts {
@@ -275,12 +242,14 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 
 			for range keep {
 				// Build string from current indices
-				var b strings.Builder
-				b.Grow(length)
-				for _, idx := range current {
-					b.WriteRune(chars[idx])
+				var stringBuilder strings.Builder
+				stringBuilder.Grow(length)
+
+				for _, index := range current {
+					stringBuilder.WriteRune(chars[index])
 				}
-				labels = append(labels, b.String())
+
+				labels = append(labels, stringBuilder.String())
 
 				// Increment current
 				// Go from right to left

@@ -30,9 +30,10 @@ var (
 func EnsureElectronAccessibility(bundleID string) bool {
 	app := accessibility.GetApplicationByBundleID(bundleID)
 
-	info, err := app.GetInfo()
-	if err != nil {
-		logger.Debug("Failed to inspect app window", zap.Error(err))
+	info, infoErr := app.GetInfo()
+	if infoErr != nil {
+		logger.Debug("Failed to inspect app window", zap.Error(infoErr))
+
 		return false
 	}
 
@@ -40,6 +41,7 @@ func EnsureElectronAccessibility(bundleID string) bool {
 
 	if pid <= 0 {
 		logger.Debug("No PID found for app", zap.String("bundle_id", bundleID))
+
 		return false
 	}
 
@@ -48,7 +50,9 @@ func EnsureElectronAccessibility(bundleID string) bool {
 		zap.Int("pid", pid))
 
 	electronPIDsMu.Lock()
+
 	_, already := electronEnabledPIDs[pid]
+
 	electronPIDsMu.Unlock()
 
 	if already {
@@ -57,6 +61,7 @@ func EnsureElectronAccessibility(bundleID string) bool {
 			zap.Int("pid", pid),
 			zap.String("bundle_id", bundleID),
 		)
+
 		return true
 	}
 
@@ -76,16 +81,20 @@ func EnsureElectronAccessibility(bundleID string) bool {
 			zap.Int("pid", pid),
 			zap.String("bundle_id", bundleID),
 		)
+
 		return false
 	}
 
 	electronPIDsMu.Lock()
+
 	electronEnabledPIDs[pid] = struct{}{}
+
 	electronPIDsMu.Unlock()
 
 	logger.Debug("Successfully enabled Electron accessibility",
 		zap.Int("pid", pid),
 		zap.String("bundle_id", bundleID))
+
 	return true
 }
 
@@ -99,9 +108,10 @@ func ensureAccessibility(
 ) bool {
 	app := accessibility.GetApplicationByBundleID(bundleID)
 
-	info, err := app.GetInfo()
-	if err != nil {
-		logger.Debug("Failed to inspect app window", zap.Error(err))
+	info, infoErr := app.GetInfo()
+	if infoErr != nil {
+		logger.Debug("Failed to inspect app window", zap.Error(infoErr))
+
 		return false
 	}
 
@@ -109,6 +119,7 @@ func ensureAccessibility(
 
 	if pid <= 0 {
 		logger.Debug("No PID found for app", zap.String("bundle_id", bundleID))
+
 		return false
 	}
 
@@ -117,11 +128,14 @@ func ensureAccessibility(
 		zap.Int("pid", pid))
 
 	pidsMu.Lock()
+
 	_, already := enabledPIDs[pid]
+
 	pidsMu.Unlock()
 
 	if already {
 		logger.Debug("Already enabled "+appType+" support", zap.String("bundle_id", bundleID))
+
 		return true
 	}
 
@@ -133,16 +147,20 @@ func ensureAccessibility(
 
 	if !success {
 		logger.Warn("Failed to enable AXEnhancedUserInterface", zap.String("bundle_id", bundleID))
+
 		return false
 	}
 
 	pidsMu.Lock()
+
 	enabledPIDs[pid] = struct{}{}
+
 	pidsMu.Unlock()
 
 	logger.Debug("Successfully enabled "+appType+" accessibility",
 		zap.Int("pid", pid),
 		zap.String("bundle_id", bundleID))
+
 	return true
 }
 
@@ -198,6 +216,7 @@ func ShouldEnableElectronSupport(bundleID string, additionalBundles []string) bo
 			"Bundle matches additional Electron bundles",
 			zap.String("bundle_id", bundleID),
 		)
+
 		return true
 	}
 
@@ -205,6 +224,7 @@ func ShouldEnableElectronSupport(bundleID string, additionalBundles []string) bo
 	if result {
 		logger.Debug("Bundle identified as likely Electron", zap.String("bundle_id", bundleID))
 	}
+
 	return result
 }
 
@@ -220,6 +240,7 @@ func ShouldEnableChromiumSupport(bundleID string, additionalBundles []string) bo
 			"Bundle matches additional Chromium bundles",
 			zap.String("bundle_id", bundleID),
 		)
+
 		return true
 	}
 
@@ -227,6 +248,7 @@ func ShouldEnableChromiumSupport(bundleID string, additionalBundles []string) bo
 	if result {
 		logger.Debug("Bundle identified as likely Chromium", zap.String("bundle_id", bundleID))
 	}
+
 	return result
 }
 
@@ -239,6 +261,7 @@ func ShouldEnableFirefoxSupport(bundleID string, additionalBundles []string) boo
 
 	if matchesAdditionalBundle(bundleID, additionalBundles) {
 		logger.Debug("Bundle matches additional Firefox bundles", zap.String("bundle_id", bundleID))
+
 		return true
 	}
 
@@ -246,6 +269,7 @@ func ShouldEnableFirefoxSupport(bundleID string, additionalBundles []string) boo
 	if result {
 		logger.Debug("Bundle identified as likely Firefox", zap.String("bundle_id", bundleID))
 	}
+
 	return result
 }
 
@@ -313,17 +337,20 @@ func matchesAdditionalBundle(bundleID string, additionalBundles []string) bool {
 		if trimmed == "" {
 			continue
 		}
+
 		if prefix, found := strings.CutSuffix(trimmed, "*"); found {
 			if strings.HasPrefix(lower, prefix) {
 				logger.Debug("Bundle matches wildcard pattern",
 					zap.String("bundle_id", bundleID),
 					zap.String("pattern", trimmed))
+
 				return true
 			}
 		} else if lower == trimmed {
 			logger.Debug("Bundle matches exact pattern",
 				zap.String("bundle_id", bundleID),
 				zap.String("pattern", trimmed))
+
 			return true
 		}
 	}

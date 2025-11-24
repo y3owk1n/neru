@@ -71,6 +71,7 @@ func (c *Context) Reset() {
 	if c.Manager != nil {
 		c.Manager.Reset()
 	}
+
 	c.InActionMode = false
 	c.PendingAction = nil
 }

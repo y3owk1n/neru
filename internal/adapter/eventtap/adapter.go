@@ -1,4 +1,3 @@
-// Package eventtap implements the event tap adapter.
 package eventtap
 
 import (
@@ -29,6 +28,7 @@ func NewAdapter(tap *eventtap.EventTap, logger *zap.Logger) *Adapter {
 func (a *Adapter) Enable(_ context.Context) error {
 	a.tap.Enable()
 	a.enabled = true
+
 	return nil
 }
 
@@ -36,6 +36,7 @@ func (a *Adapter) Enable(_ context.Context) error {
 func (a *Adapter) Disable(_ context.Context) error {
 	a.tap.Disable()
 	a.enabled = false
+
 	return nil
 }
 
@@ -46,7 +47,6 @@ func (a *Adapter) IsEnabled() bool {
 
 // SetHandler sets the function to call when a key is pressed.
 func (a *Adapter) SetHandler(_ func(key string)) {
-	// This is a limitation of the current design.
 	a.logger.Warn("SetHandler called but EventTap doesn't support changing handler after creation")
 }
 

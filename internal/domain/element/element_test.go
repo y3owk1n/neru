@@ -52,48 +52,50 @@ func TestNewElement(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			elem, err := element.NewElement(tt.id, tt.bounds, tt.role, tt.opts...)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			element, elementErr := element.NewElement(test.id, test.bounds, test.role, test.opts...)
 
-			if tt.wantErr {
-				if err == nil {
+			if test.wantErr {
+				if elementErr == nil {
 					t.Errorf("NewElement() expected error, got nil")
 				}
+
 				return
 			}
 
-			if err != nil {
-				t.Errorf("NewElement() unexpected error: %v", err)
+			if elementErr != nil {
+				t.Errorf("NewElement() unexpected error: %v", elementErr)
+
 				return
 			}
 
-			if elem.ID() != tt.id {
-				t.Errorf("ID() = %v, want %v", elem.ID(), tt.id)
+			if element.ID() != test.id {
+				t.Errorf("ID() = %v, want %v", element.ID(), test.id)
 			}
 
-			if elem.Bounds() != tt.bounds {
-				t.Errorf("Bounds() = %v, want %v", elem.Bounds(), tt.bounds)
+			if element.Bounds() != test.bounds {
+				t.Errorf("Bounds() = %v, want %v", element.Bounds(), test.bounds)
 			}
 
-			if elem.Role() != tt.role {
-				t.Errorf("Role() = %v, want %v", elem.Role(), tt.role)
+			if element.Role() != test.role {
+				t.Errorf("Role() = %v, want %v", element.Role(), test.role)
 			}
 		})
 	}
 }
 
 func TestElement_Center(t *testing.T) {
-	elem, err := element.NewElement(
+	element, elementErr := element.NewElement(
 		"test",
 		image.Rect(10, 20, 110, 70),
 		element.RoleButton,
 	)
-	if err != nil {
-		t.Fatalf("NewElement() error: %v", err)
+	if elementErr != nil {
+		t.Fatalf("NewElement() error: %v", elementErr)
 	}
 
-	center := elem.Center()
+	center := element.Center()
 	want := image.Point{X: 60, Y: 45}
 
 	if center != want {
@@ -102,13 +104,13 @@ func TestElement_Center(t *testing.T) {
 }
 
 func TestElement_Contains(t *testing.T) {
-	elem, err := element.NewElement(
+	element, elementErr := element.NewElement(
 		"test",
 		image.Rect(10, 10, 100, 50),
 		element.RoleButton,
 	)
-	if err != nil {
-		t.Fatalf("NewElement() error: %v", err)
+	if elementErr != nil {
+		t.Fatalf("NewElement() error: %v", elementErr)
 	}
 
 	tests := []struct {
@@ -124,17 +126,18 @@ func TestElement_Contains(t *testing.T) {
 		{"outside bottom", image.Point{X: 50, Y: 55}, false},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := elem.Contains(tt.point); got != tt.want {
-				t.Errorf("Contains(%v) = %v, want %v", tt.point, got, tt.want)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := element.Contains(test.point)
+			if got != test.want {
+				t.Errorf("Contains(%v) = %v, want %v", test.point, got, test.want)
 			}
 		})
 	}
 }
 
 func TestElement_Overlaps(t *testing.T) {
-	elem1, _ := element.NewElement("elem1", image.Rect(10, 10, 50, 50), element.RoleButton)
+	elementA, _ := element.NewElement("elem1", image.Rect(10, 10, 50, 50), element.RoleButton)
 
 	tests := []struct {
 		name   string
@@ -147,18 +150,20 @@ func TestElement_Overlaps(t *testing.T) {
 		{"completely separate", image.Rect(60, 60, 100, 100), false},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			elem2, _ := element.NewElement("elem2", tt.bounds, element.RoleButton)
-			if got := elem1.Overlaps(elem2); got != tt.want {
-				t.Errorf("Overlaps() = %v, want %v", got, tt.want)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			elementB, _ := element.NewElement("elem2", test.bounds, element.RoleButton)
+
+			got := elementA.Overlaps(elementB)
+			if got != test.want {
+				t.Errorf("Overlaps() = %v, want %v", got, test.want)
 			}
 		})
 	}
 }
 
 func TestElement_IsVisible(t *testing.T) {
-	elem, _ := element.NewElement("test", image.Rect(10, 10, 50, 50), element.RoleButton)
+	element, _ := element.NewElement("test", image.Rect(10, 10, 50, 50), element.RoleButton)
 
 	tests := []struct {
 		name         string
@@ -170,10 +175,11 @@ func TestElement_IsVisible(t *testing.T) {
 		{"completely off screen", image.Rect(60, 60, 100, 100), false},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := elem.IsVisible(tt.screenBounds); got != tt.want {
-				t.Errorf("IsVisible(%v) = %v, want %v", tt.screenBounds, got, tt.want)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := element.IsVisible(test.screenBounds)
+			if got != test.want {
+				t.Errorf("IsVisible(%v) = %v, want %v", test.screenBounds, got, test.want)
 			}
 		})
 	}
@@ -181,7 +187,7 @@ func TestElement_IsVisible(t *testing.T) {
 
 func TestElement_Immutability(t *testing.T) {
 	// Test that elements are immutable
-	elem, _ := element.NewElement(
+	element, _ := element.NewElement(
 		"test",
 		image.Rect(10, 10, 50, 50),
 		element.RoleButton,
@@ -190,23 +196,23 @@ func TestElement_Immutability(t *testing.T) {
 	)
 
 	// Get values
-	originalID := elem.ID()
-	originalBounds := elem.Bounds()
-	originalTitle := elem.Title()
+	originalID := element.ID()
+	originalBounds := element.Bounds()
+	originalTitle := element.Title()
 
 	// Modify returned values (should not affect element)
 	originalBounds.Min.X = 999
 
 	// Verify element unchanged
-	if elem.Bounds().Min.X == 999 {
+	if element.Bounds().Min.X == 999 {
 		t.Error("Element bounds were modified - not immutable!")
 	}
 
-	if elem.ID() != originalID {
+	if element.ID() != originalID {
 		t.Error("Element ID changed")
 	}
 
-	if elem.Title() != originalTitle {
+	if element.Title() != originalTitle {
 		t.Error("Element title changed")
 	}
 }

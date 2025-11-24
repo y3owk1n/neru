@@ -17,7 +17,6 @@ import "C"
 
 import (
 	"image"
-	"sync"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -31,9 +30,6 @@ func InitializeLogger(logger *zap.Logger) {
 	bridgeLogger = logger
 }
 
-// This file ensures the bridge package is properly initialized and the Objective-C files are compiled with CGo.
-// The .m files are compiled separately via CGo's automatic source file detection.
-
 // SetApplicationAttribute toggles an accessibility attribute for the application identified by PID.
 func SetApplicationAttribute(pid int, attribute string, value bool) bool {
 	if bridgeLogger != nil {
@@ -44,7 +40,7 @@ func SetApplicationAttribute(pid int, attribute string, value bool) bool {
 	}
 
 	cAttr := C.CString(attribute)
-	defer C.free(unsafe.Pointer(cAttr))
+	defer C.free(unsafe.Pointer(cAttr)) //nolint:nlreturn
 
 	var cValue C.int
 	if value {
@@ -74,10 +70,11 @@ func HasClickAction(element unsafe.Pointer) bool {
 		if bridgeLogger != nil {
 			bridgeLogger.Debug("Bridge: HasClickAction called with nil element")
 		}
+
 		return false
 	}
 
-	result := C.hasClickAction(element)
+	result := C.hasClickAction(element) //nolint:nlreturn
 
 	if bridgeLogger != nil {
 		bridgeLogger.Debug("Bridge: HasClickAction result",
@@ -87,10 +84,7 @@ func HasClickAction(element unsafe.Pointer) bool {
 	return result == 1
 }
 
-var (
-	appWatcher     AppWatcher
-	appWatcherOnce sync.Once
-)
+var appWatcher AppWatcher
 
 // AppWatcher interface defines callbacks for application lifecycle events.
 type AppWatcher interface {
@@ -268,10 +262,10 @@ func ShowConfigValidationError(errorMessage, configPath string) bool {
 	}
 
 	cError := C.CString(errorMessage)
-	defer C.free(unsafe.Pointer(cError))
+	defer C.free(unsafe.Pointer(cError)) //nolint:nlreturn
 
 	cPath := C.CString(configPath)
-	defer C.free(unsafe.Pointer(cPath))
+	defer C.free(unsafe.Pointer(cPath)) //nolint:nlreturn
 
 	result := C.showConfigValidationErrorAlert(cError, cPath)
 

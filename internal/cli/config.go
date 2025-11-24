@@ -26,27 +26,30 @@ var configDumpCmd = &cobra.Command{
 	},
 	RunE: func(_ *cobra.Command, _ []string) error {
 		logger.Debug("Fetching config")
-		client := ipc.NewClient()
-		response, err := client.Send(ipc.Command{Action: domain.CommandConfig})
-		if err != nil {
-			return fmt.Errorf("failed to send config command: %w", err)
+		ipcClient := ipc.NewClient()
+		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: domain.CommandConfig})
+		if ipcResponseErr != nil {
+			return fmt.Errorf("failed to send config command: %w", ipcResponseErr)
 		}
 
-		if !response.Success {
-			if response.Code != "" {
-				return fmt.Errorf("%s (code: %s)", response.Message, response.Code)
+		if !ipcResponse.Success {
+			if ipcResponse.Code != "" {
+				return fmt.Errorf("%s (code: %s)", ipcResponse.Message, ipcResponse.Code)
 			}
-			return fmt.Errorf("%s", response.Message)
+
+			return fmt.Errorf("%s", ipcResponse.Message)
 		}
 
 		// Marshal pretty JSON
-		jsonData, err := json.MarshalIndent(response.Data, "", "  ")
-		if err != nil {
-			logger.Error("Failed to marshal config to JSON", zap.Error(err))
-			return fmt.Errorf("failed to marshal config: %w", err)
+		ipcResponseData, ipcResponseDataErr := json.MarshalIndent(ipcResponse.Data, "", "  ")
+		if ipcResponseDataErr != nil {
+			logger.Error("Failed to marshal config to JSON", zap.Error(ipcResponseDataErr))
+
+			return fmt.Errorf("failed to marshal config: %w", ipcResponseDataErr)
 		}
 
-		logger.Info(string(jsonData))
+		logger.Info(string(ipcResponseData))
+
 		return nil
 	},
 }
@@ -60,6 +63,7 @@ var configReloadCmd = &cobra.Command{
 	},
 	RunE: func(_ *cobra.Command, _ []string) error {
 		logger.Debug("Reloading config")
+
 		return sendCommand(domain.CommandReloadConfig, []string{})
 	},
 }

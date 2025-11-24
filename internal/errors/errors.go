@@ -79,6 +79,7 @@ func (e *Error) Error() string {
 	if e.Cause != nil {
 		return fmt.Sprintf("[%s] %s: %v", e.Code, e.Message, e.Cause)
 	}
+
 	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
 }
 
@@ -89,11 +90,12 @@ func (e *Error) Unwrap() error {
 
 // Is implements error matching for errors.Is.
 func (e *Error) Is(target error) bool {
-	t, ok := target.(*Error)
+	targetError, ok := target.(*Error)
 	if !ok {
 		return false
 	}
-	return e.Code == t.Code
+
+	return e.Code == targetError.Code
 }
 
 // WithContext adds context information to the error.
@@ -101,7 +103,9 @@ func (e *Error) WithContext(key string, value any) *Error {
 	if e.Context == nil {
 		e.Context = make(map[string]any)
 	}
+
 	e.Context[key] = value
+
 	return e
 }
 
@@ -110,6 +114,7 @@ func Wrap(err error, code Code, message string) *Error {
 	if err == nil {
 		return nil
 	}
+
 	return &Error{
 		Code:    code,
 		Message: message,
@@ -122,6 +127,7 @@ func Wrapf(err error, code Code, format string, args ...any) *Error {
 	if err == nil {
 		return nil
 	}
+
 	return &Error{
 		Code:    code,
 		Message: fmt.Sprintf(format, args...),
@@ -135,6 +141,7 @@ func IsCode(err error, code Code) bool {
 	if errors.As(err, &domainErr) {
 		return domainErr.Code == code
 	}
+
 	return false
 }
 
@@ -144,6 +151,7 @@ func GetCode(err error) Code {
 	if errors.As(err, &domainErr) {
 		return domainErr.Code
 	}
+
 	return CodeInternal
 }
 

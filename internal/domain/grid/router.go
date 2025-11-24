@@ -29,7 +29,7 @@ func NewRouter(m *Manager, logger *zap.Logger) *Router {
 
 // RouteKey processes a keypress and determines the appropriate action in grid mode.
 func (r *Router) RouteKey(key string) KeyResult {
-	var res KeyResult
+	var routeKeyResult KeyResult
 
 	r.logger.Debug("Grid router processing key",
 		zap.String("key", key),
@@ -38,8 +38,10 @@ func (r *Router) RouteKey(key string) KeyResult {
 	// Exit grid mode with Escape
 	if key == "\x1b" || key == "escape" {
 		r.logger.Debug("Grid router: Exit key pressed")
-		res.Exit = true
-		return res
+
+		routeKeyResult.Exit = true
+
+		return routeKeyResult
 	}
 
 	// Delegate coordinate input to the grid manager
@@ -47,9 +49,9 @@ func (r *Router) RouteKey(key string) KeyResult {
 		r.logger.Debug("Grid router: Coordinate selection complete",
 			zap.Int("x", point.X),
 			zap.Int("y", point.Y))
-		res.TargetPoint = point
-		res.Complete = true
+		routeKeyResult.TargetPoint = point
+		routeKeyResult.Complete = true
 	}
 
-	return res
+	return routeKeyResult
 }

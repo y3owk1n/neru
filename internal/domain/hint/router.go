@@ -33,6 +33,7 @@ func (r *Router) RouteKey(key string) RouteResult {
 		if r.logger != nil {
 			r.logger.Debug("Hints router: Escape pressed, exiting")
 		}
+
 		return RouteResult{Exit: true}
 	}
 
@@ -43,6 +44,7 @@ func (r *Router) RouteKey(key string) RouteResult {
 			r.logger.Debug("Hints router: Exact hint match found",
 				zap.String("label", hint.Label()))
 		}
+
 		return RouteResult{
 			Exit:      false,
 			ExactHint: hint,

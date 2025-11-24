@@ -37,17 +37,19 @@ vim-like navigation capabilities across all applications using accessibility API
 		if isRunningFromAppBundle() && len(args) == 0 {
 			logger.Info("Launching Neru from app bundle...")
 			launchProgram(configPath)
+
 			return nil
 		}
+
 		return cmd.Help()
 	},
 }
 
 // Execute initializes and runs the CLI application.
 func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	executeErr := rootCmd.Execute()
+	if executeErr != nil {
+		fmt.Fprintln(os.Stderr, executeErr)
 		os.Exit(1)
 	}
 }
@@ -67,14 +69,14 @@ func init() {
 }
 
 func isRunningFromAppBundle() bool {
-	execPath, err := os.Executable()
-	if err != nil {
+	execPath, execPathErr := os.Executable()
+	if execPathErr != nil {
 		return false
 	}
 
 	// Resolve symlinks to get the real path
-	realPath, err := filepath.EvalSymlinks(execPath)
-	if err != nil {
+	realPath, realPathErr := filepath.EvalSymlinks(execPath)
+	if realPathErr != nil {
 		realPath = execPath
 	}
 
@@ -107,43 +109,49 @@ func sendCommand(action string, args []string) error {
 
 	if !ipc.IsServerRunning() {
 		logger.Warn("Neru is not running")
+
 		return errors.New("neru is not running. Start it first with 'neru' or 'neru launch'")
 	}
 
-	client := ipc.NewClient()
+	ipcClient := ipc.NewClient()
 
-	response, err := client.SendWithTimeout(
+	ipcResponse, ipcResponseErr := ipcClient.SendWithTimeout(
 		ipc.Command{Action: action, Args: args},
 		time.Duration(timeoutSec)*time.Second,
 	)
-	if err != nil {
+	if ipcResponseErr != nil {
 		logger.Error("Failed to send command",
 			zap.String("action", action),
-			zap.Error(err))
-		return fmt.Errorf("failed to send command: %w", err)
+			zap.Error(ipcResponseErr))
+
+		return fmt.Errorf("failed to send command: %w", ipcResponseErr)
 	}
 
-	if !response.Success {
+	if !ipcResponse.Success {
 		logger.Warn("Command failed",
 			zap.String("action", action),
-			zap.String("message", response.Message),
-			zap.String("code", response.Code))
-		if response.Code != "" {
-			return fmt.Errorf("%s (code: %s)", response.Message, response.Code)
+			zap.String("message", ipcResponse.Message),
+			zap.String("code", ipcResponse.Code))
+
+		if ipcResponse.Code != "" {
+			return fmt.Errorf("%s (code: %s)", ipcResponse.Message, ipcResponse.Code)
 		}
-		return fmt.Errorf("%s", response.Message)
+
+		return fmt.Errorf("%s", ipcResponse.Message)
 	}
 
 	logger.Debug("Command succeeded",
 		zap.String("action", action),
-		zap.String("message", response.Message))
+		zap.String("message", ipcResponse.Message))
 
-	logger.Info(response.Message)
+	logger.Info(ipcResponse.Message)
+
 	return nil
 }
 
 func requiresRunningInstance() error {
 	logger.Debug("Checking if Neru is running")
+
 	if !ipc.IsServerRunning() {
 		logger.Warn("Neru is not running")
 		logger.Error("Error: neru is not running")
@@ -152,5 +160,6 @@ func requiresRunningInstance() error {
 	}
 
 	logger.Debug("Neru is running")
+
 	return nil
 }

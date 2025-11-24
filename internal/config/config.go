@@ -161,59 +161,70 @@ type LoadResult struct {
 // the config and any validation error separately. This allows callers to decide
 // how to handle validation failures (e.g., show alert and use default config).
 func LoadWithValidation(path string) *LoadResult {
-	result := &LoadResult{
+	configResult := &LoadResult{
 		Config:     DefaultConfig(),
 		ConfigPath: path,
 	}
 
 	if path == "" {
-		result.ConfigPath = FindConfigFile()
+		configResult.ConfigPath = FindConfigFile()
 	}
 
-	logger.Info("Loading config from", zap.String("path", result.ConfigPath))
+	logger.Info("Loading config from", zap.String("path", configResult.ConfigPath))
 
-	_, err := os.Stat(result.ConfigPath)
-	if os.IsNotExist(err) {
+	_, statErr := os.Stat(configResult.ConfigPath)
+	if os.IsNotExist(statErr) {
 		logger.Info("Config file not found, using default configuration")
-		return result
+
+		return configResult
 	}
 
-	_, err = toml.DecodeFile(result.ConfigPath, result.Config)
-	if err != nil {
-		result.ValidationError = fmt.Errorf("failed to parse config file: %w", err)
-		result.Config = DefaultConfig()
-		return result
+	_, decodeErr := toml.DecodeFile(configResult.ConfigPath, configResult.Config)
+	if decodeErr != nil {
+		configResult.ValidationError = fmt.Errorf("failed to parse config file: %w", decodeErr)
+		configResult.Config = DefaultConfig()
+
+		return configResult
 	}
 
 	var raw map[string]map[string]any
-	_, err = toml.DecodeFile(result.ConfigPath, &raw)
-	if err == nil {
+
+	_, anotherDecodeErr := toml.DecodeFile(configResult.ConfigPath, &raw)
+	if anotherDecodeErr == nil {
 		if hot, ok := raw["hotkeys"]; ok {
 			if len(hot) > 0 {
 				// Clear default bindings when user provides hotkeys config
-				result.Config.Hotkeys.Bindings = map[string]string{}
+				configResult.Config.Hotkeys.Bindings = map[string]string{}
 			}
+
 			for key, value := range hot {
 				str, ok := value.(string)
 				if !ok {
-					result.ValidationError = fmt.Errorf("hotkeys.%s must be a string action", key)
-					result.Config = DefaultConfig()
-					return result
+					configResult.ValidationError = fmt.Errorf(
+						"hotkeys.%s must be a string action",
+						key,
+					)
+					configResult.Config = DefaultConfig()
+
+					return configResult
 				}
-				result.Config.Hotkeys.Bindings[key] = str
+
+				configResult.Config.Hotkeys.Bindings[key] = str
 			}
 		}
 	}
 
-	err = result.Config.Validate()
-	if err != nil {
-		result.ValidationError = fmt.Errorf("invalid configuration: %w", err)
-		result.Config = DefaultConfig()
-		return result
+	validateErr := configResult.Config.Validate()
+	if validateErr != nil {
+		configResult.ValidationError = fmt.Errorf("invalid configuration: %w", validateErr)
+		configResult.Config = DefaultConfig()
+
+		return configResult
 	}
 
 	logger.Info("Configuration loaded successfully")
-	return result
+
+	return configResult
 }
 
 // DefaultConfig returns the default application configuration with sensible defaults.
@@ -345,37 +356,43 @@ func DefaultConfig() *Config {
 // For backward compatibility, this returns an error if validation fails.
 // Use LoadWithValidation for graceful error handling.
 func Load(path string) (*Config, error) {
-	result := LoadWithValidation(path)
-	if result.ValidationError != nil {
-		return nil, result.ValidationError
+	configResult := LoadWithValidation(path)
+	if configResult.ValidationError != nil {
+		return nil, configResult.ValidationError
 	}
-	return result.Config, nil
+
+	return configResult.Config, nil
 }
 
 // FindConfigFile searches for config file in default locations.
 func FindConfigFile() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
+	homeDir, homeDirErr := os.UserHomeDir()
+	if homeDirErr != nil {
 		return ""
 	}
 
 	// Try ~/.config/neru/config.toml
 	configPath := filepath.Join(homeDir, ".config", "neru", "config.toml")
-	_, err = os.Stat(configPath)
-	if err == nil {
+
+	_, statErr := os.Stat(configPath)
+	if statErr == nil {
 		logger.Info("Found config at", zap.String("path", configPath))
+
 		return configPath
 	}
 
 	// Try ~/Library/Application Support/neru/config.toml
 	configPath = filepath.Join(homeDir, "Library", "Application Support", "neru", "config.toml")
-	_, err = os.Stat(configPath)
-	if err == nil {
+
+	_, anotherStatErr := os.Stat(configPath)
+	if anotherStatErr == nil {
 		logger.Info("Found config at", zap.String("path", configPath))
+
 		return configPath
 	}
 
 	logger.Info("No config file found in default locations")
+
 	return ""
 }
 
@@ -387,9 +404,9 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate hints configuration
-	err := c.validateHints()
-	if err != nil {
-		return err
+	validateErr := c.validateHints()
+	if validateErr != nil {
+		return validateErr
 	}
 
 	// Validate log level
@@ -407,35 +424,37 @@ func (c *Config) Validate() error {
 	if c.Scroll.ScrollStep < 1 {
 		return errors.New("scroll.scroll_speed must be at least 1")
 	}
+
 	if c.Scroll.ScrollStepHalf < 1 {
 		return errors.New("scroll.half_page_multiplier must be at least 1")
 	}
+
 	if c.Scroll.ScrollStepFull < 1 {
 		return errors.New("scroll.full_page_multiplier must be at least 1")
 	}
 
 	// Validate app configs
-	err = c.validateAppConfigs()
-	if err != nil {
-		return err
+	validateAppConfigsErr := c.validateAppConfigs()
+	if validateAppConfigsErr != nil {
+		return validateAppConfigsErr
 	}
 
 	// Validate grid settings
-	err = c.validateGrid()
-	if err != nil {
-		return err
+	validateGridErr := c.validateGrid()
+	if validateGridErr != nil {
+		return validateGridErr
 	}
 
 	// Validate action settings
-	err = c.validateAction()
-	if err != nil {
-		return err
+	validateActionErr := c.validateAction()
+	if validateActionErr != nil {
+		return validateActionErr
 	}
 
 	// Validate smooth cursor settings
-	err = c.validateSmoothCursor()
-	if err != nil {
-		return err
+	validateSmoothCursorErr := c.validateSmoothCursor()
+	if validateSmoothCursorErr != nil {
+		return validateSmoothCursorErr
 	}
 
 	return nil
@@ -444,20 +463,21 @@ func (c *Config) Validate() error {
 // Save saves the configuration to the specified path.
 func (c *Config) Save(path string) error {
 	// Create directory if it doesn't exist
-	var err error
 	dir := filepath.Dir(path)
-	err = os.MkdirAll(dir, 0o750)
-	if err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+
+	mkdirErr := os.MkdirAll(dir, 0o750)
+	if mkdirErr != nil {
+		return fmt.Errorf("failed to create config directory: %w", mkdirErr)
 	}
 
 	// Create file
 	var closeErr error
 	// #nosec G304 -- Path is validated and controlled by the application
-	file, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("failed to create config file: %w", err)
+	file, fileErr := os.Create(path)
+	if fileErr != nil {
+		return fmt.Errorf("failed to create config file: %w", fileErr)
 	}
+
 	defer func() {
 		cerr := file.Close()
 		if cerr != nil && closeErr == nil {
@@ -467,9 +487,10 @@ func (c *Config) Save(path string) error {
 
 	// Encode to TOML
 	encoder := toml.NewEncoder(file)
-	err = encoder.Encode(c)
-	if err != nil {
-		return fmt.Errorf("failed to encode config: %w", err)
+
+	encodeErr := encoder.Encode(c)
+	if encodeErr != nil {
+		return fmt.Errorf("failed to encode config: %w", encodeErr)
 	}
 
 	return closeErr
@@ -490,12 +511,14 @@ func (c *Config) IsAppExcluded(bundleID string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
 // GetClickableRolesForApp returns the merged clickable roles for a specific app.
 func (c *Config) GetClickableRolesForApp(bundleID string) []string {
 	rolesMap := make(map[string]struct{})
+
 	for _, role := range c.Hints.ClickableRoles {
 		trimmed := strings.TrimSpace(role)
 		if trimmed != "" {
@@ -511,6 +534,7 @@ func (c *Config) GetClickableRolesForApp(bundleID string) []string {
 					rolesMap[trimmed] = struct{}{}
 				}
 			}
+
 			break
 		}
 	}
@@ -527,5 +551,6 @@ func (c *Config) GetClickableRolesForApp(bundleID string) []string {
 	for role := range rolesMap {
 		roles = append(roles, role)
 	}
+
 	return roles
 }

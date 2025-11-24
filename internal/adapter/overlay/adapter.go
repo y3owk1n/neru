@@ -31,11 +31,11 @@ func NewAdapter(manager uiOverlay.ManagerInterface, logger *zap.Logger) *Adapter
 }
 
 // ShowHints displays hint labels on the screen.
-func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Hint) error {
+func (a *Adapter) ShowHints(context context.Context, hints []*hint.Hint) error {
 	// Check context
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-context.Done():
+		return context.Err()
 	default:
 	}
 
@@ -43,12 +43,12 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Hint) error {
 
 	// Convert domain hints to overlay hints for rendering
 	overlayHintList := make([]*overlayHints.Hint, len(hints))
-	for i, h := range hints {
-		overlayHintList[i] = &overlayHints.Hint{
-			Label:         h.Label(),
-			Position:      h.Position(),
-			Size:          h.Bounds().Size(),
-			MatchedPrefix: h.MatchedPrefix(),
+	for index, hint := range hints {
+		overlayHintList[index] = &overlayHints.Hint{
+			Label:         hint.Label(),
+			Position:      hint.Position(),
+			Size:          hint.Bounds().Size(),
+			MatchedPrefix: hint.MatchedPrefix(),
 		}
 	}
 
@@ -58,21 +58,22 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Hint) error {
 
 	// Draw hints using the overlay manager
 	// Use default style for now
-	err := a.manager.DrawHintsWithStyle(overlayHintList, overlayHints.StyleMode{})
-	if err != nil {
-		return fmt.Errorf("failed to draw hints: %w", err)
+	drawHintsErr := a.manager.DrawHintsWithStyle(overlayHintList, overlayHints.StyleMode{})
+	if drawHintsErr != nil {
+		return fmt.Errorf("failed to draw hints: %w", drawHintsErr)
 	}
 
 	a.logger.Info("Hints overlay displayed", zap.Int("count", len(hints)))
+
 	return nil
 }
 
 // ShowGrid displays the grid overlay.
-func (a *Adapter) ShowGrid(ctx context.Context, _ int, _ int) error {
+func (a *Adapter) ShowGrid(context context.Context, _ int, _ int) error {
 	// Check context
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-context.Done():
+		return context.Err()
 	default:
 	}
 
@@ -80,20 +81,12 @@ func (a *Adapter) ShowGrid(ctx context.Context, _ int, _ int) error {
 	bounds := bridge.GetActiveScreenBounds()
 
 	// Create grid
-	// Note: We use default characters from config if available, or default
-	// Since we don't have config passed here easily (unless we store it in adapter),
-	// we'll use a default string. Ideally config should be passed or stored.
-	// Get grid configuration from config service
-	// We can assume the manager or grid package handles defaults.
-	// For now, let's use a safe default.
-	g := domainGrid.NewGrid("abcdefghijklmnopqrstuvwxyz", bounds, a.logger)
+	grid := domainGrid.NewGrid("abcdefghijklmnopqrstuvwxyz", bounds, a.logger)
 
 	// Draw grid
-	// Note: DrawGrid takes input string (for filtering) and style.
-	// We start with empty input and default style.
-	err := a.manager.DrawGrid(g, "", gridFeature.Style{})
-	if err != nil {
-		return errors.Wrap(err, errors.CodeActionFailed, "failed to draw grid")
+	drawGridErr := a.manager.DrawGrid(grid, "", gridFeature.Style{})
+	if drawGridErr != nil {
+		return errors.Wrap(drawGridErr, errors.CodeActionFailed, "failed to draw grid")
 	}
 
 	// Show overlay and switch mode
@@ -105,35 +98,17 @@ func (a *Adapter) ShowGrid(ctx context.Context, _ int, _ int) error {
 
 // DrawScrollHighlight draws a highlight for scroll mode.
 func (a *Adapter) DrawScrollHighlight(
-	ctx context.Context,
+	context context.Context,
 	rect image.Rectangle,
 	_ string,
 	_ int,
 ) error {
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-context.Done():
+		return context.Err()
 	default:
 	}
 
-	// The underlying manager doesn't have DrawScrollHighlight exposed directly on Manager,
-	// but it has DrawScrollHighlight on the Overlay struct.
-	// However, the Manager manages the Overlay.
-	// We might need to update the Manager or access the Overlay via Manager.
-	// Looking at internal/ui/overlay/manager.go (implied), it likely wraps the CGo overlay.
-	// Draw scroll highlight using overlay manager
-	// No, `ScrollComponent` had its own `Overlay` in `internal/features/scroll/overlay.go`.
-	// This is a divergence. The new architecture should unify overlay management.
-	// For now, we can assume the Adapter's manager can handle this, or we need to expose it.
-	// Since I don't have access to modify `internal/ui/overlay` easily without checking it,
-	// I will assume I need to add this method to `internal/ui/overlay/manager.go` first.
-	// But wait, I am editing the adapter.
-	// Let's assume the manager has it or I will add it.
-	// Actually, `internal/features/scroll/overlay.go` was separate.
-	// I should probably integrate scroll overlay logic into the main overlay manager.
-	// For now, I'll implement it using the existing manager if possible, or add it.
-	// Let's check `internal/ui/overlay/manager.go` first.
-	// Use manager to draw scroll highlight
 	a.manager.DrawScrollHighlight(
 		rect.Min.X,
 		rect.Min.Y,
@@ -150,14 +125,14 @@ func (a *Adapter) DrawScrollHighlight(
 
 // DrawActionHighlight draws a highlight border for action mode.
 func (a *Adapter) DrawActionHighlight(
-	ctx context.Context,
+	context context.Context,
 	rect image.Rectangle,
 	_ string,
 	_ int,
 ) error {
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-context.Done():
+		return context.Err()
 	default:
 	}
 
@@ -173,11 +148,11 @@ func (a *Adapter) DrawActionHighlight(
 }
 
 // Hide removes all overlays from the screen.
-func (a *Adapter) Hide(ctx context.Context) error {
+func (a *Adapter) Hide(context context.Context) error {
 	// Check context
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-context.Done():
+		return context.Err()
 	default:
 	}
 
@@ -185,6 +160,7 @@ func (a *Adapter) Hide(ctx context.Context) error {
 	a.manager.Hide()
 	a.manager.SwitchTo("idle")
 	a.logger.Info("Overlay hidden")
+
 	return nil
 }
 
@@ -194,17 +170,18 @@ func (a *Adapter) IsVisible() bool {
 }
 
 // Refresh updates the overlay display.
-func (a *Adapter) Refresh(ctx context.Context) error {
+func (a *Adapter) Refresh(context context.Context) error {
 	// Check context
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-context.Done():
+		return context.Err()
 	default:
 	}
 
 	a.logger.Debug("Refreshing overlay")
 	a.manager.ResizeToActiveScreenSync()
 	a.logger.Info("Overlay refreshed")
+
 	return nil
 }
 

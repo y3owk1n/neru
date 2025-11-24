@@ -14,7 +14,7 @@ type MockConfigPort struct {
 	ValidateFunc func(*config.Config) error
 	PathFunc     func() string
 
-	cfg *config.Config
+	config *config.Config
 }
 
 // Get implements ports.ConfigPort.
@@ -22,36 +22,43 @@ func (m *MockConfigPort) Get() *config.Config {
 	if m.GetFunc != nil {
 		return m.GetFunc()
 	}
-	if m.cfg != nil {
-		return m.cfg
+
+	if m.config != nil {
+		return m.config
 	}
+
 	return config.DefaultConfig()
 }
 
 // Reload implements ports.ConfigPort.
-func (m *MockConfigPort) Reload(ctx context.Context, path string) error {
+func (m *MockConfigPort) Reload(context context.Context, path string) error {
 	if m.ReloadFunc != nil {
-		return m.ReloadFunc(ctx, path)
+		return m.ReloadFunc(context, path)
 	}
+
 	return nil
 }
 
 // Watch implements ports.ConfigPort.
-func (m *MockConfigPort) Watch(ctx context.Context) <-chan *config.Config {
+func (m *MockConfigPort) Watch(context context.Context) <-chan *config.Config {
 	if m.WatchFunc != nil {
-		return m.WatchFunc(ctx)
+		return m.WatchFunc(context)
 	}
+
 	ch := make(chan *config.Config, 1)
 	ch <- m.Get()
+
 	close(ch)
+
 	return ch
 }
 
 // Validate implements ports.ConfigPort.
-func (m *MockConfigPort) Validate(cfg *config.Config) error {
+func (m *MockConfigPort) Validate(config *config.Config) error {
 	if m.ValidateFunc != nil {
-		return m.ValidateFunc(cfg)
+		return m.ValidateFunc(config)
 	}
+
 	return nil
 }
 
@@ -60,10 +67,11 @@ func (m *MockConfigPort) Path() string {
 	if m.PathFunc != nil {
 		return m.PathFunc()
 	}
+
 	return "/mock/config.toml"
 }
 
 // SetConfig sets the config for the mock.
-func (m *MockConfigPort) SetConfig(cfg *config.Config) {
-	m.cfg = cfg
+func (m *MockConfigPort) SetConfig(config *config.Config) {
+	m.config = config
 }

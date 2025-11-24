@@ -1,82 +1,49 @@
 version: "2"
-run:
-  tests: true
 formatters:
-  enable:
-    - gci
-    - goimports
-    - gofmt
-    - gofumpt
-    - golines
+    enable:
+        - gci
+        - goimports
+        - gofmt
+        - gofumpt
+        - golines
 linters:
-  default: all
-  disable:
-    - bodyclose # too many false-positive
-    - containedctx # too many false-positive
-    - contextcheck # too many false-positive
-    - cyclop # duplicate of gocyclo
-    - depguard # import restrictions
-    - dupl # Too strict
-    - err113 # Too strict
-    - exhaustive # Not relevant
-    - exhaustruct # Not relevant
-    - forcetypeassert # Too strict
-    - gochecknoglobals
-    - gochecknoinits
-    - gocognit # Too strict
-    - gocyclo
-    - gosec # Too strict
-    - gosmopolitan # not relevant
-    - ireturn # Not relevant
-    - lll # Not relevant
-    - maintidx # kind of duplicate of gocyclo
-    - makezero # Not relevant
-    - mnd # Too strict
-    - nestif # Too many false-positive.
-    - nilnil # Not relevant
-    - nlreturn # Not relevant
-    - noctx # Too strict
-    - nonamedreturns # Too strict
-    - paralleltest # Not relevant
-    - prealloc # Too many false-positive.
-    - rowserrcheck # not relevant (SQL)
-    - sqlclosecheck # not relevant (SQL)
-    - tagliatelle # Too strict
-    - testpackage # Too strict
-    - tparallel # Not relevant
-    - varnamelen # Not relevant
-    - wrapcheck # Too strict
-    - wsl # Too strict
-    - wsl_v5
+    default: all
+    disable:
+        - contextcheck # too many false-positive
+        - cyclop # duplicate of gocyclo
+        - depguard # import restrictions
+        - dupl # Too strict
+        - err113 # Too strict
+        - exhaustruct # Not relevant
+        - gochecknoglobals
+        - gochecknoinits
+        - gocognit # Too strict
+        - gocyclo
+        - gosec # Too strict
+        - ireturn # Not relevant
+        - lll # Not relevant
+        - maintidx # kind of duplicate of gocyclo
+        - mnd # Too strict
+        - nestif # Too many false-positive.
+        - paralleltest # Not relevant
+        - testpackage # Too strict
+        - wrapcheck # Too strict
+        - wsl # Deprecated
 
-  settings:
-    funlen:
-      lines: -1
-      statements: 120
-    goconst:
-      min-len: 3
-      min-occurrences: 4
-    gocyclo:
-      min-complexity: 14
-    godox:
-      keywords:
-        - FIXME
-    govet:
-      enable-all: true
-      disable:
-        - shadow
-        - fieldalignment
-    misspell:
-      locale: US
-    perfsprint:
-      err-error: true
-      errorf: true
-      sprintf1: true
-      strconcat: false
-    gocritic:
-      disabled-checks:
-        - dupSubExpr
+    settings:
+        funlen:
+            lines: -1
+            statements: 120
+        misspell:
+            locale: US
+        gocritic:
+            disabled-checks:
+                - dupSubExpr
+        wsl_v5:
+            allow-first-in-block: true
+            allow-whole-block: true
+            branch-max-lines: 2
 
 issues:
-  max-issues-per-linter: 0
-  max-same-issues: 0
+    max-issues-per-linter: 0
+    max-same-issues: 0

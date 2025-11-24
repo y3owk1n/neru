@@ -1,4 +1,3 @@
-// Package ipc implements the IPC adapter.
 package ipc
 
 import (
@@ -33,11 +32,14 @@ func (a *Adapter) Start(_ context.Context) error {
 	// but doesn't take a context.
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
 	if a.running {
 		return nil
 	}
+
 	a.server.Start()
 	a.running = true
+
 	return nil
 }
 
@@ -45,50 +47,58 @@ func (a *Adapter) Start(_ context.Context) error {
 func (a *Adapter) Stop(_ context.Context) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
 	if !a.running {
 		return nil
 	}
-	err := a.server.Stop()
-	if err == nil {
+
+	stopServerErr := a.server.Stop()
+	if stopServerErr == nil {
 		a.running = false
 	}
-	return err
+
+	return stopServerErr
 }
 
 // IsRunning returns true if the IPC server is running.
 func (a *Adapter) IsRunning() bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
 	return a.running
 }
 
-// Serve starts the IPC server and blocks until context is canceled.
-
 // Serve starts the IPC server.
-func (a *Adapter) Serve(ctx context.Context) error {
+func (a *Adapter) Serve(context context.Context) error {
 	a.mu.Lock()
+
 	if a.running {
 		a.mu.Unlock()
+
 		return errors.New("server already running")
 	}
+
 	a.server.Start()
 	a.running = true
 	a.mu.Unlock()
 
 	// Block until context is canceled
-	<-ctx.Done()
+	<-context.Done()
 
 	// Stop the server when context is done
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
 	if !a.running {
 		return nil
 	}
-	err := a.server.Stop()
-	if err == nil {
+
+	serverStopErr := a.server.Stop()
+	if serverStopErr == nil {
 		a.running = false
 	}
-	return err
+
+	return serverStopErr
 }
 
 // Send sends a command to the IPC server.

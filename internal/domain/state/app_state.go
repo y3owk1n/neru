@@ -35,6 +35,7 @@ func NewAppState() *AppState {
 func (s *AppState) IsEnabled() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	return s.enabled
 }
 
@@ -42,6 +43,7 @@ func (s *AppState) IsEnabled() bool {
 func (s *AppState) SetEnabled(enabled bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.enabled = enabled
 }
 
@@ -59,6 +61,7 @@ func (s *AppState) Disable() {
 func (s *AppState) CurrentMode() domain.Mode {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	return s.currentMode
 }
 
@@ -66,6 +69,7 @@ func (s *AppState) CurrentMode() domain.Mode {
 func (s *AppState) SetMode(mode domain.Mode) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.currentMode = mode
 }
 
@@ -73,6 +77,7 @@ func (s *AppState) SetMode(mode domain.Mode) {
 func (s *AppState) HotkeysRegistered() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	return s.hotkeysRegistered
 }
 
@@ -80,6 +85,7 @@ func (s *AppState) HotkeysRegistered() bool {
 func (s *AppState) SetHotkeysRegistered(registered bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.hotkeysRegistered = registered
 }
 
@@ -87,6 +93,7 @@ func (s *AppState) SetHotkeysRegistered(registered bool) {
 func (s *AppState) ScreenChangeProcessing() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	return s.screenChangeProcessing
 }
 
@@ -94,6 +101,7 @@ func (s *AppState) ScreenChangeProcessing() bool {
 func (s *AppState) SetScreenChangeProcessing(processing bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.screenChangeProcessing = processing
 }
 
@@ -101,6 +109,7 @@ func (s *AppState) SetScreenChangeProcessing(processing bool) {
 func (s *AppState) GridOverlayNeedsRefresh() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	return s.gridOverlayNeedsRefresh
 }
 
@@ -108,6 +117,7 @@ func (s *AppState) GridOverlayNeedsRefresh() bool {
 func (s *AppState) SetGridOverlayNeedsRefresh(needs bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.gridOverlayNeedsRefresh = needs
 }
 
@@ -115,6 +125,7 @@ func (s *AppState) SetGridOverlayNeedsRefresh(needs bool) {
 func (s *AppState) HintOverlayNeedsRefresh() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	return s.hintOverlayNeedsRefresh
 }
 
@@ -122,6 +133,7 @@ func (s *AppState) HintOverlayNeedsRefresh() bool {
 func (s *AppState) SetHintOverlayNeedsRefresh(needs bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.hintOverlayNeedsRefresh = needs
 }
 
@@ -129,6 +141,7 @@ func (s *AppState) SetHintOverlayNeedsRefresh(needs bool) {
 func (s *AppState) HotkeyRefreshPending() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	return s.hotkeyRefreshPending
 }
 
@@ -136,5 +149,6 @@ func (s *AppState) HotkeyRefreshPending() bool {
 func (s *AppState) SetHotkeyRefreshPending(pending bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.hotkeyRefreshPending = pending
 }

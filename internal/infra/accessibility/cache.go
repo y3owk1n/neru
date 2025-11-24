@@ -83,6 +83,7 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 func (c *InfoCache) Size() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
 	return len(c.data)
 }
 
@@ -90,7 +91,9 @@ func (c *InfoCache) Size() int {
 func (c *InfoCache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	c.data = make(map[uintptr]*CachedInfo, 100)
+
 	logger.Debug("Cache cleared")
 }
 
@@ -99,6 +102,7 @@ func (c *InfoCache) Stop() {
 	if !c.stopped {
 		close(c.stopCh)
 		c.stopped = true
+
 		logger.Debug("Cache stopped")
 	}
 }
@@ -114,6 +118,7 @@ func (c *InfoCache) cleanupLoop() {
 			c.cleanup()
 		case <-c.stopCh:
 			logger.Debug("Cache cleanup loop stopped")
+
 			return
 		}
 	}

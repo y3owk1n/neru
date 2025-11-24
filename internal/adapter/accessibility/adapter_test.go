@@ -32,9 +32,9 @@ func TestNewAdapter(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			adapter := NewAdapter(logger, tt.excludedBundles, tt.clickableRoles, mockClient)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			adapter := NewAdapter(logger, test.excludedBundles, test.clickableRoles, mockClient)
 
 			if adapter == nil {
 				t.Fatal("NewAdapter() returned nil")
@@ -53,7 +53,7 @@ func TestAdapter_IsAppExcluded(t *testing.T) {
 	mockClient := &MockAXClient{}
 
 	adapter := NewAdapter(logger, excludedBundles, []string{}, mockClient)
-	ctx := context.Background()
+	context := context.Background()
 
 	tests := []struct {
 		name     string
@@ -77,11 +77,11 @@ func TestAdapter_IsAppExcluded(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := adapter.IsAppExcluded(ctx, tt.bundleID)
-			if got != tt.want {
-				t.Errorf("IsAppExcluded() = %v, want %v", got, tt.want)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := adapter.IsAppExcluded(context, test.bundleID)
+			if got != test.want {
+				t.Errorf("IsAppExcluded() = %v, want %v", got, test.want)
 			}
 		})
 	}
@@ -118,15 +118,15 @@ func TestAdapter_UpdateExcludedBundles(t *testing.T) {
 	newBundles := []string{"com.apple.dock", "com.apple.systempreferences"}
 	adapter.UpdateExcludedBundles(newBundles)
 
-	ctx := context.Background()
+	context := context.Background()
 
 	// Verify new bundles are excluded
-	if !adapter.IsAppExcluded(ctx, "com.apple.dock") {
+	if !adapter.IsAppExcluded(context, "com.apple.dock") {
 		t.Error("Expected com.apple.dock to be excluded")
 	}
 
 	// Verify old bundles are no longer excluded
-	if adapter.IsAppExcluded(ctx, "com.apple.finder") {
+	if adapter.IsAppExcluded(context, "com.apple.finder") {
 		t.Error("Expected com.apple.finder to not be excluded after update")
 	}
 }
@@ -137,16 +137,16 @@ func TestAdapter_GetScreenBounds(t *testing.T) {
 		ScreenBounds: image.Rect(0, 0, 1920, 1080),
 	}
 	adapter := NewAdapter(logger, []string{}, []string{}, mockClient)
-	ctx := context.Background()
+	context := context.Background()
 
-	bounds, err := adapter.GetScreenBounds(ctx)
-	if err != nil {
-		t.Fatalf("GetScreenBounds() error = %v", err)
+	screenBounds, screenBoundsErr := adapter.GetScreenBounds(context)
+	if screenBoundsErr != nil {
+		t.Fatalf("GetScreenBounds() error = %v", screenBoundsErr)
 	}
 
 	// Verify bounds match mock
-	if bounds != mockClient.ScreenBounds {
-		t.Errorf("GetScreenBounds() = %v, want %v", bounds, mockClient.ScreenBounds)
+	if screenBounds != mockClient.ScreenBounds {
+		t.Errorf("GetScreenBounds() = %v, want %v", screenBounds, mockClient.ScreenBounds)
 	}
 }
 
@@ -154,11 +154,11 @@ func TestAdapter_GetCursorPosition(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &MockAXClient{}
 	adapter := NewAdapter(logger, []string{}, []string{}, mockClient)
-	ctx := context.Background()
+	context := context.Background()
 
-	pos, err := adapter.GetCursorPosition(ctx)
-	if err != nil {
-		t.Fatalf("GetCursorPosition() error = %v", err)
+	pos, posErr := adapter.GetCursorPosition(context)
+	if posErr != nil {
+		t.Fatalf("GetCursorPosition() error = %v", posErr)
 	}
 
 	// Cursor position should be zero as per mock default
@@ -171,7 +171,7 @@ func TestAdapter_MoveCursorToPoint(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &MockAXClient{}
 	adapter := NewAdapter(logger, []string{}, []string{}, mockClient)
-	ctx := context.Background()
+	context := context.Background()
 
 	tests := []struct {
 		name  string
@@ -187,11 +187,11 @@ func TestAdapter_MoveCursorToPoint(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := adapter.MoveCursorToPoint(ctx, tt.point)
-			if err != nil {
-				t.Errorf("MoveCursorToPoint() error = %v", err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			moveCursorErr := adapter.MoveCursorToPoint(context, test.point)
+			if moveCursorErr != nil {
+				t.Errorf("MoveCursorToPoint() error = %v", moveCursorErr)
 			}
 		})
 	}
@@ -201,7 +201,7 @@ func TestAdapter_Scroll(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &MockAXClient{}
 	adapter := NewAdapter(logger, []string{}, []string{}, mockClient)
-	ctx := context.Background()
+	context := context.Background()
 
 	tests := []struct {
 		name   string
@@ -225,11 +225,11 @@ func TestAdapter_Scroll(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := adapter.Scroll(ctx, tt.deltaX, tt.deltaY)
-			if err != nil {
-				t.Errorf("Scroll() error = %v", err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			scrollErr := adapter.Scroll(context, test.deltaX, test.deltaY)
+			if scrollErr != nil {
+				t.Errorf("Scroll() error = %v", scrollErr)
 			}
 		})
 	}
@@ -239,11 +239,11 @@ func TestAdapter_Health(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &MockAXClient{Permissions: true}
 	adapter := NewAdapter(logger, []string{}, []string{}, mockClient)
-	ctx := context.Background()
+	context := context.Background()
 
-	err := adapter.Health(ctx)
-	if err != nil {
-		t.Errorf("Health() error = %v", err)
+	healthErr := adapter.Health(context)
+	if healthErr != nil {
+		t.Errorf("Health() error = %v", healthErr)
 	}
 }
 
@@ -287,11 +287,11 @@ func TestAdapter_MatchesFilter(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := adapter.matchesFilter(elem, tt.filter)
-			if got != tt.want {
-				t.Errorf("matchesFilter() = %v, want %v", got, tt.want)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := adapter.matchesFilter(elem, test.filter)
+			if got != test.want {
+				t.Errorf("matchesFilter() = %v, want %v", got, test.want)
 			}
 		})
 	}
@@ -301,7 +301,7 @@ func TestAdapter_PerformActionAtPoint(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &MockAXClient{}
 	adapter := NewAdapter(logger, []string{}, []string{}, mockClient)
-	ctx := context.Background()
+	context := context.Background()
 
 	tests := []struct {
 		name       string
@@ -323,11 +323,15 @@ func TestAdapter_PerformActionAtPoint(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := adapter.PerformActionAtPoint(ctx, tt.actionType, tt.point)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("PerformActionAtPoint() error = %v, wantErr %v", err, tt.wantErr)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			performActionErr := adapter.PerformActionAtPoint(context, test.actionType, test.point)
+			if (performActionErr != nil) != test.wantErr {
+				t.Errorf(
+					"PerformActionAtPoint() error = %v, wantErr %v",
+					performActionErr,
+					test.wantErr,
+				)
 			}
 		})
 	}
@@ -338,10 +342,10 @@ func BenchmarkGetScreenBounds(b *testing.B) {
 	logger := zap.NewNop()
 	mockClient := &MockAXClient{}
 	adapter := NewAdapter(logger, []string{}, []string{}, mockClient)
-	ctx := context.Background()
+	context := context.Background()
 
 	for b.Loop() {
-		_, _ = adapter.GetScreenBounds(ctx)
+		_, _ = adapter.GetScreenBounds(context)
 	}
 }
 
@@ -349,10 +353,10 @@ func BenchmarkGetCursorPosition(b *testing.B) {
 	logger := zap.NewNop()
 	mockClient := &MockAXClient{}
 	adapter := NewAdapter(logger, []string{}, []string{}, mockClient)
-	ctx := context.Background()
+	context := context.Background()
 
 	for b.Loop() {
-		_, _ = adapter.GetCursorPosition(ctx)
+		_, _ = adapter.GetCursorPosition(context)
 	}
 }
 
@@ -361,9 +365,9 @@ func BenchmarkIsAppExcluded(b *testing.B) {
 	excludedBundles := []string{"com.apple.finder", "com.apple.dock"}
 	mockClient := &MockAXClient{}
 	adapter := NewAdapter(logger, excludedBundles, []string{}, mockClient)
-	ctx := context.Background()
+	context := context.Background()
 
 	for b.Loop() {
-		_ = adapter.IsAppExcluded(ctx, "com.google.Chrome")
+		_ = adapter.IsAppExcluded(context, "com.google.Chrome")
 	}
 }

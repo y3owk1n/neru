@@ -34,6 +34,7 @@ var hintsCmd = &cobra.Command{
 		if action != "" {
 			params = append(params, action)
 		}
+
 		return sendCommand("hints", params)
 	},
 }

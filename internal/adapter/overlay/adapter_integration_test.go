@@ -1,9 +1,8 @@
-//go:build integration
-
 package overlay_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
@@ -13,7 +12,7 @@ import (
 )
 
 // TestOverlayAdapterImplementsPort verifies the adapter implements the port interface.
-func TestOverlayAdapterImplementsPort(t *testing.T) {
+func TestOverlayAdapterImplementsPort(_ *testing.T) {
 	var _ ports.OverlayPort = (*overlay.Adapter)(nil)
 }
 
@@ -24,45 +23,45 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 	}
 
 	// Setup
-	log := logger.Get()
-	manager := overlayManager.Init(log)
-	adapter := overlay.NewAdapter(manager, log)
+	logger := logger.Get()
+	manager := overlayManager.Init(logger)
+	adapter := overlay.NewAdapter(manager, logger)
 
-	ctx := context.Background()
+	context := context.Background()
 
 	t.Run("ShowHints", func(t *testing.T) {
 		// ShowHints should not error with empty hints
-		err := adapter.ShowHints(ctx, nil)
-		if err != nil {
-			t.Errorf("ShowHints() error = %v, want nil", err)
+		showHintsErr := adapter.ShowHints(context, nil)
+		if showHintsErr != nil {
+			t.Errorf("ShowHints() error = %v, want nil", showHintsErr)
 		}
 	})
 
 	t.Run("ShowGrid", func(t *testing.T) {
 		// ShowGrid should not error with valid dimensions
-		err := adapter.ShowGrid(ctx, 3, 3)
-		if err != nil {
-			t.Errorf("ShowGrid() error = %v, want nil", err)
+		showGridErr := adapter.ShowGrid(context, 3, 3)
+		if showGridErr != nil {
+			t.Errorf("ShowGrid() error = %v, want nil", showGridErr)
 		}
 	})
 
 	t.Run("Hide", func(t *testing.T) {
 		// Hide should not error
-		err := adapter.Hide(ctx)
-		if err != nil {
-			t.Errorf("Hide() error = %v, want nil", err)
+		hideErr := adapter.Hide(context)
+		if hideErr != nil {
+			t.Errorf("Hide() error = %v, want nil", hideErr)
 		}
 	})
 
 	t.Run("Refresh", func(t *testing.T) {
 		// Refresh should not error
-		err := adapter.Refresh(ctx)
-		if err != nil {
-			t.Errorf("Refresh() error = %v, want nil", err)
+		refreshErr := adapter.Refresh(context)
+		if refreshErr != nil {
+			t.Errorf("Refresh() error = %v, want nil", refreshErr)
 		}
 	})
 
-	t.Run("IsVisible", func(t *testing.T) {
+	t.Run("IsVisible", func(_ *testing.T) {
 		// IsVisible should return a boolean without error
 		visible := adapter.IsVisible()
 		_ = visible // Just verify it doesn't panic
@@ -75,25 +74,33 @@ func TestOverlayAdapterContextCancellation(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	log := logger.Get()
-	manager := overlayManager.Init(log)
-	adapter := overlay.NewAdapter(manager, log)
+	logger := logger.Get()
+	manager := overlayManager.Init(logger)
+	adapter := overlay.NewAdapter(manager, logger)
 
 	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	t.Run("ShowHints with canceled context", func(t *testing.T) {
-		err := adapter.ShowHints(ctx, nil)
-		if err != context.Canceled {
-			t.Errorf("ShowHints() with canceled context error = %v, want %v", err, context.Canceled)
+		showHintsErr := adapter.ShowHints(ctx, nil)
+		if !errors.Is(showHintsErr, context.Canceled) {
+			t.Errorf(
+				"ShowHints() with canceled context error = %v, want %v",
+				showHintsErr,
+				context.Canceled,
+			)
 		}
 	})
 
 	t.Run("ShowGrid with canceled context", func(t *testing.T) {
-		err := adapter.ShowGrid(ctx, 3, 3)
-		if err != context.Canceled {
-			t.Errorf("ShowGrid() with canceled context error = %v, want %v", err, context.Canceled)
+		showGridErr := adapter.ShowGrid(ctx, 3, 3)
+		if !errors.Is(showGridErr, context.Canceled) {
+			t.Errorf(
+				"ShowGrid() with canceled context error = %v, want %v",
+				showGridErr,
+				context.Canceled,
+			)
 		}
 	})
 }

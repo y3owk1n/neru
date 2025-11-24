@@ -24,7 +24,8 @@ func (c *InfraAXClient) GetFrontmostWindow() (AXWindow, error) {
 	if window == nil {
 		return nil, errors.New(errors.CodeAccessibilityFailed, "failed to get frontmost window")
 	}
-	return &infraWindow{elem: window}, nil
+
+	return &infraWindow{element: window}, nil
 }
 
 // GetFocusedApplication returns the focused application.
@@ -33,45 +34,47 @@ func (c *InfraAXClient) GetFocusedApplication() (AXApp, error) {
 	if app == nil {
 		return nil, errors.New(errors.CodeAccessibilityFailed, "failed to get focused app")
 	}
-	return &infraApp{elem: app}, nil
+
+	return &infraApp{element: app}, nil
 }
 
 // GetClickableNodes returns clickable nodes for the given root element.
 func (c *InfraAXClient) GetClickableNodes(root AXElement, includeOffscreen bool) ([]AXNode, error) {
-	var elem *infra.Element
+	var element *infra.Element
 
-	switch v := root.(type) {
+	switch elementType := root.(type) {
 	case *infraWindow:
-		elem = v.elem
+		element = elementType.element
 	case *infraApp:
-		elem = v.elem
+		element = elementType.element
 	default:
 		return nil, errors.New(errors.CodeInvalidInput, "invalid element type")
 	}
 
-	if elem == nil {
+	if element == nil {
 		return nil, errors.New(errors.CodeInvalidInput, "element is nil")
 	}
 
 	opts := infra.DefaultTreeOptions()
 	opts.IncludeOutOfBounds = includeOffscreen
 
-	tree, err := infra.BuildTree(elem, opts)
-	if err != nil {
+	tree, treeErr := infra.BuildTree(element, opts)
+	if treeErr != nil {
 		return nil, errors.Wrap(
-			err,
+			treeErr,
 			errors.CodeAccessibilityFailed,
 			"failed to build accessibility tree",
 		)
 	}
 
 	clickableNodes := tree.FindClickableElements()
-	result := make([]AXNode, len(clickableNodes))
+
+	clickableNodesResult := make([]AXNode, len(clickableNodes))
 	for i, node := range clickableNodes {
-		result[i] = &infraNode{node: node}
+		clickableNodesResult[i] = &infraNode{node: node}
 	}
 
-	return result, nil
+	return clickableNodesResult, nil
 }
 
 // GetApplicationByBundleID returns the application with the given bundle ID.
@@ -80,43 +83,46 @@ func (c *InfraAXClient) GetApplicationByBundleID(bundleID string) (AXApp, error)
 	if app == nil {
 		return nil, errors.New(errors.CodeAccessibilityFailed, "application not found")
 	}
-	return &infraApp{elem: app}, nil
+
+	return &infraApp{element: app}, nil
 }
 
 // GetMenuBarClickableElements returns clickable elements in the menu bar.
 func (c *InfraAXClient) GetMenuBarClickableElements() ([]AXNode, error) {
-	nodes, err := infra.GetMenuBarClickableElements()
-	if err != nil {
+	nodes, nodesErr := infra.GetMenuBarClickableElements()
+	if nodesErr != nil {
 		return nil, errors.Wrap(
-			err,
+			nodesErr,
 			errors.CodeAccessibilityFailed,
 			"failed to get menu bar elements",
 		)
 	}
 
-	result := make([]AXNode, len(nodes))
-	for i, node := range nodes {
-		result[i] = &infraNode{node: node}
+	nodesResult := make([]AXNode, len(nodes))
+	for index, node := range nodes {
+		nodesResult[index] = &infraNode{node: node}
 	}
-	return result, nil
+
+	return nodesResult, nil
 }
 
 // GetClickableElementsFromBundleID returns clickable elements for the application with the given bundle ID.
 func (c *InfraAXClient) GetClickableElementsFromBundleID(bundleID string) ([]AXNode, error) {
-	nodes, err := infra.GetClickableElementsFromBundleID(bundleID)
-	if err != nil {
+	nodes, nodesErr := infra.GetClickableElementsFromBundleID(bundleID)
+	if nodesErr != nil {
 		return nil, errors.Wrap(
-			err,
+			nodesErr,
 			errors.CodeAccessibilityFailed,
 			"failed to get elements from bundle ID",
 		)
 	}
 
-	result := make([]AXNode, len(nodes))
-	for i, node := range nodes {
-		result[i] = &infraNode{node: node}
+	nodesResult := make([]AXNode, len(nodes))
+	for index, node := range nodes {
+		nodesResult[index] = &infraNode{node: node}
 	}
-	return result, nil
+
+	return nodesResult, nil
 }
 
 // GetActiveScreenBounds returns the bounds of the active screen.
@@ -127,40 +133,51 @@ func (c *InfraAXClient) GetActiveScreenBounds() image.Rectangle {
 // PerformAction performs the specified action at the given point.
 func (c *InfraAXClient) PerformAction(
 	actionType action.Type,
-	p image.Point,
+	point image.Point,
 	restoreCursor bool,
 ) error {
-	var err error
+	var performActionErr error
+
 	switch actionType {
 	case action.TypeLeftClick:
-		err = infra.LeftClickAtPoint(p, restoreCursor)
+		performActionErr = infra.LeftClickAtPoint(point, restoreCursor)
 	case action.TypeRightClick:
-		err = infra.RightClickAtPoint(p, restoreCursor)
+		performActionErr = infra.RightClickAtPoint(point, restoreCursor)
 	case action.TypeMiddleClick:
-		err = infra.MiddleClickAtPoint(p, restoreCursor)
+		performActionErr = infra.MiddleClickAtPoint(point, restoreCursor)
 	case action.TypeMouseDown:
-		err = infra.LeftMouseDownAtPoint(p)
+		performActionErr = infra.LeftMouseDownAtPoint(point)
 	case action.TypeMouseUp:
-		err = infra.LeftMouseUpAtPoint(p)
+		performActionErr = infra.LeftMouseUpAtPoint(point)
 	case action.TypeMoveMouse:
-		infra.MoveMouseToPoint(p)
+		infra.MoveMouseToPoint(point)
+
 		return nil
+	case action.TypeScroll:
+		// Scroll actions are handled separately via the Scroll method
+		return errors.Newf(
+			errors.CodeInvalidInput,
+			"scroll actions should use Scroll method: %s",
+			actionType,
+		)
 	default:
 		return errors.Newf(errors.CodeInvalidInput, "unsupported action type: %s", actionType)
 	}
 
-	if err != nil {
-		return errors.Wrap(err, errors.CodeActionFailed, "failed to perform action")
+	if performActionErr != nil {
+		return errors.Wrap(performActionErr, errors.CodeActionFailed, "failed to perform action")
 	}
+
 	return nil
 }
 
 // Scroll performs a scroll action.
 func (c *InfraAXClient) Scroll(deltaX, deltaY int) error {
-	err := infra.ScrollAtCursor(deltaX, deltaY)
-	if err != nil {
-		return errors.Wrap(err, errors.CodeActionFailed, "failed to scroll")
+	scrollErr := infra.ScrollAtCursor(deltaX, deltaY)
+	if scrollErr != nil {
+		return errors.Wrap(scrollErr, errors.CodeActionFailed, "failed to scroll")
 	}
+
 	return nil
 }
 
@@ -197,40 +214,43 @@ func (c *InfraAXClient) IsMissionControlActive() bool {
 // Wrappers
 
 type infraWindow struct {
-	elem *infra.Element
+	element *infra.Element
 }
 
 func (w *infraWindow) Release() {
-	if w.elem != nil {
-		w.elem.Release()
+	if w.element != nil {
+		w.element.Release()
 	}
 }
 
 type infraApp struct {
-	elem *infra.Element
+	element *infra.Element
 }
 
 func (a *infraApp) Release() {
-	if a.elem != nil {
-		a.elem.Release()
+	if a.element != nil {
+		a.element.Release()
 	}
 }
 
 func (a *infraApp) GetBundleIdentifier() string {
-	if a.elem != nil {
-		return a.elem.GetBundleIdentifier()
+	if a.element != nil {
+		return a.element.GetBundleIdentifier()
 	}
+
 	return ""
 }
 
 func (a *infraApp) GetInfo() (*AXAppInfo, error) {
-	if a.elem == nil {
+	if a.element == nil {
 		return nil, errors.New(errors.CodeInvalidInput, "element is nil")
 	}
-	info, err := a.elem.GetInfo()
-	if err != nil {
-		return nil, err
+
+	info, infoErr := a.element.GetInfo()
+	if infoErr != nil {
+		return nil, infoErr
 	}
+
 	return &AXAppInfo{
 		Role:  info.Role,
 		Title: info.Title,
@@ -245,6 +265,7 @@ func (n *infraNode) GetID() string {
 	if n.node == nil {
 		return ""
 	}
+
 	return fmt.Sprintf("elem_%p", n.node.Element)
 }
 
@@ -252,7 +273,9 @@ func (n *infraNode) GetBounds() image.Rectangle {
 	if n.node == nil || n.node.Info == nil {
 		return image.Rectangle{}
 	}
+
 	info := n.node.Info
+
 	return image.Rect(
 		info.Position.X,
 		info.Position.Y,
@@ -265,6 +288,7 @@ func (n *infraNode) GetRole() string {
 	if n.node == nil || n.node.Info == nil {
 		return ""
 	}
+
 	return n.node.Info.Role
 }
 
@@ -272,6 +296,7 @@ func (n *infraNode) GetTitle() string {
 	if n.node == nil || n.node.Info == nil {
 		return ""
 	}
+
 	return n.node.Info.Title
 }
 
@@ -279,6 +304,7 @@ func (n *infraNode) GetDescription() string {
 	if n.node == nil || n.node.Info == nil {
 		return ""
 	}
+
 	return n.node.Info.RoleDescription
 }
 
@@ -286,5 +312,6 @@ func (n *infraNode) IsClickable() bool {
 	if n.node == nil || n.node.Element == nil {
 		return false
 	}
+
 	return n.node.Element.IsClickable(n.node.Info)
 }

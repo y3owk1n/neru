@@ -28,22 +28,26 @@ func TestAppState_EnableDisable(t *testing.T) {
 
 	// Test Enable
 	state.Disable()
+
 	if state.IsEnabled() {
 		t.Error("Expected state to be disabled")
 	}
 
 	state.Enable()
+
 	if !state.IsEnabled() {
 		t.Error("Expected state to be enabled")
 	}
 
 	// Test SetEnabled
 	state.SetEnabled(false)
+
 	if state.IsEnabled() {
 		t.Error("Expected state to be disabled after SetEnabled(false)")
 	}
 
 	state.SetEnabled(true)
+
 	if !state.IsEnabled() {
 		t.Error("Expected state to be enabled after SetEnabled(true)")
 	}
@@ -60,6 +64,7 @@ func TestAppState_Mode(t *testing.T) {
 
 	for _, mode := range modes {
 		state.SetMode(mode)
+
 		if state.CurrentMode() != mode {
 			t.Errorf("Expected mode %v, got %v", mode, state.CurrentMode())
 		}
@@ -74,11 +79,13 @@ func TestAppState_HotkeysRegistered(t *testing.T) {
 	}
 
 	state.SetHotkeysRegistered(true)
+
 	if !state.HotkeysRegistered() {
 		t.Error("Expected hotkeys to be registered")
 	}
 
 	state.SetHotkeysRegistered(false)
+
 	if state.HotkeysRegistered() {
 		t.Error("Expected hotkeys to not be registered")
 	}
@@ -92,11 +99,13 @@ func TestAppState_ScreenChangeProcessing(t *testing.T) {
 	}
 
 	state.SetScreenChangeProcessing(true)
+
 	if !state.ScreenChangeProcessing() {
 		t.Error("Expected screen change processing to be true")
 	}
 
 	state.SetScreenChangeProcessing(false)
+
 	if state.ScreenChangeProcessing() {
 		t.Error("Expected screen change processing to be false")
 	}
@@ -110,11 +119,13 @@ func TestAppState_GridOverlayNeedsRefresh(t *testing.T) {
 	}
 
 	state.SetGridOverlayNeedsRefresh(true)
+
 	if !state.GridOverlayNeedsRefresh() {
 		t.Error("Expected grid overlay to need refresh")
 	}
 
 	state.SetGridOverlayNeedsRefresh(false)
+
 	if state.GridOverlayNeedsRefresh() {
 		t.Error("Expected grid overlay to not need refresh")
 	}
@@ -128,11 +139,13 @@ func TestAppState_HintOverlayNeedsRefresh(t *testing.T) {
 	}
 
 	state.SetHintOverlayNeedsRefresh(true)
+
 	if !state.HintOverlayNeedsRefresh() {
 		t.Error("Expected hint overlay to need refresh")
 	}
 
 	state.SetHintOverlayNeedsRefresh(false)
+
 	if state.HintOverlayNeedsRefresh() {
 		t.Error("Expected hint overlay to not need refresh")
 	}
@@ -146,11 +159,13 @@ func TestAppState_HotkeyRefreshPending(t *testing.T) {
 	}
 
 	state.SetHotkeyRefreshPending(true)
+
 	if !state.HotkeyRefreshPending() {
 		t.Error("Expected hotkey refresh to be pending")
 	}
 
 	state.SetHotkeyRefreshPending(false)
+
 	if state.HotkeyRefreshPending() {
 		t.Error("Expected hotkey refresh to not be pending")
 	}
@@ -159,26 +174,29 @@ func TestAppState_HotkeyRefreshPending(t *testing.T) {
 // TestAppState_Concurrency tests thread-safe access to state.
 func TestAppState_Concurrency(_ *testing.T) {
 	state := NewAppState()
-	var wg sync.WaitGroup
+
+	var waitGroup sync.WaitGroup
 
 	// Concurrent reads and writes
 	for range 100 {
-		wg.Add(2)
+		waitGroup.Add(2)
 
 		go func() {
-			defer wg.Done()
+			defer waitGroup.Done()
+
 			state.SetEnabled(true)
 			_ = state.IsEnabled()
 		}()
 
 		go func() {
-			defer wg.Done()
+			defer waitGroup.Done()
+
 			state.SetMode(domain.ModeHints)
 			_ = state.CurrentMode()
 		}()
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 }
 
 // Benchmark tests.
@@ -220,6 +238,7 @@ func TestAppState_RapidModeTransitions(t *testing.T) {
 	for range 1000 {
 		for _, mode := range modes {
 			state.SetMode(mode)
+
 			if state.CurrentMode() != mode {
 				t.Errorf("Expected mode %v, got %v", mode, state.CurrentMode())
 			}
@@ -262,19 +281,20 @@ func TestAppState_StateTransitionSequences(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			state := NewAppState()
 
-			for _, mode := range tt.sequence {
+			for _, mode := range test.sequence {
 				state.SetMode(mode)
+
 				if state.CurrentMode() != mode {
 					t.Errorf("After SetMode(%v), CurrentMode() = %v", mode, state.CurrentMode())
 				}
 			}
 
-			if state.CurrentMode() != tt.wantFinal {
-				t.Errorf("Final mode = %v, want %v", state.CurrentMode(), tt.wantFinal)
+			if state.CurrentMode() != test.wantFinal {
+				t.Errorf("Final mode = %v, want %v", state.CurrentMode(), test.wantFinal)
 			}
 		})
 	}
@@ -287,37 +307,40 @@ func TestAppState_ConcurrentStressTest(t *testing.T) {
 	}
 
 	state := NewAppState()
-	var wg sync.WaitGroup
+
+	var waitGroup sync.WaitGroup
+
 	errors := make(chan error, 1000)
 
 	modes := []domain.Mode{domain.ModeIdle, domain.ModeHints, domain.ModeGrid}
 
 	// Run 1000 concurrent goroutines
-	for i := range 1000 {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
+	for index := range 1000 {
+		waitGroup.Add(1)
+
+		go func(index int) {
+			defer waitGroup.Done()
 
 			// Each goroutine performs multiple operations
-			for j := range 10 {
+			for rangeIndex := range 10 {
 				// Toggle enabled state
-				state.SetEnabled(id%2 == 0)
+				state.SetEnabled(index%2 == 0)
 
 				// We cannot assert state.IsEnabled() here due to concurrency.
 				// The goal is to ensure thread safety.
 
 				// Cycle through modes
-				mode := modes[j%len(modes)]
+				mode := modes[rangeIndex%len(modes)]
 				state.SetMode(mode)
 
 				// Read current state
 				_ = state.CurrentMode()
 				_ = state.IsEnabled()
 			}
-		}(i)
+		}(index)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 	close(errors)
 
 	// Check for any errors
@@ -342,28 +365,34 @@ func TestAppState_StateInvariants(t *testing.T) {
 
 	// Invariant 3: Disable() should set enabled to false
 	state.Disable()
+
 	if state.IsEnabled() {
 		t.Error("Invariant violated: Disable() should set enabled to false")
 	}
 
 	// Invariant 4: Enable() should set enabled to true
 	state.Enable()
+
 	if !state.IsEnabled() {
 		t.Error("Invariant violated: Enable() should set enabled to true")
 	}
 
 	// Invariant 5: SetMode() should update CurrentMode()
 	state.SetMode(domain.ModeHints)
+
 	if state.CurrentMode() != domain.ModeHints {
 		t.Error("Invariant violated: SetMode() should update CurrentMode()")
 	}
 
 	// Invariant 6: Mode should persist across enable/disable
 	state.Disable()
+
 	if state.CurrentMode() != domain.ModeHints {
 		t.Error("Invariant violated: mode should persist across disable")
 	}
+
 	state.Enable()
+
 	if state.CurrentMode() != domain.ModeHints {
 		t.Error("Invariant violated: mode should persist across enable")
 	}
@@ -372,24 +401,27 @@ func TestAppState_StateInvariants(t *testing.T) {
 // TestAppState_MultipleFlags tests concurrent modification of multiple flags.
 func TestAppState_MultipleFlags(_ *testing.T) {
 	state := NewAppState()
-	var wg sync.WaitGroup
+
+	var waitGroup sync.WaitGroup
 
 	// Concurrently modify enabled flag
 	for range 100 {
-		wg.Add(2)
+		waitGroup.Add(2)
 
 		go func() {
-			defer wg.Done()
+			defer waitGroup.Done()
+
 			state.SetEnabled(true)
 		}()
 
 		go func() {
-			defer wg.Done()
+			defer waitGroup.Done()
+
 			state.SetEnabled(false)
 		}()
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 
 	// State should be consistent (either true or false, not corrupted)
 	_ = state.IsEnabled() // Should not panic or return invalid value

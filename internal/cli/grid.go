@@ -34,6 +34,7 @@ var gridCmd = &cobra.Command{
 		if action != "" {
 			params = append(params, action)
 		}
+
 		return sendCommand("grid", params)
 	},
 }

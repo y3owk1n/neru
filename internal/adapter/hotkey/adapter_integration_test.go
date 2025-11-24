@@ -1,5 +1,3 @@
-//go:build integration
-
 package hotkey_test
 
 import (
@@ -12,7 +10,7 @@ import (
 )
 
 // TestHotkeyAdapterImplementsPort verifies the adapter implements the port interface.
-func TestHotkeyAdapterImplementsPort(t *testing.T) {
+func TestHotkeyAdapterImplementsPort(_ *testing.T) {
 	var _ ports.HotkeyPort = (*hotkey.Adapter)(nil)
 }
 
@@ -22,20 +20,23 @@ type MockHotkeyManager struct {
 	nextID     int
 }
 
-func (m *MockHotkeyManager) Register(key string, callback func()) (int, error) {
+func (m *MockHotkeyManager) Register(key string, _ func()) (int, error) {
 	if key == "invalid-hotkey" {
 		return 0, context.DeadlineExceeded // Simulate error
 	}
+
 	id := m.nextID
 	m.nextID++
 	m.registered[key] = id
+
 	return id, nil
 }
 
 func (m *MockHotkeyManager) Unregister(id int) {
-	for k, v := range m.registered {
-		if v == id {
-			delete(m.registered, k)
+	for key, value := range m.registered {
+		if value == id {
+			delete(m.registered, key)
+
 			break
 		}
 	}
@@ -51,26 +52,26 @@ func TestHotkeyAdapterIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	log := logger.Get()
+	logger := logger.Get()
 	mockManager := &MockHotkeyManager{
 		registered: make(map[string]int),
 		nextID:     1,
 	}
-	adapter := hotkey.NewAdapter(mockManager, log)
+	adapter := hotkey.NewAdapter(mockManager, logger)
 
-	ctx := context.Background()
+	context := context.Background()
 
 	t.Run("Register and Unregister", func(t *testing.T) {
 		// Use a complex hotkey that is unlikely to conflict
 		key := "cmd+alt+ctrl+shift+f12"
 
 		// Register
-		err := adapter.Register(ctx, key, func() error {
+		registerErr := adapter.Register(context, key, func() error {
 			// Callback
 			return nil
 		})
-		if err != nil {
-			t.Fatalf("Register() error = %v, want nil", err)
+		if registerErr != nil {
+			t.Fatalf("Register() error = %v, want nil", registerErr)
 		}
 
 		// Verify registered
@@ -79,9 +80,9 @@ func TestHotkeyAdapterIntegration(t *testing.T) {
 		}
 
 		// Unregister
-		err = adapter.Unregister(ctx, key)
-		if err != nil {
-			t.Errorf("Unregister() error = %v, want nil", err)
+		unregisterErr := adapter.Unregister(context, key)
+		if unregisterErr != nil {
+			t.Errorf("Unregister() error = %v, want nil", unregisterErr)
 		}
 
 		// Verify unregistered
@@ -91,7 +92,7 @@ func TestHotkeyAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("Register Invalid Hotkey", func(t *testing.T) {
-		err := adapter.Register(ctx, "invalid-hotkey", func() error { return nil })
+		err := adapter.Register(context, "invalid-hotkey", func() error { return nil })
 		if err == nil {
 			t.Error("Register() with invalid hotkey error = nil, want error")
 		}

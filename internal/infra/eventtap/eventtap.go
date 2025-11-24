@@ -37,6 +37,7 @@ func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
 	eventTap.handle = C.createEventTap(C.EventTapCallback(C.eventTapCallbackBridge), nil)
 	if eventTap.handle == nil {
 		logger.Error("Failed to create event tap - check Accessibility permissions")
+
 		return nil
 	}
 
@@ -66,6 +67,7 @@ func (eventTap *EventTap) SetHotkeys(hotkeys []string) {
 
 	if eventTap.handle == nil {
 		eventTap.logger.Warn("Cannot set hotkeys on nil event tap")
+
 		return
 	}
 
@@ -74,7 +76,9 @@ func (eventTap *EventTap) SetHotkeys(hotkeys []string) {
 	for index, hotkey := range hotkeys {
 		if hotkey != "" {
 			cHotkeys[index] = C.CString(hotkey)
-			defer C.free(unsafe.Pointer(cHotkeys[index]))
+
+			defer C.free(unsafe.Pointer(cHotkeys[index])) //nolint:nlreturn
+
 			eventTap.logger.Debug("Adding hotkey", zap.String("hotkey", hotkey))
 		} else {
 			cHotkeys[index] = nil
