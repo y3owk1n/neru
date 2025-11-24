@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.10.1](https://github.com/y3owk1n/neru/compare/v1.10.0...v1.10.1) (2025-11-24)
+
+
+### Bug Fixes
+
+* **metrics:** provide toggle to enable metrics collection, off by default ([#183](https://github.com/y3owk1n/neru/issues/183)) ([f7b6532](https://github.com/y3owk1n/neru/commit/f7b6532c5598a5a6c90472d234f537722bc4e7a7))
+* more test to improve coverage ([#179](https://github.com/y3owk1n/neru/issues/179)) ([7b4d521](https://github.com/y3owk1n/neru/commit/7b4d52177f68f465e90b6cd25679206dc0a34f98))
+* remove all `GetScrollableElements` ([#184](https://github.com/y3owk1n/neru/issues/184)) ([5340972](https://github.com/y3owk1n/neru/commit/53409728e4bb15c068d3eff3ea123ed1c93d33e6))
+* standardize error handling and include `err113` lint ([#185](https://github.com/y3owk1n/neru/issues/185)) ([3d1888e](https://github.com/y3owk1n/neru/commit/3d1888e9f2a83f4b1fac759bef48c168e2b3b160))
+* tighten golangci lint and refactoring variables ([#181](https://github.com/y3owk1n/neru/issues/181)) ([e570663](https://github.com/y3owk1n/neru/commit/e570663d5d5b31428417ce328c9654094421505a))
+
 ## [1.10.0](https://github.com/y3owk1n/neru/compare/v1.9.0...v1.10.0) (2025-11-23)
 
 
