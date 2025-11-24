@@ -81,8 +81,10 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 		if cells, ok := gridCache.get(uppercaseChars, bounds); ok {
 			logger.Debug("Grid cache hit",
 				zap.Int("cell_count", len(cells)))
+
 			return &Grid{characters: uppercaseChars, bounds: bounds, cells: cells}
 		}
+
 		logger.Debug("Grid cache miss")
 	}
 
@@ -90,6 +92,7 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 		logger.Warn("Invalid grid bounds, creating minimal grid",
 			zap.Int("width", width),
 			zap.Int("height", height))
+
 		return &Grid{
 			characters: uppercaseChars,
 			bounds:     bounds,
@@ -110,6 +113,7 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 	if gridCols < 2 {
 		gridCols = 2
 	}
+
 	if gridRows < 2 {
 		gridRows = 2
 	}
@@ -154,16 +158,16 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 	}
 
 	// Pre-allocate index map with exact capacity
-	idx := make(map[string]*Cell, len(cells))
-	for _, c := range cells {
-		idx[c.GetCoordinate()] = c
+	index := make(map[string]*Cell, len(cells))
+	for _, cell := range cells {
+		index[cell.GetCoordinate()] = cell
 	}
 
 	return &Grid{
 		characters: uppercaseChars,
 		bounds:     bounds,
 		cells:      cells,
-		index:      idx,
+		index:      index,
 	}
 }
 
@@ -227,6 +231,7 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 	// Precompute x/y starts to avoid inner summation loops
 	xStarts := make([]int, gridCols)
 	yStarts := make([]int, gridRows)
+
 	for colIndex := range xStarts {
 		xStarts[colIndex] = bounds.Min.X + colIndex*baseCellWidth
 		if colIndex < remainderWidth {
@@ -235,6 +240,7 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 			xStarts[colIndex] += remainderWidth
 		}
 	}
+
 	for rowIndex := range yStarts {
 		yStarts[rowIndex] = bounds.Min.Y + rowIndex*baseCellHeight
 		if rowIndex < remainderHeight {
@@ -247,6 +253,7 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 	for regionIndex < maxRegions && currentRow < gridRows {
 		// Determine region identifier (first character)
 		var regionChar1, regionChar2 rune
+
 		switch labelLength {
 		case 2:
 			regionChar1 = chars[regionIndex%numChars]
@@ -277,36 +284,39 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 
 				// Generate coordinate for this cell
 				// Second char = column within region, third char = row within region
-				var coord string
+				var coordinate string
+
 				switch labelLength {
 				case 2:
 					// Use strings.Builder for efficient string concatenation
-					var b strings.Builder
-					b.Grow(2)
-					b.WriteRune(regionChar1)
-					b.WriteRune(chars[colIndex])
-					coord = b.String()
+					var stringBuilder strings.Builder
+					stringBuilder.Grow(2)
+					stringBuilder.WriteRune(regionChar1)
+					stringBuilder.WriteRune(chars[colIndex])
+					coordinate = stringBuilder.String()
 				case 3:
 					// First char = region, second char = column, third char = row
 					char2 := chars[colIndex%numChars] // column
 					char3 := chars[rowIndex%numChars] // row
-					var b strings.Builder
-					b.Grow(3)
-					b.WriteRune(regionChar1)
-					b.WriteRune(char2)
-					b.WriteRune(char3)
-					coord = b.String()
+
+					var stringBuilder strings.Builder
+					stringBuilder.Grow(3)
+					stringBuilder.WriteRune(regionChar1)
+					stringBuilder.WriteRune(char2)
+					stringBuilder.WriteRune(char3)
+					coordinate = stringBuilder.String()
 				default: // 4 chars
 					// First 2 chars = region, third char = column, fourth char = row
 					char3 := chars[colIndex%numChars] // column
 					char4 := chars[rowIndex%numChars] // row
-					var b strings.Builder
-					b.Grow(4)
-					b.WriteRune(regionChar1)
-					b.WriteRune(regionChar2)
-					b.WriteRune(char3)
-					b.WriteRune(char4)
-					coord = b.String()
+
+					var stringBuilder strings.Builder
+					stringBuilder.Grow(4)
+					stringBuilder.WriteRune(regionChar1)
+					stringBuilder.WriteRune(regionChar2)
+					stringBuilder.WriteRune(char3)
+					stringBuilder.WriteRune(char4)
+					coordinate = stringBuilder.String()
 				}
 
 				// Calculate cell dimensions with remainder distribution
@@ -314,6 +324,7 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 				if globalCol < remainderWidth {
 					cellWidth++
 				}
+
 				cellHeight := baseCellHeight
 				if globalRow < remainderHeight {
 					cellHeight++
@@ -323,7 +334,7 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 				yCoordinate := yStarts[globalRow]
 
 				cell := &Cell{
-					Coordinate: coord,
+					Coordinate: coordinate,
 					Bounds: image.Rect(
 						xCoordinate, yCoordinate,
 						xCoordinate+cellWidth, yCoordinate+cellHeight,
@@ -423,6 +434,7 @@ func selectBestCandidate(
 				best = cand
 			}
 		}
+
 		gridCols = best.cols
 		gridRows = best.rows
 	} else {
@@ -432,11 +444,13 @@ func selectBestCandidate(
 			for dimension/count > maxSize {
 				count++
 			}
+
 			return count
 		}
 		gridCols = findBestFit(width, minCellSize, maxCellSize)
 		gridRows = findBestFit(height, minCellSize, maxCellSize)
 	}
+
 	return gridCols, gridRows
 }
 
@@ -499,16 +513,17 @@ func (g *Grid) GetAllCells() []*Cell {
 }
 
 // GetCellByCoordinate returns the cell for a given coordinate. (2, 3, or 4 characters).
-func (g *Grid) GetCellByCoordinate(coord string) *Cell {
-	coord = strings.ToUpper(coord)
+func (g *Grid) GetCellByCoordinate(coordinate string) *Cell {
+	coordinate = strings.ToUpper(coordinate)
 
 	if g.index != nil {
-		if cell, ok := g.index[coord]; ok {
+		if cell, ok := g.index[coordinate]; ok {
 			return cell
 		}
 	}
+
 	for _, cell := range g.cells {
-		if cell.GetCoordinate() == coord {
+		if cell.GetCoordinate() == coordinate {
 			return cell
 		}
 	}
@@ -524,6 +539,7 @@ func CalculateOptimalGrid(characters string) (int, int) {
 	if numChars < 2 {
 		numChars = 9
 	}
+
 	return numChars, numChars
 }
 
@@ -531,6 +547,7 @@ func gridMax(a, b int) int {
 	if a > b {
 		return a
 	}
+
 	return b
 }
 
@@ -538,5 +555,6 @@ func gridMin(a, b int) int {
 	if a < b {
 		return a
 	}
+
 	return b
 }

@@ -75,6 +75,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	// Ignore non-letter keys
 	if len(key) != 1 || !isLetter(key[0]) && key != resetKey {
 		m.logger.Debug("Grid manager: Ignoring non-letter key", zap.String("key", key))
+
 		return image.Point{}, false
 	}
 
@@ -89,6 +90,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	// Allow < to reset grid
 	if upperKey == resetKey {
 		m.handleResetKey(true)
+
 		return image.Point{}, false
 	}
 
@@ -109,6 +111,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	if m.onUpdate != nil {
 		m.onUpdate(false)
 	}
+
 	return image.Point{}, false
 }
 
@@ -129,6 +132,7 @@ func (m *Manager) Reset() {
 	m.inSubgrid = false
 	m.selectedCell = nil
 	m.logger.Debug("Grid manager: Resetting input state")
+
 	if m.onUpdate != nil {
 		m.onUpdate(false)
 	}
@@ -146,6 +150,7 @@ func (m *Manager) UpdateGrid(g *Grid) {
 	if g != nil && len(g.GetCells()) > 0 {
 		m.labelLength = len(g.GetCells()[0].GetCoordinate())
 	}
+
 	m.logger.Debug("Updated manager grid")
 }
 
@@ -157,9 +162,9 @@ func (m *Manager) UpdateSubKeys(subKeys string) {
 
 // handleLabelLengthReached handles the case when label length is reached.
 func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
-	coord := m.currentInput[:m.labelLength]
+	coordinate := m.currentInput[:m.labelLength]
 	if m.grid != nil {
-		cell := m.grid.GetCellByCoordinate(coord)
+		cell := m.grid.GetCellByCoordinate(coordinate)
 		if cell != nil {
 			if !m.inSubgrid {
 				center := cell.Center
@@ -171,8 +176,9 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 				m.currentInput = ""
 				m.logger.Debug(
 					"Grid manager: Showing subgrid for cell",
-					zap.String("coordinate", coord),
+					zap.String("coordinate", coordinate),
 				)
+
 				if m.onShowSub != nil {
 					m.onShowSub(cell)
 				}
@@ -183,8 +189,12 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 		}
 	}
 	// Invalid coordinate, reset
-	m.logger.Debug("Grid manager: Invalid coordinate, resetting", zap.String("coordinate", coord))
+	m.logger.Debug(
+		"Grid manager: Invalid coordinate, resetting",
+		zap.String("coordinate", coordinate),
+	)
 	m.Reset()
+
 	return image.Point{}, false
 }
 
@@ -193,6 +203,7 @@ func (m *Manager) validateInputKey(key string) bool {
 	// Check if character is valid for grid
 	if m.grid != nil && !strings.Contains(m.grid.GetCharacters(), key) {
 		m.logger.Debug("Grid manager: Character not valid for grid", zap.String("key", key))
+
 		return false
 	}
 
@@ -200,10 +211,12 @@ func (m *Manager) validateInputKey(key string) bool {
 	// by checking if there's any cell that starts with currentInput + key
 	potentialInput := m.currentInput + key
 	validPrefix := false
+
 	for _, cell := range m.grid.GetCells() {
 		if len(cell.GetCoordinate()) >= len(potentialInput) &&
 			strings.HasPrefix(cell.GetCoordinate(), potentialInput) {
 			validPrefix = true
+
 			break
 		}
 	}
@@ -214,6 +227,7 @@ func (m *Manager) validateInputKey(key string) bool {
 			"Grid manager: Key does not lead to valid coordinate",
 			zap.String("input", potentialInput),
 		)
+
 		return false
 	}
 
@@ -225,13 +239,16 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	keyIndex := strings.Index(m.subKeys, key)
 	if keyIndex < 0 {
 		m.logger.Debug("Grid manager: Invalid subgrid key", zap.String("key", key))
+
 		return image.Point{}, false
 	}
 	// Subgrid is always 3x3
 	if keyIndex >= 9 {
 		m.logger.Debug("Grid manager: Subgrid index out of range", zap.Int("index", keyIndex))
+
 		return image.Point{}, false
 	}
+
 	rowIndex := keyIndex / m.subCols
 	colIndex := keyIndex % m.subCols
 	cellBounds := m.selectedCell.Bounds
@@ -239,11 +256,13 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	xBreaks := make([]int, m.subCols+1)
 	yBreaks := make([]int, m.subRows+1)
 	xBreaks[0] = cellBounds.Min.X
+
 	yBreaks[0] = cellBounds.Min.Y
 	for breakIndex := 1; breakIndex <= m.subCols; breakIndex++ {
 		val := float64(breakIndex) * float64(cellBounds.Dx()) / float64(m.subCols)
 		xBreaks[breakIndex] = cellBounds.Min.X + int(val+0.5)
 	}
+
 	for breakIndex := 1; breakIndex <= m.subRows; breakIndex++ {
 		val := float64(breakIndex) * float64(cellBounds.Dy()) / float64(m.subRows)
 		yBreaks[breakIndex] = cellBounds.Min.Y + int(val+0.5)
@@ -268,9 +287,11 @@ func (m *Manager) handleBackspace() (image.Point, bool) {
 	if len(m.currentInput) > 0 {
 		m.currentInput = m.currentInput[:len(m.currentInput)-1]
 		m.logger.Debug("Grid manager: Backspace processed", zap.String("new_input", m.currentInput))
+
 		if m.onUpdate != nil {
 			m.onUpdate(false)
 		}
+
 		return image.Point{}, false
 	}
 
@@ -287,15 +308,18 @@ func (m *Manager) handleBackspace() (image.Point, bool) {
 			// just in case
 			m.currentInput = ""
 		}
+
 		if m.onUpdate != nil {
 			m.onUpdate(true)
 		}
 	}
+
 	return image.Point{}, false
 }
 
 func (m *Manager) handleResetKey(redraw bool) {
 	m.Reset()
+
 	if m.onUpdate != nil {
 		m.onUpdate(redraw)
 	}

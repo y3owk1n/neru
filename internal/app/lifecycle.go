@@ -42,6 +42,7 @@ func (a *App) setupAppWatcherCallbacks() {
 	a.appWatcher.OnActivate(func(_, bundleID string) {
 		a.handleAppActivation(bundleID)
 	})
+
 	// Watch for display parameter changes (monitor unplug/plug, resolution changes)
 	a.appWatcher.OnScreenParametersChanged(func() {
 		a.handleScreenParametersChange()
@@ -50,13 +51,16 @@ func (a *App) setupAppWatcherCallbacks() {
 
 // handleScreenParametersChange responds to display configuration changes by updating overlays.
 func (a *App) handleScreenParametersChange() {
-	if a.state.ScreenChangeProcessing() {
+	if a.appState.ScreenChangeProcessing() {
 		return
 	}
-	a.state.SetScreenChangeProcessing(true)
-	defer func() { a.state.SetScreenChangeProcessing(false) }()
+
+	a.appState.SetScreenChangeProcessing(true)
+
+	defer func() { a.appState.SetScreenChangeProcessing(false) }()
 
 	a.logger.Info("Screen parameters changed; adjusting overlays")
+
 	if a.overlayManager != nil {
 		a.overlayManager.ResizeToActiveScreenSync()
 	}
@@ -65,8 +69,8 @@ func (a *App) handleScreenParametersChange() {
 	if a.config.Grid.Enabled && a.gridComponent.Context != nil &&
 		a.gridComponent.Context.GetGridOverlay() != nil {
 		// If grid mode is not active, mark for refresh on next activation
-		if a.state.CurrentMode() != domain.ModeGrid {
-			a.state.SetGridOverlayNeedsRefresh(true)
+		if a.appState.CurrentMode() != domain.ModeGrid {
+			a.appState.SetGridOverlayNeedsRefresh(true)
 		} else {
 			// Grid mode is active - resize the existing overlay window to match new screen bounds
 			// Resize overlay window to current active screen (where mouse is)
@@ -76,10 +80,12 @@ func (a *App) handleScreenParametersChange() {
 
 			// Regenerate the grid cells with updated screen bounds
 			// We re-trigger ShowGrid which will use the new screen bounds
-			ctx := context.Background()
-			err := a.gridService.ShowGrid(ctx, 0, 0)
-			if err != nil {
-				a.logger.Error("Failed to refresh grid after screen change", zap.Error(err))
+			context := context.Background()
+
+			showGridErr := a.gridService.ShowGrid(context, 0, 0)
+			if showGridErr != nil {
+				a.logger.Error("Failed to refresh grid after screen change", zap.Error(showGridErr))
+
 				return
 			}
 
@@ -90,8 +96,8 @@ func (a *App) handleScreenParametersChange() {
 	// Handle hint overlay
 	if a.config.Hints.Enabled && a.hintsComponent.Overlay != nil {
 		// If hints mode is not active, mark for refresh on next activation
-		if a.state.CurrentMode() != domain.ModeHints {
-			a.state.SetHintOverlayNeedsRefresh(true)
+		if a.appState.CurrentMode() != domain.ModeHints {
+			a.appState.SetHintOverlayNeedsRefresh(true)
 		} else {
 			// Hints mode is active - resize the overlay and regenerate hints
 			if a.overlayManager != nil {
@@ -99,12 +105,15 @@ func (a *App) handleScreenParametersChange() {
 			}
 
 			// Regenerate hints for current action
-			ctx := context.Background()
-			err := a.hintService.RefreshHints(ctx)
-			if err != nil {
-				a.logger.Error("Failed to refresh hints after screen change", zap.Error(err))
+			context := context.Background()
+
+			refreshHintsErr := a.hintService.RefreshHints(context)
+			if refreshHintsErr != nil {
+				a.logger.Error("Failed to refresh hints after screen change", zap.Error(refreshHintsErr))
+
 				return
 			}
+
 			a.logger.Info("Hint overlay resized and regenerated for new screen bounds")
 		}
 	}
@@ -119,12 +128,13 @@ func (a *App) handleScreenParametersChange() {
 func (a *App) handleAppActivation(bundleID string) {
 	a.logger.Debug("App activated", zap.String("bundle_id", bundleID))
 
-	if a.state.CurrentMode() == domain.ModeIdle {
+	if a.appState.CurrentMode() == domain.ModeIdle {
 		go a.refreshHotkeysForAppOrCurrent(bundleID)
+
 		a.logger.Debug("Handled hotkey refresh")
 	} else {
 		// Defer hotkey refresh to avoid re-entry during active modes
-		a.state.SetHotkeyRefreshPending(true)
+		a.appState.SetHotkeyRefreshPending(true)
 		a.logger.Debug("Deferred hotkey refresh due to active mode")
 	}
 
@@ -139,19 +149,19 @@ func (a *App) handleAppActivation(bundleID string) {
 
 // handleAdditionalAccessibility configures accessibility support for Electron/Chromium/Firefox applications.
 func (a *App) handleAdditionalAccessibility(bundleID string) {
-	cfg := a.config.Hints.AdditionalAXSupport
+	config := a.config.Hints.AdditionalAXSupport
 
-	if electron.ShouldEnableElectronSupport(bundleID, cfg.AdditionalElectronBundles) {
+	if electron.ShouldEnableElectronSupport(bundleID, config.AdditionalElectronBundles) {
 		electron.EnsureElectronAccessibility(bundleID)
 		a.logger.Debug("Handled electron accessibility")
 	}
 
-	if electron.ShouldEnableChromiumSupport(bundleID, cfg.AdditionalChromiumBundles) {
+	if electron.ShouldEnableChromiumSupport(bundleID, config.AdditionalChromiumBundles) {
 		electron.EnsureChromiumAccessibility(bundleID)
 		a.logger.Debug("Handled chromium accessibility")
 	}
 
-	if electron.ShouldEnableFirefoxSupport(bundleID, cfg.AdditionalFirefoxBundles) {
+	if electron.ShouldEnableFirefoxSupport(bundleID, config.AdditionalFirefoxBundles) {
 		electron.EnsureFirefoxAccessibility(bundleID)
 		a.logger.Debug("Handled firefox accessibility")
 	}
@@ -166,9 +176,11 @@ func (a *App) printStartupInfo() {
 		if parts := strings.Split(value, " "); len(parts) > 0 {
 			mode = parts[0]
 		}
+
 		if mode == domain.GetModeString(domain.ModeHints) && !a.config.Hints.Enabled {
 			continue
 		}
+
 		if mode == domain.GetModeString(domain.ModeGrid) && !a.config.Grid.Enabled {
 			continue
 		}
@@ -180,6 +192,7 @@ func (a *App) printStartupInfo() {
 				toShow = string(runes[:30]) + "..."
 			}
 		}
+
 		a.logger.Info(fmt.Sprintf("  %s: %s", key, toShow))
 	}
 }
@@ -194,6 +207,7 @@ func (a *App) waitForShutdown() error {
 	a.logger.Info("\n⚠️  Shutting down gracefully... (press Ctrl+C again to force quit)")
 
 	done := make(chan struct{})
+
 	go func() {
 		systray.Quit()
 		close(done)
@@ -206,6 +220,7 @@ func (a *App) waitForShutdown() error {
 	case <-done:
 		timer.Stop() // Stop timer immediately on success
 		a.logger.Info("Graceful shutdown completed")
+
 		return nil
 	case <-sigChan:
 		timer.Stop() // Stop timer on second signal
@@ -229,9 +244,9 @@ func (a *App) Cleanup() {
 
 	// Stop IPC server first to prevent new requests
 	if a.ipcServer != nil {
-		err := a.ipcServer.Stop()
-		if err != nil {
-			a.logger.Error("Failed to stop IPC server", zap.Error(err))
+		stopServerErr := a.ipcServer.Stop()
+		if stopServerErr != nil {
+			a.logger.Error("Failed to stop IPC server", zap.Error(stopServerErr))
 		}
 	}
 
@@ -248,19 +263,19 @@ func (a *App) Cleanup() {
 	}
 
 	// Sync and close logger
-	err := logger.Sync()
-	if err != nil {
+	loggerSyncErr := logger.Sync()
+	if loggerSyncErr != nil {
 		// Ignore "inappropriate ioctl for device" error which occurs when syncing stdout/stderr
-		if !strings.Contains(err.Error(), "inappropriate ioctl for device") {
-			a.logger.Error("Failed to sync logger", zap.Error(err))
+		if !strings.Contains(loggerSyncErr.Error(), "inappropriate ioctl for device") {
+			a.logger.Error("Failed to sync logger", zap.Error(loggerSyncErr))
 		}
 	}
 
 	a.appWatcher.Stop()
 
-	err2 := logger.Close()
-	if err2 != nil {
+	loggerCloseErr := logger.Close()
+	if loggerCloseErr != nil {
 		// Can't log this since logger is being closed
-		fmt.Fprintf(os.Stderr, "Warning: failed to close logger: %v\n", err2)
+		fmt.Fprintf(os.Stderr, "Warning: failed to close logger: %v\n", loggerCloseErr)
 	}
 }

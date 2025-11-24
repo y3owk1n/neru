@@ -44,12 +44,14 @@ func Prewarm(characters string, sizes []image.Rectangle) {
 	if !gridCacheEnabled {
 		return
 	}
-	for _, r := range sizes {
-		if _, ok := gridCache.get(characters, r); ok {
+
+	for _, rect := range sizes {
+		if _, ok := gridCache.get(characters, rect); ok {
 			continue
 		}
-		g := NewGrid(characters, r, zap.NewNop())
-		_ = g
+
+		grid := NewGrid(characters, rect, zap.NewNop())
+		_ = grid
 	}
 }
 
@@ -62,47 +64,65 @@ func newCache(capacity int) *Cache {
 }
 
 func (c *Cache) get(characters string, bounds image.Rectangle) ([]*Cell, bool) {
-	key := gridCacheKey{characters: characters, width: bounds.Dx(), height: bounds.Dy()}
+	cacheKey := gridCacheKey{characters: characters, width: bounds.Dx(), height: bounds.Dy()}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if element, ok := c.items[key]; ok {
+
+	element, ok := c.items[cacheKey]
+
+	if ok {
 		if entry, ok := element.Value.(*gridCacheEntry); ok {
 			entry.usedAt = time.Now()
+
 			c.order.MoveToFront(element)
+
 			return entry.cells, true
 		}
 	}
+
 	return nil, false
 }
 
 func (c *Cache) put(characters string, bounds image.Rectangle, cells []*Cell) {
-	key := gridCacheKey{characters: characters, width: bounds.Dx(), height: bounds.Dy()}
+	cacheKey := gridCacheKey{characters: characters, width: bounds.Dx(), height: bounds.Dy()}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if element, ok := c.items[key]; ok {
-		if entry, ok := element.Value.(*gridCacheEntry); ok {
+
+	if element, ok := c.items[cacheKey]; ok {
+		entry, ok := element.Value.(*gridCacheEntry)
+
+		if ok {
 			entry.cells = cells
 			entry.usedAt = time.Now()
 			entry.addedAt = entry.usedAt
+
 			c.order.MoveToFront(element)
+
 			return
 		}
 		// replace unexpected type
 		newEntry := &gridCacheEntry{cells: cells, addedAt: time.Now(), usedAt: time.Now()}
 		element.Value = newEntry
 		c.order.MoveToFront(element)
+
 		return
 	}
+
 	entry := &gridCacheEntry{cells: cells, addedAt: time.Now(), usedAt: time.Now()}
 	element := c.order.PushFront(entry)
-	c.items[key] = element
+
+	c.items[cacheKey] = element
 	if c.order.Len() > c.capacity {
 		tail := c.order.Back()
 		if tail != nil {
 			c.order.Remove(tail)
+
 			for cacheKey, value := range c.items {
 				if value == tail {
 					delete(c.items, cacheKey)
+
 					break
 				}
 			}

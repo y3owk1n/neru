@@ -14,23 +14,23 @@ import (
 func TestNewService(t *testing.T) {
 	cfg := config.DefaultConfig()
 	path := "/tmp/config.toml"
-	svc := config.NewService(cfg, path)
+	service := config.NewService(cfg, path)
 
-	if svc == nil {
+	if service == nil {
 		t.Fatal("NewService returned nil")
 	}
 
-	if svc.Get() != cfg {
+	if service.Get() != cfg {
 		t.Error("Get() returned incorrect config")
 	}
 
-	if svc.Path() != path {
-		t.Errorf("Path() = %v, want %v", svc.Path(), path)
+	if service.Path() != path {
+		t.Errorf("Path() = %v, want %v", service.Path(), path)
 	}
 }
 
 func TestService_Validate(t *testing.T) {
-	svc := config.NewService(config.DefaultConfig(), "")
+	service := config.NewService(config.DefaultConfig(), "")
 
 	tests := []struct {
 		name    string
@@ -53,6 +53,7 @@ func TestService_Validate(t *testing.T) {
 				c := config.DefaultConfig()
 				c.Hints.Enabled = true
 				c.Hints.HintCharacters = "a" // Too short
+
 				return c
 			}(),
 			wantErr: true,
@@ -63,6 +64,7 @@ func TestService_Validate(t *testing.T) {
 				c := config.DefaultConfig()
 				c.Hints.Enabled = true
 				c.Hints.ClickableRoles = []string{}
+
 				return c
 			}(),
 			wantErr: true,
@@ -73,62 +75,63 @@ func TestService_Validate(t *testing.T) {
 				c := config.DefaultConfig()
 				c.Grid.Enabled = true
 				c.Grid.Characters = "a" // Too short
+
 				return c
 			}(),
 			wantErr: true,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := svc.Validate(tt.cfg)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			validateErr := service.Validate(test.cfg)
+			if (validateErr != nil) != test.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", validateErr, test.wantErr)
 			}
 		})
 	}
 }
 
 func TestService_Update(t *testing.T) {
-	svc := config.NewService(config.DefaultConfig(), "")
-	newCfg := config.DefaultConfig()
-	newCfg.Hints.HintCharacters = "xyz"
+	service := config.NewService(config.DefaultConfig(), "")
+	newConfig := config.DefaultConfig()
+	newConfig.Hints.HintCharacters = "xyz"
 
-	err := svc.Update(newCfg)
-	if err != nil {
-		t.Fatalf("Update() failed: %v", err)
+	updateErr := service.Update(newConfig)
+	if updateErr != nil {
+		t.Fatalf("Update() failed: %v", updateErr)
 	}
 
-	if svc.Get().Hints.HintCharacters != "xyz" {
+	if service.Get().Hints.HintCharacters != "xyz" {
 		t.Error("Update() did not update config")
 	}
 
 	// Test invalid update
-	invalidCfg := config.DefaultConfig()
-	invalidCfg.Hints.Enabled = true
-	invalidCfg.Hints.HintCharacters = "a" // Invalid
+	invalidConfig := config.DefaultConfig()
+	invalidConfig.Hints.Enabled = true
+	invalidConfig.Hints.HintCharacters = "a" // Invalid
 
-	err = svc.Update(invalidCfg)
-	if err == nil {
+	updateErr = service.Update(invalidConfig)
+	if updateErr == nil {
 		t.Error("Update() should fail with invalid config")
 	}
 
 	// Ensure config wasn't updated on error
-	if svc.Get().Hints.HintCharacters == "a" {
+	if service.Get().Hints.HintCharacters == "a" {
 		t.Error("Update() updated config despite validation error")
 	}
 }
 
 func TestService_Watch(t *testing.T) {
-	svc := config.NewService(config.DefaultConfig(), "")
-	ctx := t.Context()
+	service := config.NewService(config.DefaultConfig(), "")
+	context := t.Context()
 
-	ch := svc.Watch(ctx)
+	channel := service.Watch(context)
 
 	// Should receive initial config
 	select {
-	case cfg := <-ch:
-		if cfg == nil {
+	case config := <-channel:
+		if config == nil {
 			t.Error("Watch channel received nil config")
 		}
 	case <-time.After(100 * time.Millisecond):
@@ -136,14 +139,14 @@ func TestService_Watch(t *testing.T) {
 	}
 
 	// Update config
-	newCfg := config.DefaultConfig()
-	newCfg.Hints.HintCharacters = "abc"
-	_ = svc.Update(newCfg)
+	newConfig := config.DefaultConfig()
+	newConfig.Hints.HintCharacters = "abc"
+	_ = service.Update(newConfig)
 
 	// Should receive update
 	select {
-	case cfg := <-ch:
-		if cfg.Hints.HintCharacters != "abc" {
+	case config := <-channel:
+		if config.Hints.HintCharacters != "abc" {
 			t.Error("Watch channel received incorrect update")
 		}
 	case <-time.After(100 * time.Millisecond):
@@ -162,64 +165,67 @@ enabled = true
 hint_characters = "asdf"
 clickable_roles = ["AXButton"]
 `
-	err := os.WriteFile(configPath, []byte(configContent), 0o644)
-	if err != nil {
-		t.Fatalf("Failed to write temp config: %v", err)
+
+	writeFileErr := os.WriteFile(configPath, []byte(configContent), 0o644)
+	if writeFileErr != nil {
+		t.Fatalf("Failed to write temp config: %v", writeFileErr)
 	}
 
-	svc := config.NewService(config.DefaultConfig(), configPath)
+	service := config.NewService(config.DefaultConfig(), configPath)
 
 	// Test Reload
-	ctx := context.Background()
-	err = svc.Reload(ctx, configPath)
-	if err != nil {
-		t.Fatalf("Reload() failed: %v", err)
+	context := context.Background()
+
+	reloadErr := service.Reload(context, configPath)
+	if reloadErr != nil {
+		t.Fatalf("Reload() failed: %v", reloadErr)
 	}
 
-	if svc.Get().Hints.HintCharacters != "asdf" {
-		t.Errorf("Reload() did not load correct config, got %v", svc.Get().Hints.HintCharacters)
+	if service.Get().Hints.HintCharacters != "asdf" {
+		t.Errorf("Reload() did not load correct config, got %v", service.Get().Hints.HintCharacters)
 	}
 
 	// Test Reload with invalid file
-	err = os.WriteFile(configPath, []byte("invalid toml content"), 0o644)
-	if err != nil {
-		t.Fatalf("Failed to update temp config: %v", err)
+	anotherWriteFileErr := os.WriteFile(configPath, []byte("invalid toml content"), 0o644)
+	if anotherWriteFileErr != nil {
+		t.Fatalf("Failed to update temp config: %v", anotherWriteFileErr)
 	}
 
-	err = svc.Reload(ctx, configPath)
-	if err == nil {
+	anotherReloadErr := service.Reload(context, configPath)
+	if anotherReloadErr == nil {
 		t.Error("Reload() should fail with invalid config file")
 	}
 }
 
 func TestService_Concurrency(_ *testing.T) {
-	svc := config.NewService(config.DefaultConfig(), "")
-	var wg sync.WaitGroup
+	service := config.NewService(config.DefaultConfig(), "")
+
+	var waitGroup sync.WaitGroup
 
 	// Concurrent reads
 	for range 100 {
-		//nolint:modernize // WaitGroup.Go is not available in standard library
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_ = svc.Get()
-		}()
+		waitGroup.Go(func() {
+			_ = service.Get()
+		})
 	}
 
 	// Concurrent updates
-	for i := range 100 {
-		wg.Add(1)
+	for index := range 100 {
+		waitGroup.Add(1)
+
 		go func(id int) {
-			defer wg.Done()
+			defer waitGroup.Done()
+
 			cfg := config.DefaultConfig()
 			if id%2 == 0 {
 				cfg.Hints.HintCharacters = "even"
 			} else {
 				cfg.Hints.HintCharacters = "odd"
 			}
-			_ = svc.Update(cfg)
-		}(i)
+
+			_ = service.Update(cfg)
+		}(index)
 	}
 
-	wg.Wait()
+	waitGroup.Wait()
 }

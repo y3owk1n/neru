@@ -48,39 +48,46 @@ type Overlay struct {
 }
 
 // NewOverlay initializes a new scroll overlay instance with its own window.
-func NewOverlay(cfg config.ScrollConfig, logger *zap.Logger) (*Overlay, error) {
+func NewOverlay(config config.ScrollConfig, logger *zap.Logger) (*Overlay, error) {
 	window := C.createOverlayWindow()
 	if window == nil {
 		return nil, errors.New("failed to create overlay window")
 	}
+
 	return &Overlay{
 		window: window,
-		config: cfg,
+		config: config,
 		logger: logger,
 	}, nil
 }
 
 // NewOverlayWithWindow initializes a scroll overlay instance using a shared window.
 func NewOverlayWithWindow(
-	cfg config.ScrollConfig,
+	config config.ScrollConfig,
 	logger *zap.Logger,
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
 	return &Overlay{
 		window: (C.OverlayWindow)(windowPtr),
-		config: cfg,
+		config: config,
 		logger: logger,
 	}, nil
 }
 
 // GetWindow returns the underlying C overlay window.
-func (o *Overlay) GetWindow() C.OverlayWindow { return o.window }
+func (o *Overlay) GetWindow() C.OverlayWindow {
+	return o.window
+}
 
 // GetConfig returns the scroll configuration.
-func (o *Overlay) GetConfig() config.ScrollConfig { return o.config }
+func (o *Overlay) GetConfig() config.ScrollConfig {
+	return o.config
+}
 
 // GetLogger returns the logger.
-func (o *Overlay) GetLogger() *zap.Logger { return o.logger }
+func (o *Overlay) GetLogger() *zap.Logger {
+	return o.logger
+}
 
 // Show displays the scroll overlay window.
 func (o *Overlay) Show() {
@@ -182,7 +189,7 @@ func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height in
 	borderWidth := o.config.HighlightWidth
 
 	cColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cColor))
+	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
 
 	// Build 4 border lines around the rectangle
 	lines := make([]C.CGRect, 4)
@@ -218,8 +225,8 @@ func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height in
 }
 
 // UpdateConfig updates the overlay configuration.
-func (o *Overlay) UpdateConfig(cfg config.ScrollConfig) {
-	o.config = cfg
+func (o *Overlay) UpdateConfig(config config.ScrollConfig) {
+	o.config = config
 }
 
 // Destroy releases the overlay window resources.

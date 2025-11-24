@@ -45,30 +45,33 @@ func NewAdapter(
 
 // GetClickableElements retrieves all clickable UI elements matching the filter.
 func (a *Adapter) GetClickableElements(
-	ctx context.Context,
+	context context.Context,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
 	// Check context
 	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	case <-context.Done():
+		return nil, context.Err()
 	default:
 	}
 
 	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))
 
-	// Get frontmost window
-	window, err := a.client.GetFrontmostWindow()
-	if err != nil {
+	// Get frontmost frontmostWindow
+	frontmostWindow, frontmostWindowErr := a.client.GetFrontmostWindow()
+	if frontmostWindowErr != nil {
 		return nil, errors.New(errors.CodeAccessibilityFailed, "failed to get frontmost window")
 	}
-	defer window.Release()
+	defer frontmostWindow.Release()
 
 	// Get clickable nodes via client
-	clickableNodes, err := a.client.GetClickableNodes(window, filter.IncludeOffscreen)
-	if err != nil {
+	clickableNodes, clickableNodesErr := a.client.GetClickableNodes(
+		frontmostWindow,
+		filter.IncludeOffscreen,
+	)
+	if clickableNodesErr != nil {
 		return nil, errors.Wrap(
-			err,
+			clickableNodesErr,
 			errors.CodeAccessibilityFailed,
 			"failed to get clickable nodes",
 		)
@@ -78,12 +81,12 @@ func (a *Adapter) GetClickableElements(
 
 	// Convert to domain elements
 	elements := make([]*element.Element, 0, len(clickableNodes))
-	for i, node := range clickableNodes {
+	for index, node := range clickableNodes {
 		// Check context periodically
-		if i%100 == 0 {
+		if index%100 == 0 {
 			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
+			case <-context.Done():
+				return nil, context.Err()
 			default:
 			}
 		}
@@ -91,6 +94,7 @@ func (a *Adapter) GetClickableElements(
 		elem, err := a.convertToDomainElement(node)
 		if err != nil {
 			a.logger.Warn("Failed to convert element", zap.Error(err))
+
 			continue
 		}
 
@@ -103,63 +107,64 @@ func (a *Adapter) GetClickableElements(
 	a.logger.Info("Converted frontmost window elements", zap.Int("count", len(elements)))
 
 	// Add supplementary elements based on filter
-	elements = a.addSupplementaryElements(ctx, elements, filter)
+	elements = a.addSupplementaryElements(context, elements, filter)
 
 	a.logger.Info("Total elements after supplementary collection", zap.Int("count", len(elements)))
+
 	return elements, nil
 }
 
 // GetScrollableElements retrieves all scrollable UI elements.
-func (a *Adapter) GetScrollableElements(ctx context.Context) ([]*element.Element, error) {
+func (a *Adapter) GetScrollableElements(context context.Context) ([]*element.Element, error) {
 	// Check context
 	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	case <-context.Done():
+		return nil, context.Err()
 	default:
 	}
 
 	a.logger.Debug("Getting scrollable elements")
 
 	// Get focused app
-	focusedApp, err := a.client.GetFocusedApplication()
-	if err != nil {
+	focusedApp, focusedAppErr := a.client.GetFocusedApplication()
+	if focusedAppErr != nil {
 		return nil, errors.New(errors.CodeAccessibilityFailed, "failed to get focused app")
 	}
 	defer focusedApp.Release()
 
-	// TODO: Implement scrollable element finding in AXClient if needed
 	a.logger.Debug("Scrollable elements not yet implemented")
+
 	return []*element.Element{}, nil
 }
 
 // PerformAction executes an action on the specified element.
 func (a *Adapter) PerformAction(
-	ctx context.Context,
-	elem *element.Element,
+	context context.Context,
+	element *element.Element,
 	actionType action.Type,
 ) error {
 	// Check context
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-context.Done():
+		return context.Err()
 	default:
 	}
 
 	a.logger.Info("Performing action",
 		zap.String("action", actionType.String()),
-		zap.String("element_id", string(elem.ID())))
+		zap.String("element_id", string(element.ID())))
 
 	// Get the center point of the element
-	center := elem.Center()
+	center := element.Center()
 
 	// Get restore cursor setting from config
-	cfg := config.Global()
-	restoreCursor := cfg != nil && cfg.General.RestoreCursorPosition
+	config := config.Global()
+	restoreCursor := config != nil && config.General.RestoreCursorPosition
 
 	// Perform the action via client
-	err := a.client.PerformAction(actionType, center, restoreCursor)
-	if err != nil {
-		return errors.Wrap(err, errors.CodeActionFailed, "failed to perform action")
+	performActionErr := a.client.PerformAction(actionType, center, restoreCursor)
+	if performActionErr != nil {
+		return errors.Wrap(performActionErr, errors.CodeActionFailed, "failed to perform action")
 	}
 
 	return nil
@@ -167,14 +172,14 @@ func (a *Adapter) PerformAction(
 
 // PerformActionAtPoint executes an action at the specified point.
 func (a *Adapter) PerformActionAtPoint(
-	ctx context.Context,
+	context context.Context,
 	actionType action.Type,
 	point image.Point,
 ) error {
 	// Check context
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-context.Done():
+		return context.Err()
 	default:
 	}
 
@@ -184,13 +189,17 @@ func (a *Adapter) PerformActionAtPoint(
 		zap.Int("y", point.Y))
 
 	// Get restore cursor setting from config
-	cfg := config.Global()
-	restoreCursor := cfg != nil && cfg.General.RestoreCursorPosition
+	config := config.Global()
+	restoreCursor := config != nil && config.General.RestoreCursorPosition
 
 	// Perform the action via client
-	err := a.client.PerformAction(actionType, point, restoreCursor)
-	if err != nil {
-		return errors.Wrap(err, errors.CodeActionFailed, "failed to perform action at point")
+	performActionErr := a.client.PerformAction(actionType, point, restoreCursor)
+	if performActionErr != nil {
+		return errors.Wrap(
+			performActionErr,
+			errors.CodeActionFailed,
+			"failed to perform action at point",
+		)
 	}
 
 	return nil
@@ -202,12 +211,13 @@ func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
 		zap.Int("deltaX", deltaX),
 		zap.Int("deltaY", deltaY))
 
-	err := a.client.Scroll(deltaX, deltaY)
-	if err != nil {
-		return errors.Wrap(err, errors.CodeActionFailed, "failed to scroll")
+	scrollErr := a.client.Scroll(deltaX, deltaY)
+	if scrollErr != nil {
+		return errors.Wrap(scrollErr, errors.CodeActionFailed, "failed to scroll")
 	}
 
 	a.logger.Debug("Scroll completed")
+
 	return nil
 }
 
@@ -218,6 +228,7 @@ func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point) error 
 		zap.Int("y", point.Y))
 
 	a.client.MoveMouse(point)
+
 	return nil
 }
 
@@ -227,20 +238,21 @@ func (a *Adapter) GetCursorPosition(_ context.Context) (image.Point, error) {
 	a.logger.Debug("Got cursor position",
 		zap.Int("x", pos.X),
 		zap.Int("y", pos.Y))
+
 	return pos, nil
 }
 
 // GetFocusedAppBundleID returns the bundle ID of the currently focused application.
-func (a *Adapter) GetFocusedAppBundleID(ctx context.Context) (string, error) {
+func (a *Adapter) GetFocusedAppBundleID(context context.Context) (string, error) {
 	// Check context
 	select {
-	case <-ctx.Done():
-		return "", ctx.Err()
+	case <-context.Done():
+		return "", context.Err()
 	default:
 	}
 
-	focusedApp, err := a.client.GetFocusedApplication()
-	if err != nil {
+	focusedApp, focusedAppErr := a.client.GetFocusedApplication()
+	if focusedAppErr != nil {
 		return "", errors.New(errors.CodeAccessibilityFailed, "failed to get focused application")
 	}
 	defer focusedApp.Release()
@@ -259,11 +271,11 @@ func (a *Adapter) IsAppExcluded(_ context.Context, bundleID string) bool {
 }
 
 // GetScreenBounds returns the bounds of the active screen.
-func (a *Adapter) GetScreenBounds(ctx context.Context) (image.Rectangle, error) {
+func (a *Adapter) GetScreenBounds(context context.Context) (image.Rectangle, error) {
 	// Check context
 	select {
-	case <-ctx.Done():
-		return image.Rectangle{}, ctx.Err()
+	case <-context.Done():
+		return image.Rectangle{}, context.Err()
 	default:
 	}
 
@@ -271,11 +283,11 @@ func (a *Adapter) GetScreenBounds(ctx context.Context) (image.Rectangle, error) 
 }
 
 // CheckPermissions verifies that accessibility permissions are granted.
-func (a *Adapter) CheckPermissions(ctx context.Context) error {
+func (a *Adapter) CheckPermissions(context context.Context) error {
 	// Check context
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-context.Done():
+		return context.Err()
 	default:
 	}
 
@@ -288,8 +300,8 @@ func (a *Adapter) CheckPermissions(ctx context.Context) error {
 }
 
 // Health checks if the accessibility permissions are granted.
-func (a *Adapter) Health(ctx context.Context) error {
-	return a.CheckPermissions(ctx)
+func (a *Adapter) Health(context context.Context) error {
+	return a.CheckPermissions(context)
 }
 
 // UpdateClickableRoles updates the list of clickable roles.
@@ -302,6 +314,7 @@ func (a *Adapter) UpdateClickableRoles(roles []string) {
 // UpdateExcludedBundles updates the list of excluded bundle IDs.
 func (a *Adapter) UpdateExcludedBundles(bundles []string) {
 	a.logger.Info("Updating excluded bundles", zap.Int("count", len(bundles)))
+
 	a.excludedBundles = make(map[string]bool, len(bundles))
 	for _, bundle := range bundles {
 		a.excludedBundles[bundle] = true
@@ -315,7 +328,7 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 	}
 
 	// Create element ID from unique identifier
-	elemID := element.ID(node.GetID())
+	elementID := element.ID(node.GetID())
 
 	// Get bounds
 	bounds := node.GetBounds()
@@ -327,39 +340,39 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 	isClickable := node.IsClickable()
 
 	// Create element with options
-	elem, err := element.NewElement(
-		elemID,
+	element, elementErr := element.NewElement(
+		elementID,
 		bounds,
 		role,
 		element.WithClickable(isClickable),
 		element.WithTitle(node.GetTitle()),
 		element.WithDescription(node.GetDescription()),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create element: %w", err)
+	if elementErr != nil {
+		return nil, fmt.Errorf("failed to create element: %w", elementErr)
 	}
 
-	return elem, nil
+	return element, nil
 }
 
 // matchesFilter checks if an element matches the given filter criteria.
-func (a *Adapter) matchesFilter(elem *element.Element, filter ports.ElementFilter) bool {
+func (a *Adapter) matchesFilter(element *element.Element, filter ports.ElementFilter) bool {
 	// Check minimum size
-	bounds := elem.Bounds()
+	bounds := element.Bounds()
 	if bounds.Dx() < filter.MinSize.X || bounds.Dy() < filter.MinSize.Y {
 		return false
 	}
 
 	// Check role inclusion
 	if len(filter.Roles) > 0 {
-		found := slices.Contains(filter.Roles, elem.Role())
+		found := slices.Contains(filter.Roles, element.Role())
 		if !found {
 			return false
 		}
 	}
 
 	// Check role exclusion
-	return !slices.Contains(filter.ExcludeRoles, elem.Role())
+	return !slices.Contains(filter.ExcludeRoles, element.Role())
 }
 
 // Ensure Adapter implements ports.AccessibilityPort.

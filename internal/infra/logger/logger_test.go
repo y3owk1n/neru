@@ -1,4 +1,3 @@
-//nolint:errcheck,noinlineerr
 package logger
 
 import (
@@ -72,20 +71,20 @@ func TestInit(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := Init(
-				tt.logLevel,
-				tt.logFilePath,
-				tt.structured,
-				tt.disableFileLogging,
-				tt.maxFileSize,
-				tt.maxBackups,
-				tt.maxAge,
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			initErr := Init(
+				test.logLevel,
+				test.logFilePath,
+				test.structured,
+				test.disableFileLogging,
+				test.maxFileSize,
+				test.maxBackups,
+				test.maxAge,
 			)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Init() error = %v, wantErr %v", err, tt.wantErr)
+			if (initErr != nil) != test.wantErr {
+				t.Errorf("Init() error = %v, wantErr %v", initErr, test.wantErr)
 			}
 
 			// Verify logger was initialized
@@ -119,11 +118,12 @@ func TestLoggingFunctions(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	err := Init("debug", logPath, false, false, 10, 3, 7)
-	if err != nil {
-		t.Fatalf("Init() failed: %v", err)
+	initErr := Init("debug", logPath, false, false, 10, 3, 7)
+	if initErr != nil {
+		t.Fatalf("Init() failed: %v", initErr)
 	}
-	defer Close()
+
+	defer Close() //nolint:errcheck
 
 	tests := []struct {
 		name string
@@ -156,15 +156,16 @@ func TestLoggingFunctions(t *testing.T) {
 		// Note: Fatal test is skipped as it would exit the test process
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(_ *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(_ *testing.T) {
 			// Should not panic
-			tt.fn()
+			test.fn()
 		})
 	}
 
 	// Verify log file was created
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
+	_, initErr = os.Stat(logPath)
+	if os.IsNotExist(initErr) {
 		t.Error("Log file was not created")
 	}
 }
@@ -175,7 +176,8 @@ func TestWith(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Init() failed: %v", err)
 	}
-	defer Close()
+
+	defer Close() //nolint:errcheck
 
 	// Create child logger
 	childLogger := With(zap.String("component", "test"))
@@ -192,11 +194,12 @@ func TestSync(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	err := Init("info", logPath, false, false, 10, 3, 7)
-	if err != nil {
-		t.Fatalf("Init() failed: %v", err)
+	initErr := Init("info", logPath, false, false, 10, 3, 7)
+	if initErr != nil {
+		t.Fatalf("Init() failed: %v", initErr)
 	}
-	defer Close()
+
+	defer Close() //nolint:errcheck
 
 	// Write some logs
 	Info("test message 1")
@@ -211,9 +214,9 @@ func TestClose(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	err := Init("info", logPath, false, false, 10, 3, 7)
-	if err != nil {
-		t.Fatalf("Init() failed: %v", err)
+	initErr := Init("info", logPath, false, false, 10, 3, 7)
+	if initErr != nil {
+		t.Fatalf("Init() failed: %v", initErr)
 	}
 
 	// Write some logs
@@ -239,16 +242,17 @@ func TestLogLevels(t *testing.T) {
 		{"unknown defaults to info", "unknown", zapcore.InfoLevel},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			logPath := filepath.Join(tempDir, "test.log")
 
-			err := Init(tt.logLevel, logPath, false, false, 10, 3, 7)
-			if err != nil {
-				t.Fatalf("Init() failed: %v", err)
+			initErr := Init(test.logLevel, logPath, false, false, 10, 3, 7)
+			if initErr != nil {
+				t.Fatalf("Init() failed: %v", initErr)
 			}
-			defer Close()
+
+			defer Close() //nolint:errcheck
 
 			// Logger should be initialized
 			logger := Get()
@@ -264,11 +268,12 @@ func TestFileRotation(t *testing.T) {
 	logPath := filepath.Join(tempDir, "test.log")
 
 	// Initialize with small max size for testing
-	err := Init("info", logPath, false, false, 1, 2, 1)
-	if err != nil {
-		t.Fatalf("Init() failed: %v", err)
+	initErr := Init("info", logPath, false, false, 1, 2, 1)
+	if initErr != nil {
+		t.Fatalf("Init() failed: %v", initErr)
 	}
-	defer Close()
+
+	defer Close() //nolint:errcheck
 
 	// Write enough logs to trigger rotation
 	for range 1000 {
@@ -279,7 +284,8 @@ func TestFileRotation(t *testing.T) {
 	_ = Sync()
 
 	// Verify log file exists
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
+	_, initErr = os.Stat(logPath)
+	if os.IsNotExist(initErr) {
 		t.Error("Log file was not created")
 	}
 }
@@ -290,7 +296,8 @@ func BenchmarkDebugLogging(b *testing.B) {
 	logPath := filepath.Join(tempDir, "bench.log")
 
 	_ = Init("debug", logPath, false, false, 100, 3, 7)
-	defer Close()
+
+	defer Close() //nolint:errcheck
 
 	for b.Loop() {
 		Debug("benchmark message", zap.String("key", "value"))
@@ -302,7 +309,8 @@ func BenchmarkInfoLogging(b *testing.B) {
 	logPath := filepath.Join(tempDir, "bench.log")
 
 	_ = Init("info", logPath, false, false, 100, 3, 7)
-	defer Close()
+
+	defer Close() //nolint:errcheck
 
 	for b.Loop() {
 		Info("benchmark message", zap.Int("count", 42))
@@ -314,7 +322,8 @@ func BenchmarkStructuredLogging(b *testing.B) {
 	logPath := filepath.Join(tempDir, "bench.log")
 
 	_ = Init("info", logPath, true, false, 100, 3, 7)
-	defer Close()
+
+	defer Close() //nolint:errcheck
 
 	for b.Loop() {
 		Info("benchmark message",

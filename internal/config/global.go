@@ -12,6 +12,7 @@ var (
 func SetGlobal(cfg *Config) {
 	globalMu.Lock()
 	defer globalMu.Unlock()
+
 	globalConfig = cfg
 }
 
@@ -20,5 +21,6 @@ func SetGlobal(cfg *Config) {
 func Global() *Config {
 	globalMu.RLock()
 	defer globalMu.RUnlock()
+
 	return globalConfig
 }

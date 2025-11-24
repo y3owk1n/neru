@@ -15,48 +15,50 @@ var doctorCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if !ipc.IsServerRunning() {
 			cmd.Println("❌ Neru is not running")
+
 			return nil
 		}
 
-		client := ipc.NewClient()
-		resp, err := client.Send(ipc.Command{Action: domain.CommandHealth})
-		if err != nil {
-			return fmt.Errorf("failed to check health: %w", err)
+		ipcClient := ipc.NewClient()
+		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: domain.CommandHealth})
+		if ipcResponseErr != nil {
+			return fmt.Errorf("failed to check health: %w", ipcResponseErr)
 		}
 
-		if !resp.Success {
+		if !ipcResponse.Success {
 			cmd.Println("⚠️  Some components are unhealthy:")
 		} else {
 			cmd.Println("✅ All systems operational")
 		}
-		if resp.Success {
+		if ipcResponse.Success {
 			cmd.Println("✅ All systems operational")
+
 			return nil
 		}
 
 		// Parse error details if available
 		var data map[string]string
-		if resp.Data != nil {
-			b, err := json.Marshal(resp.Data)
-			if err != nil {
-				return fmt.Errorf("failed to marshal error data: %w", err)
+		if ipcResponse.Data != nil {
+			ipcResponseData, ipcResponseDataErr := json.Marshal(ipcResponse.Data)
+			if ipcResponseDataErr != nil {
+				return fmt.Errorf("failed to marshal error data: %w", ipcResponseDataErr)
 			}
-			err = json.Unmarshal(b, &data)
-			if err != nil {
-				return fmt.Errorf("failed to parse error data: %w", err)
+			ipcResponseDataErr = json.Unmarshal(ipcResponseData, &data)
+			if ipcResponseDataErr != nil {
+				return fmt.Errorf("failed to parse error data: %w", ipcResponseDataErr)
 			}
 		}
 
 		cmd.Println("⚠️  Some components are unhealthy:")
-		for k, v := range data {
+		for key, value := range data {
 			status := "OK"
-			if v != "" {
-				status = v
+			if value != "" {
+				status = value
 			}
 			if status == "OK" {
-				cmd.Printf("  ✅ %s: %s\n", k, status)
+				cmd.Printf("  ✅ %s: %s\n", key, status)
 			} else {
-				cmd.Printf("  ❌ %s: %s\n", k, status)
+				cmd.Printf("  ❌ %s: %s\n", key, status)
 			}
 		}
 

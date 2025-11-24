@@ -169,19 +169,25 @@ func TestGetActionFromString(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotAction, gotOk := GetActionFromString(tt.actionStr)
-			if gotAction != tt.wantAction {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotAction, gotOk := GetActionFromString(test.actionStr)
+			if gotAction != test.wantAction {
 				t.Errorf(
 					"GetActionFromString(%q) action = %v, want %v",
-					tt.actionStr,
+					test.actionStr,
 					gotAction,
-					tt.wantAction,
+					test.wantAction,
 				)
 			}
-			if gotOk != tt.wantOk {
-				t.Errorf("GetActionFromString(%q) ok = %v, want %v", tt.actionStr, gotOk, tt.wantOk)
+
+			if gotOk != test.wantOk {
+				t.Errorf(
+					"GetActionFromString(%q) ok = %v, want %v",
+					test.actionStr,
+					gotOk,
+					test.wantOk,
+				)
 			}
 		})
 	}
@@ -202,11 +208,16 @@ func TestActionStringRoundTrip(t *testing.T) {
 
 	for _, action := range actions {
 		t.Run(GetActionString(action), func(t *testing.T) {
-			str := GetActionString(action)
-			gotAction, ok := GetActionFromString(str)
+			actionString := GetActionString(action)
+
+			gotAction, ok := GetActionFromString(actionString)
 			if !ok {
-				t.Errorf("Round trip failed: GetActionFromString(%q) returned ok=false", str)
+				t.Errorf(
+					"Round trip failed: GetActionFromString(%q) returned ok=false",
+					actionString,
+				)
 			}
+
 			if gotAction != action {
 				t.Errorf("Round trip failed: got %v, want %v", gotAction, action)
 			}

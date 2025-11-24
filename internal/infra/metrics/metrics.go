@@ -59,6 +59,7 @@ func (c *Collector) ObserveHistogram(name string, value float64, labels map[stri
 func (c *Collector) Reset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	c.metrics = c.metrics[:0]
 }
 
@@ -69,6 +70,7 @@ func (c *Collector) Snapshot() []Metric {
 
 	snapshot := make([]Metric, len(c.metrics))
 	copy(snapshot, c.metrics)
+
 	return snapshot
 }
 

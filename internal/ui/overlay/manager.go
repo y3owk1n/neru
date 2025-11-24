@@ -94,49 +94,64 @@ type Manager struct {
 }
 
 var (
-	mgr  *Manager
-	once sync.Once
+	manager *Manager
+	once    sync.Once
 )
 
 // Init initializes the singleton overlay manager with a new overlay window.
 func Init(logger *zap.Logger) *Manager {
 	once.Do(func() {
-		w := C.createOverlayWindow()
-		mgr = &Manager{
-			window: w,
+		window := C.createOverlayWindow()
+		manager = &Manager{
+			window: window,
 			logger: logger,
 			mode:   ModeIdle,
 			subs:   make(map[uint64]func(StateChange), 4), // Pre-size for typical subscriber count
 		}
 	})
-	return mgr
+
+	return manager
 }
 
 // Get returns the singleton instance of the overlay manager.
 func Get() *Manager {
-	return mgr
+	return manager
 }
 
 // GetWindowPtr returns the window pointer.
-func (m *Manager) GetWindowPtr() unsafe.Pointer { return unsafe.Pointer(m.window) }
+func (m *Manager) GetWindowPtr() unsafe.Pointer {
+	return unsafe.Pointer(m.window)
+}
 
 // GetMode returns the current overlay mode.
-func (m *Manager) GetMode() Mode { return m.mode }
+func (m *Manager) GetMode() Mode {
+	return m.mode
+}
 
 // GetLogger returns the logger.
-func (m *Manager) GetLogger() *zap.Logger { return m.logger }
+func (m *Manager) GetLogger() *zap.Logger {
+	return m.logger
+}
 
 // Show shows the overlay window.
-func (m *Manager) Show() { C.NeruShowOverlayWindow(m.window) }
+func (m *Manager) Show() {
+	C.NeruShowOverlayWindow(m.window)
+}
 
 // Hide hides the overlay window.
-func (m *Manager) Hide() { C.NeruHideOverlayWindow(m.window) }
+func (m *Manager) Hide() {
+	C.NeruHideOverlayWindow(m.window)
+}
 
 // Clear clears the overlay window.
-func (m *Manager) Clear() { C.NeruClearOverlay(m.window) }
+func (m *Manager) Clear() {
+	C.NeruClearOverlay(m.window)
+}
 
 // ResizeToActiveScreenSync resizes the overlay window to the active screen synchronously.
-func (m *Manager) ResizeToActiveScreenSync() { C.NeruResizeOverlayToActiveScreen(m.window) }
+func (m *Manager) ResizeToActiveScreenSync() {
+	C.NeruResizeOverlayToActiveScreen(m.window)
+}
 
 // SwitchTo transitions the overlay to the specified mode and notifies subscribers.
 func (m *Manager) SwitchTo(next Mode) {
@@ -161,6 +176,7 @@ func (m *Manager) Subscribe(fn func(StateChange)) uint64 {
 	m.nextID++
 	id := m.nextID
 	m.subs[id] = fn
+
 	return id
 }
 
@@ -180,28 +196,44 @@ func (m *Manager) Destroy() {
 }
 
 // UseHintOverlay sets the hint overlay renderer for centralized management.
-func (m *Manager) UseHintOverlay(o *hints.Overlay) { m.hintOverlay = o }
+func (m *Manager) UseHintOverlay(o *hints.Overlay) {
+	m.hintOverlay = o
+}
 
 // UseGridOverlay sets the grid overlay renderer.
-func (m *Manager) UseGridOverlay(o *grid.Overlay) { m.gridOverlay = o }
+func (m *Manager) UseGridOverlay(o *grid.Overlay) {
+	m.gridOverlay = o
+}
 
 // UseActionOverlay sets the action overlay renderer.
-func (m *Manager) UseActionOverlay(o *action.Overlay) { m.actionOverlay = o }
+func (m *Manager) UseActionOverlay(o *action.Overlay) {
+	m.actionOverlay = o
+}
 
 // UseScrollOverlay sets the scroll overlay renderer.
-func (m *Manager) UseScrollOverlay(o *scroll.Overlay) { m.scrollOverlay = o }
+func (m *Manager) UseScrollOverlay(o *scroll.Overlay) {
+	m.scrollOverlay = o
+}
 
 // GetHintOverlay returns the hint overlay renderer.
-func (m *Manager) GetHintOverlay() *hints.Overlay { return m.hintOverlay }
+func (m *Manager) GetHintOverlay() *hints.Overlay {
+	return m.hintOverlay
+}
 
 // GetGridOverlay returns the grid overlay renderer.
-func (m *Manager) GetGridOverlay() *grid.Overlay { return m.gridOverlay }
+func (m *Manager) GetGridOverlay() *grid.Overlay {
+	return m.gridOverlay
+}
 
 // GetActionOverlay returns the action overlay renderer.
-func (m *Manager) GetActionOverlay() *action.Overlay { return m.actionOverlay }
+func (m *Manager) GetActionOverlay() *action.Overlay {
+	return m.actionOverlay
+}
 
 // GetScrollOverlay returns the scroll overlay renderer.
-func (m *Manager) GetScrollOverlay() *scroll.Overlay { return m.scrollOverlay }
+func (m *Manager) GetScrollOverlay() *scroll.Overlay {
+	return m.scrollOverlay
+}
 
 // DrawHintsWithStyle draws hints with the specified style.
 // DrawHintsWithStyle draws hints with the specified style using the hint overlay renderer.
@@ -209,10 +241,11 @@ func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) er
 	if m.hintOverlay == nil {
 		return nil
 	}
-	err := m.hintOverlay.DrawHintsWithStyle(hs, style)
-	if err != nil {
-		return fmt.Errorf("failed to draw hints with style: %w", err)
+	drawHintsErr := m.hintOverlay.DrawHintsWithStyle(hs, style)
+	if drawHintsErr != nil {
+		return fmt.Errorf("failed to draw hints with style: %w", drawHintsErr)
 	}
+
 	return nil
 }
 
@@ -237,10 +270,11 @@ func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) e
 	if m.gridOverlay == nil {
 		return nil
 	}
-	err := m.gridOverlay.Draw(g, input, style)
-	if err != nil {
-		return fmt.Errorf("failed to draw grid: %w", err)
+	drawGridErr := m.gridOverlay.Draw(g, input, style)
+	if drawGridErr != nil {
+		return fmt.Errorf("failed to draw grid: %w", drawGridErr)
 	}
+
 	return nil
 }
 
@@ -273,10 +307,10 @@ func (m *Manager) publish(event StateChange) {
 	m.mu.Lock()
 	// Pre-allocate with exact capacity
 	subs := make([]func(StateChange), len(m.subs))
-	i := 0
+	index := 0
 	for _, sub := range m.subs {
-		subs[i] = sub
-		i++
+		subs[index] = sub
+		index++
 	}
 	m.mu.Unlock()
 	for _, sub := range subs {

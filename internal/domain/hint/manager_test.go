@@ -11,10 +11,10 @@ import (
 
 func TestManager_Filtering(t *testing.T) {
 	// Setup hints
-	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
-	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
-	h2, _ := hint.NewHint("AB", elem, image.Point{0, 0})
-	h3, _ := hint.NewHint("AC", elem, image.Point{0, 0})
+	element, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
+	h1, _ := hint.NewHint("AA", element, image.Point{0, 0})
+	h2, _ := hint.NewHint("AB", element, image.Point{0, 0})
+	h3, _ := hint.NewHint("AC", element, image.Point{0, 0})
 
 	collection := hint.NewCollection([]*hint.Hint{h1, h2, h3})
 	manager := hint.NewManager(logger.Get())
@@ -33,26 +33,29 @@ func TestManager_Filtering(t *testing.T) {
 		{"no match AD", "AD", 3, ""},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			manager.Reset()
-			var match *hint.Hint
-			var found bool
 
-			for _, char := range tt.input {
+			var (
+				match *hint.Hint
+				found bool
+			)
+
+			for _, char := range test.input {
 				match, found = manager.HandleInput(string(char))
 			}
 
 			filtered := manager.GetFilteredHints()
-			if len(filtered) != tt.wantCount {
-				t.Errorf("GetFilteredHints() count = %d, want %d", len(filtered), tt.wantCount)
+			if len(filtered) != test.wantCount {
+				t.Errorf("GetFilteredHints() count = %d, want %d", len(filtered), test.wantCount)
 			}
 
-			if tt.wantMatched != "" {
+			if test.wantMatched != "" {
 				if !found || match == nil {
-					t.Errorf("Expected exact match for %s, got nil", tt.wantMatched)
-				} else if match.Label() != tt.wantMatched {
-					t.Errorf("Expected exact match %s, got %s", tt.wantMatched, match.Label())
+					t.Errorf("Expected exact match for %s, got nil", test.wantMatched)
+				} else if match.Label() != test.wantMatched {
+					t.Errorf("Expected exact match %s, got %s", test.wantMatched, match.Label())
 				}
 			} else if found {
 				t.Errorf("Expected no exact match, got %s", match.Label())
@@ -62,23 +65,26 @@ func TestManager_Filtering(t *testing.T) {
 }
 
 func TestManager_Backspace(t *testing.T) {
-	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
-	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
+	element, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
+	h1, _ := hint.NewHint("AA", element, image.Point{0, 0})
 	collection := hint.NewCollection([]*hint.Hint{h1})
 	manager := hint.NewManager(logger.Get())
 	manager.SetHints(collection)
 
 	// Type 'A'
 	manager.HandleInput("A")
+
 	if len(manager.GetFilteredHints()) != 1 {
 		t.Error("Expected 1 hint after 'A'")
 	}
 
 	// Backspace
 	manager.HandleInput("backspace")
+
 	if len(manager.GetFilteredHints()) != 1 {
 		t.Error("Expected 1 hint after Backspace")
 	}
+
 	if manager.GetInput() != "" {
 		t.Errorf("Expected empty input, got %q", manager.GetInput())
 	}

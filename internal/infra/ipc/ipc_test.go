@@ -66,16 +66,17 @@ func TestNewServer(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			server, err := NewServer(tt.handler, logger)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server, err := NewServer(test.handler, logger)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewServer() error = %v, wantErr %v", err, tt.wantErr)
+			if (err != nil) != test.wantErr {
+				t.Errorf("NewServer() error = %v, wantErr %v", err, test.wantErr)
+
 				return
 			}
 
-			if !tt.wantErr && server == nil {
+			if !test.wantErr && server == nil {
 				t.Error("NewServer() returned nil server")
 			}
 
@@ -97,9 +98,9 @@ func TestServerStartStop(t *testing.T) {
 		}
 	}
 
-	server, err := NewServer(handler, logger)
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
+	server, serverErr := NewServer(handler, logger)
+	if serverErr != nil {
+		t.Fatalf("NewServer() failed: %v", serverErr)
 	}
 
 	// Start server
@@ -114,9 +115,9 @@ func TestServerStartStop(t *testing.T) {
 	}
 
 	// Stop server
-	err = server.Stop()
-	if err != nil {
-		t.Errorf("Stop() failed: %v", err)
+	serverErr = server.Stop()
+	if serverErr != nil {
+		t.Errorf("Stop() failed: %v", serverErr)
 	}
 
 	// Give server time to stop
@@ -143,9 +144,9 @@ func TestClientSend(t *testing.T) {
 	}
 
 	// Start server
-	server, err := NewServer(handler, logger)
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
+	server, serverErr := NewServer(handler, logger)
+	if serverErr != nil {
+		t.Fatalf("NewServer() failed: %v", serverErr)
 	}
 	defer server.Stop()
 
@@ -179,22 +180,23 @@ func TestClientSend(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resp, err := client.Send(tt.cmd)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ipcResponse, ipcResponseErr := client.Send(test.cmd)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Send() error = %v, wantErr %v", err, tt.wantErr)
+			if (ipcResponseErr != nil) != test.wantErr {
+				t.Errorf("Send() error = %v, wantErr %v", ipcResponseErr, test.wantErr)
+
 				return
 			}
 
-			if !tt.wantErr {
-				if !resp.Success {
-					t.Errorf("Send() response not successful: %v", resp)
+			if !test.wantErr {
+				if !ipcResponse.Success {
+					t.Errorf("Send() response not successful: %v", ipcResponse)
 				}
 
-				if resp.Message != "test response" {
-					t.Errorf("Send() unexpected message: %s", resp.Message)
+				if ipcResponse.Message != "test response" {
+					t.Errorf("Send() unexpected message: %s", ipcResponse.Message)
 				}
 			}
 		})
@@ -207,13 +209,14 @@ func TestClientSendWithTimeout(t *testing.T) {
 	// Create slow handler
 	handler := func(_ context.Context, _ Command) Response {
 		time.Sleep(200 * time.Millisecond)
+
 		return Response{Success: true}
 	}
 
 	// Start server
-	server, err := NewServer(handler, logger)
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
+	server, serverErr := NewServer(handler, logger)
+	if serverErr != nil {
+		t.Fatalf("NewServer() failed: %v", serverErr)
 	}
 	defer server.Stop()
 
@@ -239,13 +242,13 @@ func TestClientSendWithTimeout(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			cmd := Command{Action: "test"}
-			_, err := client.SendWithTimeout(cmd, tt.timeout)
+			_, ipcResponseErr := client.SendWithTimeout(cmd, test.timeout)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SendWithTimeout() error = %v, wantErr %v", err, tt.wantErr)
+			if (ipcResponseErr != nil) != test.wantErr {
+				t.Errorf("SendWithTimeout() error = %v, wantErr %v", ipcResponseErr, test.wantErr)
 			}
 		})
 	}
@@ -261,16 +264,17 @@ func TestCommandJSON(t *testing.T) {
 	}
 
 	// Marshal
-	data, err := json.Marshal(cmd)
-	if err != nil {
-		t.Fatalf("json.Marshal() failed: %v", err)
+	data, dataErr := json.Marshal(cmd)
+	if dataErr != nil {
+		t.Fatalf("json.Marshal() failed: %v", dataErr)
 	}
 
 	// Unmarshal
 	var decoded Command
-	err = json.Unmarshal(data, &decoded)
-	if err != nil {
-		t.Fatalf("json.Unmarshal() failed: %v", err)
+
+	dataErr = json.Unmarshal(data, &decoded)
+	if dataErr != nil {
+		t.Fatalf("json.Unmarshal() failed: %v", dataErr)
 	}
 
 	// Verify
@@ -284,7 +288,7 @@ func TestCommandJSON(t *testing.T) {
 }
 
 func TestResponseJSON(t *testing.T) {
-	resp := Response{
+	response := Response{
 		Success: true,
 		Message: "test message",
 		Code:    "success",
@@ -294,29 +298,30 @@ func TestResponseJSON(t *testing.T) {
 	}
 
 	// Marshal
-	data, err := json.Marshal(resp)
-	if err != nil {
-		t.Fatalf("json.Marshal() failed: %v", err)
+	data, dataErr := json.Marshal(response)
+	if dataErr != nil {
+		t.Fatalf("json.Marshal() failed: %v", dataErr)
 	}
 
 	// Unmarshal
 	var decoded Response
-	err = json.Unmarshal(data, &decoded)
-	if err != nil {
-		t.Fatalf("json.Unmarshal() failed: %v", err)
+
+	dataErr = json.Unmarshal(data, &decoded)
+	if dataErr != nil {
+		t.Fatalf("json.Unmarshal() failed: %v", dataErr)
 	}
 
 	// Verify
-	if decoded.Success != resp.Success {
-		t.Errorf("Success mismatch: got %v, want %v", decoded.Success, resp.Success)
+	if decoded.Success != response.Success {
+		t.Errorf("Success mismatch: got %v, want %v", decoded.Success, response.Success)
 	}
 
-	if decoded.Message != resp.Message {
-		t.Errorf("Message mismatch: got %s, want %s", decoded.Message, resp.Message)
+	if decoded.Message != response.Message {
+		t.Errorf("Message mismatch: got %s, want %s", decoded.Message, response.Message)
 	}
 
-	if decoded.Code != resp.Code {
-		t.Errorf("Code mismatch: got %s, want %s", decoded.Code, resp.Code)
+	if decoded.Code != response.Code {
+		t.Errorf("Code mismatch: got %s, want %s", decoded.Code, response.Code)
 	}
 }
 
@@ -338,6 +343,7 @@ func BenchmarkClientSend(b *testing.B) {
 	cmd := Command{Action: "test"}
 
 	b.ResetTimer()
+
 	for b.Loop() {
 		_, _ = client.Send(cmd)
 	}

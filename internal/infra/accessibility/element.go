@@ -31,7 +31,6 @@ var (
 	clickableRolesMu sync.RWMutex
 
 	// Pre-allocated common errors.
-	errElementNil      = errors.New("element reference is nil")
 	errGetChildrenNil  = errors.New("cannot get children: element reference is nil")
 	errSetFocusNil     = errors.New("cannot set focus: element reference is nil")
 	errSetFocusFailed  = errors.New("failed to set focus on element")
@@ -70,6 +69,7 @@ func GetClickableRoles() []string {
 		roles = append(roles, role)
 	}
 	sort.Strings(roles)
+
 	return roles
 }
 
@@ -88,6 +88,7 @@ type ElementInfo struct {
 // CheckAccessibilityPermissions verifies that the application has been granted accessibility permissions.
 func CheckAccessibilityPermissions() bool {
 	result := C.checkAccessibilityPermissions()
+
 	return result == 1
 }
 
@@ -97,6 +98,7 @@ func GetSystemWideElement() *Element {
 	if ref == nil {
 		return nil
 	}
+
 	return &Element{ref: ref}
 }
 
@@ -106,6 +108,7 @@ func GetFocusedApplication() *Element {
 	if ref == nil {
 		return nil
 	}
+
 	return &Element{ref: ref}
 }
 
@@ -115,18 +118,20 @@ func GetApplicationByPID(pid int) *Element {
 	if ref == nil {
 		return nil
 	}
+
 	return &Element{ref: ref}
 }
 
 // GetApplicationByBundleID returns an application element identified by its bundle identifier.
 func GetApplicationByBundleID(bundleID string) *Element {
 	cBundle := C.CString(bundleID)
-	defer C.free(unsafe.Pointer(cBundle))
+	defer C.free(unsafe.Pointer(cBundle)) //nolint:nlreturn
 
 	ref := C.getApplicationByBundleId(cBundle)
 	if ref == nil {
 		return nil
 	}
+
 	return &Element{ref: ref}
 }
 
@@ -137,6 +142,7 @@ func GetElementAtPosition(x, y int) *Element {
 	if ref == nil {
 		return nil
 	}
+
 	return &Element{ref: ref}
 }
 
@@ -146,11 +152,11 @@ func (e *Element) GetInfo() (*ElementInfo, error) {
 		return nil, errGetInfoNil
 	}
 
-	cInfo := C.getElementInfo(e.ref)
+	cInfo := C.getElementInfo(e.ref) //nolint:nlreturn
 	if cInfo == nil {
 		return nil, errGetInfoFailed
 	}
-	defer C.freeElementInfo(cInfo)
+	defer C.freeElementInfo(cInfo) //nolint:nlreturn
 
 	info := &ElementInfo{
 		Position: image.Point{
@@ -207,21 +213,21 @@ func (e *Element) GetChildren() ([]*Element, error) {
 	if info != nil {
 		switch info.Role {
 		case "AXList", "AXTable", "AXOutline":
-			ptr := unsafe.Pointer(C.getVisibleRows(e.ref, &count))
+			ptr := unsafe.Pointer(C.getVisibleRows(e.ref, &count)) //nolint:nlreturn
 			if ptr != nil {
 				rawChildren = ptr
 			} else {
-				rawChildren = unsafe.Pointer(C.getChildren(e.ref, &count))
+				rawChildren = unsafe.Pointer(C.getChildren(e.ref, &count)) //nolint:nlreturn
 			}
 		default:
-			rawChildren = unsafe.Pointer(C.getChildren(e.ref, &count))
+			rawChildren = unsafe.Pointer(C.getChildren(e.ref, &count)) //nolint:nlreturn
 		}
 	}
 
 	if rawChildren == nil || count == 0 {
 		return nil, nil
 	}
-	defer C.free(rawChildren)
+	defer C.free(rawChildren) //nolint:nlreturn
 
 	childSlice := (*[1 << 30]unsafe.Pointer)(rawChildren)[:count:count]
 	// Pre-allocate and directly create elements
@@ -239,10 +245,11 @@ func (e *Element) SetFocus() error {
 		return errSetFocusNil
 	}
 
-	result := C.setFocus(e.ref)
+	result := C.setFocus(e.ref) //nolint:nlreturn
 	if result == 0 {
 		return errSetFocusFailed
 	}
+
 	return nil
 }
 
@@ -253,9 +260,9 @@ func (e *Element) GetAttribute(name string) (string, error) {
 	}
 
 	cName := C.CString(name)
-	defer C.free(unsafe.Pointer(cName))
+	defer C.free(unsafe.Pointer(cName)) //nolint:nlreturn
 
-	cValue := C.getElementAttribute(e.ref, cName)
+	cValue := C.getElementAttribute(e.ref, cName) //nolint:nlreturn
 	if cValue == nil {
 		return "", fmt.Errorf("attribute %q not found on element", name)
 	}
@@ -274,9 +281,9 @@ func (e *Element) Release() {
 
 // ReleaseAll releases all elements in a slice.
 func ReleaseAll(elements []*Element) {
-	for _, elem := range elements {
-		if elem != nil {
-			elem.Release()
+	for _, element := range elements {
+		if element != nil {
+			element.Release()
 		}
 	}
 }
@@ -288,13 +295,13 @@ func GetAllWindows() ([]*Element, error) {
 	if windows == nil || count == 0 {
 		return []*Element{}, nil
 	}
-	defer C.free(unsafe.Pointer(windows))
+	defer C.free(unsafe.Pointer(windows)) //nolint:nlreturn
 
 	windowSlice := (*[1 << 30]unsafe.Pointer)(unsafe.Pointer(windows))[:count:count]
 	result := make([]*Element, count)
 
-	for i := range result {
-		result[i] = &Element{ref: windowSlice[i]}
+	for index := range result {
+		result[index] = &Element{ref: windowSlice[index]}
 	}
 
 	return result, nil
@@ -306,6 +313,7 @@ func GetFrontmostWindow() *Element {
 	if ref == nil {
 		return nil
 	}
+
 	return &Element{ref: ref}
 }
 
@@ -314,10 +322,11 @@ func (e *Element) GetMenuBar() *Element {
 	if e.ref == nil {
 		return nil
 	}
-	ref := C.getMenuBar(e.ref)
+	ref := C.getMenuBar(e.ref) //nolint:nlreturn
 	if ref == nil {
 		return nil
 	}
+
 	return &Element{ref: ref}
 }
 
@@ -327,7 +336,7 @@ func (e *Element) GetApplicationName() string {
 		return ""
 	}
 
-	cName := C.getApplicationName(e.ref)
+	cName := C.getApplicationName(e.ref) //nolint:nlreturn
 	if cName == nil {
 		return ""
 	}
@@ -342,7 +351,7 @@ func (e *Element) GetBundleIdentifier() string {
 		return ""
 	}
 
-	cBundleID := C.getBundleIdentifier(e.ref)
+	cBundleID := C.getBundleIdentifier(e.ref) //nolint:nlreturn
 	if cBundleID == nil {
 		return ""
 	}
@@ -357,7 +366,8 @@ func (e *Element) GetScrollBounds() image.Rectangle {
 		return image.Rectangle{}
 	}
 
-	rect := C.getScrollBounds(e.ref)
+	rect := C.getScrollBounds(e.ref) //nolint:nlreturn
+
 	return image.Rectangle{
 		Min: image.Point{
 			X: int(rect.origin.x),
@@ -372,14 +382,14 @@ func (e *Element) GetScrollBounds() image.Rectangle {
 
 // MoveMouseToPoint moves the cursor to a specific screen point.
 // If smooth cursor movement is enabled in the configuration, it will use smooth movement.
-func MoveMouseToPoint(p image.Point) {
-	cfg := config.Global()
-	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled {
+func MoveMouseToPoint(point image.Point) {
+	config := config.Global()
+	if config != nil && config.SmoothCursor.MoveMouseEnabled {
 		// Use smooth movement
-		MoveMouseToPointSmooth(p, cfg.SmoothCursor.Steps, cfg.SmoothCursor.Delay)
+		MoveMouseToPointSmooth(point, config.SmoothCursor.Steps, config.SmoothCursor.Delay)
 	} else {
 		// Use direct movement
-		pos := C.CGPoint{x: C.double(p.X), y: C.double(p.Y)}
+		pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 		C.moveMouse(pos)
 	}
 }
@@ -399,6 +409,7 @@ func LeftClickAtPoint(p image.Point, restoreCursor bool) error {
 	if result == 0 {
 		return fmt.Errorf("failed to perform left-click at position (%d, %d)", p.X, p.Y)
 	}
+
 	return nil
 }
 
@@ -409,6 +420,7 @@ func RightClickAtPoint(p image.Point, restoreCursor bool) error {
 	if result == 0 {
 		return fmt.Errorf("failed to perform right-click at position (%d, %d)", p.X, p.Y)
 	}
+
 	return nil
 }
 
@@ -419,6 +431,7 @@ func MiddleClickAtPoint(p image.Point, restoreCursor bool) error {
 	if result == 0 {
 		return fmt.Errorf("failed to perform middle-click at position (%d, %d)", p.X, p.Y)
 	}
+
 	return nil
 }
 
@@ -429,6 +442,7 @@ func LeftMouseDownAtPoint(p image.Point) error {
 	if result == 0 {
 		return fmt.Errorf("failed to perform left-mouse-down at position (%d, %d)", p.X, p.Y)
 	}
+
 	return nil
 }
 
@@ -439,6 +453,7 @@ func LeftMouseUpAtPoint(p image.Point) error {
 	if result == 0 {
 		return fmt.Errorf("failed to perform left-mouse-up at position (%d, %d)", p.X, p.Y)
 	}
+
 	return nil
 }
 
@@ -448,6 +463,7 @@ func LeftMouseUp() error {
 	if result == 0 {
 		return errors.New("failed to perform left-mouse-up at cursor")
 	}
+
 	return nil
 }
 
@@ -457,30 +473,31 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 	if result == 0 {
 		return fmt.Errorf("failed to scroll at cursor with delta (%d, %d)", deltaX, deltaY)
 	}
+
 	return nil
 }
 
 // GetCurrentCursorPosition returns the current cursor position in screen coordinates.
 func GetCurrentCursorPosition() image.Point {
 	pos := C.getCurrentCursorPosition()
+
 	return image.Point{X: int(pos.x), Y: int(pos.y)}
 }
 
 // IsClickable checks if the element is clickable.
-// IsClickable checks if the element supports click actions.
 func (e *Element) IsClickable(info *ElementInfo) bool {
 	if e.ref == nil {
 		return false
 	}
 
-	cfg := config.Global()
+	config := config.Global()
 
-	if cfg != nil {
+	if config != nil {
 		// Check if the app has an app-specific ignore_clickable_check
-		if cfg.Hints.AppConfigs != nil {
-			if len(cfg.Hints.AppConfigs) > 0 {
+		if config.Hints.AppConfigs != nil {
+			if len(config.Hints.AppConfigs) > 0 {
 				bundleID := e.GetBundleIdentifier()
-				for _, appConfig := range cfg.Hints.AppConfigs {
+				for _, appConfig := range config.Hints.AppConfigs {
 					if appConfig.BundleID == bundleID {
 						if appConfig.IgnoreClickableCheck {
 							return true
@@ -491,22 +508,22 @@ func (e *Element) IsClickable(info *ElementInfo) bool {
 		}
 
 		// If ignore_clickable_check is enabled in config, return true
-		if cfg.Hints.IgnoreClickableCheck {
+		if config.Hints.IgnoreClickableCheck {
 			return true
 		}
 	}
 
 	// If info is not provided, try to get it
 	if info == nil {
-		var err error
+		var infoErr error
 		// Try cache first if available
 		if globalCache != nil {
 			info = globalCache.Get(e)
 		}
 
 		if info == nil {
-			info, err = e.GetInfo()
-			if err != nil {
+			info, infoErr = e.GetInfo()
+			if infoErr != nil {
 				return false
 			}
 			if globalCache != nil {
@@ -522,7 +539,8 @@ func (e *Element) IsClickable(info *ElementInfo) bool {
 
 	if ok {
 		// Also verify it actually has click action
-		result := C.hasClickAction(e.ref)
+		result := C.hasClickAction(e.ref) //nolint:nlreturn
+
 		return result == 1
 	}
 
@@ -534,5 +552,6 @@ func (e *Element) IsClickable(info *ElementInfo) bool {
 // IsMissionControlActive checks if Mission Control is currently active.
 func IsMissionControlActive() bool {
 	result := C.isMissionControlActive()
+
 	return bool(result)
 }

@@ -55,6 +55,7 @@ func (w *Watcher) Stop() {
 func (w *Watcher) OnScreenParametersChanged(callback func()) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
 	w.screenChangeCallbacks = append(w.screenChangeCallbacks, callback)
 }
 
@@ -63,6 +64,7 @@ func (w *Watcher) OnScreenParametersChanged(callback func()) {
 func (w *Watcher) OnTerminate(callback AppCallback) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
 	w.terminateCallbacks = append(w.terminateCallbacks, callback)
 }
 
@@ -71,6 +73,7 @@ func (w *Watcher) OnTerminate(callback AppCallback) {
 func (w *Watcher) OnActivate(callback AppCallback) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
 	w.activateCallbacks = append(w.activateCallbacks, callback)
 }
 
@@ -79,6 +82,7 @@ func (w *Watcher) OnActivate(callback AppCallback) {
 func (w *Watcher) OnDeactivate(callback AppCallback) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
 	w.deactivateCallbacks = append(w.deactivateCallbacks, callback)
 }
 
@@ -88,8 +92,10 @@ func (w *Watcher) HandleLaunch(appName, bundleID string) {
 	w.logger.Debug("App watcher: Application launched",
 		zap.String("app_name", appName),
 		zap.String("bundle_id", bundleID))
+
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+
 	for _, callback := range w.launchCallbacks {
 		callback(appName, bundleID)
 	}
@@ -101,8 +107,10 @@ func (w *Watcher) HandleTerminate(appName, bundleID string) {
 	w.logger.Debug("App watcher: Application terminated",
 		zap.String("app_name", appName),
 		zap.String("bundle_id", bundleID))
+
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+
 	for _, callback := range w.terminateCallbacks {
 		callback(appName, bundleID)
 	}
@@ -114,8 +122,10 @@ func (w *Watcher) HandleActivate(appName, bundleID string) {
 	w.logger.Debug("App watcher: Application activated",
 		zap.String("app_name", appName),
 		zap.String("bundle_id", bundleID))
+
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+
 	for _, callback := range w.activateCallbacks {
 		callback(appName, bundleID)
 	}
@@ -127,8 +137,10 @@ func (w *Watcher) HandleDeactivate(appName, bundleID string) {
 	w.logger.Debug("App watcher: Application deactivated",
 		zap.String("app_name", appName),
 		zap.String("bundle_id", bundleID))
+
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+
 	for _, callback := range w.deactivateCallbacks {
 		callback(appName, bundleID)
 	}
@@ -138,8 +150,10 @@ func (w *Watcher) HandleDeactivate(appName, bundleID string) {
 // It dispatches the event to all registered screen change callbacks.
 func (w *Watcher) HandleScreenParametersChanged() {
 	w.logger.Debug("App watcher: Screen parameters changed")
+
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+
 	for _, callback := range w.screenChangeCallbacks {
 		callback()
 	}

@@ -42,28 +42,30 @@ func TestNewHint(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h, err := hint.NewHint(tt.label, tt.elem, tt.position)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			hint, hintErr := hint.NewHint(test.label, test.elem, test.position)
 
-			if tt.wantErr {
-				if err == nil {
+			if test.wantErr {
+				if hintErr == nil {
 					t.Error("NewHint() expected error, got nil")
 				}
+
 				return
 			}
 
-			if err != nil {
-				t.Errorf("NewHint() unexpected error: %v", err)
+			if hintErr != nil {
+				t.Errorf("NewHint() unexpected error: %v", hintErr)
+
 				return
 			}
 
-			if h.Label() != tt.label {
-				t.Errorf("Label() = %v, want %v", h.Label(), tt.label)
+			if hint.Label() != test.label {
+				t.Errorf("Label() = %v, want %v", hint.Label(), test.label)
 			}
 
-			if h.Position() != tt.position {
-				t.Errorf("Position() = %v, want %v", h.Position(), tt.position)
+			if hint.Position() != test.position {
+				t.Errorf("Position() = %v, want %v", hint.Position(), test.position)
 			}
 		})
 	}
@@ -71,7 +73,7 @@ func TestNewHint(t *testing.T) {
 
 func TestHint_HasPrefix(t *testing.T) {
 	elem, _ := element.NewElement("test", image.Rect(10, 10, 50, 50), element.RoleButton)
-	h, _ := hint.NewHint("ASDF", elem, image.Point{})
+	hint, _ := hint.NewHint("ASDF", elem, image.Point{})
 
 	tests := []struct {
 		prefix string
@@ -86,35 +88,37 @@ func TestHint_HasPrefix(t *testing.T) {
 		{"", true}, // Empty prefix matches everything
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.prefix, func(t *testing.T) {
-			if got := h.HasPrefix(tt.prefix); got != tt.want {
-				t.Errorf("HasPrefix(%q) = %v, want %v", tt.prefix, got, tt.want)
+	for _, test := range tests {
+		t.Run(test.prefix, func(t *testing.T) {
+			got := hint.HasPrefix(test.prefix)
+			if got != test.want {
+				t.Errorf("HasPrefix(%q) = %v, want %v", test.prefix, got, test.want)
 			}
 		})
 	}
 }
 
 func TestAlphabetGenerator_Generate(t *testing.T) {
-	gen, err := hint.NewAlphabetGenerator("asdf")
-	if err != nil {
-		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	generator, generatorErr := hint.NewAlphabetGenerator("asdf")
+	if generatorErr != nil {
+		t.Fatalf("NewAlphabetGenerator() error: %v", generatorErr)
 	}
 
 	// Create test elements
 	elements := make([]*element.Element, 10)
-	for i := range elements {
-		elements[i], _ = element.NewElement(
-			element.ID("elem-"+string(rune('0'+i))),
-			image.Rect(i*10, i*10, i*10+50, i*10+50),
+	for index := range elements {
+		elements[index], _ = element.NewElement(
+			element.ID("elem-"+string(rune('0'+index))),
+			image.Rect(index*10, index*10, index*10+50, index*10+50),
 			element.RoleButton,
 		)
 	}
 
-	ctx := context.Background()
-	hints, err := gen.Generate(ctx, elements)
-	if err != nil {
-		t.Fatalf("Generate() error: %v", err)
+	context := context.Background()
+
+	hints, hintsErr := generator.Generate(context, elements)
+	if hintsErr != nil {
+		t.Fatalf("Generate() error: %v", hintsErr)
 	}
 
 	if len(hints) != len(elements) {
@@ -123,16 +127,17 @@ func TestAlphabetGenerator_Generate(t *testing.T) {
 
 	// Check that all labels are unique
 	seen := make(map[string]bool)
-	for _, h := range hints {
-		if seen[h.Label()] {
-			t.Errorf("Duplicate label: %s", h.Label())
+	for _, hint := range hints {
+		if seen[hint.Label()] {
+			t.Errorf("Duplicate label: %s", hint.Label())
 		}
-		seen[h.Label()] = true
+
+		seen[hint.Label()] = true
 	}
 
 	// Check that all labels are uppercase
-	for _, h := range hints {
-		label := h.Label()
+	for _, hint := range hints {
+		label := hint.Label()
 		for _, r := range label {
 			if r < 'A' || r > 'Z' {
 				t.Errorf("Label %q contains non-uppercase character", label)
@@ -151,15 +156,15 @@ func TestAlphabetGenerator_MaxHints(t *testing.T) {
 		{"asdfghjkl", 729}, // 9^3 = 729
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.characters, func(t *testing.T) {
-			gen, err := hint.NewAlphabetGenerator(tt.characters)
-			if err != nil {
-				t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	for _, test := range tests {
+		t.Run(test.characters, func(t *testing.T) {
+			generator, generatorErr := hint.NewAlphabetGenerator(test.characters)
+			if generatorErr != nil {
+				t.Fatalf("NewAlphabetGenerator() error: %v", generatorErr)
 			}
 
-			got := gen.MaxHints()
-			charCount := len(tt.characters)
+			got := generator.MaxHints()
+			charCount := len(test.characters)
 			want := charCount * charCount * charCount
 
 			if got != want {
@@ -170,35 +175,35 @@ func TestAlphabetGenerator_MaxHints(t *testing.T) {
 }
 
 func TestAlphabetGenerator_TooManyElements(t *testing.T) {
-	gen, _ := hint.NewAlphabetGenerator("as") // Max 6 hints (2 + 2*2)
+	generator, _ := hint.NewAlphabetGenerator("as") // Max 6 hints (2 + 2*2)
 
 	// Try to generate 10 hints
 	elements := make([]*element.Element, 10)
-	for i := range elements {
-		elements[i], _ = element.NewElement(
-			element.ID("elem-"+string(rune('0'+i))),
+	for index := range elements {
+		elements[index], _ = element.NewElement(
+			element.ID("elem-"+string(rune('0'+index))),
 			image.Rect(0, 0, 50, 50),
 			element.RoleButton,
 		)
 	}
 
-	ctx := context.Background()
-	_, err := gen.Generate(ctx, elements)
+	context := context.Background()
 
-	if err == nil {
+	_, generateErr := generator.Generate(context, elements)
+	if generateErr == nil {
 		t.Error("Generate() expected error for too many elements, got nil")
 	}
 }
 
 func TestNewCollection(t *testing.T) {
-	elem, _ := element.NewElement("test", image.Rect(0, 0, 50, 50), element.RoleButton)
+	element, _ := element.NewElement("test", image.Rect(0, 0, 50, 50), element.RoleButton)
 
 	hints := []*hint.Hint{
-		mustNewHint("A", elem),
-		mustNewHint("AS", elem),
-		mustNewHint("AD", elem),
-		mustNewHint("AF", elem),
-		mustNewHint("S", elem),
+		mustNewHint("A", element),
+		mustNewHint("AS", element),
+		mustNewHint("AD", element),
+		mustNewHint("AF", element),
+		mustNewHint("S", element),
 	}
 
 	collection := hint.NewCollection(hints)
@@ -208,11 +213,11 @@ func TestNewCollection(t *testing.T) {
 	}
 
 	// Test FindByLabel
-	h := collection.FindByLabel("AS")
-	if h == nil {
+	hint := collection.FindByLabel("AS")
+	if hint == nil {
 		t.Error("FindByLabel(\"AS\") returned nil")
-	} else if h.Label() != "AS" {
-		t.Errorf("FindByLabel(\"AS\") returned hint with label %q", h.Label())
+	} else if hint.Label() != "AS" {
+		t.Errorf("FindByLabel(\"AS\") returned hint with label %q", hint.Label())
 	}
 
 	// Test FilterByPrefix
@@ -223,16 +228,16 @@ func TestNewCollection(t *testing.T) {
 }
 
 func TestCollection_FilterByPrefix(t *testing.T) {
-	elem, _ := element.NewElement("test", image.Rect(0, 0, 50, 50), element.RoleButton)
+	element, _ := element.NewElement("test", image.Rect(0, 0, 50, 50), element.RoleButton)
 
 	hints := []*hint.Hint{
-		mustNewHint("AA", elem),
-		mustNewHint("AS", elem),
-		mustNewHint("AD", elem),
-		mustNewHint("SA", elem),
-		mustNewHint("SS", elem),
-		mustNewHint("A", elem),
-		mustNewHint("S", elem),
+		mustNewHint("AA", element),
+		mustNewHint("AS", element),
+		mustNewHint("AD", element),
+		mustNewHint("SA", element),
+		mustNewHint("SS", element),
+		mustNewHint("A", element),
+		mustNewHint("S", element),
 	}
 
 	collection := hint.NewCollection(hints)
@@ -249,15 +254,15 @@ func TestCollection_FilterByPrefix(t *testing.T) {
 		{"X", 0},  // No matches
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.prefix, func(t *testing.T) {
-			filtered := collection.FilterByPrefix(tt.prefix)
-			if len(filtered) != tt.want {
+	for _, test := range tests {
+		t.Run(test.prefix, func(t *testing.T) {
+			filtered := collection.FilterByPrefix(test.prefix)
+			if len(filtered) != test.want {
 				t.Errorf(
 					"FilterByPrefix(%q) returned %d hints, want %d",
-					tt.prefix,
+					test.prefix,
 					len(filtered),
-					tt.want,
+					test.want,
 				)
 			}
 		})
@@ -266,39 +271,40 @@ func TestCollection_FilterByPrefix(t *testing.T) {
 
 // Helper function for tests.
 func mustNewHint(label string, elem *element.Element) *hint.Hint {
-	h, err := hint.NewHint(label, elem, image.Point{})
-	if err != nil {
-		panic(err)
+	hint, hintErr := hint.NewHint(label, elem, image.Point{})
+	if hintErr != nil {
+		panic(hintErr)
 	}
-	return h
+
+	return hint
 }
 
 func BenchmarkAlphabetGenerator_Generate(b *testing.B) {
-	gen, _ := hint.NewAlphabetGenerator("asdfghjkl")
+	generator, _ := hint.NewAlphabetGenerator("asdfghjkl")
 
 	elements := make([]*element.Element, 50)
-	for i := range elements {
-		elements[i], _ = element.NewElement(
-			element.ID("elem-"+string(rune('0'+i))),
-			image.Rect(i*10, i*10, i*10+50, i*10+50),
+	for index := range elements {
+		elements[index], _ = element.NewElement(
+			element.ID("elem-"+string(rune('0'+index))),
+			image.Rect(index*10, index*10, index*10+50, index*10+50),
 			element.RoleButton,
 		)
 	}
 
-	ctx := context.Background()
+	context := context.Background()
 
 	for b.Loop() {
-		_, _ = gen.Generate(ctx, elements)
+		_, _ = generator.Generate(context, elements)
 	}
 }
 
 func BenchmarkCollection_FilterByPrefix(b *testing.B) {
-	elem, _ := element.NewElement("test", image.Rect(0, 0, 50, 50), element.RoleButton)
+	element, _ := element.NewElement("test", image.Rect(0, 0, 50, 50), element.RoleButton)
 
 	hints := make([]*hint.Hint, 100)
-	for i := range hints {
-		label := string(rune('A'+i/26)) + string(rune('A'+i%26))
-		hints[i] = mustNewHint(label, elem)
+	for index := range hints {
+		label := string(rune('A'+index/26)) + string(rune('A'+index%26))
+		hints[index] = mustNewHint(label, element)
 	}
 
 	collection := hint.NewCollection(hints)

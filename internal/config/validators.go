@@ -9,10 +9,12 @@ import (
 
 // validateHints validates the hints configuration.
 func (c *Config) validateHints() error {
-	var err error
+	var validateErr error
+
 	if strings.TrimSpace(c.Hints.HintCharacters) == "" {
 		return errors.New("hint_characters cannot be empty")
 	}
+
 	if len(c.Hints.HintCharacters) < 2 {
 		return errors.New("hint_characters must contain at least 2 characters")
 	}
@@ -21,32 +23,38 @@ func (c *Config) validateHints() error {
 		return errors.New("hints.opacity must be between 0 and 1")
 	}
 
-	err = validateColor(c.Hints.BackgroundColor, "hints.background_color")
-	if err != nil {
-		return err
+	validateErr = validateColor(c.Hints.BackgroundColor, "hints.background_color")
+	if validateErr != nil {
+		return validateErr
 	}
-	err = validateColor(c.Hints.TextColor, "hints.text_color")
-	if err != nil {
-		return err
+
+	validateErr = validateColor(c.Hints.TextColor, "hints.text_color")
+	if validateErr != nil {
+		return validateErr
 	}
-	err = validateColor(c.Hints.MatchedTextColor, "hints.matched_text_color")
-	if err != nil {
-		return err
+
+	validateErr = validateColor(c.Hints.MatchedTextColor, "hints.matched_text_color")
+	if validateErr != nil {
+		return validateErr
 	}
-	err = validateColor(c.Hints.BorderColor, "hints.border_color")
-	if err != nil {
-		return err
+
+	validateErr = validateColor(c.Hints.BorderColor, "hints.border_color")
+	if validateErr != nil {
+		return validateErr
 	}
 
 	if c.Hints.FontSize < 6 || c.Hints.FontSize > 72 {
 		return errors.New("hints.font_size must be between 6 and 72")
 	}
+
 	if c.Hints.BorderRadius < 0 {
 		return errors.New("hints.border_radius must be non-negative")
 	}
+
 	if c.Hints.Padding < 0 {
 		return errors.New("hints.padding must be non-negative")
 	}
+
 	if c.Hints.BorderWidth < 0 {
 		return errors.New("hints.border_width must be non-negative")
 	}
@@ -86,7 +94,8 @@ func (c *Config) validateHints() error {
 
 // validateAppConfigs validates the app configurations.
 func (c *Config) validateAppConfigs() error {
-	var err error
+	var validateErr error
+
 	for index, appConfig := range c.Hints.AppConfigs {
 		if strings.TrimSpace(appConfig.BundleID) == "" {
 			return fmt.Errorf("hints.app_configs[%d].bundle_id cannot be empty", index)
@@ -97,14 +106,17 @@ func (c *Config) validateAppConfigs() error {
 			if strings.TrimSpace(key) == "" {
 				return errors.New("hotkeys.bindings contains an empty key")
 			}
-			err = validateHotkey(key, "hotkeys.bindings")
-			if err != nil {
-				return err
+
+			validateErr = validateHotkey(key, "hotkeys.bindings")
+			if validateErr != nil {
+				return validateErr
 			}
+
 			if strings.TrimSpace(value) == "" {
 				return fmt.Errorf("hotkeys.bindings[%s] cannot be empty", key)
 			}
 		}
+
 		for _, role := range appConfig.AdditionalClickable {
 			if strings.TrimSpace(role) == "" {
 				return fmt.Errorf(
@@ -114,52 +126,63 @@ func (c *Config) validateAppConfigs() error {
 			}
 		}
 	}
+
 	return nil
 }
 
 // validateGrid validates the grid configuration.
 func (c *Config) validateGrid() error {
-	var err error
+	var validateErr error
+
 	if strings.TrimSpace(c.Grid.Characters) == "" {
 		return errors.New("grid.characters cannot be empty")
 	}
+
 	if len(c.Grid.Characters) < 2 {
 		return errors.New("grid.characters must contain at least 2 characters")
 	}
+
 	if c.Grid.FontSize < 6 || c.Grid.FontSize > 72 {
 		return errors.New("grid.font_size must be between 6 and 72")
 	}
+
 	if c.Grid.BorderWidth < 0 {
 		return errors.New("grid.border_width must be non-negative")
 	}
+
 	if c.Grid.Opacity < 0 || c.Grid.Opacity > 1 {
 		return errors.New("grid.opacity must be between 0 and 1")
 	}
 
 	// Validate per-action grid colors
-	err = validateColor(c.Grid.BackgroundColor, "grid.background_color")
-	if err != nil {
-		return err
+	validateErr = validateColor(c.Grid.BackgroundColor, "grid.background_color")
+	if validateErr != nil {
+		return validateErr
 	}
-	err = validateColor(c.Grid.TextColor, "grid.text_color")
-	if err != nil {
-		return err
+
+	validateErr = validateColor(c.Grid.TextColor, "grid.text_color")
+	if validateErr != nil {
+		return validateErr
 	}
-	err = validateColor(c.Grid.MatchedTextColor, "grid.matched_text_color")
-	if err != nil {
-		return err
+
+	validateErr = validateColor(c.Grid.MatchedTextColor, "grid.matched_text_color")
+	if validateErr != nil {
+		return validateErr
 	}
-	err = validateColor(c.Grid.MatchedBackgroundColor, "grid.matched_background_color")
-	if err != nil {
-		return err
+
+	validateErr = validateColor(c.Grid.MatchedBackgroundColor, "grid.matched_background_color")
+	if validateErr != nil {
+		return validateErr
 	}
-	err = validateColor(c.Grid.MatchedBorderColor, "grid.matched_border_color")
-	if err != nil {
-		return err
+
+	validateErr = validateColor(c.Grid.MatchedBorderColor, "grid.matched_border_color")
+	if validateErr != nil {
+		return validateErr
 	}
-	err = validateColor(c.Grid.BorderColor, "grid.border_color")
-	if err != nil {
-		return err
+
+	validateErr = validateColor(c.Grid.BorderColor, "grid.border_color")
+	if validateErr != nil {
+		return validateErr
 	}
 
 	// Validate sublayer keys length (fallback to grid.characters) for 3x3 subgrid
@@ -175,19 +198,23 @@ func (c *Config) validateGrid() error {
 			required,
 		)
 	}
+
 	return nil
 }
 
 // validateAction validates the action configuration.
 func (c *Config) validateAction() error {
-	var err error
+	var validateErr error
+
 	if c.Action.HighlightWidth < 1 {
 		return errors.New("action.highlight_width must be at least 1")
 	}
-	err = validateColor(c.Action.HighlightColor, "action.highlight_color")
-	if err != nil {
-		return err
+
+	validateErr = validateColor(c.Action.HighlightColor, "action.highlight_color")
+	if validateErr != nil {
+		return validateErr
 	}
+
 	return nil
 }
 
@@ -196,9 +223,11 @@ func (c *Config) validateSmoothCursor() error {
 	if c.SmoothCursor.Steps < 1 {
 		return errors.New("smooth_cursor.steps must be at least 1")
 	}
+
 	if c.SmoothCursor.Delay < 0 {
 		return errors.New("smooth_cursor.delay must be non-negative")
 	}
+
 	return nil
 }
 
@@ -226,8 +255,8 @@ func validateHotkey(hotkey, fieldName string) error {
 	}
 
 	// Check all parts except the last (which is the key)
-	for i := range parts[:len(parts)-1] {
-		modifier := strings.TrimSpace(parts[i])
+	for index := range parts[:len(parts)-1] {
+		modifier := strings.TrimSpace(parts[index])
 		if !validModifiers[modifier] {
 			return fmt.Errorf(
 				"%s has invalid modifier '%s' in: %s (valid: Cmd, Ctrl, Alt, Shift, Option)",
@@ -238,9 +267,9 @@ func validateHotkey(hotkey, fieldName string) error {
 		}
 	}
 
-	// Last part should be the key (non-empty)
-	key := strings.TrimSpace(parts[len(parts)-1])
-	if key == "" {
+	// Last part should be the trimmedKey (non-empty)
+	trimmedKey := strings.TrimSpace(parts[len(parts)-1])
+	if trimmedKey == "" {
 		return fmt.Errorf("%s has empty key in: %s", fieldName, hotkey)
 	}
 

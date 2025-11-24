@@ -53,6 +53,7 @@ func NewOverlay(cfg config.ActionConfig, logger *zap.Logger) (*Overlay, error) {
 	if window == nil {
 		return nil, errors.New("failed to create overlay window")
 	}
+
 	return &Overlay{
 		window: window,
 		config: cfg,
@@ -62,13 +63,13 @@ func NewOverlay(cfg config.ActionConfig, logger *zap.Logger) (*Overlay, error) {
 
 // NewOverlayWithWindow initializes an action overlay instance using a shared window.
 func NewOverlayWithWindow(
-	cfg config.ActionConfig,
+	config config.ActionConfig,
 	logger *zap.Logger,
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
 	return &Overlay{
 		window: (C.OverlayWindow)(windowPtr),
-		config: cfg,
+		config: config,
 		logger: logger,
 	}, nil
 }
@@ -182,7 +183,7 @@ func (o *Overlay) DrawActionHighlight(xCoordinate, yCoordinate, width, height in
 	highlightWidth := o.config.HighlightWidth
 
 	cColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cColor))
+	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
 
 	// Build 4 border lines around the rectangle
 	lines := make([]C.CGRect, 4)

@@ -27,6 +27,7 @@ func TestGridService_ShowGrid(t *testing.T) {
 					if rows != 3 || cols != 3 {
 						t.Errorf("ShowGrid called with rows=%d, cols=%d; want 3, 3", rows, cols)
 					}
+
 					return nil
 				}
 			},
@@ -41,6 +42,7 @@ func TestGridService_ShowGrid(t *testing.T) {
 					if rows != 1 || cols != 1 {
 						t.Errorf("ShowGrid called with rows=%d, cols=%d; want 1, 1", rows, cols)
 					}
+
 					return nil
 				}
 			},
@@ -55,6 +57,7 @@ func TestGridService_ShowGrid(t *testing.T) {
 					if rows != 100 || cols != 100 {
 						t.Errorf("ShowGrid called with rows=%d, cols=%d; want 100, 100", rows, cols)
 					}
+
 					return nil
 				}
 			},
@@ -80,6 +83,7 @@ func TestGridService_ShowGrid(t *testing.T) {
 					if rows != 5 || cols != 10 {
 						t.Errorf("ShowGrid called with rows=%d, cols=%d; want 5, 10", rows, cols)
 					}
+
 					return nil
 				}
 			},
@@ -87,22 +91,22 @@ func TestGridService_ShowGrid(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			mockOverlay := &mocks.MockOverlayPort{}
-			log := logger.Get()
+			logger := logger.Get()
 
-			if tt.setupMocks != nil {
-				tt.setupMocks(mockOverlay)
+			if test.setupMocks != nil {
+				test.setupMocks(mockOverlay)
 			}
 
-			service := services.NewGridService(mockOverlay, log)
-			ctx := context.Background()
+			service := services.NewGridService(mockOverlay, logger)
+			context := context.Background()
 
-			err := service.ShowGrid(ctx, tt.rows, tt.cols)
+			showGridErr := service.ShowGrid(context, test.rows, test.cols)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ShowGrid() error = %v, wantErr %v", err, tt.wantErr)
+			if (showGridErr != nil) != test.wantErr {
+				t.Errorf("ShowGrid() error = %v, wantErr %v", showGridErr, test.wantErr)
 			}
 		})
 	}
@@ -134,26 +138,26 @@ func TestGridService_HideGrid(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			mockOverlay := &mocks.MockOverlayPort{}
-			log := logger.Get()
+			logger := logger.Get()
 
-			if tt.setupMocks != nil {
-				tt.setupMocks(mockOverlay)
+			if test.setupMocks != nil {
+				test.setupMocks(mockOverlay)
 			}
 
-			service := services.NewGridService(mockOverlay, log)
-			ctx := context.Background()
+			service := services.NewGridService(mockOverlay, logger)
+			context := context.Background()
 
-			err := service.HideGrid(ctx)
+			hideGridErr := service.HideGrid(context)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("HideGrid() error = %v, wantErr %v", err, tt.wantErr)
+			if (hideGridErr != nil) != test.wantErr {
+				t.Errorf("HideGrid() error = %v, wantErr %v", hideGridErr, test.wantErr)
 			}
 
 			// Only check visibility for successful hide
-			if !tt.wantErr && mockOverlay.IsVisible() {
+			if !test.wantErr && mockOverlay.IsVisible() {
 				t.Error("Overlay should not be visible after successful HideGrid")
 			}
 		})

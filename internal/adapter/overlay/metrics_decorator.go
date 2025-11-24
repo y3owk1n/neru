@@ -27,39 +27,43 @@ func NewMetricsDecorator(next ports.OverlayPort, collector *metrics.Collector) *
 // ShowHints implements ports.OverlayPort.
 func (d *MetricsDecorator) ShowHints(ctx context.Context, hints []*hint.Hint) error {
 	defer d.recordDuration("overlay_show_hints_duration", time.Now())
+
 	d.collector.ObserveHistogram("overlay_hints_count", float64(len(hints)), nil)
+
 	return d.next.ShowHints(ctx, hints)
 }
 
 // ShowGrid implements ports.OverlayPort.
 func (d *MetricsDecorator) ShowGrid(ctx context.Context, rows, cols int) error {
 	defer d.recordDuration("overlay_show_grid_duration", time.Now())
+
 	return d.next.ShowGrid(ctx, rows, cols)
 }
 
 // DrawScrollHighlight implements ports.OverlayPort.
 func (d *MetricsDecorator) DrawScrollHighlight(
-	ctx context.Context,
+	context context.Context,
 	rect image.Rectangle,
 	color string,
 	width int,
 ) error {
-	return d.next.DrawScrollHighlight(ctx, rect, color, width)
+	return d.next.DrawScrollHighlight(context, rect, color, width)
 }
 
 // DrawActionHighlight implements ports.OverlayPort.
 func (d *MetricsDecorator) DrawActionHighlight(
-	ctx context.Context,
+	context context.Context,
 	rect image.Rectangle,
 	color string,
 	width int,
 ) error {
-	return d.next.DrawActionHighlight(ctx, rect, color, width)
+	return d.next.DrawActionHighlight(context, rect, color, width)
 }
 
 // Hide implements ports.OverlayPort.
 func (d *MetricsDecorator) Hide(ctx context.Context) error {
 	defer d.recordDuration("overlay_hide_duration", time.Now())
+
 	return d.next.Hide(ctx)
 }
 
@@ -71,6 +75,7 @@ func (d *MetricsDecorator) IsVisible() bool {
 // Refresh implements ports.OverlayPort.
 func (d *MetricsDecorator) Refresh(ctx context.Context) error {
 	defer d.recordDuration("overlay_refresh_duration", time.Now())
+
 	return d.next.Refresh(ctx)
 }
 

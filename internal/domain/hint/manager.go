@@ -6,8 +6,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// Manager handles hint input processing, filtering, and state management.
-
 // Manager handles hint generation and management.
 type Manager struct {
 	currentInput string
@@ -31,6 +29,7 @@ func (m *Manager) SetUpdateCallback(callback func([]*Hint)) {
 // SetHints updates the current hint collection and resets the input state.
 func (m *Manager) SetHints(hints *Collection) {
 	m.hints = hints
+
 	m.currentInput = ""
 	if m.logger != nil {
 		m.logger.Debug("Hint manager: Setting new hints", zap.Int("hint_count", hints.Count()))
@@ -60,6 +59,7 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 		if m.logger != nil {
 			m.logger.Debug("Hint manager: No current hints available")
 		}
+
 		return nil, false
 	}
 
@@ -81,10 +81,12 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 			// Update view for backspace
 			if m.hints != nil {
 				filtered := m.hints.FilterByPrefix(m.currentInput)
+
 				hintsWithPrefix := make([]*Hint, len(filtered))
 				for i, h := range filtered {
 					hintsWithPrefix[i] = h.WithMatchedPrefix(m.currentInput)
 				}
+
 				if m.onUpdate != nil {
 					m.onUpdate(hintsWithPrefix)
 				}
@@ -93,8 +95,10 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 			if m.logger != nil {
 				m.logger.Debug("Hint manager: Resetting on backspace with empty input")
 			}
+
 			m.Reset()
 		}
+
 		return nil, false
 	}
 
@@ -103,6 +107,7 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 		if m.logger != nil {
 			m.logger.Debug("Hint manager: Ignoring non-letter key", zap.String("key", key))
 		}
+
 		return nil, false
 	}
 
@@ -126,7 +131,9 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 		if m.logger != nil {
 			m.logger.Debug("Hint manager: No matches found, resetting")
 		}
+
 		m.currentInput = ""
+
 		return nil, false
 	}
 
@@ -142,6 +149,7 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 			m.logger.Info("Hint manager: Exact match found",
 				zap.String("label", hintsWithPrefix[0].Label()))
 		}
+
 		return hintsWithPrefix[0], true
 	}
 
@@ -163,9 +171,11 @@ func (m *Manager) GetFilteredHints() []*Hint {
 	if m.hints == nil {
 		return nil
 	}
+
 	if m.currentInput == "" {
 		return m.hints.All()
 	}
+
 	return m.hints.FilterByPrefix(m.currentInput)
 }
 

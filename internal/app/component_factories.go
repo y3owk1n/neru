@@ -17,24 +17,29 @@ import (
 
 // createHintsComponent initializes the hints component based on configuration.
 func createHintsComponent(
-	cfg *config.Config,
-	log *zap.Logger,
+	config *config.Config,
+	logger *zap.Logger,
 	overlayManager OverlayManager,
 ) (*components.HintsComponent, error) {
 	component := &components.HintsComponent{}
 
 	// Only initialize component if hints are enabled
-	if !cfg.Hints.Enabled {
+	if !config.Hints.Enabled {
 		return component, nil
 	}
 
-	component.Style = hints.BuildStyle(cfg.Hints)
+	component.Style = hints.BuildStyle(config.Hints)
 	component.Context = &hints.Context{}
 
-	hintOverlay, err := hints.NewOverlayWithWindow(cfg.Hints, log, overlayManager.GetWindowPtr())
-	if err != nil {
-		return nil, fmt.Errorf("failed to create hint overlay: %w", err)
+	hintOverlay, hintOverlayErr := hints.NewOverlayWithWindow(
+		config.Hints,
+		logger,
+		overlayManager.GetWindowPtr(),
+	)
+	if hintOverlayErr != nil {
+		return nil, fmt.Errorf("failed to create hint overlay: %w", hintOverlayErr)
 	}
+
 	component.Overlay = hintOverlay
 
 	return component, nil
@@ -42,40 +47,44 @@ func createHintsComponent(
 
 // createGridComponent initializes the grid component based on configuration.
 func createGridComponent(
-	cfg *config.Config,
-	log *zap.Logger,
+	config *config.Config,
+	logger *zap.Logger,
 	overlayManager OverlayManager,
 ) *components.GridComponent {
 	component := &components.GridComponent{}
 
 	// Initialize minimal context even when disabled
-	if !cfg.Grid.Enabled {
+	if !config.Grid.Enabled {
 		var gridInstance *domainGrid.Grid
+
 		component.Context = &grid.Context{
 			GridInstance: &gridInstance,
 		}
+
 		return component
 	}
 
 	// Ensure grid characters are configured
-	gridChars := cfg.Grid.Characters
+	gridChars := config.Grid.Characters
 	if strings.TrimSpace(gridChars) == "" {
 		gridChars = domain.DefaultHintCharacters
-		log.Warn("No grid characters configured, using default: " + domain.DefaultHintCharacters)
+		logger.Warn("No grid characters configured, using default: " + domain.DefaultHintCharacters)
 	}
 
-	component.Style = grid.BuildStyle(cfg.Grid)
-	gridOverlay := grid.NewOverlayWithWindow(cfg.Grid, log, overlayManager.GetWindowPtr())
+	component.Style = grid.BuildStyle(config.Grid)
+	gridOverlay := grid.NewOverlayWithWindow(config.Grid, logger, overlayManager.GetWindowPtr())
+
 	var gridInstance *domainGrid.Grid
 
 	// Determine sublayer keys with fallback chain
-	keys := strings.TrimSpace(cfg.Grid.SublayerKeys)
+	keys := strings.TrimSpace(config.Grid.SublayerKeys)
 	if keys == "" {
 		keys = gridChars
 	}
+
 	if keys == "" {
 		keys = domain.DefaultHintCharacters
-		log.Warn("No subgrid keys configured, using default: " + domain.DefaultHintCharacters)
+		logger.Warn("No subgrid keys configured, using default: " + domain.DefaultHintCharacters)
 	}
 
 	// Create grid manager with callbacks
@@ -88,12 +97,13 @@ func createGridComponent(
 			if gridInstance == nil {
 				return
 			}
+
 			gridOverlay.UpdateMatches(component.Manager.GetInput())
 		},
 		func(cell *domainGrid.Cell) {
 			gridOverlay.ShowSubgrid(cell, component.Style)
 		},
-		log,
+		logger,
 	)
 
 	component.Context = &grid.Context{
@@ -106,17 +116,17 @@ func createGridComponent(
 
 // createScrollComponent initializes the scroll component.
 func createScrollComponent(
-	cfg *config.Config,
-	log *zap.Logger,
+	config *config.Config,
+	logger *zap.Logger,
 	overlayManager OverlayManager,
 ) (*components.ScrollComponent, error) {
-	scrollOverlay, err := scroll.NewOverlayWithWindow(
-		cfg.Scroll,
-		log,
+	scrollOverlay, scrollOverlayErr := scroll.NewOverlayWithWindow(
+		config.Scroll,
+		logger,
 		overlayManager.GetWindowPtr(),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create scroll overlay: %w", err)
+	if scrollOverlayErr != nil {
+		return nil, fmt.Errorf("failed to create scroll overlay: %w", scrollOverlayErr)
 	}
 
 	return &components.ScrollComponent{
@@ -127,17 +137,17 @@ func createScrollComponent(
 
 // createActionComponent initializes the action component.
 func createActionComponent(
-	cfg *config.Config,
-	log *zap.Logger,
+	config *config.Config,
+	logger *zap.Logger,
 	overlayManager OverlayManager,
 ) (*components.ActionComponent, error) {
-	actionOverlay, err := action.NewOverlayWithWindow(
-		cfg.Action,
-		log,
+	actionOverlay, actionOverlayErr := action.NewOverlayWithWindow(
+		config.Action,
+		logger,
 		overlayManager.GetWindowPtr(),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create action overlay: %w", err)
+	if actionOverlayErr != nil {
+		return nil, fmt.Errorf("failed to create action overlay: %w", actionOverlayErr)
 	}
 
 	return &components.ActionComponent{

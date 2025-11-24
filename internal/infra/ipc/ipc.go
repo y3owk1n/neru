@@ -80,6 +80,7 @@ type CommandHandler func(ctx context.Context, cmd Command) Response
 // GetSocketPath returns the filesystem path to the IPC Unix socket.
 func GetSocketPath() string {
 	tmpDir := os.TempDir()
+
 	return filepath.Join(tmpDir, SocketName)
 }
 
@@ -88,21 +89,23 @@ func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
 	socketPath := GetSocketPath()
 
 	// Remove existing socket if it exists
-	err := os.Remove(socketPath)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("failed to remove existing socket: %w", err)
+	removeSocketErr := os.Remove(socketPath)
+	if removeSocketErr != nil && !os.IsNotExist(removeSocketErr) {
+		return nil, fmt.Errorf("failed to remove existing socket: %w", removeSocketErr)
 	}
 
 	// Create a ListenConfig with context support
 	listenConfig := &net.ListenConfig{}
-	listener, err := listenConfig.Listen(context.Background(), "unix", socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create socket: %w", err)
+
+	listener, listenerErr := listenConfig.Listen(context.Background(), "unix", socketPath)
+	if listenerErr != nil {
+		return nil, fmt.Errorf("failed to create socket: %w", listenerErr)
 	}
 
 	updateSocketPermissionsErr := os.Chmod(socketPath, 0o600)
 	if updateSocketPermissionsErr != nil {
 		_ = listener.Close()
+
 		return nil, fmt.Errorf("failed to set socket permissions: %w", updateSocketPermissionsErr)
 	}
 
@@ -120,19 +123,23 @@ func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
 func (s *Server) Start() {
 	go func() {
 		for {
-			conn, err := s.listener.Accept()
-			if err != nil {
+			connection, connectionErr := s.listener.Accept()
+			if connectionErr != nil {
 				// If listener is closed, exit gracefully
-				if errors.Is(err, net.ErrClosed) {
+				if errors.Is(connectionErr, net.ErrClosed) {
 					s.logger.Info("IPC server listener closed, stopping accept loop")
+
 					return
 				}
-				s.logger.Error("Failed to accept connection", zap.Error(err))
+
+				s.logger.Error("Failed to accept connection", zap.Error(connectionErr))
+
 				continue
 			}
 
 			s.wg.Add(1)
-			go s.handleConnection(conn)
+
+			go s.handleConnection(connection)
 		}
 	}()
 }
@@ -140,13 +147,14 @@ func (s *Server) Start() {
 // Stop terminates the IPC server and cleans up resources.
 func (s *Server) Stop() error {
 	if s.listener != nil {
-		err := s.listener.Close()
-		if err != nil {
-			return fmt.Errorf("failed to close listener: %w", err)
+		closeListenerErr := s.listener.Close()
+		if closeListenerErr != nil {
+			return fmt.Errorf("failed to close listener: %w", closeListenerErr)
 		}
 	}
 
 	done := make(chan struct{})
+
 	go func() {
 		s.wg.Wait()
 		close(done)
@@ -166,57 +174,63 @@ func (s *Server) Stop() error {
 	}
 
 	// Clean up socket file
-	err := os.Remove(s.socketPath)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to remove socket file: %w", err)
+	removeSocketFileErr := os.Remove(s.socketPath)
+	if removeSocketFileErr != nil && !os.IsNotExist(removeSocketFileErr) {
+		return fmt.Errorf("failed to remove socket file: %w", removeSocketFileErr)
 	}
 
 	return nil
 }
 
 // handleConnection processes a single client connection and executes the received command.
-func (s *Server) handleConnection(conn net.Conn) {
+func (s *Server) handleConnection(connection net.Conn) {
 	traceID := trace.NewID()
-	log := s.logger.With(zap.String("trace_id", traceID.String()))
+	logger := s.logger.With(zap.String("trace_id", traceID.String()))
 
 	// Create context with trace ID
-	ctx := trace.WithTraceID(context.Background(), traceID)
+	context := trace.WithTraceID(context.Background(), traceID)
 
 	defer func() {
-		err := conn.Close()
-		if err != nil {
-			log.Error("Failed to close connection", zap.Error(err))
+		connectionCloseErr := connection.Close()
+		if connectionCloseErr != nil {
+			logger.Error("Failed to close connection", zap.Error(connectionCloseErr))
 		}
+
 		s.wg.Done()
 	}()
 
 	// Set read deadline to prevent hanging connections
-	err := conn.SetDeadline(time.Now().Add(30 * time.Second))
-	if err != nil {
-		log.Error("Failed to set connection deadline", zap.Error(err))
+	connectionDeadline := connection.SetDeadline(time.Now().Add(30 * time.Second))
+	if connectionDeadline != nil {
+		logger.Error("Failed to set connection deadline", zap.Error(connectionDeadline))
+
 		return
 	}
 
-	decoder := json.NewDecoder(conn)
+	decoder := json.NewDecoder(connection)
 	decoder.DisallowUnknownFields()
-	encoder := json.NewEncoder(conn)
+
+	encoder := json.NewEncoder(connection)
 
 	var cmd Command
-	err = decoder.Decode(&cmd)
-	if err != nil {
-		log.Error("Failed to decode command", zap.Error(err))
-		encErr := encoder.Encode(Response{
+
+	decodeCommandErr := decoder.Decode(&cmd)
+	if decodeCommandErr != nil {
+		logger.Error("Failed to decode command", zap.Error(decodeCommandErr))
+
+		encodeErr := encoder.Encode(Response{
 			Success: false,
-			Message: fmt.Sprintf("failed to decode command: %v", err),
+			Message: fmt.Sprintf("failed to decode command: %v", decodeCommandErr),
 			Code:    CodeInvalidInput,
 		})
-		if encErr != nil {
-			log.Error("Failed to encode error response", zap.Error(encErr))
+		if encodeErr != nil {
+			logger.Error("Failed to encode error response", zap.Error(encodeErr))
 		}
+
 		return
 	}
 
-	log.Info(
+	logger.Info(
 		"Received command",
 		zap.String("action", cmd.Action),
 		zap.String("version", cmd.Version),
@@ -224,10 +238,11 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	// Validate protocol version if provided
 	if cmd.Version != "" && cmd.Version != ProtocolVersion {
-		log.Warn("Protocol version mismatch",
+		logger.Warn("Protocol version mismatch",
 			zap.String("client_version", cmd.Version),
 			zap.String("server_version", ProtocolVersion))
-		encErr := encoder.Encode(Response{
+
+		encodeErr := encoder.Encode(Response{
 			Version: ProtocolVersion,
 			Success: false,
 			Message: fmt.Sprintf(
@@ -237,18 +252,20 @@ func (s *Server) handleConnection(conn net.Conn) {
 			),
 			Code: "ERR_VERSION_MISMATCH",
 		})
-		if encErr != nil {
-			log.Error("Failed to encode version mismatch response", zap.Error(encErr))
+		if encodeErr != nil {
+			logger.Error("Failed to encode version mismatch response", zap.Error(encodeErr))
 		}
+
 		return
 	}
 
-	response := s.handler(ctx, cmd)
+	response := s.handler(context, cmd)
 	// Always include server version in response
 	response.Version = ProtocolVersion
-	err = encoder.Encode(response)
-	if err != nil {
-		log.Error("Failed to encode response", zap.Error(err))
+
+	connectionDeadline = encoder.Encode(response)
+	if connectionDeadline != nil {
+		logger.Error("Failed to encode response", zap.Error(connectionDeadline))
 	}
 }
 
@@ -279,64 +296,78 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	conn, err := dialer.DialContext(ctx, "unix", c.socketPath)
-	if err != nil {
+	connection, connectionErr := dialer.DialContext(ctx, "unix", c.socketPath)
+	if connectionErr != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return Response{}, errors.New("connection timeout: neru may be unresponsive")
 		}
-		return Response{}, fmt.Errorf("failed to connect to neru (is it running?): %w", err)
+
+		return Response{}, fmt.Errorf(
+			"failed to connect to neru (is it running?): %w",
+			connectionErr,
+		)
 	}
 
 	var closeErr error
+
 	defer func() {
-		err := conn.Close()
-		if err != nil && closeErr == nil {
-			closeErr = fmt.Errorf("failed to close connection: %w", err)
+		connectionCloseErr := connection.Close()
+		if connectionCloseErr != nil && closeErr == nil {
+			closeErr = fmt.Errorf("failed to close connection: %w", connectionCloseErr)
 		}
 	}()
 
 	// Set deadline for the entire operation
-	err = conn.SetDeadline(time.Now().Add(timeout))
-	if err != nil {
-		return Response{}, fmt.Errorf("failed to set connection deadline: %w", err)
+	connectionDeadlineErr := connection.SetDeadline(time.Now().Add(timeout))
+	if connectionDeadlineErr != nil {
+		return Response{}, fmt.Errorf(
+			"failed to set connection deadline: %w",
+			connectionDeadlineErr,
+		)
 	}
 
-	encoder := json.NewEncoder(conn)
-	decoder := json.NewDecoder(conn)
+	encoder := json.NewEncoder(connection)
+	decoder := json.NewDecoder(connection)
 
 	// Set protocol version if not already set
 	if cmd.Version == "" {
 		cmd.Version = ProtocolVersion
 	}
 
-	err = encoder.Encode(cmd)
-	if err != nil {
+	encodeErr := encoder.Encode(cmd)
+	if encodeErr != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return Response{}, errors.New("send timeout: neru may be unresponsive")
 		}
-		err = fmt.Errorf("failed to send command: %w", err)
+
+		encodeErr = fmt.Errorf("failed to send command: %w", encodeErr)
 		if closeErr != nil {
-			err = fmt.Errorf("%w (close error: %s)", err, closeErr.Error())
+			encodeErr = fmt.Errorf("%w (close error: %s)", encodeErr, closeErr.Error())
 		}
-		return Response{}, err
+
+		return Response{}, encodeErr
 	}
 
 	var response Response
-	err = decoder.Decode(&response)
-	if err != nil {
+
+	decodeErr := decoder.Decode(&response)
+	if decodeErr != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return Response{}, errors.New("receive timeout: neru may be unresponsive")
 		}
-		err = fmt.Errorf("failed to receive response: %w", err)
+
+		decodeErr = fmt.Errorf("failed to receive response: %w", decodeErr)
 		if closeErr != nil {
-			err = fmt.Errorf("%w (close error: %s)", err, closeErr.Error())
+			decodeErr = fmt.Errorf("%w (close error: %s)", decodeErr, closeErr.Error())
 		}
-		return Response{}, err
+
+		return Response{}, decodeErr
 	}
 
 	if closeErr != nil {
 		return response, closeErr
 	}
+
 	return response, nil
 }
 
@@ -344,5 +375,6 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 func IsServerRunning() bool {
 	client := NewClient()
 	_, err := client.SendWithTimeout(Command{Action: "ping"}, 500*time.Millisecond)
+
 	return err == nil
 }

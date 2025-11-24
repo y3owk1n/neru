@@ -30,6 +30,7 @@ func TestActionService_PerformAction(t *testing.T) {
 					if actionType != action.TypeLeftClick {
 						t.Errorf("Expected action TypeLeftClick, got '%v'", actionType)
 					}
+
 					return nil
 				}
 			},
@@ -44,6 +45,7 @@ func TestActionService_PerformAction(t *testing.T) {
 					if actionType != action.TypeRightClick {
 						t.Errorf("Expected action TypeRightClick, got '%v'", actionType)
 					}
+
 					return nil
 				}
 			},
@@ -58,6 +60,7 @@ func TestActionService_PerformAction(t *testing.T) {
 					if actionType != action.TypeMiddleClick {
 						t.Errorf("Expected action TypeMiddleClick, got '%v'", actionType)
 					}
+
 					return nil
 				}
 			},
@@ -72,6 +75,7 @@ func TestActionService_PerformAction(t *testing.T) {
 					if actionType != action.TypeMouseDown {
 						t.Errorf("Expected action TypeMouseDown, got '%v'", actionType)
 					}
+
 					return nil
 				}
 			},
@@ -86,6 +90,7 @@ func TestActionService_PerformAction(t *testing.T) {
 					if actionType != action.TypeMouseUp {
 						t.Errorf("Expected action TypeMouseUp, got '%v'", actionType)
 					}
+
 					return nil
 				}
 			},
@@ -100,6 +105,7 @@ func TestActionService_PerformAction(t *testing.T) {
 					if actionType != action.TypeScroll {
 						t.Errorf("Expected action TypeScroll, got '%v'", actionType)
 					}
+
 					return nil
 				}
 			},
@@ -133,6 +139,7 @@ func TestActionService_PerformAction(t *testing.T) {
 					if pt.X != -100 || pt.Y != -100 {
 						t.Errorf("Expected point (-100, -100), got (%d, %d)", pt.X, pt.Y)
 					}
+
 					return nil
 				}
 			},
@@ -147,6 +154,7 @@ func TestActionService_PerformAction(t *testing.T) {
 					if pt.X != 99999 || pt.Y != 99999 {
 						t.Errorf("Expected point (99999, 99999), got (%d, %d)", pt.X, pt.Y)
 					}
+
 					return nil
 				}
 			},
@@ -161,6 +169,7 @@ func TestActionService_PerformAction(t *testing.T) {
 					if pt.X != 0 || pt.Y != 0 {
 						t.Errorf("Expected point (0, 0), got (%d, %d)", pt.X, pt.Y)
 					}
+
 					return nil
 				}
 			},
@@ -168,28 +177,28 @@ func TestActionService_PerformAction(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
-			log := logger.Get()
+			logger := logger.Get()
 
-			if tt.setupMocks != nil {
-				tt.setupMocks(mockAcc)
+			if test.setupMocks != nil {
+				test.setupMocks(mockAcc)
 			}
 
-			cfg := config.ActionConfig{
+			config := config.ActionConfig{
 				HighlightColor: "#FF0000",
 				HighlightWidth: 2,
 			}
 
-			service := services.NewActionService(mockAcc, mockOverlay, cfg, log)
-			ctx := context.Background()
+			service := services.NewActionService(mockAcc, mockOverlay, config, logger)
+			context := context.Background()
 
-			err := service.PerformAction(ctx, tt.action, tt.point)
+			performActionErr := service.PerformAction(context, test.action, test.point)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("PerformAction() error = %v, wantErr %v", err, tt.wantErr)
+			if (performActionErr != nil) != test.wantErr {
+				t.Errorf("PerformAction() error = %v, wantErr %v", performActionErr, test.wantErr)
 			}
 		})
 	}
@@ -230,27 +239,32 @@ func TestActionService_IsFocusedAppExcluded(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
-			log := logger.Get()
+			logger := logger.Get()
 
-			if tt.setupMocks != nil {
-				tt.setupMocks(mockAcc)
+			if test.setupMocks != nil {
+				test.setupMocks(mockAcc)
 			}
 
-			cfg := config.ActionConfig{}
-			service := services.NewActionService(mockAcc, mockOverlay, cfg, log)
-			ctx := context.Background()
+			config := config.ActionConfig{}
+			service := services.NewActionService(mockAcc, mockOverlay, config, logger)
+			context := context.Background()
 
-			got, err := service.IsFocusedAppExcluded(ctx)
+			isExcluded, isExcludedErr := service.IsFocusedAppExcluded(context)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("IsFocusedAppExcluded() error = %v, wantErr %v", err, tt.wantErr)
+			if (isExcludedErr != nil) != test.wantErr {
+				t.Errorf(
+					"IsFocusedAppExcluded() error = %v, wantErr %v",
+					isExcludedErr,
+					test.wantErr,
+				)
 			}
-			if got != tt.want {
-				t.Errorf("IsFocusedAppExcluded() = %v, want %v", got, tt.want)
+
+			if isExcluded != test.want {
+				t.Errorf("IsFocusedAppExcluded() = %v, want %v", isExcluded, test.want)
 			}
 		})
 	}
@@ -295,27 +309,32 @@ func TestActionService_GetFocusedAppBundleID(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
-			log := logger.Get()
+			logger := logger.Get()
 
-			if tt.setupMocks != nil {
-				tt.setupMocks(mockAcc)
+			if test.setupMocks != nil {
+				test.setupMocks(mockAcc)
 			}
 
-			cfg := config.ActionConfig{}
-			service := services.NewActionService(mockAcc, mockOverlay, cfg, log)
-			ctx := context.Background()
+			config := config.ActionConfig{}
+			service := services.NewActionService(mockAcc, mockOverlay, config, logger)
+			context := context.Background()
 
-			got, err := service.GetFocusedAppBundleID(ctx)
+			focusedApp, focusedAppErr := service.GetFocusedAppBundleID(context)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetFocusedAppBundleID() error = %v, wantErr %v", err, tt.wantErr)
+			if (focusedAppErr != nil) != test.wantErr {
+				t.Errorf(
+					"GetFocusedAppBundleID() error = %v, wantErr %v",
+					focusedAppErr,
+					test.wantErr,
+				)
 			}
-			if got != tt.want {
-				t.Errorf("GetFocusedAppBundleID() = %v, want %v", got, tt.want)
+
+			if focusedApp != test.want {
+				t.Errorf("GetFocusedAppBundleID() = %v, want %v", focusedApp, test.want)
 			}
 		})
 	}

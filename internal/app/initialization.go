@@ -17,44 +17,46 @@ import (
 )
 
 // initializeLogger initializes the application logger with the given configuration.
-func initializeLogger(cfg *config.Config) (*zap.Logger, error) {
-	err := logger.Init(
-		cfg.Logging.LogLevel,
-		cfg.Logging.LogFile,
-		cfg.Logging.StructuredLogging,
-		cfg.Logging.DisableFileLogging,
-		cfg.Logging.MaxFileSize,
-		cfg.Logging.MaxBackups,
-		cfg.Logging.MaxAge,
+func initializeLogger(config *config.Config) (*zap.Logger, error) {
+	initConfigErr := logger.Init(
+		config.Logging.LogLevel,
+		config.Logging.LogFile,
+		config.Logging.StructuredLogging,
+		config.Logging.DisableFileLogging,
+		config.Logging.MaxFileSize,
+		config.Logging.MaxBackups,
+		config.Logging.MaxAge,
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize logger: %w", err)
+	if initConfigErr != nil {
+		return nil, fmt.Errorf("failed to initialize logger: %w", initConfigErr)
 	}
 
-	log := logger.Get()
-	bridge.InitializeLogger(log)
+	logger := logger.Get()
+	bridge.InitializeLogger(logger)
 
-	return log, nil
+	return logger, nil
 }
 
 // initializeOverlayManager creates and initializes the overlay manager.
-func initializeOverlayManager(deps *deps, log *zap.Logger) OverlayManager {
+func initializeOverlayManager(deps *deps, logger *zap.Logger) OverlayManager {
 	if deps != nil && deps.OverlayManagerFactory != nil {
-		return deps.OverlayManagerFactory.New(log)
+		return deps.OverlayManagerFactory.New(logger)
 	}
-	return overlay.Init(log)
+
+	return overlay.Init(logger)
 }
 
 // initializeAccessibility checks and configures accessibility permissions and settings.
-func initializeAccessibility(cfg *config.Config, log *zap.Logger) error {
+func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 	if cfg.General.AccessibilityCheckOnStart {
 		if !accessibility.CheckAccessibilityPermissions() {
-			log.Warn(
+			logger.Warn(
 				"Accessibility permissions not granted. Please grant permissions in System Settings.",
 			)
-			log.Info("⚠️  Neru requires Accessibility permissions to function.")
-			log.Info("Please go to: System Settings → Privacy & Security → Accessibility")
-			log.Info("and enable Neru.")
+			logger.Info("⚠️  Neru requires Accessibility permissions to function.")
+			logger.Info("Please go to: System Settings → Privacy & Security → Accessibility")
+			logger.Info("and enable Neru.")
+
 			return errors.New("accessibility permissions required")
 		}
 	}
@@ -64,7 +66,7 @@ func initializeAccessibility(cfg *config.Config, log *zap.Logger) error {
 
 	// Apply clickable roles if hints are enabled
 	if cfg.Hints.Enabled {
-		log.Info("Applying clickable roles",
+		logger.Info("Applying clickable roles",
 			zap.Int("count", len(cfg.Hints.ClickableRoles)),
 			zap.Strings("roles", cfg.Hints.ClickableRoles))
 		accessibility.SetClickableRoles(cfg.Hints.ClickableRoles)
@@ -74,34 +76,37 @@ func initializeAccessibility(cfg *config.Config, log *zap.Logger) error {
 }
 
 // initializeHotkeyService creates the hotkey service, using the provided dependency or creating a new one.
-func initializeHotkeyService(deps *deps, log *zap.Logger) HotkeyService {
+func initializeHotkeyService(deps *deps, logger *zap.Logger) HotkeyService {
 	if deps != nil && deps.Hotkeys != nil {
 		return deps.Hotkeys
 	}
 
-	mgr := hotkeys.NewManager(log)
-	hotkeys.SetGlobalManager(mgr)
-	return mgr
+	hotkeyManager := hotkeys.NewManager(logger)
+	hotkeys.SetGlobalManager(hotkeyManager)
+
+	return hotkeyManager
 }
 
-func initializeAppWatcher(deps *deps, log *zap.Logger) Watcher {
+func initializeAppWatcher(deps *deps, logger *zap.Logger) Watcher {
 	if deps != nil && deps.WatcherFactory != nil {
-		return deps.WatcherFactory.New(log)
+		return deps.WatcherFactory.New(logger)
 	}
-	return appwatcher.NewWatcher(log)
+
+	return appwatcher.NewWatcher(logger)
 }
 
 // configureEventTapHotkeys configures the event tap with hotkeys from the configuration.
-func (a *App) configureEventTapHotkeys(cfg *config.Config, log *zap.Logger) {
-	keys := make([]string, 0, len(cfg.Hotkeys.Bindings))
-	for key, value := range cfg.Hotkeys.Bindings {
+func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger) {
+	keys := make([]string, 0, len(config.Hotkeys.Bindings))
+	for key, value := range config.Hotkeys.Bindings {
 		// Skip empty keys or values
 		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" {
-			log.Warn(
+			logger.Warn(
 				"Skipping empty hotkey binding",
 				zap.String("key", key),
 				zap.String("value", value),
 			)
+
 			continue
 		}
 
@@ -109,20 +114,23 @@ func (a *App) configureEventTapHotkeys(cfg *config.Config, log *zap.Logger) {
 		if parts := strings.Split(value, " "); len(parts) > 0 {
 			mode = parts[0]
 		}
-		if mode == domain.GetModeString(domain.ModeHints) && !cfg.Hints.Enabled {
+
+		if mode == domain.GetModeString(domain.ModeHints) && !config.Hints.Enabled {
 			continue
 		}
-		if mode == domain.GetModeString(domain.ModeGrid) && !cfg.Grid.Enabled {
+
+		if mode == domain.GetModeString(domain.ModeGrid) && !config.Grid.Enabled {
 			continue
 		}
+
 		keys = append(keys, key)
 	}
 
 	// Log if no hotkeys are configured
 	if len(keys) == 0 {
-		log.Warn("No hotkeys configured - application will not be activatable via hotkeys")
+		logger.Warn("No hotkeys configured - application will not be activatable via hotkeys")
 	} else {
-		log.Info("Registered hotkeys", zap.Int("count", len(keys)))
+		logger.Info("Registered hotkeys", zap.Int("count", len(keys)))
 	}
 
 	a.eventTap.SetHotkeys(keys)
@@ -134,12 +142,15 @@ func (a *App) registerOverlays() {
 	if a.scrollComponent != nil && a.scrollComponent.Overlay != nil {
 		a.overlayManager.UseScrollOverlay(a.scrollComponent.Overlay)
 	}
+
 	if a.actionComponent != nil && a.actionComponent.Overlay != nil {
 		a.overlayManager.UseActionOverlay(a.actionComponent.Overlay)
 	}
+
 	if a.hintsComponent != nil && a.hintsComponent.Overlay != nil {
 		a.overlayManager.UseHintOverlay(a.hintsComponent.Overlay)
 	}
+
 	if a.gridComponent != nil && a.gridComponent.Context != nil &&
 		a.gridComponent.Context.GetGridOverlay() != nil {
 		a.overlayManager.UseGridOverlay(*a.gridComponent.Context.GetGridOverlay())

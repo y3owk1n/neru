@@ -15,11 +15,14 @@ func onReady() {
 
 	mVersion := systray.AddMenuItem("Version "+cli.Version, "Show version")
 	mVersion.Disable()
+
 	mVersionCopy := systray.AddMenuItem("Copy version", "Copy version to clipboard")
 
 	systray.AddSeparator()
+
 	mStatus := systray.AddMenuItem("Status: Running", "Show current status")
 	mStatus.Disable()
+
 	mToggle := systray.AddMenuItem("Disable", "Disable/Enable Neru without quitting")
 
 	systray.AddSeparator()
@@ -35,9 +38,11 @@ func onReady() {
 	}
 
 	systray.AddSeparator()
+
 	mReloadConfig := systray.AddMenuItem("Reload Config", "Reload configuration from disk")
 
 	systray.AddSeparator()
+
 	mQuit := systray.AddMenuItem("Quit Neru", "Exit the application")
 
 	go handleSystrayEvents(
@@ -66,15 +71,16 @@ func handleSystrayEvents(
 			handleReloadConfig()
 		case <-mQuit.ClickedCh:
 			systray.Quit()
+
 			return
 		}
 	}
 }
 
 func handleVersionCopy() {
-	err := clipboard.WriteAll(cli.Version)
-	if err != nil {
-		logger.Error("Error copying version to clipboard", zap.Error(err))
+	writeToClipboardErr := clipboard.WriteAll(cli.Version)
+	if writeToClipboardErr != nil {
+		logger.Error("Error copying version to clipboard", zap.Error(writeToClipboardErr))
 	}
 }
 
@@ -106,9 +112,10 @@ func handleReloadConfig() {
 	}
 
 	configPath := globalApp.GetConfigPath()
-	err := globalApp.ReloadConfig(configPath)
-	if err != nil {
-		logger.Error("Failed to reload config from systray", zap.Error(err))
+
+	reloadConfigErr := globalApp.ReloadConfig(configPath)
+	if reloadConfigErr != nil {
+		logger.Error("Failed to reload config from systray", zap.Error(reloadConfigErr))
 	} else {
 		logger.Info("Configuration reloaded successfully from systray")
 	}

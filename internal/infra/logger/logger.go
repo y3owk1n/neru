@@ -32,15 +32,17 @@ func Init(
 
 	// Close existing log file if any
 	if logFile != nil {
-		err := logFile.Close()
-		if err != nil {
-			return fmt.Errorf("failed to close existing log file: %w", err)
+		closeErr := logFile.Close()
+		if closeErr != nil {
+			return fmt.Errorf("failed to close existing log file: %w", closeErr)
 		}
+
 		logFile = nil
 	}
 
 	// Determine log level
 	level := zapcore.InfoLevel
+
 	switch logLevel {
 	case "debug":
 		level = zapcore.DebugLevel
@@ -86,14 +88,16 @@ func Init(
 			if err != nil {
 				return fmt.Errorf("failed to get home directory: %w", err)
 			}
+
 			logFilePath = filepath.Join(homeDir, "Library", "Logs", "neru", "app.log")
 		}
 
 		// Create log directory
 		logDir := filepath.Dir(logFilePath)
-		err := os.MkdirAll(logDir, 0o750)
-		if err != nil {
-			return fmt.Errorf("failed to create log directory: %w", err)
+
+		mkdirErr := os.MkdirAll(logDir, 0o750)
+		if mkdirErr != nil {
+			return fmt.Errorf("failed to create log directory: %w", mkdirErr)
 		}
 
 		// Create lumberjack logger for file rotation
@@ -133,6 +137,7 @@ func Get() *zap.Logger {
 		// Fallback to development logger
 		globalLogger, _ = zap.NewDevelopment()
 	}
+
 	return globalLogger
 }
 
@@ -145,6 +150,7 @@ func Sync() error {
 			return fmt.Errorf("failed to sync logger: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -163,6 +169,7 @@ func Close() error {
 				return fmt.Errorf("failed to sync logger: %w", err)
 			}
 		}
+
 		globalLogger = nil
 	}
 
@@ -172,6 +179,7 @@ func Close() error {
 		if err != nil {
 			return fmt.Errorf("failed to close log file: %w", err)
 		}
+
 		logFile = nil
 	}
 

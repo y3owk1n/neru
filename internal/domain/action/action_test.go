@@ -23,24 +23,26 @@ func TestParseType(t *testing.T) {
 		{"", 0, true},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got, err := action.ParseType(tt.input)
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			parsedAction, parsedActionErr := action.ParseType(test.input)
 
-			if tt.wantErr {
-				if err == nil {
+			if test.wantErr {
+				if parsedActionErr == nil {
 					t.Error("ParseType() expected error, got nil")
 				}
+
 				return
 			}
 
-			if err != nil {
-				t.Errorf("ParseType() unexpected error: %v", err)
+			if parsedActionErr != nil {
+				t.Errorf("ParseType() unexpected error: %v", parsedActionErr)
+
 				return
 			}
 
-			if got != tt.want {
-				t.Errorf("ParseType(%q) = %v, want %v", tt.input, got, tt.want)
+			if parsedAction != test.want {
+				t.Errorf("ParseType(%q) = %v, want %v", test.input, parsedAction, test.want)
 			}
 		})
 	}
@@ -61,10 +63,11 @@ func TestType_String(t *testing.T) {
 		{action.Type(999), "unknown"},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.want, func(t *testing.T) {
-			if got := tt.actionType.String(); got != tt.want {
-				t.Errorf("String() = %v, want %v", got, tt.want)
+	for _, test := range tests {
+		t.Run(test.want, func(t *testing.T) {
+			got := test.actionType.String()
+			if got != test.want {
+				t.Errorf("String() = %v, want %v", got, test.want)
 			}
 		})
 	}
@@ -84,10 +87,11 @@ func TestType_IsClick(t *testing.T) {
 		{action.TypeScroll, false},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.actionType.String(), func(t *testing.T) {
-			if got := tt.actionType.IsClick(); got != tt.want {
-				t.Errorf("IsClick() = %v, want %v", got, tt.want)
+	for _, test := range tests {
+		t.Run(test.actionType.String(), func(t *testing.T) {
+			got := test.actionType.IsClick()
+			if got != test.want {
+				t.Errorf("IsClick() = %v, want %v", got, test.want)
 			}
 		})
 	}
@@ -107,10 +111,11 @@ func TestType_IsMouseButton(t *testing.T) {
 		{action.TypeScroll, false},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.actionType.String(), func(t *testing.T) {
-			if got := tt.actionType.IsMouseButton(); got != tt.want {
-				t.Errorf("IsMouseButton() = %v, want %v", got, tt.want)
+	for _, test := range tests {
+		t.Run(test.actionType.String(), func(t *testing.T) {
+			got := test.actionType.IsMouseButton()
+			if got != test.want {
+				t.Errorf("IsMouseButton() = %v, want %v", got, test.want)
 			}
 		})
 	}
@@ -129,6 +134,7 @@ func TestAllTypes(t *testing.T) {
 		if seen[typ] {
 			t.Errorf("AllTypes() contains duplicate: %v", typ)
 		}
+
 		seen[typ] = true
 	}
 
@@ -154,14 +160,16 @@ func TestParseType_RoundTrip(t *testing.T) {
 	// Test that String() and ParseType() are inverses
 	for _, typ := range action.AllTypes() {
 		str := typ.String()
-		parsed, err := action.ParseType(str)
-		if err != nil {
-			t.Errorf("ParseType(%q) error: %v", str, err)
+
+		parsedType, parsedTypeErr := action.ParseType(str)
+		if parsedTypeErr != nil {
+			t.Errorf("ParseType(%q) error: %v", str, parsedTypeErr)
+
 			continue
 		}
 
-		if parsed != typ {
-			t.Errorf("Round trip failed: %v -> %q -> %v", typ, str, parsed)
+		if parsedType != typ {
+			t.Errorf("Round trip failed: %v -> %q -> %v", typ, str, parsedType)
 		}
 	}
 }

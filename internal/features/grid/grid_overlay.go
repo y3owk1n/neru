@@ -51,27 +51,43 @@ func gridResizeCompletionCallback(context unsafe.Pointer) {
 // Overlay manages the rendering of grid overlays using native platform APIs.
 type Overlay struct {
 	window C.OverlayWindow
-	cfg    config.GridConfig
+	config config.GridConfig
 	logger *zap.Logger
 }
 
 // initGridPools initializes the grid object pools once.
 func initGridPools() {
 	gridPoolOnce.Do(func() {
-		gridCellSlicePool = sync.Pool{New: func() any { s := make([]C.GridCell, 0); return &s }}
-		gridLabelSlicePool = sync.Pool{New: func() any { s := make([]*C.char, 0); return &s }}
-		subgridCellSlicePool = sync.Pool{New: func() any { s := make([]C.GridCell, 0); return &s }}
-		subgridLabelSlicePool = sync.Pool{New: func() any { s := make([]*C.char, 0); return &s }}
+		gridCellSlicePool = sync.Pool{New: func() any {
+			s := make([]C.GridCell, 0)
+
+			return &s
+		}}
+		gridLabelSlicePool = sync.Pool{New: func() any {
+			s := make([]*C.char, 0)
+
+			return &s
+		}}
+		subgridCellSlicePool = sync.Pool{New: func() any {
+			s := make([]C.GridCell, 0)
+
+			return &s
+		}}
+		subgridLabelSlicePool = sync.Pool{New: func() any {
+			s := make([]*C.char, 0)
+
+			return &s
+		}}
 	})
 }
 
 // NewOverlay creates a new grid overlay instance with its own window and prewarms common grid sizes.
-func NewOverlay(cfg config.GridConfig, logger *zap.Logger) *Overlay {
+func NewOverlay(config config.GridConfig, logger *zap.Logger) *Overlay {
 	window := C.createOverlayWindow()
 	initGridPools()
-	chars := cfg.Characters
+	chars := config.Characters
 	if strings.TrimSpace(chars) == "" {
-		chars = cfg.Characters
+		chars = config.Characters
 	}
 	go domainGrid.Prewarm(chars, []image.Rectangle{
 		image.Rect(0, 0, 1280, 800),
@@ -82,23 +98,24 @@ func NewOverlay(cfg config.GridConfig, logger *zap.Logger) *Overlay {
 		image.Rect(0, 0, 3440, 1440),
 		image.Rect(0, 0, 3840, 2160),
 	})
+
 	return &Overlay{
 		window: window,
-		cfg:    cfg,
+		config: config,
 		logger: logger,
 	}
 }
 
 // NewOverlayWithWindow creates a grid overlay instance using a shared window and prewarms common grid sizes.
 func NewOverlayWithWindow(
-	cfg config.GridConfig,
+	config config.GridConfig,
 	logger *zap.Logger,
 	windowPtr unsafe.Pointer,
 ) *Overlay {
 	initGridPools()
-	chars := cfg.Characters
+	chars := config.Characters
 	if strings.TrimSpace(chars) == "" {
-		chars = cfg.Characters
+		chars = config.Characters
 	}
 	go domainGrid.Prewarm(chars, []image.Rectangle{
 		image.Rect(0, 0, 1280, 800),
@@ -109,25 +126,32 @@ func NewOverlayWithWindow(
 		image.Rect(0, 0, 3440, 1440),
 		image.Rect(0, 0, 3840, 2160),
 	})
+
 	return &Overlay{
 		window: (C.OverlayWindow)(windowPtr),
-		cfg:    cfg,
+		config: config,
 		logger: logger,
 	}
 }
 
 // GetWindow returns the overlay window.
-func (o *Overlay) GetWindow() C.OverlayWindow { return o.window }
+func (o *Overlay) GetWindow() C.OverlayWindow {
+	return o.window
+}
 
 // GetConfig returns the grid config.
-func (o *Overlay) GetConfig() config.GridConfig { return o.cfg }
+func (o *Overlay) GetConfig() config.GridConfig {
+	return o.config
+}
 
 // GetLogger returns the logger.
-func (o *Overlay) GetLogger() *zap.Logger { return o.logger }
+func (o *Overlay) GetLogger() *zap.Logger {
+	return o.logger
+}
 
 // UpdateConfig updates the overlay's config (e.g., after config reload).
-func (o *Overlay) UpdateConfig(cfg config.GridConfig) {
-	o.cfg = cfg
+func (o *Overlay) UpdateConfig(config config.GridConfig) {
+	o.config = config
 }
 
 // SetHideUnmatched sets whether to hide unmatched cells.
@@ -140,6 +164,7 @@ func boolToInt(b bool) int {
 	if b {
 		return 1
 	}
+
 	return 0
 }
 
@@ -253,8 +278,10 @@ func (o *Overlay) Draw(grid *domainGrid.Grid, currentInput string, style Style) 
 	o.Clear()
 
 	cells := grid.GetAllCells()
+
 	if len(cells) == 0 {
 		o.logger.Debug("No cells to draw in grid overlay")
+
 		return nil
 	}
 
@@ -273,6 +300,7 @@ func (o *Overlay) Draw(grid *domainGrid.Grid, currentInput string, style Style) 
 		zap.Uint64("sys_bytes_delta", msAfter.Sys-msBefore.Sys))
 
 	o.logger.Debug("Grid overlay drawn successfully")
+
 	return nil
 }
 
@@ -281,7 +309,7 @@ func (o *Overlay) UpdateMatches(prefix string) {
 	o.logger.Debug("Updating grid matches", zap.String("prefix", prefix))
 
 	cPrefix := C.CString(prefix)
-	defer C.free(unsafe.Pointer(cPrefix))
+	defer C.free(unsafe.Pointer(cPrefix)) //nolint:nlreturn
 	C.NeruUpdateGridMatchPrefix(o.window, cPrefix)
 
 	o.logger.Debug("Grid matches updated successfully")
@@ -295,19 +323,17 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 		zap.Int("cell_width", cell.GetBounds().Dx()),
 		zap.Int("cell_height", cell.GetBounds().Dy()))
 
-	keys := o.cfg.SublayerKeys
+	keys := o.config.SublayerKeys
 	if strings.TrimSpace(keys) == "" {
-		keys = o.cfg.Characters
+		keys = o.config.Characters
 	}
 	chars := []rune(keys)
 	// Subgrid is always 3x3
 	const rows = 3
 	const cols = 3
-	count := 9
-	if len(chars) < count {
-		// If not enough characters, adjust count to available characters
-		count = len(chars)
-	}
+
+	// If not enough characters, adjust count to available characters
+	count := min(len(chars), 9)
 
 	tmpCells := subgridCellSlicePool.Get()
 	cellsPtr, _ := tmpCells.(*[]C.GridCell)
@@ -421,7 +447,7 @@ func (o *Overlay) DrawScrollHighlight(
 	borderWidth int,
 ) {
 	cColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cColor))
+	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
 	// Build 4 border lines around the rectangle
 	lines := make([]C.CGRect, 4)
 	// Bottom
@@ -585,5 +611,6 @@ func BuildStyle(cfg config.GridConfig) Style {
 		MatchedBorderColor:     cfg.MatchedBorderColor,
 		BorderColor:            cfg.BorderColor,
 	}
+
 	return style
 }

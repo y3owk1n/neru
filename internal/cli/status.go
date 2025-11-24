@@ -19,35 +19,36 @@ var statusCmd = &cobra.Command{
 	},
 	RunE: func(_ *cobra.Command, _ []string) error {
 		logger.Debug("Fetching status")
-		client := ipc.NewClient()
-		response, err := client.Send(ipc.Command{Action: "status"})
-		if err != nil {
-			return fmt.Errorf("failed to send status command: %w", err)
+		ipcClient := ipc.NewClient()
+		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: "status"})
+		if ipcResponseErr != nil {
+			return fmt.Errorf("failed to send status command: %w", ipcResponseErr)
 		}
 
-		if !response.Success {
-			if response.Code != "" {
-				return fmt.Errorf("%s (code: %s)", response.Message, response.Code)
+		if !ipcResponse.Success {
+			if ipcResponse.Code != "" {
+				return fmt.Errorf("%s (code: %s)", ipcResponse.Message, ipcResponse.Code)
 			}
-			return fmt.Errorf("%s", response.Message)
+
+			return fmt.Errorf("%s", ipcResponse.Message)
 		}
 
 		logger.Info("Neru Status:")
-		var sd ipc.StatusData
-		raw, err := json.Marshal(response.Data)
-		if err == nil {
-			err2 := json.Unmarshal(raw, &sd)
-			if err2 == nil {
+		var statusData ipc.StatusData
+		ipcResponseData, ipcResponseDataErr := json.Marshal(ipcResponse.Data)
+		if ipcResponseDataErr == nil {
+			ipcResponseDataUnmarshalErr := json.Unmarshal(ipcResponseData, &statusData)
+			if ipcResponseDataUnmarshalErr == nil {
 				status := "stopped"
-				if sd.Enabled {
+				if statusData.Enabled {
 					status = "running"
 				}
 				logger.Info("  Status: " + status)
-				logger.Info("  Mode: " + sd.Mode)
-				logger.Info("  Config: " + sd.Config)
+				logger.Info("  Mode: " + statusData.Mode)
+				logger.Info("  Config: " + statusData.Config)
 			} else {
 				// Fallback to previous behavior
-				if data, ok := response.Data.(map[string]any); ok {
+				if data, ok := ipcResponse.Data.(map[string]any); ok {
 					if enabled, ok := data["enabled"].(bool); ok {
 						status := "stopped"
 						if enabled {
@@ -62,19 +63,21 @@ var statusCmd = &cobra.Command{
 						logger.Info("  Config: " + configPath)
 					}
 				} else {
-					jsonData, err := json.MarshalIndent(response.Data, "  ", "  ")
-					if err != nil {
-						logger.Error("Failed to marshal status data to JSON", zap.Error(err))
-						return fmt.Errorf("failed to marshal status data: %w", err)
+					jsonData, jsonDataErr := json.MarshalIndent(ipcResponse.Data, "  ", "  ")
+					if jsonDataErr != nil {
+						logger.Error("Failed to marshal status data to JSON", zap.Error(jsonDataErr))
+
+						return fmt.Errorf("failed to marshal status data: %w", jsonDataErr)
 					}
 					logger.Info(string(jsonData))
 				}
 			}
 		} else {
-			jsonData, err := json.MarshalIndent(response.Data, "  ", "  ")
-			if err != nil {
-				logger.Error("Failed to marshal status data to JSON", zap.Error(err))
-				return fmt.Errorf("failed to marshal status data: %w", err)
+			jsonData, jsonDataErr := json.MarshalIndent(ipcResponse.Data, "  ", "  ")
+			if jsonDataErr != nil {
+				logger.Error("Failed to marshal status data to JSON", zap.Error(jsonDataErr))
+
+				return fmt.Errorf("failed to marshal status data: %w", jsonDataErr)
 			}
 			logger.Info(string(jsonData))
 		}
