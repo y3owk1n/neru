@@ -500,6 +500,10 @@ go mod tidy
 
 ### Profiling
 
+#### Test Profiling
+
+Profile specific tests to identify performance bottlenecks:
+
 ```bash
 # CPU profile
 go test -cpuprofile cpu.prof ./internal/hints
@@ -509,6 +513,76 @@ go tool pprof cpu.prof
 go test -memprofile mem.prof ./internal/hints
 go tool pprof mem.prof
 ```
+
+#### Runtime Profiling with NERU_PPROF
+
+Enable Go's [pprof](https://pkg.go.dev/net/http/pprof) HTTP server to profile the running application. This is useful for debugging performance issues, memory leaks, or understanding runtime behavior.
+
+**Enable profiling:**
+
+```bash
+# Start Neru with pprof server on port 6060
+NERU_PPROF=:6060 ./bin/neru launch
+
+# Or use a different port
+NERU_PPROF=localhost:8080 ./bin/neru launch
+```
+
+**Access profiles:**
+
+```bash
+# View available profiles in browser
+open http://localhost:6060/debug/pprof/
+
+# CPU profile (30 seconds)
+go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
+
+# Heap profile
+go tool pprof http://localhost:6060/debug/pprof/heap
+
+# Goroutine profile
+go tool pprof http://localhost:6060/debug/pprof/goroutine
+
+# Block profile (mutex contention)
+go tool pprof http://localhost:6060/debug/pprof/block
+```
+
+**Interactive analysis:**
+
+```bash
+# Start interactive pprof session
+go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
+
+# Inside pprof:
+(pprof) top10        # Show top 10 functions by CPU time
+(pprof) list FuncName # Show source code for function
+(pprof) web          # Open call graph in browser (requires graphviz)
+(pprof) pdf          # Generate PDF call graph
+```
+
+**Common use cases:**
+
+- **High CPU usage**: Use CPU profile to find hot code paths
+- **Memory leaks**: Use heap profile to identify memory allocations
+- **Goroutine leaks**: Use goroutine profile to find stuck goroutines
+- **Lock contention**: Use block profile to find mutex bottlenecks
+
+**Example workflow:**
+
+```bash
+# 1. Start Neru with profiling
+NERU_PPROF=:6060 ./bin/neru launch
+
+# 2. Use the app normally to reproduce the issue
+
+# 3. In another terminal, capture a profile
+go tool pprof -http=:8081 http://localhost:6060/debug/pprof/heap
+
+# 4. Browser opens with interactive flame graph and call tree
+```
+
+> [!TIP]
+> Install graphviz for better visualization: `brew install graphviz`
 
 ---
 
