@@ -43,40 +43,38 @@ var metricsCmd = &cobra.Command{
 			return fmt.Errorf("failed to marshal metrics data: %w", ipcResponseDataErr)
 		}
 
-		var snapshot struct {
-			Metrics []struct {
-				Name  string  `json:"name"`
-				Value float64 `json:"value"`
-				Type  string  `json:"type"`
-			} `json:"metrics"`
+		var metrics []struct {
+			Name  string  `json:"name"`
+			Value float64 `json:"value"`
+			Type  int     `json:"type"`
 		}
 
-		ipcResponseDataErr = json.Unmarshal(ipcResponseData, &snapshot)
+		ipcResponseDataErr = json.Unmarshal(ipcResponseData, &metrics)
 		if ipcResponseDataErr != nil {
 			return fmt.Errorf("failed to parse metrics: %w", ipcResponseDataErr)
 		}
 
-		if len(snapshot.Metrics) == 0 {
+		if len(metrics) == 0 {
 			cmd.Println("No metrics recorded yet")
 
 			return nil
 		}
 
 		// Sort metrics by name
-		sort.Slice(snapshot.Metrics, func(i, j int) bool {
-			return snapshot.Metrics[i].Name < snapshot.Metrics[j].Name
+		sort.Slice(metrics, func(i, j int) bool {
+			return metrics[i].Name < metrics[j].Name
 		})
 
 		cmd.Println("📊 Application Metrics:")
 		cmd.Println("-----------------------")
 
-		for _, metric := range snapshot.Metrics {
+		for _, metric := range metrics {
 			switch metric.Type {
-			case "counter":
+			case 0: // TypeCounter
 				cmd.Printf("%-40s %d\n", metric.Name, int(metric.Value))
-			case "gauge":
+			case 1: // TypeGauge
 				cmd.Printf("%-40s %.2f\n", metric.Name, metric.Value)
-			default: // Assuming histogram or other time-based metrics
+			default: // TypeHistogram
 				cmd.Printf("%-40s %.4fs\n", metric.Name, metric.Value)
 			}
 		}

@@ -260,6 +260,34 @@ This dumps the full config as pretty JSON. Use this to verify what the daemon is
 neru --version
 ```
 
+### Metrics
+
+Show application metrics (if enabled):
+
+```bash
+neru metrics
+```
+
+**Example output:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "name": "accessibility_clickable_elements_count",
+      "type": 2,
+      "value": 42,
+      "labels": null,
+      "timestamp": "2023-10-27T10:00:00Z"
+    }
+  ],
+  "code": "OK"
+}
+```
+
+If metrics are disabled in config, this command will return an error.
+
 ### Help
 
 ```bash

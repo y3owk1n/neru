@@ -14,13 +14,13 @@ import (
 // MetricsDecorator wraps an AccessibilityPort to collect metrics.
 type MetricsDecorator struct {
 	next      ports.AccessibilityPort
-	collector *metrics.Collector
+	collector metrics.Collector
 }
 
 // NewMetricsDecorator creates a new MetricsDecorator.
 func NewMetricsDecorator(
 	next ports.AccessibilityPort,
-	collector *metrics.Collector,
+	collector metrics.Collector,
 ) *MetricsDecorator {
 	return &MetricsDecorator{
 		next:      next,

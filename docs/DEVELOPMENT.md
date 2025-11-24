@@ -250,6 +250,8 @@ Low-level infrastructure code, including CGo and OS interactions.
 - **Hotkeys**: Global hotkey registration via Carbon APIs.
 - **IPC**: Unix socket communication.
 - **Metrics**: Prometheus/OpenTelemetry metrics.
+  - Configurable via `[metrics]` section in config.
+  - Can be disabled to reduce overhead.
 
 #### `internal/features`
 

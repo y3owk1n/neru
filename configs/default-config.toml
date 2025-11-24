@@ -162,6 +162,10 @@ steps = 10
 # Delay between steps in milliseconds
 delay = 1
 
+[metrics]
+# Whether to enable metrics collection
+enabled = false
+
 [logging]
 # Log level: debug, info, warn, error
 log_level = "info"

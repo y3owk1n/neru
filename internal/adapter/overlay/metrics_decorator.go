@@ -13,11 +13,14 @@ import (
 // MetricsDecorator wraps an OverlayPort to collect metrics.
 type MetricsDecorator struct {
 	next      ports.OverlayPort
-	collector *metrics.Collector
+	collector metrics.Collector
 }
 
 // NewMetricsDecorator creates a new MetricsDecorator.
-func NewMetricsDecorator(next ports.OverlayPort, collector *metrics.Collector) *MetricsDecorator {
+func NewMetricsDecorator(
+	next ports.OverlayPort,
+	collector metrics.Collector,
+) *MetricsDecorator {
 	return &MetricsDecorator{
 		next:      next,
 		collector: collector,
