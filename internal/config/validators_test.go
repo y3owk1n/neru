@@ -282,6 +282,80 @@ func TestConfig_ValidateHints(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "empty electron bundle",
+			config: &Config{
+				Hints: HintsConfig{
+					HintCharacters:   "AB",
+					Opacity:          0.9,
+					BackgroundColor:  "#000000",
+					TextColor:        "#FFFFFF",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#333333",
+					FontSize:         14,
+					AdditionalAXSupport: AdditionalAXSupport{
+						AdditionalElectronBundles: []string{""},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty chromium bundle",
+			config: &Config{
+				Hints: HintsConfig{
+					HintCharacters:   "AB",
+					Opacity:          0.9,
+					BackgroundColor:  "#000000",
+					TextColor:        "#FFFFFF",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#333333",
+					FontSize:         14,
+					AdditionalAXSupport: AdditionalAXSupport{
+						AdditionalChromiumBundles: []string{""},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty firefox bundle",
+			config: &Config{
+				Hints: HintsConfig{
+					HintCharacters:   "AB",
+					Opacity:          0.9,
+					BackgroundColor:  "#000000",
+					TextColor:        "#FFFFFF",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#333333",
+					FontSize:         14,
+					AdditionalAXSupport: AdditionalAXSupport{
+						AdditionalFirefoxBundles: []string{""},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid additional bundles",
+			config: &Config{
+				Hints: HintsConfig{
+					HintCharacters:   "AB",
+					Opacity:          0.9,
+					BackgroundColor:  "#000000",
+					TextColor:        "#FFFFFF",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#333333",
+					FontSize:         14,
+					AdditionalAXSupport: AdditionalAXSupport{
+						AdditionalElectronBundles: []string{"com.electron.app"},
+						AdditionalChromiumBundles: []string{"com.chromium.app"},
+						AdditionalFirefoxBundles:  []string{"org.mozilla.firefox"},
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -289,6 +363,175 @@ func TestConfig_ValidateHints(t *testing.T) {
 			err := tt.config.validateHints()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Config.validateHints() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestConfig_ValidateAppConfigs tests the Config.validateAppConfigs method.
+func TestConfig_ValidateAppConfigs(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *Config
+		wantErr bool
+	}{
+		{
+			name: "valid app config",
+			config: &Config{
+				Hints: HintsConfig{
+					AppConfigs: []AppConfig{
+						{
+							BundleID:            "com.example.app",
+							AdditionalClickable: []string{"button", "link"},
+						},
+					},
+				},
+				Hotkeys: HotkeysConfig{
+					Bindings: map[string]string{
+						"Cmd+Space": "hints",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty bundle ID",
+			config: &Config{
+				Hints: HintsConfig{
+					AppConfigs: []AppConfig{
+						{
+							BundleID: "",
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "whitespace bundle ID",
+			config: &Config{
+				Hints: HintsConfig{
+					AppConfigs: []AppConfig{
+						{
+							BundleID: "   ",
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty clickable role",
+			config: &Config{
+				Hints: HintsConfig{
+					AppConfigs: []AppConfig{
+						{
+							BundleID:            "com.example.app",
+							AdditionalClickable: []string{"button", ""},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "whitespace clickable role",
+			config: &Config{
+				Hints: HintsConfig{
+					AppConfigs: []AppConfig{
+						{
+							BundleID:            "com.example.app",
+							AdditionalClickable: []string{"button", "   "},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty hotkey binding key",
+			config: &Config{
+				Hints: HintsConfig{
+					AppConfigs: []AppConfig{
+						{
+							BundleID: "com.example.app",
+						},
+					},
+				},
+				Hotkeys: HotkeysConfig{
+					Bindings: map[string]string{
+						"": "hints",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty hotkey binding value",
+			config: &Config{
+				Hints: HintsConfig{
+					AppConfigs: []AppConfig{
+						{
+							BundleID: "com.example.app",
+						},
+					},
+				},
+				Hotkeys: HotkeysConfig{
+					Bindings: map[string]string{
+						"Cmd+Space": "",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid hotkey format",
+			config: &Config{
+				Hints: HintsConfig{
+					AppConfigs: []AppConfig{
+						{
+							BundleID: "com.example.app",
+						},
+					},
+				},
+				Hotkeys: HotkeysConfig{
+					Bindings: map[string]string{
+						"Invalid+": "hints",
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "multiple app configs",
+			config: &Config{
+				Hints: HintsConfig{
+					AppConfigs: []AppConfig{
+						{
+							BundleID:            "com.example.app1",
+							AdditionalClickable: []string{"button"},
+						},
+						{
+							BundleID:            "com.example.app2",
+							AdditionalClickable: []string{"link"},
+						},
+					},
+				},
+				Hotkeys: HotkeysConfig{
+					Bindings: map[string]string{
+						"Cmd+Space": "hints",
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.validateAppConfigs()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Config.validateAppConfigs() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

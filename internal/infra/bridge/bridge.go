@@ -125,16 +125,13 @@ func StopAppWatcher() {
 	C.stopAppWatcher()
 }
 
-//export handleAppLaunch
-func handleAppLaunch(cAppName *C.char, cBundleID *C.char) {
+// HandleAppLaunch processes an app launch event.
+func HandleAppLaunch(appName, bundleID string) {
 	if bridgeLogger != nil {
 		bridgeLogger.Debug("Bridge: handleAppLaunch called")
 	}
 
 	if appWatcher != nil {
-		appName := C.GoString(cAppName)
-		bundleID := C.GoString(cBundleID)
-
 		if bridgeLogger != nil {
 			bridgeLogger.Debug("Bridge: Forwarding app launch event",
 				zap.String("app_name", appName),
@@ -145,16 +142,18 @@ func handleAppLaunch(cAppName *C.char, cBundleID *C.char) {
 	}
 }
 
-//export handleAppTerminate
-func handleAppTerminate(cAppName *C.char, cBundleID *C.char) {
+//export handleAppLaunch
+func handleAppLaunch(cAppName *C.char, cBundleID *C.char) {
+	HandleAppLaunch(C.GoString(cAppName), C.GoString(cBundleID))
+}
+
+// HandleAppTerminate processes an app termination event.
+func HandleAppTerminate(appName, bundleID string) {
 	if bridgeLogger != nil {
 		bridgeLogger.Debug("Bridge: handleAppTerminate called")
 	}
 
 	if appWatcher != nil {
-		appName := C.GoString(cAppName)
-		bundleID := C.GoString(cBundleID)
-
 		if bridgeLogger != nil {
 			bridgeLogger.Debug("Bridge: Forwarding app terminate event",
 				zap.String("app_name", appName),
@@ -165,16 +164,18 @@ func handleAppTerminate(cAppName *C.char, cBundleID *C.char) {
 	}
 }
 
-//export handleAppActivate
-func handleAppActivate(cAppName *C.char, cBundleID *C.char) {
+//export handleAppTerminate
+func handleAppTerminate(cAppName *C.char, cBundleID *C.char) {
+	HandleAppTerminate(C.GoString(cAppName), C.GoString(cBundleID))
+}
+
+// HandleAppActivate processes an app activation event.
+func HandleAppActivate(appName, bundleID string) {
 	if bridgeLogger != nil {
 		bridgeLogger.Debug("Bridge: handleAppActivate called")
 	}
 
 	if appWatcher != nil {
-		appName := C.GoString(cAppName)
-		bundleID := C.GoString(cBundleID)
-
 		if bridgeLogger != nil {
 			bridgeLogger.Debug("Bridge: Forwarding app activate event",
 				zap.String("app_name", appName),
@@ -185,8 +186,13 @@ func handleAppActivate(cAppName *C.char, cBundleID *C.char) {
 	}
 }
 
-//export handleScreenParametersChanged
-func handleScreenParametersChanged() {
+//export handleAppActivate
+func handleAppActivate(cAppName *C.char, cBundleID *C.char) {
+	HandleAppActivate(C.GoString(cAppName), C.GoString(cBundleID))
+}
+
+// HandleScreenParametersChanged processes a screen parameters change event.
+func HandleScreenParametersChanged() {
 	if bridgeLogger != nil {
 		bridgeLogger.Debug("Bridge: handleScreenParametersChanged called")
 	}
@@ -200,16 +206,18 @@ func handleScreenParametersChanged() {
 	}
 }
 
-//export handleAppDeactivate
-func handleAppDeactivate(cAppName *C.char, cBundleID *C.char) {
+//export handleScreenParametersChanged
+func handleScreenParametersChanged() {
+	HandleScreenParametersChanged()
+}
+
+// HandleAppDeactivate processes an app deactivation event.
+func HandleAppDeactivate(appName, bundleID string) {
 	if bridgeLogger != nil {
 		bridgeLogger.Debug("Bridge: handleAppDeactivate called")
 	}
 
 	if appWatcher != nil {
-		appName := C.GoString(cAppName)
-		bundleID := C.GoString(cBundleID)
-
 		if bridgeLogger != nil {
 			bridgeLogger.Debug("Bridge: Forwarding app deactivate event",
 				zap.String("app_name", appName),
@@ -218,6 +226,11 @@ func handleAppDeactivate(cAppName *C.char, cBundleID *C.char) {
 
 		appWatcher.HandleDeactivate(appName, bundleID)
 	}
+}
+
+//export handleAppDeactivate
+func handleAppDeactivate(cAppName *C.char, cBundleID *C.char) {
+	HandleAppDeactivate(C.GoString(cAppName), C.GoString(cBundleID))
 }
 
 // GetActiveScreenBounds retrieves the screen bounds containing the current mouse cursor position.

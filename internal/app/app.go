@@ -118,7 +118,11 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 	// Note: We need to get excluded bundles and clickable roles from config
 	excludedBundles := cfg.General.ExcludedApps
 	clickableRoles := cfg.Hints.ClickableRoles
-	baseAccAdapter := accAdapter.NewAdapter(log, excludedBundles, clickableRoles)
+
+	// Create infrastructure client
+	axClient := accAdapter.NewInfraAXClient()
+
+	baseAccAdapter := accAdapter.NewAdapter(log, excludedBundles, clickableRoles, axClient)
 	// Wrap with metrics decorator
 	accAdapter := accAdapter.NewMetricsDecorator(baseAccAdapter, metricsCollector)
 

@@ -11,21 +11,25 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/errors"
-	infra "github.com/y3owk1n/neru/internal/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/infra/bridge"
 	"go.uber.org/zap"
 )
 
-// Adapter implements ports.AccessibilityPort by wrapping the CGo bridge.
+// Adapter implements ports.AccessibilityPort by wrapping the AXClient.
 // It converts between domain models and infrastructure types.
 type Adapter struct {
 	logger          *zap.Logger
+	client          AXClient
 	excludedBundles map[string]bool
 	clickableRoles  []string
 }
 
 // NewAdapter creates a new accessibility adapter.
-func NewAdapter(logger *zap.Logger, excludedBundles []string, clickableRoles []string) *Adapter {
+func NewAdapter(
+	logger *zap.Logger,
+	excludedBundles []string,
+	clickableRoles []string,
+	client AXClient,
+) *Adapter {
 	excludedMap := make(map[string]bool, len(excludedBundles))
 	for _, bundle := range excludedBundles {
 		excludedMap[bundle] = true
@@ -33,6 +37,7 @@ func NewAdapter(logger *zap.Logger, excludedBundles []string, clickableRoles []s
 
 	return &Adapter{
 		logger:          logger,
+		client:          client,
 		excludedBundles: excludedMap,
 		clickableRoles:  clickableRoles,
 	}
@@ -53,27 +58,21 @@ func (a *Adapter) GetClickableElements(
 	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))
 
 	// Get frontmost window
-	window := infra.GetFrontmostWindow()
-	if window == nil {
+	window, err := a.client.GetFrontmostWindow()
+	if err != nil {
 		return nil, errors.New(errors.CodeAccessibilityFailed, "failed to get frontmost window")
 	}
 	defer window.Release()
 
-	// Build accessibility tree
-	opts := infra.DefaultTreeOptions()
-	opts.IncludeOutOfBounds = filter.IncludeOffscreen
-
-	tree, err := infra.BuildTree(window, opts)
+	// Get clickable nodes via client
+	clickableNodes, err := a.client.GetClickableNodes(window, filter.IncludeOffscreen)
 	if err != nil {
 		return nil, errors.Wrap(
 			err,
 			errors.CodeAccessibilityFailed,
-			"failed to build accessibility tree",
+			"failed to get clickable nodes",
 		)
 	}
-
-	// Find clickable elements
-	clickableNodes := tree.FindClickableElements()
 
 	a.logger.Debug("Found clickable nodes", zap.Int("count", len(clickableNodes)))
 
@@ -122,26 +121,13 @@ func (a *Adapter) GetScrollableElements(ctx context.Context) ([]*element.Element
 	a.logger.Debug("Getting scrollable elements")
 
 	// Get focused app
-	focusedApp := infra.GetFocusedApplication()
-	if focusedApp == nil {
+	focusedApp, err := a.client.GetFocusedApplication()
+	if err != nil {
 		return nil, errors.New(errors.CodeAccessibilityFailed, "failed to get focused app")
 	}
 	defer focusedApp.Release()
 
-	// Build accessibility tree
-	opts := infra.DefaultTreeOptions()
-	tree, err := infra.BuildTree(focusedApp, opts)
-	if err != nil {
-		return nil, errors.Wrap(
-			err,
-			errors.CodeAccessibilityFailed,
-			"failed to build accessibility tree",
-		)
-	}
-
-	// Find scrollable elements using accessibility API
-	// For now, return empty list
-	_ = tree // Use tree to avoid unused variable
+	// TODO: Implement scrollable element finding in AXClient if needed
 	a.logger.Debug("Scrollable elements not yet implemented")
 	return []*element.Element{}, nil
 }
@@ -170,26 +156,8 @@ func (a *Adapter) PerformAction(
 	cfg := config.Global()
 	restoreCursor := cfg != nil && cfg.General.RestoreCursorPosition
 
-	// Perform the action based on type
-	var err error
-	switch actionType {
-	case action.TypeLeftClick:
-		err = infra.LeftClickAtPoint(center, restoreCursor)
-	case action.TypeRightClick:
-		err = infra.RightClickAtPoint(center, restoreCursor)
-	case action.TypeMiddleClick:
-		err = infra.MiddleClickAtPoint(center, restoreCursor)
-	case action.TypeMouseDown:
-		err = infra.LeftMouseDownAtPoint(center)
-	case action.TypeMouseUp:
-		err = infra.LeftMouseUpAtPoint(center)
-	case action.TypeMoveMouse:
-		infra.MoveMouseToPoint(center)
-		return nil
-	default:
-		return errors.Newf(errors.CodeInvalidInput, "unsupported action type: %s", actionType)
-	}
-
+	// Perform the action via client
+	err := a.client.PerformAction(actionType, center, restoreCursor)
 	if err != nil {
 		return errors.Wrap(err, errors.CodeActionFailed, "failed to perform action")
 	}
@@ -219,26 +187,8 @@ func (a *Adapter) PerformActionAtPoint(
 	cfg := config.Global()
 	restoreCursor := cfg != nil && cfg.General.RestoreCursorPosition
 
-	// Perform the action based on type
-	var err error
-	switch actionType {
-	case action.TypeLeftClick:
-		err = infra.LeftClickAtPoint(point, restoreCursor)
-	case action.TypeRightClick:
-		err = infra.RightClickAtPoint(point, restoreCursor)
-	case action.TypeMiddleClick:
-		err = infra.MiddleClickAtPoint(point, restoreCursor)
-	case action.TypeMouseDown:
-		err = infra.LeftMouseDownAtPoint(point)
-	case action.TypeMouseUp:
-		err = infra.LeftMouseUpAtPoint(point)
-	case action.TypeMoveMouse:
-		infra.MoveMouseToPoint(point)
-		return nil
-	default:
-		return errors.Newf(errors.CodeInvalidInput, "unsupported action type: %s", actionType)
-	}
-
+	// Perform the action via client
+	err := a.client.PerformAction(actionType, point, restoreCursor)
 	if err != nil {
 		return errors.Wrap(err, errors.CodeActionFailed, "failed to perform action at point")
 	}
@@ -252,9 +202,7 @@ func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
 		zap.Int("deltaX", deltaX),
 		zap.Int("deltaY", deltaY))
 
-	// Use the infra layer to perform the actual scroll
-	// The infra.ScrollAtCursor function	// Scroll at the current cursor position
-	err := infra.ScrollAtCursor(deltaX, deltaY)
+	err := a.client.Scroll(deltaX, deltaY)
 	if err != nil {
 		return errors.Wrap(err, errors.CodeActionFailed, "failed to scroll")
 	}
@@ -269,13 +217,13 @@ func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point) error 
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y))
 
-	infra.MoveMouseToPoint(point)
+	a.client.MoveMouse(point)
 	return nil
 }
 
 // GetCursorPosition returns the current cursor position.
 func (a *Adapter) GetCursorPosition(_ context.Context) (image.Point, error) {
-	pos := infra.GetCurrentCursorPosition()
+	pos := a.client.GetCursorPosition()
 	a.logger.Debug("Got cursor position",
 		zap.Int("x", pos.X),
 		zap.Int("y", pos.Y))
@@ -291,8 +239,8 @@ func (a *Adapter) GetFocusedAppBundleID(ctx context.Context) (string, error) {
 	default:
 	}
 
-	focusedApp := infra.GetFocusedApplication()
-	if focusedApp == nil {
+	focusedApp, err := a.client.GetFocusedApplication()
+	if err != nil {
 		return "", errors.New(errors.CodeAccessibilityFailed, "failed to get focused application")
 	}
 	defer focusedApp.Release()
@@ -319,8 +267,7 @@ func (a *Adapter) GetScreenBounds(ctx context.Context) (image.Rectangle, error) 
 	default:
 	}
 
-	bounds := bridge.GetActiveScreenBounds()
-	return bounds, nil
+	return a.client.GetActiveScreenBounds(), nil
 }
 
 // CheckPermissions verifies that accessibility permissions are granted.
@@ -332,7 +279,7 @@ func (a *Adapter) CheckPermissions(ctx context.Context) error {
 	default:
 	}
 
-	if !infra.CheckAccessibilityPermissions() {
+	if !a.client.CheckPermissions() {
 		return errors.New(errors.CodeAccessibilityDenied,
 			"accessibility permissions not granted - please enable in System Preferences")
 	}
@@ -349,7 +296,7 @@ func (a *Adapter) Health(ctx context.Context) error {
 func (a *Adapter) UpdateClickableRoles(roles []string) {
 	a.logger.Info("Updating clickable roles", zap.Int("count", len(roles)))
 	a.clickableRoles = roles
-	infra.SetClickableRoles(roles)
+	a.client.SetClickableRoles(roles)
 }
 
 // UpdateExcludedBundles updates the list of excluded bundle IDs.
@@ -361,30 +308,23 @@ func (a *Adapter) UpdateExcludedBundles(bundles []string) {
 	}
 }
 
-// convertToDomainElement converts an infrastructure TreeNode to a domain Element.
-func (a *Adapter) convertToDomainElement(node *infra.TreeNode) (*element.Element, error) {
-	if node == nil || node.Info == nil {
-		return nil, errors.New(errors.CodeInvalidInput, "node or node info is nil")
+// convertToDomainElement converts an AXNode to a domain Element.
+func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) {
+	if node == nil {
+		return nil, errors.New(errors.CodeInvalidInput, "node is nil")
 	}
 
-	info := node.Info
+	// Create element ID from unique identifier
+	elemID := element.ID(node.GetID())
 
-	// Create element ID from pointer address (unique identifier)
-	elemID := element.ID(fmt.Sprintf("elem_%p", node.Element))
-
-	// Convert bounds from Position and Size
-	bounds := image.Rect(
-		info.Position.X,
-		info.Position.Y,
-		info.Position.X+info.Size.X,
-		info.Position.Y+info.Size.Y,
-	)
+	// Get bounds
+	bounds := node.GetBounds()
 
 	// Convert role
-	role := element.Role(info.Role)
+	role := element.Role(node.GetRole())
 
 	// Determine if clickable
-	isClickable := node.Element != nil && node.Element.IsClickable(node.Info)
+	isClickable := node.IsClickable()
 
 	// Create element with options
 	elem, err := element.NewElement(
@@ -392,8 +332,8 @@ func (a *Adapter) convertToDomainElement(node *infra.TreeNode) (*element.Element
 		bounds,
 		role,
 		element.WithClickable(isClickable),
-		element.WithTitle(info.Title),
-		element.WithDescription(info.RoleDescription),
+		element.WithTitle(node.GetTitle()),
+		element.WithDescription(node.GetDescription()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create element: %w", err)

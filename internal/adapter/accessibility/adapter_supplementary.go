@@ -5,10 +5,10 @@ import (
 
 	"github.com/y3owk1n/neru/internal/application/ports"
 	"github.com/y3owk1n/neru/internal/domain/element"
-	infra "github.com/y3owk1n/neru/internal/infra/accessibility"
 	"go.uber.org/zap"
 )
 
+// addSupplementaryElements adds menubar, dock, and notification center elements based on filter.
 // addSupplementaryElements adds menubar, dock, and notification center elements based on filter.
 func (a *Adapter) addSupplementaryElements(
 	ctx context.Context,
@@ -16,7 +16,7 @@ func (a *Adapter) addSupplementaryElements(
 	filter ports.ElementFilter,
 ) []*element.Element {
 	// Check if Mission Control is active
-	missionControlActive := infra.IsMissionControlActive()
+	missionControlActive := a.client.IsMissionControlActive()
 
 	a.logger.Debug("Adding supplementary elements",
 		zap.Bool("mission_control_active", missionControlActive),
@@ -51,15 +51,15 @@ func (a *Adapter) addMenubarElements(
 	a.logger.Debug("Adding menubar elements")
 
 	// Temporarily add AXMenuBarItem to clickable roles
-	originalRoles := infra.GetClickableRoles()
+	originalRoles := a.client.GetClickableRoles()
 	menubarRoles := make([]string, len(originalRoles)+1)
 	copy(menubarRoles, originalRoles)
 	menubarRoles[len(originalRoles)] = "AXMenuBarItem"
-	infra.SetClickableRoles(menubarRoles)
-	defer infra.SetClickableRoles(originalRoles) // Restore original roles when done
+	a.client.SetClickableRoles(menubarRoles)
+	defer a.client.SetClickableRoles(originalRoles) // Restore original roles when done
 
 	// Get menubar elements
-	mbNodes, err := infra.GetMenuBarClickableElements()
+	mbNodes, err := a.client.GetMenuBarClickableElements()
 	if err != nil {
 		a.logger.Warn("Failed to get menubar elements", zap.Error(err))
 	} else {
@@ -78,7 +78,7 @@ func (a *Adapter) addMenubarElements(
 
 	// Get additional menubar targets
 	for _, bundleID := range filter.AdditionalMenubarTargets {
-		additionalNodes, err := infra.GetClickableElementsFromBundleID(bundleID)
+		additionalNodes, err := a.client.GetClickableElementsFromBundleID(bundleID)
 		if err != nil {
 			a.logger.Warn("Failed to get additional menubar elements",
 				zap.String("bundle_id", bundleID),
@@ -111,16 +111,16 @@ func (a *Adapter) addDockElements(
 	const dockBundleID = "com.apple.dock"
 
 	// Temporarily add AXDockItem to clickable roles
-	originalRoles := infra.GetClickableRoles()
+	originalRoles := a.client.GetClickableRoles()
 	dockRoles := make([]string, len(originalRoles)+1)
 	copy(dockRoles, originalRoles)
 	dockRoles[len(originalRoles)] = "AXDockItem"
-	infra.SetClickableRoles(dockRoles)
-	defer infra.SetClickableRoles(originalRoles) // Restore original roles when done
+	a.client.SetClickableRoles(dockRoles)
+	defer a.client.SetClickableRoles(originalRoles) // Restore original roles when done
 
 	// Get dock application
-	dockApp := infra.GetApplicationByBundleID(dockBundleID)
-	if dockApp == nil {
+	dockApp, err := a.client.GetApplicationByBundleID(dockBundleID)
+	if err != nil || dockApp == nil {
 		a.logger.Debug("Dock application not found")
 		return elements
 	}
@@ -141,21 +141,11 @@ func (a *Adapter) addDockElements(
 	}
 
 	// Build tree and find clickable elements
-	opts := infra.DefaultTreeOptions()
-	opts.IncludeOutOfBounds = true
-
-	tree, err := infra.BuildTree(dockApp, opts)
+	dockNodes, err := a.client.GetClickableNodes(dockApp, true)
 	if err != nil {
-		a.logger.Warn("Failed to build tree for dock", zap.Error(err))
+		a.logger.Warn("Failed to get dock elements", zap.Error(err))
 		return elements
 	}
-
-	if tree == nil {
-		a.logger.Debug("No tree built for dock")
-		return elements
-	}
-
-	dockNodes := tree.FindClickableElements()
 
 	for _, node := range dockNodes {
 		elem, err := a.convertToDomainElement(node)
@@ -179,7 +169,7 @@ func (a *Adapter) addNotificationCenterElements(
 
 	a.logger.Debug("Adding notification center elements")
 
-	ncNodes, err := infra.GetClickableElementsFromBundleID(ncBundleID)
+	ncNodes, err := a.client.GetClickableElementsFromBundleID(ncBundleID)
 	if err != nil {
 		a.logger.Warn("Failed to get notification center elements", zap.Error(err))
 		return elements

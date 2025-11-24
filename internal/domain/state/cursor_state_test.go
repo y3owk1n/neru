@@ -252,3 +252,159 @@ func BenchmarkCursorState_ConcurrentAccess(b *testing.B) {
 		}
 	})
 }
+
+// Stress tests for robustness.
+
+// TestCursorState_RapidStateTransitions tests rapid capture/release cycles.
+func TestCursorState_RapidStateTransitions(t *testing.T) {
+	state := NewCursorState(true)
+
+	// Perform 1000 rapid transitions
+	for range 1000 {
+		pos := image.Point{X: 100, Y: 200}
+		bounds := image.Rect(0, 0, 1920, 1080)
+
+		state.Capture(pos, bounds)
+		if !state.IsCaptured() {
+			t.Error("State should be captured after Capture()")
+		}
+
+		state.Reset()
+		if state.IsCaptured() {
+			t.Error("State should not be captured after Reset()")
+		}
+	}
+}
+
+// TestCursorState_ExtremeValues tests handling of extreme coordinate values.
+func TestCursorState_ExtremeValues(t *testing.T) {
+	tests := []struct {
+		name   string
+		pos    image.Point
+		bounds image.Rectangle
+	}{
+		{
+			name:   "maximum positive values",
+			pos:    image.Point{X: 999999, Y: 999999},
+			bounds: image.Rect(0, 0, 999999, 999999),
+		},
+		{
+			name:   "negative values",
+			pos:    image.Point{X: -1000, Y: -1000},
+			bounds: image.Rect(-1000, -1000, 1000, 1000),
+		},
+		{
+			name:   "zero values",
+			pos:    image.Point{X: 0, Y: 0},
+			bounds: image.Rect(0, 0, 0, 0),
+		},
+		{
+			name:   "mixed extreme values",
+			pos:    image.Point{X: -999999, Y: 999999},
+			bounds: image.Rect(-999999, -999999, 999999, 999999),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state := NewCursorState(true)
+			state.Capture(tt.pos, tt.bounds)
+
+			if !state.IsCaptured() {
+				t.Error("State should be captured")
+			}
+
+			gotPos := state.GetInitialPosition()
+			if gotPos != tt.pos {
+				t.Errorf("GetInitialPosition() = %v, want %v", gotPos, tt.pos)
+			}
+
+			gotBounds := state.GetInitialScreenBounds()
+			if gotBounds != tt.bounds {
+				t.Errorf("GetInitialScreenBounds() = %v, want %v", gotBounds, tt.bounds)
+			}
+		})
+	}
+}
+
+// TestCursorState_ConcurrentStressTest performs intensive concurrent operations.
+func TestCursorState_ConcurrentStressTest(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping stress test in short mode")
+	}
+
+	state := NewCursorState(true)
+	var wg sync.WaitGroup
+	errors := make(chan error, 1000)
+
+	// Run 1000 concurrent goroutines
+	for i := range 1000 {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+
+			// Each goroutine performs multiple operations
+			for j := range 10 {
+				pos := image.Point{X: id * 10, Y: j * 10}
+				bounds := image.Rect(0, 0, id*100, j*100)
+
+				state.Capture(pos, bounds)
+
+				// We cannot assert state.IsCaptured() here because another goroutine
+				// might have called Reset() in the meantime.
+				// The goal of this test is to ensure thread safety (no panics/races).
+
+				_ = state.GetInitialPosition()
+				_ = state.GetInitialScreenBounds()
+				_ = state.ShouldRestore()
+
+				state.Reset()
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(errors)
+
+	// Check for any errors
+	for err := range errors {
+		t.Error(err)
+	}
+}
+
+// TestCursorState_StateInvariants validates state invariants.
+func TestCursorState_StateInvariants(t *testing.T) {
+	state := NewCursorState(true)
+
+	// Invariant 1: After Reset(), IsCaptured() should be false
+	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
+	state.Reset()
+	if state.IsCaptured() {
+		t.Error("Invariant violated: IsCaptured() should be false after Reset()")
+	}
+
+	// Invariant 2: ShouldRestore() should match IsRestoreEnabled() when not captured
+	state.SetRestoreEnabled(true)
+	if state.ShouldRestore() {
+		t.Error("Invariant violated: ShouldRestore() should be false when not captured")
+	}
+
+	// Invariant 3: After Capture(), IsCaptured() should be true
+	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
+	if !state.IsCaptured() {
+		t.Error("Invariant violated: IsCaptured() should be true after Capture()")
+	}
+
+	// Invariant 4: ShouldRestore() should be true when captured and restore enabled
+	if !state.ShouldRestore() {
+		t.Error(
+			"Invariant violated: ShouldRestore() should be true when captured and restore enabled",
+		)
+	}
+
+	// Invariant 5: Disabling restore should affect ShouldRestore()
+	state.SetRestoreEnabled(false)
+	if state.ShouldRestore() {
+		t.Error("Invariant violated: ShouldRestore() should be false when restore disabled")
+	}
+}

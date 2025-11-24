@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"context"
+	"errors"
 	"image"
 	"testing"
 
@@ -81,6 +82,71 @@ func TestHintService_ShowHints(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "accessibility error",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
+				acc.GetClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
+					return nil, errors.New("accessibility permission denied")
+				}
+			},
+			setupGen: func() hint.Generator {
+				gen, _ := hint.NewAlphabetGenerator("asdf")
+				return gen
+			},
+			wantErr:       true,
+			wantHintCount: 0,
+		},
+		{
+			name: "large element set",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
+				acc.GetClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
+					// Create 100 elements
+					elements := make([]*element.Element, 100)
+					for i := range 100 {
+						elem, _ := element.NewElement(
+							element.ID("elem"+string(rune(i))),
+							image.Rect(i*10, i*10, i*10+40, i*10+40),
+							element.RoleButton,
+						)
+						elements[i] = elem
+					}
+					return elements, nil
+				}
+			},
+			setupGen: func() hint.Generator {
+				// Use larger character set for more hints
+				gen, _ := hint.NewAlphabetGenerator("abcdefghijklmnopqrstuvwxyz")
+				return gen
+			},
+			wantErr:       false,
+			wantHintCount: 100,
+			checkHints: func(t *testing.T, hints []*hint.Hint) {
+				t.Helper()
+				if len(hints) != 100 {
+					t.Errorf("Expected 100 hints, got %d", len(hints))
+				}
+			},
+		},
+		{
+			name: "single element",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
+				acc.GetClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
+					return []*element.Element{testElements[0]}, nil
+				}
+			},
+			setupGen: func() hint.Generator {
+				gen, _ := hint.NewAlphabetGenerator("ab")
+				return gen
+			},
+			wantErr:       false,
+			wantHintCount: 1,
+			checkHints: func(t *testing.T, hints []*hint.Hint) {
+				t.Helper()
+				if len(hints) != 1 {
+					t.Errorf("Expected 1 hint, got %d", len(hints))
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -124,21 +190,56 @@ func TestHintService_ShowHints(t *testing.T) {
 }
 
 func TestHintService_HideHints(t *testing.T) {
-	mockAcc := &mocks.MockAccessibilityPort{}
-	mockOverlay := &mocks.MockOverlayPort{}
-	gen, _ := hint.NewAlphabetGenerator("asdf")
-	log := logger.Get()
-
-	service := services.NewHintService(mockAcc, mockOverlay, gen, log)
-
-	ctx := context.Background()
-	err := service.HideHints(ctx)
-	if err != nil {
-		t.Errorf("HideHints() unexpected error: %v", err)
+	tests := []struct {
+		name       string
+		setupMocks func(*mocks.MockOverlayPort)
+		wantErr    bool
+	}{
+		{
+			name: "successful hide",
+			setupMocks: func(ov *mocks.MockOverlayPort) {
+				ov.HideFunc = func(_ context.Context) error {
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "overlay hide error",
+			setupMocks: func(ov *mocks.MockOverlayPort) {
+				ov.HideFunc = func(_ context.Context) error {
+					return errors.New("failed to hide overlay")
+				}
+			},
+			wantErr: true,
+		},
 	}
 
-	if mockOverlay.IsVisible() {
-		t.Error("Overlay should not be visible after HideHints")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockAcc := &mocks.MockAccessibilityPort{}
+			mockOverlay := &mocks.MockOverlayPort{}
+			gen, _ := hint.NewAlphabetGenerator("asdf")
+			log := logger.Get()
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockOverlay)
+			}
+
+			service := services.NewHintService(mockAcc, mockOverlay, gen, log)
+
+			ctx := context.Background()
+			err := service.HideHints(ctx)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("HideHints() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			// Only check visibility for successful hide
+			if !tt.wantErr && mockOverlay.IsVisible() {
+				t.Error("Overlay should not be visible after successful HideHints")
+			}
+		})
 	}
 }
 
@@ -147,16 +248,29 @@ func TestHintService_RefreshHints(t *testing.T) {
 		name           string
 		overlayVisible bool
 		expectRefresh  bool
+		refreshError   error
+		wantErr        bool
 	}{
 		{
 			name:           "refresh when visible",
 			overlayVisible: true,
 			expectRefresh:  true,
+			refreshError:   nil,
+			wantErr:        false,
 		},
 		{
 			name:           "skip refresh when not visible",
 			overlayVisible: false,
 			expectRefresh:  false,
+			refreshError:   nil,
+			wantErr:        false,
+		},
+		{
+			name:           "refresh error when visible",
+			overlayVisible: true,
+			expectRefresh:  true,
+			refreshError:   errors.New("overlay refresh failed"),
+			wantErr:        true,
 		},
 	}
 
@@ -171,7 +285,7 @@ func TestHintService_RefreshHints(t *testing.T) {
 			}
 			mockOverlay.RefreshFunc = func(_ context.Context) error {
 				refreshCalled = true
-				return nil
+				return tt.refreshError
 			}
 
 			gen, _ := hint.NewAlphabetGenerator("asdf")
@@ -181,8 +295,9 @@ func TestHintService_RefreshHints(t *testing.T) {
 
 			ctx := context.Background()
 			err := service.RefreshHints(ctx)
-			if err != nil {
-				t.Errorf("RefreshHints() unexpected error: %v", err)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RefreshHints() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if refreshCalled != tt.expectRefresh {

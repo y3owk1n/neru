@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"context"
+	"errors"
 	"image"
 	"testing"
 
@@ -47,6 +48,77 @@ func TestScrollService_Scroll(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:      "scroll down full",
+			direction: services.ScrollDirectionDown,
+			amount:    services.ScrollAmountHalfPage,
+			setupMocks: func(acc *mocks.MockAccessibilityPort) {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+					// Down = negative deltaY
+					if deltaY >= 0 {
+						t.Errorf("Expected negative deltaY for scroll down, got %d", deltaY)
+					}
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:      "scroll up full",
+			direction: services.ScrollDirectionUp,
+			amount:    services.ScrollAmountHalfPage,
+			setupMocks: func(acc *mocks.MockAccessibilityPort) {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+					// Up = positive deltaY
+					if deltaY <= 0 {
+						t.Errorf("Expected positive deltaY for scroll up, got %d", deltaY)
+					}
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:      "scroll left char",
+			direction: services.ScrollDirectionLeft,
+			amount:    services.ScrollAmountChar,
+			setupMocks: func(acc *mocks.MockAccessibilityPort) {
+				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
+					// Left = positive deltaX
+					if deltaX <= 0 {
+						t.Errorf("Expected positive deltaX for scroll left, got %d", deltaX)
+					}
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:      "scroll right char",
+			direction: services.ScrollDirectionRight,
+			amount:    services.ScrollAmountChar,
+			setupMocks: func(acc *mocks.MockAccessibilityPort) {
+				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
+					// Right = negative deltaX
+					if deltaX >= 0 {
+						t.Errorf("Expected negative deltaX for scroll right, got %d", deltaX)
+					}
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:      "accessibility error",
+			direction: services.ScrollDirectionDown,
+			amount:    services.ScrollAmountChar,
+			setupMocks: func(acc *mocks.MockAccessibilityPort) {
+				acc.ScrollFunc = func(_ context.Context, _, _ int) error {
+					return errors.New("scroll permission denied")
+				}
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -55,6 +127,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			mockOverlay := &mocks.MockOverlayPort{}
 			cfg := config.ScrollConfig{
 				ScrollStep:     10,
+				ScrollStepHalf: 30,
 				ScrollStepFull: 50,
 			}
 			log := logger.Get()
@@ -95,6 +168,27 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 				}
 			},
 			wantErr: false,
+		},
+		{
+			name: "screen bounds error",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
+				acc.GetScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
+					return image.Rectangle{}, errors.New("failed to get screen bounds")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name: "overlay draw error",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
+				acc.GetScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
+					return image.Rect(0, 0, 1920, 1080), nil
+				}
+				ov.DrawScrollHighlightFunc = func(_ context.Context, _ image.Rectangle, _ string, _ int) error {
+					return errors.New("failed to draw scroll highlight")
+				}
+			},
+			wantErr: true,
 		},
 	}
 

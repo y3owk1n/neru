@@ -100,6 +100,61 @@ func TestSetAppWatcher(t *testing.T) {
 	}
 }
 
+func TestCallbacks(t *testing.T) {
+	// Initialize logger
+	InitializeLogger(zap.NewNop())
+
+	// Setup mock watcher
+	mock := &mockAppWatcher{}
+	SetAppWatcher(mock)
+
+	t.Run("HandleAppLaunch", func(t *testing.T) {
+		HandleAppLaunch("TestApp", "com.test.app")
+
+		if len(mock.launchCalls) != 1 {
+			t.Errorf("Expected 1 launch call, got %d", len(mock.launchCalls))
+		}
+		if mock.launchCalls[0].appName != "TestApp" {
+			t.Errorf("Expected app name 'TestApp', got '%s'", mock.launchCalls[0].appName)
+		}
+		if mock.launchCalls[0].bundleID != "com.test.app" {
+			t.Errorf("Expected bundle ID 'com.test.app', got '%s'", mock.launchCalls[0].bundleID)
+		}
+	})
+
+	t.Run("HandleAppTerminate", func(t *testing.T) {
+		HandleAppTerminate("TestApp", "com.test.app")
+
+		if len(mock.terminateCalls) != 1 {
+			t.Errorf("Expected 1 terminate call, got %d", len(mock.terminateCalls))
+		}
+	})
+
+	t.Run("HandleAppActivate", func(t *testing.T) {
+		HandleAppActivate("TestApp", "com.test.app")
+
+		if len(mock.activateCalls) != 1 {
+			t.Errorf("Expected 1 activate call, got %d", len(mock.activateCalls))
+		}
+	})
+
+	t.Run("HandleAppDeactivate", func(t *testing.T) {
+		HandleAppDeactivate("TestApp", "com.test.app")
+
+		if len(mock.deactivateCalls) != 1 {
+			t.Errorf("Expected 1 deactivate call, got %d", len(mock.deactivateCalls))
+		}
+	})
+
+	t.Run("HandleScreenParametersChanged", func(_ *testing.T) {
+		HandleScreenParametersChanged()
+		// Since it runs in a goroutine, we need to wait a bit
+		// But for unit test reliability, we might just check if it didn't panic
+		// or use a channel in mock to sync.
+		// For now, let's just ensure it doesn't panic.
+	})
+}
+
 func TestHasClickAction(t *testing.T) {
 	tests := []struct {
 		name    string
