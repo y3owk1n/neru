@@ -50,7 +50,7 @@ type App struct {
 	eventTap       EventTap
 	ipcServer      IPCServer
 	appWatcher     Watcher
-	metrics        *metrics.Collector
+	metrics        metrics.Collector
 
 	modes *modes.Handler
 
@@ -109,7 +109,12 @@ func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error
 	cfgService := config.NewService(cfg, configPath)
 
 	// Initialize Metrics
-	metricsCollector := metrics.NewCollector()
+	var metricsCollector metrics.Collector
+	if cfg.Metrics.Enabled {
+		metricsCollector = metrics.NewCollector()
+	} else {
+		metricsCollector = &metrics.NoOpCollector{}
+	}
 
 	// Initialize Adapters
 	excludedBundles := cfg.General.ExcludedApps

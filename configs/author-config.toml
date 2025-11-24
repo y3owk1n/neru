@@ -15,7 +15,6 @@ font_family = "JetBrainsMonoNLNFP-ExtraBold"
 sublayer_keys = "gcrhtnmwv"
 
 [action]
-# Action key mappings
 left_click_key = "h"
 middle_click_key = "t"
 right_click_key = "n"
@@ -27,8 +26,9 @@ move_mouse_enabled = true
 steps = 10
 delay = 1
 
+[metrics]
+enabled = false
+
 [logging]
-# Log level: "debug", "info", "warn", "error"
-# Use "debug" for troubleshooting; default is "info".
 log_level = "info"
 disable_file_logging = true

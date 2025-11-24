@@ -30,7 +30,7 @@ type IPCController struct {
 
 	// Infrastructure
 	logger  *zap.Logger
-	metrics *metrics.Collector
+	metrics metrics.Collector
 
 	// Mode management
 	modes *modes.Handler
@@ -53,7 +53,7 @@ func NewIPCController(
 	config *config.Config,
 	modesHandler *modes.Handler,
 	logger *zap.Logger,
-	metricsCollector *metrics.Collector,
+	metricsCollector metrics.Collector,
 	configPath string,
 ) *IPCController {
 	ipcController := &IPCController{

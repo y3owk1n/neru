@@ -34,6 +34,7 @@ type Config struct {
 	Action       ActionConfig       `toml:"action"`
 	Logging      LoggingConfig      `toml:"logging"`
 	SmoothCursor SmoothCursorConfig `toml:"smooth_cursor"`
+	Metrics      MetricsConfig      `toml:"metrics"`
 }
 
 // GeneralConfig defines general application-wide settings.
@@ -148,6 +149,11 @@ type AdditionalAXSupport struct {
 	AdditionalElectronBundles []string `toml:"additional_electron_bundles"`
 	AdditionalChromiumBundles []string `toml:"additional_chromium_bundles"`
 	AdditionalFirefoxBundles  []string `toml:"additional_firefox_bundles"`
+}
+
+// MetricsConfig defines metrics collection settings.
+type MetricsConfig struct {
+	Enabled bool `toml:"enabled"`
 }
 
 // LoadResult contains the result of loading a configuration file.
@@ -348,6 +354,9 @@ func DefaultConfig() *Config {
 			MoveMouseEnabled: false,
 			Steps:            10,
 			Delay:            1, // 1ms delay between steps
+		},
+		Metrics: MetricsConfig{
+			Enabled: false, // Disabled by default
 		},
 	}
 }
