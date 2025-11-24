@@ -13,7 +13,6 @@ linters:
         - cyclop # duplicate of gocyclo
         - depguard # import restrictions
         - dupl # Too strict
-        - err113 # Too strict
         - exhaustruct # Not relevant
         - gochecknoglobals
         - gochecknoinits

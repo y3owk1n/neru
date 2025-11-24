@@ -8,8 +8,6 @@ package accessibility
 import "C"
 
 import (
-	"errors"
-	"fmt"
 	"image"
 	"sort"
 	"strings"
@@ -17,6 +15,7 @@ import (
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/config"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 	"go.uber.org/zap"
 )
@@ -31,12 +30,27 @@ var (
 	clickableRolesMu sync.RWMutex
 
 	// Pre-allocated common errors.
-	errGetChildrenNil  = errors.New("cannot get children: element reference is nil")
-	errSetFocusNil     = errors.New("cannot set focus: element reference is nil")
-	errSetFocusFailed  = errors.New("failed to set focus on element")
-	errGetAttributeNil = errors.New("cannot get attribute: element reference is nil")
-	errGetInfoNil      = errors.New("element reference is nil")
-	errGetInfoFailed   = errors.New("failed to retrieve element info from accessibility API")
+	errGetChildrenNil = derrors.New(
+		derrors.CodeAccessibilityFailed,
+		"cannot get children: element reference is nil",
+	)
+	errSetFocusNil = derrors.New(
+		derrors.CodeAccessibilityFailed,
+		"cannot set focus: element reference is nil",
+	)
+	errSetFocusFailed = derrors.New(
+		derrors.CodeAccessibilityFailed,
+		"failed to set focus on element",
+	)
+	errGetAttributeNil = derrors.New(
+		derrors.CodeAccessibilityFailed,
+		"cannot get attribute: element reference is nil",
+	)
+	errGetInfoNil    = derrors.New(derrors.CodeAccessibilityFailed, "element reference is nil")
+	errGetInfoFailed = derrors.New(
+		derrors.CodeAccessibilityFailed,
+		"failed to retrieve element info from accessibility API",
+	)
 )
 
 // SetClickableRoles configures which accessibility roles are treated as clickable.
@@ -203,7 +217,11 @@ func (e *Element) GetChildren() ([]*Element, error) {
 		var err error
 		info, err = e.GetInfo()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get element info: %w", err)
+			return nil, derrors.Wrap(
+				err,
+				derrors.CodeAccessibilityFailed,
+				"failed to get element info",
+			)
 		}
 		if globalCache != nil {
 			globalCache.Set(e, info)
@@ -264,7 +282,11 @@ func (e *Element) GetAttribute(name string) (string, error) {
 
 	cValue := C.getElementAttribute(e.ref, cName) //nolint:nlreturn
 	if cValue == nil {
-		return "", fmt.Errorf("attribute %q not found on element", name)
+		return "", derrors.Newf(
+			derrors.CodeAccessibilityFailed,
+			"attribute %q not found on element",
+			name,
+		)
 	}
 	defer C.freeString(cValue)
 
@@ -403,55 +425,80 @@ func MoveMouseToPointSmooth(end image.Point, steps, delay int) {
 }
 
 // LeftClickAtPoint performs a left mouse click at the specified point.
-func LeftClickAtPoint(p image.Point, restoreCursor bool) error {
-	pos := C.CGPoint{x: C.double(p.X), y: C.double(p.Y)}
+func LeftClickAtPoint(point image.Point, restoreCursor bool) error {
+	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performLeftClickAtPosition(pos, C.bool(restoreCursor))
 	if result == 0 {
-		return fmt.Errorf("failed to perform left-click at position (%d, %d)", p.X, p.Y)
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to perform left-click at position (%d, %d)",
+			point.X,
+			point.Y,
+		)
 	}
 
 	return nil
 }
 
 // RightClickAtPoint performs a right mouse click at the specified point.
-func RightClickAtPoint(p image.Point, restoreCursor bool) error {
-	pos := C.CGPoint{x: C.double(p.X), y: C.double(p.Y)}
+func RightClickAtPoint(point image.Point, restoreCursor bool) error {
+	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performRightClickAtPosition(pos, C.bool(restoreCursor))
 	if result == 0 {
-		return fmt.Errorf("failed to perform right-click at position (%d, %d)", p.X, p.Y)
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to perform right-click at position (%d, %d)",
+			point.X,
+			point.Y,
+		)
 	}
 
 	return nil
 }
 
 // MiddleClickAtPoint performs a middle mouse click at the specified point.
-func MiddleClickAtPoint(p image.Point, restoreCursor bool) error {
-	pos := C.CGPoint{x: C.double(p.X), y: C.double(p.Y)}
+func MiddleClickAtPoint(point image.Point, restoreCursor bool) error {
+	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performMiddleClickAtPosition(pos, C.bool(restoreCursor))
 	if result == 0 {
-		return fmt.Errorf("failed to perform middle-click at position (%d, %d)", p.X, p.Y)
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to perform middle-click at position (%d, %d)",
+			point.X,
+			point.Y,
+		)
 	}
 
 	return nil
 }
 
 // LeftMouseDownAtPoint performs a left mouse down action at the specified point.
-func LeftMouseDownAtPoint(p image.Point) error {
-	pos := C.CGPoint{x: C.double(p.X), y: C.double(p.Y)}
+func LeftMouseDownAtPoint(point image.Point) error {
+	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performLeftMouseDownAtPosition(pos)
 	if result == 0 {
-		return fmt.Errorf("failed to perform left-mouse-down at position (%d, %d)", p.X, p.Y)
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to perform left-mouse-down at position (%d, %d)",
+			point.X,
+			point.Y,
+		)
 	}
 
 	return nil
 }
 
 // LeftMouseUpAtPoint performs a left mouse up action at the specified point.
-func LeftMouseUpAtPoint(p image.Point) error {
-	pos := C.CGPoint{x: C.double(p.X), y: C.double(p.Y)}
+func LeftMouseUpAtPoint(point image.Point) error {
+	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performLeftMouseUpAtPosition(pos)
 	if result == 0 {
-		return fmt.Errorf("failed to perform left-mouse-up at position (%d, %d)", p.X, p.Y)
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to perform left-mouse-up at position (%d, %d)",
+			point.X,
+			point.Y,
+		)
 	}
 
 	return nil
@@ -461,7 +508,7 @@ func LeftMouseUpAtPoint(p image.Point) error {
 func LeftMouseUp() error {
 	result := C.performLeftMouseUpAtCursor()
 	if result == 0 {
-		return errors.New("failed to perform left-mouse-up at cursor")
+		return derrors.New(derrors.CodeActionFailed, "failed to perform left-mouse-up at cursor")
 	}
 
 	return nil
@@ -471,7 +518,12 @@ func LeftMouseUp() error {
 func ScrollAtCursor(deltaX, deltaY int) error {
 	result := C.scrollAtCursor(C.int(deltaX), C.int(deltaY))
 	if result == 0 {
-		return fmt.Errorf("failed to scroll at cursor with delta (%d, %d)", deltaX, deltaY)
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to scroll at cursor with delta (%d, %d)",
+			deltaX,
+			deltaY,
+		)
 	}
 
 	return nil

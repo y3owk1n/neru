@@ -11,13 +11,13 @@ extern void resizeHintCompletionCallback(void* context);
 import "C"
 
 import (
-	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/config"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"go.uber.org/zap"
 )
 
@@ -30,7 +30,10 @@ var (
 	hintPoolOnce     sync.Once
 
 	// Pre-allocated common errors.
-	errCreateOverlayWindow = errors.New("failed to create overlay window")
+	errCreateOverlayWindow = derrors.New(
+		derrors.CodeOverlayFailed,
+		"failed to create overlay window",
+	)
 )
 
 //export resizeHintCompletionCallback

@@ -2,7 +2,6 @@ package services_test
 
 import (
 	"context"
-	"errors"
 	"image"
 	"testing"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/application/services"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/hint"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 )
 
@@ -92,7 +92,10 @@ func TestHintService_ShowHints(t *testing.T) {
 			name: "accessibility error",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
 				acc.GetClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
-					return nil, errors.New("accessibility permission denied")
+					return nil, derrors.New(
+						derrors.CodeAccessibilityFailed,
+						"accessibility permission denied",
+					)
 				}
 			},
 			setupGen: func() hint.Generator {
@@ -221,7 +224,10 @@ func TestHintService_HideHints(t *testing.T) {
 			name: "overlay hide error",
 			setupMocks: func(ov *mocks.MockOverlayPort) {
 				ov.HideFunc = func(_ context.Context) error {
-					return errors.New("failed to hide overlay")
+					return derrors.New(
+						derrors.CodeOverlayFailed,
+						"failed to hide overlay",
+					)
 				}
 			},
 			wantErr: true,
@@ -282,7 +288,7 @@ func TestHintService_RefreshHints(t *testing.T) {
 			name:           "refresh error when visible",
 			overlayVisible: true,
 			expectRefresh:  true,
-			refreshError:   errors.New("overlay refresh failed"),
+			refreshError:   derrors.New(derrors.CodeOverlayFailed, "overlay refresh failed"),
 			wantErr:        true,
 		},
 	}

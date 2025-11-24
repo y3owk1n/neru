@@ -1,8 +1,9 @@
 package element
 
 import (
-	"errors"
 	"image"
+
+	derrors "github.com/y3owk1n/neru/internal/errors"
 )
 
 // ID uniquely identifies an element.
@@ -44,11 +45,11 @@ type Element struct {
 // NewElement creates a new element with validation.
 func NewElement(elementID ID, bounds image.Rectangle, role Role, opts ...Option) (*Element, error) {
 	if elementID == "" {
-		return nil, errors.New("element ID cannot be empty")
+		return nil, derrors.New(derrors.CodeInvalidInput, "element ID cannot be empty")
 	}
 
 	if bounds.Empty() {
-		return nil, errors.New("element bounds cannot be empty")
+		return nil, derrors.New(derrors.CodeInvalidInput, "element bounds cannot be empty")
 	}
 
 	element := &Element{

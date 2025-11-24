@@ -2,12 +2,11 @@ package app
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"os/exec"
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/domain"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/ipc"
 	"go.uber.org/zap"
 )
@@ -97,7 +96,7 @@ func (a *App) executeHotkeyAction(key, action string) error {
 		ipc.Command{Action: action, Args: params},
 	)
 	if !ipcResponse.Success {
-		return errors.New(ipcResponse.Message)
+		return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
 	}
 
 	a.logger.Info("hotkey action executed", zap.String("key", key), zap.String("action", action))
@@ -111,7 +110,7 @@ func (a *App) executeShellCommand(key, action string) error {
 	if cmdString == "" {
 		a.logger.Error("hotkey exec has empty command", zap.String("key", key))
 
-		return errors.New("empty command")
+		return derrors.New(derrors.CodeInvalidInput, "empty command")
 	}
 
 	a.logger.Debug(
@@ -135,7 +134,7 @@ func (a *App) executeShellCommand(key, action string) error {
 			zap.Error(commandErr),
 		)
 
-		return fmt.Errorf("hotkey exec failed: %w", commandErr)
+		return derrors.Wrap(commandErr, derrors.CodeInternal, "hotkey exec failed")
 	}
 
 	a.logger.Info(

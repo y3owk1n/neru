@@ -2,7 +2,6 @@ package accessibility
 
 import (
 	"context"
-	"fmt"
 	"image"
 	"slices"
 
@@ -10,7 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
-	"github.com/y3owk1n/neru/internal/errors"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"go.uber.org/zap"
 )
 
@@ -51,7 +50,7 @@ func (a *Adapter) GetClickableElements(
 	// Check context
 	select {
 	case <-context.Done():
-		return nil, context.Err()
+		return nil, derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -60,7 +59,7 @@ func (a *Adapter) GetClickableElements(
 	// Get frontmost frontmostWindow
 	frontmostWindow, frontmostWindowErr := a.client.GetFrontmostWindow()
 	if frontmostWindowErr != nil {
-		return nil, errors.New(errors.CodeAccessibilityFailed, "failed to get frontmost window")
+		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get frontmost window")
 	}
 	defer frontmostWindow.Release()
 
@@ -70,9 +69,9 @@ func (a *Adapter) GetClickableElements(
 		filter.IncludeOffscreen,
 	)
 	if clickableNodesErr != nil {
-		return nil, errors.Wrap(
+		return nil, derrors.Wrap(
 			clickableNodesErr,
-			errors.CodeAccessibilityFailed,
+			derrors.CodeAccessibilityFailed,
 			"failed to get clickable nodes",
 		)
 	}
@@ -86,7 +85,11 @@ func (a *Adapter) GetClickableElements(
 		if index%100 == 0 {
 			select {
 			case <-context.Done():
-				return nil, context.Err()
+				return nil, derrors.Wrap(
+					context.Err(),
+					derrors.CodeContextCanceled,
+					"operation canceled",
+				)
 			default:
 			}
 		}
@@ -123,7 +126,7 @@ func (a *Adapter) PerformAction(
 	// Check context
 	select {
 	case <-context.Done():
-		return context.Err()
+		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -141,7 +144,7 @@ func (a *Adapter) PerformAction(
 	// Perform the action via client
 	performActionErr := a.client.PerformAction(actionType, center, restoreCursor)
 	if performActionErr != nil {
-		return errors.Wrap(performActionErr, errors.CodeActionFailed, "failed to perform action")
+		return derrors.Wrap(performActionErr, derrors.CodeActionFailed, "failed to perform action")
 	}
 
 	return nil
@@ -156,7 +159,7 @@ func (a *Adapter) PerformActionAtPoint(
 	// Check context
 	select {
 	case <-context.Done():
-		return context.Err()
+		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -172,9 +175,9 @@ func (a *Adapter) PerformActionAtPoint(
 	// Perform the action via client
 	performActionErr := a.client.PerformAction(actionType, point, restoreCursor)
 	if performActionErr != nil {
-		return errors.Wrap(
+		return derrors.Wrap(
 			performActionErr,
-			errors.CodeActionFailed,
+			derrors.CodeActionFailed,
 			"failed to perform action at point",
 		)
 	}
@@ -190,7 +193,7 @@ func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
 
 	scrollErr := a.client.Scroll(deltaX, deltaY)
 	if scrollErr != nil {
-		return errors.Wrap(scrollErr, errors.CodeActionFailed, "failed to scroll")
+		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
 	}
 
 	a.logger.Debug("Scroll completed")
@@ -224,19 +227,19 @@ func (a *Adapter) GetFocusedAppBundleID(context context.Context) (string, error)
 	// Check context
 	select {
 	case <-context.Done():
-		return "", context.Err()
+		return "", derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
 	focusedApp, focusedAppErr := a.client.GetFocusedApplication()
 	if focusedAppErr != nil {
-		return "", errors.New(errors.CodeAccessibilityFailed, "failed to get focused application")
+		return "", derrors.New(derrors.CodeAccessibilityFailed, "failed to get focused application")
 	}
 	defer focusedApp.Release()
 
 	bundleID := focusedApp.GetBundleIdentifier()
 	if bundleID == "" {
-		return "", errors.New(errors.CodeAccessibilityFailed, "failed to get bundle ID")
+		return "", derrors.New(derrors.CodeAccessibilityFailed, "failed to get bundle ID")
 	}
 
 	return bundleID, nil
@@ -252,7 +255,11 @@ func (a *Adapter) GetScreenBounds(context context.Context) (image.Rectangle, err
 	// Check context
 	select {
 	case <-context.Done():
-		return image.Rectangle{}, context.Err()
+		return image.Rectangle{}, derrors.Wrap(
+			context.Err(),
+			derrors.CodeContextCanceled,
+			"operation canceled",
+		)
 	default:
 	}
 
@@ -264,12 +271,12 @@ func (a *Adapter) CheckPermissions(context context.Context) error {
 	// Check context
 	select {
 	case <-context.Done():
-		return context.Err()
+		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
 	if !a.client.CheckPermissions() {
-		return errors.New(errors.CodeAccessibilityDenied,
+		return derrors.New(derrors.CodeAccessibilityDenied,
 			"accessibility permissions not granted - please enable in System Preferences")
 	}
 
@@ -301,7 +308,7 @@ func (a *Adapter) UpdateExcludedBundles(bundles []string) {
 // convertToDomainElement converts an AXNode to a domain Element.
 func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) {
 	if node == nil {
-		return nil, errors.New(errors.CodeInvalidInput, "node is nil")
+		return nil, derrors.New(derrors.CodeInvalidInput, "node is nil")
 	}
 
 	// Create element ID from unique identifier
@@ -326,7 +333,11 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 		element.WithDescription(node.GetDescription()),
 	)
 	if elementErr != nil {
-		return nil, fmt.Errorf("failed to create element: %w", elementErr)
+		return nil, derrors.Wrap(
+			elementErr,
+			derrors.CodeAccessibilityFailed,
+			"failed to create element",
+		)
 	}
 
 	return element, nil

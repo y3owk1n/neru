@@ -8,11 +8,11 @@ package overlay
 import "C"
 
 import (
-	"fmt"
 	"sync"
 	"unsafe"
 
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/features/action"
 	"github.com/y3owk1n/neru/internal/features/grid"
 	"github.com/y3owk1n/neru/internal/features/hints"
@@ -243,7 +243,11 @@ func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) er
 	}
 	drawHintsErr := m.hintOverlay.DrawHintsWithStyle(hs, style)
 	if drawHintsErr != nil {
-		return fmt.Errorf("failed to draw hints with style: %w", drawHintsErr)
+		return derrors.Wrap(
+			drawHintsErr,
+			derrors.CodeOverlayFailed,
+			"failed to draw hints with style",
+		)
 	}
 
 	return nil
@@ -272,7 +276,7 @@ func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) e
 	}
 	drawGridErr := m.gridOverlay.Draw(g, input, style)
 	if drawGridErr != nil {
-		return fmt.Errorf("failed to draw grid: %w", drawGridErr)
+		return derrors.Wrap(drawGridErr, derrors.CodeOverlayFailed, "failed to draw grid")
 	}
 
 	return nil

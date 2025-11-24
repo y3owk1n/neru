@@ -2,9 +2,9 @@ package services
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"go.uber.org/zap"
 )
 
@@ -31,7 +31,7 @@ func (s *GridService) ShowGrid(context context.Context, rows, cols int) error {
 	if showGridErr != nil {
 		s.logger.Error("Failed to show grid overlay", zap.Error(showGridErr))
 
-		return fmt.Errorf("failed to show grid overlay: %w", showGridErr)
+		return derrors.Wrap(showGridErr, derrors.CodeOverlayFailed, "failed to show grid overlay")
 	}
 
 	s.logger.Info("Grid displayed successfully")
@@ -47,7 +47,7 @@ func (s *GridService) HideGrid(context context.Context) error {
 	if hideGridErr != nil {
 		s.logger.Error("Failed to hide overlay", zap.Error(hideGridErr))
 
-		return fmt.Errorf("failed to hide overlay: %w", hideGridErr)
+		return derrors.Wrap(hideGridErr, derrors.CodeOverlayFailed, "failed to hide overlay")
 	}
 
 	return nil

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/domain/trace"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"go.uber.org/zap"
 )
 
@@ -91,7 +92,11 @@ func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
 	// Remove existing socket if it exists
 	removeSocketErr := os.Remove(socketPath)
 	if removeSocketErr != nil && !os.IsNotExist(removeSocketErr) {
-		return nil, fmt.Errorf("failed to remove existing socket: %w", removeSocketErr)
+		return nil, derrors.Wrap(
+			removeSocketErr,
+			derrors.CodeIPCFailed,
+			"failed to remove existing socket",
+		)
 	}
 
 	// Create a ListenConfig with context support
@@ -99,14 +104,18 @@ func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
 
 	listener, listenerErr := listenConfig.Listen(context.Background(), "unix", socketPath)
 	if listenerErr != nil {
-		return nil, fmt.Errorf("failed to create socket: %w", listenerErr)
+		return nil, derrors.Wrap(listenerErr, derrors.CodeIPCFailed, "failed to create socket")
 	}
 
 	updateSocketPermissionsErr := os.Chmod(socketPath, 0o600)
 	if updateSocketPermissionsErr != nil {
 		_ = listener.Close()
 
-		return nil, fmt.Errorf("failed to set socket permissions: %w", updateSocketPermissionsErr)
+		return nil, derrors.Wrap(
+			updateSocketPermissionsErr,
+			derrors.CodeIPCFailed,
+			"failed to set socket permissions",
+		)
 	}
 
 	logger.Info("IPC server created", zap.String("socket", socketPath))
@@ -149,7 +158,7 @@ func (s *Server) Stop() error {
 	if s.listener != nil {
 		closeListenerErr := s.listener.Close()
 		if closeListenerErr != nil {
-			return fmt.Errorf("failed to close listener: %w", closeListenerErr)
+			return derrors.Wrap(closeListenerErr, derrors.CodeIPCFailed, "failed to close listener")
 		}
 	}
 
@@ -176,7 +185,11 @@ func (s *Server) Stop() error {
 	// Clean up socket file
 	removeSocketFileErr := os.Remove(s.socketPath)
 	if removeSocketFileErr != nil && !os.IsNotExist(removeSocketFileErr) {
-		return fmt.Errorf("failed to remove socket file: %w", removeSocketFileErr)
+		return derrors.Wrap(
+			removeSocketFileErr,
+			derrors.CodeIPCFailed,
+			"failed to remove socket file",
+		)
 	}
 
 	return nil
@@ -298,13 +311,17 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 
 	connection, connectionErr := dialer.DialContext(ctx, "unix", c.socketPath)
 	if connectionErr != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return Response{}, errors.New("connection timeout: neru may be unresponsive")
+		if derrors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return Response{}, derrors.New(
+				derrors.CodeTimeout,
+				"connection timeout: neru may be unresponsive",
+			)
 		}
 
-		return Response{}, fmt.Errorf(
-			"failed to connect to neru (is it running?): %w",
+		return Response{}, derrors.Wrap(
 			connectionErr,
+			derrors.CodeIPCFailed,
+			"failed to connect to neru (is it running?)",
 		)
 	}
 
@@ -313,16 +330,21 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 	defer func() {
 		connectionCloseErr := connection.Close()
 		if connectionCloseErr != nil && closeErr == nil {
-			closeErr = fmt.Errorf("failed to close connection: %w", connectionCloseErr)
+			closeErr = derrors.Wrap(
+				connectionCloseErr,
+				derrors.CodeIPCFailed,
+				"failed to close connection",
+			)
 		}
 	}()
 
 	// Set deadline for the entire operation
 	connectionDeadlineErr := connection.SetDeadline(time.Now().Add(timeout))
 	if connectionDeadlineErr != nil {
-		return Response{}, fmt.Errorf(
-			"failed to set connection deadline: %w",
+		return Response{}, derrors.Wrap(
 			connectionDeadlineErr,
+			derrors.CodeIPCFailed,
+			"failed to set connection deadline",
 		)
 	}
 
@@ -336,32 +358,50 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 
 	encodeErr := encoder.Encode(cmd)
 	if encodeErr != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return Response{}, errors.New("send timeout: neru may be unresponsive")
+		if derrors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return Response{}, derrors.New(
+				derrors.CodeTimeout,
+				"send timeout: neru may be unresponsive",
+			)
 		}
 
-		encodeErr = fmt.Errorf("failed to send command: %w", encodeErr)
+		var wrapped error = derrors.Wrap(encodeErr, derrors.CodeIPCFailed, "failed to send command")
 		if closeErr != nil {
-			encodeErr = fmt.Errorf("%w (close error: %s)", encodeErr, closeErr.Error())
+			wrapped = derrors.Wrapf(
+				wrapped,
+				derrors.CodeIPCFailed,
+				"%v (close error: %s)",
+				wrapped,
+				closeErr.Error(),
+			)
 		}
 
-		return Response{}, encodeErr
+		return Response{}, wrapped
 	}
 
 	var response Response
 
 	decodeErr := decoder.Decode(&response)
 	if decodeErr != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return Response{}, errors.New("receive timeout: neru may be unresponsive")
+		if derrors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return Response{}, derrors.New(
+				derrors.CodeTimeout,
+				"receive timeout: neru may be unresponsive",
+			)
 		}
 
-		decodeErr = fmt.Errorf("failed to receive response: %w", decodeErr)
+		var wrapped error = derrors.Wrap(decodeErr, derrors.CodeIPCFailed, "failed to receive response")
 		if closeErr != nil {
-			decodeErr = fmt.Errorf("%w (close error: %s)", decodeErr, closeErr.Error())
+			wrapped = derrors.Wrapf(
+				wrapped,
+				derrors.CodeIPCFailed,
+				"%v (close error: %s)",
+				wrapped,
+				closeErr.Error(),
+			)
 		}
 
-		return Response{}, decodeErr
+		return Response{}, wrapped
 	}
 
 	if closeErr != nil {

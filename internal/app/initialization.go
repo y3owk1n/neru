@@ -1,12 +1,11 @@
 package app
 
 import (
-	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/infra/bridge"
@@ -28,7 +27,7 @@ func initializeLogger(config *config.Config) (*zap.Logger, error) {
 		config.Logging.MaxAge,
 	)
 	if initConfigErr != nil {
-		return nil, fmt.Errorf("failed to initialize logger: %w", initConfigErr)
+		return nil, derrors.Wrap(initConfigErr, derrors.CodeInternal, "failed to initialize logger")
 	}
 
 	logger := logger.Get()
@@ -57,7 +56,10 @@ func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 			logger.Info("Please go to: System Settings → Privacy & Security → Accessibility")
 			logger.Info("and enable Neru.")
 
-			return errors.New("accessibility permissions required")
+			return derrors.New(
+				derrors.CodeAccessibilityDenied,
+				"accessibility permissions not granted - please enable in System Preferences",
+			)
 		}
 	}
 

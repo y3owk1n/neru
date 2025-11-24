@@ -1,13 +1,13 @@
 package app
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/features/action"
 	"github.com/y3owk1n/neru/internal/features/grid"
 	"github.com/y3owk1n/neru/internal/features/hints"
@@ -37,7 +37,11 @@ func createHintsComponent(
 		overlayManager.GetWindowPtr(),
 	)
 	if hintOverlayErr != nil {
-		return nil, fmt.Errorf("failed to create hint overlay: %w", hintOverlayErr)
+		return nil, derrors.Wrap(
+			hintOverlayErr,
+			derrors.CodeOverlayFailed,
+			"failed to create hint overlay",
+		)
 	}
 
 	component.Overlay = hintOverlay
@@ -126,7 +130,11 @@ func createScrollComponent(
 		overlayManager.GetWindowPtr(),
 	)
 	if scrollOverlayErr != nil {
-		return nil, fmt.Errorf("failed to create scroll overlay: %w", scrollOverlayErr)
+		return nil, derrors.Wrap(
+			scrollOverlayErr,
+			derrors.CodeOverlayFailed,
+			"failed to create scroll overlay",
+		)
 	}
 
 	return &components.ScrollComponent{
@@ -147,7 +155,11 @@ func createActionComponent(
 		overlayManager.GetWindowPtr(),
 	)
 	if actionOverlayErr != nil {
-		return nil, fmt.Errorf("failed to create action overlay: %w", actionOverlayErr)
+		return nil, derrors.Wrap(
+			actionOverlayErr,
+			derrors.CodeOverlayFailed,
+			"failed to create action overlay",
+		)
 	}
 
 	return &components.ActionComponent{

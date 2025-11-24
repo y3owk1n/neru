@@ -11,13 +11,13 @@ extern void resizeActionCompletionCallback(void* context);
 import "C"
 
 import (
-	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/config"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"go.uber.org/zap"
 )
 
@@ -51,7 +51,7 @@ type Overlay struct {
 func NewOverlay(cfg config.ActionConfig, logger *zap.Logger) (*Overlay, error) {
 	window := C.createOverlayWindow()
 	if window == nil {
-		return nil, errors.New("failed to create overlay window")
+		return nil, derrors.New(derrors.CodeOverlayFailed, "failed to create overlay window")
 	}
 
 	return &Overlay{

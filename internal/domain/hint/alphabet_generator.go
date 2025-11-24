@@ -2,12 +2,12 @@ package hint
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 	"unicode"
 
 	"github.com/y3owk1n/neru/internal/domain/element"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 )
 
 // AlphabetGenerator generates hint labels using an alphabet-based strategy.
@@ -23,7 +23,8 @@ type AlphabetGenerator struct {
 // NewAlphabetGenerator creates a new alphabet-based hint generator.
 func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
 	if len(characters) < 2 {
-		return nil, fmt.Errorf(
+		return nil, derrors.Newf(
+			derrors.CodeInvalidInput,
 			"characters must have at least 2 characters, got %d",
 			len(characters),
 		)
@@ -66,7 +67,8 @@ func (g *AlphabetGenerator) Generate(
 	}
 
 	if len(elements) > g.maxHints {
-		return nil, fmt.Errorf(
+		return nil, derrors.Newf(
+			derrors.CodeHintGenerationFailed,
 			"too many elements: %d exceeds maximum %d",
 			len(elements),
 			g.maxHints,
@@ -76,7 +78,7 @@ func (g *AlphabetGenerator) Generate(
 	// Check context cancellation
 	select {
 	case <-context.Done():
-		return nil, context.Err()
+		return nil, derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -104,7 +106,13 @@ func (g *AlphabetGenerator) Generate(
 
 		hint, err := NewHint(labels[index], element, position)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create hint %d: %w", index, err)
+			return nil, derrors.Wrapf(
+				err,
+				derrors.CodeHintGenerationFailed,
+				"failed to create hint %d: %v",
+				index,
+				err,
+			)
 		}
 
 		hints[index] = hint
@@ -126,7 +134,11 @@ func (g *AlphabetGenerator) Characters() string {
 // UpdateCharacters updates the character set and recalculates max hints.
 func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 	if len(characters) < 2 {
-		return fmt.Errorf("characters must have at least 2 characters, got %d", len(characters))
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"characters must have at least 2 characters, got %d",
+			len(characters),
+		)
 	}
 
 	// Build uppercase mapping

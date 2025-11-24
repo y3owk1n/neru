@@ -2,9 +2,9 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/ipc"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 	"go.uber.org/zap"
@@ -22,15 +22,24 @@ var statusCmd = &cobra.Command{
 		ipcClient := ipc.NewClient()
 		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: "status"})
 		if ipcResponseErr != nil {
-			return fmt.Errorf("failed to send status command: %w", ipcResponseErr)
+			return derrors.Wrap(
+				ipcResponseErr,
+				derrors.CodeIPCFailed,
+				"failed to send status command",
+			)
 		}
 
 		if !ipcResponse.Success {
 			if ipcResponse.Code != "" {
-				return fmt.Errorf("%s (code: %s)", ipcResponse.Message, ipcResponse.Code)
+				return derrors.Newf(
+					derrors.CodeIPCFailed,
+					"%s (code: %s)",
+					ipcResponse.Message,
+					ipcResponse.Code,
+				)
 			}
 
-			return fmt.Errorf("%s", ipcResponse.Message)
+			return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
 		}
 
 		logger.Info("Neru Status:")
@@ -67,7 +76,7 @@ var statusCmd = &cobra.Command{
 					if jsonDataErr != nil {
 						logger.Error("Failed to marshal status data to JSON", zap.Error(jsonDataErr))
 
-						return fmt.Errorf("failed to marshal status data: %w", jsonDataErr)
+						return derrors.Wrap(jsonDataErr, derrors.CodeSerializationFailed, "failed to marshal status data")
 					}
 					logger.Info(string(jsonData))
 				}
@@ -77,7 +86,7 @@ var statusCmd = &cobra.Command{
 			if jsonDataErr != nil {
 				logger.Error("Failed to marshal status data to JSON", zap.Error(jsonDataErr))
 
-				return fmt.Errorf("failed to marshal status data: %w", jsonDataErr)
+				return derrors.Wrap(jsonDataErr, derrors.CodeSerializationFailed, "failed to marshal status data")
 			}
 			logger.Info(string(jsonData))
 		}

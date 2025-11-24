@@ -1,12 +1,12 @@
 package logger
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
+	derrors "github.com/y3owk1n/neru/internal/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -34,7 +34,11 @@ func Init(
 	if logFile != nil {
 		closeErr := logFile.Close()
 		if closeErr != nil {
-			return fmt.Errorf("failed to close existing log file: %w", closeErr)
+			return derrors.Wrap(
+				closeErr,
+				derrors.CodeLoggingFailed,
+				"failed to close existing log file",
+			)
 		}
 
 		logFile = nil
@@ -86,7 +90,7 @@ func Init(
 		if logFilePath == "" {
 			homeDir, err := os.UserHomeDir()
 			if err != nil {
-				return fmt.Errorf("failed to get home directory: %w", err)
+				return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to get home directory")
 			}
 
 			logFilePath = filepath.Join(homeDir, "Library", "Logs", "neru", "app.log")
@@ -97,7 +101,11 @@ func Init(
 
 		mkdirErr := os.MkdirAll(logDir, 0o750)
 		if mkdirErr != nil {
-			return fmt.Errorf("failed to create log directory: %w", mkdirErr)
+			return derrors.Wrap(
+				mkdirErr,
+				derrors.CodeLoggingFailed,
+				"failed to create log directory",
+			)
 		}
 
 		// Create lumberjack logger for file rotation
@@ -147,7 +155,7 @@ func Sync() error {
 	if globalLogger != nil {
 		err := globalLogger.Sync()
 		if err != nil {
-			return fmt.Errorf("failed to sync logger: %w", err)
+			return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to sync logger")
 		}
 	}
 
@@ -166,7 +174,7 @@ func Close() error {
 			// Ignore common sync errors that occur during shutdown
 			if !strings.Contains(err.Error(), "invalid argument") &&
 				!strings.Contains(err.Error(), "inappropriate ioctl for device") {
-				return fmt.Errorf("failed to sync logger: %w", err)
+				return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to sync logger")
 			}
 		}
 
@@ -177,7 +185,7 @@ func Close() error {
 		// lumberjack.Logger doesn't have a Sync method, but Close will flush
 		err := logFile.Close()
 		if err != nil {
-			return fmt.Errorf("failed to close log file: %w", err)
+			return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to close log file")
 		}
 
 		logFile = nil

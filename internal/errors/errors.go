@@ -28,6 +28,9 @@ const (
 	// CodeIPCFailed indicates IPC communication failed.
 	CodeIPCFailed Code = "IPC_FAILED"
 
+	// CodeIPCAlreadyRunning indicates the IPC server is already running.
+	CodeIPCAlreadyRunning Code = "IPC_ALREADY_RUNNING"
+
 	// CodeIPCServerNotRunning indicates the IPC server is not running.
 	CodeIPCServerNotRunning Code = "IPC_SERVER_NOT_RUNNING"
 
@@ -48,6 +51,27 @@ const (
 
 	// CodeInternal indicates an internal error occurred.
 	CodeInternal Code = "INTERNAL"
+
+	// CodeLoggingFailed indicates logger initialization or I/O failed.
+	CodeLoggingFailed Code = "LOGGING_FAILED"
+
+	// CodeConfigIOFailed indicates configuration file I/O failed.
+	CodeConfigIOFailed Code = "CONFIG_IO_FAILED"
+
+	// CodeVersionMismatch indicates an IPC protocol or version mismatch.
+	CodeVersionMismatch Code = "VERSION_MISMATCH"
+
+	// CodeHotkeyRegisterFailed indicates a hotkey registration error.
+	CodeHotkeyRegisterFailed Code = "HOTKEY_REGISTER_FAILED"
+
+	// CodeExecFailed indicates a shell execution error.
+	CodeExecFailed Code = "EXEC_FAILED"
+
+	// CodeSerializationFailed indicates JSON/TOML serialization/deserialization failed.
+	CodeSerializationFailed Code = "SERIALIZATION_FAILED"
+
+	// CodeBridgeFailed indicates a failure in native bridge interactions.
+	CodeBridgeFailed Code = "BRIDGE_FAILED"
 )
 
 // Error represents a domain error with code, message, and optional cause.
@@ -153,6 +177,11 @@ func GetCode(err error) Code {
 	}
 
 	return CodeInternal
+}
+
+// Is is a helper function that checks if an error is of a specific type.
+func Is(err error, target error) bool {
+	return errors.Is(err, target)
 }
 
 // IsAccessibilityError checks if an error is accessibility-related.
