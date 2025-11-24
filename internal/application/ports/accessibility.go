@@ -18,9 +18,6 @@ type AccessibilityPort interface {
 	// GetClickableElements retrieves all clickable UI elements matching the filter.
 	GetClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)
 
-	// GetScrollableElements retrieves all scrollable UI elements.
-	GetScrollableElements(ctx context.Context) ([]*element.Element, error)
-
 	// PerformAction executes an action on the specified element.
 	PerformAction(ctx context.Context, elem *element.Element, actionType action.Type) error
 

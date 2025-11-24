@@ -80,8 +80,6 @@ func GetClickableElements() ([]*TreeNode, error) {
 	return elements, nil
 }
 
-// GetScrollableElements retrieves all scrollable UI elements in the frontmost window.
-
 // GetMenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
 func GetMenuBarClickableElements() ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")

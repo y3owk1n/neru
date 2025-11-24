@@ -114,29 +114,6 @@ func (a *Adapter) GetClickableElements(
 	return elements, nil
 }
 
-// GetScrollableElements retrieves all scrollable UI elements.
-func (a *Adapter) GetScrollableElements(context context.Context) ([]*element.Element, error) {
-	// Check context
-	select {
-	case <-context.Done():
-		return nil, context.Err()
-	default:
-	}
-
-	a.logger.Debug("Getting scrollable elements")
-
-	// Get focused app
-	focusedApp, focusedAppErr := a.client.GetFocusedApplication()
-	if focusedAppErr != nil {
-		return nil, errors.New(errors.CodeAccessibilityFailed, "failed to get focused app")
-	}
-	defer focusedApp.Release()
-
-	a.logger.Debug("Scrollable elements not yet implemented")
-
-	return []*element.Element{}, nil
-}
-
 // PerformAction executes an action on the specified element.
 func (a *Adapter) PerformAction(
 	context context.Context,
