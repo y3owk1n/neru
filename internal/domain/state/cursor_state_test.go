@@ -228,37 +228,6 @@ func TestCursorState_Concurrency(_ *testing.T) {
 	waitGroup.Wait()
 }
 
-// Benchmark tests.
-func BenchmarkCursorState_Capture(b *testing.B) {
-	state := state.NewCursorState(true)
-	pos := image.Point{X: 100, Y: 200}
-	bounds := image.Rect(0, 0, 1920, 1080)
-
-	for b.Loop() {
-		state.Capture(pos, bounds)
-	}
-}
-
-func BenchmarkCursorState_ShouldRestore(b *testing.B) {
-	state := state.NewCursorState(true)
-	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
-
-	for b.Loop() {
-		_ = state.ShouldRestore()
-	}
-}
-
-func BenchmarkCursorState_ConcurrentAccess(b *testing.B) {
-	state := state.NewCursorState(true)
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
-			_ = state.ShouldRestore()
-		}
-	})
-}
-
 // Stress tests for robustness.
 
 // TestCursorState_RapidStateTransitions tests rapid capture/release cycles.

@@ -23,8 +23,8 @@ func BenchmarkNewGrid(b *testing.B) {
 
 // BenchmarkGrid_GetCellByCoordinate benchmarks label-based lookup.
 func BenchmarkGrid_GetCellByCoordinate(b *testing.B) {
-	// Changed to match the provided edit's initialization and call
-	grid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1920, 1080), nil)
+	logger := zap.NewNop()
+	grid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1920, 1080), logger)
 
 	b.ResetTimer()
 	// The instruction "for range b.N" is not valid Go syntax for iterating N times.
@@ -49,8 +49,8 @@ func BenchmarkGrid_GetAllCells(b *testing.B) {
 }
 
 func BenchmarkGrid_GetCellByCoordinate_Miss(b *testing.B) {
-	// Assuming domainGrid.NewGrid refers to NewGrid in the current package.
-	grid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1920, 1080), nil)
+	logger := zap.NewNop()
+	grid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1920, 1080), logger)
 
 	b.ResetTimer()
 

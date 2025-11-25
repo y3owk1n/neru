@@ -286,20 +286,3 @@ func TestSetApplicationAttribute(t *testing.T) {
 		})
 	}
 }
-
-// Benchmark tests.
-func BenchmarkGetActiveScreenBounds(b *testing.B) {
-	bridge.InitializeLogger(zap.NewNop())
-
-	for b.Loop() {
-		_ = bridge.GetActiveScreenBounds()
-	}
-}
-
-func BenchmarkHasClickAction(b *testing.B) {
-	bridge.InitializeLogger(zap.NewNop())
-
-	for b.Loop() {
-		_ = bridge.HasClickAction(nil)
-	}
-}

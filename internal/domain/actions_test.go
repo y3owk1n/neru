@@ -189,22 +189,3 @@ func TestActionEnumValues(t *testing.T) {
 		t.Errorf("ActionScroll = %d, want 6", domain.ActionScroll)
 	}
 }
-
-// Benchmark tests.
-func BenchmarkKnownActionNames(b *testing.B) {
-	for b.Loop() {
-		_ = domain.KnownActionNames()
-	}
-}
-
-func BenchmarkIsKnownActionName(b *testing.B) {
-	for b.Loop() {
-		_ = domain.IsKnownActionName(domain.ActionNameLeftClick)
-	}
-}
-
-func BenchmarkIsKnownActionName_Unknown(b *testing.B) {
-	for b.Loop() {
-		_ = domain.IsKnownActionName(domain.ActionName("unknown"))
-	}
-}
