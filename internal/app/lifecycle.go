@@ -10,9 +10,14 @@ import (
 	"time"
 
 	"github.com/getlantern/systray"
+	"github.com/y3owk1n/neru/internal/application/ports"
 	"github.com/y3owk1n/neru/internal/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/infra/bridge"
 	"github.com/y3owk1n/neru/internal/infra/electron"
 	"github.com/y3owk1n/neru/internal/infra/logger"
+	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
 )
 
@@ -78,16 +83,37 @@ func (a *App) handleScreenParametersChange() {
 				a.overlayManager.ResizeToActiveScreenSync()
 			}
 
-			// Regenerate the grid cells with updated screen bounds
-			// We re-trigger ShowGrid which will use the new screen bounds
-			context := context.Background()
+			// Regenerate the grid with updated screen bounds and redraw with proper styling
+			// Use the renderer which has the configured style, instead of going through
+			// the service layer which would lose styling information
+			screenBounds := bridge.GetActiveScreenBounds()
+			normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
 
-			showGridErr := a.gridService.ShowGrid(context, 0, 0)
-			if showGridErr != nil {
-				a.logger.Error("Failed to refresh grid after screen change", zap.Error(showGridErr))
+			characters := a.config.Grid.Characters
+			if strings.TrimSpace(characters) == "" {
+				characters = a.config.Hints.HintCharacters
+			}
+
+			// Create new grid instance with updated bounds
+			gridInstance := domainGrid.NewGrid(characters, normalizedBounds, a.logger)
+			a.gridComponent.Context.SetGridInstanceValue(gridInstance)
+
+			// Get current input state from grid manager if it exists
+			currentInput := ""
+			if a.gridComponent.Manager != nil {
+				currentInput = a.gridComponent.Manager.GetInput()
+			}
+
+			// Redraw grid using renderer which preserves the configured style
+			drawGridErr := a.renderer.DrawGrid(gridInstance, currentInput)
+			if drawGridErr != nil {
+				a.logger.Error("Failed to refresh grid after screen change", zap.Error(drawGridErr))
 
 				return
 			}
+
+			// Show the overlay
+			a.overlayManager.Show()
 
 			a.logger.Info("Grid overlay resized and regenerated for new screen bounds")
 		}
@@ -104,21 +130,58 @@ func (a *App) handleScreenParametersChange() {
 				a.overlayManager.ResizeToActiveScreenSync()
 			}
 
-			// Regenerate hints for current action
+			// Regenerate hints with updated screen bounds
+			// Use the hint service which will collect elements with new bounds and apply proper styling
 			context := context.Background()
 
-			refreshHintsErr := a.hintService.RefreshHints(context)
-			if refreshHintsErr != nil {
-				a.logger.Error("Failed to refresh hints after screen change", zap.Error(refreshHintsErr))
+			filter := ports.DefaultElementFilter()
+			filter.IncludeMenubar = a.config.Hints.IncludeMenubarHints
+			filter.AdditionalMenubarTargets = a.config.Hints.AdditionalMenubarHintsTargets
+			filter.IncludeDock = a.config.Hints.IncludeDockHints
+			filter.IncludeNotificationCenter = a.config.Hints.IncludeNCHints
+
+			// Regenerate hints using the service which preserves styling
+			domainHints, showHintsErr := a.hintService.ShowHints(context, filter)
+			if showHintsErr != nil {
+				a.logger.Error("Failed to refresh hints after screen change", zap.Error(showHintsErr))
 
 				return
+			}
+
+			// Update hints context with new hints
+			if len(domainHints) > 0 {
+				hintCollection := domainHint.NewCollection(domainHints)
+				a.hintsComponent.Context.SetHints(hintCollection)
 			}
 
 			a.logger.Info("Hint overlay resized and regenerated for new screen bounds")
 		}
 	}
 
-	// Resize scroll overlay to current active screen (where mouse is)
+	// Handle scroll overlay
+	if a.scrollComponent.Context != nil && a.scrollComponent.Context.GetIsActive() {
+		// Scroll mode is active - resize the overlay and redraw highlight
+		if a.overlayManager != nil {
+			a.overlayManager.ResizeToActiveScreenSync()
+		}
+
+		// Redraw scroll highlight with updated screen bounds
+		context := context.Background()
+
+		showScrollOverlayErr := a.scrollService.ShowScrollOverlay(context)
+		if showScrollOverlayErr != nil {
+			a.logger.Error(
+				"Failed to refresh scroll overlay after screen change",
+				zap.Error(showScrollOverlayErr),
+			)
+
+			return
+		}
+
+		a.logger.Info("Scroll overlay resized and regenerated for new screen bounds")
+	}
+
+	// Final resize for any other overlay state
 	if a.overlayManager != nil {
 		a.overlayManager.ResizeToActiveScreenSync()
 	}
