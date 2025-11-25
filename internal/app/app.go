@@ -406,7 +406,7 @@ func (a *App) IsFocusedAppExcluded() bool {
 	// Use ActionService to check exclusion
 	ctx := context.Background()
 
-	excluded, excludedErr := a.actionService.IsFocusedAppExcluded(context)
+	excluded, excludedErr := a.actionService.IsFocusedAppExcluded(ctx)
 	if excludedErr != nil {
 		a.logger.Warn("Failed to check exclusion", zap.Error(excludedErr))
 

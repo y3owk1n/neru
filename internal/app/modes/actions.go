@@ -11,7 +11,7 @@ import (
 func (h *Handler) drawActionHighlight() {
 	ctx := context.Background()
 
-	showActionHighlightErr := h.ActionService.ShowActionHighlight(context)
+	showActionHighlightErr := h.ActionService.ShowActionHighlight(ctx)
 	if showActionHighlightErr != nil {
 		h.Logger.Error("Failed to draw action highlight", zap.Error(showActionHighlightErr))
 	}

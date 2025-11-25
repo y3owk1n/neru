@@ -37,7 +37,7 @@ func TestEventTapAdapterIntegration(t *testing.T) {
 
 	t.Run("Enable and Disable", func(t *testing.T) {
 		// Enable
-		enableErr := adapter.Enable(context)
+		enableErr := adapter.Enable(ctx)
 		if enableErr != nil {
 			t.Errorf("Enable() error = %v, want nil", enableErr)
 		}
@@ -48,7 +48,7 @@ func TestEventTapAdapterIntegration(t *testing.T) {
 		}
 
 		// Disable
-		disableErr := adapter.Disable(context)
+		disableErr := adapter.Disable(ctx)
 		if disableErr != nil {
 			t.Errorf("Disable() error = %v, want nil", disableErr)
 		}

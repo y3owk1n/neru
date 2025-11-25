@@ -15,7 +15,7 @@ func BenchmarkGetScreenBounds(b *testing.B) {
 	ctx := context.Background()
 
 	for b.Loop() {
-		_, _ = adapter.GetScreenBounds(context)
+		_, _ = adapter.GetScreenBounds(ctx)
 	}
 }
 
@@ -26,7 +26,7 @@ func BenchmarkGetCursorPosition(b *testing.B) {
 	ctx := context.Background()
 
 	for b.Loop() {
-		_, _ = adapter.GetCursorPosition(context)
+		_, _ = adapter.GetCursorPosition(ctx)
 	}
 }
 
@@ -38,6 +38,6 @@ func BenchmarkIsAppExcluded(b *testing.B) {
 	ctx := context.Background()
 
 	for b.Loop() {
-		_ = adapter.IsAppExcluded(context, "com.google.Chrome")
+		_ = adapter.IsAppExcluded(ctx, "com.google.Chrome")
 	}
 }

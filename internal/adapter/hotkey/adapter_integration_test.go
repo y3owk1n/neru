@@ -66,7 +66,7 @@ func TestHotkeyAdapterIntegration(t *testing.T) {
 		key := "cmd+alt+ctrl+shift+f12"
 
 		// Register
-		registerErr := adapter.Register(context, key, func() error {
+		registerErr := adapter.Register(ctx, key, func() error {
 			// Callback
 			return nil
 		})
@@ -80,7 +80,7 @@ func TestHotkeyAdapterIntegration(t *testing.T) {
 		}
 
 		// Unregister
-		unregisterErr := adapter.Unregister(context, key)
+		unregisterErr := adapter.Unregister(ctx, key)
 		if unregisterErr != nil {
 			t.Errorf("Unregister() error = %v, want nil", unregisterErr)
 		}
@@ -92,7 +92,7 @@ func TestHotkeyAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("Register Invalid Hotkey", func(t *testing.T) {
-		err := adapter.Register(context, "invalid-hotkey", func() error { return nil })
+		err := adapter.Register(ctx, "invalid-hotkey", func() error { return nil })
 		if err == nil {
 			t.Error("Register() with invalid hotkey error = nil, want error")
 		}

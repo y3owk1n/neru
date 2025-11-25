@@ -31,7 +31,7 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 
 	t.Run("ShowHints", func(t *testing.T) {
 		// ShowHints should not error with empty hints
-		showHintsErr := adapter.ShowHints(context, nil)
+		showHintsErr := adapter.ShowHints(ctx, nil)
 		if showHintsErr != nil {
 			t.Errorf("ShowHints() error = %v, want nil", showHintsErr)
 		}
@@ -39,7 +39,7 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 
 	t.Run("ShowGrid", func(t *testing.T) {
 		// ShowGrid should not error with valid dimensions
-		showGridErr := adapter.ShowGrid(context, 3, 3)
+		showGridErr := adapter.ShowGrid(ctx, 3, 3)
 		if showGridErr != nil {
 			t.Errorf("ShowGrid() error = %v, want nil", showGridErr)
 		}
@@ -47,7 +47,7 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 
 	t.Run("Hide", func(t *testing.T) {
 		// Hide should not error
-		hideErr := adapter.Hide(context)
+		hideErr := adapter.Hide(ctx)
 		if hideErr != nil {
 			t.Errorf("Hide() error = %v, want nil", hideErr)
 		}
@@ -55,7 +55,7 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 
 	t.Run("Refresh", func(t *testing.T) {
 		// Refresh should not error
-		refreshErr := adapter.Refresh(context)
+		refreshErr := adapter.Refresh(ctx)
 		if refreshErr != nil {
 			t.Errorf("Refresh() error = %v, want nil", refreshErr)
 		}

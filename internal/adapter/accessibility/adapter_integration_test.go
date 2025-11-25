@@ -30,7 +30,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("GetScreenBounds", func(t *testing.T) {
-		screenBounds, screenBoundsErr := adapter.GetScreenBounds(context)
+		screenBounds, screenBoundsErr := adapter.GetScreenBounds(ctx)
 		if screenBoundsErr != nil {
 			t.Fatalf("GetScreenBounds() error = %v, want nil", screenBoundsErr)
 		}
@@ -41,7 +41,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("GetCursorPosition", func(t *testing.T) {
-		pos, err := adapter.GetCursorPosition(context)
+		pos, err := adapter.GetCursorPosition(ctx)
 		if err != nil {
 			t.Fatalf("GetCursorPosition() error = %v, want nil", err)
 		}
@@ -52,7 +52,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 
 	t.Run("MoveCursorToPoint", func(t *testing.T) {
 		// Get current position
-		startPos, startPosErr := adapter.GetCursorPosition(context)
+		startPos, startPosErr := adapter.GetCursorPosition(ctx)
 		if startPosErr != nil {
 			t.Fatalf("GetCursorPosition() error = %v, want nil", startPosErr)
 		}
@@ -60,13 +60,13 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		// Move slightly
 		target := image.Point{X: startPos.X + 10, Y: startPos.Y + 10}
 
-		startPosErr = adapter.MoveCursorToPoint(context, target)
+		startPosErr = adapter.MoveCursorToPoint(ctx, target)
 		if startPosErr != nil {
 			t.Errorf("MoveCursorToPoint() error = %v, want nil", startPosErr)
 		}
 
 		// Verify position (might be slightly off due to OS acceleration/constraints)
-		newPos, newPosErr := adapter.GetCursorPosition(context)
+		newPos, newPosErr := adapter.GetCursorPosition(ctx)
 		if newPosErr != nil {
 			t.Fatalf("GetCursorPosition() error = %v, want nil", newPosErr)
 		}
@@ -82,7 +82,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 			MinSize: image.Point{X: 10, Y: 10},
 		}
 
-		clickableElements, clickableElementsErr := adapter.GetClickableElements(context, filter)
+		clickableElements, clickableElementsErr := adapter.GetClickableElements(ctx, filter)
 		if clickableElementsErr != nil {
 			// It might error if no permissions or no focused window
 			t.Logf(

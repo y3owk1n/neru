@@ -176,7 +176,7 @@ clickable_roles = ["AXButton"]
 	// Test Reload
 	ctx := context.Background()
 
-	reloadErr := service.Reload(context, configPath)
+	reloadErr := service.Reload(ctx, configPath)
 	if reloadErr != nil {
 		t.Fatalf("Reload() failed: %v", reloadErr)
 	}
@@ -191,7 +191,7 @@ clickable_roles = ["AXButton"]
 		t.Fatalf("Failed to update temp config: %v", anotherWriteFileErr)
 	}
 
-	anotherReloadErr := service.Reload(context, configPath)
+	anotherReloadErr := service.Reload(ctx, configPath)
 	if anotherReloadErr == nil {
 		t.Error("Reload() should fail with invalid config file")
 	}

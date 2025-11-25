@@ -272,7 +272,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 		return
 	}
 
-	response := s.handler(context, cmd)
+	response := s.handler(ctx, cmd)
 	// Always include server version in response
 	response.Version = ProtocolVersion
 

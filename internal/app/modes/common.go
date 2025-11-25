@@ -399,7 +399,7 @@ func (h *Handler) CaptureInitialCursorPosition() {
 
 	ctx := context.Background()
 
-	pos, posErr := h.ActionService.GetCursorPosition(context)
+	pos, posErr := h.ActionService.GetCursorPosition(ctx)
 	if posErr != nil {
 		h.Logger.Error("Failed to get cursor position", zap.Error(posErr))
 
@@ -435,7 +435,7 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 func (h *Handler) handleActionKey(key string, mode string) {
 	ctx := context.Background()
 
-	cursorPos, cursorPosErr := h.ActionService.GetCursorPosition(context)
+	cursorPos, cursorPosErr := h.ActionService.GetCursorPosition(ctx)
 	if cursorPosErr != nil {
 		h.Logger.Error("Failed to get cursor position", zap.Error(cursorPosErr))
 
@@ -472,7 +472,7 @@ func (h *Handler) handleActionKey(key string, mode string) {
 	}
 
 	// Use ActionService
-	performActionErr := h.ActionService.PerformAction(context, act, cursorPos)
+	performActionErr := h.ActionService.PerformAction(ctx, act, cursorPos)
 	if performActionErr != nil {
 		h.Logger.Error("Failed to perform action", zap.Error(performActionErr))
 	}

@@ -178,7 +178,7 @@ func TestAlphabetGenerator_Generate(t *testing.T) {
 
 	ctx := context.Background()
 
-	hints, hintsErr := generator.Generate(context, elements)
+	hints, hintsErr := generator.Generate(ctx, elements)
 	if hintsErr != nil {
 		t.Fatalf("Generate() error: %v", hintsErr)
 	}
@@ -251,7 +251,7 @@ func TestAlphabetGenerator_TooManyElements(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, generateErr := generator.Generate(context, elements)
+	_, generateErr := generator.Generate(ctx, elements)
 	if generateErr == nil {
 		t.Error("Generate() expected error for too many elements, got nil")
 	}

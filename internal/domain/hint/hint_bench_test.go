@@ -27,7 +27,7 @@ func BenchmarkAlphabetGenerator_Generate_Alloc(b *testing.B) {
 	b.ResetTimer()
 
 	for range 100 {
-		_, _ = generator.Generate(context, elements)
+		_, _ = generator.Generate(ctx, elements)
 	}
 }
 
@@ -48,7 +48,7 @@ func BenchmarkAlphabetGenerator_Generate_Small(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		_, _ = generator.Generate(context, elements)
+		_, _ = generator.Generate(ctx, elements)
 	}
 }
 
@@ -69,7 +69,7 @@ func BenchmarkAlphabetGenerator_Generate_Small_WithElements(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		_, _ = generator.Generate(context, elements)
+		_, _ = generator.Generate(ctx, elements)
 	}
 }
 
@@ -90,7 +90,7 @@ func BenchmarkAlphabetGenerator_Generate_Large_Alloc(b *testing.B) {
 	b.ResetTimer()
 
 	for range 1000 {
-		_, _ = generator.Generate(context, elements)
+		_, _ = generator.Generate(ctx, elements)
 	}
 }
 
@@ -111,7 +111,7 @@ func BenchmarkAlphabetGenerator_Generate_Large(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		_, _ = generator.Generate(context, elements)
+		_, _ = generator.Generate(ctx, elements)
 	}
 }
 
@@ -134,7 +134,7 @@ func BenchmarkAlphabetGenerator_Generate_Small_New(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		_, _ = generator.Generate(context, elements)
+		_, _ = generator.Generate(ctx, elements)
 	}
 }
 
@@ -159,7 +159,7 @@ func BenchmarkAlphabetGenerator_Generate_Large_New(b *testing.B) {
 	b.ResetTimer()
 
 	for range 100 {
-		_, _ = generator.Generate(context, elements)
+		_, _ = generator.Generate(ctx, elements)
 	}
 }
 
@@ -180,7 +180,7 @@ func BenchmarkCollection_FilterByPrefix(b *testing.B) {
 		elements[index] = element
 	}
 
-	hints, _ := generator.Generate(context, elements)
+	hints, _ := generator.Generate(ctx, elements)
 	collection := hint.NewCollection(hints)
 
 	b.ResetTimer()
