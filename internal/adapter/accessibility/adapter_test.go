@@ -33,12 +33,12 @@ func TestNewAdapter(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			adapter := accessibility.NewAdapter(
 				logger,
-				test.excludedBundles,
-				test.clickableRoles,
+				testCase.excludedBundles,
+				testCase.clickableRoles,
 				mockClient,
 			)
 
@@ -83,11 +83,11 @@ func TestAdapter_IsAppExcluded(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got := adapter.IsAppExcluded(context, test.bundleID)
-			if got != test.want {
-				t.Errorf("IsAppExcluded() = %v, want %v", got, test.want)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := adapter.IsAppExcluded(context, testCase.bundleID)
+			if got != testCase.want {
+				t.Errorf("IsAppExcluded() = %v, want %v", got, testCase.want)
 			}
 		})
 	}
@@ -198,9 +198,9 @@ func TestAdapter_MoveCursorToPoint(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			moveCursorErr := adapter.MoveCursorToPoint(context, test.point)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			moveCursorErr := adapter.MoveCursorToPoint(context, testCase.point)
 			if moveCursorErr != nil {
 				t.Errorf("MoveCursorToPoint() error = %v", moveCursorErr)
 			}
@@ -236,9 +236,9 @@ func TestAdapter_Scroll(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			scrollErr := adapter.Scroll(context, test.deltaX, test.deltaY)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			scrollErr := adapter.Scroll(context, testCase.deltaX, testCase.deltaY)
 			if scrollErr != nil {
 				t.Errorf("Scroll() error = %v", scrollErr)
 			}
@@ -298,11 +298,11 @@ func TestAdapter_MatchesFilter(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got := adapter.MatchesFilter(elem, test.filter)
-			if got != test.want {
-				t.Errorf("matchesFilter() = %v, want %v", got, test.want)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := adapter.MatchesFilter(elem, testCase.filter)
+			if got != testCase.want {
+				t.Errorf("matchesFilter() = %v, want %v", got, testCase.want)
 			}
 		})
 	}
@@ -334,14 +334,18 @@ func TestAdapter_PerformActionAtPoint(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			performActionErr := adapter.PerformActionAtPoint(context, test.actionType, test.point)
-			if (performActionErr != nil) != test.wantErr {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			performActionErr := adapter.PerformActionAtPoint(
+				context,
+				testCase.actionType,
+				testCase.point,
+			)
+			if (performActionErr != nil) != testCase.wantErr {
 				t.Errorf(
 					"PerformActionAtPoint() error = %v, wantErr %v",
 					performActionErr,
-					test.wantErr,
+					testCase.wantErr,
 				)
 			}
 		})

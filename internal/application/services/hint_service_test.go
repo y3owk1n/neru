@@ -165,16 +165,16 @@ func TestHintService_ShowHints(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
 
-			if test.setupMocks != nil {
-				test.setupMocks(mockAcc, mockOverlay)
+			if testCase.setupMocks != nil {
+				testCase.setupMocks(mockAcc, mockOverlay)
 			}
 
-			generator := test.setupGen()
+			generator := testCase.setupGen()
 			logger := logger.Get()
 
 			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
@@ -186,20 +186,20 @@ func TestHintService_ShowHints(t *testing.T) {
 			hints, hintsErr := service.ShowHints(context, filter)
 
 			// Assert
-			if test.wantErr && hintsErr == nil {
+			if testCase.wantErr && hintsErr == nil {
 				t.Error("ShowHints() expected error, got nil")
 			}
 
-			if !test.wantErr && hintsErr != nil {
+			if !testCase.wantErr && hintsErr != nil {
 				t.Errorf("ShowHints() unexpected error: %v", hintsErr)
 			}
 
-			if test.checkHints != nil {
-				test.checkHints(t, hints)
+			if testCase.checkHints != nil {
+				testCase.checkHints(t, hints)
 			}
 
-			if test.checkOverlay != nil {
-				test.checkOverlay(t, mockOverlay)
+			if testCase.checkOverlay != nil {
+				testCase.checkOverlay(t, mockOverlay)
 			}
 		})
 	}
@@ -234,15 +234,15 @@ func TestHintService_HideHints(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
 			generator, _ := hint.NewAlphabetGenerator("asdf")
 			logger := logger.Get()
 
-			if test.setupMocks != nil {
-				test.setupMocks(mockOverlay)
+			if testCase.setupMocks != nil {
+				testCase.setupMocks(mockOverlay)
 			}
 
 			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
@@ -250,12 +250,12 @@ func TestHintService_HideHints(t *testing.T) {
 			context := context.Background()
 			hideHintsErr := service.HideHints(context)
 
-			if (hideHintsErr != nil) != test.wantErr {
-				t.Errorf("HideHints() error = %v, wantErr %v", hideHintsErr, test.wantErr)
+			if (hideHintsErr != nil) != testCase.wantErr {
+				t.Errorf("HideHints() error = %v, wantErr %v", hideHintsErr, testCase.wantErr)
 			}
 
 			// Only check visibility for successful hide
-			if !test.wantErr && mockOverlay.IsVisible() {
+			if !testCase.wantErr && mockOverlay.IsVisible() {
 				t.Error("Overlay should not be visible after successful HideHints")
 			}
 		})
@@ -293,19 +293,19 @@ func TestHintService_RefreshHints(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
 
 			refreshCalled := false
 			mockOverlay.IsVisibleFunc = func() bool {
-				return test.overlayVisible
+				return testCase.overlayVisible
 			}
 			mockOverlay.RefreshFunc = func(_ context.Context) error {
 				refreshCalled = true
 
-				return test.refreshError
+				return testCase.refreshError
 			}
 
 			generator, _ := hint.NewAlphabetGenerator("asdf")
@@ -316,12 +316,12 @@ func TestHintService_RefreshHints(t *testing.T) {
 			context := context.Background()
 			refreshHintsErr := service.RefreshHints(context)
 
-			if (refreshHintsErr != nil) != test.wantErr {
-				t.Errorf("RefreshHints() error = %v, wantErr %v", refreshHintsErr, test.wantErr)
+			if (refreshHintsErr != nil) != testCase.wantErr {
+				t.Errorf("RefreshHints() error = %v, wantErr %v", refreshHintsErr, testCase.wantErr)
 			}
 
-			if refreshCalled != test.expectRefresh {
-				t.Errorf("Refresh called = %v, want %v", refreshCalled, test.expectRefresh)
+			if refreshCalled != testCase.expectRefresh {
+				t.Errorf("Refresh called = %v, want %v", refreshCalled, testCase.expectRefresh)
 			}
 		})
 	}

@@ -64,11 +64,11 @@ func TestValidateColor(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			err := config.ValidateColor(test.color, test.fieldName)
-			if (err != nil) != test.wantErr {
-				t.Errorf("ValidateColor() error = %v, wantErr %v", err, test.wantErr)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := config.ValidateColor(testCase.color, testCase.fieldName)
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("ValidateColor() error = %v, wantErr %v", err, testCase.wantErr)
 			}
 		})
 	}
@@ -138,11 +138,15 @@ func TestValidateHotkey(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			validateHotkeyErr := config.ValidateHotkey(test.hotkey, test.fieldName)
-			if (validateHotkeyErr != nil) != test.wantErr {
-				t.Errorf("ValidateHotkey() error = %v, wantErr %v", validateHotkeyErr, test.wantErr)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			validateHotkeyErr := config.ValidateHotkey(testCase.hotkey, testCase.fieldName)
+			if (validateHotkeyErr != nil) != testCase.wantErr {
+				t.Errorf(
+					"ValidateHotkey() error = %v, wantErr %v",
+					validateHotkeyErr,
+					testCase.wantErr,
+				)
 			}
 		})
 	}
@@ -360,14 +364,14 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			validateHintsErr := test.config.ValidateHints()
-			if (validateHintsErr != nil) != test.wantErr {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			validateHintsErr := testCase.config.ValidateHints()
+			if (validateHintsErr != nil) != testCase.wantErr {
 				t.Errorf(
 					"Config.ValidateHints() error = %v, wantErr %v",
 					validateHintsErr,
-					test.wantErr,
+					testCase.wantErr,
 				)
 			}
 		})
@@ -533,14 +537,14 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			validateAppConfigsErr := test.config.ValidateAppConfigs()
-			if (validateAppConfigsErr != nil) != test.wantErr {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			validateAppConfigsErr := testCase.config.ValidateAppConfigs()
+			if (validateAppConfigsErr != nil) != testCase.wantErr {
 				t.Errorf(
 					"Config.ValidateAppConfigs() error = %v, wantErr %v",
 					validateAppConfigsErr,
-					test.wantErr,
+					testCase.wantErr,
 				)
 			}
 		})
@@ -645,14 +649,14 @@ func TestConfig_ValidateGrid(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			validateGridErr := test.config.ValidateGrid()
-			if (validateGridErr != nil) != test.wantErr {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			validateGridErr := testCase.config.ValidateGrid()
+			if (validateGridErr != nil) != testCase.wantErr {
 				t.Errorf(
 					"Config.ValidateGrid() error = %v, wantErr %v",
 					validateGridErr,
-					test.wantErr,
+					testCase.wantErr,
 				)
 			}
 		})
@@ -697,14 +701,14 @@ func TestConfig_ValidateAction(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			validateActionErr := test.config.ValidateAction()
-			if (validateActionErr != nil) != test.wantErr {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			validateActionErr := testCase.config.ValidateAction()
+			if (validateActionErr != nil) != testCase.wantErr {
 				t.Errorf(
 					"Config.ValidateAction() error = %v, wantErr %v",
 					validateActionErr,
-					test.wantErr,
+					testCase.wantErr,
 				)
 			}
 		})
@@ -749,14 +753,14 @@ func TestConfig_ValidateSmoothCursor(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			validateSmoothCursorErr := test.config.ValidateSmoothCursor()
-			if (validateSmoothCursorErr != nil) != test.wantErr {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			validateSmoothCursorErr := testCase.config.ValidateSmoothCursor()
+			if (validateSmoothCursorErr != nil) != testCase.wantErr {
 				t.Errorf(
 					"Config.validateSmoothCursor() error = %v, wantErr %v",
 					validateSmoothCursorErr,
-					test.wantErr,
+					testCase.wantErr,
 				)
 			}
 		})

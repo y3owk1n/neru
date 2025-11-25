@@ -33,8 +33,8 @@ func TestManager_Filtering(t *testing.T) {
 		{"no match AD", "AD", 3, ""},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			manager.Reset()
 
 			var (
@@ -42,20 +42,24 @@ func TestManager_Filtering(t *testing.T) {
 				found bool
 			)
 
-			for _, char := range test.input {
+			for _, char := range testCase.input {
 				match, found = manager.HandleInput(string(char))
 			}
 
 			filtered := manager.GetFilteredHints()
-			if len(filtered) != test.wantCount {
-				t.Errorf("GetFilteredHints() count = %d, want %d", len(filtered), test.wantCount)
+			if len(filtered) != testCase.wantCount {
+				t.Errorf(
+					"GetFilteredHints() count = %d, want %d",
+					len(filtered),
+					testCase.wantCount,
+				)
 			}
 
-			if test.wantMatched != "" {
+			if testCase.wantMatched != "" {
 				if !found || match == nil {
-					t.Errorf("Expected exact match for %s, got nil", test.wantMatched)
-				} else if match.Label() != test.wantMatched {
-					t.Errorf("Expected exact match %s, got %s", test.wantMatched, match.Label())
+					t.Errorf("Expected exact match for %s, got nil", testCase.wantMatched)
+				} else if match.Label() != testCase.wantMatched {
+					t.Errorf("Expected exact match %s, got %s", testCase.wantMatched, match.Label())
 				}
 			} else if found {
 				t.Errorf("Expected no exact match, got %s", match.Label())

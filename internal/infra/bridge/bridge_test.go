@@ -57,13 +57,13 @@ func TestInitializeLogger(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			// Should not panic
-			bridge.InitializeLogger(test.logger)
+			bridge.InitializeLogger(testCase.logger)
 
 			// Verify logger was set
-			if test.logger != nil && bridge.BridgeLogger == nil {
+			if testCase.logger != nil && bridge.BridgeLogger == nil {
 				t.Error("Expected logger to be set")
 			}
 		})
@@ -85,16 +85,16 @@ func TestSetAppWatcher(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			// Initialize logger for testing
 			bridge.InitializeLogger(zap.NewNop())
 
 			// Should not panic
-			bridge.SetAppWatcher(test.watcher)
+			bridge.SetAppWatcher(testCase.watcher)
 
 			// Verify watcher was set
-			if test.watcher != nil && bridge.AppWatcher == nil {
+			if testCase.watcher != nil && bridge.AppWatcher == nil {
 				t.Error("Expected watcher to be set")
 			}
 		})
@@ -171,14 +171,14 @@ func TestHasClickAction(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			// Initialize logger for testing
 			bridge.InitializeLogger(zap.NewNop())
 
-			got := bridge.HasClickAction(test.element)
-			if got != test.want {
-				t.Errorf("HasClickAction() = %v, want %v", got, test.want)
+			got := bridge.HasClickAction(testCase.element)
+			if got != testCase.want {
+				t.Errorf("HasClickAction() = %v, want %v", got, testCase.want)
 			}
 		})
 	}
@@ -232,8 +232,8 @@ func TestShowConfigValidationError(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			// Initialize logger for testing
 			bridge.InitializeLogger(zap.NewNop())
 
@@ -271,8 +271,8 @@ func TestSetApplicationAttribute(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			// Initialize logger for testing
 			bridge.InitializeLogger(zap.NewNop())
 

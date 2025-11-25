@@ -390,15 +390,15 @@ func TestParseHotkey(t *testing.T) {
         // ...
     }
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            got, err := ParseHotkey(tt.input)
-            if (err != nil) != tt.wantErr {
-                t.Errorf("ParseHotkey() error = %v, wantErr %v", err, tt.wantErr)
+    for _, testCase := range tests {
+        t.Run(testCase.name, func(t *testing.T) {
+            got, err := ParseHotkey(testCase.input)
+            if (err != nil) != testCase.wantErr {
+                t.Errorf("ParseHotkey() error = %v, wantErr %v", err, testCase.wantErr)
                 return
             }
-            if !reflect.DeepEqual(got, tt.want) {
-                t.Errorf("ParseHotkey() = %v, want %v", got, tt.want)
+            if !reflect.DeepEqual(got, testCase.want) {
+                t.Errorf("ParseHotkey() = %v, want %v", got, testCase.want)
             }
         })
     }

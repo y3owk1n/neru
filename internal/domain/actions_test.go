@@ -101,11 +101,11 @@ func TestIsKnownActionName(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got := domain.IsKnownActionName(test.action)
-			if got != test.want {
-				t.Errorf("IsKnownActionName(%q) = %v, want %v", test.action, got, test.want)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := domain.IsKnownActionName(testCase.action)
+			if got != testCase.want {
+				t.Errorf("IsKnownActionName(%q) = %v, want %v", testCase.action, got, testCase.want)
 			}
 		})
 	}
@@ -142,10 +142,10 @@ func TestActionConstants(t *testing.T) {
 		{"ActionNameScroll", domain.ActionNameScroll, "scroll"},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if string(test.constant) != test.expected {
-				t.Errorf("%s = %q, want %q", test.name, test.constant, test.expected)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			if string(testCase.constant) != testCase.expected {
+				t.Errorf("%s = %q, want %q", testCase.name, testCase.constant, testCase.expected)
 			}
 		})
 	}

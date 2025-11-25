@@ -94,22 +94,22 @@ func TestGridService_ShowGrid(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			mockOverlay := &mocks.MockOverlayPort{}
 			logger := logger.Get()
 
-			if test.setupMocks != nil {
-				test.setupMocks(mockOverlay)
+			if testCase.setupMocks != nil {
+				testCase.setupMocks(mockOverlay)
 			}
 
 			service := services.NewGridService(mockOverlay, logger)
 			context := context.Background()
 
-			showGridErr := service.ShowGrid(context, test.rows, test.cols)
+			showGridErr := service.ShowGrid(context, testCase.rows, testCase.cols)
 
-			if (showGridErr != nil) != test.wantErr {
-				t.Errorf("ShowGrid() error = %v, wantErr %v", showGridErr, test.wantErr)
+			if (showGridErr != nil) != testCase.wantErr {
+				t.Errorf("ShowGrid() error = %v, wantErr %v", showGridErr, testCase.wantErr)
 			}
 		})
 	}
@@ -144,13 +144,13 @@ func TestGridService_HideGrid(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			mockOverlay := &mocks.MockOverlayPort{}
 			logger := logger.Get()
 
-			if test.setupMocks != nil {
-				test.setupMocks(mockOverlay)
+			if testCase.setupMocks != nil {
+				testCase.setupMocks(mockOverlay)
 			}
 
 			service := services.NewGridService(mockOverlay, logger)
@@ -158,12 +158,12 @@ func TestGridService_HideGrid(t *testing.T) {
 
 			hideGridErr := service.HideGrid(context)
 
-			if (hideGridErr != nil) != test.wantErr {
-				t.Errorf("HideGrid() error = %v, wantErr %v", hideGridErr, test.wantErr)
+			if (hideGridErr != nil) != testCase.wantErr {
+				t.Errorf("HideGrid() error = %v, wantErr %v", hideGridErr, testCase.wantErr)
 			}
 
 			// Only check visibility for successful hide
-			if !test.wantErr && mockOverlay.IsVisible() {
+			if !testCase.wantErr && mockOverlay.IsVisible() {
 				t.Error("Overlay should not be visible after successful HideGrid")
 			}
 		})

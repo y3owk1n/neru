@@ -23,18 +23,18 @@ func TestNewCursorState(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			state := state.NewCursorState(test.restoreEnabled)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			state := state.NewCursorState(testCase.restoreEnabled)
 
 			if state == nil {
 				t.Fatal("NewCursorState() returned nil")
 			}
 
-			if state.IsRestoreEnabled() != test.restoreEnabled {
+			if state.IsRestoreEnabled() != testCase.restoreEnabled {
 				t.Errorf(
 					"Expected restore enabled = %v, got %v",
-					test.restoreEnabled,
+					testCase.restoreEnabled,
 					state.IsRestoreEnabled(),
 				)
 			}
@@ -130,21 +130,21 @@ func TestCursorState_ShouldRestore(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			state := state.NewCursorState(test.restoreEnabled)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			state := state.NewCursorState(testCase.restoreEnabled)
 
-			if test.captured {
+			if testCase.captured {
 				state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
 			}
 
-			if test.skipOnce {
+			if testCase.skipOnce {
 				state.SkipNextRestore()
 			}
 
 			got := state.ShouldRestore()
-			if got != test.expected {
-				t.Errorf("ShouldRestore() = %v, want %v", got, test.expected)
+			if got != testCase.expected {
+				t.Errorf("ShouldRestore() = %v, want %v", got, testCase.expected)
 			}
 		})
 	}
@@ -282,23 +282,23 @@ func TestCursorState_ExtremeValues(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			state := state.NewCursorState(true)
-			state.Capture(test.pos, test.bounds)
+			state.Capture(testCase.pos, testCase.bounds)
 
 			if !state.IsCaptured() {
 				t.Error("State should be captured")
 			}
 
 			gotPos := state.GetInitialPosition()
-			if gotPos != test.pos {
-				t.Errorf("GetInitialPosition() = %v, want %v", gotPos, test.pos)
+			if gotPos != testCase.pos {
+				t.Errorf("GetInitialPosition() = %v, want %v", gotPos, testCase.pos)
 			}
 
 			gotBounds := state.GetInitialScreenBounds()
-			if gotBounds != test.bounds {
-				t.Errorf("GetInitialScreenBounds() = %v, want %v", gotBounds, test.bounds)
+			if gotBounds != testCase.bounds {
+				t.Errorf("GetInitialScreenBounds() = %v, want %v", gotBounds, testCase.bounds)
 			}
 		})
 	}
