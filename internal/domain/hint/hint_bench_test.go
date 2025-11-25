@@ -12,7 +12,7 @@ import (
 
 func BenchmarkAlphabetGenerator_Generate_Alloc(b *testing.B) {
 	generator, _ := hint.NewAlphabetGenerator("asdfghjkl")
-	context := context.Background()
+	ctx := context.Background()
 	elements := make([]*element.Element, 1000)
 
 	for index := range 1000 {
@@ -33,7 +33,7 @@ func BenchmarkAlphabetGenerator_Generate_Alloc(b *testing.B) {
 
 func BenchmarkAlphabetGenerator_Generate_Small(b *testing.B) {
 	generator, _ := hint.NewAlphabetGenerator("abcdefghijklmnopqrstuvwxyz")
-	context := context.Background()
+	ctx := context.Background()
 	elements := make([]*element.Element, 10)
 
 	for index := range 10 {
@@ -54,7 +54,7 @@ func BenchmarkAlphabetGenerator_Generate_Small(b *testing.B) {
 
 func BenchmarkAlphabetGenerator_Generate_Small_WithElements(b *testing.B) {
 	generator, _ := hint.NewAlphabetGenerator("abcdefghijklmnopqrstuvwxyz")
-	context := context.Background()
+	ctx := context.Background()
 	elements := make([]*element.Element, 10)
 
 	for index := range 10 {
@@ -75,7 +75,7 @@ func BenchmarkAlphabetGenerator_Generate_Small_WithElements(b *testing.B) {
 
 func BenchmarkAlphabetGenerator_Generate_Large_Alloc(b *testing.B) {
 	generator, _ := hint.NewAlphabetGenerator("abcdefghijklmnopqrstuvwxyz")
-	context := context.Background()
+	ctx := context.Background()
 	elements := make([]*element.Element, 1000)
 
 	for index := range 1000 {
@@ -96,7 +96,7 @@ func BenchmarkAlphabetGenerator_Generate_Large_Alloc(b *testing.B) {
 
 func BenchmarkAlphabetGenerator_Generate_Large(b *testing.B) {
 	generator, _ := hint.NewAlphabetGenerator("abcdefghijklmnopqrstuvwxyz")
-	context := context.Background()
+	ctx := context.Background()
 	elements := make([]*element.Element, 1000)
 
 	for index := range 1000 {
@@ -118,7 +118,7 @@ func BenchmarkAlphabetGenerator_Generate_Large(b *testing.B) {
 // BenchmarkAlphabetGenerator_Generate_Small benchmarks with a small number of elements.
 func BenchmarkAlphabetGenerator_Generate_Small_New(b *testing.B) {
 	generator, _ := hint.NewAlphabetGenerator("abcdefghijklmnopqrstuvwxyz")
-	context := context.Background()
+	ctx := context.Background()
 
 	elements := make([]*element.Element, 10)
 
@@ -142,7 +142,7 @@ func BenchmarkAlphabetGenerator_Generate_Small_New(b *testing.B) {
 func BenchmarkAlphabetGenerator_Generate_Large_New(b *testing.B) {
 	// Use full alphabet to support >1000 elements (26^2 = 676, 26^3 = 17576)
 	generator, _ := hint.NewAlphabetGenerator("abcdefghijklmnopqrstuvwxyz")
-	context := context.Background()
+	ctx := context.Background()
 
 	// Create 1000 dummy elements
 	elements := make([]*element.Element, 1000)
@@ -166,7 +166,7 @@ func BenchmarkAlphabetGenerator_Generate_Large_New(b *testing.B) {
 // BenchmarkCollection_FilterByPrefix benchmarks hint filtering.
 func BenchmarkCollection_FilterByPrefix(b *testing.B) {
 	generator, _ := hint.NewAlphabetGenerator("asdfghjkl")
-	context := context.Background()
+	ctx := context.Background()
 
 	// Create test elements
 	elements := make([]*element.Element, 100)

@@ -59,7 +59,7 @@ func TestAdapter_IsAppExcluded(t *testing.T) {
 	mockClient := &accessibility.MockAXClient{}
 
 	adapter := accessibility.NewAdapter(logger, excludedBundles, []string{}, mockClient)
-	context := context.Background()
+	ctx := context.Background()
 
 	tests := []struct {
 		name     string
@@ -129,7 +129,7 @@ func TestAdapter_UpdateExcludedBundles(t *testing.T) {
 	newBundles := []string{"com.apple.dock", "com.apple.systempreferences"}
 	adapter.UpdateExcludedBundles(newBundles)
 
-	context := context.Background()
+	ctx := context.Background()
 
 	// Verify new bundles are excluded
 	if !adapter.IsAppExcluded(context, "com.apple.dock") {
@@ -148,7 +148,7 @@ func TestAdapter_GetScreenBounds(t *testing.T) {
 		ScreenBounds: image.Rect(0, 0, 1920, 1080),
 	}
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
-	context := context.Background()
+	ctx := context.Background()
 
 	screenBounds, screenBoundsErr := adapter.GetScreenBounds(context)
 	if screenBoundsErr != nil {
@@ -165,7 +165,7 @@ func TestAdapter_GetCursorPosition(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
-	context := context.Background()
+	ctx := context.Background()
 
 	pos, posErr := adapter.GetCursorPosition(context)
 	if posErr != nil {
@@ -182,7 +182,7 @@ func TestAdapter_MoveCursorToPoint(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
-	context := context.Background()
+	ctx := context.Background()
 
 	tests := []struct {
 		name  string
@@ -212,7 +212,7 @@ func TestAdapter_Scroll(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
-	context := context.Background()
+	ctx := context.Background()
 
 	tests := []struct {
 		name   string
@@ -250,7 +250,7 @@ func TestAdapter_Health(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{Permissions: true}
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
-	context := context.Background()
+	ctx := context.Background()
 
 	healthErr := adapter.Health(context)
 	if healthErr != nil {
@@ -312,7 +312,7 @@ func TestAdapter_PerformActionAtPoint(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
-	context := context.Background()
+	ctx := context.Background()
 
 	tests := []struct {
 		name       string

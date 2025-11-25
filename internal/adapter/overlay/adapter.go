@@ -30,11 +30,11 @@ func NewAdapter(manager uiOverlay.ManagerInterface, logger *zap.Logger) *Adapter
 }
 
 // ShowHints displays hint labels on the screen.
-func (a *Adapter) ShowHints(context context.Context, hints []*hint.Interface) error {
+func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Interface) error {
 	// Check context
 	select {
-	case <-context.Done():
-		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -68,11 +68,11 @@ func (a *Adapter) ShowHints(context context.Context, hints []*hint.Interface) er
 }
 
 // ShowGrid displays the grid overlay.
-func (a *Adapter) ShowGrid(context context.Context, _ int, _ int) error {
+func (a *Adapter) ShowGrid(ctx context.Context, _ int, _ int) error {
 	// Check context
 	select {
-	case <-context.Done():
-		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -97,14 +97,14 @@ func (a *Adapter) ShowGrid(context context.Context, _ int, _ int) error {
 
 // DrawScrollHighlight draws a highlight for scroll mode.
 func (a *Adapter) DrawScrollHighlight(
-	context context.Context,
+	ctx context.Context,
 	rect image.Rectangle,
 	_ string,
 	_ int,
 ) error {
 	select {
-	case <-context.Done():
-		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -124,14 +124,14 @@ func (a *Adapter) DrawScrollHighlight(
 
 // DrawActionHighlight draws a highlight border for action mode.
 func (a *Adapter) DrawActionHighlight(
-	context context.Context,
+	ctx context.Context,
 	rect image.Rectangle,
 	_ string,
 	_ int,
 ) error {
 	select {
-	case <-context.Done():
-		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -147,11 +147,11 @@ func (a *Adapter) DrawActionHighlight(
 }
 
 // Hide removes all overlays from the screen.
-func (a *Adapter) Hide(context context.Context) error {
+func (a *Adapter) Hide(ctx context.Context) error {
 	// Check context
 	select {
-	case <-context.Done():
-		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -169,11 +169,11 @@ func (a *Adapter) IsVisible() bool {
 }
 
 // Refresh updates the overlay display.
-func (a *Adapter) Refresh(context context.Context) error {
+func (a *Adapter) Refresh(ctx context.Context) error {
 	// Check context
 	select {
-	case <-context.Done():
-		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 

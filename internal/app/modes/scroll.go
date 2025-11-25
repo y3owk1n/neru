@@ -17,7 +17,7 @@ func (h *Handler) StartInteractiveScroll() {
 	h.Scroll.Context.SetLastKey("")
 	h.ExitMode()
 
-	context := context.Background()
+	ctx := context.Background()
 
 	showScrollOverlayErr := h.ScrollService.ShowScrollOverlay(context)
 	if showScrollOverlayErr != nil {
@@ -50,7 +50,7 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 
 	var handleScrollErr error
 
-	context := context.Background()
+	ctx := context.Background()
 
 	if len(key) == 1 {
 		if h.handleControlScrollKey(key, *lastScrollKey, lastScrollKey) {
@@ -131,7 +131,7 @@ func (h *Handler) handleControlScrollKey(key string, lastKey string, lastScrollK
 		operation, _, ok := scroll.ParseKey(key, lastKey, h.Logger)
 		if ok {
 			*lastScrollKey = ""
-			context := context.Background()
+			ctx := context.Background()
 
 			var handleControlScrollKeyErr error
 
@@ -166,7 +166,7 @@ func (h *Handler) handleDirectionalScrollKey(key string, lastKey string) error {
 		return nil
 	}
 
-	context := context.Background()
+	ctx := context.Background()
 
 	switch key {
 	case "j":

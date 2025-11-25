@@ -397,7 +397,7 @@ func (h *Handler) CaptureInitialCursorPosition() {
 		return
 	}
 
-	context := context.Background()
+	ctx := context.Background()
 
 	pos, posErr := h.ActionService.GetCursorPosition(context)
 	if posErr != nil {
@@ -433,7 +433,7 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 
 // handleActionKey handles action keys for both hints and grid modes.
 func (h *Handler) handleActionKey(key string, mode string) {
-	context := context.Background()
+	ctx := context.Background()
 
 	cursorPos, cursorPosErr := h.ActionService.GetCursorPosition(context)
 	if cursorPosErr != nil {

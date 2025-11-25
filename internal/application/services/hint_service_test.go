@@ -179,7 +179,7 @@ func TestHintService_ShowHints(t *testing.T) {
 
 			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
 
-			context := context.Background()
+			ctx := context.Background()
 			filter := ports.DefaultElementFilter()
 
 			// Act
@@ -247,7 +247,7 @@ func TestHintService_HideHints(t *testing.T) {
 
 			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
 
-			context := context.Background()
+			ctx := context.Background()
 			hideHintsErr := service.HideHints(context)
 
 			if (hideHintsErr != nil) != testCase.wantErr {
@@ -313,7 +313,7 @@ func TestHintService_RefreshHints(t *testing.T) {
 
 			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
 
-			context := context.Background()
+			ctx := context.Background()
 			refreshHintsErr := service.RefreshHints(context)
 
 			if (refreshHintsErr != nil) != testCase.wantErr {

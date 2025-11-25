@@ -10,7 +10,7 @@ import (
 
 // addSupplementaryElements adds menubar, dock, and notification center elements based on filter.
 func (a *Adapter) addSupplementaryElements(
-	context context.Context,
+	ctx context.Context,
 	elements []*element.Element,
 	filter ports.ElementFilter,
 ) []*element.Element {
@@ -25,17 +25,17 @@ func (a *Adapter) addSupplementaryElements(
 
 	// Add menubar elements
 	if !missionControlActive && filter.IncludeMenubar {
-		elements = a.addMenubarElements(context, elements, filter)
+		elements = a.addMenubarElements(ctx, elements, filter)
 	}
 
 	// Add dock elements
 	if filter.IncludeDock {
-		elements = a.addDockElements(context, elements)
+		elements = a.addDockElements(ctx, elements)
 	}
 
 	// Add notification center elements (only when Mission Control is active)
 	if missionControlActive && filter.IncludeNotificationCenter {
-		elements = a.addNotificationCenterElements(context, elements)
+		elements = a.addNotificationCenterElements(ctx, elements)
 	}
 
 	return elements

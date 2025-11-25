@@ -201,7 +201,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 	logger := s.logger.With(zap.String("trace_id", traceID.String()))
 
 	// Create context with trace ID
-	context := trace.WithTraceID(context.Background(), traceID)
+	ctx := trace.WithTraceID(context.Background(), traceID)
 
 	defer func() {
 		connectionCloseErr := connection.Close()

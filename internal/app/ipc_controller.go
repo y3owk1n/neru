@@ -78,14 +78,14 @@ func NewIPCController(
 }
 
 // HandleCommand routes an IPC command to the appropriate handler.
-func (c *IPCController) HandleCommand(context context.Context, command ipc.Command) ipc.Response {
+func (c *IPCController) HandleCommand(ctx context.Context, command ipc.Command) ipc.Response {
 	c.Logger.Info(
 		"Handling IPC command",
 		zap.String("action", command.Action),
 	)
 
 	if handler, ok := c.Handlers[command.Action]; ok {
-		return handler(context, command)
+		return handler(ctx, command)
 	}
 
 	return ipc.Response{

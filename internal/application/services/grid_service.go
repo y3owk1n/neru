@@ -23,11 +23,11 @@ func NewGridService(overlay ports.OverlayPort, logger *zap.Logger) *GridService 
 }
 
 // ShowGrid displays the grid overlay.
-func (s *GridService) ShowGrid(context context.Context, rows, cols int) error {
+func (s *GridService) ShowGrid(ctx context.Context, rows, cols int) error {
 	s.logger.Info("Showing grid", zap.Int("rows", rows), zap.Int("cols", cols))
 
 	// Show grid overlay
-	showGridErr := s.overlay.ShowGrid(context, rows, cols)
+	showGridErr := s.overlay.ShowGrid(ctx, rows, cols)
 	if showGridErr != nil {
 		s.logger.Error("Failed to show grid overlay", zap.Error(showGridErr))
 
@@ -40,10 +40,10 @@ func (s *GridService) ShowGrid(context context.Context, rows, cols int) error {
 }
 
 // HideGrid hides the grid overlay.
-func (s *GridService) HideGrid(context context.Context) error {
+func (s *GridService) HideGrid(ctx context.Context) error {
 	s.logger.Info("Hiding grid")
 
-	hideGridErr := s.overlay.Hide(context)
+	hideGridErr := s.overlay.Hide(ctx)
 	if hideGridErr != nil {
 		s.logger.Error("Failed to hide overlay", zap.Error(hideGridErr))
 

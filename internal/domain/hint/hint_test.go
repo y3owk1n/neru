@@ -176,7 +176,7 @@ func TestAlphabetGenerator_Generate(t *testing.T) {
 		)
 	}
 
-	context := context.Background()
+	ctx := context.Background()
 
 	hints, hintsErr := generator.Generate(context, elements)
 	if hintsErr != nil {
@@ -249,7 +249,7 @@ func TestAlphabetGenerator_TooManyElements(t *testing.T) {
 		)
 	}
 
-	context := context.Background()
+	ctx := context.Background()
 
 	_, generateErr := generator.Generate(context, elements)
 	if generateErr == nil {

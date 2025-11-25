@@ -45,22 +45,22 @@ func (d *MetricsDecorator) ShowGrid(ctx context.Context, rows, cols int) error {
 
 // DrawScrollHighlight implements ports.OverlayPort.
 func (d *MetricsDecorator) DrawScrollHighlight(
-	context context.Context,
+	ctx context.Context,
 	rect image.Rectangle,
 	color string,
 	width int,
 ) error {
-	return d.next.DrawScrollHighlight(context, rect, color, width)
+	return d.next.DrawScrollHighlight(ctx, rect, color, width)
 }
 
 // DrawActionHighlight implements ports.OverlayPort.
 func (d *MetricsDecorator) DrawActionHighlight(
-	context context.Context,
+	ctx context.Context,
 	rect image.Rectangle,
 	color string,
 	width int,
 ) error {
-	return d.next.DrawActionHighlight(context, rect, color, width)
+	return d.next.DrawActionHighlight(ctx, rect, color, width)
 }
 
 // Hide implements ports.OverlayPort.

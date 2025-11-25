@@ -37,7 +37,7 @@ func NewActionService(
 
 // ExecuteAction performs the specified action on the given element.
 func (s *ActionService) ExecuteAction(
-	context context.Context,
+	ctx context.Context,
 	element *element.Element,
 	actionType action.Type,
 ) error {
@@ -46,7 +46,7 @@ func (s *ActionService) ExecuteAction(
 		zap.String("element_id", string(element.ID())),
 		zap.String("element_role", string(element.Role())))
 
-	performActionErr := s.accessibility.PerformAction(context, element, actionType)
+	performActionErr := s.accessibility.PerformAction(ctx, element, actionType)
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform action",
 			zap.Error(performActionErr),
@@ -64,7 +64,7 @@ func (s *ActionService) ExecuteAction(
 // PerformAction executes an action at the specified point.
 // This parses the action string to a domain type and delegates to the accessibility port.
 func (s *ActionService) PerformAction(
-	context context.Context,
+	ctx context.Context,
 	actionString string,
 	point image.Point,
 ) error {
@@ -79,7 +79,7 @@ func (s *ActionService) PerformAction(
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y))
 
-	performActionErr := s.accessibility.PerformActionAtPoint(context, actionType, point)
+	performActionErr := s.accessibility.PerformActionAtPoint(ctx, actionType, point)
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform action at point",
 			zap.Error(performActionErr),
@@ -96,8 +96,8 @@ func (s *ActionService) PerformAction(
 }
 
 // IsFocusedAppExcluded checks if the currently focused application is in the exclusion list.
-func (s *ActionService) IsFocusedAppExcluded(context context.Context) (bool, error) {
-	bundleID, bundleIDErr := s.accessibility.GetFocusedAppBundleID(context)
+func (s *ActionService) IsFocusedAppExcluded(ctx context.Context) (bool, error) {
+	bundleID, bundleIDErr := s.accessibility.GetFocusedAppBundleID(ctx)
 	if bundleIDErr != nil {
 		return false, derrors.Wrap(
 			bundleIDErr,
@@ -106,7 +106,7 @@ func (s *ActionService) IsFocusedAppExcluded(context context.Context) (bool, err
 		)
 	}
 
-	isExcluded := s.accessibility.IsAppExcluded(context, bundleID)
+	isExcluded := s.accessibility.IsAppExcluded(ctx, bundleID)
 	if isExcluded {
 		s.logger.Info("Focused app is excluded", zap.String("bundle_id", bundleID))
 	}
@@ -115,14 +115,14 @@ func (s *ActionService) IsFocusedAppExcluded(context context.Context) (bool, err
 }
 
 // GetFocusedAppBundleID returns the bundle ID of the currently focused application.
-func (s *ActionService) GetFocusedAppBundleID(context context.Context) (string, error) {
-	return s.accessibility.GetFocusedAppBundleID(context)
+func (s *ActionService) GetFocusedAppBundleID(ctx context.Context) (string, error) {
+	return s.accessibility.GetFocusedAppBundleID(ctx)
 }
 
 // ShowActionHighlight displays the action mode highlight around the active screen.
-func (s *ActionService) ShowActionHighlight(context context.Context) error {
+func (s *ActionService) ShowActionHighlight(ctx context.Context) error {
 	// Get active screen screenBounds
-	screenBounds, screenBoundsErr := s.accessibility.GetScreenBounds(context)
+	screenBounds, screenBoundsErr := s.accessibility.GetScreenBounds(ctx)
 	if screenBoundsErr != nil {
 		return derrors.Wrap(
 			screenBoundsErr,
@@ -133,7 +133,7 @@ func (s *ActionService) ShowActionHighlight(context context.Context) error {
 
 	// Draw highlight using overlay
 	DrawActionHighlightErr := s.overlay.DrawActionHighlight(
-		context,
+		ctx,
 		screenBounds,
 		s.config.HighlightColor,
 		s.config.HighlightWidth,
@@ -153,20 +153,20 @@ func (s *ActionService) ShowActionHighlight(context context.Context) error {
 
 // MoveCursorToElement moves the cursor to the center of the specified element.
 func (s *ActionService) MoveCursorToElement(
-	context context.Context,
+	ctx context.Context,
 	element *element.Element,
 ) error {
 	center := element.Center()
 
-	return s.accessibility.MoveCursorToPoint(context, center)
+	return s.accessibility.MoveCursorToPoint(ctx, center)
 }
 
 // MoveCursorToPoint moves the cursor to the specified point.
-func (s *ActionService) MoveCursorToPoint(context context.Context, point image.Point) error {
-	return s.accessibility.MoveCursorToPoint(context, point)
+func (s *ActionService) MoveCursorToPoint(ctx context.Context, point image.Point) error {
+	return s.accessibility.MoveCursorToPoint(ctx, point)
 }
 
 // GetCursorPosition returns the current cursor position.
-func (s *ActionService) GetCursorPosition(context context.Context) (image.Point, error) {
-	return s.accessibility.GetCursorPosition(context)
+func (s *ActionService) GetCursorPosition(ctx context.Context) (image.Point, error) {
+	return s.accessibility.GetCursorPosition(ctx)
 }

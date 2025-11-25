@@ -59,7 +59,7 @@ func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
 
 // Generate creates hints for the given elements.
 func (g *AlphabetGenerator) Generate(
-	context context.Context,
+	ctx context.Context,
 	elements []*element.Element,
 ) ([]*Interface, error) {
 	if len(elements) == 0 {
@@ -77,8 +77,8 @@ func (g *AlphabetGenerator) Generate(
 
 	// Check context cancellation
 	select {
-	case <-context.Done():
-		return nil, derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 

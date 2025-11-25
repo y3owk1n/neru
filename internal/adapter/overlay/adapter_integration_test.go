@@ -27,7 +27,7 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 	manager := overlayManager.Init(logger)
 	adapter := overlay.NewAdapter(manager, logger)
 
-	context := context.Background()
+	ctx := context.Background()
 
 	t.Run("ShowHints", func(t *testing.T) {
 		// ShowHints should not error with empty hints

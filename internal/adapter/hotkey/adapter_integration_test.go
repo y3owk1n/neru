@@ -59,7 +59,7 @@ func TestHotkeyAdapterIntegration(t *testing.T) {
 	}
 	adapter := hotkey.NewAdapter(mockManager, logger)
 
-	context := context.Background()
+	ctx := context.Background()
 
 	t.Run("Register and Unregister", func(t *testing.T) {
 		// Use a complex hotkey that is unlikely to conflict

@@ -69,7 +69,7 @@ func (a *Adapter) IsRunning() bool {
 }
 
 // Serve starts the IPC server.
-func (a *Adapter) Serve(context context.Context) error {
+func (a *Adapter) Serve(ctx context.Context) error {
 	a.mu.Lock()
 
 	if a.running {
@@ -83,7 +83,7 @@ func (a *Adapter) Serve(context context.Context) error {
 	a.mu.Unlock()
 
 	// Block until context is canceled
-	<-context.Done()
+	<-ctx.Done()
 
 	// Stop the server when context is done
 	a.mu.Lock()

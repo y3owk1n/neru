@@ -197,7 +197,7 @@ func TestActionService_PerformAction(t *testing.T) {
 			}
 
 			service := services.NewActionService(mockAcc, mockOverlay, config, logger)
-			context := context.Background()
+			ctx := context.Background()
 
 			performActionErr := service.PerformAction(context, testCase.action, testCase.point)
 
@@ -259,7 +259,7 @@ func TestActionService_IsFocusedAppExcluded(t *testing.T) {
 
 			config := config.ActionConfig{}
 			service := services.NewActionService(mockAcc, mockOverlay, config, logger)
-			context := context.Background()
+			ctx := context.Background()
 
 			isExcluded, isExcludedErr := service.IsFocusedAppExcluded(context)
 
@@ -332,7 +332,7 @@ func TestActionService_GetFocusedAppBundleID(t *testing.T) {
 
 			config := config.ActionConfig{}
 			service := services.NewActionService(mockAcc, mockOverlay, config, logger)
-			context := context.Background()
+			ctx := context.Background()
 
 			focusedApp, focusedAppErr := service.GetFocusedAppBundleID(context)
 

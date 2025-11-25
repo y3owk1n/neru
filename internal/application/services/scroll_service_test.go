@@ -146,7 +146,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			}
 
 			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
-			context := context.Background()
+			ctx := context.Background()
 
 			scrollErr := service.Scroll(context, testCase.direction, testCase.amount)
 
@@ -223,7 +223,7 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 			}
 
 			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
-			context := context.Background()
+			ctx := context.Background()
 
 			showScrollOverlayErr := service.ShowScrollOverlay(context)
 

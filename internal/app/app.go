@@ -404,7 +404,7 @@ func (a *App) CaptureInitialCursorPosition() { a.modes.CaptureInitialCursorPosit
 // IsFocusedAppExcluded checks if the focused app is excluded.
 func (a *App) IsFocusedAppExcluded() bool {
 	// Use ActionService to check exclusion
-	context := context.Background()
+	ctx := context.Background()
 
 	excluded, excludedErr := a.actionService.IsFocusedAppExcluded(context)
 	if excludedErr != nil {

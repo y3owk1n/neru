@@ -31,18 +31,18 @@ func (m *MockConfigPort) Get() *config.Config {
 }
 
 // Reload implements ports.ConfigPort.
-func (m *MockConfigPort) Reload(context context.Context, path string) error {
+func (m *MockConfigPort) Reload(ctx context.Context, path string) error {
 	if m.ReloadFunc != nil {
-		return m.ReloadFunc(context, path)
+		return m.ReloadFunc(ctx, path)
 	}
 
 	return nil
 }
 
 // Watch implements ports.ConfigPort.
-func (m *MockConfigPort) Watch(context context.Context) <-chan *config.Config {
+func (m *MockConfigPort) Watch(ctx context.Context) <-chan *config.Config {
 	if m.WatchFunc != nil {
-		return m.WatchFunc(context)
+		return m.WatchFunc(ctx)
 	}
 
 	ch := make(chan *config.Config, 1)

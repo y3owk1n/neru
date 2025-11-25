@@ -26,7 +26,7 @@ func TestTraceID(t *testing.T) {
 	})
 
 	t.Run("Context propagation", func(t *testing.T) {
-		context := context.Background()
+		ctx := context.Background()
 		contextID := trace.NewID()
 
 		context = trace.WithTraceID(context, contextID)
@@ -38,7 +38,7 @@ func TestTraceID(t *testing.T) {
 	})
 
 	t.Run("FromContext returns empty for missing ID", func(t *testing.T) {
-		context := context.Background()
+		ctx := context.Background()
 		got := trace.FromContext(context)
 
 		if got != "" {

@@ -162,7 +162,7 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 
 	if bundleID == "" {
 		// Use ActionService to get focused bundle ID
-		context := context.Background()
+		ctx := context.Background()
 
 		var bundleIDErr error
 

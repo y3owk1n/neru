@@ -125,7 +125,7 @@ func TestWrap(t *testing.T) {
 func TestError_WithContext(t *testing.T) {
 	err := derrors.New(derrors.CodeHintGenerationFailed, "hint generation failed")
 
-	errWithContext := err.WithContext("element_id", "test-123")
+	errWithctx := err.WithContext("element_id", "test-123")
 
 	if errWithContext.Context == nil {
 		t.Fatal("WithContext() context is nil")

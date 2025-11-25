@@ -36,7 +36,7 @@ func TestIPCController_HandlePing(t *testing.T) {
 	controller := newTestController()
 	controller.RegisterHandlers()
 
-	context := context.Background()
+	ctx := context.Background()
 
 	commandResponse := controller.HandleCommand(context, ipc.Command{Action: domain.CommandPing})
 
@@ -57,7 +57,7 @@ func TestIPCController_HandleStart(t *testing.T) {
 	controller := newTestController()
 	controller.RegisterHandlers()
 
-	context := context.Background()
+	ctx := context.Background()
 
 	// Disable state first (NewAppState starts with enabled=true)
 	controller.AppState.SetEnabled(false)
@@ -87,7 +87,7 @@ func TestIPCController_HandleStop(t *testing.T) {
 	controller := newTestController()
 	controller.RegisterHandlers()
 
-	context := context.Background()
+	ctx := context.Background()
 
 	// Disable state first (NewAppState starts with enabled=true)
 	controller.AppState.SetEnabled(false)
@@ -119,7 +119,7 @@ func TestIPCController_HandleConfig(t *testing.T) {
 	controller := newTestController()
 	controller.RegisterHandlers()
 
-	context := context.Background()
+	ctx := context.Background()
 
 	commandResponse := controller.HandleCommand(context, ipc.Command{Action: domain.CommandConfig})
 	if !commandResponse.Success {
@@ -140,7 +140,7 @@ func TestIPCController_HandleMetrics(t *testing.T) {
 	controller := newTestController()
 	controller.RegisterHandlers()
 
-	context := context.Background()
+	ctx := context.Background()
 
 	commandResponse := controller.HandleCommand(context, ipc.Command{Action: domain.CommandMetrics})
 	if !commandResponse.Success {
@@ -157,7 +157,7 @@ func TestIPCController_UnknownCommand(t *testing.T) {
 	controller := newTestController()
 	controller.RegisterHandlers()
 
-	context := context.Background()
+	ctx := context.Background()
 
 	commandResponse := controller.HandleCommand(context, ipc.Command{Action: "unknown_command"})
 	if commandResponse.Success {

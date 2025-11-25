@@ -35,13 +35,13 @@ func NewHintService(
 
 // ShowHints displays hints for clickable elements on the screen.
 func (s *HintService) ShowHints(
-	context context.Context,
+	ctx context.Context,
 	filter ports.ElementFilter,
 ) ([]*hint.Interface, error) {
 	s.logger.Info("Showing hints", zap.Any("filter", filter))
 
 	// Get clickable elements
-	elements, elementsErr := s.accessibility.GetClickableElements(context, filter)
+	elements, elementsErr := s.accessibility.GetClickableElements(ctx, filter)
 	if elementsErr != nil {
 		s.logger.Error("Failed to get clickable elements", zap.Error(elementsErr))
 
@@ -61,7 +61,7 @@ func (s *HintService) ShowHints(
 	s.logger.Info("Found clickable elements", zap.Int("count", len(elements)))
 
 	// Generate hints
-	hints, elementsErr := s.generator.Generate(context, elements)
+	hints, elementsErr := s.generator.Generate(ctx, elements)
 	if elementsErr != nil {
 		s.logger.Error("Failed to generate hints", zap.Error(elementsErr))
 
@@ -75,7 +75,7 @@ func (s *HintService) ShowHints(
 	s.logger.Info("Generated hints", zap.Int("count", len(hints)))
 
 	// Display hints
-	showHintsErr := s.overlay.ShowHints(context, hints)
+	showHintsErr := s.overlay.ShowHints(ctx, hints)
 	if showHintsErr != nil {
 		s.logger.Error("Failed to show hints overlay", zap.Error(showHintsErr))
 
@@ -88,10 +88,10 @@ func (s *HintService) ShowHints(
 }
 
 // HideHints removes the hint overlay from the screen.
-func (s *HintService) HideHints(context context.Context) error {
+func (s *HintService) HideHints(ctx context.Context) error {
 	s.logger.Info("Hiding hints")
 
-	hideOverlayErr := s.overlay.Hide(context)
+	hideOverlayErr := s.overlay.Hide(ctx)
 	if hideOverlayErr != nil {
 		s.logger.Error("Failed to hide overlay", zap.Error(hideOverlayErr))
 
@@ -104,7 +104,7 @@ func (s *HintService) HideHints(context context.Context) error {
 }
 
 // RefreshHints updates the hint display (e.g., after screen changes).
-func (s *HintService) RefreshHints(context context.Context) error {
+func (s *HintService) RefreshHints(ctx context.Context) error {
 	s.logger.Info("Refreshing hints")
 
 	if !s.overlay.IsVisible() {
@@ -113,7 +113,7 @@ func (s *HintService) RefreshHints(context context.Context) error {
 		return nil
 	}
 
-	refreshOverlayErr := s.overlay.Refresh(context)
+	refreshOverlayErr := s.overlay.Refresh(ctx)
 	if refreshOverlayErr != nil {
 		s.logger.Error("Failed to refresh overlay", zap.Error(refreshOverlayErr))
 
@@ -143,9 +143,9 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 }
 
 // Health checks the health of the service's dependencies.
-func (s *HintService) Health(context context.Context) map[string]error {
+func (s *HintService) Health(ctx context.Context) map[string]error {
 	return map[string]error{
-		"accessibility": s.accessibility.Health(context),
-		"overlay":       s.overlay.Health(context),
+		"accessibility": s.accessibility.Health(ctx),
+		"overlay":       s.overlay.Health(ctx),
 	}
 }

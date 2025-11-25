@@ -60,7 +60,7 @@ func NewScrollService(
 
 // Scroll performs a scrolling operation in the specified direction and magnitude.
 func (s *ScrollService) Scroll(
-	context context.Context,
+	ctx context.Context,
 	direction ScrollDirection,
 	amount ScrollAmount,
 ) error {
@@ -72,7 +72,7 @@ func (s *ScrollService) Scroll(
 		zap.Int("deltaX", deltaX),
 		zap.Int("deltaY", deltaY))
 
-	scrollErr := s.accessibility.Scroll(context, deltaX, deltaY)
+	scrollErr := s.accessibility.Scroll(ctx, deltaX, deltaY)
 	if scrollErr != nil {
 		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
 	}
@@ -81,9 +81,9 @@ func (s *ScrollService) Scroll(
 }
 
 // ShowScrollOverlay displays the scroll overlay with a highlight.
-func (s *ScrollService) ShowScrollOverlay(context context.Context) error {
+func (s *ScrollService) ShowScrollOverlay(ctx context.Context) error {
 	// Get screen screenBounds to draw highlight around active screen
-	screenBounds, screenBoundsErr := s.accessibility.GetScreenBounds(context)
+	screenBounds, screenBoundsErr := s.accessibility.GetScreenBounds(ctx)
 	if screenBoundsErr != nil {
 		return derrors.Wrap(
 			screenBoundsErr,
@@ -94,7 +94,7 @@ func (s *ScrollService) ShowScrollOverlay(context context.Context) error {
 
 	// Draw highlight
 	drawScrollHighlightErr := s.overlay.DrawScrollHighlight(
-		context,
+		ctx,
 		screenBounds,
 		s.config.HighlightColor,
 		s.config.HighlightWidth,
@@ -111,8 +111,8 @@ func (s *ScrollService) ShowScrollOverlay(context context.Context) error {
 }
 
 // HideScrollOverlay hides the scroll overlay.
-func (s *ScrollService) HideScrollOverlay(context context.Context) error {
-	hideOverlayErr := s.overlay.Hide(context)
+func (s *ScrollService) HideScrollOverlay(ctx context.Context) error {
+	hideOverlayErr := s.overlay.Hide(ctx)
 	if hideOverlayErr != nil {
 		return derrors.Wrap(hideOverlayErr, derrors.CodeOverlayFailed, "failed to hide overlay")
 	}

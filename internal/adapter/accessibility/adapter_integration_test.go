@@ -27,7 +27,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	client := accessibility.NewInfraAXClient()
 	adapter := accessibility.NewAdapter(logger, nil, nil, client)
 
-	context := context.Background()
+	ctx := context.Background()
 
 	t.Run("GetScreenBounds", func(t *testing.T) {
 		screenBounds, screenBoundsErr := adapter.GetScreenBounds(context)

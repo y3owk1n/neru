@@ -33,7 +33,7 @@ func TestEventTapAdapterIntegration(t *testing.T) {
 
 	adapter := eventtap.NewAdapter(tap, logger)
 
-	context := context.Background()
+	ctx := context.Background()
 
 	t.Run("Enable and Disable", func(t *testing.T) {
 		// Enable

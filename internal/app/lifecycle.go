@@ -132,7 +132,7 @@ func (a *App) handleScreenParametersChange() {
 
 			// Regenerate hints with updated screen bounds
 			// Use the hint service which will collect elements with new bounds and apply proper styling
-			context := context.Background()
+			ctx := context.Background()
 
 			filter := ports.DefaultElementFilter()
 			filter.IncludeMenubar = a.config.Hints.IncludeMenubarHints
@@ -166,7 +166,7 @@ func (a *App) handleScreenParametersChange() {
 		}
 
 		// Redraw scroll highlight with updated screen bounds
-		context := context.Background()
+		ctx := context.Background()
 
 		showScrollOverlayErr := a.scrollService.ShowScrollOverlay(context)
 		if showScrollOverlayErr != nil {

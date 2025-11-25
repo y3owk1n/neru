@@ -46,7 +46,7 @@ func (s *Service) GetConfigPath() string {
 }
 
 // Reload reloads the configuration from the specified path.
-func (s *Service) Reload(context context.Context, path string) error {
+func (s *Service) Reload(ctx context.Context, path string) error {
 	// Load and validate new config
 	configResult := LoadWithValidation(path)
 
@@ -67,8 +67,8 @@ func (s *Service) Reload(context context.Context, path string) error {
 	for _, watcher := range watchers {
 		select {
 		case watcher <- configResult.Config:
-		case <-context.Done():
-			return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+		case <-ctx.Done():
+			return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 		default:
 			// Skip if watcher is not ready
 		}
@@ -84,7 +84,7 @@ func (s *Service) ReloadConfig(path string) error {
 
 // Watch returns a channel that receives configuration updates.
 // The channel is closed when the context is canceled.
-func (s *Service) Watch(context context.Context) <-chan *Config {
+func (s *Service) Watch(ctx context.Context) <-chan *Config {
 	channel := make(chan *Config, 1)
 
 	s.mu.Lock()
@@ -96,7 +96,7 @@ func (s *Service) Watch(context context.Context) <-chan *Config {
 
 	// Clean up when context is done
 	go func() {
-		<-context.Done()
+		<-ctx.Done()
 
 		s.mu.Lock()
 		defer s.mu.Unlock()

@@ -46,13 +46,13 @@ func NewAdapter(
 
 // GetClickableElements retrieves all clickable UI elements matching the filter.
 func (a *Adapter) GetClickableElements(
-	context context.Context,
+	ctx context.Context,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
 	// Check context
 	select {
-	case <-context.Done():
-		return nil, derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -86,9 +86,9 @@ func (a *Adapter) GetClickableElements(
 		// Check context periodically
 		if index%100 == 0 {
 			select {
-			case <-context.Done():
+			case <-ctx.Done():
 				return nil, derrors.Wrap(
-					context.Err(),
+					ctx.Err(),
 					derrors.CodeContextCanceled,
 					"operation canceled",
 				)
@@ -112,7 +112,7 @@ func (a *Adapter) GetClickableElements(
 	a.Logger.Info("Converted frontmost window elements", zap.Int("count", len(elements)))
 
 	// Add supplementary elements based on filter
-	elements = a.addSupplementaryElements(context, elements, filter)
+	elements = a.addSupplementaryElements(ctx, elements, filter)
 
 	a.Logger.Info("Total elements after supplementary collection", zap.Int("count", len(elements)))
 
@@ -121,14 +121,14 @@ func (a *Adapter) GetClickableElements(
 
 // PerformAction executes an action on the specified element.
 func (a *Adapter) PerformAction(
-	context context.Context,
+	ctx context.Context,
 	element *element.Element,
 	actionType action.Type,
 ) error {
 	// Check context
 	select {
-	case <-context.Done():
-		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -154,14 +154,14 @@ func (a *Adapter) PerformAction(
 
 // PerformActionAtPoint executes an action at the specified point.
 func (a *Adapter) PerformActionAtPoint(
-	context context.Context,
+	ctx context.Context,
 	actionType action.Type,
 	point image.Point,
 ) error {
 	// Check context
 	select {
-	case <-context.Done():
-		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -225,11 +225,11 @@ func (a *Adapter) GetCursorPosition(_ context.Context) (image.Point, error) {
 }
 
 // GetFocusedAppBundleID returns the bundle ID of the currently focused application.
-func (a *Adapter) GetFocusedAppBundleID(context context.Context) (string, error) {
+func (a *Adapter) GetFocusedAppBundleID(ctx context.Context) (string, error) {
 	// Check context
 	select {
-	case <-context.Done():
-		return "", derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return "", derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -253,12 +253,12 @@ func (a *Adapter) IsAppExcluded(_ context.Context, bundleID string) bool {
 }
 
 // GetScreenBounds returns the bounds of the active screen.
-func (a *Adapter) GetScreenBounds(context context.Context) (image.Rectangle, error) {
+func (a *Adapter) GetScreenBounds(ctx context.Context) (image.Rectangle, error) {
 	// Check context
 	select {
-	case <-context.Done():
+	case <-ctx.Done():
 		return image.Rectangle{}, derrors.Wrap(
-			context.Err(),
+			ctx.Err(),
 			derrors.CodeContextCanceled,
 			"operation canceled",
 		)
@@ -269,11 +269,11 @@ func (a *Adapter) GetScreenBounds(context context.Context) (image.Rectangle, err
 }
 
 // CheckPermissions verifies that accessibility permissions are granted.
-func (a *Adapter) CheckPermissions(context context.Context) error {
+func (a *Adapter) CheckPermissions(ctx context.Context) error {
 	// Check context
 	select {
-	case <-context.Done():
-		return derrors.Wrap(context.Err(), derrors.CodeContextCanceled, "operation canceled")
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
 	}
 
@@ -286,8 +286,8 @@ func (a *Adapter) CheckPermissions(context context.Context) error {
 }
 
 // Health checks if the accessibility permissions are granted.
-func (a *Adapter) Health(context context.Context) error {
-	return a.CheckPermissions(context)
+func (a *Adapter) Health(ctx context.Context) error {
+	return a.CheckPermissions(ctx)
 }
 
 // UpdateClickableRoles updates the list of clickable roles.

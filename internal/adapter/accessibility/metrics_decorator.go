@@ -51,13 +51,13 @@ func (d *MetricsDecorator) GetClickableElements(
 
 // PerformAction implements ports.AccessibilityPort.
 func (d *MetricsDecorator) PerformAction(
-	context context.Context,
+	ctx context.Context,
 	element *element.Element,
 	actionType action.Type,
 ) error {
 	defer d.recordDuration("accessibility_perform_action_duration", time.Now())
 
-	performActionErr := d.next.PerformAction(context, element, actionType)
+	performActionErr := d.next.PerformAction(ctx, element, actionType)
 	d.recordError("accessibility_perform_action", performActionErr)
 
 	return performActionErr
@@ -65,23 +65,23 @@ func (d *MetricsDecorator) PerformAction(
 
 // PerformActionAtPoint implements ports.AccessibilityPort.
 func (d *MetricsDecorator) PerformActionAtPoint(
-	context context.Context,
+	ctx context.Context,
 	actionType action.Type,
 	point image.Point,
 ) error {
 	defer d.recordDuration("accessibility_perform_action_at_point_duration", time.Now())
 
-	performActionErr := d.next.PerformActionAtPoint(context, actionType, point)
+	performActionErr := d.next.PerformActionAtPoint(ctx, actionType, point)
 	d.recordError("accessibility_perform_action_at_point", performActionErr)
 
 	return performActionErr
 }
 
 // Scroll implements ports.AccessibilityPort.
-func (d *MetricsDecorator) Scroll(context context.Context, deltaX, deltaY int) error {
+func (d *MetricsDecorator) Scroll(ctx context.Context, deltaX, deltaY int) error {
 	defer d.recordDuration("accessibility_scroll_duration", time.Now())
 
-	scrollErr := d.next.Scroll(context, deltaX, deltaY)
+	scrollErr := d.next.Scroll(ctx, deltaX, deltaY)
 	d.recordError("accessibility_scroll", scrollErr)
 
 	return scrollErr

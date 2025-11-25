@@ -124,9 +124,9 @@ func TestService_Update(t *testing.T) {
 
 func TestService_Watch(t *testing.T) {
 	service := config.NewService(config.DefaultConfig(), "")
-	context := t.Context()
+	ctx := t.Context()
 
-	channel := service.Watch(context)
+	channel := service.Watch(ctx)
 
 	// Should receive initial config
 	select {
@@ -174,7 +174,7 @@ clickable_roles = ["AXButton"]
 	service := config.NewService(config.DefaultConfig(), configPath)
 
 	// Test Reload
-	context := context.Background()
+	ctx := context.Background()
 
 	reloadErr := service.Reload(context, configPath)
 	if reloadErr != nil {
