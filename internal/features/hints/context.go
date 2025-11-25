@@ -6,72 +6,72 @@ import (
 
 // Context holds the state and context for hint mode operations.
 type Context struct {
-	Manager       *domainHint.Manager
-	Router        *domainHint.Router
-	Hints         *domainHint.Collection
-	InActionMode  bool
-	PendingAction *string
+	manager       *domainHint.Manager
+	router        *domainHint.Router
+	hints         *domainHint.Collection
+	inActionMode  bool
+	pendingAction *string
 }
 
 // SetManager sets the domain hint manager.
 func (c *Context) SetManager(manager *domainHint.Manager) {
-	c.Manager = manager
+	c.manager = manager
 }
 
 // GetManager returns the domain hint manager.
 func (c *Context) GetManager() *domainHint.Manager {
-	return c.Manager
+	return c.manager
 }
 
 // SetRouter sets the domain hint router.
 func (c *Context) SetRouter(router *domainHint.Router) {
-	c.Router = router
+	c.router = router
 }
 
 // GetRouter returns the domain hint router.
 func (c *Context) GetRouter() *domainHint.Router {
-	return c.Router
+	return c.router
 }
 
 // SetHints sets the current hint collection.
 func (c *Context) SetHints(hints *domainHint.Collection) {
-	c.Hints = hints
-	if c.Manager != nil {
-		c.Manager.SetHints(hints)
+	c.hints = hints
+	if c.manager != nil {
+		c.manager.SetHints(hints)
 	}
 }
 
 // GetHints returns the current hint collection.
 func (c *Context) GetHints() *domainHint.Collection {
-	return c.Hints
+	return c.hints
 }
 
 // SetInActionMode sets whether hint mode is in action mode.
 func (c *Context) SetInActionMode(inActionMode bool) {
-	c.InActionMode = inActionMode
+	c.inActionMode = inActionMode
 }
 
 // GetInActionMode returns whether hint mode is in action mode.
 func (c *Context) GetInActionMode() bool {
-	return c.InActionMode
+	return c.inActionMode
 }
 
 // SetPendingAction sets the action to execute when a hint is selected.
 func (c *Context) SetPendingAction(action *string) {
-	c.PendingAction = action
+	c.pendingAction = action
 }
 
 // GetPendingAction returns the pending action to execute.
 func (c *Context) GetPendingAction() *string {
-	return c.PendingAction
+	return c.pendingAction
 }
 
 // Reset resets the hints context to its initial state.
 func (c *Context) Reset() {
-	if c.Manager != nil {
-		c.Manager.Reset()
+	if c.manager != nil {
+		c.manager.Reset()
 	}
 
-	c.InActionMode = false
-	c.PendingAction = nil
+	c.inActionMode = false
+	c.pendingAction = nil
 }

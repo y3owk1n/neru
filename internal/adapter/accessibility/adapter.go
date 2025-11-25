@@ -16,12 +16,12 @@ import (
 // Adapter implements ports.AccessibilityPort by wrapping the AXClient.
 // It converts between domain models and infrastructure types.
 type Adapter struct {
-	// Logger for adapter.
-	Logger          *zap.Logger
+	// logger for adapter.
+	logger          *zap.Logger
 	client          AXClient
 	excludedBundles map[string]bool
-	// ClickableRoles is the list of clickable roles.
-	ClickableRoles []string
+	// clickableRoles is the list of clickable roles.
+	clickableRoles []string
 }
 
 // NewAdapter creates a new accessibility adapter.
@@ -37,11 +37,23 @@ func NewAdapter(
 	}
 
 	return &Adapter{
-		Logger:          logger,
+		logger:          logger,
 		client:          client,
 		excludedBundles: excludedMap,
-		ClickableRoles:  clickableRoles,
+		clickableRoles:  clickableRoles,
 	}
+}
+
+// GetLogger returns the logger for the adapter.
+// It is used for testing mainly.
+func (a *Adapter) GetLogger() *zap.Logger {
+	return a.logger
+}
+
+// GetClickableRoles returns the list of clickable roles.
+// It is used for testing mainly.
+func (a *Adapter) GetClickableRoles() []string {
+	return a.clickableRoles
 }
 
 // GetClickableElements retrieves all clickable UI elements matching the filter.
@@ -56,7 +68,7 @@ func (a *Adapter) GetClickableElements(
 	default:
 	}
 
-	a.Logger.Debug("Getting clickable elements", zap.Any("filter", filter))
+	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))
 
 	// Get frontmost frontmostWindow
 	frontmostWindow, frontmostWindowErr := a.client.GetFrontmostWindow()
@@ -78,7 +90,7 @@ func (a *Adapter) GetClickableElements(
 		)
 	}
 
-	a.Logger.Debug("Found clickable nodes", zap.Int("count", len(clickableNodes)))
+	a.logger.Debug("Found clickable nodes", zap.Int("count", len(clickableNodes)))
 
 	// Convert to domain elements
 	elements := make([]*element.Element, 0, len(clickableNodes))
@@ -98,7 +110,7 @@ func (a *Adapter) GetClickableElements(
 
 		elem, err := a.convertToDomainElement(node)
 		if err != nil {
-			a.Logger.Warn("Failed to convert element", zap.Error(err))
+			a.logger.Warn("Failed to convert element", zap.Error(err))
 
 			continue
 		}
@@ -109,12 +121,12 @@ func (a *Adapter) GetClickableElements(
 		}
 	}
 
-	a.Logger.Info("Converted frontmost window elements", zap.Int("count", len(elements)))
+	a.logger.Info("Converted frontmost window elements", zap.Int("count", len(elements)))
 
 	// Add supplementary elements based on filter
 	elements = a.addSupplementaryElements(ctx, elements, filter)
 
-	a.Logger.Info("Total elements after supplementary collection", zap.Int("count", len(elements)))
+	a.logger.Info("Total elements after supplementary collection", zap.Int("count", len(elements)))
 
 	return elements, nil
 }
@@ -132,7 +144,7 @@ func (a *Adapter) PerformAction(
 	default:
 	}
 
-	a.Logger.Info("Performing action",
+	a.logger.Info("Performing action",
 		zap.String("action", actionType.String()),
 		zap.String("element_id", string(element.ID())))
 
@@ -165,7 +177,7 @@ func (a *Adapter) PerformActionAtPoint(
 	default:
 	}
 
-	a.Logger.Info("Performing action at point",
+	a.logger.Info("Performing action at point",
 		zap.String("action", actionType.String()),
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y))
@@ -189,7 +201,7 @@ func (a *Adapter) PerformActionAtPoint(
 
 // Scroll performs a scroll action at the current cursor position.
 func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
-	a.Logger.Debug("Performing scroll",
+	a.logger.Debug("Performing scroll",
 		zap.Int("deltaX", deltaX),
 		zap.Int("deltaY", deltaY))
 
@@ -198,14 +210,14 @@ func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
 		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
 	}
 
-	a.Logger.Debug("Scroll completed")
+	a.logger.Debug("Scroll completed")
 
 	return nil
 }
 
 // MoveCursorToPoint moves the mouse cursor to the specified point.
 func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point) error {
-	a.Logger.Debug("Moving cursor to point",
+	a.logger.Debug("Moving cursor to point",
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y))
 
@@ -217,7 +229,7 @@ func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point) error 
 // GetCursorPosition returns the current cursor position.
 func (a *Adapter) GetCursorPosition(_ context.Context) (image.Point, error) {
 	pos := a.client.GetCursorPosition()
-	a.Logger.Debug("Got cursor position",
+	a.logger.Debug("Got cursor position",
 		zap.Int("x", pos.X),
 		zap.Int("y", pos.Y))
 
@@ -292,14 +304,14 @@ func (a *Adapter) Health(ctx context.Context) error {
 
 // UpdateClickableRoles updates the list of clickable roles.
 func (a *Adapter) UpdateClickableRoles(roles []string) {
-	a.Logger.Info("Updating clickable roles", zap.Int("count", len(roles)))
-	a.ClickableRoles = roles
+	a.logger.Info("Updating clickable roles", zap.Int("count", len(roles)))
+	a.clickableRoles = roles
 	a.client.SetClickableRoles(roles)
 }
 
 // UpdateExcludedBundles updates the list of excluded bundle IDs.
 func (a *Adapter) UpdateExcludedBundles(bundles []string) {
-	a.Logger.Info("Updating excluded bundles", zap.Int("count", len(bundles)))
+	a.logger.Info("Updating excluded bundles", zap.Int("count", len(bundles)))
 
 	a.excludedBundles = make(map[string]bool, len(bundles))
 	for _, bundle := range bundles {

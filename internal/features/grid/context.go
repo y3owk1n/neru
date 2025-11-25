@@ -8,8 +8,8 @@ import (
 type Context struct {
 	GridInstance  **domainGrid.Grid
 	GridOverlay   **Overlay
-	InActionMode  bool
-	PendingAction *string
+	inActionMode  bool
+	pendingAction *string
 }
 
 // SetGridInstance sets the grid instance.
@@ -44,28 +44,28 @@ func (c *Context) GetGridOverlay() **Overlay {
 
 // SetInActionMode sets whether grid mode is in action mode.
 func (c *Context) SetInActionMode(inActionMode bool) {
-	c.InActionMode = inActionMode
+	c.inActionMode = inActionMode
 }
 
 // GetInActionMode returns whether grid mode is in action mode.
 func (c *Context) GetInActionMode() bool {
-	return c.InActionMode
+	return c.inActionMode
 }
 
 // SetPendingAction sets the action to execute when grid selection is complete.
 func (c *Context) SetPendingAction(action *string) {
-	c.PendingAction = action
+	c.pendingAction = action
 }
 
 // GetPendingAction returns the pending action to execute.
 func (c *Context) GetPendingAction() *string {
-	return c.PendingAction
+	return c.pendingAction
 }
 
 // Reset resets the grid context to its initial state.
 func (c *Context) Reset() {
 	c.GridInstance = nil
 	c.GridOverlay = nil
-	c.InActionMode = false
-	c.PendingAction = nil
+	c.inActionMode = false
+	c.pendingAction = nil
 }

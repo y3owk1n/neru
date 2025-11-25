@@ -63,7 +63,7 @@ func TestInitializeLogger(t *testing.T) {
 			bridge.InitializeLogger(testCase.logger)
 
 			// Verify logger was set
-			if testCase.logger != nil && bridge.BridgeLogger == nil {
+			if testCase.logger != nil && bridge.GetBridgeLogger() == nil {
 				t.Error("Expected logger to be set")
 			}
 		})
@@ -73,7 +73,7 @@ func TestInitializeLogger(t *testing.T) {
 func TestSetAppWatcher(t *testing.T) {
 	tests := []struct {
 		name    string
-		watcher bridge.AppWatcherInterface
+		watcher bridge.AppWatcher
 	}{
 		{
 			name:    "set mock watcher",
@@ -94,7 +94,7 @@ func TestSetAppWatcher(t *testing.T) {
 			bridge.SetAppWatcher(testCase.watcher)
 
 			// Verify watcher was set
-			if testCase.watcher != nil && bridge.AppWatcher == nil {
+			if testCase.watcher != nil && bridge.GetAppWatcher() == nil {
 				t.Error("Expected watcher to be set")
 			}
 		})

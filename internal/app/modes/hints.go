@@ -117,7 +117,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	hintCollection := domainHint.NewCollection(domainHints)
 
 	// Initialize domain manager with overlay update callback
-	if h.Hints.Context.Manager == nil {
+	if h.Hints.Context.GetManager() == nil {
 		manager := domainHint.NewManager(h.Logger)
 		// Set callback to update overlay when hints are filtered
 		manager.SetUpdateCallback(func(filteredHints []*domainHint.Interface) {
@@ -144,8 +144,8 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	}
 
 	// Initialize domain router
-	if h.Hints.Context.Router == nil {
-		h.Hints.Context.SetRouter(domainHint.NewRouter(h.Hints.Context.Manager, h.Logger))
+	if h.Hints.Context.GetRouter() == nil {
+		h.Hints.Context.SetRouter(domainHint.NewRouter(h.Hints.Context.GetManager(), h.Logger))
 	}
 
 	// Set hints in context (this also updates the manager)

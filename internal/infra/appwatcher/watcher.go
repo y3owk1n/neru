@@ -31,7 +31,7 @@ func NewWatcher(logger *zap.Logger) *Watcher {
 		logger: logger,
 	}
 
-	bridge.SetAppWatcher(bridge.AppWatcherInterface(watcher))
+	bridge.SetAppWatcher(bridge.AppWatcher(watcher))
 
 	return watcher
 }

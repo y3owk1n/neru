@@ -177,7 +177,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 			// Move mouse to center of cell before showing subgrid
 			ctx := context.Background()
 
-			moveCursorErr := h.ActionService.MoveCursorToPoint(ctx, cell.Center)
+			moveCursorErr := h.ActionService.MoveCursorToPoint(ctx, cell.GetCenter())
 			if moveCursorErr != nil {
 				h.Logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
 			}
