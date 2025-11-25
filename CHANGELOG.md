@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.2](https://github.com/y3owk1n/neru/compare/v1.10.1...v1.10.2) (2025-11-25)
+
+
+### Bug Fixes
+
+* **lifecycle:** ensure `handleScreenParametersChange` will refresh overlays including state and style ([#186](https://github.com/y3owk1n/neru/issues/186)) ([883a13a](https://github.com/y3owk1n/neru/commit/883a13a4294a878251d57a528f34f91e72183e5c))
+* **logger:** remove noises that doesn't bring value for debugging ([#188](https://github.com/y3owk1n/neru/issues/188)) ([c119abf](https://github.com/y3owk1n/neru/commit/c119abfb5ff6fca588398cafb40de8429a96a940))
+
 ## [1.10.1](https://github.com/y3owk1n/neru/compare/v1.10.0...v1.10.1) (2025-11-24)
 
 
