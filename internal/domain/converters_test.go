@@ -1,40 +1,43 @@
-package domain
+package domain_test
 
 import (
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/app"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 func TestGetModeString(t *testing.T) {
 	tests := []struct {
 		name string
-		mode Mode
+		mode app.Mode
 		want string
 	}{
 		{
 			name: "idle mode",
-			mode: ModeIdle,
+			mode: app.ModeIdle,
 			want: "idle",
 		},
 		{
 			name: "hints mode",
-			mode: ModeHints,
+			mode: app.ModeHints,
 			want: "hints",
 		},
 		{
 			name: "grid mode",
-			mode: ModeGrid,
+			mode: app.ModeGrid,
 			want: "grid",
 		},
 		{
 			name: "unknown mode",
-			mode: Mode(999),
-			want: UnknownMode,
+			mode: app.Mode(999),
+			want: domain.UnknownMode,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GetModeString(tt.mode)
+			got := domain.GetModeString(tt.mode)
 			if got != tt.want {
 				t.Errorf("GetModeString(%v) = %q, want %q", tt.mode, got, tt.want)
 			}
@@ -45,54 +48,54 @@ func TestGetModeString(t *testing.T) {
 func TestGetActionString(t *testing.T) {
 	tests := []struct {
 		name   string
-		action Action
+		action domain.Action
 		want   string
 	}{
 		{
 			name:   "left click",
-			action: ActionLeftClick,
+			action: domain.ActionLeftClick,
 			want:   "left_click",
 		},
 		{
 			name:   "right click",
-			action: ActionRightClick,
+			action: domain.ActionRightClick,
 			want:   "right_click",
 		},
 		{
 			name:   "mouse up",
-			action: ActionMouseUp,
+			action: domain.ActionMouseUp,
 			want:   "mouse_up",
 		},
 		{
 			name:   "mouse down",
-			action: ActionMouseDown,
+			action: domain.ActionMouseDown,
 			want:   "mouse_down",
 		},
 		{
 			name:   "middle click",
-			action: ActionMiddleClick,
+			action: domain.ActionMiddleClick,
 			want:   "middle_click",
 		},
 		{
 			name:   "move mouse",
-			action: ActionMoveMouse,
+			action: domain.ActionMoveMouse,
 			want:   "move_mouse",
 		},
 		{
 			name:   "scroll",
-			action: ActionScroll,
+			action: domain.ActionScroll,
 			want:   "scroll",
 		},
 		{
 			name:   "unknown action",
-			action: Action(999),
-			want:   UnknownAction,
+			action: domain.Action(999),
+			want:   domain.UnknownAction,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GetActionString(tt.action)
+			got := domain.GetActionString(tt.action)
 			if got != tt.want {
 				t.Errorf("GetActionString(%v) = %q, want %q", tt.action, got, tt.want)
 			}
@@ -104,74 +107,74 @@ func TestGetActionFromString(t *testing.T) {
 	tests := []struct {
 		name       string
 		actionStr  string
-		wantAction Action
+		wantAction domain.Action
 		wantOk     bool
 	}{
 		{
 			name:       "left_click",
 			actionStr:  "left_click",
-			wantAction: ActionLeftClick,
+			wantAction: domain.ActionLeftClick,
 			wantOk:     true,
 		},
 		{
 			name:       "right_click",
 			actionStr:  "right_click",
-			wantAction: ActionRightClick,
+			wantAction: domain.ActionRightClick,
 			wantOk:     true,
 		},
 		{
 			name:       "mouse_up",
 			actionStr:  "mouse_up",
-			wantAction: ActionMouseUp,
+			wantAction: domain.ActionMouseUp,
 			wantOk:     true,
 		},
 		{
 			name:       "mouse_down",
 			actionStr:  "mouse_down",
-			wantAction: ActionMouseDown,
+			wantAction: domain.ActionMouseDown,
 			wantOk:     true,
 		},
 		{
 			name:       "middle_click",
 			actionStr:  "middle_click",
-			wantAction: ActionMiddleClick,
+			wantAction: domain.ActionMiddleClick,
 			wantOk:     true,
 		},
 		{
 			name:       "move_mouse",
 			actionStr:  "move_mouse",
-			wantAction: ActionMoveMouse,
+			wantAction: domain.ActionMoveMouse,
 			wantOk:     true,
 		},
 		{
 			name:       "scroll",
 			actionStr:  "scroll",
-			wantAction: ActionScroll,
+			wantAction: domain.ActionScroll,
 			wantOk:     true,
 		},
 		{
 			name:       "unknown action",
 			actionStr:  "unknown_action",
-			wantAction: ActionMoveMouse, // Default fallback
+			wantAction: domain.ActionMoveMouse, // Default fallback
 			wantOk:     false,
 		},
 		{
 			name:       "empty string",
 			actionStr:  "",
-			wantAction: ActionMoveMouse, // Default fallback
+			wantAction: domain.ActionMoveMouse, // Default fallback
 			wantOk:     false,
 		},
 		{
 			name:       "invalid action",
 			actionStr:  "invalid",
-			wantAction: ActionMoveMouse, // Default fallback
+			wantAction: domain.ActionMoveMouse, // Default fallback
 			wantOk:     false,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			gotAction, gotOk := GetActionFromString(test.actionStr)
+			gotAction, gotOk := domain.GetActionFromString(test.actionStr)
 			if gotAction != test.wantAction {
 				t.Errorf(
 					"GetActionFromString(%q) action = %v, want %v",
@@ -196,21 +199,21 @@ func TestGetActionFromString(t *testing.T) {
 // TestActionStringRoundTrip verifies that converting an Action to string and back
 // returns the same Action.
 func TestActionStringRoundTrip(t *testing.T) {
-	actions := []Action{
-		ActionLeftClick,
-		ActionRightClick,
-		ActionMouseUp,
-		ActionMouseDown,
-		ActionMiddleClick,
-		ActionMoveMouse,
-		ActionScroll,
+	actions := []domain.Action{
+		domain.ActionLeftClick,
+		domain.ActionRightClick,
+		domain.ActionMouseUp,
+		domain.ActionMouseDown,
+		domain.ActionMiddleClick,
+		domain.ActionMoveMouse,
+		domain.ActionScroll,
 	}
 
 	for _, action := range actions {
-		t.Run(GetActionString(action), func(t *testing.T) {
-			actionString := GetActionString(action)
+		t.Run(domain.GetActionString(action), func(t *testing.T) {
+			actionString := domain.GetActionString(action)
 
-			gotAction, ok := GetActionFromString(actionString)
+			gotAction, ok := domain.GetActionFromString(actionString)
 			if !ok {
 				t.Errorf(
 					"Round trip failed: GetActionFromString(%q) returned ok=false",
@@ -228,25 +231,25 @@ func TestActionStringRoundTrip(t *testing.T) {
 // Benchmark tests.
 func BenchmarkGetModeString(b *testing.B) {
 	for b.Loop() {
-		_ = GetModeString(ModeHints)
+		_ = domain.GetModeString(domain.ModeHints)
 	}
 }
 
 func BenchmarkGetActionString(b *testing.B) {
 	for b.Loop() {
-		_ = GetActionString(ActionLeftClick)
+		_ = domain.GetActionString(domain.ActionLeftClick)
 	}
 }
 
 func BenchmarkGetActionFromString(b *testing.B) {
 	for b.Loop() {
-		_, _ = GetActionFromString("left_click")
+		_, _ = domain.GetActionFromString("left_click")
 	}
 }
 
 func BenchmarkActionStringRoundTrip(b *testing.B) {
 	for b.Loop() {
-		str := GetActionString(ActionLeftClick)
-		_, _ = GetActionFromString(str)
+		str := domain.GetActionString(domain.ActionLeftClick)
+		_, _ = domain.GetActionFromString(str)
 	}
 }

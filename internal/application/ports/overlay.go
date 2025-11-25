@@ -13,7 +13,7 @@ type OverlayPort interface {
 	HealthCheck
 
 	// ShowHints displays hint labels on the screen.
-	ShowHints(ctx context.Context, hints []*hint.Hint) error
+	ShowHints(ctx context.Context, hints []*hint.Interface) error
 
 	// ShowGrid displays the grid overlay.
 	ShowGrid(ctx context.Context, rows, cols int) error

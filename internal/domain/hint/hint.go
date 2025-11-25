@@ -8,9 +8,9 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/errors"
 )
 
-// Hint represents a labeled UI element for keyboard-driven navigation.
+// Interface represents a labeled UI element for keyboard-driven navigation.
 // Hints are immutable after creation.
-type Hint struct {
+type Interface struct {
 	label         string
 	element       *element.Element
 	position      image.Point
@@ -18,7 +18,7 @@ type Hint struct {
 }
 
 // NewHint creates a new hint with validation.
-func NewHint(label string, element *element.Element, position image.Point) (*Hint, error) {
+func NewHint(label string, element *element.Element, position image.Point) (*Interface, error) {
 	if label == "" {
 		return nil, derrors.New(derrors.CodeInvalidInput, "hint label cannot be empty")
 	}
@@ -27,7 +27,7 @@ func NewHint(label string, element *element.Element, position image.Point) (*Hin
 		return nil, derrors.New(derrors.CodeInvalidInput, "hint element cannot be nil")
 	}
 
-	return &Hint{
+	return &Interface{
 		label:    label,
 		element:  element,
 		position: position,
@@ -35,28 +35,28 @@ func NewHint(label string, element *element.Element, position image.Point) (*Hin
 }
 
 // Label returns the hint label.
-func (h *Hint) Label() string {
+func (h *Interface) Label() string {
 	return h.label
 }
 
 // Element returns the associated element.
-func (h *Hint) Element() *element.Element {
+func (h *Interface) Element() *element.Element {
 	return h.element
 }
 
 // Position returns the hint display position.
-func (h *Hint) Position() image.Point {
+func (h *Interface) Position() image.Point {
 	return h.position
 }
 
 // MatchedPrefix returns the currently matched prefix.
-func (h *Hint) MatchedPrefix() string {
+func (h *Interface) MatchedPrefix() string {
 	return h.matchedPrefix
 }
 
 // WithMatchedPrefix returns a new hint with the matched prefix set.
-func (h *Hint) WithMatchedPrefix(prefix string) *Hint {
-	return &Hint{
+func (h *Interface) WithMatchedPrefix(prefix string) *Interface {
+	return &Interface{
 		label:         h.label,
 		element:       h.element,
 		position:      h.position,
@@ -65,22 +65,22 @@ func (h *Hint) WithMatchedPrefix(prefix string) *Hint {
 }
 
 // Bounds returns the bounding rectangle for the hint.
-func (h *Hint) Bounds() image.Rectangle {
+func (h *Interface) Bounds() image.Rectangle {
 	return h.element.Bounds()
 }
 
 // IsVisible checks if the hint is visible within the given screen bounds.
-func (h *Hint) IsVisible(screenBounds image.Rectangle) bool {
+func (h *Interface) IsVisible(screenBounds image.Rectangle) bool {
 	return h.element.IsVisible(screenBounds)
 }
 
 // MatchesLabel checks if the hint label matches the given input.
-func (h *Hint) MatchesLabel(input string) bool {
+func (h *Interface) MatchesLabel(input string) bool {
 	return h.label == input
 }
 
 // HasPrefix checks if the hint label starts with the given prefix.
-func (h *Hint) HasPrefix(prefix string) bool {
+func (h *Interface) HasPrefix(prefix string) bool {
 	if len(prefix) > len(h.label) {
 		return false
 	}
@@ -91,7 +91,7 @@ func (h *Hint) HasPrefix(prefix string) bool {
 // Generator generates hint labels for UI elements.
 type Generator interface {
 	// Generate creates hints for the given elements.
-	Generate(ctx context.Context, elements []*element.Element) ([]*Hint, error)
+	Generate(ctx context.Context, elements []*element.Element) ([]*Interface, error)
 
 	// MaxHints returns the maximum number of hints this generator can create.
 	MaxHints() int
@@ -102,19 +102,19 @@ type Generator interface {
 
 // Collection manages a collection of hints with efficient lookup.
 type Collection struct {
-	hints   []*Hint
-	byLabel map[string]*Hint
-	prefix1 map[byte][]*Hint
-	prefix2 map[string][]*Hint
+	hints   []*Interface
+	byLabel map[string]*Interface
+	prefix1 map[byte][]*Interface
+	prefix2 map[string][]*Interface
 }
 
 // NewCollection creates a new hint collection with indexed lookups.
-func NewCollection(hints []*Hint) *Collection {
+func NewCollection(hints []*Interface) *Collection {
 	collector := &Collection{
 		hints:   hints,
-		byLabel: make(map[string]*Hint, len(hints)),
-		prefix1: make(map[byte][]*Hint),
-		prefix2: make(map[string][]*Hint),
+		byLabel: make(map[string]*Interface, len(hints)),
+		prefix1: make(map[byte][]*Interface),
+		prefix2: make(map[string][]*Interface),
 	}
 
 	// Build indexes
@@ -137,17 +137,17 @@ func NewCollection(hints []*Hint) *Collection {
 }
 
 // All returns all hints in the collection.
-func (c *Collection) All() []*Hint {
+func (c *Collection) All() []*Interface {
 	return c.hints
 }
 
 // FindByLabel finds a hint by its exact label.
-func (c *Collection) FindByLabel(label string) *Hint {
+func (c *Collection) FindByLabel(label string) *Interface {
 	return c.byLabel[label]
 }
 
 // FilterByPrefix returns all hints that start with the given prefix.
-func (c *Collection) FilterByPrefix(prefix string) []*Hint {
+func (c *Collection) FilterByPrefix(prefix string) []*Interface {
 	if prefix == "" {
 		return c.hints
 	}
@@ -163,7 +163,7 @@ func (c *Collection) FilterByPrefix(prefix string) []*Hint {
 	}
 
 	// Slow path for longer prefixes
-	var filteredHints []*Hint
+	var filteredHints []*Interface
 
 	for _, hint := range c.hints {
 		if hint.HasPrefix(prefix) {

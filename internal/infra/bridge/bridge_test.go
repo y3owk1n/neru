@@ -1,9 +1,10 @@
-package bridge
+package bridge_test
 
 import (
 	"testing"
 	"unsafe"
 
+	"github.com/y3owk1n/neru/internal/infra/bridge"
 	"go.uber.org/zap"
 )
 
@@ -59,10 +60,10 @@ func TestInitializeLogger(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Should not panic
-			InitializeLogger(test.logger)
+			bridge.InitializeLogger(test.logger)
 
 			// Verify logger was set
-			if test.logger != nil && bridgeLogger == nil {
+			if test.logger != nil && bridge.BridgeLogger == nil {
 				t.Error("Expected logger to be set")
 			}
 		})
@@ -72,7 +73,7 @@ func TestInitializeLogger(t *testing.T) {
 func TestSetAppWatcher(t *testing.T) {
 	tests := []struct {
 		name    string
-		watcher AppWatcher
+		watcher bridge.AppWatcherInterface
 	}{
 		{
 			name:    "set mock watcher",
@@ -87,13 +88,13 @@ func TestSetAppWatcher(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Initialize logger for testing
-			InitializeLogger(zap.NewNop())
+			bridge.InitializeLogger(zap.NewNop())
 
 			// Should not panic
-			SetAppWatcher(test.watcher)
+			bridge.SetAppWatcher(test.watcher)
 
 			// Verify watcher was set
-			if test.watcher != nil && appWatcher == nil {
+			if test.watcher != nil && bridge.AppWatcher == nil {
 				t.Error("Expected watcher to be set")
 			}
 		})
@@ -102,14 +103,14 @@ func TestSetAppWatcher(t *testing.T) {
 
 func TestCallbacks(t *testing.T) {
 	// Initialize logger
-	InitializeLogger(zap.NewNop())
+	bridge.InitializeLogger(zap.NewNop())
 
 	// Setup mock watcher
 	mock := &mockAppWatcher{}
-	SetAppWatcher(mock)
+	bridge.SetAppWatcher(mock)
 
 	t.Run("HandleAppLaunch", func(t *testing.T) {
-		HandleAppLaunch("TestApp", "com.test.app")
+		bridge.HandleAppLaunch("TestApp", "com.test.app")
 
 		if len(mock.launchCalls) != 1 {
 			t.Errorf("Expected 1 launch call, got %d", len(mock.launchCalls))
@@ -125,7 +126,7 @@ func TestCallbacks(t *testing.T) {
 	})
 
 	t.Run("HandleAppTerminate", func(t *testing.T) {
-		HandleAppTerminate("TestApp", "com.test.app")
+		bridge.HandleAppTerminate("TestApp", "com.test.app")
 
 		if len(mock.terminateCalls) != 1 {
 			t.Errorf("Expected 1 terminate call, got %d", len(mock.terminateCalls))
@@ -133,7 +134,7 @@ func TestCallbacks(t *testing.T) {
 	})
 
 	t.Run("HandleAppActivate", func(t *testing.T) {
-		HandleAppActivate("TestApp", "com.test.app")
+		bridge.HandleAppActivate("TestApp", "com.test.app")
 
 		if len(mock.activateCalls) != 1 {
 			t.Errorf("Expected 1 activate call, got %d", len(mock.activateCalls))
@@ -141,7 +142,7 @@ func TestCallbacks(t *testing.T) {
 	})
 
 	t.Run("HandleAppDeactivate", func(t *testing.T) {
-		HandleAppDeactivate("TestApp", "com.test.app")
+		bridge.HandleAppDeactivate("TestApp", "com.test.app")
 
 		if len(mock.deactivateCalls) != 1 {
 			t.Errorf("Expected 1 deactivate call, got %d", len(mock.deactivateCalls))
@@ -149,7 +150,7 @@ func TestCallbacks(t *testing.T) {
 	})
 
 	t.Run("HandleScreenParametersChanged", func(_ *testing.T) {
-		HandleScreenParametersChanged()
+		bridge.HandleScreenParametersChanged()
 		// Since it runs in a goroutine, we need to wait a bit
 		// But for unit test reliability, we might just check if it didn't panic
 		// or use a channel in mock to sync.
@@ -173,9 +174,9 @@ func TestHasClickAction(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Initialize logger for testing
-			InitializeLogger(zap.NewNop())
+			bridge.InitializeLogger(zap.NewNop())
 
-			got := HasClickAction(test.element)
+			got := bridge.HasClickAction(test.element)
 			if got != test.want {
 				t.Errorf("HasClickAction() = %v, want %v", got, test.want)
 			}
@@ -185,9 +186,9 @@ func TestHasClickAction(t *testing.T) {
 
 func TestGetActiveScreenBounds(t *testing.T) {
 	// Initialize logger for testing
-	InitializeLogger(zap.NewNop())
+	bridge.InitializeLogger(zap.NewNop())
 
-	bounds := GetActiveScreenBounds()
+	bounds := bridge.GetActiveScreenBounds()
 
 	// Verify bounds are valid (non-zero)
 	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
@@ -234,7 +235,7 @@ func TestShowConfigValidationError(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Initialize logger for testing
-			InitializeLogger(zap.NewNop())
+			bridge.InitializeLogger(zap.NewNop())
 
 			// Note: This will actually show a dialog in test environment
 			// In a real test environment, we'd mock the C function
@@ -273,7 +274,7 @@ func TestSetApplicationAttribute(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Initialize logger for testing
-			InitializeLogger(zap.NewNop())
+			bridge.InitializeLogger(zap.NewNop())
 
 			// Note: This requires actual accessibility permissions
 			// In a real test environment, we'd mock the C function
@@ -288,17 +289,17 @@ func TestSetApplicationAttribute(t *testing.T) {
 
 // Benchmark tests.
 func BenchmarkGetActiveScreenBounds(b *testing.B) {
-	InitializeLogger(zap.NewNop())
+	bridge.InitializeLogger(zap.NewNop())
 
 	for b.Loop() {
-		_ = GetActiveScreenBounds()
+		_ = bridge.GetActiveScreenBounds()
 	}
 }
 
 func BenchmarkHasClickAction(b *testing.B) {
-	InitializeLogger(zap.NewNop())
+	bridge.InitializeLogger(zap.NewNop())
 
 	for b.Loop() {
-		_ = HasClickAction(nil)
+		_ = bridge.HasClickAction(nil)
 	}
 }

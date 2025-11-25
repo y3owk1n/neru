@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	globalLogger *zap.Logger
+	// GlobalLogger is the global logger instance.
+	GlobalLogger *zap.Logger
 	logFile      *lumberjack.Logger
 	logFileMu    sync.Mutex
 )
@@ -133,7 +134,7 @@ func Init(
 	core := zapcore.NewTee(cores...)
 
 	// Create logger
-	globalLogger = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+	GlobalLogger = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 
 	return nil
 }
@@ -141,19 +142,19 @@ func Init(
 // Get retrieves the global logger instance.
 // If the logger hasn't been initialized, it returns a development logger as a fallback.
 func Get() *zap.Logger {
-	if globalLogger == nil {
+	if GlobalLogger == nil {
 		// Fallback to development logger
-		globalLogger, _ = zap.NewDevelopment()
+		GlobalLogger, _ = zap.NewDevelopment()
 	}
 
-	return globalLogger
+	return GlobalLogger
 }
 
 // Sync flushes any buffered log entries to their outputs.
 // This ensures that all pending log messages are written before the application exits.
 func Sync() error {
-	if globalLogger != nil {
-		err := globalLogger.Sync()
+	if GlobalLogger != nil {
+		err := GlobalLogger.Sync()
 		if err != nil {
 			return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to sync logger")
 		}
@@ -168,8 +169,8 @@ func Close() error {
 	logFileMu.Lock()
 	defer logFileMu.Unlock()
 
-	if globalLogger != nil {
-		err := globalLogger.Sync()
+	if GlobalLogger != nil {
+		err := GlobalLogger.Sync()
 		if err != nil {
 			// Ignore common sync errors that occur during shutdown
 			if !strings.Contains(err.Error(), "invalid argument") &&
@@ -178,7 +179,7 @@ func Close() error {
 			}
 		}
 
-		globalLogger = nil
+		GlobalLogger = nil
 	}
 
 	if logFile != nil {

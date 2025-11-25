@@ -1,10 +1,11 @@
-package logger
+package logger_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
+	plogger "github.com/y3owk1n/neru/internal/infra/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -73,7 +74,7 @@ func TestInit(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			initErr := Init(
+			initErr := plogger.Init(
 				test.logLevel,
 				test.logFilePath,
 				test.structured,
@@ -88,29 +89,29 @@ func TestInit(t *testing.T) {
 			}
 
 			// Verify logger was initialized
-			logger := Get()
+			logger := plogger.Get()
 			if logger == nil {
 				t.Error("Get() returned nil after Init()")
 			}
 
 			// Clean up
-			_ = Close()
+			_ = plogger.Close()
 		})
 	}
 }
 
 func TestGet(t *testing.T) {
 	// Reset global logger
-	globalLogger = nil
+	plogger.GlobalLogger = nil
 
 	// Get should return a logger even if not initialized
-	logger := Get()
+	logger := plogger.Get()
 	if logger == nil {
 		t.Error("Get() returned nil")
 	}
 
 	// Clean up
-	_ = Close()
+	_ = plogger.Close()
 }
 
 func TestLoggingFunctions(t *testing.T) {
@@ -118,12 +119,14 @@ func TestLoggingFunctions(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := Init("debug", logPath, false, false, 10, 3, 7)
+	initErr := plogger.Init("debug", logPath, false, false, 10, 3, 7)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
 
-	defer Close() //nolint:errcheck
+	defer func() {
+		_ = plogger.Close()
+	}()
 
 	tests := []struct {
 		name string
@@ -132,25 +135,25 @@ func TestLoggingFunctions(t *testing.T) {
 		{
 			name: "Debug",
 			fn: func() {
-				Debug("test debug message", zap.String("key", "value"))
+				plogger.Debug("test debug message", zap.String("key", "value"))
 			},
 		},
 		{
 			name: "Info",
 			fn: func() {
-				Info("test info message", zap.Int("count", 42))
+				plogger.Info("test info message", zap.Int("count", 42))
 			},
 		},
 		{
 			name: "Warn",
 			fn: func() {
-				Warn("test warn message", zap.Bool("flag", true))
+				plogger.Warn("test warn message", zap.Bool("flag", true))
 			},
 		},
 		{
 			name: "Error",
 			fn: func() {
-				Error("test error message", zap.Error(os.ErrNotExist))
+				plogger.Error("test error message", zap.Error(os.ErrNotExist))
 			},
 		},
 		// Note: Fatal test is skipped as it would exit the test process
@@ -172,15 +175,17 @@ func TestLoggingFunctions(t *testing.T) {
 
 func TestWith(t *testing.T) {
 	// Initialize logger
-	err := Init("info", "", false, true, 10, 3, 7)
+	err := plogger.Init("info", "", false, true, 10, 3, 7)
 	if err != nil {
 		t.Fatalf("Init() failed: %v", err)
 	}
 
-	defer Close() //nolint:errcheck
+	defer func() {
+		_ = plogger.Close()
+	}()
 
 	// Create child logger
-	childLogger := With(zap.String("component", "test"))
+	childLogger := plogger.With(zap.String("component", "test"))
 	if childLogger == nil {
 		t.Error("With() returned nil")
 	}
@@ -194,19 +199,19 @@ func TestSync(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := Init("info", logPath, false, false, 10, 3, 7)
+	initErr := plogger.Init("info", logPath, false, false, 10, 3, 7)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
 
-	defer Close() //nolint:errcheck
+	defer plogger.Close() //nolint:errcheck
 
 	// Write some logs
-	Info("test message 1")
-	Info("test message 2")
+	plogger.Info("test message 1")
+	plogger.Info("test message 2")
 
 	// Sync may error on stdout/stderr, which is expected
-	_ = Sync()
+	_ = plogger.Sync()
 }
 
 func TestClose(t *testing.T) {
@@ -214,16 +219,16 @@ func TestClose(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := Init("info", logPath, false, false, 10, 3, 7)
+	initErr := plogger.Init("info", logPath, false, false, 10, 3, 7)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
 
 	// Write some logs
-	Info("test message")
+	plogger.Info("test message")
 
 	// Close may error on stdout/stderr sync, which is expected
-	_ = Close()
+	_ = plogger.Close()
 
 	// Note: globalLogger may not be nil if sync failed
 	// This is acceptable behavior
@@ -247,15 +252,17 @@ func TestLogLevels(t *testing.T) {
 			tempDir := t.TempDir()
 			logPath := filepath.Join(tempDir, "test.log")
 
-			initErr := Init(test.logLevel, logPath, false, false, 10, 3, 7)
+			initErr := plogger.Init(test.logLevel, logPath, false, false, 10, 3, 7)
 			if initErr != nil {
 				t.Fatalf("Init() failed: %v", initErr)
 			}
 
-			defer Close() //nolint:errcheck
+			defer func() {
+				_ = plogger.Close()
+			}()
 
 			// Logger should be initialized
-			logger := Get()
+			logger := plogger.Get()
 			if logger == nil {
 				t.Error("Get() returned nil")
 			}
@@ -268,20 +275,22 @@ func TestFileRotation(t *testing.T) {
 	logPath := filepath.Join(tempDir, "test.log")
 
 	// Initialize with small max size for testing
-	initErr := Init("info", logPath, false, false, 1, 2, 1)
+	initErr := plogger.Init("info", logPath, false, false, 1, 2, 1)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
 
-	defer Close() //nolint:errcheck
+	defer func() {
+		_ = plogger.Close()
+	}()
 
 	// Write enough logs to trigger rotation
 	for range 1000 {
-		Info("test message with some content to fill up the log file")
+		plogger.Info("test message with some content to fill up the log file")
 	}
 
 	// Sync to ensure all logs are written
-	_ = Sync()
+	_ = plogger.Sync()
 
 	// Verify log file exists
 	_, initErr = os.Stat(logPath)
@@ -295,12 +304,14 @@ func BenchmarkDebugLogging(b *testing.B) {
 	tempDir := b.TempDir()
 	logPath := filepath.Join(tempDir, "bench.log")
 
-	_ = Init("debug", logPath, false, false, 100, 3, 7)
+	_ = plogger.Init("debug", logPath, false, false, 100, 3, 7)
 
-	defer Close() //nolint:errcheck
+	defer func() {
+		_ = plogger.Close()
+	}()
 
 	for b.Loop() {
-		Debug("benchmark message", zap.String("key", "value"))
+		plogger.Debug("benchmark message", zap.String("key", "value"))
 	}
 }
 
@@ -308,12 +319,12 @@ func BenchmarkInfoLogging(b *testing.B) {
 	tempDir := b.TempDir()
 	logPath := filepath.Join(tempDir, "bench.log")
 
-	_ = Init("info", logPath, false, false, 100, 3, 7)
+	_ = plogger.Init("info", logPath, false, false, 100, 3, 7)
 
-	defer Close() //nolint:errcheck
+	defer plogger.Close() //nolint:errcheck
 
 	for b.Loop() {
-		Info("benchmark message", zap.Int("count", 42))
+		plogger.Info("benchmark message", zap.Int("count", 42))
 	}
 }
 
@@ -321,12 +332,12 @@ func BenchmarkStructuredLogging(b *testing.B) {
 	tempDir := b.TempDir()
 	logPath := filepath.Join(tempDir, "bench.log")
 
-	_ = Init("info", logPath, true, false, 100, 3, 7)
+	_ = plogger.Init("info", logPath, true, false, 100, 3, 7)
 
-	defer Close() //nolint:errcheck
+	defer plogger.Close() //nolint:errcheck
 
 	for b.Loop() {
-		Info("benchmark message",
+		plogger.Info("benchmark message",
 			zap.String("key1", "value1"),
 			zap.Int("key2", 42),
 			zap.Bool("key3", true))

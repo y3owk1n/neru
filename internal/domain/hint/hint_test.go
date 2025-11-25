@@ -198,7 +198,7 @@ func TestAlphabetGenerator_TooManyElements(t *testing.T) {
 func TestNewCollection(t *testing.T) {
 	element, _ := element.NewElement("test", image.Rect(0, 0, 50, 50), element.RoleButton)
 
-	hints := []*hint.Hint{
+	hints := []*hint.Interface{
 		mustNewHint("A", element),
 		mustNewHint("AS", element),
 		mustNewHint("AD", element),
@@ -230,7 +230,7 @@ func TestNewCollection(t *testing.T) {
 func TestCollection_FilterByPrefix(t *testing.T) {
 	element, _ := element.NewElement("test", image.Rect(0, 0, 50, 50), element.RoleButton)
 
-	hints := []*hint.Hint{
+	hints := []*hint.Interface{
 		mustNewHint("AA", element),
 		mustNewHint("AS", element),
 		mustNewHint("AD", element),
@@ -270,46 +270,11 @@ func TestCollection_FilterByPrefix(t *testing.T) {
 }
 
 // Helper function for tests.
-func mustNewHint(label string, elem *element.Element) *hint.Hint {
+func mustNewHint(label string, elem *element.Element) *hint.Interface {
 	hint, hintErr := hint.NewHint(label, elem, image.Point{})
 	if hintErr != nil {
 		panic(hintErr)
 	}
 
 	return hint
-}
-
-func BenchmarkAlphabetGenerator_Generate(b *testing.B) {
-	generator, _ := hint.NewAlphabetGenerator("asdfghjkl")
-
-	elements := make([]*element.Element, 50)
-	for index := range elements {
-		elements[index], _ = element.NewElement(
-			element.ID("elem-"+string(rune('0'+index))),
-			image.Rect(index*10, index*10, index*10+50, index*10+50),
-			element.RoleButton,
-		)
-	}
-
-	context := context.Background()
-
-	for b.Loop() {
-		_, _ = generator.Generate(context, elements)
-	}
-}
-
-func BenchmarkCollection_FilterByPrefix(b *testing.B) {
-	element, _ := element.NewElement("test", image.Rect(0, 0, 50, 50), element.RoleButton)
-
-	hints := make([]*hint.Hint, 100)
-	for index := range hints {
-		label := string(rune('A'+index/26)) + string(rune('A'+index%26))
-		hints[index] = mustNewHint(label, element)
-	}
-
-	collection := hint.NewCollection(hints)
-
-	for b.Loop() {
-		_ = collection.FilterByPrefix("A")
-	}
 }

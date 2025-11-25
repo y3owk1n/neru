@@ -1,18 +1,20 @@
-package errors
+package errors_test
 
 import (
 	"errors"
 	"testing"
+
+	derrors "github.com/y3owk1n/neru/internal/errors"
 )
 
 func TestNew(t *testing.T) {
-	err := New(CodeInvalidInput, "test error")
+	err := derrors.New(derrors.CodeInvalidInput, "test error")
 	if err == nil {
 		t.Fatal("New() returned nil")
 	}
 
-	if err.Code != CodeInvalidInput {
-		t.Errorf("Expected code %v, got %v", CodeInvalidInput, err.Code)
+	if err.Code != derrors.CodeInvalidInput {
+		t.Errorf("Expected code %v, got %v", derrors.CodeInvalidInput, err.Code)
 	}
 
 	if err.Message != "test error" {
@@ -21,13 +23,13 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewf(t *testing.T) {
-	err := Newf(CodeInvalidConfig, "invalid value: %d", 42)
+	err := derrors.Newf(derrors.CodeInvalidConfig, "invalid value: %d", 42)
 	if err == nil {
 		t.Fatal("Newf() returned nil")
 	}
 
-	if err.Code != CodeInvalidConfig {
-		t.Errorf("Expected code %v, got %v", CodeInvalidConfig, err.Code)
+	if err.Code != derrors.CodeInvalidConfig {
+		t.Errorf("Expected code %v, got %v", derrors.CodeInvalidConfig, err.Code)
 	}
 
 	expected := "invalid value: 42"
@@ -39,21 +41,21 @@ func TestNewf(t *testing.T) {
 func TestError_Error(t *testing.T) {
 	tests := []struct {
 		name     string
-		err      *Error
+		err      *derrors.Error
 		expected string
 	}{
 		{
 			name: "error without cause",
-			err: &Error{
-				Code:    CodeElementNotFound,
+			err: &derrors.Error{
+				Code:    derrors.CodeElementNotFound,
 				Message: "element not found",
 			},
 			expected: "[ELEMENT_NOT_FOUND] element not found",
 		},
 		{
 			name: "error with cause",
-			err: &Error{
-				Code:    CodeAccessibilityFailed,
+			err: &derrors.Error{
+				Code:    derrors.CodeAccessibilityFailed,
 				Message: "failed to get element",
 				Cause: errors.New( //nolint:err113 // dynamic errors needed for testing
 					"underlying error",
@@ -75,8 +77,8 @@ func TestError_Error(t *testing.T) {
 
 func TestError_Unwrap(t *testing.T) {
 	cause := errors.New("underlying error") //nolint:err113 // dynamic errors needed for testing
-	err := &Error{
-		Code:    CodeIPCFailed,
+	err := &derrors.Error{
+		Code:    derrors.CodeIPCFailed,
 		Message: "IPC failed",
 		Cause:   cause,
 	}
@@ -87,8 +89,8 @@ func TestError_Unwrap(t *testing.T) {
 	}
 
 	// Test error without cause
-	errNoCause := &Error{
-		Code:    CodeIPCFailed,
+	errNoCause := &derrors.Error{
+		Code:    derrors.CodeIPCFailed,
 		Message: "IPC failed",
 	}
 
@@ -100,7 +102,7 @@ func TestError_Unwrap(t *testing.T) {
 func TestWrap(t *testing.T) {
 	cause := errors.New("underlying error") //nolint:err113 // dynamic errors needed for testing
 
-	err := Wrap(cause, CodeActionFailed, "action failed")
+	err := derrors.Wrap(cause, derrors.CodeActionFailed, "action failed")
 	if err == nil {
 		t.Fatal("Wrap() returned nil")
 	}
@@ -109,19 +111,19 @@ func TestWrap(t *testing.T) {
 		t.Errorf("Wrap() cause = %v, want %v", err.Cause, cause)
 	}
 
-	if err.Code != CodeActionFailed {
-		t.Errorf("Wrap() code = %v, want %v", err.Code, CodeActionFailed)
+	if err.Code != derrors.CodeActionFailed {
+		t.Errorf("Wrap() code = %v, want %v", err.Code, derrors.CodeActionFailed)
 	}
 
 	// Test Wrap with nil error
-	nilErr := Wrap(nil, CodeActionFailed, "action failed")
+	nilErr := derrors.Wrap(nil, derrors.CodeActionFailed, "action failed")
 	if nilErr != nil {
 		t.Error("Wrap() should return nil for nil error")
 	}
 }
 
 func TestError_WithContext(t *testing.T) {
-	err := New(CodeHintGenerationFailed, "hint generation failed")
+	err := derrors.New(derrors.CodeHintGenerationFailed, "hint generation failed")
 
 	errWithContext := err.WithContext("element_id", "test-123")
 
@@ -142,9 +144,9 @@ func TestError_WithContext(t *testing.T) {
 }
 
 func TestError_Is(t *testing.T) {
-	err1 := New(CodeTimeout, "timeout")
-	err2 := New(CodeTimeout, "different message")
-	err3 := New(CodeInternal, "internal error")
+	err1 := derrors.New(derrors.CodeTimeout, "timeout")
+	err2 := derrors.New(derrors.CodeTimeout, "different message")
+	err3 := derrors.New(derrors.CodeInternal, "internal error")
 
 	if !err1.Is(err2) {
 		t.Error("Is() should return true for errors with same code")
@@ -162,24 +164,24 @@ func TestError_Is(t *testing.T) {
 }
 
 func TestErrorCodes(t *testing.T) {
-	codes := []Code{
-		CodeAccessibilityDenied,
-		CodeAccessibilityFailed,
-		CodeElementNotFound,
-		CodeInvalidConfig,
-		CodeInvalidInput,
-		CodeIPCFailed,
-		CodeIPCServerNotRunning,
-		CodeOverlayFailed,
-		CodeHintGenerationFailed,
-		CodeActionFailed,
-		CodeContextCanceled,
-		CodeTimeout,
-		CodeInternal,
+	codes := []derrors.Code{
+		derrors.CodeAccessibilityDenied,
+		derrors.CodeAccessibilityFailed,
+		derrors.CodeElementNotFound,
+		derrors.CodeInvalidConfig,
+		derrors.CodeInvalidInput,
+		derrors.CodeIPCFailed,
+		derrors.CodeIPCServerNotRunning,
+		derrors.CodeOverlayFailed,
+		derrors.CodeHintGenerationFailed,
+		derrors.CodeActionFailed,
+		derrors.CodeContextCanceled,
+		derrors.CodeTimeout,
+		derrors.CodeInternal,
 	}
 
 	// Verify all codes are unique
-	seen := make(map[Code]bool)
+	seen := make(map[derrors.Code]bool)
 	for _, code := range codes {
 		if seen[code] {
 			t.Errorf("Duplicate error code: %v", code)
@@ -197,18 +199,18 @@ func TestErrorCodes(t *testing.T) {
 // Benchmark tests.
 func BenchmarkNew(b *testing.B) {
 	for b.Loop() {
-		_ = New(CodeInvalidInput, "test error")
+		_ = derrors.New(derrors.CodeInvalidInput, "test error")
 	}
 }
 
 func BenchmarkNewf(b *testing.B) {
 	for b.Loop() {
-		_ = Newf(CodeInvalidConfig, "invalid value: %d", 42)
+		_ = derrors.Newf(derrors.CodeInvalidConfig, "invalid value: %d", 42)
 	}
 }
 
 func BenchmarkError_WithContext(b *testing.B) {
-	err := New(CodeActionFailed, "action failed")
+	err := derrors.New(derrors.CodeActionFailed, "action failed")
 
 	for b.Loop() {
 		_ = err.WithContext("key", "value")

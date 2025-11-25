@@ -81,11 +81,11 @@ func New(config *config.Config, configPath string) (*App, error) {
 
 // NewWithDeps creates a new application instance with injected dependencies.
 // This is primarily used for testing.
-func NewWithDeps(config *config.Config, configPath string, deps *deps) (*App, error) {
+func NewWithDeps(config *config.Config, configPath string, deps *Deps) (*App, error) {
 	return newWithDeps(config, configPath, deps)
 }
 
-func newWithDeps(cfg *config.Config, configPath string, deps *deps) (*App, error) {
+func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error) {
 	// Initialize logger
 	logger, loggerErr := initializeLogger(cfg)
 	if loggerErr != nil {

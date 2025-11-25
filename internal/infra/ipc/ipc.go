@@ -294,6 +294,11 @@ func NewClient() *Client {
 	}
 }
 
+// GetSocketPath returns the path to the IPC socket.
+func (c *Client) GetSocketPath() string {
+	return c.socketPath
+}
+
 // Send transmits a command to the IPC server using the default timeout.
 func (c *Client) Send(cmd Command) (Response, error) {
 	return c.SendWithTimeout(cmd, DefaultTimeout)

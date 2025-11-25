@@ -9,7 +9,6 @@ import (
 )
 
 // addSupplementaryElements adds menubar, dock, and notification center elements based on filter.
-// addSupplementaryElements adds menubar, dock, and notification center elements based on filter.
 func (a *Adapter) addSupplementaryElements(
 	context context.Context,
 	elements []*element.Element,
@@ -18,7 +17,7 @@ func (a *Adapter) addSupplementaryElements(
 	// Check if Mission Control is active
 	missionControlActive := a.client.IsMissionControlActive()
 
-	a.logger.Debug("Adding supplementary elements",
+	a.Logger.Debug("Adding supplementary elements",
 		zap.Bool("mission_control_active", missionControlActive),
 		zap.Bool("include_menubar", filter.IncludeMenubar),
 		zap.Bool("include_dock", filter.IncludeDock),
@@ -48,7 +47,7 @@ func (a *Adapter) addMenubarElements(
 	elements []*element.Element,
 	filter ports.ElementFilter,
 ) []*element.Element {
-	a.logger.Debug("Adding menubar elements")
+	a.Logger.Debug("Adding menubar elements")
 
 	// Temporarily add AXMenuBarItem to clickable roles
 	originalRoles := a.client.GetClickableRoles()
@@ -62,29 +61,29 @@ func (a *Adapter) addMenubarElements(
 	// Get menubar elements
 	menubarNodes, menubarNodesErr := a.client.GetMenuBarClickableElements()
 	if menubarNodesErr != nil {
-		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
+		a.Logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {
 		for _, node := range menubarNodes {
 			element, elementErr := a.convertToDomainElement(node)
 			if elementErr != nil {
-				a.logger.Debug("Failed to convert menubar element", zap.Error(elementErr))
+				a.Logger.Debug("Failed to convert menubar element", zap.Error(elementErr))
 
 				continue
 			}
 
-			if a.matchesFilter(element, filter) {
+			if a.MatchesFilter(element, filter) {
 				elements = append(elements, element)
 			}
 		}
 
-		a.logger.Debug("Included menubar elements", zap.Int("count", len(menubarNodes)))
+		a.Logger.Debug("Included menubar elements", zap.Int("count", len(menubarNodes)))
 	}
 
 	// Get additional menubar targets
 	for _, bundleID := range filter.AdditionalMenubarTargets {
 		additionalNodes, err := a.client.GetClickableElementsFromBundleID(bundleID)
 		if err != nil {
-			a.logger.Warn("Failed to get additional menubar elements",
+			a.Logger.Warn("Failed to get additional menubar elements",
 				zap.String("bundle_id", bundleID),
 				zap.Error(err))
 
@@ -94,7 +93,7 @@ func (a *Adapter) addMenubarElements(
 		for _, node := range additionalNodes {
 			element, elementErr := a.convertToDomainElement(node)
 			if elementErr != nil {
-				a.logger.Debug(
+				a.Logger.Debug(
 					"Failed to convert additional menubar element",
 					zap.Error(elementErr),
 				)
@@ -102,12 +101,12 @@ func (a *Adapter) addMenubarElements(
 				continue
 			}
 
-			if a.matchesFilter(element, filter) {
+			if a.MatchesFilter(element, filter) {
 				elements = append(elements, element)
 			}
 		}
 
-		a.logger.Debug("Included additional menubar elements",
+		a.Logger.Debug("Included additional menubar elements",
 			zap.String("bundle_id", bundleID),
 			zap.Int("count", len(additionalNodes)))
 	}
@@ -134,7 +133,7 @@ func (a *Adapter) addDockElements(
 	// Get dock application
 	dockApp, dockAppErr := a.client.GetApplicationByBundleID(dockBundleID)
 	if dockAppErr != nil || dockApp == nil {
-		a.logger.Debug("Dock application not found")
+		a.Logger.Debug("Dock application not found")
 
 		return elements
 	}
@@ -143,13 +142,13 @@ func (a *Adapter) addDockElements(
 	// Validate we got the correct application element (not a stale menu item)
 	appInfo, appInfoErr := dockApp.GetInfo()
 	if appInfoErr != nil {
-		a.logger.Warn("Failed to get dock application info", zap.Error(appInfoErr))
+		a.Logger.Warn("Failed to get dock application info", zap.Error(appInfoErr))
 
 		return elements
 	}
 
 	if appInfo.Role != "AXApplication" {
-		a.logger.Warn("Got incorrect element for dock, expected AXApplication",
+		a.Logger.Warn("Got incorrect element for dock, expected AXApplication",
 			zap.String("actual_role", appInfo.Role),
 			zap.String("title", appInfo.Title))
 
@@ -159,7 +158,7 @@ func (a *Adapter) addDockElements(
 	// Build tree and find clickable elements
 	dockNodes, dockNodesErr := a.client.GetClickableNodes(dockApp, true)
 	if dockNodesErr != nil {
-		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
+		a.Logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
 
 		return elements
 	}
@@ -167,7 +166,7 @@ func (a *Adapter) addDockElements(
 	for _, node := range dockNodes {
 		element, elementErr := a.convertToDomainElement(node)
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert dock element", zap.Error(elementErr))
+			a.Logger.Warn("Failed to convert dock element", zap.Error(elementErr))
 
 			continue
 		}
@@ -175,7 +174,7 @@ func (a *Adapter) addDockElements(
 		elements = append(elements, element)
 	}
 
-	a.logger.Debug("Included dock elements", zap.Int("count", len(dockNodes)))
+	a.Logger.Debug("Included dock elements", zap.Int("count", len(dockNodes)))
 
 	return elements
 }
@@ -187,11 +186,11 @@ func (a *Adapter) addNotificationCenterElements(
 ) []*element.Element {
 	const ncBundleID = "com.apple.notificationcenterui"
 
-	a.logger.Debug("Adding notification center elements")
+	a.Logger.Debug("Adding notification center elements")
 
 	ncNodes, ncNodesErr := a.client.GetClickableElementsFromBundleID(ncBundleID)
 	if ncNodesErr != nil {
-		a.logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))
+		a.Logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))
 
 		return elements
 	}
@@ -199,7 +198,7 @@ func (a *Adapter) addNotificationCenterElements(
 	for _, node := range ncNodes {
 		element, elementErr := a.convertToDomainElement(node)
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert notification center element", zap.Error(elementErr))
+			a.Logger.Warn("Failed to convert notification center element", zap.Error(elementErr))
 
 			continue
 		}
@@ -207,7 +206,7 @@ func (a *Adapter) addNotificationCenterElements(
 		elements = append(elements, element)
 	}
 
-	a.logger.Debug("Included notification center elements", zap.Int("count", len(ncNodes)))
+	a.Logger.Debug("Included notification center elements", zap.Int("count", len(ncNodes)))
 
 	return elements
 }

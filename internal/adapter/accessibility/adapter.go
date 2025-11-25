@@ -16,10 +16,12 @@ import (
 // Adapter implements ports.AccessibilityPort by wrapping the AXClient.
 // It converts between domain models and infrastructure types.
 type Adapter struct {
-	logger          *zap.Logger
+	// Logger for adapter.
+	Logger          *zap.Logger
 	client          AXClient
 	excludedBundles map[string]bool
-	clickableRoles  []string
+	// ClickableRoles is the list of clickable roles.
+	ClickableRoles []string
 }
 
 // NewAdapter creates a new accessibility adapter.
@@ -35,10 +37,10 @@ func NewAdapter(
 	}
 
 	return &Adapter{
-		logger:          logger,
+		Logger:          logger,
 		client:          client,
 		excludedBundles: excludedMap,
-		clickableRoles:  clickableRoles,
+		ClickableRoles:  clickableRoles,
 	}
 }
 
@@ -54,7 +56,7 @@ func (a *Adapter) GetClickableElements(
 	default:
 	}
 
-	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))
+	a.Logger.Debug("Getting clickable elements", zap.Any("filter", filter))
 
 	// Get frontmost frontmostWindow
 	frontmostWindow, frontmostWindowErr := a.client.GetFrontmostWindow()
@@ -76,7 +78,7 @@ func (a *Adapter) GetClickableElements(
 		)
 	}
 
-	a.logger.Debug("Found clickable nodes", zap.Int("count", len(clickableNodes)))
+	a.Logger.Debug("Found clickable nodes", zap.Int("count", len(clickableNodes)))
 
 	// Convert to domain elements
 	elements := make([]*element.Element, 0, len(clickableNodes))
@@ -96,23 +98,23 @@ func (a *Adapter) GetClickableElements(
 
 		elem, err := a.convertToDomainElement(node)
 		if err != nil {
-			a.logger.Warn("Failed to convert element", zap.Error(err))
+			a.Logger.Warn("Failed to convert element", zap.Error(err))
 
 			continue
 		}
 
 		// Apply filter
-		if a.matchesFilter(elem, filter) {
+		if a.MatchesFilter(elem, filter) {
 			elements = append(elements, elem)
 		}
 	}
 
-	a.logger.Info("Converted frontmost window elements", zap.Int("count", len(elements)))
+	a.Logger.Info("Converted frontmost window elements", zap.Int("count", len(elements)))
 
 	// Add supplementary elements based on filter
 	elements = a.addSupplementaryElements(context, elements, filter)
 
-	a.logger.Info("Total elements after supplementary collection", zap.Int("count", len(elements)))
+	a.Logger.Info("Total elements after supplementary collection", zap.Int("count", len(elements)))
 
 	return elements, nil
 }
@@ -130,7 +132,7 @@ func (a *Adapter) PerformAction(
 	default:
 	}
 
-	a.logger.Info("Performing action",
+	a.Logger.Info("Performing action",
 		zap.String("action", actionType.String()),
 		zap.String("element_id", string(element.ID())))
 
@@ -163,7 +165,7 @@ func (a *Adapter) PerformActionAtPoint(
 	default:
 	}
 
-	a.logger.Info("Performing action at point",
+	a.Logger.Info("Performing action at point",
 		zap.String("action", actionType.String()),
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y))
@@ -187,7 +189,7 @@ func (a *Adapter) PerformActionAtPoint(
 
 // Scroll performs a scroll action at the current cursor position.
 func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
-	a.logger.Debug("Performing scroll",
+	a.Logger.Debug("Performing scroll",
 		zap.Int("deltaX", deltaX),
 		zap.Int("deltaY", deltaY))
 
@@ -196,14 +198,14 @@ func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
 		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
 	}
 
-	a.logger.Debug("Scroll completed")
+	a.Logger.Debug("Scroll completed")
 
 	return nil
 }
 
 // MoveCursorToPoint moves the mouse cursor to the specified point.
 func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point) error {
-	a.logger.Debug("Moving cursor to point",
+	a.Logger.Debug("Moving cursor to point",
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y))
 
@@ -215,7 +217,7 @@ func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point) error 
 // GetCursorPosition returns the current cursor position.
 func (a *Adapter) GetCursorPosition(_ context.Context) (image.Point, error) {
 	pos := a.client.GetCursorPosition()
-	a.logger.Debug("Got cursor position",
+	a.Logger.Debug("Got cursor position",
 		zap.Int("x", pos.X),
 		zap.Int("y", pos.Y))
 
@@ -290,19 +292,42 @@ func (a *Adapter) Health(context context.Context) error {
 
 // UpdateClickableRoles updates the list of clickable roles.
 func (a *Adapter) UpdateClickableRoles(roles []string) {
-	a.logger.Info("Updating clickable roles", zap.Int("count", len(roles)))
-	a.clickableRoles = roles
+	a.Logger.Info("Updating clickable roles", zap.Int("count", len(roles)))
+	a.ClickableRoles = roles
 	a.client.SetClickableRoles(roles)
 }
 
 // UpdateExcludedBundles updates the list of excluded bundle IDs.
 func (a *Adapter) UpdateExcludedBundles(bundles []string) {
-	a.logger.Info("Updating excluded bundles", zap.Int("count", len(bundles)))
+	a.Logger.Info("Updating excluded bundles", zap.Int("count", len(bundles)))
 
 	a.excludedBundles = make(map[string]bool, len(bundles))
 	for _, bundle := range bundles {
 		a.excludedBundles[bundle] = true
 	}
+}
+
+// MatchesFilter checks if an element matches the given filter criteria.
+func (a *Adapter) MatchesFilter(
+	element *element.Element,
+	filter ports.ElementFilter,
+) bool {
+	// Check minimum size
+	bounds := element.Bounds()
+	if bounds.Dx() < filter.MinSize.X || bounds.Dy() < filter.MinSize.Y {
+		return false
+	}
+
+	// Check role inclusion
+	if len(filter.Roles) > 0 {
+		found := slices.Contains(filter.Roles, element.Role())
+		if !found {
+			return false
+		}
+	}
+
+	// Check role exclusion
+	return !slices.Contains(filter.ExcludeRoles, element.Role())
 }
 
 // convertToDomainElement converts an AXNode to a domain Element.
@@ -341,26 +366,6 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 	}
 
 	return element, nil
-}
-
-// matchesFilter checks if an element matches the given filter criteria.
-func (a *Adapter) matchesFilter(element *element.Element, filter ports.ElementFilter) bool {
-	// Check minimum size
-	bounds := element.Bounds()
-	if bounds.Dx() < filter.MinSize.X || bounds.Dy() < filter.MinSize.Y {
-		return false
-	}
-
-	// Check role inclusion
-	if len(filter.Roles) > 0 {
-		found := slices.Contains(filter.Roles, element.Role())
-		if !found {
-			return false
-		}
-	}
-
-	// Check role exclusion
-	return !slices.Contains(filter.ExcludeRoles, element.Role())
 }
 
 // Ensure Adapter implements ports.AccessibilityPort.

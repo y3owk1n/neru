@@ -61,7 +61,7 @@ func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
 func (g *AlphabetGenerator) Generate(
 	context context.Context,
 	elements []*element.Element,
-) ([]*Hint, error) {
+) ([]*Interface, error) {
 	if len(elements) == 0 {
 		return nil, nil
 	}
@@ -99,7 +99,7 @@ func (g *AlphabetGenerator) Generate(
 	labels := g.generateLabels(len(sorted))
 
 	// Create hints
-	hints := make([]*Hint, len(sorted))
+	hints := make([]*Interface, len(sorted))
 	for index, element := range sorted {
 		// Use element center as hint position
 		position := element.Center()

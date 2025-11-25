@@ -7,8 +7,8 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/errors"
 )
 
-// validateHints validates the hints configuration.
-func (c *Config) validateHints() error {
+// ValidateHints validates the hints configuration.
+func (c *Config) ValidateHints() error {
 	var validateErr error
 
 	if strings.TrimSpace(c.Hints.HintCharacters) == "" {
@@ -26,22 +26,22 @@ func (c *Config) validateHints() error {
 		return derrors.New(derrors.CodeInvalidConfig, "hints.opacity must be between 0 and 1")
 	}
 
-	validateErr = validateColor(c.Hints.BackgroundColor, "hints.background_color")
+	validateErr = ValidateColor(c.Hints.BackgroundColor, "hints.background_color")
 	if validateErr != nil {
 		return validateErr
 	}
 
-	validateErr = validateColor(c.Hints.TextColor, "hints.text_color")
+	validateErr = ValidateColor(c.Hints.TextColor, "hints.text_color")
 	if validateErr != nil {
 		return validateErr
 	}
 
-	validateErr = validateColor(c.Hints.MatchedTextColor, "hints.matched_text_color")
+	validateErr = ValidateColor(c.Hints.MatchedTextColor, "hints.matched_text_color")
 	if validateErr != nil {
 		return validateErr
 	}
 
-	validateErr = validateColor(c.Hints.BorderColor, "hints.border_color")
+	validateErr = ValidateColor(c.Hints.BorderColor, "hints.border_color")
 	if validateErr != nil {
 		return validateErr
 	}
@@ -101,8 +101,8 @@ func (c *Config) validateHints() error {
 	return nil
 }
 
-// validateAppConfigs validates the app configurations.
-func (c *Config) validateAppConfigs() error {
+// ValidateAppConfigs validates the app configurations.
+func (c *Config) ValidateAppConfigs() error {
 	var validateErr error
 
 	for index, appConfig := range c.Hints.AppConfigs {
@@ -123,7 +123,7 @@ func (c *Config) validateAppConfigs() error {
 				)
 			}
 
-			validateErr = validateHotkey(key, "hotkeys.bindings")
+			validateErr = ValidateHotkey(key, "hotkeys.bindings")
 			if validateErr != nil {
 				return validateErr
 			}
@@ -151,8 +151,8 @@ func (c *Config) validateAppConfigs() error {
 	return nil
 }
 
-// validateGrid validates the grid configuration.
-func (c *Config) validateGrid() error {
+// ValidateGrid validates the grid configuration.
+func (c *Config) ValidateGrid() error {
 	var validateErr error
 
 	if strings.TrimSpace(c.Grid.Characters) == "" {
@@ -179,32 +179,32 @@ func (c *Config) validateGrid() error {
 	}
 
 	// Validate per-action grid colors
-	validateErr = validateColor(c.Grid.BackgroundColor, "grid.background_color")
+	validateErr = ValidateColor(c.Grid.BackgroundColor, "grid.background_color")
 	if validateErr != nil {
 		return validateErr
 	}
 
-	validateErr = validateColor(c.Grid.TextColor, "grid.text_color")
+	validateErr = ValidateColor(c.Grid.TextColor, "grid.text_color")
 	if validateErr != nil {
 		return validateErr
 	}
 
-	validateErr = validateColor(c.Grid.MatchedTextColor, "grid.matched_text_color")
+	validateErr = ValidateColor(c.Grid.MatchedTextColor, "grid.matched_text_color")
 	if validateErr != nil {
 		return validateErr
 	}
 
-	validateErr = validateColor(c.Grid.MatchedBackgroundColor, "grid.matched_background_color")
+	validateErr = ValidateColor(c.Grid.MatchedBackgroundColor, "grid.matched_background_color")
 	if validateErr != nil {
 		return validateErr
 	}
 
-	validateErr = validateColor(c.Grid.MatchedBorderColor, "grid.matched_border_color")
+	validateErr = ValidateColor(c.Grid.MatchedBorderColor, "grid.matched_border_color")
 	if validateErr != nil {
 		return validateErr
 	}
 
-	validateErr = validateColor(c.Grid.BorderColor, "grid.border_color")
+	validateErr = ValidateColor(c.Grid.BorderColor, "grid.border_color")
 	if validateErr != nil {
 		return validateErr
 	}
@@ -227,15 +227,15 @@ func (c *Config) validateGrid() error {
 	return nil
 }
 
-// validateAction validates the action configuration.
-func (c *Config) validateAction() error {
+// ValidateAction validates the action configuration.
+func (c *Config) ValidateAction() error {
 	var validateErr error
 
 	if c.Action.HighlightWidth < 1 {
 		return derrors.New(derrors.CodeInvalidConfig, "action.highlight_width must be at least 1")
 	}
 
-	validateErr = validateColor(c.Action.HighlightColor, "action.highlight_color")
+	validateErr = ValidateColor(c.Action.HighlightColor, "action.highlight_color")
 	if validateErr != nil {
 		return validateErr
 	}
@@ -243,8 +243,8 @@ func (c *Config) validateAction() error {
 	return nil
 }
 
-// validateSmoothCursor validates the smooth cursor configuration.
-func (c *Config) validateSmoothCursor() error {
+// ValidateSmoothCursor validates the smooth cursor configuration.
+func (c *Config) ValidateSmoothCursor() error {
 	if c.SmoothCursor.Steps < 1 {
 		return derrors.New(derrors.CodeInvalidConfig, "smooth_cursor.steps must be at least 1")
 	}
@@ -256,8 +256,8 @@ func (c *Config) validateSmoothCursor() error {
 	return nil
 }
 
-// validateHotkey validates a hotkey string format.
-func validateHotkey(hotkey, fieldName string) error {
+// ValidateHotkey validates a hotkey string format.
+func ValidateHotkey(hotkey, fieldName string) error {
 	if strings.TrimSpace(hotkey) == "" {
 		return nil // Allow empty hotkey to disable the action
 	}
@@ -307,8 +307,8 @@ func validateHotkey(hotkey, fieldName string) error {
 	return nil
 }
 
-// validateColor validates a color string (hex format).
-func validateColor(color, fieldName string) error {
+// ValidateColor validates a color string (hex format).
+func ValidateColor(color, fieldName string) error {
 	if strings.TrimSpace(color) == "" {
 		return derrors.Newf(derrors.CodeInvalidConfig, "%s cannot be empty", fieldName)
 	}

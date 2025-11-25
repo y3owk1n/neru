@@ -1,9 +1,10 @@
-package grid
+package grid_test
 
 import (
 	"image"
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/domain/grid"
 	"go.uber.org/zap"
 )
 
@@ -16,14 +17,14 @@ func BenchmarkNewGrid(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		_ = NewGrid(characters, bounds, logger)
+		_ = grid.NewGrid(characters, bounds, logger)
 	}
 }
 
 // BenchmarkGrid_GetCellByCoordinate benchmarks label-based lookup.
 func BenchmarkGrid_GetCellByCoordinate(b *testing.B) {
 	// Changed to match the provided edit's initialization and call
-	grid := NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1920, 1080), nil)
+	grid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1920, 1080), nil)
 
 	b.ResetTimer()
 	// The instruction "for range b.N" is not valid Go syntax for iterating N times.
@@ -38,7 +39,7 @@ func BenchmarkGrid_GetCellByCoordinate(b *testing.B) {
 func BenchmarkGrid_GetAllCells(b *testing.B) {
 	logger, _ := zap.NewDevelopment()
 	bounds := image.Rect(0, 0, 1920, 1080)
-	g := NewGrid("asdfghjkl", bounds, logger)
+	g := grid.NewGrid("asdfghjkl", bounds, logger)
 
 	b.ResetTimer()
 
@@ -49,7 +50,7 @@ func BenchmarkGrid_GetAllCells(b *testing.B) {
 
 func BenchmarkGrid_GetCellByCoordinate_Miss(b *testing.B) {
 	// Assuming domainGrid.NewGrid refers to NewGrid in the current package.
-	grid := NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1920, 1080), nil)
+	grid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1920, 1080), nil)
 
 	b.ResetTimer()
 

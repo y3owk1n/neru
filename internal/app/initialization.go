@@ -37,7 +37,7 @@ func initializeLogger(config *config.Config) (*zap.Logger, error) {
 }
 
 // initializeOverlayManager creates and initializes the overlay manager.
-func initializeOverlayManager(deps *deps, logger *zap.Logger) OverlayManager {
+func initializeOverlayManager(deps *Deps, logger *zap.Logger) OverlayManager {
 	if deps != nil && deps.OverlayManagerFactory != nil {
 		return deps.OverlayManagerFactory.New(logger)
 	}
@@ -78,7 +78,7 @@ func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 }
 
 // initializeHotkeyService creates the hotkey service, using the provided dependency or creating a new one.
-func initializeHotkeyService(deps *deps, logger *zap.Logger) HotkeyService {
+func initializeHotkeyService(deps *Deps, logger *zap.Logger) HotkeyService {
 	if deps != nil && deps.Hotkeys != nil {
 		return deps.Hotkeys
 	}
@@ -89,7 +89,7 @@ func initializeHotkeyService(deps *deps, logger *zap.Logger) HotkeyService {
 	return hotkeyManager
 }
 
-func initializeAppWatcher(deps *deps, logger *zap.Logger) Watcher {
+func initializeAppWatcher(deps *Deps, logger *zap.Logger) Watcher {
 	if deps != nil && deps.WatcherFactory != nil {
 		return deps.WatcherFactory.New(logger)
 	}
