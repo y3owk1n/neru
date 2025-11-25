@@ -24,16 +24,8 @@ func NewRouter(manager *Manager, logger *zap.Logger) *Router {
 
 // RouteKey processes a key press and returns the routing result.
 func (r *Router) RouteKey(key string) RouteResult {
-	if r.logger != nil {
-		r.logger.Debug("Hints router processing key", zap.String("key", key))
-	}
-
 	// Handle escape key
 	if key == "\x1b" || key == "escape" {
-		if r.logger != nil {
-			r.logger.Debug("Hints router: Escape pressed, exiting")
-		}
-
 		return RouteResult{Exit: true}
 	}
 

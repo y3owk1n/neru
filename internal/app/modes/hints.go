@@ -49,6 +49,8 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	// Validate mode activation
 	domainHintsErr := h.validateModeActivation("hints", h.Config.Hints.Enabled)
 	if domainHintsErr != nil {
+		h.Logger.Warn("Hint mode activation failed", zap.Error(domainHintsErr))
+
 		return
 	}
 
@@ -157,6 +159,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	}
 
 	h.SetModeHints()
+	h.Logger.Info("Hints mode activated")
 }
 
 // handleHintsActionKey handles action keys when in hints action mode.

@@ -31,9 +31,6 @@ func (m *Manager) SetHints(hints *Collection) {
 	m.hints = hints
 
 	m.currentInput = ""
-	if m.logger != nil {
-		m.logger.Debug("Hint manager: Setting new hints", zap.Int("hint_count", hints.Count()))
-	}
 	// Trigger update callback with all hints on initial set
 	if m.onUpdate != nil && hints != nil {
 		m.onUpdate(hints.All())
@@ -43,9 +40,6 @@ func (m *Manager) SetHints(hints *Collection) {
 // Reset clears the current input.
 func (m *Manager) Reset() {
 	m.currentInput = ""
-	if m.logger != nil {
-		m.logger.Debug("Hint manager: Resetting input")
-	}
 	// Trigger update callback with all hints
 	if m.onUpdate != nil && m.hints != nil {
 		m.onUpdate(m.hints.All())
@@ -56,10 +50,6 @@ func (m *Manager) Reset() {
 // Returns (hint, true) if exact match found, (nil, false) otherwise.
 func (m *Manager) HandleInput(key string) (*Hint, bool) {
 	if m.hints == nil {
-		if m.logger != nil {
-			m.logger.Debug("Hint manager: No current hints available")
-		}
-
 		return nil, false
 	}
 
@@ -73,10 +63,6 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 	if key == "\x7f" || key == "delete" || key == "backspace" {
 		if len(m.currentInput) > 0 {
 			m.currentInput = m.currentInput[:len(m.currentInput)-1]
-			if m.logger != nil {
-				m.logger.Debug("Hint manager: Backspace processed",
-					zap.String("new_input", m.currentInput))
-			}
 
 			// Update view for backspace
 			if m.hints != nil {
@@ -92,10 +78,6 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 				}
 			}
 		} else {
-			if m.logger != nil {
-				m.logger.Debug("Hint manager: Resetting on backspace with empty input")
-			}
-
 			m.Reset()
 		}
 
@@ -104,21 +86,11 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 
 	// Ignore non-letter keys
 	if len(key) != 1 || !isLetter(key[0]) {
-		if m.logger != nil {
-			m.logger.Debug("Hint manager: Ignoring non-letter key", zap.String("key", key))
-		}
-
 		return nil, false
 	}
 
 	// Accumulate input (convert to uppercase to match hints)
 	m.currentInput += strings.ToUpper(key)
-	if m.logger != nil {
-		m.logger.Debug(
-			"Hint manager: Input accumulated",
-			zap.String("current_input", m.currentInput),
-		)
-	}
 
 	// Filter hints by prefix
 	filtered := m.hints.FilterByPrefix(m.currentInput)
@@ -128,10 +100,6 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 
 	if len(filtered) == 0 {
 		// No matches - reset
-		if m.logger != nil {
-			m.logger.Debug("Hint manager: No matches found, resetting")
-		}
-
 		m.currentInput = ""
 
 		return nil, false

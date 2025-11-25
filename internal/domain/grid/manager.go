@@ -55,12 +55,6 @@ func NewManager(
 // HandleInput processes variable-length coordinate input and returns the target point when complete.
 // Completion occurs when labelLength characters are entered or a subgrid selection is made.
 func (m *Manager) HandleInput(key string) (image.Point, bool) {
-	m.logger.Debug(
-		"Grid manager: Processing input",
-		zap.String("key", key),
-		zap.String("current_input", m.currentInput),
-	)
-
 	resetKey := "<"
 
 	if key == resetKey {
@@ -74,8 +68,6 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 
 	// Ignore non-letter keys
 	if len(key) != 1 || !isLetter(key[0]) && key != resetKey {
-		m.logger.Debug("Grid manager: Ignoring non-letter key", zap.String("key", key))
-
 		return image.Point{}, false
 	}
 
@@ -100,7 +92,6 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	}
 
 	m.currentInput += upperKey
-	m.logger.Debug("Grid manager: Input accumulated", zap.String("current_input", m.currentInput))
 
 	// After reaching label length, show subgrid inside the selected cell
 	if !m.inSubgrid && len(m.currentInput) >= m.labelLength {
@@ -131,7 +122,6 @@ func (m *Manager) Reset() {
 	m.mainGridInput = ""
 	m.inSubgrid = false
 	m.selectedCell = nil
-	m.logger.Debug("Grid manager: Resetting input state")
 
 	if m.onUpdate != nil {
 		m.onUpdate(false)
@@ -150,14 +140,11 @@ func (m *Manager) UpdateGrid(g *Grid) {
 	if g != nil && len(g.GetCells()) > 0 {
 		m.labelLength = len(g.GetCells()[0].GetCoordinate())
 	}
-
-	m.logger.Debug("Updated manager grid")
 }
 
 // UpdateSubKeys updates the subgrid keys used for subgrid selection.
 func (m *Manager) UpdateSubKeys(subKeys string) {
 	m.subKeys = strings.ToUpper(strings.TrimSpace(subKeys))
-	m.logger.Debug("Updated subgrid keys", zap.String("subKeys", m.subKeys))
 }
 
 // handleLabelLengthReached handles the case when label length is reached.
@@ -174,10 +161,6 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 				// Save the main grid input for restoring after subgrid
 				m.mainGridInput = m.currentInput
 				m.currentInput = ""
-				m.logger.Debug(
-					"Grid manager: Showing subgrid for cell",
-					zap.String("coordinate", coordinate),
-				)
 
 				if m.onShowSub != nil {
 					m.onShowSub(cell)
@@ -189,10 +172,6 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 		}
 	}
 	// Invalid coordinate, reset
-	m.logger.Debug(
-		"Grid manager: Invalid coordinate, resetting",
-		zap.String("coordinate", coordinate),
-	)
 	m.Reset()
 
 	return image.Point{}, false
@@ -202,8 +181,6 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 func (m *Manager) validateInputKey(key string) bool {
 	// Check if character is valid for grid
 	if m.grid != nil && !strings.Contains(m.grid.GetCharacters(), key) {
-		m.logger.Debug("Grid manager: Character not valid for grid", zap.String("key", key))
-
 		return false
 	}
 
@@ -223,11 +200,6 @@ func (m *Manager) validateInputKey(key string) bool {
 
 	// If this key doesn't lead to any valid coordinate, ignore it
 	if !validPrefix {
-		m.logger.Debug(
-			"Grid manager: Key does not lead to valid coordinate",
-			zap.String("input", potentialInput),
-		)
-
 		return false
 	}
 
@@ -238,14 +210,10 @@ func (m *Manager) validateInputKey(key string) bool {
 func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	keyIndex := strings.Index(m.subKeys, key)
 	if keyIndex < 0 {
-		m.logger.Debug("Grid manager: Invalid subgrid key", zap.String("key", key))
-
 		return image.Point{}, false
 	}
 	// Subgrid is always 3x3
 	if keyIndex >= 9 {
-		m.logger.Debug("Grid manager: Subgrid index out of range", zap.Int("index", keyIndex))
-
 		return image.Point{}, false
 	}
 
@@ -286,7 +254,6 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 func (m *Manager) handleBackspace() (image.Point, bool) {
 	if len(m.currentInput) > 0 {
 		m.currentInput = m.currentInput[:len(m.currentInput)-1]
-		m.logger.Debug("Grid manager: Backspace processed", zap.String("new_input", m.currentInput))
 
 		if m.onUpdate != nil {
 			m.onUpdate(false)
@@ -297,7 +264,6 @@ func (m *Manager) handleBackspace() (image.Point, bool) {
 
 	// If in subgrid, backspace exits subgrid and back to main grid
 	if m.inSubgrid {
-		m.logger.Debug("Grid manager: Exiting subgrid on backspace")
 		m.inSubgrid = false
 		m.selectedCell = nil
 		// Restore main grid input

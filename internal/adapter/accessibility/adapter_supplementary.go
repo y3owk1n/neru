@@ -67,7 +67,7 @@ func (a *Adapter) addMenubarElements(
 		for _, node := range menubarNodes {
 			element, elementErr := a.convertToDomainElement(node)
 			if elementErr != nil {
-				a.logger.Warn("Failed to convert menubar element", zap.Error(elementErr))
+				a.logger.Debug("Failed to convert menubar element", zap.Error(elementErr))
 
 				continue
 			}
@@ -94,7 +94,10 @@ func (a *Adapter) addMenubarElements(
 		for _, node := range additionalNodes {
 			element, elementErr := a.convertToDomainElement(node)
 			if elementErr != nil {
-				a.logger.Warn("Failed to convert additional menubar element", zap.Error(elementErr))
+				a.logger.Debug(
+					"Failed to convert additional menubar element",
+					zap.Error(elementErr),
+				)
 
 				continue
 			}

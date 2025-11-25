@@ -31,14 +31,8 @@ func NewRouter(m *Manager, logger *zap.Logger) *Router {
 func (r *Router) RouteKey(key string) KeyResult {
 	var routeKeyResult KeyResult
 
-	r.logger.Debug("Grid router processing key",
-		zap.String("key", key),
-	)
-
 	// Exit grid mode with Escape
 	if key == "\x1b" || key == "escape" {
-		r.logger.Debug("Grid router: Exit key pressed")
-
 		routeKeyResult.Exit = true
 
 		return routeKeyResult

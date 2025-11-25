@@ -85,23 +85,17 @@ func (o *Overlay) GetLogger() *zap.Logger { return o.logger }
 
 // Show displays the action overlay window.
 func (o *Overlay) Show() {
-	o.logger.Debug("Showing action overlay")
 	C.NeruShowOverlayWindow(o.window)
-	o.logger.Debug("Action overlay shown successfully")
 }
 
 // Hide conceals the action overlay window.
 func (o *Overlay) Hide() {
-	o.logger.Debug("Hiding action overlay")
 	C.NeruHideOverlayWindow(o.window)
-	o.logger.Debug("Action overlay hidden successfully")
 }
 
 // Clear removes all action highlights from the overlay.
 func (o *Overlay) Clear() {
-	o.logger.Debug("Clearing action overlay")
 	C.NeruClearOverlay(o.window)
-	o.logger.Debug("Action overlay cleared successfully")
 }
 
 // ResizeToActiveScreen adjusts the overlay window size to match the screen containing the mouse cursor.
@@ -176,8 +170,6 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 
 // DrawActionHighlight renders a highlight border around the specified screen area.
 func (o *Overlay) DrawActionHighlight(xCoordinate, yCoordinate, width, height int) {
-	o.logger.Debug("DrawActionHighlight called")
-
 	// Use action config for highlight color and width
 	color := o.config.HighlightColor
 	highlightWidth := o.config.HighlightWidth

@@ -91,23 +91,17 @@ func (o *Overlay) GetLogger() *zap.Logger {
 
 // Show displays the scroll overlay window.
 func (o *Overlay) Show() {
-	o.logger.Debug("Showing scroll overlay")
 	C.NeruShowOverlayWindow(o.window)
-	o.logger.Debug("Scroll overlay shown successfully")
 }
 
 // Hide conceals the scroll overlay window.
 func (o *Overlay) Hide() {
-	o.logger.Debug("Hiding scroll overlay")
 	C.NeruHideOverlayWindow(o.window)
-	o.logger.Debug("Scroll overlay hidden successfully")
 }
 
 // Clear removes all scroll highlights from the overlay.
 func (o *Overlay) Clear() {
-	o.logger.Debug("Clearing scroll overlay")
 	C.NeruClearOverlay(o.window)
-	o.logger.Debug("Scroll overlay cleared successfully")
 }
 
 // ResizeToActiveScreen adjusts the overlay window size to match the screen containing the mouse cursor.
@@ -182,8 +176,6 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 
 // DrawScrollHighlight renders a highlight border around the specified screen area.
 func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height int) {
-	o.logger.Debug("DrawScrollHighlight called")
-
 	// Use action config for highlight color and width
 	color := o.config.HighlightColor
 	borderWidth := o.config.HighlightWidth

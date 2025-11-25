@@ -179,23 +179,17 @@ func (o *Overlay) GetLogger() *zap.Logger { return o.logger }
 
 // Show shows the overlay.
 func (o *Overlay) Show() {
-	o.logger.Debug("Showing hint overlay")
 	C.NeruShowOverlayWindow(o.window)
-	o.logger.Debug("Hint overlay shown successfully")
 }
 
 // Hide hides the overlay.
 func (o *Overlay) Hide() {
-	o.logger.Debug("Hiding hint overlay")
 	C.NeruHideOverlayWindow(o.window)
-	o.logger.Debug("Hint overlay hidden successfully")
 }
 
 // Clear clears all hints from the overlay.
 func (o *Overlay) Clear() {
-	o.logger.Debug("Clearing hint overlay")
 	C.NeruClearOverlay(o.window)
-	o.logger.Debug("Hint overlay cleared successfully")
 }
 
 // ResizeToActiveScreen resizes the overlay window to the screen containing the mouse cursor.
@@ -312,8 +306,6 @@ func (o *Overlay) DrawScrollHighlight(
 	color string,
 	borderWidth int,
 ) {
-	o.logger.Debug("DrawScrollHighlight called")
-
 	renderBounds := C.CGRect{
 		origin: C.CGPoint{
 			x: C.double(xCoordinate),
@@ -364,13 +356,8 @@ func (o *Overlay) Destroy() {
 
 // drawHintsInternal is the internal implementation for drawing hints.
 func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bool) error {
-	o.logger.Debug("Drawing hints internally",
-		zap.Int("hint_count", len(hints)),
-		zap.Bool("show_arrow", showArrow))
-
 	if len(hints) == 0 {
 		o.Clear()
-		o.logger.Debug("No hints to draw, cleared overlay")
 
 		return nil
 	}

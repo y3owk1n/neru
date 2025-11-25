@@ -12,14 +12,14 @@ import (
 // Returns an error if the mode cannot be activated.
 func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) error {
 	if !h.AppState.IsEnabled() {
-		h.Logger.Debug("Neru is disabled, ignoring mode activation",
+		h.Logger.Warn("Neru is disabled, ignoring mode activation",
 			zap.String("mode", modeName))
 
 		return derrors.New(derrors.CodeInvalidInput, "neru is disabled")
 	}
 
 	if !modeEnabled {
-		h.Logger.Debug("Mode disabled by config, ignoring activation",
+		h.Logger.Warn("Mode disabled by config, ignoring activation",
 			zap.String("mode", modeName))
 
 		return derrors.Newf(derrors.CodeInvalidInput, "mode %s is disabled", modeName)

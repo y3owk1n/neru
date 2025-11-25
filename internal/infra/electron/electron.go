@@ -32,22 +32,14 @@ func EnsureElectronAccessibility(bundleID string) bool {
 
 	info, infoErr := app.GetInfo()
 	if infoErr != nil {
-		logger.Debug("Failed to inspect app window", zap.Error(infoErr))
-
 		return false
 	}
 
 	pid := info.PID
 
 	if pid <= 0 {
-		logger.Debug("No PID found for app", zap.String("bundle_id", bundleID))
-
 		return false
 	}
-
-	logger.Debug("App requires Electron support",
-		zap.String("bundle_id", bundleID),
-		zap.Int("pid", pid))
 
 	electronPIDsMu.Lock()
 
@@ -56,24 +48,10 @@ func EnsureElectronAccessibility(bundleID string) bool {
 	electronPIDsMu.Unlock()
 
 	if already {
-		logger.Debug(
-			"Already enabled Electron support",
-			zap.Int("pid", pid),
-			zap.String("bundle_id", bundleID),
-		)
-
 		return true
 	}
 
 	successSetElectron := bridge.SetApplicationAttribute(pid, electronAttributeName, true)
-
-	if successSetElectron {
-		logger.Debug(
-			"Enabled AXManualAccessibility",
-			zap.Int("pid", pid),
-			zap.String("bundle_id", bundleID),
-		)
-	}
 
 	if !successSetElectron {
 		logger.Warn(
@@ -91,10 +69,6 @@ func EnsureElectronAccessibility(bundleID string) bool {
 
 	electronPIDsMu.Unlock()
 
-	logger.Debug("Successfully enabled Electron accessibility",
-		zap.Int("pid", pid),
-		zap.String("bundle_id", bundleID))
-
 	return true
 }
 
@@ -102,7 +76,6 @@ func EnsureElectronAccessibility(bundleID string) bool {
 // This is a generic function used by both Chromium and Firefox accessibility enablers.
 func ensureAccessibility(
 	bundleID string,
-	appType string,
 	enabledPIDs map[int]struct{},
 	pidsMu *sync.Mutex,
 ) bool {
@@ -118,14 +91,8 @@ func ensureAccessibility(
 	pid := info.PID
 
 	if pid <= 0 {
-		logger.Debug("No PID found for app", zap.String("bundle_id", bundleID))
-
 		return false
 	}
-
-	logger.Debug(appType+" requires AXEnhancedUserInterface support",
-		zap.String("bundle_id", bundleID),
-		zap.Int("pid", pid))
 
 	pidsMu.Lock()
 
@@ -134,16 +101,10 @@ func ensureAccessibility(
 	pidsMu.Unlock()
 
 	if already {
-		logger.Debug("Already enabled "+appType+" support", zap.String("bundle_id", bundleID))
-
 		return true
 	}
 
 	success := bridge.SetApplicationAttribute(pid, enhancedAttributeName, true)
-
-	if success {
-		logger.Debug("Enabled AXEnhancedUserInterface", zap.String("bundle_id", bundleID))
-	}
 
 	if !success {
 		logger.Warn("Failed to enable AXEnhancedUserInterface", zap.String("bundle_id", bundleID))
@@ -157,9 +118,9 @@ func ensureAccessibility(
 
 	pidsMu.Unlock()
 
-	logger.Debug("Successfully enabled "+appType+" accessibility",
-		zap.Int("pid", pid),
-		zap.String("bundle_id", bundleID))
+	enabledPIDs[pid] = struct{}{}
+
+	pidsMu.Unlock()
 
 	return true
 }
@@ -167,13 +128,13 @@ func ensureAccessibility(
 // EnsureChromiumAccessibility enables AXEnhancedUserInterface for Chromium-based applications.
 // This improves accessibility support for Chromium browsers and applications.
 func EnsureChromiumAccessibility(bundleID string) bool {
-	return ensureAccessibility(bundleID, "Chromium", chromiumEnabledPIDs, &chromiumPIDsMu)
+	return ensureAccessibility(bundleID, chromiumEnabledPIDs, &chromiumPIDsMu)
 }
 
 // EnsureFirefoxAccessibility enables AXEnhancedUserInterface for Firefox-based applications.
 // This improves accessibility support for Firefox browsers and applications.
 func EnsureFirefoxAccessibility(bundleID string) bool {
-	return ensureAccessibility(bundleID, "Firefox", firefoxEnabledPIDs, &firefoxPIDsMu)
+	return ensureAccessibility(bundleID, firefoxEnabledPIDs, &firefoxPIDsMu)
 }
 
 // KnownChromiumBundles contains known Chromium-based application bundle identifiers.
@@ -212,18 +173,10 @@ func ShouldEnableElectronSupport(bundleID string, additionalBundles []string) bo
 	}
 
 	if matchesAdditionalBundle(bundleID, additionalBundles) {
-		logger.Debug(
-			"Bundle matches additional Electron bundles",
-			zap.String("bundle_id", bundleID),
-		)
-
 		return true
 	}
 
 	result := IsLikelyElectronBundle(bundleID)
-	if result {
-		logger.Debug("Bundle identified as likely Electron", zap.String("bundle_id", bundleID))
-	}
 
 	return result
 }
@@ -236,18 +189,10 @@ func ShouldEnableChromiumSupport(bundleID string, additionalBundles []string) bo
 	}
 
 	if matchesAdditionalBundle(bundleID, additionalBundles) {
-		logger.Debug(
-			"Bundle matches additional Chromium bundles",
-			zap.String("bundle_id", bundleID),
-		)
-
 		return true
 	}
 
 	result := IsLikelyChromiumBundle(bundleID)
-	if result {
-		logger.Debug("Bundle identified as likely Chromium", zap.String("bundle_id", bundleID))
-	}
 
 	return result
 }
@@ -260,15 +205,10 @@ func ShouldEnableFirefoxSupport(bundleID string, additionalBundles []string) boo
 	}
 
 	if matchesAdditionalBundle(bundleID, additionalBundles) {
-		logger.Debug("Bundle matches additional Firefox bundles", zap.String("bundle_id", bundleID))
-
 		return true
 	}
 
 	result := IsLikelyFirefoxBundle(bundleID)
-	if result {
-		logger.Debug("Bundle identified as likely Firefox", zap.String("bundle_id", bundleID))
-	}
 
 	return result
 }
@@ -340,17 +280,9 @@ func matchesAdditionalBundle(bundleID string, additionalBundles []string) bool {
 
 		if prefix, found := strings.CutSuffix(trimmed, "*"); found {
 			if strings.HasPrefix(lower, prefix) {
-				logger.Debug("Bundle matches wildcard pattern",
-					zap.String("bundle_id", bundleID),
-					zap.String("pattern", trimmed))
-
 				return true
 			}
 		} else if lower == trimmed {
-			logger.Debug("Bundle matches exact pattern",
-				zap.String("bundle_id", bundleID),
-				zap.String("pattern", trimmed))
-
 			return true
 		}
 	}

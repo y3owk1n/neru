@@ -189,16 +189,11 @@ func (a *App) handleScreenParametersChange() {
 
 // handleAppActivation responds to application activation events.
 func (a *App) handleAppActivation(bundleID string) {
-	a.logger.Debug("App activated", zap.String("bundle_id", bundleID))
-
 	if a.appState.CurrentMode() == domain.ModeIdle {
 		go a.refreshHotkeysForAppOrCurrent(bundleID)
-
-		a.logger.Debug("Handled hotkey refresh")
 	} else {
 		// Defer hotkey refresh to avoid re-entry during active modes
 		a.appState.SetHotkeyRefreshPending(true)
-		a.logger.Debug("Deferred hotkey refresh due to active mode")
 	}
 
 	if a.config.Hints.Enabled {
@@ -206,8 +201,6 @@ func (a *App) handleAppActivation(bundleID string) {
 			a.handleAdditionalAccessibility(bundleID)
 		}
 	}
-
-	a.logger.Debug("Done handling app activation")
 }
 
 // handleAdditionalAccessibility configures accessibility support for Electron/Chromium/Firefox applications.
@@ -216,17 +209,14 @@ func (a *App) handleAdditionalAccessibility(bundleID string) {
 
 	if electron.ShouldEnableElectronSupport(bundleID, config.AdditionalElectronBundles) {
 		electron.EnsureElectronAccessibility(bundleID)
-		a.logger.Debug("Handled electron accessibility")
 	}
 
 	if electron.ShouldEnableChromiumSupport(bundleID, config.AdditionalChromiumBundles) {
 		electron.EnsureChromiumAccessibility(bundleID)
-		a.logger.Debug("Handled chromium accessibility")
 	}
 
 	if electron.ShouldEnableFirefoxSupport(bundleID, config.AdditionalFirefoxBundles) {
 		electron.EnsureFirefoxAccessibility(bundleID)
-		a.logger.Debug("Handled firefox accessibility")
 	}
 }
 

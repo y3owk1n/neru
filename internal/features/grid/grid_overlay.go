@@ -270,18 +270,12 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 
 // Draw renders the flat grid with all 3-char cells visible.
 func (o *Overlay) Draw(grid *domainGrid.Grid, currentInput string, style Style) error {
-	o.logger.Debug("Drawing grid overlay",
-		zap.Int("cell_count", len(grid.GetAllCells())),
-		zap.String("current_input", currentInput))
-
 	// Clear existing content
 	o.Clear()
 
 	cells := grid.GetAllCells()
 
 	if len(cells) == 0 {
-		o.logger.Debug("No cells to draw in grid overlay")
-
 		return nil
 	}
 
@@ -299,30 +293,18 @@ func (o *Overlay) Draw(grid *domainGrid.Grid, currentInput string, style Style) 
 		zap.Uint64("alloc_bytes_delta", msAfter.Alloc-msBefore.Alloc),
 		zap.Uint64("sys_bytes_delta", msAfter.Sys-msBefore.Sys))
 
-	o.logger.Debug("Grid overlay drawn successfully")
-
 	return nil
 }
 
 // UpdateMatches updates matched state without redrawing all cells.
 func (o *Overlay) UpdateMatches(prefix string) {
-	o.logger.Debug("Updating grid matches", zap.String("prefix", prefix))
-
 	cPrefix := C.CString(prefix)
 	defer C.free(unsafe.Pointer(cPrefix)) //nolint:nlreturn
 	C.NeruUpdateGridMatchPrefix(o.window, cPrefix)
-
-	o.logger.Debug("Grid matches updated successfully")
 }
 
 // ShowSubgrid draws a 3x3 subgrid inside the selected cell.
 func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
-	o.logger.Debug("Showing subgrid",
-		zap.Int("cell_x", cell.GetBounds().Min.X),
-		zap.Int("cell_y", cell.GetBounds().Min.Y),
-		zap.Int("cell_width", cell.GetBounds().Dx()),
-		zap.Int("cell_height", cell.GetBounds().Dy()))
-
 	keys := o.config.SublayerKeys
 	if strings.TrimSpace(keys) == "" {
 		keys = o.config.Characters
@@ -436,8 +418,6 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	C.free(unsafe.Pointer(matchedBackgroundColor))
 	C.free(unsafe.Pointer(matchedBorderColor))
 	C.free(unsafe.Pointer(borderColor))
-
-	o.logger.Debug("Subgrid shown successfully")
 }
 
 // DrawScrollHighlight draws a scroll highlight.
@@ -478,10 +458,6 @@ func (o *Overlay) DrawScrollHighlight(
 
 // drawGridCells draws all grid cells with their labels.
 func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string, style Style) {
-	o.logger.Debug("Drawing grid cells",
-		zap.Int("cell_count", len(cellsGo)),
-		zap.String("current_input", currentInput))
-
 	tmpCells := gridCellSlicePool.Get()
 	cGridCellsPtr, ok := tmpCells.(*[]C.GridCell)
 	if !ok {
