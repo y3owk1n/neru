@@ -2,36 +2,36 @@ package scroll
 
 // Context holds the state and context for scroll mode operations.
 type Context struct {
-	// LastKey tracks the last key pressed during scroll operations
+	// lastKey tracks the last key pressed during scroll operations
 	// This is used for multi-key operations like "gg" for top
-	LastKey string
+	lastKey string
 
-	// IsActive indicates whether scroll mode is currently active
-	IsActive bool
+	// isActive indicates whether scroll mode is currently active
+	isActive bool
 }
 
 // SetLastKey sets the last key pressed during scroll operations.
 func (c *Context) SetLastKey(key string) {
-	c.LastKey = key
+	c.lastKey = key
 }
 
 // GetLastKey returns the last key pressed during scroll operations.
 func (c *Context) GetLastKey() string {
-	return c.LastKey
+	return c.lastKey
 }
 
 // SetIsActive sets whether scroll mode is currently active.
 func (c *Context) SetIsActive(active bool) {
-	c.IsActive = active
+	c.isActive = active
 }
 
 // GetIsActive returns whether scroll mode is currently active.
 func (c *Context) GetIsActive() bool {
-	return c.IsActive
+	return c.isActive
 }
 
 // Reset resets the scroll context to its initial state.
 func (c *Context) Reset() {
-	c.LastKey = ""
-	c.IsActive = false
+	c.lastKey = ""
+	c.isActive = false
 }

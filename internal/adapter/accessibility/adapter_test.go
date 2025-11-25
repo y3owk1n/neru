@@ -46,7 +46,7 @@ func TestNewAdapter(t *testing.T) {
 				t.Fatal("NewAdapter() returned nil")
 			}
 
-			if adapter.Logger == nil {
+			if adapter.GetLogger() == nil {
 				t.Error("Adapter logger is nil")
 			}
 		})
@@ -102,8 +102,8 @@ func TestAdapter_UpdateClickableRoles(t *testing.T) {
 	adapter.UpdateClickableRoles(newRoles)
 
 	// Verify roles were updated (internal state)
-	if len(adapter.ClickableRoles) != len(newRoles) {
-		t.Errorf("Expected %d roles, got %d", len(newRoles), len(adapter.ClickableRoles))
+	if len(adapter.GetClickableRoles()) != len(newRoles) {
+		t.Errorf("Expected %d roles, got %d", len(newRoles), len(adapter.GetClickableRoles()))
 	}
 
 	// Verify mock was updated

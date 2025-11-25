@@ -18,19 +18,19 @@ type Grid struct {
 
 // Cell represents a grid cell containing coordinate, bounds, and center point information.
 type Cell struct {
-	Coordinate string          // 3-character coordinate (e.g., "AAA", "ABC")
-	Bounds     image.Rectangle // Cell bounds
-	Center     image.Point     // Center point
+	coordinate string          // 3-character coordinate (e.g., "AAA", "ABC")
+	bounds     image.Rectangle // Cell bounds
+	center     image.Point     // Center point
 }
 
 // GetCoordinate returns the 3-character coordinate.
-func (c *Cell) GetCoordinate() string { return c.Coordinate }
+func (c *Cell) GetCoordinate() string { return c.coordinate }
 
 // GetBounds returns the cell bounds.
-func (c *Cell) GetBounds() image.Rectangle { return c.Bounds }
+func (c *Cell) GetBounds() image.Rectangle { return c.bounds }
 
 // GetCenter returns the center point.
-func (c *Cell) GetCenter() image.Point { return c.Center }
+func (c *Cell) GetCenter() image.Point { return c.center }
 
 // NewGrid creates a grid with automatically optimized cell sizes for the screen.
 // Cell sizes are dynamically calculated based on screen dimensions, resolution, and aspect ratio
@@ -334,12 +334,12 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 				yCoordinate := yStarts[globalRow]
 
 				cell := &Cell{
-					Coordinate: coordinate,
-					Bounds: image.Rect(
+					coordinate: coordinate,
+					bounds: image.Rect(
 						xCoordinate, yCoordinate,
 						xCoordinate+cellWidth, yCoordinate+cellHeight,
 					),
-					Center: image.Point{
+					center: image.Point{
 						X: xCoordinate + cellWidth/2,
 						Y: yCoordinate + cellHeight/2,
 					},

@@ -154,7 +154,7 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 		cell := m.grid.GetCellByCoordinate(coordinate)
 		if cell != nil {
 			if !m.inSubgrid {
-				center := cell.Center
+				center := cell.center
 
 				m.inSubgrid = true
 				m.selectedCell = cell
@@ -219,7 +219,7 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 
 	rowIndex := keyIndex / m.subCols
 	colIndex := keyIndex % m.subCols
-	cellBounds := m.selectedCell.Bounds
+	cellBounds := m.selectedCell.bounds
 	// Compute breakpoints to match overlay splitting and cover full bounds
 	xBreaks := make([]int, m.subCols+1)
 	yBreaks := make([]int, m.subRows+1)

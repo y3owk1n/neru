@@ -336,7 +336,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	}
 	labels := *labelsPtr
 
-	cellBounds := cell.Bounds
+	cellBounds := cell.GetBounds()
 	// Build breakpoints that evenly distribute remainders to fully cover the cell
 	xBreaks := make([]int, cols+1)
 	yBreaks := make([]int, rows+1)

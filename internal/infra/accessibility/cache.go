@@ -11,8 +11,8 @@ import (
 
 // CachedInfo wraps ElementInfo with an expiration timestamp for TTL-based caching.
 type CachedInfo struct {
-	Info      *ElementInfo
-	ExpiresAt time.Time
+	info      *ElementInfo
+	expiresAt time.Time
 }
 
 // InfoCache implements a thread-safe time-to-live cache for element information.
@@ -52,11 +52,11 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	}
 
 	// Check if expired
-	if time.Now().After(cached.ExpiresAt) {
+	if time.Now().After(cached.expiresAt) {
 		return nil
 	}
 
-	return cached.Info
+	return cached.info
 }
 
 // Set stores element information in the cache with the configured time-to-live.
@@ -68,8 +68,8 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 	key := uintptr(unsafe.Pointer(elem))
 	expiresAt := time.Now().Add(c.ttl)
 	c.data[key] = &CachedInfo{
-		Info:      info,
-		ExpiresAt: expiresAt,
+		info:      info,
+		expiresAt: expiresAt,
 	}
 
 	logger.Debug("Cached element info",
@@ -134,7 +134,7 @@ func (c *InfoCache) cleanup() {
 	toDelete := make([]uintptr, 0, len(c.data)/4) // Estimate 25% might be expired
 
 	for key, cached := range c.data {
-		if now.After(cached.ExpiresAt) {
+		if now.After(cached.expiresAt) {
 			toDelete = append(toDelete, key)
 		}
 	}

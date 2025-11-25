@@ -32,7 +32,7 @@ func (h *Handler) HandleKeyPress(key string) {
 		}
 		// Try to handle scroll keys with generic handler using persistent state.
 		// If it's not a scroll key, it will just be ignored.
-		lastKey := h.Scroll.Context.LastKey
+		lastKey := h.Scroll.Context.GetLastKey()
 		h.handleGenericScrollKey(key, &lastKey)
 		h.Scroll.Context.SetLastKey(lastKey)
 
@@ -65,7 +65,7 @@ func (h *Handler) handleTabKey() {
 			return
 		}
 
-		if h.Hints.Context.InActionMode {
+		if h.Hints.Context.GetInActionMode() {
 			h.Hints.Context.SetInActionMode(false)
 
 			if overlay.Get() != nil {
@@ -93,7 +93,7 @@ func (h *Handler) handleTabKey() {
 			return
 		}
 
-		if h.Grid.Context.InActionMode {
+		if h.Grid.Context.GetInActionMode() {
 			h.Grid.Context.SetInActionMode(false)
 			h.OverlayManager.Clear()
 			h.OverlayManager.Hide()
@@ -121,7 +121,7 @@ func (h *Handler) handleTabKey() {
 func (h *Handler) handleEscapeKey() {
 	switch h.AppState.CurrentMode() {
 	case domain.ModeHints:
-		if h.Hints.Context.InActionMode {
+		if h.Hints.Context.GetInActionMode() {
 			h.Hints.Context.SetInActionMode(false)
 			h.OverlayManager.Clear()
 			h.OverlayManager.Hide()
@@ -132,7 +132,7 @@ func (h *Handler) handleEscapeKey() {
 			return
 		}
 	case domain.ModeGrid:
-		if h.Grid.Context.InActionMode {
+		if h.Grid.Context.GetInActionMode() {
 			h.Grid.Context.SetInActionMode(false)
 			h.OverlayManager.Clear()
 			h.OverlayManager.Hide()
@@ -154,7 +154,7 @@ func (h *Handler) handleEscapeKey() {
 func (h *Handler) handleModeSpecificKey(key string) {
 	switch h.AppState.CurrentMode() {
 	case domain.ModeHints:
-		if h.Hints.Context.InActionMode {
+		if h.Hints.Context.GetInActionMode() {
 			h.handleHintsActionKey(key)
 			// After handling the action, we stay in action mode.
 			// The user can press Tab to go back to overlay mode or perform more actions.
@@ -162,14 +162,14 @@ func (h *Handler) handleModeSpecificKey(key string) {
 		}
 
 		// Route hint-specific keys via domain hints router
-		if h.Hints.Context.Router == nil {
+		if h.Hints.Context.GetRouter() == nil {
 			h.Logger.Error("Hints router is nil")
 			h.ExitMode()
 
 			return
 		}
 
-		hintKeyResult := h.Hints.Context.Router.RouteKey(key)
+		hintKeyResult := h.Hints.Context.GetRouter().RouteKey(key)
 		if hintKeyResult.Exit {
 			h.ExitMode()
 
@@ -215,7 +215,7 @@ func (h *Handler) handleModeSpecificKey(key string) {
 			return
 		}
 	case domain.ModeGrid:
-		if h.Grid.Context.InActionMode {
+		if h.Grid.Context.GetInActionMode() {
 			h.handleGridActionKey(key)
 			// After handling the action, we stay in action mode.
 			// The user can press Tab to go back to overlay mode or perform more actions.
