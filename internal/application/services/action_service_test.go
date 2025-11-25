@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/application/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 )
@@ -180,14 +181,14 @@ func TestActionService_PerformAction(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
 			logger := logger.Get()
 
-			if test.setupMocks != nil {
-				test.setupMocks(mockAcc)
+			if testCase.setupMocks != nil {
+				testCase.setupMocks(mockAcc)
 			}
 
 			config := config.ActionConfig{
@@ -198,10 +199,14 @@ func TestActionService_PerformAction(t *testing.T) {
 			service := services.NewActionService(mockAcc, mockOverlay, config, logger)
 			context := context.Background()
 
-			performActionErr := service.PerformAction(context, test.action, test.point)
+			performActionErr := service.PerformAction(context, testCase.action, testCase.point)
 
-			if (performActionErr != nil) != test.wantErr {
-				t.Errorf("PerformAction() error = %v, wantErr %v", performActionErr, test.wantErr)
+			if (performActionErr != nil) != testCase.wantErr {
+				t.Errorf(
+					"PerformAction() error = %v, wantErr %v",
+					performActionErr,
+					testCase.wantErr,
+				)
 			}
 		})
 	}
@@ -242,14 +247,14 @@ func TestActionService_IsFocusedAppExcluded(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
 			logger := logger.Get()
 
-			if test.setupMocks != nil {
-				test.setupMocks(mockAcc)
+			if testCase.setupMocks != nil {
+				testCase.setupMocks(mockAcc)
 			}
 
 			config := config.ActionConfig{}
@@ -258,16 +263,16 @@ func TestActionService_IsFocusedAppExcluded(t *testing.T) {
 
 			isExcluded, isExcludedErr := service.IsFocusedAppExcluded(context)
 
-			if (isExcludedErr != nil) != test.wantErr {
+			if (isExcludedErr != nil) != testCase.wantErr {
 				t.Errorf(
 					"IsFocusedAppExcluded() error = %v, wantErr %v",
 					isExcludedErr,
-					test.wantErr,
+					testCase.wantErr,
 				)
 			}
 
-			if isExcluded != test.want {
-				t.Errorf("IsFocusedAppExcluded() = %v, want %v", isExcluded, test.want)
+			if isExcluded != testCase.want {
+				t.Errorf("IsFocusedAppExcluded() = %v, want %v", isExcluded, testCase.want)
 			}
 		})
 	}
@@ -315,14 +320,14 @@ func TestActionService_GetFocusedAppBundleID(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
 			logger := logger.Get()
 
-			if test.setupMocks != nil {
-				test.setupMocks(mockAcc)
+			if testCase.setupMocks != nil {
+				testCase.setupMocks(mockAcc)
 			}
 
 			config := config.ActionConfig{}
@@ -331,17 +336,204 @@ func TestActionService_GetFocusedAppBundleID(t *testing.T) {
 
 			focusedApp, focusedAppErr := service.GetFocusedAppBundleID(context)
 
-			if (focusedAppErr != nil) != test.wantErr {
+			if (focusedAppErr != nil) != testCase.wantErr {
 				t.Errorf(
 					"GetFocusedAppBundleID() error = %v, wantErr %v",
 					focusedAppErr,
-					test.wantErr,
+					testCase.wantErr,
 				)
 			}
 
-			if focusedApp != test.want {
-				t.Errorf("GetFocusedAppBundleID() = %v, want %v", focusedApp, test.want)
+			if focusedApp != testCase.want {
+				t.Errorf("GetFocusedAppBundleID() = %v, want %v", focusedApp, testCase.want)
 			}
 		})
+	}
+}
+
+func TestActionService_ExecuteAction(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	logger := logger.Get()
+	config := config.ActionConfig{}
+	service := services.NewActionService(mockAcc, mockOverlay, config, logger)
+
+	elem, _ := element.NewElement("test", image.Rect(10, 10, 50, 50), element.RoleButton)
+	ctx := context.Background()
+
+	// Test successful execution
+	mockAcc.PerformActionFunc = func(_ context.Context, _ *element.Element, actionType action.Type) error {
+		if actionType != action.TypeLeftClick {
+			t.Errorf("Expected TypeLeftClick, got %v", actionType)
+		}
+
+		return nil
+	}
+
+	err := service.ExecuteAction(ctx, elem, action.TypeLeftClick)
+	if err != nil {
+		t.Errorf("ExecuteAction() returned error: %v", err)
+	}
+
+	// Test execution with error
+	mockAcc.PerformActionFunc = func(_ context.Context, _ *element.Element, _ action.Type) error {
+		return derrors.New(derrors.CodeActionFailed, "action failed")
+	}
+
+	err = service.ExecuteAction(ctx, elem, action.TypeLeftClick)
+	if err == nil {
+		t.Error("ExecuteAction() should return error when accessibility fails")
+	}
+}
+
+func TestActionService_ShowActionHighlight(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	logger := logger.Get()
+	config := config.ActionConfig{}
+	service := services.NewActionService(mockAcc, mockOverlay, config, logger)
+
+	ctx := context.Background()
+
+	// Test successful highlight
+	screenBounds := image.Rect(0, 0, 1920, 1080)
+	mockAcc.GetScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
+		return screenBounds, nil
+	}
+
+	mockOverlay.DrawActionHighlightFunc = func(_ context.Context, rect image.Rectangle, _ string, _ int) error {
+		if rect != screenBounds {
+			t.Errorf(
+				"DrawActionHighlight called with wrong rect: %v, expected %v",
+				rect,
+				screenBounds,
+			)
+		}
+
+		return nil
+	}
+
+	err := service.ShowActionHighlight(ctx)
+	if err != nil {
+		t.Errorf("ShowActionHighlight() returned error: %v", err)
+	}
+
+	// Test with screen bounds error
+	mockAcc.GetScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
+		return image.Rectangle{}, derrors.New(
+			derrors.CodeAccessibilityFailed,
+			"screen bounds failed",
+		)
+	}
+
+	err = service.ShowActionHighlight(ctx)
+	if err == nil {
+		t.Error("ShowActionHighlight() should return error when screen bounds fails")
+	}
+}
+
+func TestActionService_MoveCursorToElement(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	logger := logger.Get()
+	config := config.ActionConfig{}
+	service := services.NewActionService(mockAcc, mockOverlay, config, logger)
+
+	elem, _ := element.NewElement("test", image.Rect(10, 20, 50, 60), element.RoleButton)
+	ctx := context.Background()
+
+	// Test successful move
+	mockAcc.MoveCursorToPointFunc = func(_ context.Context, point image.Point) error {
+		expected := image.Point{X: 30, Y: 40} // center of element
+		if point != expected {
+			t.Errorf("MoveCursorToPoint called with %v, expected %v", point, expected)
+		}
+
+		return nil
+	}
+
+	err := service.MoveCursorToElement(ctx, elem)
+	if err != nil {
+		t.Errorf("MoveCursorToElement() returned error: %v", err)
+	}
+
+	// Test with error
+	mockAcc.MoveCursorToPointFunc = func(_ context.Context, _ image.Point) error {
+		return derrors.New(derrors.CodeAccessibilityFailed, "move failed")
+	}
+
+	err = service.MoveCursorToElement(ctx, elem)
+	if err == nil {
+		t.Error("MoveCursorToElement() should return error when move fails")
+	}
+}
+
+func TestActionService_MoveCursorToPoint(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	logger := logger.Get()
+	config := config.ActionConfig{}
+	service := services.NewActionService(mockAcc, mockOverlay, config, logger)
+
+	point := image.Point{X: 100, Y: 200}
+	ctx := context.Background()
+
+	// Test successful move
+	mockAcc.MoveCursorToPointFunc = func(_ context.Context, p image.Point) error {
+		if p != point {
+			t.Errorf("MoveCursorToPoint called with %v, expected %v", p, point)
+		}
+
+		return nil
+	}
+
+	err := service.MoveCursorToPoint(ctx, point)
+	if err != nil {
+		t.Errorf("MoveCursorToPoint() returned error: %v", err)
+	}
+
+	// Test with error
+	mockAcc.MoveCursorToPointFunc = func(_ context.Context, _ image.Point) error {
+		return derrors.New(derrors.CodeAccessibilityFailed, "move failed")
+	}
+
+	err = service.MoveCursorToPoint(ctx, point)
+	if err == nil {
+		t.Error("MoveCursorToPoint() should return error when move fails")
+	}
+}
+
+func TestActionService_GetCursorPosition(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	logger := logger.Get()
+	config := config.ActionConfig{}
+	service := services.NewActionService(mockAcc, mockOverlay, config, logger)
+
+	expectedPoint := image.Point{X: 150, Y: 250}
+	ctx := context.Background()
+
+	// Test successful get
+	mockAcc.GetCursorPositionFunc = func(_ context.Context) (image.Point, error) {
+		return expectedPoint, nil
+	}
+
+	point, err := service.GetCursorPosition(ctx)
+	if err != nil {
+		t.Errorf("GetCursorPosition() returned error: %v", err)
+	}
+
+	if point != expectedPoint {
+		t.Errorf("GetCursorPosition() = %v, expected %v", point, expectedPoint)
+	}
+
+	// Test with error
+	mockAcc.GetCursorPositionFunc = func(_ context.Context) (image.Point, error) {
+		return image.Point{}, derrors.New(derrors.CodeAccessibilityFailed, "position failed")
+	}
+
+	_, err = service.GetCursorPosition(ctx)
+	if err == nil {
+		t.Error("GetCursorPosition() should return error when accessibility fails")
 	}
 }

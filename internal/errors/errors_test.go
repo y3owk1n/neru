@@ -65,11 +65,11 @@ func TestError_Error(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.err.Error()
-			if got != tt.expected {
-				t.Errorf("Error() = %q, want %q", got, tt.expected)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := testCase.err.Error()
+			if got != testCase.expected {
+				t.Errorf("Error() = %q, want %q", got, testCase.expected)
 			}
 		})
 	}
@@ -160,6 +160,183 @@ func TestError_Is(t *testing.T) {
 	stdErr := errors.New("standard error") //nolint:err113 // dynamic errors needed for testing
 	if err1.Is(stdErr) {
 		t.Error("Is() should return false for non-Error types")
+	}
+}
+
+func TestWrapf(t *testing.T) {
+	cause := derrors.New(derrors.CodeInternal, "underlying error")
+
+	err := derrors.Wrapf(
+		cause,
+		derrors.CodeActionFailed,
+		"action %s failed with code %d",
+		"click",
+		42,
+	)
+	if err == nil {
+		t.Fatal("Wrapf() returned nil")
+	}
+
+	if !errors.Is(err.Cause, cause) {
+		t.Errorf("Wrapf() cause = %v, want %v", err.Cause, cause)
+	}
+
+	if err.Code != derrors.CodeActionFailed {
+		t.Errorf("Wrapf() code = %v, want %v", err.Code, derrors.CodeActionFailed)
+	}
+
+	expectedMsg := "action click failed with code 42"
+	if err.Message != expectedMsg {
+		t.Errorf("Wrapf() message = %q, want %q", err.Message, expectedMsg)
+	}
+
+	// Test Wrapf with nil error
+	nilErr := derrors.Wrapf(nil, derrors.CodeActionFailed, "action failed")
+	if nilErr != nil {
+		t.Error("Wrapf() should return nil for nil error")
+	}
+}
+
+func TestIsCode(t *testing.T) {
+	domainErr := derrors.New(derrors.CodeInvalidInput, "test error")
+	stdErr := derrors.New(derrors.CodeInternal, "standard error")
+
+	tests := []struct {
+		name string
+		err  error
+		code derrors.Code
+		want bool
+	}{
+		{"domain error matching code", domainErr, derrors.CodeInvalidInput, true},
+		{"domain error non-matching code", domainErr, derrors.CodeInvalidConfig, false},
+		{"standard error", stdErr, derrors.CodeInvalidInput, false},
+		{"nil error", nil, derrors.CodeInvalidInput, false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := derrors.IsCode(testCase.err, testCase.code)
+			if got != testCase.want {
+				t.Errorf(
+					"IsCode(%v, %v) = %v, want %v",
+					testCase.err,
+					testCase.code,
+					got,
+					testCase.want,
+				)
+			}
+		})
+	}
+}
+
+func TestGetCode(t *testing.T) {
+	domainErr := derrors.New(derrors.CodeInvalidInput, "test error")
+	stdErr := derrors.New(derrors.CodeInternal, "standard error")
+
+	tests := []struct {
+		name string
+		err  error
+		want derrors.Code
+	}{
+		{"domain error", domainErr, derrors.CodeInvalidInput},
+		{"standard error", stdErr, derrors.CodeInternal},
+		{"nil error", nil, derrors.CodeInternal},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := derrors.GetCode(testCase.err)
+			if got != testCase.want {
+				t.Errorf("GetCode(%v) = %v, want %v", testCase.err, got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestIsAccessibilityError(t *testing.T) {
+	tests := []struct {
+		name string
+		code derrors.Code
+		want bool
+	}{
+		{"accessibility denied", derrors.CodeAccessibilityDenied, true},
+		{"accessibility failed", derrors.CodeAccessibilityFailed, true},
+		{"other error", derrors.CodeInvalidInput, false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := derrors.New(testCase.code, "test error")
+
+			got := derrors.IsAccessibilityError(err)
+			if got != testCase.want {
+				t.Errorf("IsAccessibilityError(%v) = %v, want %v", err, got, testCase.want)
+			}
+		})
+	}
+
+	// Test with non-domain error
+	stdErr := derrors.New(derrors.CodeInternal, "standard error")
+	if derrors.IsAccessibilityError(stdErr) {
+		t.Error("IsAccessibilityError should return false for non-domain errors")
+	}
+}
+
+func TestIsUserError(t *testing.T) {
+	tests := []struct {
+		name string
+		code derrors.Code
+		want bool
+	}{
+		{"invalid config", derrors.CodeInvalidConfig, true},
+		{"invalid input", derrors.CodeInvalidInput, true},
+		{"other error", derrors.CodeIPCFailed, false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := derrors.New(testCase.code, "test error")
+
+			got := derrors.IsUserError(err)
+			if got != testCase.want {
+				t.Errorf("IsUserError(%v) = %v, want %v", err, got, testCase.want)
+			}
+		})
+	}
+
+	// Test with non-domain error
+	stdErr := derrors.New(derrors.CodeInternal, "standard error")
+	if derrors.IsUserError(stdErr) {
+		t.Error("IsUserError should return false for non-domain errors")
+	}
+}
+
+func TestIsTransient(t *testing.T) {
+	tests := []struct {
+		name string
+		code derrors.Code
+		want bool
+	}{
+		{"timeout", derrors.CodeTimeout, true},
+		{"ipc failed", derrors.CodeIPCFailed, true},
+		{"other error", derrors.CodeInvalidInput, false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := derrors.New(testCase.code, "test error")
+
+			got := derrors.IsTransient(err)
+			if got != testCase.want {
+				t.Errorf("IsTransient(%v) = %v, want %v", err, got, testCase.want)
+			}
+		})
+	}
+
+	// Test with non-domain error
+	stdErr := derrors.New(derrors.CodeInternal, "standard error")
+	if derrors.IsTransient(stdErr) {
+		t.Error("IsTransient should return false for non-domain errors")
 	}
 }
 

@@ -42,11 +42,11 @@ func TestNewHint(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			hint, hintErr := hint.NewHint(test.label, test.elem, test.position)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			hint, hintErr := hint.NewHint(testCase.label, testCase.elem, testCase.position)
 
-			if test.wantErr {
+			if testCase.wantErr {
 				if hintErr == nil {
 					t.Error("NewHint() expected error, got nil")
 				}
@@ -60,12 +60,12 @@ func TestNewHint(t *testing.T) {
 				return
 			}
 
-			if hint.Label() != test.label {
-				t.Errorf("Label() = %v, want %v", hint.Label(), test.label)
+			if hint.Label() != testCase.label {
+				t.Errorf("Label() = %v, want %v", hint.Label(), testCase.label)
 			}
 
-			if hint.Position() != test.position {
-				t.Errorf("Position() = %v, want %v", hint.Position(), test.position)
+			if hint.Position() != testCase.position {
+				t.Errorf("Position() = %v, want %v", hint.Position(), testCase.position)
 			}
 		})
 	}
@@ -88,13 +88,75 @@ func TestHint_HasPrefix(t *testing.T) {
 		{"", true}, // Empty prefix matches everything
 	}
 
-	for _, test := range tests {
-		t.Run(test.prefix, func(t *testing.T) {
-			got := hint.HasPrefix(test.prefix)
-			if got != test.want {
-				t.Errorf("HasPrefix(%q) = %v, want %v", test.prefix, got, test.want)
+	for _, testCase := range tests {
+		t.Run(testCase.prefix, func(t *testing.T) {
+			got := hint.HasPrefix(testCase.prefix)
+			if got != testCase.want {
+				t.Errorf("HasPrefix(%q) = %v, want %v", testCase.prefix, got, testCase.want)
 			}
 		})
+	}
+}
+
+func TestHint_Methods(t *testing.T) {
+	elem, _ := element.NewElement("test", image.Rect(10, 10, 50, 50), element.RoleButton)
+	hint, _ := hint.NewHint("AS", elem, image.Point{X: 30, Y: 30})
+
+	// Test Element()
+	if hint.Element() != elem {
+		t.Error("Element() returned wrong element")
+	}
+
+	// Test MatchedPrefix() - initially empty
+	if hint.MatchedPrefix() != "" {
+		t.Errorf("MatchedPrefix() = %q, want empty string", hint.MatchedPrefix())
+	}
+
+	// Test WithMatchedPrefix()
+	hintWithPrefix := hint.WithMatchedPrefix("A")
+	if hintWithPrefix.MatchedPrefix() != "A" {
+		t.Errorf(
+			"WithMatchedPrefix() MatchedPrefix() = %q, want %q",
+			hintWithPrefix.MatchedPrefix(),
+			"A",
+		)
+	}
+
+	// Test that WithMatchedPrefix returns a new instance
+	if hintWithPrefix == hint {
+		t.Error("WithMatchedPrefix() should return a new instance")
+	}
+
+	// Test Bounds()
+	bounds := hint.Bounds()
+
+	expectedBounds := image.Rect(10, 10, 50, 50)
+	if bounds != expectedBounds {
+		t.Errorf("Bounds() = %v, want %v", bounds, expectedBounds)
+	}
+
+	// Test IsVisible()
+	screenBounds := image.Rect(0, 0, 100, 100)
+	if !hint.IsVisible(screenBounds) {
+		t.Error("IsVisible() should return true for element within screen bounds")
+	}
+
+	smallScreen := image.Rect(60, 60, 100, 100)
+	if hint.IsVisible(smallScreen) {
+		t.Error("IsVisible() should return false for element outside screen bounds")
+	}
+
+	// Test MatchesLabel()
+	if !hint.MatchesLabel("AS") {
+		t.Error("MatchesLabel() should return true for exact match")
+	}
+
+	if hint.MatchesLabel("A") {
+		t.Error("MatchesLabel() should return false for partial match")
+	}
+
+	if hint.MatchesLabel("ASDF") {
+		t.Error("MatchesLabel() should return false for longer string")
 	}
 }
 
@@ -156,15 +218,15 @@ func TestAlphabetGenerator_MaxHints(t *testing.T) {
 		{"asdfghjkl", 729}, // 9^3 = 729
 	}
 
-	for _, test := range tests {
-		t.Run(test.characters, func(t *testing.T) {
-			generator, generatorErr := hint.NewAlphabetGenerator(test.characters)
+	for _, testCase := range tests {
+		t.Run(testCase.characters, func(t *testing.T) {
+			generator, generatorErr := hint.NewAlphabetGenerator(testCase.characters)
 			if generatorErr != nil {
 				t.Fatalf("NewAlphabetGenerator() error: %v", generatorErr)
 			}
 
 			got := generator.MaxHints()
-			charCount := len(test.characters)
+			charCount := len(testCase.characters)
 			want := charCount * charCount * charCount
 
 			if got != want {
@@ -254,15 +316,15 @@ func TestCollection_FilterByPrefix(t *testing.T) {
 		{"X", 0},  // No matches
 	}
 
-	for _, test := range tests {
-		t.Run(test.prefix, func(t *testing.T) {
-			filtered := collection.FilterByPrefix(test.prefix)
-			if len(filtered) != test.want {
+	for _, testCase := range tests {
+		t.Run(testCase.prefix, func(t *testing.T) {
+			filtered := collection.FilterByPrefix(testCase.prefix)
+			if len(filtered) != testCase.want {
 				t.Errorf(
 					"FilterByPrefix(%q) returned %d hints, want %d",
-					test.prefix,
+					testCase.prefix,
 					len(filtered),
-					test.want,
+					testCase.want,
 				)
 			}
 		})

@@ -259,11 +259,11 @@ func TestAppState_StateTransitionSequences(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			state := state.NewAppState()
 
-			for _, mode := range test.sequence {
+			for _, mode := range testCase.sequence {
 				state.SetMode(mode)
 
 				if state.CurrentMode() != mode {
@@ -271,8 +271,8 @@ func TestAppState_StateTransitionSequences(t *testing.T) {
 				}
 			}
 
-			if state.CurrentMode() != test.wantFinal {
-				t.Errorf("Final mode = %v, want %v", state.CurrentMode(), test.wantFinal)
+			if state.CurrentMode() != testCase.wantFinal {
+				t.Errorf("Final mode = %v, want %v", state.CurrentMode(), testCase.wantFinal)
 			}
 		})
 	}

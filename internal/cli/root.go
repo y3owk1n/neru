@@ -34,7 +34,7 @@ var rootCmd = &cobra.Command{
 vim-like navigation capabilities across all applications using accessibility APIs.`,
 	Version: Version,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if isRunningFromAppBundle() && len(args) == 0 {
+		if IsRunningFromAppBundle() && len(args) == 0 {
 			logger.Info("Launching Neru from app bundle...")
 			launchProgram(configPath)
 
@@ -68,7 +68,8 @@ func init() {
 	rootCmd.PersistentFlags().IntVar(&timeoutSec, "timeout", 5, "IPC timeout in seconds")
 }
 
-func isRunningFromAppBundle() bool {
+// IsRunningFromAppBundle checks if the executable is running from a macOS app bundle.
+func IsRunningFromAppBundle() bool {
 	execPath, execPathErr := os.Executable()
 	if execPathErr != nil {
 		return false

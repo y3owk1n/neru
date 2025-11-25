@@ -3,6 +3,7 @@ package ipc_test
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -66,17 +67,17 @@ func TestNewServer(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			server, err := ipc.NewServer(test.handler, logger)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			server, err := ipc.NewServer(testCase.handler, logger)
 
-			if (err != nil) != test.wantErr {
-				t.Errorf("NewServer() error = %v, wantErr %v", err, test.wantErr)
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("NewServer() error = %v, wantErr %v", err, testCase.wantErr)
 
 				return
 			}
 
-			if !test.wantErr && server == nil {
+			if !testCase.wantErr && server == nil {
 				t.Error("NewServer() returned nil server")
 			}
 
@@ -183,17 +184,17 @@ func TestClientSend(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			ipcResponse, ipcResponseErr := client.Send(test.cmd)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			ipcResponse, ipcResponseErr := client.Send(testCase.cmd)
 
-			if (ipcResponseErr != nil) != test.wantErr {
-				t.Errorf("Send() error = %v, wantErr %v", ipcResponseErr, test.wantErr)
+			if (ipcResponseErr != nil) != testCase.wantErr {
+				t.Errorf("Send() error = %v, wantErr %v", ipcResponseErr, testCase.wantErr)
 
 				return
 			}
 
-			if !test.wantErr {
+			if !testCase.wantErr {
 				if !ipcResponse.Success {
 					t.Errorf("Send() response not successful: %v", ipcResponse)
 				}
@@ -248,13 +249,17 @@ func TestClientSendWithTimeout(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			cmd := ipc.Command{Action: "test"}
-			_, ipcResponseErr := client.SendWithTimeout(cmd, test.timeout)
+			_, ipcResponseErr := client.SendWithTimeout(cmd, testCase.timeout)
 
-			if (ipcResponseErr != nil) != test.wantErr {
-				t.Errorf("SendWithTimeout() error = %v, wantErr %v", ipcResponseErr, test.wantErr)
+			if (ipcResponseErr != nil) != testCase.wantErr {
+				t.Errorf(
+					"SendWithTimeout() error = %v, wantErr %v",
+					ipcResponseErr,
+					testCase.wantErr,
+				)
 			}
 		})
 	}
@@ -328,5 +333,88 @@ func TestResponseJSON(t *testing.T) {
 
 	if decoded.Code != response.Code {
 		t.Errorf("Code mismatch: got %s, want %s", decoded.Code, response.Code)
+	}
+}
+
+func TestClientSend_ServerNotRunning(t *testing.T) {
+	client := ipc.NewClient()
+
+	cmd := ipc.Command{Action: "test"}
+
+	_, err := client.Send(cmd)
+	if err == nil {
+		t.Error("Expected error when server is not running")
+	}
+}
+
+func TestClientSendWithTimeout_ServerNotRunning(t *testing.T) {
+	client := ipc.NewClient()
+
+	cmd := ipc.Command{Action: "test"}
+
+	_, err := client.SendWithTimeout(cmd, time.Second)
+	if err == nil {
+		t.Error("Expected error when server is not running")
+	}
+}
+
+func TestCommand_EmptyAction(t *testing.T) {
+	cmd := ipc.Command{Action: ""}
+
+	data, err := json.Marshal(cmd)
+	if err != nil {
+		t.Fatalf("json.Marshal() failed: %v", err)
+	}
+
+	var decoded ipc.Command
+
+	err = json.Unmarshal(data, &decoded)
+	if err != nil {
+		t.Fatalf("json.Unmarshal() failed: %v", err)
+	}
+
+	if decoded.Action != "" {
+		t.Errorf("Action mismatch: got %q, want empty string", decoded.Action)
+	}
+}
+
+func TestResponse_EmptyFields(t *testing.T) {
+	response := ipc.Response{}
+
+	data, err := json.Marshal(response)
+	if err != nil {
+		t.Fatalf("json.Marshal() failed: %v", err)
+	}
+
+	var decoded ipc.Response
+
+	err = json.Unmarshal(data, &decoded)
+	if err != nil {
+		t.Fatalf("json.Unmarshal() failed: %v", err)
+	}
+
+	if decoded.Success != false {
+		t.Errorf("Success mismatch: got %v, want false", decoded.Success)
+	}
+
+	if decoded.Message != "" {
+		t.Errorf("Message mismatch: got %q, want empty string", decoded.Message)
+	}
+
+	if decoded.Code != "" {
+		t.Errorf("Code mismatch: got %q, want empty string", decoded.Code)
+	}
+}
+
+func TestClient_GetSocketPath(t *testing.T) {
+	client := ipc.NewClient()
+	path := client.GetSocketPath()
+
+	if path == "" {
+		t.Error("Client.GetSocketPath() returned empty string")
+	}
+
+	if !filepath.IsAbs(path) {
+		t.Errorf("Client.GetSocketPath() returned relative path: %s", path)
 	}
 }

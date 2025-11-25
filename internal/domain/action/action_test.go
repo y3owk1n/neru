@@ -23,11 +23,11 @@ func TestParseType(t *testing.T) {
 		{"", 0, true},
 	}
 
-	for _, test := range tests {
-		t.Run(test.input, func(t *testing.T) {
-			parsedAction, parsedActionErr := action.ParseType(test.input)
+	for _, testCase := range tests {
+		t.Run(testCase.input, func(t *testing.T) {
+			parsedAction, parsedActionErr := action.ParseType(testCase.input)
 
-			if test.wantErr {
+			if testCase.wantErr {
 				if parsedActionErr == nil {
 					t.Error("ParseType() expected error, got nil")
 				}
@@ -41,8 +41,8 @@ func TestParseType(t *testing.T) {
 				return
 			}
 
-			if parsedAction != test.want {
-				t.Errorf("ParseType(%q) = %v, want %v", test.input, parsedAction, test.want)
+			if parsedAction != testCase.want {
+				t.Errorf("ParseType(%q) = %v, want %v", testCase.input, parsedAction, testCase.want)
 			}
 		})
 	}
@@ -63,11 +63,11 @@ func TestType_String(t *testing.T) {
 		{action.Type(999), "unknown"},
 	}
 
-	for _, test := range tests {
-		t.Run(test.want, func(t *testing.T) {
-			got := test.actionType.String()
-			if got != test.want {
-				t.Errorf("String() = %v, want %v", got, test.want)
+	for _, testCase := range tests {
+		t.Run(testCase.want, func(t *testing.T) {
+			got := testCase.actionType.String()
+			if got != testCase.want {
+				t.Errorf("String() = %v, want %v", got, testCase.want)
 			}
 		})
 	}
@@ -87,11 +87,11 @@ func TestType_IsClick(t *testing.T) {
 		{action.TypeScroll, false},
 	}
 
-	for _, test := range tests {
-		t.Run(test.actionType.String(), func(t *testing.T) {
-			got := test.actionType.IsClick()
-			if got != test.want {
-				t.Errorf("IsClick() = %v, want %v", got, test.want)
+	for _, testCase := range tests {
+		t.Run(testCase.actionType.String(), func(t *testing.T) {
+			got := testCase.actionType.IsClick()
+			if got != testCase.want {
+				t.Errorf("IsClick() = %v, want %v", got, testCase.want)
 			}
 		})
 	}
@@ -111,11 +111,11 @@ func TestType_IsMouseButton(t *testing.T) {
 		{action.TypeScroll, false},
 	}
 
-	for _, test := range tests {
-		t.Run(test.actionType.String(), func(t *testing.T) {
-			got := test.actionType.IsMouseButton()
-			if got != test.want {
-				t.Errorf("IsMouseButton() = %v, want %v", got, test.want)
+	for _, testCase := range tests {
+		t.Run(testCase.actionType.String(), func(t *testing.T) {
+			got := testCase.actionType.IsMouseButton()
+			if got != testCase.want {
+				t.Errorf("IsMouseButton() = %v, want %v", got, testCase.want)
 			}
 		})
 	}

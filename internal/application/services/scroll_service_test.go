@@ -130,8 +130,8 @@ func TestScrollService_Scroll(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
 			config := config.ScrollConfig{
@@ -141,17 +141,17 @@ func TestScrollService_Scroll(t *testing.T) {
 			}
 			logger := logger.Get()
 
-			if test.setupMocks != nil {
-				test.setupMocks(mockAcc)
+			if testCase.setupMocks != nil {
+				testCase.setupMocks(mockAcc)
 			}
 
 			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
 			context := context.Background()
 
-			scrollErr := service.Scroll(context, test.direction, test.amount)
+			scrollErr := service.Scroll(context, testCase.direction, testCase.amount)
 
-			if (scrollErr != nil) != test.wantErr {
-				t.Errorf("Scroll() error = %v, wantErr %v", scrollErr, test.wantErr)
+			if (scrollErr != nil) != testCase.wantErr {
+				t.Errorf("Scroll() error = %v, wantErr %v", scrollErr, testCase.wantErr)
 			}
 		})
 	}
@@ -208,8 +208,8 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
 			config := config.ScrollConfig{
@@ -218,8 +218,8 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 			}
 			logger := logger.Get()
 
-			if test.setupMocks != nil {
-				test.setupMocks(mockAcc, mockOverlay)
+			if testCase.setupMocks != nil {
+				testCase.setupMocks(mockAcc, mockOverlay)
 			}
 
 			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
@@ -227,11 +227,11 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 
 			showScrollOverlayErr := service.ShowScrollOverlay(context)
 
-			if (showScrollOverlayErr != nil) != test.wantErr {
+			if (showScrollOverlayErr != nil) != testCase.wantErr {
 				t.Errorf(
 					"ShowScrollOverlay() error = %v, wantErr %v",
 					showScrollOverlayErr,
-					test.wantErr,
+					testCase.wantErr,
 				)
 			}
 		})

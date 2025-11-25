@@ -72,20 +72,20 @@ func TestInit(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			initErr := plogger.Init(
-				test.logLevel,
-				test.logFilePath,
-				test.structured,
-				test.disableFileLogging,
-				test.maxFileSize,
-				test.maxBackups,
-				test.maxAge,
+				testCase.logLevel,
+				testCase.logFilePath,
+				testCase.structured,
+				testCase.disableFileLogging,
+				testCase.maxFileSize,
+				testCase.maxBackups,
+				testCase.maxAge,
 			)
 
-			if (initErr != nil) != test.wantErr {
-				t.Errorf("Init() error = %v, wantErr %v", initErr, test.wantErr)
+			if (initErr != nil) != testCase.wantErr {
+				t.Errorf("Init() error = %v, wantErr %v", initErr, testCase.wantErr)
 			}
 
 			// Verify logger was initialized
@@ -159,10 +159,10 @@ func TestLoggingFunctions(t *testing.T) {
 		// Note: Fatal test is skipped as it would exit the test process
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(_ *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(_ *testing.T) {
 			// Should not panic
-			test.fn()
+			testCase.fn()
 		})
 	}
 
@@ -247,12 +247,12 @@ func TestLogLevels(t *testing.T) {
 		{"unknown defaults to info", "unknown", zapcore.InfoLevel},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			logPath := filepath.Join(tempDir, "test.log")
 
-			initErr := plogger.Init(test.logLevel, logPath, false, false, 10, 3, 7)
+			initErr := plogger.Init(testCase.logLevel, logPath, false, false, 10, 3, 7)
 			if initErr != nil {
 				t.Fatalf("Init() failed: %v", initErr)
 			}

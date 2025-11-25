@@ -82,11 +82,11 @@ func TestService_Validate(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			validateErr := service.Validate(test.cfg)
-			if (validateErr != nil) != test.wantErr {
-				t.Errorf("Validate() error = %v, wantErr %v", validateErr, test.wantErr)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			validateErr := service.Validate(testCase.cfg)
+			if (validateErr != nil) != testCase.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", validateErr, testCase.wantErr)
 			}
 		})
 	}

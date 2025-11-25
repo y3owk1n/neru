@@ -45,4 +45,13 @@ func TestTraceID(t *testing.T) {
 			t.Errorf("FromContext() = %v, want empty string", got)
 		}
 	})
+
+	t.Run("String method", func(t *testing.T) {
+		id := trace.ID("test-trace-id")
+		str := id.String()
+
+		if str != "test-trace-id" {
+			t.Errorf("String() = %v, want %v", str, "test-trace-id")
+		}
+	})
 }

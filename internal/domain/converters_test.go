@@ -35,11 +35,11 @@ func TestGetModeString(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := domain.GetModeString(tt.mode)
-			if got != tt.want {
-				t.Errorf("GetModeString(%v) = %q, want %q", tt.mode, got, tt.want)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := domain.GetModeString(testCase.mode)
+			if got != testCase.want {
+				t.Errorf("GetModeString(%v) = %q, want %q", testCase.mode, got, testCase.want)
 			}
 		})
 	}
@@ -93,11 +93,11 @@ func TestGetActionString(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := domain.GetActionString(tt.action)
-			if got != tt.want {
-				t.Errorf("GetActionString(%v) = %q, want %q", tt.action, got, tt.want)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := domain.GetActionString(testCase.action)
+			if got != testCase.want {
+				t.Errorf("GetActionString(%v) = %q, want %q", testCase.action, got, testCase.want)
 			}
 		})
 	}
@@ -172,24 +172,24 @@ func TestGetActionFromString(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			gotAction, gotOk := domain.GetActionFromString(test.actionStr)
-			if gotAction != test.wantAction {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			gotAction, gotOk := domain.GetActionFromString(testCase.actionStr)
+			if gotAction != testCase.wantAction {
 				t.Errorf(
 					"GetActionFromString(%q) action = %v, want %v",
-					test.actionStr,
+					testCase.actionStr,
 					gotAction,
-					test.wantAction,
+					testCase.wantAction,
 				)
 			}
 
-			if gotOk != test.wantOk {
+			if gotOk != testCase.wantOk {
 				t.Errorf(
 					"GetActionFromString(%q) ok = %v, want %v",
-					test.actionStr,
+					testCase.actionStr,
 					gotOk,
-					test.wantOk,
+					testCase.wantOk,
 				)
 			}
 		})

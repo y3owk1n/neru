@@ -52,11 +52,15 @@ func TestNewElement(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			element, elementErr := element.NewElement(test.id, test.bounds, test.role, test.opts...)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			element, elementErr := element.NewElement(
+				testCase.id,
+				testCase.bounds,
+				testCase.role,
+				testCase.opts...)
 
-			if test.wantErr {
+			if testCase.wantErr {
 				if elementErr == nil {
 					t.Errorf("NewElement() expected error, got nil")
 				}
@@ -70,16 +74,16 @@ func TestNewElement(t *testing.T) {
 				return
 			}
 
-			if element.ID() != test.id {
-				t.Errorf("ID() = %v, want %v", element.ID(), test.id)
+			if element.ID() != testCase.id {
+				t.Errorf("ID() = %v, want %v", element.ID(), testCase.id)
 			}
 
-			if element.Bounds() != test.bounds {
-				t.Errorf("Bounds() = %v, want %v", element.Bounds(), test.bounds)
+			if element.Bounds() != testCase.bounds {
+				t.Errorf("Bounds() = %v, want %v", element.Bounds(), testCase.bounds)
 			}
 
-			if element.Role() != test.role {
-				t.Errorf("Role() = %v, want %v", element.Role(), test.role)
+			if element.Role() != testCase.role {
+				t.Errorf("Role() = %v, want %v", element.Role(), testCase.role)
 			}
 		})
 	}
@@ -126,11 +130,11 @@ func TestElement_Contains(t *testing.T) {
 		{"outside bottom", image.Point{X: 50, Y: 55}, false},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got := element.Contains(test.point)
-			if got != test.want {
-				t.Errorf("Contains(%v) = %v, want %v", test.point, got, test.want)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := element.Contains(testCase.point)
+			if got != testCase.want {
+				t.Errorf("Contains(%v) = %v, want %v", testCase.point, got, testCase.want)
 			}
 		})
 	}
@@ -150,13 +154,13 @@ func TestElement_Overlaps(t *testing.T) {
 		{"completely separate", image.Rect(60, 60, 100, 100), false},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			elementB, _ := element.NewElement("elem2", test.bounds, element.RoleButton)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			elementB, _ := element.NewElement("elem2", testCase.bounds, element.RoleButton)
 
 			got := elementA.Overlaps(elementB)
-			if got != test.want {
-				t.Errorf("Overlaps() = %v, want %v", got, test.want)
+			if got != testCase.want {
+				t.Errorf("Overlaps() = %v, want %v", got, testCase.want)
 			}
 		})
 	}
@@ -175,11 +179,86 @@ func TestElement_IsVisible(t *testing.T) {
 		{"completely off screen", image.Rect(60, 60, 100, 100), false},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got := element.IsVisible(test.screenBounds)
-			if got != test.want {
-				t.Errorf("IsVisible(%v) = %v, want %v", test.screenBounds, got, test.want)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := element.IsVisible(testCase.screenBounds)
+			if got != testCase.want {
+				t.Errorf("IsVisible(%v) = %v, want %v", testCase.screenBounds, got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestElement_Options(t *testing.T) {
+	tests := []struct {
+		name          string
+		opts          []element.Option
+		wantClickable bool
+		wantTitle     string
+		wantDesc      string
+	}{
+		{
+			name:          "no options",
+			opts:          nil,
+			wantClickable: false,
+			wantTitle:     "",
+			wantDesc:      "",
+		},
+		{
+			name:          "with clickable",
+			opts:          []element.Option{element.WithClickable(true)},
+			wantClickable: true,
+			wantTitle:     "",
+			wantDesc:      "",
+		},
+		{
+			name:          "with title",
+			opts:          []element.Option{element.WithTitle("Test Button")},
+			wantClickable: false,
+			wantTitle:     "Test Button",
+			wantDesc:      "",
+		},
+		{
+			name:          "with description",
+			opts:          []element.Option{element.WithDescription("A test element")},
+			wantClickable: false,
+			wantTitle:     "",
+			wantDesc:      "A test element",
+		},
+		{
+			name: "with all options",
+			opts: []element.Option{
+				element.WithClickable(true),
+				element.WithTitle("Click Me"),
+				element.WithDescription("Clickable button"),
+			},
+			wantClickable: true,
+			wantTitle:     "Click Me",
+			wantDesc:      "Clickable button",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			elem, err := element.NewElement(
+				"test",
+				image.Rect(0, 0, 10, 10),
+				element.RoleButton,
+				testCase.opts...)
+			if err != nil {
+				t.Fatalf("NewElement() error: %v", err)
+			}
+
+			if elem.IsClickable() != testCase.wantClickable {
+				t.Errorf("IsClickable() = %v, want %v", elem.IsClickable(), testCase.wantClickable)
+			}
+
+			if elem.Title() != testCase.wantTitle {
+				t.Errorf("Title() = %q, want %q", elem.Title(), testCase.wantTitle)
+			}
+
+			if elem.Description() != testCase.wantDesc {
+				t.Errorf("Description() = %q, want %q", elem.Description(), testCase.wantDesc)
 			}
 		})
 	}
