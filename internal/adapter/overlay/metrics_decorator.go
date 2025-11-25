@@ -28,7 +28,7 @@ func NewMetricsDecorator(
 }
 
 // ShowHints implements ports.OverlayPort.
-func (d *MetricsDecorator) ShowHints(ctx context.Context, hints []*hint.Hint) error {
+func (d *MetricsDecorator) ShowHints(ctx context.Context, hints []*hint.Interface) error {
 	defer d.recordDuration("overlay_show_hints_duration", time.Now())
 
 	d.collector.ObserveHistogram("overlay_hints_count", float64(len(hints)), nil)

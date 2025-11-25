@@ -424,7 +424,7 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate hints configuration
-	validateErr := c.validateHints()
+	validateErr := c.ValidateHints()
 	if validateErr != nil {
 		return validateErr
 	}
@@ -463,25 +463,25 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate app configs
-	validateAppConfigsErr := c.validateAppConfigs()
+	validateAppConfigsErr := c.ValidateAppConfigs()
 	if validateAppConfigsErr != nil {
 		return validateAppConfigsErr
 	}
 
 	// Validate grid settings
-	validateGridErr := c.validateGrid()
+	validateGridErr := c.ValidateGrid()
 	if validateGridErr != nil {
 		return validateGridErr
 	}
 
 	// Validate action settings
-	validateActionErr := c.validateAction()
+	validateActionErr := c.ValidateAction()
 	if validateActionErr != nil {
 		return validateActionErr
 	}
 
 	// Validate smooth cursor settings
-	validateSmoothCursorErr := c.validateSmoothCursor()
+	validateSmoothCursorErr := c.ValidateSmoothCursor()
 	if validateSmoothCursorErr != nil {
 		return validateSmoothCursorErr
 	}

@@ -1,14 +1,15 @@
-package state
+package state_test
 
 import (
 	"sync"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
 func TestNewAppState(t *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	if state == nil {
 		t.Fatal("NewAppState() returned nil")
@@ -24,7 +25,7 @@ func TestNewAppState(t *testing.T) {
 }
 
 func TestAppState_EnableDisable(t *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	// Test Enable
 	state.Disable()
@@ -54,7 +55,7 @@ func TestAppState_EnableDisable(t *testing.T) {
 }
 
 func TestAppState_Mode(t *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	modes := []domain.Mode{
 		domain.ModeIdle,
@@ -72,7 +73,7 @@ func TestAppState_Mode(t *testing.T) {
 }
 
 func TestAppState_HotkeysRegistered(t *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	if state.HotkeysRegistered() {
 		t.Error("Expected hotkeys to not be registered initially")
@@ -92,7 +93,7 @@ func TestAppState_HotkeysRegistered(t *testing.T) {
 }
 
 func TestAppState_ScreenChangeProcessing(t *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	if state.ScreenChangeProcessing() {
 		t.Error("Expected screen change processing to be false initially")
@@ -112,7 +113,7 @@ func TestAppState_ScreenChangeProcessing(t *testing.T) {
 }
 
 func TestAppState_GridOverlayNeedsRefresh(t *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	if state.GridOverlayNeedsRefresh() {
 		t.Error("Expected grid overlay refresh to be false initially")
@@ -132,7 +133,7 @@ func TestAppState_GridOverlayNeedsRefresh(t *testing.T) {
 }
 
 func TestAppState_HintOverlayNeedsRefresh(t *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	if state.HintOverlayNeedsRefresh() {
 		t.Error("Expected hint overlay refresh to be false initially")
@@ -152,7 +153,7 @@ func TestAppState_HintOverlayNeedsRefresh(t *testing.T) {
 }
 
 func TestAppState_HotkeyRefreshPending(t *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	if state.HotkeyRefreshPending() {
 		t.Error("Expected hotkey refresh pending to be false initially")
@@ -173,7 +174,7 @@ func TestAppState_HotkeyRefreshPending(t *testing.T) {
 
 // TestAppState_Concurrency tests thread-safe access to state.
 func TestAppState_Concurrency(_ *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	var waitGroup sync.WaitGroup
 
@@ -201,7 +202,7 @@ func TestAppState_Concurrency(_ *testing.T) {
 
 // Benchmark tests.
 func BenchmarkAppState_GetSet(b *testing.B) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	for b.Loop() {
 		state.SetEnabled(true)
@@ -212,7 +213,7 @@ func BenchmarkAppState_GetSet(b *testing.B) {
 }
 
 func BenchmarkAppState_ConcurrentAccess(b *testing.B) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -226,7 +227,7 @@ func BenchmarkAppState_ConcurrentAccess(b *testing.B) {
 
 // TestAppState_RapidModeTransitions tests rapid mode switching.
 func TestAppState_RapidModeTransitions(t *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 	modes := []domain.Mode{
 		domain.ModeIdle,
 		domain.ModeHints,
@@ -283,7 +284,7 @@ func TestAppState_StateTransitionSequences(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			state := NewAppState()
+			state := state.NewAppState()
 
 			for _, mode := range test.sequence {
 				state.SetMode(mode)
@@ -306,7 +307,7 @@ func TestAppState_ConcurrentStressTest(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	state := NewAppState()
+	state := state.NewAppState()
 
 	var waitGroup sync.WaitGroup
 
@@ -351,7 +352,7 @@ func TestAppState_ConcurrentStressTest(t *testing.T) {
 
 // TestAppState_StateInvariants validates state invariants.
 func TestAppState_StateInvariants(t *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	// Invariant 1: New state should be enabled
 	if !state.IsEnabled() {
@@ -400,7 +401,7 @@ func TestAppState_StateInvariants(t *testing.T) {
 
 // TestAppState_MultipleFlags tests concurrent modification of multiple flags.
 func TestAppState_MultipleFlags(_ *testing.T) {
-	state := NewAppState()
+	state := state.NewAppState()
 
 	var waitGroup sync.WaitGroup
 

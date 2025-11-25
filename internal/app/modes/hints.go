@@ -120,7 +120,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	if h.Hints.Context.Manager == nil {
 		manager := domainHint.NewManager(h.Logger)
 		// Set callback to update overlay when hints are filtered
-		manager.SetUpdateCallback(func(filteredHints []*domainHint.Hint) {
+		manager.SetUpdateCallback(func(filteredHints []*domainHint.Interface) {
 			if h.Hints.Overlay == nil {
 				return
 			}

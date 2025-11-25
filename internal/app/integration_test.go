@@ -1,10 +1,11 @@
-package app
+package app_test
 
 import (
 	"context"
 	"testing"
 	"unsafe"
 
+	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
@@ -21,7 +22,7 @@ import (
 // Mock factories.
 type mockEventTapFactory struct{}
 
-func (m *mockEventTapFactory) New(_ func(string), _ *zap.Logger) EventTap {
+func (m *mockEventTapFactory) New(_ func(string), _ *zap.Logger) app.EventTap {
 	return &mockEventTap{}
 }
 
@@ -37,7 +38,7 @@ type mockIPCServerFactory struct{}
 func (m *mockIPCServerFactory) New(
 	_ func(context.Context, ipc.Command) ipc.Response,
 	_ *zap.Logger,
-) (IPCServer, error) {
+) (app.IPCServer, error) {
 	return &mockIPCServer{}, nil
 }
 
@@ -48,7 +49,7 @@ func (m *mockIPCServer) Stop() error { return nil }
 
 type mockOverlayManagerFactory struct{}
 
-func (m *mockOverlayManagerFactory) New(_ *zap.Logger) OverlayManager {
+func (m *mockOverlayManagerFactory) New(_ *zap.Logger) app.OverlayManager {
 	return &mockOverlayManager{}
 }
 
@@ -106,7 +107,7 @@ func (m *mockOverlayManager) SetHideUnmatched(_ bool)                      {}
 
 type mockAppWatcherFactory struct{}
 
-func (m *mockAppWatcherFactory) New(_ *zap.Logger) Watcher {
+func (m *mockAppWatcherFactory) New(_ *zap.Logger) app.Watcher {
 	return &mockAppWatcher{}
 }
 
@@ -127,14 +128,14 @@ func TestApp_ModeIntegration(t *testing.T) {
 	config.General.AccessibilityCheckOnStart = false // Disable OS check
 
 	// Mock dependencies
-	deps := &deps{
+	deps := &app.Deps{
 		EventTapFactory:       &mockEventTapFactory{},
 		IPCServerFactory:      &mockIPCServerFactory{},
 		OverlayManagerFactory: &mockOverlayManagerFactory{},
 		WatcherFactory:        &mockAppWatcherFactory{},
 	}
 
-	application, applicationErr := newWithDeps(config, "", deps)
+	application, applicationErr := app.NewWithDeps(config, "", deps)
 	if applicationErr != nil {
 		t.Fatalf("Failed to create app: %v", applicationErr)
 	}

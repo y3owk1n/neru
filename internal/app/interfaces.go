@@ -89,9 +89,9 @@ type watcherFactory interface {
 	New(logger *zap.Logger) Watcher
 }
 
-// deps holds optional dependencies for testing and dependency injection.
+// Deps holds optional dependencies for testing and dependency injection.
 // When nil, default implementations are used.
-type deps struct {
+type Deps struct {
 	// Hotkeys is an optional hotkey service implementation.
 	Hotkeys HotkeyService
 

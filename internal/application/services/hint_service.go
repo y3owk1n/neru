@@ -37,7 +37,7 @@ func NewHintService(
 func (s *HintService) ShowHints(
 	context context.Context,
 	filter ports.ElementFilter,
-) ([]*hint.Hint, error) {
+) ([]*hint.Interface, error) {
 	s.logger.Info("Showing hints", zap.Any("filter", filter))
 
 	// Get clickable elements

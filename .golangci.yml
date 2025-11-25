@@ -25,7 +25,6 @@ linters:
         - mnd # Too strict
         - nestif # Too many false-positive.
         - paralleltest # Not relevant
-        - testpackage # Too strict
         - wrapcheck # Too strict
         - wsl # Deprecated
 

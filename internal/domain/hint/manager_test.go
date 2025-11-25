@@ -16,7 +16,7 @@ func TestManager_Filtering(t *testing.T) {
 	h2, _ := hint.NewHint("AB", element, image.Point{0, 0})
 	h3, _ := hint.NewHint("AC", element, image.Point{0, 0})
 
-	collection := hint.NewCollection([]*hint.Hint{h1, h2, h3})
+	collection := hint.NewCollection([]*hint.Interface{h1, h2, h3})
 	manager := hint.NewManager(logger.Get())
 	manager.SetHints(collection)
 
@@ -38,7 +38,7 @@ func TestManager_Filtering(t *testing.T) {
 			manager.Reset()
 
 			var (
-				match *hint.Hint
+				match *hint.Interface
 				found bool
 			)
 
@@ -67,7 +67,7 @@ func TestManager_Filtering(t *testing.T) {
 func TestManager_Backspace(t *testing.T) {
 	element, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
 	h1, _ := hint.NewHint("AA", element, image.Point{0, 0})
-	collection := hint.NewCollection([]*hint.Hint{h1})
+	collection := hint.NewCollection([]*hint.Interface{h1})
 	manager := hint.NewManager(logger.Get())
 	manager.SetHints(collection)
 

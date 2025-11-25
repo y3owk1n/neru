@@ -1,7 +1,9 @@
-package config
+package config_test
 
 import (
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // TestValidateColor tests the validateColor function.
@@ -64,9 +66,9 @@ func TestValidateColor(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := validateColor(test.color, test.fieldName)
+			err := config.ValidateColor(test.color, test.fieldName)
 			if (err != nil) != test.wantErr {
-				t.Errorf("validateColor() error = %v, wantErr %v", err, test.wantErr)
+				t.Errorf("ValidateColor() error = %v, wantErr %v", err, test.wantErr)
 			}
 		})
 	}
@@ -138,9 +140,9 @@ func TestValidateHotkey(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			validateHotkeyErr := validateHotkey(test.hotkey, test.fieldName)
+			validateHotkeyErr := config.ValidateHotkey(test.hotkey, test.fieldName)
 			if (validateHotkeyErr != nil) != test.wantErr {
-				t.Errorf("validateHotkey() error = %v, wantErr %v", validateHotkeyErr, test.wantErr)
+				t.Errorf("ValidateHotkey() error = %v, wantErr %v", validateHotkeyErr, test.wantErr)
 			}
 		})
 	}
@@ -150,13 +152,13 @@ func TestValidateHotkey(t *testing.T) {
 func TestConfig_ValidateHints(t *testing.T) {
 	tests := []struct {
 		name    string
-		config  *Config
+		config  *config.Config
 		wantErr bool
 	}{
 		{
 			name: "valid hints config",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters:   "ABCDEFGH",
 					Opacity:          0.9,
 					BackgroundColor:  "#000000",
@@ -173,8 +175,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "empty hint characters",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters: "",
 				},
 			},
@@ -182,8 +184,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "too few hint characters",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters: "A",
 				},
 			},
@@ -191,8 +193,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "opacity too low",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters: "AB",
 					Opacity:        -0.1,
 				},
@@ -201,8 +203,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "opacity too high",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters: "AB",
 					Opacity:        1.1,
 				},
@@ -211,8 +213,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "invalid background color",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters:  "AB",
 					Opacity:         0.9,
 					BackgroundColor: "invalid",
@@ -222,8 +224,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "font size too small",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters:   "AB",
 					Opacity:          0.9,
 					BackgroundColor:  "#000000",
@@ -237,8 +239,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "font size too large",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters:   "AB",
 					Opacity:          0.9,
 					BackgroundColor:  "#000000",
@@ -252,8 +254,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "negative border radius",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters:   "AB",
 					Opacity:          0.9,
 					BackgroundColor:  "#000000",
@@ -268,8 +270,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "empty clickable role",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters:   "AB",
 					Opacity:          0.9,
 					BackgroundColor:  "#000000",
@@ -284,8 +286,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "empty electron bundle",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters:   "AB",
 					Opacity:          0.9,
 					BackgroundColor:  "#000000",
@@ -293,7 +295,7 @@ func TestConfig_ValidateHints(t *testing.T) {
 					MatchedTextColor: "#FF0000",
 					BorderColor:      "#333333",
 					FontSize:         14,
-					AdditionalAXSupport: AdditionalAXSupport{
+					AdditionalAXSupport: config.AdditionalAXSupport{
 						AdditionalElectronBundles: []string{""},
 					},
 				},
@@ -302,8 +304,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "empty chromium bundle",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters:   "AB",
 					Opacity:          0.9,
 					BackgroundColor:  "#000000",
@@ -311,7 +313,7 @@ func TestConfig_ValidateHints(t *testing.T) {
 					MatchedTextColor: "#FF0000",
 					BorderColor:      "#333333",
 					FontSize:         14,
-					AdditionalAXSupport: AdditionalAXSupport{
+					AdditionalAXSupport: config.AdditionalAXSupport{
 						AdditionalChromiumBundles: []string{""},
 					},
 				},
@@ -320,8 +322,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "empty firefox bundle",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters:   "AB",
 					Opacity:          0.9,
 					BackgroundColor:  "#000000",
@@ -329,7 +331,7 @@ func TestConfig_ValidateHints(t *testing.T) {
 					MatchedTextColor: "#FF0000",
 					BorderColor:      "#333333",
 					FontSize:         14,
-					AdditionalAXSupport: AdditionalAXSupport{
+					AdditionalAXSupport: config.AdditionalAXSupport{
 						AdditionalFirefoxBundles: []string{""},
 					},
 				},
@@ -338,8 +340,8 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 		{
 			name: "valid additional bundles",
-			config: &Config{
-				Hints: HintsConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
 					HintCharacters:   "AB",
 					Opacity:          0.9,
 					BackgroundColor:  "#000000",
@@ -347,7 +349,7 @@ func TestConfig_ValidateHints(t *testing.T) {
 					MatchedTextColor: "#FF0000",
 					BorderColor:      "#333333",
 					FontSize:         14,
-					AdditionalAXSupport: AdditionalAXSupport{
+					AdditionalAXSupport: config.AdditionalAXSupport{
 						AdditionalElectronBundles: []string{"com.electron.app"},
 						AdditionalChromiumBundles: []string{"com.chromium.app"},
 						AdditionalFirefoxBundles:  []string{"org.mozilla.firefox"},
@@ -360,10 +362,10 @@ func TestConfig_ValidateHints(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			validateHintsErr := test.config.validateHints()
+			validateHintsErr := test.config.ValidateHints()
 			if (validateHintsErr != nil) != test.wantErr {
 				t.Errorf(
-					"Config.validateHints() error = %v, wantErr %v",
+					"Config.ValidateHints() error = %v, wantErr %v",
 					validateHintsErr,
 					test.wantErr,
 				)
@@ -376,21 +378,21 @@ func TestConfig_ValidateHints(t *testing.T) {
 func TestConfig_ValidateAppConfigs(t *testing.T) {
 	tests := []struct {
 		name    string
-		config  *Config
+		config  *config.Config
 		wantErr bool
 	}{
 		{
 			name: "valid app config",
-			config: &Config{
-				Hints: HintsConfig{
-					AppConfigs: []AppConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            "com.example.app",
 							AdditionalClickable: []string{"button", "link"},
 						},
 					},
 				},
-				Hotkeys: HotkeysConfig{
+				Hotkeys: config.HotkeysConfig{
 					Bindings: map[string]string{
 						"Cmd+Space": "hints",
 					},
@@ -400,9 +402,9 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 		},
 		{
 			name: "empty bundle ID",
-			config: &Config{
-				Hints: HintsConfig{
-					AppConfigs: []AppConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
 						{
 							BundleID: "",
 						},
@@ -413,9 +415,9 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 		},
 		{
 			name: "whitespace bundle ID",
-			config: &Config{
-				Hints: HintsConfig{
-					AppConfigs: []AppConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
 						{
 							BundleID: "   ",
 						},
@@ -426,9 +428,9 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 		},
 		{
 			name: "empty clickable role",
-			config: &Config{
-				Hints: HintsConfig{
-					AppConfigs: []AppConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            "com.example.app",
 							AdditionalClickable: []string{"button", ""},
@@ -440,9 +442,9 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 		},
 		{
 			name: "whitespace clickable role",
-			config: &Config{
-				Hints: HintsConfig{
-					AppConfigs: []AppConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            "com.example.app",
 							AdditionalClickable: []string{"button", "   "},
@@ -454,15 +456,15 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 		},
 		{
 			name: "empty hotkey binding key",
-			config: &Config{
-				Hints: HintsConfig{
-					AppConfigs: []AppConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
 						{
 							BundleID: "com.example.app",
 						},
 					},
 				},
-				Hotkeys: HotkeysConfig{
+				Hotkeys: config.HotkeysConfig{
 					Bindings: map[string]string{
 						"": "hints",
 					},
@@ -472,15 +474,15 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 		},
 		{
 			name: "empty hotkey binding value",
-			config: &Config{
-				Hints: HintsConfig{
-					AppConfigs: []AppConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
 						{
 							BundleID: "com.example.app",
 						},
 					},
 				},
-				Hotkeys: HotkeysConfig{
+				Hotkeys: config.HotkeysConfig{
 					Bindings: map[string]string{
 						"Cmd+Space": "",
 					},
@@ -490,15 +492,15 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 		},
 		{
 			name: "invalid hotkey format",
-			config: &Config{
-				Hints: HintsConfig{
-					AppConfigs: []AppConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
 						{
 							BundleID: "com.example.app",
 						},
 					},
 				},
-				Hotkeys: HotkeysConfig{
+				Hotkeys: config.HotkeysConfig{
 					Bindings: map[string]string{
 						"Invalid+": "hints",
 					},
@@ -508,9 +510,9 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 		},
 		{
 			name: "multiple app configs",
-			config: &Config{
-				Hints: HintsConfig{
-					AppConfigs: []AppConfig{
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            "com.example.app1",
 							AdditionalClickable: []string{"button"},
@@ -521,7 +523,7 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 						},
 					},
 				},
-				Hotkeys: HotkeysConfig{
+				Hotkeys: config.HotkeysConfig{
 					Bindings: map[string]string{
 						"Cmd+Space": "hints",
 					},
@@ -533,10 +535,10 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			validateAppConfigsErr := test.config.validateAppConfigs()
+			validateAppConfigsErr := test.config.ValidateAppConfigs()
 			if (validateAppConfigsErr != nil) != test.wantErr {
 				t.Errorf(
-					"Config.validateAppConfigs() error = %v, wantErr %v",
+					"Config.ValidateAppConfigs() error = %v, wantErr %v",
 					validateAppConfigsErr,
 					test.wantErr,
 				)
@@ -549,13 +551,13 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 func TestConfig_ValidateGrid(t *testing.T) {
 	tests := []struct {
 		name    string
-		config  *Config
+		config  *config.Config
 		wantErr bool
 	}{
 		{
 			name: "valid grid config",
-			config: &Config{
-				Grid: GridConfig{
+			config: &config.Config{
+				Grid: config.GridConfig{
 					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
 					FontSize:               16,
 					BorderWidth:            1,
@@ -573,8 +575,8 @@ func TestConfig_ValidateGrid(t *testing.T) {
 		},
 		{
 			name: "empty characters",
-			config: &Config{
-				Grid: GridConfig{
+			config: &config.Config{
+				Grid: config.GridConfig{
 					Characters: "",
 				},
 			},
@@ -582,8 +584,8 @@ func TestConfig_ValidateGrid(t *testing.T) {
 		},
 		{
 			name: "too few characters",
-			config: &Config{
-				Grid: GridConfig{
+			config: &config.Config{
+				Grid: config.GridConfig{
 					Characters: "A",
 				},
 			},
@@ -591,8 +593,8 @@ func TestConfig_ValidateGrid(t *testing.T) {
 		},
 		{
 			name: "font size too small",
-			config: &Config{
-				Grid: GridConfig{
+			config: &config.Config{
+				Grid: config.GridConfig{
 					Characters: "AB",
 					FontSize:   5,
 				},
@@ -601,8 +603,8 @@ func TestConfig_ValidateGrid(t *testing.T) {
 		},
 		{
 			name: "negative border width",
-			config: &Config{
-				Grid: GridConfig{
+			config: &config.Config{
+				Grid: config.GridConfig{
 					Characters:  "AB",
 					FontSize:    16,
 					BorderWidth: -1,
@@ -612,8 +614,8 @@ func TestConfig_ValidateGrid(t *testing.T) {
 		},
 		{
 			name: "opacity out of range",
-			config: &Config{
-				Grid: GridConfig{
+			config: &config.Config{
+				Grid: config.GridConfig{
 					Characters:  "AB",
 					FontSize:    16,
 					BorderWidth: 1,
@@ -624,8 +626,8 @@ func TestConfig_ValidateGrid(t *testing.T) {
 		},
 		{
 			name: "sublayer keys too short",
-			config: &Config{
-				Grid: GridConfig{
+			config: &config.Config{
+				Grid: config.GridConfig{
 					Characters:             "ABCDEFGH",
 					FontSize:               16,
 					BorderWidth:            1,
@@ -645,10 +647,10 @@ func TestConfig_ValidateGrid(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			validateGridErr := test.config.validateGrid()
+			validateGridErr := test.config.ValidateGrid()
 			if (validateGridErr != nil) != test.wantErr {
 				t.Errorf(
-					"Config.validateGrid() error = %v, wantErr %v",
+					"Config.ValidateGrid() error = %v, wantErr %v",
 					validateGridErr,
 					test.wantErr,
 				)
@@ -661,13 +663,13 @@ func TestConfig_ValidateGrid(t *testing.T) {
 func TestConfig_ValidateAction(t *testing.T) {
 	tests := []struct {
 		name    string
-		config  *Config
+		config  *config.Config
 		wantErr bool
 	}{
 		{
 			name: "valid action config",
-			config: &Config{
-				Action: ActionConfig{
+			config: &config.Config{
+				Action: config.ActionConfig{
 					HighlightWidth: 2,
 					HighlightColor: "#FF0000",
 				},
@@ -676,8 +678,8 @@ func TestConfig_ValidateAction(t *testing.T) {
 		},
 		{
 			name: "highlight width too small",
-			config: &Config{
-				Action: ActionConfig{
+			config: &config.Config{
+				Action: config.ActionConfig{
 					HighlightWidth: 0,
 				},
 			},
@@ -685,8 +687,8 @@ func TestConfig_ValidateAction(t *testing.T) {
 		},
 		{
 			name: "invalid highlight color",
-			config: &Config{
-				Action: ActionConfig{
+			config: &config.Config{
+				Action: config.ActionConfig{
 					HighlightWidth: 2,
 					HighlightColor: "invalid",
 				},
@@ -697,10 +699,10 @@ func TestConfig_ValidateAction(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			validateActionErr := test.config.validateAction()
+			validateActionErr := test.config.ValidateAction()
 			if (validateActionErr != nil) != test.wantErr {
 				t.Errorf(
-					"Config.validateAction() error = %v, wantErr %v",
+					"Config.ValidateAction() error = %v, wantErr %v",
 					validateActionErr,
 					test.wantErr,
 				)
@@ -713,13 +715,13 @@ func TestConfig_ValidateAction(t *testing.T) {
 func TestConfig_ValidateSmoothCursor(t *testing.T) {
 	tests := []struct {
 		name    string
-		config  *Config
+		config  *config.Config
 		wantErr bool
 	}{
 		{
 			name: "valid smooth cursor config",
-			config: &Config{
-				SmoothCursor: SmoothCursorConfig{
+			config: &config.Config{
+				SmoothCursor: config.SmoothCursorConfig{
 					Steps: 10,
 					Delay: 5,
 				},
@@ -728,8 +730,8 @@ func TestConfig_ValidateSmoothCursor(t *testing.T) {
 		},
 		{
 			name: "steps too small",
-			config: &Config{
-				SmoothCursor: SmoothCursorConfig{
+			config: &config.Config{
+				SmoothCursor: config.SmoothCursorConfig{
 					Steps: 0,
 				},
 			},
@@ -737,8 +739,8 @@ func TestConfig_ValidateSmoothCursor(t *testing.T) {
 		},
 		{
 			name: "negative delay",
-			config: &Config{
-				SmoothCursor: SmoothCursorConfig{
+			config: &config.Config{
+				SmoothCursor: config.SmoothCursorConfig{
 					Steps: 10,
 					Delay: -1,
 				},
@@ -749,7 +751,7 @@ func TestConfig_ValidateSmoothCursor(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			validateSmoothCursorErr := test.config.validateSmoothCursor()
+			validateSmoothCursorErr := test.config.ValidateSmoothCursor()
 			if (validateSmoothCursorErr != nil) != test.wantErr {
 				t.Errorf(
 					"Config.validateSmoothCursor() error = %v, wantErr %v",
@@ -764,19 +766,19 @@ func TestConfig_ValidateSmoothCursor(t *testing.T) {
 // Benchmark tests.
 func BenchmarkValidateColor(b *testing.B) {
 	for b.Loop() {
-		_ = validateColor("#FF0000", "test_color")
+		_ = config.ValidateColor("#FF0000", "test_color")
 	}
 }
 
 func BenchmarkValidateHotkey(b *testing.B) {
 	for b.Loop() {
-		_ = validateHotkey("Cmd+Shift+Space", "test_hotkey")
+		_ = config.ValidateHotkey("Cmd+Shift+Space", "test_hotkey")
 	}
 }
 
 func BenchmarkValidateHints(b *testing.B) {
-	config := &Config{
-		Hints: HintsConfig{
+	config := &config.Config{
+		Hints: config.HintsConfig{
 			HintCharacters:   "ABCDEFGH",
 			Opacity:          0.9,
 			BackgroundColor:  "#000000",
@@ -788,6 +790,6 @@ func BenchmarkValidateHints(b *testing.B) {
 	}
 
 	for b.Loop() {
-		_ = config.validateHints()
+		_ = config.ValidateHints()
 	}
 }

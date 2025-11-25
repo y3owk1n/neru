@@ -30,7 +30,7 @@ func NewAdapter(manager uiOverlay.ManagerInterface, logger *zap.Logger) *Adapter
 }
 
 // ShowHints displays hint labels on the screen.
-func (a *Adapter) ShowHints(context context.Context, hints []*hint.Hint) error {
+func (a *Adapter) ShowHints(context context.Context, hints []*hint.Interface) error {
 	// Check context
 	select {
 	case <-context.Done():

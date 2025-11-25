@@ -1,9 +1,10 @@
-package app
+package app_test
 
 import (
 	"context"
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
@@ -12,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func newTestController() *IPCController {
+func newTestController() *app.IPCController {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger, _ := zap.NewDevelopment()
@@ -20,20 +21,20 @@ func newTestController() *IPCController {
 	configService := config.NewService(cfg, "")
 
 	// Create controller with nil services for basic command testing
-	return &IPCController{
-		appState:      appState,
-		config:        cfg,
-		configService: configService,
-		logger:        logger,
-		metrics:       metricsCollector,
-		configPath:    "/test/config.toml",
-		handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
+	return &app.IPCController{
+		AppState:      appState,
+		Config:        cfg,
+		ConfigService: configService,
+		Logger:        logger,
+		Metrics:       metricsCollector,
+		ConfigPath:    "/test/config.toml",
+		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
 }
 
 func TestIPCController_HandlePing(t *testing.T) {
 	controller := newTestController()
-	controller.registerHandlers()
+	controller.RegisterHandlers()
 
 	context := context.Background()
 
@@ -54,12 +55,12 @@ func TestIPCController_HandlePing(t *testing.T) {
 
 func TestIPCController_HandleStart(t *testing.T) {
 	controller := newTestController()
-	controller.registerHandlers()
+	controller.RegisterHandlers()
 
 	context := context.Background()
 
 	// Disable state first (NewAppState starts with enabled=true)
-	controller.appState.SetEnabled(false)
+	controller.AppState.SetEnabled(false)
 
 	// First start should succeed
 	commandResponse := controller.HandleCommand(context, ipc.Command{Action: domain.CommandStart})
@@ -67,7 +68,7 @@ func TestIPCController_HandleStart(t *testing.T) {
 		t.Errorf("Expected success=true, got %v", commandResponse.Success)
 	}
 
-	if !controller.appState.IsEnabled() {
+	if !controller.AppState.IsEnabled() {
 		t.Error("Expected state to be enabled after start")
 	}
 
@@ -84,12 +85,12 @@ func TestIPCController_HandleStart(t *testing.T) {
 
 func TestIPCController_HandleStop(t *testing.T) {
 	controller := newTestController()
-	controller.registerHandlers()
+	controller.RegisterHandlers()
 
 	context := context.Background()
 
 	// Disable state first (NewAppState starts with enabled=true)
-	controller.appState.SetEnabled(false)
+	controller.AppState.SetEnabled(false)
 
 	// Stop when not running should fail
 	commandResponse := controller.HandleCommand(context, ipc.Command{Action: domain.CommandStop})
@@ -102,21 +103,21 @@ func TestIPCController_HandleStop(t *testing.T) {
 	}
 
 	// Start then stop should succeed
-	controller.appState.SetEnabled(true)
+	controller.AppState.SetEnabled(true)
 
 	commandResponse = controller.HandleCommand(context, ipc.Command{Action: domain.CommandStop})
 	if !commandResponse.Success {
 		t.Errorf("Expected success=true, got %v", commandResponse.Success)
 	}
 
-	if controller.appState.IsEnabled() {
+	if controller.AppState.IsEnabled() {
 		t.Error("Expected state to be disabled after stop")
 	}
 }
 
 func TestIPCController_HandleConfig(t *testing.T) {
 	controller := newTestController()
-	controller.registerHandlers()
+	controller.RegisterHandlers()
 
 	context := context.Background()
 
@@ -137,7 +138,7 @@ func TestIPCController_HandleConfig(t *testing.T) {
 
 func TestIPCController_HandleMetrics(t *testing.T) {
 	controller := newTestController()
-	controller.registerHandlers()
+	controller.RegisterHandlers()
 
 	context := context.Background()
 
@@ -154,7 +155,7 @@ func TestIPCController_HandleMetrics(t *testing.T) {
 
 func TestIPCController_UnknownCommand(t *testing.T) {
 	controller := newTestController()
-	controller.registerHandlers()
+	controller.RegisterHandlers()
 
 	context := context.Background()
 

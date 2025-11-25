@@ -28,7 +28,7 @@ func TestHintService_ShowHints(t *testing.T) {
 		setupGen      func() hint.Generator
 		wantErr       bool
 		wantHintCount int
-		checkHints    func(*testing.T, []*hint.Hint)
+		checkHints    func(*testing.T, []*hint.Interface)
 		checkOverlay  func(*testing.T, *mocks.MockOverlayPort)
 	}{
 		{
@@ -45,7 +45,7 @@ func TestHintService_ShowHints(t *testing.T) {
 			},
 			wantErr:       false,
 			wantHintCount: 3, // We have 3 test elements
-			checkHints: func(t *testing.T, hints []*hint.Hint) {
+			checkHints: func(t *testing.T, hints []*hint.Interface) {
 				t.Helper()
 
 				if len(hints) != 3 {
@@ -80,7 +80,7 @@ func TestHintService_ShowHints(t *testing.T) {
 			},
 			wantErr:       false,
 			wantHintCount: 0, // No elements means no hints
-			checkHints: func(t *testing.T, hints []*hint.Hint) {
+			checkHints: func(t *testing.T, hints []*hint.Interface) {
 				t.Helper()
 
 				if len(hints) != 0 {
@@ -133,7 +133,7 @@ func TestHintService_ShowHints(t *testing.T) {
 			},
 			wantErr:       false,
 			wantHintCount: 100,
-			checkHints: func(t *testing.T, hints []*hint.Hint) {
+			checkHints: func(t *testing.T, hints []*hint.Interface) {
 				t.Helper()
 
 				if len(hints) != 100 {
@@ -155,7 +155,7 @@ func TestHintService_ShowHints(t *testing.T) {
 			},
 			wantErr:       false,
 			wantHintCount: 1,
-			checkHints: func(t *testing.T, hints []*hint.Hint) {
+			checkHints: func(t *testing.T, hints []*hint.Interface) {
 				t.Helper()
 
 				if len(hints) != 1 {

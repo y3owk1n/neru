@@ -1,14 +1,16 @@
-package trace
+package trace_test
 
 import (
 	"context"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/domain/trace"
 )
 
 func TestTraceID(t *testing.T) {
 	t.Run("NewID generates unique IDs", func(t *testing.T) {
-		id1 := NewID()
-		id2 := NewID()
+		id1 := trace.NewID()
+		id2 := trace.NewID()
 
 		if id1 == "" {
 			t.Error("NewID returned empty string")
@@ -25,10 +27,10 @@ func TestTraceID(t *testing.T) {
 
 	t.Run("Context propagation", func(t *testing.T) {
 		context := context.Background()
-		contextID := NewID()
+		contextID := trace.NewID()
 
-		context = WithTraceID(context, contextID)
-		got := FromContext(context)
+		context = trace.WithTraceID(context, contextID)
+		got := trace.FromContext(context)
 
 		if got != contextID {
 			t.Errorf("FromContext() = %v, want %v", got, contextID)
@@ -37,7 +39,7 @@ func TestTraceID(t *testing.T) {
 
 	t.Run("FromContext returns empty for missing ID", func(t *testing.T) {
 		context := context.Background()
-		got := FromContext(context)
+		got := trace.FromContext(context)
 
 		if got != "" {
 			t.Errorf("FromContext() = %v, want empty string", got)

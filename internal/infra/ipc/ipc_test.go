@@ -1,5 +1,4 @@
-//nolint:errcheck,errchkjson,revive
-package ipc
+package ipc_test
 
 import (
 	"context"
@@ -7,11 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/infra/ipc"
 	"go.uber.org/zap"
 )
 
 func TestGetSocketPath(t *testing.T) {
-	path := GetSocketPath()
+	path := ipc.GetSocketPath()
 
 	if path == "" {
 		t.Error("GetSocketPath() returned empty string")
@@ -24,20 +24,20 @@ func TestGetSocketPath(t *testing.T) {
 }
 
 func TestNewClient(t *testing.T) {
-	client := NewClient()
+	client := ipc.NewClient()
 
 	if client == nil {
 		t.Fatal("NewClient() returned nil")
 	}
 
-	if client.socketPath == "" {
+	if client.GetSocketPath() == "" {
 		t.Error("Client socket path is empty")
 	}
 }
 
-func TestIsServerRunning(t *testing.T) {
+func TestIsServerRunning(_ *testing.T) {
 	// Test when server is not running
-	running := IsServerRunning()
+	running := ipc.IsServerRunning()
 
 	// We can't assert the value since it depends on system state
 	// Just verify it doesn't panic
@@ -49,13 +49,13 @@ func TestNewServer(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		handler CommandHandler
+		handler ipc.CommandHandler
 		wantErr bool
 	}{
 		{
 			name: "valid handler",
-			handler: func(_ context.Context, cmd Command) Response {
-				return Response{Success: true}
+			handler: func(_ context.Context, _ ipc.Command) ipc.Response {
+				return ipc.Response{Success: true}
 			},
 			wantErr: false,
 		},
@@ -68,7 +68,7 @@ func TestNewServer(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			server, err := NewServer(test.handler, logger)
+			server, err := ipc.NewServer(test.handler, logger)
 
 			if (err != nil) != test.wantErr {
 				t.Errorf("NewServer() error = %v, wantErr %v", err, test.wantErr)
@@ -91,14 +91,14 @@ func TestNewServer(t *testing.T) {
 func TestServerStartStop(t *testing.T) {
 	logger := zap.NewNop()
 
-	handler := func(_ context.Context, _ Command) Response {
-		return Response{
+	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
+		return ipc.Response{
 			Success: true,
 			Message: "test response",
 		}
 	}
 
-	server, serverErr := NewServer(handler, logger)
+	server, serverErr := ipc.NewServer(handler, logger)
 	if serverErr != nil {
 		t.Fatalf("NewServer() failed: %v", serverErr)
 	}
@@ -110,7 +110,7 @@ func TestServerStartStop(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify server is running
-	if !IsServerRunning() {
+	if !ipc.IsServerRunning() {
 		t.Error("Server should be running after Start()")
 	}
 
@@ -124,7 +124,7 @@ func TestServerStartStop(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify server is not running
-	if IsServerRunning() {
+	if ipc.IsServerRunning() {
 		t.Error("Server should not be running after Stop()")
 	}
 }
@@ -133,8 +133,8 @@ func TestClientSend(t *testing.T) {
 	logger := zap.NewNop()
 
 	// Create test handler
-	handler := func(_ context.Context, cmd Command) Response {
-		return Response{
+	handler := func(_ context.Context, cmd ipc.Command) ipc.Response {
+		return ipc.Response{
 			Success: true,
 			Message: "test response",
 			Data: map[string]string{
@@ -144,33 +144,36 @@ func TestClientSend(t *testing.T) {
 	}
 
 	// Start server
-	server, serverErr := NewServer(handler, logger)
+	server, serverErr := ipc.NewServer(handler, logger)
 	if serverErr != nil {
 		t.Fatalf("NewServer() failed: %v", serverErr)
 	}
-	defer server.Stop()
+
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	server.Start()
 	time.Sleep(100 * time.Millisecond)
 
 	// Create client
-	client := NewClient()
+	client := ipc.NewClient()
 
 	tests := []struct {
 		name    string
-		cmd     Command
+		cmd     ipc.Command
 		wantErr bool
 	}{
 		{
 			name: "simple command",
-			cmd: Command{
+			cmd: ipc.Command{
 				Action: "test",
 			},
 			wantErr: false,
 		},
 		{
 			name: "command with params",
-			cmd: Command{
+			cmd: ipc.Command{
 				Action: "test",
 				Params: map[string]any{
 					"key": "value",
@@ -207,23 +210,26 @@ func TestClientSendWithTimeout(t *testing.T) {
 	logger := zap.NewNop()
 
 	// Create slow handler
-	handler := func(_ context.Context, _ Command) Response {
+	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
 		time.Sleep(200 * time.Millisecond)
 
-		return Response{Success: true}
+		return ipc.Response{Success: true}
 	}
 
 	// Start server
-	server, serverErr := NewServer(handler, logger)
+	server, serverErr := ipc.NewServer(handler, logger)
 	if serverErr != nil {
 		t.Fatalf("NewServer() failed: %v", serverErr)
 	}
-	defer server.Stop()
+
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	server.Start()
 	time.Sleep(100 * time.Millisecond)
 
-	client := NewClient()
+	client := ipc.NewClient()
 
 	tests := []struct {
 		name    string
@@ -244,7 +250,7 @@ func TestClientSendWithTimeout(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := Command{Action: "test"}
+			cmd := ipc.Command{Action: "test"}
 			_, ipcResponseErr := client.SendWithTimeout(cmd, test.timeout)
 
 			if (ipcResponseErr != nil) != test.wantErr {
@@ -255,7 +261,7 @@ func TestClientSendWithTimeout(t *testing.T) {
 }
 
 func TestCommandJSON(t *testing.T) {
-	cmd := Command{
+	cmd := ipc.Command{
 		Action: "test",
 		Params: map[string]any{
 			"key": "value",
@@ -270,7 +276,7 @@ func TestCommandJSON(t *testing.T) {
 	}
 
 	// Unmarshal
-	var decoded Command
+	var decoded ipc.Command
 
 	dataErr = json.Unmarshal(data, &decoded)
 	if dataErr != nil {
@@ -288,7 +294,7 @@ func TestCommandJSON(t *testing.T) {
 }
 
 func TestResponseJSON(t *testing.T) {
-	response := Response{
+	response := ipc.Response{
 		Success: true,
 		Message: "test message",
 		Code:    "success",
@@ -304,7 +310,7 @@ func TestResponseJSON(t *testing.T) {
 	}
 
 	// Unmarshal
-	var decoded Response
+	var decoded ipc.Response
 
 	dataErr = json.Unmarshal(data, &decoded)
 	if dataErr != nil {
@@ -329,18 +335,21 @@ func TestResponseJSON(t *testing.T) {
 func BenchmarkClientSend(b *testing.B) {
 	logger := zap.NewNop()
 
-	handler := func(_ context.Context, _ Command) Response {
-		return Response{Success: true}
+	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
+		return ipc.Response{Success: true}
 	}
 
-	server, _ := NewServer(handler, logger)
-	defer server.Stop()
+	server, _ := ipc.NewServer(handler, logger)
+
+	defer func() {
+		_ = server.Stop()
+	}()
 
 	server.Start()
 	time.Sleep(100 * time.Millisecond)
 
-	client := NewClient()
-	cmd := Command{Action: "test"}
+	client := ipc.NewClient()
+	cmd := ipc.Command{Action: "test"}
 
 	b.ResetTimer()
 
@@ -350,7 +359,7 @@ func BenchmarkClientSend(b *testing.B) {
 }
 
 func BenchmarkJSONMarshal(b *testing.B) {
-	cmd := Command{
+	cmd := ipc.Command{
 		Action: "test",
 		Params: map[string]any{
 			"key": "value",
@@ -358,6 +367,6 @@ func BenchmarkJSONMarshal(b *testing.B) {
 	}
 
 	for b.Loop() {
-		_, _ = json.Marshal(cmd)
+		_, _ = json.Marshal(cmd) //nolint:errchkjson
 	}
 }

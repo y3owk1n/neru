@@ -39,7 +39,10 @@ func (c *InfraAXClient) GetFocusedApplication() (AXApp, error) {
 }
 
 // GetClickableNodes returns clickable nodes for the given root element.
-func (c *InfraAXClient) GetClickableNodes(root AXElement, includeOffscreen bool) ([]AXNode, error) {
+func (c *InfraAXClient) GetClickableNodes(
+	root AXElement,
+	includeOffscreen bool,
+) ([]AXNode, error) {
 	var element *infra.Element
 
 	switch elementType := root.(type) {
@@ -107,7 +110,9 @@ func (c *InfraAXClient) GetMenuBarClickableElements() ([]AXNode, error) {
 }
 
 // GetClickableElementsFromBundleID returns clickable elements for the application with the given bundle ID.
-func (c *InfraAXClient) GetClickableElementsFromBundleID(bundleID string) ([]AXNode, error) {
+func (c *InfraAXClient) GetClickableElementsFromBundleID(
+	bundleID string,
+) ([]AXNode, error) {
 	nodes, nodesErr := infra.GetClickableElementsFromBundleID(bundleID)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(

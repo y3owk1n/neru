@@ -10,8 +10,8 @@ type Router struct {
 
 // RouteResult contains the result of routing a key press in hint mode.
 type RouteResult struct {
-	Exit      bool  // Whether to exit hint mode
-	ExactHint *Hint // The exact matched hint (domain hint)
+	Exit      bool       // Whether to exit hint mode
+	ExactHint *Interface // The exact matched hint (domain hint)
 }
 
 // NewRouter creates a new hint router with the specified manager and logger.

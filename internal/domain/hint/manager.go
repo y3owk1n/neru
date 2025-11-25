@@ -10,7 +10,7 @@ import (
 type Manager struct {
 	currentInput string
 	hints        *Collection
-	onUpdate     func([]*Hint) // Callback when filtered hints change
+	onUpdate     func([]*Interface) // Callback when filtered hints change
 	logger       *zap.Logger
 }
 
@@ -22,7 +22,7 @@ func NewManager(logger *zap.Logger) *Manager {
 }
 
 // SetUpdateCallback sets the callback function to be called when filtered hints change.
-func (m *Manager) SetUpdateCallback(callback func([]*Hint)) {
+func (m *Manager) SetUpdateCallback(callback func([]*Interface)) {
 	m.onUpdate = callback
 }
 
@@ -48,7 +48,7 @@ func (m *Manager) Reset() {
 
 // HandleInput processes an input character and returns the matched hint if an exact match is found.
 // Returns (hint, true) if exact match found, (nil, false) otherwise.
-func (m *Manager) HandleInput(key string) (*Hint, bool) {
+func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	if m.hints == nil {
 		return nil, false
 	}
@@ -68,7 +68,7 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 			if m.hints != nil {
 				filtered := m.hints.FilterByPrefix(m.currentInput)
 
-				hintsWithPrefix := make([]*Hint, len(filtered))
+				hintsWithPrefix := make([]*Interface, len(filtered))
 				for i, h := range filtered {
 					hintsWithPrefix[i] = h.WithMatchedPrefix(m.currentInput)
 				}
@@ -106,7 +106,7 @@ func (m *Manager) HandleInput(key string) (*Hint, bool) {
 	}
 
 	// Update matched prefix for all filtered hints
-	hintsWithPrefix := make([]*Hint, len(filtered))
+	hintsWithPrefix := make([]*Interface, len(filtered))
 	for i, h := range filtered {
 		hintsWithPrefix[i] = h.WithMatchedPrefix(m.currentInput)
 	}
@@ -135,7 +135,7 @@ func (m *Manager) GetInput() string {
 }
 
 // GetFilteredHints returns hints filtered by the current input.
-func (m *Manager) GetFilteredHints() []*Hint {
+func (m *Manager) GetFilteredHints() []*Interface {
 	if m.hints == nil {
 		return nil
 	}

@@ -1,12 +1,14 @@
-package domain
+package domain_test
 
 import (
 	"slices"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 func TestKnownActionNames(t *testing.T) {
-	names := KnownActionNames()
+	names := domain.KnownActionNames()
 
 	// Verify we have the expected number of action names
 	expectedCount := 6
@@ -15,13 +17,13 @@ func TestKnownActionNames(t *testing.T) {
 	}
 
 	// Verify all expected actions are present
-	expectedActions := []ActionName{
-		ActionNameLeftClick,
-		ActionNameRightClick,
-		ActionNameMiddleClick,
-		ActionNameMouseDown,
-		ActionNameMouseUp,
-		ActionNameScroll,
+	expectedActions := []domain.ActionName{
+		domain.ActionNameLeftClick,
+		domain.ActionNameRightClick,
+		domain.ActionNameMiddleClick,
+		domain.ActionNameMouseDown,
+		domain.ActionNameMouseUp,
+		domain.ActionNameScroll,
 	}
 
 	for _, expected := range expectedActions {
@@ -31,7 +33,7 @@ func TestKnownActionNames(t *testing.T) {
 	}
 
 	// Verify no duplicates
-	seen := make(map[ActionName]bool)
+	seen := make(map[domain.ActionName]bool)
 	for _, name := range names {
 		if seen[name] {
 			t.Errorf("KnownActionNames() contains duplicate: %s", name)
@@ -44,64 +46,64 @@ func TestKnownActionNames(t *testing.T) {
 func TestIsKnownActionName(t *testing.T) {
 	tests := []struct {
 		name   string
-		action ActionName
+		action domain.ActionName
 		want   bool
 	}{
 		{
 			name:   "left_click is known",
-			action: ActionNameLeftClick,
+			action: domain.ActionNameLeftClick,
 			want:   true,
 		},
 		{
 			name:   "right_click is known",
-			action: ActionNameRightClick,
+			action: domain.ActionNameRightClick,
 			want:   true,
 		},
 		{
 			name:   "middle_click is known",
-			action: ActionNameMiddleClick,
+			action: domain.ActionNameMiddleClick,
 			want:   true,
 		},
 		{
 			name:   "mouse_down is known",
-			action: ActionNameMouseDown,
+			action: domain.ActionNameMouseDown,
 			want:   true,
 		},
 		{
 			name:   "mouse_up is known",
-			action: ActionNameMouseUp,
+			action: domain.ActionNameMouseUp,
 			want:   true,
 		},
 		{
 			name:   "scroll is known",
-			action: ActionNameScroll,
+			action: domain.ActionNameScroll,
 			want:   true,
 		},
 		{
 			name:   "unknown action",
-			action: ActionName("unknown"),
+			action: domain.ActionName("unknown"),
 			want:   false,
 		},
 		{
 			name:   "empty string",
-			action: ActionName(""),
+			action: domain.ActionName(""),
 			want:   false,
 		},
 		{
 			name:   "exec prefix (not a known action name)",
-			action: ActionName(ActionPrefixExec),
+			action: domain.ActionName(domain.ActionPrefixExec),
 			want:   false,
 		},
 		{
 			name:   "random string",
-			action: ActionName("random_action"),
+			action: domain.ActionName("random_action"),
 			want:   false,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := IsKnownActionName(test.action)
+			got := domain.IsKnownActionName(test.action)
 			if got != test.want {
 				t.Errorf("IsKnownActionName(%q) = %v, want %v", test.action, got, test.want)
 			}
@@ -112,10 +114,10 @@ func TestIsKnownActionName(t *testing.T) {
 // TestKnownActionNames_Consistency verifies that all actions returned by
 // KnownActionNames() are recognized by IsKnownActionName().
 func TestKnownActionNames_Consistency(t *testing.T) {
-	names := KnownActionNames()
+	names := domain.KnownActionNames()
 
 	for _, name := range names {
-		if !IsKnownActionName(name) {
+		if !domain.IsKnownActionName(name) {
 			t.Errorf(
 				"Inconsistency: KnownActionNames() includes %q but IsKnownActionName(%q) returns false",
 				name,
@@ -129,15 +131,15 @@ func TestKnownActionNames_Consistency(t *testing.T) {
 func TestActionConstants(t *testing.T) {
 	tests := []struct {
 		name     string
-		constant ActionName
+		constant domain.ActionName
 		expected string
 	}{
-		{"ActionNameLeftClick", ActionNameLeftClick, "left_click"},
-		{"ActionNameRightClick", ActionNameRightClick, "right_click"},
-		{"ActionNameMiddleClick", ActionNameMiddleClick, "middle_click"},
-		{"ActionNameMouseDown", ActionNameMouseDown, "mouse_down"},
-		{"ActionNameMouseUp", ActionNameMouseUp, "mouse_up"},
-		{"ActionNameScroll", ActionNameScroll, "scroll"},
+		{"ActionNameLeftClick", domain.ActionNameLeftClick, "left_click"},
+		{"ActionNameRightClick", domain.ActionNameRightClick, "right_click"},
+		{"ActionNameMiddleClick", domain.ActionNameMiddleClick, "middle_click"},
+		{"ActionNameMouseDown", domain.ActionNameMouseDown, "mouse_down"},
+		{"ActionNameMouseUp", domain.ActionNameMouseUp, "mouse_up"},
+		{"ActionNameScroll", domain.ActionNameScroll, "scroll"},
 	}
 
 	for _, test := range tests {
@@ -151,58 +153,58 @@ func TestActionConstants(t *testing.T) {
 
 // TestActionPrefixExec verifies the exec prefix constant.
 func TestActionPrefixExec(t *testing.T) {
-	if ActionPrefixExec != "exec" {
-		t.Errorf("ActionPrefixExec = %q, want %q", ActionPrefixExec, "exec")
+	if domain.ActionPrefixExec != "exec" {
+		t.Errorf("ActionPrefixExec = %q, want %q", domain.ActionPrefixExec, "exec")
 	}
 }
 
 // TestActionEnumValues verifies that Action enum values are sequential.
 func TestActionEnumValues(t *testing.T) {
 	// Verify the iota sequence
-	if ActionLeftClick != 0 {
-		t.Errorf("ActionLeftClick = %d, want 0", ActionLeftClick)
+	if domain.ActionLeftClick != 0 {
+		t.Errorf("ActionLeftClick = %d, want 0", domain.ActionLeftClick)
 	}
 
-	if ActionRightClick != 1 {
-		t.Errorf("ActionRightClick = %d, want 1", ActionRightClick)
+	if domain.ActionRightClick != 1 {
+		t.Errorf("ActionRightClick = %d, want 1", domain.ActionRightClick)
 	}
 
-	if ActionMouseUp != 2 {
-		t.Errorf("ActionMouseUp = %d, want 2", ActionMouseUp)
+	if domain.ActionMouseUp != 2 {
+		t.Errorf("ActionMouseUp = %d, want 2", domain.ActionMouseUp)
 	}
 
-	if ActionMouseDown != 3 {
-		t.Errorf("ActionMouseDown = %d, want 3", ActionMouseDown)
+	if domain.ActionMouseDown != 3 {
+		t.Errorf("ActionMouseDown = %d, want 3", domain.ActionMouseDown)
 	}
 
-	if ActionMiddleClick != 4 {
-		t.Errorf("ActionMiddleClick = %d, want 4", ActionMiddleClick)
+	if domain.ActionMiddleClick != 4 {
+		t.Errorf("ActionMiddleClick = %d, want 4", domain.ActionMiddleClick)
 	}
 
-	if ActionMoveMouse != 5 {
-		t.Errorf("ActionMoveMouse = %d, want 5", ActionMoveMouse)
+	if domain.ActionMoveMouse != 5 {
+		t.Errorf("ActionMoveMouse = %d, want 5", domain.ActionMoveMouse)
 	}
 
-	if ActionScroll != 6 {
-		t.Errorf("ActionScroll = %d, want 6", ActionScroll)
+	if domain.ActionScroll != 6 {
+		t.Errorf("ActionScroll = %d, want 6", domain.ActionScroll)
 	}
 }
 
 // Benchmark tests.
 func BenchmarkKnownActionNames(b *testing.B) {
 	for b.Loop() {
-		_ = KnownActionNames()
+		_ = domain.KnownActionNames()
 	}
 }
 
 func BenchmarkIsKnownActionName(b *testing.B) {
 	for b.Loop() {
-		_ = IsKnownActionName(ActionNameLeftClick)
+		_ = domain.IsKnownActionName(domain.ActionNameLeftClick)
 	}
 }
 
 func BenchmarkIsKnownActionName_Unknown(b *testing.B) {
 	for b.Loop() {
-		_ = IsKnownActionName(ActionName("unknown"))
+		_ = domain.IsKnownActionName(domain.ActionName("unknown"))
 	}
 }
