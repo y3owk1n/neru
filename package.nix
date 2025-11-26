@@ -119,41 +119,58 @@ else
     '';
 
     postInstall = ''
-      # install shell completions
-      if ${lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) "true"}; then
-        installShellCompletion --cmd neru \
-          --bash <($out/bin/neru completion bash) \
-          --fish <($out/bin/neru completion fish) \
-          --zsh <($out/bin/neru completion zsh)
-      fi
+      	# install shell completions
+      	if ${lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) "true"}; then
+      	installShellCompletion --cmd neru \
+      		--bash <($out/bin/neru completion bash) \
+      		--fish <($out/bin/neru completion fish) \
+      		--zsh <($out/bin/neru completion zsh)
+      	fi
 
-      # Create a simple .app bundle on the fly
-      mkdir -p $out/Applications
-      mkdir -p $out/Applications/Neru.app/Contents/MacOS
-      mkdir -p $out/Applications/Neru.app/Contents/Resources
+      	# Create a simple .app bundle on the fly
+      	mkdir -p $out/Applications
+      	mkdir -p $out/Applications/Neru.app/Contents/MacOS
+      	mkdir -p $out/Applications/Neru.app/Contents/Resources
 
-      cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/Neru
+      	cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/Neru
 
-      cat > $out/Applications/Neru.app/Contents/Info.plist <<EOF
-      <?xml version="1.0" encoding="UTF-8"?>
-      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-          "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-      <plist version="1.0">
-      <dict>
-        <key>CFBundleName</key><string>Neru</string>
-        <key>CFBundleExecutable</key><string>neru</string>
-        <key>CFBundleIdentifier</key><string>com.y3owk1n.neru</string>
-        <key>CFBundleVersion</key><string>${finalAttrs.version}-${finalAttrs.commitHash}</string>
-        <key>CFBundlePackageType</key><string>APPL</string>
-        <key>LSUIElement</key><true/>
-        <key>NSAppleEventsUsageDescription</key><string>Used for automation</string>
-        <key>NSMicrophoneUsageDescription</key><string>Used for accessibility control</string>
-        <key>NSAccessibilityUsageDescription</key><string>Requires accessibility access</string>
-      </dict>
-      </plist>
-      EOF
+      	cat > $out/Applications/Neru.app/Contents/Info.plist <<EOF
+      	<?xml version="1.0" encoding="UTF-8"?>
+      	<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+      		"http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      	<plist version="1.0">
+      	<dict>
+      		<key>CFBundleName</key>
+      		<string>Neru</string>
 
-      echo "✅ Neru.app bundle created at $out/Applications/Neru.app"
+      		<key>CFBundleExecutable</key>
+      		<string>neru</string>
+
+      		<key>CFBundleIdentifier</key>
+      		<string>com.y3owk1n.neru</string>
+
+      		<key>CFBundleVersion</key>
+      		<string>${finalAttrs.version}${if commitHash != null then "-${commitHash}" else ""}</string>
+
+      		<key>CFBundlePackageType</key>
+      		<string>APPL</string>
+
+      		<key>LSUIElement</key>
+      		<true/>
+
+      		<key>NSAppleEventsUsageDescription</key>
+      		<string>Used for automation</string>
+
+      		<key>NSMicrophoneUsageDescription</key>
+      		<string>Used for accessibility control</string>
+
+      		<key>NSAccessibilityUsageDescription</key>
+      		<string>Requires accessibility access</string>
+      	</dict>
+      	</plist>
+      	EOF
+
+      	echo "✅ Neru.app bundle created at $out/Applications/Neru.app"
     '';
 
     passthru = {
