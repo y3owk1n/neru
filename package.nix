@@ -83,6 +83,9 @@ if useZip then
     };
   }
 else
+  let
+    version = "${version}${if commitHash != null then "-${commitHash}" else ""}";
+  in
   # Build from source
   buildGoModule (finalAttrs: {
     pname = "neru";
@@ -150,7 +153,7 @@ else
       		<string>com.y3owk1n.neru</string>
 
       		<key>CFBundleVersion</key>
-      		<string>${finalAttrs.version}${if commitHash != null then "-${commitHash}" else ""}</string>
+      		<string>${finalAttrs.version}</string>
 
       		<key>CFBundlePackageType</key>
       		<string>APPL</string>
