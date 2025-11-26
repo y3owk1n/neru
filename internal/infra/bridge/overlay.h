@@ -18,49 +18,49 @@ typedef void *OverlayWindow;
 
 /// Hint style configuration
 typedef struct {
-    int fontSize;           ///< Font size
-    char *fontFamily;       ///< Font family
-    char *backgroundColor;  ///< Background color
-    char *textColor;        ///< Text color
-    char *matchedTextColor; ///< Matched text color
-    char *borderColor;      ///< Border color
-    int borderRadius;       ///< Border radius
-    int borderWidth;        ///< Border width
-    int padding;            ///< Padding
-    double opacity;         ///< Opacity
-    int showArrow;          ///< Show arrow (0 = no arrow, 1 = show arrow)
+	int fontSize;           ///< Font size
+	char *fontFamily;       ///< Font family
+	char *backgroundColor;  ///< Background color
+	char *textColor;        ///< Text color
+	char *matchedTextColor; ///< Matched text color
+	char *borderColor;      ///< Border color
+	int borderRadius;       ///< Border radius
+	int borderWidth;        ///< Border width
+	int padding;            ///< Padding
+	double opacity;         ///< Opacity
+	int showArrow;          ///< Show arrow (0 = no arrow, 1 = show arrow)
 } HintStyle;
 
 /// Hint data
 typedef struct {
-    char *label;             ///< Hint label
-    CGPoint position;        ///< Hint position
-    CGSize size;             ///< Hint size
-    int matchedPrefixLength; ///< Number of matched characters to highlight
+	char *label;             ///< Hint label
+	CGPoint position;        ///< Hint position
+	CGSize size;             ///< Hint size
+	int matchedPrefixLength; ///< Number of matched characters to highlight
 } HintData;
 
 /// Grid cell style configuration
 typedef struct {
-    int fontSize;                 ///< Font size
-    char *fontFamily;             ///< Font family
-    char *backgroundColor;        ///< Background color
-    char *textColor;              ///< Text color
-    char *matchedTextColor;       ///< Matched text color
-    char *matchedBackgroundColor; ///< Matched background color
-    char *matchedBorderColor;     ///< Matched border color
-    char *borderColor;            ///< Border color
-    int borderWidth;              ///< Border width
-    double backgroundOpacity;     ///< Background opacity
-    double textOpacity;           ///< Text opacity
+	int fontSize;                 ///< Font size
+	char *fontFamily;             ///< Font family
+	char *backgroundColor;        ///< Background color
+	char *textColor;              ///< Text color
+	char *matchedTextColor;       ///< Matched text color
+	char *matchedBackgroundColor; ///< Matched background color
+	char *matchedBorderColor;     ///< Matched border color
+	char *borderColor;            ///< Border color
+	int borderWidth;              ///< Border width
+	double backgroundOpacity;     ///< Background opacity
+	double textOpacity;           ///< Text opacity
 } GridCellStyle;
 
 /// Grid cell data
 typedef struct {
-    char *label;             ///< Cell label
-    CGRect bounds;           ///< Cell rectangle
-    int isMatched;           ///< Cell matches current input (1 = yes, 0 = no)
-    int isSubgrid;           ///< Cell is part of subgrid (1 = yes, 0 = no)
-    int matchedPrefixLength; ///< Number of matched characters at beginning of label
+	char *label;             ///< Cell label
+	CGRect bounds;           ///< Cell rectangle
+	int isMatched;           ///< Cell matches current input (1 = yes, 0 = no)
+	int isSubgrid;           ///< Cell is part of subgrid (1 = yes, 0 = no)
+	int matchedPrefixLength; ///< Number of matched characters at beginning of label
 } GridCell;
 
 /// Callback type for async operations
