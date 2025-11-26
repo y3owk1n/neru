@@ -42,6 +42,8 @@ func (a *Adapter) addSupplementaryElements(
 }
 
 // addMenubarElements adds menubar clickable elements.
+// Temporarily modifies clickable roles to include AXMenuBarItem, collects menubar elements,
+// and processes additional menubar targets from configuration.
 func (a *Adapter) addMenubarElements(
 	_ context.Context,
 	elements []*element.Element,
@@ -49,7 +51,7 @@ func (a *Adapter) addMenubarElements(
 ) []*element.Element {
 	a.logger.Debug("Adding menubar elements")
 
-	// Temporarily add AXMenuBarItem to clickable roles
+	// Temporarily add AXMenuBarItem to clickable roles to enable menubar element detection
 	originalRoles := a.client.ClickableRoles()
 	menubarRoles := make([]string, len(originalRoles)+1)
 	copy(menubarRoles, originalRoles)
@@ -115,13 +117,15 @@ func (a *Adapter) addMenubarElements(
 }
 
 // addDockElements adds dock clickable elements.
+// Temporarily modifies clickable roles to include AXDockItem, finds the dock application,
+// validates it, and collects clickable elements from the dock tree.
 func (a *Adapter) addDockElements(
 	_ context.Context,
 	elements []*element.Element,
 ) []*element.Element {
 	const dockBundleID = "com.apple.dock"
 
-	// Temporarily add AXDockItem to clickable roles
+	// Temporarily add AXDockItem to clickable roles to enable dock element detection
 	originalRoles := a.client.ClickableRoles()
 	dockRoles := make([]string, len(originalRoles)+1)
 	copy(dockRoles, originalRoles)
@@ -130,7 +134,7 @@ func (a *Adapter) addDockElements(
 	a.client.SetClickableRoles(dockRoles)
 	defer a.client.SetClickableRoles(originalRoles) // Restore original roles when done
 
-	// Get dock application
+	// Get dock application by bundle ID
 	dockApp, dockAppErr := a.client.ApplicationByBundleID(dockBundleID)
 	if dockAppErr != nil || dockApp == nil {
 		a.logger.Debug("Dock application not found")

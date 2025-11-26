@@ -178,9 +178,9 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 }
 
 // generateLabels generates alphabet-based hint labels using a prefix-avoidance strategy.
-// Returns uppercase labels.
-// generateLabels generates alphabet-based hint labels using a prefix-avoidance strategy.
+// It ensures no label is a prefix of another to prevent ambiguity during input.
 // Returns uppercase labels sorted by length then alphabetically.
+// Uses a level-based approach where each level represents labels of increasing length.
 func (g *AlphabetGenerator) generateLabels(count int) []string {
 	if count == 0 {
 		return nil
@@ -190,44 +190,38 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 	numChars := len(chars)
 	labels := make([]string, 0, count)
 
-	// Calculate how many labels of each length we need
+	// Calculate distribution of labels across different lengths (levels)
 	// counts[i] stores number of labels of length i+1
-	// We assume max length won't exceed 10 for reasonable counts
+	// Uses greedy algorithm to minimize average label length while ensuring prefix-free property
 	counts := make([]int, 0, CountsCapacity)
 
 	remainingTarget := count
-	availableSlots := numChars // Slots available at current level
+	availableSlots := numChars // Slots available at current level (length 1)
 
-	// Determine counts for each level
+	// Determine how many labels to keep at each level
 	for remainingTarget > 0 {
-		// Calculate max capacity if we expand everything to next level
-		// We check if next level can hold the target to decide if we keep any at current level
+		// Calculate capacity if all current slots are expanded to next level
 		nextLevelCapacity := availableSlots * numChars
 
 		var keep int
 
 		switch {
 		case availableSlots >= remainingTarget:
-			// We can satisfy the rest of the target at this level
+			// Can satisfy remaining target at current level
 			keep = remainingTarget
 		case nextLevelCapacity < remainingTarget:
-			// Even expanding everything isn't enough for next level?
-			// This implies we need to go deeper.
-			// We keep 0 at this level to maximize expansion capacity.
+			// Need to expand everything to reach target, keep none at current level
 			keep = 0
 		default:
-			// We can satisfy target at next level.
-			// We want to keep as many as possible at this level.
-			// Formula: available*N - k*(N-1) >= target
-			// k <= (available*N - target) / (N-1)
+			// Keep as many as possible at current level while ensuring next level can handle remainder
+			// Formula derived from: availableSlots*N - keep*(N-1) >= remainingTarget
 			keep = (availableSlots*numChars - remainingTarget) / (numChars - 1)
 		}
 
 		counts = append(counts, keep)
 		remainingTarget -= keep
 
-		// Update available slots for next level
-		// We used 'keep' slots. The remaining 'availableSlots - keep' are expanded.
+		// Update slots for next level: remaining slots expanded by branching factor
 		availableSlots = (availableSlots - keep) * numChars
 
 		if availableSlots == 0 && remainingTarget > 0 {
@@ -238,33 +232,29 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 
 	var current []int
 
+	// Generate labels for each level using base-N arithmetic
 	for level, keep := range counts {
 		length := level + 1
 
-		// If this is the first level
 		if length == 1 {
+			// Generate single-character labels
 			for i := range keep {
 				labels = append(labels, string(chars[i]))
 			}
-			// The start for next level is 'keep'
+			// Start next level from after the kept labels
 			current = []int{keep}
 		} else {
-			// We need to generate 'keep' labels of 'length'.
-			// 'current' holds the prefix indices for this level.
-			// e.g. if L1 kept 2 (A, B), current is [2] (C).
-			// We expand current.
+			// Generate multi-character labels by expanding prefixes
+			// 'current' represents the starting point in base-N numbering
 
-			// We need to generate 'keep' labels starting from 'current'.
-			// We treat 'current' as a number in base-N.
-			// We increment it 'keep' times.
-
-			// Ensure current has correct length
+			// Ensure current array has correct length for this level
 			for len(current) < length {
 				current = append(current, 0)
 			}
 
+			// Generate 'keep' labels starting from current position
 			for range keep {
-				// Build string from current indices
+				// Build label string from current indices
 				var stringBuilder strings.Builder
 				stringBuilder.Grow(length)
 
@@ -274,17 +264,14 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 
 				labels = append(labels, stringBuilder.String())
 
-				// Increment current
-				// Go from right to left
+				// Increment current position (like adding 1 in base-N)
 				for pos := len(current) - 1; pos >= 0; pos-- {
 					current[pos]++
 					if current[pos] < numChars {
 						break
 					}
-					// Carry over
+					// Carry over to next position
 					current[pos] = 0
-					// If we overflow the first digit, it means we are done with this block?
-					// But we loop 'keep' times, so we shouldn't overflow invalidly.
 				}
 			}
 		}

@@ -47,7 +47,9 @@ func (m *Manager) Reset() {
 }
 
 // HandleInput processes an input character and returns the matched hint if an exact match is found.
+// Handles backspace for input correction, filters hints by prefix, and detects exact matches.
 // Returns (hint, true) if exact match found, (nil, false) otherwise.
+// Maintains input state and triggers overlay updates for filtered hints.
 func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	if m.hints == nil {
 		return nil, false
@@ -59,12 +61,12 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 			zap.String("current_input", m.currentInput))
 	}
 
-	// Handle backspace
+	// Handle backspace to allow input correction
 	if key == "\x7f" || key == "delete" || key == "backspace" {
 		if len(m.currentInput) > 0 {
 			m.currentInput = m.currentInput[:len(m.currentInput)-1]
 
-			// Update view for backspace
+			// Update overlay to show filtered hints with new prefix
 			if m.hints != nil {
 				filtered := m.hints.FilterByPrefix(m.currentInput)
 
@@ -78,6 +80,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 				}
 			}
 		} else {
+			// Reset to show all hints if backspacing from empty input
 			m.Reset()
 		}
 

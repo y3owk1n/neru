@@ -74,11 +74,9 @@ func Init(
 		fileEncoderConfig = zap.NewDevelopmentEncoderConfig()
 	}
 
-	// Set time encoding
 	consoleEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	fileEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
-	// Set level encoding - no colors for file output
 	consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	fileEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 

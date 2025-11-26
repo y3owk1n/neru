@@ -53,20 +53,23 @@ func NewManager(
 }
 
 // HandleInput processes variable-length coordinate input and returns the target point when complete.
+// Handles reset key, backspace, subgrid selection, input validation, and main grid navigation.
 // Completion occurs when labelLength characters are entered or a subgrid selection is made.
+// Returns (point, true) when selection is complete, (zero point, false) otherwise.
 func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	resetKey := "<"
 
+	// Handle reset key to clear input and return to initial state
 	if key == resetKey {
 		m.handleResetKey(false)
 	}
 
-	// Handle backspace
+	// Handle backspace for input correction
 	if key == "\x7f" || key == "delete" || key == "backspace" {
 		return m.handleBackspace()
 	}
 
-	// Ignore non-letter keys
+	// Ignore non-letter keys except reset
 	if len(key) != 1 || !isLetter(key[0]) && key != resetKey {
 		return image.Point{}, false
 	}
@@ -74,31 +77,31 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	// Cache uppercase conversion once
 	upperKey := strings.ToUpper(key)
 
-	// If we're in subgrid selection, next key chooses a subcell
+	// If in subgrid mode, delegate to subgrid selection handler
 	if m.inSubgrid && m.selectedCell != nil {
 		return m.handleSubgridSelection(upperKey)
 	}
 
-	// Allow < to reset grid
+	// Allow < to reset grid with redraw
 	if upperKey == resetKey {
 		m.handleResetKey(true)
 
 		return image.Point{}, false
 	}
 
-	// Validate the input key
+	// Validate input key against grid characters
 	if !m.validateInputKey(upperKey) {
 		return image.Point{}, false
 	}
 
 	m.currentInput += upperKey
 
-	// After reaching label length, show subgrid inside the selected cell
+	// Transition to subgrid when main grid coordinate is complete
 	if !m.inSubgrid && len(m.currentInput) >= m.labelLength {
 		return m.handleLabelLengthReached()
 	}
 
-	// Update overlay to show matched cells
+	// Update overlay to highlight matched cells
 	if m.onUpdate != nil {
 		m.onUpdate(false)
 	}
@@ -179,13 +182,10 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 
 // validateInputKey validates the input key.
 func (m *Manager) validateInputKey(key string) bool {
-	// Check if character is valid for grid
 	if m.grid != nil && !strings.Contains(m.grid.Characters(), key) {
 		return false
 	}
 
-	// Check if this key could potentially lead to a valid coordinate
-	// by checking if there's any cell that starts with currentInput + key
 	potentialInput := m.currentInput + key
 	validPrefix := false
 
@@ -198,34 +198,34 @@ func (m *Manager) validateInputKey(key string) bool {
 		}
 	}
 
-	// If this key doesn't lead to any valid coordinate, ignore it
-	if !validPrefix {
-		return false
-	}
-
-	return true
+	return validPrefix
 }
 
 // handleSubgridSelection handles subgrid selection.
+// Maps the input key to a 3x3 subgrid position, calculates the precise point within the selected cell,
+// and returns the final target coordinates. Completes the selection process.
 func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
+	// Find the index of the key in subgrid keys
 	keyIndex := strings.Index(m.subKeys, key)
 	if keyIndex < 0 {
 		return image.Point{}, false
 	}
-	// Subgrid is always 3x3
+	// Validate key index for 3x3 subgrid
 	if keyIndex >= MaxKeyIndex {
 		return image.Point{}, false
 	}
 
+	// Convert linear index to 2D subgrid coordinates
 	rowIndex := keyIndex / m.subCols
 	colIndex := keyIndex % m.subCols
 	cellBounds := m.selectedCell.bounds
-	// Compute breakpoints to match overlay splitting and cover full bounds
+
+	// Compute subgrid breakpoints for even division of the cell
 	xBreaks := make([]int, m.subCols+1)
 	yBreaks := make([]int, m.subRows+1)
 	xBreaks[0] = cellBounds.Min.X
-
 	yBreaks[0] = cellBounds.Min.Y
+
 	for breakIndex := 1; breakIndex <= m.subCols; breakIndex++ {
 		val := float64(breakIndex) * float64(cellBounds.Dx()) / float64(m.subCols)
 		xBreaks[breakIndex] = cellBounds.Min.X + int(val+RoundingFactor)
@@ -235,9 +235,12 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 		val := float64(breakIndex) * float64(cellBounds.Dy()) / float64(m.subRows)
 		yBreaks[breakIndex] = cellBounds.Min.Y + int(val+RoundingFactor)
 	}
-	// Ensure exact coverage
+
+	// Ensure exact coverage of cell bounds
 	xBreaks[m.subCols] = cellBounds.Max.X
 	yBreaks[m.subRows] = cellBounds.Max.Y
+
+	// Calculate center point of the selected subgrid cell
 	left := xBreaks[colIndex]
 	right := xBreaks[colIndex+1]
 	top := yBreaks[rowIndex]

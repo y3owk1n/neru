@@ -63,7 +63,6 @@ func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 		}
 	}
 
-	// Set global config for accessibility
 	config.SetGlobal(cfg)
 
 	// Apply clickable roles if hints are enabled

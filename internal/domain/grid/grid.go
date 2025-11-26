@@ -174,6 +174,7 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 	minCellSize, maxCellSize := calculateOptimalCellSizes(width, height)
 
 	// Find all valid grid configurations and pick the one with best aspect ratio match
+	// This ensures cells are as square as possible for intuitive navigation
 	candidates := findValidGridConfigurations(width, height, minCellSize, maxCellSize)
 
 	// Pick the candidate with the best (lowest) score
@@ -263,7 +264,8 @@ func (g *Grid) Index() map[string]*Cell {
 
 // generateCellsWithRegions creates cells using spatial region logic.
 // Each region (identified by first char) fills left-to-right, top-to-bottom.
-// Regions flow across screen, wrapping to next row when width is exhausted.
+// Handles variable label lengths (2, 3, or 4 chars) and distributes remainder pixels
+// to ensure cells cover the entire screen bounds without gaps.
 func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelLength int,
 	bounds image.Rectangle, baseCellWidth, baseCellHeight, remainderWidth, remainderHeight int,
 	logger *zap.Logger,
@@ -277,23 +279,22 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 	cells := make([]*Cell, gridCols*gridRows)
 	cellIndex := 0
 
-	// Calculate region dimensions (how many cols/rows per region)
-	// Each region is a sub-grid of size numChars x numChars
+	// Calculate region dimensions based on label length
+	// Each region represents a group of cells sharing the same prefix character(s)
 	var regionCols, regionRows int
 
 	// Adjust region size based on label length
 	switch labelLength {
 	case LabelLength2:
-		// For 2-char labels: each region is numChars x numChars
+		// For 2-char labels: each region is numChars x numChars (single prefix char)
 		regionCols = numChars
 		regionRows = numChars
 	case LabelLength3:
-		// For 3-char labels: first char = region, next 2 chars = position
-		// Region is numChars wide x numChars tall
+		// For 3-char labels: first char = region, next 2 chars = position within region
 		regionCols = numChars
 		regionRows = numChars
 	default:
-		// For 4-char labels: first 2 chars could represent super-regions
+		// For 4-char labels: first 2 chars = region, last 2 chars = position
 		regionCols = numChars
 		regionRows = numChars
 	}
@@ -328,8 +329,9 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 		}
 	}
 
+	// Iterate through regions, filling the grid left-to-right, top-to-bottom
 	for regionIndex < maxRegions && currentRow < gridRows {
-		// Determine region identifier (first character)
+		// Determine region identifier character(s) based on label length
 		var regionChar1, regionChar2 rune
 
 		switch labelLength {
@@ -533,6 +535,9 @@ func selectBestCandidate(
 }
 
 // findValidGridConfigurations searches through all valid grid configurations.
+// Evaluates combinations of columns and rows within cell size constraints,
+// calculating aspect ratio scores to find grids that produce square-like cells.
+// Returns candidates sorted by score (lower is better).
 func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []Candidate {
 	var candidates []Candidate
 
@@ -543,7 +548,7 @@ func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []
 	minRows := max(height/maxCellSize, 1)
 	maxRows := max(height/minCellSize, 1)
 
-	// Search through all valid grid configurations
+	// Search through all valid grid configurations within constraints
 	for colIndex := maxCols; colIndex >= minCols && colIndex >= 1; colIndex-- {
 		cellWidth := width / colIndex
 		if cellWidth < minCellSize || cellWidth > maxCellSize {
@@ -556,16 +561,15 @@ func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []
 				continue
 			}
 
-			// Calculate cell aspect ratio
+			// Calculate how square the cells are (aspect ratio deviation from 1.0)
 			cellAspect := float64(cellWidth) / float64(cellHeight)
 
-			// Score based on how close cell is to being square
 			aspectDiff := cellAspect - 1.0
 			if aspectDiff < 0 {
 				aspectDiff = -aspectDiff
 			}
 
-			// Also consider cell count - prefer more cells for better precision
+			// Prefer configurations with more cells for finer precision
 			totalCells := float64(colIndex * rowIndex)
 			maxCells := float64(maxCols * maxRows)
 			cellScore := (maxCells - totalCells) / maxCells * ScoreWeight
