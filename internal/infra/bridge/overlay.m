@@ -11,38 +11,43 @@
 #pragma mark - Overlay View Interface
 
 @interface OverlayView : NSView
-@property(nonatomic, strong) NSMutableArray *hints;                                   ///< Hints array
-@property(nonatomic, strong) NSFont *hintFont;                                        ///< Hint font
-@property(nonatomic, strong) NSColor *hintTextColor;                                  ///< Hint text color
-@property(nonatomic, strong) NSColor *hintMatchedTextColor;                           ///< Hint matched text color
-@property(nonatomic, strong) NSColor *hintBackgroundColor;                            ///< Hint background color
-@property(nonatomic, strong) NSColor *hintBorderColor;                                ///< Hint border color
-@property(nonatomic, assign) CGFloat hintBorderRadius;                                ///< Hint border radius
-@property(nonatomic, assign) CGFloat hintBorderWidth;                                 ///< Hint border width
-@property(nonatomic, assign) CGFloat hintPadding;                                     ///< Hint padding
-@property(nonatomic, assign) CGRect scrollHighlight;                                  ///< Scroll highlight bounds
-@property(nonatomic, strong) NSColor *scrollHighlightColor;                           ///< Scroll highlight color
-@property(nonatomic, assign) int scrollHighlightWidth;                                ///< Scroll highlight width
-@property(nonatomic, assign) BOOL showScrollHighlight;                                ///< Show scroll highlight
-@property(nonatomic, assign) BOOL showTargetDot;                                      ///< Show target dot
-@property(nonatomic, assign) CGPoint targetDotCenter;                                 ///< Target dot center
-@property(nonatomic, assign) CGFloat targetDotRadius;                                 ///< Target dot radius
-@property(nonatomic, strong) NSColor *targetDotBackgroundColor;                       ///< Target dot background color
-@property(nonatomic, strong) NSColor *targetDotBorderColor;                           ///< Target dot border color
-@property(nonatomic, assign) CGFloat targetDotBorderWidth;                            ///< Target dot border width
-@property(nonatomic, strong) NSMutableArray *gridCells;                               ///< Grid cells array
-@property(nonatomic, strong) NSMutableArray *gridLines;                               ///< Grid lines array
-@property(nonatomic, strong) NSFont *gridFont;                                        ///< Grid font
-@property(nonatomic, strong) NSColor *gridTextColor;                                  ///< Grid text color
-@property(nonatomic, strong) NSColor *gridMatchedTextColor;                           ///< Grid matched text color
-@property(nonatomic, strong) NSColor *gridMatchedBackgroundColor;                     ///< Grid matched background color
-@property(nonatomic, strong) NSColor *gridMatchedBorderColor;                         ///< Grid matched border color
-@property(nonatomic, strong) NSColor *gridBackgroundColor;                            ///< Grid background color
-@property(nonatomic, strong) NSColor *gridBorderColor;                                ///< Grid border color
-@property(nonatomic, assign) CGFloat gridBorderWidth;                                 ///< Grid border width
-@property(nonatomic, assign) CGFloat gridBackgroundOpacity;                           ///< Grid background opacity
-@property(nonatomic, assign) CGFloat gridTextOpacity;                                 ///< Grid text opacity
-@property(nonatomic, assign) BOOL hideUnmatched;                                      ///< Hide unmatched cells
+@property(nonatomic, strong) NSMutableArray *hints;               ///< Hints array
+@property(nonatomic, strong) NSFont *hintFont;                    ///< Hint font
+@property(nonatomic, strong) NSColor *hintTextColor;              ///< Hint text color
+@property(nonatomic, strong) NSColor *hintMatchedTextColor;       ///< Hint matched text color
+@property(nonatomic, strong) NSColor *hintBackgroundColor;        ///< Hint background color
+@property(nonatomic, strong) NSColor *hintBorderColor;            ///< Hint border color
+@property(nonatomic, assign) CGFloat hintBorderRadius;            ///< Hint border radius
+@property(nonatomic, assign) CGFloat hintBorderWidth;             ///< Hint border width
+@property(nonatomic, assign) CGFloat hintPadding;                 ///< Hint padding
+@property(nonatomic, assign) CGRect scrollHighlight;              ///< Scroll highlight bounds
+@property(nonatomic, strong) NSColor *scrollHighlightColor;       ///< Scroll highlight color
+@property(nonatomic, assign) int scrollHighlightWidth;            ///< Scroll highlight width
+@property(nonatomic, assign) BOOL showScrollHighlight;            ///< Show scroll highlight
+@property(nonatomic, assign) BOOL showTargetDot;                  ///< Show target dot
+@property(nonatomic, assign) CGPoint targetDotCenter;             ///< Target dot center
+@property(nonatomic, assign) CGFloat targetDotRadius;             ///< Target dot radius
+@property(nonatomic, strong) NSColor *targetDotBackgroundColor;   ///< Target dot background color
+@property(nonatomic, strong) NSColor *targetDotBorderColor;       ///< Target dot border color
+@property(nonatomic, assign) CGFloat targetDotBorderWidth;        ///< Target dot border width
+@property(nonatomic, strong) NSMutableArray *gridCells;           ///< Grid cells array
+@property(nonatomic, strong) NSMutableArray *gridLines;           ///< Grid lines array
+@property(nonatomic, strong) NSFont *gridFont;                    ///< Grid font
+@property(nonatomic, strong) NSColor *gridTextColor;              ///< Grid text color
+@property(nonatomic, strong) NSColor *gridMatchedTextColor;       ///< Grid matched text color
+@property(nonatomic, strong) NSColor *gridMatchedBackgroundColor; ///< Grid matched background color
+@property(nonatomic, strong) NSColor *gridMatchedBorderColor;     ///< Grid matched border color
+@property(nonatomic, strong) NSColor *gridBackgroundColor;        ///< Grid background color
+@property(nonatomic, strong) NSColor *gridBorderColor;            ///< Grid border color
+@property(nonatomic, assign) CGFloat gridBorderWidth;             ///< Grid border width
+@property(nonatomic, assign) CGFloat gridBackgroundOpacity;       ///< Grid background opacity
+@property(nonatomic, assign) CGFloat gridTextOpacity;             ///< Grid text opacity
+@property(nonatomic, assign) BOOL hideUnmatched;                  ///< Hide unmatched cells
+
+// Cached colors with opacity to reduce allocations during drawing
+@property(nonatomic, strong) NSColor *cachedGridTextColorWithOpacity;        ///< Cached grid text color with opacity
+@property(nonatomic, strong) NSColor *cachedGridMatchedTextColorWithOpacity; ///< Cached matched text color with opacity
+
 - (void)applyStyle:(HintStyle)style;                                                  ///< Apply hint style
 - (NSColor *)colorFromHex:(NSString *)hexString defaultColor:(NSColor *)defaultColor; ///< Color from hex string
 @end
@@ -86,6 +91,10 @@
 		_gridBackgroundOpacity = 0.85;
 		_gridTextOpacity = 1.0;
 		_hideUnmatched = NO;
+
+		// Initialize cached colors with opacity
+		_cachedGridTextColorWithOpacity = [_gridTextColor colorWithAlphaComponent:_gridTextOpacity];
+		_cachedGridMatchedTextColorWithOpacity = [_gridMatchedTextColor colorWithAlphaComponent:_gridTextOpacity];
 	}
 	return self;
 }
@@ -507,18 +516,17 @@
 
 			[attrString addAttribute:NSFontAttributeName value:self.gridFont range:NSMakeRange(0, [label length])];
 
-			NSColor *defaultTextColor = self.gridTextColor;
-			defaultTextColor = [defaultTextColor colorWithAlphaComponent:self.gridTextOpacity];
+			// Use cached color with opacity to avoid repeated allocations
 			[attrString addAttribute:NSForegroundColorAttributeName
-			                   value:defaultTextColor
+			                   value:self.cachedGridTextColorWithOpacity
 			                   range:NSMakeRange(0, [label length])];
 
 			NSNumber *matchedPrefixLengthNum = cellDict[@"matchedPrefixLength"];
 			int matchedPrefixLength = matchedPrefixLengthNum ? [matchedPrefixLengthNum intValue] : 0;
 			if (isMatched && matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
-				NSColor *matchedTextColor = [self.gridMatchedTextColor colorWithAlphaComponent:self.gridTextOpacity];
+				// Use cached matched color with opacity
 				[attrString addAttribute:NSForegroundColorAttributeName
-				                   value:matchedTextColor
+				                   value:self.cachedGridMatchedTextColorWithOpacity
 				                   range:NSMakeRange(0, matchedPrefixLength)];
 			}
 
@@ -1129,6 +1137,12 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 		controller.overlayView.gridBackgroundOpacity =
 		    (backgroundOpacity >= 0.0 && backgroundOpacity <= 1.0) ? backgroundOpacity : 0.85;
 		controller.overlayView.gridTextOpacity = (textOpacity >= 0.0 && textOpacity <= 1.0) ? textOpacity : 1.0;
+
+		// Update cached colors after setting style properties
+		controller.overlayView.cachedGridTextColorWithOpacity =
+		    [controller.overlayView.gridTextColor colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
+		controller.overlayView.cachedGridMatchedTextColorWithOpacity = [controller.overlayView.gridMatchedTextColor
+		    colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
 
 		[controller.overlayView.gridCells removeAllObjects];
 		[controller.overlayView.gridCells addObjectsFromArray:cellDicts];
