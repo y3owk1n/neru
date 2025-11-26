@@ -10,8 +10,24 @@ Contributing to Neru: build instructions, architecture overview, and contributio
 - [Building](#building)
 - [Testing](#testing)
 - [Architecture](#architecture)
+  - [Overview](#overview)
+  - [Project Structure](#project-structure)
+  - [Core Packages](#core-packages)
+  - [Key Technologies](#key-technologies)
+  - [Architectural Layers](#architectural-layers)
+  - [Data Flow](#data-flow)
 - [Contributing](#contributing)
+  - [Before You Start](#before-you-start)
+  - [Contribution Workflow](#contribution-workflow)
+  - [Code Style](#code-style)
+  - [Testing Guidelines](#testing-guidelines)
+  - [Documentation](#documentation)
+  - [Commit Messages](#commit-messages)
 - [Release Process](#release-process)
+- [Development Tips](#development-tips)
+- [Need Help?](#need-help)
+- [Project Philosophy](#project-philosophy)
+- [Resources](#resources)
 
 ---
 
@@ -52,6 +68,69 @@ golangci-lint --version
 
 # List available commands
 just --list
+```
+
+### Development Environment
+
+For the best development experience, we recommend:
+
+1. **IDE Setup**: Use VS Code with Go extension or GoLand
+2. **EditorConfig**: Install EditorConfig plugin for consistent formatting
+3. **Pre-commit Hooks**: Set up git hooks to automate formatting and linting
+
+```bash
+# Install pre-commit hooks
+cp scripts/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+### Common Development Tasks
+
+| Task   | Command      | Description                   |
+| ------ | ------------ | ----------------------------- |
+| Build  | `just build` | Compile the application       |
+| Test   | `just test`  | Run unit tests                |
+| Lint   | `just lint`  | Run linters                   |
+| Format | `just fmt`   | Format code                   |
+| Run    | `just run`   | Build and run the application |
+| Clean  | `just clean` | Remove build artifacts        |
+
+### Debugging
+
+To debug Neru during development:
+
+1. **Enable Debug Logging**:
+
+    ```toml
+    [logging]
+    log_level = "debug"
+    ```
+
+2. **View Logs**:
+
+    ```bash
+    tail -f ~/Library/Logs/neru/app.log
+    ```
+
+3. **Use Delve Debugger**:
+
+    ```bash
+    dlv debug ./cmd/neru
+    ```
+
+### Profiling
+
+Enable Go's pprof HTTP server to profile the running application:
+
+```bash
+# Start Neru with pprof server on port 6060
+NERU_PPROF=:6060 ./bin/neru launch
+
+# Access profiles in browser
+open http://localhost:6060/debug/pprof/
+
+# Or use command line tools
+go tool pprof http://localhost:6060/debug/pprof/heap
 ```
 
 ---
@@ -162,50 +241,16 @@ just build && ./bin/neru launch --config test-config.toml
 
 ## Architecture
 
-### Project Structure
+### Overview
 
-```
-neru/
-├── cmd/neru/              # Main entry point
-│   └── main.go
-├── internal/              # Internal packages
-│   ├── app/               # Main application orchestration
-│   ├── cli/               # CLI commands (Cobra-based)
-│   ├── config/            # TOML configuration parsing
-│   ├── domain/            # Core domain entities (DDD)
-│   │   ├── element/       # UI Element entity
-│   │   ├── hint/          # Hint entity
-│   │   ├── grid/          # Grid entity
-│   │   └── action/        # Action definitions
-│   ├── application/       # Application layer (Ports & Services)
-│   │   ├── ports/         # Interface definitions
-│   │   └── services/      # Business logic services
-│   ├── adapter/           # Interface implementations
-│   │   ├── accessibility/ # Accessibility adapter
-│   │   ├── config/        # Config adapter
-│   │   ├── eventtap/      # Event tap adapter
-│   │   ├── hotkey/        # Hotkey adapter
-│   │   ├── ipc/           # IPC adapter
-│   │   └── overlay/       # Overlay adapter
-│   ├── features/          # View Models and UI Adapters
-│   ├── infra/             # Infrastructure components
-│   │   ├── accessibility/ # Low-level CGo wrappers
-│   │   ├── appwatcher/    # Application focus watcher
-│   │   ├── bridge/        # Objective-C bridges
-│   │   ├── electron/      # Electron app support
-│   │   ├── eventtap/      # System event tap
-│   │   ├── hotkeys/       # Global hotkey management
-│   │   ├── ipc/           # IPC server/client
-│   │   ├── logger/        # Logging infrastructure
-│   │   └── metrics/       # Telemetry and metrics
-│   └── ui/                # UI components
-├── configs/               # Default configuration files
-├── demos/                 # Demonstration files
-├── docs/                  # Documentation
-├── resources/             # Resource files
-├── scripts/               # Build and packaging scripts
-└── justfile               # Build commands
-```
+Neru is a keyboard-driven navigation tool for macOS, designed to enhance productivity by allowing users to quickly navigate and interact with UI elements using keyboard shortcuts. The architecture is modular and follows the Ports and Adapters pattern to separate concerns and facilitate testing and maintenance.
+
+Neru provides two primary navigation modes:
+
+1. **Hints Mode**: Uses macOS Accessibility APIs to identify clickable elements and overlay hint labels
+2. **Grid Mode**: Divides the screen into a grid system for coordinate-based navigation
+
+Both modes support various actions (click, scroll, etc.) and can be configured extensively through TOML configuration files.
 
 ### Key Technologies
 
@@ -215,6 +260,59 @@ neru/
 - **TOML** - Configuration format
 - **Unix Sockets** - IPC communication
 
+### Architectural Layers
+
+Neru follows a clean architecture with clear separation of concerns:
+
+#### 1. Domain Layer (`internal/domain`)
+
+Contains pure business logic with no external dependencies:
+
+- **Entities**: Core concepts like Hint, Grid, Element, etc.
+- **Value Objects**: Immutable data structures
+- **Interfaces**: Contracts for external dependencies
+
+#### 2. Application Layer (`internal/application`)
+
+Implements use cases and orchestrates domain entities:
+
+- **Services**: Business logic implementations (HintService, GridService)
+- **Ports**: Interfaces defining interactions with infrastructure
+
+#### 3. Adapter Layer (`internal/adapter`)
+
+Implements application ports with concrete technologies:
+
+- **Accessibility Adapter**: Bridges domain with macOS Accessibility APIs
+- **Overlay Adapter**: Manages UI overlays and rendering
+- **Config Adapter**: Handles configuration loading/parsing
+- **Hotkey Adapter**: Manages global hotkey registration
+- **IPC Adapter**: Handles inter-process communication
+
+#### 4. Infrastructure Layer (`internal/infra`)
+
+Low-level technical implementations:
+
+- **Accessibility**: Direct CGo/Objective-C wrappers for macOS APIs
+- **Event Tap**: System-wide input monitoring
+- **Hotkeys**: Carbon API integration for global hotkeys
+- **IPC**: Unix socket communication
+- **Bridge**: Objective-C UI components
+
+#### 5. Presentation/UI Layer (`internal/ui`, `internal/features`)
+
+Handles user interface and presentation logic:
+
+- **Features**: View models and UI adapters for specific functionalities
+- **UI**: Rendering logic and overlay management
+
+### Data Flow
+
+1. **Startup**: Configuration is loaded → Dependencies are wired → Hotkeys registered → App waits for input
+2. **User Interaction**: Hotkey pressed → Event tap captures → Mode activated → UI overlays displayed
+3. **Processing**: User input processed → Actions determined → System APIs called → Results rendered
+4. **Cleanup**: Mode exited → Overlays hidden → State reset → App returns to idle
+
 ### Key Packages
 
 #### `internal/domain`
@@ -223,6 +321,7 @@ Contains the core business logic and entities. This package is pure Go and has n
 
 - **Element**: Represents a UI element with bounds, role, and state.
 - **Hint**: Represents a visual hint overlay.
+- **Grid**: Represents the grid-based navigation system.
 - **Action**: Defines types of actions (click, scroll, etc.).
 
 #### `internal/application`
@@ -230,7 +329,7 @@ Contains the core business logic and entities. This package is pure Go and has n
 Implements the application's use cases using Ports and Adapters.
 
 - **Ports**: Interfaces that define interactions with the outside world (`AccessibilityPort`, `OverlayPort`).
-- **Services**: Orchestrate logic using domain entities and ports (`HintService`, `ActionService`).
+- **Services**: Orchestrate logic using domain entities and ports (`HintService`, `GridService`, `ActionService`, `ScrollService`).
 
 #### `internal/adapter`
 
@@ -240,6 +339,7 @@ Concrete implementations of the application ports.
 - **Overlay**: Adapts `internal/features` (View Models) and `internal/infra/bridge` to `OverlayPort`.
 - **Config**: Adapts `internal/config` to `ConfigPort`.
 - **Hotkey**: Adapts `internal/infra/hotkeys` to `HotkeyPort`.
+- **IPC**: Adapts `internal/infra/ipc` to `IPCPort`.
 
 #### `internal/infra`
 
@@ -268,28 +368,14 @@ TOML configuration parsing and validation.
 - Validate configuration
 - Provide defaults
 
-#### Cursor Position Restoration
+#### `internal/app`
 
-**Overview:**
+Main application orchestration layer that ties all components together:
 
-- Stores the initial cursor coordinates and screen bounds when entering a mode.
-- Restores the cursor on exit if enabled via `general.restore_cursor_position`.
-- Adjusts for screen resolution/origin changes by mapping the original position proportionally to the current active screen.
-
-**Key points:**
-
-- Config flag: `general.restore_cursor_position` (default `true`).
-- Entry points: Mode activation functions capture once per activation.
-- Exit path: Mode exit functions restore and clear state.
-
-**Usage example (config API):**
-
-```go
-cfg := config.Global()
-if cfg != nil && cfg.General.RestoreCursorPosition {
-    // restoration is enabled
-}
-```
+- **App**: Main application instance containing all state and dependencies
+- **Modes**: Mode-specific logic (hints, grid, scroll, action)
+- **Components**: Feature components with their specific contexts
+- **Lifecycle**: Application startup, shutdown, and state management
 
 #### `internal/cli`
 
@@ -302,9 +388,85 @@ Cobra-based CLI commands.
 - Format output
 - Error messages
 
+### Where to Add New Code
+
+When contributing to Neru, here's where to place new functionality based on its purpose:
+
+#### Adding New Configuration Options
+
+1. Add fields to appropriate structs in `internal/config/config.go`
+2. Update `DefaultConfig()` function with sensible defaults
+3. Add validation logic in the `Validate*()` methods
+4. Update all TOML configuration examples in `configs/` directory
+5. Document new options in `docs/CONFIGURATION.md`
+6. Ensure `configs/default-config.toml` reflects new defaults with explanation
+
+#### Adding New Navigation Modes
+
+1. Define domain entities in `internal/domain/`
+2. Create application service in `internal/application/services/`
+3. Implement adapter in `internal/adapter/`
+4. Add feature components in `internal/features/`
+5. Register mode in `internal/app/modes/`
+6. Update CLI commands in `internal/cli/` if needed
+
+#### Adding New Actions
+
+1. Define action in `internal/domain/action/`
+2. Implement action logic in `internal/application/services/action_service.go`
+3. Add action handling in `internal/app/modes/actions.go`
+4. Update configuration options in `internal/config/config.go` if needed
+5. Document new actions in `docs/CONFIGURATION.md`
+
+#### Adding New UI Components
+
+1. Create feature components in `internal/features/`
+2. Implement overlay rendering in `internal/ui/`
+3. Add Objective-C components in `internal/infra/bridge/` if needed
+4. Register components in `internal/app/app.go`
+
+#### Adding New CLI Commands
+
+1. Create new command file in `internal/cli/`
+2. Register command in `internal/cli/root.go`
+3. Add documentation in `docs/CLI.md`
+
+#### Enhancing Accessibility Support
+
+1. Modify low-level CGo wrappers in `internal/infra/accessibility/`
+2. Update adapter in `internal/adapter/accessibility/`
+3. Add configuration options in `internal/config/config.go`
+4. Document changes in `docs/CONFIGURATION.md`
+
+### Dependency Injection and Wiring
+
+Neru uses manual dependency injection for better testability and explicit dependency management:
+
+1. **Construction**: Dependencies are explicitly passed to constructors
+2. **Wiring**: `internal/app/app.go` wires all components together
+3. **Testing**: Dependencies can be mocked by passing test doubles in `NewWithDeps`
+4. **Ports**: Interfaces define contracts between layers
+
+Example of dependency injection in action:
+
+```go
+// In internal/app/app.go
+hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, logger)
+gridService := services.NewGridService(overlayAdapter, logger)
+actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Action, logger)
+```
+
 ---
 
 ## Contributing
+
+### Before You Start
+
+1. **Read the Architecture**: Understand the layered architecture and where different types of code belong
+2. **Check Existing Issues**: Look for existing issues or start a discussion for major changes
+3. **Follow Coding Standards**: Adhere to the guidelines in [CODING_STANDARDS.md](CODING_STANDARDS.md)
+4. **Write Tests**: All new functionality should include appropriate tests
+5. **Update Documentation**: Keep docs up-to-date with your changes
 
 ### Contribution Workflow
 
@@ -319,26 +481,33 @@ Cobra-based CLI commands.
     - Write clean, documented code
     - Follow existing code style
     - Add tests for new features
+    - Update documentation as needed
 4. **Test thoroughly**
 
     ```bash
     just test && just lint
     ```
 
-5. **Commit with conventional commit**
+5. **Verify build**
+
+    ```bash
+    just build
+    ```
+
+6. **Commit with conventional commit**
 
     ```bash
     git commit -m "feat: description of what it does"
     git commit -m "fix(scope): description of what it does"
     ```
 
-6. **Push to your branch**
+7. **Push to your branch**
 
     ```bash
     git push origin feature/amazing-feature
     ```
 
-7. **Open a Pull Request**
+8. **Open a Pull Request**
     - Describe what the PR does
     - Reference any related issues
     - Include screenshots/demos if applicable
@@ -402,6 +571,7 @@ func (service *Service) gen(e []Element) []Hint {
 - **Test edge cases** - Empty inputs, nil values, boundary conditions
 - **Use table-driven tests** where appropriate
 - **Mock external dependencies** - Don't rely on system state
+- **Test at appropriate levels** - Unit tests for domain logic, integration tests for complex flows
 
 **Example table-driven test:**
 
@@ -439,18 +609,34 @@ func TestParseHotkey(t *testing.T) {
 - **Update docs/** for significant features
 - **Add godoc comments** for exported functions
 - **Include examples** in documentation
+- **Keep docs consistent** with code changes
 
 ### Commit Messages
 
-Use clear, descriptive commit messages:
+Use clear, descriptive commit messages following conventional commits:
+
+**Format:** `<type>(<scope>): <subject>`
+
+**Types:**
+
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `perf`: Performance improvements
+- `test`: Adding or updating tests
+- `chore`: Build process, dependencies, etc.
 
 **Good:**
 
 ```
-Add support for custom hint characters
+feat: add grid-based navigation mode
 
-Users can now configure which characters are used for hint labels
-via the hint_characters config option.
+Implement grid-based navigation as an alternative to hint-based navigation.
+Grid mode divides the screen into cells and allows precise cursor positioning.
+
+Closes #123
 ```
 
 **Bad:**
