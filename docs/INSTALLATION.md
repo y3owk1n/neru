@@ -473,11 +473,3 @@ rm -rf ~/Library/Logs/neru
 ### Nix
 
 Remove the module from your configuration and rebuild.
-
----
-
-## Next Steps
-
-- Read [CONFIGURATION.md](CONFIGURATION.md) to customize Neru
-- Check [CLI.md](CLI.md) for command-line usage
-- Review [TROUBLESHOOTING.md](TROUBLESHOOTING.md) if you encounter issues

@@ -45,10 +45,10 @@ Neru (練る) - a Japanese word meaning "to refine, polish, and master through p
 
 ### Free Alternative To
 
-Neru is a capable replacement for:
+Neru is a capable **free and open-source** replacement for:
 
 - [Homerow](https://www.homerow.app/) - Modern keyboard navigation (paid)
-- [Shortcat](https://shortcat.app/) - Keyboard productivity tool (discontinued? not sure...)
+- [Shortcat](https://shortcat.app/) - Keyboard productivity tool (discontinued)
 - [Vimac](https://github.com/dexterleng/vimac) - Vim-style navigation (unmaintained)
 - [Mouseless](https://mouseless.click/) - Grid based keyboard navigation (paid)
 
@@ -156,17 +156,9 @@ Action mode is a special mode that allows you to perform actions on the current 
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Development](docs/DEVELOPMENT.md)** - Building, testing, and contributing
 
-### Configuration Files
+### Configuration
 
-Neru uses TOML for configuration. Default locations (in order of preference):
-
-1. `~/.config/neru/config.toml` (XDG standard - **recommended for dotfiles**)
-2. `~/Library/Application Support/neru/config.toml` (macOS convention)
-3. Custom path: `neru launch --config /path/to/config.toml`
-
-**No config file?** Neru uses sensible defaults.
-
-See [configs/default-config.toml](configs/default-config.toml) for all options, or check [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for examples. To apply changes, run `neru config reload`. To inspect what the daemon is actually using, run `neru config`.
+Neru uses TOML for configuration with sensible defaults. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for all options and examples.
 
 ---
 
@@ -197,38 +189,27 @@ Neru intentionally avoids a GUI settings panel because:
 
 This is an intentional choice to keep Neru lean, maintainable, and focused on what matters: **keyboard-driven productivity**.
 
-### Grid-Based > Hint-Based
+### Why Grid-Based Navigation?
 
-Neru uses a **grid-based approach** for hint placement, not accessibility tree traversal:
+Neru uses **grid-based navigation** instead of traditional hint-based systems for universal compatibility:
 
-| Grid-Based (Neru)           | Hint-Based (Traditional)      |
-| --------------------------- | ----------------------------- |
-| ✅ Works everywhere         | ❌ Breaks in Electron         |
-| ✅ Works in menubar         | ❌ No menubar support         |
-| ✅ Works in Mission Control | ❌ No Mission Control         |
-| ✅ Fast (instant)           | ❌ Slower (tree walk)         |
-| ✅ Simple maintenance       | ❌ Complex app-specific fixes |
-| ✅ Always accurate          | ❌ Misaligned hints           |
-| ✅ No side effects          | ❌ Can break tiling WMs       |
+- ✅ Works in all apps (native, Electron, browsers, system UI)
+- ✅ Fast and reliable (no accessibility tree traversal)
+- ✅ Simple maintenance (no app-specific workarounds)
+- ✅ Always accurate (clicks at exact coordinates)
 
-Grid-based navigation means Neru doesn't depend on apps exposing proper accessibility information. It works by overlaying a visual grid and clicking at exact screen coordinates - simple, reliable, universal.
-
-**Important:** Neru includes optional accessibility support for Chromium and Firefox (disabled by default) that can help with hint detection. However, enabling this may cause side effects with tiling window managers (yabai, Amethyst, etc.). If you use a tiling WM, keep `additional_ax_support.enable = false` unless absolutely necessary.
+**Note:** Optional accessibility support for Chromium/Firefox is available but disabled by default. Keep it off if you use tiling window managers.
 
 ---
 
 ## Project Status
 
-> [!NOTE]
-> Neru is a personal project maintained on a best-effort basis. **Pull requests are more likely to be reviewed than feature requests or issues**, unless I'm experiencing the same problem.
+Neru is actively maintained with community contributions. Pull requests are welcome and will be reviewed promptly.
 
-This project thrives on community contributions. I'm happy to merge PRs that align with the project's goals. Neru stays current through collective effort rather than solo maintenance.
+### Future Ideas
 
-### Roadmap / Future Ideas
-
-- [x] Test suites (contributions welcome!)
-- [ ] Launch agent with `start-service`/`stop-service` commands
-- [ ] Better app icon and menubar icon
+- Launch agent with `start-service`/`stop-service` commands
+- Better app icon and menubar icon
 
 **Known Issues:**
 

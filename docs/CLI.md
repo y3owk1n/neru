@@ -4,7 +4,7 @@ Neru provides a comprehensive command-line interface for controlling the daemon 
 
 ## Overview
 
-The Neru CLI communicates with the daemon via IPC (Inter-Process Communication) using Unix domain sockets at `/tmp/neru.sock`. This enables:
+The Neru CLI communicates with the daemon via IPC (Inter-Process Communication) using Unix domain sockets in the OS temporary directory. This enables:
 
 - Fast, reliable communication
 - Multiple concurrent CLI commands
@@ -19,6 +19,7 @@ The Neru CLI communicates with the daemon via IPC (Inter-Process Communication) 
 - [Action Commands](#action-commands)
 - [Hint Commands](#hint-commands)
 - [Status and Info](#status-and-info)
+- [Health Check](#health-check)
 - [Shell Completions](#shell-completions)
 - [Scripting Examples](#scripting-examples)
 - [IPC Details](#ipc-details)
@@ -88,7 +89,7 @@ Perform actions directly at the current cursor position without selecting a hint
 ### General Syntax
 
 ```bash
-neru action [action_type]
+neru action <subcommand>
 ```
 
 **Available actions:**
@@ -303,6 +304,32 @@ neru launch --help
 
 ---
 
+## Health Check
+
+### Doctor
+
+Check the health of Neru components:
+
+```bash
+neru doctor
+```
+
+**Example output:**
+
+```
+✅ All systems operational
+```
+
+Or if there are issues:
+
+```
+⚠️  Some components are unhealthy:
+  ❌ Accessibility: Permission denied
+  ✅ IPC: OK
+```
+
+---
+
 ## Shell Completions
 
 Generate shell completions for your shell:
@@ -410,7 +437,7 @@ Action: Run script above
 
 ### Socket Location
 
-Unix domain socket in the OS temporary directory. The exact path is printed in logs when the daemon starts, for example:
+Unix domain socket in the OS temporary directory (typically `/var/folders/.../T/neru.sock` on macOS). The exact path is printed in logs when the daemon starts, for example:
 
 ```
 IPC server created {"socket":"/var/folders/xx/xxxxxxxxx/T/neru.sock"}
@@ -505,11 +532,11 @@ neru launch
 
 ### Socket permission errors
 
-If you get permission errors on `/tmp/neru.sock`:
+If you get permission errors on the IPC socket:
 
 ```bash
-# Remove stale socket
-rm -f /tmp/neru.sock
+# Remove stale socket (path is printed in logs; typically under /var/folders/.../T)
+rm -f /var/folders/*/*/T/neru.sock
 
 # Restart daemon
 neru launch
@@ -528,11 +555,3 @@ If not running:
 ```bash
 neru launch
 ```
-
----
-
-## Next Steps
-
-- See [CONFIGURATION.md](CONFIGURATION.md) to customize hotkeys and behavior
-- Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues
-- Review [DEVELOPMENT.md](DEVELOPMENT.md) to contribute
