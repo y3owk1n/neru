@@ -345,25 +345,51 @@ Cobra-based CLI commands.
 
 ### Code Style
 
-- **Follow Go conventions** - Use `gofmt`, `goimports`
-- **Keep it simple** - Prefer clarity over cleverness
+**All code must follow the [Coding Standards](CODING_STANDARDS.md) document.**
+
+Key requirements:
+
+- **Run formatters before committing:**
+  ```bash
+  just fmt
+  ```
+
+- **Ensure linting passes:**
+  ```bash
+  just lint
+  ```
+
+- **Follow established patterns** - Review existing code for consistency
 - **Document exports** - Add godoc comments for public functions/types
-- **Handle errors** - Don't ignore errors; wrap them with context
+- **Handle errors properly** - Use the custom error package with proper wrapping
 - **Use meaningful names** - `clickableElement` not `ce`
+- **Keep receiver names consistent** - Use short, consistent receiver names (e.g., `s` for Service, `a` for App)
+
+#### Pre-commit Checklist
+
+Before committing, ensure:
+
+- [ ] Code is formatted (`just fmt`)
+- [ ] Linters pass (`just lint`)
+- [ ] Tests pass (`just test`)
+- [ ] Build succeeds (`just build`)
+- [ ] Documentation updated if needed
+- [ ] Comments are clear and accurate
+- [ ] Follows patterns in [CODING_STANDARDS.md](CODING_STANDARDS.md)
 
 **Example:**
 
 ```go
-// Good
-func (h *HintManager) GenerateHints(elements []Element) ([]Hint, error) {
+// Good - follows coding standards
+func (s *Service) GenerateHints(ctx context.Context, elements []Element) ([]Hint, error) {
     if len(elements) == 0 {
-        return nil, fmt.Errorf("no elements to generate hints for")
+        return nil, derrors.New(derrors.CodeInvalidInput, "no elements to generate hints for")
     }
     // ...
 }
 
-// Bad
-func (h *HintManager) gen(e []Element) []Hint {
+// Bad - inconsistent receiver, missing context, poor error handling
+func (service *Service) gen(e []Element) []Hint {
     // ...
 }
 ```
