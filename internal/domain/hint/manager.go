@@ -129,13 +129,13 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	return nil, false
 }
 
-// GetInput returns the current input string.
-func (m *Manager) GetInput() string {
+// CurrentInput returns the current input string.
+func (m *Manager) CurrentInput() string {
 	return m.currentInput
 }
 
-// GetFilteredHints returns hints filtered by the current input.
-func (m *Manager) GetFilteredHints() []*Interface {
+// FilteredHints returns hints filtered by the current input.
+func (m *Manager) FilteredHints() []*Interface {
 	if m.hints == nil {
 		return nil
 	}

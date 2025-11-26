@@ -46,7 +46,7 @@ func TestNewAdapter(t *testing.T) {
 				t.Fatal("NewAdapter() returned nil")
 			}
 
-			if adapter.GetLogger() == nil {
+			if adapter.Logger() == nil {
 				t.Error("Adapter logger is nil")
 			}
 		})
@@ -102,16 +102,16 @@ func TestAdapter_UpdateClickableRoles(t *testing.T) {
 	adapter.UpdateClickableRoles(newRoles)
 
 	// Verify roles were updated (internal state)
-	if len(adapter.GetClickableRoles()) != len(newRoles) {
-		t.Errorf("Expected %d roles, got %d", len(newRoles), len(adapter.GetClickableRoles()))
+	if len(adapter.ClickableRoles()) != len(newRoles) {
+		t.Errorf("Expected %d roles, got %d", len(newRoles), len(adapter.ClickableRoles()))
 	}
 
 	// Verify mock was updated
-	if len(mockClient.ClickableRoles) != len(newRoles) {
+	if len(mockClient.MockClickableRoles) != len(newRoles) {
 		t.Errorf(
 			"Expected mock to have %d roles, got %d",
 			len(newRoles),
-			len(mockClient.ClickableRoles),
+			len(mockClient.MockClickableRoles),
 		)
 	}
 }
@@ -142,39 +142,39 @@ func TestAdapter_UpdateExcludedBundles(t *testing.T) {
 	}
 }
 
-func TestAdapter_GetScreenBounds(t *testing.T) {
+func TestAdapter_ScreenBounds(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{
-		ScreenBounds: image.Rect(0, 0, 1920, 1080),
+		MockScreenBounds: image.Rect(0, 0, 1920, 1080),
 	}
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
 	ctx := context.Background()
 
-	screenBounds, screenBoundsErr := adapter.GetScreenBounds(ctx)
+	screenBounds, screenBoundsErr := adapter.ScreenBounds(ctx)
 	if screenBoundsErr != nil {
-		t.Fatalf("GetScreenBounds() error = %v", screenBoundsErr)
+		t.Fatalf("ScreenBounds() error = %v", screenBoundsErr)
 	}
 
 	// Verify bounds match mock
-	if screenBounds != mockClient.ScreenBounds {
-		t.Errorf("GetScreenBounds() = %v, want %v", screenBounds, mockClient.ScreenBounds)
+	if screenBounds != mockClient.MockScreenBounds {
+		t.Errorf("ScreenBounds() = %v, want %v", screenBounds, mockClient.MockScreenBounds)
 	}
 }
 
-func TestAdapter_GetCursorPosition(t *testing.T) {
+func TestAdapter_CursorPosition(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
 	ctx := context.Background()
 
-	pos, posErr := adapter.GetCursorPosition(ctx)
+	pos, posErr := adapter.CursorPosition(ctx)
 	if posErr != nil {
-		t.Fatalf("GetCursorPosition() error = %v", posErr)
+		t.Fatalf("CursorPosition() error = %v", posErr)
 	}
 
 	// Cursor position should be zero as per mock default
 	if pos != (image.Point{}) {
-		t.Errorf("GetCursorPosition() = %v, want %v", pos, image.Point{})
+		t.Errorf("CursorPosition() = %v, want %v", pos, image.Point{})
 	}
 }
 
@@ -248,7 +248,7 @@ func TestAdapter_Scroll(t *testing.T) {
 
 func TestAdapter_Health(t *testing.T) {
 	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{Permissions: true}
+	mockClient := &accessibility.MockAXClient{MockPermissions: true}
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
 	ctx := context.Background()
 

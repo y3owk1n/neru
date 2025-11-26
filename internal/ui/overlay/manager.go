@@ -65,18 +65,18 @@ type ManagerInterface interface {
 	Subscribe(fn func(StateChange)) uint64
 	Unsubscribe(id uint64)
 	Destroy()
-	GetMode() Mode
-	GetWindowPtr() unsafe.Pointer
+	Mode() Mode
+	WindowPtr() unsafe.Pointer
 
 	UseHintOverlay(o *hints.Overlay)
 	UseGridOverlay(o *grid.Overlay)
 	UseActionOverlay(o *action.Overlay)
 	UseScrollOverlay(o *scroll.Overlay)
 
-	GetHintOverlay() *hints.Overlay
-	GetGridOverlay() *grid.Overlay
-	GetActionOverlay() *action.Overlay
-	GetScrollOverlay() *scroll.Overlay
+	HintOverlay() *hints.Overlay
+	GridOverlay() *grid.Overlay
+	ActionOverlay() *action.Overlay
+	ScrollOverlay() *scroll.Overlay
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
 	DrawActionHighlight(x, y, w, h int)
@@ -128,18 +128,18 @@ func Get() *Manager {
 	return manager
 }
 
-// GetWindowPtr returns the window pointer.
-func (m *Manager) GetWindowPtr() unsafe.Pointer {
+// WindowPtr returns the window pointer.
+func (m *Manager) WindowPtr() unsafe.Pointer {
 	return unsafe.Pointer(m.window)
 }
 
-// GetMode returns the current overlay mode.
-func (m *Manager) GetMode() Mode {
+// Mode returns the current overlay mode.
+func (m *Manager) Mode() Mode {
 	return m.mode
 }
 
-// GetLogger returns the logger.
-func (m *Manager) GetLogger() *zap.Logger {
+// Logger returns the logger.
+func (m *Manager) Logger() *zap.Logger {
 	return m.logger
 }
 
@@ -225,23 +225,23 @@ func (m *Manager) UseScrollOverlay(o *scroll.Overlay) {
 	m.scrollOverlay = o
 }
 
-// GetHintOverlay returns the hint overlay renderer.
-func (m *Manager) GetHintOverlay() *hints.Overlay {
+// HintOverlay returns the hint overlay renderer.
+func (m *Manager) HintOverlay() *hints.Overlay {
 	return m.hintOverlay
 }
 
-// GetGridOverlay returns the grid overlay renderer.
-func (m *Manager) GetGridOverlay() *grid.Overlay {
+// GridOverlay returns the grid overlay renderer.
+func (m *Manager) GridOverlay() *grid.Overlay {
 	return m.gridOverlay
 }
 
-// GetActionOverlay returns the action overlay renderer.
-func (m *Manager) GetActionOverlay() *action.Overlay {
+// ActionOverlay returns the action overlay renderer.
+func (m *Manager) ActionOverlay() *action.Overlay {
 	return m.actionOverlay
 }
 
-// GetScrollOverlay returns the scroll overlay renderer.
-func (m *Manager) GetScrollOverlay() *scroll.Overlay {
+// ScrollOverlay returns the scroll overlay renderer.
+func (m *Manager) ScrollOverlay() *scroll.Overlay {
 	return m.scrollOverlay
 }
 

@@ -27,11 +27,11 @@ func (a *App) registerHotkeys() {
 			mode = parts[0]
 		}
 
-		if mode == domain.GetModeString(domain.ModeHints) && !a.config.Hints.Enabled {
+		if mode == domain.ModeString(domain.ModeHints) && !a.config.Hints.Enabled {
 			continue
 		}
 
-		if mode == domain.GetModeString(domain.ModeGrid) && !a.config.Grid.Enabled {
+		if mode == domain.ModeString(domain.ModeGrid) && !a.config.Grid.Enabled {
 			continue
 		}
 
@@ -166,7 +166,7 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 
 		var bundleIDErr error
 
-		bundleID, bundleIDErr = a.actionService.GetFocusedAppBundleID(ctx)
+		bundleID, bundleIDErr = a.actionService.FocusedAppBundleID(ctx)
 		if bundleIDErr != nil {
 			a.logger.Warn("Failed to get focused app bundle ID", zap.Error(bundleIDErr))
 

@@ -21,8 +21,8 @@ func BenchmarkNewGrid(b *testing.B) {
 	}
 }
 
-// BenchmarkGrid_GetCellByCoordinate benchmarks label-based lookup.
-func BenchmarkGrid_GetCellByCoordinate(b *testing.B) {
+// BenchmarkGrid_CellByCoordinate benchmarks label-based lookup.
+func BenchmarkGrid_CellByCoordinate(b *testing.B) {
 	logger := zap.NewNop()
 	grid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1920, 1080), logger)
 
@@ -31,12 +31,12 @@ func BenchmarkGrid_GetCellByCoordinate(b *testing.B) {
 	// The standard and correct way is "for i := 0; i < b.N; i++".
 	// Adhering to "syntactically correct" requirement, using the standard loop.
 	for b.Loop() {
-		_ = grid.GetCellByCoordinate("aa")
+		_ = grid.CellByCoordinate("aa")
 	}
 }
 
-// BenchmarkGrid_GetAllCells benchmarks getting all cells.
-func BenchmarkGrid_GetAllCells(b *testing.B) {
+// BenchmarkGrid_AllCells benchmarks getting all cells.
+func BenchmarkGrid_AllCells(b *testing.B) {
 	logger, _ := zap.NewDevelopment()
 	bounds := image.Rect(0, 0, 1920, 1080)
 	g := grid.NewGrid("asdfghjkl", bounds, logger)
@@ -44,17 +44,17 @@ func BenchmarkGrid_GetAllCells(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		_ = g.GetAllCells()
+		_ = g.AllCells()
 	}
 }
 
-func BenchmarkGrid_GetCellByCoordinate_Miss(b *testing.B) {
+func BenchmarkGrid_CellByCoordinate_Miss(b *testing.B) {
 	logger := zap.NewNop()
 	grid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1920, 1080), logger)
 
 	b.ResetTimer()
 
 	for b.Loop() {
-		grid.GetCellByCoordinate("zz")
+		grid.CellByCoordinate("zz")
 	}
 }

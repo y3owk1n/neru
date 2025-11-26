@@ -23,14 +23,20 @@ type Cell struct {
 	center     image.Point     // Center point
 }
 
-// GetCoordinate returns the 3-character coordinate.
-func (c *Cell) GetCoordinate() string { return c.coordinate }
+// Coordinate returns the 3-character coordinate.
+func (c *Cell) Coordinate() string {
+	return c.coordinate
+}
 
-// GetBounds returns the cell bounds.
-func (c *Cell) GetBounds() image.Rectangle { return c.bounds }
+// Bounds returns the cell bounds.
+func (c *Cell) Bounds() image.Rectangle {
+	return c.bounds
+}
 
-// GetCenter returns the center point.
-func (c *Cell) GetCenter() image.Point { return c.center }
+// Center returns the center point.
+func (c *Cell) Center() image.Point {
+	return c.center
+}
 
 // NewGrid creates a grid with automatically optimized cell sizes for the screen.
 // Cell sizes are dynamically calculated based on screen dimensions, resolution, and aspect ratio
@@ -160,7 +166,7 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 	// Pre-allocate index map with exact capacity
 	index := make(map[string]*Cell, len(cells))
 	for _, cell := range cells {
-		index[cell.GetCoordinate()] = cell
+		index[cell.Coordinate()] = cell
 	}
 
 	return &Grid{
@@ -171,17 +177,25 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 	}
 }
 
-// GetCharacters returns the characters used for coordinates.
-func (g *Grid) GetCharacters() string { return g.characters }
+// Characters returns the characters used for coordinates.
+func (g *Grid) Characters() string {
+	return g.characters
+}
 
-// GetBounds returns the screen bounds.
-func (g *Grid) GetBounds() image.Rectangle { return g.bounds }
+// Bounds returns the screen bounds.
+func (g *Grid) Bounds() image.Rectangle {
+	return g.bounds
+}
 
-// GetCells returns all cells with 3-char coordinates.
-func (g *Grid) GetCells() []*Cell { return g.cells }
+// Cells returns all cells with 3-char coordinates.
+func (g *Grid) Cells() []*Cell {
+	return g.cells
+}
 
-// GetIndex returns the cell index map.
-func (g *Grid) GetIndex() map[string]*Cell { return g.index }
+// Index returns the cell index map.
+func (g *Grid) Index() map[string]*Cell {
+	return g.index
+}
 
 // generateCellsWithRegions creates cells using spatial region logic.
 // Each region (identified by first char) fills left-to-right, top-to-bottom.
@@ -507,13 +521,13 @@ func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []
 	return candidates
 }
 
-// GetAllCells returns all grid cells.
-func (g *Grid) GetAllCells() []*Cell {
+// AllCells returns all grid cells.
+func (g *Grid) AllCells() []*Cell {
 	return g.cells
 }
 
-// GetCellByCoordinate returns the cell for a given coordinate. (2, 3, or 4 characters).
-func (g *Grid) GetCellByCoordinate(coordinate string) *Cell {
+// CellByCoordinate returns the cell for a given coordinate. (2, 3, or 4 characters).
+func (g *Grid) CellByCoordinate(coordinate string) *Cell {
 	coordinate = strings.ToUpper(coordinate)
 
 	if g.index != nil {
@@ -523,7 +537,7 @@ func (g *Grid) GetCellByCoordinate(coordinate string) *Cell {
 	}
 
 	for _, cell := range g.cells {
-		if cell.GetCoordinate() == coordinate {
+		if cell.Coordinate() == coordinate {
 			return cell
 		}
 	}

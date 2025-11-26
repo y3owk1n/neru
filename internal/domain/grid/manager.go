@@ -36,8 +36,8 @@ func NewManager(
 ) *Manager {
 	// Determine label length from first cell (if grid exists)
 	labelLength := 3 // Default
-	if grid != nil && len(grid.GetCells()) > 0 {
-		labelLength = len(grid.GetCells()[0].GetCoordinate())
+	if grid != nil && len(grid.Cells()) > 0 {
+		labelLength = len(grid.Cells()[0].Coordinate())
 	}
 
 	return &Manager{
@@ -106,13 +106,13 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	return image.Point{}, false
 }
 
-// GetInput returns the current partial coordinate input.
-func (m *Manager) GetInput() string {
+// CurrentInput returns the current partial coordinate input.
+func (m *Manager) CurrentInput() string {
 	return m.currentInput
 }
 
-// GetCurrentGrid returns the grid.
-func (m *Manager) GetCurrentGrid() *Grid {
+// CurrentGrid returns the grid.
+func (m *Manager) CurrentGrid() *Grid {
 	return m.grid
 }
 
@@ -128,8 +128,8 @@ func (m *Manager) Reset() {
 	}
 }
 
-// GetGrid returns the grid.
-func (m *Manager) GetGrid() *Grid {
+// Grid returns the grid.
+func (m *Manager) Grid() *Grid {
 	return m.grid
 }
 
@@ -137,8 +137,8 @@ func (m *Manager) GetGrid() *Grid {
 func (m *Manager) UpdateGrid(g *Grid) {
 	m.grid = g
 	// Update label length based on new grid
-	if g != nil && len(g.GetCells()) > 0 {
-		m.labelLength = len(g.GetCells()[0].GetCoordinate())
+	if g != nil && len(g.Cells()) > 0 {
+		m.labelLength = len(g.Cells()[0].Coordinate())
 	}
 }
 
@@ -151,7 +151,7 @@ func (m *Manager) UpdateSubKeys(subKeys string) {
 func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 	coordinate := m.currentInput[:m.labelLength]
 	if m.grid != nil {
-		cell := m.grid.GetCellByCoordinate(coordinate)
+		cell := m.grid.CellByCoordinate(coordinate)
 		if cell != nil {
 			if !m.inSubgrid {
 				center := cell.center
@@ -180,7 +180,7 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 // validateInputKey validates the input key.
 func (m *Manager) validateInputKey(key string) bool {
 	// Check if character is valid for grid
-	if m.grid != nil && !strings.Contains(m.grid.GetCharacters(), key) {
+	if m.grid != nil && !strings.Contains(m.grid.Characters(), key) {
 		return false
 	}
 
@@ -189,9 +189,9 @@ func (m *Manager) validateInputKey(key string) bool {
 	potentialInput := m.currentInput + key
 	validPrefix := false
 
-	for _, cell := range m.grid.GetCells() {
-		if len(cell.GetCoordinate()) >= len(potentialInput) &&
-			strings.HasPrefix(cell.GetCoordinate(), potentialInput) {
+	for _, cell := range m.grid.Cells() {
+		if len(cell.Coordinate()) >= len(potentialInput) &&
+			strings.HasPrefix(cell.Coordinate(), potentialInput) {
 			validPrefix = true
 
 			break

@@ -72,7 +72,7 @@ func (a *App) handleScreenParametersChange() {
 
 	// Handle grid overlay
 	if a.config.Grid.Enabled && a.gridComponent.Context != nil &&
-		a.gridComponent.Context.GetGridOverlay() != nil {
+		a.gridComponent.Context.GridOverlay() != nil {
 		// If grid mode is not active, mark for refresh on next activation
 		if a.appState.CurrentMode() != domain.ModeGrid {
 			a.appState.SetGridOverlayNeedsRefresh(true)
@@ -86,7 +86,7 @@ func (a *App) handleScreenParametersChange() {
 			// Regenerate the grid with updated screen bounds and redraw with proper styling
 			// Use the renderer which has the configured style, instead of going through
 			// the service layer which would lose styling information
-			screenBounds := bridge.GetActiveScreenBounds()
+			screenBounds := bridge.ActiveScreenBounds()
 			normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
 
 			characters := a.config.Grid.Characters
@@ -101,7 +101,7 @@ func (a *App) handleScreenParametersChange() {
 			// Get current input state from grid manager if it exists
 			currentInput := ""
 			if a.gridComponent.Manager != nil {
-				currentInput = a.gridComponent.Manager.GetInput()
+				currentInput = a.gridComponent.Manager.CurrentInput()
 			}
 
 			// Redraw grid using renderer which preserves the configured style
@@ -159,7 +159,7 @@ func (a *App) handleScreenParametersChange() {
 	}
 
 	// Handle scroll overlay
-	if a.scrollComponent.Context != nil && a.scrollComponent.Context.GetIsActive() {
+	if a.scrollComponent.Context != nil && a.scrollComponent.Context.IsActive() {
 		// Scroll mode is active - resize the overlay and redraw highlight
 		if a.overlayManager != nil {
 			a.overlayManager.ResizeToActiveScreenSync()
@@ -230,11 +230,11 @@ func (a *App) printStartupInfo() {
 			mode = parts[0]
 		}
 
-		if mode == domain.GetModeString(domain.ModeHints) && !a.config.Hints.Enabled {
+		if mode == domain.ModeString(domain.ModeHints) && !a.config.Hints.Enabled {
 			continue
 		}
 
-		if mode == domain.GetModeString(domain.ModeGrid) && !a.config.Grid.Enabled {
+		if mode == domain.ModeString(domain.ModeGrid) && !a.config.Grid.Enabled {
 			continue
 		}
 

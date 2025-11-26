@@ -80,7 +80,7 @@ func TestConfig_IsAppExcluded(t *testing.T) {
 	}
 }
 
-func TestConfig_GetClickableRolesForApp(t *testing.T) {
+func TestConfig_ClickableRolesForApp(t *testing.T) {
 	tests := []struct {
 		name     string
 		config   config.Config
@@ -180,7 +180,7 @@ func TestConfig_GetClickableRolesForApp(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := testCase.config.GetClickableRolesForApp(testCase.bundleID)
+			got := testCase.config.ClickableRolesForApp(testCase.bundleID)
 
 			// Convert to maps for comparison since order doesn't matter
 			gotMap := make(map[string]bool)
@@ -195,7 +195,7 @@ func TestConfig_GetClickableRolesForApp(t *testing.T) {
 
 			if len(gotMap) != len(wantMap) {
 				t.Errorf(
-					"GetClickableRolesForApp() length = %d, want %d",
+					"ClickableRolesForApp() length = %d, want %d",
 					len(got),
 					len(testCase.want),
 				)
@@ -207,7 +207,7 @@ func TestConfig_GetClickableRolesForApp(t *testing.T) {
 
 			for role := range wantMap {
 				if !gotMap[role] {
-					t.Errorf("GetClickableRolesForApp() missing role %q", role)
+					t.Errorf("ClickableRolesForApp() missing role %q", role)
 				}
 			}
 		})

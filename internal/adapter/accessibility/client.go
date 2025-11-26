@@ -18,24 +18,24 @@ type AXElement interface {
 //nolint:interfacebloat // Facade interface for accessibility operations
 type AXClient interface {
 	// Window and App operations
-	GetFrontmostWindow() (AXWindow, error)
-	GetFocusedApplication() (AXApp, error)
-	GetApplicationByBundleID(bundleID string) (AXApp, error)
-	GetClickableNodes(root AXElement, includeOffscreen bool) ([]AXNode, error)
-	GetMenuBarClickableElements() ([]AXNode, error)
-	GetClickableElementsFromBundleID(bundleID string) ([]AXNode, error)
-	GetActiveScreenBounds() image.Rectangle
+	FrontmostWindow() (AXWindow, error)
+	FocusedApplication() (AXApp, error)
+	ApplicationByBundleID(bundleID string) (AXApp, error)
+	ClickableNodes(root AXElement, includeOffscreen bool) ([]AXNode, error)
+	MenuBarClickableElements() ([]AXNode, error)
+	ClickableElementsFromBundleID(bundleID string) ([]AXNode, error)
+	ActiveScreenBounds() image.Rectangle
 
 	// Actions
 	PerformAction(actionType action.Type, p image.Point, restoreCursor bool) error
 	Scroll(deltaX, deltaY int) error
 	MoveMouse(p image.Point)
-	GetCursorPosition() image.Point
+	CursorPosition() image.Point
 
 	// System
 	CheckPermissions() bool
 	SetClickableRoles(roles []string)
-	GetClickableRoles() []string
+	ClickableRoles() []string
 	IsMissionControlActive() bool
 }
 
@@ -55,16 +55,16 @@ type AXAppInfo struct {
 // AXApp represents an application element.
 type AXApp interface {
 	AXElement
-	GetBundleIdentifier() string
-	GetInfo() (*AXAppInfo, error)
+	BundleIdentifier() string
+	Info() (*AXAppInfo, error)
 }
 
 // AXNode represents a node in the accessibility tree.
 type AXNode interface {
-	GetID() string
-	GetBounds() image.Rectangle
-	GetRole() string
-	GetTitle() string
-	GetDescription() string
+	ID() string
+	Bounds() image.Rectangle
+	Role() string
+	Title() string
+	Description() string
 	IsClickable() bool
 }

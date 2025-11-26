@@ -18,9 +18,9 @@ func NewInfraAXClient() *InfraAXClient {
 	return &InfraAXClient{}
 }
 
-// GetFrontmostWindow returns the frontmost window.
-func (c *InfraAXClient) GetFrontmostWindow() (AXWindow, error) {
-	window := infra.GetFrontmostWindow()
+// FrontmostWindow returns the frontmost window.
+func (c *InfraAXClient) FrontmostWindow() (AXWindow, error) {
+	window := infra.FrontmostWindow()
 	if window == nil {
 		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get frontmost window")
 	}
@@ -28,9 +28,9 @@ func (c *InfraAXClient) GetFrontmostWindow() (AXWindow, error) {
 	return &InfraWindow{element: window}, nil
 }
 
-// GetFocusedApplication returns the focused application.
-func (c *InfraAXClient) GetFocusedApplication() (AXApp, error) {
-	app := infra.GetFocusedApplication()
+// FocusedApplication returns the focused application.
+func (c *InfraAXClient) FocusedApplication() (AXApp, error) {
+	app := infra.FocusedApplication()
 	if app == nil {
 		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get focused app")
 	}
@@ -38,8 +38,8 @@ func (c *InfraAXClient) GetFocusedApplication() (AXApp, error) {
 	return &InfraApp{element: app}, nil
 }
 
-// GetClickableNodes returns clickable nodes for the given root element.
-func (c *InfraAXClient) GetClickableNodes(
+// ClickableNodes returns clickable nodes for the given root element.
+func (c *InfraAXClient) ClickableNodes(
 	root AXElement,
 	includeOffscreen bool,
 ) ([]AXNode, error) {
@@ -80,9 +80,9 @@ func (c *InfraAXClient) GetClickableNodes(
 	return clickableNodesResult, nil
 }
 
-// GetApplicationByBundleID returns the application with the given bundle ID.
-func (c *InfraAXClient) GetApplicationByBundleID(bundleID string) (AXApp, error) {
-	app := infra.GetApplicationByBundleID(bundleID)
+// ApplicationByBundleID returns the application with the given bundle ID.
+func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
+	app := infra.ApplicationByBundleID(bundleID)
 	if app == nil {
 		return nil, derrors.New(derrors.CodeAccessibilityFailed, "application not found")
 	}
@@ -90,9 +90,9 @@ func (c *InfraAXClient) GetApplicationByBundleID(bundleID string) (AXApp, error)
 	return &InfraApp{element: app}, nil
 }
 
-// GetMenuBarClickableElements returns clickable elements in the menu bar.
-func (c *InfraAXClient) GetMenuBarClickableElements() ([]AXNode, error) {
-	nodes, nodesErr := infra.GetMenuBarClickableElements()
+// MenuBarClickableElements returns clickable elements in the menu bar.
+func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
+	nodes, nodesErr := infra.MenuBarClickableElements()
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,
@@ -109,11 +109,11 @@ func (c *InfraAXClient) GetMenuBarClickableElements() ([]AXNode, error) {
 	return nodesResult, nil
 }
 
-// GetClickableElementsFromBundleID returns clickable elements for the application with the given bundle ID.
-func (c *InfraAXClient) GetClickableElementsFromBundleID(
+// ClickableElementsFromBundleID returns clickable elements for the application with the given bundle ID.
+func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 ) ([]AXNode, error) {
-	nodes, nodesErr := infra.GetClickableElementsFromBundleID(bundleID)
+	nodes, nodesErr := infra.ClickableElementsFromBundleID(bundleID)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,
@@ -130,9 +130,9 @@ func (c *InfraAXClient) GetClickableElementsFromBundleID(
 	return nodesResult, nil
 }
 
-// GetActiveScreenBounds returns the bounds of the active screen.
-func (c *InfraAXClient) GetActiveScreenBounds() image.Rectangle {
-	return bridge.GetActiveScreenBounds()
+// ActiveScreenBounds returns the bounds of the active screen.
+func (c *InfraAXClient) ActiveScreenBounds() image.Rectangle {
+	return bridge.ActiveScreenBounds()
 }
 
 // PerformAction performs the specified action at the given point.
@@ -191,9 +191,9 @@ func (c *InfraAXClient) MoveMouse(p image.Point) {
 	infra.MoveMouseToPoint(p)
 }
 
-// GetCursorPosition returns the current cursor position.
-func (c *InfraAXClient) GetCursorPosition() image.Point {
-	return infra.GetCurrentCursorPosition()
+// CursorPosition returns the current cursor position.
+func (c *InfraAXClient) CursorPosition() image.Point {
+	return infra.CurrentCursorPosition()
 }
 
 // CheckPermissions checks if accessibility permissions are granted.
@@ -206,9 +206,9 @@ func (c *InfraAXClient) SetClickableRoles(roles []string) {
 	infra.SetClickableRoles(roles)
 }
 
-// GetClickableRoles returns the roles that are considered clickable.
-func (c *InfraAXClient) GetClickableRoles() []string {
-	return infra.GetClickableRoles()
+// ClickableRoles returns the roles that are considered clickable.
+func (c *InfraAXClient) ClickableRoles() []string {
+	return infra.ClickableRoles()
 }
 
 // IsMissionControlActive checks if Mission Control is currently active.
@@ -242,22 +242,22 @@ func (a *InfraApp) Release() {
 	}
 }
 
-// GetBundleIdentifier returns the bundle identifier.
-func (a *InfraApp) GetBundleIdentifier() string {
+// BundleIdentifier returns the bundle identifier.
+func (a *InfraApp) BundleIdentifier() string {
 	if a.element != nil {
-		return a.element.GetBundleIdentifier()
+		return a.element.BundleIdentifier()
 	}
 
 	return ""
 }
 
-// GetInfo returns the app info.
-func (a *InfraApp) GetInfo() (*AXAppInfo, error) {
+// Info returns the app info.
+func (a *InfraApp) Info() (*AXAppInfo, error) {
 	if a.element == nil {
 		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
 	}
 
-	info, infoErr := a.element.GetInfo()
+	info, infoErr := a.element.Info()
 	if infoErr != nil {
 		return nil, infoErr
 	}
@@ -273,8 +273,8 @@ type InfraNode struct {
 	node *infra.TreeNode
 }
 
-// GetID returns the node ID.
-func (n *InfraNode) GetID() string {
+// ID returns the node ID.
+func (n *InfraNode) ID() string {
 	if n.node == nil {
 		return ""
 	}
@@ -282,8 +282,8 @@ func (n *InfraNode) GetID() string {
 	return fmt.Sprintf("elem_%p", n.node.Element)
 }
 
-// GetBounds returns the node bounds.
-func (n *InfraNode) GetBounds() image.Rectangle {
+// Bounds returns the node bounds.
+func (n *InfraNode) Bounds() image.Rectangle {
 	if n.node == nil || n.node.Info() == nil {
 		return image.Rectangle{}
 	}
@@ -300,8 +300,8 @@ func (n *InfraNode) GetBounds() image.Rectangle {
 	)
 }
 
-// GetRole returns the node role.
-func (n *InfraNode) GetRole() string {
+// Role returns the node role.
+func (n *InfraNode) Role() string {
 	if n.node == nil || n.node.Info() == nil {
 		return ""
 	}
@@ -309,8 +309,8 @@ func (n *InfraNode) GetRole() string {
 	return n.node.Info().Role()
 }
 
-// GetTitle returns the node title.
-func (n *InfraNode) GetTitle() string {
+// Title returns the node title.
+func (n *InfraNode) Title() string {
 	if n.node == nil || n.node.Info() == nil {
 		return ""
 	}
@@ -318,8 +318,8 @@ func (n *InfraNode) GetTitle() string {
 	return n.node.Info().Title()
 }
 
-// GetDescription returns the node description.
-func (n *InfraNode) GetDescription() string {
+// Description returns the node description.
+func (n *InfraNode) Description() string {
 	if n.node == nil || n.node.Info() == nil {
 		return ""
 	}

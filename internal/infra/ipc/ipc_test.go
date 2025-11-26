@@ -11,16 +11,16 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestGetSocketPath(t *testing.T) {
-	path := ipc.GetSocketPath()
+func TestSocketPath(t *testing.T) {
+	path := ipc.SocketPath()
 
 	if path == "" {
-		t.Error("GetSocketPath() returned empty string")
+		t.Error("SocketPath() returned empty string")
 	}
 
 	// Verify path contains expected components
 	if len(path) < 10 {
-		t.Errorf("GetSocketPath() returned suspiciously short path: %s", path)
+		t.Errorf("SocketPath() returned suspiciously short path: %s", path)
 	}
 }
 
@@ -31,7 +31,7 @@ func TestNewClient(t *testing.T) {
 		t.Fatal("NewClient() returned nil")
 	}
 
-	if client.GetSocketPath() == "" {
+	if client.SocketPath() == "" {
 		t.Error("Client socket path is empty")
 	}
 }
@@ -406,15 +406,15 @@ func TestResponse_EmptyFields(t *testing.T) {
 	}
 }
 
-func TestClient_GetSocketPath(t *testing.T) {
+func TestClient_SocketPath(t *testing.T) {
 	client := ipc.NewClient()
-	path := client.GetSocketPath()
+	path := client.SocketPath()
 
 	if path == "" {
-		t.Error("Client.GetSocketPath() returned empty string")
+		t.Error("Client.SocketPath() returned empty string")
 	}
 
 	if !filepath.IsAbs(path) {
-		t.Errorf("Client.GetSocketPath() returned relative path: %s", path)
+		t.Errorf("Client.SocketPath() returned relative path: %s", path)
 	}
 }

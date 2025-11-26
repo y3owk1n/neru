@@ -28,14 +28,14 @@ func NewMetricsDecorator(
 	}
 }
 
-// GetClickableElements implements ports.AccessibilityPort.
-func (d *MetricsDecorator) GetClickableElements(
+// ClickableElements implements ports.AccessibilityPort.
+func (d *MetricsDecorator) ClickableElements(
 	ctx context.Context,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
 	defer d.recordDuration("accessibility_get_clickable_elements_duration", time.Now())
 
-	elements, elementsErr := d.next.GetClickableElements(ctx, filter)
+	elements, elementsErr := d.next.ClickableElements(ctx, filter)
 	d.recordError("accessibility_get_clickable_elements", elementsErr)
 
 	if elementsErr == nil {
@@ -87,9 +87,9 @@ func (d *MetricsDecorator) Scroll(ctx context.Context, deltaX, deltaY int) error
 	return scrollErr
 }
 
-// GetFocusedAppBundleID implements ports.AccessibilityPort.
-func (d *MetricsDecorator) GetFocusedAppBundleID(ctx context.Context) (string, error) {
-	return d.next.GetFocusedAppBundleID(ctx)
+// FocusedAppBundleID implements ports.AccessibilityPort.
+func (d *MetricsDecorator) FocusedAppBundleID(ctx context.Context) (string, error) {
+	return d.next.FocusedAppBundleID(ctx)
 }
 
 // IsAppExcluded implements ports.AccessibilityPort.
@@ -97,9 +97,9 @@ func (d *MetricsDecorator) IsAppExcluded(ctx context.Context, bundleID string) b
 	return d.next.IsAppExcluded(ctx, bundleID)
 }
 
-// GetScreenBounds implements ports.AccessibilityPort.
-func (d *MetricsDecorator) GetScreenBounds(ctx context.Context) (image.Rectangle, error) {
-	return d.next.GetScreenBounds(ctx)
+// ScreenBounds implements ports.AccessibilityPort.
+func (d *MetricsDecorator) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
+	return d.next.ScreenBounds(ctx)
 }
 
 // MoveCursorToPoint implements ports.AccessibilityPort.
@@ -107,9 +107,9 @@ func (d *MetricsDecorator) MoveCursorToPoint(ctx context.Context, point image.Po
 	return d.next.MoveCursorToPoint(ctx, point)
 }
 
-// GetCursorPosition implements ports.AccessibilityPort.
-func (d *MetricsDecorator) GetCursorPosition(ctx context.Context) (image.Point, error) {
-	return d.next.GetCursorPosition(ctx)
+// CursorPosition implements ports.AccessibilityPort.
+func (d *MetricsDecorator) CursorPosition(ctx context.Context) (image.Point, error) {
+	return d.next.CursorPosition(ctx)
 }
 
 // CheckPermissions implements ports.AccessibilityPort.

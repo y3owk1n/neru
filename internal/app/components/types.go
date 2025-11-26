@@ -39,17 +39,17 @@ type GridComponent struct {
 func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) {
 	if config.Grid.Enabled {
 		g.Style = grid.BuildStyle(config.Grid)
-		if g.Context != nil && g.Context.GetGridOverlay() != nil {
-			(*g.Context.GetGridOverlay()).UpdateConfig(config.Grid)
+		if g.Context != nil && g.Context.GridOverlay() != nil {
+			(*g.Context.GridOverlay()).SetConfig(config.Grid)
 		}
 
 		if g.Manager != nil {
 			// Recreate grid if characters changed
-			oldGrid := g.Manager.GetGrid()
+			oldGrid := g.Manager.Grid()
 			if oldGrid != nil && config.Grid.Characters != "" &&
-				strings.ToUpper(config.Grid.Characters) != oldGrid.GetCharacters() {
+				strings.ToUpper(config.Grid.Characters) != oldGrid.Characters() {
 				logger.Debug("Recreating grid with new characters")
-				newGrid := domainGrid.NewGrid(config.Grid.Characters, oldGrid.GetBounds(), logger)
+				newGrid := domainGrid.NewGrid(config.Grid.Characters, oldGrid.Bounds(), logger)
 				g.Manager.UpdateGrid(newGrid)
 			}
 

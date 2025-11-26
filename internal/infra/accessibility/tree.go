@@ -128,7 +128,7 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 	info := opts.cache.Get(root)
 	if info == nil {
 		var infoErr error
-		info, infoErr = root.GetInfo()
+		info, infoErr = root.Info()
 		if infoErr != nil {
 			logger.Warn("Failed to get root element info", zap.Error(infoErr))
 
@@ -223,7 +223,7 @@ func buildTreeRecursive(
 		}
 	}
 
-	children, err := parent.element.GetChildren()
+	children, err := parent.element.Children()
 	if err != nil || len(children) == 0 {
 		if err != nil {
 			logger.Debug("No children found due to error",
@@ -275,7 +275,7 @@ func buildChildrenSequential(
 		info := opts.cache.Get(child)
 		if info == nil {
 			var err error
-			info, err = child.GetInfo()
+			info, err = child.Info()
 			if err != nil {
 				logger.Debug("Failed to get child element info", zap.Error(err))
 
@@ -350,7 +350,7 @@ func buildChildrenParallel(
 			info := opts.cache.Get(elem)
 			if info == nil {
 				var err error
-				info, err = elem.GetInfo()
+				info, err = elem.Info()
 				if err != nil {
 					logger.Debug(
 						"Failed to get child element info in parallel processing",

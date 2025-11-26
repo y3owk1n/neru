@@ -12,10 +12,10 @@ func TestMockAccessibilityPort_Defaults(t *testing.T) {
 	mock := &mocks.MockAccessibilityPort{}
 
 	// Test that methods return nil/zero values by default
-	elements, err := mock.GetClickableElements(context.TODO(), ports.DefaultElementFilter())
+	elements, err := mock.ClickableElements(context.TODO(), ports.DefaultElementFilter())
 	if elements != nil || err != nil {
 		t.Errorf(
-			"GetClickableElements() default should return (nil, nil), got (%v, %v)",
+			"ClickableElements() default should return (nil, nil), got (%v, %v)",
 			elements,
 			err,
 		)
@@ -26,10 +26,10 @@ func TestMockAccessibilityPort_Defaults(t *testing.T) {
 		t.Errorf("PerformAction() default should return nil, got %v", err)
 	}
 
-	bundleID, err := mock.GetFocusedAppBundleID(context.TODO())
+	bundleID, err := mock.FocusedAppBundleID(context.TODO())
 	if bundleID != "" || err != nil {
 		t.Errorf(
-			"GetFocusedAppBundleID() default should return (\"\", nil), got (%q, %v)",
+			"FocusedAppBundleID() default should return (\"\", nil), got (%q, %v)",
 			bundleID,
 			err,
 		)
@@ -40,10 +40,10 @@ func TestMockAccessibilityPort_Defaults(t *testing.T) {
 		t.Error("IsAppExcluded() default should return false")
 	}
 
-	bounds, err := mock.GetScreenBounds(context.TODO())
+	bounds, err := mock.ScreenBounds(context.TODO())
 	if !bounds.Empty() || err != nil {
 		t.Errorf(
-			"GetScreenBounds() default should return (empty rect, nil), got (%v, %v)",
+			"ScreenBounds() default should return (empty rect, nil), got (%v, %v)",
 			bounds,
 			err,
 		)

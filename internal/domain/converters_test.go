@@ -7,7 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
-func TestGetModeString(t *testing.T) {
+func TestModeString(t *testing.T) {
 	tests := []struct {
 		name string
 		mode app.Mode
@@ -37,15 +37,15 @@ func TestGetModeString(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := domain.GetModeString(testCase.mode)
+			got := domain.ModeString(testCase.mode)
 			if got != testCase.want {
-				t.Errorf("GetModeString(%v) = %q, want %q", testCase.mode, got, testCase.want)
+				t.Errorf("ModeString(%v) = %q, want %q", testCase.mode, got, testCase.want)
 			}
 		})
 	}
 }
 
-func TestGetActionString(t *testing.T) {
+func TestActionString(t *testing.T) {
 	tests := []struct {
 		name   string
 		action domain.Action
@@ -95,15 +95,15 @@ func TestGetActionString(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := domain.GetActionString(testCase.action)
+			got := domain.ActionString(testCase.action)
 			if got != testCase.want {
-				t.Errorf("GetActionString(%v) = %q, want %q", testCase.action, got, testCase.want)
+				t.Errorf("ActionString(%v) = %q, want %q", testCase.action, got, testCase.want)
 			}
 		})
 	}
 }
 
-func TestGetActionFromString(t *testing.T) {
+func TestActionFromString(t *testing.T) {
 	tests := []struct {
 		name       string
 		actionStr  string
@@ -174,10 +174,10 @@ func TestGetActionFromString(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			gotAction, gotOk := domain.GetActionFromString(testCase.actionStr)
+			gotAction, gotOk := domain.ActionFromString(testCase.actionStr)
 			if gotAction != testCase.wantAction {
 				t.Errorf(
-					"GetActionFromString(%q) action = %v, want %v",
+					"ActionFromString(%q) action = %v, want %v",
 					testCase.actionStr,
 					gotAction,
 					testCase.wantAction,
@@ -186,7 +186,7 @@ func TestGetActionFromString(t *testing.T) {
 
 			if gotOk != testCase.wantOk {
 				t.Errorf(
-					"GetActionFromString(%q) ok = %v, want %v",
+					"ActionFromString(%q) ok = %v, want %v",
 					testCase.actionStr,
 					gotOk,
 					testCase.wantOk,
@@ -210,13 +210,13 @@ func TestActionStringRoundTrip(t *testing.T) {
 	}
 
 	for _, action := range actions {
-		t.Run(domain.GetActionString(action), func(t *testing.T) {
-			actionString := domain.GetActionString(action)
+		t.Run(domain.ActionString(action), func(t *testing.T) {
+			actionString := domain.ActionString(action)
 
-			gotAction, ok := domain.GetActionFromString(actionString)
+			gotAction, ok := domain.ActionFromString(actionString)
 			if !ok {
 				t.Errorf(
-					"Round trip failed: GetActionFromString(%q) returned ok=false",
+					"Round trip failed: ActionFromString(%q) returned ok=false",
 					actionString,
 				)
 			}

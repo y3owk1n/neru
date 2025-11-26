@@ -78,8 +78,8 @@ type Server struct {
 // CommandHandler defines the interface for processing IPC commands.
 type CommandHandler func(ctx context.Context, cmd Command) Response
 
-// GetSocketPath returns the filesystem path to the IPC Unix socket.
-func GetSocketPath() string {
+// SocketPath returns the filesystem path to the IPC Unix socket.
+func SocketPath() string {
 	tmpDir := os.TempDir()
 
 	return filepath.Join(tmpDir, SocketName)
@@ -87,7 +87,7 @@ func GetSocketPath() string {
 
 // NewServer initializes a new IPC server instance with the specified handler.
 func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
-	socketPath := GetSocketPath()
+	socketPath := SocketPath()
 
 	// Remove existing socket if it exists
 	removeSocketErr := os.Remove(socketPath)
@@ -290,12 +290,12 @@ type Client struct {
 // NewClient initializes a new IPC client instance.
 func NewClient() *Client {
 	return &Client{
-		socketPath: GetSocketPath(),
+		socketPath: SocketPath(),
 	}
 }
 
-// GetSocketPath returns the path to the IPC socket.
-func (c *Client) GetSocketPath() string {
+// SocketPath returns the path to the IPC socket.
+func (c *Client) SocketPath() string {
 	return c.socketPath
 }
 

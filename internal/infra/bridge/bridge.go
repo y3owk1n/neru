@@ -30,8 +30,8 @@ func InitializeLogger(logger *zap.Logger) {
 	bridgeLogger = logger
 }
 
-// GetBridgeLogger returns the global logger instance for the bridge package.
-func GetBridgeLogger() *zap.Logger {
+// Logger returns the global logger instance for the bridge package.
+func Logger() *zap.Logger {
 	return bridgeLogger
 }
 
@@ -90,10 +90,10 @@ func HasClickAction(element unsafe.Pointer) bool {
 }
 
 // appWatcher is the global application watcher instance.
-var appWatcher AppWatcher
+var appWatcher AppWatcherInterface
 
-// AppWatcher interface defines callbacks for application lifecycle events.
-type AppWatcher interface {
+// AppWatcherInterface interface defines callbacks for application lifecycle events.
+type AppWatcherInterface interface {
 	HandleLaunch(appName, bundleID string)
 	HandleTerminate(appName, bundleID string)
 	HandleActivate(appName, bundleID string)
@@ -101,13 +101,13 @@ type AppWatcher interface {
 	HandleScreenParametersChanged()
 }
 
-// GetAppWatcher returns the global application watcher instance.
-func GetAppWatcher() AppWatcher {
+// AppWatcher returns the global application watcher instance.
+func AppWatcher() AppWatcherInterface {
 	return appWatcher
 }
 
 // SetAppWatcher configures the application watcher implementation.
-func SetAppWatcher(w AppWatcher) {
+func SetAppWatcher(w AppWatcherInterface) {
 	if bridgeLogger != nil {
 		bridgeLogger.Debug("Bridge: Setting app watcher")
 	}
@@ -238,10 +238,10 @@ func handleAppDeactivate(cAppName *C.char, cBundleID *C.char) {
 	HandleAppDeactivate(C.GoString(cAppName), C.GoString(cBundleID))
 }
 
-// GetActiveScreenBounds retrieves the screen bounds containing the current mouse cursor position.
-func GetActiveScreenBounds() image.Rectangle {
+// ActiveScreenBounds retrieves the screen bounds containing the current mouse cursor position.
+func ActiveScreenBounds() image.Rectangle {
 	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: GetActiveScreenBounds called")
+		bridgeLogger.Debug("Bridge: ActiveScreenBounds called")
 	}
 
 	rect := C.getActiveScreenBounds()

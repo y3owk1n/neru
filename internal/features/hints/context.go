@@ -18,8 +18,8 @@ func (c *Context) SetManager(manager *domainHint.Manager) {
 	c.manager = manager
 }
 
-// GetManager returns the domain hint manager.
-func (c *Context) GetManager() *domainHint.Manager {
+// Manager returns the domain hint manager.
+func (c *Context) Manager() *domainHint.Manager {
 	return c.manager
 }
 
@@ -28,8 +28,8 @@ func (c *Context) SetRouter(router *domainHint.Router) {
 	c.router = router
 }
 
-// GetRouter returns the domain hint router.
-func (c *Context) GetRouter() *domainHint.Router {
+// Router returns the domain hint router.
+func (c *Context) Router() *domainHint.Router {
 	return c.router
 }
 
@@ -41,8 +41,8 @@ func (c *Context) SetHints(hints *domainHint.Collection) {
 	}
 }
 
-// GetHints returns the current hint collection.
-func (c *Context) GetHints() *domainHint.Collection {
+// Hints returns the current hint collection.
+func (c *Context) Hints() *domainHint.Collection {
 	return c.hints
 }
 
@@ -51,8 +51,8 @@ func (c *Context) SetInActionMode(inActionMode bool) {
 	c.inActionMode = inActionMode
 }
 
-// GetInActionMode returns whether hint mode is in action mode.
-func (c *Context) GetInActionMode() bool {
+// InActionMode returns whether hint mode is in action mode.
+func (c *Context) InActionMode() bool {
 	return c.inActionMode
 }
 
@@ -61,8 +61,8 @@ func (c *Context) SetPendingAction(action *string) {
 	c.pendingAction = action
 }
 
-// GetPendingAction returns the pending action to execute.
-func (c *Context) GetPendingAction() *string {
+// PendingAction returns the pending action to execute.
+func (c *Context) PendingAction() *string {
 	return c.pendingAction
 }
 

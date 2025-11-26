@@ -548,8 +548,8 @@ func (c *Config) IsAppExcluded(bundleID string) bool {
 	return false
 }
 
-// GetClickableRolesForApp returns the merged clickable roles for a specific app.
-func (c *Config) GetClickableRolesForApp(bundleID string) []string {
+// ClickableRolesForApp returns the merged clickable roles for a specific app.
+func (c *Config) ClickableRolesForApp(bundleID string) []string {
 	rolesMap := make(map[string]struct{})
 
 	for _, role := range c.Hints.ClickableRoles {

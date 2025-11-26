@@ -34,7 +34,7 @@ func createHintsComponent(
 	hintOverlay, hintOverlayErr := hints.NewOverlayWithWindow(
 		config.Hints,
 		logger,
-		overlayManager.GetWindowPtr(),
+		overlayManager.WindowPtr(),
 	)
 	if hintOverlayErr != nil {
 		return nil, derrors.Wrap(
@@ -61,9 +61,9 @@ func createGridComponent(
 	if !config.Grid.Enabled {
 		var gridInstance *domainGrid.Grid
 
-		component.Context = &grid.Context{
-			GridInstance: &gridInstance,
-		}
+		ctx := &grid.Context{}
+		ctx.SetGridInstance(&gridInstance)
+		component.Context = ctx
 
 		return component
 	}
@@ -76,7 +76,7 @@ func createGridComponent(
 	}
 
 	component.Style = grid.BuildStyle(config.Grid)
-	gridOverlay := grid.NewOverlayWithWindow(config.Grid, logger, overlayManager.GetWindowPtr())
+	gridOverlay := grid.NewOverlayWithWindow(config.Grid, logger, overlayManager.WindowPtr())
 
 	var gridInstance *domainGrid.Grid
 
@@ -102,7 +102,7 @@ func createGridComponent(
 				return
 			}
 
-			gridOverlay.UpdateMatches(component.Manager.GetInput())
+			gridOverlay.UpdateMatches(component.Manager.CurrentInput())
 		},
 		func(cell *domainGrid.Cell) {
 			gridOverlay.ShowSubgrid(cell, component.Style)
@@ -110,10 +110,10 @@ func createGridComponent(
 		logger,
 	)
 
-	component.Context = &grid.Context{
-		GridInstance: &gridInstance,
-		GridOverlay:  &gridOverlay,
-	}
+	ctx := &grid.Context{}
+	ctx.SetGridInstance(&gridInstance)
+	ctx.SetGridOverlay(&gridOverlay)
+	component.Context = ctx
 
 	return component
 }
@@ -127,7 +127,7 @@ func createScrollComponent(
 	scrollOverlay, scrollOverlayErr := scroll.NewOverlayWithWindow(
 		config.Scroll,
 		logger,
-		overlayManager.GetWindowPtr(),
+		overlayManager.WindowPtr(),
 	)
 	if scrollOverlayErr != nil {
 		return nil, derrors.Wrap(
@@ -152,7 +152,7 @@ func createActionComponent(
 	actionOverlay, actionOverlayErr := action.NewOverlayWithWindow(
 		config.Action,
 		logger,
-		overlayManager.GetWindowPtr(),
+		overlayManager.WindowPtr(),
 	)
 	if actionOverlayErr != nil {
 		return nil, derrors.Wrap(

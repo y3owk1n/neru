@@ -7,7 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
-func BenchmarkAppState_GetSet(b *testing.B) {
+func BenchmarkAppState_Set(b *testing.B) {
 	state := state.NewAppState()
 
 	for b.Loop() {

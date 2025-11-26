@@ -225,7 +225,7 @@ func (c *IPCController) handleAction(ctx context.Context, cmd ipc.Command) ipc.R
 		}
 	}
 
-	cursorPos := accessibility.GetCurrentCursorPosition()
+	cursorPos := accessibility.CurrentCursorPosition()
 
 	for _, param := range params {
 		var err error
@@ -287,7 +287,7 @@ func (c *IPCController) handleStatus(_ context.Context, _ ipc.Command) ipc.Respo
 
 	modeString := "idle"
 	if c.Modes != nil {
-		modeString = c.Modes.GetCurrModeString()
+		modeString = c.Modes.CurrModeString()
 	}
 
 	statusData := ipc.StatusData{

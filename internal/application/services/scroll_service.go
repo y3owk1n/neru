@@ -83,7 +83,7 @@ func (s *ScrollService) Scroll(
 // ShowScrollOverlay displays the scroll overlay with a highlight.
 func (s *ScrollService) ShowScrollOverlay(ctx context.Context) error {
 	// Get screen screenBounds to draw highlight around active screen
-	screenBounds, screenBoundsErr := s.accessibility.GetScreenBounds(ctx)
+	screenBounds, screenBoundsErr := s.accessibility.ScreenBounds(ctx)
 	if screenBoundsErr != nil {
 		return derrors.Wrap(
 			screenBoundsErr,

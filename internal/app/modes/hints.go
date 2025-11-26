@@ -36,7 +36,7 @@ func (h *Handler) ActivateModeWithAction(mode domain.Mode, action *string) {
 		return
 	}
 
-	h.Logger.Warn("Unknown mode", zap.String("mode", domain.GetModeString(mode)))
+	h.Logger.Warn("Unknown mode", zap.String("mode", domain.ModeString(mode)))
 }
 
 // activateHintModeWithAction activates hint mode with optional action parameter.
@@ -58,7 +58,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	h.prepareForModeActivation()
 
 	actionEnum := domain.ActionMoveMouse
-	actionString := domain.GetActionString(actionEnum)
+	actionString := domain.ActionString(actionEnum)
 	h.Logger.Info("Activating hint mode", zap.String("action", actionString))
 
 	if !preserveActionMode {
@@ -117,7 +117,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	hintCollection := domainHint.NewCollection(domainHints)
 
 	// Initialize domain manager with overlay update callback
-	if h.Hints.Context.GetManager() == nil {
+	if h.Hints.Context.Manager() == nil {
 		manager := domainHint.NewManager(h.Logger)
 		// Set callback to update overlay when hints are filtered
 		manager.SetUpdateCallback(func(filteredHints []*domainHint.Interface) {
@@ -144,8 +144,8 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	}
 
 	// Initialize domain router
-	if h.Hints.Context.GetRouter() == nil {
-		h.Hints.Context.SetRouter(domainHint.NewRouter(h.Hints.Context.GetManager(), h.Logger))
+	if h.Hints.Context.Router() == nil {
+		h.Hints.Context.SetRouter(domainHint.NewRouter(h.Hints.Context.Manager(), h.Logger))
 	}
 
 	// Set hints in context (this also updates the manager)

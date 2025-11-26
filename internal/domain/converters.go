@@ -1,7 +1,7 @@
 package domain
 
-// GetModeString converts a Mode to its string representation.
-func GetModeString(mode Mode) string {
+// ModeString converts a Mode to its string representation.
+func ModeString(mode Mode) string {
 	switch mode {
 	case ModeIdle:
 		return "idle"
@@ -14,8 +14,8 @@ func GetModeString(mode Mode) string {
 	}
 }
 
-// GetActionString converts an Action to its string representation.
-func GetActionString(action Action) string {
+// ActionString converts an Action to its string representation.
+func ActionString(action Action) string {
 	switch action {
 	case ActionLeftClick:
 		return "left_click"
@@ -36,8 +36,8 @@ func GetActionString(action Action) string {
 	}
 }
 
-// GetActionFromString converts a string to its Action representation.
-func GetActionFromString(actionStr string) (Action, bool) {
+// ActionFromString converts a string to its Action representation.
+func ActionFromString(actionStr string) (Action, bool) {
 	switch actionStr {
 	case "left_click":
 		return ActionLeftClick, true

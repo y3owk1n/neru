@@ -46,10 +46,10 @@ func TestManager_Filtering(t *testing.T) {
 				match, found = manager.HandleInput(string(char))
 			}
 
-			filtered := manager.GetFilteredHints()
+			filtered := manager.FilteredHints()
 			if len(filtered) != testCase.wantCount {
 				t.Errorf(
-					"GetFilteredHints() count = %d, want %d",
+					"FilteredHints() count = %d, want %d",
 					len(filtered),
 					testCase.wantCount,
 				)
@@ -78,18 +78,18 @@ func TestManager_Backspace(t *testing.T) {
 	// Type 'A'
 	manager.HandleInput("A")
 
-	if len(manager.GetFilteredHints()) != 1 {
+	if len(manager.FilteredHints()) != 1 {
 		t.Error("Expected 1 hint after 'A'")
 	}
 
 	// Backspace
 	manager.HandleInput("backspace")
 
-	if len(manager.GetFilteredHints()) != 1 {
+	if len(manager.FilteredHints()) != 1 {
 		t.Error("Expected 1 hint after Backspace")
 	}
 
-	if manager.GetInput() != "" {
-		t.Errorf("Expected empty input, got %q", manager.GetInput())
+	if manager.CurrentInput() != "" {
+		t.Errorf("Expected empty input, got %q", manager.CurrentInput())
 	}
 }

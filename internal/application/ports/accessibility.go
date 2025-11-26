@@ -15,8 +15,8 @@ import (
 type AccessibilityPort interface {
 	HealthCheck
 
-	// GetClickableElements retrieves all clickable UI elements matching the filter.
-	GetClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)
+	// ClickableElements retrieves all clickable UI elements matching the filter.
+	ClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)
 
 	// PerformAction executes an action on the specified element.
 	PerformAction(ctx context.Context, elem *element.Element, actionType action.Type) error
@@ -27,20 +27,20 @@ type AccessibilityPort interface {
 	// Scroll performs a scroll action at the current cursor position.
 	Scroll(ctx context.Context, deltaX, deltaY int) error
 
-	// GetFocusedAppBundleID returns the bundle ID of the currently focused application.
-	GetFocusedAppBundleID(ctx context.Context) (string, error)
+	// FocusedAppBundleID returns the bundle ID of the currently focused application.
+	FocusedAppBundleID(ctx context.Context) (string, error)
 
 	// IsAppExcluded checks if the given bundle ID is in the exclusion list.
 	IsAppExcluded(ctx context.Context, bundleID string) bool
 
-	// GetScreenBounds returns the bounds of the active screen.
-	GetScreenBounds(ctx context.Context) (image.Rectangle, error)
+	// ScreenBounds returns the bounds of the active screen.
+	ScreenBounds(ctx context.Context) (image.Rectangle, error)
 
 	// MoveCursorToPoint moves the mouse cursor to the specified point.
 	MoveCursorToPoint(ctx context.Context, point image.Point) error
 
-	// GetCursorPosition returns the current cursor position.
-	GetCursorPosition(ctx context.Context) (image.Point, error)
+	// CursorPosition returns the current cursor position.
+	CursorPosition(ctx context.Context) (image.Point, error)
 
 	// CheckPermissions verifies that accessibility permissions are granted.
 	CheckPermissions(ctx context.Context) error

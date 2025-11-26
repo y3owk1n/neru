@@ -6,27 +6,27 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
-func BenchmarkGetModeString(b *testing.B) {
+func BenchmarkModeString(b *testing.B) {
 	for b.Loop() {
-		_ = domain.GetModeString(domain.ModeHints)
+		_ = domain.ModeString(domain.ModeHints)
 	}
 }
 
-func BenchmarkGetActionString(b *testing.B) {
+func BenchmarkActionString(b *testing.B) {
 	for b.Loop() {
-		_ = domain.GetActionString(domain.ActionLeftClick)
+		_ = domain.ActionString(domain.ActionLeftClick)
 	}
 }
 
-func BenchmarkGetActionFromString(b *testing.B) {
+func BenchmarkActionFromString(b *testing.B) {
 	for b.Loop() {
-		_, _ = domain.GetActionFromString("left_click")
+		_, _ = domain.ActionFromString("left_click")
 	}
 }
 
 func BenchmarkActionStringRoundTrip(b *testing.B) {
 	for b.Loop() {
-		str := domain.GetActionString(domain.ActionLeftClick)
-		_, _ = domain.GetActionFromString(str)
+		str := domain.ActionString(domain.ActionLeftClick)
+		_, _ = domain.ActionFromString(str)
 	}
 }
