@@ -37,10 +37,57 @@ linters:
         gocritic:
             disabled-checks:
                 - dupSubExpr
+            enabled-checks:
+                - ruleguard
         wsl_v5:
             allow-first-in-block: true
             allow-whole-block: true
             branch-max-lines: 2
+        revive:
+            rules:
+                # Enforce consistent receiver names
+                - name: receiver-naming
+                  severity: warning
+                  disabled: false
+                # Enforce consistent error variable naming
+                - name: var-naming
+                  severity: warning
+                  disabled: false
+                  arguments:
+                      - ["err", "Err"] # Allow 'err' and descriptive names ending in 'Err'
+                      - []
+                # Enforce context as first parameter
+                - name: context-as-argument
+                  severity: warning
+                  disabled: false
+                  arguments:
+                      - allowTypesBefore: "*testing.T,*testing.B"
+                # Enforce comment formatting
+                - name: exported
+                  severity: warning
+                  disabled: false
+                # Enforce consistent package comments
+                - name: package-comments
+                  severity: warning
+                  disabled: false
+                # Enforce error return as last value
+                - name: error-return
+                  severity: warning
+                  disabled: false
+                # Enforce error strings not capitalized
+                - name: error-strings
+                  severity: warning
+                  disabled: false
+                # Enforce consistent error naming
+                - name: error-naming
+                  severity: warning
+                  disabled: false
+        stylecheck:
+            checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022"]
+            dot-import-whitelist:
+                - fmt
+            initialisms: ["ACL", "API", "ASCII", "CPU", "CSS", "DNS", "EOF", "GUID", "HTML", "HTTP", "HTTPS", "ID", "IP", "JSON", "QPS", "RAM", "RPC", "SLA", "SMTP", "SQL", "SSH", "TCP", "TLS", "TTL", "UDP", "UI", "GID", "UID", "UUID", "URI", "URL", "UTF8", "VM", "XML", "XMPP", "XSRF", "XSS", "SIP", "RTP", "AMQP", "DB", "TS", "AX", "IPC", "NC"]
+            http-status-code-whitelist: ["200", "400", "404", "500"]
 
 issues:
     max-issues-per-linter: 0

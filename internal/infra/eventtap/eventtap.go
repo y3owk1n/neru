@@ -50,23 +50,23 @@ func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
 }
 
 // Enable activates the event tap to start capturing keyboard events.
-func (eventTap *EventTap) Enable() {
-	eventTap.logger.Debug("Enabling event tap")
-	if eventTap.handle != nil {
-		C.enableEventTap(eventTap.handle)
-		eventTap.logger.Debug("Event tap enabled")
+func (et *EventTap) Enable() {
+	et.logger.Debug("Enabling event tap")
+	if et.handle != nil {
+		C.enableEventTap(et.handle)
+		et.logger.Debug("Event tap enabled")
 	} else {
-		eventTap.logger.Warn("Cannot enable nil event tap")
+		et.logger.Warn("Cannot enable nil event tap")
 	}
 }
 
 // SetHotkeys configures which hotkey combinations should be intercepted by the event tap.
 // Hotkeys that are not configured will pass through to the system normally.
-func (eventTap *EventTap) SetHotkeys(hotkeys []string) {
-	eventTap.logger.Debug("Setting event tap hotkeys", zap.Int("count", len(hotkeys)))
+func (et *EventTap) SetHotkeys(hotkeys []string) {
+	et.logger.Debug("Setting event tap hotkeys", zap.Int("count", len(hotkeys)))
 
-	if eventTap.handle == nil {
-		eventTap.logger.Warn("Cannot set hotkeys on nil event tap")
+	if et.handle == nil {
+		et.logger.Warn("Cannot set hotkeys on nil event tap")
 
 		return
 	}
@@ -79,7 +79,7 @@ func (eventTap *EventTap) SetHotkeys(hotkeys []string) {
 
 			defer C.free(unsafe.Pointer(cHotkeys[index])) //nolint:nlreturn
 
-			eventTap.logger.Debug("Adding hotkey", zap.String("hotkey", hotkey))
+			et.logger.Debug("Adding hotkey", zap.String("hotkey", hotkey))
 		} else {
 			cHotkeys[index] = nil
 		}
@@ -91,59 +91,59 @@ func (eventTap *EventTap) SetHotkeys(hotkeys []string) {
 		cHotkeysPtr = &cHotkeys[0]
 	}
 
-	C.setEventTapHotkeys(eventTap.handle, cHotkeysPtr, C.int(len(cHotkeys)))
-	eventTap.logger.Debug("Event tap hotkeys set")
+	C.setEventTapHotkeys(et.handle, cHotkeysPtr, C.int(len(cHotkeys)))
+	et.logger.Debug("Event tap hotkeys set")
 }
 
 // Disable deactivates the event tap, stopping keyboard event capture.
-func (eventTap *EventTap) Disable() {
-	eventTap.logger.Debug("Disabling event tap")
-	if eventTap.handle != nil {
-		C.disableEventTap(eventTap.handle)
-		eventTap.logger.Debug("Event tap disabled")
+func (et *EventTap) Disable() {
+	et.logger.Debug("Disabling event tap")
+	if et.handle != nil {
+		C.disableEventTap(et.handle)
+		et.logger.Debug("Event tap disabled")
 	} else {
-		eventTap.logger.Warn("Cannot disable nil event tap")
+		et.logger.Warn("Cannot disable nil event tap")
 	}
 }
 
 // Destroy cleans up the event tap resources and releases system hooks.
 // This method ensures proper cleanup by disabling the tap first and clearing references.
-func (eventTap *EventTap) Destroy() {
-	eventTap.logger.Debug("Destroying event tap")
-	if eventTap.handle != nil {
+func (et *EventTap) Destroy() {
+	et.logger.Debug("Destroying event tap")
+	if et.handle != nil {
 		// Disable first to prevent any pending callbacks
-		eventTap.Disable()
+		et.Disable()
 
 		// Destroy the tap
-		C.destroyEventTap(eventTap.handle)
-		eventTap.handle = nil
+		C.destroyEventTap(et.handle)
+		et.handle = nil
 
 		// Clear callback to prevent any lingering references
-		eventTap.callback = nil
+		et.callback = nil
 
 		// Clear global reference if this is the global event tap
 		globalEventTapMu.Lock()
-		if globalEventTap == eventTap {
+		if globalEventTap == et {
 			globalEventTap = nil
 		}
 		globalEventTapMu.Unlock()
 
-		eventTap.logger.Debug("Event tap destroyed")
+		et.logger.Debug("Event tap destroyed")
 	} else {
-		eventTap.logger.Warn("Cannot destroy nil event tap")
+		et.logger.Warn("Cannot destroy nil event tap")
 	}
 }
 
 // handleCallback processes key press events received from the C event tap bridge.
 // It forwards the key information to the registered callback function if one exists.
-func (eventTap *EventTap) handleCallback(key string) {
-	eventTap.logger.Debug("Key pressed", zap.String("key", key))
+func (et *EventTap) handleCallback(key string) {
+	et.logger.Debug("Key pressed", zap.String("key", key))
 
-	if eventTap.callback != nil {
-		eventTap.logger.Debug("Calling event tap callback")
-		eventTap.callback(key)
+	if et.callback != nil {
+		et.logger.Debug("Calling event tap callback")
+		et.callback(key)
 	} else {
-		eventTap.logger.Debug("No callback registered for event tap")
+		et.logger.Debug("No callback registered for event tap")
 	}
 }
 
