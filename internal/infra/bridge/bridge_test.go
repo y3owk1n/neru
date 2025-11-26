@@ -8,37 +8,38 @@ import (
 	"go.uber.org/zap"
 )
 
-// mockAppWatcher implements AppWatcher for testing.
-type mockAppWatcher struct {
-	launchCalls       []appEvent
-	terminateCalls    []appEvent
-	activateCalls     []appEvent
-	deactivateCalls   []appEvent
+// MockAppWatcher implements AppWatcher for testing.
+type MockAppWatcher struct {
+	launchCalls       []AppEvent
+	terminateCalls    []AppEvent
+	activateCalls     []AppEvent
+	deactivateCalls   []AppEvent
 	screenChangeCalls int
 }
 
-type appEvent struct {
+// AppEvent represents an app event.
+type AppEvent struct {
 	appName  string
 	bundleID string
 }
 
-func (m *mockAppWatcher) HandleLaunch(appName, bundleID string) {
-	m.launchCalls = append(m.launchCalls, appEvent{appName, bundleID})
+func (m *MockAppWatcher) HandleLaunch(appName, bundleID string) {
+	m.launchCalls = append(m.launchCalls, AppEvent{appName, bundleID})
 }
 
-func (m *mockAppWatcher) HandleTerminate(appName, bundleID string) {
-	m.terminateCalls = append(m.terminateCalls, appEvent{appName, bundleID})
+func (m *MockAppWatcher) HandleTerminate(appName, bundleID string) {
+	m.terminateCalls = append(m.terminateCalls, AppEvent{appName, bundleID})
 }
 
-func (m *mockAppWatcher) HandleActivate(appName, bundleID string) {
-	m.activateCalls = append(m.activateCalls, appEvent{appName, bundleID})
+func (m *MockAppWatcher) HandleActivate(appName, bundleID string) {
+	m.activateCalls = append(m.activateCalls, AppEvent{appName, bundleID})
 }
 
-func (m *mockAppWatcher) HandleDeactivate(appName, bundleID string) {
-	m.deactivateCalls = append(m.deactivateCalls, appEvent{appName, bundleID})
+func (m *MockAppWatcher) HandleDeactivate(appName, bundleID string) {
+	m.deactivateCalls = append(m.deactivateCalls, AppEvent{appName, bundleID})
 }
 
-func (m *mockAppWatcher) HandleScreenParametersChanged() {
+func (m *MockAppWatcher) HandleScreenParametersChanged() {
 	m.screenChangeCalls++
 }
 
@@ -77,7 +78,7 @@ func TestSetAppWatcher(t *testing.T) {
 	}{
 		{
 			name:    "set mock watcher",
-			watcher: &mockAppWatcher{},
+			watcher: &MockAppWatcher{},
 		},
 		{
 			name:    "set nil watcher",
@@ -106,7 +107,7 @@ func TestCallbacks(t *testing.T) {
 	bridge.InitializeLogger(zap.NewNop())
 
 	// Setup mock watcher
-	mock := &mockAppWatcher{}
+	mock := &MockAppWatcher{}
 	bridge.SetAppWatcher(mock)
 
 	t.Run("HandleAppLaunch", func(t *testing.T) {

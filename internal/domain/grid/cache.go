@@ -9,13 +9,15 @@ import (
 	"go.uber.org/zap"
 )
 
-type gridCacheKey struct {
+// CacheKey is a key for the grid cache.
+type CacheKey struct {
 	characters string
 	width      int
 	height     int
 }
 
-type gridCacheEntry struct {
+// CacheEntry is an entry in the grid cache.
+type CacheEntry struct {
 	cells   []*Cell
 	addedAt time.Time
 	usedAt  time.Time
@@ -24,7 +26,7 @@ type gridCacheEntry struct {
 // Cache implements an LRU cache for grid cells to improve performance by reusing previously computed grids.
 type Cache struct {
 	mu       sync.Mutex
-	items    map[gridCacheKey]*list.Element
+	items    map[CacheKey]*list.Element
 	order    *list.List
 	capacity int
 }
@@ -57,14 +59,14 @@ func Prewarm(characters string, sizes []image.Rectangle) {
 
 func newCache(capacity int) *Cache {
 	return &Cache{
-		items:    make(map[gridCacheKey]*list.Element),
+		items:    make(map[CacheKey]*list.Element),
 		order:    list.New(),
 		capacity: capacity,
 	}
 }
 
 func (c *Cache) get(characters string, bounds image.Rectangle) ([]*Cell, bool) {
-	cacheKey := gridCacheKey{characters: characters, width: bounds.Dx(), height: bounds.Dy()}
+	cacheKey := CacheKey{characters: characters, width: bounds.Dx(), height: bounds.Dy()}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -72,7 +74,7 @@ func (c *Cache) get(characters string, bounds image.Rectangle) ([]*Cell, bool) {
 	element, ok := c.items[cacheKey]
 
 	if ok {
-		if entry, ok := element.Value.(*gridCacheEntry); ok {
+		if entry, ok := element.Value.(*CacheEntry); ok {
 			entry.usedAt = time.Now()
 
 			c.order.MoveToFront(element)
@@ -85,13 +87,13 @@ func (c *Cache) get(characters string, bounds image.Rectangle) ([]*Cell, bool) {
 }
 
 func (c *Cache) put(characters string, bounds image.Rectangle, cells []*Cell) {
-	cacheKey := gridCacheKey{characters: characters, width: bounds.Dx(), height: bounds.Dy()}
+	cacheKey := CacheKey{characters: characters, width: bounds.Dx(), height: bounds.Dy()}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if element, ok := c.items[cacheKey]; ok {
-		entry, ok := element.Value.(*gridCacheEntry)
+		entry, ok := element.Value.(*CacheEntry)
 
 		if ok {
 			entry.cells = cells
@@ -103,14 +105,14 @@ func (c *Cache) put(characters string, bounds image.Rectangle, cells []*Cell) {
 			return
 		}
 		// replace unexpected type
-		newEntry := &gridCacheEntry{cells: cells, addedAt: time.Now(), usedAt: time.Now()}
+		newEntry := &CacheEntry{cells: cells, addedAt: time.Now(), usedAt: time.Now()}
 		element.Value = newEntry
 		c.order.MoveToFront(element)
 
 		return
 	}
 
-	entry := &gridCacheEntry{cells: cells, addedAt: time.Now(), usedAt: time.Now()}
+	entry := &CacheEntry{cells: cells, addedAt: time.Now(), usedAt: time.Now()}
 	element := c.order.PushFront(entry)
 
 	c.items[cacheKey] = element

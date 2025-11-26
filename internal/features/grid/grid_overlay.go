@@ -379,16 +379,16 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 		cells[cellIndex] = gridCell
 	}
 
-	fontFamily := C.CString(style.FontFamily)
-	backgroundColor := C.CString(style.BackgroundColor)
-	textColor := C.CString(style.TextColor)
-	matchedTextColor := C.CString(style.MatchedTextColor)
-	matchedBackgroundColor := C.CString(style.MatchedBackgroundColor)
-	matchedBorderColor := C.CString(style.MatchedBorderColor)
-	borderColor := C.CString(style.BorderColor)
+	fontFamily := C.CString(style.GetFontFamily())
+	backgroundColor := C.CString(style.GetBackgroundColor())
+	textColor := C.CString(style.GetTextColor())
+	matchedTextColor := C.CString(style.GetMatchedTextColor())
+	matchedBackgroundColor := C.CString(style.GetMatchedBackgroundColor())
+	matchedBorderColor := C.CString(style.GetMatchedBorderColor())
+	borderColor := C.CString(style.GetBorderColor())
 
 	finalStyle := C.GridCellStyle{
-		fontSize:               C.int(style.FontSize),
+		fontSize:               C.int(style.GetFontSize()),
 		fontFamily:             fontFamily,
 		backgroundColor:        backgroundColor,
 		textColor:              textColor,
@@ -396,8 +396,8 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 		matchedBackgroundColor: matchedBackgroundColor,
 		matchedBorderColor:     matchedBorderColor,
 		borderColor:            borderColor,
-		borderWidth:            C.int(style.BorderWidth),
-		backgroundOpacity:      C.double(style.Opacity),
+		borderWidth:            C.int(style.GetBorderWidth()),
+		backgroundOpacity:      C.double(style.GetOpacity()),
 		textOpacity:            C.double(1.0),
 	}
 
@@ -518,16 +518,16 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 		zap.Int("total_cells", len(cellsGo)),
 		zap.Int("matched_cells", matchedCount))
 
-	fontFamily := C.CString(style.FontFamily)
-	backgroundColor := C.CString(style.BackgroundColor)
-	textColor := C.CString(style.TextColor)
-	matchedTextColor := C.CString(style.MatchedTextColor)
-	matchedBackgroundColor := C.CString(style.MatchedBackgroundColor)
-	matchedBorderColor := C.CString(style.MatchedBorderColor)
-	borderColor := C.CString(style.BorderColor)
+	fontFamily := C.CString(style.GetFontFamily())
+	backgroundColor := C.CString(style.GetBackgroundColor())
+	textColor := C.CString(style.GetTextColor())
+	matchedTextColor := C.CString(style.GetMatchedTextColor())
+	matchedBackgroundColor := C.CString(style.GetMatchedBackgroundColor())
+	matchedBorderColor := C.CString(style.GetMatchedBorderColor())
+	borderColor := C.CString(style.GetBorderColor())
 
 	finalStyle := C.GridCellStyle{
-		fontSize:               C.int(style.FontSize),
+		fontSize:               C.int(style.GetFontSize()),
 		fontFamily:             fontFamily,
 		backgroundColor:        backgroundColor,
 		textColor:              textColor,
@@ -535,8 +535,8 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 		matchedBackgroundColor: matchedBackgroundColor,
 		matchedBorderColor:     matchedBorderColor,
 		borderColor:            borderColor,
-		borderWidth:            C.int(style.BorderWidth),
-		backgroundOpacity:      C.double(style.Opacity),
+		borderWidth:            C.int(style.GetBorderWidth()),
+		backgroundOpacity:      C.double(style.GetOpacity()),
 		textOpacity:            C.double(1.0),
 	}
 
@@ -561,31 +561,81 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 
 // Style represents the visual style for grid cells.
 type Style struct {
-	FontSize               int
-	FontFamily             string
-	Opacity                float64
-	BorderWidth            int
-	BackgroundColor        string
-	TextColor              string
-	MatchedTextColor       string
-	MatchedBackgroundColor string
-	MatchedBorderColor     string
-	BorderColor            string
+	fontSize               int
+	fontFamily             string
+	opacity                float64
+	borderWidth            int
+	backgroundColor        string
+	textColor              string
+	matchedTextColor       string
+	matchedBackgroundColor string
+	matchedBorderColor     string
+	borderColor            string
+}
+
+// GetFontSize returns the font size.
+func (s Style) GetFontSize() int {
+	return s.fontSize
+}
+
+// GetFontFamily returns the font family.
+func (s Style) GetFontFamily() string {
+	return s.fontFamily
+}
+
+// GetOpacity returns the opacity.
+func (s Style) GetOpacity() float64 {
+	return s.opacity
+}
+
+// GetBorderWidth returns the border width.
+func (s Style) GetBorderWidth() int {
+	return s.borderWidth
+}
+
+// GetBackgroundColor returns the background color.
+func (s Style) GetBackgroundColor() string {
+	return s.backgroundColor
+}
+
+// GetTextColor returns the text color.
+func (s Style) GetTextColor() string {
+	return s.textColor
+}
+
+// GetMatchedTextColor returns the matched text color.
+func (s Style) GetMatchedTextColor() string {
+	return s.matchedTextColor
+}
+
+// GetMatchedBackgroundColor returns the matched background color.
+func (s Style) GetMatchedBackgroundColor() string {
+	return s.matchedBackgroundColor
+}
+
+// GetMatchedBorderColor returns the matched border color.
+func (s Style) GetMatchedBorderColor() string {
+	return s.matchedBorderColor
+}
+
+// GetBorderColor returns the border color.
+func (s Style) GetBorderColor() string {
+	return s.borderColor
 }
 
 // BuildStyle returns Style based on action name using the provided config.
 func BuildStyle(cfg config.GridConfig) Style {
 	style := Style{
-		FontSize:               cfg.FontSize,
-		FontFamily:             cfg.FontFamily,
-		Opacity:                cfg.Opacity,
-		BorderWidth:            cfg.BorderWidth,
-		BackgroundColor:        cfg.BackgroundColor,
-		TextColor:              cfg.TextColor,
-		MatchedTextColor:       cfg.MatchedTextColor,
-		MatchedBackgroundColor: cfg.MatchedBackgroundColor,
-		MatchedBorderColor:     cfg.MatchedBorderColor,
-		BorderColor:            cfg.BorderColor,
+		fontSize:               cfg.FontSize,
+		fontFamily:             cfg.FontFamily,
+		opacity:                cfg.Opacity,
+		borderWidth:            cfg.BorderWidth,
+		backgroundColor:        cfg.BackgroundColor,
+		textColor:              cfg.TextColor,
+		matchedTextColor:       cfg.MatchedTextColor,
+		matchedBackgroundColor: cfg.MatchedBackgroundColor,
+		matchedBorderColor:     cfg.MatchedBorderColor,
+		borderColor:            cfg.BorderColor,
 	}
 
 	return style

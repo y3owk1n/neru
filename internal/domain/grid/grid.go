@@ -370,8 +370,8 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 	return cells[:cellIndex]
 }
 
-// candidate represents a valid grid configuration.
-type candidate struct {
+// Candidate represents a valid grid configuration.
+type Candidate struct {
 	cols, rows   int
 	cellW, cellH int
 	score        float64
@@ -422,7 +422,7 @@ func calculateLabelLength(totalCells, numChars int) int {
 
 // selectBestCandidate picks the candidate with the best (lowest) score.
 func selectBestCandidate(
-	candidates []candidate,
+	candidates []Candidate,
 	width, height, minCellSize, maxCellSize int,
 ) (int, int) {
 	var gridCols, gridRows int
@@ -455,8 +455,8 @@ func selectBestCandidate(
 }
 
 // findValidGridConfigurations searches through all valid grid configurations.
-func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []candidate {
-	var candidates []candidate
+func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []Candidate {
+	var candidates []Candidate
 
 	// Calculate search ranges
 	minCols := max(width/maxCellSize, 1)
@@ -494,7 +494,7 @@ func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []
 
 			aspectScore := aspectDiff + cellScore
 
-			candidates = append(candidates, candidate{
+			candidates = append(candidates, Candidate{
 				cols:  colIndex,
 				rows:  rowIndex,
 				cellW: cellWidth,

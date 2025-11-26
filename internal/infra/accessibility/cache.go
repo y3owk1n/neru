@@ -72,10 +72,10 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 		expiresAt: expiresAt,
 	}
 
-	logger.Debug("Cached element info",
+	logger.Debug("Caching element info",
 		zap.Uintptr("element_ptr", key),
-		zap.String("role", info.Role),
-		zap.String("title", info.Title),
+		zap.String("role", info.Role()),
+		zap.String("title", info.Title()),
 		zap.Time("expires_at", expiresAt))
 }
 

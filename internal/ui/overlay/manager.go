@@ -38,8 +38,18 @@ const (
 
 // StateChange represents a change in overlay mode.
 type StateChange struct {
-	Prev Mode
-	Next Mode
+	prev Mode
+	next Mode
+}
+
+// Prev returns the previous mode.
+func (sc StateChange) Prev() Mode {
+	return sc.prev
+}
+
+// Next returns the next mode.
+func (sc StateChange) Next() Mode {
+	return sc.next
 }
 
 // ManagerInterface defines the interface for overlay window management.
@@ -166,7 +176,7 @@ func (m *Manager) SwitchTo(next Mode) {
 			zap.String("next", string(next)),
 		)
 	}
-	m.publish(StateChange{Prev: prev, Next: next})
+	m.publish(StateChange{prev: prev, next: next})
 }
 
 // Subscribe registers a callback function to be notified of overlay mode changes.

@@ -21,17 +21,20 @@ var (
 )
 
 func rectFromInfo(info *ElementInfo) image.Rectangle {
+	pos := info.Position()
+	size := info.Size()
+
 	return image.Rect(
-		info.Position.X,
-		info.Position.Y,
-		info.Position.X+info.Size.X,
-		info.Position.Y+info.Size.Y,
+		pos.X,
+		pos.Y,
+		pos.X+size.X,
+		pos.Y+size.Y,
 	)
 }
 
 // PrintTree outputs the accessibility tree structure to the log for debugging purposes.
 func PrintTree(node *TreeNode, depth int) {
-	if node == nil || node.Info == nil {
+	if node == nil || node.Info() == nil {
 		return
 	}
 
@@ -40,10 +43,11 @@ func PrintTree(node *TreeNode, depth int) {
 		indent.WriteString("  ")
 	}
 
+	size := node.Info().Size()
 	logger.Info(fmt.Sprintf("%sRole: %s, Title: %s, Size: %dx%d",
-		indent.String(), node.Info.Role, node.Info.Title, node.Info.Size.X, node.Info.Size.Y))
+		indent.String(), node.Info().Role(), node.Info().Title(), size.X, size.Y))
 
-	for _, child := range node.Children {
+	for _, child := range node.Children() {
 		PrintTree(child, depth+1)
 	}
 }
@@ -65,7 +69,7 @@ func GetClickableElements() ([]*TreeNode, error) {
 	defer window.Release()
 
 	opts := DefaultTreeOptions()
-	opts.Cache = globalCache
+	opts.cache = globalCache
 
 	tree, err := BuildTree(window, opts)
 	if err != nil {
@@ -105,7 +109,7 @@ func GetMenuBarClickableElements() ([]*TreeNode, error) {
 	defer menubar.Release()
 
 	opts := DefaultTreeOptions()
-	opts.Cache = globalCache
+	opts.cache = globalCache
 
 	tree, err := BuildTree(menubar, opts)
 	if err != nil {
@@ -143,8 +147,8 @@ func GetClickableElementsFromBundleID(bundleID string) ([]*TreeNode, error) {
 	defer app.Release()
 
 	opts := DefaultTreeOptions()
-	opts.Cache = globalCache
-	opts.IncludeOutOfBounds = true
+	opts.cache = globalCache
+	opts.includeOutOfBounds = true
 
 	tree, err := BuildTree(app, opts)
 	if err != nil {
