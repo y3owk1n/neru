@@ -35,7 +35,7 @@ func EnsureElectronAccessibility(bundleID string) bool {
 		return false
 	}
 
-	pid := info.PID
+	pid := info.PID()
 
 	if pid <= 0 {
 		return false
@@ -88,7 +88,7 @@ func ensureAccessibility(
 		return false
 	}
 
-	pid := info.PID
+	pid := info.PID()
 
 	if pid <= 0 {
 		return false

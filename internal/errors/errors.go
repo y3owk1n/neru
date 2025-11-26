@@ -76,40 +76,60 @@ const (
 
 // Error represents a domain error with code, message, and optional cause.
 type Error struct {
-	Code    Code
-	Message string
-	Cause   error
-	Context map[string]any
+	code    Code
+	message string
+	cause   error
+	context map[string]any
 }
 
 // New creates a new domain error with the given code and message.
 func New(code Code, message string) *Error {
 	return &Error{
-		Code:    code,
-		Message: message,
+		code:    code,
+		message: message,
 	}
 }
 
 // Newf creates a new domain error with formatted message.
 func Newf(code Code, format string, args ...any) *Error {
 	return &Error{
-		Code:    code,
-		Message: fmt.Sprintf(format, args...),
+		code:    code,
+		message: fmt.Sprintf(format, args...),
 	}
+}
+
+// Code returns the error code.
+func (e *Error) Code() Code {
+	return e.code
+}
+
+// Message returns the error message.
+func (e *Error) Message() string {
+	return e.message
+}
+
+// Cause returns the underlying cause error.
+func (e *Error) Cause() error {
+	return e.cause
+}
+
+// Context returns the error context.
+func (e *Error) Context() map[string]any {
+	return e.context
 }
 
 // Error implements the error interface.
 func (e *Error) Error() string {
-	if e.Cause != nil {
-		return fmt.Sprintf("[%s] %s: %v", e.Code, e.Message, e.Cause)
+	if e.cause != nil {
+		return fmt.Sprintf("[%s] %s: %v", e.code, e.message, e.cause)
 	}
 
-	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
+	return fmt.Sprintf("[%s] %s", e.code, e.message)
 }
 
 // Unwrap returns the underlying cause error.
 func (e *Error) Unwrap() error {
-	return e.Cause
+	return e.cause
 }
 
 // Is implements error matching for errors.Is.
@@ -119,16 +139,16 @@ func (e *Error) Is(target error) bool {
 		return false
 	}
 
-	return e.Code == targetError.Code
+	return e.code == targetError.code
 }
 
 // WithContext adds context information to the error.
 func (e *Error) WithContext(key string, value any) *Error {
-	if e.Context == nil {
-		e.Context = make(map[string]any)
+	if e.context == nil {
+		e.context = make(map[string]any)
 	}
 
-	e.Context[key] = value
+	e.context[key] = value
 
 	return e
 }
@@ -140,9 +160,9 @@ func Wrap(err error, code Code, message string) *Error {
 	}
 
 	return &Error{
-		Code:    code,
-		Message: message,
-		Cause:   err,
+		code:    code,
+		message: message,
+		cause:   err,
 	}
 }
 
@@ -153,9 +173,9 @@ func Wrapf(err error, code Code, format string, args ...any) *Error {
 	}
 
 	return &Error{
-		Code:    code,
-		Message: fmt.Sprintf(format, args...),
-		Cause:   err,
+		code:    code,
+		message: fmt.Sprintf(format, args...),
+		cause:   err,
 	}
 }
 
@@ -163,7 +183,7 @@ func Wrapf(err error, code Code, format string, args ...any) *Error {
 func IsCode(err error, code Code) bool {
 	var domainErr *Error
 	if errors.As(err, &domainErr) {
-		return domainErr.Code == code
+		return domainErr.code == code
 	}
 
 	return false
@@ -173,7 +193,7 @@ func IsCode(err error, code Code) bool {
 func GetCode(err error) Code {
 	var domainErr *Error
 	if errors.As(err, &domainErr) {
-		return domainErr.Code
+		return domainErr.code
 	}
 
 	return CodeInternal

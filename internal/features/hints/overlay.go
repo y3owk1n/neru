@@ -58,66 +58,66 @@ type Overlay struct {
 
 // StyleMode represents the visual styling configuration for hint overlays.
 type StyleMode struct {
-	FontSize         int
-	FontFamily       string
-	BorderRadius     int
-	Padding          int
-	BorderWidth      int
-	Opacity          float64
-	BackgroundColor  string
-	TextColor        string
-	MatchedTextColor string
-	BorderColor      string
+	fontSize         int
+	fontFamily       string
+	borderRadius     int
+	padding          int
+	borderWidth      int
+	opacity          float64
+	backgroundColor  string
+	textColor        string
+	matchedTextColor string
+	borderColor      string
 }
 
 // GetFontSize returns the font size.
 func (s StyleMode) GetFontSize() int {
-	return s.FontSize
+	return s.fontSize
 }
 
 // GetFontFamily returns the font family.
 func (s StyleMode) GetFontFamily() string {
-	return s.FontFamily
+	return s.fontFamily
 }
 
 // GetBorderRadius returns the border radius.
 func (s StyleMode) GetBorderRadius() int {
-	return s.BorderRadius
+	return s.borderRadius
 }
 
 // GetPadding returns the padding.
 func (s StyleMode) GetPadding() int {
-	return s.Padding
+	return s.padding
 }
 
 // GetBorderWidth returns the border width.
 func (s StyleMode) GetBorderWidth() int {
-	return s.BorderWidth
+	return s.borderWidth
 }
 
 // GetOpacity returns the opacity.
 func (s StyleMode) GetOpacity() float64 {
-	return s.Opacity
+	return s.opacity
 }
 
 // GetBackgroundColor returns the background color.
 func (s StyleMode) GetBackgroundColor() string {
-	return s.BackgroundColor
+	return s.backgroundColor
 }
 
 // GetTextColor returns the text color.
 func (s StyleMode) GetTextColor() string {
-	return s.TextColor
+	return s.textColor
 }
 
 // GetMatchedTextColor returns the matched text color.
 func (s StyleMode) GetMatchedTextColor() string {
-	return s.MatchedTextColor
+	return s.matchedTextColor
 }
 
 // GetBorderColor returns the border color.
 func (s StyleMode) GetBorderColor() string {
-	return s.BorderColor
+	return s.borderColor
 }
 
 // initPools initializes the object pools once.
@@ -326,16 +326,16 @@ func (o *Overlay) DrawScrollHighlight(
 // BuildStyle returns StyleMode based on action name using the provided config.
 func BuildStyle(cfg config.HintsConfig) StyleMode {
 	style := StyleMode{
-		FontSize:         cfg.FontSize,
-		FontFamily:       cfg.FontFamily,
-		BorderRadius:     cfg.BorderRadius,
-		Padding:          cfg.Padding,
-		BorderWidth:      cfg.BorderWidth,
-		Opacity:          cfg.Opacity,
-		BackgroundColor:  cfg.BackgroundColor,
-		TextColor:        cfg.TextColor,
-		MatchedTextColor: cfg.MatchedTextColor,
-		BorderColor:      cfg.BorderColor,
+		fontSize:         cfg.FontSize,
+		fontFamily:       cfg.FontFamily,
+		borderRadius:     cfg.BorderRadius,
+		padding:          cfg.Padding,
+		borderWidth:      cfg.BorderWidth,
+		opacity:          cfg.Opacity,
+		backgroundColor:  cfg.BackgroundColor,
+		textColor:        cfg.TextColor,
+		matchedTextColor: cfg.MatchedTextColor,
+		borderColor:      cfg.BorderColor,
 	}
 
 	return style
@@ -408,11 +408,11 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		zap.Int("matched_hints", matchedCount))
 
 	// Create style
-	cFontFamily := C.CString(style.FontFamily)
-	cBgColor := C.CString(style.BackgroundColor)
-	cTextColor := C.CString(style.TextColor)
-	cMatchedTextColor := C.CString(style.MatchedTextColor)
-	cBorderColor := C.CString(style.BorderColor)
+	cFontFamily := C.CString(style.GetFontFamily())
+	cBgColor := C.CString(style.GetBackgroundColor())
+	cTextColor := C.CString(style.GetTextColor())
+	cMatchedTextColor := C.CString(style.GetMatchedTextColor())
+	cBorderColor := C.CString(style.GetBorderColor())
 
 	arrowFlag := 0
 	if showArrow {
@@ -420,16 +420,16 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	}
 
 	finalStyle := C.HintStyle{
-		fontSize:         C.int(style.FontSize),
+		fontSize:         C.int(style.GetFontSize()),
 		fontFamily:       cFontFamily,
 		backgroundColor:  cBgColor,
 		textColor:        cTextColor,
 		matchedTextColor: cMatchedTextColor,
 		borderColor:      cBorderColor,
-		borderRadius:     C.int(style.BorderRadius),
-		borderWidth:      C.int(style.BorderWidth),
-		padding:          C.int(style.Padding),
-		opacity:          C.double(style.Opacity),
+		borderRadius:     C.int(style.GetBorderRadius()),
+		borderWidth:      C.int(style.GetBorderWidth()),
+		padding:          C.int(style.GetPadding()),
+		opacity:          C.double(style.GetOpacity()),
 		showArrow:        C.int(arrowFlag),
 	}
 

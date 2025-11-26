@@ -127,12 +127,12 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 			// Convert domain hints to overlay hints for rendering
 			overlayHints := make([]*hints.Hint, len(filteredHints))
 			for index, hint := range filteredHints {
-				overlayHints[index] = &hints.Hint{
-					Label:         hint.Label(),
-					Position:      hint.Position(),
-					Size:          hint.Element().Bounds().Size(),
-					MatchedPrefix: hint.MatchedPrefix(),
-				}
+				overlayHints[index] = hints.NewHint(
+					hint.Label(),
+					hint.Position(),
+					hint.Element().Bounds().Size(),
+					hint.MatchedPrefix(),
+				)
 			}
 
 			drawHintsErr := h.Hints.Overlay.DrawHintsWithStyle(overlayHints, h.Hints.Style)

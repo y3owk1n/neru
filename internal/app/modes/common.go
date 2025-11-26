@@ -170,15 +170,15 @@ func (h *Handler) handleModeSpecificKey(key string) {
 		}
 
 		hintKeyResult := h.Hints.Context.GetRouter().RouteKey(key)
-		if hintKeyResult.Exit {
+		if hintKeyResult.Exit() {
 			h.ExitMode()
 
 			return
 		}
 
 		// Hint input processed by router; if exact match, perform action
-		if hintKeyResult.ExactHint != nil {
-			hint := hintKeyResult.ExactHint
+		if hintKeyResult.ExactHint() != nil {
+			hint := hintKeyResult.ExactHint()
 			// Use the domain element's center point
 			center := hint.Element().Center()
 
@@ -223,14 +223,14 @@ func (h *Handler) handleModeSpecificKey(key string) {
 		}
 
 		gridKeyResult := h.Grid.Router.RouteKey(key)
-		if gridKeyResult.Exit {
+		if gridKeyResult.Exit() {
 			h.ExitMode()
 
 			return
 		}
 
-		if gridKeyResult.Complete {
-			targetPoint := gridKeyResult.TargetPoint
+		if gridKeyResult.Complete() {
+			targetPoint := gridKeyResult.TargetPoint()
 
 			// Convert from window-local coordinates to absolute screen coordinates using helper
 			screenBounds := bridge.GetActiveScreenBounds()

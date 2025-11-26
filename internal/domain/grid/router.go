@@ -14,9 +14,24 @@ type Router struct {
 
 // KeyResult captures the results of key routing decisions in grid mode.
 type KeyResult struct {
-	Exit        bool        // Escape pressed -> exit mode
-	TargetPoint image.Point // Complete coordinate entered
-	Complete    bool        // Coordinate selection complete
+	exit        bool        // Escape pressed -> exit mode
+	targetPoint image.Point // Complete coordinate entered
+	complete    bool        // Coordinate selection complete
+}
+
+// Exit returns whether to exit grid mode.
+func (kr *KeyResult) Exit() bool {
+	return kr.exit
+}
+
+// TargetPoint returns the target point for the complete coordinate.
+func (kr *KeyResult) TargetPoint() image.Point {
+	return kr.targetPoint
+}
+
+// Complete returns whether coordinate selection is complete.
+func (kr *KeyResult) Complete() bool {
+	return kr.complete
 }
 
 // NewRouter initializes a new grid router with the specified manager and logger.
@@ -33,7 +48,7 @@ func (r *Router) RouteKey(key string) KeyResult {
 
 	// Exit grid mode with Escape
 	if key == "\x1b" || key == "escape" {
-		routeKeyResult.Exit = true
+		routeKeyResult.exit = true
 
 		return routeKeyResult
 	}
@@ -43,8 +58,8 @@ func (r *Router) RouteKey(key string) KeyResult {
 		r.logger.Debug("Grid router: Coordinate selection complete",
 			zap.Int("x", point.X),
 			zap.Int("y", point.Y))
-		routeKeyResult.TargetPoint = point
-		routeKeyResult.Complete = true
+		routeKeyResult.targetPoint = point
+		routeKeyResult.complete = true
 	}
 
 	return routeKeyResult

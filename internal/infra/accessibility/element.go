@@ -89,14 +89,54 @@ func GetClickableRoles() []string {
 
 // ElementInfo contains metadata and positioning information for a UI element.
 type ElementInfo struct {
-	Position        image.Point
-	Size            image.Point
-	Title           string
-	Role            string
-	RoleDescription string
-	IsEnabled       bool
-	IsFocused       bool
-	PID             int
+	position        image.Point
+	size            image.Point
+	title           string
+	role            string
+	roleDescription string
+	isEnabled       bool
+	isFocused       bool
+	pid             int
+}
+
+// Position returns the element position.
+func (ei *ElementInfo) Position() image.Point {
+	return ei.position
+}
+
+// Size returns the element size.
+func (ei *ElementInfo) Size() image.Point {
+	return ei.size
+}
+
+// Title returns the element title.
+func (ei *ElementInfo) Title() string {
+	return ei.title
+}
+
+// Role returns the element role.
+func (ei *ElementInfo) Role() string {
+	return ei.role
+}
+
+// RoleDescription returns the element role description.
+func (ei *ElementInfo) RoleDescription() string {
+	return ei.roleDescription
+}
+
+// IsEnabled returns whether the element is enabled.
+func (ei *ElementInfo) IsEnabled() bool {
+	return ei.isEnabled
+}
+
+// IsFocused returns whether the element is focused.
+func (ei *ElementInfo) IsFocused() bool {
+	return ei.isFocused
+}
+
+// PID returns the process ID.
+func (ei *ElementInfo) PID() int {
+	return ei.pid
 }
 
 // CheckAccessibilityPermissions verifies that the application has been granted accessibility permissions.
@@ -173,27 +213,27 @@ func (e *Element) GetInfo() (*ElementInfo, error) {
 	defer C.freeElementInfo(cInfo) //nolint:nlreturn
 
 	info := &ElementInfo{
-		Position: image.Point{
+		position: image.Point{
 			X: int(cInfo.position.x),
 			Y: int(cInfo.position.y),
 		},
-		Size: image.Point{
+		size: image.Point{
 			X: int(cInfo.size.width),
 			Y: int(cInfo.size.height),
 		},
-		IsEnabled: bool(cInfo.isEnabled),
-		IsFocused: bool(cInfo.isFocused),
-		PID:       int(cInfo.pid),
+		isEnabled: bool(cInfo.isEnabled),
+		isFocused: bool(cInfo.isFocused),
+		pid:       int(cInfo.pid),
 	}
 
 	if cInfo.title != nil {
-		info.Title = C.GoString(cInfo.title)
+		info.title = C.GoString(cInfo.title)
 	}
 	if cInfo.role != nil {
-		info.Role = C.GoString(cInfo.role)
+		info.role = C.GoString(cInfo.role)
 	}
 	if cInfo.roleDescription != nil {
-		info.RoleDescription = C.GoString(cInfo.roleDescription)
+		info.roleDescription = C.GoString(cInfo.roleDescription)
 	}
 
 	return info, nil
@@ -229,7 +269,7 @@ func (e *Element) GetChildren() ([]*Element, error) {
 	}
 
 	if info != nil {
-		switch info.Role {
+		switch info.Role() {
 		case "AXList", "AXTable", "AXOutline":
 			ptr := unsafe.Pointer(C.getVisibleRows(e.ref, &count)) //nolint:nlreturn
 			if ptr != nil {
@@ -586,7 +626,7 @@ func (e *Element) IsClickable(info *ElementInfo) bool {
 
 	// First check if the role is in the clickable roles list
 	clickableRolesMu.RLock()
-	_, ok := clickableRoles[info.Role]
+	_, ok := clickableRoles[info.Role()]
 	clickableRolesMu.RUnlock()
 
 	if ok {

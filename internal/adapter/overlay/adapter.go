@@ -43,12 +43,12 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Interface) error 
 	// Convert domain hints to overlay hints for rendering
 	overlayHintList := make([]*overlayHints.Hint, len(hints))
 	for index, hint := range hints {
-		overlayHintList[index] = &overlayHints.Hint{
-			Label:         hint.Label(),
-			Position:      hint.Position(),
-			Size:          hint.Bounds().Size(),
-			MatchedPrefix: hint.MatchedPrefix(),
-		}
+		overlayHintList[index] = overlayHints.NewHint(
+			hint.Label(),
+			hint.Position(),
+			hint.Bounds().Size(),
+			hint.MatchedPrefix(),
+		)
 	}
 
 	// Show the overlay window

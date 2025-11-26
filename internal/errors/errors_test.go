@@ -13,12 +13,12 @@ func TestNew(t *testing.T) {
 		t.Fatal("New() returned nil")
 	}
 
-	if err.Code != derrors.CodeInvalidInput {
-		t.Errorf("Expected code %v, got %v", derrors.CodeInvalidInput, err.Code)
+	if err.Code() != derrors.CodeInvalidInput {
+		t.Errorf("Expected code %v, got %v", derrors.CodeInvalidInput, err.Code())
 	}
 
-	if err.Message != "test error" {
-		t.Errorf("Expected message 'test error', got '%s'", err.Message)
+	if err.Message() != "test error" {
+		t.Errorf("Expected message 'test error', got '%s'", err.Message())
 	}
 }
 
@@ -28,13 +28,13 @@ func TestNewf(t *testing.T) {
 		t.Fatal("Newf() returned nil")
 	}
 
-	if err.Code != derrors.CodeInvalidConfig {
-		t.Errorf("Expected code %v, got %v", derrors.CodeInvalidConfig, err.Code)
+	if err.Code() != derrors.CodeInvalidConfig {
+		t.Errorf("Expected code %v, got %v", derrors.CodeInvalidConfig, err.Code())
 	}
 
 	expected := "invalid value: 42"
-	if err.Message != expected {
-		t.Errorf("Expected message '%s', got '%s'", expected, err.Message)
+	if err.Message() != expected {
+		t.Errorf("Expected message '%s', got '%s'", expected, err.Message())
 	}
 }
 
@@ -45,22 +45,17 @@ func TestError_Error(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "error without cause",
-			err: &derrors.Error{
-				Code:    derrors.CodeElementNotFound,
-				Message: "element not found",
-			},
+			name:     "error without cause",
+			err:      derrors.New(derrors.CodeElementNotFound, "element not found"),
 			expected: "[ELEMENT_NOT_FOUND] element not found",
 		},
 		{
 			name: "error with cause",
-			err: &derrors.Error{
-				Code:    derrors.CodeAccessibilityFailed,
-				Message: "failed to get element",
-				Cause: errors.New( //nolint:err113 // dynamic errors needed for testing
-					"underlying error",
-				),
-			},
+			err: derrors.Wrap(
+				errors.New("underlying error"), //nolint:err113 // dynamic errors needed for testing
+				derrors.CodeAccessibilityFailed,
+				"failed to get element",
+			),
 			expected: "[ACCESSIBILITY_FAILED] failed to get element: underlying error",
 		},
 	}
@@ -77,11 +72,7 @@ func TestError_Error(t *testing.T) {
 
 func TestError_Unwrap(t *testing.T) {
 	cause := errors.New("underlying error") //nolint:err113 // dynamic errors needed for testing
-	err := &derrors.Error{
-		Code:    derrors.CodeIPCFailed,
-		Message: "IPC failed",
-		Cause:   cause,
-	}
+	err := derrors.Wrap(cause, derrors.CodeIPCFailed, "IPC failed")
 
 	unwrapped := err.Unwrap()
 	if unwrapped != cause { //nolint:err113,errorlint // dynamic errors needed for testing
@@ -89,10 +80,7 @@ func TestError_Unwrap(t *testing.T) {
 	}
 
 	// Test error without cause
-	errNoCause := &derrors.Error{
-		Code:    derrors.CodeIPCFailed,
-		Message: "IPC failed",
-	}
+	errNoCause := derrors.New(derrors.CodeIPCFailed, "IPC failed")
 
 	if errNoCause.Unwrap() != nil {
 		t.Error("Unwrap() should return nil for error without cause")
@@ -107,12 +95,12 @@ func TestWrap(t *testing.T) {
 		t.Fatal("Wrap() returned nil")
 	}
 
-	if err.Cause != cause { //nolint:err113,errorlint // dynamic errors needed for testing
-		t.Errorf("Wrap() cause = %v, want %v", err.Cause, cause)
+	if err.Cause() != cause { //nolint:err113,errorlint // dynamic errors needed for testing
+		t.Errorf("Wrap() cause = %v, want %v", err.Cause(), cause)
 	}
 
-	if err.Code != derrors.CodeActionFailed {
-		t.Errorf("Wrap() code = %v, want %v", err.Code, derrors.CodeActionFailed)
+	if err.Code() != derrors.CodeActionFailed {
+		t.Errorf("Wrap() code = %v, want %v", err.Code(), derrors.CodeActionFailed)
 	}
 
 	// Test Wrap with nil error
@@ -127,18 +115,18 @@ func TestError_WithContext(t *testing.T) {
 
 	errWithContext := err.WithContext("element_id", "test-123")
 
-	if errWithContext.Context == nil {
+	if errWithContext.Context() == nil {
 		t.Fatal("WithContext() context is nil")
 	}
 
-	if val, ok := errWithContext.Context["element_id"]; !ok || val != "test-123" {
+	if val, ok := errWithContext.Context()["element_id"]; !ok || val != "test-123" {
 		t.Errorf("WithContext() context['element_id'] = %v, want 'test-123'", val)
 	}
 
 	// Add another context value
 	_ = errWithContext.WithContext("count", 5)
 
-	if val, ok := errWithContext.Context["count"]; !ok || val != 5 {
+	if val, ok := errWithContext.Context()["count"]; !ok || val != 5 {
 		t.Errorf("WithContext() context['count'] = %v, want 5", val)
 	}
 }
@@ -177,17 +165,17 @@ func TestWrapf(t *testing.T) {
 		t.Fatal("Wrapf() returned nil")
 	}
 
-	if !errors.Is(err.Cause, cause) {
-		t.Errorf("Wrapf() cause = %v, want %v", err.Cause, cause)
+	if !errors.Is(err.Cause(), cause) {
+		t.Errorf("Wrapf() cause = %v, want %v", err.Cause(), cause)
 	}
 
-	if err.Code != derrors.CodeActionFailed {
-		t.Errorf("Wrapf() code = %v, want %v", err.Code, derrors.CodeActionFailed)
+	if err.Code() != derrors.CodeActionFailed {
+		t.Errorf("Wrapf() code = %v, want %v", err.Code(), derrors.CodeActionFailed)
 	}
 
 	expectedMsg := "action click failed with code 42"
-	if err.Message != expectedMsg {
-		t.Errorf("Wrapf() message = %q, want %q", err.Message, expectedMsg)
+	if err.Message() != expectedMsg {
+		t.Errorf("Wrapf() message = %q, want %q", err.Message(), expectedMsg)
 	}
 
 	// Test Wrapf with nil error
