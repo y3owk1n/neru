@@ -22,6 +22,7 @@ Neru searches for configuration in the following order:
 - [Grid Mode](#grid-mode)
 - [Scroll Configuration](#scroll-configuration)
 - [Smooth Cursor](#smooth-cursor)
+- [Metrics](#metrics)
 - [Logging](#logging)
 - [Complete Example](#complete-example)
 
@@ -250,6 +251,7 @@ Grid mode provides a universal, accessibility-independent way to click anywhere 
 [grid]
 enabled = true
 characters = "abcdefghijklmnpqrstuvwxyz"
+sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 
 # Visual styling
 font_size = 12
@@ -411,6 +413,23 @@ move_mouse_enabled = false
 
 ---
 
+## Metrics
+
+Configure application metrics collection:
+
+```toml
+[metrics]
+enabled = false  # Enable metrics collection
+```
+
+**When enabled:**
+
+- Metrics are exposed via the `neru metrics` command
+- Tracks accessibility element counts and other performance data
+- Disabled by default to reduce overhead
+
+---
+
 ## Logging
 
 ```toml
@@ -490,6 +509,7 @@ enable = false
 [grid]
 enabled = true
 characters = "abcdefghijklmnpqrstuvwxyz"
+sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 font_size = 12
 opacity = 0.7
 background_color = "#abe9b3"
@@ -499,7 +519,6 @@ matched_background_color = "#f8bd96"
 matched_border_color = "#f8bd96"
 border_color = "#abe9b3"
 live_match_update = true
-subgrid_enabled = true
 hide_unmatched = true
 
 [scroll]
@@ -525,9 +544,11 @@ move_mouse_enabled = true
 steps = 10
 delay = 1
 
+[metrics]
+enabled = false
+
 [logging]
 log_level = "info"
-structured_logging = true
 structured_logging = true
 disable_file_logging = false
 max_file_size = 10
@@ -564,11 +585,3 @@ neru launch  # Restart to apply
 1. Edit `~/.config/neru/config.toml`
 2. Reload: `neru config reload` (or use "Reload Config" from systray menu)
 3. Test your changes
-
----
-
-## Next Steps
-
-- See [CLI.md](CLI.md) for command-line usage
-- Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) if configs aren't working
-- Review [default-config.toml](../configs/default-config.toml) for all options
