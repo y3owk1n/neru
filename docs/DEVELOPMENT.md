@@ -350,14 +350,16 @@ Cobra-based CLI commands.
 Key requirements:
 
 - **Run formatters before committing:**
-  ```bash
-  just fmt
-  ```
+
+    ```bash
+    just fmt
+    ```
 
 - **Ensure linting passes:**
-  ```bash
-  just lint
-  ```
+
+    ```bash
+    just lint
+    ```
 
 - **Follow established patterns** - Review existing code for consistency
 - **Document exports** - Add godoc comments for public functions/types

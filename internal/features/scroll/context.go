@@ -15,8 +15,8 @@ func (c *Context) SetLastKey(key string) {
 	c.lastKey = key
 }
 
-// GetLastKey returns the last key pressed during scroll operations.
-func (c *Context) GetLastKey() string {
+// LastKey returns the last key pressed during scroll operations.
+func (c *Context) LastKey() string {
 	return c.lastKey
 }
 
@@ -25,8 +25,8 @@ func (c *Context) SetIsActive(active bool) {
 	c.isActive = active
 }
 
-// GetIsActive returns whether scroll mode is currently active.
-func (c *Context) GetIsActive() bool {
+// IsActive returns whether scroll mode is currently active.
+func (c *Context) IsActive() bool {
 	return c.isActive
 }
 

@@ -7,11 +7,11 @@ import (
 	"go.uber.org/zap"
 )
 
-func BenchmarkGetActiveScreenBounds(b *testing.B) {
+func BenchmarkActiveScreenBounds(b *testing.B) {
 	bridge.InitializeLogger(zap.NewNop())
 
 	for b.Loop() {
-		_ = bridge.GetActiveScreenBounds()
+		_ = bridge.ActiveScreenBounds()
 	}
 }
 

@@ -49,7 +49,7 @@ func (h *Handler) prepareForModeActivation() {
 
 // resetScrollContext resets scroll-related state to ensure clean mode transitions.
 func (h *Handler) resetScrollContext() {
-	if h.Scroll.Context.GetIsActive() {
+	if h.Scroll.Context.IsActive() {
 		// Reset scroll context to ensure clean transition
 		h.Scroll.Context.SetIsActive(false)
 		h.Scroll.Context.SetLastKey("")

@@ -65,6 +65,7 @@ neru/
 - Use meaningful names that describe the package purpose
 
 **Good:**
+
 ```go
 package hints
 package grid
@@ -72,6 +73,7 @@ package config
 ```
 
 **Bad:**
+
 ```go
 package hintUtils
 package grid_manager
@@ -108,31 +110,31 @@ package hints
 package example
 
 import (
-	"context"
-	"fmt"
-	
-	"github.com/y3owk1n/neru/internal/domain"
-	"go.uber.org/zap"
+ "context"
+ "fmt"
+
+ "github.com/y3owk1n/neru/internal/domain"
+ "go.uber.org/zap"
 )
 
 const (
-	DefaultTimeout = 5 * time.Second
+ DefaultTimeout = 5 * time.Second
 )
 
 type Service struct {
-	logger *zap.Logger
-	config *Config
+ logger *zap.Logger
+ config *Config
 }
 
 func NewService(logger *zap.Logger, config *Config) *Service {
-	return &Service{
-		logger: logger,
-		config: config,
-	}
+ return &Service{
+  logger: logger,
+  config: config,
+ }
 }
 
 func (s *Service) Process(ctx context.Context) error {
-	// Implementation
+ // Implementation
 }
 ```
 
@@ -150,14 +152,14 @@ func (s *Service) Process(ctx context.Context) error {
 ```go
 // Service manages hint generation and rendering.
 type Service struct {
-	// Exported fields
-	Logger *zap.Logger
-	Config *Config
-	
-	// Unexported fields
-	generator Generator
-	cache     *Cache
-	mu        sync.RWMutex
+ // Exported fields
+ Logger *zap.Logger
+ Config *Config
+
+ // Unexported fields
+ generator Generator
+ cache     *Cache
+ mu        sync.RWMutex
 }
 ```
 
@@ -172,8 +174,8 @@ type Service struct {
 ```go
 // Generator creates hint labels for elements.
 type Generator interface {
-	// Generate creates hint labels for the given count.
-	Generate(count int) ([]string, error)
+ // Generate creates hint labels for the given count.
+ Generate(count int) ([]string, error)
 }
 ```
 
@@ -191,12 +193,12 @@ type Generator interface {
 ```go
 // Good receiver names
 func (s *Service) Start() error
-func (g *Grid) GetCell(x, y int) *Cell
+func (g *Grid) Cell(x, y int) *Cell
 func (c *Config) Validate() error
 
 // Bad receiver names
 func (service *Service) Start() error  // Too long
-func (this *Grid) GetCell(x, y int)    // Don't use 'this'
+func (this *Grid) Cell(x, y int)    // Don't use 'this'
 func (cfg *Config) Validate() error    // Inconsistent abbreviation
 ```
 
@@ -225,17 +227,17 @@ func (s *Service) Process(ctx context.Context, id string, opts ...Option) error
 ```go
 // Good
 func (s *Service) Get(id string) (*Item, error) {
-	item, err := s.fetch(id)
-	if err != nil {
-		return nil, err
-	}
-	return item, nil
+ item, err := s.fetch(id)
+ if err != nil {
+  return nil, err
+ }
+ return item, nil
 }
 
 // Avoid naked returns
 func (s *Service) Get(id string) (item *Item, err error) {
-	item, err = s.fetch(id)
-	return  // Naked return - avoid this
+ item, err = s.fetch(id)
+ return  // Naked return - avoid this
 }
 ```
 
@@ -263,7 +265,7 @@ return derrors.Newf(derrors.CodeInvalidConfig, "invalid value %q for field %s", 
 ```go
 result, err := someOperation()
 if err != nil {
-	return derrors.Wrap(err, derrors.CodeOperationFailed, "operation description")
+ return derrors.Wrap(err, derrors.CodeOperationFailed, "operation description")
 }
 ```
 
@@ -277,12 +279,12 @@ if err != nil {
 ```go
 data, parseErr := parse(input)
 if parseErr != nil {
-	return derrors.Wrap(parseErr, derrors.CodeParseFailed, "failed to parse input")
+ return derrors.Wrap(parseErr, derrors.CodeParseFailed, "failed to parse input")
 }
 
 validateErr := validate(data)
 if validateErr != nil {
-	return derrors.Wrap(validateErr, derrors.CodeValidationFailed, "validation failed")
+ return derrors.Wrap(validateErr, derrors.CodeValidationFailed, "validation failed")
 }
 ```
 
@@ -297,18 +299,18 @@ All exported symbols must have documentation comments:
 // It coordinates between the hint generator, accessibility adapter,
 // and overlay renderer to provide hint-based navigation.
 type Service struct {
-	// ...
+ // ...
 }
 
 // NewService creates a new hint service with the provided dependencies.
 func NewService(logger *zap.Logger, config *Config) *Service {
-	// ...
+ // ...
 }
 
 // Generate creates hint labels for all clickable elements on screen.
 // It returns an error if hint generation fails or no elements are found.
 func (s *Service) Generate(ctx context.Context) ([]Hint, error) {
-	// ...
+ // ...
 }
 ```
 
@@ -316,7 +318,7 @@ func (s *Service) Generate(ctx context.Context) ([]Hint, error) {
 
 - Use complete sentences with proper punctuation
 - Start with the name of the thing being described
-- Explain *why* for non-obvious code, not *what*
+- Explain _why_ for non-obvious code, not _what_
 - Keep comments up-to-date with code changes
 
 **Example:**
@@ -344,16 +346,16 @@ Imports are automatically organized by `goimports` into three groups:
 
 ```go
 import (
-	"context"
-	"fmt"
-	"time"
-	
-	"github.com/BurntSushi/toml"
-	"go.uber.org/zap"
-	
-	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/domain"
-	derrors "github.com/y3owk1n/neru/internal/errors"
+ "context"
+ "fmt"
+ "time"
+
+ "github.com/BurntSushi/toml"
+ "go.uber.org/zap"
+
+ "github.com/y3owk1n/neru/internal/config"
+ "github.com/y3owk1n/neru/internal/domain"
+ derrors "github.com/y3owk1n/neru/internal/errors"
 )
 ```
 
@@ -375,17 +377,17 @@ import (
 
 ```go
 func (s *Service) Get(id string) (*Item, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	
-	return s.cache[id], nil
+ s.mu.RLock()
+ defer s.mu.RUnlock()
+
+ return s.cache[id], nil
 }
 
 func (s *Service) Set(id string, item *Item) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	
-	s.cache[id] = item
+ s.mu.Lock()
+ defer s.mu.Unlock()
+
+ s.cache[id] = item
 }
 ```
 
@@ -399,12 +401,12 @@ func (s *Service) Set(id string, item *Item) {
 
 ```go
 func (s *Service) Process(ctx context.Context, data []byte) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-		return s.doProcess(ctx, data)
-	}
+ select {
+ case <-ctx.Done():
+  return ctx.Err()
+ default:
+  return s.doProcess(ctx, data)
+ }
 }
 ```
 
@@ -713,21 +715,21 @@ Use the Arrange-Act-Assert pattern:
 
 ```go
 func TestService_Process(t *testing.T) {
-	// Arrange
-	logger := zap.NewNop()
-	config := &Config{Timeout: 5 * time.Second}
-	service := NewService(logger, config)
-	
-	// Act
-	result, err := service.Process(context.Background(), "test-data")
-	
-	// Assert
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
+ // Arrange
+ logger := zap.NewNop()
+ config := &Config{Timeout: 5 * time.Second}
+ service := NewService(logger, config)
+
+ // Act
+ result, err := service.Process(context.Background(), "test-data")
+
+ // Assert
+ if err != nil {
+  t.Fatalf("unexpected error: %v", err)
+ }
+ if result == nil {
+  t.Fatal("expected non-nil result")
+ }
 }
 ```
 
@@ -737,31 +739,31 @@ Use table-driven tests for multiple test cases:
 
 ```go
 func TestValidate(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		wantErr bool
-	}{
-		{
-			name:    "valid input",
-			input:   "valid",
-			wantErr: false,
-		},
-		{
-			name:    "empty input",
-			input:   "",
-			wantErr: true,
-		},
-	}
-	
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := Validate(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
+ tests := []struct {
+  name    string
+  input   string
+  wantErr bool
+ }{
+  {
+   name:    "valid input",
+   input:   "valid",
+   wantErr: false,
+  },
+  {
+   name:    "empty input",
+   input:   "",
+   wantErr: true,
+  },
+ }
+
+ for _, tt := range tests {
+  t.Run(tt.name, func(t *testing.T) {
+   err := Validate(tt.input)
+   if (err != nil) != tt.wantErr {
+    t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+   }
+  })
+ }
 }
 ```
 
@@ -769,13 +771,13 @@ func TestValidate(t *testing.T) {
 
 ```go
 func BenchmarkService_Process(b *testing.B) {
-	service := NewService(zap.NewNop(), DefaultConfig())
-	ctx := context.Background()
-	
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _ = service.Process(ctx, "test-data")
-	}
+ service := NewService(zap.NewNop(), DefaultConfig())
+ ctx := context.Background()
+
+ b.ResetTimer()
+ for i := 0; i < b.N; i++ {
+  _, _ = service.Process(ctx, "test-data")
+ }
 }
 ```
 
@@ -806,6 +808,7 @@ All documentation files in `docs/`:
 #### When to Comment
 
 **Do comment:**
+
 - Complex algorithms or logic
 - Non-obvious performance optimizations
 - Workarounds for bugs or limitations
@@ -813,6 +816,7 @@ All documentation files in `docs/`:
 - Package-level documentation
 
 **Don't comment:**
+
 - Obvious code (`i++` doesn't need a comment)
 - Redundant information already in the code
 - Outdated information (update or remove)
@@ -820,6 +824,7 @@ All documentation files in `docs/`:
 #### Comment Quality
 
 **Good:**
+
 ```go
 // Pre-allocate slice capacity to avoid reallocations during hint generation.
 // Typical hint count is 50-200 elements, so we start with 100.
@@ -827,6 +832,7 @@ hints := make([]Hint, 0, 100)
 ```
 
 **Bad:**
+
 ```go
 // Make a slice
 hints := make([]Hint, 0, 100)

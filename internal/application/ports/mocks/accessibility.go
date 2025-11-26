@@ -11,33 +11,26 @@ import (
 
 // MockAccessibilityPort is a mock implementation of ports.AccessibilityPort.
 type MockAccessibilityPort struct {
-	GetClickableElementsFunc  func(context.Context, ports.ElementFilter) ([]*element.Element, error)
-	PerformActionFunc         func(context.Context, *element.Element, action.Type) error
-	GetFocusedAppBundleIDFunc func(context.Context) (string, error)
-	IsAppExcludedFunc         func(context.Context, string) bool
-	GetScreenBoundsFunc       func(context.Context) (image.Rectangle, error)
-	CheckPermissionsFunc      func(context.Context) error
-	// PerformActionAtPointFunc mocks PerformActionAtPoint.
+	ClickableElementsFunc    func(context.Context, ports.ElementFilter) ([]*element.Element, error)
+	PerformActionFunc        func(context.Context, *element.Element, action.Type) error
+	FocusedAppBundleIDFunc   func(context.Context) (string, error)
+	IsAppExcludedFunc        func(context.Context, string) bool
+	ScreenBoundsFunc         func(context.Context) (image.Rectangle, error)
+	CheckPermissionsFunc     func(context.Context) error
 	PerformActionAtPointFunc func(ctx context.Context, actionType action.Type, point image.Point) error
-
-	// ScrollFunc mocks Scroll.
-	ScrollFunc func(ctx context.Context, deltaX, deltaY int) error
-
-	// MoveCursorToPointFunc mocks MoveCursorToPoint.
-	MoveCursorToPointFunc func(ctx context.Context, point image.Point) error
-
-	// GetCursorPositionFunc mocks GetCursorPosition.
-	GetCursorPositionFunc func(ctx context.Context) (image.Point, error)
-	HealthFunc            func(context.Context) error
+	ScrollFunc               func(ctx context.Context, deltaX, deltaY int) error
+	MoveCursorToPointFunc    func(ctx context.Context, point image.Point) error
+	CursorPositionFunc       func(ctx context.Context) (image.Point, error)
+	HealthFunc               func(context.Context) error
 }
 
-// GetClickableElements implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) GetClickableElements(
+// ClickableElements implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) ClickableElements(
 	ctx context.Context,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
-	if m.GetClickableElementsFunc != nil {
-		return m.GetClickableElementsFunc(ctx, filter)
+	if m.ClickableElementsFunc != nil {
+		return m.ClickableElementsFunc(ctx, filter)
 	}
 
 	return nil, nil
@@ -78,10 +71,10 @@ func (m *MockAccessibilityPort) Scroll(ctx context.Context, deltaX, deltaY int) 
 	return nil
 }
 
-// GetFocusedAppBundleID implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) GetFocusedAppBundleID(ctx context.Context) (string, error) {
-	if m.GetFocusedAppBundleIDFunc != nil {
-		return m.GetFocusedAppBundleIDFunc(ctx)
+// FocusedAppBundleID implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) FocusedAppBundleID(ctx context.Context) (string, error) {
+	if m.FocusedAppBundleIDFunc != nil {
+		return m.FocusedAppBundleIDFunc(ctx)
 	}
 
 	return "", nil
@@ -96,10 +89,10 @@ func (m *MockAccessibilityPort) IsAppExcluded(ctx context.Context, bundleID stri
 	return false
 }
 
-// GetScreenBounds implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) GetScreenBounds(ctx context.Context) (image.Rectangle, error) {
-	if m.GetScreenBoundsFunc != nil {
-		return m.GetScreenBoundsFunc(ctx)
+// ScreenBounds implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
+	if m.ScreenBoundsFunc != nil {
+		return m.ScreenBoundsFunc(ctx)
 	}
 
 	return image.Rectangle{}, nil
@@ -126,10 +119,10 @@ func (m *MockAccessibilityPort) MoveCursorToPoint(
 	return nil
 }
 
-// GetCursorPosition implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) GetCursorPosition(ctx context.Context) (image.Point, error) {
-	if m.GetCursorPositionFunc != nil {
-		return m.GetCursorPositionFunc(ctx)
+// CursorPosition implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) CursorPosition(ctx context.Context) (image.Point, error) {
+	if m.CursorPositionFunc != nil {
+		return m.CursorPositionFunc(ctx)
 	}
 
 	return image.Point{}, nil

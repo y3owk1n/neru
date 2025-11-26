@@ -117,11 +117,11 @@ func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger
 			mode = parts[0]
 		}
 
-		if mode == domain.GetModeString(domain.ModeHints) && !config.Hints.Enabled {
+		if mode == domain.ModeString(domain.ModeHints) && !config.Hints.Enabled {
 			continue
 		}
 
-		if mode == domain.GetModeString(domain.ModeGrid) && !config.Grid.Enabled {
+		if mode == domain.ModeString(domain.ModeGrid) && !config.Grid.Enabled {
 			continue
 		}
 
@@ -154,7 +154,7 @@ func (a *App) registerOverlays() {
 	}
 
 	if a.gridComponent != nil && a.gridComponent.Context != nil &&
-		a.gridComponent.Context.GetGridOverlay() != nil {
-		a.overlayManager.UseGridOverlay(*a.gridComponent.Context.GetGridOverlay())
+		a.gridComponent.Context.GridOverlay() != nil {
+		a.overlayManager.UseGridOverlay(*a.gridComponent.Context.GridOverlay())
 	}
 }

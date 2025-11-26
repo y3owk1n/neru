@@ -77,7 +77,7 @@ func (a *Adapter) ShowGrid(ctx context.Context, _ int, _ int) error {
 	}
 
 	// Get screen bounds
-	bounds := bridge.GetActiveScreenBounds()
+	bounds := bridge.ActiveScreenBounds()
 
 	// Create grid
 	grid := domainGrid.NewGrid("abcdefghijklmnopqrstuvwxyz", bounds, a.logger)
@@ -165,7 +165,7 @@ func (a *Adapter) Hide(ctx context.Context) error {
 
 // IsVisible returns true if any overlay is currently visible.
 func (a *Adapter) IsVisible() bool {
-	return a.manager.GetMode() != "idle"
+	return a.manager.Mode() != "idle"
 }
 
 // Refresh updates the overlay display.

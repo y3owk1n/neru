@@ -34,7 +34,7 @@ func TestHintService_ShowHints(t *testing.T) {
 		{
 			name: "successful hint display",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.GetClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
+				acc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
 					return testElements, nil
 				}
 			},
@@ -69,7 +69,7 @@ func TestHintService_ShowHints(t *testing.T) {
 		{
 			name: "no elements found",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.GetClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
+				acc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
 					return []*element.Element{}, nil
 				}
 			},
@@ -91,7 +91,7 @@ func TestHintService_ShowHints(t *testing.T) {
 		{
 			name: "accessibility error",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.GetClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
+				acc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
 					return nil, derrors.New(
 						derrors.CodeAccessibilityFailed,
 						"accessibility permission denied",
@@ -109,7 +109,7 @@ func TestHintService_ShowHints(t *testing.T) {
 		{
 			name: "large element set",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.GetClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
+				acc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
 					// Create 100 elements
 					elements := make([]*element.Element, 100)
 
@@ -144,7 +144,7 @@ func TestHintService_ShowHints(t *testing.T) {
 		{
 			name: "single element",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.GetClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
+				acc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
 					return []*element.Element{testElements[0]}, nil
 				}
 			},

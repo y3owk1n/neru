@@ -41,7 +41,7 @@ func (s *HintService) ShowHints(
 	s.logger.Info("Showing hints", zap.Any("filter", filter))
 
 	// Get clickable elements
-	elements, elementsErr := s.accessibility.GetClickableElements(ctx, filter)
+	elements, elementsErr := s.accessibility.ClickableElements(ctx, filter)
 	if elementsErr != nil {
 		s.logger.Error("Failed to get clickable elements", zap.Error(elementsErr))
 

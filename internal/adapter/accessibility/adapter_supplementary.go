@@ -50,7 +50,7 @@ func (a *Adapter) addMenubarElements(
 	a.logger.Debug("Adding menubar elements")
 
 	// Temporarily add AXMenuBarItem to clickable roles
-	originalRoles := a.client.GetClickableRoles()
+	originalRoles := a.client.ClickableRoles()
 	menubarRoles := make([]string, len(originalRoles)+1)
 	copy(menubarRoles, originalRoles)
 	menubarRoles[len(originalRoles)] = "AXMenuBarItem"
@@ -59,7 +59,7 @@ func (a *Adapter) addMenubarElements(
 	defer a.client.SetClickableRoles(originalRoles) // Restore original roles when done
 
 	// Get menubar elements
-	menubarNodes, menubarNodesErr := a.client.GetMenuBarClickableElements()
+	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements()
 	if menubarNodesErr != nil {
 		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {
@@ -81,7 +81,7 @@ func (a *Adapter) addMenubarElements(
 
 	// Get additional menubar targets
 	for _, bundleID := range filter.AdditionalMenubarTargets {
-		additionalNodes, err := a.client.GetClickableElementsFromBundleID(bundleID)
+		additionalNodes, err := a.client.ClickableElementsFromBundleID(bundleID)
 		if err != nil {
 			a.logger.Warn("Failed to get additional menubar elements",
 				zap.String("bundle_id", bundleID),
@@ -122,7 +122,7 @@ func (a *Adapter) addDockElements(
 	const dockBundleID = "com.apple.dock"
 
 	// Temporarily add AXDockItem to clickable roles
-	originalRoles := a.client.GetClickableRoles()
+	originalRoles := a.client.ClickableRoles()
 	dockRoles := make([]string, len(originalRoles)+1)
 	copy(dockRoles, originalRoles)
 	dockRoles[len(originalRoles)] = "AXDockItem"
@@ -131,7 +131,7 @@ func (a *Adapter) addDockElements(
 	defer a.client.SetClickableRoles(originalRoles) // Restore original roles when done
 
 	// Get dock application
-	dockApp, dockAppErr := a.client.GetApplicationByBundleID(dockBundleID)
+	dockApp, dockAppErr := a.client.ApplicationByBundleID(dockBundleID)
 	if dockAppErr != nil || dockApp == nil {
 		a.logger.Debug("Dock application not found")
 
@@ -140,7 +140,7 @@ func (a *Adapter) addDockElements(
 	defer dockApp.Release()
 
 	// Validate we got the correct application element (not a stale menu item)
-	appInfo, appInfoErr := dockApp.GetInfo()
+	appInfo, appInfoErr := dockApp.Info()
 	if appInfoErr != nil {
 		a.logger.Warn("Failed to get dock application info", zap.Error(appInfoErr))
 
@@ -156,7 +156,7 @@ func (a *Adapter) addDockElements(
 	}
 
 	// Build tree and find clickable elements
-	dockNodes, dockNodesErr := a.client.GetClickableNodes(dockApp, true)
+	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, true)
 	if dockNodesErr != nil {
 		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
 
@@ -188,7 +188,7 @@ func (a *Adapter) addNotificationCenterElements(
 
 	a.logger.Debug("Adding notification center elements")
 
-	ncNodes, ncNodesErr := a.client.GetClickableElementsFromBundleID(ncBundleID)
+	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(ncBundleID)
 	if ncNodesErr != nil {
 		a.logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))
 

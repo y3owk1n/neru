@@ -64,7 +64,7 @@ func TestInitializeLogger(t *testing.T) {
 			bridge.InitializeLogger(testCase.logger)
 
 			// Verify logger was set
-			if testCase.logger != nil && bridge.GetBridgeLogger() == nil {
+			if testCase.logger != nil && bridge.Logger() == nil {
 				t.Error("Expected logger to be set")
 			}
 		})
@@ -74,7 +74,7 @@ func TestInitializeLogger(t *testing.T) {
 func TestSetAppWatcher(t *testing.T) {
 	tests := []struct {
 		name    string
-		watcher bridge.AppWatcher
+		watcher bridge.AppWatcherInterface
 	}{
 		{
 			name:    "set mock watcher",
@@ -95,7 +95,7 @@ func TestSetAppWatcher(t *testing.T) {
 			bridge.SetAppWatcher(testCase.watcher)
 
 			// Verify watcher was set
-			if testCase.watcher != nil && bridge.GetAppWatcher() == nil {
+			if testCase.watcher != nil && bridge.AppWatcher() == nil {
 				t.Error("Expected watcher to be set")
 			}
 		})
@@ -185,25 +185,25 @@ func TestHasClickAction(t *testing.T) {
 	}
 }
 
-func TestGetActiveScreenBounds(t *testing.T) {
+func TestActiveScreenBounds(t *testing.T) {
 	// Initialize logger for testing
 	bridge.InitializeLogger(zap.NewNop())
 
-	bounds := bridge.GetActiveScreenBounds()
+	bounds := bridge.ActiveScreenBounds()
 
 	// Verify bounds are valid (non-zero)
 	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
-		t.Errorf("GetActiveScreenBounds() returned invalid bounds: %v", bounds)
+		t.Errorf("ActiveScreenBounds() returned invalid bounds: %v", bounds)
 	}
 
 	// Verify bounds are reasonable (not negative, not absurdly large)
 	if bounds.Min.X < -10000 || bounds.Min.Y < -10000 {
-		t.Errorf("GetActiveScreenBounds() returned unreasonable min values: %v", bounds.Min)
+		t.Errorf("ActiveScreenBounds() returned unreasonable min values: %v", bounds.Min)
 	}
 
 	if bounds.Dx() > 10000 || bounds.Dy() > 10000 {
 		t.Errorf(
-			"GetActiveScreenBounds() returned unreasonably large dimensions: %dx%d",
+			"ActiveScreenBounds() returned unreasonably large dimensions: %dx%d",
 			bounds.Dx(),
 			bounds.Dy(),
 		)

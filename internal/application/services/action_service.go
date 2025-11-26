@@ -97,7 +97,7 @@ func (s *ActionService) PerformAction(
 
 // IsFocusedAppExcluded checks if the currently focused application is in the exclusion list.
 func (s *ActionService) IsFocusedAppExcluded(ctx context.Context) (bool, error) {
-	bundleID, bundleIDErr := s.accessibility.GetFocusedAppBundleID(ctx)
+	bundleID, bundleIDErr := s.accessibility.FocusedAppBundleID(ctx)
 	if bundleIDErr != nil {
 		return false, derrors.Wrap(
 			bundleIDErr,
@@ -114,15 +114,15 @@ func (s *ActionService) IsFocusedAppExcluded(ctx context.Context) (bool, error) 
 	return isExcluded, nil
 }
 
-// GetFocusedAppBundleID returns the bundle ID of the currently focused application.
-func (s *ActionService) GetFocusedAppBundleID(ctx context.Context) (string, error) {
-	return s.accessibility.GetFocusedAppBundleID(ctx)
+// FocusedAppBundleID returns the bundle ID of the currently focused application.
+func (s *ActionService) FocusedAppBundleID(ctx context.Context) (string, error) {
+	return s.accessibility.FocusedAppBundleID(ctx)
 }
 
 // ShowActionHighlight displays the action mode highlight around the active screen.
 func (s *ActionService) ShowActionHighlight(ctx context.Context) error {
 	// Get active screen screenBounds
-	screenBounds, screenBoundsErr := s.accessibility.GetScreenBounds(ctx)
+	screenBounds, screenBoundsErr := s.accessibility.ScreenBounds(ctx)
 	if screenBoundsErr != nil {
 		return derrors.Wrap(
 			screenBoundsErr,
@@ -166,7 +166,7 @@ func (s *ActionService) MoveCursorToPoint(ctx context.Context, point image.Point
 	return s.accessibility.MoveCursorToPoint(ctx, point)
 }
 
-// GetCursorPosition returns the current cursor position.
-func (s *ActionService) GetCursorPosition(ctx context.Context) (image.Point, error) {
-	return s.accessibility.GetCursorPosition(ctx)
+// CursorPosition returns the current cursor position.
+func (s *ActionService) CursorPosition(ctx context.Context) (image.Point, error) {
+	return s.accessibility.CursorPosition(ctx)
 }

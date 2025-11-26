@@ -44,20 +44,20 @@ func NewAdapter(
 	}
 }
 
-// GetLogger returns the logger for the adapter.
+// Logger returns the logger for the adapter.
 // It is used for testing mainly.
-func (a *Adapter) GetLogger() *zap.Logger {
+func (a *Adapter) Logger() *zap.Logger {
 	return a.logger
 }
 
-// GetClickableRoles returns the list of clickable roles.
+// ClickableRoles returns the list of clickable roles.
 // It is used for testing mainly.
-func (a *Adapter) GetClickableRoles() []string {
+func (a *Adapter) ClickableRoles() []string {
 	return a.clickableRoles
 }
 
-// GetClickableElements retrieves all clickable UI elements matching the filter.
-func (a *Adapter) GetClickableElements(
+// ClickableElements retrieves all clickable UI elements matching the filter.
+func (a *Adapter) ClickableElements(
 	ctx context.Context,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
@@ -71,14 +71,14 @@ func (a *Adapter) GetClickableElements(
 	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))
 
 	// Get frontmost frontmostWindow
-	frontmostWindow, frontmostWindowErr := a.client.GetFrontmostWindow()
+	frontmostWindow, frontmostWindowErr := a.client.FrontmostWindow()
 	if frontmostWindowErr != nil {
 		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get frontmost window")
 	}
 	defer frontmostWindow.Release()
 
 	// Get clickable nodes via client
-	clickableNodes, clickableNodesErr := a.client.GetClickableNodes(
+	clickableNodes, clickableNodesErr := a.client.ClickableNodes(
 		frontmostWindow,
 		filter.IncludeOffscreen,
 	)
@@ -226,9 +226,9 @@ func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point) error 
 	return nil
 }
 
-// GetCursorPosition returns the current cursor position.
-func (a *Adapter) GetCursorPosition(_ context.Context) (image.Point, error) {
-	pos := a.client.GetCursorPosition()
+// CursorPosition returns the current cursor position.
+func (a *Adapter) CursorPosition(_ context.Context) (image.Point, error) {
+	pos := a.client.CursorPosition()
 	a.logger.Debug("Got cursor position",
 		zap.Int("x", pos.X),
 		zap.Int("y", pos.Y))
@@ -236,8 +236,8 @@ func (a *Adapter) GetCursorPosition(_ context.Context) (image.Point, error) {
 	return pos, nil
 }
 
-// GetFocusedAppBundleID returns the bundle ID of the currently focused application.
-func (a *Adapter) GetFocusedAppBundleID(ctx context.Context) (string, error) {
+// FocusedAppBundleID returns the bundle ID of the currently focused application.
+func (a *Adapter) FocusedAppBundleID(ctx context.Context) (string, error) {
 	// Check context
 	select {
 	case <-ctx.Done():
@@ -245,13 +245,13 @@ func (a *Adapter) GetFocusedAppBundleID(ctx context.Context) (string, error) {
 	default:
 	}
 
-	focusedApp, focusedAppErr := a.client.GetFocusedApplication()
+	focusedApp, focusedAppErr := a.client.FocusedApplication()
 	if focusedAppErr != nil {
 		return "", derrors.New(derrors.CodeAccessibilityFailed, "failed to get focused application")
 	}
 	defer focusedApp.Release()
 
-	bundleID := focusedApp.GetBundleIdentifier()
+	bundleID := focusedApp.BundleIdentifier()
 	if bundleID == "" {
 		return "", derrors.New(derrors.CodeAccessibilityFailed, "failed to get bundle ID")
 	}
@@ -264,8 +264,8 @@ func (a *Adapter) IsAppExcluded(_ context.Context, bundleID string) bool {
 	return a.excludedBundles[bundleID]
 }
 
-// GetScreenBounds returns the bounds of the active screen.
-func (a *Adapter) GetScreenBounds(ctx context.Context) (image.Rectangle, error) {
+// ScreenBounds returns the bounds of the active screen.
+func (a *Adapter) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
 	// Check context
 	select {
 	case <-ctx.Done():
@@ -277,7 +277,7 @@ func (a *Adapter) GetScreenBounds(ctx context.Context) (image.Rectangle, error) 
 	default:
 	}
 
-	return a.client.GetActiveScreenBounds(), nil
+	return a.client.ActiveScreenBounds(), nil
 }
 
 // CheckPermissions verifies that accessibility permissions are granted.
@@ -349,13 +349,13 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 	}
 
 	// Create element ID from unique identifier
-	elementID := element.ID(node.GetID())
+	elementID := element.ID(node.ID())
 
 	// Get bounds
-	bounds := node.GetBounds()
+	bounds := node.Bounds()
 
 	// Convert role
-	role := element.Role(node.GetRole())
+	role := element.Role(node.Role())
 
 	// Determine if clickable
 	isClickable := node.IsClickable()
@@ -366,8 +366,8 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 		bounds,
 		role,
 		element.WithClickable(isClickable),
-		element.WithTitle(node.GetTitle()),
-		element.WithDescription(node.GetDescription()),
+		element.WithTitle(node.Title()),
+		element.WithDescription(node.Description()),
 	)
 	if elementErr != nil {
 		return nil, derrors.Wrap(

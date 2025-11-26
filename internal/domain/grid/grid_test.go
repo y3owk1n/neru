@@ -34,24 +34,24 @@ func TestGrid_Initialization(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			grid := grid.NewGrid(testCase.chars, testCase.bounds, log)
-			if len(grid.GetAllCells()) == 0 {
+			if len(grid.AllCells()) == 0 {
 				t.Error("Expected cells to be generated")
 			}
 		})
 	}
 }
 
-func TestGrid_GetCellByCoordinate(t *testing.T) {
+func TestGrid_CellByCoordinate(t *testing.T) {
 	logger := logger.Get()
 	grid := grid.NewGrid("ABC", image.Rect(0, 0, 300, 300), logger)
 
 	// Get a valid coordinate from the generated grid
-	cells := grid.GetAllCells()
+	cells := grid.AllCells()
 	if len(cells) == 0 {
 		t.Fatal("Expected cells to be generated")
 	}
 
-	validCoordinate := cells[0].GetCoordinate()
+	validCoordinate := cells[0].Coordinate()
 
 	tests := []struct {
 		name  string
@@ -66,10 +66,10 @@ func TestGrid_GetCellByCoordinate(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			cell := grid.GetCellByCoordinate(testCase.coord)
+			cell := grid.CellByCoordinate(testCase.coord)
 			if (cell != nil) != testCase.want {
 				t.Errorf(
-					"GetCellByCoordinate(%q) exists = %v, want %v",
+					"CellByCoordinate(%q) exists = %v, want %v",
 					testCase.coord,
 					cell != nil,
 					testCase.want,
@@ -83,7 +83,7 @@ func TestCell_Methods(t *testing.T) {
 	logger := logger.Get()
 	grid := grid.NewGrid("ABC", image.Rect(0, 0, 300, 300), logger)
 
-	cells := grid.GetAllCells()
+	cells := grid.AllCells()
 	if len(cells) == 0 {
 		t.Fatal("Expected cells to be generated")
 	}
@@ -91,18 +91,18 @@ func TestCell_Methods(t *testing.T) {
 	cell := cells[0]
 
 	// Test that methods return non-zero values
-	if cell.GetCoordinate() == "" {
-		t.Error("GetCoordinate() returned empty string")
+	if cell.Coordinate() == "" {
+		t.Error("Coordinate() returned empty string")
 	}
 
-	bounds := cell.GetBounds()
+	bounds := cell.Bounds()
 	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
-		t.Errorf("GetBounds() returned invalid bounds: %v", bounds)
+		t.Errorf("Bounds() returned invalid bounds: %v", bounds)
 	}
 
-	center := cell.GetCenter()
+	center := cell.Center()
 	if center.X < 0 || center.Y < 0 {
-		t.Errorf("GetCenter() returned invalid center: %v", center)
+		t.Errorf("Center() returned invalid center: %v", center)
 	}
 
 	// Test that center is within bounds
@@ -116,27 +116,27 @@ func TestGrid_Getters(t *testing.T) {
 	bounds := image.Rect(0, 0, 1920, 1080)
 	gridInstance := grid.NewGrid("ABC", bounds, logger)
 
-	if gridInstance.GetCharacters() != "ABC" {
-		t.Errorf("GetCharacters() = %q, want %q", gridInstance.GetCharacters(), "ABC")
+	if gridInstance.Characters() != "ABC" {
+		t.Errorf("Characters() = %q, want %q", gridInstance.Characters(), "ABC")
 	}
 
-	if gridInstance.GetBounds() != bounds {
-		t.Errorf("GetBounds() = %v, want %v", gridInstance.GetBounds(), bounds)
+	if gridInstance.Bounds() != bounds {
+		t.Errorf("Bounds() = %v, want %v", gridInstance.Bounds(), bounds)
 	}
 
-	cells := gridInstance.GetCells()
+	cells := gridInstance.Cells()
 	if len(cells) == 0 {
-		t.Error("GetCells() returned empty slice")
+		t.Error("Cells() returned empty slice")
 	}
 
-	index := gridInstance.GetIndex()
+	index := gridInstance.Index()
 	if len(index) != len(cells) {
-		t.Errorf("GetIndex() length = %d, want %d", len(index), len(cells))
+		t.Errorf("Index() length = %d, want %d", len(index), len(cells))
 	}
 
-	allCells := gridInstance.GetAllCells()
+	allCells := gridInstance.AllCells()
 	if len(allCells) != len(cells) {
-		t.Errorf("GetAllCells() length = %d, want %d", len(allCells), len(cells))
+		t.Errorf("AllCells() length = %d, want %d", len(allCells), len(cells))
 	}
 }
 
@@ -169,23 +169,23 @@ func TestGrid_InvalidBounds(t *testing.T) {
 
 	// Test with zero width
 	gridInstance := grid.NewGrid("ABC", image.Rect(0, 0, 0, 100), logger)
-	if len(gridInstance.GetCells()) != 0 {
+	if len(gridInstance.Cells()) != 0 {
 		t.Error("Expected empty cells for zero width")
 	}
 
 	// Test with zero height
 	gridInstance = grid.NewGrid("ABC", image.Rect(0, 0, 100, 0), logger)
-	if len(gridInstance.GetCells()) != 0 {
+	if len(gridInstance.Cells()) != 0 {
 		t.Error("Expected empty cells for zero height")
 	}
 
 	// Test with negative dimensions (image.Rect normalizes this to positive dimensions)
 	// So this actually creates a valid grid. Let's test with truly invalid bounds
 	gridInstance = grid.NewGrid("ABC", image.Rect(100, 100, 100, 100), logger) // Zero width/height
-	if len(gridInstance.GetCells()) != 0 {
+	if len(gridInstance.Cells()) != 0 {
 		t.Errorf(
 			"Expected empty cells for zero dimensions, got %d cells",
-			len(gridInstance.GetCells()),
+			len(gridInstance.Cells()),
 		)
 	}
 }
@@ -196,19 +196,19 @@ func TestGrid_EmptyCharacters(t *testing.T) {
 
 	// Empty characters should default to alphabet
 	gridInstance := grid.NewGrid("", bounds, logger)
-	if gridInstance.GetCharacters() != "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
+	if gridInstance.Characters() != "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
 		t.Errorf(
 			"Empty characters should default to alphabet, got %q",
-			gridInstance.GetCharacters(),
+			gridInstance.Characters(),
 		)
 	}
 
 	// Single character should also default
 	gridInstance = grid.NewGrid("A", bounds, logger)
-	if gridInstance.GetCharacters() != "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
+	if gridInstance.Characters() != "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
 		t.Errorf(
 			"Single character should default to alphabet, got %q",
-			gridInstance.GetCharacters(),
+			gridInstance.Characters(),
 		)
 	}
 }

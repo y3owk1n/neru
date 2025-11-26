@@ -8,76 +8,76 @@ import (
 
 // MockAXClient is a mock implementation of AXClient for testing.
 type MockAXClient struct {
-	FrontmostWindow    AXWindow
-	FrontmostWindowErr error
+	MockFrontmostWindow    AXWindow
+	MockFrontmostWindowErr error
 
-	FocusedApp    AXApp
-	FocusedAppErr error
+	MockFocusedApp    AXApp
+	MockFocusedAppErr error
 
-	ClickableNodes    []AXNode
-	ClickableNodesErr error
+	MockClickableNodes    []AXNode
+	MockClickableNodesErr error
 
-	MenuBarNodes    []AXNode
-	MenuBarNodesErr error
+	MockMenuBarNodes    []AXNode
+	MockMenuBarNodesErr error
 
-	BundleNodes    []AXNode
-	BundleNodesErr error
+	MockBundleNodes    []AXNode
+	MockBundleNodesErr error
 
-	ScreenBounds image.Rectangle
+	MockScreenBounds image.Rectangle
 
-	ActionErr error
-	ScrollErr error
+	MockActionErr error
+	MockScrollErr error
 
-	Permissions bool
+	MockPermissions bool
 
-	ClickableRoles []string
+	MockClickableRoles []string
 
-	MissionControlActive bool
+	MockMissionControlActive bool
 }
 
-// GetFrontmostWindow returns the configured frontmost window or error.
-func (m *MockAXClient) GetFrontmostWindow() (AXWindow, error) {
-	return m.FrontmostWindow, m.FrontmostWindowErr
+// FrontmostWindow returns the configured frontmost window or error.
+func (m *MockAXClient) FrontmostWindow() (AXWindow, error) {
+	return m.MockFrontmostWindow, m.MockFrontmostWindowErr
 }
 
-// GetFocusedApplication returns the configured focused application or error.
-func (m *MockAXClient) GetFocusedApplication() (AXApp, error) {
-	return m.FocusedApp, m.FocusedAppErr
+// FocusedApplication returns the configured focused application or error.
+func (m *MockAXClient) FocusedApplication() (AXApp, error) {
+	return m.MockFocusedApp, m.MockFocusedAppErr
 }
 
-// GetApplicationByBundleID returns the configured application by bundle ID or error.
-func (m *MockAXClient) GetApplicationByBundleID(_ string) (AXApp, error) {
-	return m.FocusedApp, m.FocusedAppErr // Reuse focused app for simplicity or add specific field
+// ApplicationByBundleID returns the configured application by bundle ID or error.
+func (m *MockAXClient) ApplicationByBundleID(_ string) (AXApp, error) {
+	return m.MockFocusedApp, m.MockFocusedAppErr // Reuse focused app for simplicity or add specific field
 }
 
-// GetClickableNodes returns the configured clickable nodes or error.
-func (m *MockAXClient) GetClickableNodes(_ AXElement, _ bool) ([]AXNode, error) {
-	return m.ClickableNodes, m.ClickableNodesErr
+// ClickableNodes returns the configured clickable nodes or error.
+func (m *MockAXClient) ClickableNodes(_ AXElement, _ bool) ([]AXNode, error) {
+	return m.MockClickableNodes, m.MockClickableNodesErr
 }
 
-// GetMenuBarClickableElements returns the configured menu bar nodes or error.
-func (m *MockAXClient) GetMenuBarClickableElements() ([]AXNode, error) {
-	return m.MenuBarNodes, m.MenuBarNodesErr
+// MenuBarClickableElements returns the configured menu bar nodes or error.
+func (m *MockAXClient) MenuBarClickableElements() ([]AXNode, error) {
+	return m.MockMenuBarNodes, m.MockMenuBarNodesErr
 }
 
-// GetClickableElementsFromBundleID returns the configured nodes for bundle ID or error.
-func (m *MockAXClient) GetClickableElementsFromBundleID(_ string) ([]AXNode, error) {
-	return m.BundleNodes, m.BundleNodesErr
+// ClickableElementsFromBundleID returns the configured nodes for bundle ID or error.
+func (m *MockAXClient) ClickableElementsFromBundleID(_ string) ([]AXNode, error) {
+	return m.MockBundleNodes, m.MockBundleNodesErr
 }
 
-// GetActiveScreenBounds returns the configured screen bounds.
-func (m *MockAXClient) GetActiveScreenBounds() image.Rectangle {
-	return m.ScreenBounds
+// ActiveScreenBounds returns the configured screen bounds.
+func (m *MockAXClient) ActiveScreenBounds() image.Rectangle {
+	return m.MockScreenBounds
 }
 
 // PerformAction returns the configured action error.
 func (m *MockAXClient) PerformAction(_ action.Type, _ image.Point, _ bool) error {
-	return m.ActionErr
+	return m.MockActionErr
 }
 
 // Scroll returns the configured scroll error.
 func (m *MockAXClient) Scroll(_, _ int) error {
-	return m.ScrollErr
+	return m.MockScrollErr
 }
 
 // MoveMouse is a no-op mock implementation.
@@ -85,29 +85,29 @@ func (m *MockAXClient) MoveMouse(_ image.Point) {
 	// No-op
 }
 
-// GetCursorPosition returns the zero point.
-func (m *MockAXClient) GetCursorPosition() image.Point {
+// CursorPosition returns the zero point.
+func (m *MockAXClient) CursorPosition() image.Point {
 	return image.Point{}
 }
 
 // CheckPermissions returns the configured permissions state.
 func (m *MockAXClient) CheckPermissions() bool {
-	return m.Permissions
+	return m.MockPermissions
 }
 
 // SetClickableRoles updates the configured clickable roles.
 func (m *MockAXClient) SetClickableRoles(roles []string) {
-	m.ClickableRoles = roles
+	m.MockClickableRoles = roles
 }
 
-// GetClickableRoles returns the configured clickable roles.
-func (m *MockAXClient) GetClickableRoles() []string {
-	return m.ClickableRoles
+// ClickableRoles returns the configured clickable roles.
+func (m *MockAXClient) ClickableRoles() []string {
+	return m.MockClickableRoles
 }
 
 // IsMissionControlActive returns the configured Mission Control state.
 func (m *MockAXClient) IsMissionControlActive() bool {
-	return m.MissionControlActive
+	return m.MockMissionControlActive
 }
 
 // Mock implementations for Window, App, Node
@@ -120,59 +120,59 @@ func (w *MockWindow) Release() {}
 
 // MockApp is a mock implementation of AXApp.
 type MockApp struct {
-	BundleID string
-	Info     *AXAppInfo
+	MockBundleID string
+	MockInfo     *AXAppInfo
 }
 
 // Release is a no-op.
 func (a *MockApp) Release() {}
 
-// GetBundleIdentifier returns the configured bundle ID.
-func (a *MockApp) GetBundleIdentifier() string {
-	return a.BundleID
+// BundleIdentifier returns the configured bundle ID.
+func (a *MockApp) BundleIdentifier() string {
+	return a.MockBundleID
 }
 
-// GetInfo returns the configured app info.
-func (a *MockApp) GetInfo() (*AXAppInfo, error) {
-	return a.Info, nil
+// Info returns the configured app info.
+func (a *MockApp) Info() (*AXAppInfo, error) {
+	return a.MockInfo, nil
 }
 
 // MockNode is a mock implementation of AXNode.
 type MockNode struct {
-	ID          string
-	Bounds      image.Rectangle
-	Role        string
-	Title       string
-	Description string
-	Clickable   bool
+	MockID          string
+	MockBounds      image.Rectangle
+	MockRole        string
+	MockTitle       string
+	MockDescription string
+	MockClickable   bool
 }
 
-// GetID returns the configured ID.
-func (n *MockNode) GetID() string {
-	return n.ID
+// ID returns the configured ID.
+func (n *MockNode) ID() string {
+	return n.MockID
 }
 
-// GetBounds returns the configured bounds.
-func (n *MockNode) GetBounds() image.Rectangle {
-	return n.Bounds
+// Bounds returns the configured bounds.
+func (n *MockNode) Bounds() image.Rectangle {
+	return n.MockBounds
 }
 
-// GetRole returns the configured role.
-func (n *MockNode) GetRole() string {
-	return n.Role
+// Role returns the configured role.
+func (n *MockNode) Role() string {
+	return n.MockRole
 }
 
-// GetTitle returns the configured title.
-func (n *MockNode) GetTitle() string {
-	return n.Title
+// Title returns the configured title.
+func (n *MockNode) Title() string {
+	return n.MockTitle
 }
 
-// GetDescription returns the configured description.
-func (n *MockNode) GetDescription() string {
-	return n.Description
+// Description returns the configured description.
+func (n *MockNode) Description() string {
+	return n.MockDescription
 }
 
 // IsClickable returns the configured clickable state.
 func (n *MockNode) IsClickable() bool {
-	return n.Clickable
+	return n.MockClickable
 }

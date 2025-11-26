@@ -58,12 +58,12 @@ func TestCursorState_Capture(t *testing.T) {
 		t.Error("Expected state to be captured after Capture()")
 	}
 
-	gotPos := state.GetInitialPosition()
+	gotPos := state.InitialPosition()
 	if gotPos != pos {
 		t.Errorf("Expected position %v, got %v", pos, gotPos)
 	}
 
-	gotBounds := state.GetInitialScreenBounds()
+	gotBounds := state.InitialScreenBounds()
 	if gotBounds != bounds {
 		t.Errorf("Expected bounds %v, got %v", bounds, gotBounds)
 	}
@@ -213,8 +213,8 @@ func TestCursorState_Concurrency(_ *testing.T) {
 		go func() {
 			defer waitGroup.Done()
 
-			_ = state.GetInitialPosition()
-			_ = state.GetInitialScreenBounds()
+			_ = state.InitialPosition()
+			_ = state.InitialScreenBounds()
 		}()
 
 		go func() {
@@ -291,14 +291,14 @@ func TestCursorState_ExtremeValues(t *testing.T) {
 				t.Error("State should be captured")
 			}
 
-			gotPos := state.GetInitialPosition()
+			gotPos := state.InitialPosition()
 			if gotPos != testCase.pos {
-				t.Errorf("GetInitialPosition() = %v, want %v", gotPos, testCase.pos)
+				t.Errorf("InitialPosition() = %v, want %v", gotPos, testCase.pos)
 			}
 
-			gotBounds := state.GetInitialScreenBounds()
+			gotBounds := state.InitialScreenBounds()
 			if gotBounds != testCase.bounds {
-				t.Errorf("GetInitialScreenBounds() = %v, want %v", gotBounds, testCase.bounds)
+				t.Errorf("InitialScreenBounds() = %v, want %v", gotBounds, testCase.bounds)
 			}
 		})
 	}
@@ -334,8 +334,8 @@ func TestCursorState_ConcurrentStressTest(t *testing.T) {
 				// might have called Reset() in the meantime.
 				// The goal of this test is to ensure thread safety (no panics/races).
 
-				_ = state.GetInitialPosition()
-				_ = state.GetInitialScreenBounds()
+				_ = state.InitialPosition()
+				_ = state.InitialScreenBounds()
 				_ = state.ShouldRestore()
 
 				state.Reset()

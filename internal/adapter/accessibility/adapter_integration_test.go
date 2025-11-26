@@ -29,21 +29,21 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("GetScreenBounds", func(t *testing.T) {
-		screenBounds, screenBoundsErr := adapter.GetScreenBounds(ctx)
+	t.Run("ScreenBounds", func(t *testing.T) {
+		screenBounds, screenBoundsErr := adapter.ScreenBounds(ctx)
 		if screenBoundsErr != nil {
-			t.Fatalf("GetScreenBounds() error = %v, want nil", screenBoundsErr)
+			t.Fatalf("ScreenBounds() error = %v, want nil", screenBoundsErr)
 		}
 
 		if screenBounds.Empty() {
-			t.Error("GetScreenBounds() returned empty bounds")
+			t.Error("ScreenBounds() returned empty bounds")
 		}
 	})
 
-	t.Run("GetCursorPosition", func(t *testing.T) {
-		pos, err := adapter.GetCursorPosition(ctx)
+	t.Run("CursorPosition", func(t *testing.T) {
+		pos, err := adapter.CursorPosition(ctx)
 		if err != nil {
-			t.Fatalf("GetCursorPosition() error = %v, want nil", err)
+			t.Fatalf("CursorPosition() error = %v, want nil", err)
 		}
 		// Position should be within screen bounds (roughly)
 		// We can't strictly enforce this as cursor might be on another screen
@@ -52,9 +52,9 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 
 	t.Run("MoveCursorToPoint", func(t *testing.T) {
 		// Get current position
-		startPos, startPosErr := adapter.GetCursorPosition(ctx)
+		startPos, startPosErr := adapter.CursorPosition(ctx)
 		if startPosErr != nil {
-			t.Fatalf("GetCursorPosition() error = %v, want nil", startPosErr)
+			t.Fatalf("CursorPosition() error = %v, want nil", startPosErr)
 		}
 
 		// Move slightly
@@ -66,27 +66,27 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		}
 
 		// Verify position (might be slightly off due to OS acceleration/constraints)
-		newPos, newPosErr := adapter.GetCursorPosition(ctx)
+		newPos, newPosErr := adapter.CursorPosition(ctx)
 		if newPosErr != nil {
-			t.Fatalf("GetCursorPosition() error = %v, want nil", newPosErr)
+			t.Fatalf("CursorPosition() error = %v, want nil", newPosErr)
 		}
 
 		// Just verify it moved or didn't error. Exact position check is flaky.
 		_ = newPos
 	})
 
-	t.Run("GetClickableElements", func(t *testing.T) {
+	t.Run("ClickableElements", func(t *testing.T) {
 		// This is hard to test without a known window.
 		// We'll just call it and ensure it doesn't panic or return error (unless permissions missing).
 		filter := ports.ElementFilter{
 			MinSize: image.Point{X: 10, Y: 10},
 		}
 
-		clickableElements, clickableElementsErr := adapter.GetClickableElements(ctx, filter)
+		clickableElements, clickableElementsErr := adapter.ClickableElements(ctx, filter)
 		if clickableElementsErr != nil {
 			// It might error if no permissions or no focused window
 			t.Logf(
-				"GetClickableElements() error = %v (expected if no permissions)",
+				"ClickableElements() error = %v (expected if no permissions)",
 				clickableElementsErr,
 			)
 		} else {

@@ -222,7 +222,7 @@ func TestActionService_IsFocusedAppExcluded(t *testing.T) {
 		{
 			name: "app is excluded",
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.GetFocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
+				acc.FocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
 					return "com.excluded.app", nil
 				}
 				acc.IsAppExcludedFunc = func(_ context.Context, bundleID string) bool {
@@ -235,7 +235,7 @@ func TestActionService_IsFocusedAppExcluded(t *testing.T) {
 		{
 			name: "app is not excluded",
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.GetFocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
+				acc.FocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
 					return "com.normal.app", nil
 				}
 				acc.IsAppExcludedFunc = func(_ context.Context, _ string) bool {
@@ -278,7 +278,7 @@ func TestActionService_IsFocusedAppExcluded(t *testing.T) {
 	}
 }
 
-func TestActionService_GetFocusedAppBundleID(t *testing.T) {
+func TestActionService_FocusedAppBundleID(t *testing.T) {
 	tests := []struct {
 		name       string
 		setupMocks func(*mocks.MockAccessibilityPort)
@@ -288,7 +288,7 @@ func TestActionService_GetFocusedAppBundleID(t *testing.T) {
 		{
 			name: "success",
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.GetFocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
+				acc.FocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
 					return "com.example.app", nil
 				}
 			},
@@ -298,7 +298,7 @@ func TestActionService_GetFocusedAppBundleID(t *testing.T) {
 		{
 			name: "error getting bundle ID",
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.GetFocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
+				acc.FocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
 					return "", derrors.New(
 						derrors.CodeAccessibilityFailed,
 						"failed to get focused app",
@@ -311,7 +311,7 @@ func TestActionService_GetFocusedAppBundleID(t *testing.T) {
 		{
 			name: "empty bundle ID",
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.GetFocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
+				acc.FocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
 					return "", nil
 				}
 			},
@@ -334,18 +334,18 @@ func TestActionService_GetFocusedAppBundleID(t *testing.T) {
 			service := services.NewActionService(mockAcc, mockOverlay, config, logger)
 			ctx := context.Background()
 
-			focusedApp, focusedAppErr := service.GetFocusedAppBundleID(ctx)
+			focusedApp, focusedAppErr := service.FocusedAppBundleID(ctx)
 
 			if (focusedAppErr != nil) != testCase.wantErr {
 				t.Errorf(
-					"GetFocusedAppBundleID() error = %v, wantErr %v",
+					"FocusedAppBundleID() error = %v, wantErr %v",
 					focusedAppErr,
 					testCase.wantErr,
 				)
 			}
 
 			if focusedApp != testCase.want {
-				t.Errorf("GetFocusedAppBundleID() = %v, want %v", focusedApp, testCase.want)
+				t.Errorf("FocusedAppBundleID() = %v, want %v", focusedApp, testCase.want)
 			}
 		})
 	}
@@ -397,7 +397,7 @@ func TestActionService_ShowActionHighlight(t *testing.T) {
 
 	// Test successful highlight
 	screenBounds := image.Rect(0, 0, 1920, 1080)
-	mockAcc.GetScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
+	mockAcc.ScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
 		return screenBounds, nil
 	}
 
@@ -419,7 +419,7 @@ func TestActionService_ShowActionHighlight(t *testing.T) {
 	}
 
 	// Test with screen bounds error
-	mockAcc.GetScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
+	mockAcc.ScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
 		return image.Rectangle{}, derrors.New(
 			derrors.CodeAccessibilityFailed,
 			"screen bounds failed",
@@ -503,7 +503,7 @@ func TestActionService_MoveCursorToPoint(t *testing.T) {
 	}
 }
 
-func TestActionService_GetCursorPosition(t *testing.T) {
+func TestActionService_CursorPosition(t *testing.T) {
 	mockAcc := &mocks.MockAccessibilityPort{}
 	mockOverlay := &mocks.MockOverlayPort{}
 	logger := logger.Get()
@@ -514,26 +514,26 @@ func TestActionService_GetCursorPosition(t *testing.T) {
 	ctx := context.Background()
 
 	// Test successful get
-	mockAcc.GetCursorPositionFunc = func(_ context.Context) (image.Point, error) {
+	mockAcc.CursorPositionFunc = func(_ context.Context) (image.Point, error) {
 		return expectedPoint, nil
 	}
 
-	point, err := service.GetCursorPosition(ctx)
+	point, err := service.CursorPosition(ctx)
 	if err != nil {
-		t.Errorf("GetCursorPosition() returned error: %v", err)
+		t.Errorf("CursorPosition() returned error: %v", err)
 	}
 
 	if point != expectedPoint {
-		t.Errorf("GetCursorPosition() = %v, expected %v", point, expectedPoint)
+		t.Errorf("CursorPosition() = %v, expected %v", point, expectedPoint)
 	}
 
 	// Test with error
-	mockAcc.GetCursorPositionFunc = func(_ context.Context) (image.Point, error) {
+	mockAcc.CursorPositionFunc = func(_ context.Context) (image.Point, error) {
 		return image.Point{}, derrors.New(derrors.CodeAccessibilityFailed, "position failed")
 	}
 
-	_, err = service.GetCursorPosition(ctx)
+	_, err = service.CursorPosition(ctx)
 	if err == nil {
-		t.Error("GetCursorPosition() should return error when accessibility fails")
+		t.Error("CursorPosition() should return error when accessibility fails")
 	}
 }

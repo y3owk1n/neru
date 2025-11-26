@@ -70,53 +70,53 @@ type StyleMode struct {
 	borderColor      string
 }
 
-// GetFontSize returns the font size.
-func (s StyleMode) GetFontSize() int {
+// FontSize returns the font size.
+func (s StyleMode) FontSize() int {
 	return s.fontSize
 }
 
-// GetFontFamily returns the font family.
-func (s StyleMode) GetFontFamily() string {
+// FontFamily returns the font family.
+func (s StyleMode) FontFamily() string {
 	return s.fontFamily
 }
 
-// GetBorderRadius returns the border radius.
-func (s StyleMode) GetBorderRadius() int {
+// BorderRadius returns the border radius.
+func (s StyleMode) BorderRadius() int {
 	return s.borderRadius
 }
 
-// GetPadding returns the padding.
-func (s StyleMode) GetPadding() int {
+// Padding returns the padding.
+func (s StyleMode) Padding() int {
 	return s.padding
 }
 
-// GetBorderWidth returns the border width.
-func (s StyleMode) GetBorderWidth() int {
+// BorderWidth returns the border width.
+func (s StyleMode) BorderWidth() int {
 	return s.borderWidth
 }
 
-// GetOpacity returns the opacity.
-func (s StyleMode) GetOpacity() float64 {
+// Opacity returns the opacity.
+func (s StyleMode) Opacity() float64 {
 	return s.opacity
 }
 
-// GetBackgroundColor returns the background color.
-func (s StyleMode) GetBackgroundColor() string {
+// BackgroundColor returns the background color.
+func (s StyleMode) BackgroundColor() string {
 	return s.backgroundColor
 }
 
-// GetTextColor returns the text color.
-func (s StyleMode) GetTextColor() string {
+// TextColor returns the text color.
+func (s StyleMode) TextColor() string {
 	return s.textColor
 }
 
-// GetMatchedTextColor returns the matched text color.
-func (s StyleMode) GetMatchedTextColor() string {
+// MatchedTextColor returns the matched text color.
+func (s StyleMode) MatchedTextColor() string {
 	return s.matchedTextColor
 }
 
-// GetBorderColor returns the border color.
-func (s StyleMode) GetBorderColor() string {
+// BorderColor returns the border color.
+func (s StyleMode) BorderColor() string {
 	return s.borderColor
 }
 
@@ -166,16 +166,16 @@ func NewOverlayWithWindow(
 	}, nil
 }
 
-// GetWindow returns the underlying C overlay window.
-func (o *Overlay) GetWindow() C.OverlayWindow {
+// Window returns the underlying C overlay window.
+func (o *Overlay) Window() C.OverlayWindow {
 	return o.window
 }
 
-// GetConfig returns the hints config.
-func (o *Overlay) GetConfig() config.HintsConfig { return o.config }
+// Config returns the hints config.
+func (o *Overlay) Config() config.HintsConfig { return o.config }
 
-// GetLogger returns the logger.
-func (o *Overlay) GetLogger() *zap.Logger { return o.logger }
+// Logger returns the logger.
+func (o *Overlay) Logger() *zap.Logger { return o.logger }
 
 // Show shows the overlay.
 func (o *Overlay) Show() {
@@ -384,21 +384,21 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 
 	matchedCount := 0
 	for i, hint := range hints {
-		cLabels[i] = C.CString(hint.GetLabel())
+		cLabels[i] = C.CString(hint.Label())
 		cHints[i] = C.HintData{
 			label: cLabels[i],
 			position: C.CGPoint{
-				x: C.double(hint.GetPosition().X),
-				y: C.double(hint.GetPosition().Y),
+				x: C.double(hint.Position().X),
+				y: C.double(hint.Position().Y),
 			},
 			size: C.CGSize{
-				width:  C.double(hint.GetSize().X),
-				height: C.double(hint.GetSize().Y),
+				width:  C.double(hint.Size().X),
+				height: C.double(hint.Size().Y),
 			},
-			matchedPrefixLength: C.int(len(hint.GetMatchedPrefix())),
+			matchedPrefixLength: C.int(len(hint.MatchedPrefix())),
 		}
 
-		if len(hint.GetMatchedPrefix()) > 0 {
+		if len(hint.MatchedPrefix()) > 0 {
 			matchedCount++
 		}
 	}
@@ -408,11 +408,11 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		zap.Int("matched_hints", matchedCount))
 
 	// Create style
-	cFontFamily := C.CString(style.GetFontFamily())
-	cBgColor := C.CString(style.GetBackgroundColor())
-	cTextColor := C.CString(style.GetTextColor())
-	cMatchedTextColor := C.CString(style.GetMatchedTextColor())
-	cBorderColor := C.CString(style.GetBorderColor())
+	cFontFamily := C.CString(style.FontFamily())
+	cBgColor := C.CString(style.BackgroundColor())
+	cTextColor := C.CString(style.TextColor())
+	cMatchedTextColor := C.CString(style.MatchedTextColor())
+	cBorderColor := C.CString(style.BorderColor())
 
 	arrowFlag := 0
 	if showArrow {
@@ -420,16 +420,16 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	}
 
 	finalStyle := C.HintStyle{
-		fontSize:         C.int(style.GetFontSize()),
+		fontSize:         C.int(style.FontSize()),
 		fontFamily:       cFontFamily,
 		backgroundColor:  cBgColor,
 		textColor:        cTextColor,
 		matchedTextColor: cMatchedTextColor,
 		borderColor:      cBorderColor,
-		borderRadius:     C.int(style.GetBorderRadius()),
-		borderWidth:      C.int(style.GetBorderWidth()),
-		padding:          C.int(style.GetPadding()),
-		opacity:          C.double(style.GetOpacity()),
+		borderRadius:     C.int(style.BorderRadius()),
+		borderWidth:      C.int(style.BorderWidth()),
+		padding:          C.int(style.Padding()),
+		opacity:          C.double(style.Opacity()),
 		showArrow:        C.int(arrowFlag),
 	}
 

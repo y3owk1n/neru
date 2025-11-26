@@ -56,16 +56,16 @@ func (c *CursorState) Reset() {
 	c.skipRestoreOnce = false
 }
 
-// GetInitialPosition returns the captured cursor position.
-func (c *CursorState) GetInitialPosition() image.Point {
+// InitialPosition returns the captured cursor position.
+func (c *CursorState) InitialPosition() image.Point {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	return c.initialPos
 }
 
-// GetInitialScreenBounds returns the captured screen bounds.
-func (c *CursorState) GetInitialScreenBounds() image.Rectangle {
+// InitialScreenBounds returns the captured screen bounds.
+func (c *CursorState) InitialScreenBounds() image.Rectangle {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

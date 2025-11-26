@@ -20,22 +20,22 @@ func NewHint(label string, position, size image.Point, matchedPrefix string) *Hi
 	}
 }
 
-// GetLabel returns the hint label.
-func (h *Hint) GetLabel() string {
+// Label returns the hint label.
+func (h *Hint) Label() string {
 	return h.label
 }
 
-// GetPosition returns the hint position.
-func (h *Hint) GetPosition() image.Point {
+// Position returns the hint position.
+func (h *Hint) Position() image.Point {
 	return h.position
 }
 
-// GetSize returns the hint size.
-func (h *Hint) GetSize() image.Point {
+// Size returns the hint size.
+func (h *Hint) Size() image.Point {
 	return h.size
 }
 
-// GetMatchedPrefix returns the matched prefix.
-func (h *Hint) GetMatchedPrefix() string {
+// MatchedPrefix returns the matched prefix.
+func (h *Hint) MatchedPrefix() string {
 	return h.matchedPrefix
 }

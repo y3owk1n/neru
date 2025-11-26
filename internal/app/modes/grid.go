@@ -26,7 +26,7 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	h.prepareForModeActivation()
 
 	actionEnum := domain.ActionMoveMouse
-	actionString := domain.GetActionString(actionEnum)
+	actionString := domain.ActionString(actionEnum)
 	h.Logger.Info("Activating grid mode", zap.String("action", actionString))
 
 	h.ExitMode()
@@ -74,7 +74,7 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 
 // createGridInstance creates a new grid instance with proper bounds and characters.
 func (h *Handler) createGridInstance() *domainGrid.Grid {
-	screenBounds := bridge.GetActiveScreenBounds()
+	screenBounds := bridge.ActiveScreenBounds()
 
 	// Normalize normalizedBounds to window-local coordinates using helper function
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
@@ -92,7 +92,7 @@ func (h *Handler) createGridInstance() *domainGrid.Grid {
 
 // updateGridOverlayConfig updates the grid overlay configuration.
 func (h *Handler) updateGridOverlayConfig() {
-	(*h.Grid.Context.GridOverlay).UpdateConfig(h.Config.Grid)
+	(*h.Grid.Context.GridOverlay()).SetConfig(h.Config.Grid)
 }
 
 // initializeGridManager initializes the grid manager with the new grid instance.
@@ -103,7 +103,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 	if gridInstance == nil {
 		h.Logger.Warn("Grid instance is nil, creating with default bounds")
 
-		screenBounds := bridge.GetActiveScreenBounds()
+		screenBounds := bridge.ActiveScreenBounds()
 		bounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
 		gridInstance = domainGrid.NewGrid(h.Config.Grid.Characters, bounds, h.Logger)
 	}
@@ -145,7 +145,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 				return
 			}
 
-			input := h.Grid.Manager.GetInput()
+			input := h.Grid.Manager.CurrentInput()
 
 			// special case to handle only when exiting subgrid
 			if forceRedraw {
@@ -177,7 +177,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 			// Move mouse to center of cell before showing subgrid
 			ctx := context.Background()
 
-			moveCursorErr := h.ActionService.MoveCursorToPoint(ctx, cell.GetCenter())
+			moveCursorErr := h.ActionService.MoveCursorToPoint(ctx, cell.Center())
 			if moveCursorErr != nil {
 				h.Logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
 			}

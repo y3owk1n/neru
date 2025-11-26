@@ -166,7 +166,7 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 		{
 			name: "successful show",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
-				acc.GetScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
+				acc.ScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
 					return image.Rect(0, 0, 1920, 1080), nil
 				}
 				ov.DrawScrollHighlightFunc = func(_ context.Context, rect image.Rectangle, _ string, _ int) error {
@@ -182,7 +182,7 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 		{
 			name: "screen bounds error",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.GetScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
+				acc.ScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
 					return image.Rectangle{}, derrors.New(
 						derrors.CodeAccessibilityFailed,
 						"failed to get screen bounds",
@@ -194,7 +194,7 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 		{
 			name: "overlay draw error",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
-				acc.GetScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
+				acc.ScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
 					return image.Rect(0, 0, 1920, 1080), nil
 				}
 				ov.DrawScrollHighlightFunc = func(_ context.Context, _ image.Rectangle, _ string, _ int) error {

@@ -52,15 +52,15 @@ func PrintTree(node *TreeNode, depth int) {
 	}
 }
 
-// GetClickableElements retrieves all clickable UI elements in the frontmost window.
-func GetClickableElements() ([]*TreeNode, error) {
+// ClickableElements retrieves all clickable UI elements in the frontmost window.
+func ClickableElements() ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for frontmost window")
 
 	cacheOnce.Do(func() {
 		globalCache = NewInfoCache(5 * time.Second)
 	})
 
-	window := GetFrontmostWindow()
+	window := FrontmostWindow()
 	if window == nil {
 		logger.Warn("No frontmost window found")
 
@@ -84,15 +84,15 @@ func GetClickableElements() ([]*TreeNode, error) {
 	return elements, nil
 }
 
-// GetMenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
-func GetMenuBarClickableElements() ([]*TreeNode, error) {
+// MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
+func MenuBarClickableElements() ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
 
 	cacheOnce.Do(func() {
 		globalCache = NewInfoCache(5 * time.Second)
 	})
 
-	app := GetFocusedApplication()
+	app := FocusedApplication()
 	if app == nil {
 		logger.Debug("No focused application found")
 
@@ -100,7 +100,7 @@ func GetMenuBarClickableElements() ([]*TreeNode, error) {
 	}
 	defer app.Release()
 
-	menubar := app.GetMenuBar()
+	menubar := app.MenuBar()
 	if menubar == nil {
 		logger.Debug("No menu bar found")
 
@@ -130,15 +130,15 @@ func GetMenuBarClickableElements() ([]*TreeNode, error) {
 	return elements, nil
 }
 
-// GetClickableElementsFromBundleID retrieves clickable UI elements from the application identified by bundle ID.
-func GetClickableElementsFromBundleID(bundleID string) ([]*TreeNode, error) {
+// ClickableElementsFromBundleID retrieves clickable UI elements from the application identified by bundle ID.
+func ClickableElementsFromBundleID(bundleID string) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for bundle ID", zap.String("bundle_id", bundleID))
 
 	cacheOnce.Do(func() {
 		globalCache = NewInfoCache(5 * time.Second)
 	})
 
-	app := GetApplicationByBundleID(bundleID)
+	app := ApplicationByBundleID(bundleID)
 	if app == nil {
 		logger.Debug("Application not found for bundle ID", zap.String("bundle_id", bundleID))
 

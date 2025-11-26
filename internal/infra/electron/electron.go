@@ -28,9 +28,9 @@ var (
 // This allows Neru to properly interact with Electron applications that don't expose their
 // UI elements correctly to the macOS accessibility API.
 func EnsureElectronAccessibility(bundleID string) bool {
-	app := accessibility.GetApplicationByBundleID(bundleID)
+	app := accessibility.ApplicationByBundleID(bundleID)
 
-	info, infoErr := app.GetInfo()
+	info, infoErr := app.Info()
 	if infoErr != nil {
 		return false
 	}
@@ -79,9 +79,9 @@ func ensureAccessibility(
 	enabledPIDs map[int]struct{},
 	pidsMu *sync.Mutex,
 ) bool {
-	app := accessibility.GetApplicationByBundleID(bundleID)
+	app := accessibility.ApplicationByBundleID(bundleID)
 
-	info, infoErr := app.GetInfo()
+	info, infoErr := app.Info()
 	if infoErr != nil {
 		logger.Debug("Failed to inspect app window", zap.Error(infoErr))
 

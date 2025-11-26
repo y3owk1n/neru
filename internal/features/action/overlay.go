@@ -74,14 +74,14 @@ func NewOverlayWithWindow(
 	}, nil
 }
 
-// GetWindow returns the underlying C overlay window.
-func (o *Overlay) GetWindow() C.OverlayWindow { return o.window }
+// Window returns the underlying C overlay window.
+func (o *Overlay) Window() C.OverlayWindow { return o.window }
 
-// GetConfig returns the action configuration.
-func (o *Overlay) GetConfig() config.ActionConfig { return o.config }
+// Config returns the action configuration.
+func (o *Overlay) Config() config.ActionConfig { return o.config }
 
-// GetLogger returns the logger.
-func (o *Overlay) GetLogger() *zap.Logger { return o.logger }
+// Logger returns the logger.
+func (o *Overlay) Logger() *zap.Logger { return o.logger }
 
 // Show displays the action overlay window.
 func (o *Overlay) Show() {

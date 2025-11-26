@@ -69,21 +69,21 @@ func (m *mockOverlayManager) Subscribe(
 func (m *mockOverlayManager) Unsubscribe(_ uint64) {}
 func (m *mockOverlayManager) Destroy()             {}
 
-func (m *mockOverlayManager) GetMode() overlay.Mode { return overlay.ModeIdle }
+func (m *mockOverlayManager) Mode() overlay.Mode { return overlay.ModeIdle }
 
-func (m *mockOverlayManager) GetWindowPtr() unsafe.Pointer       { return nil }
+func (m *mockOverlayManager) WindowPtr() unsafe.Pointer          { return nil }
 func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)    {}
 func (m *mockOverlayManager) UseGridOverlay(_ *grid.Overlay)     {}
 func (m *mockOverlayManager) UseActionOverlay(_ *action.Overlay) {}
 func (m *mockOverlayManager) UseScrollOverlay(_ *scroll.Overlay) {}
 
-func (m *mockOverlayManager) GetHintOverlay() *hints.Overlay { return nil }
+func (m *mockOverlayManager) HintOverlay() *hints.Overlay { return nil }
 
-func (m *mockOverlayManager) GetGridOverlay() *grid.Overlay { return nil }
+func (m *mockOverlayManager) GridOverlay() *grid.Overlay { return nil }
 
-func (m *mockOverlayManager) GetActionOverlay() *action.Overlay { return nil }
+func (m *mockOverlayManager) ActionOverlay() *action.Overlay { return nil }
 
-func (m *mockOverlayManager) GetScrollOverlay() *scroll.Overlay { return nil }
+func (m *mockOverlayManager) ScrollOverlay() *scroll.Overlay { return nil }
 
 func (m *mockOverlayManager) DrawHintsWithStyle(
 	_ []*hints.Hint,

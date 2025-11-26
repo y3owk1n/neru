@@ -72,8 +72,8 @@ func SetClickableRoles(roles []string) {
 		zap.Strings("roles", roles))
 }
 
-// GetClickableRoles returns the configured clickable roles.
-func GetClickableRoles() []string {
+// ClickableRoles returns the configured clickable roles.
+func ClickableRoles() []string {
 	clickableRolesMu.RLock()
 	defer clickableRolesMu.RUnlock()
 
@@ -146,8 +146,8 @@ func CheckAccessibilityPermissions() bool {
 	return result == 1
 }
 
-// GetSystemWideElement returns the system-wide accessibility element representing the entire screen.
-func GetSystemWideElement() *Element {
+// SystemWideElement returns the system-wide accessibility element representing the entire screen.
+func SystemWideElement() *Element {
 	ref := C.getSystemWideElement()
 	if ref == nil {
 		return nil
@@ -156,8 +156,8 @@ func GetSystemWideElement() *Element {
 	return &Element{ref: ref}
 }
 
-// GetFocusedApplication returns the currently focused application element.
-func GetFocusedApplication() *Element {
+// FocusedApplication returns the currently focused application element.
+func FocusedApplication() *Element {
 	ref := C.getFocusedApplication()
 	if ref == nil {
 		return nil
@@ -166,8 +166,8 @@ func GetFocusedApplication() *Element {
 	return &Element{ref: ref}
 }
 
-// GetApplicationByPID returns an application element identified by its process ID.
-func GetApplicationByPID(pid int) *Element {
+// ApplicationByPID returns an application element identified by its process ID.
+func ApplicationByPID(pid int) *Element {
 	ref := C.getApplicationByPID(C.int(pid))
 	if ref == nil {
 		return nil
@@ -176,8 +176,8 @@ func GetApplicationByPID(pid int) *Element {
 	return &Element{ref: ref}
 }
 
-// GetApplicationByBundleID returns an application element identified by its bundle identifier.
-func GetApplicationByBundleID(bundleID string) *Element {
+// ApplicationByBundleID returns an application element identified by its bundle identifier.
+func ApplicationByBundleID(bundleID string) *Element {
 	cBundle := C.CString(bundleID)
 	defer C.free(unsafe.Pointer(cBundle)) //nolint:nlreturn
 
@@ -189,8 +189,8 @@ func GetApplicationByBundleID(bundleID string) *Element {
 	return &Element{ref: ref}
 }
 
-// GetElementAtPosition returns the UI element at the specified screen coordinates.
-func GetElementAtPosition(x, y int) *Element {
+// ElementAtPosition returns the UI element at the specified screen coordinates.
+func ElementAtPosition(x, y int) *Element {
 	pos := C.CGPoint{x: C.double(x), y: C.double(y)}
 	ref := C.getElementAtPosition(pos)
 	if ref == nil {
@@ -200,8 +200,8 @@ func GetElementAtPosition(x, y int) *Element {
 	return &Element{ref: ref}
 }
 
-// GetInfo retrieves metadata and positioning information for the element.
-func (e *Element) GetInfo() (*ElementInfo, error) {
+// Info retrieves metadata and positioning information for the element.
+func (e *Element) Info() (*ElementInfo, error) {
 	if e.ref == nil {
 		return nil, errGetInfoNil
 	}
@@ -239,8 +239,8 @@ func (e *Element) GetInfo() (*ElementInfo, error) {
 	return info, nil
 }
 
-// GetChildren returns all child elements of this element.
-func (e *Element) GetChildren() ([]*Element, error) {
+// Children returns all child elements of this element.
+func (e *Element) Children() ([]*Element, error) {
 	if e.ref == nil {
 		return nil, errGetChildrenNil
 	}
@@ -255,7 +255,7 @@ func (e *Element) GetChildren() ([]*Element, error) {
 
 	if info == nil {
 		var err error
-		info, err = e.GetInfo()
+		info, err = e.Info()
 		if err != nil {
 			return nil, derrors.Wrap(
 				err,
@@ -311,8 +311,8 @@ func (e *Element) SetFocus() error {
 	return nil
 }
 
-// GetAttribute gets a custom attribute value.
-func (e *Element) GetAttribute(name string) (string, error) {
+// Attribute gets a custom attribute value.
+func (e *Element) Attribute(name string) (string, error) {
 	if e.ref == nil {
 		return "", errGetAttributeNil
 	}
@@ -350,8 +350,8 @@ func ReleaseAll(elements []*Element) {
 	}
 }
 
-// GetAllWindows returns all windows of the focused application.
-func GetAllWindows() ([]*Element, error) {
+// AllWindows returns all windows of the focused application.
+func AllWindows() ([]*Element, error) {
 	var count C.int
 	windows := C.getAllWindows(&count)
 	if windows == nil || count == 0 {
@@ -369,8 +369,8 @@ func GetAllWindows() ([]*Element, error) {
 	return result, nil
 }
 
-// GetFrontmostWindow returns the frontmost window.
-func GetFrontmostWindow() *Element {
+// FrontmostWindow returns the frontmost window.
+func FrontmostWindow() *Element {
 	ref := C.getFrontmostWindow()
 	if ref == nil {
 		return nil
@@ -379,8 +379,8 @@ func GetFrontmostWindow() *Element {
 	return &Element{ref: ref}
 }
 
-// GetMenuBar returns the menu bar element for the given application element.
-func (e *Element) GetMenuBar() *Element {
+// MenuBar returns the menu bar element for the given application element.
+func (e *Element) MenuBar() *Element {
 	if e.ref == nil {
 		return nil
 	}
@@ -392,8 +392,8 @@ func (e *Element) GetMenuBar() *Element {
 	return &Element{ref: ref}
 }
 
-// GetApplicationName returns the application name.
-func (e *Element) GetApplicationName() string {
+// ApplicationName returns the application name.
+func (e *Element) ApplicationName() string {
 	if e.ref == nil {
 		return ""
 	}
@@ -407,8 +407,8 @@ func (e *Element) GetApplicationName() string {
 	return C.GoString(cName)
 }
 
-// GetBundleIdentifier returns the bundle identifier.
-func (e *Element) GetBundleIdentifier() string {
+// BundleIdentifier returns the bundle identifier.
+func (e *Element) BundleIdentifier() string {
 	if e.ref == nil {
 		return ""
 	}
@@ -422,8 +422,8 @@ func (e *Element) GetBundleIdentifier() string {
 	return C.GoString(cBundleID)
 }
 
-// GetScrollBounds returns the scroll area bounds.
-func (e *Element) GetScrollBounds() image.Rectangle {
+// ScrollBounds returns the scroll area bounds.
+func (e *Element) ScrollBounds() image.Rectangle {
 	if e.ref == nil {
 		return image.Rectangle{}
 	}
@@ -458,7 +458,7 @@ func MoveMouseToPoint(point image.Point) {
 
 // MoveMouseToPointSmooth moves the cursor smoothly to a specific screen point.
 func MoveMouseToPointSmooth(end image.Point, steps, delay int) {
-	start := GetCurrentCursorPosition()
+	start := CurrentCursorPosition()
 	startPos := C.CGPoint{x: C.double(start.X), y: C.double(start.Y)}
 	endPos := C.CGPoint{x: C.double(end.X), y: C.double(end.Y)}
 	C.moveMouseSmooth(startPos, endPos, C.int(steps), C.int(delay))
@@ -569,8 +569,8 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 	return nil
 }
 
-// GetCurrentCursorPosition returns the current cursor position in screen coordinates.
-func GetCurrentCursorPosition() image.Point {
+// CurrentCursorPosition returns the current cursor position in screen coordinates.
+func CurrentCursorPosition() image.Point {
 	pos := C.getCurrentCursorPosition()
 
 	return image.Point{X: int(pos.x), Y: int(pos.y)}
@@ -588,7 +588,7 @@ func (e *Element) IsClickable(info *ElementInfo) bool {
 		// Check if the app has an app-specific ignore_clickable_check
 		if config.Hints.AppConfigs != nil {
 			if len(config.Hints.AppConfigs) > 0 {
-				bundleID := e.GetBundleIdentifier()
+				bundleID := e.BundleIdentifier()
 				for _, appConfig := range config.Hints.AppConfigs {
 					if appConfig.BundleID == bundleID {
 						if appConfig.IgnoreClickableCheck {
@@ -614,7 +614,7 @@ func (e *Element) IsClickable(info *ElementInfo) bool {
 		}
 
 		if info == nil {
-			info, infoErr = e.GetInfo()
+			info, infoErr = e.Info()
 			if infoErr != nil {
 				return false
 			}

@@ -8,25 +8,25 @@ import (
 	"go.uber.org/zap"
 )
 
-func BenchmarkGetScreenBounds(b *testing.B) {
+func BenchmarkScreenBounds(b *testing.B) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
 	ctx := context.Background()
 
 	for b.Loop() {
-		_, _ = adapter.GetScreenBounds(ctx)
+		_, _ = adapter.ScreenBounds(ctx)
 	}
 }
 
-func BenchmarkGetCursorPosition(b *testing.B) {
+func BenchmarkCursorPosition(b *testing.B) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
 	ctx := context.Background()
 
 	for b.Loop() {
-		_, _ = adapter.GetCursorPosition(ctx)
+		_, _ = adapter.CursorPosition(ctx)
 	}
 }
 
