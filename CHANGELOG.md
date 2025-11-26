@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.10.3](https://github.com/y3owk1n/neru/compare/v1.10.2...v1.10.3) (2025-11-26)
+
+
+### Bug Fixes
+
+* add coding standard with stricter golangci config ([#196](https://github.com/y3owk1n/neru/issues/196)) ([8ab3f3b](https://github.com/y3owk1n/neru/commit/8ab3f3bc4577c3ec026d9aa9852abf794195de6c))
+* add more test and update some existing tests ([#192](https://github.com/y3owk1n/neru/issues/192)) ([50a59af](https://github.com/y3owk1n/neru/commit/50a59afa0b42e4e62959ef80a0efdfa9ba28a61f))
+* clang indent tab and format ([#202](https://github.com/y3owk1n/neru/issues/202)) ([8536bef](https://github.com/y3owk1n/neru/commit/8536bef1c4c869af7282898a956137317ac58a60))
+* cleanup some obvious comments and add some comments within complex functions ([#203](https://github.com/y3owk1n/neru/issues/203)) ([58f5164](https://github.com/y3owk1n/neru/commit/58f5164535b0e12a82e83ef68af0a59676282c6f))
+* crash in grid bench and move all bench test to its own file ([#191](https://github.com/y3owk1n/neru/issues/191)) ([97263a3](https://github.com/y3owk1n/neru/commit/97263a3ccc497991289ebd8e5ce89980d21be542))
+* ensure tests are all with blackbox approach ([#189](https://github.com/y3owk1n/neru/issues/189)) ([33c2223](https://github.com/y3owk1n/neru/commit/33c2223210e9b3a5a4af2e09faf6e1a9f2723f15))
+* make most struc private and expose getter and setter ([#197](https://github.com/y3owk1n/neru/issues/197)) ([83bdde4](https://github.com/y3owk1n/neru/commit/83bdde43cabee11a39d50e7075c160498b6a2266))
+* no magic numbers and some refactoring to adhere coding style ([#200](https://github.com/y3owk1n/neru/issues/200)) ([04433ec](https://github.com/y3owk1n/neru/commit/04433ec5df62d1f90e6b404e5c87863cc089c1ab))
+* remove `Get` keywords from getter ([#198](https://github.com/y3owk1n/neru/issues/198)) ([342b0bd](https://github.com/y3owk1n/neru/commit/342b0bdee2d67b530ec1fc1fa26acd5f7426b523))
+* remove unneeded globals ([#194](https://github.com/y3owk1n/neru/issues/194)) ([4418fd3](https://github.com/y3owk1n/neru/commit/4418fd398751ba7837c9eb1355bc2d6f288686f7))
+* update flake to support overlays [skip ci] ([#195](https://github.com/y3owk1n/neru/issues/195)) ([cea0a6e](https://github.com/y3owk1n/neru/commit/cea0a6ecac04fc4f942a089d1ebadee4706b677d))
+
 ## [1.10.2](https://github.com/y3owk1n/neru/compare/v1.10.1...v1.10.2) (2025-11-25)
 
 
