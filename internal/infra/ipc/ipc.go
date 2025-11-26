@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/domain/trace"
 	derrors "github.com/y3owk1n/neru/internal/errors"
+	"github.com/y3owk1n/neru/internal/infra/trace"
 	"go.uber.org/zap"
 )
 
@@ -29,6 +29,15 @@ const (
 	// ProtocolVersion is the current IPC protocol version.
 	// Increment this when making breaking changes to the IPC protocol.
 	ProtocolVersion = "1.0.0"
+
+	// ConnectionReadTimeout is the timeout for reading from a connection.
+	ConnectionReadTimeout = 30 * time.Second
+
+	// PingTimeout is the timeout for ping operations.
+	PingTimeout = 500 * time.Millisecond
+
+	// DefaultSocketPerms is the default socket permissions.
+	DefaultSocketPerms = 0o600
 )
 
 // Standard response codes used to indicate the result of IPC operations.
@@ -107,7 +116,7 @@ func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
 		return nil, derrors.Wrap(listenerErr, derrors.CodeIPCFailed, "failed to create socket")
 	}
 
-	updateSocketPermissionsErr := os.Chmod(socketPath, 0o600)
+	updateSocketPermissionsErr := os.Chmod(socketPath, DefaultSocketPerms)
 	if updateSocketPermissionsErr != nil {
 		_ = listener.Close()
 
@@ -213,7 +222,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 	}()
 
 	// Set read deadline to prevent hanging connections
-	connectionDeadline := connection.SetDeadline(time.Now().Add(30 * time.Second))
+	connectionDeadline := connection.SetDeadline(time.Now().Add(ConnectionReadTimeout))
 	if connectionDeadline != nil {
 		logger.Error("Failed to set connection deadline", zap.Error(connectionDeadline))
 
@@ -419,7 +428,7 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 // IsServerRunning determines if the IPC server is currently accepting connections.
 func IsServerRunning() bool {
 	client := NewClient()
-	_, err := client.SendWithTimeout(Command{Action: "ping"}, 500*time.Millisecond)
+	_, err := client.SendWithTimeout(Command{Action: "ping"}, PingTimeout)
 
 	return err == nil
 }

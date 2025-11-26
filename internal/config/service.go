@@ -124,7 +124,7 @@ func (s *Service) Validate(config *Config) error {
 
 	// Validate hints configuration
 	if config.Hints.Enabled {
-		if len(config.Hints.HintCharacters) < 2 {
+		if len(config.Hints.HintCharacters) < MinCharactersLength {
 			return derrors.Newf(derrors.CodeInvalidConfig,
 				"hints.hint_characters must have at least 2 characters, got %d",
 				len(config.Hints.HintCharacters))
@@ -138,7 +138,7 @@ func (s *Service) Validate(config *Config) error {
 
 	// Validate grid configuration
 	if config.Grid.Enabled {
-		if len(config.Grid.Characters) < 2 {
+		if len(config.Grid.Characters) < MinCharactersLength {
 			return derrors.Newf(derrors.CodeInvalidConfig,
 				"grid.characters must have at least 2 characters, got %d",
 				len(config.Grid.Characters))

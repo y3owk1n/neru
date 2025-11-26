@@ -15,7 +15,7 @@ func (c *Config) ValidateHints() error {
 		return derrors.New(derrors.CodeInvalidConfig, "hint_characters cannot be empty")
 	}
 
-	if len(c.Hints.HintCharacters) < 2 {
+	if len(c.Hints.HintCharacters) < MinCharactersLength {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"hint_characters must contain at least 2 characters",
@@ -159,7 +159,7 @@ func (c *Config) ValidateGrid() error {
 		return derrors.New(derrors.CodeInvalidConfig, "grid.characters cannot be empty")
 	}
 
-	if len(c.Grid.Characters) < 2 {
+	if len(c.Grid.Characters) < MinCharactersLength {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"grid.characters must contain at least 2 characters",

@@ -21,6 +21,13 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// MaxExecDisplayLength is the maximum length to display for exec commands.
+	MaxExecDisplayLength = 30
+	// SystrayQuitTimeout is the timeout for systray quit.
+	SystrayQuitTimeout = 10 * time.Second
+)
+
 // Run starts the main application loop and initializes all subsystems.
 func (a *App) Run() error {
 	a.logger.Info("Starting Neru")
@@ -241,7 +248,7 @@ func (a *App) printStartupInfo() {
 		toShow := value
 		if strings.HasPrefix(value, "exec") {
 			runes := []rune(value)
-			if len(runes) > 30 {
+			if len(runes) > MaxExecDisplayLength {
 				toShow = string(runes[:30]) + "..."
 			}
 		}
@@ -267,7 +274,7 @@ func (a *App) waitForShutdown() error {
 	}()
 
 	// Use timer instead of time.After to prevent memory leaks
-	timer := time.NewTimer(10 * time.Second)
+	timer := time.NewTimer(SystrayQuitTimeout)
 
 	select {
 	case <-done:

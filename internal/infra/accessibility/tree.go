@@ -11,11 +11,21 @@ import "C"
 import (
 	"image"
 	"sync"
-	"time"
 
 	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 	"go.uber.org/zap"
+)
+
+const (
+	// DefaultParallelThreshold is the default threshold for parallel processing.
+	DefaultParallelThreshold = 100
+
+	// DefaultMaxParallelDepth is the default max depth for parallel recursion.
+	DefaultMaxParallelDepth = 4
+
+	// DefaultChildrenCapacity is the default capacity for children.
+	DefaultChildrenCapacity = 8
 )
 
 // Pre-allocated common errors.
@@ -110,9 +120,9 @@ func DefaultTreeOptions() TreeOptions {
 	return TreeOptions{
 		filterFunc:         nil,
 		includeOutOfBounds: false,
-		cache:              NewInfoCache(5 * time.Second),
-		parallelThreshold:  100, // Default threshold for parallel processing
-		maxParallelDepth:   4,   // Default max depth for parallel recursion
+		cache:              NewInfoCache(DefaultCacheTTL),
+		parallelThreshold:  DefaultParallelThreshold,
+		maxParallelDepth:   DefaultMaxParallelDepth,
 	}
 }
 
@@ -150,9 +160,13 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 	windowBounds := rectFromInfo(info)
 
 	node := &TreeNode{
-		element:  root,
-		info:     info,
-		children: make([]*TreeNode, 0, 8), // Pre-allocate for typical children count
+		element: root,
+		info:    info,
+		children: make(
+			[]*TreeNode,
+			0,
+			DefaultChildrenCapacity,
+		), // Pre-allocate for typical children count
 	}
 
 	buildTreeRecursive(node, 1, opts, windowBounds)

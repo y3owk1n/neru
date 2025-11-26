@@ -21,9 +21,23 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// DefaultCallbackMapSize is the default size for callback maps.
+	DefaultCallbackMapSize = 8
+
+	// DefaultTimerDuration is the default timer duration.
+	DefaultTimerDuration = 2 * time.Second
+
+	// DefaultGridLinesCount is the default number of grid lines.
+	DefaultGridLinesCount = 4
+)
+
 var (
-	actionCallbackID   uint64
-	actionCallbackMap  = make(map[uint64]chan struct{}, 8) // Pre-size for typical usage
+	actionCallbackID  uint64
+	actionCallbackMap = make(
+		map[uint64]chan struct{},
+		DefaultCallbackMapSize,
+	) // Pre-size for typical usage
 	actionCallbackLock sync.Mutex
 )
 
@@ -141,7 +155,7 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 		}
 
 		// Use timer instead of time.After to prevent memory leaks
-		timer := time.NewTimer(2 * time.Second)
+		timer := time.NewTimer(DefaultTimerDuration)
 		defer timer.Stop()
 
 		select {
@@ -178,7 +192,7 @@ func (o *Overlay) DrawActionHighlight(xCoordinate, yCoordinate, width, height in
 	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
 
 	// Build 4 border lines around the rectangle
-	lines := make([]C.CGRect, 4)
+	lines := make([]C.CGRect, DefaultGridLinesCount)
 
 	// Bottom
 	lines[0] = C.CGRect{
@@ -210,7 +224,14 @@ func (o *Overlay) DrawActionHighlight(xCoordinate, yCoordinate, width, height in
 		size: C.CGSize{width: C.double(highlightWidth), height: C.double(height)},
 	}
 
-	C.NeruDrawGridLines(o.window, &lines[0], C.int(4), cColor, C.int(highlightWidth), C.double(1.0))
+	C.NeruDrawGridLines(
+		o.window,
+		&lines[0],
+		C.int(DefaultGridLinesCount),
+		cColor,
+		C.int(highlightWidth),
+		C.double(1.0),
+	)
 }
 
 // UpdateConfig updates the overlay configuration.

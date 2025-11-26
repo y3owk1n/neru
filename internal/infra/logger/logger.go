@@ -12,6 +12,11 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+const (
+	// DefaultDirPerms is the default directory permissions.
+	DefaultDirPerms = 0o750
+)
+
 var (
 	// globalLogger is the global logger instance.
 	globalLogger *zap.Logger
@@ -100,7 +105,7 @@ func Init(
 		// Create log directory
 		logDir := filepath.Dir(logFilePath)
 
-		mkdirErr := os.MkdirAll(logDir, 0o750)
+		mkdirErr := os.MkdirAll(logDir, DefaultDirPerms)
 		if mkdirErr != nil {
 			return derrors.Wrap(
 				mkdirErr,

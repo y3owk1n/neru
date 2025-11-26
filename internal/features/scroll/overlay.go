@@ -21,9 +21,23 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// DefaultCallbackMapSize is the default size for callback maps.
+	DefaultCallbackMapSize = 8
+
+	// DefaultTimerDuration is the default timer duration.
+	DefaultTimerDuration = 2 * time.Second
+
+	// DefaultGridLinesCount is the default number of grid lines.
+	DefaultGridLinesCount = 4
+)
+
 var (
-	scrollCallbackID   uint64
-	scrollCallbackMap  = make(map[uint64]chan struct{}, 8) // Pre-size for typical usage
+	scrollCallbackID  uint64
+	scrollCallbackMap = make(
+		map[uint64]chan struct{},
+		DefaultCallbackMapSize,
+	) // Pre-size for typical usage
 	scrollCallbackLock sync.Mutex
 )
 
@@ -147,7 +161,7 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 		}
 
 		// Use timer instead of time.After to prevent memory leaks
-		timer := time.NewTimer(2 * time.Second)
+		timer := time.NewTimer(DefaultTimerDuration)
 		defer timer.Stop()
 
 		select {
@@ -184,7 +198,7 @@ func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height in
 	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
 
 	// Build 4 border lines around the rectangle
-	lines := make([]C.CGRect, 4)
+	lines := make([]C.CGRect, DefaultGridLinesCount)
 
 	// Bottom
 	lines[0] = C.CGRect{
@@ -213,7 +227,14 @@ func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height in
 		size:   C.CGSize{width: C.double(borderWidth), height: C.double(height)},
 	}
 
-	C.NeruDrawGridLines(o.window, &lines[0], C.int(4), cColor, C.int(borderWidth), C.double(1.0))
+	C.NeruDrawGridLines(
+		o.window,
+		&lines[0],
+		C.int(DefaultGridLinesCount),
+		cColor,
+		C.int(borderWidth),
+		C.double(1.0),
+	)
 }
 
 // UpdateConfig updates the overlay configuration.

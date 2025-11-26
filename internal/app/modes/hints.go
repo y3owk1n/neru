@@ -11,6 +11,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// HintTimeout is the timeout for hint operations.
+	HintTimeout = 5 * time.Second
+)
+
 // ActivateMode activates a mode with a given action (for hints mode).
 func (h *Handler) ActivateMode(mode domain.Mode) {
 	h.ActivateModeWithAction(mode, nil)
@@ -84,7 +89,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	h.AppState.SetHintOverlayNeedsRefresh(false)
 
 	// Use new HintService to show hints
-	context, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	context, cancel := context.WithTimeout(context.Background(), HintTimeout)
 	defer cancel()
 
 	filter := ports.DefaultElementFilter()

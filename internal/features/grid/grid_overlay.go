@@ -24,9 +24,29 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// DefaultCallbackMapSize is the default size for callback maps.
+	DefaultCallbackMapSize = 8
+
+	// DefaultTimerDuration is the default timer duration.
+	DefaultTimerDuration = 2 * time.Second
+
+	// DefaultGridLinesCount is the default number of grid lines.
+	DefaultGridLinesCount = 4
+
+	// GridMaxChars is the max chars for grid.
+	GridMaxChars = 9
+
+	// RoundingFactor is the factor for rounding.
+	RoundingFactor = 0.5
+)
+
 var (
-	gridCallbackID        uint64
-	gridCallbackMap       = make(map[uint64]chan struct{}, 8) // Pre-size for typical usage
+	gridCallbackID  uint64
+	gridCallbackMap = make(
+		map[uint64]chan struct{},
+		DefaultCallbackMapSize,
+	) // Pre-size for typical usage
 	gridCallbackLock      sync.Mutex
 	gridCellSlicePool     sync.Pool
 	gridLabelSlicePool    sync.Pool
@@ -89,14 +109,15 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) *Overlay {
 	if strings.TrimSpace(chars) == "" {
 		chars = config.Characters
 	}
+
 	go domainGrid.Prewarm(chars, []image.Rectangle{
-		image.Rect(0, 0, 1280, 800),
-		image.Rect(0, 0, 1366, 768),
-		image.Rect(0, 0, 1440, 900),
-		image.Rect(0, 0, 1920, 1080),
-		image.Rect(0, 0, 2560, 1440),
-		image.Rect(0, 0, 3440, 1440),
-		image.Rect(0, 0, 3840, 2160),
+		image.Rect(0, 0, 1280, 800),  //nolint:mnd
+		image.Rect(0, 0, 1366, 768),  //nolint:mnd
+		image.Rect(0, 0, 1440, 900),  //nolint:mnd
+		image.Rect(0, 0, 1920, 1080), //nolint:mnd
+		image.Rect(0, 0, 2560, 1440), //nolint:mnd
+		image.Rect(0, 0, 3440, 1440), //nolint:mnd
+		image.Rect(0, 0, 3840, 2160), //nolint:mnd
 	})
 
 	return &Overlay{
@@ -117,14 +138,15 @@ func NewOverlayWithWindow(
 	if strings.TrimSpace(chars) == "" {
 		chars = config.Characters
 	}
+
 	go domainGrid.Prewarm(chars, []image.Rectangle{
-		image.Rect(0, 0, 1280, 800),
-		image.Rect(0, 0, 1366, 768),
-		image.Rect(0, 0, 1440, 900),
-		image.Rect(0, 0, 1920, 1080),
-		image.Rect(0, 0, 2560, 1440),
-		image.Rect(0, 0, 3440, 1440),
-		image.Rect(0, 0, 3840, 2160),
+		image.Rect(0, 0, 1280, 800),  //nolint:mnd
+		image.Rect(0, 0, 1366, 768),  //nolint:mnd
+		image.Rect(0, 0, 1440, 900),  //nolint:mnd
+		image.Rect(0, 0, 1920, 1080), //nolint:mnd
+		image.Rect(0, 0, 2560, 1440), //nolint:mnd
+		image.Rect(0, 0, 3440, 1440), //nolint:mnd
+		image.Rect(0, 0, 3840, 2160), //nolint:mnd
 	})
 
 	return &Overlay{
@@ -241,7 +263,7 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 		}
 
 		// Use timer instead of time.After to prevent memory leaks
-		timer := time.NewTimer(2 * time.Second)
+		timer := time.NewTimer(DefaultTimerDuration)
 		defer timer.Stop()
 
 		select {
@@ -315,7 +337,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	const cols = 3
 
 	// If not enough characters, adjust count to available characters
-	count := min(len(chars), 9)
+	count := min(len(chars), GridMaxChars)
 
 	tmpCells := subgridCellSlicePool.Get()
 	cellsPtr, _ := tmpCells.(*[]C.GridCell)
@@ -345,11 +367,11 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	for breakIndex := 1; breakIndex <= cols; breakIndex++ {
 		// round(i * width / cols)
 		val := float64(breakIndex) * float64(cellBounds.Dx()) / float64(cols)
-		xBreaks[breakIndex] = cellBounds.Min.X + int(val+0.5)
+		xBreaks[breakIndex] = cellBounds.Min.X + int(val+RoundingFactor)
 	}
 	for breakIndex := 1; breakIndex <= rows; breakIndex++ {
 		val := float64(breakIndex) * float64(cellBounds.Dy()) / float64(rows)
-		yBreaks[breakIndex] = cellBounds.Min.Y + int(val+0.5)
+		yBreaks[breakIndex] = cellBounds.Min.Y + int(val+RoundingFactor)
 	}
 
 	// Ensure last break exactly matches bounds max to avoid 1px drift
@@ -429,7 +451,7 @@ func (o *Overlay) DrawScrollHighlight(
 	cColor := C.CString(color)
 	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
 	// Build 4 border lines around the rectangle
-	lines := make([]C.CGRect, 4)
+	lines := make([]C.CGRect, DefaultGridLinesCount)
 	// Bottom
 	lines[0] = C.CGRect{
 		origin: C.CGPoint{x: C.double(xCoordinate), y: C.double(yCoordinate)},
@@ -453,7 +475,14 @@ func (o *Overlay) DrawScrollHighlight(
 		origin: C.CGPoint{x: C.double(xCoordinate + width - borderWidth), y: C.double(yCoordinate)},
 		size:   C.CGSize{width: C.double(borderWidth), height: C.double(height)},
 	}
-	C.NeruDrawGridLines(o.window, &lines[0], C.int(4), cColor, C.int(borderWidth), C.double(1.0))
+	C.NeruDrawGridLines(
+		o.window,
+		&lines[0],
+		C.int(DefaultGridLinesCount),
+		cColor,
+		C.int(borderWidth),
+		C.double(1.0),
+	)
 }
 
 // drawGridCells draws all grid cells with their labels.

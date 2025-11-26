@@ -21,9 +21,20 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// DefaultCallbackMapSize is the default size for callback maps.
+	DefaultCallbackMapSize = 8
+
+	// DefaultTimerDuration is the default timer duration.
+	DefaultTimerDuration = 2 * time.Second
+)
+
 var (
-	hintCallbackID   uint64
-	hintCallbackMap  = make(map[uint64]chan struct{}, 8) // Pre-size for typical usage
+	hintCallbackID  uint64
+	hintCallbackMap = make(
+		map[uint64]chan struct{},
+		DefaultCallbackMapSize,
+	) // Pre-size for typical usage
 	hintCallbackLock sync.Mutex
 	hintDataPool     sync.Pool
 	cLabelSlicePool  sync.Pool
@@ -235,7 +246,7 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 		}
 
 		// Use timer instead of time.After to prevent memory leaks
-		timer := time.NewTimer(2 * time.Second)
+		timer := time.NewTimer(DefaultTimerDuration)
 		defer timer.Stop()
 
 		select {

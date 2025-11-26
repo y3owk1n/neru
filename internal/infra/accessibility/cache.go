@@ -9,6 +9,17 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// DefaultCacheSize is the default cache size.
+	DefaultCacheSize = 100
+
+	// CacheCleanupDivisor is the divisor for cleanup interval.
+	CacheCleanupDivisor = 2
+
+	// CacheDeletionEstimate is the estimate for deletion.
+	CacheDeletionEstimate = 4
+)
+
 // CachedInfo wraps ElementInfo with an expiration timestamp for TTL-based caching.
 type CachedInfo struct {
 	info      *ElementInfo
@@ -27,7 +38,7 @@ type InfoCache struct {
 // NewInfoCache initializes a new cache with the specified time-to-live duration.
 func NewInfoCache(ttl time.Duration) *InfoCache {
 	cache := &InfoCache{
-		data:   make(map[uintptr]*CachedInfo, 100),
+		data:   make(map[uintptr]*CachedInfo, DefaultCacheSize),
 		ttl:    ttl,
 		stopCh: make(chan struct{}),
 	}
@@ -92,7 +103,7 @@ func (c *InfoCache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.data = make(map[uintptr]*CachedInfo, 100)
+	c.data = make(map[uintptr]*CachedInfo, DefaultCacheSize)
 
 	logger.Debug("Cache cleared")
 }
@@ -109,7 +120,7 @@ func (c *InfoCache) Stop() {
 
 // cleanupLoop runs a periodic cleanup process to remove expired cache entries.
 func (c *InfoCache) cleanupLoop() {
-	ticker := time.NewTicker(c.ttl / 2) // Cleanup at half the TTL interval
+	ticker := time.NewTicker(c.ttl / CacheCleanupDivisor) // Cleanup at half the TTL interval
 	defer ticker.Stop()
 
 	for {
@@ -131,7 +142,11 @@ func (c *InfoCache) cleanup() {
 
 	now := time.Now()
 	// Pre-allocate slice for keys to delete
-	toDelete := make([]uintptr, 0, len(c.data)/4) // Estimate 25% might be expired
+	toDelete := make(
+		[]uintptr,
+		0,
+		len(c.data)/CacheDeletionEstimate,
+	) // Estimate 25% might be expired
 
 	for key, cached := range c.data {
 		if now.After(cached.expiresAt) {

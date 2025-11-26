@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/domain/trace"
+	"github.com/y3owk1n/neru/internal/infra/trace"
 )
 
 func TestTraceID(t *testing.T) {

@@ -1,4 +1,3 @@
-// Package overlay provides overlay functionality for the Neru application.
 package overlay
 
 /*
@@ -18,6 +17,11 @@ import (
 	"github.com/y3owk1n/neru/internal/features/hints"
 	"github.com/y3owk1n/neru/internal/features/scroll"
 	"go.uber.org/zap"
+)
+
+const (
+	// DefaultSubscriberMapSize is the default size for subscriber map.
+	DefaultSubscriberMapSize = 4
 )
 
 // Mode represents the overlay mode.
@@ -116,7 +120,10 @@ func Init(logger *zap.Logger) *Manager {
 			window: window,
 			logger: logger,
 			mode:   ModeIdle,
-			subs:   make(map[uint64]func(StateChange), 4), // Pre-size for typical subscriber count
+			subs: make(
+				map[uint64]func(StateChange),
+				DefaultSubscriberMapSize,
+			), // Pre-size for typical subscriber count
 		}
 	})
 
