@@ -73,6 +73,20 @@ type Overlay struct {
 	window C.OverlayWindow
 	config config.GridConfig
 	logger *zap.Logger
+
+	// Cached C strings for style properties to reduce allocations
+	cachedStyleMu            sync.RWMutex
+	cachedFontFamily         *C.char
+	cachedBgColor            *C.char
+	cachedTextColor          *C.char
+	cachedMatchedTextColor   *C.char
+	cachedMatchedBgColor     *C.char
+	cachedMatchedBorderColor *C.char
+	cachedBorderColor        *C.char
+	cachedHighlightColor     *C.char
+
+	// Pre-allocated buffer for grid lines (always 4 lines for highlights)
+	gridLineBuffer [DefaultGridLinesCount]C.CGRect
 }
 
 // initGridPools initializes the grid object pools once.
@@ -207,6 +221,7 @@ func (o *Overlay) Clear() {
 
 // Destroy destroys the grid overlay window.
 func (o *Overlay) Destroy() {
+	o.freeStyleCache()
 	C.NeruDestroyOverlayWindow(o.window)
 }
 
@@ -401,13 +416,9 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 		cells[cellIndex] = gridCell
 	}
 
-	fontFamily := C.CString(style.FontFamily())
-	backgroundColor := C.CString(style.BackgroundColor())
-	textColor := C.CString(style.TextColor())
-	matchedTextColor := C.CString(style.MatchedTextColor())
-	matchedBackgroundColor := C.CString(style.MatchedBackgroundColor())
-	matchedBorderColor := C.CString(style.MatchedBorderColor())
-	borderColor := C.CString(style.BorderColor())
+	// Use cached style strings to avoid repeated allocations
+	fontFamily, backgroundColor, textColor, matchedTextColor,
+		matchedBackgroundColor, matchedBorderColor, borderColor := o.getCachedStyleStrings(style)
 
 	finalStyle := C.GridCellStyle{
 		fontSize:               C.int(style.FontSize()),
@@ -433,13 +444,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	*labelsPtr = (*labelsPtr)[:0]
 	subgridCellSlicePool.Put(cellsPtr)
 	subgridLabelSlicePool.Put(labelsPtr)
-	C.free(unsafe.Pointer(fontFamily))
-	C.free(unsafe.Pointer(backgroundColor))
-	C.free(unsafe.Pointer(textColor))
-	C.free(unsafe.Pointer(matchedTextColor))
-	C.free(unsafe.Pointer(matchedBackgroundColor))
-	C.free(unsafe.Pointer(matchedBorderColor))
-	C.free(unsafe.Pointer(borderColor))
+	// Note: We don't free cached style strings - they're reused across draws
 }
 
 // DrawScrollHighlight draws a scroll highlight.
@@ -448,17 +453,23 @@ func (o *Overlay) DrawScrollHighlight(
 	color string,
 	borderWidth int,
 ) {
-	cColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
-	// Build 4 border lines around the rectangle
-	lines := make([]C.CGRect, DefaultGridLinesCount)
+	// Cache color string if needed
+	o.cachedStyleMu.Lock()
+	if o.cachedHighlightColor != nil {
+		C.free(unsafe.Pointer(o.cachedHighlightColor))
+	}
+	o.cachedHighlightColor = C.CString(color)
+	cColor := o.cachedHighlightColor
+	o.cachedStyleMu.Unlock()
+
+	// Use pre-allocated buffer for grid lines (always 4 lines for highlights)
 	// Bottom
-	lines[0] = C.CGRect{
+	o.gridLineBuffer[0] = C.CGRect{
 		origin: C.CGPoint{x: C.double(xCoordinate), y: C.double(yCoordinate)},
 		size:   C.CGSize{width: C.double(width), height: C.double(borderWidth)},
 	}
 	// Top
-	lines[1] = C.CGRect{
+	o.gridLineBuffer[1] = C.CGRect{
 		origin: C.CGPoint{
 			x: C.double(xCoordinate),
 			y: C.double(yCoordinate + height - borderWidth),
@@ -466,23 +477,135 @@ func (o *Overlay) DrawScrollHighlight(
 		size: C.CGSize{width: C.double(width), height: C.double(borderWidth)},
 	}
 	// Left
-	lines[2] = C.CGRect{
+	o.gridLineBuffer[2] = C.CGRect{
 		origin: C.CGPoint{x: C.double(xCoordinate), y: C.double(yCoordinate)},
 		size:   C.CGSize{width: C.double(borderWidth), height: C.double(height)},
 	}
 	// Right
-	lines[3] = C.CGRect{
+	o.gridLineBuffer[3] = C.CGRect{
 		origin: C.CGPoint{x: C.double(xCoordinate + width - borderWidth), y: C.double(yCoordinate)},
 		size:   C.CGSize{width: C.double(borderWidth), height: C.double(height)},
 	}
 	C.NeruDrawGridLines(
 		o.window,
-		&lines[0],
+		&o.gridLineBuffer[0],
 		C.int(DefaultGridLinesCount),
 		cColor,
 		C.int(borderWidth),
 		C.double(1.0),
 	)
+}
+
+// freeStyleCache frees all cached C strings.
+func (o *Overlay) freeStyleCache() {
+	o.cachedStyleMu.Lock()
+	defer o.cachedStyleMu.Unlock()
+
+	if o.cachedFontFamily != nil {
+		C.free(unsafe.Pointer(o.cachedFontFamily))
+		o.cachedFontFamily = nil
+	}
+	if o.cachedBgColor != nil {
+		C.free(unsafe.Pointer(o.cachedBgColor))
+		o.cachedBgColor = nil
+	}
+	if o.cachedTextColor != nil {
+		C.free(unsafe.Pointer(o.cachedTextColor))
+		o.cachedTextColor = nil
+	}
+	if o.cachedMatchedTextColor != nil {
+		C.free(unsafe.Pointer(o.cachedMatchedTextColor))
+		o.cachedMatchedTextColor = nil
+	}
+	if o.cachedMatchedBgColor != nil {
+		C.free(unsafe.Pointer(o.cachedMatchedBgColor))
+		o.cachedMatchedBgColor = nil
+	}
+	if o.cachedMatchedBorderColor != nil {
+		C.free(unsafe.Pointer(o.cachedMatchedBorderColor))
+		o.cachedMatchedBorderColor = nil
+	}
+	if o.cachedBorderColor != nil {
+		C.free(unsafe.Pointer(o.cachedBorderColor))
+		o.cachedBorderColor = nil
+	}
+	if o.cachedHighlightColor != nil {
+		C.free(unsafe.Pointer(o.cachedHighlightColor))
+		o.cachedHighlightColor = nil
+	}
+}
+
+// updateStyleCacheLocked updates cached C strings for the current style.
+// Must be called with cachedStyleMu write lock held.
+func (o *Overlay) updateStyleCacheLocked(style Style) {
+	// Free old cached strings
+	if o.cachedFontFamily != nil {
+		C.free(unsafe.Pointer(o.cachedFontFamily))
+	}
+	if o.cachedBgColor != nil {
+		C.free(unsafe.Pointer(o.cachedBgColor))
+	}
+	if o.cachedTextColor != nil {
+		C.free(unsafe.Pointer(o.cachedTextColor))
+	}
+	if o.cachedMatchedTextColor != nil {
+		C.free(unsafe.Pointer(o.cachedMatchedTextColor))
+	}
+	if o.cachedMatchedBgColor != nil {
+		C.free(unsafe.Pointer(o.cachedMatchedBgColor))
+	}
+	if o.cachedMatchedBorderColor != nil {
+		C.free(unsafe.Pointer(o.cachedMatchedBorderColor))
+	}
+	if o.cachedBorderColor != nil {
+		C.free(unsafe.Pointer(o.cachedBorderColor))
+	}
+
+	// Create new cached strings
+	o.cachedFontFamily = C.CString(style.FontFamily())
+	o.cachedBgColor = C.CString(style.BackgroundColor())
+	o.cachedTextColor = C.CString(style.TextColor())
+	o.cachedMatchedTextColor = C.CString(style.MatchedTextColor())
+	o.cachedMatchedBgColor = C.CString(style.MatchedBackgroundColor())
+	o.cachedMatchedBorderColor = C.CString(style.MatchedBorderColor())
+	o.cachedBorderColor = C.CString(style.BorderColor())
+}
+
+// getCachedStyleStrings returns cached C strings for style, updating cache if needed.
+func (o *Overlay) getCachedStyleStrings(
+	style Style,
+) (*C.char, *C.char, *C.char, *C.char, *C.char, *C.char, *C.char) {
+	o.cachedStyleMu.RLock()
+	// Check if cache is valid (simple check - if any is nil, rebuild all)
+	if o.cachedFontFamily == nil {
+		o.cachedStyleMu.RUnlock()
+		o.cachedStyleMu.Lock()
+		// Double-check after acquiring write lock
+		if o.cachedFontFamily == nil {
+			o.updateStyleCacheLocked(style)
+		}
+		fontFamily := o.cachedFontFamily
+		bgColor := o.cachedBgColor
+		textColor := o.cachedTextColor
+		matchedTextColor := o.cachedMatchedTextColor
+		matchedBgColor := o.cachedMatchedBgColor
+		matchedBorderColor := o.cachedMatchedBorderColor
+		borderColor := o.cachedBorderColor
+		o.cachedStyleMu.Unlock()
+
+		return fontFamily, bgColor, textColor, matchedTextColor, matchedBgColor, matchedBorderColor, borderColor
+	}
+
+	fontFamily := o.cachedFontFamily
+	bgColor := o.cachedBgColor
+	textColor := o.cachedTextColor
+	matchedTextColor := o.cachedMatchedTextColor
+	matchedBgColor := o.cachedMatchedBgColor
+	matchedBorderColor := o.cachedMatchedBorderColor
+	borderColor := o.cachedBorderColor
+	o.cachedStyleMu.RUnlock()
+
+	return fontFamily, bgColor, textColor, matchedTextColor, matchedBgColor, matchedBorderColor, borderColor
 }
 
 // drawGridCells draws all grid cells with their labels.
@@ -547,13 +670,9 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 		zap.Int("total_cells", len(cellsGo)),
 		zap.Int("matched_cells", matchedCount))
 
-	fontFamily := C.CString(style.FontFamily())
-	backgroundColor := C.CString(style.BackgroundColor())
-	textColor := C.CString(style.TextColor())
-	matchedTextColor := C.CString(style.MatchedTextColor())
-	matchedBackgroundColor := C.CString(style.MatchedBackgroundColor())
-	matchedBorderColor := C.CString(style.MatchedBorderColor())
-	borderColor := C.CString(style.BorderColor())
+	// Use cached style strings to avoid repeated allocations
+	fontFamily, backgroundColor, textColor, matchedTextColor,
+		matchedBackgroundColor, matchedBorderColor, borderColor := o.getCachedStyleStrings(style)
 
 	finalStyle := C.GridCellStyle{
 		fontSize:               C.int(style.FontSize()),
@@ -579,13 +698,7 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 	*cLabelsPtr = (*cLabelsPtr)[:0]
 	gridCellSlicePool.Put(cGridCellsPtr)
 	gridLabelSlicePool.Put(cLabelsPtr)
-	C.free(unsafe.Pointer(fontFamily))
-	C.free(unsafe.Pointer(backgroundColor))
-	C.free(unsafe.Pointer(textColor))
-	C.free(unsafe.Pointer(matchedTextColor))
-	C.free(unsafe.Pointer(matchedBackgroundColor))
-	C.free(unsafe.Pointer(matchedBorderColor))
-	C.free(unsafe.Pointer(borderColor))
+	// Note: We don't free cached style strings - they're reused across draws
 }
 
 // Style represents the visual style for grid cells.

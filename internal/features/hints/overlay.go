@@ -65,6 +65,15 @@ type Overlay struct {
 	window C.OverlayWindow
 	config config.HintsConfig
 	logger *zap.Logger
+
+	// Cached C strings for style properties to reduce allocations
+	cachedStyleMu          sync.RWMutex
+	cachedFontFamily       *C.char
+	cachedBgColor          *C.char
+	cachedTextColor        *C.char
+	cachedMatchedTextColor *C.char
+	cachedBorderColor      *C.char
+	cachedHighlightColor   *C.char
 }
 
 // StyleMode represents the visual styling configuration for hint overlays.
@@ -360,9 +369,102 @@ func (o *Overlay) UpdateConfig(config config.HintsConfig) {
 // Destroy destroys the overlay.
 func (o *Overlay) Destroy() {
 	if o.window != nil {
+		o.freeStyleCache()
 		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
 	}
+}
+
+// freeStyleCache frees all cached C strings.
+func (o *Overlay) freeStyleCache() {
+	o.cachedStyleMu.Lock()
+	defer o.cachedStyleMu.Unlock()
+
+	if o.cachedFontFamily != nil {
+		C.free(unsafe.Pointer(o.cachedFontFamily))
+		o.cachedFontFamily = nil
+	}
+	if o.cachedBgColor != nil {
+		C.free(unsafe.Pointer(o.cachedBgColor))
+		o.cachedBgColor = nil
+	}
+	if o.cachedTextColor != nil {
+		C.free(unsafe.Pointer(o.cachedTextColor))
+		o.cachedTextColor = nil
+	}
+	if o.cachedMatchedTextColor != nil {
+		C.free(unsafe.Pointer(o.cachedMatchedTextColor))
+		o.cachedMatchedTextColor = nil
+	}
+	if o.cachedBorderColor != nil {
+		C.free(unsafe.Pointer(o.cachedBorderColor))
+		o.cachedBorderColor = nil
+	}
+	if o.cachedHighlightColor != nil {
+		C.free(unsafe.Pointer(o.cachedHighlightColor))
+		o.cachedHighlightColor = nil
+	}
+}
+
+// updateStyleCacheLocked updates cached C strings for the current style.
+// Must be called with cachedStyleMu write lock held.
+func (o *Overlay) updateStyleCacheLocked(style StyleMode) {
+	// Free old cached strings
+	if o.cachedFontFamily != nil {
+		C.free(unsafe.Pointer(o.cachedFontFamily))
+	}
+	if o.cachedBgColor != nil {
+		C.free(unsafe.Pointer(o.cachedBgColor))
+	}
+	if o.cachedTextColor != nil {
+		C.free(unsafe.Pointer(o.cachedTextColor))
+	}
+	if o.cachedMatchedTextColor != nil {
+		C.free(unsafe.Pointer(o.cachedMatchedTextColor))
+	}
+	if o.cachedBorderColor != nil {
+		C.free(unsafe.Pointer(o.cachedBorderColor))
+	}
+
+	// Create new cached strings
+	o.cachedFontFamily = C.CString(style.FontFamily())
+	o.cachedBgColor = C.CString(style.BackgroundColor())
+	o.cachedTextColor = C.CString(style.TextColor())
+	o.cachedMatchedTextColor = C.CString(style.MatchedTextColor())
+	o.cachedBorderColor = C.CString(style.BorderColor())
+}
+
+// getCachedStyleStrings returns cached C strings for style, updating cache if needed.
+func (o *Overlay) getCachedStyleStrings(
+	style StyleMode,
+) (*C.char, *C.char, *C.char, *C.char, *C.char) {
+	o.cachedStyleMu.RLock()
+	// Check if cache is valid (simple check - if any is nil, rebuild all)
+	if o.cachedFontFamily == nil {
+		o.cachedStyleMu.RUnlock()
+		o.cachedStyleMu.Lock()
+		// Double-check after acquiring write lock
+		if o.cachedFontFamily == nil {
+			o.updateStyleCacheLocked(style)
+		}
+		fontFamily := o.cachedFontFamily
+		bgColor := o.cachedBgColor
+		textColor := o.cachedTextColor
+		matchedTextColor := o.cachedMatchedTextColor
+		borderColor := o.cachedBorderColor
+		o.cachedStyleMu.Unlock()
+
+		return fontFamily, bgColor, textColor, matchedTextColor, borderColor
+	}
+
+	fontFamily := o.cachedFontFamily
+	bgColor := o.cachedBgColor
+	textColor := o.cachedTextColor
+	matchedTextColor := o.cachedMatchedTextColor
+	borderColor := o.cachedBorderColor
+	o.cachedStyleMu.RUnlock()
+
+	return fontFamily, bgColor, textColor, matchedTextColor, borderColor
 }
 
 // drawHintsInternal is the internal implementation for drawing hints.
@@ -418,12 +520,10 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		zap.Int("total_hints", len(hints)),
 		zap.Int("matched_hints", matchedCount))
 
-	// Create style
-	cFontFamily := C.CString(style.FontFamily())
-	cBgColor := C.CString(style.BackgroundColor())
-	cTextColor := C.CString(style.TextColor())
-	cMatchedTextColor := C.CString(style.MatchedTextColor())
-	cBorderColor := C.CString(style.BorderColor())
+	// Use cached style strings to avoid repeated allocations
+	cFontFamily, cBgColor, cTextColor, cMatchedTextColor, cBorderColor := o.getCachedStyleStrings(
+		style,
+	)
 
 	arrowFlag := 0
 	if showArrow {
@@ -455,11 +555,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	*cLabelsPtr = (*cLabelsPtr)[:0]
 	hintDataPool.Put(cHintsPtr)
 	cLabelSlicePool.Put(cLabelsPtr)
-	C.free(unsafe.Pointer(cFontFamily))
-	C.free(unsafe.Pointer(cBgColor))
-	C.free(unsafe.Pointer(cTextColor))
-	C.free(unsafe.Pointer(cMatchedTextColor))
-	C.free(unsafe.Pointer(cBorderColor))
+	// Note: We don't free cached style strings - they're reused across draws
 
 	o.logger.Debug("Hints drawn successfully",
 		zap.Duration("duration", time.Since(start)))
