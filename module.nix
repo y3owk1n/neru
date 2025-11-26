@@ -137,7 +137,7 @@ in
           "${cfg.package}/Applications/Neru.app/Contents/MacOS/Neru launch"
           + (lib.optionalString (cfg.config != "") " --config ${configFile}");
         serviceConfig = {
-          KeepAlive = false;
+          KeepAlive = true;
           RunAtLoad = true;
         };
       };
