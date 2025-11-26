@@ -18,14 +18,14 @@
 
       # Function to build package with specific version
       makeNeruPackage =
-        pkgs: version: useZip:
+        pkgs: version: useZip: commitHash:
         pkgs.callPackage ./package.nix {
-          inherit version useZip;
+          inherit version useZip commitHash;
         };
     in
     {
       overlays.default = final: prev: {
-        neru = makeNeruPackage final latestVersion true;
+        neru = makeNeruPackage final latestVersion true null;
         neru-source = makeNeruPackage final "main" false (self.rev or self.dirtyRev or "unknown");
       };
 
@@ -40,7 +40,7 @@
         in
         {
           # Default: latest version from zip
-          default = makeNeruPackage pkgs latestVersion true;
+          default = makeNeruPackage pkgs latestVersion true null;
 
           # Build from source
           source = makeNeruPackage pkgs "main" false (self.rev or self.dirtyRev or "unknown");
