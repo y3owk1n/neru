@@ -84,12 +84,12 @@ if useZip then
   }
 else
   let
-    version = "${version}${if commitHash != null then "-${commitHash}" else ""}";
+    pversion = "${version}${if commitHash != null then "-${commitHash}" else ""}";
   in
   # Build from source
   buildGoModule (finalAttrs: {
     pname = "neru";
-    inherit version;
+    version = pversion;
 
     src = lib.cleanSource ./.;
 
