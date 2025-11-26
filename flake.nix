@@ -12,10 +12,21 @@
         "aarch64-darwin"
         "x86_64-darwin"
       ];
+
+      # Update this to your latest release version
+      latestVersion = "1.10.3";
+
+      # Function to build package with specific version
+      makeNeruPackage =
+        pkgs: version: useZip: commitHash:
+        pkgs.callPackage ./package.nix {
+          inherit version useZip commitHash;
+        };
     in
     {
       overlays.default = final: prev: {
-        neru = final.callPackage ./package.nix { };
+        neru = makeNeruPackage final latestVersion true null;
+        neru-source = makeNeruPackage final "main" false (self.rev or self.dirtyRev or "unknown");
       };
 
       # Packages output using the overlay
@@ -28,8 +39,11 @@
           };
         in
         {
-          default = pkgs.neru;
-          neru = pkgs.neru;
+          # Default: latest version from zip
+          default = makeNeruPackage pkgs latestVersion true null;
+
+          # Build from source
+          source = makeNeruPackage pkgs "main" false (self.rev or self.dirtyRev or "unknown");
         }
       );
 

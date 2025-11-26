@@ -75,7 +75,8 @@ Use the nix-darwin module for system-wide installation:
           neru.enable = true;
 
           # Optional: Use specific package version
-          # neru.package = pkgs.neru;
+          # neru.package = pkgs.neru; # This will use the latest version
+          # neru.package = pkgs.neru-source; # This will build from source
 
           # Optional: Inline configuration
           neru.config = ''
@@ -96,7 +97,7 @@ Use the nix-darwin module for system-wide installation:
 **Module Options:**
 
 - `neru.enable` - Enable Neru (default: `false`)
-- `neru.package` - Package to use (default: `pkgs.neru`)
+- `neru.package` - Package to use (default: `pkgs.neru` for latest version) or `pkgs.neru-source` for building from source
 - `neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 
 The module automatically:
@@ -132,7 +133,8 @@ Use the home-manager module for user-specific installation:
           programs.neru.enable = true;
 
           # Optional: Use specific package version
-          # programs.neru.package = pkgs.neru;
+          # programs.neru.package = pkgs.neru; # This will use the latest version
+          # programs.neru.package = pkgs.neru-source; # This will build from source
 
           # Option A: Inline configuration
           programs.neru.config = ''
@@ -156,7 +158,7 @@ Use the home-manager module for user-specific installation:
 **Module Options:**
 
 - `programs.neru.enable` - Enable Neru (default: `false`)
-- `programs.neru.package` - Package to use (default: `pkgs.neru`)
+- `programs.neru.package` - Package to use (default: `pkgs.neru` for latest version) or `pkgs.neru-source` for building from source
 - `programs.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 - `programs.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
 
@@ -255,6 +257,25 @@ To update Neru, update your flake lock:
 ```bash
 nix flake update neru
 # Then rebuild your system/home configuration
+```
+
+### Patch go version
+
+> [!NOTE] This is only required if you're using stable nixpkgs and you're using the `neru-source` package.
+
+The latest version of Neru requires Go 1.25 or later. If you're using stable nixpkgs, you need to patch it as below:
+
+```nix
+package = pkgs.neru-source.overrideAttrs (_: {
+  postPatch = ''
+    substituteInPlace go.mod \
+      --replace-fail "go 1.25.2" "go 1.24.9"
+
+    # Verify it worked
+    echo "=== go.mod after patch ==="
+    grep "^go " go.mod || true
+  '';
+});
 ```
 
 ---
