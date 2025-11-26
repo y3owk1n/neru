@@ -6,7 +6,7 @@ BasedOnStyle: LLVM
 # Indentation
 IndentWidth: 4
 TabWidth: 4
-UseTab: Never
+UseTab: ForIndentation
 
 # Braces
 BreakBeforeBraces: Attach

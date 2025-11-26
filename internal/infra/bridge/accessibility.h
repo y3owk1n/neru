@@ -15,14 +15,14 @@
 
 /// Structure containing information about an accessibility element
 typedef struct {
-    CGPoint position;      ///< Element position
-    CGSize size;           ///< Element size
-    char *title;           ///< Element title
-    char *role;            ///< Element role
-    char *roleDescription; ///< Element role description
-    bool isEnabled;        ///< Whether element is enabled
-    bool isFocused;        ///< Whether element is focused
-    int pid;               ///< Process identifier
+	CGPoint position;      ///< Element position
+	CGSize size;           ///< Element size
+	char *title;           ///< Element title
+	char *role;            ///< Element role
+	char *roleDescription; ///< Element role description
+	bool isEnabled;        ///< Whether element is enabled
+	bool isFocused;        ///< Whether element is focused
+	int pid;               ///< Process identifier
 } ElementInfo;
 
 #pragma mark - Permission Functions

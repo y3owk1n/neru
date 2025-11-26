@@ -19,11 +19,11 @@ typedef void (*HotkeyCallback)(int hotkeyId, void *userData);
 
 /// Modifier keys
 typedef enum {
-    ModifierNone = 0,       ///< No modifier
-    ModifierCmd = 1 << 0,   ///< Command key
-    ModifierShift = 1 << 1, ///< Shift key
-    ModifierAlt = 1 << 2,   ///< Alt/Option key
-    ModifierCtrl = 1 << 3   ///< Control key
+	ModifierNone = 0,       ///< No modifier
+	ModifierCmd = 1 << 0,   ///< Command key
+	ModifierShift = 1 << 1, ///< Shift key
+	ModifierAlt = 1 << 2,   ///< Alt/Option key
+	ModifierCtrl = 1 << 3   ///< Control key
 } ModifierKey;
 
 #pragma mark - Hotkey Functions
