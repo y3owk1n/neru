@@ -14,6 +14,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// DefaultIPCTimeoutSeconds is the default IPC timeout in seconds.
+	DefaultIPCTimeoutSeconds = 5
+)
+
 var (
 	configPath string
 	// LaunchFunc is set by main to handle daemon launch.
@@ -65,7 +70,8 @@ func init() {
 	)
 
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "Path to config file")
-	rootCmd.PersistentFlags().IntVar(&timeoutSec, "timeout", 5, "IPC timeout in seconds")
+	rootCmd.PersistentFlags().
+		IntVar(&timeoutSec, "timeout", DefaultIPCTimeoutSeconds, "IPC timeout in seconds")
 }
 
 // IsRunningFromAppBundle checks if the executable is running from a macOS app bundle.

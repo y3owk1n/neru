@@ -8,6 +8,11 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/errors"
 )
 
+const (
+	// PrefixLengthCheck is the check for prefix length.
+	PrefixLengthCheck = 2
+)
+
 // Interface represents a labeled UI element for keyboard-driven navigation.
 // Hints are immutable after creation.
 type Interface struct {
@@ -127,7 +132,7 @@ func NewCollection(hints []*Interface) *Collection {
 			collector.prefix1[first] = append(collector.prefix1[first], hint)
 		}
 
-		if len(label) >= 2 {
+		if len(label) >= LabelLengthCheck {
 			prefix := label[:2]
 			collector.prefix2[prefix] = append(collector.prefix2[prefix], hint)
 		}
@@ -158,7 +163,7 @@ func (c *Collection) FilterByPrefix(prefix string) []*Interface {
 	}
 
 	// Fast path for two characters
-	if len(prefix) == 2 {
+	if len(prefix) == PrefixLengthCheck {
 		return c.prefix2[prefix]
 	}
 

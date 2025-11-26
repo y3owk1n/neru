@@ -3,7 +3,6 @@ package accessibility
 import (
 	"context"
 	"image"
-	"slices"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
 	"github.com/y3owk1n/neru/internal/config"
@@ -93,32 +92,9 @@ func (a *Adapter) ClickableElements(
 	a.logger.Debug("Found clickable nodes", zap.Int("count", len(clickableNodes)))
 
 	// Convert to domain elements
-	elements := make([]*element.Element, 0, len(clickableNodes))
-	for index, node := range clickableNodes {
-		// Check context periodically
-		if index%100 == 0 {
-			select {
-			case <-ctx.Done():
-				return nil, derrors.Wrap(
-					ctx.Err(),
-					derrors.CodeContextCanceled,
-					"operation canceled",
-				)
-			default:
-			}
-		}
-
-		elem, err := a.convertToDomainElement(node)
-		if err != nil {
-			a.logger.Warn("Failed to convert element", zap.Error(err))
-
-			continue
-		}
-
-		// Apply filter
-		if a.MatchesFilter(elem, filter) {
-			elements = append(elements, elem)
-		}
+	elements, processErr := a.processClickableNodes(ctx, clickableNodes, filter)
+	if processErr != nil {
+		return nil, processErr
 	}
 
 	a.logger.Info("Converted frontmost window elements", zap.Int("count", len(elements)))
@@ -319,65 +295,41 @@ func (a *Adapter) UpdateExcludedBundles(bundles []string) {
 	}
 }
 
-// MatchesFilter checks if an element matches the given filter criteria.
-func (a *Adapter) MatchesFilter(
-	element *element.Element,
+// processClickableNodes converts and filters clickable nodes to domain elements.
+func (a *Adapter) processClickableNodes(
+	ctx context.Context,
+	clickableNodes []AXNode,
 	filter ports.ElementFilter,
-) bool {
-	// Check minimum size
-	bounds := element.Bounds()
-	if bounds.Dx() < filter.MinSize.X || bounds.Dy() < filter.MinSize.Y {
-		return false
-	}
+) ([]*element.Element, error) {
+	elements := make([]*element.Element, 0, len(clickableNodes))
+	for index, node := range clickableNodes {
+		// Check context periodically
+		if index%100 == 0 {
+			select {
+			case <-ctx.Done():
+				return nil, derrors.Wrap(
+					ctx.Err(),
+					derrors.CodeContextCanceled,
+					"operation canceled",
+				)
+			default:
+			}
+		}
 
-	// Check role inclusion
-	if len(filter.Roles) > 0 {
-		found := slices.Contains(filter.Roles, element.Role())
-		if !found {
-			return false
+		elem, err := a.convertToDomainElement(node)
+		if err != nil {
+			a.logger.Warn("Failed to convert element", zap.Error(err))
+
+			continue
+		}
+
+		// Apply filter
+		if a.MatchesFilter(elem, filter) {
+			elements = append(elements, elem)
 		}
 	}
 
-	// Check role exclusion
-	return !slices.Contains(filter.ExcludeRoles, element.Role())
-}
-
-// convertToDomainElement converts an AXNode to a domain Element.
-func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) {
-	if node == nil {
-		return nil, derrors.New(derrors.CodeInvalidInput, "node is nil")
-	}
-
-	// Create element ID from unique identifier
-	elementID := element.ID(node.ID())
-
-	// Get bounds
-	bounds := node.Bounds()
-
-	// Convert role
-	role := element.Role(node.Role())
-
-	// Determine if clickable
-	isClickable := node.IsClickable()
-
-	// Create element with options
-	element, elementErr := element.NewElement(
-		elementID,
-		bounds,
-		role,
-		element.WithClickable(isClickable),
-		element.WithTitle(node.Title()),
-		element.WithDescription(node.Description()),
-	)
-	if elementErr != nil {
-		return nil, derrors.Wrap(
-			elementErr,
-			derrors.CodeAccessibilityFailed,
-			"failed to create element",
-		)
-	}
-
-	return element, nil
+	return elements, nil
 }
 
 // Ensure Adapter implements ports.AccessibilityPort.

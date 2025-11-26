@@ -9,6 +9,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// DefaultCacheSize is the default cache size.
+	DefaultCacheSize = 8
+)
+
 // CacheKey is a key for the grid cache.
 type CacheKey struct {
 	characters string
@@ -32,7 +37,7 @@ type Cache struct {
 }
 
 var (
-	gridCache        = newCache(8)
+	gridCache        = newCache(DefaultCacheSize)
 	gridCacheEnabled = true
 )
 

@@ -4,6 +4,14 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// CtrlD is the byte value for Ctrl+D.
+	CtrlD = 4
+
+	// CtrlU is the byte value for Ctrl+U.
+	CtrlU = 21
+)
+
 // ParseKey parses a key press and returns the operation, the new last key state, and whether the key sequence is valid.
 func ParseKey(
 	key string,
@@ -40,11 +48,11 @@ func ParseKey(
 	// Check for control keys
 	if len(key) == 1 {
 		byteVal := key[0]
-		if byteVal == 4 { // Ctrl+D
+		if byteVal == CtrlD { // Ctrl+D
 			return "half_down", "", true
 		}
 
-		if byteVal == 21 { // Ctrl+U
+		if byteVal == CtrlU { // Ctrl+U
 			return "half_up", "", true
 		}
 	}

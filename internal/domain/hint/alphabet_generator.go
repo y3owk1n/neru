@@ -10,6 +10,17 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/errors"
 )
 
+const (
+	// MinCharactersLength is the minimum length for characters.
+	MinCharactersLength = 2
+
+	// CountsCapacity is the capacity for counts.
+	CountsCapacity = 5
+
+	// LabelLengthCheck is the check for label length.
+	LabelLengthCheck = 2
+)
+
 // AlphabetGenerator generates hint labels using an alphabet-based strategy.
 // It uses a prefix-avoidance algorithm to ensure no single-character label
 // conflicts with the start of a multi-character label.
@@ -22,7 +33,7 @@ type AlphabetGenerator struct {
 
 // NewAlphabetGenerator creates a new alphabet-based hint generator.
 func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
-	if len(characters) < 2 {
+	if len(characters) < MinCharactersLength {
 		return nil, derrors.Newf(
 			derrors.CodeInvalidInput,
 			"characters must have at least 2 characters, got %d",
@@ -133,7 +144,7 @@ func (g *AlphabetGenerator) Characters() string {
 
 // UpdateCharacters updates the character set and recalculates max hints.
 func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
-	if len(characters) < 2 {
+	if len(characters) < MinCharactersLength {
 		return derrors.Newf(
 			derrors.CodeInvalidInput,
 			"characters must have at least 2 characters, got %d",
@@ -182,7 +193,7 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 	// Calculate how many labels of each length we need
 	// counts[i] stores number of labels of length i+1
 	// We assume max length won't exceed 10 for reasonable counts
-	counts := make([]int, 0, 5)
+	counts := make([]int, 0, CountsCapacity)
 
 	remainingTarget := count
 	availableSlots := numChars // Slots available at current level

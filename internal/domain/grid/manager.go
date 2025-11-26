@@ -213,7 +213,7 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 		return image.Point{}, false
 	}
 	// Subgrid is always 3x3
-	if keyIndex >= 9 {
+	if keyIndex >= MaxKeyIndex {
 		return image.Point{}, false
 	}
 
@@ -228,12 +228,12 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	yBreaks[0] = cellBounds.Min.Y
 	for breakIndex := 1; breakIndex <= m.subCols; breakIndex++ {
 		val := float64(breakIndex) * float64(cellBounds.Dx()) / float64(m.subCols)
-		xBreaks[breakIndex] = cellBounds.Min.X + int(val+0.5)
+		xBreaks[breakIndex] = cellBounds.Min.X + int(val+RoundingFactor)
 	}
 
 	for breakIndex := 1; breakIndex <= m.subRows; breakIndex++ {
 		val := float64(breakIndex) * float64(cellBounds.Dy()) / float64(m.subRows)
-		yBreaks[breakIndex] = cellBounds.Min.Y + int(val+0.5)
+		yBreaks[breakIndex] = cellBounds.Min.Y + int(val+RoundingFactor)
 	}
 	// Ensure exact coverage
 	xBreaks[m.subCols] = cellBounds.Max.X
@@ -242,8 +242,8 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	right := xBreaks[colIndex+1]
 	top := yBreaks[rowIndex]
 	bottom := yBreaks[rowIndex+1]
-	xCoordinate := left + (right-left)/2
-	yCoordinate := top + (bottom-top)/2
+	xCoordinate := left + (right-left)/CenterDivisor
+	yCoordinate := top + (bottom-top)/CenterDivisor
 	m.logger.Info("Grid manager: Subgrid selection complete",
 		zap.Int("row", rowIndex), zap.Int("col", colIndex),
 		zap.Int("x", xCoordinate), zap.Int("y", yCoordinate))

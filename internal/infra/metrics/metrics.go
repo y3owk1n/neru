@@ -1,4 +1,3 @@
-// Package metrics provides metrics collection and reporting.
 package metrics
 
 import (
@@ -16,6 +15,11 @@ const (
 	TypeGauge
 	// TypeHistogram represents a histogram metric.
 	TypeHistogram
+)
+
+const (
+	// DefaultMetricsCapacity is the default capacity for metrics.
+	DefaultMetricsCapacity = 1000
 )
 
 // Metric represents a single metric data point.
@@ -64,7 +68,7 @@ func (c *NoOpCollector) Snapshot() []Metric { return nil }
 // NewCollector creates a new metrics collector.
 func NewCollector() *StandardCollector {
 	return &StandardCollector{
-		metrics: make([]Metric, 0, 1000),
+		metrics: make([]Metric, 0, DefaultMetricsCapacity),
 	}
 }
 

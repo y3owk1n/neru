@@ -1,4 +1,3 @@
-// Package trace provides tracing utilities.
 package trace
 
 import (

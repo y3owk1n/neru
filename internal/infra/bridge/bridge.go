@@ -286,5 +286,5 @@ func ShowConfigValidationError(errorMessage, configPath string) bool {
 	}
 
 	// Return true if user clicked "Copy" button (result == 2)
-	return result == 2
+	return result == 2 //nolint:mnd
 }

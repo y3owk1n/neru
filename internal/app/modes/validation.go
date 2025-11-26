@@ -8,6 +8,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// ValidationTimeout is the timeout for validation checks.
+	ValidationTimeout = 2 * time.Second
+)
+
 // validateModeActivation performs common validation checks before mode activation.
 // Returns an error if the mode cannot be activated.
 func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) error {
@@ -27,7 +32,7 @@ func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) erro
 
 	// Check if focused app is excluded
 	// Use a short timeout context for this check
-	context, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	context, cancel := context.WithTimeout(context.Background(), ValidationTimeout)
 	defer cancel()
 
 	isExcluded, isExcludedErr := h.ActionService.IsFocusedAppExcluded(context)

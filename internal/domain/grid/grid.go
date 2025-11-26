@@ -8,6 +8,70 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// SmallScreenArea is the threshold for small screen area.
+	SmallScreenArea = 1500000
+	// MediumScreenArea is the threshold for medium screen area.
+	MediumScreenArea = 2500000
+	// LargeScreenArea is the threshold for large screen area.
+	LargeScreenArea = 4000000
+
+	// ExtremeAspectRatioHigh is the high threshold for extreme aspect ratios.
+	ExtremeAspectRatioHigh = 2.5
+	// ExtremeAspectRatioLow is the low threshold for extreme aspect ratios.
+	ExtremeAspectRatioLow = 0.4
+	// AspectRatioAdjustment is the adjustment factor for extreme aspect ratios.
+	AspectRatioAdjustment = 1.2
+
+	// MinCharactersLength is the minimum length for characters.
+	MinCharactersLength = 2
+
+	// MinGridCols is the minimum number of grid columns.
+	MinGridCols = 2
+
+	// MinGridRows is the minimum number of grid rows.
+	MinGridRows = 2
+
+	// MaxKeyIndex is the maximum key index.
+	MaxKeyIndex = 9
+
+	// RoundingFactor is the factor for rounding.
+	RoundingFactor = 0.5
+
+	// CenterDivisor is the divisor for center calculation.
+	CenterDivisor = 2
+
+	// ScoreWeight is the weight for scoring.
+	ScoreWeight = 0.1
+
+	// StringBuilderGrow2 is the growth for string builder.
+	StringBuilderGrow2 = 2
+
+	// StringBuilderGrow3 is the growth for string builder.
+	StringBuilderGrow3 = 3
+
+	// StringBuilderGrow4 is the growth for string builder.
+	StringBuilderGrow4 = 4
+
+	// LabelLength2 is the label length 2.
+	LabelLength2 = 2
+
+	// LabelLength3 is the label length 3.
+	LabelLength3 = 3
+
+	// LabelLength4 is the label length 4.
+	LabelLength4 = 4
+
+	// CountsCapacity is the capacity for counts.
+	CountsCapacity = 5
+
+	// LabelLengthCheck is the check for label length.
+	LabelLengthCheck = 2
+
+	// PrefixLengthCheck is the check for prefix length.
+	PrefixLengthCheck = 2
+)
+
 // Grid represents a coordinate grid system for spatial navigation with optimized cell sizing.
 type Grid struct {
 	characters string          // Characters used for coordinates (e.g., "asdfghjkl")
@@ -70,7 +134,7 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 	numChars := len(chars)
 
 	// Ensure we have valid characters
-	if numChars < 2 {
+	if numChars < MinCharactersLength {
 		uppercaseChars = strings.ToUpper("abcdefghijklmnopqrstuvwxyz")
 		chars = []rune(uppercaseChars)
 		numChars = len(chars)
@@ -116,11 +180,11 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 	gridCols, gridRows := selectBestCandidate(candidates, width, height, minCellSize, maxCellSize)
 
 	// Safety check: ensure we always have at least a 2x2 grid
-	if gridCols < 2 {
+	if gridCols < MinGridCols {
 		gridCols = 2
 	}
 
-	if gridRows < 2 {
+	if gridRows < MinGridRows {
 		gridRows = 2
 	}
 
@@ -219,11 +283,11 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 
 	// Adjust region size based on label length
 	switch labelLength {
-	case 2:
+	case LabelLength2:
 		// For 2-char labels: each region is numChars x numChars
 		regionCols = numChars
 		regionRows = numChars
-	case 3:
+	case LabelLength3:
 		// For 3-char labels: first char = region, next 2 chars = position
 		// Region is numChars wide x numChars tall
 		regionCols = numChars
@@ -269,9 +333,9 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 		var regionChar1, regionChar2 rune
 
 		switch labelLength {
-		case 2:
+		case LabelLength2:
 			regionChar1 = chars[regionIndex%numChars]
-		case 3:
+		case LabelLength3:
 			regionChar1 = chars[regionIndex%numChars]
 		default: // 4 chars
 			regionChar1 = chars[regionIndex/numChars%numChars]
@@ -301,20 +365,20 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 				var coordinate string
 
 				switch labelLength {
-				case 2:
+				case LabelLength2:
 					// Use strings.Builder for efficient string concatenation
 					var stringBuilder strings.Builder
-					stringBuilder.Grow(2)
+					stringBuilder.Grow(StringBuilderGrow2)
 					stringBuilder.WriteRune(regionChar1)
 					stringBuilder.WriteRune(chars[colIndex])
 					coordinate = stringBuilder.String()
-				case 3:
+				case LabelLength3:
 					// First char = region, second char = column, third char = row
 					char2 := chars[colIndex%numChars] // column
 					char3 := chars[rowIndex%numChars] // row
 
 					var stringBuilder strings.Builder
-					stringBuilder.Grow(3)
+					stringBuilder.Grow(StringBuilderGrow3)
 					stringBuilder.WriteRune(regionChar1)
 					stringBuilder.WriteRune(char2)
 					stringBuilder.WriteRune(char3)
@@ -325,7 +389,7 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 					char4 := chars[rowIndex%numChars] // row
 
 					var stringBuilder strings.Builder
-					stringBuilder.Grow(4)
+					stringBuilder.Grow(StringBuilderGrow4)
 					stringBuilder.WriteRune(regionChar1)
 					stringBuilder.WriteRune(regionChar2)
 					stringBuilder.WriteRune(char3)
@@ -400,13 +464,13 @@ func calculateOptimalCellSizes(width, height int) (int, int) {
 
 	// Calculate optimal cell size ranges based on screen size and pixel density
 	switch {
-	case screenArea < 1500000:
+	case screenArea < SmallScreenArea:
 		minCellSize = 30
 		maxCellSize = 60
-	case screenArea < 2500000:
+	case screenArea < MediumScreenArea:
 		minCellSize = 30
 		maxCellSize = 80
-	case screenArea < 4000000:
+	case screenArea < LargeScreenArea:
 		minCellSize = 40
 		maxCellSize = 100
 	default:
@@ -415,8 +479,8 @@ func calculateOptimalCellSizes(width, height int) (int, int) {
 	}
 
 	// Adjust cell size constraints for extreme aspect ratios
-	if screenAspect > 2.5 || screenAspect < 0.4 {
-		maxCellSize = int(float64(maxCellSize) * 1.2)
+	if screenAspect > ExtremeAspectRatioHigh || screenAspect < ExtremeAspectRatioLow {
+		maxCellSize = int(float64(maxCellSize) * AspectRatioAdjustment)
 	}
 
 	return minCellSize, maxCellSize
@@ -426,11 +490,11 @@ func calculateOptimalCellSizes(width, height int) (int, int) {
 func calculateLabelLength(totalCells, numChars int) int {
 	switch {
 	case totalCells <= numChars*numChars:
-		return 2
+		return LabelLength2
 	case totalCells <= numChars*numChars*numChars:
-		return 3
+		return LabelLength3
 	default:
-		return 4
+		return LabelLength4
 	}
 }
 
@@ -504,7 +568,7 @@ func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []
 			// Also consider cell count - prefer more cells for better precision
 			totalCells := float64(colIndex * rowIndex)
 			maxCells := float64(maxCols * maxRows)
-			cellScore := (maxCells - totalCells) / maxCells * 0.1
+			cellScore := (maxCells - totalCells) / maxCells * ScoreWeight
 
 			aspectScore := aspectDiff + cellScore
 
@@ -550,7 +614,7 @@ func CalculateOptimalGrid(characters string) (int, int) {
 	// For flat 3-char grid, we don't use rows/cols
 	// Just return sensible defaults (will be ignored)
 	numChars := len(characters)
-	if numChars < 2 {
+	if numChars < MinCharactersLength {
 		numChars = 9
 	}
 
