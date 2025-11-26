@@ -221,7 +221,6 @@ func (s *Server) handleConnection(connection net.Conn) {
 		s.wg.Done()
 	}()
 
-	// Set read deadline to prevent hanging connections
 	connectionDeadline := connection.SetDeadline(time.Now().Add(ConnectionReadTimeout))
 	if connectionDeadline != nil {
 		logger.Error("Failed to set connection deadline", zap.Error(connectionDeadline))
@@ -352,7 +351,6 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 		}
 	}()
 
-	// Set deadline for the entire operation
 	connectionDeadlineErr := connection.SetDeadline(time.Now().Add(timeout))
 	if connectionDeadlineErr != nil {
 		return Response{}, derrors.Wrap(
@@ -365,7 +363,6 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 	encoder := json.NewEncoder(connection)
 	decoder := json.NewDecoder(connection)
 
-	// Set protocol version if not already set
 	if cmd.Version == "" {
 		cmd.Version = ProtocolVersion
 	}

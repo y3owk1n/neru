@@ -35,6 +35,9 @@ func (h *Handler) StartInteractiveScroll() {
 }
 
 // handleGenericScrollKey handles scroll keys in a generic way.
+// It processes various scroll commands including directional scrolling (j/k/h/l),
+// page scrolling (Ctrl+D/Ctrl+U), and top/bottom navigation (gg/G).
+// Maintains state for multi-key sequences like 'gg' for top.
 func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 	var localLastKey string
 	if lastScrollKey == nil {
@@ -66,8 +69,10 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 
 	switch key {
 	case "j", "k", "h", "l":
+		// Handle directional scrolling (vim-style navigation)
 		handleScrollErr = h.handleDirectionalScrollKey(key, *lastScrollKey)
 	case "g":
+		// Handle 'g' key sequences: 'g' starts sequence, 'gg' scrolls to top
 		operation, newLast, ok := scroll.ParseKey(key, *lastScrollKey, h.Logger)
 		if !ok {
 			h.Logger.Info("First g pressed, press again for top")
@@ -98,6 +103,7 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 			goto done
 		}
 	case "G":
+		// Handle 'G' key: scroll to bottom
 		operation, _, ok := scroll.ParseKey(key, *lastScrollKey, h.Logger)
 		if ok && operation == "bottom" {
 			h.Logger.Info("G key detected - scroll to bottom")
@@ -109,6 +115,7 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 			*lastScrollKey = ""
 		}
 	default:
+		// Reset state for unrecognized keys
 		h.Logger.Debug("Ignoring non-scroll key", zap.String("key", key))
 
 		*lastScrollKey = ""

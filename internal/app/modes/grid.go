@@ -36,7 +36,6 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	h.OverlayManager.ResizeToActiveScreenSync()
 	h.AppState.SetGridOverlayNeedsRefresh(false)
 
-	// Initialize grid manager (needed for input handling)
 	gridInstance := h.createGridInstance()
 	h.updateGridOverlayConfig()
 
@@ -96,6 +95,8 @@ func (h *Handler) updateGridOverlayConfig() {
 }
 
 // initializeGridManager initializes the grid manager with the new grid instance.
+// It sets up subgrid configuration, creates the manager with update callbacks for
+// overlay rendering and subgrid navigation, and configures the grid router.
 func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 	const defaultGridCharacters = "asdfghjkl"
 
@@ -108,7 +109,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 		gridInstance = domainGrid.NewGrid(h.Config.Grid.Characters, bounds, h.Logger)
 	}
 
-	// Subgrid configuration and keys (fallback to grid characters): always 3x3
+	// Configure subgrid keys for 3x3 subgrid navigation within selected cells
 	keys := strings.TrimSpace(h.Config.Grid.SublayerKeys)
 	if keys == "" {
 		keys = h.Config.Grid.Characters
@@ -120,7 +121,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 		keys = h.Config.Grid.Characters
 	}
 
-	// Final fallback
+	// Final fallback to default characters if none configured
 	if keys == "" {
 		keys = defaultGridCharacters
 
@@ -132,11 +133,13 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 		subCols = 3
 	)
 
+	// Create grid manager with callbacks for overlay updates and subgrid navigation
 	h.Grid.Manager = domainGrid.NewManager(
 		gridInstance,
 		subRows,
 		subCols,
 		keys,
+		// Update callback: handles grid redrawing and match filtering
 		func(forceRedraw bool) {
 			// Defensive check for grid manager
 			if h.Grid.Manager == nil {
@@ -147,7 +150,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 			input := h.Grid.Manager.CurrentInput()
 
-			// special case to handle only when exiting subgrid
+			// Force redraw only when exiting subgrid to restore main grid
 			if forceRedraw {
 				h.OverlayManager.Clear()
 
@@ -161,11 +164,12 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 				h.OverlayManager.Show()
 			}
 
-			// Set hideUnmatched based on whether we have input and the config setting
+			// Hide unmatched cells if configured and input exists
 			hideUnmatched := h.Config.Grid.HideUnmatched && len(input) > 0
 			h.Renderer.SetHideUnmatched(hideUnmatched)
 			h.Renderer.UpdateGridMatches(input)
 		},
+		// Subgrid callback: moves cursor and shows subgrid overlay
 		func(cell *domainGrid.Cell) {
 			// Defensive check for cell
 			if cell == nil {
@@ -174,7 +178,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 				return
 			}
 
-			// Move mouse to center of cell before showing subgrid
+			// Move mouse to center of cell before showing subgrid for better UX
 			ctx := context.Background()
 
 			moveCursorErr := h.ActionService.MoveCursorToPoint(ctx, cell.Center())

@@ -50,6 +50,8 @@ func (h *Handler) activateHintModeWithAction(action *string) {
 }
 
 // activateHintModeInternal activates hint mode with option to preserve action mode state and optional action.
+// It handles mode validation, overlay positioning, element collection, hint generation,
+// and UI setup for hint-based navigation.
 func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *string) {
 	// Validate mode activation
 	domainHintsErr := h.validateModeActivation("hints", h.Config.Hints.Enabled)
@@ -67,11 +69,12 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	h.Logger.Info("Activating hint mode", zap.String("action", actionString))
 
 	if !preserveActionMode {
-		// Skip cursor restoration when transitioning within hint mode
+		// Handle mode transitions: if already in hints mode, do partial cleanup to preserve state;
+		// otherwise exit completely to reset all state
 		if h.AppState.CurrentMode() == domain.ModeHints {
 			h.performModeSpecificCleanup()
 			h.performCommonCleanup()
-			// Skip cursor restoration
+			// Skip cursor restoration to maintain position during hint mode transitions
 		} else {
 			h.ExitMode()
 		}
@@ -118,10 +121,10 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 		return
 	}
 
-	// Create domain hint collection
+	// Create domain hint collection from generated hints
 	hintCollection := domainHint.NewCollection(domainHints)
 
-	// Initialize domain manager with overlay update callback
+	// Initialize hint manager and router if not already set up
 	if h.Hints.Context.Manager() == nil {
 		manager := domainHint.NewManager(h.Logger)
 		// Set callback to update overlay when hints are filtered
@@ -148,12 +151,11 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 		h.Hints.Context.SetManager(manager)
 	}
 
-	// Initialize domain router
+	// Initialize domain router for hint navigation
 	if h.Hints.Context.Router() == nil {
 		h.Hints.Context.SetRouter(domainHint.NewRouter(h.Hints.Context.Manager(), h.Logger))
 	}
 
-	// Set hints in context (this also updates the manager)
 	h.Hints.Context.SetHints(hintCollection)
 
 	// Store pending action if provided

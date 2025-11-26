@@ -62,7 +62,6 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 		return nil
 	}
 
-	// Check if expired
 	if time.Now().After(cached.expiresAt) {
 		return nil
 	}

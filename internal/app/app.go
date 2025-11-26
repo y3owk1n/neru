@@ -85,30 +85,28 @@ func NewWithDeps(config *config.Config, configPath string, deps *Deps) (*App, er
 	return newWithDeps(config, configPath, deps)
 }
 
+// newWithDeps initializes the application with all dependencies, services, and components.
+// It orchestrates the creation of adapters, services, and UI components in the correct order,
+// ensuring proper dependency injection and error handling throughout the initialization process.
 func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error) {
-	// Initialize logger
 	logger, loggerErr := initializeLogger(cfg)
 	if loggerErr != nil {
 		return nil, loggerErr
 	}
 
-	// Initialize overlay manager
 	overlayManager := initializeOverlayManager(deps, logger)
 
-	// Initialize and check accessibility infrastructure
+	// Initialize accessibility infrastructure early as it's required by adapters
 	accessibilityErr := initializeAccessibility(cfg, logger)
 	if accessibilityErr != nil {
 		return nil, accessibilityErr
 	}
 
-	// Initialize infrastructure services
 	appWatcher := initializeAppWatcher(deps, logger)
 	hotkeySvc := initializeHotkeyService(deps, logger)
 
-	// Initialize Config Service
 	cfgService := config.NewService(cfg, configPath)
 
-	// Initialize Metrics
 	var metricsCollector metrics.Collector
 	if cfg.Metrics.Enabled {
 		metricsCollector = metrics.NewCollector()
@@ -116,32 +114,32 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		metricsCollector = &metrics.NoOpCollector{}
 	}
 
-	// Initialize Adapters
 	excludedBundles := cfg.General.ExcludedApps
 	clickableRoles := cfg.Hints.ClickableRoles
 
 	// Create infrastructure client
 	axClient := accessibilityAdapter.NewInfraAXClient()
 
+	// Create base accessibility adapter with core functionality
 	baseAccessibilityAdapter := accessibilityAdapter.NewAdapter(
 		logger,
 		excludedBundles,
 		clickableRoles,
 		axClient,
 	)
-	// Wrap with metrics decorator
+	// Wrap with metrics decorator to track performance
 	accAdapter := accessibilityAdapter.NewMetricsDecorator(
 		baseAccessibilityAdapter,
 		metricsCollector,
 	)
 
-	// Overlay Adapter
+	// Create overlay adapter for UI rendering
 	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)
-	// Wrap with metrics decorator
+	// Wrap with metrics decorator to track rendering performance
 	overlayAdapter := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
 
-	// 4. Initialize Domain Services
-	// Hint Generator
+	// Initialize domain services that encapsulate business logic
+	// Hint Generator - creates unique labels for UI elements
 	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
 	if hintGenErr != nil {
 		return nil, derrors.Wrap(
@@ -151,16 +149,16 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		)
 	}
 
-	// Hint Service
+	// Hint Service - orchestrates hint generation and display
 	hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, logger)
 
-	// Grid Service
+	// Grid Service - manages grid-based navigation overlays
 	gridService := services.NewGridService(overlayAdapter, logger)
 
-	// Action Service
+	// Action Service - handles UI element interactions
 	actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Action, logger)
 
-	// Scroll Service
+	// Scroll Service - manages scrolling operations
 	scrollService := services.NewScrollService(accAdapter, overlayAdapter, cfg.Scroll, logger)
 
 	// Create app instance with basic dependencies
@@ -185,7 +183,7 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		renderer: &ui.OverlayRenderer{}, // Will be properly initialized later
 	}
 
-	// Initialize components using factory functions
+	// Create UI components for different interaction modes
 	hintsComponent, hintsComponentErr := createHintsComponent(cfg, logger, overlayManager)
 	if hintsComponentErr != nil {
 		return nil, hintsComponentErr
@@ -209,14 +207,13 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 
 	app.actionComponent = actionComponent
 
-	// Initialize renderer with component styles
 	app.renderer = ui.NewOverlayRenderer(
 		overlayManager,
 		app.hintsComponent.Style,
 		app.gridComponent.Style,
 	)
 
-	// Initialize mode handler
+	// Initialize mode handler that coordinates different interaction modes
 	app.modes = modes.NewHandler(
 		cfg, logger, app.appState, app.cursorState, overlayManager, app.renderer,
 		app.hintService,
@@ -228,7 +225,7 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		func() { app.refreshHotkeysForAppOrCurrent("") },
 	)
 
-	// Initialize IPC Controller
+	// Set up IPC controller for external communication
 	app.ipcController = NewIPCController(
 		hintService,
 		gridService,
@@ -243,7 +240,6 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		configPath,
 	)
 
-	// Initialize event tap
 	// Note: We pass app.HandleKeyPress which delegates to modes handler
 	if deps != nil && deps.EventTapFactory != nil {
 		app.eventTap = deps.EventTapFactory.New(app.HandleKeyPress, logger)
@@ -257,7 +253,6 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		app.configureEventTapHotkeys(cfg, logger)
 	}
 
-	// Initialize IPC server
 	if deps != nil && deps.IPCServerFactory != nil {
 		server, serverErr := deps.IPCServerFactory.New(app.ipcController.HandleCommand, logger)
 		if serverErr != nil {

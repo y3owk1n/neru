@@ -191,7 +191,6 @@ func (h *Handler) handleModeSpecificKey(key string) {
 				h.Logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
 			}
 
-			// Check if there's a pending action to execute
 			pendingAction := h.Hints.Context.PendingAction()
 			if pendingAction != nil {
 				h.Logger.Info("Executing pending action", zap.String("action", *pendingAction))
@@ -249,7 +248,6 @@ func (h *Handler) handleModeSpecificKey(key string) {
 				h.Logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
 			}
 
-			// Check if there's a pending action to execute
 			pendingAction := h.Grid.Context.PendingAction()
 			if pendingAction != nil {
 				h.Logger.Info("Executing pending action", zap.String("action", *pendingAction))

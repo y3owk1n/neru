@@ -69,14 +69,12 @@ func (a *Adapter) ClickableElements(
 
 	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))
 
-	// Get frontmost frontmostWindow
 	frontmostWindow, frontmostWindowErr := a.client.FrontmostWindow()
 	if frontmostWindowErr != nil {
 		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get frontmost window")
 	}
 	defer frontmostWindow.Release()
 
-	// Get clickable nodes via client
 	clickableNodes, clickableNodesErr := a.client.ClickableNodes(
 		frontmostWindow,
 		filter.IncludeOffscreen,
@@ -124,10 +122,8 @@ func (a *Adapter) PerformAction(
 		zap.String("action", actionType.String()),
 		zap.String("element_id", string(element.ID())))
 
-	// Get the center point of the element
 	center := element.Center()
 
-	// Get restore cursor setting from config
 	config := config.Global()
 	restoreCursor := config != nil && config.General.RestoreCursorPosition
 
@@ -158,7 +154,6 @@ func (a *Adapter) PerformActionAtPoint(
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y))
 
-	// Get restore cursor setting from config
 	config := config.Global()
 	restoreCursor := config != nil && config.General.RestoreCursorPosition
 
