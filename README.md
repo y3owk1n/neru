@@ -77,9 +77,18 @@ brew tap y3owk1n/tap
 brew install --cask y3owk1n/tap/neru
 ```
 
-### Nix
+### Nix Flake
 
-See [docs/INSTALLATION.md](docs/INSTALLATION.md#nix) for Nix configuration details.
+Neru is available as a Nix flake with support for both nix-darwin and home-manager:
+
+```nix
+# flake.nix
+{
+  inputs.neru.url = "github:y3owk1n/neru";
+}
+```
+
+See [docs/INSTALLATION.md](docs/INSTALLATION.md#nix-flake) for nix-darwin and home-manager configuration examples.
 
 ### From Source
 
