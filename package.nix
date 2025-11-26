@@ -84,7 +84,9 @@ if useZip then
   }
 else
   let
-    pversion = "${version}${if commitHash != null then "-${commitHash}" else ""}";
+    shortHash = if commitHash != null then lib.substring 0 7 commitHash else null;
+
+    pversion = "${version}${if shortHash != null then "-${shortHash}" else ""}";
   in
   # Build from source
   buildGoModule (finalAttrs: {
