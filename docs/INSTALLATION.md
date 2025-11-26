@@ -32,131 +32,229 @@ brew uninstall --cask neru
 
 ---
 
-## Method 2: Nix
+## Method 2: Nix Flake
 
-### Overlay Configuration
+Neru is available as a Nix flake with built-in support for nix-darwin and home-manager.
 
-Add this overlay file to your Nix configuration:
+### Add Flake Input
+
+Add Neru to your flake inputs:
 
 ```nix
+# flake.nix
 {
-  fetchzip,
-  gitUpdater,
-  installShellFiles,
-  stdenv,
-  versionCheckHook,
-  lib,
-}:
-let
-  appName = "Neru.app";
-  version = "1.5.0"; # change this to the latest version
-in
-stdenv.mkDerivation {
-  pname = "neru";
-  inherit version;
-
-  src = fetchzip {
-    url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-arm64.zip";
-    sha256 = "sha256-TcurBgkj3/vmOd40rBJzoVr2+rcOspR0QZ1zv9sN6O4="; # run rebuild and update the latest sha256
-    stripRoot = false;
-  };
-
-  nativeBuildInputs = [ installShellFiles ];
-
-  installPhase = ''
-    runHook preInstall
-    mkdir -p $out/Applications
-    mv ${appName} $out/Applications
-    cp -R bin $out
-    mkdir -p $out/share
-    runHook postInstall
-  '';
-
-  postInstall = ''
-    if ${lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) "true"}; then
-      installShellCompletion --cmd neru \
-        --bash <($out/bin/neru completion bash) \
-        --fish <($out/bin/neru completion fish) \
-        --zsh <($out/bin/neru completion zsh)
-    fi
-  '';
-
-  doInstallCheck = true;
-  nativeInstallCheckInputs = [ versionCheckHook ];
-
-  passthru.updateScript = gitUpdater {
-    url = "https://github.com/y3owk1n/neru.git";
-    rev-prefix = "v";
-  };
-
-  meta = {
-    mainProgram = "neru";
+  inputs = {
+    # ... other inputs
+    neru.url = "github:y3owk1n/neru";
+    # ... other inputs
   };
 }
 ```
 
-### Module Configuration
+### Option 1: nix-darwin Module (System-Level)
 
-Create a custom module for Neru:
+Use the nix-darwin module for system-wide installation:
 
 ```nix
+# flake.nix
 {
-  config,
-  lib,
-  pkgs,
-  ...
-}:
-let
-  cfg = config.neru;
-  configFile = pkgs.writeScript "neru.toml" cfg.config;
-in
-{
-  options = {
-    neru = with lib.types; {
-      enable = lib.mkEnableOption "Neru keyboard navigation";
-      package = lib.mkPackageOption pkgs "neru" { };
-      config = lib.mkOption {
-        type = types.lines;
-        default = ''
-          # Your config here
-        '';
-        description = "Config to use for {file} `neru.toml`.";
-      };
+  outputs = { self, nixpkgs, nix-darwin, neru, ... }: {
+    darwinConfigurations.your-hostname = nix-darwin.lib.darwinSystem {
+      modules = [
+        # Apply the Neru overlay
+        {
+          nixpkgs.overlays = [ neru.overlays.default ];
+        }
+
+        # Import the Neru module
+        neru.darwinModules.default
+
+        # Configure Neru
+        {
+          # Enable Neru
+          neru.enable = true;
+
+          # Optional: Use specific package version
+          # neru.package = pkgs.neru;
+
+          # Optional: Inline configuration
+          neru.config = ''
+            [hotkeys]
+            "Cmd+Shift+Space" = "hints left_click"
+            "Cmd+Shift+G" = "grid left_click"
+
+            [general]
+            excluded_apps = ["com.apple.Terminal"]
+          '';
+        }
+      ];
     };
   };
-
-  config = (
-    lib.mkIf (cfg.enable) {
-      environment.systemPackages = [ cfg.package ];
-      launchd.user.agents.neru = {
-        command =
-          "${cfg.package}/Applications/Neru.app/Contents/MacOS/Neru launch"
-          + (lib.optionalString (cfg.config != "") " --config ${configFile}");
-        serviceConfig = {
-          KeepAlive = false;
-          RunAtLoad = true;
-        };
-      };
-    }
-  );
 }
 ```
 
-### Enable in Configuration
+**Module Options:**
+
+- `neru.enable` - Enable Neru (default: `false`)
+- `neru.package` - Package to use (default: `pkgs.neru`)
+- `neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
+
+The module automatically:
+
+- Installs Neru system-wide
+- Creates a launchd user agent
+- Configures the agent to run at login with `KeepAlive = true` and `RunAtLoad = true`
+- Installs shell completions for bash, fish, and zsh
+
+### Option 2: home-manager Module (User-Level)
+
+Use the home-manager module for user-specific installation:
+
+```nix
+# flake.nix
+{
+  outputs = { self, nixpkgs, home-manager, neru, ... }: {
+    homeConfigurations.your-username = home-manager.lib.homeManagerConfiguration {
+      pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+
+      modules = [
+        # Apply the Neru overlay
+        {
+          nixpkgs.overlays = [ neru.overlays.default ];
+        }
+
+        # Import the Neru module
+        neru.homeManagerModules.default
+
+        # Configure Neru
+        {
+          # Enable Neru
+          programs.neru.enable = true;
+
+          # Optional: Use specific package version
+          # programs.neru.package = pkgs.neru;
+
+          # Option A: Inline configuration
+          programs.neru.config = ''
+            [hotkeys]
+            "Cmd+Shift+Space" = "hints left_click"
+            "Cmd+Shift+G" = "grid left_click"
+
+            [general]
+            excluded_apps = ["com.apple.Terminal"]
+          '';
+
+          # Option B: Use existing config file (takes precedence)
+          # programs.neru.configFile = ./path/to/config.toml;
+        }
+      ];
+    };
+  };
+}
+```
+
+**Module Options:**
+
+- `programs.neru.enable` - Enable Neru (default: `false`)
+- `programs.neru.package` - Package to use (default: `pkgs.neru`)
+- `programs.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
+- `programs.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
+
+The module automatically:
+
+- Installs Neru in user environment
+- Creates `~/.config/neru/config.toml` (or uses your `configFile`)
+- Creates a launchd user agent
+- Configures the agent to run at login with `KeepAlive = true` and `RunAtLoad = true`
+- Installs shell completions for bash, fish, and zsh
+
+### Option 3: Using as an Overlay Only
+
+If you prefer to manage the service yourself, you can just use the overlay:
+
+> [!NOTE] Direct installation requires manual configuration and launch agent setup.
 
 ```nix
 {
-  imports = [ ./path-to-neru-module.nix ];
+  outputs = { self, nixpkgs, neru, ... }: {
+    darwinConfigurations.your-hostname = nix-darwin.lib.darwinSystem {
+      modules = [
+        {
+          nixpkgs.overlays = [ neru.overlays.default ];
+          environment.systemPackages = [ pkgs.neru ];
+        }
+      ];
+    };
+  };
+}
+```
 
+Or install directly as a package:
+
+```nix
+{
+  outputs = { self, nixpkgs, neru, ... }: {
+    darwinConfigurations.your-hostname = nix-darwin.lib.darwinSystem {
+      modules = [
+        {
+          environment.systemPackages = [
+            neru.packages.aarch64-darwin.default
+          ];
+        }
+      ];
+    };
+  };
+}
+```
+
+Or with home-manager:
+
+```nix
+{
+  home.packages = [ neru.packages.${system}.neru ];
+}
+```
+
+### Configuration Examples
+
+**Minimal setup (nix-darwin):**
+
+```nix
+{
   neru.enable = true;
-  neru.config = ''
-    [hotkeys]
-    "Cmd+Shift+Space" = "hints left_click"
+}
+```
 
-    [general]
-    excluded_apps = ["com.apple.Terminal"]
+**Custom hotkeys (home-manager):**
+
+```nix
+{
+  programs.neru.enable = true;
+  programs.neru.config = ''
+    [hotkeys]
+    "Cmd+;" = "hints left_click"
+    "Cmd+'" = "grid left_click"
+    "Cmd+Shift+S" = "scroll"
   '';
 }
+```
+
+**Using external config file (home-manager):**
+
+```nix
+{
+  programs.neru.enable = true;
+  programs.neru.configFile = ./dotfiles/neru/config.toml;
+}
+```
+
+### Updating
+
+To update Neru, update your flake lock:
+
+```bash
+nix flake update neru
+# Then rebuild your system/home configuration
 ```
 
 ---
