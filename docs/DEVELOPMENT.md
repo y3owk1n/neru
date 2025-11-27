@@ -623,7 +623,7 @@ Tests run automatically on:
    - Generate coverage report (`just test-coverage`)
    - Upload coverage to external services (optional)
 
-**Note:** Integration tests require macOS Accessibility permissions. In CI, permissions are attempted to be granted automatically, but GitHub Actions macOS runners have restricted TCC access. Integration tests may fail in CI due to permission issues - this is expected and doesn't indicate code problems. Run integration tests locally with proper accessibility permissions enabled.
+**Note:** Integration tests require macOS Accessibility permissions. In CI, permissions are reset using `tccutil` but GitHub Actions macOS runners have restricted TCC access. Integration tests typically fail in CI due to permission restrictions - this is expected and doesn't indicate code problems. Always run integration tests locally with proper accessibility permissions enabled in System Settings > Security & Privacy > Privacy > Accessibility.
 
 ### Troubleshooting Tests
 
