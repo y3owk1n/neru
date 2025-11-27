@@ -327,6 +327,66 @@ func TestHintService_RefreshHints(t *testing.T) {
 	}
 }
 
+func TestHintService_UpdateGenerator(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	logger := logger.Get()
+
+	// Initial generator
+	initialGen, _ := hint.NewAlphabetGenerator("abcd")
+	service := services.NewHintService(mockAcc, mockOverlay, initialGen, logger)
+
+	// Update with new generator
+	newGen, _ := hint.NewAlphabetGenerator("efgh")
+	ctx := context.Background()
+	service.UpdateGenerator(ctx, newGen)
+
+	// Test with nil generator (should not crash)
+	service.UpdateGenerator(ctx, nil)
+}
+
+func TestHintService_Health(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	generator, _ := hint.NewAlphabetGenerator("abcd")
+	logger := logger.Get()
+
+	service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
+
+	// Setup mocks
+	mockAcc.HealthFunc = func(_ context.Context) error {
+		return nil
+	}
+	mockOverlay.HealthFunc = func(_ context.Context) error {
+		return derrors.New(derrors.CodeOverlayFailed, "overlay unhealthy")
+	}
+
+	ctx := context.Background()
+	health := service.Health(ctx)
+
+	// Check that health map has both keys
+	if len(health) != 2 {
+		t.Errorf("Health() returned %d entries, want 2", len(health))
+	}
+
+	if _, ok := health["accessibility"]; !ok {
+		t.Error("Health() missing 'accessibility' key")
+	}
+
+	if _, ok := health["overlay"]; !ok {
+		t.Error("Health() missing 'overlay' key")
+	}
+
+	// Check that overlay has error
+	if health["overlay"] == nil {
+		t.Error("Health() overlay should have error")
+	}
+
+	if health["accessibility"] != nil {
+		t.Error("Health() accessibility should not have error")
+	}
+}
+
 // Helper functions.
 func mustNewElement(id string, bounds image.Rectangle) *element.Element {
 	element, elementErr := element.NewElement(element.ID(id), bounds, element.RoleButton)

@@ -153,3 +153,20 @@ func TestHintManager_RouterIntegration(t *testing.T) {
 		}
 	})
 }
+
+func TestCollection_Empty(t *testing.T) {
+	// Empty collection
+	empty := hint.NewCollection([]*hint.Interface{})
+	if !empty.Empty() {
+		t.Error("Empty collection should return true for Empty()")
+	}
+
+	// Non-empty collection
+	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
+	h, _ := hint.NewHint("A", elem, image.Point{0, 0})
+
+	nonEmpty := hint.NewCollection([]*hint.Interface{h})
+	if nonEmpty.Empty() {
+		t.Error("Non-empty collection should return false for Empty()")
+	}
+}

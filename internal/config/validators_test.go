@@ -74,6 +74,381 @@ func TestValidateColor(t *testing.T) {
 	}
 }
 
+// TestValidateHints tests the ValidateHints function.
+func TestValidateHints(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  config.Config
+		wantErr bool
+	}{
+		{
+			name: "valid hints config",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+					AdditionalAXSupport: config.AdditionalAXSupport{
+						AdditionalElectronBundles: []string{"com.example.app"},
+						AdditionalChromiumBundles: []string{"com.example.chromium"},
+						AdditionalFirefoxBundles:  []string{"com.example.firefox"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty hint_characters",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "hint_characters too short",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "a",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "opacity too low",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          -0.1,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "opacity too high",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          1.1,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid background_color",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "invalid",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid text_color",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "invalid",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid matched_text_color",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "invalid",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid border_color",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "invalid",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "font_size too small",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         5,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "font_size too large",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         73,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "negative border_radius",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     -1,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "negative padding",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          -1,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "negative border_width",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      -1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty clickable_roles entry",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton", ""},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty electron bundle",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+					AdditionalAXSupport: config.AdditionalAXSupport{
+						AdditionalElectronBundles: []string{""},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty chromium bundle",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+					AdditionalAXSupport: config.AdditionalAXSupport{
+						AdditionalChromiumBundles: []string{""},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty firefox bundle",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+					AdditionalAXSupport: config.AdditionalAXSupport{
+						AdditionalFirefoxBundles: []string{""},
+					},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.config.ValidateHints()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("Config.ValidateHints() error = %v, wantErr %v", err, testCase.wantErr)
+			}
+		})
+	}
+}
+
 // TestValidateHotkey tests the validateHotkey function.
 func TestValidateHotkey(t *testing.T) {
 	tests := []struct {
