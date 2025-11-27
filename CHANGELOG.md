@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.10.4](https://github.com/y3owk1n/neru/compare/v1.10.3...v1.10.4) (2025-11-27)
+
+
+### Bug Fixes
+
+* cleanup for some unused code and functions ([#211](https://github.com/y3owk1n/neru/issues/211)) ([3093084](https://github.com/y3owk1n/neru/commit/30930844548d18093be9d6918ccd1704c4000fe8))
+* **grid:** ensure grid overlay style updated in `reload config` ([#208](https://github.com/y3owk1n/neru/issues/208)) ([c08cb2a](https://github.com/y3owk1n/neru/commit/c08cb2a3e66442daee2240f34a0d5f2517f10c3e))
+* **hints:** ensure hints using the configured config styles than just defaults ([#209](https://github.com/y3owk1n/neru/issues/209)) ([f7e808c](https://github.com/y3owk1n/neru/commit/f7e808c2a9d0b0ec6e6f714c370cee817740b5e5))
+* **logger:** add consoleWriter parameter to Init for output control ([#215](https://github.com/y3owk1n/neru/issues/215)) ([6fbf809](https://github.com/y3owk1n/neru/commit/6fbf8092547c0561306d44cb2ea4f7a9caf8c0f7))
+* minor refactoring to ensure functions are not too long ([#212](https://github.com/y3owk1n/neru/issues/212)) ([99ccfbf](https://github.com/y3owk1n/neru/commit/99ccfbfdc1c9195fee522307cfacbd5aac76cfad))
+
+
+### Performance Improvements
+
+* **overlay:** optimize memory usage in drawing operations ([#206](https://github.com/y3owk1n/neru/issues/206)) ([aac6119](https://github.com/y3owk1n/neru/commit/aac611944eef3347e7f15327d2a86f11451bedde))
+
 ## [1.10.3](https://github.com/y3owk1n/neru/compare/v1.10.2...v1.10.3) (2025-11-26)
 
 
