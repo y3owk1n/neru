@@ -3,14 +3,20 @@ package app
 import (
 	"strings"
 
+	accessibilityAdapter "github.com/y3owk1n/neru/internal/adapter/accessibility"
+	overlayAdapter "github.com/y3owk1n/neru/internal/adapter/overlay"
+	"github.com/y3owk1n/neru/internal/application/ports"
+	"github.com/y3owk1n/neru/internal/application/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/infra/bridge"
 	"github.com/y3owk1n/neru/internal/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/infra/logger"
+	"github.com/y3owk1n/neru/internal/infra/metrics"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
 )
@@ -94,6 +100,72 @@ func initializeAppWatcher(deps *Deps, logger *zap.Logger) Watcher {
 	}
 
 	return appwatcher.NewWatcher(logger)
+}
+
+// initializeAdapters creates and initializes the accessibility and overlay adapters.
+func initializeAdapters(
+	cfg *config.Config,
+	logger *zap.Logger,
+	overlayManager OverlayManager,
+	metricsCollector metrics.Collector,
+) (ports.AccessibilityPort, ports.OverlayPort) {
+	excludedBundles := cfg.General.ExcludedApps
+	clickableRoles := cfg.Hints.ClickableRoles
+
+	// Create infrastructure client
+	axClient := accessibilityAdapter.NewInfraAXClient()
+
+	// Create base accessibility adapter with core functionality
+	baseAccessibilityAdapter := accessibilityAdapter.NewAdapter(
+		logger,
+		excludedBundles,
+		clickableRoles,
+		axClient,
+	)
+	// Wrap with metrics decorator to track performance
+	accAdapter := accessibilityAdapter.NewMetricsDecorator(
+		baseAccessibilityAdapter,
+		metricsCollector,
+	)
+
+	// Create overlay adapter for UI rendering
+	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)
+	// Wrap with metrics decorator to track rendering performance
+	overlayAdapter := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
+
+	return accAdapter, overlayAdapter
+}
+
+// initializeServices creates and initializes the domain services.
+func initializeServices(
+	cfg *config.Config,
+	accAdapter ports.AccessibilityPort,
+	overlayAdapter ports.OverlayPort,
+	logger *zap.Logger,
+) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, error) {
+	// Hint Generator - creates unique labels for UI elements
+	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
+	if hintGenErr != nil {
+		return nil, nil, nil, nil, derrors.Wrap(
+			hintGenErr,
+			derrors.CodeHintGenerationFailed,
+			"failed to create hint generator",
+		)
+	}
+
+	// Hint Service - orchestrates hint generation and display
+	hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, logger)
+
+	// Grid Service - manages grid-based navigation overlays
+	gridService := services.NewGridService(overlayAdapter, logger)
+
+	// Action Service - handles UI element interactions
+	actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Action, logger)
+
+	// Scroll Service - manages scrolling operations
+	scrollService := services.NewScrollService(accAdapter, overlayAdapter, cfg.Scroll, logger)
+
+	return hintService, gridService, actionService, scrollService, nil
 }
 
 // configureEventTapHotkeys configures the event tap with hotkeys from the configuration.

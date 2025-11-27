@@ -162,75 +162,49 @@ type LoadResult struct {
 
 // Validate validates the configuration.
 func (c *Config) Validate() error {
-	// At least one mode must be enabled
-	if !c.Hints.Enabled && !c.Grid.Enabled {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"at least one mode must be enabled: hints.enabled or grid.enabled",
-		)
+	err := c.validateModes()
+	if err != nil {
+		return err
 	}
 
 	// Validate hints configuration
-	validateErr := c.ValidateHints()
-	if validateErr != nil {
-		return validateErr
+	err = c.ValidateHints()
+	if err != nil {
+		return err
 	}
 
-	// Validate log level
-	validLogLevels := map[string]bool{
-		"debug": true,
-		"info":  true,
-		"warn":  true,
-		"error": true,
-	}
-	if !validLogLevels[c.Logging.LogLevel] {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"log_level must be one of: debug, info, warn, error",
-		)
+	err = c.validateLogging()
+	if err != nil {
+		return err
 	}
 
-	// Validate scroll settings
-	if c.Scroll.ScrollStep < 1 {
-		return derrors.New(derrors.CodeInvalidConfig, "scroll.scroll_speed must be at least 1")
-	}
-
-	if c.Scroll.ScrollStepHalf < 1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"scroll.half_page_multiplier must be at least 1",
-		)
-	}
-
-	if c.Scroll.ScrollStepFull < 1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"scroll.full_page_multiplier must be at least 1",
-		)
+	err = c.validateScroll()
+	if err != nil {
+		return err
 	}
 
 	// Validate app configs
-	validateAppConfigsErr := c.ValidateAppConfigs()
-	if validateAppConfigsErr != nil {
-		return validateAppConfigsErr
+	err = c.ValidateAppConfigs()
+	if err != nil {
+		return err
 	}
 
 	// Validate grid settings
-	validateGridErr := c.ValidateGrid()
-	if validateGridErr != nil {
-		return validateGridErr
+	err = c.ValidateGrid()
+	if err != nil {
+		return err
 	}
 
 	// Validate action settings
-	validateActionErr := c.ValidateAction()
-	if validateActionErr != nil {
-		return validateActionErr
+	err = c.ValidateAction()
+	if err != nil {
+		return err
 	}
 
 	// Validate smooth cursor settings
-	validateSmoothCursorErr := c.ValidateSmoothCursor()
-	if validateSmoothCursorErr != nil {
-		return validateSmoothCursorErr
+	err = c.ValidateSmoothCursor()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -333,4 +307,57 @@ func (c *Config) ClickableRolesForApp(bundleID string) []string {
 	}
 
 	return roles
+}
+
+// validateModes validates that at least one mode is enabled.
+func (c *Config) validateModes() error {
+	if !c.Hints.Enabled && !c.Grid.Enabled {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"at least one mode must be enabled: hints.enabled or grid.enabled",
+		)
+	}
+
+	return nil
+}
+
+// validateLogging validates the logging configuration.
+func (c *Config) validateLogging() error {
+	validLogLevels := map[string]bool{
+		"debug": true,
+		"info":  true,
+		"warn":  true,
+		"error": true,
+	}
+	if !validLogLevels[c.Logging.LogLevel] {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"log_level must be one of: debug, info, warn, error",
+		)
+	}
+
+	return nil
+}
+
+// validateScroll validates the scroll configuration.
+func (c *Config) validateScroll() error {
+	if c.Scroll.ScrollStep < 1 {
+		return derrors.New(derrors.CodeInvalidConfig, "scroll.scroll_speed must be at least 1")
+	}
+
+	if c.Scroll.ScrollStepHalf < 1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"scroll.half_page_multiplier must be at least 1",
+		)
+	}
+
+	if c.Scroll.ScrollStepFull < 1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"scroll.full_page_multiplier must be at least 1",
+		)
+	}
+
+	return nil
 }

@@ -3,14 +3,11 @@ package app
 import (
 	"context"
 
-	accessibilityAdapter "github.com/y3owk1n/neru/internal/adapter/accessibility"
-	overlayAdapter "github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/application/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
-	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/errors"
 	"github.com/y3owk1n/neru/internal/features/grid"
@@ -114,52 +111,17 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		metricsCollector = &metrics.NoOpCollector{}
 	}
 
-	excludedBundles := cfg.General.ExcludedApps
-	clickableRoles := cfg.Hints.ClickableRoles
+	accAdapter, overlayAdapter := initializeAdapters(cfg, logger, overlayManager, metricsCollector)
 
-	// Create infrastructure client
-	axClient := accessibilityAdapter.NewInfraAXClient()
-
-	// Create base accessibility adapter with core functionality
-	baseAccessibilityAdapter := accessibilityAdapter.NewAdapter(
+	hintService, gridService, actionService, scrollService, servicesErr := initializeServices(
+		cfg,
+		accAdapter,
+		overlayAdapter,
 		logger,
-		excludedBundles,
-		clickableRoles,
-		axClient,
 	)
-	// Wrap with metrics decorator to track performance
-	accAdapter := accessibilityAdapter.NewMetricsDecorator(
-		baseAccessibilityAdapter,
-		metricsCollector,
-	)
-
-	// Create overlay adapter for UI rendering
-	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)
-	// Wrap with metrics decorator to track rendering performance
-	overlayAdapter := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
-
-	// Initialize domain services that encapsulate business logic
-	// Hint Generator - creates unique labels for UI elements
-	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
-	if hintGenErr != nil {
-		return nil, derrors.Wrap(
-			hintGenErr,
-			derrors.CodeHintGenerationFailed,
-			"failed to create hint generator",
-		)
+	if servicesErr != nil {
+		return nil, servicesErr
 	}
-
-	// Hint Service - orchestrates hint generation and display
-	hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, logger)
-
-	// Grid Service - manages grid-based navigation overlays
-	gridService := services.NewGridService(overlayAdapter, logger)
-
-	// Action Service - handles UI element interactions
-	actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Action, logger)
-
-	// Scroll Service - manages scrolling operations
-	scrollService := services.NewScrollService(accAdapter, overlayAdapter, cfg.Scroll, logger)
 
 	// Create app instance with basic dependencies
 	app := &App{
@@ -283,70 +245,14 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 // If validation fails, shows an alert and keeps the current config.
 // Preserves the current app state (enabled/disabled, current mode).
 func (a *App) ReloadConfig(configPath string) error {
-	// Load new config with validation
-	configResult := config.LoadWithValidation(configPath)
-
-	// If there's a validation error, show alert and keep current config
-	if configResult.ValidationError != nil {
-		a.logger.Warn("Config validation failed during reload",
-			zap.Error(configResult.ValidationError),
-			zap.String("config_path", configResult.ConfigPath))
-
-		// Show alert dialog
-		bridge.ShowConfigValidationError(
-			configResult.ValidationError.Error(),
-			configResult.ConfigPath,
-		)
-
-		return derrors.Wrap(
-			configResult.ValidationError,
-			derrors.CodeInvalidConfig,
-			"config validation failed",
-		)
+	configResult, err := a.validateConfigReload(configPath)
+	if err != nil {
+		return err
 	}
 
-	// Exit current mode before updating config
-	if a.appState.CurrentMode() != ModeIdle {
-		a.ExitMode()
-	}
-
-	// Unregister all current hotkeys before updating config
-	if a.appState.HotkeysRegistered() {
-		a.logger.Info("Unregistering current hotkeys before reload")
-		a.hotkeyManager.UnregisterAll()
-		a.appState.SetHotkeysRegistered(false)
-	}
-
-	// Update config
-	a.config = configResult.Config
-	a.ConfigPath = configResult.ConfigPath
-
-	// Update global config for accessibility package
-	config.SetGlobal(configResult.Config)
-
-	// Update accessibility roles if hints config changed
-	if configResult.Config.Hints.Enabled {
-		a.logger.Info("Updating clickable roles",
-			zap.Int("count", len(configResult.Config.Hints.ClickableRoles)))
-		infra.SetClickableRoles(configResult.Config.Hints.ClickableRoles)
-	}
-
-	// Reconfigure event tap hotkeys with new config
-	a.configureEventTapHotkeys(configResult.Config, a.logger)
-
-	// Update all components with new config
-	a.hintsComponent.UpdateConfig(configResult.Config, a.logger)
-	a.gridComponent.UpdateConfig(configResult.Config, a.logger)
-	a.scrollComponent.UpdateConfig(configResult.Config, a.logger)
-	a.actionComponent.UpdateConfig(configResult.Config, a.logger)
-
-	// Update modes handler with new config
-	if a.modes != nil {
-		a.modes.UpdateConfig(configResult.Config)
-	}
-
-	// Re-register global hotkeys with new config
-	a.refreshHotkeysForAppOrCurrent("")
+	a.prepareForConfigUpdate()
+	a.applyConfigUpdate(configResult)
+	a.reconfigureAfterUpdate(configResult)
 
 	a.logger.Info("Configuration reloaded successfully")
 
@@ -466,6 +372,73 @@ func (a *App) DisableEventTap() { a.disableEventTap() }
 // HandleKeyPress delegates key press handling to the mode handler.
 func (a *App) HandleKeyPress(key string) {
 	a.modes.HandleKeyPress(key)
+}
+
+// validateConfigReload loads and validates the config, handling validation errors.
+func (a *App) validateConfigReload(configPath string) (*config.LoadResult, error) {
+	configResult := config.LoadWithValidation(configPath)
+
+	if configResult.ValidationError != nil {
+		a.logger.Warn("Config validation failed during reload",
+			zap.Error(configResult.ValidationError),
+			zap.String("config_path", configResult.ConfigPath))
+
+		bridge.ShowConfigValidationError(
+			configResult.ValidationError.Error(),
+			configResult.ConfigPath,
+		)
+
+		return configResult, derrors.Wrap(
+			configResult.ValidationError,
+			derrors.CodeInvalidConfig,
+			"config validation failed",
+		)
+	}
+
+	return configResult, nil
+}
+
+// prepareForConfigUpdate prepares the app for config update by exiting mode and unregistering hotkeys.
+func (a *App) prepareForConfigUpdate() {
+	if a.appState.CurrentMode() != ModeIdle {
+		a.ExitMode()
+	}
+
+	if a.appState.HotkeysRegistered() {
+		a.logger.Info("Unregistering current hotkeys before reload")
+		a.hotkeyManager.UnregisterAll()
+		a.appState.SetHotkeysRegistered(false)
+	}
+}
+
+// applyConfigUpdate applies the new config to the app state.
+func (a *App) applyConfigUpdate(configResult *config.LoadResult) {
+	a.config = configResult.Config
+	a.ConfigPath = configResult.ConfigPath
+
+	config.SetGlobal(configResult.Config)
+
+	if configResult.Config.Hints.Enabled {
+		a.logger.Info("Updating clickable roles",
+			zap.Int("count", len(configResult.Config.Hints.ClickableRoles)))
+		infra.SetClickableRoles(configResult.Config.Hints.ClickableRoles)
+	}
+}
+
+// reconfigureAfterUpdate reconfigures components and services after config update.
+func (a *App) reconfigureAfterUpdate(configResult *config.LoadResult) {
+	a.configureEventTapHotkeys(configResult.Config, a.logger)
+
+	a.hintsComponent.UpdateConfig(configResult.Config, a.logger)
+	a.gridComponent.UpdateConfig(configResult.Config, a.logger)
+	a.scrollComponent.UpdateConfig(configResult.Config, a.logger)
+	a.actionComponent.UpdateConfig(configResult.Config, a.logger)
+
+	if a.modes != nil {
+		a.modes.UpdateConfig(configResult.Config)
+	}
+
+	a.refreshHotkeysForAppOrCurrent("")
 }
 
 // Helper methods for event tap control (used by callbacks)
