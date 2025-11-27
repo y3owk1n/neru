@@ -325,13 +325,18 @@ func (h *Handler) performModeSpecificCleanup() {
 	}
 }
 
+// clearAndHideOverlay clears and hides the overlay manager.
+func (h *Handler) clearAndHideOverlay() {
+	h.OverlayManager.Clear()
+	h.OverlayManager.Hide()
+}
+
 // cleanupHintsMode handles cleanup for hints mode.
 func (h *Handler) cleanupHintsMode() {
 	h.Hints.Context.SetInActionMode(false)
 	h.Hints.Context.Reset()
 
-	h.OverlayManager.Clear()
-	h.OverlayManager.Hide()
+	h.clearAndHideOverlay()
 }
 
 // cleanupDefaultMode handles cleanup for default/unknown modes.
@@ -352,8 +357,7 @@ func (h *Handler) cleanupGridMode() {
 		h.Grid.Manager.Reset()
 	}
 
-	h.OverlayManager.Clear()
-	h.OverlayManager.Hide()
+	h.clearAndHideOverlay()
 }
 
 // performCommonCleanup handles common cleanup logic for all modes.
@@ -450,6 +454,24 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 }
 
 // handleActionKey handles action keys for both hints and grid modes.
+// getActionMapping returns the action name and log message for a given key.
+func (h *Handler) getActionMapping(key string) (string, string, bool) {
+	switch key {
+	case h.Config.Action.LeftClickKey:
+		return string(domain.ActionNameLeftClick), "Left click", true
+	case h.Config.Action.RightClickKey:
+		return string(domain.ActionNameRightClick), "Right click", true
+	case h.Config.Action.MiddleClickKey:
+		return string(domain.ActionNameMiddleClick), "Middle click", true
+	case h.Config.Action.MouseDownKey:
+		return string(domain.ActionNameMouseDown), "Mouse down", true
+	case h.Config.Action.MouseUpKey:
+		return string(domain.ActionNameMouseUp), "Mouse up", true
+	default:
+		return "", "", false
+	}
+}
+
 func (h *Handler) handleActionKey(key string, mode string) {
 	ctx := context.Background()
 
@@ -460,34 +482,14 @@ func (h *Handler) handleActionKey(key string, mode string) {
 		return
 	}
 
-	var act string
-
-	switch key {
-	case h.Config.Action.LeftClickKey:
-		h.Logger.Info(mode + " action: Left click")
-
-		act = string(domain.ActionNameLeftClick)
-	case h.Config.Action.RightClickKey:
-		h.Logger.Info(mode + " action: Right click")
-
-		act = string(domain.ActionNameRightClick)
-	case h.Config.Action.MiddleClickKey:
-		h.Logger.Info(mode + " action: Middle click")
-
-		act = string(domain.ActionNameMiddleClick)
-	case h.Config.Action.MouseDownKey:
-		h.Logger.Info(mode + " action: Mouse down")
-
-		act = string(domain.ActionNameMouseDown)
-	case h.Config.Action.MouseUpKey:
-		h.Logger.Info(mode + " action: Mouse up")
-
-		act = string(domain.ActionNameMouseUp)
-	default:
+	act, logMsg, ok := h.getActionMapping(key)
+	if !ok {
 		h.Logger.Debug("Unknown "+mode+" action key", zap.String("key", key))
 
 		return
 	}
+
+	h.Logger.Info(mode + " action: " + logMsg)
 
 	// Use ActionService
 	performActionErr := h.ActionService.PerformAction(ctx, act, cursorPos)
@@ -516,28 +518,53 @@ func (h *Handler) SetModeIdle() {
 	h.overlaySwitch(overlay.ModeIdle)
 }
 
-// SetModeHints switches the application to hints mode for accessibility-based navigation.
-// This function sets the application state to hints mode, enables event tapping
-// for capturing keyboard input, and switches the overlay display to hints mode.
-func (h *Handler) SetModeHints() {
-	h.AppState.SetMode(domain.ModeHints)
+// setMode sets the application mode, enables event tap, and switches overlay.
+func (h *Handler) setMode(appMode domain.Mode, overlayMode overlay.Mode) {
+	h.AppState.SetMode(appMode)
 
 	if h.EnableEventTap != nil {
 		h.EnableEventTap()
 	}
 
-	h.overlaySwitch(overlay.ModeHints)
+	h.overlaySwitch(overlayMode)
+}
+
+// activateModeBase performs common activation steps for all modes.
+func (h *Handler) activateModeBase(
+	modeName string,
+	enabled bool,
+	actionEnum domain.Action,
+) (domain.Action, bool) {
+	// Validate mode activation
+	err := h.validateModeActivation(modeName, enabled)
+	if err != nil {
+		h.Logger.Warn(modeName+" mode activation failed", zap.Error(err))
+
+		return domain.ActionMoveMouse, false
+	}
+
+	// Prepare for mode activation (reset scroll, capture cursor)
+	h.prepareForModeActivation()
+
+	actionString := domain.ActionString(actionEnum)
+	h.Logger.Info("Activating "+modeName+" mode", zap.String("action", actionString))
+
+	// Always resize overlay to the active screen
+	h.OverlayManager.ResizeToActiveScreenSync()
+
+	return actionEnum, true
+}
+
+// SetModeHints switches the application to hints mode for accessibility-based navigation.
+// This function sets the application state to hints mode, enables event tapping
+// for capturing keyboard input, and switches the overlay display to hints mode.
+func (h *Handler) SetModeHints() {
+	h.setMode(domain.ModeHints, overlay.ModeHints)
 }
 
 // SetModeGrid switches the application to grid mode for coordinate-based navigation.
 // This function sets the application state to grid mode, enables event tapping
 // for capturing keyboard input, and switches the overlay display to grid mode.
 func (h *Handler) SetModeGrid() {
-	h.AppState.SetMode(domain.ModeGrid)
-
-	if h.EnableEventTap != nil {
-		h.EnableEventTap()
-	}
-
-	h.overlaySwitch(overlay.ModeGrid)
+	h.setMode(domain.ModeGrid, overlay.ModeGrid)
 }

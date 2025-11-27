@@ -3,10 +3,17 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 	derrors "github.com/y3owk1n/neru/internal/errors"
+)
+
+// Accessibility role constants.
+const (
+	RoleMenuBarItem = "AXMenuBarItem"
+	RoleDockItem    = "AXDockItem"
 )
 
 // ActionConfig defines the visual and behavioral settings for action mode.
@@ -269,10 +276,18 @@ func (c *Config) IsAppExcluded(bundleID string) bool {
 	return false
 }
 
-// ClickableRolesForApp returns the merged clickable roles for a specific app.
+// ClickableRolesForApp returns the clickable roles for a specific app bundle ID.
 func (c *Config) ClickableRolesForApp(bundleID string) []string {
+	rolesMap := c.buildRolesMap(bundleID)
+
+	return rolesMapToSlice(rolesMap)
+}
+
+// buildRolesMap builds a map of clickable roles for the given bundle ID.
+func (c *Config) buildRolesMap(bundleID string) map[string]struct{} {
 	rolesMap := make(map[string]struct{})
 
+	// Add global clickable roles
 	for _, role := range c.Hints.ClickableRoles {
 		trimmed := strings.TrimSpace(role)
 		if trimmed != "" {
@@ -280,6 +295,7 @@ func (c *Config) ClickableRolesForApp(bundleID string) []string {
 		}
 	}
 
+	// Add app-specific roles
 	for _, appConfig := range c.Hints.AppConfigs {
 		if appConfig.BundleID == bundleID {
 			for _, role := range appConfig.AdditionalClickable {
@@ -293,14 +309,20 @@ func (c *Config) ClickableRolesForApp(bundleID string) []string {
 		}
 	}
 
+	// Add special roles
 	if c.Hints.IncludeMenubarHints {
-		rolesMap["AXMenuBarItem"] = struct{}{}
+		rolesMap[RoleMenuBarItem] = struct{}{}
 	}
 
 	if c.Hints.IncludeDockHints {
-		rolesMap["AXDockItem"] = struct{}{}
+		rolesMap[RoleDockItem] = struct{}{}
 	}
 
+	return rolesMap
+}
+
+// rolesMapToSlice converts a roles map to a slice.
+func rolesMapToSlice(rolesMap map[string]struct{}) []string {
 	roles := make([]string, 0, len(rolesMap))
 	for role := range rolesMap {
 		roles = append(roles, role)
@@ -339,24 +361,33 @@ func (c *Config) validateLogging() error {
 	return nil
 }
 
+// validateMinValue validates that a value is at least the minimum.
+func validateMinValue(value int, minimum int, fieldName string) error {
+	if value < minimum {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			fieldName+" must be at least "+strconv.Itoa(minimum),
+		)
+	}
+
+	return nil
+}
+
 // validateScroll validates the scroll configuration.
 func (c *Config) validateScroll() error {
-	if c.Scroll.ScrollStep < 1 {
-		return derrors.New(derrors.CodeInvalidConfig, "scroll.scroll_speed must be at least 1")
+	err := validateMinValue(c.Scroll.ScrollStep, 1, "scroll.scroll_speed")
+	if err != nil {
+		return err
 	}
 
-	if c.Scroll.ScrollStepHalf < 1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"scroll.half_page_multiplier must be at least 1",
-		)
+	err = validateMinValue(c.Scroll.ScrollStepHalf, 1, "scroll.half_page_multiplier")
+	if err != nil {
+		return err
 	}
 
-	if c.Scroll.ScrollStepFull < 1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"scroll.full_page_multiplier must be at least 1",
-		)
+	err = validateMinValue(c.Scroll.ScrollStepFull, 1, "scroll.full_page_multiplier")
+	if err != nil {
+		return err
 	}
 
 	return nil

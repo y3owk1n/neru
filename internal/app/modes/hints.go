@@ -53,20 +53,16 @@ func (h *Handler) activateHintModeWithAction(action *string) {
 // It handles mode validation, overlay positioning, element collection, hint generation,
 // and UI setup for hint-based navigation.
 func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *string) {
-	// Validate mode activation
-	domainHintsErr := h.validateModeActivation("hints", h.Config.Hints.Enabled)
-	if domainHintsErr != nil {
-		h.Logger.Warn("Hint mode activation failed", zap.Error(domainHintsErr))
-
+	actionEnum, ok := h.activateModeBase(
+		domain.ModeNameHints,
+		h.Config.Hints.Enabled,
+		domain.ActionMoveMouse,
+	)
+	if !ok {
 		return
 	}
 
-	// Prepare for mode activation (reset scroll, capture cursor)
-	h.prepareForModeActivation()
-
-	actionEnum := domain.ActionMoveMouse
 	actionString := domain.ActionString(actionEnum)
-	h.Logger.Info("Activating hint mode", zap.String("action", actionString))
 
 	if !preserveActionMode {
 		// Handle mode transitions: if already in hints mode, do partial cleanup to preserve state;

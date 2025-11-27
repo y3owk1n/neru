@@ -302,10 +302,12 @@ func (a *Adapter) processClickableNodes(
 	clickableNodes []AXNode,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
+	const contextCheckInterval = 100
+
 	elements := make([]*element.Element, 0, len(clickableNodes))
 	for index, node := range clickableNodes {
 		// Check context periodically
-		if index%100 == 0 {
+		if index%contextCheckInterval == 0 {
 			err := a.checkContext(ctx)
 			if err != nil {
 				return nil, err

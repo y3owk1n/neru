@@ -168,8 +168,8 @@ func initializeServices(
 	return hintService, gridService, actionService, scrollService, nil
 }
 
-// configureEventTapHotkeys configures the event tap with hotkeys from the configuration.
-func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger) {
+// processHotkeyBindings processes and filters hotkey bindings from configuration.
+func processHotkeyBindings(config *config.Config, logger *zap.Logger) []string {
 	keys := make([]string, 0, len(config.Hotkeys.Bindings))
 	for key, value := range config.Hotkeys.Bindings {
 		// Skip empty keys or values
@@ -198,6 +198,13 @@ func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger
 
 		keys = append(keys, key)
 	}
+
+	return keys
+}
+
+// configureEventTapHotkeys configures the event tap with hotkeys from the configuration.
+func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger) {
+	keys := processHotkeyBindings(config, logger)
 
 	// Log if no hotkeys are configured
 	if len(keys) == 0 {

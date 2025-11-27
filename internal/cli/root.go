@@ -108,8 +108,8 @@ func launchProgram(cfgPath string) {
 	}
 }
 
-// sendCommand transmits a command to the running Neru daemon via IPC.
-func sendCommand(action string, args []string) error {
+// sendIPCCommand sends the IPC command and returns the response.
+func sendIPCCommand(action string, args []string) (ipc.Response, error) {
 	logger.Debug("Sending command",
 		zap.String("action", action),
 		zap.Strings("args", args))
@@ -117,7 +117,7 @@ func sendCommand(action string, args []string) error {
 	if !ipc.IsServerRunning() {
 		logger.Warn("Neru is not running")
 
-		return derrors.New(
+		return ipc.Response{}, derrors.New(
 			derrors.CodeIPCServerNotRunning,
 			"neru is not running. Start it first with 'neru' or 'neru launch'",
 		)
@@ -134,9 +134,18 @@ func sendCommand(action string, args []string) error {
 			zap.String("action", action),
 			zap.Error(ipcResponseErr))
 
-		return derrors.Wrap(ipcResponseErr, derrors.CodeIPCFailed, "failed to send command")
+		return ipc.Response{}, derrors.Wrap(
+			ipcResponseErr,
+			derrors.CodeIPCFailed,
+			"failed to send command",
+		)
 	}
 
+	return ipcResponse, nil
+}
+
+// handleIPCResponse processes the IPC response and logs the result.
+func handleIPCResponse(action string, ipcResponse ipc.Response) error {
 	if !ipcResponse.Success {
 		logger.Warn("Command failed",
 			zap.String("action", action),
@@ -162,6 +171,16 @@ func sendCommand(action string, args []string) error {
 	logger.Info(ipcResponse.Message)
 
 	return nil
+}
+
+// sendCommand transmits a command to the running Neru daemon via IPC.
+func sendCommand(action string, args []string) error {
+	ipcResponse, err := sendIPCCommand(action, args)
+	if err != nil {
+		return err
+	}
+
+	return handleIPCResponse(action, ipcResponse)
 }
 
 func requiresRunningInstance() error {
