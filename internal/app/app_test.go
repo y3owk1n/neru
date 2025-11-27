@@ -1,5 +1,3 @@
-//go:build integration
-
 package app_test
 
 import (
@@ -122,18 +120,14 @@ func (m *mockAppWatcher) OnDeactivate(_ appwatcher.AppCallback) {}
 func (m *mockAppWatcher) OnTerminate(_ appwatcher.AppCallback)  {}
 func (m *mockAppWatcher) OnScreenParametersChanged(_ func())    {}
 
-func TestApp_ModeIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
+func TestApp_ModeTransitions(t *testing.T) {
 	// Setup minimal config
 	config := config.DefaultConfig()
 	config.Hints.Enabled = true
 	config.Grid.Enabled = true
 	config.General.AccessibilityCheckOnStart = false // Disable OS check
 
-	// Mock dependencies - this tests app logic integration with mocked infra
+	// Mock dependencies - this tests app logic with mocked infra
 	deps := &app.Deps{
 		EventTapFactory:       &mockEventTapFactory{},
 		IPCServerFactory:      &mockIPCServerFactory{},

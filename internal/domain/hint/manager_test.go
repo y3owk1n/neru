@@ -1,6 +1,7 @@
 package hint_test
 
 import (
+	"context"
 	"image"
 	"testing"
 
@@ -92,4 +93,63 @@ func TestManager_Backspace(t *testing.T) {
 	if manager.CurrentInput() != "" {
 		t.Errorf("Expected empty input, got %q", manager.CurrentInput())
 	}
+}
+
+func TestHintManager_RouterIntegration(t *testing.T) {
+	logger := logger.Get()
+
+	// Create hint manager
+	hintManager := hint.NewManager(logger)
+
+	// Create hint router
+	hintRouter := hint.NewRouter(hintManager, logger)
+
+	// Create some test elements
+	elem1, _ := element.NewElement("elem1", image.Rect(10, 10, 50, 50), element.RoleButton)
+	elem2, _ := element.NewElement("elem2", image.Rect(60, 10, 100, 50), element.RoleButton)
+	elem3, _ := element.NewElement("elem3", image.Rect(10, 60, 50, 100), element.RoleButton)
+	testElements := []*element.Element{elem1, elem2, elem3}
+
+	// Create hint generator
+	gen, err := hint.NewAlphabetGenerator("asdf")
+	if err != nil {
+		t.Fatalf("Failed to create hint generator: %v", err)
+	}
+
+	// Generate hints
+	hintInterfaces, err := gen.Generate(context.Background(), testElements)
+	if err != nil {
+		t.Fatalf("Failed to generate hints: %v", err)
+	}
+
+	// Create hint collection
+	hints := hint.NewCollection(hintInterfaces)
+
+	// Set hints in manager
+	hintManager.SetHints(hints)
+
+	t.Run("Hint manager and router integration", func(t *testing.T) {
+		// Test that manager and router can work together
+		// Test escape - should exit
+		result := hintRouter.RouteKey("escape")
+		if !result.Exit() {
+			t.Error("Expected to exit on escape")
+		}
+	})
+
+	t.Run("Hint manager callback integration", func(t *testing.T) {
+		var callbackCalled bool
+
+		// Set callback
+		hintManager.SetUpdateCallback(func(hints []*hint.Interface) {
+			callbackCalled = true
+		})
+
+		// Reset should trigger callback
+		hintManager.Reset()
+
+		if !callbackCalled {
+			t.Error("Expected callback to be called on reset")
+		}
+	})
 }
