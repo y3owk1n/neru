@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,6 +33,7 @@ func Init(
 	structured bool,
 	disableFileLogging bool,
 	maxFileSize, maxBackups, maxAge int,
+	consoleWriter io.Writer,
 ) error {
 	logFileMu.Lock()
 	defer logFileMu.Unlock()
@@ -83,9 +85,14 @@ func Init(
 	// Create console encoder
 	consoleEncoder := zapcore.NewConsoleEncoder(consoleEncoderConfig)
 
+	// Determine console writer
+	if consoleWriter == nil {
+		consoleWriter = os.Stdout
+	}
+
 	// Create cores slice
 	cores := []zapcore.Core{
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), level),
+		zapcore.NewCore(consoleEncoder, zapcore.AddSync(consoleWriter), level),
 	}
 
 	// Add file logging if not disabled
