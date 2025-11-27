@@ -84,6 +84,7 @@ type Overlay struct {
 	cachedMatchedBorderColor *C.char
 	cachedBorderColor        *C.char
 	cachedHighlightColor     *C.char
+	cachedLabels             map[string]*C.char
 
 	// Pre-allocated buffer for grid lines (always 4 lines for highlights)
 	gridLineBuffer [DefaultGridLinesCount]C.CGRect
@@ -135,9 +136,10 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) *Overlay {
 	})
 
 	return &Overlay{
-		window: window,
-		config: config,
-		logger: logger,
+		window:       window,
+		config:       config,
+		logger:       logger,
+		cachedLabels: make(map[string]*C.char),
 	}
 }
 
@@ -164,9 +166,10 @@ func NewOverlayWithWindow(
 	})
 
 	return &Overlay{
-		window: (C.OverlayWindow)(windowPtr),
-		config: config,
-		logger: logger,
+		window:       (C.OverlayWindow)(windowPtr),
+		config:       config,
+		logger:       logger,
+		cachedLabels: make(map[string]*C.char),
 	}
 }
 
@@ -188,6 +191,9 @@ func (o *Overlay) Logger() *zap.Logger {
 // SetConfig updates the overlay's config (e.g., after config reload).
 func (o *Overlay) SetConfig(config config.GridConfig) {
 	o.config = config
+	// Invalidate caches when config changes
+	o.freeStyleCache()
+	o.freeLabelCache()
 }
 
 // SetHideUnmatched sets whether to hide unmatched cells.
@@ -222,6 +228,7 @@ func (o *Overlay) Clear() {
 // Destroy destroys the grid overlay window.
 func (o *Overlay) Destroy() {
 	o.freeStyleCache()
+	o.freeLabelCache()
 	C.NeruDestroyOverlayWindow(o.window)
 }
 
@@ -397,7 +404,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 		rowIndex := cellIndex / cols
 		colIndex := cellIndex % cols
 		label := strings.ToUpper(string(chars[cellIndex]))
-		labels[cellIndex] = C.CString(label)
+		labels[cellIndex] = o.getOrCacheLabel(label)
 		left := xBreaks[colIndex]
 		right := xBreaks[colIndex+1]
 		top := yBreaks[rowIndex]
@@ -437,9 +444,6 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	C.NeruClearOverlay(o.window)
 	C.NeruDrawGridCells(o.window, &cells[0], C.int(len(cells)), finalStyle)
 
-	for labelIndex := range labels {
-		C.free(unsafe.Pointer(labels[labelIndex]))
-	}
 	*cellsPtr = (*cellsPtr)[:0]
 	*labelsPtr = (*labelsPtr)[:0]
 	subgridCellSlicePool.Put(cellsPtr)
@@ -533,6 +537,44 @@ func (o *Overlay) freeStyleCache() {
 		C.free(unsafe.Pointer(o.cachedHighlightColor))
 		o.cachedHighlightColor = nil
 	}
+}
+
+// freeLabelCache frees all cached label C strings.
+func (o *Overlay) freeLabelCache() {
+	o.cachedStyleMu.Lock()
+	defer o.cachedStyleMu.Unlock()
+
+	for _, cStr := range o.cachedLabels {
+		if cStr != nil {
+			C.free(unsafe.Pointer(cStr))
+		}
+	}
+	// Re-initialize map to clear references
+	o.cachedLabels = make(map[string]*C.char)
+}
+
+// getOrCacheLabel returns a cached C string for the label, creating it if needed.
+func (o *Overlay) getOrCacheLabel(label string) *C.char {
+	o.cachedStyleMu.RLock()
+	if cStr, ok := o.cachedLabels[label]; ok {
+		o.cachedStyleMu.RUnlock()
+
+		return cStr
+	}
+	o.cachedStyleMu.RUnlock()
+
+	o.cachedStyleMu.Lock()
+	defer o.cachedStyleMu.Unlock()
+
+	// Double-check
+	if cStr, ok := o.cachedLabels[label]; ok {
+		return cStr
+	}
+
+	cStr := C.CString(label)
+	o.cachedLabels[label] = cStr
+
+	return cStr
 }
 
 // updateStyleCacheLocked updates cached C strings for the current style.
@@ -643,7 +685,7 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 
 	matchedCount := 0
 	for cellIndex, cell := range cellsGo {
-		cLabels[cellIndex] = C.CString(cell.Coordinate())
+		cLabels[cellIndex] = o.getOrCacheLabel(cell.Coordinate())
 
 		isMatched := 0
 		matchedPrefixLength := 0
@@ -691,9 +733,6 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 	C.NeruClearOverlay(o.window)
 	C.NeruDrawGridCells(o.window, &cGridCells[0], C.int(len(cGridCells)), finalStyle)
 
-	for labelIndex := range cLabels {
-		C.free(unsafe.Pointer(cLabels[labelIndex]))
-	}
 	*cGridCellsPtr = (*cGridCellsPtr)[:0]
 	*cLabelsPtr = (*cLabelsPtr)[:0]
 	gridCellSlicePool.Put(cGridCellsPtr)
