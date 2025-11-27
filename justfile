@@ -61,7 +61,7 @@ test-integration:
 
 test-coverage:
     @echo "Running tests with coverage..."
-    go test -coverprofile=coverage.out -covermode=atomic ./...
+    go test -coverprofile=coverage.txt ./...
 
 test-coverage-html:
     @echo "Running tests with coverage (HTML)..."

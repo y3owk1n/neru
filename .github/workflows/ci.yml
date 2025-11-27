@@ -4,6 +4,7 @@ on:
 name: CI
 permissions:
     contents: read
+    pull-requests: read
 jobs:
     checks:
         name: ${{ matrix.check }}
@@ -45,6 +46,11 @@ jobs:
             - name: Run just vet
               if: ${{ matrix.check == 'vet' }}
               run: just vet
-            - name: Run just test
+            - name: Run just test-coverage
               if: ${{ matrix.check == 'test' }}
-              run: just test
+              run: just test-coverage
+            - name: Upload coverage to Codecov
+              if: ${{ matrix.check == 'test' }}
+              uses: codecov/codecov-action@v5
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
