@@ -12,7 +12,7 @@ jobs:
             matrix:
                 go: ["1.25.2"]
                 os: [macos-latest]
-                check: [lint, formatting, vet, test]
+                check: [lint, formatting, vet, test, build]
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v5
@@ -46,6 +46,9 @@ jobs:
             - name: Run just vet
               if: ${{ matrix.check == 'vet' }}
               run: just vet
+            - name: Run just build
+              if: ${{ matrix.check == 'build' }}
+              run: just build
             - name: Run just test-coverage
               if: ${{ matrix.check == 'test' }}
               run: just test-coverage
