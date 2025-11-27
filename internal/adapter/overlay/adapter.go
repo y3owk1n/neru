@@ -56,8 +56,13 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Interface) error 
 	a.manager.SwitchTo("hints")
 
 	// Draw hints using the overlay manager
-	// Use default style for now
-	drawHintsErr := a.manager.DrawHintsWithStyle(overlayHintList, overlayHints.StyleMode{})
+	// Retrieve config from overlay to build current style
+	var style overlayHints.StyleMode
+	if hintOverlay := a.manager.HintOverlay(); hintOverlay != nil {
+		style = overlayHints.BuildStyle(hintOverlay.Config())
+	}
+
+	drawHintsErr := a.manager.DrawHintsWithStyle(overlayHintList, style)
 	if drawHintsErr != nil {
 		return derrors.Wrap(drawHintsErr, derrors.CodeOverlayFailed, "failed to draw hints")
 	}

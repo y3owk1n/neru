@@ -441,7 +441,7 @@ func (o *Overlay) getCachedStyleStrings(
 	style StyleMode,
 ) (*C.char, *C.char, *C.char, *C.char, *C.char) {
 	o.cachedStyleMu.RLock()
-	// Check if cache is valid (simple check - if any is nil, rebuild all)
+	// Check if cache needs rebuild or is invalid
 	if o.cachedFontFamily == nil {
 		o.cachedStyleMu.RUnlock()
 		o.cachedStyleMu.Lock()
