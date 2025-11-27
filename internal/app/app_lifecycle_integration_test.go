@@ -105,6 +105,8 @@ func TestAppInitializationIntegration(t *testing.T) {
 		t.Log("✅ App initialization and basic functionality test completed successfully")
 
 	case <-time.After(10 * time.Second):
-		t.Fatal("❌ App initialization timed out - this indicates a hanging issue that needs to be fixed")
+		t.Fatal(
+			"❌ App initialization timed out - this indicates a hanging issue that needs to be fixed",
+		)
 	}
 }

@@ -63,7 +63,7 @@ max_age = 30
 `
 
 		// Write config file to real file system
-		err := os.WriteFile(configPath, []byte(configContent), 0644)
+		err := os.WriteFile(configPath, []byte(configContent), 0o644)
 		if err != nil {
 			t.Fatalf("Failed to write test config file: %v", err)
 		}
@@ -78,7 +78,10 @@ max_age = 30
 		// Verify the file was actually read and parsed correctly
 		cfg := loadResult.Config
 		if cfg.Hints.HintCharacters != "asdfqwertzxcvb" {
-			t.Errorf("Expected hint_characters 'asdfqwertzxcvb', got '%s'", cfg.Hints.HintCharacters)
+			t.Errorf(
+				"Expected hint_characters 'asdfqwertzxcvb', got '%s'",
+				cfg.Hints.HintCharacters,
+			)
 		}
 
 		if cfg.Grid.FontSize != 12 {
@@ -92,7 +95,7 @@ max_age = 30
 [hints]
 font_size = 12
 `
-		err := os.WriteFile(configPath, []byte(initialContent), 0644)
+		err := os.WriteFile(configPath, []byte(initialContent), 0o644)
 		if err != nil {
 			t.Fatalf("Failed to write initial config: %v", err)
 		}
@@ -111,7 +114,7 @@ font_size = 12
 [hints]
 font_size = 16
 `
-		err = os.WriteFile(configPath, []byte(updatedContent), 0644)
+		err = os.WriteFile(configPath, []byte(updatedContent), 0o644)
 		if err != nil {
 			t.Fatalf("Failed to write updated config: %v", err)
 		}
@@ -136,7 +139,7 @@ enabled = true
 `
 
 		// Write with restrictive permissions
-		err := os.WriteFile(configPath, []byte(configContent), 0600)
+		err := os.WriteFile(configPath, []byte(configContent), 0o600)
 		if err != nil {
 			t.Fatalf("Failed to write config file: %v", err)
 		}
@@ -144,7 +147,10 @@ enabled = true
 		// Should still be able to load it
 		loadResult := config.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
-			t.Fatalf("Failed to load config with restrictive permissions: %v", loadResult.ValidationError)
+			t.Fatalf(
+				"Failed to load config with restrictive permissions: %v",
+				loadResult.ValidationError,
+			)
 		}
 
 		if !loadResult.Config.Hints.Enabled {

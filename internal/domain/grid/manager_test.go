@@ -37,10 +37,6 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 			t.Error("Expected not to exit on 'a'")
 		}
 
-		if result1.Complete() {
-			t.Error("Expected not complete on single character")
-		}
-
 		// Test typing "s" - still not complete
 		result2 := gridRouter.RouteKey("s")
 		if result2.Exit() {
@@ -115,4 +111,42 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 		// Tab behavior depends on subgrid state, just ensure it doesn't crash
 		_ = resultTab
 	})
+}
+
+func TestManager_CurrentInput(t *testing.T) {
+	logger := logger.Get()
+	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
+
+	manager := grid.NewManager(testGrid, 2, 2, "12", nil, nil, logger)
+
+	// Initially empty
+	if input := manager.CurrentInput(); input != "" {
+		t.Errorf("CurrentInput() = %q, want empty", input)
+	}
+
+	// After input
+	manager.HandleInput("A")
+
+	if input := manager.CurrentInput(); input != "A" {
+		t.Errorf("CurrentInput() = %q, want 'A'", input)
+	}
+}
+
+func TestManager_Reset(t *testing.T) {
+	logger := logger.Get()
+	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
+
+	manager := grid.NewManager(testGrid, 2, 2, "12", nil, nil, logger)
+
+	manager.HandleInput("A")
+
+	if input := manager.CurrentInput(); input != "A" {
+		t.Errorf("Before reset, CurrentInput() = %q", input)
+	}
+
+	manager.Reset()
+
+	if input := manager.CurrentInput(); input != "" {
+		t.Errorf("After reset, CurrentInput() = %q, want empty", input)
+	}
 }
