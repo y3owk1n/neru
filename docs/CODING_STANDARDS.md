@@ -691,9 +691,10 @@ if ([NSThread isMainThread]) {
 
 ### Test File Organization
 
-- One test file per source file: `service.go` → `service_test.go`
-- Benchmark tests: `service_bench_test.go`
-- Integration tests: `service_integration_test.go`
+- **Unit tests**: `service_test.go` (one per source file)
+- **Integration tests**: `service_integration_test.go` (tagged with `//go:build integration`)
+- **Benchmark tests**: `service_bench_test.go`
+- **Example tests**: `service_example_test.go`
 
 ### Test Function Naming
 
@@ -702,11 +703,67 @@ if ([NSThread isMainThread]) {
 func TestServiceName_MethodName(t *testing.T)
 func TestServiceName_MethodName_EdgeCase(t *testing.T)
 
+// Integration tests (tagged with //go:build integration)
+func TestServiceName_MethodName_Integration(t *testing.T)
+
 // Benchmarks
 func BenchmarkServiceName_MethodName(b *testing.B)
 
 // Examples
 func ExampleServiceName_MethodName()
+```
+
+### Unit vs Integration Tests
+
+**Unit Tests** (`just test`):
+- Test isolated business logic and algorithms
+- Use mocks for external dependencies
+- Fast execution, run on every commit
+- Cover domain logic, service orchestration, configuration validation
+
+**Integration Tests** (`just test-integration`):
+- Test real system interactions with macOS APIs
+- Use actual system resources (Accessibility, IPC, file system)
+- Tagged with `//go:build integration`
+- Slower execution, run before releases
+- Cover adapter implementations, real component coordination
+
+#### When to Use Unit Tests
+- Business logic and algorithms (hint generation, grid calculations)
+- Configuration validation and parsing
+- Component interfaces with mocked dependencies
+- Pure functions and data transformations
+- Error handling logic
+- Validation rules
+
+#### When to Use Integration Tests
+- macOS API interactions (Accessibility, Event Tap, Hotkeys)
+- IPC communication between components
+- File system operations (config loading/saving)
+- Component coordination with real dependencies
+- End-to-end workflows with system resources
+
+#### Examples
+
+**Unit Test Example:**
+```go
+func TestHintGenerator_Generate(t *testing.T) {
+    gen := hint.NewAlphabetGenerator("abc")
+    elements := []*element.Element{/* mock elements */}
+    hints := gen.Generate(context.Background(), elements)
+    // Assert hint generation logic
+}
+```
+
+**Integration Test Example:**
+```go
+//go:build integration
+
+func TestAccessibilityAdapter_GetCursorPosition(t *testing.T) {
+    adapter := accessibility.NewAdapter(/* real infra */)
+    pos, err := adapter.GetCursorPosition()
+    // Assert real cursor position from system
+}
 ```
 
 ### Test Structure

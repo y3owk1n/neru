@@ -86,14 +86,16 @@ chmod +x .git/hooks/pre-commit
 
 ### Common Development Tasks
 
-| Task   | Command      | Description                   |
-| ------ | ------------ | ----------------------------- |
-| Build  | `just build` | Compile the application       |
-| Test   | `just test`  | Run unit tests                |
-| Lint   | `just lint`  | Run linters                   |
-| Format | `just fmt`   | Format code                   |
-| Run    | `just run`   | Build and run the application |
-| Clean  | `just clean` | Remove build artifacts        |
+| Task   | Command                 | Description                        |
+| ------ | ----------------------- | ---------------------------------- |
+| Build  | `just build`            | Compile the application            |
+| Test   | `just test`             | Run unit tests                     |
+| Test   | `just test-integration` | Run integration tests              |
+| Test   | `just test-all`         | Run all tests (unit + integration) |
+| Lint   | `just lint`             | Run linters                        |
+| Format | `just fmt`              | Format code                        |
+| Run    | `just run`              | Build and run the application      |
+| Clean  | `just clean`            | Remove build artifacts             |
 
 ### Debugging
 
@@ -201,21 +203,53 @@ go build \
 
 ## Testing
 
+Neru has a comprehensive test suite with clear separation between unit tests and integration tests. For detailed testing guidelines and standards, see [CODING_STANDARDS.md](CODING_STANDARDS.md#testing-standards).
+
+### Test Organization
+
+| Test Type             | Purpose                   | Command                 | Coverage                                           |
+| --------------------- | ------------------------- | ----------------------- | -------------------------------------------------- |
+| **Unit Tests**        | Business logic with mocks | `just test`             | 50+ tests covering algorithms, isolated components |
+| **Integration Tests** | Real system interactions  | `just test-integration` | 9 tests covering macOS APIs, IPC, file operations  |
+
 ### Run Tests
 
 ```bash
-# All tests
+# Unit tests only (fast, CI)
 just test
+
+# Integration tests only (comprehensive, local)
+just test-integration
+
+# All tests (unit + integration)
+just test && just test-integration
 
 # With race detection
 just test-race
 
-# With integration tests
-just test-integration
-
-# Coverage
+# Coverage report
 just test-coverage
 ```
+
+### Test Coverage Areas
+
+#### Unit Test Coverage
+
+- **Domain Logic**: Hint generation, grid calculations, element filtering
+- **Service Logic**: Action processing, mode transitions, configuration validation
+- **Adapter Interfaces**: Port implementations with mocked dependencies
+- **Configuration**: TOML parsing, validation, defaults
+- **CLI Logic**: Command parsing, argument validation
+
+#### Integration Test Coverage
+
+- **macOS Accessibility API**: Real UI element access, cursor control, mouse actions
+- **macOS Event Tap API**: Real global keyboard event interception
+- **macOS Hotkey API**: Real global hotkey registration/unregistration
+- **Unix Socket IPC**: Real inter-process communication
+- **macOS Overlay API**: Real window/overlay management
+- **File System Operations**: Real config file loading/reloading
+- **Component Coordination**: Real service-to-adapter interactions
 
 ### Run Linter
 
@@ -233,8 +267,20 @@ golangci-lint run --fix
 # Watch mode (requires entr or similar)
 find . -name "*.go" | entr -r just test
 
-# Quick iteration
-just build && ./bin/neru launch --config test-config.toml
+# Quick iteration with unit tests
+just build && just test
+
+# Full validation before commit
+just test && just lint && just build
+
+# Test specific package
+go test ./internal/domain/hint/
+
+# Test with verbose output
+go test -v ./internal/application/services/
+
+# Integration test specific component
+go test -tags=integration ./internal/adapter/accessibility/
 ```
 
 ---
@@ -567,11 +613,71 @@ func (service *Service) gen(e []Element) []Hint {
 
 ### Testing Guidelines
 
-- **Write tests for new features**
-- **Test edge cases** - Empty inputs, nil values, boundary conditions
-- **Use table-driven tests** where appropriate
-- **Mock external dependencies** - Don't rely on system state
-- **Test at appropriate levels** - Unit tests for domain logic, integration tests for complex flows
+#### General Principles
+
+- **Write tests for all new features** - Both unit and integration tests as appropriate
+- **Test edge cases** - Empty inputs, nil values, boundary conditions, error conditions
+- **Use table-driven tests** for multiple test cases
+- **Follow test naming conventions** - `TestFunctionName`, `TestType_MethodName`
+
+#### Unit Testing
+
+- **Mock external dependencies** - Use interfaces and dependency injection
+- **Test business logic in isolation** - Domain entities, algorithms, validation
+- **Fast execution** - Unit tests should run in milliseconds
+- **No system dependencies** - Should work in any environment
+
+#### Integration Testing
+
+- **Test real system interactions** - macOS APIs, file system, IPC
+- **Use actual implementations** - Not mocks for the system under test
+- **Tagged with `//go:build integration`** - Separate from unit tests
+- **May require system permissions** - Accessibility, etc.
+- **Slower execution acceptable** - Comprehensive validation over speed
+
+#### Test File Organization
+
+```
+package_test.go          # Unit tests for package
+package_integration_test.go  # Integration tests (tagged)
+```
+
+#### When to Write Which Type
+
+| Scenario                   | Test Type   | Example                            |
+| -------------------------- | ----------- | ---------------------------------- |
+| Business logic, algorithms | Unit        | Hint generation, grid calculations |
+| Configuration validation   | Unit        | TOML parsing, field validation     |
+| Component interfaces       | Unit        | Port implementations with mocks    |
+| macOS API interactions     | Integration | Accessibility, event tap, hotkeys  |
+| File system operations     | Integration | Config loading, log file writing   |
+| IPC communication          | Integration | CLI-to-daemon communication        |
+| Component coordination     | Integration | Service-to-adapter interactions    |
+
+#### Example Patterns
+
+**Unit Test (Business Logic):**
+
+```go
+func TestHintGenerator_Generate(t *testing.T) {
+    gen := hint.NewAlphabetGenerator("abc")
+    elements := []*element.Element{/* mock elements */}
+    hints := gen.Generate(context.Background(), elements)
+    // Assert hint generation logic
+}
+```
+
+**Integration Test (System Interaction):**
+
+```go
+//go:build integration
+
+func TestAccessibilityAdapter_GetCursorPosition(t *testing.T) {
+    adapter := accessibility.NewAdapter(/* real infra */)
+    pos, err := adapter.GetCursorPosition()
+    // Assert real cursor position from system
+}
+```
 
 **Example table-driven test:**
 
