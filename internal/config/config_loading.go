@@ -89,17 +89,6 @@ func LoadWithValidation(path string) *LoadResult {
 	return configResult
 }
 
-// Load loads configuration from the specified path.
-// Returns the config and any error encountered.
-func Load(path string) (*Config, error) {
-	result := LoadWithValidation(path)
-	if result.ValidationError != nil {
-		return result.Config, result.ValidationError
-	}
-
-	return result.Config, nil
-}
-
 // FindConfigFile searches for a configuration file in standard locations.
 // Returns the path to the config file, or an empty string if not found.
 func FindConfigFile() string {

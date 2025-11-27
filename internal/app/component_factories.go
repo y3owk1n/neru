@@ -49,6 +49,32 @@ func createHintsComponent(
 	return component, nil
 }
 
+// getGridCharacters returns configured grid characters with fallbacks.
+func getGridCharacters(config *config.Config, logger *zap.Logger) string {
+	gridChars := config.Grid.Characters
+	if strings.TrimSpace(gridChars) == "" {
+		gridChars = domain.DefaultHintCharacters
+		logger.Warn("No grid characters configured, using default: " + domain.DefaultHintCharacters)
+	}
+
+	return gridChars
+}
+
+// getSublayerKeys returns configured sublayer keys with fallbacks.
+func getSublayerKeys(config *config.Config, gridChars string, logger *zap.Logger) string {
+	keys := strings.TrimSpace(config.Grid.SublayerKeys)
+	if keys == "" {
+		keys = gridChars
+	}
+
+	if keys == "" {
+		keys = domain.DefaultHintCharacters
+		logger.Warn("No subgrid keys configured, using default: " + domain.DefaultHintCharacters)
+	}
+
+	return keys
+}
+
 // createGridComponent initializes the grid component based on configuration.
 func createGridComponent(
 	config *config.Config,
@@ -68,28 +94,13 @@ func createGridComponent(
 		return component
 	}
 
-	// Ensure grid characters are configured
-	gridChars := config.Grid.Characters
-	if strings.TrimSpace(gridChars) == "" {
-		gridChars = domain.DefaultHintCharacters
-		logger.Warn("No grid characters configured, using default: " + domain.DefaultHintCharacters)
-	}
-
+	gridChars := getGridCharacters(config, logger)
 	component.Style = grid.BuildStyle(config.Grid)
 	gridOverlay := grid.NewOverlayWithWindow(config.Grid, logger, overlayManager.WindowPtr())
 
 	var gridInstance *domainGrid.Grid
 
-	// Determine sublayer keys with fallback chain
-	keys := strings.TrimSpace(config.Grid.SublayerKeys)
-	if keys == "" {
-		keys = gridChars
-	}
-
-	if keys == "" {
-		keys = domain.DefaultHintCharacters
-		logger.Warn("No subgrid keys configured, using default: " + domain.DefaultHintCharacters)
-	}
+	keys := getSublayerKeys(config, gridChars, logger)
 
 	// Create grid manager with callbacks
 	component.Manager = domainGrid.NewManager(
@@ -102,10 +113,10 @@ func createGridComponent(
 				return
 			}
 
-			gridOverlay.UpdateMatches(component.Manager.CurrentInput())
+			overlayManager.UpdateGridMatches(component.Manager.CurrentInput())
 		},
 		func(cell *domainGrid.Cell) {
-			gridOverlay.ShowSubgrid(cell, component.Style)
+			overlayManager.ShowSubgrid(cell, component.Style)
 		},
 		logger,
 	)

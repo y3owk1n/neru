@@ -41,11 +41,6 @@ var (
 	gridCacheEnabled = true
 )
 
-// SetGridCacheEnabled enables or disables the grid cell caching mechanism.
-func SetGridCacheEnabled(enabled bool) {
-	gridCacheEnabled = enabled
-}
-
 // Prewarm initializes the grid cache with commonly used grid sizes to improve startup performance.
 func Prewarm(characters string, sizes []image.Rectangle) {
 	if !gridCacheEnabled {
