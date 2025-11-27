@@ -325,8 +325,10 @@ func (a *App) Cleanup() {
 	// Sync and close logger
 	loggerSyncErr := logger.Sync()
 	if loggerSyncErr != nil {
-		// Ignore "inappropriate ioctl for device" error which occurs when syncing stdout/stderr
-		if !strings.Contains(loggerSyncErr.Error(), "inappropriate ioctl for device") {
+		// Ignore common sync errors that occur in CI/test environments
+		errMsg := loggerSyncErr.Error()
+		if !strings.Contains(errMsg, "inappropriate ioctl for device") &&
+			!strings.Contains(errMsg, "bad file descriptor") {
 			a.logger.Error("Failed to sync logger", zap.Error(loggerSyncErr))
 		}
 	}
