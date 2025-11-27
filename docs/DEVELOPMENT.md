@@ -605,23 +605,20 @@ Tests run automatically on:
 
 **CI Pipeline:**
 
-1. **Code Quality Checks:**
-   - Lint code (`just lint`)
-   - Check formatting (`just fmt-check`)
-   - Vet code (`just vet`)
+The CI runs multiple parallel jobs to validate different aspects of the codebase:
 
-2. **Unit Testing:**
-   - Run unit tests (`just test`)
-   - Run tests with race detection (`just test-race`)
+1. **`lint`**: Code style and best practices validation
+2. **`formatting`**: Code formatting compliance check
+3. **`vet`**: Go static analysis for suspicious constructs
+4. **`build`**: Application compilation verification
+5. **`test`**: Unit tests (excludes integration tests)
+6. **`test-race`**: Race detection for concurrent code
+7. **`test-integration`**: macOS API integration tests
+8. **`test-coverage`**: Coverage analysis and Codecov upload
 
-3. **Integration Testing:**
-   - Run integration tests with macOS APIs (`just test-integration`)
-   - Uses `//go:build integration` tags to separate from unit tests
-   - Requires Accessibility permissions (enabled via CI setup)
-
-4. **Coverage Analysis:**
-   - Generate coverage report (`just test-coverage`)
-   - Upload coverage to external services (optional)
+**Test Separation:**
+- **Unit Tests** (`just test`): Fast, isolated tests without external dependencies
+- **Integration Tests** (`just test-integration`): Real macOS API validation with `//go:build integration` tags
 
 **Note:** Integration tests require macOS Accessibility permissions. In CI, permissions are reset using `tccutil` but GitHub Actions macOS runners have restricted TCC access. Integration tests typically fail in CI due to permission restrictions - this is expected and doesn't indicate code problems. Always run integration tests locally with proper accessibility permissions enabled in System Settings > Security & Privacy > Privacy > Accessibility.
 
