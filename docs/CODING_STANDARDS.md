@@ -689,39 +689,122 @@ if ([NSThread isMainThread]) {
 
 ## Testing Standards
 
-### Test File Organization
+### Test Organization
 
-- **Unit tests**: `service_test.go` (one per source file)
-- **Integration tests**: `service_integration_test.go` (tagged with `//go:build integration`)
-- **Benchmark tests**: `service_bench_test.go`
-- **Example tests**: `service_example_test.go`
+**File Naming:**
 
-### Test Function Naming
+- Unit tests: `service_test.go`
+- Integration tests: `service_integration_test.go` (tagged `//go:build integration`)
+- Benchmarks: `service_bench_test.go`
+- Examples: `service_example_test.go`
+
+**Function Naming:**
 
 ```go
-// Unit tests
-func TestServiceName_MethodName(t *testing.T)
-func TestServiceName_MethodName_EdgeCase(t *testing.T)
+func TestService_Method(t *testing.T)
+func TestService_Method_EdgeCase(t *testing.T)
+func TestService_Method_Integration(t *testing.T)  //go:build integration
+func BenchmarkService_Method(b *testing.B)
+func ExampleService_Method()
+```
 
-// Integration tests (tagged with //go:build integration)
-func TestServiceName_MethodName_Integration(t *testing.T)
+### Test Types
 
-// Benchmarks
-func BenchmarkServiceName_MethodName(b *testing.B)
+**Unit Tests** (`just test`):
 
-// Examples
-func ExampleServiceName_MethodName()
+- Business logic, algorithms, validation
+- Use mocks for external dependencies
+- Fast execution, run on every commit
+
+**Integration Tests** (`just test-integration`):
+
+- Real macOS APIs, file system, IPC
+- Use actual implementations
+- Tagged with `//go:build integration`
+- Run before releases
+
+### When to Use Each Type
+
+| Scenario             | Test Type   | Example                            |
+| -------------------- | ----------- | ---------------------------------- |
+| Business logic       | Unit        | Hint generation, grid calculations |
+| Config validation    | Unit        | TOML parsing, field validation     |
+| Component interfaces | Unit        | Port implementations with mocks    |
+| macOS API calls      | Integration | Accessibility, event tap, hotkeys  |
+| File operations      | Integration | Config loading, log writing        |
+| IPC communication    | Integration | CLI-to-daemon messaging            |
+
+### Test Structure
+
+**Arrange-Act-Assert Pattern:**
+
+```go
+func TestService_Process(t *testing.T) {
+  // Arrange
+  service := NewService(zap.NewNop(), DefaultConfig())
+
+  // Act
+  result, err := service.Process(context.Background(), "test-data")
+
+  // Assert
+  if err != nil {
+   t.Fatalf("unexpected error: %v", err)
+  }
+  if result == nil {
+   t.Fatal("expected non-nil result")
+  }
+}
+```
+
+**Table-Driven Tests:**
+
+```go
+func TestValidate(t *testing.T) {
+  tests := []struct {
+   name    string
+   input   string
+   wantErr bool
+  }{
+   {"valid input", "valid", false},
+   {"empty input", "", true},
+  }
+
+  for _, tt := range tests {
+   t.Run(tt.name, func(t *testing.T) {
+    err := Validate(tt.input)
+    if (err != nil) != tt.wantErr {
+     t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+    }
+   })
+  }
+}
+```
+
+**Benchmark Tests:**
+
+```go
+func BenchmarkService_Process(b *testing.B) {
+  service := NewService(zap.NewNop(), DefaultConfig())
+  ctx := context.Background()
+
+  b.ResetTimer()
+  for i := 0; i < b.N; i++ {
+   _, _ = service.Process(ctx, "test-data")
+  }
+}
 ```
 
 ### Unit vs Integration Tests
 
 **Unit Tests** (`just test`):
+
 - Test isolated business logic and algorithms
 - Use mocks for external dependencies
 - Fast execution, run on every commit
 - Cover domain logic, service orchestration, configuration validation
 
 **Integration Tests** (`just test-integration`):
+
 - Test real system interactions with macOS APIs
 - Use actual system resources (Accessibility, IPC, file system)
 - Tagged with `//go:build integration`
@@ -729,6 +812,7 @@ func ExampleServiceName_MethodName()
 - Cover adapter implementations, real component coordination
 
 #### When to Use Unit Tests
+
 - Business logic and algorithms (hint generation, grid calculations)
 - Configuration validation and parsing
 - Component interfaces with mocked dependencies
@@ -737,6 +821,7 @@ func ExampleServiceName_MethodName()
 - Validation rules
 
 #### When to Use Integration Tests
+
 - macOS API interactions (Accessibility, Event Tap, Hotkeys)
 - IPC communication between components
 - File system operations (config loading/saving)
@@ -746,6 +831,7 @@ func ExampleServiceName_MethodName()
 #### Examples
 
 **Unit Test Example:**
+
 ```go
 func TestHintGenerator_Generate(t *testing.T) {
     gen := hint.NewAlphabetGenerator("abc")
@@ -756,6 +842,7 @@ func TestHintGenerator_Generate(t *testing.T) {
 ```
 
 **Integration Test Example:**
+
 ```go
 //go:build integration
 
