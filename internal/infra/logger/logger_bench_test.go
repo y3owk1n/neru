@@ -12,7 +12,7 @@ func BenchmarkDebugLogging(b *testing.B) {
 	tempDir := b.TempDir()
 	logPath := filepath.Join(tempDir, "bench.log")
 
-	_ = plogger.Init("debug", logPath, false, false, 100, 3, 7)
+	_ = plogger.Init("debug", logPath, false, false, 100, 3, 7, nil)
 
 	defer func() {
 		_ = plogger.Close()
@@ -27,7 +27,7 @@ func BenchmarkInfoLogging(b *testing.B) {
 	tempDir := b.TempDir()
 	logPath := filepath.Join(tempDir, "bench.log")
 
-	_ = plogger.Init("info", logPath, false, false, 100, 3, 7)
+	_ = plogger.Init("info", logPath, false, false, 100, 3, 7, nil)
 
 	defer plogger.Close() //nolint:errcheck
 
@@ -40,7 +40,7 @@ func BenchmarkStructuredLogging(b *testing.B) {
 	tempDir := b.TempDir()
 	logPath := filepath.Join(tempDir, "bench.log")
 
-	_ = plogger.Init("info", logPath, true, false, 100, 3, 7)
+	_ = plogger.Init("info", logPath, true, false, 100, 3, 7, nil)
 
 	defer plogger.Close() //nolint:errcheck
 

@@ -1,6 +1,7 @@
 package logger_test
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -82,6 +83,7 @@ func TestInit(t *testing.T) {
 				testCase.maxFileSize,
 				testCase.maxBackups,
 				testCase.maxAge,
+				nil,
 			)
 
 			if (initErr != nil) != testCase.wantErr {
@@ -119,7 +121,7 @@ func TestLoggingFunctions(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := logger.Init("debug", logPath, false, false, 10, 3, 7)
+	initErr := logger.Init("debug", logPath, false, false, 10, 3, 7, nil)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
@@ -175,7 +177,7 @@ func TestLoggingFunctions(t *testing.T) {
 
 func TestWith(t *testing.T) {
 	// Initialize logger
-	err := logger.Init("info", "", false, true, 10, 3, 7)
+	err := logger.Init("info", "", false, true, 10, 3, 7, nil)
 	if err != nil {
 		t.Fatalf("Init() failed: %v", err)
 	}
@@ -199,7 +201,7 @@ func TestSync(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := logger.Init("info", logPath, false, false, 10, 3, 7)
+	initErr := logger.Init("info", logPath, false, false, 10, 3, 7, nil)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
@@ -219,7 +221,7 @@ func TestClose(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := logger.Init("info", logPath, false, false, 10, 3, 7)
+	initErr := logger.Init("info", logPath, false, false, 10, 3, 7, nil)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
@@ -252,7 +254,7 @@ func TestLogLevels(t *testing.T) {
 			tempDir := t.TempDir()
 			logPath := filepath.Join(tempDir, "test.log")
 
-			initErr := logger.Init(testCase.logLevel, logPath, false, false, 10, 3, 7)
+			initErr := logger.Init(testCase.logLevel, logPath, false, false, 10, 3, 7, nil)
 			if initErr != nil {
 				t.Fatalf("Init() failed: %v", initErr)
 			}
@@ -275,7 +277,7 @@ func TestFileRotation(t *testing.T) {
 	logPath := filepath.Join(tempDir, "test.log")
 
 	// Initialize with small max size for testing
-	initErr := logger.Init("info", logPath, false, false, 1, 2, 1)
+	initErr := logger.Init("info", logPath, false, false, 1, 2, 1, io.Discard)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}

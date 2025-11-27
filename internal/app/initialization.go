@@ -31,6 +31,7 @@ func initializeLogger(config *config.Config) (*zap.Logger, error) {
 		config.Logging.MaxFileSize,
 		config.Logging.MaxBackups,
 		config.Logging.MaxAge,
+		nil,
 	)
 	if initConfigErr != nil {
 		return nil, derrors.Wrap(initConfigErr, derrors.CodeInternal, "failed to initialize logger")
