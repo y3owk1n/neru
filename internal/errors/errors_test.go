@@ -149,6 +149,25 @@ func TestError_Is(t *testing.T) {
 	if err1.Is(stdErr) {
 		t.Error("Is() should return false for non-Error types")
 	}
+
+	// Test Is with nil
+	if err1.Is(nil) {
+		t.Error("Is() should return false for nil")
+	}
+}
+
+func TestIs(t *testing.T) {
+	err1 := derrors.New(derrors.CodeTimeout, "timeout")
+	err2 := derrors.New(derrors.CodeTimeout, "different message")
+
+	if !derrors.Is(err1, err2) {
+		t.Error("Is() should return true for errors with same code")
+	}
+
+	stdErr := errors.New("standard error") //nolint:err113 // dynamic errors needed for testing
+	if derrors.Is(err1, stdErr) {
+		t.Error("Is() should return false for different error types")
+	}
 }
 
 func TestWrapf(t *testing.T) {
@@ -187,7 +206,7 @@ func TestWrapf(t *testing.T) {
 
 func TestIsCode(t *testing.T) {
 	domainErr := derrors.New(derrors.CodeInvalidInput, "test error")
-	stdErr := derrors.New(derrors.CodeInternal, "standard error")
+	stdErr := errors.New("standard error") //nolint:err113 // dynamic errors needed for testing
 
 	tests := []struct {
 		name string
@@ -219,7 +238,7 @@ func TestIsCode(t *testing.T) {
 
 func TestGetCode(t *testing.T) {
 	domainErr := derrors.New(derrors.CodeInvalidInput, "test error")
-	stdErr := derrors.New(derrors.CodeInternal, "standard error")
+	stdErr := errors.New("standard error") //nolint:err113 // dynamic errors needed for testing
 
 	tests := []struct {
 		name string
@@ -336,6 +355,7 @@ func TestErrorCodes(t *testing.T) {
 		derrors.CodeInvalidConfig,
 		derrors.CodeInvalidInput,
 		derrors.CodeIPCFailed,
+		derrors.CodeIPCAlreadyRunning,
 		derrors.CodeIPCServerNotRunning,
 		derrors.CodeOverlayFailed,
 		derrors.CodeHintGenerationFailed,
@@ -343,6 +363,13 @@ func TestErrorCodes(t *testing.T) {
 		derrors.CodeContextCanceled,
 		derrors.CodeTimeout,
 		derrors.CodeInternal,
+		derrors.CodeLoggingFailed,
+		derrors.CodeConfigIOFailed,
+		derrors.CodeVersionMismatch,
+		derrors.CodeHotkeyRegisterFailed,
+		derrors.CodeExecFailed,
+		derrors.CodeSerializationFailed,
+		derrors.CodeBridgeFailed,
 	}
 
 	// Verify all codes are unique

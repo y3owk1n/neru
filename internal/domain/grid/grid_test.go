@@ -79,35 +79,99 @@ func TestGrid_CellByCoordinate(t *testing.T) {
 	}
 }
 
+func TestPrewarm(t *testing.T) {
+	// Test that Prewarm doesn't panic and creates cache entries
+	sizes := []image.Rectangle{
+		image.Rect(0, 0, 1920, 1080),
+		image.Rect(0, 0, 1280, 720),
+		image.Rect(0, 0, 800, 600),
+	}
+
+	// Should not panic
+	grid.Prewarm("ABC", sizes)
+
+	// Verify that grids were created and cached
+	log := logger.Get()
+	for _, size := range sizes {
+		g := grid.NewGrid("ABC", size, log)
+		if g == nil {
+			t.Errorf("Prewarm should have created grid for size %v", size)
+		}
+
+		if len(g.AllCells()) == 0 {
+			t.Errorf("Prewarm should have created cells for size %v", size)
+		}
+	}
+}
+
+func TestGrid_Cache(t *testing.T) {
+	logger := logger.Get()
+	characters := "ABC"
+	bounds := image.Rect(0, 0, 300, 300)
+
+	// Create first grid (should cache it)
+	grid1 := grid.NewGrid(characters, bounds, logger)
+	if grid1 == nil {
+		t.Fatal("NewGrid returned nil")
+	}
+
+	cells1 := len(grid1.AllCells())
+
+	// Create second grid with same parameters (should use cache)
+	grid2 := grid.NewGrid(characters, bounds, logger)
+	if grid2 == nil {
+		t.Fatal("NewGrid returned nil")
+	}
+
+	cells2 := len(grid2.AllCells())
+
+	if cells1 != cells2 {
+		t.Errorf("Cached grid should have same number of cells: got %d, want %d", cells2, cells1)
+	}
+
+	// Verify they have the same cells
+	if len(grid1.AllCells()) != len(grid2.AllCells()) {
+		t.Error("Cached grids should have same cell count")
+	}
+}
+
 func TestCell_Methods(t *testing.T) {
 	logger := logger.Get()
-	grid := grid.NewGrid("ABC", image.Rect(0, 0, 300, 300), logger)
+	gridInstance := grid.NewGrid("ABC", image.Rect(0, 0, 300, 300), logger)
+	cells := gridInstance.AllCells()
 
-	cells := grid.AllCells()
 	if len(cells) == 0 {
-		t.Fatal("Expected cells to be generated")
+		t.Fatal("No cells generated")
 	}
 
 	cell := cells[0]
 
-	// Test that methods return non-zero values
-	if cell.Coordinate() == "" {
-		t.Error("Coordinate() returned empty string")
+	// Test Coordinate method
+	coord := cell.Coordinate()
+	if coord == "" {
+		t.Error("Coordinate should not be empty")
 	}
 
+	if len(coord) != 4 {
+		t.Errorf("Coordinate should be 4 characters, got %d", len(coord))
+	}
+
+	// Test Bounds method
 	bounds := cell.Bounds()
 	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
-		t.Errorf("Bounds() returned invalid bounds: %v", bounds)
+		t.Error("Bounds should have positive dimensions")
 	}
 
+	// Test Center method
 	center := cell.Center()
 	if center.X < 0 || center.Y < 0 {
-		t.Errorf("Center() returned invalid center: %v", center)
+		t.Error("Center should have non-negative coordinates")
 	}
 
-	// Test that center is within bounds
-	if !center.In(bounds) {
-		t.Errorf("Center %v is not within bounds %v", center, bounds)
+	// Verify center is within bounds
+	if center.X < bounds.Min.X || center.X > bounds.Max.X ||
+		center.Y < bounds.Min.Y || center.Y > bounds.Max.Y {
+		t.Error("Center should be within bounds")
 	}
 }
 

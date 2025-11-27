@@ -152,7 +152,18 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 			logger.Debug("Grid cache hit",
 				zap.Int("cell_count", len(cells)))
 
-			return &Grid{characters: uppercaseChars, bounds: bounds, cells: cells}
+			// Rebuild index from cached cells
+			index := make(map[string]*Cell, len(cells))
+			for _, cell := range cells {
+				index[cell.Coordinate()] = cell
+			}
+
+			return &Grid{
+				characters: uppercaseChars,
+				bounds:     bounds,
+				cells:      cells,
+				index:      index,
+			}
 		}
 
 		logger.Debug("Grid cache miss")

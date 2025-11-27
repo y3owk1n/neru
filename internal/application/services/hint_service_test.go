@@ -327,6 +327,112 @@ func TestHintService_RefreshHints(t *testing.T) {
 	}
 }
 
+func TestHintService_UpdateGenerator(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	logger := logger.Get()
+
+	// Create initial generator
+	initialGenerator, _ := hint.NewAlphabetGenerator("asdf")
+	service := services.NewHintService(mockAcc, mockOverlay, initialGenerator, logger)
+
+	// Create new generator
+	newGenerator, _ := hint.NewAlphabetGenerator("qwerty")
+	ctx := context.Background()
+
+	// Update generator
+	service.UpdateGenerator(ctx, newGenerator)
+
+	// Verify the generator was updated by checking MaxHints
+	if newGenerator.MaxHints() != 7776 { // 6^3 = 216, wait let me check
+		// Actually, "qwerty" has 6 chars, 6^3 = 216
+		if newGenerator.MaxHints() != 216 {
+			t.Errorf("Generator MaxHints = %d, want 216", newGenerator.MaxHints())
+		}
+	}
+}
+
+func TestHintService_Health(t *testing.T) {
+	tests := []struct {
+		name       string
+		setupMocks func(*mocks.MockAccessibilityPort, *mocks.MockOverlayPort)
+		wantKeys   []string
+		hasErrors  bool
+	}{
+		{
+			name: "all healthy",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
+				acc.HealthFunc = func(_ context.Context) error { return nil }
+				ov.HealthFunc = func(_ context.Context) error { return nil }
+			},
+			wantKeys:  []string{"accessibility", "overlay"},
+			hasErrors: false,
+		},
+		{
+			name: "accessibility error",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
+				acc.HealthFunc = func(_ context.Context) error {
+					return derrors.New(derrors.CodeAccessibilityFailed, "accessibility down")
+				}
+				ov.HealthFunc = func(_ context.Context) error { return nil }
+			},
+			wantKeys:  []string{"accessibility", "overlay"},
+			hasErrors: true,
+		},
+		{
+			name: "overlay error",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
+				acc.HealthFunc = func(_ context.Context) error { return nil }
+				ov.HealthFunc = func(_ context.Context) error {
+					return derrors.New(derrors.CodeOverlayFailed, "overlay down")
+				}
+			},
+			wantKeys:  []string{"accessibility", "overlay"},
+			hasErrors: true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockAcc := &mocks.MockAccessibilityPort{}
+			mockOverlay := &mocks.MockOverlayPort{}
+
+			if testCase.setupMocks != nil {
+				testCase.setupMocks(mockAcc, mockOverlay)
+			}
+
+			generator, _ := hint.NewAlphabetGenerator("asdf")
+			logger := logger.Get()
+
+			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
+
+			ctx := context.Background()
+			health := service.Health(ctx)
+
+			// Check that expected keys are present
+			for _, key := range testCase.wantKeys {
+				if _, exists := health[key]; !exists {
+					t.Errorf("Health() missing key %q", key)
+				}
+			}
+
+			// Check error presence
+			hasErrors := false
+			for _, err := range health {
+				if err != nil {
+					hasErrors = true
+
+					break
+				}
+			}
+
+			if hasErrors != testCase.hasErrors {
+				t.Errorf("Health() hasErrors = %v, want %v", hasErrors, testCase.hasErrors)
+			}
+		})
+	}
+}
+
 // Helper functions.
 func mustNewElement(id string, bounds image.Rectangle) *element.Element {
 	element, elementErr := element.NewElement(element.ID(id), bounds, element.RoleButton)

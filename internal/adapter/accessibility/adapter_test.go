@@ -49,45 +49,14 @@ func TestNewAdapter(t *testing.T) {
 			if adapter.Logger() == nil {
 				t.Error("Adapter logger is nil")
 			}
-		})
-	}
-}
 
-func TestAdapter_IsAppExcluded(t *testing.T) {
-	logger := zap.NewNop()
-	excludedBundles := []string{"com.apple.finder", "com.apple.dock"}
-	mockClient := &accessibility.MockAXClient{}
-
-	adapter := accessibility.NewAdapter(logger, excludedBundles, []string{}, mockClient)
-	ctx := context.Background()
-
-	tests := []struct {
-		name     string
-		bundleID string
-		want     bool
-	}{
-		{
-			name:     "excluded bundle",
-			bundleID: "com.apple.finder",
-			want:     true,
-		},
-		{
-			name:     "not excluded bundle",
-			bundleID: "com.google.Chrome",
-			want:     false,
-		},
-		{
-			name:     "empty bundle ID",
-			bundleID: "",
-			want:     false,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			got := adapter.IsAppExcluded(ctx, testCase.bundleID)
-			if got != testCase.want {
-				t.Errorf("IsAppExcluded() = %v, want %v", got, testCase.want)
+			// Test ClickableRoles getter
+			if len(adapter.ClickableRoles()) != len(testCase.clickableRoles) {
+				t.Errorf(
+					"ClickableRoles() length = %d, want %d",
+					len(adapter.ClickableRoles()),
+					len(testCase.clickableRoles),
+				)
 			}
 		})
 	}
@@ -96,49 +65,56 @@ func TestAdapter_IsAppExcluded(t *testing.T) {
 func TestAdapter_UpdateClickableRoles(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
+
 	adapter := accessibility.NewAdapter(logger, []string{}, []string{"AXButton"}, mockClient)
 
-	newRoles := []string{"AXButton", "AXLink", "AXMenuItem"}
-	adapter.UpdateClickableRoles(newRoles)
-
-	// Verify roles were updated (internal state)
-	if len(adapter.ClickableRoles()) != len(newRoles) {
-		t.Errorf("Expected %d roles, got %d", len(newRoles), len(adapter.ClickableRoles()))
+	// Initial roles
+	initialRoles := adapter.ClickableRoles()
+	if len(initialRoles) != 1 || initialRoles[0] != "AXButton" {
+		t.Errorf("Initial ClickableRoles() = %v, want [AXButton]", initialRoles)
 	}
 
-	// Verify mock was updated
-	if len(mockClient.MockClickableRoles) != len(newRoles) {
-		t.Errorf(
-			"Expected mock to have %d roles, got %d",
-			len(newRoles),
-			len(mockClient.MockClickableRoles),
-		)
+	// Update roles
+	newRoles := []string{"AXLink", "AXTextField"}
+	adapter.UpdateClickableRoles(newRoles)
+
+	// Check updated roles
+	updatedRoles := adapter.ClickableRoles()
+	if len(updatedRoles) != 2 || updatedRoles[0] != "AXLink" || updatedRoles[1] != "AXTextField" {
+		t.Errorf("Updated ClickableRoles() = %v, want [AXLink, AXTextField]", updatedRoles)
 	}
 }
 
 func TestAdapter_UpdateExcludedBundles(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(
-		logger,
-		[]string{"com.apple.finder"},
-		[]string{},
-		mockClient,
-	)
 
-	newBundles := []string{"com.apple.dock", "com.apple.systempreferences"}
-	adapter.UpdateExcludedBundles(newBundles)
+	adapter := accessibility.NewAdapter(logger, []string{"com.app1"}, []string{}, mockClient)
 
-	ctx := context.Background()
-
-	// Verify new bundles are excluded
-	if !adapter.IsAppExcluded(ctx, "com.apple.dock") {
-		t.Error("Expected com.apple.dock to be excluded")
+	// Initial exclusion
+	if !adapter.IsAppExcluded(context.Background(), "com.app1") {
+		t.Error("com.app1 should be excluded initially")
 	}
 
-	// Verify old bundles are no longer excluded
-	if adapter.IsAppExcluded(ctx, "com.apple.finder") {
-		t.Error("Expected com.apple.finder to not be excluded after update")
+	if adapter.IsAppExcluded(context.Background(), "com.app2") {
+		t.Error("com.app2 should not be excluded initially")
+	}
+
+	// Update excluded bundles
+	newBundles := []string{"com.app2", "com.app3"}
+	adapter.UpdateExcludedBundles(newBundles)
+
+	// Check updated exclusions
+	if adapter.IsAppExcluded(context.Background(), "com.app1") {
+		t.Error("com.app1 should not be excluded after update")
+	}
+
+	if !adapter.IsAppExcluded(context.Background(), "com.app2") {
+		t.Error("com.app2 should be excluded after update")
+	}
+
+	if !adapter.IsAppExcluded(context.Background(), "com.app3") {
+		t.Error("com.app3 should be excluded after update")
 	}
 }
 

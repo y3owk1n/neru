@@ -57,6 +57,7 @@ test-race:
 
 test-integration:
     @echo "Running integration tests..."
+    @echo "Note: Only runs tests tagged with //go:build integration"
     go test -tags=integration -v ./...
 
 test-coverage:
@@ -67,8 +68,55 @@ test-coverage-html:
     @echo "Running tests with coverage (HTML)..."
     go test -coverprofile=coverage.out -covermode=atomic ./...
     go tool cover -html=coverage.out -o coverage.html
+    @echo "Coverage report generated: coverage.html"
 
-test-all: test test-race test-integration test-coverage
+test-coverage-summary:
+    @echo "Running tests with coverage summary..."
+    go test -coverprofile=coverage.out -covermode=atomic ./...
+    go tool cover -func=coverage.out | tail -1
+
+test-coverage-detailed:
+    @echo "Running tests with detailed coverage analysis..."
+    go test -coverprofile=coverage.out -covermode=atomic ./...
+    @echo "=== Coverage by Function ==="
+    go tool cover -func=coverage.out
+    @echo ""
+    @echo "=== Coverage by Package ==="
+    go tool cover -func=coverage.out | grep -E "^[^/]+/" | awk '{print $1, $3}' | sort -k2 -nr
+    @echo ""
+    @echo "=== Uncovered Functions ==="
+    go tool cover -func=coverage.out | grep "0.0%"
+
+test-flaky-check:
+    @echo "Running tests multiple times to check for flakiness..."
+    @for i in 1 2 3; do \
+        echo "Run $$i:"; \
+        go test -v ./... 2>&1 | grep -E "(FAIL|PASS|SKIP)" | head -1; \
+    done
+
+test-quality-check:
+    @echo "Running test quality checks..."
+    @echo "=== Test Files Count ==="
+    @find . -name "*_test.go" -type f | wc -l
+    @echo ""
+    @echo "=== Benchmark Count ==="
+    @grep -r "func Benchmark" --include="*_test.go" . | wc -l
+    @echo ""
+    @echo "=== Fuzz Test Count ==="
+    @grep -r "func Fuzz" --include="*_test.go" . | wc -l
+    @echo ""
+    @echo "=== Integration Test Count ==="
+    @grep -r "integration_test.go" . | wc -l
+
+# Complete test suite with detailed analysis (slower, more comprehensive)
+test-full-suite: test test-race test-integration test-coverage-detailed test-quality-check
+    @echo "🎉 Full test suite completed successfully!"
+
+test-race-integration:
+    @echo "Running integration tests with race detection..."
+    go test -race -tags=integration -v ./...
+
+
 
 # Check if files are formatted correctly
 fmt-check:

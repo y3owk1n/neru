@@ -1,8 +1,11 @@
+//go:build integration
+
 package app_test
 
 import (
 	"context"
 	"testing"
+	"time"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app"
@@ -145,8 +148,100 @@ func TestApp_ModeIntegration(t *testing.T) {
 		t.Errorf("Expected initial mode Idle, got %v", application.CurrentMode())
 	}
 
-	// Test Mode Transitions
+	// Test getter methods
+	if application.Config() != config {
+		t.Error("Config() should return the config passed to NewWithDeps")
+	}
+
+	if application.Logger() == nil {
+		t.Error("Logger() should return a valid logger")
+	}
+
+	if application.GetConfigPath() != "" {
+		t.Errorf("GetConfigPath() should return empty string, got %q", application.GetConfigPath())
+	}
+
+	// Test feature flags
+	if !application.HintsEnabled() {
+		t.Error("HintsEnabled() should return true when hints are enabled in config")
+	}
+
+	if !application.GridEnabled() {
+		t.Error("GridEnabled() should return true when grid is enabled in config")
+	}
+
+	if application.IsEnabled() != true {
+		t.Error("IsEnabled() should return true for a properly initialized app")
+	}
+
+	// Test overlay manager access
+	if application.OverlayManager() == nil {
+		t.Error("OverlayManager() should return a valid overlay manager")
+	}
+
+	// Test context access
+	if application.HintsContext() == nil {
+		t.Error("HintsContext() should return a valid hints context")
+	}
+
+	if application.GridContext() == nil {
+		t.Error("GridContext() should return a valid grid context")
+	}
+
+	if application.ScrollContext() == nil {
+		t.Error("ScrollContext() should return a valid scroll context")
+	}
+
+	// Test event tap access
+	if application.EventTap() == nil {
+		t.Error("EventTap() should return a valid event tap")
+	}
+
+	// Test other methods that should not panic
+	application.ExitMode()
+	application.EnableEventTap()
+	application.DisableEventTap()
+	application.CaptureInitialCursorPosition()
+
+	// Test ReloadConfig (should not panic even with invalid path)
+	_ = application.ReloadConfig("/nonexistent/path.toml")
+	// We don't check the error since it depends on file system, just that it doesn't panic
+
+	// Test ActivateMode
+	application.ActivateMode(domain.ModeHints)
+
+	if application.CurrentMode() != domain.ModeHints {
+		t.Errorf("ActivateMode should set mode to Hints, got %v", application.CurrentMode())
+	}
+
+	application.ActivateMode(domain.ModeGrid)
+
+	if application.CurrentMode() != domain.ModeGrid {
+		t.Errorf("ActivateMode should set mode to Grid, got %v", application.CurrentMode())
+	}
+
+	// Test mode persistence and switching
 	application.SetModeHints()
+
+	if application.CurrentMode() != domain.ModeHints {
+		t.Errorf("SetModeHints should set mode to Hints, got %v", application.CurrentMode())
+	}
+
+	// Test that mode changes are logged
+	t.Logf("Successfully switched to mode: %v", application.CurrentMode())
+
+	// Test Mode Transitions with performance measurement
+	start := time.Now()
+
+	application.SetModeHints()
+
+	hintsDuration := time.Since(start)
+
+	if application.CurrentMode() != domain.ModeHints {
+		t.Errorf("Expected mode Hints, got %v", application.CurrentMode())
+	}
+
+	t.Logf("Mode switch to Hints took %v", hintsDuration)
 
 	if application.CurrentMode() != domain.ModeHints {
 		t.Errorf("Expected mode Hints, got %v", application.CurrentMode())

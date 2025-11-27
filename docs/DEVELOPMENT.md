@@ -86,14 +86,19 @@ chmod +x .git/hooks/pre-commit
 
 ### Common Development Tasks
 
-| Task   | Command      | Description                   |
-| ------ | ------------ | ----------------------------- |
-| Build  | `just build` | Compile the application       |
-| Test   | `just test`  | Run unit tests                |
-| Lint   | `just lint`  | Run linters                   |
-| Format | `just fmt`   | Format code                   |
-| Run    | `just run`   | Build and run the application |
-| Clean  | `just clean` | Remove build artifacts        |
+| Task               | Command                   | Description                           |
+| ------------------ | ------------------------- | ------------------------------------- |
+| Build              | `just build`              | Compile the application               |
+| Test (Unit)        | `just test`               | Run unit tests                        |
+| Test (Race)        | `just test-race`          | Run tests with race detection         |
+| Test (Integration) | `just test-integration`   | Run integration tests with macOS APIs |
+| Test (Full Suite)  | `just test-full-suite`    | Complete test pipeline                |
+| Coverage           | `just test-coverage`      | Generate coverage report              |
+| Lint               | `just lint`               | Run linters                           |
+| Format             | `just fmt`                | Format code                           |
+| Run                | `just run`                | Build and run the application         |
+| Clean              | `just clean`              | Remove build artifacts                |
+| Quality Check      | `just test-quality-check` | Analyze test suite metrics            |
 
 ### Debugging
 
@@ -201,41 +206,472 @@ go build \
 
 ## Testing
 
-### Run Tests
+Neru has a comprehensive test suite with multiple testing strategies to ensure code quality and reliability. The test suite includes unit tests, integration tests, fuzz tests, performance benchmarks, and chaos testing.
+
+### Test Commands Overview
+
+| Command                       | Purpose                               | When to Use                    |
+| ----------------------------- | ------------------------------------- | ------------------------------ |
+| `just test`                   | Run all unit tests                    | Basic testing, CI/CD           |
+| `just test-race`              | Run tests with race detection         | Concurrent code validation     |
+| `just test-integration`       | Run integration tests                 | Real system API testing        |
+| `just test-coverage`          | Generate coverage report              | Code coverage analysis         |
+| `just test-coverage-summary`  | Show coverage percentage              | Quick coverage check           |
+| `just test-coverage-detailed` | Detailed coverage analysis            | Deep coverage inspection       |
+| `just test-flaky-check`       | Check for flaky tests                 | Test reliability validation    |
+| `just test-quality-check`     | Test suite quality metrics            | Test suite health              |
+| `just test-full-suite`        | Complete test pipeline                | Pre-release validation         |
+| `just test-race-integration`  | Integration tests with race detection | Concurrent integration testing |
+
+
+### Running Tests
+
+#### Basic Unit Tests
 
 ```bash
-# All tests
+# Run all unit tests
 just test
 
-# With race detection
-just test-race
+# Run tests with verbose output
+go test -v ./...
 
-# With integration tests
-just test-integration
+# Run tests for specific package
+go test ./internal/domain/grid
 
-# Coverage
-just test-coverage
+# Run specific test function
+go test -run TestGrid_Initialization ./internal/domain/grid
 ```
 
-### Run Linter
+#### Race Detection Tests
+
+```bash
+# Run tests with race detection (detects data races)
+just test-race
+
+# Run with race detection and verbose output
+go test -race -v ./...
+```
+
+Race detection is crucial for concurrent code. Use this when:
+
+- Working with goroutines, channels, or shared state
+- Modifying concurrent data structures
+- Adding new threading logic
+
+#### Integration Tests
+
+```bash
+# Run integration tests (requires macOS Accessibility permissions)
+just test-integration
+
+# Run integration tests with race detection
+just test-race-integration
+```
+
+Integration tests interact with real macOS APIs and require:
+
+- Accessibility permissions enabled
+- System UI elements available for testing
+- May be slower and less predictable than unit tests
+
+**Note:** Integration tests are tagged with `//go:build integration` and only run when explicitly requested.
+
+#### Coverage Analysis
+
+```bash
+# Generate coverage report
+just test-coverage
+
+# Show coverage percentage only
+just test-coverage-summary
+
+# Detailed coverage analysis by package and function
+just test-coverage-detailed
+
+# Generate HTML coverage report
+just test-coverage-html
+```
+
+Coverage commands help you:
+
+- Identify untested code paths
+- Track coverage improvements over time
+- Ensure critical code is well-tested
+- Meet coverage requirements for contributions
+
+#### Test Quality and Reliability
+
+```bash
+# Check for flaky tests (run tests multiple times)
+just test-flaky-check
+
+# Analyze test suite quality metrics
+just test-quality-check
+```
+
+Use these commands to:
+
+- Detect unreliable tests that sometimes fail
+- Monitor test suite health and growth
+- Ensure test suite quality standards
+
+#### Complete Test Pipeline
+
+```bash
+# Full validation with detailed analysis (recommended for all PRs and releases)
+just test-full-suite
+```
+
+**What it includes:**
+- Unit tests with race detection
+- Integration tests (macOS APIs)
+- Detailed coverage analysis (by function, package, uncovered functions)
+- Test suite quality metrics (file counts, benchmark counts, etc.)
+
+The full test suite includes:
+
+1. Unit tests
+2. Race detection tests
+3. Integration tests
+4. Coverage analysis
+5. Quality metrics
+
+### Advanced Testing Features
+
+#### Fuzz Testing
+
+Neru includes fuzz tests for automated edge case discovery:
+
+```go
+// Example fuzz test in ipc_test.go
+func FuzzCommandJSON(f *testing.F) {
+    // Add seed inputs
+    f.Add(`{"action":"test","params":{}}`)
+
+    f.Fuzz(func(t *testing.T, input string) {
+        var cmd ipc.Command
+        err := json.Unmarshal([]byte(input), &cmd)
+        // Test marshaling/unmarshaling robustness
+        if err == nil {
+            data, err := json.Marshal(cmd)
+            // ... additional validation
+        }
+    })
+}
+```
+
+#### Chaos Testing
+
+Chaos tests inject failures to ensure system resilience:
+
+```go
+func TestIPCAdapter_ChaosTesting(t *testing.T) {
+    // Test with malformed inputs, network failures, etc.
+    // Ensures graceful error handling
+}
+```
+
+#### Concurrent Testing
+
+Comprehensive concurrent testing with multiple goroutines:
+
+```go
+func TestIPCAdapter_ConcurrentOperations(t *testing.T) {
+    // Tests thread safety with 10 goroutines × 5 calls each
+    // Validates concurrent access patterns
+}
+```
+
+#### Property-Based Testing
+
+Grid generation validation across multiple input combinations:
+
+```go
+func TestGrid_PropertyBased(t *testing.T) {
+    // Tests grid generation with various character sets and screen sizes
+    // Ensures consistent behavior across different inputs
+}
+```
+
+### Testing During Development
+
+#### Watch Mode
+
+```bash
+# Watch for file changes and run tests (requires entr)
+find . -name "*.go" | entr -r just test
+
+# Watch specific package
+find internal/domain/grid -name "*.go" | entr -r go test ./internal/domain/grid
+```
+
+#### Quick Iteration
+
+```bash
+# Build and test cycle
+just build && just test && ./bin/neru launch --config test-config.toml
+
+# Fast feedback loop
+just test && just lint
+```
+
+#### Debugging Tests
+
+```bash
+# Run test with verbose output
+go test -v -run TestSpecificFunction ./internal/package
+
+# Run test with CPU profiling
+go test -cpuprofile cpu.prof ./internal/package
+
+# Run test with memory profiling
+go test -memprofile mem.prof ./internal/package
+
+# Analyze profiles
+go tool pprof cpu.prof
+```
+
+### Test Organization
+
+#### Test File Naming
+
+- Unit tests: `*_test.go` (e.g., `grid_test.go`)
+- Integration tests: `*_integration_test.go` (e.g., `accessibility_integration_test.go`)
+- Benchmark tests: `*_test.go` with `func Benchmark*`
+
+#### Test Tags
+
+```go
+// Integration tests (only run with -tags=integration)
+//go:build integration
+
+package adapter
+
+// Fuzz tests (Go 1.18+)
+//go:build go1.18
+```
+
+**Note:** All integration test files (`*_integration_test.go`) now include the `//go:build integration` tag to properly separate integration tests from unit tests.
+
+#### Test Helpers
+
+Common test utilities are available in test files:
+
+- `assert` functions for common assertions
+- `testdata` directories for test fixtures
+- Mock implementations for external dependencies
+- Helper functions for test setup/teardown
+
+### Performance Testing
+
+#### Benchmarks
+
+```bash
+# Run all benchmarks
+just bench
+
+# Run specific benchmark
+go test -bench=BenchmarkGridGeneration ./internal/domain/grid
+
+# Run benchmarks with memory allocation info
+go test -bench=. -benchmem ./...
+
+# Compare benchmark results
+go test -bench=. -count=3 ./... | tee benchmark.txt
+```
+
+#### Profiling
+
+```bash
+# Profile test execution
+go test -cpuprofile cpu.prof -memprofile mem.prof ./internal/package
+
+# Profile running application
+NERU_PPROF=:6060 ./bin/neru launch
+# Then visit http://localhost:6060/debug/pprof/
+```
+
+### Code Quality Tools
+
+#### Linting
 
 ```bash
 # Run all linters
 just lint
 
-# Auto-fix issues
+# Auto-fix linting issues
 golangci-lint run --fix
+
+# Run specific linter
+golangci-lint run --enable=goimports
 ```
 
-### Test During Development
+#### Formatting
 
 ```bash
-# Watch mode (requires entr or similar)
-find . -name "*.go" | entr -r just test
+# Format Go code
+just fmt
 
-# Quick iteration
-just build && ./bin/neru launch --config test-config.toml
+# Check formatting without changes
+golangci-lint run --enable=gofmt --enable=goimports --disable-all
 ```
+
+### Testing Best Practices
+
+#### When to Write Tests
+
+- **Always test new features** - Every PR should include tests
+- **Test edge cases** - Empty inputs, nil values, boundary conditions
+- **Test error conditions** - Ensure proper error handling
+- **Test concurrent code** - Use race detection and concurrent tests
+- **Test performance** - Add benchmarks for critical paths
+
+#### Test Structure
+
+```go
+func TestFunctionName(t *testing.T) {
+    // Arrange
+    setup := createTestSetup()
+
+    // Act
+    result, err := functionUnderTest(input)
+
+    // Assert
+    if err != nil {
+        t.Errorf("unexpected error: %v", err)
+    }
+    if result != expected {
+        t.Errorf("got %v, want %v", result, expected)
+    }
+}
+```
+
+#### Table-Driven Tests
+
+```go
+func TestParseHotkey(t *testing.T) {
+    tests := []struct {
+        name    string
+        input   string
+        want    Hotkey
+        wantErr bool
+    }{
+        {"simple", "Cmd+Space", Hotkey{Mod: Cmd, Key: Space}, false},
+        {"invalid", "Invalid", Hotkey{}, true},
+        // Add more test cases...
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := ParseHotkey(tt.input)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("ParseHotkey() error = %v, wantErr %v", err, tt.wantErr)
+                return
+            }
+            if !reflect.DeepEqual(got, tt.want) {
+                t.Errorf("ParseHotkey() = %v, want %v", got, tt.want)
+            }
+        })
+    }
+}
+```
+
+#### Mocking Dependencies
+
+```go
+func TestService_DoSomething(t *testing.T) {
+    // Create mock dependencies
+    mockPort := &mocks.MockDependencyPort{}
+    mockPort.On("Method", mock.Anything).Return(expectedResult, nil)
+
+    // Create service with mocks
+    service := NewService(mockPort, logger)
+
+    // Test the service
+    result, err := service.DoSomething(input)
+
+    // Assert expectations
+    mockPort.AssertExpectations(t)
+}
+```
+
+### Continuous Integration
+
+Tests run automatically on:
+
+- Every push to main branch
+- Every pull request
+- Before releases
+
+**CI Pipeline:**
+
+1. **Code Quality Checks:**
+   - Lint code (`just lint`)
+   - Check formatting (`just fmt-check`)
+   - Vet code (`just vet`)
+
+2. **Unit Testing:**
+   - Run unit tests (`just test`)
+   - Run tests with race detection (`just test-race`)
+
+3. **Integration Testing:**
+   - Run integration tests with macOS APIs (`just test-integration`)
+   - Uses `//go:build integration` tags to separate from unit tests
+   - Requires Accessibility permissions (enabled via CI setup)
+
+4. **Coverage Analysis:**
+   - Generate coverage report (`just test-coverage`)
+   - Upload coverage to external services (optional)
+
+**Note:** Integration tests require macOS Accessibility permissions, which are enabled in CI through automated TCC database modifications. If integration tests fail due to permissions, the CI setup may need adjustment.
+
+### Troubleshooting Tests
+
+#### Common Issues
+
+**Tests fail intermittently:**
+
+- Use `just test-flaky-check` to identify flaky tests
+- Check for race conditions with `just test-race`
+- Ensure proper test isolation
+
+**Integration tests fail:**
+
+- Ensure Accessibility permissions are granted
+- Check system UI state
+- Run tests in isolation
+
+**Coverage not updating:**
+
+- Ensure test files are in the same package
+- Check build tags match
+- Verify test functions are named correctly
+
+**Performance regressions:**
+
+- Run benchmarks before/after changes
+- Use profiling to identify bottlenecks
+- Check for memory leaks
+
+### Contributing Test Improvements
+
+When adding tests:
+
+1. **Follow existing patterns** - Match the style of existing tests
+2. **Add meaningful names** - Test names should describe what they verify
+3. **Include edge cases** - Test boundary conditions and error paths
+4. **Document complex tests** - Add comments for non-obvious test logic
+5. **Update this documentation** - Add new test commands or patterns here
+
+### Test Coverage Goals
+
+- **Unit Tests**: Aim for 80%+ coverage on testable code
+- **Integration Tests**: Cover critical user journeys
+- **Performance Tests**: Benchmark critical code paths
+- **Fuzz Tests**: Add for complex input parsing
+- **Chaos Tests**: Ensure graceful failure handling
+
+**Note:** Due to CGO dependencies, some infrastructure code cannot be unit tested. Integration tests provide validation for these components.
 
 ---
 
@@ -485,7 +921,11 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Actio
 4. **Test thoroughly**
 
     ```bash
+    # Basic testing
     just test && just lint
+
+    # For significant changes, run full suite
+    just test-full-suite
     ```
 
 5. **Verify build**
@@ -542,11 +982,18 @@ Before committing, ensure:
 
 - [ ] Code is formatted (`just fmt`)
 - [ ] Linters pass (`just lint`)
-- [ ] Tests pass (`just test`)
+- [ ] Unit tests pass (`just test`)
+- [ ] Race detection tests pass (`just test-race`)
 - [ ] Build succeeds (`just build`)
 - [ ] Documentation updated if needed
 - [ ] Comments are clear and accurate
 - [ ] Follows patterns in [CODING_STANDARDS.md](CODING_STANDARDS.md)
+
+**For significant changes:**
+
+- [ ] Integration tests pass (`just test-integration`)
+- [ ] Full test suite passes (`just test-full-suite`)
+- [ ] Coverage maintained or improved (`just test-coverage-summary`)
 
 **Example:**
 

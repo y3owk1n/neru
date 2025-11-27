@@ -100,3 +100,48 @@ func TestShowHints_PassesCorrectStyle(t *testing.T) {
 		t.Errorf("Expected TextColor #abcdef, got %s", mock.lastStyle.TextColor())
 	}
 }
+
+func TestAdapter_Hide(t *testing.T) {
+	logger := zap.NewNop()
+	mock := &mockManager{}
+	adapter := overlay.NewAdapter(mock, logger)
+
+	err := adapter.Hide(context.Background())
+	if err != nil {
+		t.Errorf("Hide() should not return error, got %v", err)
+	}
+}
+
+func TestAdapter_IsVisible(t *testing.T) {
+	logger := zap.NewNop()
+	mock := &mockManager{}
+	adapter := overlay.NewAdapter(mock, logger)
+
+	// Mock returns ModeIdle, so IsVisible should return false
+	visible := adapter.IsVisible()
+	if visible {
+		t.Error("IsVisible() should return false when mode is idle")
+	}
+}
+
+func TestAdapter_Refresh(t *testing.T) {
+	logger := zap.NewNop()
+	mock := &mockManager{}
+	adapter := overlay.NewAdapter(mock, logger)
+
+	err := adapter.Refresh(context.Background())
+	if err != nil {
+		t.Errorf("Refresh() should not return error, got %v", err)
+	}
+}
+
+func TestAdapter_Health(t *testing.T) {
+	logger := zap.NewNop()
+	mock := &mockManager{}
+	adapter := overlay.NewAdapter(mock, logger)
+
+	err := adapter.Health(context.Background())
+	if err != nil {
+		t.Errorf("Health() should not return error, got %v", err)
+	}
+}

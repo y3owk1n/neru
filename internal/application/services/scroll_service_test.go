@@ -237,3 +237,78 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 		})
 	}
 }
+
+func TestScrollService_HideScrollOverlay(t *testing.T) {
+	tests := []struct {
+		name       string
+		setupMocks func(*mocks.MockOverlayPort)
+		wantErr    bool
+	}{
+		{
+			name: "successful hide",
+			setupMocks: func(ov *mocks.MockOverlayPort) {
+				ov.HideFunc = func(_ context.Context) error {
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "hide error",
+			setupMocks: func(ov *mocks.MockOverlayPort) {
+				ov.HideFunc = func(_ context.Context) error {
+					return derrors.New(derrors.CodeOverlayFailed, "failed to hide overlay")
+				}
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockAcc := &mocks.MockAccessibilityPort{}
+			mockOverlay := &mocks.MockOverlayPort{}
+			config := config.ScrollConfig{}
+			logger := logger.Get()
+
+			if testCase.setupMocks != nil {
+				testCase.setupMocks(mockOverlay)
+			}
+
+			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
+			ctx := context.Background()
+
+			hideScrollOverlayErr := service.HideScrollOverlay(ctx)
+
+			if (hideScrollOverlayErr != nil) != testCase.wantErr {
+				t.Errorf(
+					"HideScrollOverlay() error = %v, wantErr %v",
+					hideScrollOverlayErr,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
+func TestScrollService_UpdateConfig(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	logger := logger.Get()
+
+	service := services.NewScrollService(mockAcc, mockOverlay, config.ScrollConfig{}, logger)
+
+	// Update config
+	newConfig := config.ScrollConfig{
+		HighlightColor: "#00ff00",
+		HighlightWidth: 10,
+		ScrollStep:     5,
+	}
+
+	ctx := context.Background()
+	service.UpdateConfig(ctx, newConfig)
+
+	// The config is stored internally, but we can't directly test it.
+	// We can test that the method doesn't panic and completes successfully.
+	// In a real implementation, we might need to expose a getter or check behavior.
+}

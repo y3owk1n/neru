@@ -11,7 +11,7 @@ jobs:
             matrix:
                 go: ["1.25.2"]
                 os: [macos-latest]
-                check: [lint, formatting, vet, test]
+                check: [lint, formatting, vet, test, test-race, test-integration]
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v5
@@ -48,3 +48,17 @@ jobs:
             - name: Run just test
               if: ${{ matrix.check == 'test' }}
               run: just test
+            - name: Run just test-race
+              if: ${{ matrix.check == 'test-race' }}
+              run: just test-race
+            - name: Enable Accessibility for Integration Tests
+              if: ${{ matrix.check == 'test-integration' }}
+              run: |
+                # Enable accessibility for the current user
+                sudo sqlite3 /Library/Application\ Support/com.apple.TCC/TCC.db "INSERT OR REPLACE INTO access VALUES('kTCCServiceAccessibility','com.apple.Terminal',0,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1701403733);"
+                sudo sqlite3 /Library/Application\ Support/com.apple.TCC/TCC.db "INSERT OR REPLACE INTO access VALUES('kTCCServiceAccessibility','$(whoami)',0,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1701403733);"
+                # Restart accessibility services
+                sudo killall tccd
+            - name: Run just test-integration
+              if: ${{ matrix.check == 'test-integration' }}
+              run: just test-integration

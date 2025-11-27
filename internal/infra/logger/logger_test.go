@@ -49,6 +49,39 @@ func TestInit(t *testing.T) {
 			wantErr:            false,
 		},
 		{
+			name:               "warn level",
+			logLevel:           "warn",
+			logFilePath:        logPath,
+			structured:         false,
+			disableFileLogging: false,
+			maxFileSize:        10,
+			maxBackups:         3,
+			maxAge:             7,
+			wantErr:            false,
+		},
+		{
+			name:               "error level",
+			logLevel:           "error",
+			logFilePath:        logPath,
+			structured:         false,
+			disableFileLogging: false,
+			maxFileSize:        10,
+			maxBackups:         3,
+			maxAge:             7,
+			wantErr:            false,
+		},
+		{
+			name:               "disable file logging",
+			logLevel:           "info",
+			logFilePath:        logPath,
+			structured:         false,
+			disableFileLogging: true,
+			maxFileSize:        10,
+			maxBackups:         3,
+			maxAge:             7,
+			wantErr:            false,
+		},
+		{
 			name:               "warn level no file",
 			logLevel:           "warn",
 			logFilePath:        "",
@@ -108,6 +141,35 @@ func TestGet(t *testing.T) {
 	loggerInstance := logger.Get()
 	if loggerInstance == nil {
 		t.Error("Get() returned nil")
+	}
+
+	// Clean up
+	_ = logger.Close()
+}
+
+func TestReset(t *testing.T) {
+	// Initialize logger
+	tempDir := t.TempDir()
+	logPath := filepath.Join(tempDir, "test.log")
+
+	initErr := logger.Init("info", logPath, false, false, 10, 3, 7)
+	if initErr != nil {
+		t.Fatalf("Init() failed: %v", initErr)
+	}
+
+	// Verify logger is initialized
+	logger1 := logger.Get()
+	if logger1 == nil {
+		t.Error("Get() returned nil after Init")
+	}
+
+	// Reset logger
+	logger.Reset()
+
+	// Get should still return a logger (fallback)
+	logger2 := logger.Get()
+	if logger2 == nil {
+		t.Error("Get() returned nil after Reset")
 	}
 
 	// Clean up
@@ -296,5 +358,95 @@ func TestFileRotation(t *testing.T) {
 	_, initErr = os.Stat(logPath)
 	if os.IsNotExist(initErr) {
 		t.Error("Log file was not created")
+	}
+}
+
+func TestConcurrentLogging(t *testing.T) {
+	// Initialize logger
+	tempDir := t.TempDir()
+	logPath := filepath.Join(tempDir, "test.log")
+
+	initErr := logger.Init("info", logPath, false, false, 10, 3, 7)
+	if initErr != nil {
+		t.Fatalf("Init() failed: %v", initErr)
+	}
+
+	defer func() {
+		_ = logger.Close()
+	}()
+
+	// Test concurrent logging
+	done := make(chan bool, 10)
+
+	for goroutineIndex := range 10 {
+		go func(id int) {
+			for messageIndex := range 100 {
+				logger.Info(
+					"concurrent log message",
+					zap.Int("goroutine", id),
+					zap.Int("message", messageIndex),
+				)
+			}
+
+			done <- true
+		}(goroutineIndex)
+	}
+
+	// Wait for all goroutines to complete
+	for range 10 {
+		<-done
+	}
+
+	// Sync and verify
+	_ = logger.Sync()
+
+	// Check that log file exists and has content
+	info, err := os.Stat(logPath)
+	if os.IsNotExist(err) {
+		t.Error("Log file was not created")
+	} else if info.Size() == 0 {
+		t.Error("Log file is empty")
+	}
+}
+
+func TestLoggerReinitialization(t *testing.T) {
+	// Initialize logger first time
+	tempDir := t.TempDir()
+	logPath1 := filepath.Join(tempDir, "test1.log")
+
+	initErr := logger.Init("info", logPath1, false, false, 10, 3, 7)
+	if initErr != nil {
+		t.Fatalf("First Init() failed: %v", initErr)
+	}
+
+	logger.Info("first init message")
+
+	// Close first logger
+	_ = logger.Close()
+
+	// Reinitialize with different settings
+	logPath2 := filepath.Join(tempDir, "test2.log")
+
+	initErr = logger.Init("debug", logPath2, true, false, 10, 3, 7)
+	if initErr != nil {
+		t.Fatalf("Second Init() failed: %v", initErr)
+	}
+
+	logger.Debug("second init debug message")
+	logger.Info("second init info message")
+
+	// Clean up
+	_ = logger.Close()
+
+	// Verify both log files exist
+	_, err1 := os.Stat(logPath1)
+	_, err2 := os.Stat(logPath2)
+
+	if os.IsNotExist(err1) {
+		t.Error("First log file was not created")
+	}
+
+	if os.IsNotExist(err2) {
+		t.Error("Second log file was not created")
 	}
 }

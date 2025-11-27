@@ -274,6 +274,10 @@ func TestNewCollection(t *testing.T) {
 		t.Errorf("Count() = %d, want 5", collection.Count())
 	}
 
+	if collection.Empty() {
+		t.Error("Empty() should return false for non-empty collection")
+	}
+
 	// Test FindByLabel
 	hint := collection.FindByLabel("AS")
 	if hint == nil {
@@ -286,6 +290,10 @@ func TestNewCollection(t *testing.T) {
 	filtered := collection.FilterByPrefix("A")
 	if len(filtered) != 4 { // A, AS, AD, AF
 		t.Errorf("FilterByPrefix(\"A\") returned %d hints, want 4", len(filtered))
+	}
+
+	if collection.Empty() {
+		t.Error("Empty() should return false for non-empty collection")
 	}
 }
 
