@@ -1,3 +1,5 @@
+//go:build integration
+
 package eventtap_test
 
 import (

@@ -1,3 +1,5 @@
+//go:build integration
+
 package accessibility_test
 
 import (
