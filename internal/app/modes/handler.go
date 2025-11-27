@@ -5,6 +5,8 @@ import (
 	"github.com/y3owk1n/neru/internal/application/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/state"
+	"github.com/y3owk1n/neru/internal/features/grid"
+	"github.com/y3owk1n/neru/internal/features/hints"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -79,4 +81,10 @@ func NewHandler(
 // UpdateConfig updates the handler with new configuration.
 func (h *Handler) UpdateConfig(config *config.Config) {
 	h.Config = config
+	if h.Renderer != nil {
+		h.Renderer.UpdateConfig(
+			hints.BuildStyle(config.Hints),
+			grid.BuildStyle(config.Grid),
+		)
+	}
 }

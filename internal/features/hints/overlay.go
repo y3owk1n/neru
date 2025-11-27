@@ -364,6 +364,8 @@ func BuildStyle(cfg config.HintsConfig) StyleMode {
 // UpdateConfig updates the overlay configuration.
 func (o *Overlay) UpdateConfig(config config.HintsConfig) {
 	o.config = config
+	// Invalidate style cache when config changes
+	o.freeStyleCache()
 }
 
 // Destroy destroys the overlay.

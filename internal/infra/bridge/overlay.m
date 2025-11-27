@@ -48,6 +48,9 @@
 @property(nonatomic, strong) NSColor *cachedGridTextColorWithOpacity;        ///< Cached grid text color with opacity
 @property(nonatomic, strong) NSColor *cachedGridMatchedTextColorWithOpacity; ///< Cached matched text color with opacity
 
+// Cached string buffer to reduce allocations
+@property(nonatomic, strong) NSMutableAttributedString *cachedAttributedString; ///< Cached attributed string buffer
+
 - (void)applyStyle:(HintStyle)style;                                                  ///< Apply hint style
 - (NSColor *)colorFromHex:(NSString *)hexString defaultColor:(NSColor *)defaultColor; ///< Color from hex string
 @end
@@ -95,6 +98,9 @@
 		// Initialize cached colors with opacity
 		_cachedGridTextColorWithOpacity = [_gridTextColor colorWithAlphaComponent:_gridTextOpacity];
 		_cachedGridMatchedTextColorWithOpacity = [_gridMatchedTextColor colorWithAlphaComponent:_gridTextOpacity];
+
+		// Initialize cached string buffer
+		_cachedAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
 	}
 	return self;
 }
@@ -306,11 +312,15 @@
 		BOOL showArrow = showArrowNum ? [showArrowNum boolValue] : YES;
 
 		// Create attributed string with matched prefix in different color
-		NSMutableAttributedString *attrString = [[NSMutableAttributedString alloc] initWithString:label];
-		[attrString addAttribute:NSFontAttributeName value:self.hintFont range:NSMakeRange(0, [label length])];
-		[attrString addAttribute:NSForegroundColorAttributeName
-		                   value:self.hintTextColor
-		                   range:NSMakeRange(0, [label length])];
+		// Reuse cached attributed string buffer
+		NSMutableAttributedString *attrString = self.cachedAttributedString;
+		[[attrString mutableString] setString:label];
+
+		// Clear previous attributes and set new ones
+		NSRange fullRange = NSMakeRange(0, [label length]);
+		[attrString
+		    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
+		            range:fullRange];
 
 		// Highlight matched prefix
 		if (matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
@@ -512,14 +522,18 @@
 
 		// Draw text label centered in cell
 		if (label && [label length] > 0) {
-			NSMutableAttributedString *attrString = [[NSMutableAttributedString alloc] initWithString:label];
+			// Reuse cached attributed string buffer
+			NSMutableAttributedString *attrString = self.cachedAttributedString;
+			[[attrString mutableString] setString:label];
 
-			[attrString addAttribute:NSFontAttributeName value:self.gridFont range:NSMakeRange(0, [label length])];
+			// Clear previous attributes and set new ones
+			NSRange fullRange = NSMakeRange(0, [label length]);
+			[attrString setAttributes:@{NSFontAttributeName : self.gridFont} range:fullRange];
 
 			// Use cached color with opacity to avoid repeated allocations
 			[attrString addAttribute:NSForegroundColorAttributeName
 			                   value:self.cachedGridTextColorWithOpacity
-			                   range:NSMakeRange(0, [label length])];
+			                   range:fullRange];
 
 			NSNumber *matchedPrefixLengthNum = cellDict[@"matchedPrefixLength"];
 			int matchedPrefixLength = matchedPrefixLengthNum ? [matchedPrefixLengthNum intValue] : 0;

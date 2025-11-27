@@ -27,6 +27,12 @@ func NewOverlayRenderer(
 	}
 }
 
+// UpdateConfig updates the renderer with new configuration.
+func (r *OverlayRenderer) UpdateConfig(hintStyle hints.StyleMode, gridStyle grid.Style) {
+	r.hintStyle = hintStyle
+	r.gridStyle = gridStyle
+}
+
 // DrawHints draws hints with the configured style.
 func (r *OverlayRenderer) DrawHints(hs []*hints.Hint) error {
 	return r.manager.DrawHintsWithStyle(hs, r.hintStyle)
