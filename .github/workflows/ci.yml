@@ -82,5 +82,7 @@ jobs:
               run: |
                 echo "Running integration tests..."
                 echo "Note: These may fail on CI due to accessibility permission restrictions"
+                echo "CI will pass regardless of integration test results"
                 # Run integration tests but don't fail CI if they encounter permission issues
+                # This allows CI to pass even when macOS permissions prevent full testing
                 just test-integration || (echo "Integration tests completed (may have failed due to CI permissions)" && exit 0)
