@@ -60,15 +60,15 @@ Use the nix-darwin module for system-wide installation:
 
          # Configure Neru
          {
-           # Enable Neru
-           neru.enable = true;
+            # Enable Neru
+            services.neru.enable = true;
 
-           # Optional: Use specific package version
-           # neru.package = pkgs.neru; # This will use the latest version
-           # neru.package = pkgs.neru-source; # This will build from source
+            # Optional: Use specific package version
+            # services.neru.package = pkgs.neru; # This will use the latest version
+            # services.neru.package = pkgs.neru-source; # This will build from source
 
-           # Optional: Inline configuration
-           neru.config = ''
+            # Optional: Inline configuration
+            services.neru.config = ''
              [hotkeys]
              "Cmd+Shift+Space" = "hints left_click"
              "Cmd+Shift+G" = "grid left_click"
@@ -85,9 +85,9 @@ Use the nix-darwin module for system-wide installation:
 
 **Module Options:**
 
-- `neru.enable` - Enable Neru (default: `false`)
-- `neru.package` - Package to use (default: `pkgs.neru` for latest version) or `pkgs.neru-source` for building from source
-- `neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
+- `services.neru.enable` - Enable Neru (default: `false`)
+- `services.neru.package` - Package to use (default: `pkgs.neru` for latest version) or `pkgs.neru-source` for building from source
+- `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 
 The module automatically:
 
@@ -119,14 +119,14 @@ Use the home-manager module for user-specific installation:
          # Configure Neru
          {
            # Enable Neru
-           programs.neru.enable = true;
+           services.neru.enable = true;
 
            # Optional: Use specific package version
-           # programs.neru.package = pkgs.neru; # This will use the latest version
-           # programs.neru.package = pkgs.neru-source; # This will build from source
+           # services.neru.package = pkgs.neru; # This will use the latest version
+           # services.neru.package = pkgs.neru-source; # This will build from source
 
            # Option A: Inline configuration
-           programs.neru.config = ''
+           services.neru.config = ''
              [hotkeys]
              "Cmd+Shift+Space" = "hints left_click"
              "Cmd+Shift+G" = "grid left_click"
@@ -136,7 +136,7 @@ Use the home-manager module for user-specific installation:
            '';
 
            # Option B: Use existing config file (takes precedence)
-           # programs.neru.configFile = ./path/to/config.toml;
+           # services.neru.configFile = ./path/to/config.toml;
          }
        ];
      };
@@ -146,10 +146,10 @@ Use the home-manager module for user-specific installation:
 
 **Module Options:**
 
-- `programs.neru.enable` - Enable Neru (default: `false`)
-- `programs.neru.package` - Package to use (default: `pkgs.neru` for latest version) or `pkgs.neru-source` for building from source
-- `programs.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
-- `programs.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
+- `services.neru.enable` - Enable Neru (default: `false`)
+- `services.neru.package` - Package to use (default: `pkgs.neru` for latest version) or `pkgs.neru-source` for building from source
+- `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
+- `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
 
 The module automatically:
 
@@ -212,7 +212,7 @@ Or with home-manager:
 
 ```nix
 {
-  neru.enable = true;
+  services.neru.enable = true;
 }
 ```
 
@@ -220,8 +220,8 @@ Or with home-manager:
 
 ```nix
 {
-  programs.neru.enable = true;
-  programs.neru.config = ''
+  services.neru.enable = true;
+  services.neru.config = ''
      [hotkeys]
      "Cmd+;" = "hints left_click"
      "Cmd+'" = "grid left_click"
@@ -234,8 +234,8 @@ Or with home-manager:
 
 ```nix
 {
-  programs.neru.enable = true;
-  programs.neru.configFile = ./dotfiles/neru/config.toml;
+  services.neru.enable = true;
+  services.neru.configFile = ./dotfiles/neru/config.toml;
 }
 ```
 
