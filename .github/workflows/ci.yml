@@ -95,4 +95,4 @@ jobs:
                 echo "Running integration tests..."
                 echo "Note: These may fail on CI due to accessibility permission restrictions"
                 # Run integration tests but don't fail CI if they encounter permission issues
-                timeout 300 just test-integration || (echo "Integration tests completed (may have failed due to CI permissions)" && exit 0)
+                just test-integration || (echo "Integration tests completed (may have failed due to CI permissions)" && exit 0)
