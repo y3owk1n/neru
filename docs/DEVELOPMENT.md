@@ -614,7 +614,6 @@ The CI runs multiple parallel jobs to validate different aspects of the codebase
 5. **`test`**: Unit tests (excludes integration tests)
 6. **`test-race`**: Race detection for concurrent code
 7. **`test-integration`**: macOS API integration tests
-8. **`test-coverage`**: Coverage analysis and Codecov upload
 
 **Test Separation:**
 - **Unit Tests** (`just test`): Fast, isolated tests without external dependencies

@@ -11,7 +11,7 @@ jobs:
             matrix:
                 go: ["1.25.2"]
                 os: [macos-latest]
-                check: [lint, formatting, vet, build, test, test-race, test-integration, test-coverage]
+                check: [lint, formatting, vet, build, test, test-race, test-integration]
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v5
@@ -56,18 +56,6 @@ jobs:
             - name: Run just test-race
               if: ${{ matrix.check == 'test-race' }}
               run: just test-race
-            - name: Run just test-coverage
-              if: ${{ matrix.check == 'test-coverage' }}
-              run: |
-                just test-coverage
-                just test-coverage-summary
-            - name: Upload coverage to Codecov
-              if: ${{ matrix.check == 'test-coverage' }}
-              uses: codecov/codecov-action@v3
-              with:
-                file: ./coverage.out
-                flags: unittests
-                name: codecov-umbrella
             - name: Enable Accessibility for Integration Tests
               if: ${{ matrix.check == 'test-integration' }}
               run: |
