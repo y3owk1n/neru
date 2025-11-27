@@ -198,16 +198,11 @@ func (o *Overlay) SetConfig(config config.GridConfig) {
 
 // SetHideUnmatched sets whether to hide unmatched cells.
 func (o *Overlay) SetHideUnmatched(hide bool) {
-	C.NeruSetHideUnmatched(o.window, C.int(boolToInt(hide)))
-}
-
-// boolToInt converts a boolean to an integer (1 for true, 0 for false).
-func boolToInt(b bool) int {
-	if b {
-		return 1
+	hideInt := 0
+	if hide {
+		hideInt = 1
 	}
-
-	return 0
+	C.NeruSetHideUnmatched(o.window, C.int(hideInt))
 }
 
 // Show displays the grid overlay.
@@ -312,8 +307,8 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 	}()
 }
 
-// Draw renders the flat grid with all 3-char cells visible.
-func (o *Overlay) Draw(grid *domainGrid.Grid, currentInput string, style Style) error {
+// DrawGrid renders the flat grid with all 3-char cells visible.
+func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Style) error {
 	// Clear existing content
 	o.Clear()
 

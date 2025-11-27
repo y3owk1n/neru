@@ -1,9 +1,7 @@
 package accessibility
 
 import (
-	"fmt"
 	"image"
-	"strings"
 	"sync"
 	"time"
 
@@ -35,26 +33,6 @@ func rectFromInfo(info *ElementInfo) image.Rectangle {
 		pos.X+size.X,
 		pos.Y+size.Y,
 	)
-}
-
-// PrintTree outputs the accessibility tree structure to the log for debugging purposes.
-func PrintTree(node *TreeNode, depth int) {
-	if node == nil || node.Info() == nil {
-		return
-	}
-
-	var indent strings.Builder
-	for range depth {
-		indent.WriteString("  ")
-	}
-
-	size := node.Info().Size()
-	logger.Info(fmt.Sprintf("%sRole: %s, Title: %s, Size: %dx%d",
-		indent.String(), node.Info().Role(), node.Info().Title(), size.X, size.Y))
-
-	for _, child := range node.Children() {
-		PrintTree(child, depth+1)
-	}
 }
 
 // ClickableElements retrieves all clickable UI elements in the frontmost window.

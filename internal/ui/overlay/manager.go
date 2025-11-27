@@ -291,7 +291,7 @@ func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) e
 	if m.gridOverlay == nil {
 		return nil
 	}
-	drawGridErr := m.gridOverlay.Draw(g, input, style)
+	drawGridErr := m.gridOverlay.DrawGrid(g, input, style)
 	if drawGridErr != nil {
 		return derrors.Wrap(drawGridErr, derrors.CodeOverlayFailed, "failed to draw grid")
 	}

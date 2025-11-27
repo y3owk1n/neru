@@ -172,24 +172,3 @@ func (s *Service) Update(config *Config) error {
 
 	return nil
 }
-
-// LoadOrDefault loads configuration from the given path, or returns default config if it fails.
-func LoadOrDefault(path string) (*Service, error) {
-	configResult := LoadWithValidation(path)
-
-	if configResult.ValidationError != nil {
-		// Return default config with error
-		defaultConfig := DefaultConfig()
-
-		return NewService(
-				defaultConfig,
-				"",
-			), derrors.Wrap(
-				configResult.ValidationError,
-				derrors.CodeInvalidConfig,
-				"failed to load config",
-			)
-	}
-
-	return NewService(configResult.Config, configResult.ConfigPath), nil
-}

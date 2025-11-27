@@ -143,7 +143,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 				)
 			}
 
-			drawHintsErr := h.Hints.Overlay.DrawHintsWithStyle(overlayHints, h.Hints.Style)
+			drawHintsErr := h.OverlayManager.DrawHintsWithStyle(overlayHints, h.Hints.Style)
 			if drawHintsErr != nil {
 				h.Logger.Error("Failed to update hints overlay", zap.Error(drawHintsErr))
 			}
