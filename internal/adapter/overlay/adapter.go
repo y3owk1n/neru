@@ -73,12 +73,22 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Interface) error 
 }
 
 // ShowGrid displays the grid overlay.
-func (a *Adapter) ShowGrid(ctx context.Context, _ int, _ int) error {
+func (a *Adapter) ShowGrid(ctx context.Context, rows, cols int) error {
 	// Check context
 	select {
 	case <-ctx.Done():
 		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
 	default:
+	}
+
+	// Validate input parameters
+	if rows <= 0 || cols <= 0 {
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"invalid grid dimensions: rows=%d, cols=%d",
+			rows,
+			cols,
+		)
 	}
 
 	// Get screen bounds

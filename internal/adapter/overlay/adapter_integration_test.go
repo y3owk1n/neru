@@ -68,6 +68,80 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 		visible := adapter.IsVisible()
 		_ = visible // Just verify it doesn't panic
 	})
+
+	t.Run("ModeTransitions", func(t *testing.T) {
+		// Test transitioning between different overlay modes
+
+		// Start with hints
+		hintsErr := adapter.ShowHints(ctx, nil)
+		if hintsErr != nil {
+			t.Errorf("ShowHints() error = %v", hintsErr)
+		}
+
+		// Check visibility
+		if !adapter.IsVisible() {
+			t.Error("Expected overlay to be visible after ShowHints")
+		}
+
+		// Switch to grid
+		gridErr := adapter.ShowGrid(ctx, 5, 5)
+		if gridErr != nil {
+			t.Errorf("ShowGrid() error = %v", gridErr)
+		}
+
+		// Should still be visible
+		if !adapter.IsVisible() {
+			t.Error("Expected overlay to remain visible after mode switch")
+		}
+
+		// Refresh
+		refreshErr := adapter.Refresh(ctx)
+		if refreshErr != nil {
+			t.Errorf("Refresh() error = %v", refreshErr)
+		}
+
+		// Hide
+		hideErr := adapter.Hide(ctx)
+		if hideErr != nil {
+			t.Errorf("Hide() error = %v", hideErr)
+		}
+
+		// Should not be visible
+		if adapter.IsVisible() {
+			t.Error("Expected overlay to be hidden after Hide()")
+		}
+	})
+
+	t.Run("MultipleGridSizes", func(t *testing.T) {
+		// Test different grid configurations
+		testCases := []struct {
+			name  string
+			cols  int
+			rows  int
+			valid bool
+		}{
+			{"small grid", 2, 2, true},
+			{"medium grid", 5, 5, true},
+			{"large grid", 10, 10, true},
+			{"zero size", 0, 5, false},
+			{"negative size", -1, 5, false},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				err := adapter.ShowGrid(ctx, tc.cols, tc.rows)
+
+				if tc.valid && err != nil {
+					t.Errorf("ShowGrid(%d, %d) error = %v, expected nil", tc.cols, tc.rows, err)
+				} else if !tc.valid && err == nil {
+					t.Errorf("ShowGrid(%d, %d) error = nil, expected error for invalid size", tc.cols, tc.rows)
+				}
+
+				// Clean up
+				adapter.Hide(ctx)
+			})
+		}
+	})
 }
 
 // TestOverlayAdapterContextCancellation tests context cancellation handling.

@@ -6,26 +6,30 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/hotkey"
+	hotkeyInfra "github.com/y3owk1n/neru/internal/infra/hotkeys"
 	"go.uber.org/zap"
 )
 
 var errRegistrationFailed = errors.New("registration failed")
 
 type mockInfraManager struct {
-	registered map[string]int
+	registered map[string]hotkeyInfra.HotkeyID
 	nextID     int
 }
 
-func (m *mockInfraManager) Register(key string, callback func()) (int, error) {
+func (m *mockInfraManager) Register(
+	key string,
+	callback hotkeyInfra.Callback,
+) (hotkeyInfra.HotkeyID, error) {
 	if key == "error-key" {
 		return 0, errRegistrationFailed
 	}
 
-	identifier := m.nextID
+	identifier := hotkeyInfra.HotkeyID(m.nextID)
 	m.nextID++
 
 	if m.registered == nil {
-		m.registered = make(map[string]int)
+		m.registered = make(map[string]hotkeyInfra.HotkeyID)
 	}
 
 	m.registered[key] = identifier
@@ -33,7 +37,7 @@ func (m *mockInfraManager) Register(key string, callback func()) (int, error) {
 	return identifier, nil
 }
 
-func (m *mockInfraManager) Unregister(id int) {
+func (m *mockInfraManager) Unregister(id hotkeyInfra.HotkeyID) {
 	for key, value := range m.registered {
 		if value == id {
 			delete(m.registered, key)
@@ -44,7 +48,7 @@ func (m *mockInfraManager) Unregister(id int) {
 }
 
 func (m *mockInfraManager) UnregisterAll() {
-	m.registered = make(map[string]int)
+	m.registered = make(map[string]hotkeyInfra.HotkeyID)
 }
 
 func TestAdapter_NewAdapter(t *testing.T) {

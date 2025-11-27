@@ -5,7 +5,6 @@ package bridge
 #cgo LDFLAGS: -framework ApplicationServices -framework Cocoa -framework Carbon -framework CoreGraphics
 #include "accessibility.h"
 #include "overlay.h"
-#include "hotkeys.h"
 #include "eventtap.h"
 #include "appwatcher.h"
 #include "alert.h"

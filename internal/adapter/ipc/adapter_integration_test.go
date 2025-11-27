@@ -231,6 +231,69 @@ func TestIPCAdapterIntegration(t *testing.T) {
 				t.Errorf("Response code = %q, want %q", resp.Code, "UNKNOWN_ACTION")
 			}
 		})
+
+		t.Run("concurrent commands", func(t *testing.T) {
+			// Test concurrent IPC calls
+			numGoroutines := 5
+			callsPerGoroutine := 3
+
+			results := make([][]ipc.Response, numGoroutines)
+
+			// Launch concurrent goroutines
+			for i := range numGoroutines {
+				go func(goroutineID int) {
+					client := ipc.NewClient()
+					responses := make([]ipc.Response, callsPerGoroutine)
+
+					for j := range callsPerGoroutine {
+						cmd := ipc.Command{
+							Action: "test",
+							Params: map[string]any{
+								"goroutine": goroutineID,
+								"call":      j,
+							},
+						}
+
+						resp, err := client.Send(cmd)
+						if err != nil {
+							t.Errorf(
+								"Concurrent call %d-%d: Send() error = %v",
+								goroutineID,
+								j,
+								err,
+							)
+							continue
+						}
+						responses[j] = resp
+					}
+
+					results[goroutineID] = responses
+				}(i)
+			}
+
+			// Wait a bit for concurrent operations
+			time.Sleep(100 * time.Millisecond)
+
+			// Verify results (basic check that some calls succeeded)
+			totalSuccessful := 0
+			for i, responses := range results {
+				if responses != nil {
+					for j, resp := range responses {
+						if resp.Success {
+							totalSuccessful++
+						} else {
+							t.Logf("Concurrent call %d-%d failed: %s", i, j, resp.Message)
+						}
+					}
+				}
+			}
+
+			if totalSuccessful == 0 {
+				t.Error("No concurrent IPC calls succeeded")
+			} else {
+				t.Logf("Concurrent IPC test completed: %d successful calls", totalSuccessful)
+			}
+		})
 	})
 }
 

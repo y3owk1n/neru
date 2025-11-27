@@ -2,7 +2,8 @@ package hotkeys
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../bridge/hotkeys.h"
+#cgo LDFLAGS: -framework Carbon -framework Cocoa
+#include "hotkeys.h"
 #include <stdlib.h>
 
 extern void hotkeyCallbackBridge(int hotkeyId, void* userData);

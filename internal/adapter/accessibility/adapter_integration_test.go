@@ -169,6 +169,127 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 			t.Log("Health() check passed")
 		}
 	})
+
+	t.Run("ElementActions", func(t *testing.T) {
+		// Test performing actions on discovered elements
+		filter := ports.ElementFilter{
+			MinSize: image.Point{X: 10, Y: 10},
+		}
+
+		elements, elementsErr := adapter.ClickableElements(ctx, filter)
+		if elementsErr != nil {
+			t.Logf("ClickableElements() error = %v, skipping element actions test", elementsErr)
+			return
+		}
+
+		if len(elements) == 0 {
+			t.Log("No clickable elements found, skipping element actions test")
+			return
+		}
+
+		// Test action on first element
+		element := elements[0]
+		elementBounds := element.Bounds()
+		actionPoint := image.Point{
+			X: elementBounds.Min.X + elementBounds.Dx()/2,
+			Y: elementBounds.Min.Y + elementBounds.Dy()/2,
+		}
+
+		err := adapter.PerformActionAtPoint(ctx, action.TypeLeftClick, actionPoint)
+		if err != nil {
+			t.Logf("PerformActionAtPoint() on element error = %v (expected if no permissions)", err)
+		} else {
+			t.Logf("Successfully performed action on element at %v", actionPoint)
+		}
+	})
+
+	t.Run("ComplexInteractions", func(t *testing.T) {
+		// Test a sequence of interactions
+		// Move cursor to center of screen
+		screenBounds, boundsErr := adapter.ScreenBounds(ctx)
+		if boundsErr != nil {
+			t.Logf("ScreenBounds() error = %v, skipping complex interactions", boundsErr)
+			return
+		}
+
+		centerPoint := image.Point{
+			X: screenBounds.Min.X + screenBounds.Dx()/2,
+			Y: screenBounds.Min.Y + screenBounds.Dy()/2,
+		}
+
+		// Move to center
+		moveErr := adapter.MoveCursorToPoint(ctx, centerPoint)
+		if moveErr != nil {
+			t.Logf("MoveCursorToPoint() error = %v", moveErr)
+		}
+
+		// Perform click
+		clickErr := adapter.PerformActionAtPoint(ctx, action.TypeLeftClick, centerPoint)
+		if clickErr != nil {
+			t.Logf("PerformActionAtPoint() error = %v", clickErr)
+		}
+
+		// Scroll
+		scrollErr := adapter.Scroll(ctx, 0, -50)
+		if scrollErr != nil {
+			t.Logf("Scroll() error = %v", scrollErr)
+		}
+
+		t.Logf("Completed complex interaction sequence at %v", centerPoint)
+	})
+
+	t.Run("ErrorHandling", func(t *testing.T) {
+		// Test error handling with invalid inputs
+
+		// Invalid cursor position (negative coordinates)
+		invalidPoint := image.Point{X: -100, Y: -100}
+		err := adapter.MoveCursorToPoint(ctx, invalidPoint)
+		// Should not panic, may or may not error depending on implementation
+		if err != nil {
+			t.Logf("MoveCursorToPoint with invalid coords returned error: %v", err)
+		}
+
+		// Invalid scroll parameters
+		scrollErr := adapter.Scroll(ctx, 999999, 999999)
+		if scrollErr != nil {
+			t.Logf("Scroll with extreme values returned error: %v", scrollErr)
+		}
+
+		// Action on invalid point
+		actionErr := adapter.PerformActionAtPoint(ctx, action.TypeLeftClick, invalidPoint)
+		if actionErr != nil {
+			t.Logf("PerformActionAtPoint with invalid coords returned error: %v", actionErr)
+		}
+	})
+
+	t.Run("Performance", func(t *testing.T) {
+		// Basic performance test for common operations
+		const iterations = 10
+
+		// Test cursor position performance
+		start := time.Now()
+		for i := 0; i < iterations; i++ {
+			_, err := adapter.CursorPosition(ctx)
+			if err != nil {
+				break // Stop timing if errors occur
+			}
+		}
+		duration := time.Since(start)
+
+		t.Logf("Cursor position queries (%d iterations): %v", iterations, duration)
+
+		// Test screen bounds performance
+		start = time.Now()
+		for i := 0; i < iterations; i++ {
+			_, err := adapter.ScreenBounds(ctx)
+			if err != nil {
+				break
+			}
+		}
+		duration = time.Since(start)
+
+		t.Logf("Screen bounds queries (%d iterations): %v", iterations, duration)
+	})
 }
 
 // abs returns the absolute value of x.

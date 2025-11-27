@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/hotkey"
 	"github.com/y3owk1n/neru/internal/application/ports"
+	hotkeyInfra "github.com/y3owk1n/neru/internal/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 )
 
@@ -16,50 +17,19 @@ func TestHotkeyAdapterImplementsPort(_ *testing.T) {
 	var _ ports.HotkeyPort = (*hotkey.Adapter)(nil)
 }
 
-// MockHotkeyManager implements hotkey.InfraManager for testing.
-type MockHotkeyManager struct {
-	registered map[string]int
-	nextID     int
-}
-
-func (m *MockHotkeyManager) Register(key string, _ func()) (int, error) {
-	if key == "invalid-hotkey" {
-		return 0, context.DeadlineExceeded // Simulate error
-	}
-
-	id := m.nextID
-	m.nextID++
-	m.registered[key] = id
-
-	return id, nil
-}
-
-func (m *MockHotkeyManager) Unregister(id int) {
-	for key, value := range m.registered {
-		if value == id {
-			delete(m.registered, key)
-
-			break
-		}
-	}
-}
-
-func (m *MockHotkeyManager) UnregisterAll() {
-	m.registered = make(map[string]int)
-}
-
-// TestHotkeyAdapterIntegration tests the hotkey adapter.
+// TestHotkeyAdapterIntegration tests the hotkey adapter with real macOS APIs.
 func TestHotkeyAdapterIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
 	logger := logger.Get()
-	mockManager := &MockHotkeyManager{
-		registered: make(map[string]int),
-		nextID:     1,
-	}
-	adapter := hotkey.NewAdapter(mockManager, logger)
+
+	// Create real macOS hotkey manager
+	manager := hotkeyInfra.NewManager(logger)
+	// Cast to InfraManager interface
+	var infraManager hotkey.InfraManager = manager
+	adapter := hotkey.NewAdapter(infraManager, logger)
 
 	ctx := context.Background()
 

@@ -106,7 +106,7 @@ test-quality-check:
     @grep -r "func Fuzz" --include="*_test.go" . | wc -l
     @echo ""
     @echo "=== Integration Test Count ==="
-    @grep -r "integration_test.go" . | wc -l
+    @find . -name "*integration*test.go" -type f | wc -l
 
 # Complete test suite with detailed analysis (slower, more comprehensive)
 test-full-suite: test test-race test-integration test-coverage-detailed test-quality-check

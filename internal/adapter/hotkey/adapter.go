@@ -4,14 +4,15 @@ import (
 	"context"
 
 	"github.com/y3owk1n/neru/internal/application/ports"
+	hotkeyInfra "github.com/y3owk1n/neru/internal/infra/hotkeys"
 	"go.uber.org/zap"
 )
 
 // InfraManager defines the interface for the infrastructure hotkey manager.
 // This interface allows the adapter to interact with the low-level hotkey implementation.
 type InfraManager interface {
-	Register(key string, callback func()) (int, error)
-	Unregister(id int)
+	Register(key string, callback hotkeyInfra.Callback) (hotkeyInfra.HotkeyID, error)
+	Unregister(id hotkeyInfra.HotkeyID)
 	UnregisterAll()
 }
 
@@ -19,7 +20,7 @@ type InfraManager interface {
 type Adapter struct {
 	manager       InfraManager
 	logger        *zap.Logger
-	registeredIDs map[string]int // Track registered hotkey IDs
+	registeredIDs map[string]hotkeyInfra.HotkeyID // Track registered hotkey IDs
 }
 
 // NewAdapter creates a new hotkey adapter.
@@ -27,7 +28,7 @@ func NewAdapter(manager InfraManager, logger *zap.Logger) *Adapter {
 	return &Adapter{
 		manager:       manager,
 		logger:        logger,
-		registeredIDs: make(map[string]int),
+		registeredIDs: make(map[string]hotkeyInfra.HotkeyID),
 	}
 }
 
@@ -67,7 +68,7 @@ func (a *Adapter) Unregister(_ context.Context, key string) error {
 // UnregisterAll removes all hotkey registrations.
 func (a *Adapter) UnregisterAll(_ context.Context) error {
 	a.manager.UnregisterAll()
-	a.registeredIDs = make(map[string]int)
+	a.registeredIDs = make(map[string]hotkeyInfra.HotkeyID)
 
 	return nil
 }
