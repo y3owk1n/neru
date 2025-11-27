@@ -5,11 +5,11 @@
   ...
 }:
 let
-  cfg = config.programs.neru;
+  cfg = config.services.neru;
 in
 {
   options = {
-    programs.neru = {
+    services.neru = {
       enable = lib.mkEnableOption "Neru keyboard navigation";
 
       package = lib.mkPackageOption pkgs "neru" { };

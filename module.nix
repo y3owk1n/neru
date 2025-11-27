@@ -5,12 +5,12 @@
   ...
 }:
 let
-  cfg = config.neru;
+  cfg = config.services.neru;
   configFile = pkgs.writeScript "config.toml" cfg.config;
 in
 {
   options = {
-    neru = with lib.types; {
+    services.neru = with lib.types; {
       enable = lib.mkEnableOption "Neru keyboard navigation";
       package = lib.mkPackageOption pkgs "neru" { };
       config = lib.mkOption {
