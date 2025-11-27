@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package hotkey_test
 
 import (
@@ -6,6 +9,8 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/hotkey"
 	"github.com/y3owk1n/neru/internal/application/ports"
+	_ "github.com/y3owk1n/neru/internal/infra/bridge" // Link CGO implementations
+	"github.com/y3owk1n/neru/internal/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/infra/logger"
 )
 
@@ -14,50 +19,37 @@ func TestHotkeyAdapterImplementsPort(_ *testing.T) {
 	var _ ports.HotkeyPort = (*hotkey.Adapter)(nil)
 }
 
-// MockHotkeyManager implements hotkey.InfraManager for testing.
-type MockHotkeyManager struct {
-	registered map[string]int
-	nextID     int
+// RealHotkeyManagerWrapper wraps the real hotkeys.Manager to implement InfraManager interface.
+type RealHotkeyManagerWrapper struct {
+	manager *hotkeys.Manager
 }
 
-func (m *MockHotkeyManager) Register(key string, _ func()) (int, error) {
-	if key == "invalid-hotkey" {
-		return 0, context.DeadlineExceeded // Simulate error
-	}
-
-	id := m.nextID
-	m.nextID++
-	m.registered[key] = id
-
-	return id, nil
+func (w *RealHotkeyManagerWrapper) Register(key string, callback func()) (int, error) {
+	id, err := w.manager.Register(key, callback)
+	return int(id), err
 }
 
-func (m *MockHotkeyManager) Unregister(id int) {
-	for key, value := range m.registered {
-		if value == id {
-			delete(m.registered, key)
-
-			break
-		}
-	}
+func (w *RealHotkeyManagerWrapper) Unregister(id int) {
+	w.manager.Unregister(hotkeys.HotkeyID(id))
 }
 
-func (m *MockHotkeyManager) UnregisterAll() {
-	m.registered = make(map[string]int)
+func (w *RealHotkeyManagerWrapper) UnregisterAll() {
+	w.manager.UnregisterAll()
 }
 
-// TestHotkeyAdapterIntegration tests the hotkey adapter.
+// TestHotkeyAdapterIntegration tests the hotkey adapter with real hotkey manager.
 func TestHotkeyAdapterIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
 	logger := logger.Get()
-	mockManager := &MockHotkeyManager{
-		registered: make(map[string]int),
-		nextID:     1,
-	}
-	adapter := hotkey.NewAdapter(mockManager, logger)
+	realManager := hotkeys.NewManager(logger)
+	hotkeys.SetGlobalManager(realManager) // Required for C callbacks
+	defer hotkeys.SetGlobalManager(nil)
+
+	manager := &RealHotkeyManagerWrapper{manager: realManager}
+	adapter := hotkey.NewAdapter(manager, logger)
 
 	ctx := context.Background()
 
@@ -96,5 +88,10 @@ func TestHotkeyAdapterIntegration(t *testing.T) {
 		if err == nil {
 			t.Error("Register() with invalid hotkey error = nil, want error")
 		}
+	})
+
+	// Cleanup
+	t.Cleanup(func() {
+		adapter.UnregisterAll(ctx)
 	})
 }
