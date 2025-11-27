@@ -14,26 +14,19 @@ import (
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
 func (h *Handler) activateGridModeWithAction(action *string) {
-	// Validate mode activation
-	modeActivationErr := h.validateModeActivation("grid", h.Config.Grid.Enabled)
-	if modeActivationErr != nil {
-		h.Logger.Warn("Grid mode activation failed", zap.Error(modeActivationErr))
-
+	actionEnum, ok := h.activateModeBase(
+		domain.ModeNameGrid,
+		h.Config.Grid.Enabled,
+		domain.ActionMoveMouse,
+	)
+	if !ok {
 		return
 	}
 
-	// Prepare for mode activation (reset scroll, capture cursor)
-	h.prepareForModeActivation()
-
-	actionEnum := domain.ActionMoveMouse
 	actionString := domain.ActionString(actionEnum)
-	h.Logger.Info("Activating grid mode", zap.String("action", actionString))
 
 	h.ExitMode()
 
-	// Always resize overlay to the active screen (where mouse is) before drawing grid.
-	// This ensures proper positioning when switching between multiple displays.
-	h.OverlayManager.ResizeToActiveScreenSync()
 	h.AppState.SetGridOverlayNeedsRefresh(false)
 
 	gridInstance := h.createGridInstance()

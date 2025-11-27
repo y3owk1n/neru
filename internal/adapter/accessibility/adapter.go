@@ -61,10 +61,9 @@ func (a *Adapter) ClickableElements(
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
 	// Check context
-	select {
-	case <-ctx.Done():
-		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
+	err := a.checkContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))
@@ -124,8 +123,7 @@ func (a *Adapter) PerformAction(
 
 	center := element.Center()
 
-	config := config.Global()
-	restoreCursor := config != nil && config.General.RestoreCursorPosition
+	restoreCursor := a.getRestoreCursor()
 
 	// Perform the action via client
 	performActionErr := a.client.PerformAction(actionType, center, restoreCursor)
@@ -143,10 +141,9 @@ func (a *Adapter) PerformActionAtPoint(
 	point image.Point,
 ) error {
 	// Check context
-	select {
-	case <-ctx.Done():
-		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
+	err := a.checkContext(ctx)
+	if err != nil {
+		return err
 	}
 
 	a.logger.Info("Performing action at point",
@@ -154,8 +151,7 @@ func (a *Adapter) PerformActionAtPoint(
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y))
 
-	config := config.Global()
-	restoreCursor := config != nil && config.General.RestoreCursorPosition
+	restoreCursor := a.getRestoreCursor()
 
 	// Perform the action via client
 	performActionErr := a.client.PerformAction(actionType, point, restoreCursor)
@@ -210,10 +206,9 @@ func (a *Adapter) CursorPosition(_ context.Context) (image.Point, error) {
 // FocusedAppBundleID returns the bundle ID of the currently focused application.
 func (a *Adapter) FocusedAppBundleID(ctx context.Context) (string, error) {
 	// Check context
-	select {
-	case <-ctx.Done():
-		return "", derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
+	err := a.checkContext(ctx)
+	if err != nil {
+		return "", err
 	}
 
 	focusedApp, focusedAppErr := a.client.FocusedApplication()
@@ -238,14 +233,9 @@ func (a *Adapter) IsAppExcluded(_ context.Context, bundleID string) bool {
 // ScreenBounds returns the bounds of the active screen.
 func (a *Adapter) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
 	// Check context
-	select {
-	case <-ctx.Done():
-		return image.Rectangle{}, derrors.Wrap(
-			ctx.Err(),
-			derrors.CodeContextCanceled,
-			"operation canceled",
-		)
-	default:
+	err := a.checkContext(ctx)
+	if err != nil {
+		return image.Rectangle{}, err
 	}
 
 	return a.client.ActiveScreenBounds(), nil
@@ -254,10 +244,9 @@ func (a *Adapter) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
 // CheckPermissions verifies that accessibility permissions are granted.
 func (a *Adapter) CheckPermissions(ctx context.Context) error {
 	// Check context
-	select {
-	case <-ctx.Done():
-		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
+	err := a.checkContext(ctx)
+	if err != nil {
+		return err
 	}
 
 	if !a.client.CheckPermissions() {
@@ -290,24 +279,38 @@ func (a *Adapter) UpdateExcludedBundles(bundles []string) {
 	}
 }
 
+// checkContext checks if the context is canceled and returns an error if so.
+func (a *Adapter) checkContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
+	default:
+		return nil
+	}
+}
+
+// getRestoreCursor retrieves the restore cursor setting from global config.
+func (a *Adapter) getRestoreCursor() bool {
+	cfg := config.Global()
+
+	return cfg != nil && cfg.General.RestoreCursorPosition
+}
+
 // processClickableNodes converts and filters clickable nodes to domain elements.
 func (a *Adapter) processClickableNodes(
 	ctx context.Context,
 	clickableNodes []AXNode,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
+	const contextCheckInterval = 100
+
 	elements := make([]*element.Element, 0, len(clickableNodes))
 	for index, node := range clickableNodes {
 		// Check context periodically
-		if index%100 == 0 {
-			select {
-			case <-ctx.Done():
-				return nil, derrors.Wrap(
-					ctx.Err(),
-					derrors.CodeContextCanceled,
-					"operation canceled",
-				)
-			default:
+		if index%contextCheckInterval == 0 {
+			err := a.checkContext(ctx)
+			if err != nil {
+				return nil, err
 			}
 		}
 

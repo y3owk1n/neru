@@ -3,10 +3,17 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 	derrors "github.com/y3owk1n/neru/internal/errors"
+)
+
+// Accessibility role constants.
+const (
+	RoleMenuBarItem = "AXMenuBarItem"
+	RoleDockItem    = "AXDockItem"
 )
 
 // ActionConfig defines the visual and behavioral settings for action mode.
@@ -162,75 +169,49 @@ type LoadResult struct {
 
 // Validate validates the configuration.
 func (c *Config) Validate() error {
-	// At least one mode must be enabled
-	if !c.Hints.Enabled && !c.Grid.Enabled {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"at least one mode must be enabled: hints.enabled or grid.enabled",
-		)
+	err := c.validateModes()
+	if err != nil {
+		return err
 	}
 
 	// Validate hints configuration
-	validateErr := c.ValidateHints()
-	if validateErr != nil {
-		return validateErr
+	err = c.ValidateHints()
+	if err != nil {
+		return err
 	}
 
-	// Validate log level
-	validLogLevels := map[string]bool{
-		"debug": true,
-		"info":  true,
-		"warn":  true,
-		"error": true,
-	}
-	if !validLogLevels[c.Logging.LogLevel] {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"log_level must be one of: debug, info, warn, error",
-		)
+	err = c.validateLogging()
+	if err != nil {
+		return err
 	}
 
-	// Validate scroll settings
-	if c.Scroll.ScrollStep < 1 {
-		return derrors.New(derrors.CodeInvalidConfig, "scroll.scroll_speed must be at least 1")
-	}
-
-	if c.Scroll.ScrollStepHalf < 1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"scroll.half_page_multiplier must be at least 1",
-		)
-	}
-
-	if c.Scroll.ScrollStepFull < 1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"scroll.full_page_multiplier must be at least 1",
-		)
+	err = c.validateScroll()
+	if err != nil {
+		return err
 	}
 
 	// Validate app configs
-	validateAppConfigsErr := c.ValidateAppConfigs()
-	if validateAppConfigsErr != nil {
-		return validateAppConfigsErr
+	err = c.ValidateAppConfigs()
+	if err != nil {
+		return err
 	}
 
 	// Validate grid settings
-	validateGridErr := c.ValidateGrid()
-	if validateGridErr != nil {
-		return validateGridErr
+	err = c.ValidateGrid()
+	if err != nil {
+		return err
 	}
 
 	// Validate action settings
-	validateActionErr := c.ValidateAction()
-	if validateActionErr != nil {
-		return validateActionErr
+	err = c.ValidateAction()
+	if err != nil {
+		return err
 	}
 
 	// Validate smooth cursor settings
-	validateSmoothCursorErr := c.ValidateSmoothCursor()
-	if validateSmoothCursorErr != nil {
-		return validateSmoothCursorErr
+	err = c.ValidateSmoothCursor()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -295,10 +276,18 @@ func (c *Config) IsAppExcluded(bundleID string) bool {
 	return false
 }
 
-// ClickableRolesForApp returns the merged clickable roles for a specific app.
+// ClickableRolesForApp returns the clickable roles for a specific app bundle ID.
 func (c *Config) ClickableRolesForApp(bundleID string) []string {
+	rolesMap := c.buildRolesMap(bundleID)
+
+	return rolesMapToSlice(rolesMap)
+}
+
+// buildRolesMap builds a map of clickable roles for the given bundle ID.
+func (c *Config) buildRolesMap(bundleID string) map[string]struct{} {
 	rolesMap := make(map[string]struct{})
 
+	// Add global clickable roles
 	for _, role := range c.Hints.ClickableRoles {
 		trimmed := strings.TrimSpace(role)
 		if trimmed != "" {
@@ -306,6 +295,7 @@ func (c *Config) ClickableRolesForApp(bundleID string) []string {
 		}
 	}
 
+	// Add app-specific roles
 	for _, appConfig := range c.Hints.AppConfigs {
 		if appConfig.BundleID == bundleID {
 			for _, role := range appConfig.AdditionalClickable {
@@ -319,18 +309,86 @@ func (c *Config) ClickableRolesForApp(bundleID string) []string {
 		}
 	}
 
+	// Add special roles
 	if c.Hints.IncludeMenubarHints {
-		rolesMap["AXMenuBarItem"] = struct{}{}
+		rolesMap[RoleMenuBarItem] = struct{}{}
 	}
 
 	if c.Hints.IncludeDockHints {
-		rolesMap["AXDockItem"] = struct{}{}
+		rolesMap[RoleDockItem] = struct{}{}
 	}
 
+	return rolesMap
+}
+
+// rolesMapToSlice converts a roles map to a slice.
+func rolesMapToSlice(rolesMap map[string]struct{}) []string {
 	roles := make([]string, 0, len(rolesMap))
 	for role := range rolesMap {
 		roles = append(roles, role)
 	}
 
 	return roles
+}
+
+// validateModes validates that at least one mode is enabled.
+func (c *Config) validateModes() error {
+	if !c.Hints.Enabled && !c.Grid.Enabled {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"at least one mode must be enabled: hints.enabled or grid.enabled",
+		)
+	}
+
+	return nil
+}
+
+// validateLogging validates the logging configuration.
+func (c *Config) validateLogging() error {
+	validLogLevels := map[string]bool{
+		"debug": true,
+		"info":  true,
+		"warn":  true,
+		"error": true,
+	}
+	if !validLogLevels[c.Logging.LogLevel] {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"log_level must be one of: debug, info, warn, error",
+		)
+	}
+
+	return nil
+}
+
+// validateMinValue validates that a value is at least the minimum.
+func validateMinValue(value int, minimum int, fieldName string) error {
+	if value < minimum {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			fieldName+" must be at least "+strconv.Itoa(minimum),
+		)
+	}
+
+	return nil
+}
+
+// validateScroll validates the scroll configuration.
+func (c *Config) validateScroll() error {
+	err := validateMinValue(c.Scroll.ScrollStep, 1, "scroll.scroll_speed")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.Scroll.ScrollStepHalf, 1, "scroll.half_page_multiplier")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.Scroll.ScrollStepFull, 1, "scroll.full_page_multiplier")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

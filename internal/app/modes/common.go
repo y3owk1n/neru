@@ -58,60 +58,9 @@ func (h *Handler) HandleKeyPress(key string) {
 func (h *Handler) handleTabKey() {
 	switch h.AppState.CurrentMode() {
 	case domain.ModeHints:
-		// Skip tab handling if pending action is set
-		if h.Hints.Context.PendingAction() != nil {
-			h.Logger.Debug("Tab key disabled when action is pending")
-
-			return
-		}
-
-		if h.Hints.Context.InActionMode() {
-			h.Hints.Context.SetInActionMode(false)
-
-			if overlay.Get() != nil {
-				overlay.Get().Clear()
-				overlay.Get().Hide()
-			}
-			// Re-activate hint mode while preserving action mode state
-			h.activateHintModeInternal(true, nil)
-			h.Logger.Info("Switched back to hints overlay mode")
-			h.overlaySwitch(overlay.ModeHints)
-		} else {
-			h.Hints.Context.SetInActionMode(true)
-			h.OverlayManager.Clear()
-			h.OverlayManager.Hide()
-			h.drawActionHighlight()
-			h.OverlayManager.Show()
-			h.Logger.Info("Switched to hints action mode")
-			h.overlaySwitch(overlay.ModeAction)
-		}
+		h.toggleActionModeForHints()
 	case domain.ModeGrid:
-		// Skip tab handling if pending action is set
-		if h.Grid.Context.PendingAction() != nil {
-			h.Logger.Debug("Tab key disabled when action is pending")
-
-			return
-		}
-
-		if h.Grid.Context.InActionMode() {
-			h.Grid.Context.SetInActionMode(false)
-			h.OverlayManager.Clear()
-			h.OverlayManager.Hide()
-
-			// Re-activate grid mode (similar to hints mode pattern)
-			h.activateGridModeWithAction(nil)
-
-			h.Logger.Info("Switched back to grid overlay mode")
-			h.overlaySwitch(overlay.ModeGrid)
-		} else {
-			h.Grid.Context.SetInActionMode(true)
-			h.OverlayManager.Clear()
-			h.OverlayManager.Hide()
-			h.drawActionHighlight()
-			h.OverlayManager.Show()
-			h.Logger.Info("Switched to grid action mode")
-			h.overlaySwitch(overlay.ModeAction)
-		}
+		h.toggleActionModeForGrid()
 	case domain.ModeIdle:
 		return
 	}
@@ -150,128 +99,199 @@ func (h *Handler) handleEscapeKey() {
 	h.SetModeIdle()
 }
 
+// toggleActionModeForHints toggles between overlay and action mode for hints.
+func (h *Handler) toggleActionModeForHints() {
+	// Skip tab handling if pending action is set
+	if h.Hints.Context.PendingAction() != nil {
+		h.Logger.Debug("Tab key disabled when action is pending")
+
+		return
+	}
+
+	if h.Hints.Context.InActionMode() {
+		h.Hints.Context.SetInActionMode(false)
+
+		if overlay.Get() != nil {
+			overlay.Get().Clear()
+			overlay.Get().Hide()
+		}
+		// Re-activate hint mode while preserving action mode state
+		h.activateHintModeInternal(true, nil)
+		h.Logger.Info("Switched back to hints overlay mode")
+		h.overlaySwitch(overlay.ModeHints)
+	} else {
+		h.Hints.Context.SetInActionMode(true)
+		h.OverlayManager.Clear()
+		h.OverlayManager.Hide()
+		h.drawActionHighlight()
+		h.OverlayManager.Show()
+		h.Logger.Info("Switched to hints action mode")
+		h.overlaySwitch(overlay.ModeAction)
+	}
+}
+
+// toggleActionModeForGrid toggles between overlay and action mode for grid.
+func (h *Handler) toggleActionModeForGrid() {
+	// Skip tab handling if pending action is set
+	if h.Grid.Context.PendingAction() != nil {
+		h.Logger.Debug("Tab key disabled when action is pending")
+
+		return
+	}
+
+	if h.Grid.Context.InActionMode() {
+		h.Grid.Context.SetInActionMode(false)
+		h.OverlayManager.Clear()
+		h.OverlayManager.Hide()
+
+		// Re-activate grid mode (similar to hints mode pattern)
+		h.activateGridModeWithAction(nil)
+
+		h.Logger.Info("Switched back to grid overlay mode")
+		h.overlaySwitch(overlay.ModeGrid)
+	} else {
+		h.Grid.Context.SetInActionMode(true)
+		h.OverlayManager.Clear()
+		h.OverlayManager.Hide()
+		h.drawActionHighlight()
+		h.OverlayManager.Show()
+		h.Logger.Info("Switched to grid action mode")
+		h.overlaySwitch(overlay.ModeAction)
+	}
+}
+
+// handleHintsModeKey handles key processing for hints mode.
+func (h *Handler) handleHintsModeKey(key string) {
+	if h.Hints.Context.InActionMode() {
+		h.handleHintsActionKey(key)
+		// After handling the action, we stay in action mode.
+		// The user can press Tab to go back to overlay mode or perform more actions.
+		return
+	}
+
+	// Route hint-specific keys via domain hints router
+	if h.Hints.Context.Router() == nil {
+		h.Logger.Error("Hints router is nil")
+		h.ExitMode()
+
+		return
+	}
+
+	hintKeyResult := h.Hints.Context.Router().RouteKey(key)
+	if hintKeyResult.Exit() {
+		h.ExitMode()
+
+		return
+	}
+
+	// Hint input processed by router; if exact match, perform action
+	if hintKeyResult.ExactHint() != nil {
+		hint := hintKeyResult.ExactHint()
+		// Use the domain element's center point
+		center := hint.Element().Center()
+
+		h.Logger.Info("Found element", zap.String("label", hint.Label()))
+
+		ctx := context.Background()
+
+		moveCursorErr := h.ActionService.MoveCursorToPoint(ctx, center)
+		if moveCursorErr != nil {
+			h.Logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
+		}
+
+		pendingAction := h.Hints.Context.PendingAction()
+		if pendingAction != nil {
+			h.Logger.Info("Executing pending action", zap.String("action", *pendingAction))
+			// Use ActionService
+			ctx := context.Background()
+
+			performActionErr := h.ActionService.PerformAction(ctx, *pendingAction, center)
+			if performActionErr != nil {
+				h.Logger.Error("Failed to perform pending action", zap.Error(performActionErr))
+			}
+			// Exit mode after executing action
+			h.ExitMode()
+
+			return
+		}
+
+		// No pending action - re-activate hints mode to show hints again
+		h.Logger.Info("Re-activating hints mode after cursor movement")
+		h.activateHintModeInternal(false, nil)
+
+		return
+	}
+}
+
+// handleGridModeKey handles key processing for grid mode.
+func (h *Handler) handleGridModeKey(key string) {
+	if h.Grid.Context.InActionMode() {
+		h.handleGridActionKey(key)
+		// After handling the action, we stay in action mode.
+		// The user can press Tab to go back to overlay mode or perform more actions.
+		return
+	}
+
+	gridKeyResult := h.Grid.Router.RouteKey(key)
+	if gridKeyResult.Exit() {
+		h.ExitMode()
+
+		return
+	}
+
+	if gridKeyResult.Complete() {
+		targetPoint := gridKeyResult.TargetPoint()
+
+		// Convert from window-local coordinates to absolute screen coordinates using helper
+		screenBounds := bridge.ActiveScreenBounds()
+		absolutePoint := coordinates.ConvertToAbsoluteCoordinates(targetPoint, screenBounds)
+
+		h.Logger.Info(
+			"Grid move mouse",
+			zap.Int("x", absolutePoint.X),
+			zap.Int("y", absolutePoint.Y),
+		)
+
+		ctx := context.Background()
+
+		moveCursorErr := h.ActionService.MoveCursorToPoint(ctx, absolutePoint)
+		if moveCursorErr != nil {
+			h.Logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
+		}
+
+		pendingAction := h.Grid.Context.PendingAction()
+		if pendingAction != nil {
+			h.Logger.Info("Executing pending action", zap.String("action", *pendingAction))
+			// Use ActionService
+			ctx := context.Background()
+
+			performActionErr := h.ActionService.PerformAction(
+				ctx,
+				*pendingAction,
+				absolutePoint,
+			)
+			if performActionErr != nil {
+				h.Logger.Error("Failed to perform pending action", zap.Error(performActionErr))
+			}
+			// Exit mode after executing action
+			h.ExitMode()
+
+			return
+		}
+
+		// No need to exit grid mode, just let it going
+
+		return
+	}
+}
+
 // handleModeSpecificKey handles mode-specific key processing.
 func (h *Handler) handleModeSpecificKey(key string) {
 	switch h.AppState.CurrentMode() {
 	case domain.ModeHints:
-		if h.Hints.Context.InActionMode() {
-			h.handleHintsActionKey(key)
-			// After handling the action, we stay in action mode.
-			// The user can press Tab to go back to overlay mode or perform more actions.
-			return
-		}
-
-		// Route hint-specific keys via domain hints router
-		if h.Hints.Context.Router() == nil {
-			h.Logger.Error("Hints router is nil")
-			h.ExitMode()
-
-			return
-		}
-
-		hintKeyResult := h.Hints.Context.Router().RouteKey(key)
-		if hintKeyResult.Exit() {
-			h.ExitMode()
-
-			return
-		}
-
-		// Hint input processed by router; if exact match, perform action
-		if hintKeyResult.ExactHint() != nil {
-			hint := hintKeyResult.ExactHint()
-			// Use the domain element's center point
-			center := hint.Element().Center()
-
-			h.Logger.Info("Found element", zap.String("label", hint.Label()))
-
-			ctx := context.Background()
-
-			moveCursorErr := h.ActionService.MoveCursorToPoint(ctx, center)
-			if moveCursorErr != nil {
-				h.Logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
-			}
-
-			pendingAction := h.Hints.Context.PendingAction()
-			if pendingAction != nil {
-				h.Logger.Info("Executing pending action", zap.String("action", *pendingAction))
-				// Use ActionService
-				ctx := context.Background()
-
-				performActionErr := h.ActionService.PerformAction(ctx, *pendingAction, center)
-				if performActionErr != nil {
-					h.Logger.Error("Failed to perform pending action", zap.Error(performActionErr))
-				}
-				// Exit mode after executing action
-				h.ExitMode()
-
-				return
-			}
-
-			// No pending action - re-activate hints mode to show hints again
-			h.Logger.Info("Re-activating hints mode after cursor movement")
-			h.activateHintModeInternal(false, nil)
-
-			return
-		}
+		h.handleHintsModeKey(key)
 	case domain.ModeGrid:
-		if h.Grid.Context.InActionMode() {
-			h.handleGridActionKey(key)
-			// After handling the action, we stay in action mode.
-			// The user can press Tab to go back to overlay mode or perform more actions.
-			return
-		}
-
-		gridKeyResult := h.Grid.Router.RouteKey(key)
-		if gridKeyResult.Exit() {
-			h.ExitMode()
-
-			return
-		}
-
-		if gridKeyResult.Complete() {
-			targetPoint := gridKeyResult.TargetPoint()
-
-			// Convert from window-local coordinates to absolute screen coordinates using helper
-			screenBounds := bridge.ActiveScreenBounds()
-			absolutePoint := coordinates.ConvertToAbsoluteCoordinates(targetPoint, screenBounds)
-
-			h.Logger.Info(
-				"Grid move mouse",
-				zap.Int("x", absolutePoint.X),
-				zap.Int("y", absolutePoint.Y),
-			)
-
-			ctx := context.Background()
-
-			moveCursorErr := h.ActionService.MoveCursorToPoint(ctx, absolutePoint)
-			if moveCursorErr != nil {
-				h.Logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
-			}
-
-			pendingAction := h.Grid.Context.PendingAction()
-			if pendingAction != nil {
-				h.Logger.Info("Executing pending action", zap.String("action", *pendingAction))
-				// Use ActionService
-				ctx := context.Background()
-
-				performActionErr := h.ActionService.PerformAction(
-					ctx,
-					*pendingAction,
-					absolutePoint,
-				)
-				if performActionErr != nil {
-					h.Logger.Error("Failed to perform pending action", zap.Error(performActionErr))
-				}
-				// Exit mode after executing action
-				h.ExitMode()
-
-				return
-			}
-
-			// No need to exit grid mode, just let it going
-
-			return
-		}
+		h.handleGridModeKey(key)
 	case domain.ModeIdle:
 		return
 	}
@@ -305,13 +325,18 @@ func (h *Handler) performModeSpecificCleanup() {
 	}
 }
 
+// clearAndHideOverlay clears and hides the overlay manager.
+func (h *Handler) clearAndHideOverlay() {
+	h.OverlayManager.Clear()
+	h.OverlayManager.Hide()
+}
+
 // cleanupHintsMode handles cleanup for hints mode.
 func (h *Handler) cleanupHintsMode() {
 	h.Hints.Context.SetInActionMode(false)
 	h.Hints.Context.Reset()
 
-	h.OverlayManager.Clear()
-	h.OverlayManager.Hide()
+	h.clearAndHideOverlay()
 }
 
 // cleanupDefaultMode handles cleanup for default/unknown modes.
@@ -332,8 +357,7 @@ func (h *Handler) cleanupGridMode() {
 		h.Grid.Manager.Reset()
 	}
 
-	h.OverlayManager.Clear()
-	h.OverlayManager.Hide()
+	h.clearAndHideOverlay()
 }
 
 // performCommonCleanup handles common cleanup logic for all modes.
@@ -430,6 +454,24 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 }
 
 // handleActionKey handles action keys for both hints and grid modes.
+// getActionMapping returns the action name and log message for a given key.
+func (h *Handler) getActionMapping(key string) (string, string, bool) {
+	switch key {
+	case h.Config.Action.LeftClickKey:
+		return string(domain.ActionNameLeftClick), "Left click", true
+	case h.Config.Action.RightClickKey:
+		return string(domain.ActionNameRightClick), "Right click", true
+	case h.Config.Action.MiddleClickKey:
+		return string(domain.ActionNameMiddleClick), "Middle click", true
+	case h.Config.Action.MouseDownKey:
+		return string(domain.ActionNameMouseDown), "Mouse down", true
+	case h.Config.Action.MouseUpKey:
+		return string(domain.ActionNameMouseUp), "Mouse up", true
+	default:
+		return "", "", false
+	}
+}
+
 func (h *Handler) handleActionKey(key string, mode string) {
 	ctx := context.Background()
 
@@ -440,34 +482,14 @@ func (h *Handler) handleActionKey(key string, mode string) {
 		return
 	}
 
-	var act string
-
-	switch key {
-	case h.Config.Action.LeftClickKey:
-		h.Logger.Info(mode + " action: Left click")
-
-		act = string(domain.ActionNameLeftClick)
-	case h.Config.Action.RightClickKey:
-		h.Logger.Info(mode + " action: Right click")
-
-		act = string(domain.ActionNameRightClick)
-	case h.Config.Action.MiddleClickKey:
-		h.Logger.Info(mode + " action: Middle click")
-
-		act = string(domain.ActionNameMiddleClick)
-	case h.Config.Action.MouseDownKey:
-		h.Logger.Info(mode + " action: Mouse down")
-
-		act = string(domain.ActionNameMouseDown)
-	case h.Config.Action.MouseUpKey:
-		h.Logger.Info(mode + " action: Mouse up")
-
-		act = string(domain.ActionNameMouseUp)
-	default:
+	act, logMsg, ok := h.getActionMapping(key)
+	if !ok {
 		h.Logger.Debug("Unknown "+mode+" action key", zap.String("key", key))
 
 		return
 	}
+
+	h.Logger.Info(mode + " action: " + logMsg)
 
 	// Use ActionService
 	performActionErr := h.ActionService.PerformAction(ctx, act, cursorPos)
@@ -496,28 +518,53 @@ func (h *Handler) SetModeIdle() {
 	h.overlaySwitch(overlay.ModeIdle)
 }
 
-// SetModeHints switches the application to hints mode for accessibility-based navigation.
-// This function sets the application state to hints mode, enables event tapping
-// for capturing keyboard input, and switches the overlay display to hints mode.
-func (h *Handler) SetModeHints() {
-	h.AppState.SetMode(domain.ModeHints)
+// setMode sets the application mode, enables event tap, and switches overlay.
+func (h *Handler) setMode(appMode domain.Mode, overlayMode overlay.Mode) {
+	h.AppState.SetMode(appMode)
 
 	if h.EnableEventTap != nil {
 		h.EnableEventTap()
 	}
 
-	h.overlaySwitch(overlay.ModeHints)
+	h.overlaySwitch(overlayMode)
+}
+
+// activateModeBase performs common activation steps for all modes.
+func (h *Handler) activateModeBase(
+	modeName string,
+	enabled bool,
+	actionEnum domain.Action,
+) (domain.Action, bool) {
+	// Validate mode activation
+	err := h.validateModeActivation(modeName, enabled)
+	if err != nil {
+		h.Logger.Warn(modeName+" mode activation failed", zap.Error(err))
+
+		return domain.ActionMoveMouse, false
+	}
+
+	// Prepare for mode activation (reset scroll, capture cursor)
+	h.prepareForModeActivation()
+
+	actionString := domain.ActionString(actionEnum)
+	h.Logger.Info("Activating "+modeName+" mode", zap.String("action", actionString))
+
+	// Always resize overlay to the active screen
+	h.OverlayManager.ResizeToActiveScreenSync()
+
+	return actionEnum, true
+}
+
+// SetModeHints switches the application to hints mode for accessibility-based navigation.
+// This function sets the application state to hints mode, enables event tapping
+// for capturing keyboard input, and switches the overlay display to hints mode.
+func (h *Handler) SetModeHints() {
+	h.setMode(domain.ModeHints, overlay.ModeHints)
 }
 
 // SetModeGrid switches the application to grid mode for coordinate-based navigation.
 // This function sets the application state to grid mode, enables event tapping
 // for capturing keyboard input, and switches the overlay display to grid mode.
 func (h *Handler) SetModeGrid() {
-	h.AppState.SetMode(domain.ModeGrid)
-
-	if h.EnableEventTap != nil {
-		h.EnableEventTap()
-	}
-
-	h.overlaySwitch(overlay.ModeGrid)
+	h.setMode(domain.ModeGrid, overlay.ModeGrid)
 }
