@@ -6,145 +6,136 @@ Common issues and solutions for Neru.
 
 ## Table of Contents
 
-- [Installation Issues](#installation-issues)
-- [Permission Problems](#permission-problems)
-- [Hints Not Appearing](#hints-not-appearing)
-- [Hotkeys Not Working](#hotkeys-not-working)
-- [Performance Issues](#performance-issues)
-- [Daemon Issues](#daemon-issues)
-- [App-Specific Issues](#app-specific-issues)
-- [Configuration Issues](#configuration-issues)
-- [Logging and Debugging](#logging-and-debugging)
+- [Quick Diagnosis](#quick-diagnosis)
+- [Installation & Setup](#installation--setup)
+- [Permissions](#permissions)
+- [Hints & Grids](#hints--grids)
+- [Hotkeys](#hotkeys)
+- [Performance](#performance)
+- [Daemon](#daemon)
+- [App-Specific](#app-specific)
+- [Configuration](#configuration)
+- [Debugging](#debugging)
 
 ---
 
-## Installation Issues
+## Quick Diagnosis
 
-### "Cannot open Neru because the developer cannot be verified"
-
-**macOS quarantine protection for unsigned apps.**
-
-**Solution:**
+**Not working at all?** Check these first:
 
 ```bash
-# Remove quarantine attribute (if using app bundle)
-xattr -cr /Applications/Neru.app
+# 1. Is daemon running?
+neru status
 
-# Or remove quarantine attribute (if using binary)
-xattr -cr /usr/local/bin/neru
+# 2. Check permissions
+neru doctor
 
-# Try opening again
+# 3. Test basic functionality
+neru hints  # Should show hints
+
+# 4. Check logs
+tail -20 ~/Library/Logs/neru/app.log
+```
+
+**Common issues:**
+
+- ❌ **"Failed to connect to Neru daemon"** → Daemon not running, run `neru launch`
+- ❌ **"Permission denied"** → Grant accessibility permissions
+- ❌ **No hints appear** → Check app exclusions, try different app
+
+---
+
+## Installation & Setup
+
+**"Cannot open Neru because the developer cannot be verified"**
+
+```bash
+xattr -cr /Applications/Neru.app  # Remove quarantine
 open -a Neru
 ```
 
-### "Command not found: neru"
-
-**Binary not in PATH.**
-
-**Solution:**
+**"Command not found: neru"**
 
 ```bash
-# Check if binary exists
-ls -la /usr/local/bin/neru
-
-# If not, add to PATH in ~/.zshrc or ~/.bashrc
+# Add to PATH
 export PATH="/usr/local/bin:$PATH"
-
-# Reload shell
-source ~/.zshrc
+# Add to ~/.zshrc or ~/.bashrc
 ```
 
-### Homebrew installation fails
-
-**Solution:**
+**Homebrew fails**
 
 ```bash
-# Update Homebrew
-brew update
-
-# Try again
-brew reinstall --cask neru
-
-# Check for errors
-brew doctor
+brew update && brew reinstall --cask neru
 ```
 
 ---
 
-## Permission Problems
+## Permissions
 
-### "Neru wants to control this computer using accessibility features"
+### Accessibility Permissions
 
-**This is normal and required for Neru to function.**
+**Required for Neru to function.**
 
-**Solution:**
+**Grant permissions:**
 
-1. Click **OK** on the prompt
-2. Open **System Settings**
-3. Go to **Privacy & Security → Accessibility**
-4. Ensure **Neru** is checked
+1. System Settings → Privacy & Security → Accessibility
+2. Add Neru and ensure checkbox is enabled
 
-### Accessibility permission granted but not working
+**Reset if not working:**
 
-**Permission may need to be reset.**
+1. Remove Neru from list
+2. Re-add Neru
+3. Restart: `pkill neru && neru launch`
 
-**Solution:**
-
-1. Open **System Settings → Privacy & Security → Accessibility**
-2. Remove **Neru** from the list (click `-` button)
-3. Re-add **Neru** (click `+` button)
-4. Ensure checkbox is enabled
-5. Restart Neru:
-
-    ```bash
-    pkill neru && neru launch
-    ```
-
-### "Operation not permitted" errors in logs
-
-**Accessibility permissions not granted or not working.**
-
-**Solution:**
-
-```bash
-# Check system logs
-log show --predicate 'process == "Neru"' --last 5m
-
-# Grant full disk access (if needed)
-# System Settings → Privacy & Security → Full Disk Access
-# Add Neru
-```
+**Check health:** `neru doctor`
 
 ---
 
-## Hints or Grids Not Appearing
+## Hints & Grids
 
-### No hints or grids show up at all
+### No hints/grids appear
 
-**Possible causes:**
-
-1. Daemon not running
-2. Accessibility permissions not granted
-3. App is in excluded list
-4. Hotkey conflict
-
-**Solutions:**
+**Check:**
 
 ```bash
-# 1. Check if daemon is running
-neru status
+neru status              # Daemon running?
+neru doctor              # Permissions OK?
+neru hints               # CLI works?
+```
 
-# If not running:
-neru launch
+**Common fixes:**
 
-# 2. Verify permissions (see above section)
+- Start daemon: `neru launch`
+- Grant permissions (see Permissions section)
+- Remove app from `excluded_apps` in config
+- Test in different app
 
-# 3. Check if app is excluded
-# Edit ~/.config/neru/config.toml
-# Remove app from excluded_apps list
+### Misaligned hints/grids
 
-# 4. Test with CLI (bypasses hotkey issues)
-neru hints
+**Rare issue.** Enable debug logging and check logs:
+
+```toml
+[logging]
+log_level = "debug"
+```
+
+### Electron/Chromium/Firefox issues
+
+**Enable additional AX support:**
+
+```toml
+[hints.additional_ax_support]
+enable = true
+```
+
+**⚠️ Tiling WM users:** May conflict with yabai/Amethyst - keep `enable = false` and use grid mode.
+
+### Menubar/Dock hints missing
+
+```toml
+[hints]
+include_menubar_hints = true
+include_dock_hints = true
 ```
 
 ### Hints or grids appear but are misaligned

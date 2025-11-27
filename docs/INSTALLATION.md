@@ -2,33 +2,22 @@
 
 This guide covers all installation methods for Neru on macOS.
 
-## Prerequisites
+## Requirements
 
 - macOS 11.0 or later
-- Accessibility permissions (granted after installation)
+- Accessibility permissions (granted during setup)
 
 ---
 
 ## Method 1: Homebrew (Recommended)
-
-The easiest way to install Neru:
 
 ```bash
 brew tap y3owk1n/tap
 brew install --cask y3owk1n/tap/neru
 ```
 
-**To update:**
-
-```bash
-brew upgrade --cask neru
-```
-
-**To uninstall:**
-
-```bash
-brew uninstall --cask neru
-```
+**Update:** `brew upgrade --cask neru`
+**Uninstall:** `brew uninstall --cask neru`
 
 ---
 
@@ -44,9 +33,9 @@ Add Neru to your flake inputs:
 # flake.nix
 {
   inputs = {
-    # ... other inputs
-    neru.url = "github:y3owk1n/neru";
-    # ... other inputs
+     # ... other inputs
+     neru.url = "github:y3owk1n/neru";
+     # ... other inputs
   };
 }
 ```
@@ -59,37 +48,37 @@ Use the nix-darwin module for system-wide installation:
 # flake.nix
 {
   outputs = { self, nixpkgs, nix-darwin, neru, ... }: {
-    darwinConfigurations.your-hostname = nix-darwin.lib.darwinSystem {
-      modules = [
-        # Apply the Neru overlay
-        {
-          nixpkgs.overlays = [ neru.overlays.default ];
-        }
+     darwinConfigurations.your-hostname = nix-darwin.lib.darwinSystem {
+       modules = [
+         # Apply the Neru overlay
+         {
+           nixpkgs.overlays = [ neru.overlays.default ];
+         }
 
-        # Import the Neru module
-        neru.darwinModules.default
+         # Import the Neru module
+         neru.darwinModules.default
 
-        # Configure Neru
-        {
-          # Enable Neru
-          neru.enable = true;
+         # Configure Neru
+         {
+           # Enable Neru
+           neru.enable = true;
 
-          # Optional: Use specific package version
-          # neru.package = pkgs.neru; # This will use the latest version
-          # neru.package = pkgs.neru-source; # This will build from source
+           # Optional: Use specific package version
+           # neru.package = pkgs.neru; # This will use the latest version
+           # neru.package = pkgs.neru-source; # This will build from source
 
-          # Optional: Inline configuration
-          neru.config = ''
-            [hotkeys]
-            "Cmd+Shift+Space" = "hints left_click"
-            "Cmd+Shift+G" = "grid left_click"
+           # Optional: Inline configuration
+           neru.config = ''
+             [hotkeys]
+             "Cmd+Shift+Space" = "hints left_click"
+             "Cmd+Shift+G" = "grid left_click"
 
-            [general]
-            excluded_apps = ["com.apple.Terminal"]
-          '';
-        }
-      ];
-    };
+             [general]
+             excluded_apps = ["com.apple.Terminal"]
+           '';
+         }
+       ];
+     };
   };
 }
 ```
@@ -115,42 +104,42 @@ Use the home-manager module for user-specific installation:
 # flake.nix
 {
   outputs = { self, nixpkgs, home-manager, neru, ... }: {
-    homeConfigurations.your-username = home-manager.lib.homeManagerConfiguration {
-      pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+     homeConfigurations.your-username = home-manager.lib.homeManagerConfiguration {
+       pkgs = nixpkgs.legacyPackages.aarch64-darwin;
 
-      modules = [
-        # Apply the Neru overlay
-        {
-          nixpkgs.overlays = [ neru.overlays.default ];
-        }
+       modules = [
+         # Apply the Neru overlay
+         {
+           nixpkgs.overlays = [ neru.overlays.default ];
+         }
 
-        # Import the Neru module
-        neru.homeManagerModules.default
+         # Import the Neru module
+         neru.homeManagerModules.default
 
-        # Configure Neru
-        {
-          # Enable Neru
-          programs.neru.enable = true;
+         # Configure Neru
+         {
+           # Enable Neru
+           programs.neru.enable = true;
 
-          # Optional: Use specific package version
-          # programs.neru.package = pkgs.neru; # This will use the latest version
-          # programs.neru.package = pkgs.neru-source; # This will build from source
+           # Optional: Use specific package version
+           # programs.neru.package = pkgs.neru; # This will use the latest version
+           # programs.neru.package = pkgs.neru-source; # This will build from source
 
-          # Option A: Inline configuration
-          programs.neru.config = ''
-            [hotkeys]
-            "Cmd+Shift+Space" = "hints left_click"
-            "Cmd+Shift+G" = "grid left_click"
+           # Option A: Inline configuration
+           programs.neru.config = ''
+             [hotkeys]
+             "Cmd+Shift+Space" = "hints left_click"
+             "Cmd+Shift+G" = "grid left_click"
 
-            [general]
-            excluded_apps = ["com.apple.Terminal"]
-          '';
+             [general]
+             excluded_apps = ["com.apple.Terminal"]
+           '';
 
-          # Option B: Use existing config file (takes precedence)
-          # programs.neru.configFile = ./path/to/config.toml;
-        }
-      ];
-    };
+           # Option B: Use existing config file (takes precedence)
+           # programs.neru.configFile = ./path/to/config.toml;
+         }
+       ];
+     };
   };
 }
 ```
@@ -179,14 +168,14 @@ If you prefer to manage the service yourself, you can just use the overlay:
 ```nix
 {
   outputs = { self, nixpkgs, neru, ... }: {
-    darwinConfigurations.your-hostname = nix-darwin.lib.darwinSystem {
-      modules = [
-        {
-          nixpkgs.overlays = [ neru.overlays.default ];
-          environment.systemPackages = [ pkgs.neru ];
-        }
-      ];
-    };
+     darwinConfigurations.your-hostname = nix-darwin.lib.darwinSystem {
+       modules = [
+         {
+           nixpkgs.overlays = [ neru.overlays.default ];
+           environment.systemPackages = [ pkgs.neru ];
+         }
+       ];
+     };
   };
 }
 ```
@@ -196,15 +185,15 @@ Or install directly as a package:
 ```nix
 {
   outputs = { self, nixpkgs, neru, ... }: {
-    darwinConfigurations.your-hostname = nix-darwin.lib.darwinSystem {
-      modules = [
-        {
-          environment.systemPackages = [
-            neru.packages.aarch64-darwin.default
-          ];
-        }
-      ];
-    };
+     darwinConfigurations.your-hostname = nix-darwin.lib.darwinSystem {
+       modules = [
+         {
+           environment.systemPackages = [
+             neru.packages.aarch64-darwin.default
+           ];
+         }
+       ];
+     };
   };
 }
 ```
@@ -233,10 +222,10 @@ Or with home-manager:
 {
   programs.neru.enable = true;
   programs.neru.config = ''
-    [hotkeys]
-    "Cmd+;" = "hints left_click"
-    "Cmd+'" = "grid left_click"
-    "Cmd+Shift+S" = "scroll"
+     [hotkeys]
+     "Cmd+;" = "hints left_click"
+     "Cmd+'" = "grid left_click"
+     "Cmd+Shift+S" = "scroll"
   '';
 }
 ```
@@ -259,7 +248,7 @@ nix flake update neru
 # Then rebuild your system/home configuration
 ```
 
-### Patch go version
+### Patch Go Version
 
 > [!NOTE] This is only required if you're using stable nixpkgs and you're using the `neru-source` package.
 
@@ -268,12 +257,12 @@ The latest version of Neru requires Go 1.25 or later. If you're using stable nix
 ```nix
 package = pkgs.neru-source.overrideAttrs (_: {
   postPatch = ''
-    substituteInPlace go.mod \
-      --replace-fail "go 1.25.2" "go 1.24.9"
+     substituteInPlace go.mod \
+       --replace-fail "go 1.25.2" "go 1.24.9"
 
-    # Verify it worked
-    echo "=== go.mod after patch ==="
-    grep "^go " go.mod || true
+     # Verify it worked
+     echo "=== go.mod after patch ==="
+     grep "^go " go.mod || true
   '';
 });
 ```
@@ -284,118 +273,59 @@ package = pkgs.neru-source.overrideAttrs (_: {
 
 ### Requirements
 
-- Go 1.25 or later
+- Go 1.25+
 - Xcode Command Line Tools
-- [Just](https://github.com/casey/just) (command runner)
+- Just command runner
 
-### Build Steps
+### Build
 
 ```bash
-# Clone repository
 git clone https://github.com/y3owk1n/neru.git
 cd neru
 
-# Build CLI only
+# Build CLI
 just release
+mv ./bin/neru /usr/local/bin/neru
 
 # Or build app bundle
 just bundle
-
-# Move to installation location
-# For CLI:
-mv ./bin/neru /usr/local/bin/neru
-
-# For app bundle:
 mv ./build/Neru.app /Applications/Neru.app
 ```
 
-### Manual Build (without Just)
-
-```bash
-# Build with version info
-go build \
-  -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version=$(git describe --tags --always)" \
-  -o bin/neru \
-  ./cmd/neru
-```
-
-See [DEVELOPMENT.md](DEVELOPMENT.md) for more build options.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed build options.
 
 ---
 
 ## Post-Installation
 
-### 1. Grant Accessibility Permissions
+### 1. Grant Permissions
 
-**Required for Neru to function:**
-
-1. Open **System Settings**
-2. Navigate to **Privacy & Security → Accessibility**
-3. Click the lock icon to make changes
-4. Click **+** and add Neru
-5. Ensure the checkbox is enabled
+**Required:** Open System Settings → Privacy & Security → Accessibility → Add Neru
 
 ### 2. Start Neru
 
-**For app bundle:**
-
 ```bash
+# App bundle
 open -a Neru
-```
 
-**For CLI:**
-
-```bash
+# Or CLI
 neru launch
 ```
 
-**With custom config:**
+### 3. Verify
 
 ```bash
-neru launch --config /path/to/config.toml
-```
-
-### 3. Verify Installation
-
-```bash
-# Check version
 neru --version
-
-# Check status
-neru status
+neru status  # Should show "running"
 ```
 
-Expected output:
+### 4. Configure
 
-```
-Neru Status:
-  Status: running
-  Mode: idle
-  Config: /Users/you/.config/neru/config.toml
-```
+Neru loads config from `~/.config/neru/config.toml` (recommended) or `~/Library/Application Support/neru/config.toml`.
 
----
+**Get started:** Copy `configs/default-config.toml` to `~/.config/neru/config.toml`
 
-## Configuration Setup
-
-After installation, Neru looks for configuration in:
-
-1. **~/.config/neru/config.toml** (XDG standard - recommended)
-2. **~/Library/Application Support/neru/config.toml** (macOS convention)
-3. Custom path via `--config` flag
-
-**Start with default config:**
-
-```bash
-# Create config directory
-mkdir -p ~/.config/neru
-
-# Copy default config
-curl -o ~/.config/neru/config.toml \
-  https://raw.githubusercontent.com/y3owk1n/neru/main/configs/default-config.toml
-```
-
-See [CONFIGURATION.md](CONFIGURATION.md) for detailed configuration options.
+See [CONFIGURATION.md](CONFIGURATION.md) for all options. Having issues? Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ---
 

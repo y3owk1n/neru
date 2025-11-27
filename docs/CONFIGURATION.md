@@ -10,21 +10,34 @@ Neru searches for configuration in the following order:
 2. `~/Library/Application Support/neru/config.toml` (macOS convention)
 3. Custom path: `neru launch --config /path/to/config.toml`
 
-**No config file?** Neru uses sensible defaults. See [../configs/default-config.toml](../configs/default-config.toml).
+**No config file?** Neru uses sensible defaults. See [default-config.toml](../configs/default-config.toml). Need help troubleshooting? See [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ---
 
 ## Table of Contents
 
+- [Configuration Overview](#configuration-overview)
 - [Hotkeys](#hotkeys)
 - [General Settings](#general-settings)
 - [Hint Mode](#hint-mode)
 - [Grid Mode](#grid-mode)
-- [Scroll Configuration](#scroll-configuration)
-- [Smooth Cursor](#smooth-cursor)
-- [Metrics](#metrics)
-- [Logging](#logging)
+- [Scroll & Actions](#scroll--actions)
+- [Advanced Settings](#advanced-settings)
 - [Complete Example](#complete-example)
+
+---
+
+## Configuration Overview
+
+Neru uses TOML configuration files. Configuration is loaded from:
+
+1. `~/.config/neru/config.toml` (recommended)
+2. `~/Library/Application Support/neru/config.toml`
+3. Custom path via `--config` flag
+
+**No config file?** Neru uses sensible defaults. Copy from `configs/default-config.toml` to get started.
+
+**Reload config:** Use `neru config reload` or restart the app.
 
 ---
 
@@ -116,88 +129,58 @@ Hint mode overlays clickable labels on UI elements using macOS accessibility API
 ```toml
 [hints]
 enabled = true
-hint_characters = "asdfghjkl"  # At least 2 distinct characters
+hint_characters = "asdfghjkl"  # Home row keys recommended
 
 # Visual styling
-font_size = 12                 # Range: 6-72
-font_family = ""               # Empty = system default
+font_size = 12
+font_family = ""               # System default
 border_radius = 4
 padding = 4
-border_width = 1
-opacity = 0.95                 # Range: 0.0-1.0
+opacity = 0.95
 
 background_color = "#FFD700"
 text_color = "#000000"
-matched_text_color = "#737373" # Matched text color - color for characters that have been typed
+matched_text_color = "#737373"
 border_color = "#000000"
 ```
 
-**Choosing hint characters:**
-
-- Use home row keys for comfort: `"asdfghjkl"`
-- Left hand only: `"asdfqwertzxcv"`
-- Custom: `"fjdksla"`
-
-### Hint Visibility Options
+### Visibility Options
 
 ```toml
 [hints]
-# Show hints in menubar
+# Show hints in system areas
 include_menubar_hints = false
-
-# Target specific menubar apps (requires include_menubar_hints = true)
-additional_menubar_hints_targets = [
-    "com.apple.TextInputMenuAgent",
-    "com.apple.controlcenter",
-    "com.apple.systemuiserver",
-]
-
-# Show hints in Dock and Mission Control
 include_dock_hints = false
-
-# Show hints in notification popups
 include_nc_hints = false
+
+# Target specific menubar apps
+additional_menubar_hints_targets = [
+     "com.apple.TextInputMenuAgent",
+     "com.apple.controlcenter",
+]
 ```
 
-### Accessibility Configuration
+### Clickable Elements
 
 Define which UI elements are clickable:
 
 ```toml
 [hints]
-# Global clickable roles
 clickable_roles = [
-    "AXButton",
-    "AXComboBox",
-    "AXCheckBox",
-    "AXRadioButton",
-    "AXLink",
-    "AXPopUpButton",
-    "AXTextField",
-    "AXSlider",
-    "AXTabButton",
-    "AXSwitch",
-    "AXDisclosureTriangle",
-    "AXTextArea",
-    "AXMenuButton",
-    "AXMenuItem",
-    "AXCell",
-    "AXRow",
+     "AXButton", "AXLink", "AXTextField", "AXCheckBox",
+     "AXComboBox", "AXRadioButton", "AXPopUpButton",
+     "AXSlider", "AXTabButton", "AXSwitch"
 ]
 
-# ⚠️ Make all elements clickable (use with caution)
-ignore_clickable_check = false
+ignore_clickable_check = false  # Make all elements clickable
 ```
 
 ### Per-App Overrides
-
-Customize accessibility for specific apps:
 
 ```toml
 [[hints.app_configs]]
 bundle_id = "com.google.Chrome"
 additional_clickable_roles = ["AXTabGroup"]
-ignore_clickable_check = false
 
 [[hints.app_configs]]
 bundle_id = "com.adobe.illustrator"
@@ -205,45 +188,25 @@ additional_clickable_roles = ["AXStaticText", "AXImage"]
 ignore_clickable_check = true
 ```
 
-**How it works:**
-
-- App-specific `additional_clickable_roles` are **merged** with global roles
-- App-specific `ignore_clickable_check` overrides the global setting
-
 ### Enhanced Browser Support
 
-Enable improved accessibility for Electron, Chromium, and Firefox apps:
+Enable improved accessibility for Electron/Chromium/Firefox apps:
 
 ```toml
 [hints.additional_ax_support]
-enable = false  # Off by default
+enable = false  # ⚠️ May conflict with tiling WMs
 
-# Automatically supported (no need to add):
-# Electron: VS Code, Windsurf, Cursor, Slack, Spotify, Obsidian
-# Chromium: Chrome, Brave, Arc, Helium
-# Firefox: Firefox, Zen
-
-# Add custom apps
-additional_electron_bundles = ["com.example.electronapp"]
-additional_chromium_bundles = ["com.example.custombrowser"]
-additional_firefox_bundles = ["com.example.firefoxfork"]
+# Auto-detected: VS Code, Chrome, Firefox, Slack, etc.
+additional_electron_bundles = ["com.example.app"]
+additional_chromium_bundles = ["com.example.browser"]
+additional_firefox_bundles = ["com.example.firefox"]
 ```
-
-**⚠️ Tiling Window Manager Warning:**
-
-Enabling accessibility support for Chromium/Firefox can interfere with tiling window managers (yabai, Amethyst, Aerospace). Symptoms include:
-
-- Windows resist tiling
-- Layout glitches
-- Windows snap to wrong positions
-
-**Recommendation:** If you use a tiling WM, keep `enable = false` and use grid mode instead.
 
 ---
 
 ## Grid Mode
 
-Grid mode provides a universal, accessibility-independent way to click anywhere on screen using coordinate-based selection.
+Grid mode provides accessibility-independent navigation using coordinate-based selection.
 
 ### Basic Configuration
 
@@ -255,93 +218,55 @@ sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 
 # Visual styling
 font_size = 12
-font_family = ""
 opacity = 0.7
-border_width = 1
 
 background_color = "#abe9b3"
 text_color = "#000000"
 matched_text_color = "#f8bd96"
-matched_background_color = "#f8bd96"
-matched_border_color = "#f8bd96"
 border_color = "#abe9b3"
 ```
-
-**Cell sizing:** Automatically optimized based on screen resolution. Uses 2-4 character labels with square cells.
 
 ### Grid Behavior
 
 ```toml
 [grid]
-live_match_update = true    # Highlight matches as you type
-hide_unmatched = true       # Hide non-matching cells while typing
-
-# Subgrid keys (requires at least 9 characters)
-sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
+live_match_update = true  # Highlight matches as you type
+hide_unmatched = true     # Hide non-matching cells
 ```
 
-**Workflow:**
-
-1. Press grid hotkey (e.g., `Cmd+Shift+G`)
-2. Type main grid coordinate (2-4 characters)
-3. If subgrid enabled, type subgrid position (1 character, a-i)
-4. Action executes at selected location
+**Workflow:** Press grid hotkey → Type coordinates → Action executes
 
 ---
 
-## Scroll Configuration
+## Scroll & Actions
 
-Configure Vim-style scrolling behavior for both standalone scrolling and hint/grid-based scrolling.
+### Scroll Configuration
+
+Vim-style scrolling for standalone and hint/grid-based navigation:
 
 ```toml
 [scroll]
-# Scroll amounts
-scroll_step = 50              # j/k keys
-scroll_step_half = 500        # Ctrl+D/U
-scroll_step_full = 1000000    # gg/G (top/bottom)
+scroll_step = 50           # j/k keys
+scroll_step_half = 500     # Ctrl+D/U
+scroll_step_full = 1000000 # gg/G (top/bottom)
 
-# Visual feedback
 highlight_scroll_area = true
 highlight_color = "#FF0000"
 highlight_width = 2
 ```
 
-### Scroll Keys
+**Keys:** `j/k` (up/down), `h/l` (left/right), `Ctrl+d/u` (half-page), `gg/G` (top/bottom), `Esc` (exit)
 
-- `j` / `k` - Scroll down/up
-- `h` / `l` - Scroll left/right
-- `Ctrl+d` / `Ctrl+u` - Half-page down/up
-- `gg` - Jump to top (press `g` twice)
-- `G` - Jump to bottom
-- `Esc` - Exit scroll mode
+### Action Configuration
 
-### Scroll Modes
-
-**Standalone scroll** (`neru action scroll`):
-
-- Scrolls at current cursor position
-- No location selection required
-- Only `Esc` to exit
-
-**Hint/Grid scroll** (`neru hints scroll` or `neru grid scroll`):
-
-- Select location first, then scroll
-- Press `Esc` to exit
-
----
-
-## Action
-
-Action mode is a special mode where you can toggle using <tab> when in hints or grid mode.
-
-### Basic Configuration
+Action mode for mouse operations (toggle with `Tab` in hint/grid mode):
 
 ```toml
 [action]
 highlight_color = "#00FF00"
 highlight_width = 3
 
-# Action key mappings
+# Key mappings
 left_click_key = "l"
 right_click_key = "r"
 middle_click_key = "m"
@@ -349,41 +274,43 @@ mouse_down_key = "i"
 mouse_up_key = "u"
 ```
 
-**Action key mappings:**
+## Advanced Settings
 
-- `left_click_key` - Left click at cursor position
-- `right_click_key` - Right click at cursor position
-- `middle_click_key` - Middle click at cursor position
-- `mouse_down_key` - Hold mouse button at cursor position
-- `mouse_up_key` - Release mouse button at cursor position
+### Smooth Cursor
 
-### Action Behavior
-
-```toml
-[action]
-# Action mode highlight appearance
-highlight_color = "#00FF00"
-highlight_width = 3
-```
-
-**Action mode highlight appearance:**
-
-- Color and width can be customized
-- Color can be any hex color (e.g., `#FF0000`)
-- Width can be any number (e.g., `2`)
-
----
-
-## Smooth Cursor
-
-Configure smooth cursor movement for mouse operations:
+Configure smooth mouse movement:
 
 ```toml
 [smooth_cursor]
-move_mouse_enabled = true  # Enable smooth mouse movement
-steps = 10                 # Number of steps for smooth movement
-delay = 1                   # Delay between steps in milliseconds
+move_mouse_enabled = true
+steps = 10        # Intermediate positions
+delay = 1         # Milliseconds between steps
 ```
+
+### Metrics
+
+Enable performance metrics collection:
+
+```toml
+[metrics]
+enabled = false   # Access via `neru metrics` command
+```
+
+### Logging
+
+Configure logging behavior:
+
+```toml
+[logging]
+log_level = "info"          # debug, info, warn, error
+log_file = ""               # Default: ~/Library/Logs/neru/app.log
+structured_logging = true   # JSON format
+max_file_size = 10          # MB
+max_backups = 5
+max_age = 30                # Days
+```
+
+**Debug logging:** Set `log_level = "debug"` and run `tail -f ~/Library/Logs/neru/app.log`
 
 **Parameters:**
 

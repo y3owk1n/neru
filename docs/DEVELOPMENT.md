@@ -6,28 +6,48 @@ Contributing to Neru: build instructions, architecture overview, and contributio
 
 ## Table of Contents
 
+- [Quick Start](#quick-start)
 - [Development Setup](#development-setup)
-- [Building](#building)
+- [Building & Running](#building--running)
 - [Testing](#testing)
-- [Architecture](#architecture)
-  - [Overview](#overview)
+- [Architecture Overview](#architecture-overview)
   - [Project Structure](#project-structure)
-  - [Core Packages](#core-packages)
-  - [Key Technologies](#key-technologies)
+  - [Core Concepts](#core-concepts)
   - [Architectural Layers](#architectural-layers)
   - [Data Flow](#data-flow)
 - [Contributing](#contributing)
-  - [Before You Start](#before-you-start)
-  - [Contribution Workflow](#contribution-workflow)
-  - [Code Style](#code-style)
+  - [Development Workflow](#development-workflow)
+  - [Code Standards](#code-standards)
   - [Testing Guidelines](#testing-guidelines)
   - [Documentation](#documentation)
-  - [Commit Messages](#commit-messages)
 - [Release Process](#release-process)
 - [Development Tips](#development-tips)
-- [Need Help?](#need-help)
-- [Project Philosophy](#project-philosophy)
+- [Troubleshooting](#troubleshooting)
 - [Resources](#resources)
+
+---
+
+## Quick Start
+
+Get Neru running locally in 5 minutes:
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/y3owk1n/neru.git
+cd neru
+
+# 2. Install dependencies
+brew install just golangci-lint
+
+# 3. Build and run
+just build
+./bin/neru launch
+
+# 4. Test it works
+neru hints  # Should show hint overlays
+```
+
+**Need help?** See [Installation Guide](INSTALLATION.md) for detailed setup instructions.
 
 ---
 
@@ -285,16 +305,16 @@ go test -tags=integration ./internal/adapter/accessibility/
 
 ---
 
-## Architecture
+## Architecture Overview
 
-### Overview
+### What Neru Does
 
-Neru is a keyboard-driven navigation tool for macOS, designed to enhance productivity by allowing users to quickly navigate and interact with UI elements using keyboard shortcuts. The architecture is modular and follows the Ports and Adapters pattern to separate concerns and facilitate testing and maintenance.
+Neru is a keyboard-driven navigation tool for macOS that enhances productivity by allowing users to quickly navigate and interact with UI elements using keyboard shortcuts.
 
-Neru provides two primary navigation modes:
+**Two Navigation Modes:**
 
-1. **Hints Mode**: Uses macOS Accessibility APIs to identify clickable elements and overlay hint labels
-2. **Grid Mode**: Divides the screen into a grid system for coordinate-based navigation
+- **Hints Mode**: Uses macOS Accessibility APIs to identify clickable elements and overlay hint labels
+- **Grid Mode**: Divides the screen into a grid system for coordinate-based navigation
 
 Both modes support various actions (click, scroll, etc.) and can be configured extensively through TOML configuration files.
 
@@ -308,48 +328,48 @@ Both modes support various actions (click, scroll, etc.) and can be configured e
 
 ### Architectural Layers
 
-Neru follows a clean architecture with clear separation of concerns:
+Neru follows clean architecture with clear separation of concerns:
 
-#### 1. Domain Layer (`internal/domain`)
+#### Domain Layer (`internal/domain`)
 
-Contains pure business logic with no external dependencies:
+Pure business logic with no external dependencies:
 
-- **Entities**: Core concepts like Hint, Grid, Element, etc.
+- **Entities**: Core concepts (Hint, Grid, Element, Action)
 - **Value Objects**: Immutable data structures
 - **Interfaces**: Contracts for external dependencies
 
-#### 2. Application Layer (`internal/application`)
+#### Application Layer (`internal/application`)
 
 Implements use cases and orchestrates domain entities:
 
-- **Services**: Business logic implementations (HintService, GridService)
-- **Ports**: Interfaces defining interactions with infrastructure
+- **Services**: Business logic (HintService, GridService, ActionService)
+- **Ports**: Interfaces defining infrastructure interactions
 
-#### 3. Adapter Layer (`internal/adapter`)
+#### Adapter Layer (`internal/adapter`)
 
-Implements application ports with concrete technologies:
+Concrete implementations of application ports:
 
-- **Accessibility Adapter**: Bridges domain with macOS Accessibility APIs
-- **Overlay Adapter**: Manages UI overlays and rendering
-- **Config Adapter**: Handles configuration loading/parsing
-- **Hotkey Adapter**: Manages global hotkey registration
-- **IPC Adapter**: Handles inter-process communication
+- **Accessibility**: macOS Accessibility API integration
+- **Overlay**: UI overlay management and rendering
+- **Config**: Configuration loading and parsing
+- **Hotkey**: Global hotkey registration
+- **IPC**: Inter-process communication
 
-#### 4. Infrastructure Layer (`internal/infra`)
+#### Infrastructure Layer (`internal/infra`)
 
 Low-level technical implementations:
 
-- **Accessibility**: Direct CGo/Objective-C wrappers for macOS APIs
+- **Accessibility**: Direct CGo/Objective-C macOS API wrappers
 - **Event Tap**: System-wide input monitoring
-- **Hotkeys**: Carbon API integration for global hotkeys
+- **Hotkeys**: Carbon API integration
 - **IPC**: Unix socket communication
 - **Bridge**: Objective-C UI components
 
-#### 5. Presentation/UI Layer (`internal/ui`, `internal/features`)
+#### Presentation Layer (`internal/ui`, `internal/features`)
 
-Handles user interface and presentation logic:
+User interface and presentation logic:
 
-- **Features**: View models and UI adapters for specific functionalities
+- **Features**: View models for Hints, Grid, and Scroll modes
 - **UI**: Rendering logic and overlay management
 
 ### Data Flow
@@ -359,130 +379,99 @@ Handles user interface and presentation logic:
 3. **Processing**: User input processed → Actions determined → System APIs called → Results rendered
 4. **Cleanup**: Mode exited → Overlays hidden → State reset → App returns to idle
 
-### Key Packages
+### Core Packages
 
 #### `internal/domain`
 
-Contains the core business logic and entities. This package is pure Go and has no external dependencies.
+Core business logic and entities (pure Go, no external dependencies):
 
-- **Element**: Represents a UI element with bounds, role, and state.
-- **Hint**: Represents a visual hint overlay.
-- **Grid**: Represents the grid-based navigation system.
-- **Action**: Defines types of actions (click, scroll, etc.).
+- **Element**: UI element representation with bounds, role, and state
+- **Hint/Grid/Action**: Navigation and interaction primitives
 
 #### `internal/application`
 
-Implements the application's use cases using Ports and Adapters.
+Use case implementations using Ports and Adapters:
 
-- **Ports**: Interfaces that define interactions with the outside world (`AccessibilityPort`, `OverlayPort`).
-- **Services**: Orchestrate logic using domain entities and ports (`HintService`, `GridService`, `ActionService`, `ScrollService`).
+- **Services**: Business logic orchestration (HintService, GridService, ActionService)
+- **Ports**: Interfaces defining infrastructure contracts
 
 #### `internal/adapter`
 
-Concrete implementations of the application ports.
+Concrete port implementations:
 
-- **Accessibility**: Adapts `internal/infra/accessibility` to `AccessibilityPort`.
-- **Overlay**: Adapts `internal/features` (View Models) and `internal/infra/bridge` to `OverlayPort`.
-- **Config**: Adapts `internal/config` to `ConfigPort`.
-- **Hotkey**: Adapts `internal/infra/hotkeys` to `HotkeyPort`.
-- **IPC**: Adapts `internal/infra/ipc` to `IPCPort`.
+- **Accessibility**: macOS Accessibility API bridge
+- **Overlay**: UI overlay management
+- **Config**: Configuration handling
+- **Hotkey/IPC**: System integration adapters
 
 #### `internal/infra`
 
-Low-level infrastructure code, including CGo and OS interactions.
+Low-level infrastructure (CGo, system APIs):
 
-- **Accessibility**: Direct CGo calls to macOS Accessibility APIs.
-- **EventTap**: System-wide input interception.
-- **Hotkeys**: Global hotkey registration via Carbon APIs.
-- **IPC**: Unix socket communication.
-- **Metrics**: Prometheus/OpenTelemetry metrics.
-  - Configurable via `[metrics]` section in config.
-  - Can be disabled to reduce overhead.
-
-#### `internal/features`
-
-Contains View Models and UI-specific adapters that bridge the Domain layer with the Overlay infrastructure. This layer handles the presentation logic for Hints, Grid, and Scroll modes.
-
-#### `internal/config`
-
-TOML configuration parsing and validation.
-
-**Responsibilities:**
-
-- Load config from multiple locations
-- Parse TOML into structs
-- Validate configuration
-- Provide defaults
+- **Accessibility**: Direct macOS API wrappers
+- **EventTap/Hotkeys**: System input handling
+- **IPC**: Inter-process communication
+- **Bridge**: Objective-C UI components
 
 #### `internal/app`
 
-Main application orchestration layer that ties all components together:
+Main application orchestration:
 
-- **App**: Main application instance containing all state and dependencies
-- **Modes**: Mode-specific logic (hints, grid, scroll, action)
-- **Components**: Feature components with their specific contexts
-- **Lifecycle**: Application startup, shutdown, and state management
+- **App**: Central application state and dependencies
+- **Modes**: Navigation mode logic (hints, grid, scroll)
+- **Lifecycle**: Startup, shutdown, and state management
 
 #### `internal/cli`
 
-Cobra-based CLI commands.
+Command-line interface (Cobra-based):
 
-**Responsibilities:**
+- Command parsing and dispatch
+- Output formatting and error handling
 
-- Parse command-line arguments
-- Dispatch to appropriate handlers
-- Format output
-- Error messages
+#### `internal/config`
+
+Configuration management:
+
+- TOML parsing and validation
+- Multi-location config loading
+- Default value provision
 
 ### Where to Add New Code
 
-When contributing to Neru, here's where to place new functionality based on its purpose:
+**Configuration Options:**
 
-#### Adding New Configuration Options
+1. Add fields to `internal/config/config.go` structs
+2. Update `DefaultConfig()` with sensible defaults
+3. Add validation in `Validate*()` methods
+4. Update `configs/` examples and `docs/CONFIGURATION.md`
 
-1. Add fields to appropriate structs in `internal/config/config.go`
-2. Update `DefaultConfig()` function with sensible defaults
-3. Add validation logic in the `Validate*()` methods
-4. Update all TOML configuration examples in `configs/` directory
-5. Document new options in `docs/CONFIGURATION.md`
-6. Ensure `configs/default-config.toml` reflects new defaults with explanation
-
-#### Adding New Navigation Modes
+**Navigation Modes:**
 
 1. Define domain entities in `internal/domain/`
-2. Create application service in `internal/application/services/`
+2. Create service in `internal/application/services/`
 3. Implement adapter in `internal/adapter/`
-4. Add feature components in `internal/features/`
+4. Add features in `internal/features/`
 5. Register mode in `internal/app/modes/`
-6. Update CLI commands in `internal/cli/` if needed
 
-#### Adding New Actions
+**Actions:**
 
 1. Define action in `internal/domain/action/`
-2. Implement action logic in `internal/application/services/action_service.go`
-3. Add action handling in `internal/app/modes/actions.go`
-4. Update configuration options in `internal/config/config.go` if needed
-5. Document new actions in `docs/CONFIGURATION.md`
+2. Implement logic in `internal/application/services/action_service.go`
+3. Add handling in `internal/app/modes/actions.go`
+4. Update config and documentation
 
-#### Adding New UI Components
+**UI Components:**
 
-1. Create feature components in `internal/features/`
-2. Implement overlay rendering in `internal/ui/`
-3. Add Objective-C components in `internal/infra/bridge/` if needed
-4. Register components in `internal/app/app.go`
+1. Create features in `internal/features/`
+2. Implement rendering in `internal/ui/`
+3. Add Objective-C in `internal/infra/bridge/` if needed
+4. Register in `internal/app/app.go`
 
-#### Adding New CLI Commands
+**CLI Commands:**
 
-1. Create new command file in `internal/cli/`
-2. Register command in `internal/cli/root.go`
-3. Add documentation in `docs/CLI.md`
-
-#### Enhancing Accessibility Support
-
-1. Modify low-level CGo wrappers in `internal/infra/accessibility/`
-2. Update adapter in `internal/adapter/accessibility/`
-3. Add configuration options in `internal/config/config.go`
-4. Document changes in `docs/CONFIGURATION.md`
+1. Create command file in `internal/cli/`
+2. Register in `internal/cli/root.go`
+3. Document in `docs/CLI.md`
 
 ### Dependency Injection and Wiring
 
@@ -506,216 +495,71 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Actio
 
 ## Contributing
 
+### Development Workflow
+
+1. **Fork and clone** the repository
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Make changes** following [Coding Standards](CODING_STANDARDS.md)
+4. **Add tests** for new functionality
+5. **Test thoroughly**: `just test && just lint && just build`
+6. **Commit conventionally**: `git commit -m "feat: description"`
+7. **Push and open PR** with description and screenshots
+
 ### Before You Start
 
-1. **Read the Architecture**: Understand the layered architecture and where different types of code belong
-2. **Check Existing Issues**: Look for existing issues or start a discussion for major changes
-3. **Follow Coding Standards**: Adhere to the guidelines in [CODING_STANDARDS.md](CODING_STANDARDS.md)
-4. **Write Tests**: All new functionality should include appropriate tests
-5. **Update Documentation**: Keep docs up-to-date with your changes
+- **Read the Architecture**: Understand layered design and code placement
+- **Check Existing Issues**: Search for similar work or start discussions
+- **Follow Standards**: See [CODING_STANDARDS.md](CODING_STANDARDS.md)
+- **Write Tests**: All new code needs appropriate test coverage
+- **Update Docs**: Keep documentation current with changes
 
-### Contribution Workflow
+### Code Standards
 
-1. **Fork the repository**
-2. **Create a feature branch**
+**All code must follow the [Coding Standards](CODING_STANDARDS.md) document.** See [Testing Standards](CODING_STANDARDS.md#testing-standards) for test requirements.
 
-    ```bash
-    git checkout -b feature/amazing-feature
-    ```
+**Pre-commit Checklist:**
 
-3. **Make your changes**
-    - Write clean, documented code
-    - Follow existing code style
-    - Add tests for new features
-    - Update documentation as needed
-4. **Test thoroughly**
-
-    ```bash
-    just test && just lint
-    ```
-
-5. **Verify build**
-
-    ```bash
-    just build
-    ```
-
-6. **Commit with conventional commit**
-
-    ```bash
-    git commit -m "feat: description of what it does"
-    git commit -m "fix(scope): description of what it does"
-    ```
-
-7. **Push to your branch**
-
-    ```bash
-    git push origin feature/amazing-feature
-    ```
-
-8. **Open a Pull Request**
-    - Describe what the PR does
-    - Reference any related issues
-    - Include screenshots/demos if applicable
-
-### Code Style
-
-**All code must follow the [Coding Standards](CODING_STANDARDS.md) document.**
-
-Key requirements:
-
-- **Run formatters before committing:**
-
-    ```bash
-    just fmt
-    ```
-
-- **Ensure linting passes:**
-
-    ```bash
-    just lint
-    ```
-
-- **Follow established patterns** - Review existing code for consistency
-- **Document exports** - Add godoc comments for public functions/types
-- **Handle errors properly** - Use the custom error package with proper wrapping
-- **Use meaningful names** - `clickableElement` not `ce`
-- **Keep receiver names consistent** - Use short, consistent receiver names (e.g., `s` for Service, `a` for App)
-
-#### Pre-commit Checklist
-
-Before committing, ensure:
-
-- [ ] Code is formatted (`just fmt`)
+- [ ] Code formatted (`just fmt`)
 - [ ] Linters pass (`just lint`)
 - [ ] Tests pass (`just test`)
 - [ ] Build succeeds (`just build`)
-- [ ] Documentation updated if needed
-- [ ] Comments are clear and accurate
-- [ ] Follows patterns in [CODING_STANDARDS.md](CODING_STANDARDS.md)
+- [ ] Documentation updated
+- [ ] Follows [CODING_STANDARDS.md](CODING_STANDARDS.md)
 
-**Example:**
+**Key Requirements:**
 
-```go
-// Good - follows coding standards
-func (s *Service) GenerateHints(ctx context.Context, elements []Element) ([]Hint, error) {
-    if len(elements) == 0 {
-        return nil, derrors.New(derrors.CodeInvalidInput, "no elements to generate hints for")
-    }
-    // ...
-}
-
-// Bad - inconsistent receiver, missing context, poor error handling
-func (service *Service) gen(e []Element) []Hint {
-    // ...
-}
-```
+- Use `goimports` for import organization
+- Add godoc comments for exported symbols
+- Use custom error package with proper wrapping
+- Follow established naming patterns and receiver conventions
 
 ### Testing Guidelines
 
-#### General Principles
+**All new code requires appropriate tests.** See [CODING_STANDARDS.md](CODING_STANDARDS.md#testing-standards) for detailed guidelines.
 
-- **Write tests for all new features** - Both unit and integration tests as appropriate
-- **Test edge cases** - Empty inputs, nil values, boundary conditions, error conditions
-- **Use table-driven tests** for multiple test cases
-- **Follow test naming conventions** - `TestFunctionName`, `TestType_MethodName`
+**Test Types:**
 
-#### Unit Testing
+- **Unit Tests**: Business logic, algorithms, validation (fast, no system deps)
+- **Integration Tests**: Real macOS APIs, file system, IPC (tagged `//go:build integration`)
 
-- **Mock external dependencies** - Use interfaces and dependency injection
-- **Test business logic in isolation** - Domain entities, algorithms, validation
-- **Fast execution** - Unit tests should run in milliseconds
-- **No system dependencies** - Should work in any environment
+**When to Use:**
 
-#### Integration Testing
+- Unit: Business logic, config validation, component interfaces
+- Integration: macOS APIs, file operations, IPC, component coordination
 
-- **Test real system interactions** - macOS APIs, file system, IPC
-- **Use actual implementations** - Not mocks for the system under test
-- **Tagged with `//go:build integration`** - Separate from unit tests
-- **May require system permissions** - Accessibility, etc.
-- **Slower execution acceptable** - Comprehensive validation over speed
-
-#### Test File Organization
+**Test Organization:**
 
 ```
-package_test.go          # Unit tests for package
-package_integration_test.go  # Integration tests (tagged)
-```
-
-#### When to Write Which Type
-
-| Scenario                   | Test Type   | Example                            |
-| -------------------------- | ----------- | ---------------------------------- |
-| Business logic, algorithms | Unit        | Hint generation, grid calculations |
-| Configuration validation   | Unit        | TOML parsing, field validation     |
-| Component interfaces       | Unit        | Port implementations with mocks    |
-| macOS API interactions     | Integration | Accessibility, event tap, hotkeys  |
-| File system operations     | Integration | Config loading, log file writing   |
-| IPC communication          | Integration | CLI-to-daemon communication        |
-| Component coordination     | Integration | Service-to-adapter interactions    |
-
-#### Example Patterns
-
-**Unit Test (Business Logic):**
-
-```go
-func TestHintGenerator_Generate(t *testing.T) {
-    gen := hint.NewAlphabetGenerator("abc")
-    elements := []*element.Element{/* mock elements */}
-    hints := gen.Generate(context.Background(), elements)
-    // Assert hint generation logic
-}
-```
-
-**Integration Test (System Interaction):**
-
-```go
-//go:build integration
-
-func TestAccessibilityAdapter_GetCursorPosition(t *testing.T) {
-    adapter := accessibility.NewAdapter(/* real infra */)
-    pos, err := adapter.GetCursorPosition()
-    // Assert real cursor position from system
-}
-```
-
-**Example table-driven test:**
-
-```go
-func TestParseHotkey(t *testing.T) {
-    tests := []struct {
-        name    string
-        input   string
-        want    Hotkey
-        wantErr bool
-    }{
-        {"simple", "Cmd+Space", Hotkey{Mod: Cmd, Key: Space}, false},
-        {"invalid", "Cmd-Space", Hotkey{}, true},
-        // ...
-    }
-
-    for _, testCase := range tests {
-        t.Run(testCase.name, func(t *testing.T) {
-            got, err := ParseHotkey(testCase.input)
-            if (err != nil) != testCase.wantErr {
-                t.Errorf("ParseHotkey() error = %v, wantErr %v", err, testCase.wantErr)
-                return
-            }
-            if !reflect.DeepEqual(got, testCase.want) {
-                t.Errorf("ParseHotkey() = %v, want %v", got, testCase.want)
-            }
-        })
-    }
-}
+package_test.go              # Unit tests
+package_integration_test.go # Integration tests (tagged)
 ```
 
 ### Documentation
 
-- **Update README.md** if changing user-facing behavior
-- **Update docs/** for significant features
-- **Add godoc comments** for exported functions
-- **Include examples** in documentation
+- **Update docs/** for significant changes
+- **Add godoc comments** for exported symbols
 - **Keep docs consistent** with code changes
+- **Include examples** where helpful
 
 ### Commit Messages
 
@@ -779,8 +623,8 @@ Creating a release is just as easy as merging the release please PR, and it will
 ### Quick Iteration
 
 ```bash
-# One-liner: build and run
-just build && ./bin/neru launch --config test-config.toml
+# Build and run
+just build && ./bin/neru launch
 
 # Watch for changes (requires entr)
 ls **/*.go | entr -r sh -c 'just build && ./bin/neru launch'
@@ -789,165 +633,55 @@ ls **/*.go | entr -r sh -c 'just build && ./bin/neru launch'
 ### Debugging
 
 ```bash
-# Enable debug logging
+# Enable debug logging in config
 [logging]
 log_level = "debug"
 
-# Run verbose output
-./bin/neru launch
-
-# Watch logs in real-time
+# Watch logs
 tail -f ~/Library/Logs/neru/app.log
-```
-
-### Useful Go Commands
-
-```bash
-# Format code
-gofmt -w .
-
-# Organize imports
-goimports -w .
-
-# Check for suspicious constructs
-go vet ./...
-
-# List dependencies
-go list -m all
-
-# Update dependencies
-go get -u ./...
-go mod tidy
 ```
 
 ### Profiling
 
-#### Test Profiling
-
-Profile specific tests to identify performance bottlenecks:
+Enable pprof for performance analysis:
 
 ```bash
-# CPU profile
-go test -cpuprofile cpu.prof ./internal/hints
-go tool pprof cpu.prof
-
-# Memory profile
-go test -memprofile mem.prof ./internal/hints
-go tool pprof mem.prof
-```
-
-#### Runtime Profiling with NERU_PPROF
-
-Enable Go's [pprof](https://pkg.go.dev/net/http/pprof) HTTP server to profile the running application. This is useful for debugging performance issues, memory leaks, or understanding runtime behavior.
-
-**Enable profiling:**
-
-```bash
-# Start Neru with pprof server on port 6060
+# Start with profiling
 NERU_PPROF=:6060 ./bin/neru launch
 
-# Or use a different port
-NERU_PPROF=localhost:8080 ./bin/neru launch
-```
-
-**Access profiles:**
-
-```bash
-# View available profiles in browser
+# Access profiles
 open http://localhost:6060/debug/pprof/
 
-# CPU profile (30 seconds)
+# CPU profile
 go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
-
-# Heap profile
-go tool pprof http://localhost:6060/debug/pprof/heap
-
-# Goroutine profile
-go tool pprof http://localhost:6060/debug/pprof/goroutine
-
-# Block profile (mutex contention)
-go tool pprof http://localhost:6060/debug/pprof/block
 ```
 
-**Interactive analysis:**
+### Useful Commands
 
 ```bash
-# Start interactive pprof session
-go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
+# Code quality
+just fmt          # Format code
+just lint         # Run linters
+just test         # Run tests
 
-# Inside pprof:
-(pprof) top10        # Show top 10 functions by CPU time
-(pprof) list FuncName # Show source code for function
-(pprof) web          # Open call graph in browser (requires graphviz)
-(pprof) pdf          # Generate PDF call graph
+# Dependencies
+go mod tidy       # Clean up modules
+go get -u ./...   # Update dependencies
 ```
 
-**Common use cases:**
-
-- **High CPU usage**: Use CPU profile to find hot code paths
-- **Memory leaks**: Use heap profile to identify memory allocations
-- **Goroutine leaks**: Use goroutine profile to find stuck goroutines
-- **Lock contention**: Use block profile to find mutex bottlenecks
-
-**Example workflow:**
-
-```bash
-# 1. Start Neru with profiling
-NERU_PPROF=:6060 ./bin/neru launch
-
-# 2. Use the app normally to reproduce the issue
-
-# 3. In another terminal, capture a profile
-go tool pprof -http=:8081 http://localhost:6060/debug/pprof/heap
-
-# 4. Browser opens with interactive flame graph and call tree
-```
-
-> [!TIP]
-> Install graphviz for better visualization: `brew install graphviz`
-
 ---
 
-## Need Help?
+## Troubleshooting
 
-- **Read existing code** - The codebase is well-structured
-- **Check issues** - Someone may have asked the same question
-- **Ask in discussions** - Open a discussion for questions
-- **Open a draft PR** - Get early feedback on your approach
-
----
-
-## Project Philosophy
-
-### Keep It Simple
-
-Neru intentionally avoids:
-
-- GUI settings (config files are superior)
-- Feature bloat (focus on core navigation)
-
-When adding features, ask:
-
-1. Does this align with keyboard-driven productivity?
-2. Is this the simplest way to achieve the goal?
-3. Will this complicate maintenance?
-
-### Community-Driven
-
-Neru thrives on community contributions:
-
-- **PRs over issues** - Code speaks louder than feature requests
-- **Best-effort maintenance** - No promises of 24/7 support
-- **Collective ownership** - Everyone can improve Neru
-
-Your contributions shape Neru's future!
-
----
+- **Read existing code** - Well-structured codebase
+- **Check issues** - Search for similar problems
+- **Ask in discussions** - Open GitHub discussion for questions
+- **Open draft PR** - Get early feedback on approach
 
 ## Resources
 
 - **Go Documentation:** <https://golang.org/doc/>
-- **macOS Accessibility API:** <https://developer.apple.com/documentation/applicationservices/ax_ui_element_ref>
+- **macOS Accessibility:** <https://developer.apple.com/documentation/applicationservices/ax_ui_element_ref>
 - **TOML Spec:** <https://toml.io/>
-- **Cobra CLI Framework:** <https://github.com/spf13/cobra>
+- **Cobra CLI:** <https://github.com/spf13/cobra>
 - **Just Command Runner:** <https://github.com/casey/just>
