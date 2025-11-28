@@ -111,6 +111,7 @@ clean:
 fmt:
     @echo "Formatting Go files..."
     golangci-lint fmt
+    golangci-lint run --fix
     @echo "Formatting Objective-C files..."
     @find internal/core/infra/bridge \( -name "*.h" -o -name "*.m" \) -exec clang-format -i --style=file --assume-filename=file.m {} \;
     @echo "✓ Format complete"

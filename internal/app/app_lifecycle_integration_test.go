@@ -12,7 +12,12 @@ import (
 )
 
 // waitForMode waits for the application to reach the specified mode with a timeout
-func waitForMode(t *testing.T, application *app.App, expectedMode domain.Mode, timeout time.Duration) {
+func waitForMode(
+	t *testing.T,
+	application *app.App,
+	expectedMode domain.Mode,
+	timeout time.Duration,
+) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -21,7 +26,11 @@ func waitForMode(t *testing.T, application *app.App, expectedMode domain.Mode, t
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("Timeout waiting for mode %v, current mode: %v", expectedMode, application.CurrentMode())
+	t.Fatalf(
+		"Timeout waiting for mode %v, current mode: %v",
+		expectedMode,
+		application.CurrentMode(),
+	)
 }
 
 // TestAppInitializationIntegration tests that the app can be initialized without hanging
