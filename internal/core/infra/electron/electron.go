@@ -118,10 +118,6 @@ func ensureAccessibility(
 
 	pidsMu.Unlock()
 
-	enabledPIDs[pid] = struct{}{}
-
-	pidsMu.Unlock()
-
 	return true
 }
 
