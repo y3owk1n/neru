@@ -287,10 +287,11 @@ func (e *Element) Children() ([]*Element, error) {
 	}
 	defer C.free(rawChildren) //nolint:nlreturn
 
-	childSlice := (*[1 << 30]unsafe.Pointer)(rawChildren)[:count:count]
+	countInt := int(count)
+	childSlice := (*[1 << 30]unsafe.Pointer)(rawChildren)[:countInt:countInt]
 	// Pre-allocate and directly create elements
-	children := make([]*Element, int(count))
-	for i := range int(count) {
+	children := make([]*Element, countInt)
+	for i := range children {
 		children[i] = &Element{ref: childSlice[i]}
 	}
 
@@ -359,8 +360,9 @@ func AllWindows() ([]*Element, error) {
 	}
 	defer C.free(unsafe.Pointer(windows)) //nolint:nlreturn
 
-	windowSlice := (*[1 << 30]unsafe.Pointer)(unsafe.Pointer(windows))[:count:count]
-	result := make([]*Element, count)
+	countInt := int(count)
+	windowSlice := (*[1 << 30]unsafe.Pointer)(unsafe.Pointer(windows))[:countInt:countInt]
+	result := make([]*Element, countInt)
 
 	for index := range result {
 		result[index] = &Element{ref: windowSlice[index]}
