@@ -51,6 +51,12 @@ func (a *Adapter) SetHandler(_ func(key string)) {
 
 // SetHotkeys configures which hotkeys the event tap should monitor.
 func (a *Adapter) SetHotkeys(hotkeys []string) {
+	if len(hotkeys) == 0 {
+		a.logger.Warn("SetHotkeys called with empty hotkeys slice")
+
+		return
+	}
+
 	a.tap.SetHotkeys(hotkeys)
 }
 
