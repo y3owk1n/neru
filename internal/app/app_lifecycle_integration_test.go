@@ -11,6 +11,12 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
+// initResult holds the result of app initialization
+type initResult struct {
+	app *app.App
+	err error
+}
+
 // waitForMode waits for the application to reach the specified mode with a timeout
 func waitForMode(
 	t *testing.T,
@@ -46,7 +52,7 @@ func TestAppInitializationIntegration(t *testing.T) {
 	cfg.General.AccessibilityCheckOnStart = false // Skip OS permission checks
 
 	// Test that app initialization completes within reasonable time
-	done := make(chan *app.App, 1)
+	done := make(chan initResult, 1)
 	var application *app.App
 
 	go func() {
@@ -58,22 +64,16 @@ func TestAppInitializationIntegration(t *testing.T) {
 			app.WithOverlayManager(&mockOverlayManager{}),
 			app.WithWatcher(&mockAppWatcher{}),
 		)
-		if err != nil {
-			done <- nil
-		} else {
-			done <- appInstance
-		}
+		done <- initResult{app: appInstance, err: err}
 	}()
 
 	// Wait for initialization with timeout
 	select {
-	case application = <-done:
-		if application == nil {
-			t.Log("App initialization failed (expected in some environments)")
-			// This is acceptable - the test verifies that initialization doesn't hang
-			t.Log("✅ App initialization completed without hanging")
-			return
+	case res := <-done:
+		if res.err != nil {
+			t.Fatalf("App initialization failed: %v", res.err)
 		}
+		application = res.app
 		defer application.Cleanup()
 	case <-time.After(5 * time.Second):
 		t.Fatal("App initialization timed out - possible hang")
