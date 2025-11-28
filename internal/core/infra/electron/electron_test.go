@@ -37,6 +37,11 @@ func TestIsLikelyElectronBundle(t *testing.T) {
 			bundleID: "  ",
 			want:     false,
 		},
+		{
+			name:     "whitespace bundle",
+			bundleID: "  ",
+			want:     false,
+		},
 	}
 
 	for _, testCase := range tests {
@@ -76,8 +81,18 @@ func TestIsLikelyChromiumBundle(t *testing.T) {
 			want:     false,
 		},
 		{
+			name:     "unknown bundle",
+			bundleID: "com.apple.Safari",
+			want:     false,
+		},
+		{
 			name:     "empty bundle",
 			bundleID: "",
+			want:     false,
+		},
+		{
+			name:     "whitespace bundle",
+			bundleID: "  ",
 			want:     false,
 		},
 	}
@@ -88,49 +103,6 @@ func TestIsLikelyChromiumBundle(t *testing.T) {
 			if got != testCase.want {
 				t.Errorf(
 					"IsLikelyChromiumBundle(%q) = %v, want %v",
-					testCase.bundleID,
-					got,
-					testCase.want,
-				)
-			}
-		})
-	}
-}
-
-func TestIsLikelyFirefoxBundle(t *testing.T) {
-	tests := []struct {
-		name     string
-		bundleID string
-		want     bool
-	}{
-		{
-			name:     "known firefox bundle",
-			bundleID: "org.mozilla.firefox",
-			want:     true,
-		},
-		{
-			name:     "case insensitive match",
-			bundleID: "ORG.MOZILLA.FIREFOX",
-			want:     true,
-		},
-		{
-			name:     "unknown bundle",
-			bundleID: "com.apple.Safari",
-			want:     false,
-		},
-		{
-			name:     "empty bundle",
-			bundleID: "",
-			want:     false,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			got := electron.IsLikelyFirefoxBundle(testCase.bundleID)
-			if got != testCase.want {
-				t.Errorf(
-					"IsLikelyFirefoxBundle(%q) = %v, want %v",
 					testCase.bundleID,
 					got,
 					testCase.want,
@@ -170,6 +142,12 @@ func TestShouldEnableElectronSupport(t *testing.T) {
 			bundleID:          "",
 			additionalBundles: []string{},
 			want:              false,
+		},
+		{
+			name:              "case insensitive additional bundle",
+			bundleID:          "com.example.MyApp",
+			additionalBundles: []string{"COM.EXAMPLE.MYAPP"},
+			want:              true,
 		},
 	}
 
@@ -223,6 +201,12 @@ func TestShouldEnableChromiumSupport(t *testing.T) {
 			additionalBundles: []string{},
 			want:              false,
 		},
+		{
+			name:              "case insensitive additional bundle",
+			bundleID:          "com.example.MyApp",
+			additionalBundles: []string{"COM.EXAMPLE.MYAPP"},
+			want:              true,
+		},
 	}
 
 	for _, testCase := range tests {
@@ -274,6 +258,12 @@ func TestShouldEnableFirefoxSupport(t *testing.T) {
 			bundleID:          "",
 			additionalBundles: []string{},
 			want:              false,
+		},
+		{
+			name:              "case insensitive additional bundle",
+			bundleID:          "com.example.MyApp",
+			additionalBundles: []string{"COM.EXAMPLE.MYAPP"},
+			want:              true,
 		},
 	}
 
