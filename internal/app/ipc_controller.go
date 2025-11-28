@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/y3owk1n/neru/internal/app/modes"
-	"github.com/y3owk1n/neru/internal/application/services"
+	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/state"
-	"github.com/y3owk1n/neru/internal/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/infra/ipc"
-	"github.com/y3owk1n/neru/internal/infra/metrics"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/state"
+	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
+	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/infra/metrics"
 	"go.uber.org/zap"
 )
 

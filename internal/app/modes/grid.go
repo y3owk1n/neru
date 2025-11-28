@@ -5,9 +5,9 @@ import (
 	"image"
 	"strings"
 
-	"github.com/y3owk1n/neru/internal/domain"
-	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
-	"github.com/y3owk1n/neru/internal/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
 )
@@ -16,7 +16,7 @@ import (
 func (h *Handler) activateGridModeWithAction(action *string) {
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameGrid,
-		h.Config.Grid.Enabled,
+		h.config.Grid.Enabled,
 		domain.ActionMoveMouse,
 	)
 	if !ok {
@@ -28,43 +28,43 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	h.ExitMode()
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing grid.
 	// This prevents scroll highlights from persisting when switching from scroll mode to grid mode.
-	h.OverlayManager.Clear()
+	h.overlayManager.Clear()
 
-	h.AppState.SetGridOverlayNeedsRefresh(false)
+	h.appState.SetGridOverlayNeedsRefresh(false)
 
 	gridInstance := h.createGridInstance()
 	h.updateGridOverlayConfig()
 
 	// Reset the grid manager state when setting up the grid
-	if h.Grid.Manager != nil {
-		h.Grid.Manager.Reset()
+	if h.grid.Manager != nil {
+		h.grid.Manager.Reset()
 	}
 
 	h.initializeGridManager(gridInstance)
-	h.Grid.Router = domainGrid.NewRouter(h.Grid.Manager, h.Logger)
+	h.grid.Router = domainGrid.NewRouter(h.grid.Manager, h.logger)
 
 	// Draw the grid to populate the overlay
-	drawGridErr := h.Renderer.DrawGrid(gridInstance, "")
+	drawGridErr := h.renderer.DrawGrid(gridInstance, "")
 	if drawGridErr != nil {
-		h.Logger.Error("Failed to draw grid", zap.Error(drawGridErr))
+		h.logger.Error("Failed to draw grid", zap.Error(drawGridErr))
 
 		return
 	}
 
 	// Show the overlay (the grid is already drawn with proper style)
-	h.OverlayManager.Show()
+	h.overlayManager.Show()
 
 	// Store pending action if provided
-	h.Grid.Context.SetPendingAction(action)
+	h.grid.Context.SetPendingAction(action)
 
 	if action != nil {
-		h.Logger.Info("Grid mode activated with pending action", zap.String("action", *action))
+		h.logger.Info("Grid mode activated with pending action", zap.String("action", *action))
 	}
 
 	h.SetModeGrid()
 
-	h.Logger.Info("Grid mode activated", zap.String("action", actionString))
-	h.Logger.Info("Type a grid label to select a location")
+	h.logger.Info("Grid mode activated", zap.String("action", actionString))
+	h.logger.Info("Type a grid label to select a location")
 }
 
 // createGridInstance creates a new grid instance with proper bounds and characters.
@@ -74,20 +74,20 @@ func (h *Handler) createGridInstance() *domainGrid.Grid {
 	// Normalize normalizedBounds to window-local coordinates using helper function
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
 
-	characters := h.Config.Grid.Characters
+	characters := h.config.Grid.Characters
 	if strings.TrimSpace(characters) == "" {
-		characters = h.Config.Hints.HintCharacters
+		characters = h.config.Hints.HintCharacters
 	}
 
-	gridInstance := domainGrid.NewGrid(characters, normalizedBounds, h.Logger)
-	h.Grid.Context.SetGridInstanceValue(gridInstance)
+	gridInstance := domainGrid.NewGrid(characters, normalizedBounds, h.logger)
+	h.grid.Context.SetGridInstanceValue(gridInstance)
 
 	return gridInstance
 }
 
 // updateGridOverlayConfig updates the grid overlay configuration.
 func (h *Handler) updateGridOverlayConfig() {
-	(*h.Grid.Context.GridOverlay()).SetConfig(h.Config.Grid)
+	(*h.grid.Context.GridOverlay()).SetConfig(h.config.Grid)
 }
 
 // initializeGridManager initializes the grid manager with the new grid instance.
@@ -98,30 +98,30 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 	// Defensive check for grid instance
 	if gridInstance == nil {
-		h.Logger.Warn("Grid instance is nil, creating with default bounds")
+		h.logger.Warn("Grid instance is nil, creating with default bounds")
 
 		screenBounds := bridge.ActiveScreenBounds()
 		bounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
-		gridInstance = domainGrid.NewGrid(h.Config.Grid.Characters, bounds, h.Logger)
+		gridInstance = domainGrid.NewGrid(h.config.Grid.Characters, bounds, h.logger)
 	}
 
 	// Configure subgrid keys for 3x3 subgrid navigation within selected cells
-	keys := strings.TrimSpace(h.Config.Grid.SublayerKeys)
+	keys := strings.TrimSpace(h.config.Grid.SublayerKeys)
 	if keys == "" {
-		keys = h.Config.Grid.Characters
+		keys = h.config.Grid.Characters
 	}
 
 	// Ensure we have valid keys for subgrid
 	if keys == "" {
-		h.Logger.Warn("No subgrid keys configured, using grid characters as fallback")
-		keys = h.Config.Grid.Characters
+		h.logger.Warn("No subgrid keys configured, using grid characters as fallback")
+		keys = h.config.Grid.Characters
 	}
 
 	// Final fallback to default characters if none configured
 	if keys == "" {
 		keys = defaultGridCharacters
 
-		h.Logger.Warn("No characters available for subgrid, using default")
+		h.logger.Warn("No characters available for subgrid, using default")
 	}
 
 	const (
@@ -130,7 +130,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 	)
 
 	// Create grid manager with callbacks for overlay updates and subgrid navigation
-	h.Grid.Manager = domainGrid.NewManager(
+	h.grid.Manager = domainGrid.NewManager(
 		gridInstance,
 		subRows,
 		subCols,
@@ -138,38 +138,38 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 		// Update callback: handles grid redrawing and match filtering
 		func(forceRedraw bool) {
 			// Defensive check for grid manager
-			if h.Grid.Manager == nil {
-				h.Logger.Error("Grid manager is nil during update callback")
+			if h.grid.Manager == nil {
+				h.logger.Error("Grid manager is nil during update callback")
 
 				return
 			}
 
-			input := h.Grid.Manager.CurrentInput()
+			input := h.grid.Manager.CurrentInput()
 
 			// Force redraw only when exiting subgrid to restore main grid
 			if forceRedraw {
-				h.OverlayManager.Clear()
+				h.overlayManager.Clear()
 
-				gridErr := h.Renderer.DrawGrid(gridInstance, input)
+				gridErr := h.renderer.DrawGrid(gridInstance, input)
 				if gridErr != nil {
-					h.Logger.Error("Failed to redraw grid", zap.Error(gridErr))
+					h.logger.Error("Failed to redraw grid", zap.Error(gridErr))
 
 					return
 				}
 
-				h.OverlayManager.Show()
+				h.overlayManager.Show()
 			}
 
 			// Hide unmatched cells if configured and input exists
-			hideUnmatched := h.Config.Grid.HideUnmatched && len(input) > 0
-			h.Renderer.SetHideUnmatched(hideUnmatched)
-			h.Renderer.UpdateGridMatches(input)
+			hideUnmatched := h.config.Grid.HideUnmatched && len(input) > 0
+			h.renderer.SetHideUnmatched(hideUnmatched)
+			h.renderer.UpdateGridMatches(input)
 		},
 		// Subgrid callback: moves cursor and shows subgrid overlay
 		func(cell *domainGrid.Cell) {
 			// Defensive check for cell
 			if cell == nil {
-				h.Logger.Warn("Attempted to show subgrid for nil cell")
+				h.logger.Warn("Attempted to show subgrid for nil cell")
 
 				return
 			}
@@ -177,15 +177,15 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 			// Move mouse to center of cell before showing subgrid for better UX
 			ctx := context.Background()
 
-			moveCursorErr := h.ActionService.MoveCursorToPoint(ctx, cell.Center())
+			moveCursorErr := h.actionService.MoveCursorToPoint(ctx, cell.Center())
 			if moveCursorErr != nil {
-				h.Logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
+				h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
 			}
 
 			// Draw 3x3 subgrid inside selected cell
-			h.Renderer.ShowSubgrid(cell)
+			h.renderer.ShowSubgrid(cell)
 		},
-		h.Logger,
+		h.logger,
 	)
 }
 

@@ -2,9 +2,9 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/neru/internal/domain"
-	derrors "github.com/y3owk1n/neru/internal/errors"
-	"github.com/y3owk1n/neru/internal/infra/logger"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
 var gridCmd = &cobra.Command{

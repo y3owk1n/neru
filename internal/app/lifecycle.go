@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/getlantern/systray"
-	"github.com/y3owk1n/neru/internal/application/ports"
-	"github.com/y3owk1n/neru/internal/domain"
-	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
-	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
-	"github.com/y3owk1n/neru/internal/infra/bridge"
-	"github.com/y3owk1n/neru/internal/infra/electron"
-	"github.com/y3owk1n/neru/internal/infra/logger"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/electron"
+	"github.com/y3owk1n/neru/internal/core/infra/logger"
+	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
 )
@@ -35,7 +35,13 @@ const (
 func (a *App) Run() error {
 	a.logger.Info("Starting Neru")
 
-	a.ipcServer.Start()
+	err := a.ipcServer.Start(context.Background())
+	if err != nil {
+		a.logger.Error("Failed to start IPC server", zap.Error(err))
+
+		return err
+	}
+
 	a.logger.Info("IPC server started")
 
 	a.appWatcher.Start()
@@ -333,7 +339,7 @@ func (a *App) Cleanup() {
 
 	// Stop IPC server first to prevent new requests
 	if a.ipcServer != nil {
-		stopServerErr := a.ipcServer.Stop()
+		stopServerErr := a.ipcServer.Stop(context.Background())
 		if stopServerErr != nil {
 			a.logger.Error("Failed to stop IPC server", zap.Error(stopServerErr))
 		}

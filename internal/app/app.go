@@ -4,23 +4,99 @@ import (
 	"context"
 
 	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/components/grid"
+	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/app/modes"
-	"github.com/y3owk1n/neru/internal/application/services"
+	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/state"
-	derrors "github.com/y3owk1n/neru/internal/errors"
-	"github.com/y3owk1n/neru/internal/features/grid"
-	"github.com/y3owk1n/neru/internal/features/hints"
-	"github.com/y3owk1n/neru/internal/features/scroll"
-	infra "github.com/y3owk1n/neru/internal/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/infra/bridge"
-	"github.com/y3owk1n/neru/internal/infra/eventtap"
-	"github.com/y3owk1n/neru/internal/infra/ipc"
-	"github.com/y3owk1n/neru/internal/infra/metrics"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/state"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	infra "github.com/y3owk1n/neru/internal/core/infra/accessibility"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	eventtapadapter "github.com/y3owk1n/neru/internal/core/infra/eventtap"
+	ipcadapter "github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/infra/metrics"
+	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 	"go.uber.org/zap"
 )
+
+// Option is a functional option for configuring an App instance.
+type Option func(*App) error
+
+// WithConfig sets the application configuration.
+func WithConfig(cfg *config.Config) Option {
+	return func(a *App) error {
+		a.config = cfg
+
+		return nil
+	}
+}
+
+// WithConfigPath sets the configuration file path.
+func WithConfigPath(path string) Option {
+	return func(a *App) error {
+		a.ConfigPath = path
+
+		return nil
+	}
+}
+
+// WithLogger sets the application logger.
+func WithLogger(logger *zap.Logger) Option {
+	return func(a *App) error {
+		a.logger = logger
+
+		return nil
+	}
+}
+
+// WithEventTap sets the event tap implementation.
+func WithEventTap(eventTap ports.EventTapPort) Option {
+	return func(a *App) error {
+		a.eventTap = eventTap
+
+		return nil
+	}
+}
+
+// WithIPCServer sets the IPC server implementation.
+func WithIPCServer(ipcServer ports.IPCPort) Option {
+	return func(a *App) error {
+		a.ipcServer = ipcServer
+
+		return nil
+	}
+}
+
+// WithOverlayManager sets the overlay manager implementation.
+func WithOverlayManager(overlayManager OverlayManager) Option {
+	return func(a *App) error {
+		a.overlayManager = overlayManager
+
+		return nil
+	}
+}
+
+// WithWatcher sets the app watcher implementation.
+func WithWatcher(watcher Watcher) Option {
+	return func(a *App) error {
+		a.appWatcher = watcher
+
+		return nil
+	}
+}
+
+// WithHotkeyService sets the hotkey service implementation.
+func WithHotkeyService(hotkeyService HotkeyService) Option {
+	return func(a *App) error {
+		a.hotkeyManager = hotkeyService
+
+		return nil
+	}
+}
 
 // Mode is the current mode of the application.
 type Mode = domain.Mode
@@ -44,8 +120,8 @@ type App struct {
 	// Core services
 	overlayManager OverlayManager
 	hotkeyManager  HotkeyService
-	eventTap       EventTap
-	ipcServer      IPCServer
+	eventTap       ports.EventTapPort
+	ipcServer      ports.IPCPort
 	appWatcher     Watcher
 	metrics        metrics.Collector
 
@@ -74,27 +150,48 @@ type App struct {
 	ipcController *IPCController
 }
 
-// New creates a new application instance with default dependencies.
-func New(config *config.Config, configPath string) (*App, error) {
-	return newWithDeps(config, configPath, nil)
-}
+// New creates a new App instance with the provided options.
+// It applies sensible defaults and allows customization through functional options.
+func New(opts ...Option) (*App, error) {
+	app := &App{}
 
-// NewWithDeps creates a new application instance with injected dependencies.
-// This is primarily used for testing.
-func NewWithDeps(config *config.Config, configPath string, deps *Deps) (*App, error) {
-	return newWithDeps(config, configPath, deps)
-}
-
-// newWithDeps initializes the application with all dependencies, services, and components.
-// It orchestrates the creation of adapters, services, and UI components in the correct order,
-// ensuring proper dependency injection and error handling throughout the initialization process.
-func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error) {
-	logger, loggerErr := initializeLogger(cfg)
-	if loggerErr != nil {
-		return nil, loggerErr
+	// Apply all options
+	for _, opt := range opts {
+		err := opt(app)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	overlayManager := initializeOverlayManager(deps, logger)
+	// Set defaults for required fields if not provided
+	if app.config == nil {
+		app.config = config.DefaultConfig()
+	}
+
+	if app.logger == nil {
+		logger, err := initializeLogger(app.config)
+		if err != nil {
+			return nil, err
+		}
+
+		app.logger = logger
+	}
+
+	// Initialize the rest of the application
+	return initializeApp(app)
+}
+
+// initializeApp completes the initialization of an App instance that has been
+// partially configured with options. It sets up all the remaining dependencies,
+// services, and components.
+func initializeApp(app *App) (*App, error) {
+	cfg := app.config
+	logger := app.logger
+
+	// Initialize overlay manager if not provided
+	if app.overlayManager == nil {
+		app.overlayManager = initializeOverlayManager(logger)
+	}
 
 	// Initialize accessibility infrastructure early as it's required by adapters
 	accessibilityErr := initializeAccessibility(cfg, logger)
@@ -102,11 +199,20 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		return nil, accessibilityErr
 	}
 
-	appWatcher := initializeAppWatcher(deps, logger)
-	hotkeySvc := initializeHotkeyService(deps, logger)
+	// Initialize app watcher if not provided
+	if app.appWatcher == nil {
+		app.appWatcher = initializeAppWatcher(logger)
+	}
 
-	cfgService := config.NewService(cfg, configPath)
+	// Initialize hotkey service if not provided
+	if app.hotkeyManager == nil {
+		app.hotkeyManager = initializeHotkeyService(logger)
+	}
 
+	// Initialize config service
+	cfgService := config.NewService(cfg, app.ConfigPath)
+
+	// Initialize metrics
 	var metricsCollector metrics.Collector
 	if cfg.Metrics.Enabled {
 		metricsCollector = metrics.NewCollector()
@@ -114,8 +220,17 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		metricsCollector = &metrics.NoOpCollector{}
 	}
 
-	accAdapter, overlayAdapter := initializeAdapters(cfg, logger, overlayManager, metricsCollector)
+	app.metrics = metricsCollector
 
+	// Initialize adapters
+	accAdapter, overlayAdapter := initializeAdapters(
+		cfg,
+		logger,
+		app.overlayManager,
+		metricsCollector,
+	)
+
+	// Initialize services
 	hintService, gridService, actionService, scrollService, servicesErr := initializeServices(
 		cfg,
 		accAdapter,
@@ -126,46 +241,33 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		return nil, servicesErr
 	}
 
-	// Create app instance with basic dependencies
-	app := &App{
-		config:         cfg,
-		ConfigPath:     configPath,
-		logger:         logger,
-		appState:       state.NewAppState(),
-		cursorState:    state.NewCursorState(cfg.General.RestoreCursorPosition),
-		overlayManager: overlayManager,
-		hotkeyManager:  hotkeySvc,
-		appWatcher:     appWatcher,
-		metrics:        metricsCollector,
-
-		// Inject new services
-		hintService:   hintService,
-		gridService:   gridService,
-		actionService: actionService,
-		scrollService: scrollService,
-		configService: cfgService,
-
-		renderer: &ui.OverlayRenderer{}, // Will be properly initialized later
-	}
+	// Set remaining app fields
+	app.appState = state.NewAppState()
+	app.cursorState = state.NewCursorState(cfg.General.RestoreCursorPosition)
+	app.hintService = hintService
+	app.gridService = gridService
+	app.actionService = actionService
+	app.scrollService = scrollService
+	app.configService = cfgService
+	app.renderer = &ui.OverlayRenderer{} // Will be properly initialized later
 
 	// Create UI components for different interaction modes
-	hintsComponent, hintsComponentErr := createHintsComponent(cfg, logger, overlayManager)
+	hintsComponent, hintsComponentErr := createHintsComponent(cfg, logger, app.overlayManager)
 	if hintsComponentErr != nil {
 		return nil, hintsComponentErr
 	}
 
 	app.hintsComponent = hintsComponent
+	app.gridComponent = createGridComponent(cfg, logger, app.overlayManager)
 
-	app.gridComponent = createGridComponent(cfg, logger, overlayManager)
-
-	scrollComponent, scrollComponentErr := createScrollComponent(cfg, logger, overlayManager)
+	scrollComponent, scrollComponentErr := createScrollComponent(cfg, logger, app.overlayManager)
 	if scrollComponentErr != nil {
 		return nil, scrollComponentErr
 	}
 
 	app.scrollComponent = scrollComponent
 
-	actionComponent, actionComponentErr := createActionComponent(cfg, logger, overlayManager)
+	actionComponent, actionComponentErr := createActionComponent(cfg, logger, app.overlayManager)
 	if actionComponentErr != nil {
 		return nil, actionComponentErr
 	}
@@ -173,14 +275,17 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 	app.actionComponent = actionComponent
 
 	app.renderer = ui.NewOverlayRenderer(
-		overlayManager,
+		app.overlayManager,
 		app.hintsComponent.Style,
 		app.gridComponent.Style,
 	)
 
+	// Register overlays with overlay manager
+	app.registerOverlays()
+
 	// Initialize mode handler that coordinates different interaction modes
 	app.modes = modes.NewHandler(
-		cfg, logger, app.appState, app.cursorState, overlayManager, app.renderer,
+		cfg, logger, app.appState, app.cursorState, app.overlayManager, app.renderer,
 		app.hintService,
 		app.gridService,
 		app.actionService,
@@ -202,14 +307,13 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		app.modes,
 		logger,
 		metricsCollector,
-		configPath,
+		app.ConfigPath,
 	)
 
-	// Note: We pass app.HandleKeyPress which delegates to modes handler
-	if deps != nil && deps.EventTapFactory != nil {
-		app.eventTap = deps.EventTapFactory.New(app.HandleKeyPress, logger)
-	} else {
-		app.eventTap = eventtap.NewEventTap(app.HandleKeyPress, logger)
+	// Initialize event tap if not provided
+	if app.eventTap == nil {
+		tap := eventtapadapter.NewEventTap(app.HandleKeyPress, logger)
+		app.eventTap = eventtapadapter.NewAdapter(tap, logger)
 	}
 
 	if app.eventTap == nil {
@@ -218,8 +322,9 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 		app.configureEventTapHotkeys(cfg, logger)
 	}
 
-	if deps != nil && deps.IPCServerFactory != nil {
-		server, serverErr := deps.IPCServerFactory.New(app.ipcController.HandleCommand, logger)
+	// Initialize IPC server if not provided
+	if app.ipcServer == nil {
+		server, serverErr := ipcadapter.NewServer(app.ipcController.HandleCommand, logger)
 		if serverErr != nil {
 			return nil, derrors.Wrap(
 				serverErr,
@@ -228,18 +333,8 @@ func newWithDeps(cfg *config.Config, configPath string, deps *Deps) (*App, error
 			)
 		}
 
-		app.ipcServer = server
-	} else {
-		server, serverErr := ipc.NewServer(app.ipcController.HandleCommand, logger)
-		if serverErr != nil {
-			return nil, derrors.Wrap(serverErr, derrors.CodeIPCFailed, "failed to create IPC server")
-		}
-
-		app.ipcServer = server
+		app.ipcServer = ipcadapter.NewAdapter(server, logger)
 	}
-
-	// Register overlays with overlay manager
-	app.registerOverlays()
 
 	return app, nil
 }
@@ -352,7 +447,7 @@ func (a *App) GridContext() *grid.Context { return a.gridComponent.Context }
 func (a *App) ScrollContext() *scroll.Context { return a.scrollComponent.Context }
 
 // EventTap returns the event tap.
-func (a *App) EventTap() EventTap { return a.eventTap }
+func (a *App) EventTap() ports.EventTapPort { return a.eventTap }
 
 // CurrentMode returns the current mode.
 func (a *App) CurrentMode() Mode { return a.appState.CurrentMode() }
@@ -448,12 +543,18 @@ func (a *App) reconfigureAfterUpdate(configResult *config.LoadResult) {
 
 func (a *App) enableEventTap() {
 	if a.eventTap != nil {
-		a.eventTap.Enable()
+		err := a.eventTap.Enable(context.TODO())
+		if err != nil {
+			a.logger.Error("Failed to enable event tap", zap.Error(err))
+		}
 	}
 }
 
 func (a *App) disableEventTap() {
 	if a.eventTap != nil {
-		a.eventTap.Disable()
+		err := a.eventTap.Disable(context.TODO())
+		if err != nil {
+			a.logger.Error("Failed to disable event tap", zap.Error(err))
+		}
 	}
 }

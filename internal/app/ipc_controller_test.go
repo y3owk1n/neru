@@ -6,10 +6,10 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/state"
-	"github.com/y3owk1n/neru/internal/infra/ipc"
-	"github.com/y3owk1n/neru/internal/infra/metrics"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/state"
+	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/infra/metrics"
 	"go.uber.org/zap"
 )
 

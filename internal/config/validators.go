@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	derrors "github.com/y3owk1n/neru/internal/errors"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 // ValidateHints validates the hints configuration.

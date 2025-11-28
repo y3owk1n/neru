@@ -2,11 +2,11 @@ package modes
 
 import (
 	"github.com/y3owk1n/neru/internal/app/components"
-	"github.com/y3owk1n/neru/internal/application/services"
+	"github.com/y3owk1n/neru/internal/app/components/grid"
+	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/domain/state"
-	"github.com/y3owk1n/neru/internal/features/grid"
-	"github.com/y3owk1n/neru/internal/features/hints"
+	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -14,27 +14,26 @@ import (
 
 // Handler encapsulates mode-specific logic and dependencies.
 type Handler struct {
-	Config         *config.Config
-	Logger         *zap.Logger
-	AppState       *state.AppState
-	CursorState    *state.CursorState
-	OverlayManager overlay.ManagerInterface
-	Renderer       *ui.OverlayRenderer
+	config         *config.Config
+	logger         *zap.Logger
+	appState       *state.AppState
+	cursorState    *state.CursorState
+	overlayManager overlay.ManagerInterface
+	renderer       *ui.OverlayRenderer
 	// New Services
-	HintService   *services.HintService
-	GridService   *services.GridService
-	ActionService *services.ActionService
-	ScrollService *services.ScrollService
+	hintService   *services.HintService
+	gridService   *services.GridService
+	actionService *services.ActionService
+	scrollService *services.ScrollService
 
-	Hints  *components.HintsComponent
-	Grid   *components.GridComponent
-	Scroll *components.ScrollComponent
-	Action *components.ActionComponent
+	hints  *components.HintsComponent
+	grid   *components.GridComponent
+	scroll *components.ScrollComponent
+	action *components.ActionComponent
 
-	// Callbacks to App
-	EnableEventTap  func()
-	DisableEventTap func()
-	RefreshHotkeys  func()
+	enableEventTap  func()
+	disableEventTap func()
+	refreshHotkeys  func()
 }
 
 // NewHandler creates a new mode handler.
@@ -58,31 +57,31 @@ func NewHandler(
 	refreshHotkeys func(),
 ) *Handler {
 	return &Handler{
-		Config:          config,
-		Logger:          logger,
-		AppState:        appState,
-		CursorState:     cursorState,
-		OverlayManager:  overlayManager,
-		Renderer:        renderer,
-		HintService:     hintService,
-		GridService:     gridService,
-		ActionService:   actionService,
-		ScrollService:   scrollService,
-		Hints:           hintsComponent,
-		Grid:            grid,
-		Scroll:          scroll,
-		Action:          action,
-		EnableEventTap:  enableEventTap,
-		DisableEventTap: disableEventTap,
-		RefreshHotkeys:  refreshHotkeys,
+		config:          config,
+		logger:          logger,
+		appState:        appState,
+		cursorState:     cursorState,
+		overlayManager:  overlayManager,
+		renderer:        renderer,
+		hintService:     hintService,
+		gridService:     gridService,
+		actionService:   actionService,
+		scrollService:   scrollService,
+		hints:           hintsComponent,
+		grid:            grid,
+		scroll:          scroll,
+		action:          action,
+		enableEventTap:  enableEventTap,
+		disableEventTap: disableEventTap,
+		refreshHotkeys:  refreshHotkeys,
 	}
 }
 
 // UpdateConfig updates the handler with new configuration.
 func (h *Handler) UpdateConfig(config *config.Config) {
-	h.Config = config
-	if h.Renderer != nil {
-		h.Renderer.UpdateConfig(
+	h.config = config
+	if h.renderer != nil {
+		h.renderer.UpdateConfig(
 			hints.BuildStyle(config.Hints),
 			grid.BuildStyle(config.Grid),
 		)
