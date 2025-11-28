@@ -37,6 +37,10 @@ type InfoCache struct {
 
 // NewInfoCache initializes a new cache with the specified time-to-live duration.
 func NewInfoCache(ttl time.Duration, logger *zap.Logger) *InfoCache {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	cache := &InfoCache{
 		data:   make(map[uintptr]*CachedInfo, DefaultCacheSize),
 		ttl:    ttl,
