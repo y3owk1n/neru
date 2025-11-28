@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/application/ports"
-	"github.com/y3owk1n/neru/internal/domain"
-	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
-	"github.com/y3owk1n/neru/internal/features/hints"
+	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
+	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
 )
 
@@ -41,7 +41,7 @@ func (h *Handler) ActivateModeWithAction(mode domain.Mode, action *string) {
 		return
 	}
 
-	h.Logger.Warn("Unknown mode", zap.String("mode", domain.ModeString(mode)))
+	h.logger.Warn("Unknown mode", zap.String("mode", domain.ModeString(mode)))
 }
 
 // activateHintModeWithAction activates hint mode with optional action parameter.
@@ -55,7 +55,7 @@ func (h *Handler) activateHintModeWithAction(action *string) {
 func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *string) {
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameHints,
-		h.Config.Hints.Enabled,
+		h.config.Hints.Enabled,
 		domain.ActionMoveMouse,
 	)
 	if !ok {
@@ -67,7 +67,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	if !preserveActionMode {
 		// Handle mode transitions: if already in hints mode, do partial cleanup to preserve state;
 		// otherwise exit completely to reset all state
-		if h.AppState.CurrentMode() == domain.ModeHints {
+		if h.appState.CurrentMode() == domain.ModeHints {
 			h.performModeSpecificCleanup()
 			h.performCommonCleanup()
 			// Skip cursor restoration to maintain position during hint mode transitions
@@ -77,35 +77,35 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	}
 
 	if actionString == domain.UnknownAction {
-		h.Logger.Warn("Unknown action string, ignoring")
+		h.logger.Warn("Unknown action string, ignoring")
 
 		return
 	}
 
 	// Always resize overlay to the active screen (where mouse is) before collecting elements.
 	// This ensures proper positioning when switching between multiple displays.
-	h.OverlayManager.ResizeToActiveScreenSync()
+	h.overlayManager.ResizeToActiveScreenSync()
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing hints.
 	// This prevents scroll highlights from persisting when switching from scroll mode to hints mode.
-	h.OverlayManager.Clear()
-	h.AppState.SetHintOverlayNeedsRefresh(false)
+	h.overlayManager.Clear()
+	h.appState.SetHintOverlayNeedsRefresh(false)
 
 	// Use new HintService to show hints
-	context, cancel := context.WithTimeout(context.Background(), HintTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
 	defer cancel()
 
 	filter := ports.DefaultElementFilter()
 
 	// Populate filter with configuration
-	filter.IncludeMenubar = h.Config.Hints.IncludeMenubarHints
-	filter.AdditionalMenubarTargets = h.Config.Hints.AdditionalMenubarHintsTargets
-	filter.IncludeDock = h.Config.Hints.IncludeDockHints
-	filter.IncludeNotificationCenter = h.Config.Hints.IncludeNCHints
+	filter.IncludeMenubar = h.config.Hints.IncludeMenubarHints
+	filter.AdditionalMenubarTargets = h.config.Hints.AdditionalMenubarHintsTargets
+	filter.IncludeDock = h.config.Hints.IncludeDockHints
+	filter.IncludeNotificationCenter = h.config.Hints.IncludeNCHints
 
 	// Get hints from service
-	domainHints, domainHintsErr := h.HintService.ShowHints(context, filter)
+	domainHints, domainHintsErr := h.hintService.ShowHints(ctx, filter)
 	if domainHintsErr != nil {
-		h.Logger.Error(
+		h.logger.Error(
 			"Failed to show hints",
 			zap.Error(domainHintsErr),
 			zap.String("action", actionString),
@@ -115,7 +115,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	}
 
 	if len(domainHints) == 0 {
-		h.Logger.Warn("No hints generated for action", zap.String("action", actionString))
+		h.logger.Warn("No hints generated for action", zap.String("action", actionString))
 
 		return
 	}
@@ -124,11 +124,11 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	hintCollection := domainHint.NewCollection(domainHints)
 
 	// Initialize hint manager and router if not already set up
-	if h.Hints.Context.Manager() == nil {
-		manager := domainHint.NewManager(h.Logger)
+	if h.hints.Context.Manager() == nil {
+		manager := domainHint.NewManager(h.logger)
 		// Set callback to update overlay when hints are filtered
 		manager.SetUpdateCallback(func(filteredHints []*domainHint.Interface) {
-			if h.Hints.Overlay == nil {
+			if h.hints.Overlay == nil {
 				return
 			}
 			// Convert domain hints to overlay hints for rendering
@@ -142,30 +142,30 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 				)
 			}
 
-			drawHintsErr := h.OverlayManager.DrawHintsWithStyle(overlayHints, h.Hints.Style)
+			drawHintsErr := h.overlayManager.DrawHintsWithStyle(overlayHints, h.hints.Style)
 			if drawHintsErr != nil {
-				h.Logger.Error("Failed to update hints overlay", zap.Error(drawHintsErr))
+				h.logger.Error("Failed to update hints overlay", zap.Error(drawHintsErr))
 			}
 		})
-		h.Hints.Context.SetManager(manager)
+		h.hints.Context.SetManager(manager)
 	}
 
 	// Initialize domain router for hint navigation
-	if h.Hints.Context.Router() == nil {
-		h.Hints.Context.SetRouter(domainHint.NewRouter(h.Hints.Context.Manager(), h.Logger))
+	if h.hints.Context.Router() == nil {
+		h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
 	}
 
-	h.Hints.Context.SetHints(hintCollection)
+	h.hints.Context.SetHints(hintCollection)
 
 	// Store pending action if provided
-	h.Hints.Context.SetPendingAction(action)
+	h.hints.Context.SetPendingAction(action)
 
 	if action != nil {
-		h.Logger.Info("Hints mode activated with pending action", zap.String("action", *action))
+		h.logger.Info("Hints mode activated with pending action", zap.String("action", *action))
 	}
 
 	h.SetModeHints()
-	h.Logger.Info("Hints mode activated")
+	h.logger.Info("Hints mode activated")
 }
 
 // handleHintsActionKey handles action keys when in hints action mode.

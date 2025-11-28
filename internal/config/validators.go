@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	derrors "github.com/y3owk1n/neru/internal/errors"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 // ValidateHints validates the hints configuration.
@@ -114,29 +114,6 @@ func (c *Config) ValidateAppConfigs() error {
 			)
 		}
 
-		// Validate hotkey bindings
-		for key, value := range c.Hotkeys.Bindings {
-			if strings.TrimSpace(key) == "" {
-				return derrors.New(
-					derrors.CodeInvalidConfig,
-					"hotkeys.bindings contains an empty key",
-				)
-			}
-
-			validateErr = ValidateHotkey(key, "hotkeys.bindings")
-			if validateErr != nil {
-				return validateErr
-			}
-
-			if strings.TrimSpace(value) == "" {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"hotkeys.bindings[%s] cannot be empty",
-					key,
-				)
-			}
-		}
-
 		for _, role := range appConfig.AdditionalClickable {
 			if strings.TrimSpace(role) == "" {
 				return derrors.Newf(
@@ -145,6 +122,29 @@ func (c *Config) ValidateAppConfigs() error {
 					index,
 				)
 			}
+		}
+	}
+
+	// Validate hotkey bindings once, regardless of app configs
+	for key, value := range c.Hotkeys.Bindings {
+		if strings.TrimSpace(key) == "" {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"hotkeys.bindings contains an empty key",
+			)
+		}
+
+		validateErr = ValidateHotkey(key, "hotkeys.bindings")
+		if validateErr != nil {
+			return validateErr
+		}
+
+		if strings.TrimSpace(value) == "" {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"hotkeys.bindings[%s] cannot be empty",
+				key,
+			)
 		}
 	}
 

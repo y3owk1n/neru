@@ -31,15 +31,17 @@ All files must follow these basic formatting rules (enforced by `.editorconfig`)
 neru/
 ├── cmd/                    # Application entry points
 ├── internal/               # Private application code
-│   ├── adapter/           # Adapter layer (ports implementation)
 │   ├── app/               # Application orchestration
-│   ├── application/       # Application services and ports
+│   │   ├── components/    # UI components (overlays, etc.)
+│   │   ├── modes/         # Application modes (hints, grid, scroll)
+│   │   └── services/      # Business logic services
 │   ├── cli/               # CLI commands
 │   ├── config/            # Configuration management
-│   ├── domain/            # Domain models and logic
-│   ├── errors/            # Error definitions
-│   ├── features/          # Feature-specific code
-│   ├── infra/             # Infrastructure (bridge, IPC, etc.)
+│   ├── core/              # Core business logic and infrastructure
+│   │   ├── domain/        # Domain models and logic
+│   │   ├── errors/        # Error definitions
+│   │   ├── infra/         # Infrastructure (bridge, IPC, etc.)
+│   │   └── ports/         # Port interfaces
 │   └── ui/                # UI rendering
 ├── configs/               # Configuration examples
 ├── docs/                  # Documentation
@@ -113,7 +115,7 @@ import (
  "context"
  "fmt"
 
- "github.com/y3owk1n/neru/internal/domain"
+  "github.com/y3owk1n/neru/internal/core/domain"
  "go.uber.org/zap"
 )
 
@@ -248,7 +250,7 @@ func (s *Service) Get(id string) (item *Item, err error) {
 Use the custom error package for all errors:
 
 ```go
-import derrors "github.com/y3owk1n/neru/internal/errors"
+import derrors "github.com/y3owk1n/neru/internal/core/errors"
 
 // Create new error
 return derrors.New(derrors.CodeInvalidConfig, "config validation failed")
@@ -346,22 +348,17 @@ Imports are automatically organized by `goimports` into three groups:
 
 ```go
 import (
- "context"
- "fmt"
- "time"
+  "context"
+  "fmt"
 
- "github.com/BurntSushi/toml"
- "go.uber.org/zap"
-
- "github.com/y3owk1n/neru/internal/config"
- "github.com/y3owk1n/neru/internal/domain"
- derrors "github.com/y3owk1n/neru/internal/errors"
+  "github.com/y3owk1n/neru/internal/core/domain"
+  "go.uber.org/zap"
 )
 ```
 
 #### Import Aliases
 
-- Use aliases for packages with common names: `derrors` for `internal/errors`
+- Use aliases for packages with common names: `derrors` for `internal/core/errors`
 - Use descriptive aliases for adapter packages: `accessibilityAdapter`, `overlayAdapter`
 - Avoid single-letter aliases except for well-known packages
 
@@ -809,7 +806,7 @@ func BenchmarkService_Process(b *testing.B) {
 - Use actual system resources (Accessibility, IPC, file system)
 - Tagged with `//go:build integration`
 - Slower execution, run before releases
-- Cover adapter implementations, real component coordination
+- Cover infrastructure implementations, real component coordination
 
 #### When to Use Unit Tests
 

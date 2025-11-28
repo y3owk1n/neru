@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
-	derrors "github.com/y3owk1n/neru/internal/errors"
-	"github.com/y3owk1n/neru/internal/infra/logger"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"go.uber.org/zap"
 )
 

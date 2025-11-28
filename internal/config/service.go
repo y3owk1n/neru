@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	derrors "github.com/y3owk1n/neru/internal/errors"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 // Service manages application configuration with thread-safe access and change notifications.

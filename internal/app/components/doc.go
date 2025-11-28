@@ -1,7 +1,4 @@
-// Package components provides component wrapper types for Neru's feature modules.
-//
-// This package contains wrapper structs that encapsulate the various feature
-// components used throughout the Neru application. These wrappers provide a
-// unified interface for accessing and managing the different navigation modes
-// and their associated functionality.
+// Package components provides feature-specific implementations.
+// Each feature contains the UI components, context management, and overlay
+// logic specific to that navigation mode (hints, grid, scroll, action).
 package components

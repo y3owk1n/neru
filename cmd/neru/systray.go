@@ -5,7 +5,7 @@ import (
 	"github.com/getlantern/systray"
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/cli"
-	"github.com/y3owk1n/neru/internal/infra/logger"
+	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"go.uber.org/zap"
 )
 

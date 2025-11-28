@@ -4,14 +4,14 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/components/action"
+	"github.com/y3owk1n/neru/internal/app/components/grid"
+	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/domain"
-	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
-	derrors "github.com/y3owk1n/neru/internal/errors"
-	"github.com/y3owk1n/neru/internal/features/action"
-	"github.com/y3owk1n/neru/internal/features/grid"
-	"github.com/y3owk1n/neru/internal/features/hints"
-	"github.com/y3owk1n/neru/internal/features/scroll"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
 )
 

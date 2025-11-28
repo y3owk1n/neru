@@ -12,7 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 )
 
 var globalApp *app.App
@@ -59,7 +59,10 @@ func LaunchDaemon(configPath string) {
 		}()
 	}
 
-	app, appErr := app.New(configResult.Config, configResult.ConfigPath)
+	app, appErr := app.New(
+		app.WithConfig(configResult.Config),
+		app.WithConfigPath(configResult.ConfigPath),
+	)
 	if appErr != nil {
 		fmt.Fprintf(os.Stderr, "Error creating app: %v\\n", appErr)
 		os.Exit(1)

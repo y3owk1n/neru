@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/neru/internal/domain"
-	derrors "github.com/y3owk1n/neru/internal/errors"
-	"github.com/y3owk1n/neru/internal/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
 var doctorCmd = &cobra.Command{
@@ -25,11 +25,6 @@ var doctorCmd = &cobra.Command{
 			return derrors.Wrap(ipcResponseErr, derrors.CodeIPCFailed, "failed to check health")
 		}
 
-		if !ipcResponse.Success {
-			cmd.Println("⚠️  Some components are unhealthy:")
-		} else {
-			cmd.Println("✅ All systems operational")
-		}
 		if ipcResponse.Success {
 			cmd.Println("✅ All systems operational")
 

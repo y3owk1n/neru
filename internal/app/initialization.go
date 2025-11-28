@@ -1,22 +1,22 @@
 package app
 
 import (
+	"context"
 	"strings"
 
-	accessibilityAdapter "github.com/y3owk1n/neru/internal/adapter/accessibility"
-	overlayAdapter "github.com/y3owk1n/neru/internal/adapter/overlay"
-	"github.com/y3owk1n/neru/internal/application/ports"
-	"github.com/y3owk1n/neru/internal/application/services"
+	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/domain"
-	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
-	derrors "github.com/y3owk1n/neru/internal/errors"
-	"github.com/y3owk1n/neru/internal/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/infra/appwatcher"
-	"github.com/y3owk1n/neru/internal/infra/bridge"
-	"github.com/y3owk1n/neru/internal/infra/hotkeys"
-	"github.com/y3owk1n/neru/internal/infra/logger"
-	"github.com/y3owk1n/neru/internal/infra/metrics"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	accessibilityAdapter "github.com/y3owk1n/neru/internal/core/infra/accessibility"
+	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
+	"github.com/y3owk1n/neru/internal/core/infra/logger"
+	"github.com/y3owk1n/neru/internal/core/infra/metrics"
+	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
 )
@@ -44,18 +44,14 @@ func initializeLogger(config *config.Config) (*zap.Logger, error) {
 }
 
 // initializeOverlayManager creates and initializes the overlay manager.
-func initializeOverlayManager(deps *Deps, logger *zap.Logger) OverlayManager {
-	if deps != nil && deps.OverlayManagerFactory != nil {
-		return deps.OverlayManagerFactory.New(logger)
-	}
-
+func initializeOverlayManager(logger *zap.Logger) OverlayManager {
 	return overlay.Init(logger)
 }
 
 // initializeAccessibility checks and configures accessibility permissions and settings.
 func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 	if cfg.General.AccessibilityCheckOnStart {
-		if !accessibility.CheckAccessibilityPermissions() {
+		if !accessibilityAdapter.CheckAccessibilityPermissions() {
 			logger.Warn(
 				"Accessibility permissions not granted. Please grant permissions in System Settings.",
 			)
@@ -77,29 +73,22 @@ func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 		logger.Info("Applying clickable roles",
 			zap.Int("count", len(cfg.Hints.ClickableRoles)),
 			zap.Strings("roles", cfg.Hints.ClickableRoles))
-		accessibility.SetClickableRoles(cfg.Hints.ClickableRoles)
+		accessibilityAdapter.SetClickableRoles(cfg.Hints.ClickableRoles)
 	}
 
 	return nil
 }
 
-// initializeHotkeyService creates the hotkey service, using the provided dependency or creating a new one.
-func initializeHotkeyService(deps *Deps, logger *zap.Logger) HotkeyService {
-	if deps != nil && deps.Hotkeys != nil {
-		return deps.Hotkeys
-	}
-
+// initializeHotkeyService creates the hotkey service.
+func initializeHotkeyService(logger *zap.Logger) HotkeyService {
 	hotkeyManager := hotkeys.NewManager(logger)
 	hotkeys.SetGlobalManager(hotkeyManager)
 
 	return hotkeyManager
 }
 
-func initializeAppWatcher(deps *Deps, logger *zap.Logger) Watcher {
-	if deps != nil && deps.WatcherFactory != nil {
-		return deps.WatcherFactory.New(logger)
-	}
-
+// initializeAppWatcher creates the app watcher.
+func initializeAppWatcher(logger *zap.Logger) Watcher {
 	return appwatcher.NewWatcher(logger)
 }
 
@@ -132,9 +121,9 @@ func initializeAdapters(
 	// Create overlay adapter for UI rendering
 	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)
 	// Wrap with metrics decorator to track rendering performance
-	overlayAdapter := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
+	overlayPort := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
 
-	return accAdapter, overlayAdapter
+	return accAdapter, overlayPort
 }
 
 // initializeServices creates and initializes the domain services.
@@ -215,7 +204,12 @@ func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger
 	}
 
 	a.eventTap.SetHotkeys(keys)
-	a.eventTap.Disable()
+
+	// Use Background context as this is a synchronous cleanup operation
+	err := a.eventTap.Disable(context.Background())
+	if err != nil {
+		logger.Warn("Failed to disable event tap after setting hotkeys", zap.Error(err))
+	}
 }
 
 // registerOverlays registers all component overlays with the overlay manager.

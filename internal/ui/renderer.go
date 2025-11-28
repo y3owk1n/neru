@@ -1,9 +1,9 @@
 package ui
 
 import (
-	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
-	"github.com/y3owk1n/neru/internal/features/grid"
-	"github.com/y3owk1n/neru/internal/features/hints"
+	"github.com/y3owk1n/neru/internal/app/components/grid"
+	"github.com/y3owk1n/neru/internal/app/components/hints"
+	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 

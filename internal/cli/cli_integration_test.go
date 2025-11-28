@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/infra/ipc"
-	"github.com/y3owk1n/neru/internal/infra/logger"
+	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
 // TestCLIIntegration tests CLI commands that communicate with IPC

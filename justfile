@@ -87,7 +87,7 @@ fmt-check:
         if [ $RESULT -ne 0 ] && [ -n "$FILTERED" ]; then
             EXIT_CODE=1
         fi
-    done < <(find internal/infra/bridge \( -name "*.h" -o -name "*.m" \) -print0)
+    done < <(find internal/core/infra/bridge \( -name "*.h" -o -name "*.m" \) -print0)
     if [ $EXIT_CODE -ne 0 ]; then
         echo "Some Objective-C files are not properly formatted. Run 'just fmt' to fix them."
         exit 1
@@ -111,8 +111,9 @@ clean:
 fmt:
     @echo "Formatting Go files..."
     golangci-lint fmt
+    golangci-lint run --fix
     @echo "Formatting Objective-C files..."
-    @find internal/infra/bridge \( -name "*.h" -o -name "*.m" \) -exec clang-format -i --style=file --assume-filename=file.m {} \;
+    @find internal/core/infra/bridge \( -name "*.h" -o -name "*.m" \) -exec clang-format -i --style=file --assume-filename=file.m {} \;
     @echo "✓ Format complete"
 
 # Lint code

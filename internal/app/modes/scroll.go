@@ -4,36 +4,36 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/y3owk1n/neru/internal/application/services"
-	"github.com/y3owk1n/neru/internal/features/scroll"
+	"github.com/y3owk1n/neru/internal/app/components/scroll"
+	"github.com/y3owk1n/neru/internal/app/services"
 	"go.uber.org/zap"
 )
 
 // StartInteractiveScroll initiates interactive scrolling mode with visual feedback.
 func (h *Handler) StartInteractiveScroll() {
-	h.CursorState.SkipNextRestore()
+	h.cursorState.SkipNextRestore()
 	// Reset scroll context before exiting current mode to ensure clean state transition
-	h.Scroll.Context.SetIsActive(false)
-	h.Scroll.Context.SetLastKey("")
+	h.scroll.Context.SetIsActive(false)
+	h.scroll.Context.SetLastKey("")
 	h.ExitMode()
 
 	// Enable event tap early to capture key presses immediately
-	if h.EnableEventTap != nil {
-		h.EnableEventTap()
+	if h.enableEventTap != nil {
+		h.enableEventTap()
 	}
 
 	// Set scroll context active before showing overlay
-	h.Scroll.Context.SetIsActive(true)
+	h.scroll.Context.SetIsActive(true)
 
 	ctx := context.Background()
 
-	showScrollOverlayErr := h.ScrollService.ShowScrollOverlay(ctx)
+	showScrollOverlayErr := h.scrollService.ShowScrollOverlay(ctx)
 	if showScrollOverlayErr != nil {
-		h.Logger.Error("Failed to show scroll overlay", zap.Error(showScrollOverlayErr))
+		h.logger.Error("Failed to show scroll overlay", zap.Error(showScrollOverlayErr))
 	}
 
-	h.Logger.Info("Interactive scroll activated")
-	h.Logger.Info("Use j/k to scroll, g/G for top/bottom, Esc to exit")
+	h.logger.Info("Interactive scroll activated")
+	h.logger.Info("Use j/k to scroll, g/G for top/bottom, Esc to exit")
 }
 
 // handleGenericScrollKey handles scroll keys in a generic way.
@@ -47,7 +47,7 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 	}
 
 	bytes := []byte(key)
-	h.Logger.Info("Scroll key pressed",
+	h.logger.Info("Scroll key pressed",
 		zap.String("key", key),
 		zap.Int("len", len(key)),
 		zap.String("hex", fmt.Sprintf("%#v", key)),
@@ -63,7 +63,7 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 		}
 	}
 
-	h.Logger.Debug(
+	h.logger.Debug(
 		"Entering switch statement",
 		zap.String("key", key),
 		zap.String("keyHex", fmt.Sprintf("%#v", key)),
@@ -75,9 +75,9 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 		handleScrollErr = h.handleDirectionalScrollKey(key, *lastScrollKey)
 	case "g":
 		// Handle 'g' key sequences: 'g' starts sequence, 'gg' scrolls to top
-		operation, newLast, ok := scroll.ParseKey(key, *lastScrollKey, h.Logger)
+		operation, newLast, ok := scroll.ParseKey(key, *lastScrollKey, h.logger)
 		if !ok {
-			h.Logger.Info("First g pressed, press again for top")
+			h.logger.Info("First g pressed, press again for top")
 
 			*lastScrollKey = newLast
 
@@ -86,7 +86,7 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 
 		if operation == "start_g" {
 			// First 'g' pressed, wait for second 'g'
-			h.Logger.Info("First g pressed, press again for top")
+			h.logger.Info("First g pressed, press again for top")
 
 			*lastScrollKey = newLast
 
@@ -94,8 +94,8 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 		}
 
 		if operation == "top" {
-			h.Logger.Info("gg detected - scroll to top")
-			handleScrollErr = h.ScrollService.Scroll(
+			h.logger.Info("gg detected - scroll to top")
+			handleScrollErr = h.scrollService.Scroll(
 				ctx,
 				services.ScrollDirectionUp,
 				services.ScrollAmountEnd,
@@ -106,10 +106,10 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 		}
 	case "G":
 		// Handle 'G' key: scroll to bottom
-		operation, _, ok := scroll.ParseKey(key, *lastScrollKey, h.Logger)
+		operation, _, ok := scroll.ParseKey(key, *lastScrollKey, h.logger)
 		if ok && operation == "bottom" {
-			h.Logger.Info("G key detected - scroll to bottom")
-			handleScrollErr = h.ScrollService.Scroll(
+			h.logger.Info("G key detected - scroll to bottom")
+			handleScrollErr = h.scrollService.Scroll(
 				ctx,
 				services.ScrollDirectionDown,
 				services.ScrollAmountEnd,
@@ -118,7 +118,7 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 		}
 	default:
 		// Reset state for unrecognized keys
-		h.Logger.Debug("Ignoring non-scroll key", zap.String("key", key))
+		h.logger.Debug("Ignoring non-scroll key", zap.String("key", key))
 
 		*lastScrollKey = ""
 
@@ -127,17 +127,17 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 
 done:
 	if handleScrollErr != nil {
-		h.Logger.Error("Scroll failed", zap.Error(handleScrollErr))
+		h.logger.Error("Scroll failed", zap.Error(handleScrollErr))
 	}
 }
 
 // handleControlScrollKey handles control character scroll keys.
 func (h *Handler) handleControlScrollKey(key string, lastKey string, lastScrollKey *string) bool {
 	byteVal := key[0]
-	h.Logger.Info("Checking control char", zap.Uint8("byte", byteVal))
+	h.logger.Info("Checking control char", zap.Uint8("byte", byteVal))
 	// Only handle Ctrl+D / Ctrl+U here; let Tab (9) and other keys fall through to switch
 	if byteVal == 4 || byteVal == 21 {
-		operation, _, ok := scroll.ParseKey(key, lastKey, h.Logger)
+		operation, _, ok := scroll.ParseKey(key, lastKey, h.logger)
 		if ok {
 			*lastScrollKey = ""
 			ctx := context.Background()
@@ -146,19 +146,23 @@ func (h *Handler) handleControlScrollKey(key string, lastKey string, lastScrollK
 
 			switch operation {
 			case "half_down":
-				h.Logger.Info("Ctrl+D detected - half page down")
-				handleControlScrollKeyErr = h.ScrollService.Scroll(
+				h.logger.Info("Ctrl+D detected - half page down")
+				handleControlScrollKeyErr = h.scrollService.Scroll(
 					ctx,
 					services.ScrollDirectionDown,
 					services.ScrollAmountHalfPage,
 				)
 			case "half_up":
-				h.Logger.Info("Ctrl+U detected - half page up")
-				handleControlScrollKeyErr = h.ScrollService.Scroll(
+				h.logger.Info("Ctrl+U detected - half page up")
+				handleControlScrollKeyErr = h.scrollService.Scroll(
 					ctx,
 					services.ScrollDirectionUp,
 					services.ScrollAmountHalfPage,
 				)
+			}
+
+			if handleControlScrollKeyErr != nil {
+				h.logger.Error("Control scroll failed", zap.Error(handleControlScrollKeyErr))
 			}
 
 			return handleControlScrollKeyErr == nil
@@ -170,7 +174,7 @@ func (h *Handler) handleControlScrollKey(key string, lastKey string, lastScrollK
 
 // handleDirectionalScrollKey handles directional scroll keys (j, k, h, l).
 func (h *Handler) handleDirectionalScrollKey(key string, lastKey string) error {
-	operation, _, ok := scroll.ParseKey(key, lastKey, h.Logger)
+	operation, _, ok := scroll.ParseKey(key, lastKey, h.logger)
 	if !ok {
 		return nil
 	}
@@ -180,7 +184,7 @@ func (h *Handler) handleDirectionalScrollKey(key string, lastKey string) error {
 	switch key {
 	case "j":
 		if operation == "down" {
-			return h.ScrollService.Scroll(
+			return h.scrollService.Scroll(
 				ctx,
 				services.ScrollDirectionDown,
 				services.ScrollAmountChar,
@@ -188,7 +192,7 @@ func (h *Handler) handleDirectionalScrollKey(key string, lastKey string) error {
 		}
 	case "k":
 		if operation == "up" {
-			return h.ScrollService.Scroll(
+			return h.scrollService.Scroll(
 				ctx,
 				services.ScrollDirectionUp,
 				services.ScrollAmountChar,
@@ -196,7 +200,7 @@ func (h *Handler) handleDirectionalScrollKey(key string, lastKey string) error {
 		}
 	case "h":
 		if operation == "left" {
-			return h.ScrollService.Scroll(
+			return h.scrollService.Scroll(
 				ctx,
 				services.ScrollDirectionLeft,
 				services.ScrollAmountChar,
@@ -204,7 +208,7 @@ func (h *Handler) handleDirectionalScrollKey(key string, lastKey string) error {
 		}
 	case "l":
 		if operation == "right" {
-			return h.ScrollService.Scroll(
+			return h.scrollService.Scroll(
 				ctx,
 				services.ScrollDirectionRight,
 				services.ScrollAmountChar,

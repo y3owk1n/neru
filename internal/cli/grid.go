@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/neru/internal/domain"
-	derrors "github.com/y3owk1n/neru/internal/errors"
-	"github.com/y3owk1n/neru/internal/infra/logger"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
 var gridCmd = &cobra.Command{
@@ -23,8 +25,9 @@ var gridCmd = &cobra.Command{
 			if !domain.IsKnownActionName(domain.ActionName(action)) {
 				return derrors.Newf(
 					derrors.CodeInvalidInput,
-					"invalid action: %s. Supported actions: left_click, right_click, middle_click, mouse_up, mouse_down",
+					"invalid action: %s. Supported actions: %s",
 					action,
+					domain.SupportedActionsString(),
 				)
 			}
 		}
@@ -41,6 +44,11 @@ var gridCmd = &cobra.Command{
 
 func init() {
 	gridCmd.Flags().
-		StringP("action", "a", "", "Action to perform on grid selection (left_click, right_click, middle_click, mouse_up, mouse_down)")
+		StringP(
+			"action",
+			"a",
+			"",
+			fmt.Sprintf("Action to perform on grid selection (%s)", domain.SupportedActionsString()),
+		)
 	rootCmd.AddCommand(gridCmd)
 }

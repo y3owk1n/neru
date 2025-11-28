@@ -2,7 +2,7 @@ package overlay
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../../infra/bridge/overlay.h"
+#include "../../core/infra/bridge/overlay.h"
 */
 import "C"
 
@@ -10,12 +10,12 @@ import (
 	"sync"
 	"unsafe"
 
-	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
-	derrors "github.com/y3owk1n/neru/internal/errors"
-	"github.com/y3owk1n/neru/internal/features/action"
-	"github.com/y3owk1n/neru/internal/features/grid"
-	"github.com/y3owk1n/neru/internal/features/hints"
-	"github.com/y3owk1n/neru/internal/features/scroll"
+	"github.com/y3owk1n/neru/internal/app/components/action"
+	"github.com/y3owk1n/neru/internal/app/components/grid"
+	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/scroll"
+	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
 )
 
