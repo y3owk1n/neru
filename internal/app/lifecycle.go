@@ -49,12 +49,21 @@ func (a *App) Run() error {
 	a.logger.Info("Neru is running")
 
 	if a.config.Grid.EnableGC {
+		ctx, cancel := context.WithCancel(context.Background())
+		a.gcCancel = cancel
+
 		go func() {
 			ticker := time.NewTicker(GCTickerInterval)
 			defer ticker.Stop()
 
-			for range ticker.C {
-				runtime.GC()
+			for {
+				select {
+				case <-ticker.C:
+					a.logger.Debug("Running periodic GC")
+					runtime.GC()
+				case <-ctx.Done():
+					return
+				}
 			}
 		}()
 	}
@@ -314,6 +323,11 @@ func (a *App) waitForShutdown() error {
 // Cleanup cleans up resources.
 func (a *App) Cleanup() {
 	a.logger.Info("Cleaning up")
+
+	// Cancel background GC if running
+	if a.gcCancel != nil {
+		a.gcCancel()
+	}
 
 	a.ExitMode()
 
