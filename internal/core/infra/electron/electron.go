@@ -28,6 +28,11 @@ var (
 // UI elements correctly to the macOS accessibility API.
 func EnsureElectronAccessibility(bundleID string, logger *zap.Logger) bool {
 	app := accessibility.ApplicationByBundleID(bundleID)
+	if app == nil {
+		logger.Debug("Application not found for bundle ID", zap.String("bundle_id", bundleID))
+
+		return false
+	}
 
 	info, infoErr := app.Info()
 	if infoErr != nil {
@@ -80,6 +85,11 @@ func ensureAccessibility(
 	logger *zap.Logger,
 ) bool {
 	app := accessibility.ApplicationByBundleID(bundleID)
+	if app == nil {
+		logger.Debug("Application not found for bundle ID", zap.String("bundle_id", bundleID))
+
+		return false
+	}
 
 	info, infoErr := app.Info()
 	if infoErr != nil {
