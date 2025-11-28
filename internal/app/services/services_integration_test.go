@@ -33,7 +33,7 @@ func TestHintServiceIntegration(t *testing.T) {
 	cfg.General.AccessibilityCheckOnStart = false
 
 	// Initialize real adapters like the app does
-	accAdapter, overlayAdapter := initializeRealAdapters(t, cfg, logger)
+	accAdapter, overlay := initializeRealAdapters(t, cfg, logger)
 
 	// Create hint generator
 	hintGen, err := hint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
@@ -42,7 +42,7 @@ func TestHintServiceIntegration(t *testing.T) {
 	}
 
 	// Create hint service
-	hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, logger)
+	hintService := services.NewHintService(accAdapter, overlay, hintGen, logger)
 
 	ctx := context.Background()
 
@@ -101,9 +101,9 @@ func TestGridServiceIntegration(t *testing.T) {
 	cfg.Grid.Enabled = true
 	cfg.General.AccessibilityCheckOnStart = false
 
-	_, overlayAdapter := initializeRealAdapters(t, cfg, logger)
+	_, overlay := initializeRealAdapters(t, cfg, logger)
 
-	gridService := services.NewGridService(overlayAdapter, logger)
+	gridService := services.NewGridService(overlay, logger)
 
 	ctx := context.Background()
 
@@ -133,9 +133,9 @@ func TestScrollServiceIntegration(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.General.AccessibilityCheckOnStart = false
 
-	accAdapter, overlayAdapter := initializeRealAdapters(t, cfg, logger)
+	accAdapter, overlay := initializeRealAdapters(t, cfg, logger)
 
-	scrollService := services.NewScrollService(accAdapter, overlayAdapter, cfg.Scroll, logger)
+	scrollService := services.NewScrollService(accAdapter, overlay, cfg.Scroll, logger)
 
 	ctx := context.Background()
 
@@ -186,7 +186,7 @@ func initializeRealAdapters(
 	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)
 
 	// Wrap with metrics decorator
-	overlayAdapter := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
+	overlay := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
 
-	return accAdapter, overlayAdapter
+	return accAdapter, overlay
 }
