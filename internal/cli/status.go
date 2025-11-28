@@ -6,8 +6,6 @@ import (
 	"github.com/spf13/cobra"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	"go.uber.org/zap"
 )
 
 var statusCmd = &cobra.Command{
@@ -18,7 +16,6 @@ var statusCmd = &cobra.Command{
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		logger.Debug("Fetching status")
 		ipcClient := ipc.NewClient()
 		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: "status"})
 		if ipcResponseErr != nil {
@@ -74,8 +71,6 @@ var statusCmd = &cobra.Command{
 				} else {
 					jsonData, jsonDataErr := json.MarshalIndent(ipcResponse.Data, "  ", "  ")
 					if jsonDataErr != nil {
-						logger.Error("Failed to marshal status data to JSON", zap.Error(jsonDataErr))
-
 						return derrors.Wrap(jsonDataErr, derrors.CodeSerializationFailed, "failed to marshal status data")
 					}
 					cmd.Println(string(jsonData))
@@ -84,8 +79,6 @@ var statusCmd = &cobra.Command{
 		} else {
 			jsonData, jsonDataErr := json.MarshalIndent(ipcResponse.Data, "  ", "  ")
 			if jsonDataErr != nil {
-				logger.Error("Failed to marshal status data to JSON", zap.Error(jsonDataErr))
-
 				return derrors.Wrap(jsonDataErr, derrors.CodeSerializationFailed, "failed to marshal status data")
 			}
 			cmd.Println(string(jsonData))

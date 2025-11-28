@@ -5,7 +5,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"go.uber.org/zap"
 )
 
@@ -33,14 +32,20 @@ type InfoCache struct {
 	ttl     time.Duration
 	stopCh  chan struct{}
 	stopped bool
+	logger  *zap.Logger
 }
 
 // NewInfoCache initializes a new cache with the specified time-to-live duration.
-func NewInfoCache(ttl time.Duration) *InfoCache {
+func NewInfoCache(ttl time.Duration, logger *zap.Logger) *InfoCache {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	cache := &InfoCache{
 		data:   make(map[uintptr]*CachedInfo, DefaultCacheSize),
 		ttl:    ttl,
 		stopCh: make(chan struct{}),
+		logger: logger,
 	}
 
 	// Start cleanup goroutine
@@ -82,7 +87,7 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 		expiresAt: expiresAt,
 	}
 
-	logger.Debug("Caching element info",
+	c.logger.Debug("Caching element info",
 		zap.Uintptr("element_ptr", key),
 		zap.String("role", info.Role()),
 		zap.String("title", info.Title()),
@@ -104,7 +109,7 @@ func (c *InfoCache) Clear() {
 
 	c.data = make(map[uintptr]*CachedInfo, DefaultCacheSize)
 
-	logger.Debug("Cache cleared")
+	c.logger.Debug("Cache cleared")
 }
 
 // Stop terminates the cache cleanup goroutine and releases resources.
@@ -119,7 +124,7 @@ func (c *InfoCache) Stop() {
 	close(c.stopCh)
 	c.stopped = true
 
-	logger.Debug("Cache stopped")
+	c.logger.Debug("Cache stopped")
 }
 
 // cleanupLoop runs a periodic cleanup process to remove expired cache entries.
@@ -132,7 +137,7 @@ func (c *InfoCache) cleanupLoop() {
 		case <-ticker.C:
 			c.cleanup()
 		case <-c.stopCh:
-			logger.Debug("Cache cleanup loop stopped")
+			c.logger.Debug("Cache cleanup loop stopped")
 
 			return
 		}
@@ -164,7 +169,7 @@ func (c *InfoCache) cleanup() {
 	}
 
 	if len(toDelete) > 0 {
-		logger.Debug("Cache cleanup completed",
+		c.logger.Debug("Cache cleanup completed",
 			zap.Int("removed_entries", len(toDelete)),
 			zap.Int("remaining_entries", len(c.data)))
 	}

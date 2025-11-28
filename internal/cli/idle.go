@@ -2,7 +2,6 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
 var idleCmd = &cobra.Command{
@@ -12,10 +11,8 @@ var idleCmd = &cobra.Command{
 	PreRunE: func(_ *cobra.Command, _ []string) error {
 		return requiresRunningInstance()
 	},
-	RunE: func(_ *cobra.Command, args []string) error {
-		logger.Debug("Setting mode to idle")
-
-		return sendCommand("idle", args)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return sendCommand(cmd, "idle", args)
 	},
 }
 

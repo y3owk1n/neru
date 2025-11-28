@@ -6,7 +6,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"go.uber.org/zap"
 )
 
@@ -27,8 +26,17 @@ var (
 // EnsureElectronAccessibility enables AXManualAccessibility for Electron-based applications.
 // This allows Neru to properly interact with Electron applications that don't expose their
 // UI elements correctly to the macOS accessibility API.
-func EnsureElectronAccessibility(bundleID string) bool {
+func EnsureElectronAccessibility(bundleID string, logger *zap.Logger) bool {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	app := accessibility.ApplicationByBundleID(bundleID)
+	if app == nil {
+		logger.Debug("Application not found for bundle ID", zap.String("bundle_id", bundleID))
+
+		return false
+	}
 
 	info, infoErr := app.Info()
 	if infoErr != nil {
@@ -78,8 +86,18 @@ func ensureAccessibility(
 	bundleID string,
 	enabledPIDs map[int]struct{},
 	pidsMu *sync.Mutex,
+	logger *zap.Logger,
 ) bool {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	app := accessibility.ApplicationByBundleID(bundleID)
+	if app == nil {
+		logger.Debug("Application not found for bundle ID", zap.String("bundle_id", bundleID))
+
+		return false
+	}
 
 	info, infoErr := app.Info()
 	if infoErr != nil {
@@ -123,14 +141,14 @@ func ensureAccessibility(
 
 // EnsureChromiumAccessibility enables AXEnhancedUserInterface for Chromium-based applications.
 // This improves accessibility support for Chromium browsers and applications.
-func EnsureChromiumAccessibility(bundleID string) bool {
-	return ensureAccessibility(bundleID, chromiumEnabledPIDs, &chromiumPIDsMu)
+func EnsureChromiumAccessibility(bundleID string, logger *zap.Logger) bool {
+	return ensureAccessibility(bundleID, chromiumEnabledPIDs, &chromiumPIDsMu, logger)
 }
 
 // EnsureFirefoxAccessibility enables AXEnhancedUserInterface for Firefox-based applications.
 // This improves accessibility support for Firefox browsers and applications.
-func EnsureFirefoxAccessibility(bundleID string) bool {
-	return ensureAccessibility(bundleID, firefoxEnabledPIDs, &firefoxPIDsMu)
+func EnsureFirefoxAccessibility(bundleID string, logger *zap.Logger) bool {
+	return ensureAccessibility(bundleID, firefoxEnabledPIDs, &firefoxPIDsMu, logger)
 }
 
 // KnownChromiumBundles contains known Chromium-based application bundle identifiers.

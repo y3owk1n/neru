@@ -73,7 +73,7 @@ func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 		logger.Info("Applying clickable roles",
 			zap.Int("count", len(cfg.Hints.ClickableRoles)),
 			zap.Strings("roles", cfg.Hints.ClickableRoles))
-		accessibilityAdapter.SetClickableRoles(cfg.Hints.ClickableRoles)
+		accessibilityAdapter.SetClickableRoles(cfg.Hints.ClickableRoles, logger)
 	}
 
 	return nil
@@ -103,7 +103,7 @@ func initializeAdapters(
 	clickableRoles := cfg.Hints.ClickableRoles
 
 	// Create infrastructure client
-	axClient := accessibilityAdapter.NewInfraAXClient()
+	axClient := accessibilityAdapter.NewInfraAXClient(logger)
 
 	// Create base accessibility adapter with core functionality
 	baseAccessibilityAdapter := accessibilityAdapter.NewAdapter(

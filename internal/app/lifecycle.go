@@ -238,15 +238,15 @@ func (a *App) handleAdditionalAccessibility(bundleID string) {
 	config := a.config.Hints.AdditionalAXSupport
 
 	if electron.ShouldEnableElectronSupport(bundleID, config.AdditionalElectronBundles) {
-		electron.EnsureElectronAccessibility(bundleID)
+		electron.EnsureElectronAccessibility(bundleID, a.logger)
 	}
 
 	if electron.ShouldEnableChromiumSupport(bundleID, config.AdditionalChromiumBundles) {
-		electron.EnsureChromiumAccessibility(bundleID)
+		electron.EnsureChromiumAccessibility(bundleID, a.logger)
 	}
 
 	if electron.ShouldEnableFirefoxSupport(bundleID, config.AdditionalFirefoxBundles) {
-		electron.EnsureFirefoxAccessibility(bundleID)
+		electron.EnsureFirefoxAccessibility(bundleID, a.logger)
 	}
 }
 
