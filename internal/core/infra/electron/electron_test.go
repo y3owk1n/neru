@@ -37,11 +37,6 @@ func TestIsLikelyElectronBundle(t *testing.T) {
 			bundleID: "  ",
 			want:     false,
 		},
-		{
-			name:     "whitespace bundle",
-			bundleID: "  ",
-			want:     false,
-		},
 	}
 
 	for _, testCase := range tests {
