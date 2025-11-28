@@ -229,18 +229,20 @@ Neru has a comprehensive test suite with clear separation between unit tests and
 
 ### Test Organization
 
-| Test Type             | File Pattern              | Purpose                   | Command                 | Coverage                                           |
-| --------------------- | ------------------------- | ------------------------- | ----------------------- | -------------------------------------------------- |
-| **Unit Tests**        | `*_test.go`               | Business logic with mocks | `just test`             | 50+ tests covering algorithms, isolated components |
-| **Integration Tests** | `*_integration_test.go`  | Real system interactions  | `just test-integration` | 15+ tests covering macOS APIs, IPC, file operations |
-| **Benchmarks**        | `*_bench_test.go`         | Performance testing      | `just bench`            | Performance benchmarks for critical paths         |
+| Test Type                  | File Pattern                   | Purpose                   | Command                 | Coverage                                           |
+| ------------------------ | ------------------------------ | ------------------------- | ----------------------- | -------------------------------------------------- |
+| **Unit Tests**           | `*_test.go`                    | Business logic with mocks | `just test`             | 50+ tests covering algorithms, isolated components |
+| **Integration Tests**    | `*_integration_test.go`       | Real system interactions  | `just test-integration` | 15+ tests covering macOS APIs, IPC, file operations |
+| **Unit Benchmarks**      | `*_bench_test.go`              | Performance testing      | `just bench`            | Performance benchmarks for critical paths         |
+| **Integration Benchmarks**| `*_bench_integration_test.go` | Real system performance   | `just bench-integration`| Performance testing with real macOS APIs          |
 
 ### Test File Naming Convention
 
 ```
-package_test.go              # Unit tests (logic, mocks)
-package_integration_test.go # Integration tests (real system calls)
-package_bench_test.go        # Benchmarks (unit or integration based)
+package_test.go                    # Unit tests (logic, mocks)
+package_integration_test.go       # Integration tests (real system calls)
+package_bench_test.go             # Unit benchmarks (algorithms without system calls)
+package_bench_integration_test.go # Integration benchmarks (real system performance)
 ```
 
 ### Run Tests
