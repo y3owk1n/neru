@@ -19,6 +19,9 @@ const (
 
 	// ActionPrefixExec is the prefix for shell command actions.
 	ActionPrefixExec = "exec"
+
+	// SupportedActionsString is the string listing supported actions for user messages.
+	SupportedActionsString = "left_click, right_click, middle_click, mouse_up, mouse_down"
 )
 
 // KnownActionNames returns a slice containing all supported action names.

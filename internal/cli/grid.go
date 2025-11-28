@@ -23,8 +23,9 @@ var gridCmd = &cobra.Command{
 			if !domain.IsKnownActionName(domain.ActionName(action)) {
 				return derrors.Newf(
 					derrors.CodeInvalidInput,
-					"invalid action: %s. Supported actions: left_click, right_click, middle_click, mouse_up, mouse_down",
+					"invalid action: %s. Supported actions: %s",
 					action,
+					domain.SupportedActionsString,
 				)
 			}
 		}
