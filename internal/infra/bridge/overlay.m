@@ -1164,14 +1164,14 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	});
 }
 
-/// Draw grid lines
+/// Draw window border lines
 /// @param window Overlay window handle
 /// @param lines Array of line rectangles
 /// @param count Number of lines
 /// @param color Line color
 /// @param width Line width
 /// @param opacity Line opacity
-void NeruDrawGridLines(OverlayWindow window, CGRect *lines, int count, char *color, int width, double opacity) {
+void NeruDrawWindowBorder(OverlayWindow window, CGRect *lines, int count, char *color, int width, double opacity) {
 	if (!window || !lines)
 		return;
 
