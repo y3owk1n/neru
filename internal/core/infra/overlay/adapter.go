@@ -73,7 +73,7 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Interface) error 
 }
 
 // ShowGrid displays the grid overlay.
-func (a *Adapter) ShowGrid(ctx context.Context, _ int, _ int) error {
+func (a *Adapter) ShowGrid(ctx context.Context) error {
 	// Check context
 	select {
 	case <-ctx.Done():

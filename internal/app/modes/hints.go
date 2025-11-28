@@ -7,7 +7,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
 )
 
@@ -94,16 +93,8 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
 	defer cancel()
 
-	filter := ports.DefaultElementFilter()
-
-	// Populate filter with configuration
-	filter.IncludeMenubar = h.config.Hints.IncludeMenubarHints
-	filter.AdditionalMenubarTargets = h.config.Hints.AdditionalMenubarHintsTargets
-	filter.IncludeDock = h.config.Hints.IncludeDockHints
-	filter.IncludeNotificationCenter = h.config.Hints.IncludeNCHints
-
 	// Get hints from service
-	domainHints, domainHintsErr := h.hintService.ShowHints(ctx, filter)
+	domainHints, domainHintsErr := h.hintService.ShowHints(ctx)
 	if domainHintsErr != nil {
 		h.logger.Error(
 			"Failed to show hints",

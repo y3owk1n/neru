@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
@@ -28,4 +30,14 @@ type Watcher interface {
 	OnDeactivate(callback appwatcher.AppCallback)
 	OnTerminate(callback appwatcher.AppCallback)
 	OnScreenParametersChanged(callback func())
+}
+
+// ModeService defines the common interface for mode-specific services.
+// This ensures grid, hints, and scroll services have identical APIs.
+type ModeService interface {
+	// Show activates the mode's overlay/interface.
+	Show(ctx context.Context) error
+
+	// Hide deactivates the mode's overlay/interface.
+	Hide(ctx context.Context) error
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -177,13 +178,18 @@ func TestHintService_ShowHints(t *testing.T) {
 			generator := testCase.setupGen()
 			logger := logger.Get()
 
-			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
+			service := services.NewHintService(
+				mockAcc,
+				mockOverlay,
+				generator,
+				config.HintsConfig{},
+				logger,
+			)
 
 			ctx := context.Background()
-			filter := ports.DefaultElementFilter()
 
 			// Act
-			hints, hintsErr := service.ShowHints(ctx, filter)
+			hints, hintsErr := service.ShowHints(ctx)
 
 			// Assert
 			if testCase.wantErr && hintsErr == nil {
@@ -245,7 +251,13 @@ func TestHintService_HideHints(t *testing.T) {
 				testCase.setupMocks(mockOverlay)
 			}
 
-			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
+			service := services.NewHintService(
+				mockAcc,
+				mockOverlay,
+				generator,
+				config.HintsConfig{},
+				logger,
+			)
 
 			ctx := context.Background()
 			hideHintsErr := service.HideHints(ctx)
@@ -311,7 +323,13 @@ func TestHintService_RefreshHints(t *testing.T) {
 			generator, _ := hint.NewAlphabetGenerator("asdf")
 			logger := logger.Get()
 
-			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
+			service := services.NewHintService(
+				mockAcc,
+				mockOverlay,
+				generator,
+				config.HintsConfig{},
+				logger,
+			)
 
 			ctx := context.Background()
 			refreshHintsErr := service.RefreshHints(ctx)
@@ -334,7 +352,13 @@ func TestHintService_UpdateGenerator(t *testing.T) {
 
 	// Initial generator
 	initialGen, _ := hint.NewAlphabetGenerator("abcd")
-	service := services.NewHintService(mockAcc, mockOverlay, initialGen, logger)
+	service := services.NewHintService(
+		mockAcc,
+		mockOverlay,
+		initialGen,
+		config.HintsConfig{},
+		logger,
+	)
 
 	// Update with new generator
 	newGen, _ := hint.NewAlphabetGenerator("efgh")
@@ -351,7 +375,13 @@ func TestHintService_Health(t *testing.T) {
 	generator, _ := hint.NewAlphabetGenerator("abcd")
 	logger := logger.Get()
 
-	service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
+	service := services.NewHintService(
+		mockAcc,
+		mockOverlay,
+		generator,
+		config.HintsConfig{},
+		logger,
+	)
 
 	// Setup mocks
 	mockAcc.HealthFunc = func(_ context.Context) error {

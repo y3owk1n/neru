@@ -17,7 +17,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/core/infra/electron"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
 )
@@ -171,14 +170,8 @@ func (a *App) handleScreenParametersChange() {
 			// Use the hint service which will collect elements with new bounds and apply proper styling
 			ctx := context.Background()
 
-			filter := ports.DefaultElementFilter()
-			filter.IncludeMenubar = a.config.Hints.IncludeMenubarHints
-			filter.AdditionalMenubarTargets = a.config.Hints.AdditionalMenubarHintsTargets
-			filter.IncludeDock = a.config.Hints.IncludeDockHints
-			filter.IncludeNotificationCenter = a.config.Hints.IncludeNCHints
-
 			// Regenerate hints using the service which preserves styling
-			domainHints, showHintsErr := a.hintService.ShowHints(ctx, filter)
+			domainHints, showHintsErr := a.hintService.ShowHints(ctx)
 			if showHintsErr != nil {
 				a.logger.Error("Failed to refresh hints after screen change", zap.Error(showHintsErr))
 
@@ -205,7 +198,7 @@ func (a *App) handleScreenParametersChange() {
 		// Redraw scroll highlight with updated screen bounds
 		ctx := context.Background()
 
-		showScrollOverlayErr := a.scrollService.ShowScrollOverlay(ctx)
+		showScrollOverlayErr := a.scrollService.Show(ctx)
 		if showScrollOverlayErr != nil {
 			a.logger.Error(
 				"Failed to refresh scroll overlay after screen change",

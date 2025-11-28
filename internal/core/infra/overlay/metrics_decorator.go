@@ -37,10 +37,10 @@ func (d *MetricsDecorator) ShowHints(ctx context.Context, hints []*hint.Interfac
 }
 
 // ShowGrid implements ports.OverlayPort.
-func (d *MetricsDecorator) ShowGrid(ctx context.Context, rows, cols int) error {
+func (d *MetricsDecorator) ShowGrid(ctx context.Context) error {
 	defer d.recordDuration("overlay_show_grid_duration", time.Now())
 
-	return d.next.ShowGrid(ctx, rows, cols)
+	return d.next.ShowGrid(ctx)
 }
 
 // DrawScrollHighlight implements ports.OverlayPort.

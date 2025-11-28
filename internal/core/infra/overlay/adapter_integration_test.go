@@ -41,7 +41,7 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 
 	t.Run("ShowGrid", func(t *testing.T) {
 		// ShowGrid should not error with valid dimensions
-		showGridErr := adapter.ShowGrid(ctx, 3, 3)
+		showGridErr := adapter.ShowGrid(ctx)
 		if showGridErr != nil {
 			t.Errorf("ShowGrid() error = %v, want nil", showGridErr)
 		}
@@ -96,7 +96,7 @@ func TestOverlayAdapterContextCancellation(t *testing.T) {
 	})
 
 	t.Run("ShowGrid with canceled context", func(t *testing.T) {
-		showGridErr := adapter.ShowGrid(ctx, 3, 3)
+		showGridErr := adapter.ShowGrid(ctx)
 		if !errors.Is(showGridErr, context.Canceled) {
 			t.Errorf(
 				"ShowGrid() with canceled context error = %v, want %v",

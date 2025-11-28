@@ -144,7 +144,7 @@ func initializeServices(
 	}
 
 	// Hint Service - orchestrates hint generation and display
-	hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, logger)
+	hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, cfg.Hints, logger)
 
 	// Grid Service - manages grid-based navigation overlays
 	gridService := services.NewGridService(overlayAdapter, logger)

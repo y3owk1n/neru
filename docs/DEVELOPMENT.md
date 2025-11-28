@@ -492,7 +492,7 @@ Example of dependency injection in action:
 
 ```go
 // In internal/app/app.go
-hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, logger)
+hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, cfg.Hints, logger)
 gridService := services.NewGridService(overlayAdapter, logger)
 actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Action, logger)
 ```

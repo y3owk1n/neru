@@ -225,11 +225,11 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
 			ctx := context.Background()
 
-			showScrollOverlayErr := service.ShowScrollOverlay(ctx)
+			showScrollOverlayErr := service.Show(ctx)
 
 			if (showScrollOverlayErr != nil) != testCase.wantErr {
 				t.Errorf(
-					"ShowScrollOverlay() error = %v, wantErr %v",
+					"Show() error = %v, wantErr %v",
 					showScrollOverlayErr,
 					testCase.wantErr,
 				)
@@ -238,7 +238,7 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 	}
 }
 
-func TestScrollService_HideScrollOverlay(t *testing.T) {
+func TestScrollService_Hide(t *testing.T) {
 	tests := []struct {
 		name       string
 		setupMocks func(*mocks.MockOverlayPort)
@@ -281,11 +281,11 @@ func TestScrollService_HideScrollOverlay(t *testing.T) {
 			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
 			ctx := context.Background()
 
-			hideScrollOverlayErr := service.HideScrollOverlay(ctx)
+			hideScrollOverlayErr := service.Hide(ctx)
 
 			if (hideScrollOverlayErr != nil) != testCase.wantErr {
 				t.Errorf(
-					"HideScrollOverlay() error = %v, wantErr %v",
+					"Hide() error = %v, wantErr %v",
 					hideScrollOverlayErr,
 					testCase.wantErr,
 				)
