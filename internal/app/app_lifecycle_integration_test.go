@@ -309,12 +309,12 @@ func TestAppLifecycleIntegration(t *testing.T) {
 
 	// Test initial state
 	t.Run("Initial State", func(t *testing.T) {
-		if !app.IsEnabled() {
+		if !application.IsEnabled() {
 			t.Error("Expected app to be enabled initially")
 		}
 
-		if app.CurrentMode() != domain.ModeIdle {
-			t.Errorf("Expected initial mode Idle, got %v", app.CurrentMode())
+		if application.CurrentMode() != domain.ModeIdle {
+			t.Errorf("Expected initial mode Idle, got %v", application.CurrentMode())
 		}
 	})
 
@@ -329,40 +329,40 @@ func TestAppLifecycleIntegration(t *testing.T) {
 		for _, mode := range modes {
 			switch mode {
 			case domain.ModeHints:
-				app.SetModeHints()
+				application.SetModeHints()
 			case domain.ModeGrid:
-				app.SetModeGrid()
+				application.SetModeGrid()
 			case domain.ModeIdle:
-				app.SetModeIdle()
+				application.SetModeIdle()
 			}
 
 			time.Sleep(50 * time.Millisecond)
 
-			if app.CurrentMode() != mode {
-				t.Errorf("Expected mode %v, got %v", mode, app.CurrentMode())
+			if application.CurrentMode() != mode {
+				t.Errorf("Expected mode %v, got %v", mode, application.CurrentMode())
 			}
 		}
 	})
 
 	// Test enable/disable
 	t.Run("Enable/Disable", func(t *testing.T) {
-		app.SetEnabled(false)
-		if app.IsEnabled() {
+		application.SetEnabled(false)
+		if application.IsEnabled() {
 			t.Error("Expected app to be disabled")
 		}
 
-		app.SetEnabled(true)
-		if !app.IsEnabled() {
+		application.SetEnabled(true)
+		if !application.IsEnabled() {
 			t.Error("Expected app to be enabled")
 		}
 	})
 
 	// Test cleanup
 	t.Run("Cleanup", func(t *testing.T) {
-		app.Cleanup()
+		application.Cleanup()
 		// App should still be functional after cleanup
-		if app.CurrentMode() != domain.ModeIdle {
-			t.Errorf("Expected mode Idle after cleanup, got %v", app.CurrentMode())
+		if application.CurrentMode() != domain.ModeIdle {
+			t.Errorf("Expected mode Idle after cleanup, got %v", application.CurrentMode())
 		}
 	})
 
