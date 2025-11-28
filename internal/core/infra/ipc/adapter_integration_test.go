@@ -64,6 +64,27 @@ func TestIPCAdapterIntegration(t *testing.T) {
 		}
 	})
 
+	t.Run("Send command", func(t *testing.T) {
+		// Start the adapter
+		startErr := adapter.Start(ctx)
+		if startErr != nil {
+			t.Fatalf("Start() error = %v, want nil", startErr)
+		}
+		defer adapter.Stop(ctx) //nolint:errcheck
+
+		// Send a test command
+		cmd := ipc.Command{Action: "test", Version: "1.0.0"}
+		resp, sendErr := adapter.Send(ctx, cmd)
+		if sendErr != nil {
+			t.Fatalf("Send() error = %v, want nil", sendErr)
+		}
+
+		// Check response
+		if !resp.Success {
+			t.Errorf("Send() response.Success = false, want true")
+		}
+	})
+
 	t.Run("Multiple Start calls", func(t *testing.T) {
 		var serverErr error
 
@@ -113,8 +134,7 @@ func TestIPCAdapterContextCancellation(t *testing.T) {
 	cancel()
 
 	t.Run("Start with canceled context", func(t *testing.T) {
-		// Start might still succeed as it's non-blocking
-		// This tests that it handles canceled context gracefully
+		// Start should handle a canceled context gracefully (may succeed or return context.Canceled)
 		err := adapter.Start(ctx)
 		if err != nil && err != context.Canceled {
 			t.Errorf("Start with canceled context returned unexpected error: %v", err)
