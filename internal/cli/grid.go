@@ -42,6 +42,6 @@ var gridCmd = &cobra.Command{
 
 func init() {
 	gridCmd.Flags().
-		StringP("action", "a", "", "Action to perform on grid selection (left_click, right_click, middle_click, mouse_up, mouse_down)")
+		StringP("action", "a", "", "Action to perform on grid selection ("+domain.SupportedActionsString+")")
 	rootCmd.AddCommand(gridCmd)
 }

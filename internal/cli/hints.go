@@ -42,6 +42,6 @@ var hintsCmd = &cobra.Command{
 
 func init() {
 	hintsCmd.Flags().
-		StringP("action", "a", "", "Action to perform on hint selection (left_click, right_click, middle_click, mouse_up, mouse_down)")
+		StringP("action", "a", "", "Action to perform on hint selection ("+domain.SupportedActionsString+")")
 	rootCmd.AddCommand(hintsCmd)
 }
