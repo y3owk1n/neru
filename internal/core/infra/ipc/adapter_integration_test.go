@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/ports"
+	"go.uber.org/zap"
 )
 
 // TestIPCAdapterImplementsPort verifies the adapter implements the port interface.
@@ -22,7 +22,7 @@ func TestIPCAdapterIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	log := logger.Get()
+	log := zap.NewNop()
 
 	// Dummy handler for testing
 	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
@@ -95,7 +95,7 @@ func TestIPCAdapterContextCancellation(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	log := logger.Get()
+	log := zap.NewNop()
 	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
 		return ipc.Response{Success: true}
 	}
@@ -112,10 +112,12 @@ func TestIPCAdapterContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	t.Run("Start with canceled context", func(_ *testing.T) {
+	t.Run("Start with canceled context", func(t *testing.T) {
 		// Start might still succeed as it's non-blocking
 		// This tests that it handles canceled context gracefully
 		err := adapter.Start(ctx)
-		_ = err // Implementation dependent
+		if err != nil && err != context.Canceled {
+			t.Errorf("Start with canceled context returned unexpected error: %v", err)
+		}
 	})
 }
