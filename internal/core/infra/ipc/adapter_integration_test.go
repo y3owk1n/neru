@@ -106,6 +106,7 @@ func TestIPCAdapterContextCancellation(t *testing.T) {
 	}
 
 	adapter := ipc.NewAdapter(server, log)
+	defer adapter.Stop(context.Background()) //nolint:errcheck
 
 	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())
