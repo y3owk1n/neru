@@ -151,18 +151,10 @@ func TestHintModeEndToEnd(t *testing.T) {
 	// Test hint mode activation
 	t.Run("Activate Hint Mode", func(t *testing.T) {
 		application.SetModeHints()
-		time.Sleep(100 * time.Millisecond)
-
-		if application.CurrentMode() != domain.ModeHints {
-			t.Errorf("Expected mode Hints, got %v", application.CurrentMode())
-		}
+		waitForMode(t, application, domain.ModeHints, 1*time.Second)
 
 		application.SetModeIdle()
-		time.Sleep(100 * time.Millisecond)
-
-		if application.CurrentMode() != domain.ModeIdle {
-			t.Errorf("Expected mode Idle, got %v", application.CurrentMode())
-		}
+		waitForMode(t, application, domain.ModeIdle, 1*time.Second)
 	})
 
 	// Test hint mode deactivation
@@ -206,21 +198,13 @@ func TestGridModeEndToEnd(t *testing.T) {
 	// Test grid mode activation
 	t.Run("Activate Grid Mode", func(t *testing.T) {
 		application.SetModeGrid()
-		time.Sleep(100 * time.Millisecond)
-
-		if application.CurrentMode() != domain.ModeGrid {
-			t.Errorf("Expected mode Grid, got %v", application.CurrentMode())
-		}
+		waitForMode(t, application, domain.ModeGrid, 1*time.Second)
 	})
 
 	// Test grid mode deactivation
 	t.Run("Deactivate Grid Mode", func(t *testing.T) {
 		application.SetModeIdle()
-		time.Sleep(100 * time.Millisecond)
-
-		if application.CurrentMode() != domain.ModeIdle {
-			t.Errorf("Expected mode Idle, got %v", application.CurrentMode())
-		}
+		waitForMode(t, application, domain.ModeIdle, 1*time.Second)
 	})
 
 	t.Log("✅ Grid mode E2E test completed successfully")
@@ -347,11 +331,7 @@ func TestAppLifecycleIntegration(t *testing.T) {
 				application.SetModeIdle()
 			}
 
-			time.Sleep(50 * time.Millisecond)
-
-			if application.CurrentMode() != mode {
-				t.Errorf("Expected mode %v, got %v", mode, application.CurrentMode())
-			}
+			waitForMode(t, application, mode, 1*time.Second)
 		}
 	})
 
