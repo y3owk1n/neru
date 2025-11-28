@@ -63,6 +63,7 @@ func (a *Adapter) SetHotkeys(hotkeys []string) {
 // Destroy cleans up the event tap resources.
 func (a *Adapter) Destroy() {
 	a.tap.Destroy()
+	a.enabled = false
 }
 
 // Ensure Adapter implements ports.EventTapPort.
