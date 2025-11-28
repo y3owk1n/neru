@@ -11,17 +11,23 @@ import (
 // mockInfraManager is a mock implementation of InfraManager for testing.
 type mockInfraManager struct {
 	registered map[string]int
+	callbacks  map[int]func()
+	nextID     int
 }
 
 func newMockInfraManager() *mockInfraManager {
 	return &mockInfraManager{
 		registered: make(map[string]int),
+		callbacks:  make(map[int]func()),
+		nextID:     1,
 	}
 }
 
 func (m *mockInfraManager) Register(key string, callback func()) (int, error) {
-	id := len(m.registered) + 1
+	id := m.nextID
+	m.nextID++
 	m.registered[key] = id
+	m.callbacks[id] = callback
 
 	return id, nil
 }
@@ -31,6 +37,7 @@ func (m *mockInfraManager) Unregister(id int) {
 	for key, registeredID := range m.registered {
 		if registeredID == id {
 			delete(m.registered, key)
+			delete(m.callbacks, id)
 
 			break
 		}
@@ -39,6 +46,8 @@ func (m *mockInfraManager) Unregister(id int) {
 
 func (m *mockInfraManager) UnregisterAll() {
 	m.registered = make(map[string]int)
+	m.callbacks = make(map[int]func())
+	m.nextID = 1
 }
 
 func TestNewAdapter(t *testing.T) {
