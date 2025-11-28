@@ -24,7 +24,7 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 	isClickable := node.IsClickable()
 
 	// Create element with options
-	element, elementErr := element.NewElement(
+	domElement, elementErr := element.NewElement(
 		elementID,
 		bounds,
 		role,
@@ -40,5 +40,5 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 		)
 	}
 
-	return element, nil
+	return domElement, nil
 }
