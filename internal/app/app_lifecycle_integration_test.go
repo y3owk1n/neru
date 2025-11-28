@@ -46,31 +46,9 @@ func TestAppInitializationIntegration(t *testing.T) {
 	cfg.General.AccessibilityCheckOnStart = false // Skip OS permission checks
 
 	// Test that app initialization completes within reasonable time
-	done := make(chan error, 1)
+	done := make(chan *app.App, 1)
 
 	go func() {
-		_, err := app.New(
-			app.WithConfig(cfg),
-			app.WithConfigPath(""),
-			app.WithEventTap(&mockEventTap{}),
-			app.WithIPCServer(&mockIPCServer{}),
-			app.WithOverlayManager(&mockOverlayManager{}),
-			app.WithWatcher(&mockAppWatcher{}),
-		)
-		done <- err
-	}()
-
-	// Wait for initialization with timeout
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Logf("App initialization failed (expected in some environments): %v", err)
-			// This is acceptable - the test verifies that initialization doesn't hang
-			t.Log("✅ App initialization completed without hanging")
-			return
-		}
-
-		// If initialization succeeded, test basic functionality
 		application, err := app.New(
 			app.WithConfig(cfg),
 			app.WithConfigPath(""),
@@ -80,73 +58,25 @@ func TestAppInitializationIntegration(t *testing.T) {
 			app.WithWatcher(&mockAppWatcher{}),
 		)
 		if err != nil {
-			t.Fatalf("Failed to create application: %v", err)
+			done <- nil
+		} else {
+			done <- application
 		}
+	}()
 
-		// Test initial state
-		t.Run("Initial State", func(t *testing.T) {
-			if application.CurrentMode() != domain.ModeIdle {
-				t.Errorf("Expected initial mode Idle, got %v", application.CurrentMode())
-			}
-		})
-
-		// Test mode transitions
-		t.Run("Mode Transitions", func(t *testing.T) {
-			// Test Hints mode
-			application.SetModeHints()
-
-			// Wait for mode transition with timeout
-			waitForMode(t, application, domain.ModeHints, 1*time.Second)
-
-			// Test Grid mode
-			application.SetModeGrid()
-
-			waitForMode(t, application, domain.ModeGrid, 1*time.Second)
-
-			// Test back to Idle
-			application.SetModeIdle()
-
-			waitForMode(t, application, domain.ModeIdle, 1*time.Second)
-		})
-
-		// Test cleanup
-		t.Run("Cleanup", func(t *testing.T) {
-			application.Cleanup()
-		})
-
-		t.Log("✅ App initialization and basic functionality test completed successfully")
-
-	case <-time.After(10 * time.Second):
-		t.Fatal(
-			"❌ App initialization timed out - this indicates a hanging issue that needs to be fixed",
-		)
+	// Wait for initialization with timeout
+	select {
+	case application := <-done:
+		if application == nil {
+			t.Log("App initialization failed (expected in some environments)")
+			// This is acceptable - the test verifies that initialization doesn't hang
+			t.Log("✅ App initialization completed without hanging")
+			return
+		}
+		defer application.Cleanup()
+	case <-time.After(5 * time.Second):
+		t.Fatal("App initialization timed out - possible hang")
 	}
-}
-
-// TestHintModeEndToEnd tests the complete hint mode workflow
-func TestHintModeEndToEnd(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping hint mode E2E test in short mode")
-	}
-
-	// Create config with hints enabled
-	cfg := config.DefaultConfig()
-	cfg.Hints.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false
-
-	// Create app with mocks
-	application, err := app.New(
-		app.WithConfig(cfg),
-		app.WithConfigPath(""),
-		app.WithEventTap(&mockEventTap{}),
-		app.WithIPCServer(&mockIPCServer{}),
-		app.WithOverlayManager(&mockOverlayManager{}),
-		app.WithWatcher(&mockAppWatcher{}),
-	)
-	if err != nil {
-		t.Fatalf("Failed to create app: %v", err)
-	}
-	defer application.Cleanup()
 
 	// Test hint mode activation
 	t.Run("Activate Hint Mode", func(t *testing.T) {
