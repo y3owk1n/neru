@@ -7,14 +7,17 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"go.uber.org/zap"
 )
 
 // InfraAXClient implements AXClient using the infrastructure layer.
-type InfraAXClient struct{}
+type InfraAXClient struct {
+	logger *zap.Logger
+}
 
 // NewInfraAXClient creates a new infrastructure-based AXClient.
-func NewInfraAXClient() *InfraAXClient {
-	return &InfraAXClient{}
+func NewInfraAXClient(logger *zap.Logger) *InfraAXClient {
+	return &InfraAXClient{logger: logger}
 }
 
 // FrontmostWindow returns the frontmost window.
@@ -57,10 +60,10 @@ func (c *InfraAXClient) ClickableNodes(
 		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
 	}
 
-	opts := DefaultTreeOptions()
+	opts := DefaultTreeOptions(c.logger)
 	opts.SetIncludeOutOfBounds(includeOffscreen)
 
-	tree, treeErr := BuildTree(element, opts)
+	tree, treeErr := BuildTree(element, opts, c.logger)
 	if treeErr != nil {
 		return nil, derrors.Wrap(
 			treeErr,
@@ -91,7 +94,7 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 
 // MenuBarClickableElements returns clickable elements in the menu bar.
 func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
-	nodes, nodesErr := MenuBarClickableElements()
+	nodes, nodesErr := MenuBarClickableElements(c.logger)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,
@@ -112,7 +115,7 @@ func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
 func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 ) ([]AXNode, error) {
-	nodes, nodesErr := ClickableElementsFromBundleID(bundleID)
+	nodes, nodesErr := ClickableElementsFromBundleID(bundleID, c.logger)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,
@@ -202,7 +205,7 @@ func (c *InfraAXClient) CheckPermissions() bool {
 
 // SetClickableRoles sets the roles that are considered clickable.
 func (c *InfraAXClient) SetClickableRoles(roles []string) {
-	SetClickableRoles(roles)
+	SetClickableRoles(roles, c.logger)
 }
 
 // ClickableRoles returns the roles that are considered clickable.

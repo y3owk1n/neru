@@ -163,7 +163,7 @@ func initializeRealAdapters(
 	metricsCollector := metrics.NewCollector()
 
 	// Create infrastructure client
-	axClient := accessibility.NewInfraAXClient()
+	axClient := accessibility.NewInfraAXClient(logger)
 
 	// Create base accessibility adapter
 	baseAccessibilityAdapter := accessibility.NewAdapter(

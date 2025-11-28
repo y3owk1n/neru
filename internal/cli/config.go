@@ -7,8 +7,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	"go.uber.org/zap"
 )
 
 var configCmd = &cobra.Command{
@@ -25,7 +23,6 @@ var configDumpCmd = &cobra.Command{
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		logger.Debug("Fetching config")
 		ipcClient := ipc.NewClient()
 		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: domain.CommandConfig})
 		if ipcResponseErr != nil {
@@ -52,8 +49,6 @@ var configDumpCmd = &cobra.Command{
 		// Marshal pretty JSON
 		ipcResponseData, ipcResponseDataErr := json.MarshalIndent(ipcResponse.Data, "", "  ")
 		if ipcResponseDataErr != nil {
-			logger.Error("Failed to marshal config to JSON", zap.Error(ipcResponseDataErr))
-
 			return derrors.Wrap(
 				ipcResponseDataErr,
 				derrors.CodeSerializationFailed,
@@ -74,10 +69,8 @@ var configReloadCmd = &cobra.Command{
 	PreRunE: func(_ *cobra.Command, _ []string) error {
 		return requiresRunningInstance()
 	},
-	RunE: func(_ *cobra.Command, _ []string) error {
-		logger.Debug("Reloading config")
-
-		return sendCommand(domain.CommandReloadConfig, []string{})
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		return sendCommand(cmd, domain.CommandReloadConfig, []string{})
 	},
 }
 

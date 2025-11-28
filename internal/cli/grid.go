@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
 var gridCmd = &cobra.Command{
@@ -17,8 +16,6 @@ var gridCmd = &cobra.Command{
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		logger.Debug("Launching grid mode")
-
 		action, _ := cmd.Flags().GetString("action")
 		if action != "" {
 			// Validate action
@@ -38,7 +35,7 @@ var gridCmd = &cobra.Command{
 			params = append(params, action)
 		}
 
-		return sendCommand("grid", params)
+		return sendCommand(cmd, "grid", params)
 	},
 }
 

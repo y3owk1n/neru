@@ -115,18 +115,18 @@ func (o *TreeOptions) SetCache(cache *InfoCache) {
 }
 
 // DefaultTreeOptions returns default tree traversal options.
-func DefaultTreeOptions() TreeOptions {
+func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{
 		filterFunc:         nil,
 		includeOutOfBounds: false,
-		cache:              NewInfoCache(DefaultAccessibilityCacheTTL),
+		cache:              NewInfoCache(DefaultAccessibilityCacheTTL, logger),
 		parallelThreshold:  DefaultParallelThreshold,
 		maxParallelDepth:   DefaultMaxParallelDepth,
 	}
 }
 
 // BuildTree constructs an accessibility tree starting from the specified root element.
-func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
+func BuildTree(root *Element, opts TreeOptions, logger *zap.Logger) (*TreeNode, error) {
 	if root == nil {
 		logger.Debug("BuildTree called with nil root element")
 

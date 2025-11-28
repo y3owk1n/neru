@@ -16,7 +16,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"go.uber.org/zap"
 )
 
@@ -54,7 +53,7 @@ var (
 )
 
 // SetClickableRoles configures which accessibility roles are treated as clickable.
-func SetClickableRoles(roles []string) {
+func SetClickableRoles(roles []string, logger *zap.Logger) {
 	clickableRolesMu.Lock()
 	defer clickableRolesMu.Unlock()
 

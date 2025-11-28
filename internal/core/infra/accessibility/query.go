@@ -6,7 +6,6 @@ import (
 	"time"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"go.uber.org/zap"
 )
 
@@ -36,11 +35,11 @@ func rectFromInfo(info *ElementInfo) image.Rectangle {
 }
 
 // ClickableElements retrieves all clickable UI elements in the frontmost window.
-func ClickableElements() ([]*TreeNode, error) {
+func ClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for frontmost window")
 
 	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL)
+		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL, logger)
 	})
 
 	window := FrontmostWindow()
@@ -51,10 +50,10 @@ func ClickableElements() ([]*TreeNode, error) {
 	}
 	defer window.Release()
 
-	opts := DefaultTreeOptions()
+	opts := DefaultTreeOptions(logger)
 	opts.cache = globalCache
 
-	tree, err := BuildTree(window, opts)
+	tree, err := BuildTree(window, opts, logger)
 	if err != nil {
 		logger.Error("Failed to build tree for frontmost window", zap.Error(err))
 
@@ -68,11 +67,11 @@ func ClickableElements() ([]*TreeNode, error) {
 }
 
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
-func MenuBarClickableElements() ([]*TreeNode, error) {
+func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
 
 	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL)
+		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL, logger)
 	})
 
 	app := FocusedApplication()
@@ -91,10 +90,10 @@ func MenuBarClickableElements() ([]*TreeNode, error) {
 	}
 	defer menubar.Release()
 
-	opts := DefaultTreeOptions()
+	opts := DefaultTreeOptions(logger)
 	opts.cache = globalCache
 
-	tree, err := BuildTree(menubar, opts)
+	tree, err := BuildTree(menubar, opts, logger)
 	if err != nil {
 		logger.Error("Failed to build tree for menu bar", zap.Error(err))
 
@@ -114,11 +113,11 @@ func MenuBarClickableElements() ([]*TreeNode, error) {
 }
 
 // ClickableElementsFromBundleID retrieves clickable UI elements from the application identified by bundle ID.
-func ClickableElementsFromBundleID(bundleID string) ([]*TreeNode, error) {
+func ClickableElementsFromBundleID(bundleID string, logger *zap.Logger) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for bundle ID", zap.String("bundle_id", bundleID))
 
 	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL)
+		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL, logger)
 	})
 
 	app := ApplicationByBundleID(bundleID)
@@ -129,11 +128,11 @@ func ClickableElementsFromBundleID(bundleID string) ([]*TreeNode, error) {
 	}
 	defer app.Release()
 
-	opts := DefaultTreeOptions()
+	opts := DefaultTreeOptions(logger)
 	opts.cache = globalCache
 	opts.includeOutOfBounds = true
 
-	tree, err := BuildTree(app, opts)
+	tree, err := BuildTree(app, opts, logger)
 	if err != nil {
 		logger.Error("Failed to build tree for application",
 			zap.String("bundle_id", bundleID),

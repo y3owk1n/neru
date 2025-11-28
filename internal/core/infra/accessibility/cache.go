@@ -33,14 +33,16 @@ type InfoCache struct {
 	ttl     time.Duration
 	stopCh  chan struct{}
 	stopped bool
+	logger  *zap.Logger
 }
 
 // NewInfoCache initializes a new cache with the specified time-to-live duration.
-func NewInfoCache(ttl time.Duration) *InfoCache {
+func NewInfoCache(ttl time.Duration, logger *zap.Logger) *InfoCache {
 	cache := &InfoCache{
 		data:   make(map[uintptr]*CachedInfo, DefaultCacheSize),
 		ttl:    ttl,
 		stopCh: make(chan struct{}),
+		logger: logger,
 	}
 
 	// Start cleanup goroutine

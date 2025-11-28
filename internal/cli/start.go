@@ -2,7 +2,6 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
 var startCmd = &cobra.Command{
@@ -12,10 +11,8 @@ var startCmd = &cobra.Command{
 	PreRunE: func(_ *cobra.Command, _ []string) error {
 		return requiresRunningInstance()
 	},
-	RunE: func(_ *cobra.Command, args []string) error {
-		logger.Debug("Starting/resuming program")
-
-		return sendCommand("start", args)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return sendCommand(cmd, "start", args)
 	},
 }
 

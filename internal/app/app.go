@@ -519,7 +519,7 @@ func (a *App) applyConfigUpdate(configResult *config.LoadResult) {
 	if configResult.Config.Hints.Enabled {
 		a.logger.Info("Updating clickable roles",
 			zap.Int("count", len(configResult.Config.Hints.ClickableRoles)))
-		infra.SetClickableRoles(configResult.Config.Hints.ClickableRoles)
+		infra.SetClickableRoles(configResult.Config.Hints.ClickableRoles, a.logger)
 	}
 }
 
