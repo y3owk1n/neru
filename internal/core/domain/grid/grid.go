@@ -66,9 +66,6 @@ const (
 	// CountsCapacity is the capacity for counts.
 	CountsCapacity = 5
 
-	// LabelLengthCheck is the check for label length.
-	LabelLengthCheck = 2
-
 	// PrefixLengthCheck is the check for prefix length.
 	PrefixLengthCheck = 2
 )

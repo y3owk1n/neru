@@ -16,9 +16,6 @@ const (
 
 	// CountsCapacity is the capacity for counts.
 	CountsCapacity = 5
-
-	// LabelLengthCheck is the check for label length.
-	LabelLengthCheck = 2
 )
 
 // AlphabetGenerator generates hint labels using an alphabet-based strategy.

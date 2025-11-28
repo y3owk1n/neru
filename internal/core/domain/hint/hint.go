@@ -132,7 +132,7 @@ func NewCollection(hints []*Interface) *Collection {
 			collector.prefix1[first] = append(collector.prefix1[first], hint)
 		}
 
-		if len(label) >= LabelLengthCheck {
+		if len(label) >= PrefixLengthCheck {
 			prefix := label[:2]
 			collector.prefix2[prefix] = append(collector.prefix2[prefix], hint)
 		}
