@@ -125,7 +125,7 @@ func TestHintModeEndToEnd(t *testing.T) {
 	cfg.General.AccessibilityCheckOnStart = false
 
 	// Create app with mocks
-	app, err := app.New(
+	application, err := app.New(
 		app.WithConfig(cfg),
 		app.WithConfigPath(""),
 		app.WithEventTap(&mockEventTap{}),
@@ -136,25 +136,31 @@ func TestHintModeEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create app: %v", err)
 	}
-	defer app.Cleanup()
+	defer application.Cleanup()
 
 	// Test hint mode activation
 	t.Run("Activate Hint Mode", func(t *testing.T) {
-		app.SetModeHints()
+		application.SetModeHints()
 		time.Sleep(100 * time.Millisecond)
 
-		if app.CurrentMode() != domain.ModeHints {
-			t.Errorf("Expected mode Hints, got %v", app.CurrentMode())
+		if application.CurrentMode() != domain.ModeHints {
+			t.Errorf("Expected mode Hints, got %v", application.CurrentMode())
+		}
+
+		application.SetModeIdle()
+
+		if application.CurrentMode() != domain.ModeIdle {
+			t.Errorf("Expected mode Idle, got %v", application.CurrentMode())
 		}
 	})
 
 	// Test hint mode deactivation
 	t.Run("Deactivate Hint Mode", func(t *testing.T) {
-		app.SetModeIdle()
+		application.SetModeIdle()
 		time.Sleep(100 * time.Millisecond)
 
-		if app.CurrentMode() != domain.ModeIdle {
-			t.Errorf("Expected mode Idle, got %v", app.CurrentMode())
+		if application.CurrentMode() != domain.ModeIdle {
+			t.Errorf("Expected mode Idle, got %v", application.CurrentMode())
 		}
 	})
 
@@ -173,7 +179,7 @@ func TestGridModeEndToEnd(t *testing.T) {
 	cfg.General.AccessibilityCheckOnStart = false
 
 	// Create app with mocks
-	app, err := app.New(
+	application, err := app.New(
 		app.WithConfig(cfg),
 		app.WithConfigPath(""),
 		app.WithEventTap(&mockEventTap{}),
@@ -184,25 +190,25 @@ func TestGridModeEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create app: %v", err)
 	}
-	defer app.Cleanup()
+	defer application.Cleanup()
 
 	// Test grid mode activation
 	t.Run("Activate Grid Mode", func(t *testing.T) {
-		app.SetModeGrid()
+		application.SetModeGrid()
 		time.Sleep(100 * time.Millisecond)
 
-		if app.CurrentMode() != domain.ModeGrid {
-			t.Errorf("Expected mode Grid, got %v", app.CurrentMode())
+		if application.CurrentMode() != domain.ModeGrid {
+			t.Errorf("Expected mode Grid, got %v", application.CurrentMode())
 		}
 	})
 
 	// Test grid mode deactivation
 	t.Run("Deactivate Grid Mode", func(t *testing.T) {
-		app.SetModeIdle()
+		application.SetModeIdle()
 		time.Sleep(100 * time.Millisecond)
 
-		if app.CurrentMode() != domain.ModeIdle {
-			t.Errorf("Expected mode Idle, got %v", app.CurrentMode())
+		if application.CurrentMode() != domain.ModeIdle {
+			t.Errorf("Expected mode Idle, got %v", application.CurrentMode())
 		}
 	})
 
@@ -219,7 +225,7 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 	t.Run("Default Config", func(t *testing.T) {
 		cfg := config.DefaultConfig()
 
-		app, err := app.New(
+		application, err := app.New(
 			app.WithConfig(cfg),
 			app.WithConfigPath(""),
 			app.WithEventTap(&mockEventTap{}),
@@ -230,18 +236,18 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create app with default config: %v", err)
 		}
-		defer app.Cleanup()
+		defer application.Cleanup()
 
 		// Verify config is properly set
-		if app.Config() == nil {
+		if application.Config() == nil {
 			t.Error("Expected config to be set")
 		}
 
-		if !app.HintsEnabled() {
+		if !application.HintsEnabled() {
 			t.Error("Expected hints to be enabled by default")
 		}
 
-		if !app.GridEnabled() {
+		if !application.GridEnabled() {
 			t.Error("Expected grid to be enabled by default")
 		}
 	})
@@ -252,7 +258,7 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 		cfg.Hints.Enabled = false
 		cfg.Grid.Enabled = false
 
-		app, err := app.New(
+		application, err := app.New(
 			app.WithConfig(cfg),
 			app.WithConfigPath(""),
 			app.WithEventTap(&mockEventTap{}),
@@ -263,13 +269,13 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create app with custom config: %v", err)
 		}
-		defer app.Cleanup()
+		defer application.Cleanup()
 
-		if app.HintsEnabled() {
+		if application.HintsEnabled() {
 			t.Error("Expected hints to be disabled")
 		}
 
-		if app.GridEnabled() {
+		if application.GridEnabled() {
 			t.Error("Expected grid to be disabled")
 		}
 	})
@@ -289,7 +295,7 @@ func TestAppLifecycleIntegration(t *testing.T) {
 	cfg.General.AccessibilityCheckOnStart = false
 
 	// Create app
-	app, err := app.New(
+	application, err := app.New(
 		app.WithConfig(cfg),
 		app.WithConfigPath(""),
 		app.WithEventTap(&mockEventTap{}),
