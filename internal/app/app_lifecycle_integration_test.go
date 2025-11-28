@@ -91,11 +91,7 @@ func TestAppInitializationIntegration(t *testing.T) {
 	// Test hint mode deactivation
 	t.Run("Deactivate Hint Mode", func(t *testing.T) {
 		application.SetModeIdle()
-		time.Sleep(100 * time.Millisecond)
-
-		if application.CurrentMode() != domain.ModeIdle {
-			t.Errorf("Expected mode Idle, got %v", application.CurrentMode())
-		}
+		waitForMode(t, application, domain.ModeIdle, 1*time.Second)
 	})
 
 	t.Log("✅ Hint mode E2E test completed successfully")
