@@ -62,10 +62,12 @@ clickable_roles = [
 
 ignore_clickable_check = false
 
-# Example per-app customization for Chrome
+# Application-specific configurations for customizing hint behavior per app
+# Each entry allows overriding clickable roles and clickable check behavior for specific bundle IDs
 # [[hints.app_configs]]
 # bundle_id = "com.google.Chrome"
 # additional_clickable_roles = ["AXTabGroup"]
+# ignore_clickable_check = false
 
 [hints.additional_ax_support]
 # Enable enhanced accessibility for Electron, Chromium, and Firefox apps

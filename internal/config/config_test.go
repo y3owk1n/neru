@@ -176,6 +176,26 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 			bundleID: "com.example.app",
 			want:     []string{"AXButton"},
 		},
+		{
+			name: "multiple apps with different configs",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					ClickableRoles: []string{"AXButton", "AXLink"},
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:            "com.chrome.app",
+							AdditionalClickable: []string{"AXTabGroup"},
+						},
+						{
+							BundleID:            "com.firefox.app",
+							AdditionalClickable: []string{"AXWebArea"},
+						},
+					},
+				},
+			},
+			bundleID: "com.chrome.app",
+			want:     []string{"AXButton", "AXLink", "AXTabGroup"},
+		},
 	}
 
 	for _, testCase := range tests {
@@ -209,6 +229,123 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 				if !gotMap[role] {
 					t.Errorf("ClickableRolesForApp() missing role %q", role)
 				}
+			}
+		})
+	}
+}
+
+func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *config.Config
+		bundleID string
+		want     bool
+	}{
+		{
+			name: "no app configs",
+			config: &config.Config{
+				Hints: config.HintsConfig{},
+			},
+			bundleID: "com.example.app",
+			want:     false,
+		},
+		{
+			name: "app config with matching bundle ID and ignore true",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:             "com.example.app",
+							IgnoreClickableCheck: true,
+						},
+					},
+				},
+			},
+			bundleID: "com.example.app",
+			want:     true,
+		},
+		{
+			name: "app config with matching bundle ID and ignore false",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:             "com.example.app",
+							IgnoreClickableCheck: false,
+						},
+					},
+				},
+			},
+			bundleID: "com.example.app",
+			want:     false,
+		},
+		{
+			name: "app config with non-matching bundle ID",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:             "com.other.app",
+							IgnoreClickableCheck: true,
+						},
+					},
+				},
+			},
+			bundleID: "com.example.app",
+			want:     false,
+		},
+		{
+			name: "multiple app configs, one matching",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:             "com.other.app",
+							IgnoreClickableCheck: true,
+						},
+						{
+							BundleID:             "com.example.app",
+							IgnoreClickableCheck: true,
+						},
+					},
+				},
+			},
+			bundleID: "com.example.app",
+			want:     true,
+		},
+		{
+			name: "global ignore clickable check true",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					IgnoreClickableCheck: true,
+				},
+			},
+			bundleID: "com.example.app",
+			want:     true,
+		},
+		{
+			name: "app config overrides global ignore clickable check",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					IgnoreClickableCheck: true, // global true
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:             "com.example.app",
+							IgnoreClickableCheck: false, // app-specific false
+						},
+					},
+				},
+			},
+			bundleID: "com.example.app",
+			want:     false, // app-specific should take precedence
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := testCase.config.ShouldIgnoreClickableCheckForApp(testCase.bundleID)
+			if got != testCase.want {
+				t.Errorf("ShouldIgnoreClickableCheckForApp() = %v, want %v", got, testCase.want)
 			}
 		})
 	}
