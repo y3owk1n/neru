@@ -47,9 +47,10 @@ func TestAppInitializationIntegration(t *testing.T) {
 
 	// Test that app initialization completes within reasonable time
 	done := make(chan *app.App, 1)
+	var application *app.App
 
 	go func() {
-		application, err := app.New(
+		appInstance, err := app.New(
 			app.WithConfig(cfg),
 			app.WithConfigPath(""),
 			app.WithEventTap(&mockEventTap{}),
@@ -60,13 +61,13 @@ func TestAppInitializationIntegration(t *testing.T) {
 		if err != nil {
 			done <- nil
 		} else {
-			done <- application
+			done <- appInstance
 		}
 	}()
 
 	// Wait for initialization with timeout
 	select {
-	case application := <-done:
+	case application = <-done:
 		if application == nil {
 			t.Log("App initialization failed (expected in some environments)")
 			// This is acceptable - the test verifies that initialization doesn't hang
