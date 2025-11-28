@@ -3,6 +3,7 @@ bin/
 build/
 *.app
 *.dmg
+neru
 
 # Go
 *.exe
@@ -12,6 +13,7 @@ build/
 *.dylib
 *.test
 *.out
+coverage.txt
 go.work
 
 # IDE
