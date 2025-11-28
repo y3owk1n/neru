@@ -121,9 +121,9 @@ func initializeAdapters(
 	// Create overlay adapter for UI rendering
 	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)
 	// Wrap with metrics decorator to track rendering performance
-	overlayAdapter := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
+	overlay := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
 
-	return accAdapter, overlayAdapter
+	return accAdapter, overlay
 }
 
 // initializeServices creates and initializes the domain services.
