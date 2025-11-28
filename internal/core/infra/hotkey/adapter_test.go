@@ -75,11 +75,6 @@ func TestAdapter_Register(t *testing.T) {
 	if _, exists := mockInfra.registered["Cmd+Shift+X"]; !exists {
 		t.Error("Hotkey not registered in mock")
 	}
-
-	// The adapter should have registered the hotkey
-	if len(mockInfra.registered) != 1 {
-		t.Errorf("Expected 1 registration in mock, got %d", len(mockInfra.registered))
-	}
 }
 
 func TestAdapter_Unregister(t *testing.T) {
@@ -94,10 +89,17 @@ func TestAdapter_Unregister(t *testing.T) {
 		t.Fatalf("Register() error = %v", err)
 	}
 
-	// Unregister should not panic
+	// Verify registration exists
+	if len(mockInfra.registered) != 1 {
+		t.Errorf("Expected 1 registration before Unregister, got %d", len(mockInfra.registered))
+	}
+
+	// Unregister and ensure registration is cleared in the mock
 	_ = adapter.Unregister(ctx, "Cmd+X")
 
-	// The unregister should work without error
+	if len(mockInfra.registered) != 0 {
+		t.Errorf("Expected 0 registrations after Unregister, got %d", len(mockInfra.registered))
+	}
 }
 
 func TestAdapter_UnregisterAll(t *testing.T) {
@@ -110,8 +112,16 @@ func TestAdapter_UnregisterAll(t *testing.T) {
 	_ = adapter.Register(ctx, "Cmd+X", func() error { return nil })
 	_ = adapter.Register(ctx, "Cmd+Y", func() error { return nil })
 
+	// Verify registrations exist
+	if len(mockInfra.registered) != 2 {
+		t.Errorf("Expected 2 registrations before UnregisterAll, got %d", len(mockInfra.registered))
+	}
+
 	// Unregister all
 	_ = adapter.UnregisterAll(ctx)
 
-	// The unregister all should work without error
+	// Ensure all registrations were removed in the mock
+	if len(mockInfra.registered) != 0 {
+		t.Errorf("Expected 0 registrations after UnregisterAll, got %d", len(mockInfra.registered))
+	}
 }
