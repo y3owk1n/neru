@@ -231,14 +231,6 @@ func buildTreeRecursive(
 		return
 	}
 
-	// Check cache first
-	if cached := opts.cache.Get(parent.element); cached != nil {
-		// Use cached children if valid
-		// Note: This is a simplification; real caching strategy might be more complex
-		// For now, we just proceed with fresh traversal as caching full subtrees is tricky
-		_ = cached // Make linter happy
-	}
-
 	children, err := parent.element.Children()
 	if err != nil || len(children) == 0 {
 		if err != nil {
