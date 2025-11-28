@@ -44,7 +44,7 @@ func TestNewHint(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			hint, hintErr := hint.NewHint(testCase.label, testCase.elem, testCase.position)
+			testHint, hintErr := hint.NewHint(testCase.label, testCase.elem, testCase.position)
 
 			if testCase.wantErr {
 				if hintErr == nil {
@@ -60,12 +60,12 @@ func TestNewHint(t *testing.T) {
 				return
 			}
 
-			if hint.Label() != testCase.label {
-				t.Errorf("Label() = %v, want %v", hint.Label(), testCase.label)
+			if testHint.Label() != testCase.label {
+				t.Errorf("Label() = %v, want %v", testHint.Label(), testCase.label)
 			}
 
-			if hint.Position() != testCase.position {
-				t.Errorf("Position() = %v, want %v", hint.Position(), testCase.position)
+			if testHint.Position() != testCase.position {
+				t.Errorf("Position() = %v, want %v", testHint.Position(), testCase.position)
 			}
 		})
 	}
@@ -73,7 +73,7 @@ func TestNewHint(t *testing.T) {
 
 func TestHint_HasPrefix(t *testing.T) {
 	elem, _ := element.NewElement("test", image.Rect(10, 10, 50, 50), element.RoleButton)
-	hint, _ := hint.NewHint("ASDF", elem, image.Point{})
+	testHint, _ := hint.NewHint("ASDF", elem, image.Point{})
 
 	tests := []struct {
 		prefix string
@@ -90,7 +90,7 @@ func TestHint_HasPrefix(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.prefix, func(t *testing.T) {
-			got := hint.HasPrefix(testCase.prefix)
+			got := testHint.HasPrefix(testCase.prefix)
 			if got != testCase.want {
 				t.Errorf("HasPrefix(%q) = %v, want %v", testCase.prefix, got, testCase.want)
 			}
@@ -100,20 +100,20 @@ func TestHint_HasPrefix(t *testing.T) {
 
 func TestHint_Methods(t *testing.T) {
 	elem, _ := element.NewElement("test", image.Rect(10, 10, 50, 50), element.RoleButton)
-	hint, _ := hint.NewHint("AS", elem, image.Point{X: 30, Y: 30})
+	testHint, _ := hint.NewHint("AS", elem, image.Point{X: 30, Y: 30})
 
 	// Test Element()
-	if hint.Element() != elem {
+	if testHint.Element() != elem {
 		t.Error("Element() returned wrong element")
 	}
 
 	// Test MatchedPrefix() - initially empty
-	if hint.MatchedPrefix() != "" {
-		t.Errorf("MatchedPrefix() = %q, want empty string", hint.MatchedPrefix())
+	if testHint.MatchedPrefix() != "" {
+		t.Errorf("MatchedPrefix() = %q, want empty string", testHint.MatchedPrefix())
 	}
 
 	// Test WithMatchedPrefix()
-	hintWithPrefix := hint.WithMatchedPrefix("A")
+	hintWithPrefix := testHint.WithMatchedPrefix("A")
 	if hintWithPrefix.MatchedPrefix() != "A" {
 		t.Errorf(
 			"WithMatchedPrefix() MatchedPrefix() = %q, want %q",
@@ -123,12 +123,12 @@ func TestHint_Methods(t *testing.T) {
 	}
 
 	// Test that WithMatchedPrefix returns a new instance
-	if hintWithPrefix == hint {
+	if hintWithPrefix == testHint {
 		t.Error("WithMatchedPrefix() should return a new instance")
 	}
 
 	// Test Bounds()
-	bounds := hint.Bounds()
+	bounds := testHint.Bounds()
 
 	expectedBounds := image.Rect(10, 10, 50, 50)
 	if bounds != expectedBounds {
@@ -137,25 +137,25 @@ func TestHint_Methods(t *testing.T) {
 
 	// Test IsVisible()
 	screenBounds := image.Rect(0, 0, 100, 100)
-	if !hint.IsVisible(screenBounds) {
+	if !testHint.IsVisible(screenBounds) {
 		t.Error("IsVisible() should return true for element within screen bounds")
 	}
 
 	smallScreen := image.Rect(60, 60, 100, 100)
-	if hint.IsVisible(smallScreen) {
+	if testHint.IsVisible(smallScreen) {
 		t.Error("IsVisible() should return false for element outside screen bounds")
 	}
 
 	// Test MatchesLabel()
-	if !hint.MatchesLabel("AS") {
+	if !testHint.MatchesLabel("AS") {
 		t.Error("MatchesLabel() should return true for exact match")
 	}
 
-	if hint.MatchesLabel("A") {
+	if testHint.MatchesLabel("A") {
 		t.Error("MatchesLabel() should return false for partial match")
 	}
 
-	if hint.MatchesLabel("ASDF") {
+	if testHint.MatchesLabel("ASDF") {
 		t.Error("MatchesLabel() should return false for longer string")
 	}
 }
