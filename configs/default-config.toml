@@ -47,27 +47,27 @@ enabled = true
 hint_characters = "asdfghjkl"
 
 # Visual appearance
-font_size = 12
-font_family = "SF Mono"
-border_radius = 4
-padding = 4
-border_width = 1
-opacity = 0.95
+font_size = 12      # Font size for hints
+font_family = "SF Mono"  # Font family for hints
+border_radius = 4   # Corner radius for hint borders
+padding = 4         # Padding inside hint borders
+border_width = 1    # Width of hint borders
+opacity = 0.95      # Opacity of hint overlays
 
-background_color = "#FFD700"
-text_color = "#000000"
-matched_text_color = "#737373"
-border_color = "#000000"
+background_color = "#FFD700"    # Hint background color
+text_color = "#000000"          # Hint text color
+matched_text_color = "#737373"  # Text color for matched hints
+border_color = "#000000"        # Hint border color
 
 # Additional hint targets
-include_menubar_hints = false
-additional_menubar_hints_targets = [
+include_menubar_hints = false              # Include menubar items in hints
+additional_menubar_hints_targets = [       # Extra menubar bundle IDs to include
     "com.apple.TextInputMenuAgent",
     "com.apple.controlcenter",
     "com.apple.systemuiserver",
 ]
-include_dock_hints = false
-include_nc_hints = false
+include_dock_hints = false                  # Include dock items in hints
+include_nc_hints = false                    # Include notification center in hints
 
 # Roles considered clickable
 clickable_roles = [
@@ -111,10 +111,10 @@ ignore_clickable_check = false
 
 # Electron/Chromium/Firefox support
 [hints.additional_ax_support]
-enable = false
-additional_electron_bundles = []
-additional_chromium_bundles = []
-additional_firefox_bundles = []
+enable = false                          # Enable enhanced accessibility for web apps
+additional_electron_bundles = []        # Extra Electron app bundle IDs
+additional_chromium_bundles = []        # Extra Chromium app bundle IDs
+additional_firefox_bundles = []         # Extra Firefox app bundle IDs
 
 [grid]
 # Whether to enable grid mode
@@ -127,17 +127,17 @@ characters = "abcdefghijklmnpqrstuvwxyz"
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 
 # Visual appearance
-font_size = 12
-font_family = "SF Mono"
-opacity = 0.7
-border_width = 1
+font_size = 12      # Font size for grid labels
+font_family = "SF Mono"  # Font family for grid labels
+opacity = 0.7       # Opacity of grid overlay
+border_width = 1    # Width of grid cell borders
 
-background_color = "#abe9b3"
-text_color = "#000000"
-matched_text_color = "#f8bd96"
-matched_background_color = "#f8bd96"
-matched_border_color = "#f8bd96"
-border_color = "#abe9b3"
+background_color = "#abe9b3"        # Grid cell background color
+text_color = "#000000"              # Grid label text color
+matched_text_color = "#f8bd96"       # Text color for matched grid cells
+matched_background_color = "#f8bd96" # Background color for matched grid cells
+matched_border_color = "#f8bd96"     # Border color for matched grid cells
+border_color = "#abe9b3"             # Grid cell border color
 
 # Behavior
 live_match_update = true
@@ -149,28 +149,28 @@ enable_gc = false
 
 [scroll]
 # Scroll step sizes
-scroll_step = 50
-scroll_step_half = 500
-scroll_step_full = 1000000
+scroll_step = 50         # Base scroll distance for j/k keys
+scroll_step_half = 500   # Scroll distance for Ctrl+D/U keys
+scroll_step_full = 1000000 # Scroll distance for Shift+G/g keys
 
 # Whether to highlight the scroll area
 highlight_scroll_area = true
 
 # Scroll highlight appearance
-highlight_color = "#FF0000"
-highlight_width = 2
+highlight_color = "#FF0000"  # Color of scroll area highlight
+highlight_width = 2         # Border width of scroll highlight
 
 [action]
 # Action mode highlight appearance
-highlight_color = "#00FF00"
-highlight_width = 3
+highlight_color = "#00FF00"  # Color of action highlight
+highlight_width = 3         # Border width of action highlight
 
 # Action key mappings
-left_click_key = "l"
-right_click_key = "r"
-middle_click_key = "m"
-mouse_down_key = "i"
-mouse_up_key = "u"
+left_click_key = "l"     # Key for left mouse click
+right_click_key = "r"    # Key for right mouse click
+middle_click_key = "m"   # Key for middle mouse click
+mouse_down_key = "i"     # Key for mouse button down
+mouse_up_key = "u"       # Key for mouse button up
 
 [smooth_cursor]
 # Whether to enable smooth mouse movement
