@@ -148,14 +148,14 @@ void NeruResizeOverlayToActiveScreenWithCallback(OverlayWindow window, ResizeCom
 /// @param style Grid cell style
 void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCellStyle style);
 
-/// Draw grid lines
+/// Draw window border lines
 /// @param window Overlay window handle
 /// @param lines Array of line rectangles
 /// @param count Number of lines
 /// @param color Line color
 /// @param width Line width
 /// @param opacity Line opacity
-void NeruDrawGridLines(OverlayWindow window, CGRect *lines, int count, char *color, int width, double opacity);
+void NeruDrawWindowBorder(OverlayWindow window, CGRect *lines, int count, char *color, int width, double opacity);
 
 /// Update grid match prefix
 /// @param window Overlay window handle

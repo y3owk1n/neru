@@ -224,7 +224,7 @@ func (o *Overlay) DrawActionHighlight(xCoordinate, yCoordinate, width, height in
 		size: C.CGSize{width: C.double(highlightWidth), height: C.double(height)},
 	}
 
-	C.NeruDrawGridLines(
+	C.NeruDrawWindowBorder(
 		o.window,
 		&lines[0],
 		C.int(DefaultGridLinesCount),

@@ -227,7 +227,7 @@ func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height in
 		size:   C.CGSize{width: C.double(borderWidth), height: C.double(height)},
 	}
 
-	C.NeruDrawGridLines(
+	C.NeruDrawWindowBorder(
 		o.window,
 		&lines[0],
 		C.int(DefaultGridLinesCount),
