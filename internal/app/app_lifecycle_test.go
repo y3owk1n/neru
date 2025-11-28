@@ -1,5 +1,3 @@
-//go:build integration
-
 package app_test
 
 import (
@@ -11,27 +9,29 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
-// initResult holds the result of app initialization
+// initResult holds the result of app initialization.
 type initResult struct {
 	app *app.App
 	err error
 }
 
-// waitForMode waits for the application to reach the specified mode with a timeout
+// waitForMode waits for the application to reach the specified mode with a timeout.
 func waitForMode(
 	t *testing.T,
 	application *app.App,
 	expectedMode domain.Mode,
-	timeout time.Duration,
 ) {
 	t.Helper()
-	deadline := time.Now().Add(timeout)
+
+	deadline := time.Now().Add(1 * time.Second)
 	for time.Now().Before(deadline) {
 		if application.CurrentMode() == expectedMode {
 			return
 		}
+
 		time.Sleep(10 * time.Millisecond)
 	}
+
 	t.Fatalf(
 		"Timeout waiting for mode %v, current mode: %v",
 		expectedMode,
@@ -39,7 +39,7 @@ func waitForMode(
 	)
 }
 
-// TestAppInitializationIntegration tests that the app can be initialized without hanging
+// TestAppInitializationIntegration tests that the app can be initialized without hanging.
 func TestAppInitializationIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping app initialization integration test in short mode")
@@ -53,6 +53,7 @@ func TestAppInitializationIntegration(t *testing.T) {
 
 	// Test that app initialization completes within reasonable time
 	done := make(chan initResult, 1)
+
 	var application *app.App
 
 	go func() {
@@ -73,6 +74,7 @@ func TestAppInitializationIntegration(t *testing.T) {
 		if res.err != nil {
 			t.Fatalf("App initialization failed: %v", res.err)
 		}
+
 		application = res.app
 		defer application.Cleanup()
 	case <-time.After(5 * time.Second):
@@ -82,22 +84,22 @@ func TestAppInitializationIntegration(t *testing.T) {
 	// Test hint mode activation
 	t.Run("Activate Hint Mode", func(t *testing.T) {
 		application.SetModeHints()
-		waitForMode(t, application, domain.ModeHints, 1*time.Second)
+		waitForMode(t, application, domain.ModeHints)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 1*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 	})
 
 	// Test hint mode deactivation
 	t.Run("Deactivate Hint Mode", func(t *testing.T) {
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 1*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 	})
 
 	t.Log("✅ Hint mode E2E test completed successfully")
 }
 
-// TestGridModeEndToEnd tests the complete grid mode workflow
+// TestGridModeEndToEnd tests the complete grid mode workflow.
 func TestGridModeEndToEnd(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping grid mode E2E test in short mode")
@@ -125,19 +127,19 @@ func TestGridModeEndToEnd(t *testing.T) {
 	// Test grid mode activation
 	t.Run("Activate Grid Mode", func(t *testing.T) {
 		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid, 1*time.Second)
+		waitForMode(t, application, domain.ModeGrid)
 	})
 
 	// Test grid mode deactivation
 	t.Run("Deactivate Grid Mode", func(t *testing.T) {
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 1*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 	})
 
 	t.Log("✅ Grid mode E2E test completed successfully")
 }
 
-// TestConfigurationLoadingIntegration tests configuration loading and validation
+// TestConfigurationLoadingIntegration tests configuration loading and validation.
 func TestConfigurationLoadingIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping configuration loading integration test in short mode")
@@ -205,7 +207,7 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 	t.Log("✅ Configuration loading integration test completed successfully")
 }
 
-// TestAppLifecycleIntegration tests complete app lifecycle from start to shutdown
+// TestAppLifecycleIntegration tests complete app lifecycle from start to shutdown.
 func TestAppLifecycleIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping app lifecycle integration test in short mode")
@@ -258,18 +260,20 @@ func TestAppLifecycleIntegration(t *testing.T) {
 				application.SetModeIdle()
 			}
 
-			waitForMode(t, application, mode, 1*time.Second)
+			waitForMode(t, application, mode)
 		}
 	})
 
 	// Test enable/disable
 	t.Run("Enable/Disable", func(t *testing.T) {
 		application.SetEnabled(false)
+
 		if application.IsEnabled() {
 			t.Error("Expected app to be disabled")
 		}
 
 		application.SetEnabled(true)
+
 		if !application.IsEnabled() {
 			t.Error("Expected app to be enabled")
 		}

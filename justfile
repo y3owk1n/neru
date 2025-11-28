@@ -96,8 +96,13 @@ fmt-check:
 
 # Run benchmarks
 bench:
-    @echo "Running benchmarks..."
+    @echo "Running all benchmarks..."
     go test -bench=. -benchmem ./...
+
+# Run integration benchmarks
+bench-integration:
+    @echo "Running integration benchmarks..."
+    go test -tags=integration -bench=. -benchmem ./...
 
 # Clean build artifacts
 clean:

@@ -112,6 +112,8 @@ chmod +x .git/hooks/pre-commit
 | Test   | `just test`             | Run unit tests                     |
 | Test   | `just test-integration` | Run integration tests              |
 | Test   | `just test-all`         | Run all tests (unit + integration) |
+| Bench  | `just bench`            | Run all benchmarks                 |
+| Bench  | `just bench-integration`| Run integration benchmarks         |
 | Lint   | `just lint`             | Run linters                        |
 | Format | `just fmt`              | Format code                        |
 | Run    | `just run`              | Build and run the application      |
@@ -227,10 +229,19 @@ Neru has a comprehensive test suite with clear separation between unit tests and
 
 ### Test Organization
 
-| Test Type             | Purpose                   | Command                 | Coverage                                           |
-| --------------------- | ------------------------- | ----------------------- | -------------------------------------------------- |
-| **Unit Tests**        | Business logic with mocks | `just test`             | 50+ tests covering algorithms, isolated components |
-| **Integration Tests** | Real system interactions  | `just test-integration` | 9 tests covering macOS APIs, IPC, file operations  |
+| Test Type             | File Pattern              | Purpose                   | Command                 | Coverage                                           |
+| --------------------- | ------------------------- | ------------------------- | ----------------------- | -------------------------------------------------- |
+| **Unit Tests**        | `*_test.go`               | Business logic with mocks | `just test`             | 50+ tests covering algorithms, isolated components |
+| **Integration Tests** | `*_integration_test.go`  | Real system interactions  | `just test-integration` | 15+ tests covering macOS APIs, IPC, file operations |
+| **Benchmarks**        | `*_bench_test.go`         | Performance testing      | `just bench`            | Performance benchmarks for critical paths         |
+
+### Test File Naming Convention
+
+```
+package_test.go              # Unit tests (logic, mocks)
+package_integration_test.go # Integration tests (real system calls)
+package_bench_test.go        # Benchmarks (unit or integration based)
+```
 
 ### Run Tests
 
@@ -242,7 +253,10 @@ just test
 just test-integration
 
 # All tests (unit + integration)
-just test && just test-integration
+just test-all
+
+# Benchmarks
+just bench
 
 # With race detection
 just test-race
@@ -260,6 +274,7 @@ just test-coverage
 - **Adapter Interfaces**: Port implementations with mocked dependencies
 - **Configuration**: TOML parsing, validation, defaults
 - **CLI Logic**: Command parsing, argument validation
+- **Pure Logic Benchmarks**: Performance testing of algorithms without system calls
 
 #### Integration Test Coverage
 
@@ -270,6 +285,7 @@ just test-coverage
 - **macOS Overlay API**: Real window/overlay management
 - **File System Operations**: Real config file loading/reloading
 - **Component Coordination**: Real service-to-adapter interactions
+- **System Benchmarks**: Performance testing with real macOS APIs
 
 ### Run Linter
 
@@ -547,18 +563,31 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Actio
 
 - **Unit Tests**: Business logic, algorithms, validation (fast, no system deps)
 - **Integration Tests**: Real macOS APIs, file system, IPC (tagged `//go:build integration`)
+- **Benchmarks**: Performance testing (tagged based on whether they use system resources)
 
 **When to Use:**
 
-- Unit: Business logic, config validation, component interfaces
-- Integration: macOS APIs, file operations, IPC, component coordination
+- **Unit Tests**: Business logic, config validation, component interfaces, pure algorithms
+- **Integration Tests**: macOS APIs, file operations, IPC, component coordination
+- **Benchmarks**: Performance-critical code paths (unit for pure logic, integration for system calls)
 
 **Test Organization:**
 
 ```
-package_test.go              # Unit tests
-package_integration_test.go # Integration tests (tagged)
+package_test.go              # Unit tests (logic, mocks)
+package_integration_test.go # Integration tests (real system calls)
+package_bench_test.go        # Benchmarks (unit or integration based)
 ```
+
+**Benchmark Classification:**
+
+- **Unit Benchmarks** (`*_bench_test.go`): Pure algorithm performance, no system calls
+- **Integration Benchmarks** (`*_bench_integration_test.go`): Real system performance, tagged `//go:build integration`
+
+Examples:
+- Domain logic benchmarks → Unit benchmarks
+- File I/O benchmarks → Integration benchmarks
+- IPC performance benchmarks → Integration benchmarks
 
 ### Documentation
 

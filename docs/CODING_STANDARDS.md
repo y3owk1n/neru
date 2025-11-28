@@ -692,7 +692,8 @@ if ([NSThread isMainThread]) {
 
 - Unit tests: `service_test.go`
 - Integration tests: `service_integration_test.go` (tagged `//go:build integration`)
-- Benchmarks: `service_bench_test.go`
+- Unit benchmarks: `service_bench_test.go`
+- Integration benchmarks: `service_bench_integration_test.go` (tagged `//go:build integration`)
 - Examples: `service_example_test.go`
 
 **Function Naming:**
@@ -702,6 +703,7 @@ func TestService_Method(t *testing.T)
 func TestService_Method_EdgeCase(t *testing.T)
 func TestService_Method_Integration(t *testing.T)  //go:build integration
 func BenchmarkService_Method(b *testing.B)
+func BenchmarkService_Method_Integration(b *testing.B)  //go:build integration
 func ExampleService_Method()
 ```
 
@@ -720,16 +722,23 @@ func ExampleService_Method()
 - Tagged with `//go:build integration`
 - Run before releases
 
+**Benchmarks** (`just bench`):
+
+- **Unit Benchmarks**: Pure algorithm performance testing (no system calls)
+- **Integration Benchmarks**: Real system performance testing (tagged `//go:build integration`)
+
 ### When to Use Each Type
 
-| Scenario             | Test Type   | Example                            |
-| -------------------- | ----------- | ---------------------------------- |
-| Business logic       | Unit        | Hint generation, grid calculations |
-| Config validation    | Unit        | TOML parsing, field validation     |
-| Component interfaces | Unit        | Port implementations with mocks    |
-| macOS API calls      | Integration | Accessibility, event tap, hotkeys  |
-| File operations      | Integration | Config loading, log writing        |
-| IPC communication    | Integration | CLI-to-daemon messaging            |
+| Scenario             | Test Type           | Example                            |
+| -------------------- | ------------------- | ---------------------------------- |
+| Business logic       | Unit                | Hint generation, grid calculations |
+| Config validation    | Unit                | TOML parsing, field validation     |
+| Component interfaces | Unit                | Port implementations with mocks    |
+| Pure algorithms      | Unit Benchmark      | Sorting, filtering performance     |
+| macOS API calls      | Integration         | Accessibility, event tap, hotkeys  |
+| File operations      | Integration         | Config loading, log writing        |
+| IPC communication    | Integration         | CLI-to-daemon messaging            |
+| System performance   | Integration Benchmark | Real API call performance        |
 
 ### Test Structure
 
