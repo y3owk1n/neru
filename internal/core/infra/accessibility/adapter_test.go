@@ -485,4 +485,16 @@ func TestAdapter_ClickableRoles(t *testing.T) {
 	if !reflect.DeepEqual(result, roles) {
 		t.Errorf("ClickableRoles() = %v, want %v", result, roles)
 	}
+
+	// Ensure the returned slice is a defensive copy and doesn't expose internal state
+	result[0] = "ModifiedRole"
+
+	result2 := adapter.ClickableRoles()
+	if !reflect.DeepEqual(result2, roles) {
+		t.Errorf(
+			"ClickableRoles() returned slice was not a defensive copy, internal state was modified: got %v, want %v",
+			result2,
+			roles,
+		)
+	}
 }
