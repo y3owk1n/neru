@@ -22,7 +22,7 @@ func TestIPCAdapterIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	logger := logger.Get()
+	log := logger.Get()
 
 	// Dummy handler for testing
 	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
@@ -31,12 +31,12 @@ func TestIPCAdapterIntegration(t *testing.T) {
 
 	// Use a unique port for testing to avoid conflicts
 	// Note: NewServer uses a fixed socket path, so we can't easily run parallel tests
-	server, serverErr := ipc.NewServer(handler, logger)
+	server, serverErr := ipc.NewServer(handler, log)
 	if serverErr != nil {
 		t.Fatalf("Failed to create server: %v", serverErr)
 	}
 
-	adapter := ipc.NewAdapter(server, logger)
+	adapter := ipc.NewAdapter(server, log)
 
 	ctx := context.Background()
 
@@ -67,12 +67,12 @@ func TestIPCAdapterIntegration(t *testing.T) {
 	t.Run("Multiple Start calls", func(t *testing.T) {
 		var serverErr error
 
-		server, serverErr = ipc.NewServer(handler, logger)
+		server, serverErr = ipc.NewServer(handler, log)
 		if serverErr != nil {
 			t.Fatalf("Failed to create server: %v", serverErr)
 		}
 
-		adapter := ipc.NewAdapter(server, logger)
+		adapter := ipc.NewAdapter(server, log)
 
 		defer adapter.Stop(context.Background()) //nolint:errcheck
 
@@ -95,26 +95,26 @@ func TestIPCAdapterContextCancellation(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	logger := logger.Get()
+	log := logger.Get()
 	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
 		return ipc.Response{Success: true}
 	}
 
-	server, serverErr := ipc.NewServer(handler, logger)
+	server, serverErr := ipc.NewServer(handler, log)
 	if serverErr != nil {
 		t.Fatalf("Failed to create server: %v", serverErr)
 	}
 
-	adapter := ipc.NewAdapter(server, logger)
+	adapter := ipc.NewAdapter(server, log)
 
 	// Create canceled context
-	context, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	t.Run("Start with canceled context", func(_ *testing.T) {
 		// Start might still succeed as it's non-blocking
 		// This tests that it handles canceled context gracefully
-		err := adapter.Start(context)
+		err := adapter.Start(ctx)
 		_ = err // Implementation dependent
 	})
 }
