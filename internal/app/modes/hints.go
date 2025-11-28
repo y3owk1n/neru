@@ -85,6 +85,9 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	// Always resize overlay to the active screen (where mouse is) before collecting elements.
 	// This ensures proper positioning when switching between multiple displays.
 	h.OverlayManager.ResizeToActiveScreenSync()
+	// Clear any previous overlay content (e.g., scroll highlights) before drawing hints.
+	// This prevents scroll highlights from persisting when switching from scroll mode to hints mode.
+	h.OverlayManager.Clear()
 	h.AppState.SetHintOverlayNeedsRefresh(false)
 
 	// Use new HintService to show hints
