@@ -96,7 +96,7 @@ func launchProgram(cmd *cobra.Command, cfgPath string) {
 	if LaunchFunc != nil {
 		LaunchFunc(cfgPath)
 	} else {
-		fmt.Fprintln(os.Stderr, "Error: Launch function not initialized")
+		cmd.PrintErrln("Error: Launch function not initialized")
 		os.Exit(1)
 	}
 }
@@ -161,7 +161,7 @@ func requiresRunningInstance() error {
 	if !ipc.IsServerRunning() {
 		return derrors.New(
 			derrors.CodeIPCServerNotRunning,
-			"neru is not running. Start it first with: neru launch",
+			"neru is not running. Start it first with 'neru' or 'neru launch'",
 		)
 	}
 
