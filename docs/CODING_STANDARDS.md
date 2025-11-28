@@ -31,7 +31,10 @@ All files must follow these basic formatting rules (enforced by `.editorconfig`)
 neru/
 ├── cmd/                    # Application entry points
 ├── internal/               # Private application code
-│   ├── app/               # Application orchestration, services, and components
+│   ├── app/               # Application orchestration
+│   │   ├── components/    # UI components (overlays, etc.)
+│   │   ├── modes/         # Application modes (hints, grid, scroll)
+│   │   └── services/      # Business logic services
 │   ├── cli/               # CLI commands
 │   ├── config/            # Configuration management
 │   ├── core/              # Core business logic and infrastructure
