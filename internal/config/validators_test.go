@@ -910,6 +910,26 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "app config with ignore clickable check",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:             "com.example.app",
+							AdditionalClickable:  []string{"button"},
+							IgnoreClickableCheck: true,
+						},
+					},
+				},
+				Hotkeys: config.HotkeysConfig{
+					Bindings: map[string]string{
+						"Cmd+Space": "hints",
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, testCase := range tests {

@@ -92,6 +92,23 @@ clickable_roles = [
 # Whether to ignore the clickable check (useful for some apps)
 ignore_clickable_check = false
 
+# Per-app role configurations
+# These allow you to add additional clickable/scrollable roles for specific applications
+# The roles defined here are ADDED to the global roles above (not replaced)
+# To find an app's bundle ID, run: osascript -e 'id of app "AppName"'
+#
+# Application-specific configurations for customizing hint behavior per app
+# Each entry allows overriding clickable roles and clickable check behavior for specific bundle IDs
+# [[hints.app_configs]]
+# bundle_id = "com.example.app"
+# additional_clickable_roles = ["AXCustomButton", "AXCustomLink"]
+# ignore_clickable_check = true
+#
+# [[hints.app_configs]]
+# bundle_id = "com.another.app"
+# additional_clickable_roles = ["AXSpecialRole"]
+# ignore_clickable_check = false
+
 # Electron/Chromium/Firefox support
 [hints.additional_ax_support]
 enable = false

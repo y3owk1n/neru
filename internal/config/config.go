@@ -283,6 +283,24 @@ func (c *Config) ClickableRolesForApp(bundleID string) []string {
 	return rolesMapToSlice(rolesMap)
 }
 
+// ShouldIgnoreClickableCheckForApp returns whether clickable check should be ignored for a specific app bundle ID.
+// It first checks for app-specific configuration, then falls back to the global setting.
+func (c *Config) ShouldIgnoreClickableCheckForApp(bundleID string) bool {
+	// Check if the app has an app-specific ignore_clickable_check
+	if c.Hints.AppConfigs != nil {
+		if len(c.Hints.AppConfigs) > 0 {
+			for _, appConfig := range c.Hints.AppConfigs {
+				if appConfig.BundleID == bundleID {
+					return appConfig.IgnoreClickableCheck
+				}
+			}
+		}
+	}
+
+	// Fall back to global ignore_clickable_check
+	return c.Hints.IgnoreClickableCheck
+}
+
 // buildRolesMap builds a map of clickable roles for the given bundle ID.
 func (c *Config) buildRolesMap(bundleID string) map[string]struct{} {
 	rolesMap := make(map[string]struct{})

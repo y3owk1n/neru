@@ -585,22 +585,9 @@ func (e *Element) IsClickable(info *ElementInfo) bool {
 	config := config.Global()
 
 	if config != nil {
-		// Check if the app has an app-specific ignore_clickable_check
-		if config.Hints.AppConfigs != nil {
-			if len(config.Hints.AppConfigs) > 0 {
-				bundleID := e.BundleIdentifier()
-				for _, appConfig := range config.Hints.AppConfigs {
-					if appConfig.BundleID == bundleID {
-						if appConfig.IgnoreClickableCheck {
-							return true
-						}
-					}
-				}
-			}
-		}
-
-		// If ignore_clickable_check is enabled in config, return true
-		if config.Hints.IgnoreClickableCheck {
+		// Check if clickable check should be ignored for this app
+		bundleID := e.BundleIdentifier()
+		if config.ShouldIgnoreClickableCheckForApp(bundleID) {
 			return true
 		}
 	}
