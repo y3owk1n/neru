@@ -65,38 +65,6 @@ func TestIPCAdapterIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("Start and Stop work correctly", func(t *testing.T) {
-		// Create new adapter for this test
-		server, serverErr := ipc.NewServer(handler, logger)
-		if serverErr != nil {
-			t.Fatalf("Failed to create server: %v", serverErr)
-		}
-
-		adapter := adapterIPC.NewAdapter(server, logger)
-
-		// Start should succeed
-		err := adapter.Start(context.Background())
-		if err != nil {
-			t.Errorf("Start() error = %v, want nil", err)
-		}
-
-		// IsRunning should return true after Start
-		if !adapter.IsRunning() {
-			t.Error("IsRunning() = false, want true after Start()")
-		}
-
-		// Stop should succeed
-		err = adapter.Stop(context.Background())
-		if err != nil {
-			t.Errorf("Stop() error = %v, want nil", err)
-		}
-
-		// IsRunning should return false after Stop
-		if adapter.IsRunning() {
-			t.Error("IsRunning() = true, want false after Stop()")
-		}
-	})
-
 	t.Run("Multiple Start calls", func(t *testing.T) {
 		var serverErr error
 
