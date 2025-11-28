@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -42,6 +44,11 @@ var hintsCmd = &cobra.Command{
 
 func init() {
 	hintsCmd.Flags().
-		StringP("action", "a", "", "Action to perform on hint selection ("+domain.SupportedActionsString+")")
+		StringP(
+			"action",
+			"a",
+			"",
+			fmt.Sprintf("Action to perform on hint selection (%s)", domain.SupportedActionsString),
+		)
 	rootCmd.AddCommand(hintsCmd)
 }
