@@ -17,6 +17,10 @@ type InfraAXClient struct {
 
 // NewInfraAXClient creates a new infrastructure-based AXClient.
 func NewInfraAXClient(logger *zap.Logger) *InfraAXClient {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	return &InfraAXClient{logger: logger}
 }
 
