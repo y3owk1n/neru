@@ -135,7 +135,7 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 
 	// Ensure a cache is always available to avoid nil dereferences in traversal.
 	if opts.cache == nil {
-		opts.cache = NewInfoCache(DefaultAccessibilityCacheTTL)
+		return nil, derrors.New(derrors.CodeAccessibilityFailed, "opts.cache must not be nil; use DefaultTreeOptions()")
 	}
 
 	// Try to get from cache first
