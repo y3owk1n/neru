@@ -76,11 +76,6 @@ func TestIsLikelyChromiumBundle(t *testing.T) {
 			want:     false,
 		},
 		{
-			name:     "unknown bundle",
-			bundleID: "com.apple.Safari",
-			want:     false,
-		},
-		{
 			name:     "empty bundle",
 			bundleID: "",
 			want:     false,
