@@ -24,7 +24,7 @@ var configDumpCmd = &cobra.Command{
 	PreRunE: func(_ *cobra.Command, _ []string) error {
 		return requiresRunningInstance()
 	},
-	RunE: func(_ *cobra.Command, _ []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		logger.Debug("Fetching config")
 		ipcClient := ipc.NewClient()
 		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: domain.CommandConfig})
@@ -61,7 +61,7 @@ var configDumpCmd = &cobra.Command{
 			)
 		}
 
-		logger.Info(string(ipcResponseData))
+		cmd.Println(string(ipcResponseData))
 
 		return nil
 	},

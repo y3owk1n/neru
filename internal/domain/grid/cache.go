@@ -12,6 +12,8 @@ import (
 const (
 	// DefaultCacheSize is the default cache size.
 	DefaultCacheSize = 8
+	// DefaultGridCacheTTL is the default cache TTL for grid.
+	DefaultGridCacheTTL = 1 * time.Hour
 )
 
 // CacheKey is a key for the grid cache.
@@ -34,10 +36,11 @@ type Cache struct {
 	items    map[CacheKey]*list.Element
 	order    *list.List
 	capacity int
+	ttl      time.Duration
 }
 
 var (
-	gridCache        = newCache(DefaultCacheSize)
+	gridCache        = newCache(DefaultCacheSize, DefaultGridCacheTTL)
 	gridCacheEnabled = true
 )
 
@@ -57,11 +60,12 @@ func Prewarm(characters string, sizes []image.Rectangle) {
 	}
 }
 
-func newCache(capacity int) *Cache {
+func newCache(capacity int, ttl time.Duration) *Cache {
 	return &Cache{
 		items:    make(map[CacheKey]*list.Element),
 		order:    list.New(),
 		capacity: capacity,
+		ttl:      ttl,
 	}
 }
 
@@ -75,6 +79,15 @@ func (c *Cache) get(characters string, bounds image.Rectangle) ([]*Cell, bool) {
 
 	if ok {
 		if entry, ok := element.Value.(*CacheEntry); ok {
+			// Check TTL
+			if time.Since(entry.addedAt) > c.ttl {
+				// Evict expired entry
+				c.order.Remove(element)
+				delete(c.items, cacheKey)
+
+				return nil, false
+			}
+
 			entry.usedAt = time.Now()
 
 			c.order.MoveToFront(element)

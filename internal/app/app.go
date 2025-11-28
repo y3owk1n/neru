@@ -64,6 +64,9 @@ type App struct {
 	scrollComponent *components.ScrollComponent
 	actionComponent *components.ActionComponent
 
+	// Lifecycle management
+	gcCancel context.CancelFunc
+
 	// Renderer
 	renderer *ui.OverlayRenderer
 

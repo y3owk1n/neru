@@ -232,6 +232,8 @@ border_color = "#abe9b3"
 [grid]
 live_match_update = true  # Highlight matches as you type
 hide_unmatched = true     # Hide non-matching cells
+prewarm_enabled = true    # Prewarm grid caches on startup for faster first use, but uses ~1.5MB memory and CPU at startup. Disable to reduce startup overhead.
+enable_gc = false         # Enable periodic garbage collection every 5 minutes to reduce peak memory usage, but adds CPU overhead. Enable if memory is a concern.
 ```
 
 **Workflow:** Press grid hotkey → Type coordinates → Action executes

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -26,6 +27,8 @@ const (
 	MaxExecDisplayLength = 30
 	// SystrayQuitTimeout is the timeout for systray quit.
 	SystrayQuitTimeout = 10 * time.Second
+	// GCTickerInterval is the interval for garbage collection.
+	GCTickerInterval = 5 * time.Minute
 )
 
 // Run starts the main application loop and initializes all subsystems.
@@ -44,6 +47,27 @@ func (a *App) Run() error {
 	a.setupAppWatcherCallbacks()
 
 	a.logger.Info("Neru is running")
+
+	if a.config.Grid.EnableGC {
+		ctx, cancel := context.WithCancel(context.Background())
+		a.gcCancel = cancel
+
+		go func() {
+			ticker := time.NewTicker(GCTickerInterval)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-ticker.C:
+					a.logger.Debug("Running periodic GC")
+					runtime.GC()
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
+
 	a.printStartupInfo()
 
 	return a.waitForShutdown()
@@ -299,6 +323,11 @@ func (a *App) waitForShutdown() error {
 // Cleanup cleans up resources.
 func (a *App) Cleanup() {
 	a.logger.Info("Cleaning up")
+
+	// Cancel background GC if running
+	if a.gcCancel != nil {
+		a.gcCancel()
+	}
 
 	a.ExitMode()
 

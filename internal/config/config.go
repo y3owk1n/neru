@@ -125,6 +125,8 @@ type GridConfig struct {
 
 	LiveMatchUpdate bool `toml:"live_match_update"`
 	HideUnmatched   bool `toml:"hide_unmatched"`
+	PrewarmEnabled  bool `toml:"prewarm_enabled"`
+	EnableGC        bool `toml:"enable_gc"`
 }
 
 // LoggingConfig defines the logging behavior and file management settings.

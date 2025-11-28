@@ -116,6 +116,19 @@ func initGridPools() {
 	})
 }
 
+// getCommonGridSizes returns a list of common screen resolutions for grid prewarming.
+func getCommonGridSizes() []image.Rectangle {
+	return []image.Rectangle{
+		image.Rect(0, 0, 1280, 800),  //nolint:mnd
+		image.Rect(0, 0, 1366, 768),  //nolint:mnd
+		image.Rect(0, 0, 1440, 900),  //nolint:mnd
+		image.Rect(0, 0, 1920, 1080), //nolint:mnd
+		image.Rect(0, 0, 2560, 1440), //nolint:mnd
+		image.Rect(0, 0, 3440, 1440), //nolint:mnd
+		image.Rect(0, 0, 3840, 2160), //nolint:mnd
+	}
+}
+
 // NewOverlay creates a new grid overlay instance with its own window and prewarms common grid sizes.
 func NewOverlay(config config.GridConfig, logger *zap.Logger) *Overlay {
 	window := C.createOverlayWindow()
@@ -125,15 +138,9 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) *Overlay {
 		chars = config.Characters
 	}
 
-	go domainGrid.Prewarm(chars, []image.Rectangle{
-		image.Rect(0, 0, 1280, 800),  //nolint:mnd
-		image.Rect(0, 0, 1366, 768),  //nolint:mnd
-		image.Rect(0, 0, 1440, 900),  //nolint:mnd
-		image.Rect(0, 0, 1920, 1080), //nolint:mnd
-		image.Rect(0, 0, 2560, 1440), //nolint:mnd
-		image.Rect(0, 0, 3440, 1440), //nolint:mnd
-		image.Rect(0, 0, 3840, 2160), //nolint:mnd
-	})
+	if config.PrewarmEnabled {
+		go domainGrid.Prewarm(chars, getCommonGridSizes())
+	}
 
 	return &Overlay{
 		window:       window,
@@ -155,15 +162,9 @@ func NewOverlayWithWindow(
 		chars = config.Characters
 	}
 
-	go domainGrid.Prewarm(chars, []image.Rectangle{
-		image.Rect(0, 0, 1280, 800),  //nolint:mnd
-		image.Rect(0, 0, 1366, 768),  //nolint:mnd
-		image.Rect(0, 0, 1440, 900),  //nolint:mnd
-		image.Rect(0, 0, 1920, 1080), //nolint:mnd
-		image.Rect(0, 0, 2560, 1440), //nolint:mnd
-		image.Rect(0, 0, 3440, 1440), //nolint:mnd
-		image.Rect(0, 0, 3840, 2160), //nolint:mnd
-	})
+	if config.PrewarmEnabled {
+		go domainGrid.Prewarm(chars, getCommonGridSizes())
+	}
 
 	return &Overlay{
 		window:       (C.OverlayWindow)(windowPtr),
