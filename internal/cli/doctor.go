@@ -25,11 +25,6 @@ var doctorCmd = &cobra.Command{
 			return derrors.Wrap(ipcResponseErr, derrors.CodeIPCFailed, "failed to check health")
 		}
 
-		if !ipcResponse.Success {
-			cmd.Println("⚠️  Some components are unhealthy:")
-		} else {
-			cmd.Println("✅ All systems operational")
-		}
 		if ipcResponse.Success {
 			cmd.Println("✅ All systems operational")
 
