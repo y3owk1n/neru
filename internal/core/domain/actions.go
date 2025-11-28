@@ -1,5 +1,7 @@
 package domain
 
+import "strings"
+
 // ActionName represents a named action that can be performed by the application.
 type ActionName string
 
@@ -19,9 +21,6 @@ const (
 
 	// ActionPrefixExec is the prefix for shell command actions.
 	ActionPrefixExec = "exec"
-
-	// SupportedActionsString is the string listing supported actions for user messages.
-	SupportedActionsString = "left_click, right_click, middle_click, mouse_up, mouse_down, scroll"
 )
 
 // KnownActionNames returns a slice containing all supported action names.
@@ -34,6 +33,18 @@ func KnownActionNames() []ActionName {
 		ActionNameMouseUp,
 		ActionNameScroll,
 	}
+}
+
+// SupportedActionsString returns a comma-separated string of supported actions for user messages.
+func SupportedActionsString() string {
+	names := KnownActionNames()
+
+	strs := make([]string, len(names))
+	for i, name := range names {
+		strs[i] = string(name)
+	}
+
+	return strings.Join(strs, ", ")
 }
 
 // IsKnownActionName determines whether the specified action name is supported.

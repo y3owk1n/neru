@@ -27,7 +27,7 @@ var hintsCmd = &cobra.Command{
 					derrors.CodeInvalidInput,
 					"invalid action: %s. Supported actions: %s",
 					action,
-					domain.SupportedActionsString,
+					domain.SupportedActionsString(),
 				)
 			}
 		}
@@ -48,7 +48,7 @@ func init() {
 			"action",
 			"a",
 			"",
-			fmt.Sprintf("Action to perform on hint selection (%s)", domain.SupportedActionsString),
+			fmt.Sprintf("Action to perform on hint selection (%s)", domain.SupportedActionsString()),
 		)
 	rootCmd.AddCommand(hintsCmd)
 }
