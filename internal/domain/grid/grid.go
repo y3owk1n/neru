@@ -562,6 +562,8 @@ func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []
 		go func(col int) {
 			defer waitGroup.Done()
 
+			var localCandidates []Candidate
+
 			cellWidth := width / col
 			if cellWidth < minCellSize || cellWidth > maxCellSize {
 				return
@@ -596,12 +598,14 @@ func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []
 					score: aspectScore,
 				}
 
-				mutex.Lock()
-
-				candidates = append(candidates, cand)
-
-				mutex.Unlock()
+				localCandidates = append(localCandidates, cand)
 			}
+
+			mutex.Lock()
+
+			candidates = append(candidates, localCandidates...)
+
+			mutex.Unlock()
 		}(colIndex)
 	}
 
