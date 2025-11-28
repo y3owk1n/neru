@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/spf13/cobra"
 	derrors "github.com/y3owk1n/neru/internal/errors"
@@ -18,7 +17,7 @@ var statusCmd = &cobra.Command{
 	PreRunE: func(_ *cobra.Command, _ []string) error {
 		return requiresRunningInstance()
 	},
-	RunE: func(_ *cobra.Command, _ []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		logger.Debug("Fetching status")
 		ipcClient := ipc.NewClient()
 		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: "status"})
@@ -43,7 +42,7 @@ var statusCmd = &cobra.Command{
 			return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
 		}
 
-		fmt.Println("Neru Status:")
+		cmd.Println("Neru Status:")
 		var statusData ipc.StatusData
 		ipcResponseData, ipcResponseDataErr := json.Marshal(ipcResponse.Data)
 		if ipcResponseDataErr == nil {
@@ -53,9 +52,9 @@ var statusCmd = &cobra.Command{
 				if statusData.Enabled {
 					status = "running"
 				}
-				fmt.Println("  Status: " + status)
-				fmt.Println("  Mode: " + statusData.Mode)
-				fmt.Println("  Config: " + statusData.Config)
+				cmd.Println("  Status: " + status)
+				cmd.Println("  Mode: " + statusData.Mode)
+				cmd.Println("  Config: " + statusData.Config)
 			} else {
 				// Fallback to previous behavior
 				if data, ok := ipcResponse.Data.(map[string]any); ok {
@@ -64,13 +63,13 @@ var statusCmd = &cobra.Command{
 						if enabled {
 							status = "running"
 						}
-						fmt.Println("  Status: " + status)
+						cmd.Println("  Status: " + status)
 					}
 					if mode, ok := data["mode"].(string); ok {
-						fmt.Println("  Mode: " + mode)
+						cmd.Println("  Mode: " + mode)
 					}
 					if configPath, ok := data["config"].(string); ok {
-						fmt.Println("  Config: " + configPath)
+						cmd.Println("  Config: " + configPath)
 					}
 				} else {
 					jsonData, jsonDataErr := json.MarshalIndent(ipcResponse.Data, "  ", "  ")
@@ -79,7 +78,7 @@ var statusCmd = &cobra.Command{
 
 						return derrors.Wrap(jsonDataErr, derrors.CodeSerializationFailed, "failed to marshal status data")
 					}
-					fmt.Println(string(jsonData))
+					cmd.Println(string(jsonData))
 				}
 			}
 		} else {
@@ -89,7 +88,7 @@ var statusCmd = &cobra.Command{
 
 				return derrors.Wrap(jsonDataErr, derrors.CodeSerializationFailed, "failed to marshal status data")
 			}
-			fmt.Println(string(jsonData))
+			cmd.Println(string(jsonData))
 		}
 
 		return nil
