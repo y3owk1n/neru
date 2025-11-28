@@ -134,9 +134,6 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) *Overlay {
 	window := C.createOverlayWindow()
 	initGridPools()
 	chars := config.Characters
-	if strings.TrimSpace(chars) == "" {
-		chars = config.Characters
-	}
 
 	if config.PrewarmEnabled {
 		go domainGrid.Prewarm(chars, getCommonGridSizes())
@@ -158,9 +155,6 @@ func NewOverlayWithWindow(
 ) *Overlay {
 	initGridPools()
 	chars := config.Characters
-	if strings.TrimSpace(chars) == "" {
-		chars = config.Characters
-	}
 
 	if config.PrewarmEnabled {
 		go domainGrid.Prewarm(chars, getCommonGridSizes())
