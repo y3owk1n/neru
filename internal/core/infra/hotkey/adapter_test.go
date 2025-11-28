@@ -104,7 +104,10 @@ func TestAdapter_Unregister(t *testing.T) {
 	}
 
 	// Unregister and ensure registration is cleared in the mock
-	_ = adapter.Unregister(ctx, "Cmd+X")
+	unregisterErr := adapter.Unregister(ctx, "Cmd+X")
+	if unregisterErr != nil {
+		t.Fatalf("Unregister() error = %v", unregisterErr)
+	}
 
 	if len(mockInfra.registered) != 0 {
 		t.Errorf("Expected 0 registrations after Unregister, got %d", len(mockInfra.registered))
@@ -118,8 +121,15 @@ func TestAdapter_UnregisterAll(t *testing.T) {
 	ctx := context.Background()
 
 	// Register multiple
-	_ = adapter.Register(ctx, "Cmd+X", func() error { return nil })
-	_ = adapter.Register(ctx, "Cmd+Y", func() error { return nil })
+	regErr1 := adapter.Register(ctx, "Cmd+X", func() error { return nil })
+	if regErr1 != nil {
+		t.Fatalf("Register() error = %v", regErr1)
+	}
+
+	regErr2 := adapter.Register(ctx, "Cmd+Y", func() error { return nil })
+	if regErr2 != nil {
+		t.Fatalf("Register() error = %v", regErr2)
+	}
 
 	// Verify registrations exist
 	if len(mockInfra.registered) != 2 {
@@ -127,7 +137,10 @@ func TestAdapter_UnregisterAll(t *testing.T) {
 	}
 
 	// Unregister all
-	_ = adapter.UnregisterAll(ctx)
+	unregisterAllErr := adapter.UnregisterAll(ctx)
+	if unregisterAllErr != nil {
+		t.Fatalf("UnregisterAll() error = %v", unregisterAllErr)
+	}
 
 	// Ensure all registrations were removed in the mock
 	if len(mockInfra.registered) != 0 {
