@@ -2,7 +2,9 @@ package accessibility_test
 
 import (
 	"context"
+	"errors"
 	"image"
+	"reflect"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
@@ -11,6 +13,9 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
 )
+
+// errTestAccessibility is a static error for testing accessibility failures.
+var errTestAccessibility = errors.New("accessibility denied")
 
 func TestNewAdapter(t *testing.T) {
 	logger := zap.NewNop()
@@ -363,34 +368,95 @@ func (m *mockAXApp) BundleIdentifier() string { return m.bundleID }
 func (m *mockAXApp) Info() (*accessibility.AXAppInfo, error) { return &accessibility.AXAppInfo{}, nil }
 
 func TestAdapter_FocusedAppBundleID(t *testing.T) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{
-		MockFocusedApp: &mockAXApp{bundleID: "com.google.Chrome"},
+	tests := []struct {
+		name       string
+		mockApp    *mockAXApp
+		mockErr    error
+		wantBundle string
+		wantErr    bool
+	}{
+		{
+			name:       "success",
+			mockApp:    &mockAXApp{bundleID: "com.google.Chrome"},
+			mockErr:    nil,
+			wantBundle: "com.google.Chrome",
+			wantErr:    false,
+		},
+		{
+			name:       "error from client",
+			mockApp:    nil,
+			mockErr:    errTestAccessibility,
+			wantBundle: "",
+			wantErr:    true,
+		},
 	}
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
-	ctx := context.Background()
 
-	bundleID, bundleIDErr := adapter.FocusedAppBundleID(ctx)
-	if bundleIDErr != nil {
-		t.Fatalf("FocusedAppBundleID() error = %v", bundleIDErr)
-	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			logger := zap.NewNop()
+			mockClient := &accessibility.MockAXClient{
+				MockFocusedApp:    testCase.mockApp,
+				MockFocusedAppErr: testCase.mockErr,
+			}
+			adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
+			ctx := context.Background()
 
-	if bundleID != "com.google.Chrome" {
-		t.Errorf("FocusedAppBundleID() = %v, want %v", bundleID, "com.google.Chrome")
+			bundleID, bundleIDErr := adapter.FocusedAppBundleID(ctx)
+
+			if (bundleIDErr != nil) != testCase.wantErr {
+				t.Errorf(
+					"FocusedAppBundleID() error = %v, wantErr %v",
+					bundleIDErr,
+					testCase.wantErr,
+				)
+
+				return
+			}
+
+			if bundleID != testCase.wantBundle {
+				t.Errorf("FocusedAppBundleID() = %v, want %v", bundleID, testCase.wantBundle)
+			}
+		})
 	}
 }
 
 func TestAdapter_CheckPermissions(t *testing.T) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{
-		MockPermissions: true,
+	tests := []struct {
+		name            string
+		mockPermissions bool
+		wantErr         bool
+	}{
+		{
+			name:            "permissions granted",
+			mockPermissions: true,
+			wantErr:         false,
+		},
+		{
+			name:            "permissions denied",
+			mockPermissions: false,
+			wantErr:         true,
+		},
 	}
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
-	ctx := context.Background()
 
-	permissionsErr := adapter.CheckPermissions(ctx)
-	if permissionsErr != nil {
-		t.Errorf("CheckPermissions() error = %v", permissionsErr)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			logger := zap.NewNop()
+			mockClient := &accessibility.MockAXClient{
+				MockPermissions: testCase.mockPermissions,
+			}
+			adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
+			ctx := context.Background()
+
+			permissionsErr := adapter.CheckPermissions(ctx)
+
+			if (permissionsErr != nil) != testCase.wantErr {
+				t.Errorf(
+					"CheckPermissions() error = %v, wantErr %v",
+					permissionsErr,
+					testCase.wantErr,
+				)
+			}
+		})
 	}
 }
 
@@ -410,7 +476,13 @@ func TestAdapter_ClickableRoles(t *testing.T) {
 	roles := []string{"AXButton", "AXLink"}
 	adapter := accessibility.NewAdapter(logger, []string{}, roles, mockClient)
 
-	if len(adapter.ClickableRoles()) != len(roles) {
-		t.Errorf("ClickableRoles() length = %d, want %d", len(adapter.ClickableRoles()), len(roles))
+	result := adapter.ClickableRoles()
+
+	if len(result) != len(roles) {
+		t.Errorf("ClickableRoles() length = %d, want %d", len(result), len(roles))
+	}
+
+	if !reflect.DeepEqual(result, roles) {
+		t.Errorf("ClickableRoles() = %v, want %v", result, roles)
 	}
 }
