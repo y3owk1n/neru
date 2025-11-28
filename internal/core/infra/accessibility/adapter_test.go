@@ -351,3 +351,66 @@ func TestAdapter_PerformActionAtPoint(t *testing.T) {
 		})
 	}
 }
+
+// mockAXApp is a mock implementation of AXApp for testing.
+type mockAXApp struct {
+	bundleID string
+}
+
+func (m *mockAXApp) Release()                 {}
+func (m *mockAXApp) BundleIdentifier() string { return m.bundleID }
+
+func (m *mockAXApp) Info() (*accessibility.AXAppInfo, error) { return &accessibility.AXAppInfo{}, nil }
+
+func TestAdapter_FocusedAppBundleID(t *testing.T) {
+	logger := zap.NewNop()
+	mockClient := &accessibility.MockAXClient{
+		MockFocusedApp: &mockAXApp{bundleID: "com.google.Chrome"},
+	}
+	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
+	ctx := context.Background()
+
+	bundleID, bundleIDErr := adapter.FocusedAppBundleID(ctx)
+	if bundleIDErr != nil {
+		t.Fatalf("FocusedAppBundleID() error = %v", bundleIDErr)
+	}
+
+	if bundleID != "com.google.Chrome" {
+		t.Errorf("FocusedAppBundleID() = %v, want %v", bundleID, "com.google.Chrome")
+	}
+}
+
+func TestAdapter_CheckPermissions(t *testing.T) {
+	logger := zap.NewNop()
+	mockClient := &accessibility.MockAXClient{
+		MockPermissions: true,
+	}
+	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
+	ctx := context.Background()
+
+	permissionsErr := adapter.CheckPermissions(ctx)
+	if permissionsErr != nil {
+		t.Errorf("CheckPermissions() error = %v", permissionsErr)
+	}
+}
+
+func TestAdapter_Logger(t *testing.T) {
+	logger := zap.NewNop()
+	mockClient := &accessibility.MockAXClient{}
+	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
+
+	if adapter.Logger() != logger {
+		t.Error("Logger() returned wrong logger")
+	}
+}
+
+func TestAdapter_ClickableRoles(t *testing.T) {
+	logger := zap.NewNop()
+	mockClient := &accessibility.MockAXClient{}
+	roles := []string{"AXButton", "AXLink"}
+	adapter := accessibility.NewAdapter(logger, []string{}, roles, mockClient)
+
+	if len(adapter.ClickableRoles()) != len(roles) {
+		t.Errorf("ClickableRoles() length = %d, want %d", len(adapter.ClickableRoles()), len(roles))
+	}
+}
