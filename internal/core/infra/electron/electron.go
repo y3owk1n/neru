@@ -27,6 +27,10 @@ var (
 // This allows Neru to properly interact with Electron applications that don't expose their
 // UI elements correctly to the macOS accessibility API.
 func EnsureElectronAccessibility(bundleID string, logger *zap.Logger) bool {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	app := accessibility.ApplicationByBundleID(bundleID)
 	if app == nil {
 		logger.Debug("Application not found for bundle ID", zap.String("bundle_id", bundleID))
@@ -84,6 +88,10 @@ func ensureAccessibility(
 	pidsMu *sync.Mutex,
 	logger *zap.Logger,
 ) bool {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	app := accessibility.ApplicationByBundleID(bundleID)
 	if app == nil {
 		logger.Debug("Application not found for bundle ID", zap.String("bundle_id", bundleID))
