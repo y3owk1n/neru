@@ -50,13 +50,13 @@ func (w *Watcher) Stop() {
 	bridge.StopAppWatcher()
 }
 
-// OnScreenParametersChanged registers a callback for screen parameter change events.
-// The callback is executed when display configuration changes (resolution, arrangement, etc.).
-func (w *Watcher) OnScreenParametersChanged(callback func()) {
+// OnLaunch registers a callback for application launch events.
+// The callback is executed when a monitored application launches.
+func (w *Watcher) OnLaunch(callback AppCallback) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	w.screenChangeCallbacks = append(w.screenChangeCallbacks, callback)
+	w.launchCallbacks = append(w.launchCallbacks, callback)
 }
 
 // OnTerminate registers a callback for application termination events.
@@ -84,6 +84,15 @@ func (w *Watcher) OnDeactivate(callback AppCallback) {
 	defer w.mu.Unlock()
 
 	w.deactivateCallbacks = append(w.deactivateCallbacks, callback)
+}
+
+// OnScreenParametersChanged registers a callback for screen parameter change events.
+// The callback is executed when display configuration changes (resolution, arrangement, etc.).
+func (w *Watcher) OnScreenParametersChanged(callback func()) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.screenChangeCallbacks = append(w.screenChangeCallbacks, callback)
 }
 
 // HandleLaunch processes application launch events from the Objective-C bridge.

@@ -31,6 +31,21 @@ func TestIsRunningFromAppBundle(t *testing.T) {
 			path:     "/Applications/MyApp.app/Contents/MacOS/myapp",
 			expected: true,
 		},
+		{
+			name:     "nested app bundle",
+			path:     "/Applications/MyApp.app/Contents/Resources/Neru.app/Contents/MacOS/neru",
+			expected: true,
+		},
+		{
+			name:     "not an app bundle",
+			path:     "/usr/bin/neru",
+			expected: false,
+		},
+		{
+			name:     "empty path",
+			path:     "",
+			expected: false,
+		},
 	}
 
 	for _, testCase := range tests {

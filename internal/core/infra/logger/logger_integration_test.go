@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func TestInit(t *testing.T) {
+func TestInitIntegration(t *testing.T) {
 	// Create temp directory for test logs
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
@@ -104,7 +104,7 @@ func TestInit(t *testing.T) {
 	}
 }
 
-func TestGet(t *testing.T) {
+func TestGetIntegration(t *testing.T) {
 	// Reset global logger
 	logger.Reset()
 
@@ -177,7 +177,7 @@ func TestLoggingFunctions(t *testing.T) {
 	}
 }
 
-func TestWith(t *testing.T) {
+func TestWithIntegration(t *testing.T) {
 	// Initialize logger
 	err := logger.Init("info", "", false, true, 10, 3, 7, nil)
 	if err != nil {
@@ -198,7 +198,7 @@ func TestWith(t *testing.T) {
 	childLogger.Info("test message")
 }
 
-func TestSync(t *testing.T) {
+func TestSyncIntegration(t *testing.T) {
 	// Initialize logger
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
@@ -218,7 +218,7 @@ func TestSync(t *testing.T) {
 	_ = logger.Sync()
 }
 
-func TestClose(t *testing.T) {
+func TestCloseIntegration(t *testing.T) {
 	// Initialize logger
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
