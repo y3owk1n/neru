@@ -91,7 +91,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	h.appState.SetHintOverlayNeedsRefresh(false)
 
 	// Use new HintService to show hints
-	context, cancel := context.WithTimeout(context.Background(), HintTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
 	defer cancel()
 
 	filter := ports.DefaultElementFilter()
@@ -103,7 +103,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	filter.IncludeNotificationCenter = h.config.Hints.IncludeNCHints
 
 	// Get hints from service
-	domainHints, domainHintsErr := h.hintService.ShowHints(context, filter)
+	domainHints, domainHintsErr := h.hintService.ShowHints(ctx, filter)
 	if domainHintsErr != nil {
 		h.logger.Error(
 			"Failed to show hints",
