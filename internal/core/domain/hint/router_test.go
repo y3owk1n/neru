@@ -15,32 +15,28 @@ func TestRouter_RouteKey(t *testing.T) {
 	router := hint.NewRouter(manager, logger)
 
 	tests := []struct {
-		name       string
-		key        string
-		setupHints bool
-		wantExit   bool
-		wantExact  bool
+		name      string
+		key       string
+		wantExit  bool
+		wantExact bool
 	}{
 		{
-			name:       "escape key exits",
-			key:        "escape",
-			setupHints: false,
-			wantExit:   true,
-			wantExact:  false,
+			name:      "escape key exits",
+			key:       "escape",
+			wantExit:  true,
+			wantExact: false,
 		},
 		{
-			name:       "backspace key",
-			key:        "backspace",
-			setupHints: false,
-			wantExit:   false,
-			wantExact:  false,
+			name:      "backspace key",
+			key:       "backspace",
+			wantExit:  false,
+			wantExact: false,
 		},
 		{
-			name:       "regular key input",
-			key:        "a",
-			setupHints: false,
-			wantExit:   false,
-			wantExact:  false,
+			name:      "regular key input",
+			key:       "a",
+			wantExit:  false,
+			wantExact: false,
 		},
 	}
 
@@ -68,33 +64,56 @@ func TestRouter_WithHints(t *testing.T) {
 	manager := hint.NewManager(logger)
 	router := hint.NewRouter(manager, logger)
 
-	// Set up hints in manager
-	elem, _ := element.NewElement("test", image.Rect(0, 0, 10, 10), element.RoleButton)
-	h, _ := hint.NewHint("A", elem, image.Point{X: 5, Y: 5})
-	collection := hint.NewCollection([]*hint.Interface{h})
+	// Set up hints in manager with multi-character labels
+	elem1, _ := element.NewElement("test1", image.Rect(0, 0, 10, 10), element.RoleButton)
+	elem2, _ := element.NewElement("test2", image.Rect(10, 10, 20, 20), element.RoleButton)
+
+	h1, _ := hint.NewHint("AB", elem1, image.Point{X: 5, Y: 5})
+	h2, _ := hint.NewHint("AC", elem2, image.Point{X: 15, Y: 15})
+
+	collection := hint.NewCollection([]*hint.Interface{h1, h2})
 	manager.SetHints(collection)
 
-	// Test exact match
+	// Test partial match - typing "A" should not complete yet
 	result := router.RouteKey("a")
-	if result.Exit() {
-		t.Error("Should not exit on exact match")
-	}
-
-	if result.ExactHint() == nil {
-		t.Error("Should have exact hint match")
-	}
-
-	if result.ExactHint().Label() != "A" {
-		t.Errorf("Expected hint label 'A', got %s", result.ExactHint().Label())
-	}
-
-	// Test partial match
-	result = router.RouteKey("b")
 	if result.Exit() {
 		t.Error("Should not exit on partial match")
 	}
 
 	if result.ExactHint() != nil {
-		t.Error("Should not have exact hint on partial match")
+		t.Error("Should not have exact hint match for partial input 'a'")
+	}
+
+	// Test exact match - typing "AB" should complete
+	result = router.RouteKey("b")
+	if result.Exit() {
+		t.Error("Should not exit on exact match")
+	}
+
+	if result.ExactHint() == nil {
+		t.Error("Should have exact hint match for 'ab'")
+	}
+
+	if result.ExactHint().Label() != "AB" {
+		t.Errorf("Expected hint label 'AB', got %s", result.ExactHint().Label())
+	}
+
+	// Reset and test another partial/exact sequence
+	manager.SetHints(collection) // Reset input state
+
+	// Type "A" again (partial)
+	result = router.RouteKey("a")
+	if result.ExactHint() != nil {
+		t.Error("Should not have exact hint match for partial input 'a' (second time)")
+	}
+
+	// Type "C" to complete "AC"
+	result = router.RouteKey("c")
+	if result.ExactHint() == nil {
+		t.Error("Should have exact hint match for 'ac'")
+	}
+
+	if result.ExactHint().Label() != "AC" {
+		t.Errorf("Expected hint label 'AC', got %s", result.ExactHint().Label())
 	}
 }
