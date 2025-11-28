@@ -294,13 +294,13 @@ just build && just test
 just test && just lint && just build
 
 # Test specific package
-go test ./internal/domain/hint/
+go test ./internal/core/domain/hint/
 
 # Test with verbose output
-go test -v ./internal/application/services/
+go test -v ./internal/app/services/
 
 # Integration test specific component
-go test -tags=integration ./internal/adapter/accessibility/
+go test -tags=integration ./internal/core/infra/accessibility/
 ```
 
 ---
@@ -330,47 +330,49 @@ Both modes support various actions (click, scroll, etc.) and can be configured e
 
 Neru follows clean architecture with clear separation of concerns:
 
-#### Domain Layer (`internal/domain`)
+#### Domain Layer (`internal/core/domain`)
 
 Pure business logic with no external dependencies:
 
 - **Entities**: Core concepts (Hint, Grid, Element, Action)
 - **Value Objects**: Immutable data structures
-- **Interfaces**: Contracts for external dependencies
+- **Business Rules**: Domain logic and validation
 
-#### Application Layer (`internal/application`)
+#### Ports Layer (`internal/core/ports`)
+
+Interfaces defining contracts between layers:
+
+- **AccessibilityPort**: UI element access and interaction
+- **OverlayPort**: UI overlay management
+- **ConfigPort**: Configuration management
+- **InfrastructurePort**: System-level operations
+
+#### Application Layer (`internal/app`)
 
 Implements use cases and orchestrates domain entities:
 
-- **Services**: Business logic (HintService, GridService, ActionService)
-- **Ports**: Interfaces defining infrastructure interactions
+- **Services**: Business logic orchestration (HintService, GridService, ActionService)
+- **Components**: UI components for Hints, Grid, and Scroll modes
+- **Modes**: Navigation mode logic and state management
+- **Lifecycle**: Application startup, shutdown, and orchestration
 
-#### Adapter Layer (`internal/adapter`)
+#### Infrastructure Layer (`internal/core/infra`)
 
-Concrete implementations of application ports:
+Concrete implementations of ports:
 
 - **Accessibility**: macOS Accessibility API integration
 - **Overlay**: UI overlay management and rendering
 - **Config**: Configuration loading and parsing
-- **Hotkey**: Global hotkey registration
+- **EventTap**: Global input monitoring
+- **Hotkeys**: System hotkey registration
 - **IPC**: Inter-process communication
-
-#### Infrastructure Layer (`internal/infra`)
-
-Low-level technical implementations:
-
-- **Accessibility**: Direct CGo/Objective-C macOS API wrappers
-- **Event Tap**: System-wide input monitoring
-- **Hotkeys**: Carbon API integration
-- **IPC**: Unix socket communication
 - **Bridge**: Objective-C UI components
 
-#### Presentation Layer (`internal/ui`, `internal/features`)
+#### Presentation Layer (`internal/ui`)
 
-User interface and presentation logic:
+User interface rendering:
 
-- **Features**: View models for Hints, Grid, and Scroll modes
-- **UI**: Rendering logic and overlay management
+- **UI**: Overlay rendering and coordinate conversion
 
 ### Data Flow
 
@@ -381,45 +383,49 @@ User interface and presentation logic:
 
 ### Core Packages
 
-#### `internal/domain`
+#### `internal/core/domain`
 
 Core business logic and entities (pure Go, no external dependencies):
 
 - **Element**: UI element representation with bounds, role, and state
 - **Hint/Grid/Action**: Navigation and interaction primitives
 
-#### `internal/application`
+#### `internal/core/ports`
 
-Use case implementations using Ports and Adapters:
+Interface contracts between layers:
 
-- **Services**: Business logic orchestration (HintService, GridService, ActionService)
-- **Ports**: Interfaces defining infrastructure contracts
-
-#### `internal/adapter`
-
-Concrete port implementations:
-
-- **Accessibility**: macOS Accessibility API bridge
-- **Overlay**: UI overlay management
-- **Config**: Configuration handling
-- **Hotkey/IPC**: System integration adapters
-
-#### `internal/infra`
-
-Low-level infrastructure (CGo, system APIs):
-
-- **Accessibility**: Direct macOS API wrappers
-- **EventTap/Hotkeys**: System input handling
-- **IPC**: Inter-process communication
-- **Bridge**: Objective-C UI components
+- **AccessibilityPort**: UI element access and interaction
+- **OverlayPort**: UI overlay management
+- **ConfigPort**: Configuration management
+- **InfrastructurePort**: System-level operations
 
 #### `internal/app`
 
-Main application orchestration:
+Application orchestration and use cases:
 
+- **Services**: Business logic orchestration (HintService, GridService, ActionService)
+- **Components**: UI components for Hints, Grid, and Scroll modes
+- **Modes**: Navigation mode logic and state management
 - **App**: Central application state and dependencies
-- **Modes**: Navigation mode logic (hints, grid, scroll)
-- **Lifecycle**: Startup, shutdown, and state management
+- **Lifecycle**: Startup, shutdown, and orchestration
+
+#### `internal/core/infra`
+
+Infrastructure implementations:
+
+- **Accessibility**: macOS Accessibility API integration
+- **Overlay**: UI overlay management and rendering
+- **Config**: Configuration loading and parsing
+- **EventTap**: Global input monitoring
+- **Hotkeys**: System hotkey registration
+- **IPC**: Inter-process communication
+- **Bridge**: Objective-C UI components
+
+#### `internal/ui`
+
+Presentation layer:
+
+- **UI**: Overlay rendering and coordinate conversion
 
 #### `internal/cli`
 
@@ -447,24 +453,24 @@ Configuration management:
 
 **Navigation Modes:**
 
-1. Define domain entities in `internal/domain/`
-2. Create service in `internal/application/services/`
-3. Implement adapter in `internal/adapter/`
-4. Add features in `internal/features/`
+1. Define domain entities in `internal/core/domain/`
+2. Create service in `internal/app/services/`
+3. Implement infrastructure in `internal/core/infra/`
+4. Add components in `internal/app/components/`
 5. Register mode in `internal/app/modes/`
 
 **Actions:**
 
-1. Define action in `internal/domain/action/`
-2. Implement logic in `internal/application/services/action_service.go`
+1. Define action in `internal/core/domain/action/`
+2. Implement logic in `internal/app/services/action_service.go`
 3. Add handling in `internal/app/modes/actions.go`
 4. Update config and documentation
 
 **UI Components:**
 
-1. Create features in `internal/features/`
+1. Create components in `internal/app/components/`
 2. Implement rendering in `internal/ui/`
-3. Add Objective-C in `internal/infra/bridge/` if needed
+3. Add Objective-C in `internal/core/infra/bridge/` if needed
 4. Register in `internal/app/app.go`
 
 **CLI Commands:**

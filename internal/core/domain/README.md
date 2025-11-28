@@ -1,10 +1,10 @@
 # Domain Layer
 
-The `internal/domain` package contains the core business logic and entities of the Neru application. It is pure Go code with no dependencies on external frameworks, infrastructure, or the operating system (CGo).
+The `internal/core/domain` package contains the core business logic and entities of the Neru application. It is pure Go code with no dependencies on external frameworks, infrastructure, or the operating system (CGo).
 
 ## Key Entities
 
-### Element (`internal/domain/element`)
+### Element (`internal/core/domain/element`)
 
 Represents a UI element on the screen.
 
@@ -13,7 +13,7 @@ Represents a UI element on the screen.
 - **Role**: The accessibility role (e.g., Button, Window).
 - **Attributes**: Title, description, and state (clickable, etc.).
 
-### Hint (`internal/domain/hint`)
+### Hint (`internal/core/domain/hint`)
 
 Represents a visual hint overlay displayed on top of an element.
 
@@ -21,7 +21,7 @@ Represents a visual hint overlay displayed on top of an element.
 - **Element**: Reference to the target UI element.
 - **Position**: Where the hint should be drawn.
 
-### Action (`internal/domain/action`)
+### Action (`internal/core/domain/action`)
 
 Defines the types of actions that can be performed on elements.
 

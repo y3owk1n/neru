@@ -1,6 +1,6 @@
-// Package config provides an adapter for configuration management.
+// Package config provides configuration management implementation.
 //
 // This package implements the ports.ConfigPort interface by wrapping
-// the config.Service. It provides a thin adapter layer between the
-// application services and the configuration infrastructure.
+// the config.Service. It provides the concrete implementation for
+// configuration operations.
 package config
