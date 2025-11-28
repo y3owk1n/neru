@@ -78,8 +78,8 @@ const (
 	// DefaultPingTimeout is the default ping timeout.
 	DefaultPingTimeout = 500 * time.Millisecond
 
-	// DefaultCacheTTL is the default cache TTL.
-	DefaultCacheTTL = 5 * time.Second
+	// DefaultConfigCacheTTL is the default cache TTL for config.
+	DefaultConfigCacheTTL = 5 * time.Second
 
 	// DefaultDirPerms is the default directory permissions.
 	DefaultDirPerms = 0o750

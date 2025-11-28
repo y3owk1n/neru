@@ -120,7 +120,7 @@ func DefaultTreeOptions() TreeOptions {
 	return TreeOptions{
 		filterFunc:         nil,
 		includeOutOfBounds: false,
-		cache:              NewInfoCache(DefaultCacheTTL),
+		cache:              NewInfoCache(DefaultAccessibilityCacheTTL),
 		parallelThreshold:  DefaultParallelThreshold,
 		maxParallelDepth:   DefaultMaxParallelDepth,
 	}

@@ -12,8 +12,8 @@ import (
 const (
 	// DefaultCacheSize is the default cache size.
 	DefaultCacheSize = 8
-	// DefaultCacheTTL is the default cache TTL.
-	DefaultCacheTTL = 1 * time.Hour
+	// DefaultGridCacheTTL is the default cache TTL for grid.
+	DefaultGridCacheTTL = 1 * time.Hour
 )
 
 // CacheKey is a key for the grid cache.
@@ -40,7 +40,7 @@ type Cache struct {
 }
 
 var (
-	gridCache        = newCache(DefaultCacheSize, DefaultCacheTTL)
+	gridCache        = newCache(DefaultCacheSize, DefaultGridCacheTTL)
 	gridCacheEnabled = true
 )
 

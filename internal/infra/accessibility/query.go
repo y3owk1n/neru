@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	// DefaultCacheTTL is the default cache TTL.
-	DefaultCacheTTL = 5 * time.Second
+	// DefaultAccessibilityCacheTTL is the default cache TTL for accessibility.
+	DefaultAccessibilityCacheTTL = 5 * time.Second
 )
 
 var (
@@ -40,7 +40,7 @@ func ClickableElements() ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for frontmost window")
 
 	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(DefaultCacheTTL)
+		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL)
 	})
 
 	window := FrontmostWindow()
@@ -72,7 +72,7 @@ func MenuBarClickableElements() ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
 
 	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(DefaultCacheTTL)
+		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL)
 	})
 
 	app := FocusedApplication()
@@ -118,7 +118,7 @@ func ClickableElementsFromBundleID(bundleID string) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for bundle ID", zap.String("bundle_id", bundleID))
 
 	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(DefaultCacheTTL)
+		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL)
 	})
 
 	app := ApplicationByBundleID(bundleID)
