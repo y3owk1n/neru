@@ -53,7 +53,7 @@ func ClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 	opts := DefaultTreeOptions(logger)
 	opts.cache = globalCache
 
-	tree, err := BuildTree(window, opts, logger)
+	tree, err := BuildTree(window, opts)
 	if err != nil {
 		logger.Error("Failed to build tree for frontmost window", zap.Error(err))
 
@@ -93,7 +93,7 @@ func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 	opts := DefaultTreeOptions(logger)
 	opts.cache = globalCache
 
-	tree, err := BuildTree(menubar, opts, logger)
+	tree, err := BuildTree(menubar, opts)
 	if err != nil {
 		logger.Error("Failed to build tree for menu bar", zap.Error(err))
 
@@ -132,7 +132,7 @@ func ClickableElementsFromBundleID(bundleID string, logger *zap.Logger) ([]*Tree
 	opts.cache = globalCache
 	opts.includeOutOfBounds = true
 
-	tree, err := BuildTree(app, opts, logger)
+	tree, err := BuildTree(app, opts)
 	if err != nil {
 		logger.Error("Failed to build tree for application",
 			zap.String("bundle_id", bundleID),

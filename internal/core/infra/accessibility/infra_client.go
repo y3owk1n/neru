@@ -67,7 +67,7 @@ func (c *InfraAXClient) ClickableNodes(
 	opts := DefaultTreeOptions(c.logger)
 	opts.SetIncludeOutOfBounds(includeOffscreen)
 
-	tree, treeErr := BuildTree(element, opts, c.logger)
+	tree, treeErr := BuildTree(element, opts)
 	if treeErr != nil {
 		return nil, derrors.Wrap(
 			treeErr,

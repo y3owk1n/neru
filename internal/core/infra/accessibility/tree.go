@@ -132,9 +132,9 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 }
 
 // BuildTree constructs an accessibility tree starting from the specified root element.
-func BuildTree(root *Element, opts TreeOptions, logger *zap.Logger) (*TreeNode, error) {
+func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 	if root == nil {
-		logger.Debug("BuildTree called with nil root element")
+		opts.Logger().Debug("BuildTree called with nil root element")
 
 		return nil, errRootElementNil
 	}
@@ -153,7 +153,7 @@ func BuildTree(root *Element, opts TreeOptions, logger *zap.Logger) (*TreeNode, 
 		var infoErr error
 		info, infoErr = root.Info()
 		if infoErr != nil {
-			logger.Warn("Failed to get root element info", zap.Error(infoErr))
+			opts.Logger().Warn("Failed to get root element info", zap.Error(infoErr))
 
 			return nil, infoErr
 		}
@@ -164,7 +164,7 @@ func BuildTree(root *Element, opts TreeOptions, logger *zap.Logger) (*TreeNode, 
 		return nil, derrors.New(derrors.CodeAccessibilityFailed, "root element info is nil")
 	}
 
-	logger.Debug("Building tree from root element",
+	opts.Logger().Debug("Building tree from root element",
 		zap.String("role", info.Role()),
 		zap.String("title", info.Title()),
 		zap.Int("pid", info.PID()))
@@ -184,7 +184,7 @@ func BuildTree(root *Element, opts TreeOptions, logger *zap.Logger) (*TreeNode, 
 
 	buildTreeRecursive(node, 1, opts, windowBounds)
 
-	logger.Debug("Tree building completed",
+	opts.Logger().Debug("Tree building completed",
 		zap.String("root_role", info.Role()),
 		zap.String("root_title", info.Title()))
 
