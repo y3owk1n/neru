@@ -67,4 +67,26 @@ func TestEventTapAdapterIntegration(t *testing.T) {
 			// Handler
 		})
 	})
+
+	t.Run("SetHotkeys", func(t *testing.T) {
+		// Test setting hotkeys
+		hotkeys := []string{"cmd+shift+k", "cmd+shift+l"}
+		adapter.SetHotkeys(hotkeys)
+		// Note: No direct way to verify hotkeys were set without internal access
+	})
+
+	t.Run("Destroy", func(t *testing.T) {
+		// Create a new adapter for this test to avoid interfering with other tests
+		testTap := eventtapInfra.NewEventTap(func(_ string) {}, logger)
+		if testTap == nil {
+			t.Skip("Skipping Destroy test: failed to create event tap")
+		}
+		testAdapter := eventtap.NewAdapter(testTap, logger)
+
+		// Enable first
+		_ = testAdapter.Enable(ctx)
+
+		// Then destroy - should not panic
+		testAdapter.Destroy()
+	})
 }
