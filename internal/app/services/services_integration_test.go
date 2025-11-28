@@ -42,13 +42,13 @@ func TestHintServiceIntegration(t *testing.T) {
 	}
 
 	// Create hint service
-	hintService := services.NewHintService(accAdapter, overlay, hintGen, logger)
+	hintService := services.NewHintService(accAdapter, overlay, hintGen, cfg.Hints, logger)
 
 	ctx := context.Background()
 
 	t.Run("ShowHints integration", func(t *testing.T) {
 		// This tests the full pipeline: accessibility -> hint generation -> overlay
-		_, err := hintService.ShowHints(ctx, ports.ElementFilter{})
+		_, err := hintService.ShowHints(ctx)
 		if err != nil {
 			// It's okay if this fails due to permissions or no elements
 			t.Logf("ShowHints failed (expected in some environments): %v", err)
@@ -108,7 +108,7 @@ func TestGridServiceIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("ShowGrid integration", func(t *testing.T) {
-		err := gridService.ShowGrid(ctx, 3, 3)
+		err := gridService.ShowGrid(ctx)
 		if err != nil {
 			t.Logf("ShowGrid failed: %v", err)
 		}

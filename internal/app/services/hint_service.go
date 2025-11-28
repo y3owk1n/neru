@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -15,6 +16,7 @@ type HintService struct {
 	accessibility ports.AccessibilityPort
 	overlay       ports.OverlayPort
 	generator     hint.Generator
+	config        config.HintsConfig
 	logger        *zap.Logger
 }
 
@@ -23,12 +25,14 @@ func NewHintService(
 	accessibility ports.AccessibilityPort,
 	overlay ports.OverlayPort,
 	generator hint.Generator,
+	config config.HintsConfig,
 	logger *zap.Logger,
 ) *HintService {
 	return &HintService{
 		accessibility: accessibility,
 		overlay:       overlay,
 		generator:     generator,
+		config:        config,
 		logger:        logger,
 	}
 }
@@ -36,9 +40,16 @@ func NewHintService(
 // ShowHints displays hints for clickable elements on the screen.
 func (s *HintService) ShowHints(
 	ctx context.Context,
-	filter ports.ElementFilter,
 ) ([]*hint.Interface, error) {
-	s.logger.Info("Showing hints", zap.Any("filter", filter))
+	s.logger.Info("Showing hints")
+
+	filter := ports.DefaultElementFilter()
+
+	// Populate filter with configuration
+	filter.IncludeMenubar = s.config.IncludeMenubarHints
+	filter.AdditionalMenubarTargets = s.config.AdditionalMenubarHintsTargets
+	filter.IncludeDock = s.config.IncludeDockHints
+	filter.IncludeNotificationCenter = s.config.IncludeNCHints
 
 	// Get clickable elements
 	elements, elementsErr := s.accessibility.ClickableElements(ctx, filter)

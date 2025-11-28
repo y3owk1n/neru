@@ -503,6 +503,83 @@ func TestActionService_MoveCursorToPoint(t *testing.T) {
 	}
 }
 
+func TestActionService_HandleActionKey(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	logger := logger.Get()
+
+	// Config with action keys
+	config := config.ActionConfig{
+		LeftClickKey:  "a",
+		RightClickKey: "s",
+	}
+	service := services.NewActionService(mockAcc, mockOverlay, config, logger)
+
+	ctx := context.Background()
+
+	// Test left click action key
+	cursorPos := image.Point{X: 100, Y: 100}
+	mockAcc.CursorPositionFunc = func(_ context.Context) (image.Point, error) {
+		return cursorPos, nil
+	}
+	actionPerformed := false
+	mockAcc.PerformActionAtPointFunc = func(_ context.Context, actionType action.Type, point image.Point) error {
+		if actionType == action.TypeLeftClick && point == cursorPos {
+			actionPerformed = true
+
+			return nil
+		}
+
+		return derrors.New(derrors.CodeActionFailed, "unexpected action")
+	}
+
+	handled := service.HandleActionKey(ctx, "a", "TestMode")
+	if !handled {
+		t.Error("HandleActionKey should return true for valid action key")
+	}
+
+	if !actionPerformed {
+		t.Error("Left click action should have been performed")
+	}
+
+	// Test unknown key
+	handled = service.HandleActionKey(ctx, "z", "TestMode")
+	if handled {
+		t.Error("HandleActionKey should return false for unknown key")
+	}
+
+	// Test right-click action key
+	actionPerformed = false
+	mockAcc.PerformActionAtPointFunc = func(_ context.Context, actionType action.Type, point image.Point) error {
+		if actionType == action.TypeRightClick && point == cursorPos {
+			actionPerformed = true
+
+			return nil
+		}
+
+		return derrors.New(derrors.CodeActionFailed, "unexpected action")
+	}
+
+	handled = service.HandleActionKey(ctx, "s", "TestMode")
+	if !handled {
+		t.Error("HandleActionKey should return true for valid right-click key")
+	}
+
+	if !actionPerformed {
+		t.Error("Right click action should have been performed")
+	}
+
+	// Test error scenario when cursor position fails
+	mockAcc.CursorPositionFunc = func(_ context.Context) (image.Point, error) {
+		return image.Point{}, derrors.New(derrors.CodeAccessibilityFailed, "cursor position failed")
+	}
+
+	handled = service.HandleActionKey(ctx, "a", "TestMode")
+	if handled {
+		t.Error("HandleActionKey should return false when cursor position fails")
+	}
+}
+
 func TestActionService_CursorPosition(t *testing.T) {
 	mockAcc := &mocks.MockAccessibilityPort{}
 	mockOverlay := &mocks.MockOverlayPort{}

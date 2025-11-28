@@ -16,7 +16,7 @@ type OverlayPort interface {
 	ShowHints(ctx context.Context, hints []*hint.Interface) error
 
 	// ShowGrid displays the grid overlay.
-	ShowGrid(ctx context.Context, rows, cols int) error
+	ShowGrid(ctx context.Context) error
 
 	// DrawScrollHighlight draws a highlight for scroll mode.
 	DrawScrollHighlight(ctx context.Context, rect image.Rectangle, color string, width int) error

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -26,6 +27,7 @@ func TestHintService_ShowHints(t *testing.T) {
 		name          string
 		setupMocks    func(*mocks.MockAccessibilityPort, *mocks.MockOverlayPort)
 		setupGen      func() hint.Generator
+		config        config.HintsConfig
 		wantErr       bool
 		wantHintCount int
 		checkHints    func(*testing.T, []*hint.Interface)
@@ -163,6 +165,39 @@ func TestHintService_ShowHints(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "config-driven filtering",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
+				acc.ClickableElementsFunc = func(_ context.Context, filter ports.ElementFilter) ([]*element.Element, error) {
+					// Verify that config values are properly applied to filter
+					if !filter.IncludeMenubar {
+						t.Error("IncludeMenubar should be true based on config")
+					}
+
+					if !filter.IncludeDock {
+						t.Error("IncludeDock should be true based on config")
+					}
+
+					if !filter.IncludeNotificationCenter {
+						t.Error("IncludeNotificationCenter should be true based on config")
+					}
+
+					return testElements, nil
+				}
+			},
+			setupGen: func() hint.Generator {
+				gen, _ := hint.NewAlphabetGenerator("asdf")
+
+				return gen
+			},
+			config: config.HintsConfig{
+				IncludeMenubarHints: true,
+				IncludeDockHints:    true,
+				IncludeNCHints:      true,
+			},
+			wantErr:       false,
+			wantHintCount: 3,
+		},
 	}
 
 	for _, testCase := range tests {
@@ -177,13 +212,18 @@ func TestHintService_ShowHints(t *testing.T) {
 			generator := testCase.setupGen()
 			logger := logger.Get()
 
-			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
+			service := services.NewHintService(
+				mockAcc,
+				mockOverlay,
+				generator,
+				testCase.config,
+				logger,
+			)
 
 			ctx := context.Background()
-			filter := ports.DefaultElementFilter()
 
 			// Act
-			hints, hintsErr := service.ShowHints(ctx, filter)
+			hints, hintsErr := service.ShowHints(ctx)
 
 			// Assert
 			if testCase.wantErr && hintsErr == nil {
@@ -245,7 +285,13 @@ func TestHintService_HideHints(t *testing.T) {
 				testCase.setupMocks(mockOverlay)
 			}
 
-			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
+			service := services.NewHintService(
+				mockAcc,
+				mockOverlay,
+				generator,
+				config.HintsConfig{},
+				logger,
+			)
 
 			ctx := context.Background()
 			hideHintsErr := service.HideHints(ctx)
@@ -311,7 +357,13 @@ func TestHintService_RefreshHints(t *testing.T) {
 			generator, _ := hint.NewAlphabetGenerator("asdf")
 			logger := logger.Get()
 
-			service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
+			service := services.NewHintService(
+				mockAcc,
+				mockOverlay,
+				generator,
+				config.HintsConfig{},
+				logger,
+			)
 
 			ctx := context.Background()
 			refreshHintsErr := service.RefreshHints(ctx)
@@ -334,7 +386,14 @@ func TestHintService_UpdateGenerator(t *testing.T) {
 
 	// Initial generator
 	initialGen, _ := hint.NewAlphabetGenerator("abcd")
-	service := services.NewHintService(mockAcc, mockOverlay, initialGen, logger)
+
+	service := services.NewHintService(
+		mockAcc,
+		mockOverlay,
+		initialGen,
+		config.HintsConfig{},
+		logger,
+	)
 
 	// Update with new generator
 	newGen, _ := hint.NewAlphabetGenerator("efgh")
@@ -351,7 +410,13 @@ func TestHintService_Health(t *testing.T) {
 	generator, _ := hint.NewAlphabetGenerator("abcd")
 	logger := logger.Get()
 
-	service := services.NewHintService(mockAcc, mockOverlay, generator, logger)
+	service := services.NewHintService(
+		mockAcc,
+		mockOverlay,
+		generator,
+		config.HintsConfig{},
+		logger,
+	)
 
 	// Setup mocks
 	mockAcc.HealthFunc = func(_ context.Context) error {

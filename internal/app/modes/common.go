@@ -454,48 +454,10 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 }
 
 // handleActionKey handles action keys for both hints and grid modes.
-// getActionMapping returns the action name and log message for a given key.
-func (h *Handler) getActionMapping(key string) (string, string, bool) {
-	switch key {
-	case h.config.Action.LeftClickKey:
-		return string(domain.ActionNameLeftClick), "Left click", true
-	case h.config.Action.RightClickKey:
-		return string(domain.ActionNameRightClick), "Right click", true
-	case h.config.Action.MiddleClickKey:
-		return string(domain.ActionNameMiddleClick), "Middle click", true
-	case h.config.Action.MouseDownKey:
-		return string(domain.ActionNameMouseDown), "Mouse down", true
-	case h.config.Action.MouseUpKey:
-		return string(domain.ActionNameMouseUp), "Mouse up", true
-	default:
-		return "", "", false
-	}
-}
 
 func (h *Handler) handleActionKey(key string, mode string) {
 	ctx := context.Background()
-
-	cursorPos, cursorPosErr := h.actionService.CursorPosition(ctx)
-	if cursorPosErr != nil {
-		h.logger.Error("Failed to get cursor position", zap.Error(cursorPosErr))
-
-		return
-	}
-
-	act, logMsg, ok := h.getActionMapping(key)
-	if !ok {
-		h.logger.Debug("Unknown "+mode+" action key", zap.String("key", key))
-
-		return
-	}
-
-	h.logger.Info(mode + " action: " + logMsg)
-
-	// Use ActionService
-	performActionErr := h.actionService.PerformAction(ctx, act, cursorPos)
-	if performActionErr != nil {
-		h.logger.Error("Failed to perform action", zap.Error(performActionErr))
-	}
+	h.actionService.HandleActionKey(ctx, key, mode)
 }
 
 // overlaySwitch switches the overlay mode.

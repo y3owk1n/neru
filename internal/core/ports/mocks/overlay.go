@@ -11,7 +11,7 @@ import (
 // MockOverlayPort is a mock implementation of ports.OverlayPort.
 type MockOverlayPort struct {
 	ShowHintsFunc func(context.Context, []*hint.Interface) error
-	ShowGridFunc  func(ctx context.Context, rows, cols int) error
+	ShowGridFunc  func(ctx context.Context) error
 	// DrawScrollHighlightFunc mocks DrawScrollHighlight.
 	DrawScrollHighlightFunc func(ctx context.Context, rect image.Rectangle, color string, width int) error
 	DrawActionHighlightFunc func(context.Context, image.Rectangle, string, int) error
@@ -36,9 +36,9 @@ func (m *MockOverlayPort) ShowHints(ctx context.Context, hints []*hint.Interface
 }
 
 // ShowGrid implements ports.OverlayPort.
-func (m *MockOverlayPort) ShowGrid(ctx context.Context, rows, cols int) error {
+func (m *MockOverlayPort) ShowGrid(ctx context.Context) error {
 	if m.ShowGridFunc != nil {
-		return m.ShowGridFunc(ctx, rows, cols)
+		return m.ShowGridFunc(ctx)
 	}
 
 	return nil

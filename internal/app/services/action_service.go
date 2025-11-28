@@ -5,6 +5,7 @@ import (
 	"image"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -169,4 +170,54 @@ func (s *ActionService) MoveCursorToPoint(ctx context.Context, point image.Point
 // CursorPosition returns the current cursor position.
 func (s *ActionService) CursorPosition(ctx context.Context) (image.Point, error) {
 	return s.accessibility.CursorPosition(ctx)
+}
+
+// HandleActionKey processes an action key and performs the corresponding action at the current cursor position.
+// Returns true if the key was handled as an action key, false otherwise.
+func (s *ActionService) HandleActionKey(ctx context.Context, key string, mode string) bool {
+	cursorPos, cursorPosErr := s.CursorPosition(ctx)
+	if cursorPosErr != nil {
+		s.logger.Error("Failed to get cursor position", zap.Error(cursorPosErr))
+
+		return false
+	}
+
+	act, logMsg, ok := s.getActionMapping(key)
+	if !ok {
+		s.logger.Debug("Unknown action key",
+			zap.String("mode", mode),
+			zap.String("key", key))
+
+		return false
+	}
+
+	s.logger.Info("Performing action",
+		zap.String("mode", mode),
+		zap.String("action", logMsg))
+
+	// Perform action
+	performActionErr := s.PerformAction(ctx, act, cursorPos)
+	if performActionErr != nil {
+		s.logger.Error("Failed to perform action", zap.Error(performActionErr))
+	}
+
+	return true
+}
+
+// getActionMapping returns the action name and log message for a given key.
+func (s *ActionService) getActionMapping(key string) (string, string, bool) {
+	switch key {
+	case s.config.LeftClickKey:
+		return string(domain.ActionNameLeftClick), "Left click", true
+	case s.config.RightClickKey:
+		return string(domain.ActionNameRightClick), "Right click", true
+	case s.config.MiddleClickKey:
+		return string(domain.ActionNameMiddleClick), "Middle click", true
+	case s.config.MouseDownKey:
+		return string(domain.ActionNameMouseDown), "Mouse down", true
+	case s.config.MouseUpKey:
+		return string(domain.ActionNameMouseUp), "Mouse up", true
+	default:
+		return "", "", false
+	}
 }
