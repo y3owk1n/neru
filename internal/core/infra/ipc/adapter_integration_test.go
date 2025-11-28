@@ -7,14 +7,13 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	adapterIPC "github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // TestIPCAdapterImplementsPort verifies the adapter implements the port interface.
 func TestIPCAdapterImplementsPort(_ *testing.T) {
-	var _ ports.IPCPort = (*adapterIPC.Adapter)(nil)
+	var _ ports.IPCPort = (*ipc.Adapter)(nil)
 }
 
 // TestIPCAdapterIntegration tests the IPC adapter with real server.
@@ -37,7 +36,7 @@ func TestIPCAdapterIntegration(t *testing.T) {
 		t.Fatalf("Failed to create server: %v", serverErr)
 	}
 
-	adapter := adapterIPC.NewAdapter(server, logger)
+	adapter := ipc.NewAdapter(server, logger)
 
 	ctx := context.Background()
 
@@ -73,7 +72,7 @@ func TestIPCAdapterIntegration(t *testing.T) {
 			t.Fatalf("Failed to create server: %v", serverErr)
 		}
 
-		adapter := adapterIPC.NewAdapter(server, logger)
+		adapter := ipc.NewAdapter(server, logger)
 
 		defer adapter.Stop(context.Background()) //nolint:errcheck
 
@@ -106,7 +105,7 @@ func TestIPCAdapterContextCancellation(t *testing.T) {
 		t.Fatalf("Failed to create server: %v", serverErr)
 	}
 
-	adapter := adapterIPC.NewAdapter(server, logger)
+	adapter := ipc.NewAdapter(server, logger)
 
 	// Create canceled context
 	context, cancel := context.WithCancel(context.Background())
