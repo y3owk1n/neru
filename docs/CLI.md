@@ -33,6 +33,7 @@ The Neru CLI communicates with the daemon via IPC (Inter-Process Communication) 
 ```bash
 neru launch              # Start daemon
 neru status              # Check status
+neru profile             # Show profiling setup instructions
 neru hints               # Start hint mode
 neru grid                # Start grid mode
 neru action left_click   # Click at cursor
@@ -157,7 +158,7 @@ neru command --help   # Command-specific help
 neru profile    # Show profiling setup instructions
 ```
 
-For performance analysis, enable Go's pprof HTTP server:
+For performance analysis, enable Go's pprof HTTP server via environment variable:
 
 ```bash
 export NERU_PPROF=:6060
@@ -165,6 +166,8 @@ neru launch
 # Then visit http://localhost:6060/debug/pprof/ in browser
 # Or use: go tool pprof http://localhost:6060/debug/pprof/heap
 ```
+
+The `neru profile` command prints these instructions for easy reference.
 
 ---
 
