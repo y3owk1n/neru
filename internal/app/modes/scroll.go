@@ -161,6 +161,10 @@ func (h *Handler) handleControlScrollKey(key string, lastKey string, lastScrollK
 				)
 			}
 
+			if handleControlScrollKeyErr != nil {
+				h.logger.Error("Control scroll failed", zap.Error(handleControlScrollKeyErr))
+			}
+
 			return handleControlScrollKeyErr == nil
 		}
 	}
