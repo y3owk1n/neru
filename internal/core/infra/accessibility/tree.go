@@ -66,7 +66,6 @@ func (n *TreeNode) AddChild(child *TreeNode) {
 }
 
 // TreeOptions configures accessibility tree traversal behavior and filtering.
-// TreeOptions configures accessibility tree traversal behavior and filtering.
 type TreeOptions struct {
 	filterFunc         func(*ElementInfo) bool
 	includeOutOfBounds bool
@@ -115,7 +114,7 @@ func (o *TreeOptions) SetCache(cache *InfoCache) {
 	o.cache = cache
 }
 
-// DefaultTreeOptions returns the// DefaultTreeOptions returns default tree traversal options.
+// DefaultTreeOptions returns default tree traversal options.
 func DefaultTreeOptions() TreeOptions {
 	return TreeOptions{
 		filterFunc:         nil,
@@ -433,8 +432,6 @@ func buildChildrenParallel(
 		zap.Int("processed_children", validCount),
 		zap.Int("total_children", len(children)))
 }
-
-// shouldIncludeElement combines all filtering logic into one function.
 
 // shouldIncludeElement combines all filtering logic into one function.
 func shouldIncludeElement(info *ElementInfo, opts TreeOptions, windowBounds image.Rectangle) bool {
