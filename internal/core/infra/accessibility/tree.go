@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"go.uber.org/zap"
 )
 
@@ -176,7 +175,7 @@ func BuildTree(root *Element, opts TreeOptions, logger *zap.Logger) (*TreeNode, 
 		), // Pre-allocate for typical children count
 	}
 
-	buildTreeRecursive(node, 1, opts, windowBounds)
+	buildTreeRecursive(logger, node, 1, opts, windowBounds)
 
 	logger.Debug("Tree building completed",
 		zap.String("root_role", info.Role()),
@@ -211,6 +210,7 @@ var interactiveLeafRoles = map[string]bool{
 }
 
 func buildTreeRecursive(
+	logger *zap.Logger,
 	parent *TreeNode,
 	depth int,
 	opts TreeOptions,
@@ -261,13 +261,14 @@ func buildTreeRecursive(
 		zap.Bool("parallel", shouldParallelize))
 
 	if shouldParallelize {
-		buildChildrenParallel(parent, children, depth, opts, windowBounds)
+		buildChildrenParallel(logger, parent, children, depth, opts, windowBounds)
 	} else {
-		buildChildrenSequential(parent, children, depth, opts, windowBounds)
+		buildChildrenSequential(logger, parent, children, depth, opts, windowBounds)
 	}
 }
 
 func buildChildrenSequential(
+	logger *zap.Logger,
 	parent *TreeNode,
 	children []*Element,
 	depth int,
@@ -295,7 +296,7 @@ func buildChildrenSequential(
 			opts.cache.Set(child, info)
 		}
 
-		if !shouldIncludeElement(info, opts, windowBounds) {
+		if !shouldIncludeElement(logger, info, opts, windowBounds) {
 			logger.Debug("Skipping child element (filtered out)",
 				zap.String("role", info.Role()),
 				zap.String("title", info.Title()))
@@ -319,7 +320,7 @@ func buildChildrenSequential(
 		}
 
 		parent.children = append(parent.children, childNode)
-		buildTreeRecursive(childNode, depth+1, opts, windowBounds)
+		buildTreeRecursive(logger, childNode, depth+1, opts, windowBounds)
 	}
 
 	logger.Debug("Sequential child processing completed",
@@ -329,6 +330,7 @@ func buildChildrenSequential(
 }
 
 func buildChildrenParallel(
+	logger *zap.Logger,
 	parent *TreeNode,
 	children []*Element,
 	depth int,
@@ -374,7 +376,7 @@ func buildChildrenParallel(
 				opts.cache.Set(elem, info)
 			}
 
-			if !shouldIncludeElement(info, opts, windowBounds) {
+			if !shouldIncludeElement(logger, info, opts, windowBounds) {
 				logger.Debug("Skipping child element in parallel processing (filtered out)",
 					zap.String("role", info.Role()),
 					zap.String("title", info.Title()))
@@ -391,7 +393,7 @@ func buildChildrenParallel(
 			}
 
 			// Recursively build (this may spawn more goroutines at deeper levels)
-			buildTreeRecursive(childNode, depth+1, opts, windowBounds)
+			buildTreeRecursive(logger, childNode, depth+1, opts, windowBounds)
 
 			results <- childResult{node: childNode, index: idx}
 		}(index, child)
@@ -429,7 +431,12 @@ func buildChildrenParallel(
 }
 
 // shouldIncludeElement combines all filtering logic into one function.
-func shouldIncludeElement(info *ElementInfo, opts TreeOptions, windowBounds image.Rectangle) bool {
+func shouldIncludeElement(
+	logger *zap.Logger,
+	info *ElementInfo,
+	opts TreeOptions,
+	windowBounds image.Rectangle,
+) bool {
 	if !opts.includeOutOfBounds {
 		elementRect := rectFromInfo(info)
 
