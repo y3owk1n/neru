@@ -12,7 +12,7 @@ func TestMockAccessibilityPort_Defaults(t *testing.T) {
 	mock := &mocks.MockAccessibilityPort{}
 
 	// Test that methods return nil/zero values by default
-	elements, err := mock.ClickableElements(context.TODO(), ports.DefaultElementFilter())
+	elements, err := mock.ClickableElements(context.Background(), ports.DefaultElementFilter())
 	if elements != nil || err != nil {
 		t.Errorf(
 			"ClickableElements() default should return (nil, nil), got (%v, %v)",
@@ -21,12 +21,12 @@ func TestMockAccessibilityPort_Defaults(t *testing.T) {
 		)
 	}
 
-	err = mock.PerformAction(context.TODO(), nil, 0)
+	err = mock.PerformAction(context.Background(), nil, 0)
 	if err != nil {
 		t.Errorf("PerformAction() default should return nil, got %v", err)
 	}
 
-	bundleID, err := mock.FocusedAppBundleID(context.TODO())
+	bundleID, err := mock.FocusedAppBundleID(context.Background())
 	if bundleID != "" || err != nil {
 		t.Errorf(
 			"FocusedAppBundleID() default should return (\"\", nil), got (%q, %v)",
@@ -35,12 +35,12 @@ func TestMockAccessibilityPort_Defaults(t *testing.T) {
 		)
 	}
 
-	excluded := mock.IsAppExcluded(context.TODO(), "test.app")
+	excluded := mock.IsAppExcluded(context.Background(), "test.app")
 	if excluded {
 		t.Error("IsAppExcluded() default should return false")
 	}
 
-	bounds, err := mock.ScreenBounds(context.TODO())
+	bounds, err := mock.ScreenBounds(context.Background())
 	if !bounds.Empty() || err != nil {
 		t.Errorf(
 			"ScreenBounds() default should return (empty rect, nil), got (%v, %v)",
@@ -49,12 +49,12 @@ func TestMockAccessibilityPort_Defaults(t *testing.T) {
 		)
 	}
 
-	err = mock.CheckPermissions(context.TODO())
+	err = mock.CheckPermissions(context.Background())
 	if err != nil {
 		t.Errorf("CheckPermissions() default should return nil, got %v", err)
 	}
 
-	err = mock.Health(context.TODO())
+	err = mock.Health(context.Background())
 	if err != nil {
 		t.Errorf("Health() default should return nil, got %v", err)
 	}
@@ -68,12 +68,12 @@ func TestMockConfigPort_Defaults(t *testing.T) {
 		t.Error("Get() should return a default config")
 	}
 
-	err := mock.Reload(context.TODO(), "/test/path")
+	err := mock.Reload(context.Background(), "/test/path")
 	if err != nil {
 		t.Errorf("Reload() default should return nil, got %v", err)
 	}
 
-	ch := mock.Watch(context.TODO())
+	ch := mock.Watch(context.Background())
 	select {
 	case cfg := <-ch:
 		if cfg == nil {
@@ -97,17 +97,17 @@ func TestMockConfigPort_Defaults(t *testing.T) {
 func TestMockOverlayPort_Defaults(t *testing.T) {
 	mock := &mocks.MockOverlayPort{}
 
-	err := mock.ShowHints(context.TODO(), nil)
+	err := mock.ShowHints(context.Background(), nil)
 	if err != nil {
 		t.Errorf("ShowHints() default should return nil, got %v", err)
 	}
 
-	err = mock.ShowGrid(context.TODO())
+	err = mock.ShowGrid(context.Background())
 	if err != nil {
 		t.Errorf("ShowGrid() default should return nil, got %v", err)
 	}
 
-	err = mock.Hide(context.TODO())
+	err = mock.Hide(context.Background())
 	if err != nil {
 		t.Errorf("Hide() default should return nil, got %v", err)
 	}
@@ -117,12 +117,12 @@ func TestMockOverlayPort_Defaults(t *testing.T) {
 		t.Error("IsVisible() default should return false")
 	}
 
-	err = mock.Refresh(context.TODO())
+	err = mock.Refresh(context.Background())
 	if err != nil {
 		t.Errorf("Refresh() default should return nil, got %v", err)
 	}
 
-	err = mock.Health(context.TODO())
+	err = mock.Health(context.Background())
 	if err != nil {
 		t.Errorf("Health() default should return nil, got %v", err)
 	}
