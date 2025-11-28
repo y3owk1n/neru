@@ -148,6 +148,7 @@ func TestHintModeEndToEnd(t *testing.T) {
 		}
 
 		application.SetModeIdle()
+		time.Sleep(100 * time.Millisecond)
 
 		if application.CurrentMode() != domain.ModeIdle {
 			t.Errorf("Expected mode Idle, got %v", application.CurrentMode())
