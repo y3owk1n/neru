@@ -159,9 +159,10 @@ func sendCommand(cmd *cobra.Command, action string, args []string) error {
 
 func requiresRunningInstance() error {
 	if !ipc.IsServerRunning() {
-		fmt.Fprintln(os.Stderr, "Error: neru is not running")
-		fmt.Fprintln(os.Stderr, "Start it first with: neru launch")
-		os.Exit(1)
+		return derrors.New(
+			derrors.CodeIPCServerNotRunning,
+			"neru is not running. Start it first with: neru launch",
+		)
 	}
 
 	return nil
