@@ -11,6 +11,19 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
+// waitForMode waits for the application to reach the specified mode with a timeout
+func waitForMode(t *testing.T, application *app.App, expectedMode domain.Mode, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if application.CurrentMode() == expectedMode {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("Timeout waiting for mode %v, current mode: %v", expectedMode, application.CurrentMode())
+}
+
 // TestAppInitializationIntegration tests that the app can be initialized without hanging
 func TestAppInitializationIntegration(t *testing.T) {
 	if testing.Short() {
@@ -73,30 +86,18 @@ func TestAppInitializationIntegration(t *testing.T) {
 			// Test Hints mode
 			application.SetModeHints()
 
-			// Allow time for mode transition
-			time.Sleep(100 * time.Millisecond)
-
-			if application.CurrentMode() != domain.ModeHints {
-				t.Errorf("Expected mode Hints after transition, got %v", application.CurrentMode())
-			}
+			// Wait for mode transition with timeout
+			waitForMode(t, application, domain.ModeHints, 1*time.Second)
 
 			// Test Grid mode
 			application.SetModeGrid()
 
-			time.Sleep(100 * time.Millisecond)
-
-			if application.CurrentMode() != domain.ModeGrid {
-				t.Errorf("Expected mode Grid after transition, got %v", application.CurrentMode())
-			}
+			waitForMode(t, application, domain.ModeGrid, 1*time.Second)
 
 			// Test back to Idle
 			application.SetModeIdle()
 
-			time.Sleep(100 * time.Millisecond)
-
-			if application.CurrentMode() != domain.ModeIdle {
-				t.Errorf("Expected mode Idle after transition, got %v", application.CurrentMode())
-			}
+			waitForMode(t, application, domain.ModeIdle, 1*time.Second)
 		})
 
 		// Test cleanup
