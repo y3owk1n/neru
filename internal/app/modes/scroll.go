@@ -17,6 +17,14 @@ func (h *Handler) StartInteractiveScroll() {
 	h.Scroll.Context.SetLastKey("")
 	h.ExitMode()
 
+	// Enable event tap early to capture key presses immediately
+	if h.EnableEventTap != nil {
+		h.EnableEventTap()
+	}
+
+	// Set scroll context active before showing overlay
+	h.Scroll.Context.SetIsActive(true)
+
 	ctx := context.Background()
 
 	showScrollOverlayErr := h.ScrollService.ShowScrollOverlay(ctx)
@@ -24,14 +32,8 @@ func (h *Handler) StartInteractiveScroll() {
 		h.Logger.Error("Failed to show scroll overlay", zap.Error(showScrollOverlayErr))
 	}
 
-	if h.EnableEventTap != nil {
-		h.EnableEventTap()
-	}
-
-	h.Scroll.Context.SetIsActive(true)
-
 	h.Logger.Info("Interactive scroll activated")
-	h.Logger.Info("Use j/k to scroll, Ctrl+D/U for half-page, g/G for top/bottom, Esc to exit")
+	h.Logger.Info("Use j/k to scroll, g/G for top/bottom, Esc to exit")
 }
 
 // handleGenericScrollKey handles scroll keys in a generic way.
