@@ -184,12 +184,16 @@ func (s *ActionService) HandleActionKey(ctx context.Context, key string, mode st
 
 	act, logMsg, ok := s.getActionMapping(key)
 	if !ok {
-		s.logger.Debug("Unknown "+mode+" action key", zap.String("key", key))
+		s.logger.Debug("Unknown action key",
+			zap.String("mode", mode),
+			zap.String("key", key))
 
 		return false
 	}
 
-	s.logger.Info(mode + " action: " + logMsg)
+	s.logger.Info("Performing action",
+		zap.String("mode", mode),
+		zap.String("action", logMsg))
 
 	// Perform action
 	performActionErr := s.PerformAction(ctx, act, cursorPos)

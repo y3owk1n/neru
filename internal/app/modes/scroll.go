@@ -27,9 +27,9 @@ func (h *Handler) StartInteractiveScroll() {
 
 	ctx := context.Background()
 
-	showScrollOverlayErr := h.scrollService.Show(ctx)
-	if showScrollOverlayErr != nil {
-		h.logger.Error("Failed to show scroll overlay", zap.Error(showScrollOverlayErr))
+	showScrollErr := h.scrollService.Show(ctx)
+	if showScrollErr != nil {
+		h.logger.Error("Failed to show scroll overlay", zap.Error(showScrollErr))
 	}
 
 	h.logger.Info("Interactive scroll activated")

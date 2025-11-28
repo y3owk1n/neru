@@ -27,6 +27,7 @@ func TestHintService_ShowHints(t *testing.T) {
 		name          string
 		setupMocks    func(*mocks.MockAccessibilityPort, *mocks.MockOverlayPort)
 		setupGen      func() hint.Generator
+		config        config.HintsConfig
 		wantErr       bool
 		wantHintCount int
 		checkHints    func(*testing.T, []*hint.Interface)
@@ -164,6 +165,39 @@ func TestHintService_ShowHints(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "config-driven filtering",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
+				acc.ClickableElementsFunc = func(_ context.Context, filter ports.ElementFilter) ([]*element.Element, error) {
+					// Verify that config values are properly applied to filter
+					if !filter.IncludeMenubar {
+						t.Error("IncludeMenubar should be true based on config")
+					}
+
+					if !filter.IncludeDock {
+						t.Error("IncludeDock should be true based on config")
+					}
+
+					if !filter.IncludeNotificationCenter {
+						t.Error("IncludeNotificationCenter should be true based on config")
+					}
+
+					return testElements, nil
+				}
+			},
+			setupGen: func() hint.Generator {
+				gen, _ := hint.NewAlphabetGenerator("asdf")
+
+				return gen
+			},
+			config: config.HintsConfig{
+				IncludeMenubarHints: true,
+				IncludeDockHints:    true,
+				IncludeNCHints:      true,
+			},
+			wantErr:       false,
+			wantHintCount: 3,
+		},
 	}
 
 	for _, testCase := range tests {
@@ -182,7 +216,7 @@ func TestHintService_ShowHints(t *testing.T) {
 				mockAcc,
 				mockOverlay,
 				generator,
-				config.HintsConfig{},
+				testCase.config,
 				logger,
 			)
 
@@ -352,6 +386,7 @@ func TestHintService_UpdateGenerator(t *testing.T) {
 
 	// Initial generator
 	initialGen, _ := hint.NewAlphabetGenerator("abcd")
+
 	service := services.NewHintService(
 		mockAcc,
 		mockOverlay,
