@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.10.5](https://github.com/y3owk1n/neru/compare/v1.10.4...v1.10.5) (2025-11-28)
+
+
+### Bug Fixes
+
+* **config:** fix app-specific hints configuration and add tests ([#223](https://github.com/y3owk1n/neru/issues/223)) ([1ca2c38](https://github.com/y3owk1n/neru/commit/1ca2c38ad9941885dd6556994c38bffafc37a346))
+* **overlay:** clear overlay when switching from scroll to hints/grid mode ([#228](https://github.com/y3owk1n/neru/issues/228)) ([20a23ea](https://github.com/y3owk1n/neru/commit/20a23eae7e560c97bf51ecebcbde284952c30092))
+* **scroll:** improve responsiveness of scroll mode activation ([#225](https://github.com/y3owk1n/neru/issues/225)) ([7377a74](https://github.com/y3owk1n/neru/commit/7377a74e3c378aa0f21745c3aa146a4e9f9dbf06))
+
+
+### Performance Improvements
+
+* optimize memory and CPU usage ([#226](https://github.com/y3owk1n/neru/issues/226)) ([0b4560a](https://github.com/y3owk1n/neru/commit/0b4560a372d1604a3adc79245d08336c8cf80a5e))
+
 ## [1.10.4](https://github.com/y3owk1n/neru/compare/v1.10.3...v1.10.4) (2025-11-27)
 
 
