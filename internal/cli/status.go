@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/spf13/cobra"
 	derrors "github.com/y3owk1n/neru/internal/errors"
@@ -42,7 +43,7 @@ var statusCmd = &cobra.Command{
 			return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
 		}
 
-		logger.Info("Neru Status:")
+		fmt.Println("Neru Status:")
 		var statusData ipc.StatusData
 		ipcResponseData, ipcResponseDataErr := json.Marshal(ipcResponse.Data)
 		if ipcResponseDataErr == nil {
@@ -52,9 +53,9 @@ var statusCmd = &cobra.Command{
 				if statusData.Enabled {
 					status = "running"
 				}
-				logger.Info("  Status: " + status)
-				logger.Info("  Mode: " + statusData.Mode)
-				logger.Info("  Config: " + statusData.Config)
+				fmt.Println("  Status: " + status)
+				fmt.Println("  Mode: " + statusData.Mode)
+				fmt.Println("  Config: " + statusData.Config)
 			} else {
 				// Fallback to previous behavior
 				if data, ok := ipcResponse.Data.(map[string]any); ok {
@@ -63,13 +64,13 @@ var statusCmd = &cobra.Command{
 						if enabled {
 							status = "running"
 						}
-						logger.Info("  Status: " + status)
+						fmt.Println("  Status: " + status)
 					}
 					if mode, ok := data["mode"].(string); ok {
-						logger.Info("  Mode: " + mode)
+						fmt.Println("  Mode: " + mode)
 					}
 					if configPath, ok := data["config"].(string); ok {
-						logger.Info("  Config: " + configPath)
+						fmt.Println("  Config: " + configPath)
 					}
 				} else {
 					jsonData, jsonDataErr := json.MarshalIndent(ipcResponse.Data, "  ", "  ")
@@ -78,7 +79,7 @@ var statusCmd = &cobra.Command{
 
 						return derrors.Wrap(jsonDataErr, derrors.CodeSerializationFailed, "failed to marshal status data")
 					}
-					logger.Info(string(jsonData))
+					fmt.Println(string(jsonData))
 				}
 			}
 		} else {
@@ -88,7 +89,7 @@ var statusCmd = &cobra.Command{
 
 				return derrors.Wrap(jsonDataErr, derrors.CodeSerializationFailed, "failed to marshal status data")
 			}
-			logger.Info(string(jsonData))
+			fmt.Println(string(jsonData))
 		}
 
 		return nil

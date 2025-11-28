@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -61,7 +62,7 @@ var configDumpCmd = &cobra.Command{
 			)
 		}
 
-		logger.Info(string(ipcResponseData))
+		fmt.Println(string(ipcResponseData))
 
 		return nil
 	},
