@@ -109,12 +109,17 @@ func (c *InfoCache) Clear() {
 
 // Stop terminates the cache cleanup goroutine and releases resources.
 func (c *InfoCache) Stop() {
-	if !c.stopped {
-		close(c.stopCh)
-		c.stopped = true
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-		logger.Debug("Cache stopped")
+	if c.stopped {
+		return
 	}
+
+	close(c.stopCh)
+	c.stopped = true
+
+	logger.Debug("Cache stopped")
 }
 
 // cleanupLoop runs a periodic cleanup process to remove expired cache entries.
