@@ -4,6 +4,7 @@ import (
 	"image"
 	"math"
 	"strings"
+	"sync"
 
 	"go.uber.org/zap"
 )
@@ -539,7 +540,10 @@ func selectBestCandidate(
 // calculating aspect ratio scores to find grids that produce square-like cells.
 // Returns candidates sorted by score (lower is better).
 func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []Candidate {
-	var candidates []Candidate
+	var (
+		candidates []Candidate
+		mutex      sync.Mutex
+	)
 
 	// Calculate search ranges
 	minCols := max(width/maxCellSize, 1)
@@ -548,43 +552,60 @@ func findValidGridConfigurations(width, height, minCellSize, maxCellSize int) []
 	minRows := max(height/maxCellSize, 1)
 	maxRows := max(height/minCellSize, 1)
 
+	// Use WaitGroup for parallel computation
+	var waitGroup sync.WaitGroup
+
 	// Search through all valid grid configurations within constraints
 	for colIndex := maxCols; colIndex >= minCols && colIndex >= 1; colIndex-- {
-		cellWidth := width / colIndex
-		if cellWidth < minCellSize || cellWidth > maxCellSize {
-			continue
-		}
+		waitGroup.Add(1)
 
-		for rowIndex := maxRows; rowIndex >= minRows && rowIndex >= 1; rowIndex-- {
-			cellHeight := height / rowIndex
-			if cellHeight < minCellSize || cellHeight > maxCellSize {
-				continue
+		go func(col int) {
+			defer waitGroup.Done()
+
+			cellWidth := width / col
+			if cellWidth < minCellSize || cellWidth > maxCellSize {
+				return
 			}
 
-			// Calculate how square the cells are (aspect ratio deviation from 1.0)
-			cellAspect := float64(cellWidth) / float64(cellHeight)
+			for rowIndex := maxRows; rowIndex >= minRows && rowIndex >= 1; rowIndex-- {
+				cellHeight := height / rowIndex
+				if cellHeight < minCellSize || cellHeight > maxCellSize {
+					continue
+				}
 
-			aspectDiff := cellAspect - 1.0
-			if aspectDiff < 0 {
-				aspectDiff = -aspectDiff
+				// Calculate how square the cells are (aspect ratio deviation from 1.0)
+				cellAspect := float64(cellWidth) / float64(cellHeight)
+
+				aspectDiff := cellAspect - 1.0
+				if aspectDiff < 0 {
+					aspectDiff = -aspectDiff
+				}
+
+				// Prefer configurations with more cells for finer precision
+				totalCells := float64(col * rowIndex)
+				maxCells := float64(maxCols * maxRows)
+				cellScore := (maxCells - totalCells) / maxCells * ScoreWeight
+
+				aspectScore := aspectDiff + cellScore
+
+				cand := Candidate{
+					cols:  col,
+					rows:  rowIndex,
+					cellW: cellWidth,
+					cellH: cellHeight,
+					score: aspectScore,
+				}
+
+				mutex.Lock()
+
+				candidates = append(candidates, cand)
+
+				mutex.Unlock()
 			}
-
-			// Prefer configurations with more cells for finer precision
-			totalCells := float64(colIndex * rowIndex)
-			maxCells := float64(maxCols * maxRows)
-			cellScore := (maxCells - totalCells) / maxCells * ScoreWeight
-
-			aspectScore := aspectDiff + cellScore
-
-			candidates = append(candidates, Candidate{
-				cols:  colIndex,
-				rows:  rowIndex,
-				cellW: cellWidth,
-				cellH: cellHeight,
-				score: aspectScore,
-			})
-		}
+		}(colIndex)
 	}
+
+	waitGroup.Wait()
 
 	return candidates
 }

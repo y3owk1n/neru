@@ -232,6 +232,8 @@ border_color = "#abe9b3"
 [grid]
 live_match_update = true  # Highlight matches as you type
 hide_unmatched = true     # Hide non-matching cells
+prewarm_enabled = true    # Prewarm grid caches on startup
+enable_gc = false         # Enable periodic garbage collection (may help with memory usage)
 ```
 
 **Workflow:** Press grid hotkey → Type coordinates → Action executes

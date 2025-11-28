@@ -242,6 +242,8 @@ func DefaultConfig() *Config {
 
 			LiveMatchUpdate: true,
 			HideUnmatched:   true,
+			PrewarmEnabled:  true,
+			EnableGC:        false,
 		},
 		Scroll: ScrollConfig{
 			ScrollStep:     DefaultScrollStep,

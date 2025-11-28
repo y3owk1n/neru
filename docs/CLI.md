@@ -139,6 +139,7 @@ neru action scroll
 
 ```bash
 neru status           # Daemon status and mode
+neru profile          # Profiling setup instructions
 neru config dump      # Show loaded configuration
 neru config reload    # Reload config without restart
 neru metrics          # Show metrics (if enabled)
@@ -149,6 +150,21 @@ neru command --help   # Command-specific help
 
 **Status values:** `running`, `disabled`
 **Mode values:** `idle`, `hints`, `grid`
+
+### Profiling
+
+```bash
+neru profile    # Show profiling setup instructions
+```
+
+For performance analysis, enable Go's pprof HTTP server:
+
+```bash
+export NERU_PPROF=:6060
+neru launch
+# Then visit http://localhost:6060/debug/pprof/ in browser
+# Or use: go tool pprof http://localhost:6060/debug/pprof/heap
+```
 
 ---
 

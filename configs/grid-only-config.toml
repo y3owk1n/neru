@@ -43,3 +43,7 @@ enabled = true
 
 # Characters for grid labels
 characters = "abcdefghijklmnpqrstuvwxyz"
+
+# Performance options
+prewarm_enabled = true
+enable_gc = false

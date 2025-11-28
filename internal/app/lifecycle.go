@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -26,6 +27,8 @@ const (
 	MaxExecDisplayLength = 30
 	// SystrayQuitTimeout is the timeout for systray quit.
 	SystrayQuitTimeout = 10 * time.Second
+	// GCTickerInterval is the interval for garbage collection.
+	GCTickerInterval = 5 * time.Minute
 )
 
 // Run starts the main application loop and initializes all subsystems.
@@ -44,6 +47,18 @@ func (a *App) Run() error {
 	a.setupAppWatcherCallbacks()
 
 	a.logger.Info("Neru is running")
+
+	if a.config.Grid.EnableGC {
+		go func() {
+			ticker := time.NewTicker(GCTickerInterval)
+			defer ticker.Stop()
+
+			for range ticker.C {
+				runtime.GC()
+			}
+		}()
+	}
+
 	a.printStartupInfo()
 
 	return a.waitForShutdown()
