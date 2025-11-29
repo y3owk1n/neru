@@ -6,21 +6,14 @@ import (
 
 // HintsMode implements the Mode interface for hints-based navigation.
 type HintsMode struct {
-	handler *Handler
+	baseMode
 }
 
 // NewHintsMode creates a new hints mode implementation.
 func NewHintsMode(handler *Handler) *HintsMode {
-	if handler == nil {
-		panic("HintsMode: handler cannot be nil")
+	return &HintsMode{
+		baseMode: newBaseMode(handler, domain.ModeHints, "HintsMode"),
 	}
-
-	return &HintsMode{handler: handler}
-}
-
-// ModeType returns the domain mode type.
-func (m *HintsMode) ModeType() domain.Mode {
-	return domain.ModeHints
 }
 
 // Activate activates hints mode with optional action parameter.

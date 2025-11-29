@@ -156,5 +156,5 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 
 // handleHintsActionKey handles action keys when in hints action mode.
 func (h *Handler) handleHintsActionKey(key string) {
-	h.handleActionKey(key, "Hints")
+	h.handleActionKey(key, ModeNameHints)
 }
