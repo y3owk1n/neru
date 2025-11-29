@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
 // TestAppInitializationIntegration tests that the app can be initialized with real system components.
@@ -365,24 +366,23 @@ func TestAppLifecycleIntegration(t *testing.T) {
 		// Skip this subtest since the test uses mock IPC server and real client can't connect to mock socket
 		t.Skip("Skipping IPC test with mock server - real client cannot connect to mock socket")
 
-		// Code commented out to avoid unused import
-		// client := ipc.NewClient()
-		//
-		// // Disable
-		// response, err := client.Send(ipc.Command{Action: "stop"})
-		// if err != nil {
-		// 	t.Logf("Stop command failed: %v", err)
-		// } else if !response.Success {
-		// 	t.Logf("Stop command failed: %v", response.Message)
-		// }
-		//
-		// // Re-enable
-		// response, err = client.Send(ipc.Command{Action: "start"})
-		// if err != nil {
-		// 	t.Logf("Start command failed: %v", err)
-		// } else if !response.Success {
-		// 	t.Logf("Start command failed: %v", response.Message)
-		// }
+		client := ipc.NewClient()
+
+		// Disable
+		response, err := client.Send(ipc.Command{Action: "stop"})
+		if err != nil {
+			t.Logf("Stop command failed: %v", err)
+		} else if !response.Success {
+			t.Logf("Stop command failed: %v", response.Message)
+		}
+
+		// Re-enable
+		response, err = client.Send(ipc.Command{Action: "start"})
+		if err != nil {
+			t.Logf("Start command failed: %v", err)
+		} else if !response.Success {
+			t.Logf("Start command failed: %v", response.Message)
+		}
 	})
 
 	// Stop the app
