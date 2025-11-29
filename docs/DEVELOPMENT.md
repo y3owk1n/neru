@@ -242,7 +242,7 @@ Neru has a comprehensive test suite with clear separation between unit tests and
 
 ### Test File Naming Convention
 
-```
+```text
 package_test.go                    # Unit tests (logic, mocks) //go:build unit
 package_integration_test.go       # Integration tests (real system calls) //go:build integration
 package_bench_test.go             # Unit benchmarks (algorithms without system calls) //go:build unit
