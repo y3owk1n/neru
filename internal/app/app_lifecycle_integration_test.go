@@ -759,7 +759,7 @@ func TestHotkeyIntegration(t *testing.T) {
 	// Poll for hotkey registration with timeout
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(mockHotkeys.registered) >= 3 {
+		if mockHotkeys.GetRegisteredCount() >= 3 {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -769,12 +769,13 @@ func TestHotkeyIntegration(t *testing.T) {
 	t.Run("Hotkey Registration", func(t *testing.T) {
 		// Hotkeys should be registered during app startup
 		// The mock should have captured the registrations
-		if mockHotkeys.registered == nil || len(mockHotkeys.registered) == 0 {
+		registeredCount := mockHotkeys.GetRegisteredCount()
+		if registeredCount == 0 {
 			t.Error("Expected hotkeys to be registered during app startup")
 		}
 		// Verify we have at least the default hotkeys
-		if len(mockHotkeys.registered) < 3 {
-			t.Errorf("Expected at least 3 hotkeys registered, got %d", len(mockHotkeys.registered))
+		if registeredCount < 3 {
+			t.Errorf("Expected at least 3 hotkeys registered, got %d", registeredCount)
 		}
 	})
 

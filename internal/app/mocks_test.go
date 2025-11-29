@@ -4,6 +4,7 @@ package app_test
 
 import (
 	"context"
+	"sync"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app/components/action"
@@ -153,6 +154,7 @@ func (m *mockOverlayManager) ShowSubgrid(_ *domainGrid.Cell, _ grid.Style) {}
 func (m *mockOverlayManager) SetHideUnmatched(_ bool)                      {}
 
 type mockHotkeyService struct {
+	mu         sync.RWMutex
 	registered map[string]hotkeys.Callback
 	nextID     hotkeys.HotkeyID
 }
@@ -161,6 +163,9 @@ func (m *mockHotkeyService) Register(
 	key string,
 	callback hotkeys.Callback,
 ) (hotkeys.HotkeyID, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if m.registered == nil {
 		m.registered = make(map[string]hotkeys.Callback)
 	}
@@ -171,10 +176,19 @@ func (m *mockHotkeyService) Register(
 }
 
 func (m *mockHotkeyService) UnregisterAll() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if m.registered != nil {
 		m.registered = make(map[string]hotkeys.Callback)
 	}
 	m.nextID = 0
+}
+
+func (m *mockHotkeyService) GetRegisteredCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.registered)
 }
 
 type mockAppWatcher struct{}
