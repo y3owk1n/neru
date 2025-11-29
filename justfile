@@ -48,10 +48,8 @@ bundle: release
 # Run tests
 
 # Run all tests (unit + integration)
-test:
+test: test-unit test-integration
     @echo "Running all tests..."
-    just test-unit
-    just test-integration
 
 # Run unit tests
 test-unit:
@@ -59,10 +57,8 @@ test-unit:
     go test -tags=unit -v ./...
 
 # Run with race detection
-test-race:
+test-race: test-race-unit test-race-integration
     @echo "Running tests with race detection..."
-    just test-race-unit
-    just test-race-integration
 
 # Run unit tests with race detection
 test-race-unit:
@@ -119,10 +115,8 @@ fmt-check:
     echo "✓ All Objective-C files are properly formatted"
 
 # Run benchmarks
-bench:
+bench: bench-unit bench-integration
     @echo "Running all benchmarks..."
-    just bench-unit
-    just bench-integration
 
 # Run unit benchmarks
 bench-unit:
