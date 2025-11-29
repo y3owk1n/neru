@@ -21,14 +21,13 @@ func (m *ScrollMode) ModeType() domain.Mode {
 
 // Activate activates scroll mode with optional action parameter.
 func (m *ScrollMode) Activate(action *string) {
+	// Scroll mode ignores the action parameter as it has a single activation flow
 	m.handler.StartInteractiveScroll()
 }
 
 // HandleKey processes key presses for scroll mode.
 func (m *ScrollMode) HandleKey(key string) {
-	lastKey := m.handler.scroll.Context.LastKey()
-	m.handler.handleGenericScrollKey(key, &lastKey)
-	m.handler.scroll.Context.SetLastKey(lastKey)
+	m.handler.handleGenericScrollKey(key)
 }
 
 // HandleActionKey processes action keys when in scroll action mode.
