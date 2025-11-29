@@ -42,7 +42,7 @@ func setAndWaitForMode(t *testing.T, application *app.App, mode domain.Mode) {
 	case domain.ModeIdle:
 		application.SetModeIdle()
 	}
-	waitForMode(t, application, mode)
+	waitForMode(t, application, mode, 3*time.Second)
 }
 
 func runTestAppInitializationUnit(t *testing.T, ctx context.Context) {

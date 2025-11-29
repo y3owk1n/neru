@@ -55,17 +55,17 @@ func TestAppInitializationIntegration(t *testing.T) {
 	t.Run("Mode Transitions with Real Components", func(t *testing.T) {
 		// Test hints mode
 		application.SetModeHints()
-		waitForMode(t, application, domain.ModeHints)
+		waitForMode(t, application, domain.ModeHints, 3*time.Second)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle)
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
 
 		// Test grid mode
 		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid)
+		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle)
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
 	})
 
 	t.Log("✅ App initialization with real components test completed successfully")
@@ -108,22 +108,22 @@ func TestGridModeEndToEnd(t *testing.T) {
 	// Test grid mode activation
 	t.Run("Activate Grid Mode", func(t *testing.T) {
 		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid)
+		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
 	})
 
 	// Test grid mode deactivation
 	t.Run("Deactivate Grid Mode", func(t *testing.T) {
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle)
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
 	})
 
 	// Test grid mode reactivation
 	t.Run("Reactivate Grid Mode", func(t *testing.T) {
 		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid)
+		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle)
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
 	})
 
 	// Stop the app
@@ -320,7 +320,7 @@ func TestAppLifecycleIntegration(t *testing.T) {
 				application.SetModeIdle()
 			}
 
-			waitForMode(t, application, mode)
+			waitForMode(t, application, mode, 3*time.Second)
 		}
 	})
 
@@ -408,7 +408,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		application.SetModeHints()
 
 		// Verify mode change
-		waitForMode(t, application, domain.ModeHints)
+		waitForMode(t, application, domain.ModeHints, 3*time.Second)
 		t.Log("✅ Hints mode activated")
 
 		// Simulate user thinking time
@@ -417,7 +417,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		// Switch back to idle (simulates user canceling)
 		application.SetModeIdle()
 
-		waitForMode(t, application, domain.ModeIdle)
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
 		t.Log("✅ Returned to idle mode")
 	})
 
@@ -426,7 +426,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		application.SetModeGrid()
 
 		// Verify mode change
-		waitForMode(t, application, domain.ModeGrid)
+		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
 		t.Log("✅ Grid mode activated")
 
 		// Simulate user navigation time
@@ -435,7 +435,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		// Switch back to idle
 		application.SetModeIdle()
 
-		waitForMode(t, application, domain.ModeIdle)
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
 		t.Log("✅ Returned to idle mode")
 	})
 
@@ -458,7 +458,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		for _, mode := range modes {
 			mode.action()
 
-			waitForMode(t, application, mode.expectedMode)
+			waitForMode(t, application, mode.expectedMode, 3*time.Second)
 			t.Logf("✅ Switched to %s mode", mode.name)
 
 			// Small delay to simulate user thinking time
@@ -472,27 +472,25 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 
 		// Start with hints mode
 		application.SetModeHints()
-		waitForMode(t, application, domain.ModeHints)
+		waitForMode(t, application, domain.ModeHints, 3*time.Second)
 		time.Sleep(500 * time.Millisecond)
 
 		// Switch to grid for precise navigation
 		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid)
+		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
 		time.Sleep(300 * time.Millisecond)
 
 		// Back to hints for element selection
 		application.SetModeHints()
-		waitForMode(t, application, domain.ModeHints)
-		time.Sleep(400 * time.Millisecond)
+		waitForMode(t, application, domain.ModeHints, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
 
-		// Quick grid check
+		// Test grid mode
 		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid)
-		time.Sleep(200 * time.Millisecond)
+		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
 
-		// Finish session
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle)
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
 
 		t.Log("✅ Extended usage simulation completed")
 	})
@@ -512,7 +510,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		}
 
 		// Verify final state is stable
-		waitForMode(t, application, domain.ModeIdle)
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
 		t.Log("✅ Rapid mode switching completed")
 	})
 
