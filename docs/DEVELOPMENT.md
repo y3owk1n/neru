@@ -109,7 +109,7 @@ chmod +x .git/hooks/pre-commit
 | Task   | Command                 | Description                        |
 | ------ | ----------------------- | ---------------------------------- |
 | Build  | `just build`            | Compile the application            |
-| Test   | `just test`             | Run unit tests                     |
+| Test   | `just test`             | Run unit and integration tests     |
 | Test   | `just test-integration` | Run integration tests              |
 | Test   | `just test-all`         | Run all tests (unit + integration) |
 | Bench  | `just bench`            | Run all benchmarks                 |
