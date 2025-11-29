@@ -155,7 +155,7 @@ func TestIPCController_HandleMetrics(t *testing.T) {
 	}
 }
 
-func TestIPCController_HandleAction(t *testing.T) {
+func TestIPCController_HandleActionAndScroll(t *testing.T) {
 	controller := newTestController()
 	controller.RegisterHandlers()
 
