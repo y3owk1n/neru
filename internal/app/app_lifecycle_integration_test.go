@@ -9,7 +9,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
 // TestAppInitializationIntegration tests that the app can be initialized with real system components.
@@ -104,16 +103,7 @@ func TestGridModeEndToEnd(t *testing.T) {
 	}()
 
 	// Wait for app to be running with timeout
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if application.IsEnabled() {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	if !application.IsEnabled() {
-		t.Fatal("App did not start within timeout")
-	}
+	waitForAppReady(t, application, 5*time.Second)
 
 	// Test grid mode activation
 	t.Run("Activate Grid Mode", func(t *testing.T) {
@@ -182,16 +172,7 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 		}()
 
 		// Wait for app to be running with timeout
-		deadline := time.Now().Add(5 * time.Second)
-		for time.Now().Before(deadline) {
-			if application.IsEnabled() {
-				break
-			}
-			time.Sleep(50 * time.Millisecond)
-		}
-		if !application.IsEnabled() {
-			t.Fatal("App did not start within timeout")
-		}
+		waitForAppReady(t, application, 5*time.Second)
 
 		// Verify config is properly set
 		if application.Config() == nil {
@@ -246,16 +227,7 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 		}()
 
 		// Wait for app to be running with timeout
-		deadline := time.Now().Add(5 * time.Second)
-		for time.Now().Before(deadline) {
-			if application.IsEnabled() {
-				break
-			}
-			time.Sleep(50 * time.Millisecond)
-		}
-		if !application.IsEnabled() {
-			t.Fatal("App did not start within timeout")
-		}
+		waitForAppReady(t, application, 5*time.Second)
 
 		if application.HintsEnabled() {
 			t.Error("Expected hints to be disabled")
@@ -314,16 +286,7 @@ func TestAppLifecycleIntegration(t *testing.T) {
 	}()
 
 	// Wait for app to be running with timeout
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if application.IsEnabled() {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	if !application.IsEnabled() {
-		t.Fatal("App did not start within timeout")
-	}
+	waitForAppReady(t, application, 5*time.Second)
 
 	// Test initial state
 	t.Run("Initial State", func(t *testing.T) {
@@ -365,24 +328,6 @@ func TestAppLifecycleIntegration(t *testing.T) {
 	t.Run("Enable/Disable via IPC", func(t *testing.T) {
 		// Skip this subtest since the test uses mock IPC server and real client can't connect to mock socket
 		t.Skip("Skipping IPC test with mock server - real client cannot connect to mock socket")
-
-		client := ipc.NewClient()
-
-		// Disable
-		response, err := client.Send(ipc.Command{Action: "stop"})
-		if err != nil {
-			t.Logf("Stop command failed: %v", err)
-		} else if !response.Success {
-			t.Logf("Stop command failed: %v", response.Message)
-		}
-
-		// Re-enable
-		response, err = client.Send(ipc.Command{Action: "start"})
-		if err != nil {
-			t.Logf("Start command failed: %v", err)
-		} else if !response.Success {
-			t.Logf("Start command failed: %v", response.Message)
-		}
 	})
 
 	// Stop the app
@@ -440,16 +385,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 	}()
 
 	// Wait for app to be running with timeout
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if application.IsEnabled() {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	if !application.IsEnabled() {
-		t.Fatal("App did not start within timeout")
-	}
+	waitForAppReady(t, application, 5*time.Second)
 
 	t.Run("Application Startup", func(t *testing.T) {
 		// Verify the app is running and in idle mode
@@ -506,33 +442,23 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 	t.Run("Mode Transitions", func(t *testing.T) {
 		// Test multiple mode transitions like a real user would do
 		modes := []struct {
-			name   string
-			action func()
+			name         string
+			expectedMode domain.Mode
+			action       func()
 		}{
-			{"hints", func() { application.SetModeHints() }},
-			{"grid", func() { application.SetModeGrid() }},
-			{"idle", func() { application.SetModeIdle() }},
-			{"hints", func() { application.SetModeHints() }},
-			{"idle", func() { application.SetModeIdle() }},
-			{"grid", func() { application.SetModeGrid() }},
-			{"idle", func() { application.SetModeIdle() }},
+			{"hints", domain.ModeHints, func() { application.SetModeHints() }},
+			{"grid", domain.ModeGrid, func() { application.SetModeGrid() }},
+			{"idle", domain.ModeIdle, func() { application.SetModeIdle() }},
+			{"hints", domain.ModeHints, func() { application.SetModeHints() }},
+			{"idle", domain.ModeIdle, func() { application.SetModeIdle() }},
+			{"grid", domain.ModeGrid, func() { application.SetModeGrid() }},
+			{"idle", domain.ModeIdle, func() { application.SetModeIdle() }},
 		}
 
 		for _, mode := range modes {
 			mode.action()
 
-			// Verify mode change
-			var expectedMode domain.Mode
-			switch mode.name {
-			case "hints":
-				expectedMode = domain.ModeHints
-			case "grid":
-				expectedMode = domain.ModeGrid
-			case "idle":
-				expectedMode = domain.ModeIdle
-			}
-
-			waitForMode(t, application, expectedMode)
+			waitForMode(t, application, mode.expectedMode)
 			t.Logf("✅ Switched to %s mode", mode.name)
 
 			// Small delay to simulate user thinking time
