@@ -60,7 +60,7 @@ func (h *Handler) handleGenericScrollKey(key string) {
 	ctx := context.Background()
 
 	if len(key) == 1 {
-		if h.handleControlScrollKey(key, lastScrollKey, &lastScrollKey) {
+		if h.handleControlScrollKey(key) {
 			return
 		}
 	}
@@ -134,14 +134,17 @@ done:
 }
 
 // handleControlScrollKey handles control character scroll keys.
-func (h *Handler) handleControlScrollKey(key string, lastKey string, lastScrollKey *string) bool {
+func (h *Handler) handleControlScrollKey(key string) bool {
 	byteVal := key[0]
 	h.logger.Info("Checking control char", zap.Uint8("byte", byteVal))
 	// Only handle Ctrl+D / Ctrl+U here; let Tab (9) and other keys fall through to switch
 	if byteVal == 4 || byteVal == 21 {
+		lastKey := h.scroll.Context.LastKey()
+
 		operation, _, ok := scroll.ParseKey(key, lastKey, h.logger)
 		if ok {
-			*lastScrollKey = ""
+			h.scroll.Context.SetLastKey("")
+
 			ctx := context.Background()
 
 			var handleControlScrollKeyErr error
