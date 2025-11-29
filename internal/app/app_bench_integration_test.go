@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
+	"go.uber.org/zap"
 )
 
 // BenchmarkModeTransitionsIntegration benchmarks mode transitions in integration
@@ -18,6 +19,7 @@ func BenchmarkModeTransitionsIntegration(b *testing.B) {
 	application, err := app.New(
 		app.WithConfig(cfg),
 		app.WithConfigPath(""),
+		app.WithLogger(zap.NewNop()), // Use no-op logger to suppress benchmark spam
 		app.WithIPCServer(&mockIPCServer{}),
 		app.WithWatcher(&mockAppWatcher{}),
 		app.WithOverlayManager(&mockOverlayManager{}),
@@ -33,7 +35,7 @@ func BenchmarkModeTransitionsIntegration(b *testing.B) {
 	go func() {
 		runDone <- application.Run()
 	}()
-	waitForAppReady(nil, application, 5*time.Second) // Use nil for testing.T since this is a benchmark
+	waitForAppReady(b, application, 5*time.Second)
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
