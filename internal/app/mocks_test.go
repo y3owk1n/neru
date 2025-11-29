@@ -19,28 +19,39 @@ import (
 
 // mockEventTap is a mock implementation of ports.EventTapPort for testing.
 type mockEventTap struct {
+	mu      sync.RWMutex
 	enabled bool
 	handler func(string)
 }
 
 // Enable implements ports.EventTapPort.
 func (m *mockEventTap) Enable(_ context.Context) error {
+	m.mu.Lock()
 	m.enabled = true
+	m.mu.Unlock()
 	return nil
 }
 
 // Disable implements ports.EventTapPort.
 func (m *mockEventTap) Disable(_ context.Context) error {
+	m.mu.Lock()
 	m.enabled = false
+	m.mu.Unlock()
 	return nil
 }
 
 // IsEnabled implements ports.EventTapPort.
-func (m *mockEventTap) IsEnabled() bool { return m.enabled }
+func (m *mockEventTap) IsEnabled() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.enabled
+}
 
 // SetHandler implements ports.EventTapPort.
 func (m *mockEventTap) SetHandler(handler func(string)) {
+	m.mu.Lock()
 	m.handler = handler
+	m.mu.Unlock()
 }
 
 // SetHotkeys implements ports.EventTapPort.
@@ -51,18 +62,23 @@ func (m *mockEventTap) Destroy() {}
 
 // mockIPCServer is a mock implementation of ports.IPCPort for testing.
 type mockIPCServer struct {
+	mu      sync.RWMutex
 	running bool
 }
 
 // Start implements ports.IPCPort.
 func (m *mockIPCServer) Start(_ context.Context) error {
+	m.mu.Lock()
 	m.running = true
+	m.mu.Unlock()
 	return nil
 }
 
 // Stop implements ports.IPCPort.
 func (m *mockIPCServer) Stop(_ context.Context) error {
+	m.mu.Lock()
 	m.running = false
+	m.mu.Unlock()
 	return nil
 }
 
@@ -70,10 +86,15 @@ func (m *mockIPCServer) Stop(_ context.Context) error {
 func (m *mockIPCServer) Send(_ context.Context, _ any) (any, error) { return "", nil }
 
 // IsRunning implements ports.IPCPort.
-func (m *mockIPCServer) IsRunning() bool { return m.running }
+func (m *mockIPCServer) IsRunning() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.running
+}
 
 // mockOverlayManager is a mock implementation of OverlayManager for testing.
 type mockOverlayManager struct {
+	mu        sync.RWMutex
 	mode      overlay.Mode
 	visible   bool
 	subsCount uint64
@@ -81,17 +102,23 @@ type mockOverlayManager struct {
 
 // Show implements OverlayManager.
 func (m *mockOverlayManager) Show() {
+	m.mu.Lock()
 	m.visible = true
+	m.mu.Unlock()
 }
 
 // Hide implements OverlayManager.
 func (m *mockOverlayManager) Hide() {
+	m.mu.Lock()
 	m.visible = false
+	m.mu.Unlock()
 }
 
 // Clear implements OverlayManager.
 func (m *mockOverlayManager) Clear() {
+	m.mu.Lock()
 	m.visible = false
+	m.mu.Unlock()
 }
 
 // ResizeToActiveScreenSync implements OverlayManager.
@@ -99,15 +126,20 @@ func (m *mockOverlayManager) ResizeToActiveScreenSync() {}
 
 // SwitchTo implements OverlayManager.
 func (m *mockOverlayManager) SwitchTo(mode overlay.Mode) {
+	m.mu.Lock()
 	m.mode = mode
+	m.mu.Unlock()
 }
 
 // Subscribe implements OverlayManager.
 func (m *mockOverlayManager) Subscribe(
 	_ func(overlay.StateChange),
 ) uint64 {
+	m.mu.Lock()
 	m.subsCount++
-	return m.subsCount
+	count := m.subsCount
+	m.mu.Unlock()
+	return count
 }
 
 // Unsubscribe implements OverlayManager.
@@ -117,7 +149,11 @@ func (m *mockOverlayManager) Unsubscribe(_ uint64) {}
 func (m *mockOverlayManager) Destroy() {}
 
 // Mode implements OverlayManager.
-func (m *mockOverlayManager) Mode() overlay.Mode { return m.mode }
+func (m *mockOverlayManager) Mode() overlay.Mode {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.mode
+}
 
 func (m *mockOverlayManager) WindowPtr() unsafe.Pointer          { return nil }
 func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)    {}
