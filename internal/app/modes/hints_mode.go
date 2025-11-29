@@ -11,6 +11,10 @@ type HintsMode struct {
 
 // NewHintsMode creates a new hints mode implementation.
 func NewHintsMode(handler *Handler) *HintsMode {
+	if handler == nil {
+		panic("HintsMode: handler cannot be nil")
+	}
+
 	return &HintsMode{handler: handler}
 }
 

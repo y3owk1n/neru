@@ -11,6 +11,10 @@ type GridMode struct {
 
 // NewGridMode creates a new grid mode implementation.
 func NewGridMode(handler *Handler) *GridMode {
+	if handler == nil {
+		panic("GridMode: handler cannot be nil")
+	}
+
 	return &GridMode{handler: handler}
 }
 

@@ -11,6 +11,10 @@ type ActionMode struct {
 
 // NewActionMode creates a new action mode implementation.
 func NewActionMode(handler *Handler) *ActionMode {
+	if handler == nil {
+		panic("ActionMode: handler cannot be nil")
+	}
+
 	return &ActionMode{handler: handler}
 }
 
