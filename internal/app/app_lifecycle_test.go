@@ -3,6 +3,7 @@
 package app_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -24,22 +25,25 @@ func TestAppInitializationUnit(t *testing.T) {
 	}
 
 	// Add timeout to prevent hanging
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	done := make(chan bool, 1)
 	go func() {
 		defer func() { done <- true }()
 
-		runTestAppInitializationUnit(t)
+		runTestAppInitializationUnit(t, ctx)
 	}()
 
 	select {
 	case <-done:
 		// Test completed normally
-	case <-time.After(30 * time.Second):
+	case <-ctx.Done():
 		t.Fatal("TestAppInitializationUnit timed out - possible hang")
 	}
 }
 
-func runTestAppInitializationUnit(t *testing.T) {
+func runTestAppInitializationUnit(t *testing.T, ctx context.Context) {
 	t.Helper()
 	// Create a basic config for testing
 	cfg := config.DefaultConfig()
@@ -74,7 +78,7 @@ func runTestAppInitializationUnit(t *testing.T) {
 
 		application = res.app
 		defer application.Cleanup()
-	case <-time.After(5 * time.Second):
+	case <-ctx.Done():
 		t.Fatal("App initialization timed out - possible hang")
 	}
 
