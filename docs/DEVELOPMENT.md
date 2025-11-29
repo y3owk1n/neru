@@ -109,10 +109,14 @@ chmod +x .git/hooks/pre-commit
 | Task   | Command                 | Description                        |
 | ------ | ----------------------- | ---------------------------------- |
 | Build  | `just build`            | Compile the application            |
-| Test   | `just test`             | Run unit tests                     |
+| Test   | `just test`             | Run unit and integration tests     |
+| Test   | `just test-unit`        | Run unit tests                     |
 | Test   | `just test-integration` | Run integration tests              |
+| Test   | `just test-race`        | Run all tests with race detection  |
+| Test   | `just test-coverage`    | Run unit tests with coverage       |
 | Test   | `just test-all`         | Run all tests (unit + integration) |
 | Bench  | `just bench`            | Run all benchmarks                 |
+| Bench  | `just bench-unit`       | Run unit benchmarks                |
 | Bench  | `just bench-integration`| Run integration benchmarks         |
 | Lint   | `just lint`             | Run linters                        |
 | Format | `just fmt`              | Format code                        |
@@ -231,18 +235,18 @@ Neru has a comprehensive test suite with clear separation between unit tests and
 
 | Test Type                  | File Pattern                   | Purpose                   | Command                 | Coverage                                           |
 | ------------------------ | ------------------------------ | ------------------------- | ----------------------- | -------------------------------------------------- |
-| **Unit Tests**           | `*_test.go`                    | Business logic with mocks | `just test`             | 50+ tests covering algorithms, isolated components |
-| **Integration Tests**    | `*_integration_test.go`       | Real system interactions  | `just test-integration` | 15+ tests covering macOS APIs, IPC, file operations |
+| **Unit Tests**           | `*_test.go`                    | Business logic with mocks (tagged `//go:build unit`) | `just test`             | 50+ tests covering algorithms, isolated components |
+| **Integration Tests**    | `*_integration_test.go`       | Real system interactions (tagged `//go:build integration`) | `just test-integration` | 15+ tests covering macOS APIs, IPC, file operations |
 | **Unit Benchmarks**      | `*_bench_test.go`              | Performance testing      | `just bench`            | Performance benchmarks for critical paths         |
 | **Integration Benchmarks**| `*_bench_integration_test.go` | Real system performance   | `just bench-integration`| Performance testing with real macOS APIs          |
 
 ### Test File Naming Convention
 
-```
-package_test.go                    # Unit tests (logic, mocks)
-package_integration_test.go       # Integration tests (real system calls)
-package_bench_test.go             # Unit benchmarks (algorithms without system calls)
-package_bench_integration_test.go # Integration benchmarks (real system performance)
+```text
+package_test.go                    # Unit tests (logic, mocks) //go:build unit
+package_integration_test.go       # Integration tests (real system calls) //go:build integration
+package_bench_test.go             # Unit benchmarks (algorithms without system calls) //go:build unit
+package_bench_integration_test.go # Integration benchmarks (real system performance) //go:build integration
 ```
 
 ### Run Tests

@@ -1,3 +1,5 @@
+//go:build unit
+
 package hotkey_test
 
 import (

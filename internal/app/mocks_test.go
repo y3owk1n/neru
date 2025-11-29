@@ -1,3 +1,5 @@
+//go:build unit || integration
+
 package app_test
 
 import (
@@ -10,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
+	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
@@ -82,6 +85,27 @@ func (m *mockOverlayManager) DrawGrid(
 func (m *mockOverlayManager) UpdateGridMatches(_ string)                   {}
 func (m *mockOverlayManager) ShowSubgrid(_ *domainGrid.Cell, _ grid.Style) {}
 func (m *mockOverlayManager) SetHideUnmatched(_ bool)                      {}
+
+type mockHotkeyService struct {
+	registered map[string]hotkeys.Callback
+}
+
+func (m *mockHotkeyService) Register(
+	key string,
+	callback hotkeys.Callback,
+) (hotkeys.HotkeyID, error) {
+	if m.registered == nil {
+		m.registered = make(map[string]hotkeys.Callback)
+	}
+	m.registered[key] = callback
+	return 0, nil
+}
+
+func (m *mockHotkeyService) UnregisterAll() {
+	if m.registered != nil {
+		m.registered = make(map[string]hotkeys.Callback)
+	}
+}
 
 type mockAppWatcher struct{}
 

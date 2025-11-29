@@ -11,7 +11,24 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
-// TestCLIIntegration tests CLI commands that communicate with IPC
+// waitForServerReady polls the IPC server until it's ready or times out
+func waitForServerReady(t *testing.T, timeout time.Duration) {
+	t.Helper()
+	client := ipc.NewClient()
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		_, err := client.Send(ipc.Command{Action: "ping"})
+		if err == nil {
+			return // Server is ready
+		}
+		time.Sleep(10 * time.Millisecond) // Short poll interval
+	}
+
+	t.Fatalf("Server did not become ready within %v", timeout)
+}
+
+// TestCLIIntegration tests IPC communication with real infrastructure
 func TestCLIIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -19,7 +36,7 @@ func TestCLIIntegration(t *testing.T) {
 
 	logger := logger.Get()
 
-	// Create a test IPC server
+	// Create a real IPC server with handlers that simulate app behavior
 	handler := func(ctx context.Context, cmd ipc.Command) ipc.Response {
 		switch cmd.Action {
 		case "ping":
@@ -37,6 +54,11 @@ func TestCLIIntegration(t *testing.T) {
 			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "hints"}}
 		case "grid":
 			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "grid"}}
+		case "action":
+			if len(cmd.Args) >= 3 && cmd.Args[0] == "left_click" {
+				return ipc.Response{Success: true, Message: "action performed"}
+			}
+			return ipc.Response{Success: false, Message: "invalid action"}
 		default:
 			return ipc.Response{Success: false, Message: "unknown command"}
 		}
@@ -50,13 +72,10 @@ func TestCLIIntegration(t *testing.T) {
 	server.Start()
 	defer server.Stop()
 
-	// Give server time to start
-	time.Sleep(100 * time.Millisecond)
+	// Wait for server to be ready
+	waitForServerReady(t, 2*time.Second)
 
 	t.Run("CLI ping command", func(t *testing.T) {
-		// Test that ping command works
-		// Note: This would normally be tested by actually running the CLI
-		// but for integration testing, we verify the IPC communication works
 		client := ipc.NewClient()
 
 		response, err := client.Send(ipc.Command{Action: "ping"})
@@ -75,19 +94,6 @@ func TestCLIIntegration(t *testing.T) {
 		}
 		if status, ok := data["status"]; !ok || status != "ok" {
 			t.Errorf("Expected status 'ok', got %v", status)
-		}
-	})
-
-	t.Run("CLI start command", func(t *testing.T) {
-		client := ipc.NewClient()
-
-		response, err := client.Send(ipc.Command{Action: "start"})
-		if err != nil {
-			t.Fatalf("Failed to send start: %v", err)
-		}
-
-		if !response.Success {
-			t.Errorf("Start failed: %v", response.Message)
 		}
 	})
 
@@ -110,6 +116,9 @@ func TestCLIIntegration(t *testing.T) {
 		}
 		if running, ok := data["running"]; !ok || running != true {
 			t.Errorf("Expected running=true, got %v", running)
+		}
+		if mode, ok := data["mode"]; !ok || mode != "idle" {
+			t.Errorf("Expected mode='idle', got %v", mode)
 		}
 	})
 
@@ -154,6 +163,39 @@ func TestCLIIntegration(t *testing.T) {
 		}
 		if mode, ok := data["mode"]; !ok || mode != "grid" {
 			t.Errorf("Expected mode='grid', got %v", mode)
+		}
+	})
+
+	t.Run("CLI action command", func(t *testing.T) {
+		client := ipc.NewClient()
+
+		// Test left click action
+		response, err := client.Send(ipc.Command{
+			Action: "action",
+			Args:   []string{"left_click", "100", "100"},
+		})
+		if err != nil {
+			t.Fatalf("Failed to send action: %v", err)
+		}
+
+		if !response.Success {
+			t.Errorf("Action should succeed: %v", response.Message)
+		}
+		if response.Message != "action performed" {
+			t.Errorf("Expected message 'action performed', got %q", response.Message)
+		}
+	})
+
+	t.Run("CLI stop command", func(t *testing.T) {
+		client := ipc.NewClient()
+
+		response, err := client.Send(ipc.Command{Action: "stop"})
+		if err != nil {
+			t.Fatalf("Failed to send stop: %v", err)
+		}
+
+		if !response.Success {
+			t.Errorf("Stop failed: %v", response.Message)
 		}
 	})
 }

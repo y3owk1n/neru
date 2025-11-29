@@ -1,3 +1,5 @@
+//go:build unit
+
 package electron_test
 
 import (

@@ -49,9 +49,9 @@ jobs:
             - name: Run just build
               if: ${{ matrix.check == 'build' }}
               run: just build
-            - name: Run just test-coverage
+            - name: Run just test-all
               if: ${{ matrix.check == 'test' }}
-              run: just test-coverage
+              run: just test-all
             - name: Upload coverage to Codecov
               if: ${{ matrix.check == 'test' }}
               uses: codecov/codecov-action@v5

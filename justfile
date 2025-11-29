@@ -46,29 +46,49 @@ bundle: release
     @echo "✓ Bundle complete: build/Neru.app"
 
 # Run tests
-test:
-    @echo "Running tests..."
-    go test -v ./...
+
+# Run all tests (unit + integration)
+test: test-unit test-integration
+    @echo "Running all tests..."
+
+# Run unit tests
+test-unit:
+    @echo "Running unit tests..."
+    go test -tags=unit -v ./...
 
 # Run with race detection
-test-race:
+test-race: test-race-unit test-race-integration
     @echo "Running tests with race detection..."
-    go test -race -v ./...
 
+# Run unit tests with race detection
+test-race-unit:
+    @echo "Running unit tests with race detection..."
+    go test -tags=unit -race -v ./...
+
+# Run integration tests with race detection
+test-race-integration:
+    @echo "Running integration tests with race detection..."
+    go test -tags=integration -race -v ./...
+
+# Run integration tests
 test-integration:
     @echo "Running integration tests..."
     go test -tags=integration -v ./...
 
 test-coverage:
     @echo "Running tests with coverage..."
-    go test -coverprofile=coverage.txt ./...
+    go test -tags=unit -coverprofile=coverage-unit.out ./...
+    go test -tags=integration -coverprofile=coverage-integration.out ./...
+    @head -1 coverage-unit.out > coverage.txt
+    @tail -n +2 coverage-unit.out >> coverage.txt
+    @tail -n +2 coverage-integration.out >> coverage.txt
 
 test-coverage-html:
     @echo "Running tests with coverage (HTML)..."
-    go test -coverprofile=coverage.out -covermode=atomic ./...
-    go tool cover -html=coverage.out -o coverage.html
+    just test-coverage
+    go tool cover -html=coverage.txt -o coverage.html
 
-test-all: test test-race test-integration test-coverage
+test-all: test test-race test-coverage
 
 # Check if files are formatted correctly
 fmt-check:
@@ -95,9 +115,13 @@ fmt-check:
     echo "✓ All Objective-C files are properly formatted"
 
 # Run benchmarks
-bench:
+bench: bench-unit bench-integration
     @echo "Running all benchmarks..."
-    go test -bench=. -benchmem ./...
+
+# Run unit benchmarks
+bench-unit:
+    @echo "Running unit benchmarks..."
+    go test -tags=unit -bench=. -benchmem ./...
 
 # Run integration benchmarks
 bench-integration:

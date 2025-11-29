@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
@@ -126,6 +127,10 @@ type App struct {
 	metrics        metrics.Collector
 
 	modes *modes.Handler
+
+	// Control channels
+	stopChan chan struct{}
+	stopOnce sync.Once
 
 	// New Architecture Services
 	hintService   *services.HintService
@@ -335,6 +340,9 @@ func initializeApp(app *App) (*App, error) {
 
 		app.ipcServer = ipcadapter.NewAdapter(server, logger)
 	}
+
+	// Initialize stop channel for programmatic shutdown
+	app.stopChan = make(chan struct{})
 
 	return app, nil
 }

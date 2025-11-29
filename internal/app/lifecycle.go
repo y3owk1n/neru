@@ -285,7 +285,13 @@ func (a *App) waitForShutdown() error {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	<-sigChan
+	select {
+	case <-sigChan:
+		// OS signal received
+	case <-a.stopChan:
+		// Programmatic stop requested
+	}
+
 	a.logger.Info("Received shutdown signal, starting graceful shutdown...")
 	a.logger.Info("\n⚠️  Shutting down gracefully... (press Ctrl+C again to force quit)")
 
@@ -304,6 +310,8 @@ func (a *App) waitForShutdown() error {
 		timer.Stop() // Stop timer immediately on success
 		a.logger.Info("Graceful shutdown completed")
 
+		signal.Stop(sigChan)
+
 		return nil
 	case <-sigChan:
 		timer.Stop() // Stop timer on second signal
@@ -317,6 +325,15 @@ func (a *App) waitForShutdown() error {
 	}
 
 	return nil
+}
+
+// Stop gracefully stops the application.
+func (a *App) Stop() {
+	a.stopOnce.Do(func() {
+		if a.stopChan != nil {
+			close(a.stopChan)
+		}
+	})
 }
 
 // Cleanup cleans up resources.

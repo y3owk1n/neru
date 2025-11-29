@@ -1,3 +1,5 @@
+//go:build unit
+
 package config_test
 
 import (
@@ -157,16 +159,17 @@ func TestService_Concurrency(_ *testing.T) {
 	var waitGroup sync.WaitGroup
 
 	// Concurrent reads
-	for range 100 {
-		waitGroup.Go(func() {
+	for i := 0; i < 100; i++ {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
 			_ = service.Get()
-		})
+		}()
 	}
 
 	// Concurrent updates
-	for index := range 100 {
+	for i := 0; i < 100; i++ {
 		waitGroup.Add(1)
-
 		go func(id int) {
 			defer waitGroup.Done()
 
@@ -178,7 +181,7 @@ func TestService_Concurrency(_ *testing.T) {
 			}
 
 			_ = service.Update(cfg)
-		}(index)
+		}(i)
 	}
 
 	waitGroup.Wait()

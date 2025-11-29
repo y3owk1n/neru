@@ -14,6 +14,7 @@ neru
 *.test
 *.out
 coverage.txt
+coverage.html
 go.work
 
 # IDE

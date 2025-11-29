@@ -690,7 +690,7 @@ if ([NSThread isMainThread]) {
 
 **File Naming:**
 
-- Unit tests: `service_test.go`
+- Unit tests: `service_test.go` (tagged `//go:build unit`)
 - Integration tests: `service_integration_test.go` (tagged `//go:build integration`)
 - Unit benchmarks: `service_bench_test.go`
 - Integration benchmarks: `service_bench_integration_test.go` (tagged `//go:build integration`)
@@ -699,12 +699,23 @@ if ([NSThread isMainThread]) {
 **Function Naming:**
 
 ```go
+//go:build unit
+
+package service_test
+
 func TestService_Method(t *testing.T)
 func TestService_Method_EdgeCase(t *testing.T)
-func TestService_Method_Integration(t *testing.T)  //go:build integration
 func BenchmarkService_Method(b *testing.B)
-func BenchmarkService_Method_Integration(b *testing.B)  //go:build integration
 func ExampleService_Method()
+```
+
+```go
+//go:build integration
+
+package service_test
+
+func TestService_Method_Integration(t *testing.T)
+func BenchmarkService_Method_Integration(b *testing.B)
 ```
 
 ### Test Types
@@ -713,6 +724,7 @@ func ExampleService_Method()
 
 - Business logic, algorithms, validation
 - Use mocks for external dependencies
+- Tagged with `//go:build unit`
 - Fast execution, run on every commit
 
 **Integration Tests** (`just test-integration`):
