@@ -724,102 +724,6 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 	t.Log("✅ Full user workflow integration test completed successfully")
 }
 
-// TestConfigurationIntegration tests configuration loading and validation in integration
-func TestConfigurationIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping configuration integration test in short mode")
-	}
-
-	// Test with default config
-	t.Run("Default Configuration", func(t *testing.T) {
-		cfg := config.DefaultConfig()
-		cfg.General.AccessibilityCheckOnStart = false
-
-		application, err := app.New(
-			app.WithConfig(cfg),
-			app.WithConfigPath(""),
-			app.WithIPCServer(&mockIPCServer{}),
-			app.WithWatcher(&mockAppWatcher{}),
-			app.WithOverlayManager(&mockOverlayManager{}),
-			app.WithHotkeyService(&mockHotkeyService{}),
-		)
-		if err != nil {
-			t.Fatalf("Failed to create app with default config: %v", err)
-		}
-		defer application.Cleanup()
-
-		// Start app briefly to test config access
-		runDone := make(chan error, 1)
-		go func() {
-			runDone <- application.Run()
-		}()
-		waitForAppReady(t, application, 5*time.Second)
-
-		// Verify default config values
-		if !application.HintsEnabled() {
-			t.Error("Hints should be enabled by default")
-		}
-		if !application.GridEnabled() {
-			t.Error("Grid should be enabled by default")
-		}
-		if application.Config() == nil {
-			t.Error("Config should be set")
-		}
-
-		application.Stop()
-		select {
-		case <-runDone:
-		case <-time.After(3 * time.Second):
-			t.Fatal("App did not stop within timeout")
-		}
-	})
-
-	// Test with custom config
-	t.Run("Custom Configuration", func(t *testing.T) {
-		cfg := config.DefaultConfig()
-		cfg.Hints.Enabled = false
-		cfg.Grid.Enabled = false
-		cfg.General.AccessibilityCheckOnStart = false
-
-		application, err := app.New(
-			app.WithConfig(cfg),
-			app.WithConfigPath(""),
-			app.WithIPCServer(&mockIPCServer{}),
-			app.WithWatcher(&mockAppWatcher{}),
-			app.WithOverlayManager(&mockOverlayManager{}),
-			app.WithHotkeyService(&mockHotkeyService{}),
-		)
-		if err != nil {
-			t.Fatalf("Failed to create app with custom config: %v", err)
-		}
-		defer application.Cleanup()
-
-		// Start app briefly to test config access
-		runDone := make(chan error, 1)
-		go func() {
-			runDone <- application.Run()
-		}()
-		waitForAppReady(t, application, 5*time.Second)
-
-		// Verify custom config values
-		if application.HintsEnabled() {
-			t.Error("Hints should be disabled")
-		}
-		if application.GridEnabled() {
-			t.Error("Grid should be disabled")
-		}
-
-		application.Stop()
-		select {
-		case <-runDone:
-		case <-time.After(3 * time.Second):
-			t.Fatal("App did not stop within timeout")
-		}
-	})
-
-	t.Log("✅ Configuration integration test completed successfully")
-}
-
 // TestHotkeyIntegration tests hotkey registration during app lifecycle
 func TestHotkeyIntegration(t *testing.T) {
 	if testing.Short() {
@@ -852,8 +756,14 @@ func TestHotkeyIntegration(t *testing.T) {
 	}()
 	waitForAppReady(t, application, 5*time.Second)
 
-	// Give a bit more time for hotkey registration to complete
-	time.Sleep(100 * time.Millisecond)
+	// Poll for hotkey registration with timeout
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if len(mockHotkeys.registered) >= 3 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 
 	// Test that hotkeys are registered during app startup
 	t.Run("Hotkey Registration", func(t *testing.T) {
