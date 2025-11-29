@@ -812,10 +812,10 @@ func BenchmarkModeTransitionsIntegration(b *testing.B) {
 		runDone <- application.Run()
 	}()
 	waitForAppReady(
-		nil,
+		b,
 		application,
 		5*time.Second,
-	) // Use nil for testing.T since this is a benchmark
+	)
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
