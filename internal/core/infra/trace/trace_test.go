@@ -1,3 +1,5 @@
+//go:build !integration
+
 package trace_test
 
 import (

@@ -127,6 +127,9 @@ type App struct {
 
 	modes *modes.Handler
 
+	// Control channels
+	stopChan chan struct{}
+
 	// New Architecture Services
 	hintService   *services.HintService
 	gridService   *services.GridService
@@ -335,6 +338,9 @@ func initializeApp(app *App) (*App, error) {
 
 		app.ipcServer = ipcadapter.NewAdapter(server, logger)
 	}
+
+	// Initialize stop channel for programmatic shutdown
+	app.stopChan = make(chan struct{})
 
 	return app, nil
 }

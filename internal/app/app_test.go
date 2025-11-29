@@ -1,3 +1,5 @@
+//go:build !integration
+
 package app_test
 
 import (
@@ -23,6 +25,7 @@ func TestApp_ModeTransitions(t *testing.T) {
 		app.WithIPCServer(&mockIPCServer{}),
 		app.WithOverlayManager(&mockOverlayManager{}),
 		app.WithWatcher(&mockAppWatcher{}),
+		app.WithHotkeyService(&mockHotkeyService{}),
 	)
 	if applicationErr != nil {
 		t.Fatalf("Failed to create app: %v", applicationErr)

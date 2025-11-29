@@ -1,3 +1,5 @@
+//go:build !integration
+
 package ports_test
 
 import (

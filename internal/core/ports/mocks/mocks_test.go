@@ -1,3 +1,5 @@
+//go:build !integration
+
 package mocks_test
 
 import (

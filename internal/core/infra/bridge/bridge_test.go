@@ -1,3 +1,5 @@
+//go:build !integration
+
 package bridge_test
 
 import (

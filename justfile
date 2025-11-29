@@ -47,7 +47,7 @@ bundle: release
 
 # Run tests
 test:
-    @echo "Running tests..."
+    @echo "Running unit tests..."
     go test -v ./...
 
 # Run with race detection
@@ -55,6 +55,7 @@ test-race:
     @echo "Running tests with race detection..."
     go test -race -v ./...
 
+# Run integration tests
 test-integration:
     @echo "Running integration tests..."
     go test -tags=integration -v ./...

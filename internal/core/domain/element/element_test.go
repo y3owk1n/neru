@@ -1,3 +1,5 @@
+//go:build !integration
+
 package element_test
 
 import (

@@ -1,3 +1,5 @@
+//go:build !integration
+
 package app_test
 
 import (
@@ -9,7 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
-// initResult holds the result of app initialization.
+// initResult holds the result of app initialization for unit tests.
 type initResult struct {
 	app *app.App
 	err error
@@ -39,12 +41,30 @@ func waitForMode(
 	)
 }
 
-// TestAppInitializationIntegration tests that the app can be initialized without hanging.
-func TestAppInitializationIntegration(t *testing.T) {
+// TestAppInitializationUnit tests app initialization logic with mocks.
+func TestAppInitializationUnit(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping app initialization integration test in short mode")
+		t.Skip("Skipping app initialization unit test in short mode")
 	}
 
+	// Add timeout to prevent hanging
+	done := make(chan bool, 1)
+	go func() {
+		defer func() { done <- true }()
+
+		runTestAppInitializationUnit(t)
+	}()
+
+	select {
+	case <-done:
+		// Test completed normally
+	case <-time.After(30 * time.Second):
+		t.Fatal("TestAppInitializationUnit timed out - possible hang")
+	}
+}
+
+func runTestAppInitializationUnit(t *testing.T) {
+	t.Helper()
 	// Create a basic config for testing
 	cfg := config.DefaultConfig()
 	cfg.Hints.Enabled = true
@@ -64,6 +84,7 @@ func TestAppInitializationIntegration(t *testing.T) {
 			app.WithIPCServer(&mockIPCServer{}),
 			app.WithOverlayManager(&mockOverlayManager{}),
 			app.WithWatcher(&mockAppWatcher{}),
+			app.WithHotkeyService(&mockHotkeyService{}),
 		)
 		done <- initResult{app: appInstance, err: err}
 	}()
@@ -96,197 +117,28 @@ func TestAppInitializationIntegration(t *testing.T) {
 		waitForMode(t, application, domain.ModeIdle)
 	})
 
-	t.Log("✅ Hint mode E2E test completed successfully")
-}
+	// Test multiple mode transitions
+	t.Run("Mode Transitions", func(t *testing.T) {
+		// Test hints -> grid -> idle
+		application.SetModeHints()
+		waitForMode(t, application, domain.ModeHints)
 
-// TestGridModeEndToEnd tests the complete grid mode workflow.
-func TestGridModeEndToEnd(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping grid mode E2E test in short mode")
-	}
-
-	// Create config with grid enabled
-	cfg := config.DefaultConfig()
-	cfg.Grid.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false
-
-	// Create app with mocks
-	application, err := app.New(
-		app.WithConfig(cfg),
-		app.WithConfigPath(""),
-		app.WithEventTap(&mockEventTap{}),
-		app.WithIPCServer(&mockIPCServer{}),
-		app.WithOverlayManager(&mockOverlayManager{}),
-		app.WithWatcher(&mockAppWatcher{}),
-	)
-	if err != nil {
-		t.Fatalf("Failed to create app: %v", err)
-	}
-	defer application.Cleanup()
-
-	// Test grid mode activation
-	t.Run("Activate Grid Mode", func(t *testing.T) {
 		application.SetModeGrid()
 		waitForMode(t, application, domain.ModeGrid)
-	})
 
-	// Test grid mode deactivation
-	t.Run("Deactivate Grid Mode", func(t *testing.T) {
+		application.SetModeIdle()
+		waitForMode(t, application, domain.ModeIdle)
+
+		// Test grid -> hints -> idle
+		application.SetModeGrid()
+		waitForMode(t, application, domain.ModeGrid)
+
+		application.SetModeHints()
+		waitForMode(t, application, domain.ModeHints)
+
 		application.SetModeIdle()
 		waitForMode(t, application, domain.ModeIdle)
 	})
 
-	t.Log("✅ Grid mode E2E test completed successfully")
-}
-
-// TestConfigurationLoadingIntegration tests configuration loading and validation.
-func TestConfigurationLoadingIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping configuration loading integration test in short mode")
-	}
-
-	// Test with default config
-	t.Run("Default Config", func(t *testing.T) {
-		cfg := config.DefaultConfig()
-
-		application, err := app.New(
-			app.WithConfig(cfg),
-			app.WithConfigPath(""),
-			app.WithEventTap(&mockEventTap{}),
-			app.WithIPCServer(&mockIPCServer{}),
-			app.WithOverlayManager(&mockOverlayManager{}),
-			app.WithWatcher(&mockAppWatcher{}),
-		)
-		if err != nil {
-			t.Fatalf("Failed to create app with default config: %v", err)
-		}
-		defer application.Cleanup()
-
-		// Verify config is properly set
-		if application.Config() == nil {
-			t.Error("Expected config to be set")
-		}
-
-		if !application.HintsEnabled() {
-			t.Error("Expected hints to be enabled by default")
-		}
-
-		if !application.GridEnabled() {
-			t.Error("Expected grid to be enabled by default")
-		}
-	})
-
-	// Test with custom config
-	t.Run("Custom Config", func(t *testing.T) {
-		cfg := config.DefaultConfig()
-		cfg.Hints.Enabled = false
-		cfg.Grid.Enabled = false
-
-		application, err := app.New(
-			app.WithConfig(cfg),
-			app.WithConfigPath(""),
-			app.WithEventTap(&mockEventTap{}),
-			app.WithIPCServer(&mockIPCServer{}),
-			app.WithOverlayManager(&mockOverlayManager{}),
-			app.WithWatcher(&mockAppWatcher{}),
-		)
-		if err != nil {
-			t.Fatalf("Failed to create app with custom config: %v", err)
-		}
-		defer application.Cleanup()
-
-		if application.HintsEnabled() {
-			t.Error("Expected hints to be disabled")
-		}
-
-		if application.GridEnabled() {
-			t.Error("Expected grid to be disabled")
-		}
-	})
-
-	t.Log("✅ Configuration loading integration test completed successfully")
-}
-
-// TestAppLifecycleIntegration tests complete app lifecycle from start to shutdown.
-func TestAppLifecycleIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping app lifecycle integration test in short mode")
-	}
-
-	cfg := config.DefaultConfig()
-	cfg.Hints.Enabled = true
-	cfg.Grid.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false
-
-	// Create app
-	application, err := app.New(
-		app.WithConfig(cfg),
-		app.WithConfigPath(""),
-		app.WithEventTap(&mockEventTap{}),
-		app.WithIPCServer(&mockIPCServer{}),
-		app.WithOverlayManager(&mockOverlayManager{}),
-		app.WithWatcher(&mockAppWatcher{}),
-	)
-	if err != nil {
-		t.Fatalf("Failed to create app: %v", err)
-	}
-
-	// Test initial state
-	t.Run("Initial State", func(t *testing.T) {
-		if !application.IsEnabled() {
-			t.Error("Expected app to be enabled initially")
-		}
-
-		if application.CurrentMode() != domain.ModeIdle {
-			t.Errorf("Expected initial mode Idle, got %v", application.CurrentMode())
-		}
-	})
-
-	// Test mode cycling
-	t.Run("Mode Cycling", func(t *testing.T) {
-		modes := []domain.Mode{
-			domain.ModeHints,
-			domain.ModeGrid,
-			domain.ModeIdle,
-		}
-
-		for _, mode := range modes {
-			switch mode {
-			case domain.ModeHints:
-				application.SetModeHints()
-			case domain.ModeGrid:
-				application.SetModeGrid()
-			case domain.ModeIdle:
-				application.SetModeIdle()
-			}
-
-			waitForMode(t, application, mode)
-		}
-	})
-
-	// Test enable/disable
-	t.Run("Enable/Disable", func(t *testing.T) {
-		application.SetEnabled(false)
-
-		if application.IsEnabled() {
-			t.Error("Expected app to be disabled")
-		}
-
-		application.SetEnabled(true)
-
-		if !application.IsEnabled() {
-			t.Error("Expected app to be enabled")
-		}
-	})
-
-	// Test cleanup
-	t.Run("Cleanup", func(t *testing.T) {
-		application.Cleanup()
-		// App should still be functional after cleanup
-		if application.CurrentMode() != domain.ModeIdle {
-			t.Errorf("Expected mode Idle after cleanup, got %v", application.CurrentMode())
-		}
-	})
-
-	t.Log("✅ App lifecycle integration test completed successfully")
+	t.Log("✅ App initialization unit test completed successfully")
 }

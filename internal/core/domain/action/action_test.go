@@ -1,3 +1,5 @@
+//go:build !integration
+
 package action_test
 
 import (

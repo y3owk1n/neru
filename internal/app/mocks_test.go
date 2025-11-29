@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
+	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
@@ -82,6 +83,13 @@ func (m *mockOverlayManager) DrawGrid(
 func (m *mockOverlayManager) UpdateGridMatches(_ string)                   {}
 func (m *mockOverlayManager) ShowSubgrid(_ *domainGrid.Cell, _ grid.Style) {}
 func (m *mockOverlayManager) SetHideUnmatched(_ bool)                      {}
+
+type mockHotkeyService struct{}
+
+func (m *mockHotkeyService) Register(_ string, _ hotkeys.Callback) (hotkeys.HotkeyID, error) {
+	return 0, nil
+}
+func (m *mockHotkeyService) UnregisterAll() {}
 
 type mockAppWatcher struct{}
 

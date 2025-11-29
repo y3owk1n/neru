@@ -1,3 +1,5 @@
+//go:build !integration
+
 package state_test
 
 import (
