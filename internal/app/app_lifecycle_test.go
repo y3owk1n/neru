@@ -111,12 +111,6 @@ func runTestAppInitializationUnit(t *testing.T) {
 		waitForMode(t, application, domain.ModeIdle)
 	})
 
-	// Test hint mode deactivation
-	t.Run("Deactivate Hint Mode", func(t *testing.T) {
-		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle)
-	})
-
 	// Test multiple mode transitions
 	t.Run("Mode Transitions", func(t *testing.T) {
 		// Test hints -> grid -> idle
