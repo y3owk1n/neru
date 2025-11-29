@@ -52,8 +52,3 @@ jobs:
             - name: Run just test
               if: ${{ matrix.check == 'test' }}
               run: just test
-            - name: Upload coverage to Codecov
-              if: ${{ matrix.check == 'test' }}
-              uses: codecov/codecov-action@v5
-              with:
-                  token: ${{ secrets.CODECOV_TOKEN }}
