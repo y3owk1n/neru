@@ -88,7 +88,7 @@ test-coverage-html:
     go test -tags=unit -coverprofile=coverage.out -covermode=atomic ./...
     go tool cover -html=coverage.out -o coverage.html
 
-test-all: test-unit test-race-unit test-integration test-coverage
+test-all: test-unit test-race-unit test-race-integration test-integration test-coverage
 
 # Check if files are formatted correctly
 fmt-check:
