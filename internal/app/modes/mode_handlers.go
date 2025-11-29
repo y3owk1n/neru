@@ -11,6 +11,12 @@ import (
 
 // executeActionAtPoint executes a pending action at the given point and exits the mode.
 func (h *Handler) executeActionAtPoint(action *string, point image.Point) {
+	if action == nil {
+		h.logger.Warn("executeActionAtPoint called with nil action")
+
+		return
+	}
+
 	h.logger.Info("Executing pending action", zap.String("action", *action))
 
 	ctx := context.Background()
@@ -96,6 +102,13 @@ func (h *Handler) handleGridModeKey(key string) {
 		h.handleGridActionKey(key)
 		// After handling the action, we stay in action mode.
 		// The user can press Tab to go back to overlay mode or perform more actions.
+		return
+	}
+
+	if h.grid.Router == nil {
+		h.logger.Error("Grid router is nil")
+		h.ExitMode()
+
 		return
 	}
 
