@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
@@ -129,6 +130,7 @@ type App struct {
 
 	// Control channels
 	stopChan chan struct{}
+	stopOnce sync.Once
 
 	// New Architecture Services
 	hintService   *services.HintService

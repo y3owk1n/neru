@@ -327,7 +327,9 @@ func (a *App) waitForShutdown() error {
 
 // Stop gracefully stops the application.
 func (a *App) Stop() {
-	close(a.stopChan)
+	a.stopOnce.Do(func() {
+		close(a.stopChan)
+	})
 }
 
 // Cleanup cleans up resources.
