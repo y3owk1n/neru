@@ -62,6 +62,16 @@ func (h *Handler) handleTabKey() {
 	mode.ToggleActionMode()
 }
 
+// exitActionModeForContext exits action mode for the given context and mode name.
+func (h *Handler) exitActionModeForContext(ctx actionModeContext, modeName string) {
+	ctx.SetInActionMode(false)
+	h.overlayManager.Clear()
+	h.overlayManager.Hide()
+	h.ExitMode()
+	h.logger.Info("Exited " + modeName + " action mode completely")
+	h.overlaySwitch(overlay.ModeIdle)
+}
+
 // handleEscapeKey handles the escape key to exit action mode or current mode.
 func (h *Handler) handleEscapeKey() {
 	_, exists := h.modes[h.appState.CurrentMode()]
@@ -73,23 +83,13 @@ func (h *Handler) handleEscapeKey() {
 	switch h.appState.CurrentMode() {
 	case domain.ModeHints:
 		if h.hints.Context.InActionMode() {
-			h.hints.Context.SetInActionMode(false)
-			h.overlayManager.Clear()
-			h.overlayManager.Hide()
-			h.ExitMode()
-			h.logger.Info("Exited hints action mode completely")
-			h.overlaySwitch(overlay.ModeIdle)
+			h.exitActionModeForContext(h.hints.Context, "hints")
 
 			return
 		}
 	case domain.ModeGrid:
 		if h.grid.Context.InActionMode() {
-			h.grid.Context.SetInActionMode(false)
-			h.overlayManager.Clear()
-			h.overlayManager.Hide()
-			h.ExitMode()
-			h.logger.Info("Exited grid action mode completely")
-			h.overlaySwitch(overlay.ModeIdle)
+			h.exitActionModeForContext(h.grid.Context, "grid")
 
 			return
 		}
