@@ -88,6 +88,7 @@ test-coverage-html:
     just test-coverage
     go tool cover -html=coverage.txt -o coverage.html
 
+# Runs all test variants including race detection (unit tests run twice: normal + race)
 test-all: test-unit test-race-unit test-race-integration test-integration test-coverage
 
 # Check if files are formatted correctly
