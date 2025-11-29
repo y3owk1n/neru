@@ -25,6 +25,9 @@ func (m *ScrollMode) ModeType() domain.Mode {
 
 // Activate activates scroll mode with optional action parameter.
 func (m *ScrollMode) Activate(action *string) {
+	if m.handler == nil {
+		return
+	}
 	// Scroll mode ignores the action parameter as it has a single activation flow
 	m.handler.StartInteractiveScroll()
 }
