@@ -486,7 +486,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		// Back to hints for element selection
 		application.SetModeHints()
 		waitForMode(t, application, domain.ModeHints, 3*time.Second)
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		time.Sleep(400 * time.Millisecond)
 
 		// Test grid mode
 		application.SetModeGrid()

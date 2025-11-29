@@ -76,20 +76,19 @@ test-integration:
     go test -tags=integration -v ./...
 
 test-coverage:
-	@echo "Running tests with coverage..."
-	go test -tags=unit -coverprofile=coverage-unit.out ./...
-	go test -tags=integration -coverprofile=coverage-integration.out ./...
-	@head -1 coverage-unit.out > coverage.txt
-	@tail -n +2 coverage-unit.out >> coverage.txt
-	@tail -n +2 coverage-integration.out >> coverage.txt
+    @echo "Running tests with coverage..."
+    go test -tags=unit -coverprofile=coverage-unit.out ./...
+    go test -tags=integration -coverprofile=coverage-integration.out ./...
+    @head -1 coverage-unit.out > coverage.txt
+    @tail -n +2 coverage-unit.out >> coverage.txt
+    @tail -n +2 coverage-integration.out >> coverage.txt
 
 test-coverage-html:
     @echo "Running tests with coverage (HTML)..."
     just test-coverage
     go tool cover -html=coverage.txt -o coverage.html
 
-# Runs all test variants including race detection (unit tests run twice: normal + race)
-test-all: test-unit test-race-unit test-race-integration test-integration test-coverage
+test-all: test test-race test-coverage
 
 # Check if files are formatted correctly
 fmt-check:
