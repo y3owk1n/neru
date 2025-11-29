@@ -17,30 +17,6 @@ type initResult struct {
 	err error
 }
 
-// waitForMode waits for the application to reach the specified mode with a timeout.
-func waitForMode(
-	t *testing.T,
-	application *app.App,
-	expectedMode domain.Mode,
-) {
-	t.Helper()
-
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		if application.CurrentMode() == expectedMode {
-			return
-		}
-
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	t.Fatalf(
-		"Timeout waiting for mode %v, current mode: %v",
-		expectedMode,
-		application.CurrentMode(),
-	)
-}
-
 // TestAppInitializationUnit tests app initialization logic with mocks.
 func TestAppInitializationUnit(t *testing.T) {
 	if testing.Short() {

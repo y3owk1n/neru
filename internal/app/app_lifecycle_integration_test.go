@@ -12,30 +12,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
-// waitForMode waits for the application to reach the specified mode with a timeout.
-func waitForMode(
-	t *testing.T,
-	application *app.App,
-	expectedMode domain.Mode,
-) {
-	t.Helper()
-
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		if application.CurrentMode() == expectedMode {
-			return
-		}
-
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	t.Fatalf(
-		"Timeout waiting for mode %v, current mode: %v",
-		expectedMode,
-		application.CurrentMode(),
-	)
-}
-
 // TestAppInitializationIntegration tests that the app can be initialized with real system components.
 func TestAppInitializationIntegration(t *testing.T) {
 	if testing.Short() {
@@ -127,8 +103,17 @@ func TestGridModeEndToEnd(t *testing.T) {
 		runDone <- application.Run()
 	}()
 
-	// Wait a bit for the app to start up
-	time.Sleep(2 * time.Second)
+	// Wait for app to be running with timeout
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if application.IsEnabled() {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if !application.IsEnabled() {
+		t.Fatal("App did not start within timeout")
+	}
 
 	// Test grid mode activation
 	t.Run("Activate Grid Mode", func(t *testing.T) {
@@ -443,9 +428,8 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		application.SetModeHints()
 
 		// Verify mode change
-		if application.CurrentMode() == domain.ModeHints {
-			t.Log("✅ Hints mode activated")
-		}
+		waitForMode(t, application, domain.ModeHints)
+		t.Log("✅ Hints mode activated")
 
 		// Simulate user thinking time
 		time.Sleep(200 * time.Millisecond)
@@ -453,9 +437,8 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		// Switch back to idle (simulates user canceling)
 		application.SetModeIdle()
 
-		if application.CurrentMode() == domain.ModeIdle {
-			t.Log("✅ Returned to idle mode")
-		}
+		waitForMode(t, application, domain.ModeIdle)
+		t.Log("✅ Returned to idle mode")
 	})
 
 	t.Run("Grid Mode Workflow", func(t *testing.T) {
@@ -463,9 +446,8 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		application.SetModeGrid()
 
 		// Verify mode change
-		if application.CurrentMode() == domain.ModeGrid {
-			t.Log("✅ Grid mode activated")
-		}
+		waitForMode(t, application, domain.ModeGrid)
+		t.Log("✅ Grid mode activated")
 
 		// Simulate user navigation time
 		time.Sleep(300 * time.Millisecond)
@@ -473,9 +455,8 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		// Switch back to idle
 		application.SetModeIdle()
 
-		if application.CurrentMode() == domain.ModeIdle {
-			t.Log("✅ Returned to idle mode")
-		}
+		waitForMode(t, application, domain.ModeIdle)
+		t.Log("✅ Returned to idle mode")
 	})
 
 	t.Run("Mode Transitions", func(t *testing.T) {
