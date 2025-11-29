@@ -4,6 +4,7 @@ package cli_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ func waitForServerReady(t *testing.T, timeout time.Duration) {
 
 // mockAppState simulates app state for testing
 type mockAppState struct {
+	mu      sync.RWMutex
 	running bool
 	mode    string
 	started bool
@@ -58,31 +60,52 @@ func TestCLIIntegration(t *testing.T) {
 		case "ping":
 			return ipc.Response{Success: true, Data: map[string]interface{}{"status": "ok"}}
 		case "start":
+			appState.mu.Lock()
 			appState.started = true
 			appState.running = true
+			appState.mu.Unlock()
 			return ipc.Response{Success: true, Data: map[string]interface{}{"message": "started"}}
 		case "stop":
+			appState.mu.Lock()
 			appState.running = false
+			appState.mu.Unlock()
 			return ipc.Response{Success: true, Data: map[string]interface{}{"message": "stopped"}}
 		case "status":
+			appState.mu.RLock()
+			running := appState.running
+			mode := appState.mode
+			appState.mu.RUnlock()
 			return ipc.Response{Success: true, Data: map[string]interface{}{
-				"running": appState.running,
-				"mode":    appState.mode,
+				"running": running,
+				"mode":    mode,
 			}}
 		case "hints":
-			if !appState.running {
+			appState.mu.RLock()
+			running := appState.running
+			appState.mu.RUnlock()
+			if !running {
 				return ipc.Response{Success: false, Message: "app not running"}
 			}
+			appState.mu.Lock()
 			appState.mode = "hints"
+			appState.mu.Unlock()
 			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "hints"}}
 		case "grid":
-			if !appState.running {
+			appState.mu.RLock()
+			running := appState.running
+			appState.mu.RUnlock()
+			if !running {
 				return ipc.Response{Success: false, Message: "app not running"}
 			}
+			appState.mu.Lock()
 			appState.mode = "grid"
+			appState.mu.Unlock()
 			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "grid"}}
 		case "action":
-			if !appState.running {
+			appState.mu.RLock()
+			running := appState.running
+			appState.mu.RUnlock()
+			if !running {
 				return ipc.Response{Success: false, Message: "app not running"}
 			}
 			if len(cmd.Args) >= 3 && cmd.Args[0] == "left_click" {
@@ -90,10 +113,15 @@ func TestCLIIntegration(t *testing.T) {
 			}
 			return ipc.Response{Success: false, Message: "invalid action"}
 		case "idle":
-			if !appState.running {
+			appState.mu.RLock()
+			running := appState.running
+			appState.mu.RUnlock()
+			if !running {
 				return ipc.Response{Success: false, Message: "app not running"}
 			}
+			appState.mu.Lock()
 			appState.mode = "idle"
+			appState.mu.Unlock()
 			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "idle"}}
 		default:
 			return ipc.Response{Success: false, Message: "unknown command"}
