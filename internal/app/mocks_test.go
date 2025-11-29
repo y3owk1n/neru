@@ -90,7 +90,10 @@ type mockHotkeyService struct {
 	registered map[string]hotkeys.Callback
 }
 
-func (m *mockHotkeyService) Register(key string, callback hotkeys.Callback) (hotkeys.HotkeyID, error) {
+func (m *mockHotkeyService) Register(
+	key string,
+	callback hotkeys.Callback,
+) (hotkeys.HotkeyID, error) {
 	if m.registered == nil {
 		m.registered = make(map[string]hotkeys.Callback)
 	}
