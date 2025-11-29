@@ -699,12 +699,23 @@ if ([NSThread isMainThread]) {
 **Function Naming:**
 
 ```go
-func TestService_Method(t *testing.T)  //go:build unit
+//go:build unit
+
+package service_test
+
+func TestService_Method(t *testing.T)
 func TestService_Method_EdgeCase(t *testing.T)
-func TestService_Method_Integration(t *testing.T)  //go:build integration
 func BenchmarkService_Method(b *testing.B)
-func BenchmarkService_Method_Integration(b *testing.B)  //go:build integration
 func ExampleService_Method()
+```
+
+```go
+//go:build integration
+
+package service_test
+
+func TestService_Method_Integration(t *testing.T)
+func BenchmarkService_Method_Integration(b *testing.B)
 ```
 
 ### Test Types
