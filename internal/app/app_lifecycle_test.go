@@ -41,6 +41,8 @@ func setAndWaitForMode(t *testing.T, application *app.App, mode domain.Mode) {
 		application.SetModeGrid()
 	case domain.ModeIdle:
 		application.SetModeIdle()
+	default:
+		t.Fatalf("unknown mode: %v", mode)
 	}
 	waitForMode(t, application, mode, 3*time.Second)
 }
