@@ -272,8 +272,9 @@ func TestCLIIntegration(t *testing.T) {
 			t.Fatalf("Failed to send hints command: %v", err)
 		}
 
-		if response.Success {
-			t.Error("Expected hints command to fail after app stop")
+		if response.Success || response.Message != "app not running" {
+			t.Errorf("Expected hints command to fail with 'app not running', got success=%v message=%q",
+				response.Success, response.Message)
 		}
 
 		// Test that grid command fails after app is stopped
@@ -282,8 +283,9 @@ func TestCLIIntegration(t *testing.T) {
 			t.Fatalf("Failed to send grid command: %v", err)
 		}
 
-		if response.Success {
-			t.Error("Expected grid command to fail after app stop")
+		if response.Success || response.Message != "app not running" {
+			t.Errorf("Expected grid command to fail with 'app not running', got success=%v message=%q",
+				response.Success, response.Message)
 		}
 
 		// Test that action command fails after app is stopped
@@ -295,8 +297,9 @@ func TestCLIIntegration(t *testing.T) {
 			t.Fatalf("Failed to send action command: %v", err)
 		}
 
-		if response.Success {
-			t.Error("Expected action command to fail after app stop")
+		if response.Success || response.Message != "app not running" {
+			t.Errorf("Expected action command to fail with 'app not running', got success=%v message=%q",
+				response.Success, response.Message)
 		}
 	})
 }
