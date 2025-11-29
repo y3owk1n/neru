@@ -133,7 +133,8 @@ func TestGridModeEndToEnd(t *testing.T) {
 	select {
 	case err := <-runDone:
 		if err != nil {
-			t.Logf("App Run() returned error: %v", err)
+			// Run() may return a context-cancelled error after Stop(), which is expected
+			t.Logf("App Run() returned (expected after Stop): %v", err)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("App did not stop within timeout")
@@ -244,7 +245,8 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 		select {
 		case err := <-runDone:
 			if err != nil {
-				t.Logf("App Run() returned error: %v", err)
+				// Run() may return a context-cancelled error after Stop(), which is expected
+				t.Logf("App Run() returned (expected after Stop): %v", err)
 			}
 		case <-time.After(3 * time.Second):
 			t.Fatal("App did not stop within timeout")
@@ -337,9 +339,10 @@ func TestAppLifecycleIntegration(t *testing.T) {
 	select {
 	case err := <-runDone:
 		if err != nil {
-			t.Logf("App Run() returned error: %v", err)
+			// Run() may return a context-cancelled error after Stop(), which is expected
+			t.Logf("App Run() returned (expected after Stop): %v", err)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(3 * time.Second):
 		t.Fatal("App did not stop within timeout")
 	}
 
@@ -529,7 +532,8 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 	select {
 	case err := <-runDone:
 		if err != nil {
-			t.Logf("App Run() returned error: %v", err)
+			// Run() may return a context-cancelled error after Stop(), which is expected
+			t.Logf("App Run() returned (expected after Stop): %v", err)
 		} else {
 			t.Log("✅ Application shut down gracefully")
 		}
