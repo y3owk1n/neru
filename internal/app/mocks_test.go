@@ -86,12 +86,23 @@ func (m *mockOverlayManager) UpdateGridMatches(_ string)                   {}
 func (m *mockOverlayManager) ShowSubgrid(_ *domainGrid.Cell, _ grid.Style) {}
 func (m *mockOverlayManager) SetHideUnmatched(_ bool)                      {}
 
-type mockHotkeyService struct{}
+type mockHotkeyService struct {
+	registered map[string]hotkeys.Callback
+}
 
-func (m *mockHotkeyService) Register(_ string, _ hotkeys.Callback) (hotkeys.HotkeyID, error) {
+func (m *mockHotkeyService) Register(key string, callback hotkeys.Callback) (hotkeys.HotkeyID, error) {
+	if m.registered == nil {
+		m.registered = make(map[string]hotkeys.Callback)
+	}
+	m.registered[key] = callback
 	return 0, nil
 }
-func (m *mockHotkeyService) UnregisterAll() {}
+
+func (m *mockHotkeyService) UnregisterAll() {
+	if m.registered != nil {
+		m.registered = make(map[string]hotkeys.Callback)
+	}
+}
 
 type mockAppWatcher struct{}
 
