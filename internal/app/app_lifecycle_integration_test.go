@@ -441,7 +441,10 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		t.Log("✅ Application is running")
 
 		if application.CurrentMode() != domain.ModeIdle {
-			t.Fatalf("Expected application to start in idle mode, but current mode is %v", application.CurrentMode())
+			t.Fatalf(
+				"Expected application to start in idle mode, but current mode is %v",
+				application.CurrentMode(),
+			)
 		}
 		t.Log("✅ Application started in idle mode")
 	})

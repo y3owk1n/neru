@@ -311,6 +311,7 @@ func (a *App) waitForShutdown() error {
 		a.logger.Info("Graceful shutdown completed")
 
 		signal.Stop(sigChan)
+
 		return nil
 	case <-sigChan:
 		timer.Stop() // Stop timer on second signal
