@@ -25,15 +25,18 @@ func TestScrollMode_InterfaceCompliance(t *testing.T) {
 	handler := &modes.Handler{}
 	mode := modes.NewScrollMode(handler)
 
+	// Test ModeType returns correct value
+	if mode.ModeType() != domain.ModeScroll {
+		t.Errorf("ModeType() = %v, want %v", mode.ModeType(), domain.ModeScroll)
+	}
+
 	// Test that all interface methods exist and can be called
-	// (they may panic due to nil dependencies, but that's expected for unit tests)
-
-	// Test ModeType
-	_ = mode.ModeType()
-
-	// Test that methods can be called (may panic, but that's OK for interface compliance)
+	// (they may panic due to nil dependencies in Handler, but that's expected for unit tests)
 	defer func() {
-		recover() // Ignore panics from nil dependencies
+		if r := recover(); r != nil {
+			// Expected panics from nil Handler dependencies are OK
+			t.Logf("Expected panic from nil Handler dependencies: %v", r)
+		}
 	}()
 
 	mode.Activate(nil)
