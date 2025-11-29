@@ -47,7 +47,7 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 		return false
 	}
 
-	if h.scroll.Context.IsActive() {
+	if h.scroll != nil && h.scroll.Context != nil && h.scroll.Context.IsActive() {
 		return false
 	}
 
@@ -112,7 +112,9 @@ func (h *Handler) activateModeBase(
 	h.logger.Info("Activating "+modeName+" mode", zap.String("action", actionString))
 
 	// Always resize overlay to the active screen
-	h.overlayManager.ResizeToActiveScreenSync()
+	if h.overlayManager != nil {
+		h.overlayManager.ResizeToActiveScreenSync()
+	}
 
 	return actionEnum, true
 }
