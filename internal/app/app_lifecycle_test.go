@@ -63,6 +63,9 @@ func runTestAppInitializationUnit(t *testing.T, ctx context.Context) {
 		if res.err != nil {
 			t.Fatalf("App initialization failed: %v", res.err)
 		}
+		if res.app == nil {
+			t.Fatal("App initialization returned nil app without error")
+		}
 
 		application = res.app
 		defer application.Cleanup()
