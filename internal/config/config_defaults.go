@@ -165,7 +165,7 @@ func DefaultConfig() *Config {
 			Bindings: map[string]string{
 				"Cmd+Shift+Space": "hints",
 				"Cmd+Shift+G":     "grid",
-				"Cmd+Shift+S":     "action scroll",
+				"Cmd+Shift+S":     "scroll",
 			},
 		},
 		Hints: HintsConfig{

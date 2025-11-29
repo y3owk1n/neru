@@ -18,7 +18,7 @@ accessibility_check_on_start = true
 [hotkeys]
 # Hints mode hotkeys - all actions available
 "Cmd+Shift+Space" = "hints"
-"Cmd+Shift+S" = "action scroll"
+"Cmd+Shift+S" = "scroll"
 
 # Grid mode - DISABLED (no hotkeys assigned)
 

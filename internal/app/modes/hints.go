@@ -28,19 +28,14 @@ func (h *Handler) ActivateModeWithAction(mode domain.Mode, action *string) {
 		return
 	}
 
-	if mode == domain.ModeHints {
-		h.activateHintModeWithAction(action)
+	modeImpl, exists := h.modes[mode]
+	if !exists {
+		h.logger.Warn("Unknown mode", zap.String("mode", domain.ModeString(mode)))
 
 		return
 	}
 
-	if mode == domain.ModeGrid {
-		h.activateGridModeWithAction(action)
-
-		return
-	}
-
-	h.logger.Warn("Unknown mode", zap.String("mode", domain.ModeString(mode)))
+	modeImpl.Activate(action)
 }
 
 // activateHintModeWithAction activates hint mode with optional action parameter.

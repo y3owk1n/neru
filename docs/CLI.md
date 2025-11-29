@@ -36,7 +36,9 @@ neru status              # Check status
 neru profile             # Show profiling setup instructions
 neru hints               # Start hint mode
 neru grid                # Start grid mode
-neru action left_click   # Click at cursor
+neru scroll              # Start scroll mode
+neru action              # Start action mode
+neru action left_click   # Click at cursor (immediate)
 neru config reload       # Reload config
 ```
 
@@ -44,10 +46,13 @@ neru config reload       # Reload config
 
 - `neru hints` - Show clickable hints
 - `neru grid` - Show coordinate grid
-- `neru action scroll` - Scroll at cursor
+- `neru scroll` - Vim-style scrolling
+- `neru action` - Interactive action mode
 
 **Actions:**
 
+- `neru action left_click` - Immediate left click at cursor
+- `neru action right_click` - Immediate right click at cursor
 - `neru hints --action right_click` - Right-click via hints
 - `neru grid --action left_click` - Left-click via grid
 
@@ -78,7 +83,6 @@ neru action left_click     # Left click
 neru action right_click    # Right click
 neru action middle_click   # Middle click
 neru action mouse_down     # Hold mouse button
-neru action scroll         # Vim-style scrolling
 ```
 
 **Scroll keys:** `j/k` (up/down), `h/l` (left/right), `gg/G` (top/bottom), `Esc` (exit)
@@ -92,6 +96,7 @@ neru action scroll         # Vim-style scrolling
 ```bash
 neru hints    # Show clickable hints
 neru grid     # Show coordinate grid
+neru scroll   # Vim-style scrolling
 ```
 
 After selecting a location, press `Tab` to toggle action mode for different click types.
@@ -112,25 +117,49 @@ neru grid --action middle_click    # Middle-click via grid
 
 ---
 
-## Scroll Actions
+## Scroll Mode
 
-It will scroll with the movement keys based on the current cursor position.
+Activate vim-style scrolling at the current cursor position.
 
-2. Use Vim-style keys to scroll:
-    - `j` / `k` - Scroll down/up
-    - `h` / `l` - Scroll left/right
-    - `Ctrl+d` / `Ctrl+u` - Half-page down/up
-    - `gg` - Jump to top
-    - `G` - Jump to bottom
-    - `Esc` - Exit scroll mode
+**Scroll keys:**
+
+- `j` / `k` - Scroll down/up
+- `h` / `l` - Scroll left/right
+- `Ctrl+d` / `Ctrl+u` - Half-page down/up
+- `gg` - Jump to top
+- `G` - Jump to bottom
+- `Esc` - Exit scroll mode
 
 **Workflow example:**
 
 ```bash
 # Start scroll mode
-neru action scroll
+neru scroll
 # Scrolls at current cursor position
 # Use j/k/gg/G/Ctrl+D/U to scroll
+# Press Esc to exit
+```
+
+## Action Mode
+
+Activate interactive action mode to perform mouse actions at the current cursor position.
+
+**Action keys:**
+
+- `l` - Left click
+- `r` - Right click
+- `m` - Middle click
+- `i` - Mouse button down (hold)
+- `u` - Mouse button up (release)
+- `Esc` - Exit action mode
+
+**Workflow example:**
+
+```bash
+# Start action mode
+neru action
+# Shows action overlay at cursor
+# Press l/r/m/i/u to perform actions
 # Press Esc to exit
 ```
 
@@ -150,7 +179,7 @@ neru command --help   # Command-specific help
 ```
 
 **Status values:** `running`, `disabled`
-**Mode values:** `idle`, `hints`, `grid`
+**Mode values:** `idle`, `hints`, `grid`, `scroll`
 
 ### Profiling
 

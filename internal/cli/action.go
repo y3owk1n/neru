@@ -6,10 +6,14 @@ import (
 
 var actionCmd = &cobra.Command{
 	Use:   "action",
-	Short: "Perform actions at the current cursor position",
-	Long:  `Execute mouse actions immediately at the current cursor location without target selection.`,
+	Short: "Enter action mode or perform immediate actions",
+	Long:  `Enter interactive action mode to perform mouse actions, or use subcommands for immediate actions.`,
+	PreRunE: func(_ *cobra.Command, _ []string) error {
+		return requiresRunningInstance()
+	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return cmd.Help()
+		// No subcommand provided, enter action mode
+		return sendCommand(cmd, "action", []string{})
 	},
 }
 
@@ -88,28 +92,12 @@ var actionMiddleClickCmd = &cobra.Command{
 	},
 }
 
-var actionScrollCmd = &cobra.Command{
-	Use:   "scroll",
-	Short: "Enter scroll mode at current cursor position",
-	Long:  `Activate scroll mode at the current cursor location.`,
-	PreRunE: func(_ *cobra.Command, _ []string) error {
-		return requiresRunningInstance()
-	},
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		var params []string
-		params = append(params, "scroll")
-
-		return sendCommand(cmd, "action", params)
-	},
-}
-
 func init() {
 	actionCmd.AddCommand(actionLeftClickCmd)
 	actionCmd.AddCommand(actionRightClickCmd)
 	actionCmd.AddCommand(actionMouseUpCmd)
 	actionCmd.AddCommand(actionMouseDownCmd)
 	actionCmd.AddCommand(actionMiddleClickCmd)
-	actionCmd.AddCommand(actionScrollCmd)
 
 	rootCmd.AddCommand(actionCmd)
 }

@@ -18,16 +18,17 @@ restore_cursor_position = false
 [hotkeys]
 # Hotkey bindings - key = action
 # Supported modifiers: Cmd, Ctrl, Alt, Shift, Option
-# Examples: "Cmd+Shift+Space" = "hints", "Ctrl+D" = "action scroll"
+# Examples: "Cmd+Shift+Space" = "hints", "Cmd+Shift+A" = "action"
 "Cmd+Shift+Space" = "hints"
 "Cmd+Shift+G" = "grid"
-"Cmd+Shift+S" = "action scroll"
+"Cmd+Shift+S" = "scroll"
 
 # To get direct action after label selection, see `docs/CLI.md` for details
 # "Cmd+Shift+Space" = "hints --action left_click"
 # "Cmd+Shift+G" = "grid --action left_click"
 
 # There are more that can be added, see `docs/CLI.md` for details
+# "Cmd+Shift+A" = "action" # action with overlay
 # "Cmd+Shift+L" = "action left_click"
 # "Cmd+Shift+R" = "action right_click"
 # "Cmd+Shift+M" = "action middle_click"

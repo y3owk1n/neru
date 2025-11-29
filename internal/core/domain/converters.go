@@ -2,9 +2,11 @@ package domain
 
 // Mode names as strings.
 const (
-	ModeNameIdle  = "idle"
-	ModeNameHints = "hints"
-	ModeNameGrid  = "grid"
+	ModeNameIdle   = "idle"
+	ModeNameHints  = "hints"
+	ModeNameGrid   = "grid"
+	ModeNameScroll = "scroll"
+	ModeNameAction = "action"
 )
 
 // ModeString converts a Mode to its string representation.
@@ -16,6 +18,10 @@ func ModeString(mode Mode) string {
 		return ModeNameHints
 	case ModeGrid:
 		return ModeNameGrid
+	case ModeScroll:
+		return ModeNameScroll
+	case ModeAction:
+		return ModeNameAction
 	default:
 		return UnknownMode
 	}

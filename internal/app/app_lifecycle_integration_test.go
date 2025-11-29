@@ -66,6 +66,20 @@ func TestAppInitializationIntegration(t *testing.T) {
 
 		application.SetModeIdle()
 		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+
+		// Test action mode
+		application.SetModeAction()
+		waitForMode(t, application, domain.ModeAction, 3*time.Second)
+
+		application.SetModeIdle()
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+
+		// Test scroll mode
+		application.SetModeScroll()
+		waitForMode(t, application, domain.ModeScroll, 3*time.Second)
+
+		application.SetModeIdle()
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
 	})
 
 	t.Log("✅ App initialization with real components test completed successfully")
@@ -306,6 +320,8 @@ func TestAppLifecycleIntegration(t *testing.T) {
 		modes := []domain.Mode{
 			domain.ModeHints,
 			domain.ModeGrid,
+			domain.ModeAction,
+			domain.ModeScroll,
 			domain.ModeIdle,
 			domain.ModeHints,
 			domain.ModeGrid,
@@ -318,6 +334,10 @@ func TestAppLifecycleIntegration(t *testing.T) {
 				application.SetModeHints()
 			case domain.ModeGrid:
 				application.SetModeGrid()
+			case domain.ModeAction:
+				application.SetModeAction()
+			case domain.ModeScroll:
+				application.SetModeScroll()
 			case domain.ModeIdle:
 				application.SetModeIdle()
 			}
@@ -451,6 +471,8 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		}{
 			{"hints", domain.ModeHints, func() { application.SetModeHints() }},
 			{"grid", domain.ModeGrid, func() { application.SetModeGrid() }},
+			{"action", domain.ModeAction, func() { application.SetModeAction() }},
+			{"scroll", domain.ModeScroll, func() { application.SetModeScroll() }},
 			{"idle", domain.ModeIdle, func() { application.SetModeIdle() }},
 			{"hints", domain.ModeHints, func() { application.SetModeHints() }},
 			{"idle", domain.ModeIdle, func() { application.SetModeIdle() }},
@@ -483,12 +505,22 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
 		time.Sleep(300 * time.Millisecond)
 
+		// Try action mode for direct actions
+		application.SetModeAction()
+		waitForMode(t, application, domain.ModeAction, 3*time.Second)
+		time.Sleep(200 * time.Millisecond)
+
+		// Use scroll mode for navigation
+		application.SetModeScroll()
+		waitForMode(t, application, domain.ModeScroll, 3*time.Second)
+		time.Sleep(300 * time.Millisecond)
+
 		// Back to hints for element selection
 		application.SetModeHints()
 		waitForMode(t, application, domain.ModeHints, 3*time.Second)
 		time.Sleep(400 * time.Millisecond)
 
-		// Test grid mode
+		// Test grid mode again
 		application.SetModeGrid()
 		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
 
@@ -500,12 +532,18 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 
 	t.Run("Rapid Mode Switching", func(t *testing.T) {
 		// Simulate rapid mode switching like an experienced user
-		for range 3 {
-			// Hints -> Grid -> Idle cycle
+		for range 2 {
+			// Hints -> Grid -> Action -> Scroll -> Idle cycle
 			application.SetModeHints()
 			time.Sleep(50 * time.Millisecond)
 
 			application.SetModeGrid()
+			time.Sleep(50 * time.Millisecond)
+
+			application.SetModeAction()
+			time.Sleep(50 * time.Millisecond)
+
+			application.SetModeScroll()
 			time.Sleep(50 * time.Millisecond)
 
 			application.SetModeIdle()

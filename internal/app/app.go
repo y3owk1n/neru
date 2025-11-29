@@ -104,9 +104,11 @@ type Mode = domain.Mode
 
 // Mode constants from domain package.
 const (
-	ModeIdle  = domain.ModeIdle
-	ModeHints = domain.ModeHints
-	ModeGrid  = domain.ModeGrid
+	ModeIdle   = domain.ModeIdle
+	ModeHints  = domain.ModeHints
+	ModeGrid   = domain.ModeGrid
+	ModeScroll = domain.ModeScroll
+	ModeAction = domain.ModeAction
 )
 
 // App represents the main application instance containing all state and dependencies.
@@ -461,12 +463,19 @@ func (a *App) EventTap() ports.EventTapPort { return a.eventTap }
 func (a *App) CurrentMode() Mode { return a.appState.CurrentMode() }
 
 // SetModeHints sets the mode to hints.
+// SetModeHints switches the application to hints mode.
 func (a *App) SetModeHints() { a.modes.SetModeHints() }
 
-// SetModeGrid sets the mode to grid.
+// SetModeGrid switches the application to grid mode.
 func (a *App) SetModeGrid() { a.modes.SetModeGrid() }
 
-// SetModeIdle sets the mode to idle.
+// SetModeAction switches the application to action mode.
+func (a *App) SetModeAction() { a.modes.SetModeAction() }
+
+// SetModeScroll switches the application to scroll mode.
+func (a *App) SetModeScroll() { a.modes.SetModeScroll() }
+
+// SetModeIdle switches the application to idle mode.
 func (a *App) SetModeIdle() { a.modes.SetModeIdle() }
 
 // EnableEventTap enables the event tap.

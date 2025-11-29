@@ -106,22 +106,22 @@ chmod +x .git/hooks/pre-commit
 
 ### Common Development Tasks
 
-| Task   | Command                 | Description                        |
-| ------ | ----------------------- | ---------------------------------- |
-| Build  | `just build`            | Compile the application            |
-| Test   | `just test`             | Run unit and integration tests     |
-| Test   | `just test-unit`        | Run unit tests                     |
-| Test   | `just test-integration` | Run integration tests              |
-| Test   | `just test-race`        | Run all tests with race detection  |
-| Test   | `just test-coverage`    | Run unit tests with coverage       |
-| Test   | `just test-all`         | Run all tests (unit + integration) |
-| Bench  | `just bench`            | Run all benchmarks                 |
-| Bench  | `just bench-unit`       | Run unit benchmarks                |
-| Bench  | `just bench-integration`| Run integration benchmarks         |
-| Lint   | `just lint`             | Run linters                        |
-| Format | `just fmt`              | Format code                        |
-| Run    | `just run`              | Build and run the application      |
-| Clean  | `just clean`            | Remove build artifacts             |
+| Task   | Command                  | Description                        |
+| ------ | ------------------------ | ---------------------------------- |
+| Build  | `just build`             | Compile the application            |
+| Test   | `just test`              | Run unit and integration tests     |
+| Test   | `just test-unit`         | Run unit tests                     |
+| Test   | `just test-integration`  | Run integration tests              |
+| Test   | `just test-race`         | Run all tests with race detection  |
+| Test   | `just test-coverage`     | Run unit tests with coverage       |
+| Test   | `just test-all`          | Run all tests (unit + integration) |
+| Bench  | `just bench`             | Run all benchmarks                 |
+| Bench  | `just bench-unit`        | Run unit benchmarks                |
+| Bench  | `just bench-integration` | Run integration benchmarks         |
+| Lint   | `just lint`              | Run linters                        |
+| Format | `just fmt`               | Format code                        |
+| Run    | `just run`               | Build and run the application      |
+| Clean  | `just clean`             | Remove build artifacts             |
 
 ### Debugging
 
@@ -233,12 +233,12 @@ Neru has a comprehensive test suite with clear separation between unit tests and
 
 ### Test Organization
 
-| Test Type                  | File Pattern                   | Purpose                   | Command                 | Coverage                                           |
-| ------------------------ | ------------------------------ | ------------------------- | ----------------------- | -------------------------------------------------- |
-| **Unit Tests**           | `*_test.go`                    | Business logic with mocks (tagged `//go:build unit`) | `just test`             | 50+ tests covering algorithms, isolated components |
-| **Integration Tests**    | `*_integration_test.go`       | Real system interactions (tagged `//go:build integration`) | `just test-integration` | 15+ tests covering macOS APIs, IPC, file operations |
-| **Unit Benchmarks**      | `*_bench_test.go`              | Performance testing      | `just bench`            | Performance benchmarks for critical paths         |
-| **Integration Benchmarks**| `*_bench_integration_test.go` | Real system performance   | `just bench-integration`| Performance testing with real macOS APIs          |
+| Test Type                  | File Pattern                  | Purpose                                                    | Command                  | Coverage                                            |
+| -------------------------- | ----------------------------- | ---------------------------------------------------------- | ------------------------ | --------------------------------------------------- |
+| **Unit Tests**             | `*_test.go`                   | Business logic with mocks (tagged `//go:build unit`)       | `just test`              | 50+ tests covering algorithms, isolated components  |
+| **Integration Tests**      | `*_integration_test.go`       | Real system interactions (tagged `//go:build integration`) | `just test-integration`  | 15+ tests covering macOS APIs, IPC, file operations |
+| **Unit Benchmarks**        | `*_bench_test.go`             | Performance testing                                        | `just bench`             | Performance benchmarks for critical paths           |
+| **Integration Benchmarks** | `*_bench_integration_test.go` | Real system performance                                    | `just bench-integration` | Performance testing with real macOS APIs            |
 
 ### Test File Naming Convention
 
@@ -333,12 +333,185 @@ go test -tags=integration ./internal/core/infra/accessibility/
 
 Neru is a keyboard-driven navigation tool for macOS that enhances productivity by allowing users to quickly navigate and interact with UI elements using keyboard shortcuts.
 
-**Two Navigation Modes:**
+**Four Navigation Modes:**
 
 - **Hints Mode**: Uses macOS Accessibility APIs to identify clickable elements and overlay hint labels
 - **Grid Mode**: Divides the screen into a grid system for coordinate-based navigation
+- **Scroll Mode**: Provides Vim-style scrolling at the cursor position
+- **Action Mode**: Provides interactive mouse actions at the cursor position
 
-Both modes support various actions (click, scroll, etc.) and can be configured extensively through TOML configuration files.
+All modes support various actions and can be configured extensively through TOML configuration files.
+
+### Mode Interface Contract
+
+Neru uses a standardized `Mode` interface to ensure consistent behavior across all navigation modes. This interface defines the contract that all mode implementations must follow.
+
+#### Interface Definition
+
+```go
+type Mode interface {
+    // Activate initializes and starts the mode with optional action parameters
+    Activate(action *string)
+
+    // HandleKey processes keyboard input during normal mode operation
+    HandleKey(key string)
+
+    // HandleActionKey processes keyboard input when in action sub-mode
+    HandleActionKey(key string)
+
+    // Exit performs cleanup and deactivates the mode
+    Exit()
+
+    // ToggleActionMode switches between normal mode and action sub-mode
+    ToggleActionMode()
+
+    // ModeType returns the domain mode type identifier
+    ModeType() domain.Mode
+}
+```
+
+#### Implementation Pattern
+
+All mode implementations follow this pattern:
+
+1. **Struct Definition**: Create a struct that holds a reference to the Handler
+2. **Constructor**: Provide a `NewXXXMode(handler *Handler)` constructor
+3. **Interface Methods**: Implement all required interface methods
+4. **Registration**: Register the mode in `Handler.NewHandler()`
+
+#### Method Contracts
+
+##### `Activate(action *string)`
+
+- **Purpose**: Initialize the mode and set it as the active mode
+- **Parameters**: Optional action string for pending actions
+- **Responsibilities**:
+  - Call `handler.SetModeXXX()` to change app state
+  - Show mode-specific overlays/UI
+  - Initialize mode-specific state
+  - Log mode activation
+
+##### `HandleKey(key string)`
+
+- **Purpose**: Process keyboard input during normal mode operation
+- **Parameters**: Single key string (e.g., "a", "j", "escape")
+- **Responsibilities**:
+  - Route keys to appropriate handlers
+  - Update mode state based on input
+  - Handle mode-specific navigation logic
+
+##### `HandleActionKey(key string)`
+
+- **Purpose**: Process keyboard input when in action sub-mode
+- **Parameters**: Single key string representing action selection
+- **Responsibilities**:
+  - Delegate to `handler.handleActionKey()` for action execution
+  - Handle action-specific key mappings
+
+##### `Exit()`
+
+- **Purpose**: Clean up mode state and return to idle
+- **Responsibilities**:
+  - Hide overlays and UI elements
+  - Reset mode-specific state
+  - Call `handler.SetModeIdle()` if needed
+
+##### `ToggleActionMode()`
+
+- **Purpose**: Switch between normal mode and action sub-mode
+- **Responsibilities**:
+  - Delegate to handler's toggle method (e.g., `toggleActionModeForHints()`)
+  - Handle mode-specific action mode transitions
+
+##### `ModeType()`
+
+- **Purpose**: Return the domain mode identifier
+- **Returns**: `domain.Mode` enum value (e.g., `domain.ModeHints`)
+
+#### Implementation Examples
+
+##### Basic Mode Structure
+
+```go
+type ExampleMode struct {
+    handler *Handler
+}
+
+func NewExampleMode(handler *Handler) *ExampleMode {
+    return &ExampleMode{handler: handler}
+}
+
+func (m *ExampleMode) ModeType() domain.Mode {
+    return domain.ModeExample
+}
+
+func (m *ExampleMode) Activate(action *string) {
+    m.handler.SetModeExample()
+    // Show example overlay
+    // Initialize state
+    m.handler.logger.Info("Example mode activated")
+}
+
+func (m *ExampleMode) HandleKey(key string) {
+    switch key {
+    case "escape":
+        m.handler.SetModeIdle()
+    // Handle other keys...
+    }
+}
+
+func (m *ExampleMode) HandleActionKey(key string) {
+    m.handler.handleActionKey(key, "Example")
+}
+
+func (m *ExampleMode) Exit() {
+    // Hide overlays
+    // Reset state
+}
+
+func (m *ExampleMode) ToggleActionMode() {
+    m.handler.toggleActionModeForExample()
+}
+```
+
+##### Registration Pattern
+
+```go
+func NewHandler(...) *Handler {
+    handler := &Handler{...}
+    handler.modes = map[domain.Mode]Mode{
+        domain.ModeHints:  NewHintsMode(handler),
+        domain.ModeGrid:   NewGridMode(handler),
+        domain.ModeAction: NewActionMode(handler),
+        domain.ModeScroll: NewScrollMode(handler),
+        // Add new modes here
+    }
+    return handler
+}
+```
+
+#### Best Practices
+
+1. **Consistent Naming**: Use `XXXMode` for struct names, `NewXXXMode` for constructors
+2. **Handler Reference**: Always store a reference to the Handler for accessing services
+3. **State Management**: Use the Handler's state management methods
+4. **Logging**: Log mode transitions and important events
+5. **Error Handling**: Handle errors gracefully, don't panic
+6. **Resource Cleanup**: Always clean up overlays and state in `Exit()`
+7. **Action Mode Support**: Implement `ToggleActionMode()` even if not used
+
+#### Adding New Modes
+
+To add a new navigation mode:
+
+1. **Define Domain Mode**: Add to `internal/core/domain/modes.go`
+2. **Create Implementation**: Implement the Mode interface
+3. **Add CLI Command**: Create CLI command in `internal/cli/`
+4. **Update IPC**: Add handler in `internal/app/ipc_controller.go`
+5. **Register Mode**: Add to Handler's mode map
+6. **Add Tests**: Create unit and integration tests
+7. **Update Config**: Add hotkey defaults
+8. **Update Docs**: Document in CLI.md and DEVELOPMENT.md
 
 ### Key Technologies
 
@@ -375,7 +548,7 @@ Implements use cases and orchestrates domain entities:
 
 - **Services**: Business logic orchestration (HintService, GridService, ActionService)
 - **Components**: UI components for Hints, Grid, and Scroll modes
-- **Modes**: Navigation mode logic and state management
+- **Modes**: Navigation mode implementations following the `Mode` interface
 - **Lifecycle**: Application startup, shutdown, and orchestration
 
 #### Infrastructure Layer (`internal/core/infra`)
@@ -427,7 +600,7 @@ Application orchestration and use cases:
 
 - **Services**: Business logic orchestration (HintService, GridService, ActionService)
 - **Components**: UI components for Hints, Grid, and Scroll modes
-- **Modes**: Navigation mode logic and state management
+- **Modes**: Navigation mode implementations following the `Mode` interface
 - **App**: Central application state and dependencies
 - **Lifecycle**: Startup, shutdown, and orchestration
 
@@ -479,7 +652,8 @@ Configuration management:
 2. Create service in `internal/app/services/`
 3. Implement infrastructure in `internal/core/infra/`
 4. Add components in `internal/app/components/`
-5. Register mode in `internal/app/modes/`
+5. Implement the `Mode` interface in `internal/app/modes/` (see `HintsMode`, `GridMode`, `ScrollMode` for examples)
+6. Register mode in the Handler's mode map in `internal/app/modes/handler.go`
 
 **Actions:**
 
@@ -591,6 +765,7 @@ package_bench_test.go        # Benchmarks (unit or integration based)
 - **Integration Benchmarks** (`*_bench_integration_test.go`): Real system performance, tagged `//go:build integration`
 
 Examples:
+
 - Domain logic benchmarks → Unit benchmarks
 - File I/O benchmarks → Integration benchmarks
 - IPC performance benchmarks → Integration benchmarks

@@ -32,6 +32,8 @@ func (h *Handler) StartInteractiveScroll() {
 		h.logger.Error("Failed to show scroll overlay", zap.Error(showScrollErr))
 	}
 
+	h.SetModeScroll()
+
 	h.logger.Info("Interactive scroll activated")
 	h.logger.Info("Use j/k to scroll, g/G for top/bottom, Esc to exit")
 }
