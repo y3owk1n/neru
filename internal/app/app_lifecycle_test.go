@@ -28,19 +28,7 @@ func TestAppInitializationUnit(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	done := make(chan bool, 1)
-	go func() {
-		defer func() { done <- true }()
-
-		runTestAppInitializationUnit(t, ctx)
-	}()
-
-	select {
-	case <-done:
-		// Test completed normally
-	case <-ctx.Done():
-		t.Fatal("TestAppInitializationUnit timed out - possible hang")
-	}
+	runTestAppInitializationUnit(t, ctx)
 }
 
 func runTestAppInitializationUnit(t *testing.T, ctx context.Context) {
