@@ -83,7 +83,7 @@ test-coverage:
 	@echo "Running tests with coverage..."
 	go test -tags=unit -coverprofile=coverage-unit.out ./...
 	go test -tags=integration -coverprofile=coverage-integration.out ./...
-	@echo "mode: atomic" > coverage.txt
+	@head -1 coverage-unit.out > coverage.txt
 	@tail -n +2 coverage-unit.out >> coverage.txt
 	@tail -n +2 coverage-integration.out >> coverage.txt
 
