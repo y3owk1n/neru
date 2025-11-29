@@ -12,10 +12,7 @@ var scrollCmd = &cobra.Command{
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		var params []string
-		params = append(params, "scroll")
-
-		return sendCommand(cmd, "scroll", params)
+		return sendCommand(cmd, "scroll", []string{})
 	},
 }
 
