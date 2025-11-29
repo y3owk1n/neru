@@ -43,6 +43,11 @@ func (h *Handler) StartInteractiveScroll() {
 // page scrolling (Ctrl+D/Ctrl+U), and top/bottom navigation (gg/G).
 // Maintains state for multi-key sequences like 'gg' for top.
 func (h *Handler) handleGenericScrollKey(key string) {
+	// Handle control scroll keys first; they manage lastKey directly via the context.
+	if len(key) == 1 && h.handleControlScrollKey(key) {
+		return
+	}
+
 	lastScrollKey := h.scroll.Context.LastKey()
 	defer func() {
 		h.scroll.Context.SetLastKey(lastScrollKey)
@@ -58,12 +63,6 @@ func (h *Handler) handleGenericScrollKey(key string) {
 	var handleScrollErr error
 
 	ctx := context.Background()
-
-	if len(key) == 1 {
-		if h.handleControlScrollKey(key) {
-			return
-		}
-	}
 
 	h.logger.Debug(
 		"Entering switch statement",
