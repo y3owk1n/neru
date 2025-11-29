@@ -37,10 +37,6 @@ func onReady() {
 		mGrid.Hide()
 	}
 
-	mAction := systray.AddMenuItem("Action", "Action mode for mouse operations")
-
-	mScroll := systray.AddMenuItem("Scroll", "Scroll mode for vim-style scrolling")
-
 	systray.AddSeparator()
 
 	mReloadConfig := systray.AddMenuItem("Reload Config", "Reload configuration from disk")
@@ -51,14 +47,14 @@ func onReady() {
 
 	go handleSystrayEvents(
 		mVersionCopy, mStatus, mToggle,
-		mHints, mGrid, mAction, mScroll, mReloadConfig,
+		mHints, mGrid, mReloadConfig,
 		mQuit,
 	)
 }
 
 func handleSystrayEvents(
 	mVersionCopy, mStatus, mToggle *systray.MenuItem,
-	mHints, mGrid, mAction, mScroll, mReloadConfig *systray.MenuItem,
+	mHints, mGrid, mReloadConfig *systray.MenuItem,
 	mQuit *systray.MenuItem,
 ) {
 	for {
@@ -71,10 +67,6 @@ func handleSystrayEvents(
 			activateModeFromSystray(app.ModeHints)
 		case <-mGrid.ClickedCh:
 			activateModeFromSystray(app.ModeGrid)
-		case <-mAction.ClickedCh:
-			activateModeFromSystray(app.ModeAction)
-		case <-mScroll.ClickedCh:
-			activateModeFromSystray(app.ModeScroll)
 		case <-mReloadConfig.ClickedCh:
 			handleReloadConfig()
 		case <-mQuit.ClickedCh:
