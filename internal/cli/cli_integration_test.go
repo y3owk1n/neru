@@ -28,6 +28,21 @@ func waitForServerReady(t *testing.T, timeout time.Duration) {
 	t.Fatalf("Server did not become ready within %v", timeout)
 }
 
+// mockAppState simulates app state for testing
+type mockAppState struct {
+	running bool
+	mode    string
+	started bool
+}
+
+func newMockAppState() *mockAppState {
+	return &mockAppState{
+		running: true, // Start in running state to match test expectations
+		mode:    "idle",
+		started: false,
+	}
+}
+
 // TestCLIIntegration tests IPC communication with real infrastructure
 func TestCLIIntegration(t *testing.T) {
 	if testing.Short() {
@@ -35,6 +50,7 @@ func TestCLIIntegration(t *testing.T) {
 	}
 
 	logger := logger.Get()
+	appState := newMockAppState()
 
 	// Create a real IPC server with handlers that simulate app behavior
 	handler := func(ctx context.Context, cmd ipc.Command) ipc.Response {
@@ -42,23 +58,43 @@ func TestCLIIntegration(t *testing.T) {
 		case "ping":
 			return ipc.Response{Success: true, Data: map[string]interface{}{"status": "ok"}}
 		case "start":
+			appState.started = true
+			appState.running = true
 			return ipc.Response{Success: true, Data: map[string]interface{}{"message": "started"}}
 		case "stop":
+			appState.running = false
 			return ipc.Response{Success: true, Data: map[string]interface{}{"message": "stopped"}}
 		case "status":
 			return ipc.Response{Success: true, Data: map[string]interface{}{
-				"running": true,
-				"mode":    "idle",
+				"running": appState.running,
+				"mode":    appState.mode,
 			}}
 		case "hints":
+			if !appState.running {
+				return ipc.Response{Success: false, Message: "app not running"}
+			}
+			appState.mode = "hints"
 			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "hints"}}
 		case "grid":
+			if !appState.running {
+				return ipc.Response{Success: false, Message: "app not running"}
+			}
+			appState.mode = "grid"
 			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "grid"}}
 		case "action":
+			if !appState.running {
+				return ipc.Response{Success: false, Message: "app not running"}
+			}
 			if len(cmd.Args) >= 3 && cmd.Args[0] == "left_click" {
 				return ipc.Response{Success: true, Message: "action performed"}
 			}
 			return ipc.Response{Success: false, Message: "invalid action"}
+		case "idle":
+			if !appState.running {
+				return ipc.Response{Success: false, Message: "app not running"}
+			}
+			appState.mode = "idle"
+			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "idle"}}
 		default:
 			return ipc.Response{Success: false, Message: "unknown command"}
 		}

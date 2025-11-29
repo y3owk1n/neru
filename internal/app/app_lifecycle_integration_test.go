@@ -723,3 +723,205 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 
 	t.Log("✅ Full user workflow integration test completed successfully")
 }
+
+// TestConfigurationIntegration tests configuration loading and validation in integration
+func TestConfigurationIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping configuration integration test in short mode")
+	}
+
+	// Test with default config
+	t.Run("Default Configuration", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.General.AccessibilityCheckOnStart = false
+
+		application, err := app.New(
+			app.WithConfig(cfg),
+			app.WithConfigPath(""),
+			app.WithIPCServer(&mockIPCServer{}),
+			app.WithWatcher(&mockAppWatcher{}),
+			app.WithOverlayManager(&mockOverlayManager{}),
+			app.WithHotkeyService(&mockHotkeyService{}),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create app with default config: %v", err)
+		}
+		defer application.Cleanup()
+
+		// Start app briefly to test config access
+		runDone := make(chan error, 1)
+		go func() {
+			runDone <- application.Run()
+		}()
+		waitForAppReady(t, application, 5*time.Second)
+
+		// Verify default config values
+		if !application.HintsEnabled() {
+			t.Error("Hints should be enabled by default")
+		}
+		if !application.GridEnabled() {
+			t.Error("Grid should be enabled by default")
+		}
+		if application.Config() == nil {
+			t.Error("Config should be set")
+		}
+
+		application.Stop()
+		select {
+		case <-runDone:
+		case <-time.After(3 * time.Second):
+			t.Fatal("App did not stop within timeout")
+		}
+	})
+
+	// Test with custom config
+	t.Run("Custom Configuration", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.Hints.Enabled = false
+		cfg.Grid.Enabled = false
+		cfg.General.AccessibilityCheckOnStart = false
+
+		application, err := app.New(
+			app.WithConfig(cfg),
+			app.WithConfigPath(""),
+			app.WithIPCServer(&mockIPCServer{}),
+			app.WithWatcher(&mockAppWatcher{}),
+			app.WithOverlayManager(&mockOverlayManager{}),
+			app.WithHotkeyService(&mockHotkeyService{}),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create app with custom config: %v", err)
+		}
+		defer application.Cleanup()
+
+		// Start app briefly to test config access
+		runDone := make(chan error, 1)
+		go func() {
+			runDone <- application.Run()
+		}()
+		waitForAppReady(t, application, 5*time.Second)
+
+		// Verify custom config values
+		if application.HintsEnabled() {
+			t.Error("Hints should be disabled")
+		}
+		if application.GridEnabled() {
+			t.Error("Grid should be disabled")
+		}
+
+		application.Stop()
+		select {
+		case <-runDone:
+		case <-time.After(3 * time.Second):
+			t.Fatal("App did not stop within timeout")
+		}
+	})
+
+	t.Log("✅ Configuration integration test completed successfully")
+}
+
+// TestHotkeyIntegration tests hotkey registration during app lifecycle
+func TestHotkeyIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping hotkey integration test in short mode")
+	}
+
+	// Create a mock hotkey service that tracks registrations
+	mockHotkeys := &mockHotkeyService{}
+
+	cfg := config.DefaultConfig()
+	cfg.General.AccessibilityCheckOnStart = false
+
+	application, err := app.New(
+		app.WithConfig(cfg),
+		app.WithConfigPath(""),
+		app.WithIPCServer(&mockIPCServer{}),
+		app.WithWatcher(&mockAppWatcher{}),
+		app.WithOverlayManager(&mockOverlayManager{}),
+		app.WithHotkeyService(mockHotkeys),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create app: %v", err)
+	}
+	defer application.Cleanup()
+
+	// Start the app to trigger hotkey registration
+	runDone := make(chan error, 1)
+	go func() {
+		runDone <- application.Run()
+	}()
+	waitForAppReady(t, application, 5*time.Second)
+
+	// Give a bit more time for hotkey registration to complete
+	time.Sleep(100 * time.Millisecond)
+
+	// Test that hotkeys are registered during app startup
+	t.Run("Hotkey Registration", func(t *testing.T) {
+		// Hotkeys should be registered during app startup
+		// The mock should have captured the registrations
+		if mockHotkeys.registered == nil || len(mockHotkeys.registered) == 0 {
+			t.Error("Expected hotkeys to be registered during app startup")
+		}
+		// Verify we have at least the default hotkeys
+		if len(mockHotkeys.registered) < 3 {
+			t.Errorf("Expected at least 3 hotkeys registered, got %d", len(mockHotkeys.registered))
+		}
+	})
+
+	application.Stop()
+	select {
+	case <-runDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("App did not stop within timeout")
+	}
+
+	t.Log("✅ Hotkey integration test completed successfully")
+}
+
+// BenchmarkModeTransitionsIntegration benchmarks mode transitions in integration
+func BenchmarkModeTransitionsIntegration(b *testing.B) {
+	cfg := config.DefaultConfig()
+	cfg.General.AccessibilityCheckOnStart = false
+
+	application, err := app.New(
+		app.WithConfig(cfg),
+		app.WithConfigPath(""),
+		app.WithIPCServer(&mockIPCServer{}),
+		app.WithWatcher(&mockAppWatcher{}),
+		app.WithOverlayManager(&mockOverlayManager{}),
+		app.WithHotkeyService(&mockHotkeyService{}),
+	)
+	if err != nil {
+		b.Fatalf("Failed to create app: %v", err)
+	}
+	defer application.Cleanup()
+
+	// Start the app
+	runDone := make(chan error, 1)
+	go func() {
+		runDone <- application.Run()
+	}()
+	waitForAppReady(
+		nil,
+		application,
+		5*time.Second,
+	) // Use nil for testing.T since this is a benchmark
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			application.SetModeHints()
+			application.SetModeGrid()
+			application.SetModeAction()
+			application.SetModeScroll()
+			application.SetModeIdle()
+		}
+	})
+
+	application.Stop()
+	select {
+	case <-runDone:
+	case <-time.After(5 * time.Second):
+		b.Fatal("App did not stop within timeout")
+	}
+}
