@@ -46,14 +46,33 @@ bundle: release
     @echo "✓ Bundle complete: build/Neru.app"
 
 # Run tests
+
+# Run all tests (unit + integration)
 test:
+    @echo "Running all tests..."
+    just test-unit
+    just test-integration
+
+# Run unit tests
+test-unit:
     @echo "Running unit tests..."
-    go test -v ./...
+    go test -tags=unit -v ./...
 
 # Run with race detection
 test-race:
     @echo "Running tests with race detection..."
-    go test -race -v ./...
+    just test-race-unit
+    just test-race-integration
+
+# Run unit tests with race detection
+test-race-unit:
+    @echo "Running unit tests with race detection..."
+    go test -tags=unit -race -v ./...
+
+# Run integration tests with race detection
+test-race-integration:
+    @echo "Running integration tests with race detection..."
+    go test -tags=integration -race -v ./...
 
 # Run integration tests
 test-integration:
@@ -62,14 +81,14 @@ test-integration:
 
 test-coverage:
     @echo "Running tests with coverage..."
-    go test -coverprofile=coverage.txt ./...
+    go test -tags=unit -coverprofile=coverage.txt ./...
 
 test-coverage-html:
     @echo "Running tests with coverage (HTML)..."
-    go test -coverprofile=coverage.out -covermode=atomic ./...
+    go test -tags=unit -coverprofile=coverage.out -covermode=atomic ./...
     go tool cover -html=coverage.out -o coverage.html
 
-test-all: test test-race test-integration test-coverage
+test-all: test-unit test-race-unit test-integration test-coverage
 
 # Check if files are formatted correctly
 fmt-check:

@@ -1,4 +1,4 @@
-//go:build !integration
+//go:build unit
 
 package cli_test
 
