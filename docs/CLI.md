@@ -179,7 +179,7 @@ neru command --help   # Command-specific help
 ```
 
 **Status values:** `running`, `disabled`
-**Mode values:** `idle`, `hints`, `grid`, `scroll`
+**Mode values:** `idle`, `hints`, `grid`, `scroll`, `action`
 
 ### Profiling
 
