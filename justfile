@@ -89,8 +89,8 @@ test-coverage:
 
 test-coverage-html:
     @echo "Running tests with coverage (HTML)..."
-    go test -tags=unit -coverprofile=coverage.out -covermode=atomic ./...
-    go tool cover -html=coverage.out -o coverage.html
+    just test-coverage
+    go tool cover -html=coverage.txt -o coverage.html
 
 test-all: test-unit test-race-unit test-race-integration test-integration test-coverage
 
