@@ -36,7 +36,7 @@ func waitForMode(
 }
 
 // waitForAppReady waits for the application to be enabled with a timeout.
-func waitForAppReady(t *testing.T, application *app.App, timeout time.Duration) {
+func waitForAppReady(t testing.TB, application *app.App, timeout time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {

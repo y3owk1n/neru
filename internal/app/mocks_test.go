@@ -4,6 +4,7 @@ package app_test
 
 import (
 	"context"
+	"sync"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app/components/action"
@@ -16,41 +17,143 @@ import (
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
-// Mock implementations for testing.
-type mockEventTap struct{}
+// mockEventTap is a mock implementation of ports.EventTapPort for testing.
+type mockEventTap struct {
+	mu      sync.RWMutex
+	enabled bool
+	handler func(string)
+}
 
-func (m *mockEventTap) Enable(_ context.Context) error  { return nil }
-func (m *mockEventTap) Disable(_ context.Context) error { return nil }
-func (m *mockEventTap) IsEnabled() bool                 { return false }
-func (m *mockEventTap) SetHandler(_ func(string))       {}
-func (m *mockEventTap) SetHotkeys(_ []string)           {}
-func (m *mockEventTap) Destroy()                        {}
+// Enable implements ports.EventTapPort.
+func (m *mockEventTap) Enable(_ context.Context) error {
+	m.mu.Lock()
+	m.enabled = true
+	m.mu.Unlock()
+	return nil
+}
 
-type mockIPCServer struct{}
+// Disable implements ports.EventTapPort.
+func (m *mockEventTap) Disable(_ context.Context) error {
+	m.mu.Lock()
+	m.enabled = false
+	m.mu.Unlock()
+	return nil
+}
 
-func (m *mockIPCServer) Start(_ context.Context) error              { return nil }
-func (m *mockIPCServer) Stop(_ context.Context) error               { return nil }
-func (m *mockIPCServer) Serve(_ context.Context) error              { return nil }
+// IsEnabled implements ports.EventTapPort.
+func (m *mockEventTap) IsEnabled() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.enabled
+}
+
+// SetHandler implements ports.EventTapPort.
+func (m *mockEventTap) SetHandler(handler func(string)) {
+	m.mu.Lock()
+	m.handler = handler
+	m.mu.Unlock()
+}
+
+// SetHotkeys implements ports.EventTapPort.
+func (m *mockEventTap) SetHotkeys(_ []string) {}
+
+// Destroy implements ports.EventTapPort.
+func (m *mockEventTap) Destroy() {}
+
+// mockIPCServer is a mock implementation of ports.IPCPort for testing.
+type mockIPCServer struct {
+	mu      sync.RWMutex
+	running bool
+}
+
+// Start implements ports.IPCPort.
+func (m *mockIPCServer) Start(_ context.Context) error {
+	m.mu.Lock()
+	m.running = true
+	m.mu.Unlock()
+	return nil
+}
+
+// Stop implements ports.IPCPort.
+func (m *mockIPCServer) Stop(_ context.Context) error {
+	m.mu.Lock()
+	m.running = false
+	m.mu.Unlock()
+	return nil
+}
+
+// Send implements ports.IPCPort.
 func (m *mockIPCServer) Send(_ context.Context, _ any) (any, error) { return "", nil }
-func (m *mockIPCServer) IsRunning() bool                            { return false }
 
-type mockOverlayManager struct{}
+// IsRunning implements ports.IPCPort.
+func (m *mockIPCServer) IsRunning() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.running
+}
 
-func (m *mockOverlayManager) Show()                     {}
-func (m *mockOverlayManager) Hide()                     {}
-func (m *mockOverlayManager) Clear()                    {}
+// mockOverlayManager is a mock implementation of OverlayManager for testing.
+type mockOverlayManager struct {
+	mu        sync.RWMutex
+	mode      overlay.Mode
+	visible   bool
+	subsCount uint64
+}
+
+// Show implements OverlayManager.
+func (m *mockOverlayManager) Show() {
+	m.mu.Lock()
+	m.visible = true
+	m.mu.Unlock()
+}
+
+// Hide implements OverlayManager.
+func (m *mockOverlayManager) Hide() {
+	m.mu.Lock()
+	m.visible = false
+	m.mu.Unlock()
+}
+
+// Clear implements OverlayManager.
+func (m *mockOverlayManager) Clear() {
+	m.mu.Lock()
+	m.visible = false
+	m.mu.Unlock()
+}
+
+// ResizeToActiveScreenSync implements OverlayManager.
 func (m *mockOverlayManager) ResizeToActiveScreenSync() {}
-func (m *mockOverlayManager) SwitchTo(_ overlay.Mode)   {}
 
+// SwitchTo implements OverlayManager.
+func (m *mockOverlayManager) SwitchTo(mode overlay.Mode) {
+	m.mu.Lock()
+	m.mode = mode
+	m.mu.Unlock()
+}
+
+// Subscribe implements OverlayManager.
 func (m *mockOverlayManager) Subscribe(
 	_ func(overlay.StateChange),
 ) uint64 {
-	return 0
+	m.mu.Lock()
+	m.subsCount++
+	count := m.subsCount
+	m.mu.Unlock()
+	return count
 }
-func (m *mockOverlayManager) Unsubscribe(_ uint64) {}
-func (m *mockOverlayManager) Destroy()             {}
 
-func (m *mockOverlayManager) Mode() overlay.Mode { return overlay.ModeIdle }
+// Unsubscribe implements OverlayManager.
+func (m *mockOverlayManager) Unsubscribe(_ uint64) {}
+
+// Destroy implements OverlayManager.
+func (m *mockOverlayManager) Destroy() {}
+
+// Mode implements OverlayManager.
+func (m *mockOverlayManager) Mode() overlay.Mode {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.mode
+}
 
 func (m *mockOverlayManager) WindowPtr() unsafe.Pointer          { return nil }
 func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)    {}
@@ -87,24 +190,41 @@ func (m *mockOverlayManager) ShowSubgrid(_ *domainGrid.Cell, _ grid.Style) {}
 func (m *mockOverlayManager) SetHideUnmatched(_ bool)                      {}
 
 type mockHotkeyService struct {
+	mu         sync.RWMutex
 	registered map[string]hotkeys.Callback
+	nextID     hotkeys.HotkeyID
 }
 
 func (m *mockHotkeyService) Register(
 	key string,
 	callback hotkeys.Callback,
 ) (hotkeys.HotkeyID, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if m.registered == nil {
 		m.registered = make(map[string]hotkeys.Callback)
 	}
 	m.registered[key] = callback
-	return 0, nil
+	id := m.nextID
+	m.nextID++
+	return id, nil
 }
 
 func (m *mockHotkeyService) UnregisterAll() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if m.registered != nil {
 		m.registered = make(map[string]hotkeys.Callback)
 	}
+	m.nextID = 0
+}
+
+func (m *mockHotkeyService) GetRegisteredCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.registered)
 }
 
 type mockAppWatcher struct{}

@@ -4,6 +4,7 @@ package cli_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -28,6 +29,22 @@ func waitForServerReady(t *testing.T, timeout time.Duration) {
 	t.Fatalf("Server did not become ready within %v", timeout)
 }
 
+// mockAppState simulates app state for testing
+type mockAppState struct {
+	mu      sync.RWMutex
+	running bool
+	mode    string
+	started bool
+}
+
+func newMockAppState() *mockAppState {
+	return &mockAppState{
+		running: true, // Start in running state to match test expectations
+		mode:    "idle",
+		started: false,
+	}
+}
+
 // TestCLIIntegration tests IPC communication with real infrastructure
 func TestCLIIntegration(t *testing.T) {
 	if testing.Short() {
@@ -35,6 +52,7 @@ func TestCLIIntegration(t *testing.T) {
 	}
 
 	logger := logger.Get()
+	appState := newMockAppState()
 
 	// Create a real IPC server with handlers that simulate app behavior
 	handler := func(ctx context.Context, cmd ipc.Command) ipc.Response {
@@ -42,23 +60,69 @@ func TestCLIIntegration(t *testing.T) {
 		case "ping":
 			return ipc.Response{Success: true, Data: map[string]interface{}{"status": "ok"}}
 		case "start":
+			appState.mu.Lock()
+			appState.started = true
+			appState.running = true
+			appState.mu.Unlock()
 			return ipc.Response{Success: true, Data: map[string]interface{}{"message": "started"}}
 		case "stop":
+			appState.mu.Lock()
+			appState.running = false
+			appState.mu.Unlock()
 			return ipc.Response{Success: true, Data: map[string]interface{}{"message": "stopped"}}
 		case "status":
+			appState.mu.RLock()
+			running := appState.running
+			mode := appState.mode
+			appState.mu.RUnlock()
 			return ipc.Response{Success: true, Data: map[string]interface{}{
-				"running": true,
-				"mode":    "idle",
+				"running": running,
+				"mode":    mode,
 			}}
 		case "hints":
+			appState.mu.RLock()
+			running := appState.running
+			appState.mu.RUnlock()
+			if !running {
+				return ipc.Response{Success: false, Message: "app not running"}
+			}
+			appState.mu.Lock()
+			appState.mode = "hints"
+			appState.mu.Unlock()
 			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "hints"}}
 		case "grid":
+			appState.mu.RLock()
+			running := appState.running
+			appState.mu.RUnlock()
+			if !running {
+				return ipc.Response{Success: false, Message: "app not running"}
+			}
+			appState.mu.Lock()
+			appState.mode = "grid"
+			appState.mu.Unlock()
 			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "grid"}}
 		case "action":
+			appState.mu.RLock()
+			running := appState.running
+			appState.mu.RUnlock()
+			if !running {
+				return ipc.Response{Success: false, Message: "app not running"}
+			}
 			if len(cmd.Args) >= 3 && cmd.Args[0] == "left_click" {
 				return ipc.Response{Success: true, Message: "action performed"}
 			}
 			return ipc.Response{Success: false, Message: "invalid action"}
+		case "idle":
+			appState.mu.RLock()
+			running := appState.running
+			appState.mu.RUnlock()
+			if !running {
+				return ipc.Response{Success: false, Message: "app not running"}
+			}
+			appState.mu.Lock()
+			appState.mode = "idle"
+			appState.mu.Unlock()
+			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "idle"}}
 		default:
 			return ipc.Response{Success: false, Message: "unknown command"}
 		}
@@ -196,6 +260,55 @@ func TestCLIIntegration(t *testing.T) {
 
 		if !response.Success {
 			t.Errorf("Stop failed: %v", response.Message)
+		}
+	})
+
+	t.Run("Commands fail after stop", func(t *testing.T) {
+		client := ipc.NewClient()
+
+		// Test that hints command fails after app is stopped
+		response, err := client.Send(ipc.Command{Action: "hints"})
+		if err != nil {
+			t.Fatalf("Failed to send hints command: %v", err)
+		}
+
+		if response.Success || response.Message != "app not running" {
+			t.Errorf(
+				"Expected hints command to fail with 'app not running', got success=%v message=%q",
+				response.Success,
+				response.Message,
+			)
+		}
+
+		// Test that grid command fails after app is stopped
+		response, err = client.Send(ipc.Command{Action: "grid"})
+		if err != nil {
+			t.Fatalf("Failed to send grid command: %v", err)
+		}
+
+		if response.Success || response.Message != "app not running" {
+			t.Errorf(
+				"Expected grid command to fail with 'app not running', got success=%v message=%q",
+				response.Success,
+				response.Message,
+			)
+		}
+
+		// Test that action command fails after app is stopped
+		response, err = client.Send(ipc.Command{
+			Action: "action",
+			Args:   []string{"left_click", "100", "100"},
+		})
+		if err != nil {
+			t.Fatalf("Failed to send action command: %v", err)
+		}
+
+		if response.Success || response.Message != "app not running" {
+			t.Errorf(
+				"Expected action command to fail with 'app not running', got success=%v message=%q",
+				response.Success,
+				response.Message,
+			)
 		}
 	})
 }
