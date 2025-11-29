@@ -9,6 +9,9 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
+// Compile-time interface compliance check
+var _ modes.Mode = (*modes.ScrollMode)(nil)
+
 func TestScrollMode_ModeType(t *testing.T) {
 	handler := &modes.Handler{}
 	mode := modes.NewScrollMode(handler)
