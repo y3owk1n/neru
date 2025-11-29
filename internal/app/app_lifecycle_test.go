@@ -31,6 +31,20 @@ func TestAppInitializationUnit(t *testing.T) {
 	runTestAppInitializationUnit(t, ctx)
 }
 
+// setAndWaitForMode sets the application mode and waits for it to take effect
+func setAndWaitForMode(t *testing.T, application *app.App, mode domain.Mode) {
+	t.Helper()
+	switch mode {
+	case domain.ModeHints:
+		application.SetModeHints()
+	case domain.ModeGrid:
+		application.SetModeGrid()
+	case domain.ModeIdle:
+		application.SetModeIdle()
+	}
+	waitForMode(t, application, mode)
+}
+
 func runTestAppInitializationUnit(t *testing.T, ctx context.Context) {
 	t.Helper()
 	// Create a basic config for testing
@@ -75,34 +89,21 @@ func runTestAppInitializationUnit(t *testing.T, ctx context.Context) {
 
 	// Test hint mode activation
 	t.Run("Activate Hint Mode", func(t *testing.T) {
-		application.SetModeHints()
-		waitForMode(t, application, domain.ModeHints)
-
-		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle)
+		setAndWaitForMode(t, application, domain.ModeHints)
+		setAndWaitForMode(t, application, domain.ModeIdle)
 	})
 
 	// Test multiple mode transitions
 	t.Run("Mode Transitions", func(t *testing.T) {
 		// Test hints -> grid -> idle
-		application.SetModeHints()
-		waitForMode(t, application, domain.ModeHints)
-
-		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid)
-
-		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle)
+		setAndWaitForMode(t, application, domain.ModeHints)
+		setAndWaitForMode(t, application, domain.ModeGrid)
+		setAndWaitForMode(t, application, domain.ModeIdle)
 
 		// Test grid -> hints -> idle
-		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid)
-
-		application.SetModeHints()
-		waitForMode(t, application, domain.ModeHints)
-
-		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle)
+		setAndWaitForMode(t, application, domain.ModeGrid)
+		setAndWaitForMode(t, application, domain.ModeHints)
+		setAndWaitForMode(t, application, domain.ModeIdle)
 	})
 
 	t.Log("✅ App initialization unit test completed successfully")
