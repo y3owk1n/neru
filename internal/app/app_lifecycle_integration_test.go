@@ -511,11 +511,8 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 				expectedMode = domain.ModeIdle
 			}
 
-			if application.CurrentMode() == expectedMode {
-				t.Logf("✅ Switched to %s mode", mode.name)
-			} else {
-				t.Logf("⚠️ Mode transition to %s may have failed", mode.name)
-			}
+			waitForMode(t, application, expectedMode)
+			t.Logf("✅ Switched to %s mode", mode.name)
 
 			// Small delay to simulate user thinking time
 			time.Sleep(100 * time.Millisecond)
