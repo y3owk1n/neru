@@ -116,8 +116,8 @@ fmt-check:
 
 # Run benchmarks
 bench:
-    @echo "Running all benchmarks..."
-    go test -bench=. -benchmem ./...
+    @echo "Running unit benchmarks..."
+    go test -tags=unit -bench=. -benchmem ./...
 
 # Run integration benchmarks
 bench-integration:
