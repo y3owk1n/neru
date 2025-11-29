@@ -68,8 +68,10 @@ func TestHintServiceIntegration(t *testing.T) {
 				t.Log("No hints found in test environment (expected)")
 			} else {
 				// If hints were found, overlay should be visible
-				if !overlay.IsVisible() {
-					t.Log("Overlay not visible - may be expected if no hints were found")
+				if overlay.IsVisible() {
+					t.Logf("Overlay is visible after finding %d hints (expected)", len(hints))
+				} else {
+					t.Logf("Overlay is not visible after finding %d hints (unexpected but non-failing)", len(hints))
 				}
 			}
 		}
