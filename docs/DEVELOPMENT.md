@@ -110,7 +110,10 @@ chmod +x .git/hooks/pre-commit
 | ------ | ----------------------- | ---------------------------------- |
 | Build  | `just build`            | Compile the application            |
 | Test   | `just test`             | Run unit and integration tests     |
+| Test   | `just test-unit`        | Run unit tests                     |
 | Test   | `just test-integration` | Run integration tests              |
+| Test   | `just test-race`        | Run all tests with race detection  |
+| Test   | `just test-coverage`    | Run unit tests with coverage       |
 | Test   | `just test-all`         | Run all tests (unit + integration) |
 | Bench  | `just bench`            | Run all benchmarks                 |
 | Bench  | `just bench-integration`| Run integration benchmarks         |
