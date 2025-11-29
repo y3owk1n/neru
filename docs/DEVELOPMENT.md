@@ -115,7 +115,8 @@ chmod +x .git/hooks/pre-commit
 | Test   | `just test-race`        | Run all tests with race detection  |
 | Test   | `just test-coverage`    | Run unit tests with coverage       |
 | Test   | `just test-all`         | Run all tests (unit + integration) |
-| Bench  | `just bench`            | Run unit benchmarks                |
+| Bench  | `just bench`            | Run all benchmarks                 |
+| Bench  | `just bench-unit`       | Run unit benchmarks                |
 | Bench  | `just bench-integration`| Run integration benchmarks         |
 | Lint   | `just lint`             | Run linters                        |
 | Format | `just fmt`              | Format code                        |
