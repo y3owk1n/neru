@@ -25,19 +25,12 @@ func (m *ScrollMode) ModeType() domain.Mode {
 
 // Activate activates scroll mode with optional action parameter.
 func (m *ScrollMode) Activate(action *string) {
-	if m.handler == nil {
-		return
-	}
 	// Scroll mode ignores the action parameter as it has a single activation flow
 	m.handler.StartInteractiveScroll()
 }
 
 // HandleKey processes key presses for scroll mode.
 func (m *ScrollMode) HandleKey(key string) {
-	if m.handler == nil {
-		return
-	}
-
 	m.handler.handleGenericScrollKey(key)
 }
 
@@ -50,10 +43,6 @@ func (m *ScrollMode) HandleActionKey(key string) {
 
 // Exit performs scroll mode cleanup.
 func (m *ScrollMode) Exit() {
-	if m.handler == nil {
-		return
-	}
-
 	if m.handler.scroll != nil && m.handler.scroll.Context != nil {
 		m.handler.scroll.Context.SetIsActive(false)
 		m.handler.scroll.Context.SetLastKey("")
