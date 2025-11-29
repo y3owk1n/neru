@@ -17,7 +17,7 @@ func NewScrollMode(handler *Handler) *ScrollMode {
 }
 
 // Activate activates scroll mode with optional action parameter.
-func (m *ScrollMode) Activate(action *string) {
+func (m *ScrollMode) Activate(_ *string) {
 	// Scroll mode ignores the action parameter as it has a single activation flow
 	m.handler.StartInteractiveScroll()
 }
