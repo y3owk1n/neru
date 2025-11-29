@@ -32,6 +32,8 @@ func (h *Handler) StartInteractiveScroll() {
 		h.logger.Error("Failed to show scroll overlay", zap.Error(showScrollErr))
 	}
 
+	h.SetModeScroll()
+
 	h.logger.Info("Interactive scroll activated")
 	h.logger.Info("Use j/k to scroll, g/G for top/bottom, Esc to exit")
 }
@@ -40,11 +42,16 @@ func (h *Handler) StartInteractiveScroll() {
 // It processes various scroll commands including directional scrolling (j/k/h/l),
 // page scrolling (Ctrl+D/Ctrl+U), and top/bottom navigation (gg/G).
 // Maintains state for multi-key sequences like 'gg' for top.
-func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
-	var localLastKey string
-	if lastScrollKey == nil {
-		lastScrollKey = &localLastKey
+func (h *Handler) handleGenericScrollKey(key string) {
+	// Handle control scroll keys first; they manage lastKey directly via the context.
+	if len(key) == 1 && h.handleControlScrollKey(key) {
+		return
 	}
+
+	lastScrollKey := h.scroll.Context.LastKey()
+	defer func() {
+		h.scroll.Context.SetLastKey(lastScrollKey)
+	}()
 
 	bytes := []byte(key)
 	h.logger.Info("Scroll key pressed",
@@ -57,12 +64,6 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 
 	ctx := context.Background()
 
-	if len(key) == 1 {
-		if h.handleControlScrollKey(key, *lastScrollKey, lastScrollKey) {
-			return
-		}
-	}
-
 	h.logger.Debug(
 		"Entering switch statement",
 		zap.String("key", key),
@@ -72,14 +73,14 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 	switch key {
 	case "j", "k", "h", "l":
 		// Handle directional scrolling (vim-style navigation)
-		handleScrollErr = h.handleDirectionalScrollKey(key, *lastScrollKey)
+		handleScrollErr = h.handleDirectionalScrollKey(key, lastScrollKey)
 	case "g":
 		// Handle 'g' key sequences: 'g' starts sequence, 'gg' scrolls to top
-		operation, newLast, ok := scroll.ParseKey(key, *lastScrollKey, h.logger)
+		operation, newLast, ok := scroll.ParseKey(key, lastScrollKey, h.logger)
 		if !ok {
 			h.logger.Info("First g pressed, press again for top")
 
-			*lastScrollKey = newLast
+			lastScrollKey = newLast
 
 			return
 		}
@@ -88,7 +89,7 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 			// First 'g' pressed, wait for second 'g'
 			h.logger.Info("First g pressed, press again for top")
 
-			*lastScrollKey = newLast
+			lastScrollKey = newLast
 
 			return
 		}
@@ -100,13 +101,13 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 				services.ScrollDirectionUp,
 				services.ScrollAmountEnd,
 			)
-			*lastScrollKey = ""
+			lastScrollKey = ""
 
 			goto done
 		}
 	case "G":
 		// Handle 'G' key: scroll to bottom
-		operation, _, ok := scroll.ParseKey(key, *lastScrollKey, h.logger)
+		operation, _, ok := scroll.ParseKey(key, lastScrollKey, h.logger)
 		if ok && operation == "bottom" {
 			h.logger.Info("G key detected - scroll to bottom")
 			handleScrollErr = h.scrollService.Scroll(
@@ -114,13 +115,13 @@ func (h *Handler) handleGenericScrollKey(key string, lastScrollKey *string) {
 				services.ScrollDirectionDown,
 				services.ScrollAmountEnd,
 			)
-			*lastScrollKey = ""
+			lastScrollKey = ""
 		}
 	default:
 		// Reset state for unrecognized keys
 		h.logger.Debug("Ignoring non-scroll key", zap.String("key", key))
 
-		*lastScrollKey = ""
+		lastScrollKey = ""
 
 		return
 	}
@@ -132,14 +133,17 @@ done:
 }
 
 // handleControlScrollKey handles control character scroll keys.
-func (h *Handler) handleControlScrollKey(key string, lastKey string, lastScrollKey *string) bool {
+func (h *Handler) handleControlScrollKey(key string) bool {
 	byteVal := key[0]
 	h.logger.Info("Checking control char", zap.Uint8("byte", byteVal))
 	// Only handle Ctrl+D / Ctrl+U here; let Tab (9) and other keys fall through to switch
 	if byteVal == 4 || byteVal == 21 {
+		lastKey := h.scroll.Context.LastKey()
+
 		operation, _, ok := scroll.ParseKey(key, lastKey, h.logger)
 		if ok {
-			*lastScrollKey = ""
+			h.scroll.Context.SetLastKey("")
+
 			ctx := context.Background()
 
 			var handleControlScrollKeyErr error

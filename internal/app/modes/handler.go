@@ -6,11 +6,35 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
 )
+
+// Mode defines the interface that all navigation modes must implement.
+// This provides a consistent API contract for mode activation, key handling,
+// and cleanup operations.
+type Mode interface {
+	// Activate activates the mode with an optional pending action.
+	Activate(action *string)
+
+	// HandleKey processes a key press within the mode's context.
+	HandleKey(key string)
+
+	// HandleActionKey processes a key press when in action mode.
+	HandleActionKey(key string)
+
+	// Exit performs mode-specific cleanup and deactivation.
+	Exit()
+
+	// ToggleActionMode switches between overlay and action modes.
+	ToggleActionMode()
+
+	// ModeType returns the domain mode type this implementation represents.
+	ModeType() domain.Mode
+}
 
 // Handler encapsulates mode-specific logic and dependencies.
 type Handler struct {
@@ -30,6 +54,9 @@ type Handler struct {
 	grid   *components.GridComponent
 	scroll *components.ScrollComponent
 	action *components.ActionComponent
+
+	// Mode implementations
+	modes map[domain.Mode]Mode
 
 	enableEventTap  func()
 	disableEventTap func()
@@ -56,7 +83,7 @@ func NewHandler(
 	disableEventTap func(),
 	refreshHotkeys func(),
 ) *Handler {
-	return &Handler{
+	handler := &Handler{
 		config:          config,
 		logger:          logger,
 		appState:        appState,
@@ -75,6 +102,16 @@ func NewHandler(
 		disableEventTap: disableEventTap,
 		refreshHotkeys:  refreshHotkeys,
 	}
+
+	// Initialize mode implementations
+	handler.modes = map[domain.Mode]Mode{
+		domain.ModeHints:  NewHintsMode(handler),
+		domain.ModeGrid:   NewGridMode(handler),
+		domain.ModeScroll: NewScrollMode(handler),
+		domain.ModeAction: NewActionMode(handler),
+	}
+
+	return handler
 }
 
 // UpdateConfig updates the handler with new configuration.

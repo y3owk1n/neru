@@ -12,33 +12,6 @@ import (
 
 // HandleKeyPress dispatches key events by current mode.
 func (h *Handler) HandleKeyPress(key string) {
-	if h.appState.CurrentMode() == domain.ModeIdle {
-		if key == "\x1b" || key == "escape" {
-			h.logger.Info("Exiting standalone scroll mode")
-			h.overlayManager.Clear()
-			h.overlayManager.Hide()
-
-			if h.disableEventTap != nil {
-				h.disableEventTap()
-			}
-
-			h.scroll.Context.SetIsActive(false)
-			h.scroll.Context.SetLastKey("")
-			// Reset cursor state when exiting scroll mode to ensure proper cursor restoration
-			// in subsequent modes
-			h.cursorState.Reset()
-
-			return
-		}
-		// Try to handle scroll keys with generic handler using persistent state.
-		// If it's not a scroll key, it will just be ignored.
-		lastKey := h.scroll.Context.LastKey()
-		h.handleGenericScrollKey(key, &lastKey)
-		h.scroll.Context.SetLastKey(lastKey)
-
-		return
-	}
-
 	if key == "\t" {
 		h.handleTabKey()
 
@@ -51,23 +24,57 @@ func (h *Handler) HandleKeyPress(key string) {
 		return
 	}
 
+	// Check if we're in action mode and delegate to the mode
+	mode, exists := h.modes[h.appState.CurrentMode()]
+	if exists {
+		switch h.appState.CurrentMode() {
+		case domain.ModeHints:
+			if h.hints.Context.InActionMode() {
+				mode.HandleActionKey(key)
+
+				return
+			}
+		case domain.ModeGrid:
+			if h.grid.Context.InActionMode() {
+				mode.HandleActionKey(key)
+
+				return
+			}
+		case domain.ModeScroll:
+			// Scroll mode doesn't have action modes
+		case domain.ModeAction:
+			// Action mode is always in action mode
+			mode.HandleActionKey(key)
+
+			return
+		case domain.ModeIdle:
+			// No action mode for idle
+		default:
+			// No action mode for other modes
+		}
+	}
+
 	h.handleModeSpecificKey(key)
 }
 
 // handleTabKey handles the tab key to toggle between overlay mode and action mode.
 func (h *Handler) handleTabKey() {
-	switch h.appState.CurrentMode() {
-	case domain.ModeHints:
-		h.toggleActionModeForHints()
-	case domain.ModeGrid:
-		h.toggleActionModeForGrid()
-	case domain.ModeIdle:
+	mode, exists := h.modes[h.appState.CurrentMode()]
+	if !exists {
 		return
 	}
+
+	mode.ToggleActionMode()
 }
 
 // handleEscapeKey handles the escape key to exit action mode or current mode.
 func (h *Handler) handleEscapeKey() {
+	_, exists := h.modes[h.appState.CurrentMode()]
+	if !exists {
+		return
+	}
+
+	// Check if we're in action mode for this specific mode
 	switch h.appState.CurrentMode() {
 	case domain.ModeHints:
 		if h.hints.Context.InActionMode() {
@@ -91,8 +98,14 @@ func (h *Handler) handleEscapeKey() {
 
 			return
 		}
+	case domain.ModeScroll:
+		// Scroll mode doesn't have action modes, just exit
+	case domain.ModeAction:
+		// Action mode doesn't have sub-modes, just exit
 	case domain.ModeIdle:
-		return
+		// No action mode for idle
+	default:
+		// No action mode for other modes
 	}
 
 	h.ExitMode()
@@ -287,14 +300,12 @@ func (h *Handler) handleGridModeKey(key string) {
 
 // handleModeSpecificKey handles mode-specific key processing.
 func (h *Handler) handleModeSpecificKey(key string) {
-	switch h.appState.CurrentMode() {
-	case domain.ModeHints:
-		h.handleHintsModeKey(key)
-	case domain.ModeGrid:
-		h.handleGridModeKey(key)
-	case domain.ModeIdle:
+	mode, exists := h.modes[h.appState.CurrentMode()]
+	if !exists {
 		return
 	}
+
+	mode.HandleKey(key)
 }
 
 // ExitMode exits the current mode.
@@ -312,17 +323,14 @@ func (h *Handler) ExitMode() {
 
 // performModeSpecificCleanup handles mode-specific cleanup logic.
 func (h *Handler) performModeSpecificCleanup() {
-	switch h.appState.CurrentMode() {
-	case domain.ModeHints:
-		h.cleanupHintsMode()
-	case domain.ModeGrid:
-		h.cleanupGridMode()
-	case domain.ModeIdle:
-		// No specific cleanup needed for idle mode
-		return
-	default:
+	mode, exists := h.modes[h.appState.CurrentMode()]
+	if !exists {
 		h.cleanupDefaultMode()
+
+		return
 	}
+
+	mode.Exit()
 }
 
 // clearAndHideOverlay clears and hides the overlay manager.
@@ -529,4 +537,18 @@ func (h *Handler) SetModeHints() {
 // for capturing keyboard input, and switches the overlay display to grid mode.
 func (h *Handler) SetModeGrid() {
 	h.setMode(domain.ModeGrid, overlay.ModeGrid)
+}
+
+// SetModeScroll switches the application to scroll mode for scroll-based navigation.
+// This function sets the application state to scroll mode, enables event tapping
+// for capturing keyboard input, and switches the overlay display to scroll mode.
+func (h *Handler) SetModeScroll() {
+	h.setMode(domain.ModeScroll, overlay.ModeAction)
+}
+
+// SetModeAction switches the application to action mode for action-based operations.
+// This function sets the application state to action mode, enables event tapping
+// for capturing keyboard input, and switches the overlay display to action mode.
+func (h *Handler) SetModeAction() {
+	h.setMode(domain.ModeAction, overlay.ModeAction)
 }

@@ -66,6 +66,20 @@ func TestAppInitializationIntegration(t *testing.T) {
 
 		application.SetModeIdle()
 		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+
+		// Test action mode
+		application.SetModeAction()
+		waitForMode(t, application, domain.ModeAction, 3*time.Second)
+
+		application.SetModeIdle()
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+
+		// Test scroll mode
+		application.SetModeScroll()
+		waitForMode(t, application, domain.ModeScroll, 3*time.Second)
+
+		application.SetModeIdle()
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
 	})
 
 	t.Log("✅ App initialization with real components test completed successfully")
@@ -141,6 +155,148 @@ func TestGridModeEndToEnd(t *testing.T) {
 	}
 
 	t.Log("✅ Grid mode E2E test completed successfully")
+}
+
+// TestActionModeEndToEnd tests the complete action mode workflow.
+func TestActionModeEndToEnd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping action mode E2E test in short mode")
+	}
+
+	// Create config with action mode enabled (action mode doesn't have a specific enable flag)
+	cfg := config.DefaultConfig()
+	cfg.General.AccessibilityCheckOnStart = false
+
+	// Initialize the app with real components but mock the problematic ones
+	application, err := app.New(
+		app.WithConfig(cfg),
+		app.WithConfigPath(""),
+		app.WithIPCServer(&mockIPCServer{}),           // Mock IPC to avoid starting real server
+		app.WithWatcher(&mockAppWatcher{}),            // Mock watcher to avoid system monitoring
+		app.WithOverlayManager(&mockOverlayManager{}), // Mock overlay to avoid UI initialization
+		app.WithHotkeyService(&mockHotkeyService{}),   // Mock hotkeys to avoid system registration
+	)
+	if err != nil {
+		t.Fatalf("Failed to create app: %v", err)
+	}
+	defer application.Cleanup()
+
+	// Start the app in a goroutine
+	runDone := make(chan error, 1)
+	go func() {
+		runDone <- application.Run()
+	}()
+
+	// Wait for app to be running with timeout
+	waitForAppReady(t, application, 5*time.Second)
+
+	// Test action mode activation
+	t.Run("Activate Action Mode", func(t *testing.T) {
+		application.SetModeAction()
+		waitForMode(t, application, domain.ModeAction, 3*time.Second)
+	})
+
+	// Test action mode deactivation
+	t.Run("Deactivate Action Mode", func(t *testing.T) {
+		application.SetModeIdle()
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+	})
+
+	// Test action mode reactivation
+	t.Run("Reactivate Action Mode", func(t *testing.T) {
+		application.SetModeAction()
+		waitForMode(t, application, domain.ModeAction, 3*time.Second)
+
+		application.SetModeIdle()
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+	})
+
+	// Stop the app
+	application.Stop()
+
+	// Wait for Run() to return
+	select {
+	case err := <-runDone:
+		if err != nil {
+			// Run() may return a context-cancelled error after Stop(), which is expected
+			t.Logf("App Run() returned (expected after Stop): %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("App did not stop within timeout")
+	}
+
+	t.Log("✅ Action mode E2E test completed successfully")
+}
+
+// TestScrollModeEndToEnd tests the complete scroll mode workflow.
+func TestScrollModeEndToEnd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping scroll mode E2E test in short mode")
+	}
+
+	// Create config with scroll mode enabled (scroll mode doesn't have a specific enable flag)
+	cfg := config.DefaultConfig()
+	cfg.General.AccessibilityCheckOnStart = false
+
+	// Initialize the app with real components but mock the problematic ones
+	application, err := app.New(
+		app.WithConfig(cfg),
+		app.WithConfigPath(""),
+		app.WithIPCServer(&mockIPCServer{}),           // Mock IPC to avoid starting real server
+		app.WithWatcher(&mockAppWatcher{}),            // Mock watcher to avoid system monitoring
+		app.WithOverlayManager(&mockOverlayManager{}), // Mock overlay to avoid UI initialization
+		app.WithHotkeyService(&mockHotkeyService{}),   // Mock hotkeys to avoid system registration
+	)
+	if err != nil {
+		t.Fatalf("Failed to create app: %v", err)
+	}
+	defer application.Cleanup()
+
+	// Start the app in a goroutine
+	runDone := make(chan error, 1)
+	go func() {
+		runDone <- application.Run()
+	}()
+
+	// Wait for app to be running with timeout
+	waitForAppReady(t, application, 5*time.Second)
+
+	// Test scroll mode activation
+	t.Run("Activate Scroll Mode", func(t *testing.T) {
+		application.SetModeScroll()
+		waitForMode(t, application, domain.ModeScroll, 3*time.Second)
+	})
+
+	// Test scroll mode deactivation
+	t.Run("Deactivate Scroll Mode", func(t *testing.T) {
+		application.SetModeIdle()
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+	})
+
+	// Test scroll mode reactivation
+	t.Run("Reactivate Scroll Mode", func(t *testing.T) {
+		application.SetModeScroll()
+		waitForMode(t, application, domain.ModeScroll, 3*time.Second)
+
+		application.SetModeIdle()
+		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+	})
+
+	// Stop the app
+	application.Stop()
+
+	// Wait for Run() to return
+	select {
+	case err := <-runDone:
+		if err != nil {
+			// Run() may return a context-cancelled error after Stop(), which is expected
+			t.Logf("App Run() returned (expected after Stop): %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("App did not stop within timeout")
+	}
+
+	t.Log("✅ Scroll mode E2E test completed successfully")
 }
 
 // TestConfigurationLoadingIntegration tests configuration loading and validation.
@@ -306,6 +462,8 @@ func TestAppLifecycleIntegration(t *testing.T) {
 		modes := []domain.Mode{
 			domain.ModeHints,
 			domain.ModeGrid,
+			domain.ModeAction,
+			domain.ModeScroll,
 			domain.ModeIdle,
 			domain.ModeHints,
 			domain.ModeGrid,
@@ -318,6 +476,10 @@ func TestAppLifecycleIntegration(t *testing.T) {
 				application.SetModeHints()
 			case domain.ModeGrid:
 				application.SetModeGrid()
+			case domain.ModeAction:
+				application.SetModeAction()
+			case domain.ModeScroll:
+				application.SetModeScroll()
 			case domain.ModeIdle:
 				application.SetModeIdle()
 			}
@@ -451,6 +613,8 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		}{
 			{"hints", domain.ModeHints, func() { application.SetModeHints() }},
 			{"grid", domain.ModeGrid, func() { application.SetModeGrid() }},
+			{"action", domain.ModeAction, func() { application.SetModeAction() }},
+			{"scroll", domain.ModeScroll, func() { application.SetModeScroll() }},
 			{"idle", domain.ModeIdle, func() { application.SetModeIdle() }},
 			{"hints", domain.ModeHints, func() { application.SetModeHints() }},
 			{"idle", domain.ModeIdle, func() { application.SetModeIdle() }},
@@ -483,12 +647,22 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
 		time.Sleep(300 * time.Millisecond)
 
+		// Try action mode for direct actions
+		application.SetModeAction()
+		waitForMode(t, application, domain.ModeAction, 3*time.Second)
+		time.Sleep(200 * time.Millisecond)
+
+		// Use scroll mode for navigation
+		application.SetModeScroll()
+		waitForMode(t, application, domain.ModeScroll, 3*time.Second)
+		time.Sleep(300 * time.Millisecond)
+
 		// Back to hints for element selection
 		application.SetModeHints()
 		waitForMode(t, application, domain.ModeHints, 3*time.Second)
 		time.Sleep(400 * time.Millisecond)
 
-		// Test grid mode
+		// Test grid mode again
 		application.SetModeGrid()
 		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
 
@@ -500,12 +674,18 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 
 	t.Run("Rapid Mode Switching", func(t *testing.T) {
 		// Simulate rapid mode switching like an experienced user
-		for range 3 {
-			// Hints -> Grid -> Idle cycle
+		for range 2 {
+			// Hints -> Grid -> Action -> Scroll -> Idle cycle
 			application.SetModeHints()
 			time.Sleep(50 * time.Millisecond)
 
 			application.SetModeGrid()
+			time.Sleep(50 * time.Millisecond)
+
+			application.SetModeAction()
+			time.Sleep(50 * time.Millisecond)
+
+			application.SetModeScroll()
 			time.Sleep(50 * time.Millisecond)
 
 			application.SetModeIdle()

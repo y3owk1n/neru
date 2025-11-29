@@ -21,7 +21,8 @@ Neru searches for configuration in the following order:
 - [General Settings](#general-settings)
 - [Hint Mode](#hint-mode)
 - [Grid Mode](#grid-mode)
-- [Scroll & Actions](#scroll--actions)
+- [Scroll Mode](#scroll-mode)
+- [Action Mode](#action-mode)
 - [Advanced Settings](#advanced-settings)
 - [Complete Example](#complete-example)
 
@@ -54,7 +55,7 @@ Bind global hotkeys to Neru actions. Remove or comment out to disable.
 "Cmd+Shift+G" = "grid"
 
 # Scroll
-"Cmd+Shift+S" = "action scroll"
+"Cmd+Shift+S" = "scroll"
 
 # these keys might not work and conflict with system or apps, change them!
 # "Cmd+Shift+L" = "action left_click"
@@ -240,11 +241,9 @@ enable_gc = false         # Enable periodic garbage collection every 5 minutes t
 
 ---
 
-## Scroll & Actions
+## Scroll Mode
 
-### Scroll Configuration
-
-Vim-style scrolling for standalone and hint/grid-based navigation:
+Vim-style scrolling for standalone navigation:
 
 ```toml
 [scroll]
@@ -259,9 +258,9 @@ highlight_width = 2
 
 **Keys:** `j/k` (up/down), `h/l` (left/right), `Ctrl+d/u` (half-page), `gg/G` (top/bottom), `Esc` (exit)
 
-### Action Configuration
+## Action Mode
 
-Action mode for mouse operations (toggle with `Tab` in hint/grid mode):
+Interactive action mode for mouse operations (enter with `neru action` or `Tab` in hint/grid mode):
 
 ```toml
 [action]
@@ -404,7 +403,7 @@ A full configuration example:
 "Cmd+Shift+M" = "action middle_click"
 "Cmd+Shift+N" = "action mouse_down"
 "Cmd+Shift+P" = "action mouse_up"
-"Cmd+Shift+S" = "action scroll"
+"Cmd+Shift+S" = "scroll"
 
 [general]
 excluded_apps = ["com.apple.Terminal", "com.googlecode.iterm2"]

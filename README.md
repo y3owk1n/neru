@@ -106,10 +106,12 @@ See [Installation Guide](docs/INSTALLATION.md) for detailed setup instructions.
 
 ### 🎮 How It Works
 
-**Two Navigation Modes:**
+**Four Navigation Modes:**
 
 1. **Hints Mode** - Accessibility-based labels on clickable elements
 2. **Grid Mode** - Universal coordinate-based navigation (works everywhere!)
+3. **Scroll Mode** - Vim-style scrolling at cursor position
+4. **Action Mode** - Interactive mouse actions at cursor position
 
 <div align="center">
 

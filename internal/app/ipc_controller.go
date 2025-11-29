@@ -102,6 +102,7 @@ func (c *IPCController) RegisterHandlers() {
 	c.Handlers[domain.CommandStop] = c.handleStop
 	c.Handlers["hints"] = c.handleHints
 	c.Handlers["grid"] = c.handleGrid
+	c.Handlers["scroll"] = c.handleScroll
 	c.Handlers[domain.CommandAction] = c.handleAction
 	c.Handlers["idle"] = c.handleIdle
 	c.Handlers[domain.CommandStatus] = c.handleStatus
@@ -207,6 +208,22 @@ func (c *IPCController) handleGrid(_ context.Context, cmd ipc.Command) ipc.Respo
 	return ipc.Response{Success: true, Message: "grid mode activated", Code: ipc.CodeOK}
 }
 
+func (c *IPCController) handleScroll(_ context.Context, _ ipc.Command) ipc.Response {
+	if !c.AppState.IsEnabled() {
+		return ipc.Response{
+			Success: false,
+			Message: "neru is not running",
+			Code:    ipc.CodeNotRunning,
+		}
+	}
+
+	if c.Modes != nil {
+		c.Modes.StartInteractiveScroll()
+	}
+
+	return ipc.Response{Success: true, Message: "scroll mode activated", Code: ipc.CodeOK}
+}
+
 func (c *IPCController) handleAction(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if !c.AppState.IsEnabled() {
 		return ipc.Response{
@@ -218,11 +235,12 @@ func (c *IPCController) handleAction(ctx context.Context, cmd ipc.Command) ipc.R
 
 	params := cmd.Args
 	if len(params) == 0 {
-		return ipc.Response{
-			Success: false,
-			Message: "no action specified",
-			Code:    ipc.CodeInvalidInput,
+		// No args means enter action mode
+		if c.Modes != nil {
+			c.Modes.StartActionMode()
 		}
+
+		return ipc.Response{Success: true, Message: "action mode activated", Code: ipc.CodeOK}
 	}
 
 	cursorPos := accessibility.CurrentCursorPosition()
@@ -230,25 +248,15 @@ func (c *IPCController) handleAction(ctx context.Context, cmd ipc.Command) ipc.R
 	for _, param := range params {
 		var err error
 
-		switch param {
-		case "scroll":
-			if c.Modes != nil {
-				c.Modes.StartInteractiveScroll()
+		if !domain.IsKnownActionName(domain.ActionName(param)) {
+			return ipc.Response{
+				Success: false,
+				Message: "unknown action: " + param,
+				Code:    ipc.CodeInvalidInput,
 			}
-
-			return ipc.Response{Success: true, Message: "scroll mode activated", Code: ipc.CodeOK}
-		default:
-			if !domain.IsKnownActionName(domain.ActionName(param)) {
-				return ipc.Response{
-					Success: false,
-					Message: "unknown action: " + param,
-					Code:    ipc.CodeInvalidInput,
-				}
-			}
-
-			err = c.ActionService.PerformAction(ctx, param, cursorPos)
 		}
 
+		err = c.ActionService.PerformAction(ctx, param, cursorPos)
 		if err != nil {
 			c.Logger.Error("Action failed",
 				zap.Error(err),

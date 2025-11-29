@@ -155,6 +155,34 @@ func TestIPCController_HandleMetrics(t *testing.T) {
 	}
 }
 
+func TestIPCController_HandleActionAndScroll(t *testing.T) {
+	controller := newTestController()
+	controller.RegisterHandlers()
+
+	// Test that the action handler is registered
+	if controller.Handlers["action"] == nil {
+		t.Error("Expected action handler to be registered")
+	}
+
+	// Test that the scroll handler is registered
+	if controller.Handlers["scroll"] == nil {
+		t.Error("Expected scroll handler to be registered")
+	}
+
+	// Test that the action handler can be called (even if it fails due to nil services)
+	ctx := context.Background()
+	commandResponse := controller.HandleCommand(ctx, ipc.Command{Action: "action"})
+	if commandResponse.Code == ipc.CodeUnknownCommand {
+		t.Error("Action command should be recognized")
+	}
+
+	// Test that the scroll handler can be called
+	scrollResponse := controller.HandleCommand(ctx, ipc.Command{Action: "scroll"})
+	if scrollResponse.Code == ipc.CodeUnknownCommand {
+		t.Error("Scroll command should be recognized")
+	}
+}
+
 func TestIPCController_UnknownCommand(t *testing.T) {
 	controller := newTestController()
 	controller.RegisterHandlers()
