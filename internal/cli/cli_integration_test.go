@@ -234,4 +234,41 @@ func TestCLIIntegration(t *testing.T) {
 			t.Errorf("Stop failed: %v", response.Message)
 		}
 	})
+
+	t.Run("Commands fail after stop", func(t *testing.T) {
+		client := ipc.NewClient()
+
+		// Test that hints command fails after app is stopped
+		response, err := client.Send(ipc.Command{Action: "hints"})
+		if err != nil {
+			t.Fatalf("Failed to send hints command: %v", err)
+		}
+
+		if response.Success {
+			t.Error("Expected hints command to fail after app stop")
+		}
+
+		// Test that grid command fails after app is stopped
+		response, err = client.Send(ipc.Command{Action: "grid"})
+		if err != nil {
+			t.Fatalf("Failed to send grid command: %v", err)
+		}
+
+		if response.Success {
+			t.Error("Expected grid command to fail after app stop")
+		}
+
+		// Test that action command fails after app is stopped
+		response, err = client.Send(ipc.Command{
+			Action: "action",
+			Args:   []string{"left_click", "100", "100"},
+		})
+		if err != nil {
+			t.Fatalf("Failed to send action command: %v", err)
+		}
+
+		if response.Success {
+			t.Error("Expected action command to fail after app stop")
+		}
+	})
 }
