@@ -11,6 +11,23 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
+// waitForServerReady polls the IPC server until it's ready or times out
+func waitForServerReady(t *testing.T, timeout time.Duration) {
+	t.Helper()
+	client := ipc.NewClient()
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		_, err := client.Send(ipc.Command{Action: "ping"})
+		if err == nil {
+			return // Server is ready
+		}
+		time.Sleep(10 * time.Millisecond) // Short poll interval
+	}
+
+	t.Fatalf("Server did not become ready within %v", timeout)
+}
+
 // TestCLIIntegration tests IPC communication with real infrastructure
 func TestCLIIntegration(t *testing.T) {
 	if testing.Short() {
@@ -55,8 +72,8 @@ func TestCLIIntegration(t *testing.T) {
 	server.Start()
 	defer server.Stop()
 
-	// Give server time to start
-	time.Sleep(100 * time.Millisecond)
+	// Wait for server to be ready
+	waitForServerReady(t, 2*time.Second)
 
 	t.Run("CLI ping command", func(t *testing.T) {
 		client := ipc.NewClient()
