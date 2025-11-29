@@ -9,7 +9,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/ipc" // Used in skipped IPC test
 )
 
 // TestAppInitializationIntegration tests that the app can be initialized with real system components.
@@ -245,8 +244,17 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 			runDone <- application.Run()
 		}()
 
-		// Wait a bit for startup
-		time.Sleep(1 * time.Second)
+		// Wait for app to be running with timeout
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			if application.IsEnabled() {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		if !application.IsEnabled() {
+			t.Fatal("App did not start within timeout")
+		}
 
 		if application.HintsEnabled() {
 			t.Error("Expected hints to be disabled")
@@ -357,23 +365,24 @@ func TestAppLifecycleIntegration(t *testing.T) {
 		// Skip this subtest since the test uses mock IPC server and real client can't connect to mock socket
 		t.Skip("Skipping IPC test with mock server - real client cannot connect to mock socket")
 
-		client := ipc.NewClient()
-
-		// Disable
-		response, err := client.Send(ipc.Command{Action: "stop"})
-		if err != nil {
-			t.Logf("Stop command failed: %v", err)
-		} else if !response.Success {
-			t.Logf("Stop command failed: %v", response.Message)
-		}
-
-		// Re-enable
-		response, err = client.Send(ipc.Command{Action: "start"})
-		if err != nil {
-			t.Logf("Start command failed: %v", err)
-		} else if !response.Success {
-			t.Logf("Start command failed: %v", response.Message)
-		}
+		// Code commented out to avoid unused import
+		// client := ipc.NewClient()
+		//
+		// // Disable
+		// response, err := client.Send(ipc.Command{Action: "stop"})
+		// if err != nil {
+		// 	t.Logf("Stop command failed: %v", err)
+		// } else if !response.Success {
+		// 	t.Logf("Stop command failed: %v", response.Message)
+		// }
+		//
+		// // Re-enable
+		// response, err = client.Send(ipc.Command{Action: "start"})
+		// if err != nil {
+		// 	t.Logf("Start command failed: %v", err)
+		// } else if !response.Success {
+		// 	t.Logf("Start command failed: %v", response.Message)
+		// }
 	})
 
 	// Stop the app
@@ -430,8 +439,17 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		runDone <- application.Run()
 	}()
 
-	// Wait for the app to start up
-	time.Sleep(2 * time.Second)
+	// Wait for app to be running with timeout
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if application.IsEnabled() {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if !application.IsEnabled() {
+		t.Fatal("App did not start within timeout")
+	}
 
 	t.Run("Application Startup", func(t *testing.T) {
 		// Verify the app is running and in idle mode
@@ -528,22 +546,27 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 
 		// Start with hints mode
 		application.SetModeHints()
+		waitForMode(t, application, domain.ModeHints)
 		time.Sleep(500 * time.Millisecond)
 
 		// Switch to grid for precise navigation
 		application.SetModeGrid()
+		waitForMode(t, application, domain.ModeGrid)
 		time.Sleep(300 * time.Millisecond)
 
 		// Back to hints for element selection
 		application.SetModeHints()
+		waitForMode(t, application, domain.ModeHints)
 		time.Sleep(400 * time.Millisecond)
 
 		// Quick grid check
 		application.SetModeGrid()
+		waitForMode(t, application, domain.ModeGrid)
 		time.Sleep(200 * time.Millisecond)
 
 		// Finish session
 		application.SetModeIdle()
+		waitForMode(t, application, domain.ModeIdle)
 
 		t.Log("✅ Extended usage simulation completed")
 	})
@@ -569,9 +592,10 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 
 	t.Run("Application Shutdown", func(t *testing.T) {
 		// Verify app is still responsive before shutdown
-		if application.IsEnabled() {
-			t.Log("✅ Application still responsive before shutdown")
+		if !application.IsEnabled() {
+			t.Error("Expected application to still be enabled before shutdown")
 		}
+		t.Log("✅ Application still responsive before shutdown")
 	})
 
 	// Stop the app programmatically
