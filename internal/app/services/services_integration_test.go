@@ -168,8 +168,10 @@ func TestActionServiceIntegration(t *testing.T) {
 		} else {
 			t.Log("Action highlight displayed successfully")
 			// Verify overlay is visible
-			if !overlayAdapter.IsVisible() {
+			if overlayAdapter.IsVisible() {
 				t.Log("Overlay became visible after highlight (expected)")
+			} else {
+				t.Log("Overlay is still not visible after highlight")
 			}
 		}
 	})
