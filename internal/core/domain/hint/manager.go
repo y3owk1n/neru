@@ -3,21 +3,24 @@ package hint
 import (
 	"strings"
 
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
 )
 
 // Manager handles hint generation and management.
 type Manager struct {
-	currentInput string
-	hints        *Collection
-	onUpdate     func([]*Interface) // Callback when filtered hints change
-	logger       *zap.Logger
+	domain.BaseManager
+
+	hints    *Collection
+	onUpdate func([]*Interface) // Callback when filtered hints change
 }
 
 // NewManager creates a new hint manager with the specified logger.
 func NewManager(logger *zap.Logger) *Manager {
 	return &Manager{
-		logger: logger,
+		BaseManager: domain.BaseManager{
+			Logger: logger,
+		},
 	}
 }
 
@@ -30,7 +33,7 @@ func (m *Manager) SetUpdateCallback(callback func([]*Interface)) {
 func (m *Manager) SetHints(hints *Collection) {
 	m.hints = hints
 
-	m.currentInput = ""
+	m.SetCurrentInput("")
 	// Trigger update callback with all hints on initial set
 	if m.onUpdate != nil && hints != nil {
 		m.onUpdate(hints.All())
@@ -39,7 +42,7 @@ func (m *Manager) SetHints(hints *Collection) {
 
 // Reset clears the current input.
 func (m *Manager) Reset() {
-	m.currentInput = ""
+	m.SetCurrentInput("")
 	// Trigger update callback with all hints
 	if m.onUpdate != nil && m.hints != nil {
 		m.onUpdate(m.hints.All())
@@ -55,24 +58,24 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 		return nil, false
 	}
 
-	if m.logger != nil {
-		m.logger.Debug("Hint manager: Processing input",
+	if m.Logger != nil {
+		m.Logger.Debug("Hint manager: Processing input",
 			zap.String("key", key),
-			zap.String("current_input", m.currentInput))
+			zap.String("current_input", m.CurrentInput()))
 	}
 
 	// Handle backspace to allow input correction
 	if key == "\x7f" || key == "delete" || key == "backspace" {
-		if len(m.currentInput) > 0 {
-			m.currentInput = m.currentInput[:len(m.currentInput)-1]
+		if len(m.CurrentInput()) > 0 {
+			m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
 
 			// Update overlay to show filtered hints with new prefix
 			if m.hints != nil {
-				filtered := m.hints.FilterByPrefix(m.currentInput)
+				filtered := m.hints.FilterByPrefix(m.CurrentInput())
 
 				hintsWithPrefix := make([]*Interface, len(filtered))
 				for i, h := range filtered {
-					hintsWithPrefix[i] = h.WithMatchedPrefix(m.currentInput)
+					hintsWithPrefix[i] = h.WithMatchedPrefix(m.CurrentInput())
 				}
 
 				if m.onUpdate != nil {
@@ -93,17 +96,17 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	}
 
 	// Accumulate input (convert to uppercase to match hints)
-	m.currentInput += strings.ToUpper(key)
+	m.SetCurrentInput(m.CurrentInput() + strings.ToUpper(key))
 
 	// Filter hints by prefix
-	filtered := m.hints.FilterByPrefix(m.currentInput)
-	if m.logger != nil {
-		m.logger.Debug("Hint manager: Filtered hints", zap.Int("filtered_count", len(filtered)))
+	filtered := m.hints.FilterByPrefix(m.CurrentInput())
+	if m.Logger != nil {
+		m.Logger.Debug("Hint manager: Filtered hints", zap.Int("filtered_count", len(filtered)))
 	}
 
 	if len(filtered) == 0 {
 		// No matches - reset
-		m.currentInput = ""
+		m.SetCurrentInput("")
 
 		return nil, false
 	}
@@ -111,13 +114,13 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	// Update matched prefix for all filtered hints
 	hintsWithPrefix := make([]*Interface, len(filtered))
 	for i, h := range filtered {
-		hintsWithPrefix[i] = h.WithMatchedPrefix(m.currentInput)
+		hintsWithPrefix[i] = h.WithMatchedPrefix(m.CurrentInput())
 	}
 
 	// Check for exact match
-	if len(hintsWithPrefix) == 1 && hintsWithPrefix[0].Label() == m.currentInput {
-		if m.logger != nil {
-			m.logger.Info("Hint manager: Exact match found",
+	if len(hintsWithPrefix) == 1 && hintsWithPrefix[0].Label() == m.CurrentInput() {
+		if m.Logger != nil {
+			m.Logger.Info("Hint manager: Exact match found",
 				zap.String("label", hintsWithPrefix[0].Label()))
 		}
 
@@ -132,22 +135,17 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	return nil, false
 }
 
-// CurrentInput returns the current input string.
-func (m *Manager) CurrentInput() string {
-	return m.currentInput
-}
-
 // FilteredHints returns hints filtered by the current input.
 func (m *Manager) FilteredHints() []*Interface {
 	if m.hints == nil {
 		return nil
 	}
 
-	if m.currentInput == "" {
+	if m.CurrentInput() == "" {
 		return m.hints.All()
 	}
 
-	return m.hints.FilterByPrefix(m.currentInput)
+	return m.hints.FilterByPrefix(m.CurrentInput())
 }
 
 // isLetter checks if a byte is a letter.

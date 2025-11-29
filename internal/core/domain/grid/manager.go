@@ -4,13 +4,15 @@ import (
 	"image"
 	"strings"
 
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
 )
 
 // Manager handles variable-length grid coordinate input and manages grid state.
 type Manager struct {
+	domain.BaseManager
+
 	grid          *Grid
-	currentInput  string
 	mainGridInput string            // This variable is just to restore the captured keys to subgrid when needed
 	labelLength   int               // Length of labels (2, 3, or 4)
 	onUpdate      func(redraw bool) // redraw is only used for exiting subgrid
@@ -21,7 +23,6 @@ type Manager struct {
 	subRows int
 	subCols int
 	subKeys string
-	logger  *zap.Logger
 }
 
 // NewManager initializes a new grid manager with the specified configuration.
@@ -41,6 +42,9 @@ func NewManager(
 	}
 
 	return &Manager{
+		BaseManager: domain.BaseManager{
+			Logger: logger,
+		},
 		grid:        grid,
 		labelLength: labelLength,
 		onUpdate:    onUpdate,
@@ -48,7 +52,6 @@ func NewManager(
 		subRows:     subRows,
 		subCols:     subCols,
 		subKeys:     strings.ToUpper(strings.TrimSpace(subKeys)),
-		logger:      logger,
 	}
 }
 
@@ -94,10 +97,10 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 		return image.Point{}, false
 	}
 
-	m.currentInput += upperKey
+	m.SetCurrentInput(m.CurrentInput() + upperKey)
 
 	// Transition to subgrid when main grid coordinate is complete
-	if !m.inSubgrid && len(m.currentInput) >= m.labelLength {
+	if !m.inSubgrid && len(m.CurrentInput()) >= m.labelLength {
 		return m.handleLabelLengthReached()
 	}
 
@@ -109,11 +112,6 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	return image.Point{}, false
 }
 
-// CurrentInput returns the current partial coordinate input.
-func (m *Manager) CurrentInput() string {
-	return m.currentInput
-}
-
 // CurrentGrid returns the grid.
 func (m *Manager) CurrentGrid() *Grid {
 	return m.grid
@@ -121,7 +119,7 @@ func (m *Manager) CurrentGrid() *Grid {
 
 // Reset resets the input state.
 func (m *Manager) Reset() {
-	m.currentInput = ""
+	m.SetCurrentInput("")
 	m.mainGridInput = ""
 	m.inSubgrid = false
 	m.selectedCell = nil
@@ -152,7 +150,7 @@ func (m *Manager) UpdateSubKeys(subKeys string) {
 
 // handleLabelLengthReached handles the case when label length is reached.
 func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
-	coordinate := m.currentInput[:m.labelLength]
+	coordinate := m.CurrentInput()[:m.labelLength]
 	if m.grid != nil {
 		cell := m.grid.CellByCoordinate(coordinate)
 		if cell != nil {
@@ -162,8 +160,8 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 				m.inSubgrid = true
 				m.selectedCell = cell
 				// Save the main grid input for restoring after subgrid
-				m.mainGridInput = m.currentInput
-				m.currentInput = ""
+				m.mainGridInput = m.CurrentInput()
+				m.SetCurrentInput("")
 
 				if m.onShowSub != nil {
 					m.onShowSub(cell)
@@ -186,7 +184,7 @@ func (m *Manager) validateInputKey(key string) bool {
 		return false
 	}
 
-	potentialInput := m.currentInput + key
+	potentialInput := m.CurrentInput() + key
 	validPrefix := false
 
 	for _, cell := range m.grid.Cells() {
@@ -247,7 +245,7 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	bottom := yBreaks[rowIndex+1]
 	xCoordinate := left + (right-left)/CenterDivisor
 	yCoordinate := top + (bottom-top)/CenterDivisor
-	m.logger.Info("Grid manager: Subgrid selection complete",
+	m.Logger.Info("Grid manager: Subgrid selection complete",
 		zap.Int("row", rowIndex), zap.Int("col", colIndex),
 		zap.Int("x", xCoordinate), zap.Int("y", yCoordinate))
 	// m.Reset()
@@ -255,8 +253,8 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 }
 
 func (m *Manager) handleBackspace() (image.Point, bool) {
-	if len(m.currentInput) > 0 {
-		m.currentInput = m.currentInput[:len(m.currentInput)-1]
+	if len(m.CurrentInput()) > 0 {
+		m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
 
 		if m.onUpdate != nil {
 			m.onUpdate(false)
@@ -272,10 +270,10 @@ func (m *Manager) handleBackspace() (image.Point, bool) {
 		// Restore main grid input
 		if len(m.mainGridInput) > 0 {
 			// remove the last character
-			m.currentInput = m.mainGridInput[:len(m.mainGridInput)-1]
+			m.SetCurrentInput(m.mainGridInput[:len(m.mainGridInput)-1])
 		} else {
 			// just in case
-			m.currentInput = ""
+			m.SetCurrentInput("")
 		}
 
 		if m.onUpdate != nil {
