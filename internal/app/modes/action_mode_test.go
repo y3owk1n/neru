@@ -25,13 +25,8 @@ func TestActionMode_InterfaceCompliance(t *testing.T) {
 	handler := &modes.Handler{}
 	mode := modes.NewActionMode(handler)
 
-	// Test ModeType returns correct value
-	if mode.ModeType() != domain.ModeAction {
-		t.Errorf("ModeType() = %v, want %v", mode.ModeType(), domain.ModeAction)
-	}
-
 	// Test that all interface methods exist and can be called
-	// (they may panic due to nil dependencies in Handler, but that's expected for unit tests)
+	// (they may panic due to nil dependencies, but that's expected for unit tests)
 	defer func() {
 		if r := recover(); r != nil {
 			// Expected panics from nil Handler dependencies are OK

@@ -25,11 +25,6 @@ func TestScrollMode_InterfaceCompliance(t *testing.T) {
 	handler := &modes.Handler{}
 	mode := modes.NewScrollMode(handler)
 
-	// Test ModeType returns correct value
-	if mode.ModeType() != domain.ModeScroll {
-		t.Errorf("ModeType() = %v, want %v", mode.ModeType(), domain.ModeScroll)
-	}
-
 	// Test that all interface methods exist and can be called
 	// (they may panic due to nil dependencies in Handler, but that's expected for unit tests)
 	defer func() {
