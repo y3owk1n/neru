@@ -435,13 +435,15 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 
 	t.Run("Application Startup", func(t *testing.T) {
 		// Verify the app is running and in idle mode
-		if application.IsEnabled() {
-			t.Log("✅ Application is running")
+		if !application.IsEnabled() {
+			t.Fatalf("Expected application to be enabled, but it is not")
 		}
+		t.Log("✅ Application is running")
 
-		if application.CurrentMode() == domain.ModeIdle {
-			t.Log("✅ Application started in idle mode")
+		if application.CurrentMode() != domain.ModeIdle {
+			t.Fatalf("Expected application to start in idle mode, but current mode is %v", application.CurrentMode())
 		}
+		t.Log("✅ Application started in idle mode")
 	})
 
 	t.Run("Hints Mode Workflow", func(t *testing.T) {
