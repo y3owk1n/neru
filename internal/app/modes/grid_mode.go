@@ -6,21 +6,14 @@ import (
 
 // GridMode implements the Mode interface for grid-based navigation.
 type GridMode struct {
-	handler *Handler
+	baseMode
 }
 
 // NewGridMode creates a new grid mode implementation.
 func NewGridMode(handler *Handler) *GridMode {
-	if handler == nil {
-		panic("GridMode: handler cannot be nil")
+	return &GridMode{
+		baseMode: newBaseMode(handler, domain.ModeGrid, "GridMode"),
 	}
-
-	return &GridMode{handler: handler}
-}
-
-// ModeType returns the domain mode type.
-func (m *GridMode) ModeType() domain.Mode {
-	return domain.ModeGrid
 }
 
 // Activate activates grid mode with optional action parameter.
