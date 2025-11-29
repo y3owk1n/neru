@@ -179,7 +179,10 @@ func TestCLIIntegration(t *testing.T) {
 		}
 
 		if !response.Success {
-			t.Logf("Action failed (expected in some environments): %v", response.Message)
+			t.Errorf("Action should succeed: %v", response.Message)
+		}
+		if response.Message != "action performed" {
+			t.Errorf("Expected message 'action performed', got %q", response.Message)
 		}
 	})
 
