@@ -21,6 +21,7 @@ func (m *ActionMode) ModeType() domain.Mode {
 
 // Activate activates action mode.
 func (m *ActionMode) Activate(action *string) {
+	// action parameter intentionally unused - ActionMode handles actions directly
 	m.handler.StartActionMode()
 }
 
