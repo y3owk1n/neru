@@ -9,7 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/infra/ipc" // Used in skipped IPC test
 )
 
 // TestAppInitializationIntegration tests that the app can be initialized with real system components.
@@ -181,8 +181,17 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 			runDone <- application.Run()
 		}()
 
-		// Wait a bit for startup
-		time.Sleep(1 * time.Second)
+		// Wait for app to be running with timeout
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			if application.IsEnabled() {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		if !application.IsEnabled() {
+			t.Fatal("App did not start within timeout")
+		}
 
 		// Verify config is properly set
 		if application.Config() == nil {
@@ -295,8 +304,17 @@ func TestAppLifecycleIntegration(t *testing.T) {
 		runDone <- application.Run()
 	}()
 
-	// Wait for startup
-	time.Sleep(2 * time.Second)
+	// Wait for app to be running with timeout
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if application.IsEnabled() {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if !application.IsEnabled() {
+		t.Fatal("App did not start within timeout")
+	}
 
 	// Test initial state
 	t.Run("Initial State", func(t *testing.T) {
@@ -542,6 +560,8 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 		}
 
+		// Verify final state is stable
+		waitForMode(t, application, domain.ModeIdle)
 		t.Log("✅ Rapid mode switching completed")
 	})
 
