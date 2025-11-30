@@ -17,6 +17,9 @@ func (h *Handler) StartActionMode() {
 		h.enableEventTap()
 	}
 
+	// Position overlay on active screen before showing
+	h.overlayManager.ResizeToActiveScreenSync()
+
 	// Draw action highlight overlay
 	h.drawActionHighlight()
 	h.overlayManager.Show()
