@@ -75,13 +75,28 @@ func (a *App) Run() error {
 		go func() {
 			a.logger.Debug("Starting adaptive GC based on memory pressure")
 
-			ticker := time.NewTicker(LowMemoryGCInterval)
+			currentInterval := LowMemoryGCInterval
+
+			ticker := time.NewTicker(currentInterval)
 			defer ticker.Stop()
 
 			for {
 				select {
 				case <-ticker.C:
-					a.adaptiveGC()
+					highMemory := a.adaptiveGC()
+					// Adjust interval based on memory pressure
+					newInterval := LowMemoryGCInterval
+					if highMemory {
+						newInterval = HighMemoryGCInterval
+					}
+
+					if newInterval != currentInterval {
+						ticker.Reset(newInterval)
+						currentInterval = newInterval
+						a.logger.Debug("Adjusted GC interval",
+							zap.Duration("new_interval", newInterval),
+							zap.Bool("high_memory", highMemory))
+					}
 				case <-ctx.Done():
 					return
 				}
@@ -95,7 +110,8 @@ func (a *App) Run() error {
 }
 
 // adaptiveGC performs garbage collection based on current memory pressure.
-func (a *App) adaptiveGC() {
+// Returns true if high memory pressure is detected.
+func (a *App) adaptiveGC() bool {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
@@ -121,10 +137,14 @@ func (a *App) adaptiveGC() {
 			a.logger.Debug("Exiting aggressive GC mode",
 				zap.Uint64("heap_alloc_mb", heapAllocMB))
 		}
+
+		return true
 	} else {
 		a.logger.Debug("Skipping GC - memory usage normal",
 			zap.Uint64("heap_alloc_mb", heapAllocMB),
 			zap.Bool("aggressive_mode", false))
+
+		return false
 	}
 }
 
