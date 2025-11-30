@@ -23,6 +23,12 @@ func NewIPCControllerLifecycle(
 	modes *modes.Handler,
 	logger *zap.Logger,
 ) *IPCControllerLifecycle {
+	if appState == nil {
+		panic("appState cannot be nil")
+	}
+	if logger == nil {
+		panic("logger cannot be nil")
+	}
 	return &IPCControllerLifecycle{
 		appState: appState,
 		modes:    modes,
