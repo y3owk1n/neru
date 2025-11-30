@@ -23,6 +23,9 @@ var (
 	callbackManagerRegistry   = make(map[uint64]*CallbackManager)
 	callbackManagerRegistryMu sync.RWMutex
 
+	// Global counter for generating unique callback IDs across all managers.
+	globalCallbackID uint64
+
 	// callbackIDStore stores callback IDs in a fixed-size slice to allow safe pointer conversion.
 	// The slice index is the callback ID, and the value is the same ID (for pointer stability).
 	// We never reallocate this slice to keep pointers handed to C valid for the lifetime
@@ -86,7 +89,6 @@ func CallbackIDToPointer(callbackID uint64) unsafe.Pointer {
 // CallbackManager manages asynchronous callbacks for overlay operations.
 type CallbackManager struct {
 	logger      *zap.Logger
-	callbackID  uint64
 	callbackMap map[uint64]chan struct{}
 	callbackMu  sync.Mutex
 	cancelCh    chan struct{}
@@ -107,7 +109,7 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64)) {
 	done := make(chan struct{})
 
 	// Generate unique ID for this callback
-	callbackID := atomic.AddUint64(&c.callbackID, 1)
+	callbackID := atomic.AddUint64(&globalCallbackID, 1)
 
 	// Store channel in instance map
 	c.callbackMu.Lock()
