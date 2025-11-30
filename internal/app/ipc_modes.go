@@ -12,7 +12,7 @@ import (
 // IPCControllerModes handles mode-related IPC commands.
 type IPCControllerModes struct {
 	modes  *modes.Handler
-	logger *zap.Logger
+	logger *zap.Logger // Reserved for future logging needs (maintains consistency with other IPC controllers)
 }
 
 // NewIPCControllerModes creates a new mode command handler.
@@ -20,6 +20,15 @@ func NewIPCControllerModes(modes *modes.Handler, logger *zap.Logger) *IPCControl
 	return &IPCControllerModes{
 		modes:  modes,
 		logger: logger,
+	}
+}
+
+// modesUnavailableResponse returns a standardized response when modes handler is not available.
+func (h *IPCControllerModes) modesUnavailableResponse() ipc.Response {
+	return ipc.Response{
+		Success: false,
+		Message: "modes handler not available",
+		Code:    ipc.CodeActionFailed,
 	}
 }
 
@@ -36,11 +45,7 @@ func (h *IPCControllerModes) RegisterHandlers(
 
 func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
-		return ipc.Response{
-			Success: false,
-			Message: "modes handler not available",
-			Code:    ipc.CodeActionFailed,
-		}
+		return h.modesUnavailableResponse()
 	}
 
 	// Extract action parameter if provided
@@ -56,11 +61,7 @@ func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc
 
 func (h *IPCControllerModes) handleGrid(_ context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
-		return ipc.Response{
-			Success: false,
-			Message: "modes handler not available",
-			Code:    ipc.CodeActionFailed,
-		}
+		return h.modesUnavailableResponse()
 	}
 
 	// Extract action parameter if provided
@@ -76,11 +77,7 @@ func (h *IPCControllerModes) handleGrid(_ context.Context, cmd ipc.Command) ipc.
 
 func (h *IPCControllerModes) handleScroll(_ context.Context, _ ipc.Command) ipc.Response {
 	if h.modes == nil {
-		return ipc.Response{
-			Success: false,
-			Message: "modes handler not available",
-			Code:    ipc.CodeActionFailed,
-		}
+		return h.modesUnavailableResponse()
 	}
 
 	h.modes.ActivateMode(domain.ModeScroll)
@@ -90,11 +87,7 @@ func (h *IPCControllerModes) handleScroll(_ context.Context, _ ipc.Command) ipc.
 
 func (h *IPCControllerModes) handleAction(_ context.Context, _ ipc.Command) ipc.Response {
 	if h.modes == nil {
-		return ipc.Response{
-			Success: false,
-			Message: "modes handler not available",
-			Code:    ipc.CodeActionFailed,
-		}
+		return h.modesUnavailableResponse()
 	}
 
 	// For action mode, just activate it (the original implementation uses ActionService)
@@ -105,11 +98,7 @@ func (h *IPCControllerModes) handleAction(_ context.Context, _ ipc.Command) ipc.
 
 func (h *IPCControllerModes) handleIdle(_ context.Context, _ ipc.Command) ipc.Response {
 	if h.modes == nil {
-		return ipc.Response{
-			Success: false,
-			Message: "modes handler not available",
-			Code:    ipc.CodeActionFailed,
-		}
+		return h.modesUnavailableResponse()
 	}
 
 	h.modes.ActivateMode(domain.ModeIdle)
