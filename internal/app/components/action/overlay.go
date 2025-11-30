@@ -11,7 +11,6 @@ extern void resizeActionCompletionCallback(void* context);
 import "C"
 
 import (
-	"sync"
 	"time"
 	"unsafe"
 
@@ -32,28 +31,13 @@ const (
 	DefaultGridLinesCount = 4
 )
 
-var (
-	actionCallbackID  uint64
-	actionCallbackMap = make(
-		map[uint64]chan struct{},
-		DefaultCallbackMapSize,
-	) // Pre-size for typical usage
-	actionCallbackLock sync.Mutex
-)
-
 //export resizeActionCompletionCallback
 func resizeActionCompletionCallback(context unsafe.Pointer) {
 	// Convert context to callback ID
 	callbackID := uint64(uintptr(context))
 
-	// Note: This function needs access to the overlay instance to call CompleteCallback
-	// For now, we'll keep the global approach but this could be improved
-	actionCallbackLock.Lock()
-	if done, ok := actionCallbackMap[callbackID]; ok {
-		close(done)
-		delete(actionCallbackMap, callbackID)
-	}
-	actionCallbackLock.Unlock()
+	// Delegate to global callback manager
+	overlayutil.CompleteGlobalCallback(callbackID)
 }
 
 // Overlay manages the rendering of action mode overlays using native platform APIs.

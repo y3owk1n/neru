@@ -16,6 +16,31 @@ const (
 	DefaultCallbackTimeout = 2 * time.Second
 )
 
+var (
+	// Global registry mapping callback IDs to CallbackManager instances.
+	callbackManagerRegistry   = make(map[uint64]*CallbackManager)
+	callbackManagerRegistryMu sync.RWMutex
+)
+
+// CompleteGlobalCallback completes a callback by ID using the global registry.
+// This function is called by C callbacks that can't access instance methods.
+func CompleteGlobalCallback(callbackID uint64) {
+	callbackManagerRegistryMu.RLock()
+
+	manager, ok := callbackManagerRegistry[callbackID]
+
+	callbackManagerRegistryMu.RUnlock()
+
+	if ok {
+		manager.CompleteCallback(callbackID)
+
+		// Clean up from global registry
+		callbackManagerRegistryMu.Lock()
+		delete(callbackManagerRegistry, callbackID)
+		callbackManagerRegistryMu.Unlock()
+	}
+}
+
 // CallbackManager manages asynchronous callbacks for overlay operations.
 type CallbackManager struct {
 	logger      *zap.Logger
@@ -39,10 +64,17 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64)) {
 	// Generate unique ID for this callback
 	callbackID := atomic.AddUint64(&c.callbackID, 1)
 
-	// Store channel in map
+	// Store channel in instance map
 	c.callbackMu.Lock()
 	c.callbackMap[callbackID] = done
 	c.callbackMu.Unlock()
+
+	// Register this callback manager in global registry
+	callbackManagerRegistryMu.Lock()
+
+	callbackManagerRegistry[callbackID] = c
+
+	callbackManagerRegistryMu.Unlock()
 
 	if c.logger != nil {
 		c.logger.Debug("Overlay resize started", zap.Uint64("callback_id", callbackID))

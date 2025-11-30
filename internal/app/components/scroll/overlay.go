@@ -11,7 +11,6 @@ extern void resizeScrollCompletionCallback(void* context);
 import "C"
 
 import (
-	"sync"
 	"time"
 	"unsafe"
 
@@ -32,26 +31,13 @@ const (
 	DefaultGridLinesCount = 4
 )
 
-var (
-	scrollCallbackID  uint64
-	scrollCallbackMap = make(
-		map[uint64]chan struct{},
-		DefaultCallbackMapSize,
-	) // Pre-size for typical usage
-	scrollCallbackLock sync.Mutex
-)
-
 //export resizeScrollCompletionCallback
 func resizeScrollCompletionCallback(context unsafe.Pointer) {
 	// Convert context to callback ID
 	id := uint64(uintptr(context))
 
-	scrollCallbackLock.Lock()
-	if done, ok := scrollCallbackMap[id]; ok {
-		close(done)
-		delete(scrollCallbackMap, id)
-	}
-	scrollCallbackLock.Unlock()
+	// Delegate to global callback manager
+	overlayutil.CompleteGlobalCallback(id)
 }
 
 // Overlay manages the rendering of scroll mode overlays using native platform APIs.
