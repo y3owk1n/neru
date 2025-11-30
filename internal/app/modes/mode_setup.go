@@ -113,7 +113,7 @@ func (h *Handler) activateModeBase(
 
 	// Always resize overlay to the active screen
 	if h.overlayManager != nil {
-		h.overlayManager.ResizeToActiveScreenSync()
+		h.overlayManager.ResizeToActiveScreen()
 	}
 
 	return actionEnum, true

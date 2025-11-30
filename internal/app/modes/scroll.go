@@ -26,7 +26,7 @@ func (h *Handler) StartInteractiveScroll() {
 	h.scroll.Context.SetIsActive(true)
 
 	// Position overlay on active screen before showing
-	h.overlayManager.ResizeToActiveScreenSync()
+	h.overlayManager.ResizeToActiveScreen()
 
 	ctx := context.Background()
 

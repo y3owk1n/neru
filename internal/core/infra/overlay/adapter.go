@@ -183,7 +183,7 @@ func (a *Adapter) Refresh(ctx context.Context) error {
 	}
 
 	a.logger.Debug("Refreshing overlay")
-	a.manager.ResizeToActiveScreenSync()
+	a.manager.ResizeToActiveScreen()
 	a.logger.Info("Overlay refreshed")
 
 	return nil

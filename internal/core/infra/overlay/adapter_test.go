@@ -36,7 +36,7 @@ type mockManager struct {
 func (m *mockManager) Show()                                           {}
 func (m *mockManager) Hide()                                           {}
 func (m *mockManager) Clear()                                          {}
-func (m *mockManager) ResizeToActiveScreenSync()                       {}
+func (m *mockManager) ResizeToActiveScreen()                           {}
 func (m *mockManager) SwitchTo(next uiOverlay.Mode)                    {}
 func (m *mockManager) Subscribe(fn func(uiOverlay.StateChange)) uint64 { return 0 }
 func (m *mockManager) Unsubscribe(id uint64)                           {}

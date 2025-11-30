@@ -82,7 +82,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	// This ensures proper positioning when switching between multiple displays.
 	activeScreenBounds := bridge.ActiveScreenBounds()
 	h.screenBounds = activeScreenBounds
-	h.overlayManager.ResizeToActiveScreenSync()
+	h.overlayManager.ResizeToActiveScreen()
 
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing hints.
 	// This prevents scroll highlights from persisting when switching from scroll mode to hints mode.

@@ -98,13 +98,8 @@ func (o *Overlay) Clear() {
 	C.NeruClearOverlay(o.window)
 }
 
-// ResizeToActiveScreen adjusts the overlay window size to match the screen containing the mouse cursor.
+// ResizeToActiveScreen adjusts the overlay window size with callback notification.
 func (o *Overlay) ResizeToActiveScreen() {
-	C.NeruResizeOverlayToActiveScreen(o.window)
-}
-
-// ResizeToActiveScreenSync adjusts the overlay window size synchronously with callback notification.
-func (o *Overlay) ResizeToActiveScreenSync() {
 	o.callbackManager.StartResizeOperation(func(callbackID uint64) {
 		// Pass integer ID as opaque pointer context for C callback.
 		// Safe: ID is a primitive value that C treats as opaque and Go round-trips via uintptr.
