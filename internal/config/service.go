@@ -16,22 +16,22 @@ import (
 // This replaces the global configuration pattern with dependency injection.
 
 // safeSendConfig safely sends a config to a watcher channel that might be closed.
-func safeSendConfig(ch chan<- *Config, config *Config) (sent bool) {
+func safeSendConfig(channel chan<- *Config, config *Config) bool {
 	defer func() {
-		if recover() != nil {
-			// Channel was closed, mark as not sent
-			sent = false
-		}
+		// Recover from panic if channel is closed
+		_ = recover()
 	}()
 
 	select {
-	case ch <- config:
+	case channel <- config:
 		return true
 	default:
 		return false
 	}
 }
 
+// Service manages application configuration with thread-safe access and change notifications.
+// This replaces the global configuration pattern with dependency injection.
 type Service struct {
 	config   *Config
 	path     string
@@ -45,6 +45,7 @@ func NewService(cfg *Config, path string, logger *zap.Logger) *Service {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
+
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -262,7 +263,7 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 			continue
 		}
 
-		// Check if context was cancelled during send
+		// Check if context was canceled during send
 		select {
 		case <-ctx.Done():
 			return core.WrapContextCanceled(ctx, "notify config watchers")

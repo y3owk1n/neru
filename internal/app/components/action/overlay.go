@@ -118,7 +118,7 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 			(C.ResizeCompletionCallback)(
 				unsafe.Pointer(C.resizeActionCompletionCallback), //nolint:unconvert
 			),
-			unsafe.Pointer(uintptr(callbackID)),
+			unsafe.Pointer(uintptr(callbackID)), //nolint:govet
 		)
 	})
 }
