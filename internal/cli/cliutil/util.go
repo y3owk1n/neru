@@ -21,6 +21,11 @@ func NewIPCCommunicator(timeoutSec int) *IPCCommunicator {
 	}
 }
 
+// SetTimeout updates the timeout for IPC operations.
+func (c *IPCCommunicator) SetTimeout(timeoutSec int) {
+	c.timeoutSec = timeoutSec
+}
+
 // SendCommand sends a command to the running Neru daemon.
 func (c *IPCCommunicator) SendCommand(action string, args []string) (ipc.Response, error) {
 	ipcClient := ipc.NewClient()

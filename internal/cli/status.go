@@ -12,6 +12,9 @@ var statusCmd = &cobra.Command{
 		return builder.CheckRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		// Update communicator timeout to reflect current flag value
+		communicator.SetTimeout(timeoutSec)
+
 		ipcResponse, err := communicator.SendCommand("status", []string{})
 		if err != nil {
 			return err
