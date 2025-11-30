@@ -157,21 +157,6 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	return configResult
 }
 
-// tryConfigPath attempts to find a config file at the given path.
-// Returns the path if it exists, empty string otherwise.
-func (s *Service) tryConfigPath(path string) string {
-	_, err := os.Stat(path)
-	if err == nil {
-		return path
-	}
-	if !os.IsNotExist(err) {
-		s.logger.Warn("Failed to check config file",
-			zap.String("path", path),
-			zap.Error(err))
-	}
-	return ""
-}
-
 // FindConfigFile searches for a configuration file in standard locations.
 // Returns the path to the config file, or an empty string if not found.
 func (s *Service) FindConfigFile() string {
@@ -381,4 +366,21 @@ func (s *Service) Update(config *Config) error {
 	}
 
 	return nil
+}
+
+// tryConfigPath attempts to find a config file at the given path.
+// Returns the path if it exists, empty string otherwise.
+func (s *Service) tryConfigPath(path string) string {
+	_, err := os.Stat(path)
+	if err == nil {
+		return path
+	}
+
+	if !os.IsNotExist(err) {
+		s.logger.Warn("Failed to check config file",
+			zap.String("path", path),
+			zap.Error(err))
+	}
+
+	return ""
 }
