@@ -61,7 +61,6 @@ func newTestController() *app.IPCController {
 
 func TestIPCController_HandlePing(t *testing.T) {
 	controller := newTestController()
-	controller.RegisterHandlers()
 
 	ctx := context.Background()
 
@@ -82,7 +81,6 @@ func TestIPCController_HandlePing(t *testing.T) {
 
 func TestIPCController_HandleStart(t *testing.T) {
 	controller := newTestController()
-	controller.RegisterHandlers()
 
 	ctx := context.Background()
 
@@ -112,7 +110,6 @@ func TestIPCController_HandleStart(t *testing.T) {
 
 func TestIPCController_HandleStop(t *testing.T) {
 	controller := newTestController()
-	controller.RegisterHandlers()
 
 	ctx := context.Background()
 
@@ -144,7 +141,6 @@ func TestIPCController_HandleStop(t *testing.T) {
 
 func TestIPCController_HandleConfig(t *testing.T) {
 	controller := newTestController()
-	controller.RegisterHandlers()
 
 	ctx := context.Background()
 
@@ -167,7 +163,6 @@ func TestIPCController_HandleConfig(t *testing.T) {
 
 func TestIPCController_HandleMetrics(t *testing.T) {
 	controller := newTestController()
-	controller.RegisterHandlers()
 
 	ctx := context.Background()
 
@@ -190,19 +185,7 @@ func TestIPCController_HandleMetrics(t *testing.T) {
 
 func TestIPCController_HandleActionAndScroll(t *testing.T) {
 	controller := newTestController()
-	controller.RegisterHandlers()
 
-	// Test that the action handler is registered
-	if controller.Handlers["action"] == nil {
-		t.Error("Expected action handler to be registered")
-	}
-
-	// Test that the scroll handler is registered
-	if controller.Handlers["scroll"] == nil {
-		t.Error("Expected scroll handler to be registered")
-	}
-
-	// Test that the action handler can be called (even if it fails due to nil services)
 	ctx := context.Background()
 	commandResponse := controller.HandleCommand(ctx, ipc.Command{Action: "action"})
 	if commandResponse.Code == ipc.CodeUnknownCommand {
@@ -218,7 +201,6 @@ func TestIPCController_HandleActionAndScroll(t *testing.T) {
 
 func TestIPCController_UnknownCommand(t *testing.T) {
 	controller := newTestController()
-	controller.RegisterHandlers()
 
 	ctx := context.Background()
 
