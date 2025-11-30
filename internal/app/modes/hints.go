@@ -127,16 +127,6 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 
 	domainHints = filteredHints
 
-	if domainHintsErr != nil {
-		h.logger.Error(
-			"Failed to show hints",
-			zap.Error(domainHintsErr),
-			zap.String("action", actionString),
-		)
-
-		return
-	}
-
 	if len(domainHints) == 0 {
 		h.logger.Warn("No hints generated for action", zap.String("action", actionString))
 
