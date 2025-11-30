@@ -56,39 +56,15 @@ type PermissionManagement interface {
 // AccessibilityPort defines the interface for interacting with the macOS accessibility API.
 // Implementations should handle all CGo/Objective-C bridge complexity.
 //
-//nolint:interfacebloat // Comprehensive interface combining multiple accessibility concerns
+// This interface embeds segregated interfaces to reduce duplication and ensure
+// method signatures stay synchronized across different concerns.
 type AccessibilityPort interface {
 	HealthCheck
-
-	// ClickableElements retrieves all clickable UI elements matching the filter.
-	ClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)
-
-	// PerformAction executes an action on the specified element.
-	PerformAction(ctx context.Context, elem *element.Element, actionType action.Type) error
-
-	// PerformActionAtPoint executes an action at the specified point.
-	PerformActionAtPoint(ctx context.Context, actionType action.Type, point image.Point) error
-
-	// Scroll performs a scroll action at the current cursor position.
-	Scroll(ctx context.Context, deltaX, deltaY int) error
-
-	// FocusedAppBundleID returns the bundle ID of the currently focused application.
-	FocusedAppBundleID(ctx context.Context) (string, error)
-
-	// IsAppExcluded checks if the given bundle ID is in the exclusion list.
-	IsAppExcluded(ctx context.Context, bundleID string) bool
-
-	// ScreenBounds returns the bounds of the active screen.
-	ScreenBounds(ctx context.Context) (image.Rectangle, error)
-
-	// MoveCursorToPoint moves the mouse cursor to the specified point.
-	MoveCursorToPoint(ctx context.Context, point image.Point) error
-
-	// CursorPosition returns the current cursor position.
-	CursorPosition(ctx context.Context) (image.Point, error)
-
-	// CheckPermissions verifies that accessibility permissions are granted.
-	CheckPermissions(ctx context.Context) error
+	ElementDiscovery
+	ActionExecution
+	ApplicationInfo
+	ScreenManagement
+	PermissionManagement
 }
 
 // ElementFilter defines criteria for filtering UI elements.
