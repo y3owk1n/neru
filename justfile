@@ -156,7 +156,6 @@ lint:
 # Vet
 vet:
     @echo "Vetting code..."
-    # Exclude component packages that use intentional unsafe.Pointer conversions for C interop
     go vet ./...
     @echo "✓ Vet complete"
 
