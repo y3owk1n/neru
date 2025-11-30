@@ -1,6 +1,7 @@
 package overlayutil
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -47,13 +48,18 @@ type CallbackManager struct {
 	callbackID  uint64
 	callbackMap map[uint64]chan struct{}
 	callbackMu  sync.Mutex
+	cancelCtx   context.Context
+	cancelFunc  context.CancelFunc
 }
 
 // NewCallbackManager creates a new callback manager.
 func NewCallbackManager(logger *zap.Logger) *CallbackManager {
+	cancelCtx, cancelFunc := context.WithCancel(context.Background())
 	return &CallbackManager{
 		logger:      logger,
 		callbackMap: make(map[uint64]chan struct{}, DefaultCallbackMapSize),
+		cancelCtx:   cancelCtx,
+		cancelFunc:  cancelFunc,
 	}
 }
 
@@ -99,6 +105,22 @@ func (c *CallbackManager) CompleteCallback(callbackID uint64) {
 	c.callbackMu.Unlock()
 }
 
+// Cleanup cancels all pending callbacks and stops background goroutines.
+// This should be called when the overlay is being destroyed.
+func (c *CallbackManager) Cleanup() {
+	// Cancel the context to stop all background goroutines
+	c.cancelFunc()
+
+	// Clear the callback map
+	c.callbackMu.Lock()
+	c.callbackMap = make(map[uint64]chan struct{})
+	c.callbackMu.Unlock()
+
+	if c.logger != nil {
+		c.logger.Debug("CallbackManager cleanup completed")
+	}
+}
+
 // handleResizeCallback manages the callback lifecycle.
 func (c *CallbackManager) handleResizeCallback(callbackID uint64, done chan struct{}) {
 	if c.logger != nil {
@@ -131,6 +153,19 @@ func (c *CallbackManager) handleResizeCallback(callbackID uint64, done chan stru
 		if c.logger != nil {
 			c.logger.Debug(
 				"Overlay resize cleanup timeout - removed callback from map",
+				zap.Uint64("callback_id", callbackID),
+			)
+		}
+	case <-c.cancelCtx.Done():
+		// Manager is being cleaned up, clean up this callback
+		timer.Stop()
+		c.callbackMu.Lock()
+		delete(c.callbackMap, callbackID)
+		c.callbackMu.Unlock()
+
+		if c.logger != nil {
+			c.logger.Debug(
+				"Overlay resize callback cancelled during cleanup",
 				zap.Uint64("callback_id", callbackID),
 			)
 		}

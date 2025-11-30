@@ -210,6 +210,11 @@ func (o *Overlay) Clear() {
 
 // Destroy destroys the grid overlay window.
 func (o *Overlay) Destroy() {
+	// Clean up callback manager first to stop background goroutines
+	if o.callbackManager != nil {
+		o.callbackManager.Cleanup()
+	}
+
 	o.freeStyleCache()
 	o.freeLabelCache()
 	C.NeruDestroyOverlayWindow(o.window)

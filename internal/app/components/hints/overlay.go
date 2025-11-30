@@ -308,6 +308,11 @@ func (o *Overlay) UpdateConfig(config config.HintsConfig) {
 
 // Destroy destroys the overlay.
 func (o *Overlay) Destroy() {
+	// Clean up callback manager first to stop background goroutines
+	if o.callbackManager != nil {
+		o.callbackManager.Cleanup()
+	}
+
 	if o.window != nil {
 		o.freeStyleCache()
 		C.NeruDestroyOverlayWindow(o.window)

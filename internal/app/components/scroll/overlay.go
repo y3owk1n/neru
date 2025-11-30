@@ -161,6 +161,11 @@ func (o *Overlay) UpdateConfig(config config.ScrollConfig) {
 
 // Destroy releases the overlay window resources.
 func (o *Overlay) Destroy() {
+	// Clean up callback manager first to stop background goroutines
+	if o.callbackManager != nil {
+		o.callbackManager.Cleanup()
+	}
+
 	if o.window != nil {
 		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
