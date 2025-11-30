@@ -3,6 +3,7 @@ package hint
 import (
 	"context"
 	"image"
+	"strings"
 
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -105,12 +106,89 @@ type Generator interface {
 	Characters() string
 }
 
+// TrieNode represents a node in the hint trie for efficient prefix matching.
+type TrieNode struct {
+	children map[rune]*TrieNode
+	hints    []*Interface
+	isEnd    bool
+}
+
+// Trie implements a trie data structure for efficient hint prefix matching.
+type Trie struct {
+	root *TrieNode
+}
+
+// NewTrie creates a new empty trie.
+func NewTrie() *Trie {
+	return &Trie{
+		root: &TrieNode{
+			children: make(map[rune]*TrieNode),
+			hints:    make([]*Interface, 0),
+		},
+	}
+}
+
+// Insert adds a hint to the trie.
+func (t *Trie) Insert(hint *Interface) {
+	label := strings.ToUpper(hint.Label()) // Pre-normalize to uppercase
+	node := t.root
+
+	for _, char := range label {
+		if node.children[char] == nil {
+			node.children[char] = &TrieNode{
+				children: make(map[rune]*TrieNode),
+				hints:    make([]*Interface, 0),
+			}
+		}
+
+		node = node.children[char]
+	}
+
+	// Store hint only at the end node
+	node.hints = append(node.hints, hint)
+	node.isEnd = true
+}
+
+// FindByPrefix returns all hints that start with the given prefix.
+func (t *Trie) FindByPrefix(prefix string) []*Interface {
+	prefix = strings.ToUpper(prefix) // Normalize prefix to uppercase
+	node := t.root
+
+	// Traverse to the node corresponding to the prefix
+	for _, char := range prefix {
+		if node.children[char] == nil {
+			return []*Interface{} // No matches
+		}
+
+		node = node.children[char]
+	}
+
+	// Collect all hints from this node and its descendants
+	return t.collectAllHints(node)
+}
+
+// collectAllHints recursively collects all hints from end nodes in the subtree.
+func (t *Trie) collectAllHints(node *TrieNode) []*Interface {
+	var result []*Interface
+
+	// Add hints from current node if it's an end node
+	if node.isEnd {
+		result = append(result, node.hints...)
+	}
+
+	// Recursively collect from children
+	for _, child := range node.children {
+		result = append(result, t.collectAllHints(child)...)
+	}
+
+	return result
+}
+
 // Collection manages a collection of hints with efficient lookup.
 type Collection struct {
 	hints   []*Interface
 	byLabel map[string]*Interface
-	prefix1 map[byte][]*Interface
-	prefix2 map[string][]*Interface
+	trie    *Trie
 }
 
 // NewCollection creates a new hint collection with indexed lookups.
@@ -118,24 +196,14 @@ func NewCollection(hints []*Interface) *Collection {
 	collector := &Collection{
 		hints:   hints,
 		byLabel: make(map[string]*Interface, len(hints)),
-		prefix1: make(map[byte][]*Interface),
-		prefix2: make(map[string][]*Interface),
+		trie:    NewTrie(),
 	}
 
 	// Build indexes
 	for _, hint := range hints {
 		label := hint.Label()
 		collector.byLabel[label] = hint
-
-		if len(label) >= 1 {
-			first := label[0]
-			collector.prefix1[first] = append(collector.prefix1[first], hint)
-		}
-
-		if len(label) >= PrefixLengthCheck {
-			prefix := label[:2]
-			collector.prefix2[prefix] = append(collector.prefix2[prefix], hint)
-		}
+		collector.trie.Insert(hint)
 	}
 
 	return collector
@@ -157,26 +225,8 @@ func (c *Collection) FilterByPrefix(prefix string) []*Interface {
 		return c.hints
 	}
 
-	// Fast path for single character
-	if len(prefix) == 1 {
-		return c.prefix1[prefix[0]]
-	}
-
-	// Fast path for two characters
-	if len(prefix) == PrefixLengthCheck {
-		return c.prefix2[prefix]
-	}
-
-	// Slow path for longer prefixes
-	var filteredHints []*Interface
-
-	for _, hint := range c.hints {
-		if hint.HasPrefix(prefix) {
-			filteredHints = append(filteredHints, hint)
-		}
-	}
-
-	return filteredHints
+	// Use trie for efficient prefix matching
+	return c.trie.FindByPrefix(prefix)
 }
 
 // Count returns the number of hints in the collection.

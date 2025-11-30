@@ -2,6 +2,7 @@ package hint
 
 import (
 	"strings"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
@@ -11,9 +12,16 @@ import (
 type Manager struct {
 	domain.BaseManager
 
-	hints    *Collection
-	onUpdate func([]*Interface) // Callback when filtered hints change
+	hints            *Collection
+	onUpdate         func([]*Interface) // Callback when filtered hints change
+	debounceTimer    *time.Timer
+	debounceDuration time.Duration
 }
+
+const (
+	// DefaultDebounceDuration is the default debounce duration for hint updates.
+	DefaultDebounceDuration = 50 * time.Millisecond
+)
 
 // NewManager creates a new hint manager with the specified logger.
 func NewManager(logger *zap.Logger) *Manager {
@@ -21,6 +29,7 @@ func NewManager(logger *zap.Logger) *Manager {
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
+		debounceDuration: DefaultDebounceDuration,
 	}
 }
 
@@ -31,10 +40,16 @@ func (m *Manager) SetUpdateCallback(callback func([]*Interface)) {
 
 // SetHints updates the current hint collection and resets the input state.
 func (m *Manager) SetHints(hints *Collection) {
-	m.hints = hints
+	// Cancel any pending debounced updates
+	if m.debounceTimer != nil {
+		m.debounceTimer.Stop()
+		m.debounceTimer = nil
+	}
 
+	m.hints = hints
 	m.SetCurrentInput("")
-	// Trigger update callback with all hints on initial set
+
+	// Trigger immediate update callback with all hints on initial set
 	if m.onUpdate != nil && hints != nil {
 		m.onUpdate(hints.All())
 	}
@@ -42,8 +57,14 @@ func (m *Manager) SetHints(hints *Collection) {
 
 // Reset clears the current input.
 func (m *Manager) Reset() {
+	// Cancel any pending debounced updates
+	if m.debounceTimer != nil {
+		m.debounceTimer.Stop()
+		m.debounceTimer = nil
+	}
+
 	m.SetCurrentInput("")
-	// Trigger update callback with all hints
+	// Trigger immediate update callback with all hints
 	if m.onUpdate != nil && m.hints != nil {
 		m.onUpdate(m.hints.All())
 	}
@@ -78,9 +99,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 					hintsWithPrefix[i] = h.WithMatchedPrefix(m.CurrentInput())
 				}
 
-				if m.onUpdate != nil {
-					m.onUpdate(hintsWithPrefix)
-				}
+				m.debouncedUpdate(hintsWithPrefix)
 			}
 		} else {
 			// Reset to show all hints if backspacing from empty input
@@ -128,9 +147,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	}
 
 	// Notify update callback with filtered hints (with matched prefix set)
-	if m.onUpdate != nil {
-		m.onUpdate(hintsWithPrefix)
-	}
+	m.debouncedUpdate(hintsWithPrefix)
 
 	return nil, false
 }
@@ -146,6 +163,21 @@ func (m *Manager) FilteredHints() []*Interface {
 	}
 
 	return m.hints.FilterByPrefix(m.CurrentInput())
+}
+
+// debouncedUpdate schedules a debounced update of the overlay.
+func (m *Manager) debouncedUpdate(hints []*Interface) {
+	// Cancel any existing timer
+	if m.debounceTimer != nil {
+		m.debounceTimer.Stop()
+	}
+
+	// Start new timer
+	m.debounceTimer = time.AfterFunc(m.debounceDuration, func() {
+		if m.onUpdate != nil {
+			m.onUpdate(hints)
+		}
+	})
 }
 
 // isLetter checks if a byte is a letter.
