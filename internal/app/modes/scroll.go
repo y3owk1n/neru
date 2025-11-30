@@ -3,6 +3,7 @@ package modes
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -27,6 +28,8 @@ func (h *Handler) StartInteractiveScroll() {
 
 	// Position overlay on active screen before showing
 	h.overlayManager.ResizeToActiveScreenSync()
+	// Give the UI thread a moment to complete the resize
+	time.Sleep(150 * time.Millisecond)
 
 	ctx := context.Background()
 

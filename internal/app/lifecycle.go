@@ -117,6 +117,8 @@ func (a *App) handleScreenParametersChange() {
 			// Resize overlay window to current active screen (where mouse is)
 			if a.overlayManager != nil {
 				a.overlayManager.ResizeToActiveScreenSync()
+				// Give the UI thread a moment to complete the resize
+				time.Sleep(150 * time.Millisecond)
 			}
 
 			// Regenerate the grid with updated screen bounds and redraw with proper styling
@@ -164,6 +166,8 @@ func (a *App) handleScreenParametersChange() {
 			// Hints mode is active - resize the overlay and regenerate hints
 			if a.overlayManager != nil {
 				a.overlayManager.ResizeToActiveScreenSync()
+				// Give the UI thread a moment to complete the resize
+				time.Sleep(150 * time.Millisecond)
 			}
 
 			// Regenerate hints with updated screen bounds
@@ -193,6 +197,8 @@ func (a *App) handleScreenParametersChange() {
 		// Scroll mode is active - resize the overlay and redraw highlight
 		if a.overlayManager != nil {
 			a.overlayManager.ResizeToActiveScreenSync()
+			// Give the UI thread a moment to complete the resize
+			time.Sleep(150 * time.Millisecond)
 		}
 
 		// Redraw scroll highlight with updated screen bounds

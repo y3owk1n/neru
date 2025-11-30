@@ -83,6 +83,8 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	activeScreenBounds := bridge.ActiveScreenBounds()
 	h.screenBounds = activeScreenBounds
 	h.overlayManager.ResizeToActiveScreenSync()
+	// Give the UI thread a moment to complete the resize
+	time.Sleep(150 * time.Millisecond)
 
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing hints.
 	// This prevents scroll highlights from persisting when switching from scroll mode to hints mode.
