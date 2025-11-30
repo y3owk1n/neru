@@ -63,6 +63,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		ConfigPath: path,
 	}
 
+	explicitPath := path != ""
 	if path == "" {
 		configResult.ConfigPath = s.FindConfigFile()
 	}
@@ -77,7 +78,11 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 	_, statErr := os.Stat(configResult.ConfigPath)
 	if os.IsNotExist(statErr) {
-		s.logger.Info("Config file not found, using default configuration")
+		if explicitPath {
+			configResult.ValidationError = core.WrapConfigFailed(statErr, "config file not found")
+		} else {
+			s.logger.Info("Config file not found, using default configuration")
+		}
 
 		return configResult
 	}
@@ -162,6 +167,11 @@ func (s *Service) FindConfigFile() string {
 		if err == nil {
 			return path
 		}
+		if !os.IsNotExist(err) {
+			s.logger.Warn("Failed to check config file",
+				zap.String("path", path),
+				zap.Error(err))
+		}
 	}
 
 	// Try standard config directory
@@ -174,6 +184,11 @@ func (s *Service) FindConfigFile() string {
 		if err == nil {
 			return path
 		}
+		if !os.IsNotExist(err) {
+			s.logger.Warn("Failed to check config file",
+				zap.String("path", path),
+				zap.Error(err))
+		}
 
 		// Try .neru.toml
 		path = filepath.Join(homeDir, ".neru.toml")
@@ -182,6 +197,13 @@ func (s *Service) FindConfigFile() string {
 		if err == nil {
 			return path
 		}
+		if !os.IsNotExist(err) {
+			s.logger.Warn("Failed to check config file",
+				zap.String("path", path),
+				zap.Error(err))
+		}
+	} else {
+		s.logger.Warn("Failed to get user home directory", zap.Error(homeErr))
 	}
 
 	// Try current directory
@@ -189,11 +211,21 @@ func (s *Service) FindConfigFile() string {
 	if err == nil {
 		return "neru.toml"
 	}
+	if !os.IsNotExist(err) {
+		s.logger.Warn("Failed to check config file",
+			zap.String("path", "neru.toml"),
+			zap.Error(err))
+	}
 
 	// Try config.toml
 	_, err = os.Stat("config.toml")
 	if err == nil {
 		return "config.toml"
+	}
+	if !os.IsNotExist(err) {
+		s.logger.Warn("Failed to check config file",
+			zap.String("path", "config.toml"),
+			zap.Error(err))
 	}
 
 	return ""
