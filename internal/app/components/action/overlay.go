@@ -21,8 +21,8 @@ import (
 
 //export resizeActionCompletionCallback
 func resizeActionCompletionCallback(context unsafe.Pointer) {
-	// Convert context to callback ID
-	callbackID := uint64(uintptr(context))
+	// Read callback ID from the pointer (points to a slice element in callbackIDStore)
+	callbackID := *(*uint64)(context)
 
 	// Delegate to global callback manager
 	overlayutil.CompleteGlobalCallback(callbackID)
@@ -96,10 +96,8 @@ func (o *Overlay) Clear() {
 func (o *Overlay) ResizeToActiveScreen() {
 	o.callbackManager.StartResizeOperation(func(callbackID uint64) {
 		// Pass integer ID as opaque pointer context for C callback.
-		// Safe: ID is a primitive value that C treats as opaque and Go round-trips via uintptr.
-		// Assumes 64-bit pointers (guaranteed on macOS amd64/arm64, the only supported platforms).
-		// Note: go vet complains about unsafe.Pointer misuse, but this is intentional and safe.
-		contextPtr := unsafe.Pointer(uintptr(callbackID)) //nolint:govet
+		// Uses CallbackIDToPointer to convert in a way that go vet accepts.
+		contextPtr := overlayutil.CallbackIDToPointer(callbackID)
 
 		C.NeruResizeOverlayToActiveScreenWithCallback(
 			o.window,

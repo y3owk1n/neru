@@ -157,7 +157,7 @@ lint:
 vet:
     @echo "Vetting code..."
     # Exclude component packages that use intentional unsafe.Pointer conversions for C interop
-    go vet $(go list ./... | grep -v -E "components/(action|scroll|hints|grid)$")
+    go vet ./...
     @echo "✓ Vet complete"
 
 # Download dependencies

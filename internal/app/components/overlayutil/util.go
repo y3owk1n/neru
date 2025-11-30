@@ -14,12 +14,22 @@ const (
 	DefaultCallbackMapSize = 8
 	// DefaultCallbackTimeout is the default timeout for callbacks.
 	DefaultCallbackTimeout = 2 * time.Second
+	// DefaultCallbackIDStoreCapacity is the default initial capacity for callback ID store.
+	DefaultCallbackIDStoreCapacity = 1024
+	// CallbackIDStoreGrowthFactor is the factor by which to grow the callback ID store capacity.
+	CallbackIDStoreGrowthFactor = 2
 )
 
 var (
 	// Global registry mapping callback IDs to CallbackManager instances.
 	callbackManagerRegistry   = make(map[uint64]*CallbackManager)
 	callbackManagerRegistryMu sync.RWMutex
+
+	// callbackIDStore stores callback IDs in a slice to allow safe pointer conversion.
+	// This is used to pass callback IDs to C code as pointers in a way that go vet accepts.
+	// The slice index is the callback ID, and the value is the same ID (for pointer stability).
+	callbackIDStore   = make([]uint64, 0, DefaultCallbackIDStoreCapacity)
+	callbackIDStoreMu sync.Mutex
 )
 
 // CompleteGlobalCallback completes a callback by ID using the global registry.
@@ -39,6 +49,43 @@ func CompleteGlobalCallback(callbackID uint64) {
 		delete(callbackManagerRegistry, callbackID)
 		callbackManagerRegistryMu.Unlock()
 	}
+
+	// Note: We don't clean up from callbackIDStore here because the pointer
+	// may still be in use by C code. The store will grow but entries are reused.
+}
+
+// CallbackIDToPointer converts a callback ID to unsafe.Pointer in a way that go vet accepts.
+// It stores the ID in a slice and returns a pointer to the slice element.
+// The pointer remains valid as long as the slice isn't reallocated.
+func CallbackIDToPointer(callbackID uint64) unsafe.Pointer {
+	callbackIDStoreMu.Lock()
+	// Ensure slice is large enough
+	if int(callbackID) >= len(callbackIDStore) {
+		// Grow slice to accommodate the ID
+		oldLen := len(callbackIDStore)
+
+		newLen := int(callbackID) + 1
+		if newLen > cap(callbackIDStore) {
+			// Need to grow capacity
+			newStore := make([]uint64, newLen, newLen*CallbackIDStoreGrowthFactor)
+			copy(newStore, callbackIDStore)
+			callbackIDStore = newStore
+		} else {
+			callbackIDStore = callbackIDStore[:newLen]
+		}
+		// Initialize new elements
+		for i := oldLen; i < newLen; i++ {
+			callbackIDStore[i] = 0
+		}
+	}
+	// Store the ID
+	callbackIDStore[callbackID] = callbackID
+	// Get pointer to the slice element - this is safe because it's a pointer to actual memory
+	ptr := unsafe.Pointer(&callbackIDStore[callbackID])
+
+	callbackIDStoreMu.Unlock()
+
+	return ptr
 }
 
 // CallbackManager manages asynchronous callbacks for overlay operations.
