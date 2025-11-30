@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
@@ -9,6 +11,7 @@ import (
 	ipcadapter "github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"github.com/y3owk1n/neru/internal/core/infra/metrics"
 	"github.com/y3owk1n/neru/internal/ui"
+	"go.uber.org/zap"
 )
 
 // initializeInfrastructure sets up the core infrastructure components
@@ -236,4 +239,69 @@ func initializeEventTapAndIPC(app *App) error {
 // initializeShutdownChannel creates the stop channel for programmatic shutdown.
 func initializeShutdownChannel(app *App) {
 	app.stopChan = make(chan struct{})
+}
+
+// cleanupInfrastructure cleans up resources allocated during infrastructure initialization.
+func cleanupInfrastructure(app *App) {
+	// Clean up hotkey service
+	if app.hotkeyManager != nil {
+		app.hotkeyManager.UnregisterAll()
+		app.hotkeyManager = nil
+	}
+
+	// Clean up app watcher
+	if app.appWatcher != nil {
+		app.appWatcher.Stop()
+		app.appWatcher = nil
+	}
+
+	// Note: overlayManager and accessibility don't need explicit cleanup here
+	// as they're handled by the main Cleanup() method
+}
+
+// cleanupServicesAndAdapters cleans up resources allocated during services initialization.
+func cleanupServicesAndAdapters(app *App) {
+	// Services are cleaned up by their respective Close methods when the app is properly initialized
+	// For partial cleanup, we just nil out the references
+	app.hintService = nil
+	app.gridService = nil
+	app.actionService = nil
+	app.scrollService = nil
+	app.configService = nil
+	app.metrics = nil
+}
+
+// cleanupUIComponents cleans up resources allocated during UI components initialization.
+func cleanupUIComponents(app *App) {
+	// UI components are cleaned up by the overlay manager when overlays are destroyed
+	// For partial cleanup, we just nil out the references
+	app.hintsComponent = nil
+	app.gridComponent = nil
+	app.scrollComponent = nil
+	app.actionComponent = nil
+
+	// Clean up renderer
+	app.renderer = nil
+}
+
+// cleanupEventTapAndIPC cleans up resources allocated during event tap and IPC initialization.
+func cleanupEventTapAndIPC(app *App) {
+	// Clean up IPC server
+	if app.ipcServer != nil {
+		// Try to stop the server gracefully
+		stopErr := app.ipcServer.Stop(context.Background())
+		if stopErr != nil {
+			app.logger.Error("Failed to stop IPC server during cleanup", zap.Error(stopErr))
+		}
+		app.ipcServer = nil
+	}
+
+	// Clean up event tap
+	if app.eventTap != nil {
+		app.eventTap.Destroy()
+		app.eventTap = nil
+	}
+
+	// Clean up IPC controller
+	app.ipcController = nil
 }
