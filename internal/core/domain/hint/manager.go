@@ -55,8 +55,14 @@ func (m *Manager) SetHints(hints *Collection) {
 	m.SetCurrentInput("")
 
 	// Trigger immediate update callback with all hints on initial set
-	if m.onUpdate != nil && hints != nil {
-		m.onUpdate(hints.All())
+	if hints != nil {
+		m.mu.Lock()
+		callback := m.onUpdate
+		m.mu.Unlock()
+
+		if callback != nil {
+			callback(hints.All())
+		}
 	}
 }
 
@@ -70,8 +76,14 @@ func (m *Manager) Reset() {
 
 	m.SetCurrentInput("")
 	// Trigger immediate update callback with all hints
-	if m.onUpdate != nil && m.hints != nil {
-		m.onUpdate(m.hints.All())
+	if m.hints != nil {
+		m.mu.Lock()
+		callback := m.onUpdate
+		m.mu.Unlock()
+
+		if callback != nil {
+			callback(m.hints.All())
+		}
 	}
 }
 
@@ -129,8 +141,12 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	}
 
 	if len(filtered) == 0 {
-		// No matches - reset
+		// No matches - reset and show all hints immediately
 		m.SetCurrentInput("")
+
+		if m.hints != nil {
+			m.debouncedUpdate(m.hints.All())
+		}
 
 		return nil, false
 	}

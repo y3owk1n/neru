@@ -3,6 +3,7 @@ package hint
 import (
 	"context"
 	"image"
+	"sort"
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/core/domain/element"
@@ -171,6 +172,11 @@ func (t *Trie) FindByPrefix(prefix string) []*Interface {
 func (t *Trie) collectAllHints(node *TrieNode) []*Interface {
 	var result []*Interface
 	t.collectAllHintsInto(node, &result)
+
+	// Sort for deterministic order
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Label() < result[j].Label()
+	})
 
 	return result
 }
