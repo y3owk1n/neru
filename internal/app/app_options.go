@@ -10,8 +10,10 @@ import (
 type Option func(*App) error
 
 // WithConfig sets the application configuration.
+// Note: cfg can be nil, in which case default configuration will be used.
 func WithConfig(cfg *config.Config) Option {
 	return func(a *App) error {
+		// Config can be nil - system will use defaults
 		a.config = cfg
 
 		return nil
@@ -30,6 +32,7 @@ func WithConfigPath(path string) Option {
 // WithLogger sets the application logger.
 func WithLogger(logger *zap.Logger) Option {
 	return func(a *App) error {
+		// Logger can be nil - system will initialize a default logger if needed
 		a.logger = logger
 
 		return nil
@@ -37,6 +40,7 @@ func WithLogger(logger *zap.Logger) Option {
 }
 
 // WithEventTap sets the event tap implementation.
+// Note: eventTap can be nil, will be initialized during app startup if not provided.
 func WithEventTap(eventTap ports.EventTapPort) Option {
 	return func(a *App) error {
 		a.eventTap = eventTap
@@ -46,6 +50,7 @@ func WithEventTap(eventTap ports.EventTapPort) Option {
 }
 
 // WithIPCServer sets the IPC server implementation.
+// Note: ipcServer can be nil, will be initialized during app startup if not provided.
 func WithIPCServer(ipcServer ports.IPCPort) Option {
 	return func(a *App) error {
 		a.ipcServer = ipcServer
@@ -55,6 +60,7 @@ func WithIPCServer(ipcServer ports.IPCPort) Option {
 }
 
 // WithOverlayManager sets the overlay manager implementation.
+// Note: overlayManager can be nil, will be initialized during app startup if not provided.
 func WithOverlayManager(overlayManager OverlayManager) Option {
 	return func(a *App) error {
 		a.overlayManager = overlayManager
@@ -64,6 +70,7 @@ func WithOverlayManager(overlayManager OverlayManager) Option {
 }
 
 // WithWatcher sets the app watcher implementation.
+// Note: watcher can be nil, will be initialized during app startup if not provided.
 func WithWatcher(watcher Watcher) Option {
 	return func(a *App) error {
 		a.appWatcher = watcher
@@ -73,6 +80,7 @@ func WithWatcher(watcher Watcher) Option {
 }
 
 // WithHotkeyService sets the hotkey service implementation.
+// Note: hotkeyService can be nil, will be initialized during app startup if not provided.
 func WithHotkeyService(hotkeyService HotkeyService) Option {
 	return func(a *App) error {
 		a.hotkeyManager = hotkeyService
