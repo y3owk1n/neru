@@ -48,6 +48,7 @@ type CallbackManager struct {
 	callbackMap map[uint64]chan struct{}
 	callbackMu  sync.Mutex
 	cancelCh    chan struct{}
+	cleanupOnce sync.Once
 }
 
 // NewCallbackManager creates a new callback manager.
@@ -103,18 +104,23 @@ func (c *CallbackManager) CompleteCallback(callbackID uint64) {
 
 // Cleanup cancels all pending callbacks and stops background goroutines.
 // This should be called when the overlay is being destroyed.
+// Safe to call multiple times - only executes cleanup once.
 func (c *CallbackManager) Cleanup() {
-	// Close the cancel channel to stop all background goroutines
-	close(c.cancelCh)
+	// Use sync.Once to ensure cleanup only happens once
+	// This prevents panic from double-close of the cancel channel
+	c.cleanupOnce.Do(func() {
+		// Close the cancel channel to stop all background goroutines
+		close(c.cancelCh)
 
-	// Clear the callback map
-	c.callbackMu.Lock()
-	c.callbackMap = make(map[uint64]chan struct{})
-	c.callbackMu.Unlock()
+		// Clear the callback map
+		c.callbackMu.Lock()
+		c.callbackMap = make(map[uint64]chan struct{})
+		c.callbackMu.Unlock()
 
-	if c.logger != nil {
-		c.logger.Debug("CallbackManager cleanup completed")
-	}
+		if c.logger != nil {
+			c.logger.Debug("CallbackManager cleanup completed")
+		}
+	})
 }
 
 // handleResizeCallback manages the callback lifecycle.
