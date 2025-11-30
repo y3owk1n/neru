@@ -27,34 +27,91 @@ const (
 // NoOpManager is a no-op implementation of ManagerInterface for headless environments.
 type NoOpManager struct{}
 
-func (n *NoOpManager) Show()                                 {}
-func (n *NoOpManager) Hide()                                 {}
-func (n *NoOpManager) Clear()                                {}
-func (n *NoOpManager) ResizeToActiveScreen()                 {}
-func (n *NoOpManager) SwitchTo(next Mode)                    {}
-func (n *NoOpManager) Subscribe(fn func(StateChange)) uint64 { return 0 }
-func (n *NoOpManager) Unsubscribe(id uint64)                 {}
-func (n *NoOpManager) Destroy()                              {}
-func (n *NoOpManager) Mode() Mode                            { return ModeIdle }
-func (n *NoOpManager) WindowPtr() unsafe.Pointer             { return nil }
+// Show is a no-op implementation.
+func (n *NoOpManager) Show() {}
 
-func (n *NoOpManager) UseHintOverlay(o *hints.Overlay)    {}
-func (n *NoOpManager) UseGridOverlay(o *grid.Overlay)     {}
+// Hide is a no-op implementation.
+func (n *NoOpManager) Hide() {}
+
+// Clear is a no-op implementation.
+func (n *NoOpManager) Clear() {}
+
+// ResizeToActiveScreen is a no-op implementation.
+func (n *NoOpManager) ResizeToActiveScreen() {}
+
+// SwitchTo is a no-op implementation.
+func (n *NoOpManager) SwitchTo(next Mode) {}
+
+// Subscribe is a no-op implementation.
+func (n *NoOpManager) Subscribe(fn func(StateChange)) uint64 { return 0 }
+
+// Unsubscribe is a no-op implementation.
+func (n *NoOpManager) Unsubscribe(id uint64) {}
+
+// Destroy is a no-op implementation.
+func (n *NoOpManager) Destroy() {}
+
+// Mode returns ModeIdle.
+func (n *NoOpManager) Mode() Mode { return ModeIdle }
+
+// WindowPtr returns nil.
+func (n *NoOpManager) WindowPtr() unsafe.Pointer { return nil }
+
+// UseHintOverlay is a no-op implementation.
+func (n *NoOpManager) UseHintOverlay(o *hints.Overlay) {}
+
+// UseGridOverlay is a no-op implementation.
+func (n *NoOpManager) UseGridOverlay(o *grid.Overlay) {}
+
+// UseActionOverlay is a no-op implementation.
 func (n *NoOpManager) UseActionOverlay(o *action.Overlay) {}
+
+// UseScrollOverlay is a no-op implementation.
 func (n *NoOpManager) UseScrollOverlay(o *scroll.Overlay) {}
 
-func (n *NoOpManager) HintOverlay() *hints.Overlay    { return nil }
-func (n *NoOpManager) GridOverlay() *grid.Overlay     { return nil }
+// HintOverlay returns nil.
+func (n *NoOpManager) HintOverlay() *hints.Overlay { return nil }
+
+// GridOverlay returns nil.
+func (n *NoOpManager) GridOverlay() *grid.Overlay { return nil }
+
+// ActionOverlay returns nil.
 func (n *NoOpManager) ActionOverlay() *action.Overlay { return nil }
+
+// ScrollOverlay returns nil.
 func (n *NoOpManager) ScrollOverlay() *scroll.Overlay { return nil }
 
-func (n *NoOpManager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error  { return nil }
-func (n *NoOpManager) DrawActionHighlight(x, y, w, h int)                                {}
-func (n *NoOpManager) DrawScrollHighlight(x, y, w, h int)                                {}
-func (n *NoOpManager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error { return nil }
-func (n *NoOpManager) UpdateGridMatches(prefix string)                                   {}
-func (n *NoOpManager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style)               {}
-func (n *NoOpManager) SetHideUnmatched(hide bool)                                        {}
+// DrawHintsWithStyle is a no-op implementation.
+func (n *NoOpManager) DrawHintsWithStyle(
+	hs []*hints.Hint,
+	style hints.StyleMode,
+) error {
+	return nil
+}
+
+// DrawActionHighlight is a no-op implementation.
+func (n *NoOpManager) DrawActionHighlight(x, y, w, h int) {}
+
+// DrawScrollHighlight is a no-op implementation.
+func (n *NoOpManager) DrawScrollHighlight(x, y, w, h int) {}
+
+// DrawGrid is a no-op implementation.
+func (n *NoOpManager) DrawGrid(
+	g *domainGrid.Grid,
+	input string,
+	style grid.Style,
+) error {
+	return nil
+}
+
+// UpdateGridMatches is a no-op implementation.
+func (n *NoOpManager) UpdateGridMatches(prefix string) {}
+
+// ShowSubgrid is a no-op implementation.
+func (n *NoOpManager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {}
+
+// SetHideUnmatched is a no-op implementation.
+func (n *NoOpManager) SetHideUnmatched(hide bool) {}
 
 // Mode represents the overlay mode.
 type Mode string
