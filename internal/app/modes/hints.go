@@ -2,11 +2,13 @@ package modes
 
 import (
 	"context"
+	"image"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"go.uber.org/zap"
 )
 
@@ -78,7 +80,10 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 
 	// Always resize overlay to the active screen (where mouse is) before collecting elements.
 	// This ensures proper positioning when switching between multiple displays.
+	activeScreenBounds := bridge.ActiveScreenBounds()
+	h.screenBounds = activeScreenBounds
 	h.overlayManager.ResizeToActiveScreenSync()
+
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing hints.
 	// This prevents scroll highlights from persisting when switching from scroll mode to hints mode.
 	h.overlayManager.Clear()
@@ -90,6 +95,37 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 
 	// Get hints from service
 	domainHints, domainHintsErr := h.hintService.ShowHints(ctx)
+	if domainHintsErr != nil {
+		h.logger.Error(
+			"Failed to show hints",
+			zap.Error(domainHintsErr),
+			zap.String("action", actionString),
+		)
+
+		return
+	}
+
+	// Filter hints to only those on the active screen for multi-monitor support
+	filteredHints := make([]*domainHint.Interface, 0, len(domainHints))
+	for _, domainHint := range domainHints {
+		hintBounds := domainHint.Element().Bounds()
+		hintCenter := image.Point{
+			X: hintBounds.Min.X + hintBounds.Dx()/2,
+			Y: hintBounds.Min.Y + hintBounds.Dy()/2,
+		}
+
+		// Include hint if its center is within the active screen bounds
+		if hintCenter.In(activeScreenBounds) {
+			filteredHints = append(filteredHints, domainHint)
+		}
+	}
+
+	h.logger.Debug("Filtered hints by screen",
+		zap.Int("total_hints", len(domainHints)),
+		zap.Int("filtered_hints", len(filteredHints)),
+		zap.String("screen_bounds", activeScreenBounds.String()))
+
+	domainHints = filteredHints
 	if domainHintsErr != nil {
 		h.logger.Error(
 			"Failed to show hints",

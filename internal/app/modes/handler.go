@@ -60,7 +60,7 @@ type Handler struct {
 	// Mode implementations
 	modes map[domain.Mode]Mode
 
-	// Screen bounds for coordinate conversion
+	// Screen bounds for coordinate conversion (grid and hints)
 	screenBounds image.Rectangle
 
 	enableEventTap  func()
