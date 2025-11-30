@@ -150,16 +150,30 @@ func (h *IPCControllerInfo) handleReloadConfig(_ context.Context, _ ipc.Command)
 }
 
 func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc.Response {
-	healthStatus := map[string]map[string]error{
+	// Get raw health status with errors
+	rawHealthStatus := map[string]map[string]error{
 		"hints":  h.hintService.Health(ctx),
 		"grid":   h.gridService.Health(ctx),
 		"action": h.actionService.Health(ctx),
 		"scroll": h.scrollService.Health(ctx),
 	}
 
+	// Convert to serializable structure
+	healthStatus := make(map[string]map[string]string)
+	for service, checks := range rawHealthStatus {
+		healthStatus[service] = make(map[string]string)
+		for check, err := range checks {
+			if err != nil {
+				healthStatus[service][check] = err.Error()
+			} else {
+				healthStatus[service][check] = ""
+			}
+		}
+	}
+
 	// Check if any services have errors
 	hasErrors := false
-	for service, checks := range healthStatus {
+	for service, checks := range rawHealthStatus {
 		for check, err := range checks {
 			if err != nil {
 				h.logger.Warn("Health check failed",
