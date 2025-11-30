@@ -49,9 +49,9 @@ func TestAdapter_Reload(t *testing.T) {
 
 	ctx := context.Background()
 	err := adapter.Reload(ctx, "/nonexistent/path")
-	// Reload uses default config when file doesn't exist, so no error
-	if err != nil {
-		t.Errorf("Expected no error when reloading nonexistent config file, got %v", err)
+	// Reload now returns an error for explicitly specified missing config files
+	if err == nil {
+		t.Error("Expected error when reloading nonexistent config file, got nil")
 	}
 }
 
