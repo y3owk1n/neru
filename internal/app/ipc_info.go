@@ -167,7 +167,7 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 			if err != nil {
 				healthStatus[service][check] = err.Error()
 			} else {
-				healthStatus[service][check] = ""
+				healthStatus[service][check] = "ok"
 			}
 		}
 	}
