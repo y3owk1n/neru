@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.11.0](https://github.com/y3owk1n/neru/compare/v1.10.5...v1.11.0) (2025-11-30)
+
+
+### Features
+
+* **modes:** add Action and Scroll navigation modes with Mode interface ([#238](https://github.com/y3owk1n/neru/issues/238)) ([8c55ec4](https://github.com/y3owk1n/neru/commit/8c55ec44bf85cb84ee84f4523cfc117af169e168))
+* **test:** enhance integration tests with comprehensive coverage ([#242](https://github.com/y3owk1n/neru/issues/242)) ([f44b1ea](https://github.com/y3owk1n/neru/commit/f44b1ea63105a4aa21d2a53eeaae7857d4261060))
+
+
+### Bug Fixes
+
+* resolve CLI nil pointer regression and add comprehensive tests ([#244](https://github.com/y3owk1n/neru/issues/244)) ([9a611d6](https://github.com/y3owk1n/neru/commit/9a611d6e6952b1b35d355871ffe1f0a33c5c8f4a))
+
+
+### Performance Improvements
+
+* implement accessibility query optimization ([#245](https://github.com/y3owk1n/neru/issues/245)) ([9ab4930](https://github.com/y3owk1n/neru/commit/9ab493040ade44750b0bd3ffca7d88546709cc68))
+
 ## [1.10.5](https://github.com/y3owk1n/neru/compare/v1.10.4...v1.10.5) (2025-11-28)
 
 
