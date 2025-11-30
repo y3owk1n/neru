@@ -23,15 +23,6 @@ func NewIPCControllerModes(modes *modes.Handler, logger *zap.Logger) *IPCControl
 	}
 }
 
-// modesUnavailableResponse returns a standardized response when modes handler is not available.
-func (h *IPCControllerModes) modesUnavailableResponse() ipc.Response {
-	return ipc.Response{
-		Success: false,
-		Message: "modes handler not available",
-		Code:    ipc.CodeActionFailed,
-	}
-}
-
 // RegisterHandlers registers mode command handlers.
 func (h *IPCControllerModes) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
@@ -41,6 +32,15 @@ func (h *IPCControllerModes) RegisterHandlers(
 	handlers["scroll"] = h.handleScroll
 	handlers[domain.CommandAction] = h.handleAction
 	handlers["idle"] = h.handleIdle
+}
+
+// modesUnavailableResponse returns a standardized response when modes handler is not available.
+func (h *IPCControllerModes) modesUnavailableResponse() ipc.Response {
+	return ipc.Response{
+		Success: false,
+		Message: "modes handler not available",
+		Code:    ipc.CodeActionFailed,
+	}
 }
 
 func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc.Response {

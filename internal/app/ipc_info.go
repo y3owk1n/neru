@@ -86,7 +86,8 @@ func (h *IPCControllerInfo) ResolveConfigPath() string {
 	}
 
 	// Convert to absolute path for display
-	if absPath, err := filepath.Abs(configPath); err == nil {
+	absPath, err := filepath.Abs(configPath)
+	if err == nil {
 		return absPath
 	}
 

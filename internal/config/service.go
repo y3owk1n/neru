@@ -50,6 +50,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 	if configResult.ConfigPath == "" {
 		s.logger.Info("No config file specified or found, using default configuration")
+
 		return configResult
 	}
 
@@ -64,6 +65,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 	// Decode once into raw map for both config population and hotkey processing
 	var raw map[string]any
+
 	_, decodeErr := toml.DecodeFile(configResult.ConfigPath, &raw)
 	if decodeErr != nil {
 		configResult.ValidationError = core.WrapConfigFailed(decodeErr, "parse config file")
@@ -73,9 +75,11 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	}
 
 	// Decode into typed config struct
-	if _, err := toml.DecodeFile(configResult.ConfigPath, configResult.Config); err != nil {
+	_, err := toml.DecodeFile(configResult.ConfigPath, configResult.Config)
+	if err != nil {
 		configResult.ValidationError = core.WrapConfigFailed(err, "parse config file")
 		configResult.Config = DefaultConfig()
+
 		return configResult
 	}
 

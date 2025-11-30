@@ -114,6 +114,7 @@ func launchProgram(cmd *cobra.Command, cfgPath string) {
 func sendCommand(cmd *cobra.Command, action string, args []string) error {
 	// Update communicator timeout to reflect current flag value
 	communicator.SetTimeout(timeoutSec)
+
 	return communicator.SendAndHandle(cmd, action, args)
 }
 

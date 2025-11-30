@@ -259,13 +259,22 @@ func initializeModeHandler(app *App) {
 	}
 
 	app.modes = modes.NewHandler(
-		deps.config, deps.logger, deps.appState, deps.cursorState, deps.overlayManager, deps.renderer,
+		deps.config,
+		deps.logger,
+		deps.appState,
+		deps.cursorState,
+		deps.overlayManager,
+		deps.renderer,
 		deps.services.hint,
 		deps.services.grid,
 		deps.services.action,
 		deps.services.scroll,
-		deps.components.hints, deps.components.grid, deps.components.scroll, deps.components.action,
-		deps.callbacks.enableEventTap, deps.callbacks.disableEventTap,
+		deps.components.hints,
+		deps.components.grid,
+		deps.components.scroll,
+		deps.components.action,
+		deps.callbacks.enableEventTap,
+		deps.callbacks.disableEventTap,
 		deps.callbacks.refreshHotkeys,
 	)
 }

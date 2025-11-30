@@ -126,11 +126,11 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 	done := make(chan struct{})
 
 	// Generate unique ID for this callback
-	id := atomic.AddUint64(&actionCallbackID, 1)
+	callbackID := atomic.AddUint64(&actionCallbackID, 1)
 
 	// Store channel in global map
 	actionCallbackLock.Lock()
-	actionCallbackMap[id] = done
+	actionCallbackMap[callbackID] = done
 	actionCallbackLock.Unlock()
 
 	// Pass ID as context (safe - no Go pointers)
@@ -140,7 +140,7 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 		(C.ResizeCompletionCallback)(
 			unsafe.Pointer(C.resizeActionCompletionCallback), //nolint:unconvert
 		),
-		*(*unsafe.Pointer)(unsafe.Pointer(&id)),
+		*(*unsafe.Pointer)(unsafe.Pointer(&callbackID)),
 	)
 
 	// Wait for completion with timeout
@@ -150,7 +150,7 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 	case <-time.After(DefaultTimerDuration):
 		// Timeout - clean up
 		actionCallbackLock.Lock()
-		delete(actionCallbackMap, id)
+		delete(actionCallbackMap, callbackID)
 		actionCallbackLock.Unlock()
 
 		if o.logger != nil {

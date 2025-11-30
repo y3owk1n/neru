@@ -50,6 +50,7 @@ func (a *App) HintsContext() *hints.Context {
 	if a.hintsComponent == nil {
 		return nil
 	}
+
 	return a.hintsComponent.Context
 }
 
@@ -75,6 +76,7 @@ func (a *App) GridContext() *grid.Context {
 	if a.gridComponent == nil {
 		return nil
 	}
+
 	return a.gridComponent.Context
 }
 
@@ -83,6 +85,7 @@ func (a *App) ScrollContext() *scroll.Context {
 	if a.scrollComponent == nil {
 		return nil
 	}
+
 	return a.scrollComponent.Context
 }
 
