@@ -11,13 +11,13 @@ import (
 // ReloadConfig reloads the configuration from the specified path.
 // If validation fails, shows an alert and keeps the current config.
 // Preserves the current app state (enabled/disabled, current mode).
-func (a *App) ReloadConfig(configPath string) error {
+func (a *App) ReloadConfig(ctx context.Context, configPath string) error {
 	// Prepare for config update by exiting mode and unregistering hotkeys
 	a.prepareForConfigUpdate()
 
 	// Reload config using the service
 	loadResult, err := a.configService.ReloadWithAppContext(
-		context.Background(),
+		ctx,
 		configPath,
 		a.logger,
 	)
