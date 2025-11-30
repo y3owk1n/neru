@@ -107,8 +107,8 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 
 	// Filter hints to only those on the active screen for multi-monitor support
 	filteredHints := make([]*domainHint.Interface, 0, len(domainHints))
-	for _, domainHint := range domainHints {
-		hintBounds := domainHint.Element().Bounds()
+	for _, hint := range domainHints {
+		hintBounds := hint.Element().Bounds()
 		hintCenter := image.Point{
 			X: hintBounds.Min.X + hintBounds.Dx()/2,
 			Y: hintBounds.Min.Y + hintBounds.Dy()/2,
@@ -116,7 +116,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 
 		// Include hint if its center is within the active screen bounds
 		if hintCenter.In(activeScreenBounds) {
-			filteredHints = append(filteredHints, domainHint)
+			filteredHints = append(filteredHints, hint)
 		}
 	}
 
