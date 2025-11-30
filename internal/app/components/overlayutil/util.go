@@ -37,7 +37,7 @@ var (
 func init() {
 	// Initialize the free ID pool with all available IDs.
 	freeCallbackIDs = make([]uint64, 0, DefaultCallbackIDStoreCapacity)
-	for i := uint64(0); i < DefaultCallbackIDStoreCapacity; i++ {
+	for i := range uint64(DefaultCallbackIDStoreCapacity) {
 		freeCallbackIDs = append(freeCallbackIDs, i)
 	}
 }
