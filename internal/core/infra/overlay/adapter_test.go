@@ -59,10 +59,12 @@ func (m *mockManager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode
 
 	return nil
 }
+
 func (m *mockManager) DrawActionHighlight(x, y, w, h int) {
 	m.lastActionX, m.lastActionY, m.lastActionW, m.lastActionH = x, y, w, h
 	m.actionHighlightCalled = true
 }
+
 func (m *mockManager) DrawScrollHighlight(x, y, w, h int) {
 	m.lastScrollX, m.lastScrollY, m.lastScrollW, m.lastScrollH = x, y, w, h
 	m.scrollHighlightCalled = true
