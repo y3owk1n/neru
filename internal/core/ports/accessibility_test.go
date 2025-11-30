@@ -111,7 +111,10 @@ func TestInterfaceSegregation(t *testing.T) {
 
 	// This function only needs element discovery, not the full accessibility port
 	findClickableElements := func(discovery ports.ElementDiscovery) error {
-		elements, err := discovery.ClickableElements(nil, ports.DefaultElementFilter())
+		elements, err := discovery.ClickableElements(
+			context.Background(),
+			ports.DefaultElementFilter(),
+		)
 		if err != nil {
 			return err
 		}
@@ -132,7 +135,7 @@ func TestInterfaceSegregation(t *testing.T) {
 
 	// This function only needs screen management, not the full accessibility port
 	getScreenInfo := func(manager ports.ScreenManagement) error {
-		bounds, err := manager.ScreenBounds(nil)
+		bounds, err := manager.ScreenBounds(context.Background())
 		if err != nil {
 			return err
 		}
@@ -157,13 +160,16 @@ func (m *mockElementDiscovery) ClickableElements(
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
 	// Return a mock element
-	elem, _ := element.NewElement(
+	elem, err := element.NewElement(
 		element.ID("test-element"),
 		image.Rect(100, 100, 150, 120), // bounds
 		element.RoleButton,
 		element.WithClickable(true),
 		element.WithTitle("Test Button"),
 	)
+	if err != nil {
+		return nil, err
+	}
 	return []*element.Element{elem}, nil
 }
 
