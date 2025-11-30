@@ -1,6 +1,6 @@
 package cli
 
-var startCmd = builder.BuildSimpleCommand(
+var startCmd = buildSimpleCommand(
 	"start",
 	"Start the neru program (resume if paused)",
 	`Start or resume the neru program. This enables neru if it was previously stopped.`,

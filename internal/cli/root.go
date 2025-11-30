@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/neru/internal/cli/cliutil"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
@@ -29,9 +30,7 @@ var (
 	timeoutSec = 5
 
 	// CLI utilities.
-	communicator *cliutil.IPCCommunicator
-	builder      *cliutil.CommandBuilder
-	formatter    *cliutil.OutputFormatter
+	formatter *cliutil.OutputFormatter
 )
 
 var rootCmd = &cobra.Command{
@@ -62,8 +61,6 @@ func Execute() {
 
 func init() {
 	// Initialize CLI utilities.
-	communicator = cliutil.NewIPCCommunicator(timeoutSec)
-	builder = cliutil.NewCommandBuilder(communicator)
 	formatter = cliutil.NewOutputFormatter()
 
 	rootCmd.SetVersionTemplate(
@@ -112,12 +109,46 @@ func launchProgram(cmd *cobra.Command, cfgPath string) {
 
 // sendCommand transmits a command to the running Neru daemon via IPC.
 func sendCommand(cmd *cobra.Command, action string, args []string) error {
-	// Update communicator timeout to reflect current flag value
-	communicator.SetTimeout(timeoutSec)
+	communicator := cliutil.NewIPCCommunicator(timeoutSec)
 
 	return communicator.SendAndHandle(cmd, action, args)
 }
 
 func requiresRunningInstance() error {
-	return builder.CheckRunningInstance()
+	if !ipc.IsServerRunning() {
+		return derrors.New(
+			derrors.CodeIPCServerNotRunning,
+			"neru is not running. Start it first with 'neru' or 'neru launch'",
+		)
+	}
+
+	return nil
+}
+
+func buildSimpleCommand(use, short, long string, action string) *cobra.Command {
+	return &cobra.Command{
+		Use:   use,
+		Short: short,
+		Long:  long,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return sendCommand(cmd, action, args)
+		},
+	}
+}
+
+func buildActionCommand(use, short, long string, params []string) *cobra.Command {
+	return &cobra.Command{
+		Use:   use,
+		Short: short,
+		Long:  long,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return sendCommand(cmd, "action", params)
+		},
+	}
 }

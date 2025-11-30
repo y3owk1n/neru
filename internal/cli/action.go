@@ -17,43 +17,38 @@ var actionCmd = &cobra.Command{
 	},
 }
 
-var actionLeftClickCmd = builder.BuildActionCommand(
+var actionLeftClickCmd = buildActionCommand(
 	"left_click",
 	"Perform left click at current cursor position",
 	`Execute a left click at the current cursor location.`,
-	"action",
 	[]string{"left_click"},
 )
 
-var actionRightClickCmd = builder.BuildActionCommand(
+var actionRightClickCmd = buildActionCommand(
 	"right_click",
 	"Perform right click at current cursor position",
 	`Execute a right click at the current cursor location.`,
-	"action",
 	[]string{"right_click"},
 )
 
-var actionMouseUpCmd = builder.BuildActionCommand(
+var actionMouseUpCmd = buildActionCommand(
 	"mouse_up",
 	"Release mouse button at current cursor position",
 	`Release the left mouse button at the current cursor location.`,
-	"action",
 	[]string{"mouse_up"},
 )
 
-var actionMouseDownCmd = builder.BuildActionCommand(
+var actionMouseDownCmd = buildActionCommand(
 	"mouse_down",
 	"Press mouse button at current cursor position",
 	`Press and hold the left mouse button at the current cursor location.`,
-	"action",
 	[]string{"mouse_down"},
 )
 
-var actionMiddleClickCmd = builder.BuildActionCommand(
+var actionMiddleClickCmd = buildActionCommand(
 	"middle_click",
 	"Perform middle click at current cursor position",
 	`Execute a middle click at the current cursor location.`,
-	"action",
 	[]string{"middle_click"},
 )
 
