@@ -157,22 +157,29 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	return configResult
 }
 
+// tryConfigPath attempts to find a config file at the given path.
+// Returns the path if it exists, empty string otherwise.
+func (s *Service) tryConfigPath(path string) string {
+	_, err := os.Stat(path)
+	if err == nil {
+		return path
+	}
+	if !os.IsNotExist(err) {
+		s.logger.Warn("Failed to check config file",
+			zap.String("path", path),
+			zap.Error(err))
+	}
+	return ""
+}
+
 // FindConfigFile searches for a configuration file in standard locations.
 // Returns the path to the config file, or an empty string if not found.
 func (s *Service) FindConfigFile() string {
 	// Try XDG config directory first
 	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
 		path := filepath.Join(xdgConfig, "neru", "config.toml")
-
-		_, err := os.Stat(path)
-		if err == nil {
-			return path
-		}
-
-		if !os.IsNotExist(err) {
-			s.logger.Warn("Failed to check config file",
-				zap.String("path", path),
-				zap.Error(err))
+		if found := s.tryConfigPath(path); found != "" {
+			return found
 		}
 	}
 
@@ -181,57 +188,27 @@ func (s *Service) FindConfigFile() string {
 	if homeErr == nil {
 		// Try .config/neru/config.toml
 		path := filepath.Join(homeDir, ".config", "neru", "config.toml")
-
-		_, err := os.Stat(path)
-		if err == nil {
-			return path
-		}
-
-		if !os.IsNotExist(err) {
-			s.logger.Warn("Failed to check config file",
-				zap.String("path", path),
-				zap.Error(err))
+		if found := s.tryConfigPath(path); found != "" {
+			return found
 		}
 
 		// Try .neru.toml
 		path = filepath.Join(homeDir, ".neru.toml")
-
-		_, err = os.Stat(path)
-		if err == nil {
-			return path
-		}
-
-		if !os.IsNotExist(err) {
-			s.logger.Warn("Failed to check config file",
-				zap.String("path", path),
-				zap.Error(err))
+		if found := s.tryConfigPath(path); found != "" {
+			return found
 		}
 	} else {
 		s.logger.Warn("Failed to get user home directory", zap.Error(homeErr))
 	}
 
 	// Try current directory
-	_, err := os.Stat("neru.toml")
-	if err == nil {
-		return "neru.toml"
-	}
-
-	if !os.IsNotExist(err) {
-		s.logger.Warn("Failed to check config file",
-			zap.String("path", "neru.toml"),
-			zap.Error(err))
+	if found := s.tryConfigPath("neru.toml"); found != "" {
+		return found
 	}
 
 	// Try config.toml
-	_, err = os.Stat("config.toml")
-	if err == nil {
-		return "config.toml"
-	}
-
-	if !os.IsNotExist(err) {
-		s.logger.Warn("Failed to check config file",
-			zap.String("path", "config.toml"),
-			zap.Error(err))
+	if found := s.tryConfigPath("config.toml"); found != "" {
+		return found
 	}
 
 	return ""
@@ -397,7 +374,9 @@ func (s *Service) Update(config *Config) error {
 
 	// Notify watchers
 	for _, watcher := range watchers {
-		safeSendConfig(watcher, config)
+		if !safeSendConfig(watcher, config) {
+			s.logger.Debug("Watcher channel full, skipping notification")
+		}
 		// Note: Update doesn't check context cancellation as it's a synchronous operation
 	}
 
