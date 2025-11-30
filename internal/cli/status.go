@@ -5,8 +5,6 @@ import (
 	"github.com/y3owk1n/neru/internal/cli/cliutil"
 )
 
-var formatter = cliutil.NewOutputFormatter()
-
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show neru status",
@@ -23,6 +21,8 @@ var statusCmd = &cobra.Command{
 		if !ipcResponse.Success {
 			return communicator.HandleResponse(cmd, ipcResponse)
 		}
+
+		formatter := cliutil.NewOutputFormatter()
 
 		return formatter.PrintStatus(cmd, ipcResponse.Data)
 	},
