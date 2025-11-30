@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/components/grid"
+	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
@@ -158,10 +160,27 @@ func initializeUIComponents(app *App) error {
 // initializeRendererAndOverlays sets up the overlay renderer and registers
 // all overlays with the overlay manager.
 func initializeRendererAndOverlays(app *App) {
+	// Get styles with nil-safe fallbacks
+	var hintStyle hints.StyleMode
+	if app.hintsComponent != nil {
+		hintStyle = app.hintsComponent.Style
+	} else {
+		// Fallback to default style if component is nil
+		hintStyle = hints.BuildStyle(config.DefaultConfig().Hints)
+	}
+
+	var gridStyle grid.Style
+	if app.gridComponent != nil {
+		gridStyle = app.gridComponent.Style
+	} else {
+		// Fallback to default style if component is nil
+		gridStyle = grid.BuildStyle(config.DefaultConfig().Grid)
+	}
+
 	app.renderer = ui.NewOverlayRenderer(
 		app.overlayManager,
-		app.hintsComponent.Style,
-		app.gridComponent.Style,
+		hintStyle,
+		gridStyle,
 	)
 
 	// Register overlays with overlay manager
