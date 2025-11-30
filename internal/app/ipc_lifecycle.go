@@ -59,7 +59,7 @@ func (h *IPCControllerLifecycle) handleStart(_ context.Context, _ ipc.Command) i
 	}
 
 	h.appState.SetEnabled(true)
-	h.logger.Info("Neru started successfully")
+	h.logger.Info("Neru started successfully", zap.Bool("enabled", true))
 
 	return ipc.Response{Success: true, Message: "neru started", Code: ipc.CodeOK}
 }
