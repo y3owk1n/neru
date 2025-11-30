@@ -113,13 +113,12 @@ func (o *Overlay) ResizeToActiveScreen() {
 func (o *Overlay) ResizeToActiveScreenSync() {
 	o.callbackManager.StartResizeOperation(func(callbackID uint64) {
 		// Pass ID as context (safe - no Go pointers)
-		// Note: uintptr conversion must happen in same expression to satisfy go vet
 		C.NeruResizeOverlayToActiveScreenWithCallback(
 			o.window,
 			(C.ResizeCompletionCallback)(
 				unsafe.Pointer(C.resizeActionCompletionCallback), //nolint:unconvert
 			),
-			*(*unsafe.Pointer)(unsafe.Pointer(&callbackID)),
+			unsafe.Pointer(uintptr(callbackID)),
 		)
 	})
 }
