@@ -107,224 +107,53 @@ func TestCommandInitialization(t *testing.T) {
 	}
 }
 
-func TestStartCommandExecution(t *testing.T) {
-	// Test that executing the start command doesn't panic
-	// It should return an error since no daemon is running, but not crash
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("startCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := startCmd.RunE(startCmd, []string{})
-	// We expect an error since no daemon is running
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
+func TestCommandExecutionWithoutDaemon(t *testing.T) {
+	// Test that all CLI commands execute without panicking when no daemon is running
+	// Commands that require IPC should return errors, while utility commands should work
+	tests := []struct {
+		name      string
+		cmd       *cobra.Command
+		expectErr bool
+	}{
+		{"start", startCmd, true},
+		{"stop", stopCmd, true},
+		{"idle", idleCmd, true},
+		{"hints", hintsCmd, true},
+		{"grid", gridCmd, true},
+		{"scroll", scrollCmd, true},
+		{"action", actionCmd, true},
+		{"action_left_click", actionLeftClickCmd, true},
+		{"action_right_click", actionRightClickCmd, true},
+		{"action_mouse_up", actionMouseUpCmd, true},
+		{"action_mouse_down", actionMouseDownCmd, true},
+		{"action_middle_click", actionMiddleClickCmd, true},
+		{"status", statusCmd, true},
+		{"doctor", doctorCmd, true},
+		{"metrics", metricsCmd, false}, // Metrics just prints status, doesn't need daemon
+		{"profile", profileCmd, false}, // Profile just prints help, doesn't need daemon
 	}
-}
 
-func TestStopCommandExecution(t *testing.T) {
-	// Test that executing the stop command doesn't panic
-	// It should return an error since no daemon is running, but not crash
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("stopCmd.RunE panicked: %v", r)
-		}
-	}()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("%s panicked: %v", tt.name, r)
+				}
+			}()
 
-	err := stopCmd.RunE(stopCmd, []string{})
-	// We expect an error since no daemon is running
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestIdleCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("idleCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := idleCmd.RunE(idleCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestHintsCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("hintsCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := hintsCmd.RunE(hintsCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestGridCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("gridCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := gridCmd.RunE(gridCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestScrollCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("scrollCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := scrollCmd.RunE(scrollCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestActionCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("actionCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := actionCmd.RunE(actionCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestActionLeftClickCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("actionLeftClickCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := actionLeftClickCmd.RunE(actionLeftClickCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestActionRightClickCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("actionRightClickCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := actionRightClickCmd.RunE(actionRightClickCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestActionMouseUpCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("actionMouseUpCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := actionMouseUpCmd.RunE(actionMouseUpCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestActionMouseDownCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("actionMouseDownCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := actionMouseDownCmd.RunE(actionMouseDownCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestActionMiddleClickCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("actionMiddleClickCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := actionMiddleClickCmd.RunE(actionMiddleClickCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestStatusCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("statusCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := statusCmd.RunE(statusCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestDoctorCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("doctorCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	err := doctorCmd.RunE(doctorCmd, []string{})
-	if err == nil {
-		t.Error("expected error when no daemon is running, got nil")
-	}
-}
-
-func TestMetricsCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("metricsCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	// Metrics command checks if server is running first
-	err := metricsCmd.RunE(metricsCmd, []string{})
-	// Should not error even without daemon, just print message
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-}
-
-func TestProfileCommandExecution(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("profileCmd.RunE panicked: %v", r)
-		}
-	}()
-
-	// Profile command just prints help, doesn't need daemon
-	err := profileCmd.RunE(profileCmd, []string{})
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+			err := tt.cmd.RunE(tt.cmd, []string{})
+			if tt.expectErr && err == nil {
+				t.Errorf("expected error for %s when no daemon is running, got nil", tt.name)
+			}
+			if !tt.expectErr && err != nil {
+				t.Errorf("unexpected error for %s: %v", tt.name, err)
+			}
+		})
 	}
 }
 
 func TestLaunchCommandExecution(t *testing.T) {
+	// Note: This test modifies global LaunchFunc and is not parallel-safe
 	// Save original LaunchFunc
 	originalLaunchFunc := LaunchFunc
 
