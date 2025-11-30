@@ -18,7 +18,9 @@ func (a *App) enableEventTap() {
 	if a.eventTap != nil {
 		err := a.eventTap.Enable(context.Background())
 		if err != nil {
-			a.logger.Error("Failed to enable event tap", zap.Error(err))
+			if a.logger != nil {
+				a.logger.Error("Failed to enable event tap", zap.Error(err))
+			}
 		}
 	}
 }
@@ -27,7 +29,9 @@ func (a *App) disableEventTap() {
 	if a.eventTap != nil {
 		err := a.eventTap.Disable(context.Background())
 		if err != nil {
-			a.logger.Error("Failed to disable event tap", zap.Error(err))
+			if a.logger != nil {
+				a.logger.Error("Failed to disable event tap", zap.Error(err))
+			}
 		}
 	}
 }
