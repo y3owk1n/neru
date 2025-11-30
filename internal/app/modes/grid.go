@@ -181,7 +181,10 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 			ctx := context.Background()
 
 			// Convert cell center from window-local to screen-absolute coordinates
-			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(cell.Center(), h.screenBounds)
+			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(
+				cell.Center(),
+				h.screenBounds,
+			)
 
 			moveCursorErr := h.actionService.MoveCursorToPoint(ctx, absoluteCenter)
 			if moveCursorErr != nil {

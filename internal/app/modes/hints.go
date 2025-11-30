@@ -126,6 +126,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 		zap.String("screen_bounds", activeScreenBounds.String()))
 
 	domainHints = filteredHints
+
 	if domainHintsErr != nil {
 		h.logger.Error(
 			"Failed to show hints",
