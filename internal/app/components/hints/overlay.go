@@ -21,14 +21,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	// DefaultCallbackMapSize is the default size for callback maps.
-	DefaultCallbackMapSize = 8
-
-	// DefaultTimerDuration is the default timer duration.
-	DefaultTimerDuration = 2 * time.Second
-)
-
 //export resizeHintCompletionCallback
 func resizeHintCompletionCallback(context unsafe.Pointer) {
 	// Convert context to callback ID
