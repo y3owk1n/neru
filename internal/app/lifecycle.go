@@ -22,12 +22,27 @@ import (
 )
 
 const (
-	// MaxExecDisplayLength is the maximum length to display for exec commands.
+	// MaxExecDisplayLength is the maximum length for executable display names.
 	MaxExecDisplayLength = 30
 	// SystrayQuitTimeout is the timeout for systray quit.
 	SystrayQuitTimeout = 10 * time.Second
 	// GCTickerInterval is the interval for garbage collection.
 	GCTickerInterval = 5 * time.Minute
+
+	// HighMemoryThreshold is the heap allocation threshold for triggering GC (100MB).
+	HighMemoryThreshold = 100 * 1024 * 1024 // 100MB
+
+	// LowMemoryThreshold is the normal heap allocation threshold (50MB).
+	LowMemoryThreshold = 50 * 1024 * 1024 // 50MB
+
+	// HighMemoryGCInterval is the GC interval when memory pressure is high.
+	HighMemoryGCInterval = 1 * time.Minute // GC every 1 minute when high memory
+
+	// LowMemoryGCInterval is the GC interval when memory pressure is normal.
+	LowMemoryGCInterval = 5 * time.Minute // GC every 5 minutes when low memory
+
+	// BytesPerMB is the number of bytes in a megabyte.
+	BytesPerMB = 1024 * 1024
 )
 
 // Run starts the main application loop and initializes all subsystems.
@@ -58,14 +73,15 @@ func (a *App) Run() error {
 		a.gcCancel = cancel
 
 		go func() {
-			ticker := time.NewTicker(GCTickerInterval)
+			a.logger.Debug("Starting adaptive GC based on memory pressure")
+
+			ticker := time.NewTicker(LowMemoryGCInterval)
 			defer ticker.Stop()
 
 			for {
 				select {
 				case <-ticker.C:
-					a.logger.Debug("Running periodic GC")
-					runtime.GC()
+					a.adaptiveGC()
 				case <-ctx.Done():
 					return
 				}
@@ -76,6 +92,25 @@ func (a *App) Run() error {
 	a.printStartupInfo()
 
 	return a.waitForShutdown()
+}
+
+// adaptiveGC performs garbage collection based on current memory pressure.
+func (a *App) adaptiveGC() {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+
+	heapAllocMB := memStats.HeapAlloc / BytesPerMB
+
+	// Force GC if heap allocation is high
+	if heapAllocMB >= uint64(HighMemoryThreshold/BytesPerMB) {
+		a.logger.Debug("Running GC due to high memory pressure",
+			zap.Uint64("heap_alloc_mb", heapAllocMB),
+			zap.Uint64("next_gc_mb", memStats.NextGC/BytesPerMB))
+		runtime.GC()
+	} else {
+		a.logger.Debug("Skipping GC - memory usage normal",
+			zap.Uint64("heap_alloc_mb", heapAllocMB))
+	}
 }
 
 // setupAppWatcherCallbacks configures callbacks for application watcher events.
