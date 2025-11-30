@@ -5,10 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/cli/cliutil"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
@@ -28,6 +27,10 @@ var (
 	// BuildDate is set via ldflags at build time.
 	BuildDate  = "unknown"
 	timeoutSec = 5
+
+	// CLI utilities.
+	communicator = cliutil.NewIPCCommunicator(timeoutSec)
+	builder      = cliutil.NewCommandBuilder(communicator)
 )
 
 var rootCmd = &cobra.Command{
@@ -101,69 +104,11 @@ func launchProgram(cmd *cobra.Command, cfgPath string) {
 	}
 }
 
-// sendIPCCommand sends the IPC command and returns the response.
-func sendIPCCommand(action string, args []string) (ipc.Response, error) {
-	if !ipc.IsServerRunning() {
-		return ipc.Response{}, derrors.New(
-			derrors.CodeIPCServerNotRunning,
-			"neru is not running. Start it first with 'neru' or 'neru launch'",
-		)
-	}
-
-	ipcClient := ipc.NewClient()
-
-	ipcResponse, ipcResponseErr := ipcClient.SendWithTimeout(
-		ipc.Command{Action: action, Args: args},
-		time.Duration(timeoutSec)*time.Second,
-	)
-	if ipcResponseErr != nil {
-		return ipc.Response{}, derrors.Wrap(
-			ipcResponseErr,
-			derrors.CodeIPCFailed,
-			"failed to send command",
-		)
-	}
-
-	return ipcResponse, nil
-}
-
-// handleIPCResponse processes the IPC response and prints the result.
-func handleIPCResponse(cmd *cobra.Command, ipcResponse ipc.Response) error {
-	if !ipcResponse.Success {
-		if ipcResponse.Code != "" {
-			return derrors.Newf(
-				derrors.CodeIPCFailed,
-				"%s (code: %s)",
-				ipcResponse.Message,
-				ipcResponse.Code,
-			)
-		}
-
-		return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
-	}
-
-	cmd.Println(ipcResponse.Message)
-
-	return nil
-}
-
 // sendCommand transmits a command to the running Neru daemon via IPC.
 func sendCommand(cmd *cobra.Command, action string, args []string) error {
-	ipcResponse, err := sendIPCCommand(action, args)
-	if err != nil {
-		return err
-	}
-
-	return handleIPCResponse(cmd, ipcResponse)
+	return communicator.SendAndHandle(cmd, action, args)
 }
 
 func requiresRunningInstance() error {
-	if !ipc.IsServerRunning() {
-		return derrors.New(
-			derrors.CodeIPCServerNotRunning,
-			"neru is not running. Start it first with 'neru' or 'neru launch'",
-		)
-	}
-
-	return nil
+	return builder.CheckRunningInstance()
 }

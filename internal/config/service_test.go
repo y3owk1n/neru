@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"go.uber.org/zap"
 )
 
 func TestNewService(t *testing.T) {
 	cfg := config.DefaultConfig()
 	path := "/tmp/config.toml"
-	service := config.NewService(cfg, path)
+	service := config.NewService(cfg, path, zap.NewNop())
 
 	if service == nil {
 		t.Fatal("NewService returned nil")
@@ -29,7 +30,7 @@ func TestNewService(t *testing.T) {
 }
 
 func TestService_Validate(t *testing.T) {
-	service := config.NewService(config.DefaultConfig(), "")
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
 
 	tests := []struct {
 		name    string
@@ -92,7 +93,7 @@ func TestService_Validate(t *testing.T) {
 }
 
 func TestService_Update(t *testing.T) {
-	service := config.NewService(config.DefaultConfig(), "")
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
 	newConfig := config.DefaultConfig()
 	newConfig.Hints.HintCharacters = "xyz"
 
@@ -122,7 +123,7 @@ func TestService_Update(t *testing.T) {
 }
 
 func TestService_Watch(t *testing.T) {
-	service := config.NewService(config.DefaultConfig(), "")
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
 	ctx := t.Context()
 
 	channel := service.Watch(ctx)
@@ -154,7 +155,7 @@ func TestService_Watch(t *testing.T) {
 }
 
 func TestService_Concurrency(_ *testing.T) {
-	service := config.NewService(config.DefaultConfig(), "")
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
 
 	var waitGroup sync.WaitGroup
 

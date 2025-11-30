@@ -12,10 +12,10 @@ import "C"
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 
+	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
@@ -56,9 +56,11 @@ func resizeScrollCompletionCallback(context unsafe.Pointer) {
 
 // Overlay manages the rendering of scroll mode overlays using native platform APIs.
 type Overlay struct {
-	window C.OverlayWindow
-	config config.ScrollConfig
-	logger *zap.Logger
+	window          C.OverlayWindow
+	config          config.ScrollConfig
+	logger          *zap.Logger
+	callbackManager *overlayutil.CallbackManager
+	borderBuilder   *overlayutil.WindowBorderBuilder
 }
 
 // NewOverlay initializes a new scroll overlay instance with its own window.
@@ -69,9 +71,11 @@ func NewOverlay(config config.ScrollConfig, logger *zap.Logger) (*Overlay, error
 	}
 
 	return &Overlay{
-		window: window,
-		config: config,
-		logger: logger,
+		window:          window,
+		config:          config,
+		logger:          logger,
+		callbackManager: overlayutil.NewCallbackManager(logger),
+		borderBuilder:   &overlayutil.WindowBorderBuilder{},
 	}, nil
 }
 
@@ -82,9 +86,11 @@ func NewOverlayWithWindow(
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
 	return &Overlay{
-		window: (C.OverlayWindow)(windowPtr),
-		config: config,
-		logger: logger,
+		window:          (C.OverlayWindow)(windowPtr),
+		config:          config,
+		logger:          logger,
+		callbackManager: overlayutil.NewCallbackManager(logger),
+		borderBuilder:   &overlayutil.WindowBorderBuilder{},
 	}, nil
 }
 
@@ -125,112 +131,52 @@ func (o *Overlay) ResizeToActiveScreen() {
 
 // ResizeToActiveScreenSync adjusts the overlay window size synchronously with callback notification.
 func (o *Overlay) ResizeToActiveScreenSync() {
-	done := make(chan struct{})
-
-	// Generate unique ID for this callback
-	callbackID := atomic.AddUint64(&scrollCallbackID, 1)
-
-	// Store channel in map
-	scrollCallbackLock.Lock()
-	scrollCallbackMap[callbackID] = done
-	scrollCallbackLock.Unlock()
-
-	if o.logger != nil {
-		o.logger.Debug("Scroll overlay resize started", zap.Uint64("callback_id", callbackID))
-	}
-
-	// Pass ID as context (safe - no Go pointers)
-	// Note: uintptr conversion must happen in same expression to satisfy go vet
-	C.NeruResizeOverlayToActiveScreenWithCallback(
-		o.window,
-		(C.ResizeCompletionCallback)(
-			unsafe.Pointer(C.resizeScrollCompletionCallback), //nolint:unconvert
-		),
-		*(*unsafe.Pointer)(unsafe.Pointer(&callbackID)),
-	)
-
-	// Don't wait for callback - continue immediately for better UX
-	// The resize operation is typically fast and visually complete before callback
-	// Start a goroutine to handle cleanup when callback eventually arrives
-	go func() {
-		if o.logger != nil {
-			o.logger.Debug(
-				"Scroll overlay resize background cleanup started",
-				zap.Uint64("callback_id", callbackID),
-			)
-		}
-
-		// Use timer instead of time.After to prevent memory leaks
-		timer := time.NewTimer(DefaultTimerDuration)
-		defer timer.Stop()
-
-		select {
-		case <-done:
-			timer.Stop() // Stop timer immediately on success
-			// Callback received, normal cleanup already handled in callback
-			if o.logger != nil {
-				o.logger.Debug(
-					"Scroll overlay resize callback received",
-					zap.Uint64("callback_id", callbackID),
-				)
-			}
-		case <-timer.C:
-			// Long timeout for cleanup only - callback likely failed
-			scrollCallbackLock.Lock()
-			delete(scrollCallbackMap, callbackID)
-			scrollCallbackLock.Unlock()
-
-			if o.logger != nil {
-				o.logger.Debug("Scroll overlay resize cleanup timeout - removed callback from map",
-					zap.Uint64("callback_id", callbackID))
-			}
-		}
-	}()
+	o.callbackManager.StartResizeOperation(func(callbackID uint64) {
+		// Pass ID as context (safe - no Go pointers)
+		// Note: uintptr conversion must happen in same expression to satisfy go vet
+		C.NeruResizeOverlayToActiveScreenWithCallback(
+			o.window,
+			(C.ResizeCompletionCallback)(
+				unsafe.Pointer(C.resizeScrollCompletionCallback), //nolint:unconvert
+			),
+			*(*unsafe.Pointer)(unsafe.Pointer(&callbackID)),
+		)
+	})
 }
 
 // DrawScrollHighlight renders a highlight border around the specified screen area.
 func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height int) {
-	// Use action config for highlight color and width
+	// Use scroll config for highlight color and width
 	color := o.config.HighlightColor
 	borderWidth := o.config.HighlightWidth
 
 	cColor := C.CString(color)
 	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
 
-	// Build 4 border lines around the rectangle
-	lines := make([]C.CGRect, DefaultGridLinesCount)
+	// Use border builder to create rectangles
+	rectangles := o.borderBuilder.BuildBorderRectangles(
+		xCoordinate, yCoordinate, width, height, borderWidth,
+	)
 
-	// Bottom
-	lines[0] = C.CGRect{
-		origin: C.CGPoint{x: C.double(xCoordinate), y: C.double(yCoordinate)},
-		size:   C.CGSize{width: C.double(width), height: C.double(borderWidth)},
-	}
-
-	// Top
-	lines[1] = C.CGRect{
-		origin: C.CGPoint{
-			x: C.double(xCoordinate),
-			y: C.double(yCoordinate + height - borderWidth),
-		},
-		size: C.CGSize{width: C.double(width), height: C.double(borderWidth)},
-	}
-
-	// Left
-	lines[2] = C.CGRect{
-		origin: C.CGPoint{x: C.double(xCoordinate), y: C.double(yCoordinate)},
-		size:   C.CGSize{width: C.double(borderWidth), height: C.double(height)},
-	}
-
-	// Right
-	lines[3] = C.CGRect{
-		origin: C.CGPoint{x: C.double(xCoordinate + width - borderWidth), y: C.double(yCoordinate)},
-		size:   C.CGSize{width: C.double(borderWidth), height: C.double(height)},
+	// Convert to C rectangles
+	lines := make([]C.CGRect, len(rectangles))
+	for i, rect := range rectangles {
+		lines[i] = C.CGRect{
+			origin: C.CGPoint{
+				x: C.double(rect.X),
+				y: C.double(rect.Y),
+			},
+			size: C.CGSize{
+				width:  C.double(rect.Width),
+				height: C.double(rect.Height),
+			},
+		}
 	}
 
 	C.NeruDrawWindowBorder(
 		o.window,
 		&lines[0],
-		C.int(DefaultGridLinesCount),
+		C.int(len(lines)),
 		cColor,
 		C.int(borderWidth),
 		C.double(1.0),

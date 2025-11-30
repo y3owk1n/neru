@@ -4,6 +4,7 @@ package app_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app"
@@ -20,10 +21,10 @@ func newTestController() *app.IPCController {
 	appState := state.NewAppState()
 	logger, _ := zap.NewDevelopment()
 	metricsCollector := metrics.NewCollector()
-	configService := config.NewService(cfg, "")
+	configService := config.NewService(cfg, "", logger)
 
-	// Create controller with nil services for basic command testing
-	return &app.IPCController{
+	// Create controller with minimal dependencies for basic command testing
+	controller := &app.IPCController{
 		AppState:      appState,
 		Config:        cfg,
 		ConfigService: configService,
@@ -32,6 +33,30 @@ func newTestController() *app.IPCController {
 		ConfigPath:    "/test/config.toml",
 		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
+
+	// Initialize handler components with nil dependencies where needed
+	lifecycleHandler := app.NewIPCControllerLifecycle(appState, nil, logger)
+	modesHandler := app.NewIPCControllerModes(nil, logger)
+	infoHandler := app.NewIPCControllerInfo(
+		configService,
+		appState,
+		cfg,
+		nil, // modes
+		nil, // hintService
+		nil, // gridService
+		nil, // actionService
+		nil, // scrollService
+		metricsCollector,
+		"/test/config.toml",
+		logger,
+	)
+
+	// Register handlers from each component
+	lifecycleHandler.RegisterHandlers(controller.Handlers)
+	modesHandler.RegisterHandlers(controller.Handlers)
+	infoHandler.RegisterHandlers(controller.Handlers)
+
+	return controller
 }
 
 func TestIPCController_HandlePing(t *testing.T) {
@@ -128,13 +153,15 @@ func TestIPCController_HandleConfig(t *testing.T) {
 		t.Errorf("Expected success=true, got %v", commandResponse.Success)
 	}
 
-	cfg, ok := commandResponse.Data.(*config.Config)
-	if !ok {
-		t.Fatalf("Expected *config.Config, got %T", commandResponse.Data)
+	if commandResponse.Data == nil {
+		t.Error("Expected non-nil data with config struct")
 	}
 
-	if cfg == nil {
-		t.Error("Expected non-nil config")
+	// Verify it's a valid config struct
+	if cfg, ok := commandResponse.Data.(*config.Config); !ok {
+		t.Errorf("Expected data to be *config.Config, got %T", commandResponse.Data)
+	} else if cfg == nil {
+		t.Error("Expected valid config struct, got nil")
 	}
 }
 
@@ -149,9 +176,15 @@ func TestIPCController_HandleMetrics(t *testing.T) {
 		t.Errorf("Expected success=true, got %v", commandResponse.Success)
 	}
 
-	// Metrics should return a snapshot (slice of metrics.Metric)
-	if commandResponse.Data == nil {
-		t.Error("Expected non-nil metrics data")
+	if commandResponse.Message == "" {
+		t.Error("Expected non-empty message with metrics JSON")
+	}
+
+	// Verify it's valid JSON
+	var metricsData []interface{}
+	err := json.Unmarshal([]byte(commandResponse.Message), &metricsData)
+	if err != nil {
+		t.Errorf("Expected valid JSON metrics, got error: %v", err)
 	}
 }
 

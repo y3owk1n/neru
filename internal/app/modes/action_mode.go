@@ -5,30 +5,25 @@ import (
 )
 
 // ActionMode implements the Mode interface for standalone action mode.
+// It uses the generic mode implementation with action-specific behavior.
 type ActionMode struct {
-	baseMode
+	*GenericMode
 }
 
 // NewActionMode creates a new action mode implementation.
 func NewActionMode(handler *Handler) *ActionMode {
-	return &ActionMode{
-		baseMode: newBaseMode(handler, domain.ModeAction, "ActionMode"),
+	behavior := ModeBehavior{
+		ActivateFunc: func(handler *Handler, action *string) {
+			// action parameter intentionally unused - ActionMode handles actions directly
+			handler.StartActionMode()
+		},
+		ExitFunc: func(handler *Handler) {
+			// Clear the action highlight overlay specific to action mode
+			handler.clearAndHideOverlay()
+		},
 	}
-}
 
-// Activate activates action mode.
-func (m *ActionMode) Activate(action *string) {
-	// action parameter intentionally unused - ActionMode handles actions directly
-	m.handler.StartActionMode()
-}
-
-// HandleActionKey processes action keys when in action mode.
-func (m *ActionMode) HandleActionKey(key string) {
-	m.handler.handleActionKey(key, ModeNameAction)
-}
-
-// Exit performs action mode cleanup.
-func (m *ActionMode) Exit() {
-	// Clear the action highlight overlay specific to action mode
-	m.handler.clearAndHideOverlay()
+	return &ActionMode{
+		GenericMode: NewGenericMode(handler, domain.ModeAction, "ActionMode", behavior),
+	}
 }

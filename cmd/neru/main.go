@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"go.uber.org/zap"
 )
 
 var globalApp *app.App
@@ -38,7 +39,8 @@ func LaunchDaemon(configPath string) {
 		}()
 	}
 
-	configResult := config.LoadWithValidation(configPath)
+	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop())
+	configResult := service.LoadWithValidation(configPath)
 
 	// If there's a validation error, show alert and continue with default config
 	if configResult.ValidationError != nil {

@@ -2,9 +2,14 @@ package config
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"sync"
 
+	"github.com/BurntSushi/toml"
+	"github.com/y3owk1n/neru/internal/core"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"go.uber.org/zap"
 )
 
 // Service manages application configuration with thread-safe access and change notifications.
@@ -14,14 +19,155 @@ type Service struct {
 	path     string
 	mu       sync.RWMutex
 	watchers []chan<- *Config
+	logger   *zap.Logger
 }
 
 // NewService creates a new configuration service.
-func NewService(cfg *Config, path string) *Service {
+func NewService(cfg *Config, path string, logger *zap.Logger) *Service {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	return &Service{
 		config: cfg,
 		path:   path,
+		logger: logger,
 	}
+}
+
+// LoadWithValidation loads configuration from the specified path and returns both
+// the config and any validation error separately. This allows callers to decide
+// how to handle validation failures (e.g., show alert and use default config).
+func (s *Service) LoadWithValidation(path string) *LoadResult {
+	configResult := &LoadResult{
+		Config:     DefaultConfig(),
+		ConfigPath: path,
+	}
+
+	if path == "" {
+		configResult.ConfigPath = s.FindConfigFile()
+	}
+
+	s.logger.Info("Loading config from", zap.String("path", configResult.ConfigPath))
+
+	_, statErr := os.Stat(configResult.ConfigPath)
+	if os.IsNotExist(statErr) {
+		s.logger.Info("Config file not found, using default configuration")
+
+		return configResult
+	}
+
+	_, decodeErr := toml.DecodeFile(configResult.ConfigPath, configResult.Config)
+	if decodeErr != nil {
+		configResult.ValidationError = core.WrapConfigFailed(decodeErr, "parse config file")
+		configResult.Config = DefaultConfig()
+
+		return configResult
+	}
+
+	var raw map[string]map[string]any
+
+	_, anotherDecodeErr := toml.DecodeFile(configResult.ConfigPath, &raw)
+	if anotherDecodeErr == nil {
+		if hot, ok := raw["hotkeys"]; ok {
+			if len(hot) > 0 {
+				// Clear default bindings when user provides hotkeys config
+				configResult.Config.Hotkeys.Bindings = map[string]string{}
+			}
+
+			for key, value := range hot {
+				str, ok := value.(string)
+				if !ok {
+					configResult.ValidationError = derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"hotkeys.%s must be a string action",
+						key,
+					)
+					configResult.Config = DefaultConfig()
+
+					return configResult
+				}
+
+				configResult.Config.Hotkeys.Bindings[key] = str
+			}
+		}
+	}
+
+	validateErr := configResult.Config.Validate()
+	if validateErr != nil {
+		configResult.ValidationError = core.WrapConfigFailed(validateErr, "validate configuration")
+		configResult.Config = DefaultConfig()
+
+		return configResult
+	}
+
+	s.logger.Info("Configuration loaded successfully")
+
+	return configResult
+}
+
+// FindConfigFile searches for a configuration file in standard locations.
+// Returns the path to the config file, or an empty string if not found.
+func (s *Service) FindConfigFile() string {
+	// Try XDG config directory first
+	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+		path := filepath.Join(xdgConfig, "neru", "config.toml")
+
+		_, err := os.Stat(path)
+		if err == nil {
+			return path
+		}
+	}
+
+	// Try standard config directory
+	homeDir, homeErr := os.UserHomeDir()
+	if homeErr == nil {
+		// Try .config/neru/config.toml
+		path := filepath.Join(homeDir, ".config", "neru", "config.toml")
+
+		_, err := os.Stat(path)
+		if err == nil {
+			return path
+		}
+
+		// Try .neru.toml
+		path = filepath.Join(homeDir, ".neru.toml")
+
+		_, err = os.Stat(path)
+		if err == nil {
+			return path
+		}
+	}
+
+	// Try current directory
+	_, err := os.Stat("neru.toml")
+	if err == nil {
+		return "neru.toml"
+	}
+
+	// Try config.toml
+	_, err = os.Stat("config.toml")
+	if err == nil {
+		return "config.toml"
+	}
+
+	return ""
+}
+
+// LoadAndApply loads configuration and applies it to the service.
+func (s *Service) LoadAndApply(path string) error {
+	loadResult := s.LoadWithValidation(path)
+
+	if loadResult.ValidationError != nil {
+		return loadResult.ValidationError
+	}
+
+	s.mu.Lock()
+	s.config = loadResult.Config
+	s.path = loadResult.ConfigPath
+	s.mu.Unlock()
+
+	return nil
 }
 
 // Get returns the current configuration (thread-safe).
@@ -48,17 +194,16 @@ func (s *Service) GetConfigPath() string {
 // Reload reloads the configuration from the specified path.
 func (s *Service) Reload(ctx context.Context, path string) error {
 	// Load and validate new config
-	configResult := LoadWithValidation(path)
+	loadResult := s.LoadWithValidation(path)
 
-	if configResult.ValidationError != nil {
-		return derrors.Wrap(configResult.ValidationError, derrors.CodeInvalidConfig,
-			"configuration validation failed")
+	if loadResult.ValidationError != nil {
+		return loadResult.ValidationError
 	}
 
 	// Update configuration atomically
 	s.mu.Lock()
-	s.config = configResult.Config
-	s.path = configResult.ConfigPath
+	s.config = loadResult.Config
+	s.path = loadResult.ConfigPath
 	watchers := make([]chan<- *Config, len(s.watchers))
 	copy(watchers, s.watchers)
 	s.mu.Unlock()
@@ -66,9 +211,9 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 	// Notify watchers (outside the lock to avoid deadlock)
 	for _, watcher := range watchers {
 		select {
-		case watcher <- configResult.Config:
+		case watcher <- loadResult.Config:
 		case <-ctx.Done():
-			return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
+			return core.WrapContextCanceled(ctx, "notify config watchers")
 		default:
 			// Skip if watcher is not ready
 		}

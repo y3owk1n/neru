@@ -78,6 +78,7 @@ func TestCLIIntegration(t *testing.T) {
 			return ipc.Response{Success: true, Data: map[string]interface{}{
 				"running": running,
 				"mode":    mode,
+				"config":  "using default config",
 			}}
 		case "hints":
 			appState.mu.RLock()
@@ -183,6 +184,9 @@ func TestCLIIntegration(t *testing.T) {
 		}
 		if mode, ok := data["mode"]; !ok || mode != "idle" {
 			t.Errorf("Expected mode='idle', got %v", mode)
+		}
+		if config, ok := data["config"]; !ok || config != "using default config" {
+			t.Errorf("Expected config='using default config', got %v", config)
 		}
 	})
 
