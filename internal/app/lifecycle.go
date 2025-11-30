@@ -100,16 +100,31 @@ func (a *App) adaptiveGC() {
 	runtime.ReadMemStats(&memStats)
 
 	heapAllocMB := memStats.HeapAlloc / BytesPerMB
+	highThresholdMB := uint64(HighMemoryThreshold / BytesPerMB)
+	lowThresholdMB := uint64(LowMemoryThreshold / BytesPerMB)
 
-	// Force GC if heap allocation is high
-	if heapAllocMB >= uint64(HighMemoryThreshold/BytesPerMB) {
+	// Use hysteresis to prevent GC oscillation
+	if heapAllocMB >= highThresholdMB {
+		a.gcAggressiveMode = true
+	}
+
+	if a.gcAggressiveMode {
 		a.logger.Debug("Running GC due to high memory pressure",
 			zap.Uint64("heap_alloc_mb", heapAllocMB),
-			zap.Uint64("next_gc_mb", memStats.NextGC/BytesPerMB))
+			zap.Uint64("next_gc_mb", memStats.NextGC/BytesPerMB),
+			zap.Bool("aggressive_mode", true))
 		runtime.GC()
+
+		// Exit aggressive mode if memory drops below low threshold
+		if heapAllocMB < lowThresholdMB {
+			a.gcAggressiveMode = false
+			a.logger.Debug("Exiting aggressive GC mode",
+				zap.Uint64("heap_alloc_mb", heapAllocMB))
+		}
 	} else {
 		a.logger.Debug("Skipping GC - memory usage normal",
-			zap.Uint64("heap_alloc_mb", heapAllocMB))
+			zap.Uint64("heap_alloc_mb", heapAllocMB),
+			zap.Bool("aggressive_mode", false))
 	}
 }
 

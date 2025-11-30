@@ -65,7 +65,8 @@ type App struct {
 	actionComponent *components.ActionComponent
 
 	// Lifecycle management
-	gcCancel context.CancelFunc
+	gcCancel         context.CancelFunc
+	gcAggressiveMode bool
 
 	// Renderer
 	renderer *ui.OverlayRenderer
