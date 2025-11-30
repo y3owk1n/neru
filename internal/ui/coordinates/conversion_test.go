@@ -279,10 +279,7 @@ func TestMultiMonitor_CoordinateConversion(t *testing.T) {
 	screenHintPos := image.Point{X: 2880, Y: 540} // center of second monitor
 
 	// Convert to local coordinates (relative to overlay window at screen origin)
-	localHintPos := image.Point{
-		X: screenHintPos.X - screenBounds.Min.X,
-		Y: screenHintPos.Y - screenBounds.Min.Y,
-	}
+	localHintPos := coordinates.ConvertToLocalCoordinates(screenHintPos, screenBounds)
 
 	expectedLocalPos := image.Point{X: 960, Y: 540} // 2880-1920=960, 540-0=540
 
