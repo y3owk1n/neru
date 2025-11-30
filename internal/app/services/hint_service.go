@@ -2,13 +2,27 @@ package services
 
 import (
 	"context"
+	"crypto/md5"
+	"fmt"
+	"image"
+	"sync"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
 )
+
+// elementCacheEntry represents a cached element with its position hash.
+type elementCacheEntry struct {
+	element   *element.Element
+	position  image.Rectangle
+	hash      string
+	timestamp time.Time
+}
 
 // HintService orchestrates hint generation and display.
 // It coordinates between the accessibility system, hint generator, and overlay.
@@ -18,6 +32,10 @@ type HintService struct {
 	generator     hint.Generator
 	config        config.HintsConfig
 	logger        *zap.Logger
+
+	// Cache for incremental updates
+	elementCache map[string]*elementCacheEntry
+	cacheMutex   sync.RWMutex
 }
 
 // NewHintService creates a new hint service with the given dependencies.
@@ -34,6 +52,7 @@ func NewHintService(
 		generator:     generator,
 		config:        config,
 		logger:        logger,
+		elementCache:  make(map[string]*elementCacheEntry),
 	}
 }
 
@@ -66,6 +85,14 @@ func (s *HintService) ShowHints(
 	}
 
 	s.logger.Info("Found clickable elements", zap.Int("count", len(elements)))
+
+	// Check for incremental updates
+	elements = s.filterChangedElements(elements)
+
+	s.logger.Info("Elements after incremental filtering", zap.Int("count", len(elements)))
+
+	// Update cache with new elements
+	s.updateElementCache(elements)
 
 	// Generate hints
 	hints, elementsErr := s.generator.Generate(ctx, elements)
@@ -147,4 +174,80 @@ func (s *HintService) Health(ctx context.Context) map[string]error {
 		"accessibility": s.accessibility.Health(ctx),
 		"overlay":       s.overlay.Health(ctx),
 	}
+}
+
+// filterChangedElements filters elements to only include those that have changed position or are new.
+func (s *HintService) filterChangedElements(elements []*element.Element) []*element.Element {
+	s.cacheMutex.Lock()
+	defer s.cacheMutex.Unlock()
+
+	var changedElements []*element.Element
+
+	for _, elem := range elements {
+		bounds := elem.Bounds()
+		elementID := string(elem.ID())
+
+		// Create hash of element position and size
+		hashInput := fmt.Sprintf(
+			"%s:%d:%d:%d:%d",
+			elementID,
+			bounds.Min.X,
+			bounds.Min.Y,
+			bounds.Max.X,
+			bounds.Max.Y,
+		)
+		hash := fmt.Sprintf("%x", md5.Sum([]byte(hashInput)))
+
+		cached, exists := s.elementCache[elementID]
+		if !exists || cached.hash != hash {
+			// Element is new or has changed
+			changedElements = append(changedElements, elem)
+		}
+	}
+
+	s.logger.Debug("Incremental update filtering",
+		zap.Int("total_elements", len(elements)),
+		zap.Int("changed_elements", len(changedElements)))
+
+	return changedElements
+}
+
+// updateElementCache updates the cache with new element positions.
+func (s *HintService) updateElementCache(elements []*element.Element) {
+	s.cacheMutex.Lock()
+	defer s.cacheMutex.Unlock()
+
+	now := time.Now()
+
+	// Clear old cache entries (older than 30 seconds)
+	for elementID, entry := range s.elementCache {
+		if now.Sub(entry.timestamp) > 30*time.Second {
+			delete(s.elementCache, elementID)
+		}
+	}
+
+	// Update cache with new elements
+	for _, elem := range elements {
+		bounds := elem.Bounds()
+		elementID := string(elem.ID())
+
+		hashInput := fmt.Sprintf(
+			"%s:%d:%d:%d:%d",
+			elementID,
+			bounds.Min.X,
+			bounds.Min.Y,
+			bounds.Max.X,
+			bounds.Max.Y,
+		)
+		hash := fmt.Sprintf("%x", md5.Sum([]byte(hashInput)))
+
+		s.elementCache[elementID] = &elementCacheEntry{
+			element:   elem,
+			position:  bounds,
+			hash:      hash,
+			timestamp: now,
+		}
+	}
+
+	s.logger.Debug("Updated element cache", zap.Int("cached_elements", len(s.elementCache)))
 }
