@@ -53,13 +53,13 @@ func TestHotkeyIntegration(t *testing.T) {
 
 	// Test that hotkeys are registered during app startup
 	t.Run("Hotkey Registration", func(t *testing.T) {
-		// Hotkeys should be registered during app startup
-		// The mock should have captured the registrations
+		// Hotkeys should be registered during app startup.
+		// DefaultConfig defines 3 bindings: hints, grid, and scroll
 		registeredCount := mockHotkeys.GetRegisteredCount()
 		if registeredCount == 0 {
 			t.Error("Expected hotkeys to be registered during app startup")
 		}
-		// Verify we have at least the default hotkeys
+		// Verify we have at least the 3 default hotkeys from config.DefaultConfig().Hotkeys.Bindings
 		if registeredCount < 3 {
 			t.Errorf("Expected at least 3 hotkeys registered, got %d", registeredCount)
 		}
