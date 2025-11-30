@@ -1,6 +1,8 @@
 package modes
 
 import (
+	"image"
+
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
@@ -57,6 +59,9 @@ type Handler struct {
 
 	// Mode implementations
 	modes map[domain.Mode]Mode
+
+	// Screen bounds for coordinate conversion
+	screenBounds image.Rectangle
 
 	enableEventTap  func()
 	disableEventTap func()

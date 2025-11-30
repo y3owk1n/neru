@@ -71,6 +71,9 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 func (h *Handler) createGridInstance() *domainGrid.Grid {
 	screenBounds := bridge.ActiveScreenBounds()
 
+	// Store screen bounds for coordinate conversion
+	h.screenBounds = screenBounds
+
 	// Normalize normalizedBounds to window-local coordinates using helper function
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
 
@@ -177,7 +180,10 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 			// Move mouse to center of cell before showing subgrid for better UX
 			ctx := context.Background()
 
-			moveCursorErr := h.actionService.MoveCursorToPoint(ctx, cell.Center())
+			// Convert cell center from window-local to screen-absolute coordinates
+			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(cell.Center(), h.screenBounds)
+
+			moveCursorErr := h.actionService.MoveCursorToPoint(ctx, absoluteCenter)
 			if moveCursorErr != nil {
 				h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
 			}
