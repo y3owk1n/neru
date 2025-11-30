@@ -53,7 +53,8 @@ func CompleteGlobalCallback(callbackID uint64) {
 	}
 
 	// Note: We don't clean up from callbackIDStore here because the pointer
-	// may still be in use by C code. Entries are reused.
+	// may still be in use by C code. Since callback IDs are unique and monotonically
+	// increasing, store entries are not reused (each ID occupies its own slot).
 }
 
 // CallbackIDToPointer converts a callback ID to unsafe.Pointer in a way that go vet accepts.
