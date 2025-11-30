@@ -42,6 +42,9 @@ type Service struct {
 
 // NewService creates a new configuration service.
 func NewService(cfg *Config, path string, logger *zap.Logger) *Service {
+	if cfg == nil {
+		cfg = DefaultConfig()
+	}
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -121,6 +124,11 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 					)
 					configResult.Config = DefaultConfig()
 
+					s.logger.Warn("Invalid hotkey configuration",
+						zap.String("key", key),
+						zap.Any("value", value),
+						zap.Error(configResult.ValidationError))
+
 					return configResult
 				}
 
@@ -133,6 +141,9 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	if validateErr != nil {
 		configResult.ValidationError = core.WrapConfigFailed(validateErr, "validate configuration")
 		configResult.Config = DefaultConfig()
+
+		s.logger.Warn("Configuration validation failed",
+			zap.Error(configResult.ValidationError))
 
 		return configResult
 	}
