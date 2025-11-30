@@ -259,6 +259,7 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 	for _, watcher := range watchers {
 		if !safeSendConfig(watcher, loadResult.Config) {
 			s.logger.Debug("Watcher channel full, skipping notification")
+
 			continue
 		}
 
