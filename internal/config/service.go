@@ -63,23 +63,24 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		return configResult
 	}
 
-	// Decode once into raw map for both config population and hotkey processing
-	var raw map[string]any
+	// Double decode is necessary because:
+	// 1. Raw map is needed for hotkey processing (which may have complex validation)
+	// 2. Typed struct decode ensures proper validation of other config fields
+	// TOML library doesn't support mixed struct/map decoding in single pass
 
+	var raw map[string]any
 	_, decodeErr := toml.DecodeFile(configResult.ConfigPath, &raw)
 	if decodeErr != nil {
 		configResult.ValidationError = core.WrapConfigFailed(decodeErr, "parse config file")
 		configResult.Config = DefaultConfig()
-
 		return configResult
 	}
 
-	// Decode into typed config struct
+	// Decode into typed config struct (separate pass for validation)
 	_, err := toml.DecodeFile(configResult.ConfigPath, configResult.Config)
 	if err != nil {
 		configResult.ValidationError = core.WrapConfigFailed(err, "parse config file")
 		configResult.Config = DefaultConfig()
-
 		return configResult
 	}
 
