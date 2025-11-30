@@ -29,8 +29,9 @@ var (
 	timeoutSec = 5
 
 	// CLI utilities.
-	communicator = cliutil.NewIPCCommunicator(timeoutSec)
-	builder      = cliutil.NewCommandBuilder(communicator)
+	communicator *cliutil.IPCCommunicator
+	builder      *cliutil.CommandBuilder
+	formatter    *cliutil.OutputFormatter
 )
 
 var rootCmd = &cobra.Command{
@@ -60,6 +61,11 @@ func Execute() {
 }
 
 func init() {
+	// Initialize CLI utilities.
+	communicator = cliutil.NewIPCCommunicator(timeoutSec)
+	builder = cliutil.NewCommandBuilder(communicator)
+	formatter = cliutil.NewOutputFormatter()
+
 	rootCmd.SetVersionTemplate(
 		fmt.Sprintf(
 			"Neru version %s\nGit commit: %s\nBuild date: %s\n",

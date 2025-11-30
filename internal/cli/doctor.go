@@ -2,7 +2,6 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/neru/internal/cli/cliutil"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
@@ -21,8 +20,6 @@ var doctorCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
-		formatter := cliutil.NewOutputFormatter()
 
 		return formatter.PrintHealth(cmd, ipcResponse.Success, ipcResponse.Data)
 	},
