@@ -25,12 +25,6 @@ import (
 )
 
 const (
-	// DefaultCallbackMapSize is the default size for callback maps.
-	DefaultCallbackMapSize = 8
-
-	// DefaultTimerDuration is the default timer duration.
-	DefaultTimerDuration = 2 * time.Second
-
 	// DefaultGridLinesCount is the default number of grid lines.
 	DefaultGridLinesCount = 4
 
