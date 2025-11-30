@@ -131,9 +131,9 @@ func TestConvertToAbsoluteCoordinates(t *testing.T) {
 			expected:     image.Point{X: 100, Y: 200},
 		},
 		{
-			name:         "offset screen",
+			name:         "multi-monitor extended screen",
 			localPoint:   image.Point{X: 100, Y: 200},
-			screenBounds: image.Rect(1920, 0, 3840, 1080),
+			screenBounds: image.Rect(1920, 0, 3840, 1080), // Second monitor
 			expected:     image.Point{X: 2020, Y: 200},
 		},
 		{
@@ -141,12 +141,6 @@ func TestConvertToAbsoluteCoordinates(t *testing.T) {
 			localPoint:   image.Point{X: 50, Y: 75},
 			screenBounds: image.Rect(-1920, -1080, 0, 0),
 			expected:     image.Point{X: -1870, Y: -1005},
-		},
-		{
-			name:         "multi-monitor extended screen",
-			localPoint:   image.Point{X: 100, Y: 200},
-			screenBounds: image.Rect(1920, 0, 3840, 1080), // Second monitor
-			expected:     image.Point{X: 2020, Y: 200},
 		},
 	}
 
