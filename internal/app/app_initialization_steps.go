@@ -3,7 +3,9 @@ package app
 import (
 	"context"
 
+	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/modes"
+	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -172,15 +174,80 @@ func initializeModeHandler(app *App) {
 	cfg := app.config
 	logger := app.logger
 
+	// Group related dependencies for better readability
+	deps := struct {
+		config         *config.Config
+		logger         *zap.Logger
+		appState       *state.AppState
+		cursorState    *state.CursorState
+		overlayManager OverlayManager
+		renderer       *ui.OverlayRenderer
+		services       struct {
+			hint   *services.HintService
+			grid   *services.GridService
+			action *services.ActionService
+			scroll *services.ScrollService
+		}
+		components struct {
+			hints  *components.HintsComponent
+			grid   *components.GridComponent
+			scroll *components.ScrollComponent
+			action *components.ActionComponent
+		}
+		callbacks struct {
+			enableEventTap  func()
+			disableEventTap func()
+			refreshHotkeys  func()
+		}
+	}{
+		config:         cfg,
+		logger:         logger,
+		appState:       app.appState,
+		cursorState:    app.cursorState,
+		overlayManager: app.overlayManager,
+		renderer:       app.renderer,
+		services: struct {
+			hint   *services.HintService
+			grid   *services.GridService
+			action *services.ActionService
+			scroll *services.ScrollService
+		}{
+			hint:   app.hintService,
+			grid:   app.gridService,
+			action: app.actionService,
+			scroll: app.scrollService,
+		},
+		components: struct {
+			hints  *components.HintsComponent
+			grid   *components.GridComponent
+			scroll *components.ScrollComponent
+			action *components.ActionComponent
+		}{
+			hints:  app.hintsComponent,
+			grid:   app.gridComponent,
+			scroll: app.scrollComponent,
+			action: app.actionComponent,
+		},
+		callbacks: struct {
+			enableEventTap  func()
+			disableEventTap func()
+			refreshHotkeys  func()
+		}{
+			enableEventTap:  app.enableEventTap,
+			disableEventTap: app.disableEventTap,
+			refreshHotkeys:  func() { app.refreshHotkeysForAppOrCurrent("") },
+		},
+	}
+
 	app.modes = modes.NewHandler(
-		cfg, logger, app.appState, app.cursorState, app.overlayManager, app.renderer,
-		app.hintService,
-		app.gridService,
-		app.actionService,
-		app.scrollService,
-		app.hintsComponent, app.gridComponent, app.scrollComponent, app.actionComponent,
-		app.enableEventTap, app.disableEventTap,
-		func() { app.refreshHotkeysForAppOrCurrent("") },
+		deps.config, deps.logger, deps.appState, deps.cursorState, deps.overlayManager, deps.renderer,
+		deps.services.hint,
+		deps.services.grid,
+		deps.services.action,
+		deps.services.scroll,
+		deps.components.hints, deps.components.grid, deps.components.scroll, deps.components.action,
+		deps.callbacks.enableEventTap, deps.callbacks.disableEventTap,
+		deps.callbacks.refreshHotkeys,
 	)
 }
 
@@ -215,7 +282,9 @@ func initializeEventTapAndIPC(app *App) error {
 
 	if app.eventTap == nil {
 		logger.Warn("Event tap creation failed - key capture won't work")
-	} else {
+	}
+
+	if app.eventTap != nil {
 		app.configureEventTapHotkeys(cfg, logger)
 	}
 
