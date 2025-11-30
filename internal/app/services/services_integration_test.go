@@ -269,8 +269,9 @@ func initializeRealAdapters(
 		metricsCollector,
 	)
 
-	// Initialize overlay manager
-	overlayManager := uiOverlay.Init(logger)
+	// Initialize overlay manager (always use no-op for integration tests)
+	var overlayManager uiOverlay.ManagerInterface
+	overlayManager = &uiOverlay.NoOpManager{}
 
 	// Create overlay adapter
 	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)

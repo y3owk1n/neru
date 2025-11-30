@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/neru/internal/cli/cliutil"
 )
 
 var statusCmd = &cobra.Command{
@@ -9,11 +10,10 @@ var statusCmd = &cobra.Command{
 	Short: "Show neru status",
 	Long:  `Display the current status of the neru program.`,
 	PreRunE: func(_ *cobra.Command, _ []string) error {
-		return builder.CheckRunningInstance()
+		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		// Update communicator timeout to reflect current flag value
-		communicator.SetTimeout(timeoutSec)
+		communicator := cliutil.NewIPCCommunicator(timeoutSec)
 
 		ipcResponse, err := communicator.SendCommand("status", []string{})
 		if err != nil {

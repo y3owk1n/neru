@@ -1,6 +1,6 @@
 package cli
 
-var stopCmd = builder.BuildSimpleCommand(
+var stopCmd = buildSimpleCommand(
 	"stop",
 	"Pause the neru program (does not quit)",
 	`Pause the neru program. This disables neru functionality but keeps it running in the background.`,
