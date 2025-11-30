@@ -5,7 +5,6 @@ package services_test
 import (
 	"context"
 	"image"
-	"os"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -270,14 +269,9 @@ func initializeRealAdapters(
 		metricsCollector,
 	)
 
-	// Initialize overlay manager (skip in headless/CI environments)
+	// Initialize overlay manager (always use no-op for integration tests)
 	var overlayManager uiOverlay.ManagerInterface
-	if os.Getenv("CI") != "true" && os.Getenv("DISPLAY") != "" {
-		overlayManager = uiOverlay.Init(logger)
-	} else {
-		// In headless environments, create a no-op overlay manager
-		overlayManager = &uiOverlay.NoOpManager{}
-	}
+	overlayManager = &uiOverlay.NoOpManager{}
 
 	// Create overlay adapter
 	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)
