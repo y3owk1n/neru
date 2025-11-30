@@ -41,6 +41,9 @@ func (s *Service) ReloadWithAppContext(
 	copy(watchers, s.watchers)
 	s.mu.Unlock()
 
+	// Update global config for backward compatibility (must happen before watcher notifications)
+	SetGlobal(loadResult.Config)
+
 	// Notify watchers (outside the lock to avoid deadlock)
 	for _, watcher := range watchers {
 		select {
@@ -51,9 +54,6 @@ func (s *Service) ReloadWithAppContext(
 			// Skip if watcher is not ready
 		}
 	}
-
-	// Update global config for backward compatibility
-	SetGlobal(loadResult.Config)
 
 	logger.Info("Configuration reloaded successfully")
 
