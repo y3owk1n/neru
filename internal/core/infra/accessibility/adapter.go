@@ -3,6 +3,7 @@ package accessibility
 import (
 	"context"
 	"image"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
@@ -68,40 +69,95 @@ func (a *Adapter) ClickableElements(
 
 	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))
 
-	frontmostWindow, frontmostWindowErr := a.client.FrontmostWindow()
-	if frontmostWindowErr != nil {
-		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get frontmost window")
-	}
-	defer frontmostWindow.Release()
+	// Use bounded concurrency for parallel queries
+	const maxConcurrency = 3 // Limit concurrent queries to avoid overwhelming the system
 
-	clickableNodes, clickableNodesErr := a.client.ClickableNodes(
-		frontmostWindow,
-		filter.IncludeOffscreen,
+	semaphore := make(chan struct{}, maxConcurrency)
+
+	var (
+		waitGroup   sync.WaitGroup
+		mutex       sync.Mutex
+		allElements []*element.Element
+		firstError  error
 	)
-	if clickableNodesErr != nil {
-		return nil, derrors.Wrap(
-			clickableNodesErr,
-			derrors.CodeAccessibilityFailed,
-			"failed to get clickable nodes",
-		)
+
+	// Function to collect elements from a source
+	collectElements := func(sourceName string, queryFunc func() ([]*element.Element, error)) {
+		defer waitGroup.Done()
+
+		<-semaphore // Acquire semaphore
+
+		elements, err := queryFunc()
+		if err != nil {
+			mutex.Lock()
+
+			if firstError == nil {
+				firstError = derrors.Wrap(err, derrors.CodeAccessibilityFailed,
+					"failed to get elements from "+sourceName)
+			}
+
+			mutex.Unlock()
+
+			return
+		}
+
+		mutex.Lock()
+
+		allElements = append(allElements, elements...)
+
+		mutex.Unlock()
+
+		a.logger.Debug("Collected elements from "+sourceName, zap.Int("count", len(elements)))
 	}
 
-	a.logger.Debug("Found clickable nodes", zap.Int("count", len(clickableNodes)))
+	// Query frontmost window
+	waitGroup.Add(1)
 
-	// Convert to domain elements
-	elements, processErr := a.processClickableNodes(ctx, clickableNodes, filter)
-	if processErr != nil {
-		return nil, processErr
+	go func() {
+		semaphore <- struct{}{} // Acquire semaphore
+
+		collectElements("frontmost window", func() ([]*element.Element, error) {
+			frontmostWindow, frontmostWindowErr := a.client.FrontmostWindow()
+			if frontmostWindowErr != nil {
+				return nil, frontmostWindowErr
+			}
+			defer frontmostWindow.Release()
+
+			clickableNodes, clickableNodesErr := a.client.ClickableNodes(
+				frontmostWindow,
+				filter.IncludeOffscreen,
+			)
+			if clickableNodesErr != nil {
+				return nil, clickableNodesErr
+			}
+
+			return a.processClickableNodes(ctx, clickableNodes, filter)
+		})
+	}()
+
+	// Query supplementary elements in parallel
+	if filter.IncludeMenubar || filter.IncludeDock || len(filter.AdditionalMenubarTargets) > 0 {
+		waitGroup.Add(1)
+
+		go func() {
+			semaphore <- struct{}{} // Acquire semaphore
+
+			collectElements("supplementary sources", func() ([]*element.Element, error) {
+				return a.addSupplementaryElements(ctx, []*element.Element{}, filter), nil
+			})
+		}()
 	}
 
-	a.logger.Info("Converted frontmost window elements", zap.Int("count", len(elements)))
+	// Wait for all queries to complete
+	waitGroup.Wait()
 
-	// Add supplementary elements based on filter
-	elements = a.addSupplementaryElements(ctx, elements, filter)
+	if firstError != nil {
+		return nil, firstError
+	}
 
-	a.logger.Info("Total elements after supplementary collection", zap.Int("count", len(elements)))
+	a.logger.Info("Total elements collected", zap.Int("count", len(allElements)))
 
-	return elements, nil
+	return allElements, nil
 }
 
 // PerformAction executes an action on the specified element.

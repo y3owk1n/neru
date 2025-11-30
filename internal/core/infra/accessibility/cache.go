@@ -17,12 +17,48 @@ const (
 
 	// CacheDeletionEstimate is the estimate for deletion.
 	CacheDeletionEstimate = 4
+
+	// StaticElementTTL is the TTL for static UI elements (buttons, links, etc.).
+	StaticElementTTL = 30 * time.Second
+
+	// DynamicElementTTL is the TTL for dynamic UI elements (text fields, scrollable content, etc.).
+	DynamicElementTTL = 2 * time.Second
 )
 
 // CachedInfo wraps ElementInfo with an expiration timestamp for TTL-based caching.
 type CachedInfo struct {
 	info      *ElementInfo
 	expiresAt time.Time
+}
+
+// isStaticElement determines if an element should use static (longer) TTL based on its role.
+func isStaticElement(info *ElementInfo) bool {
+	if info == nil {
+		return false
+	}
+
+	role := info.Role()
+
+	// Static elements: buttons, links, menu items, tabs, etc. - these don't change often
+	staticRoles := map[string]bool{
+		"AXButton":             true,
+		"AXLink":               true,
+		"AXMenuItem":           true,
+		"AXMenuButton":         true,
+		"AXPopUpButton":        true,
+		"AXTabButton":          true,
+		"AXCheckBox":           true,
+		"AXRadioButton":        true,
+		"AXSwitch":             true,
+		"AXDisclosureTriangle": true,
+		"AXComboBox":           true,
+		"AXSlider":             true,
+		"AXStaticText":         true, // Static text is usually labels
+		"AXImage":              true, // Images are usually static
+		"AXHeading":            true, // Headings are usually static
+	}
+
+	return staticRoles[role]
 }
 
 // InfoCache implements a thread-safe time-to-live cache for element information.
@@ -74,14 +110,23 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	return cached.info
 }
 
-// Set stores element information in the cache with the configured time-to-live.
+// Set stores element information in the cache with appropriate time-to-live based on element type.
 func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	// #nosec G103 -- Using pointer address as map key is safe for cache
 	key := uintptr(unsafe.Pointer(elem))
-	expiresAt := time.Now().Add(c.ttl)
+
+	// Use different TTL based on element type
+	var ttl time.Duration
+	if isStaticElement(info) {
+		ttl = StaticElementTTL
+	} else {
+		ttl = DynamicElementTTL
+	}
+
+	expiresAt := time.Now().Add(ttl)
 	c.data[key] = &CachedInfo{
 		info:      info,
 		expiresAt: expiresAt,
@@ -91,6 +136,7 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 		zap.Uintptr("element_ptr", key),
 		zap.String("role", info.Role()),
 		zap.String("title", info.Title()),
+		zap.Duration("ttl", ttl),
 		zap.Time("expires_at", expiresAt))
 }
 
