@@ -293,6 +293,7 @@ func cleanupEventTapAndIPC(app *App) {
 		if stopErr != nil {
 			app.logger.Error("Failed to stop IPC server during cleanup", zap.Error(stopErr))
 		}
+
 		app.ipcServer = nil
 	}
 

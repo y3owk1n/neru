@@ -40,6 +40,7 @@ func New(opts ...Option) (*App, error) {
 // application components in the correct order.
 func initializeApp(app *App) (*App, error) {
 	var initializedPhases []func() // Cleanup functions for successful phases
+
 	var initializationFailed bool
 
 	// Cleanup function that runs on failure to prevent resource leaks
@@ -57,8 +58,10 @@ func initializeApp(app *App) (*App, error) {
 	err := initializeInfrastructure(app)
 	if err != nil {
 		initializationFailed = true
+
 		return nil, err
 	}
+
 	initializedPhases = append(initializedPhases, func() {
 		cleanupInfrastructure(app)
 	})
@@ -67,8 +70,10 @@ func initializeApp(app *App) (*App, error) {
 	err = initializeServicesAndAdapters(app)
 	if err != nil {
 		initializationFailed = true
+
 		return nil, err
 	}
+
 	initializedPhases = append(initializedPhases, func() {
 		cleanupServicesAndAdapters(app)
 	})
@@ -81,8 +86,10 @@ func initializeApp(app *App) (*App, error) {
 	err = initializeUIComponents(app)
 	if err != nil {
 		initializationFailed = true
+
 		return nil, err
 	}
+
 	initializedPhases = append(initializedPhases, func() {
 		cleanupUIComponents(app)
 	})
@@ -103,8 +110,10 @@ func initializeApp(app *App) (*App, error) {
 	err = initializeEventTapAndIPC(app)
 	if err != nil {
 		initializationFailed = true
+
 		return nil, err
 	}
+
 	initializedPhases = append(initializedPhases, func() {
 		cleanupEventTapAndIPC(app)
 	})
