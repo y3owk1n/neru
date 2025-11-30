@@ -40,11 +40,15 @@ func (h *IPCControllerLifecycle) RegisterHandlers(
 }
 
 func (h *IPCControllerLifecycle) handlePing(_ context.Context, _ ipc.Command) ipc.Response {
+	h.logger.Debug("Received ping command")
 	return ipc.Response{Success: true, Message: "pong", Code: ipc.CodeOK}
 }
 
 func (h *IPCControllerLifecycle) handleStart(_ context.Context, _ ipc.Command) ipc.Response {
+	h.logger.Info("Received start command")
+
 	if h.appState.IsEnabled() {
+		h.logger.Warn("Attempted to start neru when already running")
 		return ipc.Response{
 			Success: false,
 			Message: "neru is already running",
@@ -53,12 +57,16 @@ func (h *IPCControllerLifecycle) handleStart(_ context.Context, _ ipc.Command) i
 	}
 
 	h.appState.SetEnabled(true)
+	h.logger.Info("Neru started successfully")
 
 	return ipc.Response{Success: true, Message: "neru started", Code: ipc.CodeOK}
 }
 
 func (h *IPCControllerLifecycle) handleStop(_ context.Context, _ ipc.Command) ipc.Response {
+	h.logger.Info("Received stop command")
+
 	if !h.appState.IsEnabled() {
+		h.logger.Warn("Attempted to stop neru when already stopped")
 		return ipc.Response{
 			Success: false,
 			Message: "neru is already stopped",
@@ -71,6 +79,8 @@ func (h *IPCControllerLifecycle) handleStop(_ context.Context, _ ipc.Command) ip
 	if h.modes != nil {
 		h.modes.ExitMode()
 	}
+
+	h.logger.Info("Neru stopped successfully")
 
 	return ipc.Response{Success: true, Message: "neru stopped", Code: ipc.CodeOK}
 }
