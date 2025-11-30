@@ -2,7 +2,6 @@ package overlayutil
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -23,8 +22,9 @@ var (
 	callbackManagerRegistry   = make(map[uint64]*CallbackManager)
 	callbackManagerRegistryMu sync.RWMutex
 
-	// Global counter for generating unique callback IDs across all managers.
-	globalCallbackID uint64
+	// freeCallbackIDs is a pool of available callback IDs for reuse.
+	freeCallbackIDs   []uint64
+	freeCallbackIDsMu sync.Mutex
 
 	// callbackIDStore stores callback IDs in a fixed-size slice to allow safe pointer conversion.
 	// The slice index is the callback ID, and the value is the same ID (for pointer stability).
@@ -33,6 +33,14 @@ var (
 	callbackIDStore   = make([]uint64, DefaultCallbackIDStoreCapacity)
 	callbackIDStoreMu sync.Mutex
 )
+
+func init() {
+	// Initialize the free ID pool with all available IDs.
+	freeCallbackIDs = make([]uint64, 0, DefaultCallbackIDStoreCapacity)
+	for i := uint64(0); i < DefaultCallbackIDStoreCapacity; i++ {
+		freeCallbackIDs = append(freeCallbackIDs, i)
+	}
+}
 
 // CompleteGlobalCallback completes a callback by ID using the global registry.
 // This function is called by C callbacks that can't access instance methods.
@@ -52,9 +60,13 @@ func CompleteGlobalCallback(callbackID uint64) {
 		callbackManagerRegistryMu.Unlock()
 	}
 
+	// Return the ID to the free pool for reuse
+	freeCallbackIDsMu.Lock()
+	freeCallbackIDs = append(freeCallbackIDs, callbackID)
+	freeCallbackIDsMu.Unlock()
+
 	// Note: We don't clean up from callbackIDStore here because the pointer
-	// may still be in use by C code. Since callback IDs are unique and monotonically
-	// increasing, store entries are not reused (each ID occupies its own slot).
+	// may still be in use by C code. The ID is returned to the free pool for reuse.
 }
 
 // CallbackIDToPointer converts a callback ID to unsafe.Pointer in a way that go vet accepts.
@@ -98,8 +110,15 @@ func NewCallbackManager(logger *zap.Logger) *CallbackManager {
 func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64)) {
 	done := make(chan struct{})
 
-	// Generate unique ID for this callback
-	callbackID := atomic.AddUint64(&globalCallbackID, 1)
+	// Allocate an ID from the free pool
+	freeCallbackIDsMu.Lock()
+	if len(freeCallbackIDs) == 0 {
+		freeCallbackIDsMu.Unlock()
+		panic("overlayutil: no available callback IDs")
+	}
+	callbackID := freeCallbackIDs[len(freeCallbackIDs)-1]
+	freeCallbackIDs = freeCallbackIDs[:len(freeCallbackIDs)-1]
+	freeCallbackIDsMu.Unlock()
 
 	// Store channel in instance map
 	c.callbackMu.Lock()
