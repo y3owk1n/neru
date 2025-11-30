@@ -73,6 +73,17 @@ type Overlay struct {
 
 	// Pre-allocated buffer for grid lines (always 4 lines for highlights)
 	gridLineBuffer [DefaultGridLinesCount]C.CGRect
+
+	// State tracking for dirty rectangle updates
+	gridStateMu   sync.RWMutex
+	previousGrid  *domainGrid.Grid
+	previousInput string
+	previousStyle Style
+
+	// Viewport tracking for lazy rendering
+	viewportMu sync.RWMutex
+	viewport   image.Rectangle // Current visible area
+	maxCells   int             // Maximum cells to render (0 = no limit)
 }
 
 // initGridPools initializes the grid object pools once.
@@ -241,12 +252,11 @@ func (o *Overlay) ResizeToActiveScreen() {
 
 // DrawGrid renders the flat grid with all 3-char cells visible.
 func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Style) error {
-	// Clear existing content
-	o.Clear()
-
 	cells := grid.AllCells()
 
 	if len(cells) == 0 {
+		o.Clear()
+
 		return nil
 	}
 
@@ -254,7 +264,35 @@ func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Sty
 	var msBefore runtime.MemStats
 	runtime.ReadMemStats(&msBefore)
 
-	o.drawGridCells(cells, currentInput, style)
+	// Check if we can do incremental updates
+	o.gridStateMu.RLock()
+	canIncrementalUpdate := o.previousGrid != nil &&
+		o.previousInput == currentInput &&
+		o.previousStyle == style &&
+		len(o.previousGrid.AllCells()) == len(cells)
+	o.gridStateMu.RUnlock()
+
+	if canIncrementalUpdate {
+		// Try incremental update
+		if o.drawGridIncremental(grid, currentInput, style) {
+			o.logger.Debug("Grid incremental update successful")
+
+			return nil
+		}
+		o.logger.Debug("Grid incremental update failed, falling back to full redraw")
+	}
+
+	// Full redraw
+	o.Clear()
+	visibleCells := o.filterCellsByViewport(cells)
+	o.drawGridCells(visibleCells, currentInput, style)
+
+	// Update cached state
+	o.gridStateMu.Lock()
+	o.previousGrid = grid
+	o.previousInput = currentInput
+	o.previousStyle = style
+	o.gridStateMu.Unlock()
 
 	var msAfter runtime.MemStats
 	runtime.ReadMemStats(&msAfter)
@@ -425,6 +463,143 @@ func (o *Overlay) DrawScrollHighlight(
 		C.int(borderWidth),
 		C.double(1.0),
 	)
+}
+
+// SetViewport sets the current viewport for lazy rendering.
+func (o *Overlay) SetViewport(viewport image.Rectangle) {
+	o.viewportMu.Lock()
+	defer o.viewportMu.Unlock()
+	o.viewport = viewport
+}
+
+// SetMaxCells sets the maximum number of cells to render (0 = no limit).
+func (o *Overlay) SetMaxCells(maxCells int) {
+	o.viewportMu.Lock()
+	defer o.viewportMu.Unlock()
+	o.maxCells = maxCells
+}
+
+// drawGridIncremental performs incremental updates by only redrawing changed cells.
+func (o *Overlay) drawGridIncremental(grid *domainGrid.Grid, currentInput string, style Style) bool {
+	o.gridStateMu.RLock()
+	previousGrid := o.previousGrid
+	previousInput := o.previousInput
+	previousStyle := o.previousStyle
+	o.gridStateMu.RUnlock()
+
+	if previousGrid == nil {
+		return false // No previous state to compare against
+	}
+
+	// Check if only the input changed (common case for typing)
+	if o.gridsAreStructurallyEqual(grid, previousGrid) && style == previousStyle {
+		// Only input changed - we can do incremental match updates
+		if currentInput != previousInput {
+			o.updateMatchesIncremental(grid, currentInput, previousInput)
+			return true
+		}
+	}
+
+	// For structural changes (grid size/layout changes), fall back to full redraw
+	// TODO: Implement true incremental updates for structural changes
+	// This would require new C API functions to update individual cells
+	return false
+}
+
+// gridsAreStructurallyEqual checks if two grids have the same structure (same cells in same positions).
+func (o *Overlay) gridsAreStructurallyEqual(a, b *domainGrid.Grid) bool {
+	aCells := a.AllCells()
+	bCells := b.AllCells()
+
+	if len(aCells) != len(bCells) {
+		return false
+	}
+
+	// Check if all cells have the same coordinates and bounds
+	for i, aCell := range aCells {
+		bCell := bCells[i]
+		if aCell.Coordinate() != bCell.Coordinate() ||
+			aCell.Bounds() != bCell.Bounds() {
+			return false
+		}
+	}
+
+	return true
+}
+
+// updateMatchesIncremental updates only the match states for cells when input changes.
+func (o *Overlay) updateMatchesIncremental(grid *domainGrid.Grid, newInput, oldInput string) {
+	cells := grid.AllCells()
+
+	// Find cells whose match status changed
+	var changedCells []*domainGrid.Cell
+	var changedPrefixes []string
+
+	for _, cell := range cells {
+		coord := cell.Coordinate()
+
+		// Check if match status changed
+		oldMatched := oldInput != "" && strings.HasPrefix(coord, oldInput)
+		newMatched := newInput != "" && strings.HasPrefix(coord, newInput)
+
+		if oldMatched != newMatched {
+			changedCells = append(changedCells, cell)
+			// Calculate the matched prefix length for the new input
+			matchedLength := 0
+			if newMatched {
+				matchedLength = len(newInput)
+			}
+			changedPrefixes = append(changedPrefixes, coord[:min(matchedLength, len(coord))])
+		}
+	}
+
+	if len(changedCells) > 0 {
+		o.logger.Debug("Incremental match update",
+			zap.Int("changed_cells", len(changedCells)),
+			zap.String("old_input", oldInput),
+			zap.String("new_input", newInput))
+
+		// Update only the changed cells
+		// Note: This is a simplified implementation. A full incremental update
+		// would require new C API functions to update individual cells by index.
+		o.drawGridCells(changedCells, newInput, BuildStyle(o.config))
+	}
+}
+
+// min returns the minimum of two integers.
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// filterCellsByViewport returns only cells that intersect with the viewport.
+func (o *Overlay) filterCellsByViewport(cells []*domainGrid.Cell) []*domainGrid.Cell {
+	o.viewportMu.RLock()
+	viewport := o.viewport
+	maxCells := o.maxCells
+	o.viewportMu.RUnlock()
+
+	if viewport.Empty() || maxCells == 0 {
+		return cells
+	}
+
+	var visibleCells []*domainGrid.Cell
+
+	// First pass: collect cells that intersect with viewport
+	for _, cell := range cells {
+		if cell.Bounds().Overlaps(viewport) {
+			visibleCells = append(visibleCells, cell)
+		}
+	}
+
+	// Second pass: limit to maxCells if specified
+	if maxCells > 0 && len(visibleCells) > maxCells {
+		visibleCells = visibleCells[:maxCells]
+	}
+
+	return visibleCells
 }
 
 // freeStyleCache frees all cached C strings.
