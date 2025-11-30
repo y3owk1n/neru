@@ -295,3 +295,50 @@ func TestMultiMonitor_CoordinateConversion(t *testing.T) {
 			absolutePos, screenHintPos)
 	}
 }
+
+func TestConvertToLocalCoordinates(t *testing.T) {
+	tests := []struct {
+		name         string
+		screenPoint  image.Point
+		screenBounds image.Rectangle
+		expected     image.Point
+	}{
+		{
+			name:         "origin screen",
+			screenPoint:  image.Point{X: 100, Y: 200},
+			screenBounds: image.Rect(0, 0, 1920, 1080),
+			expected:     image.Point{X: 100, Y: 200},
+		},
+		{
+			name:         "multi-monitor extended screen",
+			screenPoint:  image.Point{X: 2020, Y: 200},
+			screenBounds: image.Rect(1920, 0, 3840, 1080), // Second monitor
+			expected:     image.Point{X: 100, Y: 200},
+		},
+		{
+			name:         "negative offset screen",
+			screenPoint:  image.Point{X: -1870, Y: -1005},
+			screenBounds: image.Rect(-1920, -1080, 0, 0),
+			expected:     image.Point{X: 50, Y: 75},
+		},
+		{
+			name:         "center of second monitor",
+			screenPoint:  image.Point{X: 2880, Y: 540},
+			screenBounds: image.Rect(1920, 0, 3840, 1080),
+			expected:     image.Point{X: 960, Y: 540},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := coordinates.ConvertToLocalCoordinates(
+				testCase.screenPoint,
+				testCase.screenBounds,
+			)
+			if result != testCase.expected {
+				t.Errorf("ConvertToLocalCoordinates(%v, %v) = %v, expected %v",
+					testCase.screenPoint, testCase.screenBounds, result, testCase.expected)
+			}
+		})
+	}
+}
