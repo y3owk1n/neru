@@ -14,6 +14,24 @@ import (
 
 // Service manages application configuration with thread-safe access and change notifications.
 // This replaces the global configuration pattern with dependency injection.
+
+// safeSendConfig safely sends a config to a watcher channel that might be closed.
+func safeSendConfig(ch chan<- *Config, config *Config) (sent bool) {
+	defer func() {
+		if recover() != nil {
+			// Channel was closed, mark as not sent
+			sent = false
+		}
+	}()
+
+	select {
+	case ch <- config:
+		return true
+	default:
+		return false
+	}
+}
+
 type Service struct {
 	config   *Config
 	path     string
@@ -228,12 +246,16 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 
 	// Notify watchers (outside the lock to avoid deadlock)
 	for _, watcher := range watchers {
+		if !safeSendConfig(watcher, loadResult.Config) {
+			// Channel was closed or full, skip this watcher
+			continue
+		}
+
+		// Check if context was cancelled during send
 		select {
-		case watcher <- loadResult.Config:
 		case <-ctx.Done():
 			return core.WrapContextCanceled(ctx, "notify config watchers")
 		default:
-			// Skip if watcher is not ready
 		}
 	}
 
@@ -257,7 +279,8 @@ func (s *Service) Watch(ctx context.Context) <-chan *Config {
 	// Send current config immediately
 	channel <- s.Get()
 
-	// Clean up when context is done
+	// Clean up when context is done (use sync.Once to prevent double-close)
+	var once sync.Once
 	go func() {
 		<-ctx.Done()
 
@@ -273,7 +296,10 @@ func (s *Service) Watch(ctx context.Context) <-chan *Config {
 			}
 		}
 
-		close(channel)
+		// Ensure channel is only closed once
+		once.Do(func() {
+			close(channel)
+		})
 	}()
 
 	return channel
@@ -326,11 +352,8 @@ func (s *Service) Update(config *Config) error {
 
 	// Notify watchers
 	for _, watcher := range watchers {
-		select {
-		case watcher <- config:
-		default:
-			// Skip if watcher is not ready
-		}
+		safeSendConfig(watcher, config)
+		// Note: Update doesn't check context cancellation as it's a synchronous operation
 	}
 
 	return nil
