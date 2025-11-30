@@ -4,6 +4,7 @@ package overlay_test
 
 import (
 	"context"
+	"image"
 	"testing"
 	"unsafe"
 
@@ -22,6 +23,14 @@ import (
 type mockManager struct {
 	hintOverlay *hints.Overlay
 	lastStyle   hints.StyleMode
+
+	// Track DrawActionHighlight calls
+	lastActionX, lastActionY, lastActionW, lastActionH int
+	actionHighlightCalled                              bool
+
+	// Track DrawScrollHighlight calls
+	lastScrollX, lastScrollY, lastScrollW, lastScrollH int
+	scrollHighlightCalled                              bool
 }
 
 func (m *mockManager) Show()                                           {}
@@ -50,8 +59,14 @@ func (m *mockManager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode
 
 	return nil
 }
-func (m *mockManager) DrawActionHighlight(x, y, w, h int) {}
-func (m *mockManager) DrawScrollHighlight(x, y, w, h int) {}
+func (m *mockManager) DrawActionHighlight(x, y, w, h int) {
+	m.lastActionX, m.lastActionY, m.lastActionW, m.lastActionH = x, y, w, h
+	m.actionHighlightCalled = true
+}
+func (m *mockManager) DrawScrollHighlight(x, y, w, h int) {
+	m.lastScrollX, m.lastScrollY, m.lastScrollW, m.lastScrollH = x, y, w, h
+	m.scrollHighlightCalled = true
+}
 
 func (m *mockManager) DrawGrid(
 	g *domainGrid.Grid,
@@ -100,5 +115,75 @@ func TestShowHints_PassesCorrectStyle(t *testing.T) {
 
 	if mock.lastStyle.TextColor() != "#abcdef" {
 		t.Errorf("Expected TextColor #abcdef, got %s", mock.lastStyle.TextColor())
+	}
+}
+
+func TestDrawActionHighlight_UsesLocalCoordinates(t *testing.T) {
+	// Setup
+	logger := zap.NewNop()
+	mock := &mockManager{}
+	adapter := overlay.NewAdapter(mock, logger)
+
+	// Test with extended screen bounds (multi-monitor scenario)
+	// Screen at (1920, 0) with size 1920x1080
+	screenBounds := image.Rect(1920, 0, 3840, 1080)
+
+	// Execute
+	err := adapter.DrawActionHighlight(context.Background(), screenBounds, "#ff0000", 2)
+	if err != nil {
+		t.Fatalf("DrawActionHighlight failed: %v", err)
+	}
+
+	// Verify - should use local coordinates (0,0) not screen bounds
+	if !mock.actionHighlightCalled {
+		t.Error("DrawActionHighlight was not called on manager")
+	}
+
+	expectedX, expectedY := 0, 0
+	expectedW, expectedH := 1920, 1080
+
+	if mock.lastActionX != expectedX || mock.lastActionY != expectedY {
+		t.Errorf("DrawActionHighlight called with wrong position: got (%d,%d), expected (%d,%d)",
+			mock.lastActionX, mock.lastActionY, expectedX, expectedY)
+	}
+
+	if mock.lastActionW != expectedW || mock.lastActionH != expectedH {
+		t.Errorf("DrawActionHighlight called with wrong size: got (%d,%d), expected (%d,%d)",
+			mock.lastActionW, mock.lastActionH, expectedW, expectedH)
+	}
+}
+
+func TestDrawScrollHighlight_UsesLocalCoordinates(t *testing.T) {
+	// Setup
+	logger := zap.NewNop()
+	mock := &mockManager{}
+	adapter := overlay.NewAdapter(mock, logger)
+
+	// Test with extended screen bounds (multi-monitor scenario)
+	// Screen at (1920, 0) with size 1920x1080
+	screenBounds := image.Rect(1920, 0, 3840, 1080)
+
+	// Execute
+	err := adapter.DrawScrollHighlight(context.Background(), screenBounds, "#00ff00", 3)
+	if err != nil {
+		t.Fatalf("DrawScrollHighlight failed: %v", err)
+	}
+
+	// Verify - should use local coordinates (0,0) not screen bounds
+	if !mock.scrollHighlightCalled {
+		t.Error("DrawScrollHighlight was not called on manager")
+	}
+
+	expectedX, expectedY := 0, 0
+	expectedW, expectedH := 1920, 1080
+
+	if mock.lastScrollX != expectedX || mock.lastScrollY != expectedY {
+		t.Errorf("DrawScrollHighlight called with wrong position: got (%d,%d), expected (%d,%d)",
+			mock.lastScrollX, mock.lastScrollY, expectedX, expectedY)
+	}
+
+	if mock.lastScrollW != expectedW || mock.lastScrollH != expectedH {
+		t.Errorf("DrawScrollHighlight called with wrong size: got (%d,%d), expected (%d,%d)",
+			mock.lastScrollW, mock.lastScrollH, expectedW, expectedH)
 	}
 }

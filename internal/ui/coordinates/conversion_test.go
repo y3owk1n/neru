@@ -142,6 +142,12 @@ func TestConvertToAbsoluteCoordinates(t *testing.T) {
 			screenBounds: image.Rect(-1920, -1080, 0, 0),
 			expected:     image.Point{X: -1870, Y: -1005},
 		},
+		{
+			name:         "multi-monitor extended screen",
+			localPoint:   image.Point{X: 100, Y: 200},
+			screenBounds: image.Rect(1920, 0, 3840, 1080), // Second monitor
+			expected:     image.Point{X: 2020, Y: 200},
+		},
 	}
 
 	for _, testCase := range tests {
@@ -267,5 +273,34 @@ func TestClampInt(t *testing.T) {
 					testCase.value, testCase.minVal, testCase.maxVal, result, testCase.expected)
 			}
 		})
+	}
+}
+
+func TestMultiMonitor_CoordinateConversion(t *testing.T) {
+	// Test case: Hint on extended screen should be converted to local coordinates
+	// Screen bounds: (1920, 0) to (3840, 1080) - second monitor in extended desktop
+	screenBounds := image.Rect(1920, 0, 3840, 1080)
+
+	// Hint position in screen coordinates (center of second monitor)
+	screenHintPos := image.Point{X: 2880, Y: 540} // center of second monitor
+
+	// Convert to local coordinates (relative to overlay window at screen origin)
+	localHintPos := image.Point{
+		X: screenHintPos.X - screenBounds.Min.X,
+		Y: screenHintPos.Y - screenBounds.Min.Y,
+	}
+
+	expectedLocalPos := image.Point{X: 960, Y: 540} // 2880-1920=960, 540-0=540
+
+	if localHintPos != expectedLocalPos {
+		t.Errorf("Local coordinate conversion failed: got %v, expected %v",
+			localHintPos, expectedLocalPos)
+	}
+
+	// Verify that converting back to absolute works
+	absolutePos := coordinates.ConvertToAbsoluteCoordinates(localHintPos, screenBounds)
+	if absolutePos != screenHintPos {
+		t.Errorf("Round-trip conversion failed: got %v, expected %v",
+			absolutePos, screenHintPos)
 	}
 }
