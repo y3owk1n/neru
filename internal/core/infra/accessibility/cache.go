@@ -34,7 +34,7 @@ type CachedInfo struct {
 	info      *ElementInfo
 	expiresAt time.Time
 	key       uintptr
-	element   list.Element // For LRU tracking
+	element   *list.Element // For LRU tracking
 }
 
 // staticRoles defines roles that should use longer (static) TTL.
@@ -121,15 +121,15 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 		// Remove expired entry
 		delete(c.data, key)
 
-		if cached.element.Prev() != nil || cached.element.Next() != nil {
-			c.lru.Remove(&cached.element)
+		if cached.element != nil {
+			c.lru.Remove(cached.element)
 		}
 
 		return nil
 	}
 
 	// Move to front of LRU list (most recently used)
-	c.lru.MoveToFront(&cached.element)
+	c.lru.MoveToFront(cached.element)
 
 	return cached.info
 }
@@ -148,7 +148,7 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 		// Update existing entry and move to front
 		existing.info = info
 		existing.expiresAt = time.Now().Add(c.getTTL(info))
-		c.lru.MoveToFront(&existing.element)
+		c.lru.MoveToFront(existing.element)
 		c.logger.Debug("Updated cached element info",
 			zap.Uintptr("element_ptr", key),
 			zap.String("role", info.Role()),
@@ -174,7 +174,7 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 	}
 
 	// Add to LRU list (front = most recently used)
-	cachedInfo.element = *c.lru.PushFront(cachedInfo)
+	cachedInfo.element = c.lru.PushFront(cachedInfo)
 	c.data[key] = cachedInfo
 
 	c.logger.Debug("Caching element info",
@@ -254,8 +254,8 @@ func (c *InfoCache) cleanup() {
 		if now.After(cached.expiresAt) {
 			toDelete = append(toDelete, key)
 			// Remove from LRU list
-			if cached.element.Prev() != nil || cached.element.Next() != nil {
-				c.lru.Remove(&cached.element)
+			if cached.element != nil {
+				c.lru.Remove(cached.element)
 			}
 		}
 	}
