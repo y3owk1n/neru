@@ -11,7 +11,6 @@ extern void resizeActionCompletionCallback(void* context);
 import "C"
 
 import (
-	"time"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
@@ -28,17 +27,6 @@ func resizeActionCompletionCallback(context unsafe.Pointer) {
 	// Delegate to global callback manager
 	overlayutil.CompleteGlobalCallback(callbackID)
 }
-
-const (
-	// DefaultCallbackMapSize is the default size for callback maps.
-	DefaultCallbackMapSize = 8
-
-	// DefaultTimerDuration is the default timer duration.
-	DefaultTimerDuration = 2 * time.Second
-
-	// DefaultGridLinesCount is the default number of grid lines.
-	DefaultGridLinesCount = 4
-)
 
 // Overlay manages the rendering of action mode overlays using native platform APIs.
 type Overlay struct {
