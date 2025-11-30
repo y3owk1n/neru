@@ -170,18 +170,20 @@ func (t *Trie) FindByPrefix(prefix string) []*Interface {
 // collectAllHints recursively collects all hints from end nodes in the subtree.
 func (t *Trie) collectAllHints(node *TrieNode) []*Interface {
 	var result []*Interface
-
-	// Add hints from current node if it's an end node
-	if node.isEnd {
-		result = append(result, node.hints...)
-	}
-
-	// Recursively collect from children
-	for _, child := range node.children {
-		result = append(result, t.collectAllHints(child)...)
-	}
+	t.collectAllHintsInto(node, &result)
 
 	return result
+}
+
+// collectAllHintsInto collects hints into the provided result slice to avoid intermediate allocations.
+func (t *Trie) collectAllHintsInto(node *TrieNode, result *[]*Interface) {
+	if node.isEnd {
+		*result = append(*result, node.hints...)
+	}
+
+	for _, child := range node.children {
+		t.collectAllHintsInto(child, result)
+	}
 }
 
 // Collection manages a collection of hints with efficient lookup.
