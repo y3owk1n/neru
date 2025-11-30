@@ -2,7 +2,6 @@ package modes
 
 import (
 	"context"
-	"time"
 
 	"go.uber.org/zap"
 )
@@ -20,8 +19,6 @@ func (h *Handler) StartActionMode() {
 
 	// Position overlay on active screen before showing
 	h.overlayManager.ResizeToActiveScreenSync()
-	// Give the UI thread a moment to complete the resize
-	time.Sleep(150 * time.Millisecond)
 
 	// Draw action highlight overlay
 	h.drawActionHighlight()

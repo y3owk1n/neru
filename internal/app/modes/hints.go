@@ -83,8 +83,6 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	activeScreenBounds := bridge.ActiveScreenBounds()
 	h.screenBounds = activeScreenBounds
 	h.overlayManager.ResizeToActiveScreenSync()
-	// Give the UI thread a moment to complete the resize
-	time.Sleep(150 * time.Millisecond)
 
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing hints.
 	// This prevents scroll highlights from persisting when switching from scroll mode to hints mode.
@@ -158,9 +156,14 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 			// Convert domain hints to overlay hints for rendering
 			overlayHints := make([]*hints.Hint, len(filteredHints))
 			for index, hint := range filteredHints {
+				// Convert screen-absolute coordinates to overlay-local coordinates
+				localPos := image.Point{
+					X: hint.Position().X - h.screenBounds.Min.X,
+					Y: hint.Position().Y - h.screenBounds.Min.Y,
+				}
 				overlayHints[index] = hints.NewHint(
 					hint.Label(),
-					hint.Position(),
+					localPos,
 					hint.Element().Bounds().Size(),
 					hint.MatchedPrefix(),
 				)

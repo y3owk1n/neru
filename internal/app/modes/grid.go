@@ -4,7 +4,6 @@ import (
 	"context"
 	"image"
 	"strings"
-	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
@@ -27,13 +26,6 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	actionString := domain.ActionString(actionEnum)
 
 	h.ExitMode()
-
-	// Always resize overlay to the active screen (where mouse is) before drawing grid.
-	// This ensures proper positioning when switching between multiple displays.
-	h.overlayManager.ResizeToActiveScreenSync()
-	// Give the UI thread a moment to complete the resize
-	time.Sleep(150 * time.Millisecond)
-
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing grid.
 	// This prevents scroll highlights from persisting when switching from scroll mode to grid mode.
 	h.overlayManager.Clear()

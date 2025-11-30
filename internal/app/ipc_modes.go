@@ -50,8 +50,8 @@ func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc
 
 	// Extract action parameter if provided
 	var action *string
-	if len(cmd.Args) > 0 {
-		action = &cmd.Args[0]
+	if len(cmd.Args) > 1 {
+		action = &cmd.Args[1]
 	}
 
 	h.modes.ActivateModeWithAction(domain.ModeHints, action)
@@ -66,8 +66,8 @@ func (h *IPCControllerModes) handleGrid(_ context.Context, cmd ipc.Command) ipc.
 
 	// Extract action parameter if provided
 	var action *string
-	if len(cmd.Args) > 0 {
-		action = &cmd.Args[0]
+	if len(cmd.Args) > 1 {
+		action = &cmd.Args[1]
 	}
 
 	h.modes.ActivateModeWithAction(domain.ModeGrid, action)
