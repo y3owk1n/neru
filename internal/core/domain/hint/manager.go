@@ -2,6 +2,7 @@ package hint
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
@@ -16,6 +17,7 @@ type Manager struct {
 	onUpdate         func([]*Interface) // Callback when filtered hints change
 	debounceTimer    *time.Timer
 	debounceDuration time.Duration
+	mu               sync.Mutex // Protects onUpdate callback
 }
 
 const (
@@ -35,6 +37,9 @@ func NewManager(logger *zap.Logger) *Manager {
 
 // SetUpdateCallback sets the callback function to be called when filtered hints change.
 func (m *Manager) SetUpdateCallback(callback func([]*Interface)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	m.onUpdate = callback
 }
 
@@ -174,6 +179,9 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 
 	// Start new timer
 	m.debounceTimer = time.AfterFunc(m.debounceDuration, func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
 		if m.onUpdate != nil {
 			m.onUpdate(hints)
 		}
