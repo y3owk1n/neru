@@ -11,8 +11,6 @@ extern void resizeActionCompletionCallback(void* context);
 import "C"
 
 import (
-	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -21,6 +19,15 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
 )
+
+//export resizeActionCompletionCallback
+func resizeActionCompletionCallback(context unsafe.Pointer) {
+	// Convert context to callback ID
+	callbackID := uint64(uintptr(context))
+
+	// Delegate to global callback manager
+	overlayutil.CompleteGlobalCallback(callbackID)
+}
 
 const (
 	// DefaultCallbackMapSize is the default size for callback maps.
@@ -33,34 +40,13 @@ const (
 	DefaultGridLinesCount = 4
 )
 
-var (
-	actionCallbackID  uint64
-	actionCallbackMap = make(
-		map[uint64]chan struct{},
-		DefaultCallbackMapSize,
-	) // Pre-size for typical usage
-	actionCallbackLock sync.Mutex
-)
-
-//export resizeActionCompletionCallback
-func resizeActionCompletionCallback(context unsafe.Pointer) {
-	// Convert context to callback ID
-	id := uint64(uintptr(context))
-
-	actionCallbackLock.Lock()
-	if done, ok := actionCallbackMap[id]; ok {
-		close(done)
-		delete(actionCallbackMap, id)
-	}
-	actionCallbackLock.Unlock()
-}
-
 // Overlay manages the rendering of action mode overlays using native platform APIs.
 type Overlay struct {
-	window        C.OverlayWindow
-	config        config.ActionConfig
-	logger        *zap.Logger
-	borderBuilder *overlayutil.WindowBorderBuilder
+	window          C.OverlayWindow
+	config          config.ActionConfig
+	logger          *zap.Logger
+	callbackManager *overlayutil.CallbackManager
+	borderBuilder   *overlayutil.WindowBorderBuilder
 }
 
 // NewOverlay initializes a new action overlay instance with its own window.
@@ -71,10 +57,11 @@ func NewOverlay(cfg config.ActionConfig, logger *zap.Logger) (*Overlay, error) {
 	}
 
 	return &Overlay{
-		window:        window,
-		config:        cfg,
-		logger:        logger,
-		borderBuilder: &overlayutil.WindowBorderBuilder{},
+		window:          window,
+		config:          cfg,
+		logger:          logger,
+		callbackManager: overlayutil.NewCallbackManager(logger),
+		borderBuilder:   &overlayutil.WindowBorderBuilder{},
 	}, nil
 }
 
@@ -85,10 +72,11 @@ func NewOverlayWithWindow(
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
 	return &Overlay{
-		window:        (C.OverlayWindow)(windowPtr),
-		config:        config,
-		logger:        logger,
-		borderBuilder: &overlayutil.WindowBorderBuilder{},
+		window:          (C.OverlayWindow)(windowPtr),
+		config:          config,
+		logger:          logger,
+		callbackManager: overlayutil.NewCallbackManager(logger),
+		borderBuilder:   &overlayutil.WindowBorderBuilder{},
 	}, nil
 }
 
@@ -123,40 +111,17 @@ func (o *Overlay) ResizeToActiveScreen() {
 
 // ResizeToActiveScreenSync adjusts the overlay window size synchronously with callback notification.
 func (o *Overlay) ResizeToActiveScreenSync() {
-	done := make(chan struct{})
-
-	// Generate unique ID for this callback
-	callbackID := atomic.AddUint64(&actionCallbackID, 1)
-
-	// Store channel in global map
-	actionCallbackLock.Lock()
-	actionCallbackMap[callbackID] = done
-	actionCallbackLock.Unlock()
-
-	// Pass ID as context (safe - no Go pointers)
-	// Note: uintptr conversion must happen in same expression to satisfy go vet
-	C.NeruResizeOverlayToActiveScreenWithCallback(
-		o.window,
-		(C.ResizeCompletionCallback)(
-			unsafe.Pointer(C.resizeActionCompletionCallback), //nolint:unconvert
-		),
-		*(*unsafe.Pointer)(unsafe.Pointer(&callbackID)),
-	)
-
-	// Wait for completion with timeout
-	select {
-	case <-done:
-		// Success
-	case <-time.After(DefaultTimerDuration):
-		// Timeout - clean up
-		actionCallbackLock.Lock()
-		delete(actionCallbackMap, callbackID)
-		actionCallbackLock.Unlock()
-
-		if o.logger != nil {
-			o.logger.Warn("Action overlay resize timed out")
-		}
-	}
+	o.callbackManager.StartResizeOperation(func(callbackID uint64) {
+		// Pass ID as context (safe - no Go pointers)
+		// Note: uintptr conversion must happen in same expression to satisfy go vet
+		C.NeruResizeOverlayToActiveScreenWithCallback(
+			o.window,
+			(C.ResizeCompletionCallback)(
+				unsafe.Pointer(C.resizeActionCompletionCallback), //nolint:unconvert
+			),
+			*(*unsafe.Pointer)(unsafe.Pointer(&callbackID)),
+		)
+	})
 }
 
 // DrawActionHighlight renders a highlight border around the specified screen area.
