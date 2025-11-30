@@ -33,50 +33,29 @@ var actionRightClickCmd = builder.BuildActionCommand(
 	[]string{"right_click"},
 )
 
-var actionMouseUpCmd = &cobra.Command{
-	Use:   "mouse_up",
-	Short: "Release mouse button at current cursor position",
-	Long:  `Release the left mouse button at the current cursor location.`,
-	PreRunE: func(_ *cobra.Command, _ []string) error {
-		return requiresRunningInstance()
-	},
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		var params []string
-		params = append(params, "mouse_up")
+var actionMouseUpCmd = builder.BuildActionCommand(
+	"mouse_up",
+	"Release mouse button at current cursor position",
+	`Release the left mouse button at the current cursor location.`,
+	"action",
+	[]string{"mouse_up"},
+)
 
-		return sendCommand(cmd, "action", params)
-	},
-}
+var actionMouseDownCmd = builder.BuildActionCommand(
+	"mouse_down",
+	"Press mouse button at current cursor position",
+	`Press and hold the left mouse button at the current cursor location.`,
+	"action",
+	[]string{"mouse_down"},
+)
 
-var actionMouseDownCmd = &cobra.Command{
-	Use:   "mouse_down",
-	Short: "Press mouse button at current cursor position",
-	Long:  `Press and hold the left mouse button at the current cursor location.`,
-	PreRunE: func(_ *cobra.Command, _ []string) error {
-		return requiresRunningInstance()
-	},
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		var params []string
-		params = append(params, "mouse_down")
-
-		return sendCommand(cmd, "action", params)
-	},
-}
-
-var actionMiddleClickCmd = &cobra.Command{
-	Use:   "middle_click",
-	Short: "Perform middle click at current cursor position",
-	Long:  `Execute a middle click at the current cursor location.`,
-	PreRunE: func(_ *cobra.Command, _ []string) error {
-		return requiresRunningInstance()
-	},
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		var params []string
-		params = append(params, "middle_click")
-
-		return sendCommand(cmd, "action", params)
-	},
-}
+var actionMiddleClickCmd = builder.BuildActionCommand(
+	"middle_click",
+	"Perform middle click at current cursor position",
+	`Execute a middle click at the current cursor location.`,
+	"action",
+	[]string{"middle_click"},
+)
 
 func init() {
 	actionCmd.AddCommand(actionLeftClickCmd)
