@@ -11,24 +11,12 @@ extern void resizeScrollCompletionCallback(void* context);
 import "C"
 
 import (
-	"time"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
-)
-
-const (
-	// DefaultCallbackMapSize is the default size for callback maps.
-	DefaultCallbackMapSize = 8
-
-	// DefaultTimerDuration is the default timer duration.
-	DefaultTimerDuration = 2 * time.Second
-
-	// DefaultGridLinesCount is the default number of grid lines.
-	DefaultGridLinesCount = 4
 )
 
 //export resizeScrollCompletionCallback
