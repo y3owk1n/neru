@@ -667,7 +667,7 @@ Configuration management:
 1. Create components in `internal/app/components/`
 2. Implement rendering in `internal/ui/`
 3. Add Objective-C in `internal/core/infra/bridge/` if needed
-4. Register in `internal/app/app.go`
+4. Register in `internal/app/component_factory.go` or `internal/app/app_initialization.go`
 
 **CLI Commands:**
 
@@ -680,14 +680,14 @@ Configuration management:
 Neru uses manual dependency injection for better testability and explicit dependency management:
 
 1. **Construction**: Dependencies are explicitly passed to constructors
-2. **Wiring**: `internal/app/app.go` wires all components together
+2. **Wiring**: `internal/app/app_initialization.go` wires all components together
 3. **Testing**: Dependencies can be mocked by passing test doubles in `NewWithDeps`
 4. **Ports**: Interfaces define contracts between layers
 
 Example of dependency injection in action:
 
 ```go
-// In internal/app/app.go
+// In internal/app/app_initialization.go
 hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, cfg.Hints, logger)
 gridService := services.NewGridService(overlayAdapter, logger)
 actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Action, logger)

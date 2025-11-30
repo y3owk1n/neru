@@ -8,16 +8,14 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 )
 
-// AccessibilityPort defines the interface for interacting with the macOS accessibility API.
-// Implementations should handle all CGo/Objective-C bridge complexity.
-//
-//nolint:interfacebloat // The port needs to expose all accessibility capabilities
-type AccessibilityPort interface {
-	HealthCheck
-
+// ElementDiscovery defines the interface for discovering UI elements.
+type ElementDiscovery interface {
 	// ClickableElements retrieves all clickable UI elements matching the filter.
 	ClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)
+}
 
+// ActionExecution defines the interface for executing actions on UI elements.
+type ActionExecution interface {
 	// PerformAction executes an action on the specified element.
 	PerformAction(ctx context.Context, elem *element.Element, actionType action.Type) error
 
@@ -26,13 +24,19 @@ type AccessibilityPort interface {
 
 	// Scroll performs a scroll action at the current cursor position.
 	Scroll(ctx context.Context, deltaX, deltaY int) error
+}
 
+// ApplicationInfo defines the interface for getting application information.
+type ApplicationInfo interface {
 	// FocusedAppBundleID returns the bundle ID of the currently focused application.
 	FocusedAppBundleID(ctx context.Context) (string, error)
 
 	// IsAppExcluded checks if the given bundle ID is in the exclusion list.
 	IsAppExcluded(ctx context.Context, bundleID string) bool
+}
 
+// ScreenManagement defines the interface for screen and cursor operations.
+type ScreenManagement interface {
 	// ScreenBounds returns the bounds of the active screen.
 	ScreenBounds(ctx context.Context) (image.Rectangle, error)
 
@@ -41,9 +45,26 @@ type AccessibilityPort interface {
 
 	// CursorPosition returns the current cursor position.
 	CursorPosition(ctx context.Context) (image.Point, error)
+}
 
+// PermissionManagement defines the interface for accessibility permissions.
+type PermissionManagement interface {
 	// CheckPermissions verifies that accessibility permissions are granted.
 	CheckPermissions(ctx context.Context) error
+}
+
+// AccessibilityPort defines the interface for interacting with the macOS accessibility API.
+// Implementations should handle all CGo/Objective-C bridge complexity.
+//
+// This interface embeds segregated interfaces to reduce duplication and ensure
+// method signatures stay synchronized across different concerns.
+type AccessibilityPort interface {
+	HealthCheck
+	ElementDiscovery
+	ActionExecution
+	ApplicationInfo
+	ScreenManagement
+	PermissionManagement
 }
 
 // ElementFilter defines criteria for filtering UI elements.

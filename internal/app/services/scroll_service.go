@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/y3owk1n/neru/internal/config"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
 )
@@ -74,7 +74,7 @@ func (s *ScrollService) Scroll(
 
 	scrollErr := s.accessibility.Scroll(ctx, deltaX, deltaY)
 	if scrollErr != nil {
-		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
+		return core.WrapActionFailed(scrollErr, "scroll")
 	}
 
 	return nil
@@ -85,11 +85,7 @@ func (s *ScrollService) Show(ctx context.Context) error {
 	// Get screen screenBounds to draw highlight around active screen
 	screenBounds, screenBoundsErr := s.accessibility.ScreenBounds(ctx)
 	if screenBoundsErr != nil {
-		return derrors.Wrap(
-			screenBoundsErr,
-			derrors.CodeAccessibilityFailed,
-			"failed to get screen bounds",
-		)
+		return core.WrapAccessibilityFailed(screenBoundsErr, "get screen bounds")
 	}
 
 	// Draw highlight
@@ -100,11 +96,7 @@ func (s *ScrollService) Show(ctx context.Context) error {
 		s.config.HighlightWidth,
 	)
 	if drawScrollHighlightErr != nil {
-		return derrors.Wrap(
-			drawScrollHighlightErr,
-			derrors.CodeOverlayFailed,
-			"failed to draw scroll highlight",
-		)
+		return core.WrapOverlayFailed(drawScrollHighlightErr, "draw scroll highlight")
 	}
 
 	return nil
@@ -114,7 +106,7 @@ func (s *ScrollService) Show(ctx context.Context) error {
 func (s *ScrollService) Hide(ctx context.Context) error {
 	hideOverlayErr := s.overlay.Hide(ctx)
 	if hideOverlayErr != nil {
-		return derrors.Wrap(hideOverlayErr, derrors.CodeOverlayFailed, "failed to hide overlay")
+		return core.WrapOverlayFailed(hideOverlayErr, "hide scroll")
 	}
 
 	return nil
@@ -127,6 +119,14 @@ func (s *ScrollService) UpdateConfig(_ context.Context, config config.ScrollConf
 	s.logger.Info("Scroll configuration updated",
 		zap.Int("scroll_step", config.ScrollStep),
 		zap.Int("scroll_step_full", config.ScrollStepFull))
+}
+
+// Health checks the health of the service's dependencies.
+func (s *ScrollService) Health(ctx context.Context) map[string]error {
+	return map[string]error{
+		"accessibility": s.accessibility.Health(ctx),
+		"overlay":       s.overlay.Health(ctx),
+	}
 }
 
 // calculateDelta computes the scroll delta values based on direction and magnitude.

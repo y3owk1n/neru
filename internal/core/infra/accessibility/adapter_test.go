@@ -4,20 +4,20 @@ package accessibility_test
 
 import (
 	"context"
-	"errors"
 	"image"
 	"reflect"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
 )
 
 // errTestAccessibility is a static error for testing accessibility failures.
-var errTestAccessibility = errors.New("accessibility denied")
+var errTestAccessibility = derrors.New(derrors.CodeAccessibilityDenied, "accessibility denied")
 
 func TestNewAdapter(t *testing.T) {
 	logger := zap.NewNop()

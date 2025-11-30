@@ -54,6 +54,17 @@ func ConvertToAbsoluteCoordinates(
 	}
 }
 
+// ConvertToLocalCoordinates converts screen-absolute coordinates to window-local coordinates.
+func ConvertToLocalCoordinates(
+	screenPoint image.Point,
+	screenBounds image.Rectangle,
+) image.Point {
+	return image.Point{
+		X: screenPoint.X - screenBounds.Min.X,
+		Y: screenPoint.Y - screenBounds.Min.Y,
+	}
+}
+
 // ClampFloat clamps a float64 value between minVal and maxVal.
 func ClampFloat(value, minVal, maxVal float64) float64 {
 	if value < minVal {

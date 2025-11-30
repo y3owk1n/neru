@@ -64,7 +64,7 @@ type ManagerInterface interface {
 	Show()
 	Hide()
 	Clear()
-	ResizeToActiveScreenSync()
+	ResizeToActiveScreen()
 	SwitchTo(next Mode)
 	Subscribe(fn func(StateChange)) uint64
 	Unsubscribe(id uint64)
@@ -165,8 +165,8 @@ func (m *Manager) Clear() {
 	C.NeruClearOverlay(m.window)
 }
 
-// ResizeToActiveScreenSync resizes the overlay window to the active screen synchronously.
-func (m *Manager) ResizeToActiveScreenSync() {
+// ResizeToActiveScreen resizes the overlay window to the active screen.
+func (m *Manager) ResizeToActiveScreen() {
 	C.NeruResizeOverlayToActiveScreen(m.window)
 }
 

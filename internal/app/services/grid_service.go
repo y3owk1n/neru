@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
 )
@@ -31,7 +31,7 @@ func (s *GridService) ShowGrid(ctx context.Context) error {
 	if showGridErr != nil {
 		s.logger.Error("Failed to show grid overlay", zap.Error(showGridErr))
 
-		return derrors.Wrap(showGridErr, derrors.CodeOverlayFailed, "failed to show grid overlay")
+		return core.WrapOverlayFailed(showGridErr, "show grid")
 	}
 
 	s.logger.Info("Grid displayed successfully")
@@ -47,8 +47,15 @@ func (s *GridService) HideGrid(ctx context.Context) error {
 	if hideGridErr != nil {
 		s.logger.Error("Failed to hide overlay", zap.Error(hideGridErr))
 
-		return derrors.Wrap(hideGridErr, derrors.CodeOverlayFailed, "failed to hide overlay")
+		return core.WrapOverlayFailed(hideGridErr, "hide grid")
 	}
 
 	return nil
+}
+
+// Health checks the health of the service's dependencies.
+func (s *GridService) Health(ctx context.Context) map[string]error {
+	return map[string]error{
+		"overlay": s.overlay.Health(ctx),
+	}
 }

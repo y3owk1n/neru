@@ -5,38 +5,14 @@ import (
 )
 
 // HintsMode implements the Mode interface for hints-based navigation.
+// It uses the generic mode implementation with hints-specific behavior.
 type HintsMode struct {
-	baseMode
+	*GenericMode
 }
 
 // NewHintsMode creates a new hints mode implementation.
 func NewHintsMode(handler *Handler) *HintsMode {
 	return &HintsMode{
-		baseMode: newBaseMode(handler, domain.ModeHints, "HintsMode"),
+		GenericMode: NewGenericMode(handler, domain.ModeHints, "HintsMode", ModeBehavior{}),
 	}
-}
-
-// Activate activates hints mode with optional action parameter.
-func (m *HintsMode) Activate(action *string) {
-	m.handler.activateHintModeWithAction(action)
-}
-
-// HandleKey processes key presses for hints mode.
-func (m *HintsMode) HandleKey(key string) {
-	m.handler.handleHintsModeKey(key)
-}
-
-// HandleActionKey processes action keys when in hints action mode.
-func (m *HintsMode) HandleActionKey(key string) {
-	m.handler.handleHintsActionKey(key)
-}
-
-// Exit performs hints mode cleanup.
-func (m *HintsMode) Exit() {
-	m.handler.cleanupHintsMode()
-}
-
-// ToggleActionMode toggles between overlay and action modes for hints.
-func (m *HintsMode) ToggleActionMode() {
-	m.handler.toggleActionModeForHints()
 }

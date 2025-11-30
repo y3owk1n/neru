@@ -46,6 +46,8 @@ Neru uses TOML configuration files. Configuration is loaded from:
 
 Bind global hotkeys to Neru actions. Remove or comment out to disable.
 
+> **⚠️ Important:** Providing any custom hotkeys **replaces all defaults**. If you define even one custom hotkey, you must explicitly define all hotkeys you want to use. The defaults (Cmd+Shift+Space, Cmd+Shift+G, Cmd+Shift+S) will be disabled.
+
 ```toml
 [hotkeys]
 # Hint modes

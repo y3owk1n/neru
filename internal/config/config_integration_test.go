@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"go.uber.org/zap"
 )
 
 // TestConfigFileOperationsIntegration tests real file system operations
@@ -69,7 +70,8 @@ max_age = 30
 		}
 
 		// Load config from real file
-		loadResult := config.LoadWithValidation(configPath)
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
+		loadResult := service.LoadWithValidation(configPath)
 
 		if loadResult.ValidationError != nil {
 			t.Fatalf("Config validation failed: %v", loadResult.ValidationError)
@@ -100,14 +102,12 @@ font_size = 12
 			t.Fatalf("Failed to write initial config: %v", err)
 		}
 
-		// Load initial config
-		initialLoad := config.LoadWithValidation(configPath)
+		// Create a config service and load initial config
+		configSvc := config.NewService(config.DefaultConfig(), configPath, zap.NewNop())
+		initialLoad := configSvc.LoadWithValidation(configPath)
 		if initialLoad.ValidationError != nil {
 			t.Fatalf("Failed to load initial config: %v", initialLoad.ValidationError)
 		}
-
-		// Create a config service
-		configSvc := config.NewService(initialLoad.Config, configPath)
 
 		// Modify the real config file
 		updatedContent := `
@@ -145,7 +145,8 @@ enabled = true
 		}
 
 		// Should still be able to load it
-		loadResult := config.LoadWithValidation(configPath)
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
+		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
 			t.Fatalf(
 				"Failed to load config with restrictive permissions: %v",

@@ -131,9 +131,9 @@ func TestConvertToAbsoluteCoordinates(t *testing.T) {
 			expected:     image.Point{X: 100, Y: 200},
 		},
 		{
-			name:         "offset screen",
+			name:         "multi-monitor extended screen",
 			localPoint:   image.Point{X: 100, Y: 200},
-			screenBounds: image.Rect(1920, 0, 3840, 1080),
+			screenBounds: image.Rect(1920, 0, 3840, 1080), // Second monitor
 			expected:     image.Point{X: 2020, Y: 200},
 		},
 		{
@@ -265,6 +265,79 @@ func TestClampInt(t *testing.T) {
 			if result != testCase.expected {
 				t.Errorf("ClampInt(%v, %v, %v) = %v, expected %v",
 					testCase.value, testCase.minVal, testCase.maxVal, result, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestMultiMonitor_CoordinateConversion(t *testing.T) {
+	// Test case: Hint on extended screen should be converted to local coordinates
+	// Screen bounds: (1920, 0) to (3840, 1080) - second monitor in extended desktop
+	screenBounds := image.Rect(1920, 0, 3840, 1080)
+
+	// Hint position in screen coordinates (center of second monitor)
+	screenHintPos := image.Point{X: 2880, Y: 540} // center of second monitor
+
+	// Convert to local coordinates (relative to overlay window at screen origin)
+	localHintPos := coordinates.ConvertToLocalCoordinates(screenHintPos, screenBounds)
+
+	expectedLocalPos := image.Point{X: 960, Y: 540} // 2880-1920=960, 540-0=540
+
+	if localHintPos != expectedLocalPos {
+		t.Errorf("Local coordinate conversion failed: got %v, expected %v",
+			localHintPos, expectedLocalPos)
+	}
+
+	// Verify that converting back to absolute works
+	absolutePos := coordinates.ConvertToAbsoluteCoordinates(localHintPos, screenBounds)
+	if absolutePos != screenHintPos {
+		t.Errorf("Round-trip conversion failed: got %v, expected %v",
+			absolutePos, screenHintPos)
+	}
+}
+
+func TestConvertToLocalCoordinates(t *testing.T) {
+	tests := []struct {
+		name         string
+		screenPoint  image.Point
+		screenBounds image.Rectangle
+		expected     image.Point
+	}{
+		{
+			name:         "origin screen",
+			screenPoint:  image.Point{X: 100, Y: 200},
+			screenBounds: image.Rect(0, 0, 1920, 1080),
+			expected:     image.Point{X: 100, Y: 200},
+		},
+		{
+			name:         "multi-monitor extended screen",
+			screenPoint:  image.Point{X: 2020, Y: 200},
+			screenBounds: image.Rect(1920, 0, 3840, 1080), // Second monitor
+			expected:     image.Point{X: 100, Y: 200},
+		},
+		{
+			name:         "negative offset screen",
+			screenPoint:  image.Point{X: -1870, Y: -1005},
+			screenBounds: image.Rect(-1920, -1080, 0, 0),
+			expected:     image.Point{X: 50, Y: 75},
+		},
+		{
+			name:         "center of second monitor",
+			screenPoint:  image.Point{X: 2880, Y: 540},
+			screenBounds: image.Rect(1920, 0, 3840, 1080),
+			expected:     image.Point{X: 960, Y: 540},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := coordinates.ConvertToLocalCoordinates(
+				testCase.screenPoint,
+				testCase.screenBounds,
+			)
+			if result != testCase.expected {
+				t.Errorf("ConvertToLocalCoordinates(%v, %v) = %v, expected %v",
+					testCase.screenPoint, testCase.screenBounds, result, testCase.expected)
 			}
 		})
 	}

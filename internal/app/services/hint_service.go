@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
 )
@@ -56,11 +56,7 @@ func (s *HintService) ShowHints(
 	if elementsErr != nil {
 		s.logger.Error("Failed to get clickable elements", zap.Error(elementsErr))
 
-		return nil, derrors.Wrap(
-			elementsErr,
-			derrors.CodeAccessibilityFailed,
-			"failed to get clickable elements",
-		)
+		return nil, core.WrapAccessibilityFailed(elementsErr, "get clickable elements")
 	}
 
 	if len(elements) == 0 {
@@ -76,11 +72,7 @@ func (s *HintService) ShowHints(
 	if elementsErr != nil {
 		s.logger.Error("Failed to generate hints", zap.Error(elementsErr))
 
-		return nil, derrors.Wrap(
-			elementsErr,
-			derrors.CodeHintGenerationFailed,
-			"failed to generate hints",
-		)
+		return nil, core.WrapInternalFailed(elementsErr, "generate hints")
 	}
 
 	s.logger.Info("Generated hints", zap.Int("count", len(hints)))
@@ -90,7 +82,7 @@ func (s *HintService) ShowHints(
 	if showHintsErr != nil {
 		s.logger.Error("Failed to show hints overlay", zap.Error(showHintsErr))
 
-		return nil, derrors.Wrap(showHintsErr, derrors.CodeOverlayFailed, "failed to show hints")
+		return nil, core.WrapOverlayFailed(showHintsErr, "show hints")
 	}
 
 	s.logger.Info("Hints displayed successfully")
@@ -106,7 +98,7 @@ func (s *HintService) HideHints(ctx context.Context) error {
 	if hideOverlayErr != nil {
 		s.logger.Error("Failed to hide overlay", zap.Error(hideOverlayErr))
 
-		return derrors.Wrap(hideOverlayErr, derrors.CodeOverlayFailed, "failed to hide overlay")
+		return core.WrapOverlayFailed(hideOverlayErr, "hide hints")
 	}
 
 	s.logger.Info("Hints hidden successfully")
@@ -128,11 +120,7 @@ func (s *HintService) RefreshHints(ctx context.Context) error {
 	if refreshOverlayErr != nil {
 		s.logger.Error("Failed to refresh overlay", zap.Error(refreshOverlayErr))
 
-		return derrors.Wrap(
-			refreshOverlayErr,
-			derrors.CodeOverlayFailed,
-			"failed to refresh overlay",
-		)
+		return core.WrapOverlayFailed(refreshOverlayErr, "refresh hints")
 	}
 
 	s.logger.Info("Hints refreshed successfully")

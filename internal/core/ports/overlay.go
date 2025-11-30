@@ -7,6 +7,39 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 )
 
+// HintDisplay defines the interface for displaying hint overlays.
+type HintDisplay interface {
+	// ShowHints displays hint labels on the screen.
+	ShowHints(ctx context.Context, hints []*hint.Interface) error
+}
+
+// GridDisplay defines the interface for displaying grid overlays.
+type GridDisplay interface {
+	// ShowGrid displays the grid overlay.
+	ShowGrid(ctx context.Context) error
+}
+
+// HighlightDisplay defines the interface for displaying highlight overlays.
+type HighlightDisplay interface {
+	// DrawScrollHighlight draws a highlight for scroll mode.
+	DrawScrollHighlight(ctx context.Context, rect image.Rectangle, color string, width int) error
+
+	// DrawActionHighlight draws a highlight border for action mode.
+	DrawActionHighlight(ctx context.Context, rect image.Rectangle, color string, width int) error
+}
+
+// OverlayVisibility defines the interface for overlay visibility management.
+type OverlayVisibility interface {
+	// Hide hides the overlays from the screen.
+	Hide(ctx context.Context) error
+
+	// IsVisible returns true if any overlay is currently visible.
+	IsVisible() bool
+
+	// Refresh updates the overlay display (e.g., after screen changes).
+	Refresh(ctx context.Context) error
+}
+
 // OverlayPort defines the interface for managing UI overlays.
 // Implementations handle the platform-specific rendering of hints and grids.
 type OverlayPort interface {

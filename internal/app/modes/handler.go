@@ -1,6 +1,8 @@
 package modes
 
 import (
+	"image"
+
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
@@ -8,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -58,6 +61,9 @@ type Handler struct {
 	// Mode implementations
 	modes map[domain.Mode]Mode
 
+	// Screen bounds for coordinate conversion (grid and hints)
+	screenBounds image.Rectangle
+
 	enableEventTap  func()
 	disableEventTap func()
 	refreshHotkeys  func()
@@ -83,6 +89,9 @@ func NewHandler(
 	disableEventTap func(),
 	refreshHotkeys func(),
 ) *Handler {
+	// Initialize screen bounds for coordinate conversion
+	screenBounds := bridge.ActiveScreenBounds()
+
 	handler := &Handler{
 		config:          config,
 		logger:          logger,
@@ -98,6 +107,7 @@ func NewHandler(
 		grid:            grid,
 		scroll:          scroll,
 		action:          action,
+		screenBounds:    screenBounds,
 		enableEventTap:  enableEventTap,
 		disableEventTap: disableEventTap,
 		refreshHotkeys:  refreshHotkeys,

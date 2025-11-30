@@ -18,41 +18,41 @@ const (
 
 // ActionConfig defines the visual and behavioral settings for action mode.
 type ActionConfig struct {
-	HighlightColor string `toml:"highlight_color"`
-	HighlightWidth int    `toml:"highlight_width"`
+	HighlightColor string `json:"highlightColor" toml:"highlight_color"`
+	HighlightWidth int    `json:"highlightWidth" toml:"highlight_width"`
 
-	LeftClickKey   string `toml:"left_click_key"`
-	RightClickKey  string `toml:"right_click_key"`
-	MiddleClickKey string `toml:"middle_click_key"`
-	MouseDownKey   string `toml:"mouse_down_key"`
-	MouseUpKey     string `toml:"mouse_up_key"`
+	LeftClickKey   string `json:"leftClickKey"   toml:"left_click_key"`
+	RightClickKey  string `json:"rightClickKey"  toml:"right_click_key"`
+	MiddleClickKey string `json:"middleClickKey" toml:"middle_click_key"`
+	MouseDownKey   string `json:"mouseDownKey"   toml:"mouse_down_key"`
+	MouseUpKey     string `json:"mouseUpKey"     toml:"mouse_up_key"`
 }
 
 // Config represents the complete application configuration structure.
 type Config struct {
-	General      GeneralConfig      `toml:"general"`
-	Hotkeys      HotkeysConfig      `toml:"hotkeys"`
-	Hints        HintsConfig        `toml:"hints"`
-	Grid         GridConfig         `toml:"grid"`
-	Scroll       ScrollConfig       `toml:"scroll"`
-	Action       ActionConfig       `toml:"action"`
-	Logging      LoggingConfig      `toml:"logging"`
-	SmoothCursor SmoothCursorConfig `toml:"smooth_cursor"`
-	Metrics      MetricsConfig      `toml:"metrics"`
+	General      GeneralConfig      `json:"general"      toml:"general"`
+	Hotkeys      HotkeysConfig      `json:"hotkeys"      toml:"hotkeys"`
+	Hints        HintsConfig        `json:"hints"        toml:"hints"`
+	Grid         GridConfig         `json:"grid"         toml:"grid"`
+	Scroll       ScrollConfig       `json:"scroll"       toml:"scroll"`
+	Action       ActionConfig       `json:"action"       toml:"action"`
+	Logging      LoggingConfig      `json:"logging"      toml:"logging"`
+	SmoothCursor SmoothCursorConfig `json:"smoothCursor" toml:"smooth_cursor"`
+	Metrics      MetricsConfig      `json:"metrics"      toml:"metrics"`
 }
 
 // GeneralConfig defines general application-wide settings.
 type GeneralConfig struct {
-	ExcludedApps              []string `toml:"excluded_apps"`
-	AccessibilityCheckOnStart bool     `toml:"accessibility_check_on_start"`
-	RestoreCursorPosition     bool     `toml:"restore_cursor_position"`
+	ExcludedApps              []string `json:"excludedApps"              toml:"excluded_apps"`
+	AccessibilityCheckOnStart bool     `json:"accessibilityCheckOnStart" toml:"accessibility_check_on_start"`
+	RestoreCursorPosition     bool     `json:"restoreCursorPosition"     toml:"restore_cursor_position"`
 }
 
 // AppConfig defines application-specific settings for role customization.
 type AppConfig struct {
-	BundleID             string   `toml:"bundle_id"`
-	AdditionalClickable  []string `toml:"additional_clickable_roles"`
-	IgnoreClickableCheck bool     `toml:"ignore_clickable_check"`
+	BundleID             string   `json:"bundleId"             toml:"bundle_id"`
+	AdditionalClickable  []string `json:"additionalClickable"  toml:"additional_clickable_roles"`
+	IgnoreClickableCheck bool     `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
 }
 
 // HotkeysConfig defines hotkey mappings and their associated actions.
@@ -62,104 +62,104 @@ type HotkeysConfig struct {
 	// [hotkeys]
 	// "Cmd+Shift+Space" = "hints"
 	// Values are strings. The special exec prefix is supported: "exec /usr/bin/say hi"
-	Bindings map[string]string `toml:"bindings"`
+	Bindings map[string]string `json:"bindings" toml:"bindings"`
 }
 
 // ScrollConfig defines the behavior and appearance settings for scroll mode.
 type ScrollConfig struct {
-	ScrollStep          int    `toml:"scroll_step"`
-	ScrollStepHalf      int    `toml:"scroll_step_half"`
-	ScrollStepFull      int    `toml:"scroll_step_full"`
-	HighlightScrollArea bool   `toml:"highlight_scroll_area"`
-	HighlightColor      string `toml:"highlight_color"`
-	HighlightWidth      int    `toml:"highlight_width"`
+	ScrollStep          int    `json:"scrollStep"          toml:"scroll_step"`
+	ScrollStepHalf      int    `json:"scrollStepHalf"      toml:"scroll_step_half"`
+	ScrollStepFull      int    `json:"scrollStepFull"      toml:"scroll_step_full"`
+	HighlightScrollArea bool   `json:"highlightScrollArea" toml:"highlight_scroll_area"`
+	HighlightColor      string `json:"highlightColor"      toml:"highlight_color"`
+	HighlightWidth      int    `json:"highlightWidth"      toml:"highlight_width"`
 }
 
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
-	Enabled        bool    `toml:"enabled"`
-	HintCharacters string  `toml:"hint_characters"`
-	FontSize       int     `toml:"font_size"`
-	FontFamily     string  `toml:"font_family"`
-	BorderRadius   int     `toml:"border_radius"`
-	Padding        int     `toml:"padding"`
-	BorderWidth    int     `toml:"border_width"`
-	Opacity        float64 `toml:"opacity"`
+	Enabled        bool    `json:"enabled"        toml:"enabled"`
+	HintCharacters string  `json:"hintCharacters" toml:"hint_characters"`
+	FontSize       int     `json:"fontSize"       toml:"font_size"`
+	FontFamily     string  `json:"fontFamily"     toml:"font_family"`
+	BorderRadius   int     `json:"borderRadius"   toml:"border_radius"`
+	Padding        int     `json:"padding"        toml:"padding"`
+	BorderWidth    int     `json:"borderWidth"    toml:"border_width"`
+	Opacity        float64 `json:"opacity"        toml:"opacity"`
 
-	BackgroundColor  string `toml:"background_color"`
-	TextColor        string `toml:"text_color"`
-	MatchedTextColor string `toml:"matched_text_color"`
-	BorderColor      string `toml:"border_color"`
+	BackgroundColor  string `json:"backgroundColor"  toml:"background_color"`
+	TextColor        string `json:"textColor"        toml:"text_color"`
+	MatchedTextColor string `json:"matchedTextColor" toml:"matched_text_color"`
+	BorderColor      string `json:"borderColor"      toml:"border_color"`
 
-	IncludeMenubarHints           bool     `toml:"include_menubar_hints"`
-	AdditionalMenubarHintsTargets []string `toml:"additional_menubar_hints_targets"`
-	IncludeDockHints              bool     `toml:"include_dock_hints"`
-	IncludeNCHints                bool     `toml:"include_nc_hints"`
+	IncludeMenubarHints           bool     `json:"includeMenubarHints"           toml:"include_menubar_hints"`
+	AdditionalMenubarHintsTargets []string `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`
+	IncludeDockHints              bool     `json:"includeDockHints"              toml:"include_dock_hints"`
+	IncludeNCHints                bool     `json:"includeNcHints"                toml:"include_nc_hints"`
 
-	ClickableRoles       []string `toml:"clickable_roles"`
-	IgnoreClickableCheck bool     `toml:"ignore_clickable_check"`
+	ClickableRoles       []string `json:"clickableRoles"       toml:"clickable_roles"`
+	IgnoreClickableCheck bool     `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
 
-	AppConfigs []AppConfig `toml:"app_configs"`
+	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
-	AdditionalAXSupport AdditionalAXSupport `toml:"additional_ax_support"`
+	AdditionalAXSupport AdditionalAXSupport `json:"additionalAxSupport" toml:"additional_ax_support"`
 }
 
 // GridConfig defines the visual and behavioral settings for grid mode.
 type GridConfig struct {
-	Enabled bool `toml:"enabled"`
+	Enabled bool `json:"enabled" toml:"enabled"`
 
-	Characters   string `toml:"characters"`
-	SublayerKeys string `toml:"sublayer_keys"`
+	Characters   string `json:"characters"   toml:"characters"`
+	SublayerKeys string `json:"sublayerKeys" toml:"sublayer_keys"`
 
-	FontSize    int     `toml:"font_size"`
-	FontFamily  string  `toml:"font_family"`
-	Opacity     float64 `toml:"opacity"`
-	BorderWidth int     `toml:"border_width"`
+	FontSize    int     `json:"fontSize"    toml:"font_size"`
+	FontFamily  string  `json:"fontFamily"  toml:"font_family"`
+	Opacity     float64 `json:"opacity"     toml:"opacity"`
+	BorderWidth int     `json:"borderWidth" toml:"border_width"`
 
-	BackgroundColor        string `toml:"background_color"`
-	TextColor              string `toml:"text_color"`
-	MatchedTextColor       string `toml:"matched_text_color"`
-	MatchedBackgroundColor string `toml:"matched_background_color"`
-	MatchedBorderColor     string `toml:"matched_border_color"`
-	BorderColor            string `toml:"border_color"`
+	BackgroundColor        string `json:"backgroundColor"        toml:"background_color"`
+	TextColor              string `json:"textColor"              toml:"text_color"`
+	MatchedTextColor       string `json:"matchedTextColor"       toml:"matched_text_color"`
+	MatchedBackgroundColor string `json:"matchedBackgroundColor" toml:"matched_background_color"`
+	MatchedBorderColor     string `json:"matchedBorderColor"     toml:"matched_border_color"`
+	BorderColor            string `json:"borderColor"            toml:"border_color"`
 
-	LiveMatchUpdate bool `toml:"live_match_update"`
-	HideUnmatched   bool `toml:"hide_unmatched"`
-	PrewarmEnabled  bool `toml:"prewarm_enabled"`
-	EnableGC        bool `toml:"enable_gc"`
+	LiveMatchUpdate bool `json:"liveMatchUpdate" toml:"live_match_update"`
+	HideUnmatched   bool `json:"hideUnmatched"   toml:"hide_unmatched"`
+	PrewarmEnabled  bool `json:"prewarmEnabled"  toml:"prewarm_enabled"`
+	EnableGC        bool `json:"enableGc"        toml:"enable_gc"`
 }
 
 // LoggingConfig defines the logging behavior and file management settings.
 type LoggingConfig struct {
-	LogLevel          string `toml:"log_level"`
-	LogFile           string `toml:"log_file"`
-	StructuredLogging bool   `toml:"structured_logging"`
+	LogLevel          string `json:"logLevel"          toml:"log_level"`
+	LogFile           string `json:"logFile"           toml:"log_file"`
+	StructuredLogging bool   `json:"structuredLogging" toml:"structured_logging"`
 
 	// New options for log rotation and file logging control
-	DisableFileLogging bool `toml:"disable_file_logging"`
-	MaxFileSize        int  `toml:"max_file_size"` // Size in MB
-	MaxBackups         int  `toml:"max_backups"`   // Maximum number of old log files to retain
-	MaxAge             int  `toml:"max_age"`       // Maximum number of days to retain old log files
+	DisableFileLogging bool `json:"disableFileLogging" toml:"disable_file_logging"`
+	MaxFileSize        int  `json:"maxFileSize"        toml:"max_file_size"` // Size in MB
+	MaxBackups         int  `json:"maxBackups"         toml:"max_backups"`   // Maximum number of old log files to retain
+	MaxAge             int  `json:"maxAge"             toml:"max_age"`       // Maximum number of days to retain old log files
 }
 
 // SmoothCursorConfig defines the smooth cursor movement settings.
 type SmoothCursorConfig struct {
-	MoveMouseEnabled bool `toml:"move_mouse_enabled"`
-	Steps            int  `toml:"steps"`
-	Delay            int  `toml:"delay"` // Delay in milliseconds
+	MoveMouseEnabled bool `json:"moveMouseEnabled" toml:"move_mouse_enabled"`
+	Steps            int  `json:"steps"            toml:"steps"`
+	Delay            int  `json:"delay"            toml:"delay"` // Delay in milliseconds
 }
 
 // AdditionalAXSupport defines accessibility support for specific application frameworks.
 type AdditionalAXSupport struct {
-	Enable                    bool     `toml:"enable"`
-	AdditionalElectronBundles []string `toml:"additional_electron_bundles"`
-	AdditionalChromiumBundles []string `toml:"additional_chromium_bundles"`
-	AdditionalFirefoxBundles  []string `toml:"additional_firefox_bundles"`
+	Enable                    bool     `json:"enable"                    toml:"enable"`
+	AdditionalElectronBundles []string `json:"additionalElectronBundles" toml:"additional_electron_bundles"`
+	AdditionalChromiumBundles []string `json:"additionalChromiumBundles" toml:"additional_chromium_bundles"`
+	AdditionalFirefoxBundles  []string `json:"additionalFirefoxBundles"  toml:"additional_firefox_bundles"`
 }
 
 // MetricsConfig defines metrics collection settings.
 type MetricsConfig struct {
-	Enabled bool `toml:"enabled"`
+	Enabled bool `json:"enabled" toml:"enabled"`
 }
 
 // LoadResult contains the result of loading a configuration file.
@@ -171,6 +171,10 @@ type LoadResult struct {
 
 // Validate validates the configuration.
 func (c *Config) Validate() error {
+	if c == nil {
+		return derrors.New(derrors.CodeInvalidConfig, "configuration cannot be nil")
+	}
+
 	err := c.validateModes()
 	if err != nil {
 		return err

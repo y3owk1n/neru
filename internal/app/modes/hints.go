@@ -2,11 +2,13 @@ package modes
 
 import (
 	"context"
+	"image"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"go.uber.org/zap"
 )
 
@@ -78,7 +80,10 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 
 	// Always resize overlay to the active screen (where mouse is) before collecting elements.
 	// This ensures proper positioning when switching between multiple displays.
-	h.overlayManager.ResizeToActiveScreenSync()
+	activeScreenBounds := bridge.ActiveScreenBounds()
+	h.screenBounds = activeScreenBounds
+	h.overlayManager.ResizeToActiveScreen()
+
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing hints.
 	// This prevents scroll highlights from persisting when switching from scroll mode to hints mode.
 	h.overlayManager.Clear()
@@ -100,6 +105,28 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 		return
 	}
 
+	// Filter hints to only those on the active screen for multi-monitor support
+	filteredHints := make([]*domainHint.Interface, 0, len(domainHints))
+	for _, hint := range domainHints {
+		hintBounds := hint.Element().Bounds()
+		hintCenter := image.Point{
+			X: hintBounds.Min.X + hintBounds.Dx()/2,
+			Y: hintBounds.Min.Y + hintBounds.Dy()/2,
+		}
+
+		// Include hint if its center is within the active screen bounds
+		if hintCenter.In(activeScreenBounds) {
+			filteredHints = append(filteredHints, hint)
+		}
+	}
+
+	h.logger.Debug("Filtered hints by screen",
+		zap.Int("total_hints", len(domainHints)),
+		zap.Int("filtered_hints", len(filteredHints)),
+		zap.String("screen_bounds", activeScreenBounds.String()))
+
+	domainHints = filteredHints
+
 	if len(domainHints) == 0 {
 		h.logger.Warn("No hints generated for action", zap.String("action", actionString))
 
@@ -120,9 +147,14 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 			// Convert domain hints to overlay hints for rendering
 			overlayHints := make([]*hints.Hint, len(filteredHints))
 			for index, hint := range filteredHints {
+				// Convert screen-absolute coordinates to overlay-local coordinates
+				localPos := image.Point{
+					X: hint.Position().X - h.screenBounds.Min.X,
+					Y: hint.Position().Y - h.screenBounds.Min.Y,
+				}
 				overlayHints[index] = hints.NewHint(
 					hint.Label(),
-					hint.Position(),
+					localPos,
 					hint.Element().Bounds().Size(),
 					hint.MatchedPrefix(),
 				)

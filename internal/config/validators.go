@@ -11,6 +11,13 @@ import (
 func (c *Config) ValidateHints() error {
 	var validateErr error
 
+	if c.Hints.Enabled {
+		if len(c.Hints.ClickableRoles) == 0 {
+			return derrors.New(derrors.CodeInvalidConfig,
+				"hints.clickable_roles cannot be empty when hints are enabled")
+		}
+	}
+
 	if strings.TrimSpace(c.Hints.HintCharacters) == "" {
 		return derrors.New(derrors.CodeInvalidConfig, "hint_characters cannot be empty")
 	}

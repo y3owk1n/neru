@@ -25,6 +25,9 @@ func (h *Handler) StartInteractiveScroll() {
 	// Set scroll context active before showing overlay
 	h.scroll.Context.SetIsActive(true)
 
+	// Position overlay on active screen before showing
+	h.overlayManager.ResizeToActiveScreen()
+
 	ctx := context.Background()
 
 	showScrollErr := h.scrollService.Show(ctx)

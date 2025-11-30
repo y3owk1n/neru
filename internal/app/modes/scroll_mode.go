@@ -5,37 +5,32 @@ import (
 )
 
 // ScrollMode implements the Mode interface for scroll-based navigation.
+// It uses the generic mode implementation with scroll-specific behavior.
 type ScrollMode struct {
-	baseMode
+	*GenericMode
 }
 
 // NewScrollMode creates a new scroll mode implementation.
 func NewScrollMode(handler *Handler) *ScrollMode {
+	behavior := ModeBehavior{
+		ActivateFunc: func(handler *Handler, action *string) {
+			// Scroll mode ignores the action parameter as it has a single activation flow
+			handler.StartInteractiveScroll()
+		},
+		ExitFunc: func(handler *Handler) {
+			if handler.scroll != nil && handler.scroll.Context != nil {
+				handler.scroll.Context.SetIsActive(false)
+				handler.scroll.Context.SetLastKey("")
+			}
+			// Reset cursor state when exiting scroll mode to ensure proper cursor restoration
+			// in subsequent modes
+			if handler.cursorState != nil {
+				handler.cursorState.Reset()
+			}
+		},
+	}
+
 	return &ScrollMode{
-		baseMode: newBaseMode(handler, domain.ModeScroll, "ScrollMode"),
-	}
-}
-
-// Activate activates scroll mode with optional action parameter.
-func (m *ScrollMode) Activate(_ *string) {
-	// Scroll mode ignores the action parameter as it has a single activation flow
-	m.handler.StartInteractiveScroll()
-}
-
-// HandleKey processes key presses for scroll mode.
-func (m *ScrollMode) HandleKey(key string) {
-	m.handler.handleGenericScrollKey(key)
-}
-
-// Exit performs scroll mode cleanup.
-func (m *ScrollMode) Exit() {
-	if m.handler.scroll != nil && m.handler.scroll.Context != nil {
-		m.handler.scroll.Context.SetIsActive(false)
-		m.handler.scroll.Context.SetLastKey("")
-	}
-	// Reset cursor state when exiting scroll mode to ensure proper cursor restoration
-	// in subsequent modes
-	if m.handler.cursorState != nil {
-		m.handler.cursorState.Reset()
+		GenericMode: NewGenericMode(handler, domain.ModeScroll, "ScrollMode", behavior),
 	}
 }

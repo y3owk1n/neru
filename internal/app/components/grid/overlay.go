@@ -15,22 +15,16 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 
+	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"go.uber.org/zap"
 )
 
 const (
-	// DefaultCallbackMapSize is the default size for callback maps.
-	DefaultCallbackMapSize = 8
-
-	// DefaultTimerDuration is the default timer duration.
-	DefaultTimerDuration = 2 * time.Second
-
 	// DefaultGridLinesCount is the default number of grid lines.
 	DefaultGridLinesCount = 4
 
@@ -41,13 +35,15 @@ const (
 	RoundingFactor = 0.5
 )
 
+//export gridResizeCompletionCallback
+func gridResizeCompletionCallback(context unsafe.Pointer) {
+	// Convert context to callback ID
+	id := uint64(uintptr(context))
+
+	overlayutil.CompleteGlobalCallback(id)
+}
+
 var (
-	gridCallbackID  uint64
-	gridCallbackMap = make(
-		map[uint64]chan struct{},
-		DefaultCallbackMapSize,
-	) // Pre-size for typical usage
-	gridCallbackLock      sync.Mutex
 	gridCellSlicePool     sync.Pool
 	gridLabelSlicePool    sync.Pool
 	subgridCellSlicePool  sync.Pool
@@ -55,24 +51,13 @@ var (
 	gridPoolOnce          sync.Once
 )
 
-//export gridResizeCompletionCallback
-func gridResizeCompletionCallback(context unsafe.Pointer) {
-	// Convert context to callback ID
-	id := uint64(uintptr(context))
-
-	gridCallbackLock.Lock()
-	if done, ok := gridCallbackMap[id]; ok {
-		close(done)
-		delete(gridCallbackMap, id)
-	}
-	gridCallbackLock.Unlock()
-}
-
 // Overlay manages the rendering of grid overlays using native platform APIs.
 type Overlay struct {
 	window C.OverlayWindow
 	config config.GridConfig
 	logger *zap.Logger
+
+	callbackManager *overlayutil.CallbackManager
 
 	// Cached C strings for style properties to reduce allocations
 	cachedStyleMu            sync.RWMutex
@@ -140,10 +125,11 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) *Overlay {
 	}
 
 	return &Overlay{
-		window:       window,
-		config:       config,
-		logger:       logger,
-		cachedLabels: make(map[string]*C.char),
+		window:          window,
+		config:          config,
+		logger:          logger,
+		callbackManager: overlayutil.NewCallbackManager(logger),
+		cachedLabels:    make(map[string]*C.char),
 	}
 }
 
@@ -161,10 +147,11 @@ func NewOverlayWithWindow(
 	}
 
 	return &Overlay{
-		window:       (C.OverlayWindow)(windowPtr),
-		config:       config,
-		logger:       logger,
-		cachedLabels: make(map[string]*C.char),
+		window:          (C.OverlayWindow)(windowPtr),
+		config:          config,
+		logger:          logger,
+		callbackManager: overlayutil.NewCallbackManager(logger),
+		cachedLabels:    make(map[string]*C.char),
 	}
 }
 
@@ -217,6 +204,11 @@ func (o *Overlay) Clear() {
 
 // Destroy destroys the grid overlay window.
 func (o *Overlay) Destroy() {
+	// Clean up callback manager first to stop background goroutines
+	if o.callbackManager != nil {
+		o.callbackManager.Cleanup()
+	}
+
 	o.freeStyleCache()
 	o.freeLabelCache()
 	C.NeruDestroyOverlayWindow(o.window)
@@ -232,74 +224,19 @@ func (o *Overlay) ResizeToMainScreen() {
 	C.NeruResizeOverlayToMainScreen(o.window)
 }
 
-// ResizeToActiveScreen resizes the overlay window to the screen containing the mouse cursor.
+// ResizeToActiveScreen resizes the overlay window with callback notification.
 func (o *Overlay) ResizeToActiveScreen() {
-	C.NeruResizeOverlayToActiveScreen(o.window)
-}
-
-// ResizeToActiveScreenSync resizes the overlay window synchronously with callback notification.
-func (o *Overlay) ResizeToActiveScreenSync() {
-	done := make(chan struct{})
-
-	// Generate unique ID for this callback
-	callbackID := atomic.AddUint64(&gridCallbackID, 1)
-
-	// Store channel in map
-	gridCallbackLock.Lock()
-	gridCallbackMap[callbackID] = done
-	gridCallbackLock.Unlock()
-
-	if o.logger != nil {
-		o.logger.Debug("Grid overlay resize started", zap.Uint64("callback_id", callbackID))
-	}
-
-	// Pass ID as context (safe - no Go pointers)
-	// Note: uintptr conversion must happen in same expression to satisfy go vet
-	C.NeruResizeOverlayToActiveScreenWithCallback(
-		o.window,
-		(C.ResizeCompletionCallback)(
-			unsafe.Pointer(C.gridResizeCompletionCallback), //nolint:unconvert
-		),
-		*(*unsafe.Pointer)(unsafe.Pointer(&callbackID)),
-	)
-
-	// Don't wait for callback - continue immediately for better UX
-	// The resize operation is typically fast and visually complete before callback
-	// Start a goroutine to handle cleanup when callback eventually arrives
-	go func() {
-		if o.logger != nil {
-			o.logger.Debug(
-				"Grid overlay resize background cleanup started",
-				zap.Uint64("callback_id", callbackID),
-			)
-		}
-
-		// Use timer instead of time.After to prevent memory leaks
-		timer := time.NewTimer(DefaultTimerDuration)
-		defer timer.Stop()
-
-		select {
-		case <-done:
-			timer.Stop() // Stop timer immediately on success
-			// Callback received, normal cleanup already handled in callback
-			if o.logger != nil {
-				o.logger.Debug(
-					"Grid overlay resize callback received",
-					zap.Uint64("callback_id", callbackID),
-				)
-			}
-		case <-timer.C:
-			// Long timeout for cleanup only - callback likely failed
-			gridCallbackLock.Lock()
-			delete(gridCallbackMap, callbackID)
-			gridCallbackLock.Unlock()
-
-			if o.logger != nil {
-				o.logger.Debug("Grid overlay resize cleanup timeout - removed callback from map",
-					zap.Uint64("callback_id", callbackID))
-			}
-		}
-	}()
+	o.callbackManager.StartResizeOperation(func(callbackID uint64) {
+		// Pass integer ID as opaque pointer context for C callback.
+		// Safe: ID is a primitive value that C treats as opaque and Go round-trips via uintptr.
+		// Assumes 64-bit pointers (guaranteed on macOS amd64/arm64, the only supported platforms).
+		// Note: go vet complains about unsafe.Pointer misuse, but this is intentional and safe.
+		C.NeruResizeOverlayToActiveScreenWithCallback(
+			o.window,
+			(C.ResizeCompletionCallback)(C.gridResizeCompletionCallback),
+			unsafe.Pointer(uintptr(callbackID)), //nolint:govet
+		)
+	})
 }
 
 // DrawGrid renders the flat grid with all 3-char cells visible.

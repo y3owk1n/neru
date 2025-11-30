@@ -12,33 +12,27 @@ import "C"
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 
+	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
 )
 
-const (
-	// DefaultCallbackMapSize is the default size for callback maps.
-	DefaultCallbackMapSize = 8
+//export resizeHintCompletionCallback
+func resizeHintCompletionCallback(context unsafe.Pointer) {
+	// Convert context to callback ID
+	id := uint64(uintptr(context))
 
-	// DefaultTimerDuration is the default timer duration.
-	DefaultTimerDuration = 2 * time.Second
-)
+	overlayutil.CompleteGlobalCallback(id)
+}
 
 var (
-	hintCallbackID  uint64
-	hintCallbackMap = make(
-		map[uint64]chan struct{},
-		DefaultCallbackMapSize,
-	) // Pre-size for typical usage
-	hintCallbackLock sync.Mutex
-	hintDataPool     sync.Pool
-	cLabelSlicePool  sync.Pool
-	hintPoolOnce     sync.Once
+	hintDataPool    sync.Pool
+	cLabelSlicePool sync.Pool
+	hintPoolOnce    sync.Once
 
 	// Pre-allocated common errors.
 	errCreateOverlayWindow = derrors.New(
@@ -47,24 +41,13 @@ var (
 	)
 )
 
-//export resizeHintCompletionCallback
-func resizeHintCompletionCallback(context unsafe.Pointer) {
-	// Convert context to callback ID
-	id := uint64(uintptr(context))
-
-	hintCallbackLock.Lock()
-	if done, ok := hintCallbackMap[id]; ok {
-		close(done)
-		delete(hintCallbackMap, id)
-	}
-	hintCallbackLock.Unlock()
-}
-
 // Overlay manages the rendering of hint overlays using native platform APIs.
 type Overlay struct {
 	window C.OverlayWindow
 	config config.HintsConfig
 	logger *zap.Logger
+
+	callbackManager *overlayutil.CallbackManager
 
 	// Cached C strings for style properties to reduce allocations
 	cachedStyleMu          sync.RWMutex
@@ -165,9 +148,10 @@ func NewOverlay(config config.HintsConfig, logger *zap.Logger) (*Overlay, error)
 	initPools()
 
 	return &Overlay{
-		window: window,
-		config: config,
-		logger: logger,
+		window:          window,
+		config:          config,
+		logger:          logger,
+		callbackManager: overlayutil.NewCallbackManager(logger),
 	}, nil
 }
 
@@ -180,9 +164,10 @@ func NewOverlayWithWindow(
 	initPools()
 
 	return &Overlay{
-		window: (C.OverlayWindow)(windowPtr),
-		config: config,
-		logger: logger,
+		window:          (C.OverlayWindow)(windowPtr),
+		config:          config,
+		logger:          logger,
+		callbackManager: overlayutil.NewCallbackManager(logger),
 	}, nil
 }
 
@@ -212,74 +197,19 @@ func (o *Overlay) Clear() {
 	C.NeruClearOverlay(o.window)
 }
 
-// ResizeToActiveScreen resizes the overlay window to the screen containing the mouse cursor.
+// ResizeToActiveScreen resizes the overlay window with callback notification.
 func (o *Overlay) ResizeToActiveScreen() {
-	C.NeruResizeOverlayToActiveScreen(o.window)
-}
-
-// ResizeToActiveScreenSync resizes the overlay window synchronously with callback notification.
-func (o *Overlay) ResizeToActiveScreenSync() {
-	done := make(chan struct{})
-
-	// Generate unique ID for this callback
-	callbackID := atomic.AddUint64(&hintCallbackID, 1)
-
-	// Store channel in map
-	hintCallbackLock.Lock()
-	hintCallbackMap[callbackID] = done
-	hintCallbackLock.Unlock()
-
-	if o.logger != nil {
-		o.logger.Debug("Hint overlay resize started", zap.Uint64("callback_id", callbackID))
-	}
-
-	// Pass ID as context (safe - no Go pointers)
-	// Note: uintptr conversion must happen in same expression to satisfy go vet
-	C.NeruResizeOverlayToActiveScreenWithCallback(
-		o.window,
-		(C.ResizeCompletionCallback)(
-			unsafe.Pointer(C.resizeHintCompletionCallback), //nolint:unconvert
-		),
-		*(*unsafe.Pointer)(unsafe.Pointer(&callbackID)),
-	)
-
-	// Don't wait for callback - continue immediately for better UX
-	// The resize operation is typically fast and visually complete before callback
-	// Start a goroutine to handle cleanup when callback eventually arrives
-	go func() {
-		if o.logger != nil {
-			o.logger.Debug(
-				"Hint overlay resize background cleanup started",
-				zap.Uint64("callback_id", callbackID),
-			)
-		}
-
-		// Use timer instead of time.After to prevent memory leaks
-		timer := time.NewTimer(DefaultTimerDuration)
-		defer timer.Stop()
-
-		select {
-		case <-done:
-			timer.Stop() // Stop timer immediately on success
-			// Callback received, normal cleanup already handled in callback
-			if o.logger != nil {
-				o.logger.Debug(
-					"Hint overlay resize callback received",
-					zap.Uint64("callback_id", callbackID),
-				)
-			}
-		case <-timer.C:
-			// Long timeout for cleanup only - callback likely failed
-			hintCallbackLock.Lock()
-			delete(hintCallbackMap, callbackID)
-			hintCallbackLock.Unlock()
-
-			if o.logger != nil {
-				o.logger.Debug("Hint overlay resize cleanup timeout - removed callback from map",
-					zap.Uint64("callback_id", callbackID))
-			}
-		}
-	}()
+	o.callbackManager.StartResizeOperation(func(callbackID uint64) {
+		// Pass integer ID as opaque pointer context for C callback.
+		// Safe: ID is a primitive value that C treats as opaque and Go round-trips via uintptr.
+		// Assumes 64-bit pointers (guaranteed on macOS amd64/arm64, the only supported platforms).
+		// Note: go vet complains about unsafe.Pointer misuse, but this is intentional and safe.
+		C.NeruResizeOverlayToActiveScreenWithCallback(
+			o.window,
+			(C.ResizeCompletionCallback)(C.resizeHintCompletionCallback),
+			unsafe.Pointer(uintptr(callbackID)), //nolint:govet
+		)
+	})
 }
 
 // DrawHintsWithStyle draws hints on the overlay with custom style.
@@ -370,6 +300,11 @@ func (o *Overlay) UpdateConfig(config config.HintsConfig) {
 
 // Destroy destroys the overlay.
 func (o *Overlay) Destroy() {
+	// Clean up callback manager first to stop background goroutines
+	if o.callbackManager != nil {
+		o.callbackManager.Cleanup()
+	}
+
 	if o.window != nil {
 		o.freeStyleCache()
 		C.NeruDestroyOverlayWindow(o.window)

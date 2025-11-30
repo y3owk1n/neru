@@ -114,8 +114,8 @@ func (a *Adapter) DrawScrollHighlight(
 	}
 
 	a.manager.DrawScrollHighlight(
-		rect.Min.X,
-		rect.Min.Y,
+		0,
+		0,
 		rect.Dx(),
 		rect.Dy(),
 	)
@@ -140,10 +140,10 @@ func (a *Adapter) DrawActionHighlight(
 	default:
 	}
 
-	// Use manager to draw action highlight
+	// Use manager to draw action highlight (overlay is positioned at screen origin, so use local coords)
 	a.manager.DrawActionHighlight(
-		rect.Min.X,
-		rect.Min.Y,
+		0,
+		0,
 		rect.Dx(),
 		rect.Dy(),
 	)
@@ -183,7 +183,7 @@ func (a *Adapter) Refresh(ctx context.Context) error {
 	}
 
 	a.logger.Debug("Refreshing overlay")
-	a.manager.ResizeToActiveScreenSync()
+	a.manager.ResizeToActiveScreen()
 	a.logger.Info("Overlay refreshed")
 
 	return nil

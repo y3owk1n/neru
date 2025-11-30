@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/atotto/clipboard"
 	"github.com/getlantern/systray"
 	"github.com/y3owk1n/neru/internal/app"
@@ -113,7 +115,7 @@ func handleReloadConfig() {
 
 	configPath := globalApp.GetConfigPath()
 
-	reloadConfigErr := globalApp.ReloadConfig(configPath)
+	reloadConfigErr := globalApp.ReloadConfig(context.Background(), configPath)
 	if reloadConfigErr != nil {
 		logger.Error("Failed to reload config from systray", zap.Error(reloadConfigErr))
 	} else {

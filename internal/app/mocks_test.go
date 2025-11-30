@@ -121,8 +121,8 @@ func (m *mockOverlayManager) Clear() {
 	m.mu.Unlock()
 }
 
-// ResizeToActiveScreenSync implements OverlayManager.
-func (m *mockOverlayManager) ResizeToActiveScreenSync() {}
+// ResizeToActiveScreen implements OverlayManager.
+func (m *mockOverlayManager) ResizeToActiveScreen() {}
 
 // SwitchTo implements OverlayManager.
 func (m *mockOverlayManager) SwitchTo(mode overlay.Mode) {

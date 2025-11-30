@@ -72,7 +72,7 @@ func (r *OverlayRenderer) Clear() {
 
 // ResizeActive resizes the overlay to the active screen.
 func (r *OverlayRenderer) ResizeActive() {
-	r.manager.ResizeToActiveScreenSync()
+	r.manager.ResizeToActiveScreen()
 }
 
 // DrawActionHighlight draws an action highlight border around the active screen.
