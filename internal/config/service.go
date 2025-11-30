@@ -15,17 +15,14 @@ import (
 // Service manages application configuration with thread-safe access and change notifications.
 // This replaces the global configuration pattern with dependency injection.
 
-// safeSendConfig safely sends a config to a watcher channel that might be closed.
-func safeSendConfig(channel chan<- *Config, config *Config) bool {
-	defer func() {
-		// Recover from panic if channel is closed
-		_ = recover()
-	}()
-
+// safeSendConfig attempts to send a config without blocking.
+// Returns true if sent successfully, false if channel is full or closed.
+func safeSendConfig(ch chan<- *Config, config *Config) bool {
 	select {
-	case channel <- config:
+	case ch <- config:
 		return true
 	default:
+		// Channel is full or might be in the process of closing
 		return false
 	}
 }
