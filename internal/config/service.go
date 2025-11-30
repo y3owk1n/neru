@@ -317,10 +317,6 @@ func (s *Service) Watch(ctx context.Context) <-chan *Config {
 
 // Validate validates the given configuration.
 func (s *Service) Validate(config *Config) error {
-	if config == nil {
-		return derrors.New(derrors.CodeInvalidConfig, "configuration cannot be nil")
-	}
-
 	// Delegate to Config.Validate for comprehensive validation
 	return config.Validate()
 }
