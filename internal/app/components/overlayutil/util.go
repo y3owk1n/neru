@@ -61,12 +61,23 @@ func CallbackIDToPointer(callbackID uint64) unsafe.Pointer {
 		// Defensive: avoid silently corrupting memory if we ever run out of slots.
 		panic("overlayutil: callbackID exceeds callback ID store capacity")
 	}
+<<<<<<< HEAD
 
 	callbackIDStoreMu.Lock()
 
 	callbackIDStore[callbackID] = callbackID
 	ptr := unsafe.Pointer(&callbackIDStore[callbackID])
+||||||| parent of 12306a9 (fix: prevent dangling C pointers in callback ID store)
+	// Store the ID
+	callbackIDStore[callbackID] = callbackID
+	// Get pointer to the slice element - this is safe because it's a pointer to actual memory
+	ptr := unsafe.Pointer(&callbackIDStore[callbackID])
+=======
+>>>>>>> 12306a9 (fix: prevent dangling C pointers in callback ID store)
 
+	callbackIDStoreMu.Lock()
+	callbackIDStore[callbackID] = callbackID
+	ptr := unsafe.Pointer(&callbackIDStore[callbackID])
 	callbackIDStoreMu.Unlock()
 
 	return ptr
