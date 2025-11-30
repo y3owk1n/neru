@@ -24,6 +24,38 @@ const (
 	DefaultSubscriberMapSize = 4
 )
 
+// NoOpManager is a no-op implementation of ManagerInterface for headless environments.
+type NoOpManager struct{}
+
+func (n *NoOpManager) Show()                                 {}
+func (n *NoOpManager) Hide()                                 {}
+func (n *NoOpManager) Clear()                                {}
+func (n *NoOpManager) ResizeToActiveScreen()                 {}
+func (n *NoOpManager) SwitchTo(next Mode)                    {}
+func (n *NoOpManager) Subscribe(fn func(StateChange)) uint64 { return 0 }
+func (n *NoOpManager) Unsubscribe(id uint64)                 {}
+func (n *NoOpManager) Destroy()                              {}
+func (n *NoOpManager) Mode() Mode                            { return ModeIdle }
+func (n *NoOpManager) WindowPtr() unsafe.Pointer             { return nil }
+
+func (n *NoOpManager) UseHintOverlay(o *hints.Overlay)    {}
+func (n *NoOpManager) UseGridOverlay(o *grid.Overlay)     {}
+func (n *NoOpManager) UseActionOverlay(o *action.Overlay) {}
+func (n *NoOpManager) UseScrollOverlay(o *scroll.Overlay) {}
+
+func (n *NoOpManager) HintOverlay() *hints.Overlay    { return nil }
+func (n *NoOpManager) GridOverlay() *grid.Overlay     { return nil }
+func (n *NoOpManager) ActionOverlay() *action.Overlay { return nil }
+func (n *NoOpManager) ScrollOverlay() *scroll.Overlay { return nil }
+
+func (n *NoOpManager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error  { return nil }
+func (n *NoOpManager) DrawActionHighlight(x, y, w, h int)                                {}
+func (n *NoOpManager) DrawScrollHighlight(x, y, w, h int)                                {}
+func (n *NoOpManager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error { return nil }
+func (n *NoOpManager) UpdateGridMatches(prefix string)                                   {}
+func (n *NoOpManager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style)               {}
+func (n *NoOpManager) SetHideUnmatched(hide bool)                                        {}
+
 // Mode represents the overlay mode.
 type Mode string
 
