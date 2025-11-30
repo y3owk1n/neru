@@ -75,22 +75,19 @@ func (h *IPCControllerInfo) RegisterHandlers(
 func (h *IPCControllerInfo) ResolveConfigPath() string {
 	configPath := h.configService.GetConfigPath()
 
-	// Check if the config file actually exists
-	if configPath != "" {
-		_, err := os.Stat(configPath)
-		if os.IsNotExist(err) {
-			return "using default config"
-		}
-		// Convert to absolute path for display
-		absPath, err := filepath.Abs(configPath)
-		if err == nil {
-			return absPath
-		}
-	}
-
-	// If path is empty or file exists, return the path
 	if configPath == "" {
 		return "using default config"
+	}
+
+	// Check if the config file actually exists
+	_, err := os.Stat(configPath)
+	if os.IsNotExist(err) {
+		return "using default config"
+	}
+
+	// Convert to absolute path for display
+	if absPath, err := filepath.Abs(configPath); err == nil {
+		return absPath
 	}
 
 	return configPath
