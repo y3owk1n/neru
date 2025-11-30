@@ -27,6 +27,9 @@ const (
 // NoOpManager is a no-op implementation of ManagerInterface for headless environments.
 type NoOpManager struct{}
 
+// Ensure NoOpManager always implements ManagerInterface.
+var _ ManagerInterface = (*NoOpManager)(nil)
+
 // Show is a no-op implementation.
 func (n *NoOpManager) Show() {}
 
