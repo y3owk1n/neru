@@ -171,6 +171,10 @@ type LoadResult struct {
 
 // Validate validates the configuration.
 func (c *Config) Validate() error {
+	if c == nil {
+		return derrors.New(derrors.CodeInvalidConfig, "configuration cannot be nil")
+	}
+
 	err := c.validateModes()
 	if err != nil {
 		return err

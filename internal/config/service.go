@@ -83,6 +83,8 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 			configResult.ValidationError = core.WrapConfigFailed(statErr, "config file not found")
 		} else {
 			s.logger.Info("Config file not found, using default configuration")
+			// Clear ConfigPath for auto-discovered missing files
+			configResult.ConfigPath = ""
 		}
 
 		return configResult
@@ -256,7 +258,7 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 	// Notify watchers (outside the lock to avoid deadlock)
 	for _, watcher := range watchers {
 		if !safeSendConfig(watcher, loadResult.Config) {
-			// Channel is full, skip this watcher
+			s.logger.Debug("Watcher channel full, skipping notification")
 			continue
 		}
 
@@ -318,30 +320,8 @@ func (s *Service) Validate(config *Config) error {
 		return derrors.New(derrors.CodeInvalidConfig, "configuration cannot be nil")
 	}
 
-	// Validate hints configuration
-	if config.Hints.Enabled {
-		if len(config.Hints.HintCharacters) < MinCharactersLength {
-			return derrors.Newf(derrors.CodeInvalidConfig,
-				"hints.hint_characters must have at least 2 characters, got %d",
-				len(config.Hints.HintCharacters))
-		}
-
-		if len(config.Hints.ClickableRoles) == 0 {
-			return derrors.New(derrors.CodeInvalidConfig,
-				"hints.clickable_roles cannot be empty when hints are enabled")
-		}
-	}
-
-	// Validate grid configuration
-	if config.Grid.Enabled {
-		if len(config.Grid.Characters) < MinCharactersLength {
-			return derrors.Newf(derrors.CodeInvalidConfig,
-				"grid.characters must have at least 2 characters, got %d",
-				len(config.Grid.Characters))
-		}
-	}
-
-	return nil
+	// Delegate to Config.Validate for comprehensive validation
+	return config.Validate()
 }
 
 // Update updates the configuration (for testing/internal use).
