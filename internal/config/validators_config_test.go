@@ -237,6 +237,76 @@ func TestConfig_ValidateAction(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "invalid highlight width zero",
+			config: config.Config{
+				Action: config.ActionConfig{
+					HighlightWidth: 0,
+					HighlightColor: "#FF0000",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid highlight width negative",
+			config: config.Config{
+				Action: config.ActionConfig{
+					HighlightWidth: -1,
+					HighlightColor: "#FF0000",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid highlight color empty",
+			config: config.Config{
+				Action: config.ActionConfig{
+					HighlightWidth: 2,
+					HighlightColor: "",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid highlight color not hex",
+			config: config.Config{
+				Action: config.ActionConfig{
+					HighlightWidth: 2,
+					HighlightColor: "red",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid highlight color too short",
+			config: config.Config{
+				Action: config.ActionConfig{
+					HighlightWidth: 2,
+					HighlightColor: "#12",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid highlight color invalid length",
+			config: config.Config{
+				Action: config.ActionConfig{
+					HighlightWidth: 2,
+					HighlightColor: "#12345",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid highlight color invalid characters",
+			config: config.Config{
+				Action: config.ActionConfig{
+					HighlightWidth: 2,
+					HighlightColor: "#GGGGGG",
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
