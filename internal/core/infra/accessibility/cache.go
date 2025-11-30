@@ -37,34 +37,32 @@ type CachedInfo struct {
 	element   list.Element // For LRU tracking
 }
 
+// staticRoles defines roles that should use longer (static) TTL.
+var staticRoles = map[string]bool{
+	"AXButton":             true,
+	"AXLink":               true,
+	"AXMenuItem":           true,
+	"AXMenuButton":         true,
+	"AXPopUpButton":        true,
+	"AXTabButton":          true,
+	"AXCheckBox":           true,
+	"AXRadioButton":        true,
+	"AXSwitch":             true,
+	"AXDisclosureTriangle": true,
+	"AXComboBox":           true,
+	"AXSlider":             true,
+	"AXStaticText":         true,
+	"AXImage":              true,
+	"AXHeading":            true,
+}
+
 // isStaticElement determines if an element should use static (longer) TTL based on its role.
 func isStaticElement(info *ElementInfo) bool {
 	if info == nil {
 		return false
 	}
 
-	role := info.Role()
-
-	// Static elements: buttons, links, menu items, tabs, etc. - these don't change often
-	staticRoles := map[string]bool{
-		"AXButton":             true,
-		"AXLink":               true,
-		"AXMenuItem":           true,
-		"AXMenuButton":         true,
-		"AXPopUpButton":        true,
-		"AXTabButton":          true,
-		"AXCheckBox":           true,
-		"AXRadioButton":        true,
-		"AXSwitch":             true,
-		"AXDisclosureTriangle": true,
-		"AXComboBox":           true,
-		"AXSlider":             true,
-		"AXStaticText":         true, // Static text is usually labels
-		"AXImage":              true, // Images are usually static
-		"AXHeading":            true, // Headings are usually static
-	}
-
-	return staticRoles[role]
+	return staticRoles[info.Role()]
 }
 
 // InfoCache implements a thread-safe time-to-live cache for element information.
