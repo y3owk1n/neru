@@ -31,22 +31,11 @@ type ConfigValidation interface {
 	Validate(cfg *config.Config) error
 }
 
-// ConfigPort defines the interface for configuration management.
+// ConfigPort defines the full interface for configuration management.
+// It composes retrieval, lifecycle management, and validation capabilities.
 // Implementations handle loading, validation, and watching for config changes.
 type ConfigPort interface {
-	// Get returns the current configuration.
-	Get() *config.Config
-
-	// Reload reloads the configuration from the specified path.
-	Reload(ctx context.Context, path string) error
-
-	// Watch returns a channel that receives config updates.
-	// The channel is closed when the context is canceled.
-	Watch(ctx context.Context) <-chan *config.Config
-
-	// Validate validates the given configuration.
-	Validate(cfg *config.Config) error
-
-	// Path returns the current configuration file path.
-	Path() string
+	ConfigRetrieval
+	ConfigManagement
+	ConfigValidation
 }
