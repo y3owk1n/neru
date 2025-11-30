@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/y3owk1n/neru/compare/v1.11.0...v1.11.1) (2025-11-30)
+
+
+### Bug Fixes
+
+* improve unsafe pointer handling for C callback interop ([#250](https://github.com/y3owk1n/neru/issues/250)) ([50c0929](https://github.com/y3owk1n/neru/commit/50c092934851bfbd568eb933720d37e19601da1c))
+
 ## [1.11.0](https://github.com/y3owk1n/neru/compare/v1.10.5...v1.11.0) (2025-11-30)
 
 
