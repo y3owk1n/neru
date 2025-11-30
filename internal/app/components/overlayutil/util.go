@@ -62,7 +62,9 @@ func CompleteGlobalCallback(callbackID uint64) {
 
 	// Return the ID to the free pool for reuse
 	freeCallbackIDsMu.Lock()
+
 	freeCallbackIDs = append(freeCallbackIDs, callbackID)
+
 	freeCallbackIDsMu.Unlock()
 
 	// Note: We don't clean up from callbackIDStore here because the pointer
@@ -112,12 +114,15 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64)) {
 
 	// Allocate an ID from the free pool
 	freeCallbackIDsMu.Lock()
+
 	if len(freeCallbackIDs) == 0 {
 		freeCallbackIDsMu.Unlock()
 		panic("overlayutil: no available callback IDs")
 	}
+
 	callbackID := freeCallbackIDs[len(freeCallbackIDs)-1]
 	freeCallbackIDs = freeCallbackIDs[:len(freeCallbackIDs)-1]
+
 	freeCallbackIDsMu.Unlock()
 
 	// Store channel in instance map
