@@ -121,7 +121,7 @@ func (f *ComponentFactory) CreateGridComponent(
 		domain.SubgridCols,
 		subKeys,
 		func(_ bool) {
-			if gridInstance == nil {
+			if gridInstance == nil || (*gridInstance).Characters() == "" {
 				return
 			}
 
