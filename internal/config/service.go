@@ -69,10 +69,12 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	// TOML library doesn't support mixed struct/map decoding in single pass
 
 	var raw map[string]any
+
 	_, decodeErr := toml.DecodeFile(configResult.ConfigPath, &raw)
 	if decodeErr != nil {
 		configResult.ValidationError = core.WrapConfigFailed(decodeErr, "parse config file")
 		configResult.Config = DefaultConfig()
+
 		return configResult
 	}
 
@@ -81,6 +83,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	if err != nil {
 		configResult.ValidationError = core.WrapConfigFailed(err, "parse config file")
 		configResult.Config = DefaultConfig()
+
 		return configResult
 	}
 
