@@ -167,6 +167,7 @@ func (s *Service) FindConfigFile() string {
 		if err == nil {
 			return path
 		}
+
 		if !os.IsNotExist(err) {
 			s.logger.Warn("Failed to check config file",
 				zap.String("path", path),
@@ -184,6 +185,7 @@ func (s *Service) FindConfigFile() string {
 		if err == nil {
 			return path
 		}
+
 		if !os.IsNotExist(err) {
 			s.logger.Warn("Failed to check config file",
 				zap.String("path", path),
@@ -197,6 +199,7 @@ func (s *Service) FindConfigFile() string {
 		if err == nil {
 			return path
 		}
+
 		if !os.IsNotExist(err) {
 			s.logger.Warn("Failed to check config file",
 				zap.String("path", path),
@@ -211,6 +214,7 @@ func (s *Service) FindConfigFile() string {
 	if err == nil {
 		return "neru.toml"
 	}
+
 	if !os.IsNotExist(err) {
 		s.logger.Warn("Failed to check config file",
 			zap.String("path", "neru.toml"),
@@ -222,6 +226,7 @@ func (s *Service) FindConfigFile() string {
 	if err == nil {
 		return "config.toml"
 	}
+
 	if !os.IsNotExist(err) {
 		s.logger.Warn("Failed to check config file",
 			zap.String("path", "config.toml"),
