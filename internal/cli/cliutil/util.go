@@ -23,13 +23,6 @@ func NewIPCCommunicator(timeoutSec int) *IPCCommunicator {
 
 // SendCommand sends a command to the running Neru daemon.
 func (c *IPCCommunicator) SendCommand(action string, args []string) (ipc.Response, error) {
-	if !ipc.IsServerRunning() {
-		return ipc.Response{}, derrors.New(
-			derrors.CodeIPCServerNotRunning,
-			"neru is not running. Start it first with 'neru' or 'neru launch'",
-		)
-	}
-
 	ipcClient := ipc.NewClient()
 
 	ipcResponse, ipcResponseErr := ipcClient.SendWithTimeout(
@@ -96,7 +89,7 @@ func (b *CommandBuilder) BuildSimpleCommand(use, short, long string, action stri
 		Short: short,
 		Long:  long,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
-			return b.checkRunningInstance()
+			return b.CheckRunningInstance()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return b.communicator.SendAndHandle(cmd, action, args)
@@ -115,7 +108,7 @@ func (b *CommandBuilder) BuildActionCommand(
 		Short: short,
 		Long:  long,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
-			return b.checkRunningInstance()
+			return b.CheckRunningInstance()
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return b.communicator.SendAndHandle(cmd, action, params)
@@ -133,11 +126,6 @@ func (b *CommandBuilder) CheckRunningInstance() error {
 	}
 
 	return nil
-}
-
-// checkRunningInstance verifies that a Neru instance is running (internal method).
-func (b *CommandBuilder) checkRunningInstance() error {
-	return b.CheckRunningInstance()
 }
 
 // OutputFormatter handles formatted output for CLI commands.
