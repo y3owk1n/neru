@@ -234,9 +234,7 @@ func (o *Overlay) ResizeToActiveScreen() {
 		// Note: go vet complains about unsafe.Pointer misuse, but this is intentional and safe.
 		C.NeruResizeOverlayToActiveScreenWithCallback(
 			o.window,
-			(C.ResizeCompletionCallback)(
-				unsafe.Pointer(C.gridResizeCompletionCallback), //nolint:unconvert
-			),
+			(C.ResizeCompletionCallback)(C.gridResizeCompletionCallback),
 			unsafe.Pointer(uintptr(callbackID)), //nolint:govet
 		)
 	})
