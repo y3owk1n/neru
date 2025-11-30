@@ -48,6 +48,11 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		configResult.ConfigPath = s.FindConfigFile()
 	}
 
+	if configResult.ConfigPath == "" {
+		s.logger.Info("No config file specified or found, using default configuration")
+		return configResult
+	}
+
 	s.logger.Info("Loading config from", zap.String("path", configResult.ConfigPath))
 
 	_, statErr := os.Stat(configResult.ConfigPath)
@@ -57,7 +62,9 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		return configResult
 	}
 
-	_, decodeErr := toml.DecodeFile(configResult.ConfigPath, configResult.Config)
+	// Decode once into raw map for both config population and hotkey processing
+	var raw map[string]any
+	_, decodeErr := toml.DecodeFile(configResult.ConfigPath, &raw)
 	if decodeErr != nil {
 		configResult.ValidationError = core.WrapConfigFailed(decodeErr, "parse config file")
 		configResult.Config = DefaultConfig()
@@ -65,17 +72,20 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		return configResult
 	}
 
-	var raw map[string]map[string]any
+	// Decode into typed config struct
+	if _, err := toml.DecodeFile(configResult.ConfigPath, configResult.Config); err != nil {
+		configResult.ValidationError = core.WrapConfigFailed(err, "parse config file")
+		configResult.Config = DefaultConfig()
+		return configResult
+	}
 
-	_, anotherDecodeErr := toml.DecodeFile(configResult.ConfigPath, &raw)
-	if anotherDecodeErr == nil {
-		if hot, ok := raw["hotkeys"]; ok {
-			if len(hot) > 0 {
-				// Clear default bindings when user provides hotkeys config
-				configResult.Config.Hotkeys.Bindings = map[string]string{}
-			}
+	// Process hotkeys from raw map
+	if hot, ok := raw["hotkeys"]; ok {
+		if hotMap, ok := hot.(map[string]any); ok && len(hotMap) > 0 {
+			// Clear default bindings when user provides hotkeys config
+			configResult.Config.Hotkeys.Bindings = map[string]string{}
 
-			for key, value := range hot {
+			for key, value := range hotMap {
 				str, ok := value.(string)
 				if !ok {
 					configResult.ValidationError = derrors.Newf(
