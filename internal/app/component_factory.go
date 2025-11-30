@@ -121,7 +121,8 @@ func (f *ComponentFactory) CreateGridComponent(
 		domain.SubgridCols,
 		subKeys,
 		func(_ bool) {
-			if gridInstance == nil || (*gridInstance).Characters() == "" {
+			instancePtr := ctx.GridInstance()
+			if instancePtr == nil || *instancePtr == nil || (*instancePtr).Characters() == "" {
 				return
 			}
 
