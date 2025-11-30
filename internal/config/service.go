@@ -16,13 +16,14 @@ import (
 // This replaces the global configuration pattern with dependency injection.
 
 // safeSendConfig attempts to send a config without blocking.
-// Returns true if sent successfully, false if channel is full or closed.
+// Returns true if sent successfully, false if channel is full.
+// Note: Channels are never closed by the server; consumers terminate via context cancellation.
 func safeSendConfig(ch chan<- *Config, config *Config) bool {
 	select {
 	case ch <- config:
 		return true
 	default:
-		// Channel is full or might be in the process of closing
+		// Channel is full
 		return false
 	}
 }
@@ -293,7 +294,7 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 	// Notify watchers (outside the lock to avoid deadlock)
 	for _, watcher := range watchers {
 		if !safeSendConfig(watcher, loadResult.Config) {
-			// Channel was closed or full, skip this watcher
+			// Channel is full, skip this watcher
 			continue
 		}
 
@@ -314,7 +315,9 @@ func (s *Service) ReloadConfig(path string) error {
 }
 
 // Watch returns a channel that receives configuration updates.
-// The channel is closed when the context is canceled.
+// The watcher terminates when the context is canceled.
+// Note: The channel is never closed by the server; consumers should select on both
+// the channel and ctx.Done() to detect when to stop listening.
 func (s *Service) Watch(ctx context.Context) <-chan *Config {
 	channel := make(chan *Config, 1)
 
@@ -325,8 +328,7 @@ func (s *Service) Watch(ctx context.Context) <-chan *Config {
 	// Send current config immediately
 	channel <- s.Get()
 
-	// Clean up when context is done (use sync.Once to prevent double-close)
-	var once sync.Once
+	// Clean up when context is done
 	go func() {
 		<-ctx.Done()
 
@@ -342,10 +344,7 @@ func (s *Service) Watch(ctx context.Context) <-chan *Config {
 			}
 		}
 
-		// Ensure channel is only closed once
-		once.Do(func() {
-			close(channel)
-		})
+		// Note: Channel is not closed; consumers detect termination via ctx.Done()
 	}()
 
 	return channel
