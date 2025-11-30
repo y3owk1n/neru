@@ -108,6 +108,7 @@ func (o *Overlay) ResizeToActiveScreenSync() {
 	o.callbackManager.StartResizeOperation(func(callbackID uint64) {
 		// Pass integer ID as opaque pointer context for C callback.
 		// Safe: ID is a primitive value that C treats as opaque and Go round-trips via uintptr.
+		// Assumes 64-bit pointers (guaranteed on macOS amd64/arm64, the only supported platforms).
 		// Note: go vet complains about unsafe.Pointer misuse, but this is intentional and safe.
 		C.NeruResizeOverlayToActiveScreenWithCallback(
 			o.window,
