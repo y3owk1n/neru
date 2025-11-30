@@ -267,7 +267,6 @@ func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Sty
 	// Check if we can do incremental updates
 	o.gridStateMu.RLock()
 	canIncrementalUpdate := o.previousGrid != nil &&
-		o.previousInput == currentInput &&
 		o.previousStyle == style &&
 		len(o.previousGrid.AllCells()) == len(cells)
 	o.gridStateMu.RUnlock()
@@ -480,7 +479,11 @@ func (o *Overlay) SetMaxCells(maxCells int) {
 }
 
 // drawGridIncremental performs incremental updates by only redrawing changed cells.
-func (o *Overlay) drawGridIncremental(grid *domainGrid.Grid, currentInput string, style Style) bool {
+func (o *Overlay) drawGridIncremental(
+	grid *domainGrid.Grid,
+	currentInput string,
+	style Style,
+) bool {
 	o.gridStateMu.RLock()
 	previousGrid := o.previousGrid
 	previousInput := o.previousInput
@@ -496,13 +499,14 @@ func (o *Overlay) drawGridIncremental(grid *domainGrid.Grid, currentInput string
 		// Only input changed - we can do incremental match updates
 		if currentInput != previousInput {
 			o.updateMatchesIncremental(grid, currentInput, previousInput)
+
 			return true
 		}
 	}
 
 	// For structural changes (grid size/layout changes), fall back to full redraw
-	// TODO: Implement true incremental updates for structural changes
-	// This would require new C API functions to update individual cells
+	// Note: True incremental updates for structural changes would require
+	// new C API functions to update individual cells
 	return false
 }
 
@@ -527,51 +531,15 @@ func (o *Overlay) gridsAreStructurallyEqual(a, b *domainGrid.Grid) bool {
 	return true
 }
 
-// updateMatchesIncremental updates only the match states for cells when input changes.
+// updateMatchesIncremental updates match states incrementally when input changes.
 func (o *Overlay) updateMatchesIncremental(grid *domainGrid.Grid, newInput, oldInput string) {
-	cells := grid.AllCells()
+	// Use the existing UpdateMatches method which calls NeruUpdateGridMatchPrefix
+	// This updates match states without clearing the entire overlay
+	o.UpdateMatches(newInput)
 
-	// Find cells whose match status changed
-	var changedCells []*domainGrid.Cell
-	var changedPrefixes []string
-
-	for _, cell := range cells {
-		coord := cell.Coordinate()
-
-		// Check if match status changed
-		oldMatched := oldInput != "" && strings.HasPrefix(coord, oldInput)
-		newMatched := newInput != "" && strings.HasPrefix(coord, newInput)
-
-		if oldMatched != newMatched {
-			changedCells = append(changedCells, cell)
-			// Calculate the matched prefix length for the new input
-			matchedLength := 0
-			if newMatched {
-				matchedLength = len(newInput)
-			}
-			changedPrefixes = append(changedPrefixes, coord[:min(matchedLength, len(coord))])
-		}
-	}
-
-	if len(changedCells) > 0 {
-		o.logger.Debug("Incremental match update",
-			zap.Int("changed_cells", len(changedCells)),
-			zap.String("old_input", oldInput),
-			zap.String("new_input", newInput))
-
-		// Update only the changed cells
-		// Note: This is a simplified implementation. A full incremental update
-		// would require new C API functions to update individual cells by index.
-		o.drawGridCells(changedCells, newInput, BuildStyle(o.config))
-	}
-}
-
-// min returns the minimum of two integers.
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+	o.logger.Debug("Incremental match update",
+		zap.String("old_input", oldInput),
+		zap.String("new_input", newInput))
 }
 
 // filterCellsByViewport returns only cells that intersect with the viewport.
