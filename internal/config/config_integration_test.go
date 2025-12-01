@@ -25,6 +25,8 @@ func TestConfigFileOperationsIntegration(t *testing.T) {
 
 	// Helper to write config file and fail on error
 	writeConfigFile := func(t *testing.T, path, content string, perm os.FileMode) {
+		t.Helper()
+
 		err := os.WriteFile(path, []byte(content), perm)
 		if err != nil {
 			t.Fatalf("Failed to write config file: %v", err)
