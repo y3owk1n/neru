@@ -178,7 +178,7 @@ func TestCLIIntegration(t *testing.T) {
 
 		data, ok := response.Data.(map[string]any)
 		if !ok {
-			t.Errorf("Expected data to be map[string]interface{}, got %T", response.Data)
+			t.Errorf("Expected data to be map[string]any, got %T", response.Data)
 
 			return
 		}
@@ -202,7 +202,7 @@ func TestCLIIntegration(t *testing.T) {
 
 		data, ok := response.Data.(map[string]any)
 		if !ok {
-			t.Errorf("Expected data to be map[string]interface{}, got %T", response.Data)
+			t.Errorf("Expected data to be map[string]any, got %T", response.Data)
 
 			return
 		}
@@ -234,7 +234,7 @@ func TestCLIIntegration(t *testing.T) {
 
 		data, ok := response.Data.(map[string]any)
 		if !ok {
-			t.Errorf("Expected data to be map[string]interface{}, got %T", response.Data)
+			t.Errorf("Expected data to be map[string]any, got %T", response.Data)
 
 			return
 		}
@@ -258,7 +258,7 @@ func TestCLIIntegration(t *testing.T) {
 
 		data, ok := response.Data.(map[string]any)
 		if !ok {
-			t.Errorf("Expected data to be map[string]interface{}, got %T", response.Data)
+			t.Errorf("Expected data to be map[string]any, got %T", response.Data)
 
 			return
 		}
