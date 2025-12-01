@@ -632,10 +632,6 @@ func (o *Overlay) drawGridIncrementalStructural(
 
 	// Convert cells to C structures
 	cellsToAddC := o.convertCellsToC(cellsToAdd, currentInput)
-	defer func() {
-		// Free C strings for labels (they're cached, so we don't free them here)
-		// The style strings are cached and reused
-	}()
 
 	// Convert bounds to C structures
 	var cellsToRemoveC []C.CGRect
