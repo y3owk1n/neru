@@ -118,14 +118,14 @@ func TestApp_ModeTransitions(t *testing.T) {
 	}
 
 	// Setup minimal config
-	config := config.DefaultConfig()
-	config.Hints.Enabled = true
-	config.Grid.Enabled = true
-	config.General.AccessibilityCheckOnStart = false // Disable OS check
+	cfg := config.DefaultConfig()
+	cfg.Hints.Enabled = true
+	cfg.Grid.Enabled = true
+	cfg.General.AccessibilityCheckOnStart = false // Disable OS check
 
 	// Create app with mocked dependencies using functional options
 	application, applicationErr := app.New(
-		app.WithConfig(config),
+		app.WithConfig(cfg),
 		app.WithConfigPath(""),
 		app.WithEventTap(&mockEventTap{}),
 		app.WithIPCServer(&mockIPCServer{}),
@@ -144,21 +144,7 @@ func TestApp_ModeTransitions(t *testing.T) {
 	}
 
 	// Test Mode Transitions
-	application.SetModeHints()
-
-	if application.CurrentMode() != domain.ModeHints {
-		t.Errorf("Expected mode Hints, got %v", application.CurrentMode())
-	}
-
-	application.SetModeGrid()
-
-	if application.CurrentMode() != domain.ModeGrid {
-		t.Errorf("Expected mode Grid, got %v", application.CurrentMode())
-	}
-
-	application.SetModeIdle()
-
-	if application.CurrentMode() != domain.ModeIdle {
-		t.Errorf("Expected mode Idle, got %v", application.CurrentMode())
-	}
+	setAndWaitForMode(t, application, domain.ModeHints)
+	setAndWaitForMode(t, application, domain.ModeGrid)
+	setAndWaitForMode(t, application, domain.ModeIdle)
 }
