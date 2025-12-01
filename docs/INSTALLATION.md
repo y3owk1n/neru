@@ -312,6 +312,9 @@ open -a Neru
 
 # Or CLI
 neru launch
+
+# Or install as launchd service for auto-startup
+neru services install
 ```
 
 ### 3. Verify
@@ -409,6 +412,9 @@ brew uninstall --cask neru
 ### Manual
 
 ```bash
+# Stop and remove launchd service (if installed)
+neru services uninstall
+
 # Remove app bundle
 rm -rf /Applications/Neru.app
 
