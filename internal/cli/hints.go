@@ -8,7 +8,8 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
-var hintsCmd = &cobra.Command{
+// HintsCmd is the CLI hints command.
+var HintsCmd = &cobra.Command{
 	Use:   "hints",
 	Short: "Launch hints mode",
 	Long:  `Activate hint mode for direct clicking on UI elements.`,
@@ -16,7 +17,10 @@ var hintsCmd = &cobra.Command{
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		action, _ := cmd.Flags().GetString("action")
+		action, err := cmd.Flags().GetString("action")
+		if err != nil {
+			return err
+		}
 		if action != "" {
 			// Validate action
 			if !domain.IsKnownActionName(domain.ActionName(action)) {
@@ -40,12 +44,12 @@ var hintsCmd = &cobra.Command{
 }
 
 func init() {
-	hintsCmd.Flags().
+	HintsCmd.Flags().
 		StringP(
 			"action",
 			"a",
 			"",
 			fmt.Sprintf("Action to perform on hint selection (%s)", domain.SupportedActionsString()),
 		)
-	rootCmd.AddCommand(hintsCmd)
+	RootCmd.AddCommand(HintsCmd)
 }

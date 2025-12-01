@@ -12,9 +12,17 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
-// waitForServerReady polls the IPC server until it's ready or times out
+const (
+	modeHints        = "hints"
+	modeGrid         = "grid"
+	modeIdle         = "idle"
+	appNotRunningMsg = "app not running"
+)
+
+// waitForServerReady polls the IPC server until it's ready or times out.
 func waitForServerReady(t *testing.T, timeout time.Duration) {
 	t.Helper()
+
 	client := ipc.NewClient()
 	deadline := time.Now().Add(timeout)
 
@@ -23,13 +31,14 @@ func waitForServerReady(t *testing.T, timeout time.Duration) {
 		if err == nil {
 			return // Server is ready
 		}
+
 		time.Sleep(10 * time.Millisecond) // Short poll interval
 	}
 
 	t.Fatalf("Server did not become ready within %v", timeout)
 }
 
-// mockAppState simulates app state for testing
+// mockAppState simulates app state for testing.
 type mockAppState struct {
 	mu      sync.RWMutex
 	running bool
@@ -45,7 +54,7 @@ func newMockAppState() *mockAppState {
 	}
 }
 
-// TestCLIIntegration tests IPC communication with real infrastructure
+// TestCLIIntegration tests IPC communication with real infrastructure.
 func TestCLIIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -58,72 +67,87 @@ func TestCLIIntegration(t *testing.T) {
 	handler := func(ctx context.Context, cmd ipc.Command) ipc.Response {
 		switch cmd.Action {
 		case "ping":
-			return ipc.Response{Success: true, Data: map[string]interface{}{"status": "ok"}}
+			return ipc.Response{Success: true, Data: map[string]any{"status": "ok"}}
 		case "start":
 			appState.mu.Lock()
 			appState.started = true
 			appState.running = true
 			appState.mu.Unlock()
-			return ipc.Response{Success: true, Data: map[string]interface{}{"message": "started"}}
+
+			return ipc.Response{Success: true, Data: map[string]any{"message": "started"}}
 		case "stop":
 			appState.mu.Lock()
 			appState.running = false
 			appState.mu.Unlock()
-			return ipc.Response{Success: true, Data: map[string]interface{}{"message": "stopped"}}
+
+			return ipc.Response{Success: true, Data: map[string]any{"message": "stopped"}}
 		case "status":
 			appState.mu.RLock()
 			running := appState.running
 			mode := appState.mode
 			appState.mu.RUnlock()
-			return ipc.Response{Success: true, Data: map[string]interface{}{
+
+			return ipc.Response{Success: true, Data: map[string]any{
 				"running": running,
 				"mode":    mode,
 				"config":  "using default config",
 			}}
-		case "hints":
+		case modeHints:
 			appState.mu.RLock()
 			running := appState.running
 			appState.mu.RUnlock()
+
 			if !running {
-				return ipc.Response{Success: false, Message: "app not running"}
+				return ipc.Response{Success: false, Message: appNotRunningMsg}
 			}
+
 			appState.mu.Lock()
-			appState.mode = "hints"
+			appState.mode = modeHints
 			appState.mu.Unlock()
-			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "hints"}}
-		case "grid":
+
+			return ipc.Response{Success: true, Data: map[string]any{"mode": modeHints}}
+		case modeGrid:
 			appState.mu.RLock()
 			running := appState.running
 			appState.mu.RUnlock()
+
 			if !running {
-				return ipc.Response{Success: false, Message: "app not running"}
+				return ipc.Response{Success: false, Message: appNotRunningMsg}
 			}
+
 			appState.mu.Lock()
-			appState.mode = "grid"
+			appState.mode = modeGrid
 			appState.mu.Unlock()
-			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "grid"}}
+
+			return ipc.Response{Success: true, Data: map[string]any{"mode": modeGrid}}
 		case "action":
 			appState.mu.RLock()
 			running := appState.running
 			appState.mu.RUnlock()
+
 			if !running {
-				return ipc.Response{Success: false, Message: "app not running"}
+				return ipc.Response{Success: false, Message: appNotRunningMsg}
 			}
+
 			if len(cmd.Args) >= 3 && cmd.Args[0] == "left_click" {
 				return ipc.Response{Success: true, Message: "action performed"}
 			}
+
 			return ipc.Response{Success: false, Message: "invalid action"}
-		case "idle":
+		case modeIdle:
 			appState.mu.RLock()
 			running := appState.running
 			appState.mu.RUnlock()
+
 			if !running {
-				return ipc.Response{Success: false, Message: "app not running"}
+				return ipc.Response{Success: false, Message: appNotRunningMsg}
 			}
+
 			appState.mu.Lock()
-			appState.mode = "idle"
+			appState.mode = modeIdle
 			appState.mu.Unlock()
-			return ipc.Response{Success: true, Data: map[string]interface{}{"mode": "idle"}}
+
+			return ipc.Response{Success: true, Data: map[string]any{"mode": modeIdle}}
 		default:
 			return ipc.Response{Success: false, Message: "unknown command"}
 		}
@@ -135,7 +159,7 @@ func TestCLIIntegration(t *testing.T) {
 	}
 
 	server.Start()
-	defer server.Stop()
+	defer func() { _ = server.Stop() }()
 
 	// Wait for server to be ready
 	waitForServerReady(t, 2*time.Second)
@@ -152,11 +176,13 @@ func TestCLIIntegration(t *testing.T) {
 			t.Errorf("Ping failed: %v", response.Message)
 		}
 
-		data, ok := response.Data.(map[string]interface{})
+		data, ok := response.Data.(map[string]any)
 		if !ok {
-			t.Errorf("Expected data to be map[string]interface{}, got %T", response.Data)
+			t.Errorf("Expected data to be map[string]any, got %T", response.Data)
+
 			return
 		}
+
 		if status, ok := data["status"]; !ok || status != "ok" {
 			t.Errorf("Expected status 'ok', got %v", status)
 		}
@@ -174,17 +200,21 @@ func TestCLIIntegration(t *testing.T) {
 			t.Errorf("Status failed: %v", response.Message)
 		}
 
-		data, ok := response.Data.(map[string]interface{})
+		data, ok := response.Data.(map[string]any)
 		if !ok {
-			t.Errorf("Expected data to be map[string]interface{}, got %T", response.Data)
+			t.Errorf("Expected data to be map[string]any, got %T", response.Data)
+
 			return
 		}
+
 		if running, ok := data["running"]; !ok || running != true {
 			t.Errorf("Expected running=true, got %v", running)
 		}
+
 		if mode, ok := data["mode"]; !ok || mode != "idle" {
 			t.Errorf("Expected mode='idle', got %v", mode)
 		}
+
 		if config, ok := data["config"]; !ok || config != "using default config" {
 			t.Errorf("Expected config='using default config', got %v", config)
 		}
@@ -202,11 +232,13 @@ func TestCLIIntegration(t *testing.T) {
 			t.Errorf("Hints failed: %v", response.Message)
 		}
 
-		data, ok := response.Data.(map[string]interface{})
+		data, ok := response.Data.(map[string]any)
 		if !ok {
-			t.Errorf("Expected data to be map[string]interface{}, got %T", response.Data)
+			t.Errorf("Expected data to be map[string]any, got %T", response.Data)
+
 			return
 		}
+
 		if mode, ok := data["mode"]; !ok || mode != "hints" {
 			t.Errorf("Expected mode='hints', got %v", mode)
 		}
@@ -224,11 +256,13 @@ func TestCLIIntegration(t *testing.T) {
 			t.Errorf("Grid failed: %v", response.Message)
 		}
 
-		data, ok := response.Data.(map[string]interface{})
+		data, ok := response.Data.(map[string]any)
 		if !ok {
-			t.Errorf("Expected data to be map[string]interface{}, got %T", response.Data)
+			t.Errorf("Expected data to be map[string]any, got %T", response.Data)
+
 			return
 		}
+
 		if mode, ok := data["mode"]; !ok || mode != "grid" {
 			t.Errorf("Expected mode='grid', got %v", mode)
 		}
@@ -249,6 +283,7 @@ func TestCLIIntegration(t *testing.T) {
 		if !response.Success {
 			t.Errorf("Action should succeed: %v", response.Message)
 		}
+
 		if response.Message != "action performed" {
 			t.Errorf("Expected message 'action performed', got %q", response.Message)
 		}
@@ -276,7 +311,7 @@ func TestCLIIntegration(t *testing.T) {
 			t.Fatalf("Failed to send hints command: %v", err)
 		}
 
-		if response.Success || response.Message != "app not running" {
+		if response.Success || response.Message != appNotRunningMsg {
 			t.Errorf(
 				"Expected hints command to fail with 'app not running', got success=%v message=%q",
 				response.Success,
@@ -290,7 +325,7 @@ func TestCLIIntegration(t *testing.T) {
 			t.Fatalf("Failed to send grid command: %v", err)
 		}
 
-		if response.Success || response.Message != "app not running" {
+		if response.Success || response.Message != appNotRunningMsg {
 			t.Errorf(
 				"Expected grid command to fail with 'app not running', got success=%v message=%q",
 				response.Success,
@@ -307,7 +342,7 @@ func TestCLIIntegration(t *testing.T) {
 			t.Fatalf("Failed to send action command: %v", err)
 		}
 
-		if response.Success || response.Message != "app not running" {
+		if response.Success || response.Message != appNotRunningMsg {
 			t.Errorf(
 				"Expected action command to fail with 'app not running', got success=%v message=%q",
 				response.Success,

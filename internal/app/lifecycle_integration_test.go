@@ -43,7 +43,7 @@ func TestAppLifecycleIntegration(t *testing.T) {
 	}()
 
 	// Wait for app to be running with timeout
-	waitForAppReady(t, application, 5*time.Second)
+	waitForAppReady(t, application)
 
 	// Test initial state
 	t.Run("Initial State", func(t *testing.T) {
@@ -83,7 +83,7 @@ func TestAppLifecycleIntegration(t *testing.T) {
 				application.SetModeIdle()
 			}
 
-			waitForMode(t, application, mode, 3*time.Second)
+			waitForMode(t, application, mode)
 		}
 	})
 
@@ -100,7 +100,7 @@ func TestAppLifecycleIntegration(t *testing.T) {
 	select {
 	case err := <-runDone:
 		if err != nil {
-			// Run() may return a context-cancelled error after Stop(), which is expected
+			// Run() may return a context-canceled error after Stop(), which is expected
 			t.Logf("App Run() returned (expected after Stop): %v", err)
 		}
 	case <-time.After(3 * time.Second):

@@ -8,7 +8,6 @@ import (
 
 	_ "github.com/y3owk1n/neru/internal/core/infra/bridge" // Link CGO implementations
 	"github.com/y3owk1n/neru/internal/core/infra/eventtap"
-	eventtapInfra "github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
@@ -28,7 +27,7 @@ func TestEventTapAdapterIntegration(t *testing.T) {
 	logger := logger.Get()
 
 	// Create infra event tap
-	tap := eventtapInfra.NewEventTap(func(_ string) {}, logger)
+	tap := eventtap.NewEventTap(func(_ string) {}, logger)
 	if tap == nil {
 		t.Skip("Skipping EventTap test: failed to create event tap (missing permissions?)")
 	}
@@ -77,10 +76,11 @@ func TestEventTapAdapterIntegration(t *testing.T) {
 
 	t.Run("Destroy", func(t *testing.T) {
 		// Create a new adapter for this test to avoid interfering with other tests
-		testTap := eventtapInfra.NewEventTap(func(_ string) {}, logger)
+		testTap := eventtap.NewEventTap(func(_ string) {}, logger)
 		if testTap == nil {
 			t.Skip("Skipping Destroy test: failed to create event tap")
 		}
+
 		testAdapter := eventtap.NewAdapter(testTap, logger)
 
 		// Enable first

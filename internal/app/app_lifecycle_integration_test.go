@@ -31,9 +31,10 @@ func TestAppInitializationIntegration(t *testing.T) {
 	runTestAppInitializationIntegration(t, ctx)
 }
 
-// setAndWaitForMode sets the application mode and waits for it to take effect
+// setAndWaitForMode sets the application mode and waits for it to take effect.
 func setAndWaitForMode(t *testing.T, application *app.App, mode domain.Mode) {
 	t.Helper()
+
 	switch mode {
 	case domain.ModeHints:
 		application.SetModeHints()
@@ -41,10 +42,15 @@ func setAndWaitForMode(t *testing.T, application *app.App, mode domain.Mode) {
 		application.SetModeGrid()
 	case domain.ModeIdle:
 		application.SetModeIdle()
+	case domain.ModeScroll:
+		application.SetModeScroll()
+	case domain.ModeAction:
+		application.SetModeAction()
 	default:
 		t.Fatalf("unknown mode: %v", mode)
 	}
-	waitForMode(t, application, mode, 3*time.Second)
+
+	waitForMode(t, application, mode)
 }
 
 func runTestAppInitializationIntegration(t *testing.T, ctx context.Context) {
@@ -79,6 +85,7 @@ func runTestAppInitializationIntegration(t *testing.T, ctx context.Context) {
 		if res.err != nil {
 			t.Fatalf("App initialization failed: %v", res.err)
 		}
+
 		if res.app == nil {
 			t.Fatal("App initialization returned nil app without error")
 		}
@@ -149,9 +156,11 @@ func TestApp_ModeTransitions(t *testing.T) {
 		if res.err != nil {
 			t.Fatalf("Failed to create app: %v", res.err)
 		}
+
 		if res.app == nil {
 			t.Fatal("App initialization returned nil app without error")
 		}
+
 		application = res.app
 		defer application.Cleanup()
 	case <-ctx.Done():

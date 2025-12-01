@@ -10,7 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// TestHotkeyIntegration tests hotkey registration during app lifecycle
+// TestHotkeyIntegration tests hotkey registration during app lifecycle.
 func TestHotkeyIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping hotkey integration test in short mode")
@@ -40,7 +40,8 @@ func TestHotkeyIntegration(t *testing.T) {
 	go func() {
 		runDone <- application.Run()
 	}()
-	waitForAppReady(t, application, 5*time.Second)
+
+	waitForAppReady(t, application)
 
 	// Poll for hotkey registration with timeout
 	deadline := time.Now().Add(2 * time.Second)
@@ -48,6 +49,7 @@ func TestHotkeyIntegration(t *testing.T) {
 		if mockHotkeys.GetRegisteredCount() >= 3 {
 			break
 		}
+
 		time.Sleep(10 * time.Millisecond)
 	}
 
@@ -66,6 +68,7 @@ func TestHotkeyIntegration(t *testing.T) {
 	})
 
 	application.Stop()
+
 	select {
 	case <-runDone:
 	case <-time.After(5 * time.Second):

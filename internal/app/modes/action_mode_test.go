@@ -9,7 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
-// Compile-time interface compliance check
+// Compile-time interface compliance check.
 var _ modes.Mode = (*modes.ActionMode)(nil)
 
 func TestActionMode_ModeType(t *testing.T) {

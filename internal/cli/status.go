@@ -5,7 +5,8 @@ import (
 	"github.com/y3owk1n/neru/internal/cli/cliutil"
 )
 
-var statusCmd = &cobra.Command{
+// StatusCmd is the CLI status command.
+var StatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show neru status",
 	Long:  `Display the current status of the neru program.`,
@@ -29,5 +30,5 @@ var statusCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(statusCmd)
+	RootCmd.AddCommand(StatusCmd)
 }

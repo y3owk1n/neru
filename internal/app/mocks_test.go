@@ -29,6 +29,7 @@ func (m *mockEventTap) Enable(_ context.Context) error {
 	m.mu.Lock()
 	m.enabled = true
 	m.mu.Unlock()
+
 	return nil
 }
 
@@ -37,6 +38,7 @@ func (m *mockEventTap) Disable(_ context.Context) error {
 	m.mu.Lock()
 	m.enabled = false
 	m.mu.Unlock()
+
 	return nil
 }
 
@@ -44,6 +46,7 @@ func (m *mockEventTap) Disable(_ context.Context) error {
 func (m *mockEventTap) IsEnabled() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
 	return m.enabled
 }
 
@@ -71,6 +74,7 @@ func (m *mockIPCServer) Start(_ context.Context) error {
 	m.mu.Lock()
 	m.running = true
 	m.mu.Unlock()
+
 	return nil
 }
 
@@ -79,6 +83,7 @@ func (m *mockIPCServer) Stop(_ context.Context) error {
 	m.mu.Lock()
 	m.running = false
 	m.mu.Unlock()
+
 	return nil
 }
 
@@ -89,6 +94,7 @@ func (m *mockIPCServer) Send(_ context.Context, _ any) (any, error) { return "",
 func (m *mockIPCServer) IsRunning() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
 	return m.running
 }
 
@@ -139,6 +145,7 @@ func (m *mockOverlayManager) Subscribe(
 	m.subsCount++
 	count := m.subsCount
 	m.mu.Unlock()
+
 	return count
 }
 
@@ -152,6 +159,7 @@ func (m *mockOverlayManager) Destroy() {}
 func (m *mockOverlayManager) Mode() overlay.Mode {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
 	return m.mode
 }
 
@@ -205,9 +213,11 @@ func (m *mockHotkeyService) Register(
 	if m.registered == nil {
 		m.registered = make(map[string]hotkeys.Callback)
 	}
+
 	m.registered[key] = callback
 	id := m.nextID
 	m.nextID++
+
 	return id, nil
 }
 
@@ -218,12 +228,14 @@ func (m *mockHotkeyService) UnregisterAll() {
 	if m.registered != nil {
 		m.registered = make(map[string]hotkeys.Callback)
 	}
+
 	m.nextID = 0
 }
 
 func (m *mockHotkeyService) GetRegisteredCount() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
 	return len(m.registered)
 }
 

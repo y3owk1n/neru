@@ -13,7 +13,7 @@ import (
 )
 
 // TestConfigFileOperationsIntegration tests real file system operations
-// for configuration loading and reloading to prevent file system regressions
+// for configuration loading and reloading to prevent file system regressions.
 func TestConfigFileOperationsIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping config file operations integration test in short mode")
@@ -22,6 +22,16 @@ func TestConfigFileOperationsIntegration(t *testing.T) {
 	// Create a temporary directory for test config files
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "test-config.toml")
+
+	// Helper to write config file and fail on error
+	writeConfigFile := func(t *testing.T, path, content string, perm os.FileMode) {
+		t.Helper()
+
+		err := os.WriteFile(path, []byte(content), perm)
+		if err != nil {
+			t.Fatalf("Failed to write config file: %v", err)
+		}
+	}
 
 	t.Run("Config File Loading", func(t *testing.T) {
 		// Create a test config file with custom settings
@@ -63,11 +73,7 @@ max_backups = 5
 max_age = 30
 `
 
-		// Write config file to real file system
-		err := os.WriteFile(configPath, []byte(configContent), 0o644)
-		if err != nil {
-			t.Fatalf("Failed to write test config file: %v", err)
-		}
+		writeConfigFile(t, configPath, configContent, 0o644)
 
 		// Load config from real file
 		service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
@@ -97,13 +103,12 @@ max_age = 30
 [hints]
 font_size = 12
 `
-		err := os.WriteFile(configPath, []byte(initialContent), 0o644)
-		if err != nil {
-			t.Fatalf("Failed to write initial config: %v", err)
-		}
+
+		writeConfigFile(t, configPath, initialContent, 0o644)
 
 		// Create a config service and load initial config
 		configSvc := config.NewService(config.DefaultConfig(), configPath, zap.NewNop())
+
 		initialLoad := configSvc.LoadWithValidation(configPath)
 		if initialLoad.ValidationError != nil {
 			t.Fatalf("Failed to load initial config: %v", initialLoad.ValidationError)
@@ -114,13 +119,11 @@ font_size = 12
 [hints]
 font_size = 16
 `
-		err = os.WriteFile(configPath, []byte(updatedContent), 0o644)
-		if err != nil {
-			t.Fatalf("Failed to write updated config: %v", err)
-		}
+
+		writeConfigFile(t, configPath, updatedContent, 0o644)
 
 		// Reload config from the modified file
-		err = configSvc.Reload(context.Background(), configPath)
+		err := configSvc.Reload(context.Background(), configPath)
 		if err != nil {
 			t.Fatalf("Failed to reload config: %v", err)
 		}
@@ -138,14 +141,11 @@ font_size = 16
 enabled = true
 `
 
-		// Write with restrictive permissions
-		err := os.WriteFile(configPath, []byte(configContent), 0o600)
-		if err != nil {
-			t.Fatalf("Failed to write config file: %v", err)
-		}
+		writeConfigFile(t, configPath, configContent, 0o600)
 
 		// Should still be able to load it
 		service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
+
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
 			t.Fatalf(

@@ -40,7 +40,7 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 		}()
 
 		// Wait for app to be running with timeout
-		waitForAppReady(t, application, 5*time.Second)
+		waitForAppReady(t, application)
 
 		// Verify config is properly set
 		if application.Config() == nil {
@@ -95,7 +95,7 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 		}()
 
 		// Wait for app to be running with timeout
-		waitForAppReady(t, application, 5*time.Second)
+		waitForAppReady(t, application)
 
 		if application.HintsEnabled() {
 			t.Error("Expected hints to be disabled")
@@ -112,7 +112,7 @@ func TestConfigurationLoadingIntegration(t *testing.T) {
 		select {
 		case err := <-runDone:
 			if err != nil {
-				// Run() may return a context-cancelled error after Stop(), which is expected
+				// Run() may return a context-canceled error after Stop(), which is expected
 				t.Logf("App Run() returned (expected after Stop): %v", err)
 			}
 		case <-time.After(3 * time.Second):

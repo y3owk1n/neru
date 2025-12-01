@@ -11,7 +11,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
-var metricsCmd = &cobra.Command{
+// MetricsCmd is the CLI metrics command.
+var MetricsCmd = &cobra.Command{
 	Use:   "metrics",
 	Short: "Show application metrics",
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -94,5 +95,5 @@ var metricsCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(metricsCmd)
+	RootCmd.AddCommand(MetricsCmd)
 }

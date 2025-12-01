@@ -118,9 +118,11 @@ func TestInterfaceSegregation(t *testing.T) {
 		if err != nil {
 			return err
 		}
+
 		if len(elements) == 0 {
 			t.Error("Expected to find some elements")
 		}
+
 		return nil
 	}
 
@@ -139,9 +141,11 @@ func TestInterfaceSegregation(t *testing.T) {
 		if err != nil {
 			return err
 		}
+
 		if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
 			t.Error("Expected valid screen bounds")
 		}
+
 		return nil
 	}
 
@@ -152,7 +156,7 @@ func TestInterfaceSegregation(t *testing.T) {
 	}
 }
 
-// mockElementDiscovery implements only the ElementDiscovery interface
+// mockElementDiscovery implements only the ElementDiscovery interface.
 type mockElementDiscovery struct{}
 
 func (m *mockElementDiscovery) ClickableElements(
@@ -170,10 +174,11 @@ func (m *mockElementDiscovery) ClickableElements(
 	if err != nil {
 		return nil, err
 	}
+
 	return []*element.Element{elem}, nil
 }
 
-// mockScreenManager implements only the ScreenManagement interface
+// mockScreenManager implements only the ScreenManagement interface.
 type mockScreenManager struct{}
 
 func (m *mockScreenManager) ScreenBounds(ctx context.Context) (image.Rectangle, error) {

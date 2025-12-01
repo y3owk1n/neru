@@ -4,7 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var scrollCmd = &cobra.Command{
+// ScrollCmd is the CLI scroll command.
+var ScrollCmd = &cobra.Command{
 	Use:   "scroll",
 	Short: "Launch scroll mode",
 	Long:  `Activate scroll mode for vim-style scrolling at the cursor position.`,
@@ -17,5 +18,5 @@ var scrollCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(scrollCmd)
+	RootCmd.AddCommand(ScrollCmd)
 }

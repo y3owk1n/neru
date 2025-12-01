@@ -12,14 +12,13 @@ import (
 
 // waitForMode waits for the application to reach the expected mode with a timeout.
 func waitForMode(
-	t *testing.T,
+	tb testing.TB,
 	application *app.App,
 	expectedMode domain.Mode,
-	timeout time.Duration,
 ) {
-	t.Helper()
+	tb.Helper()
 
-	deadline := time.Now().Add(timeout)
+	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
 		if application.CurrentMode() == expectedMode {
 			return
@@ -28,7 +27,7 @@ func waitForMode(
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	t.Fatalf(
+	tb.Fatalf(
 		"Timeout waiting for mode %v, current mode: %v",
 		expectedMode,
 		application.CurrentMode(),
@@ -36,14 +35,17 @@ func waitForMode(
 }
 
 // waitForAppReady waits for the application to be enabled with a timeout.
-func waitForAppReady(t testing.TB, application *app.App, timeout time.Duration) {
-	t.Helper()
-	deadline := time.Now().Add(timeout)
+func waitForAppReady(tb testing.TB, application *app.App) {
+	tb.Helper()
+
+	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		if application.IsEnabled() {
 			return
 		}
+
 		time.Sleep(50 * time.Millisecond)
 	}
-	t.Fatalf("App did not start within %v timeout", timeout)
+
+	tb.Fatalf("App did not start within 5 seconds")
 }

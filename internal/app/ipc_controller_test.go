@@ -176,7 +176,8 @@ func TestIPCController_HandleMetrics(t *testing.T) {
 	}
 
 	// Verify it's valid JSON
-	var metricsData []interface{}
+	var metricsData []any
+
 	err := json.Unmarshal([]byte(commandResponse.Message), &metricsData)
 	if err != nil {
 		t.Errorf("Expected valid JSON metrics, got error: %v", err)
@@ -187,6 +188,7 @@ func TestIPCController_HandleActionAndScroll(t *testing.T) {
 	controller := newTestController()
 
 	ctx := context.Background()
+
 	commandResponse := controller.HandleCommand(ctx, ipc.Command{Action: "action"})
 	if commandResponse.Code == ipc.CodeUnknownCommand {
 		t.Error("Action command should be recognized")

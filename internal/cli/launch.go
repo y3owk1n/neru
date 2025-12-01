@@ -4,7 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var launchCmd = &cobra.Command{
+// LaunchCmd is the CLI launch command.
+var LaunchCmd = &cobra.Command{
 	Use:   "launch",
 	Short: "Launch the neru program",
 	Long:  `Launch the neru program. Same as running 'neru' without any subcommand.`,
@@ -16,7 +17,7 @@ var launchCmd = &cobra.Command{
 }
 
 func init() {
-	launchCmd.Flags().StringVar(&configPath, "config", "", "config file path")
+	LaunchCmd.Flags().StringVar(&configPath, "config", "", "config file path")
 
-	rootCmd.AddCommand(launchCmd)
+	RootCmd.AddCommand(LaunchCmd)
 }

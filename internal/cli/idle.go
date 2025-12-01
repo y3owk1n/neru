@@ -4,7 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var idleCmd = &cobra.Command{
+// IdleCmd is the CLI idle command.
+var IdleCmd = &cobra.Command{
 	Use:   "idle",
 	Short: "Set mode to idle",
 	Long:  `Exit the current mode and return to idle state.`,
@@ -17,5 +18,5 @@ var idleCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(idleCmd)
+	RootCmd.AddCommand(IdleCmd)
 }

@@ -77,5 +77,5 @@ var configReloadCmd = &cobra.Command{
 func init() {
 	configCmd.AddCommand(configDumpCmd)
 	configCmd.AddCommand(configReloadCmd)
-	rootCmd.AddCommand(configCmd)
+	RootCmd.AddCommand(configCmd)
 }

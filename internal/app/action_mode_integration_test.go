@@ -42,27 +42,27 @@ func TestActionModeEndToEnd(t *testing.T) {
 	}()
 
 	// Wait for app to be running with timeout
-	waitForAppReady(t, application, 5*time.Second)
+	waitForAppReady(t, application)
 
 	// Test action mode activation
 	t.Run("Activate Action Mode", func(t *testing.T) {
 		application.SetModeAction()
-		waitForMode(t, application, domain.ModeAction, 3*time.Second)
+		waitForMode(t, application, domain.ModeAction)
 	})
 
 	// Test action mode deactivation
 	t.Run("Deactivate Action Mode", func(t *testing.T) {
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 	})
 
 	// Test action mode reactivation
 	t.Run("Reactivate Action Mode", func(t *testing.T) {
 		application.SetModeAction()
-		waitForMode(t, application, domain.ModeAction, 3*time.Second)
+		waitForMode(t, application, domain.ModeAction)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 	})
 
 	// Stop the app
@@ -72,7 +72,7 @@ func TestActionModeEndToEnd(t *testing.T) {
 	select {
 	case err := <-runDone:
 		if err != nil {
-			// Run() may return a context-cancelled error after Stop(), which is expected
+			// Run() may return a context-canceled error after Stop(), which is expected
 			t.Logf("App Run() returned (expected after Stop): %v", err)
 		}
 	case <-time.After(5 * time.Second):

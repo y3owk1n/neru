@@ -4,8 +4,8 @@ package services_test
 
 import (
 	"context"
-	"fmt"
 	"image"
+	"strconv"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// mockGenerator is a simple mock implementation of hint.Generator for benchmarks
+// mockGenerator is a simple mock implementation of hint.Generator for benchmarks.
 type mockGenerator struct{}
 
 func (m *mockGenerator) Generate(
@@ -27,12 +27,14 @@ func (m *mockGenerator) Generate(
 	// Return hints for the provided elements to exercise incremental rendering
 	hints := make([]*hint.Interface, 0, len(elements))
 	for i, elem := range elements {
-		label := fmt.Sprintf("%d", i)
+		label := strconv.Itoa(i)
+
 		h, err := hint.NewHint(label, elem, elem.Bounds().Min)
 		if err == nil {
 			hints = append(hints, h)
 		}
 	}
+
 	return hints, nil
 }
 
@@ -44,7 +46,7 @@ func (m *mockGenerator) Characters() string {
 	return "abcdefghijklmnopqrstuvwxyz"
 }
 
-// BenchmarkHintService_ShowHints_Incremental benchmarks the incremental rendering performance
+// BenchmarkHintService_ShowHints_Incremental benchmarks the incremental rendering performance.
 func BenchmarkHintService_ShowHints_Incremental(b *testing.B) {
 	// Setup
 	logger := zap.NewNop()
@@ -84,6 +86,7 @@ func BenchmarkHintService_ShowHints_Incremental(b *testing.B) {
 				element.RoleTextField,
 				element.WithTitle("Input1"),
 			)
+
 			return []*element.Element{elem1, elem2, elem3, elem4, elem5}, nil
 		},
 	}
@@ -94,19 +97,19 @@ func BenchmarkHintService_ShowHints_Incremental(b *testing.B) {
 
 	ctx := context.Background()
 
-	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// This will exercise the incremental rendering logic
 		// The benchmark measures the performance of the hint display with incremental updates
-		if _, err := hintService.ShowHints(ctx); err != nil {
+		_, err := hintService.ShowHints(ctx)
+		if err != nil {
 			b.Fatalf("ShowHints failed: %v", err)
 		}
 	}
 }
 
-// BenchmarkGridService_ShowGrid_Incremental benchmarks grid incremental rendering performance
+// BenchmarkGridService_ShowGrid_Incremental benchmarks grid incremental rendering performance.
 func BenchmarkGridService_ShowGrid_Incremental(b *testing.B) {
 	// Setup
 	logger := zap.NewNop()
@@ -118,13 +121,13 @@ func BenchmarkGridService_ShowGrid_Incremental(b *testing.B) {
 
 	ctx := context.Background()
 
-	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// This will exercise the grid incremental rendering logic
 		// Measures performance of grid display with incremental updates
-		if err := gridService.ShowGrid(ctx); err != nil {
+		err := gridService.ShowGrid(ctx)
+		if err != nil {
 			b.Fatalf("ShowGrid failed: %v", err)
 		}
 	}

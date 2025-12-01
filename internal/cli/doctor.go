@@ -6,7 +6,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
-var doctorCmd = &cobra.Command{
+// DoctorCmd is the CLI doctor command.
+var DoctorCmd = &cobra.Command{
 	Use:   "doctor",
 	Short: "Check the health of Neru components",
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -22,5 +23,5 @@ var doctorCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(doctorCmd)
+	RootCmd.AddCommand(DoctorCmd)
 }

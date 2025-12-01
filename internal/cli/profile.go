@@ -4,7 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var profileCmd = &cobra.Command{
+// ProfileCmd is the CLI profile command.
+var ProfileCmd = &cobra.Command{
 	Use:   "profile",
 	Short: "Show profiling information",
 	Long:  `Display information about enabling and accessing Go pprof profiling.`,
@@ -24,5 +25,5 @@ var profileCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(profileCmd)
+	RootCmd.AddCommand(ProfileCmd)
 }
