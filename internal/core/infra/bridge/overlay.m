@@ -8,6 +8,16 @@
 #import "overlay.h"
 #import <Cocoa/Cocoa.h>
 
+#pragma mark - Helper Functions
+
+/// Compare two rectangles with epsilon for floating point precision
+static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
+    return fabs(a.origin.x - b.origin.x) < epsilon &&
+           fabs(a.origin.y - b.origin.y) < epsilon &&
+           fabs(a.size.width - b.size.width) < epsilon &&
+           fabs(a.size.height - b.size.height) < epsilon;
+}
+
 #pragma mark - Overlay View Interface
 
 @interface OverlayView : NSView
@@ -1467,11 +1477,8 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 				// Check if this cell's bounds match any of the bounds to remove
 				for (NSValue *removeBoundsValue in boundsToRemove) {
 					NSRect removeBounds = [removeBoundsValue rectValue];
-					// Use CGRectEqualToRect with small epsilon for floating point comparison
-					if (fabs(cellBounds.origin.x - removeBounds.origin.x) < 0.1 &&
-					    fabs(cellBounds.origin.y - removeBounds.origin.y) < 0.1 &&
-					    fabs(cellBounds.size.width - removeBounds.size.width) < 0.1 &&
-					    fabs(cellBounds.size.height - removeBounds.size.height) < 0.1) {
+					// Use rectsEqual for floating point comparison
+					if (rectsEqual(cellBounds, removeBounds, 0.1)) {
 						shouldRemove = YES;
 						break;
 					}
@@ -1499,10 +1506,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 					NSRect existingBounds = [existingBoundsValue rectValue];
 
 					// Check if bounds match
-					if (fabs(existingBounds.origin.x - newBounds.origin.x) < 0.1 &&
-					    fabs(existingBounds.origin.y - newBounds.origin.y) < 0.1 &&
-					    fabs(existingBounds.size.width - newBounds.size.width) < 0.1 &&
-					    fabs(existingBounds.size.height - newBounds.size.height) < 0.1) {
+					if (rectsEqual(existingBounds, newBounds, 0.1)) {
 						// Replace existing cell
 						controller.overlayView.gridCells[i] = newCellDict;
 						found = YES;
