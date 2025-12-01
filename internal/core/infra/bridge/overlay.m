@@ -8,28 +8,31 @@
 #import "overlay.h"
 #import <Cocoa/Cocoa.h>
 
+#pragma mark - Helper Functions
+
+/// Compare two rectangles with epsilon for floating point precision
+static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
+	return fabs(a.origin.x - b.origin.x) < epsilon && fabs(a.origin.y - b.origin.y) < epsilon &&
+	       fabs(a.size.width - b.size.width) < epsilon && fabs(a.size.height - b.size.height) < epsilon;
+}
+
 #pragma mark - Overlay View Interface
 
 @interface OverlayView : NSView
-@property(nonatomic, strong) NSMutableArray *hints;               ///< Hints array
-@property(nonatomic, strong) NSFont *hintFont;                    ///< Hint font
-@property(nonatomic, strong) NSColor *hintTextColor;              ///< Hint text color
-@property(nonatomic, strong) NSColor *hintMatchedTextColor;       ///< Hint matched text color
-@property(nonatomic, strong) NSColor *hintBackgroundColor;        ///< Hint background color
-@property(nonatomic, strong) NSColor *hintBorderColor;            ///< Hint border color
-@property(nonatomic, assign) CGFloat hintBorderRadius;            ///< Hint border radius
-@property(nonatomic, assign) CGFloat hintBorderWidth;             ///< Hint border width
-@property(nonatomic, assign) CGFloat hintPadding;                 ///< Hint padding
-@property(nonatomic, assign) CGRect scrollHighlight;              ///< Scroll highlight bounds
-@property(nonatomic, strong) NSColor *scrollHighlightColor;       ///< Scroll highlight color
-@property(nonatomic, assign) int scrollHighlightWidth;            ///< Scroll highlight width
-@property(nonatomic, assign) BOOL showScrollHighlight;            ///< Show scroll highlight
-@property(nonatomic, assign) BOOL showTargetDot;                  ///< Show target dot
-@property(nonatomic, assign) CGPoint targetDotCenter;             ///< Target dot center
-@property(nonatomic, assign) CGFloat targetDotRadius;             ///< Target dot radius
-@property(nonatomic, strong) NSColor *targetDotBackgroundColor;   ///< Target dot background color
-@property(nonatomic, strong) NSColor *targetDotBorderColor;       ///< Target dot border color
-@property(nonatomic, assign) CGFloat targetDotBorderWidth;        ///< Target dot border width
+@property(nonatomic, strong) NSMutableArray *hints;         ///< Hints array
+@property(nonatomic, strong) NSFont *hintFont;              ///< Hint font
+@property(nonatomic, strong) NSColor *hintTextColor;        ///< Hint text color
+@property(nonatomic, strong) NSColor *hintMatchedTextColor; ///< Hint matched text color
+@property(nonatomic, strong) NSColor *hintBackgroundColor;  ///< Hint background color
+@property(nonatomic, strong) NSColor *hintBorderColor;      ///< Hint border color
+@property(nonatomic, assign) CGFloat hintBorderRadius;      ///< Hint border radius
+@property(nonatomic, assign) CGFloat hintBorderWidth;       ///< Hint border width
+@property(nonatomic, assign) CGFloat hintPadding;           ///< Hint padding
+@property(nonatomic, assign) CGRect scrollHighlight;        ///< Scroll highlight bounds
+@property(nonatomic, strong) NSColor *scrollHighlightColor; ///< Scroll highlight color
+@property(nonatomic, assign) int scrollHighlightWidth;      ///< Scroll highlight width
+@property(nonatomic, assign) BOOL showScrollHighlight;      ///< Show scroll highlight
+
 @property(nonatomic, strong) NSMutableArray *gridCells;           ///< Grid cells array
 @property(nonatomic, strong) NSMutableArray *gridLines;           ///< Grid lines array
 @property(nonatomic, strong) NSFont *gridFont;                    ///< Grid font
@@ -69,12 +72,6 @@
 		_gridCells = [NSMutableArray arrayWithCapacity:100]; // Pre-size for typical grid size
 		_gridLines = [NSMutableArray arrayWithCapacity:50];  // Pre-size for typical line count
 		_showScrollHighlight = NO;
-		_showTargetDot = NO;
-		_targetDotRadius = 4.0;
-		_targetDotBorderWidth = 1.0;
-		_targetDotBorderColor = [NSColor blackColor];
-		_targetDotBackgroundColor = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0
-		                                             alpha:1.0] colorWithAlphaComponent:0.95];
 		_hintFont = [NSFont boldSystemFontOfSize:14.0];
 		_hintTextColor = [NSColor blackColor];
 		_hintMatchedTextColor = [NSColor systemBlueColor];
@@ -123,11 +120,6 @@
 	// Draw scroll highlight if enabled
 	if (self.showScrollHighlight) {
 		[self drawScrollHighlight];
-	}
-
-	// Draw target dot if enabled (draw before hints so hints appear on top)
-	if (self.showTargetDot) {
-		[self drawTargetDot];
 	}
 
 	// Draw hints
@@ -418,40 +410,6 @@
 	[context restoreGraphicsState];
 }
 
-/// Draw target dot
-- (void)drawTargetDot {
-	NSGraphicsContext *context = [NSGraphicsContext currentContext];
-	[context saveGraphicsState];
-
-	// Convert coordinates (macOS uses bottom-left origin)
-	NSScreen *mainScreen = [NSScreen mainScreen];
-	CGFloat screenHeight = [mainScreen frame].size.height;
-	CGFloat flippedY = screenHeight - self.targetDotCenter.y;
-
-	CGFloat x = self.targetDotCenter.x - self.targetDotRadius;
-	CGFloat y = flippedY - self.targetDotRadius;
-	CGFloat diameter = self.targetDotRadius * 2;
-
-	NSRect dotRect = NSMakeRect(x, y, diameter, diameter);
-	NSBezierPath *circlePath = [NSBezierPath bezierPathWithOvalInRect:dotRect];
-
-	// Fill the dot
-	if (self.targetDotBackgroundColor) {
-		[self.targetDotBackgroundColor setFill];
-	} else {
-		[[NSColor redColor] setFill];
-	}
-	[circlePath fill];
-
-	if (self.targetDotBorderColor && self.targetDotBorderWidth > 0) {
-		[self.targetDotBorderColor setStroke];
-		[circlePath setLineWidth:self.targetDotBorderWidth];
-		[circlePath stroke];
-	}
-
-	[context restoreGraphicsState];
-}
-
 /// Create color from hex string
 /// @param hexString Hex color string
 /// @return NSColor instance
@@ -738,7 +696,6 @@ void NeruClearOverlay(OverlayWindow window) {
 		[controller.overlayView.gridCells removeAllObjects];
 		[controller.overlayView.gridLines removeAllObjects];
 		controller.overlayView.showScrollHighlight = NO;
-		controller.overlayView.showTargetDot = NO;
 		[controller.overlayView setNeedsDisplay:YES];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
@@ -746,7 +703,6 @@ void NeruClearOverlay(OverlayWindow window) {
 			[controller.overlayView.gridCells removeAllObjects];
 			[controller.overlayView.gridLines removeAllObjects];
 			controller.overlayView.showScrollHighlight = NO;
-			controller.overlayView.showTargetDot = NO;
 			[controller.overlayView setNeedsDisplay:YES];
 		});
 	}
@@ -897,12 +853,12 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 
 		for (int i = 0; i < count; i++) {
 			HintData hint = hints[i];
-			NSDictionary *hintDict = @{
+			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
 				@"label" : @(hint.label),
 				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
 				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
 				@"showArrow" : @(style.showArrow)
-			};
+			}];
 			[controller.overlayView.hints addObject:hintDict];
 		}
 
@@ -912,12 +868,12 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 		NSMutableArray *hintDicts = [NSMutableArray arrayWithCapacity:count];
 		for (int i = 0; i < count; i++) {
 			HintData hint = hints[i];
-			NSDictionary *hintDict = @{
+			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
 				@"label" : @(hint.label),
 				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
 				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
 				@"showArrow" : @(style.showArrow)
-			};
+			}];
 			[hintDicts addObject:hintDict];
 		}
 
@@ -942,6 +898,192 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 			free_hint_style_strings(&styleCopy);
 		});
 	}
+}
+
+/// Update hint match prefix (incremental update for typing)
+/// @param window Overlay window handle
+/// @param prefix Match prefix
+void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (OverlayWindowController *)window;
+
+	NSString *prefixStr = prefix ? @(prefix) : @"";
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		for (NSMutableDictionary *hintDict in controller.overlayView.hints) {
+			NSString *label = hintDict[@"label"] ?: @"";
+			int matchedPrefixLength = 0;
+			if ([prefixStr length] > 0 && [label length] >= [prefixStr length]) {
+				NSString *lblPrefix = [label substringToIndex:[prefixStr length]];
+				if ([lblPrefix isEqualToString:prefixStr]) {
+					matchedPrefixLength = (int)[prefixStr length];
+				}
+			}
+			hintDict[@"matchedPrefixLength"] = @(matchedPrefixLength);
+		}
+		[controller.overlayView setNeedsDisplay:YES];
+	});
+}
+
+/// Draw hints incrementally (add/update/remove specific hints without clearing entire overlay)
+/// @param window Overlay window handle
+/// @param hintsToAdd Array of hint data to add or update
+/// @param addCount Number of hints to add/update
+/// @param positionsToRemove Array of hint positions to remove (by matching position)
+/// @param removeCount Number of hints to remove
+/// @param style Hint style (used for new/updated hints)
+void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addCount, CGPoint *positionsToRemove,
+                            int removeCount, HintStyle style) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (OverlayWindowController *)window;
+
+	// Build hint data arrays for hints to add/update
+	NSMutableArray *hintDictsToAdd = nil;
+	if (hintsToAdd && addCount > 0) {
+		hintDictsToAdd = [NSMutableArray arrayWithCapacity:addCount];
+		for (int i = 0; i < addCount; i++) {
+			HintData hint = hintsToAdd[i];
+			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
+				@"label" : hint.label ? @(hint.label) : @"",
+				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
+				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
+				@"showArrow" : @(style.showArrow)
+			}];
+			[hintDictsToAdd addObject:hintDict];
+		}
+	}
+
+	// Build positions array for hints to remove
+	NSMutableArray *positionsToRemoveArray = nil;
+	if (positionsToRemove && removeCount > 0) {
+		positionsToRemoveArray = [NSMutableArray arrayWithCapacity:removeCount];
+		for (int i = 0; i < removeCount; i++) {
+			NSValue *positionValue = [NSValue valueWithPoint:NSPointFromCGPoint(positionsToRemove[i])];
+			[positionsToRemoveArray addObject:positionValue];
+		}
+	}
+
+	// Copy all style properties NOW (before async block)
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 14.0;
+	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
+	NSString *textHex = style.textColor ? @(style.textColor) : nil;
+	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
+	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
+	int borderRadius = style.borderRadius;
+	int borderWidth = style.borderWidth;
+	int padding = style.padding;
+	double opacity = style.opacity;
+	int showArrow = style.showArrow;
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		// Apply style updates
+		NSFont *font = controller.overlayView.hintFont;
+		if (fontFamily && [fontFamily length] > 0) {
+			font = [NSFont fontWithName:fontFamily size:fontSize];
+		}
+		if (!font) {
+			font = [NSFont fontWithName:@"Menlo-Bold" size:fontSize];
+		}
+		if (!font) {
+			font = [NSFont boldSystemFontOfSize:fontSize];
+		}
+		controller.overlayView.hintFont = font;
+
+		if (bgHex) {
+			NSColor *defaultBg = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0
+			                                      alpha:1.0] colorWithAlphaComponent:0.95];
+			controller.overlayView.hintBackgroundColor = [controller.overlayView colorFromHex:bgHex
+			                                                                     defaultColor:defaultBg];
+		}
+		if (textHex) {
+			controller.overlayView.hintTextColor = [controller.overlayView colorFromHex:textHex
+			                                                               defaultColor:[NSColor blackColor]];
+		}
+		if (matchedTextHex) {
+			controller.overlayView.hintMatchedTextColor =
+			    [controller.overlayView colorFromHex:matchedTextHex defaultColor:[NSColor systemBlueColor]];
+		}
+		if (borderHex) {
+			controller.overlayView.hintBorderColor = [controller.overlayView colorFromHex:borderHex
+			                                                                 defaultColor:[NSColor blackColor]];
+		}
+		if (borderRadius > 0) {
+			controller.overlayView.hintBorderRadius = borderRadius;
+		}
+		if (borderWidth > 0) {
+			controller.overlayView.hintBorderWidth = borderWidth;
+		}
+		if (padding >= 0) {
+			controller.overlayView.hintPadding = padding;
+		}
+		if (opacity >= 0.0 && opacity <= 1.0) {
+			NSColor *bg = controller.overlayView.hintBackgroundColor;
+			controller.overlayView.hintBackgroundColor = [bg colorWithAlphaComponent:opacity];
+		}
+
+		// Remove hints that match the positions to remove
+		if (positionsToRemoveArray && [positionsToRemoveArray count] > 0) {
+			// Create a set of position keys for O(1) lookup
+			NSMutableSet *positionsToRemoveSet = [NSMutableSet setWithCapacity:[positionsToRemoveArray count]];
+			for (NSValue *removePositionValue in positionsToRemoveArray) {
+				NSPoint removePosition = [removePositionValue pointValue];
+				NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", removePosition.x, removePosition.y];
+				[positionsToRemoveSet addObject:key];
+			}
+
+			NSMutableArray *hintsToKeep = [NSMutableArray arrayWithCapacity:[controller.overlayView.hints count]];
+			for (NSDictionary *hintDict in controller.overlayView.hints) {
+				NSValue *hintPositionValue = hintDict[@"position"];
+				NSPoint hintPosition = [hintPositionValue pointValue];
+				NSString *hintKey = [NSString stringWithFormat:@"%.6f,%.6f", hintPosition.x, hintPosition.y];
+				BOOL shouldRemove = [positionsToRemoveSet containsObject:hintKey];
+
+				if (!shouldRemove) {
+					[hintsToKeep addObject:hintDict];
+				}
+			}
+			controller.overlayView.hints = hintsToKeep;
+		}
+
+		// Add or update hints
+		if (hintDictsToAdd && [hintDictsToAdd count] > 0) {
+			// Build lookup map for existing hints by position
+			NSMutableDictionary *hintsByPosition =
+			    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.hints count]];
+			for (NSDictionary *hintDict in controller.overlayView.hints) {
+				NSValue *posValue = hintDict[@"position"];
+				NSPoint pos = [posValue pointValue];
+				NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", pos.x, pos.y];
+				hintsByPosition[key] = hintDict;
+			}
+
+			// For each hint to add/update, check if it already exists (by position) and replace it, otherwise add it
+			for (NSDictionary *newHintDict in hintDictsToAdd) {
+				NSValue *newPositionValue = newHintDict[@"position"];
+				NSPoint newPosition = [newPositionValue pointValue];
+				NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", newPosition.x, newPosition.y];
+
+				NSDictionary *existingHint = hintsByPosition[key];
+				if (existingHint) {
+					// Replace existing hint
+					NSUInteger index = [controller.overlayView.hints indexOfObject:existingHint];
+					if (index != NSNotFound) {
+						controller.overlayView.hints[index] = newHintDict;
+					}
+				} else {
+					// Add as new hint
+					[controller.overlayView.hints addObject:newHintDict];
+				}
+			}
+		}
+
+		[controller.overlayView setNeedsDisplay:YES];
+	});
 }
 
 /// Draw scroll highlight
@@ -993,72 +1135,6 @@ void NeruDrawScrollHighlight(OverlayWindow window, CGRect bounds, char *color, i
 				                    green:((rgbValue & 0xFF00) >> 8) / 255.0
 				                     blue:(rgbValue & 0xFF) / 255.0
 				                    alpha:1.0];
-			}
-
-			[controller.overlayView setNeedsDisplay:YES];
-		});
-	}
-}
-
-/// Draw target dot
-/// @param window Overlay window handle
-/// @param center Dot center
-/// @param radius Dot radius
-/// @param colorStr Dot color
-/// @param borderColorStr Border color
-/// @param borderWidth Border width
-void NeruDrawTargetDot(OverlayWindow window, CGPoint center, double radius, const char *colorStr,
-                       const char *borderColorStr, double borderWidth) {
-	if (!window)
-		return;
-
-	OverlayWindowController *controller = (OverlayWindowController *)window;
-
-	if ([NSThread isMainThread]) {
-		controller.overlayView.targetDotCenter = center;
-		controller.overlayView.targetDotRadius = radius;
-		controller.overlayView.targetDotBorderWidth = borderWidth;
-		controller.overlayView.showTargetDot = YES;
-
-		if (colorStr) {
-			NSString *colorString = @(colorStr);
-			controller.overlayView.targetDotBackgroundColor = [controller.overlayView colorFromHex:colorString
-			                                                                          defaultColor:[NSColor redColor]];
-		} else {
-			controller.overlayView.targetDotBackgroundColor = [NSColor redColor];
-		}
-
-		if (borderColorStr) {
-			NSString *borderColorString = @(borderColorStr);
-			controller.overlayView.targetDotBorderColor = [controller.overlayView colorFromHex:borderColorString
-			                                                                      defaultColor:[NSColor blackColor]];
-		} else {
-			controller.overlayView.targetDotBorderColor = nil;
-		}
-
-		[controller.overlayView setNeedsDisplay:YES];
-	} else {
-		NSString *colorString = colorStr ? [NSString stringWithUTF8String:colorStr] : nil;
-		NSString *borderColorString = borderColorStr ? [NSString stringWithUTF8String:borderColorStr] : nil;
-
-		dispatch_async(dispatch_get_main_queue(), ^{
-			controller.overlayView.targetDotCenter = center;
-			controller.overlayView.targetDotRadius = radius;
-			controller.overlayView.targetDotBorderWidth = borderWidth;
-			controller.overlayView.showTargetDot = YES;
-
-			if (colorString) {
-				controller.overlayView.targetDotBackgroundColor =
-				    [controller.overlayView colorFromHex:colorString defaultColor:[NSColor redColor]];
-			} else {
-				controller.overlayView.targetDotBackgroundColor = [NSColor redColor];
-			}
-
-			if (borderColorString) {
-				controller.overlayView.targetDotBorderColor =
-				    [controller.overlayView colorFromHex:borderColorString defaultColor:[NSColor blackColor]];
-			} else {
-				controller.overlayView.targetDotBorderColor = nil;
 			}
 
 			[controller.overlayView setNeedsDisplay:YES];
@@ -1266,6 +1342,180 @@ void NeruSetHideUnmatched(OverlayWindow window, int hide) {
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		controller.overlayView.hideUnmatched = hide ? YES : NO;
+		[controller.overlayView setNeedsDisplay:YES];
+	});
+}
+
+/// Draw grid cells incrementally (add/update/remove specific cells without clearing entire overlay)
+/// @param window Overlay window handle
+/// @param cellsToAdd Array of grid cells to add or update
+/// @param addCount Number of cells to add/update
+/// @param cellsToRemove Array of cell bounds to remove (by matching bounds)
+/// @param removeCount Number of cells to remove
+/// @param style Grid cell style (used for new/updated cells)
+void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCount, CGRect *cellsToRemove,
+                           int removeCount, GridCellStyle style) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (OverlayWindowController *)window;
+
+	// Build cell data arrays for cells to add/update
+	NSMutableArray *cellDictsToAdd = nil;
+	if (cellsToAdd && addCount > 0) {
+		cellDictsToAdd = [NSMutableArray arrayWithCapacity:addCount];
+		for (int i = 0; i < addCount; i++) {
+			GridCell cell = cellsToAdd[i];
+			NSDictionary *cellDict = @{
+				@"label" : cell.label ? @(cell.label) : @"",
+				@"bounds" : [NSValue valueWithRect:NSRectFromCGRect(cell.bounds)],
+				@"isMatched" : @(cell.isMatched),
+				@"isSubgrid" : @(cell.isSubgrid),
+				@"matchedPrefixLength" : @(cell.matchedPrefixLength)
+			};
+			[cellDictsToAdd addObject:cellDict];
+		}
+	}
+
+	// Build bounds array for cells to remove
+	NSMutableArray *boundsToRemove = nil;
+	if (cellsToRemove && removeCount > 0) {
+		boundsToRemove = [NSMutableArray arrayWithCapacity:removeCount];
+		for (int i = 0; i < removeCount; i++) {
+			NSValue *boundsValue = [NSValue valueWithRect:NSRectFromCGRect(cellsToRemove[i])];
+			[boundsToRemove addObject:boundsValue];
+		}
+	}
+
+	// Copy all style properties NOW (before async block)
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 10.0;
+	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
+	NSString *textHex = style.textColor ? @(style.textColor) : nil;
+	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
+	NSString *matchedBgHex = style.matchedBackgroundColor ? @(style.matchedBackgroundColor) : nil;
+	NSString *matchedBorderHex = style.matchedBorderColor ? @(style.matchedBorderColor) : nil;
+	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
+	int borderWidth = style.borderWidth;
+	double backgroundOpacity = style.backgroundOpacity;
+	double textOpacity = style.textOpacity;
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		// Apply style if provided (only update if style properties are non-null)
+		if (fontFamily || bgHex || textHex || matchedTextHex || matchedBgHex || matchedBorderHex || borderHex) {
+			NSFont *font = controller.overlayView.gridFont;
+			if (fontFamily && [fontFamily length] > 0) {
+				font = [NSFont fontWithName:fontFamily size:fontSize];
+			}
+			if (!font) {
+				font = [NSFont fontWithName:@"Menlo" size:fontSize];
+			}
+			if (!font) {
+				font = [NSFont systemFontOfSize:fontSize];
+			}
+			controller.overlayView.gridFont = font;
+
+			if (bgHex) {
+				controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
+				                                                                     defaultColor:[NSColor whiteColor]];
+			}
+			if (textHex) {
+				controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
+				                                                               defaultColor:[NSColor blackColor]];
+			}
+			if (matchedTextHex) {
+				controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
+				                                                                      defaultColor:[NSColor blueColor]];
+			}
+			if (matchedBgHex) {
+				controller.overlayView.gridMatchedBackgroundColor =
+				    [controller.overlayView colorFromHex:matchedBgHex defaultColor:[NSColor blueColor]];
+			}
+			if (matchedBorderHex) {
+				controller.overlayView.gridMatchedBorderColor =
+				    [controller.overlayView colorFromHex:matchedBorderHex defaultColor:[NSColor blueColor]];
+			}
+			if (borderHex) {
+				controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
+				                                                                 defaultColor:[NSColor grayColor]];
+			}
+			if (borderWidth > 0) {
+				controller.overlayView.gridBorderWidth = borderWidth;
+			}
+			if (backgroundOpacity >= 0.0 && backgroundOpacity <= 1.0) {
+				controller.overlayView.gridBackgroundOpacity = backgroundOpacity;
+			}
+			if (textOpacity >= 0.0 && textOpacity <= 1.0) {
+				controller.overlayView.gridTextOpacity = textOpacity;
+			}
+
+			// Update cached colors after setting style properties
+			controller.overlayView.cachedGridTextColorWithOpacity =
+			    [controller.overlayView.gridTextColor colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
+			controller.overlayView.cachedGridMatchedTextColorWithOpacity = [controller.overlayView.gridMatchedTextColor
+			    colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
+		}
+
+		// Remove cells that match the bounds to remove
+		if (boundsToRemove && [boundsToRemove count] > 0) {
+			NSMutableArray *cellsToKeep = [NSMutableArray arrayWithCapacity:[controller.overlayView.gridCells count]];
+			for (NSDictionary *cellDict in controller.overlayView.gridCells) {
+				NSValue *cellBoundsValue = cellDict[@"bounds"];
+				NSRect cellBounds = [cellBoundsValue rectValue];
+				BOOL shouldRemove = NO;
+
+				// Check if this cell's bounds match any of the bounds to remove
+				for (NSValue *removeBoundsValue in boundsToRemove) {
+					NSRect removeBounds = [removeBoundsValue rectValue];
+					// Use rectsEqual for floating point comparison
+					if (rectsEqual(cellBounds, removeBounds, 0.1)) {
+						shouldRemove = YES;
+						break;
+					}
+				}
+
+				if (!shouldRemove) {
+					[cellsToKeep addObject:cellDict];
+				}
+			}
+			controller.overlayView.gridCells = cellsToKeep;
+		}
+
+		// Add or update cells
+		if (cellDictsToAdd && [cellDictsToAdd count] > 0) {
+			// Build lookup map for existing cells by bounds
+			NSMutableDictionary *cellsByBounds =
+			    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.gridCells count]];
+			for (NSDictionary *cellDict in controller.overlayView.gridCells) {
+				NSValue *boundsValue = cellDict[@"bounds"];
+				NSRect bounds = [boundsValue rectValue];
+				NSString *key = [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", bounds.origin.x, bounds.origin.y,
+				                                           bounds.size.width, bounds.size.height];
+				cellsByBounds[key] = cellDict;
+			}
+
+			// For each cell to add/update, check if it already exists (by bounds) and replace it, otherwise add it
+			for (NSDictionary *newCellDict in cellDictsToAdd) {
+				NSValue *newBoundsValue = newCellDict[@"bounds"];
+				NSRect newBounds = [newBoundsValue rectValue];
+				NSString *key =
+				    [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", newBounds.origin.x, newBounds.origin.y,
+				                               newBounds.size.width, newBounds.size.height];
+
+				NSDictionary *existingCell = cellsByBounds[key];
+				if (existingCell) {
+					// Replace existing cell
+					NSUInteger index = [controller.overlayView.gridCells indexOfObject:existingCell];
+					if (index != NSNotFound) {
+						controller.overlayView.gridCells[index] = newCellDict;
+					}
+				} else {
+					// Add as new cell
+					[controller.overlayView.gridCells addObject:newCellDict];
+				}
+			}
+		}
+
 		[controller.overlayView setNeedsDisplay:YES];
 	});
 }

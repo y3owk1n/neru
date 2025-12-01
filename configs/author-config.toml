@@ -30,5 +30,5 @@ delay = 1
 enabled = false
 
 [logging]
-log_level = "info"
+log_level = "debug"
 disable_file_logging = true

@@ -255,6 +255,13 @@ func (m *Manager) Hide() {
 // Clear clears the overlay window.
 func (m *Manager) Clear() {
 	C.NeruClearOverlay(m.window)
+	// Also clear overlay state if they exist to ensure proper state reset
+	if m.gridOverlay != nil {
+		m.gridOverlay.Clear()
+	}
+	if m.hintOverlay != nil {
+		m.hintOverlay.Clear()
+	}
 }
 
 // ResizeToActiveScreen resizes the overlay window to the active screen.
