@@ -1083,22 +1083,20 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 
 		// Remove hints that match the positions to remove
 		if (positionsToRemoveArray && [positionsToRemoveArray count] > 0) {
+			// Create a set of position keys for O(1) lookup
+			NSMutableSet *positionsToRemoveSet = [NSMutableSet setWithCapacity:[positionsToRemoveArray count]];
+			for (NSValue *removePositionValue in positionsToRemoveArray) {
+				NSPoint removePosition = [removePositionValue pointValue];
+				NSString *key = [NSString stringWithFormat:@"%.1f,%.1f", removePosition.x, removePosition.y];
+				[positionsToRemoveSet addObject:key];
+			}
+
 			NSMutableArray *hintsToKeep = [NSMutableArray arrayWithCapacity:[controller.overlayView.hints count]];
 			for (NSDictionary *hintDict in controller.overlayView.hints) {
 				NSValue *hintPositionValue = hintDict[@"position"];
 				NSPoint hintPosition = [hintPositionValue pointValue];
-				BOOL shouldRemove = NO;
-
-				// Check if this hint's position matches any of the positions to remove
-				for (NSValue *removePositionValue in positionsToRemoveArray) {
-					NSPoint removePosition = [removePositionValue pointValue];
-					// Use small epsilon for floating point comparison
-					if (fabs(hintPosition.x - removePosition.x) < 0.1 &&
-					    fabs(hintPosition.y - removePosition.y) < 0.1) {
-						shouldRemove = YES;
-						break;
-					}
-				}
+				NSString *hintKey = [NSString stringWithFormat:@"%.1f,%.1f", hintPosition.x, hintPosition.y];
+				BOOL shouldRemove = [positionsToRemoveSet containsObject:hintKey];
 
 				if (!shouldRemove) {
 					[hintsToKeep addObject:hintDict];
