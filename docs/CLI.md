@@ -17,6 +17,7 @@ The Neru CLI communicates with the daemon via IPC (Inter-Process Communication) 
 
 - [Quick Reference](#quick-reference)
 - [Daemon Control](#daemon-control)
+- [Service Management](#service-management)
 - [Navigation Commands](#navigation-commands)
 - [Action Commands](#action-commands)
 - [Status & Info](#status--info)
@@ -33,6 +34,8 @@ The Neru CLI communicates with the daemon via IPC (Inter-Process Communication) 
 ```bash
 neru launch              # Start daemon
 neru status              # Check status
+neru services install    # Install launchd service
+neru services status     # Check service status
 neru profile             # Show profiling setup instructions
 neru hints               # Start hint mode
 neru grid                # Start grid mode
@@ -71,6 +74,45 @@ neru idle                # Cancel active mode
 ```
 
 **Use `stop`** for temporary disable, **`idle`** to cancel modes.
+
+---
+
+## Service Management
+
+Manage Neru as a launchd service for automatic startup:
+
+```bash
+neru services install     # Install and load launchd service
+neru services uninstall   # Unload and remove launchd service
+neru services start       # Start the service
+neru services stop        # Stop the service
+neru services restart     # Restart the service
+neru services status      # Check service status
+```
+
+**Installation:** Sets up Neru to start automatically on login with `KeepAlive = true`.
+
+**Uninstallation:** Removes the service and stops automatic startup.
+
+**Status values:** `Service loaded` or `Service not loaded`
+
+**Notes:** If you have Neru installed via other methods (nix-darwin, home-manager, etc.), `install` will detect conflicts and refuse to overwrite. Uninstall the existing service first.
+
+**Workflow example:**
+
+```bash
+# Install for auto-startup
+neru services install
+
+# Check status
+neru services status  # Should show "Service loaded"
+
+# Restart service
+neru services restart
+
+# Remove auto-startup
+neru services uninstall
+```
 
 ---
 

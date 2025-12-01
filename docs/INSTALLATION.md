@@ -312,6 +312,11 @@ open -a Neru
 
 # Or CLI
 neru launch
+
+# Or install as launchd service for auto-startup
+neru services install
+
+> [!NOTE] If Neru is already installed via nix-darwin, home-manager, or other methods, `services install` will detect the conflict and refuse to install. Check your existing configurations first.
 ```
 
 ### 3. Verify
@@ -409,6 +414,9 @@ brew uninstall --cask neru
 ### Manual
 
 ```bash
+# Stop and remove launchd service (if installed)
+neru services uninstall
+
 # Remove app bundle
 rm -rf /Applications/Neru.app
 

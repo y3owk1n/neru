@@ -77,6 +77,9 @@ cd neru && just release
 # Start Neru
 open -a Neru
 
+# Or install as launchd service for auto-startup
+neru services install
+
 # Try default hotkeys:
 # Cmd+Shift+Space - Hint mode
 # Cmd+Shift+G     - Grid mode
