@@ -11,8 +11,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
-// TestAppInitializationIntegration tests that the app can be initialized with real system components.
-func TestAppInitializationIntegration(t *testing.T) {
+// TestAppInitializationWithRealComponentsIntegration tests that the app can be initialized with real system components.
+func TestAppInitializationWithRealComponentsIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping app initialization integration test in short mode")
 	}

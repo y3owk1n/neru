@@ -98,6 +98,21 @@ void NeruClearOverlay(OverlayWindow window);
 /// @param style Hint style
 void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle style);
 
+/// Update hint match prefix (incremental update for typing)
+/// @param window Overlay window handle
+/// @param prefix Match prefix
+void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix);
+
+/// Draw hints incrementally (add/update/remove specific hints without clearing entire overlay)
+/// @param window Overlay window handle
+/// @param hintsToAdd Array of hint data to add or update
+/// @param addCount Number of hints to add/update
+/// @param positionsToRemove Array of hint positions to remove (by matching position)
+/// @param removeCount Number of hints to remove
+/// @param style Hint style (used for new/updated hints)
+void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addCount, CGPoint *positionsToRemove,
+                            int removeCount, HintStyle style);
+
 /// Draw scroll highlight
 /// @param window Overlay window handle
 /// @param bounds Highlight bounds
@@ -166,5 +181,15 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix);
 /// @param window Overlay window handle
 /// @param hide Hide unmatched cells (1 = yes, 0 = no)
 void NeruSetHideUnmatched(OverlayWindow window, int hide);
+
+/// Draw grid cells incrementally (add/update/remove specific cells without clearing entire overlay)
+/// @param window Overlay window handle
+/// @param cellsToAdd Array of grid cells to add or update
+/// @param addCount Number of cells to add/update
+/// @param cellsToRemove Array of cell bounds to remove (by matching bounds)
+/// @param removeCount Number of cells to remove
+/// @param style Grid cell style (used for new/updated cells)
+void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCount, CGRect *cellsToRemove,
+                           int removeCount, GridCellStyle style);
 
 #endif // OVERLAY_H

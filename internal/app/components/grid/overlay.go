@@ -208,9 +208,15 @@ func (o *Overlay) Hide() {
 	C.NeruHideOverlayWindow(o.window)
 }
 
-// Clear clears the grid overlay.
+// Clear clears the grid overlay and resets state.
 func (o *Overlay) Clear() {
 	C.NeruClearOverlay(o.window)
+	// Reset previous state so next draw will be a full redraw
+	o.gridStateMu.Lock()
+	o.previousGrid = nil
+	o.previousInput = ""
+	o.previousStyle = Style{}
+	o.gridStateMu.Unlock()
 }
 
 // Destroy destroys the grid overlay window.
@@ -264,17 +270,23 @@ func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Sty
 	var msBefore runtime.MemStats
 	runtime.ReadMemStats(&msBefore)
 
-	// Check if we can do incremental updates
+	// Check if we can do incremental updates (always try if we have previous state)
 	o.gridStateMu.RLock()
-	canIncrementalUpdate := o.previousGrid != nil &&
-		o.previousStyle == style &&
-		len(o.previousGrid.AllCells()) == len(cells)
+	canIncrementalUpdate := o.previousGrid != nil
 	o.gridStateMu.RUnlock()
 
 	if canIncrementalUpdate {
-		// Try incremental update
+		// Try incremental update (handles both input changes and structural changes)
 		if o.drawGridIncremental(grid, currentInput, style) {
+			// Update cached state on successful incremental update
+			o.gridStateMu.Lock()
+			o.previousGrid = grid
+			o.previousInput = currentInput
+			o.previousStyle = style
+			o.gridStateMu.Unlock()
+
 			o.logger.Debug("Grid incremental update successful")
+			// Note: Show() should be called separately by the caller to ensure overlay is visible
 
 			return nil
 		}
@@ -502,12 +514,28 @@ func (o *Overlay) drawGridIncremental(
 
 			return true
 		}
+		// No changes at all - but we need to ensure overlay is actually visible
+		// If the overlay was cleared between activations, we need to redraw even if nothing changed.
+		// Since we can't easily check if overlay is empty from Go, we'll be conservative:
+		// If this is the first draw after a potential clear (indicated by empty input and no previous input),
+		// force a redraw to ensure visibility.
+		if currentInput == "" && previousInput == "" {
+			// This might be a fresh activation after clear - force redraw to be safe
+			return false
+		}
+		// Otherwise, assume overlay is still showing and no redraw needed
+		return true
 	}
 
-	// For structural changes (grid size/layout changes), fall back to full redraw
-	// Note: True incremental updates for structural changes would require
-	// new C API functions to update individual cells
-	return false
+	// Handle structural changes (grid size/layout changes) using incremental C API
+	return o.drawGridIncrementalStructural(
+		grid,
+		previousGrid,
+		currentInput,
+		style,
+		previousInput,
+		previousStyle,
+	)
 }
 
 // gridsAreStructurallyEqual checks if two grids have the same structure (same cells in same positions).
@@ -540,6 +568,175 @@ func (o *Overlay) updateMatchesIncremental(grid *domainGrid.Grid, newInput, oldI
 	o.logger.Debug("Incremental match update",
 		zap.String("old_input", oldInput),
 		zap.String("new_input", newInput))
+}
+
+// drawGridIncrementalStructural handles structural changes using the incremental C API.
+func (o *Overlay) drawGridIncrementalStructural(
+	currentGrid *domainGrid.Grid,
+	previousGrid *domainGrid.Grid,
+	currentInput string,
+	currentStyle Style,
+	previousInput string,
+	previousStyle Style,
+) bool {
+	currentCells := currentGrid.AllCells()
+	previousCells := previousGrid.AllCells()
+
+	// Build maps for efficient lookup
+	previousCellMap := make(map[string]*domainGrid.Cell)
+	for _, cell := range previousCells {
+		previousCellMap[cell.Coordinate()] = cell
+	}
+
+	currentCellMap := make(map[string]*domainGrid.Cell)
+	for _, cell := range currentCells {
+		currentCellMap[cell.Coordinate()] = cell
+	}
+
+	// Find cells to add/update (in current but not in previous, or changed)
+	var cellsToAdd []*domainGrid.Cell
+	for _, cell := range currentCells {
+		prevCell, exists := previousCellMap[cell.Coordinate()]
+		if !exists { //nolint:gocritic
+			// New cell
+			cellsToAdd = append(cellsToAdd, cell)
+		} else if cell.Bounds() != prevCell.Bounds() {
+			// Cell bounds changed (position/size changed)
+			cellsToAdd = append(cellsToAdd, cell)
+		} else if currentInput != previousInput || currentStyle != previousStyle {
+			// Cell exists but match state or style changed
+			cellsToAdd = append(cellsToAdd, cell)
+		}
+	}
+
+	// Find cells to remove (in previous but not in current)
+	var cellsToRemove []image.Rectangle
+	for _, cell := range previousCells {
+		if _, exists := currentCellMap[cell.Coordinate()]; !exists {
+			cellsToRemove = append(cellsToRemove, cell.Bounds())
+		}
+	}
+
+	// If we need to add all cells (overlay is likely empty), do a full redraw instead
+	// This handles the case where the overlay was cleared between activations
+	if len(cellsToAdd) == len(currentCells) && len(cellsToRemove) == len(previousCells) {
+		// All cells need to be added and all previous cells removed - this is effectively a full redraw
+		// Fall back to full redraw for better performance and correctness
+		return false
+	}
+
+	// If no changes, nothing to do
+	if len(cellsToAdd) == 0 && len(cellsToRemove) == 0 {
+		return true
+	}
+
+	// Convert cells to C structures
+	cellsToAddC := o.convertCellsToC(cellsToAdd, currentInput)
+	defer func() {
+		// Free C strings for labels (they're cached, so we don't free them here)
+		// The style strings are cached and reused
+	}()
+
+	// Convert bounds to C structures
+	var cellsToRemoveC []C.CGRect
+	if len(cellsToRemove) > 0 {
+		cellsToRemoveC = make([]C.CGRect, len(cellsToRemove))
+		for i, bounds := range cellsToRemove {
+			cellsToRemoveC[i] = C.CGRect{
+				origin: C.CGPoint{
+					x: C.double(bounds.Min.X),
+					y: C.double(bounds.Min.Y),
+				},
+				size: C.CGSize{
+					width:  C.double(bounds.Dx()),
+					height: C.double(bounds.Dy()),
+				},
+			}
+		}
+	}
+
+	// Get style strings
+	fontFamily, backgroundColor, textColor, matchedTextColor,
+		matchedBackgroundColor, matchedBorderColor, borderColor := o.getCachedStyleStrings(currentStyle)
+
+	finalStyle := C.GridCellStyle{
+		fontSize:               C.int(currentStyle.FontSize()),
+		fontFamily:             fontFamily,
+		backgroundColor:        backgroundColor,
+		textColor:              textColor,
+		matchedTextColor:       matchedTextColor,
+		matchedBackgroundColor: matchedBackgroundColor,
+		matchedBorderColor:     matchedBorderColor,
+		borderColor:            borderColor,
+		borderWidth:            C.int(currentStyle.BorderWidth()),
+		backgroundOpacity:      C.double(currentStyle.Opacity()),
+		textOpacity:            C.double(1.0),
+	}
+
+	// Call incremental C API
+	var cellsToAddPtr *C.GridCell
+	var cellsToRemovePtr *C.CGRect
+	if len(cellsToAddC) > 0 {
+		cellsToAddPtr = &cellsToAddC[0]
+	}
+	if len(cellsToRemoveC) > 0 {
+		cellsToRemovePtr = &cellsToRemoveC[0]
+	}
+
+	C.NeruDrawIncrementGrid(
+		o.window,
+		cellsToAddPtr,
+		C.int(len(cellsToAddC)),
+		cellsToRemovePtr,
+		C.int(len(cellsToRemoveC)),
+		finalStyle,
+	)
+
+	o.logger.Debug("Incremental structural update",
+		zap.Int("cells_added", len(cellsToAdd)),
+		zap.Int("cells_removed", len(cellsToRemove)))
+
+	return true
+}
+
+// convertCellsToC converts domain grid cells to C GridCell structures.
+func (o *Overlay) convertCellsToC(cellsGo []*domainGrid.Cell, currentInput string) []C.GridCell {
+	if len(cellsGo) == 0 {
+		return nil
+	}
+
+	cGridCells := make([]C.GridCell, len(cellsGo))
+	cLabels := make([]*C.char, len(cellsGo))
+
+	for cellIndex, cell := range cellsGo {
+		cLabels[cellIndex] = o.getOrCacheLabel(cell.Coordinate())
+
+		isMatched := 0
+		matchedPrefixLength := 0
+		if currentInput != "" && strings.HasPrefix(cell.Coordinate(), currentInput) {
+			isMatched = 1
+			matchedPrefixLength = len(currentInput)
+		}
+
+		cGridCells[cellIndex] = C.GridCell{
+			label: cLabels[cellIndex],
+			bounds: C.CGRect{
+				origin: C.CGPoint{
+					x: C.double(cell.Bounds().Min.X),
+					y: C.double(cell.Bounds().Min.Y),
+				},
+				size: C.CGSize{
+					width:  C.double(cell.Bounds().Dx()),
+					height: C.double(cell.Bounds().Dy()),
+				},
+			},
+			isMatched:           C.int(isMatched),
+			isSubgrid:           C.int(0), // Mark as regular grid cell
+			matchedPrefixLength: C.int(matchedPrefixLength),
+		}
+	}
+
+	return cGridCells
 }
 
 // filterCellsByViewport returns only cells that intersect with the viewport.
