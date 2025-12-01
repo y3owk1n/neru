@@ -96,6 +96,8 @@ neru services status      # Check service status
 
 **Status values:** `Service loaded` or `Service not loaded`
 
+**Notes:** If you have Neru installed via other methods (nix-darwin, home-manager, etc.), `install` will detect conflicts and refuse to overwrite. Uninstall the existing service first.
+
 **Workflow example:**
 
 ```bash

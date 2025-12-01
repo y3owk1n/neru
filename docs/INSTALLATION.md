@@ -315,6 +315,8 @@ neru launch
 
 # Or install as launchd service for auto-startup
 neru services install
+
+> [!NOTE] If Neru is already installed via nix-darwin, home-manager, or other methods, `services install` will detect the conflict and refuse to install. Check your existing configurations first.
 ```
 
 ### 3. Verify
