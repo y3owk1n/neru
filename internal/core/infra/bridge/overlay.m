@@ -855,12 +855,12 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 
 		for (int i = 0; i < count; i++) {
 			HintData hint = hints[i];
-			NSDictionary *hintDict = @{
+			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
 				@"label" : @(hint.label),
 				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
 				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
 				@"showArrow" : @(style.showArrow)
-			};
+			}];
 			[controller.overlayView.hints addObject:hintDict];
 		}
 
@@ -870,12 +870,12 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 		NSMutableArray *hintDicts = [NSMutableArray arrayWithCapacity:count];
 		for (int i = 0; i < count; i++) {
 			HintData hint = hints[i];
-			NSDictionary *hintDict = @{
+			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
 				@"label" : @(hint.label),
 				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
 				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
 				@"showArrow" : @(style.showArrow)
-			};
+			}];
 			[hintDicts addObject:hintDict];
 		}
 
@@ -914,8 +914,7 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 	NSString *prefixStr = prefix ? @(prefix) : @"";
 
 	dispatch_async(dispatch_get_main_queue(), ^{
-		NSMutableArray *updated = [NSMutableArray arrayWithCapacity:[controller.overlayView.hints count]];
-		for (NSDictionary *hintDict in controller.overlayView.hints) {
+		for (NSMutableDictionary *hintDict in controller.overlayView.hints) {
 			NSString *label = hintDict[@"label"] ?: @"";
 			int matchedPrefixLength = 0;
 			if ([prefixStr length] > 0 && [label length] >= [prefixStr length]) {
@@ -924,16 +923,8 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 					matchedPrefixLength = (int)[prefixStr length];
 				}
 			}
-			NSDictionary *newDict = @{
-				@"label" : label,
-				@"position" : hintDict[@"position"],
-				@"matchedPrefixLength" : @(matchedPrefixLength),
-				@"showArrow" : hintDict[@"showArrow"] ?: @(YES)
-			};
-			[updated addObject:newDict];
+			hintDict[@"matchedPrefixLength"] = @(matchedPrefixLength);
 		}
-		[controller.overlayView.hints removeAllObjects];
-		[controller.overlayView.hints addObjectsFromArray:updated];
 		[controller.overlayView setNeedsDisplay:YES];
 	});
 }
@@ -958,12 +949,12 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 		hintDictsToAdd = [NSMutableArray arrayWithCapacity:addCount];
 		for (int i = 0; i < addCount; i++) {
 			HintData hint = hintsToAdd[i];
-			NSDictionary *hintDict = @{
+			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
 				@"label" : hint.label ? @(hint.label) : @"",
 				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
 				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
 				@"showArrow" : @(style.showArrow)
-			};
+			}];
 			[hintDictsToAdd addObject:hintDict];
 		}
 	}
@@ -1063,30 +1054,30 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 
 		// Add or update hints
 		if (hintDictsToAdd && [hintDictsToAdd count] > 0) {
+			// Build lookup map for existing hints by position
+			NSMutableDictionary *hintsByPosition = [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.hints count]];
+			for (NSDictionary *hintDict in controller.overlayView.hints) {
+				NSValue *posValue = hintDict[@"position"];
+				NSPoint pos = [posValue pointValue];
+				NSString *key = [NSString stringWithFormat:@"%.1f,%.1f", pos.x, pos.y];
+				hintsByPosition[key] = hintDict;
+			}
+
 			// For each hint to add/update, check if it already exists (by position) and replace it, otherwise add it
 			for (NSDictionary *newHintDict in hintDictsToAdd) {
 				NSValue *newPositionValue = newHintDict[@"position"];
 				NSPoint newPosition = [newPositionValue pointValue];
-				BOOL found = NO;
+				NSString *key = [NSString stringWithFormat:@"%.1f,%.1f", newPosition.x, newPosition.y];
 
-				// Try to find and update existing hint with matching position
-				for (NSUInteger i = 0; i < [controller.overlayView.hints count]; i++) {
-					NSDictionary *existingHintDict = controller.overlayView.hints[i];
-					NSValue *existingPositionValue = existingHintDict[@"position"];
-					NSPoint existingPosition = [existingPositionValue pointValue];
-
-					// Check if positions match
-					if (fabs(existingPosition.x - newPosition.x) < 0.1 &&
-					    fabs(existingPosition.y - newPosition.y) < 0.1) {
-						// Replace existing hint
-						controller.overlayView.hints[i] = newHintDict;
-						found = YES;
-						break;
+				NSDictionary *existingHint = hintsByPosition[key];
+				if (existingHint) {
+					// Replace existing hint
+					NSUInteger index = [controller.overlayView.hints indexOfObject:existingHint];
+					if (index != NSNotFound) {
+						controller.overlayView.hints[index] = newHintDict;
 					}
-				}
-
-				// If not found, add as new hint
-				if (!found) {
+				} else {
+					// Add as new hint
 					[controller.overlayView.hints addObject:newHintDict];
 				}
 			}
