@@ -982,8 +982,7 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	int showArrow = style.showArrow;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
-		// Apply style if provided (only update if style properties are non-null)
-		if (fontFamily || bgHex || textHex || matchedTextHex || borderHex) {
+		// Apply style updates
 			NSFont *font = controller.overlayView.hintFont;
 			if (fontFamily && [fontFamily length] > 0) {
 				font = [NSFont fontWithName:fontFamily size:fontSize];
@@ -1027,7 +1026,6 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 				NSColor *bg = controller.overlayView.hintBackgroundColor;
 				controller.overlayView.hintBackgroundColor = [bg colorWithAlphaComponent:opacity];
 			}
-		}
 
 		// Remove hints that match the positions to remove
 		if (positionsToRemoveArray && [positionsToRemoveArray count] > 0) {
