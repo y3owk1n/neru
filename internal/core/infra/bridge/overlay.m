@@ -404,9 +404,6 @@
 	[context restoreGraphicsState];
 }
 
-/// Draw target dot
-
-
 /// Create color from hex string
 /// @param hexString Hex color string
 /// @return NSColor instance
@@ -1148,15 +1145,6 @@ void NeruDrawScrollHighlight(OverlayWindow window, CGRect bounds, char *color, i
 		});
 	}
 }
-
-/// Draw target dot
-/// @param window Overlay window handle
-/// @param center Dot center
-/// @param radius Dot radius
-/// @param colorStr Dot color
-/// @param borderColorStr Border color
-/// @param borderWidth Border width
-
 
 /// Replace overlay window
 /// @param pwindow Pointer to overlay window handle
