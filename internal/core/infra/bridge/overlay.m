@@ -1034,7 +1034,7 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 			NSMutableSet *positionsToRemoveSet = [NSMutableSet setWithCapacity:[positionsToRemoveArray count]];
 			for (NSValue *removePositionValue in positionsToRemoveArray) {
 				NSPoint removePosition = [removePositionValue pointValue];
-				NSString *key = [NSString stringWithFormat:@"%.1f,%.1f", removePosition.x, removePosition.y];
+				NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", removePosition.x, removePosition.y];
 				[positionsToRemoveSet addObject:key];
 			}
 
@@ -1042,7 +1042,7 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 			for (NSDictionary *hintDict in controller.overlayView.hints) {
 				NSValue *hintPositionValue = hintDict[@"position"];
 				NSPoint hintPosition = [hintPositionValue pointValue];
-				NSString *hintKey = [NSString stringWithFormat:@"%.1f,%.1f", hintPosition.x, hintPosition.y];
+				NSString *hintKey = [NSString stringWithFormat:@"%.6f,%.6f", hintPosition.x, hintPosition.y];
 				BOOL shouldRemove = [positionsToRemoveSet containsObject:hintKey];
 
 				if (!shouldRemove) {
@@ -1059,7 +1059,7 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 			for (NSDictionary *hintDict in controller.overlayView.hints) {
 				NSValue *posValue = hintDict[@"position"];
 				NSPoint pos = [posValue pointValue];
-				NSString *key = [NSString stringWithFormat:@"%.1f,%.1f", pos.x, pos.y];
+				NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", pos.x, pos.y];
 				hintsByPosition[key] = hintDict;
 			}
 
@@ -1067,7 +1067,7 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 			for (NSDictionary *newHintDict in hintDictsToAdd) {
 				NSValue *newPositionValue = newHintDict[@"position"];
 				NSPoint newPosition = [newPositionValue pointValue];
-				NSString *key = [NSString stringWithFormat:@"%.1f,%.1f", newPosition.x, newPosition.y];
+				NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", newPosition.x, newPosition.y];
 
 				NSDictionary *existingHint = hintsByPosition[key];
 				if (existingHint) {
