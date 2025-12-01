@@ -12,11 +12,11 @@ import (
 
 // waitForMode waits for the application to reach the expected mode with a timeout.
 func waitForMode(
-	t *testing.T,
+	tb testing.TB,
 	application *app.App,
 	expectedMode domain.Mode,
 ) {
-	t.Helper()
+	tb.Helper()
 
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
@@ -27,7 +27,7 @@ func waitForMode(
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	t.Fatalf(
+	tb.Fatalf(
 		"Timeout waiting for mode %v, current mode: %v",
 		expectedMode,
 		application.CurrentMode(),
