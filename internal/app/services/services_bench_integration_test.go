@@ -97,6 +97,8 @@ func BenchmarkGridService_ShowGrid_Incremental(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// This will exercise the grid incremental rendering logic
 		// Measures performance of grid display with incremental updates
-		gridService.ShowGrid(ctx)
+		if err := gridService.ShowGrid(ctx); err != nil {
+			b.Fatalf("ShowGrid failed: %v", err)
+		}
 	}
 }
