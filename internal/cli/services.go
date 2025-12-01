@@ -228,11 +228,10 @@ func stopService() error {
 }
 
 func restartService() error {
-	err := stopService()
-	if err != nil {
-		return err
-	}
+	// Stop the service (ignore errors if already stopped)
+	_ = stopService()
 
+	// Always attempt to start
 	return startService()
 }
 
