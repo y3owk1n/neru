@@ -9,23 +9,25 @@ import (
 	"github.com/y3owk1n/neru/internal/cli"
 )
 
-// Helper to get command by name from RootCmd
+// Helper to get command by name from RootCmd.
 func getCmd(name string) *cobra.Command {
 	for _, cmd := range cli.RootCmd.Commands() {
 		if cmd.Use == name {
 			return cmd
 		}
 	}
+
 	return nil
 }
 
-// Helper to get action subcommand from ActionCmd
+// Helper to get action subcommand from ActionCmd.
 func getActionCmd(name string) *cobra.Command {
 	for _, cmd := range cli.ActionCmd.Commands() {
 		if cmd.Use == name {
 			return cmd
 		}
 	}
+
 	return nil
 }
 
