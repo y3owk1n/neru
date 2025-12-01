@@ -2,9 +2,11 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -153,6 +155,13 @@ const plistTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 </dict>
 </plist>`
 
+var (
+	errServiceAlreadyLoaded = errors.New(
+		"service is already loaded; check for existing installations (e.g., nix-darwin, home-manager) and uninstall them first",
+	)
+	errPlistAlreadyExists = errors.New("plist file already exists")
+)
+
 func getBinaryPath() (string, error) {
 	execPath, err := os.Executable()
 	if err != nil {
@@ -164,13 +173,14 @@ func getBinaryPath() (string, error) {
 
 func isServiceLoaded() bool {
 	cmd := exec.CommandContext(context.Background(), "launchctl", "list", serviceLabel)
+
 	return cmd.Run() == nil
 }
 
 func installService() error {
 	// Check if service is already loaded
 	if isServiceLoaded() {
-		return fmt.Errorf("service is already loaded; check for existing installations (e.g., nix-darwin, home-manager) and uninstall them first")
+		return errServiceAlreadyLoaded
 	}
 
 	binPath, err := getBinaryPath()
@@ -189,8 +199,14 @@ func installService() error {
 
 	// Check if plist already exists
 	expandedPlist := filepath.Join(expandedDir, serviceLabel+".plist")
-	if _, err := os.Stat(expandedPlist); err == nil {
-		return fmt.Errorf("plist file already exists at %s; remove it manually or uninstall first", expandedPlist)
+
+	_, statErr := os.Stat(expandedPlist)
+	if statErr == nil {
+		return fmt.Errorf(
+			"%w at %s; remove it manually or uninstall first",
+			errPlistAlreadyExists,
+			expandedPlist,
+		)
 	}
 
 	// Ensure directory exists
@@ -209,8 +225,19 @@ func installService() error {
 		return fmt.Errorf("failed to write plist: %w", err)
 	}
 
+	currentUser, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("failed to get current user: %w", err)
+	}
+
 	// Load service
-	cmd := exec.CommandContext(context.Background(), "launchctl", "load", expandedPlist)
+	cmd := exec.CommandContext(
+		context.Background(),
+		"launchctl",
+		"bootstrap",
+		"gui/"+currentUser.Uid,
+		expandedPlist,
+	)
 
 	err = cmd.Run()
 	if err != nil {
@@ -226,8 +253,18 @@ func uninstallService() error {
 		return fmt.Errorf("failed to expand plist path: %w", err)
 	}
 
+	currentUser, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("failed to get current user: %w", err)
+	}
+
 	// Unload service if loaded
-	cmd := exec.CommandContext(context.Background(), "launchctl", "unload", expandedPlist)
+	cmd := exec.CommandContext(
+		context.Background(),
+		"launchctl",
+		"bootout",
+		"gui/"+currentUser.Uid+"/"+serviceLabel,
+	)
 	_ = cmd.Run() // Ignore error if not loaded
 
 	// Remove plist
