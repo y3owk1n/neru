@@ -122,10 +122,36 @@ func init() {
 
 const (
 	serviceLabel    = "com.y3owk1n.neru"
-	plistTemplate   = "resources/com.y3owk1n.neru.plist.template"
 	launchAgentsDir = "~/Library/LaunchAgents"
 	plistFile       = launchAgentsDir + "/" + serviceLabel + ".plist"
 )
+
+const plistTemplate = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.y3owk1n.neru</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>NERU_BINARY_PATH</string>
+        <string>launch</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/neru.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/neru.err</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>`
 
 func getBinaryPath() (string, error) {
 	execPath, err := os.Executable()
@@ -142,14 +168,8 @@ func installService() error {
 		return fmt.Errorf("failed to get binary path: %w", err)
 	}
 
-	// Read template
-	templateContent, err := os.ReadFile(plistTemplate)
-	if err != nil {
-		return fmt.Errorf("failed to read plist template: %w", err)
-	}
-
-	// Replace placeholder
-	plistContent := strings.ReplaceAll(string(templateContent), "NERU_BINARY_PATH", binPath)
+	// Replace placeholder in template
+	plistContent := strings.ReplaceAll(plistTemplate, "NERU_BINARY_PATH", binPath)
 
 	// Expand launchAgentsDir
 	expandedDir, err := expandPath(launchAgentsDir)
