@@ -4,7 +4,6 @@ package app_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
@@ -55,31 +54,31 @@ func TestAppInitializationWithRealComponentsIntegration(t *testing.T) {
 	t.Run("Mode Transitions with Real Components", func(t *testing.T) {
 		// Test hints mode
 		application.SetModeHints()
-		waitForMode(t, application, domain.ModeHints, 3*time.Second)
+		waitForMode(t, application, domain.ModeHints)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 
 		// Test grid mode
 		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
+		waitForMode(t, application, domain.ModeGrid)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 
 		// Test action mode
 		application.SetModeAction()
-		waitForMode(t, application, domain.ModeAction, 3*time.Second)
+		waitForMode(t, application, domain.ModeAction)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 
 		// Test scroll mode
 		application.SetModeScroll()
-		waitForMode(t, application, domain.ModeScroll, 3*time.Second)
+		waitForMode(t, application, domain.ModeScroll)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 	})
 
 	t.Log("✅ App initialization with real components test completed successfully")

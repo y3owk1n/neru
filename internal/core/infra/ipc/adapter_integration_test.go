@@ -4,6 +4,7 @@ package ipc_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
@@ -115,7 +116,7 @@ func TestIPCAdapterContextCancellation(t *testing.T) {
 	t.Run("Start with canceled context", func(t *testing.T) {
 		// Start should handle a canceled context gracefully (may succeed or return context.Canceled)
 		err := adapter.Start(ctx)
-		if err != nil && err != context.Canceled {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			t.Errorf("Start with canceled context returned unexpected error: %v", err)
 		}
 	})

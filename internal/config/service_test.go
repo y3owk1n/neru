@@ -160,17 +160,16 @@ func TestService_Concurrency(_ *testing.T) {
 	var waitGroup sync.WaitGroup
 
 	// Concurrent reads
-	for i := 0; i < 100; i++ {
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
+	for range 100 {
+		waitGroup.Go(func() {
 			_ = service.Get()
-		}()
+		})
 	}
 
 	// Concurrent updates
-	for i := 0; i < 100; i++ {
+	for idx := range 100 {
 		waitGroup.Add(1)
+
 		go func(id int) {
 			defer waitGroup.Done()
 
@@ -182,7 +181,7 @@ func TestService_Concurrency(_ *testing.T) {
 			}
 
 			_ = service.Update(cfg)
-		}(i)
+		}(idx)
 	}
 
 	waitGroup.Wait()

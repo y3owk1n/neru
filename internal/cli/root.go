@@ -33,7 +33,8 @@ var (
 	formatter *cliutil.OutputFormatter
 )
 
-var rootCmd = &cobra.Command{
+// RootCmd is the root CLI command for Neru.
+var RootCmd = &cobra.Command{
 	Use:   "neru",
 	Short: "Neru - Keyboard-driven navigation for macOS",
 	Long: `Neru is a keyboard-driven navigation tool for macOS that provides
@@ -52,7 +53,7 @@ vim-like navigation capabilities across all applications using accessibility API
 
 // Execute initializes and runs the CLI application.
 func Execute() {
-	executeErr := rootCmd.Execute()
+	executeErr := RootCmd.Execute()
 	if executeErr != nil {
 		fmt.Fprintln(os.Stderr, executeErr)
 		os.Exit(1)
@@ -63,7 +64,7 @@ func init() {
 	// Initialize CLI utilities.
 	formatter = cliutil.NewOutputFormatter()
 
-	rootCmd.SetVersionTemplate(
+	RootCmd.SetVersionTemplate(
 		fmt.Sprintf(
 			"Neru version %s\nGit commit: %s\nBuild date: %s\n",
 			Version,
@@ -72,8 +73,8 @@ func init() {
 		),
 	)
 
-	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "Path to config file")
-	rootCmd.PersistentFlags().
+	RootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "Path to config file")
+	RootCmd.PersistentFlags().
 		IntVar(&timeoutSec, "timeout", DefaultIPCTimeoutSeconds, "IPC timeout in seconds")
 }
 
@@ -125,7 +126,8 @@ func requiresRunningInstance() error {
 	return nil
 }
 
-func buildSimpleCommand(use, short, long string, action string) *cobra.Command {
+// BuildSimpleCommand creates a simple cobra command with the given parameters.
+func BuildSimpleCommand(use, short, long string, action string) *cobra.Command {
 	return &cobra.Command{
 		Use:   use,
 		Short: short,
@@ -139,7 +141,8 @@ func buildSimpleCommand(use, short, long string, action string) *cobra.Command {
 	}
 }
 
-func buildActionCommand(use, short, long string, params []string) *cobra.Command {
+// BuildActionCommand creates an action cobra command with the given parameters.
+func BuildActionCommand(use, short, long string, params []string) *cobra.Command {
 	return &cobra.Command{
 		Use:   use,
 		Short: short,

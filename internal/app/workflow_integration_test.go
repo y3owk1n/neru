@@ -50,13 +50,14 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 	}()
 
 	// Wait for app to be running with timeout
-	waitForAppReady(t, application, 5*time.Second)
+	waitForAppReady(t, application)
 
 	t.Run("Application Startup", func(t *testing.T) {
 		// Verify the app is running and in idle mode
 		if !application.IsEnabled() {
 			t.Fatalf("Expected application to be enabled, but it is not")
 		}
+
 		t.Log("✅ Application is running")
 
 		if application.CurrentMode() != domain.ModeIdle {
@@ -65,6 +66,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 				application.CurrentMode(),
 			)
 		}
+
 		t.Log("✅ Application started in idle mode")
 	})
 
@@ -73,7 +75,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		application.SetModeHints()
 
 		// Verify mode change
-		waitForMode(t, application, domain.ModeHints, 3*time.Second)
+		waitForMode(t, application, domain.ModeHints)
 		t.Log("✅ Hints mode activated")
 
 		// Simulate user thinking time
@@ -82,7 +84,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		// Switch back to idle (simulates user canceling)
 		application.SetModeIdle()
 
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 		t.Log("✅ Returned to idle mode")
 	})
 
@@ -91,7 +93,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		application.SetModeGrid()
 
 		// Verify mode change
-		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
+		waitForMode(t, application, domain.ModeGrid)
 		t.Log("✅ Grid mode activated")
 
 		// Simulate user navigation time
@@ -100,7 +102,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		// Switch back to idle
 		application.SetModeIdle()
 
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 		t.Log("✅ Returned to idle mode")
 	})
 
@@ -125,7 +127,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		for _, mode := range modes {
 			mode.action()
 
-			waitForMode(t, application, mode.expectedMode, 3*time.Second)
+			waitForMode(t, application, mode.expectedMode)
 			t.Logf("✅ Switched to %s mode", mode.name)
 
 			// Small delay to simulate user thinking time
@@ -139,35 +141,35 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 
 		// Start with hints mode
 		application.SetModeHints()
-		waitForMode(t, application, domain.ModeHints, 3*time.Second)
+		waitForMode(t, application, domain.ModeHints)
 		time.Sleep(500 * time.Millisecond)
 
 		// Switch to grid for precise navigation
 		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
+		waitForMode(t, application, domain.ModeGrid)
 		time.Sleep(300 * time.Millisecond)
 
 		// Try action mode for direct actions
 		application.SetModeAction()
-		waitForMode(t, application, domain.ModeAction, 3*time.Second)
+		waitForMode(t, application, domain.ModeAction)
 		time.Sleep(200 * time.Millisecond)
 
 		// Use scroll mode for navigation
 		application.SetModeScroll()
-		waitForMode(t, application, domain.ModeScroll, 3*time.Second)
+		waitForMode(t, application, domain.ModeScroll)
 		time.Sleep(300 * time.Millisecond)
 
 		// Back to hints for element selection
 		application.SetModeHints()
-		waitForMode(t, application, domain.ModeHints, 3*time.Second)
+		waitForMode(t, application, domain.ModeHints)
 		time.Sleep(400 * time.Millisecond)
 
 		// Test grid mode again
 		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
+		waitForMode(t, application, domain.ModeGrid)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 
 		t.Log("✅ Extended usage simulation completed")
 	})
@@ -193,7 +195,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		}
 
 		// Verify final state is stable
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 		t.Log("✅ Rapid mode switching completed")
 	})
 
@@ -202,6 +204,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		if !application.IsEnabled() {
 			t.Error("Expected application to still be enabled before shutdown")
 		}
+
 		t.Log("✅ Application still responsive before shutdown")
 	})
 
@@ -212,7 +215,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 	select {
 	case err := <-runDone:
 		if err != nil {
-			// Run() may return a context-cancelled error after Stop(), which is expected
+			// Run() may return a context-canceled error after Stop(), which is expected
 			t.Logf("App Run() returned (expected after Stop): %v", err)
 		} else {
 			t.Log("✅ Application shut down gracefully")

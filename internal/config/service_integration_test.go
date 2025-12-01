@@ -43,6 +43,7 @@ clickable_roles = ["AXButton"]
 	if cfg.Hints.HintCharacters != "asdf" {
 		t.Errorf("Reload() did not load correct HintCharacters, got %v", cfg.Hints.HintCharacters)
 	}
+
 	if len(cfg.Hints.ClickableRoles) != 1 || cfg.Hints.ClickableRoles[0] != "AXButton" {
 		t.Errorf("Reload() did not load correct ClickableRoles, got %v", cfg.Hints.ClickableRoles)
 	}

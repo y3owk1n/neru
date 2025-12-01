@@ -8,7 +8,8 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
-var gridCmd = &cobra.Command{
+// GridCmd is the CLI grid command.
+var GridCmd = &cobra.Command{
 	Use:   "grid",
 	Short: "Launch grid mode",
 	Long:  `Activate grid mode for mouseless navigation.`,
@@ -40,12 +41,12 @@ var gridCmd = &cobra.Command{
 }
 
 func init() {
-	gridCmd.Flags().
+	GridCmd.Flags().
 		StringP(
 			"action",
 			"a",
 			"",
 			fmt.Sprintf("Action to perform on grid selection (%s)", domain.SupportedActionsString()),
 		)
-	rootCmd.AddCommand(gridCmd)
+	RootCmd.AddCommand(GridCmd)
 }

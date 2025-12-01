@@ -1,18 +1,19 @@
 //go:build unit
 
-package cli
+package cli_test
 
 import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/neru/internal/cli"
 )
 
 func TestBuildSimpleCommand(t *testing.T) {
-	cmd := buildSimpleCommand("test", "short desc", "long desc", "action")
+	cmd := cli.BuildSimpleCommand("test", "short desc", "long desc", "action")
 
 	if cmd == nil {
-		t.Fatal("buildSimpleCommand returned nil")
+		t.Fatal("BuildSimpleCommand returned nil")
 	}
 
 	if cmd.Use != "test" {
@@ -38,10 +39,10 @@ func TestBuildSimpleCommand(t *testing.T) {
 }
 
 func TestBuildActionCommand(t *testing.T) {
-	cmd := buildActionCommand("test", "short desc", "long desc", []string{"arg1"})
+	cmd := cli.BuildActionCommand("test", "short desc", "long desc", []string{"arg1"})
 
 	if cmd == nil {
-		t.Fatal("buildActionCommand returned nil")
+		t.Fatal("BuildActionCommand returned nil")
 	}
 
 	if cmd.Use != "test" {
@@ -68,46 +69,78 @@ func TestBuildActionCommand(t *testing.T) {
 
 func TestCommandInitialization(t *testing.T) {
 	// Test that global commands are properly initialized
-	commands := map[string]*cobra.Command{
-		"start":   startCmd,
-		"stop":    stopCmd,
-		"idle":    idleCmd,
-		"hints":   hintsCmd,
-		"grid":    gridCmd,
-		"scroll":  scrollCmd,
-		"action":  actionCmd,
-		"status":  statusCmd,
-		"doctor":  doctorCmd,
-		"metrics": metricsCmd,
-		"profile": profileCmd,
-		"launch":  launchCmd,
+	expectedCommands := map[string]bool{
+		"start":   false,
+		"stop":    false,
+		"idle":    false,
+		"hints":   false,
+		"grid":    false,
+		"scroll":  false,
+		"action":  false,
+		"status":  false,
+		"doctor":  false,
+		"metrics": false,
+		"profile": false,
+		"launch":  false,
 	}
 
-	for name, cmd := range commands {
-		if cmd == nil {
-			t.Errorf("%sCmd should not be nil", name)
-		} else if cmd.Use != name {
-			t.Errorf("%sCmd.Use = %q, want %q", name, cmd.Use, name)
+	for _, cmd := range cli.RootCmd.Commands() {
+		if _, ok := expectedCommands[cmd.Use]; ok {
+			expectedCommands[cmd.Use] = true
+		}
+	}
+
+	for name, found := range expectedCommands {
+		if !found {
+			t.Errorf("command %s not found in RootCmd", name)
 		}
 	}
 
 	// Test action subcommands
-	actionSubcommands := map[string]*cobra.Command{
-		"left_click":   actionLeftClickCmd,
-		"right_click":  actionRightClickCmd,
-		"mouse_up":     actionMouseUpCmd,
-		"mouse_down":   actionMouseDownCmd,
-		"middle_click": actionMiddleClickCmd,
+	expectedActionSubcommands := map[string]bool{
+		"left_click":   false,
+		"right_click":  false,
+		"mouse_up":     false,
+		"mouse_down":   false,
+		"middle_click": false,
 	}
 
-	for name, cmd := range actionSubcommands {
-		if cmd == nil {
-			t.Errorf("action%sCmd should not be nil", name)
+	for _, cmd := range cli.ActionCmd.Commands() {
+		if _, ok := expectedActionSubcommands[cmd.Use]; ok {
+			expectedActionSubcommands[cmd.Use] = true
+		}
+	}
+
+	for name, found := range expectedActionSubcommands {
+		if !found {
+			t.Errorf("action subcommand %s not found in ActionCmd", name)
 		}
 	}
 }
 
 func TestCommandExecutionWithoutDaemon(t *testing.T) {
+	// Helper to get command by name
+	getCmd := func(name string) *cobra.Command {
+		for _, cmd := range cli.RootCmd.Commands() {
+			if cmd.Use == name {
+				return cmd
+			}
+		}
+
+		return nil
+	}
+
+	// Helper to get action subcommand
+	getActionCmd := func(name string) *cobra.Command {
+		for _, cmd := range cli.ActionCmd.Commands() {
+			if cmd.Use == name {
+				return cmd
+			}
+		}
+
+		return nil
+	}
+
 	// Test that all CLI commands execute without panicking when no daemon is running
 	// Commands that require IPC should return errors, while utility commands should work
 	tests := []struct {
@@ -115,56 +148,68 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		cmd       *cobra.Command
 		expectErr bool
 	}{
-		{"start", startCmd, true},
-		{"stop", stopCmd, true},
-		{"idle", idleCmd, true},
-		{"hints", hintsCmd, true},
-		{"grid", gridCmd, true},
-		{"scroll", scrollCmd, true},
-		{"action", actionCmd, true},
-		{"action_left_click", actionLeftClickCmd, true},
-		{"action_right_click", actionRightClickCmd, true},
-		{"action_mouse_up", actionMouseUpCmd, true},
-		{"action_mouse_down", actionMouseDownCmd, true},
-		{"action_middle_click", actionMiddleClickCmd, true},
-		{"status", statusCmd, true},
-		{"doctor", doctorCmd, true},
-		{"metrics", metricsCmd, false}, // Metrics just prints status, doesn't need daemon
-		{"profile", profileCmd, false}, // Profile just prints help, doesn't need daemon
+		{"start", getCmd("start"), true},
+		{"stop", getCmd("stop"), true},
+		{"idle", getCmd("idle"), true},
+		{"hints", getCmd("hints"), true},
+		{"grid", getCmd("grid"), true},
+		{"scroll", getCmd("scroll"), true},
+		{"action", getCmd("action"), true},
+		{"action_left_click", getActionCmd("left_click"), true},
+		{"action_right_click", getActionCmd("right_click"), true},
+		{"action_mouse_up", getActionCmd("mouse_up"), true},
+		{"action_mouse_down", getActionCmd("mouse_down"), true},
+		{"action_middle_click", getActionCmd("middle_click"), true},
+		{"status", getCmd("status"), true},
+		{"doctor", getCmd("doctor"), true},
+		{"metrics", getCmd("metrics"), false}, // Metrics just prints status, doesn't need daemon
+		{"profile", getCmd("profile"), false}, // Profile just prints help, doesn't need daemon
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			defer func() {
 				if r := recover(); r != nil {
-					t.Errorf("%s panicked: %v", tt.name, r)
+					t.Errorf("%s panicked: %v", testCase.name, r)
 				}
 			}()
 
-			err := tt.cmd.RunE(tt.cmd, []string{})
-			if tt.expectErr && err == nil {
-				t.Errorf("expected error for %s when no daemon is running, got nil", tt.name)
+			err := testCase.cmd.RunE(testCase.cmd, []string{})
+			if testCase.expectErr && err == nil {
+				t.Errorf("expected error for %s when no daemon is running, got nil", testCase.name)
 			}
-			if !tt.expectErr && err != nil {
-				t.Errorf("unexpected error for %s: %v", tt.name, err)
+
+			if !testCase.expectErr && err != nil {
+				t.Errorf("unexpected error for %s: %v", testCase.name, err)
 			}
 		})
 	}
 }
 
 func TestLaunchCommandExecution(t *testing.T) {
+	// Helper to get command by name
+	getCmd := func(name string) *cobra.Command {
+		for _, cmd := range cli.RootCmd.Commands() {
+			if cmd.Use == name {
+				return cmd
+			}
+		}
+
+		return nil
+	}
+
 	// Note: This test modifies global LaunchFunc and is not parallel-safe
 	// Save original LaunchFunc
-	originalLaunchFunc := LaunchFunc
+	originalLaunchFunc := cli.LaunchFunc
 
 	// Set a mock LaunchFunc for testing
-	LaunchFunc = func(configPath string) {
+	cli.LaunchFunc = func(configPath string) {
 		// Mock launch - do nothing
 	}
 
 	defer func() {
 		// Restore original
-		LaunchFunc = originalLaunchFunc
+		cli.LaunchFunc = originalLaunchFunc
 
 		if r := recover(); r != nil {
 			t.Errorf("launchCmd.RunE panicked: %v", r)
@@ -172,6 +217,8 @@ func TestLaunchCommandExecution(t *testing.T) {
 	}()
 
 	// Launch command should work with mock LaunchFunc
+	launchCmd := getCmd("launch")
+
 	err := launchCmd.RunE(launchCmd, []string{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)

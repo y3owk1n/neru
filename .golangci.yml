@@ -1,4 +1,9 @@
 version: "2"
+run:
+    tests: true
+    build-tags:
+        - integration
+        - unit
 formatters:
     enable:
         - gci

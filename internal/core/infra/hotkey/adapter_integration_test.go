@@ -25,6 +25,7 @@ type RealHotkeyManagerWrapper struct {
 
 func (w *RealHotkeyManagerWrapper) Register(key string, callback func()) (int, error) {
 	id, err := w.manager.Register(key, callback)
+
 	return int(id), err
 }
 
@@ -44,6 +45,7 @@ func TestHotkeyAdapterIntegration(t *testing.T) {
 
 	logger := logger.Get()
 	realManager := hotkeys.NewManager(logger)
+
 	hotkeys.SetGlobalManager(realManager) // Required for C callbacks
 	defer hotkeys.SetGlobalManager(nil)
 
@@ -91,6 +93,6 @@ func TestHotkeyAdapterIntegration(t *testing.T) {
 
 	// Cleanup
 	t.Cleanup(func() {
-		adapter.UnregisterAll(ctx)
+		_ = adapter.UnregisterAll(ctx)
 	})
 }

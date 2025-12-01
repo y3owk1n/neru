@@ -21,7 +21,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// TestHintServiceIntegration tests the hint service with real adapters
+// TestHintServiceIntegration tests the hint service with real adapters.
 func TestHintServiceIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -105,7 +105,7 @@ func TestHintServiceIntegration(t *testing.T) {
 	})
 }
 
-// TestActionServiceIntegration tests the action service with real adapters
+// TestActionServiceIntegration tests the action service with real adapters.
 func TestActionServiceIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -179,7 +179,7 @@ func TestActionServiceIntegration(t *testing.T) {
 	})
 }
 
-// TestGridServiceIntegration tests the grid service with real adapters
+// TestGridServiceIntegration tests the grid service with real adapters.
 func TestGridServiceIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -212,7 +212,7 @@ func TestGridServiceIntegration(t *testing.T) {
 	})
 }
 
-// TestScrollServiceIntegration tests the scroll service with real adapters
+// TestScrollServiceIntegration tests the scroll service with real adapters.
 func TestScrollServiceIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -241,7 +241,7 @@ func TestScrollServiceIntegration(t *testing.T) {
 	})
 }
 
-// Helper function to initialize real adapters like the app does
+// Helper function to initialize real adapters like the app does.
 func initializeRealAdapters(
 	t *testing.T,
 	cfg *config.Config,
@@ -270,8 +270,7 @@ func initializeRealAdapters(
 	)
 
 	// Initialize overlay manager (always use no-op for integration tests)
-	var overlayManager uiOverlay.ManagerInterface
-	overlayManager = &uiOverlay.NoOpManager{}
+	overlayManager := &uiOverlay.NoOpManager{}
 
 	// Create overlay adapter
 	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)

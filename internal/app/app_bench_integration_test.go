@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// BenchmarkModeTransitionsIntegration benchmarks mode transitions in integration
+// BenchmarkModeTransitionsIntegration benchmarks mode transitions in integration.
 func BenchmarkModeTransitionsIntegration(b *testing.B) {
 	cfg := config.DefaultConfig()
 	cfg.General.AccessibilityCheckOnStart = false
@@ -35,7 +35,8 @@ func BenchmarkModeTransitionsIntegration(b *testing.B) {
 	go func() {
 		runDone <- application.Run()
 	}()
-	waitForAppReady(b, application, 5*time.Second)
+
+	waitForAppReady(b, application)
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
@@ -49,6 +50,7 @@ func BenchmarkModeTransitionsIntegration(b *testing.B) {
 	})
 
 	application.Stop()
+
 	select {
 	case <-runDone:
 	case <-time.After(5 * time.Second):

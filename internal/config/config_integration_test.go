@@ -13,7 +13,7 @@ import (
 )
 
 // TestConfigFileOperationsIntegration tests real file system operations
-// for configuration loading and reloading to prevent file system regressions
+// for configuration loading and reloading to prevent file system regressions.
 func TestConfigFileOperationsIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping config file operations integration test in short mode")
@@ -97,6 +97,7 @@ max_age = 30
 [hints]
 font_size = 12
 `
+
 		err := os.WriteFile(configPath, []byte(initialContent), 0o644)
 		if err != nil {
 			t.Fatalf("Failed to write initial config: %v", err)
@@ -104,6 +105,7 @@ font_size = 12
 
 		// Create a config service and load initial config
 		configSvc := config.NewService(config.DefaultConfig(), configPath, zap.NewNop())
+
 		initialLoad := configSvc.LoadWithValidation(configPath)
 		if initialLoad.ValidationError != nil {
 			t.Fatalf("Failed to load initial config: %v", initialLoad.ValidationError)
@@ -114,6 +116,7 @@ font_size = 12
 [hints]
 font_size = 16
 `
+
 		err = os.WriteFile(configPath, []byte(updatedContent), 0o644)
 		if err != nil {
 			t.Fatalf("Failed to write updated config: %v", err)
@@ -146,6 +149,7 @@ enabled = true
 
 		// Should still be able to load it
 		service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
+
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
 			t.Fatalf(

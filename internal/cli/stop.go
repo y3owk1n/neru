@@ -1,6 +1,7 @@
 package cli
 
-var stopCmd = buildSimpleCommand(
+// StopCmd is the CLI stop command.
+var StopCmd = BuildSimpleCommand(
 	"stop",
 	"Pause the neru program (does not quit)",
 	`Pause the neru program. This disables neru functionality but keeps it running in the background.`,
@@ -8,5 +9,5 @@ var stopCmd = buildSimpleCommand(
 )
 
 func init() {
-	rootCmd.AddCommand(stopCmd)
+	RootCmd.AddCommand(StopCmd)
 }

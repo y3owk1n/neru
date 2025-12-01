@@ -42,27 +42,27 @@ func TestScrollModeEndToEnd(t *testing.T) {
 	}()
 
 	// Wait for app to be running with timeout
-	waitForAppReady(t, application, 5*time.Second)
+	waitForAppReady(t, application)
 
 	// Test scroll mode activation
 	t.Run("Activate Scroll Mode", func(t *testing.T) {
 		application.SetModeScroll()
-		waitForMode(t, application, domain.ModeScroll, 3*time.Second)
+		waitForMode(t, application, domain.ModeScroll)
 	})
 
 	// Test scroll mode deactivation
 	t.Run("Deactivate Scroll Mode", func(t *testing.T) {
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 	})
 
 	// Test scroll mode reactivation
 	t.Run("Reactivate Scroll Mode", func(t *testing.T) {
 		application.SetModeScroll()
-		waitForMode(t, application, domain.ModeScroll, 3*time.Second)
+		waitForMode(t, application, domain.ModeScroll)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 	})
 
 	// Stop the app
@@ -72,7 +72,7 @@ func TestScrollModeEndToEnd(t *testing.T) {
 	select {
 	case err := <-runDone:
 		if err != nil {
-			// Run() may return a context-cancelled error after Stop(), which is expected
+			// Run() may return a context-canceled error after Stop(), which is expected
 			t.Logf("App Run() returned (expected after Stop): %v", err)
 		}
 	case <-time.After(5 * time.Second):

@@ -4,7 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var actionCmd = &cobra.Command{
+// ActionCmd is the CLI action command.
+var ActionCmd = &cobra.Command{
 	Use:   "action",
 	Short: "Enter action mode or perform immediate actions",
 	Long:  `Enter interactive action mode to perform mouse actions, or use subcommands for immediate actions.`,
@@ -17,35 +18,40 @@ var actionCmd = &cobra.Command{
 	},
 }
 
-var actionLeftClickCmd = buildActionCommand(
+// ActionLeftClickCmd is the left click action command.
+var ActionLeftClickCmd = BuildActionCommand(
 	"left_click",
 	"Perform left click at current cursor position",
 	`Execute a left click at the current cursor location.`,
 	[]string{"left_click"},
 )
 
-var actionRightClickCmd = buildActionCommand(
+// ActionRightClickCmd is the right click action command.
+var ActionRightClickCmd = BuildActionCommand(
 	"right_click",
 	"Perform right click at current cursor position",
 	`Execute a right click at the current cursor location.`,
 	[]string{"right_click"},
 )
 
-var actionMouseUpCmd = buildActionCommand(
+// ActionMouseUpCmd is the mouse up action command.
+var ActionMouseUpCmd = BuildActionCommand(
 	"mouse_up",
 	"Release mouse button at current cursor position",
 	`Release the left mouse button at the current cursor location.`,
 	[]string{"mouse_up"},
 )
 
-var actionMouseDownCmd = buildActionCommand(
+// ActionMouseDownCmd is the mouse down action command.
+var ActionMouseDownCmd = BuildActionCommand(
 	"mouse_down",
 	"Press mouse button at current cursor position",
 	`Press and hold the left mouse button at the current cursor location.`,
 	[]string{"mouse_down"},
 )
 
-var actionMiddleClickCmd = buildActionCommand(
+// ActionMiddleClickCmd is the middle click action command.
+var ActionMiddleClickCmd = BuildActionCommand(
 	"middle_click",
 	"Perform middle click at current cursor position",
 	`Execute a middle click at the current cursor location.`,
@@ -53,11 +59,11 @@ var actionMiddleClickCmd = buildActionCommand(
 )
 
 func init() {
-	actionCmd.AddCommand(actionLeftClickCmd)
-	actionCmd.AddCommand(actionRightClickCmd)
-	actionCmd.AddCommand(actionMouseUpCmd)
-	actionCmd.AddCommand(actionMouseDownCmd)
-	actionCmd.AddCommand(actionMiddleClickCmd)
+	ActionCmd.AddCommand(ActionLeftClickCmd)
+	ActionCmd.AddCommand(ActionRightClickCmd)
+	ActionCmd.AddCommand(ActionMouseUpCmd)
+	ActionCmd.AddCommand(ActionMouseDownCmd)
+	ActionCmd.AddCommand(ActionMiddleClickCmd)
 
-	rootCmd.AddCommand(actionCmd)
+	RootCmd.AddCommand(ActionCmd)
 }

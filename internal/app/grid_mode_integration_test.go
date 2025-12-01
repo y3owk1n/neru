@@ -43,27 +43,27 @@ func TestGridModeEndToEnd(t *testing.T) {
 	}()
 
 	// Wait for app to be running with timeout
-	waitForAppReady(t, application, 5*time.Second)
+	waitForAppReady(t, application)
 
 	// Test grid mode activation
 	t.Run("Activate Grid Mode", func(t *testing.T) {
 		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
+		waitForMode(t, application, domain.ModeGrid)
 	})
 
 	// Test grid mode deactivation
 	t.Run("Deactivate Grid Mode", func(t *testing.T) {
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 	})
 
 	// Test grid mode reactivation
 	t.Run("Reactivate Grid Mode", func(t *testing.T) {
 		application.SetModeGrid()
-		waitForMode(t, application, domain.ModeGrid, 3*time.Second)
+		waitForMode(t, application, domain.ModeGrid)
 
 		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle, 3*time.Second)
+		waitForMode(t, application, domain.ModeIdle)
 	})
 
 	// Stop the app
@@ -73,7 +73,7 @@ func TestGridModeEndToEnd(t *testing.T) {
 	select {
 	case err := <-runDone:
 		if err != nil {
-			// Run() may return a context-cancelled error after Stop(), which is expected
+			// Run() may return a context-canceled error after Stop(), which is expected
 			t.Logf("App Run() returned (expected after Stop): %v", err)
 		}
 	case <-time.After(5 * time.Second):

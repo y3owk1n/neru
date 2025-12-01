@@ -1,6 +1,7 @@
 package cli
 
-var startCmd = buildSimpleCommand(
+// StartCmd is the CLI start command.
+var StartCmd = BuildSimpleCommand(
 	"start",
 	"Start the neru program (resume if paused)",
 	`Start or resume the neru program. This enables neru if it was previously stopped.`,
@@ -8,5 +9,5 @@ var startCmd = buildSimpleCommand(
 )
 
 func init() {
-	rootCmd.AddCommand(startCmd)
+	RootCmd.AddCommand(StartCmd)
 }
