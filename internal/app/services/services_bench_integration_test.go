@@ -52,11 +52,36 @@ func BenchmarkHintService_ShowHints_Incremental(b *testing.B) {
 	accAdapter := &mocks.MockAccessibilityPort{
 		ClickableElementsFunc: func(ctx context.Context, filter ports.ElementFilter) ([]*element.Element, error) {
 			// Return a few mock elements to exercise hint generation
-			elem1, _ := element.NewElement("btn1", image.Rect(0, 0, 50, 50), element.RoleButton, element.WithTitle("Button1"))
-			elem2, _ := element.NewElement("btn2", image.Rect(50, 0, 100, 50), element.RoleButton, element.WithTitle("Button2"))
-			elem3, _ := element.NewElement("lnk1", image.Rect(0, 50, 50, 100), element.RoleLink, element.WithTitle("Link1"))
-			elem4, _ := element.NewElement("lnk2", image.Rect(50, 50, 100, 100), element.RoleLink, element.WithTitle("Link2"))
-			elem5, _ := element.NewElement("inp1", image.Rect(0, 100, 100, 150), element.RoleTextField, element.WithTitle("Input1"))
+			elem1, _ := element.NewElement(
+				"btn1",
+				image.Rect(0, 0, 50, 50),
+				element.RoleButton,
+				element.WithTitle("Button1"),
+			)
+			elem2, _ := element.NewElement(
+				"btn2",
+				image.Rect(50, 0, 100, 50),
+				element.RoleButton,
+				element.WithTitle("Button2"),
+			)
+			elem3, _ := element.NewElement(
+				"lnk1",
+				image.Rect(0, 50, 50, 100),
+				element.RoleLink,
+				element.WithTitle("Link1"),
+			)
+			elem4, _ := element.NewElement(
+				"lnk2",
+				image.Rect(50, 50, 100, 100),
+				element.RoleLink,
+				element.WithTitle("Link2"),
+			)
+			elem5, _ := element.NewElement(
+				"inp1",
+				image.Rect(0, 100, 100, 150),
+				element.RoleTextField,
+				element.WithTitle("Input1"),
+			)
 			return []*element.Element{elem1, elem2, elem3, elem4, elem5}, nil
 		},
 	}

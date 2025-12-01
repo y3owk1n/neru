@@ -12,10 +12,8 @@
 
 /// Compare two rectangles with epsilon for floating point precision
 static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
-    return fabs(a.origin.x - b.origin.x) < epsilon &&
-           fabs(a.origin.y - b.origin.y) < epsilon &&
-           fabs(a.size.width - b.size.width) < epsilon &&
-           fabs(a.size.height - b.size.height) < epsilon;
+	return fabs(a.origin.x - b.origin.x) < epsilon && fabs(a.origin.y - b.origin.y) < epsilon &&
+	       fabs(a.size.width - b.size.width) < epsilon && fabs(a.size.height - b.size.height) < epsilon;
 }
 
 #pragma mark - Overlay View Interface
@@ -984,49 +982,49 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		// Apply style updates
-			NSFont *font = controller.overlayView.hintFont;
-			if (fontFamily && [fontFamily length] > 0) {
-				font = [NSFont fontWithName:fontFamily size:fontSize];
-			}
-			if (!font) {
-				font = [NSFont fontWithName:@"Menlo-Bold" size:fontSize];
-			}
-			if (!font) {
-				font = [NSFont boldSystemFontOfSize:fontSize];
-			}
-			controller.overlayView.hintFont = font;
+		NSFont *font = controller.overlayView.hintFont;
+		if (fontFamily && [fontFamily length] > 0) {
+			font = [NSFont fontWithName:fontFamily size:fontSize];
+		}
+		if (!font) {
+			font = [NSFont fontWithName:@"Menlo-Bold" size:fontSize];
+		}
+		if (!font) {
+			font = [NSFont boldSystemFontOfSize:fontSize];
+		}
+		controller.overlayView.hintFont = font;
 
-			if (bgHex) {
-				NSColor *defaultBg = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0
-				                                      alpha:1.0] colorWithAlphaComponent:0.95];
-				controller.overlayView.hintBackgroundColor = [controller.overlayView colorFromHex:bgHex
-				                                                                     defaultColor:defaultBg];
-			}
-			if (textHex) {
-				controller.overlayView.hintTextColor = [controller.overlayView colorFromHex:textHex
-				                                                               defaultColor:[NSColor blackColor]];
-			}
-			if (matchedTextHex) {
-				controller.overlayView.hintMatchedTextColor =
-				    [controller.overlayView colorFromHex:matchedTextHex defaultColor:[NSColor systemBlueColor]];
-			}
-			if (borderHex) {
-				controller.overlayView.hintBorderColor = [controller.overlayView colorFromHex:borderHex
-				                                                                 defaultColor:[NSColor blackColor]];
-			}
-			if (borderRadius > 0) {
-				controller.overlayView.hintBorderRadius = borderRadius;
-			}
-			if (borderWidth > 0) {
-				controller.overlayView.hintBorderWidth = borderWidth;
-			}
-			if (padding >= 0) {
-				controller.overlayView.hintPadding = padding;
-			}
-			if (opacity >= 0.0 && opacity <= 1.0) {
-				NSColor *bg = controller.overlayView.hintBackgroundColor;
-				controller.overlayView.hintBackgroundColor = [bg colorWithAlphaComponent:opacity];
-			}
+		if (bgHex) {
+			NSColor *defaultBg = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0
+			                                      alpha:1.0] colorWithAlphaComponent:0.95];
+			controller.overlayView.hintBackgroundColor = [controller.overlayView colorFromHex:bgHex
+			                                                                     defaultColor:defaultBg];
+		}
+		if (textHex) {
+			controller.overlayView.hintTextColor = [controller.overlayView colorFromHex:textHex
+			                                                               defaultColor:[NSColor blackColor]];
+		}
+		if (matchedTextHex) {
+			controller.overlayView.hintMatchedTextColor =
+			    [controller.overlayView colorFromHex:matchedTextHex defaultColor:[NSColor systemBlueColor]];
+		}
+		if (borderHex) {
+			controller.overlayView.hintBorderColor = [controller.overlayView colorFromHex:borderHex
+			                                                                 defaultColor:[NSColor blackColor]];
+		}
+		if (borderRadius > 0) {
+			controller.overlayView.hintBorderRadius = borderRadius;
+		}
+		if (borderWidth > 0) {
+			controller.overlayView.hintBorderWidth = borderWidth;
+		}
+		if (padding >= 0) {
+			controller.overlayView.hintPadding = padding;
+		}
+		if (opacity >= 0.0 && opacity <= 1.0) {
+			NSColor *bg = controller.overlayView.hintBackgroundColor;
+			controller.overlayView.hintBackgroundColor = [bg colorWithAlphaComponent:opacity];
+		}
 
 		// Remove hints that match the positions to remove
 		if (positionsToRemoveArray && [positionsToRemoveArray count] > 0) {
@@ -1055,7 +1053,8 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 		// Add or update hints
 		if (hintDictsToAdd && [hintDictsToAdd count] > 0) {
 			// Build lookup map for existing hints by position
-			NSMutableDictionary *hintsByPosition = [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.hints count]];
+			NSMutableDictionary *hintsByPosition =
+			    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.hints count]];
 			for (NSDictionary *hintDict in controller.overlayView.hints) {
 				NSValue *posValue = hintDict[@"position"];
 				NSPoint pos = [posValue pointValue];
@@ -1485,12 +1484,13 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 		// Add or update cells
 		if (cellDictsToAdd && [cellDictsToAdd count] > 0) {
 			// Build lookup map for existing cells by bounds
-			NSMutableDictionary *cellsByBounds = [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.gridCells count]];
+			NSMutableDictionary *cellsByBounds =
+			    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.gridCells count]];
 			for (NSDictionary *cellDict in controller.overlayView.gridCells) {
 				NSValue *boundsValue = cellDict[@"bounds"];
 				NSRect bounds = [boundsValue rectValue];
-				NSString *key = [NSString stringWithFormat:@"%.2f,%.2f,%.2f,%.2f",
-				                 bounds.origin.x, bounds.origin.y, bounds.size.width, bounds.size.height];
+				NSString *key = [NSString stringWithFormat:@"%.2f,%.2f,%.2f,%.2f", bounds.origin.x, bounds.origin.y,
+				                                           bounds.size.width, bounds.size.height];
 				cellsByBounds[key] = cellDict;
 			}
 
@@ -1498,8 +1498,9 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 			for (NSDictionary *newCellDict in cellDictsToAdd) {
 				NSValue *newBoundsValue = newCellDict[@"bounds"];
 				NSRect newBounds = [newBoundsValue rectValue];
-				NSString *key = [NSString stringWithFormat:@"%.2f,%.2f,%.2f,%.2f",
-				                 newBounds.origin.x, newBounds.origin.y, newBounds.size.width, newBounds.size.height];
+				NSString *key =
+				    [NSString stringWithFormat:@"%.2f,%.2f,%.2f,%.2f", newBounds.origin.x, newBounds.origin.y,
+				                               newBounds.size.width, newBounds.size.height];
 
 				NSDictionary *existingCell = cellsByBounds[key];
 				if (existingCell) {
