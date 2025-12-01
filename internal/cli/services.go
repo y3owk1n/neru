@@ -238,12 +238,12 @@ func restartService() error {
 func statusService() string {
 	cmd := exec.CommandContext(context.Background(), "launchctl", "list", serviceLabel)
 
-	output, err := cmd.Output()
+	_, err := cmd.Output()
 	if err != nil {
 		return "Service not loaded"
 	}
 
-	return "Service status: " + string(output)
+	return "Service loaded"
 }
 
 func expandPath(path string) (string, error) {
