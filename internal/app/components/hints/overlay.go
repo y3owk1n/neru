@@ -588,6 +588,9 @@ func (o *Overlay) hintsAreStructurallyEqual(hintsA, hintsB []*Hint) bool {
 		if hintA.Label() != hintB.Label() {
 			return false
 		}
+		if hintA.Size() != hintB.Size() {
+			return false
+		}
 	}
 
 	return true
