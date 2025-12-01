@@ -17,7 +17,10 @@ var GridCmd = &cobra.Command{
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		action, _ := cmd.Flags().GetString("action")
+		action, err := cmd.Flags().GetString("action")
+		if err != nil {
+			return err
+		}
 		if action != "" {
 			// Validate action
 			if !domain.IsKnownActionName(domain.ActionName(action)) {
