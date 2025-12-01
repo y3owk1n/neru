@@ -1493,29 +1493,32 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 
 		// Add or update cells
 		if (cellDictsToAdd && [cellDictsToAdd count] > 0) {
+			// Build lookup map for existing cells by bounds
+			NSMutableDictionary *cellsByBounds = [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.gridCells count]];
+			for (NSDictionary *cellDict in controller.overlayView.gridCells) {
+				NSValue *boundsValue = cellDict[@"bounds"];
+				NSRect bounds = [boundsValue rectValue];
+				NSString *key = [NSString stringWithFormat:@"%.2f,%.2f,%.2f,%.2f",
+				                 bounds.origin.x, bounds.origin.y, bounds.size.width, bounds.size.height];
+				cellsByBounds[key] = cellDict;
+			}
+
 			// For each cell to add/update, check if it already exists (by bounds) and replace it, otherwise add it
 			for (NSDictionary *newCellDict in cellDictsToAdd) {
 				NSValue *newBoundsValue = newCellDict[@"bounds"];
 				NSRect newBounds = [newBoundsValue rectValue];
-				BOOL found = NO;
+				NSString *key = [NSString stringWithFormat:@"%.2f,%.2f,%.2f,%.2f",
+				                 newBounds.origin.x, newBounds.origin.y, newBounds.size.width, newBounds.size.height];
 
-				// Try to find and update existing cell with matching bounds
-				for (NSUInteger i = 0; i < [controller.overlayView.gridCells count]; i++) {
-					NSDictionary *existingCellDict = controller.overlayView.gridCells[i];
-					NSValue *existingBoundsValue = existingCellDict[@"bounds"];
-					NSRect existingBounds = [existingBoundsValue rectValue];
-
-					// Check if bounds match
-					if (rectsEqual(existingBounds, newBounds, 0.1)) {
-						// Replace existing cell
-						controller.overlayView.gridCells[i] = newCellDict;
-						found = YES;
-						break;
+				NSDictionary *existingCell = cellsByBounds[key];
+				if (existingCell) {
+					// Replace existing cell
+					NSUInteger index = [controller.overlayView.gridCells indexOfObject:existingCell];
+					if (index != NSNotFound) {
+						controller.overlayView.gridCells[index] = newCellDict;
 					}
-				}
-
-				// If not found, add as new cell
-				if (!found) {
+				} else {
+					// Add as new cell
 					[controller.overlayView.gridCells addObject:newCellDict];
 				}
 			}
