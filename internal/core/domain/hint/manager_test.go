@@ -1,5 +1,3 @@
-//go:build unit
-
 package hint_test
 
 import (

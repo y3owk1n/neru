@@ -1,5 +1,3 @@
-//go:build unit
-
 package config_test
 
 // This file previously contained all validator tests.

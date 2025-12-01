@@ -1,5 +1,3 @@
-//go:build unit
-
 package accessibility_test
 
 import (

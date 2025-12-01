@@ -1,5 +1,3 @@
-//go:build unit
-
 package metrics_test
 
 import (
