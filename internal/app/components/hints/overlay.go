@@ -401,6 +401,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	for _, hint := range hints {
 		if len(hint.MatchedPrefix()) > 0 {
 			currentInput = hint.MatchedPrefix()
+
 			break
 		}
 	}
