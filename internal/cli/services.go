@@ -162,7 +162,17 @@ func getBinaryPath() (string, error) {
 	return filepath.EvalSymlinks(execPath)
 }
 
+func isServiceLoaded() bool {
+	cmd := exec.CommandContext(context.Background(), "launchctl", "list", serviceLabel)
+	return cmd.Run() == nil
+}
+
 func installService() error {
+	// Check if service is already loaded
+	if isServiceLoaded() {
+		return fmt.Errorf("service is already loaded; uninstall first with 'neru services uninstall'")
+	}
+
 	binPath, err := getBinaryPath()
 	if err != nil {
 		return fmt.Errorf("failed to get binary path: %w", err)
@@ -177,6 +187,12 @@ func installService() error {
 		return fmt.Errorf("failed to expand LaunchAgents path: %w", err)
 	}
 
+	// Check if plist already exists
+	expandedPlist := filepath.Join(expandedDir, serviceLabel+".plist")
+	if _, err := os.Stat(expandedPlist); err == nil {
+		return fmt.Errorf("plist file already exists at %s; remove it manually or uninstall first", expandedPlist)
+	}
+
 	// Ensure directory exists
 	const dirPerm = 0o755
 
@@ -186,8 +202,6 @@ func installService() error {
 	}
 
 	// Write plist
-	expandedPlist := filepath.Join(expandedDir, serviceLabel+".plist")
-
 	const filePerm = 0o644
 
 	err = os.WriteFile(expandedPlist, []byte(plistContent), filePerm)
