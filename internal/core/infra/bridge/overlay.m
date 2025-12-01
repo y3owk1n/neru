@@ -693,7 +693,6 @@ void NeruClearOverlay(OverlayWindow window) {
 		[controller.overlayView.gridCells removeAllObjects];
 		[controller.overlayView.gridLines removeAllObjects];
 		controller.overlayView.showScrollHighlight = NO;
-		controller.overlayView.showTargetDot = NO;
 		[controller.overlayView setNeedsDisplay:YES];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
@@ -701,7 +700,6 @@ void NeruClearOverlay(OverlayWindow window) {
 			[controller.overlayView.gridCells removeAllObjects];
 			[controller.overlayView.gridLines removeAllObjects];
 			controller.overlayView.showScrollHighlight = NO;
-			controller.overlayView.showTargetDot = NO;
 			[controller.overlayView setNeedsDisplay:YES];
 		});
 	}
