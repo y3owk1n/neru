@@ -630,7 +630,7 @@ func (o *Overlay) hintsAreStructurallyEqual(hintsA, hintsB []*Hint) bool {
 func (o *Overlay) hintPositionKey(hint *Hint) string {
 	pos := hint.Position()
 
-	return fmt.Sprintf("%.1f,%.1f", float64(pos.X), float64(pos.Y))
+	return fmt.Sprintf("%d,%d", pos.X, pos.Y)
 }
 
 // updateMatchesIncremental updates match states incrementally when input changes.
