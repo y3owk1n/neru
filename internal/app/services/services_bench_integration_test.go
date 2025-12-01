@@ -73,7 +73,9 @@ func BenchmarkHintService_ShowHints_Incremental(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// This will exercise the incremental rendering logic
 		// The benchmark measures the performance of the hint display with incremental updates
-		_, _ = hintService.ShowHints(ctx)
+		if _, err := hintService.ShowHints(ctx); err != nil {
+			b.Fatalf("ShowHints failed: %v", err)
+		}
 	}
 }
 
