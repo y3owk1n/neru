@@ -28,8 +28,10 @@ func (m *mockGenerator) Generate(
 	hints := make([]*hint.Interface, 0, len(elements))
 	for i, elem := range elements {
 		label := fmt.Sprintf("%d", i)
-		h, _ := hint.NewHint(label, elem, elem.Bounds().Min)
-		hints = append(hints, h)
+		h, err := hint.NewHint(label, elem, elem.Bounds().Min)
+		if err == nil {
+			hints = append(hints, h)
+		}
 	}
 	return hints, nil
 }
