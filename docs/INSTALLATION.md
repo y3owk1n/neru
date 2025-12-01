@@ -150,13 +150,15 @@ Use the home-manager module for user-specific installation:
 - `services.neru.package` - Package to use (default: `pkgs.neru` for latest version) or `pkgs.neru-source` for building from source
 - `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 - `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
+- `services.neru.launchd.enable` - Enable the launchd agent (default: `true`)
+- `services.neru.launchd.keepAlive` - Keep the launchd service alive (default: `true`)
 
 The module automatically:
 
 - Installs Neru in user environment
 - Creates `~/.config/neru/config.toml` (or uses your `configFile`)
-- Creates a launchd user agent
-- Configures the agent to run at login with `KeepAlive = true` and `RunAtLoad = true`
+- Creates a launchd user agent (if `launchd.enable` is `true`)
+- Configures the agent to run at login with `KeepAlive` (if `launchd.keepAlive` is `true`) and `RunAtLoad = true`
 - Installs shell completions for bash, fish, and zsh
 
 ### Option 3: Using as an Overlay Only
