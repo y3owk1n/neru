@@ -1489,7 +1489,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 			for (NSDictionary *cellDict in controller.overlayView.gridCells) {
 				NSValue *boundsValue = cellDict[@"bounds"];
 				NSRect bounds = [boundsValue rectValue];
-				NSString *key = [NSString stringWithFormat:@"%.2f,%.2f,%.2f,%.2f", bounds.origin.x, bounds.origin.y,
+				NSString *key = [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", bounds.origin.x, bounds.origin.y,
 				                                           bounds.size.width, bounds.size.height];
 				cellsByBounds[key] = cellDict;
 			}
@@ -1499,7 +1499,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 				NSValue *newBoundsValue = newCellDict[@"bounds"];
 				NSRect newBounds = [newBoundsValue rectValue];
 				NSString *key =
-				    [NSString stringWithFormat:@"%.2f,%.2f,%.2f,%.2f", newBounds.origin.x, newBounds.origin.y,
+				    [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", newBounds.origin.x, newBounds.origin.y,
 				                               newBounds.size.width, newBounds.size.height];
 
 				NSDictionary *existingCell = cellsByBounds[key];
