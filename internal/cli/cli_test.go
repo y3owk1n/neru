@@ -1,5 +1,3 @@
-//go:build unit
-
 package cli_test
 
 import (

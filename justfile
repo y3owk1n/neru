@@ -54,7 +54,12 @@ test: test-unit test-integration
 # Run unit tests
 test-unit:
     @echo "Running unit tests..."
-    go test -tags=unit -v ./...
+    go test -v ./...
+
+# Run integration tests
+test-integration:
+    @echo "Running integration tests..."
+    go test -tags=integration -v ./...
 
 # Run with race detection
 test-race: test-race-unit test-race-integration
@@ -63,25 +68,16 @@ test-race: test-race-unit test-race-integration
 # Run unit tests with race detection
 test-race-unit:
     @echo "Running unit tests with race detection..."
-    go test -tags=unit -race -v ./...
+    go test -race -v ./...
 
 # Run integration tests with race detection
 test-race-integration:
     @echo "Running integration tests with race detection..."
     go test -tags=integration -race -v ./...
 
-# Run integration tests
-test-integration:
-    @echo "Running integration tests..."
-    go test -tags=integration -v ./...
-
 test-coverage:
     @echo "Running tests with coverage..."
-    go test -tags=unit -coverprofile=coverage-unit.out ./...
-    go test -tags=integration -coverprofile=coverage-integration.out ./...
-    @head -1 coverage-unit.out > coverage.txt
-    @tail -n +2 coverage-unit.out >> coverage.txt
-    @tail -n +2 coverage-integration.out >> coverage.txt
+    go test -coverprofile=coverage.txt ./...
 
 test-coverage-html:
     @echo "Running tests with coverage (HTML)..."
@@ -121,7 +117,7 @@ bench: bench-unit bench-integration
 # Run unit benchmarks
 bench-unit:
     @echo "Running unit benchmarks..."
-    go test -tags=unit -bench=. -benchmem ./...
+    go test -bench=. -benchmem ./...
 
 # Run integration benchmarks
 bench-integration:

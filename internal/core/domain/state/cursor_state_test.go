@@ -1,5 +1,3 @@
-//go:build unit
-
 package state_test
 
 import (
