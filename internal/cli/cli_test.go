@@ -9,6 +9,26 @@ import (
 	"github.com/y3owk1n/neru/internal/cli"
 )
 
+// Helper to get command by name from RootCmd
+func getCmd(name string) *cobra.Command {
+	for _, cmd := range cli.RootCmd.Commands() {
+		if cmd.Use == name {
+			return cmd
+		}
+	}
+	return nil
+}
+
+// Helper to get action subcommand from ActionCmd
+func getActionCmd(name string) *cobra.Command {
+	for _, cmd := range cli.ActionCmd.Commands() {
+		if cmd.Use == name {
+			return cmd
+		}
+	}
+	return nil
+}
+
 func TestBuildSimpleCommand(t *testing.T) {
 	cmd := cli.BuildSimpleCommand("test", "short desc", "long desc", "action")
 
@@ -119,28 +139,6 @@ func TestCommandInitialization(t *testing.T) {
 }
 
 func TestCommandExecutionWithoutDaemon(t *testing.T) {
-	// Helper to get command by name
-	getCmd := func(name string) *cobra.Command {
-		for _, cmd := range cli.RootCmd.Commands() {
-			if cmd.Use == name {
-				return cmd
-			}
-		}
-
-		return nil
-	}
-
-	// Helper to get action subcommand
-	getActionCmd := func(name string) *cobra.Command {
-		for _, cmd := range cli.ActionCmd.Commands() {
-			if cmd.Use == name {
-				return cmd
-			}
-		}
-
-		return nil
-	}
-
 	// Test that all CLI commands execute without panicking when no daemon is running
 	// Commands that require IPC should return errors, while utility commands should work
 	tests := []struct {
@@ -187,17 +185,6 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 }
 
 func TestLaunchCommandExecution(t *testing.T) {
-	// Helper to get command by name
-	getCmd := func(name string) *cobra.Command {
-		for _, cmd := range cli.RootCmd.Commands() {
-			if cmd.Use == name {
-				return cmd
-			}
-		}
-
-		return nil
-	}
-
 	// Note: This test modifies global LaunchFunc and is not parallel-safe
 	// Save original LaunchFunc
 	originalLaunchFunc := cli.LaunchFunc
