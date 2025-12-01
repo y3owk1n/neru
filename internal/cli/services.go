@@ -170,7 +170,7 @@ func isServiceLoaded() bool {
 func installService() error {
 	// Check if service is already loaded
 	if isServiceLoaded() {
-		return fmt.Errorf("service is already loaded; uninstall first with 'neru services uninstall'")
+		return fmt.Errorf("service is already loaded; check for existing installations (e.g., nix-darwin, home-manager) and uninstall them first")
 	}
 
 	binPath, err := getBinaryPath()
