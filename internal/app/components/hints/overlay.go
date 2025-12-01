@@ -61,6 +61,7 @@ type Overlay struct {
 	cachedHighlightColor   *C.char
 
 	// State tracking for incremental updates
+	// NOTE: Assumes Hint instances are immutable between draws to avoid aliasing issues
 	hintStateMu   sync.RWMutex
 	previousHints []*Hint
 	previousInput string
@@ -395,10 +396,13 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 
 	start := time.Now()
 
-	// Extract current input from hints (use first hint's matched prefix as input)
+	// Extract current input from hints (find first hint with matched prefix)
 	currentInput := ""
-	if len(hints) > 0 && len(hints[0].MatchedPrefix()) > 0 {
-		currentInput = hints[0].MatchedPrefix()
+	for _, hint := range hints {
+		if len(hint.MatchedPrefix()) > 0 {
+			currentInput = hint.MatchedPrefix()
+			break
+		}
 	}
 
 	// Check if we can do incremental updates
@@ -572,23 +576,18 @@ func (o *Overlay) hintsAreStructurallyEqual(hintsA, hintsB []*Hint) bool {
 	}
 
 	// Build position map for efficient lookup
-	hintsBMap := make(map[string]*Hint) // Use position as key (x,y)
+	hintsBMap := make(map[image.Point]*Hint, len(hintsB))
 	for _, hint := range hintsB {
-		key := o.hintPositionKey(hint)
-		hintsBMap[key] = hint
+		hintsBMap[hint.Position()] = hint
 	}
 
-	// Check if all hints in hintsA exist in hintsB at the same position with same label
+	// Check if all hints in hintsA exist in hintsB at the same position with same label and size
 	for _, hintA := range hintsA {
-		key := o.hintPositionKey(hintA)
-		hintB, exists := hintsBMap[key]
+		hintB, exists := hintsBMap[hintA.Position()]
 		if !exists {
 			return false
 		}
-		if hintA.Label() != hintB.Label() {
-			return false
-		}
-		if hintA.Size() != hintB.Size() {
+		if hintA.Label() != hintB.Label() || hintA.Size() != hintB.Size() {
 			return false
 		}
 	}
@@ -755,10 +754,9 @@ func (o *Overlay) convertHintsToC(hintsGo []*Hint, currentInput string) []C.Hint
 	}
 
 	cHints := make([]C.HintData, len(hintsGo))
-	cLabels := make([]*C.char, len(hintsGo))
 
 	for hintIndex, hint := range hintsGo {
-		cLabels[hintIndex] = C.CString(hint.Label())
+		label := C.CString(hint.Label())
 
 		matchedPrefixLength := 0
 		if currentInput != "" {
@@ -766,7 +764,7 @@ func (o *Overlay) convertHintsToC(hintsGo []*Hint, currentInput string) []C.Hint
 		}
 
 		cHints[hintIndex] = C.HintData{
-			label: cLabels[hintIndex],
+			label: label,
 			position: C.CGPoint{
 				x: C.double(hint.Position().X),
 				y: C.double(hint.Position().Y),
