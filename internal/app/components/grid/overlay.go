@@ -476,11 +476,19 @@ func (o *Overlay) DrawScrollHighlight(
 	)
 }
 
-// SetViewport sets the current viewport for lazy rendering.
+// SetViewport sets the current viewport for lazy rendering and forces a full redraw on next draw.
 func (o *Overlay) SetViewport(viewport image.Rectangle) {
+	// Update viewport
 	o.viewportMu.Lock()
-	defer o.viewportMu.Unlock()
 	o.viewport = viewport
+	o.viewportMu.Unlock()
+
+	// Invalidate incremental grid state so the next DrawGrid performs a full redraw
+	o.gridStateMu.Lock()
+	o.previousGrid = nil
+	o.previousInput = ""
+	o.previousStyle = Style{}
+	o.gridStateMu.Unlock()
 }
 
 // SetMaxCells sets the maximum number of cells to render (0 = no limit).
