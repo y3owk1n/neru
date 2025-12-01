@@ -8,9 +8,26 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
+	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/ports/mocks"
 	"go.uber.org/zap"
 )
+
+// mockGenerator is a simple mock implementation of hint.Generator for benchmarks
+type mockGenerator struct{}
+
+func (m *mockGenerator) Generate(ctx context.Context, elements []*element.Element) ([]*hint.Interface, error) {
+	return []*hint.Interface{}, nil
+}
+
+func (m *mockGenerator) MaxHints() int {
+	return 100
+}
+
+func (m *mockGenerator) Characters() string {
+	return "abcdefghijklmnopqrstuvwxyz"
+}
 
 // BenchmarkHintService_ShowHints_Incremental benchmarks the incremental rendering performance
 func BenchmarkHintService_ShowHints_Incremental(b *testing.B) {
@@ -21,8 +38,9 @@ func BenchmarkHintService_ShowHints_Incremental(b *testing.B) {
 	// Create mock ports that simulate real behavior
 	accAdapter := &mocks.MockAccessibilityPort{}
 	overlayAdapter := &mocks.MockOverlayPort{}
+	generator := &mockGenerator{}
 
-	hintService := services.NewHintService(accAdapter, overlayAdapter, nil, cfg.Hints, logger)
+	hintService := services.NewHintService(accAdapter, overlayAdapter, generator, cfg.Hints, logger)
 
 	ctx := context.Background()
 
