@@ -125,10 +125,6 @@ void NeruDrawScrollHighlight(OverlayWindow window, CGRect bounds, char *color, i
 /// @param level Overlay level
 void NeruSetOverlayLevel(OverlayWindow window, int level);
 
-/// Draw target dot
-/// @param window Overlay window handle
-/// @param center Dot center
-
 /// Replace overlay window
 /// @param pwindow Pointer to overlay window handle
 void NeruReplaceOverlayWindow(OverlayWindow *pwindow);
