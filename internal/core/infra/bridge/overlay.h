@@ -128,12 +128,6 @@ void NeruSetOverlayLevel(OverlayWindow window, int level);
 /// Draw target dot
 /// @param window Overlay window handle
 /// @param center Dot center
-/// @param radius Dot radius
-/// @param color Dot color
-/// @param borderColor Border color
-/// @param borderWidth Border width
-void NeruDrawTargetDot(OverlayWindow window, CGPoint center, double radius, const char *color, const char *borderColor,
-                       double borderWidth);
 
 /// Replace overlay window
 /// @param pwindow Pointer to overlay window handle

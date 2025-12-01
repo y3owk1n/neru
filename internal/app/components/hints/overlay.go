@@ -231,39 +231,6 @@ func (o *Overlay) DrawHintsWithStyle(hints []*Hint, style StyleMode) error {
 	return o.drawHintsInternal(hints, style, true)
 }
 
-// DrawTargetDot draws a small circular dot at the target position.
-func (o *Overlay) DrawTargetDot(
-	pointX, pointY int,
-	radius float64,
-	color, borderColor string,
-	borderWidth float64,
-) error {
-	center := C.CGPoint{
-		x: C.double(pointX),
-		y: C.double(pointY),
-	}
-
-	cColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
-
-	var cBorderColor *C.char
-	if borderColor != "" {
-		cBorderColor = C.CString(borderColor)
-		defer C.free(unsafe.Pointer(cBorderColor)) //nolint:nlreturn
-	}
-
-	C.NeruDrawTargetDot(
-		o.window,
-		center,
-		C.double(radius),
-		cColor,
-		cBorderColor,
-		C.double(borderWidth),
-	)
-
-	return nil
-}
-
 // DrawScrollHighlight draws a highlight around a scroll area.
 func (o *Overlay) DrawScrollHighlight(
 	xCoordinate, yCoordinate, width, height int,
