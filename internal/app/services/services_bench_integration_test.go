@@ -57,27 +57,3 @@ func BenchmarkGridService_ShowGrid_Incremental(b *testing.B) {
 		gridService.ShowGrid(ctx)
 	}
 }
-
-// BenchmarkHintService_IncrementalUpdateFiltering benchmarks the element filtering logic
-func BenchmarkHintService_IncrementalUpdateFiltering(b *testing.B) {
-	// This benchmark specifically targets the incremental update filtering
-	// which is a key performance optimization in the hints system
-
-	logger := zap.NewNop()
-	cfg := config.DefaultConfig()
-
-	accAdapter := &mocks.MockAccessibilityPort{}
-	overlayAdapter := &mocks.MockOverlayPort{}
-
-	hintService := services.NewHintService(accAdapter, overlayAdapter, nil, cfg.Hints, logger)
-
-	ctx := context.Background()
-
-	b.ResetTimer()
-	b.ReportAllocs()
-
-	for i := 0; i < b.N; i++ {
-		// Exercise the filtering logic that determines what needs incremental updates
-		_, _ = hintService.ShowHints(ctx)
-	}
-}
