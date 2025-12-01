@@ -33,8 +33,6 @@ func (m *mockGenerator) Generate(
 	}
 	return hints, nil
 }
-	return hints, nil
-}
 
 func (m *mockGenerator) MaxHints() int {
 	return 100
