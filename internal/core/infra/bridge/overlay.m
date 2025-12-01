@@ -11,19 +11,19 @@
 #pragma mark - Overlay View Interface
 
 @interface OverlayView : NSView
-@property(nonatomic, strong) NSMutableArray *hints;               ///< Hints array
-@property(nonatomic, strong) NSFont *hintFont;                    ///< Hint font
-@property(nonatomic, strong) NSColor *hintTextColor;              ///< Hint text color
-@property(nonatomic, strong) NSColor *hintMatchedTextColor;       ///< Hint matched text color
-@property(nonatomic, strong) NSColor *hintBackgroundColor;        ///< Hint background color
-@property(nonatomic, strong) NSColor *hintBorderColor;            ///< Hint border color
-@property(nonatomic, assign) CGFloat hintBorderRadius;            ///< Hint border radius
-@property(nonatomic, assign) CGFloat hintBorderWidth;             ///< Hint border width
-@property(nonatomic, assign) CGFloat hintPadding;                 ///< Hint padding
-@property(nonatomic, assign) CGRect scrollHighlight;              ///< Scroll highlight bounds
-@property(nonatomic, strong) NSColor *scrollHighlightColor;       ///< Scroll highlight color
-@property(nonatomic, assign) int scrollHighlightWidth;            ///< Scroll highlight width
-@property(nonatomic, assign) BOOL showScrollHighlight;            ///< Show scroll highlight
+@property(nonatomic, strong) NSMutableArray *hints;         ///< Hints array
+@property(nonatomic, strong) NSFont *hintFont;              ///< Hint font
+@property(nonatomic, strong) NSColor *hintTextColor;        ///< Hint text color
+@property(nonatomic, strong) NSColor *hintMatchedTextColor; ///< Hint matched text color
+@property(nonatomic, strong) NSColor *hintBackgroundColor;  ///< Hint background color
+@property(nonatomic, strong) NSColor *hintBorderColor;      ///< Hint border color
+@property(nonatomic, assign) CGFloat hintBorderRadius;      ///< Hint border radius
+@property(nonatomic, assign) CGFloat hintBorderWidth;       ///< Hint border width
+@property(nonatomic, assign) CGFloat hintPadding;           ///< Hint padding
+@property(nonatomic, assign) CGRect scrollHighlight;        ///< Scroll highlight bounds
+@property(nonatomic, strong) NSColor *scrollHighlightColor; ///< Scroll highlight color
+@property(nonatomic, assign) int scrollHighlightWidth;      ///< Scroll highlight width
+@property(nonatomic, assign) BOOL showScrollHighlight;      ///< Show scroll highlight
 
 @property(nonatomic, strong) NSMutableArray *gridCells;           ///< Grid cells array
 @property(nonatomic, strong) NSMutableArray *gridLines;           ///< Grid lines array
@@ -113,8 +113,6 @@
 	if (self.showScrollHighlight) {
 		[self drawScrollHighlight];
 	}
-
-
 
 	// Draw hints
 	[self drawHints];

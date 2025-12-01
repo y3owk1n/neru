@@ -17,7 +17,10 @@ import (
 // mockGenerator is a simple mock implementation of hint.Generator for benchmarks
 type mockGenerator struct{}
 
-func (m *mockGenerator) Generate(ctx context.Context, elements []*element.Element) ([]*hint.Interface, error) {
+func (m *mockGenerator) Generate(
+	ctx context.Context,
+	elements []*element.Element,
+) ([]*hint.Interface, error) {
 	return []*hint.Interface{}, nil
 }
 
