@@ -123,20 +123,40 @@ func TestApp_ModeTransitions(t *testing.T) {
 	cfg.Grid.Enabled = true
 	cfg.General.AccessibilityCheckOnStart = false // Disable OS check
 
-	// Create app with mocked dependencies using functional options
-	application, applicationErr := app.New(
-		app.WithConfig(cfg),
-		app.WithConfigPath(""),
-		app.WithEventTap(&mockEventTap{}),
-		app.WithIPCServer(&mockIPCServer{}),
-		app.WithOverlayManager(&mockOverlayManager{}),
-		app.WithWatcher(&mockAppWatcher{}),
-		app.WithHotkeyService(&mockHotkeyService{}),
-	)
-	if applicationErr != nil {
-		t.Fatalf("Failed to create app: %v", applicationErr)
+	// Create app with timeout protection
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	done := make(chan initResult, 1)
+
+	go func() {
+		appInstance, err := app.New(
+			app.WithConfig(cfg),
+			app.WithConfigPath(""),
+			app.WithEventTap(&mockEventTap{}),
+			app.WithIPCServer(&mockIPCServer{}),
+			app.WithOverlayManager(&mockOverlayManager{}),
+			app.WithWatcher(&mockAppWatcher{}),
+			app.WithHotkeyService(&mockHotkeyService{}),
+		)
+		done <- initResult{app: appInstance, err: err}
+	}()
+
+	// Wait for initialization with timeout
+	var application *app.App
+	select {
+	case res := <-done:
+		if res.err != nil {
+			t.Fatalf("Failed to create app: %v", res.err)
+		}
+		if res.app == nil {
+			t.Fatal("App initialization returned nil app without error")
+		}
+		application = res.app
+		defer application.Cleanup()
+	case <-ctx.Done():
+		t.Fatal("App initialization timed out")
 	}
-	defer application.Cleanup()
 
 	// Verify initial state
 	if application.CurrentMode() != domain.ModeIdle {
