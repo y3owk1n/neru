@@ -41,8 +41,12 @@ cd neru
 ## Option A: Using Devbox (Recommended)
 devbox shell
 
+See [Development Environment Options](#development-environment-options) for install details
+
 ## Option B: Manual installation
 brew install just golangci-lint
+
+See [Development Environment Options](#development-environment-options) for install details
 
 # 3. Build and run
 just build
