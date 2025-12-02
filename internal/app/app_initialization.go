@@ -97,6 +97,15 @@ func initializeApp(app *App) (*App, error) {
 	// Phase 4.5: Initialize systray component
 	initializeSystrayComponent(app)
 
+	initializedPhases = append(initializedPhases, func() {
+		// Cleanup systray component if it was initialized
+		if app.systrayComponent != nil {
+			app.systrayComponent.OnExit()
+		}
+
+		app.systrayComponent = nil
+	})
+
 	// Phase 5: Initialize renderer and register overlays
 	initializeRendererAndOverlays(app)
 	// Renderer and overlays are cleaned up as part of UI components
