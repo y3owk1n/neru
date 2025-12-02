@@ -125,7 +125,8 @@ func (c *Component) OnReady() {
 
 // OnExit handles systray exit.
 func (c *Component) OnExit() {
-	c.cancel() // Signal goroutine to stop
+	c.cancel()               // Signal goroutine to stop
+	close(c.stateUpdateChan) // Close channel to prevent sends
 	c.app.Cleanup()
 }
 
