@@ -71,7 +71,6 @@ func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 }
 
 // OnReady sets up the systray menu when the systray is ready.
-// OnReady sets up the systray menu when the systray is ready.
 func (c *Component) OnReady() {
 	systray.SetTitle("⌨️")
 	// Tooltip will be updated by updateMenuItems
