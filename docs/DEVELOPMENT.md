@@ -36,7 +36,12 @@ Get Neru running locally in 5 minutes:
 git clone https://github.com/y3owk1n/neru.git
 cd neru
 
-# 2. Install dependencies
+# 2. Set up development environment
+
+## Option A: Using Devbox (Recommended)
+devbox shell
+
+## Option B: Manual installation
 brew install just golangci-lint
 
 # 3. Build and run
@@ -68,6 +73,57 @@ neru hints  # Should show hint overlays
     ```bash
     brew install golangci-lint
     ```
+
+### Development Environment Options
+
+For the best development experience, choose one of the following setup methods:
+
+#### Option A: Devbox (Recommended)
+
+[Devbox](https://www.jetify.com/devbox) provides an isolated development environment with all required tools pre-configured.
+
+```bash
+# Install Devbox
+curl -fsSL https://get.jetify.com/devbox | bash
+
+# Option 1: Enter the development shell manually
+devbox shell
+
+# Option 2: Use direnv for automatic shell activation (recommended)
+# Install direnv: brew install direnv
+# Add to your shell: eval "$(direnv hook bash)" (or zsh/fish)
+# The .envrc file will automatically activate devbox when you cd into the project
+```
+
+Devbox automatically installs and manages:
+
+- Go 1.25.2
+- gopls (Go language server)
+- gotools, gofumpt, golines (Go formatting tools)
+- golangci-lint (linter)
+- just (command runner)
+- clang-tools (C/C++ tools for CGo)
+
+#### Option B: Manual Installation
+
+Install essential tools manually using Homebrew. Note that Devbox provides additional development tools (gopls, gofumpt, golines, etc.) that can be installed separately if desired.
+
+```bash
+brew install go just golangci-lint llvm
+```
+
+**Tool descriptions:**
+
+- `go` - Go compiler and toolchain (1.25+ required)
+- `just` - Command runner for build scripts
+- `golangci-lint` - Go linter and formatter
+- `llvm` - LLVM tools including clang-format for C/C++/Objective-C formatting (required for CGo code)
+
+**Optional additional tools** (install via `go install` if desired):
+
+- `gopls`: `go install golang.org/x/tools/gopls@latest`
+- `gofumpt`: `go install mvdan.cc/gofumpt@latest`
+- `golines`: `go install github.com/segmentio/golines@latest`
 
 ### Clone Repository
 
