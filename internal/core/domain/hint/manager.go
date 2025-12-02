@@ -207,13 +207,17 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 		m.debounceTimer.Stop()
 	}
 
+	// Copy hints to avoid race with slice reuse
+	hintsCopy := make([]*Interface, len(hints))
+	copy(hintsCopy, hints)
+
 	// Start new timer
 	m.debounceTimer = time.AfterFunc(m.debounceDuration, func() {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 
 		if m.onUpdate != nil {
-			m.onUpdate(hints)
+			m.onUpdate(hintsCopy)
 		}
 	})
 }
