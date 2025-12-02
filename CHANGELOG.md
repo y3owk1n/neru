@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.12.0](https://github.com/y3owk1n/neru/compare/v1.11.1...v1.12.0) (2025-12-02)
+
+
+### Features
+
+* add devbox development environment support  ([#261](https://github.com/y3owk1n/neru/issues/261)) ([7551025](https://github.com/y3owk1n/neru/commit/7551025884d9907f0d10ad22a911648a963eebfc))
+* **cli:** implement services CLI for launchd management ([#258](https://github.com/y3owk1n/neru/issues/258)) ([f6e014a](https://github.com/y3owk1n/neru/commit/f6e014a96ae1bf6b1aff764100d1c02a6b2b5f1e))
+* **nix:** add launchd configuration options to home-manager module ([#256](https://github.com/y3owk1n/neru/issues/256)) ([8e2e1c7](https://github.com/y3owk1n/neru/commit/8e2e1c711e99d8029e9fac6d125f516baad6e129))
+* **overlay:** implement native macOS overlay windows for grid and hints rendering ([#253](https://github.com/y3owk1n/neru/issues/253)) ([52eebb1](https://github.com/y3owk1n/neru/commit/52eebb16951db20785b3ef615aa01e278b753bef))
+
+
+### Performance Improvements
+
+* comprehensive performance optimizations for hint generation, caching and accelsibility processing ([#259](https://github.com/y3owk1n/neru/issues/259)) ([ac62d79](https://github.com/y3owk1n/neru/commit/ac62d79dcd37f6facd5e6282cd7a6128e98e23e9))
+
 ## [1.11.1](https://github.com/y3owk1n/neru/compare/v1.11.0...v1.11.1) (2025-11-30)
 
 
