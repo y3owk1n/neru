@@ -3,6 +3,7 @@ package hint
 import (
 	"context"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode"
@@ -215,7 +216,7 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 	}
 
 	// Check cache first (key: "chars:count")
-	cacheKey := g.uppercaseChars + ":" + string(rune(count))
+	cacheKey := g.uppercaseChars + ":" + strconv.Itoa(count)
 	if cached, ok := labelCache.Load(cacheKey); ok {
 		if labels, ok := cached.([]string); ok {
 			return labels
