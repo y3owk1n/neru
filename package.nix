@@ -99,7 +99,7 @@ else
     # `nix-shell -p go --run 'go mod vendor'`
     # `nix hash path vendor`
     # `rm -rf vendor`
-    vendorHash = "sha256-8weqWK9iKYdjNghGAUuajHZGADR+HNCnKxk45coKWDE=";
+    vendorHash = "sha256-ndJMrTqjkC39xm+qCk1vAp2wOlMhyObwbW50vFi8cfE=";
 
     ldflags = [
       "-s"
