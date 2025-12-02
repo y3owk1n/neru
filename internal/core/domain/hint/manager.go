@@ -223,8 +223,6 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 }
 
 // isLetter checks if a byte is a letter.
-//
-//go:inline
 func isLetter(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
