@@ -3,6 +3,7 @@ package accessibility
 import (
 	"context"
 	"image"
+	"runtime"
 	"sync"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -434,7 +435,10 @@ func (a *Adapter) processClickableNodesConcurrent(
 	nodes []AXNode,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
-	numWorkers := 4 // Optimal for most desktop CPUs
+	numWorkers := runtime.GOMAXPROCS(0) // Use available parallelism
+	if numWorkers > 8 {
+		numWorkers = 8 // Cap to avoid diminishing returns
+	}
 	chunkSize := (len(nodes) + numWorkers - 1) / numWorkers
 
 	type result struct {
@@ -466,8 +470,8 @@ func (a *Adapter) processClickableNodesConcurrent(
 			// Use local slice to avoid locking
 			localElements := make([]*element.Element, 0, len(chunk))
 
-			for _, node := range chunk {
-				if ctx.Err() != nil {
+			for idx, node := range chunk {
+				if idx%contextCheckInterval == 0 && ctx.Err() != nil {
 					results <- result{err: ctx.Err()}
 
 					return
@@ -493,9 +497,8 @@ func (a *Adapter) processClickableNodesConcurrent(
 	}()
 
 	// Collect results
-	var allElements []*element.Element
 	// Pre-allocate based on input size estimate (conservative)
-	allElements = make([]*element.Element, 0, len(nodes)/EstimatedFilteringRatio)
+	allElements := make([]*element.Element, 0, len(nodes)/EstimatedFilteringRatio)
 
 	for res := range results {
 		if res.err != nil {
