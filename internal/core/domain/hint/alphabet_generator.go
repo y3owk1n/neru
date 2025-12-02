@@ -72,6 +72,13 @@ func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
 	n := charCount
 	maxHints := n * n * n
 
+	// Pre-cache single character strings
+	for _, r := range uppercaseChars {
+		if _, ok := singleCharCache.Load(r); !ok {
+			singleCharCache.Store(r, string(r))
+		}
+	}
+
 	return &AlphabetGenerator{
 		characters:       characters,
 		uppercaseChars:   uppercaseChars,
@@ -193,7 +200,7 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 	g.uppercaseRuneMap = uppercaseRuneMap
 
 	// Pre-cache single character strings
-	for _, r := range characters {
+	for _, r := range g.uppercaseChars {
 		if _, ok := singleCharCache.Load(r); !ok {
 			singleCharCache.Store(r, string(r))
 		}
