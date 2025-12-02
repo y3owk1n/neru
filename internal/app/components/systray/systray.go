@@ -80,9 +80,6 @@ func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 
 // OnReady sets up the systray menu when the systray is ready.
 func (c *Component) OnReady() {
-	systray.SetTitle("⌨️")
-	// Tooltip will be updated by updateMenuItems
-
 	c.mVersion = systray.AddMenuItem("Version "+cli.Version, "Show version")
 	c.mVersion.Disable()
 
@@ -117,7 +114,7 @@ func (c *Component) OnReady() {
 
 	c.mQuit = systray.AddMenuItem("Quit Neru", "Exit the application")
 
-	// Initialize menu items with current state
+	// Initialize all state-dependent UI elements
 	c.updateMenuItems(c.app.IsEnabled())
 
 	go c.handleEvents()
@@ -202,7 +199,7 @@ func (c *Component) handleToggleEnable() {
 func (c *Component) handleReloadConfig() {
 	configPath := c.app.GetConfigPath()
 
-	reloadConfigErr := c.app.ReloadConfig(context.Background(), configPath)
+	reloadConfigErr := c.app.ReloadConfig(c.ctx, configPath)
 	if reloadConfigErr != nil {
 		c.logger.Error("Failed to reload config from systray", zap.Error(reloadConfigErr))
 	} else {
