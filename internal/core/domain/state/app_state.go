@@ -45,15 +45,15 @@ func (s *AppState) IsEnabled() bool {
 // SetEnabled sets the enabled state of the application.
 func (s *AppState) SetEnabled(enabled bool) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	oldEnabled := s.enabled
 	s.enabled = enabled
+	callback := s.enabledStateCallback
+	s.mu.Unlock()
 
 	// Notify callback if state actually changed
-	if oldEnabled != enabled && s.enabledStateCallback != nil {
+	if oldEnabled != enabled && callback != nil {
 		// Call callback outside of lock to avoid deadlocks
-		go s.enabledStateCallback(enabled)
+		go callback(enabled)
 	}
 }
 
