@@ -16,8 +16,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var globalApp *app.App
-
 func main() {
 	cli.LaunchFunc = LaunchDaemon
 
@@ -70,8 +68,6 @@ func LaunchDaemon(configPath string) {
 		os.Exit(1)
 	}
 
-	globalApp = app
-
 	go func() {
 		err := app.Run()
 		if err != nil {
@@ -79,7 +75,7 @@ func LaunchDaemon(configPath string) {
 		}
 	}()
 
-	systray.Run(onReady, onExit)
+	systray.Run(app.GetSystrayComponent().OnReady, app.GetSystrayComponent().OnExit)
 }
 
 // showConfigErrorAlert displays a native macOS alert for config validation errors.

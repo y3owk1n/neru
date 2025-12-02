@@ -94,6 +94,9 @@ func initializeApp(app *App) (*App, error) {
 		cleanupUIComponents(app)
 	})
 
+	// Phase 4.5: Initialize systray component
+	initializeSystrayComponent(app)
+
 	// Phase 5: Initialize renderer and register overlays
 	initializeRendererAndOverlays(app)
 	// Renderer and overlays are cleaned up as part of UI components
