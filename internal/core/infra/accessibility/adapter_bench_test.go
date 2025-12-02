@@ -50,8 +50,8 @@ func BenchmarkClickableElements_Concurrent(b *testing.B) {
 		MockFrontmostWindow: &accessibility.MockWindow{},
 	}
 
-	// Create enough nodes to trigger concurrent processing (> 100)
-	numNodes := 1000
+	// Create enough nodes to exceed ConcurrentProcessingThreshold for concurrent processing
+	numNodes := accessibility.ConcurrentProcessingThreshold * 10
 
 	nodes := make([]accessibility.AXNode, numNodes)
 	for i := range numNodes {
@@ -81,8 +81,8 @@ func BenchmarkClickableElements_Sequential(b *testing.B) {
 		MockFrontmostWindow: &accessibility.MockWindow{},
 	}
 
-	// Create fewer nodes to trigger sequential processing (< 100)
-	numNodes := 50
+	// Create fewer nodes to stay below ConcurrentProcessingThreshold for sequential processing
+	numNodes := accessibility.ConcurrentProcessingThreshold / 2
 
 	nodes := make([]accessibility.AXNode, numNodes)
 	for i := range numNodes {
