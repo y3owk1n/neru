@@ -180,7 +180,7 @@ func (c *Component) handleEvents() {
 func (c *Component) handleVersionCopy() {
 	writeToClipboardErr := clipboard.WriteAll(cli.Version)
 	if writeToClipboardErr != nil {
-		logger.Error("Error copying version to clipboard", zap.Error(writeToClipboardErr))
+		c.logger.Error("Error copying version to clipboard", zap.Error(writeToClipboardErr))
 	}
 }
 
