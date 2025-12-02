@@ -3,6 +3,7 @@ package systray
 import (
 	"context"
 	_ "embed"
+	"sync/atomic"
 
 	"github.com/atotto/clipboard"
 	"github.com/getlantern/systray"
@@ -47,6 +48,7 @@ type Component struct {
 
 	// Channel for state updates (thread-safe communication)
 	stateUpdateChan chan bool
+	chanClosed      atomic.Bool
 }
 
 // NewComponent creates a new systray component.
@@ -62,6 +64,10 @@ func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 
 	// Register callback immediately for state changes
 	app.OnEnabledStateChanged(func(enabled bool) {
+		// Don't send if channel is closed
+		if component.chanClosed.Load() {
+			return
+		}
 		// Send to channel (non-blocking)
 		select {
 		case component.stateUpdateChan <- enabled:
@@ -121,6 +127,7 @@ func (c *Component) OnReady() {
 // OnExit handles systray exit.
 func (c *Component) OnExit() {
 	c.cancel()               // Signal goroutine to stop
+	c.chanClosed.Store(true) // Prevent further sends to channel
 	close(c.stateUpdateChan) // Close channel to prevent sends
 	c.app.Cleanup()
 }
@@ -129,6 +136,7 @@ func (c *Component) OnExit() {
 // This is used during initialization failure cleanup to avoid double cleanup.
 func (c *Component) Close() {
 	c.cancel()               // Signal goroutine to stop
+	c.chanClosed.Store(true) // Prevent further sends to channel
 	close(c.stateUpdateChan) // Close channel to prevent sends
 	// Note: We don't call c.app.Cleanup() here to avoid double cleanup during init failure
 }
