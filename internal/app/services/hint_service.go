@@ -17,8 +17,12 @@ import (
 )
 
 const (
-	// EstimatedChangeRatio is the estimated ratio of elements that change between updates.
-	EstimatedChangeRatio = 2
+	// EstimatedUnchangedRatio is the divisor for pre-allocating the changed-elements slice.
+	// A value of 2 means roughly half the elements are expected to change.
+	EstimatedUnchangedRatio = 2
+
+	// cacheExpiration is the duration after which cache entries are considered stale.
+	cacheExpiration = 30 * time.Second
 )
 
 // elementCacheEntry represents a cached element with its position hash.
@@ -186,7 +190,7 @@ func (s *HintService) filterChangedElements(elements []*element.Element) []*elem
 	s.cacheMutex.Lock()
 	defer s.cacheMutex.Unlock()
 
-	changedElements := make([]*element.Element, 0, len(elements)/EstimatedChangeRatio)
+	changedElements := make([]*element.Element, 0, len(elements)/EstimatedUnchangedRatio)
 
 	for _, elem := range elements {
 		bounds := elem.Bounds()
@@ -216,9 +220,9 @@ func (s *HintService) updateElementCache(elements []*element.Element) {
 
 	now := time.Now()
 
-	// Clear old cache entries (older than 30 seconds)
+	// Clear old cache entries (older than cacheExpiration)
 	for elementID, entry := range s.elementCache {
-		if now.Sub(entry.timestamp) > 30*time.Second {
+		if now.Sub(entry.timestamp) > cacheExpiration {
 			delete(s.elementCache, elementID)
 		}
 	}
