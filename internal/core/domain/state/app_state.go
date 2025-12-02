@@ -16,7 +16,7 @@ type AppState struct {
 	currentMode domain.Mode
 
 	// Callbacks
-	enabledStateCallback func(bool)
+	enabledStateCallbacks []func(bool)
 
 	// Operational flags
 	hotkeysRegistered       bool
@@ -47,25 +47,31 @@ func (s *AppState) SetEnabled(enabled bool) {
 	s.mu.Lock()
 	oldEnabled := s.enabled
 	s.enabled = enabled
-	callback := s.enabledStateCallback
+	callbacks := make([]func(bool), len(s.enabledStateCallbacks))
+	copy(callbacks, s.enabledStateCallbacks)
 	s.mu.Unlock()
 
-	// Notify callback if state actually changed
-	if oldEnabled != enabled && callback != nil {
-		// Call callback outside of lock to avoid deadlocks
-		go callback(enabled)
+	// Notify all callbacks if state actually changed
+	if oldEnabled != enabled {
+		for _, callback := range callbacks {
+			if callback != nil {
+				// Call callback outside of lock to avoid deadlocks
+				go callback(enabled)
+			}
+		}
 	}
 }
 
 // OnEnabledStateChanged registers a callback for when the enabled state changes.
 func (s *AppState) OnEnabledStateChanged(callback func(bool)) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.enabledStateCallbacks = append(s.enabledStateCallbacks, callback)
+	currentState := s.enabled
+	s.mu.Unlock()
 
-	s.enabledStateCallback = callback
 	// Call immediately with current state
 	if callback != nil {
-		go callback(s.enabled)
+		go callback(currentState)
 	}
 }
 
