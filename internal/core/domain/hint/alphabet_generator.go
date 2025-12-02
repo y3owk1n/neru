@@ -25,6 +25,9 @@ const (
 // labelCache caches generated labels by count for instant reuse.
 var labelCache sync.Map // map[string][]string (key: "chars:count")
 
+// singleCharCache caches single-character strings to avoid allocations.
+var singleCharCache sync.Map // map[rune]string
+
 // stringBuilderPool is a pool of string builders for label generation.
 var stringBuilderPool = sync.Pool{
 	New: func() any {
@@ -191,6 +194,13 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 	g.maxHints = maxHints
 	g.uppercaseRuneMap = uppercaseRuneMap
 
+	// Pre-cache single character strings
+	for _, r := range characters {
+		if _, ok := singleCharCache.Load(r); !ok {
+			singleCharCache.Store(r, string(r))
+		}
+	}
+
 	return nil
 }
 
@@ -276,7 +286,16 @@ func (g *AlphabetGenerator) computeLabels(count int) []string {
 		if length == 1 {
 			// Generate single-character labels
 			for i := range keep {
-				labels = append(labels, string(chars[i]))
+				char := chars[i]
+				if cached, ok := singleCharCache.Load(char); ok {
+					if str, ok := cached.(string); ok {
+						labels = append(labels, str)
+
+						continue
+					}
+				}
+
+				labels = append(labels, string(char))
 			}
 			// Start next level from after the kept labels
 			current = []int{keep}
