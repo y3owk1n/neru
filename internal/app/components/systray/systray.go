@@ -2,12 +2,12 @@ package systray
 
 import (
 	"context"
+	_ "embed"
 
 	"github.com/atotto/clipboard"
 	"github.com/getlantern/systray"
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"go.uber.org/zap"
 )
 
@@ -196,8 +196,8 @@ func (c *Component) handleReloadConfig() {
 
 	reloadConfigErr := c.app.ReloadConfig(context.Background(), configPath)
 	if reloadConfigErr != nil {
-		logger.Error("Failed to reload config from systray", zap.Error(reloadConfigErr))
+		c.logger.Error("Failed to reload config from systray", zap.Error(reloadConfigErr))
 	} else {
-		logger.Info("Configuration reloaded successfully from systray")
+		c.logger.Info("Configuration reloaded successfully from systray")
 	}
 }
