@@ -90,5 +90,7 @@ var allTypes = []Type{
 
 // AllTypes returns all valid action types.
 func AllTypes() []Type {
-	return allTypes
+	result := make([]Type, len(allTypes))
+	copy(result, allTypes)
+	return result
 }

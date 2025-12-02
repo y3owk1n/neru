@@ -35,7 +35,9 @@ var knownActionNames = []ActionName{
 
 // KnownActionNames returns a slice containing all supported action names.
 func KnownActionNames() []ActionName {
-	return knownActionNames
+	result := make([]ActionName, len(knownActionNames))
+	copy(result, knownActionNames)
+	return result
 }
 
 // SupportedActionsString returns a comma-separated string of supported actions for user messages.
