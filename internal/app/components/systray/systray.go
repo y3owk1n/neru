@@ -30,6 +30,10 @@ type Component struct {
 	app    AppInterface
 	logger *zap.Logger
 
+	// Context for goroutine lifecycle management
+	ctx    context.Context //nolint:containedctx // Used for proper goroutine cancellation
+	cancel context.CancelFunc
+
 	// Menu items
 	mVersion       *systray.MenuItem
 	mVersionCopy   *systray.MenuItem
@@ -50,9 +54,12 @@ type Component struct {
 
 // NewComponent creates a new systray component.
 func NewComponent(app AppInterface, logger *zap.Logger) *Component {
+	ctx, cancel := context.WithCancel(context.Background())
 	component := &Component{
 		app:             app,
 		logger:          logger,
+		ctx:             ctx,
+		cancel:          cancel,
 		stateUpdateChan: make(chan bool, 1), // Buffered channel to avoid blocking
 		menuReady:       false,
 	}
@@ -118,6 +125,7 @@ func (c *Component) OnReady() {
 
 // OnExit handles systray exit.
 func (c *Component) OnExit() {
+	c.cancel() // Signal goroutine to stop
 	c.app.Cleanup()
 }
 
@@ -143,6 +151,8 @@ func (c *Component) updateMenuItems(enabled bool) {
 func (c *Component) handleEvents() {
 	for {
 		select {
+		case <-c.ctx.Done():
+			return // Context canceled, exit goroutine
 		case <-c.mVersionCopy.ClickedCh:
 			c.handleVersionCopy()
 		case <-c.mToggleDisable.ClickedCh:
