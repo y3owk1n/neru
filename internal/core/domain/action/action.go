@@ -92,5 +92,6 @@ var allTypes = []Type{
 func AllTypes() []Type {
 	result := make([]Type, len(allTypes))
 	copy(result, allTypes)
+
 	return result
 }

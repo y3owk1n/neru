@@ -37,6 +37,7 @@ var knownActionNames = []ActionName{
 func KnownActionNames() []ActionName {
 	result := make([]ActionName, len(knownActionNames))
 	copy(result, knownActionNames)
+
 	return result
 }
 
