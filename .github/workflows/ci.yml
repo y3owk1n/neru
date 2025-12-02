@@ -10,48 +10,40 @@ jobs:
         name: ${{ matrix.check }}
         strategy:
             matrix:
-                go: ["1.25.2"]
                 os: [macos-latest]
                 check: [lint, formatting, vet, test, build]
         runs-on: ${{ matrix.os }}
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v6
               with:
                   repository: ${{ github.event.pull_request.head.repo.full_name }}
                   ref: ${{ github.head_ref }}
-            - uses: actions/setup-go@v6
+
+            - name: Install Devbox
+              uses: jetify-com/devbox-install-action@v0.14.0
               with:
-                  go-version: ${{ matrix.go }}
-            - name: golangci-lint
-              if: ${{ matrix.check == 'lint' || matrix.check == 'formatting' }}
-              uses: golangci/golangci-lint-action@v9
-              with:
-                  version: v2.6
-                  install-only: true
-            - name: Install just
-              uses: extractions/setup-just@v3
-              with:
-                  just-version: 1.43.0
-            - name: Setup clang-tools
-              if: ${{ matrix.check == 'formatting' }}
-              run: |
-                  brew install llvm
-                  echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
+                  enable-cache: true
+
             - name: Run just lint
               if: ${{ matrix.check == 'lint' }}
-              run: just lint
+              run: devbox run -- just lint
+
             - name: Run just fmt-check
               if: ${{ matrix.check == 'formatting' }}
-              run: just fmt-check
+              run: devbox run -- just fmt-check
+
             - name: Run just vet
               if: ${{ matrix.check == 'vet' }}
-              run: just vet
+              run: devbox run -- just vet
+
             - name: Run just build
               if: ${{ matrix.check == 'build' }}
-              run: just build
+              run: devbox run -- just build
+
             - name: Run just test-all
               if: ${{ matrix.check == 'test' }}
-              run: just test-all
+              run: devbox run -- just test-all
+
             - name: Upload coverage to Codecov
               if: ${{ matrix.check == 'test' }}
               uses: codecov/codecov-action@v5
