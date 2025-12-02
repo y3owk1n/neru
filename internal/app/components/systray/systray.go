@@ -2,7 +2,6 @@ package systray
 
 import (
 	"context"
-	_ "embed"
 	"sync/atomic"
 
 	"github.com/atotto/clipboard"
