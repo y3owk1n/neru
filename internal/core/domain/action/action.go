@@ -77,15 +77,18 @@ func (t Type) IsMouseButton() bool {
 		t == TypeMouseDown || t == TypeMouseUp
 }
 
+// allTypes is the cached slice of all valid action types to avoid heap allocation.
+var allTypes = []Type{
+	TypeLeftClick,
+	TypeRightClick,
+	TypeMiddleClick,
+	TypeMouseDown,
+	TypeMouseUp,
+	TypeMoveMouse,
+	TypeScroll,
+}
+
 // AllTypes returns all valid action types.
 func AllTypes() []Type {
-	return []Type{
-		TypeLeftClick,
-		TypeRightClick,
-		TypeMiddleClick,
-		TypeMouseDown,
-		TypeMouseUp,
-		TypeMoveMouse,
-		TypeScroll,
-	}
+	return allTypes
 }
