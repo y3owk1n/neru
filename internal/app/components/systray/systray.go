@@ -47,9 +47,6 @@ type Component struct {
 
 	// Channel for state updates (thread-safe communication)
 	stateUpdateChan chan bool
-
-	// Flag to track if menu is ready
-	menuReady bool
 }
 
 // NewComponent creates a new systray component.
@@ -61,7 +58,6 @@ func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 		ctx:             ctx,
 		cancel:          cancel,
 		stateUpdateChan: make(chan bool, 1), // Buffered channel to avoid blocking
-		menuReady:       false,
 	}
 
 	// Register callback immediately for state changes
@@ -116,8 +112,7 @@ func (c *Component) OnReady() {
 
 	c.mQuit = systray.AddMenuItem("Quit Neru", "Exit the application")
 
-	// Mark menu as ready and initialize with current state
-	c.menuReady = true
+	// Initialize menu items with current state
 	c.updateMenuItems(c.app.IsEnabled())
 
 	go c.handleEvents()
