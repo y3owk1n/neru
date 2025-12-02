@@ -14,8 +14,17 @@ import (
 )
 
 const (
-	// TypicalElementCount is the estimated typical number of elements on a page.
-	TypicalElementCount = 200
+	// TypicalElementCount is the estimated number of elements to pre-allocate.
+	TypicalElementCount = 50
+
+	// ConcurrentProcessingThreshold is the number of nodes that triggers concurrent processing.
+	ConcurrentProcessingThreshold = 100
+
+	// EstimatedFilteringRatio is the estimated ratio of nodes that pass the filter.
+	EstimatedFilteringRatio = 2
+
+	// contextCheckInterval is the interval for checking context cancellation.
+	contextCheckInterval = 100
 )
 
 // elementSlicePool is a pool of element slices for temporary use.
@@ -368,8 +377,6 @@ func (a *Adapter) processClickableNodes(
 	clickableNodes []AXNode,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
-	const contextCheckInterval = 100
-
 	// Get pooled slice and reset it
 	elementsPtr, ok := elementSlicePool.Get().(*[]*element.Element)
 	if !ok {
@@ -386,6 +393,11 @@ func (a *Adapter) processClickableNodes(
 
 		elementSlicePool.Put(elementsPtr)
 	}()
+
+	// Concurrent processing for large number of nodes
+	if len(clickableNodes) > ConcurrentProcessingThreshold {
+		return a.processClickableNodesConcurrent(ctx, clickableNodes, filter)
+	}
 
 	for index, node := range clickableNodes {
 		// Check context periodically
@@ -414,6 +426,86 @@ func (a *Adapter) processClickableNodes(
 	copy(result, elements)
 
 	return result, nil
+}
+
+// processClickableNodesConcurrent processes nodes in parallel using a worker pool.
+func (a *Adapter) processClickableNodesConcurrent(
+	ctx context.Context,
+	nodes []AXNode,
+	filter ports.ElementFilter,
+) ([]*element.Element, error) {
+	numWorkers := 4 // Optimal for most desktop CPUs
+	chunkSize := (len(nodes) + numWorkers - 1) / numWorkers
+
+	type result struct {
+		elements []*element.Element
+		err      error
+	}
+
+	results := make(chan result, numWorkers)
+
+	var waitGroup sync.WaitGroup
+
+	for i := range numWorkers {
+		start := i * chunkSize
+
+		end := start + chunkSize
+		if start >= len(nodes) {
+			break
+		}
+
+		if end > len(nodes) {
+			end = len(nodes)
+		}
+
+		waitGroup.Add(1)
+
+		go func(chunk []AXNode) {
+			defer waitGroup.Done()
+
+			// Use local slice to avoid locking
+			localElements := make([]*element.Element, 0, len(chunk))
+
+			for _, node := range chunk {
+				if ctx.Err() != nil {
+					results <- result{err: ctx.Err()}
+
+					return
+				}
+
+				elem, err := a.convertToDomainElement(node)
+				if err != nil {
+					continue
+				}
+
+				if a.MatchesFilter(elem, filter) {
+					localElements = append(localElements, elem)
+				}
+			}
+
+			results <- result{elements: localElements}
+		}(nodes[start:end])
+	}
+
+	go func() {
+		waitGroup.Wait()
+		close(results)
+	}()
+
+	// Collect results
+	var allElements []*element.Element
+	// Pre-allocate based on input size estimate (conservative)
+	allElements = make([]*element.Element, 0, len(nodes)/EstimatedFilteringRatio)
+
+	for res := range results {
+		if res.err != nil {
+			return nil, res.err
+		}
+
+		allElements = append(allElements, res.elements...)
+	}
+
+	return allElements, nil
 }
 
 // Ensure Adapter implements ports.AccessibilityPort.
