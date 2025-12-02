@@ -18,9 +18,6 @@ const (
 
 	// CountsCapacity is the capacity for counts.
 	CountsCapacity = 5
-
-	// MaxLabelLength is the maximum length for a label.
-	MaxLabelLength = 4
 )
 
 // labelCache caches generated labels by count for instant reuse.
