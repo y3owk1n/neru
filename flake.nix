@@ -47,27 +47,6 @@
         }
       );
 
-      devShells = eachSystem (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          default = pkgs.mkShell {
-            packages = with pkgs; [
-              go
-              gopls
-              gotools
-              gofumpt
-              golangci-lint
-              golines
-              just # just a command runner like make
-              clang-tools
-            ];
-          };
-        }
-      );
-
       darwinModules.default = import ./module.nix;
       homeManagerModules.default = import ./home-module.nix;
     };

@@ -8,11 +8,7 @@ permissions:
 name: release-please
 jobs:
     release-please:
-        strategy:
-            matrix:
-                go: ["1.25.2"]
-                os: [macos-latest]
-        runs-on: ${{ matrix.os }}
+        runs-on: macos-latest
         steps:
             # Create a release using the release-please action.
             - uses: googleapis/release-please-action@v4
@@ -20,26 +16,25 @@ jobs:
               with:
                   token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
                   release-type: go
+
             # Checkout the repository.
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v6
               if: ${{ steps.release.outputs.release_created }}
               with:
                   repository: ${{ github.event.pull_request.head.repo.full_name }}
                   ref: ${{ github.head_ref }}
-            # Set up Go.
-            - uses: actions/setup-go@v6
+
+            # Install Devbox
+            - name: Install Devbox
               if: ${{ steps.release.outputs.release_created }}
+              uses: jetify-com/devbox-install-action@v0.14.0
               with:
-                  go-version: ${{ matrix.go }}
-            # Build artifacts for multiple platforms.
+                  enable-cache: true
+
+            # Build artifacts for multiple platforms using Just
             - name: Build neru artifacts
               if: ${{ steps.release.outputs.release_created }}
-              run: |
-                  mkdir -p bin
-                  # Build for darwin-arm64
-                  env CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X github.com/y3owk1n/neru/internal/cli.Version=${{ steps.release.outputs.tag_name }}" -trimpath -o bin/neru-darwin-arm64 ./cmd/neru
-                  # Build for darwin-amd64
-                  env CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X github.com/y3owk1n/neru/internal/cli.Version=${{ steps.release.outputs.tag_name }}" -trimpath -o bin/neru-darwin-amd64 ./cmd/neru
+              run: devbox run -- just release-ci ${{ steps.release.outputs.tag_name }}
 
             # Bundle arm64 app
             - name: Bundle neru-darwin-arm64

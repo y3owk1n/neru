@@ -34,6 +34,19 @@ build-version VERSION_OVERRIDE:
     CGO_ENABLED=1 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru ./cmd/neru
     @echo "✓ Build complete: bin/neru (version: {{ VERSION_OVERRIDE }})"
 
+# Build release artifacts for CI (cross-platform)
+release-ci VERSION_OVERRIDE:
+    @echo "Building release artifacts for CI..."
+    @echo "Version: {{ VERSION_OVERRIDE }}"
+    @echo "Commit: {{ GIT_COMMIT }}"
+    @echo "Date: {{ BUILD_DATE }}"
+    mkdir -p bin
+    @echo "Building darwin-arm64..."
+    CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-arm64 ./cmd/neru
+    @echo "Building darwin-amd64..."
+    CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-amd64 ./cmd/neru
+    @echo "✓ Release artifacts built successfully"
+
 # Bundle the application
 bundle: release
     @echo "Bundling Neru..."
