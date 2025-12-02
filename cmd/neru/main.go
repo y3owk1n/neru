@@ -75,7 +75,8 @@ func LaunchDaemon(configPath string) {
 		}
 	}()
 
-	systray.Run(app.GetSystrayComponent().OnReady, app.GetSystrayComponent().OnExit)
+	systrayComponent := app.GetSystrayComponent()
+	systray.Run(systrayComponent.OnReady, systrayComponent.OnExit)
 }
 
 // showConfigErrorAlert displays a native macOS alert for config validation errors.
