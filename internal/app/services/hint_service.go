@@ -2,12 +2,12 @@ package services
 
 import (
 	"context"
-	"crypto/md5"
-	"fmt"
+	"encoding/binary"
 	"image"
 	"sync"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
@@ -16,11 +16,16 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// EstimatedChangeRatio is the estimated ratio of elements that change between updates.
+	EstimatedChangeRatio = 2
+)
+
 // elementCacheEntry represents a cached element with its position hash.
 type elementCacheEntry struct {
 	element   *element.Element
 	position  image.Rectangle
-	hash      string
+	hash      uint64 // xxhash as uint64 for faster comparison
 	timestamp time.Time
 }
 
@@ -181,22 +186,14 @@ func (s *HintService) filterChangedElements(elements []*element.Element) []*elem
 	s.cacheMutex.Lock()
 	defer s.cacheMutex.Unlock()
 
-	var changedElements []*element.Element
+	changedElements := make([]*element.Element, 0, len(elements)/EstimatedChangeRatio)
 
 	for _, elem := range elements {
 		bounds := elem.Bounds()
 		elementID := string(elem.ID())
 
-		// Create hash of element position and size
-		hashInput := fmt.Sprintf(
-			"%s:%d:%d:%d:%d",
-			elementID,
-			bounds.Min.X,
-			bounds.Min.Y,
-			bounds.Max.X,
-			bounds.Max.Y,
-		)
-		hash := fmt.Sprintf("%x", md5.Sum([]byte(hashInput)))
+		// Compute binary hash without string allocations
+		hash := computeElementHash(bounds)
 
 		cached, exists := s.elementCache[elementID]
 		if !exists || cached.hash != hash {
@@ -231,15 +228,8 @@ func (s *HintService) updateElementCache(elements []*element.Element) {
 		bounds := elem.Bounds()
 		elementID := string(elem.ID())
 
-		hashInput := fmt.Sprintf(
-			"%s:%d:%d:%d:%d",
-			elementID,
-			bounds.Min.X,
-			bounds.Min.Y,
-			bounds.Max.X,
-			bounds.Max.Y,
-		)
-		hash := fmt.Sprintf("%x", md5.Sum([]byte(hashInput)))
+		// Compute binary hash without string allocations
+		hash := computeElementHash(bounds)
 
 		s.elementCache[elementID] = &elementCacheEntry{
 			element:   elem,
@@ -250,4 +240,15 @@ func (s *HintService) updateElementCache(elements []*element.Element) {
 	}
 
 	s.logger.Debug("Updated element cache", zap.Int("cached_elements", len(s.elementCache)))
+}
+
+// computeElementHash computes a fast hash of element bounds using xxhash.
+func computeElementHash(bounds image.Rectangle) uint64 {
+	var buf [16]byte
+	binary.LittleEndian.PutUint32(buf[0:4], uint32(bounds.Min.X))
+	binary.LittleEndian.PutUint32(buf[4:8], uint32(bounds.Min.Y))
+	binary.LittleEndian.PutUint32(buf[8:12], uint32(bounds.Max.X))
+	binary.LittleEndian.PutUint32(buf[12:16], uint32(bounds.Max.Y))
+
+	return xxhash.Sum64(buf[:])
 }

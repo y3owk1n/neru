@@ -13,6 +13,20 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// TypicalElementCount is the estimated typical number of elements on a page.
+	TypicalElementCount = 200
+)
+
+// elementSlicePool is a pool of element slices for temporary use.
+var elementSlicePool = sync.Pool{
+	New: func() any {
+		s := make([]*element.Element, 0, TypicalElementCount)
+
+		return &s
+	},
+}
+
 // Adapter implements ports.AccessibilityPort by wrapping the AXClient.
 // It converts between domain models and infrastructure types.
 type Adapter struct {
@@ -75,9 +89,10 @@ func (a *Adapter) ClickableElements(
 	semaphore := make(chan struct{}, maxConcurrency)
 
 	var (
-		waitGroup   sync.WaitGroup
-		mutex       sync.Mutex
-		allElements []*element.Element
+		waitGroup sync.WaitGroup
+		mutex     sync.Mutex
+		// Pre-allocate with estimated capacity for typical web page
+		allElements = make([]*element.Element, 0, TypicalElementCount)
 		firstError  error
 	)
 
@@ -251,12 +266,7 @@ func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point) error 
 
 // CursorPosition returns the current cursor position.
 func (a *Adapter) CursorPosition(_ context.Context) (image.Point, error) {
-	pos := a.client.CursorPosition()
-	a.logger.Debug("Got cursor position",
-		zap.Int("x", pos.X),
-		zap.Int("y", pos.Y))
-
-	return pos, nil
+	return a.client.CursorPosition(), nil
 }
 
 // FocusedAppBundleID returns the bundle ID of the currently focused application.
@@ -360,7 +370,23 @@ func (a *Adapter) processClickableNodes(
 ) ([]*element.Element, error) {
 	const contextCheckInterval = 100
 
-	elements := make([]*element.Element, 0, len(clickableNodes))
+	// Get pooled slice and reset it
+	elementsPtr, ok := elementSlicePool.Get().(*[]*element.Element)
+	if !ok {
+		s := make([]*element.Element, 0, TypicalElementCount)
+		elementsPtr = &s
+	}
+
+	elements := (*elementsPtr)[:0] // Reset to zero length but keep capacity
+	defer func() {
+		// Clear references before returning to pool
+		for i := range elements {
+			elements[i] = nil
+		}
+
+		elementSlicePool.Put(elementsPtr)
+	}()
+
 	for index, node := range clickableNodes {
 		// Check context periodically
 		if index%contextCheckInterval == 0 {
@@ -383,7 +409,11 @@ func (a *Adapter) processClickableNodes(
 		}
 	}
 
-	return elements, nil
+	// Make a copy to return since we're returning the pooled slice
+	result := make([]*element.Element, len(elements))
+	copy(result, elements)
+
+	return result, nil
 }
 
 // Ensure Adapter implements ports.AccessibilityPort.

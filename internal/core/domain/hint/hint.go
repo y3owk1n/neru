@@ -109,9 +109,10 @@ type Generator interface {
 
 // TrieNode represents a node in the hint trie for efficient prefix matching.
 type TrieNode struct {
-	children map[rune]*TrieNode
-	hints    []*Interface
-	isEnd    bool
+	asciiChildren [26]*TrieNode // Optimized for A-Z
+	otherChildren map[rune]*TrieNode
+	hints         []*Interface
+	isEnd         bool
 }
 
 // Trie implements a trie data structure for efficient hint prefix matching.
@@ -123,8 +124,8 @@ type Trie struct {
 func NewTrie() *Trie {
 	return &Trie{
 		root: &TrieNode{
-			children: make(map[rune]*TrieNode),
-			hints:    make([]*Interface, 0),
+			otherChildren: make(map[rune]*TrieNode),
+			hints:         nil, // Use nil instead of empty slice
 		},
 	}
 }
@@ -135,14 +136,26 @@ func (t *Trie) Insert(hint *Interface) {
 	node := t.root
 
 	for _, char := range label {
-		if node.children[char] == nil {
-			node.children[char] = &TrieNode{
-				children: make(map[rune]*TrieNode),
-				hints:    make([]*Interface, 0),
+		if char >= 'A' && char <= 'Z' {
+			index := char - 'A'
+			if node.asciiChildren[index] == nil {
+				node.asciiChildren[index] = &TrieNode{
+					otherChildren: make(map[rune]*TrieNode),
+					hints:         nil,
+				}
 			}
-		}
 
-		node = node.children[char]
+			node = node.asciiChildren[index]
+		} else {
+			if node.otherChildren[char] == nil {
+				node.otherChildren[char] = &TrieNode{
+					otherChildren: make(map[rune]*TrieNode),
+					hints:         nil,
+				}
+			}
+
+			node = node.otherChildren[char]
+		}
 	}
 
 	// Store hint only at the end node
@@ -157,11 +170,20 @@ func (t *Trie) FindByPrefix(prefix string) []*Interface {
 
 	// Traverse to the node corresponding to the prefix
 	for _, char := range prefix {
-		if node.children[char] == nil {
-			return []*Interface{} // No matches
-		}
+		if char >= 'A' && char <= 'Z' {
+			index := char - 'A'
+			if node.asciiChildren[index] == nil {
+				return nil
+			}
 
-		node = node.children[char]
+			node = node.asciiChildren[index]
+		} else {
+			if node.otherChildren[char] == nil {
+				return nil
+			}
+
+			node = node.otherChildren[char]
+		}
 	}
 
 	// Collect all hints from this node and its descendants
@@ -187,7 +209,13 @@ func (t *Trie) collectAllHintsInto(node *TrieNode, result *[]*Interface) {
 		*result = append(*result, node.hints...)
 	}
 
-	for _, child := range node.children {
+	for _, child := range node.asciiChildren {
+		if child != nil {
+			t.collectAllHintsInto(child, result)
+		}
+	}
+
+	for _, child := range node.otherChildren {
 		t.collectAllHintsInto(child, result)
 	}
 }
