@@ -249,10 +249,10 @@ func (s *HintService) updateElementCache(elements []*element.Element) {
 // computeElementHash computes a fast hash of element bounds using xxhash.
 func computeElementHash(bounds image.Rectangle) uint64 {
 	var buf [16]byte
-	binary.LittleEndian.PutUint32(buf[0:4], uint32(bounds.Min.X))
-	binary.LittleEndian.PutUint32(buf[4:8], uint32(bounds.Min.Y))
-	binary.LittleEndian.PutUint32(buf[8:12], uint32(bounds.Max.X))
-	binary.LittleEndian.PutUint32(buf[12:16], uint32(bounds.Max.Y))
+	binary.LittleEndian.PutUint32(buf[0:4], uint32(int32(bounds.Min.X)))
+	binary.LittleEndian.PutUint32(buf[4:8], uint32(int32(bounds.Min.Y)))
+	binary.LittleEndian.PutUint32(buf[8:12], uint32(int32(bounds.Max.X)))
+	binary.LittleEndian.PutUint32(buf[12:16], uint32(int32(bounds.Max.Y)))
 
 	return xxhash.Sum64(buf[:])
 }
