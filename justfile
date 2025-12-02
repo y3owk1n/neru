@@ -77,7 +77,11 @@ test-race-integration:
 
 test-coverage:
     @echo "Running tests with coverage..."
-    go test -coverprofile=coverage.txt ./...
+    go test -tags=unit -coverprofile=coverage-unit.out ./...
+    go test -tags=integration -coverprofile=coverage-integration.out ./...
+    @head -1 coverage-unit.out > coverage.txt
+    @tail -n +2 coverage-unit.out >> coverage.txt
+    @tail -n +2 coverage-integration.out >> coverage.txt
 
 test-coverage-html:
     @echo "Running tests with coverage (HTML)..."

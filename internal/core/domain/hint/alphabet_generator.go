@@ -3,7 +3,9 @@ package hint
 import (
 	"context"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/y3owk1n/neru/internal/core/domain/element"
@@ -17,6 +19,19 @@ const (
 	// CountsCapacity is the capacity for counts.
 	CountsCapacity = 5
 )
+
+// labelCache caches generated labels by count for instant reuse.
+var labelCache sync.Map // map[string][]string (key: "chars:count")
+
+// singleCharCache caches single-character strings to avoid allocations.
+var singleCharCache sync.Map // map[rune]string
+
+// stringBuilderPool is a pool of string builders for label generation.
+var stringBuilderPool = sync.Pool{
+	New: func() any {
+		return &strings.Builder{}
+	},
+}
 
 // AlphabetGenerator generates hint labels using an alphabet-based strategy.
 // It uses a prefix-avoidance algorithm to ensure no single-character label
@@ -57,6 +72,13 @@ func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
 	n := charCount
 	maxHints := n * n * n
 
+	// Pre-cache single character strings
+	for _, r := range uppercaseChars {
+		if _, ok := singleCharCache.Load(r); !ok {
+			singleCharCache.Store(r, string(r))
+		}
+	}
+
 	return &AlphabetGenerator{
 		characters:       characters,
 		uppercaseChars:   uppercaseChars,
@@ -91,8 +113,14 @@ func (g *AlphabetGenerator) Generate(
 	}
 
 	// Sort elements by position (top-to-bottom, left-to-right)
-	sorted := make([]*element.Element, len(elements))
-	copy(sorted, elements)
+	// Sort in-place if we can modify the input, otherwise copy
+	sorted := elements
+	if len(elements) > 0 {
+		// Create a copy to avoid modifying the input slice
+		sorted = make([]*element.Element, len(elements))
+		copy(sorted, elements)
+	}
+
 	sort.Slice(sorted, func(i, j int) bool {
 		boundI, boundJ := sorted[i].Bounds(), sorted[j].Bounds()
 		// Compare Y first (top to bottom)
@@ -103,7 +131,7 @@ func (g *AlphabetGenerator) Generate(
 		return boundI.Min.X < boundJ.Min.X
 	})
 
-	// Generate labels
+	// Generate labels (with caching)
 	labels := g.generateLabels(len(sorted))
 
 	// Create hints
@@ -171,6 +199,13 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 	g.maxHints = maxHints
 	g.uppercaseRuneMap = uppercaseRuneMap
 
+	// Pre-cache single character strings
+	for _, r := range g.uppercaseChars {
+		if _, ok := singleCharCache.Load(r); !ok {
+			singleCharCache.Store(r, string(r))
+		}
+	}
+
 	return nil
 }
 
@@ -178,11 +213,31 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 // It ensures no label is a prefix of another to prevent ambiguity during input.
 // Returns uppercase labels sorted by length then alphabetically.
 // Uses a level-based approach where each level represents labels of increasing length.
+// Results are cached for instant reuse on repeated counts.
 func (g *AlphabetGenerator) generateLabels(count int) []string {
 	if count == 0 {
 		return nil
 	}
 
+	// Check cache first (key: "chars:count")
+	cacheKey := g.uppercaseChars + ":" + strconv.Itoa(count)
+	if cached, ok := labelCache.Load(cacheKey); ok {
+		if labels, ok := cached.([]string); ok {
+			return labels
+		}
+	}
+
+	// Generate labels if not cached
+	labels := g.computeLabels(count)
+
+	// Store in cache for future use
+	labelCache.Store(cacheKey, labels)
+
+	return labels
+}
+
+// computeLabels performs the actual label generation (extracted for caching).
+func (g *AlphabetGenerator) computeLabels(count int) []string {
 	chars := []rune(g.uppercaseChars)
 	numChars := len(chars)
 	labels := make([]string, 0, count)
@@ -236,7 +291,16 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 		if length == 1 {
 			// Generate single-character labels
 			for i := range keep {
-				labels = append(labels, string(chars[i]))
+				char := chars[i]
+				if cached, ok := singleCharCache.Load(char); ok {
+					if str, ok := cached.(string); ok {
+						labels = append(labels, str)
+
+						continue
+					}
+				}
+
+				labels = append(labels, string(char))
 			}
 			// Start next level from after the kept labels
 			current = []int{keep}
@@ -251,8 +315,13 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 
 			// Generate 'keep' labels starting from current position
 			for range keep {
-				// Build label string from current indices
-				var stringBuilder strings.Builder
+				// Build label string from current indices using pooled builder
+				stringBuilder, ok := stringBuilderPool.Get().(*strings.Builder)
+				if !ok {
+					stringBuilder = &strings.Builder{}
+				}
+
+				stringBuilder.Reset()
 				stringBuilder.Grow(length)
 
 				for _, index := range current {
@@ -260,6 +329,7 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 				}
 
 				labels = append(labels, stringBuilder.String())
+				stringBuilderPool.Put(stringBuilder)
 
 				// Increment current position (like adding 1 in base-N)
 				for pos := len(current) - 1; pos >= 0; pos-- {

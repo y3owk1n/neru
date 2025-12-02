@@ -3,6 +3,7 @@ package accessibility
 import (
 	"context"
 	"image"
+	"runtime"
 	"sync"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -12,6 +13,32 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
 )
+
+const (
+	// TypicalElementCount is the estimated number of elements to pre-allocate.
+	TypicalElementCount = 50
+
+	// ConcurrentProcessingThreshold is the number of nodes that triggers concurrent processing.
+	ConcurrentProcessingThreshold = 100
+
+	// EstimatedFilteringRatio is the estimated ratio of nodes that pass the filter.
+	EstimatedFilteringRatio = 2
+
+	// contextCheckInterval is the interval for checking context cancellation.
+	contextCheckInterval = 100
+
+	// maxConcurrentWorkers is the maximum number of workers for concurrent processing.
+	maxConcurrentWorkers = 8
+)
+
+// elementSlicePool is a pool of element slices for temporary use.
+var elementSlicePool = sync.Pool{
+	New: func() any {
+		s := make([]*element.Element, 0, TypicalElementCount)
+
+		return &s
+	},
+}
 
 // Adapter implements ports.AccessibilityPort by wrapping the AXClient.
 // It converts between domain models and infrastructure types.
@@ -75,9 +102,10 @@ func (a *Adapter) ClickableElements(
 	semaphore := make(chan struct{}, maxConcurrency)
 
 	var (
-		waitGroup   sync.WaitGroup
-		mutex       sync.Mutex
-		allElements []*element.Element
+		waitGroup sync.WaitGroup
+		mutex     sync.Mutex
+		// Pre-allocate with estimated capacity for typical web page
+		allElements = make([]*element.Element, 0, TypicalElementCount)
 		firstError  error
 	)
 
@@ -251,12 +279,7 @@ func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point) error 
 
 // CursorPosition returns the current cursor position.
 func (a *Adapter) CursorPosition(_ context.Context) (image.Point, error) {
-	pos := a.client.CursorPosition()
-	a.logger.Debug("Got cursor position",
-		zap.Int("x", pos.X),
-		zap.Int("y", pos.Y))
-
-	return pos, nil
+	return a.client.CursorPosition(), nil
 }
 
 // FocusedAppBundleID returns the bundle ID of the currently focused application.
@@ -358,9 +381,28 @@ func (a *Adapter) processClickableNodes(
 	clickableNodes []AXNode,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
-	const contextCheckInterval = 100
+	// Get pooled slice and reset it
+	elementsPtr, ok := elementSlicePool.Get().(*[]*element.Element)
+	if !ok {
+		s := make([]*element.Element, 0, TypicalElementCount)
+		elementsPtr = &s
+	}
 
-	elements := make([]*element.Element, 0, len(clickableNodes))
+	elements := (*elementsPtr)[:0] // Reset to zero length but keep capacity
+	defer func() {
+		// Clear references before returning to pool
+		for i := range elements {
+			elements[i] = nil
+		}
+
+		elementSlicePool.Put(elementsPtr)
+	}()
+
+	// Concurrent processing for large number of nodes
+	if len(clickableNodes) > ConcurrentProcessingThreshold {
+		return a.processClickableNodesConcurrent(ctx, clickableNodes, filter)
+	}
+
 	for index, node := range clickableNodes {
 		// Check context periodically
 		if index%contextCheckInterval == 0 {
@@ -383,7 +425,95 @@ func (a *Adapter) processClickableNodes(
 		}
 	}
 
-	return elements, nil
+	// Make a copy to return since we're returning the pooled slice
+	result := make([]*element.Element, len(elements))
+	copy(result, elements)
+
+	return result, nil
+}
+
+// processClickableNodesConcurrent processes nodes in parallel using a worker pool.
+func (a *Adapter) processClickableNodesConcurrent(
+	ctx context.Context,
+	nodes []AXNode,
+	filter ports.ElementFilter,
+) ([]*element.Element, error) {
+	numWorkers := min(
+		// Use available parallelism
+		runtime.GOMAXPROCS(0),
+		// Cap to avoid diminishing returns
+		maxConcurrentWorkers)
+
+	chunkSize := (len(nodes) + numWorkers - 1) / numWorkers
+
+	type result struct {
+		elements []*element.Element
+		err      error
+	}
+
+	results := make(chan result, numWorkers)
+
+	var waitGroup sync.WaitGroup
+
+	for i := range numWorkers {
+		start := i * chunkSize
+
+		end := start + chunkSize
+		if start >= len(nodes) {
+			break
+		}
+
+		if end > len(nodes) {
+			end = len(nodes)
+		}
+
+		waitGroup.Add(1)
+
+		go func(chunk []AXNode) {
+			defer waitGroup.Done()
+
+			// Use local slice to avoid locking
+			localElements := make([]*element.Element, 0, len(chunk))
+
+			for idx, node := range chunk {
+				if idx%contextCheckInterval == 0 && ctx.Err() != nil {
+					results <- result{err: ctx.Err()}
+
+					return
+				}
+
+				elem, err := a.convertToDomainElement(node)
+				if err != nil {
+					continue
+				}
+
+				if a.MatchesFilter(elem, filter) {
+					localElements = append(localElements, elem)
+				}
+			}
+
+			results <- result{elements: localElements}
+		}(nodes[start:end])
+	}
+
+	go func() {
+		waitGroup.Wait()
+		close(results)
+	}()
+
+	// Collect results
+	// Pre-allocate based on input size estimate (conservative)
+	allElements := make([]*element.Element, 0, len(nodes)/EstimatedFilteringRatio)
+
+	for res := range results {
+		if res.err != nil {
+			return nil, res.err
+		}
+
+		allElements = append(allElements, res.elements...)
+	}
+
+	return allElements, nil
 }
 
 // Ensure Adapter implements ports.AccessibilityPort.

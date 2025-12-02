@@ -23,16 +23,22 @@ const (
 	ActionPrefixExec = "exec"
 )
 
+// knownActionNames is the cached slice of all supported action names to avoid heap allocation.
+var knownActionNames = []ActionName{
+	ActionNameLeftClick,
+	ActionNameRightClick,
+	ActionNameMiddleClick,
+	ActionNameMouseDown,
+	ActionNameMouseUp,
+	ActionNameScroll,
+}
+
 // KnownActionNames returns a slice containing all supported action names.
 func KnownActionNames() []ActionName {
-	return []ActionName{
-		ActionNameLeftClick,
-		ActionNameRightClick,
-		ActionNameMiddleClick,
-		ActionNameMouseDown,
-		ActionNameMouseUp,
-		ActionNameScroll,
-	}
+	result := make([]ActionName, len(knownActionNames))
+	copy(result, knownActionNames)
+
+	return result
 }
 
 // SupportedActionsString returns a comma-separated string of supported actions for user messages.

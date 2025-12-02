@@ -18,6 +18,9 @@ type Manager struct {
 	debounceTimer    *time.Timer
 	debounceDuration time.Duration
 	mu               sync.Mutex // Protects onUpdate callback
+
+	// Performance optimization: reuse slice buffer for filtered hints
+	cachedFilteredHints []*Interface
 }
 
 const (
@@ -111,12 +114,18 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 			if m.hints != nil {
 				filtered := m.hints.FilterByPrefix(m.CurrentInput())
 
-				hintsWithPrefix := make([]*Interface, len(filtered))
-				for i, h := range filtered {
-					hintsWithPrefix[i] = h.WithMatchedPrefix(m.CurrentInput())
+				// Reuse cached buffer
+				if cap(m.cachedFilteredHints) < len(filtered) {
+					m.cachedFilteredHints = make([]*Interface, len(filtered))
+				} else {
+					m.cachedFilteredHints = m.cachedFilteredHints[:len(filtered)]
 				}
 
-				m.debouncedUpdate(hintsWithPrefix)
+				for i, h := range filtered {
+					m.cachedFilteredHints[i] = h.WithMatchedPrefix(m.CurrentInput())
+				}
+
+				m.debouncedUpdate(m.cachedFilteredHints)
 			}
 		} else {
 			// Reset to show all hints if backspacing from empty input
@@ -151,24 +160,29 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 		return nil, false
 	}
 
-	// Update matched prefix for all filtered hints
-	hintsWithPrefix := make([]*Interface, len(filtered))
+	// Update matched prefix for all filtered hints using cached buffer
+	if cap(m.cachedFilteredHints) < len(filtered) {
+		m.cachedFilteredHints = make([]*Interface, len(filtered))
+	} else {
+		m.cachedFilteredHints = m.cachedFilteredHints[:len(filtered)]
+	}
+
 	for i, h := range filtered {
-		hintsWithPrefix[i] = h.WithMatchedPrefix(m.CurrentInput())
+		m.cachedFilteredHints[i] = h.WithMatchedPrefix(m.CurrentInput())
 	}
 
 	// Check for exact match
-	if len(hintsWithPrefix) == 1 && hintsWithPrefix[0].Label() == m.CurrentInput() {
+	if len(m.cachedFilteredHints) == 1 && m.cachedFilteredHints[0].Label() == m.CurrentInput() {
 		if m.Logger != nil {
 			m.Logger.Info("Hint manager: Exact match found",
-				zap.String("label", hintsWithPrefix[0].Label()))
+				zap.String("label", m.cachedFilteredHints[0].Label()))
 		}
 
-		return hintsWithPrefix[0], true
+		return m.cachedFilteredHints[0], true
 	}
 
 	// Notify update callback with filtered hints (with matched prefix set)
-	m.debouncedUpdate(hintsWithPrefix)
+	m.debouncedUpdate(m.cachedFilteredHints)
 
 	return nil, false
 }
@@ -193,13 +207,17 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 		m.debounceTimer.Stop()
 	}
 
+	// Copy hints to avoid race with slice reuse
+	hintsCopy := make([]*Interface, len(hints))
+	copy(hintsCopy, hints)
+
 	// Start new timer
 	m.debounceTimer = time.AfterFunc(m.debounceDuration, func() {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 
 		if m.onUpdate != nil {
-			m.onUpdate(hints)
+			m.onUpdate(hintsCopy)
 		}
 	})
 }
