@@ -28,6 +28,13 @@ const (
 	ModeAction = domain.ModeAction
 )
 
+// SystrayComponent defines the interface for systray functionality.
+type SystrayComponent interface {
+	OnReady()
+	OnExit()
+	Close()
+}
+
 // App represents the main application instance containing all state and dependencies.
 type App struct {
 	config     *config.Config
@@ -59,10 +66,11 @@ type App struct {
 	configService *config.Service
 
 	// Feature components
-	hintsComponent  *components.HintsComponent
-	gridComponent   *components.GridComponent
-	scrollComponent *components.ScrollComponent
-	actionComponent *components.ActionComponent
+	hintsComponent   *components.HintsComponent
+	gridComponent    *components.GridComponent
+	scrollComponent  *components.ScrollComponent
+	actionComponent  *components.ActionComponent
+	systrayComponent SystrayComponent
 
 	// Lifecycle management
 	gcCancel         context.CancelFunc

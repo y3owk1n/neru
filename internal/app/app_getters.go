@@ -94,3 +94,14 @@ func (a *App) EventTap() ports.EventTapPort { return a.eventTap }
 
 // CurrentMode returns the current mode.
 func (a *App) CurrentMode() Mode { return a.appState.CurrentMode() }
+
+// GetSystrayComponent returns the systray component.
+func (a *App) GetSystrayComponent() SystrayComponent {
+	return a.systrayComponent
+}
+
+// OnEnabledStateChanged registers a callback for when the enabled state changes.
+func (a *App) OnEnabledStateChanged(callback func(bool)) {
+	// Delegate to appState
+	a.appState.OnEnabledStateChanged(callback)
+}

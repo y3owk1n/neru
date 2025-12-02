@@ -15,6 +15,9 @@ type AppState struct {
 	enabled     bool
 	currentMode domain.Mode
 
+	// Callbacks
+	enabledStateCallbacks []func(bool)
+
 	// Operational flags
 	hotkeysRegistered       bool
 	screenChangeProcessing  bool
@@ -42,9 +45,34 @@ func (s *AppState) IsEnabled() bool {
 // SetEnabled sets the enabled state of the application.
 func (s *AppState) SetEnabled(enabled bool) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
+	oldEnabled := s.enabled
 	s.enabled = enabled
+	callbacks := make([]func(bool), len(s.enabledStateCallbacks))
+	copy(callbacks, s.enabledStateCallbacks)
+	s.mu.Unlock()
+
+	// Notify all callbacks if state actually changed
+	if oldEnabled != enabled {
+		for _, callback := range callbacks {
+			if callback != nil {
+				// Call callback outside of lock to avoid deadlocks
+				go callback(enabled)
+			}
+		}
+	}
+}
+
+// OnEnabledStateChanged registers a callback for when the enabled state changes.
+func (s *AppState) OnEnabledStateChanged(callback func(bool)) {
+	s.mu.Lock()
+	s.enabledStateCallbacks = append(s.enabledStateCallbacks, callback)
+	currentState := s.enabled
+	s.mu.Unlock()
+
+	// Call immediately with current state
+	if callback != nil {
+		go callback(currentState)
+	}
 }
 
 // Enable enables the application.

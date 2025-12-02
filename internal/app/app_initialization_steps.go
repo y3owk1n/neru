@@ -6,6 +6,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/systray"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
@@ -155,6 +156,12 @@ func initializeUIComponents(app *App) error {
 	app.actionComponent = actionComponent
 
 	return nil
+}
+
+// initializeSystrayComponent creates and configures the systray component.
+func initializeSystrayComponent(app *App) {
+	systrayComponent := systray.NewComponent(app, app.logger)
+	app.systrayComponent = systrayComponent
 }
 
 // initializeRendererAndOverlays sets up the overlay renderer and registers
