@@ -32,6 +32,7 @@ const (
 type SystrayComponent interface {
 	OnReady()
 	OnExit()
+	Close()
 }
 
 // App represents the main application instance containing all state and dependencies.

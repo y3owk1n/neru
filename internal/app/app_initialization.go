@@ -100,7 +100,7 @@ func initializeApp(app *App) (*App, error) {
 	initializedPhases = append(initializedPhases, func() {
 		// Cleanup systray component if it was initialized
 		if app.systrayComponent != nil {
-			app.systrayComponent.OnExit()
+			app.systrayComponent.Close()
 		}
 
 		app.systrayComponent = nil

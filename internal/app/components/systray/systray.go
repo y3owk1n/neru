@@ -125,6 +125,14 @@ func (c *Component) OnExit() {
 	c.app.Cleanup()
 }
 
+// Close cleans up systray component resources without triggering app cleanup.
+// This is used during initialization failure cleanup to avoid double cleanup.
+func (c *Component) Close() {
+	c.cancel()               // Signal goroutine to stop
+	close(c.stateUpdateChan) // Close channel to prevent sends
+	// Note: We don't call c.app.Cleanup() here to avoid double cleanup during init failure
+}
+
 // updateMenuItems updates the systray menu items based on the current enabled state.
 func (c *Component) updateMenuItems(enabled bool) {
 	// Update tooltip, icon, and status menu item to show current status
