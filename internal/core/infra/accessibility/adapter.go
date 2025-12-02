@@ -26,6 +26,9 @@ const (
 
 	// contextCheckInterval is the interval for checking context cancellation.
 	contextCheckInterval = 100
+
+	// maxConcurrentWorkers is the maximum number of workers for concurrent processing.
+	maxConcurrentWorkers = 8
 )
 
 // elementSlicePool is a pool of element slices for temporary use.
@@ -435,10 +438,12 @@ func (a *Adapter) processClickableNodesConcurrent(
 	nodes []AXNode,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
-	numWorkers := runtime.GOMAXPROCS(0) // Use available parallelism
-	if numWorkers > 8 {
-		numWorkers = 8 // Cap to avoid diminishing returns
-	}
+	numWorkers := min(
+		// Use available parallelism
+		runtime.GOMAXPROCS(0),
+		// Cap to avoid diminishing returns
+		maxConcurrentWorkers)
+
 	chunkSize := (len(nodes) + numWorkers - 1) / numWorkers
 
 	type result struct {
