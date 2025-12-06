@@ -34,7 +34,7 @@ Add Neru to your flake inputs:
 {
   inputs = {
      # ... other inputs
-     neru.url = "github:y3owk1n/neru";
+     neru.url = "github:y3owk1n/neru"; # or "https://flakehub.com/f/y3owk1n/neru/0.1"
      # ... other inputs
   };
 }
