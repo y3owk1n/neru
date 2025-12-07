@@ -51,6 +51,34 @@ func TestConfig_ValidateHints(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "hints with unicode characters - invalid",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters: "aé😀", // Invalid - contains Unicode
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints with valid ASCII digits and symbols",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "123!@#", // Valid - ASCII digits and symbols
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -193,6 +221,72 @@ func TestConfig_ValidateGrid(t *testing.T) {
 					Enabled:         true,
 					Characters:      "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
 					BackgroundColor: "invalid",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with reserved reset character",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters: "ABC<DEF", // Contains '<'
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with unicode characters - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters: "abcé😀", // Invalid - contains Unicode
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with valid ASCII digits and symbols",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:             "123!@#",    // Valid - ASCII digits and symbols
+					SublayerKeys:           "abcdefghi", // Required for subgrid
+					Opacity:                0.8,
+					BackgroundColor:        "#FF0000",
+					TextColor:              "#FFFFFF",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#333333",
+					MatchedBorderColor:     "#FF0000",
+					BorderColor:            "#666666",
+					FontSize:               14,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "grid with sublayer_keys containing unicode - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABC",
+					SublayerKeys: "abcdefg-é", // Invalid - contains Unicode
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with sublayer_keys containing unicode - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABC",
+					SublayerKeys: "abcdefg-é", // Invalid - contains Unicode
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with sublayer_keys containing reserved character - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABC",
+					SublayerKeys: "abcdefg<h", // Invalid - contains '<'
 				},
 			},
 			wantErr: true,

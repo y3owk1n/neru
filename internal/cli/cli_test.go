@@ -32,10 +32,6 @@ func getActionCmd(name string) *cobra.Command {
 func TestBuildSimpleCommand(t *testing.T) {
 	cmd := cli.BuildSimpleCommand("test", "short desc", "long desc", "action")
 
-	if cmd == nil {
-		t.Fatal("BuildSimpleCommand returned nil")
-	}
-
 	if cmd.Use != "test" {
 		t.Errorf("expected Use='test', got %q", cmd.Use)
 	}
@@ -60,10 +56,6 @@ func TestBuildSimpleCommand(t *testing.T) {
 
 func TestBuildActionCommand(t *testing.T) {
 	cmd := cli.BuildActionCommand("test", "short desc", "long desc", []string{"arg1"})
-
-	if cmd == nil {
-		t.Fatal("BuildActionCommand returned nil")
-	}
 
 	if cmd.Use != "test" {
 		t.Errorf("expected Use='test', got %q", cmd.Use)

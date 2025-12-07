@@ -150,3 +150,33 @@ func TestManager_Reset(t *testing.T) {
 		t.Errorf("After reset, CurrentInput() = %q, want empty", input)
 	}
 }
+
+func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
+	logger := logger.Get()
+	// Create grid with only numbers and symbols
+	testGrid := grid.NewGrid("123!@", image.Rect(0, 0, 500, 500), logger)
+
+	manager := grid.NewManager(testGrid, 2, 2, "ab", nil, nil, logger)
+
+	// Test that numbers are accepted
+	_, complete := manager.HandleInput("1")
+	if complete {
+		t.Error("Expected not complete after single number")
+	}
+
+	if input := manager.CurrentInput(); input != "1" {
+		t.Errorf("CurrentInput() = %q, want '1'", input)
+	}
+
+	manager.Reset()
+
+	// Test that symbols are accepted
+	_, complete2 := manager.HandleInput("!")
+	if complete2 {
+		t.Error("Expected not complete after single symbol")
+	}
+
+	if input := manager.CurrentInput(); input != "!" {
+		t.Errorf("CurrentInput() = %q, want '!'", input)
+	}
+}
