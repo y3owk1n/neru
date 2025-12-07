@@ -388,6 +388,24 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "grid with duplicate characters in sublayer_keys - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					SublayerKeys:           "aaabbbccc", // Contains duplicate 'a', 'b', 'c'
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "grid with duplicate characters - invalid",
 			config: config.Config{
 				Grid: config.GridConfig{

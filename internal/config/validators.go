@@ -342,6 +342,14 @@ func (c *Config) ValidateGrid() error {
 		}
 	}
 
+	// Check for duplicate characters in sublayer_keys
+	if duplicates := findDuplicateChars(keys); len(duplicates) > 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			fmt.Sprintf("grid.sublayer_keys contains duplicate characters: %v", duplicates),
+		)
+	}
+
 	// Subgrid is always 3x3, requiring at least 9 characters
 	const required = 9
 	if len([]rune(keys)) < required {
