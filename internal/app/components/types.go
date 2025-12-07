@@ -44,13 +44,27 @@ func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) 
 		}
 
 		if g.Manager != nil {
-			// Recreate grid if characters changed
+			// Recreate grid if characters or labels changed
 			oldGrid := g.Manager.Grid()
-			if oldGrid != nil && config.Grid.Characters != "" &&
-				strings.ToUpper(config.Grid.Characters) != oldGrid.Characters() {
-				logger.Debug("Recreating grid with new characters")
-				newGrid := domainGrid.NewGrid(config.Grid.Characters, oldGrid.Bounds(), logger)
-				g.Manager.UpdateGrid(newGrid)
+			if oldGrid != nil && config.Grid.Characters != "" {
+				charactersChanged := strings.ToUpper(config.Grid.Characters) != oldGrid.Characters()
+				rowLabelsChanged := strings.ToUpper(config.Grid.RowLabels) != oldGrid.RowLabels()
+				colLabelsChanged := strings.ToUpper(config.Grid.ColLabels) != oldGrid.ColLabels()
+
+				if charactersChanged || rowLabelsChanged || colLabelsChanged {
+					logger.Debug("Recreating grid due to config changes",
+						zap.Bool("charactersChanged", charactersChanged),
+						zap.Bool("rowLabelsChanged", rowLabelsChanged),
+						zap.Bool("colLabelsChanged", colLabelsChanged))
+					newGrid := domainGrid.NewGridWithLabels(
+						config.Grid.Characters,
+						config.Grid.RowLabels,
+						config.Grid.ColLabels,
+						oldGrid.Bounds(),
+						logger,
+					)
+					g.Manager.UpdateGrid(newGrid)
+				}
 			}
 
 			// Update manager subgrid keys if they changed

@@ -9,6 +9,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
+const testCharacters = "ABC"
+
 func TestGrid_Initialization(t *testing.T) {
 	log := logger.Get()
 	tests := []struct {
@@ -114,10 +116,10 @@ func TestCell_Methods(t *testing.T) {
 func TestGrid_Getters(t *testing.T) {
 	logger := logger.Get()
 	bounds := image.Rect(0, 0, 1920, 1080)
-	gridInstance := grid.NewGrid("ABC", bounds, logger)
+	gridInstance := grid.NewGrid(testCharacters, bounds, logger)
 
-	if gridInstance.Characters() != "ABC" {
-		t.Errorf("Characters() = %q, want %q", gridInstance.Characters(), "ABC")
+	if gridInstance.Characters() != testCharacters {
+		t.Errorf("Characters() = %q, want %q", gridInstance.Characters(), testCharacters)
 	}
 
 	if gridInstance.Bounds() != bounds {
@@ -147,7 +149,7 @@ func TestCalculateOptimalGrid(t *testing.T) {
 		wantRows   int
 		wantCols   int
 	}{
-		{"normal characters", "ABC", 3, 3},
+		{"normal characters", testCharacters, 3, 3},
 		{"empty string", "", 9, 9},
 		{"single character", "A", 9, 9},
 		{"long string", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26, 26},
@@ -210,5 +212,123 @@ func TestGrid_EmptyCharacters(t *testing.T) {
 			"Single character should default to alphabet, got %q",
 			gridInstance.Characters(),
 		)
+	}
+}
+
+func TestGrid_WithCustomLabels(t *testing.T) {
+	logger := logger.Get()
+	bounds := image.Rect(0, 0, 300, 300)
+
+	// Test with custom row and column labels
+	gridInstance := grid.NewGridWithLabels(testCharacters, "123", "XYZ", bounds, logger)
+
+	if gridInstance.Characters() != testCharacters {
+		t.Errorf("Characters() = %q, want %q", gridInstance.Characters(), testCharacters)
+	}
+
+	// Check ValidCharacters includes all used characters
+	validChars := gridInstance.ValidCharacters()
+
+	expectedChars := "ABC123XYZ"
+	for _, r := range expectedChars {
+		if !strings.ContainsRune(validChars, r) {
+			t.Errorf("ValidCharacters() missing %c, got %q", r, validChars)
+		}
+	}
+
+	// Check that cells use the custom labels
+	cells := gridInstance.Cells()
+	if len(cells) == 0 {
+		t.Fatal("No cells generated")
+	}
+
+	// Check for unique coordinates
+	foundLabels := make(map[string]bool)
+	for _, cell := range cells {
+		if foundLabels[cell.Coordinate()] {
+			t.Errorf("Duplicate coordinate found: %s", cell.Coordinate())
+		}
+
+		foundLabels[cell.Coordinate()] = true
+	}
+
+	// Should have unique coordinates for all cells
+	if len(foundLabels) != len(cells) {
+		t.Errorf("Expected %d unique coordinates, got %d", len(cells), len(foundLabels))
+	}
+}
+
+func TestGrid_CustomLabelsWithSymbols(t *testing.T) {
+	logger := logger.Get()
+	bounds := image.Rect(0, 0, 500, 500)
+
+	// Test with symbols in labels (like user's config)
+	characters := "AOEUIDHTNSPYFGKXBM"
+	rowLabels := "',.PYFGCRL/AOEUIDHTNS-;QJKXBMWVZ="
+	colLabels := "AOEUIDHTNS"
+
+	gridInstance := grid.NewGridWithLabels(characters, rowLabels, colLabels, bounds, logger)
+
+	// Check ValidCharacters includes symbols
+	validChars := gridInstance.ValidCharacters()
+
+	expectedSymbols := "',./-;=QJKXBMWVZPYFGCRL"
+	for _, r := range expectedSymbols {
+		if !strings.ContainsRune(validChars, r) {
+			t.Errorf("ValidCharacters() missing symbol %c, got %q", r, validChars)
+		}
+	}
+
+	// Check cells have unique coordinates
+	cells := gridInstance.Cells()
+
+	coordMap := make(map[string]bool)
+	for _, cell := range cells {
+		coord := cell.Coordinate()
+		if coordMap[coord] {
+			t.Errorf("Duplicate coordinate: %s", coord)
+		}
+
+		coordMap[coord] = true
+
+		// Verify coordinate uses valid characters
+		for _, r := range coord {
+			if !strings.ContainsRune(validChars, r) {
+				t.Errorf("Coordinate %s contains invalid character %c", coord, r)
+			}
+		}
+	}
+}
+
+func TestGrid_BackwardCompatibility(t *testing.T) {
+	logger := logger.Get()
+	bounds := image.Rect(0, 0, 300, 300)
+
+	// Test that old NewGrid still works (empty row/col labels)
+	gridInstance := grid.NewGrid(testCharacters, bounds, logger)
+
+	if gridInstance.Characters() != testCharacters {
+		t.Errorf("Characters() = %q, want %q", gridInstance.Characters(), testCharacters)
+	}
+
+	// ValidCharacters should be same as Characters when no custom labels
+	if gridInstance.ValidCharacters() != gridInstance.Characters() {
+		t.Errorf(
+			"ValidCharacters() = %q, want %q",
+			gridInstance.ValidCharacters(),
+			gridInstance.Characters(),
+		)
+	}
+
+	// Should have unique coordinates
+	cells := gridInstance.Cells()
+
+	coordMap := make(map[string]bool)
+	for _, cell := range cells {
+		if coordMap[cell.Coordinate()] {
+			t.Errorf("Duplicate coordinate: %s", cell.Coordinate())
+		}
+
+		coordMap[cell.Coordinate()] = true
 	}
 }

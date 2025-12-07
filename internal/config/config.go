@@ -111,6 +111,11 @@ type GridConfig struct {
 	Characters   string `json:"characters"   toml:"characters"`
 	SublayerKeys string `json:"sublayerKeys" toml:"sublayer_keys"`
 
+	// Optional custom labels for rows and columns
+	// If not provided, labels will be inferred from characters
+	RowLabels string `json:"rowLabels" toml:"row_labels"`
+	ColLabels string `json:"colLabels" toml:"col_labels"`
+
 	FontSize    int     `json:"fontSize"    toml:"font_size"`
 	FontFamily  string  `json:"fontFamily"  toml:"font_family"`
 	Opacity     float64 `json:"opacity"     toml:"opacity"`

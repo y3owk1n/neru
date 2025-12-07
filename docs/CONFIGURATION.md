@@ -216,8 +216,31 @@ Grid mode provides accessibility-independent navigation using coordinate-based s
 ```toml
 [grid]
 enabled = true
+
+# Characters to use for grid labels
+# Requirements:
+# - Must contain at least 2 characters
+# - Only ASCII characters allowed (no Unicode)
+# - Cannot contain '<' (reserved for reset)
+# - No duplicate characters (case-insensitive)
 characters = "abcdefghijklmnpqrstuvwxyz"
+
+# Characters to use for subgrid labels (fallback to grid.characters)
+# Same requirements as characters above
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
+
+# Optional custom labels for rows and columns
+# If not provided, labels will be inferred from characters
+# Requirements (when specified):
+# - Must contain at least 2 characters
+# - Only ASCII characters allowed
+# - Cannot contain '<' (reserved for reset)
+# - No duplicate characters (case-insensitive)
+# - Can include symbols for advanced keyboard layouts
+# row_labels = "123456789"      # Numbers for rows
+# col_labels = "abcdefghij"     # Letters for columns
+# row_labels = "',.pyfgcrl/"    # Symbols for rows
+# col_labels = "aoeuidhtns"     # Dvorak-style for columns
 
 # Visual styling
 font_size = 12

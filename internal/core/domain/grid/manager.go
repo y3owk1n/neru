@@ -73,8 +73,16 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	}
 
 	// Ignore keys that are not single characters or not in the configured characters, except reset
-	if len(key) != 1 ||
-		(key != resetKey && !strings.Contains(m.grid.Characters(), strings.ToUpper(key))) {
+	upper := strings.ToUpper(key)
+
+	allowed := false
+	if m.inSubgrid {
+		allowed = strings.Contains(m.subKeys, upper)
+	} else if m.grid != nil {
+		allowed = strings.Contains(m.grid.ValidCharacters(), upper)
+	}
+
+	if len(key) != 1 || (key != resetKey && !allowed) {
 		return image.Point{}, false
 	}
 
@@ -181,23 +189,13 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 
 // validateInputKey validates the input key.
 func (m *Manager) validateInputKey(key string) bool {
-	if m.grid != nil && !strings.Contains(m.grid.Characters(), key) {
-		return false
+	if m.inSubgrid {
+		return strings.Contains(m.subKeys, key)
+	} else if m.grid != nil {
+		return strings.Contains(m.grid.ValidCharacters(), key)
 	}
 
-	potentialInput := m.CurrentInput() + key
-	validPrefix := false
-
-	for _, cell := range m.grid.Cells() {
-		if len(cell.Coordinate()) >= len(potentialInput) &&
-			strings.HasPrefix(cell.Coordinate(), potentialInput) {
-			validPrefix = true
-
-			break
-		}
-	}
-
-	return validPrefix
+	return false
 }
 
 // handleSubgridSelection handles subgrid selection.
