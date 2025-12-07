@@ -3,6 +3,7 @@ package grid
 import (
 	"image"
 	"math"
+	"slices"
 	"strings"
 	"sync"
 
@@ -347,12 +348,14 @@ func (g *Grid) ValidCharacters() string {
 		charSet[r] = true
 	}
 
-	var result strings.Builder
+	result := make([]rune, 0, len(charSet))
 	for r := range charSet {
-		result.WriteRune(r)
+		result = append(result, r)
 	}
 
-	return result.String()
+	slices.Sort(result)
+
+	return string(result)
 }
 
 // Bounds returns the screen bounds.
