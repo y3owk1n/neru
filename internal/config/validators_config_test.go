@@ -244,6 +244,203 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "grid with valid row_labels",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					RowLabels:              "123456789",
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "grid with valid col_labels",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					ColLabels:              "abcdefghij",
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "grid with too short row_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					RowLabels:              "1", // Too short
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with too short col_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					ColLabels:              "a", // Too short
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with reserved character in row_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					RowLabels:              "123<456", // Contains '<'
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with reserved character in col_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					ColLabels:              "abc<def", // Contains '<'
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with unicode in row_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					RowLabels:              "123é456", // Contains Unicode
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with unicode in col_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					ColLabels:              "abc😀def", // Contains Unicode
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with duplicate characters - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "AaaBCDEF", // Contains duplicate 'A' and 'a'
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with duplicate characters in row_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					RowLabels:              "1123456789", // Contains duplicate '1'
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with duplicate characters in col_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Enabled:                true,
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					ColLabels:              "aabbcdef", // Contains duplicate 'a' and 'b'
+					FontSize:               12,
+					BackgroundColor:        "#ffffff",
+					TextColor:              "#000000",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#ffffff",
+					MatchedBorderColor:     "#000000",
+					BorderColor:            "#000000",
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "grid with valid ASCII digits and symbols",
 			config: config.Config{
 				Grid: config.GridConfig{

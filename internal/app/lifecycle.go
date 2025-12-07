@@ -201,7 +201,7 @@ func (a *App) handleScreenParametersChange() {
 			}
 
 			// Create new grid instance with updated bounds
-			gridInstance := domainGrid.NewGrid(characters, normalizedBounds, a.logger)
+			gridInstance := domainGrid.NewGridWithLabels(characters, a.config.Grid.RowLabels, a.config.Grid.ColLabels, normalizedBounds, a.logger)
 			a.gridComponent.Context.SetGridInstanceValue(gridInstance)
 
 			// Get current input state from grid manager if it exists

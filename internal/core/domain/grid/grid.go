@@ -73,6 +73,8 @@ const (
 // Grid represents a coordinate grid system for spatial navigation with optimized cell sizing.
 type Grid struct {
 	characters string          // Characters used for coordinates (e.g., "asdfghjkl")
+	rowChars   []rune          // Characters used for row labels
+	colChars   []rune          // Characters used for column labels
 	bounds     image.Rectangle // Screen bounds
 	cells      []*Cell         // All cells with 3-char coordinates
 	index      map[string]*Cell
@@ -117,9 +119,23 @@ func (c *Cell) Center() image.Point {
 //   - Small-medium screens (1.5-2.5M pixels): 30-80px cells
 //   - Medium-large screens (2.5-4M pixels): 40-100px cells
 //   - Very large screens (>4M pixels): 50-120px cells
+//
+// If rowLabels or colLabels are empty, they will be inferred from characters.
 func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Grid {
+	return NewGridWithLabels(characters, "", "", bounds, logger)
+}
+
+// NewGridWithLabels creates a grid with custom row and column labels.
+// If rowLabels or colLabels are empty, they will be inferred from characters.
+func NewGridWithLabels(
+	characters, rowLabels, colLabels string,
+	bounds image.Rectangle,
+	logger *zap.Logger,
+) *Grid {
 	logger.Debug("Creating new grid",
 		zap.String("characters", characters),
+		zap.String("rowLabels", rowLabels),
+		zap.String("colLabels", colLabels),
 		zap.Int("bounds_width", bounds.Dx()),
 		zap.Int("bounds_height", bounds.Dy()))
 
@@ -138,6 +154,21 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 		numChars = len(chars)
 	}
 
+	// Prepare row and column labels
+	rowChars := chars
+	colChars := chars
+
+	if rowLabels != "" {
+		rowChars = []rune(strings.ToUpper(rowLabels))
+	}
+
+	if colLabels != "" {
+		colChars = []rune(strings.ToUpper(colLabels))
+	}
+
+	numRowChars := len(rowChars)
+	numColChars := len(colChars)
+
 	width := bounds.Max.X - bounds.Min.X
 	height := bounds.Max.Y - bounds.Min.Y
 
@@ -146,7 +177,7 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 		zap.Int("height", height))
 
 	if gridCacheEnabled {
-		if cells, ok := gridCache.get(uppercaseChars, bounds); ok {
+		if cells, ok := gridCache.get(uppercaseChars, strings.ToUpper(rowLabels), strings.ToUpper(colLabels), bounds); ok {
 			logger.Debug("Grid cache hit",
 				zap.Int("cell_count", len(cells)))
 
@@ -190,19 +221,31 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 	// Calculate total cells needed to fill screen
 	totalCells := gridRows * gridCols
 
-	// Calculate maximum possible cells we can label
-	maxPossibleCells := numChars * numChars * numChars * numChars
+	// Determine optimal label length based on total cells and available characters
+	labelLength := calculateLabelLength(totalCells, numChars, numRowChars, numColChars)
+
+	// Calculate maximum possible cells we can label based on label length
+	var maxPossibleCells int
+	switch labelLength {
+	case LabelLength2:
+		maxPossibleCells = numChars * numColChars
+	case LabelLength3:
+		maxPossibleCells = numChars * numColChars * numRowChars
+	default:
+		maxPossibleCells = numChars * numChars * numColChars * numRowChars
+	}
 
 	// Cap totalCells to what we can actually label
 	if totalCells > maxPossibleCells {
-		totalCells = maxPossibleCells
-		gridCols = gridMax(int(math.Sqrt(float64(totalCells)*float64(width)/float64(height))), 1)
-		gridRows = gridMax(totalCells/gridCols, 1)
-		totalCells = gridRows * gridCols
+		// Calculate grid dimensions that fit within maxPossibleCells
+		gridCols = gridMax(
+			int(math.Sqrt(float64(maxPossibleCells)*float64(width)/float64(height))),
+			1,
+		)
+		gridRows = gridMax(maxPossibleCells/gridCols, 1)
+		// Update totalCells to match the actual grid dimensions
+		totalCells = gridRows * gridCols //nolint:ineffassign,staticcheck,wastedassign // totalCells is used later in calculateLabelLength
 	}
-
-	// Determine optimal label length based on total cells
-	labelLength := calculateLabelLength(totalCells, numChars)
 
 	// Calculate base cell sizes and remainders
 	baseCellWidth := width / gridCols
@@ -211,8 +254,21 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 	remainderHeight := height % gridRows
 
 	// Generate cells with spatial region logic
-	cells := generateCellsWithRegions(chars, numChars, gridCols, gridRows, labelLength,
-		bounds, baseCellWidth, baseCellHeight, remainderWidth, remainderHeight, logger)
+	cells := generateCellsWithRegions(
+		chars,
+		rowChars,
+		colChars,
+		numChars,
+		gridCols,
+		gridRows,
+		labelLength,
+		bounds,
+		baseCellWidth,
+		baseCellHeight,
+		remainderWidth,
+		remainderHeight,
+		logger,
+	)
 
 	logger.Debug("Grid created successfully",
 		zap.Int("cell_count", len(cells)),
@@ -221,7 +277,13 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 		zap.Int("label_length", labelLength))
 
 	if gridCacheEnabled {
-		gridCache.put(uppercaseChars, bounds, cells)
+		gridCache.put(
+			uppercaseChars,
+			strings.ToUpper(rowLabels),
+			strings.ToUpper(colLabels),
+			bounds,
+			cells,
+		)
 		logger.Debug("Grid cache store",
 			zap.Int("cell_count", len(cells)))
 	}
@@ -234,6 +296,8 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 
 	return &Grid{
 		characters: uppercaseChars,
+		rowChars:   rowChars,
+		colChars:   colChars,
 		bounds:     bounds,
 		cells:      cells,
 		index:      index,
@@ -243,6 +307,29 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 // Characters returns the characters used for coordinates.
 func (g *Grid) Characters() string {
 	return g.characters
+}
+
+// ValidCharacters returns all characters that can appear in grid coordinates.
+func (g *Grid) ValidCharacters() string {
+	charSet := make(map[rune]bool)
+	for _, r := range g.characters {
+		charSet[r] = true
+	}
+
+	for _, r := range g.rowChars {
+		charSet[r] = true
+	}
+
+	for _, r := range g.colChars {
+		charSet[r] = true
+	}
+
+	var result strings.Builder
+	for r := range charSet {
+		result.WriteRune(r)
+	}
+
+	return result.String()
 }
 
 // Bounds returns the screen bounds.
@@ -264,8 +351,11 @@ func (g *Grid) Index() map[string]*Cell {
 // Each region (identified by first char) fills left-to-right, top-to-bottom.
 // Handles variable label lengths (2, 3, or 4 chars) and distributes remainder pixels
 // to ensure cells cover the entire screen bounds without gaps.
-func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelLength int,
-	bounds image.Rectangle, baseCellWidth, baseCellHeight, remainderWidth, remainderHeight int,
+func generateCellsWithRegions(
+	chars, rowChars, colChars []rune,
+	numChars, gridCols, gridRows, labelLength int,
+	bounds image.Rectangle,
+	baseCellWidth, baseCellHeight, remainderWidth, remainderHeight int,
 	logger *zap.Logger,
 ) []*Cell {
 	logger.Debug("Generating cells with regions",
@@ -281,20 +371,20 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 	// Each region represents a group of cells sharing the same prefix character(s)
 	var regionCols, regionRows int
 
-	// Adjust region size based on label length
+	// Adjust region size based on label length and available characters
 	switch labelLength {
 	case LabelLength2:
-		// For 2-char labels: each region is numChars x numChars (single prefix char)
-		regionCols = numChars
-		regionRows = numChars
+		// For 2-char labels: each region is len(colChars) x 1
+		regionCols = len(colChars)
+		regionRows = 1
 	case LabelLength3:
-		// For 3-char labels: first char = region, next 2 chars = position within region
-		regionCols = numChars
-		regionRows = numChars
+		// For 3-char labels: region + col + row
+		regionCols = len(colChars)
+		regionRows = len(rowChars)
 	default:
-		// For 4-char labels: first 2 chars = region, last 2 chars = position
-		regionCols = numChars
-		regionRows = numChars
+		// For 4-char labels: region1 + region2 + col + row
+		regionCols = len(colChars)
+		regionRows = len(rowChars)
 	}
 
 	// Track current position as we fill regions
@@ -370,12 +460,12 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 					var stringBuilder strings.Builder
 					stringBuilder.Grow(StringBuilderGrow2)
 					stringBuilder.WriteRune(regionChar1)
-					stringBuilder.WriteRune(chars[colIndex])
+					stringBuilder.WriteRune(colChars[colIndex%len(colChars)])
 					coordinate = stringBuilder.String()
 				case LabelLength3:
 					// First char = region, second char = column, third char = row
-					char2 := chars[colIndex%numChars] // column
-					char3 := chars[rowIndex%numChars] // row
+					char2 := colChars[colIndex%len(colChars)] // column
+					char3 := rowChars[rowIndex%len(rowChars)] // row
 
 					var stringBuilder strings.Builder
 					stringBuilder.Grow(StringBuilderGrow3)
@@ -385,8 +475,8 @@ func generateCellsWithRegions(chars []rune, numChars, gridCols, gridRows, labelL
 					coordinate = stringBuilder.String()
 				default: // 4 chars
 					// First 2 chars = region, third char = column, fourth char = row
-					char3 := chars[colIndex%numChars] // column
-					char4 := chars[rowIndex%numChars] // row
+					char3 := colChars[colIndex%len(colChars)] // column
+					char4 := rowChars[rowIndex%len(rowChars)] // row
 
 					var stringBuilder strings.Builder
 					stringBuilder.Grow(StringBuilderGrow4)
@@ -486,8 +576,23 @@ func calculateOptimalCellSizes(width, height int) (int, int) {
 	return minCellSize, maxCellSize
 }
 
-// calculateLabelLength determines the optimal label length based on total cells.
-func calculateLabelLength(totalCells, numChars int) int {
+// calculateLabelLength determines the optimal label length based on total cells and available characters.
+func calculateLabelLength(totalCells, numChars, numRowChars, numColChars int) int {
+	// If custom row/col labels are provided (numRowChars/numColChars != numChars), use more labels
+	if numRowChars != numChars || numColChars != numChars {
+		max2Char := numChars * numColChars
+
+		max3Char := numChars * numColChars * numRowChars
+		switch {
+		case totalCells <= max2Char:
+			return LabelLength2
+		case totalCells <= max3Char:
+			return LabelLength3
+		default:
+			return LabelLength4
+		}
+	}
+	// Default logic when using characters for everything
 	switch {
 	case totalCells <= numChars*numChars:
 		return LabelLength2

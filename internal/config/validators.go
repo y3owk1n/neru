@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"unicode"
@@ -199,6 +200,82 @@ func (c *Config) ValidateGrid() error {
 		}
 	}
 
+	// Check for duplicate characters (case-insensitive)
+	if duplicates := findDuplicateChars(c.Grid.Characters); len(duplicates) > 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			fmt.Sprintf("grid.characters contains duplicate characters: %v", duplicates),
+		)
+	}
+
+	// Validate row labels if provided
+	if c.Grid.RowLabels != "" {
+		if len(c.Grid.RowLabels) < MinCharactersLength {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"grid.row_labels must contain at least 2 characters if specified",
+			)
+		}
+
+		if strings.Contains(c.Grid.RowLabels, "<") {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"grid.row_labels cannot contain '<' as it is reserved for reset",
+			)
+		}
+
+		for _, r := range c.Grid.RowLabels {
+			if r > unicode.MaxASCII {
+				return derrors.New(
+					derrors.CodeInvalidConfig,
+					"grid.row_labels can only contain ASCII characters",
+				)
+			}
+		}
+
+		// Check for duplicate characters in row_labels
+		if duplicates := findDuplicateChars(c.Grid.RowLabels); len(duplicates) > 0 {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				fmt.Sprintf("grid.row_labels contains duplicate characters: %v", duplicates),
+			)
+		}
+	}
+
+	// Validate col labels if provided
+	if c.Grid.ColLabels != "" {
+		if len(c.Grid.ColLabels) < MinCharactersLength {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"grid.col_labels must contain at least 2 characters if specified",
+			)
+		}
+
+		if strings.Contains(c.Grid.ColLabels, "<") {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"grid.col_labels cannot contain '<' as it is reserved for reset",
+			)
+		}
+
+		for _, r := range c.Grid.ColLabels {
+			if r > unicode.MaxASCII {
+				return derrors.New(
+					derrors.CodeInvalidConfig,
+					"grid.col_labels can only contain ASCII characters",
+				)
+			}
+		}
+
+		// Check for duplicate characters in col_labels
+		if duplicates := findDuplicateChars(c.Grid.ColLabels); len(duplicates) > 0 {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				fmt.Sprintf("grid.col_labels contains duplicate characters: %v", duplicates),
+			)
+		}
+	}
+
 	if c.Grid.FontSize < 6 || c.Grid.FontSize > 72 {
 		return derrors.New(derrors.CodeInvalidConfig, "grid.font_size must be between 6 and 72")
 	}
@@ -377,4 +454,26 @@ func ValidateColor(color, fieldName string) error {
 	}
 
 	return nil
+}
+
+// findDuplicateChars finds duplicate characters in a string (case-insensitive).
+// Returns a slice of duplicate characters found.
+func findDuplicateChars(s string) []rune {
+	seen := make(map[rune]bool)
+	duplicates := make(map[rune]bool)
+
+	for _, r := range strings.ToUpper(s) {
+		if seen[r] {
+			duplicates[r] = true
+		} else {
+			seen[r] = true
+		}
+	}
+
+	result := make([]rune, 0, len(duplicates))
+	for r := range duplicates {
+		result = append(result, r)
+	}
+
+	return result
 }

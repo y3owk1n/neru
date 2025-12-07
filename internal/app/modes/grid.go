@@ -82,7 +82,13 @@ func (h *Handler) createGridInstance() *domainGrid.Grid {
 		characters = h.config.Hints.HintCharacters
 	}
 
-	gridInstance := domainGrid.NewGrid(characters, normalizedBounds, h.logger)
+	gridInstance := domainGrid.NewGridWithLabels(
+		characters,
+		h.config.Grid.RowLabels,
+		h.config.Grid.ColLabels,
+		normalizedBounds,
+		h.logger,
+	)
 	h.grid.Context.SetGridInstanceValue(gridInstance)
 
 	return gridInstance
@@ -105,7 +111,13 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 		screenBounds := bridge.ActiveScreenBounds()
 		bounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
-		gridInstance = domainGrid.NewGrid(h.config.Grid.Characters, bounds, h.logger)
+		gridInstance = domainGrid.NewGridWithLabels(
+			h.config.Grid.Characters,
+			h.config.Grid.RowLabels,
+			h.config.Grid.ColLabels,
+			bounds,
+			h.logger,
+		)
 	}
 
 	// Configure subgrid keys for 3x3 subgrid navigation within selected cells

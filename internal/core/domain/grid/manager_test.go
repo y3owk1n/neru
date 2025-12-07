@@ -2,6 +2,7 @@ package grid_test
 
 import (
 	"image"
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/domain/grid"
@@ -178,5 +179,51 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 
 	if input := manager.CurrentInput(); input != "!" {
 		t.Errorf("CurrentInput() = %q, want '!'", input)
+	}
+}
+
+func TestManager_CustomLabelsWithSymbols(t *testing.T) {
+	logger := logger.Get()
+
+	// Create grid with custom labels containing symbols
+	testGrid := grid.NewGridWithLabels("ABC", "',.PYF", "AOEU", image.Rect(0, 0, 300, 300), logger)
+
+	// Check that ValidCharacters includes the comma
+	validChars := testGrid.ValidCharacters()
+	if !strings.Contains(validChars, ",") {
+		t.Errorf("ValidCharacters() = %q, should contain ','", validChars)
+	}
+
+	manager := grid.NewManager(testGrid, 2, 2, "ab", nil, nil, logger)
+
+	// Test that regular characters work
+	_, complete := manager.HandleInput("A")
+	if complete {
+		t.Error("Expected not complete after A")
+	}
+
+	if input := manager.CurrentInput(); input != "A" {
+		t.Errorf("CurrentInput() = %q, want 'A'", input)
+	}
+
+	// Test that symbols from row_labels are accepted
+	_, complete = manager.HandleInput(",")
+	if complete {
+		t.Error("Expected not complete after comma")
+	}
+
+	if input := manager.CurrentInput(); input != "A," {
+		t.Errorf("CurrentInput() = %q, want 'A,'", input)
+	}
+
+	// Test that invalid character is rejected
+	_, complete = manager.HandleInput("Z") // Z not in valid characters
+	if complete {
+		t.Error("Expected not complete for invalid character")
+	}
+
+	// Input should not have changed
+	if input := manager.CurrentInput(); input != "A," {
+		t.Errorf("CurrentInput() = %q, want 'A,'", input)
 	}
 }
