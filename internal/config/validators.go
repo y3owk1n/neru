@@ -173,6 +173,13 @@ func (c *Config) ValidateGrid() error {
 		)
 	}
 
+	if strings.Contains(c.Grid.Characters, "<") {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"grid.characters cannot contain '<' as it is reserved for reset",
+		)
+	}
+
 	if c.Grid.FontSize < 6 || c.Grid.FontSize > 72 {
 		return derrors.New(derrors.CodeInvalidConfig, "grid.font_size must be between 6 and 72")
 	}

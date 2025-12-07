@@ -72,8 +72,9 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 		return m.handleBackspace()
 	}
 
-	// Ignore non-letter keys except reset
-	if len(key) != 1 || !isLetter(key[0]) && key != resetKey {
+	// Ignore keys that are not single characters or not in the configured characters, except reset
+	if len(key) != 1 ||
+		(key != resetKey && !strings.Contains(m.grid.Characters(), strings.ToUpper(key))) {
 		return image.Point{}, false
 	}
 
@@ -290,8 +291,4 @@ func (m *Manager) handleResetKey(redraw bool) {
 	if m.onUpdate != nil {
 		m.onUpdate(redraw)
 	}
-}
-
-func isLetter(c byte) bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }

@@ -135,8 +135,8 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 		return nil, false
 	}
 
-	// Ignore non-letter keys
-	if len(key) != 1 || !isLetter(key[0]) {
+	// Ignore non-single-character keys
+	if len(key) != 1 {
 		return nil, false
 	}
 
@@ -220,9 +220,4 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 			m.onUpdate(hintsCopy)
 		}
 	})
-}
-
-// isLetter checks if a byte is a letter.
-func isLetter(c byte) bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }

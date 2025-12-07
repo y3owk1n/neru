@@ -170,3 +170,64 @@ func TestCollection_Empty(t *testing.T) {
 		t.Error("Non-empty collection should return false for Empty()")
 	}
 }
+
+func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
+	logger := logger.Get()
+	hintManager := hint.NewManager(logger)
+
+	// Create test elements
+	elem1, _ := element.NewElement("elem1", image.Rect(10, 10, 50, 50), element.RoleButton)
+	elem2, _ := element.NewElement("elem2", image.Rect(60, 10, 100, 50), element.RoleButton)
+	elem3, _ := element.NewElement("elem3", image.Rect(10, 60, 50, 100), element.RoleButton)
+	testElements := []*element.Element{elem1, elem2, elem3}
+
+	// Create hint generator with numbers and symbols
+	gen, err := hint.NewAlphabetGenerator("a1!")
+	if err != nil {
+		t.Fatalf("Failed to create hint generator: %v", err)
+	}
+
+	// Generate hints
+	hintInterfaces, err := gen.Generate(context.Background(), testElements)
+	if err != nil {
+		t.Fatalf("Failed to generate hints: %v", err)
+	}
+
+	// Set hints
+	collection := hint.NewCollection(hintInterfaces)
+	hintManager.SetHints(collection)
+
+	// Test that letters are accepted and complete for single-char hints
+	hint, complete := hintManager.HandleInput("a")
+	if !complete {
+		t.Error("Expected complete after single letter matching hint")
+	}
+
+	if hint == nil {
+		t.Error("Expected hint to be returned")
+	}
+
+	hintManager.Reset()
+
+	// Test that numbers are accepted and complete for single-char hints
+	hint2, complete2 := hintManager.HandleInput("1")
+	if !complete2 {
+		t.Error("Expected complete after single number matching hint")
+	}
+
+	if hint2 == nil {
+		t.Error("Expected hint to be returned")
+	}
+
+	hintManager.Reset()
+
+	// Test that symbols are accepted and complete for single-char hints
+	hint3, complete3 := hintManager.HandleInput("!")
+	if !complete3 {
+		t.Error("Expected complete after single symbol matching hint")
+	}
+
+	if hint3 == nil {
+		t.Error("Expected hint to be returned")
+	}
+}

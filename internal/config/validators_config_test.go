@@ -198,6 +198,15 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "grid with reserved reset character",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters: "ABC<DEF", // Contains '<'
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "negative font size",
 			config: config.Config{
 				Grid: config.GridConfig{
