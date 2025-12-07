@@ -60,6 +60,25 @@ func TestConfig_ValidateHints(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "hints with valid ASCII digits and symbols",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "123!@#", // Valid - ASCII digits and symbols
+					Opacity:          0.9,
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -223,6 +242,24 @@ func TestConfig_ValidateGrid(t *testing.T) {
 				},
 			},
 			wantErr: true,
+		},
+		{
+			name: "grid with valid ASCII digits and symbols",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:             "123!@#",    // Valid - ASCII digits and symbols
+					SublayerKeys:           "abcdefghi", // Required for subgrid
+					Opacity:                0.8,
+					BackgroundColor:        "#FF0000",
+					TextColor:              "#FFFFFF",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#333333",
+					MatchedBorderColor:     "#FF0000",
+					BorderColor:            "#666666",
+					FontSize:               14,
+				},
+			},
+			wantErr: false,
 		},
 		{
 			name: "negative font size",
