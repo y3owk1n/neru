@@ -198,36 +198,41 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 	hintManager.SetHints(collection)
 
 	// Test that letters are accepted and complete for single-char hints
-	hint, complete := hintManager.HandleInput("a")
+	matchedHint, complete := hintManager.HandleInput("a")
 	if !complete {
 		t.Error("Expected complete after single letter matching hint")
 	}
 
-	if hint == nil {
+	if matchedHint == nil {
 		t.Error("Expected hint to be returned")
 	}
 
 	hintManager.Reset()
 
 	// Test that numbers are accepted and complete for single-char hints
-	hint2, complete2 := hintManager.HandleInput("1")
+	matchedHint2, complete2 := hintManager.HandleInput("1")
 	if !complete2 {
 		t.Error("Expected complete after single number matching hint")
 	}
 
-	if hint2 == nil {
+	if matchedHint2 == nil {
 		t.Error("Expected hint to be returned")
 	}
 
 	hintManager.Reset()
 
 	// Test that symbols are accepted and complete for single-char hints
-	hint3, complete3 := hintManager.HandleInput("!")
+	matchedHint3, complete3 := hintManager.HandleInput("!")
 	if !complete3 {
 		t.Error("Expected complete after single symbol matching hint")
 	}
 
-	if hint3 == nil {
+	if matchedHint3 == nil {
 		t.Error("Expected hint to be returned")
 	}
+
+	hintManager.Reset()
+
+	// Note: Unicode characters like é and emoji are rejected at config validation level
+	// so they won't be present in hint_characters, making this test unnecessary
 }

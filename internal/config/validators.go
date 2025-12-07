@@ -3,6 +3,7 @@ package config
 import (
 	"regexp"
 	"strings"
+	"unicode"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
@@ -27,6 +28,15 @@ func (c *Config) ValidateHints() error {
 			derrors.CodeInvalidConfig,
 			"hint_characters must contain at least 2 characters",
 		)
+	}
+
+	for _, r := range c.Hints.HintCharacters {
+		if r > unicode.MaxASCII {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"hint_characters can only contain ASCII characters",
+			)
+		}
 	}
 
 	if c.Hints.Opacity < 0 || c.Hints.Opacity > 1 {
@@ -178,6 +188,15 @@ func (c *Config) ValidateGrid() error {
 			derrors.CodeInvalidConfig,
 			"grid.characters cannot contain '<' as it is reserved for reset",
 		)
+	}
+
+	for _, r := range c.Grid.Characters {
+		if r > unicode.MaxASCII {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"grid.characters can only contain ASCII characters",
+			)
+		}
 	}
 
 	if c.Grid.FontSize < 6 || c.Grid.FontSize > 72 {

@@ -51,6 +51,15 @@ func TestConfig_ValidateHints(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "hints with unicode characters - invalid",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters: "aé😀", // Invalid - contains Unicode
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -202,6 +211,15 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			config: config.Config{
 				Grid: config.GridConfig{
 					Characters: "ABC<DEF", // Contains '<'
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with unicode characters - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters: "abcé😀", // Invalid - contains Unicode
 				},
 			},
 			wantErr: true,
