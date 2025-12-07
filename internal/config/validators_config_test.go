@@ -262,6 +262,36 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "grid with sublayer_keys containing unicode - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABC",
+					SublayerKeys: "abcdefg-é", // Invalid - contains Unicode
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with sublayer_keys containing unicode - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABC",
+					SublayerKeys: "abcdefg-é", // Invalid - contains Unicode
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid with sublayer_keys containing reserved character - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABC",
+					SublayerKeys: "abcdefg<h", // Invalid - contains '<'
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "negative font size",
 			config: config.Config{
 				Grid: config.GridConfig{

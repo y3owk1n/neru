@@ -242,11 +242,29 @@ func (c *Config) ValidateGrid() error {
 		return validateErr
 	}
 
-	// Validate sublayer keys length (fallback to grid.characters) for 3x3 subgrid
+	// Validate sublayer keys (fallback to grid.characters) for 3x3 subgrid
 	keys := strings.TrimSpace(c.Grid.SublayerKeys)
 	if keys == "" {
 		keys = c.Grid.Characters
 	}
+
+	// Apply same ASCII and reserved character validation as grid.characters
+	if strings.Contains(keys, "<") {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"grid.sublayer_keys cannot contain '<' as it is reserved for reset",
+		)
+	}
+
+	for _, r := range keys {
+		if r > unicode.MaxASCII {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"grid.sublayer_keys can only contain ASCII characters",
+			)
+		}
+	}
+
 	// Subgrid is always 3x3, requiring at least 9 characters
 	const required = 9
 	if len([]rune(keys)) < required {
