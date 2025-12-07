@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -482,6 +483,9 @@ func findDuplicateChars(s string) []rune {
 	for r := range duplicates {
 		result = append(result, r)
 	}
+
+	// Sort for deterministic output
+	slices.Sort(result)
 
 	return result
 }
