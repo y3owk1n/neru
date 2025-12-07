@@ -181,7 +181,20 @@ func NewGridWithLabels(
 			logger.Debug("Grid cache hit",
 				zap.Int("cell_count", len(cells)))
 
-			return &Grid{characters: uppercaseChars, bounds: bounds, cells: cells}
+			// Pre-allocate index map with exact capacity
+			index := make(map[string]*Cell, len(cells))
+			for _, cell := range cells {
+				index[cell.Coordinate()] = cell
+			}
+
+			return &Grid{
+				characters: uppercaseChars,
+				rowChars:   rowChars,
+				colChars:   colChars,
+				bounds:     bounds,
+				cells:      cells,
+				index:      index,
+			}
 		}
 
 		logger.Debug("Grid cache miss")
