@@ -335,6 +335,11 @@ func (g *Grid) ColLabels() string {
 
 // ValidCharacters returns all characters that can appear in grid coordinates.
 func (g *Grid) ValidCharacters() string {
+	// If no custom labels, return the main characters
+	if len(g.rowChars) == 0 && len(g.colChars) == 0 {
+		return g.characters
+	}
+
 	charSet := make(map[rune]bool)
 	for _, r := range g.characters {
 		charSet[r] = true
