@@ -322,6 +322,16 @@ func (g *Grid) Characters() string {
 	return g.characters
 }
 
+// RowLabels returns the row labels used for coordinates.
+func (g *Grid) RowLabels() string {
+	return string(g.rowChars)
+}
+
+// ColLabels returns the column labels used for coordinates.
+func (g *Grid) ColLabels() string {
+	return string(g.colChars)
+}
+
 // ValidCharacters returns all characters that can appear in grid coordinates.
 func (g *Grid) ValidCharacters() string {
 	charSet := make(map[rune]bool)
