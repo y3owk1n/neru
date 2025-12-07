@@ -48,8 +48,8 @@ func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) 
 			oldGrid := g.Manager.Grid()
 			if oldGrid != nil && config.Grid.Characters != "" {
 				charactersChanged := strings.ToUpper(config.Grid.Characters) != oldGrid.Characters()
-				rowLabelsChanged := config.Grid.RowLabels != oldGrid.RowLabels()
-				colLabelsChanged := config.Grid.ColLabels != oldGrid.ColLabels()
+				rowLabelsChanged := strings.ToUpper(config.Grid.RowLabels) != oldGrid.RowLabels()
+				colLabelsChanged := strings.ToUpper(config.Grid.ColLabels) != oldGrid.ColLabels()
 
 				if charactersChanged || rowLabelsChanged || colLabelsChanged {
 					logger.Debug("Recreating grid due to config changes",
