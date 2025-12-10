@@ -135,7 +135,8 @@ func TestManager_CurrentInput(t *testing.T) {
 
 func TestManager_Reset(t *testing.T) {
 	logger := logger.Get()
-	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
+	// Use unique parameters to avoid cache conflicts
+	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 50, 50), logger)
 
 	manager := grid.NewManager(testGrid, 2, 2, "12", nil, nil, logger)
 
@@ -206,14 +207,25 @@ func TestManager_CustomLabelsWithSymbols(t *testing.T) {
 		t.Errorf("CurrentInput() = %q, want 'A'", input)
 	}
 
-	// Test that symbols from row_labels are accepted
+	// Test that symbols from row_labels are accepted only if they lead to valid coordinates
 	_, complete = manager.HandleInput(",")
 	if complete {
 		t.Error("Expected not complete after comma")
 	}
 
-	if input := manager.CurrentInput(); input != "A," {
-		t.Errorf("CurrentInput() = %q, want 'A,'", input)
+	// Since "A," doesn't match any coordinate prefix, it should be rejected
+	if input := manager.CurrentInput(); input != "A" {
+		t.Errorf("CurrentInput() = %q, want 'A' (comma should be rejected)", input)
+	}
+
+	// Test that a valid next character is accepted
+	_, complete = manager.HandleInput("A") // "AA" should match some coordinates
+	if complete {
+		t.Error("Expected not complete after AA")
+	}
+
+	if input := manager.CurrentInput(); input != "AA" {
+		t.Errorf("CurrentInput() = %q, want 'AA'", input)
 	}
 
 	// Test that invalid character is rejected
@@ -223,7 +235,191 @@ func TestManager_CustomLabelsWithSymbols(t *testing.T) {
 	}
 
 	// Input should not have changed
-	if input := manager.CurrentInput(); input != "A," {
-		t.Errorf("CurrentInput() = %q, want 'A,'", input)
+	if input := manager.CurrentInput(); input != "AA" {
+		t.Errorf("CurrentInput() = %q, want 'AA'", input)
+	}
+}
+
+func TestManager_InputValidation(t *testing.T) {
+	logger := logger.Get()
+
+	// Create a simple grid with known coordinates: AA, AB, AC, BA, BB, BC, CA, CB, CC
+	testGrid := grid.NewGrid("ABC", image.Rect(0, 0, 100, 100), logger)
+	manager := grid.NewManager(testGrid, 2, 2, "ab", nil, nil, logger)
+
+	// Test 1: Valid first character should be accepted
+	_, complete := manager.HandleInput("A")
+	if complete {
+		t.Error("Expected not complete after first character")
+	}
+
+	if input := manager.CurrentInput(); input != "A" {
+		t.Errorf("CurrentInput() = %q, want 'A'", input)
+	}
+
+	// Test 2: Valid second character that completes coordinate should enter subgrid
+	_, complete = manager.HandleInput("A") // "AA" is a valid coordinate - enters subgrid
+	if complete {
+		t.Error("Expected not complete after 'AA' (enters subgrid)")
+	}
+	// When entering subgrid, input is reset to ""
+	if input := manager.CurrentInput(); input != "" {
+		t.Errorf("CurrentInput() = %q, want '' (reset for subgrid)", input)
+	}
+
+	// Test 3: Invalid character that doesn't lead to matches should be rejected
+	manager.Reset() // Start fresh
+
+	// Put in a state where next character would be invalid
+	_, _ = manager.HandleInput("A")
+
+	// Try a character that doesn't continue any valid coordinate
+	invalidChar := "Z" // Z doesn't appear in any coordinate starting with A
+
+	_, complete = manager.HandleInput(invalidChar)
+	if complete {
+		t.Error("Expected not complete for invalid continuation")
+	}
+	// Input should remain "A" since invalid char was rejected
+	if input := manager.CurrentInput(); input != "A" {
+		t.Errorf("CurrentInput() = %q, want 'A' (invalid char should be rejected)", input)
+	}
+
+	// Test 4: Backspace should still work
+	_, complete = manager.HandleInput("\x7f") // backspace
+	if complete {
+		t.Error("Expected not complete after backspace")
+	}
+
+	if input := manager.CurrentInput(); input != "" {
+		t.Errorf("CurrentInput() = %q, want '' after backspace", input)
+	}
+
+	// Test 5: Completely invalid character (not in valid characters) should be rejected
+	_, complete = manager.HandleInput("9") // 9 is not in valid characters "ABC"
+	if complete {
+		t.Error("Expected not complete for invalid character")
+	}
+
+	if input := manager.CurrentInput(); input != "" {
+		t.Errorf("CurrentInput() = %q, want '' (invalid char should be rejected)", input)
+	}
+
+	// Test 6: Valid partial input should be accepted
+	manager.Reset()
+
+	_, complete = manager.HandleInput("B")
+	if complete {
+		t.Error("Expected not complete after 'B'")
+	}
+
+	if input := manager.CurrentInput(); input != "B" {
+		t.Errorf("CurrentInput() = %q, want 'B'", input)
+	}
+
+	_, complete = manager.HandleInput("C") // "BC" is valid - enters subgrid
+	if complete {
+		t.Error("Expected not complete after 'BC' (enters subgrid)")
+	}
+	// When entering subgrid, input is reset to ""
+	if input := manager.CurrentInput(); input != "" {
+		t.Errorf("CurrentInput() = %q, want '' (reset for subgrid)", input)
+	}
+}
+
+func TestManager_PrefixValidationRegression(t *testing.T) {
+	// Regression test specifically for the issue where typing invalid sequences
+	// would cause the grid to become empty
+	logger := logger.Get()
+
+	// Create a grid with known coordinates: AA, AB, BA, BB (for "AB" characters)
+	testGrid := grid.NewGrid("AB", image.Rect(0, 0, 100, 100), logger)
+	manager := grid.NewManager(testGrid, 2, 2, "ab", nil, nil, logger)
+
+	// Get all coordinates
+	cells := testGrid.AllCells()
+
+	coordinates := make([]string, len(cells))
+	for i, cell := range cells {
+		coordinates[i] = cell.Coordinate()
+	}
+
+	// Test that we can build up valid coordinates
+	testCoord := coordinates[0] // Test with first coordinate "AAAA"
+
+	manager.Reset()
+
+	for position, char := range testCoord {
+		_, complete := manager.HandleInput(string(char))
+		if complete {
+			t.Errorf(
+				"Coordinate %q should not complete at position %d (enters subgrid at end)",
+				testCoord,
+				position,
+			)
+		}
+
+		if position < len(testCoord)-1 {
+			// Before the last character, input accumulates
+			expectedInput := testCoord[:position+1]
+			if input := manager.CurrentInput(); input != expectedInput {
+				t.Errorf(
+					"For coordinate %q at position %d: CurrentInput() = %q, want %q",
+					testCoord,
+					position,
+					input,
+					expectedInput,
+				)
+			}
+		} else {
+			// After the last character, enters subgrid and resets input
+			if input := manager.CurrentInput(); input != "" {
+				t.Errorf(
+					"For coordinate %q at position %d: CurrentInput() = %q, want '' (reset for subgrid)",
+					testCoord,
+					position,
+					input,
+				)
+			}
+		}
+	}
+
+	// Test that invalid characters are rejected
+	manager.Reset()
+
+	_, complete := manager.HandleInput("Z") // Z is not in valid character set "AB"
+	if complete {
+		t.Error("Expected not complete for invalid character Z")
+	}
+
+	if input := manager.CurrentInput(); input != "" {
+		t.Errorf("CurrentInput() = %q, want '' for invalid character", input)
+	}
+
+	// Test that valid partial prefix works - derive from actual coordinate
+	// Use a prefix that's shorter than the complete coordinate
+	prefixLength := len(testCoord) - 1 // One character shorter than complete
+	if prefixLength > 0 {
+		validPrefix := testCoord[:prefixLength]
+
+		manager.Reset()
+
+		// Type each character of the prefix
+		for index, char := range validPrefix {
+			_, complete := manager.HandleInput(string(char))
+			if complete {
+				t.Errorf("Prefix %q should not complete at position %d", validPrefix, index)
+			}
+
+			expectedInput := validPrefix[:index+1]
+			if input := manager.CurrentInput(); input != expectedInput {
+				t.Errorf(
+					"After typing %q: CurrentInput() = %q, want %q",
+					validPrefix[:index+1],
+					input,
+					expectedInput,
+				)
+			}
+		}
 	}
 }
