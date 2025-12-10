@@ -332,3 +332,60 @@ func TestGrid_BackwardCompatibility(t *testing.T) {
 		coordMap[cell.Coordinate()] = true
 	}
 }
+
+func TestGrid_HasCoordinatePrefix(t *testing.T) {
+	logger := logger.Get()
+	bounds := image.Rect(0, 0, 300, 300)
+
+	// Create first grid
+	grid1 := grid.NewGrid(testCharacters, bounds, logger)
+
+	// Test that prefixes work on the first grid
+	cells := grid1.Cells()
+	if len(cells) == 0 {
+		t.Fatal("Grid should have cells")
+	}
+
+	// Get a sample coordinate
+	sampleCoord := cells[0].Coordinate()
+	if len(sampleCoord) < 2 {
+		t.Fatalf("Expected coordinate length >= 2, got %d", len(sampleCoord))
+	}
+
+	// Test prefixes of the sample coordinate
+	for i := 1; i <= len(sampleCoord); i++ {
+		prefix := sampleCoord[:i]
+		if !grid1.HasCoordinatePrefix(prefix) {
+			t.Errorf(
+				"HasCoordinatePrefix(%q) should be true for coordinate %q",
+				prefix,
+				sampleCoord,
+			)
+		}
+	}
+
+	// Test invalid prefix
+	if grid1.HasCoordinatePrefix("INVALID") {
+		t.Error("HasCoordinatePrefix should return false for invalid prefix")
+	}
+
+	// Create second grid with same parameters (should hit cache)
+	grid2 := grid.NewGrid(testCharacters, bounds, logger)
+
+	// Test that prefixes still work on the cached grid
+	for i := 1; i <= len(sampleCoord); i++ {
+		prefix := sampleCoord[:i]
+		if !grid2.HasCoordinatePrefix(prefix) {
+			t.Errorf(
+				"HasCoordinatePrefix(%q) should be true on cached grid for coordinate %q",
+				prefix,
+				sampleCoord,
+			)
+		}
+	}
+
+	// Test invalid prefix on cached grid
+	if grid2.HasCoordinatePrefix("INVALID") {
+		t.Error("HasCoordinatePrefix should return false for invalid prefix on cached grid")
+	}
+}

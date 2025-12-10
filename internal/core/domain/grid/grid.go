@@ -189,6 +189,15 @@ func NewGridWithLabels(
 				index[cell.Coordinate()] = cell
 			}
 
+			// Build prefix index for fast prefix matching
+			prefixes := make(map[string]bool)
+			for _, cell := range cells {
+				coord := cell.Coordinate()
+				for i := 1; i <= len(coord); i++ {
+					prefixes[coord[:i]] = true
+				}
+			}
+
 			return &Grid{
 				characters: uppercaseChars,
 				rowChars:   rowChars,
@@ -196,6 +205,7 @@ func NewGridWithLabels(
 				bounds:     bounds,
 				cells:      cells,
 				index:      index,
+				prefixes:   prefixes,
 			}
 		}
 
