@@ -189,6 +189,9 @@ func NewGridWithLabels(
 				index[cell.Coordinate()] = cell
 			}
 
+			// Build prefix index for fast prefix matching
+			prefixes := buildPrefixIndex(cells)
+
 			return &Grid{
 				characters: uppercaseChars,
 				rowChars:   rowChars,
@@ -196,6 +199,7 @@ func NewGridWithLabels(
 				bounds:     bounds,
 				cells:      cells,
 				index:      index,
+				prefixes:   prefixes,
 			}
 		}
 
@@ -310,13 +314,7 @@ func NewGridWithLabels(
 	}
 
 	// Build prefix index for fast prefix matching
-	prefixes := make(map[string]bool)
-	for _, cell := range cells {
-		coord := cell.Coordinate()
-		for i := 1; i <= len(coord); i++ {
-			prefixes[coord[:i]] = true
-		}
-	}
+	prefixes := buildPrefixIndex(cells)
 
 	return &Grid{
 		characters: uppercaseChars,
@@ -787,6 +785,19 @@ func (g *Grid) HasCoordinatePrefix(prefix string) bool {
 	prefix = strings.ToUpper(prefix)
 
 	return g.prefixes[prefix]
+}
+
+// buildPrefixIndex creates a map of all coordinate prefixes for fast lookup.
+func buildPrefixIndex(cells []*Cell) map[string]bool {
+	prefixes := make(map[string]bool)
+	for _, cell := range cells {
+		coord := cell.Coordinate()
+		for i := 1; i <= len(coord); i++ {
+			prefixes[coord[:i]] = true
+		}
+	}
+
+	return prefixes
 }
 
 // CalculateOptimalGrid calculates optimal character count for coverage.
