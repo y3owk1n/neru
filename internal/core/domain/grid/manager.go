@@ -89,6 +89,14 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	// Cache uppercase conversion once
 	upperKey := strings.ToUpper(key)
 
+	// For main grid, ensure the new input would match at least one coordinate
+	if !m.inSubgrid && m.grid != nil {
+		newInput := m.CurrentInput() + upperKey
+		if !m.hasMatchingCoordinate(newInput) {
+			return image.Point{}, false
+		}
+	}
+
 	// If in subgrid mode, delegate to subgrid selection handler
 	if m.inSubgrid && m.selectedCell != nil {
 		return m.handleSubgridSelection(upperKey)
@@ -155,6 +163,21 @@ func (m *Manager) UpdateGrid(g *Grid) {
 // UpdateSubKeys updates the subgrid keys used for subgrid selection.
 func (m *Manager) UpdateSubKeys(subKeys string) {
 	m.subKeys = strings.ToUpper(strings.TrimSpace(subKeys))
+}
+
+// hasMatchingCoordinate checks if any grid cell coordinate starts with the given prefix.
+func (m *Manager) hasMatchingCoordinate(prefix string) bool {
+	if m.grid == nil {
+		return false
+	}
+
+	for _, cell := range m.grid.AllCells() {
+		if strings.HasPrefix(cell.Coordinate(), prefix) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // handleLabelLengthReached handles the case when label length is reached.

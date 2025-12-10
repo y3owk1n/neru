@@ -12,7 +12,7 @@ enabled = false
 [grid]
 font_family = "JetBrainsMonoNLNFP-ExtraBold"
 
-characters = "aoeuidhtnspyfgkxbm"
+characters = "aoeuidhtnspyfgcrlqjkxbmwvz"
 sublayer_keys = "gcrhtnmwv"
 
 [action]
