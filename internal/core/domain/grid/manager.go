@@ -89,8 +89,9 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	// Cache uppercase conversion once
 	upperKey := strings.ToUpper(key)
 
-	// For main grid, ensure the new input would match at least one coordinate
-	if !m.inSubgrid && m.grid != nil {
+	// For main grid, ensure the new input would match at least one coordinate.
+	// Skip this for the reset key, which should always be accepted.
+	if !m.inSubgrid && m.grid != nil && key != resetKey {
 		newInput := m.CurrentInput() + upperKey
 		if !m.hasMatchingCoordinate(newInput) {
 			return image.Point{}, false
