@@ -79,6 +79,7 @@ type Grid struct {
 	bounds     image.Rectangle // Screen bounds
 	cells      []*Cell         // All cells with 3-char coordinates
 	index      map[string]*Cell
+	prefixes   map[string]bool // Set of all coordinate prefixes for fast lookup
 }
 
 // Cell represents a grid cell containing coordinate, bounds, and center point information.
@@ -308,6 +309,15 @@ func NewGridWithLabels(
 		index[cell.Coordinate()] = cell
 	}
 
+	// Build prefix index for fast prefix matching
+	prefixes := make(map[string]bool)
+	for _, cell := range cells {
+		coord := cell.Coordinate()
+		for i := 1; i <= len(coord); i++ {
+			prefixes[coord[:i]] = true
+		}
+	}
+
 	return &Grid{
 		characters: uppercaseChars,
 		rowChars:   rowChars,
@@ -315,6 +325,7 @@ func NewGridWithLabels(
 		bounds:     bounds,
 		cells:      cells,
 		index:      index,
+		prefixes:   prefixes,
 	}
 }
 
@@ -769,6 +780,13 @@ func (g *Grid) CellByCoordinate(coordinate string) *Cell {
 	}
 
 	return nil
+}
+
+// HasCoordinatePrefix returns true if any coordinate starts with the given prefix.
+func (g *Grid) HasCoordinatePrefix(prefix string) bool {
+	prefix = strings.ToUpper(prefix)
+
+	return g.prefixes[prefix]
 }
 
 // CalculateOptimalGrid calculates optimal character count for coverage.

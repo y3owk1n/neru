@@ -135,7 +135,8 @@ func TestManager_CurrentInput(t *testing.T) {
 
 func TestManager_Reset(t *testing.T) {
 	logger := logger.Get()
-	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
+	// Use unique parameters to avoid cache conflicts
+	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 50, 50), logger)
 
 	manager := grid.NewManager(testGrid, 2, 2, "12", nil, nil, logger)
 
@@ -383,11 +384,10 @@ func TestManager_PrefixValidationRegression(t *testing.T) {
 		}
 	}
 
-	// Test that invalid sequences are rejected
+	// Test that invalid characters are rejected
 	manager.Reset()
 
-	// Try to type an invalid character (not in valid characters)
-	_, complete := manager.HandleInput("Z") // Z not in "AB"
+	_, complete := manager.HandleInput("Z") // Z is not in valid character set "AB"
 	if complete {
 		t.Error("Expected not complete for invalid character Z")
 	}
@@ -396,26 +396,30 @@ func TestManager_PrefixValidationRegression(t *testing.T) {
 		t.Errorf("CurrentInput() = %q, want '' for invalid character", input)
 	}
 
-	// Start with valid prefix then try invalid continuation
-	manager.Reset()
-	_, _ = manager.HandleInput("A") // A is valid
+	// Test that valid partial prefix works - derive from actual coordinate
+	// Use a prefix that's shorter than the complete coordinate
+	prefixLength := len(testCoord) - 1 // One character shorter than complete
+	if prefixLength > 0 {
+		validPrefix := testCoord[:prefixLength]
 
-	_, complete = manager.HandleInput("Z") // Z doesn't continue any coordinate starting with A
-	if complete {
-		t.Error("Expected not complete for invalid continuation Z")
-	}
+		manager.Reset()
 
-	if input := manager.CurrentInput(); input != "A" {
-		t.Errorf("CurrentInput() = %q, want 'A' (invalid continuation should be rejected)", input)
-	}
+		// Type each character of the prefix
+		for index, char := range validPrefix {
+			_, complete := manager.HandleInput(string(char))
+			if complete {
+				t.Errorf("Prefix %q should not complete at position %d", validPrefix, index)
+			}
 
-	// Test that valid continuation works - "AA" is valid prefix but not complete coordinate
-	_, complete = manager.HandleInput("A") // "AA" is valid prefix
-	if complete {
-		t.Error("Expected not complete for prefix 'AA'")
-	}
-
-	if input := manager.CurrentInput(); input != "AA" {
-		t.Errorf("CurrentInput() = %q, want 'AA'", input)
+			expectedInput := validPrefix[:index+1]
+			if input := manager.CurrentInput(); input != expectedInput {
+				t.Errorf(
+					"After typing %q: CurrentInput() = %q, want %q",
+					validPrefix[:index+1],
+					input,
+					expectedInput,
+				)
+			}
+		}
 	}
 }

@@ -171,13 +171,7 @@ func (m *Manager) hasMatchingCoordinate(prefix string) bool {
 		return false
 	}
 
-	for _, cell := range m.grid.AllCells() {
-		if strings.HasPrefix(cell.Coordinate(), prefix) {
-			return true
-		}
-	}
-
-	return false
+	return m.grid.HasCoordinatePrefix(prefix)
 }
 
 // handleLabelLengthReached handles the case when label length is reached.
