@@ -629,6 +629,10 @@ int getElementCenter(void *element, CGPoint *outPoint) {
 
 #pragma mark - Mouse Functions
 
+// Timing constants for mouse click operations
+static const CFTimeInterval kMouseClickDownUpDelay = 0.008;    // Delay between down and up events
+static const CFTimeInterval kMouseClickProcessingDelay = 0.04; // Delay after click processing
+
 /// Move mouse cursor to position
 /// @param position Target position
 void moveMouse(CGPoint position) {
@@ -728,11 +732,19 @@ static int performClickAtPosition(CGPoint pos, CGEventType downEvent, CGEventTyp
 	CGEventSetFlags(down, 0);
 	CGEventSetFlags(up, 0);
 
+	// Post mouse down, allow the system to process it, then post mouse up.
 	CGEventPost(kCGHIDEventTap, down);
+	// Give the event loop a short moment to register the down event before sending up.
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kMouseClickDownUpDelay, false);
+
 	CGEventPost(kCGHIDEventTap, up);
 	CFRelease(down);
 	CFRelease(up);
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, false);
+
+	// Allow a small amount of time for the click to be processed by the system
+	// before restoring the cursor to avoid clicks landing in-transit.
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kMouseClickProcessingDelay, false);
+
 	if (restoreCursor)
 		moveMouse(originalPosition);
 	return 1;
@@ -812,12 +824,17 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor) {
 	CGEventSetIntegerValueField(down, kCGMouseEventClickState, clickState.clickCount);
 	CGEventSetIntegerValueField(up, kCGMouseEventClickState, clickState.clickCount);
 
+	// Post mouse down and allow a short moment before posting mouse up to ensure
+	// the system attributes the down/up pair to the target location.
 	CGEventPost(kCGHIDEventTap, down);
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kMouseClickDownUpDelay, false);
+
 	CGEventPost(kCGHIDEventTap, up);
 	CFRelease(down);
 	CFRelease(up);
 
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, false);
+	// Wait briefly to let the OS process the click before potentially moving the cursor back.
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kMouseClickProcessingDelay, false);
 
 	if (restoreCursor)
 		moveMouse(originalPosition);
