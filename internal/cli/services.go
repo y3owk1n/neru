@@ -147,6 +147,14 @@ const plistTemplate = `<?xml version="1.0" encoding="UTF-8"?>
     <string>/tmp/neru.log</string>
     <key>StandardErrorPath</key>
     <string>/tmp/neru.err</string>
+	<key>ProcessType</key>
+    <string>Interactive</string>
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+    <key>Nice</key>
+    <integer>-10</integer>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>

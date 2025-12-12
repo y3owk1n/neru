@@ -30,6 +30,10 @@ in
         serviceConfig = {
           KeepAlive = true;
           RunAtLoad = true;
+          ProcessType = "Interactive";
+          LimitLoadToSessionType = "Aqua";
+          Nice = -10;
+          ThrottleInterval = 10;
         };
       };
     }
