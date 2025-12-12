@@ -81,6 +81,10 @@ in
         KeepAlive = cfg.launchd.keepAlive;
         StandardOutPath = "/tmp/neru.log";
         StandardErrorPath = "/tmp/neru.err.log";
+        ProcessType = "Interactive";
+        LimitLoadToSessionType = "Aqua";
+        Nice = -10;
+        ThrottleInterval = 10;
       };
     };
   };
