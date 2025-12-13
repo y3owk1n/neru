@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.12.1](https://github.com/y3owk1n/neru/compare/v1.12.0...v1.12.1) (2025-12-12)
+
+
+### Bug Fixes
+
+* **accessibility:** adjust mouse click event timing to prevent in-transit clicks ([#272](https://github.com/y3owk1n/neru/issues/272)) ([2889bef](https://github.com/y3owk1n/neru/commit/2889befa82f352249549cb1ccc01e98cbb73420f))
+* add grid character validation and custom labels support ([#269](https://github.com/y3owk1n/neru/issues/269)) ([0a16068](https://github.com/y3owk1n/neru/commit/0a16068c6e292d78ee6109cf71c0804da0861353))
+* **grid:** fix prefixes not initialized in cached grids ([#271](https://github.com/y3owk1n/neru/issues/271)) ([01f92f4](https://github.com/y3owk1n/neru/commit/01f92f438e120e0a2a6dad5d025be5a7476dd0f1))
+* prevent empty grid state when typing invalid key sequences ([#270](https://github.com/y3owk1n/neru/issues/270)) ([b2dd915](https://github.com/y3owk1n/neru/commit/b2dd915a0f2642fa5afee1900240e38257b91a69))
+* support numbers and symbols in grid and hints character configurations ([#267](https://github.com/y3owk1n/neru/issues/267)) ([6fe4513](https://github.com/y3owk1n/neru/commit/6fe4513cb784984528480c47851e64e60fcd1a6a))
+
 ## [1.12.0](https://github.com/y3owk1n/neru/compare/v1.11.1...v1.12.0) (2025-12-02)
 
 
