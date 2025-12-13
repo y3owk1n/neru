@@ -84,6 +84,11 @@ neru services install
 # Cmd+Shift+Space - Hint mode
 # Cmd+Shift+G     - Grid mode
 # Cmd+Shift+S     - Scroll
+
+# when in hint or grid mode, selecting a hint or label will move the cursor to that point
+# you can also press <tab> when in those mode to enter action mode
+# and you can use keybindings to perform action on the current cursor position
+# e.g. `l` for left click, `r` for right click, etc.
 ```
 
 See [Installation Guide](docs/INSTALLATION.md) for detailed setup instructions.
