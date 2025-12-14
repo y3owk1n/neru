@@ -1,13 +1,14 @@
 {
-	"$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.16.0/.schema/devbox.schema.json",
-	"packages": [
-		"go@1.25.2",
-		"gopls@0.20.0",
-		"gotools@0.34.0",
-		"golangci-lint@2.6.2",
-		"gofumpt@0.9.2",
-		"golines@0.13.0",
-		"just@1.43.1",
-		"clang-tools@21.1.2"
-	]
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.16.0/.schema/devbox.schema.json",
+  "packages": [
+    "go@1.25.2",
+    "gopls@0.20.0",
+    "gotools@0.34.0",
+    "golangci-lint@2.6.2",
+    "gofumpt@0.9.2",
+    "golines@0.13.0",
+    "just@1.43.1",
+    "clang-tools@21.1.2",
+    "just-lsp@0.2.8"
+  ]
 }
