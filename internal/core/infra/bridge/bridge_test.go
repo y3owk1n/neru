@@ -292,14 +292,7 @@ func TestIsSecureInputEnabled(t *testing.T) {
 	// Initialize logger for testing
 	bridge.InitializeLogger(zap.NewNop())
 
-	// This function should not panic and should return a boolean
-	// We can't control whether secure input is enabled in tests,
-	// but we can verify the function works correctly
-	result := bridge.IsSecureInputEnabled()
-
-	// Result should be a valid boolean (either true or false)
-	// This is a smoke test to ensure the CGO binding works
-	if result != true && result != false {
-		t.Error("IsSecureInputEnabled() returned invalid boolean")
-	}
+	// This function should not panic - we can't control whether secure input
+	// is enabled in tests, but we can verify the CGO binding works
+	_ = bridge.IsSecureInputEnabled()
 }
