@@ -36,15 +36,13 @@ void showSecureInputNotification(void) {
 		];
 
 		NSError *error = nil;
-		if ([task launchAndReturnError:&error]) {
-			[task waitUntilExit];
-			if (task.terminationStatus != 0) {
-				NSLog(@"Neru: osascript failed with status %d", task.terminationStatus);
-			}
-		}
-
-		if (error) {
+		if (![task launchAndReturnError:&error]) {
 			NSLog(@"Neru: Failed to show secure input notification: %@", error);
+			return;
+		}
+		[task waitUntilExit];
+		if (task.terminationStatus != 0) {
+			NSLog(@"Neru: osascript failed with status %d", task.terminationStatus);
 		}
 	}
 }
