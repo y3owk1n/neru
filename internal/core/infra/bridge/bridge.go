@@ -9,6 +9,7 @@ package bridge
 #include "eventtap.h"
 #include "appwatcher.h"
 #include "alert.h"
+#include "secureinput.h"
 #include <stdlib.h>
 
 CGRect getActiveScreenBounds();
@@ -287,4 +288,28 @@ func ShowConfigValidationError(errorMessage, configPath string) bool {
 
 	// Return true if user clicked "Copy" button (result == 2)
 	return result == 2 //nolint:mnd
+}
+
+// IsSecureInputEnabled checks if macOS secure input mode is currently enabled.
+// Secure input mode is active when a password field or other secure text input is focused.
+// When enabled, keyboard events are blocked for security purposes.
+func IsSecureInputEnabled() bool {
+	result := C.isSecureInputEnabled()
+
+	if bridgeLogger != nil {
+		bridgeLogger.Debug("Bridge: IsSecureInputEnabled check",
+			zap.Bool("enabled", result == 1))
+	}
+
+	return result == 1
+}
+
+// ShowSecureInputNotification displays a macOS notification informing the user
+// that mode activation was blocked because secure input is active.
+func ShowSecureInputNotification() {
+	if bridgeLogger != nil {
+		bridgeLogger.Debug("Bridge: Showing secure input notification")
+	}
+
+	C.showSecureInputNotification()
 }

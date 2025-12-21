@@ -287,3 +287,12 @@ func TestSetApplicationAttribute(t *testing.T) {
 		})
 	}
 }
+
+func TestIsSecureInputEnabled(t *testing.T) {
+	// Initialize logger for testing
+	bridge.InitializeLogger(zap.NewNop())
+
+	// This function should not panic - we can't control whether secure input
+	// is enabled in tests, but we can verify the CGO binding works
+	_ = bridge.IsSecureInputEnabled()
+}
