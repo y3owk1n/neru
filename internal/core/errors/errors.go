@@ -72,6 +72,9 @@ const (
 
 	// CodeBridgeFailed indicates a failure in native bridge interactions.
 	CodeBridgeFailed Code = "BRIDGE_FAILED"
+
+	// CodeSecureInputEnabled indicates secure input mode is active on macOS.
+	CodeSecureInputEnabled Code = "SECURE_INPUT_ENABLED"
 )
 
 // Error represents a domain error with code, message, and optional cause.
