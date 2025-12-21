@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.2](https://github.com/y3owk1n/neru/compare/v1.12.1...v1.12.2) (2025-12-21)
+
+
+### Bug Fixes
+
+* detect secure input and abort ([#277](https://github.com/y3owk1n/neru/issues/277)) ([a3d78c4](https://github.com/y3owk1n/neru/commit/a3d78c47cc6019f50d8d9aa98223d2c4cb79b3c0))
+
 ## [1.12.1](https://github.com/y3owk1n/neru/compare/v1.12.0...v1.12.1) (2025-12-12)
 
 
