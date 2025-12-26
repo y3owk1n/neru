@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.3](https://github.com/y3owk1n/neru/compare/v1.12.2...v1.12.3) (2025-12-26)
+
+
+### Bug Fixes
+
+* do not use `devbox` to build, set the environment manually ([#281](https://github.com/y3owk1n/neru/issues/281)) ([75ec201](https://github.com/y3owk1n/neru/commit/75ec201b56f6259558825a46ff13ce37e5c623eb))
+
 ## [1.12.2](https://github.com/y3owk1n/neru/compare/v1.12.1...v1.12.2) (2025-12-21)
 
 
