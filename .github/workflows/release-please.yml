@@ -8,7 +8,12 @@ permissions:
 name: release-please
 jobs:
     release-please:
-        runs-on: macos-latest
+        strategy:
+            matrix:
+                go: ["1.25.2"]
+                os: [macos-latest]
+                just: ["1.43.1"]
+        runs-on: ${{ matrix.os }}
         steps:
             # Create a release using the release-please action.
             - uses: googleapis/release-please-action@v4
@@ -24,17 +29,22 @@ jobs:
                   repository: ${{ github.event.pull_request.head.repo.full_name }}
                   ref: ${{ github.head_ref }}
 
-            # Install Devbox
-            - name: Install Devbox
+            # Set up Go.
+            - uses: actions/setup-go@v6
               if: ${{ steps.release.outputs.release_created }}
-              uses: jetify-com/devbox-install-action@v0.14.0
               with:
-                  enable-cache: true
+                  go-version: ${{ matrix.go }}
+
+            # Set up Just.
+            - uses: extractions/setup-just@v3
+              if: ${{ steps.release.outputs.release_created }}
+              with:
+                  just-version: ${{ matrix.just }}
 
             # Build artifacts for multiple platforms using Just
             - name: Build neru artifacts
               if: ${{ steps.release.outputs.release_created }}
-              run: devbox run -- just release-ci ${{ steps.release.outputs.tag_name }}
+              run: just release-ci ${{ steps.release.outputs.tag_name }}
 
             # Bundle arm64 app
             - name: Bundle neru-darwin-arm64
