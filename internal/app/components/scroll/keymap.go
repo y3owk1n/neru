@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // SequenceTimeout is the maximum time allowed between keys in a multi-key sequence.
@@ -97,7 +98,7 @@ func NewKeyMap(bindings map[string][]string) *KeyMap {
 				continue
 			}
 
-			if len(normalized) >= 2 && isAllLetters(normalized) && !isNamedKey(normalized) {
+			if len(normalized) >= 2 && config.IsAllLetters(normalized) && !isNamedKey(normalized) {
 				keyMap.sequences[normalized] = action
 				keyMap.sequenceKeys[keyMap.sequenceFirstKey(normalized)] = true
 			} else {
@@ -144,18 +145,6 @@ func isNamedKey(key string) bool {
 	}
 
 	return namedKeys[key]
-}
-
-func isAllLetters(keyStr string) bool {
-	for _, r := range keyStr {
-		if r < 'a' || r > 'z' {
-			if r < 'A' || r > 'Z' {
-				return false
-			}
-		}
-	}
-
-	return len(keyStr) > 0
 }
 
 // Action returns the Action struct for a given action name and whether it was found.

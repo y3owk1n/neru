@@ -520,7 +520,7 @@ func validateScrollKey(key, fieldName string) error {
 				key,
 			)
 		}
-	case len(key) == 2 && isAllLetters(key):
+	case len(key) == 2 && IsAllLetters(key):
 		for _, r := range key {
 			if r < 'a' || r > 'z' {
 				if r < 'A' || r > 'Z' {
@@ -597,7 +597,8 @@ func isValidScrollKeyName(key string) bool {
 	return false
 }
 
-func isAllLetters(keyStr string) bool {
+// IsAllLetters checks if a string contains only letters (a-z, A-Z).
+func IsAllLetters(keyStr string) bool {
 	for _, r := range keyStr {
 		if r < 'a' || r > 'z' {
 			if r < 'A' || r > 'Z' {
