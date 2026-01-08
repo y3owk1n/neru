@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/y3owk1n/neru/compare/v1.13.0...v1.14.0) (2026-01-08)
+
+
+### Features
+
+* simplify action mode with direct action keybindings in hints/grid mode ([#295](https://github.com/y3owk1n/neru/issues/295)) ([7531361](https://github.com/y3owk1n/neru/commit/75313612eea6085b75240dee783047b81af2fd25))
+
 ## [1.13.0](https://github.com/y3owk1n/neru/compare/v1.12.3...v1.13.0) (2026-01-08)
 
 
