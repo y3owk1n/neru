@@ -123,8 +123,22 @@ func TestKeyMapSequences(t *testing.T) {
 		t.Errorf("LookupSequence('gg') = %q, want %q", act, scroll.ActionGoTop)
 	}
 
-	if !keyMap.CanCompleteSequence("g", "g") {
-		t.Error("CanCompleteSequence('g', 'g') = false, want true")
+	// Case-insensitive sequence lookup
+	if !keyMap.CanCompleteSequence("G", "G") {
+		t.Error("CanCompleteSequence('G', 'G') = false, want true for case-insensitive match")
+	}
+
+	if !keyMap.CanCompleteSequence("g", "G") {
+		t.Error("CanCompleteSequence('g', 'G') = false, want true for mixed case")
+	}
+
+	act, found = keyMap.LookupSequence("GG")
+	if !found {
+		t.Error("LookupSequence('GG') found = false for case-insensitive match")
+	}
+
+	if act != scroll.ActionGoTop {
+		t.Errorf("LookupSequence('GG') = %q, want %q", act, scroll.ActionGoTop)
 	}
 }
 

@@ -180,7 +180,7 @@ func (m *KeyMap) IsSequenceStart(key string) bool {
 
 // LookupSequence returns the action name for a complete key sequence and whether it was found.
 func (m *KeyMap) LookupSequence(seq string) (string, bool) {
-	normalized := m.normalizeKey(seq)
+	normalized := strings.ToLower(seq)
 	action, found := m.sequences[normalized]
 
 	return action, found
@@ -188,7 +188,7 @@ func (m *KeyMap) LookupSequence(seq string) (string, bool) {
 
 // CanCompleteSequence returns true if the given two keys form a complete sequence.
 func (m *KeyMap) CanCompleteSequence(first, second string) bool {
-	expected := first + second
+	expected := strings.ToLower(first + second)
 	_, found := m.sequences[expected]
 
 	return found
