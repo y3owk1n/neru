@@ -63,6 +63,9 @@ func (h *Handler) handleHintsModeKey(key string) {
 	if h.actionService.IsDirectActionKey(key) {
 		h.actionService.HandleDirectActionKey(ctx, key)
 
+		// Refresh hints after direct action as content may have changed
+		h.activateHintModeInternal(false, nil)
+
 		return
 	}
 

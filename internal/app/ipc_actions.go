@@ -15,7 +15,10 @@ type IPCControllerActions struct {
 }
 
 // NewIPCControllerActions creates a new action command handler.
-func NewIPCControllerActions(actionService *services.ActionService, logger *zap.Logger) *IPCControllerActions {
+func NewIPCControllerActions(
+	actionService *services.ActionService,
+	logger *zap.Logger,
+) *IPCControllerActions {
 	return &IPCControllerActions{
 		actionService: actionService,
 		logger:        logger,
@@ -52,6 +55,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	cursorPos, err := h.actionService.CursorPosition(ctx)
 	if err != nil {
 		h.logger.Error("Failed to get cursor position", zap.Error(err))
+
 		return ipc.Response{
 			Success: false,
 			Message: "failed to get cursor position",
@@ -68,6 +72,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	err = h.actionService.PerformAction(ctx, actionName, cursorPos)
 	if err != nil {
 		h.logger.Error("Failed to perform action", zap.Error(err), zap.String("action", actionName))
+
 		return ipc.Response{
 			Success: false,
 			Message: "failed to perform action: " + err.Error(),
