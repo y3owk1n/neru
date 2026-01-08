@@ -22,7 +22,7 @@ Neru searches for configuration in the following order:
 - [Hint Mode](#hint-mode)
 - [Grid Mode](#grid-mode)
 - [Scroll Mode](#scroll-mode)
-- [Action Mode](#action-mode)
+- [Direct Actions](#direct-actions)
 - [Advanced Settings](#advanced-settings)
 - [Complete Example](#complete-example)
 
@@ -58,13 +58,6 @@ Bind global hotkeys to Neru actions. Remove or comment out to disable.
 
 # Scroll
 "Cmd+Shift+S" = "scroll"
-
-# these keys might not work and conflict with system or apps, change them!
-# "Cmd+Shift+L" = "action left_click"
-# "Cmd+Shift+R" = "action right_click"
-# "Cmd+Shift+M" = "action middle_click"
-# "Cmd+Shift+N" = "action mouse_down"
-# "Cmd+Shift+P" = "action mouse_up"
 
 # Execute shell commands
 # "Cmd+Alt+T" = "exec open -a Terminal"
@@ -221,7 +214,7 @@ enabled = true
 # Requirements:
 # - Must contain at least 2 characters
 # - Only ASCII characters allowed (no Unicode)
-# - Cannot contain '<' (reserved for reset)
+# - Cannot contain ',' (reserved for reset)
 # - No duplicate characters (case-insensitive)
 characters = "abcdefghijklmnpqrstuvwxyz"
 
@@ -234,7 +227,7 @@ sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 # Requirements (when specified):
 # - Must contain at least 2 characters
 # - Only ASCII characters allowed
-# - Cannot contain '<' (reserved for reset)
+# - Cannot contain ',' (reserved for reset)
 # - No duplicate characters (case-insensitive)
 # - Can include symbols for advanced keyboard layouts
 # row_labels = "123456789"      # Numbers for rows
@@ -368,22 +361,38 @@ go_bottom = ["G", "Cmd+Down"]
 
 **Exit:** Press `Esc` to exit scroll mode.
 
-## Action Mode
+## Direct Actions
 
-Interactive action mode for mouse operations (enter with `neru action` or `Tab` in hint/grid mode):
+Perform mouse actions directly in hints/grid mode without switching modes. Configure which keys trigger each action:
 
 ```toml
 [action]
-highlight_color = "#00FF00"
-highlight_width = 3
-
-# Key mappings
-left_click_key = "l"
-right_click_key = "r"
-middle_click_key = "m"
-mouse_down_key = "i"
-mouse_up_key = "u"
+[action.key_bindings]
+left_click = "Shift+L"    # Left click at current cursor position
+right_click = "Shift+R"   # Right click at current cursor position
+middle_click = "Shift+M"  # Middle click at current cursor position
+mouse_down = "Shift+I"    # Press and hold mouse button
+mouse_up = "Shift+U"      # Release mouse button
 ```
+
+### Valid Key Formats
+
+| Format | Example | Description |
+|--------|---------|-------------|
+| Modifier + alphabet | `Cmd+L`, `Shift+R` | At least 1 modifier + letter |
+| Modifier + special | `Shift+Return`, `Cmd+Enter` | Modifier + Return/Enter |
+| Single special | `Return`, `Enter` | Standalone special key |
+
+### Supported Modifiers
+
+- `Cmd`/`Command` - Command key
+- `Ctrl`/`Control` - Control key
+- `Alt`/`Option` - Option/Alt key
+- `Shift` - Shift key
+
+**Usage:** Press the configured key in hints or grid mode to perform the action at the current cursor position.
+
+---
 
 ## Advanced Settings
 
@@ -508,11 +517,6 @@ A full configuration example:
 [hotkeys]
 "Cmd+Shift+Space" = "hints"
 "Cmd+Shift+G" = "grid"
-"Cmd+Shift+L" = "action left_click"
-"Cmd+Shift+R" = "action right_click"
-"Cmd+Shift+M" = "action middle_click"
-"Cmd+Shift+N" = "action mouse_down"
-"Cmd+Shift+P" = "action mouse_up"
 "Cmd+Shift+S" = "scroll"
 
 [general]
@@ -568,14 +572,12 @@ highlight_color = "#00FF00"
 highlight_width = 3
 
 [action]
-highlight_color = "#00FF00"
-highlight_width = 3
-
-left_click_key = "l"
-right_click_key = "r"
-middle_click_key = "m"
-mouse_down_key = "i"
-mouse_up_key = "u"
+[action.key_bindings]
+left_click = "Shift+L"
+right_click = "Shift+R"
+middle_click = "Shift+M"
+mouse_down = "Shift+I"
+mouse_up = "Shift+U"
 
 [smooth_cursor]
 move_mouse_enabled = true

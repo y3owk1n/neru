@@ -40,7 +40,6 @@ neru profile             # Show profiling setup instructions
 neru hints               # Start hint mode
 neru grid                # Start grid mode
 neru scroll              # Start scroll mode
-neru action              # Start action mode
 neru action left_click   # Click at cursor (immediate)
 neru config reload       # Reload config
 ```
@@ -50,7 +49,6 @@ neru config reload       # Reload config
 - `neru hints` - Show clickable hints
 - `neru grid` - Show coordinate grid
 - `neru scroll` - Vim-style scrolling
-- `neru action` - Interactive action mode
 
 **Actions:**
 
@@ -118,7 +116,7 @@ neru services uninstall
 
 ## Action Commands
 
-Perform actions at current cursor position:
+Perform actions at current cursor position (subcommands only):
 
 ```bash
 neru action left_click     # Left click
@@ -126,8 +124,6 @@ neru action right_click    # Right click
 neru action middle_click   # Middle click
 neru action mouse_down     # Hold mouse button
 ```
-
-**Scroll keys (configurable):** Default keys are `j/k` (up/down), `h/l` (left/right), `gg/G` (top/bottom), `Esc` (exit). Customize in your config file under `[scroll.key_bindings]`.
 
 ---
 
@@ -141,9 +137,7 @@ neru grid     # Show coordinate grid
 neru scroll   # Vim-style scrolling
 ```
 
-After selecting a location, press `Tab` to toggle action mode for different click types.
-
-### Direct Actions
+### Direct Actions in Hints/Grid
 
 Execute action immediately upon selection:
 
@@ -184,29 +178,6 @@ neru scroll
 # Press Esc to exit
 ```
 
-## Action Mode
-
-Activate interactive action mode to perform mouse actions at the current cursor position.
-
-**Action keys:**
-
-- `l` - Left click
-- `r` - Right click
-- `m` - Middle click
-- `i` - Mouse button down (hold)
-- `u` - Mouse button up (release)
-- `Esc` - Exit action mode
-
-**Workflow example:**
-
-```bash
-# Start action mode
-neru action
-# Shows action overlay at cursor
-# Press l/r/m/i/u to perform actions
-# Press Esc to exit
-```
-
 ---
 
 ## Status & Info
@@ -223,7 +194,7 @@ neru command --help   # Command-specific help
 ```
 
 **Status values:** `running`, `disabled`
-**Mode values:** `idle`, `hints`, `grid`, `scroll`, `action`
+**Mode values:** `idle`, `hints`, `grid`, `scroll`
 
 ### Profiling
 

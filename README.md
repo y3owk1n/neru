@@ -86,7 +86,7 @@ neru services install
 # Cmd+Shift+S     - Scroll
 ```
 
-When in hint or grid mode, selecting a hint or label will move the cursor to that point. You can also press `Tab` when in those modes to enter action mode, and use keybindings to perform actions on the current cursor position, e.g., `l` for left click, `r` for right click, `d` for double-click, `m` for middle-click, etc.
+When in hint or grid mode, selecting a hint or label will move the cursor to that point. You can also press action keybindings (e.g., Shift+L for left click, Shift+R for right click) to perform actions without switching modes.
 
 See [Installation Guide](docs/INSTALLATION.md) for detailed setup instructions.
 
@@ -99,7 +99,7 @@ See [Installation Guide](docs/INSTALLATION.md) for detailed setup instructions.
 | Feature                   | Description                                                 |
 | ------------------------- | ----------------------------------------------------------- |
 | 🎯 **Hint Labels**        | Click any visible element using keyboard labels             |
-| 🎬 **Action Mode**        | Choose click type: left, right, double, middle, drag & drop |
+| ⚡ **Direct Actions**     | Perform clicks directly in hints/grid mode (Shift+L, etc.)  |
 | 📜 **Vim Scrolling**      | Fully configurable scroll keys: `j`/`k`, `gg`/`G`, custom bindings |
 | 🌐 **Universal Support**  | Native apps, Electron, Chrome, Firefox, system UI           |
 | ⚡ **Native Performance** | Built with Objective-C and Go for instant response          |
@@ -111,12 +111,11 @@ See [Installation Guide](docs/INSTALLATION.md) for detailed setup instructions.
 
 ### 🎮 How It Works
 
-**Four Navigation Modes:**
+**Three Navigation Modes:**
 
 1. **Hints Mode** - Accessibility-based labels on clickable elements
 2. **Grid Mode** - Universal coordinate-based navigation (works everywhere!)
 3. **Scroll Mode** - Vim-style scrolling at cursor position
-4. **Action Mode** - Interactive mouse actions at cursor position
 
 <div align="center">
 
