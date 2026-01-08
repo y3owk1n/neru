@@ -270,34 +270,33 @@ NSString *keyCodeToName(CGKeyCode keyCode) {
 		return @"M";
 	case 47:
 		return @".";
-	default: {
-		// Function keys
-		if (keyCode == 122)
-			return @"F1";
-		if (keyCode == 120)
-			return @"F2";
-		if (keyCode == 99)
-			return @"F3";
-		if (keyCode == 118)
-			return @"F4";
-		if (keyCode == 96)
-			return @"F5";
-		if (keyCode == 97)
-			return @"F6";
-		if (keyCode == 98)
-			return @"F7";
-		if (keyCode == 100)
-			return @"F8";
-		if (keyCode == 101)
-			return @"F9";
-		if (keyCode == 109)
-			return @"F10";
-		if (keyCode == 103)
-			return @"F11";
-		if (keyCode == 111)
-			return @"F12";
+	// Function keys
+	case 122:
+		return @"F1";
+	case 120:
+		return @"F2";
+	case 99:
+		return @"F3";
+	case 118:
+		return @"F4";
+	case 96:
+		return @"F5";
+	case 97:
+		return @"F6";
+	case 98:
+		return @"F7";
+	case 100:
+		return @"F8";
+	case 101:
+		return @"F9";
+	case 109:
+		return @"F10";
+	case 103:
+		return @"F11";
+	case 111:
+		return @"F12";
+	default:
 		return nil;
-	}
 	}
 }
 
