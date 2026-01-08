@@ -4,8 +4,8 @@ This document provides guidelines for AI agents working on the Neru codebase.
 
 ## Project Overview
 
-Neru is a keyboard-driven navigation tool for macOS built with Go and Objective-C. The project uses:
-- **Go 1.25.2** for main application logic
+Neru is a keyboard-driven navigation tool for macOS built with Go and Objective-C:
+- **Go 1.25+** for application logic
 - **Objective-C** for macOS bridge layer (systray, accessibility APIs)
 - **TOML** for configuration files
 - **just** for build automation
@@ -92,93 +92,57 @@ just verify
 
 - Use `gci` or `goimports` for import formatting
 - Group imports: stdlib, then third-party, then internal
-- Use alias for error package: `derrors "github.com/y3owk1n/neru/internal/core/errors"`
-- Example:
-  ```go
-  import (
-      "context"
-      "fmt"
-
-      "github.com/spf13/cobra"
-      "go.uber.org/zap"
-
-      "github.com/y3owk1n/neru/internal/cli"
-  )
-  ```
+- Use alias: `derrors "github.com/y3owk1n/neru/internal/core/errors"`
 
 ### Naming Conventions
 
 - **Packages**: lowercase, short, descriptive
-- **Variables**: camelCase for local, PascalCase for exported
-- **Constants**: PascalCase for exported, camelCase for unexported
-- **Error variables**: name as `err` or descriptive names ending in `Err` (e.g., `parseErr`, `validationErr`)
-- **Receiver names**: use consistent single-letter names (e.g., `a` for `App`, `c` for `Config`)
-- **Interfaces**: name after what they do (e.g., `Lifecycle`, `Service`)
+- **Variables**: camelCase local, PascalCase exported
+- **Constants**: PascalCase exported, camelCase unexported
+- **Receiver names**: consistent single-letter (e.g., `a` for `App`, `c` for `Config`)
 
 ### Error Handling
 
 - Use `derrors` package for structured errors with error codes
-- Wrap errors with `derrors.Wrap(err, code, "message")`
-- Create new errors with `derrors.New(code, "message")`
-- Error codes defined in `internal/core/errors`
+- Wrap errors: `derrors.Wrap(err, code, "message")`
+- Create new errors: `derrors.New(code, "message")`
 - Log errors with `zap.Error()` before returning
-- Error messages should be lowercase and not end with punctuation
+- Error messages: lowercase, no trailing punctuation
 
 ### Context Usage
 
-- `context.Context` should be the first parameter (except for test functions)
+- `context.Context` first parameter (except test functions)
 - Use `context.Background()` for top-level initialization
 - Pass context through call chains for cancellation
-- Check for context cancellation in long-running operations
 
 ### Logging
 
 - Use `go.uber.org/zap` for structured logging
-- Use `zap.NamedError()` for wrapping errors
-- Log at appropriate levels: `Debug`, `Info`, `Warn`, `Error`
-- Include relevant fields using `zap.String()`, `zap.Int()`, etc.
-
-### Structs and Types
-
-- Use struct tags for serialization: `json:"fieldName" toml:"field_name"`
-- Prefer small, focused structs
-- Use embedding for composition where appropriate
-- Document exported fields and types
+- Log levels: `Debug`, `Info`, `Warn`, `Error`
 
 ### Functions
 
-- Keep functions focused on a single responsibility
-- Max ~120 statements per function (enforced by golangci-lint)
+- Keep functions focused on single responsibility
 - Return errors as last value
-- Use named return values when helpful for readability
+- Use named return values sparingly
 
 ### Comments
 
 - Use `//` for comments (not `/* */`)
-- Comment public APIs, exported types, and functions
-- Use sentence case for comment text
-- Prefix comments on receiver methods with receiver name: `// ActivateMode activates...`
+- Comment public APIs and exported symbols
+- Prefix receiver method comments with receiver name
 
 ### Testing
 
 - Use table-driven tests where appropriate
 - Name test files: `*_test.go`
-- Use `-tags=integration` for integration tests
-- Use `-tags=unit` for unit tests (in coverage commands)
-- Mock external dependencies in `mocks_test.go`
+- Unit tests: no build tag
+- Integration tests: `//go:build integration`
 
-### Objective-C Code (internal/core/infra/bridge/)
+### Objective-C Code
 
 - Follow `.clang-format` configuration
-- Use `--style=file` for formatting
 - Header files in `.h`, implementation in `.m`
-
-### Configuration Files
-
-- TOML format for user configuration
-- Follow patterns in `internal/config/config.go`
-- Use struct tags for field mapping
-- Validate configuration in `Validate()` methods
 
 ## Key Files
 
