@@ -43,10 +43,6 @@ linters:
                 - dupSubExpr
             enabled-checks:
                 - ruleguard
-        interfacebloat:
-            max-methods: 25
-            ignore-interfaces:
-                - ManagerInterface
         wsl_v5:
             allow-first-in-block: true
             allow-whole-block: true
