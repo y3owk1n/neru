@@ -209,8 +209,3 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 		h.logger,
 	)
 }
-
-// handleGridActionKey handles action keys when in grid action mode.
-func (h *Handler) handleGridActionKey(key string) {
-	h.handleActionKey(key, ModeNameGrid)
-}

@@ -185,8 +185,3 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	h.SetModeHints()
 	h.logger.Info("Hints mode activated")
 }
-
-// handleHintsActionKey handles action keys when in hints action mode.
-func (h *Handler) handleHintsActionKey(key string) {
-	h.handleActionKey(key, ModeNameHints)
-}

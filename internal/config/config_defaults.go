@@ -24,8 +24,6 @@ const (
 	// DefaultScrollStepFull is the default scroll step full.
 	DefaultScrollStepFull = 1000000
 
-	// DefaultActionHighlightWidth is the default highlight width for action.
-	DefaultActionHighlightWidth = 2
 	// DefaultScrollHighlightWidth is the default highlight width for scroll.
 	DefaultScrollHighlightWidth = 3
 
@@ -263,20 +261,19 @@ func DefaultConfig() *Config {
 				"scroll_left":  {"h", "Left"},
 				"scroll_right": {"l", "Right"},
 				"go_top":       {"gg", "Cmd+Up"},
-				"go_bottom":    {"G", "Cmd+Down"},
+				"go_bottom":    {"Shift+G", "Cmd+Down"},
 				"page_up":      {"Ctrl+U", "PageUp"},
 				"page_down":    {"Ctrl+D", "PageDown"},
 			},
 		},
 		Action: ActionConfig{
-			HighlightColor: "#00FF00",
-			HighlightWidth: DefaultActionHighlightWidth,
-
-			LeftClickKey:   "l",
-			RightClickKey:  "r",
-			MiddleClickKey: "m",
-			MouseDownKey:   "i",
-			MouseUpKey:     "u",
+			KeyBindings: ActionKeyBindingsCfg{
+				LeftClick:   "Shift+L",
+				RightClick:  "Shift+R",
+				MiddleClick: "Shift+M",
+				MouseDown:   "Shift+I",
+				MouseUp:     "Shift+U",
+			},
 		},
 		Logging: LoggingConfig{
 			LogLevel:           "info",

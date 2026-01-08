@@ -58,10 +58,14 @@ func (h *Handler) moveCursorAndHandleAction(
 
 // handleHintsModeKey handles key processing for hints mode.
 func (h *Handler) handleHintsModeKey(key string) {
-	if h.hints.Context.InActionMode() {
-		h.handleHintsActionKey(key)
-		// After handling the action, we stay in action mode.
-		// The user can press Tab to go back to overlay mode or perform more actions.
+	ctx := context.Background()
+
+	if h.actionService.IsDirectActionKey(key) {
+		h.actionService.HandleDirectActionKey(ctx, key)
+
+		// Refresh hints after direct action as content may have changed
+		h.activateHintModeInternal(false, nil)
+
 		return
 	}
 
@@ -98,10 +102,11 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 // handleGridModeKey handles key processing for grid mode.
 func (h *Handler) handleGridModeKey(key string) {
-	if h.grid.Context.InActionMode() {
-		h.handleGridActionKey(key)
-		// After handling the action, we stay in action mode.
-		// The user can press Tab to go back to overlay mode or perform more actions.
+	ctx := context.Background()
+
+	if h.actionService.IsDirectActionKey(key) {
+		h.actionService.HandleDirectActionKey(ctx, key)
+
 		return
 	}
 

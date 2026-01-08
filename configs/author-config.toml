@@ -2,8 +2,7 @@
 restore_cursor_position = true
 
 [hotkeys]
-"Ctrl+F" = "grid -a left_click"
-"Ctrl+G" = "grid"
+"Ctrl+F" = "grid"
 "Ctrl+S" = "scroll"
 
 [hints]
@@ -16,11 +15,12 @@ characters = "aoeuidhtnspyfgcrlqjkxbmwvz"
 sublayer_keys = "gcrhtnmwv"
 
 [action]
-left_click_key = "h"
-middle_click_key = "t"
-right_click_key = "n"
-mouse_down_key = "c"
-mouse_up_key = "r"
+[action.key_bindings]
+left_click = "Shift+H"
+middle_click = "Shift+T"
+right_click = "Shift+N"
+mouse_down = "Shift+R"
+mouse_up = "Shift+C"
 
 [smooth_cursor]
 move_mouse_enabled = true

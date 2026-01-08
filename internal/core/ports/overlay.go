@@ -23,9 +23,6 @@ type GridDisplay interface {
 type HighlightDisplay interface {
 	// DrawScrollHighlight draws a highlight for scroll mode.
 	DrawScrollHighlight(ctx context.Context, rect image.Rectangle, color string, width int) error
-
-	// DrawActionHighlight draws a highlight border for action mode.
-	DrawActionHighlight(ctx context.Context, rect image.Rectangle, color string, width int) error
 }
 
 // OverlayVisibility defines the interface for overlay visibility management.
@@ -53,9 +50,6 @@ type OverlayPort interface {
 
 	// DrawScrollHighlight draws a highlight for scroll mode.
 	DrawScrollHighlight(ctx context.Context, rect image.Rectangle, color string, width int) error
-
-	// DrawActionHighlight draws a highlight border for action mode.
-	DrawActionHighlight(ctx context.Context, rect image.Rectangle, color string, width int) error
 
 	// Hide hides the overlay.s from the screen.
 	Hide(ctx context.Context) error

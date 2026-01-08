@@ -43,7 +43,6 @@ func BenchmarkModeTransitionsIntegration(b *testing.B) {
 		for pb.Next() {
 			application.SetModeHints()
 			application.SetModeGrid()
-			application.SetModeAction()
 			application.SetModeScroll()
 			application.SetModeIdle()
 		}

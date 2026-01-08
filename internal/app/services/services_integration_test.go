@@ -118,7 +118,13 @@ func TestActionServiceIntegration(t *testing.T) {
 
 	accAdapter, overlayAdapter := initializeRealAdapters(t, cfg, logger)
 
-	actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Action, logger)
+	actionService := services.NewActionService(
+		accAdapter,
+		overlayAdapter,
+		cfg.Action,
+		cfg.Action.KeyBindings,
+		logger,
+	)
 
 	ctx := context.Background()
 
@@ -160,21 +166,6 @@ func TestActionServiceIntegration(t *testing.T) {
 			t.Logf("ExecuteAction failed (may be expected): %v", err)
 		} else {
 			t.Log("Element action executed successfully")
-		}
-	})
-
-	t.Run("ShowActionHighlight", func(t *testing.T) {
-		err := actionService.ShowActionHighlight(ctx)
-		if err != nil {
-			t.Logf("ShowActionHighlight failed: %v", err)
-		} else {
-			t.Log("Action highlight displayed successfully")
-			// Verify overlay is visible
-			if overlayAdapter.IsVisible() {
-				t.Log("Overlay became visible after highlight (expected)")
-			} else {
-				t.Log("Overlay is still not visible after highlight")
-			}
 		}
 	})
 }

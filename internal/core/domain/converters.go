@@ -6,7 +6,6 @@ const (
 	ModeNameHints  = "hints"
 	ModeNameGrid   = "grid"
 	ModeNameScroll = "scroll"
-	ModeNameAction = "action"
 )
 
 // ModeString converts a Mode to its string representation.
@@ -20,8 +19,6 @@ func ModeString(mode Mode) string {
 		return ModeNameGrid
 	case ModeScroll:
 		return ModeNameScroll
-	case ModeAction:
-		return ModeNameAction
 	default:
 		return UnknownMode
 	}

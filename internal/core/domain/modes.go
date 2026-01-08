@@ -12,6 +12,4 @@ const (
 	ModeGrid
 	// ModeScroll represents the scroll mode.
 	ModeScroll
-	// ModeAction represents the action mode.
-	ModeAction
 )

@@ -185,10 +185,10 @@ func (c *Config) ValidateGrid() error {
 		)
 	}
 
-	if strings.Contains(c.Grid.Characters, "<") {
+	if strings.Contains(c.Grid.Characters, ",") {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"grid.characters cannot contain '<' as it is reserved for reset",
+			"grid.characters cannot contain ',' as it is reserved for reset",
 		)
 	}
 
@@ -218,10 +218,10 @@ func (c *Config) ValidateGrid() error {
 			)
 		}
 
-		if strings.Contains(c.Grid.RowLabels, "<") {
+		if strings.Contains(c.Grid.RowLabels, ",") {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"grid.row_labels cannot contain '<' as it is reserved for reset",
+				"grid.row_labels cannot contain ',' as it is reserved for reset",
 			)
 		}
 
@@ -252,10 +252,10 @@ func (c *Config) ValidateGrid() error {
 			)
 		}
 
-		if strings.Contains(c.Grid.ColLabels, "<") {
+		if strings.Contains(c.Grid.ColLabels, ",") {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"grid.col_labels cannot contain '<' as it is reserved for reset",
+				"grid.col_labels cannot contain ',' as it is reserved for reset",
 			)
 		}
 
@@ -327,10 +327,10 @@ func (c *Config) ValidateGrid() error {
 	}
 
 	// Apply same ASCII and reserved character validation as grid.characters
-	if strings.Contains(keys, "<") {
+	if strings.Contains(keys, ",") {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"grid.sublayer_keys cannot contain '<' as it is reserved for reset",
+			"grid.sublayer_keys cannot contain ',' as it is reserved for reset",
 		)
 	}
 
@@ -366,15 +366,124 @@ func (c *Config) ValidateGrid() error {
 
 // ValidateAction validates the action configuration.
 func (c *Config) ValidateAction() error {
-	var validateErr error
+	return c.ValidateActionKeyBindings()
+}
 
-	if c.Action.HighlightWidth < 1 {
-		return derrors.New(derrors.CodeInvalidConfig, "action.highlight_width must be at least 1")
+// ValidateActionKeyBindings validates the action key_bindings configuration.
+func (c *Config) ValidateActionKeyBindings() error {
+	bindings := []struct {
+		value     string
+		fieldName string
+	}{
+		{c.Action.KeyBindings.LeftClick, "action.key_bindings.left_click"},
+		{c.Action.KeyBindings.RightClick, "action.key_bindings.right_click"},
+		{c.Action.KeyBindings.MiddleClick, "action.key_bindings.middle_click"},
+		{c.Action.KeyBindings.MouseDown, "action.key_bindings.mouse_down"},
+		{c.Action.KeyBindings.MouseUp, "action.key_bindings.mouse_up"},
 	}
 
-	validateErr = ValidateColor(c.Action.HighlightColor, "action.highlight_color")
-	if validateErr != nil {
-		return validateErr
+	for _, b := range bindings {
+		err := ValidateActionKeyBinding(b.value, b.fieldName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ValidateActionKeyBinding validates an action keybinding.
+// Valid formats:
+//   - Modifiers + key: Cmd+L, Shift+Return (at least 1 modifier + alphabet or Return/Enter)
+//   - Single special key: Return, Enter
+func ValidateActionKeyBinding(keybinding, fieldName string) error {
+	if strings.TrimSpace(keybinding) == "" {
+		return nil
+	}
+
+	normalizedKey := strings.TrimSpace(keybinding)
+
+	// Format 1: Single special key (Return, Enter)
+	if normalizedKey == "Return" || normalizedKey == "Enter" {
+		return nil
+	}
+
+	// Format 2: Modifiers + key (e.g., Cmd+L, Shift+Return)
+	parts := strings.Split(normalizedKey, "+")
+
+	const minParts = 2
+	if len(parts) < minParts {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s must have at least one modifier (e.g., Cmd+L, Shift+Return): %s",
+			fieldName,
+			keybinding,
+		)
+	}
+
+	validModifiers := map[string]bool{
+		"Cmd":    true,
+		"Ctrl":   true,
+		"Alt":    true,
+		"Shift":  true,
+		"Option": true,
+	}
+
+	for index := range parts[:len(parts)-1] {
+		modifier := strings.TrimSpace(parts[index])
+		if !validModifiers[modifier] {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s has invalid modifier '%s' in: %s (valid: Cmd, Ctrl, Alt, Shift, Option)",
+				fieldName,
+				modifier,
+				keybinding,
+			)
+		}
+	}
+
+	lastPart := parts[len(parts)-1]
+	// Don't trim \r as it's a valid key, not whitespace to be removed
+	var trimmedKey string
+	if lastPart == "\r" {
+		trimmedKey = "\r"
+	} else {
+		trimmedKey = strings.TrimSpace(lastPart)
+	}
+
+	if trimmedKey == "" {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s has empty key in: %s",
+			fieldName,
+			keybinding,
+		)
+	}
+
+	// Validate the key part (must be alphabet A-Z, Return, Enter, or \r)
+	if len(trimmedKey) == 1 {
+		if trimmedKey == "\r" {
+			// Single \r is valid
+		} else {
+			r := rune(trimmedKey[0])
+			if r < 'A' || r > 'Z' {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s has invalid key '%s' in: %s (must be alphabet A-Z, Return, or Enter)",
+					fieldName,
+					trimmedKey,
+					keybinding,
+				)
+			}
+		}
+	} else if trimmedKey != "Return" && trimmedKey != "Enter" {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s has invalid key '%s' in: %s (must be alphabet A-Z, Return, or Enter)",
+			fieldName,
+			trimmedKey,
+			keybinding,
+		)
 	}
 
 	return nil

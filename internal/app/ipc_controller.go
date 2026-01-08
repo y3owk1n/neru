@@ -97,6 +97,7 @@ func (c *IPCController) RegisterHandlers() {
 	// Initialize handler components
 	lifecycleHandler := NewIPCControllerLifecycle(c.AppState, c.Modes, c.Logger)
 	modesHandler := NewIPCControllerModes(c.Modes, c.Logger)
+	actionsHandler := NewIPCControllerActions(c.ActionService, c.Logger)
 	infoHandler := NewIPCControllerInfo(
 		c.ConfigService,
 		c.AppState,
@@ -114,5 +115,6 @@ func (c *IPCController) RegisterHandlers() {
 	// Register handlers from each component
 	lifecycleHandler.RegisterHandlers(c.Handlers)
 	modesHandler.RegisterHandlers(c.Handlers)
+	actionsHandler.RegisterHandlers(c.Handlers)
 	infoHandler.RegisterHandlers(c.Handlers)
 }

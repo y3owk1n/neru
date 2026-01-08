@@ -144,17 +144,6 @@ func initializeUIComponents(app *App) error {
 
 	app.scrollComponent = scrollComponent
 
-	actionComponent, err := factory.CreateActionComponent(ComponentCreationOptions{
-		SkipIfDisabled: false,
-		Required:       false,
-		OverlayType:    "action",
-	})
-	if err != nil {
-		return err
-	}
-
-	app.actionComponent = actionComponent
-
 	return nil
 }
 
@@ -218,7 +207,6 @@ func initializeModeHandler(app *App) {
 			hints  *components.HintsComponent
 			grid   *components.GridComponent
 			scroll *components.ScrollComponent
-			action *components.ActionComponent
 		}
 		callbacks struct {
 			enableEventTap  func()
@@ -247,12 +235,10 @@ func initializeModeHandler(app *App) {
 			hints  *components.HintsComponent
 			grid   *components.GridComponent
 			scroll *components.ScrollComponent
-			action *components.ActionComponent
 		}{
 			hints:  app.hintsComponent,
 			grid:   app.gridComponent,
 			scroll: app.scrollComponent,
-			action: app.actionComponent,
 		},
 		callbacks: struct {
 			enableEventTap  func()
@@ -279,7 +265,6 @@ func initializeModeHandler(app *App) {
 		deps.components.hints,
 		deps.components.grid,
 		deps.components.scroll,
-		deps.components.action,
 		deps.callbacks.enableEventTap,
 		deps.callbacks.disableEventTap,
 		deps.callbacks.refreshHotkeys,
@@ -382,7 +367,6 @@ func cleanupUIComponents(app *App) {
 	app.hintsComponent = nil
 	app.gridComponent = nil
 	app.scrollComponent = nil
-	app.actionComponent = nil
 
 	// Clean up renderer
 	app.renderer = nil

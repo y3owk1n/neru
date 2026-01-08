@@ -10,7 +10,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/app/components/action"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
@@ -66,9 +65,6 @@ func (n *NoOpManager) UseHintOverlay(o *hints.Overlay) {}
 // UseGridOverlay is a no-op implementation.
 func (n *NoOpManager) UseGridOverlay(o *grid.Overlay) {}
 
-// UseActionOverlay is a no-op implementation.
-func (n *NoOpManager) UseActionOverlay(o *action.Overlay) {}
-
 // UseScrollOverlay is a no-op implementation.
 func (n *NoOpManager) UseScrollOverlay(o *scroll.Overlay) {}
 
@@ -77,9 +73,6 @@ func (n *NoOpManager) HintOverlay() *hints.Overlay { return nil }
 
 // GridOverlay returns nil.
 func (n *NoOpManager) GridOverlay() *grid.Overlay { return nil }
-
-// ActionOverlay returns nil.
-func (n *NoOpManager) ActionOverlay() *action.Overlay { return nil }
 
 // ScrollOverlay returns nil.
 func (n *NoOpManager) ScrollOverlay() *scroll.Overlay { return nil }
@@ -91,9 +84,6 @@ func (n *NoOpManager) DrawHintsWithStyle(
 ) error {
 	return nil
 }
-
-// DrawActionHighlight is a no-op implementation.
-func (n *NoOpManager) DrawActionHighlight(x, y, w, h int) {}
 
 // DrawScrollHighlight is a no-op implementation.
 func (n *NoOpManager) DrawScrollHighlight(x, y, w, h int) {}
@@ -126,8 +116,6 @@ const (
 	ModeHints Mode = "hints"
 	// ModeGrid represents the grid mode.
 	ModeGrid Mode = "grid"
-	// ModeAction represents the action mode.
-	ModeAction Mode = "action"
 	// ModeScroll represents the scroll mode.
 	ModeScroll Mode = "scroll"
 )
@@ -149,9 +137,6 @@ func (sc StateChange) Next() Mode {
 }
 
 // ManagerInterface defines the interface for overlay window management.
-// ManagerInterface defines the interface for the overlay manager.
-//
-//nolint:interfacebloat
 type ManagerInterface interface {
 	Show()
 	Hide()
@@ -166,16 +151,13 @@ type ManagerInterface interface {
 
 	UseHintOverlay(o *hints.Overlay)
 	UseGridOverlay(o *grid.Overlay)
-	UseActionOverlay(o *action.Overlay)
 	UseScrollOverlay(o *scroll.Overlay)
 
 	HintOverlay() *hints.Overlay
 	GridOverlay() *grid.Overlay
-	ActionOverlay() *action.Overlay
 	ScrollOverlay() *scroll.Overlay
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
-	DrawActionHighlight(x, y, w, h int)
 	DrawScrollHighlight(x, y, w, h int)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
 	UpdateGridMatches(prefix string)
@@ -195,7 +177,6 @@ type Manager struct {
 	// Overlay renderers
 	hintOverlay   *hints.Overlay
 	gridOverlay   *grid.Overlay
-	actionOverlay *action.Overlay
 	scrollOverlay *scroll.Overlay
 }
 
@@ -215,7 +196,7 @@ func Init(logger *zap.Logger) *Manager {
 			subs: make(
 				map[uint64]func(StateChange),
 				DefaultSubscriberMapSize,
-			), // Pre-size for typical subscriber count
+			),
 		}
 	})
 
@@ -255,7 +236,6 @@ func (m *Manager) Hide() {
 // Clear clears the overlay window.
 func (m *Manager) Clear() {
 	C.NeruClearOverlay(m.window)
-	// Also clear overlay state if they exist to ensure proper state reset
 	if m.gridOverlay != nil {
 		m.gridOverlay.Clear()
 	}
@@ -321,11 +301,6 @@ func (m *Manager) UseGridOverlay(o *grid.Overlay) {
 	m.gridOverlay = o
 }
 
-// UseActionOverlay sets the action overlay renderer.
-func (m *Manager) UseActionOverlay(o *action.Overlay) {
-	m.actionOverlay = o
-}
-
 // UseScrollOverlay sets the scroll overlay renderer.
 func (m *Manager) UseScrollOverlay(o *scroll.Overlay) {
 	m.scrollOverlay = o
@@ -341,17 +316,11 @@ func (m *Manager) GridOverlay() *grid.Overlay {
 	return m.gridOverlay
 }
 
-// ActionOverlay returns the action overlay renderer.
-func (m *Manager) ActionOverlay() *action.Overlay {
-	return m.actionOverlay
-}
-
 // ScrollOverlay returns the scroll overlay renderer.
 func (m *Manager) ScrollOverlay() *scroll.Overlay {
 	return m.scrollOverlay
 }
 
-// DrawHintsWithStyle draws hints with the specified style.
 // DrawHintsWithStyle draws hints with the specified style using the hint overlay renderer.
 func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error {
 	if m.hintOverlay == nil {
@@ -367,14 +336,6 @@ func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) er
 	}
 
 	return nil
-}
-
-// DrawActionHighlight renders an action highlight border using the action overlay renderer.
-func (m *Manager) DrawActionHighlight(x, y, w, h int) {
-	if m.actionOverlay == nil {
-		return
-	}
-	m.actionOverlay.DrawActionHighlight(x, y, w, h)
 }
 
 // DrawScrollHighlight renders a scroll highlight border using the scroll overlay renderer.
@@ -425,7 +386,6 @@ func (m *Manager) SetHideUnmatched(hide bool) {
 // publish publishes a state change to all subscribers.
 func (m *Manager) publish(event StateChange) {
 	m.mu.Lock()
-	// Pre-allocate with exact capacity
 	subs := make([]func(StateChange), len(m.subs))
 	index := 0
 	for _, sub := range m.subs {

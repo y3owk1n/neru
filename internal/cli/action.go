@@ -2,19 +2,22 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
-// ActionCmd is the CLI action command.
+// ActionCmd is the CLI action command for performing immediate actions.
 var ActionCmd = &cobra.Command{
 	Use:   "action",
-	Short: "Enter action mode or perform immediate actions",
-	Long:  `Enter interactive action mode to perform mouse actions, or use subcommands for immediate actions.`,
-	PreRunE: func(_ *cobra.Command, _ []string) error {
+	Short: "Perform immediate mouse actions",
+	Long:  `Perform immediate mouse actions at the current cursor position.`,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return requiresRunningInstance()
 	},
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		// No subcommand provided, enter action mode
-		return sendCommand(cmd, "action", []string{})
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"action subcommand required (e.g., neru action left_click)",
+		)
 	},
 }
 

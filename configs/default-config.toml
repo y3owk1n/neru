@@ -18,27 +18,18 @@ restore_cursor_position = false
 [hotkeys]
 # Hotkey bindings - key = action
 # Supported modifiers: Cmd, Ctrl, Alt, Shift, Option
-# Examples: "Cmd+Shift+Space" = "hints", "Cmd+Shift+A" = "action"
+# Examples: "Cmd+Shift+Space" = "hints", "Cmd+Shift+G" = "grid"
 "Cmd+Shift+Space" = "hints"
 "Cmd+Shift+G" = "grid"
 "Cmd+Shift+S" = "scroll"
 
-# To get direct action after label selection, see `docs/CLI.md` for details
-# "Cmd+Shift+Space" = "hints --action left_click"
-# "Cmd+Shift+G" = "grid --action left_click"
-
-# There are more that can be added, see `docs/CLI.md` for details
-# "Cmd+Shift+A" = "action" # action with overlay
-# "Cmd+Shift+L" = "action left_click"
-# "Cmd+Shift+R" = "action right_click"
-# "Cmd+Shift+M" = "action middle_click"
-# "Cmd+Shift+N" = "action mouse_down"
-# "Cmd+Shift+P" = "action mouse_up"
-# Note: "Cmd+Shift+S" = "scroll" is already set above as default
+# Direct actions are available in hints/grid mode without mode switching
+# Use Cmd+L for left click, Cmd+R for right click, Cmd+M for middle click, etc.
+# See the [action.key_bindings] section below for all available direct action keys.
 
 # To run a shell command from a hotkey, prefix the value with `exec `:
 # "Ctrl+Alt+T" = "exec open -a Terminal"
-# "Ctrl+Alt+F" = "exec osascript -e 'display notification \"This is a test notification!\" with title \"Hello from Terminal\" subtitle \"Just testing 🚀\"'"
+# "Ctrl+Alt+F" = "exec osascript -e 'display notification \"This is a test notification!\" with title \"Hello from Terminal\"'"
 
 [hints]
 # Whether to enable hints mode
@@ -205,7 +196,7 @@ scroll_down = ["j", "Down"]
 scroll_left = ["h", "Left"]
 scroll_right = ["l", "Right"]
 go_top = ["gg", "Cmd+Up"]
-go_bottom = ["G", "Cmd+Down"]
+go_bottom = ["Shift+G", "Cmd+Down"]
 page_up = ["Ctrl+U", "PageUp"]
 page_down = ["Ctrl+D", "PageDown"]
 
@@ -221,17 +212,29 @@ page_down = ["Ctrl+D", "PageDown"]
 # Multi-key sequences (exactly 2 characters, no modifiers):
 # go_top = ["gg"]  # Press g then g to go to top
 
+# Action keybindings for use in hints/grid mode
+# Valid formats:
+#   - Modifier+Key: Cmd+L, Shift+Return (at least 1 modifier + alphabet or Return/Enter)
+#   - Single special key: Return, Enter
 [action]
-# Action mode highlight appearance
-highlight_color = "#00FF00"  # Color of action highlight
-highlight_width = 3         # Border width of action highlight
+[action.key_bindings]
+left_click = "Shift+L"    # Left click at current cursor position
+right_click = "Shift+R"   # Right click at current cursor position
+middle_click = "Shift+M"  # Middle click at current cursor position
+mouse_down = "Shift+I"    # Press and hold mouse button
+mouse_up = "Shift+U"      # Release mouse button
 
-# Action key mappings
-left_click_key = "l"     # Key for left mouse click
-right_click_key = "r"    # Key for right mouse click
-middle_click_key = "m"   # Key for middle mouse click
-mouse_down_key = "i"     # Key for mouse button down
-mouse_up_key = "u"       # Key for mouse button up
+# Alternative formats examples:
+# left_click = "Shift+Return"  # Modifier + Return
+# left_click = "Return"        # Single Return key
+# left_click = "Enter"         # Single Enter key
+# left_click = "Cmd+L"         # Use Cmd instead of Shift
+
+# Usage in hints/grid mode:
+# 1. Activate hints or grid mode
+# 2. Type a label to select an element/position
+# 3. Press the direct action key (e.g., Shift+L) to perform the action
+#    The action is performed at the selected position without needing to switch modes
 
 [smooth_cursor]
 # Whether to enable smooth mouse movement

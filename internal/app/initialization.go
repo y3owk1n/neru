@@ -150,7 +150,13 @@ func initializeServices(
 	gridService := services.NewGridService(overlayAdapter, logger)
 
 	// Action Service - handles UI element interactions
-	actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Action, logger)
+	actionService := services.NewActionService(
+		accAdapter,
+		overlayAdapter,
+		cfg.Action,
+		cfg.Action.KeyBindings,
+		logger,
+	)
 
 	// Scroll Service - manages scrolling operations
 	scrollService := services.NewScrollService(accAdapter, overlayAdapter, cfg.Scroll, logger)
@@ -216,10 +222,6 @@ func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger
 func (a *App) registerOverlays() {
 	if a.scrollComponent != nil && a.scrollComponent.Overlay != nil {
 		a.overlayManager.UseScrollOverlay(a.scrollComponent.Overlay)
-	}
-
-	if a.actionComponent != nil && a.actionComponent.Overlay != nil {
-		a.overlayManager.UseActionOverlay(a.actionComponent.Overlay)
 	}
 
 	if a.hintsComponent != nil && a.hintsComponent.Overlay != nil {

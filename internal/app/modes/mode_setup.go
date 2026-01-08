@@ -54,12 +54,6 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 	return h.cursorState.ShouldRestore()
 }
 
-// handleActionKey handles action keys for both hints and grid modes.
-func (h *Handler) handleActionKey(key string, mode string) {
-	ctx := context.Background()
-	h.actionService.HandleActionKey(ctx, key, mode)
-}
-
 // overlaySwitch switches the overlay mode.
 func (h *Handler) overlaySwitch(m overlay.Mode) {
 	if h.overlayManager != nil {
@@ -137,12 +131,5 @@ func (h *Handler) SetModeGrid() {
 // This function sets the application state to scroll mode, enables event tapping
 // for capturing keyboard input, and switches the overlay display to scroll mode.
 func (h *Handler) SetModeScroll() {
-	h.setMode(domain.ModeScroll, overlay.ModeAction)
-}
-
-// SetModeAction switches the application to action mode for action-based operations.
-// This function sets the application state to action mode, enables event tapping
-// for capturing keyboard input, and switches the overlay display to action mode.
-func (h *Handler) SetModeAction() {
-	h.setMode(domain.ModeAction, overlay.ModeAction)
+	h.setMode(domain.ModeScroll, overlay.ModeScroll)
 }

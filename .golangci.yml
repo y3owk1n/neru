@@ -30,6 +30,7 @@ linters:
         - paralleltest # Not relevant
         - wrapcheck # Too strict
         - wsl # Deprecated
+        - interfacebloat # Complex application with legitimate large interfaces
 
     settings:
         funlen:

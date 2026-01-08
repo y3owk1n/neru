@@ -66,7 +66,6 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	a.hintsComponent.UpdateConfig(loadResult.Config, a.logger)
 	a.gridComponent.UpdateConfig(loadResult.Config, a.logger)
 	a.scrollComponent.UpdateConfig(loadResult.Config, a.logger)
-	a.actionComponent.UpdateConfig(loadResult.Config, a.logger)
 
 	if a.modes != nil {
 		a.modes.UpdateConfig(loadResult.Config)

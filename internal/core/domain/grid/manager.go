@@ -60,7 +60,7 @@ func NewManager(
 // Completion occurs when labelLength characters are entered or a subgrid selection is made.
 // Returns (point, true) when selection is complete, (zero point, false) otherwise.
 func (m *Manager) HandleInput(key string) (image.Point, bool) {
-	resetKey := "<"
+	resetKey := ","
 
 	// Handle reset key to clear input and return to initial state
 	if key == resetKey {
@@ -103,7 +103,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 		return m.handleSubgridSelection(upperKey)
 	}
 
-	// Allow < to reset grid with redraw
+	// Allow , to reset grid with redraw
 	if upperKey == resetKey {
 		m.handleResetKey(true)
 

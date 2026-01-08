@@ -3,7 +3,6 @@ package components
 import (
 	"strings"
 
-	"github.com/y3owk1n/neru/internal/app/components/action"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
@@ -92,16 +91,4 @@ func (s *ScrollComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 	}
 
 	s.KeyMap = scroll.NewKeyMap(cfg.Scroll.KeyBindings)
-}
-
-// ActionComponent encapsulates all action-related functionality.
-type ActionComponent struct {
-	Overlay *action.Overlay
-}
-
-// UpdateConfig updates the action component with new configuration.
-func (a *ActionComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
-	if a.Overlay != nil {
-		a.Overlay.UpdateConfig(cfg.Action)
-	}
 }

@@ -12,14 +12,8 @@ type ModeBehavior struct {
 	// HandleKeyFunc handles key processing (optional, defaults to standard key handling)
 	HandleKeyFunc func(handler *Handler, key string)
 
-	// HandleActionKeyFunc handles action key processing (optional, defaults to standard action key handling)
-	HandleActionKeyFunc func(handler *Handler, key string)
-
 	// ExitFunc handles mode cleanup (optional, defaults to standard cleanup)
 	ExitFunc func(handler *Handler)
-
-	// ToggleActionModeFunc handles action mode toggling (optional, defaults to standard toggling)
-	ToggleActionModeFunc func(handler *Handler)
 }
 
 // GenericMode provides a generic implementation of the Mode interface
@@ -56,8 +50,6 @@ func (m *GenericMode) Activate(action *string) {
 			m.handler.activateGridModeWithAction(action)
 		case domain.ModeScroll:
 			m.handler.StartInteractiveScroll()
-		case domain.ModeAction:
-			m.handler.StartActionMode()
 		case domain.ModeIdle:
 			// Idle mode doesn't need activation
 		}
@@ -77,25 +69,8 @@ func (m *GenericMode) HandleKey(key string) {
 			m.handler.handleGridModeKey(key)
 		case domain.ModeScroll:
 			m.handler.handleGenericScrollKey(key)
-		case domain.ModeAction, domain.ModeIdle:
+		case domain.ModeIdle:
 			// These modes don't handle keys in this context
-		}
-	}
-}
-
-// HandleActionKey processes action keys using the configured behavior or default logic.
-func (m *GenericMode) HandleActionKey(key string) {
-	if m.behavior.HandleActionKeyFunc != nil {
-		m.behavior.HandleActionKeyFunc(m.handler, key)
-	} else {
-		// Default action key handling
-		switch m.modeType {
-		case domain.ModeHints:
-			m.handler.handleHintsActionKey(key)
-		case domain.ModeGrid:
-			m.handler.handleGridActionKey(key)
-		case domain.ModeAction, domain.ModeScroll, domain.ModeIdle:
-			// These modes don't handle action keys in this context
 		}
 	}
 }
@@ -120,27 +95,8 @@ func (m *GenericMode) Exit() {
 			if m.handler.cursorState != nil {
 				m.handler.cursorState.Reset()
 			}
-		case domain.ModeAction:
-			m.handler.clearAndHideOverlay()
 		case domain.ModeIdle:
 			// Idle mode doesn't need cleanup
-		}
-	}
-}
-
-// ToggleActionMode toggles between overlay and action modes using the configured behavior or default logic.
-func (m *GenericMode) ToggleActionMode() {
-	if m.behavior.ToggleActionModeFunc != nil {
-		m.behavior.ToggleActionModeFunc(m.handler)
-	} else {
-		// Default toggling
-		switch m.modeType {
-		case domain.ModeHints:
-			m.handler.toggleActionModeForHints()
-		case domain.ModeGrid:
-			m.handler.toggleActionModeForGrid()
-		case domain.ModeAction, domain.ModeScroll, domain.ModeIdle:
-			// These modes don't support action mode toggling
 		}
 	}
 }

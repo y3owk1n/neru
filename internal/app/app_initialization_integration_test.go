@@ -66,13 +66,6 @@ func TestAppInitializationWithRealComponentsIntegration(t *testing.T) {
 		application.SetModeIdle()
 		waitForMode(t, application, domain.ModeIdle)
 
-		// Test action mode
-		application.SetModeAction()
-		waitForMode(t, application, domain.ModeAction)
-
-		application.SetModeIdle()
-		waitForMode(t, application, domain.ModeIdle)
-
 		// Test scroll mode
 		application.SetModeScroll()
 		waitForMode(t, application, domain.ModeScroll)

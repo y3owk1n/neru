@@ -14,7 +14,6 @@ type MockOverlayPort struct {
 	ShowGridFunc  func(ctx context.Context) error
 	// DrawScrollHighlightFunc mocks DrawScrollHighlight.
 	DrawScrollHighlightFunc func(ctx context.Context, rect image.Rectangle, color string, width int) error
-	DrawActionHighlightFunc func(context.Context, image.Rectangle, string, int) error
 	HideFunc                func(context.Context) error
 	IsVisibleFunc           func() bool
 	RefreshFunc             func(context.Context) error
@@ -53,20 +52,6 @@ func (m *MockOverlayPort) DrawScrollHighlight(
 ) error {
 	if m.DrawScrollHighlightFunc != nil {
 		return m.DrawScrollHighlightFunc(ctx, rect, color, width)
-	}
-
-	return nil
-}
-
-// DrawActionHighlight implements ports.OverlayPort.
-func (m *MockOverlayPort) DrawActionHighlight(
-	ctx context.Context,
-	rect image.Rectangle,
-	color string,
-	width int,
-) error {
-	if m.DrawActionHighlightFunc != nil {
-		return m.DrawActionHighlightFunc(ctx, rect, color, width)
 	}
 
 	return nil
