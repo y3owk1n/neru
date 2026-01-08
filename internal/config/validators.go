@@ -371,44 +371,22 @@ func (c *Config) ValidateAction() error {
 
 // ValidateActionKeyBindings validates the action key_bindings configuration.
 func (c *Config) ValidateActionKeyBindings() error {
-	validateErr := ValidateActionKeyBinding(
-		c.Action.KeyBindings.LeftClick,
-		"action.key_bindings.left_click",
-	)
-	if validateErr != nil {
-		return validateErr
+	bindings := []struct {
+		value     string
+		fieldName string
+	}{
+		{c.Action.KeyBindings.LeftClick, "action.key_bindings.left_click"},
+		{c.Action.KeyBindings.RightClick, "action.key_bindings.right_click"},
+		{c.Action.KeyBindings.MiddleClick, "action.key_bindings.middle_click"},
+		{c.Action.KeyBindings.MouseDown, "action.key_bindings.mouse_down"},
+		{c.Action.KeyBindings.MouseUp, "action.key_bindings.mouse_up"},
 	}
 
-	validateErr = ValidateActionKeyBinding(
-		c.Action.KeyBindings.RightClick,
-		"action.key_bindings.right_click",
-	)
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateActionKeyBinding(
-		c.Action.KeyBindings.MiddleClick,
-		"action.key_bindings.middle_click",
-	)
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateActionKeyBinding(
-		c.Action.KeyBindings.MouseDown,
-		"action.key_bindings.mouse_down",
-	)
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateActionKeyBinding(
-		c.Action.KeyBindings.MouseUp,
-		"action.key_bindings.mouse_up",
-	)
-	if validateErr != nil {
-		return validateErr
+	for _, b := range bindings {
+		err := ValidateActionKeyBinding(b.value, b.fieldName)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
