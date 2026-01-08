@@ -319,9 +319,6 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
 			CGEventFlags flags = CGEventGetFlags(event);
 
-			// Debug: log all key events
-			NSLog(@"neru: keyCode=%d flags=0x%lx", keyCode, (unsigned long)flags);
-
 			// Thread-safe hotkey check
 			__block BOOL isHotkey = NO;
 			dispatch_sync(context->accessQueue, ^{
@@ -335,7 +332,6 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 			// If this is a registered hotkey, let it pass through
 			if (isHotkey) {
-				NSLog(@"neru: hotkey match, passing through");
 				return event;
 			}
 
@@ -343,8 +339,6 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			BOOL hasCmd = (flags & kCGEventFlagMaskCommand) != 0;
 			BOOL hasAlt = (flags & kCGEventFlagMaskAlternate) != 0;
 			BOOL hasCtrl = (flags & kCGEventFlagMaskControl) != 0;
-
-			NSLog(@"neru: modifiers cmd=%d alt=%d ctrl=%d", hasCmd, hasAlt, hasCtrl);
 
 			// Special handling for delete/backspace key (keycode 51)
 			if (keyCode == 51) {

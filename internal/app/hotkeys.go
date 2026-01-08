@@ -99,7 +99,7 @@ func (a *App) executeHotkeyAction(key, action string) error {
 		return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
 	}
 
-	a.logger.Info("hotkey action executed", zap.String("key", key), zap.String("action", action))
+	a.logger.Debug("hotkey action executed", zap.String("key", key), zap.String("action", action))
 
 	return nil
 }
