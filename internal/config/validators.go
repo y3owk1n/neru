@@ -366,12 +366,7 @@ func (c *Config) ValidateGrid() error {
 
 // ValidateAction validates the action configuration.
 func (c *Config) ValidateAction() error {
-	validateErr := c.ValidateActionKeyBindings()
-	if validateErr != nil {
-		return validateErr
-	}
-
-	return nil
+	return c.ValidateActionKeyBindings()
 }
 
 // ValidateActionKeyBindings validates the action key_bindings configuration.
