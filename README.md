@@ -100,7 +100,7 @@ See [Installation Guide](docs/INSTALLATION.md) for detailed setup instructions.
 | ------------------------- | ----------------------------------------------------------- |
 | 🎯 **Hint Labels**        | Click any visible element using keyboard labels             |
 | 🎬 **Action Mode**        | Choose click type: left, right, double, middle, drag & drop |
-| 📜 **Vim Scrolling**      | Scroll anywhere with `j`/`k`, `gg`/`G`, Ctrl+D/U            |
+| 📜 **Vim Scrolling**      | Fully configurable scroll keys: `j`/`k`, `gg`/`G`, custom bindings |
 | 🌐 **Universal Support**  | Native apps, Electron, Chrome, Firefox, system UI           |
 | ⚡ **Native Performance** | Built with Objective-C and Go for instant response          |
 | 🛠️ **TOML Config**        | Highly customizable with text-based configuration           |

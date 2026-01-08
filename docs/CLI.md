@@ -127,7 +127,7 @@ neru action middle_click   # Middle click
 neru action mouse_down     # Hold mouse button
 ```
 
-**Scroll keys:** `j/k` (up/down), `h/l` (left/right), `gg/G` (top/bottom), `Esc` (exit)
+**Scroll keys (configurable):** Default keys are `j/k` (up/down), `h/l` (left/right), `gg/G` (top/bottom), `Esc` (exit). Customize in your config file under `[scroll.key_bindings]`.
 
 ---
 
@@ -161,9 +161,9 @@ neru grid --action middle_click    # Middle-click via grid
 
 ## Scroll Mode
 
-Activate vim-style scrolling at the current cursor position.
+Activate vim-style scrolling at the current cursor position. Keys are configurable in your config file.
 
-**Scroll keys:**
+**Default scroll keys:**
 
 - `j` / `k` - Scroll down/up
 - `h` / `l` - Scroll left/right
@@ -172,13 +172,15 @@ Activate vim-style scrolling at the current cursor position.
 - `G` - Jump to bottom
 - `Esc` - Exit scroll mode
 
+**Customization:** See `[scroll.key_bindings]` in your config file. Each action can have multiple keys, including modifier combinations (e.g., `Cmd+Up`) and multi-key sequences (e.g., `gg`).
+
 **Workflow example:**
 
 ```bash
 # Start scroll mode
 neru scroll
 # Scrolls at current cursor position
-# Use j/k/gg/G/Ctrl+D/U to scroll
+# Use j/k/gg/G/Ctrl+D/U to scroll (or your custom bindings)
 # Press Esc to exit
 ```
 

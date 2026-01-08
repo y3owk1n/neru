@@ -268,7 +268,7 @@ enable_gc = false         # Enable periodic garbage collection every 5 minutes t
 
 ## Scroll Mode
 
-Vim-style scrolling for standalone navigation:
+Vim-style scrolling with fully configurable keybindings:
 
 ```toml
 [scroll]
@@ -281,7 +281,92 @@ highlight_color = "#FF0000"
 highlight_width = 2
 ```
 
-**Keys:** `j/k` (up/down), `h/l` (left/right), `Ctrl+d/u` (half-page), `gg/G` (top/bottom), `Esc` (exit)
+### Customizable Key Bindings
+
+Configure which keys trigger each scroll action. Each action can have multiple keys:
+
+```toml
+[scroll.key_bindings]
+# Movement
+scroll_up = ["k", "Up"]      # Scroll up by one line
+scroll_down = ["j", "Down"]  # Scroll down by one line
+scroll_left = ["h", "Left"]  # Scroll left by one line
+scroll_right = ["l", "Right"] # Scroll right by one line
+
+# Navigation
+go_top = ["gg", "Cmd+Up"]    # Go to top of page
+go_bottom = ["G", "Cmd+Down"] # Go to bottom of page
+
+# Page movement
+page_up = ["Ctrl+U", "PageUp"]   # Scroll up by half page
+page_down = ["Ctrl+D", "PageDown"] # Scroll down by half page
+```
+
+**Key Format Options:**
+
+| Format | Example | Description |
+|--------|---------|-------------|
+| Single key | `"j"`, `"k"` | Direct key press |
+| Arrow keys | `"Up"`, `"Down"` | Named arrow keys |
+| Modifier combo | `"Ctrl+U"`, `"Cmd+Down"` | Modifier + key |
+| Special keys | `"PageUp"`, `"PageDown"`, `"Home"`, `"End"` | Named special keys |
+| Multi-key sequence | `"gg"`, `"G"` | Press keys in sequence (500ms timeout) |
+
+**Multi-key Sequences:**
+- Must be exactly 2 letters (a-z, A-Z)
+- Case-insensitive (both "gg" and "GG" work)
+- 500ms timeout between key presses
+- Example: `"gg"` for go to top, `"G"` for go to bottom
+
+**Supported Modifiers:**
+- `Cmd`/`Command` - Command key
+- `Ctrl`/`Control` - Control key
+- `Alt`/`Option` - Option/Alt key
+- `Shift` - Shift key
+
+**Default Bindings:**
+
+| Action | Keys |
+|--------|------|
+| scroll_up | `k`, `Up` |
+| scroll_down | `j`, `Down` |
+| scroll_left | `h`, `Left` |
+| scroll_right | `l`, `Right` |
+| go_top | `gg`, `Cmd+Up` |
+| go_bottom | `G`, `Cmd+Down` |
+| page_up | `Ctrl+U`, `PageUp` |
+| page_down | `Ctrl+D`, `PageDown` |
+
+**Customization Examples:**
+
+```toml
+# Vim-style with arrow keys
+[scroll.key_bindings]
+scroll_up = ["k", "Up", "Ctrl+P"]
+scroll_down = ["j", "Down", "Ctrl+N"]
+go_top = ["gg", "Home"]
+go_bottom = ["G", "End"]
+
+# Home/End for navigation
+[scroll.key_bindings]
+scroll_up = ["k"]
+scroll_down = ["j"]
+scroll_left = ["h"]
+scroll_right = ["l"]
+go_top = ["gg", "Home"]
+go_bottom = ["G", "End"]
+page_up = ["PageUp"]
+page_down = ["PageDown"]
+
+# Mac-style with Command arrows
+[scroll.key_bindings]
+scroll_up = ["k", "Cmd+Up"]
+scroll_down = ["j", "Cmd+Down"]
+go_top = ["gg", "Cmd+Up"]
+go_bottom = ["G", "Cmd+Down"]
+```
+
+**Exit:** Press `Esc` to exit scroll mode.
 
 ## Action Mode
 
