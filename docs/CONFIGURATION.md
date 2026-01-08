@@ -310,13 +310,13 @@ page_down = ["Ctrl+D", "PageDown"] # Scroll down by half page
 | Arrow keys | `"Up"`, `"Down"` | Named arrow keys |
 | Modifier combo | `"Ctrl+U"`, `"Cmd+Down"` | Modifier + key |
 | Special keys | `"PageUp"`, `"PageDown"`, `"Home"`, `"End"` | Named special keys |
-| Multi-key sequence | `"gg"`, `"G"` | Press keys in sequence (500ms timeout) |
+| Multi-key sequence | `"gg"` | Press keys in sequence (500ms timeout) |
 
 **Multi-key Sequences:**
 - Must be exactly 2 letters (a-z, A-Z)
 - Case-insensitive (both "gg" and "GG" work)
 - 500ms timeout between key presses
-- Example: `"gg"` for go to top, `"G"` for go to bottom
+- Example: `"gg"` for go to top
 
 **Supported Modifiers:**
 - `Cmd`/`Command` - Command key
