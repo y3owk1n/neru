@@ -103,7 +103,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 		return m.handleSubgridSelection(upperKey)
 	}
 
-	// Allow < to reset grid with redraw
+	// Allow , to reset grid with redraw
 	if upperKey == resetKey {
 		m.handleResetKey(true)
 
