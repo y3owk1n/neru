@@ -98,7 +98,7 @@ func NewKeyMap(bindings map[string][]string) *KeyMap {
 				continue
 			}
 
-			if len(normalized) >= 2 && config.IsAllLetters(normalized) && !isNamedKey(normalized) {
+			if len(normalized) == 2 && config.IsAllLetters(normalized) && !isNamedKey(normalized) {
 				keyMap.sequences[normalized] = action
 				keyMap.sequenceKeys[keyMap.sequenceFirstKey(normalized)] = true
 			} else {
