@@ -552,6 +552,7 @@ func validateScrollKey(key, fieldName string) error {
 }
 
 // isValidScrollKeyName checks if a key name is valid for scroll keybindings.
+// This validates the base key part (after modifier splitting in validateScrollKey).
 func isValidScrollKeyName(key string) bool {
 	validKeys := map[string]bool{
 		"Space":     true,
@@ -581,25 +582,6 @@ func isValidScrollKeyName(key string) bool {
 		"F10":       true,
 		"F11":       true,
 		"F12":       true,
-		// Modifier combinations
-		"Cmd+Up":    true,
-		"Cmd+Down":  true,
-		"Cmd+Left":  true,
-		"Cmd+Right": true,
-		"Cmd+Home":  true,
-		"Cmd+End":   true,
-		"Alt+Up":    true,
-		"Alt+Down":  true,
-		"Alt+Left":  true,
-		"Alt+Right": true,
-		"Ctrl+Z":    true,
-		"Ctrl+U":    true,
-		"Ctrl+D":    true,
-		"Ctrl+A":    true,
-		"Ctrl+E":    true,
-		"Ctrl+W":    true,
-		"Ctrl+R":    true,
-		"Ctrl+T":    true,
 	}
 
 	if validKeys[key] {
