@@ -258,29 +258,22 @@ func (s *ActionService) matchActionKey(key string) bool {
 func (s *ActionService) getActionForBinding(binding string) (string, string, bool) {
 	bindingLower := strings.ToLower(binding)
 
-	configLower := strings.ToLower(s.keyBindings.LeftClick)
-	if bindingLower == configLower {
-		return string(domain.ActionNameLeftClick), "Left click", true
+	bindings := []struct {
+		config string
+		action domain.ActionName
+		logMsg string
+	}{
+		{s.keyBindings.LeftClick, domain.ActionNameLeftClick, "Left click"},
+		{s.keyBindings.RightClick, domain.ActionNameRightClick, "Right click"},
+		{s.keyBindings.MiddleClick, domain.ActionNameMiddleClick, "Middle click"},
+		{s.keyBindings.MouseDown, domain.ActionNameMouseDown, "Mouse down"},
+		{s.keyBindings.MouseUp, domain.ActionNameMouseUp, "Mouse up"},
 	}
 
-	configLower = strings.ToLower(s.keyBindings.RightClick)
-	if bindingLower == configLower {
-		return string(domain.ActionNameRightClick), "Right click", true
-	}
-
-	configLower = strings.ToLower(s.keyBindings.MiddleClick)
-	if bindingLower == configLower {
-		return string(domain.ActionNameMiddleClick), "Middle click", true
-	}
-
-	configLower = strings.ToLower(s.keyBindings.MouseDown)
-	if bindingLower == configLower {
-		return string(domain.ActionNameMouseDown), "Mouse down", true
-	}
-
-	configLower = strings.ToLower(s.keyBindings.MouseUp)
-	if bindingLower == configLower {
-		return string(domain.ActionNameMouseUp), "Mouse up", true
+	for _, b := range bindings {
+		if bindingLower == strings.ToLower(b.config) {
+			return string(b.action), b.logMsg, true
+		}
 	}
 
 	return "", "", false
