@@ -358,10 +358,10 @@ go_bottom = ["G", "End"]
 page_up = ["PageUp"]
 page_down = ["PageDown"]
 
-# Mac-style with Command arrows
+# Mac-style with Command arrows for navigation
 [scroll.key_bindings]
-scroll_up = ["k", "Cmd+Up"]
-scroll_down = ["j", "Cmd+Down"]
+scroll_up = ["k", "Up"]
+scroll_down = ["j", "Down"]
 go_top = ["gg", "Cmd+Up"]
 go_bottom = ["G", "Cmd+Down"]
 ```
