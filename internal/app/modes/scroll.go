@@ -158,5 +158,7 @@ func (h *Handler) handleSequenceKey(key, firstKey string) (string, bool) {
 		return "", false
 	}
 
+	h.scroll.Context.SetLastKey("")
+
 	return "", false
 }
