@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/y3owk1n/neru/compare/v1.12.3...v1.13.0) (2026-01-08)
+
+
+### Features
+
+* implements configurable scroll keybindings ([#291](https://github.com/y3owk1n/neru/issues/291)) ([250c412](https://github.com/y3owk1n/neru/commit/250c4121bef340ee186a7b5b2d36494cf11c305b))
+
 ## [1.12.3](https://github.com/y3owk1n/neru/compare/v1.12.2...v1.12.3) (2025-12-26)
 
 
