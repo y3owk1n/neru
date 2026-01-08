@@ -29,6 +29,9 @@ const (
 	// DefaultScrollHighlightWidth is the default highlight width for scroll.
 	DefaultScrollHighlightWidth = 3
 
+	// DefaultScrollSequenceTimeout is the timeout for multi-key sequences.
+	DefaultScrollSequenceTimeout = 500 * time.Millisecond
+
 	// DefaultMaxFileSize is the default max file size for logs (10MB).
 	DefaultMaxFileSize = 10
 	// DefaultMaxBackups is the default max backups for logs.
@@ -253,6 +256,17 @@ func DefaultConfig() *Config {
 			HighlightScrollArea: true,
 			HighlightColor:      "#FF0000",
 			HighlightWidth:      DefaultScrollHighlightWidth,
+
+			KeyBindings: map[string][]string{
+				"scroll_up":    {"k", "Up"},
+				"scroll_down":  {"j", "Down"},
+				"scroll_left":  {"h", "Left"},
+				"scroll_right": {"l", "Right"},
+				"go_top":       {"gg", "Cmd+Up"},
+				"go_bottom":    {"G", "Cmd+Down"},
+				"page_up":      {"Ctrl+U", "PageUp"},
+				"page_down":    {"Ctrl+D", "PageDown"},
+			},
 		},
 		Action: ActionConfig{
 			HighlightColor: "#00FF00",

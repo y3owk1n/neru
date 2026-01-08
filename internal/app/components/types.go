@@ -82,13 +82,16 @@ func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) 
 type ScrollComponent struct {
 	Overlay *scroll.Overlay
 	Context *scroll.Context
+	KeyMap  *scroll.KeyMap
 }
 
 // UpdateConfig updates the scroll component with new configuration.
-func (s *ScrollComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
+func (s *ScrollComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 	if s.Overlay != nil {
 		s.Overlay.UpdateConfig(cfg.Scroll)
 	}
+
+	s.KeyMap = scroll.NewKeyMap(cfg.Scroll.KeyBindings)
 }
 
 // ActionComponent encapsulates all action-related functionality.

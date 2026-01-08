@@ -140,10 +140,7 @@ func (et *EventTap) handleCallback(key string) {
 	et.logger.Debug("Key pressed", zap.String("key", key))
 
 	if et.callback != nil {
-		et.logger.Debug("Calling event tap callback")
 		et.callback(key)
-	} else {
-		et.logger.Debug("No callback registered for event tap")
 	}
 }
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -67,12 +68,13 @@ type HotkeysConfig struct {
 
 // ScrollConfig defines the behavior and appearance settings for scroll mode.
 type ScrollConfig struct {
-	ScrollStep          int    `json:"scrollStep"          toml:"scroll_step"`
-	ScrollStepHalf      int    `json:"scrollStepHalf"      toml:"scroll_step_half"`
-	ScrollStepFull      int    `json:"scrollStepFull"      toml:"scroll_step_full"`
-	HighlightScrollArea bool   `json:"highlightScrollArea" toml:"highlight_scroll_area"`
-	HighlightColor      string `json:"highlightColor"      toml:"highlight_color"`
-	HighlightWidth      int    `json:"highlightWidth"      toml:"highlight_width"`
+	ScrollStep          int                 `json:"scrollStep"          toml:"scroll_step"`
+	ScrollStepHalf      int                 `json:"scrollStepHalf"      toml:"scroll_step_half"`
+	ScrollStepFull      int                 `json:"scrollStepFull"      toml:"scroll_step_full"`
+	HighlightScrollArea bool                `json:"highlightScrollArea" toml:"highlight_scroll_area"`
+	HighlightColor      string              `json:"highlightColor"      toml:"highlight_color"`
+	HighlightWidth      int                 `json:"highlightWidth"      toml:"highlight_width"`
+	KeyBindings         map[string][]string `json:"keyBindings"         toml:"key_bindings"`
 }
 
 // HintsConfig defines the visual and behavioral settings for hints mode.
@@ -180,7 +182,7 @@ func (c *Config) Validate() error {
 		return derrors.New(derrors.CodeInvalidConfig, "configuration cannot be nil")
 	}
 
-	err := c.validateModes()
+	err := c.ValidateModes()
 	if err != nil {
 		return err
 	}
@@ -191,12 +193,12 @@ func (c *Config) Validate() error {
 		return err
 	}
 
-	err = c.validateLogging()
+	err = c.ValidateLogging()
 	if err != nil {
 		return err
 	}
 
-	err = c.validateScroll()
+	err = c.ValidateScroll()
 	if err != nil {
 		return err
 	}
@@ -312,44 +314,6 @@ func (c *Config) ShouldIgnoreClickableCheckForApp(bundleID string) bool {
 	return c.Hints.IgnoreClickableCheck
 }
 
-// buildRolesMap builds a map of clickable roles for the given bundle ID.
-func (c *Config) buildRolesMap(bundleID string) map[string]struct{} {
-	rolesMap := make(map[string]struct{})
-
-	// Add global clickable roles
-	for _, role := range c.Hints.ClickableRoles {
-		trimmed := strings.TrimSpace(role)
-		if trimmed != "" {
-			rolesMap[trimmed] = struct{}{}
-		}
-	}
-
-	// Add app-specific roles
-	for _, appConfig := range c.Hints.AppConfigs {
-		if appConfig.BundleID == bundleID {
-			for _, role := range appConfig.AdditionalClickable {
-				trimmed := strings.TrimSpace(role)
-				if trimmed != "" {
-					rolesMap[trimmed] = struct{}{}
-				}
-			}
-
-			break
-		}
-	}
-
-	// Add special roles
-	if c.Hints.IncludeMenubarHints {
-		rolesMap[RoleMenuBarItem] = struct{}{}
-	}
-
-	if c.Hints.IncludeDockHints {
-		rolesMap[RoleDockItem] = struct{}{}
-	}
-
-	return rolesMap
-}
-
 // rolesMapToSlice converts a roles map to a slice.
 func rolesMapToSlice(rolesMap map[string]struct{}) []string {
 	roles := make([]string, 0, len(rolesMap))
@@ -360,8 +324,8 @@ func rolesMapToSlice(rolesMap map[string]struct{}) []string {
 	return roles
 }
 
-// validateModes validates that at least one mode is enabled.
-func (c *Config) validateModes() error {
+// ValidateModes validates that at least one mode is enabled.
+func (c *Config) ValidateModes() error {
 	if !c.Hints.Enabled && !c.Grid.Enabled {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
@@ -372,8 +336,8 @@ func (c *Config) validateModes() error {
 	return nil
 }
 
-// validateLogging validates the logging configuration.
-func (c *Config) validateLogging() error {
+// ValidateLogging validates the logging configuration.
+func (c *Config) ValidateLogging() error {
 	validLogLevels := map[string]bool{
 		"debug": true,
 		"info":  true,
@@ -402,22 +366,263 @@ func validateMinValue(value int, minimum int, fieldName string) error {
 	return nil
 }
 
-// validateScroll validates the scroll configuration.
-func (c *Config) validateScroll() error {
-	err := validateMinValue(c.Scroll.ScrollStep, 1, "scroll.scroll_speed")
+// ValidateScroll validates the scroll configuration.
+func (c *Config) ValidateScroll() error {
+	err := validateMinValue(c.Scroll.ScrollStep, 1, "scroll.scroll_step")
 	if err != nil {
 		return err
 	}
 
-	err = validateMinValue(c.Scroll.ScrollStepHalf, 1, "scroll.half_page_multiplier")
+	err = validateMinValue(c.Scroll.ScrollStepHalf, 1, "scroll.scroll_step_half")
 	if err != nil {
 		return err
 	}
 
-	err = validateMinValue(c.Scroll.ScrollStepFull, 1, "scroll.full_page_multiplier")
+	err = validateMinValue(c.Scroll.ScrollStepFull, 1, "scroll.scroll_step_full")
+	if err != nil {
+		return err
+	}
+
+	err = c.ValidateScrollKeyBindings()
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// ValidateScrollKeyBindings validates the scroll keybindings configuration.
+func (c *Config) ValidateScrollKeyBindings() error {
+	if len(c.Scroll.KeyBindings) == 0 {
+		return nil
+	}
+
+	validActions := map[string]bool{
+		"scroll_up":    true,
+		"scroll_down":  true,
+		"scroll_left":  true,
+		"scroll_right": true,
+		"go_top":       true,
+		"go_bottom":    true,
+		"page_up":      true,
+		"page_down":    true,
+	}
+
+	for action, keys := range c.Scroll.KeyBindings {
+		if !validActions[action] {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"scroll.key_bindings has unknown action '%s' (valid: scroll_up, scroll_down, scroll_left, scroll_right, go_top, go_bottom, page_up, page_down)",
+				action,
+			)
+		}
+
+		if len(keys) == 0 {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"scroll.key_bindings['%s'] has no keys specified",
+				action,
+			)
+		}
+
+		for _, key := range keys {
+			err := validateScrollKey(key, fmt.Sprintf("scroll.key_bindings['%s']", action))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// buildRolesMap builds a map of clickable roles for the given bundle ID.
+func (c *Config) buildRolesMap(bundleID string) map[string]struct{} {
+	rolesMap := make(map[string]struct{})
+
+	for _, role := range c.Hints.ClickableRoles {
+		trimmed := strings.TrimSpace(role)
+		if trimmed != "" {
+			rolesMap[trimmed] = struct{}{}
+		}
+	}
+
+	for _, appConfig := range c.Hints.AppConfigs {
+		if appConfig.BundleID == bundleID {
+			for _, role := range appConfig.AdditionalClickable {
+				trimmed := strings.TrimSpace(role)
+				if trimmed != "" {
+					rolesMap[trimmed] = struct{}{}
+				}
+			}
+
+			break
+		}
+	}
+
+	if c.Hints.IncludeMenubarHints {
+		rolesMap[RoleMenuBarItem] = struct{}{}
+	}
+
+	if c.Hints.IncludeDockHints {
+		rolesMap[RoleDockItem] = struct{}{}
+	}
+
+	return rolesMap
+}
+
+// validateScrollKey validates a single scroll key binding.
+func validateScrollKey(key, fieldName string) error {
+	if strings.TrimSpace(key) == "" {
+		return derrors.Newf(derrors.CodeInvalidConfig, "%s has empty key", fieldName)
+	}
+
+	switch {
+	case strings.Contains(key, "+"):
+		parts := strings.Split(key, "+")
+		validModifiers := map[string]bool{
+			"Cmd":    true,
+			"Ctrl":   true,
+			"Alt":    true,
+			"Shift":  true,
+			"Option": true,
+		}
+
+		for i := range len(parts) - 1 {
+			modifier := strings.TrimSpace(parts[i])
+			if !validModifiers[modifier] {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option)",
+					fieldName,
+					modifier,
+					key,
+				)
+			}
+		}
+
+		lastPart := strings.TrimSpace(parts[len(parts)-1])
+		if lastPart == "" {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s has empty key in '%s'",
+				fieldName,
+				key,
+			)
+		}
+
+		if !isValidScrollKeyName(lastPart) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s has invalid key name '%s' in '%s'",
+				fieldName,
+				lastPart,
+				key,
+			)
+		}
+	case len(key) == 2 && isAllLetters(key):
+		for _, r := range key {
+			if r < 'a' || r > 'z' {
+				if r < 'A' || r > 'Z' {
+					return derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"%s has invalid sequence key '%s' - sequences must be 2 letters (a-z, A-Z)",
+						fieldName,
+						key,
+					)
+				}
+			}
+		}
+	default:
+		if len(key) == 1 && key[0] <= 31 {
+			return nil
+		}
+
+		if !isValidScrollKeyName(key) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s has invalid key name '%s'",
+				fieldName,
+				key,
+			)
+		}
+	}
+
+	return nil
+}
+
+// isValidScrollKeyName checks if a key name is valid for scroll keybindings.
+func isValidScrollKeyName(key string) bool {
+	validKeys := map[string]bool{
+		"Space":     true,
+		"Return":    true,
+		"Enter":     true,
+		"Escape":    true,
+		"Tab":       true,
+		"Delete":    true,
+		"Backspace": true,
+		"Home":      true,
+		"End":       true,
+		"PageUp":    true,
+		"PageDown":  true,
+		"Up":        true,
+		"Down":      true,
+		"Left":      true,
+		"Right":     true,
+		"F1":        true,
+		"F2":        true,
+		"F3":        true,
+		"F4":        true,
+		"F5":        true,
+		"F6":        true,
+		"F7":        true,
+		"F8":        true,
+		"F9":        true,
+		"F10":       true,
+		"F11":       true,
+		"F12":       true,
+		// Modifier combinations
+		"Cmd+Up":    true,
+		"Cmd+Down":  true,
+		"Cmd+Left":  true,
+		"Cmd+Right": true,
+		"Cmd+Home":  true,
+		"Cmd+End":   true,
+		"Alt+Up":    true,
+		"Alt+Down":  true,
+		"Alt+Left":  true,
+		"Alt+Right": true,
+		"Ctrl+Z":    true,
+		"Ctrl+U":    true,
+		"Ctrl+D":    true,
+		"Ctrl+A":    true,
+		"Ctrl+E":    true,
+		"Ctrl+W":    true,
+		"Ctrl+R":    true,
+		"Ctrl+T":    true,
+	}
+
+	if validKeys[key] {
+		return true
+	}
+
+	if len(key) == 1 {
+		r := rune(key[0])
+
+		return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
+	}
+
+	return false
+}
+
+func isAllLetters(keyStr string) bool {
+	for _, r := range keyStr {
+		if r < 'a' || r > 'z' {
+			if r < 'A' || r > 'Z' {
+				return false
+			}
+		}
+	}
+
+	return len(keyStr) > 0
 }

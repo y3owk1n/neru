@@ -170,6 +170,7 @@ func (f *ComponentFactory) CreateScrollComponent(
 	return &components.ScrollComponent{
 		Overlay: scrollOverlay,
 		Context: &scroll.Context{},
+		KeyMap:  scroll.NewKeyMap(f.config.Scroll.KeyBindings),
 	}, nil
 }
 

@@ -81,11 +81,11 @@ func TestConfig_ValidateHints(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.ValidateHints()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Config.ValidateHints() error = %v, wantErr %v", err, tt.wantErr)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.config.ValidateHints()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("Config.ValidateHints() error = %v, wantErr %v", err, testCase.wantErr)
 			}
 		})
 	}
@@ -161,11 +161,15 @@ func TestConfig_ValidateAppConfigs(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.ValidateAppConfigs()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Config.ValidateAppConfigs() error = %v, wantErr %v", err, tt.wantErr)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.config.ValidateAppConfigs()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.ValidateAppConfigs() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
 			}
 		})
 	}
@@ -509,11 +513,11 @@ func TestConfig_ValidateGrid(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.ValidateGrid()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Config.ValidateGrid() error = %v, wantErr %v", err, tt.wantErr)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.config.ValidateGrid()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("Config.ValidateGrid() error = %v, wantErr %v", err, testCase.wantErr)
 			}
 		})
 	}
@@ -608,11 +612,11 @@ func TestConfig_ValidateAction(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.ValidateAction()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Config.ValidateAction() error = %v, wantErr %v", err, tt.wantErr)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.config.ValidateAction()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("Config.ValidateAction() error = %v, wantErr %v", err, testCase.wantErr)
 			}
 		})
 	}
@@ -669,11 +673,250 @@ func TestConfig_ValidateSmoothCursor(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.ValidateSmoothCursor()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Config.ValidateSmoothCursor() error = %v, wantErr %v", err, tt.wantErr)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.config.ValidateSmoothCursor()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.ValidateSmoothCursor() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
+// TestConfig_ValidateScrollKeyBindings tests the scroll key bindings validation.
+func TestConfig_ValidateScrollKeyBindings(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  config.Config
+		wantErr bool
+	}{
+		{
+			name: "valid key bindings",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"scroll_up":   {"k", "Up"},
+					"scroll_down": {"j", "Down"},
+					"go_top":      {"gg"},
+					"go_bottom":   {"G"},
+					"page_up":     {"Ctrl+U", "PageUp"},
+					"page_down":   {"Ctrl+D", "PageDown"},
+				}
+
+				return *cfg
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "empty key bindings - valid",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{}
+
+				return *cfg
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "nil key bindings - valid",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = nil
+
+				return *cfg
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "unknown action",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"unknown_action": {"k"},
+				}
+
+				return *cfg
+			}(),
+			wantErr: true,
+		},
+		{
+			name: "empty keys array",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"scroll_up": {},
+				}
+
+				return *cfg
+			}(),
+			wantErr: true,
+		},
+		{
+			name: "empty key in array",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"scroll_up": {"k", ""},
+				}
+
+				return *cfg
+			}(),
+			wantErr: true,
+		},
+		{
+			name: "invalid modifier",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"scroll_up": {"Super+D"},
+				}
+
+				return *cfg
+			}(),
+			wantErr: true,
+		},
+		{
+			name: "invalid key name",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"scroll_up": {"InvalidKeyName"},
+				}
+
+				return *cfg
+			}(),
+			wantErr: true,
+		},
+		{
+			name: "valid single-letter keys",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"scroll_up": {"g"},
+				}
+
+				return *cfg
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "invalid sequence - too long",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"go_top": {"ggg"},
+				}
+
+				return *cfg
+			}(),
+			wantErr: true,
+		},
+		{
+			name: "invalid sequence - non-letter",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"go_top": {"g1"},
+				}
+
+				return *cfg
+			}(),
+			wantErr: true,
+		},
+		{
+			name: "valid special keys",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"scroll_up": {
+						"Space",
+						"Return",
+						"Enter",
+						"Escape",
+						"Tab",
+						"Delete",
+						"Backspace",
+					},
+					"scroll_down": {"Home", "End", "PageUp", "PageDown"},
+					"scroll_left": {"Up", "Down", "Left", "Right"},
+					"scroll_right": {
+						"F1",
+						"F2",
+						"F3",
+						"F4",
+						"F5",
+						"F6",
+						"F7",
+						"F8",
+						"F9",
+						"F10",
+						"F11",
+						"F12",
+					},
+					"page_up": {
+						"Cmd+Up",
+						"Cmd+Down",
+						"Ctrl+Z",
+						"Ctrl+U",
+					},
+				}
+
+				return *cfg
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "valid mixed modifiers",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"scroll_up":   {"Cmd+K", "Ctrl+Shift+Up", "Alt+Option+Down"},
+					"scroll_down": {"Cmd+Ctrl+Alt+Shift+X"},
+				}
+
+				return *cfg
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "empty key with modifier",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"scroll_up": {"Ctrl+"},
+				}
+
+				return *cfg
+			}(),
+			wantErr: true,
+		},
+		{
+			name: "whitespace in key",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"scroll_up": {" k "},
+				}
+
+				return *cfg
+			}(),
+			wantErr: true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.config.ValidateScrollKeyBindings()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.ValidateScrollKeyBindings() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
 			}
 		})
 	}
