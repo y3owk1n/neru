@@ -34,7 +34,5 @@ func TestScrollMode_InterfaceCompliance(t *testing.T) {
 
 	mode.Activate(nil)
 	mode.HandleKey("test")
-	mode.HandleActionKey("test")
 	mode.Exit()
-	mode.ToggleActionMode()
 }

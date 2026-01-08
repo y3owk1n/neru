@@ -534,78 +534,27 @@ func TestConfig_ValidateAction(t *testing.T) {
 			name: "valid action config",
 			config: config.Config{
 				Action: config.ActionConfig{
-					HighlightWidth: 2,
-					HighlightColor: "#FF0000",
+					KeyBindings: config.ActionKeyBindingsCfg{
+						LeftClick: "Cmd+L",
+					},
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "invalid highlight width zero",
+			name: "valid empty action config",
 			config: config.Config{
-				Action: config.ActionConfig{
-					HighlightWidth: 0,
-					HighlightColor: "#FF0000",
-				},
+				Action: config.ActionConfig{},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
-			name: "invalid highlight width negative",
+			name: "invalid key binding format",
 			config: config.Config{
 				Action: config.ActionConfig{
-					HighlightWidth: -1,
-					HighlightColor: "#FF0000",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid highlight color empty",
-			config: config.Config{
-				Action: config.ActionConfig{
-					HighlightWidth: 2,
-					HighlightColor: "",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid highlight color not hex",
-			config: config.Config{
-				Action: config.ActionConfig{
-					HighlightWidth: 2,
-					HighlightColor: "red",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid highlight color too short",
-			config: config.Config{
-				Action: config.ActionConfig{
-					HighlightWidth: 2,
-					HighlightColor: "#12",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid highlight color invalid length",
-			config: config.Config{
-				Action: config.ActionConfig{
-					HighlightWidth: 2,
-					HighlightColor: "#12345",
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid highlight color invalid characters",
-			config: config.Config{
-				Action: config.ActionConfig{
-					HighlightWidth: 2,
-					HighlightColor: "#GGGGGG",
+					KeyBindings: config.ActionKeyBindingsCfg{
+						LeftClick: "l", // lowercase not allowed
+					},
 				},
 			},
 			wantErr: true,
@@ -914,6 +863,117 @@ func TestConfig_ValidateScrollKeyBindings(t *testing.T) {
 			if (err != nil) != testCase.wantErr {
 				t.Errorf(
 					"Config.ValidateScrollKeyBindings() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
+// TestValidateActionKeyBinding tests the ValidateActionKeyBinding function.
+func TestValidateActionKeyBinding(t *testing.T) {
+	tests := []struct {
+		name       string
+		keybinding string
+		wantErr    bool
+	}{
+		{
+			name:       "valid modifier plus alphabet",
+			keybinding: "Cmd+L",
+			wantErr:    false,
+		},
+		{
+			name:       "valid modifier plus Return",
+			keybinding: "Shift+Return",
+			wantErr:    false,
+		},
+		{
+			name:       "valid modifier plus Enter",
+			keybinding: "Cmd+Enter",
+			wantErr:    false,
+		},
+		{
+			name:       "valid multiple modifiers",
+			keybinding: "Cmd+Shift+L",
+			wantErr:    false,
+		},
+		{
+			name:       "valid single Return",
+			keybinding: "Return",
+			wantErr:    false,
+		},
+		{
+			name:       "valid single Enter",
+			keybinding: "Enter",
+			wantErr:    false,
+		},
+		{
+			name:       "valid_modifier_plus_Return#01",
+			keybinding: "Cmd+Return",
+			wantErr:    false,
+		},
+		{
+			name:       "valid all modifiers",
+			keybinding: "Cmd+Ctrl+Alt+Shift+Option+L",
+			wantErr:    false,
+		},
+		{
+			name:       "empty is valid (uses default)",
+			keybinding: "",
+			wantErr:    false,
+		},
+		{
+			name:       "invalid single lowercase alphabet",
+			keybinding: "l",
+			wantErr:    true,
+		},
+		{
+			name:       "invalid single uppercase alphabet",
+			keybinding: "L",
+			wantErr:    true,
+		},
+		{
+			name:       "invalid single number",
+			keybinding: "1",
+			wantErr:    true,
+		},
+		{
+			name:       "invalid single symbol",
+			keybinding: "!",
+			wantErr:    true,
+		},
+		{
+			name:       "invalid modifier only no key",
+			keybinding: "Cmd+",
+			wantErr:    true,
+		},
+		{
+			name:       "invalid no plus sign",
+			keybinding: "CmdL",
+			wantErr:    true,
+		},
+		{
+			name:       "invalid lowercase key with modifier",
+			keybinding: "Cmd+l",
+			wantErr:    true,
+		},
+		{
+			name:       "invalid modifier name",
+			keybinding: "Super+L",
+			wantErr:    true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+			cfg.Action.KeyBindings.LeftClick = testCase.keybinding
+
+			err := cfg.ValidateActionKeyBindings()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.ValidateActionKeyBindings() error = %v, wantErr %v",
 					err,
 					testCase.wantErr,
 				)

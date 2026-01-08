@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/app/components"
-	"github.com/y3owk1n/neru/internal/app/components/action"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
@@ -174,41 +173,6 @@ func (f *ComponentFactory) CreateScrollComponent(
 	}, nil
 }
 
-// CreateActionComponent creates an action component with standardized error handling.
-func (f *ComponentFactory) CreateActionComponent(
-	opts ComponentCreationOptions,
-) (*components.ActionComponent, error) {
-	// Create overlay
-	var actionOverlay *action.Overlay
-	if opts.OverlayType != "" {
-		overlay, err := f.createOverlay("action", f.config.Action)
-		if err != nil {
-			if opts.Required {
-				return nil, derrors.Wrap(
-					err,
-					derrors.CodeOverlayFailed,
-					"failed to create action overlay",
-				)
-			}
-
-			f.logger.Warn(
-				"Failed to create action overlay, continuing without overlay",
-				zap.Error(err),
-			)
-		} else {
-			if actionOverlayTyped, ok := overlay.(*action.Overlay); ok {
-				actionOverlay = actionOverlayTyped
-			} else {
-				f.logger.Error("Unexpected overlay type for action", zap.Any("overlay", overlay))
-			}
-		}
-	}
-
-	return &components.ActionComponent{
-		Overlay: actionOverlay,
-	}, nil
-}
-
 // Helper methods
 
 func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, error) {
@@ -222,13 +186,6 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 		return hints.NewOverlayWithWindow(hintsConfig, f.logger, f.overlayManager.WindowPtr())
 	case "grid":
 		return f.createGridOverlay(), nil
-	case "action":
-		actionConfig, ok := cfg.(config.ActionConfig)
-		if !ok {
-			return nil, derrors.New(derrors.CodeInvalidInput, "invalid action config type")
-		}
-
-		return action.NewOverlayWithWindow(actionConfig, f.logger, f.overlayManager.WindowPtr())
 	case "scroll":
 		scrollConfig, ok := cfg.(config.ScrollConfig)
 		if !ok {

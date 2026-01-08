@@ -34,11 +34,6 @@ func TestModeString(t *testing.T) {
 			want: "scroll",
 		},
 		{
-			name: "action mode",
-			mode: app.ModeAction,
-			want: "action",
-		},
-		{
 			name: "unknown mode",
 			mode: app.Mode(999),
 			want: domain.UnknownMode,

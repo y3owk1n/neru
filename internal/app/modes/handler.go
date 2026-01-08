@@ -26,14 +26,8 @@ type Mode interface {
 	// HandleKey processes a key press within the mode's context.
 	HandleKey(key string)
 
-	// HandleActionKey processes a key press when in action mode.
-	HandleActionKey(key string)
-
 	// Exit performs mode-specific cleanup and deactivation.
 	Exit()
-
-	// ToggleActionMode switches between overlay and action modes.
-	ToggleActionMode()
 
 	// ModeType returns the domain mode type this implementation represents.
 	ModeType() domain.Mode
@@ -56,7 +50,6 @@ type Handler struct {
 	hints  *components.HintsComponent
 	grid   *components.GridComponent
 	scroll *components.ScrollComponent
-	action *components.ActionComponent
 
 	// Mode implementations
 	modes map[domain.Mode]Mode
@@ -84,7 +77,6 @@ func NewHandler(
 	hintsComponent *components.HintsComponent,
 	grid *components.GridComponent,
 	scroll *components.ScrollComponent,
-	action *components.ActionComponent,
 	enableEventTap func(),
 	disableEventTap func(),
 	refreshHotkeys func(),
@@ -106,7 +98,6 @@ func NewHandler(
 		hints:           hintsComponent,
 		grid:            grid,
 		scroll:          scroll,
-		action:          action,
 		screenBounds:    screenBounds,
 		enableEventTap:  enableEventTap,
 		disableEventTap: disableEventTap,
@@ -118,7 +109,6 @@ func NewHandler(
 		domain.ModeHints:  NewHintsMode(handler),
 		domain.ModeGrid:   NewGridMode(handler),
 		domain.ModeScroll: NewScrollMode(handler),
-		domain.ModeAction: NewActionMode(handler),
 	}
 
 	return handler

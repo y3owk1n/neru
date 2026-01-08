@@ -44,8 +44,6 @@ func setAndWaitForMode(t *testing.T, application *app.App, mode domain.Mode) {
 		application.SetModeIdle()
 	case domain.ModeScroll:
 		application.SetModeScroll()
-	case domain.ModeAction:
-		application.SetModeAction()
 	default:
 		t.Fatalf("unknown mode: %v", mode)
 	}

@@ -53,16 +53,6 @@ func (d *MetricsDecorator) DrawScrollHighlight(
 	return d.next.DrawScrollHighlight(ctx, rect, color, width)
 }
 
-// DrawActionHighlight implements ports.OverlayPort.
-func (d *MetricsDecorator) DrawActionHighlight(
-	ctx context.Context,
-	rect image.Rectangle,
-	color string,
-	width int,
-) error {
-	return d.next.DrawActionHighlight(ctx, rect, color, width)
-}
-
 // Hide implements ports.OverlayPort.
 func (d *MetricsDecorator) Hide(ctx context.Context) error {
 	defer d.recordDuration("overlay_hide_duration", time.Now())

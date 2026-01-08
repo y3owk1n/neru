@@ -127,30 +127,6 @@ func (a *Adapter) DrawScrollHighlight(
 	return nil
 }
 
-// DrawActionHighlight draws a highlight border for action mode.
-func (a *Adapter) DrawActionHighlight(
-	ctx context.Context,
-	rect image.Rectangle,
-	_ string,
-	_ int,
-) error {
-	select {
-	case <-ctx.Done():
-		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
-	}
-
-	// Use manager to draw action highlight (overlay is positioned at screen origin, so use local coords)
-	a.manager.DrawActionHighlight(
-		0,
-		0,
-		rect.Dx(),
-		rect.Dy(),
-	)
-
-	return nil
-}
-
 // Hide removes all overlays from the screen.
 func (a *Adapter) Hide(ctx context.Context) error {
 	// Check context

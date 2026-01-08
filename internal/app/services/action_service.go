@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"image"
+	"strings"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
@@ -18,6 +19,7 @@ type ActionService struct {
 	accessibility ports.AccessibilityPort
 	overlay       ports.OverlayPort
 	config        config.ActionConfig
+	keyBindings   config.ActionKeyBindingsCfg
 	logger        *zap.Logger
 }
 
@@ -25,13 +27,15 @@ type ActionService struct {
 func NewActionService(
 	accessibility ports.AccessibilityPort,
 	overlay ports.OverlayPort,
-	config config.ActionConfig,
+	actionConfig config.ActionConfig,
+	keyBindings config.ActionKeyBindingsCfg,
 	logger *zap.Logger,
 ) *ActionService {
 	return &ActionService{
 		accessibility: accessibility,
 		overlay:       overlay,
-		config:        config,
+		config:        actionConfig,
+		keyBindings:   keyBindings,
 		logger:        logger,
 	}
 }
@@ -112,30 +116,6 @@ func (s *ActionService) FocusedAppBundleID(ctx context.Context) (string, error) 
 	return s.accessibility.FocusedAppBundleID(ctx)
 }
 
-// ShowActionHighlight displays the action mode highlight around the active screen.
-func (s *ActionService) ShowActionHighlight(ctx context.Context) error {
-	// Get active screen screenBounds
-	screenBounds, screenBoundsErr := s.accessibility.ScreenBounds(ctx)
-	if screenBoundsErr != nil {
-		return core.WrapAccessibilityFailed(screenBoundsErr, "get screen bounds")
-	}
-
-	// Draw highlight using overlay
-	DrawActionHighlightErr := s.overlay.DrawActionHighlight(
-		ctx,
-		screenBounds,
-		s.config.HighlightColor,
-		s.config.HighlightWidth,
-	)
-	if DrawActionHighlightErr != nil {
-		return core.WrapOverlayFailed(DrawActionHighlightErr, "draw action highlight")
-	}
-
-	s.logger.Debug("Action highlight displayed")
-
-	return nil
-}
-
 // MoveCursorToElement moves the cursor to the center of the specified element.
 func (s *ActionService) MoveCursorToElement(
 	ctx context.Context,
@@ -196,20 +176,108 @@ func (s *ActionService) Health(ctx context.Context) map[string]error {
 	}
 }
 
-// getActionMapping returns the action name and log message for a given key.
-func (s *ActionService) getActionMapping(key string) (string, string, bool) {
-	switch key {
-	case s.config.LeftClickKey:
-		return string(domain.ActionNameLeftClick), "Left click", true
-	case s.config.RightClickKey:
-		return string(domain.ActionNameRightClick), "Right click", true
-	case s.config.MiddleClickKey:
-		return string(domain.ActionNameMiddleClick), "Middle click", true
-	case s.config.MouseDownKey:
-		return string(domain.ActionNameMouseDown), "Mouse down", true
-	case s.config.MouseUpKey:
-		return string(domain.ActionNameMouseUp), "Mouse up", true
-	default:
-		return "", "", false
+// IsDirectActionKey checks if the given key is a direct action keybinding.
+func (s *ActionService) IsDirectActionKey(key string) bool {
+	_, _, ok := s.getActionMapping(key)
+
+	return ok
+}
+
+// HandleDirectActionKey processes a direct action key and performs the corresponding action.
+// Returns true if the key was handled as a direct action, false otherwise.
+func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) bool {
+	actionString, logMsg, ok := s.getActionMapping(key)
+	if !ok {
+		return false
 	}
+
+	cursorPos, cursorPosErr := s.CursorPosition(ctx)
+	if cursorPosErr != nil {
+		s.logger.Error("Failed to get cursor position", zap.Error(cursorPosErr))
+
+		return false
+	}
+
+	s.logger.Info("Performing direct action",
+		zap.String("action", logMsg),
+		zap.Int("x", cursorPos.X),
+		zap.Int("y", cursorPos.Y))
+
+	performActionErr := s.PerformAction(ctx, actionString, cursorPos)
+	if performActionErr != nil {
+		s.logger.Error("Failed to perform direct action", zap.Error(performActionErr))
+	}
+
+	return true
+}
+
+// getActionMapping returns the action string and log message for an action key.
+func (s *ActionService) getActionMapping(key string) (string, string, bool) {
+	normalizedKey := key
+	// Normalize carriage return to "Return"
+	if key == "\r" {
+		normalizedKey = "Return"
+	}
+
+	// Check direct match first
+	if s.matchActionKey(normalizedKey) {
+		return s.getActionForBinding(normalizedKey)
+	}
+
+	// If key is a single uppercase letter (A-Z), check if Shift+Key is configured
+	// This handles the case where Shift+Letter is pressed but C code sends uppercase letter
+	if len(normalizedKey) == 1 {
+		r := rune(normalizedKey[0])
+		if r >= 'A' && r <= 'Z' {
+			shiftKey := "Shift+" + normalizedKey
+			if s.matchActionKey(shiftKey) {
+				return s.getActionForBinding(shiftKey)
+			}
+		}
+	}
+
+	return "", "", false
+}
+
+// matchActionKey checks if the key matches any configured binding.
+func (s *ActionService) matchActionKey(key string) bool {
+	keyLower := strings.ToLower(key)
+
+	return keyLower == strings.ToLower(s.keyBindings.LeftClick) ||
+		keyLower == strings.ToLower(s.keyBindings.RightClick) ||
+		keyLower == strings.ToLower(s.keyBindings.MiddleClick) ||
+		keyLower == strings.ToLower(s.keyBindings.MouseDown) ||
+		keyLower == strings.ToLower(s.keyBindings.MouseUp)
+}
+
+// getActionForBinding returns the action for a matching binding.
+func (s *ActionService) getActionForBinding(binding string) (string, string, bool) {
+	bindingLower := strings.ToLower(binding)
+
+	configLower := strings.ToLower(s.keyBindings.LeftClick)
+	if bindingLower == configLower {
+		return string(domain.ActionNameLeftClick), "Left click", true
+	}
+
+	configLower = strings.ToLower(s.keyBindings.RightClick)
+	if bindingLower == configLower {
+		return string(domain.ActionNameRightClick), "Right click", true
+	}
+
+	configLower = strings.ToLower(s.keyBindings.MiddleClick)
+	if bindingLower == configLower {
+		return string(domain.ActionNameMiddleClick), "Middle click", true
+	}
+
+	configLower = strings.ToLower(s.keyBindings.MouseDown)
+	if bindingLower == configLower {
+		return string(domain.ActionNameMouseDown), "Mouse down", true
+	}
+
+	configLower = strings.ToLower(s.keyBindings.MouseUp)
+	if bindingLower == configLower {
+		return string(domain.ActionNameMouseUp), "Mouse up", true
+	}
+
+	return "", "", false
 }

@@ -208,14 +208,15 @@ func TestManager_CustomLabelsWithSymbols(t *testing.T) {
 	}
 
 	// Test that symbols from row_labels are accepted only if they lead to valid coordinates
-	_, complete = manager.HandleInput(",")
+	// Note: "," is now the reset key, so we use "." instead for testing symbols
+	_, complete = manager.HandleInput(".")
 	if complete {
-		t.Error("Expected not complete after comma")
+		t.Error("Expected not complete after period")
 	}
 
-	// Since "A," doesn't match any coordinate prefix, it should be rejected
+	// Since "A." doesn't match any coordinate prefix, it should be rejected
 	if input := manager.CurrentInput(); input != "A" {
-		t.Errorf("CurrentInput() = %q, want 'A' (comma should be rejected)", input)
+		t.Errorf("CurrentInput() = %q, want 'A' (period should be rejected)", input)
 	}
 
 	// Test that a valid next character is accepted
@@ -228,15 +229,35 @@ func TestManager_CustomLabelsWithSymbols(t *testing.T) {
 		t.Errorf("CurrentInput() = %q, want 'AA'", input)
 	}
 
-	// Test that invalid character is rejected
+	// Test that reset key clears the input
+	_, complete = manager.HandleInput(",") // "," is the reset key
+	if complete {
+		t.Error("Expected not complete after reset")
+	}
+
+	if input := manager.CurrentInput(); input != "" {
+		t.Errorf("CurrentInput() = %q, want '' (reset should clear input)", input)
+	}
+
+	// Test that invalid character is rejected (input stays empty after reset)
 	_, complete = manager.HandleInput("Z") // Z not in valid characters
 	if complete {
 		t.Error("Expected not complete for invalid character")
 	}
 
-	// Input should not have changed
-	if input := manager.CurrentInput(); input != "AA" {
-		t.Errorf("CurrentInput() = %q, want 'AA'", input)
+	// Input should still be empty after reset + invalid char
+	if input := manager.CurrentInput(); input != "" {
+		t.Errorf("CurrentInput() = %q, want '' (input stays empty after reset)", input)
+	}
+
+	// Now test that a valid character after reset is accepted
+	_, complete = manager.HandleInput("A")
+	if complete {
+		t.Error("Expected not complete after A following reset")
+	}
+
+	if input := manager.CurrentInput(); input != "A" {
+		t.Errorf("CurrentInput() = %q, want 'A'", input)
 	}
 }
 

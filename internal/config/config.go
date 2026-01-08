@@ -19,14 +19,16 @@ const (
 
 // ActionConfig defines the visual and behavioral settings for action mode.
 type ActionConfig struct {
-	HighlightColor string `json:"highlightColor" toml:"highlight_color"`
-	HighlightWidth int    `json:"highlightWidth" toml:"highlight_width"`
+	KeyBindings ActionKeyBindingsCfg `json:"keyBindings" toml:"key_bindings"`
+}
 
-	LeftClickKey   string `json:"leftClickKey"   toml:"left_click_key"`
-	RightClickKey  string `json:"rightClickKey"  toml:"right_click_key"`
-	MiddleClickKey string `json:"middleClickKey" toml:"middle_click_key"`
-	MouseDownKey   string `json:"mouseDownKey"   toml:"mouse_down_key"`
-	MouseUpKey     string `json:"mouseUpKey"     toml:"mouse_up_key"`
+// ActionKeyBindingsCfg defines direct action keybindings for use in hints/grid mode.
+type ActionKeyBindingsCfg struct {
+	LeftClick   string `json:"leftClick"   toml:"left_click"`
+	RightClick  string `json:"rightClick"  toml:"right_click"`
+	MiddleClick string `json:"middleClick" toml:"middle_click"`
+	MouseDown   string `json:"mouseDown"   toml:"mouse_down"`
+	MouseUp     string `json:"mouseUp"     toml:"mouse_up"`
 }
 
 // Config represents the complete application configuration structure.

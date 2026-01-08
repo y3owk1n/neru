@@ -75,11 +75,6 @@ func (r *OverlayRenderer) ResizeActive() {
 	r.manager.ResizeToActiveScreen()
 }
 
-// DrawActionHighlight draws an action highlight border around the active screen.
-func (r *OverlayRenderer) DrawActionHighlight(x, y, width, height int) {
-	r.manager.DrawActionHighlight(x, y, width, height)
-}
-
 // DrawScrollHighlight draws a scroll highlight border around the active screen.
 func (r *OverlayRenderer) DrawScrollHighlight(x, y, width, height int) {
 	r.manager.DrawScrollHighlight(x, y, width, height)

@@ -43,7 +43,6 @@ func (h *Handler) clearAndHideOverlay() {
 
 // cleanupHintsMode handles cleanup for hints mode.
 func (h *Handler) cleanupHintsMode() {
-	h.hints.Context.SetInActionMode(false)
 	h.hints.Context.Reset()
 
 	h.clearAndHideOverlay()
@@ -61,8 +60,6 @@ func (h *Handler) cleanupDefaultMode() {
 
 // cleanupGridMode handles cleanup for grid mode.
 func (h *Handler) cleanupGridMode() {
-	h.grid.Context.SetInActionMode(false)
-
 	if h.grid.Manager != nil {
 		h.grid.Manager.Reset()
 	}

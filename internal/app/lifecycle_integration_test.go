@@ -61,7 +61,6 @@ func TestAppLifecycleIntegration(t *testing.T) {
 		modes := []domain.Mode{
 			domain.ModeHints,
 			domain.ModeGrid,
-			domain.ModeAction,
 			domain.ModeScroll,
 			domain.ModeIdle,
 			domain.ModeHints,
@@ -75,8 +74,6 @@ func TestAppLifecycleIntegration(t *testing.T) {
 				application.SetModeHints()
 			case domain.ModeGrid:
 				application.SetModeGrid()
-			case domain.ModeAction:
-				application.SetModeAction()
 			case domain.ModeScroll:
 				application.SetModeScroll()
 			case domain.ModeIdle:

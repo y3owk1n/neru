@@ -334,8 +334,9 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				return event;
 			}
 
-			// Check for modifiers (excluding Shift which is often used for normal typing)
+			// Check for modifiers (excluding Shift which is used for normal typing)
 			BOOL hasCmd = (flags & kCGEventFlagMaskCommand) != 0;
+			BOOL hasShift = (flags & kCGEventFlagMaskShift) != 0;
 			BOOL hasAlt = (flags & kCGEventFlagMaskAlternate) != 0;
 			BOOL hasCtrl = (flags & kCGEventFlagMaskControl) != 0;
 
@@ -352,6 +353,20 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 					if (hasCtrl)
 						[fullKey appendString:@"Ctrl+"];
 
+					[fullKey appendString:keyName];
+
+					if (context->callback) {
+						context->callback([fullKey UTF8String], context -> userData);
+					}
+					return NULL;
+				}
+			}
+
+			// Handle Shift+Letter for direct action matching (before Unicode translation)
+			if (hasShift && !hasCmd && !hasAlt && !hasCtrl) {
+				NSString *keyName = keyCodeToName(keyCode);
+				if (keyName) {
+					NSMutableString *fullKey = [NSMutableString stringWithString:@"Shift+"];
 					[fullKey appendString:keyName];
 
 					if (context->callback) {

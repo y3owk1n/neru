@@ -7,7 +7,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/app/components/action"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
@@ -166,14 +165,11 @@ func (m *mockOverlayManager) Mode() overlay.Mode {
 func (m *mockOverlayManager) WindowPtr() unsafe.Pointer          { return nil }
 func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)    {}
 func (m *mockOverlayManager) UseGridOverlay(_ *grid.Overlay)     {}
-func (m *mockOverlayManager) UseActionOverlay(_ *action.Overlay) {}
 func (m *mockOverlayManager) UseScrollOverlay(_ *scroll.Overlay) {}
 
 func (m *mockOverlayManager) HintOverlay() *hints.Overlay { return nil }
 
 func (m *mockOverlayManager) GridOverlay() *grid.Overlay { return nil }
-
-func (m *mockOverlayManager) ActionOverlay() *action.Overlay { return nil }
 
 func (m *mockOverlayManager) ScrollOverlay() *scroll.Overlay { return nil }
 
@@ -183,7 +179,6 @@ func (m *mockOverlayManager) DrawHintsWithStyle(
 ) error {
 	return nil
 }
-func (m *mockOverlayManager) DrawActionHighlight(_, _, _, _ int) {}
 func (m *mockOverlayManager) DrawScrollHighlight(_, _, _, _ int) {}
 
 func (m *mockOverlayManager) DrawGrid(

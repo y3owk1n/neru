@@ -25,7 +25,6 @@ const (
 	ModeHints  = domain.ModeHints
 	ModeGrid   = domain.ModeGrid
 	ModeScroll = domain.ModeScroll
-	ModeAction = domain.ModeAction
 )
 
 // SystrayComponent defines the interface for systray functionality.
@@ -69,7 +68,6 @@ type App struct {
 	hintsComponent   *components.HintsComponent
 	gridComponent    *components.GridComponent
 	scrollComponent  *components.ScrollComponent
-	actionComponent  *components.ActionComponent
 	systrayComponent SystrayComponent
 
 	// Lifecycle management

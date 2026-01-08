@@ -20,11 +20,6 @@ const (
 	ModeNameGrid = "Grid"
 	// ModeNameScroll is the name for scroll mode.
 	ModeNameScroll = "Scroll"
-
-	// modeNameHints is the lowercase name for hints mode used in UI messages.
-	modeNameHints = "hints"
-	// modeNameGrid is the lowercase name for grid mode used in UI messages.
-	modeNameGrid = "grid"
 )
 
 // baseMode provides common functionality for all mode implementations.
@@ -61,17 +56,7 @@ func (m *baseMode) HandleKey(key string) {
 	// Default empty implementation - modes can override if needed
 }
 
-// HandleActionKey provides a default empty implementation for modes that don't support action keys.
-func (m *baseMode) HandleActionKey(key string) {
-	// Default empty implementation - modes can override if needed
-}
-
 // Exit provides a default empty implementation for modes that don't need specific cleanup.
 func (m *baseMode) Exit() {
-	// Default empty implementation - modes can override if needed
-}
-
-// ToggleActionMode provides a default empty implementation for modes that don't support action mode toggling.
-func (m *baseMode) ToggleActionMode() {
 	// Default empty implementation - modes can override if needed
 }

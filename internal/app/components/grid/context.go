@@ -7,18 +7,7 @@ import (
 // baseContext provides common functionality for mode component contexts.
 // It contains shared state fields used across different mode contexts.
 type baseContext struct {
-	inActionMode  bool
 	pendingAction *string
-}
-
-// SetInActionMode sets whether the mode is in action mode.
-func (c *baseContext) SetInActionMode(inActionMode bool) {
-	c.inActionMode = inActionMode
-}
-
-// InActionMode returns whether the mode is in action mode.
-func (c *baseContext) InActionMode() bool {
-	return c.inActionMode
 }
 
 // SetPendingAction sets the action to execute when mode selection is complete.
@@ -33,7 +22,6 @@ func (c *baseContext) PendingAction() *string {
 
 // Reset resets the base context to its initial state.
 func (c *baseContext) Reset() {
-	c.inActionMode = false
 	c.pendingAction = nil
 }
 

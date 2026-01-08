@@ -30,7 +30,6 @@ func (h *IPCControllerModes) RegisterHandlers(
 	handlers["hints"] = h.handleHints
 	handlers["grid"] = h.handleGrid
 	handlers["scroll"] = h.handleScroll
-	handlers[domain.CommandAction] = h.handleAction
 	handlers["idle"] = h.handleIdle
 }
 
@@ -83,17 +82,6 @@ func (h *IPCControllerModes) handleScroll(_ context.Context, _ ipc.Command) ipc.
 	h.modes.ActivateMode(domain.ModeScroll)
 
 	return ipc.Response{Success: true, Message: "scroll mode activated", Code: ipc.CodeOK}
-}
-
-func (h *IPCControllerModes) handleAction(_ context.Context, _ ipc.Command) ipc.Response {
-	if h.modes == nil {
-		return h.modesUnavailableResponse()
-	}
-
-	// For action mode, just activate it (the original implementation uses ActionService)
-	h.modes.ActivateMode(domain.ModeAction)
-
-	return ipc.Response{Success: true, Message: "action mode activated", Code: ipc.CodeOK}
 }
 
 func (h *IPCControllerModes) handleIdle(_ context.Context, _ ipc.Command) ipc.Response {
