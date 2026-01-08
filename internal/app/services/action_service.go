@@ -213,6 +213,10 @@ func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) b
 
 // getActionMapping returns the action string and log message for an action key.
 func (s *ActionService) getActionMapping(key string) (string, string, bool) {
+	if key == "" {
+		return "", "", false
+	}
+
 	normalizedKey := key
 	// Normalize carriage return to "Return"
 	if key == "\r" {
