@@ -255,11 +255,11 @@ type SequenceState struct {
 	ReceivedAt int64
 }
 
-// NewSequenceState creates a new SequenceState for the given first key.
-func NewSequenceState(key string) *SequenceState {
+// NewSequenceState creates a new SequenceState for the given first key and timestamp.
+func NewSequenceState(key string, receivedAt int64) *SequenceState {
 	return &SequenceState{
 		FirstKey:   key,
-		ReceivedAt: time.Now().UnixNano(),
+		ReceivedAt: receivedAt,
 	}
 }
 

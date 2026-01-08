@@ -118,7 +118,7 @@ func (h *Handler) handleSequenceKey(key, firstKey string) (string, bool) {
 		zap.String("key", key),
 		zap.String("firstKey", firstKey))
 
-	seqState := scroll.NewSequenceState(firstKey)
+	seqState := scroll.NewSequenceState(firstKey, h.scroll.Context.LastKeyTime())
 	if seqState.Expired() {
 		h.logger.Debug("sequence expired")
 		h.scroll.Context.SetLastKey("")
