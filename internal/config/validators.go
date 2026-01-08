@@ -185,10 +185,10 @@ func (c *Config) ValidateGrid() error {
 		)
 	}
 
-	if strings.Contains(c.Grid.Characters, "<") {
+	if strings.Contains(c.Grid.Characters, ",") {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"grid.characters cannot contain '<' as it is reserved for reset",
+			"grid.characters cannot contain ',' as it is reserved for reset",
 		)
 	}
 
@@ -218,10 +218,10 @@ func (c *Config) ValidateGrid() error {
 			)
 		}
 
-		if strings.Contains(c.Grid.RowLabels, "<") {
+		if strings.Contains(c.Grid.RowLabels, ",") {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"grid.row_labels cannot contain '<' as it is reserved for reset",
+				"grid.row_labels cannot contain ',' as it is reserved for reset",
 			)
 		}
 
@@ -252,10 +252,10 @@ func (c *Config) ValidateGrid() error {
 			)
 		}
 
-		if strings.Contains(c.Grid.ColLabels, "<") {
+		if strings.Contains(c.Grid.ColLabels, ",") {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"grid.col_labels cannot contain '<' as it is reserved for reset",
+				"grid.col_labels cannot contain ',' as it is reserved for reset",
 			)
 		}
 
@@ -327,10 +327,10 @@ func (c *Config) ValidateGrid() error {
 	}
 
 	// Apply same ASCII and reserved character validation as grid.characters
-	if strings.Contains(keys, "<") {
+	if strings.Contains(keys, ",") {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"grid.sublayer_keys cannot contain '<' as it is reserved for reset",
+			"grid.sublayer_keys cannot contain ',' as it is reserved for reset",
 		)
 	}
 

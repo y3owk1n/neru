@@ -233,7 +233,7 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			name: "grid with reserved reset character",
 			config: config.Config{
 				Grid: config.GridConfig{
-					Characters: "ABC<DEF", // Contains '<'
+					Characters: "ABC,DEF", // Contains ','
 				},
 			},
 			wantErr: true,
@@ -325,14 +325,14 @@ func TestConfig_ValidateGrid(t *testing.T) {
 				Grid: config.GridConfig{
 					Enabled:                true,
 					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-					RowLabels:              "123<456", // Contains '<'
+					RowLabels:              "123,456", // Contains ','
 					FontSize:               12,
 					BackgroundColor:        "#ffffff",
 					TextColor:              "#000000",
 					MatchedTextColor:       "#000000",
 					MatchedBackgroundColor: "#ffffff",
 					MatchedBorderColor:     "#000000",
-					BorderColor:            "#000000",
+					BorderColor:            "#ffffff",
 				},
 			},
 			wantErr: true,
@@ -343,14 +343,14 @@ func TestConfig_ValidateGrid(t *testing.T) {
 				Grid: config.GridConfig{
 					Enabled:                true,
 					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-					ColLabels:              "abc<def", // Contains '<'
+					ColLabels:              "abc,def", // Contains ','
 					FontSize:               12,
 					BackgroundColor:        "#ffffff",
 					TextColor:              "#000000",
 					MatchedTextColor:       "#000000",
 					MatchedBackgroundColor: "#ffffff",
 					MatchedBorderColor:     "#000000",
-					BorderColor:            "#000000",
+					BorderColor:            "#ffffff",
 				},
 			},
 			wantErr: true,
@@ -495,7 +495,7 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			config: config.Config{
 				Grid: config.GridConfig{
 					Characters:   "ABC",
-					SublayerKeys: "abcdefg<h", // Invalid - contains '<'
+					SublayerKeys: "abcdefg,h", // Invalid - contains ','
 				},
 			},
 			wantErr: true,
