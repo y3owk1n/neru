@@ -340,22 +340,6 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			BOOL hasAlt = (flags & kCGEventFlagMaskAlternate) != 0;
 			BOOL hasCtrl = (flags & kCGEventFlagMaskControl) != 0;
 
-			// Special handling for delete/backspace key (keycode 51)
-			if (keyCode == 51) {
-				if (context->callback) {
-					context->callback("\x7f", context->userData);
-				}
-				return NULL;
-			}
-
-			// Special handling for escape key (keycode 53)
-			if (keyCode == 53) {
-				if (context->callback) {
-					context->callback("\x1b", context->userData);
-				}
-				return NULL;
-			}
-
 			// If there are modifiers (Cmd, Alt, Ctrl), construct a modifier key name
 			if (hasCmd || hasAlt || hasCtrl) {
 				NSString *keyName = keyCodeToName(keyCode);
@@ -376,6 +360,22 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 					}
 					return NULL;
 				}
+			}
+
+			// Special handling for delete/backspace key (keycode 51) without modifiers
+			if (keyCode == 51) {
+				if (context->callback) {
+					context->callback("\x7f", context->userData);
+				}
+				return NULL;
+			}
+
+			// Special handling for escape key (keycode 53) without modifiers
+			if (keyCode == 53) {
+				if (context->callback) {
+					context->callback("\x1b", context->userData);
+				}
+				return NULL;
 			}
 
 			// Handle arrow keys and special keys without modifiers
