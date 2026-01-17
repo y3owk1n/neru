@@ -28,16 +28,12 @@ var (
 	clickableRoles   = make(map[string]struct{})
 	clickableRolesMu sync.RWMutex
 
-	isLeftMouseDown         bool
-	isLeftMouseDownMu       sync.RWMutex
-	lastMouseDownPosition   image.Point
-	lastMouseDownPositionMu sync.RWMutex
+	isLeftMouseDown       bool
+	isLeftMouseDownMu     sync.RWMutex
+	lastMouseDownPosition image.Point
+)
 
-	// Pre-allocated common errors.
-	errGetChildrenNil = derrors.New(
-		derrors.CodeAccessibilityFailed,
-		"cannot get children: element reference is nil",
-	)
+var (
 	errSetFocusNil = derrors.New(
 		derrors.CodeAccessibilityFailed,
 		"cannot set focus: element reference is nil",
@@ -45,6 +41,10 @@ var (
 	errSetFocusFailed = derrors.New(
 		derrors.CodeAccessibilityFailed,
 		"failed to set focus on element",
+	)
+	errGetChildrenNil = derrors.New(
+		derrors.CodeAccessibilityFailed,
+		"cannot get children: element reference is nil",
 	)
 	errGetAttributeNil = derrors.New(
 		derrors.CodeAccessibilityFailed,
@@ -466,8 +466,8 @@ func IsLeftMouseDown() bool {
 
 // GetLastMouseDownPosition returns the last position where mouse down occurred.
 func GetLastMouseDownPosition() image.Point {
-	lastMouseDownPositionMu.RLock()
-	defer lastMouseDownPositionMu.RUnlock()
+	isLeftMouseDownMu.RLock()
+	defer isLeftMouseDownMu.RUnlock()
 
 	return lastMouseDownPosition
 }
