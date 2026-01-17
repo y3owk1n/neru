@@ -587,7 +587,6 @@ func LeftMouseDownAtPoint(point image.Point) error {
 
 // LeftMouseUpAtPoint performs a left mouse up action at the specified point.
 func LeftMouseUpAtPoint(point image.Point) error {
-	ClearLeftMouseDownState()
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performLeftMouseUpAtPosition(pos)
 	if result == 0 {
@@ -599,6 +598,8 @@ func LeftMouseUpAtPoint(point image.Point) error {
 		)
 	}
 
+	ClearLeftMouseDownState()
+
 	return nil
 }
 
@@ -608,6 +609,8 @@ func LeftMouseUp() error {
 	if result == 0 {
 		return derrors.New(derrors.CodeActionFailed, "failed to perform left-mouse-up at cursor")
 	}
+
+	ClearLeftMouseDownState()
 
 	return nil
 }
