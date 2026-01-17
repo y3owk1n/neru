@@ -99,14 +99,15 @@ int getElementCenter(void *element, CGPoint *outPoint);
 
 /// Move mouse cursor to position
 /// @param position Target position
-void moveMouse(CGPoint position);
+/// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
+void moveMouseWithType(CGPoint position, CGEventType eventType);
 
 /// Move mouse cursor smoothly to position
 /// @param startPosition Starting position
 /// @param endPosition Target position
 /// @param steps Number of steps for smooth movement
 /// @param delay Delay between steps in milliseconds
-void moveMouseSmooth(CGPoint startPosition, CGPoint endPosition, int steps, int delay);
+void moveMouseSmoothWithType(CGPoint startPosition, CGPoint endPosition, int steps, int delay, CGEventType eventType);
 
 /// Check if element has click action
 /// @param element Element reference

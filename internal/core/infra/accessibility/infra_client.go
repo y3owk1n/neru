@@ -153,8 +153,12 @@ func (c *InfraAXClient) PerformAction(
 	case action.TypeLeftClick:
 		performActionErr = LeftClickAtPoint(point, restoreCursor)
 	case action.TypeRightClick:
+		EnsureMouseUp()
+
 		performActionErr = RightClickAtPoint(point, restoreCursor)
 	case action.TypeMiddleClick:
+		EnsureMouseUp()
+
 		performActionErr = MiddleClickAtPoint(point, restoreCursor)
 	case action.TypeMouseDown:
 		performActionErr = LeftMouseDownAtPoint(point)
@@ -184,6 +188,8 @@ func (c *InfraAXClient) PerformAction(
 
 // Scroll performs a scroll action.
 func (c *InfraAXClient) Scroll(deltaX, deltaY int) error {
+	EnsureMouseUp()
+
 	scrollErr := ScrollAtCursor(deltaX, deltaY)
 	if scrollErr != nil {
 		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
