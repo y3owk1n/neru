@@ -5,12 +5,32 @@ restore_cursor_position = true
 "Ctrl+F" = "grid"
 "Ctrl+S" = "scroll"
 
+"Cmd+Alt+Shift+Ctrl+F" = "exec open -a \"Finder\""
+"Cmd+Alt+Shift+Ctrl+B" = "exec open -a \"Safari\""
+"Cmd+Alt+Shift+Ctrl+T" = "exec open -a \"Ghostty\""
+"Cmd+Alt+Shift+Ctrl+N" = "exec open -a \"Notes\""
+"Cmd+Alt+Shift+Ctrl+M" = "exec open -a \"Mail\""
+"Cmd+Alt+Shift+Ctrl+C" = "exec open -a \"Calendar\""
+"Cmd+Alt+Shift+Ctrl+W" = "exec open -a \"WhatsApp\""
+"Cmd+Alt+Shift+Ctrl+P" = "exec open -a \"Passwords\""
+"Cmd+Alt+Shift+Ctrl+S" = "exec open -a \"System Settings\""
+"Cmd+Alt+Shift+Ctrl+A" = "exec open -a \"Activity Monitor\""
+
+"Alt+Shift+1" = "exec move-to-space 1"
+"Alt+Shift+2" = "exec move-to-space 2"
+"Alt+Shift+3" = "exec move-to-space 3"
+"Alt+Shift+4" = "exec move-to-space 4"
+"Alt+Shift+5" = "exec move-to-space 5"
+"Alt+Shift+6" = "exec move-to-space 6"
+"Alt+Shift+7" = "exec move-to-space 7"
+"Alt+Shift+8" = "exec move-to-space 8"
+"Alt+Shift+9" = "exec move-to-space 9"
+
 [hints]
 enabled = false
 
 [grid]
-font_family = "JetBrainsMonoNLNFP-ExtraBold"
-
+font_family = "JetBrainsMonoNLNFP-Bold"
 characters = "aoeuidhtnspyfgcrlqjkxbmwvz"
 sublayer_keys = "gcrhtnmwv"
 
@@ -19,8 +39,8 @@ sublayer_keys = "gcrhtnmwv"
 left_click = "Shift+H"
 middle_click = "Shift+T"
 right_click = "Shift+N"
-mouse_down = "Shift+R"
-mouse_up = "Shift+C"
+mouse_down = "Shift+C"
+mouse_up = "Shift+R"
 
 [smooth_cursor]
 move_mouse_enabled = true
