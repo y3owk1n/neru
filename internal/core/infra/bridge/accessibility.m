@@ -633,23 +633,26 @@ int getElementCenter(void *element, CGPoint *outPoint) {
 static const CFTimeInterval kMouseClickDownUpDelay = 0.008;    // Delay between down and up events
 static const CFTimeInterval kMouseClickProcessingDelay = 0.04; // Delay after click processing
 
-/// Move mouse cursor to position
+/// Move mouse cursor to position with specified event type
 /// @param position Target position
-void moveMouse(CGPoint position) {
-	CGEventRef move = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, position, kCGMouseButtonLeft);
+/// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
+void moveMouseWithType(CGPoint position, CGEventType eventType) {
+	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, kCGMouseButtonLeft);
 	if (move) {
+		CGEventSetFlags(move, 0);
 		CGEventPost(kCGHIDEventTap, move);
 		CFRelease(move);
 		CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, false);
 	}
 }
 
-/// Move mouse cursor smoothly to position
+/// Move mouse cursor smoothly to position with specified event type
 /// @param startPosition Starting position
 /// @param endPosition Target position
 /// @param steps Number of steps for smooth movement
 /// @param delay Delay between steps in milliseconds
-void moveMouseSmooth(CGPoint startPosition, CGPoint endPosition, int steps, int delay) {
+/// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
+void moveMouseSmoothWithType(CGPoint startPosition, CGPoint endPosition, int steps, int delay, CGEventType eventType) {
 	if (steps <= 0)
 		steps = 10;
 	if (delay <= 0)
@@ -660,8 +663,9 @@ void moveMouseSmooth(CGPoint startPosition, CGPoint endPosition, int steps, int 
 		CGPoint currentPos = CGPointMake(startPosition.x + (endPosition.x - startPosition.x) * progress,
 		                                 startPosition.y + (endPosition.y - startPosition.y) * progress);
 
-		CGEventRef move = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, currentPos, kCGMouseButtonLeft);
+		CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, currentPos, kCGMouseButtonLeft);
 		if (move) {
+			CGEventSetFlags(move, 0);
 			CGEventPost(kCGHIDEventTap, move);
 			CFRelease(move);
 			CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.001, false);
@@ -715,7 +719,7 @@ static int performClickAtPosition(CGPoint pos, CGEventType downEvent, CGEventTyp
 		}
 	}
 
-	moveMouse(pos);
+	moveMouseWithType(pos, kCGEventMouseMoved);
 
 	CGEventRef down = CGEventCreateMouseEvent(NULL, downEvent, pos, button);
 	CGEventRef up = CGEventCreateMouseEvent(NULL, upEvent, pos, button);
@@ -725,7 +729,7 @@ static int performClickAtPosition(CGPoint pos, CGEventType downEvent, CGEventTyp
 		if (up)
 			CFRelease(up);
 		if (restoreCursor)
-			moveMouse(originalPosition);
+			moveMouseWithType(originalPosition, kCGEventMouseMoved);
 		return 0;
 	}
 	// Clear all modifier flags to ensure clean click without Cmd/Shift/etc
@@ -746,7 +750,7 @@ static int performClickAtPosition(CGPoint pos, CGEventType downEvent, CGEventTyp
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kMouseClickProcessingDelay, false);
 
 	if (restoreCursor)
-		moveMouse(originalPosition);
+		moveMouseWithType(originalPosition, kCGEventMouseMoved);
 	return 1;
 }
 
@@ -801,7 +805,7 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor) {
 	clickState.lastPosition = position;
 	gettimeofday(&clickState.lastClickTime, NULL);
 
-	moveMouse(position);
+	moveMouseWithType(position, kCGEventMouseMoved);
 
 	CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, position, kCGMouseButtonLeft);
 	CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, position, kCGMouseButtonLeft);
@@ -812,7 +816,7 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor) {
 		if (up)
 			CFRelease(up);
 		if (restoreCursor)
-			moveMouse(originalPosition);
+			moveMouseWithType(originalPosition, kCGEventMouseMoved);
 		return 0;
 	}
 
@@ -837,7 +841,7 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor) {
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kMouseClickProcessingDelay, false);
 
 	if (restoreCursor)
-		moveMouse(originalPosition);
+		moveMouseWithType(originalPosition, kCGEventMouseMoved);
 	return 1;
 }
 
@@ -863,7 +867,7 @@ int performMiddleClickAtPosition(CGPoint position, bool restoreCursor) {
 /// @param position Target position
 /// @return 1 on success, 0 on failure
 int performLeftMouseDownAtPosition(CGPoint position) {
-	moveMouse(position);
+	moveMouseWithType(position, kCGEventMouseMoved);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.05, false);
 	CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, position, kCGMouseButtonLeft);
 	if (!down)
@@ -880,7 +884,7 @@ int performLeftMouseDownAtPosition(CGPoint position) {
 /// @param position Target position
 /// @return 1 on success, 0 on failure
 int performLeftMouseUpAtPosition(CGPoint position) {
-	moveMouse(position);
+	moveMouseWithType(position, kCGEventMouseMoved);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.05, false);
 	CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, position, kCGMouseButtonLeft);
 	if (!up)

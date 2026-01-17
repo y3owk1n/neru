@@ -28,6 +28,11 @@ var (
 	clickableRoles   = make(map[string]struct{})
 	clickableRolesMu sync.RWMutex
 
+	isLeftMouseDown         bool
+	isLeftMouseDownMu       sync.RWMutex
+	lastMouseDownPosition   image.Point
+	lastMouseDownPositionMu sync.RWMutex
+
 	// Pre-allocated common errors.
 	errGetChildrenNil = derrors.New(
 		derrors.CodeAccessibilityFailed,
@@ -443,26 +448,74 @@ func (e *Element) ScrollBounds() image.Rectangle {
 	}
 }
 
+// SetLeftMouseDown sets the left mouse button down state.
+func SetLeftMouseDown(down bool, position image.Point) {
+	isLeftMouseDownMu.Lock()
+	defer isLeftMouseDownMu.Unlock()
+	isLeftMouseDown = down
+	lastMouseDownPosition = position
+}
+
+// IsLeftMouseDown returns whether the left mouse button is down.
+func IsLeftMouseDown() bool {
+	isLeftMouseDownMu.RLock()
+	defer isLeftMouseDownMu.RUnlock()
+
+	return isLeftMouseDown
+}
+
+// GetLastMouseDownPosition returns the last position where mouse down occurred.
+func GetLastMouseDownPosition() image.Point {
+	lastMouseDownPositionMu.RLock()
+	defer lastMouseDownPositionMu.RUnlock()
+
+	return lastMouseDownPosition
+}
+
+// ClearLeftMouseDownState clears the left mouse button down state.
+func ClearLeftMouseDownState() {
+	isLeftMouseDownMu.Lock()
+	defer isLeftMouseDownMu.Unlock()
+	isLeftMouseDown = false
+}
+
+// EnsureMouseUp ensures that if the left mouse button is down, it is released.
+// This should be called before any action that is incompatible with a drag operation.
+func EnsureMouseUp() {
+	if IsLeftMouseDown() {
+		pos := GetLastMouseDownPosition()
+		_ = LeftMouseUpAtPoint(pos)
+	}
+}
+
 // MoveMouseToPoint moves the cursor to a specific screen point.
 // If smooth cursor movement is enabled in the configuration, it will use smooth movement.
 func MoveMouseToPoint(point image.Point) {
+	var eventType C.CGEventType = C.CGEventType(C.kCGEventMouseMoved)
+	if IsLeftMouseDown() {
+		eventType = C.CGEventType(C.kCGEventLeftMouseDragged)
+	}
+
 	config := config.Global()
 	if config != nil && config.SmoothCursor.MoveMouseEnabled {
-		// Use smooth movement
-		MoveMouseToPointSmooth(point, config.SmoothCursor.Steps, config.SmoothCursor.Delay)
+		MoveMouseToPointSmooth(
+			point,
+			config.SmoothCursor.Steps,
+			config.SmoothCursor.Delay,
+			eventType,
+		)
 	} else {
-		// Use direct movement
 		pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-		C.moveMouse(pos)
+		C.moveMouseWithType(pos, eventType)
 	}
 }
 
 // MoveMouseToPointSmooth moves the cursor smoothly to a specific screen point.
-func MoveMouseToPointSmooth(end image.Point, steps, delay int) {
+func MoveMouseToPointSmooth(end image.Point, steps, delay int, eventType C.CGEventType) {
 	start := CurrentCursorPosition()
 	startPos := C.CGPoint{x: C.double(start.X), y: C.double(start.Y)}
 	endPos := C.CGPoint{x: C.double(end.X), y: C.double(end.Y)}
-	C.moveMouseSmooth(startPos, endPos, C.int(steps), C.int(delay))
+	C.moveMouseSmoothWithType(startPos, endPos, C.int(steps), C.int(delay), eventType)
 }
 
 // LeftClickAtPoint performs a left mouse click at the specified point.
@@ -515,9 +568,12 @@ func MiddleClickAtPoint(point image.Point, restoreCursor bool) error {
 
 // LeftMouseDownAtPoint performs a left mouse down action at the specified point.
 func LeftMouseDownAtPoint(point image.Point) error {
+	SetLeftMouseDown(true, point)
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performLeftMouseDownAtPosition(pos)
 	if result == 0 {
+		ClearLeftMouseDownState()
+
 		return derrors.Newf(
 			derrors.CodeActionFailed,
 			"failed to perform left-mouse-down at position (%d, %d)",
@@ -531,6 +587,7 @@ func LeftMouseDownAtPoint(point image.Point) error {
 
 // LeftMouseUpAtPoint performs a left mouse up action at the specified point.
 func LeftMouseUpAtPoint(point image.Point) error {
+	ClearLeftMouseDownState()
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performLeftMouseUpAtPosition(pos)
 	if result == 0 {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
@@ -74,6 +75,8 @@ func (h *Handler) performCommonCleanup() {
 	if h.disableEventTap != nil {
 		h.disableEventTap()
 	}
+
+	accessibility.EnsureMouseUp()
 
 	h.appState.SetMode(domain.ModeIdle)
 	h.logger.Debug("Mode transition complete",
