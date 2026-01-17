@@ -14,11 +14,10 @@ Navigate macOS without touching your mouse - keyboard-driven productivity at its
 </div>
 
 <p align="center">
-  <a href="#installation">Installation</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#features">Features</a> •
-  <a href="#documentation">Docs</a> •
-  <a href="#contributing">Contributing</a>
+  <a href="#-get-started">Get Started</a> •
+  <a href="#-core-features">Features</a> •
+  <a href="#-documentation">Docs</a> •
+  <a href="#-contributing">Contributing</a>
 </p>
 
 ---
@@ -46,6 +45,40 @@ Neru is a capable **free and open-source** replacement for:
 - [Mouseless](https://mouseless.click/) - Grid based keyboard navigation (paid)
 
 ---
+
+## 🎯 Core Features
+
+<div align="center">
+
+| Feature                   | Description                                                 |
+| ------------------------- | ----------------------------------------------------------- |
+| 🎯 **Hint Labels**        | Click any visible element using keyboard labels             |
+| ⚡ **Direct Actions**     | Perform clicks directly in hints/grid mode (Shift+L, etc.)  |
+| 📜 **Vim Scrolling**      | Fully configurable scroll keys: `j`/`k`, `gg`/`G`, custom bindings |
+| 🌐 **Universal Support**  | Native apps, Electron, Chrome, Firefox, system UI           |
+| ⚡ **Native Performance** | Built with Objective-C and Go for instant response          |
+| 🛠️ **TOML Config**        | Highly customizable with text-based configuration           |
+| 🚫 **App Exclusion**      | Disable Neru in specific applications                       |
+| 💬 **CLI Control**        | IPC commands for scripting and automation                   |
+
+</div>
+
+### 🎮 How It Works
+
+**Three Navigation Modes:**
+
+1. **Hints Mode** - Accessibility-based labels on clickable elements
+2. **Grid Mode** - Universal coordinate-based navigation (works everywhere!)
+3. **Scroll Mode** - Vim-style scrolling at cursor position
+
+<div align="center">
+
+![hints-preview](https://github.com/user-attachments/assets/71b13850-1b87-40b5-9ac0-93cff1f2e89b)
+![grid-preview](https://github.com/user-attachments/assets/d452f972-ce23-4798-955b-6dbfa8435504)
+
+[Hints Demo](demos/hints.md) • [Grid Demo](demos/grid.md)
+
+</div>
 
 ## 🚀 Get Started
 
@@ -92,40 +125,6 @@ See [Installation Guide](docs/INSTALLATION.md) for detailed setup instructions.
 
 ---
 
-## 🎯 Core Features
-
-<div align="center">
-
-| Feature                   | Description                                                 |
-| ------------------------- | ----------------------------------------------------------- |
-| 🎯 **Hint Labels**        | Click any visible element using keyboard labels             |
-| ⚡ **Direct Actions**     | Perform clicks directly in hints/grid mode (Shift+L, etc.)  |
-| 📜 **Vim Scrolling**      | Fully configurable scroll keys: `j`/`k`, `gg`/`G`, custom bindings |
-| 🌐 **Universal Support**  | Native apps, Electron, Chrome, Firefox, system UI           |
-| ⚡ **Native Performance** | Built with Objective-C and Go for instant response          |
-| 🛠️ **TOML Config**        | Highly customizable with text-based configuration           |
-| 🚫 **App Exclusion**      | Disable Neru in specific applications                       |
-| 💬 **CLI Control**        | IPC commands for scripting and automation                   |
-
-</div>
-
-### 🎮 How It Works
-
-**Three Navigation Modes:**
-
-1. **Hints Mode** - Accessibility-based labels on clickable elements
-2. **Grid Mode** - Universal coordinate-based navigation (works everywhere!)
-3. **Scroll Mode** - Vim-style scrolling at cursor position
-
-<div align="center">
-
-![hints-preview](https://github.com/user-attachments/assets/71b13850-1b87-40b5-9ac0-93cff1f2e89b)
-![grid-preview](https://github.com/user-attachments/assets/d452f972-ce23-4798-955b-6dbfa8435504)
-
-[Hints Demo](demos/hints.md) • [Grid Demo](demos/grid.md)
-
-</div>
-
 ## 📚 Documentation
 
 - **[Installation Guide](docs/INSTALLATION.md)** - Homebrew, Nix, source builds
@@ -150,25 +149,6 @@ background_color = "#FFD700"
 
 See [Configuration Guide](docs/CONFIGURATION.md) for all options.
 
-## 🤝 Contributing
-
-We welcome contributions! Here's how to get started:
-
-1. **Fork & Clone** the repository
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Make your changes** following our [Coding Standards](docs/CODING_STANDARDS.md)
-4. **Test thoroughly** (`just test && just lint`)
-5. **Commit conventionally** and open a Pull Request
-
-**Guidelines:**
-
-- Keep PRs focused on a single change
-- Add tests for new features
-- Update documentation
-- Follow existing code style
-
-See [Development Guide](docs/DEVELOPMENT.md) for build instructions and architecture details.
-
 ### 🏗️ Design Philosophy
 
 **Why TOML config over GUI?**
@@ -189,14 +169,13 @@ See [Development Guide](docs/DEVELOPMENT.md) for build instructions and architec
 
 **Actively maintained** with community contributions. PRs welcome!
 
-**Future Ideas:**
+**Contribution ideas:**
 
-- Service management commands
-- Improved app icons
-
-**Known Issues:**
-
-- Hold/unhold actions don't work in Finder (help appreciated!)
+- Improved app icons & logo
+- More navigation mechanism
+- More mouse actions
+- Website & docs
+- More configuration examples for different use cases
 
 ## ✅ Compatibility
 
@@ -210,11 +189,26 @@ Neru works with **everything**:
 
 See [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for app-specific issues.
 
+## 🤝 Contributing
+
+We welcome contributions! Here's how to get started:
+
+1. **Fork & Clone** the repository
+2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
+3. **Make your changes** following our [Coding Standards](docs/CODING_STANDARDS.md)
+4. **Test thoroughly** (`just test && just lint`)
+5. **Commit conventionally** and open a Pull Request
+
+**Guidelines:**
+
+- Keep PRs focused on a single change
+- Add tests for new features
+- Update documentation
+- Follow existing code style
+
+See [Development Guide](docs/DEVELOPMENT.md) for build instructions and architecture details.
+
 ---
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🙏 Acknowledgments
 
@@ -232,6 +226,10 @@ Inspired by these excellent projects:
 - 🐛 [Open an issue](https://github.com/y3owk1n/neru/issues) for bugs
 - 💬 [Discussions](https://github.com/y3owk1n/neru/discussions) for questions
 - ⭐ Star this repo if you find Neru useful!
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
