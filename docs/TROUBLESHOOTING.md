@@ -452,13 +452,6 @@ pkill -9 neru
 
 ## App-Specific Issues
 
-### Finder: Hold/unhold doesn't work
-
-**Known limitation: macOS restriction.**
-
-**Workaround:**
-Use native drag with trackpad/mouse for Finder operations.
-
 ### VS Code: Hints don't appear in editor
 
 **Electron AX support needed.**
@@ -678,7 +671,6 @@ pkill neru && neru launch
 If none of these solutions work:
 
 1. **Gather information:**
-
     - macOS version: `sw_vers`
     - Neru version: `neru --version`
     - App name and version where issue occurs
@@ -686,11 +678,9 @@ If none of these solutions work:
     - Relevant logs
 
 2. **Search existing issues:**
-
     - <https://github.com/y3owk1n/neru/issues>
 
 3. **Open an issue:**
-
     - Include all gathered information
     - Describe expected vs actual behavior
     - Steps to reproduce
