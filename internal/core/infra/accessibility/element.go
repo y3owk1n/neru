@@ -483,7 +483,7 @@ func ClearLeftMouseDownState() {
 // This should be called before any action that is incompatible with a drag operation.
 func EnsureMouseUp() {
 	if IsLeftMouseDown() {
-		pos := GetLastMouseDownPosition()
+		pos := CurrentCursorPosition()
 		_ = LeftMouseUpAtPoint(pos)
 	}
 }
