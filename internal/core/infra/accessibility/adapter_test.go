@@ -205,7 +205,7 @@ func TestAdapter_MoveCursorToPoint(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			moveCursorErr := adapter.MoveCursorToPoint(ctx, testCase.point)
+			moveCursorErr := adapter.MoveCursorToPoint(ctx, testCase.point, false)
 			if moveCursorErr != nil {
 				t.Errorf("MoveCursorToPoint() error = %v", moveCursorErr)
 			}

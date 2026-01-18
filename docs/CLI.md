@@ -119,11 +119,23 @@ neru services uninstall
 Perform actions at current cursor position (subcommands only):
 
 ```bash
-neru action left_click     # Left click
-neru action right_click    # Right click
-neru action middle_click   # Middle click
-neru action mouse_down     # Hold mouse button
+neru action left_click          # Left click
+neru action right_click         # Right click
+neru action middle_click        # Middle click
+neru action mouse_down         # Hold mouse button
+neru action mouse_up           # Release mouse button
+
+# Mouse movement (absolute coordinates)
+neru action move_mouse --x 500 --y 300
+
+# Mouse movement (relative from current position)
+neru action move_mouse_relative --dx 10 --dy -5
 ```
+
+**Mouse movement options:**
+
+- `move_mouse --x <pixels> --y <pixels>` - Move to absolute screen coordinates
+- `move_mouse_relative --dx <pixels> --dy <pixels>` - Move by delta from current position
 
 ---
 

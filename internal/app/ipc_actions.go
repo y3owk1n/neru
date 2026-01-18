@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"strconv"
+	"strings"
 
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
@@ -51,31 +53,110 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	actionName := cmd.Args[0]
 
-	// Get current cursor position
-	cursorPos, err := h.actionService.CursorPosition(ctx)
-	if err != nil {
-		h.logger.Error("Failed to get cursor position", zap.Error(err))
+	var (
+		targetX, targetY int
+		deltaX, deltaY   int
+	)
 
+	parseErr := false
+
+	for _, arg := range cmd.Args[1:] {
+		switch {
+		case strings.HasPrefix(arg, "--x="):
+			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--x="))
+			if err != nil {
+				parseErr = true
+
+				break
+			}
+
+			targetX = val
+
+		case strings.HasPrefix(arg, "--y="):
+			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--y="))
+			if err != nil {
+				parseErr = true
+
+				break
+			}
+
+			targetY = val
+
+		case strings.HasPrefix(arg, "--dx="):
+			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dx="))
+			if err != nil {
+				parseErr = true
+
+				break
+			}
+
+			deltaX = val
+
+		case strings.HasPrefix(arg, "--dy="):
+			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dy="))
+			if err != nil {
+				parseErr = true
+
+				break
+			}
+
+			deltaY = val
+		}
+	}
+
+	if parseErr {
 		return ipc.Response{
 			Success: false,
-			Message: "failed to get cursor position",
-			Code:    ipc.CodeActionFailed,
+			Message: "invalid coordinate value",
+			Code:    ipc.CodeInvalidInput,
 		}
+	}
+
+	if actionName == "move_mouse" && (targetX == 0 && targetY == 0) {
+		return ipc.Response{
+			Success: false,
+			Message: "move_mouse requires --x and --y flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if actionName == "move_mouse_relative" && (deltaX == 0 && deltaY == 0) {
+		return ipc.Response{
+			Success: false,
+			Message: "move_mouse_relative requires --dx and --dy flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if actionName == "move_mouse_relative" {
+		cursorPos, err := h.actionService.CursorPosition(ctx)
+		if err != nil {
+			h.logger.Error("Failed to get cursor position", zap.Error(err))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to get cursor position",
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		targetX = cursorPos.X + deltaX
+		targetY = cursorPos.Y + deltaY
 	}
 
 	h.logger.Info("Performing action via IPC",
 		zap.String("action", actionName),
-		zap.Int("x", cursorPos.X),
-		zap.Int("y", cursorPos.Y),
+		zap.Int("x", targetX),
+		zap.Int("y", targetY),
 	)
 
-	err = h.actionService.PerformAction(ctx, actionName, cursorPos)
+	err := h.actionService.MoveMouseTo(ctx, targetX, targetY, false)
 	if err != nil {
-		h.logger.Error("Failed to perform action", zap.Error(err), zap.String("action", actionName))
+		h.logger.Error("Failed to move mouse", zap.Error(err), zap.String("action", actionName))
 
 		return ipc.Response{
 			Success: false,
-			Message: "failed to perform action: " + err.Error(),
+			Message: "failed to move mouse: " + err.Error(),
 			Code:    ipc.CodeActionFailed,
 		}
 	}

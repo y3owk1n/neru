@@ -11,7 +11,7 @@ func TestKnownActionNames(t *testing.T) {
 	names := domain.KnownActionNames()
 
 	// Verify we have the expected number of action names
-	expectedCount := 6
+	expectedCount := 8
 	if len(names) != expectedCount {
 		t.Errorf("KnownActionNames() returned %d names, want %d", len(names), expectedCount)
 	}
@@ -23,6 +23,8 @@ func TestKnownActionNames(t *testing.T) {
 		domain.ActionNameMiddleClick,
 		domain.ActionNameMouseDown,
 		domain.ActionNameMouseUp,
+		domain.ActionNameMoveMouse,
+		domain.ActionNameMoveMouseRelative,
 		domain.ActionNameScroll,
 	}
 

@@ -155,6 +155,7 @@ func initializeServices(
 		overlayAdapter,
 		cfg.Action,
 		cfg.Action.KeyBindings,
+		cfg.Action.MoveMouseStep,
 		logger,
 	)
 

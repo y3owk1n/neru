@@ -19,16 +19,21 @@ const (
 
 // ActionConfig defines the visual and behavioral settings for action mode.
 type ActionConfig struct {
-	KeyBindings ActionKeyBindingsCfg `json:"keyBindings" toml:"key_bindings"`
+	KeyBindings   ActionKeyBindingsCfg `json:"keyBindings"   toml:"key_bindings"`
+	MoveMouseStep int                  `json:"moveMouseStep" toml:"move_mouse_step"`
 }
 
 // ActionKeyBindingsCfg defines direct action keybindings for use in hints/grid mode.
 type ActionKeyBindingsCfg struct {
-	LeftClick   string `json:"leftClick"   toml:"left_click"`
-	RightClick  string `json:"rightClick"  toml:"right_click"`
-	MiddleClick string `json:"middleClick" toml:"middle_click"`
-	MouseDown   string `json:"mouseDown"   toml:"mouse_down"`
-	MouseUp     string `json:"mouseUp"     toml:"mouse_up"`
+	LeftClick      string `json:"leftClick"      toml:"left_click"`
+	RightClick     string `json:"rightClick"     toml:"right_click"`
+	MiddleClick    string `json:"middleClick"    toml:"middle_click"`
+	MouseDown      string `json:"mouseDown"      toml:"mouse_down"`
+	MouseUp        string `json:"mouseUp"        toml:"mouse_up"`
+	MoveMouseUp    string `json:"moveMouseUp"    toml:"move_mouse_up"`
+	MoveMouseDown  string `json:"moveMouseDown"  toml:"move_mouse_down"`
+	MoveMouseLeft  string `json:"moveMouseLeft"  toml:"move_mouse_left"`
+	MoveMouseRight string `json:"moveMouseRight" toml:"move_mouse_right"`
 }
 
 // Config represents the complete application configuration structure.

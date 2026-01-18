@@ -164,8 +164,8 @@ func (c *InfraAXClient) PerformAction(
 		performActionErr = LeftMouseDownAtPoint(point)
 	case action.TypeMouseUp:
 		performActionErr = LeftMouseUpAtPoint(point)
-	case action.TypeMoveMouse:
-		MoveMouseToPoint(point)
+	case action.TypeMoveMouse, action.TypeMoveMouseRelative:
+		MoveMouseToPoint(point, false)
 
 		return nil
 	case action.TypeScroll:
@@ -199,8 +199,8 @@ func (c *InfraAXClient) Scroll(deltaX, deltaY int) error {
 }
 
 // MoveMouse moves the mouse to the specified point.
-func (c *InfraAXClient) MoveMouse(p image.Point) {
-	MoveMouseToPoint(p)
+func (c *InfraAXClient) MoveMouse(p image.Point, bypassSmooth bool) {
+	MoveMouseToPoint(p, bypassSmooth)
 }
 
 // CursorPosition returns the current cursor position.

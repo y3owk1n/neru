@@ -61,12 +61,20 @@ var ActionMiddleClickCmd = BuildActionCommand(
 	[]string{"middle_click"},
 )
 
+// ActionMoveMouseCmd is the move mouse action command.
+var ActionMoveMouseCmd = BuildMoveMouseCommand()
+
+// ActionMoveMouseRelativeCmd is the move mouse relative action command.
+var ActionMoveMouseRelativeCmd = BuildMoveMouseRelativeCommand()
+
 func init() {
 	ActionCmd.AddCommand(ActionLeftClickCmd)
 	ActionCmd.AddCommand(ActionRightClickCmd)
 	ActionCmd.AddCommand(ActionMouseUpCmd)
 	ActionCmd.AddCommand(ActionMouseDownCmd)
 	ActionCmd.AddCommand(ActionMiddleClickCmd)
+	ActionCmd.AddCommand(ActionMoveMouseCmd)
+	ActionCmd.AddCommand(ActionMoveMouseRelativeCmd)
 
 	RootCmd.AddCommand(ActionCmd)
 }

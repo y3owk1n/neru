@@ -61,10 +61,17 @@ func (h *Handler) handleHintsModeKey(key string) {
 	ctx := context.Background()
 
 	if h.actionService.IsDirectActionKey(key) {
-		h.actionService.HandleDirectActionKey(ctx, key)
+		wasHandled := h.actionService.HandleDirectActionKey(ctx, key)
 
-		// Refresh hints after direct action as content may have changed
-		h.activateHintModeInternal(false, nil)
+		if !wasHandled {
+			return
+		}
+
+		// Only refresh hints after non-move-mouse actions
+		// Move mouse actions should keep the overlay active
+		if !h.actionService.IsMoveMouseKey(key) {
+			h.activateHintModeInternal(false, nil)
+		}
 
 		return
 	}

@@ -183,7 +183,11 @@ func (m *mockScreenManager) ScreenBounds(ctx context.Context) (image.Rectangle, 
 	return image.Rect(0, 0, 1920, 1080), nil
 }
 
-func (m *mockScreenManager) MoveCursorToPoint(ctx context.Context, point image.Point) error {
+func (m *mockScreenManager) MoveCursorToPoint(
+	ctx context.Context,
+	point image.Point,
+	bypassSmooth bool,
+) error {
 	return nil
 }
 

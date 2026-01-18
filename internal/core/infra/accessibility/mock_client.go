@@ -81,7 +81,7 @@ func (m *MockAXClient) Scroll(_, _ int) error {
 }
 
 // MoveMouse is a no-op mock implementation.
-func (m *MockAXClient) MoveMouse(_ image.Point) {
+func (m *MockAXClient) MoveMouse(_ image.Point, _ bool) {
 	// No-op
 }
 

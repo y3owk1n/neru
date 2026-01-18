@@ -11,17 +11,26 @@ import (
 
 // MockAccessibilityPort is a mock implementation of ports.AccessibilityPort.
 type MockAccessibilityPort struct {
+	HealthFunc               func(context.Context) error
 	ClickableElementsFunc    func(context.Context, ports.ElementFilter) ([]*element.Element, error)
 	PerformActionFunc        func(context.Context, *element.Element, action.Type) error
+	PerformActionAtPointFunc func(context.Context, action.Type, image.Point) error
+	ScrollFunc               func(context.Context, int, int) error
 	FocusedAppBundleIDFunc   func(context.Context) (string, error)
 	IsAppExcludedFunc        func(context.Context, string) bool
 	ScreenBoundsFunc         func(context.Context) (image.Rectangle, error)
+	MoveCursorToPointFunc    func(context.Context, image.Point, bool) error
+	CursorPositionFunc       func(context.Context) (image.Point, error)
 	CheckPermissionsFunc     func(context.Context) error
-	PerformActionAtPointFunc func(ctx context.Context, actionType action.Type, point image.Point) error
-	ScrollFunc               func(ctx context.Context, deltaX, deltaY int) error
-	MoveCursorToPointFunc    func(ctx context.Context, point image.Point) error
-	CursorPositionFunc       func(ctx context.Context) (image.Point, error)
-	HealthFunc               func(context.Context) error
+}
+
+// Health implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) Health(ctx context.Context) error {
+	if m.HealthFunc != nil {
+		return m.HealthFunc(ctx)
+	}
+
+	return nil
 }
 
 // ClickableElements implements ports.AccessibilityPort.
@@ -39,11 +48,11 @@ func (m *MockAccessibilityPort) ClickableElements(
 // PerformAction implements ports.AccessibilityPort.
 func (m *MockAccessibilityPort) PerformAction(
 	ctx context.Context,
-	element *element.Element,
+	elem *element.Element,
 	actionType action.Type,
 ) error {
 	if m.PerformActionFunc != nil {
-		return m.PerformActionFunc(ctx, element, actionType)
+		return m.PerformActionFunc(ctx, elem, actionType)
 	}
 
 	return nil
@@ -98,22 +107,14 @@ func (m *MockAccessibilityPort) ScreenBounds(ctx context.Context) (image.Rectang
 	return image.Rectangle{}, nil
 }
 
-// CheckPermissions implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) CheckPermissions(ctx context.Context) error {
-	if m.CheckPermissionsFunc != nil {
-		return m.CheckPermissionsFunc(ctx)
-	}
-
-	return nil
-}
-
 // MoveCursorToPoint implements ports.AccessibilityPort.
 func (m *MockAccessibilityPort) MoveCursorToPoint(
 	ctx context.Context,
 	point image.Point,
+	bypassSmooth bool,
 ) error {
 	if m.MoveCursorToPointFunc != nil {
-		return m.MoveCursorToPointFunc(ctx, point)
+		return m.MoveCursorToPointFunc(ctx, point, bypassSmooth)
 	}
 
 	return nil
@@ -128,14 +129,11 @@ func (m *MockAccessibilityPort) CursorPosition(ctx context.Context) (image.Point
 	return image.Point{}, nil
 }
 
-// Health checks if the accessibility permissions are granted.
-func (m *MockAccessibilityPort) Health(ctx context.Context) error {
-	if m.HealthFunc != nil {
-		return m.HealthFunc(ctx)
+// CheckPermissions implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) CheckPermissions(ctx context.Context) error {
+	if m.CheckPermissionsFunc != nil {
+		return m.CheckPermissionsFunc(ctx)
 	}
 
 	return nil
 }
-
-// Ensure MockAccessibilityPort implements ports.AccessibilityPort.
-var _ ports.AccessibilityPort = (*MockAccessibilityPort)(nil)

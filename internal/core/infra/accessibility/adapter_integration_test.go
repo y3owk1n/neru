@@ -62,7 +62,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		// Move slightly
 		target := image.Point{X: startPos.X + 10, Y: startPos.Y + 10}
 
-		startPosErr = adapter.MoveCursorToPoint(ctx, target)
+		startPosErr = adapter.MoveCursorToPoint(ctx, target, false)
 		if startPosErr != nil {
 			t.Errorf("MoveCursorToPoint() error = %v, want nil", startPosErr)
 		}

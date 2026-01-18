@@ -217,12 +217,19 @@ page_down = ["Ctrl+D", "PageDown"]
 #   - Modifier+Key: Cmd+L, Shift+Return (at least 1 modifier + alphabet or Return/Enter)
 #   - Single special key: Return, Enter
 [action]
+# Step size in pixels for keyboard-driven mouse movement (Up/Down/Left/Right keys)
+move_mouse_step = 10
+
 [action.key_bindings]
 left_click = "Shift+L"    # Left click at current cursor position
 right_click = "Shift+R"   # Right click at current cursor position
 middle_click = "Shift+M"  # Middle click at current cursor position
 mouse_down = "Shift+I"    # Press and hold mouse button
 mouse_up = "Shift+U"      # Release mouse button
+move_mouse_up = "Up"      # Move cursor up by move_mouse_step pixels
+move_mouse_down = "Down"  # Move cursor down by move_mouse_step pixels
+move_mouse_left = "Left"  # Move cursor left by move_mouse_step pixels
+move_mouse_right = "Right" # Move cursor right by move_mouse_step pixels
 
 # Alternative formats examples:
 # left_click = "Shift+Return"  # Modifier + Return
@@ -235,6 +242,10 @@ mouse_up = "Shift+U"      # Release mouse button
 # 2. Type a label to select an element/position
 # 3. Press the direct action key (e.g., Shift+L) to perform the action
 #    The action is performed at the selected position without needing to switch modes
+
+# CLI usage examples:
+# neru action move_mouse --x 500 --y 300          # Move cursor to absolute position
+# neru action move_mouse_relative --dx 10 --dy -5 # Move cursor relatively
 
 [smooth_cursor]
 # Whether to enable smooth mouse movement

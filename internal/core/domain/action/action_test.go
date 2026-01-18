@@ -18,6 +18,7 @@ func TestParseType(t *testing.T) {
 		{"mouse_down", action.TypeMouseDown, false},
 		{"mouse_up", action.TypeMouseUp, false},
 		{"move_mouse", action.TypeMoveMouse, false},
+		{"move_mouse_relative", action.TypeMoveMouseRelative, false},
 		{"scroll", action.TypeScroll, false},
 		{"invalid", 0, true},
 		{"", 0, true},
@@ -59,6 +60,7 @@ func TestType_String(t *testing.T) {
 		{action.TypeMouseDown, "mouse_down"},
 		{action.TypeMouseUp, "mouse_up"},
 		{action.TypeMoveMouse, "move_mouse"},
+		{action.TypeMoveMouseRelative, "move_mouse_relative"},
 		{action.TypeScroll, "scroll"},
 		{action.Type(999), "unknown"},
 	}
@@ -124,8 +126,8 @@ func TestType_IsMouseButton(t *testing.T) {
 func TestAllTypes(t *testing.T) {
 	types := action.AllTypes()
 
-	if len(types) != 7 {
-		t.Errorf("AllTypes() returned %d types, want 7", len(types))
+	if len(types) != 8 {
+		t.Errorf("AllTypes() returned %d types, want 8", len(types))
 	}
 
 	// Check that all types are unique
@@ -146,6 +148,7 @@ func TestAllTypes(t *testing.T) {
 		action.TypeMouseDown,
 		action.TypeMouseUp,
 		action.TypeMoveMouse,
+		action.TypeMoveMouseRelative,
 		action.TypeScroll,
 	}
 

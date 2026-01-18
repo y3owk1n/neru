@@ -29,7 +29,7 @@ type AXClient interface {
 	// Actions
 	PerformAction(actionType action.Type, p image.Point, restoreCursor bool) error
 	Scroll(deltaX, deltaY int) error
-	MoveMouse(p image.Point)
+	MoveMouse(p image.Point, bypassSmooth bool)
 	CursorPosition() image.Point
 
 	// System

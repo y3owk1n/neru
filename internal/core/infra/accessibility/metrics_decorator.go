@@ -103,8 +103,12 @@ func (d *MetricsDecorator) ScreenBounds(ctx context.Context) (image.Rectangle, e
 }
 
 // MoveCursorToPoint implements ports.AccessibilityPort.
-func (d *MetricsDecorator) MoveCursorToPoint(ctx context.Context, point image.Point) error {
-	return d.next.MoveCursorToPoint(ctx, point)
+func (d *MetricsDecorator) MoveCursorToPoint(
+	ctx context.Context,
+	point image.Point,
+	bypassSmooth bool,
+) error {
+	return d.next.MoveCursorToPoint(ctx, point, bypassSmooth)
 }
 
 // CursorPosition implements ports.AccessibilityPort.

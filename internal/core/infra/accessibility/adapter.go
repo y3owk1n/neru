@@ -267,12 +267,13 @@ func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
 }
 
 // MoveCursorToPoint moves the mouse cursor to the specified point.
-func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point) error {
+func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point, bypassSmooth bool) error {
 	a.logger.Debug("Moving cursor to point",
 		zap.Int("x", point.X),
-		zap.Int("y", point.Y))
+		zap.Int("y", point.Y),
+		zap.Bool("bypassSmooth", bypassSmooth))
 
-	a.client.MoveMouse(point)
+	a.client.MoveMouse(point, bypassSmooth)
 
 	return nil
 }

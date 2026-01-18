@@ -16,8 +16,10 @@ const (
 	TypeMouseDown
 	// TypeMouseUp performs a mouse up event.
 	TypeMouseUp
-	// TypeMoveMouse moves the mouse cursor.
+	// TypeMoveMouse moves the mouse cursor to a specific point (absolute).
 	TypeMoveMouse
+	// TypeMoveMouseRelative moves the mouse cursor relative to current position.
+	TypeMoveMouseRelative
 	// TypeScroll performs a scroll action.
 	TypeScroll
 )
@@ -37,6 +39,8 @@ func (t Type) String() string {
 		return "mouse_up"
 	case TypeMoveMouse:
 		return "move_mouse"
+	case TypeMoveMouseRelative:
+		return "move_mouse_relative"
 	case TypeScroll:
 		return "scroll"
 	default:
@@ -59,6 +63,8 @@ func ParseType(actionString string) (Type, error) {
 		return TypeMouseUp, nil
 	case "move_mouse":
 		return TypeMoveMouse, nil
+	case "move_mouse_relative":
+		return TypeMoveMouseRelative, nil
 	case "scroll":
 		return TypeScroll, nil
 	default:
@@ -77,6 +83,11 @@ func (t Type) IsMouseButton() bool {
 		t == TypeMouseDown || t == TypeMouseUp
 }
 
+// IsMoveMouse returns true if the action moves the mouse cursor.
+func (t Type) IsMoveMouse() bool {
+	return t == TypeMoveMouse || t == TypeMoveMouseRelative
+}
+
 // allTypes is the cached slice of all valid action types to avoid heap allocation.
 var allTypes = []Type{
 	TypeLeftClick,
@@ -85,6 +96,7 @@ var allTypes = []Type{
 	TypeMouseDown,
 	TypeMouseUp,
 	TypeMoveMouse,
+	TypeMoveMouseRelative,
 	TypeScroll,
 }
 
