@@ -10,7 +10,7 @@
 	<string>Neru</string>
 
     <key>CFBundleExecutable</key>
-    <string>neru</string>
+    <string>Neru</string>
 
     <key>CFBundleIdentifier</key>
     <string>com.y3owk1n.neru</string>

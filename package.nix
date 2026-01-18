@@ -152,7 +152,7 @@ else
 			<string>Neru</string>
 
 			<key>CFBundleExecutable</key>
-			<string>neru</string>
+			<string>Neru</string>
 
 			<key>CFBundleIdentifier</key>
 			<string>com.y3owk1n.neru</string>
@@ -192,7 +192,7 @@ else
 
 		# Ad-hoc code signing for the binaries and app bundle
 		echo "🔐 Code signing binaries..."
-		codesign --force --sign - $out/Applications/Neru.app/Contents/MacOS/neru
+		codesign --force --sign - $out/Applications/Neru.app/Contents/MacOS/Neru
 
 		# Sign the entire app bundle
 		echo "🔐 Code signing app bundle..."
