@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.14.1](https://github.com/y3owk1n/neru/compare/v1.14.0...v1.14.1) (2026-01-18)
+
+
+### Bug Fixes
+
+* **action:** improve mouse_down/mouse_up reliability for native macOS apps ([#299](https://github.com/y3owk1n/neru/issues/299)) ([a60bd2d](https://github.com/y3owk1n/neru/commit/a60bd2dde97e31d3b713f94a6d0f4e0abaedff7c))
+* improve plist with nix ([#305](https://github.com/y3owk1n/neru/issues/305)) ([84d1aeb](https://github.com/y3owk1n/neru/commit/84d1aebbb71f8a395fa356c2159fd38964b1797d))
+
 ## [1.14.0](https://github.com/y3owk1n/neru/compare/v1.13.0...v1.14.0) (2026-01-08)
 
 
