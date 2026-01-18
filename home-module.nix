@@ -40,11 +40,11 @@ in
             Run: `launchctl list | grep neru`
 
             - A running process will show a Process ID (PID) and a status of 0, for example:
-              `12345	0	org.nix-community.home.neru`
+            	`12345	0	org.nix-community.home.neru`
 
             - If the service has crashed or failed to start, the PID will be a dash and the
-              status will be a non-zero number, for example:
-              `-	1	org.nix-community.home.neru`
+            	status will be a non-zero number, for example:
+            	`-	1	org.nix-community.home.neru`
 
             In case of failure, check the logs with `cat /tmp/neru.err.log`.
 

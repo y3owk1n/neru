@@ -32,7 +32,6 @@ if useZip then
         };
       }
       .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
-
   in
   stdenv.mkDerivation {
     pname = "neru";
@@ -58,10 +57,10 @@ if useZip then
 
     postInstall = ''
       if ${lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) "true"}; then
-        installShellCompletion --cmd neru \
-          --bash <($out/bin/neru completion bash) \
-          --fish <($out/bin/neru completion fish) \
-          --zsh <($out/bin/neru completion zsh)
+      installShellCompletion --cmd neru \
+      --bash <($out/bin/neru completion bash) \
+      --fish <($out/bin/neru completion fish) \
+      --zsh <($out/bin/neru completion zsh)
       fi
     '';
 
@@ -126,26 +125,26 @@ else
     '';
 
     postInstall = ''
-      	# install shell completions
-      	if ${lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) "true"}; then
-      	installShellCompletion --cmd neru \
-      		--bash <($out/bin/neru completion bash) \
-      		--fish <($out/bin/neru completion fish) \
-      		--zsh <($out/bin/neru completion zsh)
-      	fi
+      # install shell completions
+      if ${lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) "true"}; then
+      installShellCompletion --cmd neru \
+      --bash <($out/bin/neru completion bash) \
+      --fish <($out/bin/neru completion fish) \
+      --zsh <($out/bin/neru completion zsh)
+      fi
 
-      	# Create a simple .app bundle on the fly
-      	mkdir -p $out/Applications/Neru.app/Contents/{MacOS,Resources}
+      # Create a simple .app bundle on the fly
+      mkdir -p $out/Applications/Neru.app/Contents/{MacOS,Resources}
 
-      	cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/Neru
+      cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/Neru
 
-       	sed "s/VERSION/${finalAttrs.version}/g" resources/Info.plist.template > $out/Applications/Neru.app/Contents/Info.plist
+      sed "s/VERSION/${finalAttrs.version}/g" resources/Info.plist.template > $out/Applications/Neru.app/Contents/Info.plist
 
-      	# Sign the entire app bundle
-      	echo "🔐 Code signing app bundle..."
-      	codesign --force --deep --sign - $out/Applications/Neru.app
+      # Sign the entire app bundle
+      echo "🔐 Code signing app bundle..."
+      codesign --force --deep --sign - $out/Applications/Neru.app
 
-      	echo "✅ Neru.app bundle created at $out/Applications/Neru.app"
+      echo "✅ Neru.app bundle created at $out/Applications/Neru.app"
     '';
 
     passthru = {
