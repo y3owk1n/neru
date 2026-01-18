@@ -141,10 +141,6 @@ else
 
        	sed "s/VERSION/${finalAttrs.version}/g" resources/Info.plist.template > $out/Applications/Neru.app/Contents/Info.plist
 
-      	# Ad-hoc code signing for the binaries and app bundle
-      	echo "🔐 Code signing binaries..."
-      	codesign --force --sign - $out/Applications/Neru.app/Contents/MacOS/Neru
-
       	# Sign the entire app bundle
       	echo "🔐 Code signing app bundle..."
       	codesign --force --deep --sign - $out/Applications/Neru.app
