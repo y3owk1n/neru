@@ -21,12 +21,12 @@ if useZip then
       {
         "aarch64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-arm64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.14.0/neru-darwin-arm64.zip)`
-          sha256 = "sha256-ej1beRtD/CQGFhRyvQNZwR6VzTFZho57uRbZn07SaTc=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.14.1/neru-darwin-arm64.zip)`
+          sha256 = "sha256-AZtcFSs1kYHfO++KkWblQxuYXqp+VXI4rQnBAHDnKK0=";
         };
         "x86_64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-amd64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.14.0/neru-darwin-amd64.zip)`
+          # run `sha256-djRzQBPPjzN07Pp/f5rp6qgq/thLXUOqL+4wXPD2qRY=`
           sha256 = "sha256-brHb/7SNmcgEsg/uvmNMUReYq4A5rcI2INHfuYXq/6U=";
         };
       }
