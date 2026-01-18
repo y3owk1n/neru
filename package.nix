@@ -138,7 +138,7 @@ else
 
       cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/Neru
 
-      sed "s/VERSION/${finalAttrs.version}/g" resources/Info.plist.template > $out/Applications/Neru.app/Contents/Info.plist
+      sed "s|VERSION|${finalAttrs.version}|g" resources/Info.plist.template > $out/Applications/Neru.app/Contents/Info.plist
 
       # Sign the entire app bundle
       echo "🔐 Code signing app bundle..."
