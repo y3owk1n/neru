@@ -115,7 +115,7 @@ else
     nativeBuildInputs = [
       installShellFiles
       writableTmpDirAsHomeHook
-	  darwin.sigtool # Provides codesign for ad-hoc signing
+      darwin.sigtool # Provides codesign for ad-hoc signing
     ];
 
     subPackages = [ "cmd/neru" ];
@@ -135,7 +135,7 @@ else
       	fi
 
       	# Create a simple .app bundle on the fly
-		mkdir -p $out/Applications/Neru.app/Contents/{MacOS,Resources}
+      	mkdir -p $out/Applications/Neru.app/Contents/{MacOS,Resources}
 
       	cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/Neru
 
@@ -145,58 +145,58 @@ else
       		"http://www.apple.com/DTDs/PropertyList-1.0.dtd">
       	<plist version="1.0">
       	<dict>
-			<key>CFBundleDevelopmentRegion</key>
-			<string>English</string>
+      		<key>CFBundleDevelopmentRegion</key>
+      		<string>English</string>
 
-			<key>CFBundleDisplayName</key>
-			<string>Neru</string>
+      		<key>CFBundleDisplayName</key>
+      		<string>Neru</string>
 
-			<key>CFBundleExecutable</key>
-			<string>Neru</string>
+      		<key>CFBundleExecutable</key>
+      		<string>Neru</string>
 
-			<key>CFBundleIdentifier</key>
-			<string>com.y3owk1n.neru</string>
+      		<key>CFBundleIdentifier</key>
+      		<string>com.y3owk1n.neru</string>
 
-			<key>CFBundleInfoDictionaryVersion</key>
-			<string>6.0</string>
+      		<key>CFBundleInfoDictionaryVersion</key>
+      		<string>6.0</string>
 
-			<key>CFBundleName</key>
-			<string>Neru</string>
+      		<key>CFBundleName</key>
+      		<string>Neru</string>
 
-			<key>CFBundlePackageType</key>
-			<string>APPL</string>
+      		<key>CFBundlePackageType</key>
+      		<string>APPL</string>
 
       		<key>CFBundleVersion</key>
       		<string>${finalAttrs.version}</string>
 
-			<key>CSResourcesFileMapped</key>
-			<true/>
+      		<key>CSResourcesFileMapped</key>
+      		<true/>
 
-			<key>LSRequiresCarbon</key>
-			<true/>
+      		<key>LSRequiresCarbon</key>
+      		<true/>
 
-			<key>NSHighResolutionCapable</key>
-			<true/>
+      		<key>NSHighResolutionCapable</key>
+      		<true/>
 
-			<key>LSUIElement</key>
-			<true/>
+      		<key>LSUIElement</key>
+      		<true/>
 
-			<key>NSAppleEventsUsageDescription</key>
-			<string>Used for automation</string>
+      		<key>NSAppleEventsUsageDescription</key>
+      		<string>Used for automation</string>
 
-			<key>NSAccessibilityUsageDescription</key>
-			<string>Requires accessibility access</string>
+      		<key>NSAccessibilityUsageDescription</key>
+      		<string>Requires accessibility access</string>
       	</dict>
       	</plist>
       	EOF
 
-		# Ad-hoc code signing for the binaries and app bundle
-		echo "🔐 Code signing binaries..."
-		codesign --force --sign - $out/Applications/Neru.app/Contents/MacOS/Neru
+      	# Ad-hoc code signing for the binaries and app bundle
+      	echo "🔐 Code signing binaries..."
+      	codesign --force --sign - $out/Applications/Neru.app/Contents/MacOS/Neru
 
-		# Sign the entire app bundle
-		echo "🔐 Code signing app bundle..."
-		codesign --force --deep --sign - $out/Applications/Neru.app
+      	# Sign the entire app bundle
+      	echo "🔐 Code signing app bundle..."
+      	codesign --force --deep --sign - $out/Applications/Neru.app
 
       	echo "✅ Neru.app bundle created at $out/Applications/Neru.app"
     '';
