@@ -201,9 +201,13 @@ func (a *App) handleGridScreenChange() bool {
 	}
 
 	// Grid mode is active - resize the existing overlay window to match new screen bounds
-	if a.overlayManager != nil {
-		a.overlayManager.ResizeToActiveScreen()
+	if a.overlayManager == nil {
+		a.logger.Warn("overlay manager unavailable; skipping grid refresh")
+
+		return false
 	}
+
+	a.overlayManager.ResizeToActiveScreen()
 
 	// Regenerate the grid with updated screen bounds and redraw with proper styling
 	screenBounds := bridge.ActiveScreenBounds()
