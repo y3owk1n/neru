@@ -23,27 +23,17 @@ import (
 	"go.uber.org/zap"
 )
 
-// bridgeLogger instance used for bridge package logging.
-var bridgeLogger *zap.Logger
-
-// InitializeLogger sets the global logger instance for the bridge package.
-func InitializeLogger(logger *zap.Logger) {
-	bridgeLogger = logger
-}
-
-// Logger returns the global logger instance for the bridge package.
-func Logger() *zap.Logger {
-	return bridgeLogger
+func getLogger() *loggingBridge {
+	return &loggingBridge{logger: bridgeLogger}
 }
 
 // SetApplicationAttribute toggles an accessibility attribute for the application identified by PID.
 func SetApplicationAttribute(pid int, attribute string, value bool) bool {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: Setting application attribute",
-			zap.Int("pid", pid),
-			zap.String("attribute", attribute),
-			zap.Bool("value", value))
-	}
+	log := getLogger()
+	log.Debug("Bridge: Setting application attribute",
+		zap.Int("pid", pid),
+		zap.String("attribute", attribute),
+		zap.Bool("value", value))
 
 	cAttr := C.CString(attribute)
 	defer C.free(unsafe.Pointer(cAttr)) //nolint:nlreturn
@@ -55,16 +45,14 @@ func SetApplicationAttribute(pid int, attribute string, value bool) bool {
 
 	result := C.setApplicationAttribute(C.int(pid), cAttr, cValue)
 
-	if bridgeLogger != nil {
-		if result == 1 {
-			bridgeLogger.Debug("Bridge: Application attribute set successfully",
-				zap.Int("pid", pid),
-				zap.String("attribute", attribute))
-		} else {
-			bridgeLogger.Warn("Bridge: Failed to set application attribute",
-				zap.Int("pid", pid),
-				zap.String("attribute", attribute))
-		}
+	if result == 1 {
+		log.Debug("Bridge: Application attribute set successfully",
+			zap.Int("pid", pid),
+			zap.String("attribute", attribute))
+	} else {
+		log.Warn("Bridge: Failed to set application attribute",
+			zap.Int("pid", pid),
+			zap.String("attribute", attribute))
 	}
 
 	return result == 1
@@ -72,20 +60,18 @@ func SetApplicationAttribute(pid int, attribute string, value bool) bool {
 
 // HasClickAction determines if an accessibility element has the AXPress action available.
 func HasClickAction(element unsafe.Pointer) bool {
+	log := getLogger()
+
 	if element == nil {
-		if bridgeLogger != nil {
-			bridgeLogger.Debug("Bridge: HasClickAction called with nil element")
-		}
+		log.Debug("Bridge: HasClickAction called with nil element")
 
 		return false
 	}
 
 	result := C.hasClickAction(element) //nolint:nlreturn
 
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: HasClickAction result",
-			zap.Bool("has_action", result == 1))
-	}
+	log.Debug("Bridge: HasClickAction result",
+		zap.Bool("has_action", result == 1))
 
 	return result == 1
 }
@@ -109,40 +95,34 @@ func AppWatcher() AppWatcherInterface {
 
 // SetAppWatcher configures the application watcher implementation.
 func SetAppWatcher(w AppWatcherInterface) {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: Setting app watcher")
-	}
+	log := getLogger()
+	log.Debug("Bridge: Setting app watcher")
 	appWatcher = w
 }
 
 // StartAppWatcher begins monitoring application lifecycle events.
 func StartAppWatcher() {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: Starting app watcher")
-	}
+	log := getLogger()
+	log.Debug("Bridge: Starting app watcher")
 	C.startAppWatcher()
 }
 
 // StopAppWatcher ceases monitoring application lifecycle events.
 func StopAppWatcher() {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: Stopping app watcher")
-	}
+	log := getLogger()
+	log.Debug("Bridge: Stopping app watcher")
 	C.stopAppWatcher()
 }
 
 // HandleAppLaunch processes an app launch event.
 func HandleAppLaunch(appName, bundleID string) {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: handleAppLaunch called")
-	}
+	log := getLogger()
+	log.Debug("Bridge: handleAppLaunch called")
 
 	if appWatcher != nil {
-		if bridgeLogger != nil {
-			bridgeLogger.Debug("Bridge: Forwarding app launch event",
-				zap.String("app_name", appName),
-				zap.String("bundle_id", bundleID))
-		}
+		log.Debug("Bridge: Forwarding app launch event",
+			zap.String("app_name", appName),
+			zap.String("bundle_id", bundleID))
 
 		appWatcher.HandleLaunch(appName, bundleID)
 	}
@@ -155,16 +135,13 @@ func handleAppLaunch(cAppName *C.char, cBundleID *C.char) {
 
 // HandleAppTerminate processes an app termination event.
 func HandleAppTerminate(appName, bundleID string) {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: handleAppTerminate called")
-	}
+	log := getLogger()
+	log.Debug("Bridge: handleAppTerminate called")
 
 	if appWatcher != nil {
-		if bridgeLogger != nil {
-			bridgeLogger.Debug("Bridge: Forwarding app terminate event",
-				zap.String("app_name", appName),
-				zap.String("bundle_id", bundleID))
-		}
+		log.Debug("Bridge: Forwarding app terminate event",
+			zap.String("app_name", appName),
+			zap.String("bundle_id", bundleID))
 
 		appWatcher.HandleTerminate(appName, bundleID)
 	}
@@ -177,16 +154,13 @@ func handleAppTerminate(cAppName *C.char, cBundleID *C.char) {
 
 // HandleAppActivate processes an app activation event.
 func HandleAppActivate(appName, bundleID string) {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: handleAppActivate called")
-	}
+	log := getLogger()
+	log.Debug("Bridge: handleAppActivate called")
 
 	if appWatcher != nil {
-		if bridgeLogger != nil {
-			bridgeLogger.Debug("Bridge: Forwarding app activate event",
-				zap.String("app_name", appName),
-				zap.String("bundle_id", bundleID))
-		}
+		log.Debug("Bridge: Forwarding app activate event",
+			zap.String("app_name", appName),
+			zap.String("bundle_id", bundleID))
 
 		appWatcher.HandleActivate(appName, bundleID)
 	}
@@ -199,14 +173,11 @@ func handleAppActivate(cAppName *C.char, cBundleID *C.char) {
 
 // HandleScreenParametersChanged processes a screen parameters change event.
 func HandleScreenParametersChanged() {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: handleScreenParametersChanged called")
-	}
+	log := getLogger()
+	log.Debug("Bridge: handleScreenParametersChanged called")
 
 	if appWatcher != nil {
-		if bridgeLogger != nil {
-			bridgeLogger.Debug("Bridge: Forwarding screen parameters changed event")
-		}
+		log.Debug("Bridge: Forwarding screen parameters changed event")
 
 		go appWatcher.HandleScreenParametersChanged()
 	}
@@ -219,16 +190,13 @@ func handleScreenParametersChanged() {
 
 // HandleAppDeactivate processes an app deactivation event.
 func HandleAppDeactivate(appName, bundleID string) {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: handleAppDeactivate called")
-	}
+	log := getLogger()
+	log.Debug("Bridge: handleAppDeactivate called")
 
 	if appWatcher != nil {
-		if bridgeLogger != nil {
-			bridgeLogger.Debug("Bridge: Forwarding app deactivate event",
-				zap.String("app_name", appName),
-				zap.String("bundle_id", bundleID))
-		}
+		log.Debug("Bridge: Forwarding app deactivate event",
+			zap.String("app_name", appName),
+			zap.String("bundle_id", bundleID))
 
 		appWatcher.HandleDeactivate(appName, bundleID)
 	}
@@ -241,9 +209,8 @@ func handleAppDeactivate(cAppName *C.char, cBundleID *C.char) {
 
 // ActiveScreenBounds retrieves the screen bounds containing the current mouse cursor position.
 func ActiveScreenBounds() image.Rectangle {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: ActiveScreenBounds called")
-	}
+	log := getLogger()
+	log.Debug("Bridge: ActiveScreenBounds called")
 
 	rect := C.getActiveScreenBounds()
 	result := image.Rect(
@@ -253,13 +220,11 @@ func ActiveScreenBounds() image.Rectangle {
 		int(rect.origin.y+rect.size.height),
 	)
 
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: Active screen bounds",
-			zap.Int("x", result.Min.X),
-			zap.Int("y", result.Min.Y),
-			zap.Int("width", result.Dx()),
-			zap.Int("height", result.Dy()))
-	}
+	log.Debug("Bridge: Active screen bounds",
+		zap.Int("x", result.Min.X),
+		zap.Int("y", result.Min.Y),
+		zap.Int("width", result.Dx()),
+		zap.Int("height", result.Dy()))
 
 	return result
 }
@@ -267,11 +232,10 @@ func ActiveScreenBounds() image.Rectangle {
 // ShowConfigValidationError displays a native macOS alert for config validation errors.
 // Returns true if the user clicked the "Copy Config Path" button.
 func ShowConfigValidationError(errorMessage, configPath string) bool {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: Showing config validation error alert",
-			zap.String("error", errorMessage),
-			zap.String("config_path", configPath))
-	}
+	log := getLogger()
+	log.Debug("Bridge: Showing config validation error alert",
+		zap.String("error", errorMessage),
+		zap.String("config_path", configPath))
 
 	cError := C.CString(errorMessage)
 	defer C.free(unsafe.Pointer(cError)) //nolint:nlreturn
@@ -281,12 +245,9 @@ func ShowConfigValidationError(errorMessage, configPath string) bool {
 
 	result := C.showConfigValidationErrorAlert(cError, cPath)
 
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: Alert result",
-			zap.Int("result", int(result)))
-	}
+	log.Debug("Bridge: Alert result",
+		zap.Int("result", int(result)))
 
-	// Return true if user clicked "Copy" button (result == 2)
 	return result == 2 //nolint:mnd
 }
 
@@ -294,12 +255,11 @@ func ShowConfigValidationError(errorMessage, configPath string) bool {
 // Secure input mode is active when a password field or other secure text input is focused.
 // When enabled, keyboard events are blocked for security purposes.
 func IsSecureInputEnabled() bool {
+	log := getLogger()
 	result := C.isSecureInputEnabled()
 
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: IsSecureInputEnabled check",
-			zap.Bool("enabled", result == 1))
-	}
+	log.Debug("Bridge: IsSecureInputEnabled check",
+		zap.Bool("enabled", result == 1))
 
 	return result == 1
 }
@@ -307,9 +267,8 @@ func IsSecureInputEnabled() bool {
 // ShowSecureInputNotification displays a macOS notification informing the user
 // that mode activation was blocked because secure input is active.
 func ShowSecureInputNotification() {
-	if bridgeLogger != nil {
-		bridgeLogger.Debug("Bridge: Showing secure input notification")
-	}
+	log := getLogger()
+	log.Debug("Bridge: Showing secure input notification")
 
 	C.showSecureInputNotification()
 }

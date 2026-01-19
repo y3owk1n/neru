@@ -1,0 +1,59 @@
+package bridge
+
+/*
+#cgo CFLAGS: -x objective-c
+#cgo LDFLAGS: -framework ApplicationServices -framework Cocoa -framework Carbon -framework CoreGraphics
+#include "accessibility.h"
+#include "overlay.h"
+#include "hotkeys.h"
+#include "eventtap.h"
+#include "appwatcher.h"
+#include "alert.h"
+#include "secureinput.h"
+#include <stdlib.h>
+
+CGRect getActiveScreenBounds();
+*/
+import "C"
+
+import "go.uber.org/zap"
+
+type loggingBridge struct {
+	logger *zap.Logger
+}
+
+func (b *loggingBridge) Debug(msg string, fields ...zap.Field) {
+	if b.logger != nil {
+		b.logger.Debug(msg, fields...)
+	}
+}
+
+func (b *loggingBridge) Info(msg string, fields ...zap.Field) {
+	if b.logger != nil {
+		b.logger.Info(msg, fields...)
+	}
+}
+
+func (b *loggingBridge) Warn(msg string, fields ...zap.Field) {
+	if b.logger != nil {
+		b.logger.Warn(msg, fields...)
+	}
+}
+
+func (b *loggingBridge) Error(msg string, fields ...zap.Field) {
+	if b.logger != nil {
+		b.logger.Error(msg, fields...)
+	}
+}
+
+var bridgeLogger *zap.Logger
+
+// InitializeLogger sets the global logger instance for the bridge package.
+func InitializeLogger(logger *zap.Logger) {
+	bridgeLogger = logger
+}
+
+// Logger returns the global logger instance for the bridge package.
+func Logger() *zap.Logger {
+	return bridgeLogger
+}
