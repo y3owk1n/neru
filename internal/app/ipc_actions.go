@@ -126,28 +126,28 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if actionName == "move_mouse_relative" && (!hasDX || !hasDY) {
-		return ipc.Response{
-			Success: false,
-			Message: "move_mouse_relative requires --dx and --dy flags",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
 	if actionName == "move_mouse_relative" {
-		cursorPos, err := h.actionService.CursorPosition(ctx)
-		if err != nil {
-			h.logger.Error("Failed to get cursor position", zap.Error(err))
-
+		if !hasDX || !hasDY {
 			return ipc.Response{
 				Success: false,
-				Message: "failed to get cursor position",
-				Code:    ipc.CodeActionFailed,
+				Message: "move_mouse_relative requires --x and --y flags",
+				Code:    ipc.CodeInvalidInput,
 			}
-		}
+		} else {
+			cursorPos, err := h.actionService.CursorPosition(ctx)
+			if err != nil {
+				h.logger.Error("Failed to get cursor position", zap.Error(err))
 
-		targetX = cursorPos.X + deltaX
-		targetY = cursorPos.Y + deltaY
+				return ipc.Response{
+					Success: false,
+					Message: "failed to get cursor position",
+					Code:    ipc.CodeActionFailed,
+				}
+			}
+
+			targetX = cursorPos.X + deltaX
+			targetY = cursorPos.Y + deltaY
+		}
 	}
 
 	h.logger.Info("Performing action via IPC",
@@ -171,6 +171,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 				Code:    ipc.CodeActionFailed,
 			}
 		}
+
 		err = h.actionService.PerformAction(ctx, actionName, cursorPos)
 	}
 

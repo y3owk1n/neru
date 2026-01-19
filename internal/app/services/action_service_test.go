@@ -324,13 +324,18 @@ func TestHandleDirectActionKey_directionalKeys(t *testing.T) {
 			}
 
 			if len(mockAcc.moveCalls) != 1 {
-				t.Fatalf("Expected 1 move call after %s key, got %d", testCase.key, len(mockAcc.moveCalls))
+				t.Fatalf(
+					"Expected 1 move call after %s key, got %d",
+					testCase.key,
+					len(mockAcc.moveCalls),
+				)
 			}
 
 			movedTo := mockAcc.moveCalls[0]
 			if movedTo.X != testCase.expectedX {
 				t.Errorf("Expected X = %d, got %d", testCase.expectedX, movedTo.X)
 			}
+
 			if movedTo.Y != testCase.expectedY {
 				t.Errorf("Expected Y = %d, got %d", testCase.expectedY, movedTo.Y)
 			}
