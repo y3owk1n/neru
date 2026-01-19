@@ -156,13 +156,30 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		zap.Int("y", targetY),
 	)
 
-	err := h.actionService.MoveMouseTo(ctx, targetX, targetY, false)
+	var err error
+	switch actionName {
+	case "move_mouse", "move_mouse_relative":
+		err = h.actionService.MoveMouseTo(ctx, targetX, targetY, false)
+	default:
+		cursorPos, posErr := h.actionService.CursorPosition(ctx)
+		if posErr != nil {
+			h.logger.Error("Failed to get cursor position", zap.Error(posErr))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to get cursor position",
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+		err = h.actionService.PerformAction(ctx, actionName, cursorPos)
+	}
+
 	if err != nil {
-		h.logger.Error("Failed to move mouse", zap.Error(err), zap.String("action", actionName))
+		h.logger.Error("Failed to perform action", zap.Error(err), zap.String("action", actionName))
 
 		return ipc.Response{
 			Success: false,
-			Message: "failed to move mouse: " + err.Error(),
+			Message: "failed to perform action: " + err.Error(),
 			Code:    ipc.CodeActionFailed,
 		}
 	}
