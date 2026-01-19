@@ -366,6 +366,11 @@ func (c *Config) ValidateGrid() error {
 
 // ValidateAction validates the action configuration.
 func (c *Config) ValidateAction() error {
+	err := validateMinValue(c.Action.MoveMouseStep, 1, "action.move_mouse_step")
+	if err != nil {
+		return err
+	}
+
 	return c.ValidateActionKeyBindings()
 }
 
