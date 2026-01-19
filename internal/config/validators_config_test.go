@@ -549,6 +549,27 @@ func TestConfig_ValidateAction(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid action config with positive step",
+			config: config.Config{
+				Action: config.ActionConfig{
+					MoveMouseStep: 10,
+					KeyBindings: config.ActionKeyBindingsCfg{
+						LeftClick: "Cmd+L",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid negative step",
+			config: config.Config{
+				Action: config.ActionConfig{
+					MoveMouseStep: -5,
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "invalid key binding format",
 			config: config.Config{
 				Action: config.ActionConfig{
