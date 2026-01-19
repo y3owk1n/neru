@@ -134,6 +134,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 				Code:    ipc.CodeInvalidInput,
 			}
 		}
+
 		cursorPos, err := h.actionService.CursorPosition(ctx)
 		if err != nil {
 			h.logger.Error("Failed to get cursor position", zap.Error(err))
