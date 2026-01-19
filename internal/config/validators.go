@@ -10,6 +10,18 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
+var validModifiers = map[string]bool{
+	"Cmd":    true,
+	"Ctrl":   true,
+	"Alt":    true,
+	"Shift":  true,
+	"Option": true,
+}
+
+func isValidModifier(mod string) bool {
+	return validModifiers[mod]
+}
+
 // ValidateHints validates the hints configuration.
 func (c *Config) ValidateHints() error {
 	var validateErr error
@@ -428,17 +440,9 @@ func ValidateActionKeyBinding(keybinding, fieldName string) error {
 		)
 	}
 
-	validModifiers := map[string]bool{
-		"Cmd":    true,
-		"Ctrl":   true,
-		"Alt":    true,
-		"Shift":  true,
-		"Option": true,
-	}
-
 	for index := range parts[:len(parts)-1] {
 		modifier := strings.TrimSpace(parts[index])
-		if !validModifiers[modifier] {
+		if !isValidModifier(modifier) {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"%s has invalid modifier '%s' in: %s (valid: Cmd, Ctrl, Alt, Shift, Option)",
@@ -529,18 +533,10 @@ func ValidateHotkey(hotkey, fieldName string) error {
 		)
 	}
 
-	validModifiers := map[string]bool{
-		"Cmd":    true,
-		"Ctrl":   true,
-		"Alt":    true,
-		"Shift":  true,
-		"Option": true,
-	}
-
 	// Check all parts except the last (which is the key)
 	for index := range parts[:len(parts)-1] {
 		modifier := strings.TrimSpace(parts[index])
-		if !validModifiers[modifier] {
+		if !isValidModifier(modifier) {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"%s has invalid modifier '%s' in: %s (valid: Cmd, Ctrl, Alt, Shift, Option)",
