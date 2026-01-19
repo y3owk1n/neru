@@ -1,21 +1,5 @@
 package bridge
 
-/*
-#cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework ApplicationServices -framework Cocoa -framework Carbon -framework CoreGraphics
-#include "accessibility.h"
-#include "overlay.h"
-#include "hotkeys.h"
-#include "eventtap.h"
-#include "appwatcher.h"
-#include "alert.h"
-#include "secureinput.h"
-#include <stdlib.h>
-
-CGRect getActiveScreenBounds();
-*/
-import "C"
-
 import "go.uber.org/zap"
 
 type loggingBridge struct {
