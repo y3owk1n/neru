@@ -190,22 +190,30 @@ func TestAdapter_MoveCursorToPoint(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name  string
-		point image.Point
+		name         string
+		point        image.Point
+		bypassSmooth bool
 	}{
 		{
-			name:  "move to center",
-			point: image.Point{X: 500, Y: 500},
+			name:         "move to center",
+			point:        image.Point{X: 500, Y: 500},
+			bypassSmooth: false,
 		},
 		{
-			name:  "move to origin",
-			point: image.Point{X: 0, Y: 0},
+			name:         "move to origin",
+			point:        image.Point{X: 0, Y: 0},
+			bypassSmooth: false,
+		},
+		{
+			name:         "move with bypass smooth",
+			point:        image.Point{X: 100, Y: 100},
+			bypassSmooth: true,
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			moveCursorErr := adapter.MoveCursorToPoint(ctx, testCase.point, false)
+			moveCursorErr := adapter.MoveCursorToPoint(ctx, testCase.point, testCase.bypassSmooth)
 			if moveCursorErr != nil {
 				t.Errorf("MoveCursorToPoint() error = %v", moveCursorErr)
 			}
