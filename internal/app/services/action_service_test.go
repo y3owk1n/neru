@@ -277,184 +277,64 @@ func TestMoveMouseRelative_multipleCallsAccumulate(t *testing.T) {
 	}
 }
 
-func TestHandleDirectActionKey_Up_movesCursorUp(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-
-	actionConfig := config.ActionConfig{
-		MoveMouseStep: 10,
-		KeyBindings: config.ActionKeyBindingsCfg{
-			MoveMouseUp:    "Up",
-			MoveMouseDown:  "Down",
-			MoveMouseLeft:  "Left",
-			MoveMouseRight: "Right",
-		},
+func TestHandleDirectActionKey_directionalKeys(t *testing.T) {
+	tests := []struct {
+		name      string
+		key       string
+		step      int
+		expectedX int
+		expectedY int
+	}{
+		{"Up moves cursor up", "Up", 10, 100, 90},
+		{"Down moves cursor down", "Down", 15, 100, 115},
+		{"Left moves cursor left", "Left", 20, 80, 100},
+		{"Right moves cursor right", "Right", 25, 125, 100},
 	}
 
-	logger, _ := zap.NewDevelopment()
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockAcc := newMockAccessibilityPort()
 
-	actionService := services.NewActionService(
-		mockAcc,
-		&mockOverlayPort{},
-		actionConfig,
-		actionConfig.KeyBindings,
-		actionConfig.MoveMouseStep,
-		logger,
-	)
+			actionConfig := config.ActionConfig{
+				MoveMouseStep: testCase.step,
+				KeyBindings: config.ActionKeyBindingsCfg{
+					MoveMouseUp:    "Up",
+					MoveMouseDown:  "Down",
+					MoveMouseLeft:  "Left",
+					MoveMouseRight: "Right",
+				},
+			}
 
-	ctx := context.Background()
+			logger, _ := zap.NewDevelopment()
 
-	handled := actionService.HandleDirectActionKey(ctx, "Up")
-	if !handled {
-		t.Error("Expected Up key to be handled as direct action")
-	}
+			actionService := services.NewActionService(
+				mockAcc,
+				&mockOverlayPort{},
+				actionConfig,
+				actionConfig.KeyBindings,
+				actionConfig.MoveMouseStep,
+				logger,
+			)
 
-	if len(mockAcc.moveCalls) != 1 {
-		t.Fatalf("Expected 1 move call after Up key, got %d", len(mockAcc.moveCalls))
-	}
+			ctx := context.Background()
 
-	movedTo := mockAcc.moveCalls[0]
-	// Up should decrease Y
-	if movedTo.X != 100 {
-		t.Errorf("Expected X unchanged at 100, got %d", movedTo.X)
-	}
+			handled := actionService.HandleDirectActionKey(ctx, testCase.key)
+			if !handled {
+				t.Errorf("Expected %s key to be handled as direct action", testCase.key)
+			}
 
-	if movedTo.Y != 90 {
-		t.Errorf("Expected Y decreased to 90, got %d", movedTo.Y)
-	}
-}
+			if len(mockAcc.moveCalls) != 1 {
+				t.Fatalf("Expected 1 move call after %s key, got %d", testCase.key, len(mockAcc.moveCalls))
+			}
 
-func TestHandleDirectActionKey_Down_movesCursorDown(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-
-	actionConfig := config.ActionConfig{
-		MoveMouseStep: 15,
-		KeyBindings: config.ActionKeyBindingsCfg{
-			MoveMouseUp:    "Up",
-			MoveMouseDown:  "Down",
-			MoveMouseLeft:  "Left",
-			MoveMouseRight: "Right",
-		},
-	}
-
-	logger, _ := zap.NewDevelopment()
-
-	actionService := services.NewActionService(
-		mockAcc,
-		&mockOverlayPort{},
-		actionConfig,
-		actionConfig.KeyBindings,
-		actionConfig.MoveMouseStep,
-		logger,
-	)
-
-	ctx := context.Background()
-
-	handled := actionService.HandleDirectActionKey(ctx, "Down")
-	if !handled {
-		t.Error("Expected Down key to be handled as direct action")
-	}
-
-	if len(mockAcc.moveCalls) != 1 {
-		t.Fatalf("Expected 1 move call after Down key, got %d", len(mockAcc.moveCalls))
-	}
-
-	movedTo := mockAcc.moveCalls[0]
-	if movedTo.X != 100 {
-		t.Errorf("Expected X unchanged at 100, got %d", movedTo.X)
-	}
-
-	if movedTo.Y != 115 {
-		t.Errorf("Expected Y increased to 115, got %d", movedTo.Y)
-	}
-}
-
-func TestHandleDirectActionKey_Left_movesCursorLeft(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-
-	actionConfig := config.ActionConfig{
-		MoveMouseStep: 20,
-		KeyBindings: config.ActionKeyBindingsCfg{
-			MoveMouseUp:    "Up",
-			MoveMouseDown:  "Down",
-			MoveMouseLeft:  "Left",
-			MoveMouseRight: "Right",
-		},
-	}
-
-	logger, _ := zap.NewDevelopment()
-
-	actionService := services.NewActionService(
-		mockAcc,
-		&mockOverlayPort{},
-		actionConfig,
-		actionConfig.KeyBindings,
-		actionConfig.MoveMouseStep,
-		logger,
-	)
-
-	ctx := context.Background()
-
-	handled := actionService.HandleDirectActionKey(ctx, "Left")
-	if !handled {
-		t.Error("Expected Left key to be handled as direct action")
-	}
-
-	if len(mockAcc.moveCalls) != 1 {
-		t.Fatalf("Expected 1 move call after Left key, got %d", len(mockAcc.moveCalls))
-	}
-
-	movedTo := mockAcc.moveCalls[0]
-	if movedTo.X != 80 {
-		t.Errorf("Expected X decreased to 80, got %d", movedTo.X)
-	}
-
-	if movedTo.Y != 100 {
-		t.Errorf("Expected Y unchanged at 100, got %d", movedTo.Y)
-	}
-}
-
-func TestHandleDirectActionKey_Right_movesCursorRight(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-
-	actionConfig := config.ActionConfig{
-		MoveMouseStep: 25,
-		KeyBindings: config.ActionKeyBindingsCfg{
-			MoveMouseUp:    "Up",
-			MoveMouseDown:  "Down",
-			MoveMouseLeft:  "Left",
-			MoveMouseRight: "Right",
-		},
-	}
-
-	logger, _ := zap.NewDevelopment()
-
-	actionService := services.NewActionService(
-		mockAcc,
-		&mockOverlayPort{},
-		actionConfig,
-		actionConfig.KeyBindings,
-		actionConfig.MoveMouseStep,
-		logger,
-	)
-
-	ctx := context.Background()
-
-	handled := actionService.HandleDirectActionKey(ctx, "Right")
-	if !handled {
-		t.Error("Expected Right key to be handled as direct action")
-	}
-
-	if len(mockAcc.moveCalls) != 1 {
-		t.Fatalf("Expected 1 move call after Right key, got %d", len(mockAcc.moveCalls))
-	}
-
-	movedTo := mockAcc.moveCalls[0]
-	if movedTo.X != 125 {
-		t.Errorf("Expected X increased to 125, got %d", movedTo.X)
-	}
-
-	if movedTo.Y != 100 {
-		t.Errorf("Expected Y unchanged at 100, got %d", movedTo.Y)
+			movedTo := mockAcc.moveCalls[0]
+			if movedTo.X != testCase.expectedX {
+				t.Errorf("Expected X = %d, got %d", testCase.expectedX, movedTo.X)
+			}
+			if movedTo.Y != testCase.expectedY {
+				t.Errorf("Expected Y = %d, got %d", testCase.expectedY, movedTo.Y)
+			}
+		})
 	}
 }
 
