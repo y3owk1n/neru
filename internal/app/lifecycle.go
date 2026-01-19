@@ -172,9 +172,11 @@ func (a *App) handleScreenParametersChange() {
 
 	a.logger.Info("Screen parameters changed; adjusting overlays")
 
+	ctx := context.Background()
+
 	gridResized := a.handleGridScreenChange()
-	hintResized := a.handleHintScreenChange()
-	scrollResized := a.handleScrollScreenChange()
+	hintResized := a.handleHintScreenChange(ctx)
+	scrollResized := a.handleScrollScreenChange(ctx)
 
 	// Final resize only if no handler already resized the overlay
 	if !gridResized && !hintResized && !scrollResized {
@@ -241,7 +243,7 @@ func (a *App) handleGridScreenChange() bool {
 
 // handleHintScreenChange handles hint overlay updates when screen parameters change.
 // Returns true if the overlay was resized.
-func (a *App) handleHintScreenChange() bool {
+func (a *App) handleHintScreenChange(ctx context.Context) bool {
 	if !a.config.Hints.Enabled || a.hintsComponent.Overlay == nil {
 		return false
 	}
@@ -255,8 +257,6 @@ func (a *App) handleHintScreenChange() bool {
 	if a.overlayManager != nil {
 		a.overlayManager.ResizeToActiveScreen()
 	}
-
-	ctx := context.Background()
 
 	domainHints, showHintsErr := a.hintService.ShowHints(ctx)
 	if showHintsErr != nil {
@@ -277,7 +277,7 @@ func (a *App) handleHintScreenChange() bool {
 
 // handleScrollScreenChange handles scroll overlay updates when screen parameters change.
 // Returns true if the overlay was resized.
-func (a *App) handleScrollScreenChange() bool {
+func (a *App) handleScrollScreenChange(ctx context.Context) bool {
 	if a.scrollComponent.Context == nil || !a.scrollComponent.Context.IsActive() {
 		return false
 	}
@@ -285,8 +285,6 @@ func (a *App) handleScrollScreenChange() bool {
 	if a.overlayManager != nil {
 		a.overlayManager.ResizeToActiveScreen()
 	}
-
-	ctx := context.Background()
 
 	showScrollOverlayErr := a.scrollService.Show(ctx)
 	if showScrollOverlayErr != nil {
