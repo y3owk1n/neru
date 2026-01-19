@@ -77,6 +77,16 @@ func TestIsKnownActionName(t *testing.T) {
 			want:   true,
 		},
 		{
+			name:   "move_mouse is known",
+			action: domain.ActionNameMoveMouse,
+			want:   true,
+		},
+		{
+			name:   "move_mouse_relative is known",
+			action: domain.ActionNameMoveMouseRelative,
+			want:   true,
+		},
+		{
 			name:   "scroll is known",
 			action: domain.ActionNameScroll,
 			want:   true,
@@ -141,6 +151,8 @@ func TestActionConstants(t *testing.T) {
 		{"ActionNameMiddleClick", domain.ActionNameMiddleClick, "middle_click"},
 		{"ActionNameMouseDown", domain.ActionNameMouseDown, "mouse_down"},
 		{"ActionNameMouseUp", domain.ActionNameMouseUp, "mouse_up"},
+		{"ActionNameMoveMouse", domain.ActionNameMoveMouse, "move_mouse"},
+		{"ActionNameMoveMouseRelative", domain.ActionNameMoveMouseRelative, "move_mouse_relative"},
 		{"ActionNameScroll", domain.ActionNameScroll, "scroll"},
 	}
 
@@ -187,7 +199,11 @@ func TestActionEnumValues(t *testing.T) {
 		t.Errorf("ActionMoveMouse = %d, want 5", domain.ActionMoveMouse)
 	}
 
-	if domain.ActionScroll != 6 {
-		t.Errorf("ActionScroll = %d, want 6", domain.ActionScroll)
+	if domain.ActionMoveMouseRelative != 6 {
+		t.Errorf("ActionMoveMouseRelative = %d, want 6", domain.ActionMoveMouseRelative)
+	}
+
+	if domain.ActionScroll != 7 {
+		t.Errorf("ActionScroll = %d, want 7", domain.ActionScroll)
 	}
 }

@@ -92,6 +92,8 @@ const (
 	ActionMiddleClick
 	// ActionMoveMouse represents the mouse move action.
 	ActionMoveMouse
+	// ActionMoveMouseRelative represents the relative mouse move action.
+	ActionMoveMouseRelative
 	// ActionScroll represents the scroll action.
 	ActionScroll
 )
