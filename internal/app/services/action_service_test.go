@@ -171,8 +171,8 @@ func TestMoveMouseTo_clampsToScreenBounds(t *testing.T) {
 	}
 
 	movedTo := mockAcc.moveCalls[0]
-	if movedTo.X != 1920 || movedTo.Y != 1080 {
-		t.Errorf("Expected cursor moved to (1920, 1080), got (%d, %d)", movedTo.X, movedTo.Y)
+	if movedTo.X != 1919 || movedTo.Y != 1079 {
+		t.Errorf("Expected cursor moved to (1919, 1079), got (%d, %d)", movedTo.X, movedTo.Y)
 	}
 }
 
@@ -499,9 +499,9 @@ func TestMoveMouseRelative_clampsToScreenBounds(t *testing.T) {
 	}
 
 	movedTo := mockAcc.moveCalls[0]
-	// Should be clamped to screen bounds
-	if movedTo.X != 1920 || movedTo.Y != 1080 {
-		t.Errorf("Expected cursor clamped to (1920, 1080), got (%d, %d)", movedTo.X, movedTo.Y)
+	// Should be clamped to screen bounds (exclusive Max)
+	if movedTo.X != 1919 || movedTo.Y != 1079 {
+		t.Errorf("Expected cursor clamped to (1919, 1079), got (%d, %d)", movedTo.X, movedTo.Y)
 	}
 }
 

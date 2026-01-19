@@ -147,8 +147,8 @@ func (s *ActionService) MoveMouseTo(
 		return err
 	}
 
-	clampedX := min(max(targetX, screenBounds.Min.X), screenBounds.Max.X)
-	clampedY := min(max(targetY, screenBounds.Min.Y), screenBounds.Max.Y)
+	clampedX := min(max(targetX, screenBounds.Min.X), screenBounds.Max.X-1)
+	clampedY := min(max(targetY, screenBounds.Min.Y), screenBounds.Max.Y-1)
 
 	point := image.Point{X: clampedX, Y: clampedY}
 
