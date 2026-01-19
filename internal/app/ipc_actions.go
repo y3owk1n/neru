@@ -133,21 +133,20 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 				Message: "move_mouse_relative requires --dx and --dy flags",
 				Code:    ipc.CodeInvalidInput,
 			}
-		} else {
-			cursorPos, err := h.actionService.CursorPosition(ctx)
-			if err != nil {
-				h.logger.Error("Failed to get cursor position", zap.Error(err))
-
-				return ipc.Response{
-					Success: false,
-					Message: "failed to get cursor position",
-					Code:    ipc.CodeActionFailed,
-				}
-			}
-
-			targetX = cursorPos.X + deltaX
-			targetY = cursorPos.Y + deltaY
 		}
+		cursorPos, err := h.actionService.CursorPosition(ctx)
+		if err != nil {
+			h.logger.Error("Failed to get cursor position", zap.Error(err))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to get cursor position",
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		targetX = cursorPos.X + deltaX
+		targetY = cursorPos.Y + deltaY
 	}
 
 	h.logger.Info("Performing action via IPC",
