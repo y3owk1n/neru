@@ -191,13 +191,6 @@ func (s *ActionService) HandleActionKey(
 	key string,
 	mode string,
 ) (bool, error) {
-	cursorPos, cursorPosErr := s.CursorPosition(ctx)
-	if cursorPosErr != nil {
-		s.logger.Error("Failed to get cursor position", zap.Error(cursorPosErr))
-
-		return false, cursorPosErr
-	}
-
 	act, logMsg, ok := s.getActionMapping(key)
 	if !ok {
 		s.logger.Debug("Unknown action key",
@@ -205,6 +198,13 @@ func (s *ActionService) HandleActionKey(
 			zap.String("key", key))
 
 		return false, nil
+	}
+
+	cursorPos, cursorPosErr := s.CursorPosition(ctx)
+	if cursorPosErr != nil {
+		s.logger.Error("Failed to get cursor position", zap.Error(cursorPosErr))
+
+		return true, core.WrapAccessibilityFailed(cursorPosErr, "get cursor position")
 	}
 
 	s.logger.Info("Performing action",
