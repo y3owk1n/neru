@@ -118,6 +118,15 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
+	if (actionName == "move_mouse" || actionName == "move_mouse_relative") &&
+		(hasX || hasY) && (hasDX || hasDY) {
+		return ipc.Response{
+			Success: false,
+			Message: "use either --x/--y or --dx/--dy, not both",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	if actionName == "move_mouse" && (!hasX || !hasY) {
 		return ipc.Response{
 			Success: false,
