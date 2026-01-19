@@ -46,14 +46,26 @@ func (b *loggingBridge) Error(msg string, fields ...zap.Field) {
 	}
 }
 
-var bridgeLogger *zap.Logger
+var (
+	bridgeLogger *zap.Logger
+	log          *loggingBridge
+)
 
 // InitializeLogger sets the global logger instance for the bridge package.
 func InitializeLogger(logger *zap.Logger) {
 	bridgeLogger = logger
+	log = &loggingBridge{logger: logger}
 }
 
 // Logger returns the global logger instance for the bridge package.
 func Logger() *zap.Logger {
 	return bridgeLogger
+}
+
+func getLogger() *loggingBridge {
+	if log == nil {
+		return &loggingBridge{}
+	}
+
+	return log
 }

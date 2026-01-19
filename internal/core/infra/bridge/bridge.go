@@ -23,10 +23,6 @@ import (
 	"go.uber.org/zap"
 )
 
-func getLogger() *loggingBridge {
-	return &loggingBridge{logger: bridgeLogger}
-}
-
 // SetApplicationAttribute toggles an accessibility attribute for the application identified by PID.
 func SetApplicationAttribute(pid int, attribute string, value bool) bool {
 	log := getLogger()
