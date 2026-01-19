@@ -339,9 +339,12 @@ func TestHandleDirectActionKey_repeatedKeyPressesMoveContinuously(t *testing.T) 
 	ctx := context.Background()
 
 	// Press Right 3 times
-	_, _ = actionService.HandleDirectActionKey(ctx, "Right")
-	_, _ = actionService.HandleDirectActionKey(ctx, "Right")
-	_, _ = actionService.HandleDirectActionKey(ctx, "Right")
+	for i := range 3 {
+		_, err := actionService.HandleDirectActionKey(ctx, "Right")
+		if err != nil {
+			t.Fatalf("HandleDirectActionKey failed on press %d: %v", i+1, err)
+		}
+	}
 
 	if len(mockAcc.moveCalls) != 3 {
 		t.Fatalf("Expected 3 move calls after 3 Right key presses, got %d", len(mockAcc.moveCalls))
@@ -443,9 +446,20 @@ func TestMoveMouseTo_doesNotBounceBack(t *testing.T) {
 	ctx := context.Background()
 
 	// Move cursor multiple times
-	_, _ = actionService.HandleDirectActionKey(ctx, "Right")
-	_, _ = actionService.HandleDirectActionKey(ctx, "Right")
-	_, _ = actionService.HandleDirectActionKey(ctx, "Down")
+	_, err := actionService.HandleDirectActionKey(ctx, "Right")
+	if err != nil {
+		t.Fatalf("HandleDirectActionKey failed: %v", err)
+	}
+
+	_, err = actionService.HandleDirectActionKey(ctx, "Right")
+	if err != nil {
+		t.Fatalf("HandleDirectActionKey failed: %v", err)
+	}
+
+	_, err = actionService.HandleDirectActionKey(ctx, "Down")
+	if err != nil {
+		t.Fatalf("HandleDirectActionKey failed: %v", err)
+	}
 
 	// Verify cursor position is updated
 	finalPos, err := mockAcc.CursorPosition(ctx)
