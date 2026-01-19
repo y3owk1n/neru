@@ -144,7 +144,9 @@ func (s *ActionService) MoveMouseTo(
 ) error {
 	screenBounds, err := s.accessibility.ScreenBounds(ctx)
 	if err != nil {
-		return err
+		s.logger.Error("Failed to get screen bounds", zap.Error(err))
+
+		return core.WrapAccessibilityFailed(err, "get screen bounds")
 	}
 
 	clampedX := min(max(targetX, screenBounds.Min.X), screenBounds.Max.X-1)
@@ -168,7 +170,9 @@ func (s *ActionService) MoveMouseTo(
 func (s *ActionService) MoveMouseRelative(ctx context.Context, deltaX, deltaY int) error {
 	cursorPos, err := s.accessibility.CursorPosition(ctx)
 	if err != nil {
-		return err
+		s.logger.Error("Failed to get cursor position", zap.Error(err))
+
+		return core.WrapAccessibilityFailed(err, "get cursor position")
 	}
 
 	return s.MoveMouseTo(ctx, cursorPos.X+deltaX, cursorPos.Y+deltaY, true)
