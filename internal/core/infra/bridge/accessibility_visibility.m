@@ -6,6 +6,7 @@
 //
 
 #import "accessibility_visibility.h"
+#import "accessibility_constants.h"
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - Visibility Functions
@@ -46,7 +47,7 @@ bool isPointVisible(CGPoint point, pid_t elementPid) {
 /// @return true if element is occluded, false otherwise
 static bool isElementOccluded(CGRect elementRect, pid_t elementPid) {
 	// Sample 5 points: center and 4 corners (slightly inset)
-	CGFloat inset = 2.0; // Inset from edges to avoid border issues
+	CGFloat inset = kNeruVisibilityInsetPoints;
 
 	CGPoint samplePoints[5] = {
 	    // Center
@@ -67,7 +68,7 @@ static bool isElementOccluded(CGRect elementRect, pid_t elementPid) {
 	for (int i = 0; i < 5; i++) {
 		if (isPointVisible(samplePoints[i], elementPid)) {
 			visiblePoints++;
-			if (visiblePoints >= 2) {
+			if (visiblePoints >= kNeruMinVisibleSamplePoints) {
 				return false; // Not occluded
 			}
 		}
