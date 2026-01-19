@@ -176,115 +176,124 @@ func (a *App) handleScreenParametersChange() {
 		a.overlayManager.ResizeToActiveScreen()
 	}
 
-	// Handle grid overlay
-	if a.config.Grid.Enabled && a.gridComponent.Context != nil &&
-		a.gridComponent.Context.GridOverlay() != nil {
-		// If grid mode is not active, mark for refresh on next activation
-		if a.appState.CurrentMode() != domain.ModeGrid {
-			a.appState.SetGridOverlayNeedsRefresh(true)
-		} else {
-			// Grid mode is active - resize the existing overlay window to match new screen bounds
-			// Resize overlay window to current active screen (where mouse is)
-			if a.overlayManager != nil {
-				a.overlayManager.ResizeToActiveScreen()
-			}
-
-			// Regenerate the grid with updated screen bounds and redraw with proper styling
-			// Use the renderer which has the configured style, instead of going through
-			// the service layer which would lose styling information
-			screenBounds := bridge.ActiveScreenBounds()
-			normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
-
-			characters := a.config.Grid.Characters
-			if strings.TrimSpace(characters) == "" {
-				characters = a.config.Hints.HintCharacters
-			}
-
-			// Create new grid instance with updated bounds
-			gridInstance := domainGrid.NewGridWithLabels(characters, a.config.Grid.RowLabels, a.config.Grid.ColLabels, normalizedBounds, a.logger)
-			a.gridComponent.Context.SetGridInstanceValue(gridInstance)
-
-			// Get current input state from grid manager if it exists
-			currentInput := ""
-			if a.gridComponent.Manager != nil {
-				currentInput = a.gridComponent.Manager.CurrentInput()
-			}
-
-			// Redraw grid using renderer which preserves the configured style
-			drawGridErr := a.renderer.DrawGrid(gridInstance, currentInput)
-			if drawGridErr != nil {
-				a.logger.Error("Failed to refresh grid after screen change", zap.Error(drawGridErr))
-
-				return
-			}
-
-			// Show the overlay
-			a.overlayManager.Show()
-
-			a.logger.Info("Grid overlay resized and regenerated for new screen bounds")
-		}
-	}
-
-	// Handle hint overlay
-	if a.config.Hints.Enabled && a.hintsComponent.Overlay != nil {
-		// If hints mode is not active, mark for refresh on next activation
-		if a.appState.CurrentMode() != domain.ModeHints {
-			a.appState.SetHintOverlayNeedsRefresh(true)
-		} else {
-			// Hints mode is active - resize the overlay and regenerate hints
-			if a.overlayManager != nil {
-				a.overlayManager.ResizeToActiveScreen()
-			}
-
-			// Regenerate hints with updated screen bounds
-			// Use the hint service which will collect elements with new bounds and apply proper styling
-			ctx := context.Background()
-
-			// Regenerate hints using the service which preserves styling
-			domainHints, showHintsErr := a.hintService.ShowHints(ctx)
-			if showHintsErr != nil {
-				a.logger.Error("Failed to refresh hints after screen change", zap.Error(showHintsErr))
-
-				return
-			}
-
-			// Update hints context with new hints
-			if len(domainHints) > 0 {
-				hintCollection := domainHint.NewCollection(domainHints)
-				a.hintsComponent.Context.SetHints(hintCollection)
-			}
-
-			a.logger.Info("Hint overlay resized and regenerated for new screen bounds")
-		}
-	}
-
-	// Handle scroll overlay
-	if a.scrollComponent.Context != nil && a.scrollComponent.Context.IsActive() {
-		// Scroll mode is active - resize the overlay and redraw highlight
-		if a.overlayManager != nil {
-			a.overlayManager.ResizeToActiveScreen()
-		}
-
-		// Redraw scroll highlight with updated screen bounds
-		ctx := context.Background()
-
-		showScrollOverlayErr := a.scrollService.Show(ctx)
-		if showScrollOverlayErr != nil {
-			a.logger.Error(
-				"Failed to refresh scroll overlay after screen change",
-				zap.Error(showScrollOverlayErr),
-			)
-
-			return
-		}
-
-		a.logger.Info("Scroll overlay resized and regenerated for new screen bounds")
-	}
+	a.handleGridScreenChange()
+	a.handleHintScreenChange()
+	a.handleScrollScreenChange()
 
 	// Final resize for any other overlay state
 	if a.overlayManager != nil {
 		a.overlayManager.ResizeToActiveScreen()
 	}
+}
+
+// handleGridScreenChange handles grid overlay updates when screen parameters change.
+func (a *App) handleGridScreenChange() {
+	if !a.config.Grid.Enabled || a.gridComponent.Context == nil ||
+		a.gridComponent.Context.GridOverlay() == nil {
+		return
+	}
+
+	if a.appState.CurrentMode() != domain.ModeGrid {
+		a.appState.SetGridOverlayNeedsRefresh(true)
+
+		return
+	}
+
+	// Grid mode is active - resize the existing overlay window to match new screen bounds
+	if a.overlayManager != nil {
+		a.overlayManager.ResizeToActiveScreen()
+	}
+
+	// Regenerate the grid with updated screen bounds and redraw with proper styling
+	screenBounds := bridge.ActiveScreenBounds()
+	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
+
+	characters := a.config.Grid.Characters
+	if strings.TrimSpace(characters) == "" {
+		characters = a.config.Hints.HintCharacters
+	}
+
+	gridInstance := domainGrid.NewGridWithLabels(
+		characters,
+		a.config.Grid.RowLabels,
+		a.config.Grid.ColLabels,
+		normalizedBounds,
+		a.logger,
+	)
+	a.gridComponent.Context.SetGridInstanceValue(gridInstance)
+
+	currentInput := ""
+	if a.gridComponent.Manager != nil {
+		currentInput = a.gridComponent.Manager.CurrentInput()
+	}
+
+	drawGridErr := a.renderer.DrawGrid(gridInstance, currentInput)
+	if drawGridErr != nil {
+		a.logger.Error("Failed to refresh grid after screen change", zap.Error(drawGridErr))
+
+		return
+	}
+
+	a.overlayManager.Show()
+	a.logger.Info("Grid overlay resized and regenerated for new screen bounds")
+}
+
+// handleHintScreenChange handles hint overlay updates when screen parameters change.
+func (a *App) handleHintScreenChange() {
+	if !a.config.Hints.Enabled || a.hintsComponent.Overlay == nil {
+		return
+	}
+
+	if a.appState.CurrentMode() != domain.ModeHints {
+		a.appState.SetHintOverlayNeedsRefresh(true)
+
+		return
+	}
+
+	if a.overlayManager != nil {
+		a.overlayManager.ResizeToActiveScreen()
+	}
+
+	ctx := context.Background()
+
+	domainHints, showHintsErr := a.hintService.ShowHints(ctx)
+	if showHintsErr != nil {
+		a.logger.Error("Failed to refresh hints after screen change", zap.Error(showHintsErr))
+
+		return
+	}
+
+	if len(domainHints) > 0 {
+		hintCollection := domainHint.NewCollection(domainHints)
+		a.hintsComponent.Context.SetHints(hintCollection)
+	}
+
+	a.logger.Info("Hint overlay resized and regenerated for new screen bounds")
+}
+
+// handleScrollScreenChange handles scroll overlay updates when screen parameters change.
+func (a *App) handleScrollScreenChange() {
+	if a.scrollComponent.Context == nil || !a.scrollComponent.Context.IsActive() {
+		return
+	}
+
+	if a.overlayManager != nil {
+		a.overlayManager.ResizeToActiveScreen()
+	}
+
+	ctx := context.Background()
+
+	showScrollOverlayErr := a.scrollService.Show(ctx)
+	if showScrollOverlayErr != nil {
+		a.logger.Error(
+			"Failed to refresh scroll overlay after screen change",
+			zap.Error(showScrollOverlayErr),
+		)
+
+		return
+	}
+
+	a.logger.Info("Scroll overlay resized and regenerated for new screen bounds")
 }
 
 // handleAppActivation responds to application activation events.
