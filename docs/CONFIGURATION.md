@@ -392,7 +392,7 @@ The arrow keys (`Up`, `Down`, `Left`, `Right`) move the cursor by `move_mouse_st
 ```toml
 [action]
 move_mouse_step = 5   # Smaller movements (more precise)
-move_mouse_step = 20  # Larger movements (faster navigation)
+# move_mouse_step = 20  # Larger movements (faster navigation)
 ```
 
 ### Valid Key Formats
