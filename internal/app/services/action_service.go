@@ -185,21 +185,26 @@ func (s *ActionService) CursorPosition(ctx context.Context) (image.Point, error)
 
 // HandleActionKey processes an action key and performs the corresponding action at the current cursor position.
 // Returns true if the key was handled as an action key, false otherwise.
-func (s *ActionService) HandleActionKey(ctx context.Context, key string, mode string) bool {
-	cursorPos, cursorPosErr := s.CursorPosition(ctx)
-	if cursorPosErr != nil {
-		s.logger.Error("Failed to get cursor position", zap.Error(cursorPosErr))
-
-		return false
-	}
-
+// Returns an error if the action failed to execute.
+func (s *ActionService) HandleActionKey(
+	ctx context.Context,
+	key string,
+	mode string,
+) (bool, error) {
 	act, logMsg, ok := s.getActionMapping(key)
 	if !ok {
 		s.logger.Debug("Unknown action key",
 			zap.String("mode", mode),
 			zap.String("key", key))
 
-		return false
+		return false, nil
+	}
+
+	cursorPos, cursorPosErr := s.CursorPosition(ctx)
+	if cursorPosErr != nil {
+		s.logger.Error("Failed to get cursor position", zap.Error(cursorPosErr))
+
+		return true, core.WrapAccessibilityFailed(cursorPosErr, "get cursor position")
 	}
 
 	s.logger.Info("Performing action",
@@ -210,9 +215,11 @@ func (s *ActionService) HandleActionKey(ctx context.Context, key string, mode st
 	performActionErr := s.PerformActionAtPoint(ctx, act, cursorPos)
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform action", zap.Error(performActionErr))
+
+		return true, performActionErr
 	}
 
-	return true
+	return true, nil
 }
 
 // Health checks the health of the service's dependencies.
@@ -258,10 +265,11 @@ func (s *ActionService) IsMoveMouseKey(key string) bool {
 
 // HandleDirectActionKey processes a direct action key and performs the corresponding action.
 // Returns true if the key was handled as a direct action, false otherwise.
-func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) bool {
+// Returns an error if the action failed to execute.
+func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) (bool, error) {
 	actionString, logMsg, ok := s.getActionMapping(key)
 	if !ok {
-		return false
+		return false, nil
 	}
 
 	keyLower := strings.ToLower(key)
@@ -279,7 +287,7 @@ func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) b
 		case strings.ToLower(s.keyBindings.MoveMouseRight):
 			deltaX = s.moveMouseStep
 		default:
-			return false
+			return false, nil
 		}
 
 		s.logger.Info("Performing move mouse relative",
@@ -292,16 +300,18 @@ func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) b
 		moveErr := s.MoveMouseRelative(ctx, deltaX, deltaY)
 		if moveErr != nil {
 			s.logger.Error("Failed to move mouse relative", zap.Error(moveErr))
+
+			return true, moveErr
 		}
 
-		return true
+		return true, nil
 	}
 
 	cursorPos, cursorPosErr := s.CursorPosition(ctx)
 	if cursorPosErr != nil {
 		s.logger.Error("Failed to get cursor position", zap.Error(cursorPosErr))
 
-		return false
+		return true, core.WrapAccessibilityFailed(cursorPosErr, "get cursor position")
 	}
 
 	s.logger.Info("Performing direct action",
@@ -312,9 +322,11 @@ func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) b
 	performActionErr := s.PerformActionAtPoint(ctx, actionString, cursorPos)
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform direct action", zap.Error(performActionErr))
+
+		return true, performActionErr
 	}
 
-	return true
+	return true, nil
 }
 
 // getActionMapping returns the action string and log message for an action key.

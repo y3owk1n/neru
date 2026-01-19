@@ -61,7 +61,10 @@ func (h *Handler) handleHintsModeKey(key string) {
 	ctx := context.Background()
 
 	if h.actionService.IsDirectActionKey(key) {
-		wasHandled := h.actionService.HandleDirectActionKey(ctx, key)
+		wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+		if err != nil {
+			h.logger.Error("Failed to handle direct action key", zap.Error(err))
+		}
 
 		if !wasHandled {
 			return
@@ -112,7 +115,10 @@ func (h *Handler) handleGridModeKey(key string) {
 	ctx := context.Background()
 
 	if h.actionService.IsDirectActionKey(key) {
-		h.actionService.HandleDirectActionKey(ctx, key)
+		_, err := h.actionService.HandleDirectActionKey(ctx, key)
+		if err != nil {
+			h.logger.Error("Failed to handle direct action key", zap.Error(err))
+		}
 
 		return
 	}
