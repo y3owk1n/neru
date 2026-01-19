@@ -283,7 +283,11 @@ func TestHandleDirectActionKey_directionalKeys(t *testing.T) {
 
 			ctx := context.Background()
 
-			handled := actionService.HandleDirectActionKey(ctx, testCase.key)
+			handled, err := actionService.HandleDirectActionKey(ctx, testCase.key)
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
 			if !handled {
 				t.Errorf("Expected %s key to be handled as direct action", testCase.key)
 			}
@@ -335,9 +339,9 @@ func TestHandleDirectActionKey_repeatedKeyPressesMoveContinuously(t *testing.T) 
 	ctx := context.Background()
 
 	// Press Right 3 times
-	actionService.HandleDirectActionKey(ctx, "Right")
-	actionService.HandleDirectActionKey(ctx, "Right")
-	actionService.HandleDirectActionKey(ctx, "Right")
+	_, _ = actionService.HandleDirectActionKey(ctx, "Right")
+	_, _ = actionService.HandleDirectActionKey(ctx, "Right")
+	_, _ = actionService.HandleDirectActionKey(ctx, "Right")
 
 	if len(mockAcc.moveCalls) != 3 {
 		t.Fatalf("Expected 3 move calls after 3 Right key presses, got %d", len(mockAcc.moveCalls))
@@ -393,7 +397,11 @@ func TestHandleDirectActionKey_caseInsensitive(t *testing.T) {
 	ctx := context.Background()
 
 	// Test lowercase
-	handled := actionService.HandleDirectActionKey(ctx, "up")
+	handled, err := actionService.HandleDirectActionKey(ctx, "up")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
 	if !handled {
 		t.Error("Expected 'up' (lowercase) to be handled as direct action")
 	}
@@ -435,9 +443,9 @@ func TestMoveMouseTo_doesNotBounceBack(t *testing.T) {
 	ctx := context.Background()
 
 	// Move cursor multiple times
-	actionService.HandleDirectActionKey(ctx, "Right")
-	actionService.HandleDirectActionKey(ctx, "Right")
-	actionService.HandleDirectActionKey(ctx, "Down")
+	_, _ = actionService.HandleDirectActionKey(ctx, "Right")
+	_, _ = actionService.HandleDirectActionKey(ctx, "Right")
+	_, _ = actionService.HandleDirectActionKey(ctx, "Down")
 
 	// Verify cursor position is updated
 	finalPos, err := mockAcc.CursorPosition(ctx)
