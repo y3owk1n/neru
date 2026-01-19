@@ -56,6 +56,8 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	var (
 		targetX, targetY int
 		deltaX, deltaY   int
+		hasX, hasY       bool
+		hasDX, hasDY     bool
 	)
 
 	parseErr := false
@@ -71,6 +73,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 
 			targetX = val
+			hasX = true
 
 		case strings.HasPrefix(arg, "--y="):
 			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--y="))
@@ -81,6 +84,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 
 			targetY = val
+			hasY = true
 
 		case strings.HasPrefix(arg, "--dx="):
 			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dx="))
@@ -91,6 +95,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 
 			deltaX = val
+			hasDX = true
 
 		case strings.HasPrefix(arg, "--dy="):
 			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dy="))
@@ -101,6 +106,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 
 			deltaY = val
+			hasDY = true
 		}
 	}
 
@@ -112,7 +118,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if actionName == "move_mouse" && (targetX == 0 && targetY == 0) {
+	if actionName == "move_mouse" && (!hasX || !hasY) {
 		return ipc.Response{
 			Success: false,
 			Message: "move_mouse requires --x and --y flags",
@@ -120,7 +126,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if actionName == "move_mouse_relative" && (deltaX == 0 && deltaY == 0) {
+	if actionName == "move_mouse_relative" && (!hasDX || !hasDY) {
 		return ipc.Response{
 			Success: false,
 			Message: "move_mouse_relative requires --dx and --dy flags",
