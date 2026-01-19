@@ -232,12 +232,28 @@ func (s *ActionService) IsDirectActionKey(key string) bool {
 
 // IsMoveMouseKey checks if the given key is a move mouse keybinding.
 func (s *ActionService) IsMoveMouseKey(key string) bool {
-	keyLower := strings.ToLower(key)
+	if key == "" {
+		return false
+	}
 
-	return keyLower == strings.ToLower(s.keyBindings.MoveMouseUp) ||
-		keyLower == strings.ToLower(s.keyBindings.MoveMouseDown) ||
-		keyLower == strings.ToLower(s.keyBindings.MoveMouseLeft) ||
-		keyLower == strings.ToLower(s.keyBindings.MoveMouseRight)
+	bindings := []string{
+		s.keyBindings.MoveMouseUp,
+		s.keyBindings.MoveMouseDown,
+		s.keyBindings.MoveMouseLeft,
+		s.keyBindings.MoveMouseRight,
+	}
+
+	for _, b := range bindings {
+		if b == "" {
+			continue
+		}
+
+		if strings.EqualFold(key, b) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // HandleDirectActionKey processes a direct action key and performs the corresponding action.
