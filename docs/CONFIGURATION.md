@@ -23,7 +23,6 @@ Neru searches for configuration in the following order:
 - [Grid Mode](#grid-mode)
 - [Scroll Mode](#scroll-mode)
 - [Mouse Movement Actions](#mouse-movement-actions)
-- [Direct Actions](#direct-actions)
 - [Advanced Settings](#advanced-settings)
 - [Complete Example](#complete-example)
 
