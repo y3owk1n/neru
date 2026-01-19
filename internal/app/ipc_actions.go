@@ -10,6 +10,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	actionNameMoveMouse         = "move_mouse"
+	actionNameMoveMouseRelative = "move_mouse_relative"
+)
+
 // IPCControllerActions handles action-related IPC commands.
 type IPCControllerActions struct {
 	actionService *services.ActionService
@@ -118,7 +123,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if (actionName == "move_mouse" || actionName == "move_mouse_relative") &&
+	if (actionName == actionNameMoveMouse || actionName == actionNameMoveMouseRelative) &&
 		(hasX || hasY) && (hasDX || hasDY) {
 		return ipc.Response{
 			Success: false,
@@ -127,7 +132,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if actionName == "move_mouse" && (!hasX || !hasY) {
+	if actionName == actionNameMoveMouse && (!hasX || !hasY) {
 		return ipc.Response{
 			Success: false,
 			Message: "move_mouse requires --x and --y flags",
@@ -135,7 +140,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if actionName == "move_mouse_relative" {
+	if actionName == actionNameMoveMouseRelative {
 		if !hasDX || !hasDY {
 			return ipc.Response{
 				Success: false,
@@ -167,7 +172,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	var err error
 	switch actionName {
-	case "move_mouse", "move_mouse_relative":
+	case actionNameMoveMouse, actionNameMoveMouseRelative:
 		err = h.actionService.MoveMouseTo(ctx, targetX, targetY, false)
 	default:
 		cursorPos, posErr := h.actionService.CursorPosition(ctx)

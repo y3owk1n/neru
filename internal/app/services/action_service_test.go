@@ -130,8 +130,8 @@ func (m *mockOverlayPort) Refresh(ctx context.Context) error {
 	return nil
 }
 
-func TestMoveMouseTo_clampsToScreenBounds(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
+func newTestActionService(t *testing.T, mockAcc *mockAccessibilityPort) *services.ActionService {
+	t.Helper()
 
 	actionConfig := config.ActionConfig{
 		MoveMouseStep: 10,
@@ -145,7 +145,7 @@ func TestMoveMouseTo_clampsToScreenBounds(t *testing.T) {
 
 	logger, _ := zap.NewDevelopment()
 
-	actionService := services.NewActionService(
+	return services.NewActionService(
 		mockAcc,
 		&mockOverlayPort{},
 		actionConfig,
@@ -153,6 +153,11 @@ func TestMoveMouseTo_clampsToScreenBounds(t *testing.T) {
 		actionConfig.MoveMouseStep,
 		logger,
 	)
+}
+
+func TestMoveMouseTo_clampsToScreenBounds(t *testing.T) {
+	mockAcc := newMockAccessibilityPort()
+	actionService := newTestActionService(t, mockAcc)
 
 	ctx := context.Background()
 
@@ -173,27 +178,7 @@ func TestMoveMouseTo_clampsToScreenBounds(t *testing.T) {
 
 func TestMoveMouseRelative_movesFromCurrentPosition(t *testing.T) {
 	mockAcc := newMockAccessibilityPort()
-
-	actionConfig := config.ActionConfig{
-		MoveMouseStep: 10,
-		KeyBindings: config.ActionKeyBindingsCfg{
-			MoveMouseUp:    "Up",
-			MoveMouseDown:  "Down",
-			MoveMouseLeft:  "Left",
-			MoveMouseRight: "Right",
-		},
-	}
-
-	logger, _ := zap.NewDevelopment()
-
-	actionService := services.NewActionService(
-		mockAcc,
-		&mockOverlayPort{},
-		actionConfig,
-		actionConfig.KeyBindings,
-		actionConfig.MoveMouseStep,
-		logger,
-	)
+	actionService := newTestActionService(t, mockAcc)
 
 	ctx := context.Background()
 
@@ -223,27 +208,7 @@ func TestMoveMouseRelative_movesFromCurrentPosition(t *testing.T) {
 
 func TestMoveMouseRelative_multipleCallsAccumulate(t *testing.T) {
 	mockAcc := newMockAccessibilityPort()
-
-	actionConfig := config.ActionConfig{
-		MoveMouseStep: 10,
-		KeyBindings: config.ActionKeyBindingsCfg{
-			MoveMouseUp:    "Up",
-			MoveMouseDown:  "Down",
-			MoveMouseLeft:  "Left",
-			MoveMouseRight: "Right",
-		},
-	}
-
-	logger, _ := zap.NewDevelopment()
-
-	actionService := services.NewActionService(
-		mockAcc,
-		&mockOverlayPort{},
-		actionConfig,
-		actionConfig.KeyBindings,
-		actionConfig.MoveMouseStep,
-		logger,
-	)
+	actionService := newTestActionService(t, mockAcc)
 
 	ctx := context.Background()
 
