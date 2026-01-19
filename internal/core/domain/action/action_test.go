@@ -123,6 +123,31 @@ func TestType_IsMouseButton(t *testing.T) {
 	}
 }
 
+func TestType_IsMoveMouse(t *testing.T) {
+	tests := []struct {
+		actionType action.Type
+		want       bool
+	}{
+		{action.TypeLeftClick, false},
+		{action.TypeRightClick, false},
+		{action.TypeMiddleClick, false},
+		{action.TypeMouseDown, false},
+		{action.TypeMouseUp, false},
+		{action.TypeMoveMouse, true},
+		{action.TypeMoveMouseRelative, true},
+		{action.TypeScroll, false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.actionType.String(), func(t *testing.T) {
+			got := testCase.actionType.IsMoveMouse()
+			if got != testCase.want {
+				t.Errorf("IsMoveMouse() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestAllTypes(t *testing.T) {
 	types := action.AllTypes()
 
