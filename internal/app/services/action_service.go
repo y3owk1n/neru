@@ -311,7 +311,7 @@ func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) (
 	if cursorPosErr != nil {
 		s.logger.Error("Failed to get cursor position", zap.Error(cursorPosErr))
 
-		return false, cursorPosErr
+		return true, core.WrapAccessibilityFailed(cursorPosErr, "get cursor position")
 	}
 
 	s.logger.Info("Performing direct action",
