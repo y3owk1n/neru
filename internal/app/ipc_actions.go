@@ -6,13 +6,9 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"go.uber.org/zap"
-)
-
-const (
-	actionNameMoveMouse         = "move_mouse"
-	actionNameMoveMouseRelative = "move_mouse_relative"
 )
 
 // IPCControllerActions handles action-related IPC commands.
@@ -123,8 +119,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if (actionName == actionNameMoveMouse || actionName == actionNameMoveMouseRelative) &&
-		(hasX || hasY) && (hasDX || hasDY) {
+	isMoveMouse := actionName == string(domain.ActionNameMoveMouse)
+	isMoveMouseRelative := actionName == string(domain.ActionNameMoveMouseRelative)
+
+	if (isMoveMouse || isMoveMouseRelative) && (hasX || hasY) && (hasDX || hasDY) {
 		return ipc.Response{
 			Success: false,
 			Message: "use either --x/--y or --dx/--dy, not both",
@@ -132,7 +130,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if actionName == actionNameMoveMouse && (!hasX || !hasY) {
+	if isMoveMouse && (!hasX || !hasY) {
 		return ipc.Response{
 			Success: false,
 			Message: "move_mouse requires --x and --y flags",
@@ -140,7 +138,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if actionName == actionNameMoveMouseRelative {
+	if isMoveMouseRelative {
 		if !hasDX || !hasDY {
 			return ipc.Response{
 				Success: false,
@@ -172,7 +170,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	var err error
 	switch actionName {
-	case actionNameMoveMouse, actionNameMoveMouseRelative:
+	case string(domain.ActionNameMoveMouse), string(domain.ActionNameMoveMouseRelative):
 		err = h.actionService.MoveMouseTo(ctx, targetX, targetY, false)
 	default:
 		cursorPos, posErr := h.actionService.CursorPosition(ctx)
