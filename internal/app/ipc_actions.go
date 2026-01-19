@@ -130,7 +130,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		if !hasDX || !hasDY {
 			return ipc.Response{
 				Success: false,
-				Message: "move_mouse_relative requires --x and --y flags",
+				Message: "move_mouse_relative requires --dx and --dy flags",
 				Code:    ipc.CodeInvalidInput,
 			}
 		} else {
