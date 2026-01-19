@@ -487,17 +487,10 @@ func validateScrollKey(key, fieldName string) error {
 	switch {
 	case strings.Contains(key, "+"):
 		parts := strings.Split(key, "+")
-		validModifiers := map[string]bool{
-			"Cmd":    true,
-			"Ctrl":   true,
-			"Alt":    true,
-			"Shift":  true,
-			"Option": true,
-		}
 
 		for i := range len(parts) - 1 {
 			modifier := strings.TrimSpace(parts[i])
-			if !validModifiers[modifier] {
+			if !isValidModifier(modifier) {
 				return derrors.Newf(
 					derrors.CodeInvalidConfig,
 					"%s has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option)",
