@@ -77,6 +77,22 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		_ = newPos
 	})
 
+	t.Run("MoveCursorToPoint bypassSmooth", func(t *testing.T) {
+		// Get current position
+		startPos, startPosErr := adapter.CursorPosition(ctx)
+		if startPosErr != nil {
+			t.Fatalf("CursorPosition() error = %v, want nil", startPosErr)
+		}
+
+		// Move slightly with bypass smooth (direct movement)
+		target := image.Point{X: startPos.X + 20, Y: startPos.Y + 20}
+
+		startPosErr = adapter.MoveCursorToPoint(ctx, target, true)
+		if startPosErr != nil {
+			t.Errorf("MoveCursorToPoint(bypassSmooth=true) error = %v, want nil", startPosErr)
+		}
+	})
+
 	t.Run("ClickableElements", func(t *testing.T) {
 		// This is hard to test without a known window.
 		// We'll just call it and ensure it doesn't panic or return error (unless permissions missing).
