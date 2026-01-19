@@ -9,8 +9,8 @@ import "C"
 
 import "unsafe"
 
-// FreeCString frees a C string allocated by C.CString and sets the pointer to nil.
-// This is a convenience function to centralize C memory management for cached strings.
+// FreeCString frees a C string allocated by C.CString.
+// Callers should nil their own pointer after freeing.
 func FreeCString(ptr unsafe.Pointer) {
 	if ptr != nil {
 		C.free(ptr)
