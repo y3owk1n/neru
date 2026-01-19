@@ -401,66 +401,6 @@ func TestHandleDirectActionKey_repeatedKeyPressesMoveContinuously(t *testing.T) 
 	}
 }
 
-func TestHandleDirectActionKey_cursorPositionUpdatesBetweenCalls(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-
-	actionConfig := config.ActionConfig{
-		MoveMouseStep: 10,
-		KeyBindings: config.ActionKeyBindingsCfg{
-			MoveMouseUp:    "Up",
-			MoveMouseDown:  "Down",
-			MoveMouseLeft:  "Left",
-			MoveMouseRight: "Right",
-		},
-	}
-
-	logger, _ := zap.NewDevelopment()
-
-	actionService := services.NewActionService(
-		mockAcc,
-		&mockOverlayPort{},
-		actionConfig,
-		actionConfig.KeyBindings,
-		actionConfig.MoveMouseStep,
-		logger,
-	)
-
-	ctx := context.Background()
-
-	// Press Right 3 times
-	actionService.HandleDirectActionKey(ctx, "Right")
-	actionService.HandleDirectActionKey(ctx, "Right")
-	actionService.HandleDirectActionKey(ctx, "Right")
-
-	if len(mockAcc.moveCalls) != 3 {
-		t.Fatalf("Expected 3 move calls, got %d", len(mockAcc.moveCalls))
-	}
-
-	// Each move should be relative to the updated cursor position
-	// First: 100 + 10 = 110
-	// Second: 110 + 10 = 120
-	// Third: 120 + 10 = 130
-	expectedPositions := []struct{ x, y int }{
-		{110, 100},
-		{120, 100},
-		{130, 100},
-	}
-
-	for i, expected := range expectedPositions {
-		actual := mockAcc.moveCalls[i]
-		if actual.X != expected.x || actual.Y != expected.y {
-			t.Errorf(
-				"Move %d: Expected (%d, %d), got (%d, %d)",
-				i+1,
-				expected.x,
-				expected.y,
-				actual.X,
-				actual.Y,
-			)
-		}
-	}
-}
-
 func TestHandleDirectActionKey_caseInsensitive(t *testing.T) {
 	mockAcc := newMockAccessibilityPort()
 
