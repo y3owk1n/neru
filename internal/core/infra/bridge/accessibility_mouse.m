@@ -6,16 +6,13 @@
 //
 
 #import "accessibility.h"
+#import "accessibility_constants.h"
 #import "accessibility_visibility.h"
 #import <Cocoa/Cocoa.h>
 #include <sys/time.h>
 #include <unistd.h>
 
 #pragma mark - Mouse Functions
-
-// Timing constants for mouse click operations
-static const CFTimeInterval kMouseClickDownUpDelay = 0.008;    // Delay between down and up events
-static const CFTimeInterval kMouseClickProcessingDelay = 0.04; // Delay after click processing
 
 /// Move mouse cursor to position with specified event type
 /// @param position Target position
@@ -26,7 +23,7 @@ void moveMouseWithType(CGPoint position, CGEventType eventType) {
 		CGEventSetFlags(move, 0);
 		CGEventPost(kCGHIDEventTap, move);
 		CFRelease(move);
-		CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, false);
+		CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseMoveDelay, false);
 	}
 }
 
@@ -52,7 +49,7 @@ void moveMouseSmoothWithType(CGPoint startPosition, CGPoint endPosition, int ste
 			CGEventSetFlags(move, 0);
 			CGEventPost(kCGHIDEventTap, move);
 			CFRelease(move);
-			CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.001, false);
+			CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruSmoothMoveStepDelay, false);
 		}
 
 		// Small delay for smooth movement
@@ -81,7 +78,7 @@ int performLeftMouseUpAtCursor(void) {
 	CGEventPost(kCGHIDEventTap, up);
 	CFRelease(up);
 
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.05, false);
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 	return 1;
 }
 
@@ -123,7 +120,7 @@ static int performClickAtPosition(CGPoint pos, CGEventType downEvent, CGEventTyp
 	// Post mouse down, allow the system to process it, then post mouse up.
 	CGEventPost(kCGHIDEventTap, down);
 	// Give the event loop a short moment to register the down event before sending up.
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kMouseClickDownUpDelay, false);
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickDownUpDelay, false);
 
 	CGEventPost(kCGHIDEventTap, up);
 	CFRelease(down);
@@ -131,7 +128,7 @@ static int performClickAtPosition(CGPoint pos, CGEventType downEvent, CGEventTyp
 
 	// Allow a small amount of time for the click to be processed by the system
 	// before restoring the cursor to avoid clicks landing in-transit.
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kMouseClickProcessingDelay, false);
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 
 	if (restoreCursor)
 		moveMouseWithType(originalPosition, kCGEventMouseMoved);
@@ -172,12 +169,12 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor) {
 	long long lastTime = (long long)clickState.lastClickTime.tv_sec * 1000 + clickState.lastClickTime.tv_usec / 1000;
 	long long timeDiff = currentTime - lastTime;
 
-	// Check if this is a multi-click (within 500ms and at same position)
+	// Check if this is a multi-click (within double-click interval and at same position)
 	// macOS typically uses 500ms as the double-click interval
 	double distance =
 	    sqrt(pow(position.x - clickState.lastPosition.x, 2) + pow(position.y - clickState.lastPosition.y, 2));
 
-	if (timeDiff < 500 && distance < 5.0) {
+	if (timeDiff < kNeruDoubleClickIntervalMs && distance < kNeruDoubleClickDistancePoints) {
 		// Same location, quick succession - increment click count
 		clickState.clickCount++;
 	} else {
@@ -215,14 +212,14 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor) {
 	// Post mouse down and allow a short moment before posting mouse up to ensure
 	// the system attributes the down/up pair to the target location.
 	CGEventPost(kCGHIDEventTap, down);
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kMouseClickDownUpDelay, false);
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickDownUpDelay, false);
 
 	CGEventPost(kCGHIDEventTap, up);
 	CFRelease(down);
 	CFRelease(up);
 
 	// Wait briefly to let the OS process the click before potentially moving the cursor back.
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kMouseClickProcessingDelay, false);
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 
 	if (restoreCursor)
 		moveMouseWithType(originalPosition, kCGEventMouseMoved);
@@ -252,7 +249,7 @@ int performMiddleClickAtPosition(CGPoint position, bool restoreCursor) {
 /// @return 1 on success, 0 on failure
 int performLeftMouseDownAtPosition(CGPoint position) {
 	moveMouseWithType(position, kCGEventMouseMoved);
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.05, false);
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 	CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, position, kCGMouseButtonLeft);
 	if (!down)
 		return 0;
@@ -260,7 +257,7 @@ int performLeftMouseDownAtPosition(CGPoint position) {
 	CGEventSetFlags(down, 0);
 	CGEventPost(kCGHIDEventTap, down);
 	CFRelease(down);
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.05, false);
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 	return 1;
 }
 
@@ -269,7 +266,7 @@ int performLeftMouseDownAtPosition(CGPoint position) {
 /// @return 1 on success, 0 on failure
 int performLeftMouseUpAtPosition(CGPoint position) {
 	moveMouseWithType(position, kCGEventMouseMoved);
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.05, false);
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 	CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, position, kCGMouseButtonLeft);
 	if (!up)
 		return 0;
@@ -277,6 +274,6 @@ int performLeftMouseUpAtPosition(CGPoint position) {
 	CGEventSetFlags(up, 0);
 	CGEventPost(kCGHIDEventTap, up);
 	CFRelease(up);
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.05, false);
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 	return 1;
 }
