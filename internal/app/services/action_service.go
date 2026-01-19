@@ -69,9 +69,9 @@ func (s *ActionService) ExecuteAction(
 	return nil
 }
 
-// PerformAction executes an action at the specified point.
+// PerformActionAtPoint executes an action at the specified point.
 // This parses the action string to a domain type and delegates to the accessibility port.
-func (s *ActionService) PerformAction(
+func (s *ActionService) PerformActionAtPoint(
 	ctx context.Context,
 	actionString string,
 	point image.Point,
@@ -207,7 +207,7 @@ func (s *ActionService) HandleActionKey(ctx context.Context, key string, mode st
 		zap.String("action", logMsg))
 
 	// Perform action
-	performActionErr := s.PerformAction(ctx, act, cursorPos)
+	performActionErr := s.PerformActionAtPoint(ctx, act, cursorPos)
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform action", zap.Error(performActionErr))
 	}
@@ -309,7 +309,7 @@ func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) b
 		zap.Int("x", cursorPos.X),
 		zap.Int("y", cursorPos.Y))
 
-	performActionErr := s.PerformAction(ctx, actionString, cursorPos)
+	performActionErr := s.PerformActionAtPoint(ctx, actionString, cursorPos)
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform direct action", zap.Error(performActionErr))
 	}

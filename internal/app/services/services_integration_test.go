@@ -129,11 +129,11 @@ func TestActionServiceIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("PerformAction left click", func(t *testing.T) {
+	t.Run("PerformActionAtPoint left click", func(t *testing.T) {
 		// Test performing an action at a point
-		err := actionService.PerformAction(ctx, "left_click", image.Point{X: 100, Y: 100})
+		err := actionService.PerformActionAtPoint(ctx, "left_click", image.Point{X: 100, Y: 100})
 		if err != nil {
-			t.Logf("PerformAction failed (may be expected in some environments): %v", err)
+			t.Logf("PerformActionAtPoint failed (may be expected in some environments): %v", err)
 			// Even on failure, verify the service handled it gracefully
 			t.Log("Service handled action attempt gracefully")
 		} else {
@@ -141,8 +141,8 @@ func TestActionServiceIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("PerformAction right click", func(t *testing.T) {
-		err := actionService.PerformAction(ctx, "right_click", image.Point{X: 200, Y: 200})
+	t.Run("PerformActionAtPoint right click", func(t *testing.T) {
+		err := actionService.PerformActionAtPoint(ctx, "right_click", image.Point{X: 200, Y: 200})
 		if err != nil {
 			t.Logf("Right click failed (may be expected): %v", err)
 		} else {

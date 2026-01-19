@@ -184,7 +184,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 		}
 
-		err = h.actionService.PerformAction(ctx, actionName, cursorPos)
+		err = h.actionService.PerformActionAtPoint(ctx, actionName, cursorPos)
 	}
 
 	if err != nil {
