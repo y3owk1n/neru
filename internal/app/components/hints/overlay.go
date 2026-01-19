@@ -20,6 +20,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"go.uber.org/zap"
 )
 
@@ -299,53 +300,29 @@ func (o *Overlay) freeStyleCache() {
 	o.cachedStyleMu.Lock()
 	defer o.cachedStyleMu.Unlock()
 
-	if o.cachedFontFamily != nil {
-		C.free(unsafe.Pointer(o.cachedFontFamily))
-		o.cachedFontFamily = nil
-	}
-	if o.cachedBgColor != nil {
-		C.free(unsafe.Pointer(o.cachedBgColor))
-		o.cachedBgColor = nil
-	}
-	if o.cachedTextColor != nil {
-		C.free(unsafe.Pointer(o.cachedTextColor))
-		o.cachedTextColor = nil
-	}
-	if o.cachedMatchedTextColor != nil {
-		C.free(unsafe.Pointer(o.cachedMatchedTextColor))
-		o.cachedMatchedTextColor = nil
-	}
-	if o.cachedBorderColor != nil {
-		C.free(unsafe.Pointer(o.cachedBorderColor))
-		o.cachedBorderColor = nil
-	}
-	if o.cachedHighlightColor != nil {
-		C.free(unsafe.Pointer(o.cachedHighlightColor))
-		o.cachedHighlightColor = nil
-	}
+	bridge.FreeCString(unsafe.Pointer(o.cachedFontFamily))
+	o.cachedFontFamily = nil
+	bridge.FreeCString(unsafe.Pointer(o.cachedBgColor))
+	o.cachedBgColor = nil
+	bridge.FreeCString(unsafe.Pointer(o.cachedTextColor))
+	o.cachedTextColor = nil
+	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedTextColor))
+	o.cachedMatchedTextColor = nil
+	bridge.FreeCString(unsafe.Pointer(o.cachedBorderColor))
+	o.cachedBorderColor = nil
+	bridge.FreeCString(unsafe.Pointer(o.cachedHighlightColor))
+	o.cachedHighlightColor = nil
 }
 
 // updateStyleCacheLocked updates cached C strings for the current style.
 // Must be called with cachedStyleMu write lock held.
 func (o *Overlay) updateStyleCacheLocked(style StyleMode) {
-	// Free old cached strings
-	if o.cachedFontFamily != nil {
-		C.free(unsafe.Pointer(o.cachedFontFamily))
-	}
-	if o.cachedBgColor != nil {
-		C.free(unsafe.Pointer(o.cachedBgColor))
-	}
-	if o.cachedTextColor != nil {
-		C.free(unsafe.Pointer(o.cachedTextColor))
-	}
-	if o.cachedMatchedTextColor != nil {
-		C.free(unsafe.Pointer(o.cachedMatchedTextColor))
-	}
-	if o.cachedBorderColor != nil {
-		C.free(unsafe.Pointer(o.cachedBorderColor))
-	}
+	bridge.FreeCString(unsafe.Pointer(o.cachedFontFamily))
+	bridge.FreeCString(unsafe.Pointer(o.cachedBgColor))
+	bridge.FreeCString(unsafe.Pointer(o.cachedTextColor))
+	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedTextColor))
+	bridge.FreeCString(unsafe.Pointer(o.cachedBorderColor))
 
-	// Create new cached strings
 	o.cachedFontFamily = C.CString(style.FontFamily())
 	o.cachedBgColor = C.CString(style.BackgroundColor())
 	o.cachedTextColor = C.CString(style.TextColor())
