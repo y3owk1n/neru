@@ -39,6 +39,8 @@ func ActionString(action Action) string {
 		return "middle_click"
 	case ActionMoveMouse:
 		return "move_mouse"
+	case ActionMoveMouseRelative:
+		return "move_mouse_relative"
 	case ActionScroll:
 		return "scroll"
 	default:
@@ -61,6 +63,8 @@ func ActionFromString(actionStr string) (Action, bool) {
 		return ActionMiddleClick, true
 	case "move_mouse":
 		return ActionMoveMouse, true
+	case "move_mouse_relative":
+		return ActionMoveMouseRelative, true
 	case "scroll":
 		return ActionScroll, true
 	default:

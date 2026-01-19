@@ -18,6 +18,7 @@ func TestParseType(t *testing.T) {
 		{"mouse_down", action.TypeMouseDown, false},
 		{"mouse_up", action.TypeMouseUp, false},
 		{"move_mouse", action.TypeMoveMouse, false},
+		{"move_mouse_relative", action.TypeMoveMouseRelative, false},
 		{"scroll", action.TypeScroll, false},
 		{"invalid", 0, true},
 		{"", 0, true},
@@ -59,6 +60,7 @@ func TestType_String(t *testing.T) {
 		{action.TypeMouseDown, "mouse_down"},
 		{action.TypeMouseUp, "mouse_up"},
 		{action.TypeMoveMouse, "move_mouse"},
+		{action.TypeMoveMouseRelative, "move_mouse_relative"},
 		{action.TypeScroll, "scroll"},
 		{action.Type(999), "unknown"},
 	}
@@ -121,11 +123,36 @@ func TestType_IsMouseButton(t *testing.T) {
 	}
 }
 
+func TestType_IsMoveMouse(t *testing.T) {
+	tests := []struct {
+		actionType action.Type
+		want       bool
+	}{
+		{action.TypeLeftClick, false},
+		{action.TypeRightClick, false},
+		{action.TypeMiddleClick, false},
+		{action.TypeMouseDown, false},
+		{action.TypeMouseUp, false},
+		{action.TypeMoveMouse, true},
+		{action.TypeMoveMouseRelative, true},
+		{action.TypeScroll, false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.actionType.String(), func(t *testing.T) {
+			got := testCase.actionType.IsMoveMouse()
+			if got != testCase.want {
+				t.Errorf("IsMoveMouse() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestAllTypes(t *testing.T) {
 	types := action.AllTypes()
 
-	if len(types) != 7 {
-		t.Errorf("AllTypes() returned %d types, want 7", len(types))
+	if len(types) != 8 {
+		t.Errorf("AllTypes() returned %d types, want 8", len(types))
 	}
 
 	// Check that all types are unique
@@ -146,6 +173,7 @@ func TestAllTypes(t *testing.T) {
 		action.TypeMouseDown,
 		action.TypeMouseUp,
 		action.TypeMoveMouse,
+		action.TypeMoveMouseRelative,
 		action.TypeScroll,
 	}
 

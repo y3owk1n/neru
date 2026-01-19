@@ -40,6 +40,9 @@ const (
 	// DefaultSmoothCursorSteps is the default smooth cursor steps.
 	DefaultSmoothCursorSteps = 10
 
+	// DefaultMoveMouseStep is the default step size for keyboard-driven mouse movement.
+	DefaultMoveMouseStep = 10
+
 	// DefaultIPCTimeout is the default IPC timeout.
 	DefaultIPCTimeout = 5
 	// DefaultAppWatcherTimeout is the default app watcher timeout.
@@ -267,12 +270,17 @@ func DefaultConfig() *Config {
 			},
 		},
 		Action: ActionConfig{
+			MoveMouseStep: DefaultMoveMouseStep,
 			KeyBindings: ActionKeyBindingsCfg{
-				LeftClick:   "Shift+L",
-				RightClick:  "Shift+R",
-				MiddleClick: "Shift+M",
-				MouseDown:   "Shift+I",
-				MouseUp:     "Shift+U",
+				LeftClick:      "Shift+L",
+				RightClick:     "Shift+R",
+				MiddleClick:    "Shift+M",
+				MouseDown:      "Shift+I",
+				MouseUp:        "Shift+U",
+				MoveMouseUp:    "Up",
+				MoveMouseDown:  "Down",
+				MoveMouseLeft:  "Left",
+				MoveMouseRight: "Right",
 			},
 		},
 		Logging: LoggingConfig{

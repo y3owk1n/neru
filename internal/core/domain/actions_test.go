@@ -11,7 +11,7 @@ func TestKnownActionNames(t *testing.T) {
 	names := domain.KnownActionNames()
 
 	// Verify we have the expected number of action names
-	expectedCount := 6
+	expectedCount := 8
 	if len(names) != expectedCount {
 		t.Errorf("KnownActionNames() returned %d names, want %d", len(names), expectedCount)
 	}
@@ -23,6 +23,8 @@ func TestKnownActionNames(t *testing.T) {
 		domain.ActionNameMiddleClick,
 		domain.ActionNameMouseDown,
 		domain.ActionNameMouseUp,
+		domain.ActionNameMoveMouse,
+		domain.ActionNameMoveMouseRelative,
 		domain.ActionNameScroll,
 	}
 
@@ -72,6 +74,16 @@ func TestIsKnownActionName(t *testing.T) {
 		{
 			name:   "mouse_up is known",
 			action: domain.ActionNameMouseUp,
+			want:   true,
+		},
+		{
+			name:   "move_mouse is known",
+			action: domain.ActionNameMoveMouse,
+			want:   true,
+		},
+		{
+			name:   "move_mouse_relative is known",
+			action: domain.ActionNameMoveMouseRelative,
 			want:   true,
 		},
 		{
@@ -139,6 +151,8 @@ func TestActionConstants(t *testing.T) {
 		{"ActionNameMiddleClick", domain.ActionNameMiddleClick, "middle_click"},
 		{"ActionNameMouseDown", domain.ActionNameMouseDown, "mouse_down"},
 		{"ActionNameMouseUp", domain.ActionNameMouseUp, "mouse_up"},
+		{"ActionNameMoveMouse", domain.ActionNameMoveMouse, "move_mouse"},
+		{"ActionNameMoveMouseRelative", domain.ActionNameMoveMouseRelative, "move_mouse_relative"},
 		{"ActionNameScroll", domain.ActionNameScroll, "scroll"},
 	}
 
@@ -185,7 +199,11 @@ func TestActionEnumValues(t *testing.T) {
 		t.Errorf("ActionMoveMouse = %d, want 5", domain.ActionMoveMouse)
 	}
 
-	if domain.ActionScroll != 6 {
-		t.Errorf("ActionScroll = %d, want 6", domain.ActionScroll)
+	if domain.ActionMoveMouseRelative != 6 {
+		t.Errorf("ActionMoveMouseRelative = %d, want 6", domain.ActionMoveMouseRelative)
+	}
+
+	if domain.ActionScroll != 7 {
+		t.Errorf("ActionScroll = %d, want 7", domain.ActionScroll)
 	}
 }

@@ -396,22 +396,22 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			switch (keyCode) {
 			case 126: // Up arrow
 				if (context->callback) {
-					context->callback("\x1f", context->userData);
+					context->callback("Up", context->userData);
 				}
 				return NULL;
 			case 125: // Down arrow
 				if (context->callback) {
-					context->callback("\x1e", context->userData);
+					context->callback("Down", context->userData);
 				}
 				return NULL;
 			case 123: // Left arrow
 				if (context->callback) {
-					context->callback("\x1d", context->userData);
+					context->callback("Left", context->userData);
 				}
 				return NULL;
 			case 124: // Right arrow
 				if (context->callback) {
-					context->callback("\x1c", context->userData);
+					context->callback("Right", context->userData);
 				}
 				return NULL;
 			case 116: // PageUp

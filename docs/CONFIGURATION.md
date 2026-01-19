@@ -22,7 +22,7 @@ Neru searches for configuration in the following order:
 - [Hint Mode](#hint-mode)
 - [Grid Mode](#grid-mode)
 - [Scroll Mode](#scroll-mode)
-- [Direct Actions](#direct-actions)
+- [Mouse Movement Actions](#mouse-movement-actions)
 - [Advanced Settings](#advanced-settings)
 - [Complete Example](#complete-example)
 
@@ -297,21 +297,23 @@ page_down = ["Ctrl+D", "PageDown"] # Scroll down by half page
 
 **Key Format Options:**
 
-| Format | Example | Description |
-|--------|---------|-------------|
-| Single key | `"j"`, `"k"` | Direct key press |
-| Arrow keys | `"Up"`, `"Down"` | Named arrow keys |
-| Modifier combo | `"Ctrl+U"`, `"Cmd+Down"` | Modifier + key |
-| Special keys | `"PageUp"`, `"PageDown"`, `"Home"`, `"End"` | Named special keys |
-| Multi-key sequence | `"gg"` | Press keys in sequence (500ms timeout) |
+| Format             | Example                                     | Description                            |
+| ------------------ | ------------------------------------------- | -------------------------------------- |
+| Single key         | `"j"`, `"k"`                                | Direct key press                       |
+| Arrow keys         | `"Up"`, `"Down"`                            | Named arrow keys                       |
+| Modifier combo     | `"Ctrl+U"`, `"Cmd+Down"`                    | Modifier + key                         |
+| Special keys       | `"PageUp"`, `"PageDown"`, `"Home"`, `"End"` | Named special keys                     |
+| Multi-key sequence | `"gg"`                                      | Press keys in sequence (500ms timeout) |
 
 **Multi-key Sequences:**
+
 - Must be exactly 2 letters (a-z, A-Z)
 - Case-insensitive (both "gg" and "GG" work)
 - 500ms timeout between key presses
 - Example: `"gg"` for go to top
 
 **Supported Modifiers:**
+
 - `Cmd`/`Command` - Command key
 - `Ctrl`/`Control` - Control key
 - `Alt`/`Option` - Option/Alt key
@@ -319,16 +321,16 @@ page_down = ["Ctrl+D", "PageDown"] # Scroll down by half page
 
 **Default Bindings:**
 
-| Action | Keys |
-|--------|------|
-| scroll_up | `k`, `Up` |
-| scroll_down | `j`, `Down` |
-| scroll_left | `h`, `Left` |
-| scroll_right | `l`, `Right` |
-| go_top | `gg`, `Cmd+Up` |
-| go_bottom | `G`, `Cmd+Down` |
-| page_up | `Ctrl+U`, `PageUp` |
-| page_down | `Ctrl+D`, `PageDown` |
+| Action       | Keys                 |
+| ------------ | -------------------- |
+| scroll_up    | `k`, `Up`            |
+| scroll_down  | `j`, `Down`          |
+| scroll_left  | `h`, `Left`          |
+| scroll_right | `l`, `Right`         |
+| go_top       | `gg`, `Cmd+Up`       |
+| go_bottom    | `G`, `Cmd+Down`      |
+| page_up      | `Ctrl+U`, `PageUp`   |
+| page_down    | `Ctrl+D`, `PageDown` |
 
 **Customization Examples:**
 
@@ -361,27 +363,45 @@ go_bottom = ["G", "Cmd+Down"]
 
 **Exit:** Press `Esc` to exit scroll mode.
 
-## Direct Actions
+## Mouse Movement Actions
 
-Perform mouse actions directly in hints/grid mode without switching modes. Configure which keys trigger each action:
+Move the cursor using keyboard keys in hints or grid mode. Configure the step size and key bindings:
 
 ```toml
 [action]
+move_mouse_step = 10  # Pixels to move per key press (default: 10)
+
 [action.key_bindings]
-left_click = "Shift+L"    # Left click at current cursor position
-right_click = "Shift+R"   # Right click at current cursor position
-middle_click = "Shift+M"  # Middle click at current cursor position
-mouse_down = "Shift+I"    # Press and hold mouse button
-mouse_up = "Shift+U"      # Release mouse button
+left_click = "Shift+L"       # Left click at cursor position
+right_click = "Shift+R"      # Right click at cursor position
+middle_click = "Shift+M"     # Middle click at cursor position
+mouse_down = "Shift+I"       # Press and hold mouse button
+mouse_up = "Shift+U"         # Release mouse button
+move_mouse_up = "Up"         # Move cursor up by move_mouse_step
+move_mouse_down = "Down"     # Move cursor down by move_mouse_step
+move_mouse_left = "Left"     # Move cursor left by move_mouse_step
+move_mouse_right = "Right"   # Move cursor right by move_mouse_step
+```
+
+### Arrow Key Movement
+
+The arrow keys (`Up`, `Down`, `Left`, `Right`) move the cursor by `move_mouse_step` pixels in the corresponding direction. The cursor stays at the new position after exiting the mode (unless `restore_cursor_position` is enabled in `[general]`).
+
+**Customizing step size:**
+
+```toml
+[action]
+move_mouse_step = 5   # Smaller movements (more precise)
+# move_mouse_step = 20  # Larger movements (faster navigation)
 ```
 
 ### Valid Key Formats
 
-| Format | Example | Description |
-|--------|---------|-------------|
-| Modifier + alphabet | `Cmd+L`, `Shift+R` | At least 1 modifier + letter |
-| Modifier + special | `Shift+Return`, `Cmd+Enter` | Modifier + Return/Enter |
-| Single special | `Return`, `Enter` | Standalone special key |
+| Format              | Example                     | Description                  |
+| ------------------- | --------------------------- | ---------------------------- |
+| Modifier + alphabet | `Cmd+L`, `Shift+R`          | At least 1 modifier + letter |
+| Modifier + special  | `Shift+Return`, `Cmd+Enter` | Modifier + Return/Enter      |
+| Single special      | `Return`, `Enter`           | Standalone special key       |
 
 ### Supported Modifiers
 
@@ -572,12 +592,18 @@ highlight_color = "#00FF00"
 highlight_width = 3
 
 [action]
+move_mouse_step = 10
+
 [action.key_bindings]
 left_click = "Shift+L"
 right_click = "Shift+R"
 middle_click = "Shift+M"
 mouse_down = "Shift+I"
 mouse_up = "Shift+U"
+move_mouse_up = "Up"
+move_mouse_down = "Down"
+move_mouse_left = "Left"
+move_mouse_right = "Right"
 
 [smooth_cursor]
 move_mouse_enabled = true

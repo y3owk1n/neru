@@ -123,6 +123,7 @@ func TestActionServiceIntegration(t *testing.T) {
 		overlayAdapter,
 		cfg.Action,
 		cfg.Action.KeyBindings,
+		cfg.Action.MoveMouseStep,
 		logger,
 	)
 

@@ -20,6 +20,7 @@ type ActionService struct {
 	overlay       ports.OverlayPort
 	config        config.ActionConfig
 	keyBindings   config.ActionKeyBindingsCfg
+	moveMouseStep int
 	logger        *zap.Logger
 }
 
@@ -29,6 +30,7 @@ func NewActionService(
 	overlay ports.OverlayPort,
 	actionConfig config.ActionConfig,
 	keyBindings config.ActionKeyBindingsCfg,
+	moveMouseStep int,
 	logger *zap.Logger,
 ) *ActionService {
 	return &ActionService{
@@ -36,6 +38,7 @@ func NewActionService(
 		overlay:       overlay,
 		config:        actionConfig,
 		keyBindings:   keyBindings,
+		moveMouseStep: moveMouseStep,
 		logger:        logger,
 	}
 }
@@ -123,12 +126,56 @@ func (s *ActionService) MoveCursorToElement(
 ) error {
 	center := element.Center()
 
-	return s.accessibility.MoveCursorToPoint(ctx, center)
+	return s.accessibility.MoveCursorToPoint(ctx, center, false)
 }
 
 // MoveCursorToPoint moves the cursor to the specified point.
 func (s *ActionService) MoveCursorToPoint(ctx context.Context, point image.Point) error {
-	return s.accessibility.MoveCursorToPoint(ctx, point)
+	return s.accessibility.MoveCursorToPoint(ctx, point, false)
+}
+
+// MoveMouseTo moves the mouse cursor to the specified coordinates (absolute).
+// Coordinates are clamped to the screen bounds.
+// If bypassSmooth is true, smooth cursor is bypassed for keyboard-driven movements.
+func (s *ActionService) MoveMouseTo(
+	ctx context.Context,
+	targetX, targetY int,
+	bypassSmooth ...bool,
+) error {
+	screenBounds, err := s.accessibility.ScreenBounds(ctx)
+	if err != nil {
+		s.logger.Error("Failed to get screen bounds", zap.Error(err))
+
+		return core.WrapAccessibilityFailed(err, "get screen bounds")
+	}
+
+	clampedX := min(max(targetX, screenBounds.Min.X), screenBounds.Max.X-1)
+	clampedY := min(max(targetY, screenBounds.Min.Y), screenBounds.Max.Y-1)
+
+	point := image.Point{X: clampedX, Y: clampedY}
+
+	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
+
+	s.logger.Info("Moving mouse cursor",
+		zap.Int("x", clampedX),
+		zap.Int("y", clampedY),
+		zap.Bool("clamped", clampedX != targetX || clampedY != targetY),
+		zap.Bool("bypassSmooth", shouldBypass),
+	)
+
+	return s.accessibility.MoveCursorToPoint(ctx, point, shouldBypass)
+}
+
+// MoveMouseRelative moves the mouse cursor by the specified delta from the current position.
+func (s *ActionService) MoveMouseRelative(ctx context.Context, deltaX, deltaY int) error {
+	cursorPos, err := s.accessibility.CursorPosition(ctx)
+	if err != nil {
+		s.logger.Error("Failed to get cursor position", zap.Error(err))
+
+		return core.WrapAccessibilityFailed(err, "get cursor position")
+	}
+
+	return s.MoveMouseTo(ctx, cursorPos.X+deltaX, cursorPos.Y+deltaY, true)
 }
 
 // CursorPosition returns the current cursor position.
@@ -183,12 +230,71 @@ func (s *ActionService) IsDirectActionKey(key string) bool {
 	return ok
 }
 
+// IsMoveMouseKey checks if the given key is a move mouse keybinding.
+func (s *ActionService) IsMoveMouseKey(key string) bool {
+	if key == "" {
+		return false
+	}
+
+	bindings := []string{
+		s.keyBindings.MoveMouseUp,
+		s.keyBindings.MoveMouseDown,
+		s.keyBindings.MoveMouseLeft,
+		s.keyBindings.MoveMouseRight,
+	}
+
+	for _, b := range bindings {
+		if b == "" {
+			continue
+		}
+
+		if strings.EqualFold(key, b) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // HandleDirectActionKey processes a direct action key and performs the corresponding action.
 // Returns true if the key was handled as a direct action, false otherwise.
 func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) bool {
 	actionString, logMsg, ok := s.getActionMapping(key)
 	if !ok {
 		return false
+	}
+
+	keyLower := strings.ToLower(key)
+
+	if actionString == string(domain.ActionNameMoveMouseRelative) {
+		var deltaX, deltaY int
+
+		switch keyLower {
+		case strings.ToLower(s.keyBindings.MoveMouseUp):
+			deltaY = -s.moveMouseStep
+		case strings.ToLower(s.keyBindings.MoveMouseDown):
+			deltaY = s.moveMouseStep
+		case strings.ToLower(s.keyBindings.MoveMouseLeft):
+			deltaX = -s.moveMouseStep
+		case strings.ToLower(s.keyBindings.MoveMouseRight):
+			deltaX = s.moveMouseStep
+		default:
+			return false
+		}
+
+		s.logger.Info("Performing move mouse relative",
+			zap.String("action", logMsg),
+			zap.Int("dx", deltaX),
+			zap.Int("dy", deltaY),
+			zap.Int("step", s.moveMouseStep),
+		)
+
+		moveErr := s.MoveMouseRelative(ctx, deltaX, deltaY)
+		if moveErr != nil {
+			s.logger.Error("Failed to move mouse relative", zap.Error(moveErr))
+		}
+
+		return true
 	}
 
 	cursorPos, cursorPosErr := s.CursorPosition(ctx)
@@ -251,7 +357,11 @@ func (s *ActionService) matchActionKey(key string) bool {
 		keyLower == strings.ToLower(s.keyBindings.RightClick) ||
 		keyLower == strings.ToLower(s.keyBindings.MiddleClick) ||
 		keyLower == strings.ToLower(s.keyBindings.MouseDown) ||
-		keyLower == strings.ToLower(s.keyBindings.MouseUp)
+		keyLower == strings.ToLower(s.keyBindings.MouseUp) ||
+		keyLower == strings.ToLower(s.keyBindings.MoveMouseUp) ||
+		keyLower == strings.ToLower(s.keyBindings.MoveMouseDown) ||
+		keyLower == strings.ToLower(s.keyBindings.MoveMouseLeft) ||
+		keyLower == strings.ToLower(s.keyBindings.MoveMouseRight)
 }
 
 // getActionForBinding returns the action for a matching binding.
@@ -268,6 +378,10 @@ func (s *ActionService) getActionForBinding(binding string) (string, string, boo
 		{s.keyBindings.MiddleClick, domain.ActionNameMiddleClick, "Middle click"},
 		{s.keyBindings.MouseDown, domain.ActionNameMouseDown, "Mouse down"},
 		{s.keyBindings.MouseUp, domain.ActionNameMouseUp, "Mouse up"},
+		{s.keyBindings.MoveMouseUp, domain.ActionNameMoveMouseRelative, "Move mouse up"},
+		{s.keyBindings.MoveMouseDown, domain.ActionNameMoveMouseRelative, "Move mouse down"},
+		{s.keyBindings.MoveMouseLeft, domain.ActionNameMoveMouseRelative, "Move mouse left"},
+		{s.keyBindings.MoveMouseRight, domain.ActionNameMoveMouseRelative, "Move mouse right"},
 	}
 
 	for _, b := range bindings {

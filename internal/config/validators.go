@@ -366,6 +366,13 @@ func (c *Config) ValidateGrid() error {
 
 // ValidateAction validates the action configuration.
 func (c *Config) ValidateAction() error {
+	if c.Action.MoveMouseStep <= 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"action.move_mouse_step must be positive",
+		)
+	}
+
 	return c.ValidateActionKeyBindings()
 }
 

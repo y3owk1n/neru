@@ -16,6 +16,10 @@ const (
 	ActionNameMouseDown ActionName = "mouse_down"
 	// ActionNameMouseUp represents the mouse up action.
 	ActionNameMouseUp ActionName = "mouse_up"
+	// ActionNameMoveMouse represents the mouse move action.
+	ActionNameMoveMouse ActionName = "move_mouse"
+	// ActionNameMoveMouseRelative represents the relative mouse move action.
+	ActionNameMoveMouseRelative ActionName = "move_mouse_relative"
 	// ActionNameScroll represents the scroll action.
 	ActionNameScroll ActionName = "scroll"
 
@@ -30,6 +34,8 @@ var knownActionNames = []ActionName{
 	ActionNameMiddleClick,
 	ActionNameMouseDown,
 	ActionNameMouseUp,
+	ActionNameMoveMouse,
+	ActionNameMoveMouseRelative,
 	ActionNameScroll,
 }
 
@@ -61,6 +67,8 @@ func IsKnownActionName(action ActionName) bool {
 		ActionNameMiddleClick,
 		ActionNameMouseDown,
 		ActionNameMouseUp,
+		ActionNameMoveMouse,
+		ActionNameMoveMouseRelative,
 		ActionNameScroll:
 		return true
 	default:
@@ -84,6 +92,8 @@ const (
 	ActionMiddleClick
 	// ActionMoveMouse represents the mouse move action.
 	ActionMoveMouse
+	// ActionMoveMouseRelative represents the relative mouse move action.
+	ActionMoveMouseRelative
 	// ActionScroll represents the scroll action.
 	ActionScroll
 )

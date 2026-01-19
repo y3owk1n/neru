@@ -489,15 +489,15 @@ func EnsureMouseUp() {
 }
 
 // MoveMouseToPoint moves the cursor to a specific screen point.
-// If smooth cursor movement is enabled in the configuration, it will use smooth movement.
-func MoveMouseToPoint(point image.Point) {
+// If bypassSmooth is true, smooth cursor configuration is bypassed.
+func MoveMouseToPoint(point image.Point, bypassSmooth bool) {
 	var eventType C.CGEventType = C.CGEventType(C.kCGEventMouseMoved)
 	if IsLeftMouseDown() {
 		eventType = C.CGEventType(C.kCGEventLeftMouseDragged)
 	}
 
 	config := config.Global()
-	if config != nil && config.SmoothCursor.MoveMouseEnabled {
+	if config != nil && config.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
 		MoveMouseToPointSmooth(
 			point,
 			config.SmoothCursor.Steps,

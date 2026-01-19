@@ -41,7 +41,8 @@ type ScreenManagement interface {
 	ScreenBounds(ctx context.Context) (image.Rectangle, error)
 
 	// MoveCursorToPoint moves the mouse cursor to the specified point.
-	MoveCursorToPoint(ctx context.Context, point image.Point) error
+	// If bypassSmooth is true, smooth cursor configuration is bypassed.
+	MoveCursorToPoint(ctx context.Context, point image.Point, bypassSmooth bool) error
 
 	// CursorPosition returns the current cursor position.
 	CursorPosition(ctx context.Context) (image.Point, error)

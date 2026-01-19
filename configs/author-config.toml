@@ -35,12 +35,18 @@ characters = "aoeuidhtnspyfgcrlqjkxbmwvz"
 sublayer_keys = "gcrhtnmwv"
 
 [action]
+move_mouse_step = 10
+
 [action.key_bindings]
 left_click = "Shift+H"
 middle_click = "Shift+T"
 right_click = "Shift+N"
 mouse_down = "Shift+C"
 mouse_up = "Shift+R"
+move_mouse_up = "Up"
+move_mouse_down = "Down"
+move_mouse_left = "Left"
+move_mouse_right = "Right"
 
 [smooth_cursor]
 move_mouse_enabled = true
