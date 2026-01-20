@@ -69,6 +69,15 @@ Bind global hotkeys to Neru actions. Remove or comment out to disable.
 **Modifiers:** `Cmd`, `Ctrl`, `Alt`/`Option`, `Shift`
 **Format:** `"Modifier1+Modifier2+Key" = "action"`
 
+An `action` can be one of the following:
+
+- A neru command (essentially any neru cli command without the `neru` prefix)
+  - Say in cli you can run `neru hints` and `neru grid`
+  - To map it into a hotkey, just omit the `neru` prefix: `"Cmd+Shift+Space" = "hints"`
+- A shell command (using `exec <command>`)
+  - Say in cli you can run `open -a Terminal` to launch Terminal
+  - To map it into a hotkey, use the full command: `"Cmd+Alt+T" = "exec open -a Terminal"`
+
 **Shell Commands:**
 
 ```toml
