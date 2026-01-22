@@ -50,16 +50,16 @@ Neru is a capable **free and open-source** replacement for:
 
 <div align="center">
 
-| Feature                   | Description                                                 |
-| ------------------------- | ----------------------------------------------------------- |
-| 🎯 **Hint Labels**        | Click any visible element using keyboard labels             |
-| ⚡ **Direct Actions**     | Perform clicks directly in hints/grid mode (Shift+L, etc.)  |
+| Feature                   | Description                                                        |
+| ------------------------- | ------------------------------------------------------------------ |
+| 🎯 **Hint & Grid Labels** | Click any visible element using keyboard labels                    |
+| ⚡ **Direct Actions**     | Perform mouse actions directly in hints/grid mode (Shift+L, etc.)  |
 | 📜 **Vim Scrolling**      | Fully configurable scroll keys: `j`/`k`, `gg`/`G`, custom bindings |
-| 🌐 **Universal Support**  | Native apps, Electron, Chrome, Firefox, system UI           |
-| ⚡ **Native Performance** | Built with Objective-C and Go for instant response          |
-| 🛠️ **TOML Config**        | Highly customizable with text-based configuration           |
-| 🚫 **App Exclusion**      | Disable Neru in specific applications                       |
-| 💬 **CLI Control**        | IPC commands for scripting and automation                   |
+| 🌐 **Universal Support**  | Native apps, Electron, Chrome, Firefox, system UI                  |
+| ⚡ **Native Performance** | Built with Objective-C and Go for instant response                 |
+| 🛠️ **TOML Config**        | Highly customizable with text-based configuration                  |
+| 🚫 **App Exclusion**      | Disable Neru in specific applications                              |
+| 💬 **CLI Control**        | IPC commands for scripting and automation                          |
 
 </div>
 
@@ -158,12 +158,16 @@ See [Configuration Guide](docs/CONFIGURATION.md) for all options.
 - 🔧 More powerful than UI constraints
 - 🛠️ Reduces maintenance burden
 
-**Why grid-based navigation?**
+**Why we recommend grid over hints navigation?**
 
 - ✅ Works everywhere (native apps, Electron, browsers, system UI)
 - ⚡ Fast and reliable (no accessibility tree traversal)
 - 🎯 Always accurate (clicks at exact coordinates)
 - 🔧 Simple maintenance (no app-specific workarounds)
+
+> [!NOTE]
+> We support both hints and grid modes, but we recommend using grid mode as it is mostly usable out of the box without
+> further configuration.
 
 ### 📊 Project Status
 
