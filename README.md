@@ -166,7 +166,7 @@ See [Configuration Guide](docs/CONFIGURATION.md) for all options.
 - 🔧 Simple maintenance (no app-specific workarounds)
 
 > [!NOTE]
-> We support both hints and grid modes, but we recommend using grid mode are mostly useable out of the box without
+> We support both hints and grid modes, but we recommend using grid mode as it is mostly usable out of the box without
 > further configuration.
 
 ### 📊 Project Status
