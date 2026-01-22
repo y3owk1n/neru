@@ -199,7 +199,7 @@ Enable improved accessibility for Electron/Chromium/Firefox apps:
 
 ```toml
 [hints.additional_ax_support]
-enable = false  # ⚠️ May conflict with tiling WMs
+enable = false
 
 # Auto-detected: VS Code, Chrome, Firefox, Slack, etc.
 additional_electron_bundles = ["com.example.app"]

@@ -128,8 +128,6 @@ log_level = "debug"
 enable = true
 ```
 
-**⚠️ Tiling WM users:** May conflict with yabai/Amethyst - keep `enable = false` and use grid mode.
-
 ### Menubar/Dock hints missing
 
 ```toml
@@ -194,30 +192,6 @@ Enabled AXManualAccessibility for: com.your.app
 ### Hints don't appear in Chrome/Firefox content
 
 **Browser needs additional AX support.**
-
-**⚠️ Warning for Tiling WM Users:**
-
-Enabling accessibility support for Chrome/Firefox can interfere with tiling window managers (yabai, Amethyst, Rectangle, etc.), causing windows to resist tiling or snap incorrectly.
-
-**If you DON'T use a tiling window manager:**
-
-```toml
-[hints.additional_ax_support]
-enable = true
-
-# For custom Chromium browsers:
-additional_chromium_bundles = ["com.your.browser"]
-
-# For custom Firefox browsers:
-additional_firefox_bundles = ["org.your.firefox"]
-```
-
-**If you DO use a tiling window manager:**
-
-Keep `enable = false` and rely on Neru's grid-based approach instead. The grid method works well in browsers without requiring accessibility modifications that conflict with tiling WMs.
-
-**Alternative:** Use grid mode as it doesn't require accessibility tree access.
-**Alternative:** Use browser extensions like Vimium or Surfingkeys for in-page navigation, and use Neru for everything else.
 
 ### No hints in menubar/Dock
 
@@ -492,51 +466,6 @@ osascript -e 'id of app "Adobe Illustrator"'
 ```toml
 [general]
 include_dock_hints = true
-```
-
-### Tiling window manager conflicts
-
-**Browser windows don't tile correctly after enabling AX support.**
-
-**Symptoms:**
-
-- Chrome/Firefox windows resist tiling
-- Windows snap to wrong positions
-- yabai/Amethyst/Rectangle layouts break
-- Browser windows ignore tiling rules
-
-**Cause:**
-Enabling `AXEnhancedUserInterface` for Chromium/Firefox conflicts with tiling window managers.
-
-**Solution:**
-
-Disable additional AX support:
-
-```toml
-[hints.additional_ax_support]
-enable = false  # Keep this off if using tiling WM
-```
-
-**If you still need browser hint support:**
-
-1. Use Neru's grid-based hints (works without AX modifications)
-2. Use browser extensions for in-page navigation:
-    - Vimium (Chrome)
-    - Vimium-FF (Firefox)
-    - Surfingkeys
-3. Keep Neru for OS-level navigation (menubar, Dock, native apps)
-
-**Restart your tiling WM after disabling:**
-
-```bash
-# yabai
-yabai --restart-service
-
-# Amethyst
-# Quit and reopen via Activity Monitor
-
-# Rectangle
-# Quit and reopen via menubar
 ```
 
 ---
