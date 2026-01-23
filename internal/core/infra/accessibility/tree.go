@@ -472,10 +472,10 @@ func shouldIncludeElement(
 }
 
 // FindClickableElements finds all clickable elements in the tree.
-func (n *TreeNode) FindClickableElements() []*TreeNode {
+func (n *TreeNode) FindClickableElements(allowedRoles map[string]struct{}) []*TreeNode {
 	var result []*TreeNode
 	n.walkTree(func(node *TreeNode) bool {
-		if node.element.IsClickable(node.info) {
+		if node.element.IsClickable(node.info, allowedRoles) {
 			result = append(result, node)
 		}
 

@@ -51,14 +51,11 @@ func (a *Adapter) addMenubarElements(
 ) []*element.Element {
 	a.logger.Debug("Adding menubar elements")
 
-	// Temporarily add AXMenuBarItem to clickable roles to enable menubar element detection
+	// Create local allowed roles including AXMenuBarItem for additional targets
 	originalRoles := a.client.ClickableRoles()
 	menubarRoles := make([]string, len(originalRoles)+1)
 	copy(menubarRoles, originalRoles)
 	menubarRoles[len(originalRoles)] = "AXMenuBarItem"
-
-	a.client.SetClickableRoles(menubarRoles)
-	defer a.client.SetClickableRoles(originalRoles) // Restore original roles when done
 
 	// Get menubar elements
 	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements()
@@ -83,7 +80,7 @@ func (a *Adapter) addMenubarElements(
 
 	// Get additional menubar targets
 	for _, bundleID := range filter.AdditionalMenubarTargets {
-		additionalNodes, err := a.client.ClickableElementsFromBundleID(bundleID)
+		additionalNodes, err := a.client.ClickableElementsFromBundleID(bundleID, menubarRoles)
 		if err != nil {
 			a.logger.Warn("Failed to get additional menubar elements",
 				zap.String("bundle_id", bundleID),
@@ -125,14 +122,11 @@ func (a *Adapter) addDockElements(
 ) []*element.Element {
 	const dockBundleID = "com.apple.dock"
 
-	// Temporarily add AXDockItem to clickable roles to enable dock element detection
+	// Create local allowed roles including AXDockItem
 	originalRoles := a.client.ClickableRoles()
 	dockRoles := make([]string, len(originalRoles)+1)
 	copy(dockRoles, originalRoles)
 	dockRoles[len(originalRoles)] = "AXDockItem"
-
-	a.client.SetClickableRoles(dockRoles)
-	defer a.client.SetClickableRoles(originalRoles) // Restore original roles when done
 
 	// Get dock application by bundle ID
 	dockApp, dockAppErr := a.client.ApplicationByBundleID(dockBundleID)
@@ -160,7 +154,7 @@ func (a *Adapter) addDockElements(
 	}
 
 	// Build tree and find clickable elements
-	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, true)
+	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, true, dockRoles)
 	if dockNodesErr != nil {
 		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
 
@@ -192,7 +186,7 @@ func (a *Adapter) addNotificationCenterElements(
 
 	a.logger.Debug("Adding notification center elements")
 
-	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(ncBundleID)
+	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(ncBundleID, nil)
 	if ncNodesErr != nil {
 		a.logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))
 

@@ -560,3 +560,34 @@ void releaseElement(void *element) {
 		CFRelease((AXUIElementRef)element);
 	}
 }
+
+/// Retain element reference
+/// @param element Element reference
+void retainElement(void *element) {
+	if (element) {
+		CFRetain((AXUIElementRef)element);
+	}
+}
+
+#pragma mark - Identity Functions
+
+/// Get element hash
+/// @param element Element reference
+/// @return Element hash value
+unsigned long getElementHash(void *element) {
+	if (!element)
+		return 0;
+
+	return CFHash((AXUIElementRef)element);
+}
+
+/// Check if two elements are equal
+/// @param element1 First element reference
+/// @param element2 Second element reference
+/// @return 1 if equal, 0 otherwise
+int areElementsEqual(void *element1, void *element2) {
+	if (!element1 || !element2)
+		return element1 == element2;
+
+	return CFEqual((AXUIElementRef)element1, (AXUIElementRef)element2) ? 1 : 0;
+}

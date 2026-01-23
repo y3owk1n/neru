@@ -355,6 +355,47 @@ func ReleaseAll(elements []*Element) {
 	}
 }
 
+// Hash returns the hash code of the underlying accessibility element.
+func (e *Element) Hash() (uint64, error) {
+	if e.ref == nil {
+		return 0, derrors.New(derrors.CodeAccessibilityFailed, "element reference is nil")
+	}
+
+	hash := C.getElementHash(e.ref) //nolint:nlreturn
+
+	return uint64(hash), nil
+}
+
+// Equal checks if this element refers to the same underlying UI element as another.
+func (e *Element) Equal(other *Element) bool {
+	if e == nil && other == nil {
+		return true
+	}
+	if e == nil || other == nil {
+		return false
+	}
+	if e.ref == nil && other.ref == nil {
+		return true
+	}
+	if e.ref == nil || other.ref == nil {
+		return false
+	}
+
+	result := C.areElementsEqual(e.ref, other.ref) //nolint:nlreturn
+
+	return result == 1
+}
+
+// Clone creates a new Element reference that points to the same underlying object, increasing its retain count.
+func (e *Element) Clone() (*Element, error) {
+	if e.ref == nil {
+		return nil, derrors.New(derrors.CodeAccessibilityFailed, "element reference is nil")
+	}
+
+	C.retainElement(e.ref) //nolint:nlreturn
+	return &Element{ref: e.ref}, nil
+}
+
 // AllWindows returns all windows of the focused application.
 func AllWindows() ([]*Element, error) {
 	var count C.int
@@ -638,7 +679,7 @@ func CurrentCursorPosition() image.Point {
 }
 
 // IsClickable checks if the element is clickable.
-func (e *Element) IsClickable(info *ElementInfo) bool {
+func (e *Element) IsClickable(info *ElementInfo, allowedRoles map[string]struct{}) bool {
 	if e.ref == nil {
 		return false
 	}
@@ -672,12 +713,17 @@ func (e *Element) IsClickable(info *ElementInfo) bool {
 		}
 	}
 
-	// First check if the role is in the clickable roles list
-	clickableRolesMu.RLock()
-	_, ok := clickableRoles[info.Role()]
-	clickableRolesMu.RUnlock()
+	// Check roles
+	var isRoleAllowed bool
+	if len(allowedRoles) > 0 {
+		_, isRoleAllowed = allowedRoles[info.Role()]
+	} else {
+		clickableRolesMu.RLock()
+		_, isRoleAllowed = clickableRoles[info.Role()]
+		clickableRolesMu.RUnlock()
+	}
 
-	if ok {
+	if isRoleAllowed {
 		// Also verify it actually has click action
 		result := C.hasClickAction(e.ref) //nolint:nlreturn
 

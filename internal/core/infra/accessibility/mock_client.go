@@ -2,12 +2,15 @@ package accessibility
 
 import (
 	"image"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
 // MockAXClient is a mock implementation of AXClient for testing.
 type MockAXClient struct {
+	mu sync.Mutex
+
 	MockFrontmostWindow    AXWindow
 	MockFrontmostWindowErr error
 
@@ -33,6 +36,11 @@ type MockAXClient struct {
 	MockClickableRoles []string
 
 	MockMissionControlActive bool
+
+	LastCalledBundleID         string
+	LastClickableNodesRoles    []string
+	LastBundleRoles            []string
+	ClickableNodesRolesHistory [][]string
 }
 
 // FrontmostWindow returns the configured frontmost window or error.
@@ -51,7 +59,12 @@ func (m *MockAXClient) ApplicationByBundleID(_ string) (AXApp, error) {
 }
 
 // ClickableNodes returns the configured clickable nodes or error.
-func (m *MockAXClient) ClickableNodes(_ AXElement, _ bool) ([]AXNode, error) {
+func (m *MockAXClient) ClickableNodes(_ AXElement, _ bool, roles []string) ([]AXNode, error) {
+	m.mu.Lock()
+	m.LastClickableNodesRoles = roles
+	m.ClickableNodesRolesHistory = append(m.ClickableNodesRolesHistory, roles)
+	m.mu.Unlock()
+
 	return m.MockClickableNodes, m.MockClickableNodesErr
 }
 
@@ -61,7 +74,15 @@ func (m *MockAXClient) MenuBarClickableElements() ([]AXNode, error) {
 }
 
 // ClickableElementsFromBundleID returns the configured nodes for bundle ID or error.
-func (m *MockAXClient) ClickableElementsFromBundleID(_ string) ([]AXNode, error) {
+func (m *MockAXClient) ClickableElementsFromBundleID(
+	bundleID string,
+	roles []string,
+) ([]AXNode, error) {
+	m.mu.Lock()
+	m.LastCalledBundleID = bundleID
+	m.LastBundleRoles = roles
+	m.mu.Unlock()
+
 	return m.MockBundleNodes, m.MockBundleNodesErr
 }
 
@@ -97,11 +118,16 @@ func (m *MockAXClient) CheckPermissions() bool {
 
 // SetClickableRoles updates the configured clickable roles.
 func (m *MockAXClient) SetClickableRoles(roles []string) {
+	m.mu.Lock()
 	m.MockClickableRoles = roles
+	m.mu.Unlock()
 }
 
 // ClickableRoles returns the configured clickable roles.
 func (m *MockAXClient) ClickableRoles() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	return m.MockClickableRoles
 }
 

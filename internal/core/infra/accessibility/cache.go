@@ -4,7 +4,6 @@ import (
 	"container/list"
 	"sync"
 	"time"
-	"unsafe"
 
 	"go.uber.org/zap"
 )
@@ -31,10 +30,11 @@ const (
 
 // CachedInfo wraps ElementInfo with an expiration timestamp and LRU tracking for caching.
 type CachedInfo struct {
-	info      *ElementInfo
-	expiresAt time.Time
-	key       uintptr
-	element   *list.Element // For LRU tracking
+	info        *ElementInfo
+	expiresAt   time.Time
+	key         uint64
+	elementRef  *Element      // Retained reference for equality checks
+	elementNode *list.Element // For LRU tracking
 }
 
 // staticRoles defines roles that should use longer (static) TTL.
@@ -66,12 +66,11 @@ func isStaticElement(info *ElementInfo) bool {
 }
 
 // InfoCache implements a thread-safe time-to-live cache for element information.
-// InfoCache provides thread-safe caching of element information with TTL-based expiration and LRU eviction.
 type InfoCache struct {
 	mu      sync.RWMutex
-	data    map[uintptr]*CachedInfo
-	lru     *list.List // For LRU eviction
-	maxSize int        // Maximum cache size (0 = unlimited)
+	data    map[uint64][]*CachedInfo // Bucket for hash collisions
+	lru     *list.List               // For LRU eviction
+	maxSize int                      // Maximum cache size (0 = unlimited)
 	ttl     time.Duration
 	stopCh  chan struct{}
 	stopped bool
@@ -90,7 +89,7 @@ func NewInfoCacheWithSize(ttl time.Duration, maxSize int, logger *zap.Logger) *I
 	}
 
 	cache := &InfoCache{
-		data:    make(map[uintptr]*CachedInfo, DefaultCacheSize),
+		data:    make(map[uint64][]*CachedInfo, DefaultCacheSize),
 		lru:     list.New(),
 		maxSize: maxSize,
 		ttl:     ttl,
@@ -106,60 +105,96 @@ func NewInfoCacheWithSize(ttl time.Duration, maxSize int, logger *zap.Logger) *I
 
 // Get retrieves a cached element information if it exists and hasn't expired.
 func (c *InfoCache) Get(elem *Element) *ElementInfo {
+	if elem == nil {
+		return nil
+	}
+
+	hash, err := elem.Hash()
+	if err != nil {
+		return nil
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// #nosec G103 -- Using pointer address as map key is safe for cache
-	key := uintptr(unsafe.Pointer(elem))
-	cached, exists := c.data[key]
-
+	bucket, exists := c.data[hash]
 	if !exists {
 		return nil
 	}
 
-	if time.Now().After(cached.expiresAt) {
-		// Remove expired entry
-		delete(c.data, key)
+	// Iterate bucket to find exact match
+	for i, cached := range bucket {
+		// Use Equal to verify it's the same underlying object
+		if elem.Equal(cached.elementRef) {
+			if time.Now().After(cached.expiresAt) {
+				// Remove expired entry from bucket
+				c.removeFromBucket(hash, i)
 
-		if cached.element != nil {
-			c.lru.Remove(cached.element)
+				// Remove from LRU and release
+				if cached.elementNode != nil {
+					c.lru.Remove(cached.elementNode)
+				}
+
+				cached.elementRef.Release()
+
+				return nil
+			}
+
+			// Move to front of LRU list (most recently used)
+			c.lru.MoveToFront(cached.elementNode)
+
+			return cached.info
 		}
-
-		return nil
 	}
 
-	// Move to front of LRU list (most recently used)
-	c.lru.MoveToFront(cached.element)
-
-	return cached.info
+	return nil
 }
 
 // Set stores element information in the cache with appropriate time-to-live based on element type.
 func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	if elem == nil || info == nil {
+		return
+	}
 
-	// #nosec G103 -- Using pointer address as map key is safe for cache
-	key := uintptr(unsafe.Pointer(elem))
-
-	// Check if entry already exists
-	existing, exists := c.data[key]
-	if exists {
-		// Update existing entry and move to front
-		existing.info = info
-		existing.expiresAt = time.Now().Add(c.getTTL(info))
-		c.lru.MoveToFront(existing.element)
-		c.logger.Debug("Updated cached element info",
-			zap.Uintptr("element_ptr", key),
-			zap.String("role", info.Role()),
-			zap.String("title", info.Title()))
+	hash, err := elem.Hash()
+	if err != nil {
+		c.logger.Debug("Failed to get element hash for caching", zap.Error(err))
 
 		return
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	bucket := c.data[hash]
+
+	// Check if already in cache and update
+	for _, cached := range bucket {
+		if elem.Equal(cached.elementRef) {
+			cached.info = info
+			cached.expiresAt = time.Now().Add(c.getTTL(info))
+			c.lru.MoveToFront(cached.elementNode)
+			c.logger.Debug("Updated cached element info",
+				zap.Uint64("hash", hash),
+				zap.String("role", info.Role()),
+				zap.String("title", info.Title()))
+
+			return
+		}
+	}
+
+	// Not in cache, add new entry
 	// Evict least recently used items if cache is full
-	if c.maxSize > 0 && len(c.data) >= c.maxSize {
+	if c.maxSize > 0 && c.lru.Len() >= c.maxSize {
 		c.evictLRU()
+	}
+
+	// Clone the element to retain it for the cache
+	clonedElem, cloneErr := elem.Clone()
+	if cloneErr != nil {
+		c.logger.Debug("Failed to clone element for caching", zap.Error(cloneErr))
+
+		return
 	}
 
 	// Use different TTL based on element type
@@ -168,22 +203,24 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 
 	// Create new cache entry
 	cachedInfo := &CachedInfo{
-		info:      info,
-		expiresAt: expiresAt,
-		key:       key,
+		info:       info,
+		expiresAt:  expiresAt,
+		key:        hash,
+		elementRef: clonedElem,
 	}
 
 	// Add to LRU list (front = most recently used)
-	cachedInfo.element = c.lru.PushFront(cachedInfo)
-	c.data[key] = cachedInfo
+	cachedInfo.elementNode = c.lru.PushFront(cachedInfo)
+
+	// Add to bucket
+	c.data[hash] = append(c.data[hash], cachedInfo)
 
 	c.logger.Debug("Caching element info",
-		zap.Uintptr("element_ptr", key),
+		zap.Uint64("hash", hash),
 		zap.String("role", info.Role()),
 		zap.String("title", info.Title()),
 		zap.Duration("ttl", ttl),
-		zap.Time("expires_at", expiresAt),
-		zap.Int("cache_size", len(c.data)))
+		zap.Int("cache_size", c.lru.Len()))
 }
 
 // Size returns the current number of entries in the cache.
@@ -191,7 +228,7 @@ func (c *InfoCache) Size() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	return len(c.data)
+	return c.lru.Len()
 }
 
 // Clear removes all entries from the cache.
@@ -199,7 +236,14 @@ func (c *InfoCache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.data = make(map[uintptr]*CachedInfo, DefaultCacheSize)
+	// Release all retained elements
+	for _, bucket := range c.data {
+		for _, cached := range bucket {
+			cached.elementRef.Release()
+		}
+	}
+
+	c.data = make(map[uint64][]*CachedInfo, DefaultCacheSize)
 	c.lru = list.New()
 
 	c.logger.Debug("Cache cleared")
@@ -216,6 +260,16 @@ func (c *InfoCache) Stop() {
 
 	close(c.stopCh)
 	c.stopped = true
+
+	// Release resources
+	for _, bucket := range c.data {
+		for _, cached := range bucket {
+			cached.elementRef.Release()
+		}
+	}
+
+	c.data = nil
+	c.lru = nil
 
 	c.logger.Debug("Cache stopped")
 }
@@ -242,33 +296,74 @@ func (c *InfoCache) cleanup() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if c.stopped || c.lru == nil {
+		return
+	}
+
 	now := time.Now()
-	// Pre-allocate slice for keys to delete
-	toDelete := make(
-		[]uintptr,
-		0,
-		len(c.data)/CacheDeletionEstimate,
-	) // Estimate 25% might be expired
+	expiredCount := 0
 
-	for key, cached := range c.data {
-		if now.After(cached.expiresAt) {
-			toDelete = append(toDelete, key)
-			// Remove from LRU list
-			if cached.element != nil {
-				c.lru.Remove(cached.element)
-			}
+	// Walk LRU from back (oldest) to find expired items
+	// This optimization assumes older items are more likely to be expired,
+	// though TTL varies by role.
+	// A full scan is safer for correctness given varying TTLs.
+
+	for element := c.lru.Back(); element != nil; {
+		cached, ok := element.Value.(*CachedInfo)
+		if !ok {
+			// Should ensure we iterate correctly even if type is wrong, but safe to skip or log
+			element = element.Prev()
+
+			continue
 		}
+
+		prev := element.Prev() // Save prev since we might remove element
+
+		if now.After(cached.expiresAt) {
+			// Found expired item
+			bucket := c.data[cached.key]
+
+			// Find and remove from bucket
+			for i, item := range bucket {
+				if item == cached {
+					c.removeFromBucket(cached.key, i)
+
+					break
+				}
+			}
+
+			c.lru.Remove(element)
+			cached.elementRef.Release()
+
+			expiredCount++
+		}
+
+		element = prev
 	}
 
-	// Batch delete
-	for _, key := range toDelete {
-		delete(c.data, key)
-	}
-
-	if len(toDelete) > 0 {
+	if expiredCount > 0 {
 		c.logger.Debug("Cache cleanup completed",
-			zap.Int("removed_entries", len(toDelete)),
-			zap.Int("remaining_entries", len(c.data)))
+			zap.Int("removed_entries", expiredCount),
+			zap.Int("remaining_entries", c.lru.Len()))
+	}
+}
+
+// removeFromBucket removes an item from a bucket at index i.
+func (c *InfoCache) removeFromBucket(key uint64, index int) {
+	bucket := c.data[key]
+	if index < 0 || index >= len(bucket) {
+		return
+	}
+
+	// Optimized delete from slice
+	lastIdx := len(bucket) - 1
+	bucket[index] = bucket[lastIdx]
+	bucket[lastIdx] = nil // Avoid memory leak
+	c.data[key] = bucket[:lastIdx]
+
+	// If bucket is empty, delete key
+	if len(c.data[key]) == 0 {
+		delete(c.data, key)
 	}
 }
 
@@ -297,12 +392,24 @@ func (c *InfoCache) evictLRU() {
 		return
 	}
 
-	// Remove from LRU list and data map
+	// Remove from bucket
+	hash := cachedInfo.key
+
+	bucket := c.data[hash]
+	for i, item := range bucket {
+		if item == cachedInfo {
+			c.removeFromBucket(hash, i)
+
+			break
+		}
+	}
+
+	// Remove from LRU list and release
 	c.lru.Remove(lruElement)
-	delete(c.data, cachedInfo.key)
+	cachedInfo.elementRef.Release()
 
 	c.logger.Debug("Evicted LRU cache entry",
-		zap.Uintptr("element_ptr", cachedInfo.key),
+		zap.Uint64("hash", hash),
 		zap.String("role", cachedInfo.info.Role()),
 		zap.String("title", cachedInfo.info.Title()))
 }

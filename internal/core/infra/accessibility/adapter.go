@@ -100,6 +100,10 @@ func (a *Adapter) ClickableElements(
 	const maxConcurrency = 3 // Limit concurrent queries to avoid overwhelming the system
 
 	semaphore := make(chan struct{}, maxConcurrency)
+	// Initialize semaphore with tokens
+	for range maxConcurrency {
+		semaphore <- struct{}{}
+	}
 
 	var (
 		waitGroup sync.WaitGroup
@@ -114,6 +118,10 @@ func (a *Adapter) ClickableElements(
 		defer waitGroup.Done()
 
 		<-semaphore // Acquire semaphore
+
+		defer func() {
+			semaphore <- struct{}{} // Release semaphore
+		}()
 
 		elements, err := queryFunc()
 		if err != nil {
@@ -142,8 +150,6 @@ func (a *Adapter) ClickableElements(
 	waitGroup.Add(1)
 
 	go func() {
-		semaphore <- struct{}{} // Acquire semaphore
-
 		collectElements("frontmost window", func() ([]*element.Element, error) {
 			frontmostWindow, frontmostWindowErr := a.client.FrontmostWindow()
 			if frontmostWindowErr != nil {
@@ -154,6 +160,7 @@ func (a *Adapter) ClickableElements(
 			clickableNodes, clickableNodesErr := a.client.ClickableNodes(
 				frontmostWindow,
 				filter.IncludeOffscreen,
+				nil,
 			)
 			if clickableNodesErr != nil {
 				return nil, clickableNodesErr
@@ -168,8 +175,6 @@ func (a *Adapter) ClickableElements(
 		waitGroup.Add(1)
 
 		go func() {
-			semaphore <- struct{}{} // Acquire semaphore
-
 			collectElements("supplementary sources", func() ([]*element.Element, error) {
 				return a.addSupplementaryElements(ctx, []*element.Element{}, filter), nil
 			})

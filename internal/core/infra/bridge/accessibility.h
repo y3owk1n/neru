@@ -133,6 +133,21 @@ void freeString(char *str);
 /// @param element Element reference
 void releaseElement(void *element);
 
+/// Retain element reference
+/// @param element Element reference
+void retainElement(void *element);
+
+/// Get element hash
+/// @param element Element reference
+/// @return Element hash value
+unsigned long getElementHash(void *element);
+
+/// Check if two elements are equal
+/// @param element1 First element reference
+/// @param element2 Second element reference
+/// @return 1 if equal, 0 otherwise
+int areElementsEqual(void *element1, void *element2);
+
 #pragma mark - Window Functions
 
 /// Get all windows of focused application
