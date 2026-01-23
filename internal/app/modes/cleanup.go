@@ -72,6 +72,12 @@ func (h *Handler) cleanupGridMode() {
 func (h *Handler) performCommonCleanup() {
 	h.overlayManager.Clear()
 
+	// Stop any pending hints refresh timer to prevent re-activation after exit
+	if h.refreshHintsTimer != nil {
+		h.refreshHintsTimer.Stop()
+		h.refreshHintsTimer = nil
+	}
+
 	if h.disableEventTap != nil {
 		h.disableEventTap()
 	}
