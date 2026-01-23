@@ -2,6 +2,14 @@ package modes
 
 // HandleKeyPress dispatches key events by current mode.
 func (h *Handler) HandleKeyPress(key string) {
+	// Process any pending hints refresh from timer callback (dispatched to main thread)
+	select {
+	case <-h.refreshHintsCh:
+		h.activateHintModeInternal(false, nil)
+	default:
+		// No pending refresh
+	}
+
 	if key == KeyEscape || key == KeyEscape2 {
 		h.handleEscapeKey()
 

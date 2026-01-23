@@ -62,6 +62,7 @@ type Handler struct {
 	disableEventTap   func()
 	refreshHotkeys    func()
 	refreshHintsTimer *time.Timer
+	refreshHintsCh    chan struct{} // Channel for dispatching timer callback to main thread
 }
 
 // NewHandler creates a new mode handler.
@@ -104,6 +105,7 @@ func NewHandler(
 		enableEventTap:  enableEventTap,
 		disableEventTap: disableEventTap,
 		refreshHotkeys:  refreshHotkeys,
+		refreshHintsCh:  make(chan struct{}, 1),
 	}
 
 	// Initialize mode implementations

@@ -78,6 +78,12 @@ func (h *Handler) performCommonCleanup() {
 		h.refreshHintsTimer = nil
 	}
 
+	// Drain any pending refresh signal from the channel
+	select {
+	case <-h.refreshHintsCh:
+	default:
+	}
+
 	if h.disableEventTap != nil {
 		h.disableEventTap()
 	}
