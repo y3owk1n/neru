@@ -154,6 +154,7 @@ func (a *Adapter) ClickableElements(
 			clickableNodes, clickableNodesErr := a.client.ClickableNodes(
 				frontmostWindow,
 				filter.IncludeOffscreen,
+				nil,
 			)
 			if clickableNodesErr != nil {
 				return nil, clickableNodesErr

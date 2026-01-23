@@ -21,9 +21,9 @@ type AXClient interface {
 	FrontmostWindow() (AXWindow, error)
 	FocusedApplication() (AXApp, error)
 	ApplicationByBundleID(bundleID string) (AXApp, error)
-	ClickableNodes(root AXElement, includeOffscreen bool) ([]AXNode, error)
+	ClickableNodes(root AXElement, includeOffscreen bool, roles []string) ([]AXNode, error)
 	MenuBarClickableElements() ([]AXNode, error)
-	ClickableElementsFromBundleID(bundleID string) ([]AXNode, error)
+	ClickableElementsFromBundleID(bundleID string, roles []string) ([]AXNode, error)
 	ActiveScreenBounds() image.Rectangle
 
 	// Actions

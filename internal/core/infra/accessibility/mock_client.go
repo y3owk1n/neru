@@ -33,6 +33,10 @@ type MockAXClient struct {
 	MockClickableRoles []string
 
 	MockMissionControlActive bool
+
+	LastCalledBundleID      string
+	LastClickableNodesRoles []string
+	LastBundleRoles         []string
 }
 
 // FrontmostWindow returns the configured frontmost window or error.
@@ -51,7 +55,9 @@ func (m *MockAXClient) ApplicationByBundleID(_ string) (AXApp, error) {
 }
 
 // ClickableNodes returns the configured clickable nodes or error.
-func (m *MockAXClient) ClickableNodes(_ AXElement, _ bool) ([]AXNode, error) {
+func (m *MockAXClient) ClickableNodes(_ AXElement, _ bool, roles []string) ([]AXNode, error) {
+	m.LastClickableNodesRoles = roles
+
 	return m.MockClickableNodes, m.MockClickableNodesErr
 }
 
@@ -61,7 +67,13 @@ func (m *MockAXClient) MenuBarClickableElements() ([]AXNode, error) {
 }
 
 // ClickableElementsFromBundleID returns the configured nodes for bundle ID or error.
-func (m *MockAXClient) ClickableElementsFromBundleID(_ string) ([]AXNode, error) {
+func (m *MockAXClient) ClickableElementsFromBundleID(
+	bundleID string,
+	roles []string,
+) ([]AXNode, error) {
+	m.LastCalledBundleID = bundleID
+	m.LastBundleRoles = roles
+
 	return m.MockBundleNodes, m.MockBundleNodesErr
 }
 

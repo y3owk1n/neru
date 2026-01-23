@@ -48,6 +48,7 @@ func (c *InfraAXClient) FocusedApplication() (AXApp, error) {
 func (c *InfraAXClient) ClickableNodes(
 	root AXElement,
 	includeOffscreen bool,
+	roles []string,
 ) ([]AXNode, error) {
 	var element *Element
 
@@ -76,7 +77,15 @@ func (c *InfraAXClient) ClickableNodes(
 		)
 	}
 
-	clickableNodes := tree.FindClickableElements()
+	var allowedRoles map[string]struct{}
+	if len(roles) > 0 {
+		allowedRoles = make(map[string]struct{}, len(roles))
+		for _, role := range roles {
+			allowedRoles[role] = struct{}{}
+		}
+	}
+
+	clickableNodes := tree.FindClickableElements(allowedRoles)
 
 	clickableNodesResult := make([]AXNode, len(clickableNodes))
 	for i, node := range clickableNodes {
@@ -118,8 +127,9 @@ func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
 // ClickableElementsFromBundleID returns clickable elements for the application with the given bundle ID.
 func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
+	roles []string,
 ) ([]AXNode, error) {
-	nodes, nodesErr := ClickableElementsFromBundleID(bundleID, c.logger)
+	nodes, nodesErr := ClickableElementsFromBundleID(bundleID, roles, c.logger)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,
@@ -345,5 +355,5 @@ func (n *InfraNode) IsClickable() bool {
 		return false
 	}
 
-	return n.node.Element().IsClickable(n.node.Info())
+	return n.node.Element().IsClickable(n.node.Info(), nil)
 }

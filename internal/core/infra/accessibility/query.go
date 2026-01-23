@@ -60,7 +60,7 @@ func ClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 		return nil, err
 	}
 
-	elements := tree.FindClickableElements()
+	elements := tree.FindClickableElements(nil)
 	logger.Debug("Found clickable elements", zap.Int("count", len(elements)))
 
 	return elements, nil
@@ -106,15 +106,33 @@ func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 		return []*TreeNode{}, nil
 	}
 
-	elements := tree.FindClickableElements()
+	// Create local allowed roles map including AXMenuBarItem
+	allowedRoles := make(map[string]struct{})
+
+	// Add global roles
+	globalRoles := ClickableRoles()
+	for _, role := range globalRoles {
+		allowedRoles[role] = struct{}{}
+	}
+
+	// Add menubar specific role
+	allowedRoles["AXMenuBarItem"] = struct{}{}
+
+	elements := tree.FindClickableElements(allowedRoles)
 	logger.Debug("Found menu bar clickable elements", zap.Int("count", len(elements)))
 
 	return elements, nil
 }
 
 // ClickableElementsFromBundleID retrieves clickable UI elements from the application identified by bundle ID.
-func ClickableElementsFromBundleID(bundleID string, logger *zap.Logger) ([]*TreeNode, error) {
-	logger.Debug("Getting clickable elements for bundle ID", zap.String("bundle_id", bundleID))
+func ClickableElementsFromBundleID(
+	bundleID string,
+	roles []string,
+	logger *zap.Logger,
+) ([]*TreeNode, error) {
+	logger.Debug("Getting clickable elements for bundle ID",
+		zap.String("bundle_id", bundleID),
+		zap.Int("role_count", len(roles)))
 
 	cacheOnce.Do(func() {
 		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL, logger)
@@ -147,7 +165,15 @@ func ClickableElementsFromBundleID(bundleID string, logger *zap.Logger) ([]*Tree
 		return []*TreeNode{}, nil
 	}
 
-	elements := tree.FindClickableElements()
+	var allowedRoles map[string]struct{}
+	if len(roles) > 0 {
+		allowedRoles = make(map[string]struct{}, len(roles))
+		for _, role := range roles {
+			allowedRoles[role] = struct{}{}
+		}
+	}
+
+	elements := tree.FindClickableElements(allowedRoles)
 	logger.Debug("Found clickable elements for application",
 		zap.String("bundle_id", bundleID),
 		zap.Int("count", len(elements)))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"image"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
@@ -368,12 +369,13 @@ func TestAdapter_PerformActionAtPoint(t *testing.T) {
 // mockAXApp is a mock implementation of AXApp for testing.
 type mockAXApp struct {
 	bundleID string
+	MockInfo *accessibility.AXAppInfo
 }
 
 func (m *mockAXApp) Release()                 {}
 func (m *mockAXApp) BundleIdentifier() string { return m.bundleID }
 
-func (m *mockAXApp) Info() (*accessibility.AXAppInfo, error) { return &accessibility.AXAppInfo{}, nil }
+func (m *mockAXApp) Info() (*accessibility.AXAppInfo, error) { return m.MockInfo, nil }
 
 func TestAdapter_FocusedAppBundleID(t *testing.T) {
 	tests := []struct {
@@ -505,4 +507,81 @@ func TestAdapter_ClickableRoles(t *testing.T) {
 			roles,
 		)
 	}
+}
+
+func TestAdapter_RolePassing(t *testing.T) {
+	logger := zap.NewNop()
+	mockClient := &accessibility.MockAXClient{
+		MockPermissions:     true,
+		MockFrontmostWindow: &accessibility.MockWindow{},
+	}
+
+	initialRoles := []string{"AXButton"}
+	mockClient.SetClickableRoles(initialRoles) // Initialize mock state
+
+	adapter := accessibility.NewAdapter(logger, []string{}, initialRoles, mockClient)
+	ctx := context.Background()
+
+	// Case 1: Additional Menubar Targets
+	t.Run("Additional Menubar Targets", func(t *testing.T) {
+		filter := ports.ElementFilter{
+			IncludeMenubar:           true,
+			AdditionalMenubarTargets: []string{"com.example.app"},
+		}
+
+		_, _ = adapter.ClickableElements(ctx, filter)
+
+		// Verify roles passed contain AXMenuBarItem
+		calledRoles := mockClient.LastBundleRoles
+
+		hasMenuBarItem := slices.Contains(calledRoles, "AXMenuBarItem")
+
+		if !hasMenuBarItem {
+			t.Errorf("Expected LastBundleRoles to contain AXMenuBarItem, got: %v", calledRoles)
+		}
+
+		// Verify Global roles were NOT changed via SetClickableRoles calls during execution
+		// The mock implementation of SetClickableRoles updates MockClickableRoles
+		if len(mockClient.MockClickableRoles) != len(initialRoles) {
+			t.Errorf(
+				"Global roles changed! Expected %d, got %d",
+				len(initialRoles),
+				len(mockClient.MockClickableRoles),
+			)
+		}
+	})
+
+	// Case 2: Dock
+	t.Run("Dock Elements", func(t *testing.T) {
+		// Reset last called roles
+		mockClient.LastClickableNodesRoles = nil
+
+		// Setup mock dock app
+		mockClient.MockFocusedApp = &mockAXApp{bundleID: "com.apple.dock"}
+		// Need ApplicationByBundleID to return something for "com.apple.dock"
+		// The mock implementation returns MockFocusedApp for ApplicationByBundleID too.
+
+		// Need checking Info() role == AXApplication
+		if app, ok := mockClient.MockFocusedApp.(*mockAXApp); ok {
+			app.MockInfo = &accessibility.AXAppInfo{
+				Role:  "AXApplication",
+				Title: "Dock",
+			}
+		}
+
+		filter := ports.ElementFilter{
+			IncludeDock: true,
+		}
+
+		_, _ = adapter.ClickableElements(ctx, filter)
+
+		// Verify roles passed contain AXDockItem
+		calledRoles := mockClient.LastClickableNodesRoles
+
+		hasDockItem := slices.Contains(calledRoles, "AXDockItem")
+
+		if !hasDockItem {
+			t.Errorf("Expected LastClickableNodesRoles to contain AXDockItem, got: %v", calledRoles)
+		}
+	})
 }

@@ -72,6 +72,12 @@ type TreeOptions struct {
 	parallelThreshold  int
 	maxParallelDepth   int
 	logger             *zap.Logger
+	allowedRoles       map[string]struct{}
+}
+
+// AllowedRoles returns the allowed roles.
+func (o *TreeOptions) AllowedRoles() map[string]struct{} {
+	return o.allowedRoles
 }
 
 // FilterFunc returns the filter function.
@@ -119,6 +125,11 @@ func (o *TreeOptions) SetCache(cache *InfoCache) {
 	o.cache = cache
 }
 
+// SetAllowedRoles sets the allowed roles.
+func (o *TreeOptions) SetAllowedRoles(roles map[string]struct{}) {
+	o.allowedRoles = roles
+}
+
 // DefaultTreeOptions returns default tree traversal options.
 func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{
@@ -128,6 +139,7 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 		parallelThreshold:  DefaultParallelThreshold,
 		maxParallelDepth:   DefaultMaxParallelDepth,
 		logger:             logger,
+		allowedRoles:       nil,
 	}
 }
 
@@ -472,10 +484,10 @@ func shouldIncludeElement(
 }
 
 // FindClickableElements finds all clickable elements in the tree.
-func (n *TreeNode) FindClickableElements() []*TreeNode {
+func (n *TreeNode) FindClickableElements(allowedRoles map[string]struct{}) []*TreeNode {
 	var result []*TreeNode
 	n.walkTree(func(node *TreeNode) bool {
-		if node.element.IsClickable(node.info) {
+		if node.element.IsClickable(node.info, allowedRoles) {
 			result = append(result, node)
 		}
 
