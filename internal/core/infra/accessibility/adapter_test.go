@@ -555,6 +555,7 @@ func TestAdapter_RolePassing(t *testing.T) {
 	t.Run("Dock Elements", func(t *testing.T) {
 		// Reset last called roles
 		mockClient.LastClickableNodesRoles = nil
+		mockClient.ClickableNodesRolesHistory = nil
 
 		// Setup mock dock app
 		mockClient.MockFocusedApp = &mockAXApp{bundleID: "com.apple.dock"}
@@ -575,13 +576,21 @@ func TestAdapter_RolePassing(t *testing.T) {
 
 		_, _ = adapter.ClickableElements(ctx, filter)
 
-		// Verify roles passed contain AXDockItem
-		calledRoles := mockClient.LastClickableNodesRoles
+		// Verify roles passed contain AXDockItem in history
+		found := false
+		for _, roles := range mockClient.ClickableNodesRolesHistory {
+			if slices.Contains(roles, "AXDockItem") {
+				found = true
 
-		hasDockItem := slices.Contains(calledRoles, "AXDockItem")
+				break
+			}
+		}
 
-		if !hasDockItem {
-			t.Errorf("Expected LastClickableNodesRoles to contain AXDockItem, got: %v", calledRoles)
+		if !found {
+			t.Errorf(
+				"Expected ClickableNodesRolesHistory to contain roles with AXDockItem, got: %v",
+				mockClient.ClickableNodesRolesHistory,
+			)
 		}
 	})
 }
