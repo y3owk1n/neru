@@ -143,6 +143,11 @@ border_radius = 4
 padding = 4
 opacity = 0.95
 
+# Delay (in milliseconds) before refreshing hints after mouse click actions.
+# Set to 0 for immediate refresh (default). Higher values reduce rapid refreshes
+# when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
+mouse_action_refresh_delay = 0
+
 background_color = "#FFD700"
 text_color = "#000000"
 matched_text_color = "#737373"
@@ -191,6 +196,13 @@ additional_clickable_roles = ["AXTabGroup"]
 bundle_id = "com.adobe.illustrator"
 additional_clickable_roles = ["AXStaticText", "AXImage"]
 ignore_clickable_check = true
+
+# Override mouse action refresh delay for specific apps.
+# Omit mouse_action_refresh_delay to use the global hints.mouse_action_refresh_delay.
+# Set to 0 for immediate refresh, or a positive value for delay in milliseconds.
+# [[hints.app_configs]]
+# bundle_id = "com.apple.Safari"
+# mouse_action_refresh_delay = 100
 ```
 
 ### Enhanced Browser Support

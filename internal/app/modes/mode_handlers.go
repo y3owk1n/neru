@@ -3,6 +3,7 @@ package modes
 import (
 	"context"
 	"image"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
@@ -73,7 +74,37 @@ func (h *Handler) handleHintsModeKey(key string) {
 		// Only refresh hints after non-move-mouse actions
 		// Move mouse actions should keep the overlay active
 		if !h.actionService.IsMoveMouseKey(key) {
-			h.activateHintModeInternal(false, nil)
+			bundleID, err := h.actionService.FocusedAppBundleID(ctx)
+			if err != nil {
+				h.logger.Warn(
+					"Failed to get focused app bundle ID, using global delay",
+					zap.Error(err),
+				)
+
+				bundleID = ""
+			}
+
+			delay := h.config.MouseActionRefreshDelayForApp(bundleID)
+
+			if delay == 0 {
+				h.activateHintModeInternal(false, nil)
+			} else {
+				if h.refreshHintsTimer != nil {
+					h.refreshHintsTimer.Stop()
+				}
+
+				h.refreshHintsTimer = time.AfterFunc(
+					time.Duration(delay)*time.Millisecond,
+					func() {
+						// Dispatch to main thread via channel to avoid race conditions
+						select {
+						case h.refreshHintsCh <- struct{}{}:
+						default:
+							// Channel already has a pending signal, skip
+						}
+					},
+				)
+			}
 		}
 
 		return

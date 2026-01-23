@@ -2,6 +2,7 @@ package modes
 
 import (
 	"image"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
@@ -57,9 +58,11 @@ type Handler struct {
 	// Screen bounds for coordinate conversion (grid and hints)
 	screenBounds image.Rectangle
 
-	enableEventTap  func()
-	disableEventTap func()
-	refreshHotkeys  func()
+	enableEventTap    func()
+	disableEventTap   func()
+	refreshHotkeys    func()
+	refreshHintsTimer *time.Timer
+	refreshHintsCh    chan struct{} // Channel for dispatching timer callback to main thread
 }
 
 // NewHandler creates a new mode handler.
@@ -102,6 +105,7 @@ func NewHandler(
 		enableEventTap:  enableEventTap,
 		disableEventTap: disableEventTap,
 		refreshHotkeys:  refreshHotkeys,
+		refreshHintsCh:  make(chan struct{}, 1),
 	}
 
 	// Initialize mode implementations

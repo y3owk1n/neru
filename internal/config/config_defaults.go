@@ -12,6 +12,12 @@ const (
 	// DefaultHintOpacity is the default opacity for hints.
 	DefaultHintOpacity = 0.95
 
+	// DefaultMouseActionRefreshDelay is the default delay before refreshing hints after mouse actions.
+	DefaultMouseActionRefreshDelay = 0
+
+	// MaxMouseActionRefreshDelay is the maximum delay before refreshing hints after mouse actions (10 seconds).
+	MaxMouseActionRefreshDelay = 10000
+
 	// DefaultGridFontSize is the default font size for grid.
 	DefaultGridFontSize = 12
 	// DefaultGridOpacity is the default opacity for grid.
@@ -173,14 +179,15 @@ func DefaultConfig() *Config {
 			},
 		},
 		Hints: HintsConfig{
-			Enabled:        true,
-			HintCharacters: "asdfghjkl",
-			FontSize:       DefaultHintFontSize,
-			FontFamily:     "SF Mono",
-			BorderRadius:   DefaultHintBorderRadius,
-			Padding:        DefaultHintPadding,
-			BorderWidth:    1,
-			Opacity:        DefaultHintOpacity,
+			Enabled:                 true,
+			HintCharacters:          "asdfghjkl",
+			FontSize:                DefaultHintFontSize,
+			FontFamily:              "SF Mono",
+			BorderRadius:            DefaultHintBorderRadius,
+			Padding:                 DefaultHintPadding,
+			BorderWidth:             1,
+			Opacity:                 DefaultHintOpacity,
+			MouseActionRefreshDelay: DefaultMouseActionRefreshDelay,
 
 			BackgroundColor:  "#FFD700",
 			TextColor:        "#000000",

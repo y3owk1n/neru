@@ -46,6 +46,11 @@ padding = 4         # Padding inside hint borders
 border_width = 1    # Width of hint borders
 opacity = 0.95      # Opacity of hint overlays
 
+# Delay in milliseconds before refreshing hints after mouse click actions.
+# Set to 0 for immediate refresh. Higher values reduce rapid refreshes
+# when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
+mouse_action_refresh_delay = 0
+
 background_color = "#FFD700"    # Hint background color
 text_color = "#000000"          # Hint text color
 matched_text_color = "#737373"  # Text color for matched hints
@@ -90,16 +95,19 @@ ignore_clickable_check = false
 # To find an app's bundle ID, run: osascript -e 'id of app "AppName"'
 #
 # Application-specific configurations for customizing hint behavior per app
-# Each entry allows overriding clickable roles and clickable check behavior for specific bundle IDs
+# Each entry allows overriding clickable roles, clickable check behavior, and
+# mouse action refresh delay for specific bundle IDs
 # [[hints.app_configs]]
 # bundle_id = "com.example.app"
 # additional_clickable_roles = ["AXCustomButton", "AXCustomLink"]
 # ignore_clickable_check = true
+# mouse_action_refresh_delay = 100  # Override delay for this app (nil/omitted = use global)
 #
 # [[hints.app_configs]]
 # bundle_id = "com.another.app"
 # additional_clickable_roles = ["AXSpecialRole"]
 # ignore_clickable_check = false
+# # Omit mouse_action_refresh_delay to use global hints.mouse_action_refresh_delay
 
 # Electron/Chromium/Firefox support
 [hints.additional_ax_support]
