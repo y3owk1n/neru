@@ -198,7 +198,7 @@ additional_clickable_roles = ["AXStaticText", "AXImage"]
 ignore_clickable_check = true
 
 # Override mouse action refresh delay for specific apps.
-# Omit or set to null to use the global hints.mouse_action_refresh_delay.
+# Omit mouse_action_refresh_delay to use the global hints.mouse_action_refresh_delay.
 # Set to 0 for immediate refresh, or a positive value for delay in milliseconds.
 # [[hints.app_configs]]
 # bundle_id = "com.apple.Safari"

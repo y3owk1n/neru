@@ -107,7 +107,7 @@ ignore_clickable_check = false
 # bundle_id = "com.another.app"
 # additional_clickable_roles = ["AXSpecialRole"]
 # ignore_clickable_check = false
-# mouse_action_refresh_delay = null  # Use global hints.mouse_action_refresh_delay
+# # Omit mouse_action_refresh_delay to use global hints.mouse_action_refresh_delay
 
 # Electron/Chromium/Firefox support
 [hints.additional_ax_support]
