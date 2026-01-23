@@ -69,7 +69,9 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 		// Handle mode transitions: if already in hints mode, do partial cleanup to preserve state;
 		// otherwise exit completely to reset all state
 		if h.appState.CurrentMode() == domain.ModeHints {
-			h.performModeSpecificCleanup()
+			// During refresh, only clear overlay but do NOT reset manager state
+			// Calling Reset() would trigger callback with stale hints before new hints are set
+			h.overlayManager.Clear()
 			h.performCommonCleanup()
 			// Skip cursor restoration to maintain position during hint mode transitions
 		} else {
