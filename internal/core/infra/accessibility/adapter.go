@@ -101,7 +101,7 @@ func (a *Adapter) ClickableElements(
 
 	semaphore := make(chan struct{}, maxConcurrency)
 	// Initialize semaphore with tokens
-	for i := 0; i < maxConcurrency; i++ {
+	for range maxConcurrency {
 		semaphore <- struct{}{}
 	}
 
