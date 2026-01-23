@@ -48,7 +48,8 @@ func (h *Handler) activateHintModeWithAction(action *string) {
 // activateHintModeInternal activates hint mode with option to preserve action mode state and optional action.
 // It handles mode validation, overlay positioning, element collection, hint generation,
 // and UI setup for hint-based navigation.
-func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *string) {
+// Note: _preserveActionMode is retained for potential future use.
+func (h *Handler) activateHintModeInternal(_preserveActionMode bool, action *string) {
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameHints,
 		h.config.Hints.Enabled,
@@ -60,7 +61,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 
 	actionString := domain.ActionString(actionEnum)
 
-	if !preserveActionMode {
+	if !_preserveActionMode {
 		// Handle mode transitions: if already in hints mode, do partial cleanup to preserve state;
 		// otherwise exit completely to reset all state
 		if h.appState.CurrentMode() == domain.ModeHints {

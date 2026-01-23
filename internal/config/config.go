@@ -58,9 +58,10 @@ type GeneralConfig struct {
 
 // AppConfig defines application-specific settings for role customization.
 type AppConfig struct {
-	BundleID             string   `json:"bundleId"             toml:"bundle_id"`
-	AdditionalClickable  []string `json:"additionalClickable"  toml:"additional_clickable_roles"`
-	IgnoreClickableCheck bool     `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
+	BundleID                string   `json:"bundleId"                toml:"bundle_id"`
+	AdditionalClickable     []string `json:"additionalClickable"     toml:"additional_clickable_roles"`
+	IgnoreClickableCheck    bool     `json:"ignoreClickableCheck"    toml:"ignore_clickable_check"`
+	MouseActionRefreshDelay *int     `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
 }
 
 // HotkeysConfig defines hotkey mappings and their associated actions.
@@ -86,14 +87,15 @@ type ScrollConfig struct {
 
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
-	Enabled        bool    `json:"enabled"        toml:"enabled"`
-	HintCharacters string  `json:"hintCharacters" toml:"hint_characters"`
-	FontSize       int     `json:"fontSize"       toml:"font_size"`
-	FontFamily     string  `json:"fontFamily"     toml:"font_family"`
-	BorderRadius   int     `json:"borderRadius"   toml:"border_radius"`
-	Padding        int     `json:"padding"        toml:"padding"`
-	BorderWidth    int     `json:"borderWidth"    toml:"border_width"`
-	Opacity        float64 `json:"opacity"        toml:"opacity"`
+	Enabled                 bool    `json:"enabled"                 toml:"enabled"`
+	HintCharacters          string  `json:"hintCharacters"          toml:"hint_characters"`
+	FontSize                int     `json:"fontSize"                toml:"font_size"`
+	FontFamily              string  `json:"fontFamily"              toml:"font_family"`
+	BorderRadius            int     `json:"borderRadius"            toml:"border_radius"`
+	Padding                 int     `json:"padding"                 toml:"padding"`
+	BorderWidth             int     `json:"borderWidth"             toml:"border_width"`
+	Opacity                 float64 `json:"opacity"                 toml:"opacity"`
+	MouseActionRefreshDelay int     `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
 
 	BackgroundColor  string `json:"backgroundColor"  toml:"background_color"`
 	TextColor        string `json:"textColor"        toml:"text_color"`
@@ -319,6 +321,24 @@ func (c *Config) ShouldIgnoreClickableCheckForApp(bundleID string) bool {
 
 	// Fall back to global ignore_clickable_check
 	return c.Hints.IgnoreClickableCheck
+}
+
+// MouseActionRefreshDelayForApp returns the mouse action refresh delay for a specific app bundle ID.
+// It first checks for app-specific configuration, then falls back to the global setting.
+func (c *Config) MouseActionRefreshDelayForApp(bundleID string) int {
+	if len(c.Hints.AppConfigs) > 0 {
+		for _, appConfig := range c.Hints.AppConfigs {
+			if appConfig.BundleID == bundleID {
+				if appConfig.MouseActionRefreshDelay != nil {
+					return *appConfig.MouseActionRefreshDelay
+				}
+
+				break
+			}
+		}
+	}
+
+	return c.Hints.MouseActionRefreshDelay
 }
 
 // rolesMapToSlice converts a roles map to a slice.

@@ -93,6 +93,23 @@ func (c *Config) ValidateHints() error {
 		return derrors.New(derrors.CodeInvalidConfig, "hints.border_width must be non-negative")
 	}
 
+	if c.Hints.MouseActionRefreshDelay < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.mouse_action_refresh_delay must be non-negative",
+		)
+	}
+
+	if c.Hints.MouseActionRefreshDelay > MaxMouseActionRefreshDelay {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			fmt.Sprintf(
+				"hints.mouse_action_refresh_delay must be at most %d (10 seconds)",
+				MaxMouseActionRefreshDelay,
+			),
+		)
+	}
+
 	for _, role := range c.Hints.ClickableRoles {
 		if strings.TrimSpace(role) == "" {
 			return derrors.New(
@@ -153,6 +170,14 @@ func (c *Config) ValidateAppConfigs() error {
 					index,
 				)
 			}
+		}
+
+		if appConfig.MouseActionRefreshDelay != nil && *appConfig.MouseActionRefreshDelay < 0 {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"hints.app_configs[%d].mouse_action_refresh_delay must be non-negative",
+				index,
+			)
 		}
 	}
 
