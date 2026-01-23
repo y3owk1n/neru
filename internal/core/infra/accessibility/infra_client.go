@@ -65,7 +65,12 @@ func (c *InfraAXClient) ClickableNodes(
 		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
 	}
 
+	cacheOnce.Do(func() {
+		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL, c.logger)
+	})
+
 	opts := DefaultTreeOptions(c.logger)
+	opts.cache = globalCache
 	opts.SetIncludeOutOfBounds(includeOffscreen)
 
 	tree, treeErr := BuildTree(element, opts)
