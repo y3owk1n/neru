@@ -179,6 +179,16 @@ func (c *Config) ValidateAppConfigs() error {
 				index,
 			)
 		}
+
+		if appConfig.MouseActionRefreshDelay != nil &&
+			*appConfig.MouseActionRefreshDelay > MaxMouseActionRefreshDelay {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"hints.app_configs[%d].mouse_action_refresh_delay must be at most %d (10 seconds)",
+				index,
+				MaxMouseActionRefreshDelay,
+			)
+		}
 	}
 
 	// Validate hotkey bindings once, regardless of app configs
