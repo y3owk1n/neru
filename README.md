@@ -26,6 +26,8 @@ Navigate macOS without touching your mouse - keyboard-driven productivity at its
 
 **Neru (練る)** - a Japanese word meaning "to refine, polish, and master through practice" - is a free, open-source keyboard navigation tool for macOS. Navigate, click, and scroll anywhere on your screen without ever touching your mouse.
 
+Feel free to read the progress and how I use Neru [here](HOW-I-USE-NERU.md) if you're interested with it.
+
 ### 🎯 Why Choose Neru?
 
 - 🆓 **Always free** - No paywalls, no subscriptions, no "upgrade to pro"
