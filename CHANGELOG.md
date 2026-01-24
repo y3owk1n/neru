@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.15.0](https://github.com/y3owk1n/neru/compare/v1.14.1...v1.15.0) (2026-01-24)
+
+
+### Features
+
+* **accessibility:** add support for macos stage manager for hints ([#330](https://github.com/y3owk1n/neru/issues/330)) ([bed96d8](https://github.com/y3owk1n/neru/commit/bed96d88bb6711b9168100b1ae359b9c5502878f))
+* add configurable mouse action refresh delay for hints mode ([#324](https://github.com/y3owk1n/neru/issues/324)) ([cffc408](https://github.com/y3owk1n/neru/commit/cffc408dd1d41014088747dcc17ce929343a8157))
+* add mouse movement via keyboard and CLI commands ([#309](https://github.com/y3owk1n/neru/issues/309)) ([0b09be6](https://github.com/y3owk1n/neru/commit/0b09be6f5c90ed05d0e5c879ebd5ed34761bc649))
+
+
+### Bug Fixes
+
+* **accessibility:** resolve menubar instability and race conditions ([#328](https://github.com/y3owk1n/neru/issues/328)) ([1cbe1c3](https://github.com/y3owk1n/neru/commit/1cbe1c3454b46391f7ac85f8f4a81f4f6ab404c7))
+* **hints:** prevent stale hints from displaying during label refresh ([#326](https://github.com/y3owk1n/neru/issues/326)) ([8ea4154](https://github.com/y3owk1n/neru/commit/8ea4154aa18437e24e4e194e35aa498b7af7a570))
+
 ## [1.14.1](https://github.com/y3owk1n/neru/compare/v1.14.0...v1.14.1) (2026-01-18)
 
 
