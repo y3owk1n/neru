@@ -2,6 +2,7 @@ package accessibility
 
 import (
 	"context"
+	"slices"
 
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -221,11 +222,17 @@ func (a *Adapter) addStageManagerElements(
 ) []*element.Element {
 	const wmBundleID = "com.apple.WindowManager"
 
-	// Create local allowed roles including AXButton
+	// Create local allowed roles including AXButton if not already present
 	originalRoles := a.client.ClickableRoles()
-	dockRoles := make([]string, len(originalRoles)+1)
-	copy(dockRoles, originalRoles)
-	dockRoles[len(originalRoles)] = "AXButton"
+
+	var dockRoles []string
+	if slices.Contains(originalRoles, "AXButton") {
+		dockRoles = originalRoles
+	} else {
+		dockRoles = make([]string, len(originalRoles)+1)
+		copy(dockRoles, originalRoles)
+		dockRoles[len(originalRoles)] = "AXButton"
+	}
 
 	// Get window manager application by bundle ID
 	wmApp, wmAppErr := a.client.ApplicationByBundleID(wmBundleID)
