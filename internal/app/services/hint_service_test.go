@@ -191,9 +191,10 @@ func TestHintService_ShowHints(t *testing.T) {
 				return gen
 			},
 			config: config.HintsConfig{
-				IncludeMenubarHints: true,
-				IncludeDockHints:    true,
-				IncludeNCHints:      true,
+				IncludeMenubarHints:      true,
+				IncludeDockHints:         true,
+				IncludeNCHints:           true,
+				IncludeStageManagerHints: true,
 			},
 			wantErr:       false,
 			wantHintCount: 3,
