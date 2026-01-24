@@ -631,7 +631,7 @@ func TestAdapter_RolePassing(t *testing.T) {
 
 		if !found {
 			t.Errorf(
-				"Expected ClickableNodesRolesHistory to contain roles with AXWindow, got: %v",
+				"Expected ClickableNodesRolesHistory to contain roles with AXButton, got: %v",
 				mockClient.ClickableNodesRolesHistory,
 			)
 		}
