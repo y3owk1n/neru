@@ -78,6 +78,7 @@ func (s *HintService) ShowHints(
 	filter.AdditionalMenubarTargets = s.config.AdditionalMenubarHintsTargets
 	filter.IncludeDock = s.config.IncludeDockHints
 	filter.IncludeNotificationCenter = s.config.IncludeNCHints
+	filter.IncludeStageManager = s.config.IncludeStageManagerHints
 
 	// Get clickable elements
 	elements, elementsErr := s.accessibility.ClickableElements(ctx, filter)

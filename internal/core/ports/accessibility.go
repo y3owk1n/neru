@@ -93,6 +93,9 @@ type ElementFilter struct {
 
 	// IncludeNotificationCenter includes notification center elements.
 	IncludeNotificationCenter bool
+
+	// IncludeStageManager includes stage manager elements.
+	IncludeStageManager bool
 }
 
 // DefaultElementFilter returns a filter with sensible defaults.
@@ -104,5 +107,6 @@ func DefaultElementFilter() ElementFilter {
 		AdditionalMenubarTargets:  []string{},
 		IncludeDock:               false,
 		IncludeNotificationCenter: false,
+		IncludeStageManager:       false,
 	}
 }

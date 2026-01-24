@@ -106,6 +106,7 @@ type HintsConfig struct {
 	AdditionalMenubarHintsTargets []string `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`
 	IncludeDockHints              bool     `json:"includeDockHints"              toml:"include_dock_hints"`
 	IncludeNCHints                bool     `json:"includeNcHints"                toml:"include_nc_hints"`
+	IncludeStageManagerHints      bool     `json:"includeStageManagerHints"      toml:"include_stage_manager_hints"`
 
 	ClickableRoles       []string `json:"clickableRoles"       toml:"clickable_roles"`
 	IgnoreClickableCheck bool     `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`

@@ -146,6 +146,7 @@ opacity = 0.95
 # Delay (in milliseconds) before refreshing hints after mouse click actions.
 # Set to 0 for immediate refresh (default). Higher values reduce rapid refreshes
 # when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
+# You can also override this for specific apps in the [app_configs] section below.
 mouse_action_refresh_delay = 0
 
 background_color = "#FFD700"
@@ -159,9 +160,10 @@ border_color = "#000000"
 ```toml
 [hints]
 # Show hints in system areas
-include_menubar_hints = false
-include_dock_hints = false
-include_nc_hints = false
+include_menubar_hints = false # Menubar
+include_dock_hints = false # Dock
+include_nc_hints = false # Notification Center
+include_stage_manager_hints = false # Stage Manager
 
 # Target specific menubar apps
 additional_menubar_hints_targets = [
@@ -176,13 +178,16 @@ Define which UI elements are clickable:
 
 ```toml
 [hints]
+# Clickable roles that should generate hints
 clickable_roles = [
      "AXButton", "AXLink", "AXTextField", "AXCheckBox",
      "AXComboBox", "AXRadioButton", "AXPopUpButton",
      "AXSlider", "AXTabButton", "AXSwitch"
 ]
 
-ignore_clickable_check = false  # Make all elements clickable
+# We have a heuristic to detect if an element is clickable to avoid noises
+# If you do not want to use this heuristic, set ignore_clickable_check = true
+ignore_clickable_check = false
 ```
 
 ### Per-App Overrides
@@ -200,9 +205,9 @@ ignore_clickable_check = true
 # Override mouse action refresh delay for specific apps.
 # Omit mouse_action_refresh_delay to use the global hints.mouse_action_refresh_delay.
 # Set to 0 for immediate refresh, or a positive value for delay in milliseconds.
-# [[hints.app_configs]]
-# bundle_id = "com.apple.Safari"
-# mouse_action_refresh_delay = 100
+[[hints.app_configs]]
+bundle_id = "com.apple.Safari"
+mouse_action_refresh_delay = 1000 # refresh hints after 1000ms / 1 second
 ```
 
 ### Enhanced Browser Support
@@ -579,12 +584,15 @@ border_color = "#000000"
 include_menubar_hints = false
 include_dock_hints = false
 include_nc_hints = false
+include_stage_manager_hints = false
 clickable_roles = ["AXButton", "AXLink", "AXTextField", "AXCheckBox"]
 ignore_clickable_check = false
+mouse_action_refresh_delay = 0
 
 [[hints.app_configs]]
 bundle_id = "com.google.Chrome"
 additional_clickable_roles = ["AXTabGroup"]
+mouse_action_refresh_delay = 0
 
 [hints.additional_ax_support]
 enable = false

@@ -38,6 +38,11 @@ func (a *Adapter) addSupplementaryElements(
 		elements = a.addNotificationCenterElements(ctx, elements)
 	}
 
+	// Add stage manager elements
+	if filter.IncludeStageManager {
+		elements = a.addStageManagerElements(ctx, elements)
+	}
+
 	return elements
 }
 
@@ -205,6 +210,68 @@ func (a *Adapter) addNotificationCenterElements(
 	}
 
 	a.logger.Debug("Included notification center elements", zap.Int("count", len(ncNodes)))
+
+	return elements
+}
+
+// addStageManagerElements adds stage manager center clickable elements.
+func (a *Adapter) addStageManagerElements(
+	_ context.Context,
+	elements []*element.Element,
+) []*element.Element {
+	const wmBundleID = "com.apple.WindowManager"
+
+	// Create local allowed roles including AXButton
+	originalRoles := a.client.ClickableRoles()
+	dockRoles := make([]string, len(originalRoles)+1)
+	copy(dockRoles, originalRoles)
+	dockRoles[len(originalRoles)] = "AXButton"
+
+	// Get window manager application by bundle ID
+	wmApp, wmAppErr := a.client.ApplicationByBundleID(wmBundleID)
+	if wmAppErr != nil || wmApp == nil {
+		a.logger.Debug("Window manager application not found")
+
+		return elements
+	}
+	defer wmApp.Release()
+
+	// Validate we got the correct application element (not a stale menu item)
+	appInfo, appInfoErr := wmApp.Info()
+	if appInfoErr != nil {
+		a.logger.Warn("Failed to get window manager application info", zap.Error(appInfoErr))
+
+		return elements
+	}
+
+	if appInfo.Role != "AXApplication" {
+		a.logger.Warn("Got incorrect element for window manager, expected AXApplication",
+			zap.String("actual_role", appInfo.Role),
+			zap.String("title", appInfo.Title))
+
+		return elements
+	}
+
+	// Build tree and find clickable elements
+	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, true, dockRoles)
+	if wmNodesErr != nil {
+		a.logger.Warn("Failed to get window manager elements", zap.Error(wmNodesErr))
+
+		return elements
+	}
+
+	for _, node := range wmNodes {
+		element, elementErr := a.convertToDomainElement(node)
+		if elementErr != nil {
+			a.logger.Warn("Failed to convert window manager element", zap.Error(elementErr))
+
+			continue
+		}
+
+		elements = append(elements, element)
+	}
+
+	a.logger.Debug("Included window manager elements", zap.Int("count", len(wmNodes)))
 
 	return elements
 }

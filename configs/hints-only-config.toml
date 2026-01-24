@@ -29,9 +29,10 @@ accessibility_check_on_start = true
 enabled = true
 
 # Hints-specific settings - all enabled for maximum hint coverage
-include_menubar_hints = true    # Show hints on menubar
-include_dock_hints = true        # Show hints on Dock and Mission Control
-include_nc_hints = true          # Show hints on Notification Center
+include_menubar_hints = true               # Show hints on menubar
+include_dock_hints = true                  # Show hints on Dock and Mission Control
+include_nc_hints = true                    # Show hints on Notification Center
+include_stage_manager_hints = true         # Include stage manager items in hints
 
 # Additional menubar targets for hint detection
 additional_menubar_hints_targets = [
