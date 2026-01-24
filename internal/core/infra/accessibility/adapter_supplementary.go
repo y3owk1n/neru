@@ -21,7 +21,8 @@ func (a *Adapter) addSupplementaryElements(
 		zap.Bool("mission_control_active", missionControlActive),
 		zap.Bool("include_menubar", filter.IncludeMenubar),
 		zap.Bool("include_dock", filter.IncludeDock),
-		zap.Bool("include_nc", filter.IncludeNotificationCenter))
+		zap.Bool("include_nc", filter.IncludeNotificationCenter),
+		zap.Bool("include_stage_manager", filter.IncludeStageManager))
 
 	// Add menubar elements
 	if !missionControlActive && filter.IncludeMenubar {
