@@ -200,8 +200,9 @@ func DefaultConfig() *Config {
 				"com.apple.controlcenter",
 				"com.apple.systemuiserver",
 			},
-			IncludeDockHints: false,
-			IncludeNCHints:   false,
+			IncludeDockHints:         false,
+			IncludeNCHints:           false,
+			IncludeStageManagerHints: false,
 
 			ClickableRoles: []string{
 				"AXButton",

@@ -171,7 +171,8 @@ func (a *Adapter) ClickableElements(
 	}()
 
 	// Query supplementary elements in parallel
-	if filter.IncludeMenubar || filter.IncludeDock || len(filter.AdditionalMenubarTargets) > 0 {
+	if filter.IncludeMenubar || filter.IncludeDock || filter.IncludeStageManager ||
+		len(filter.AdditionalMenubarTargets) > 0 {
 		waitGroup.Add(1)
 
 		go func() {
