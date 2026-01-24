@@ -41,6 +41,10 @@ func TestDefaultElementFilter(t *testing.T) {
 		t.Error("Expected IncludeNotificationCenter to be false by default")
 	}
 
+	if filter.IncludeStageManager {
+		t.Error("Expected IncludeStageManager to be false by default")
+	}
+
 	// Check that slices are initialized
 	if filter.Roles != nil {
 		t.Error("Expected Roles to be nil by default")
