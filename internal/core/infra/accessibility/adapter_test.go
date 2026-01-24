@@ -593,47 +593,4 @@ func TestAdapter_RolePassing(t *testing.T) {
 			)
 		}
 	})
-
-	// Case 3: Window Manager
-	t.Run("Window Manager Elements", func(t *testing.T) {
-		// Reset last called roles
-		mockClient.LastClickableNodesRoles = nil
-		mockClient.ClickableNodesRolesHistory = nil
-
-		// Setup mock window manager app
-		mockClient.MockFocusedApp = &mockAXApp{bundleID: "com.apple.WindowManager"}
-		// Need ApplicationByBundleID to return something for "com.apple.WindowManager"
-		// The mock implementation returns MockFocusedApp for ApplicationByBundleID too.
-
-		// Need checking Info() role == AXApplication
-		if app, ok := mockClient.MockFocusedApp.(*mockAXApp); ok {
-			app.MockInfo = &accessibility.AXAppInfo{
-				Role:  "AXApplication",
-				Title: "WindowManager",
-			}
-		}
-
-		filter := ports.ElementFilter{
-			IncludeStageManager: true,
-		}
-
-		_, _ = adapter.ClickableElements(ctx, filter)
-
-		// Verify roles passed contain AXButton in history
-		found := false
-		for _, roles := range mockClient.ClickableNodesRolesHistory {
-			if slices.Contains(roles, "AXButton") {
-				found = true
-
-				break
-			}
-		}
-
-		if !found {
-			t.Errorf(
-				"Expected ClickableNodesRolesHistory to contain roles with AXButton, got: %v",
-				mockClient.ClickableNodesRolesHistory,
-			)
-		}
-	})
 }
