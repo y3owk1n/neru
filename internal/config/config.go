@@ -28,8 +28,8 @@ const (
 )
 
 // NormalizeKeyForComparison converts escape sequences and key names to a canonical form for comparison.
-// This ensures that "\x1b" and "escape" are treated as the same key, and normalizes modifier
-// combos to lowercase for case-insensitive matching (e.g. "Ctrl+R" and "ctrl+r" are equivalent).
+// This ensures that "\x1b" and "escape" are treated as the same key, and provides case-insensitive
+// matching for all keys (e.g. "q" matches "Q", "Ctrl+R" matches "ctrl+r").
 func NormalizeKeyForComparison(key string) string {
 	switch key {
 	case "\x1b", KeyNameEscape, "esc":
@@ -45,12 +45,9 @@ func NormalizeKeyForComparison(key string) string {
 	case "\x7f", KeyNameDelete:
 		return KeyNameDelete
 	default:
-		// Normalize modifier combos (e.g. "Ctrl+R") to lowercase for case-insensitive matching
-		if strings.Contains(key, "+") {
-			return strings.ToLower(key)
-		}
-
-		return key
+		// Normalize to lowercase for case-insensitive matching.
+		// This handles modifier combos (e.g. "Ctrl+R") and single characters (e.g. "q" vs "Q").
+		return strings.ToLower(key)
 	}
 }
 
