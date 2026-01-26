@@ -4,6 +4,7 @@ import (
 	"image"
 	"strings"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
 )
@@ -70,7 +71,8 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 
 	// Handle reset key to clear input and return to initial state.
 	// Accept modifier-style reset keys (e.g. "Ctrl+R") as well as single characters.
-	if key == resetKey {
+	// Uses normalized comparison to handle case-insensitive modifier matching (Ctrl+R vs ctrl+r).
+	if config.IsResetKey(key, resetKey) {
 		m.handleResetKey(true)
 
 		return image.Point{}, false

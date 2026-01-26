@@ -28,7 +28,8 @@ const (
 )
 
 // NormalizeKeyForComparison converts escape sequences and key names to a canonical form for comparison.
-// This ensures that "\x1b" and "escape" are treated as the same key.
+// This ensures that "\x1b" and "escape" are treated as the same key, and normalizes modifier
+// combos to lowercase for case-insensitive matching (e.g. "Ctrl+R" and "ctrl+r" are equivalent).
 func NormalizeKeyForComparison(key string) string {
 	switch key {
 	case "\x1b", KeyNameEscape, "esc":
@@ -44,6 +45,11 @@ func NormalizeKeyForComparison(key string) string {
 	case "\x7f", KeyNameDelete:
 		return KeyNameDelete
 	default:
+		// Normalize modifier combos (e.g. "Ctrl+R") to lowercase for case-insensitive matching
+		if strings.Contains(key, "+") {
+			return strings.ToLower(key)
+		}
+
 		return key
 	}
 }
@@ -63,6 +69,16 @@ func IsExitKey(key string, exitKeys []string) bool {
 	}
 
 	return false
+}
+
+// IsResetKey checks if a key matches the configured reset key (with normalization).
+// This handles comparison between single characters and modifier combos with case-insensitive matching.
+func IsResetKey(key, resetKey string) bool {
+	if resetKey == "" {
+		return false
+	}
+
+	return NormalizeKeyForComparison(key) == NormalizeKeyForComparison(resetKey)
 }
 
 // ActionConfig defines the visual and behavioral settings for action mode.
