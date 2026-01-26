@@ -48,9 +48,6 @@ func NewRouterWithExitKeys(manager *Manager, logger *zap.Logger, exitKeys []stri
 
 // RouteKey processes a key press and returns the routing result.
 func (r *Router) RouteKey(key string) RouteResult {
-	// Normalize the incoming key for comparison
-	normalizedKey := config.NormalizeKeyForComparison(key)
-
 	// Check if key matches any configured exit keys
 	exitKeys := r.modeExitKeys
 	if len(exitKeys) == 0 {
@@ -58,12 +55,8 @@ func (r *Router) RouteKey(key string) RouteResult {
 		exitKeys = []string{"escape"}
 	}
 
-	for _, exitKey := range exitKeys {
-		// Normalize configured key for comparison
-		normalizedExitKey := config.NormalizeKeyForComparison(exitKey)
-		if normalizedKey == normalizedExitKey {
-			return RouteResult{exit: true}
-		}
+	if config.IsExitKey(key, exitKeys) {
+		return RouteResult{exit: true}
 	}
 
 	// Process input through manager

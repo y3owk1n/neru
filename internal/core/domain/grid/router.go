@@ -58,9 +58,6 @@ func NewRouterWithExitKeys(m *Manager, logger *zap.Logger, exitKeys []string) *R
 func (r *Router) RouteKey(key string) KeyResult {
 	var routeKeyResult KeyResult
 
-	// Normalize the incoming key for comparison
-	normalizedKey := config.NormalizeKeyForComparison(key)
-
 	// Check if key matches any configured exit keys
 	exitKeys := r.modeExitKeys
 	if len(exitKeys) == 0 {
@@ -68,14 +65,10 @@ func (r *Router) RouteKey(key string) KeyResult {
 		exitKeys = []string{"escape"}
 	}
 
-	for _, exitKey := range exitKeys {
-		// Normalize configured key for comparison
-		normalizedExitKey := config.NormalizeKeyForComparison(exitKey)
-		if normalizedKey == normalizedExitKey {
-			routeKeyResult.exit = true
+	if config.IsExitKey(key, exitKeys) {
+		routeKeyResult.exit = true
 
-			return routeKeyResult
-		}
+		return routeKeyResult
 	}
 
 	// Delegate coordinate input to the grid manager

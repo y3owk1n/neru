@@ -48,6 +48,23 @@ func NormalizeKeyForComparison(key string) string {
 	}
 }
 
+// IsExitKey checks if a key matches any configured exit key (with normalization).
+// This handles comparison between escape sequences (e.g. "\x1b") and key names (e.g. "escape").
+func IsExitKey(key string, exitKeys []string) bool {
+	if len(exitKeys) == 0 {
+		return false
+	}
+
+	normalizedKey := NormalizeKeyForComparison(key)
+	for _, exitKey := range exitKeys {
+		if normalizedKey == NormalizeKeyForComparison(exitKey) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // ActionConfig defines the visual and behavioral settings for action mode.
 type ActionConfig struct {
 	KeyBindings   ActionKeyBindingsCfg `json:"keyBindings"   toml:"key_bindings"`

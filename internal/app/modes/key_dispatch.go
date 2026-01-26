@@ -20,17 +20,11 @@ func (h *Handler) HandleKeyPress(key string) {
 		exitKeys = []string{KeyEscape, KeyEscape2}
 	}
 
-	// Normalize incoming key for comparison
-	normalizedKey := config.NormalizeKeyForComparison(key)
-
 	// Check if key matches any configured exit keys (after normalization)
-	for _, exitKey := range exitKeys {
-		normalizedExitKey := config.NormalizeKeyForComparison(exitKey)
-		if normalizedKey == normalizedExitKey {
-			h.handleEscapeKey()
+	if config.IsExitKey(key, exitKeys) {
+		h.handleEscapeKey()
 
-			return
-		}
+		return
 	}
 
 	h.handleModeSpecificKey(key)
