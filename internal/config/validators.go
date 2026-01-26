@@ -797,6 +797,53 @@ func (c *Config) checkModeExitKeysConflicts() error {
 		}
 	}
 
+	// Check grid row labels
+	if c.Grid.RowLabels != "" {
+		lowerRowLabels := strings.ToLower(c.Grid.RowLabels)
+		for _, exitKey := range singleCharExitKeys {
+			if strings.Contains(lowerRowLabels, exitKey) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains '%s' which conflicts with grid.row_labels; this key will always exit instead of being used for row selection",
+					strings.ToUpper(exitKey),
+				)
+			}
+		}
+	}
+
+	// Check grid column labels
+	if c.Grid.ColLabels != "" {
+		lowerColLabels := strings.ToLower(c.Grid.ColLabels)
+		for _, exitKey := range singleCharExitKeys {
+			if strings.Contains(lowerColLabels, exitKey) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains '%s' which conflicts with grid.col_labels; this key will always exit instead of being used for column selection",
+					strings.ToUpper(exitKey),
+				)
+			}
+		}
+	}
+
+	// Check grid sublayer keys
+	sublayerKeys := strings.TrimSpace(c.Grid.SublayerKeys)
+	if sublayerKeys == "" {
+		sublayerKeys = c.Grid.Characters
+	}
+
+	if sublayerKeys != "" {
+		lowerSublayerKeys := strings.ToLower(sublayerKeys)
+		for _, exitKey := range singleCharExitKeys {
+			if strings.Contains(lowerSublayerKeys, exitKey) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains '%s' which conflicts with grid.sublayer_keys; this key will always exit instead of being used for subgrid selection",
+					strings.ToUpper(exitKey),
+				)
+			}
+		}
+	}
+
 	return nil
 }
 
