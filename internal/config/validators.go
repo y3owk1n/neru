@@ -263,7 +263,7 @@ func (c *Config) ValidateGrid() error {
 		}
 
 		// Single-character reset key cannot be in grid characters
-		if strings.Contains(c.Grid.Characters, resetKey) {
+		if strings.Contains(strings.ToLower(c.Grid.Characters), strings.ToLower(resetKey)) {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
 				"grid.characters cannot contain '"+resetKey+"' as it is reserved for reset",
@@ -298,7 +298,10 @@ func (c *Config) ValidateGrid() error {
 		}
 
 		// Only check for reset key conflict if reset key is a single character
-		if !strings.Contains(resetKey, "+") && strings.Contains(c.Grid.RowLabels, resetKey) {
+		lowerResetKey := strings.ToLower(resetKey)
+		lowerRowLabels := strings.ToLower(c.Grid.RowLabels)
+
+		if !strings.Contains(resetKey, "+") && strings.Contains(lowerRowLabels, lowerResetKey) {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
 				"grid.row_labels cannot contain '"+resetKey+"' as it is reserved for reset",
@@ -332,8 +335,12 @@ func (c *Config) ValidateGrid() error {
 			)
 		}
 
-		// Only check for reset key conflict if reset key is a single character
-		if !strings.Contains(resetKey, "+") && strings.Contains(c.Grid.ColLabels, resetKey) {
+		// Only check for reset key conflict if reset key is a single character (case-insensitive)
+
+		lowerResetKey := strings.ToLower(resetKey)
+
+		lowerColLabels := strings.ToLower(c.Grid.ColLabels)
+		if !strings.Contains(resetKey, "+") && strings.Contains(lowerColLabels, lowerResetKey) {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
 				"grid.col_labels cannot contain '"+resetKey+"' as it is reserved for reset",
@@ -408,8 +415,12 @@ func (c *Config) ValidateGrid() error {
 	}
 
 	// Apply same ASCII and reserved character validation as grid.characters
-	// Only check for reset key conflict if reset key is a single character
-	if !strings.Contains(resetKey, "+") && strings.Contains(keys, resetKey) {
+	// Only check for reset key conflict if reset key is a single character (case-insensitive)
+
+	lowerResetKey := strings.ToLower(resetKey)
+
+	lowerKeys := strings.ToLower(keys)
+	if !strings.Contains(resetKey, "+") && strings.Contains(lowerKeys, lowerResetKey) {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"grid.sublayer_keys cannot contain '"+resetKey+"' as it is reserved for reset",
