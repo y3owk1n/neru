@@ -262,6 +262,15 @@ func (c *Config) ValidateGrid() error {
 			)
 		}
 
+		// Backspace and delete are reserved for input correction
+		normalizedResetKey := NormalizeKeyForComparison(resetKey)
+		if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
+			)
+		}
+
 		// Single-character reset key cannot be in grid characters
 		if strings.Contains(strings.ToLower(c.Grid.Characters), strings.ToLower(resetKey)) {
 			return derrors.New(
@@ -826,6 +835,7 @@ func (c *Config) checkModeExitKeysConflicts() error {
 	}
 
 	// Check grid sublayer keys
+
 	sublayerKeys := strings.TrimSpace(c.Grid.SublayerKeys)
 	if sublayerKeys == "" {
 		sublayerKeys = c.Grid.Characters
