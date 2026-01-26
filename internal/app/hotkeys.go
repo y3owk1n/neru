@@ -13,7 +13,6 @@ import (
 
 // registerHotkeys registers all global hotkeys defined in the configuration.
 func (a *App) registerHotkeys() {
-	// Note: Escape key for exiting modes is hardcoded in handleKeyPress, not registered as global hotkey
 	for key, value := range a.config.Hotkeys.Bindings {
 		trimmedKey := strings.TrimSpace(key)
 
