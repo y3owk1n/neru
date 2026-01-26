@@ -4,6 +4,7 @@ import (
 	"image"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
 )
 
@@ -61,8 +62,9 @@ func (r *Router) RouteKey(key string) KeyResult {
 	// Check if key matches any configured exit keys
 	exitKeys := r.modeExitKeys
 	if len(exitKeys) == 0 {
-		// Default to escape if no exit keys configured
-		exitKeys = []string{"escape"}
+		// Default to domain constant when no exit keys configured.
+		// In practice, handlers always pass configured exit keys, so this is a safety fallback.
+		exitKeys = []string{domain.DefaultExitKey}
 	}
 
 	if config.IsExitKey(key, exitKeys) {

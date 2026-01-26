@@ -22,6 +22,7 @@ const (
 // Default values.
 const (
 	DefaultHintCharacters = "asdfghjkl"
+	DefaultExitKey        = "escape"
 )
 
 // Grid subgrid dimensions.
