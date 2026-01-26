@@ -17,7 +17,7 @@ func (h *Handler) HandleKeyPress(key string) {
 	// Determine escape/exit keys from config with sensible defaults
 	exitKeys := h.config.General.ModeExitKeys
 	if len(exitKeys) == 0 {
-		exitKeys = []string{KeyEscape, KeyEscape2}
+		exitKeys = DefaultModeExitKeys()
 	}
 
 	// Check if key matches any configured exit keys (after normalization)
