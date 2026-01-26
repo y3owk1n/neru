@@ -35,7 +35,9 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	gridInstance := h.createGridInstance()
 	h.updateGridOverlayConfig()
 
-	// Reset the grid manager state when setting up the grid
+	// Reset the grid manager state when setting up the grid.
+	// Note: Manager is reused across activations (holds grid state) but reset to clear input.
+	// Router is recreated each activation (stateless, needs fresh exit keys from config).
 	if h.grid.Manager != nil {
 		h.grid.Manager.Reset()
 	}
