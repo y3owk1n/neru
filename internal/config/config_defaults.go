@@ -170,6 +170,7 @@ func DefaultConfig() *Config {
 			ExcludedApps:              []string{},
 			AccessibilityCheckOnStart: true,
 			RestoreCursorPosition:     false,
+			ModeExitKeys:              []string{"escape"},
 		},
 		Hotkeys: HotkeysConfig{
 			Bindings: map[string]string{
@@ -256,6 +257,7 @@ func DefaultConfig() *Config {
 			HideUnmatched:   true,
 			PrewarmEnabled:  true,
 			EnableGC:        false,
+			ResetKey:        ",",
 		},
 		Scroll: ScrollConfig{
 			ScrollStep:     DefaultScrollStep,

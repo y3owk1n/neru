@@ -100,6 +100,7 @@ excluded_apps = [
 ]
 accessibility_check_on_start = true
 restore_cursor_position = true
+mode_exit_keys = ["escape"]
 ```
 
 **Cursor restoration:**
@@ -114,6 +115,25 @@ restore_cursor_position = true
 osascript -e 'id of app "Safari"'  # com.apple.Safari
 osascript -e 'id of app "VS Code"' # com.microsoft.VSCode
 ```
+
+**Mode Exit Keys:**
+
+Use `general.mode_exit_keys` to specify which keys should exit any active mode (hints/grid/scroll).
+
+Examples:
+
+```toml
+[general]
+mode_exit_keys = ["escape"]                # default: Escape key
+# mode_exit_keys = ["Ctrl+C"]              # Ctrl+C to exit
+# mode_exit_keys = ["escape", "Ctrl+C"]    # accept either Escape or Ctrl+C
+```
+
+Format notes:
+
+- Use plain text key names: `escape`, `return`, `tab`, `space`, `backspace`, `delete`, `home`, `end`, `pageup`, `pagedown`
+- Modifiers: `Cmd`, `Ctrl`, `Alt`/`Option`, `Shift`
+- Modifier combos: `Modifier+Key` (e.g. `Ctrl+R`, `Cmd+Shift+Space`)
 
 ---
 
@@ -248,6 +268,8 @@ characters = "abcdefghijklmnpqrstuvwxyz"
 # Same requirements as characters above
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 
+reset_key = "," # hotkey to reset/clear grid input
+
 # Optional custom labels for rows and columns
 # If not provided, labels will be inferred from characters
 # Requirements (when specified):
@@ -282,6 +304,23 @@ enable_gc = false         # Enable periodic garbage collection every 5 minutes t
 ```
 
 **Workflow:** Press grid hotkey → Type coordinates → Action executes
+
+### Reset Key
+
+Use `grid.reset_key` to set the key that clears current grid input. It can be a single character (`,` by default) or a modifier combo.
+
+Examples:
+
+```toml
+[grid]
+reset_key = ","        # default behavior: comma resets current grid input
+reset_key = "Ctrl+R"   # use Ctrl+R to reset instead
+```
+
+Notes:
+
+- Single-character reset keys are reserved and must not appear in `grid.characters` or label sets.
+- Modifier combos (e.g. `Ctrl+R`) do not conflict with single-character grid labels.
 
 ---
 

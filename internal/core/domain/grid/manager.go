@@ -4,6 +4,7 @@ import (
 	"image"
 	"strings"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
 )
@@ -19,6 +20,7 @@ type Manager struct {
 	onShowSub     func(cell *Cell)
 	inSubgrid     bool
 	selectedCell  *Cell
+	resetKey      string
 	// Subgrid configuration
 	subRows int
 	subCols int
@@ -31,6 +33,7 @@ func NewManager(
 	subRows int,
 	subCols int,
 	subKeys string,
+	resetKey string,
 	onUpdate func(redraw bool),
 	onShowSub func(cell *Cell),
 	logger *zap.Logger,
@@ -52,6 +55,7 @@ func NewManager(
 		subRows:     subRows,
 		subCols:     subCols,
 		subKeys:     strings.ToUpper(strings.TrimSpace(subKeys)),
+		resetKey:    resetKey,
 	}
 }
 
@@ -60,11 +64,18 @@ func NewManager(
 // Completion occurs when labelLength characters are entered or a subgrid selection is made.
 // Returns (point, true) when selection is complete, (zero point, false) otherwise.
 func (m *Manager) HandleInput(key string) (image.Point, bool) {
-	resetKey := ","
+	resetKey := m.resetKey
+	if resetKey == "" {
+		resetKey = ","
+	}
 
-	// Handle reset key to clear input and return to initial state
-	if key == resetKey {
-		m.handleResetKey(false)
+	// Handle reset key to clear input and return to initial state.
+	// Accept modifier-style reset keys (e.g. "Ctrl+R") as well as single characters.
+	// Uses normalized comparison to handle case-insensitive modifier matching (Ctrl+R vs ctrl+r).
+	if config.IsResetKey(key, resetKey) {
+		m.handleResetKey(true)
+
+		return image.Point{}, false
 	}
 
 	// Handle backspace for input correction
@@ -82,7 +93,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 		allowed = strings.Contains(m.grid.ValidCharacters(), upper)
 	}
 
-	if len(key) != 1 || (key != resetKey && !allowed) {
+	if len(key) != 1 || !allowed {
 		return image.Point{}, false
 	}
 
@@ -90,8 +101,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	upperKey := strings.ToUpper(key)
 
 	// For main grid, ensure the new input would match at least one coordinate.
-	// Skip this for the reset key, which should always be accepted.
-	if !m.inSubgrid && m.grid != nil && key != resetKey {
+	if !m.inSubgrid && m.grid != nil {
 		newInput := m.CurrentInput() + upperKey
 		if !m.hasMatchingCoordinate(newInput) {
 			return image.Point{}, false
@@ -103,12 +113,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 		return m.handleSubgridSelection(upperKey)
 	}
 
-	// Allow , to reset grid with redraw
-	if upperKey == resetKey {
-		m.handleResetKey(true)
-
-		return image.Point{}, false
-	}
+	// Note: reset key already handled above (supports modifiers and single chars).
 
 	// Validate input key against grid characters
 	if !m.validateInputKey(upperKey) {

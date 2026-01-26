@@ -1,5 +1,9 @@
 package modes
 
+import (
+	"github.com/y3owk1n/neru/internal/config"
+)
+
 // HandleKeyPress dispatches key events by current mode.
 func (h *Handler) HandleKeyPress(key string) {
 	// Process any pending hints refresh from timer callback (dispatched to main thread)
@@ -10,7 +14,14 @@ func (h *Handler) HandleKeyPress(key string) {
 		// No pending refresh
 	}
 
-	if key == KeyEscape || key == KeyEscape2 {
+	// Determine escape/exit keys from config with sensible defaults
+	exitKeys := h.config.General.ModeExitKeys
+	if len(exitKeys) == 0 {
+		exitKeys = DefaultModeExitKeys()
+	}
+
+	// Check if key matches any configured exit keys (after normalization)
+	if config.IsExitKey(key, exitKeys) {
 		h.handleEscapeKey()
 
 		return

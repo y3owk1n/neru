@@ -144,6 +144,8 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	hintCollection := domainHint.NewCollection(domainHints)
 
 	// Initialize hint manager and router if not already set up
+	// Note: Manager is created once and reused across activations (holds mutable state).
+	// Router is recreated each activation (stateless, needs fresh exit keys from config).
 	if h.hints.Context.Manager() == nil {
 		manager := domainHint.NewManager(h.logger)
 		// Set callback to update overlay when hints are filtered
@@ -176,9 +178,14 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	}
 
 	// Initialize domain router for hint navigation
-	if h.hints.Context.Router() == nil {
-		h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
+	exitKeys := h.config.General.ModeExitKeys
+	if len(exitKeys) == 0 {
+		exitKeys = DefaultModeExitKeys()
 	}
+
+	h.hints.Context.SetRouter(
+		domainHint.NewRouterWithExitKeys(h.hints.Context.Manager(), h.logger, exitKeys),
+	)
 
 	h.hints.Context.SetHints(hintCollection)
 

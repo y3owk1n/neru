@@ -17,6 +17,70 @@ const (
 	RoleDockItem    = "AXDockItem"
 )
 
+// Key name constants for normalization.
+const (
+	KeyNameEscape    = "escape"
+	KeyNameReturn    = "return"
+	KeyNameTab       = "tab"
+	KeyNameSpace     = "space"
+	KeyNameBackspace = "backspace"
+	KeyNameDelete    = "delete"
+)
+
+// NormalizeKeyForComparison converts escape sequences and key names to a canonical form for comparison.
+// This ensures that "\x1b" and "escape" are treated as the same key, and provides case-insensitive
+// matching for all keys (e.g. "q" matches "Q", "Ctrl+R" matches "ctrl+r").
+// On macOS, both "backspace" and "delete" are treated as synonyms for the DEL key (\x7f).
+func NormalizeKeyForComparison(key string) string {
+	switch key {
+	case "\x1b", KeyNameEscape, "esc":
+		return KeyNameEscape
+	case "\r", KeyNameReturn, "enter":
+		return KeyNameReturn
+	case "\t", KeyNameTab:
+		return KeyNameTab
+	case " ", KeyNameSpace:
+		return KeyNameSpace
+	case "\x08":
+		return KeyNameBackspace
+	case "\x7f", KeyNameDelete, KeyNameBackspace:
+		// On macOS, the Delete key (above Return) sends \x7f.
+		// Treat both "delete" and "backspace" as synonyms for the DEL key for user-friendly matching.
+		return KeyNameDelete
+	default:
+		// Normalize to lowercase for case-insensitive matching.
+		// This handles modifier combos (e.g. "Ctrl+R") and single characters (e.g. "q" vs "Q").
+		return strings.ToLower(key)
+	}
+}
+
+// IsExitKey checks if a key matches any configured exit key (with normalization).
+// This handles comparison between escape sequences (e.g. "\x1b") and key names (e.g. "escape").
+func IsExitKey(key string, exitKeys []string) bool {
+	if len(exitKeys) == 0 {
+		return false
+	}
+
+	normalizedKey := NormalizeKeyForComparison(key)
+	for _, exitKey := range exitKeys {
+		if normalizedKey == NormalizeKeyForComparison(exitKey) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// IsResetKey checks if a key matches the configured reset key (with normalization).
+// This handles comparison between single characters and modifier combos with case-insensitive matching.
+func IsResetKey(key, resetKey string) bool {
+	if resetKey == "" {
+		return false
+	}
+
+	return NormalizeKeyForComparison(key) == NormalizeKeyForComparison(resetKey)
+}
+
 // ActionConfig defines the visual and behavioral settings for action mode.
 type ActionConfig struct {
 	KeyBindings   ActionKeyBindingsCfg `json:"keyBindings"   toml:"key_bindings"`
@@ -54,6 +118,7 @@ type GeneralConfig struct {
 	ExcludedApps              []string `json:"excludedApps"              toml:"excluded_apps"`
 	AccessibilityCheckOnStart bool     `json:"accessibilityCheckOnStart" toml:"accessibility_check_on_start"`
 	RestoreCursorPosition     bool     `json:"restoreCursorPosition"     toml:"restore_cursor_position"`
+	ModeExitKeys              []string `json:"modeExitKeys"              toml:"mode_exit_keys"`
 }
 
 // AppConfig defines application-specific settings for role customization.
@@ -140,10 +205,11 @@ type GridConfig struct {
 	MatchedBorderColor     string `json:"matchedBorderColor"     toml:"matched_border_color"`
 	BorderColor            string `json:"borderColor"            toml:"border_color"`
 
-	LiveMatchUpdate bool `json:"liveMatchUpdate" toml:"live_match_update"`
-	HideUnmatched   bool `json:"hideUnmatched"   toml:"hide_unmatched"`
-	PrewarmEnabled  bool `json:"prewarmEnabled"  toml:"prewarm_enabled"`
-	EnableGC        bool `json:"enableGc"        toml:"enable_gc"`
+	LiveMatchUpdate bool   `json:"liveMatchUpdate" toml:"live_match_update"`
+	HideUnmatched   bool   `json:"hideUnmatched"   toml:"hide_unmatched"`
+	PrewarmEnabled  bool   `json:"prewarmEnabled"  toml:"prewarm_enabled"`
+	EnableGC        bool   `json:"enableGc"        toml:"enable_gc"`
+	ResetKey        string `json:"resetKey"        toml:"reset_key"`
 }
 
 // LoggingConfig defines the logging behavior and file management settings.
@@ -193,6 +259,12 @@ func (c *Config) Validate() error {
 	}
 
 	err := c.ValidateModes()
+	if err != nil {
+		return err
+	}
+
+	// Validate mode exit keys
+	err = c.ValidateModeExitKeys()
 	if err != nil {
 		return err
 	}
