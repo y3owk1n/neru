@@ -93,7 +93,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 		allowed = strings.Contains(m.grid.ValidCharacters(), upper)
 	}
 
-	if len(key) != 1 || (key != resetKey && !allowed) {
+	if len(key) != 1 || !allowed {
 		return image.Point{}, false
 	}
 
@@ -101,8 +101,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	upperKey := strings.ToUpper(key)
 
 	// For main grid, ensure the new input would match at least one coordinate.
-	// Skip this for the reset key, which should always be accepted.
-	if !m.inSubgrid && m.grid != nil && key != resetKey {
+	if !m.inSubgrid && m.grid != nil {
 		newInput := m.CurrentInput() + upperKey
 		if !m.hasMatchingCoordinate(newInput) {
 			return image.Point{}, false
