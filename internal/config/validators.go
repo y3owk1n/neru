@@ -746,6 +746,57 @@ func (c *Config) ValidateModeExitKeys() error {
 		)
 	}
 
+	// Check for conflicts with hint and grid characters
+	err := c.checkModeExitKeysConflicts()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkModeExitKeysConflicts detects if any single-character exit keys conflict with input characters.
+func (c *Config) checkModeExitKeysConflicts() error {
+	// Extract single-character exit keys (case-insensitive)
+	var singleCharExitKeys []string
+	for _, key := range c.General.ModeExitKeys {
+		if len(strings.TrimSpace(key)) == 1 && !strings.Contains(key, "+") {
+			singleCharExitKeys = append(singleCharExitKeys, strings.ToLower(key))
+		}
+	}
+
+	if len(singleCharExitKeys) == 0 {
+		return nil // No single-char exit keys, no conflicts possible
+	}
+
+	// Check hint characters
+	if c.Hints.HintCharacters != "" {
+		lowerHintChars := strings.ToLower(c.Hints.HintCharacters)
+		for _, exitKey := range singleCharExitKeys {
+			if strings.Contains(lowerHintChars, exitKey) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains '%s' which conflicts with hints.hint_characters; this key will always exit instead of selecting a hint",
+					strings.ToUpper(exitKey),
+				)
+			}
+		}
+	}
+
+	// Check grid characters
+	if c.Grid.Characters != "" {
+		lowerGridChars := strings.ToLower(c.Grid.Characters)
+		for _, exitKey := range singleCharExitKeys {
+			if strings.Contains(lowerGridChars, exitKey) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains '%s' which conflicts with grid.characters; this key will always exit instead of being used for grid input",
+					strings.ToUpper(exitKey),
+				)
+			}
+		}
+	}
+
 	return nil
 }
 
