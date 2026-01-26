@@ -24,7 +24,7 @@ const (
 
 // DefaultModeExitKeys returns the default exit keys when config is empty or validation is bypassed.
 func DefaultModeExitKeys() []string {
-	return []string{KeyEscape, KeyEscape2}
+	return []string{KeyEscape2}
 }
 
 // baseMode provides common functionality for all mode implementations.
