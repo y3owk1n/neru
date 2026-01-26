@@ -2,16 +2,6 @@
 
 Neru uses TOML for configuration. This guide covers all available options with examples.
 
-## Configuration File Locations
-
-Neru searches for configuration in the following order:
-
-1. `~/.config/neru/config.toml` (XDG standard - **recommended for dotfiles**)
-2. `~/Library/Application Support/neru/config.toml` (macOS convention)
-3. Custom path: `neru launch --config /path/to/config.toml`
-
-**No config file?** Neru uses sensible defaults. See [default-config.toml](../configs/default-config.toml). Need help troubleshooting? See [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
-
 ---
 
 ## Table of Contents
@@ -23,7 +13,9 @@ Neru searches for configuration in the following order:
 - [Grid Mode](#grid-mode)
 - [Scroll Mode](#scroll-mode)
 - [Mouse Movement Actions](#mouse-movement-actions)
-- [Advanced Settings](#advanced-settings)
+- [Smooth Cursor](#smooth-cursor)
+- [Metrics](#metrics)
+- [Logging](#logging)
 - [Complete Example](#complete-example)
 
 ---
@@ -36,7 +28,7 @@ Neru uses TOML configuration files. Configuration is loaded from:
 2. `~/Library/Application Support/neru/config.toml`
 3. Custom path via `--config` flag
 
-**No config file?** Neru uses sensible defaults. Copy from `configs/default-config.toml` to get started.
+**No config file?** Neru uses sensible defaults. Copy from [default-config.toml](../configs/default-config.toml) to get started.
 
 **Reload config:** Use `neru config reload` or restart the app.
 
@@ -143,12 +135,6 @@ border_radius = 4
 padding = 4
 opacity = 0.95
 
-# Delay (in milliseconds) before refreshing hints after mouse click actions.
-# Set to 0 for immediate refresh (default). Higher values reduce rapid refreshes
-# when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
-# You can also override this for specific apps in the [app_configs] section below.
-mouse_action_refresh_delay = 0
-
 background_color = "#FFD700"
 text_color = "#000000"
 matched_text_color = "#737373"
@@ -188,6 +174,20 @@ clickable_roles = [
 # We have a heuristic to detect if an element is clickable to avoid noises
 # If you do not want to use this heuristic, set ignore_clickable_check = true
 ignore_clickable_check = false
+```
+
+### Refresh Hints with delay after mouse action
+
+This option is useful for applications like browsers that needs to wait for a bit to get the latest content.
+
+```toml
+[hints]
+# Delay (in milliseconds) before refreshing hints after mouse click actions.
+# Set to 0 for immediate refresh (default). Higher values reduce rapid refreshes
+# when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
+# You can also override this for specific apps in the [app_configs] section below.
+mouse_action_refresh_delay = 0
+
 ```
 
 ### Per-App Overrides
@@ -258,7 +258,7 @@ sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 # - Can include symbols for advanced keyboard layouts
 # row_labels = "123456789"      # Numbers for rows
 # col_labels = "abcdefghij"     # Letters for columns
-# row_labels = "',.pyfgcrl/"    # Symbols for rows
+# row_labels = "'.pyfgcrl/"     # Symbols for rows
 # col_labels = "aoeuidhtns"     # Dvorak-style for columns
 
 # Visual styling
@@ -362,29 +362,29 @@ page_down = ["Ctrl+D", "PageDown"] # Scroll down by half page
 
 ```toml
 # Vim-style with arrow keys
-[scroll.key_bindings]
-scroll_up = ["k", "Up", "Ctrl+P"]
-scroll_down = ["j", "Down", "Ctrl+N"]
-go_top = ["gg", "Home"]
-go_bottom = ["G", "End"]
+# [scroll.key_bindings]
+# scroll_up = ["k", "Up", "Ctrl+P"]
+# scroll_down = ["j", "Down", "Ctrl+N"]
+# go_top = ["gg", "Home"]
+# go_bottom = ["G", "End"]
 
 # Home/End for navigation
-[scroll.key_bindings]
-scroll_up = ["k"]
-scroll_down = ["j"]
-scroll_left = ["h"]
-scroll_right = ["l"]
-go_top = ["gg", "Home"]
-go_bottom = ["G", "End"]
-page_up = ["PageUp"]
-page_down = ["PageDown"]
+# [scroll.key_bindings]
+# scroll_up = ["k"]
+# scroll_down = ["j"]
+# scroll_left = ["h"]
+# scroll_right = ["l"]
+# go_top = ["gg", "Home"]
+# go_bottom = ["G", "End"]
+# page_up = ["PageUp"]
+# page_down = ["PageDown"]
 
 # Mac-style with Command arrows for navigation
-[scroll.key_bindings]
-scroll_up = ["k", "Up"]
-scroll_down = ["j", "Down"]
-go_top = ["gg", "Cmd+Up"]
-go_bottom = ["G", "Cmd+Down"]
+# [scroll.key_bindings]
+# scroll_up = ["k", "Up"]
+# scroll_down = ["j", "Down"]
+# go_top = ["gg", "Cmd+Up"]
+# go_bottom = ["G", "Cmd+Down"]
 ```
 
 **Exit:** Press `Esc` to exit scroll mode.
@@ -440,11 +440,10 @@ move_mouse_step = 5   # Smaller movements (more precise)
 
 ---
 
-## Advanced Settings
+## Smooth Cursor
 
-### Smooth Cursor
-
-Configure smooth mouse movement:
+Configure smooth mouse movement, note that this is refering the when a mouse move from a point to another point, enabled
+means you can see it moves, where disabled means it will show on another point instantly:
 
 ```toml
 [smooth_cursor]
@@ -452,31 +451,6 @@ move_mouse_enabled = true
 steps = 10        # Intermediate positions
 delay = 1         # Milliseconds between steps
 ```
-
-### Metrics
-
-Enable performance metrics collection:
-
-```toml
-[metrics]
-enabled = false   # Access via `neru metrics` command
-```
-
-### Logging
-
-Configure logging behavior:
-
-```toml
-[logging]
-log_level = "info"          # debug, info, warn, error
-log_file = ""               # Default: ~/Library/Logs/neru/app.log
-structured_logging = true   # JSON format
-max_file_size = 10          # MB
-max_backups = 5
-max_age = 30                # Days
-```
-
-**Debug logging:** Set `log_level = "debug"` and run `tail -f ~/Library/Logs/neru/app.log`
 
 **Parameters:**
 
@@ -650,33 +624,3 @@ max_file_size = 10
 max_backups = 5
 max_age = 30
 ```
-
----
-
-## Tips
-
-**Version control your config:**
-
-```bash
-cd ~/.config/neru
-git init
-git add config.toml
-git commit -m "Initial Neru configuration"
-```
-
-**Share with others:**
-
-```bash
-# Export
-cp ~/.config/neru/config.toml ~/Downloads/neru-config.toml
-
-# Import
-cp ~/Downloads/neru-config.toml ~/.config/neru/config.toml
-neru launch  # Restart to apply
-```
-
-**Test changes:**
-
-1. Edit `~/.config/neru/config.toml`
-2. Reload: `neru config reload` (or use "Reload Config" from systray menu)
-3. Test your changes
