@@ -159,8 +159,6 @@ neru hints --action right_click    # Right-click via hints
 neru grid --action middle_click    # Middle-click via grid
 ```
 
-**Available actions:** `left_click`, `right_click`, `middle_click`, `mouse_up`, `mouse_down`
-
 **Behavior:** Action executes automatically when location is selected, then mode exits.
 
 ---
