@@ -232,11 +232,43 @@ func (c *Config) ValidateGrid() error {
 		)
 	}
 
-	if strings.Contains(c.Grid.Characters, ",") {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"grid.characters cannot contain ',' as it is reserved for reset",
-		)
+	resetKey := c.Grid.ResetKey
+	if resetKey == "" {
+		resetKey = ","
+	}
+
+	// Validate reset key format: either single character or modifier combo
+	if strings.Contains(resetKey, "+") {
+		// Validate modifier combo (e.g. "Ctrl+R")
+		err := validateResetKeyCombo(resetKey)
+		if err != nil {
+			return err
+		}
+		// Modifier combos don't conflict with grid characters, so we can return early
+	} else {
+		// Validate single character reset key
+		if len(resetKey) != 1 {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"grid.reset_key must be either a single character or a modifier combo (e.g. 'Ctrl+R')",
+			)
+		}
+
+		// Validate reset key is ASCII
+		if rune(resetKey[0]) > unicode.MaxASCII {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"grid.reset_key must be an ASCII character",
+			)
+		}
+
+		// Single-character reset key cannot be in grid characters
+		if strings.Contains(c.Grid.Characters, resetKey) {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"grid.characters cannot contain '"+resetKey+"' as it is reserved for reset",
+			)
+		}
 	}
 
 	for _, r := range c.Grid.Characters {
@@ -265,10 +297,11 @@ func (c *Config) ValidateGrid() error {
 			)
 		}
 
-		if strings.Contains(c.Grid.RowLabels, ",") {
+		// Only check for reset key conflict if reset key is a single character
+		if !strings.Contains(resetKey, "+") && strings.Contains(c.Grid.RowLabels, resetKey) {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"grid.row_labels cannot contain ',' as it is reserved for reset",
+				"grid.row_labels cannot contain '"+resetKey+"' as it is reserved for reset",
 			)
 		}
 
@@ -299,10 +332,11 @@ func (c *Config) ValidateGrid() error {
 			)
 		}
 
-		if strings.Contains(c.Grid.ColLabels, ",") {
+		// Only check for reset key conflict if reset key is a single character
+		if !strings.Contains(resetKey, "+") && strings.Contains(c.Grid.ColLabels, resetKey) {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"grid.col_labels cannot contain ',' as it is reserved for reset",
+				"grid.col_labels cannot contain '"+resetKey+"' as it is reserved for reset",
 			)
 		}
 
@@ -374,10 +408,11 @@ func (c *Config) ValidateGrid() error {
 	}
 
 	// Apply same ASCII and reserved character validation as grid.characters
-	if strings.Contains(keys, ",") {
+	// Only check for reset key conflict if reset key is a single character
+	if !strings.Contains(resetKey, "+") && strings.Contains(keys, resetKey) {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"grid.sublayer_keys cannot contain ',' as it is reserved for reset",
+			"grid.sublayer_keys cannot contain '"+resetKey+"' as it is reserved for reset",
 		)
 	}
 
@@ -635,4 +670,153 @@ func findDuplicateChars(s string) []rune {
 	slices.Sort(result)
 
 	return result
+}
+
+// ValidateModeExitKeys validates the mode exit keys configuration.
+func (c *Config) ValidateModeExitKeys() error {
+	if len(c.General.ModeExitKeys) == 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"general.mode_exit_keys cannot be empty",
+		)
+	}
+
+	validNamedKeys := map[string]bool{
+		"escape":    true,
+		"esc":       true,
+		"return":    true,
+		"enter":     true,
+		"tab":       true,
+		"space":     true,
+		"backspace": true,
+		"delete":    true,
+		"home":      true,
+		"end":       true,
+		"pageup":    true,
+		"pagedown":  true,
+	}
+
+	for index, key := range c.General.ModeExitKeys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"general.mode_exit_keys[%d] cannot be empty",
+				index,
+			)
+		}
+
+		// Check if it's a named key
+		if validNamedKeys[strings.ToLower(key)] {
+			continue
+		}
+
+		// Check if it's a modifier combo
+		if strings.Contains(key, "+") {
+			err := validateModeExitKeyCombo(key, index)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		// Check if it's a single character
+		if len(key) == 1 {
+			continue
+		}
+
+		// Invalid format
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"general.mode_exit_keys[%d] = '%s' is invalid; must be a named key (e.g. 'escape'), modifier combo (e.g. 'Ctrl+C'), or single character",
+			index,
+			key,
+		)
+	}
+
+	return nil
+}
+
+// validateModeExitKeyCombo validates a modifier combo key format (e.g. "Ctrl+C").
+func validateModeExitKeyCombo(key string, index int) error {
+	const minComboPartsLen = 2
+
+	parts := strings.Split(key, "+")
+
+	if len(parts) < minComboPartsLen {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"general.mode_exit_keys[%d] = '%s' is invalid; modifier combos must have format 'Modifier+Key'",
+			index,
+			key,
+		)
+	}
+
+	// All parts except the last should be valid modifiers
+	for i := range len(parts) - 1 {
+		modifier := strings.TrimSpace(parts[i])
+		if !isValidModifier(modifier) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"general.mode_exit_keys[%d] has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option)",
+				index,
+				modifier,
+				key,
+			)
+		}
+	}
+
+	// Last part is the key
+	lastKey := strings.TrimSpace(parts[len(parts)-1])
+	if lastKey == "" {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"general.mode_exit_keys[%d] = '%s' has empty key",
+			index,
+			key,
+		)
+	}
+
+	return nil
+}
+
+// validateResetKeyCombo validates a modifier combo reset key format (e.g. "Ctrl+R").
+func validateResetKeyCombo(key string) error {
+	const minComboPartsLen = 2
+
+	parts := strings.Split(key, "+")
+
+	if len(parts) < minComboPartsLen {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"grid.reset_key = '%s' is invalid; modifier combos must have format 'Modifier+Key'",
+			key,
+		)
+	}
+
+	// All parts except the last should be valid modifiers
+	for i := range len(parts) - 1 {
+		modifier := strings.TrimSpace(parts[i])
+		if !isValidModifier(modifier) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"grid.reset_key has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option)",
+				modifier,
+				key,
+			)
+		}
+	}
+
+	// Last part is the key
+	lastKey := strings.TrimSpace(parts[len(parts)-1])
+	if lastKey == "" {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"grid.reset_key = '%s' has empty key",
+			key,
+		)
+	}
+
+	return nil
 }

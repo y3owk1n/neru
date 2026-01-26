@@ -112,8 +112,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 	// Route hint-specific keys via domain hints router
 	if h.hints.Context.Router() == nil {
-		h.logger.Error("Hints router is nil")
-		h.ExitMode()
+		h.logger.Warn("Hints router is nil - ignoring key press until hints initialized")
 
 		return
 	}
@@ -155,8 +154,7 @@ func (h *Handler) handleGridModeKey(key string) {
 	}
 
 	if h.grid.Router == nil {
-		h.logger.Error("Grid router is nil")
-		h.ExitMode()
+		h.logger.Warn("Grid router is nil - ignoring key press until grid router initialized")
 
 		return
 	}

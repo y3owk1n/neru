@@ -7,13 +7,27 @@
 
 [general]
 # List of bundle IDs to exclude from Neru (e.g., "com.apple.finder")
+# When Neru is active, it won't process hints/grid in these applications
 excluded_apps = []
 
 # Whether to check for accessibility permissions on startup
+# If true, Neru will verify that accessibility permissions are granted before enabling features
 accessibility_check_on_start = true
 
 # Whether to restore cursor position after exiting modes
+# When true, cursor returns to its original position after hints/grid/scroll mode exits
 restore_cursor_position = false
+
+# Keys that exit any active mode (hints, grid, or scroll)
+# Supported formats:
+#   - Named keys: "escape", "return", "tab", "space", "backspace", "delete", "home", "end", "pageup", "pagedown"
+#   - Modifier combos: "Ctrl+C", "Cmd+Q", "Alt+X"
+#   - Single characters: single letter/digit keys
+# Examples:
+#   mode_exit_keys = ["escape"]           # Exit with Escape key
+#   mode_exit_keys = ["Ctrl+C"]           # Exit with Ctrl+C
+#   mode_exit_keys = ["escape", "q"]      # Exit with Escape or Q
+mode_exit_keys = ["escape"]
 
 [hotkeys]
 # Hotkey bindings - key = action
@@ -133,6 +147,13 @@ characters = "abcdefghijklmnpqrstuvwxyz"
 # Characters to use for subgrid labels (fallback to grid.characters)
 # Same requirements as characters above
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
+
+# Single-character key to reset/clear grid input during grid mode
+# While in grid mode, pressing this key clears your current input and starts over
+# Useful for correcting mistakes while selecting grid coordinates
+# Common choices: "," (comma), "." (period), "r" (r key), "backspace"
+# Note: Cannot be the same as any grid character to avoid conflicts
+reset_key = ","
 
 # Optional custom labels for rows and columns
 # If not provided, labels will be inferred from characters

@@ -3,18 +3,20 @@ package grid
 import (
 	"image"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
 )
 
 // Router handles key routing for grid mode operations.
 type Router struct {
-	manager *Manager
-	logger  *zap.Logger
+	manager      *Manager
+	logger       *zap.Logger
+	modeExitKeys []string // Keys that exit grid mode
 }
 
 // KeyResult captures the results of key routing decisions in grid mode.
 type KeyResult struct {
-	exit        bool        // Escape pressed -> exit mode
+	exit        bool        // Exit key pressed -> exit mode
 	targetPoint image.Point // Complete coordinate entered
 	complete    bool        // Coordinate selection complete
 }
@@ -37,8 +39,18 @@ func (kr *KeyResult) Complete() bool {
 // NewRouter initializes a new grid router with the specified manager and logger.
 func NewRouter(m *Manager, logger *zap.Logger) *Router {
 	return &Router{
-		manager: m,
-		logger:  logger,
+		manager:      m,
+		logger:       logger,
+		modeExitKeys: []string{},
+	}
+}
+
+// NewRouterWithExitKeys initializes a new grid router with custom exit keys.
+func NewRouterWithExitKeys(m *Manager, logger *zap.Logger, exitKeys []string) *Router {
+	return &Router{
+		manager:      m,
+		logger:       logger,
+		modeExitKeys: exitKeys,
 	}
 }
 
@@ -46,11 +58,24 @@ func NewRouter(m *Manager, logger *zap.Logger) *Router {
 func (r *Router) RouteKey(key string) KeyResult {
 	var routeKeyResult KeyResult
 
-	// Exit grid mode with Escape
-	if key == "\x1b" || key == "escape" {
-		routeKeyResult.exit = true
+	// Normalize the incoming key for comparison
+	normalizedKey := config.NormalizeKeyForComparison(key)
 
-		return routeKeyResult
+	// Check if key matches any configured exit keys
+	exitKeys := r.modeExitKeys
+	if len(exitKeys) == 0 {
+		// Default to escape if no exit keys configured
+		exitKeys = []string{"escape"}
+	}
+
+	for _, exitKey := range exitKeys {
+		// Normalize configured key for comparison
+		normalizedExitKey := config.NormalizeKeyForComparison(exitKey)
+		if normalizedKey == normalizedExitKey {
+			routeKeyResult.exit = true
+
+			return routeKeyResult
+		}
 	}
 
 	// Delegate coordinate input to the grid manager

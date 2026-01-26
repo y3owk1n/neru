@@ -41,7 +41,13 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	}
 
 	h.initializeGridManager(gridInstance)
-	h.grid.Router = domainGrid.NewRouter(h.grid.Manager, h.logger)
+
+	exitKeys := h.config.General.ModeExitKeys
+	if len(exitKeys) == 0 {
+		exitKeys = []string{KeyEscape, KeyEscape2}
+	}
+
+	h.grid.Router = domainGrid.NewRouterWithExitKeys(h.grid.Manager, h.logger, exitKeys)
 
 	// Draw the grid to populate the overlay
 	drawGridErr := h.renderer.DrawGrid(gridInstance, "")
@@ -150,6 +156,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 		subRows,
 		subCols,
 		keys,
+		h.config.Grid.ResetKey,
 		// Update callback: handles grid redrawing and match filtering
 		func(forceRedraw bool) {
 			// Defensive check for grid manager

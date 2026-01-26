@@ -13,7 +13,7 @@ func TestGridRouter_RouteKey(t *testing.T) {
 
 	// Create a simple grid for testing
 	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
-	manager := grid.NewManager(testGrid, 3, 3, "123456789", nil, nil, logger)
+	manager := grid.NewManager(testGrid, 3, 3, "123456789", ",", nil, nil, logger)
 	router := grid.NewRouter(manager, logger)
 
 	tests := []struct {
@@ -74,7 +74,7 @@ func TestGridRouter_EscapeKey(t *testing.T) {
 
 	// Create a simple grid for testing
 	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
-	manager := grid.NewManager(testGrid, 3, 3, "123456789", nil, nil, logger)
+	manager := grid.NewManager(testGrid, 3, 3, "123456789", ",", nil, nil, logger)
 	router := grid.NewRouter(manager, logger)
 
 	// Test escape key

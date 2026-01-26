@@ -17,6 +17,37 @@ const (
 	RoleDockItem    = "AXDockItem"
 )
 
+// Key name constants for normalization.
+const (
+	KeyNameEscape    = "escape"
+	KeyNameReturn    = "return"
+	KeyNameTab       = "tab"
+	KeyNameSpace     = "space"
+	KeyNameBackspace = "backspace"
+	KeyNameDelete    = "delete"
+)
+
+// NormalizeKeyForComparison converts escape sequences and key names to a canonical form for comparison.
+// This ensures that "\x1b" and "escape" are treated as the same key.
+func NormalizeKeyForComparison(key string) string {
+	switch key {
+	case "\x1b", KeyNameEscape, "esc":
+		return KeyNameEscape
+	case "\r", KeyNameReturn, "enter":
+		return KeyNameReturn
+	case "\t", KeyNameTab:
+		return KeyNameTab
+	case " ", KeyNameSpace:
+		return KeyNameSpace
+	case "\x08", KeyNameBackspace:
+		return KeyNameBackspace
+	case "\x7f", KeyNameDelete:
+		return KeyNameDelete
+	default:
+		return key
+	}
+}
+
 // ActionConfig defines the visual and behavioral settings for action mode.
 type ActionConfig struct {
 	KeyBindings   ActionKeyBindingsCfg `json:"keyBindings"   toml:"key_bindings"`
@@ -54,6 +85,7 @@ type GeneralConfig struct {
 	ExcludedApps              []string `json:"excludedApps"              toml:"excluded_apps"`
 	AccessibilityCheckOnStart bool     `json:"accessibilityCheckOnStart" toml:"accessibility_check_on_start"`
 	RestoreCursorPosition     bool     `json:"restoreCursorPosition"     toml:"restore_cursor_position"`
+	ModeExitKeys              []string `json:"modeExitKeys"              toml:"mode_exit_keys"`
 }
 
 // AppConfig defines application-specific settings for role customization.
@@ -140,10 +172,11 @@ type GridConfig struct {
 	MatchedBorderColor     string `json:"matchedBorderColor"     toml:"matched_border_color"`
 	BorderColor            string `json:"borderColor"            toml:"border_color"`
 
-	LiveMatchUpdate bool `json:"liveMatchUpdate" toml:"live_match_update"`
-	HideUnmatched   bool `json:"hideUnmatched"   toml:"hide_unmatched"`
-	PrewarmEnabled  bool `json:"prewarmEnabled"  toml:"prewarm_enabled"`
-	EnableGC        bool `json:"enableGc"        toml:"enable_gc"`
+	LiveMatchUpdate bool   `json:"liveMatchUpdate" toml:"live_match_update"`
+	HideUnmatched   bool   `json:"hideUnmatched"   toml:"hide_unmatched"`
+	PrewarmEnabled  bool   `json:"prewarmEnabled"  toml:"prewarm_enabled"`
+	EnableGC        bool   `json:"enableGc"        toml:"enable_gc"`
+	ResetKey        string `json:"resetKey"        toml:"reset_key"`
 }
 
 // LoggingConfig defines the logging behavior and file management settings.
@@ -193,6 +226,12 @@ func (c *Config) Validate() error {
 	}
 
 	err := c.ValidateModes()
+	if err != nil {
+		return err
+	}
+
+	// Validate mode exit keys
+	err = c.ValidateModeExitKeys()
 	if err != nil {
 		return err
 	}
@@ -629,4 +668,86 @@ func IsAllLetters(keyStr string) bool {
 	}
 
 	return len(keyStr) > 0
+}
+
+// NormalizeModeExitKeys converts escape sequence representations and named keys to their standard forms.
+// Handles both TOML escape sequences (like "\\x1b" -> "\x1b") and named keys (like "escape").
+func NormalizeModeExitKeys(keys []string) []string {
+	if len(keys) == 0 {
+		return keys
+	}
+
+	normalized := make([]string, 0, len(keys))
+	keyMap := make(map[string]bool) // Deduplicate
+
+	for _, key := range keys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+
+		// Map common named keys to their actual forms
+		switch strings.ToLower(key) {
+		case "escape", "esc":
+			// Standard form for escape is the byte, but also accept "escape"
+			// We'll keep "escape" as-is since routers check both "\x1b" and "escape"
+			if !keyMap["escape"] {
+				normalized = append(normalized, "escape")
+				keyMap["escape"] = true
+			}
+		case "return", "enter":
+			if !keyMap["return"] {
+				normalized = append(normalized, "return")
+				keyMap["return"] = true
+			}
+		case "tab":
+			if !keyMap["tab"] {
+				normalized = append(normalized, "tab")
+				keyMap["tab"] = true
+			}
+		case "space":
+			if !keyMap["space"] {
+				normalized = append(normalized, "space")
+				keyMap["space"] = true
+			}
+		case "backspace":
+			if !keyMap["backspace"] {
+				normalized = append(normalized, "backspace")
+				keyMap["backspace"] = true
+			}
+		case "delete":
+			if !keyMap["delete"] {
+				normalized = append(normalized, "delete")
+				keyMap["delete"] = true
+			}
+		case "home":
+			if !keyMap["home"] {
+				normalized = append(normalized, "home")
+				keyMap["home"] = true
+			}
+		case "end":
+			if !keyMap["end"] {
+				normalized = append(normalized, "end")
+				keyMap["end"] = true
+			}
+		case "pageup":
+			if !keyMap["pageup"] {
+				normalized = append(normalized, "pageup")
+				keyMap["pageup"] = true
+			}
+		case "pagedown":
+			if !keyMap["pagedown"] {
+				normalized = append(normalized, "pagedown")
+				keyMap["pagedown"] = true
+			}
+		default:
+			// Keep modifier combos and other keys as-is
+			if !keyMap[key] {
+				normalized = append(normalized, key)
+				keyMap[key] = true
+			}
+		}
+	}
+
+	return normalized
 }

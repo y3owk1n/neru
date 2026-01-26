@@ -19,6 +19,7 @@ type Manager struct {
 	onShowSub     func(cell *Cell)
 	inSubgrid     bool
 	selectedCell  *Cell
+	resetKey      string
 	// Subgrid configuration
 	subRows int
 	subCols int
@@ -31,6 +32,7 @@ func NewManager(
 	subRows int,
 	subCols int,
 	subKeys string,
+	resetKey string,
 	onUpdate func(redraw bool),
 	onShowSub func(cell *Cell),
 	logger *zap.Logger,
@@ -52,6 +54,7 @@ func NewManager(
 		subRows:     subRows,
 		subCols:     subCols,
 		subKeys:     strings.ToUpper(strings.TrimSpace(subKeys)),
+		resetKey:    resetKey,
 	}
 }
 
@@ -60,11 +63,17 @@ func NewManager(
 // Completion occurs when labelLength characters are entered or a subgrid selection is made.
 // Returns (point, true) when selection is complete, (zero point, false) otherwise.
 func (m *Manager) HandleInput(key string) (image.Point, bool) {
-	resetKey := ","
+	resetKey := m.resetKey
+	if resetKey == "" {
+		resetKey = ","
+	}
 
-	// Handle reset key to clear input and return to initial state
+	// Handle reset key to clear input and return to initial state.
+	// Accept modifier-style reset keys (e.g. "Ctrl+R") as well as single characters.
 	if key == resetKey {
-		m.handleResetKey(false)
+		m.handleResetKey(true)
+
+		return image.Point{}, false
 	}
 
 	// Handle backspace for input correction
@@ -103,12 +112,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 		return m.handleSubgridSelection(upperKey)
 	}
 
-	// Allow , to reset grid with redraw
-	if upperKey == resetKey {
-		m.handleResetKey(true)
-
-		return image.Point{}, false
-	}
+	// Note: reset key already handled above (supports modifiers and single chars).
 
 	// Validate input key against grid characters
 	if !m.validateInputKey(upperKey) {

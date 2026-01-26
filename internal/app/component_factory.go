@@ -119,6 +119,7 @@ func (f *ComponentFactory) CreateGridComponent(
 		domain.SubgridRows,
 		domain.SubgridCols,
 		subKeys,
+		f.config.Grid.ResetKey,
 		func(_ bool) {
 			instancePtr := ctx.GridInstance()
 			if instancePtr == nil || *instancePtr == nil || (*instancePtr).Characters() == "" {
