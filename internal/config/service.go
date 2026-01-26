@@ -143,11 +143,6 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		}
 	}
 
-	// Normalize ModeExitKeys after loading
-	configResult.Config.General.ModeExitKeys = NormalizeModeExitKeys(
-		configResult.Config.General.ModeExitKeys,
-	)
-
 	validateErr := configResult.Config.Validate()
 	if validateErr != nil {
 		configResult.ValidationError = core.WrapConfigFailed(validateErr, "validate configuration")
