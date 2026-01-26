@@ -30,6 +30,7 @@ const (
 // NormalizeKeyForComparison converts escape sequences and key names to a canonical form for comparison.
 // This ensures that "\x1b" and "escape" are treated as the same key, and provides case-insensitive
 // matching for all keys (e.g. "q" matches "Q", "Ctrl+R" matches "ctrl+r").
+// On macOS, both "backspace" and "delete" are treated as synonyms for the DEL key (\x7f).
 func NormalizeKeyForComparison(key string) string {
 	switch key {
 	case "\x1b", KeyNameEscape, "esc":
@@ -40,9 +41,11 @@ func NormalizeKeyForComparison(key string) string {
 		return KeyNameTab
 	case " ", KeyNameSpace:
 		return KeyNameSpace
-	case "\x08", KeyNameBackspace:
+	case "\x08":
 		return KeyNameBackspace
-	case "\x7f", KeyNameDelete:
+	case "\x7f", KeyNameDelete, KeyNameBackspace:
+		// On macOS, the Delete key (above Return) sends \x7f.
+		// Treat both "delete" and "backspace" as synonyms for the DEL key for user-friendly matching.
 		return KeyNameDelete
 	default:
 		// Normalize to lowercase for case-insensitive matching.
