@@ -1,6 +1,5 @@
 [general]
 restore_cursor_position = true
-mode_exit_keys = ["escape", "Ctrl+C"]
 
 [hotkeys]
 "Ctrl+F" = "grid"
@@ -34,7 +33,6 @@ enabled = false
 font_family = "JetBrainsMonoNLNFP-Bold"
 characters = "aoeuidhtnspyfgcrlqjkxbmwvz"
 sublayer_keys = "gcrhtnmwv"
-reset_key = ","
 
 [action]
 move_mouse_step = 10
