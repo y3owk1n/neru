@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1](https://github.com/y3owk1n/neru/compare/v1.15.0...v1.15.1) (2026-01-26)
+
+
+### Bug Fixes
+
+* add support for customisable exit and reset key ([#334](https://github.com/y3owk1n/neru/issues/334)) ([b945da6](https://github.com/y3owk1n/neru/commit/b945da68e156e5d397f507ec8981a5c139960521))
+
 ## [1.15.0](https://github.com/y3owk1n/neru/compare/v1.14.1...v1.15.0) (2026-01-24)
 
 
