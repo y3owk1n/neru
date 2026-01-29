@@ -111,7 +111,7 @@ func TestGridService_HideGrid(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			stubOv := &gridStubOverlayPort{hideErr: testCase.hideErr}
+			stubOv := &gridStubOverlayPort{visible: true, hideErr: testCase.hideErr}
 			logger := logger.Get()
 
 			service := services.NewGridService(stubOv, logger)
