@@ -17,16 +17,21 @@ import (
 
 // stubAccessibilityPort is a simple stub for AccessibilityPort.
 type stubAccessibilityPort struct {
-	elements []*element.Element
-	err      error
+	elements       []*element.Element
+	err            error
+	filterRecorder func(ports.ElementFilter)
 }
 
 func (s *stubAccessibilityPort) Health(_ context.Context) error { return nil }
 
 func (s *stubAccessibilityPort) ClickableElements(
 	_ context.Context,
-	_ ports.ElementFilter,
+	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
+	if s.filterRecorder != nil {
+		s.filterRecorder(filter)
+	}
+
 	return s.elements, s.err
 }
 
@@ -132,6 +137,7 @@ func TestHintService_ShowHints(t *testing.T) {
 		config        config.HintsConfig
 		wantErr       bool
 		wantHintCount int
+		checkFilter   func(*testing.T, ports.ElementFilter)
 	}{
 		{
 			name:          "successful hint display",
@@ -161,13 +167,45 @@ func TestHintService_ShowHints(t *testing.T) {
 			wantErr:       false,
 			wantHintCount: 1,
 		},
+		{
+			name:     "config-driven filtering",
+			elements: testElements,
+			config: config.HintsConfig{
+				IncludeMenubarHints:      true,
+				IncludeDockHints:         true,
+				IncludeNCHints:           true,
+				IncludeStageManagerHints: true,
+			},
+			wantErr:       false,
+			wantHintCount: 3,
+			checkFilter: func(t *testing.T, filter ports.ElementFilter) {
+				t.Helper()
+
+				if !filter.IncludeMenubar {
+					t.Error("IncludeMenubar should be true based on config")
+				}
+
+				if !filter.IncludeDock {
+					t.Error("IncludeDock should be true based on config")
+				}
+
+				if !filter.IncludeNotificationCenter {
+					t.Error("IncludeNotificationCenter should be true based on config")
+				}
+			},
+		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
+			var recordedFilter ports.ElementFilter
+
 			stubAcc := &stubAccessibilityPort{
 				elements: testCase.elements,
 				err:      testCase.accErr,
+				filterRecorder: func(f ports.ElementFilter) {
+					recordedFilter = f
+				},
 			}
 			stubOv := &stubOverlayPort{}
 
@@ -195,6 +233,10 @@ func TestHintService_ShowHints(t *testing.T) {
 
 			if len(hints) != testCase.wantHintCount {
 				t.Errorf("Expected %d hints, got %d", testCase.wantHintCount, len(hints))
+			}
+
+			if testCase.checkFilter != nil {
+				testCase.checkFilter(t, recordedFilter)
 			}
 		})
 	}
