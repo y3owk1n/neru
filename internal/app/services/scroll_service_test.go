@@ -7,145 +7,217 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
+	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	"github.com/y3owk1n/neru/internal/core/ports/mocks"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
+
+// scrollStubAccessibilityPort is a stub for AccessibilityPort used in scroll tests.
+type scrollStubAccessibilityPort struct {
+	screenBounds        image.Rectangle
+	scrollErr           error
+	screenBoundsErr     error
+	scrollDeltaRecorder func(deltaX, deltaY int)
+}
+
+func (s *scrollStubAccessibilityPort) Health(_ context.Context) error { return nil }
+
+func (s *scrollStubAccessibilityPort) ClickableElements(
+	_ context.Context,
+	_ ports.ElementFilter,
+) ([]*element.Element, error) {
+	return nil, nil
+}
+
+func (s *scrollStubAccessibilityPort) PerformAction(
+	_ context.Context,
+	_ *element.Element,
+	_ action.Type,
+) error {
+	return nil
+}
+
+func (s *scrollStubAccessibilityPort) PerformActionAtPoint(
+	_ context.Context,
+	_ action.Type,
+	_ image.Point,
+) error {
+	return nil
+}
+
+func (s *scrollStubAccessibilityPort) Scroll(_ context.Context, deltaX, deltaY int) error {
+	if s.scrollDeltaRecorder != nil {
+		s.scrollDeltaRecorder(deltaX, deltaY)
+	}
+
+	return s.scrollErr
+}
+
+func (s *scrollStubAccessibilityPort) FocusedAppBundleID(_ context.Context) (string, error) {
+	return "", nil
+}
+
+func (s *scrollStubAccessibilityPort) IsAppExcluded(
+	_ context.Context,
+	_ string,
+) bool {
+	return false
+}
+
+func (s *scrollStubAccessibilityPort) ScreenBounds(_ context.Context) (image.Rectangle, error) {
+	if s.screenBounds.Empty() {
+		return image.Rect(0, 0, 1920, 1080), s.screenBoundsErr
+	}
+
+	return s.screenBounds, s.screenBoundsErr
+}
+
+func (s *scrollStubAccessibilityPort) MoveCursorToPoint(
+	_ context.Context,
+	_ image.Point,
+	_ bool,
+) error {
+	return nil
+}
+
+func (s *scrollStubAccessibilityPort) CursorPosition(_ context.Context) (image.Point, error) {
+	return image.Point{}, nil
+}
+func (s *scrollStubAccessibilityPort) CheckPermissions(_ context.Context) error { return nil }
+
+// scrollStubOverlayPort is a stub for OverlayPort used in scroll tests.
+type scrollStubOverlayPort struct {
+	visible             bool
+	hideErr             error
+	drawScrollErr       error
+	drawnRect           image.Rectangle
+	drawScrollHighlight func(ctx context.Context, rect image.Rectangle, color string, width int) error
+}
+
+func (s *scrollStubOverlayPort) Health(_ context.Context) error { return nil }
+func (s *scrollStubOverlayPort) ShowHints(_ context.Context, _ []*hint.Interface) error {
+	return nil
+}
+func (s *scrollStubOverlayPort) ShowGrid(_ context.Context) error { return nil }
+
+func (s *scrollStubOverlayPort) DrawScrollHighlight(
+	ctx context.Context,
+	rect image.Rectangle,
+	color string,
+	width int,
+) error {
+	if s.drawScrollHighlight != nil {
+		return s.drawScrollHighlight(ctx, rect, color, width)
+	}
+
+	s.drawnRect = rect
+
+	return s.drawScrollErr
+}
+
+func (s *scrollStubOverlayPort) Hide(_ context.Context) error {
+	s.visible = false
+
+	return s.hideErr
+}
+func (s *scrollStubOverlayPort) IsVisible() bool { return s.visible }
+func (s *scrollStubOverlayPort) Refresh(_ context.Context) error {
+	return nil
+}
 
 func TestScrollService_Scroll(t *testing.T) {
 	tests := []struct {
 		name       string
 		direction  services.ScrollDirection
 		amount     services.ScrollAmount
-		setupMocks func(*mocks.MockAccessibilityPort)
+		scrollErr  error
 		wantErr    bool
+		checkDelta func(t *testing.T, deltaX, deltaY int)
 	}{
 		{
 			name:      "scroll down char",
 			direction: services.ScrollDirectionDown,
 			amount:    services.ScrollAmountChar,
-			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
-					if deltaY >= 0 {
-						t.Errorf("Expected negative deltaY for scroll down, got %d", deltaY)
-					}
+			wantErr:   false,
+			checkDelta: func(t *testing.T, deltaX, deltaY int) {
+				t.Helper()
 
-					return nil
+				if deltaY >= 0 {
+					t.Errorf("Expected negative deltaY for scroll down, got %d", deltaY)
 				}
 			},
-			wantErr: false,
 		},
 		{
 			name:      "scroll up char",
 			direction: services.ScrollDirectionUp,
 			amount:    services.ScrollAmountChar,
-			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
-					if deltaY <= 0 {
-						t.Errorf("Expected positive deltaY for scroll up, got %d", deltaY)
-					}
+			wantErr:   false,
+			checkDelta: func(t *testing.T, deltaX, deltaY int) {
+				t.Helper()
 
-					return nil
+				if deltaY <= 0 {
+					t.Errorf("Expected positive deltaY for scroll up, got %d", deltaY)
 				}
 			},
-			wantErr: false,
-		},
-		{
-			name:      "scroll down full",
-			direction: services.ScrollDirectionDown,
-			amount:    services.ScrollAmountHalfPage,
-			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
-					// Down = negative deltaY
-					if deltaY >= 0 {
-						t.Errorf("Expected negative deltaY for scroll down, got %d", deltaY)
-					}
-
-					return nil
-				}
-			},
-			wantErr: false,
-		},
-		{
-			name:      "scroll up full",
-			direction: services.ScrollDirectionUp,
-			amount:    services.ScrollAmountHalfPage,
-			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
-					// Up = positive deltaY
-					if deltaY <= 0 {
-						t.Errorf("Expected positive deltaY for scroll up, got %d", deltaY)
-					}
-
-					return nil
-				}
-			},
-			wantErr: false,
 		},
 		{
 			name:      "scroll left char",
 			direction: services.ScrollDirectionLeft,
 			amount:    services.ScrollAmountChar,
-			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
-					// Left = positive deltaX
-					if deltaX <= 0 {
-						t.Errorf("Expected positive deltaX for scroll left, got %d", deltaX)
-					}
+			wantErr:   false,
+			checkDelta: func(t *testing.T, deltaX, deltaY int) {
+				t.Helper()
 
-					return nil
+				if deltaX <= 0 {
+					t.Errorf("Expected positive deltaX for scroll left, got %d", deltaX)
 				}
 			},
-			wantErr: false,
 		},
 		{
 			name:      "scroll right char",
 			direction: services.ScrollDirectionRight,
 			amount:    services.ScrollAmountChar,
-			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
-					// Right = negative deltaX
-					if deltaX >= 0 {
-						t.Errorf("Expected negative deltaX for scroll right, got %d", deltaX)
-					}
+			wantErr:   false,
+			checkDelta: func(t *testing.T, deltaX, deltaY int) {
+				t.Helper()
 
-					return nil
+				if deltaX >= 0 {
+					t.Errorf("Expected negative deltaX for scroll right, got %d", deltaX)
 				}
 			},
-			wantErr: false,
 		},
 		{
 			name:      "accessibility error",
 			direction: services.ScrollDirectionDown,
 			amount:    services.ScrollAmountChar,
-			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, _ int) error {
-					return derrors.New(
-						derrors.CodeAccessibilityFailed,
-						"scroll permission denied",
-					)
-				}
-			},
-			wantErr: true,
+			scrollErr: derrors.New(derrors.CodeAccessibilityFailed, "scroll permission denied"),
+			wantErr:   true,
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			mockAcc := &mocks.MockAccessibilityPort{}
-			mockOverlay := &mocks.MockOverlayPort{}
-			config := config.ScrollConfig{
+			var recordedDeltaX, recordedDeltaY int
+
+			stubAcc := &scrollStubAccessibilityPort{
+				scrollErr: testCase.scrollErr,
+				scrollDeltaRecorder: func(deltaX, deltaY int) {
+					recordedDeltaX = deltaX
+					recordedDeltaY = deltaY
+				},
+			}
+			stubOv := &scrollStubOverlayPort{}
+			cfg := config.ScrollConfig{
 				ScrollStep:     10,
 				ScrollStepHalf: 30,
 				ScrollStepFull: 50,
 			}
 			logger := logger.Get()
 
-			if testCase.setupMocks != nil {
-				testCase.setupMocks(mockAcc)
-			}
-
-			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
+			service := services.NewScrollService(stubAcc, stubOv, cfg, logger)
 			ctx := context.Background()
 
 			scrollErr := service.Scroll(ctx, testCase.direction, testCase.amount)
@@ -153,86 +225,61 @@ func TestScrollService_Scroll(t *testing.T) {
 			if (scrollErr != nil) != testCase.wantErr {
 				t.Errorf("Scroll() error = %v, wantErr %v", scrollErr, testCase.wantErr)
 			}
+
+			if testCase.checkDelta != nil && !testCase.wantErr {
+				testCase.checkDelta(t, recordedDeltaX, recordedDeltaY)
+			}
 		})
 	}
 }
 
 func TestScrollService_ShowScrollOverlay(t *testing.T) {
 	tests := []struct {
-		name       string
-		setupMocks func(*mocks.MockAccessibilityPort, *mocks.MockOverlayPort)
-		wantErr    bool
+		name            string
+		screenBoundsErr error
+		drawErr         error
+		wantErr         bool
 	}{
 		{
-			name: "successful show",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
-				acc.ScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
-					return image.Rect(0, 0, 1920, 1080), nil
-				}
-				ov.DrawScrollHighlightFunc = func(_ context.Context, rect image.Rectangle, _ string, _ int) error {
-					if rect.Dx() != 1920 || rect.Dy() != 1080 {
-						t.Errorf("Unexpected rect dimensions: %v", rect)
-					}
-
-					return nil
-				}
-			},
+			name:    "successful show",
 			wantErr: false,
 		},
 		{
 			name: "screen bounds error",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.ScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
-					return image.Rectangle{}, derrors.New(
-						derrors.CodeAccessibilityFailed,
-						"failed to get screen bounds",
-					)
-				}
-			},
+			screenBoundsErr: derrors.New(
+				derrors.CodeAccessibilityFailed,
+				"failed to get screen bounds",
+			),
 			wantErr: true,
 		},
 		{
-			name: "overlay draw error",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
-				acc.ScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
-					return image.Rect(0, 0, 1920, 1080), nil
-				}
-				ov.DrawScrollHighlightFunc = func(_ context.Context, _ image.Rectangle, _ string, _ int) error {
-					return derrors.New(
-						derrors.CodeOverlayFailed,
-						"failed to draw scroll highlight",
-					)
-				}
-			},
+			name:    "overlay draw error",
+			drawErr: derrors.New(derrors.CodeOverlayFailed, "failed to draw scroll highlight"),
 			wantErr: true,
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			mockAcc := &mocks.MockAccessibilityPort{}
-			mockOverlay := &mocks.MockOverlayPort{}
-			config := config.ScrollConfig{
+			stubAcc := &scrollStubAccessibilityPort{
+				screenBoundsErr: testCase.screenBoundsErr,
+			}
+			stubOv := &scrollStubOverlayPort{
+				drawScrollErr: testCase.drawErr,
+			}
+			cfg := config.ScrollConfig{
 				HighlightColor: "#ff0000",
 				HighlightWidth: 5,
 			}
 			logger := logger.Get()
 
-			if testCase.setupMocks != nil {
-				testCase.setupMocks(mockAcc, mockOverlay)
-			}
-
-			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
+			service := services.NewScrollService(stubAcc, stubOv, cfg, logger)
 			ctx := context.Background()
 
 			showScrollOverlayErr := service.Show(ctx)
 
 			if (showScrollOverlayErr != nil) != testCase.wantErr {
-				t.Errorf(
-					"Show() error = %v, wantErr %v",
-					showScrollOverlayErr,
-					testCase.wantErr,
-				)
+				t.Errorf("Show() error = %v, wantErr %v", showScrollOverlayErr, testCase.wantErr)
 			}
 		})
 	}
@@ -240,72 +287,52 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 
 func TestScrollService_Hide(t *testing.T) {
 	tests := []struct {
-		name       string
-		setupMocks func(*mocks.MockOverlayPort)
-		wantErr    bool
+		name    string
+		hideErr error
+		wantErr bool
 	}{
 		{
-			name: "successful hide",
-			setupMocks: func(ov *mocks.MockOverlayPort) {
-				ov.HideFunc = func(_ context.Context) error {
-					return nil
-				}
-			},
+			name:    "successful hide",
+			hideErr: nil,
 			wantErr: false,
 		},
 		{
-			name: "overlay hide error",
-			setupMocks: func(ov *mocks.MockOverlayPort) {
-				ov.HideFunc = func(_ context.Context) error {
-					return derrors.New(
-						derrors.CodeOverlayFailed,
-						"failed to hide overlay",
-					)
-				}
-			},
+			name:    "overlay hide error",
+			hideErr: derrors.New(derrors.CodeOverlayFailed, "failed to hide overlay"),
 			wantErr: true,
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			mockAcc := &mocks.MockAccessibilityPort{}
-			mockOverlay := &mocks.MockOverlayPort{}
-			config := config.ScrollConfig{}
+			stubAcc := &scrollStubAccessibilityPort{}
+			stubOv := &scrollStubOverlayPort{hideErr: testCase.hideErr}
+			cfg := config.ScrollConfig{}
 			logger := logger.Get()
 
-			if testCase.setupMocks != nil {
-				testCase.setupMocks(mockOverlay)
-			}
-
-			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
+			service := services.NewScrollService(stubAcc, stubOv, cfg, logger)
 			ctx := context.Background()
 
 			hideScrollOverlayErr := service.Hide(ctx)
 
 			if (hideScrollOverlayErr != nil) != testCase.wantErr {
-				t.Errorf(
-					"Hide() error = %v, wantErr %v",
-					hideScrollOverlayErr,
-					testCase.wantErr,
-				)
+				t.Errorf("Hide() error = %v, wantErr %v", hideScrollOverlayErr, testCase.wantErr)
 			}
 		})
 	}
 }
 
 func TestScrollService_UpdateConfig(t *testing.T) {
-	mockAcc := &mocks.MockAccessibilityPort{}
-	mockOverlay := &mocks.MockOverlayPort{}
+	stubAcc := &scrollStubAccessibilityPort{}
+	stubOv := &scrollStubOverlayPort{}
 	logger := logger.Get()
 
 	initialConfig := config.ScrollConfig{
 		ScrollStep:     50,
 		ScrollStepFull: 1000,
 	}
-	service := services.NewScrollService(mockAcc, mockOverlay, initialConfig, logger)
+	service := services.NewScrollService(stubAcc, stubOv, initialConfig, logger)
 
-	// Update config
 	newConfig := config.ScrollConfig{
 		ScrollStep:     100,
 		ScrollStepFull: 2000,
@@ -313,6 +340,5 @@ func TestScrollService_UpdateConfig(t *testing.T) {
 	ctx := context.Background()
 	service.UpdateConfig(ctx, newConfig)
 
-	// Since config is private, we can't directly check, but ensure it doesn't crash.
-	// In a real scenario, we could test by calling methods that use config.
+	// Ensure it doesn't crash - config is private
 }

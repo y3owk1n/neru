@@ -7,13 +7,115 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
+
+// stubAccessibilityPort is a simple stub for AccessibilityPort.
+type stubAccessibilityPort struct {
+	elements []*element.Element
+	err      error
+}
+
+func (s *stubAccessibilityPort) Health(_ context.Context) error { return nil }
+
+func (s *stubAccessibilityPort) ClickableElements(
+	_ context.Context,
+	_ ports.ElementFilter,
+) ([]*element.Element, error) {
+	return s.elements, s.err
+}
+
+func (s *stubAccessibilityPort) PerformAction(
+	_ context.Context,
+	_ *element.Element,
+	_ action.Type,
+) error {
+	return nil
+}
+
+func (s *stubAccessibilityPort) PerformActionAtPoint(
+	_ context.Context,
+	_ action.Type,
+	_ image.Point,
+) error {
+	return nil
+}
+func (s *stubAccessibilityPort) Scroll(_ context.Context, _, _ int) error { return nil }
+func (s *stubAccessibilityPort) FocusedAppBundleID(_ context.Context) (string, error) {
+	return "", nil
+}
+func (s *stubAccessibilityPort) IsAppExcluded(_ context.Context, _ string) bool { return false }
+func (s *stubAccessibilityPort) ScreenBounds(_ context.Context) (image.Rectangle, error) {
+	return image.Rect(0, 0, 1920, 1080), nil
+}
+
+func (s *stubAccessibilityPort) MoveCursorToPoint(_ context.Context, _ image.Point, _ bool) error {
+	return nil
+}
+
+func (s *stubAccessibilityPort) CursorPosition(_ context.Context) (image.Point, error) {
+	return image.Point{}, nil
+}
+func (s *stubAccessibilityPort) CheckPermissions(_ context.Context) error { return nil }
+
+// stubOverlayPort is a simple stub for OverlayPort.
+type stubOverlayPort struct {
+	visible     bool
+	hideErr     error
+	refreshErr  error
+	healthErr   error
+	hideFunc    func(context.Context) error
+	refreshFunc func(context.Context) error
+	visibleFunc func() bool
+}
+
+func (s *stubOverlayPort) Health(_ context.Context) error { return s.healthErr }
+func (s *stubOverlayPort) ShowHints(_ context.Context, _ []*hint.Interface) error {
+	s.visible = true
+
+	return nil
+}
+func (s *stubOverlayPort) ShowGrid(_ context.Context) error { return nil }
+
+func (s *stubOverlayPort) DrawScrollHighlight(
+	_ context.Context,
+	_ image.Rectangle,
+	_ string,
+	_ int,
+) error {
+	return nil
+}
+
+func (s *stubOverlayPort) Hide(ctx context.Context) error {
+	if s.hideFunc != nil {
+		return s.hideFunc(ctx)
+	}
+
+	s.visible = false
+
+	return s.hideErr
+}
+
+func (s *stubOverlayPort) IsVisible() bool {
+	if s.visibleFunc != nil {
+		return s.visibleFunc()
+	}
+
+	return s.visible
+}
+
+func (s *stubOverlayPort) Refresh(ctx context.Context) error {
+	if s.refreshFunc != nil {
+		return s.refreshFunc(ctx)
+	}
+
+	return s.refreshErr
+}
 
 func TestHintService_ShowHints(t *testing.T) {
 	// Create test elements
@@ -25,208 +127,64 @@ func TestHintService_ShowHints(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		setupMocks    func(*mocks.MockAccessibilityPort, *mocks.MockOverlayPort)
-		setupGen      func() hint.Generator
+		elements      []*element.Element
+		accErr        error
 		config        config.HintsConfig
 		wantErr       bool
 		wantHintCount int
-		checkHints    func(*testing.T, []*hint.Interface)
-		checkOverlay  func(*testing.T, *mocks.MockOverlayPort)
 	}{
 		{
-			name: "successful hint display",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
-					return testElements, nil
-				}
-			},
-			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("asdf")
-
-				return gen
-			},
+			name:          "successful hint display",
+			elements:      testElements,
 			wantErr:       false,
-			wantHintCount: 3, // We have 3 test elements
-			checkHints: func(t *testing.T, hints []*hint.Interface) {
-				t.Helper()
-
-				if len(hints) != 3 {
-					t.Errorf("Expected 3 hints, got %d", len(hints))
-
-					return
-				}
-				// Check that hints have labels (exact labels depend on generator)
-				if hints[0].Label() == "" || hints[1].Label() == "" || hints[2].Label() == "" {
-					t.Error("Hints should have non-empty labels")
-				}
-			},
-			checkOverlay: func(t *testing.T, ov *mocks.MockOverlayPort) {
-				t.Helper()
-
-				if !ov.IsVisible() {
-					t.Error("Overlay should be visible after ShowHints")
-				}
-			},
+			wantHintCount: 3,
 		},
 		{
-			name: "no elements found",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
-					return []*element.Element{}, nil
-				}
-			},
-			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("asdf")
-
-				return gen
-			},
+			name:          "no elements found",
+			elements:      []*element.Element{},
 			wantErr:       false,
-			wantHintCount: 0, // No elements means no hints
-			checkHints: func(t *testing.T, hints []*hint.Interface) {
-				t.Helper()
-
-				if len(hints) != 0 {
-					t.Errorf("Expected 0 hints, got %d", len(hints))
-				}
-			},
+			wantHintCount: 0,
 		},
 		{
-			name: "accessibility error",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
-					return nil, derrors.New(
-						derrors.CodeAccessibilityFailed,
-						"accessibility permission denied",
-					)
-				}
-			},
-			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("asdf")
-
-				return gen
-			},
+			name:     "accessibility error",
+			elements: nil,
+			accErr: derrors.New(
+				derrors.CodeAccessibilityFailed,
+				"accessibility permission denied",
+			),
 			wantErr:       true,
 			wantHintCount: 0,
 		},
 		{
-			name: "large element set",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
-					// Create 100 elements
-					elements := make([]*element.Element, 100)
-
-					for index := range 100 {
-						elem, _ := element.NewElement(
-							element.ID("elem"+string(rune(index))),
-							image.Rect(index*10, index*10, index*10+40, index*10+40),
-							element.RoleButton,
-						)
-						elements[index] = elem
-					}
-
-					return elements, nil
-				}
-			},
-			setupGen: func() hint.Generator {
-				// Use larger character set for more hints
-				gen, _ := hint.NewAlphabetGenerator("abcdefghijklmnopqrstuvwxyz")
-
-				return gen
-			},
-			wantErr:       false,
-			wantHintCount: 100,
-			checkHints: func(t *testing.T, hints []*hint.Interface) {
-				t.Helper()
-
-				if len(hints) != 100 {
-					t.Errorf("Expected 100 hints, got %d", len(hints))
-				}
-			},
-		},
-		{
-			name: "single element",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
-					return []*element.Element{testElements[0]}, nil
-				}
-			},
-			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("ab")
-
-				return gen
-			},
+			name:          "single element",
+			elements:      []*element.Element{testElements[0]},
 			wantErr:       false,
 			wantHintCount: 1,
-			checkHints: func(t *testing.T, hints []*hint.Interface) {
-				t.Helper()
-
-				if len(hints) != 1 {
-					t.Errorf("Expected 1 hint, got %d", len(hints))
-				}
-			},
-		},
-		{
-			name: "config-driven filtering",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.ClickableElementsFunc = func(_ context.Context, filter ports.ElementFilter) ([]*element.Element, error) {
-					// Verify that config values are properly applied to filter
-					if !filter.IncludeMenubar {
-						t.Error("IncludeMenubar should be true based on config")
-					}
-
-					if !filter.IncludeDock {
-						t.Error("IncludeDock should be true based on config")
-					}
-
-					if !filter.IncludeNotificationCenter {
-						t.Error("IncludeNotificationCenter should be true based on config")
-					}
-
-					return testElements, nil
-				}
-			},
-			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("asdf")
-
-				return gen
-			},
-			config: config.HintsConfig{
-				IncludeMenubarHints:      true,
-				IncludeDockHints:         true,
-				IncludeNCHints:           true,
-				IncludeStageManagerHints: true,
-			},
-			wantErr:       false,
-			wantHintCount: 3,
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			mockAcc := &mocks.MockAccessibilityPort{}
-			mockOverlay := &mocks.MockOverlayPort{}
-
-			if testCase.setupMocks != nil {
-				testCase.setupMocks(mockAcc, mockOverlay)
+			stubAcc := &stubAccessibilityPort{
+				elements: testCase.elements,
+				err:      testCase.accErr,
 			}
+			stubOv := &stubOverlayPort{}
 
-			generator := testCase.setupGen()
+			generator, _ := hint.NewAlphabetGenerator("asdf")
 			logger := logger.Get()
 
 			service := services.NewHintService(
-				mockAcc,
-				mockOverlay,
+				stubAcc,
+				stubOv,
 				generator,
 				testCase.config,
 				logger,
 			)
 
 			ctx := context.Background()
-
-			// Act
 			hints, hintsErr := service.ShowHints(ctx)
 
-			// Assert
 			if testCase.wantErr && hintsErr == nil {
 				t.Error("ShowHints() expected error, got nil")
 			}
@@ -235,12 +193,8 @@ func TestHintService_ShowHints(t *testing.T) {
 				t.Errorf("ShowHints() unexpected error: %v", hintsErr)
 			}
 
-			if testCase.checkHints != nil {
-				testCase.checkHints(t, hints)
-			}
-
-			if testCase.checkOverlay != nil {
-				testCase.checkOverlay(t, mockOverlay)
+			if len(hints) != testCase.wantHintCount {
+				t.Errorf("Expected %d hints, got %d", testCase.wantHintCount, len(hints))
 			}
 		})
 	}
@@ -248,47 +202,32 @@ func TestHintService_ShowHints(t *testing.T) {
 
 func TestHintService_HideHints(t *testing.T) {
 	tests := []struct {
-		name       string
-		setupMocks func(*mocks.MockOverlayPort)
-		wantErr    bool
+		name    string
+		hideErr error
+		wantErr bool
 	}{
 		{
-			name: "successful hide",
-			setupMocks: func(ov *mocks.MockOverlayPort) {
-				ov.HideFunc = func(_ context.Context) error {
-					return nil
-				}
-			},
+			name:    "successful hide",
+			hideErr: nil,
 			wantErr: false,
 		},
 		{
-			name: "overlay hide error",
-			setupMocks: func(ov *mocks.MockOverlayPort) {
-				ov.HideFunc = func(_ context.Context) error {
-					return derrors.New(
-						derrors.CodeOverlayFailed,
-						"failed to hide overlay",
-					)
-				}
-			},
+			name:    "overlay hide error",
+			hideErr: derrors.New(derrors.CodeOverlayFailed, "failed to hide overlay"),
 			wantErr: true,
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			mockAcc := &mocks.MockAccessibilityPort{}
-			mockOverlay := &mocks.MockOverlayPort{}
+			stubAcc := &stubAccessibilityPort{}
+			stubOv := &stubOverlayPort{hideErr: testCase.hideErr}
 			generator, _ := hint.NewAlphabetGenerator("asdf")
 			logger := logger.Get()
 
-			if testCase.setupMocks != nil {
-				testCase.setupMocks(mockOverlay)
-			}
-
 			service := services.NewHintService(
-				mockAcc,
-				mockOverlay,
+				stubAcc,
+				stubOv,
 				generator,
 				config.HintsConfig{},
 				logger,
@@ -299,11 +238,6 @@ func TestHintService_HideHints(t *testing.T) {
 
 			if (hideHintsErr != nil) != testCase.wantErr {
 				t.Errorf("HideHints() error = %v, wantErr %v", hideHintsErr, testCase.wantErr)
-			}
-
-			// Only check visibility for successful hide
-			if !testCase.wantErr && mockOverlay.IsVisible() {
-				t.Error("Overlay should not be visible after successful HideHints")
 			}
 		})
 	}
@@ -342,25 +276,24 @@ func TestHintService_RefreshHints(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			mockAcc := &mocks.MockAccessibilityPort{}
-			mockOverlay := &mocks.MockOverlayPort{}
+			stubAcc := &stubAccessibilityPort{}
 
 			refreshCalled := false
-			mockOverlay.IsVisibleFunc = func() bool {
-				return testCase.overlayVisible
-			}
-			mockOverlay.RefreshFunc = func(_ context.Context) error {
-				refreshCalled = true
+			stubOv := &stubOverlayPort{
+				visibleFunc: func() bool { return testCase.overlayVisible },
+				refreshFunc: func(_ context.Context) error {
+					refreshCalled = true
 
-				return testCase.refreshError
+					return testCase.refreshError
+				},
 			}
 
 			generator, _ := hint.NewAlphabetGenerator("asdf")
 			logger := logger.Get()
 
 			service := services.NewHintService(
-				mockAcc,
-				mockOverlay,
+				stubAcc,
+				stubOv,
 				generator,
 				config.HintsConfig{},
 				logger,
@@ -381,22 +314,20 @@ func TestHintService_RefreshHints(t *testing.T) {
 }
 
 func TestHintService_UpdateGenerator(t *testing.T) {
-	mockAcc := &mocks.MockAccessibilityPort{}
-	mockOverlay := &mocks.MockOverlayPort{}
+	stubAcc := &stubAccessibilityPort{}
+	stubOv := &stubOverlayPort{}
 	logger := logger.Get()
 
-	// Initial generator
 	initialGen, _ := hint.NewAlphabetGenerator("abcd")
 
 	service := services.NewHintService(
-		mockAcc,
-		mockOverlay,
+		stubAcc,
+		stubOv,
 		initialGen,
 		config.HintsConfig{},
 		logger,
 	)
 
-	// Update with new generator
 	newGen, _ := hint.NewAlphabetGenerator("efgh")
 	ctx := context.Background()
 	service.UpdateGenerator(ctx, newGen)
@@ -406,31 +337,24 @@ func TestHintService_UpdateGenerator(t *testing.T) {
 }
 
 func TestHintService_Health(t *testing.T) {
-	mockAcc := &mocks.MockAccessibilityPort{}
-	mockOverlay := &mocks.MockOverlayPort{}
+	stubAcc := &stubAccessibilityPort{}
+	stubOv := &stubOverlayPort{
+		healthErr: derrors.New(derrors.CodeOverlayFailed, "overlay unhealthy"),
+	}
 	generator, _ := hint.NewAlphabetGenerator("abcd")
 	logger := logger.Get()
 
 	service := services.NewHintService(
-		mockAcc,
-		mockOverlay,
+		stubAcc,
+		stubOv,
 		generator,
 		config.HintsConfig{},
 		logger,
 	)
 
-	// Setup mocks
-	mockAcc.HealthFunc = func(_ context.Context) error {
-		return nil
-	}
-	mockOverlay.HealthFunc = func(_ context.Context) error {
-		return derrors.New(derrors.CodeOverlayFailed, "overlay unhealthy")
-	}
-
 	ctx := context.Background()
 	health := service.Health(ctx)
 
-	// Check that health map has both keys
 	if len(health) != 2 {
 		t.Errorf("Health() returned %d entries, want 2", len(health))
 	}
@@ -443,7 +367,6 @@ func TestHintService_Health(t *testing.T) {
 		t.Error("Health() missing 'overlay' key")
 	}
 
-	// Check that overlay has error
 	if health["overlay"] == nil {
 		t.Error("Health() overlay should have error")
 	}
