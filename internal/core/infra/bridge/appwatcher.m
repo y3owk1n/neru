@@ -213,6 +213,10 @@ void stopAppWatcher(void) {
 			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
 			NSNotificationCenter *center = [workspace notificationCenter];
 			[center removeObserver:delegate];
+
+			// Remove observer from default center (for screen parameter changes)
+			[[NSNotificationCenter defaultCenter] removeObserver:delegate];
+
 			delegate = nil; // ARC will handle deallocation
 		}
 	});
