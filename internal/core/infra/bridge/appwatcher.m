@@ -132,6 +132,13 @@ extern void handleScreenParametersChanged(void);
 	}
 }
 
+/// Handle active space change notification
+/// @param notification Notification object
+- (void)activeSpaceDidChange:(NSNotification *)notification {
+	// Treat space change as screen parameter change to trigger overlay refresh
+	[self screenParametersDidChange:notification];
+}
+
 /// Handle screen parameters change notification
 /// @param notification Notification object
 - (void)screenParametersDidChange:(NSNotification *)notification {
@@ -183,6 +190,11 @@ void startAppWatcher(void) {
 			[center addObserver:delegate
 			           selector:@selector(applicationDidDeactivate:)
 			               name:NSWorkspaceDidDeactivateApplicationNotification
+			             object:nil];
+
+			[center addObserver:delegate
+			           selector:@selector(activeSpaceDidChange:)
+			               name:NSWorkspaceActiveSpaceDidChangeNotification
 			             object:nil];
 
 			// Observe screen parameter changes (display add/remove, resolution changes)
