@@ -11,11 +11,13 @@ extern void resizeScrollCompletionCallback(void* context);
 import "C"
 
 import (
+	"sync"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"go.uber.org/zap"
 )
 
@@ -45,6 +47,14 @@ type Overlay struct {
 	config          config.ScrollConfig
 	logger          *zap.Logger
 	callbackManager *overlayutil.CallbackManager
+
+	// Cached C strings for style properties
+	cachedStyleMu          sync.RWMutex
+	cachedFontFamily       *C.char
+	cachedBgColor          *C.char
+	cachedTextColor        *C.char
+	cachedMatchedTextColor *C.char
+	cachedBorderColor      *C.char
 }
 
 // NewOverlay initializes a new scroll overlay instance with its own window.
@@ -145,48 +155,10 @@ func (o *Overlay) DrawScrollIndicator(xCoordinate, yCoordinate int) {
 		matchedPrefixLength: 0,
 	}
 
-	style := o.buildHintStyle()
+	// Use cached style strings to avoid repeated allocations and fix use-after-free
+	cFontFamily, cBgColor, cTextColor, cMatchedTextColor, cBorderColor := o.getCachedStyleStrings()
 
-	// Reuse NeruDrawHints which can draw arbitrary labels
-	C.NeruDrawHints(o.window, &hint, 1, style)
-}
-
-// UpdateConfig updates the overlay configuration.
-func (o *Overlay) UpdateConfig(config config.ScrollConfig) {
-	o.config = config
-}
-
-// Destroy releases the overlay window resources.
-func (o *Overlay) Destroy() {
-	// Clean up callback manager first to stop background goroutines
-	if o.callbackManager != nil {
-		o.callbackManager.Cleanup()
-	}
-
-	if o.window != nil {
-		C.NeruDestroyOverlayWindow(o.window)
-		o.window = nil
-	}
-}
-
-// buildHintStyle creates a C.HintStyle from the current scroll config.
-func (o *Overlay) buildHintStyle() C.HintStyle {
-	cFontFamily := C.CString(o.config.FontFamily)
-	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
-
-	cBgColor := C.CString(o.config.BackgroundColor)
-	defer C.free(unsafe.Pointer(cBgColor)) //nolint:nlreturn
-
-	cTextColor := C.CString(o.config.TextColor)
-	defer C.free(unsafe.Pointer(cTextColor)) //nolint:nlreturn
-
-	cMatchedTextColor := C.CString(o.config.TextColor) // No matching in scroll mode
-	defer C.free(unsafe.Pointer(cMatchedTextColor))    //nolint:nlreturn
-
-	cBorderColor := C.CString(o.config.BorderColor)
-	defer C.free(unsafe.Pointer(cBorderColor)) //nolint:nlreturn
-
-	return C.HintStyle{
+	style := C.HintStyle{
 		fontSize:         C.int(o.config.FontSize),
 		fontFamily:       cFontFamily,
 		backgroundColor:  cBgColor,
@@ -199,4 +171,92 @@ func (o *Overlay) buildHintStyle() C.HintStyle {
 		opacity:          C.double(o.config.Opacity),
 		showArrow:        0, // No arrow for scroll indicator
 	}
+
+	// Reuse NeruDrawHints which can draw arbitrary labels
+	C.NeruDrawHints(o.window, &hint, 1, style)
+}
+
+// UpdateConfig updates the overlay configuration.
+func (o *Overlay) UpdateConfig(config config.ScrollConfig) {
+	o.config = config
+	// Invalidate style cache when config changes
+	o.freeStyleCache()
+}
+
+// Destroy releases the overlay window resources.
+func (o *Overlay) Destroy() {
+	// Clean up callback manager first to stop background goroutines
+	if o.callbackManager != nil {
+		o.callbackManager.Cleanup()
+	}
+
+	if o.window != nil {
+		o.freeStyleCache()
+		C.NeruDestroyOverlayWindow(o.window)
+		o.window = nil
+	}
+}
+
+// freeStyleCache frees all cached C strings.
+func (o *Overlay) freeStyleCache() {
+	o.cachedStyleMu.Lock()
+	defer o.cachedStyleMu.Unlock()
+
+	bridge.FreeCString(unsafe.Pointer(o.cachedFontFamily))
+	o.cachedFontFamily = nil
+	bridge.FreeCString(unsafe.Pointer(o.cachedBgColor))
+	o.cachedBgColor = nil
+	bridge.FreeCString(unsafe.Pointer(o.cachedTextColor))
+	o.cachedTextColor = nil
+	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedTextColor))
+	o.cachedMatchedTextColor = nil
+	bridge.FreeCString(unsafe.Pointer(o.cachedBorderColor))
+	o.cachedBorderColor = nil
+}
+
+// updateStyleCacheLocked updates cached C strings for the current style.
+// Must be called with cachedStyleMu write lock held.
+func (o *Overlay) updateStyleCacheLocked() {
+	bridge.FreeCString(unsafe.Pointer(o.cachedFontFamily))
+	bridge.FreeCString(unsafe.Pointer(o.cachedBgColor))
+	bridge.FreeCString(unsafe.Pointer(o.cachedTextColor))
+	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedTextColor))
+	bridge.FreeCString(unsafe.Pointer(o.cachedBorderColor))
+
+	o.cachedFontFamily = C.CString(o.config.FontFamily)
+	o.cachedBgColor = C.CString(o.config.BackgroundColor)
+	o.cachedTextColor = C.CString(o.config.TextColor)
+	o.cachedMatchedTextColor = C.CString(o.config.TextColor) // No matching in scroll mode
+	o.cachedBorderColor = C.CString(o.config.BorderColor)
+}
+
+// getCachedStyleStrings returns cached C strings for style, updating cache if needed.
+func (o *Overlay) getCachedStyleStrings() (*C.char, *C.char, *C.char, *C.char, *C.char) {
+	o.cachedStyleMu.RLock()
+	// Check if cache needs rebuild or is invalid
+	if o.cachedFontFamily == nil {
+		o.cachedStyleMu.RUnlock()
+		o.cachedStyleMu.Lock()
+		// Double-check after acquiring write lock
+		if o.cachedFontFamily == nil {
+			o.updateStyleCacheLocked()
+		}
+		fontFamily := o.cachedFontFamily
+		bgColor := o.cachedBgColor
+		textColor := o.cachedTextColor
+		matchedTextColor := o.cachedMatchedTextColor
+		borderColor := o.cachedBorderColor
+		o.cachedStyleMu.Unlock()
+
+		return fontFamily, bgColor, textColor, matchedTextColor, borderColor
+	}
+
+	fontFamily := o.cachedFontFamily
+	bgColor := o.cachedBgColor
+	textColor := o.cachedTextColor
+	matchedTextColor := o.cachedMatchedTextColor
+	borderColor := o.cachedBorderColor
+	o.cachedStyleMu.RUnlock()
+
+	return fontFamily, bgColor, textColor, matchedTextColor, borderColor
 }
