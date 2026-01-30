@@ -19,7 +19,7 @@ extern void handleScreenParametersChanged(void);
 #pragma mark - App Watcher Delegate Implementation
 
 @interface AppWatcherDelegate : NSObject
-@property(nonatomic, strong) dispatch_source_t debounceTimer;
+@property(atomic, strong) dispatch_source_t debounceTimer;
 @end
 
 @implementation AppWatcherDelegate
