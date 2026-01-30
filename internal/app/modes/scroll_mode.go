@@ -13,7 +13,10 @@ type ScrollMode struct {
 	*GenericMode
 }
 
-const scrollPollInterval = 16 * time.Millisecond
+const (
+	scrollPollInterval = 16 * time.Millisecond
+	scrollPollTimeout  = 100 * time.Millisecond
+)
 
 // NewScrollMode creates a new scroll mode implementation.
 func NewScrollMode(handler *Handler) *ScrollMode {
@@ -34,18 +37,35 @@ func NewScrollMode(handler *Handler) *ScrollMode {
 			go func() {
 				defer close(doneCh)
 
-				// Create a local context for the polling loop
-				ctx := context.Background()
+				// Create a cancellable context bound to the stop channel
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				// Monitor stopCh to cancel context immediately if the polling operation hangs
+				go func() {
+					select {
+					case <-stopCh:
+						cancel()
+					case <-ctx.Done():
+						// Context canceled by other means (e.g. function exit)
+					}
+				}()
 
 				for {
 					select {
 					case <-stopCh:
 						return
 					case <-ticker.C:
-						x, y, err := handler.scrollService.GetCursorPosition(ctx)
+						// Use a timeout for the individual call to prevent hanging
+						// 100ms provides a reasonable buffer for the 16ms poll interval
+						reqCtx, reqCancel := context.WithTimeout(ctx, scrollPollTimeout)
+						cursorX, cursorY, err := handler.scrollService.GetCursorPosition(reqCtx)
+
+						reqCancel()
+
 						if err == nil {
 							// Update indicator position
-							handler.scrollService.UpdateIndicatorPosition(x, y)
+							handler.scrollService.UpdateIndicatorPosition(cursorX, cursorY)
 						}
 					}
 				}
