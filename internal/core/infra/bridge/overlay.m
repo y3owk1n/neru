@@ -28,10 +28,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 @property(nonatomic, assign) CGFloat hintBorderRadius;      ///< Hint border radius
 @property(nonatomic, assign) CGFloat hintBorderWidth;       ///< Hint border width
 @property(nonatomic, assign) CGFloat hintPadding;           ///< Hint padding
-@property(nonatomic, assign) CGRect scrollHighlight;        ///< Scroll highlight bounds
-@property(nonatomic, strong) NSColor *scrollHighlightColor; ///< Scroll highlight color
-@property(nonatomic, assign) int scrollHighlightWidth;      ///< Scroll highlight width
-@property(nonatomic, assign) BOOL showScrollHighlight;      ///< Show scroll highlight
 
 @property(nonatomic, strong) NSMutableArray *gridCells;           ///< Grid cells array
 @property(nonatomic, strong) NSMutableArray *gridLines;           ///< Grid lines array
@@ -71,7 +67,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		_hints = [NSMutableArray arrayWithCapacity:100];     // Pre-size for typical hint count
 		_gridCells = [NSMutableArray arrayWithCapacity:100]; // Pre-size for typical grid size
 		_gridLines = [NSMutableArray arrayWithCapacity:50];  // Pre-size for typical line count
-		_showScrollHighlight = NO;
+
 		_hintFont = [NSFont boldSystemFontOfSize:14.0];
 		_hintTextColor = [NSColor blackColor];
 		_hintMatchedTextColor = [NSColor systemBlueColor];
@@ -116,11 +112,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 	// Draw grid cells
 	[self drawGridCells];
-
-	// Draw scroll highlight if enabled
-	if (self.showScrollHighlight) {
-		[self drawScrollHighlight];
-	}
 
 	// Draw hints
 	[self drawHints];
@@ -378,36 +369,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		NSPoint textPosition = NSMakePoint(textX, textY);
 		[attrString drawAtPoint:textPosition];
 	}
-}
-
-/// Draw scroll highlight
-- (void)drawScrollHighlight {
-	if (CGRectIsEmpty(self.scrollHighlight)) {
-		return;
-	}
-
-	NSGraphicsContext *context = [NSGraphicsContext currentContext];
-	[context saveGraphicsState];
-
-	// Convert coordinates (macOS uses bottom-left origin)
-	NSScreen *mainScreen = [NSScreen mainScreen];
-	CGFloat screenHeight = [mainScreen frame].size.height;
-	CGFloat flippedY = screenHeight - self.scrollHighlight.origin.y - self.scrollHighlight.size.height;
-
-	NSRect rect = NSMakeRect(self.scrollHighlight.origin.x, flippedY, self.scrollHighlight.size.width,
-	                         self.scrollHighlight.size.height);
-
-	NSBezierPath *path = [NSBezierPath bezierPathWithRect:rect];
-
-	if (self.scrollHighlightColor) {
-		[self.scrollHighlightColor setStroke];
-	} else {
-		[[NSColor redColor] setStroke];
-	}
-	[path setLineWidth:self.scrollHighlightWidth];
-	[path stroke];
-
-	[context restoreGraphicsState];
 }
 
 /// Create color from hex string
@@ -695,14 +656,14 @@ void NeruClearOverlay(OverlayWindow window) {
 		[controller.overlayView.hints removeAllObjects];
 		[controller.overlayView.gridCells removeAllObjects];
 		[controller.overlayView.gridLines removeAllObjects];
-		controller.overlayView.showScrollHighlight = NO;
+
 		[controller.overlayView setNeedsDisplay:YES];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			[controller.overlayView.hints removeAllObjects];
 			[controller.overlayView.gridCells removeAllObjects];
 			[controller.overlayView.gridLines removeAllObjects];
-			controller.overlayView.showScrollHighlight = NO;
+
 			[controller.overlayView setNeedsDisplay:YES];
 		});
 	}
@@ -1086,62 +1047,6 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	});
 }
 
-/// Draw scroll highlight
-/// @param window Overlay window handle
-/// @param bounds Highlight bounds
-/// @param color Highlight color
-/// @param width Highlight width
-void NeruDrawScrollHighlight(OverlayWindow window, CGRect bounds, char *color, int width) {
-	if (!window)
-		return;
-
-	OverlayWindowController *controller = (OverlayWindowController *)window;
-
-	if ([NSThread isMainThread]) {
-		controller.overlayView.scrollHighlight = bounds;
-		controller.overlayView.scrollHighlightWidth = width;
-		controller.overlayView.showScrollHighlight = YES;
-
-		if (color) {
-			NSString *colorStr = @(color);
-			unsigned rgbValue = 0;
-			NSScanner *scanner = [NSScanner scannerWithString:colorStr];
-			[scanner setScanLocation:1];
-			[scanner scanHexInt:&rgbValue];
-
-			controller.overlayView.scrollHighlightColor = [NSColor colorWithRed:((rgbValue & 0xFF0000) >> 16) / 255.0
-			                                                              green:((rgbValue & 0xFF00) >> 8) / 255.0
-			                                                               blue:(rgbValue & 0xFF) / 255.0
-			                                                              alpha:1.0];
-		}
-
-		[controller.overlayView setNeedsDisplay:YES];
-	} else {
-		NSString *colorStr = color ? [NSString stringWithUTF8String:color] : nil;
-
-		dispatch_async(dispatch_get_main_queue(), ^{
-			controller.overlayView.scrollHighlight = bounds;
-			controller.overlayView.scrollHighlightWidth = width;
-			controller.overlayView.showScrollHighlight = YES;
-
-			if (colorStr) {
-				unsigned rgbValue = 0;
-				NSScanner *scanner = [NSScanner scannerWithString:colorStr];
-				[scanner setScanLocation:1];
-				[scanner scanHexInt:&rgbValue];
-
-				controller.overlayView.scrollHighlightColor =
-				    [NSColor colorWithRed:((rgbValue & 0xFF0000) >> 16) / 255.0
-				                    green:((rgbValue & 0xFF00) >> 8) / 255.0
-				                     blue:(rgbValue & 0xFF) / 255.0
-				                    alpha:1.0];
-			}
-
-			[controller.overlayView setNeedsDisplay:YES];
-		});
-	}
-}
-
 /// Replace overlay window
 /// @param pwindow Pointer to overlay window handle
 void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
@@ -1236,39 +1141,6 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 
 		[controller.overlayView.gridCells removeAllObjects];
 		[controller.overlayView.gridCells addObjectsFromArray:cellDicts];
-		[controller.overlayView setNeedsDisplay:YES];
-	});
-}
-
-/// Draw window border lines
-/// @param window Overlay window handle
-/// @param lines Array of line rectangles
-/// @param count Number of lines
-/// @param color Line color
-/// @param width Line width
-/// @param opacity Line opacity
-void NeruDrawWindowBorder(OverlayWindow window, CGRect *lines, int count, char *color, int width, double opacity) {
-	if (!window || !lines)
-		return;
-
-	OverlayWindowController *controller = (OverlayWindowController *)window;
-	NSString *colorHex = color ? @(color) : @"#333333";
-
-	// Build line data array
-	NSMutableArray *lineDicts = [NSMutableArray arrayWithCapacity:count];
-	for (int i = 0; i < count; i++) {
-		NSDictionary *lineDict = @{
-			@"rect" : [NSValue valueWithRect:NSRectFromCGRect(lines[i])],
-			@"color" : colorHex,
-			@"width" : @(width),
-			@"opacity" : @(opacity)
-		};
-		[lineDicts addObject:lineDict];
-	}
-
-	dispatch_async(dispatch_get_main_queue(), ^{
-		[controller.overlayView.gridLines removeAllObjects];
-		[controller.overlayView.gridLines addObjectsFromArray:lineDicts];
 		[controller.overlayView setNeedsDisplay:YES];
 	});
 }

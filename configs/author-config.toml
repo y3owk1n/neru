@@ -53,6 +53,9 @@ move_mouse_enabled = true
 steps = 10
 delay = 1
 
+[scroll]
+font_size = 10
+
 [metrics]
 enabled = false
 

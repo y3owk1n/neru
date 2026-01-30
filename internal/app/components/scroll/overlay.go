@@ -19,6 +19,17 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// defaultIndicatorWidth is the default width for the scroll indicator.
+	defaultIndicatorWidth = 60
+	// defaultIndicatorHeight is the default height for the scroll indicator.
+	defaultIndicatorHeight = 20
+	// defaultIndicatorXOffset is the default X offset for the scroll indicator.
+	defaultIndicatorXOffset = 20
+	// defaultIndicatorYOffset is the default Y offset for the scroll indicator.
+	defaultIndicatorYOffset = 20
+)
+
 //export resizeScrollCompletionCallback
 func resizeScrollCompletionCallback(context unsafe.Pointer) {
 	// Read callback ID from the pointer (points to a slice element in callbackIDStore)
@@ -34,7 +45,6 @@ type Overlay struct {
 	config          config.ScrollConfig
 	logger          *zap.Logger
 	callbackManager *overlayutil.CallbackManager
-	borderBuilder   *overlayutil.WindowBorderBuilder
 }
 
 // NewOverlay initializes a new scroll overlay instance with its own window.
@@ -49,7 +59,6 @@ func NewOverlay(config config.ScrollConfig, logger *zap.Logger) (*Overlay, error
 		config:          config,
 		logger:          logger,
 		callbackManager: overlayutil.NewCallbackManager(logger),
-		borderBuilder:   &overlayutil.WindowBorderBuilder{},
 	}, nil
 }
 
@@ -64,7 +73,6 @@ func NewOverlayWithWindow(
 		config:          config,
 		logger:          logger,
 		callbackManager: overlayutil.NewCallbackManager(logger),
-		borderBuilder:   &overlayutil.WindowBorderBuilder{},
 	}, nil
 }
 
@@ -113,43 +121,34 @@ func (o *Overlay) ResizeToActiveScreen() {
 	})
 }
 
-// DrawScrollHighlight renders a highlight border around the specified screen area.
-func (o *Overlay) DrawScrollHighlight(xCoordinate, yCoordinate, width, height int) {
-	// Use scroll config for highlight color and width
-	color := o.config.HighlightColor
-	borderWidth := o.config.HighlightWidth
+// DrawScrollIndicator draws a "Scroll" indicator at the specified position.
+func (o *Overlay) DrawScrollIndicator(xCoordinate, yCoordinate int) {
+	// Offset from cursor to avoid covering it
+	const xOffset = defaultIndicatorXOffset
+	const yOffset = defaultIndicatorYOffset
 
-	cColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
+	label := C.CString("Scroll")
+	defer C.free(unsafe.Pointer(label)) //nolint:nlreturn
 
-	// Use border builder to create rectangles
-	rectangles := o.borderBuilder.BuildBorderRectangles(
-		xCoordinate, yCoordinate, width, height, borderWidth,
-	)
-
-	// Convert to C rectangles
-	lines := make([]C.CGRect, len(rectangles))
-	for i, rect := range rectangles {
-		lines[i] = C.CGRect{
-			origin: C.CGPoint{
-				x: C.double(rect.X),
-				y: C.double(rect.Y),
-			},
-			size: C.CGSize{
-				width:  C.double(rect.Width),
-				height: C.double(rect.Height),
-			},
-		}
+	// Create a single hint for the indicator
+	hint := C.HintData{
+		label: label,
+		position: C.CGPoint{
+			x: C.double(xCoordinate + xOffset),
+			y: C.double(yCoordinate + yOffset),
+		},
+		size: C.CGSize{
+			// Size is not strictly needed for just drawing the label, but providing reasonable defaults
+			width:  defaultIndicatorWidth,
+			height: defaultIndicatorHeight,
+		},
+		matchedPrefixLength: 0,
 	}
 
-	C.NeruDrawWindowBorder(
-		o.window,
-		&lines[0],
-		C.int(len(lines)),
-		cColor,
-		C.int(borderWidth),
-		C.double(1.0),
-	)
+	style := o.buildHintStyle()
+
+	// Reuse NeruDrawHints which can draw arbitrary labels
+	C.NeruDrawHints(o.window, &hint, 1, style)
 }
 
 // UpdateConfig updates the overlay configuration.
@@ -167,5 +166,37 @@ func (o *Overlay) Destroy() {
 	if o.window != nil {
 		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
+	}
+}
+
+// buildHintStyle creates a C.HintStyle from the current scroll config.
+func (o *Overlay) buildHintStyle() C.HintStyle {
+	cFontFamily := C.CString(o.config.FontFamily)
+	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
+
+	cBgColor := C.CString(o.config.BackgroundColor)
+	defer C.free(unsafe.Pointer(cBgColor)) //nolint:nlreturn
+
+	cTextColor := C.CString(o.config.TextColor)
+	defer C.free(unsafe.Pointer(cTextColor)) //nolint:nlreturn
+
+	cMatchedTextColor := C.CString(o.config.TextColor) // No matching in scroll mode
+	defer C.free(unsafe.Pointer(cMatchedTextColor))    //nolint:nlreturn
+
+	cBorderColor := C.CString(o.config.BorderColor)
+	defer C.free(unsafe.Pointer(cBorderColor)) //nolint:nlreturn
+
+	return C.HintStyle{
+		fontSize:         C.int(o.config.FontSize),
+		fontFamily:       cFontFamily,
+		backgroundColor:  cBgColor,
+		textColor:        cTextColor,
+		matchedTextColor: cMatchedTextColor,
+		borderColor:      cBorderColor,
+		borderRadius:     C.int(o.config.BorderRadius),
+		borderWidth:      C.int(o.config.BorderWidth),
+		padding:          C.int(o.config.Padding),
+		opacity:          C.double(o.config.Opacity),
+		showArrow:        0, // No arrow for scroll indicator
 	}
 }

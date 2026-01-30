@@ -85,8 +85,8 @@ func (n *NoOpManager) DrawHintsWithStyle(
 	return nil
 }
 
-// DrawScrollHighlight is a no-op implementation.
-func (n *NoOpManager) DrawScrollHighlight(x, y, w, h int) {}
+// DrawScrollIndicator is a no-op implementation.
+func (n *NoOpManager) DrawScrollIndicator(x, y int) {}
 
 // DrawGrid is a no-op implementation.
 func (n *NoOpManager) DrawGrid(
@@ -158,7 +158,7 @@ type ManagerInterface interface {
 	ScrollOverlay() *scroll.Overlay
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
-	DrawScrollHighlight(x, y, w, h int)
+	DrawScrollIndicator(x, y int)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
 	UpdateGridMatches(prefix string)
 	ShowSubgrid(cell *domainGrid.Cell, style grid.Style)
@@ -338,12 +338,12 @@ func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) er
 	return nil
 }
 
-// DrawScrollHighlight renders a scroll highlight border using the scroll overlay renderer.
-func (m *Manager) DrawScrollHighlight(x, y, w, h int) {
+// DrawScrollIndicator renders a scroll indicator using the scroll overlay renderer.
+func (m *Manager) DrawScrollIndicator(x, y int) {
 	if m.scrollOverlay == nil {
 		return
 	}
-	m.scrollOverlay.DrawScrollHighlight(x, y, w, h)
+	m.scrollOverlay.DrawScrollIndicator(x, y)
 }
 
 // DrawGrid renders a grid with the specified style using the grid overlay renderer.

@@ -428,55 +428,6 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	// Note: We don't free cached style strings - they're reused across draws
 }
 
-// DrawScrollHighlight draws a scroll highlight.
-func (o *Overlay) DrawScrollHighlight(
-	xCoordinate, yCoordinate, width, height int,
-	color string,
-	borderWidth int,
-) {
-	// Cache color string if needed
-	o.cachedStyleMu.Lock()
-	if o.cachedHighlightColor != nil {
-		C.free(unsafe.Pointer(o.cachedHighlightColor))
-	}
-	o.cachedHighlightColor = C.CString(color)
-	cColor := o.cachedHighlightColor
-	o.cachedStyleMu.Unlock()
-
-	// Use pre-allocated buffer for grid lines (always 4 lines for highlights)
-	// Bottom
-	o.gridLineBuffer[0] = C.CGRect{
-		origin: C.CGPoint{x: C.double(xCoordinate), y: C.double(yCoordinate)},
-		size:   C.CGSize{width: C.double(width), height: C.double(borderWidth)},
-	}
-	// Top
-	o.gridLineBuffer[1] = C.CGRect{
-		origin: C.CGPoint{
-			x: C.double(xCoordinate),
-			y: C.double(yCoordinate + height - borderWidth),
-		},
-		size: C.CGSize{width: C.double(width), height: C.double(borderWidth)},
-	}
-	// Left
-	o.gridLineBuffer[2] = C.CGRect{
-		origin: C.CGPoint{x: C.double(xCoordinate), y: C.double(yCoordinate)},
-		size:   C.CGSize{width: C.double(borderWidth), height: C.double(height)},
-	}
-	// Right
-	o.gridLineBuffer[3] = C.CGRect{
-		origin: C.CGPoint{x: C.double(xCoordinate + width - borderWidth), y: C.double(yCoordinate)},
-		size:   C.CGSize{width: C.double(borderWidth), height: C.double(height)},
-	}
-	C.NeruDrawWindowBorder(
-		o.window,
-		&o.gridLineBuffer[0],
-		C.int(DefaultGridLinesCount),
-		cColor,
-		C.int(borderWidth),
-		C.double(1.0),
-	)
-}
-
 // SetViewport sets the current viewport for lazy rendering and forces a full redraw on next draw.
 func (o *Overlay) SetViewport(viewport image.Rectangle) {
 	// Update viewport

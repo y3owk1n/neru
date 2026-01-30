@@ -2,7 +2,6 @@ package overlay
 
 import (
 	"context"
-	"image"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
@@ -27,6 +26,11 @@ func NewMetricsDecorator(
 	}
 }
 
+// Show shows the overlay.
+func (d *MetricsDecorator) Show() {
+	d.next.Show()
+}
+
 // ShowHints implements ports.OverlayPort.
 func (d *MetricsDecorator) ShowHints(ctx context.Context, hints []*hint.Interface) error {
 	defer d.recordDuration("overlay_show_hints_duration", time.Now())
@@ -43,14 +47,9 @@ func (d *MetricsDecorator) ShowGrid(ctx context.Context) error {
 	return d.next.ShowGrid(ctx)
 }
 
-// DrawScrollHighlight implements ports.OverlayPort.
-func (d *MetricsDecorator) DrawScrollHighlight(
-	ctx context.Context,
-	rect image.Rectangle,
-	color string,
-	width int,
-) error {
-	return d.next.DrawScrollHighlight(ctx, rect, color, width)
+// DrawScrollIndicator implements ports.OverlayPort.
+func (d *MetricsDecorator) DrawScrollIndicator(x, y int) {
+	d.next.DrawScrollIndicator(x, y)
 }
 
 // Hide implements ports.OverlayPort.

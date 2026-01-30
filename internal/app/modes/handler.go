@@ -63,6 +63,11 @@ type Handler struct {
 	refreshHotkeys    func()
 	refreshHintsTimer *time.Timer
 	refreshHintsCh    chan struct{} // Channel for dispatching timer callback to main thread
+
+	// Scroll mode polling
+	scrollTicker *time.Ticker
+	scrollStopCh chan struct{}
+	scrollDoneCh chan struct{}
 }
 
 // NewHandler creates a new mode handler.

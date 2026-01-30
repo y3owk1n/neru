@@ -109,13 +109,10 @@ func (m *mockOverlayPort) ShowGrid(ctx context.Context) error {
 	return nil
 }
 
-func (m *mockOverlayPort) DrawScrollHighlight(
-	ctx context.Context,
-	rect image.Rectangle,
-	color string,
-	width int,
-) error {
-	return nil
+func (m *mockOverlayPort) Show() {
+}
+
+func (m *mockOverlayPort) DrawScrollIndicator(x, y int) {
 }
 
 func (m *mockOverlayPort) Hide(ctx context.Context) error {

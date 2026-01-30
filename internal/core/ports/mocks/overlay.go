@@ -2,7 +2,6 @@ package mocks
 
 import (
 	"context"
-	"image"
 
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -10,10 +9,11 @@ import (
 
 // MockOverlayPort is a mock implementation of ports.OverlayPort.
 type MockOverlayPort struct {
+	ShowFunc      func()
 	ShowHintsFunc func(context.Context, []*hint.Interface) error
 	ShowGridFunc  func(ctx context.Context) error
-	// DrawScrollHighlightFunc mocks DrawScrollHighlight.
-	DrawScrollHighlightFunc func(ctx context.Context, rect image.Rectangle, color string, width int) error
+	// DrawScrollIndicatorFunc mocks DrawScrollIndicator.
+	DrawScrollIndicatorFunc func(x, y int)
 	HideFunc                func(context.Context) error
 	IsVisibleFunc           func() bool
 	RefreshFunc             func(context.Context) error
@@ -21,6 +21,15 @@ type MockOverlayPort struct {
 
 	// State tracking for tests
 	visible bool
+}
+
+// Show implements ports.OverlayPort.
+func (m *MockOverlayPort) Show() {
+	if m.ShowFunc != nil {
+		m.ShowFunc()
+	}
+
+	m.visible = true
 }
 
 // ShowHints implements ports.OverlayPort.
@@ -43,18 +52,11 @@ func (m *MockOverlayPort) ShowGrid(ctx context.Context) error {
 	return nil
 }
 
-// DrawScrollHighlight implements ports.OverlayPort.
-func (m *MockOverlayPort) DrawScrollHighlight(
-	ctx context.Context,
-	rect image.Rectangle,
-	color string,
-	width int,
-) error {
-	if m.DrawScrollHighlightFunc != nil {
-		return m.DrawScrollHighlightFunc(ctx, rect, color, width)
+// DrawScrollIndicator implements ports.OverlayPort.
+func (m *MockOverlayPort) DrawScrollIndicator(x, y int) {
+	if m.DrawScrollIndicatorFunc != nil {
+		m.DrawScrollIndicatorFunc(x, y)
 	}
-
-	return nil
 }
 
 // Hide implements ports.OverlayPort.

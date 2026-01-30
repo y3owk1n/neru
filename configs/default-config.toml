@@ -196,12 +196,16 @@ scroll_step = 50         # Base scroll distance for j/k keys
 scroll_step_half = 500   # Scroll distance for Ctrl+D/U keys
 scroll_step_full = 1000000 # Scroll distance for Shift+G/g keys
 
-# Whether to highlight the scroll area
-highlight_scroll_area = true
-
-# Scroll highlight appearance
-highlight_color = "#FF0000"  # Color of scroll area highlight
-highlight_width = 2         # Border width of scroll highlight
+# Scroll indicator appearance
+font_size = 12           # Font size for scroll indicator
+font_family = "SF Mono"  # Font family for scroll indicator
+opacity = 0.95           # Opacity of scroll indicator
+background_color = "#FFD700" # Background color
+text_color = "#000000"       # Text color
+border_color = "#000000"     # Border color
+border_width = 1         # Border width
+padding = 4              # Padding inside the indicator
+border_radius = 4        # Corner radius
 
 # Key bindings for scroll mode
 # Each action can have multiple keys assigned to it
