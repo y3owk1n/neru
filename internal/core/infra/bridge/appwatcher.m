@@ -232,13 +232,16 @@ void stopAppWatcher(void) {
 
 	dispatch_sync(watcherQueue, ^{
 		if (delegate != nil) {
+			// Cancel any pending debounce timer
+			if (delegate.debounceTimer) {
+				dispatch_source_cancel(delegate.debounceTimer);
+				delegate.debounceTimer = nil;
+			}
 			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
 			NSNotificationCenter *center = [workspace notificationCenter];
 			[center removeObserver:delegate];
-
 			// Remove observer from default center (for screen parameter changes)
 			[[NSNotificationCenter defaultCenter] removeObserver:delegate];
-
 			delegate = nil; // ARC will handle deallocation
 		}
 	});
