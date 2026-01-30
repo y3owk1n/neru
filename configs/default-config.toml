@@ -206,6 +206,8 @@ border_color = "#000000"     # Border color
 border_width = 1         # Border width
 padding = 4              # Padding inside the indicator
 border_radius = 4        # Corner radius
+indicator_x_offset = 20  # X offset from cursor position
+indicator_y_offset = 20  # Y offset from cursor position
 
 # Key bindings for scroll mode
 # Each action can have multiple keys assigned to it

@@ -157,6 +157,10 @@ type ScrollConfig struct {
 	BorderWidth     int     `json:"borderWidth"     toml:"border_width"`
 	Padding         int     `json:"padding"         toml:"padding"`
 	BorderRadius    int     `json:"borderRadius"    toml:"border_radius"`
+
+	// Indicator positioning
+	IndicatorXOffset int `json:"indicatorXOffset" toml:"indicator_x_offset"`
+	IndicatorYOffset int `json:"indicatorYOffset" toml:"indicator_y_offset"`
 }
 
 // HintsConfig defines the visual and behavioral settings for hints mode.

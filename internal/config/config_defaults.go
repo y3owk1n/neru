@@ -39,6 +39,11 @@ const (
 	// DefaultScrollBorderRadius is the default border radius for scroll indicator.
 	DefaultScrollBorderRadius = 4
 
+	// DefaultScrollIndicatorXOffset is the default X offset for scroll indicator.
+	DefaultScrollIndicatorXOffset = 20
+	// DefaultScrollIndicatorYOffset is the default Y offset for scroll indicator.
+	DefaultScrollIndicatorYOffset = 20
+
 	// DefaultScrollSequenceTimeout is the timeout for multi-key sequences.
 	DefaultScrollSequenceTimeout = 500 * time.Millisecond
 
@@ -282,15 +287,17 @@ func DefaultConfig() *Config {
 			},
 
 			// New styling defaults
-			FontSize:        DefaultScrollFontSize,
-			FontFamily:      "SF Mono",
-			Opacity:         DefaultScrollOpacity,
-			BackgroundColor: "#FFD700",
-			TextColor:       "#000000",
-			BorderColor:     "#000000",
-			BorderWidth:     1,
-			Padding:         DefaultScrollPadding,
-			BorderRadius:    DefaultScrollBorderRadius,
+			FontSize:         DefaultScrollFontSize,
+			FontFamily:       "SF Mono",
+			Opacity:          DefaultScrollOpacity,
+			BackgroundColor:  "#FFD700",
+			TextColor:        "#000000",
+			BorderColor:      "#000000",
+			BorderWidth:      1,
+			Padding:          DefaultScrollPadding,
+			BorderRadius:     DefaultScrollBorderRadius,
+			IndicatorXOffset: DefaultScrollIndicatorXOffset,
+			IndicatorYOffset: DefaultScrollIndicatorYOffset,
 		},
 		Action: ActionConfig{
 			MoveMouseStep: DefaultMoveMouseStep,

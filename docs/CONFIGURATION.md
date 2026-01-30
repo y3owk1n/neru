@@ -344,6 +344,8 @@ border_color = "#000000"
 border_width = 1
 padding = 4
 border_radius = 4
+indicator_x_offset = 20
+indicator_y_offset = 20
 ```
 
 ### Customizable Key Bindings

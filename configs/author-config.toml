@@ -54,7 +54,7 @@ steps = 10
 delay = 1
 
 [scroll]
-font_size = 10
+font_family = "JetBrainsMonoNLNFP-Bold"
 
 [metrics]
 enabled = false

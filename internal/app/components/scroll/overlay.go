@@ -26,10 +26,6 @@ const (
 	defaultIndicatorWidth = 60
 	// defaultIndicatorHeight is the default height for the scroll indicator.
 	defaultIndicatorHeight = 20
-	// defaultIndicatorXOffset is the default X offset for the scroll indicator.
-	defaultIndicatorXOffset = 20
-	// defaultIndicatorYOffset is the default Y offset for the scroll indicator.
-	defaultIndicatorYOffset = 20
 )
 
 //export resizeScrollCompletionCallback
@@ -134,8 +130,8 @@ func (o *Overlay) ResizeToActiveScreen() {
 // DrawScrollIndicator draws a "Scroll" indicator at the specified position.
 func (o *Overlay) DrawScrollIndicator(xCoordinate, yCoordinate int) {
 	// Offset from cursor to avoid covering it
-	const xOffset = defaultIndicatorXOffset
-	const yOffset = defaultIndicatorYOffset
+	xOffset := o.config.IndicatorXOffset
+	yOffset := o.config.IndicatorYOffset
 
 	label := C.CString("Scroll")
 	defer C.free(unsafe.Pointer(label)) //nolint:nlreturn
