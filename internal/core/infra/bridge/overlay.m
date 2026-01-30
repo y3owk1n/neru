@@ -689,12 +689,22 @@ void NeruResizeOverlayToMainScreen(OverlayWindow window) {
 		[controller.overlayView setFrame:viewFrame];
 		[controller.overlayView setNeedsDisplay:YES];
 
+		// Force reset window state to handle "stuck" windows after full-screen transitions
+		[controller.window orderOut:nil];
 		[controller.window setLevel:kCGMaximumWindowLevel];
-		[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
-		                                         NSWindowCollectionBehaviorStationary |
-		                                         NSWindowCollectionBehaviorIgnoresCycle |
-		                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-		[controller.window orderFrontRegardless];
+		[controller.window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
+
+		// Use a separate dispatch to ensure the window server processes the orderOut and state reset
+		// before we bring the window back. This helps break the association with the previous space.
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
+			                                         NSWindowCollectionBehaviorStationary |
+			                                         NSWindowCollectionBehaviorIgnoresCycle |
+			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
+			[controller.window setIsVisible:YES];
+			[controller.window orderFrontRegardless];
+			[controller.window makeKeyAndOrderFront:nil];
+		});
 	});
 }
 
@@ -732,12 +742,20 @@ void NeruResizeOverlayToActiveScreen(OverlayWindow window) {
 		[controller.overlayView setFrame:viewFrame];
 		[controller.overlayView setNeedsDisplay:YES];
 
+		// Force reset window state to handle "stuck" windows after full-screen transitions
+		[controller.window orderOut:nil];
 		[controller.window setLevel:kCGMaximumWindowLevel];
-		[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
-		                                         NSWindowCollectionBehaviorStationary |
-		                                         NSWindowCollectionBehaviorIgnoresCycle |
-		                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-		[controller.window orderFrontRegardless];
+		[controller.window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
+
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
+			                                         NSWindowCollectionBehaviorStationary |
+			                                         NSWindowCollectionBehaviorIgnoresCycle |
+			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
+			[controller.window setIsVisible:YES];
+			[controller.window orderFrontRegardless];
+			[controller.window makeKeyAndOrderFront:nil];
+		});
 	});
 }
 
@@ -783,16 +801,24 @@ void NeruResizeOverlayToActiveScreenWithCallback(OverlayWindow window, ResizeCom
 		[controller.overlayView setFrame:viewFrame];
 		[controller.overlayView setNeedsDisplay:YES];
 
+		// Force reset window state to handle "stuck" windows after full-screen transitions
+		[controller.window orderOut:nil];
 		[controller.window setLevel:kCGMaximumWindowLevel];
-		[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
-		                                         NSWindowCollectionBehaviorStationary |
-		                                         NSWindowCollectionBehaviorIgnoresCycle |
-		                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-		[controller.window orderFrontRegardless];
+		[controller.window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
 
-		if (callback) {
-			callback(context);
-		}
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
+			                                         NSWindowCollectionBehaviorStationary |
+			                                         NSWindowCollectionBehaviorIgnoresCycle |
+			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
+			[controller.window setIsVisible:YES];
+			[controller.window orderFrontRegardless];
+			[controller.window makeKeyAndOrderFront:nil];
+
+			if (callback) {
+				callback(context);
+			}
+		});
 	});
 }
 

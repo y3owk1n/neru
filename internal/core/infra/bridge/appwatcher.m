@@ -152,8 +152,8 @@ extern void handleScreenParametersChanged(void);
 		    dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
 		if (timer) {
 			self.debounceTimer = timer;
-			dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC),
-			                          DISPATCH_TIME_FOREVER, 10 * NSEC_PER_MSEC);
+			dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 500 * NSEC_PER_MSEC),
+			                          DISPATCH_TIME_FOREVER, 50 * NSEC_PER_MSEC);
 			dispatch_source_set_event_handler(timer, ^{
 				handleScreenParametersChanged();
 				dispatch_source_cancel(timer);
