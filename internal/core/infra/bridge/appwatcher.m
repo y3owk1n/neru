@@ -19,6 +19,7 @@ extern void handleScreenParametersChanged(void);
 #pragma mark - App Watcher Delegate Implementation
 
 @interface AppWatcherDelegate : NSObject
+@property(nonatomic, strong) dispatch_source_t debounceTimer;
 @end
 
 @implementation AppWatcherDelegate
@@ -143,11 +144,23 @@ extern void handleScreenParametersChanged(void);
 /// @param notification Notification object
 - (void)screenParametersDidChange:(NSNotification *)notification {
 	@autoreleasepool {
-		// Debounce to allow system to settle, then invoke Go handler on watcherQueue (not main thread)
-		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
-		               dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-			               handleScreenParametersChanged();
-		               });
+		if (self.debounceTimer) {
+			dispatch_source_cancel(self.debounceTimer);
+			self.debounceTimer = nil;
+		}
+
+		self.debounceTimer =
+		    dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+		if (self.debounceTimer) {
+			dispatch_source_set_timer(self.debounceTimer, dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC),
+			                          DISPATCH_TIME_FOREVER, 10 * NSEC_PER_MSEC);
+			dispatch_source_set_event_handler(self.debounceTimer, ^{
+				handleScreenParametersChanged();
+				dispatch_source_cancel(self.debounceTimer);
+				self.debounceTimer = nil;
+			});
+			dispatch_resume(self.debounceTimer);
+		}
 	}
 }
 
