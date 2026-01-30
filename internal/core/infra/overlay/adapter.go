@@ -106,9 +106,7 @@ func (a *Adapter) ShowGrid(ctx context.Context) error {
 
 // DrawScrollIndicator draws a highlight for scroll mode.
 func (a *Adapter) DrawScrollIndicator(x, y int) {
-	a.manager.Show()
 	a.manager.DrawScrollIndicator(x, y)
-	a.manager.SwitchTo("scroll")
 }
 
 // Hide removes all overlays from the screen.

@@ -253,6 +253,11 @@ func (m *Manager) ResizeToActiveScreen() {
 func (m *Manager) SwitchTo(next Mode) {
 	m.mu.Lock()
 	prev := m.mode
+	if prev == next {
+		m.mu.Unlock()
+
+		return
+	}
 	m.mode = next
 	m.mu.Unlock()
 	if m.logger != nil {
