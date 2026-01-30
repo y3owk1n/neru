@@ -19,10 +19,19 @@ extern void handleScreenParametersChanged(void);
 #pragma mark - App Watcher Delegate Implementation
 
 @interface AppWatcherDelegate : NSObject
-@property(atomic, strong) dispatch_source_t debounceTimer;
+@property(nonatomic, strong) dispatch_source_t debounceTimer;
+@property(nonatomic, strong) dispatch_queue_t timerQueue;
 @end
 
 @implementation AppWatcherDelegate
+
+- (instancetype)init {
+	self = [super init];
+	if (self) {
+		_timerQueue = dispatch_queue_create("com.neru.debounce", DISPATCH_QUEUE_SERIAL);
+	}
+	return self;
+}
 
 /// Handle application launch notification
 /// @param notification Notification object
@@ -143,30 +152,32 @@ extern void handleScreenParametersChanged(void);
 /// Handle screen parameters change notification
 /// @param notification Notification object
 - (void)screenParametersDidChange:(NSNotification *)notification {
-	@autoreleasepool {
-		if (self.debounceTimer) {
-			dispatch_source_cancel(self.debounceTimer);
-			self.debounceTimer = nil;
-		}
-		dispatch_source_t timer =
-		    dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
-		if (timer) {
-			self.debounceTimer = timer;
-			dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC),
-			                          DISPATCH_TIME_FOREVER, 10 * NSEC_PER_MSEC);
-			dispatch_source_set_event_handler(timer, ^{
-				handleScreenParametersChanged();
-				dispatch_source_cancel(timer);
-				// Clear property on main thread to avoid race
-				dispatch_async(dispatch_get_main_queue(), ^{
-					if (self.debounceTimer == timer) {
-						self.debounceTimer = nil;
-					}
+	dispatch_async(self.timerQueue, ^{
+		@autoreleasepool {
+			if (self.debounceTimer) {
+				dispatch_source_cancel(self.debounceTimer);
+				self.debounceTimer = nil;
+			}
+			dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0,
+			                                                 dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+			if (timer) {
+				self.debounceTimer = timer;
+				dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 500 * NSEC_PER_MSEC),
+				                          DISPATCH_TIME_FOREVER, 50 * NSEC_PER_MSEC);
+				dispatch_source_set_event_handler(timer, ^{
+					handleScreenParametersChanged();
+					dispatch_source_cancel(timer);
+					// Clear property on timerQueue to avoid race
+					dispatch_async(self.timerQueue, ^{
+						if (self.debounceTimer == timer) {
+							self.debounceTimer = nil;
+						}
+					});
 				});
-			});
-			dispatch_resume(timer);
+				dispatch_resume(timer);
+			}
 		}
-	}
+	});
 }
 
 @end
@@ -232,11 +243,13 @@ void stopAppWatcher(void) {
 
 	dispatch_sync(watcherQueue, ^{
 		if (delegate != nil) {
-			// Cancel any pending debounce timer
-			if (delegate.debounceTimer) {
-				dispatch_source_cancel(delegate.debounceTimer);
-				delegate.debounceTimer = nil;
-			}
+			// Cancel any pending debounce timer synchronously
+			dispatch_sync(delegate.timerQueue, ^{
+				if (delegate.debounceTimer) {
+					dispatch_source_cancel(delegate.debounceTimer);
+					delegate.debounceTimer = nil;
+				}
+			});
 			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
 			NSNotificationCenter *center = [workspace notificationCenter];
 			[center removeObserver:delegate];
