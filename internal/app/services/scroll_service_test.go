@@ -166,45 +166,16 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 		{
 			name: "successful show",
 			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
-				acc.ScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
-					return image.Rect(0, 0, 1920, 1080), nil
+				acc.CursorPositionFunc = func(_ context.Context) (image.Point, error) {
+					return image.Point{X: 100, Y: 100}, nil
 				}
-				ov.DrawScrollHighlightFunc = func(_ context.Context, rect image.Rectangle, _ string, _ int) error {
-					if rect.Dx() != 1920 || rect.Dy() != 1080 {
-						t.Errorf("Unexpected rect dimensions: %v", rect)
+				ov.DrawScrollIndicatorFunc = func(x, y int) {
+					if x != 100 || y != 100 {
+						t.Errorf("Unexpected scroll indicator position: (%d, %d)", x, y)
 					}
-
-					return nil
 				}
 			},
 			wantErr: false,
-		},
-		{
-			name: "screen bounds error",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
-				acc.ScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
-					return image.Rectangle{}, derrors.New(
-						derrors.CodeAccessibilityFailed,
-						"failed to get screen bounds",
-					)
-				}
-			},
-			wantErr: true,
-		},
-		{
-			name: "overlay draw error",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
-				acc.ScreenBoundsFunc = func(_ context.Context) (image.Rectangle, error) {
-					return image.Rect(0, 0, 1920, 1080), nil
-				}
-				ov.DrawScrollHighlightFunc = func(_ context.Context, _ image.Rectangle, _ string, _ int) error {
-					return derrors.New(
-						derrors.CodeOverlayFailed,
-						"failed to draw scroll highlight",
-					)
-				}
-			},
-			wantErr: true,
 		},
 	}
 
@@ -213,8 +184,7 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
 			config := config.ScrollConfig{
-				HighlightColor: "#ff0000",
-				HighlightWidth: 5,
+				ScrollStep: 10,
 			}
 			logger := logger.Get()
 

@@ -141,13 +141,26 @@ type HotkeysConfig struct {
 
 // ScrollConfig defines the behavior and appearance settings for scroll mode.
 type ScrollConfig struct {
-	ScrollStep          int                 `json:"scrollStep"          toml:"scroll_step"`
-	ScrollStepHalf      int                 `json:"scrollStepHalf"      toml:"scroll_step_half"`
-	ScrollStepFull      int                 `json:"scrollStepFull"      toml:"scroll_step_full"`
-	HighlightScrollArea bool                `json:"highlightScrollArea" toml:"highlight_scroll_area"`
-	HighlightColor      string              `json:"highlightColor"      toml:"highlight_color"`
-	HighlightWidth      int                 `json:"highlightWidth"      toml:"highlight_width"`
-	KeyBindings         map[string][]string `json:"keyBindings"         toml:"key_bindings"`
+	ScrollStep     int `json:"scrollStep"     toml:"scroll_step"`
+	ScrollStepHalf int `json:"scrollStepHalf" toml:"scroll_step_half"`
+	ScrollStepFull int `json:"scrollStepFull" toml:"scroll_step_full"`
+
+	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
+
+	// New styling fields
+	FontSize        int     `json:"fontSize"        toml:"font_size"`
+	FontFamily      string  `json:"fontFamily"      toml:"font_family"`
+	Opacity         float64 `json:"opacity"         toml:"opacity"`
+	BackgroundColor string  `json:"backgroundColor" toml:"background_color"`
+	TextColor       string  `json:"textColor"       toml:"text_color"`
+	BorderColor     string  `json:"borderColor"     toml:"border_color"`
+	BorderWidth     int     `json:"borderWidth"     toml:"border_width"`
+	Padding         int     `json:"padding"         toml:"padding"`
+	BorderRadius    int     `json:"borderRadius"    toml:"border_radius"`
+
+	// Indicator positioning
+	IndicatorXOffset int `json:"indicatorXOffset" toml:"indicator_x_offset"`
+	IndicatorYOffset int `json:"indicatorYOffset" toml:"indicator_y_offset"`
 }
 
 // HintsConfig defines the visual and behavioral settings for hints mode.

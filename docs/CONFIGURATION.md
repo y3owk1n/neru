@@ -334,9 +334,18 @@ scroll_step = 50           # j/k keys
 scroll_step_half = 500     # Ctrl+D/U
 scroll_step_full = 1000000 # gg/G (top/bottom)
 
-highlight_scroll_area = true
-highlight_color = "#FF0000"
-highlight_width = 2
+# Scroll indicator styling
+font_size = 12
+font_family = "SF Mono"
+opacity = 0.95
+background_color = "#FFD700"
+text_color = "#000000"
+border_color = "#000000"
+border_width = 1
+padding = 4
+border_radius = 4
+indicator_x_offset = 20
+indicator_y_offset = 20
 ```
 
 ### Customizable Key Bindings

@@ -30,8 +30,19 @@ const (
 	// DefaultScrollStepFull is the default scroll step full.
 	DefaultScrollStepFull = 1000000
 
-	// DefaultScrollHighlightWidth is the default highlight width for scroll.
-	DefaultScrollHighlightWidth = 3
+	// DefaultScrollFontSize is the default font size for scroll indicator.
+	DefaultScrollFontSize = 12
+	// DefaultScrollOpacity is the default opacity for scroll indicator.
+	DefaultScrollOpacity = 0.95
+	// DefaultScrollPadding is the default padding for scroll indicator.
+	DefaultScrollPadding = 4
+	// DefaultScrollBorderRadius is the default border radius for scroll indicator.
+	DefaultScrollBorderRadius = 4
+
+	// DefaultScrollIndicatorXOffset is the default X offset for scroll indicator.
+	DefaultScrollIndicatorXOffset = 20
+	// DefaultScrollIndicatorYOffset is the default Y offset for scroll indicator.
+	DefaultScrollIndicatorYOffset = 20
 
 	// DefaultScrollSequenceTimeout is the timeout for multi-key sequences.
 	DefaultScrollSequenceTimeout = 500 * time.Millisecond
@@ -264,10 +275,6 @@ func DefaultConfig() *Config {
 			ScrollStepHalf: DefaultScrollStepHalf,
 			ScrollStepFull: DefaultScrollStepFull,
 
-			HighlightScrollArea: true,
-			HighlightColor:      "#FF0000",
-			HighlightWidth:      DefaultScrollHighlightWidth,
-
 			KeyBindings: map[string][]string{
 				"scroll_up":    {"k", "Up"},
 				"scroll_down":  {"j", "Down"},
@@ -278,6 +285,19 @@ func DefaultConfig() *Config {
 				"page_up":      {"Ctrl+U", "PageUp"},
 				"page_down":    {"Ctrl+D", "PageDown"},
 			},
+
+			// New styling defaults
+			FontSize:         DefaultScrollFontSize,
+			FontFamily:       "SF Mono",
+			Opacity:          DefaultScrollOpacity,
+			BackgroundColor:  "#FFD700",
+			TextColor:        "#000000",
+			BorderColor:      "#000000",
+			BorderWidth:      1,
+			Padding:          DefaultScrollPadding,
+			BorderRadius:     DefaultScrollBorderRadius,
+			IndicatorXOffset: DefaultScrollIndicatorXOffset,
+			IndicatorYOffset: DefaultScrollIndicatorYOffset,
 		},
 		Action: ActionConfig{
 			MoveMouseStep: DefaultMoveMouseStep,

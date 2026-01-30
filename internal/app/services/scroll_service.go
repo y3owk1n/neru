@@ -82,22 +82,20 @@ func (s *ScrollService) Scroll(
 
 // Show displays the scroll overlay with a highlight.
 func (s *ScrollService) Show(ctx context.Context) error {
-	// Get screen screenBounds to draw highlight around active screen
-	screenBounds, screenBoundsErr := s.accessibility.ScreenBounds(ctx)
-	if screenBoundsErr != nil {
-		return core.WrapAccessibilityFailed(screenBoundsErr, "get screen bounds")
+	// Show overlay window first
+	s.overlay.Show()
+
+	// Get cursor position to draw initial indicator
+	point, err := s.accessibility.CursorPosition(ctx)
+	if err != nil {
+		s.logger.Warn("Failed to get cursor position for scroll indicator", zap.Error(err))
+		// Fallback to center screen if cursor position fails?
+		// For now, just don't draw the indicator if we can't find the cursor
+		return nil
 	}
 
-	// Draw highlight
-	drawScrollHighlightErr := s.overlay.DrawScrollHighlight(
-		ctx,
-		screenBounds,
-		s.config.HighlightColor,
-		s.config.HighlightWidth,
-	)
-	if drawScrollHighlightErr != nil {
-		return core.WrapOverlayFailed(drawScrollHighlightErr, "draw scroll highlight")
-	}
+	// Draw indicator
+	s.overlay.DrawScrollIndicator(point.X, point.Y)
 
 	return nil
 }
@@ -110,6 +108,21 @@ func (s *ScrollService) Hide(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// GetCursorPosition returns the current cursor position.
+func (s *ScrollService) GetCursorPosition(ctx context.Context) (int, int, error) {
+	point, err := s.accessibility.CursorPosition(ctx)
+	if err != nil {
+		return 0, 0, core.WrapAccessibilityFailed(err, "get cursor position")
+	}
+
+	return point.X, point.Y, nil
+}
+
+// UpdateIndicatorPosition updates the scroll indicator position.
+func (s *ScrollService) UpdateIndicatorPosition(x, y int) {
+	s.overlay.DrawScrollIndicator(x, y)
 }
 
 // UpdateConfig updates the scroll configuration.

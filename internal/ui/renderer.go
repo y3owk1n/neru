@@ -75,7 +75,7 @@ func (r *OverlayRenderer) ResizeActive() {
 	r.manager.ResizeToActiveScreen()
 }
 
-// DrawScrollHighlight draws a scroll highlight border around the active screen.
-func (r *OverlayRenderer) DrawScrollHighlight(x, y, width, height int) {
-	r.manager.DrawScrollHighlight(x, y, width, height)
+// DrawScrollIndicator draws a scroll indicator at the specified position.
+func (r *OverlayRenderer) DrawScrollIndicator(x, y int) {
+	r.manager.DrawScrollIndicator(x, y)
 }

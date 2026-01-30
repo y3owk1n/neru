@@ -2,7 +2,6 @@ package ports
 
 import (
 	"context"
-	"image"
 
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 )
@@ -21,12 +20,15 @@ type GridDisplay interface {
 
 // HighlightDisplay defines the interface for displaying highlight overlays.
 type HighlightDisplay interface {
-	// DrawScrollHighlight draws a highlight for scroll mode.
-	DrawScrollHighlight(ctx context.Context, rect image.Rectangle, color string, width int) error
+	// DrawScrollIndicator draws a scroll indicator at the specified position.
+	DrawScrollIndicator(x, y int)
 }
 
 // OverlayVisibility defines the interface for overlay visibility management.
 type OverlayVisibility interface {
+	// Show shows the overlay.
+	Show()
+
 	// Hide hides the overlays from the screen.
 	Hide(ctx context.Context) error
 
@@ -48,8 +50,11 @@ type OverlayPort interface {
 	// ShowGrid displays the grid overlay.
 	ShowGrid(ctx context.Context) error
 
-	// DrawScrollHighlight draws a highlight for scroll mode.
-	DrawScrollHighlight(ctx context.Context, rect image.Rectangle, color string, width int) error
+	// Show shows the overlay.
+	Show()
+
+	// DrawScrollIndicator draws a scroll indicator at the specified position.
+	DrawScrollIndicator(x, y int)
 
 	// Hide hides the overlay.s from the screen.
 	Hide(ctx context.Context) error

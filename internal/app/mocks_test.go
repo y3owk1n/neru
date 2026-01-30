@@ -179,7 +179,7 @@ func (m *mockOverlayManager) DrawHintsWithStyle(
 ) error {
 	return nil
 }
-func (m *mockOverlayManager) DrawScrollHighlight(_, _, _, _ int) {}
+func (m *mockOverlayManager) DrawScrollIndicator(_, _ int) {}
 
 func (m *mockOverlayManager) DrawGrid(
 	_ *domainGrid.Grid,

@@ -2,7 +2,6 @@ package overlay
 
 import (
 	"context"
-	"image"
 
 	gridFeature "github.com/y3owk1n/neru/internal/app/components/grid"
 	overlayHints "github.com/y3owk1n/neru/internal/app/components/hints"
@@ -27,6 +26,11 @@ func NewAdapter(manager uiOverlay.ManagerInterface, logger *zap.Logger) *Adapter
 		manager: manager,
 		logger:  logger,
 	}
+}
+
+// Show shows the overlay.
+func (a *Adapter) Show() {
+	a.manager.Show()
 }
 
 // ShowHints displays hint labels on the screen.
@@ -100,31 +104,9 @@ func (a *Adapter) ShowGrid(ctx context.Context) error {
 	return nil
 }
 
-// DrawScrollHighlight draws a highlight for scroll mode.
-func (a *Adapter) DrawScrollHighlight(
-	ctx context.Context,
-	rect image.Rectangle,
-	_ string,
-	_ int,
-) error {
-	select {
-	case <-ctx.Done():
-		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
-	}
-
-	a.manager.DrawScrollHighlight(
-		0,
-		0,
-		rect.Dx(),
-		rect.Dy(),
-	)
-
-	// Show overlay and switch mode
-	a.manager.Show()
-	a.manager.SwitchTo("scroll")
-
-	return nil
+// DrawScrollIndicator draws a highlight for scroll mode.
+func (a *Adapter) DrawScrollIndicator(x, y int) {
+	a.manager.DrawScrollIndicator(x, y)
 }
 
 // Hide removes all overlays from the screen.

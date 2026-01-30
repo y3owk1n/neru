@@ -113,13 +113,6 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix);
 void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addCount, CGPoint *positionsToRemove,
                             int removeCount, HintStyle style);
 
-/// Draw scroll highlight
-/// @param window Overlay window handle
-/// @param bounds Highlight bounds
-/// @param color Highlight color
-/// @param width Highlight width
-void NeruDrawScrollHighlight(OverlayWindow window, CGRect bounds, char *color, int width);
-
 /// Set overlay level
 /// @param window Overlay window handle
 /// @param level Overlay level
@@ -152,15 +145,6 @@ void NeruResizeOverlayToActiveScreenWithCallback(OverlayWindow window, ResizeCom
 /// @param count Number of cells
 /// @param style Grid cell style
 void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCellStyle style);
-
-/// Draw window border lines
-/// @param window Overlay window handle
-/// @param lines Array of line rectangles
-/// @param count Number of lines
-/// @param color Line color
-/// @param width Line width
-/// @param opacity Line opacity
-void NeruDrawWindowBorder(OverlayWindow window, CGRect *lines, int count, char *color, int width, double opacity);
 
 /// Update grid match prefix
 /// @param window Overlay window handle

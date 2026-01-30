@@ -59,7 +59,6 @@ type Overlay struct {
 	cachedTextColor        *C.char
 	cachedMatchedTextColor *C.char
 	cachedBorderColor      *C.char
-	cachedHighlightColor   *C.char
 
 	// State tracking for incremental updates
 	// NOTE: Assumes Hint instances are immutable between draws to avoid aliasing issues
@@ -233,29 +232,6 @@ func (o *Overlay) DrawHintsWithStyle(hints []*Hint, style StyleMode) error {
 	return o.drawHintsInternal(hints, style, true)
 }
 
-// DrawScrollHighlight draws a highlight around a scroll area.
-func (o *Overlay) DrawScrollHighlight(
-	xCoordinate, yCoordinate, width, height int,
-	color string,
-	borderWidth int,
-) {
-	renderBounds := C.CGRect{
-		origin: C.CGPoint{
-			x: C.double(xCoordinate),
-			y: C.double(yCoordinate),
-		},
-		size: C.CGSize{
-			width:  C.double(width),
-			height: C.double(height),
-		},
-	}
-
-	cColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cColor)) //nolint:nlreturn
-
-	C.NeruDrawScrollHighlight(o.window, renderBounds, cColor, C.int(borderWidth))
-}
-
 // BuildStyle returns StyleMode based on action name using the provided config.
 func BuildStyle(cfg config.HintsConfig) StyleMode {
 	style := StyleMode{
@@ -310,8 +286,6 @@ func (o *Overlay) freeStyleCache() {
 	o.cachedMatchedTextColor = nil
 	bridge.FreeCString(unsafe.Pointer(o.cachedBorderColor))
 	o.cachedBorderColor = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedHighlightColor))
-	o.cachedHighlightColor = nil
 }
 
 // updateStyleCacheLocked updates cached C strings for the current style.
