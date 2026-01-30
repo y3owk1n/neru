@@ -19,6 +19,7 @@ extern void handleScreenParametersChanged(void);
 #pragma mark - App Watcher Delegate Implementation
 
 @interface AppWatcherDelegate : NSObject
+@property(atomic, strong) dispatch_source_t debounceTimer;
 @end
 
 @implementation AppWatcherDelegate
@@ -132,15 +133,39 @@ extern void handleScreenParametersChanged(void);
 	}
 }
 
+/// Handle active space change notification
+/// @param notification Notification object
+- (void)activeSpaceDidChange:(NSNotification *)notification {
+	// Treat space change as screen parameter change to trigger overlay refresh
+	[self screenParametersDidChange:notification];
+}
+
 /// Handle screen parameters change notification
 /// @param notification Notification object
 - (void)screenParametersDidChange:(NSNotification *)notification {
 	@autoreleasepool {
-		// Debounce to allow system to settle, then invoke Go handler on watcherQueue (not main thread)
-		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
-		               dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-			               handleScreenParametersChanged();
-		               });
+		if (self.debounceTimer) {
+			dispatch_source_cancel(self.debounceTimer);
+			self.debounceTimer = nil;
+		}
+		dispatch_source_t timer =
+		    dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+		if (timer) {
+			self.debounceTimer = timer;
+			dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC),
+			                          DISPATCH_TIME_FOREVER, 10 * NSEC_PER_MSEC);
+			dispatch_source_set_event_handler(timer, ^{
+				handleScreenParametersChanged();
+				dispatch_source_cancel(timer);
+				// Clear property on main thread to avoid race
+				dispatch_async(dispatch_get_main_queue(), ^{
+					if (self.debounceTimer == timer) {
+						self.debounceTimer = nil;
+					}
+				});
+			});
+			dispatch_resume(timer);
+		}
 	}
 }
 
@@ -185,6 +210,11 @@ void startAppWatcher(void) {
 			               name:NSWorkspaceDidDeactivateApplicationNotification
 			             object:nil];
 
+			[center addObserver:delegate
+			           selector:@selector(activeSpaceDidChange:)
+			               name:NSWorkspaceActiveSpaceDidChangeNotification
+			             object:nil];
+
 			// Observe screen parameter changes (display add/remove, resolution changes)
 			[[NSNotificationCenter defaultCenter] addObserver:delegate
 			                                         selector:@selector(screenParametersDidChange:)
@@ -196,11 +226,22 @@ void startAppWatcher(void) {
 
 /// Stop the application watcher
 void stopAppWatcher(void) {
+	if (watcherQueue == nil) {
+		return;
+	}
+
 	dispatch_sync(watcherQueue, ^{
 		if (delegate != nil) {
+			// Cancel any pending debounce timer
+			if (delegate.debounceTimer) {
+				dispatch_source_cancel(delegate.debounceTimer);
+				delegate.debounceTimer = nil;
+			}
 			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
 			NSNotificationCenter *center = [workspace notificationCenter];
 			[center removeObserver:delegate];
+			// Remove observer from default center (for screen parameter changes)
+			[[NSNotificationCenter defaultCenter] removeObserver:delegate];
 			delegate = nil; // ARC will handle deallocation
 		}
 	});

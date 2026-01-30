@@ -688,6 +688,13 @@ void NeruResizeOverlayToMainScreen(OverlayWindow window) {
 		NSRect viewFrame = NSMakeRect(0, 0, screenFrame.size.width, screenFrame.size.height);
 		[controller.overlayView setFrame:viewFrame];
 		[controller.overlayView setNeedsDisplay:YES];
+
+		[controller.window setLevel:kCGMaximumWindowLevel];
+		[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
+		                                         NSWindowCollectionBehaviorStationary |
+		                                         NSWindowCollectionBehaviorIgnoresCycle |
+		                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
+		[controller.window orderFrontRegardless];
 	});
 }
 
@@ -724,6 +731,13 @@ void NeruResizeOverlayToActiveScreen(OverlayWindow window) {
 		NSRect viewFrame = NSMakeRect(0, 0, screenFrame.size.width, screenFrame.size.height);
 		[controller.overlayView setFrame:viewFrame];
 		[controller.overlayView setNeedsDisplay:YES];
+
+		[controller.window setLevel:kCGMaximumWindowLevel];
+		[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
+		                                         NSWindowCollectionBehaviorStationary |
+		                                         NSWindowCollectionBehaviorIgnoresCycle |
+		                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
+		[controller.window orderFrontRegardless];
 	});
 }
 
@@ -768,6 +782,13 @@ void NeruResizeOverlayToActiveScreenWithCallback(OverlayWindow window, ResizeCom
 		NSRect viewFrame = NSMakeRect(0, 0, screenFrame.size.width, screenFrame.size.height);
 		[controller.overlayView setFrame:viewFrame];
 		[controller.overlayView setNeedsDisplay:YES];
+
+		[controller.window setLevel:kCGMaximumWindowLevel];
+		[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
+		                                         NSWindowCollectionBehaviorStationary |
+		                                         NSWindowCollectionBehaviorIgnoresCycle |
+		                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
+		[controller.window orderFrontRegardless];
 
 		if (callback) {
 			callback(context);
