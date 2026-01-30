@@ -208,6 +208,10 @@ void startAppWatcher(void) {
 
 /// Stop the application watcher
 void stopAppWatcher(void) {
+	if (watcherQueue == nil) {
+		return;
+	}
+
 	dispatch_sync(watcherQueue, ^{
 		if (delegate != nil) {
 			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
