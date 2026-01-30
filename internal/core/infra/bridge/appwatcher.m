@@ -148,18 +148,23 @@ extern void handleScreenParametersChanged(void);
 			dispatch_source_cancel(self.debounceTimer);
 			self.debounceTimer = nil;
 		}
-
-		self.debounceTimer =
+		dispatch_source_t timer =
 		    dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
-		if (self.debounceTimer) {
-			dispatch_source_set_timer(self.debounceTimer, dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC),
+		if (timer) {
+			self.debounceTimer = timer;
+			dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC),
 			                          DISPATCH_TIME_FOREVER, 10 * NSEC_PER_MSEC);
-			dispatch_source_set_event_handler(self.debounceTimer, ^{
+			dispatch_source_set_event_handler(timer, ^{
 				handleScreenParametersChanged();
-				dispatch_source_cancel(self.debounceTimer);
-				self.debounceTimer = nil;
+				dispatch_source_cancel(timer);
+				// Clear property on main thread to avoid race
+				dispatch_async(dispatch_get_main_queue(), ^{
+					if (self.debounceTimer == timer) {
+						self.debounceTimer = nil;
+					}
+				});
 			});
-			dispatch_resume(self.debounceTimer);
+			dispatch_resume(timer);
 		}
 	}
 }
