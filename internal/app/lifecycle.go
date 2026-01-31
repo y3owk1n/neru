@@ -170,7 +170,13 @@ func (a *App) handleScreenParametersChange() {
 
 	defer func() { a.appState.SetScreenChangeProcessing(false) }()
 
-	a.logger.Info("Screen parameters changed; adjusting overlays")
+	// Only log and adjust overlays if we are in an active mode.
+	// In Idle mode, we just want to update the needs-refresh flags (handled by sub-handlers)
+	// but avoid showing the overlay window which happens in ResizeToActiveScreen.
+	isIdle := a.appState.CurrentMode() == domain.ModeIdle
+	if !isIdle {
+		a.logger.Info("Screen parameters changed; adjusting overlays")
+	}
 
 	ctx := context.Background()
 
@@ -178,8 +184,9 @@ func (a *App) handleScreenParametersChange() {
 	hintResized := a.handleHintScreenChange(ctx)
 	scrollResized := a.handleScrollScreenChange(ctx)
 
-	// Final resize only if no handler already resized the overlay
-	if !gridResized && !hintResized && !scrollResized {
+	// Final resize only if no handler already resized the overlay AND we are not idle.
+	// Resizing the overlay when idle would cause it to become visible, which we want to avoid.
+	if !gridResized && !hintResized && !scrollResized && !isIdle {
 		if a.overlayManager != nil {
 			a.overlayManager.ResizeToActiveScreen()
 		}
