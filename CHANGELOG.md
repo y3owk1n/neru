@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.16.0](https://github.com/y3owk1n/neru/compare/v1.15.1...v1.16.0) (2026-01-31)
+
+
+### Features
+
+* **scroll:** remove legacy scroll area and replace with label ([#337](https://github.com/y3owk1n/neru/issues/337)) ([34b51fd](https://github.com/y3owk1n/neru/commit/34b51fd2677155c46b11a0b79090952026e6f474))
+
+
+### Bug Fixes
+
+* **bridge:** ensure overlays persist across macOS spaces ([#340](https://github.com/y3owk1n/neru/issues/340)) ([34d1933](https://github.com/y3owk1n/neru/commit/34d193317e1b8110ae0013518a30cd7d11803161))
+* **bridge:** resolve overlay issue on spaces and full screen ([#342](https://github.com/y3owk1n/neru/issues/342)) ([3d347d5](https://github.com/y3owk1n/neru/commit/3d347d521ec3371178c96f173a968c0ec30463c0))
+* **lifecycle:** only resize overlays when need to ([b78317e](https://github.com/y3owk1n/neru/commit/b78317e10546da55af57deeb901d58c44c9ef3be))
+
 ## [1.15.1](https://github.com/y3owk1n/neru/compare/v1.15.0...v1.15.1) (2026-01-26)
 
 
