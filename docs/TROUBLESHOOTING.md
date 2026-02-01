@@ -14,6 +14,7 @@ Common issues and solutions for Neru.
 - [Performance](#performance)
 - [Daemon](#daemon)
 - [App-Specific](#app-specific)
+- [Keyboard Layout Issues](#keyboard-layout-issues)
 - [Configuration](#configuration)
 - [Debugging](#debugging)
 
@@ -467,6 +468,32 @@ osascript -e 'id of app "Adobe Illustrator"'
 [general]
 include_dock_hints = true
 ```
+
+---
+
+## Keyboard Layout Issues
+
+### Wrong characters produced when typing
+
+**Neru only supports US QWERTY physical keyboard layout.**
+
+If you're using a non-US keyboard layout (AZERTY, QWERTZ, Dvorak, Colemak, etc.), key presses may produce incorrect characters.
+
+**Affected layouts:**
+
+- AZERTY (French)
+- QWERTZ (German, Swiss)
+- Dvorak
+- Colemak
+- Any other non-US layout
+
+**Solution:** Use a US QWERTY keyboard or physical layout in macOS System Settings.
+
+### Input methods not working
+
+**Neru intentionally bypasses input methods (CJK IME, etc.).**
+
+This is expected behavior. Neru sends raw keycode-to-character mappings for consistent input across all applications.
 
 ---
 
