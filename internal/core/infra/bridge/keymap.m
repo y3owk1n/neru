@@ -116,6 +116,11 @@ static void initializeKeyMaps(void) {
 					codeToName[code] = name;
 				}
 			}];
+
+			// Canonicalize some names
+			codeToName[@(kKeyCodeReturn)] = @"Return";
+			codeToName[@(kKeyCodeDelete)] = @"Delete";
+
 			gKeyCodeToNameMap = [codeToName copy];
 		}
 	});
