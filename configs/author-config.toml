@@ -1,5 +1,6 @@
 [general]
 restore_cursor_position = true
+mode_exit_keys = ["escape", "Ctrl+C"]
 
 [hotkeys]
 "Ctrl+F" = "grid"

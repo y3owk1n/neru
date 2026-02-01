@@ -1,10 +1,10 @@
-package hotkey_test
+package hotkeys_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/core/infra/hotkey"
+	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 	"go.uber.org/zap"
 )
 
@@ -53,7 +53,7 @@ func (m *mockInfraManager) UnregisterAll() {
 func TestNewAdapter(t *testing.T) {
 	logger := zap.NewNop()
 	mockInfra := newMockInfraManager()
-	adapter := hotkey.NewAdapter(mockInfra, logger)
+	adapter := hotkeys.NewAdapter(mockInfra, logger)
 
 	if adapter == nil {
 		t.Fatal("NewAdapter() returned nil")
@@ -63,7 +63,7 @@ func TestNewAdapter(t *testing.T) {
 func TestAdapter_Register(t *testing.T) {
 	logger := zap.NewNop()
 	mockInfra := newMockInfraManager()
-	adapter := hotkey.NewAdapter(mockInfra, logger)
+	adapter := hotkeys.NewAdapter(mockInfra, logger)
 	ctx := context.Background()
 
 	callback := func() error {
@@ -89,7 +89,7 @@ func TestAdapter_Register(t *testing.T) {
 func TestAdapter_Unregister(t *testing.T) {
 	logger := zap.NewNop()
 	mockInfra := newMockInfraManager()
-	adapter := hotkey.NewAdapter(mockInfra, logger)
+	adapter := hotkeys.NewAdapter(mockInfra, logger)
 	ctx := context.Background()
 
 	// Register first
@@ -117,7 +117,7 @@ func TestAdapter_Unregister(t *testing.T) {
 func TestAdapter_UnregisterAll(t *testing.T) {
 	logger := zap.NewNop()
 	mockInfra := newMockInfraManager()
-	adapter := hotkey.NewAdapter(mockInfra, logger)
+	adapter := hotkeys.NewAdapter(mockInfra, logger)
 	ctx := context.Background()
 
 	// Register multiple

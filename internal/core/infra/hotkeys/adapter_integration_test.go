@@ -1,13 +1,12 @@
 //go:build integration
 
-package hotkey_test
+package hotkeys_test
 
 import (
 	"context"
 	"testing"
 
 	_ "github.com/y3owk1n/neru/internal/core/infra/bridge" // Link CGO implementations
-	"github.com/y3owk1n/neru/internal/core/infra/hotkey"
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -15,7 +14,7 @@ import (
 
 // TestHotkeyAdapterImplementsPort verifies the adapter implements the port interface.
 func TestHotkeyAdapterImplementsPort(_ *testing.T) {
-	var _ ports.HotkeyPort = (*hotkey.Adapter)(nil)
+	var _ ports.HotkeyPort = (*hotkeys.Adapter)(nil)
 }
 
 // RealHotkeyManagerWrapper wraps the real hotkeys.Manager to implement InfraManager interface.
@@ -50,7 +49,7 @@ func TestHotkeyAdapterIntegration(t *testing.T) {
 	defer hotkeys.SetGlobalManager(nil)
 
 	manager := &RealHotkeyManagerWrapper{manager: realManager}
-	adapter := hotkey.NewAdapter(manager, logger)
+	adapter := hotkeys.NewAdapter(manager, logger)
 
 	ctx := context.Background()
 
