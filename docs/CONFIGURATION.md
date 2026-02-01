@@ -9,6 +9,7 @@ Neru uses TOML for configuration. This guide covers all available options with e
 - [Configuration Overview](#configuration-overview)
 - [Hotkeys](#hotkeys)
 - [General Settings](#general-settings)
+- [Keyboard Layout Requirements](#keyboard-layout-requirements)
 - [Hint Mode](#hint-mode)
 - [Grid Mode](#grid-mode)
 - [Scroll Mode](#scroll-mode)
@@ -134,6 +135,41 @@ Format notes:
 - Use plain text key names: `escape`, `return`, `tab`, `space`, `backspace`, `delete`, `home`, `end`, `pageup`, `pagedown`
 - Modifiers: `Cmd`, `Ctrl`, `Alt`/`Option`, `Shift`
 - Modifier combos: `Modifier+Key` (e.g. `Ctrl+R`, `Cmd+Shift+Space`)
+
+---
+
+## Keyboard Layout Requirements
+
+Neru uses direct keycode-to-character mapping for keyboard input. This approach has specific requirements and limitations:
+
+**Supported Layout:** US QWERTY only
+
+Neru is designed to work with the standard US QWERTY physical keyboard layout. This includes:
+
+- All letter keys (a-z)
+- Number row and symbols (`1` through `0`)
+- Punctuation keys (`-`, `=`, `[`, `]`, `\`, `;`, `'`, `,`, `.`, `/`)
+- Space bar and modifiers (Cmd, Option/Alt, Control, Shift)
+
+### Input Method Independence
+
+Neru intentionally bypasses macOS input methods (such as Chinese, Japanese, and Korean IME systems). This ensures:
+
+- Direct character input without input method interference
+- Consistent behavior across all applications
+- No unexpected character conversion
+
+### Unsupported Layouts
+
+The following keyboard layouts are **not supported**:
+
+- AZERTY (French)
+- QWERTZ (German, Swiss)
+- Dvorak
+- Colemak
+- Any other non-US layouts
+
+Users with these physical keyboard layouts will experience incorrect character output.
 
 ---
 
