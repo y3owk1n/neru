@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/app/services"
-	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"go.uber.org/zap"
 )
@@ -119,8 +119,8 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	isMoveMouse := actionName == string(domain.ActionNameMoveMouse)
-	isMoveMouseRelative := actionName == string(domain.ActionNameMoveMouseRelative)
+	isMoveMouse := actionName == string(action.NameMoveMouse)
+	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
 
 	if (isMoveMouse || isMoveMouseRelative) && (hasX || hasY) && (hasDX || hasDY) {
 		return ipc.Response{
@@ -170,7 +170,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	var err error
 	switch actionName {
-	case string(domain.ActionNameMoveMouse), string(domain.ActionNameMoveMouseRelative):
+	case string(action.NameMoveMouse), string(action.NameMoveMouseRelative):
 		err = h.actionService.MoveMouseTo(ctx, targetX, targetY, false)
 	default:
 		cursorPos, posErr := h.actionService.CursorPosition(ctx)

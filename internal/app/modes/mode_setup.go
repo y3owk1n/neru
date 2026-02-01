@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -89,14 +90,14 @@ func (h *Handler) setMode(appMode domain.Mode, overlayMode overlay.Mode) {
 func (h *Handler) activateModeBase(
 	modeName string,
 	enabled bool,
-	actionEnum domain.Action,
-) (domain.Action, bool) {
+	actionEnum action.Type,
+) (action.Type, bool) {
 	// Validate mode activation
 	err := h.validateModeActivation(modeName, enabled)
 	if err != nil {
 		h.logger.Warn(modeName+" mode activation failed", zap.Error(err))
 
-		return domain.ActionMoveMouse, false
+		return action.TypeMoveMouse, false
 	}
 
 	// Prepare for mode activation (reset scroll, capture cursor)

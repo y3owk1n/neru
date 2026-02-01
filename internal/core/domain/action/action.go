@@ -1,6 +1,10 @@
 package action
 
-import derrors "github.com/y3owk1n/neru/internal/core/errors"
+import (
+	"strings"
+
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
+)
 
 // Type represents the type of action to perform on a UI element.
 type Type int
@@ -106,4 +110,127 @@ func AllTypes() []Type {
 	copy(result, allTypes)
 
 	return result
+}
+
+// Name represents a named action that can be performed by the application.
+// This is used for configuration and user input, while Type is used for execution.
+type Name string
+
+const (
+	// NameLeftClick represents the left click action.
+	NameLeftClick Name = "left_click"
+	// NameRightClick represents the right click action.
+	NameRightClick Name = "right_click"
+	// NameMiddleClick represents the middle click action.
+	NameMiddleClick Name = "middle_click"
+	// NameMouseDown represents the mouse down action.
+	NameMouseDown Name = "mouse_down"
+	// NameMouseUp represents the mouse up action.
+	NameMouseUp Name = "mouse_up"
+	// NameMoveMouse represents the mouse move action.
+	NameMoveMouse Name = "move_mouse"
+	// NameMoveMouseRelative represents the relative mouse move action.
+	NameMoveMouseRelative Name = "move_mouse_relative"
+	// NameScroll represents the scroll action.
+	NameScroll Name = "scroll"
+
+	// PrefixExec is the prefix for shell command actions.
+	PrefixExec = "exec"
+)
+
+// knownNames is the cached slice of all supported action names to avoid heap allocation.
+var knownNames = []Name{
+	NameLeftClick,
+	NameRightClick,
+	NameMiddleClick,
+	NameMouseDown,
+	NameMouseUp,
+	NameMoveMouse,
+	NameMoveMouseRelative,
+	NameScroll,
+}
+
+// KnownNames returns a slice containing all supported action names.
+func KnownNames() []Name {
+	result := make([]Name, len(knownNames))
+	copy(result, knownNames)
+
+	return result
+}
+
+// SupportedNamesString returns a comma-separated string of supported actions for user messages.
+func SupportedNamesString() string {
+	names := KnownNames()
+
+	strs := make([]string, len(names))
+	for i, name := range names {
+		strs[i] = string(name)
+	}
+
+	return strings.Join(strs, ", ")
+}
+
+// IsKnownName determines whether the specified action name is supported.
+func IsKnownName(name Name) bool {
+	switch name {
+	case NameLeftClick,
+		NameRightClick,
+		NameMiddleClick,
+		NameMouseDown,
+		NameMouseUp,
+		NameMoveMouse,
+		NameMoveMouseRelative,
+		NameScroll:
+		return true
+	default:
+		return false
+	}
+}
+
+// ToName converts a Type to its corresponding Name.
+func (t Type) ToName() Name {
+	switch t {
+	case TypeLeftClick:
+		return NameLeftClick
+	case TypeRightClick:
+		return NameRightClick
+	case TypeMiddleClick:
+		return NameMiddleClick
+	case TypeMouseDown:
+		return NameMouseDown
+	case TypeMouseUp:
+		return NameMouseUp
+	case TypeMoveMouse:
+		return NameMoveMouse
+	case TypeMoveMouseRelative:
+		return NameMoveMouseRelative
+	case TypeScroll:
+		return NameScroll
+	default:
+		return ""
+	}
+}
+
+// ToType converts a Name to its corresponding Type.
+func (n Name) ToType() (Type, error) {
+	switch n {
+	case NameLeftClick:
+		return TypeLeftClick, nil
+	case NameRightClick:
+		return TypeRightClick, nil
+	case NameMiddleClick:
+		return TypeMiddleClick, nil
+	case NameMouseDown:
+		return TypeMouseDown, nil
+	case NameMouseUp:
+		return TypeMouseUp, nil
+	case NameMoveMouse:
+		return TypeMoveMouse, nil
+	case NameMoveMouseRelative:
+		return TypeMoveMouseRelative, nil
+	case NameScroll:
+		return TypeScroll, nil
+	default:
+		return 0, derrors.Newf(derrors.CodeInvalidInput, "unknown action name: %s", n)
+	}
 }

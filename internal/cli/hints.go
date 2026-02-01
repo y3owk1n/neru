@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
@@ -17,26 +17,26 @@ var HintsCmd = &cobra.Command{
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		action, err := cmd.Flags().GetString("action")
+		actionFlag, err := cmd.Flags().GetString("action")
 		if err != nil {
 			return err
 		}
-		if action != "" {
+		if actionFlag != "" {
 			// Validate action
-			if !domain.IsKnownActionName(domain.ActionName(action)) {
+			if !action.IsKnownName(action.Name(actionFlag)) {
 				return derrors.Newf(
 					derrors.CodeInvalidInput,
 					"invalid action: %s. Supported actions: %s",
-					action,
-					domain.SupportedActionsString(),
+					actionFlag,
+					action.SupportedNamesString(),
 				)
 			}
 		}
 
 		var params []string
 		params = append(params, "hints")
-		if action != "" {
-			params = append(params, action)
+		if actionFlag != "" {
+			params = append(params, actionFlag)
 		}
 
 		return sendCommand(cmd, "hints", params)
@@ -49,7 +49,7 @@ func init() {
 			"action",
 			"a",
 			"",
-			fmt.Sprintf("Action to perform on hint selection (%s)", domain.SupportedActionsString()),
+			fmt.Sprintf("Action to perform on hint selection (%s)", action.SupportedNamesString()),
 		)
 	RootCmd.AddCommand(HintsCmd)
 }

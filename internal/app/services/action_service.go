@@ -7,7 +7,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
-	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -274,7 +273,7 @@ func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) (
 
 	keyLower := strings.ToLower(key)
 
-	if actionString == string(domain.ActionNameMoveMouseRelative) {
+	if actionString == string(action.NameMoveMouseRelative) {
 		var deltaX, deltaY int
 
 		switch keyLower {
@@ -382,18 +381,18 @@ func (s *ActionService) getActionForBinding(binding string) (string, string, boo
 
 	bindings := []struct {
 		config string
-		action domain.ActionName
+		action action.Name
 		logMsg string
 	}{
-		{s.keyBindings.LeftClick, domain.ActionNameLeftClick, "Left click"},
-		{s.keyBindings.RightClick, domain.ActionNameRightClick, "Right click"},
-		{s.keyBindings.MiddleClick, domain.ActionNameMiddleClick, "Middle click"},
-		{s.keyBindings.MouseDown, domain.ActionNameMouseDown, "Mouse down"},
-		{s.keyBindings.MouseUp, domain.ActionNameMouseUp, "Mouse up"},
-		{s.keyBindings.MoveMouseUp, domain.ActionNameMoveMouseRelative, "Move mouse up"},
-		{s.keyBindings.MoveMouseDown, domain.ActionNameMoveMouseRelative, "Move mouse down"},
-		{s.keyBindings.MoveMouseLeft, domain.ActionNameMoveMouseRelative, "Move mouse left"},
-		{s.keyBindings.MoveMouseRight, domain.ActionNameMoveMouseRelative, "Move mouse right"},
+		{s.keyBindings.LeftClick, action.NameLeftClick, "Left click"},
+		{s.keyBindings.RightClick, action.NameRightClick, "Right click"},
+		{s.keyBindings.MiddleClick, action.NameMiddleClick, "Middle click"},
+		{s.keyBindings.MouseDown, action.NameMouseDown, "Mouse down"},
+		{s.keyBindings.MouseUp, action.NameMouseUp, "Mouse up"},
+		{s.keyBindings.MoveMouseUp, action.NameMoveMouseRelative, "Move mouse up"},
+		{s.keyBindings.MoveMouseDown, action.NameMoveMouseRelative, "Move mouse down"},
+		{s.keyBindings.MoveMouseLeft, action.NameMoveMouseRelative, "Move mouse left"},
+		{s.keyBindings.MoveMouseRight, action.NameMoveMouseRelative, "Move mouse right"},
 	}
 
 	for _, b := range bindings {
