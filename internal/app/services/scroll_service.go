@@ -101,12 +101,7 @@ func (s *ScrollService) Show(ctx context.Context) error {
 
 // Hide hides the scroll overlay.
 func (s *ScrollService) Hide(ctx context.Context) error {
-	hideOverlayErr := s.overlay.Hide(ctx)
-	if hideOverlayErr != nil {
-		return core.WrapOverlayFailed(hideOverlayErr, "hide scroll")
-	}
-
-	return nil
+	return s.HideOverlay(ctx, "hide scroll")
 }
 
 // GetCursorPosition returns the current cursor position.

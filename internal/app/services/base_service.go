@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 
+	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -28,4 +29,15 @@ func (s *BaseService) Health(ctx context.Context) map[string]error {
 		"accessibility": s.accessibility.Health(ctx),
 		"overlay":       s.overlay.Health(ctx),
 	}
+}
+
+// HideOverlay hides the overlay and returns any error that occurred.
+// This is a helper method used by services that need to hide overlays.
+func (s *BaseService) HideOverlay(ctx context.Context, operation string) error {
+	err := s.overlay.Hide(ctx)
+	if err != nil {
+		return core.WrapOverlayFailed(err, operation)
+	}
+
+	return nil
 }

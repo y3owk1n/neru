@@ -130,11 +130,11 @@ func (s *HintService) ShowHints(
 func (s *HintService) HideHints(ctx context.Context) error {
 	s.logger.Info("Hiding hints")
 
-	hideOverlayErr := s.overlay.Hide(ctx)
-	if hideOverlayErr != nil {
-		s.logger.Error("Failed to hide overlay", zap.Error(hideOverlayErr))
+	err := s.HideOverlay(ctx, "hide hints")
+	if err != nil {
+		s.logger.Error("Failed to hide overlay", zap.Error(err))
 
-		return core.WrapOverlayFailed(hideOverlayErr, "hide hints")
+		return err
 	}
 
 	s.logger.Info("Hints hidden successfully")
