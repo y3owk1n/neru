@@ -36,11 +36,11 @@ type elementCacheEntry struct {
 // HintService orchestrates hint generation and display.
 // It coordinates between the accessibility system, hint generator, and overlay.
 type HintService struct {
-	accessibility ports.AccessibilityPort
-	overlay       ports.OverlayPort
-	generator     hint.Generator
-	config        config.HintsConfig
-	logger        *zap.Logger
+	BaseService
+
+	generator hint.Generator
+	config    config.HintsConfig
+	logger    *zap.Logger
 
 	// Cache for incremental updates
 	elementCache map[string]*elementCacheEntry
@@ -56,12 +56,11 @@ func NewHintService(
 	logger *zap.Logger,
 ) *HintService {
 	return &HintService{
-		accessibility: accessibility,
-		overlay:       overlay,
-		generator:     generator,
-		config:        config,
-		logger:        logger,
-		elementCache:  make(map[string]*elementCacheEntry),
+		BaseService:  NewBaseService(accessibility, overlay),
+		generator:    generator,
+		config:       config,
+		logger:       logger,
+		elementCache: make(map[string]*elementCacheEntry),
 	}
 }
 
@@ -176,14 +175,6 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 
 	s.generator = generator
 	s.logger.Info("Hint generator updated")
-}
-
-// Health checks the health of the service's dependencies.
-func (s *HintService) Health(ctx context.Context) map[string]error {
-	return map[string]error{
-		"accessibility": s.accessibility.Health(ctx),
-		"overlay":       s.overlay.Health(ctx),
-	}
 }
 
 // filterChangedElements filters elements to only include those that have changed position or are new.

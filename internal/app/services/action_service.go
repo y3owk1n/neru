@@ -15,8 +15,8 @@ import (
 
 // ActionService handles executing actions on UI elements.
 type ActionService struct {
-	accessibility ports.AccessibilityPort
-	overlay       ports.OverlayPort
+	BaseService
+
 	config        config.ActionConfig
 	keyBindings   config.ActionKeyBindingsCfg
 	moveMouseStep int
@@ -33,8 +33,7 @@ func NewActionService(
 	logger *zap.Logger,
 ) *ActionService {
 	return &ActionService{
-		accessibility: accessibility,
-		overlay:       overlay,
+		BaseService:   NewBaseService(accessibility, overlay),
 		config:        actionConfig,
 		keyBindings:   keyBindings,
 		moveMouseStep: moveMouseStep,
@@ -219,14 +218,6 @@ func (s *ActionService) HandleActionKey(
 	}
 
 	return true, nil
-}
-
-// Health checks the health of the service's dependencies.
-func (s *ActionService) Health(ctx context.Context) map[string]error {
-	return map[string]error{
-		"accessibility": s.accessibility.Health(ctx),
-		"overlay":       s.overlay.Health(ctx),
-	}
 }
 
 // IsDirectActionKey checks if the given key is a direct action keybinding.
