@@ -7,6 +7,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"go.uber.org/zap"
@@ -53,11 +54,11 @@ func (h *Handler) activateHintModeWithAction(action *string) {
 // would be a breaking change if future callers need the preserve behavior.
 //
 //nolint:unparam
-func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *string) {
+func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *string) {
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameHints,
 		h.config.Hints.Enabled,
-		domain.ActionMoveMouse,
+		action.TypeMoveMouse,
 	)
 	if !ok {
 		return
@@ -190,10 +191,10 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, action *stri
 	h.hints.Context.SetHints(hintCollection)
 
 	// Store pending action if provided
-	h.hints.Context.SetPendingAction(action)
+	h.hints.Context.SetPendingAction(actionStr)
 
-	if action != nil {
-		h.logger.Info("Hints mode activated with pending action", zap.String("action", *action))
+	if actionStr != nil {
+		h.logger.Info("Hints mode activated with pending action", zap.String("action", *actionStr))
 	}
 
 	h.SetModeHints()

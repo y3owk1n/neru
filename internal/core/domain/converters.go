@@ -1,5 +1,7 @@
 package domain
 
+import "github.com/y3owk1n/neru/internal/core/domain/action"
+
 // Mode names as strings.
 const (
 	ModeNameIdle   = "idle"
@@ -24,50 +26,17 @@ func ModeString(mode Mode) string {
 	}
 }
 
-// ActionString converts an Action to its string representation.
-func ActionString(action Action) string {
-	switch action {
-	case ActionLeftClick:
-		return "left_click"
-	case ActionRightClick:
-		return "right_click"
-	case ActionMouseUp:
-		return "mouse_up"
-	case ActionMouseDown:
-		return "mouse_down"
-	case ActionMiddleClick:
-		return "middle_click"
-	case ActionMoveMouse:
-		return "move_mouse"
-	case ActionMoveMouseRelative:
-		return "move_mouse_relative"
-	case ActionScroll:
-		return "scroll"
-	default:
-		return UnknownAction
-	}
+// ActionString converts an action.Type to its string representation.
+func ActionString(actionType action.Type) string {
+	return actionType.String()
 }
 
-// ActionFromString converts a string to its Action representation.
-func ActionFromString(actionStr string) (Action, bool) {
-	switch actionStr {
-	case "left_click":
-		return ActionLeftClick, true
-	case "right_click":
-		return ActionRightClick, true
-	case "mouse_up":
-		return ActionMouseUp, true
-	case "mouse_down":
-		return ActionMouseDown, true
-	case "middle_click":
-		return ActionMiddleClick, true
-	case "move_mouse":
-		return ActionMoveMouse, true
-	case "move_mouse_relative":
-		return ActionMoveMouseRelative, true
-	case "scroll":
-		return ActionScroll, true
-	default:
-		return ActionMoveMouse, false
+// ActionFromString converts a string to its action.Type representation.
+func ActionFromString(actionStr string) (action.Type, bool) {
+	typ, err := action.ParseType(actionStr)
+	if err != nil {
+		return action.TypeMoveMouse, false
 	}
+
+	return typ, true
 }

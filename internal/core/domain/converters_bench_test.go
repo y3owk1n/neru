@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
 func BenchmarkModeString(b *testing.B) {
@@ -14,7 +15,7 @@ func BenchmarkModeString(b *testing.B) {
 
 func BenchmarkActionString(b *testing.B) {
 	for b.Loop() {
-		_ = domain.ActionString(domain.ActionLeftClick)
+		_ = domain.ActionString(action.TypeLeftClick)
 	}
 }
 
@@ -26,7 +27,7 @@ func BenchmarkActionFromString(b *testing.B) {
 
 func BenchmarkActionStringRoundTrip(b *testing.B) {
 	for b.Loop() {
-		str := domain.ActionString(domain.ActionLeftClick)
+		str := domain.ActionString(action.TypeLeftClick)
 		_, _ = domain.ActionFromString(str)
 	}
 }

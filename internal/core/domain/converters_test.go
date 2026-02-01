@@ -5,6 +5,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
 func TestModeString(t *testing.T) {
@@ -53,47 +54,47 @@ func TestModeString(t *testing.T) {
 func TestActionString(t *testing.T) {
 	tests := []struct {
 		name   string
-		action domain.Action
+		action action.Type
 		want   string
 	}{
 		{
 			name:   "left click",
-			action: domain.ActionLeftClick,
+			action: action.TypeLeftClick,
 			want:   "left_click",
 		},
 		{
 			name:   "right click",
-			action: domain.ActionRightClick,
+			action: action.TypeRightClick,
 			want:   "right_click",
 		},
 		{
 			name:   "mouse up",
-			action: domain.ActionMouseUp,
+			action: action.TypeMouseUp,
 			want:   "mouse_up",
 		},
 		{
 			name:   "mouse down",
-			action: domain.ActionMouseDown,
+			action: action.TypeMouseDown,
 			want:   "mouse_down",
 		},
 		{
 			name:   "middle click",
-			action: domain.ActionMiddleClick,
+			action: action.TypeMiddleClick,
 			want:   "middle_click",
 		},
 		{
 			name:   "move mouse",
-			action: domain.ActionMoveMouse,
+			action: action.TypeMoveMouse,
 			want:   "move_mouse",
 		},
 		{
 			name:   "scroll",
-			action: domain.ActionScroll,
+			action: action.TypeScroll,
 			want:   "scroll",
 		},
 		{
 			name:   "unknown action",
-			action: domain.Action(999),
+			action: action.Type(999),
 			want:   domain.UnknownAction,
 		},
 	}
@@ -112,67 +113,67 @@ func TestActionFromString(t *testing.T) {
 	tests := []struct {
 		name       string
 		actionStr  string
-		wantAction domain.Action
+		wantAction action.Type
 		wantOk     bool
 	}{
 		{
 			name:       "left_click",
 			actionStr:  "left_click",
-			wantAction: domain.ActionLeftClick,
+			wantAction: action.TypeLeftClick,
 			wantOk:     true,
 		},
 		{
 			name:       "right_click",
 			actionStr:  "right_click",
-			wantAction: domain.ActionRightClick,
+			wantAction: action.TypeRightClick,
 			wantOk:     true,
 		},
 		{
 			name:       "mouse_up",
 			actionStr:  "mouse_up",
-			wantAction: domain.ActionMouseUp,
+			wantAction: action.TypeMouseUp,
 			wantOk:     true,
 		},
 		{
 			name:       "mouse_down",
 			actionStr:  "mouse_down",
-			wantAction: domain.ActionMouseDown,
+			wantAction: action.TypeMouseDown,
 			wantOk:     true,
 		},
 		{
 			name:       "middle_click",
 			actionStr:  "middle_click",
-			wantAction: domain.ActionMiddleClick,
+			wantAction: action.TypeMiddleClick,
 			wantOk:     true,
 		},
 		{
 			name:       "move_mouse",
 			actionStr:  "move_mouse",
-			wantAction: domain.ActionMoveMouse,
+			wantAction: action.TypeMoveMouse,
 			wantOk:     true,
 		},
 		{
 			name:       "scroll",
 			actionStr:  "scroll",
-			wantAction: domain.ActionScroll,
+			wantAction: action.TypeScroll,
 			wantOk:     true,
 		},
 		{
 			name:       "unknown action",
 			actionStr:  "unknown_action",
-			wantAction: domain.ActionMoveMouse, // Default fallback
+			wantAction: action.TypeMoveMouse, // Default fallback
 			wantOk:     false,
 		},
 		{
 			name:       "empty string",
 			actionStr:  "",
-			wantAction: domain.ActionMoveMouse, // Default fallback
+			wantAction: action.TypeMoveMouse, // Default fallback
 			wantOk:     false,
 		},
 		{
 			name:       "invalid action",
 			actionStr:  "invalid",
-			wantAction: domain.ActionMoveMouse, // Default fallback
+			wantAction: action.TypeMoveMouse, // Default fallback
 			wantOk:     false,
 		},
 	}
@@ -204,14 +205,14 @@ func TestActionFromString(t *testing.T) {
 // TestActionStringRoundTrip verifies that converting an Action to string and back
 // returns the same Action.
 func TestActionStringRoundTrip(t *testing.T) {
-	actions := []domain.Action{
-		domain.ActionLeftClick,
-		domain.ActionRightClick,
-		domain.ActionMouseUp,
-		domain.ActionMouseDown,
-		domain.ActionMiddleClick,
-		domain.ActionMoveMouse,
-		domain.ActionScroll,
+	actions := []action.Type{
+		action.TypeLeftClick,
+		action.TypeRightClick,
+		action.TypeMouseUp,
+		action.TypeMouseDown,
+		action.TypeMiddleClick,
+		action.TypeMoveMouse,
+		action.TypeScroll,
 	}
 
 	for _, action := range actions {

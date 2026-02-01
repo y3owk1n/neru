@@ -3,16 +3,15 @@ package grid
 import (
 	"image"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
 )
 
 // Router handles key routing for grid mode operations.
 type Router struct {
-	manager      *Manager
-	logger       *zap.Logger
-	modeExitKeys []string // Keys that exit grid mode
+	*domain.Router
+
+	manager *Manager
 }
 
 // KeyResult captures the results of key routing decisions in grid mode.
@@ -40,18 +39,16 @@ func (kr *KeyResult) Complete() bool {
 // NewRouter initializes a new grid router with the specified manager and logger.
 func NewRouter(m *Manager, logger *zap.Logger) *Router {
 	return &Router{
-		manager:      m,
-		logger:       logger,
-		modeExitKeys: []string{},
+		Router:  domain.NewRouter(logger),
+		manager: m,
 	}
 }
 
 // NewRouterWithExitKeys initializes a new grid router with custom exit keys.
 func NewRouterWithExitKeys(m *Manager, logger *zap.Logger, exitKeys []string) *Router {
 	return &Router{
-		manager:      m,
-		logger:       logger,
-		modeExitKeys: exitKeys,
+		Router:  domain.NewRouterWithExitKeys(logger, exitKeys),
+		manager: m,
 	}
 }
 
@@ -60,14 +57,7 @@ func (r *Router) RouteKey(key string) KeyResult {
 	var routeKeyResult KeyResult
 
 	// Check if key matches any configured exit keys
-	exitKeys := r.modeExitKeys
-	if len(exitKeys) == 0 {
-		// Default to domain constant when no exit keys configured.
-		// In practice, handlers always pass configured exit keys, so this is a safety fallback.
-		exitKeys = []string{domain.DefaultExitKey}
-	}
-
-	if config.IsExitKey(key, exitKeys) {
+	if r.IsExitKey(key) {
 		routeKeyResult.exit = true
 
 		return routeKeyResult
@@ -75,9 +65,12 @@ func (r *Router) RouteKey(key string) KeyResult {
 
 	// Delegate coordinate input to the grid manager
 	if point, complete := r.manager.HandleInput(key); complete {
-		r.logger.Debug("Grid router: Coordinate selection complete",
-			zap.Int("x", point.X),
-			zap.Int("y", point.Y))
+		if r.Logger != nil {
+			r.Logger.Debug("Grid router: Coordinate selection complete",
+				zap.Int("x", point.X),
+				zap.Int("y", point.Y))
+		}
+
 		routeKeyResult.targetPoint = point
 		routeKeyResult.complete = true
 	}

@@ -37,10 +37,10 @@ const (
 
 // ScrollService orchestrates scrolling operations.
 type ScrollService struct {
-	accessibility ports.AccessibilityPort
-	overlay       ports.OverlayPort
-	config        config.ScrollConfig
-	logger        *zap.Logger
+	BaseService
+
+	config config.ScrollConfig
+	logger *zap.Logger
 }
 
 // NewScrollService creates a new scroll service.
@@ -51,10 +51,9 @@ func NewScrollService(
 	logger *zap.Logger,
 ) *ScrollService {
 	return &ScrollService{
-		accessibility: accessibility,
-		overlay:       overlay,
-		config:        config,
-		logger:        logger,
+		BaseService: NewBaseService(accessibility, overlay),
+		config:      config,
+		logger:      logger,
 	}
 }
 
@@ -102,12 +101,7 @@ func (s *ScrollService) Show(ctx context.Context) error {
 
 // Hide hides the scroll overlay.
 func (s *ScrollService) Hide(ctx context.Context) error {
-	hideOverlayErr := s.overlay.Hide(ctx)
-	if hideOverlayErr != nil {
-		return core.WrapOverlayFailed(hideOverlayErr, "hide scroll")
-	}
-
-	return nil
+	return s.HideOverlay(ctx, "hide scroll")
 }
 
 // GetCursorPosition returns the current cursor position.
@@ -132,14 +126,6 @@ func (s *ScrollService) UpdateConfig(_ context.Context, config config.ScrollConf
 	s.logger.Info("Scroll configuration updated",
 		zap.Int("scroll_step", config.ScrollStep),
 		zap.Int("scroll_step_full", config.ScrollStepFull))
-}
-
-// Health checks the health of the service's dependencies.
-func (s *ScrollService) Health(ctx context.Context) map[string]error {
-	return map[string]error{
-		"accessibility": s.accessibility.Health(ctx),
-		"overlay":       s.overlay.Health(ctx),
-	}
 }
 
 // calculateDelta computes the scroll delta values based on direction and magnitude.

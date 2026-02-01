@@ -11,13 +11,10 @@ extern void resizeScrollCompletionCallback(void* context);
 import "C"
 
 import (
-	"sync"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"go.uber.org/zap"
 )
 
@@ -45,26 +42,22 @@ type Overlay struct {
 	callbackManager *overlayutil.CallbackManager
 
 	// Cached C strings for style properties
-	cachedStyleMu          sync.RWMutex
-	cachedFontFamily       *C.char
-	cachedBgColor          *C.char
-	cachedTextColor        *C.char
-	cachedMatchedTextColor *C.char
-	cachedBorderColor      *C.char
+	styleCache *overlayutil.StyleCache
 }
 
 // NewOverlay initializes a new scroll overlay instance with its own window.
 func NewOverlay(config config.ScrollConfig, logger *zap.Logger) (*Overlay, error) {
-	window := C.createOverlayWindow()
-	if window == nil {
-		return nil, derrors.New(derrors.CodeOverlayFailed, "failed to create overlay window")
+	base, err := overlayutil.NewBaseOverlay(logger)
+	if err != nil {
+		return nil, err
 	}
 
 	return &Overlay{
-		window:          window,
+		window:          (C.OverlayWindow)(base.Window),
 		config:          config,
 		logger:          logger,
-		callbackManager: overlayutil.NewCallbackManager(logger),
+		callbackManager: base.CallbackManager,
+		styleCache:      base.StyleCache,
 	}, nil
 }
 
@@ -74,11 +67,14 @@ func NewOverlayWithWindow(
 	logger *zap.Logger,
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
+	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
+
 	return &Overlay{
-		window:          (C.OverlayWindow)(windowPtr),
+		window:          (C.OverlayWindow)(base.Window),
 		config:          config,
 		logger:          logger,
-		callbackManager: overlayutil.NewCallbackManager(logger),
+		callbackManager: base.CallbackManager,
+		styleCache:      base.StyleCache,
 	}, nil
 }
 
@@ -152,15 +148,23 @@ func (o *Overlay) DrawScrollIndicator(xCoordinate, yCoordinate int) {
 	}
 
 	// Use cached style strings to avoid repeated allocations and fix use-after-free
-	cFontFamily, cBgColor, cTextColor, cMatchedTextColor, cBorderColor := o.getCachedStyleStrings()
+	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
+		cached.FontFamily = unsafe.Pointer(C.CString(o.config.FontFamily))
+		cached.BgColor = unsafe.Pointer(C.CString(o.config.BackgroundColor))
+		cached.TextColor = unsafe.Pointer(C.CString(o.config.TextColor))
+		cached.MatchedTextColor = unsafe.Pointer(
+			C.CString(o.config.TextColor),
+		) // No matching in scroll mode
+		cached.BorderColor = unsafe.Pointer(C.CString(o.config.BorderColor))
+	})
 
 	style := C.HintStyle{
 		fontSize:         C.int(o.config.FontSize),
-		fontFamily:       cFontFamily,
-		backgroundColor:  cBgColor,
-		textColor:        cTextColor,
-		matchedTextColor: cMatchedTextColor,
-		borderColor:      cBorderColor,
+		fontFamily:       (*C.char)(cachedStyle.FontFamily),
+		backgroundColor:  (*C.char)(cachedStyle.BgColor),
+		textColor:        (*C.char)(cachedStyle.TextColor),
+		matchedTextColor: (*C.char)(cachedStyle.MatchedTextColor),
+		borderColor:      (*C.char)(cachedStyle.BorderColor),
 		borderRadius:     C.int(o.config.BorderRadius),
 		borderWidth:      C.int(o.config.BorderWidth),
 		padding:          C.int(o.config.Padding),
@@ -176,7 +180,7 @@ func (o *Overlay) DrawScrollIndicator(xCoordinate, yCoordinate int) {
 func (o *Overlay) UpdateConfig(config config.ScrollConfig) {
 	o.config = config
 	// Invalidate style cache when config changes
-	o.freeStyleCache()
+	o.styleCache.Free()
 }
 
 // Destroy releases the overlay window resources.
@@ -187,72 +191,8 @@ func (o *Overlay) Destroy() {
 	}
 
 	if o.window != nil {
-		o.freeStyleCache()
+		o.styleCache.Free()
 		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
 	}
-}
-
-// freeStyleCache frees all cached C strings.
-func (o *Overlay) freeStyleCache() {
-	o.cachedStyleMu.Lock()
-	defer o.cachedStyleMu.Unlock()
-
-	bridge.FreeCString(unsafe.Pointer(o.cachedFontFamily))
-	o.cachedFontFamily = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedBgColor))
-	o.cachedBgColor = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedTextColor))
-	o.cachedTextColor = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedTextColor))
-	o.cachedMatchedTextColor = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedBorderColor))
-	o.cachedBorderColor = nil
-}
-
-// updateStyleCacheLocked updates cached C strings for the current style.
-// Must be called with cachedStyleMu write lock held.
-func (o *Overlay) updateStyleCacheLocked() {
-	bridge.FreeCString(unsafe.Pointer(o.cachedFontFamily))
-	bridge.FreeCString(unsafe.Pointer(o.cachedBgColor))
-	bridge.FreeCString(unsafe.Pointer(o.cachedTextColor))
-	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedTextColor))
-	bridge.FreeCString(unsafe.Pointer(o.cachedBorderColor))
-
-	o.cachedFontFamily = C.CString(o.config.FontFamily)
-	o.cachedBgColor = C.CString(o.config.BackgroundColor)
-	o.cachedTextColor = C.CString(o.config.TextColor)
-	o.cachedMatchedTextColor = C.CString(o.config.TextColor) // No matching in scroll mode
-	o.cachedBorderColor = C.CString(o.config.BorderColor)
-}
-
-// getCachedStyleStrings returns cached C strings for style, updating cache if needed.
-func (o *Overlay) getCachedStyleStrings() (*C.char, *C.char, *C.char, *C.char, *C.char) {
-	o.cachedStyleMu.RLock()
-	// Check if cache needs rebuild or is invalid
-	if o.cachedFontFamily == nil {
-		o.cachedStyleMu.RUnlock()
-		o.cachedStyleMu.Lock()
-		// Double-check after acquiring write lock
-		if o.cachedFontFamily == nil {
-			o.updateStyleCacheLocked()
-		}
-		fontFamily := o.cachedFontFamily
-		bgColor := o.cachedBgColor
-		textColor := o.cachedTextColor
-		matchedTextColor := o.cachedMatchedTextColor
-		borderColor := o.cachedBorderColor
-		o.cachedStyleMu.Unlock()
-
-		return fontFamily, bgColor, textColor, matchedTextColor, borderColor
-	}
-
-	fontFamily := o.cachedFontFamily
-	bgColor := o.cachedBgColor
-	textColor := o.cachedTextColor
-	matchedTextColor := o.cachedMatchedTextColor
-	borderColor := o.cachedBorderColor
-	o.cachedStyleMu.RUnlock()
-
-	return fontFamily, bgColor, textColor, matchedTextColor, borderColor
 }

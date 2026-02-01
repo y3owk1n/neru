@@ -22,10 +22,26 @@ func isValidModifier(mod string) bool {
 	return validModifiers[mod]
 }
 
+// colorField represents a color configuration field to validate.
+type colorField struct {
+	value     string
+	fieldName string
+}
+
+// validateColors batch validates multiple color fields.
+func validateColors(fields []colorField) error {
+	for _, field := range fields {
+		err := ValidateColor(field.value, field.fieldName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // ValidateHints validates the hints configuration.
 func (c *Config) ValidateHints() error {
-	var validateErr error
-
 	if c.Hints.Enabled {
 		if len(c.Hints.ClickableRoles) == 0 {
 			return derrors.New(derrors.CodeInvalidConfig,
@@ -57,24 +73,14 @@ func (c *Config) ValidateHints() error {
 		return derrors.New(derrors.CodeInvalidConfig, "hints.opacity must be between 0 and 1")
 	}
 
-	validateErr = ValidateColor(c.Hints.BackgroundColor, "hints.background_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Hints.TextColor, "hints.text_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Hints.MatchedTextColor, "hints.matched_text_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Hints.BorderColor, "hints.border_color")
-	if validateErr != nil {
-		return validateErr
+	err := validateColors([]colorField{
+		{c.Hints.BackgroundColor, "hints.background_color"},
+		{c.Hints.TextColor, "hints.text_color"},
+		{c.Hints.MatchedTextColor, "hints.matched_text_color"},
+		{c.Hints.BorderColor, "hints.border_color"},
+	})
+	if err != nil {
+		return err
 	}
 
 	if c.Hints.FontSize < 6 || c.Hints.FontSize > 72 {
@@ -219,8 +225,6 @@ func (c *Config) ValidateAppConfigs() error {
 
 // ValidateGrid validates the grid configuration.
 func (c *Config) ValidateGrid() error {
-	var validateErr error
-
 	if strings.TrimSpace(c.Grid.Characters) == "" {
 		return derrors.New(derrors.CodeInvalidConfig, "grid.characters cannot be empty")
 	}
@@ -387,34 +391,16 @@ func (c *Config) ValidateGrid() error {
 	}
 
 	// Validate per-action grid colors
-	validateErr = ValidateColor(c.Grid.BackgroundColor, "grid.background_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Grid.TextColor, "grid.text_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Grid.MatchedTextColor, "grid.matched_text_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Grid.MatchedBackgroundColor, "grid.matched_background_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Grid.MatchedBorderColor, "grid.matched_border_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Grid.BorderColor, "grid.border_color")
-	if validateErr != nil {
-		return validateErr
+	err := validateColors([]colorField{
+		{c.Grid.BackgroundColor, "grid.background_color"},
+		{c.Grid.TextColor, "grid.text_color"},
+		{c.Grid.MatchedTextColor, "grid.matched_text_color"},
+		{c.Grid.MatchedBackgroundColor, "grid.matched_background_color"},
+		{c.Grid.MatchedBorderColor, "grid.matched_border_color"},
+		{c.Grid.BorderColor, "grid.border_color"},
+	})
+	if err != nil {
+		return err
 	}
 
 	// Validate sublayer keys (fallback to grid.characters) for 3x3 subgrid
@@ -778,87 +764,79 @@ func (c *Config) checkModeExitKeysConflicts() error {
 		return nil // No single-char exit keys, no conflicts possible
 	}
 
-	// Check hint characters
-	if c.Hints.HintCharacters != "" {
-		lowerHintChars := strings.ToLower(c.Hints.HintCharacters)
-		for _, exitKey := range singleCharExitKeys {
-			if strings.Contains(lowerHintChars, exitKey) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains '%s' which conflicts with hints.hint_characters; this key will always exit instead of selecting a hint",
-					strings.ToUpper(exitKey),
-				)
-			}
+	// Check for conflicts between exit keys and character sets
+	checks := []struct {
+		chars      string
+		fieldName  string
+		actionDesc string
+	}{
+		{c.Hints.HintCharacters, "hints.hint_characters", "selecting a hint"},
+		{c.Grid.Characters, "grid.characters", "grid input"},
+		{c.Grid.RowLabels, "grid.row_labels", "row selection"},
+		{c.Grid.ColLabels, "grid.col_labels", "column selection"},
+	}
+
+	for _, check := range checks {
+		err := checkExitKeyConflict(
+			singleCharExitKeys,
+			check.chars,
+			check.fieldName,
+			check.actionDesc,
+		)
+		if err != nil {
+			return err
 		}
 	}
 
-	// Check grid characters
-	if c.Grid.Characters != "" {
-		lowerGridChars := strings.ToLower(c.Grid.Characters)
-		for _, exitKey := range singleCharExitKeys {
-			if strings.Contains(lowerGridChars, exitKey) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains '%s' which conflicts with grid.characters; this key will always exit instead of being used for grid input",
-					strings.ToUpper(exitKey),
-				)
-			}
-		}
-	}
-
-	// Check grid row labels
-	if c.Grid.RowLabels != "" {
-		lowerRowLabels := strings.ToLower(c.Grid.RowLabels)
-		for _, exitKey := range singleCharExitKeys {
-			if strings.Contains(lowerRowLabels, exitKey) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains '%s' which conflicts with grid.row_labels; this key will always exit instead of being used for row selection",
-					strings.ToUpper(exitKey),
-				)
-			}
-		}
-	}
-
-	// Check grid column labels
-	if c.Grid.ColLabels != "" {
-		lowerColLabels := strings.ToLower(c.Grid.ColLabels)
-		for _, exitKey := range singleCharExitKeys {
-			if strings.Contains(lowerColLabels, exitKey) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains '%s' which conflicts with grid.col_labels; this key will always exit instead of being used for column selection",
-					strings.ToUpper(exitKey),
-				)
-			}
-		}
-	}
-
-	// Check grid sublayer keys
-
+	// Check grid sublayer keys (with fallback to grid.characters)
 	sublayerKeys := strings.TrimSpace(c.Grid.SublayerKeys)
 	if sublayerKeys == "" {
 		sublayerKeys = c.Grid.Characters
 	}
 
-	if sublayerKeys != "" {
-		lowerSublayerKeys := strings.ToLower(sublayerKeys)
-		for _, exitKey := range singleCharExitKeys {
-			if strings.Contains(lowerSublayerKeys, exitKey) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains '%s' which conflicts with grid.sublayer_keys; this key will always exit instead of being used for subgrid selection",
-					strings.ToUpper(exitKey),
-				)
-			}
+	err := checkExitKeyConflict(
+		singleCharExitKeys,
+		sublayerKeys,
+		"grid.sublayer_keys",
+		"subgrid selection",
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkExitKeyConflict checks if any single-character exit key conflicts with a character set.
+func checkExitKeyConflict(
+	exitKeys []string,
+	chars string,
+	fieldName string,
+	actionDesc string,
+) error {
+	if chars == "" {
+		return nil
+	}
+
+	lowerChars := strings.ToLower(chars)
+	for _, exitKey := range exitKeys {
+		if strings.Contains(lowerChars, exitKey) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"general.mode_exit_keys contains '%s' which conflicts with %s; this key will always exit instead of being used for %s",
+				strings.ToUpper(exitKey),
+				fieldName,
+				actionDesc,
+			)
 		}
 	}
 
 	return nil
 }
 
-// validateModeExitKeyCombo validates a modifier combo key format (e.g. "Ctrl+C").
-func validateModeExitKeyCombo(key string, index int) error {
+// validateModifierCombo validates a modifier combo key format (e.g. "Ctrl+C").
+// The fieldName parameter is used in error messages to identify which config field is being validated.
+func validateModifierCombo(key string, fieldName string) error {
 	const minComboPartsLen = 2
 
 	parts := strings.Split(key, "+")
@@ -866,8 +844,8 @@ func validateModeExitKeyCombo(key string, index int) error {
 	if len(parts) < minComboPartsLen {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"general.mode_exit_keys[%d] = '%s' is invalid; modifier combos must have format 'Modifier+Key'",
-			index,
+			"%s = '%s' is invalid; modifier combos must have format 'Modifier+Key'",
+			fieldName,
 			key,
 		)
 	}
@@ -878,8 +856,8 @@ func validateModeExitKeyCombo(key string, index int) error {
 		if !isValidModifier(modifier) {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
-				"general.mode_exit_keys[%d] has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option)",
-				index,
+				"%s has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option)",
+				fieldName,
 				modifier,
 				key,
 			)
@@ -891,51 +869,21 @@ func validateModeExitKeyCombo(key string, index int) error {
 	if lastKey == "" {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"general.mode_exit_keys[%d] = '%s' has empty key",
-			index,
+			"%s = '%s' has empty key",
+			fieldName,
 			key,
 		)
 	}
 
 	return nil
+}
+
+// validateModeExitKeyCombo validates a modifier combo key format for mode exit keys.
+func validateModeExitKeyCombo(key string, index int) error {
+	return validateModifierCombo(key, fmt.Sprintf("general.mode_exit_keys[%d]", index))
 }
 
 // validateResetKeyCombo validates a modifier combo reset key format (e.g. "Ctrl+R").
 func validateResetKeyCombo(key string) error {
-	const minComboPartsLen = 2
-
-	parts := strings.Split(key, "+")
-
-	if len(parts) < minComboPartsLen {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"grid.reset_key = '%s' is invalid; modifier combos must have format 'Modifier+Key'",
-			key,
-		)
-	}
-
-	// All parts except the last should be valid modifiers
-	for i := range len(parts) - 1 {
-		modifier := strings.TrimSpace(parts[i])
-		if !isValidModifier(modifier) {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"grid.reset_key has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option)",
-				modifier,
-				key,
-			)
-		}
-	}
-
-	// Last part is the key
-	lastKey := strings.TrimSpace(parts[len(parts)-1])
-	if lastKey == "" {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"grid.reset_key = '%s' has empty key",
-			key,
-		)
-	}
-
-	return nil
+	return validateModifierCombo(key, "grid.reset_key")
 }

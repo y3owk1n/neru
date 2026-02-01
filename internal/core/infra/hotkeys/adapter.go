@@ -1,4 +1,4 @@
-package hotkey
+package hotkeys
 
 import (
 	"context"

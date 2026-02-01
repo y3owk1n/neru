@@ -10,15 +10,16 @@ import (
 
 // GridService orchestrates grid navigation.
 type GridService struct {
-	overlay ports.OverlayPort
-	logger  *zap.Logger
+	BaseService
+
+	logger *zap.Logger
 }
 
 // NewGridService creates a new grid service.
 func NewGridService(overlay ports.OverlayPort, logger *zap.Logger) *GridService {
 	return &GridService{
-		overlay: overlay,
-		logger:  logger,
+		BaseService: NewBaseService(nil, overlay),
+		logger:      logger,
 	}
 }
 
@@ -43,11 +44,11 @@ func (s *GridService) ShowGrid(ctx context.Context) error {
 func (s *GridService) HideGrid(ctx context.Context) error {
 	s.logger.Info("Hiding grid")
 
-	hideGridErr := s.overlay.Hide(ctx)
-	if hideGridErr != nil {
-		s.logger.Error("Failed to hide overlay", zap.Error(hideGridErr))
+	err := s.HideOverlay(ctx, "hide grid")
+	if err != nil {
+		s.logger.Error("Failed to hide overlay", zap.Error(err))
 
-		return core.WrapOverlayFailed(hideGridErr, "hide grid")
+		return err
 	}
 
 	return nil

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
@@ -13,11 +14,11 @@ import (
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
-func (h *Handler) activateGridModeWithAction(action *string) {
+func (h *Handler) activateGridModeWithAction(actionStr *string) {
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameGrid,
 		h.config.Grid.Enabled,
-		domain.ActionMoveMouse,
+		action.TypeMoveMouse,
 	)
 	if !ok {
 		return
@@ -63,10 +64,10 @@ func (h *Handler) activateGridModeWithAction(action *string) {
 	h.overlayManager.Show()
 
 	// Store pending action if provided
-	h.grid.Context.SetPendingAction(action)
+	h.grid.Context.SetPendingAction(actionStr)
 
-	if action != nil {
-		h.logger.Info("Grid mode activated with pending action", zap.String("action", *action))
+	if actionStr != nil {
+		h.logger.Info("Grid mode activated with pending action", zap.String("action", *actionStr))
 	}
 
 	h.SetModeGrid()

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"go.uber.org/zap"
@@ -81,24 +82,28 @@ func (a *App) registerHotkeys() {
 }
 
 // executeHotkeyAction executes a hotkey action, which can be either a shell command or an IPC command.
-func (a *App) executeHotkeyAction(key, action string) error {
-	if strings.HasPrefix(action, domain.ActionPrefixExec) {
-		return a.executeShellCommand(key, action)
+func (a *App) executeHotkeyAction(key, actionStr string) error {
+	if strings.HasPrefix(actionStr, action.PrefixExec) {
+		return a.executeShellCommand(key, actionStr)
 	}
 
-	actionParts := strings.Split(action, " ")
-	action = actionParts[0]
+	actionParts := strings.Split(actionStr, " ")
+	actionStr = actionParts[0]
 	params := actionParts[1:]
 
 	ipcResponse := a.ipcController.HandleCommand(
 		context.Background(),
-		ipc.Command{Action: action, Args: params},
+		ipc.Command{Action: actionStr, Args: params},
 	)
 	if !ipcResponse.Success {
 		return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
 	}
 
-	a.logger.Debug("hotkey action executed", zap.String("key", key), zap.String("action", action))
+	a.logger.Debug(
+		"hotkey action executed",
+		zap.String("key", key),
+		zap.String("action", actionStr),
+	)
 
 	return nil
 }

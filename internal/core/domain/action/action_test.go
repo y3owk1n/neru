@@ -201,3 +201,243 @@ func TestParseType_RoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestName_String(t *testing.T) {
+	tests := []struct {
+		name action.Name
+		want string
+	}{
+		{action.NameLeftClick, "left_click"},
+		{action.NameRightClick, "right_click"},
+		{action.NameMiddleClick, "middle_click"},
+		{action.NameMouseDown, "mouse_down"},
+		{action.NameMouseUp, "mouse_up"},
+		{action.NameMoveMouse, "move_mouse"},
+		{action.NameMoveMouseRelative, "move_mouse_relative"},
+		{action.NameScroll, "scroll"},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.want, func(t *testing.T) {
+			got := string(testCase.name)
+			if got != testCase.want {
+				t.Errorf("Name.String() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestIsKnownName(t *testing.T) {
+	tests := []struct {
+		name action.Name
+		want bool
+	}{
+		{action.NameLeftClick, true},
+		{action.NameRightClick, true},
+		{action.NameMiddleClick, true},
+		{action.NameMouseDown, true},
+		{action.NameMouseUp, true},
+		{action.NameMoveMouse, true},
+		{action.NameMoveMouseRelative, true},
+		{action.NameScroll, true},
+		{action.Name("unknown"), false},
+		{action.Name(""), false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(string(testCase.name), func(t *testing.T) {
+			got := action.IsKnownName(testCase.name)
+			if got != testCase.want {
+				t.Errorf("IsKnownName(%q) = %v, want %v", testCase.name, got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestKnownNames(t *testing.T) {
+	names := action.KnownNames()
+
+	if len(names) != 8 {
+		t.Errorf("KnownNames() returned %d names, want 8", len(names))
+	}
+
+	// Check that all names are unique
+	seen := make(map[action.Name]bool)
+	for _, name := range names {
+		if seen[name] {
+			t.Errorf("KnownNames() contains duplicate: %v", name)
+		}
+
+		seen[name] = true
+	}
+
+	// Check that all expected names are present
+	expected := []action.Name{
+		action.NameLeftClick,
+		action.NameRightClick,
+		action.NameMiddleClick,
+		action.NameMouseDown,
+		action.NameMouseUp,
+		action.NameMoveMouse,
+		action.NameMoveMouseRelative,
+		action.NameScroll,
+	}
+
+	for _, exp := range expected {
+		if !seen[exp] {
+			t.Errorf("KnownNames() missing name: %v", exp)
+		}
+	}
+}
+
+func TestSupportedNamesString(t *testing.T) {
+	str := action.SupportedNamesString()
+
+	// Should contain all action names
+	expectedNames := []string{
+		"left_click",
+		"right_click",
+		"middle_click",
+		"mouse_down",
+		"mouse_up",
+		"move_mouse",
+		"move_mouse_relative",
+		"scroll",
+	}
+
+	for _, name := range expectedNames {
+		if !contains(str, name) {
+			t.Errorf("SupportedNamesString() missing %q in %q", name, str)
+		}
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+
+	return false
+}
+
+func TestType_ToName(t *testing.T) {
+	tests := []struct {
+		typ  action.Type
+		want action.Name
+	}{
+		{action.TypeLeftClick, action.NameLeftClick},
+		{action.TypeRightClick, action.NameRightClick},
+		{action.TypeMiddleClick, action.NameMiddleClick},
+		{action.TypeMouseDown, action.NameMouseDown},
+		{action.TypeMouseUp, action.NameMouseUp},
+		{action.TypeMoveMouse, action.NameMoveMouse},
+		{action.TypeMoveMouseRelative, action.NameMoveMouseRelative},
+		{action.TypeScroll, action.NameScroll},
+		{action.Type(999), ""},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.typ.String(), func(t *testing.T) {
+			got := testCase.typ.ToName()
+			if got != testCase.want {
+				t.Errorf("ToName() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestName_ToType(t *testing.T) {
+	tests := []struct {
+		name    action.Name
+		want    action.Type
+		wantErr bool
+	}{
+		{action.NameLeftClick, action.TypeLeftClick, false},
+		{action.NameRightClick, action.TypeRightClick, false},
+		{action.NameMiddleClick, action.TypeMiddleClick, false},
+		{action.NameMouseDown, action.TypeMouseDown, false},
+		{action.NameMouseUp, action.TypeMouseUp, false},
+		{action.NameMoveMouse, action.TypeMoveMouse, false},
+		{action.NameMoveMouseRelative, action.TypeMoveMouseRelative, false},
+		{action.NameScroll, action.TypeScroll, false},
+		{action.Name("unknown"), 0, true},
+		{action.Name(""), 0, true},
+	}
+
+	for _, testCase := range tests {
+		t.Run(string(testCase.name), func(t *testing.T) {
+			got, err := testCase.name.ToType()
+
+			if testCase.wantErr {
+				if err == nil {
+					t.Errorf("ToType() expected error, got nil")
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Errorf("ToType() unexpected error: %v", err)
+
+				return
+			}
+
+			if got != testCase.want {
+				t.Errorf("ToType() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestType_Name_RoundTrip(t *testing.T) {
+	// Test that ToName() and ToType() are inverses for all valid types
+	for _, typ := range action.AllTypes() {
+		name := typ.ToName()
+
+		parsedType, err := name.ToType()
+		if err != nil {
+			t.Errorf("Round trip error for %v: %v", typ, err)
+
+			continue
+		}
+
+		if parsedType != typ {
+			t.Errorf("Round trip failed: %v -> %v -> %v", typ, name, parsedType)
+		}
+	}
+}
+
+func TestName_Type_ParseType_RoundTrip(t *testing.T) {
+	// Test that ParseType() and String() work with Name conversion
+	for _, name := range action.KnownNames() {
+		// Name -> Type via ToType
+		typ, err := name.ToType()
+		if err != nil {
+			t.Errorf("ToType(%v) error: %v", name, err)
+
+			continue
+		}
+
+		// Type -> string via String()
+		str := typ.String()
+
+		// string -> Type via ParseType
+		parsedType, err := action.ParseType(str)
+		if err != nil {
+			t.Errorf("ParseType(%q) error: %v", str, err)
+
+			continue
+		}
+
+		// Should get back the same type
+		if parsedType != typ {
+			t.Errorf("Round trip failed: %v -> %v -> %q -> %v", name, typ, str, parsedType)
+		}
+	}
+}

@@ -1,16 +1,15 @@
 package hint
 
 import (
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
 )
 
 // Router handles hint-related key routing and returns routing results.
 type Router struct {
-	manager      *Manager
-	logger       *zap.Logger
-	modeExitKeys []string // Keys that exit hint mode
+	*domain.Router
+
+	manager *Manager
 }
 
 // RouteResult contains the result of routing a key press in hint mode.
@@ -32,40 +31,31 @@ func (rr *RouteResult) ExactHint() *Interface {
 // NewRouter creates a new hint router with the specified manager and logger.
 func NewRouter(manager *Manager, logger *zap.Logger) *Router {
 	return &Router{
-		manager:      manager,
-		logger:       logger,
-		modeExitKeys: []string{},
+		Router:  domain.NewRouter(logger),
+		manager: manager,
 	}
 }
 
 // NewRouterWithExitKeys creates a new hint router with custom exit keys.
 func NewRouterWithExitKeys(manager *Manager, logger *zap.Logger, exitKeys []string) *Router {
 	return &Router{
-		manager:      manager,
-		logger:       logger,
-		modeExitKeys: exitKeys,
+		Router:  domain.NewRouterWithExitKeys(logger, exitKeys),
+		manager: manager,
 	}
 }
 
 // RouteKey processes a key press and returns the routing result.
 func (r *Router) RouteKey(key string) RouteResult {
 	// Check if key matches any configured exit keys
-	exitKeys := r.modeExitKeys
-	if len(exitKeys) == 0 {
-		// Default to domain constant when no exit keys configured.
-		// In practice, handlers always pass configured exit keys, so this is a safety fallback.
-		exitKeys = []string{domain.DefaultExitKey}
-	}
-
-	if config.IsExitKey(key, exitKeys) {
+	if r.IsExitKey(key) {
 		return RouteResult{exit: true}
 	}
 
 	// Process input through manager
 	hint, exactMatch := r.manager.HandleInput(key)
 	if exactMatch {
-		if r.logger != nil {
-			r.logger.Debug("Hints router: Exact hint match found",
+		if r.Logger != nil {
+			r.Logger.Debug("Hints router: Exact hint match found",
 				zap.String("label", hint.Label()))
 		}
 
