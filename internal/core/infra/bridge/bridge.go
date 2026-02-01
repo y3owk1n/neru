@@ -10,6 +10,7 @@ package bridge
 #include "appwatcher.h"
 #include "alert.h"
 #include "secureinput.h"
+#include "keymap.h"
 #include <stdlib.h>
 
 CGRect getActiveScreenBounds();
