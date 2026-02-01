@@ -883,33 +883,33 @@ void destroyEventTap(EventTap tap) {
 			dispatch_block_cancel(context->pendingAddSourceBlock);
 			context->pendingAddSourceBlock = nil;
 		}
+
+		// Clean up resources
+		if (context->eventTap) {
+			CFRelease(context->eventTap);
+			context->eventTap = NULL;
+		}
+
+		if (context->runLoopSource) {
+			CFRelease(context->runLoopSource);
+			context->runLoopSource = NULL;
+		}
+
+		// Clean up hotkeys and queue
+		context->hotkeys = nil;                 // ARC will handle deallocation
+		context->accessQueue = nil;             // ARC will handle deallocation
+		context->pendingEnableBlock = nil;      // ARC will handle deallocation
+		context->pendingOuterEnableBlock = nil; // ARC will handle deallocation
+		context->pendingDisableBlock = nil;     // ARC will handle deallocation
+		context->pendingAddSourceBlock = nil;   // ARC will handle deallocation
+
+		free(context);
 	};
 
-	// Disable first (must be on main thread)
+	// Execute cleanup on main thread
 	if ([NSThread isMainThread]) {
 		cleanupBlock();
 	} else {
-		dispatch_sync(dispatch_get_main_queue(), cleanupBlock);
+		dispatch_async(dispatch_get_main_queue(), cleanupBlock);
 	}
-
-	// Clean up resources
-	if (context->eventTap) {
-		CFRelease(context->eventTap);
-		context->eventTap = NULL;
-	}
-
-	if (context->runLoopSource) {
-		CFRelease(context->runLoopSource);
-		context->runLoopSource = NULL;
-	}
-
-	// Clean up hotkeys and queue
-	context->hotkeys = nil;                 // ARC will handle deallocation
-	context->accessQueue = nil;             // ARC will handle deallocation
-	context->pendingEnableBlock = nil;      // ARC will handle deallocation
-	context->pendingOuterEnableBlock = nil; // ARC will handle deallocation
-	context->pendingDisableBlock = nil;     // ARC will handle deallocation
-	context->pendingAddSourceBlock = nil;   // ARC will handle deallocation
-
-	free(context);
 }
