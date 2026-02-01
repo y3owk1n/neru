@@ -21,7 +21,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"go.uber.org/zap"
 )
 
@@ -61,16 +60,9 @@ type Overlay struct {
 	callbackManager *overlayutil.CallbackManager
 
 	// Cached C strings for style properties to reduce allocations
-	cachedStyleMu            sync.RWMutex
-	cachedFontFamily         *C.char
-	cachedBgColor            *C.char
-	cachedTextColor          *C.char
-	cachedMatchedTextColor   *C.char
-	cachedMatchedBgColor     *C.char
-	cachedMatchedBorderColor *C.char
-	cachedBorderColor        *C.char
-	cachedHighlightColor     *C.char
-	cachedLabels             map[string]*C.char
+	styleCache   *overlayutil.StyleCache
+	labelCacheMu sync.RWMutex
+	cachedLabels map[string]*C.char
 
 	// Pre-allocated buffer for grid lines (always 4 lines for highlights)
 	gridLineBuffer [DefaultGridLinesCount]C.CGRect
@@ -141,6 +133,7 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) *Overlay {
 		config:          config,
 		logger:          logger,
 		callbackManager: overlayutil.NewCallbackManager(logger),
+		styleCache:      overlayutil.NewStyleCache(),
 		cachedLabels:    make(map[string]*C.char),
 	}
 }
@@ -163,6 +156,7 @@ func NewOverlayWithWindow(
 		config:          config,
 		logger:          logger,
 		callbackManager: overlayutil.NewCallbackManager(logger),
+		styleCache:      overlayutil.NewStyleCache(),
 		cachedLabels:    make(map[string]*C.char),
 	}
 }
@@ -186,7 +180,7 @@ func (o *Overlay) Logger() *zap.Logger {
 func (o *Overlay) SetConfig(config config.GridConfig) {
 	o.config = config
 	// Invalidate caches when config changes
-	o.freeStyleCache()
+	o.styleCache.Free()
 	o.freeLabelCache()
 }
 
@@ -227,7 +221,7 @@ func (o *Overlay) Destroy() {
 		o.callbackManager.Cleanup()
 	}
 
-	o.freeStyleCache()
+	o.styleCache.Free()
 	o.freeLabelCache()
 	C.NeruDestroyOverlayWindow(o.window)
 }
@@ -401,18 +395,25 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	}
 
 	// Use cached style strings to avoid repeated allocations
-	fontFamily, backgroundColor, textColor, matchedTextColor,
-		matchedBackgroundColor, matchedBorderColor, borderColor := o.getCachedStyleStrings(style)
+	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
+		cached.FontFamily = unsafe.Pointer(C.CString(style.FontFamily()))
+		cached.BgColor = unsafe.Pointer(C.CString(style.BackgroundColor()))
+		cached.TextColor = unsafe.Pointer(C.CString(style.TextColor()))
+		cached.MatchedTextColor = unsafe.Pointer(C.CString(style.MatchedTextColor()))
+		cached.MatchedBgColor = unsafe.Pointer(C.CString(style.MatchedBackgroundColor()))
+		cached.MatchedBorderColor = unsafe.Pointer(C.CString(style.MatchedBorderColor()))
+		cached.BorderColor = unsafe.Pointer(C.CString(style.BorderColor()))
+	})
 
 	finalStyle := C.GridCellStyle{
 		fontSize:               C.int(style.FontSize()),
-		fontFamily:             fontFamily,
-		backgroundColor:        backgroundColor,
-		textColor:              textColor,
-		matchedTextColor:       matchedTextColor,
-		matchedBackgroundColor: matchedBackgroundColor,
-		matchedBorderColor:     matchedBorderColor,
-		borderColor:            borderColor,
+		fontFamily:             (*C.char)(cachedStyle.FontFamily),
+		backgroundColor:        (*C.char)(cachedStyle.BgColor),
+		textColor:              (*C.char)(cachedStyle.TextColor),
+		matchedTextColor:       (*C.char)(cachedStyle.MatchedTextColor),
+		matchedBackgroundColor: (*C.char)(cachedStyle.MatchedBgColor),
+		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
+		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(style.BorderWidth()),
 		backgroundOpacity:      C.double(style.Opacity()),
 		textOpacity:            C.double(1.0),
@@ -612,18 +613,25 @@ func (o *Overlay) drawGridIncrementalStructural(
 	}
 
 	// Get style strings
-	fontFamily, backgroundColor, textColor, matchedTextColor,
-		matchedBackgroundColor, matchedBorderColor, borderColor := o.getCachedStyleStrings(currentStyle)
+	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
+		cached.FontFamily = unsafe.Pointer(C.CString(currentStyle.FontFamily()))
+		cached.BgColor = unsafe.Pointer(C.CString(currentStyle.BackgroundColor()))
+		cached.TextColor = unsafe.Pointer(C.CString(currentStyle.TextColor()))
+		cached.MatchedTextColor = unsafe.Pointer(C.CString(currentStyle.MatchedTextColor()))
+		cached.MatchedBgColor = unsafe.Pointer(C.CString(currentStyle.MatchedBackgroundColor()))
+		cached.MatchedBorderColor = unsafe.Pointer(C.CString(currentStyle.MatchedBorderColor()))
+		cached.BorderColor = unsafe.Pointer(C.CString(currentStyle.BorderColor()))
+	})
 
 	finalStyle := C.GridCellStyle{
 		fontSize:               C.int(currentStyle.FontSize()),
-		fontFamily:             fontFamily,
-		backgroundColor:        backgroundColor,
-		textColor:              textColor,
-		matchedTextColor:       matchedTextColor,
-		matchedBackgroundColor: matchedBackgroundColor,
-		matchedBorderColor:     matchedBorderColor,
-		borderColor:            borderColor,
+		fontFamily:             (*C.char)(cachedStyle.FontFamily),
+		backgroundColor:        (*C.char)(cachedStyle.BgColor),
+		textColor:              (*C.char)(cachedStyle.TextColor),
+		matchedTextColor:       (*C.char)(cachedStyle.MatchedTextColor),
+		matchedBackgroundColor: (*C.char)(cachedStyle.MatchedBgColor),
+		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
+		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(currentStyle.BorderWidth()),
 		backgroundOpacity:      C.double(currentStyle.Opacity()),
 		textOpacity:            C.double(1.0),
@@ -723,33 +731,10 @@ func (o *Overlay) filterCellsByViewport(cells []*domainGrid.Cell) []*domainGrid.
 	return visibleCells
 }
 
-// freeStyleCache frees all cached C strings.
-func (o *Overlay) freeStyleCache() {
-	o.cachedStyleMu.Lock()
-	defer o.cachedStyleMu.Unlock()
-
-	bridge.FreeCString(unsafe.Pointer(o.cachedFontFamily))
-	o.cachedFontFamily = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedBgColor))
-	o.cachedBgColor = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedTextColor))
-	o.cachedTextColor = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedTextColor))
-	o.cachedMatchedTextColor = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedBgColor))
-	o.cachedMatchedBgColor = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedBorderColor))
-	o.cachedMatchedBorderColor = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedBorderColor))
-	o.cachedBorderColor = nil
-	bridge.FreeCString(unsafe.Pointer(o.cachedHighlightColor))
-	o.cachedHighlightColor = nil
-}
-
 // freeLabelCache frees all cached label C strings.
 func (o *Overlay) freeLabelCache() {
-	o.cachedStyleMu.Lock()
-	defer o.cachedStyleMu.Unlock()
+	o.labelCacheMu.Lock()
+	defer o.labelCacheMu.Unlock()
 
 	for _, cStr := range o.cachedLabels {
 		if cStr != nil {
@@ -762,16 +747,16 @@ func (o *Overlay) freeLabelCache() {
 
 // getOrCacheLabel returns a cached C string for the label, creating it if needed.
 func (o *Overlay) getOrCacheLabel(label string) *C.char {
-	o.cachedStyleMu.RLock()
+	o.labelCacheMu.RLock()
 	if cStr, ok := o.cachedLabels[label]; ok {
-		o.cachedStyleMu.RUnlock()
+		o.labelCacheMu.RUnlock()
 
 		return cStr
 	}
-	o.cachedStyleMu.RUnlock()
+	o.labelCacheMu.RUnlock()
 
-	o.cachedStyleMu.Lock()
-	defer o.cachedStyleMu.Unlock()
+	o.labelCacheMu.Lock()
+	defer o.labelCacheMu.Unlock()
 
 	// Double-check
 	if cStr, ok := o.cachedLabels[label]; ok {
@@ -782,64 +767,6 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 	o.cachedLabels[label] = cStr
 
 	return cStr
-}
-
-// updateStyleCacheLocked updates cached C strings for the current style.
-// Must be called with cachedStyleMu write lock held.
-func (o *Overlay) updateStyleCacheLocked(style Style) {
-	// Free old cached strings
-	bridge.FreeCString(unsafe.Pointer(o.cachedFontFamily))
-	bridge.FreeCString(unsafe.Pointer(o.cachedBgColor))
-	bridge.FreeCString(unsafe.Pointer(o.cachedTextColor))
-	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedTextColor))
-	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedBgColor))
-	bridge.FreeCString(unsafe.Pointer(o.cachedMatchedBorderColor))
-	bridge.FreeCString(unsafe.Pointer(o.cachedBorderColor))
-
-	o.cachedFontFamily = C.CString(style.FontFamily())
-	o.cachedBgColor = C.CString(style.BackgroundColor())
-	o.cachedTextColor = C.CString(style.TextColor())
-	o.cachedMatchedTextColor = C.CString(style.MatchedTextColor())
-	o.cachedMatchedBgColor = C.CString(style.MatchedBackgroundColor())
-	o.cachedMatchedBorderColor = C.CString(style.MatchedBorderColor())
-	o.cachedBorderColor = C.CString(style.BorderColor())
-}
-
-// getCachedStyleStrings returns cached C strings for style, updating cache if needed.
-func (o *Overlay) getCachedStyleStrings(
-	style Style,
-) (*C.char, *C.char, *C.char, *C.char, *C.char, *C.char, *C.char) {
-	o.cachedStyleMu.RLock()
-	// Check if cache is valid (simple check - if any is nil, rebuild all)
-	if o.cachedFontFamily == nil {
-		o.cachedStyleMu.RUnlock()
-		o.cachedStyleMu.Lock()
-		// Double-check after acquiring write lock
-		if o.cachedFontFamily == nil {
-			o.updateStyleCacheLocked(style)
-		}
-		fontFamily := o.cachedFontFamily
-		bgColor := o.cachedBgColor
-		textColor := o.cachedTextColor
-		matchedTextColor := o.cachedMatchedTextColor
-		matchedBgColor := o.cachedMatchedBgColor
-		matchedBorderColor := o.cachedMatchedBorderColor
-		borderColor := o.cachedBorderColor
-		o.cachedStyleMu.Unlock()
-
-		return fontFamily, bgColor, textColor, matchedTextColor, matchedBgColor, matchedBorderColor, borderColor
-	}
-
-	fontFamily := o.cachedFontFamily
-	bgColor := o.cachedBgColor
-	textColor := o.cachedTextColor
-	matchedTextColor := o.cachedMatchedTextColor
-	matchedBgColor := o.cachedMatchedBgColor
-	matchedBorderColor := o.cachedMatchedBorderColor
-	borderColor := o.cachedBorderColor
-	o.cachedStyleMu.RUnlock()
-
-	return fontFamily, bgColor, textColor, matchedTextColor, matchedBgColor, matchedBorderColor, borderColor
 }
 
 // drawGridCells draws all grid cells with their labels.
@@ -905,18 +832,25 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 		zap.Int("matched_cells", matchedCount))
 
 	// Use cached style strings to avoid repeated allocations
-	fontFamily, backgroundColor, textColor, matchedTextColor,
-		matchedBackgroundColor, matchedBorderColor, borderColor := o.getCachedStyleStrings(style)
+	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
+		cached.FontFamily = unsafe.Pointer(C.CString(style.FontFamily()))
+		cached.BgColor = unsafe.Pointer(C.CString(style.BackgroundColor()))
+		cached.TextColor = unsafe.Pointer(C.CString(style.TextColor()))
+		cached.MatchedTextColor = unsafe.Pointer(C.CString(style.MatchedTextColor()))
+		cached.MatchedBgColor = unsafe.Pointer(C.CString(style.MatchedBackgroundColor()))
+		cached.MatchedBorderColor = unsafe.Pointer(C.CString(style.MatchedBorderColor()))
+		cached.BorderColor = unsafe.Pointer(C.CString(style.BorderColor()))
+	})
 
 	finalStyle := C.GridCellStyle{
 		fontSize:               C.int(style.FontSize()),
-		fontFamily:             fontFamily,
-		backgroundColor:        backgroundColor,
-		textColor:              textColor,
-		matchedTextColor:       matchedTextColor,
-		matchedBackgroundColor: matchedBackgroundColor,
-		matchedBorderColor:     matchedBorderColor,
-		borderColor:            borderColor,
+		fontFamily:             (*C.char)(cachedStyle.FontFamily),
+		backgroundColor:        (*C.char)(cachedStyle.BgColor),
+		textColor:              (*C.char)(cachedStyle.TextColor),
+		matchedTextColor:       (*C.char)(cachedStyle.MatchedTextColor),
+		matchedBackgroundColor: (*C.char)(cachedStyle.MatchedBgColor),
+		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
+		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(style.BorderWidth()),
 		backgroundOpacity:      C.double(style.Opacity()),
 		textOpacity:            C.double(1.0),
