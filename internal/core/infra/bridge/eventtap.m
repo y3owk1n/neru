@@ -830,21 +830,21 @@ void disableEventTap(EventTap tap) {
 	EventTapContext *context = (EventTapContext *)tap;
 
 	// Always disable asynchronously to avoid overlap with enable/destroy
-	dispatch_async(dispatch_get_main_queue(), ^{
-		// Cancel any existing pending block
-		if (context->pendingDisableBlock) {
-			dispatch_block_cancel(context->pendingDisableBlock);
-			context->pendingDisableBlock = nil;
-		}
-
-		dispatch_block_t block = dispatch_block_create(0, ^{
-			CGEventTapEnable(context->eventTap, false);
-			context->pendingDisableBlock = nil;
-		});
-
-		context->pendingDisableBlock = block;
-		block();
+	// Create the block that will run on main thread
+	dispatch_block_t block = dispatch_block_create(0, ^{
+		CGEventTapEnable(context->eventTap, false);
+		context->pendingDisableBlock = nil;
 	});
+
+	// Cancel any existing pending block
+	if (context->pendingDisableBlock) {
+		dispatch_block_cancel(context->pendingDisableBlock);
+		context->pendingDisableBlock = nil;
+	}
+
+	// Store new block and dispatch
+	context->pendingDisableBlock = block;
+	dispatch_async(dispatch_get_main_queue(), block);
 }
 
 /// Destroy event tap
