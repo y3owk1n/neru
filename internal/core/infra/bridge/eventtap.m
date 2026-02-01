@@ -11,12 +11,13 @@
 #pragma mark - Type Definitions
 
 typedef struct {
-	CFMachPortRef eventTap;           ///< Event tap reference
-	CFRunLoopSourceRef runLoopSource; ///< Run loop source
-	EventTapCallback callback;        ///< Callback function
-	void *userData;                   ///< User data pointer
-	NSMutableArray *hotkeys;          ///< Hotkeys array
-	dispatch_queue_t accessQueue;     ///< Thread-safe access queue
+	CFMachPortRef eventTap;              ///< Event tap reference
+	CFRunLoopSourceRef runLoopSource;    ///< Run loop source
+	EventTapCallback callback;           ///< Callback function
+	void *userData;                      ///< User data pointer
+	NSMutableArray *hotkeys;             ///< Hotkeys array
+	dispatch_queue_t accessQueue;        ///< Thread-safe access queue
+	dispatch_block_t pendingEnableBlock; ///< Pending enable block
 } EventTapContext;
 
 #pragma mark - Helper Functions
@@ -713,6 +714,7 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	// Initialize with ARC-compatible array
 	context->hotkeys = [[NSMutableArray alloc] init];
 	context->accessQueue = dispatch_queue_create("com.neru.eventtap", DISPATCH_QUEUE_SERIAL);
+	context->pendingEnableBlock = nil;
 
 	// Set up event tap
 	CGEventMask eventMask = (1 << kCGEventKeyDown);
@@ -778,9 +780,20 @@ void enableEventTap(EventTap tap) {
 	// Always enable asynchronously to avoid overlap with disable/destroy
 	// Use a short delay to ensure prior disable completes first
 	dispatch_async(dispatch_get_main_queue(), ^{
-		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.15 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+		// Cancel any existing pending block
+		if (context->pendingEnableBlock) {
+			dispatch_block_cancel(context->pendingEnableBlock);
+			context->pendingEnableBlock = nil;
+		}
+
+		dispatch_block_t block = dispatch_block_create(0, ^{
 			CGEventTapEnable(context->eventTap, true);
+			context->pendingEnableBlock = nil;
 		});
+
+		context->pendingEnableBlock = block;
+		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.15 * NSEC_PER_SEC)), dispatch_get_main_queue(),
+		               block);
 	});
 }
 
@@ -806,23 +819,26 @@ void destroyEventTap(EventTap tap) {
 
 	EventTapContext *context = (EventTapContext *)tap;
 
-	// Disable first (must be on main thread)
-	if ([NSThread isMainThread]) {
+	// Helper block for cleanup tasks that must run on main thread
+	void (^cleanupBlock)(void) = ^{
 		if (context->eventTap) {
 			CGEventTapEnable(context->eventTap, false);
 		}
 		if (context->runLoopSource) {
 			CFRunLoopRemoveSource(CFRunLoopGetMain(), context->runLoopSource, kCFRunLoopCommonModes);
 		}
+		// Cancel any pending enable block
+		if (context->pendingEnableBlock) {
+			dispatch_block_cancel(context->pendingEnableBlock);
+			context->pendingEnableBlock = nil;
+		}
+	};
+
+	// Disable first (must be on main thread)
+	if ([NSThread isMainThread]) {
+		cleanupBlock();
 	} else {
-		dispatch_async(dispatch_get_main_queue(), ^{
-			if (context->eventTap) {
-				CGEventTapEnable(context->eventTap, false);
-			}
-			if (context->runLoopSource) {
-				CFRunLoopRemoveSource(CFRunLoopGetMain(), context->runLoopSource, kCFRunLoopCommonModes);
-			}
-		});
+		dispatch_sync(dispatch_get_main_queue(), cleanupBlock);
 	}
 
 	// Clean up resources
@@ -837,8 +853,9 @@ void destroyEventTap(EventTap tap) {
 	}
 
 	// Clean up hotkeys and queue
-	context->hotkeys = nil;     // ARC will handle deallocation
-	context->accessQueue = nil; // ARC will handle deallocation
+	context->hotkeys = nil;            // ARC will handle deallocation
+	context->accessQueue = nil;        // ARC will handle deallocation
+	context->pendingEnableBlock = nil; // ARC will handle deallocation
 
 	free(context);
 }
