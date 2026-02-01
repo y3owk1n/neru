@@ -22,10 +22,26 @@ func isValidModifier(mod string) bool {
 	return validModifiers[mod]
 }
 
+// colorField represents a color configuration field to validate.
+type colorField struct {
+	value     string
+	fieldName string
+}
+
+// validateColors batch validates multiple color fields.
+func validateColors(fields []colorField) error {
+	for _, field := range fields {
+		err := ValidateColor(field.value, field.fieldName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // ValidateHints validates the hints configuration.
 func (c *Config) ValidateHints() error {
-	var validateErr error
-
 	if c.Hints.Enabled {
 		if len(c.Hints.ClickableRoles) == 0 {
 			return derrors.New(derrors.CodeInvalidConfig,
@@ -57,24 +73,14 @@ func (c *Config) ValidateHints() error {
 		return derrors.New(derrors.CodeInvalidConfig, "hints.opacity must be between 0 and 1")
 	}
 
-	validateErr = ValidateColor(c.Hints.BackgroundColor, "hints.background_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Hints.TextColor, "hints.text_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Hints.MatchedTextColor, "hints.matched_text_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Hints.BorderColor, "hints.border_color")
-	if validateErr != nil {
-		return validateErr
+	err := validateColors([]colorField{
+		{c.Hints.BackgroundColor, "hints.background_color"},
+		{c.Hints.TextColor, "hints.text_color"},
+		{c.Hints.MatchedTextColor, "hints.matched_text_color"},
+		{c.Hints.BorderColor, "hints.border_color"},
+	})
+	if err != nil {
+		return err
 	}
 
 	if c.Hints.FontSize < 6 || c.Hints.FontSize > 72 {
@@ -219,8 +225,6 @@ func (c *Config) ValidateAppConfigs() error {
 
 // ValidateGrid validates the grid configuration.
 func (c *Config) ValidateGrid() error {
-	var validateErr error
-
 	if strings.TrimSpace(c.Grid.Characters) == "" {
 		return derrors.New(derrors.CodeInvalidConfig, "grid.characters cannot be empty")
 	}
@@ -387,34 +391,16 @@ func (c *Config) ValidateGrid() error {
 	}
 
 	// Validate per-action grid colors
-	validateErr = ValidateColor(c.Grid.BackgroundColor, "grid.background_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Grid.TextColor, "grid.text_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Grid.MatchedTextColor, "grid.matched_text_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Grid.MatchedBackgroundColor, "grid.matched_background_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Grid.MatchedBorderColor, "grid.matched_border_color")
-	if validateErr != nil {
-		return validateErr
-	}
-
-	validateErr = ValidateColor(c.Grid.BorderColor, "grid.border_color")
-	if validateErr != nil {
-		return validateErr
+	err := validateColors([]colorField{
+		{c.Grid.BackgroundColor, "grid.background_color"},
+		{c.Grid.TextColor, "grid.text_color"},
+		{c.Grid.MatchedTextColor, "grid.matched_text_color"},
+		{c.Grid.MatchedBackgroundColor, "grid.matched_background_color"},
+		{c.Grid.MatchedBorderColor, "grid.matched_border_color"},
+		{c.Grid.BorderColor, "grid.border_color"},
+	})
+	if err != nil {
+		return err
 	}
 
 	// Validate sublayer keys (fallback to grid.characters) for 3x3 subgrid
