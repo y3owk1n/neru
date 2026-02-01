@@ -152,91 +152,235 @@ BOOL isHotkeyMatch(CGKeyCode keyCode, CGEventFlags flags, NSString *hotkeyString
 NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	BOOL hasShift = (flags & kCGEventFlagMaskShift) != 0;
 	BOOL hasCapsLock = (flags & kCGEventFlagMaskAlphaShift) != 0;
-	
+
 	// Determine if we should output uppercase
 	BOOL uppercase = hasShift != hasCapsLock; // XOR: shift and capslock cancel each other for letters
-	
+
 	NSString *charStr = nil;
-	
+
 	switch (keyCode) {
 	// Letters
-	case 0: charStr = uppercase ? @"A" : @"a"; break;
-	case 1: charStr = uppercase ? @"S" : @"s"; break;
-	case 2: charStr = uppercase ? @"D" : @"d"; break;
-	case 3: charStr = uppercase ? @"F" : @"f"; break;
-	case 4: charStr = uppercase ? @"H" : @"h"; break;
-	case 5: charStr = uppercase ? @"G" : @"g"; break;
-	case 6: charStr = uppercase ? @"Z" : @"z"; break;
-	case 7: charStr = uppercase ? @"X" : @"x"; break;
-	case 8: charStr = uppercase ? @"C" : @"c"; break;
-	case 9: charStr = uppercase ? @"V" : @"v"; break;
-	case 11: charStr = uppercase ? @"B" : @"b"; break;
-	case 12: charStr = uppercase ? @"Q" : @"q"; break;
-	case 13: charStr = uppercase ? @"W" : @"w"; break;
-	case 14: charStr = uppercase ? @"E" : @"e"; break;
-	case 15: charStr = uppercase ? @"R" : @"r"; break;
-	case 16: charStr = uppercase ? @"Y" : @"y"; break;
-	case 17: charStr = uppercase ? @"T" : @"t"; break;
-	case 31: charStr = uppercase ? @"O" : @"o"; break;
-	case 32: charStr = uppercase ? @"U" : @"u"; break;
-	case 34: charStr = uppercase ? @"I" : @"i"; break;
-	case 35: charStr = uppercase ? @"P" : @"p"; break;
-	case 37: charStr = uppercase ? @"L" : @"l"; break;
-	case 38: charStr = uppercase ? @"J" : @"j"; break;
-	case 40: charStr = uppercase ? @"K" : @"k"; break;
-	case 45: charStr = uppercase ? @"N" : @"n"; break;
-	case 46: charStr = uppercase ? @"M" : @"m"; break;
-	
+	case 0:
+		charStr = uppercase ? @"A" : @"a";
+		break;
+	case 1:
+		charStr = uppercase ? @"S" : @"s";
+		break;
+	case 2:
+		charStr = uppercase ? @"D" : @"d";
+		break;
+	case 3:
+		charStr = uppercase ? @"F" : @"f";
+		break;
+	case 4:
+		charStr = uppercase ? @"H" : @"h";
+		break;
+	case 5:
+		charStr = uppercase ? @"G" : @"g";
+		break;
+	case 6:
+		charStr = uppercase ? @"Z" : @"z";
+		break;
+	case 7:
+		charStr = uppercase ? @"X" : @"x";
+		break;
+	case 8:
+		charStr = uppercase ? @"C" : @"c";
+		break;
+	case 9:
+		charStr = uppercase ? @"V" : @"v";
+		break;
+	case 11:
+		charStr = uppercase ? @"B" : @"b";
+		break;
+	case 12:
+		charStr = uppercase ? @"Q" : @"q";
+		break;
+	case 13:
+		charStr = uppercase ? @"W" : @"w";
+		break;
+	case 14:
+		charStr = uppercase ? @"E" : @"e";
+		break;
+	case 15:
+		charStr = uppercase ? @"R" : @"r";
+		break;
+	case 16:
+		charStr = uppercase ? @"Y" : @"y";
+		break;
+	case 17:
+		charStr = uppercase ? @"T" : @"t";
+		break;
+	case 31:
+		charStr = uppercase ? @"O" : @"o";
+		break;
+	case 32:
+		charStr = uppercase ? @"U" : @"u";
+		break;
+	case 34:
+		charStr = uppercase ? @"I" : @"i";
+		break;
+	case 35:
+		charStr = uppercase ? @"P" : @"p";
+		break;
+	case 37:
+		charStr = uppercase ? @"L" : @"l";
+		break;
+	case 38:
+		charStr = uppercase ? @"J" : @"j";
+		break;
+	case 40:
+		charStr = uppercase ? @"K" : @"k";
+		break;
+	case 45:
+		charStr = uppercase ? @"N" : @"n";
+		break;
+	case 46:
+		charStr = uppercase ? @"M" : @"m";
+		break;
+
 	// Numbers (shifted symbols)
-	case 18: charStr = hasShift ? @"!" : @"1"; break;
-	case 19: charStr = hasShift ? @"@" : @"2"; break;
-	case 20: charStr = hasShift ? @"#" : @"3"; break;
-	case 21: charStr = hasShift ? @"$" : @"4"; break;
-	case 22: charStr = hasShift ? @"^" : @"6"; break;
-	case 23: charStr = hasShift ? @"%" : @"5"; break;
-	case 24: charStr = hasShift ? @"+" : @"="; break;
-	case 25: charStr = hasShift ? @"(" : @"9"; break;
-	case 26: charStr = hasShift ? @"&" : @"7"; break;
-	case 27: charStr = hasShift ? @"_" : @"-"; break;
-	case 28: charStr = hasShift ? @"*" : @"8"; break;
-	case 29: charStr = hasShift ? @")" : @"0"; break;
-	
+	case 18:
+		charStr = hasShift ? @"!" : @"1";
+		break;
+	case 19:
+		charStr = hasShift ? @"@" : @"2";
+		break;
+	case 20:
+		charStr = hasShift ? @"#" : @"3";
+		break;
+	case 21:
+		charStr = hasShift ? @"$" : @"4";
+		break;
+	case 22:
+		charStr = hasShift ? @"^" : @"6";
+		break;
+	case 23:
+		charStr = hasShift ? @"%" : @"5";
+		break;
+	case 24:
+		charStr = hasShift ? @"+" : @"=";
+		break;
+	case 25:
+		charStr = hasShift ? @"(" : @"9";
+		break;
+	case 26:
+		charStr = hasShift ? @"&" : @"7";
+		break;
+	case 27:
+		charStr = hasShift ? @"_" : @"-";
+		break;
+	case 28:
+		charStr = hasShift ? @"*" : @"8";
+		break;
+	case 29:
+		charStr = hasShift ? @")" : @"0";
+		break;
+
 	// Symbols
-	case 30: charStr = hasShift ? @"}" : @"]"; break;
-	case 33: charStr = hasShift ? @"{" : @"["; break;
-	case 39: charStr = hasShift ? @"\"" : @"'"; break;
-	case 41: charStr = hasShift ? @":" : @";"; break;
-	case 42: charStr = hasShift ? @"|" : @"\\"; break;
-	case 43: charStr = hasShift ? @"<" : @","; break;
-	case 44: charStr = hasShift ? @"?" : @"/"; break;
-	case 47: charStr = hasShift ? @">" : @"."; break;
-	
+	case 30:
+		charStr = hasShift ? @"}" : @"]";
+		break;
+	case 33:
+		charStr = hasShift ? @"{" : @"[";
+		break;
+	case 39:
+		charStr = hasShift ? @"\"" : @"'";
+		break;
+	case 41:
+		charStr = hasShift ? @":" : @";";
+		break;
+	case 42:
+		charStr = hasShift ? @"|" : @"\\";
+		break;
+	case 43:
+		charStr = hasShift ? @"<" : @",";
+		break;
+	case 44:
+		charStr = hasShift ? @"?" : @"/";
+		break;
+	case 47:
+		charStr = hasShift ? @">" : @".";
+		break;
+
 	// Space
-	case 49: charStr = @" "; break;
-	
+	case 49:
+		charStr = @" ";
+		break;
+
+	// Tab and Return
+	case 36:
+		charStr = @"\r"; // Return
+		break;
+	case 48:
+		charStr = @"\t"; // Tab
+		break;
+
+	// Backtick/Tilde
+	case 50:
+		charStr = hasShift ? @"~" : @"`";
+		break;
+
 	// Numpad
-	case 65: charStr = @"."; break;
-	case 67: charStr = @"*"; break;
-	case 69: charStr = @"+"; break;
-	case 71: charStr = @"\x7f"; break; // Clear
-	case 75: charStr = @"/"; break;
-	case 76: charStr = @"\x03"; break; // Enter
-	case 78: charStr = @"-"; break;
-	case 81: charStr = @"="; break;
-	case 82: charStr = @"0"; break;
-	case 83: charStr = @"1"; break;
-	case 84: charStr = @"2"; break;
-	case 85: charStr = @"3"; break;
-	case 86: charStr = @"4"; break;
-	case 87: charStr = @"5"; break;
-	case 88: charStr = @"6"; break;
-	case 89: charStr = @"7"; break;
-	case 91: charStr = @"8"; break;
-	case 92: charStr = @"9"; break;
-	
-	default: break;
+	case 65:
+		charStr = @".";
+		break;
+	case 67:
+		charStr = @"*";
+		break;
+	case 69:
+		charStr = @"+";
+		break;
+	case 71:
+		charStr = @"\x7f"; // Clear
+		break;
+	case 75:
+		charStr = @"/";
+		break;
+	case 76:
+		charStr = @"\x03"; // Enter
+		break;
+	case 78:
+		charStr = @"-";
+		break;
+	case 81:
+		charStr = @"=";
+		break;
+	case 82:
+		charStr = @"0";
+		break;
+	case 83:
+		charStr = @"1";
+		break;
+	case 84:
+		charStr = @"2";
+		break;
+	case 85:
+		charStr = @"3";
+		break;
+	case 86:
+		charStr = @"4";
+		break;
+	case 87:
+		charStr = @"5";
+		break;
+	case 88:
+		charStr = @"6";
+		break;
+	case 89:
+		charStr = @"7";
+		break;
+	case 91:
+		charStr = @"8";
+		break;
+	case 92:
+		charStr = @"9";
+		break;
+
+	default:
+		break;
 	}
-	
+
 	return charStr;
 }
 
