@@ -65,9 +65,12 @@ func (r *Router) RouteKey(key string) KeyResult {
 
 	// Delegate coordinate input to the grid manager
 	if point, complete := r.manager.HandleInput(key); complete {
-		r.Logger.Debug("Grid router: Coordinate selection complete",
-			zap.Int("x", point.X),
-			zap.Int("y", point.Y))
+		if r.Logger != nil {
+			r.Logger.Debug("Grid router: Coordinate selection complete",
+				zap.Int("x", point.X),
+				zap.Int("y", point.Y))
+		}
+
 		routeKeyResult.targetPoint = point
 		routeKeyResult.complete = true
 	}
