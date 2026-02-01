@@ -19,7 +19,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
 )
 
@@ -35,12 +34,6 @@ var (
 	hintDataPool    sync.Pool
 	cLabelSlicePool sync.Pool
 	hintPoolOnce    sync.Once
-
-	// Pre-allocated common errors.
-	errCreateOverlayWindow = derrors.New(
-		derrors.CodeOverlayFailed,
-		"failed to create overlay window",
-	)
 )
 
 // Overlay manages the rendering of hint overlays using native platform APIs.
@@ -144,18 +137,18 @@ func initPools() {
 
 // NewOverlay creates a new hint overlay instance with its own window.
 func NewOverlay(config config.HintsConfig, logger *zap.Logger) (*Overlay, error) {
-	window := C.createOverlayWindow()
-	if window == nil {
-		return nil, errCreateOverlayWindow
+	base, err := overlayutil.NewBaseOverlay(logger)
+	if err != nil {
+		return nil, err
 	}
 	initPools()
 
 	return &Overlay{
-		window:          window,
+		window:          (C.OverlayWindow)(base.Window),
 		config:          config,
 		logger:          logger,
-		callbackManager: overlayutil.NewCallbackManager(logger),
-		styleCache:      overlayutil.NewStyleCache(),
+		callbackManager: base.CallbackManager,
+		styleCache:      base.StyleCache,
 	}, nil
 }
 
@@ -166,13 +159,14 @@ func NewOverlayWithWindow(
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
 	initPools()
+	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(windowPtr),
+		window:          (C.OverlayWindow)(base.Window),
 		config:          config,
 		logger:          logger,
-		callbackManager: overlayutil.NewCallbackManager(logger),
-		styleCache:      overlayutil.NewStyleCache(),
+		callbackManager: base.CallbackManager,
+		styleCache:      base.StyleCache,
 	}, nil
 }
 

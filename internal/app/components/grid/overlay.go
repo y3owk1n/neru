@@ -119,8 +119,11 @@ func getCommonGridSizes() []image.Rectangle {
 }
 
 // NewOverlay creates a new grid overlay instance with its own window and prewarms common grid sizes.
-func NewOverlay(config config.GridConfig, logger *zap.Logger) *Overlay {
-	window := C.createOverlayWindow()
+func NewOverlay(config config.GridConfig, logger *zap.Logger) (*Overlay, error) {
+	base, err := overlayutil.NewBaseOverlay(logger)
+	if err != nil {
+		return nil, err
+	}
 	initGridPools()
 	chars := config.Characters
 
@@ -129,13 +132,13 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) *Overlay {
 	}
 
 	return &Overlay{
-		window:          window,
+		window:          (C.OverlayWindow)(base.Window),
 		config:          config,
 		logger:          logger,
-		callbackManager: overlayutil.NewCallbackManager(logger),
-		styleCache:      overlayutil.NewStyleCache(),
+		callbackManager: base.CallbackManager,
+		styleCache:      base.StyleCache,
 		cachedLabels:    make(map[string]*C.char),
-	}
+	}, nil
 }
 
 // NewOverlayWithWindow creates a grid overlay instance using a shared window and prewarms common grid sizes.
@@ -150,13 +153,14 @@ func NewOverlayWithWindow(
 	if config.PrewarmEnabled {
 		go domainGrid.Prewarm(chars, getCommonGridSizes())
 	}
+	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(windowPtr),
+		window:          (C.OverlayWindow)(base.Window),
 		config:          config,
 		logger:          logger,
-		callbackManager: overlayutil.NewCallbackManager(logger),
-		styleCache:      overlayutil.NewStyleCache(),
+		callbackManager: base.CallbackManager,
+		styleCache:      base.StyleCache,
 		cachedLabels:    make(map[string]*C.char),
 	}
 }

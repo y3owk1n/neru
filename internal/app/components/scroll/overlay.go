@@ -15,7 +15,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
 )
 
@@ -48,17 +47,17 @@ type Overlay struct {
 
 // NewOverlay initializes a new scroll overlay instance with its own window.
 func NewOverlay(config config.ScrollConfig, logger *zap.Logger) (*Overlay, error) {
-	window := C.createOverlayWindow()
-	if window == nil {
-		return nil, derrors.New(derrors.CodeOverlayFailed, "failed to create overlay window")
+	base, err := overlayutil.NewBaseOverlay(logger)
+	if err != nil {
+		return nil, err
 	}
 
 	return &Overlay{
-		window:          window,
+		window:          (C.OverlayWindow)(base.Window),
 		config:          config,
 		logger:          logger,
-		callbackManager: overlayutil.NewCallbackManager(logger),
-		styleCache:      overlayutil.NewStyleCache(),
+		callbackManager: base.CallbackManager,
+		styleCache:      base.StyleCache,
 	}, nil
 }
 
@@ -68,12 +67,14 @@ func NewOverlayWithWindow(
 	logger *zap.Logger,
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
+	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
+
 	return &Overlay{
-		window:          (C.OverlayWindow)(windowPtr),
+		window:          (C.OverlayWindow)(base.Window),
 		config:          config,
 		logger:          logger,
-		callbackManager: overlayutil.NewCallbackManager(logger),
-		styleCache:      overlayutil.NewStyleCache(),
+		callbackManager: base.CallbackManager,
+		styleCache:      base.StyleCache,
 	}, nil
 }
 
