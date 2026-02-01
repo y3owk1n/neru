@@ -151,66 +151,41 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				}
 			}
 
-			// Special handling for delete/backspace key (keycode 51) without modifiers
-			if (keyCode == 51) {
+			// Special handling for delete/backspace key without modifiers
+			if (keyCode == kKeyCodeDelete) {
 				if (context->callback) {
 					context->callback("\x7f", context->userData);
 				}
 				return NULL;
 			}
 
-			// Special handling for escape key (keycode 53) without modifiers
-			if (keyCode == 53) {
+			// Special handling for escape key without modifiers
+			if (keyCode == kKeyCodeEscape) {
 				if (context->callback) {
 					context->callback("\x1b", context->userData);
 				}
 				return NULL;
 			}
 
-			// Handle arrow keys and special keys without modifiers
-			switch (keyCode) {
-			case 126: // Up arrow
-				if (context->callback) {
-					context->callback("Up", context->userData);
+			// Handle arrow keys and special keys without modifiers using lookup table
+			{
+				static const struct {
+					CGKeyCode code;
+					const char *name;
+				} specialKeys[] = {
+				    {kKeyCodeUp, "Up"},       {kKeyCodeDown, "Down"},     {kKeyCodeLeft, "Left"},
+				    {kKeyCodeRight, "Right"}, {kKeyCodePageUp, "PageUp"}, {kKeyCodePageDown, "PageDown"},
+				    {kKeyCodeHome, "Home"},   {kKeyCodeEnd, "End"},
+				};
+
+				for (size_t i = 0; i < sizeof(specialKeys) / sizeof(specialKeys[0]); i++) {
+					if (keyCode == specialKeys[i].code) {
+						if (context->callback) {
+							context->callback(specialKeys[i].name, context->userData);
+						}
+						return NULL;
+					}
 				}
-				return NULL;
-			case 125: // Down arrow
-				if (context->callback) {
-					context->callback("Down", context->userData);
-				}
-				return NULL;
-			case 123: // Left arrow
-				if (context->callback) {
-					context->callback("Left", context->userData);
-				}
-				return NULL;
-			case 124: // Right arrow
-				if (context->callback) {
-					context->callback("Right", context->userData);
-				}
-				return NULL;
-			case 116: // PageUp
-				if (context->callback) {
-					context->callback("PageUp", context->userData);
-				}
-				return NULL;
-			case 121: // PageDown
-				if (context->callback) {
-					context->callback("PageDown", context->userData);
-				}
-				return NULL;
-			case 115: // Home
-				if (context->callback) {
-					context->callback("Home", context->userData);
-				}
-				return NULL;
-			case 119: // End
-				if (context->callback) {
-					context->callback("End", context->userData);
-				}
-				return NULL;
-			default:
-				break;
 			}
 
 			// Map key code to character directly using US QWERTY layout
