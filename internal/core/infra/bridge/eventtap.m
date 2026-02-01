@@ -18,7 +18,6 @@ typedef struct {
 	NSMutableArray *hotkeys;                ///< Hotkeys array
 	dispatch_queue_t accessQueue;           ///< Thread-safe access queue
 	dispatch_block_t pendingEnableBlock;    ///< Pending enable block (inner delayed block)
-	dispatch_block_t pendingDisableBlock;   ///< Pending disable block
 	dispatch_block_t pendingAddSourceBlock; ///< Pending add source block
 } EventTapContext;
 
@@ -717,7 +716,6 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->hotkeys = [[NSMutableArray alloc] init];
 	context->accessQueue = dispatch_queue_create("com.neru.eventtap", DISPATCH_QUEUE_SERIAL);
 	context->pendingEnableBlock = nil;
-	context->pendingDisableBlock = nil;
 	context->pendingAddSourceBlock = nil;
 
 	// Set up event tap
@@ -812,14 +810,8 @@ void disableEventTap(EventTap tap) {
 
 	EventTapContext *context = (EventTapContext *)tap;
 
+	// Disable on main thread to avoid races
 	dispatch_async(dispatch_get_main_queue(), ^{
-		// Cancel any existing pending disable block
-		if (context->pendingDisableBlock) {
-			dispatch_block_cancel(context->pendingDisableBlock);
-			context->pendingDisableBlock = nil;
-		}
-
-		// Disable immediately (no delay needed)
 		CGEventTapEnable(context->eventTap, false);
 	});
 }
@@ -845,11 +837,6 @@ void destroyEventTap(EventTap tap) {
 			dispatch_block_cancel(context->pendingEnableBlock);
 			context->pendingEnableBlock = nil;
 		}
-		// Cancel any pending disable block
-		if (context->pendingDisableBlock) {
-			dispatch_block_cancel(context->pendingDisableBlock);
-			context->pendingDisableBlock = nil;
-		}
 		// Cancel any pending add source block
 		if (context->pendingAddSourceBlock) {
 			dispatch_block_cancel(context->pendingAddSourceBlock);
@@ -871,7 +858,6 @@ void destroyEventTap(EventTap tap) {
 		context->hotkeys = nil;               // ARC will handle deallocation
 		context->accessQueue = nil;           // ARC will handle deallocation
 		context->pendingEnableBlock = nil;    // ARC will handle deallocation
-		context->pendingDisableBlock = nil;   // ARC will handle deallocation
 		context->pendingAddSourceBlock = nil; // ARC will handle deallocation
 
 		free(context);
