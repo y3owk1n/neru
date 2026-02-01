@@ -857,8 +857,9 @@ func (c *Config) checkModeExitKeysConflicts() error {
 	return nil
 }
 
-// validateModeExitKeyCombo validates a modifier combo key format (e.g. "Ctrl+C").
-func validateModeExitKeyCombo(key string, index int) error {
+// validateModifierCombo validates a modifier combo key format (e.g. "Ctrl+C").
+// The fieldName parameter is used in error messages to identify which config field is being validated.
+func validateModifierCombo(key string, fieldName string) error {
 	const minComboPartsLen = 2
 
 	parts := strings.Split(key, "+")
@@ -866,8 +867,8 @@ func validateModeExitKeyCombo(key string, index int) error {
 	if len(parts) < minComboPartsLen {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"general.mode_exit_keys[%d] = '%s' is invalid; modifier combos must have format 'Modifier+Key'",
-			index,
+			"%s = '%s' is invalid; modifier combos must have format 'Modifier+Key'",
+			fieldName,
 			key,
 		)
 	}
@@ -878,8 +879,8 @@ func validateModeExitKeyCombo(key string, index int) error {
 		if !isValidModifier(modifier) {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
-				"general.mode_exit_keys[%d] has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option)",
-				index,
+				"%s has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option)",
+				fieldName,
 				modifier,
 				key,
 			)
@@ -891,8 +892,8 @@ func validateModeExitKeyCombo(key string, index int) error {
 	if lastKey == "" {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"general.mode_exit_keys[%d] = '%s' has empty key",
-			index,
+			"%s = '%s' has empty key",
+			fieldName,
 			key,
 		)
 	}
@@ -900,42 +901,12 @@ func validateModeExitKeyCombo(key string, index int) error {
 	return nil
 }
 
+// validateModeExitKeyCombo validates a modifier combo key format for mode exit keys.
+func validateModeExitKeyCombo(key string, index int) error {
+	return validateModifierCombo(key, fmt.Sprintf("general.mode_exit_keys[%d]", index))
+}
+
 // validateResetKeyCombo validates a modifier combo reset key format (e.g. "Ctrl+R").
 func validateResetKeyCombo(key string) error {
-	const minComboPartsLen = 2
-
-	parts := strings.Split(key, "+")
-
-	if len(parts) < minComboPartsLen {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"grid.reset_key = '%s' is invalid; modifier combos must have format 'Modifier+Key'",
-			key,
-		)
-	}
-
-	// All parts except the last should be valid modifiers
-	for i := range len(parts) - 1 {
-		modifier := strings.TrimSpace(parts[i])
-		if !isValidModifier(modifier) {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"grid.reset_key has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option)",
-				modifier,
-				key,
-			)
-		}
-	}
-
-	// Last part is the key
-	lastKey := strings.TrimSpace(parts[len(parts)-1])
-	if lastKey == "" {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"grid.reset_key = '%s' has empty key",
-			key,
-		)
-	}
-
-	return nil
+	return validateModifierCombo(key, "grid.reset_key")
 }
