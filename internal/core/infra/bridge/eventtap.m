@@ -683,10 +683,13 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				if (keyCString) {
 					context->callback(keyCString, context->userData);
 				}
+
+				// Consume the event (don't pass it through)
+				return NULL;
 			}
 
-			// Consume the event (don't pass it through)
-			return NULL;
+			// Unknown key code, pass to system
+			return event;
 		}
 
 		return event;
