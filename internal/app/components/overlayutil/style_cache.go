@@ -46,12 +46,16 @@ func (c *StyleCache) Get(updater func(*CachedStyle)) CachedStyle {
 			updater(&c.style)
 		}
 
+		result := c.style
 		c.mu.Unlock()
-		c.mu.RLock()
-	}
-	defer c.mu.RUnlock()
 
-	return c.style
+		return result
+	}
+
+	result := c.style
+	c.mu.RUnlock()
+
+	return result
 }
 
 // Free releases all cached C strings.
