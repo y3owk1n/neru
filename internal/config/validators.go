@@ -764,79 +764,70 @@ func (c *Config) checkModeExitKeysConflicts() error {
 		return nil // No single-char exit keys, no conflicts possible
 	}
 
-	// Check hint characters
-	if c.Hints.HintCharacters != "" {
-		lowerHintChars := strings.ToLower(c.Hints.HintCharacters)
-		for _, exitKey := range singleCharExitKeys {
-			if strings.Contains(lowerHintChars, exitKey) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains '%s' which conflicts with hints.hint_characters; this key will always exit instead of selecting a hint",
-					strings.ToUpper(exitKey),
-				)
-			}
+	// Check for conflicts between exit keys and character sets
+	checks := []struct {
+		chars      string
+		fieldName  string
+		actionDesc string
+	}{
+		{c.Hints.HintCharacters, "hints.hint_characters", "selecting a hint"},
+		{c.Grid.Characters, "grid.characters", "grid input"},
+		{c.Grid.RowLabels, "grid.row_labels", "row selection"},
+		{c.Grid.ColLabels, "grid.col_labels", "column selection"},
+	}
+
+	for _, check := range checks {
+		err := checkExitKeyConflict(
+			singleCharExitKeys,
+			check.chars,
+			check.fieldName,
+			check.actionDesc,
+		)
+		if err != nil {
+			return err
 		}
 	}
 
-	// Check grid characters
-	if c.Grid.Characters != "" {
-		lowerGridChars := strings.ToLower(c.Grid.Characters)
-		for _, exitKey := range singleCharExitKeys {
-			if strings.Contains(lowerGridChars, exitKey) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains '%s' which conflicts with grid.characters; this key will always exit instead of being used for grid input",
-					strings.ToUpper(exitKey),
-				)
-			}
-		}
-	}
-
-	// Check grid row labels
-	if c.Grid.RowLabels != "" {
-		lowerRowLabels := strings.ToLower(c.Grid.RowLabels)
-		for _, exitKey := range singleCharExitKeys {
-			if strings.Contains(lowerRowLabels, exitKey) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains '%s' which conflicts with grid.row_labels; this key will always exit instead of being used for row selection",
-					strings.ToUpper(exitKey),
-				)
-			}
-		}
-	}
-
-	// Check grid column labels
-	if c.Grid.ColLabels != "" {
-		lowerColLabels := strings.ToLower(c.Grid.ColLabels)
-		for _, exitKey := range singleCharExitKeys {
-			if strings.Contains(lowerColLabels, exitKey) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains '%s' which conflicts with grid.col_labels; this key will always exit instead of being used for column selection",
-					strings.ToUpper(exitKey),
-				)
-			}
-		}
-	}
-
-	// Check grid sublayer keys
-
+	// Check grid sublayer keys (with fallback to grid.characters)
 	sublayerKeys := strings.TrimSpace(c.Grid.SublayerKeys)
 	if sublayerKeys == "" {
 		sublayerKeys = c.Grid.Characters
 	}
 
-	if sublayerKeys != "" {
-		lowerSublayerKeys := strings.ToLower(sublayerKeys)
-		for _, exitKey := range singleCharExitKeys {
-			if strings.Contains(lowerSublayerKeys, exitKey) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains '%s' which conflicts with grid.sublayer_keys; this key will always exit instead of being used for subgrid selection",
-					strings.ToUpper(exitKey),
-				)
-			}
+	err := checkExitKeyConflict(
+		singleCharExitKeys,
+		sublayerKeys,
+		"grid.sublayer_keys",
+		"subgrid selection",
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkExitKeyConflict checks if any single-character exit key conflicts with a character set.
+func checkExitKeyConflict(
+	exitKeys []string,
+	chars string,
+	fieldName string,
+	actionDesc string,
+) error {
+	if chars == "" {
+		return nil
+	}
+
+	lowerChars := strings.ToLower(chars)
+	for _, exitKey := range exitKeys {
+		if strings.Contains(lowerChars, exitKey) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"general.mode_exit_keys contains '%s' which conflicts with %s; this key will always exit instead of being used for %s",
+				strings.ToUpper(exitKey),
+				fieldName,
+				actionDesc,
+			)
 		}
 	}
 
