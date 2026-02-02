@@ -451,8 +451,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 		// Adjust for bottom screen edge to ensure border is visible
 		if (NSMinY(cellRect) <= 0) {
-			borderRect.origin.y += 1.0;
-			borderRect.size.height -= 1.0;
+			borderRect.origin.y += ceil(self.gridBorderWidth / 2.0);
+			borderRect.size.height -= ceil(self.gridBorderWidth / 2.0);
 		}
 
 		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
