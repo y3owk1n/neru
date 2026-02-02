@@ -201,8 +201,8 @@ enabled = true
 keys = "uijk"
 
 # Visual appearance
-line_color = "#FFFFFF"          # Color of grid lines
-line_width = 2                  # Width of grid lines
+line_color = "#8EE2FF"          # Color of grid lines
+line_width = 1                  # Width of grid lines
 highlight_color = "#00BFFF"     # Color for quadrant highlighting (deep sky blue)
 highlight_opacity = 0.3         # Opacity of highlight (0.0 - 1.0)
 label_color = "#FFFFFF"         # Color of quadrant labels

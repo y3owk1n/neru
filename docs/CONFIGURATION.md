@@ -69,11 +69,11 @@ Bind global hotkeys to Neru actions. Remove or comment out to disable.
 An `action` can be one of the following:
 
 - A Neru command (essentially any Neru CLI command without the `neru` prefix)
-  - Say in CLI you can run `neru hints` and `neru grid`
-  - To map it into a hotkey, just omit the `neru` prefix: `"Cmd+Shift+Space" = "hints"`
+    - Say in CLI you can run `neru hints` and `neru grid`
+    - To map it into a hotkey, just omit the `neru` prefix: `"Cmd+Shift+Space" = "hints"`
 - A shell command (using `exec <command>`)
-  - Say in CLI you can run `open -a Terminal` to launch Terminal
-  - To map it into a hotkey, use the full command: `"Cmd+Alt+T" = "exec open -a Terminal"`
+    - Say in CLI you can run `open -a Terminal` to launch Terminal
+    - To map it into a hotkey, use the full command: `"Cmd+Alt+T" = "exec open -a Terminal"`
 
 **Shell Commands:**
 
@@ -384,8 +384,8 @@ max_depth = 10       # Maximum recursion depth
 reset_key = ","      # Reset to initial center (can be modifier combo like "Ctrl+R")
 
 # Visual styling
-line_color = "#FFFFFF"
-line_width = 2
+line_color = "#8EE2FF"
+line_width = 1
 highlight_color = "#00BFFF"
 highlight_opacity = 0.3
 label_color = "#FFFFFF"
