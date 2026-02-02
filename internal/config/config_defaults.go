@@ -178,7 +178,7 @@ const (
 	// DefaultQuadGridMaxDepth is the default maximum recursion depth.
 	DefaultQuadGridMaxDepth = 10
 	// DefaultQuadGridLineWidth is the default line width for grid lines.
-	DefaultQuadGridLineWidth = 2
+	DefaultQuadGridLineWidth = 1
 	// DefaultQuadGridLabelFontSize is the default font size for quadrant labels.
 	DefaultQuadGridLabelFontSize = 12
 	// DefaultQuadGridHighlightOpacity is the default opacity for quadrant highlighting.
@@ -287,7 +287,7 @@ func DefaultConfig() *Config {
 
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
 
-			LineColor:        "#FFFFFF",
+			LineColor:        "#8EE2FF",
 			LineWidth:        DefaultQuadGridLineWidth,
 			HighlightColor:   "#00BFFF", // Deep sky blue
 			HighlightOpacity: DefaultQuadGridHighlightOpacity,
