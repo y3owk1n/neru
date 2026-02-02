@@ -41,7 +41,9 @@ func (h *Handler) activateQuadGridModeWithAction(actionStr *string) {
 	if h.quadGrid.Manager != nil {
 		center := h.quadGrid.Manager.CurrentGrid().CurrentCenter()
 		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
-		if err := h.actionService.MoveCursorToPoint(context.Background(), absoluteCenter); err != nil {
+
+		err := h.actionService.MoveCursorToPoint(context.Background(), absoluteCenter)
+		if err != nil {
 			h.logger.Warn("Failed to move cursor to initial center", zap.Error(err))
 		}
 	}
@@ -141,7 +143,6 @@ func (h *Handler) handleQuadGridKey(key string) {
 			false, // Quad-grid mode doesn't re-activate after cursor movement
 			nil,
 		)
-
 	} else if !center.Eq(image.Point{}) {
 		// Move cursor to the center point for preview
 		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
@@ -160,6 +161,7 @@ func (h *Handler) updateQuadGridOverlay() {
 	}
 
 	manager := h.quadGrid.Manager
+
 	err := h.renderer.DrawQuadGrid(
 		manager.CurrentBounds(),
 		manager.CurrentDepth(),

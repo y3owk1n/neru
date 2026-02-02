@@ -903,7 +903,7 @@ func (c *Config) ValidateQuadGrid() error {
 		)
 	}
 
-	if len(keys) != 4 {
+	if len(keys) != 4 { //nolint:mnd
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"quadgrid.keys must be exactly 4 characters",
@@ -912,16 +912,16 @@ func (c *Config) ValidateQuadGrid() error {
 
 	// Check for duplicate keys
 	keyMap := make(map[rune]bool)
-	for _, k := range keys {
-		if keyMap[k] {
+	for _, key := range keys {
+		if keyMap[key] {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"quadgrid.keys contains duplicate character: %c",
-				k,
+				key,
 			)
 		}
 
-		keyMap[k] = true
+		keyMap[key] = true
 	}
 
 	// Validate ASCII
@@ -935,7 +935,7 @@ func (c *Config) ValidateQuadGrid() error {
 	}
 
 	// Validate min size
-	if c.QuadGrid.MinSize < 10 {
+	if c.QuadGrid.MinSize < 10 { //nolint:mnd
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"quadgrid.min_size must be at least 10",

@@ -238,7 +238,11 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid quadgrid config type")
 		}
 
-		return quadgrid.NewOverlayWithWindow(quadGridConfig, f.logger, f.overlayManager.WindowPtr()), nil
+		return quadgrid.NewOverlayWithWindow(
+			quadGridConfig,
+			f.logger,
+			f.overlayManager.WindowPtr(),
+		), nil
 	default:
 		return nil, derrors.New(derrors.CodeInvalidInput, "unknown overlay type: "+overlayType)
 	}

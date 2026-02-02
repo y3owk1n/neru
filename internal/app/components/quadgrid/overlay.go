@@ -138,6 +138,7 @@ func (o *Overlay) DrawQuadGrid(
 ) error {
 	if bounds.Empty() {
 		o.Clear()
+
 		return nil
 	}
 
@@ -153,8 +154,8 @@ func (o *Overlay) DrawQuadGrid(
 	o.Clear()
 
 	// Calculate quadrant bounds
-	midX := bounds.Min.X + bounds.Dx()/2
-	midY := bounds.Min.Y + bounds.Dy()/2
+	midX := bounds.Min.X + bounds.Dx()/2 //nolint:mnd
+	midY := bounds.Min.Y + bounds.Dy()/2 //nolint:mnd
 
 	quadrants := []image.Rectangle{
 		{
@@ -176,21 +177,21 @@ func (o *Overlay) DrawQuadGrid(
 	}
 
 	// Ensure keys is valid
-	if utf8.RuneCountInString(keys) != 4 {
+	if utf8.RuneCountInString(keys) != 4 { //nolint:mnd
 		keys = "uijk"
 	}
 
 	// Create grid cells for each quadrant
-	cells := make([]C.GridCell, 4)
+	cells := make([]C.GridCell, 4) //nolint:mnd
 	keyRunes := []rune(keys)
 
-	for i, quadrant := range quadrants {
+	for idx, quadrant := range quadrants {
 		labelStr := ""
-		if i < len(keyRunes) {
-			labelStr = string(keyRunes[i])
+		if idx < len(keyRunes) {
+			labelStr = string(keyRunes[idx])
 		}
 		label := strings.ToUpper(labelStr)
-		cells[i] = C.GridCell{
+		cells[idx] = C.GridCell{
 			label:               o.getOrCacheLabel(label),
 			bounds:              o.rectToCRect(quadrant),
 			isMatched:           C.int(0),
@@ -231,15 +232,15 @@ func (o *Overlay) DrawQuadGrid(
 }
 
 // rectToCRect converts a Go image.Rectangle to a C CGRect.
-func (o *Overlay) rectToCRect(r image.Rectangle) C.CGRect {
+func (o *Overlay) rectToCRect(rect image.Rectangle) C.CGRect {
 	return C.CGRect{
 		origin: C.CGPoint{
-			x: C.double(r.Min.X),
-			y: C.double(r.Min.Y),
+			x: C.double(rect.Min.X),
+			y: C.double(rect.Min.Y),
 		},
 		size: C.CGSize{
-			width:  C.double(r.Dx()),
-			height: C.double(r.Dy()),
+			width:  C.double(rect.Dx()),
+			height: C.double(rect.Dy()),
 		},
 	}
 }
@@ -262,6 +263,7 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 	o.labelCacheMu.RLock()
 	if cStr, ok := o.cachedLabels[label]; ok {
 		o.labelCacheMu.RUnlock()
+
 		return cStr
 	}
 	o.labelCacheMu.RUnlock()

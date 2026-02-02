@@ -76,6 +76,8 @@ func TestAppLifecycleIntegration(t *testing.T) {
 				application.SetModeGrid()
 			case domain.ModeScroll:
 				application.SetModeScroll()
+			case domain.ModeQuadGrid:
+				application.SetModeQuadGrid()
 			case domain.ModeIdle:
 				application.SetModeIdle()
 			}

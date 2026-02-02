@@ -46,8 +46,8 @@ func NewQuadGrid(screenBounds image.Rectangle, minSize, maxDepth int) *QuadGrid 
 // Divide splits the current bounds into 4 equal quadrants.
 // Returns an array where index corresponds to Quadrant enum values.
 func (qg *QuadGrid) Divide() [4]image.Rectangle {
-	midX := qg.currentBounds.Min.X + qg.currentBounds.Dx()/2
-	midY := qg.currentBounds.Min.Y + qg.currentBounds.Dy()/2
+	midX := qg.currentBounds.Min.X + qg.currentBounds.Dx()/2 //nolint:mnd
+	midY := qg.currentBounds.Min.Y + qg.currentBounds.Dy()/2 //nolint:mnd
 
 	return [4]image.Rectangle{
 		TopLeft: image.Rect(
@@ -69,25 +69,30 @@ func (qg *QuadGrid) Divide() [4]image.Rectangle {
 	}
 }
 
+// QuadrantCenter returns the center point of the specified quadrant.
+func (qg *QuadGrid) QuadrantCenter(quadrant Quadrant) image.Point {
+	quadrants := qg.Divide()
+	selected := quadrants[quadrant]
+
+	return image.Point{
+		X: selected.Min.X + selected.Dx()/2,
+		Y: selected.Min.Y + selected.Dy()/2,
+	}
+}
+
 // SelectQuadrant narrows the active area to the selected quadrant.
 // Returns the center point of the selected quadrant and whether the selection is complete.
 // Selection is complete when the minimum size is reached.
-func (qg *QuadGrid) SelectQuadrant(q Quadrant) (image.Point, bool) {
+func (qg *QuadGrid) SelectQuadrant(quadrant Quadrant) (image.Point, bool) {
 	// Check if we can divide further
 	if !qg.CanDivide() {
 		// If we can't divide further (max depth or min size),
 		// return the center of the selected quadrant without changing bounds.
-		quadrants := qg.Divide()
-		selected := quadrants[q]
-		center := image.Point{
-			X: selected.Min.X + selected.Dx()/2,
-			Y: selected.Min.Y + selected.Dy()/2,
-		}
-		return center, true
+		return qg.QuadrantCenter(quadrant), true
 	}
 
 	quadrants := qg.Divide()
-	selected := quadrants[q]
+	selected := quadrants[quadrant]
 
 	// Save current bounds for backtracking
 	qg.history = append(qg.history, qg.currentBounds)
@@ -117,8 +122,8 @@ func (qg *QuadGrid) CanDivide() bool {
 
 	// Check size constraints - both dimensions must be divisible by 2
 	// and the result must be >= minSize
-	halfWidth := qg.currentBounds.Dx() / 2
-	halfHeight := qg.currentBounds.Dy() / 2
+	halfWidth := qg.currentBounds.Dx() / 2  //nolint:mnd
+	halfHeight := qg.currentBounds.Dy() / 2 //nolint:mnd
 
 	return halfWidth >= qg.minSize && halfHeight >= qg.minSize
 }
@@ -190,15 +195,4 @@ func (qg *QuadGrid) QuadrantBounds(q Quadrant) image.Rectangle {
 	quadrants := qg.Divide()
 
 	return quadrants[q]
-}
-
-// QuadrantCenter returns the center point for a specific quadrant without selecting it.
-// Useful for visual rendering and cursor preview.
-func (qg *QuadGrid) QuadrantCenter(q Quadrant) image.Point {
-	bounds := qg.QuadrantBounds(q)
-
-	return image.Point{
-		X: bounds.Min.X + bounds.Dx()/2,
-		Y: bounds.Min.Y + bounds.Dy()/2,
-	}
 }

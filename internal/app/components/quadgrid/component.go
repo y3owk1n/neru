@@ -1,3 +1,4 @@
+// Package quadgrid provides the quad-grid component.
 package quadgrid
 
 import (

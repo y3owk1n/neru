@@ -35,6 +35,7 @@ mode_exit_keys = ["escape"]
 # Examples: "Cmd+Shift+Space" = "hints", "Cmd+Shift+G" = "grid"
 "Cmd+Shift+Space" = "hints"
 "Cmd+Shift+G" = "grid"
+"Cmd+Shift+C" = "quadgrid"
 "Cmd+Shift+S" = "scroll"
 
 # Direct actions are available in hints/grid mode without mode switching

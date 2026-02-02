@@ -38,7 +38,7 @@ func NewManager(
 	}
 
 	// Ensure we have exactly 4 keys
-	if utf8.RuneCountInString(keys) != 4 {
+	if utf8.RuneCountInString(keys) != 4 { //nolint:mnd
 		logger.Warn("Invalid key mapping length, using default",
 			zap.String("provided", keys),
 			zap.Int("length", utf8.RuneCountInString(keys)))
@@ -49,7 +49,8 @@ func NewManager(
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
-		grid:       NewQuadGrid(screenBounds, 25, 10), // Default: 25px min, 10 max depth
+		// Default: 25px min, 10 max depth
+		grid:       NewQuadGrid(screenBounds, 25, 10), //nolint:mnd
 		keys:       strings.ToLower(keys),
 		onUpdate:   onUpdate,
 		onComplete: onComplete,
@@ -76,11 +77,10 @@ func NewManagerWithConfig(
 	return manager
 }
 
-// HandleInput processes key input and returns:
-// - point: The cursor position to move to (if any)
-// - completed: Whether the selection is complete (min size reached)
-// - shouldExit: Whether the mode should exit.
-func (m *Manager) HandleInput(key string) (point image.Point, completed bool, shouldExit bool) {
+// HandleInput processes a key press and updates the grid state.
+// Returns the new cursor position (if applicable), whether the selection is complete,
+// and whether the mode should exit.
+func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 	// Normalize key to lowercase for comparison
 	key = strings.ToLower(key)
 
@@ -155,20 +155,6 @@ func (m *Manager) HandleInput(key string) (point image.Point, completed bool, sh
 	return center, isComplete, false
 }
 
-// keyToQuadrant maps an input key to a quadrant index.
-// Returns -1 if the key is not mapped.
-func (m *Manager) keyToQuadrant(key string) Quadrant {
-	idx := 0
-	for _, k := range m.keys {
-		if string(k) == key {
-			return Quadrant(idx)
-		}
-		idx++
-	}
-
-	return -1
-}
-
 // Reset clears the manager state and restores initial grid state.
 func (m *Manager) Reset() {
 	m.SetCurrentInput("")
@@ -222,7 +208,7 @@ func (m *Manager) Keys() string {
 
 // UpdateKeys updates the key mapping.
 func (m *Manager) UpdateKeys(keys string) {
-	if utf8.RuneCountInString(keys) == 4 {
+	if utf8.RuneCountInString(keys) == 4 { //nolint:mnd
 		m.keys = strings.ToLower(keys)
 	}
 }
@@ -236,4 +222,19 @@ func (m *Manager) Backtrack() bool {
 // HasHistory returns true if there's backtrack history available.
 func (m *Manager) HasHistory() bool {
 	return len(m.grid.history) > 0
+}
+
+// keyToQuadrant maps an input key to a quadrant index.
+// Returns -1 if the key is not mapped.
+func (m *Manager) keyToQuadrant(key string) Quadrant {
+	idx := 0
+	for _, k := range m.keys {
+		if string(k) == key {
+			return Quadrant(idx)
+		}
+
+		idx++
+	}
+
+	return -1
 }

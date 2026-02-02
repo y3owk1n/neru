@@ -1,10 +1,11 @@
-package quadgrid
+package quadgrid_test
 
 import (
 	"image"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/y3owk1n/neru/internal/core/domain/quadgrid"
 	"go.uber.org/zap"
 )
 
@@ -12,7 +13,7 @@ func TestNewManager(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 
-	manager := NewManager(
+	manager := quadgrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -23,17 +24,14 @@ func TestNewManager(t *testing.T) {
 	)
 
 	assert.NotNil(t, manager, "Manager should not be nil")
-	assert.NotNil(t, manager.grid, "Grid should be initialized")
-	assert.Equal(t, "uijk", manager.keys, "Keys should be set")
-	assert.Equal(t, ",", manager.resetKey, "Reset key should be set")
-	assert.Len(t, manager.exitKeys, 1, "Should have 1 exit key")
+	assert.Equal(t, "uijk", manager.Keys(), "Keys should be set")
 }
 
 func TestNewManagerDefaultKeys(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 
-	manager := NewManager(
+	manager := quadgrid.NewManager(
 		bounds,
 		"", // Empty keys - should use default
 		",",
@@ -43,7 +41,7 @@ func TestNewManagerDefaultKeys(t *testing.T) {
 		logger,
 	)
 
-	assert.Equal(t, DefaultKeys, manager.keys, "Should use default keys when empty")
+	assert.Equal(t, quadgrid.DefaultKeys, manager.Keys(), "Should use default keys when empty")
 }
 
 func TestManagerHandleInputQuadrantSelection(t *testing.T) {
@@ -51,7 +49,7 @@ func TestManagerHandleInputQuadrantSelection(t *testing.T) {
 	logger := zap.NewNop()
 
 	updateCalled := false
-	manager := NewManager(
+	manager := quadgrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -75,7 +73,7 @@ func TestManagerHandleInputExitKey(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 
-	manager := NewManager(
+	manager := quadgrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -97,7 +95,7 @@ func TestManagerHandleInputResetKey(t *testing.T) {
 	logger := zap.NewNop()
 
 	updateCalled := false
-	manager := NewManager(
+	manager := quadgrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -124,7 +122,7 @@ func TestManagerHandleInputBacktrack(t *testing.T) {
 	logger := zap.NewNop()
 
 	updateCalled := false
-	manager := NewManager(
+	manager := quadgrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -154,7 +152,7 @@ func TestManagerHandleInputUnmappedKey(t *testing.T) {
 	logger := zap.NewNop()
 
 	updateCalled := false
-	manager := NewManager(
+	manager := quadgrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -177,9 +175,10 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 	logger := zap.NewNop()
 
 	completeCalled := false
+
 	var completePoint image.Point
 
-	manager := NewManagerWithConfig(
+	manager := quadgrid.NewManagerWithConfig(
 		bounds,
 		"uijk",
 		",",
@@ -212,7 +211,7 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 	logger := zap.NewNop()
 
 	completeCalled := false
-	manager := NewManagerWithConfig(
+	manager := quadgrid.NewManagerWithConfig(
 		bounds,
 		"uijk",
 		",",
@@ -247,7 +246,7 @@ func TestHandleInput_MultibyteKeys(t *testing.T) {
 	keys := "€abc"
 	logger := zap.NewNop()
 	screenBounds := image.Rect(0, 0, 100, 100)
-	m := NewManager(screenBounds, keys, ",", []string{"escape"}, nil, nil, logger)
+	m := quadgrid.NewManager(screenBounds, keys, ",", []string{"escape"}, nil, nil, logger)
 	assert.Equal(t, keys, m.Keys(), "Should accept multibyte keys")
 	assert.NotPanics(t, func() {
 		_, _, shouldExit := m.HandleInput("c")
