@@ -5,6 +5,7 @@ import (
 	"image"
 
 	"github.com/y3owk1n/neru/internal/app/components"
+	componentquadgrid "github.com/y3owk1n/neru/internal/app/components/quadgrid"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/quadgrid"
@@ -80,7 +81,9 @@ func (h *Handler) initializeQuadGridManager(screenBounds image.Rectangle) {
 
 	// Ensure quadGrid component is initialized
 	if h.quadGrid == nil {
-		h.quadGrid = &components.QuadGridComponent{}
+		h.quadGrid = &components.QuadGridComponent{
+			Context: &componentquadgrid.Context{},
+		}
 	}
 
 	h.quadGrid.Manager = quadgrid.NewManagerWithConfig(
