@@ -244,8 +244,8 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 	assert.NotEqual(t, point2, point3, "Should return different point (sub-quadrant center)")
 }
 
-func TestHandleInput_MultibyteKeys_FallsBackToDefault(t *testing.T) {
-	keys := "€abc"
+func TestHandleInput_InvalidKeyLength_FallsBackToDefault(t *testing.T) {
+	keys := "€ab" // 3 runes, invalid length
 	logger := zap.NewNop()
 	screenBounds := image.Rect(0, 0, 100, 100)
 	manager := quadgrid.NewManager(screenBounds, keys, ",", []string{"escape"}, nil, nil, logger)
@@ -253,10 +253,30 @@ func TestHandleInput_MultibyteKeys_FallsBackToDefault(t *testing.T) {
 		t,
 		quadgrid.DefaultKeys,
 		manager.Keys(),
-		"Should fall back to default keys when given invalid multibyte keys",
+		"Should fall back to default keys when given invalid length keys (even with multibyte)",
 	)
 	assert.NotPanics(t, func() {
 		_, _, shouldExit := manager.HandleInput("c")
 		assert.False(t, shouldExit, "Should not exit")
 	}, "HandleInput should not panic after fallback")
+}
+
+func TestHandleInput_ValidMultibyteKeys(t *testing.T) {
+	keys := "€abc" // 4 runes, valid length
+	logger := zap.NewNop()
+	screenBounds := image.Rect(0, 0, 100, 100)
+	manager := quadgrid.NewManager(screenBounds, keys, ",", []string{"escape"}, nil, nil, logger)
+	assert.Equal(
+		t,
+		"€abc",
+		manager.Keys(),
+		"Should accept valid multibyte keys",
+	)
+	assert.NotPanics(t, func() {
+		// Test handling a multibyte key input
+		// € is the first key, so it should map to Quadrant 0 (TopLeft)
+		center, _, _ := manager.HandleInput("€")
+		// TopLeft of 100x100 is 0,0 to 50,50. Center is 25,25.
+		assert.Equal(t, image.Point{X: 25, Y: 25}, center)
+	}, "HandleInput should handle multibyte key input")
 }
