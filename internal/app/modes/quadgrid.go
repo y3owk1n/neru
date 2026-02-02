@@ -122,7 +122,7 @@ func (h *Handler) handleQuadGridKey(key string) {
 		return
 	}
 
-	if h.quadGrid.Manager == nil {
+	if h.quadGrid == nil || h.quadGrid.Manager == nil {
 		h.logger.Warn("Quad-grid manager is nil - ignoring key press")
 
 		return
