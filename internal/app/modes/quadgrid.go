@@ -83,6 +83,7 @@ func (h *Handler) initializeQuadGridManager(screenBounds image.Rectangle) {
 	if h.quadGrid == nil {
 		h.quadGrid = &components.QuadGridComponent{
 			Context: &componentquadgrid.Context{},
+			Style:   componentquadgrid.BuildStyle(h.config.QuadGrid),
 		}
 	}
 
