@@ -225,7 +225,7 @@ func (m *Manager) Backtrack() bool {
 
 // HasHistory returns true if there's backtrack history available.
 func (m *Manager) HasHistory() bool {
-	return len(m.grid.history) > 0
+	return m.grid.HasHistory()
 }
 
 // keyToQuadrant maps an input key to a quadrant index.

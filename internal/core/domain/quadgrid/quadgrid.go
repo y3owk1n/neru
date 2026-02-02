@@ -177,6 +177,11 @@ func (qg *QuadGrid) Backtrack() bool {
 	return true
 }
 
+// HasHistory returns true if there's backtrack history available.
+func (qg *QuadGrid) HasHistory() bool {
+	return len(qg.history) > 0
+}
+
 // Reset restores the grid to its initial state.
 func (qg *QuadGrid) Reset() {
 	qg.currentBounds = qg.initialBounds
