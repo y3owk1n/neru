@@ -336,8 +336,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		CGFloat tooltipY = elementCenterY + arrowHeight + gap;
 
 		// Convert coordinates (macOS uses bottom-left origin, we need top-left)
-		NSScreen *mainScreen = [NSScreen mainScreen];
-		CGFloat screenHeight = [mainScreen frame].size.height;
+		CGFloat screenHeight = self.bounds.size.height;
 		CGFloat flippedY = screenHeight - tooltipY - boxHeight;
 		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
 
@@ -400,9 +399,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	NSGraphicsContext *context = [NSGraphicsContext currentContext];
 	[context saveGraphicsState];
 
-	NSScreen *mainScreen = [NSScreen mainScreen];
-	CGFloat screenHeight = [mainScreen frame].size.height;
-	CGFloat screenWidth = [mainScreen frame].size.width;
+	CGFloat screenHeight = self.bounds.size.height;
+	CGFloat screenWidth = self.bounds.size.width;
 
 	for (NSDictionary *cellDict in self.gridCells) {
 		NSString *label = cellDict[@"label"];
@@ -512,8 +510,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		int width = [widthNum intValue];
 		double opacity = [opacityNum doubleValue];
 
-		NSScreen *mainScreen = [NSScreen mainScreen];
-		CGFloat screenHeight = [mainScreen frame].size.height;
+		CGFloat screenHeight = self.bounds.size.height;
 		CGFloat flippedY = screenHeight - lineRect.origin.y - lineRect.size.height;
 		NSRect rect = NSMakeRect(lineRect.origin.x, flippedY, lineRect.size.width, lineRect.size.height);
 
