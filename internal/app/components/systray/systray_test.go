@@ -13,6 +13,7 @@ import (
 type mockApp struct {
 	hintsEnabled    bool
 	gridEnabled     bool
+	quadGridEnabled bool
 	isEnabled       bool
 	activatedMode   domain.Mode
 	configPath      string
@@ -23,6 +24,7 @@ type mockApp struct {
 
 func (m *mockApp) HintsEnabled() bool { return m.hintsEnabled }
 func (m *mockApp) GridEnabled() bool  { return m.gridEnabled }
+func (m *mockApp) QuadGridEnabled() bool { return m.quadGridEnabled }
 func (m *mockApp) IsEnabled() bool    { return m.isEnabled }
 func (m *mockApp) SetEnabled(enabled bool) {
 	m.isEnabled = enabled

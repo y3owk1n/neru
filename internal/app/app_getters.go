@@ -30,6 +30,11 @@ func (a *App) GridEnabled() bool {
 	return a.config != nil && a.config.Grid.Enabled
 }
 
+// QuadGridEnabled returns true if quad-grid is enabled.
+func (a *App) QuadGridEnabled() bool {
+	return a.config != nil && a.config.QuadGrid.Enabled
+}
+
 // Config returns the application configuration.
 func (a *App) Config() *config.Config {
 	return a.config
