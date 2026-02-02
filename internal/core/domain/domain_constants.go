@@ -18,6 +18,8 @@ const (
 	ModeGrid
 	// ModeScroll represents the scroll mode.
 	ModeScroll
+	// ModeQuadGrid represents the quad-grid navigation mode.
+	ModeQuadGrid
 )
 
 // IPC Commands.

@@ -887,3 +887,100 @@ func validateModeExitKeyCombo(key string, index int) error {
 func validateResetKeyCombo(key string) error {
 	return validateModifierCombo(key, "grid.reset_key")
 }
+
+// ValidateQuadGrid validates the quad-grid configuration.
+func (c *Config) ValidateQuadGrid() error {
+	if !c.QuadGrid.Enabled {
+		return nil
+	}
+
+	// Validate keys - must be exactly 4 unique characters
+	keys := strings.TrimSpace(c.QuadGrid.Keys)
+	if keys == "" {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.keys cannot be empty",
+		)
+	}
+
+	if len(keys) != 4 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.keys must be exactly 4 characters",
+		)
+	}
+
+	// Check for duplicate keys
+	keyMap := make(map[rune]bool)
+	for _, k := range keys {
+		if keyMap[k] {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"quadgrid.keys contains duplicate character: %c",
+				k,
+			)
+		}
+
+		keyMap[k] = true
+	}
+
+	// Validate ASCII
+	for _, r := range keys {
+		if r > unicode.MaxASCII {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"quadgrid.keys can only contain ASCII characters",
+			)
+		}
+	}
+
+	// Validate min size
+	if c.QuadGrid.MinSize < 10 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.min_size must be at least 10",
+		)
+	}
+
+	// Validate max depth
+	if c.QuadGrid.MaxDepth < 1 || c.QuadGrid.MaxDepth > 20 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.max_depth must be between 1 and 20",
+		)
+	}
+
+	// Validate styling
+	if c.QuadGrid.LineWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.line_width must be non-negative",
+		)
+	}
+
+	if c.QuadGrid.LabelFontSize < 6 || c.QuadGrid.LabelFontSize > 72 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.label_font_size must be between 6 and 72",
+		)
+	}
+
+	if c.QuadGrid.HighlightOpacity < 0 || c.QuadGrid.HighlightOpacity > 1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.highlight_opacity must be between 0 and 1",
+		)
+	}
+
+	// Validate colors
+	err := validateColors([]colorField{
+		{c.QuadGrid.LineColor, "quadgrid.line_color"},
+		{c.QuadGrid.HighlightColor, "quadgrid.highlight_color"},
+		{c.QuadGrid.LabelColor, "quadgrid.label_color"},
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -1,17 +1,21 @@
 package ui
 
 import (
+	"image"
+
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // OverlayRenderer manages rendering operations for all application overlays.
 type OverlayRenderer struct {
-	manager   overlay.ManagerInterface
-	hintStyle hints.StyleMode
-	gridStyle grid.Style
+	manager       overlay.ManagerInterface
+	hintStyle     hints.StyleMode
+	gridStyle     grid.Style
+	quadGridStyle quadgrid.Style
 }
 
 // NewOverlayRenderer initializes a new overlay renderer with the specified components.
@@ -19,18 +23,25 @@ func NewOverlayRenderer(
 	manager overlay.ManagerInterface,
 	hintStyle hints.StyleMode,
 	gridStyle grid.Style,
+	quadGridStyle quadgrid.Style,
 ) *OverlayRenderer {
 	return &OverlayRenderer{
-		manager:   manager,
-		hintStyle: hintStyle,
-		gridStyle: gridStyle,
+		manager:       manager,
+		hintStyle:     hintStyle,
+		gridStyle:     gridStyle,
+		quadGridStyle: quadGridStyle,
 	}
 }
 
 // UpdateConfig updates the renderer with new configuration.
-func (r *OverlayRenderer) UpdateConfig(hintStyle hints.StyleMode, gridStyle grid.Style) {
+func (r *OverlayRenderer) UpdateConfig(
+	hintStyle hints.StyleMode,
+	gridStyle grid.Style,
+	quadGridStyle quadgrid.Style,
+) {
 	r.hintStyle = hintStyle
 	r.gridStyle = gridStyle
+	r.quadGridStyle = quadGridStyle
 }
 
 // DrawHints draws hints with the configured style.
@@ -78,4 +89,13 @@ func (r *OverlayRenderer) ResizeActive() {
 // DrawScrollIndicator draws a scroll indicator at the specified position.
 func (r *OverlayRenderer) DrawScrollIndicator(x, y int) {
 	r.manager.DrawScrollIndicator(x, y)
+}
+
+// DrawQuadGrid draws a quad-grid with the current bounds and depth.
+func (r *OverlayRenderer) DrawQuadGrid(
+	bounds image.Rectangle,
+	depth int,
+	keys string,
+) error {
+	return r.manager.DrawQuadGrid(bounds, depth, keys, r.quadGridStyle)
 }

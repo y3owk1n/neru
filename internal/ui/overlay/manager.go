@@ -7,11 +7,13 @@ package overlay
 import "C"
 
 import (
+	"image"
 	"sync"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -68,6 +70,9 @@ func (n *NoOpManager) UseGridOverlay(o *grid.Overlay) {}
 // UseScrollOverlay is a no-op implementation.
 func (n *NoOpManager) UseScrollOverlay(o *scroll.Overlay) {}
 
+// UseQuadGridOverlay is a no-op implementation.
+func (n *NoOpManager) UseQuadGridOverlay(o *quadgrid.Overlay) {}
+
 // HintOverlay returns nil.
 func (n *NoOpManager) HintOverlay() *hints.Overlay { return nil }
 
@@ -76,6 +81,9 @@ func (n *NoOpManager) GridOverlay() *grid.Overlay { return nil }
 
 // ScrollOverlay returns nil.
 func (n *NoOpManager) ScrollOverlay() *scroll.Overlay { return nil }
+
+// QuadGridOverlay returns nil.
+func (n *NoOpManager) QuadGridOverlay() *quadgrid.Overlay { return nil }
 
 // DrawHintsWithStyle is a no-op implementation.
 func (n *NoOpManager) DrawHintsWithStyle(
@@ -93,6 +101,16 @@ func (n *NoOpManager) DrawGrid(
 	g *domainGrid.Grid,
 	input string,
 	style grid.Style,
+) error {
+	return nil
+}
+
+// DrawQuadGrid is a no-op implementation.
+func (n *NoOpManager) DrawQuadGrid(
+	bounds image.Rectangle,
+	depth int,
+	keys string,
+	style quadgrid.Style,
 ) error {
 	return nil
 }
@@ -118,6 +136,8 @@ const (
 	ModeGrid Mode = "grid"
 	// ModeScroll represents the scroll mode.
 	ModeScroll Mode = "scroll"
+	// ModeQuadGrid represents the quad-grid mode.
+	ModeQuadGrid Mode = "quadgrid"
 )
 
 // StateChange represents a change in overlay mode.
@@ -152,14 +172,17 @@ type ManagerInterface interface {
 	UseHintOverlay(o *hints.Overlay)
 	UseGridOverlay(o *grid.Overlay)
 	UseScrollOverlay(o *scroll.Overlay)
+	UseQuadGridOverlay(o *quadgrid.Overlay)
 
 	HintOverlay() *hints.Overlay
 	GridOverlay() *grid.Overlay
 	ScrollOverlay() *scroll.Overlay
+	QuadGridOverlay() *quadgrid.Overlay
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
 	DrawScrollIndicator(x, y int)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
+	DrawQuadGrid(bounds image.Rectangle, depth int, keys string, style quadgrid.Style) error
 	UpdateGridMatches(prefix string)
 	ShowSubgrid(cell *domainGrid.Cell, style grid.Style)
 	SetHideUnmatched(hide bool)
@@ -175,9 +198,10 @@ type Manager struct {
 	nextID uint64
 
 	// Overlay renderers
-	hintOverlay   *hints.Overlay
-	gridOverlay   *grid.Overlay
-	scrollOverlay *scroll.Overlay
+	hintOverlay     *hints.Overlay
+	gridOverlay     *grid.Overlay
+	scrollOverlay   *scroll.Overlay
+	quadGridOverlay *quadgrid.Overlay
 }
 
 var (
@@ -311,6 +335,11 @@ func (m *Manager) UseScrollOverlay(o *scroll.Overlay) {
 	m.scrollOverlay = o
 }
 
+// UseQuadGridOverlay sets the quad-grid overlay renderer.
+func (m *Manager) UseQuadGridOverlay(o *quadgrid.Overlay) {
+	m.quadGridOverlay = o
+}
+
 // HintOverlay returns the hint overlay renderer.
 func (m *Manager) HintOverlay() *hints.Overlay {
 	return m.hintOverlay
@@ -324,6 +353,11 @@ func (m *Manager) GridOverlay() *grid.Overlay {
 // ScrollOverlay returns the scroll overlay renderer.
 func (m *Manager) ScrollOverlay() *scroll.Overlay {
 	return m.scrollOverlay
+}
+
+// QuadGridOverlay returns the quad-grid overlay renderer.
+func (m *Manager) QuadGridOverlay() *quadgrid.Overlay {
+	return m.quadGridOverlay
 }
 
 // DrawHintsWithStyle draws hints with the specified style using the hint overlay renderer.
@@ -359,6 +393,24 @@ func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) e
 	drawGridErr := m.gridOverlay.DrawGrid(g, input, style)
 	if drawGridErr != nil {
 		return derrors.Wrap(drawGridErr, derrors.CodeOverlayFailed, "failed to draw grid")
+	}
+
+	return nil
+}
+
+// DrawQuadGrid renders a quad-grid with the specified style using the quad-grid overlay renderer.
+func (m *Manager) DrawQuadGrid(
+	bounds image.Rectangle,
+	depth int,
+	keys string,
+	style quadgrid.Style,
+) error {
+	if m.quadGridOverlay == nil {
+		return nil
+	}
+	drawQuadGridErr := m.quadGridOverlay.DrawQuadGrid(bounds, depth, keys, style)
+	if drawQuadGridErr != nil {
+		return derrors.Wrap(drawQuadGridErr, derrors.CodeOverlayFailed, "failed to draw quad-grid")
 	}
 
 	return nil

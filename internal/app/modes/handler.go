@@ -7,6 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
@@ -48,9 +49,10 @@ type Handler struct {
 	actionService *services.ActionService
 	scrollService *services.ScrollService
 
-	hints  *components.HintsComponent
-	grid   *components.GridComponent
-	scroll *components.ScrollComponent
+	hints    *components.HintsComponent
+	grid     *components.GridComponent
+	scroll   *components.ScrollComponent
+	quadGrid *components.QuadGridComponent
 
 	// Mode implementations
 	modes map[domain.Mode]Mode
@@ -85,6 +87,7 @@ func NewHandler(
 	hintsComponent *components.HintsComponent,
 	grid *components.GridComponent,
 	scroll *components.ScrollComponent,
+	quadGridComponent *components.QuadGridComponent,
 	enableEventTap func(),
 	disableEventTap func(),
 	refreshHotkeys func(),
@@ -106,6 +109,7 @@ func NewHandler(
 		hints:           hintsComponent,
 		grid:            grid,
 		scroll:          scroll,
+		quadGrid:        quadGridComponent,
 		screenBounds:    screenBounds,
 		enableEventTap:  enableEventTap,
 		disableEventTap: disableEventTap,
@@ -115,9 +119,10 @@ func NewHandler(
 
 	// Initialize mode implementations
 	handler.modes = map[domain.Mode]Mode{
-		domain.ModeHints:  NewHintsMode(handler),
-		domain.ModeGrid:   NewGridMode(handler),
-		domain.ModeScroll: NewScrollMode(handler),
+		domain.ModeHints:    NewHintsMode(handler),
+		domain.ModeGrid:     NewGridMode(handler),
+		domain.ModeScroll:   NewScrollMode(handler),
+		domain.ModeQuadGrid: NewQuadGridMode(handler),
 	}
 
 	return handler
@@ -130,6 +135,7 @@ func (h *Handler) UpdateConfig(config *config.Config) {
 		h.renderer.UpdateConfig(
 			hints.BuildStyle(config.Hints),
 			grid.BuildStyle(config.Grid),
+			quadgrid.BuildStyle(config.QuadGrid),
 		)
 	}
 }

@@ -106,6 +106,7 @@ type Config struct {
 	Hotkeys      HotkeysConfig      `json:"hotkeys"      toml:"hotkeys"`
 	Hints        HintsConfig        `json:"hints"        toml:"hints"`
 	Grid         GridConfig         `json:"grid"         toml:"grid"`
+	QuadGrid     QuadGridConfig     `json:"quadGrid"     toml:"quad_grid"`
 	Scroll       ScrollConfig       `json:"scroll"       toml:"scroll"`
 	Action       ActionConfig       `json:"action"       toml:"action"`
 	Logging      LoggingConfig      `json:"logging"      toml:"logging"`
@@ -225,6 +226,27 @@ type GridConfig struct {
 	ResetKey        string `json:"resetKey"        toml:"reset_key"`
 }
 
+// QuadGridConfig defines the visual and behavioral settings for quad-grid mode.
+type QuadGridConfig struct {
+	Enabled bool `json:"enabled" toml:"enabled"`
+
+	// Key bindings (warpd convention: u=TL, i=TR, j=BL, k=BR)
+	Keys string `json:"keys" toml:"keys"`
+
+	// Visual styling
+	LineColor        string  `json:"lineColor"        toml:"line_color"`
+	LineWidth        int     `json:"lineWidth"        toml:"line_width"`
+	HighlightColor   string  `json:"highlightColor"   toml:"highlight_color"`
+	HighlightOpacity float64 `json:"highlightOpacity" toml:"highlight_opacity"`
+	LabelColor       string  `json:"labelColor"       toml:"label_color"`
+	LabelFontSize    int     `json:"labelFontSize"    toml:"label_font_size"`
+	LabelFontFamily  string  `json:"labelFontFamily"  toml:"label_font_family"`
+
+	// Behavior
+	MinSize  int `json:"minSize"  toml:"min_size"`  // Default: 25
+	MaxDepth int `json:"maxDepth" toml:"max_depth"` // Default: 10
+}
+
 // LoggingConfig defines the logging behavior and file management settings.
 type LoggingConfig struct {
 	LogLevel          string `json:"logLevel"          toml:"log_level"`
@@ -306,6 +328,12 @@ func (c *Config) Validate() error {
 
 	// Validate grid settings
 	err = c.ValidateGrid()
+	if err != nil {
+		return err
+	}
+
+	// Validate quad-grid settings
+	err = c.ValidateQuadGrid()
 	if err != nil {
 		return err
 	}
@@ -439,10 +467,10 @@ func rolesMapToSlice(rolesMap map[string]struct{}) []string {
 
 // ValidateModes validates that at least one mode is enabled.
 func (c *Config) ValidateModes() error {
-	if !c.Hints.Enabled && !c.Grid.Enabled {
+	if !c.Hints.Enabled && !c.Grid.Enabled && !c.QuadGrid.Enabled {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"at least one mode must be enabled: hints.enabled or grid.enabled",
+			"at least one mode must be enabled: hints.enabled, grid.enabled, or quadgrid.enabled",
 		)
 	}
 
