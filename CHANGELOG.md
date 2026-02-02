@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.17.0](https://github.com/y3owk1n/neru/compare/v1.16.0...v1.17.0) (2026-02-02)
+
+
+### Features
+
+* **mode:** add quad-grid mode ([#352](https://github.com/y3owk1n/neru/issues/352)) ([ac40b60](https://github.com/y3owk1n/neru/commit/ac40b60aac29d0e3e04e1b49b51af0f86406b2de))
+
+
+### Bug Fixes
+
+* bypass input method by mapping key code directly ([#346](https://github.com/y3owk1n/neru/issues/346)) ([11bc421](https://github.com/y3owk1n/neru/commit/11bc421a20babda5b00df01015f0edb127f74d23))
+* **eventtap:** resolve race conditions in lifecycle management ([#348](https://github.com/y3owk1n/neru/issues/348)) ([518ca19](https://github.com/y3owk1n/neru/commit/518ca196399f3385f9d7f3bc71339cef744c7ff9))
+
 ## [1.16.0](https://github.com/y3owk1n/neru/compare/v1.15.1...v1.16.0) (2026-01-31)
 
 
