@@ -775,6 +775,7 @@ func (c *Config) checkModeExitKeysConflicts() error {
 		{c.Grid.Characters, "grid.characters", "grid input"},
 		{c.Grid.RowLabels, "grid.row_labels", "row selection"},
 		{c.Grid.ColLabels, "grid.col_labels", "column selection"},
+		{c.QuadGrid.Keys, "quadgrid.keys", "quadrant selection"},
 	}
 
 	for _, check := range checks {
