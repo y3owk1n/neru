@@ -402,6 +402,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 	NSScreen *mainScreen = [NSScreen mainScreen];
 	CGFloat screenHeight = [mainScreen frame].size.height;
+	CGFloat screenWidth = [mainScreen frame].size.width;
 
 	for (NSDictionary *cellDict in self.gridCells) {
 		NSString *label = cellDict[@"label"];
@@ -441,6 +442,17 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		// and proper overlap at shared edges.
 		if ((int)self.gridBorderWidth % 2 == 1) {
 			borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
+		}
+
+		// Adjust for right screen edge to ensure border is visible
+		if (NSMaxX(cellRect) >= screenWidth) {
+			borderRect.size.width -= 1.0;
+		}
+
+		// Adjust for bottom screen edge to ensure border is visible
+		if (NSMinY(cellRect) <= 0) {
+			borderRect.origin.y += 1.0;
+			borderRect.size.height -= 1.0;
 		}
 
 		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
