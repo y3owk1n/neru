@@ -15,6 +15,7 @@ import (
 type AppInterface interface {
 	HintsEnabled() bool
 	GridEnabled() bool
+	QuadGridEnabled() bool
 	IsEnabled() bool
 	SetEnabled(enabled bool)
 	ActivateMode(mode domain.Mode)
@@ -42,6 +43,7 @@ type Component struct {
 	mToggleEnable  *systray.MenuItem
 	mHints         *systray.MenuItem
 	mGrid          *systray.MenuItem
+	mQuadGrid      *systray.MenuItem
 	mReloadConfig  *systray.MenuItem
 	mQuit          *systray.MenuItem
 
@@ -104,6 +106,11 @@ func (c *Component) OnReady() {
 	c.mGrid = systray.AddMenuItem("Grid", "Grid mode actions")
 	if !c.app.GridEnabled() {
 		c.mGrid.Hide()
+	}
+
+	c.mQuadGrid = systray.AddMenuItem("Quad Grid", "Quad Grid mode actions")
+	if !c.app.QuadGridEnabled() {
+		c.mQuadGrid.Hide()
 	}
 
 	systray.AddSeparator()
@@ -169,6 +176,8 @@ func (c *Component) handleEvents() {
 			c.app.ActivateMode(domain.ModeHints)
 		case <-c.mGrid.ClickedCh:
 			c.app.ActivateMode(domain.ModeGrid)
+		case <-c.mQuadGrid.ClickedCh:
+			c.app.ActivateMode(domain.ModeQuadGrid)
 		case <-c.mReloadConfig.ClickedCh:
 			c.handleReloadConfig()
 		case <-c.mQuit.ClickedCh:

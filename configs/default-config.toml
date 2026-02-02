@@ -35,6 +35,7 @@ mode_exit_keys = ["escape"]
 # Examples: "Cmd+Shift+Space" = "hints", "Cmd+Shift+G" = "grid"
 "Cmd+Shift+Space" = "hints"
 "Cmd+Shift+G" = "grid"
+"Cmd+Shift+C" = "quadgrid"
 "Cmd+Shift+S" = "scroll"
 
 # Direct actions are available in hints/grid mode without mode switching
@@ -189,6 +190,29 @@ hide_unmatched = true
 prewarm_enabled = true
 # Enable periodic garbage collection every 5 minutes to reduce peak memory usage, but adds CPU overhead
 enable_gc = false
+
+[quad_grid]
+# Whether to enable quad-grid mode
+enabled = true
+
+# Key bindings for quadrant selection (warpd convention)
+# Must be exactly 4 unique characters
+# u = upper-left, i = upper-right, j = lower-left, k = lower-right
+keys = "uijk"
+
+# Visual appearance
+line_color = "#FFFFFF"          # Color of grid lines
+line_width = 2                  # Width of grid lines
+highlight_color = "#00BFFF"     # Color for quadrant highlighting (deep sky blue)
+highlight_opacity = 0.3         # Opacity of highlight (0.0 - 1.0)
+label_color = "#FFFFFF"         # Color of quadrant labels
+label_font_size = 12            # Font size for labels
+label_font_family = "SF Mono"   # Font family for labels
+
+# Behavior
+min_size = 25                   # Minimum quadrant size in pixels (stops dividing when reached)
+max_depth = 10                  # Maximum recursion depth (safety limit)
+reset_key = ","                 # Reset to initial center and clear state
 
 [scroll]
 # Scroll step sizes

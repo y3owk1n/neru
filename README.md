@@ -67,11 +67,12 @@ Neru is a capable **free and open-source** replacement for:
 
 ### 🎮 How It Works
 
-**Three Navigation Modes:**
+**Navigation Modes:**
 
 1. **Hints Mode** - Accessibility-based labels on clickable elements
 2. **Grid Mode** - Universal coordinate-based navigation (works everywhere!)
 3. **Scroll Mode** - Vim-style scrolling at cursor position
+4. **Quad-Grid Mode** - Recursive quadrant selection (u/i/j/k), reset key returns to initial center
 
 <div align="center">
 
@@ -118,6 +119,7 @@ neru services install
 # Try default hotkeys:
 # Cmd+Shift+Space - Hint mode
 # Cmd+Shift+G     - Grid mode
+# Cmd+Shift+C     - Quad-Grid mode
 # Cmd+Shift+S     - Scroll
 ```
 

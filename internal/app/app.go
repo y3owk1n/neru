@@ -39,6 +39,9 @@ func (a *App) SetModeHints() { a.modes.SetModeHints() }
 // SetModeGrid switches the application to grid mode.
 func (a *App) SetModeGrid() { a.modes.SetModeGrid() }
 
+// SetModeQuadGrid switches the application to quad-grid mode.
+func (a *App) SetModeQuadGrid() { a.modes.SetModeQuadGrid() }
+
 // SetModeScroll switches the application to scroll mode.
 func (a *App) SetModeScroll() { a.modes.SetModeScroll() }
 

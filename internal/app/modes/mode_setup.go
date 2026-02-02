@@ -128,6 +128,13 @@ func (h *Handler) SetModeGrid() {
 	h.setMode(domain.ModeGrid, overlay.ModeGrid)
 }
 
+// SetModeQuadGrid switches the application to quad-grid mode for recursive quadrant navigation.
+// This function sets the application state to quad-grid mode, enables event tapping
+// for capturing keyboard input, and switches the overlay display to quad-grid mode.
+func (h *Handler) SetModeQuadGrid() {
+	h.setMode(domain.ModeQuadGrid, overlay.ModeQuadGrid)
+}
+
 // SetModeScroll switches the application to scroll mode for scroll-based navigation.
 // This function sets the application state to scroll mode, enables event tapping
 // for capturing keyboard input, and switches the overlay display to scroll mode.

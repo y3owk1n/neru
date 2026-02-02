@@ -172,6 +172,17 @@ const (
 
 	// IPCTimeoutSeconds is the IPC timeout seconds.
 	IPCTimeoutSeconds = 5
+
+	// DefaultQuadGridMinSize is the default minimum quadrant size in pixels.
+	DefaultQuadGridMinSize = 25
+	// DefaultQuadGridMaxDepth is the default maximum recursion depth.
+	DefaultQuadGridMaxDepth = 10
+	// DefaultQuadGridLineWidth is the default line width for grid lines.
+	DefaultQuadGridLineWidth = 2
+	// DefaultQuadGridLabelFontSize is the default font size for quadrant labels.
+	DefaultQuadGridLabelFontSize = 12
+	// DefaultQuadGridHighlightOpacity is the default opacity for quadrant highlighting.
+	DefaultQuadGridHighlightOpacity = 0.3
 )
 
 // DefaultConfig returns the default application configuration with sensible defaults.
@@ -187,6 +198,7 @@ func DefaultConfig() *Config {
 			Bindings: map[string]string{
 				"Cmd+Shift+Space": "hints",
 				"Cmd+Shift+G":     "grid",
+				"Cmd+Shift+C":     "quadgrid",
 				"Cmd+Shift+S":     "scroll",
 			},
 		},
@@ -269,6 +281,23 @@ func DefaultConfig() *Config {
 			PrewarmEnabled:  true,
 			EnableGC:        false,
 			ResetKey:        ",",
+		},
+		QuadGrid: QuadGridConfig{
+			Enabled: true,
+
+			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
+
+			LineColor:        "#FFFFFF",
+			LineWidth:        DefaultQuadGridLineWidth,
+			HighlightColor:   "#00BFFF", // Deep sky blue
+			HighlightOpacity: DefaultQuadGridHighlightOpacity,
+			LabelColor:       "#FFFFFF",
+			LabelFontSize:    DefaultQuadGridLabelFontSize,
+			LabelFontFamily:  "SF Mono",
+
+			MinSize:  DefaultQuadGridMinSize,
+			MaxDepth: DefaultQuadGridMaxDepth,
+			ResetKey: ",",
 		},
 		Scroll: ScrollConfig{
 			ScrollStep:     DefaultScrollStep,

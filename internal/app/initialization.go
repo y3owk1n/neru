@@ -233,4 +233,8 @@ func (a *App) registerOverlays() {
 		a.gridComponent.Context.GridOverlay() != nil {
 		a.overlayManager.UseGridOverlay(*a.gridComponent.Context.GridOverlay())
 	}
+
+	if a.quadGridComponent != nil && a.quadGridComponent.Overlay != nil {
+		a.overlayManager.UseQuadGridOverlay(a.quadGridComponent.Overlay)
+	}
 }

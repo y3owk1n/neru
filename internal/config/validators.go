@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
@@ -774,6 +775,7 @@ func (c *Config) checkModeExitKeysConflicts() error {
 		{c.Grid.Characters, "grid.characters", "grid input"},
 		{c.Grid.RowLabels, "grid.row_labels", "row selection"},
 		{c.Grid.ColLabels, "grid.col_labels", "column selection"},
+		{c.QuadGrid.Keys, "quadgrid.keys", "quadrant selection"},
 	}
 
 	for _, check := range checks {
@@ -886,4 +888,149 @@ func validateModeExitKeyCombo(key string, index int) error {
 // validateResetKeyCombo validates a modifier combo reset key format (e.g. "Ctrl+R").
 func validateResetKeyCombo(key string) error {
 	return validateModifierCombo(key, "grid.reset_key")
+}
+
+// ValidateQuadGrid validates the quad-grid configuration.
+func (c *Config) ValidateQuadGrid() error {
+	if !c.QuadGrid.Enabled {
+		return nil
+	}
+
+	// Validate keys - must be exactly 4 unique characters
+	keys := strings.TrimSpace(c.QuadGrid.Keys)
+	if keys == "" {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.keys cannot be empty",
+		)
+	}
+
+	if utf8.RuneCountInString(keys) != 4 { //nolint:mnd
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.keys must be exactly 4 characters",
+		)
+	}
+
+	// Check for duplicate keys
+	keyMap := make(map[rune]bool)
+	for _, key := range keys {
+		if keyMap[key] {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"quadgrid.keys contains duplicate character: %c",
+				key,
+			)
+		}
+
+		keyMap[key] = true
+	}
+
+	// Validate ASCII
+	for _, r := range keys {
+		if r > unicode.MaxASCII {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"quadgrid.keys can only contain ASCII characters",
+			)
+		}
+	}
+
+	// Validate min size
+	if c.QuadGrid.MinSize < 10 { //nolint:mnd
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.min_size must be at least 10",
+		)
+	}
+
+	// Validate max depth
+	if c.QuadGrid.MaxDepth < 1 || c.QuadGrid.MaxDepth > 20 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.max_depth must be between 1 and 20",
+		)
+	}
+
+	resetKey := c.QuadGrid.ResetKey
+	if resetKey == "" {
+		resetKey = ","
+	}
+
+	// Validate reset key format: either single character or modifier combo
+	if strings.Contains(resetKey, "+") {
+		// Validate modifier combo (e.g. "Ctrl+R")
+		err := validateResetKeyCombo(resetKey)
+		if err != nil {
+			return err
+		}
+		// Modifier combos don't conflict with quadgrid keys, so we can return early
+	} else {
+		// Validate single character reset key
+		if len(resetKey) != 1 {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"quadgrid.reset_key must be either a single character or a modifier combo (e.g. 'Ctrl+R')",
+			)
+		}
+
+		// Validate reset key is ASCII
+		if rune(resetKey[0]) > unicode.MaxASCII {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"quadgrid.reset_key must be an ASCII character",
+			)
+		}
+
+		// Backspace and delete are reserved for input correction
+		normalizedResetKey := NormalizeKeyForComparison(resetKey)
+		if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"quadgrid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
+			)
+		}
+
+		// Single-character reset key cannot be in quadgrid keys
+		if strings.Contains(strings.ToLower(c.QuadGrid.Keys), strings.ToLower(resetKey)) {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"quadgrid.keys cannot contain '"+resetKey+"' as it is reserved for reset",
+			)
+		}
+	}
+
+	// Validate styling
+	if c.QuadGrid.LineWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.line_width must be non-negative",
+		)
+	}
+
+	if c.QuadGrid.LabelFontSize < 6 || c.QuadGrid.LabelFontSize > 72 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.label_font_size must be between 6 and 72",
+		)
+	}
+
+	if c.QuadGrid.HighlightOpacity < 0 || c.QuadGrid.HighlightOpacity > 1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.highlight_opacity must be between 0 and 1",
+		)
+	}
+
+	// Validate colors
+	err := validateColors([]colorField{
+		{c.QuadGrid.LineColor, "quadgrid.line_color"},
+		{c.QuadGrid.HighlightColor, "quadgrid.highlight_color"},
+		{c.QuadGrid.LabelColor, "quadgrid.label_color"},
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

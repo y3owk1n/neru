@@ -4,10 +4,11 @@ import "github.com/y3owk1n/neru/internal/core/domain/action"
 
 // Mode names as strings.
 const (
-	ModeNameIdle   = "idle"
-	ModeNameHints  = "hints"
-	ModeNameGrid   = "grid"
-	ModeNameScroll = "scroll"
+	ModeNameIdle     = "idle"
+	ModeNameHints    = "hints"
+	ModeNameGrid     = "grid"
+	ModeNameScroll   = "scroll"
+	ModeNameQuadGrid = "quadgrid"
 )
 
 // ModeString converts a Mode to its string representation.
@@ -21,6 +22,8 @@ func ModeString(mode Mode) string {
 		return ModeNameGrid
 	case ModeScroll:
 		return ModeNameScroll
+	case ModeQuadGrid:
+		return ModeNameQuadGrid
 	default:
 		return UnknownMode
 	}

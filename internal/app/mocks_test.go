@@ -4,11 +4,13 @@ package app_test
 
 import (
 	"context"
+	"image"
 	"sync"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
@@ -162,16 +164,18 @@ func (m *mockOverlayManager) Mode() overlay.Mode {
 	return m.mode
 }
 
-func (m *mockOverlayManager) WindowPtr() unsafe.Pointer          { return nil }
-func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)    {}
-func (m *mockOverlayManager) UseGridOverlay(_ *grid.Overlay)     {}
-func (m *mockOverlayManager) UseScrollOverlay(_ *scroll.Overlay) {}
+func (m *mockOverlayManager) WindowPtr() unsafe.Pointer              { return nil }
+func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)        {}
+func (m *mockOverlayManager) UseGridOverlay(_ *grid.Overlay)         {}
+func (m *mockOverlayManager) UseScrollOverlay(_ *scroll.Overlay)     {}
+func (m *mockOverlayManager) UseQuadGridOverlay(_ *quadgrid.Overlay) {}
 
-func (m *mockOverlayManager) HintOverlay() *hints.Overlay { return nil }
-
-func (m *mockOverlayManager) GridOverlay() *grid.Overlay { return nil }
-
+func (m *mockOverlayManager) HintOverlay() *hints.Overlay    { return nil }
+func (m *mockOverlayManager) GridOverlay() *grid.Overlay     { return nil }
 func (m *mockOverlayManager) ScrollOverlay() *scroll.Overlay { return nil }
+func (m *mockOverlayManager) QuadGridOverlay() *quadgrid.Overlay {
+	return nil
+}
 
 func (m *mockOverlayManager) DrawHintsWithStyle(
 	_ []*hints.Hint,
@@ -185,6 +189,15 @@ func (m *mockOverlayManager) DrawGrid(
 	_ *domainGrid.Grid,
 	_ string,
 	_ grid.Style,
+) error {
+	return nil
+}
+
+func (m *mockOverlayManager) DrawQuadGrid(
+	_ image.Rectangle,
+	_ int,
+	_ string,
+	_ quadgrid.Style,
 ) error {
 	return nil
 }

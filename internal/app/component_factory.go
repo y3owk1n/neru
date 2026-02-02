@@ -6,6 +6,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
@@ -174,6 +175,43 @@ func (f *ComponentFactory) CreateScrollComponent(
 	}, nil
 }
 
+// CreateQuadGridComponent creates a quad-grid component with standardized error handling.
+func (f *ComponentFactory) CreateQuadGridComponent(
+	opts ComponentCreationOptions,
+) (*components.QuadGridComponent, error) {
+	// Create overlay
+	var quadGridOverlay *quadgrid.Overlay
+	if opts.OverlayType != "" {
+		overlay, err := f.createOverlay("quadgrid", f.config.QuadGrid)
+		if err != nil {
+			if opts.Required {
+				return nil, derrors.Wrap(
+					err,
+					derrors.CodeOverlayFailed,
+					"failed to create quadgrid overlay",
+				)
+			}
+
+			f.logger.Warn(
+				"Failed to create quadgrid overlay, continuing without overlay",
+				zap.Error(err),
+			)
+		} else {
+			if quadGridOverlayTyped, ok := overlay.(*quadgrid.Overlay); ok {
+				quadGridOverlay = quadGridOverlayTyped
+			} else {
+				f.logger.Error("Unexpected overlay type for quadgrid", zap.Any("overlay", overlay))
+			}
+		}
+	}
+
+	return &components.QuadGridComponent{
+		Overlay: quadGridOverlay,
+		Context: &quadgrid.Context{},
+		Style:   quadgrid.BuildStyle(f.config.QuadGrid),
+	}, nil
+}
+
 // Helper methods
 
 func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, error) {
@@ -194,6 +232,17 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 		}
 
 		return scroll.NewOverlayWithWindow(scrollConfig, f.logger, f.overlayManager.WindowPtr())
+	case "quadgrid":
+		quadGridConfig, ok := cfg.(config.QuadGridConfig)
+		if !ok {
+			return nil, derrors.New(derrors.CodeInvalidInput, "invalid quadgrid config type")
+		}
+
+		return quadgrid.NewOverlayWithWindow(
+			quadGridConfig,
+			f.logger,
+			f.overlayManager.WindowPtr(),
+		), nil
 	default:
 		return nil, derrors.New(derrors.CodeInvalidInput, "unknown overlay type: "+overlayType)
 	}

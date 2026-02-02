@@ -5,9 +5,11 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	domainQuadGrid "github.com/y3owk1n/neru/internal/core/domain/quadgrid"
 	"go.uber.org/zap"
 )
 
@@ -91,4 +93,22 @@ func (s *ScrollComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 	}
 
 	s.KeyMap = scroll.NewKeyMap(cfg.Scroll.KeyBindings)
+}
+
+// QuadGridComponent encapsulates all quad-grid-related functionality.
+type QuadGridComponent struct {
+	Manager *domainQuadGrid.Manager
+	Overlay *quadgrid.Overlay
+	Context *quadgrid.Context
+	Style   quadgrid.Style
+}
+
+// UpdateConfig updates the quad-grid component with new configuration.
+func (q *QuadGridComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
+	if cfg.QuadGrid.Enabled {
+		q.Style = quadgrid.BuildStyle(cfg.QuadGrid)
+		if q.Overlay != nil {
+			q.Overlay.SetConfig(cfg.QuadGrid)
+		}
+	}
 }

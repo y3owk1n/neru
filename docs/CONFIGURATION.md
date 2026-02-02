@@ -12,6 +12,7 @@ Neru uses TOML for configuration. This guide covers all available options with e
 - [Keyboard Layout Requirements](#keyboard-layout-requirements)
 - [Hint Mode](#hint-mode)
 - [Grid Mode](#grid-mode)
+- [Quad-Grid Mode](#quad-grid-mode)
 - [Scroll Mode](#scroll-mode)
 - [Mouse Movement Actions](#mouse-movement-actions)
 - [Smooth Cursor](#smooth-cursor)
@@ -48,6 +49,9 @@ Bind global hotkeys to Neru actions. Remove or comment out to disable.
 
 # Grid mode
 "Cmd+Shift+G" = "grid"
+
+# Quad-Grid mode
+"Cmd+Shift+C" = "quadgrid"
 
 # Scroll
 "Cmd+Shift+S" = "scroll"
@@ -357,6 +361,44 @@ Notes:
 
 - Single-character reset keys are reserved and must not appear in `grid.characters` or label sets.
 - Modifier combos (e.g. `Ctrl+R`) do not conflict with single-character grid labels.
+
+---
+
+## Quad-Grid Mode
+
+Quad-grid provides recursive quadrant-based navigation that works anywhere. The screen is divided into four quadrants using keys (default: `u`, `i`, `j`, `k`). Each selection narrows the active area. The reset key returns to the initial center, and backspace/delete move up one depth and recenter.
+
+### Basic Configuration
+
+```toml
+[quad_grid]
+enabled = true
+
+# Quadrant keys (must be exactly 4 unique ASCII characters)
+# u = upper-left, i = upper-right, j = lower-left, k = lower-right
+keys = "uijk"
+
+# Behavior
+min_size = 25        # Minimum quadrant size in pixels
+max_depth = 10       # Maximum recursion depth
+reset_key = ","      # Reset to initial center (can be modifier combo like "Ctrl+R")
+
+# Visual styling
+line_color = "#FFFFFF"
+line_width = 2
+highlight_color = "#00BFFF"
+highlight_opacity = 0.3
+label_color = "#FFFFFF"
+label_font_size = 12
+label_font_family = "SF Mono"
+```
+
+### Key Behavior
+
+- Press quadrant key to narrow selection and preview cursor at center
+- Press backspace/delete to move up one depth and recenter cursor
+- Press reset_key to return to initial center and clear state
+- Press exit key (default: escape) to exit mode
 
 ---
 

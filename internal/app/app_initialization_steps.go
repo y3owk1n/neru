@@ -6,6 +6,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
 	"github.com/y3owk1n/neru/internal/app/components/systray"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -144,6 +145,17 @@ func initializeUIComponents(app *App) error {
 
 	app.scrollComponent = scrollComponent
 
+	quadGridComponent, err := factory.CreateQuadGridComponent(ComponentCreationOptions{
+		SkipIfDisabled: false,
+		Required:       false,
+		OverlayType:    "quadgrid",
+	})
+	if err != nil {
+		return err
+	}
+
+	app.quadGridComponent = quadGridComponent
+
 	return nil
 }
 
@@ -173,10 +185,19 @@ func initializeRendererAndOverlays(app *App) {
 		gridStyle = grid.BuildStyle(config.DefaultConfig().Grid)
 	}
 
+	var quadGridStyle quadgrid.Style
+	if app.quadGridComponent != nil {
+		quadGridStyle = app.quadGridComponent.Style
+	} else {
+		// Fallback to default style if component is nil
+		quadGridStyle = quadgrid.BuildStyle(config.DefaultConfig().QuadGrid)
+	}
+
 	app.renderer = ui.NewOverlayRenderer(
 		app.overlayManager,
 		hintStyle,
 		gridStyle,
+		quadGridStyle,
 	)
 
 	// Register overlays with overlay manager
@@ -204,9 +225,10 @@ func initializeModeHandler(app *App) {
 			scroll *services.ScrollService
 		}
 		components struct {
-			hints  *components.HintsComponent
-			grid   *components.GridComponent
-			scroll *components.ScrollComponent
+			hints    *components.HintsComponent
+			grid     *components.GridComponent
+			scroll   *components.ScrollComponent
+			quadgrid *components.QuadGridComponent
 		}
 		callbacks struct {
 			enableEventTap  func()
@@ -232,13 +254,15 @@ func initializeModeHandler(app *App) {
 			scroll: app.scrollService,
 		},
 		components: struct {
-			hints  *components.HintsComponent
-			grid   *components.GridComponent
-			scroll *components.ScrollComponent
+			hints    *components.HintsComponent
+			grid     *components.GridComponent
+			scroll   *components.ScrollComponent
+			quadgrid *components.QuadGridComponent
 		}{
-			hints:  app.hintsComponent,
-			grid:   app.gridComponent,
-			scroll: app.scrollComponent,
+			hints:    app.hintsComponent,
+			grid:     app.gridComponent,
+			scroll:   app.scrollComponent,
+			quadgrid: app.quadGridComponent,
 		},
 		callbacks: struct {
 			enableEventTap  func()
@@ -265,6 +289,7 @@ func initializeModeHandler(app *App) {
 		deps.components.hints,
 		deps.components.grid,
 		deps.components.scroll,
+		deps.components.quadgrid,
 		deps.callbacks.enableEventTap,
 		deps.callbacks.disableEventTap,
 		deps.callbacks.refreshHotkeys,
