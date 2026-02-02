@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.17.1](https://github.com/y3owk1n/neru/compare/v1.17.0...v1.17.1) (2026-02-02)
+
+
+### Bug Fixes
+
+* **overlay:** ensure grid borders are visible at screen edges ([#355](https://github.com/y3owk1n/neru/issues/355)) ([a0fdd77](https://github.com/y3owk1n/neru/commit/a0fdd77456ba4cc4847351537a7e02436b6073da))
+* **quadgrid:** nicer quadgrid default border ([#356](https://github.com/y3owk1n/neru/issues/356)) ([45030c0](https://github.com/y3owk1n/neru/commit/45030c0b0ba5e1075de68a21a12d86a94ed5d809))
+* **ui:** offset odd border widths for nicer grid rendering ([#353](https://github.com/y3owk1n/neru/issues/353)) ([01cddd0](https://github.com/y3owk1n/neru/commit/01cddd0e03c5f9f7d0eac1c90e00f97a336470ef))
+
 ## [1.17.0](https://github.com/y3owk1n/neru/compare/v1.16.0...v1.17.0) (2026-02-02)
 
 
