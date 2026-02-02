@@ -336,8 +336,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		CGFloat tooltipY = elementCenterY + arrowHeight + gap;
 
 		// Convert coordinates (macOS uses bottom-left origin, we need top-left)
-		NSScreen *mainScreen = [NSScreen mainScreen];
-		CGFloat screenHeight = [mainScreen frame].size.height;
+		CGFloat screenHeight = self.bounds.size.height;
 		CGFloat flippedY = screenHeight - tooltipY - boxHeight;
 		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
 
@@ -400,8 +399,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	NSGraphicsContext *context = [NSGraphicsContext currentContext];
 	[context saveGraphicsState];
 
-	NSScreen *mainScreen = [NSScreen mainScreen];
-	CGFloat screenHeight = [mainScreen frame].size.height;
+	CGFloat screenHeight = self.bounds.size.height;
+	CGFloat screenWidth = self.bounds.size.width;
 
 	for (NSDictionary *cellDict in self.gridCells) {
 		NSString *label = cellDict[@"label"];
@@ -441,6 +440,17 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		// and proper overlap at shared edges.
 		if ((int)self.gridBorderWidth % 2 == 1) {
 			borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
+		}
+
+		// Adjust for right screen edge to ensure border is visible
+		if (NSMaxX(cellRect) >= screenWidth) {
+			borderRect.size.width -= 1.0;
+		}
+
+		// Adjust for bottom screen edge to ensure border is visible
+		if (NSMinY(cellRect) <= 0) {
+			borderRect.origin.y += ceil(self.gridBorderWidth / 2.0);
+			borderRect.size.height -= ceil(self.gridBorderWidth / 2.0);
 		}
 
 		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
@@ -500,8 +510,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		int width = [widthNum intValue];
 		double opacity = [opacityNum doubleValue];
 
-		NSScreen *mainScreen = [NSScreen mainScreen];
-		CGFloat screenHeight = [mainScreen frame].size.height;
+		CGFloat screenHeight = self.bounds.size.height;
 		CGFloat flippedY = screenHeight - lineRect.origin.y - lineRect.size.height;
 		NSRect rect = NSMakeRect(lineRect.origin.x, flippedY, lineRect.size.width, lineRect.size.height);
 
