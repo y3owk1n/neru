@@ -398,7 +398,7 @@ Neru is a keyboard-driven navigation tool for macOS that enhances productivity b
 - **Hints Mode**: Uses macOS Accessibility APIs to identify clickable elements and overlay hint labels
 - **Grid Mode**: Divides the screen into a grid system for coordinate-based navigation
 - **Scroll Mode**: Provides Vim-style scrolling at the cursor position
-- **Action Mode**: Provides interactive mouse actions at the cursor position
+- **Quad-Grid Mode**: Recursive quadrant navigation with center preview and reset/backtrack support
 
 All modes support various actions and can be configured extensively through TOML configuration files.
 
@@ -713,6 +713,7 @@ Configuration management:
 3. Implement infrastructure in `internal/core/infra/`
 4. Add components in `internal/app/components/`
 5. Implement the `Mode` interface in `internal/app/modes/` (see `HintsMode`, `GridMode`, `ScrollMode` for examples)
+   - See also `QuadGridMode` for recursive quadrant navigation
 6. Register mode in the Handler's mode map in `internal/app/modes/handler.go`
 
 **Actions:**

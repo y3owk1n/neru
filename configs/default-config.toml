@@ -212,6 +212,7 @@ label_font_family = "SF Mono"   # Font family for labels
 # Behavior
 min_size = 25                   # Minimum quadrant size in pixels (stops dividing when reached)
 max_depth = 10                  # Maximum recursion depth (safety limit)
+reset_key = ","                 # Reset to initial center and clear state
 
 [scroll]
 # Scroll step sizes
