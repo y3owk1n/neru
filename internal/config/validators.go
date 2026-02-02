@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
@@ -903,7 +904,7 @@ func (c *Config) ValidateQuadGrid() error {
 		)
 	}
 
-	if len(keys) != 4 { //nolint:mnd
+	if utf8.RuneCountInString(keys) != 4 { //nolint:mnd
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"quadgrid.keys must be exactly 4 characters",
