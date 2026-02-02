@@ -435,7 +435,15 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 			borderColor = self.gridMatchedBorderColor;
 		}
 		[borderColor setStroke];
-		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:cellRect];
+
+		NSRect borderRect = cellRect;
+		// For odd border widths (like 1.0), offset by 0.5 to ensure crisp lines
+		// and proper overlap at shared edges.
+		if ((int)self.gridBorderWidth % 2 == 1) {
+			borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
+		}
+
+		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
 		[borderPath setLineWidth:self.gridBorderWidth];
 		[borderPath stroke];
 
