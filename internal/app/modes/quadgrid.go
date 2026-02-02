@@ -160,7 +160,7 @@ func (h *Handler) handleQuadGridKey(key string) {
 
 // updateQuadGridOverlay refreshes the visual overlay.
 func (h *Handler) updateQuadGridOverlay() {
-	if h.quadGrid.Manager == nil {
+	if h.quadGrid == nil || h.quadGrid.Manager == nil {
 		return
 	}
 
@@ -178,7 +178,7 @@ func (h *Handler) updateQuadGridOverlay() {
 
 // cleanupQuadGridMode handles cleanup for quad-grid mode.
 func (h *Handler) cleanupQuadGridMode() {
-	if h.quadGrid.Manager != nil {
+	if h.quadGrid != nil && h.quadGrid.Manager != nil {
 		h.quadGrid.Manager.Reset()
 	}
 
