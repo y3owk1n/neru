@@ -104,7 +104,8 @@ func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 			m.onUpdate()
 		}
 
-		return image.Point{}, false, false
+		// Return initial center to move cursor back
+		return m.grid.CurrentCenter(), false, false
 	}
 
 	// Handle backspace/delete for backtracking
@@ -116,6 +117,9 @@ func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 			if m.onUpdate != nil {
 				m.onUpdate()
 			}
+
+			// Return new center (of parent quadrant) to move cursor
+			return m.grid.CurrentCenter(), false, false
 		}
 
 		return image.Point{}, false, false

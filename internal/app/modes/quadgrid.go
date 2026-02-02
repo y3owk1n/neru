@@ -86,7 +86,7 @@ func (h *Handler) initializeQuadGridManager(screenBounds image.Rectangle) {
 	h.quadGrid.Manager = quadgrid.NewManagerWithConfig(
 		screenBounds,
 		h.config.QuadGrid.Keys,
-		",", // Reset key (default)
+		h.config.QuadGrid.ResetKey,
 		exitKeys,
 		h.config.QuadGrid.MinSize,
 		h.config.QuadGrid.MaxDepth,

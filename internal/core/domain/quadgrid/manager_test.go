@@ -110,7 +110,8 @@ func TestManagerHandleInputResetKey(t *testing.T) {
 
 	point, completed, shouldExit := manager.HandleInput(",")
 
-	assert.Equal(t, image.Point{}, point, "Should return zero point")
+	assert.NotEqual(t, image.Point{}, point, "Should return center point")
+	assert.Equal(t, image.Point{X: 50, Y: 50}, point, "Should return initial center point")
 	assert.False(t, completed, "Should not be completed")
 	assert.False(t, shouldExit, "Should not exit")
 	assert.True(t, updateCalled, "Update callback should be called")
@@ -140,7 +141,8 @@ func TestManagerHandleInputBacktrack(t *testing.T) {
 
 	point, completed, shouldExit := manager.HandleInput("backspace")
 
-	assert.Equal(t, image.Point{}, point, "Should return zero point")
+	assert.NotEqual(t, image.Point{}, point, "Should return center point")
+	assert.Equal(t, image.Point{X: 50, Y: 50}, point, "Should return parent center point")
 	assert.False(t, completed, "Should not be completed")
 	assert.False(t, shouldExit, "Should not exit")
 	assert.True(t, updateCalled, "Update callback should be called")

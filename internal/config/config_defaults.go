@@ -297,6 +297,7 @@ func DefaultConfig() *Config {
 
 			MinSize:  DefaultQuadGridMinSize,
 			MaxDepth: DefaultQuadGridMaxDepth,
+			ResetKey: ",",
 		},
 		Scroll: ScrollConfig{
 			ScrollStep:     DefaultScrollStep,

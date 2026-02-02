@@ -950,6 +950,54 @@ func (c *Config) ValidateQuadGrid() error {
 		)
 	}
 
+	resetKey := c.QuadGrid.ResetKey
+	if resetKey == "" {
+		resetKey = ","
+	}
+
+	// Validate reset key format: either single character or modifier combo
+	if strings.Contains(resetKey, "+") {
+		// Validate modifier combo (e.g. "Ctrl+R")
+		err := validateResetKeyCombo(resetKey)
+		if err != nil {
+			return err
+		}
+		// Modifier combos don't conflict with quadgrid keys, so we can return early
+	} else {
+		// Validate single character reset key
+		if len(resetKey) != 1 {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"quadgrid.reset_key must be either a single character or a modifier combo (e.g. 'Ctrl+R')",
+			)
+		}
+
+		// Validate reset key is ASCII
+		if rune(resetKey[0]) > unicode.MaxASCII {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"quadgrid.reset_key must be an ASCII character",
+			)
+		}
+
+		// Backspace and delete are reserved for input correction
+		normalizedResetKey := NormalizeKeyForComparison(resetKey)
+		if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"quadgrid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
+			)
+		}
+
+		// Single-character reset key cannot be in quadgrid keys
+		if strings.Contains(strings.ToLower(c.QuadGrid.Keys), strings.ToLower(resetKey)) {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"quadgrid.keys cannot contain '"+resetKey+"' as it is reserved for reset",
+			)
+		}
+	}
+
 	// Validate styling
 	if c.QuadGrid.LineWidth < 0 {
 		return derrors.New(
