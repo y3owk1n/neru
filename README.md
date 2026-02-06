@@ -78,6 +78,7 @@ Neru is a capable **free and open-source** replacement for:
 
 ![hints-preview](https://github.com/user-attachments/assets/71b13850-1b87-40b5-9ac0-93cff1f2e89b)
 ![grid-preview](https://github.com/user-attachments/assets/d452f972-ce23-4798-955b-6dbfa8435504)
+![quad-grid-preview](https://github.com/user-attachments/assets/0d46fa7c-345a-45ee-ad44-7a601c2b7cb1)
 
 [Hints Demo](demos/hints.md) • [Grid Demo](demos/grid.md)
 
