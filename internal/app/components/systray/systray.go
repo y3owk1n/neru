@@ -2,12 +2,13 @@ package systray
 
 import (
 	"context"
+	"os/exec"
 	"sync/atomic"
 
 	"github.com/atotto/clipboard"
-	"github.com/getlantern/systray"
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/infra/systray"
 	"go.uber.org/zap"
 )
 
@@ -45,22 +46,26 @@ type Component struct {
 	mGrid          *systray.MenuItem
 	mQuadGrid      *systray.MenuItem
 	mReloadConfig  *systray.MenuItem
+	mDocs          *systray.MenuItem
+	mDocsConfig    *systray.MenuItem
+	mDocsCLI       *systray.MenuItem
 	mQuit          *systray.MenuItem
 
-	// Channel for state updates (thread-safe communication)
-	stateUpdateChan chan bool
-	chanClosed      atomic.Bool
+	// State update signaling (thread-safe communication)
+	stateUpdateSignal chan struct{} // Signal that state changed
+	latestState       atomic.Bool   // Latest enabled state
+	chanClosed        atomic.Bool
 }
 
 // NewComponent creates a new systray component.
 func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 	ctx, cancel := context.WithCancel(context.Background())
 	component := &Component{
-		app:             app,
-		logger:          logger,
-		ctx:             ctx,
-		cancel:          cancel,
-		stateUpdateChan: make(chan bool, 1), // Buffered channel to avoid blocking
+		app:               app,
+		logger:            logger,
+		ctx:               ctx,
+		cancel:            cancel,
+		stateUpdateSignal: make(chan struct{}, 1),
 	}
 
 	// Register callback immediately for state changes
@@ -69,11 +74,13 @@ func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 		if component.chanClosed.Load() {
 			return
 		}
-		// Send to channel (non-blocking)
+		// Store latest state and signal update
+		component.latestState.Store(enabled)
+
 		select {
-		case component.stateUpdateChan <- enabled:
+		case component.stateUpdateSignal <- struct{}{}:
 		default:
-			// Channel is full, skip this update
+			// Signal already pending, state will be read when processed
 		}
 	})
 
@@ -116,6 +123,12 @@ func (c *Component) OnReady() {
 	systray.AddSeparator()
 
 	c.mReloadConfig = systray.AddMenuItem("Reload Config", "Reload configuration from disk")
+
+	systray.AddSeparator()
+
+	c.mDocs = systray.AddMenuItem("Documentation", "Documentation links")
+	c.mDocsConfig = c.mDocs.AddSubMenuItem("Configuration", "Open configuration documentation")
+	c.mDocsCLI = c.mDocs.AddSubMenuItem("CLI", "Open CLI documentation")
 
 	systray.AddSeparator()
 
@@ -180,12 +193,28 @@ func (c *Component) handleEvents() {
 			c.app.ActivateMode(domain.ModeQuadGrid)
 		case <-c.mReloadConfig.ClickedCh:
 			c.handleReloadConfig()
+		case <-c.mDocsConfig.ClickedCh:
+			go func() {
+				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md").
+					Run()
+				if err != nil {
+					c.logger.Error("Failed to open configuration docs", zap.Error(err))
+				}
+			}()
+		case <-c.mDocsCLI.ClickedCh:
+			go func() {
+				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/blob/main/docs/CLI.md").
+					Run()
+				if err != nil {
+					c.logger.Error("Failed to open CLI docs", zap.Error(err))
+				}
+			}()
 		case <-c.mQuit.ClickedCh:
 			systray.Quit()
 
 			return
-		case enabled := <-c.stateUpdateChan:
-			c.updateMenuItems(enabled)
+		case <-c.stateUpdateSignal:
+			c.updateMenuItems(c.latestState.Load())
 		}
 	}
 }
