@@ -2,12 +2,13 @@ package systray
 
 import (
 	"context"
+	"os/exec"
 	"sync/atomic"
 
 	"github.com/atotto/clipboard"
-	"github.com/getlantern/systray"
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/infra/systray"
 	"go.uber.org/zap"
 )
 
@@ -45,6 +46,9 @@ type Component struct {
 	mGrid          *systray.MenuItem
 	mQuadGrid      *systray.MenuItem
 	mReloadConfig  *systray.MenuItem
+	mDocs          *systray.MenuItem
+	mDocsConfig    *systray.MenuItem
+	mDocsCLI       *systray.MenuItem
 	mQuit          *systray.MenuItem
 
 	// Channel for state updates (thread-safe communication)
@@ -119,6 +123,12 @@ func (c *Component) OnReady() {
 
 	systray.AddSeparator()
 
+	c.mDocs = systray.AddMenuItem("Documentation", "Documentation links")
+	c.mDocsConfig = c.mDocs.AddSubMenuItem("Configuration", "Open configuration documentation")
+	c.mDocsCLI = c.mDocs.AddSubMenuItem("CLI", "Open CLI documentation")
+
+	systray.AddSeparator()
+
 	c.mQuit = systray.AddMenuItem("Quit Neru", "Exit the application")
 
 	// Initialize all state-dependent UI elements
@@ -180,6 +190,18 @@ func (c *Component) handleEvents() {
 			c.app.ActivateMode(domain.ModeQuadGrid)
 		case <-c.mReloadConfig.ClickedCh:
 			c.handleReloadConfig()
+		case <-c.mDocsConfig.ClickedCh:
+			err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md").
+				Start()
+			if err != nil {
+				c.logger.Error("Failed to open configuration docs", zap.Error(err))
+			}
+		case <-c.mDocsCLI.ClickedCh:
+			err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/blob/main/docs/CLI.md").
+				Start()
+			if err != nil {
+				c.logger.Error("Failed to open CLI docs", zap.Error(err))
+			}
 		case <-c.mQuit.ClickedCh:
 			systray.Quit()
 

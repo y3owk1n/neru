@@ -8,11 +8,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/getlantern/systray"
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/systray"
 	"go.uber.org/zap"
 )
 
