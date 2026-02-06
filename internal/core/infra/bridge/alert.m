@@ -101,3 +101,32 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 
 	return 0;
 }
+
+#pragma mark - Notification Functions
+
+/// Show a macOS notification with a title and message
+/// Uses osascript to display a native macOS notification (works for CLI tools)
+/// @param title The notification title
+/// @param message The notification message
+void showNotification(const char *title, const char *message) {
+	@autoreleasepool {
+		NSString *nsTitle = title ? [NSString stringWithUTF8String:title] : @"Neru";
+		NSString *nsMessage = message ? [NSString stringWithUTF8String:message] : @"";
+
+		NSTask *task = [[NSTask alloc] init];
+		task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/osascript"];
+		task.arguments = @[
+			@"-e", [NSString stringWithFormat:@"display notification \"%@\" with title \"%@\"", nsMessage, nsTitle]
+		];
+
+		NSError *error = nil;
+		if (![task launchAndReturnError:&error]) {
+			NSLog(@"Neru: Failed to show notification: %@", error);
+			return;
+		}
+		[task waitUntilExit];
+		if (task.terminationStatus != 0) {
+			NSLog(@"Neru: osascript failed with status %d", task.terminationStatus);
+		}
+	}
+}

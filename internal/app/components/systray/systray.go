@@ -8,6 +8,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
 	"go.uber.org/zap"
 )
@@ -37,11 +38,10 @@ type Component struct {
 	cancel context.CancelFunc
 
 	// Menu items
-	mVersion       *systray.MenuItem
 	mVersionCopy   *systray.MenuItem
-	mStatus        *systray.MenuItem
 	mToggleDisable *systray.MenuItem
 	mToggleEnable  *systray.MenuItem
+	mModes         *systray.MenuItem
 	mHints         *systray.MenuItem
 	mGrid          *systray.MenuItem
 	mQuadGrid      *systray.MenuItem
@@ -89,42 +89,7 @@ func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 
 // OnReady sets up the systray menu when the systray is ready.
 func (c *Component) OnReady() {
-	c.mVersion = systray.AddMenuItem("Version "+cli.Version, "Show version")
-	c.mVersion.Disable()
-
-	c.mVersionCopy = systray.AddMenuItem("Copy version", "Copy version to clipboard")
-
-	systray.AddSeparator()
-
-	c.mStatus = systray.AddMenuItem("Status: Running", "Show current status")
-	c.mStatus.Disable()
-
-	c.mToggleDisable = systray.AddMenuItem("Disable", "Disable Neru without quitting")
-	c.mToggleEnable = systray.AddMenuItem("Enable", "Enable Neru")
-	c.mToggleEnable.Hide() // Initially hide the enable option
-
-	systray.AddSeparator()
-
-	c.mHints = systray.AddMenuItem("Hints", "Hint mode actions")
-	if !c.app.HintsEnabled() {
-		c.mHints.Hide()
-	}
-
-	c.mGrid = systray.AddMenuItem("Grid", "Grid mode actions")
-	if !c.app.GridEnabled() {
-		c.mGrid.Hide()
-	}
-
-	c.mQuadGrid = systray.AddMenuItem("Quad Grid", "Quad Grid mode actions")
-	if !c.app.QuadGridEnabled() {
-		c.mQuadGrid.Hide()
-	}
-
-	systray.AddSeparator()
-
-	c.mReloadConfig = systray.AddMenuItem("Reload Config", "Reload configuration from disk")
-
-	systray.AddSeparator()
+	c.mVersionCopy = systray.AddMenuItem("Version: "+cli.Version, "Copy version to clipboard")
 
 	c.mDocs = systray.AddMenuItem("Documentation", "Documentation links")
 	c.mDocsConfig = c.mDocs.AddSubMenuItem("Configuration", "Open configuration documentation")
@@ -132,7 +97,35 @@ func (c *Component) OnReady() {
 
 	systray.AddSeparator()
 
-	c.mQuit = systray.AddMenuItem("Quit Neru", "Exit the application")
+	c.mModes = systray.AddMenuItem("Activate Modes", "Modes title")
+
+	c.mHints = c.mModes.AddSubMenuItem("Hints", "Hint mode actions")
+	if !c.app.HintsEnabled() {
+		c.mHints.SetTitle("Hints: Disabled")
+		c.mHints.Disable()
+	}
+
+	c.mGrid = c.mModes.AddSubMenuItem("Grid", "Grid mode actions")
+	if !c.app.GridEnabled() {
+		c.mGrid.SetTitle("Grid: Disabled")
+		c.mGrid.Disable()
+	}
+
+	c.mQuadGrid = c.mModes.AddSubMenuItem("Quad Grid", "Quad Grid mode actions")
+	if !c.app.QuadGridEnabled() {
+		c.mQuadGrid.SetTitle("Quad Grid: Disabled")
+		c.mQuadGrid.Disable()
+	}
+
+	systray.AddSeparator()
+
+	c.mReloadConfig = systray.AddMenuItem("Reload Config", "Reload configuration from disk")
+
+	c.mToggleDisable = systray.AddMenuItem("Pause Neru", "Pause Neru")
+	c.mToggleEnable = systray.AddMenuItem("Resume Neru", "Resume Neru")
+	c.mToggleEnable.Hide() // Initially hide the enable option
+
+	c.mQuit = systray.AddMenuItem("Quit", "Exit the application")
 
 	// Initialize all state-dependent UI elements
 	c.updateMenuItems(c.app.IsEnabled())
@@ -161,13 +154,11 @@ func (c *Component) updateMenuItems(enabled bool) {
 	if enabled {
 		systray.SetTitle("⌨️")
 		systray.SetTooltip("Neru - Running")
-		c.mStatus.SetTitle("Status: Running")
 		c.mToggleDisable.Show()
 		c.mToggleEnable.Hide()
 	} else {
 		systray.SetTitle("⏸️")
 		systray.SetTooltip("Neru - Disabled")
-		c.mStatus.SetTitle("Status: Disabled")
 		c.mToggleDisable.Hide()
 		c.mToggleEnable.Show()
 	}
@@ -224,6 +215,8 @@ func (c *Component) handleVersionCopy() {
 	writeToClipboardErr := clipboard.WriteAll(cli.Version)
 	if writeToClipboardErr != nil {
 		c.logger.Error("Error copying version to clipboard", zap.Error(writeToClipboardErr))
+	} else {
+		bridge.ShowNotification("Neru", "Version copied to clipboard")
 	}
 }
 

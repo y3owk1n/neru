@@ -269,3 +269,19 @@ func ShowSecureInputNotification() {
 
 	C.showSecureInputNotification()
 }
+
+// ShowNotification displays a macOS notification with the given title and message.
+func ShowNotification(title, message string) {
+	log := getLogger()
+	log.Debug("Bridge: Showing notification",
+		zap.String("title", title),
+		zap.String("message", message))
+
+	cTitle := C.CString(title)
+	defer C.free(unsafe.Pointer(cTitle)) //nolint: nlreturn
+
+	cMessage := C.CString(message)
+	defer C.free(unsafe.Pointer(cMessage)) //nolint: nlreturn
+
+	C.showNotification(cTitle, cMessage)
+}

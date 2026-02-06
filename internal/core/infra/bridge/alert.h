@@ -18,4 +18,10 @@
 /// @return 1 if user clicked OK, 2 if user clicked Copy, 0 otherwise
 int showConfigValidationErrorAlert(const char *errorMessage, const char *configPath);
 
+/// Show a macOS notification with a title and message
+/// Uses osascript to display a native macOS notification (works for CLI tools)
+/// @param title The notification title
+/// @param message The notification message
+void showNotification(const char *title, const char *message);
+
 #endif /* ALERT_H */
