@@ -191,17 +191,21 @@ func (c *Component) handleEvents() {
 		case <-c.mReloadConfig.ClickedCh:
 			c.handleReloadConfig()
 		case <-c.mDocsConfig.ClickedCh:
-			err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md").
-				Start()
-			if err != nil {
-				c.logger.Error("Failed to open configuration docs", zap.Error(err))
-			}
+			go func() {
+				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md").
+					Run()
+				if err != nil {
+					c.logger.Error("Failed to open configuration docs", zap.Error(err))
+				}
+			}()
 		case <-c.mDocsCLI.ClickedCh:
-			err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/blob/main/docs/CLI.md").
-				Start()
-			if err != nil {
-				c.logger.Error("Failed to open CLI docs", zap.Error(err))
-			}
+			go func() {
+				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/blob/main/docs/CLI.md").
+					Run()
+				if err != nil {
+					c.logger.Error("Failed to open CLI docs", zap.Error(err))
+				}
+			}()
 		case <-c.mQuit.ClickedCh:
 			systray.Quit()
 
