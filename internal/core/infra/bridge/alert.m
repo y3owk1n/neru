@@ -113,6 +113,12 @@ void showNotification(const char *title, const char *message) {
 		NSString *nsTitle = title ? [NSString stringWithUTF8String:title] : @"Neru";
 		NSString *nsMessage = message ? [NSString stringWithUTF8String:message] : @"";
 
+		// Escape backslashes and double quotes for AppleScript string interpolation
+		nsTitle = [nsTitle stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
+		nsTitle = [nsTitle stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
+		nsMessage = [nsMessage stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
+		nsMessage = [nsMessage stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
+
 		NSTask *task = [[NSTask alloc] init];
 		task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/osascript"];
 		task.arguments = @[
