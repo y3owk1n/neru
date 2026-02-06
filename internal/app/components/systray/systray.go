@@ -51,20 +51,21 @@ type Component struct {
 	mDocsCLI       *systray.MenuItem
 	mQuit          *systray.MenuItem
 
-	// Channel for state updates (thread-safe communication)
-	stateUpdateChan chan bool
-	chanClosed      atomic.Bool
+	// State update signaling (thread-safe communication)
+	stateUpdateSignal chan struct{} // Signal that state changed
+	latestState       atomic.Bool   // Latest enabled state
+	chanClosed        atomic.Bool
 }
 
 // NewComponent creates a new systray component.
 func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 	ctx, cancel := context.WithCancel(context.Background())
 	component := &Component{
-		app:             app,
-		logger:          logger,
-		ctx:             ctx,
-		cancel:          cancel,
-		stateUpdateChan: make(chan bool, 1), // Buffered channel to avoid blocking
+		app:               app,
+		logger:            logger,
+		ctx:               ctx,
+		cancel:            cancel,
+		stateUpdateSignal: make(chan struct{}, 1),
 	}
 
 	// Register callback immediately for state changes
@@ -73,11 +74,13 @@ func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 		if component.chanClosed.Load() {
 			return
 		}
-		// Send to channel (non-blocking)
+		// Store latest state and signal update
+		component.latestState.Store(enabled)
+
 		select {
-		case component.stateUpdateChan <- enabled:
+		case component.stateUpdateSignal <- struct{}{}:
 		default:
-			// Channel is full, skip this update
+			// Signal already pending, state will be read when processed
 		}
 	})
 
@@ -210,8 +213,8 @@ func (c *Component) handleEvents() {
 			systray.Quit()
 
 			return
-		case enabled := <-c.stateUpdateChan:
-			c.updateMenuItems(enabled)
+		case <-c.stateUpdateSignal:
+			c.updateMenuItems(c.latestState.Load())
 		}
 	}
 }
