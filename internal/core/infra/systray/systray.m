@@ -111,11 +111,19 @@ NSMenuItem *findItemByTag(int menuId) {
 	return findItemByTagInMenu(appDelegate.menu, menuId);
 }
 
+void runOnMainThread(void (^block)(void)) {
+	if ([NSThread isMainThread]) {
+		block();
+	} else {
+		dispatch_async(dispatch_get_main_queue(), block);
+	}
+}
+
 void add_menu_item(int menuId, const char *title, const char *tooltip, short disabled, short checked) {
 	NSString *titleStr = [NSString stringWithUTF8String:title];
 	NSString *tooltipStr = [NSString stringWithUTF8String:tooltip];
 
-	dispatch_async(dispatch_get_main_queue(), ^{
+	runOnMainThread(^{
 		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:titleStr action:@selector(itemClicked:) keyEquivalent:@""];
 		[item setTarget:appDelegate];
 		[item setTag:menuId];
@@ -132,7 +140,7 @@ void add_sub_menu_item(int parentId, int menuId, const char *title, const char *
 	NSString *titleStr = [NSString stringWithUTF8String:title];
 	NSString *tooltipStr = [NSString stringWithUTF8String:tooltip];
 
-	dispatch_async(dispatch_get_main_queue(), ^{
+	runOnMainThread(^{
 		NSMenuItem *parent = findItemByTag(parentId);
 		if (!parent)
 			return;
@@ -155,13 +163,13 @@ void add_sub_menu_item(int parentId, int menuId, const char *title, const char *
 }
 
 void add_separator(int menuId) {
-	dispatch_async(dispatch_get_main_queue(), ^{
+	runOnMainThread(^{
 		[appDelegate.menu addItem:[NSMenuItem separatorItem]];
 	});
 }
 
 void hide_menu_item(int menuId) {
-	dispatch_async(dispatch_get_main_queue(), ^{
+	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)
 			[item setHidden:YES];
@@ -169,7 +177,7 @@ void hide_menu_item(int menuId) {
 }
 
 void show_menu_item(int menuId) {
-	dispatch_async(dispatch_get_main_queue(), ^{
+	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)
 			[item setHidden:NO];
@@ -177,7 +185,7 @@ void show_menu_item(int menuId) {
 }
 
 void set_item_checked(int menuId, short checked) {
-	dispatch_async(dispatch_get_main_queue(), ^{
+	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)
 			[item setState:checked ? NSControlStateValueOn : NSControlStateValueOff];
@@ -185,7 +193,7 @@ void set_item_checked(int menuId, short checked) {
 }
 
 void set_item_disabled(int menuId, short disabled) {
-	dispatch_async(dispatch_get_main_queue(), ^{
+	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)
 			[item setEnabled:!disabled];
@@ -194,7 +202,7 @@ void set_item_disabled(int menuId, short disabled) {
 
 void set_item_title(int menuId, const char *title) {
 	NSString *str = [NSString stringWithUTF8String:title];
-	dispatch_async(dispatch_get_main_queue(), ^{
+	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)
 			[item setTitle:str];
@@ -203,7 +211,7 @@ void set_item_title(int menuId, const char *title) {
 
 void set_item_tooltip(int menuId, const char *tooltip) {
 	NSString *str = [NSString stringWithUTF8String:tooltip];
-	dispatch_async(dispatch_get_main_queue(), ^{
+	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)
 			[item setToolTip:str];
