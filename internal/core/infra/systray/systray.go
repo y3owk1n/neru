@@ -220,3 +220,14 @@ func registerMenuItem(item *MenuItem) int {
 
 	return id
 }
+
+// ResetForTesting resets all global state. Only use in tests.
+func ResetForTesting() {
+	menuItemsLock.Lock()
+	defer menuItemsLock.Unlock()
+
+	menuItems = make(map[int]*MenuItem)
+	nextID = 1
+	onReady = nil
+	onExit = nil
+}

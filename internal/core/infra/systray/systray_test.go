@@ -6,7 +6,20 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
 )
 
+func TestMain(m *testing.M) {
+	m.Run()
+}
+
+func resetState(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		systray.ResetForTesting()
+	})
+}
+
 func TestAddMenuItem(t *testing.T) {
+	resetState(t)
+
 	item := systray.AddMenuItem("Test Item", "Test Tooltip")
 	if item == nil {
 		t.Fatal("AddMenuItem returned nil")
@@ -26,6 +39,8 @@ func TestAddMenuItem(t *testing.T) {
 }
 
 func TestAddSubMenuItem(t *testing.T) {
+	resetState(t)
+
 	parent := systray.AddMenuItem("Parent", "Parent Tooltip")
 	child := parent.AddSubMenuItem("Child", "Child Tooltip")
 
@@ -43,6 +58,8 @@ func TestAddSubMenuItem(t *testing.T) {
 }
 
 func TestMenuItemMethods(t *testing.T) {
+	resetState(t)
+
 	item := systray.AddMenuItem("Test", "Tooltip")
 
 	item.SetTitle("New Title")
@@ -64,12 +81,20 @@ func TestMenuItemMethods(t *testing.T) {
 }
 
 func BenchmarkAddMenuItem(b *testing.B) {
+	b.Cleanup(func() {
+		systray.ResetForTesting()
+	})
+
 	for b.Loop() {
 		systray.AddMenuItem("Benchmark Item", "Benchmark Tooltip")
 	}
 }
 
 func BenchmarkUpdateItem(b *testing.B) {
+	b.Cleanup(func() {
+		systray.ResetForTesting()
+	})
+
 	item := systray.AddMenuItem("Benchmark Item", "Benchmark Tooltip")
 
 	for b.Loop() {
