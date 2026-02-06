@@ -80,13 +80,6 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 	// Run modal
 	NSModalResponse response = [alert runModal];
 
-	// Handle Copy Path button
-	if (response == NSAlertSecondButtonReturn) {
-		NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
-		[pasteboard clearContents];
-		[pasteboard setString:path forType:NSPasteboardTypeString];
-	}
-
 	// Check which button was clicked
 	if (response == NSAlertFirstButtonReturn) {
 		// OK button
