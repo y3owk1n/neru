@@ -160,10 +160,12 @@ func (c *Component) updateMenuItems(enabled bool) {
 	// Update icon and menu items to show current status
 	if enabled {
 		systray.SetTitle("⌨️")
+		systray.SetTooltip("Neru - Running")
 		c.mToggleDisable.Show()
 		c.mToggleEnable.Hide()
 	} else {
 		systray.SetTitle("⏸️")
+		systray.SetTooltip("Neru - Paused")
 		c.mToggleDisable.Hide()
 		c.mToggleEnable.Show()
 	}

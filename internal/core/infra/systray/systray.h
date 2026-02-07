@@ -9,6 +9,7 @@ void quit(void);
 
 void setIcon(const char *iconBytes, int length, bool isTemplate);
 void setTitle(const char *title);
+void setTooltip(const char *tooltip);
 
 void add_menu_item(int menuId, const char *title, short disabled, short checked);
 void add_sub_menu_item(int parentId, int menuId, const char *title, short disabled, short checked);

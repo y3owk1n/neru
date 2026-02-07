@@ -76,6 +76,15 @@ void setTitle(const char *title) {
 	});
 }
 
+void setTooltip(const char *tooltip) {
+	NSString *str = [NSString stringWithUTF8String:tooltip];
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (appDelegate && appDelegate.statusItem) {
+			appDelegate.statusItem.button.toolTip = str;
+		}
+	});
+}
+
 NSMenuItem *findItemByTagInMenu(NSMenu *menu, int menuId) {
 	if (!menu)
 		return nil;

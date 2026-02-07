@@ -67,6 +67,13 @@ func SetTitle(title string) {
 	C.setTitle(cTitle)
 }
 
+// SetTooltip sets the tooltip of the system tray icon.
+func SetTooltip(tooltip string) {
+	cTooltip := C.CString(tooltip)
+	defer C.free(unsafe.Pointer(cTooltip)) //nolint
+	C.setTooltip(cTooltip)
+}
+
 // SetIcon sets the icon of the system tray item.
 func SetIcon(icon []byte) {
 	if len(icon) == 0 {
