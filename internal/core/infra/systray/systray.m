@@ -168,9 +168,16 @@ void add_separator(int parentId) {
 			[appDelegate.menu addItem:[NSMenuItem separatorItem]];
 		} else {
 			NSMenuItem *parent = findItemByTag(parentId);
-			if (parent && [parent submenu]) {
-				[[parent submenu] addItem:[NSMenuItem separatorItem]];
+			if (!parent)
+				return;
+
+			if (![parent submenu]) {
+				NSMenu *submenu = [[NSMenu alloc] init];
+				[submenu setAutoenablesItems:NO];
+				[parent setSubmenu:submenu];
 			}
+
+			[[parent submenu] addItem:[NSMenuItem separatorItem]];
 		}
 	});
 }
