@@ -112,6 +112,7 @@ type Config struct {
 	Logging      LoggingConfig      `json:"logging"      toml:"logging"`
 	SmoothCursor SmoothCursorConfig `json:"smoothCursor" toml:"smooth_cursor"`
 	Metrics      MetricsConfig      `json:"metrics"      toml:"metrics"`
+	Systray      SystrayConfig      `json:"systray"      toml:"systray"`
 }
 
 // GeneralConfig defines general application-wide settings.
@@ -278,6 +279,11 @@ type AdditionalAXSupport struct {
 
 // MetricsConfig defines metrics collection settings.
 type MetricsConfig struct {
+	Enabled bool `json:"enabled" toml:"enabled"`
+}
+
+// SystrayConfig defines system tray settings.
+type SystrayConfig struct {
 	Enabled bool `json:"enabled" toml:"enabled"`
 }
 

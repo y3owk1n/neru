@@ -359,5 +359,8 @@ func DefaultConfig() *Config {
 		Metrics: MetricsConfig{
 			Enabled: false, // Disabled by default
 		},
+		Systray: SystrayConfig{
+			Enabled: true, // Enabled by default
+		},
 	}
 }

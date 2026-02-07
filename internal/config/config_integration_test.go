@@ -65,6 +65,9 @@ enabled = true
 enabled = true
 scroll_amount = 3
 
+[systray]
+enabled = false
+
 [logging]
 level = "debug"
 file_path = "test.log"
@@ -94,6 +97,10 @@ max_age = 30
 
 		if cfg.Grid.FontSize != 12 {
 			t.Errorf("Expected grid font_size 12, got %d", cfg.Grid.FontSize)
+		}
+
+		if cfg.Systray.Enabled {
+			t.Error("Expected systray enabled to be false")
 		}
 	})
 

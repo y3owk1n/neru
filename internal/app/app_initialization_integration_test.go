@@ -206,3 +206,55 @@ func TestAppInitializationWithRealComponentsIntegration(t *testing.T) {
 
 	t.Log("✅ App initialization with real components test completed successfully")
 }
+
+func TestAppInitialization_Systray(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping systray initialization test in short mode")
+	}
+
+	t.Run("Systray Enabled (Default)", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.Systray.Enabled = true // Explicitly set, though default is true
+		cfg.General.AccessibilityCheckOnStart = false
+
+		appInstance, err := app.New(
+			app.WithConfig(cfg),
+			app.WithConfigPath(""),
+			app.WithIPCServer(&mockIPCServer{}),
+			app.WithWatcher(&mockAppWatcher{}),
+			app.WithOverlayManager(&mockOverlayManager{}),
+			app.WithHotkeyService(&mockHotkeyService{}),
+		)
+		if err != nil {
+			t.Fatalf("App initialization failed: %v", err)
+		}
+		defer appInstance.Cleanup()
+
+		if appInstance.GetSystrayComponent() == nil {
+			t.Error("Expected systray component to be initialized when enabled")
+		}
+	})
+
+	t.Run("Systray Disabled", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.Systray.Enabled = false
+		cfg.General.AccessibilityCheckOnStart = false
+
+		appInstance, err := app.New(
+			app.WithConfig(cfg),
+			app.WithConfigPath(""),
+			app.WithIPCServer(&mockIPCServer{}),
+			app.WithWatcher(&mockAppWatcher{}),
+			app.WithOverlayManager(&mockOverlayManager{}),
+			app.WithHotkeyService(&mockHotkeyService{}),
+		)
+		if err != nil {
+			t.Fatalf("App initialization failed: %v", err)
+		}
+		defer appInstance.Cleanup()
+
+		if appInstance.GetSystrayComponent() != nil {
+			t.Error("Expected systray component to be nil when disabled")
+		}
+	})
+}

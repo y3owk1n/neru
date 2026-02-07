@@ -17,6 +17,7 @@ Neru uses TOML for configuration. This guide covers all available options with e
 - [Mouse Movement Actions](#mouse-movement-actions)
 - [Smooth Cursor](#smooth-cursor)
 - [Metrics](#metrics)
+- [Systray](#systray)
 - [Logging](#logging)
 - [Complete Example](#complete-example)
 
@@ -623,6 +624,23 @@ enabled = false  # Enable metrics collection
 
 ---
 
+## Systray
+
+Configure system tray behavior:
+
+```toml
+[systray]
+enabled = true # Enable system tray icon (set to false for headless mode)
+```
+
+**Headless Mode:**
+
+- When `enabled = false`, Neru runs without a menu bar icon.
+- You can still control the application via hotkeys and the CLI.
+- Useful for minimal setups or when using other status bar tools.
+
+---
+
 ## Logging
 
 ```toml
@@ -696,6 +714,9 @@ mouse_action_refresh_delay = 0
 
 [hints.additional_ax_support]
 enable = false
+
+[systray]
+enabled = true
 
 [grid]
 enabled = true

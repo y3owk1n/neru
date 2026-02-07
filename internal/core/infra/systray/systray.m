@@ -5,6 +5,8 @@ extern void systray_menu_item_selected(int menuId);
 extern void systray_on_ready(void);
 extern void systray_on_exit(void);
 
+static BOOL _showSystray = YES;
+
 @interface AppDelegate : NSObject <NSApplicationDelegate, NSMenuDelegate>
 @property(strong) NSStatusItem *statusItem;
 @property(strong) NSMenu *menu;
@@ -13,11 +15,13 @@ extern void systray_on_exit(void);
 @implementation AppDelegate
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
-	self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
-	self.menu = [[NSMenu alloc] init];
-	[self.menu setAutoenablesItems:NO];
-	[self.menu setDelegate:self];
-	[self.statusItem setMenu:self.menu];
+	if (_showSystray) {
+		self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
+		self.menu = [[NSMenu alloc] init];
+		[self.menu setAutoenablesItems:NO];
+		[self.menu setDelegate:self];
+		[self.statusItem setMenu:self.menu];
+	}
 
 	// Notify Go that we are ready
 	systray_on_ready();
@@ -40,7 +44,7 @@ void registerSystray(void) {
 	// Placeholder if needed for init
 }
 
-void nativeLoop(void) {
+void internalNativeLoop(void) {
 	@autoreleasepool {
 		[NSApplication sharedApplication];
 		appDelegate = [[AppDelegate alloc] init];
@@ -48,6 +52,16 @@ void nativeLoop(void) {
 		[NSApp setActivationPolicy:NSApplicationActivationPolicyProhibited];
 		[NSApp run];
 	}
+}
+
+void nativeLoop(void) {
+	_showSystray = YES;
+	internalNativeLoop();
+}
+
+void nativeLoopHeadless(void) {
+	_showSystray = NO;
+	internalNativeLoop();
 }
 
 void quit(void) {
