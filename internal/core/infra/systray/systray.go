@@ -32,6 +32,7 @@ type MenuItem struct {
 	title     string
 	disabled  bool
 	checked   bool
+	hidden    bool
 }
 
 // Title returns the menu item title.
@@ -42,6 +43,9 @@ func (m *MenuItem) Disabled() bool { return m.disabled }
 
 // Checked returns whether the menu item is checked.
 func (m *MenuItem) Checked() bool { return m.checked }
+
+// Hidden returns whether the menu item is hidden.
+func (m *MenuItem) Hidden() bool { return m.hidden }
 
 // Run starts the system tray loop. It must be called from the main thread.
 func Run(onReadyFunc, onExitFunc func()) {
@@ -157,11 +161,13 @@ func (m *MenuItem) Uncheck() {
 
 // Hide hides the menu item.
 func (m *MenuItem) Hide() {
+	m.hidden = true
 	C.hide_menu_item(C.int(m.id))
 }
 
 // Show shows the menu item.
 func (m *MenuItem) Show() {
+	m.hidden = false
 	C.show_menu_item(C.int(m.id))
 }
 
