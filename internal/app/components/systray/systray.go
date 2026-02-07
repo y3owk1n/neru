@@ -92,33 +92,33 @@ func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 
 // OnReady sets up the systray menu when the systray is ready.
 func (c *Component) OnReady() {
-	c.mVersionCopy = systray.AddMenuItem("Version: "+cli.Version, "Copy version to clipboard")
+	c.mVersionCopy = systray.AddMenuItem("Version: " + cli.Version)
 
-	c.mHelp = systray.AddMenuItem("Help", "Help menu")
-	c.mDocsConfig = c.mHelp.AddSubMenuItem("Config Docs", "Open configuration documentation")
-	c.mDocsCLI = c.mHelp.AddSubMenuItem("CLI Docs", "Open CLI documentation")
+	c.mHelp = systray.AddMenuItem("Help")
+	c.mDocsConfig = c.mHelp.AddSubMenuItem("Config Docs")
+	c.mDocsCLI = c.mHelp.AddSubMenuItem("CLI Docs")
 	c.mHelp.AddSeparator()
-	c.mSourceCode = c.mHelp.AddSubMenuItem("Source Code", "View the source code")
-	c.mReportIssue = c.mHelp.AddSubMenuItem("Report Issue", "Report an issue")
-	c.mDiscuss = c.mHelp.AddSubMenuItem("Community Discussion", "Create a discussion")
+	c.mSourceCode = c.mHelp.AddSubMenuItem("Source Code")
+	c.mReportIssue = c.mHelp.AddSubMenuItem("Report Issue")
+	c.mDiscuss = c.mHelp.AddSubMenuItem("Community Discussion")
 
 	systray.AddSeparator()
 
-	c.mModes = systray.AddMenuItem("Activate Modes", "Modes title")
+	c.mModes = systray.AddMenuItem("Activate Modes")
 
-	c.mHints = c.mModes.AddSubMenuItem("Hints", "Hint mode actions")
+	c.mHints = c.mModes.AddSubMenuItem("Hints")
 	if !c.app.HintsEnabled() {
 		c.mHints.SetTitle("Hints: Disabled")
 		c.mHints.Disable()
 	}
 
-	c.mGrid = c.mModes.AddSubMenuItem("Grid", "Grid mode actions")
+	c.mGrid = c.mModes.AddSubMenuItem("Grid")
 	if !c.app.GridEnabled() {
 		c.mGrid.SetTitle("Grid: Disabled")
 		c.mGrid.Disable()
 	}
 
-	c.mQuadGrid = c.mModes.AddSubMenuItem("Quad Grid", "Quad Grid mode actions")
+	c.mQuadGrid = c.mModes.AddSubMenuItem("Quad Grid")
 	if !c.app.QuadGridEnabled() {
 		c.mQuadGrid.SetTitle("Quad Grid: Disabled")
 		c.mQuadGrid.Disable()
@@ -126,13 +126,13 @@ func (c *Component) OnReady() {
 
 	systray.AddSeparator()
 
-	c.mReloadConfig = systray.AddMenuItem("Reload Config", "Reload configuration from disk")
+	c.mReloadConfig = systray.AddMenuItem("Reload Config")
 
-	c.mToggleDisable = systray.AddMenuItem("Pause Neru", "Pause Neru")
-	c.mToggleEnable = systray.AddMenuItem("Resume Neru", "Resume Neru")
+	c.mToggleDisable = systray.AddMenuItem("Pause Neru")
+	c.mToggleEnable = systray.AddMenuItem("Resume Neru")
 	c.mToggleEnable.Hide() // Initially hide the enable option
 
-	c.mQuit = systray.AddMenuItem("Quit", "Exit the application")
+	c.mQuit = systray.AddMenuItem("Quit")
 
 	// Initialize all state-dependent UI elements
 	c.updateMenuItems(c.app.IsEnabled())
@@ -157,7 +157,7 @@ func (c *Component) Close() {
 
 // updateMenuItems updates the systray menu items based on the current enabled state.
 func (c *Component) updateMenuItems(enabled bool) {
-	// Update tooltip, icon, and status menu item to show current status
+	// Update icon, tooltip, and menu items to show current status
 	if enabled {
 		systray.SetTitle("⌨️")
 		systray.SetTooltip("Neru - Running")
@@ -165,7 +165,7 @@ func (c *Component) updateMenuItems(enabled bool) {
 		c.mToggleEnable.Hide()
 	} else {
 		systray.SetTitle("⏸️")
-		systray.SetTooltip("Neru - Disabled")
+		systray.SetTooltip("Neru - Paused")
 		c.mToggleDisable.Hide()
 		c.mToggleEnable.Show()
 	}

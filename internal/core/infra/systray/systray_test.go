@@ -20,17 +20,13 @@ func resetState(t *testing.T) {
 func TestAddMenuItem(t *testing.T) {
 	resetState(t)
 
-	item := systray.AddMenuItem("Test Item", "Test Tooltip")
+	item := systray.AddMenuItem("Test Item")
 	if item == nil {
 		t.Fatal("AddMenuItem returned nil")
 	}
 
 	if item.Title() != "Test Item" {
 		t.Errorf("Expected title 'Test Item', got '%s'", item.Title())
-	}
-
-	if item.Tooltip() != "Test Tooltip" {
-		t.Errorf("Expected tooltip 'Test Tooltip', got '%s'", item.Tooltip())
 	}
 
 	if item.ClickedCh == nil {
@@ -41,8 +37,8 @@ func TestAddMenuItem(t *testing.T) {
 func TestAddSubMenuItem(t *testing.T) {
 	resetState(t)
 
-	parent := systray.AddMenuItem("Parent", "Parent Tooltip")
-	child := parent.AddSubMenuItem("Child", "Child Tooltip")
+	parent := systray.AddMenuItem("Parent")
+	child := parent.AddSubMenuItem("Child")
 
 	if child == nil {
 		t.Fatal("AddSubMenuItem returned nil")
@@ -60,23 +56,48 @@ func TestAddSubMenuItem(t *testing.T) {
 func TestMenuItemMethods(t *testing.T) {
 	resetState(t)
 
-	item := systray.AddMenuItem("Test", "Tooltip")
+	item := systray.AddMenuItem("Test")
 
 	item.SetTitle("New Title")
-	item.SetTooltip("New Tooltip")
-	item.Enable()
-	item.Disable()
-	item.Check()
-	item.Uncheck()
-	item.Show()
-	item.Hide()
 
 	if item.Title() != "New Title" {
-		t.Errorf("Title not updated in struct")
+		t.Errorf("Expected title 'New Title', got '%s'", item.Title())
 	}
 
-	if item.Tooltip() != "New Tooltip" {
-		t.Errorf("Tooltip not updated in struct")
+	item.Enable()
+
+	if item.Disabled() {
+		t.Error("Expected Disabled() to be false after Enable()")
+	}
+
+	item.Disable()
+
+	if !item.Disabled() {
+		t.Error("Expected Disabled() to be true after Disable()")
+	}
+
+	item.Check()
+
+	if !item.Checked() {
+		t.Error("Expected Checked() to be true after Check()")
+	}
+
+	item.Uncheck()
+
+	if item.Checked() {
+		t.Error("Expected Checked() to be false after Uncheck()")
+	}
+
+	item.Show()
+
+	if item.Hidden() {
+		t.Error("Expected Hidden() to be false after Show()")
+	}
+
+	item.Hide()
+
+	if !item.Hidden() {
+		t.Error("Expected Hidden() to be true after Hide()")
 	}
 }
 
@@ -86,7 +107,7 @@ func BenchmarkAddMenuItem(b *testing.B) {
 	})
 
 	for b.Loop() {
-		systray.AddMenuItem("Benchmark Item", "Benchmark Tooltip")
+		systray.AddMenuItem("Benchmark Item")
 	}
 }
 
@@ -95,7 +116,7 @@ func BenchmarkUpdateItem(b *testing.B) {
 		systray.ResetForTesting()
 	})
 
-	item := systray.AddMenuItem("Benchmark Item", "Benchmark Tooltip")
+	item := systray.AddMenuItem("Benchmark Item")
 
 	for b.Loop() {
 		item.SetTitle("Updated Title")
