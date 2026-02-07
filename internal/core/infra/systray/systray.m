@@ -56,10 +56,10 @@ void quit(void) {
 	});
 }
 
-void setIcon(const char *iconBytes, int length, bool template) {
+void setIcon(const char *iconBytes, int length, bool isTemplate) {
 	NSData *data = [NSData dataWithBytes:iconBytes length:length];
 	NSImage *image = [[NSImage alloc] initWithData:data];
-	[image setTemplate:template];
+	[image setTemplate:isTemplate];
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (appDelegate && appDelegate.statusItem) {
 			appDelegate.statusItem.button.image = image;
@@ -72,15 +72,6 @@ void setTitle(const char *title) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (appDelegate && appDelegate.statusItem) {
 			appDelegate.statusItem.button.title = str;
-		}
-	});
-}
-
-void setTooltip(const char *tooltip) {
-	NSString *str = [NSString stringWithUTF8String:tooltip];
-	dispatch_async(dispatch_get_main_queue(), ^{
-		if (appDelegate && appDelegate.statusItem) {
-			appDelegate.statusItem.button.toolTip = str;
 		}
 	});
 }
@@ -119,15 +110,13 @@ void runOnMainThread(void (^block)(void)) {
 	}
 }
 
-void add_menu_item(int menuId, const char *title, const char *tooltip, short disabled, short checked) {
+void add_menu_item(int menuId, const char *title, short disabled, short checked) {
 	NSString *titleStr = [NSString stringWithUTF8String:title];
-	NSString *tooltipStr = [NSString stringWithUTF8String:tooltip];
 
 	runOnMainThread(^{
 		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:titleStr action:@selector(itemClicked:) keyEquivalent:@""];
 		[item setTarget:appDelegate];
 		[item setTag:menuId];
-		[item setToolTip:tooltipStr];
 		[item setEnabled:!disabled];
 		[item setState:checked ? NSControlStateValueOn : NSControlStateValueOff];
 
@@ -135,10 +124,8 @@ void add_menu_item(int menuId, const char *title, const char *tooltip, short dis
 	});
 }
 
-void add_sub_menu_item(int parentId, int menuId, const char *title, const char *tooltip, short disabled,
-                       short checked) {
+void add_sub_menu_item(int parentId, int menuId, const char *title, short disabled, short checked) {
 	NSString *titleStr = [NSString stringWithUTF8String:title];
-	NSString *tooltipStr = [NSString stringWithUTF8String:tooltip];
 
 	runOnMainThread(^{
 		NSMenuItem *parent = findItemByTag(parentId);
@@ -154,7 +141,6 @@ void add_sub_menu_item(int parentId, int menuId, const char *title, const char *
 		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:titleStr action:@selector(itemClicked:) keyEquivalent:@""];
 		[item setTarget:appDelegate];
 		[item setTag:menuId];
-		[item setToolTip:tooltipStr];
 		[item setEnabled:!disabled];
 		[item setState:checked ? NSControlStateValueOn : NSControlStateValueOff];
 
@@ -220,14 +206,5 @@ void set_item_title(int menuId, const char *title) {
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)
 			[item setTitle:str];
-	});
-}
-
-void set_item_tooltip(int menuId, const char *tooltip) {
-	NSString *str = [NSString stringWithUTF8String:tooltip];
-	runOnMainThread(^{
-		NSMenuItem *item = findItemByTag(menuId);
-		if (item)
-			[item setToolTip:str];
 	});
 }

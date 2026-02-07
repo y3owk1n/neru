@@ -30,16 +30,12 @@ type MenuItem struct {
 	ClickedCh chan struct{}
 	id        int
 	title     string
-	tooltip   string
 	disabled  bool
 	checked   bool
 }
 
 // Title returns the menu item title.
 func (m *MenuItem) Title() string { return m.title }
-
-// Tooltip returns the menu item tooltip.
-func (m *MenuItem) Tooltip() string { return m.tooltip }
 
 // Disabled returns whether the menu item is disabled.
 func (m *MenuItem) Disabled() bool { return m.disabled }
@@ -65,13 +61,6 @@ func SetTitle(title string) {
 	cTitle := C.CString(title)
 	defer C.free(unsafe.Pointer(cTitle)) //nolint
 	C.setTitle(cTitle)
-}
-
-// SetTooltip sets the tooltip of the system tray icon.
-func SetTooltip(tooltip string) {
-	cTooltip := C.CString(tooltip)
-	defer C.free(unsafe.Pointer(cTooltip)) //nolint
-	C.setTooltip(cTooltip)
 }
 
 // SetIcon sets the icon of the system tray item.
@@ -103,39 +92,33 @@ func (m *MenuItem) AddSeparator() {
 }
 
 // AddMenuItem adds a menu item to the system tray menu.
-func AddMenuItem(title string, tooltip string) *MenuItem {
+func AddMenuItem(title string) *MenuItem {
 	item := &MenuItem{
 		ClickedCh: make(chan struct{}, 1),
 		title:     title,
-		tooltip:   tooltip,
 	}
 	item.id = registerMenuItem(item)
 
 	cTitle := C.CString(title)
-	cTooltip := C.CString(tooltip)
-	defer C.free(unsafe.Pointer(cTitle))   //nolint
-	defer C.free(unsafe.Pointer(cTooltip)) //nolint
+	defer C.free(unsafe.Pointer(cTitle)) //nolint
 
-	C.add_menu_item(C.int(item.id), cTitle, cTooltip, C.short(0), C.short(0))
+	C.add_menu_item(C.int(item.id), cTitle, C.short(0), C.short(0))
 
 	return item
 }
 
 // AddSubMenuItem adds a nested menu item to a parent menu item.
-func (m *MenuItem) AddSubMenuItem(title string, tooltip string) *MenuItem {
+func (m *MenuItem) AddSubMenuItem(title string) *MenuItem {
 	item := &MenuItem{
 		ClickedCh: make(chan struct{}, 1),
 		title:     title,
-		tooltip:   tooltip,
 	}
 	item.id = registerMenuItem(item)
 
 	cTitle := C.CString(title)
-	cTooltip := C.CString(tooltip)
-	defer C.free(unsafe.Pointer(cTitle))   //nolint
-	defer C.free(unsafe.Pointer(cTooltip)) //nolint
+	defer C.free(unsafe.Pointer(cTitle)) //nolint
 
-	C.add_sub_menu_item(C.int(m.id), C.int(item.id), cTitle, cTooltip, C.short(0), C.short(0))
+	C.add_sub_menu_item(C.int(m.id), C.int(item.id), cTitle, C.short(0), C.short(0))
 
 	return item
 }
@@ -146,14 +129,6 @@ func (m *MenuItem) SetTitle(title string) {
 	cTitle := C.CString(title)
 	defer C.free(unsafe.Pointer(cTitle)) //nolint
 	C.set_item_title(C.int(m.id), cTitle)
-}
-
-// SetTooltip sets the tooltip of the menu item.
-func (m *MenuItem) SetTooltip(tooltip string) {
-	m.tooltip = tooltip
-	cTooltip := C.CString(tooltip)
-	defer C.free(unsafe.Pointer(cTooltip)) //nolint
-	C.set_item_tooltip(C.int(m.id), cTooltip)
 }
 
 // Enable enables the menu item.
