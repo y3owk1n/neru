@@ -5,6 +5,7 @@
 
 void registerSystray(void);
 void nativeLoop(void);
+void nativeLoopHeadless(void);
 void quit(void);
 
 void setIcon(const char *iconBytes, int length, bool isTemplate);

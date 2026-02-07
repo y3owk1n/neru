@@ -76,6 +76,15 @@ func Run(onReadyFunc, onExitFunc func()) {
 	C.nativeLoop()
 }
 
+// RunHeadless starts the system tray loop without a status icon.
+// It must be called from the main thread.
+func RunHeadless(onReadyFunc, onExitFunc func()) {
+	runtime.LockOSThread()
+	onReady = onReadyFunc
+	onExit = onExitFunc
+	C.nativeLoopHeadless()
+}
+
 // Quit quits the application.
 func Quit() {
 	C.quit()

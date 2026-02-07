@@ -76,7 +76,14 @@ func LaunchDaemon(configPath string) {
 	}()
 
 	systrayComponent := app.GetSystrayComponent()
-	systray.Run(systrayComponent.OnReady, systrayComponent.OnExit)
+	if systrayComponent != nil {
+		systray.Run(systrayComponent.OnReady, systrayComponent.OnExit)
+	} else {
+		// Run in headless mode (no status icon) if systray is disabled
+		systray.RunHeadless(func() {}, func() {
+			app.Cleanup()
+		})
+	}
 }
 
 // showConfigErrorAlert displays a native macOS alert for config validation errors.

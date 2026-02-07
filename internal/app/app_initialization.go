@@ -95,7 +95,9 @@ func initializeApp(app *App) (*App, error) {
 	})
 
 	// Phase 4.5: Initialize systray component
-	initializeSystrayComponent(app)
+	if app.config.Systray.Enabled {
+		initializeSystrayComponent(app)
+	}
 
 	initializedPhases = append(initializedPhases, func() {
 		// Cleanup systray component if it was initialized
