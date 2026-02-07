@@ -157,7 +157,7 @@ func (c *Component) Close() {
 
 // updateMenuItems updates the systray menu items based on the current enabled state.
 func (c *Component) updateMenuItems(enabled bool) {
-	// Update icon and menu items to show current status
+	// Update icon, tooltip, and menu items to show current status
 	if enabled {
 		systray.SetTitle("⌨️")
 		systray.SetTooltip("Neru - Running")
