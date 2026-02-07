@@ -46,9 +46,12 @@ type Component struct {
 	mGrid          *systray.MenuItem
 	mQuadGrid      *systray.MenuItem
 	mReloadConfig  *systray.MenuItem
-	mDocs          *systray.MenuItem
+	mHelp          *systray.MenuItem
+	mSourceCode    *systray.MenuItem
 	mDocsConfig    *systray.MenuItem
 	mDocsCLI       *systray.MenuItem
+	mReportIssue   *systray.MenuItem
+	mDiscuss       *systray.MenuItem
 	mQuit          *systray.MenuItem
 
 	// State update signaling (thread-safe communication)
@@ -91,9 +94,13 @@ func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 func (c *Component) OnReady() {
 	c.mVersionCopy = systray.AddMenuItem("Version: "+cli.Version, "Copy version to clipboard")
 
-	c.mDocs = systray.AddMenuItem("Documentation", "Documentation links")
-	c.mDocsConfig = c.mDocs.AddSubMenuItem("Configuration", "Open configuration documentation")
-	c.mDocsCLI = c.mDocs.AddSubMenuItem("CLI", "Open CLI documentation")
+	c.mHelp = systray.AddMenuItem("Help", "Help menu")
+	c.mDocsConfig = c.mHelp.AddSubMenuItem("Config Docs", "Open configuration documentation")
+	c.mDocsCLI = c.mHelp.AddSubMenuItem("CLI Docs", "Open CLI documentation")
+	c.mHelp.AddSeparator()
+	c.mSourceCode = c.mHelp.AddSubMenuItem("Source Code", "View the source code")
+	c.mReportIssue = c.mHelp.AddSubMenuItem("Report Issue", "Report an issue")
+	c.mDiscuss = c.mHelp.AddSubMenuItem("Community Discussion", "Create a discussion")
 
 	systray.AddSeparator()
 
@@ -184,6 +191,14 @@ func (c *Component) handleEvents() {
 			c.app.ActivateMode(domain.ModeQuadGrid)
 		case <-c.mReloadConfig.ClickedCh:
 			c.handleReloadConfig()
+		case <-c.mSourceCode.ClickedCh:
+			go func() {
+				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru").
+					Run()
+				if err != nil {
+					c.logger.Error("Failed to open repository", zap.Error(err))
+				}
+			}()
 		case <-c.mDocsConfig.ClickedCh:
 			go func() {
 				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md").
@@ -198,6 +213,22 @@ func (c *Component) handleEvents() {
 					Run()
 				if err != nil {
 					c.logger.Error("Failed to open CLI docs", zap.Error(err))
+				}
+			}()
+		case <-c.mReportIssue.ClickedCh:
+			go func() {
+				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/issues/new").
+					Run()
+				if err != nil {
+					c.logger.Error("Failed to open issue report", zap.Error(err))
+				}
+			}()
+		case <-c.mDiscuss.ClickedCh:
+			go func() {
+				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/discussions").
+					Run()
+				if err != nil {
+					c.logger.Error("Failed to open community discussion", zap.Error(err))
 				}
 			}()
 		case <-c.mQuit.ClickedCh:

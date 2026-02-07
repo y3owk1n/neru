@@ -90,9 +90,14 @@ func SetTemplateIcon(icon []byte, template bool) {
 	C.setIcon(cIcon, C.int(len(icon)), C.bool(template))
 }
 
-// AddSeparator adds a separator to the menu.
+// AddSeparator adds a separator to the main menu.
 func AddSeparator() {
 	C.add_separator(C.int(0))
+}
+
+// AddSeparator adds a separator to a submenu.
+func (m *MenuItem) AddSeparator() {
+	C.add_separator(C.int(m.id))
 }
 
 // AddMenuItem adds a menu item to the system tray menu.
