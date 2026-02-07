@@ -18,9 +18,11 @@ import (
 var (
 	menuItems     = make(map[int]*MenuItem)
 	menuItemsLock sync.RWMutex
-	nextID        = 1
-	onReady       func()
-	onExit        func()
+	// nextID must start at 1; 0 is reserved as the sentinel for the main menu
+	// in the Objective-C add_separator function (parentId == 0 means root menu).
+	nextID  = 1
+	onReady func()
+	onExit  func()
 )
 
 // MenuItem represents a menu item in the system tray.
@@ -90,9 +92,14 @@ func SetTemplateIcon(icon []byte, template bool) {
 	C.setIcon(cIcon, C.int(len(icon)), C.bool(template))
 }
 
-// AddSeparator adds a separator to the menu.
+// AddSeparator adds a separator to the main menu.
 func AddSeparator() {
 	C.add_separator(C.int(0))
+}
+
+// AddSeparator adds a separator to a submenu.
+func (m *MenuItem) AddSeparator() {
+	C.add_separator(C.int(m.id))
 }
 
 // AddMenuItem adds a menu item to the system tray menu.

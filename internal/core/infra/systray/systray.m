@@ -162,9 +162,23 @@ void add_sub_menu_item(int parentId, int menuId, const char *title, const char *
 	});
 }
 
-void add_separator(int menuId) {
+void add_separator(int parentId) {
 	runOnMainThread(^{
-		[appDelegate.menu addItem:[NSMenuItem separatorItem]];
+		if (parentId == 0) {
+			[appDelegate.menu addItem:[NSMenuItem separatorItem]];
+		} else {
+			NSMenuItem *parent = findItemByTag(parentId);
+			if (!parent)
+				return;
+
+			if (![parent submenu]) {
+				NSMenu *submenu = [[NSMenu alloc] init];
+				[submenu setAutoenablesItems:NO];
+				[parent setSubmenu:submenu];
+			}
+
+			[[parent submenu] addItem:[NSMenuItem separatorItem]];
+		}
 	});
 }
 
