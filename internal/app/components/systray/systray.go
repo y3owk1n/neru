@@ -216,7 +216,7 @@ func (c *Component) handleVersionCopy() {
 	if writeToClipboardErr != nil {
 		c.logger.Error("Error copying version to clipboard", zap.Error(writeToClipboardErr))
 	} else {
-		bridge.ShowNotification("Neru", "Version copied to clipboard")
+		bridge.ShowSuccessAlert("✅ Copied Successfully", "Version copied to clipboard")
 	}
 }
 

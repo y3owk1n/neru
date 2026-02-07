@@ -11,6 +11,7 @@
 #pragma mark - Internal Function Declaration
 
 static int showAlertOnMainThread(const char *errorMessage, const char *configPath);
+static void showSuccessAlertOnMainThread(const char *title, const char *message);
 
 #pragma mark - Alert Functions
 
@@ -128,4 +129,61 @@ void showNotification(const char *title, const char *message) {
 			NSLog(@"Neru: osascript failed with status %d", task.terminationStatus);
 		}
 	}
+}
+
+#pragma mark - Success Alert Functions
+
+/// Show a success alert popup with a title and message
+/// Uses NSAlert to display a native modal dialog
+/// @param title The alert title
+/// @param message The alert message
+void showSuccessAlert(const char *title, const char *message) {
+	@autoreleasepool {
+		// Ensure we're on the main thread for UI operations
+		if ([NSThread isMainThread]) {
+			showSuccessAlertOnMainThread(title, message);
+		} else {
+			dispatch_sync(dispatch_get_main_queue(), ^{
+				showSuccessAlertOnMainThread(title, message);
+			});
+		}
+	}
+}
+
+/// Internal function to show success alert on main thread
+/// @param title The alert title
+/// @param message The alert message
+static void showSuccessAlertOnMainThread(const char *title, const char *message) {
+	NSString *nsTitle = title ? [NSString stringWithUTF8String:title] : @"Success";
+	NSString *nsMessage = message ? [NSString stringWithUTF8String:message] : @"Operation completed successfully";
+
+	NSAlert *alert = [[NSAlert alloc] init];
+	alert.messageText = nsTitle;
+	alert.informativeText = nsMessage;
+	alert.alertStyle = NSAlertStyleInformational;
+
+	// Add OK button
+	[alert addButtonWithTitle:@"OK"];
+
+	// Ensure alert is on top
+	[[alert window] setLevel:NSFloatingWindowLevel];
+
+	// Temporarily switch to Regular policy to grab focus
+	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+
+	// Center the window
+	[[alert window] center];
+	[[alert window] makeKeyAndOrderFront:nil];
+
+	// Activate the app to ensure the alert is visible and focused
+	[NSApp activateIgnoringOtherApps:YES];
+
+	// Schedule switch back to Accessory policy to hide Dock icon
+	// We use a small delay to ensure the focus is grabbed first
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+		[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
+	});
+
+	// Run modal (no return value needed)
+	[alert runModal];
 }

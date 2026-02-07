@@ -285,3 +285,19 @@ func ShowNotification(title, message string) {
 
 	C.showNotification(cTitle, cMessage)
 }
+
+// ShowSuccessAlert displays a native macOS success alert popup with the given title and message.
+func ShowSuccessAlert(title, message string) {
+	log := getLogger()
+	log.Debug("Bridge: Showing success alert",
+		zap.String("title", title),
+		zap.String("message", message))
+
+	cTitle := C.CString(title)
+	defer C.free(unsafe.Pointer(cTitle)) //nolint:nlreturn
+
+	cMessage := C.CString(message)
+	defer C.free(unsafe.Pointer(cMessage)) //nolint:nlreturn
+
+	C.showSuccessAlert(cTitle, cMessage)
+}

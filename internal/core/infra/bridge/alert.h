@@ -24,4 +24,10 @@ int showConfigValidationErrorAlert(const char *errorMessage, const char *configP
 /// @param message The notification message
 void showNotification(const char *title, const char *message);
 
+/// Show a success alert popup with a title and message
+/// Uses NSAlert to display a native modal dialog
+/// @param title The alert title
+/// @param message The alert message
+void showSuccessAlert(const char *title, const char *message);
+
 #endif /* ALERT_H */
