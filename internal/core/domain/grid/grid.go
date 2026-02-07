@@ -179,7 +179,12 @@ func NewGridWithLabels(
 		zap.Int("height", height))
 
 	if gridCacheEnabled {
-		if cells, ok := gridCache.get(uppercaseChars, strings.ToUpper(rowLabels), strings.ToUpper(colLabels), bounds); ok {
+		if cells, ok := gridCache.get(
+			uppercaseChars,
+			strings.ToUpper(rowLabels),
+			strings.ToUpper(colLabels),
+			bounds,
+		); ok {
 			logger.Debug("Grid cache hit",
 				zap.Int("cell_count", len(cells)))
 

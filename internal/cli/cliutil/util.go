@@ -167,7 +167,11 @@ func (f *OutputFormatter) PrintStatus(cmd *cobra.Command, data any) error {
 		// Fallback to JSON output
 		jsonData, jsonDataErr := json.MarshalIndent(data, "  ", "  ")
 		if jsonDataErr != nil {
-			return derrors.Wrap(jsonDataErr, derrors.CodeSerializationFailed, "failed to marshal status data")
+			return derrors.Wrap(
+				jsonDataErr,
+				derrors.CodeSerializationFailed,
+				"failed to marshal status data",
+			)
 		}
 
 		cmd.Println(string(jsonData))
