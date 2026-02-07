@@ -18,9 +18,11 @@ import (
 var (
 	menuItems     = make(map[int]*MenuItem)
 	menuItemsLock sync.RWMutex
-	nextID        = 1
-	onReady       func()
-	onExit        func()
+	// nextID must start at 1; 0 is reserved as the sentinel for the main menu
+	// in the Objective-C add_separator function (parentId == 0 means root menu).
+	nextID  = 1
+	onReady func()
+	onExit  func()
 )
 
 // MenuItem represents a menu item in the system tray.
