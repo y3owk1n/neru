@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.18.0](https://github.com/y3owk1n/neru/compare/v1.17.1...v1.18.0) (2026-02-07)
+
+
+### Features
+
+* **systray:** add ability to toggle visibility of systray via config ([#365](https://github.com/y3owk1n/neru/issues/365)) ([de0fcd0](https://github.com/y3owk1n/neru/commit/de0fcd0cc2f2f6230cbf212f807a3157ae3ea47d))
+* **systray:** add submenu separator and more help links ([#361](https://github.com/y3owk1n/neru/issues/361)) ([117e86a](https://github.com/y3owk1n/neru/commit/117e86af6ba566707388a5775b1d3eaa40b2fe30))
+* **systray:** remove `systray` dependency with own implementation ([#357](https://github.com/y3owk1n/neru/issues/357)) ([27a21ed](https://github.com/y3owk1n/neru/commit/27a21edb392843c18bd8e2b244fa04b3890dd36f))
+* **systray:** restructure menu items and add notification for copy version ([#359](https://github.com/y3owk1n/neru/issues/359)) ([1ccdf8b](https://github.com/y3owk1n/neru/commit/1ccdf8bbe98223c7c33d9c78ed1643e658f98e2b))
+
+
+### Bug Fixes
+
+* **systray:** remove unnecessary tooltips, annoying ([#363](https://github.com/y3owk1n/neru/issues/363)) ([81ba09a](https://github.com/y3owk1n/neru/commit/81ba09a9b526df81c40797ee727e4d73304e0aeb))
+
 ## [1.17.1](https://github.com/y3owk1n/neru/compare/v1.17.0...v1.17.1) (2026-02-02)
 
 
