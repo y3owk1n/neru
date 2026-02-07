@@ -101,7 +101,7 @@ devbox shell
 
 Devbox automatically installs and manages:
 
-- Go 1.25.2
+- Go 1.25.5
 - gopls (Go language server)
 - gotools, gofumpt, golines (Go formatting tools)
 - golangci-lint (linter)
@@ -713,7 +713,7 @@ Configuration management:
 3. Implement infrastructure in `internal/core/infra/`
 4. Add components in `internal/app/components/`
 5. Implement the `Mode` interface in `internal/app/modes/` (see `HintsMode`, `GridMode`, `ScrollMode` for examples)
-   - See also `QuadGridMode` for recursive quadrant navigation
+    - See also `QuadGridMode` for recursive quadrant navigation
 6. Register mode in the Handler's mode map in `internal/app/modes/handler.go`
 
 **Actions:**

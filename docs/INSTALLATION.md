@@ -260,7 +260,7 @@ The latest version of Neru requires Go 1.25 or later. If you're using stable nix
 package = pkgs.neru-source.overrideAttrs (_: {
   postPatch = ''
      substituteInPlace go.mod \
-       --replace-fail "go 1.25.2" "go 1.24.9"
+       --replace-fail "go 1.25.5" "go 1.24.9"
 
      # Verify it worked
      echo "=== go.mod after patch ==="
