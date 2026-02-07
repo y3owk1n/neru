@@ -59,15 +59,45 @@ func TestMenuItemMethods(t *testing.T) {
 	item := systray.AddMenuItem("Test")
 
 	item.SetTitle("New Title")
-	item.Enable()
-	item.Disable()
-	item.Check()
-	item.Uncheck()
-	item.Show()
-	item.Hide()
 
 	if item.Title() != "New Title" {
-		t.Errorf("Title not updated in struct")
+		t.Errorf("Expected title 'New Title', got '%s'", item.Title())
+	}
+
+	item.Enable()
+
+	if item.Disabled() {
+		t.Error("Expected Disabled() to be false after Enable()")
+	}
+
+	item.Disable()
+
+	if !item.Disabled() {
+		t.Error("Expected Disabled() to be true after Disable()")
+	}
+
+	item.Check()
+
+	if !item.Checked() {
+		t.Error("Expected Checked() to be true after Check()")
+	}
+
+	item.Uncheck()
+
+	if item.Checked() {
+		t.Error("Expected Checked() to be false after Uncheck()")
+	}
+
+	item.Show()
+
+	if item.Hidden() {
+		t.Error("Expected Hidden() to be false after Show()")
+	}
+
+	item.Hide()
+
+	if !item.Hidden() {
+		t.Error("Expected Hidden() to be true after Hide()")
 	}
 }
 
