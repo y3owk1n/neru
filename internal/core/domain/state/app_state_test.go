@@ -581,9 +581,7 @@ func TestAppState_OnEnabledStateChanged_NilCallback(t *testing.T) {
 func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
 	state := state.NewAppState()
 
-	callCount := 0
-
-	var callbackMutex sync.Mutex
+	callbackCalled := make(chan bool, 2)
 
 	var waitGroup sync.WaitGroup
 
@@ -592,29 +590,34 @@ func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
 	subscriptionID := state.OnEnabledStateChanged(func(enabled bool) {
 		defer waitGroup.Done()
 
-		callbackMutex.Lock()
-
-		callCount++
-
-		callbackMutex.Unlock()
+		select {
+		case callbackCalled <- enabled:
+		default:
+		}
 	})
 
 	// Wait for initial callback
 	waitGroup.Wait()
 
+	// Consume the initial callback value
+	select {
+	case <-callbackCalled:
+	default:
+	}
+
 	// Unsubscribe
 	state.OffEnabledStateChanged(subscriptionID)
 
-	// Change state
+	// Change state - callback should not be called
 	state.SetEnabled(false)
 
-	callbackMutex.Lock()
-
-	if callCount != 1 {
-		t.Errorf("Expected 1 callback (initial only), got %d", callCount)
+	// Verify callback was not invoked after unsubscribe
+	select {
+	case value := <-callbackCalled:
+		t.Errorf("Callback was invoked after unsubscribe with value: %v", value)
+	case <-time.After(100 * time.Millisecond):
+		// Expected: callback was not called
 	}
-
-	callbackMutex.Unlock()
 }
 
 // TestAppState_OffEnabledStateChanged_InvalidID tests unsubscribing with invalid ID is no-op.
