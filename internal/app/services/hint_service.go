@@ -179,8 +179,8 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 
 // filterChangedElements filters elements to only include those that have changed position or are new.
 func (s *HintService) filterChangedElements(elements []*element.Element) []*element.Element {
-	s.cacheMutex.Lock()
-	defer s.cacheMutex.Unlock()
+	s.cacheMutex.RLock()
+	defer s.cacheMutex.RUnlock()
 
 	changedElements := make([]*element.Element, 0, len(elements)/EstimatedUnchangedRatio)
 
