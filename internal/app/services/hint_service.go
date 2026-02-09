@@ -179,8 +179,8 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 
 // filterChangedElements filters elements to only include those that have changed position or are new.
 func (s *HintService) filterChangedElements(elements []*element.Element) []*element.Element {
-	s.cacheMutex.Lock()
-	defer s.cacheMutex.Unlock()
+	s.cacheMutex.RLock()
+	defer s.cacheMutex.RUnlock()
 
 	changedElements := make([]*element.Element, 0, len(elements)/EstimatedUnchangedRatio)
 
@@ -213,10 +213,16 @@ func (s *HintService) updateElementCache(elements []*element.Element) {
 	now := time.Now()
 
 	// Clear old cache entries (older than cacheExpiration)
+	// Collect expired keys first to avoid modifying map during iteration
+	expiredKeys := make([]string, 0)
 	for elementID, entry := range s.elementCache {
 		if now.Sub(entry.timestamp) > cacheExpiration {
-			delete(s.elementCache, elementID)
+			expiredKeys = append(expiredKeys, elementID)
 		}
+	}
+
+	for _, elementID := range expiredKeys {
+		delete(s.elementCache, elementID)
 	}
 
 	// Update cache with new elements
