@@ -213,16 +213,10 @@ func (s *HintService) updateElementCache(elements []*element.Element) {
 	now := time.Now()
 
 	// Clear old cache entries (older than cacheExpiration)
-	// Collect expired keys first to avoid modifying map during iteration
-	expiredKeys := make([]string, 0)
 	for elementID, entry := range s.elementCache {
 		if now.Sub(entry.timestamp) > cacheExpiration {
-			expiredKeys = append(expiredKeys, elementID)
+			delete(s.elementCache, elementID)
 		}
-	}
-
-	for _, elementID := range expiredKeys {
-		delete(s.elementCache, elementID)
 	}
 
 	// Update cache with new elements
