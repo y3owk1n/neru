@@ -42,6 +42,25 @@ func init() {
 	}
 }
 
+// releaseCallbackID releases a callback ID back to the free pool and removes it from the global registry.
+// This is safe to call even if the callback ID is not currently registered.
+func releaseCallbackID(callbackID uint64) {
+	// Remove from global registry
+	callbackManagerRegistryMu.Lock()
+	delete(callbackManagerRegistry, callbackID)
+	callbackManagerRegistryMu.Unlock()
+
+	// Return the ID to the free pool for reuse
+	freeCallbackIDsMu.Lock()
+
+	freeCallbackIDs = append(freeCallbackIDs, callbackID)
+
+	freeCallbackIDsMu.Unlock()
+
+	// Note: We don't clean up from callbackIDStore here because the pointer
+	// may still be in use by C code. The ID is returned to the free pool for reuse.
+}
+
 // CompleteGlobalCallback completes a callback by ID using the global registry.
 // This function is called by C callbacks that can't access instance methods.
 func CompleteGlobalCallback(callbackID uint64) {
@@ -53,22 +72,10 @@ func CompleteGlobalCallback(callbackID uint64) {
 
 	if ok {
 		manager.CompleteCallback(callbackID)
-
-		// Clean up from global registry
-		callbackManagerRegistryMu.Lock()
-		delete(callbackManagerRegistry, callbackID)
-		callbackManagerRegistryMu.Unlock()
 	}
 
-	// Return the ID to the free pool for reuse
-	freeCallbackIDsMu.Lock()
-
-	freeCallbackIDs = append(freeCallbackIDs, callbackID)
-
-	freeCallbackIDsMu.Unlock()
-
-	// Note: We don't clean up from callbackIDStore here because the pointer
-	// may still be in use by C code. The ID is returned to the free pool for reuse.
+	// Release the callback ID back to the free pool
+	releaseCallbackID(callbackID)
 }
 
 // CallbackIDToPointer converts a callback ID to unsafe.Pointer in a way that go vet accepts.
@@ -209,6 +216,9 @@ func (c *CallbackManager) handleResizeCallback(callbackID uint64, done chan stru
 		delete(c.callbackMap, callbackID)
 		c.callbackMu.Unlock()
 
+		// Release the callback ID back to the free pool
+		releaseCallbackID(callbackID)
+
 		if c.logger != nil {
 			c.logger.Debug(
 				"Overlay resize cleanup timeout - removed callback from map",
@@ -220,6 +230,9 @@ func (c *CallbackManager) handleResizeCallback(callbackID uint64, done chan stru
 		c.callbackMu.Lock()
 		delete(c.callbackMap, callbackID)
 		c.callbackMu.Unlock()
+
+		// Release the callback ID back to the free pool
+		releaseCallbackID(callbackID)
 
 		if c.logger != nil {
 			c.logger.Debug(
