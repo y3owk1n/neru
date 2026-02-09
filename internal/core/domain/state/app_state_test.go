@@ -414,15 +414,15 @@ func TestAppState_OnEnabledStateChanged_Registration(t *testing.T) {
 
 	id := state.OnEnabledStateChanged(func(enabled bool) {})
 
-	if id != 0 {
-		t.Errorf("Expected first callback ID to be 0, got %d", id)
+	if id != 1 {
+		t.Errorf("Expected first callback ID to be 1, got %d", id)
 	}
 
 	// Register second callback
 	id2 := state.OnEnabledStateChanged(func(enabled bool) {})
 
-	if id2 != 1 {
-		t.Errorf("Expected second callback ID to be 1, got %d", id2)
+	if id2 != 2 {
+		t.Errorf("Expected second callback ID to be 2, got %d", id2)
 	}
 }
 

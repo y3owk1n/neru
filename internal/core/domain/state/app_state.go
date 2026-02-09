@@ -33,6 +33,7 @@ func NewAppState() *AppState {
 		enabled:               true,
 		currentMode:           domain.ModeIdle,
 		enabledStateCallbacks: make(map[uint64]func(bool)),
+		nextCallbackID:        1, // Start at 1 so 0 can be used as nil sentinel
 	}
 }
 
