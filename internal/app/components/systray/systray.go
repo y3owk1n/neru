@@ -38,21 +38,22 @@ type Component struct {
 	cancel context.CancelFunc
 
 	// Menu items
-	mVersionCopy   *systray.MenuItem
-	mToggleDisable *systray.MenuItem
-	mToggleEnable  *systray.MenuItem
-	mModes         *systray.MenuItem
-	mHints         *systray.MenuItem
-	mGrid          *systray.MenuItem
-	mQuadGrid      *systray.MenuItem
-	mReloadConfig  *systray.MenuItem
-	mHelp          *systray.MenuItem
-	mSourceCode    *systray.MenuItem
-	mDocsConfig    *systray.MenuItem
-	mDocsCLI       *systray.MenuItem
-	mReportIssue   *systray.MenuItem
-	mDiscuss       *systray.MenuItem
-	mQuit          *systray.MenuItem
+	mVersionCopy    *systray.MenuItem
+	mToggleDisable  *systray.MenuItem
+	mToggleEnable   *systray.MenuItem
+	mModes          *systray.MenuItem
+	mHints          *systray.MenuItem
+	mGrid           *systray.MenuItem
+	mQuadGrid       *systray.MenuItem
+	mReloadConfig   *systray.MenuItem
+	mHelp           *systray.MenuItem
+	mSourceCode     *systray.MenuItem
+	mDocsConfig     *systray.MenuItem
+	mDocsCLI        *systray.MenuItem
+	mReportBug      *systray.MenuItem
+	mFeatureRequest *systray.MenuItem
+	mDiscuss        *systray.MenuItem
+	mQuit           *systray.MenuItem
 
 	// State update signaling (thread-safe communication)
 	stateUpdateSignal chan struct{} // Signal that state changed
@@ -99,7 +100,8 @@ func (c *Component) OnReady() {
 	c.mDocsCLI = c.mHelp.AddSubMenuItem("CLI Docs")
 	c.mHelp.AddSeparator()
 	c.mSourceCode = c.mHelp.AddSubMenuItem("Source Code")
-	c.mReportIssue = c.mHelp.AddSubMenuItem("Report Issue")
+	c.mFeatureRequest = c.mHelp.AddSubMenuItem("Request Feature")
+	c.mReportBug = c.mHelp.AddSubMenuItem("Report Bug")
 	c.mDiscuss = c.mHelp.AddSubMenuItem("Community Discussion")
 
 	systray.AddSeparator()
@@ -215,12 +217,20 @@ func (c *Component) handleEvents() {
 					c.logger.Error("Failed to open CLI docs", zap.Error(err))
 				}
 			}()
-		case <-c.mReportIssue.ClickedCh:
+		case <-c.mFeatureRequest.ClickedCh:
 			go func() {
-				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/issues/new").
+				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/issues/new?template=feature_request.yml").
 					Run()
 				if err != nil {
-					c.logger.Error("Failed to open issue report", zap.Error(err))
+					c.logger.Error("Failed to open feature request", zap.Error(err))
+				}
+			}()
+		case <-c.mReportBug.ClickedCh:
+			go func() {
+				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/issues/new?template=bug_report.yml").
+					Run()
+				if err != nil {
+					c.logger.Error("Failed to open bug report", zap.Error(err))
 				}
 			}()
 		case <-c.mDiscuss.ClickedCh:
