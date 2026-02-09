@@ -72,10 +72,10 @@ func CompleteGlobalCallback(callbackID uint64) {
 
 	if ok {
 		manager.CompleteCallback(callbackID)
-	}
 
-	// Release the callback ID back to the free pool
-	releaseCallbackID(callbackID)
+		// Release the callback ID back to the free pool
+		releaseCallbackID(callbackID)
+	}
 }
 
 // CallbackIDToPointer converts a callback ID to unsafe.Pointer in a way that go vet accepts.
