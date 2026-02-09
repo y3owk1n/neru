@@ -684,7 +684,7 @@ func TestAppState_CallbackValueCorrectness(t *testing.T) {
 
 	var valuesMutex sync.Mutex
 
-	// Add to waitgroup BEFORE registration since callback fires synchronously
+	// Add to waitgroup before registration to catch goroutine callback
 	waitGroup.Add(1)
 
 	state.OnEnabledStateChanged(func(enabled bool) {

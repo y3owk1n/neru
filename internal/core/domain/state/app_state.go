@@ -85,9 +85,8 @@ func (s *AppState) OnEnabledStateChanged(callback func(bool)) uint64 {
 
 	s.mu.Unlock()
 
-	// Fire initial callback outside lock to avoid deadlocks
-	// Note: SetEnabled callbacks use goroutines, so ordering is not guaranteed
-	callback(currentState)
+	// Fire initial callback via goroutine for consistency with SetEnabled
+	go callback(currentState)
 
 	return nextCallbackID
 }
