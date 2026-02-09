@@ -148,8 +148,9 @@ func (c *Component) OnReady() {
 
 // OnExit handles systray exit.
 func (c *Component) OnExit() {
-	c.chanClosed.Store(true) // Prevent further sends to channel
-	c.cancel()               // Signal goroutine to stop
+	// Order matters: chanClosed guard protects callback from sending during cleanup
+	c.chanClosed.Store(true) // Prevent callback from sending to channel
+	c.cancel()               // Signal event goroutine to stop
 	c.app.OffEnabledStateChanged(c.enabledStateSubscriptionID)
 	c.app.Cleanup()
 }
@@ -157,8 +158,9 @@ func (c *Component) OnExit() {
 // Close cleans up systray component resources without triggering app cleanup.
 // This is used during initialization failure cleanup to avoid double cleanup.
 func (c *Component) Close() {
-	c.chanClosed.Store(true) // Prevent further sends to channel
-	c.cancel()               // Signal goroutine to stop
+	// Order matters: chanClosed guard protects callback from sending during cleanup
+	c.chanClosed.Store(true) // Prevent callback from sending to channel
+	c.cancel()               // Signal event goroutine to stop
 	c.app.OffEnabledStateChanged(c.enabledStateSubscriptionID)
 	// Note: We don't call c.app.Cleanup() here to avoid double cleanup during init failure
 }
