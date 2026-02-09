@@ -27,6 +27,8 @@ type AppInterface interface {
 	// OnEnabledStateChanged is called when the enabled state changes externally
 	// Returns a subscription ID that can be used to unsubscribe
 	OnEnabledStateChanged(callback func(bool)) uint64
+	// OffEnabledStateChanged unsubscribes a callback by ID
+	OffEnabledStateChanged(id uint64)
 }
 
 // Component encapsulates systray functionality.
@@ -57,9 +59,10 @@ type Component struct {
 	mQuit           *systray.MenuItem
 
 	// State update signaling (thread-safe communication)
-	stateUpdateSignal chan struct{} // Signal that state changed
-	latestState       atomic.Bool   // Latest enabled state
-	chanClosed        atomic.Bool
+	stateUpdateSignal          chan struct{} // Signal that state changed
+	latestState                atomic.Bool   // Latest enabled state
+	chanClosed                 atomic.Bool
+	enabledStateSubscriptionID uint64 // ID for unsubscribing on cleanup
 }
 
 // NewComponent creates a new systray component.
@@ -74,7 +77,7 @@ func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 	}
 
 	// Register callback immediately for state changes
-	app.OnEnabledStateChanged(func(enabled bool) {
+	component.enabledStateSubscriptionID = app.OnEnabledStateChanged(func(enabled bool) {
 		// Don't send if channel is closed
 		if component.chanClosed.Load() {
 			return
@@ -147,6 +150,7 @@ func (c *Component) OnReady() {
 func (c *Component) OnExit() {
 	c.chanClosed.Store(true) // Prevent further sends to channel
 	c.cancel()               // Signal goroutine to stop
+	c.app.OffEnabledStateChanged(c.enabledStateSubscriptionID)
 	c.app.Cleanup()
 }
 
@@ -155,6 +159,7 @@ func (c *Component) OnExit() {
 func (c *Component) Close() {
 	c.chanClosed.Store(true) // Prevent further sends to channel
 	c.cancel()               // Signal goroutine to stop
+	c.app.OffEnabledStateChanged(c.enabledStateSubscriptionID)
 	// Note: We don't call c.app.Cleanup() here to avoid double cleanup during init failure
 }
 
