@@ -489,7 +489,13 @@ func TestAppState_OnEnabledStateChanged_NoNotificationOnSameState(t *testing.T) 
 
 	var callbackMutex sync.Mutex
 
+	var waitGroup sync.WaitGroup
+
+	waitGroup.Add(1)
+
 	state.OnEnabledStateChanged(func(enabled bool) {
+		defer waitGroup.Done()
+
 		callbackMutex.Lock()
 
 		callCount++
@@ -498,7 +504,7 @@ func TestAppState_OnEnabledStateChanged_NoNotificationOnSameState(t *testing.T) 
 	})
 
 	// Wait for initial callback
-	time.Sleep(50 * time.Millisecond)
+	waitGroup.Wait()
 
 	callbackMutex.Lock()
 
@@ -510,8 +516,6 @@ func TestAppState_OnEnabledStateChanged_NoNotificationOnSameState(t *testing.T) 
 
 	// Set same state (true -> true)
 	state.SetEnabled(true)
-
-	time.Sleep(50 * time.Millisecond)
 
 	callbackMutex.Lock()
 
@@ -581,7 +585,13 @@ func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
 
 	var callbackMutex sync.Mutex
 
+	var waitGroup sync.WaitGroup
+
+	waitGroup.Add(1)
+
 	subscriptionID := state.OnEnabledStateChanged(func(enabled bool) {
+		defer waitGroup.Done()
+
 		callbackMutex.Lock()
 
 		callCount++
@@ -590,15 +600,13 @@ func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
 	})
 
 	// Wait for initial callback
-	time.Sleep(50 * time.Millisecond)
+	waitGroup.Wait()
 
 	// Unsubscribe
 	state.OffEnabledStateChanged(subscriptionID)
 
 	// Change state
 	state.SetEnabled(false)
-
-	time.Sleep(50 * time.Millisecond)
 
 	callbackMutex.Lock()
 
