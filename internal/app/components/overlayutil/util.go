@@ -26,6 +26,11 @@ var (
 	freeCallbackIDs   []uint64
 	freeCallbackIDsMu sync.Mutex
 
+	// allocatedCallbackIDs tracks which IDs are currently allocated to prevent double-release.
+	// This is a safety net - IDs should only be released once, but this guards against bugs.
+	allocatedCallbackIDs   = make(map[uint64]bool)
+	allocatedCallbackIDsMu sync.Mutex
+
 	// callbackIDStore stores callback IDs in a fixed-size slice to allow safe pointer conversion.
 	// The slice index is the callback ID, and the value is the same ID (for pointer stability).
 	// We never reallocate this slice to keep pointers handed to C valid for the lifetime
@@ -42,6 +47,38 @@ func init() {
 	}
 }
 
+// releaseCallbackID releases a callback ID back to the free pool and removes it from the global registry.
+// This is safe to call even if the callback ID is not currently registered.
+// It includes a guard against double-release by tracking allocated IDs.
+func releaseCallbackID(callbackID uint64) {
+	// Check if ID is actually allocated before releasing (guards against double-release)
+	allocatedCallbackIDsMu.Lock()
+
+	if !allocatedCallbackIDs[callbackID] {
+		allocatedCallbackIDsMu.Unlock()
+		// ID is not allocated, nothing to release
+		return
+	}
+
+	delete(allocatedCallbackIDs, callbackID)
+	allocatedCallbackIDsMu.Unlock()
+
+	// Remove from global registry
+	callbackManagerRegistryMu.Lock()
+	delete(callbackManagerRegistry, callbackID)
+	callbackManagerRegistryMu.Unlock()
+
+	// Return the ID to the free pool for reuse
+	freeCallbackIDsMu.Lock()
+
+	freeCallbackIDs = append(freeCallbackIDs, callbackID)
+
+	freeCallbackIDsMu.Unlock()
+
+	// Note: We don't clean up from callbackIDStore here because the pointer
+	// may still be in use by C code. The ID is returned to the free pool for reuse.
+}
+
 // CompleteGlobalCallback completes a callback by ID using the global registry.
 // This function is called by C callbacks that can't access instance methods.
 func CompleteGlobalCallback(callbackID uint64) {
@@ -54,21 +91,9 @@ func CompleteGlobalCallback(callbackID uint64) {
 	if ok {
 		manager.CompleteCallback(callbackID)
 
-		// Clean up from global registry
-		callbackManagerRegistryMu.Lock()
-		delete(callbackManagerRegistry, callbackID)
-		callbackManagerRegistryMu.Unlock()
+		// Release the callback ID back to the free pool
+		releaseCallbackID(callbackID)
 	}
-
-	// Return the ID to the free pool for reuse
-	freeCallbackIDsMu.Lock()
-
-	freeCallbackIDs = append(freeCallbackIDs, callbackID)
-
-	freeCallbackIDsMu.Unlock()
-
-	// Note: We don't clean up from callbackIDStore here because the pointer
-	// may still be in use by C code. The ID is returned to the free pool for reuse.
 }
 
 // CallbackIDToPointer converts a callback ID to unsafe.Pointer in a way that go vet accepts.
@@ -124,6 +149,13 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64)) {
 	freeCallbackIDs = freeCallbackIDs[:len(freeCallbackIDs)-1]
 
 	freeCallbackIDsMu.Unlock()
+
+	// Mark ID as allocated to guard against double-release
+	allocatedCallbackIDsMu.Lock()
+
+	allocatedCallbackIDs[callbackID] = true
+
+	allocatedCallbackIDsMu.Unlock()
 
 	// Store channel in instance map
 	c.callbackMu.Lock()
@@ -209,6 +241,9 @@ func (c *CallbackManager) handleResizeCallback(callbackID uint64, done chan stru
 		delete(c.callbackMap, callbackID)
 		c.callbackMu.Unlock()
 
+		// Release the callback ID back to the free pool
+		releaseCallbackID(callbackID)
+
 		if c.logger != nil {
 			c.logger.Debug(
 				"Overlay resize cleanup timeout - removed callback from map",
@@ -220,6 +255,9 @@ func (c *CallbackManager) handleResizeCallback(callbackID uint64, done chan stru
 		c.callbackMu.Lock()
 		delete(c.callbackMap, callbackID)
 		c.callbackMu.Unlock()
+
+		// Release the callback ID back to the free pool
+		releaseCallbackID(callbackID)
 
 		if c.logger != nil {
 			c.logger.Debug(
