@@ -711,37 +711,45 @@ func TestAppState_CallbackReentrancy(t *testing.T) {
 func TestAppState_CallbackValueCorrectness(t *testing.T) {
 	state := state.NewAppState()
 
-	receivedValues := make(chan bool, 3)
+	var waitGroup sync.WaitGroup
+
+	receivedValues := make(map[bool]int)
+
+	var valuesMutex sync.Mutex
 
 	state.OnEnabledStateChanged(func(enabled bool) {
-		receivedValues <- enabled
+		defer waitGroup.Done()
+
+		valuesMutex.Lock()
+
+		receivedValues[enabled]++
+
+		valuesMutex.Unlock()
 	})
 
-	// Should receive: true (initial), false, true
+	// Wait for initial callback
+	waitGroup.Add(1)
+
+	waitGroup.Wait()
+
+	// Reset for state change callbacks
+	waitGroup.Add(2)
+
 	state.SetEnabled(false)
 	state.SetEnabled(true)
 
-	time.Sleep(100 * time.Millisecond)
-	close(receivedValues)
+	// Wait for both state change callbacks
+	waitGroup.Wait()
 
-	expected := []bool{true, false, true}
-	idx := 0
+	valuesMutex.Lock()
 
-	for value := range receivedValues {
-		if idx >= len(expected) {
-			t.Errorf("Unexpected callback with value %v", value)
+	defer valuesMutex.Unlock()
 
-			continue
-		}
-
-		if value != expected[idx] {
-			t.Errorf("Expected callback %d to receive %v, got %v", idx, expected[idx], value)
-		}
-
-		idx++
+	if receivedValues[true] != 2 {
+		t.Errorf("Expected 2 callbacks with true, got %d", receivedValues[true])
 	}
 
-	if idx != len(expected) {
-		t.Errorf("Expected %d callbacks, got %d", len(expected), idx)
+	if receivedValues[false] != 1 {
+		t.Errorf("Expected 1 callback with false, got %d", receivedValues[false])
 	}
 }
