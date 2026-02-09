@@ -92,7 +92,12 @@ func (s *AppState) OnEnabledStateChanged(callback func(bool)) uint64 {
 }
 
 // OffEnabledStateChanged unsubscribes a callback using the ID returned by OnEnabledStateChanged.
+// OffEnabledStateChanged unsubscribes a callback using the ID returned by OnEnabledStateChanged.
 // If the ID is invalid (already unsubscribed or never existed), this is a no-op.
+//
+// Note: Due to the snapshot-then-invoke pattern in SetEnabled, a callback may fire
+// once after unsubscription if SetEnabled was called before OffEnabledStateChanged.
+// Callbacks should be idempotent to handle this gracefully.
 func (s *AppState) OffEnabledStateChanged(id uint64) {
 	s.mu.Lock()
 	delete(s.enabledStateCallbacks, id)
