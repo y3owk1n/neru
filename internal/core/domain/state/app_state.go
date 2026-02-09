@@ -72,16 +72,19 @@ func (s *AppState) SetEnabled(enabled bool) {
 // Returns a subscription ID that can be used to unsubscribe later.
 func (s *AppState) OnEnabledStateChanged(callback func(bool)) uint64 {
 	s.mu.Lock()
+
 	nextCallbackID := s.nextCallbackID
 	s.nextCallbackID++
 	s.enabledStateCallbacks[nextCallbackID] = callback
 	currentState := s.enabled
-	s.mu.Unlock()
 
-	// Call immediately with current state
+	// Fire initial callback synchronously before releasing lock
+	// This prevents race where SetEnabled callback could arrive first
 	if callback != nil {
-		go callback(currentState)
+		callback(currentState)
 	}
+
+	s.mu.Unlock()
 
 	return nextCallbackID
 }
