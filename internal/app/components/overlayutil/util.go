@@ -196,7 +196,6 @@ func (c *CallbackManager) handleResizeCallback(callbackID uint64, done chan stru
 
 	select {
 	case <-done:
-		timer.Stop() // Stop timer immediately on success
 		// Callback received, normal cleanup already handled in callback
 		if c.logger != nil {
 			c.logger.Debug(
@@ -218,7 +217,6 @@ func (c *CallbackManager) handleResizeCallback(callbackID uint64, done chan stru
 		}
 	case <-c.cancelCh:
 		// Manager is being cleaned up, clean up this callback
-		timer.Stop()
 		c.callbackMu.Lock()
 		delete(c.callbackMap, callbackID)
 		c.callbackMu.Unlock()
