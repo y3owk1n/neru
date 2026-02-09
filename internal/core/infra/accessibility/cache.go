@@ -303,21 +303,19 @@ func (c *InfoCache) cleanup() {
 	now := time.Now()
 	expiredCount := 0
 
-	// Walk LRU from back (oldest) to find expired items
-	// This optimization assumes older items are more likely to be expired,
-	// though TTL varies by role.
-	// A full scan is safer for correctness given varying TTLs.
+	// Full scan of all items to find expired entries
+	// With only 1000 items max, full scan is simple, correct, and cache-friendly
 
-	for element := c.lru.Back(); element != nil; {
+	for element := c.lru.Front(); element != nil; {
 		cached, ok := element.Value.(*CachedInfo)
 		if !ok {
 			// Should ensure we iterate correctly even if type is wrong, but safe to skip or log
-			element = element.Prev()
+			element = element.Next()
 
 			continue
 		}
 
-		prev := element.Prev() // Save prev since we might remove element
+		next := element.Next() // Save next since we might remove element
 
 		if now.After(cached.expiresAt) {
 			// Found expired item
@@ -338,7 +336,7 @@ func (c *InfoCache) cleanup() {
 			expiredCount++
 		}
 
-		element = prev
+		element = next
 	}
 
 	if expiredCount > 0 {
