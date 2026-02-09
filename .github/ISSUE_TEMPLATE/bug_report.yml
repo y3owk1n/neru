@@ -1,0 +1,88 @@
+name: Bug Report
+description: File a bug report
+labels: ["bug"]
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thank you for taking the time to fill out this bug report.
+
+    - type: input
+      attributes:
+          label: Neru version
+          description: What version of Neru are you running? (e.g., 1.2.3)
+      validations:
+          required: true
+
+    - type: input
+      attributes:
+          label: macOS version
+          description: What version of macOS are you running? (Apple menu → About This Mac)
+      validations:
+          required: true
+
+    - type: input
+      attributes:
+          label: Mac model
+          description: Which Mac are you using? (e.g., MacBook Pro 16" 2023, Mac Studio M2)
+      validations:
+          required: false
+
+    - type: dropdown
+      attributes:
+          label: Keyboard type
+          description: What keyboard are you using?
+          options:
+              - Built-in keyboard (MacBook)
+              - Apple Magic Keyboard
+              - Third-party mechanical keyboard
+              - Third-party membrane keyboard
+              - Other
+      validations:
+          required: false
+
+    - type: input
+      attributes:
+          label: Other input apps
+          description: Are you running any other apps that modify keyboard input? (e.g., Karabiner-Elements, BetterTouchTool, Hammerspoon, Raycast)
+      validations:
+          required: false
+
+    - type: textarea
+      attributes:
+          label: What happened?
+          description: What actually happened when you encountered the issue?
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: What did you expect?
+          description: What did you expect to happen instead?
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Steps to reproduce
+          description: Please provide clear steps to reproduce the issue.
+          placeholder: |
+              1. Start Neru
+              2. Press trigger key
+              3. ...
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Screenshots / recordings
+          description: If applicable, add screenshots or screen recordings to help explain the problem. For keyboard issues, showing the key presses can be very helpful.
+      validations:
+          required: false
+
+    - type: textarea
+      attributes:
+          label: Workaround
+          description: If you've found a workaround, please share it here.
+      validations:
+          required: false

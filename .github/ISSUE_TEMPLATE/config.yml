@@ -1,0 +1,9 @@
+blank_issues_enabled: true
+contact_links:
+    - name: Ask a question
+      url: https://github.com/AnomalyCo/Neru/discussions
+      about: Have a question? Start a discussion instead of opening an issue.
+
+    - name: Documentation feedback
+      url: https://github.com/AnomalyCo/Neru/issues/new
+      about: For documentation improvements, please open a regular issue with the "documentation" label.

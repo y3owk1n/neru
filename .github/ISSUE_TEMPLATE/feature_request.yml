@@ -1,0 +1,52 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for Neru
+labels: ["enhancement"]
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thank you for taking the time to suggest an enhancement for Neru!
+
+    - type: textarea
+      attributes:
+          label: Problem description
+          description: Describe the problem or limitation this feature would address.
+          placeholder: I'm always frustrated when...
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Proposed solution
+          description: Describe the solution you'd like to see.
+      validations:
+          required: true
+
+    - type: textarea
+      attributes:
+          label: Alternatives considered
+          description: Describe any alternative solutions or features you've considered.
+      validations:
+          required: false
+
+    - type: textarea
+      attributes:
+          label: Screenshots / mockups
+          description: If applicable, add screenshots, mockups, or diagrams to help explain your feature request.
+      validations:
+          required: false
+
+    - type: checkboxes
+      attributes:
+          label: Would you like to contribute?
+          description: Check this box if you'd be willing to submit a pull request for this feature.
+          options:
+              - label: I'm willing to submit a PR for this feature
+                required: false
+
+    - type: textarea
+      attributes:
+          label: Additional context
+          description: Add any other context about the feature request here.
+      validations:
+          required: false
