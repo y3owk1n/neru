@@ -15,8 +15,9 @@ type AppState struct {
 	enabled     bool
 	currentMode domain.Mode
 
-	// Callbacks
-	enabledStateCallbacks []func(bool)
+	// Callbacks - stored as map for O(1) unsubscribe
+	enabledStateCallbacks map[uint64]func(bool)
+	nextCallbackID        uint64
 
 	// Operational flags
 	hotkeysRegistered       bool
@@ -29,8 +30,10 @@ type AppState struct {
 // NewAppState creates a new AppState with default values.
 func NewAppState() *AppState {
 	return &AppState{
-		enabled:     true,
-		currentMode: domain.ModeIdle,
+		enabled:               true,
+		currentMode:           domain.ModeIdle,
+		enabledStateCallbacks: make(map[uint64]func(bool)),
+		nextCallbackID:        1, // Start at 1 so 0 can be used as nil sentinel
 	}
 }
 
@@ -47,8 +50,12 @@ func (s *AppState) SetEnabled(enabled bool) {
 	s.mu.Lock()
 	oldEnabled := s.enabled
 	s.enabled = enabled
-	callbacks := make([]func(bool), len(s.enabledStateCallbacks))
-	copy(callbacks, s.enabledStateCallbacks)
+	// Copy callbacks to slice for iteration outside lock
+	callbacks := make([]func(bool), 0, len(s.enabledStateCallbacks))
+	for _, cb := range s.enabledStateCallbacks {
+		callbacks = append(callbacks, cb)
+	}
+
 	s.mu.Unlock()
 
 	// Notify all callbacks if state actually changed
@@ -63,16 +70,37 @@ func (s *AppState) SetEnabled(enabled bool) {
 }
 
 // OnEnabledStateChanged registers a callback for when the enabled state changes.
-func (s *AppState) OnEnabledStateChanged(callback func(bool)) {
+// Returns a subscription ID that can be used to unsubscribe later.
+func (s *AppState) OnEnabledStateChanged(callback func(bool)) uint64 {
+	if callback == nil {
+		return 0
+	}
+
 	s.mu.Lock()
-	s.enabledStateCallbacks = append(s.enabledStateCallbacks, callback)
+
+	nextCallbackID := s.nextCallbackID
+	s.nextCallbackID++
+	s.enabledStateCallbacks[nextCallbackID] = callback
 	currentState := s.enabled
+
 	s.mu.Unlock()
 
-	// Call immediately with current state
-	if callback != nil {
-		go callback(currentState)
-	}
+	// Fire initial callback via goroutine for consistency with SetEnabled
+	go callback(currentState)
+
+	return nextCallbackID
+}
+
+// OffEnabledStateChanged unsubscribes a callback using the ID returned by OnEnabledStateChanged.
+// If the ID is invalid (already unsubscribed or never existed), this is a no-op.
+//
+// Note: Due to the snapshot-then-invoke pattern in SetEnabled, a callback may fire
+// once after unsubscription if SetEnabled was called before OffEnabledStateChanged.
+// Callbacks should be idempotent to handle this gracefully.
+func (s *AppState) OffEnabledStateChanged(id uint64) {
+	s.mu.Lock()
+	delete(s.enabledStateCallbacks, id)
+	s.mu.Unlock()
 }
 
 // Enable enables the application.
