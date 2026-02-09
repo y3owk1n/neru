@@ -17,13 +17,13 @@ func (a *App) registerHotkeys() {
 	for key, value := range a.config.Hotkeys.Bindings {
 		trimmedKey := strings.TrimSpace(key)
 
-		action := strings.TrimSpace(value)
-		if trimmedKey == "" || action == "" {
+		actionStr := strings.TrimSpace(value)
+		if trimmedKey == "" || actionStr == "" {
 			continue
 		}
 
-		mode := action
-		if parts := strings.Split(action, " "); len(parts) > 0 {
+		mode := actionStr
+		if parts := strings.Split(actionStr, " "); len(parts) > 0 {
 			mode = parts[0]
 		}
 
@@ -38,11 +38,11 @@ func (a *App) registerHotkeys() {
 		a.logger.Info(
 			"Registering hotkey binding",
 			zap.String("key", trimmedKey),
-			zap.String("action", action),
+			zap.String("action", actionStr),
 		)
 
 		bindKey := trimmedKey
-		bindAction := action
+		bindAction := actionStr
 
 		var registerHotkeyErr error
 
@@ -72,7 +72,7 @@ func (a *App) registerHotkeys() {
 			a.logger.Error(
 				"Failed to register hotkey binding",
 				zap.String("key", trimmedKey),
-				zap.String("action", action),
+				zap.String("action", actionStr),
 				zap.Error(registerHotkeyErr),
 			)
 
