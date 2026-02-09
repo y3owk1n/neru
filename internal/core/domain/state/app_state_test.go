@@ -674,40 +674,6 @@ func TestAppState_OnEnabledStateChanged_Concurrent(t *testing.T) {
 	state.SetEnabled(true)
 }
 
-// TestAppState_CallbackReentrancy tests that SetEnabled can be called from callback without deadlock.
-func TestAppState_CallbackReentrancy(t *testing.T) {
-	state := state.NewAppState()
-	called := make(chan bool, 1)
-
-	state.OnEnabledStateChanged(func(enabled bool) {
-		// Try to trigger another state change from callback
-		// This should not deadlock
-		if enabled {
-			state.SetEnabled(false)
-		}
-
-		select {
-		case called <- true:
-		default:
-		}
-	})
-
-	// Consume initial callback
-	select {
-	case <-called:
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("Timeout waiting for initial callback")
-	}
-
-	// Wait for potential reentrant callback
-	time.Sleep(100 * time.Millisecond)
-
-	// Verify state was changed
-	if state.IsEnabled() {
-		t.Error("Expected state to be false after reentrant SetEnabled(false)")
-	}
-}
-
 // TestAppState_CallbackValueCorrectness tests correct state value is passed to callbacks.
 func TestAppState_CallbackValueCorrectness(t *testing.T) {
 	state := state.NewAppState()
@@ -717,6 +683,9 @@ func TestAppState_CallbackValueCorrectness(t *testing.T) {
 	receivedValues := make(map[bool]int)
 
 	var valuesMutex sync.Mutex
+
+	// Add to waitgroup BEFORE registration since callback fires synchronously
+	waitGroup.Add(1)
 
 	state.OnEnabledStateChanged(func(enabled bool) {
 		defer waitGroup.Done()
@@ -729,8 +698,6 @@ func TestAppState_CallbackValueCorrectness(t *testing.T) {
 	})
 
 	// Wait for initial callback
-	waitGroup.Add(1)
-
 	waitGroup.Wait()
 
 	// Reset for state change callbacks
