@@ -123,10 +123,10 @@ func (a *App) executeShellCommand(key, action string) error {
 		zap.String("cmd", cmdString),
 	)
 
-	context, cancel := context.WithTimeout(context.Background(), domain.ShellCommandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), domain.ShellCommandTimeout)
 	defer cancel()
 
-	command := exec.CommandContext(context, "/bin/bash", "-lc", cmdString) //nolint:gosec
+	command := exec.CommandContext(ctx, "/bin/bash", "-lc", cmdString) //nolint:gosec
 
 	commandOutput, commandErr := command.CombinedOutput()
 	if commandErr != nil {
