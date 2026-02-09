@@ -561,15 +561,16 @@ func TestAppState_OnEnabledStateChanged_MultipleCallbacks(t *testing.T) {
 func TestAppState_OnEnabledStateChanged_NilCallback(t *testing.T) {
 	state := state.NewAppState()
 
-	// Should not panic
+	// Should not panic and return 0
 	subscriptionID := state.OnEnabledStateChanged(nil)
+
+	if subscriptionID != 0 {
+		t.Errorf("Expected nil callback to return 0, got %d", subscriptionID)
+	}
 
 	// State changes should not panic
 	state.SetEnabled(false)
 	state.SetEnabled(true)
-
-	// Just verify we got an ID
-	_ = subscriptionID
 }
 
 // TestAppState_OffEnabledStateChanged_Unsubscribe tests unsubscribing removes callback.
