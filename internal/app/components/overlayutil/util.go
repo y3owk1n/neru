@@ -53,11 +53,13 @@ func init() {
 func releaseCallbackID(callbackID uint64) {
 	// Check if ID is actually allocated before releasing (guards against double-release)
 	allocatedCallbackIDsMu.Lock()
+
 	if !allocatedCallbackIDs[callbackID] {
 		allocatedCallbackIDsMu.Unlock()
 		// ID is not allocated, nothing to release
 		return
 	}
+
 	delete(allocatedCallbackIDs, callbackID)
 	allocatedCallbackIDsMu.Unlock()
 
@@ -150,7 +152,9 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64)) {
 
 	// Mark ID as allocated to guard against double-release
 	allocatedCallbackIDsMu.Lock()
+
 	allocatedCallbackIDs[callbackID] = true
+
 	allocatedCallbackIDsMu.Unlock()
 
 	// Store channel in instance map
