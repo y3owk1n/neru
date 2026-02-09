@@ -276,7 +276,9 @@ func (c *InfoCache) Stop() {
 
 // cleanupLoop runs a periodic cleanup process to remove expired cache entries.
 func (c *InfoCache) cleanupLoop() {
-	ticker := time.NewTicker(c.ttl / CacheCleanupDivisor) // Cleanup at half the TTL interval
+	// Use shortest TTL (dynamic elements) for cleanup interval to ensure
+	// prompt cleanup of expired items regardless of cache-level TTL setting
+	ticker := time.NewTicker(DynamicElementTTL / CacheCleanupDivisor)
 	defer ticker.Stop()
 
 	for {
