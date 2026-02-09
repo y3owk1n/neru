@@ -184,7 +184,6 @@ func (s *Server) Stop() error {
 
 	select {
 	case <-done:
-		timer.Stop() // Stop timer immediately on success
 		// All connections closed successfully
 	case <-timer.C:
 		// Timeout waiting for connections to close

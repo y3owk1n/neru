@@ -402,14 +402,13 @@ func (a *App) waitForShutdown() error {
 
 	select {
 	case <-done:
-		timer.Stop() // Stop timer immediately on success
+		timer.Stop()
 		a.logger.Info("Graceful shutdown completed")
 
 		signal.Stop(sigChan)
 
 		return nil
 	case <-sigChan:
-		timer.Stop() // Stop timer on second signal
 		a.logger.Warn("Received second signal, forcing shutdown")
 		a.logger.Info("⚠️  Force quitting...")
 		os.Exit(1)
