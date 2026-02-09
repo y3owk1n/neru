@@ -3,6 +3,7 @@ package state_test
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
@@ -403,4 +404,344 @@ func TestAppState_MultipleFlags(_ *testing.T) {
 
 	// State should be consistent (either true or false, not corrupted)
 	_ = state.IsEnabled() // Should not panic or return invalid value
+}
+
+// Callback tests for OnEnabledStateChanged and OffEnabledStateChanged.
+
+// TestAppState_OnEnabledStateChanged_Registration tests callback registration returns valid ID.
+func TestAppState_OnEnabledStateChanged_Registration(t *testing.T) {
+	state := state.NewAppState()
+
+	id := state.OnEnabledStateChanged(func(enabled bool) {})
+
+	if id != 0 {
+		t.Errorf("Expected first callback ID to be 0, got %d", id)
+	}
+
+	// Register second callback
+	id2 := state.OnEnabledStateChanged(func(enabled bool) {})
+
+	if id2 != 1 {
+		t.Errorf("Expected second callback ID to be 1, got %d", id2)
+	}
+}
+
+// TestAppState_OnEnabledStateChanged_ImmediateInvocation tests callback is called immediately with current state.
+func TestAppState_OnEnabledStateChanged_ImmediateInvocation(t *testing.T) {
+	state := state.NewAppState()
+
+	called := make(chan bool, 1)
+
+	state.OnEnabledStateChanged(func(enabled bool) {
+		called <- enabled
+	})
+
+	// Wait for immediate callback
+	select {
+	case enabled := <-called:
+		if !enabled {
+			t.Error("Expected immediate callback with enabled=true")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for immediate callback")
+	}
+}
+
+// TestAppState_OnEnabledStateChanged_StateChangeNotification tests callbacks are invoked on state changes.
+func TestAppState_OnEnabledStateChanged_StateChangeNotification(t *testing.T) {
+	state := state.NewAppState()
+
+	called := make(chan bool, 1)
+
+	state.OnEnabledStateChanged(func(enabled bool) {
+		select {
+		case called <- enabled:
+		default:
+		}
+	})
+
+	// Consume immediate callback
+	select {
+	case <-called:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Timeout waiting for initial callback")
+	}
+
+	// Change state
+	state.SetEnabled(false)
+
+	// Wait for state change notification
+	select {
+	case enabled := <-called:
+		if enabled {
+			t.Error("Expected callback with enabled=false after state change")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for state change callback")
+	}
+}
+
+// TestAppState_OnEnabledStateChanged_NoNotificationOnSameState tests no callback when state doesn't change.
+func TestAppState_OnEnabledStateChanged_NoNotificationOnSameState(t *testing.T) {
+	state := state.NewAppState()
+
+	callCount := 0
+
+	var callbackMutex sync.Mutex
+
+	state.OnEnabledStateChanged(func(enabled bool) {
+		callbackMutex.Lock()
+
+		callCount++
+
+		callbackMutex.Unlock()
+	})
+
+	// Wait for initial callback
+	time.Sleep(50 * time.Millisecond)
+
+	callbackMutex.Lock()
+
+	if callCount != 1 {
+		t.Fatalf("Expected 1 initial callback, got %d", callCount)
+	}
+
+	callbackMutex.Unlock()
+
+	// Set same state (true -> true)
+	state.SetEnabled(true)
+
+	time.Sleep(50 * time.Millisecond)
+
+	callbackMutex.Lock()
+
+	if callCount != 1 {
+		t.Errorf("Expected still 1 callback after no-op state change, got %d", callCount)
+	}
+
+	callbackMutex.Unlock()
+}
+
+// TestAppState_OnEnabledStateChanged_MultipleCallbacks tests multiple callbacks are all invoked.
+func TestAppState_OnEnabledStateChanged_MultipleCallbacks(t *testing.T) {
+	state := state.NewAppState()
+
+	called1 := make(chan bool, 1)
+	called2 := make(chan bool, 1)
+
+	state.OnEnabledStateChanged(func(enabled bool) {
+		select {
+		case called1 <- enabled:
+		default:
+		}
+	})
+
+	state.OnEnabledStateChanged(func(enabled bool) {
+		select {
+		case called2 <- enabled:
+		default:
+		}
+	})
+
+	// Both should be called immediately
+	select {
+	case <-called1:
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for callback 1")
+	}
+
+	select {
+	case <-called2:
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for callback 2")
+	}
+}
+
+// TestAppState_OnEnabledStateChanged_NilCallback tests nil callback doesn't panic.
+func TestAppState_OnEnabledStateChanged_NilCallback(t *testing.T) {
+	state := state.NewAppState()
+
+	// Should not panic
+	subscriptionID := state.OnEnabledStateChanged(nil)
+
+	// State changes should not panic
+	state.SetEnabled(false)
+	state.SetEnabled(true)
+
+	// Just verify we got an ID
+	_ = subscriptionID
+}
+
+// TestAppState_OffEnabledStateChanged_Unsubscribe tests unsubscribing removes callback.
+func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
+	state := state.NewAppState()
+
+	callCount := 0
+
+	var callbackMutex sync.Mutex
+
+	subscriptionID := state.OnEnabledStateChanged(func(enabled bool) {
+		callbackMutex.Lock()
+
+		callCount++
+
+		callbackMutex.Unlock()
+	})
+
+	// Wait for initial callback
+	time.Sleep(50 * time.Millisecond)
+
+	// Unsubscribe
+	state.OffEnabledStateChanged(subscriptionID)
+
+	// Change state
+	state.SetEnabled(false)
+
+	time.Sleep(50 * time.Millisecond)
+
+	callbackMutex.Lock()
+
+	if callCount != 1 {
+		t.Errorf("Expected 1 callback (initial only), got %d", callCount)
+	}
+
+	callbackMutex.Unlock()
+}
+
+// TestAppState_OffEnabledStateChanged_InvalidID tests unsubscribing with invalid ID is no-op.
+func TestAppState_OffEnabledStateChanged_InvalidID(t *testing.T) {
+	state := state.NewAppState()
+
+	// Should not panic with non-existent ID
+	state.OffEnabledStateChanged(9999)
+
+	// Should not panic with ID that was never issued
+	state.OffEnabledStateChanged(0)
+}
+
+// TestAppState_OnEnabledStateChanged_Concurrent tests concurrent callback operations.
+func TestAppState_OnEnabledStateChanged_Concurrent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping concurrent test in short mode")
+	}
+
+	state := state.NewAppState()
+
+	var waitGroup sync.WaitGroup
+
+	ids := make(chan uint64, 100)
+
+	// Concurrent registrations
+	for range 100 {
+		waitGroup.Go(func() {
+			id := state.OnEnabledStateChanged(func(enabled bool) {})
+			ids <- id
+		})
+	}
+
+	waitGroup.Wait()
+	close(ids)
+
+	// Verify all IDs are unique
+	idMap := make(map[uint64]bool)
+
+	for id := range ids {
+		if idMap[id] {
+			t.Errorf("Duplicate callback ID: %d", id)
+		}
+
+		idMap[id] = true
+	}
+
+	// Concurrent unregistrations
+	waitGroup = sync.WaitGroup{}
+
+	for subscriptionID := range idMap {
+		waitGroup.Add(1)
+
+		go func(subID uint64) {
+			defer waitGroup.Done()
+
+			state.OffEnabledStateChanged(subID)
+		}(subscriptionID)
+	}
+
+	waitGroup.Wait()
+
+	// State changes should not panic after all unsubscriptions
+	state.SetEnabled(false)
+	state.SetEnabled(true)
+}
+
+// TestAppState_CallbackReentrancy tests that SetEnabled can be called from callback without deadlock.
+func TestAppState_CallbackReentrancy(t *testing.T) {
+	state := state.NewAppState()
+	called := make(chan bool, 1)
+
+	state.OnEnabledStateChanged(func(enabled bool) {
+		// Try to trigger another state change from callback
+		// This should not deadlock
+		if enabled {
+			state.SetEnabled(false)
+		}
+
+		select {
+		case called <- true:
+		default:
+		}
+	})
+
+	// Consume initial callback
+	select {
+	case <-called:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Timeout waiting for initial callback")
+	}
+
+	// Wait for potential reentrant callback
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify state was changed
+	if state.IsEnabled() {
+		t.Error("Expected state to be false after reentrant SetEnabled(false)")
+	}
+}
+
+// TestAppState_CallbackValueCorrectness tests correct state value is passed to callbacks.
+func TestAppState_CallbackValueCorrectness(t *testing.T) {
+	state := state.NewAppState()
+
+	receivedValues := make(chan bool, 3)
+
+	state.OnEnabledStateChanged(func(enabled bool) {
+		receivedValues <- enabled
+	})
+
+	// Should receive: true (initial), false, true
+	state.SetEnabled(false)
+	state.SetEnabled(true)
+
+	time.Sleep(100 * time.Millisecond)
+	close(receivedValues)
+
+	expected := []bool{true, false, true}
+	idx := 0
+
+	for value := range receivedValues {
+		if idx >= len(expected) {
+			t.Errorf("Unexpected callback with value %v", value)
+
+			continue
+		}
+
+		if value != expected[idx] {
+			t.Errorf("Expected callback %d to receive %v, got %v", idx, expected[idx], value)
+		}
+
+		idx++
+	}
+
+	if idx != len(expected) {
+		t.Errorf("Expected %d callbacks, got %d", len(expected), idx)
+	}
 }

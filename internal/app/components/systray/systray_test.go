@@ -39,8 +39,12 @@ func (m *mockApp) ReloadConfig(ctx context.Context, configPath string) error {
 
 	return nil
 }
-func (m *mockApp) Cleanup()                                  { m.cleanupCalled = true }
-func (m *mockApp) OnEnabledStateChanged(callback func(bool)) { m.enabledCallback = callback }
+func (m *mockApp) Cleanup() { m.cleanupCalled = true }
+func (m *mockApp) OnEnabledStateChanged(callback func(bool)) uint64 {
+	m.enabledCallback = callback
+
+	return 0
+}
 
 func TestNewComponent(t *testing.T) {
 	logger := zaptest.NewLogger(t)

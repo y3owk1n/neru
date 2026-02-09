@@ -25,7 +25,8 @@ type AppInterface interface {
 	ReloadConfig(ctx context.Context, configPath string) error
 	Cleanup()
 	// OnEnabledStateChanged is called when the enabled state changes externally
-	OnEnabledStateChanged(callback func(bool))
+	// Returns a subscription ID that can be used to unsubscribe
+	OnEnabledStateChanged(callback func(bool)) uint64
 }
 
 // Component encapsulates systray functionality.
