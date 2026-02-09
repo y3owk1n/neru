@@ -110,7 +110,7 @@ func (a *App) executeHotkeyAction(key, actionStr string) error {
 
 // executeShellCommand executes a shell command triggered by a hotkey.
 func (a *App) executeShellCommand(key, actionStr string) error {
-	cmdString := strings.TrimSpace(strings.TrimPrefix(actionStr, "exec"))
+	cmdString := strings.TrimSpace(strings.TrimPrefix(actionStr, action.PrefixExec))
 	if cmdString == "" {
 		a.logger.Error("hotkey exec has empty command", zap.String("key", key))
 
