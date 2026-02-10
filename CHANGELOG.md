@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.18.1](https://github.com/y3owk1n/neru/compare/v1.18.0...v1.18.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* **hint_service:** optimize cache access with RWMutex and batch cleanup ([#371](https://github.com/y3owk1n/neru/issues/371)) ([d8f3e18](https://github.com/y3owk1n/neru/commit/d8f3e182fdbd44b276f9809401549b8613565a0c))
+* **overlayutil:** release callback ID on timeout and cancel paths ([#370](https://github.com/y3owk1n/neru/issues/370)) ([314e78b](https://github.com/y3owk1n/neru/commit/314e78b872d43c540d1316f45e1bffc298918a45))
+* **state:** add unsubscribe support to enabled state callbacks ([#373](https://github.com/y3owk1n/neru/issues/373)) ([6ccb54f](https://github.com/y3owk1n/neru/commit/6ccb54fef081896280bfae733f466ffd2871e2fb))
+* **systray:** ensure NSApplication runs on main thread to prevent SIGTRAP ([#375](https://github.com/y3owk1n/neru/issues/375)) ([619848a](https://github.com/y3owk1n/neru/commit/619848a0617ef0ac409aaf5d27b1028da88401dc))
+* **systray:** properly link to `bug report` and `feature request` on github ([#367](https://github.com/y3owk1n/neru/issues/367)) ([2a1bb38](https://github.com/y3owk1n/neru/commit/2a1bb38656b14b925017decc729f1ce1d8eec85a))
+
 ## [1.18.0](https://github.com/y3owk1n/neru/compare/v1.17.1...v1.18.0) (2026-02-07)
 
 
