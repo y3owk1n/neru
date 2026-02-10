@@ -10,7 +10,6 @@ package systray
 import "C"
 
 import (
-	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -70,7 +69,6 @@ func (m *MenuItem) Hidden() bool {
 
 // Run starts the system tray loop. It must be called from the main thread.
 func Run(onReadyFunc, onExitFunc func()) {
-	runtime.LockOSThread()
 	onReady = onReadyFunc
 	onExit = onExitFunc
 	C.nativeLoop()
@@ -79,7 +77,6 @@ func Run(onReadyFunc, onExitFunc func()) {
 // RunHeadless starts the system tray loop without a status icon.
 // It must be called from the main thread.
 func RunHeadless(onReadyFunc, onExitFunc func()) {
-	runtime.LockOSThread()
 	onReady = onReadyFunc
 	onExit = onExitFunc
 	C.nativeLoopHeadless()
