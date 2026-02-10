@@ -7,6 +7,7 @@ import (
 	_ "net/http/pprof" // Register pprof handlers
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/cli"
@@ -17,6 +18,9 @@ import (
 )
 
 func main() {
+	// Lock to main thread for macOS Cocoa - must be called before any goroutines
+	runtime.LockOSThread()
+
 	cli.LaunchFunc = LaunchDaemon
 
 	cli.Execute()
