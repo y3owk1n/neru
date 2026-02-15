@@ -117,7 +117,14 @@ typedef NS_ENUM(uint16_t, KeyCode) {
 	kKeyCodeNumpad7 = 89,
 	kKeyCodeNumpad8 = 91,
 	kKeyCodeNumpad9 = 92,
+
+	kKeyCodeMaxPrintable = kKeyCodeBacktick,
 };
+
+/// compile-time assertion: verify kKeyCodeMaxPrintable matches the highest printable key code
+/// this will fail to compile if a new printable key is added above backtick without updating the logic
+#define keycode_assert_printable_max()                                                                                 \
+	_Static_assert(kKeyCodeMaxPrintable == kKeyCodeBacktick, "kKeyCodeMaxPrintable must equal kKeyCodeBacktick")
 
 #pragma mark - Key Mapping Functions
 

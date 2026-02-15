@@ -32,7 +32,8 @@ static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharShiftedCaps = nil;
 
 /// max virtual key code to scan when building layout maps
 /// ADB keyboards use keycodes 0-127, but printable keys are below 50.
-static const CGKeyCode kMaxPrintableKeyCode = 50;
+/// derived from kKeyCodeMaxPrintable in keymap.h for robustness
+static const CGKeyCode kMaxPrintableKeyCode = kKeyCodeMaxPrintable;
 
 /// debounce timer for keyboard layout change notifications
 static dispatch_block_t gLayoutChangeDebounceBlock = nil;
