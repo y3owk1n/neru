@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
 )
@@ -106,7 +107,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	}
 
 	// Handle backspace to allow input correction
-	if key == "\x7f" || key == "delete" || key == "backspace" {
+	if config.IsBackspaceKey(key) {
 		if len(m.CurrentInput()) > 0 {
 			m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
 

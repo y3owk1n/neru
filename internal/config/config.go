@@ -81,6 +81,12 @@ func IsResetKey(key, resetKey string) bool {
 	return NormalizeKeyForComparison(key) == NormalizeKeyForComparison(resetKey)
 }
 
+// IsBackspaceKey checks if a key is a backspace/delete key.
+// This normalizes all variations: "\x7f", "delete", "backspace", "Delete", "Backspace", etc.
+func IsBackspaceKey(key string) bool {
+	return NormalizeKeyForComparison(key) == KeyNameDelete
+}
+
 // ActionConfig defines the visual and behavioral settings for action mode.
 type ActionConfig struct {
 	KeyBindings   ActionKeyBindingsCfg `json:"keyBindings"   toml:"key_bindings"`

@@ -109,7 +109,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 	}
 
 	// Handle backspace/delete for backtracking
-	if key == "\x7f" || key == "delete" || key == "backspace" {
+	if config.IsBackspaceKey(key) {
 		if m.grid.Backtrack() {
 			m.Logger.Debug("Backtracked in quad-grid mode",
 				zap.Int("new_depth", m.grid.CurrentDepth()))
