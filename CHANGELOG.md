@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.18.2](https://github.com/y3owk1n/neru/compare/v1.18.1...v1.18.2) (2026-02-15)
+
+
+### Bug Fixes
+
+* **eventtap:** include Shift modifier in key callback and normalize special key strings ([#379](https://github.com/y3owk1n/neru/issues/379)) ([4c7a2b3](https://github.com/y3owk1n/neru/commit/4c7a2b3708815e4d292b24a529188dbe13938d1c))
+* **keymap:** debounce keyboard layout change notifications ([#378](https://github.com/y3owk1n/neru/issues/378)) ([b66c425](https://github.com/y3owk1n/neru/commit/b66c42551181584aef2c85f87f017863cc01dc71))
+* **keymap:** derive kKeyCodeMaxPrintable from enum for robustness ([#381](https://github.com/y3owk1n/neru/issues/381)) ([b11a459](https://github.com/y3owk1n/neru/commit/b11a45932b4f0910eaddce4b1b9a1140c693ce4c))
+* **keymap:** generic keyboard layout support ([#376](https://github.com/y3owk1n/neru/issues/376)) ([81be0db](https://github.com/y3owk1n/neru/commit/81be0db582adc9c50375b9ba60b8004484362dee))
+* **keymap:** pre-cache Shift+Caps modifier combination ([#380](https://github.com/y3owk1n/neru/issues/380)) ([965c29c](https://github.com/y3owk1n/neru/commit/965c29c842bcb8a77aae3ee7a13ff2cc0d6c6be3))
+
 ## [1.18.1](https://github.com/y3owk1n/neru/compare/v1.18.0...v1.18.1) (2026-02-10)
 
 
