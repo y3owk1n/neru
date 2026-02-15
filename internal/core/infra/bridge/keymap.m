@@ -28,6 +28,7 @@ static const UCKeyboardLayout *gCurrentKeyboardLayout = nil;
 static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharUnshifted = nil;
 static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharShifted = nil;
 static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharCaps = nil;
+static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharShiftedCaps = nil;
 
 /// max virtual key code to scan when building layout maps
 /// ADB keyboards use keycodes 0-127, but printable keys are below 50.
@@ -295,7 +296,8 @@ static NSString *keyCodeToNameQWERTY(CGKeyCode keyCode) {
 /// used when layout data is unavailable (e.g. CJK IME without underlying layout)
 static void buildQWERTYCharMaps(NSMutableDictionary<NSNumber *, NSString *> *unshifted,
                                 NSMutableDictionary<NSNumber *, NSString *> *shifted,
-                                NSMutableDictionary<NSNumber *, NSString *> *caps) {
+                                NSMutableDictionary<NSNumber *, NSString *> *caps,
+                                NSMutableDictionary<NSNumber *, NSString *> *shiftedCaps) {
 	for (CGKeyCode keyCode = 0; keyCode <= kMaxPrintableKeyCode; keyCode++) {
 		NSNumber *key = @(keyCode);
 
@@ -310,6 +312,10 @@ static void buildQWERTYCharMaps(NSMutableDictionary<NSNumber *, NSString *> *uns
 		NSString *cp = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskAlphaShift);
 		if (cp)
 			caps[key] = cp;
+
+		NSString *sc = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskShift | kCGEventFlagMaskAlphaShift);
+		if (sc)
+			shiftedCaps[key] = sc;
 	}
 }
 
@@ -396,9 +402,11 @@ static void buildLayoutMaps(void) {
 		NSMutableDictionary<NSNumber *, NSString *> *unshifted = [NSMutableDictionary dictionary];
 		NSMutableDictionary<NSNumber *, NSString *> *shifted = [NSMutableDictionary dictionary];
 		NSMutableDictionary<NSNumber *, NSString *> *caps = [NSMutableDictionary dictionary];
+		NSMutableDictionary<NSNumber *, NSString *> *shiftedCaps = [NSMutableDictionary dictionary];
 
 		UInt32 shiftMod = (shiftKey >> 8) & 0xFF;
 		UInt32 capsMod = (alphaLock >> 8) & 0xFF;
+		UInt32 shiftCapsMod = shiftMod | capsMod;
 
 		/// try to get the current keyboard layout
 		TISInputSourceRef inputSource = TISCopyCurrentKeyboardLayoutInputSource();
@@ -406,7 +414,7 @@ static void buildLayoutMaps(void) {
 			// no layout source available — populate with QWERTY fallback
 			// so special keys and basic key lookups still work
 			buildQWERTYNameMaps(nameToCode, codeToName);
-			buildQWERTYCharMaps(unshifted, shifted, caps);
+			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
 
 			[gKeymapLock lock];
 			gKeyNameToCodeMap = [nameToCode copy];
@@ -414,6 +422,7 @@ static void buildLayoutMaps(void) {
 			gKeyCodeToCharUnshifted = [unshifted copy];
 			gKeyCodeToCharShifted = [shifted copy];
 			gKeyCodeToCharCaps = [caps copy];
+			gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 			[gKeymapLock unlock];
 			return;
 		}
@@ -424,7 +433,7 @@ static void buildLayoutMaps(void) {
 			// populate with QWERTY fallback, keep previous layout pointer if we had one
 			CFRelease(inputSource);
 			buildQWERTYNameMaps(nameToCode, codeToName);
-			buildQWERTYCharMaps(unshifted, shifted, caps);
+			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
 
 			[gKeymapLock lock];
 			gKeyNameToCodeMap = [nameToCode copy];
@@ -432,6 +441,7 @@ static void buildLayoutMaps(void) {
 			gKeyCodeToCharUnshifted = [unshifted copy];
 			gKeyCodeToCharShifted = [shifted copy];
 			gKeyCodeToCharCaps = [caps copy];
+			gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 			// don't touch gCurrentInputSource/gCurrentKeyboardLayout —
 			// keep previous valid layout for live UCKeyTranslate fallback
 			[gKeymapLock unlock];
@@ -479,6 +489,12 @@ static void buildLayoutMaps(void) {
 				cp = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskAlphaShift);
 			if (cp)
 				caps[key] = cp;
+
+			NSString *sc = translateKeyCodeViaLayout(keyboardLayout, keyCode, shiftCapsMod);
+			if (!sc)
+				sc = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskShift | kCGEventFlagMaskAlphaShift);
+			if (sc)
+				shiftedCaps[key] = sc;
 		}
 
 		// atomic swap combined maps
@@ -500,6 +516,7 @@ static void buildLayoutMaps(void) {
 		gKeyCodeToCharUnshifted = [unshifted copy];
 		gKeyCodeToCharShifted = [shifted copy];
 		gKeyCodeToCharCaps = [caps copy];
+		gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 		[gKeymapLock unlock];
 	}
 }
@@ -660,7 +677,7 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	BOOL hasCaps = (flags & kCGEventFlagMaskAlphaShift) != 0;
 
 	// try cached map lookup first
-	// (no modifiers, shift only, caps only) without any UCKeyTranslate calls
+	// (no modifiers, shift only, caps only, shift+caps) without any UCKeyTranslate calls
 	[gKeymapLock lock];
 	NSDictionary *map;
 	if (hasShift && !hasCaps) {
@@ -670,7 +687,7 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	} else if (!hasShift && !hasCaps) {
 		map = gKeyCodeToCharUnshifted;
 	} else {
-		map = nil; // shift+caps not cached
+		map = gKeyCodeToCharShiftedCaps;
 	}
 	const UCKeyboardLayout *layout = gCurrentKeyboardLayout;
 	TISInputSourceRef localSource = gCurrentInputSource;
