@@ -156,7 +156,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			// Special handling for delete/backspace key (Shift+Delete handled in Shift-only block)
 			if (keyCode == kKeyCodeDelete) {
 				if (context->callback) {
-					context->callback("Delete", context->userData);
+					context->callback("delete", context->userData);
 				}
 				return NULL;
 			}
@@ -164,7 +164,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			// Special handling for escape key (Shift+Escape handled in Shift-only block)
 			if (keyCode == kKeyCodeEscape) {
 				if (context->callback) {
-					context->callback("Escape", context->userData);
+					context->callback("escape", context->userData);
 				}
 				return NULL;
 			}
