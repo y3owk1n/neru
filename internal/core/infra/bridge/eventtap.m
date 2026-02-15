@@ -153,25 +153,24 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				}
 			}
 
-			// Special handling for delete/backspace key
+			// Special handling for delete/backspace key (Shift+Delete handled at line 141)
 			if (keyCode == kKeyCodeDelete) {
 				if (context->callback) {
-					NSString *keyStr = hasShift ? @"Shift+\x7f" : @"\x7f";
-					context->callback([keyStr UTF8String], context -> userData);
+					context->callback("\x7f", context->userData);
 				}
 				return NULL;
 			}
 
-			// Special handling for escape key
+			// Special handling for escape key (Shift+Escape handled at line 141)
 			if (keyCode == kKeyCodeEscape) {
 				if (context->callback) {
-					NSString *keyStr = hasShift ? @"Shift+Escape" : @"\x1b";
-					context->callback([keyStr UTF8String], context -> userData);
+					context->callback("\x1b", context->userData);
 				}
 				return NULL;
 			}
 
 			// Handle arrow keys and special keys using lookup table
+			// Note: Shift+Arrow is handled at line 141 since keyCodeToName returns non-nil for these
 			{
 				static const struct {
 					CGKeyCode code;
@@ -185,9 +184,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				for (size_t i = 0; i < sizeof(specialKeys) / sizeof(specialKeys[0]); i++) {
 					if (keyCode == specialKeys[i].code) {
 						if (context->callback) {
-							NSString *keyStr = hasShift ? [NSString stringWithFormat:@"Shift+%s", specialKeys[i].name]
-							                            : [NSString stringWithUTF8String:specialKeys[i].name];
-							context->callback([keyStr UTF8String], context -> userData);
+							context->callback(specialKeys[i].name, context->userData);
 						}
 						return NULL;
 					}
