@@ -42,6 +42,10 @@ static const CGKeyCode kMaxPrintableKeyCode = 50;
 /// @param modifierState Carbon-style modifier state ((EventRecord.modifiers >> 8) & 0xFF)
 /// @return Character string, or nil if translation fails
 static NSString *translateKeyCodeViaLayout(const UCKeyboardLayout *keyboardLayout, CGKeyCode keyCode, UInt32 modifierState) {
+	if (!keyboardLayout) {
+		return nil;
+	}
+
 	UInt32 deadKeyState = 0;
 	UniChar chars[4];
 	UniCharCount actualLength = 0;
