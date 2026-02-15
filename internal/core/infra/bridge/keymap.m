@@ -714,6 +714,12 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 }
 
 void refreshKeyboardLayoutMaps(void) {
+	// Cancel any pending debounced rebuild to avoid redundant build
+	if (gLayoutChangeDebounceBlock) {
+		dispatch_block_cancel(gLayoutChangeDebounceBlock);
+		gLayoutChangeDebounceBlock = nil;
+	}
+
 	initializeKeyMaps();
 	buildLayoutMaps();
 }
