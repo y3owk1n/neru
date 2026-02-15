@@ -575,6 +575,8 @@ NSString *keyCodeToName(CGKeyCode keyCode) {
 }
 
 NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
+	initializeKeyMaps();
+	
 	// for special keys layout independent hardcoded values
 	switch (keyCode) {
 	case kKeyCodeSpace:
