@@ -164,7 +164,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			// Special handling for escape key (Shift+Escape handled in Shift-only block)
 			if (keyCode == kKeyCodeEscape) {
 				if (context->callback) {
-					context->callback("\x1b", context->userData);
+					context->callback("Escape", context->userData);
 				}
 				return NULL;
 			}
