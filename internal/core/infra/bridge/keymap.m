@@ -41,7 +41,8 @@ static const CGKeyCode kMaxPrintableKeyCode = 50;
 /// @param keyCode Virtual key code (0-127)
 /// @param modifierState Carbon-style modifier state ((EventRecord.modifiers >> 8) & 0xFF)
 /// @return Character string, or nil if translation fails
-static NSString *translateKeyCodeViaLayout(const UCKeyboardLayout *keyboardLayout, CGKeyCode keyCode, UInt32 modifierState) {
+static NSString *translateKeyCodeViaLayout(const UCKeyboardLayout *keyboardLayout, CGKeyCode keyCode,
+                                           UInt32 modifierState) {
 	if (!keyboardLayout) {
 		return nil;
 	}
@@ -50,9 +51,9 @@ static NSString *translateKeyCodeViaLayout(const UCKeyboardLayout *keyboardLayou
 	UniChar chars[4];
 	UniCharCount actualLength = 0;
 
-	OSStatus status = UCKeyTranslate(keyboardLayout, keyCode, kUCKeyActionDown, modifierState,
-	                                 LMGetKbdType(), kUCKeyTranslateNoDeadKeysBit, &deadKeyState,
-	                                 sizeof(chars) / sizeof(chars[0]), &actualLength, chars);
+	OSStatus status = UCKeyTranslate(keyboardLayout, keyCode, kUCKeyActionDown, modifierState, LMGetKbdType(),
+	                                 kUCKeyTranslateNoDeadKeysBit, &deadKeyState, sizeof(chars) / sizeof(chars[0]),
+	                                 &actualLength, chars);
 
 	if (status != noErr || actualLength == 0) {
 		return nil;
@@ -296,13 +297,16 @@ static void buildQWERTYCharMaps(NSMutableDictionary<NSNumber *, NSString *> *uns
 		NSNumber *key = @(keyCode);
 
 		NSString *ch = keyCodeToCharacterQWERTY(keyCode, 0);
-		if (ch) unshifted[key] = ch;
+		if (ch)
+			unshifted[key] = ch;
 
 		NSString *sh = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskShift);
-		if (sh) shifted[key] = sh;
+		if (sh)
+			shifted[key] = sh;
 
 		NSString *cp = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskAlphaShift);
-		if (cp) caps[key] = cp;
+		if (cp)
+			caps[key] = cp;
 	}
 }
 
@@ -358,13 +362,13 @@ static void initializeSpecialKeyMaps(void) {
 		@"F12" : @(kKeyCodeF12),
 	} copy];
 
-	NSMutableDictionary<NSNumber *, NSString *> *codeToName = [NSMutableDictionary dictionaryWithCapacity:gSpecialNameToCodeMap.count];
-	[gSpecialNameToCodeMap
-	    enumerateKeysAndObjectsUsingBlock:^(NSString *name, NSNumber *code, BOOL *stop) {
-		    if (!codeToName[code]) {
-			    codeToName[code] = name;
-		    }
-	    }];
+	NSMutableDictionary<NSNumber *, NSString *> *codeToName =
+	    [NSMutableDictionary dictionaryWithCapacity:gSpecialNameToCodeMap.count];
+	[gSpecialNameToCodeMap enumerateKeysAndObjectsUsingBlock:^(NSString *name, NSNumber *code, BOOL *stop) {
+		if (!codeToName[code]) {
+			codeToName[code] = name;
+		}
+	}];
 
 	// canonicalize duplicate names
 	codeToName[@(kKeyCodeReturn)] = @"Return";
@@ -380,8 +384,10 @@ static void initializeSpecialKeyMaps(void) {
 /// locks gKeymapLock during build
 static void buildLayoutMaps(void) {
 	@autoreleasepool {
-		NSMutableDictionary<NSString *, NSNumber *> *nameToCode = [NSMutableDictionary dictionaryWithDictionary:gSpecialNameToCodeMap];
-		NSMutableDictionary<NSNumber *, NSString *> *codeToName = [NSMutableDictionary dictionaryWithDictionary:gSpecialCodeToNameMap];
+		NSMutableDictionary<NSString *, NSNumber *> *nameToCode =
+		    [NSMutableDictionary dictionaryWithDictionary:gSpecialNameToCodeMap];
+		NSMutableDictionary<NSNumber *, NSString *> *codeToName =
+		    [NSMutableDictionary dictionaryWithDictionary:gSpecialCodeToNameMap];
 
 		// cache some keymaps with modifiers for speedyquick lookup
 		NSMutableDictionary<NSNumber *, NSString *> *unshifted = [NSMutableDictionary dictionary];
@@ -409,8 +415,7 @@ static void buildLayoutMaps(void) {
 			return;
 		}
 
-		CFDataRef layoutData =
-			(CFDataRef)TISGetInputSourceProperty(inputSource, kTISPropertyUnicodeKeyLayoutData);
+		CFDataRef layoutData = (CFDataRef)TISGetInputSourceProperty(inputSource, kTISPropertyUnicodeKeyLayoutData);
 		if (!layoutData) {
 			// layout source exists but has no uchr data (e.g. some CJK IMEs)
 			// populate with QWERTY fallback, keep previous layout pointer if we had one
@@ -438,19 +443,20 @@ static void buildLayoutMaps(void) {
 			if (gSpecialCodeToNameMap[@(keyCode)]) {
 				continue;
 			}
-    		NSNumber *key = @(keyCode);
+			NSNumber *key = @(keyCode);
 
 			NSString *ch = translateKeyCodeViaLayout(keyboardLayout, keyCode, 0);
-    		if (!ch || ch.length == 0) {
+			if (!ch || ch.length == 0) {
 				// UCKeyTranslate failed use QWERTY fallback
 				ch = keyCodeToNameQWERTY(keyCode);
-				if (!ch) continue;
+				if (!ch)
+					continue;
 			}
 			NSString *upper = ch.uppercaseString;
 			codeToName[key] = upper;
 
 			// add to name -> code mapping if not already present
-			// (the result is that the first keycode wins if it so 
+			// (the result is that the first keycode wins if it so
 			// happens that multiple keycodes produce the same character)
 			if (!nameToCode[upper]) {
 				nameToCode[upper] = key;
@@ -460,12 +466,16 @@ static void buildLayoutMaps(void) {
 			unshifted[key] = ch;
 
 			NSString *sh = translateKeyCodeViaLayout(keyboardLayout, keyCode, shiftMod);
-			if (!sh) sh = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskShift);
-			if (sh) shifted[key] = sh;
+			if (!sh)
+				sh = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskShift);
+			if (sh)
+				shifted[key] = sh;
 
 			NSString *cp = translateKeyCodeViaLayout(keyboardLayout, keyCode, capsMod);
-			if (!cp) cp = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskAlphaShift);
-			if (cp) caps[key] = cp;
+			if (!cp)
+				cp = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskAlphaShift);
+			if (cp)
+				caps[key] = cp;
 		}
 
 		// atomic swap combined maps
@@ -478,8 +488,8 @@ static void buildLayoutMaps(void) {
 		}
 		// take ownership of input source so keyboard layout is
 		// valid while gCurrentInputSource lives
-		gCurrentInputSource = inputSource;  
-		gCurrentKeyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);  
+		gCurrentInputSource = inputSource;
+		gCurrentKeyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
 
 		gKeyNameToCodeMap = newNameToCode;
 		gKeyCodeToNameMap = newCodeToName;
@@ -494,9 +504,8 @@ static void buildLayoutMaps(void) {
 #pragma mark - Layout Change Notification
 
 /// triggered by the system when keyboard layout changed to trigger rebuild
-static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *observer,
-                                        CFNotificationName name, const void *object,
-                                        CFDictionaryRef userInfo) {
+static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *observer, CFNotificationName name,
+                                        const void *object, CFDictionaryRef userInfo) {
 	buildLayoutMaps();
 }
 
@@ -511,10 +520,9 @@ static void initializeKeyMaps(void) {
 		buildLayoutMaps();
 
 		// trigger keymap rebuild on keyboard layout change
-		CFNotificationCenterAddObserver(
-		    CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
-		    kTISNotifySelectedKeyboardInputSourceChanged, NULL,
-		    CFNotificationSuspensionBehaviorDeliverImmediately);
+		CFNotificationCenterAddObserver(CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
+		                                kTISNotifySelectedKeyboardInputSourceChanged, NULL,
+		                                CFNotificationSuspensionBehaviorDeliverImmediately);
 	});
 }
 
@@ -576,7 +584,7 @@ NSString *keyCodeToName(CGKeyCode keyCode) {
 
 NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	initializeKeyMaps();
-	
+
 	// for special keys layout independent hardcoded values
 	switch (keyCode) {
 	case kKeyCodeSpace:
@@ -632,7 +640,7 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	BOOL hasShift = (flags & kCGEventFlagMaskShift) != 0;
 	BOOL hasCaps = (flags & kCGEventFlagMaskAlphaShift) != 0;
 
-	// try cached map lookup first 
+	// try cached map lookup first
 	// (no modifiers, shift only, caps only) without any UCKeyTranslate calls
 	[gKeymapLock lock];
 	NSDictionary *map;
@@ -643,17 +651,19 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	} else if (!hasShift && !hasCaps) {
 		map = gKeyCodeToCharUnshifted;
 	} else {
-		map = nil;  // shift+caps not cached
+		map = nil; // shift+caps not cached
 	}
 	const UCKeyboardLayout *layout = gCurrentKeyboardLayout;
 	TISInputSourceRef localSource = gCurrentInputSource;
-	if (localSource) CFRetain(localSource);  // keep backing data alive
+	if (localSource)
+		CFRetain(localSource); // keep backing data alive
 	[gKeymapLock unlock];
 
 	if (map) {
 		NSString *result = map[@(keyCode)];
 		if (result) {
-			if (localSource) CFRelease(localSource);
+			if (localSource)
+				CFRelease(localSource);
 			return result;
 		}
 	}
@@ -671,12 +681,14 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 		}
 		NSString *result = translateKeyCodeViaLayout(layout, keyCode, modifierState);
 		if (result && result.length > 0) {
-			if (localSource) CFRelease(localSource);
+			if (localSource)
+				CFRelease(localSource);
 			return result;
 		}
 	}
 
-	if (localSource) CFRelease(localSource);
+	if (localSource)
+		CFRelease(localSource);
 
 	// as a last resort
 	// hardcoded US QWERTY fallback if layout translation fails
