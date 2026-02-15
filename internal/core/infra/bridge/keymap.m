@@ -33,6 +33,9 @@ static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharCaps = nil;
 /// ADB keyboards use keycodes 0-127, but printable keys are below 50.
 static const CGKeyCode kMaxPrintableKeyCode = 50;
 
+/// debounce timer for keyboard layout change notifications
+static dispatch_block_t gLayoutChangeDebounceBlock = nil;
+
 #pragma mark - UCKeyTranslate Helper
 
 /// figure out which character string each virtual keycode maps to
@@ -504,9 +507,25 @@ static void buildLayoutMaps(void) {
 #pragma mark - Layout Change Notification
 
 /// triggered by the system when keyboard layout changed to trigger rebuild
+/// Note: This callback is invoked on the main thread by CFNotificationCenterGetDistributedCenter,
+/// so unsynchronized access to gLayoutChangeDebounceBlock is safe. The debounced block is also
+/// dispatched to the main queue, ensuring all access is serialized on the main thread.
 static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *observer, CFNotificationName name,
                                         const void *object, CFDictionaryRef userInfo) {
-	buildLayoutMaps();
+	if (gLayoutChangeDebounceBlock) {
+		dispatch_block_cancel(gLayoutChangeDebounceBlock);
+	}
+
+	gLayoutChangeDebounceBlock = dispatch_block_create(0, ^{
+		buildLayoutMaps();
+		gLayoutChangeDebounceBlock = nil;
+	});
+
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(150 * NSEC_PER_MSEC)), dispatch_get_main_queue(),
+	               gLayoutChangeDebounceBlock);
+	// Note: This introduces a 150ms window where keymap queries return stale data.
+	// Tradeoff is acceptable since CJK input methods fire multiple notifications per keystroke,
+	// and users aren't typically typing hotkeys during layout switches.
 }
 
 #pragma mark - Initialization
@@ -696,6 +715,18 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 }
 
 void refreshKeyboardLayoutMaps(void) {
-	initializeKeyMaps();
-	buildLayoutMaps();
+	void (^cancelAndRebuild)(void) = ^{
+		if (gLayoutChangeDebounceBlock) {
+			dispatch_block_cancel(gLayoutChangeDebounceBlock);
+			gLayoutChangeDebounceBlock = nil;
+		}
+		initializeKeyMaps();
+		buildLayoutMaps();
+	};
+
+	if ([NSThread isMainThread]) {
+		cancelAndRebuild();
+	} else {
+		dispatch_async(dispatch_get_main_queue(), cancelAndRebuild);
+	}
 }
