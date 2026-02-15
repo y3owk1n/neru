@@ -153,7 +153,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				}
 			}
 
-			// Special handling for delete/backspace key (Shift+Delete handled at line 141)
+			// Special handling for delete/backspace key (Shift+Delete handled in Shift-only block)
 			if (keyCode == kKeyCodeDelete) {
 				if (context->callback) {
 					context->callback("\x7f", context->userData);
@@ -161,7 +161,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				return NULL;
 			}
 
-			// Special handling for escape key (Shift+Escape handled at line 141)
+			// Special handling for escape key (Shift+Escape handled in Shift-only block)
 			if (keyCode == kKeyCodeEscape) {
 				if (context->callback) {
 					context->callback("\x1b", context->userData);
@@ -170,7 +170,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			}
 
 			// Handle arrow keys and special keys using lookup table
-			// Note: Shift+Arrow is handled at line 141 since keyCodeToName returns non-nil for these
+			// Note: Shift+Arrow is handled in Shift-only block since keyCodeToName returns non-nil for these
 			{
 				static const struct {
 					CGKeyCode code;
