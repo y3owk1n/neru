@@ -714,12 +714,18 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 }
 
 void refreshKeyboardLayoutMaps(void) {
-	// Cancel any pending debounced rebuild to avoid redundant build
-	if (gLayoutChangeDebounceBlock) {
-		dispatch_block_cancel(gLayoutChangeDebounceBlock);
-		gLayoutChangeDebounceBlock = nil;
-	}
+	void (^cancelAndRebuild)(void) = ^{
+		if (gLayoutChangeDebounceBlock) {
+			dispatch_block_cancel(gLayoutChangeDebounceBlock);
+			gLayoutChangeDebounceBlock = nil;
+		}
+		initializeKeyMaps();
+		buildLayoutMaps();
+	};
 
-	initializeKeyMaps();
-	buildLayoutMaps();
+	if ([NSThread isMainThread]) {
+		cancelAndRebuild();
+	} else {
+		dispatch_sync(dispatch_get_main_queue(), cancelAndRebuild);
+	}
 }
