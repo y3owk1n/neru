@@ -79,7 +79,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	}
 
 	// Handle backspace for input correction
-	if key == "\x7f" || key == "delete" || key == "backspace" {
+	if config.IsBackspaceKey(key) {
 		return m.handleBackspace()
 	}
 

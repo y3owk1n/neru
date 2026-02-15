@@ -109,7 +109,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				return event;
 			}
 
-			// Check for modifiers (excluding Shift which is used for normal typing)
+			// Check for modifiers (Shift alone is handled separately; Shift+Cmd/Alt/Ctrl is included in string)
 			BOOL hasCmd = (flags & kCGEventFlagMaskCommand) != 0;
 			BOOL hasShift = (flags & kCGEventFlagMaskShift) != 0;
 			BOOL hasAlt = (flags & kCGEventFlagMaskAlternate) != 0;
@@ -123,6 +123,8 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 					if (hasCmd)
 						[fullKey appendString:@"Cmd+"];
+					if (hasShift)
+						[fullKey appendString:@"Shift+"];
 					if (hasAlt)
 						[fullKey appendString:@"Alt+"];
 					if (hasCtrl)
@@ -151,23 +153,24 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				}
 			}
 
-			// Special handling for delete/backspace key without modifiers
+			// Special handling for delete/backspace key (Shift+Delete handled in Shift-only block)
 			if (keyCode == kKeyCodeDelete) {
 				if (context->callback) {
-					context->callback("\x7f", context->userData);
+					context->callback("delete", context->userData);
 				}
 				return NULL;
 			}
 
-			// Special handling for escape key without modifiers
+			// Special handling for escape key (Shift+Escape handled in Shift-only block)
 			if (keyCode == kKeyCodeEscape) {
 				if (context->callback) {
-					context->callback("\x1b", context->userData);
+					context->callback("escape", context->userData);
 				}
 				return NULL;
 			}
 
-			// Handle arrow keys and special keys without modifiers using lookup table
+			// Handle arrow keys and special keys using lookup table
+			// Note: Shift+Arrow is handled in Shift-only block since keyCodeToName returns non-nil for these
 			{
 				static const struct {
 					CGKeyCode code;
