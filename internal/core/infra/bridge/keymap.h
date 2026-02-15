@@ -117,9 +117,11 @@ typedef NS_ENUM(uint16_t, KeyCode) {
 	kKeyCodeNumpad7 = 89,
 	kKeyCodeNumpad8 = 91,
 	kKeyCodeNumpad9 = 92,
-
-	kKeyCodeMaxPrintable = 50,
 };
+
+/// max virtual key code for printable keys (non-special keys)
+/// must be updated when adding printable keys with codes > 50
+static const CGKeyCode kKeyCodeMaxPrintable = 50;
 
 /// compile-time assertion: verify kKeyCodeMaxPrintable covers all printable keys
 /// must be updated when adding printable keys with codes > 50
