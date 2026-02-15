@@ -122,29 +122,39 @@ typedef NS_ENUM(uint16_t, KeyCode) {
 #pragma mark - Key Mapping Functions
 
 /// Returns the shared key name to keycode mapping dictionary
+/// Layout-aware for letter and symbol keys, static for special keys.
 /// Keys: "Space", "Return", "A", "1", "F1", etc.
 /// Values: NSNumber containing CGKeyCode
 NSDictionary<NSString *, NSNumber *> *keyNameToCodeMap(void);
 
 /// Returns the shared keycode to name mapping dictionary
+/// Layout-aware for letter and symbol keys, static for special keys.
 /// Keys: NSNumber containing CGKeyCode
 /// Values: "Space", "Return", "A", "1", "F1", etc.
 NSDictionary<NSNumber *, NSString *> *keyCodeToNameMap(void);
 
 /// Map key name to keycode (case-insensitive)
+/// Layout-aware: "S" returns the keycode that produces "S" on the current layout
 /// @param keyName Key name like "Space", "Return", "A", "1"
 /// @return Keycode or 0xFFFF if not found
 CGKeyCode keyNameToCode(NSString *keyName);
 
-/// Map keycode to key name
+/// Map keycode to key name using the current keyboard layout
 /// @param keyCode Key code
 /// @return Key name or nil if not found
 NSString *keyCodeToName(CGKeyCode keyCode);
 
 /// Map keycode to character with shift/capslock handling
+/// Uses UCKeyTranslate to respect Colemak, Dvorak, etc. while bypassing IME.
+/// Falls back to US QWERTY if layout translation fails.
 /// @param keyCode Key code
 /// @param flags Event flags (for shift/capslock detection)
 /// @return Character string or nil if not found
 NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags);
+
+/// Rebuild layout-aware key maps after a keyboard layout change.
+/// Called automatically via kTISNotifySelectedKeyboardInputSourceChanged.
+/// Safe to call manually if needed.
+void refreshKeyboardLayoutMaps(void);
 
 #endif // KEYMAP_H

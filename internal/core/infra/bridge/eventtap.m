@@ -188,8 +188,8 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				}
 			}
 
-			// Map key code to character directly using US QWERTY layout
-			// This bypasses input methods completely
+			// Map key code to character using current keyboard layout (with US QWERTY fallback)
+			// Uses UCKeyTranslate to respect the active keyboard layout while bypassing input methods
 			NSString *keyChar = keyCodeToCharacter(keyCode, flags);
 			if (keyChar && context->callback) {
 				const char *keyCString = [keyChar UTF8String];
