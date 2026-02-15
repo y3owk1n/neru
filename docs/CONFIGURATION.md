@@ -145,36 +145,27 @@ Format notes:
 
 ## Keyboard Layout Requirements
 
-Neru uses direct keycode-to-character mapping for keyboard input. This approach has specific requirements and limitations:
+Neru automatically detects and supports various keyboard layouts using macOS system APIs. The keyboard layout is read directly from your macOS input settings.
 
-**Supported Layout:** US QWERTY only
+**Supported Layouts:**
 
-Neru is designed to work with the standard US QWERTY physical keyboard layout. This includes:
-
-- All letter keys (a-z)
-- Number row and symbols (`1` through `0`)
-- Punctuation keys (`-`, `=`, `[`, `]`, `\`, `;`, `'`, `,`, `.`, `/`)
-- Space bar and modifiers (Cmd, Option/Alt, Control, Shift)
-
-### Input Method Independence
-
-Neru intentionally bypasses macOS input methods (such as Chinese, Japanese, and Korean IME systems). This ensures:
-
-- Direct character input without input method interference
-- Consistent behavior across all applications
-- No unexpected character conversion
-
-### Unsupported Layouts
-
-The following keyboard layouts are **not supported**:
-
+- US QWERTY
 - AZERTY (French)
 - QWERTZ (German, Swiss)
 - Dvorak
 - Colemak
-- Any other non-US layouts
+- Most other standard physical keyboard layouts
 
-Users with these physical keyboard layouts will experience incorrect character output.
+Neru automatically detects your active keyboard layout and translates keycodes accordingly. No configuration is required.
+
+### Input Method Support
+
+Neru supports CJK input methods (Pinyin, Wubi, etc.). When using an input method:
+- Hints work correctly with your physical keyboard layout
+- Key presses are translated through the physical layout before being sent to the input method
+- The input method receives the expected key events
+
+This allows you to use Chinese, Japanese, or Korean input methods while maintaining full keyboard navigation functionality.
 
 ---
 
