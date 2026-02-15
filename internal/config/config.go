@@ -32,6 +32,8 @@ const (
 // matching for all keys (e.g. "q" matches "Q", "Ctrl+R" matches "ctrl+r").
 // On macOS, both "backspace" and "delete" are treated as synonyms for the DEL key (\x7f).
 func NormalizeKeyForComparison(key string) string {
+	key = strings.ToLower(key)
+
 	switch key {
 	case "\x1b", KeyNameEscape, "esc":
 		return KeyNameEscape
@@ -48,9 +50,7 @@ func NormalizeKeyForComparison(key string) string {
 		// Treat both "delete" and "backspace" as synonyms for the DEL key for user-friendly matching.
 		return KeyNameDelete
 	default:
-		// Normalize to lowercase for case-insensitive matching.
-		// This handles modifier combos (e.g. "Ctrl+R") and single characters (e.g. "q" vs "Q").
-		return strings.ToLower(key)
+		return key
 	}
 }
 
