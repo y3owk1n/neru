@@ -173,7 +173,7 @@ static NSString *keyCodeToCharacterQWERTY(CGKeyCode keyCode, CGEventFlags flags)
 		return hasShift ? @"+" : @"=";
 	case kKeyCodeMinus:
 		return hasShift ? @"_" : @"-";
-	case kKeyCodeMaxPrintable:
+	case kKeyCodeBacktick:
 		return hasShift ? @"~" : @"`";
 
 	default:
@@ -279,7 +279,7 @@ static NSString *keyCodeToNameQWERTY(CGKeyCode keyCode) {
 		return @"/";
 	case kKeyCodePeriod:
 		return @".";
-	case kKeyCodeMaxPrintable:
+	case kKeyCodeBacktick:
 		return @"`";
 	default:
 		return nil;
