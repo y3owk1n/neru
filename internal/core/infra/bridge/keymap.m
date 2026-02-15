@@ -33,6 +33,9 @@ static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharCaps = nil;
 /// ADB keyboards use keycodes 0-127, but printable keys are below 50.
 static const CGKeyCode kMaxPrintableKeyCode = 50;
 
+/// debounce timer for keyboard layout change notifications
+static dispatch_block_t gLayoutChangeDebounceBlock = nil;
+
 #pragma mark - UCKeyTranslate Helper
 
 /// figure out which character string each virtual keycode maps to
@@ -506,7 +509,16 @@ static void buildLayoutMaps(void) {
 /// triggered by the system when keyboard layout changed to trigger rebuild
 static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *observer, CFNotificationName name,
                                         const void *object, CFDictionaryRef userInfo) {
-	buildLayoutMaps();
+	if (gLayoutChangeDebounceBlock) {
+		dispatch_block_cancel(gLayoutChangeDebounceBlock);
+	}
+
+	gLayoutChangeDebounceBlock = dispatch_block_create(0, ^{
+		buildLayoutMaps();
+	});
+
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(150 * NSEC_PER_MSEC)), dispatch_get_main_queue(),
+	               gLayoutChangeDebounceBlock);
 }
 
 #pragma mark - Initialization
