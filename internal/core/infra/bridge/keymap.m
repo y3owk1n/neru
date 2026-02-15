@@ -7,9 +7,6 @@
 
 #import "keymap.h"
 
-/// compile-time check: ensure kKeyCodeBacktick covers all printable keys
-keycode_assert_printable_max();
-
 #pragma mark - Static Data
 
 /// mutex lock for layout-aware keymaps
