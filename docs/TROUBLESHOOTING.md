@@ -475,25 +475,28 @@ include_dock_hints = true
 
 ### Wrong characters produced when typing
 
-**Neru only supports US QWERTY physical keyboard layout.**
+Neru supports most keyboard layouts including QWERTY, AZERTY, QWERTZ, Dvorak, and Colemak. Neru automatically detects your physical keyboard layout via macOS and translates keycodes accordingly.
 
-If you're using a non-US keyboard layout (AZERTY, QWERTZ, Dvorak, Colemak, etc.), key presses may produce incorrect characters.
+If you're still experiencing issues:
 
-**Affected layouts:**
+1. **Check your keyboard layout is properly configured in macOS:**
+   - System Settings → Keyboard → Input Source
+   - Ensure your desired layout is added and selected
 
-- AZERTY (French)
-- QWERTZ (German, Swiss)
-- Dvorak
-- Colemak
-- Any other non-US layout
+2. **Layout not detected correctly:**
+   - Some custom layouts may not be detected properly
+   - Try switching to a standard layout (US QWERTY, Colemak, Dvorak) in macOS input settings
 
-**Solution:** Use a US QWERTY keyboard or physical layout in macOS System Settings.
+### Input methods not working (CJK IME)
 
-### Input methods not working
+Neru now supports CJK input methods (Pinyin, Wubi, etc.). When using an input method:
+- Hints work correctly
+- Key presses are translated through your physical keyboard layout
+- The input method receives keys as expected
 
-**Neru intentionally bypasses input methods (CJK IME, etc.).**
-
-This is expected behavior. Neru sends raw keycode-to-character mappings for consistent input across all applications.
+If input methods still don't work:
+- Ensure the input method is properly installed and active in macOS
+- Check that Accessibility permissions are granted to Neru
 
 ---
 
