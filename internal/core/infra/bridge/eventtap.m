@@ -156,7 +156,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			// Special handling for delete/backspace key (Shift+Delete handled in Shift-only block)
 			if (keyCode == kKeyCodeDelete) {
 				if (context->callback) {
-					context->callback("\x7f", context->userData);
+					context->callback("Delete", context->userData);
 				}
 				return NULL;
 			}
