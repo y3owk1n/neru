@@ -518,6 +518,7 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 
 	gLayoutChangeDebounceBlock = dispatch_block_create(0, ^{
 		buildLayoutMaps();
+		gLayoutChangeDebounceBlock = nil;
 	});
 
 	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(150 * NSEC_PER_MSEC)), dispatch_get_main_queue(),
