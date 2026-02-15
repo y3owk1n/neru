@@ -7,7 +7,7 @@
 
 #import "keymap.h"
 
-/// compile-time check: ensure kKeyCodeMaxPrintable covers all printable keys
+/// compile-time check: ensure kKeyCodeBacktick covers all printable keys
 keycode_assert_printable_max();
 
 #pragma mark - Static Data
@@ -297,7 +297,7 @@ static void buildQWERTYCharMaps(NSMutableDictionary<NSNumber *, NSString *> *uns
                                 NSMutableDictionary<NSNumber *, NSString *> *shifted,
                                 NSMutableDictionary<NSNumber *, NSString *> *caps,
                                 NSMutableDictionary<NSNumber *, NSString *> *shiftedCaps) {
-	for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeMaxPrintable; keyCode++) {
+	for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeBacktick; keyCode++) {
 		NSNumber *key = @(keyCode);
 
 		NSString *ch = keyCodeToCharacterQWERTY(keyCode, 0);
@@ -322,7 +322,7 @@ static void buildQWERTYCharMaps(NSMutableDictionary<NSNumber *, NSString *> *uns
 /// ensures special keys and basic key lookups work even without layout data
 static void buildQWERTYNameMaps(NSMutableDictionary<NSString *, NSNumber *> *nameToCode,
                                 NSMutableDictionary<NSNumber *, NSString *> *codeToName) {
-	for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeMaxPrintable; keyCode++) {
+	for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeBacktick; keyCode++) {
 		NSString *ch = keyCodeToNameQWERTY(keyCode);
 		if (ch) {
 			codeToName[@(keyCode)] = ch;
@@ -450,7 +450,7 @@ static void buildLayoutMaps(void) {
 		const UCKeyboardLayout *keyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
 
 		// scan printable keycodes and translate via current keyboard layout
-		for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeMaxPrintable; keyCode++) {
+		for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeBacktick; keyCode++) {
 			// skip keycodes already covered by special key maps
 			if (gSpecialCodeToNameMap[@(keyCode)]) {
 				continue;
