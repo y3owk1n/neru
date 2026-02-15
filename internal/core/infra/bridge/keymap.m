@@ -287,6 +287,40 @@ static NSString *keyCodeToNameQWERTY(CGKeyCode keyCode) {
 
 #pragma mark - Keymap Building
 
+/// build QWERTY-only fallback char maps using the hardcoded tables
+/// used when layout data is unavailable (e.g. CJK IME without underlying layout)
+static void buildQWERTYCharMaps(NSMutableDictionary<NSNumber *, NSString *> *unshifted,
+                                NSMutableDictionary<NSNumber *, NSString *> *shifted,
+                                NSMutableDictionary<NSNumber *, NSString *> *caps) {
+	for (CGKeyCode keyCode = 0; keyCode <= kMaxPrintableKeyCode; keyCode++) {
+		NSNumber *key = @(keyCode);
+
+		NSString *ch = keyCodeToCharacterQWERTY(keyCode, 0);
+		if (ch) unshifted[key] = ch;
+
+		NSString *sh = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskShift);
+		if (sh) shifted[key] = sh;
+
+		NSString *cp = keyCodeToCharacterQWERTY(keyCode, kCGEventFlagMaskAlphaShift);
+		if (cp) caps[key] = cp;
+	}
+}
+
+/// populate name/code maps with QWERTY fallback entries
+/// ensures special keys and basic key lookups work even without layout data
+static void buildQWERTYNameMaps(NSMutableDictionary<NSString *, NSNumber *> *nameToCode,
+                                NSMutableDictionary<NSNumber *, NSString *> *codeToName) {
+	for (CGKeyCode keyCode = 0; keyCode <= kMaxPrintableKeyCode; keyCode++) {
+		NSString *ch = keyCodeToNameQWERTY(keyCode);
+		if (ch) {
+			codeToName[@(keyCode)] = ch;
+			if (!nameToCode[ch]) {
+				nameToCode[ch] = @(keyCode);
+			}
+		}
+	}
+}
+
 /// build special key maps which should be layout independent
 static void initializeSpecialKeyMaps(void) {
 	gSpecialNameToCodeMap = [@{
@@ -360,15 +394,39 @@ static void buildLayoutMaps(void) {
 		/// try to get the current keyboard layout
 		TISInputSourceRef inputSource = TISCopyCurrentKeyboardLayoutInputSource();
 		if (!inputSource) {
-			NSLog(@"[neru-debug] TISCopyCurrentKeyboardLayoutInputSource returned nil!");
+			// no layout source available — populate with QWERTY fallback
+			// so special keys and basic key lookups still work
+			buildQWERTYNameMaps(nameToCode, codeToName);
+			buildQWERTYCharMaps(unshifted, shifted, caps);
+
+			[gKeymapLock lock];
+			gKeyNameToCodeMap = [nameToCode copy];
+			gKeyCodeToNameMap = [codeToName copy];
+			gKeyCodeToCharUnshifted = [unshifted copy];
+			gKeyCodeToCharShifted = [shifted copy];
+			gKeyCodeToCharCaps = [caps copy];
+			[gKeymapLock unlock];
 			return;
 		}
 
 		CFDataRef layoutData =
 			(CFDataRef)TISGetInputSourceProperty(inputSource, kTISPropertyUnicodeKeyLayoutData);
 		if (!layoutData) {
-			NSLog(@"[neru-debug] No kTISPropertyUnicodeKeyLayoutData!");
+			// layout source exists but has no uchr data (e.g. some CJK IMEs)
+			// populate with QWERTY fallback, keep previous layout pointer if we had one
 			CFRelease(inputSource);
+			buildQWERTYNameMaps(nameToCode, codeToName);
+			buildQWERTYCharMaps(unshifted, shifted, caps);
+
+			[gKeymapLock lock];
+			gKeyNameToCodeMap = [nameToCode copy];
+			gKeyCodeToNameMap = [codeToName copy];
+			gKeyCodeToCharUnshifted = [unshifted copy];
+			gKeyCodeToCharShifted = [shifted copy];
+			gKeyCodeToCharCaps = [caps copy];
+			// don't touch gCurrentInputSource/gCurrentKeyboardLayout —
+			// keep previous valid layout for live UCKeyTranslate fallback
+			[gKeymapLock unlock];
 			return;
 		}
 
@@ -568,10 +626,12 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 		break;
 	}
 
-	// attempt layout-aware translation first
+	// attempt layout-aware translation
 	BOOL hasShift = (flags & kCGEventFlagMaskShift) != 0;
 	BOOL hasCaps = (flags & kCGEventFlagMaskAlphaShift) != 0;
 
+	// try cached map lookup first 
+	// (no modifiers, shift only, caps only) without any UCKeyTranslate calls
 	[gKeymapLock lock];
 	NSDictionary *map;
 	if (hasShift && !hasCaps) {
@@ -584,11 +644,14 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 		map = nil;  // shift+caps not cached
 	}
 	const UCKeyboardLayout *layout = gCurrentKeyboardLayout;
+	TISInputSourceRef localSource = gCurrentInputSource;
+	if (localSource) CFRetain(localSource);  // keep backing data alive
 	[gKeymapLock unlock];
 
 	if (map) {
 		NSString *result = map[@(keyCode)];
 		if (result) {
+			if (localSource) CFRelease(localSource);
 			return result;
 		}
 	}
@@ -606,9 +669,12 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 		}
 		NSString *result = translateKeyCodeViaLayout(layout, keyCode, modifierState);
 		if (result && result.length > 0) {
+			if (localSource) CFRelease(localSource);
 			return result;
 		}
 	}
+
+	if (localSource) CFRelease(localSource);
 
 	// as a last resort
 	// hardcoded US QWERTY fallback if layout translation fails
