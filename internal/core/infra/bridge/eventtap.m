@@ -109,7 +109,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				return event;
 			}
 
-			// Check for modifiers (excluding Shift which is used for normal typing)
+			// Check for modifiers (Shift alone is handled separately; Shift+Cmd/Alt/Ctrl is included in string)
 			BOOL hasCmd = (flags & kCGEventFlagMaskCommand) != 0;
 			BOOL hasShift = (flags & kCGEventFlagMaskShift) != 0;
 			BOOL hasAlt = (flags & kCGEventFlagMaskAlternate) != 0;
