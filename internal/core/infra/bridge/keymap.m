@@ -507,6 +507,9 @@ static void buildLayoutMaps(void) {
 #pragma mark - Layout Change Notification
 
 /// triggered by the system when keyboard layout changed to trigger rebuild
+/// Note: This callback is invoked on the main thread by CFNotificationCenterGetDistributedCenter,
+/// so unsynchronized access to gLayoutChangeDebounceBlock is safe. The debounced block is also
+/// dispatched to the main queue, ensuring all access is serialized on the main thread.
 static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *observer, CFNotificationName name,
                                         const void *object, CFDictionaryRef userInfo) {
 	if (gLayoutChangeDebounceBlock) {
