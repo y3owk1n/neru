@@ -154,7 +154,8 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags);
 
 /// Rebuild layout-aware key maps after a keyboard layout change.
 /// Called automatically via kTISNotifySelectedKeyboardInputSourceChanged.
-/// Safe to call manually if needed.
+/// Safe to call manually if needed. When called from a non-main thread,
+/// the rebuild is dispatched asynchronously to the main queue.
 void refreshKeyboardLayoutMaps(void);
 
 #endif // KEYMAP_H
