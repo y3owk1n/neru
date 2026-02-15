@@ -123,6 +123,8 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 					if (hasCmd)
 						[fullKey appendString:@"Cmd+"];
+					if (hasShift)
+						[fullKey appendString:@"Shift+"];
 					if (hasAlt)
 						[fullKey appendString:@"Alt+"];
 					if (hasCtrl)
