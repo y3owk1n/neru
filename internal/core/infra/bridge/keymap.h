@@ -122,7 +122,7 @@ typedef NS_ENUM(uint16_t, KeyCode) {
 /// max virtual key code for printable keys (non-special keys)
 /// kKeyCodeBacktick = 50 is the highest printable key code in the KeyCode enum
 /// loops in keymap.m use kKeyCodeBacktick directly as the scan upper bound
-static const CGKeyCode kKeyCodeMaxPrintable = 50;
+#define kKeyCodeMaxPrintable 50
 
 /// compile-time assertion: verify scan bounds cover all printable keys
 /// if a new printable key is added above 50, update kKeyCodeMaxPrintable AND use the new key in loop bounds
