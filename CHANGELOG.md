@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.2](https://github.com/y3owk1n/neru/compare/v1.18.1...v1.18.2) (2026-02-15)
+
+
+### Bug Fixes
+
+* **keymap:** generic keyboard layout support ([#376](https://github.com/y3owk1n/neru/issues/376)) ([81be0db](https://github.com/y3owk1n/neru/commit/81be0db582adc9c50375b9ba60b8004484362dee))
+
 ## [1.18.1](https://github.com/y3owk1n/neru/compare/v1.18.0...v1.18.1) (2026-02-10)
 
 
