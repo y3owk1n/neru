@@ -119,6 +119,13 @@ typedef NS_ENUM(uint16_t, KeyCode) {
 	kKeyCodeNumpad9 = 92,
 };
 
+/// Highest keycode for printable (non-special) keys.
+/// kKeyCodeBacktick=50 is currently the highest printable keycode.
+/// Loops in keymap.m use kKeyCodeMaxPrintable (aliased to kKeyCodeBacktick).
+/// If a new printable key above 50 is added, update both kKeyCodeMaxPrintable
+/// and the KeyCode enum.
+#define kKeyCodeMaxPrintable kKeyCodeBacktick
+
 #pragma mark - Key Mapping Functions
 
 /// Returns the shared key name to keycode mapping dictionary
