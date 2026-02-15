@@ -173,7 +173,7 @@ static NSString *keyCodeToCharacterQWERTY(CGKeyCode keyCode, CGEventFlags flags)
 		return hasShift ? @"+" : @"=";
 	case kKeyCodeMinus:
 		return hasShift ? @"_" : @"-";
-	case kKeyCodeBacktick:
+	case kKeyCodeMaxPrintable:
 		return hasShift ? @"~" : @"`";
 
 	default:
@@ -279,7 +279,7 @@ static NSString *keyCodeToNameQWERTY(CGKeyCode keyCode) {
 		return @"/";
 	case kKeyCodePeriod:
 		return @".";
-	case kKeyCodeBacktick:
+	case kKeyCodeMaxPrintable:
 		return @"`";
 	default:
 		return nil;
@@ -294,7 +294,7 @@ static void buildQWERTYCharMaps(NSMutableDictionary<NSNumber *, NSString *> *uns
                                 NSMutableDictionary<NSNumber *, NSString *> *shifted,
                                 NSMutableDictionary<NSNumber *, NSString *> *caps,
                                 NSMutableDictionary<NSNumber *, NSString *> *shiftedCaps) {
-	for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeBacktick; keyCode++) {
+	for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeMaxPrintable; keyCode++) {
 		NSNumber *key = @(keyCode);
 
 		NSString *ch = keyCodeToCharacterQWERTY(keyCode, 0);
@@ -319,7 +319,7 @@ static void buildQWERTYCharMaps(NSMutableDictionary<NSNumber *, NSString *> *uns
 /// ensures special keys and basic key lookups work even without layout data
 static void buildQWERTYNameMaps(NSMutableDictionary<NSString *, NSNumber *> *nameToCode,
                                 NSMutableDictionary<NSNumber *, NSString *> *codeToName) {
-	for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeBacktick; keyCode++) {
+	for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeMaxPrintable; keyCode++) {
 		NSString *ch = keyCodeToNameQWERTY(keyCode);
 		if (ch) {
 			codeToName[@(keyCode)] = ch;
@@ -447,7 +447,7 @@ static void buildLayoutMaps(void) {
 		const UCKeyboardLayout *keyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
 
 		// scan printable keycodes and translate via current keyboard layout
-		for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeBacktick; keyCode++) {
+		for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeMaxPrintable; keyCode++) {
 			// skip keycodes already covered by special key maps
 			if (gSpecialCodeToNameMap[@(keyCode)]) {
 				continue;
