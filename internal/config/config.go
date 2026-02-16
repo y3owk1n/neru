@@ -53,7 +53,15 @@ func NormalizeKeyForComparison(key string) string {
 	default:
 		// Normalize fullwidth CJK characters to halfwidth ASCII equivalents
 		// Fullwidth range: U+FF01 to U+FF5E maps to U+0021 to U+007E
-		return normalizeFullwidthChars(key)
+		normalized := normalizeFullwidthChars(key)
+
+		// Re-check if the normalized result matches a canonical key name
+		// (e.g., fullwidth space U+3000 → " " → "space")
+		if normalized != key {
+			return NormalizeKeyForComparison(normalized)
+		}
+
+		return normalized
 	}
 }
 
