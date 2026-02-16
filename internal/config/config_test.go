@@ -372,3 +372,290 @@ func TestFindConfigFile(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizeKeyForComparison_FullwidthChars(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// Fullwidth comma (most common case - reset key)
+		{
+			name:     "fullwidth comma",
+			input:    "\uFF0C",
+			expected: ",",
+		},
+		{
+			name:     "fullwidth comma uppercase",
+			input:    "\uFF0C",
+			expected: ",",
+		},
+		// Fullwidth space (should normalize to canonical "space")
+		{
+			name:     "fullwidth space U+3000",
+			input:    "\u3000",
+			expected: "space",
+		},
+		// Regular space (should also normalize to "space")
+		{
+			name:     "regular space",
+			input:    " ",
+			expected: "space",
+		},
+		// Other fullwidth punctuation
+		{
+			name:     "fullwidth period",
+			input:    "\uFF0E",
+			expected: ".",
+		},
+		{
+			name:     "fullwidth exclamation",
+			input:    "\uFF01",
+			expected: "!",
+		},
+		{
+			name:     "fullwidth question mark",
+			input:    "\uFF1F",
+			expected: "?",
+		},
+		// Fullwidth letters
+		{
+			name:     "fullwidth A",
+			input:    "\uFF21",
+			expected: "a",
+		},
+		{
+			name:     "fullwidth z",
+			input:    "\uFF5A",
+			expected: "z",
+		},
+		// Fullwidth numbers
+		{
+			name:     "fullwidth 0",
+			input:    "\uFF10",
+			expected: "0",
+		},
+		{
+			name:     "fullwidth 9",
+			input:    "\uFF19",
+			expected: "9",
+		},
+		// ASCII characters (should pass through unchanged)
+		{
+			name:     "regular comma",
+			input:    ",",
+			expected: ",",
+		},
+		{
+			name:     "regular letter",
+			input:    "a",
+			expected: "a",
+		},
+		{
+			name:     "regular uppercase letter",
+			input:    "A",
+			expected: "a",
+		},
+		// Special keys (should use canonical forms)
+		{
+			name:     "escape",
+			input:    "escape",
+			expected: "escape",
+		},
+		{
+			name:     "fullwidth escape should not match",
+			input:    "\uFF25\uFF33\uFF23\uFF21\uFF30\uFF25",
+			expected: "escape",
+		},
+		// Edge cases
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "multiple fullwidth chars",
+			input:    "\uFF0C\uFF0E", // fullwidth comma + period
+			expected: ",.",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := config.NormalizeKeyForComparison(testCase.input)
+			if got != testCase.expected {
+				t.Errorf("NormalizeKeyForComparison(%q) = %q, want %q",
+					testCase.input, got, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestIsResetKey_WithFullwidthChars(t *testing.T) {
+	tests := []struct {
+		name     string
+		key      string
+		resetKey string
+		want     bool
+	}{
+		{
+			name:     "fullwidth comma matches regular comma reset",
+			key:      "\uFF0C", // fullwidth comma
+			resetKey: ",",
+			want:     true,
+		},
+		{
+			name:     "regular comma matches fullwidth comma reset",
+			key:      ",",
+			resetKey: "\uFF0C",
+			want:     true,
+		},
+		{
+			name:     "fullwidth comma matches fullwidth comma reset",
+			key:      "\uFF0C",
+			resetKey: "\uFF0C",
+			want:     true,
+		},
+		{
+			name:     "regular comma matches regular comma reset",
+			key:      ",",
+			resetKey: ",",
+			want:     true,
+		},
+		{
+			name:     "fullwidth period does not match comma reset",
+			key:      "\uFF0E",
+			resetKey: ",",
+			want:     false,
+		},
+		{
+			name:     "fullwidth space matches regular space reset",
+			key:      "\u3000",
+			resetKey: " ",
+			want:     true,
+		},
+		{
+			name:     "modifier combo not affected by fullwidth",
+			key:      "Ctrl+R",
+			resetKey: "ctrl+r",
+			want:     true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := config.IsResetKey(testCase.key, testCase.resetKey)
+			if got != testCase.want {
+				t.Errorf("IsResetKey(%q, %q) = %v, want %v",
+					testCase.key, testCase.resetKey, got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestIsExitKey_WithFullwidthChars(t *testing.T) {
+	tests := []struct {
+		name     string
+		key      string
+		exitKeys []string
+		want     bool
+	}{
+		{
+			name:     "fullwidth space matches regular space exit",
+			key:      "\u3000", // fullwidth space
+			exitKeys: []string{" "},
+			want:     true,
+		},
+		{
+			name:     "fullwidth space matches space exit key",
+			key:      "\u3000",
+			exitKeys: []string{"space"},
+			want:     true,
+		},
+		{
+			name:     "regular space matches fullwidth space exit",
+			key:      " ",
+			exitKeys: []string{"\u3000"},
+			want:     true,
+		},
+		{
+			name:     "fullwidth comma in exit keys",
+			key:      "\uFF0C",
+			exitKeys: []string{","},
+			want:     true,
+		},
+		{
+			name:     "multiple exit keys with fullwidth",
+			key:      "\u3000",
+			exitKeys: []string{"escape", " ", "q"},
+			want:     true,
+		},
+		{
+			name:     "no matching exit key",
+			key:      "\uFF0C",
+			exitKeys: []string{"escape", "q"},
+			want:     false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := config.IsExitKey(testCase.key, testCase.exitKeys)
+			if got != testCase.want {
+				t.Errorf("IsExitKey(%q, %v) = %v, want %v",
+					testCase.key, testCase.exitKeys, got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestNormalizeKeyForComparison_CJKInputMethodScenarios(t *testing.T) {
+	// These tests simulate real-world CJK input method scenarios
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+		desc     string
+	}{
+		{
+			name:     "Chinese input comma key",
+			input:    "，",
+			expected: ",",
+			desc:     "User presses comma key with Chinese IM active",
+		},
+		{
+			name:     "fullwidth period key (U+FF0E)",
+			input:    "\uFF0E",
+			expected: ".",
+			desc:     "Fullwidth period from keyboard layout",
+		},
+		{
+			name:     "Chinese input space key",
+			input:    "　",
+			expected: "space",
+			desc:     "User presses space key with Chinese IM active",
+		},
+		{
+			name:     "Japanese fullwidth exclamation",
+			input:    "！",
+			expected: "!",
+			desc:     "Japanese fullwidth exclamation mark",
+		},
+		{
+			name:     "Korean input (also uses fullwidth chars)",
+			input:    "，",
+			expected: ",",
+			desc:     "Korean input methods also produce fullwidth punctuation",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := config.NormalizeKeyForComparison(testCase.input)
+			if got != testCase.expected {
+				t.Errorf("%s: NormalizeKeyForComparison(%q) = %q, want %q",
+					testCase.desc, testCase.input, got, testCase.expected)
+			}
+		})
+	}
+}
