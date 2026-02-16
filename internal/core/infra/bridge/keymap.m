@@ -549,7 +549,16 @@ static void initializeKeyMaps(void) {
 		gKeymapLock = [[NSLock alloc] init];
 
 		initializeSpecialKeyMaps();
-		buildLayoutMaps();
+
+		// TIS APIs must be called on main thread
+		// Build initial layout maps on main queue synchronously
+		if ([NSThread isMainThread]) {
+			buildLayoutMaps();
+		} else {
+			dispatch_sync(dispatch_get_main_queue(), ^{
+				buildLayoutMaps();
+			});
+		}
 
 		// trigger keymap rebuild on keyboard layout change
 		CFNotificationCenterAddObserver(CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
@@ -592,6 +601,8 @@ CGKeyCode keyNameToCode(NSString *keyName) {
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyNameToCodeMap;
+	// Retain to ensure dictionary stays valid after releasing lock
+	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	NSNumber *code = map[keyName];
@@ -609,6 +620,8 @@ NSString *keyCodeToName(CGKeyCode keyCode) {
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyCodeToNameMap;
+	// Retain to ensure dictionary stays valid after releasing lock
+	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	return map[@(keyCode)];
@@ -685,6 +698,8 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	} else {
 		map = gKeyCodeToCharShiftedCaps;
 	}
+	// Retain to ensure dictionary stays valid after releasing lock
+	map = [[map retain] autorelease];
 	const UCKeyboardLayout *layout = gCurrentKeyboardLayout;
 	TISInputSourceRef localSource = gCurrentInputSource;
 	if (localSource)
