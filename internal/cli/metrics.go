@@ -23,6 +23,7 @@ var MetricsCmd = &cobra.Command{
 		}
 
 		ipcClient := ipc.NewClient()
+
 		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: domain.CommandMetrics})
 		if ipcResponseErr != nil {
 			return derrors.Wrap(ipcResponseErr, derrors.CodeIPCFailed, "failed to get metrics")

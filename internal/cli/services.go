@@ -30,6 +30,7 @@ var ServicesInstallCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		cmd.Println("Service installed and loaded successfully")
 
 		return nil
@@ -46,6 +47,7 @@ var ServicesUninstallCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		cmd.Println("Service uninstalled successfully")
 
 		return nil
@@ -62,6 +64,7 @@ var ServicesStartCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		cmd.Println("Service started")
 
 		return nil
@@ -78,6 +81,7 @@ var ServicesStopCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		cmd.Println("Service stopped")
 
 		return nil
@@ -94,6 +98,7 @@ var ServicesRestartCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
 		cmd.Println("Service restarted")
 
 		return nil

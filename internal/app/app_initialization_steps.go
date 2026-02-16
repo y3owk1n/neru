@@ -13,9 +13,9 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	eventtapadapter "github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	ipcadapter "github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"github.com/y3owk1n/neru/internal/core/infra/metrics"
 	"github.com/y3owk1n/neru/internal/ui"
 	"go.uber.org/zap"
 )
@@ -60,11 +60,11 @@ func initializeServicesAndAdapters(app *App) error {
 	cfgService := config.NewService(cfg, app.ConfigPath, logger)
 
 	// Initialize metrics
-	var metricsCollector metrics.Collector
+	var metricsCollector appmetrics.Collector
 	if cfg.Metrics.Enabled {
-		metricsCollector = metrics.NewCollector()
+		metricsCollector = appmetrics.NewCollector()
 	} else {
-		metricsCollector = &metrics.NoOpCollector{}
+		metricsCollector = &appmetrics.NoOpCollector{}
 	}
 
 	app.metrics = metricsCollector

@@ -7,20 +7,20 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
-	"github.com/y3owk1n/neru/internal/core/infra/metrics"
+	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // MetricsDecorator wraps an AccessibilityPort to collect metrics.
 type MetricsDecorator struct {
 	next      ports.AccessibilityPort
-	collector metrics.Collector
+	collector appmetrics.Collector
 }
 
 // NewMetricsDecorator creates a new MetricsDecorator.
 func NewMetricsDecorator(
 	next ports.AccessibilityPort,
-	collector metrics.Collector,
+	collector appmetrics.Collector,
 ) *MetricsDecorator {
 	return &MetricsDecorator{
 		next:      next,

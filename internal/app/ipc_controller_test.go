@@ -9,8 +9,8 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"github.com/y3owk1n/neru/internal/core/infra/metrics"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +18,7 @@ func newTestController() *app.IPCController {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger, _ := zap.NewDevelopment()
-	metricsCollector := metrics.NewCollector()
+	metricsCollector := appmetrics.NewCollector()
 	configService := config.NewService(cfg, "", logger)
 
 	// Create controller with minimal dependencies for basic command testing

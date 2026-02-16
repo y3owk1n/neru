@@ -1,9 +1,9 @@
-package metrics_test
+package appmetrics_test
 
 import (
 	"testing"
 
-	metrics "github.com/y3owk1n/neru/internal/core/infra/metrics"
+	metrics "github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 )
 
 func TestCollector(t *testing.T) {

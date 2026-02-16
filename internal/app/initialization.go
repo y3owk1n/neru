@@ -10,11 +10,11 @@ import (
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	accessibilityAdapter "github.com/y3owk1n/neru/internal/core/infra/accessibility"
+	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	"github.com/y3owk1n/neru/internal/core/infra/metrics"
 	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
@@ -97,7 +97,7 @@ func initializeAdapters(
 	cfg *config.Config,
 	logger *zap.Logger,
 	overlayManager OverlayManager,
-	metricsCollector metrics.Collector,
+	metricsCollector appmetrics.Collector,
 ) (ports.AccessibilityPort, ports.OverlayPort) {
 	excludedBundles := cfg.General.ExcludedApps
 	clickableRoles := cfg.Hints.ClickableRoles

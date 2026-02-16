@@ -13,8 +13,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
+	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	"github.com/y3owk1n/neru/internal/core/infra/metrics"
 	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	uiOverlay "github.com/y3owk1n/neru/internal/ui/overlay"
@@ -245,7 +245,7 @@ func initializeRealAdapters(
 	t.Helper()
 
 	// Initialize metrics collector
-	metricsCollector := metrics.NewCollector()
+	metricsCollector := appmetrics.NewCollector()
 
 	// Create infrastructure client
 	axClient := accessibility.NewInfraAXClient(logger)

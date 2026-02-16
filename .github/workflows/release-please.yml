@@ -10,7 +10,7 @@ jobs:
     release-please:
         strategy:
             matrix:
-                go: ["1.25.5"]
+                go: ["1.26.0"]
                 os: [macos-latest]
                 just: ["1.46.0"]
         runs-on: ${{ matrix.os }}

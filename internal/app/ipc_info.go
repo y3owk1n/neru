@@ -11,8 +11,8 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"github.com/y3owk1n/neru/internal/core/infra/metrics"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +26,7 @@ type IPCControllerInfo struct {
 	gridService   *services.GridService
 	actionService *services.ActionService
 	scrollService *services.ScrollService
-	metrics       metrics.Collector
+	metrics       appmetrics.Collector
 	configPath    string
 	logger        *zap.Logger
 }
@@ -41,7 +41,7 @@ func NewIPCControllerInfo(
 	gridService *services.GridService,
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
-	metrics metrics.Collector,
+	metrics appmetrics.Collector,
 	configPath string,
 	logger *zap.Logger,
 ) *IPCControllerInfo {

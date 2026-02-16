@@ -5,20 +5,20 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
-	"github.com/y3owk1n/neru/internal/core/infra/metrics"
+	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // MetricsDecorator wraps an OverlayPort to collect metrics.
 type MetricsDecorator struct {
 	next      ports.OverlayPort
-	collector metrics.Collector
+	collector appmetrics.Collector
 }
 
 // NewMetricsDecorator creates a new MetricsDecorator.
 func NewMetricsDecorator(
 	next ports.OverlayPort,
-	collector metrics.Collector,
+	collector appmetrics.Collector,
 ) *MetricsDecorator {
 	return &MetricsDecorator{
 		next:      next,
