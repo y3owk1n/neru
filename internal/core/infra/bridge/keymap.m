@@ -597,10 +597,13 @@ static void ensureLayoutMapsInitialized(void) {
 
 NSDictionary<NSString *, NSNumber *> *keyNameToCodeMap(void) {
 	initializeKeyMaps();
+	ensureLayoutMapsInitialized();
 
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyNameToCodeMap;
+	// Retain to ensure dictionary stays valid after releasing lock
+	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	return map;
@@ -608,10 +611,13 @@ NSDictionary<NSString *, NSNumber *> *keyNameToCodeMap(void) {
 
 NSDictionary<NSNumber *, NSString *> *keyCodeToNameMap(void) {
 	initializeKeyMaps();
+	ensureLayoutMapsInitialized();
 
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyCodeToNameMap;
+	// Retain to ensure dictionary stays valid after releasing lock
+	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	return map;
