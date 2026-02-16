@@ -567,14 +567,11 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 /// Flag for tracking layout maps initialization status (atomic for thread safety)
 static atomic_bool gLayoutMapsInitialized = false;
 
-/// Register notification observer (called once)
+/// Register notification observer (called once from initializeKeyMaps)
 static void registerLayoutChangeObserver(void) {
-	static dispatch_once_t onceToken;
-	dispatch_once(&onceToken, ^{
-		CFNotificationCenterAddObserver(CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
-		                                kTISNotifySelectedKeyboardInputSourceChanged, NULL,
-		                                CFNotificationSuspensionBehaviorDeliverImmediately);
-	});
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
+	                                kTISNotifySelectedKeyboardInputSourceChanged, NULL,
+	                                CFNotificationSuspensionBehaviorDeliverImmediately);
 }
 
 static void initializeKeyMaps(void) {
