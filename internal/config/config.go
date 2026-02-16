@@ -33,6 +33,9 @@ const (
 // On macOS, both "backspace" and "delete" are treated as synonyms for the DEL key (\x7f).
 // Also normalizes fullwidth CJK characters to their halfwidth ASCII equivalents.
 func NormalizeKeyForComparison(key string) string {
+	// Normalize fullwidth CJK characters first, before lowercasing and canonical matching.
+	// This ensures e.g. fullwidth space (U+3000) → " " → "space" in a single pass.
+	key = normalizeFullwidthChars(key)
 	key = strings.ToLower(key)
 
 	switch key {
@@ -51,17 +54,7 @@ func NormalizeKeyForComparison(key string) string {
 		// Treat both "delete" and "backspace" as synonyms for the DEL key for user-friendly matching.
 		return KeyNameDelete
 	default:
-		// Normalize fullwidth CJK characters to halfwidth ASCII equivalents
-		// Fullwidth range: U+FF01 to U+FF5E maps to U+0021 to U+007E
-		normalized := normalizeFullwidthChars(key)
-
-		// Re-check if the normalized result matches a canonical key name
-		// (e.g., fullwidth space U+3000 → " " → "space")
-		if normalized != key {
-			return NormalizeKeyForComparison(normalized)
-		}
-
-		return normalized
+		return key
 	}
 }
 
