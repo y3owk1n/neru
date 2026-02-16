@@ -413,11 +413,17 @@ static void buildLayoutMaps(void) {
 			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
 
 			[gKeymapLock lock];
+			[gKeyNameToCodeMap release];
 			gKeyNameToCodeMap = [nameToCode copy];
+			[gKeyCodeToNameMap release];
 			gKeyCodeToNameMap = [codeToName copy];
+			[gKeyCodeToCharUnshifted release];
 			gKeyCodeToCharUnshifted = [unshifted copy];
+			[gKeyCodeToCharShifted release];
 			gKeyCodeToCharShifted = [shifted copy];
+			[gKeyCodeToCharCaps release];
 			gKeyCodeToCharCaps = [caps copy];
+			[gKeyCodeToCharShiftedCaps release];
 			gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 			[gKeymapLock unlock];
 			return;
@@ -432,11 +438,17 @@ static void buildLayoutMaps(void) {
 			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
 
 			[gKeymapLock lock];
+			[gKeyNameToCodeMap release];
 			gKeyNameToCodeMap = [nameToCode copy];
+			[gKeyCodeToNameMap release];
 			gKeyCodeToNameMap = [codeToName copy];
+			[gKeyCodeToCharUnshifted release];
 			gKeyCodeToCharUnshifted = [unshifted copy];
+			[gKeyCodeToCharShifted release];
 			gKeyCodeToCharShifted = [shifted copy];
+			[gKeyCodeToCharCaps release];
 			gKeyCodeToCharCaps = [caps copy];
+			[gKeyCodeToCharShiftedCaps release];
 			gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 			// don't touch gCurrentInputSource/gCurrentKeyboardLayout —
 			// keep previous valid layout for live UCKeyTranslate fallback
@@ -506,12 +518,19 @@ static void buildLayoutMaps(void) {
 		gCurrentInputSource = inputSource;
 		gCurrentKeyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
 
-		gKeyNameToCodeMap = newNameToCode;
-		gKeyCodeToNameMap = newCodeToName;
+		// Release old dictionaries before assigning new ones (MRC)
+		[gKeyNameToCodeMap release];
+		gKeyNameToCodeMap = [newNameToCode retain];
+		[gKeyCodeToNameMap release];
+		gKeyCodeToNameMap = [newCodeToName retain];
 
+		[gKeyCodeToCharUnshifted release];
 		gKeyCodeToCharUnshifted = [unshifted copy];
+		[gKeyCodeToCharShifted release];
 		gKeyCodeToCharShifted = [shifted copy];
+		[gKeyCodeToCharCaps release];
 		gKeyCodeToCharCaps = [caps copy];
+		[gKeyCodeToCharShiftedCaps release];
 		gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 		[gKeymapLock unlock];
 	}
