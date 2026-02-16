@@ -563,8 +563,7 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 
 #pragma mark - Initialization
 
-/// Semaphore for blocking until layout maps are built
-static dispatch_semaphore_t gLayoutMapsSemaphore = nil;
+/// Flag for tracking layout maps initialization status
 static volatile BOOL gLayoutMapsInitialized = NO;
 
 /// Register notification observer (called once)
@@ -581,7 +580,6 @@ static void initializeKeyMaps(void) {
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
 		gKeymapLock = [[NSLock alloc] init];
-		gLayoutMapsSemaphore = dispatch_semaphore_create(0);
 
 		initializeSpecialKeyMaps();
 
@@ -604,7 +602,6 @@ static void ensureLayoutMapsInitialized(void) {
 		if ([NSThread isMainThread]) {
 			buildLayoutMaps();
 			gLayoutMapsInitialized = YES;
-			dispatch_semaphore_signal(gLayoutMapsSemaphore);
 		} else {
 			// Dispatch to main thread to build layout maps
 			dispatch_async(dispatch_get_main_queue(), ^{
@@ -612,7 +609,6 @@ static void ensureLayoutMapsInitialized(void) {
 				if (!gLayoutMapsInitialized) {
 					buildLayoutMaps();
 					gLayoutMapsInitialized = YES;
-					dispatch_semaphore_signal(gLayoutMapsSemaphore);
 				}
 			});
 		}
@@ -623,13 +619,18 @@ static void ensureLayoutMapsInitialized(void) {
 	if (!gLayoutMapsInitialized && [NSThread isMainThread]) {
 		buildLayoutMaps();
 		gLayoutMapsInitialized = YES;
-		dispatch_semaphore_signal(gLayoutMapsSemaphore);
 		return;
 	}
 
-	// Wait for layout maps to be built (with timeout as safety)
-	if (!gLayoutMapsInitialized) {
-		dispatch_semaphore_wait(gLayoutMapsSemaphore, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
+	// Poll with timeout for all waiters (semaphore only wakes one)
+	// This allows multiple concurrent background threads to all proceed
+	// once initialization is complete, rather than timing out
+	dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC);
+	while (!gLayoutMapsInitialized) {
+		if (dispatch_time(DISPATCH_TIME_NOW, 0) >= timeout) {
+			break; // Timeout reached
+		}
+		[NSThread sleepForTimeInterval:0.001]; // 1ms sleep to avoid busy-wait
 	}
 }
 
