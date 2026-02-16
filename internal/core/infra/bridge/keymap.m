@@ -566,6 +566,16 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 static dispatch_semaphore_t gLayoutMapsSemaphore = nil;
 static volatile BOOL gLayoutMapsInitialized = NO;
 
+/// Register notification observer (called once)
+static void registerLayoutChangeObserver(void) {
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^{
+		CFNotificationCenterAddObserver(CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
+		                                kTISNotifySelectedKeyboardInputSourceChanged, NULL,
+		                                CFNotificationSuspensionBehaviorDeliverImmediately);
+	});
+}
+
 static void initializeKeyMaps(void) {
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
@@ -574,10 +584,8 @@ static void initializeKeyMaps(void) {
 
 		initializeSpecialKeyMaps();
 
-		// trigger keymap rebuild on keyboard layout change
-		CFNotificationCenterAddObserver(CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
-		                                kTISNotifySelectedKeyboardInputSourceChanged, NULL,
-		                                CFNotificationSuspensionBehaviorDeliverImmediately);
+		// Register observer early, before any layout maps building
+		registerLayoutChangeObserver();
 	});
 }
 
