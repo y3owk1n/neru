@@ -607,12 +607,24 @@ static void ensureLayoutMapsInitialized(void) {
 		} else {
 			// Dispatch to main thread to build layout maps
 			dispatch_async(dispatch_get_main_queue(), ^{
-				buildLayoutMaps();
-				gLayoutMapsInitialized = YES;
-				dispatch_semaphore_signal(gLayoutMapsSemaphore);
+				// Guard against double execution if main thread already ran it
+				if (!gLayoutMapsInitialized) {
+					buildLayoutMaps();
+					gLayoutMapsInitialized = YES;
+					dispatch_semaphore_signal(gLayoutMapsSemaphore);
+				}
 			});
 		}
 	});
+
+	// If we're on main thread and not initialized yet, run directly
+	// to avoid deadlock (the async block is queued behind us)
+	if (!gLayoutMapsInitialized && [NSThread isMainThread]) {
+		buildLayoutMaps();
+		gLayoutMapsInitialized = YES;
+		dispatch_semaphore_signal(gLayoutMapsSemaphore);
+		return;
+	}
 
 	// Wait for layout maps to be built (with timeout as safety)
 	if (!gLayoutMapsInitialized) {
