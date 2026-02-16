@@ -6,6 +6,7 @@
 //
 
 #import "keymap.h"
+#include <stdatomic.h>
 
 #pragma mark - Static Data
 
@@ -413,11 +414,17 @@ static void buildLayoutMaps(void) {
 			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
 
 			[gKeymapLock lock];
+			[gKeyNameToCodeMap release];
 			gKeyNameToCodeMap = [nameToCode copy];
+			[gKeyCodeToNameMap release];
 			gKeyCodeToNameMap = [codeToName copy];
+			[gKeyCodeToCharUnshifted release];
 			gKeyCodeToCharUnshifted = [unshifted copy];
+			[gKeyCodeToCharShifted release];
 			gKeyCodeToCharShifted = [shifted copy];
+			[gKeyCodeToCharCaps release];
 			gKeyCodeToCharCaps = [caps copy];
+			[gKeyCodeToCharShiftedCaps release];
 			gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 			[gKeymapLock unlock];
 			return;
@@ -432,11 +439,17 @@ static void buildLayoutMaps(void) {
 			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
 
 			[gKeymapLock lock];
+			[gKeyNameToCodeMap release];
 			gKeyNameToCodeMap = [nameToCode copy];
+			[gKeyCodeToNameMap release];
 			gKeyCodeToNameMap = [codeToName copy];
+			[gKeyCodeToCharUnshifted release];
 			gKeyCodeToCharUnshifted = [unshifted copy];
+			[gKeyCodeToCharShifted release];
 			gKeyCodeToCharShifted = [shifted copy];
+			[gKeyCodeToCharCaps release];
 			gKeyCodeToCharCaps = [caps copy];
+			[gKeyCodeToCharShiftedCaps release];
 			gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 			// don't touch gCurrentInputSource/gCurrentKeyboardLayout —
 			// keep previous valid layout for live UCKeyTranslate fallback
@@ -506,12 +519,20 @@ static void buildLayoutMaps(void) {
 		gCurrentInputSource = inputSource;
 		gCurrentKeyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
 
+		// Release old dictionaries before assigning new ones (MRC)
+		// Transfer ownership from local vars (already +1 from copy) to globals
+		[gKeyNameToCodeMap release];
 		gKeyNameToCodeMap = newNameToCode;
+		[gKeyCodeToNameMap release];
 		gKeyCodeToNameMap = newCodeToName;
 
+		[gKeyCodeToCharUnshifted release];
 		gKeyCodeToCharUnshifted = [unshifted copy];
+		[gKeyCodeToCharShifted release];
 		gKeyCodeToCharShifted = [shifted copy];
+		[gKeyCodeToCharCaps release];
 		gKeyCodeToCharCaps = [caps copy];
+		[gKeyCodeToCharShiftedCaps release];
 		gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 		[gKeymapLock unlock];
 	}
@@ -543,29 +564,85 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 
 #pragma mark - Initialization
 
+/// Flag for tracking layout maps initialization status (atomic for thread safety)
+static atomic_bool gLayoutMapsInitialized = false;
+
+/// Register notification observer (called once from initializeKeyMaps)
+static void registerLayoutChangeObserver(void) {
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
+	                                kTISNotifySelectedKeyboardInputSourceChanged, NULL,
+	                                CFNotificationSuspensionBehaviorDeliverImmediately);
+}
+
 static void initializeKeyMaps(void) {
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
 		gKeymapLock = [[NSLock alloc] init];
 
 		initializeSpecialKeyMaps();
-		buildLayoutMaps();
 
-		// trigger keymap rebuild on keyboard layout change
-		CFNotificationCenterAddObserver(CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
-		                                kTISNotifySelectedKeyboardInputSourceChanged, NULL,
-		                                CFNotificationSuspensionBehaviorDeliverImmediately);
+		// Register observer early, before any layout maps building
+		registerLayoutChangeObserver();
 	});
+}
+
+/// Ensure layout maps are built (must be called after initializeKeyMaps)
+/// Blocks until layout maps are available
+static void ensureLayoutMapsInitialized(void) {
+	if (atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
+		return;
+	}
+
+	// TIS APIs must be called on main thread
+	// Use dispatch_once to ensure single initialization, but dispatch OUTSIDE of it
+	static dispatch_once_t layoutOnceToken;
+	dispatch_once(&layoutOnceToken, ^{
+		if ([NSThread isMainThread]) {
+			buildLayoutMaps();
+			atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
+		} else {
+			// Dispatch to main thread to build layout maps
+			dispatch_async(dispatch_get_main_queue(), ^{
+				// Guard against double execution if main thread already ran it
+				if (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
+					buildLayoutMaps();
+					atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
+				}
+			});
+		}
+	});
+
+	// If we're on main thread and not initialized yet, run directly
+	// to avoid deadlock (the async block is queued behind us)
+	if (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire) && [NSThread isMainThread]) {
+		buildLayoutMaps();
+		atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
+		return;
+	}
+
+	// Poll with timeout for all waiters (semaphore only wakes one)
+	// This allows multiple concurrent background threads to all proceed
+	// once initialization is complete, rather than timing out
+	dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC);
+	while (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
+		if (dispatch_time(DISPATCH_TIME_NOW, 0) >= timeout) {
+			break; // Timeout reached
+		}
+		[NSThread sleepForTimeInterval:0.001]; // 1ms sleep to avoid busy-wait
+	}
 }
 
 #pragma mark - Public Functions
 
 NSDictionary<NSString *, NSNumber *> *keyNameToCodeMap(void) {
 	initializeKeyMaps();
+	ensureLayoutMapsInitialized();
 
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyNameToCodeMap;
+	// Retain to ensure dictionary stays valid after releasing lock
+	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	return map;
@@ -573,10 +650,13 @@ NSDictionary<NSString *, NSNumber *> *keyNameToCodeMap(void) {
 
 NSDictionary<NSNumber *, NSString *> *keyCodeToNameMap(void) {
 	initializeKeyMaps();
+	ensureLayoutMapsInitialized();
 
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyCodeToNameMap;
+	// Retain to ensure dictionary stays valid after releasing lock
+	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	return map;
@@ -588,10 +668,13 @@ CGKeyCode keyNameToCode(NSString *keyName) {
 	}
 
 	initializeKeyMaps();
+	ensureLayoutMapsInitialized();
 
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyNameToCodeMap;
+	// Retain to ensure dictionary stays valid after releasing lock
+	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	NSNumber *code = map[keyName];
@@ -605,10 +688,13 @@ CGKeyCode keyNameToCode(NSString *keyName) {
 
 NSString *keyCodeToName(CGKeyCode keyCode) {
 	initializeKeyMaps();
+	ensureLayoutMapsInitialized();
 
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyCodeToNameMap;
+	// Retain to ensure dictionary stays valid after releasing lock
+	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	return map[@(keyCode)];
@@ -616,6 +702,7 @@ NSString *keyCodeToName(CGKeyCode keyCode) {
 
 NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	initializeKeyMaps();
+	ensureLayoutMapsInitialized();
 
 	// for special keys layout independent hardcoded values
 	switch (keyCode) {
@@ -685,6 +772,8 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	} else {
 		map = gKeyCodeToCharShiftedCaps;
 	}
+	// Retain to ensure dictionary stays valid after releasing lock
+	map = [[map retain] autorelease];
 	const UCKeyboardLayout *layout = gCurrentKeyboardLayout;
 	TISInputSourceRef localSource = gCurrentInputSource;
 	if (localSource)
