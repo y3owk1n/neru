@@ -543,28 +543,54 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 
 #pragma mark - Initialization
 
+/// Semaphore for blocking until layout maps are built
+static dispatch_semaphore_t gLayoutMapsSemaphore = nil;
+static volatile BOOL gLayoutMapsInitialized = NO;
+
 static void initializeKeyMaps(void) {
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
 		gKeymapLock = [[NSLock alloc] init];
+		gLayoutMapsSemaphore = dispatch_semaphore_create(0);
 
 		initializeSpecialKeyMaps();
-
-		// TIS APIs must be called on main thread
-		// Build initial layout maps on main queue synchronously
-		if ([NSThread isMainThread]) {
-			buildLayoutMaps();
-		} else {
-			dispatch_sync(dispatch_get_main_queue(), ^{
-				buildLayoutMaps();
-			});
-		}
 
 		// trigger keymap rebuild on keyboard layout change
 		CFNotificationCenterAddObserver(CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
 		                                kTISNotifySelectedKeyboardInputSourceChanged, NULL,
 		                                CFNotificationSuspensionBehaviorDeliverImmediately);
 	});
+}
+
+/// Ensure layout maps are built (must be called after initializeKeyMaps)
+/// Blocks until layout maps are available
+static void ensureLayoutMapsInitialized(void) {
+	if (gLayoutMapsInitialized) {
+		return;
+	}
+
+	// TIS APIs must be called on main thread
+	// Use dispatch_once to ensure single initialization, but dispatch OUTSIDE of it
+	static dispatch_once_t layoutOnceToken;
+	dispatch_once(&layoutOnceToken, ^{
+		if ([NSThread isMainThread]) {
+			buildLayoutMaps();
+			gLayoutMapsInitialized = YES;
+			dispatch_semaphore_signal(gLayoutMapsSemaphore);
+		} else {
+			// Dispatch to main thread to build layout maps
+			dispatch_async(dispatch_get_main_queue(), ^{
+				buildLayoutMaps();
+				gLayoutMapsInitialized = YES;
+				dispatch_semaphore_signal(gLayoutMapsSemaphore);
+			});
+		}
+	});
+
+	// Wait for layout maps to be built (with timeout as safety)
+	if (!gLayoutMapsInitialized) {
+		dispatch_semaphore_wait(gLayoutMapsSemaphore, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
+	}
 }
 
 #pragma mark - Public Functions
@@ -597,6 +623,7 @@ CGKeyCode keyNameToCode(NSString *keyName) {
 	}
 
 	initializeKeyMaps();
+	ensureLayoutMapsInitialized();
 
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
@@ -616,6 +643,7 @@ CGKeyCode keyNameToCode(NSString *keyName) {
 
 NSString *keyCodeToName(CGKeyCode keyCode) {
 	initializeKeyMaps();
+	ensureLayoutMapsInitialized();
 
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
@@ -629,6 +657,7 @@ NSString *keyCodeToName(CGKeyCode keyCode) {
 
 NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	initializeKeyMaps();
+	ensureLayoutMapsInitialized();
 
 	// for special keys layout independent hardcoded values
 	switch (keyCode) {
