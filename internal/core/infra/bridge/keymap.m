@@ -6,6 +6,7 @@
 //
 
 #import "keymap.h"
+#include <stdatomic.h>
 
 #pragma mark - Static Data
 
@@ -563,8 +564,8 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 
 #pragma mark - Initialization
 
-/// Flag for tracking layout maps initialization status
-static volatile BOOL gLayoutMapsInitialized = NO;
+/// Flag for tracking layout maps initialization status (atomic for thread safety)
+static atomic_bool gLayoutMapsInitialized = false;
 
 /// Register notification observer (called once)
 static void registerLayoutChangeObserver(void) {
@@ -591,7 +592,7 @@ static void initializeKeyMaps(void) {
 /// Ensure layout maps are built (must be called after initializeKeyMaps)
 /// Blocks until layout maps are available
 static void ensureLayoutMapsInitialized(void) {
-	if (gLayoutMapsInitialized) {
+	if (atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
 		return;
 	}
 
@@ -601,14 +602,14 @@ static void ensureLayoutMapsInitialized(void) {
 	dispatch_once(&layoutOnceToken, ^{
 		if ([NSThread isMainThread]) {
 			buildLayoutMaps();
-			gLayoutMapsInitialized = YES;
+			atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
 		} else {
 			// Dispatch to main thread to build layout maps
 			dispatch_async(dispatch_get_main_queue(), ^{
 				// Guard against double execution if main thread already ran it
-				if (!gLayoutMapsInitialized) {
+				if (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
 					buildLayoutMaps();
-					gLayoutMapsInitialized = YES;
+					atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
 				}
 			});
 		}
@@ -616,9 +617,9 @@ static void ensureLayoutMapsInitialized(void) {
 
 	// If we're on main thread and not initialized yet, run directly
 	// to avoid deadlock (the async block is queued behind us)
-	if (!gLayoutMapsInitialized && [NSThread isMainThread]) {
+	if (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire) && [NSThread isMainThread]) {
 		buildLayoutMaps();
-		gLayoutMapsInitialized = YES;
+		atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
 		return;
 	}
 
@@ -626,7 +627,7 @@ static void ensureLayoutMapsInitialized(void) {
 	// This allows multiple concurrent background threads to all proceed
 	// once initialization is complete, rather than timing out
 	dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC);
-	while (!gLayoutMapsInitialized) {
+	while (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
 		if (dispatch_time(DISPATCH_TIME_NOW, 0) >= timeout) {
 			break; // Timeout reached
 		}
