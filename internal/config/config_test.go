@@ -463,7 +463,7 @@ func TestNormalizeKeyForComparison_FullwidthChars(t *testing.T) {
 			expected: "escape",
 		},
 		{
-			name:     "fullwidth escape should not match",
+			name:     "fullwidth escape letters normalize to canonical escape",
 			input:    "\uFF25\uFF33\uFF23\uFF21\uFF30\uFF25",
 			expected: "escape",
 		},
