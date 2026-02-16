@@ -21,13 +21,13 @@ if useZip then
       {
         "aarch64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-arm64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.18.2/neru-darwin-arm64.zip)`
-          sha256 = "sha256-gJkoTjeNGqn0Z/d5uPecm1J+yxCYGsH1OiaCDxitY0o=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.18.3/neru-darwin-arm64.zip)`
+          sha256 = "sha256-hz9Hxh+mbcJ+ZC1nQrIk707363L8QDl6Ss9yowXcbwM=";
         };
         "x86_64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-amd64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.18.2/neru-darwin-amd64.zip)`
-          sha256 = "sha256-cXWMYFYIYcjlbzTgDJROJj6uHHW3J7A7usbYU1Y6qv0=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.18.3/neru-darwin-amd64.zip)`
+          sha256 = "sha256-YaPwn52dLeSA6rjPZRXK79RLRFwfUl0qmrgFVGIfBdw=";
         };
       }
       .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
