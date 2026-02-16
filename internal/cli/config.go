@@ -24,6 +24,7 @@ var configDumpCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ipcClient := ipc.NewClient()
+
 		ipcResponse, ipcResponseErr := ipcClient.Send(ipc.Command{Action: domain.CommandConfig})
 		if ipcResponseErr != nil {
 			return derrors.Wrap(

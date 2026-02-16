@@ -12,7 +12,7 @@ import (
 	"time"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/trace"
+	trace "github.com/y3owk1n/neru/internal/core/infra/apptrace"
 	"go.uber.org/zap"
 )
 

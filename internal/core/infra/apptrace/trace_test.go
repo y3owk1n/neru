@@ -1,10 +1,10 @@
-package trace_test
+package apptrace_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/core/infra/trace"
+	trace "github.com/y3owk1n/neru/internal/core/infra/apptrace"
 )
 
 func TestTraceID(t *testing.T) {
