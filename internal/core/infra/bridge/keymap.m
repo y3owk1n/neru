@@ -519,10 +519,11 @@ static void buildLayoutMaps(void) {
 		gCurrentKeyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
 
 		// Release old dictionaries before assigning new ones (MRC)
+		// Transfer ownership from local vars (already +1 from copy) to globals
 		[gKeyNameToCodeMap release];
-		gKeyNameToCodeMap = [newNameToCode retain];
+		gKeyNameToCodeMap = newNameToCode;
 		[gKeyCodeToNameMap release];
-		gKeyCodeToNameMap = [newCodeToName retain];
+		gKeyCodeToNameMap = newCodeToName;
 
 		[gKeyCodeToCharUnshifted release];
 		gKeyCodeToCharUnshifted = [unshifted copy];
