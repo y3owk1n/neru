@@ -68,6 +68,7 @@ func NormalizeKeyForComparison(key string) string {
 // normalizeFullwidthChars converts fullwidth CJK characters (U+FF01-U+FF5E)
 // to their halfwidth ASCII equivalents (U+0021-U+007E).
 // This ensures keys work correctly when using CJK input methods.
+// Uses strings.Map for efficiency - only allocates when transformation occurs.
 func normalizeFullwidthChars(key string) string {
 	const (
 		fullwidthStart  = 0xFF01 // Fullwidth exclamation mark
@@ -76,21 +77,19 @@ func normalizeFullwidthChars(key string) string {
 		fullwidthSpace  = 0x3000 // CJK fullwidth space
 	)
 
-	var result []rune
-	for _, char := range key {
+	return strings.Map(func(char rune) rune {
 		switch {
 		case char >= fullwidthStart && char <= fullwidthEnd:
 			// Convert fullwidth to halfwidth
-			result = append(result, char-halfwidthOffset)
+			return char - halfwidthOffset
 		case char == fullwidthSpace:
 			// Fullwidth space -> regular space
-			result = append(result, ' ')
+			return ' '
 		default:
-			result = append(result, char)
+			// Return unchanged (strings.Map optimizes this case)
+			return char
 		}
-	}
-
-	return string(result)
+	}, key)
 }
 
 // IsExitKey checks if a key matches any configured exit key (with normalization).
