@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.18.3](https://github.com/y3owk1n/neru/compare/v1.18.2...v1.18.3) (2026-02-16)
+
+
+### Bug Fixes
+
+* **config:** normalize fullwidth CJK characters in key comparison ([#385](https://github.com/y3owk1n/neru/issues/385)) ([123b6fd](https://github.com/y3owk1n/neru/commit/123b6fd6b659099cb0cac6b2b0a8c2802b0fc952))
+* **keymap:** fix thread safety issues — use-after-free, MRC memory leaks, and TIS main-thread requirement ([#384](https://github.com/y3owk1n/neru/issues/384)) ([515b0af](https://github.com/y3owk1n/neru/commit/515b0af6c63d7e783e5608755be41b92a83db4aa))
+* remove unused `flake.lock` ([57363f6](https://github.com/y3owk1n/neru/commit/57363f6cd363c2dc3deb0868217f3e49e538df39))
+
 ## [1.18.2](https://github.com/y3owk1n/neru/compare/v1.18.1...v1.18.2) (2026-02-15)
 
 
