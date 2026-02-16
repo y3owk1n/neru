@@ -31,6 +31,7 @@ const (
 // This ensures that "\x1b" and "escape" are treated as the same key, and provides case-insensitive
 // matching for all keys (e.g. "q" matches "Q", "Ctrl+R" matches "ctrl+r").
 // On macOS, both "backspace" and "delete" are treated as synonyms for the DEL key (\x7f).
+// Also normalizes fullwidth CJK characters to their halfwidth ASCII equivalents.
 func NormalizeKeyForComparison(key string) string {
 	key = strings.ToLower(key)
 
@@ -50,8 +51,38 @@ func NormalizeKeyForComparison(key string) string {
 		// Treat both "delete" and "backspace" as synonyms for the DEL key for user-friendly matching.
 		return KeyNameDelete
 	default:
-		return key
+		// Normalize fullwidth CJK characters to halfwidth ASCII equivalents
+		// Fullwidth range: U+FF01 to U+FF5E maps to U+0021 to U+007E
+		return normalizeFullwidthChars(key)
 	}
+}
+
+// normalizeFullwidthChars converts fullwidth CJK characters (U+FF01-U+FF5E)
+// to their halfwidth ASCII equivalents (U+0021-U+007E).
+// This ensures keys work correctly when using CJK input methods.
+func normalizeFullwidthChars(key string) string {
+	const (
+		fullwidthStart  = 0xFF01 // Fullwidth exclamation mark
+		fullwidthEnd    = 0xFF5E // Fullwidth tilde
+		halfwidthOffset = 0xFEE0 // Difference between fullwidth and halfwidth
+		fullwidthSpace  = 0x3000 // CJK fullwidth space
+	)
+
+	var result []rune
+	for _, char := range key {
+		switch {
+		case char >= fullwidthStart && char <= fullwidthEnd:
+			// Convert fullwidth to halfwidth
+			result = append(result, char-halfwidthOffset)
+		case char == fullwidthSpace:
+			// Fullwidth space -> regular space
+			result = append(result, ' ')
+		default:
+			result = append(result, char)
+		}
+	}
+
+	return string(result)
 }
 
 // IsExitKey checks if a key matches any configured exit key (with normalization).
