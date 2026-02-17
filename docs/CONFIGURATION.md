@@ -161,6 +161,7 @@ Neru automatically detects your active keyboard layout and translates keycodes a
 ### Input Method Support
 
 Neru supports CJK input methods (Pinyin, Wubi, etc.). When using an input method:
+
 - Hints work correctly with your physical keyboard layout
 - Key presses are translated through the physical layout before being sent to the input method
 - The input method receives the expected key events

@@ -19,22 +19,22 @@ func ExampleService_Method()
 
 ## Test Types
 
-| Type | Command | Purpose |
-|------|---------|---------|
-| Unit | `just test` | Business logic, algorithms, validation with mocks |
-| Integration | `just test-integration` | Real macOS APIs, file system, IPC (tagged `//go:build integration`) |
-| Unit Benchmark | `just bench` | Pure algorithm performance |
-| Integration Benchmark | `just bench-integration` | Real system performance |
+| Type                  | Command                  | Purpose                                                             |
+| --------------------- | ------------------------ | ------------------------------------------------------------------- |
+| Unit                  | `just test`              | Business logic, algorithms, validation with mocks                   |
+| Integration           | `just test-integration`  | Real macOS APIs, file system, IPC (tagged `//go:build integration`) |
+| Unit Benchmark        | `just bench`             | Pure algorithm performance                                          |
+| Integration Benchmark | `just bench-integration` | Real system performance                                             |
 
 ## When to Use Each Type
 
-| Scenario | Test Type | Example |
-|----------|-----------|---------|
-| Business logic | Unit | Hint generation, grid calculations |
-| Config validation | Unit | TOML parsing, field validation |
-| macOS API calls | Integration | Accessibility, event tap, hotkeys |
-| File operations | Integration | Config loading, log writing |
-| IPC communication | Integration | CLI-to-daemon messaging |
+| Scenario          | Test Type   | Example                            |
+| ----------------- | ----------- | ---------------------------------- |
+| Business logic    | Unit        | Hint generation, grid calculations |
+| Config validation | Unit        | TOML parsing, field validation     |
+| macOS API calls   | Integration | Accessibility, event tap, hotkeys  |
+| File operations   | Integration | Config loading, log writing        |
+| IPC communication | Integration | CLI-to-daemon messaging            |
 
 ## Test Structure
 

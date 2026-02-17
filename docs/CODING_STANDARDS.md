@@ -61,6 +61,7 @@ neru/
 - Outdated information (update or remove)
 
 **Good:**
+
 ```go
 // Pre-allocate slice capacity to avoid reallocations during hint generation.
 // Typical hint count is 50-200 elements, so we start with 100.
