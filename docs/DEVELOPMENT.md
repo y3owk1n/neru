@@ -64,7 +64,7 @@ neru hints  # Should show hint overlays
 
 ### Prerequisites
 
-- **Go 1.25+** - [Install Go](https://golang.org/dl/)
+- **Go 1.26+** - [Install Go](https://golang.org/dl/)
 - **Xcode Command Line Tools** - `xcode-select --install`
 - **Just** - Command runner ([Install](https://github.com/casey/just))
 
@@ -118,7 +118,7 @@ brew install go just golangci-lint llvm
 
 **Tool descriptions:**
 
-- `go` - Go compiler and toolchain (1.25+ required)
+- `go` - Go compiler and toolchain (1.26+ required)
 - `just` - Command runner for build scripts
 - `golangci-lint` - Go linter and formatter
 - `llvm` - LLVM tools including clang-format for C/C++/Objective-C formatting (required for CGo code)
@@ -140,7 +140,7 @@ cd neru
 
 ```bash
 # Check Go version
-go version  # Should be 1.25+
+go version  # Should be 1.26+
 
 # Check tools
 just --version

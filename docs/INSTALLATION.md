@@ -252,15 +252,15 @@ nix flake update neru
 
 ### Patch Go Version
 
-> [!NOTE] This is only required if you're using stable nixpkgs and you're using the `neru-source` package.
+> [!NOTE] This is only required if you're using `nix`, you're using the `neru-source` package and nixpkgs is not on golang `1.26.0` yet.
 
-The latest version of Neru requires Go 1.25 or later. If you're using stable nixpkgs, you need to patch it as below:
+The latest version of Neru requires Go 1.26 or later. But nixpkgs for golang doesn't have that supported yet, you can patch it as below to the latest version available (search from nixpkgs and see what are the latest version):
 
 ```nix
 package = pkgs.neru-source.overrideAttrs (_: {
   postPatch = ''
      substituteInPlace go.mod \
-       --replace-fail "go 1.26.0" "go 1.24.9"
+       --replace-fail "go 1.26.0" "go 1.25.5"
 
      # Verify it worked
      echo "=== go.mod after patch ==="
@@ -275,7 +275,7 @@ package = pkgs.neru-source.overrideAttrs (_: {
 
 ### Requirements
 
-- Go 1.25+
+- Go 1.26+
 - Xcode Command Line Tools
 - Just command runner
 
