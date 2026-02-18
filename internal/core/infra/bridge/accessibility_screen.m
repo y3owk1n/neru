@@ -205,7 +205,7 @@ static bool detectMissionControlActive(void) {
 						CFNumberGetValue(windowLayer, kCFNumberIntType, &layer);
 					}
 
-					if (isFullscreen && hasNoName) {
+					if (isFullscreen && hasNoName && windowLayer) {
 						fullscreenDockWindows++;
 						if (layer >= 18 && layer <= 20) {
 							highLayerDockWindows++;
