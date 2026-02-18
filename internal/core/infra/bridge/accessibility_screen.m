@@ -235,17 +235,17 @@ static bool detectMissionControlActive(void) {
 		      @"visible: %d",
 		      totalDockWindows, fullscreenDockWindows, highLayerDockWindows, missionControlAppVisible);
 
-	// Detection logic:
-	// 1. If Mission Control app window is visible, definitely MC
-	// 2. Otherwise, check for multiple fullscreen Dock windows
-	//    - Normal desktop with Stage Manager: typically 2 windows (layers 18 and 20)
-	//    - Mission Control with single space: 2 windows (layers 18 and 20) - same as Stage Manager!
-	//    - Mission Control with multiple spaces: 3+ windows
-	//
-	// NOTE: On single-monitor with single space, Stage Manager and MC produce identical
-	// patterns (2 Dock windows at layers 18 and 20). We cannot reliably distinguish them.
-	// The current behavior treats both as "MC active" which means no frontmost window hints.
-	// This is acceptable since both are "overview" modes where app-specific hints are less relevant.
+		// Detection logic:
+		// 1. If Mission Control app window is visible, definitely MC
+		// 2. Otherwise, check for multiple fullscreen Dock windows
+		//    - Normal desktop with Stage Manager: typically 2 windows (layers 18 and 20)
+		//    - Mission Control with single space: 2 windows (layers 18 and 20) - same as Stage Manager!
+		//    - Mission Control with multiple spaces: 3+ windows
+		//
+		// NOTE: On single-monitor with single space, Stage Manager and MC produce identical
+		// patterns (2 Dock windows at layers 18 and 20). We cannot reliably distinguish them.
+		// The current behavior treats both as "MC active" which means no frontmost window hints.
+		// This is acceptable since both are "overview" modes where app-specific hints are less relevant.
 
 		// Require at least 2 fullscreen Dock windows for single monitor
 		int minRequired = 2;
