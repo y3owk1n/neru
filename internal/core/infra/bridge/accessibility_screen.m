@@ -269,14 +269,14 @@ static void initializeMissionControlDetection(void) {
 /// @return true if Mission Control is active, false otherwise
 bool isMissionControlActive(void) {
 	// Initialize on first call - must be on main thread for NSNotificationCenter
-	// Use dispatch_once to ensure thread-safe single initialization
-	if ([NSThread isMainThread]) {
-		initializeMissionControlDetection();
-	} else {
-		dispatch_sync(dispatch_get_main_queue(), ^{
+	// Use dispatch_async to avoid deadlock in test environments where main queue might be blocked
+	// The notification observer will be set up asynchronously
+	static dispatch_once_t initToken;
+	dispatch_once(&initToken, ^{
+		dispatch_async(dispatch_get_main_queue(), ^{
 			initializeMissionControlDetection();
 		});
-	}
+	});
 
 	// Check if cache is still valid using thread-safe accessor
 	if (isCacheValid()) {
