@@ -178,8 +178,10 @@ func (a *Adapter) ClickableElements(
 	}
 
 	// Query supplementary elements in parallel
+	// AdditionalMenubarTargets only produces elements when IncludeMenubar is true
+	hasAdditionalTargets := filter.IncludeMenubar && len(filter.AdditionalMenubarTargets) > 0
 	if filter.IncludeMenubar || filter.IncludeDock || filter.IncludeStageManager ||
-		filter.IncludeNotificationCenter || len(filter.AdditionalMenubarTargets) > 0 {
+		filter.IncludeNotificationCenter || hasAdditionalTargets {
 		waitGroup.Add(1)
 
 		go func() {
