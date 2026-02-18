@@ -12,7 +12,7 @@
 
 // State tracking for Mission Control detection
 static bool g_missionControlActive = false;
-static CFAbsoluteTime g_lastDetectionTime = 0; // Use CFAbsoluteTime (double) instead of NSDate
+static CFAbsoluteTime g_lastDetectionTime = 0;       // Use CFAbsoluteTime (double) instead of NSDate
 static NSTimeInterval g_detectionCacheTimeout = 0.5; // Cache for 500ms
 static id g_spaceChangeObserver = nil;
 static dispatch_queue_t g_detectionQueue = nil;
