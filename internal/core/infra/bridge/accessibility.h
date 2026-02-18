@@ -229,6 +229,10 @@ int performLeftMouseUpAtCursor(void);
 /// @return true if Mission Control is active, false otherwise
 bool isMissionControlActive(void);
 
+/// Cleanup Mission Control detection resources
+/// Should be called when the application shuts down
+void cleanupMissionControlDetection(void);
+
 /// Get main screen bounds
 /// @return Main screen bounds rectangle
 CGRect getMainScreenBounds(void);

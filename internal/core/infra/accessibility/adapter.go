@@ -146,29 +146,31 @@ func (a *Adapter) ClickableElements(
 		a.logger.Debug("Collected elements from "+sourceName, zap.Int("count", len(elements)))
 	}
 
-	// Query frontmost window
-	waitGroup.Add(1)
+	if !IsMissionControlActive() {
+		// Query frontmost window
+		waitGroup.Add(1)
 
-	go func() {
-		collectElements("frontmost window", func() ([]*element.Element, error) {
-			frontmostWindow, frontmostWindowErr := a.client.FrontmostWindow()
-			if frontmostWindowErr != nil {
-				return nil, frontmostWindowErr
-			}
-			defer frontmostWindow.Release()
+		go func() {
+			collectElements("frontmost window", func() ([]*element.Element, error) {
+				frontmostWindow, frontmostWindowErr := a.client.FrontmostWindow()
+				if frontmostWindowErr != nil {
+					return nil, frontmostWindowErr
+				}
+				defer frontmostWindow.Release()
 
-			clickableNodes, clickableNodesErr := a.client.ClickableNodes(
-				frontmostWindow,
-				filter.IncludeOffscreen,
-				nil,
-			)
-			if clickableNodesErr != nil {
-				return nil, clickableNodesErr
-			}
+				clickableNodes, clickableNodesErr := a.client.ClickableNodes(
+					frontmostWindow,
+					filter.IncludeOffscreen,
+					nil,
+				)
+				if clickableNodesErr != nil {
+					return nil, clickableNodesErr
+				}
 
-			return a.processClickableNodes(ctx, clickableNodes, filter)
-		})
-	}()
+				return a.processClickableNodes(ctx, clickableNodes, filter)
+			})
+		}()
+	}
 
 	// Query supplementary elements in parallel
 	if filter.IncludeMenubar || filter.IncludeDock || filter.IncludeStageManager ||
