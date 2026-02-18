@@ -115,7 +115,8 @@ func (a *Adapter) ClickableElements(
 
 	// Check Mission Control state once to ensure consistency across all code paths
 	// Both the frontmost window check and supplementary elements check need the same value
-	missionControlActive := IsMissionControlActive()
+	// Use client's method to allow mocking in tests
+	missionControlActive := a.client.IsMissionControlActive()
 
 	// Function to collect elements from a source
 	collectElements := func(sourceName string, queryFunc func() ([]*element.Element, error)) {
