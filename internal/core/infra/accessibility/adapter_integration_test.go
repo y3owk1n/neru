@@ -27,7 +27,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 
 	logger := logger.Get()
 	client := accessibility.NewInfraAXClient(logger)
-	adapter := accessibility.NewAdapter(logger, nil, nil, client)
+	adapter := accessibility.NewAdapter(logger, nil, nil, client, false)
 
 	ctx := context.Background()
 

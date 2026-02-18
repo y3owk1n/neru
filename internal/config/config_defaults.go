@@ -228,6 +228,7 @@ func DefaultConfig() *Config {
 			IncludeDockHints:         false,
 			IncludeNCHints:           false,
 			IncludeStageManagerHints: false,
+			DetectMissionControl:     false,
 
 			ClickableRoles: []string{
 				"AXButton",

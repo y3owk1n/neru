@@ -111,6 +111,7 @@ func initializeAdapters(
 		excludedBundles,
 		clickableRoles,
 		axClient,
+		cfg.Hints.DetectMissionControl,
 	)
 	// Wrap with metrics decorator to track performance
 	accAdapter := accessibilityAdapter.NewMetricsDecorator(

@@ -44,11 +44,11 @@ var elementSlicePool = sync.Pool{
 // It converts between domain models and infrastructure types.
 type Adapter struct {
 	// logger for adapter.
-	logger          *zap.Logger
-	client          AXClient
-	excludedBundles map[string]bool
-	// clickableRoles is the list of clickable roles.
-	clickableRoles []string
+	logger               *zap.Logger
+	client               AXClient
+	excludedBundles      map[string]bool
+	clickableRoles       []string
+	detectMissionControl bool
 }
 
 // NewAdapter creates a new accessibility adapter.
@@ -57,6 +57,7 @@ func NewAdapter(
 	excludedBundles []string,
 	clickableRoles []string,
 	client AXClient,
+	detectMissionControl bool,
 ) *Adapter {
 	excludedMap := make(map[string]bool, len(excludedBundles))
 	for _, bundle := range excludedBundles {
@@ -64,10 +65,11 @@ func NewAdapter(
 	}
 
 	return &Adapter{
-		logger:          logger,
-		client:          client,
-		excludedBundles: excludedMap,
-		clickableRoles:  clickableRoles,
+		logger:               logger,
+		client:               client,
+		excludedBundles:      excludedMap,
+		clickableRoles:       clickableRoles,
+		detectMissionControl: detectMissionControl,
 	}
 }
 
@@ -116,7 +118,11 @@ func (a *Adapter) ClickableElements(
 	// Check Mission Control state once to ensure consistency across all code paths
 	// Both the frontmost window check and supplementary elements check need the same value
 	// Use client's method to allow mocking in tests
-	missionControlActive := a.client.IsMissionControlActive()
+	// Only check if detect_mission_control config option is enabled
+	var missionControlActive bool
+	if a.detectMissionControl {
+		missionControlActive = a.client.IsMissionControlActive()
+	}
 
 	// Function to collect elements from a source
 	collectElements := func(sourceName string, queryFunc func() ([]*element.Element, error)) {

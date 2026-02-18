@@ -220,6 +220,13 @@ include_dock_hints = false # Dock
 include_nc_hints = false # Notification Center
 include_stage_manager_hints = false # Stage Manager
 
+# Detects if we are in Mission Control
+# If true, when in Mission Control, hints on the menubar and active window will be disabled
+# Warning: It produce false positives for macOS below Tahoe (26.x)
+# If you are using macOS below Tahoe (26.x), you should not enable this option at all cost!!!!
+# See https://github.com/y3owk1n/neru/issues/386 for more details
+detect_mission_control = false
+
 # Target specific menubar apps
 additional_menubar_hints_targets = [
      "com.apple.TextInputMenuAgent",
@@ -714,6 +721,7 @@ include_menubar_hints = false
 include_dock_hints = false
 include_nc_hints = false
 include_stage_manager_hints = false
+detect_mission_control = false
 clickable_roles = ["AXButton", "AXLink", "AXTextField", "AXCheckBox"]
 ignore_clickable_check = false
 mouse_action_refresh_delay = 0
