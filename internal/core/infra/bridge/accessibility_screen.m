@@ -39,7 +39,10 @@ static bool getCachedMissionControlState(void) {
 static void setCachedMissionControlState(bool state) {
 	os_unfair_lock_lock(&g_stateLock);
 	g_missionControlActive = state;
-	g_lastDetectionTime = [NSDate date];
+	// Under MRC, we need to retain the new date and release the old one
+	NSDate *newDate = [[NSDate alloc] init];
+	[g_lastDetectionTime release];
+	g_lastDetectionTime = newDate;
 	os_unfair_lock_unlock(&g_stateLock);
 }
 
@@ -388,6 +391,7 @@ void cleanupMissionControlDetection(void) {
 	// Clear state using lock for thread safety
 	os_unfair_lock_lock(&g_stateLock);
 	g_missionControlActive = false;
+	[g_lastDetectionTime release];
 	g_lastDetectionTime = nil;
 	os_unfair_lock_unlock(&g_stateLock);
 
