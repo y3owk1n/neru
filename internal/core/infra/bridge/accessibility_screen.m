@@ -16,7 +16,6 @@ static CFAbsoluteTime g_lastDetectionTime = 0; // Use CFAbsoluteTime (double) in
 static NSTimeInterval g_detectionCacheTimeout = 0.5; // Cache for 500ms
 static id g_spaceChangeObserver = nil;
 static dispatch_queue_t g_detectionQueue = nil;
-static dispatch_once_t g_initOnceToken;
 
 // Lock for thread-safe access to shared state
 static os_unfair_lock g_stateLock = OS_UNFAIR_LOCK_INIT;
@@ -235,24 +234,24 @@ static void spaceDidChangeNotification(NSNotification *notification) {
 
 /// Initialize Mission Control detection system
 /// Sets up notification observer and initial state
+/// Note: Called via dispatch_async from isMissionControlActive, so initialization
+/// is already guarded by the caller's dispatch_once
 static void initializeMissionControlDetection(void) {
-	dispatch_once(&g_initOnceToken, ^{
-		g_detectionQueue = dispatch_queue_create("com.neru.missioncontrol.detection", DISPATCH_QUEUE_SERIAL);
+	g_detectionQueue = dispatch_queue_create("com.neru.missioncontrol.detection", DISPATCH_QUEUE_SERIAL);
 
-		// Set up space change notification observer
-		NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
-		NSNotificationCenter *center = [workspace notificationCenter];
+	// Set up space change notification observer
+	NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+	NSNotificationCenter *center = [workspace notificationCenter];
 
-		g_spaceChangeObserver = [center addObserverForName:NSWorkspaceActiveSpaceDidChangeNotification
-		                                            object:nil
-		                                             queue:[NSOperationQueue mainQueue]
-		                                        usingBlock:^(NSNotification *note) {
-			                                        spaceDidChangeNotification(note);
-		                                        }];
+	g_spaceChangeObserver = [center addObserverForName:NSWorkspaceActiveSpaceDidChangeNotification
+	                                            object:nil
+	                                             queue:[NSOperationQueue mainQueue]
+	                                        usingBlock:^(NSNotification *note) {
+		                                        spaceDidChangeNotification(note);
+	                                        }];
 
-		// Initial detection
-		updateMissionControlState();
-	});
+	// Initial detection
+	updateMissionControlState();
 }
 
 #pragma mark - Screen Functions
