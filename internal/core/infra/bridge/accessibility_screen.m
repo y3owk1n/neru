@@ -12,7 +12,7 @@
 
 // State tracking for Mission Control detection
 static bool g_missionControlActive = false;
-static NSDate *g_lastDetectionTime = nil;
+static CFAbsoluteTime g_lastDetectionTime = 0; // Use CFAbsoluteTime (double) instead of NSDate
 static NSTimeInterval g_detectionCacheTimeout = 0.5; // Cache for 500ms
 static id g_spaceChangeObserver = nil;
 static dispatch_queue_t g_detectionQueue = nil;
@@ -39,10 +39,8 @@ static bool getCachedMissionControlState(void) {
 static void setCachedMissionControlState(bool state) {
 	os_unfair_lock_lock(&g_stateLock);
 	g_missionControlActive = state;
-	// Under MRC, we need to retain the new date and release the old one
-	NSDate *newDate = [[NSDate alloc] init];
-	[g_lastDetectionTime release];
-	g_lastDetectionTime = newDate;
+	// Use CFAbsoluteTimeGetCurrent() - plain C function, no ObjC messaging under lock
+	g_lastDetectionTime = CFAbsoluteTimeGetCurrent();
 	os_unfair_lock_unlock(&g_stateLock);
 }
 
@@ -50,11 +48,13 @@ static void setCachedMissionControlState(bool state) {
 /// @return true if cache is still valid
 static bool isCacheValid(void) {
 	os_unfair_lock_lock(&g_stateLock);
-	if (!g_lastDetectionTime) {
+	if (g_lastDetectionTime == 0) {
 		os_unfair_lock_unlock(&g_stateLock);
 		return false;
 	}
-	NSTimeInterval timeSinceLastUpdate = -[g_lastDetectionTime timeIntervalSinceNow];
+	// Use CFAbsoluteTimeGetCurrent() - plain C function, no ObjC messaging under lock
+	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+	NSTimeInterval timeSinceLastUpdate = now - g_lastDetectionTime;
 	bool valid = (timeSinceLastUpdate < g_detectionCacheTimeout);
 	os_unfair_lock_unlock(&g_stateLock);
 	return valid;
