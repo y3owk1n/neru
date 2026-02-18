@@ -365,36 +365,3 @@ CGPoint getCurrentCursorPosition(void) {
 		return position;
 	}
 }
-
-/// Cleanup Mission Control detection resources
-/// Should be called when the application shuts down
-void cleanupMissionControlDetection(void) {
-	// Must be called on main thread due to NSNotificationCenter
-	if (![NSThread isMainThread]) {
-		dispatch_sync(dispatch_get_main_queue(), ^{
-			cleanupMissionControlDetection();
-		});
-		return;
-	}
-
-	// Remove notification observer
-	if (g_spaceChangeObserver) {
-		NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
-		NSNotificationCenter *center = [workspace notificationCenter];
-		[center removeObserver:g_spaceChangeObserver];
-		g_spaceChangeObserver = nil;
-	}
-
-	// Reset the init token so re-initialization is possible (mainly for testing)
-	g_initOnceToken = 0;
-
-	// Clear state using lock for thread safety
-	os_unfair_lock_lock(&g_stateLock);
-	g_missionControlActive = false;
-	[g_lastDetectionTime release];
-	g_lastDetectionTime = nil;
-	os_unfair_lock_unlock(&g_stateLock);
-
-	// Note: We don't nil out g_detectionQueue as there might be pending operations
-	// The queue will be cleaned up when the process exits
-}
