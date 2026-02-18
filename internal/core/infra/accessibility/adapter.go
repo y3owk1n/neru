@@ -200,6 +200,14 @@ func (a *Adapter) ClickableElements(
 		return nil, firstError
 	}
 
+	// Log reason for empty results when Mission Control is active
+	// This is intentional - we skip frontmost window query during MC
+	if len(allElements) == 0 && missionControlActive {
+		a.logger.Debug(
+			"No elements collected - Mission Control is active and no supplementary filters enabled",
+		)
+	}
+
 	a.logger.Info("Total elements collected", zap.Int("count", len(allElements)))
 
 	return allElements, nil
