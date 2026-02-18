@@ -233,8 +233,7 @@ static void spaceDidChangeNotification(NSNotification *notification) {
 /// Initialize Mission Control detection system
 /// Sets up notification observer and initial state
 static void initializeMissionControlDetection(void) {
-	static dispatch_once_t onceToken;
-	dispatch_once(&onceToken, ^{
+	dispatch_once(&g_initOnceToken, ^{
 		g_detectionQueue = dispatch_queue_create("com.neru.missioncontrol.detection", DISPATCH_QUEUE_SERIAL);
 
 		// Set up space change notification observer
