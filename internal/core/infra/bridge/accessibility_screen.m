@@ -127,19 +127,15 @@ static bool detectMissionControlActive(void) {
 		CFArrayRef windowList = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID);
 
 		if (!windowList) {
-			NSLog(@"[Neru] Mission Control detection: CGWindowListCopyWindowInfo returned NULL");
 			return false;
 		}
 
 		// Get all screens for multi-monitor detection
 		NSArray *screens = [NSScreen screens];
 		if (!screens || screens.count == 0) {
-			NSLog(@"[Neru] Mission Control detection: No screens found");
 			CFRelease(windowList);
 			return false;
 		}
-
-		NSLog(@"[Neru] Mission Control detection: Checking with %lu screens", (unsigned long)screens.count);
 
 		// Store all screen sizes for proper multi-monitor detection
 		// This ensures we detect Mission Control windows on screens of any size
@@ -155,8 +151,6 @@ static bool detectMissionControlActive(void) {
 		int totalDockWindows = 0;
 		BOOL missionControlAppVisible = NO;
 
-		NSLog(@"[Neru] Mission Control detection: Found %ld total windows", (long)count);
-
 		for (CFIndex i = 0; i < count; i++) {
 			CFDictionaryRef windowInfo = (CFDictionaryRef)CFArrayGetValueAtIndex(windowList, i);
 			if (!windowInfo)
@@ -166,7 +160,6 @@ static bool detectMissionControlActive(void) {
 
 			// Check if Mission Control app is visible
 			if (ownerName && CFStringCompare(ownerName, CFSTR("Mission Control"), 0) == kCFCompareEqualTo) {
-				NSLog(@"[Neru] Mission Control detection: Found Mission Control app window");
 				missionControlAppVisible = YES;
 			}
 
@@ -211,13 +204,9 @@ static bool detectMissionControlActive(void) {
 					// Window must have no name (Mission Control Dock windows are unnamed)
 					bool hasNoName = (!windowName || CFStringGetLength(windowName) == 0);
 					int layer = 0;
-					if (windowLayer) {
+					if (layer) {
 						CFNumberGetValue(windowLayer, kCFNumberIntType, &layer);
 					}
-
-					NSLog(@"[Neru] Mission Control detection: Dock window found - size: %.0fx%.0f, layer: %d, "
-					      @"fullscreen: %d, hasName: %d",
-					      w, h, layer, isFullscreen, !hasNoName);
 
 					if (isFullscreen && hasNoName && windowLayer) {
 						fullscreenDockWindows++;
@@ -230,10 +219,6 @@ static bool detectMissionControlActive(void) {
 		}
 
 		CFRelease(windowList);
-
-		NSLog(@"[Neru] Mission Control detection: Total Dock windows: %d, Fullscreen: %d, HighLayer(18-20): %d, MC App "
-		      @"visible: %d",
-		      totalDockWindows, fullscreenDockWindows, highLayerDockWindows, missionControlAppVisible);
 
 		// Detection logic:
 		// 1. If Mission Control app window is visible, definitely MC
@@ -249,15 +234,10 @@ static bool detectMissionControlActive(void) {
 		// Primary check: MC app window visible
 		if (missionControlAppVisible) {
 			result = YES;
-			NSLog(@"[Neru] Mission Control detection: Result: ACTIVE (MC app visible)");
 		}
 		// Secondary check: Multiple fullscreen Dock windows (2+)
 		else if (fullscreenDockWindows >= minRequired && highLayerDockWindows >= minRequired) {
 			result = YES;
-			NSLog(@"[Neru] Mission Control detection: Result: ACTIVE (2+ fullscreen Dock windows)");
-		} else {
-			NSLog(@"[Neru] Mission Control detection: Result: INACTIVE (only %d fullscreen Dock windows, need %d)",
-			      fullscreenDockWindows, minRequired);
 		}
 
 		return result;
@@ -327,12 +307,8 @@ bool isMissionControlActive(void) {
 
 	// Check if cache is still valid using thread-safe accessor
 	if (isCacheValid()) {
-		bool cached = getCachedMissionControlState();
-		NSLog(@"[Neru] Mission Control detection: Cache HIT, returning: %@", cached ? @"ACTIVE" : @"INACTIVE");
-		return cached;
+		return getCachedMissionControlState();
 	}
-
-	NSLog(@"[Neru] Mission Control detection: Cache MISS, performing detection...");
 
 	// Cache expired or not set, do synchronous detection
 	bool result = detectMissionControlActive();
