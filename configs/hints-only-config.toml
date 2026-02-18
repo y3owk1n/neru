@@ -82,6 +82,3 @@ additional_firefox_bundles = []
 [grid]
 # Grid mode - DISABLED
 enabled = false
-
-[logging]
-log_level = "debug"
