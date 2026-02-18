@@ -212,7 +212,16 @@ static bool detectMissionControlActive(void) {
 
 		// Return results: Mission Control is active when we see multiple fullscreen Dock windows
 		// with high window layers (18-20)
-		return (fullscreenDockWindows >= 2 && highLayerDockWindows >= 2);
+		//
+		// Stricter detection to reduce false positives:
+		// - Require at least 3 fullscreen Dock windows (typical in MC with multiple spaces)
+		// - Or require the count to equal/exceed number of screens (each screen gets a Dock in MC)
+		int minRequired = (int)screens.count;
+		if (minRequired < 3) {
+			minRequired = 3;
+		}
+
+		return (fullscreenDockWindows >= minRequired && highLayerDockWindows >= minRequired);
 	}
 }
 
