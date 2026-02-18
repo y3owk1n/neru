@@ -235,16 +235,12 @@ static bool detectMissionControlActive(void) {
 
 		// Detection logic:
 		// 1. If Mission Control app window is visible, definitely MC
-		// 2. Otherwise, require multiple fullscreen Dock windows (at different layers)
+		// 2. Otherwise, check for multiple fullscreen Dock windows
 		//    - Normal desktop with Stage Manager: typically 2 windows (layers 18 and 20)
-		//    - Mission Control: 3+ windows or windows at layers beyond 18-20
+		//    - Mission Control with multiple spaces: 2+ windows
 
-		// For single screen: require 2 fullscreen Dock windows
-		// For multiple screens: require at least number of screens
-		int minRequired = (int)screens.count;
-		if (minRequired < 2) {
-			minRequired = 2;
-		}
+		// Require at least 2 fullscreen Dock windows for single monitor
+		int minRequired = 2;
 
 		BOOL result = NO;
 
@@ -253,18 +249,14 @@ static bool detectMissionControlActive(void) {
 			result = YES;
 			NSLog(@"[Neru] Mission Control detection: Result: ACTIVE (MC app visible)");
 		}
-		// Secondary check: Multiple fullscreen Dock windows (3+)
-		else if (fullscreenDockWindows >= 3 && highLayerDockWindows >= 3) {
+		// Secondary check: Multiple fullscreen Dock windows (2+)
+		else if (fullscreenDockWindows >= minRequired && highLayerDockWindows >= minRequired) {
 			result = YES;
-			NSLog(@"[Neru] Mission Control detection: Result: ACTIVE (3+ fullscreen Dock windows)");
-		}
-		// Tertiary check: For multi-monitor, require screen count worth of windows
-		else if (screens.count > 1 && fullscreenDockWindows >= minRequired && highLayerDockWindows >= minRequired) {
-			result = YES;
-			NSLog(@"[Neru] Mission Control detection: Result: ACTIVE (multi-monitor with %lu screens)", (unsigned long)screens.count);
+			NSLog(@"[Neru] Mission Control detection: Result: ACTIVE (2+ fullscreen Dock windows)");
 		}
 		else {
-			NSLog(@"[Neru] Mission Control detection: Result: INACTIVE (not enough indicators)");
+			NSLog(@"[Neru] Mission Control detection: Result: INACTIVE (only %d fullscreen Dock windows, need %d)",
+						fullscreenDockWindows, minRequired);
 		}
 
 		return result;
