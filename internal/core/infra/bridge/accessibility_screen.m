@@ -148,7 +148,6 @@ static bool detectMissionControlActive(void) {
 		CFIndex count = CFArrayGetCount(windowList);
 		int fullscreenDockWindows = 0;
 		int highLayerDockWindows = 0;
-		int totalDockWindows = 0;
 		BOOL missionControlAppVisible = NO;
 
 		for (CFIndex i = 0; i < count; i++) {
@@ -164,8 +163,6 @@ static bool detectMissionControlActive(void) {
 			}
 
 			if (ownerName && CFStringCompare(ownerName, CFSTR("Dock"), 0) == kCFCompareEqualTo) {
-				totalDockWindows++;
-
 				CFStringRef windowName = (CFStringRef)CFDictionaryGetValue(windowInfo, kCGWindowName);
 
 				CFDictionaryRef bounds = (CFDictionaryRef)CFDictionaryGetValue(windowInfo, kCGWindowBounds);
