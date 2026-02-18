@@ -153,6 +153,7 @@ static bool detectMissionControlActive(void) {
 		int fullscreenDockWindows = 0;
 		int highLayerDockWindows = 0;
 		int totalDockWindows = 0;
+		BOOL missionControlAppVisible = NO;
 
 		NSLog(@"[Neru] Mission Control detection: Found %ld total windows", (long)count);
 
@@ -162,6 +163,12 @@ static bool detectMissionControlActive(void) {
 				continue;
 
 			CFStringRef ownerName = (CFStringRef)CFDictionaryGetValue(windowInfo, kCGWindowOwnerName);
+
+			// Check if Mission Control app is visible
+			if (ownerName && CFStringCompare(ownerName, CFSTR("Mission Control"), 0) == kCFCompareEqualTo) {
+				NSLog(@"[Neru] Mission Control detection: Found Mission Control app window");
+				missionControlAppVisible = YES;
+			}
 
 			if (ownerName && CFStringCompare(ownerName, CFSTR("Dock"), 0) == kCFCompareEqualTo) {
 				totalDockWindows++;
@@ -223,22 +230,42 @@ static bool detectMissionControlActive(void) {
 
 		CFRelease(windowList);
 
-		NSLog(@"[Neru] Mission Control detection: Total Dock windows: %d, Fullscreen: %d, HighLayer(18-20): %d",
-					totalDockWindows, fullscreenDockWindows, highLayerDockWindows);
+		NSLog(@"[Neru] Mission Control detection: Total Dock windows: %d, Fullscreen: %d, HighLayer(18-20): %d, MC App visible: %d",
+					totalDockWindows, fullscreenDockWindows, highLayerDockWindows, missionControlAppVisible);
 
-		// Return results: Mission Control is active when we see multiple fullscreen Dock windows
-		// with high window layers (18-20)
-		//
-		// Stricter detection to reduce false positives:
-		// - Require at least 3 fullscreen Dock windows (typical in MC with multiple spaces)
-		// - Or require the count to equal/exceed number of screens (each screen gets a Dock in MC)
+		// Detection logic:
+		// 1. If Mission Control app window is visible, definitely MC
+		// 2. Otherwise, require multiple fullscreen Dock windows (at different layers)
+		//    - Normal desktop with Stage Manager: typically 2 windows (layers 18 and 20)
+		//    - Mission Control: 3+ windows or windows at layers beyond 18-20
+
+		// For single screen: require 2 fullscreen Dock windows
+		// For multiple screens: require at least number of screens
 		int minRequired = (int)screens.count;
-		if (minRequired < 3) {
-			minRequired = 3;
+		if (minRequired < 2) {
+			minRequired = 2;
 		}
 
-		BOOL result = (fullscreenDockWindows >= minRequired && highLayerDockWindows >= minRequired);
-		NSLog(@"[Neru] Mission Control detection: Required: %d, Result: %@", minRequired, result ? @"ACTIVE" : @"INACTIVE");
+		BOOL result = NO;
+
+		// Primary check: MC app window visible
+		if (missionControlAppVisible) {
+			result = YES;
+			NSLog(@"[Neru] Mission Control detection: Result: ACTIVE (MC app visible)");
+		}
+		// Secondary check: Multiple fullscreen Dock windows (3+)
+		else if (fullscreenDockWindows >= 3 && highLayerDockWindows >= 3) {
+			result = YES;
+			NSLog(@"[Neru] Mission Control detection: Result: ACTIVE (3+ fullscreen Dock windows)");
+		}
+		// Tertiary check: For multi-monitor, require screen count worth of windows
+		else if (screens.count > 1 && fullscreenDockWindows >= minRequired && highLayerDockWindows >= minRequired) {
+			result = YES;
+			NSLog(@"[Neru] Mission Control detection: Result: ACTIVE (multi-monitor with %lu screens)", (unsigned long)screens.count);
+		}
+		else {
+			NSLog(@"[Neru] Mission Control detection: Result: INACTIVE (not enough indicators)");
+		}
 
 		return result;
 	}
