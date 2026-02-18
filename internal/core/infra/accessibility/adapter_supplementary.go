@@ -9,14 +9,14 @@ import (
 )
 
 // addSupplementaryElements adds menubar, dock, and notification center elements based on filter.
+// The missionControlActive parameter should be obtained from the main CollectElements function
+// to ensure consistency with the frontmost window check.
 func (a *Adapter) addSupplementaryElements(
 	ctx context.Context,
 	elements []*element.Element,
 	filter ports.ElementFilter,
+	missionControlActive bool,
 ) []*element.Element {
-	// Check if Mission Control is active
-	missionControlActive := a.client.IsMissionControlActive()
-
 	a.logger.Debug("Adding supplementary elements",
 		zap.Bool("mission_control_active", missionControlActive),
 		zap.Bool("include_menubar", filter.IncludeMenubar),

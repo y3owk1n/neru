@@ -113,6 +113,10 @@ func (a *Adapter) ClickableElements(
 		firstError  error
 	)
 
+	// Check Mission Control state once to ensure consistency across all code paths
+	// Both the frontmost window check and supplementary elements check need the same value
+	missionControlActive := IsMissionControlActive()
+
 	// Function to collect elements from a source
 	collectElements := func(sourceName string, queryFunc func() ([]*element.Element, error)) {
 		defer waitGroup.Done()
@@ -146,7 +150,7 @@ func (a *Adapter) ClickableElements(
 		a.logger.Debug("Collected elements from "+sourceName, zap.Int("count", len(elements)))
 	}
 
-	if !IsMissionControlActive() {
+	if !missionControlActive {
 		// Query frontmost window
 		waitGroup.Add(1)
 
@@ -179,7 +183,12 @@ func (a *Adapter) ClickableElements(
 
 		go func() {
 			collectElements("supplementary sources", func() ([]*element.Element, error) {
-				return a.addSupplementaryElements(ctx, []*element.Element{}, filter), nil
+				return a.addSupplementaryElements(
+					ctx,
+					[]*element.Element{},
+					filter,
+					missionControlActive,
+				), nil
 			})
 		}()
 	}
