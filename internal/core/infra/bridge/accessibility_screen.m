@@ -204,11 +204,11 @@ static bool detectMissionControlActive(void) {
 					// Window must have no name (Mission Control Dock windows are unnamed)
 					bool hasNoName = (!windowName || CFStringGetLength(windowName) == 0);
 					int layer = 0;
-					if (layer) {
+					if (windowLayer) {
 						CFNumberGetValue(windowLayer, kCFNumberIntType, &layer);
 					}
 
-					if (isFullscreen && hasNoName && windowLayer) {
+					if (isFullscreen && hasNoName) {
 						fullscreenDockWindows++;
 						if (layer >= 18 && layer <= 20) {
 							highLayerDockWindows++;
