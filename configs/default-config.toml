@@ -29,6 +29,12 @@ restore_cursor_position = false
 #   mode_exit_keys = ["escape", "q"]      # Exit with Escape or Q
 mode_exit_keys = ["escape"]
 
+# Whether to hide the overlay from screen sharing (Zoom, Google Meet, OBS, etc.)
+# When true, the overlay will not appear in shared screens but remains visible locally
+# Note: Uses macOS NSWindow.sharingType API - effectiveness varies by application
+# See CLI.md documentation for more details
+hide_overlay_in_screen_share = false
+
 [hotkeys]
 # Hotkey bindings - key = action
 # Supported modifiers: Cmd, Ctrl, Alt, Shift, Option
