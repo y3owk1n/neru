@@ -75,11 +75,22 @@ func (qg *QuadGrid) Divide() []image.Rectangle {
 	for row := range qg.gridSize {
 		for col := range qg.gridSize {
 			idx := row*qg.gridSize + col
+
+			maxX := qg.currentBounds.Min.X + (col+1)*cellWidth
+			if col == qg.gridSize-1 {
+				maxX = qg.currentBounds.Max.X
+			}
+
+			maxY := qg.currentBounds.Min.Y + (row+1)*cellHeight
+			if row == qg.gridSize-1 {
+				maxY = qg.currentBounds.Max.Y
+			}
+
 			quadrants[idx] = image.Rect(
 				qg.currentBounds.Min.X+col*cellWidth,
 				qg.currentBounds.Min.Y+row*cellHeight,
-				qg.currentBounds.Min.X+(col+1)*cellWidth,
-				qg.currentBounds.Min.Y+(row+1)*cellHeight,
+				maxX,
+				maxY,
 			)
 		}
 	}

@@ -185,14 +185,24 @@ func (o *Overlay) DrawQuadGrid(
 		for col := range gridSize {
 			idx := row*gridSize + col
 
+			maxX := bounds.Min.X + (col+1)*cellWidth
+			if col == gridSize-1 {
+				maxX = bounds.Max.X
+			}
+
+			maxY := bounds.Min.Y + (row+1)*cellHeight
+			if row == gridSize-1 {
+				maxY = bounds.Max.Y
+			}
+
 			quadrant := image.Rectangle{
 				Min: image.Point{
 					X: bounds.Min.X + col*cellWidth,
 					Y: bounds.Min.Y + row*cellHeight,
 				},
 				Max: image.Point{
-					X: bounds.Min.X + (col+1)*cellWidth,
-					Y: bounds.Min.Y + (row+1)*cellHeight,
+					X: maxX,
+					Y: maxY,
 				},
 			}
 
