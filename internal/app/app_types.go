@@ -75,6 +75,9 @@ type App struct {
 	gcCancel         context.CancelFunc
 	gcAggressiveMode bool
 
+	// State subscriptions
+	screenShareSubscriptionID uint64
+
 	// Renderer
 	renderer *ui.OverlayRenderer
 

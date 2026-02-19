@@ -120,6 +120,13 @@ func initializeApp(app *App) (*App, error) {
 	initializeIPCController(app)
 	// IPC controller doesn't need specific cleanup beyond what services provide
 
+	// Setup screen share state subscription to sync overlay with state changes
+	setupScreenShareStateSubscription(app)
+
+	initializedPhases = append(initializedPhases, func() {
+		cleanupScreenShareStateSubscription(app)
+	})
+
 	// Phase 8: Initialize event tap and IPC server
 	err = initializeEventTapAndIPC(app)
 	if err != nil {

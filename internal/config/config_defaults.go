@@ -193,6 +193,7 @@ func DefaultConfig() *Config {
 			AccessibilityCheckOnStart: true,
 			RestoreCursorPosition:     false,
 			ModeExitKeys:              []string{"escape"},
+			HideOverlayInScreenShare:  false,
 		},
 		Hotkeys: HotkeysConfig{
 			Bindings: map[string]string{

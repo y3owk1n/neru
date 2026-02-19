@@ -118,6 +118,11 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 /// @param level Overlay level
 void NeruSetOverlayLevel(OverlayWindow window, int level);
 
+/// Set overlay sharing type for screen sharing visibility
+/// @param window Overlay window handle
+/// @param sharingType Sharing type: 0 = NSWindowSharingNone (hidden), 2 = NSWindowSharingReadWrite (visible)
+void NeruSetOverlaySharingType(OverlayWindow window, int sharingType);
+
 /// Replace overlay window
 /// @param pwindow Pointer to overlay window handle
 void NeruReplaceOverlayWindow(OverlayWindow *pwindow);

@@ -197,3 +197,45 @@ func (h *IPCControllerModes) handleIdle(_ context.Context, _ ipc.Command) ipc.Re
 
 	return ipc.Response{Success: true, Message: "idle mode activated", Code: ipc.CodeOK}
 }
+
+// IPCControllerOverlay handles overlay-related IPC commands.
+type IPCControllerOverlay struct {
+	appState *state.AppState
+	logger   *zap.Logger
+}
+
+// NewIPCControllerOverlay creates a new overlay command handler.
+func NewIPCControllerOverlay(appState *state.AppState, logger *zap.Logger) *IPCControllerOverlay {
+	return &IPCControllerOverlay{
+		appState: appState,
+		logger:   logger,
+	}
+}
+
+// RegisterHandlers registers overlay command handlers.
+func (h *IPCControllerOverlay) RegisterHandlers(
+	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
+) {
+	handlers[domain.CommandToggleScreenShare] = h.handleToggleScreenShare
+}
+
+func (h *IPCControllerOverlay) handleToggleScreenShare(
+	_ context.Context,
+	_ ipc.Command,
+) ipc.Response {
+	currentState := h.appState.IsHiddenForScreenShare()
+	newState := !currentState
+	h.appState.SetHiddenForScreenShare(newState)
+
+	status := "visible"
+	if newState {
+		status = "hidden"
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "screen share visibility: " + status,
+		Code:    ipc.CodeOK,
+		Data:    map[string]bool{"hidden": newState},
+	}
+}

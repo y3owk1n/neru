@@ -204,6 +204,7 @@ func (m *mockOverlayManager) DrawQuadGrid(
 func (m *mockOverlayManager) UpdateGridMatches(_ string)                   {}
 func (m *mockOverlayManager) ShowSubgrid(_ *domainGrid.Cell, _ grid.Style) {}
 func (m *mockOverlayManager) SetHideUnmatched(_ bool)                      {}
+func (m *mockOverlayManager) SetSharingType(_ bool)                        {}
 
 type mockHotkeyService struct {
 	mu         sync.RWMutex

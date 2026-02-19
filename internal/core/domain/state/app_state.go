@@ -12,12 +12,17 @@ type AppState struct {
 	mu sync.RWMutex
 
 	// Core state
-	enabled     bool
-	currentMode domain.Mode
+	enabled              bool
+	currentMode          domain.Mode
+	hiddenForScreenShare bool
 
 	// Callbacks - stored as map for O(1) unsubscribe
-	enabledStateCallbacks map[uint64]func(bool)
-	nextCallbackID        uint64
+	// Note: Both callback maps share a single nextCallbackID counter to ensure
+	// globally unique subscription IDs. Each Off* method only unsubscribes from
+	// its corresponding map, so misdirected unsubscribes are safely ignored.
+	enabledStateCallbacks     map[uint64]func(bool)
+	screenShareStateCallbacks map[uint64]func(bool)
+	nextCallbackID            uint64
 
 	// Operational flags
 	hotkeysRegistered       bool
@@ -30,10 +35,12 @@ type AppState struct {
 // NewAppState creates a new AppState with default values.
 func NewAppState() *AppState {
 	return &AppState{
-		enabled:               true,
-		currentMode:           domain.ModeIdle,
-		enabledStateCallbacks: make(map[uint64]func(bool)),
-		nextCallbackID:        1, // Start at 1 so 0 can be used as nil sentinel
+		enabled:                   true,
+		currentMode:               domain.ModeIdle,
+		hiddenForScreenShare:      false,
+		enabledStateCallbacks:     make(map[uint64]func(bool)),
+		screenShareStateCallbacks: make(map[uint64]func(bool)),
+		nextCallbackID:            1, // Start at 1 so 0 can be used as nil sentinel
 	}
 }
 
@@ -111,6 +118,67 @@ func (s *AppState) Enable() {
 // Disable disables the application.
 func (s *AppState) Disable() {
 	s.SetEnabled(false)
+}
+
+// IsHiddenForScreenShare returns whether the overlay is hidden from screen sharing.
+func (s *AppState) IsHiddenForScreenShare() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.hiddenForScreenShare
+}
+
+// SetHiddenForScreenShare sets whether the overlay should be hidden from screen sharing.
+func (s *AppState) SetHiddenForScreenShare(hidden bool) {
+	s.mu.Lock()
+	oldHidden := s.hiddenForScreenShare
+	s.hiddenForScreenShare = hidden
+	// Copy callbacks to slice for iteration outside lock
+	callbacks := make([]func(bool), 0, len(s.screenShareStateCallbacks))
+	for _, cb := range s.screenShareStateCallbacks {
+		callbacks = append(callbacks, cb)
+	}
+
+	s.mu.Unlock()
+
+	// Notify all callbacks if state actually changed
+	if oldHidden != hidden {
+		for _, callback := range callbacks {
+			if callback != nil {
+				// Call callback outside of lock to avoid deadlocks
+				go callback(hidden)
+			}
+		}
+	}
+}
+
+// OnScreenShareStateChanged registers a callback for when the screen share state changes.
+// Returns a subscription ID that can be used to unsubscribe later.
+func (s *AppState) OnScreenShareStateChanged(callback func(bool)) uint64 {
+	if callback == nil {
+		return 0
+	}
+
+	s.mu.Lock()
+
+	nextCallbackID := s.nextCallbackID
+	s.nextCallbackID++
+	s.screenShareStateCallbacks[nextCallbackID] = callback
+	currentState := s.hiddenForScreenShare
+
+	s.mu.Unlock()
+
+	// Fire initial callback via goroutine for consistency with SetHiddenForScreenShare
+	go callback(currentState)
+
+	return nextCallbackID
+}
+
+// OffScreenShareStateChanged unsubscribes a callback using the ID returned by OnScreenShareStateChanged.
+func (s *AppState) OffScreenShareStateChanged(id uint64) {
+	s.mu.Lock()
+	delete(s.screenShareStateCallbacks, id)
+	s.mu.Unlock()
 }
 
 // CurrentMode returns the current application mode.

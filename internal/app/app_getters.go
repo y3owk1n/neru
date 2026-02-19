@@ -117,3 +117,24 @@ func (a *App) OffEnabledStateChanged(id uint64) {
 	// Delegate to appState
 	a.appState.OffEnabledStateChanged(id)
 }
+
+// IsOverlayHiddenForScreenShare returns whether the overlay is hidden from screen sharing.
+func (a *App) IsOverlayHiddenForScreenShare() bool {
+	return a.appState.IsHiddenForScreenShare()
+}
+
+// SetOverlayHiddenForScreenShare sets whether the overlay should be hidden from screen sharing.
+func (a *App) SetOverlayHiddenForScreenShare(hide bool) {
+	// Update app state (this will trigger callbacks)
+	a.appState.SetHiddenForScreenShare(hide)
+}
+
+// OnScreenShareStateChanged registers a callback for when the screen share state changes.
+func (a *App) OnScreenShareStateChanged(callback func(bool)) uint64 {
+	return a.appState.OnScreenShareStateChanged(callback)
+}
+
+// OffScreenShareStateChanged unsubscribes a callback by ID.
+func (a *App) OffScreenShareStateChanged(id uint64) {
+	a.appState.OffScreenShareStateChanged(id)
+}

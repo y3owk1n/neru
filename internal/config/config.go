@@ -158,6 +158,7 @@ type GeneralConfig struct {
 	AccessibilityCheckOnStart bool     `json:"accessibilityCheckOnStart" toml:"accessibility_check_on_start"`
 	RestoreCursorPosition     bool     `json:"restoreCursorPosition"     toml:"restore_cursor_position"`
 	ModeExitKeys              []string `json:"modeExitKeys"              toml:"mode_exit_keys"`
+	HideOverlayInScreenShare  bool     `json:"hideOverlayInScreenShare"  toml:"hide_overlay_in_screen_share"`
 }
 
 // AppConfig defines application-specific settings for role customization.

@@ -33,6 +33,11 @@ const (
 
 	// RoundingFactor is the factor for rounding.
 	RoundingFactor = 0.5
+
+	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	NSWindowSharingNone = 0
+	// NSWindowSharingReadWrite represents NSWindowSharingReadWrite (2) - visible in screen sharing.
+	NSWindowSharingReadWrite = 2
 )
 
 //export gridResizeCompletionCallback
@@ -453,6 +458,16 @@ func (o *Overlay) SetMaxCells(maxCells int) {
 	o.viewportMu.Lock()
 	defer o.viewportMu.Unlock()
 	o.maxCells = maxCells
+}
+
+// SetSharingType sets the window sharing type for screen sharing visibility.
+func (o *Overlay) SetSharingType(hide bool) {
+	sharingType := C.int(NSWindowSharingReadWrite)
+	if hide {
+		sharingType = C.int(NSWindowSharingNone)
+	}
+
+	C.NeruSetOverlaySharingType(o.window, sharingType)
 }
 
 // drawGridIncremental performs incremental updates by only redrawing changed cells.

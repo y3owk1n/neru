@@ -457,6 +457,12 @@ func (a *App) Cleanup() {
 		a.overlayManager.Destroy()
 	}
 
+	// Cleanup screen share state subscription
+	if a.screenShareSubscriptionID != 0 {
+		a.appState.OffScreenShareStateChanged(a.screenShareSubscriptionID)
+		a.screenShareSubscriptionID = 0
+	}
+
 	if a.eventTap != nil {
 		a.eventTap.Destroy()
 	}
