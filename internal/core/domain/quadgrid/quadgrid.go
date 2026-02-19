@@ -103,7 +103,7 @@ func (qg *QuadGrid) QuadrantCenter(quadrant Quadrant) image.Point {
 	quadrants := qg.Divide()
 	idx := int(quadrant)
 
-	if idx >= len(quadrants) {
+	if idx < 0 || idx >= len(quadrants) {
 		return qg.CurrentCenter()
 	}
 
@@ -242,7 +242,7 @@ func (qg *QuadGrid) QuadrantBounds(q Quadrant) image.Rectangle {
 	quadrants := qg.Divide()
 	idx := int(q)
 
-	if idx >= len(quadrants) {
+	if idx < 0 || idx >= len(quadrants) {
 		return qg.currentBounds
 	}
 
