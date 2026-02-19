@@ -78,6 +78,7 @@ func NewManagerWithConfig(
 			zap.Int("length", utf8.RuneCountInString(keys)),
 			zap.Int("expected", expectedKeyCount))
 		keys = DefaultKeys
+		gridSize = GridSize2x2
 	}
 
 	return &Manager{
