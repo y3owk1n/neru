@@ -108,6 +108,14 @@ func (qg *QuadGrid) QuadrantCenter(quadrant Quadrant) image.Point {
 // Returns the center point of the selected quadrant and whether the selection is complete.
 // Selection is complete when the minimum size is reached.
 func (qg *QuadGrid) SelectQuadrant(quadrant Quadrant) (image.Point, bool) {
+	quadrants := qg.Divide()
+	idx := int(quadrant)
+
+	// Bounds check - return center of current bounds for invalid quadrant
+	if idx >= len(quadrants) || idx < 0 {
+		return qg.CurrentCenter(), true
+	}
+
 	// Check if we can divide further
 	if !qg.CanDivide() {
 		// If we can't divide further (max depth or min size),
@@ -115,8 +123,7 @@ func (qg *QuadGrid) SelectQuadrant(quadrant Quadrant) (image.Point, bool) {
 		return qg.QuadrantCenter(quadrant), true
 	}
 
-	quadrants := qg.Divide()
-	selected := quadrants[quadrant]
+	selected := quadrants[idx]
 
 	// Save current bounds for backtracking
 	qg.history = append(qg.history, qg.currentBounds)
