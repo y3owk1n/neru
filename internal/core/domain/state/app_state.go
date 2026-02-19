@@ -17,6 +17,9 @@ type AppState struct {
 	hiddenForScreenShare bool
 
 	// Callbacks - stored as map for O(1) unsubscribe
+	// Note: Both callback maps share a single nextCallbackID counter to ensure
+	// globally unique subscription IDs. Each Off* method only unsubscribes from
+	// its corresponding map, so misdirected unsubscribes are safely ignored.
 	enabledStateCallbacks     map[uint64]func(bool)
 	screenShareStateCallbacks map[uint64]func(bool)
 	nextCallbackID            uint64
