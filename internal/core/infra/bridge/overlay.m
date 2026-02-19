@@ -530,6 +530,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 @interface OverlayWindowController : NSObject
 @property(nonatomic, strong) NSWindow *window;         ///< Window instance
 @property(nonatomic, strong) OverlayView *overlayView; ///< Overlay view instance
+@property(nonatomic, assign) NSInteger sharingType;    ///< Current window sharing type
 @end
 
 #pragma mark - Overlay Window Controller Implementation
@@ -572,8 +573,11 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	    setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorStationary |
 	                          NSWindowCollectionBehaviorFullScreenAuxiliary | NSWindowCollectionBehaviorIgnoresCycle];
 
-	// Default to visible in screen sharing (NSWindowSharingReadWrite = 2)
-	[self.window setSharingType:NSWindowSharingReadWrite];
+	// Set sharing type - default to visible (NSWindowSharingReadWrite = 2) unless already set
+	if (self.sharingType == 0) {
+		self.sharingType = NSWindowSharingReadWrite;
+	}
+	[self.window setSharingType:self.sharingType];
 
 	NSRect viewFrame = NSMakeRect(0, 0, screenFrame.size.width, screenFrame.size.height);
 	self.overlayView = [[OverlayView alloc] initWithFrame:viewFrame];
@@ -1121,7 +1125,12 @@ void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
 		return;
 	dispatch_async(dispatch_get_main_queue(), ^{
 		OverlayWindowController *oldController = (OverlayWindowController *)(*pwindow);
+		NSInteger sharingType = NSWindowSharingReadWrite; // Default to visible
+		if (oldController) {
+			sharingType = oldController.sharingType;
+		}
 		OverlayWindowController *newController = [[OverlayWindowController alloc] init];
+		newController.sharingType = sharingType;
 		[newController retain];
 		if (oldController) {
 			[oldController.window close];
