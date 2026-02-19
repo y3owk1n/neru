@@ -1304,6 +1304,7 @@ void NeruSetOverlaySharingType(OverlayWindow window, int sharingType) {
 	OverlayWindowController *controller = (OverlayWindowController *)window;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
+		controller.sharingType = sharingType;
 		[controller.window setSharingType:sharingType];
 	});
 }
