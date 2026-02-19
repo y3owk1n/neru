@@ -107,6 +107,7 @@ excluded_apps = [
 accessibility_check_on_start = true
 restore_cursor_position = true
 mode_exit_keys = ["escape"]
+hide_overlay_in_screen_share = false
 ```
 
 **Cursor restoration:**
@@ -140,6 +141,21 @@ Format notes:
 - Use plain text key names: `escape`, `return`, `tab`, `space`, `backspace`, `delete`, `home`, `end`, `pageup`, `pagedown`
 - Modifiers: `Cmd`, `Ctrl`, `Alt`/`Option`, `Shift`
 - Modifier combos: `Modifier+Key` (e.g. `Ctrl+R`, `Cmd+Shift+Space`)
+
+**Hide Overlay in Screen Share:**
+
+> [!NOTE]
+> This APIs is sort of deprecated as well, it might or might not work
+> Maybe in future versions, apple will provide a new API to interface with screen sharing
+> Reference: [issue from tauri](https://github.com/tauri-apps/tauri/issues/14200)
+
+When `hide_overlay_in_screen_share = true`, the overlay will not appear in shared screens but remains visible locally.
+
+**Note:** This feature uses macOS `NSWindow.sharingType` API. Effectiveness varies by screen sharing application:
+
+- Works reliably on macOS 14 and earlier with all applications
+- Limited effectiveness on macOS 15.4+ with modern screen capture (ScreenCaptureKit)
+- Always test with your specific video conferencing software
 
 ---
 

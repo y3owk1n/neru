@@ -97,21 +97,8 @@ neru toggle-screen-share     # Toggle overlay visibility in screen sharing
 - The state resets to **visible** on Neru restart
 - Also accessible via system tray menu: "Screen Share: Visible/Hidden"
 
-**Hotkey Example:**
-
-```toml
-[hotkeys]
-"Cmd+Shift+H" = "toggle-screen-share"
-```
-
-**Config Option:**
-
-```toml
-[general]
-hide_overlay_in_screen_share = true  # Start with overlay hidden from screen sharing
-```
-
 **Note:** This feature uses macOS `NSWindow.sharingType` API. Effectiveness varies by screen sharing application:
+
 - Works reliably on macOS 14 and earlier with all applications
 - Limited effectiveness on macOS 15.4+ with modern screen capture (ScreenCaptureKit)
 - Always test with your specific video conferencing software
