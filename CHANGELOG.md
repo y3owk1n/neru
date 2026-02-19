@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.19.0](https://github.com/y3owk1n/neru/compare/v1.18.3...v1.19.0) (2026-02-19)
+
+
+### Features
+
+* add screen share overlay hiding via config, CLI, and system tray ([#390](https://github.com/y3owk1n/neru/issues/390)) ([dad9b7a](https://github.com/y3owk1n/neru/commit/dad9b7a0e666ba89fa1d3c3cc01837480dc84297))
+* **hints:** add opt-in Mission Control detection with hybrid caching ([#387](https://github.com/y3owk1n/neru/issues/387)) ([b215c83](https://github.com/y3owk1n/neru/commit/b215c837e574b64300568948a03aed25a18c6472))
+* **quadgrid:** add configurable grid size support ([#393](https://github.com/y3owk1n/neru/issues/393)) ([cb4479b](https://github.com/y3owk1n/neru/commit/cb4479ba342b20c7eee1e76f1c0f0c55f178f55e))
+
 ## [1.18.3](https://github.com/y3owk1n/neru/compare/v1.18.2...v1.18.3) (2026-02-16)
 
 
