@@ -17,6 +17,7 @@ The Neru CLI communicates with the daemon via IPC (Inter-Process Communication) 
 
 - [Quick Reference](#quick-reference)
 - [Daemon Control](#daemon-control)
+- [Screen Sharing](#screen-sharing)
 - [Service Management](#service-management)
 - [Navigation Commands](#navigation-commands)
 - [Action Commands](#action-commands)
@@ -44,6 +45,10 @@ neru scroll              # Start scroll mode
 neru action left_click   # Click at cursor (immediate)
 neru config reload       # Reload config
 ```
+
+**Screen Sharing:**
+
+- `neru toggle-screen-share` - Toggle overlay visibility in screen sharing
 
 **Navigation:**
 
@@ -74,6 +79,35 @@ neru idle                # Cancel active mode
 ```
 
 **Use `stop`** for temporary disable, **`idle`** to cancel modes.
+
+---
+
+## Screen Sharing
+
+Control overlay visibility during screen sharing (Zoom, Google Meet, OBS, etc.):
+
+```bash
+neru toggle-screen-share     # Toggle overlay visibility in screen sharing
+```
+
+**Behavior:**
+
+- When toggled to **hidden**, the overlay will not appear in shared screens but remains visible locally
+- When toggled to **visible**, the overlay appears normally in screen sharing
+- The state resets to **visible** on Neru restart
+- Also accessible via system tray menu: "Screen Share: Visible/Hidden"
+
+**Hotkey Example:**
+
+```toml
+[hotkeys]
+"Cmd+Shift+H" = "toggle-screen-share"
+```
+
+**Note:** This feature uses macOS `NSWindow.sharingType` API. Effectiveness varies by screen sharing application:
+- Works reliably on macOS 14 and earlier with all applications
+- Limited effectiveness on macOS 15.4+ with modern screen capture (ScreenCaptureKit)
+- Always test with your specific video conferencing software
 
 ---
 

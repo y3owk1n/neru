@@ -572,6 +572,9 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	    setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorStationary |
 	                          NSWindowCollectionBehaviorFullScreenAuxiliary | NSWindowCollectionBehaviorIgnoresCycle];
 
+	// Default to visible in screen sharing (NSWindowSharingReadWrite = 2)
+	[self.window setSharingType:NSWindowSharingReadWrite];
+
 	NSRect viewFrame = NSMakeRect(0, 0, screenFrame.size.width, screenFrame.size.height);
 	self.overlayView = [[OverlayView alloc] initWithFrame:viewFrame];
 	[self.window setContentView:self.overlayView];
@@ -1279,6 +1282,20 @@ void NeruSetHideUnmatched(OverlayWindow window, int hide) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		controller.overlayView.hideUnmatched = hide ? YES : NO;
 		[controller.overlayView setNeedsDisplay:YES];
+	});
+}
+
+/// Set overlay sharing type for screen sharing visibility
+/// @param window Overlay window handle
+/// @param sharingType Sharing type: 0 = NSWindowSharingNone (hidden), 2 = NSWindowSharingReadWrite (visible)
+void NeruSetOverlaySharingType(OverlayWindow window, int sharingType) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (OverlayWindowController *)window;
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[controller.window setSharingType:sharingType];
 	});
 }
 

@@ -24,15 +24,16 @@ const (
 
 // IPC Commands.
 const (
-	CommandPing         = "ping"
-	CommandStart        = "start"
-	CommandStop         = "stop"
-	CommandAction       = "action"
-	CommandStatus       = "status"
-	CommandConfig       = "config"
-	CommandReloadConfig = "reload"
-	CommandHealth       = "health"
-	CommandMetrics      = "metrics"
+	CommandPing              = "ping"
+	CommandStart             = "start"
+	CommandStop              = "stop"
+	CommandAction            = "action"
+	CommandStatus            = "status"
+	CommandConfig            = "config"
+	CommandReloadConfig      = "reload"
+	CommandHealth            = "health"
+	CommandMetrics           = "metrics"
+	CommandToggleScreenShare = "toggle-screen-share"
 )
 
 // Mode-related constants.

@@ -23,6 +23,11 @@ import (
 const (
 	// DefaultSubscriberMapSize is the default size for subscriber map.
 	DefaultSubscriberMapSize = 4
+
+	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	NSWindowSharingNone = 0
+	// NSWindowSharingReadWrite represents NSWindowSharingReadWrite (2) - visible in screen sharing.
+	NSWindowSharingReadWrite = 2
 )
 
 // NoOpManager is a no-op implementation of ManagerInterface for headless environments.
@@ -124,6 +129,9 @@ func (n *NoOpManager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {}
 // SetHideUnmatched is a no-op implementation.
 func (n *NoOpManager) SetHideUnmatched(hide bool) {}
 
+// SetSharingType is a no-op implementation.
+func (n *NoOpManager) SetSharingType(hide bool) {}
+
 // Mode represents the overlay mode.
 type Mode string
 
@@ -186,6 +194,9 @@ type ManagerInterface interface {
 	UpdateGridMatches(prefix string)
 	ShowSubgrid(cell *domainGrid.Cell, style grid.Style)
 	SetHideUnmatched(hide bool)
+
+	// Screen sharing visibility
+	SetSharingType(hide bool)
 }
 
 // Manager coordinates overlay window management and mode transitions for all overlay types.
@@ -438,6 +449,26 @@ func (m *Manager) SetHideUnmatched(hide bool) {
 		return
 	}
 	m.gridOverlay.SetHideUnmatched(hide)
+}
+
+// SetSharingType sets the window sharing type for screen sharing visibility.
+// When hide is true, sets NSWindowSharingNone (hidden from screen share).
+// When hide is false, sets NSWindowSharingReadWrite (visible in screen share).
+func (m *Manager) SetSharingType(hide bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	sharingType := C.int(NSWindowSharingReadWrite)
+	if hide {
+		sharingType = C.int(NSWindowSharingNone)
+	}
+
+	C.NeruSetOverlaySharingType(m.window, sharingType)
+
+	if m.logger != nil {
+		m.logger.Info("Overlay screen share visibility toggled",
+			zap.Bool("hidden", hide))
+	}
 }
 
 // publish publishes a state change to all subscribers.

@@ -29,6 +29,11 @@ type AppInterface interface {
 	OnEnabledStateChanged(callback func(bool)) uint64
 	// OffEnabledStateChanged unsubscribes a callback by ID
 	OffEnabledStateChanged(id uint64)
+	// Overlay screen share visibility
+	IsOverlayHiddenForScreenShare() bool
+	SetOverlayHiddenForScreenShare(hide bool)
+	OnScreenShareStateChanged(callback func(bool)) uint64
+	OffScreenShareStateChanged(id uint64)
 }
 
 // Component encapsulates systray functionality.
@@ -41,42 +46,47 @@ type Component struct {
 	cancel context.CancelFunc
 
 	// Menu items
-	mVersionCopy    *systray.MenuItem
-	mToggleDisable  *systray.MenuItem
-	mToggleEnable   *systray.MenuItem
-	mModes          *systray.MenuItem
-	mHints          *systray.MenuItem
-	mGrid           *systray.MenuItem
-	mQuadGrid       *systray.MenuItem
-	mReloadConfig   *systray.MenuItem
-	mHelp           *systray.MenuItem
-	mSourceCode     *systray.MenuItem
-	mDocsConfig     *systray.MenuItem
-	mDocsCLI        *systray.MenuItem
-	mReportBug      *systray.MenuItem
-	mFeatureRequest *systray.MenuItem
-	mDiscuss        *systray.MenuItem
-	mQuit           *systray.MenuItem
+	mVersionCopy       *systray.MenuItem
+	mToggleDisable     *systray.MenuItem
+	mToggleEnable      *systray.MenuItem
+	mToggleScreenShare *systray.MenuItem
+	mModes             *systray.MenuItem
+	mHints             *systray.MenuItem
+	mGrid              *systray.MenuItem
+	mQuadGrid          *systray.MenuItem
+	mReloadConfig      *systray.MenuItem
+	mHelp              *systray.MenuItem
+	mSourceCode        *systray.MenuItem
+	mDocsConfig        *systray.MenuItem
+	mDocsCLI           *systray.MenuItem
+	mReportBug         *systray.MenuItem
+	mFeatureRequest    *systray.MenuItem
+	mDiscuss           *systray.MenuItem
+	mQuit              *systray.MenuItem
 
 	// State update signaling (thread-safe communication)
-	stateUpdateSignal          chan struct{} // Signal that state changed
-	latestState                atomic.Bool   // Latest enabled state
-	chanClosed                 atomic.Bool
-	enabledStateSubscriptionID uint64 // ID for unsubscribing on cleanup
+	stateUpdateSignal              chan struct{} // Signal that state changed
+	latestState                    atomic.Bool   // Latest enabled state
+	screenShareUpdateSignal        chan struct{} // Signal for screen share state changes
+	latestScreenShareState         atomic.Bool   // Latest screen share hide state
+	chanClosed                     atomic.Bool
+	enabledStateSubscriptionID     uint64 // ID for unsubscribing on cleanup
+	screenShareStateSubscriptionID uint64 // ID for screen share state unsubscription
 }
 
 // NewComponent creates a new systray component.
 func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 	ctx, cancel := context.WithCancel(context.Background())
 	component := &Component{
-		app:               app,
-		logger:            logger,
-		ctx:               ctx,
-		cancel:            cancel,
-		stateUpdateSignal: make(chan struct{}, 1),
+		app:                     app,
+		logger:                  logger,
+		ctx:                     ctx,
+		cancel:                  cancel,
+		stateUpdateSignal:       make(chan struct{}, 1),
+		screenShareUpdateSignal: make(chan struct{}, 1),
 	}
 
-	// Register callback immediately for state changes
+	// Register callback immediately for enabled state changes
 	component.enabledStateSubscriptionID = app.OnEnabledStateChanged(func(enabled bool) {
 		// Don't send if channel is closed
 		if component.chanClosed.Load() {
@@ -87,6 +97,22 @@ func NewComponent(app AppInterface, logger *zap.Logger) *Component {
 
 		select {
 		case component.stateUpdateSignal <- struct{}{}:
+		default:
+			// Signal already pending, state will be read when processed
+		}
+	})
+
+	// Register callback for screen share state changes
+	component.screenShareStateSubscriptionID = app.OnScreenShareStateChanged(func(hidden bool) {
+		// Don't send if channel is closed
+		if component.chanClosed.Load() {
+			return
+		}
+		// Store latest state and signal update
+		component.latestScreenShareState.Store(hidden)
+
+		select {
+		case component.screenShareUpdateSignal <- struct{}{}:
 		default:
 			// Signal already pending, state will be read when processed
 		}
@@ -138,6 +164,10 @@ func (c *Component) OnReady() {
 	c.mToggleEnable = systray.AddMenuItem("Resume Neru")
 	c.mToggleEnable.Hide() // Initially hide the enable option
 
+	systray.AddSeparator()
+
+	c.mToggleScreenShare = systray.AddMenuItem("Screen Share: Visible")
+
 	c.mQuit = systray.AddMenuItem("Quit")
 
 	// Initialize all state-dependent UI elements
@@ -152,6 +182,7 @@ func (c *Component) OnExit() {
 	c.chanClosed.Store(true) // Prevent callback from sending to channel
 	c.cancel()               // Signal event goroutine to stop
 	c.app.OffEnabledStateChanged(c.enabledStateSubscriptionID)
+	c.app.OffScreenShareStateChanged(c.screenShareStateSubscriptionID)
 	c.app.Cleanup()
 }
 
@@ -162,6 +193,7 @@ func (c *Component) Close() {
 	c.chanClosed.Store(true) // Prevent callback from sending to channel
 	c.cancel()               // Signal event goroutine to stop
 	c.app.OffEnabledStateChanged(c.enabledStateSubscriptionID)
+	c.app.OffScreenShareStateChanged(c.screenShareStateSubscriptionID)
 	// Note: We don't call c.app.Cleanup() here to avoid double cleanup during init failure
 }
 
@@ -249,12 +281,16 @@ func (c *Component) handleEvents() {
 					c.logger.Error("Failed to open community discussion", zap.Error(err))
 				}
 			}()
+		case <-c.mToggleScreenShare.ClickedCh:
+			c.handleToggleScreenShare()
 		case <-c.mQuit.ClickedCh:
 			systray.Quit()
 
 			return
 		case <-c.stateUpdateSignal:
 			c.updateMenuItems(c.latestState.Load())
+		case <-c.screenShareUpdateSignal:
+			c.updateScreenShareMenuItem(c.latestScreenShareState.Load())
 		}
 	}
 }
@@ -284,5 +320,29 @@ func (c *Component) handleReloadConfig() {
 		c.logger.Error("Failed to reload config from systray", zap.Error(reloadConfigErr))
 	} else {
 		c.logger.Info("Configuration reloaded successfully from systray")
+	}
+}
+
+// handleToggleScreenShare toggles the overlay visibility in screen sharing.
+func (c *Component) handleToggleScreenShare() {
+	currentState := c.app.IsOverlayHiddenForScreenShare()
+	newState := !currentState
+	c.app.SetOverlayHiddenForScreenShare(newState)
+	// Note: updateScreenShareMenuItem will be called via the state change callback
+
+	status := "visible"
+	if newState {
+		status = "hidden"
+	}
+
+	bridge.ShowNotification("Neru", "Screen share visibility: "+status)
+}
+
+// updateScreenShareMenuItem updates the screen share menu item text based on state.
+func (c *Component) updateScreenShareMenuItem(hidden bool) {
+	if hidden {
+		c.mToggleScreenShare.SetTitle("Screen Share: Hidden")
+	} else {
+		c.mToggleScreenShare.SetTitle("Screen Share: Visible")
 	}
 }

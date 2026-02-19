@@ -117,4 +117,8 @@ func (c *IPCController) RegisterHandlers() {
 	modesHandler.RegisterHandlers(c.Handlers)
 	actionsHandler.RegisterHandlers(c.Handlers)
 	infoHandler.RegisterHandlers(c.Handlers)
+
+	// Register overlay handler
+	overlayHandler := NewIPCControllerOverlay(c.AppState, c.Logger)
+	overlayHandler.RegisterHandlers(c.Handlers)
 }

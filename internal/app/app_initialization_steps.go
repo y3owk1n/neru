@@ -313,6 +313,15 @@ func initializeIPCController(app *App) {
 	)
 }
 
+// setupScreenShareStateSubscription sets up a callback to update overlay when screen share state changes.
+func setupScreenShareStateSubscription(app *App) {
+	app.appState.OnScreenShareStateChanged(func(hidden bool) {
+		if app.overlayManager != nil {
+			app.overlayManager.SetSharingType(hidden)
+		}
+	})
+}
+
 // initializeEventTapAndIPC sets up the event tap for key capture and
 // the IPC server for external communication.
 func initializeEventTapAndIPC(app *App) error {
