@@ -11,11 +11,11 @@ import (
 	"image"
 	"strings"
 	"sync"
-	"unicode/utf8"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/quadgrid"
 	"go.uber.org/zap"
 )
 
@@ -136,11 +136,12 @@ func (o *Overlay) ResizeToActiveScreen() {
 	C.NeruResizeOverlayToActiveScreen(o.window)
 }
 
-// DrawQuadGrid renders the quad-grid with current bounds, depth, and keys.
+// DrawQuadGrid renders the quad-grid with current bounds, depth, keys, and gridSize.
 func (o *Overlay) DrawQuadGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
+	gridSize int,
 	style Style,
 ) error {
 	if bounds.Empty() {
@@ -155,55 +156,68 @@ func (o *Overlay) DrawQuadGrid(
 		zap.Int("bounds_width", bounds.Dx()),
 		zap.Int("bounds_height", bounds.Dy()),
 		zap.Int("depth", depth),
+		zap.Int("grid_size", gridSize),
 		zap.String("keys", keys))
 
 	// Clear previous drawing
 	o.Clear()
 
-	// Calculate quadrant bounds
-	midX := bounds.Min.X + bounds.Dx()/2 //nolint:mnd
-	midY := bounds.Min.Y + bounds.Dy()/2 //nolint:mnd
+	// Use the provided gridSize and calculate key count
+	keyCount := gridSize * gridSize
 
-	quadrants := []image.Rectangle{
-		{
-			Min: image.Point{X: bounds.Min.X, Y: bounds.Min.Y},
-			Max: image.Point{X: midX, Y: midY},
-		}, // Top-left (u)
-		{
-			Min: image.Point{X: midX, Y: bounds.Min.Y},
-			Max: image.Point{X: bounds.Max.X, Y: midY},
-		}, // Top-right (i)
-		{
-			Min: image.Point{X: bounds.Min.X, Y: midY},
-			Max: image.Point{X: midX, Y: bounds.Max.Y},
-		}, // Bottom-left (j)
-		{
-			Min: image.Point{X: midX, Y: midY},
-			Max: image.Point{X: bounds.Max.X, Y: bounds.Max.Y},
-		}, // Bottom-right (k)
-	}
-
-	// Ensure keys is valid
-	if utf8.RuneCountInString(keys) != 4 { //nolint:mnd
+	// Validate grid size (must be at least 2)
+	if gridSize < quadgrid.GridSize2x2 {
+		// Fallback to default 2x2 if invalid
+		gridSize = quadgrid.GridSize2x2
+		keyCount = gridSize * gridSize
 		keys = "uijk"
 	}
 
-	// Create grid cells for each quadrant
-	cells := make([]C.GridCell, 4) //nolint:mnd
+	// Calculate cell dimensions
+	cellWidth := bounds.Dx() / gridSize
+	cellHeight := bounds.Dy() / gridSize
+
+	// Create grid cells dynamically
+	cells := make([]C.GridCell, keyCount)
 	keyRunes := []rune(keys)
 
-	for idx, quadrant := range quadrants {
-		labelStr := ""
-		if idx < len(keyRunes) {
-			labelStr = string(keyRunes[idx])
-		}
-		label := strings.ToUpper(labelStr)
-		cells[idx] = C.GridCell{
-			label:               o.getOrCacheLabel(label),
-			bounds:              o.rectToCRect(quadrant),
-			isMatched:           C.int(0),
-			isSubgrid:           C.int(0),
-			matchedPrefixLength: C.int(0),
+	for row := range gridSize {
+		for col := range gridSize {
+			idx := row*gridSize + col
+
+			maxX := bounds.Min.X + (col+1)*cellWidth
+			if col == gridSize-1 {
+				maxX = bounds.Max.X
+			}
+
+			maxY := bounds.Min.Y + (row+1)*cellHeight
+			if row == gridSize-1 {
+				maxY = bounds.Max.Y
+			}
+
+			quadrant := image.Rectangle{
+				Min: image.Point{
+					X: bounds.Min.X + col*cellWidth,
+					Y: bounds.Min.Y + row*cellHeight,
+				},
+				Max: image.Point{
+					X: maxX,
+					Y: maxY,
+				},
+			}
+
+			labelStr := ""
+			if idx < len(keyRunes) {
+				labelStr = string(keyRunes[idx])
+			}
+			label := strings.ToUpper(labelStr)
+			cells[idx] = C.GridCell{
+				label:               o.getOrCacheLabel(label),
+				bounds:              o.rectToCRect(quadrant),
+				isMatched:           C.int(0),
+				isSubgrid:           C.int(0),
+				matchedPrefixLength: C.int(0),
+			}
 		}
 	}
 

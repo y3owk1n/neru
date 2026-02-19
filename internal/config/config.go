@@ -270,7 +270,10 @@ type GridConfig struct {
 type QuadGridConfig struct {
 	Enabled bool `json:"enabled" toml:"enabled"`
 
-	// Key bindings (warpd convention: u=TL, i=TR, j=BL, k=BR)
+	// Grid size: 2 for 2x2 (default), 3 for 3x3
+	GridSize int `json:"gridSize" toml:"grid_size"`
+
+	// Key bindings (warpd convention for 2x2: u=TL, i=TR, j=BL, k=BR)
 	Keys string `json:"keys" toml:"keys"`
 
 	// Visual styling

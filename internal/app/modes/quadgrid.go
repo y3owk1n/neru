@@ -94,6 +94,7 @@ func (h *Handler) initializeQuadGridManager(screenBounds image.Rectangle) {
 		exitKeys,
 		h.config.QuadGrid.MinSize,
 		h.config.QuadGrid.MaxDepth,
+		h.config.QuadGrid.GridSize,
 		// Update callback
 		func() {
 			h.updateQuadGridOverlay()
@@ -170,6 +171,7 @@ func (h *Handler) updateQuadGridOverlay() {
 		manager.CurrentBounds(),
 		manager.CurrentDepth(),
 		manager.Keys(),
+		manager.GridSize(),
 	)
 	if err != nil {
 		h.logger.Debug("Failed to draw quad-grid overlay", zap.Error(err))

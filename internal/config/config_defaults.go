@@ -177,6 +177,8 @@ const (
 	DefaultQuadGridMinSize = 25
 	// DefaultQuadGridMaxDepth is the default maximum recursion depth.
 	DefaultQuadGridMaxDepth = 10
+	// DefaultQuadGridMinGridSize is the minimum allowed grid size (NxN).
+	DefaultQuadGridMinGridSize = 2
 	// DefaultQuadGridLineWidth is the default line width for grid lines.
 	DefaultQuadGridLineWidth = 1
 	// DefaultQuadGridLabelFontSize is the default font size for quadrant labels.
@@ -285,7 +287,8 @@ func DefaultConfig() *Config {
 			ResetKey:        ",",
 		},
 		QuadGrid: QuadGridConfig{
-			Enabled: true,
+			Enabled:  true,
+			GridSize: 2, //nolint:mnd
 
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
 

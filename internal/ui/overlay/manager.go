@@ -115,6 +115,7 @@ func (n *NoOpManager) DrawQuadGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
+	gridSize int,
 	style quadgrid.Style,
 ) error {
 	return nil
@@ -190,7 +191,13 @@ type ManagerInterface interface {
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
 	DrawScrollIndicator(x, y int)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
-	DrawQuadGrid(bounds image.Rectangle, depth int, keys string, style quadgrid.Style) error
+	DrawQuadGrid(
+		bounds image.Rectangle,
+		depth int,
+		keys string,
+		gridSize int,
+		style quadgrid.Style,
+	) error
 	UpdateGridMatches(prefix string)
 	ShowSubgrid(cell *domainGrid.Cell, style grid.Style)
 	SetHideUnmatched(hide bool)
@@ -414,12 +421,13 @@ func (m *Manager) DrawQuadGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
+	gridSize int,
 	style quadgrid.Style,
 ) error {
 	if m.quadGridOverlay == nil {
 		return nil
 	}
-	drawQuadGridErr := m.quadGridOverlay.DrawQuadGrid(bounds, depth, keys, style)
+	drawQuadGridErr := m.quadGridOverlay.DrawQuadGrid(bounds, depth, keys, gridSize, style)
 	if drawQuadGridErr != nil {
 		return derrors.Wrap(drawQuadGridErr, derrors.CodeOverlayFailed, "failed to draw quad-grid")
 	}
