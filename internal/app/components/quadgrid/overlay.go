@@ -9,14 +9,13 @@ import "C"
 
 import (
 	"image"
-	"math"
 	"strings"
 	"sync"
-	"unicode/utf8"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/quadgrid"
 	"go.uber.org/zap"
 )
 
@@ -137,11 +136,12 @@ func (o *Overlay) ResizeToActiveScreen() {
 	C.NeruResizeOverlayToActiveScreen(o.window)
 }
 
-// DrawQuadGrid renders the quad-grid with current bounds, depth, and keys.
+// DrawQuadGrid renders the quad-grid with current bounds, depth, keys, and gridSize.
 func (o *Overlay) DrawQuadGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
+	gridSize int,
 	style Style,
 ) error {
 	if bounds.Empty() {
@@ -156,21 +156,21 @@ func (o *Overlay) DrawQuadGrid(
 		zap.Int("bounds_width", bounds.Dx()),
 		zap.Int("bounds_height", bounds.Dy()),
 		zap.Int("depth", depth),
+		zap.Int("grid_size", gridSize),
 		zap.String("keys", keys))
 
 	// Clear previous drawing
 	o.Clear()
 
-	// Determine grid size from key count (grid_size = sqrt(key_count))
-	keyCount := utf8.RuneCountInString(keys)
-	gridSize := int(math.Sqrt(float64(keyCount)))
+	// Use the provided gridSize and calculate key count
+	keyCount := gridSize * gridSize
 
 	// Validate grid size (must be at least 2)
-	if gridSize < 2 || gridSize*gridSize != keyCount {
-		// Fallback to default 2x2 if invalid key count
+	if gridSize < quadgrid.GridSize2x2 {
+		// Fallback to default 2x2 if invalid
+		gridSize = quadgrid.GridSize2x2
+		keyCount = gridSize * gridSize
 		keys = "uijk"
-		gridSize = 2
-		keyCount = 4
 	}
 
 	// Calculate cell dimensions

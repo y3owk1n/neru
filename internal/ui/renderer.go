@@ -96,6 +96,7 @@ func (r *OverlayRenderer) DrawQuadGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
+	gridSize int,
 ) error {
-	return r.manager.DrawQuadGrid(bounds, depth, keys, r.quadGridStyle)
+	return r.manager.DrawQuadGrid(bounds, depth, keys, gridSize, r.quadGridStyle)
 }

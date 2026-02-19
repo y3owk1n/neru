@@ -197,6 +197,7 @@ func (m *mockOverlayManager) DrawQuadGrid(
 	_ image.Rectangle,
 	_ int,
 	_ string,
+	_ int,
 	_ quadgrid.Style,
 ) error {
 	return nil

@@ -171,6 +171,7 @@ func (h *Handler) updateQuadGridOverlay() {
 		manager.CurrentBounds(),
 		manager.CurrentDepth(),
 		manager.Keys(),
+		manager.GridSize(),
 	)
 	if err != nil {
 		h.logger.Debug("Failed to draw quad-grid overlay", zap.Error(err))
