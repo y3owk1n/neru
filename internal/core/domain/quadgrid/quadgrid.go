@@ -9,19 +9,20 @@ const (
 	GridSize2x2 = 2
 )
 
-// Quadrant represents one of the screen divisions.
-// For 2x2: 0=TL, 1=TR, 2=BL, 3=BR.
-// For 3x3: 0-8 left-to-right, top-to-bottom.
+// Quadrant represents the index of a cell in the grid.
+// For 2x2 grids: 0=TL, 1=TR, 2=BL, 3=BR (named constants below).
+// For NxN grids: indices 0 to (N*N-1) are ordered left-to-right, top-to-bottom.
+// The named constants (TopLeft, TopRight, etc.) are only meaningful for 2x2 grids.
 type Quadrant int
 
 const (
-	// TopLeft represents the upper-left quadrant (default key: 'u').
+	// TopLeft represents the upper-left cell in a 2x2 grid (index 0).
 	TopLeft Quadrant = iota
-	// TopRight represents the upper-right quadrant (default key: 'i').
+	// TopRight represents the upper-right cell in a 2x2 grid (index 1).
 	TopRight
-	// BottomLeft represents the lower-left quadrant (default key: 'j').
+	// BottomLeft represents the lower-left cell in a 2x2 grid (index 2).
 	BottomLeft
-	// BottomRight represents the lower-right quadrant (default key: 'k').
+	// BottomRight represents the lower-right cell in a 2x2 grid (index 3).
 	BottomRight
 )
 
