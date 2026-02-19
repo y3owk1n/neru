@@ -454,6 +454,11 @@ func (m *Manager) SetHideUnmatched(hide bool) {
 // SetSharingType sets the window sharing type for screen sharing visibility.
 // When hide is true, sets NSWindowSharingNone (hidden from screen share).
 // When hide is false, sets NSWindowSharingReadWrite (visible in screen share).
+//
+// Note: This method holds m.mu during the CGo call to C.NeruSetOverlaySharingType.
+// The C function uses dispatch_async (returns immediately), so this is safe.
+// If the C function were changed to dispatch_sync, this could deadlock with
+// main thread callers since SwitchTo/Subscribe/Unsubscribe also use m.mu.
 func (m *Manager) SetSharingType(hide bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
