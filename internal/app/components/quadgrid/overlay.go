@@ -19,6 +19,13 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	NSWindowSharingNone = 0
+	// NSWindowSharingReadWrite represents NSWindowSharingReadWrite (2) - visible in screen sharing.
+	NSWindowSharingReadWrite = 2
+)
+
 // Overlay manages the rendering of quad-grid overlays using native platform APIs.
 type Overlay struct {
 	window C.OverlayWindow
@@ -229,6 +236,16 @@ func (o *Overlay) DrawQuadGrid(
 	C.NeruDrawGridCells(o.window, &cells[0], C.int(len(cells)), finalStyle)
 
 	return nil
+}
+
+// SetSharingType sets the window sharing type for screen sharing visibility.
+func (o *Overlay) SetSharingType(hide bool) {
+	sharingType := C.int(NSWindowSharingReadWrite)
+	if hide {
+		sharingType = C.int(NSWindowSharingNone)
+	}
+
+	C.NeruSetOverlaySharingType(o.window, sharingType)
 }
 
 // rectToCRect converts a Go image.Rectangle to a C CGRect.

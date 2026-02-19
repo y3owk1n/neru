@@ -470,6 +470,14 @@ func (m *Manager) SetSharingType(hide bool) {
 
 	C.NeruSetOverlaySharingType(m.window, sharingType)
 
+	// Also update grid and quadgrid overlay windows if they exist
+	if m.gridOverlay != nil {
+		m.gridOverlay.SetSharingType(hide)
+	}
+	if m.quadGridOverlay != nil {
+		m.quadGridOverlay.SetSharingType(hide)
+	}
+
 	if m.logger != nil {
 		m.logger.Info("Overlay screen share visibility toggled",
 			zap.Bool("hidden", hide))
