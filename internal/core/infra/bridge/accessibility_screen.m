@@ -8,6 +8,57 @@
 #import "accessibility.h"
 #import <Cocoa/Cocoa.h>
 
+#pragma mark - Mission Control Detection State
+
+// State tracking for Mission Control detection
+static bool g_missionControlActive = false;
+static CFAbsoluteTime g_lastDetectionTime = 0;       // Use CFAbsoluteTime (double) instead of NSDate
+static NSTimeInterval g_detectionCacheTimeout = 0.5; // Cache for 500ms
+static id g_spaceChangeObserver = nil;
+static dispatch_queue_t g_detectionQueue = nil;
+
+// Lock for thread-safe access to shared state
+static os_unfair_lock g_stateLock = OS_UNFAIR_LOCK_INIT;
+
+// Forward declaration
+static void updateMissionControlState(void);
+static bool detectMissionControlActive(void);
+
+/// Thread-safe getter for cached Mission Control state
+/// @return true if Mission Control is active
+static bool getCachedMissionControlState(void) {
+	os_unfair_lock_lock(&g_stateLock);
+	bool result = g_missionControlActive;
+	os_unfair_lock_unlock(&g_stateLock);
+	return result;
+}
+
+/// Thread-safe setter for cached Mission Control state
+/// @param state New state value
+static void setCachedMissionControlState(bool state) {
+	os_unfair_lock_lock(&g_stateLock);
+	g_missionControlActive = state;
+	// Use CFAbsoluteTimeGetCurrent() - plain C function, no ObjC messaging under lock
+	g_lastDetectionTime = CFAbsoluteTimeGetCurrent();
+	os_unfair_lock_unlock(&g_stateLock);
+}
+
+/// Thread-safe cache validity check
+/// @return true if cache is still valid
+static bool isCacheValid(void) {
+	os_unfair_lock_lock(&g_stateLock);
+	if (g_lastDetectionTime == 0) {
+		os_unfair_lock_unlock(&g_stateLock);
+		return false;
+	}
+	// Use CFAbsoluteTimeGetCurrent() - plain C function, no ObjC messaging under lock
+	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+	NSTimeInterval timeSinceLastUpdate = now - g_lastDetectionTime;
+	bool valid = (timeSinceLastUpdate < g_detectionCacheTimeout);
+	os_unfair_lock_unlock(&g_stateLock);
+	return valid;
+}
+
 #pragma mark - Scroll Functions
 
 /// Get scroll bounds of element
@@ -66,16 +117,12 @@ int scrollAtCursor(int deltaX, int deltaY) {
 	return 0;
 }
 
-#pragma mark - Screen Functions
+#pragma mark - Mission Control Detection Functions
 
-/// Try to detect if Mission Control is active
-/// Works on Sequoia 15.1 (Tahoe)
-/// Maybe works on older versions as per stackoverflow result
-/// (https://stackoverflow.com/questions/12683225/osx-how-to-detect-if-mission-control-is-running)
+/// Internal function to detect Mission Control state using window enumeration
+/// This is the actual detection logic that looks for Dock windows
 /// @return true if Mission Control is active, false otherwise
-bool isMissionControlActive(void) {
-	bool result = false;
-
+static bool detectMissionControlActive(void) {
 	@autoreleasepool {
 		CFArrayRef windowList = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID);
 
@@ -83,30 +130,25 @@ bool isMissionControlActive(void) {
 			return false;
 		}
 
-		// Get all screens and calculate total bounds
+		// Get all screens for multi-monitor detection
 		NSArray *screens = [NSScreen screens];
 		if (!screens || screens.count == 0) {
 			CFRelease(windowList);
 			return false;
 		}
 
-		// Find the largest screen dimensions to use as reference
-		// This prevents false positives on multi-monitor setups
-		CGFloat maxWidth = 0;
-		CGFloat maxHeight = 0;
+		// Store all screen sizes for proper multi-monitor detection
+		// This ensures we detect Mission Control windows on screens of any size
+		NSMutableArray *screenSizes = [NSMutableArray arrayWithCapacity:screens.count];
 		for (NSScreen *screen in screens) {
-			CGSize size = screen.frame.size;
-			if (size.width > maxWidth)
-				maxWidth = size.width;
-			if (size.height > maxHeight)
-				maxHeight = size.height;
+			NSValue *sizeValue = [NSValue valueWithSize:screen.frame.size];
+			[screenSizes addObject:sizeValue];
 		}
-
-		CGSize screenSize = CGSizeMake(maxWidth, maxHeight);
 
 		CFIndex count = CFArrayGetCount(windowList);
 		int fullscreenDockWindows = 0;
 		int highLayerDockWindows = 0;
+		BOOL missionControlAppVisible = NO;
 
 		for (CFIndex i = 0; i < count; i++) {
 			CFDictionaryRef windowInfo = (CFDictionaryRef)CFArrayGetValueAtIndex(windowList, i);
@@ -114,6 +156,11 @@ bool isMissionControlActive(void) {
 				continue;
 
 			CFStringRef ownerName = (CFStringRef)CFDictionaryGetValue(windowInfo, kCGWindowOwnerName);
+
+			// Check if Mission Control app is visible
+			if (ownerName && CFStringCompare(ownerName, CFSTR("Mission Control"), 0) == kCFCompareEqualTo) {
+				missionControlAppVisible = YES;
+			}
 
 			if (ownerName && CFStringCompare(ownerName, CFSTR("Dock"), 0) == kCFCompareEqualTo) {
 				CFStringRef windowName = (CFStringRef)CFDictionaryGetValue(windowInfo, kCGWindowName);
@@ -139,16 +186,26 @@ bool isMissionControlActive(void) {
 					if (hValue)
 						CFNumberGetValue(hValue, kCFNumberDoubleType, &h);
 
-					// Count fullscreen Dock windows (works on Sequoia 15.1)
-					// Note: y < 0 check removed as it causes false positives on multi-monitor setups
-					// where screens can be positioned above the primary screen
-					bool isFullscreen = (w >= screenSize.width * 0.95 && h >= screenSize.height * 0.95);
+					// Check if window is fullscreen on ANY connected monitor
+					// This is crucial for multi-monitor setups with different resolutions
+					bool isFullscreen = false;
+					for (NSValue *sizeValue in screenSizes) {
+						CGSize screenSize = sizeValue.sizeValue;
+						// Allow 5% tolerance for window size variations
+						if (w >= screenSize.width * 0.95 && h >= screenSize.height * 0.95) {
+							isFullscreen = true;
+							break;
+						}
+					}
+
+					// Window must have no name (Mission Control Dock windows are unnamed)
 					bool hasNoName = (!windowName || CFStringGetLength(windowName) == 0);
+					int layer = 0;
+					if (windowLayer) {
+						CFNumberGetValue(windowLayer, kCFNumberIntType, &layer);
+					}
 
 					if (isFullscreen && hasNoName && windowLayer) {
-						int layer = 0;
-						CFNumberGetValue(windowLayer, kCFNumberIntType, &layer);
-
 						fullscreenDockWindows++;
 						if (layer >= 18 && layer <= 20) {
 							highLayerDockWindows++;
@@ -160,13 +217,103 @@ bool isMissionControlActive(void) {
 
 		CFRelease(windowList);
 
-		// Return results from old or new OS method
-		if (!result && fullscreenDockWindows >= 2 && highLayerDockWindows >= 2) {
-			result = true;
+		// Detection logic:
+		// 1. If Mission Control app window is visible, definitely MC
+		// 2. Otherwise, check for multiple fullscreen Dock windows
+		//    - Mission Control with single space: 2 windows (layers 18 and 20)
+		//    - Mission Control with multiple spaces: 3+ windows
+
+		// Require at least 2 fullscreen Dock windows for single monitor
+		int minRequired = 2;
+
+		BOOL result = NO;
+
+		// Primary check: MC app window visible
+		if (missionControlAppVisible) {
+			result = YES;
+		}
+		// Secondary check: Multiple fullscreen Dock windows (2+)
+		else if (fullscreenDockWindows >= minRequired && highLayerDockWindows >= minRequired) {
+			result = YES;
 		}
 
 		return result;
 	}
+}
+
+/// Update the cached Mission Control state on the detection queue
+static void updateMissionControlState(void) {
+	dispatch_async(g_detectionQueue, ^{
+		bool newState = detectMissionControlActive();
+		setCachedMissionControlState(newState);
+	});
+}
+
+/// Notification handler for space changes
+/// Triggered by NSWorkspaceActiveSpaceDidChangeNotification
+static void spaceDidChangeNotification(NSNotification *notification) {
+	(void)notification;
+	// Immediately update state when space changes
+	updateMissionControlState();
+}
+
+/// Initialize Mission Control detection system
+/// Sets up notification observer and initial state
+/// Note: Called via dispatch_async from isMissionControlActive, so initialization
+/// is already guarded by the caller's dispatch_once
+static void initializeMissionControlDetection(void) {
+	g_detectionQueue = dispatch_queue_create("com.neru.missioncontrol.detection", DISPATCH_QUEUE_SERIAL);
+
+	// Set up space change notification observer
+	NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+	NSNotificationCenter *center = [workspace notificationCenter];
+
+	g_spaceChangeObserver = [center addObserverForName:NSWorkspaceActiveSpaceDidChangeNotification
+	                                            object:nil
+	                                             queue:[NSOperationQueue mainQueue]
+	                                        usingBlock:^(NSNotification *note) {
+		                                        spaceDidChangeNotification(note);
+	                                        }];
+
+	// Initial detection
+	updateMissionControlState();
+}
+
+#pragma mark - Screen Functions
+
+/// Try to detect if Mission Control is currently active
+/// Uses a hybrid approach:
+/// 1. NSWorkspaceActiveSpaceDidChangeNotification triggers detection when spaces change
+/// 2. Cached result is returned to avoid expensive window enumeration on every call
+/// 3. Cache expires after 500ms to ensure freshness
+///
+/// Works on Sequoia 15.1 (Tahoe) and should work on older versions
+/// Reference: https://stackoverflow.com/questions/12683225/osx-how-to-detect-if-mission-control-is-running
+///
+/// @return true if Mission Control is active, false otherwise
+bool isMissionControlActive(void) {
+	// Initialize on first call - must be on main thread for NSNotificationCenter
+	// Use dispatch_async to avoid deadlock in test environments where main queue might be blocked
+	// The notification observer will be set up asynchronously
+	static dispatch_once_t initToken;
+	dispatch_once(&initToken, ^{
+		dispatch_async(dispatch_get_main_queue(), ^{
+			initializeMissionControlDetection();
+		});
+	});
+
+	// Check if cache is still valid using thread-safe accessor
+	if (isCacheValid()) {
+		return getCachedMissionControlState();
+	}
+
+	// Cache expired or not set, do synchronous detection
+	bool result = detectMissionControlActive();
+
+	// Update cache synchronously to ensure consistency
+	setCachedMissionControlState(result);
+
+	return result;
 }
 
 /// Get main screen bounds

@@ -44,11 +44,11 @@ var elementSlicePool = sync.Pool{
 // It converts between domain models and infrastructure types.
 type Adapter struct {
 	// logger for adapter.
-	logger          *zap.Logger
-	client          AXClient
-	excludedBundles map[string]bool
-	// clickableRoles is the list of clickable roles.
-	clickableRoles []string
+	logger               *zap.Logger
+	client               AXClient
+	excludedBundles      map[string]bool
+	clickableRoles       []string
+	detectMissionControl bool
 }
 
 // NewAdapter creates a new accessibility adapter.
@@ -57,6 +57,7 @@ func NewAdapter(
 	excludedBundles []string,
 	clickableRoles []string,
 	client AXClient,
+	detectMissionControl bool,
 ) *Adapter {
 	excludedMap := make(map[string]bool, len(excludedBundles))
 	for _, bundle := range excludedBundles {
@@ -64,10 +65,11 @@ func NewAdapter(
 	}
 
 	return &Adapter{
-		logger:          logger,
-		client:          client,
-		excludedBundles: excludedMap,
-		clickableRoles:  clickableRoles,
+		logger:               logger,
+		client:               client,
+		excludedBundles:      excludedMap,
+		clickableRoles:       clickableRoles,
+		detectMissionControl: detectMissionControl,
 	}
 }
 
@@ -113,6 +115,15 @@ func (a *Adapter) ClickableElements(
 		firstError  error
 	)
 
+	// Check Mission Control state once to ensure consistency across all code paths
+	// Both the frontmost window check and supplementary elements check need the same value
+	// Use client's method to allow mocking in tests
+	// Only check if detect_mission_control config option is enabled
+	var missionControlActive bool
+	if a.detectMissionControl {
+		missionControlActive = a.client.IsMissionControlActive()
+	}
+
 	// Function to collect elements from a source
 	collectElements := func(sourceName string, queryFunc func() ([]*element.Element, error)) {
 		defer waitGroup.Done()
@@ -146,38 +157,47 @@ func (a *Adapter) ClickableElements(
 		a.logger.Debug("Collected elements from "+sourceName, zap.Int("count", len(elements)))
 	}
 
-	// Query frontmost window
-	waitGroup.Add(1)
+	if !missionControlActive {
+		// Query frontmost window
+		waitGroup.Add(1)
 
-	go func() {
-		collectElements("frontmost window", func() ([]*element.Element, error) {
-			frontmostWindow, frontmostWindowErr := a.client.FrontmostWindow()
-			if frontmostWindowErr != nil {
-				return nil, frontmostWindowErr
-			}
-			defer frontmostWindow.Release()
+		go func() {
+			collectElements("frontmost window", func() ([]*element.Element, error) {
+				frontmostWindow, frontmostWindowErr := a.client.FrontmostWindow()
+				if frontmostWindowErr != nil {
+					return nil, frontmostWindowErr
+				}
+				defer frontmostWindow.Release()
 
-			clickableNodes, clickableNodesErr := a.client.ClickableNodes(
-				frontmostWindow,
-				filter.IncludeOffscreen,
-				nil,
-			)
-			if clickableNodesErr != nil {
-				return nil, clickableNodesErr
-			}
+				clickableNodes, clickableNodesErr := a.client.ClickableNodes(
+					frontmostWindow,
+					filter.IncludeOffscreen,
+					nil,
+				)
+				if clickableNodesErr != nil {
+					return nil, clickableNodesErr
+				}
 
-			return a.processClickableNodes(ctx, clickableNodes, filter)
-		})
-	}()
+				return a.processClickableNodes(ctx, clickableNodes, filter)
+			})
+		}()
+	}
 
 	// Query supplementary elements in parallel
+	// AdditionalMenubarTargets only produces elements when IncludeMenubar is true
+	hasAdditionalTargets := filter.IncludeMenubar && len(filter.AdditionalMenubarTargets) > 0
 	if filter.IncludeMenubar || filter.IncludeDock || filter.IncludeStageManager ||
-		len(filter.AdditionalMenubarTargets) > 0 {
+		filter.IncludeNotificationCenter || hasAdditionalTargets {
 		waitGroup.Add(1)
 
 		go func() {
 			collectElements("supplementary sources", func() ([]*element.Element, error) {
-				return a.addSupplementaryElements(ctx, []*element.Element{}, filter), nil
+				return a.addSupplementaryElements(
+					ctx,
+					[]*element.Element{},
+					filter,
+					missionControlActive,
+				), nil
 			})
 		}()
 	}
@@ -187,6 +207,14 @@ func (a *Adapter) ClickableElements(
 
 	if firstError != nil {
 		return nil, firstError
+	}
+
+	// Log reason for empty results when Mission Control is active
+	// This is intentional - we skip frontmost window query during MC
+	if len(allElements) == 0 && missionControlActive {
+		a.logger.Debug(
+			"No elements collected - Mission Control is active and no supplementary filters enabled",
+		)
 	}
 
 	a.logger.Info("Total elements collected", zap.Int("count", len(allElements)))

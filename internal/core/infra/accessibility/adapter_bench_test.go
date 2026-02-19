@@ -13,7 +13,7 @@ import (
 func BenchmarkScreenBounds(b *testing.B) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
+	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient, false)
 	ctx := context.Background()
 
 	for b.Loop() {
@@ -24,7 +24,7 @@ func BenchmarkScreenBounds(b *testing.B) {
 func BenchmarkCursorPosition(b *testing.B) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
+	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient, false)
 	ctx := context.Background()
 
 	for b.Loop() {
@@ -36,7 +36,7 @@ func BenchmarkIsAppExcluded(b *testing.B) {
 	logger := zap.NewNop()
 	excludedBundles := []string{"com.apple.finder", "com.apple.dock"}
 	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(logger, excludedBundles, []string{}, mockClient)
+	adapter := accessibility.NewAdapter(logger, excludedBundles, []string{}, mockClient, false)
 	ctx := context.Background()
 
 	for b.Loop() {
@@ -64,7 +64,7 @@ func BenchmarkClickableElements_Concurrent(b *testing.B) {
 
 	mockClient.MockClickableNodes = nodes
 
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
+	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient, false)
 	ctx := context.Background()
 	filter := ports.DefaultElementFilter()
 
@@ -95,7 +95,7 @@ func BenchmarkClickableElements_Sequential(b *testing.B) {
 
 	mockClient.MockClickableNodes = nodes
 
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient)
+	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient, false)
 	ctx := context.Background()
 	filter := ports.DefaultElementFilter()
 

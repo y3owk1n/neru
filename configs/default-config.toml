@@ -88,6 +88,9 @@ additional_menubar_hints_targets = [       # Extra menubar bundle IDs to include
 include_dock_hints = false                  # Include dock items in hints
 include_nc_hints = false                    # Include notification center in hints
 include_stage_manager_hints = false         # Include stage manager items in hints
+# Do not enable `detect_mission_control` if you are below macOS 26.x, it will break hints generation
+# See https://github.com/y3owk1n/neru/issues/386 for more details
+detect_mission_control = false              # Skip frontmost window hints when Mission Control is active
 
 # Roles considered clickable
 clickable_roles = [

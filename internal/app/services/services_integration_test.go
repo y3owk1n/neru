@@ -256,6 +256,7 @@ func initializeRealAdapters(
 		cfg.General.ExcludedApps,
 		cfg.Hints.ClickableRoles,
 		axClient,
+		cfg.Hints.DetectMissionControl,
 	)
 
 	// Wrap with metrics decorator
