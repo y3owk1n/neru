@@ -36,6 +36,8 @@ const (
 
 	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
 	NSWindowSharingNone = 0
+	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
+	NSWindowSharingReadOnly = 1
 	// NSWindowSharingReadWrite represents NSWindowSharingReadWrite (2) - visible in screen sharing.
 	NSWindowSharingReadWrite = 2
 )
@@ -462,7 +464,7 @@ func (o *Overlay) SetMaxCells(maxCells int) {
 
 // SetSharingType sets the window sharing type for screen sharing visibility.
 func (o *Overlay) SetSharingType(hide bool) {
-	sharingType := C.int(NSWindowSharingReadWrite)
+	sharingType := C.int(NSWindowSharingReadOnly)
 	if hide {
 		sharingType = C.int(NSWindowSharingNone)
 	}

@@ -120,7 +120,7 @@ void NeruSetOverlayLevel(OverlayWindow window, int level);
 
 /// Set overlay sharing type for screen sharing visibility
 /// @param window Overlay window handle
-/// @param sharingType Sharing type: 0 = NSWindowSharingNone (hidden), 2 = NSWindowSharingReadWrite (visible)
+/// @param sharingType Sharing type: 0 = NSWindowSharingNone (hidden), 1 = NSWindowSharingReadOnly (visible)
 void NeruSetOverlaySharingType(OverlayWindow window, int sharingType);
 
 /// Replace overlay window

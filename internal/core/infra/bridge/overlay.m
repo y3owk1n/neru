@@ -574,9 +574,9 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	    setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorStationary |
 	                          NSWindowCollectionBehaviorFullScreenAuxiliary | NSWindowCollectionBehaviorIgnoresCycle];
 
-	// Set sharing type - default to visible (NSWindowSharingReadWrite = 2) unless explicitly configured
+	// Set sharing type - default to visible (NSWindowSharingReadOnly = 1) unless explicitly configured
 	if (!self.sharingTypeExplicit) {
-		self.sharingType = NSWindowSharingReadWrite;
+		self.sharingType = NSWindowSharingReadOnly;
 	}
 	[self.window setSharingType:self.sharingType];
 
@@ -1126,7 +1126,7 @@ void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
 		return;
 	dispatch_async(dispatch_get_main_queue(), ^{
 		OverlayWindowController *oldController = (OverlayWindowController *)(*pwindow);
-		NSInteger sharingType = NSWindowSharingReadWrite; // Default to visible
+		NSInteger sharingType = NSWindowSharingReadOnly; // Default to visible
 		if (oldController) {
 			sharingType = oldController.sharingType;
 		}
@@ -1299,7 +1299,7 @@ void NeruSetHideUnmatched(OverlayWindow window, int hide) {
 
 /// Set overlay sharing type for screen sharing visibility
 /// @param window Overlay window handle
-/// @param sharingType Sharing type: 0 = NSWindowSharingNone (hidden), 2 = NSWindowSharingReadWrite (visible)
+/// @param sharingType Sharing type: 0 = NSWindowSharingNone (hidden), 1 = NSWindowSharingReadOnly (visible)
 void NeruSetOverlaySharingType(OverlayWindow window, int sharingType) {
 	if (!window)
 		return;
