@@ -24,8 +24,6 @@ const (
 	NSWindowSharingNone = 0
 	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
 	NSWindowSharingReadOnly = 1
-	// NSWindowSharingReadWrite represents NSWindowSharingReadWrite (2) - visible in screen sharing.
-	NSWindowSharingReadWrite = 2
 )
 
 // Overlay manages the rendering of quad-grid overlays using native platform APIs.
