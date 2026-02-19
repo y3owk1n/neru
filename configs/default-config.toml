@@ -205,9 +205,13 @@ enable_gc = false
 # Whether to enable quad-grid mode
 enabled = true
 
-# Key bindings for quadrant selection (warpd convention)
-# Must be exactly 4 unique characters
-# u = upper-left, i = upper-right, j = lower-left, k = lower-right
+# Grid layout: NxN grid (must be >= 2)
+# Higher values create finer grid division
+grid_size = 2
+
+# Key bindings for quadrant selection
+# Must be exactly grid_size * grid_size characters
+# For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
 keys = "uijk"
 
 # Visual appearance

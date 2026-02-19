@@ -4,7 +4,14 @@ import (
 	"image"
 )
 
-// Quadrant represents one of the four screen divisions.
+const (
+	// GridSize2x2 represents the default 2x2 grid layout.
+	GridSize2x2 = 2
+)
+
+// Quadrant represents one of the screen divisions.
+// For 2x2: 0=TL, 1=TR, 2=BL, 3=BR.
+// For 3x3: 0-8 left-to-right, top-to-bottom.
 type Quadrant int
 
 const (
@@ -28,51 +35,67 @@ type QuadGrid struct {
 	depth         int               // Current recursion depth
 	maxDepth      int               // Maximum allowed depth
 	minSize       int               // Minimum quadrant size in pixels
+	gridSize      int               // Grid size: 2 for 2x2, 3 for 3x3
 	history       []image.Rectangle // Stack of previous bounds for backtracking
 }
 
 // NewQuadGrid creates a new quad-grid starting with the given screen bounds.
 func NewQuadGrid(screenBounds image.Rectangle, minSize, maxDepth int) *QuadGrid {
+	return NewQuadGridWithSize(screenBounds, minSize, maxDepth, GridSize2x2)
+}
+
+// NewQuadGridWithSize creates a new quad-grid with a specific grid size.
+func NewQuadGridWithSize(screenBounds image.Rectangle, minSize, maxDepth, gridSize int) *QuadGrid {
 	return &QuadGrid{
 		currentBounds: screenBounds,
 		initialBounds: screenBounds,
 		depth:         0,
 		maxDepth:      maxDepth,
 		minSize:       minSize,
+		gridSize:      gridSize,
 		history:       make([]image.Rectangle, 0, maxDepth),
 	}
 }
 
-// Divide splits the current bounds into 4 equal quadrants.
-// Returns an array where index corresponds to Quadrant enum values.
-func (qg *QuadGrid) Divide() [4]image.Rectangle {
-	midX := qg.currentBounds.Min.X + qg.currentBounds.Dx()/2 //nolint:mnd
-	midY := qg.currentBounds.Min.Y + qg.currentBounds.Dy()/2 //nolint:mnd
+// GridSize returns the grid size (2 for 2x2, 3 for 3x3).
+func (qg *QuadGrid) GridSize() int {
+	return qg.gridSize
+}
 
-	return [4]image.Rectangle{
-		TopLeft: image.Rect(
-			qg.currentBounds.Min.X, qg.currentBounds.Min.Y,
-			midX, midY,
-		),
-		TopRight: image.Rect(
-			midX, qg.currentBounds.Min.Y,
-			qg.currentBounds.Max.X, midY,
-		),
-		BottomLeft: image.Rect(
-			qg.currentBounds.Min.X, midY,
-			midX, qg.currentBounds.Max.Y,
-		),
-		BottomRight: image.Rect(
-			midX, midY,
-			qg.currentBounds.Max.X, qg.currentBounds.Max.Y,
-		),
+// Divide splits the current bounds into quadrants based on grid size.
+// For 2x2: returns 4 quadrants (TL, TR, BL, BR).
+// For 3x3: returns 9 quadrants (left-to-right, top-to-bottom).
+func (qg *QuadGrid) Divide() []image.Rectangle {
+	cellWidth := qg.currentBounds.Dx() / qg.gridSize
+	cellHeight := qg.currentBounds.Dy() / qg.gridSize
+
+	quadrants := make([]image.Rectangle, qg.gridSize*qg.gridSize)
+
+	for row := range qg.gridSize {
+		for col := range qg.gridSize {
+			idx := row*qg.gridSize + col
+			quadrants[idx] = image.Rect(
+				qg.currentBounds.Min.X+col*cellWidth,
+				qg.currentBounds.Min.Y+row*cellHeight,
+				qg.currentBounds.Min.X+(col+1)*cellWidth,
+				qg.currentBounds.Min.Y+(row+1)*cellHeight,
+			)
+		}
 	}
+
+	return quadrants
 }
 
 // QuadrantCenter returns the center point of the specified quadrant.
 func (qg *QuadGrid) QuadrantCenter(quadrant Quadrant) image.Point {
 	quadrants := qg.Divide()
-	selected := quadrants[quadrant]
+	idx := int(quadrant)
+
+	if idx >= len(quadrants) {
+		return qg.CurrentCenter()
+	}
+
+	selected := quadrants[idx]
 
 	return image.Point{
 		X: selected.Min.X + selected.Dx()/2,
@@ -120,12 +143,12 @@ func (qg *QuadGrid) CanDivide() bool {
 		return false
 	}
 
-	// Check size constraints - both dimensions must be divisible by 2
+	// Check size constraints - both dimensions must be divisible by gridSize
 	// and the result must be >= minSize
-	halfWidth := qg.currentBounds.Dx() / 2  //nolint:mnd
-	halfHeight := qg.currentBounds.Dy() / 2 //nolint:mnd
+	cellWidth := qg.currentBounds.Dx() / qg.gridSize
+	cellHeight := qg.currentBounds.Dy() / qg.gridSize
 
-	return halfWidth >= qg.minSize && halfHeight >= qg.minSize
+	return cellWidth >= qg.minSize && cellHeight >= qg.minSize
 }
 
 // CurrentCenter returns the center point of the current bounds.
@@ -198,6 +221,11 @@ func (qg *QuadGrid) IsComplete() bool {
 // Useful for visual rendering.
 func (qg *QuadGrid) QuadrantBounds(q Quadrant) image.Rectangle {
 	quadrants := qg.Divide()
+	idx := int(q)
 
-	return quadrants[q]
+	if idx >= len(quadrants) {
+		return qg.currentBounds
+	}
+
+	return quadrants[idx]
 }

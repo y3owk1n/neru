@@ -78,6 +78,7 @@ sublayer_keys = "gcrhtnmwv"
 # ============================================================================
 [quad_grid]
 enabled = true
+grid_size = 2
 keys = "crtn"
 label_font_family = "JetBrainsMonoNLNFP-Bold"
 line_width = 1

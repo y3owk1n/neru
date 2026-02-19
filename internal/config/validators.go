@@ -896,7 +896,18 @@ func (c *Config) ValidateQuadGrid() error {
 		return nil
 	}
 
-	// Validate keys - must be exactly 4 unique characters
+	// Validate grid_size (must be at least 2)
+	if c.QuadGrid.GridSize < DefaultQuadGridMinGridSize {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"quadgrid.grid_size must be at least 2",
+		)
+	}
+
+	// Calculate expected key count based on grid size
+	expectedKeyCount := c.QuadGrid.GridSize * c.QuadGrid.GridSize
+
+	// Validate keys - must match grid size
 	keys := strings.TrimSpace(c.QuadGrid.Keys)
 	if keys == "" {
 		return derrors.New(
@@ -905,10 +916,12 @@ func (c *Config) ValidateQuadGrid() error {
 		)
 	}
 
-	if utf8.RuneCountInString(keys) != 4 { //nolint:mnd
-		return derrors.New(
+	if utf8.RuneCountInString(keys) != expectedKeyCount {
+		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"quadgrid.keys must be exactly 4 characters",
+			"quadgrid.keys must be exactly %d characters for grid_size %d",
+			expectedKeyCount,
+			c.QuadGrid.GridSize,
 		)
 	}
 

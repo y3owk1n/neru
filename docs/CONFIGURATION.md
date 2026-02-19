@@ -382,7 +382,7 @@ Notes:
 
 ## Quad-Grid Mode
 
-Quad-grid provides recursive quadrant-based navigation that works anywhere. The screen is divided into four quadrants using keys (default: `u`, `i`, `j`, `k`). Each selection narrows the active area. The reset key returns to the initial center, and backspace/delete move up one depth and recenter.
+Quad-grid provides recursive quadrant-based navigation that works anywhere. The screen is divided into NxN quadrants using configurable keys. Each selection narrows the active area. The reset key returns to the initial center, and backspace/delete move up one depth and recenter.
 
 ### Basic Configuration
 
@@ -390,8 +390,14 @@ Quad-grid provides recursive quadrant-based navigation that works anywhere. The 
 [quad_grid]
 enabled = true
 
-# Quadrant keys (must be exactly 4 unique ASCII characters)
-# u = upper-left, i = upper-right, j = lower-left, k = lower-right
+# Grid layout: NxN grid (default: 2 for 2x2)
+# Must be at least 2. Higher values create finer grid division.
+grid_size = 2
+
+# Quadrant keys (must be exactly grid_size * grid_size characters)
+# For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
+# For 3x3: 9 keys
+# For 4x4: 16 keys
 keys = "uijk"
 
 # Behavior
@@ -415,6 +421,22 @@ label_font_family = "SF Mono"
 - Press backspace/delete to move up one depth and recenter cursor
 - Press reset_key to return to initial center and clear state
 - Press exit key (default: escape) to exit mode
+
+### Custom Grid Sizes
+
+For larger grids, adjust grid_size and provide the corresponding number of keys:
+
+```toml
+[quad_grid]
+grid_size = 3
+keys = "gcrhtnmwv"  # 9 keys
+
+# or for 4x4:
+grid_size = 4
+keys = "7890gcrlhtnsmwvz"  # 16 keys
+```
+
+> Techically, you can have infinitely many grids, but I don't think anyone should set it more than 3...
 
 ---
 

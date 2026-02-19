@@ -9,6 +9,7 @@ import "C"
 
 import (
 	"image"
+	"math"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -160,50 +161,53 @@ func (o *Overlay) DrawQuadGrid(
 	// Clear previous drawing
 	o.Clear()
 
-	// Calculate quadrant bounds
-	midX := bounds.Min.X + bounds.Dx()/2 //nolint:mnd
-	midY := bounds.Min.Y + bounds.Dy()/2 //nolint:mnd
+	// Determine grid size from key count (grid_size = sqrt(key_count))
+	keyCount := utf8.RuneCountInString(keys)
+	gridSize := int(math.Sqrt(float64(keyCount)))
 
-	quadrants := []image.Rectangle{
-		{
-			Min: image.Point{X: bounds.Min.X, Y: bounds.Min.Y},
-			Max: image.Point{X: midX, Y: midY},
-		}, // Top-left (u)
-		{
-			Min: image.Point{X: midX, Y: bounds.Min.Y},
-			Max: image.Point{X: bounds.Max.X, Y: midY},
-		}, // Top-right (i)
-		{
-			Min: image.Point{X: bounds.Min.X, Y: midY},
-			Max: image.Point{X: midX, Y: bounds.Max.Y},
-		}, // Bottom-left (j)
-		{
-			Min: image.Point{X: midX, Y: midY},
-			Max: image.Point{X: bounds.Max.X, Y: bounds.Max.Y},
-		}, // Bottom-right (k)
-	}
-
-	// Ensure keys is valid
-	if utf8.RuneCountInString(keys) != 4 { //nolint:mnd
+	// Validate grid size (must be at least 2)
+	if gridSize < 2 || gridSize*gridSize != keyCount {
+		// Fallback to default 2x2 if invalid key count
 		keys = "uijk"
+		gridSize = 2
+		keyCount = 4
 	}
 
-	// Create grid cells for each quadrant
-	cells := make([]C.GridCell, 4) //nolint:mnd
+	// Calculate cell dimensions
+	cellWidth := bounds.Dx() / gridSize
+	cellHeight := bounds.Dy() / gridSize
+
+	// Create grid cells dynamically
+	cells := make([]C.GridCell, keyCount)
 	keyRunes := []rune(keys)
 
-	for idx, quadrant := range quadrants {
-		labelStr := ""
-		if idx < len(keyRunes) {
-			labelStr = string(keyRunes[idx])
-		}
-		label := strings.ToUpper(labelStr)
-		cells[idx] = C.GridCell{
-			label:               o.getOrCacheLabel(label),
-			bounds:              o.rectToCRect(quadrant),
-			isMatched:           C.int(0),
-			isSubgrid:           C.int(0),
-			matchedPrefixLength: C.int(0),
+	for row := range gridSize {
+		for col := range gridSize {
+			idx := row*gridSize + col
+
+			quadrant := image.Rectangle{
+				Min: image.Point{
+					X: bounds.Min.X + col*cellWidth,
+					Y: bounds.Min.Y + row*cellHeight,
+				},
+				Max: image.Point{
+					X: bounds.Min.X + (col+1)*cellWidth,
+					Y: bounds.Min.Y + (row+1)*cellHeight,
+				},
+			}
+
+			labelStr := ""
+			if idx < len(keyRunes) {
+				labelStr = string(keyRunes[idx])
+			}
+			label := strings.ToUpper(labelStr)
+			cells[idx] = C.GridCell{
+				label:               o.getOrCacheLabel(label),
+				bounds:              o.rectToCRect(quadrant),
+				isMatched:           C.int(0),
+				isSubgrid:           C.int(0),
+				matchedPrefixLength: C.int(0),
+			}
 		}
 	}
 

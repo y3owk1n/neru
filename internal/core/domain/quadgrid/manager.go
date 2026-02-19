@@ -16,6 +16,7 @@ type Manager struct {
 
 	grid       *QuadGrid
 	keys       string            // Key mapping (e.g., "uijk")
+	gridSize   int               // Grid size: 2 for 2x2, 3 for 3x3
 	onUpdate   func()            // Callback for overlay updates
 	onComplete func(image.Point) // Callback when selection is complete
 	resetKey   string
@@ -32,16 +33,50 @@ func NewManager(
 	onComplete func(image.Point),
 	logger *zap.Logger,
 ) *Manager {
+	return NewManagerWithConfig(
+		screenBounds,
+		keys,
+		resetKey,
+		exitKeys,
+		25, //nolint:mnd
+		10, //nolint:mnd
+		GridSize2x2,
+		onUpdate,
+		onComplete,
+		logger,
+	)
+}
+
+// NewManagerWithConfig creates a manager with custom minSize, maxDepth, and gridSize.
+func NewManagerWithConfig(
+	screenBounds image.Rectangle,
+	keys string,
+	resetKey string,
+	exitKeys []string,
+	minSize, maxDepth, gridSize int,
+	onUpdate func(),
+	onComplete func(image.Point),
+	logger *zap.Logger,
+) *Manager {
+	// Use default grid size if invalid (< 2)
+	if gridSize < GridSize2x2 {
+		logger.Warn("Invalid grid size, using default 2x2",
+			zap.Int("provided", gridSize))
+		gridSize = GridSize2x2
+	}
+
 	// Use default keys if not provided
 	if strings.TrimSpace(keys) == "" {
 		keys = DefaultKeys
 	}
 
-	// Ensure we have exactly 4 keys
-	if utf8.RuneCountInString(keys) != 4 { //nolint:mnd
+	// Ensure we have the correct number of keys based on grid size
+	expectedKeyCount := gridSize * gridSize
+	if utf8.RuneCountInString(keys) != expectedKeyCount {
 		logger.Warn("Invalid key mapping length, using default",
 			zap.String("provided", keys),
-			zap.Int("length", utf8.RuneCountInString(keys)))
+			zap.Int("length", utf8.RuneCountInString(keys)),
+			zap.Int("expected", expectedKeyCount))
 		keys = DefaultKeys
 	}
 
@@ -49,32 +84,14 @@ func NewManager(
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
-		// Default: 25px min, 10 max depth
-		grid:       NewQuadGrid(screenBounds, 25, 10), //nolint:mnd
+		grid:       NewQuadGridWithSize(screenBounds, minSize, maxDepth, gridSize),
 		keys:       strings.ToLower(keys),
+		gridSize:   gridSize,
 		onUpdate:   onUpdate,
 		onComplete: onComplete,
 		resetKey:   resetKey,
 		exitKeys:   exitKeys,
 	}
-}
-
-// NewManagerWithConfig creates a manager with custom minSize and maxDepth.
-func NewManagerWithConfig(
-	screenBounds image.Rectangle,
-	keys string,
-	resetKey string,
-	exitKeys []string,
-	minSize, maxDepth int,
-	onUpdate func(),
-	onComplete func(image.Point),
-	logger *zap.Logger,
-) *Manager {
-	manager := NewManager(screenBounds, keys, resetKey, exitKeys, onUpdate, onComplete, logger)
-	// Replace the grid with custom configuration
-	manager.grid = NewQuadGrid(screenBounds, minSize, maxDepth)
-
-	return manager
 }
 
 // HandleInput processes a key press and updates the grid state.
@@ -210,9 +227,15 @@ func (m *Manager) Keys() string {
 	return m.keys
 }
 
+// GridSize returns the current grid size (2 for 2x2, 3 for 3x3).
+func (m *Manager) GridSize() int {
+	return m.gridSize
+}
+
 // UpdateKeys updates the key mapping.
 func (m *Manager) UpdateKeys(keys string) {
-	if utf8.RuneCountInString(keys) == 4 { //nolint:mnd
+	expectedKeyCount := m.gridSize * m.gridSize
+	if utf8.RuneCountInString(keys) == expectedKeyCount {
 		m.keys = strings.ToLower(keys)
 	}
 }

@@ -94,6 +94,7 @@ func (h *Handler) initializeQuadGridManager(screenBounds image.Rectangle) {
 		exitKeys,
 		h.config.QuadGrid.MinSize,
 		h.config.QuadGrid.MaxDepth,
+		h.config.QuadGrid.GridSize,
 		// Update callback
 		func() {
 			h.updateQuadGridOverlay()

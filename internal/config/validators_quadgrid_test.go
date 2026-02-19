@@ -18,6 +18,7 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
 					Enabled:          true,
+					GridSize:         2,
 					Keys:             "uijk",
 					ResetKey:         ",",
 					MinSize:          50,
@@ -47,8 +48,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			name: "quadgrid with empty keys - invalid",
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
-					Enabled: true,
-					Keys:    "",
+					Enabled:  true,
+					GridSize: 2,
+					Keys:     "",
 				},
 			},
 			wantErr: true,
@@ -57,8 +59,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			name: "quadgrid with incorrect key length - invalid",
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
-					Enabled: true,
-					Keys:    "abc", // Need 4
+					Enabled:  true,
+					GridSize: 2,
+					Keys:     "abc", // Need 4 for 2x2
 				},
 			},
 			wantErr: true,
@@ -67,8 +70,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			name: "quadgrid with duplicate keys - invalid",
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
-					Enabled: true,
-					Keys:    "uiju", // Duplicate 'u'
+					Enabled:  true,
+					GridSize: 2,
+					Keys:     "uiju", // Duplicate 'u'
 				},
 			},
 			wantErr: true,
@@ -77,8 +81,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			name: "quadgrid with unicode keys - invalid",
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
-					Enabled: true,
-					Keys:    "uijé",
+					Enabled:  true,
+					GridSize: 2,
+					Keys:     "uijé",
 				},
 			},
 			wantErr: true,
@@ -87,9 +92,10 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			name: "quadgrid with invalid min_size",
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
-					Enabled: true,
-					Keys:    "uijk",
-					MinSize: 5, // Too small (< 10)
+					Enabled:  true,
+					GridSize: 2,
+					Keys:     "uijk",
+					MinSize:  5, // Too small (< 10)
 				},
 			},
 			wantErr: true,
@@ -99,6 +105,7 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
 					Enabled:  true,
+					GridSize: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 0, // Too small (< 1)
@@ -111,6 +118,7 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
 					Enabled:          true,
+					GridSize:         2,
 					Keys:             "uijk",
 					ResetKey:         "",
 					MinSize:          50,
@@ -130,6 +138,7 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
 					Enabled:          true,
+					GridSize:         2,
 					Keys:             "uijk",
 					ResetKey:         "Ctrl+R",
 					MinSize:          50,
@@ -149,6 +158,7 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
 					Enabled:  true,
+					GridSize: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 10,
@@ -162,6 +172,7 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
 					Enabled:  true,
+					GridSize: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 10,
@@ -175,6 +186,7 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
 					Enabled:  true,
+					GridSize: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 10,
@@ -188,6 +200,7 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
 					Enabled:  true,
+					GridSize: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 10,
@@ -201,6 +214,7 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
 					Enabled:  true,
+					GridSize: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 10,
@@ -214,6 +228,7 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			config: config.Config{
 				QuadGrid: config.QuadGridConfig{
 					Enabled:   true,
+					GridSize:  2,
 					Keys:      "uijk",
 					MinSize:   10,
 					MaxDepth:  10,
