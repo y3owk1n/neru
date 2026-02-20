@@ -449,7 +449,7 @@ Notes:
 
 ## Recursive Grid Mode
 
-Recursive grid provides recursive cell-based navigation that works anywhere. The screen is divided into NxN cells using configurable keys. Each selection narrows the active area. The reset key returns to the initial center, and backspace/delete move up one depth and recenter.
+Recursive grid provides recursive cell-based navigation that works anywhere. The screen is divided into a grid using configurable columns and rows. Each selection narrows the active area. The reset key returns to the initial center, and backspace/delete move up one depth and recenter.
 
 ### Basic Configuration
 
@@ -457,14 +457,16 @@ Recursive grid provides recursive cell-based navigation that works anywhere. The
 [recursive_grid]
 enabled = true
 
-# Grid layout: NxN grid (default: 2 for 2x2)
-# Must be at least 2. Higher values create finer grid division.
-grid_size = 2
+# Grid layout: columns and rows (default: 2x2)
+# Both must be at least 2. Higher values create finer grid division.
+# For non-square grids, use different values for grid_cols and grid_rows.
+grid_cols = 2
+grid_rows = 2
 
-# Cell keys (must be exactly grid_size * grid_size characters)
+# Cell keys (must be exactly grid_cols * grid_rows characters)
 # For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
 # For 3x3: 9 keys
-# For 4x4: 16 keys
+# For 3x2: 6 keys
 keys = "uijk"
 
 # Behavior
@@ -488,21 +490,31 @@ label_font_family = "SF Mono"
 - Press reset_key to return to initial center and clear state
 - Press exit key (default: escape) to exit mode
 
-### Custom Grid Sizes
+### Custom Grid Dimensions
 
-For larger grids, adjust grid_size and provide the corresponding number of keys:
+Adjust grid_cols and grid_rows and provide the corresponding number of keys:
 
 ```toml
+# Square 3x3 grid
 [recursive_grid]
-grid_size = 3
+grid_cols = 3
+grid_rows = 3
 keys = "gcrhtnmwv"  # 9 keys
 
-# or for 4x4:
-grid_size = 4
+# Non-square 3x2 grid (3 columns, 2 rows)
+[recursive_grid]
+grid_cols = 3
+grid_rows = 2
+keys = "gcrhtn"  # 6 keys
+
+# Square 4x4 grid
+[recursive_grid]
+grid_cols = 4
+grid_rows = 4
 keys = "7890gcrlhtnsmwvz"  # 16 keys
 ```
 
-> Techically, you can have infinitely many grids, but I don't think anyone should set it more than 3...
+> You can configure any grid dimensions, but square grids (2x2, 3x3) are recommended for most use cases.
 
 ---
 

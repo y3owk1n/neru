@@ -5,13 +5,13 @@ import (
 )
 
 const (
-	// GridSize2x2 represents the default 2x2 grid layout.
-	GridSize2x2 = 2
+	// MinGridDimension is the minimum allowed value for grid columns or rows.
+	MinGridDimension = 2
 )
 
 // Cell represents the index of a cell in the grid.
 // For 2x2 grids: 0=TL, 1=TR, 2=BL, 3=BR (named constants below).
-// For NxN grids: indices 0 to (N*N-1) are ordered left-to-right, top-to-bottom.
+// For CxR grids: indices 0 to (C*R-1) are ordered left-to-right, top-to-bottom.
 // The named constants (TopLeft, TopRight, etc.) are only meaningful for 2x2 grids.
 type Cell int
 
@@ -36,19 +36,26 @@ type RecursiveGrid struct {
 	depth         int               // Current recursion depth
 	maxDepth      int               // Maximum allowed depth
 	minSize       int               // Minimum cell size in pixels
-	gridSize      int               // Grid size: 2 for 2x2, 3 for 3x3
+	gridCols      int               // Number of grid columns
+	gridRows      int               // Number of grid rows
 	history       []image.Rectangle // Stack of previous bounds for backtracking
 }
 
 // NewRecursiveGrid creates a new recursive-grid starting with the given screen bounds.
 func NewRecursiveGrid(screenBounds image.Rectangle, minSize, maxDepth int) *RecursiveGrid {
-	return NewRecursiveGridWithSize(screenBounds, minSize, maxDepth, GridSize2x2)
+	return NewRecursiveGridWithDimensions(
+		screenBounds,
+		minSize,
+		maxDepth,
+		MinGridDimension,
+		MinGridDimension,
+	)
 }
 
-// NewRecursiveGridWithSize creates a new recursive-grid with a specific grid size.
-func NewRecursiveGridWithSize(
+// NewRecursiveGridWithDimensions creates a new recursive-grid with specific column and row counts.
+func NewRecursiveGridWithDimensions(
 	screenBounds image.Rectangle,
-	minSize, maxDepth, gridSize int,
+	minSize, maxDepth, gridCols, gridRows int,
 ) *RecursiveGrid {
 	return &RecursiveGrid{
 		currentBounds: screenBounds,
@@ -56,36 +63,41 @@ func NewRecursiveGridWithSize(
 		depth:         0,
 		maxDepth:      maxDepth,
 		minSize:       minSize,
-		gridSize:      gridSize,
+		gridCols:      gridCols,
+		gridRows:      gridRows,
 		history:       make([]image.Rectangle, 0, maxDepth),
 	}
 }
 
-// GridSize returns the grid size (2 for 2x2, 3 for 3x3).
-func (qg *RecursiveGrid) GridSize() int {
-	return qg.gridSize
+// GridCols returns the number of grid columns.
+func (qg *RecursiveGrid) GridCols() int {
+	return qg.gridCols
 }
 
-// Divide splits the current bounds into cells based on grid size.
-// For 2x2: returns 4 cells (TL, TR, BL, BR).
-// For 3x3: returns 9 cells (left-to-right, top-to-bottom).
+// GridRows returns the number of grid rows.
+func (qg *RecursiveGrid) GridRows() int {
+	return qg.gridRows
+}
+
+// Divide splits the current bounds into cells based on grid dimensions.
+// Cells are ordered left-to-right, top-to-bottom.
 func (qg *RecursiveGrid) Divide() []image.Rectangle {
-	cellWidth := qg.currentBounds.Dx() / qg.gridSize
-	cellHeight := qg.currentBounds.Dy() / qg.gridSize
+	cellWidth := qg.currentBounds.Dx() / qg.gridCols
+	cellHeight := qg.currentBounds.Dy() / qg.gridRows
 
-	cells := make([]image.Rectangle, qg.gridSize*qg.gridSize)
+	cells := make([]image.Rectangle, qg.gridCols*qg.gridRows)
 
-	for row := range qg.gridSize {
-		for col := range qg.gridSize {
-			idx := row*qg.gridSize + col
+	for row := range qg.gridRows {
+		for col := range qg.gridCols {
+			idx := row*qg.gridCols + col
 
 			maxX := qg.currentBounds.Min.X + (col+1)*cellWidth
-			if col == qg.gridSize-1 {
+			if col == qg.gridCols-1 {
 				maxX = qg.currentBounds.Max.X
 			}
 
 			maxY := qg.currentBounds.Min.Y + (row+1)*cellHeight
-			if row == qg.gridSize-1 {
+			if row == qg.gridRows-1 {
 				maxY = qg.currentBounds.Max.Y
 			}
 
@@ -165,10 +177,10 @@ func (qg *RecursiveGrid) CanDivide() bool {
 		return false
 	}
 
-	// Check size constraints - both dimensions must be divisible by gridSize
+	// Check size constraints - both dimensions must be divisible
 	// and the result must be >= minSize
-	cellWidth := qg.currentBounds.Dx() / qg.gridSize
-	cellHeight := qg.currentBounds.Dy() / qg.gridSize
+	cellWidth := qg.currentBounds.Dx() / qg.gridCols
+	cellHeight := qg.currentBounds.Dy() / qg.gridRows
 
 	return cellWidth >= qg.minSize && cellHeight >= qg.minSize
 }

@@ -171,8 +171,10 @@ const (
 	DefaultRecursiveGridMinSize = 25
 	// DefaultRecursiveGridMaxDepth is the default maximum recursion depth.
 	DefaultRecursiveGridMaxDepth = 10
-	// DefaultRecursiveGridMinGridSize is the minimum allowed grid size (NxN).
-	DefaultRecursiveGridMinGridSize = 2
+	// DefaultRecursiveGridMinGridCols is the minimum allowed grid columns.
+	DefaultRecursiveGridMinGridCols = 2
+	// DefaultRecursiveGridMinGridRows is the minimum allowed grid rows.
+	DefaultRecursiveGridMinGridRows = 2
 	// DefaultRecursiveGridLineWidth is the default line width for grid lines.
 	DefaultRecursiveGridLineWidth = 1
 	// DefaultRecursiveGridLabelFontSize is the default font size for cell labels.
@@ -278,7 +280,8 @@ func DefaultConfig() *Config {
 		},
 		RecursiveGrid: RecursiveGridConfig{
 			Enabled:  true,
-			GridSize: 2, //nolint:mnd
+			GridCols: 2, //nolint:mnd
+			GridRows: 2, //nolint:mnd
 
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
 

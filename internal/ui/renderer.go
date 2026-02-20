@@ -96,7 +96,15 @@ func (r *OverlayRenderer) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
-	gridSize int,
+	gridCols int,
+	gridRows int,
 ) error {
-	return r.manager.DrawRecursiveGrid(bounds, depth, keys, gridSize, r.recursiveGridStyle)
+	return r.manager.DrawRecursiveGrid(
+		bounds,
+		depth,
+		keys,
+		gridCols,
+		gridRows,
+		r.recursiveGridStyle,
+	)
 }

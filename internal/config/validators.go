@@ -888,18 +888,26 @@ func (c *Config) ValidateRecursiveGrid() error {
 		return nil
 	}
 
-	// Validate grid_size (must be at least 2)
-	if c.RecursiveGrid.GridSize < DefaultRecursiveGridMinGridSize {
+	// Validate grid_cols (must be at least 2)
+	if c.RecursiveGrid.GridCols < DefaultRecursiveGridMinGridCols {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"recursive_grid.grid_size must be at least 2",
+			"recursive_grid.grid_cols must be at least 2",
 		)
 	}
 
-	// Calculate expected key count based on grid size
-	expectedKeyCount := c.RecursiveGrid.GridSize * c.RecursiveGrid.GridSize
+	// Validate grid_rows (must be at least 2)
+	if c.RecursiveGrid.GridRows < DefaultRecursiveGridMinGridRows {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.grid_rows must be at least 2",
+		)
+	}
 
-	// Validate keys - must match grid size
+	// Calculate expected key count based on grid dimensions
+	expectedKeyCount := c.RecursiveGrid.GridCols * c.RecursiveGrid.GridRows
+
+	// Validate keys - must match grid dimensions
 	keys := strings.TrimSpace(c.RecursiveGrid.Keys)
 	if keys == "" {
 		return derrors.New(
@@ -911,9 +919,10 @@ func (c *Config) ValidateRecursiveGrid() error {
 	if utf8.RuneCountInString(keys) != expectedKeyCount {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"recursive_grid.keys must be exactly %d characters for grid_size %d",
+			"recursive_grid.keys must be exactly %d characters for grid_cols %d and grid_rows %d",
 			expectedKeyCount,
-			c.RecursiveGrid.GridSize,
+			c.RecursiveGrid.GridCols,
+			c.RecursiveGrid.GridRows,
 		)
 	}
 

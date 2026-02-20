@@ -267,8 +267,9 @@ type GridConfig struct {
 type RecursiveGridConfig struct {
 	Enabled bool `json:"enabled" toml:"enabled"`
 
-	// Grid size: 2 for 2x2 (default), 3 for 3x3
-	GridSize int `json:"gridSize" toml:"grid_size"`
+	// Grid dimensions: columns and rows (default: 2x2)
+	GridCols int `json:"gridCols" toml:"grid_cols"`
+	GridRows int `json:"gridRows" toml:"grid_rows"`
 
 	// Key bindings (warpd convention for 2x2: u=TL, i=TR, j=BL, k=BR)
 	Keys string `json:"keys" toml:"keys"`

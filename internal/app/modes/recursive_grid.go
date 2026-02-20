@@ -94,7 +94,8 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 		exitKeys,
 		h.config.RecursiveGrid.MinSize,
 		h.config.RecursiveGrid.MaxDepth,
-		h.config.RecursiveGrid.GridSize,
+		h.config.RecursiveGrid.GridCols,
+		h.config.RecursiveGrid.GridRows,
 		// Update callback
 		func() {
 			h.updateRecursiveGridOverlay()
@@ -171,7 +172,8 @@ func (h *Handler) updateRecursiveGridOverlay() {
 		manager.CurrentBounds(),
 		manager.CurrentDepth(),
 		manager.Keys(),
-		manager.GridSize(),
+		manager.GridCols(),
+		manager.GridRows(),
 	)
 	if err != nil {
 		h.logger.Debug("Failed to draw recursive-grid overlay", zap.Error(err))
