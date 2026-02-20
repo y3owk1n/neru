@@ -139,17 +139,17 @@ type ActionKeyBindingsCfg struct {
 
 // Config represents the complete application configuration structure.
 type Config struct {
-	General      GeneralConfig      `json:"general"      toml:"general"`
-	Hotkeys      HotkeysConfig      `json:"hotkeys"      toml:"hotkeys"`
-	Hints        HintsConfig        `json:"hints"        toml:"hints"`
-	Grid         GridConfig         `json:"grid"         toml:"grid"`
-	QuadGrid     QuadGridConfig     `json:"quadGrid"     toml:"quad_grid"`
-	Scroll       ScrollConfig       `json:"scroll"       toml:"scroll"`
-	Action       ActionConfig       `json:"action"       toml:"action"`
-	Logging      LoggingConfig      `json:"logging"      toml:"logging"`
-	SmoothCursor SmoothCursorConfig `json:"smoothCursor" toml:"smooth_cursor"`
-	Metrics      MetricsConfig      `json:"metrics"      toml:"metrics"`
-	Systray      SystrayConfig      `json:"systray"      toml:"systray"`
+	General       GeneralConfig       `json:"general"       toml:"general"`
+	Hotkeys       HotkeysConfig       `json:"hotkeys"       toml:"hotkeys"`
+	Hints         HintsConfig         `json:"hints"         toml:"hints"`
+	Grid          GridConfig          `json:"grid"          toml:"grid"`
+	RecursiveGrid RecursiveGridConfig `json:"recursiveGrid" toml:"recursive_grid"`
+	Scroll        ScrollConfig        `json:"scroll"        toml:"scroll"`
+	Action        ActionConfig        `json:"action"        toml:"action"`
+	Logging       LoggingConfig       `json:"logging"       toml:"logging"`
+	SmoothCursor  SmoothCursorConfig  `json:"smoothCursor"  toml:"smooth_cursor"`
+	Metrics       MetricsConfig       `json:"metrics"       toml:"metrics"`
+	Systray       SystrayConfig       `json:"systray"       toml:"systray"`
 }
 
 // GeneralConfig defines general application-wide settings.
@@ -263,8 +263,8 @@ type GridConfig struct {
 	ResetKey        string `json:"resetKey"        toml:"reset_key"`
 }
 
-// QuadGridConfig defines the visual and behavioral settings for quad-grid mode.
-type QuadGridConfig struct {
+// RecursiveGridConfig defines the visual and behavioral settings for recursive-grid mode.
+type RecursiveGridConfig struct {
 	Enabled bool `json:"enabled" toml:"enabled"`
 
 	// Grid size: 2 for 2x2 (default), 3 for 3x3
@@ -377,8 +377,8 @@ func (c *Config) Validate() error {
 		return err
 	}
 
-	// Validate quad-grid settings
-	err = c.ValidateQuadGrid()
+	// Validate recursive-grid settings
+	err = c.ValidateRecursiveGrid()
 	if err != nil {
 		return err
 	}
@@ -512,10 +512,10 @@ func rolesMapToSlice(rolesMap map[string]struct{}) []string {
 
 // ValidateModes validates that at least one mode is enabled.
 func (c *Config) ValidateModes() error {
-	if !c.Hints.Enabled && !c.Grid.Enabled && !c.QuadGrid.Enabled {
+	if !c.Hints.Enabled && !c.Grid.Enabled && !c.RecursiveGrid.Enabled {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"at least one mode must be enabled: hints.enabled, grid.enabled, or quadgrid.enabled",
+			"at least one mode must be enabled: hints.enabled, grid.enabled, or recursive_grid.enabled",
 		)
 	}
 

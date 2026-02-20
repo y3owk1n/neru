@@ -13,15 +13,17 @@ type ModeConfig struct {
 	Name       string
 	Short      string
 	Long       string
-	ActionDesc string // Description for the action flag (e.g., "hint selection" or "grid selection")
+	ActionDesc string   // Description for the action flag (e.g., "hint selection" or "grid selection")
+	Aliases    []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
 }
 
 // BuildModeCommand creates a CLI command for a navigation mode (hints, grid, etc.).
 func BuildModeCommand(config ModeConfig) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   config.Name,
-		Short: config.Short,
-		Long:  config.Long,
+		Use:     config.Name,
+		Aliases: config.Aliases,
+		Short:   config.Short,
+		Long:    config.Long,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
 			return requiresRunningInstance()
 		},

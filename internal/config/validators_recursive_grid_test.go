@@ -6,17 +6,17 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// TestConfig_ValidateQuadGrid tests the Config.ValidateQuadGrid method.
-func TestConfig_ValidateQuadGrid(t *testing.T) {
+// TestConfig_ValidateRecursiveGrid tests the Config.ValidateRecursiveGrid method.
+func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 	tests := []struct {
 		name    string
 		config  config.Config
 		wantErr bool
 	}{
 		{
-			name: "valid quadgrid config",
+			name: "valid recursive_grid config",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:        true,
 					GridSize:       2,
 					Keys:           "uijk",
@@ -33,9 +33,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "disabled quadgrid config (should skip validation)",
+			name: "disabled recursive_grid config (should skip validation)",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled: false,
 					// Invalid values but should be ignored
 					Keys: "",
@@ -44,9 +44,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "quadgrid with empty keys - invalid",
+			name: "recursive_grid with empty keys - invalid",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
 					GridSize: 2,
 					Keys:     "",
@@ -55,9 +55,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "quadgrid with incorrect key length - invalid",
+			name: "recursive_grid with incorrect key length - invalid",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
 					GridSize: 2,
 					Keys:     "abc", // Need 4 for 2x2
@@ -66,9 +66,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "quadgrid with duplicate keys - invalid",
+			name: "recursive_grid with duplicate keys - invalid",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
 					GridSize: 2,
 					Keys:     "uiju", // Duplicate 'u'
@@ -77,9 +77,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "quadgrid with unicode keys - invalid",
+			name: "recursive_grid with unicode keys - invalid",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
 					GridSize: 2,
 					Keys:     "uijé",
@@ -88,9 +88,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "quadgrid with invalid min_size",
+			name: "recursive_grid with invalid min_size",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
 					GridSize: 2,
 					Keys:     "uijk",
@@ -100,9 +100,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "quadgrid with invalid max_depth",
+			name: "recursive_grid with invalid max_depth",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
 					GridSize: 2,
 					Keys:     "uijk",
@@ -113,9 +113,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "quadgrid with invalid reset_key (empty uses default)",
+			name: "recursive_grid with invalid reset_key (empty uses default)",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:        true,
 					GridSize:       2,
 					Keys:           "uijk",
@@ -132,9 +132,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "quadgrid with valid modifier reset_key",
+			name: "recursive_grid with valid modifier reset_key",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:        true,
 					GridSize:       2,
 					Keys:           "uijk",
@@ -151,9 +151,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "quadgrid with invalid modifier reset_key",
+			name: "recursive_grid with invalid modifier reset_key",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
 					GridSize: 2,
 					Keys:     "uijk",
@@ -165,9 +165,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "quadgrid with invalid single char reset_key (length > 1)",
+			name: "recursive_grid with invalid single char reset_key (length > 1)",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
 					GridSize: 2,
 					Keys:     "uijk",
@@ -179,9 +179,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "quadgrid with unicode reset_key",
+			name: "recursive_grid with unicode reset_key",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
 					GridSize: 2,
 					Keys:     "uijk",
@@ -193,9 +193,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "quadgrid with reserved reset_key (backspace)",
+			name: "recursive_grid with reserved reset_key (backspace)",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
 					GridSize: 2,
 					Keys:     "uijk",
@@ -207,9 +207,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "quadgrid with conflict between keys and reset_key",
+			name: "recursive_grid with conflict between keys and reset_key",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
 					GridSize: 2,
 					Keys:     "uijk",
@@ -221,9 +221,9 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "quadgrid with invalid styling (negative width)",
+			name: "recursive_grid with invalid styling (negative width)",
 			config: config.Config{
-				QuadGrid: config.QuadGridConfig{
+				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:   true,
 					GridSize:  2,
 					Keys:      "uijk",
@@ -238,9 +238,13 @@ func TestConfig_ValidateQuadGrid(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			err := testCase.config.ValidateQuadGrid()
+			err := testCase.config.ValidateRecursiveGrid()
 			if (err != nil) != testCase.wantErr {
-				t.Errorf("Config.ValidateQuadGrid() error = %v, wantErr %v", err, testCase.wantErr)
+				t.Errorf(
+					"Config.ValidateRecursiveGrid() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
 			}
 		})
 	}

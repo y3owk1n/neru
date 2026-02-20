@@ -1,4 +1,4 @@
-package quadgrid
+package recursivegrid
 
 /*
 #cgo CFLAGS: -x objective-c
@@ -15,7 +15,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain/quadgrid"
+	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 	"go.uber.org/zap"
 )
 
@@ -26,10 +26,10 @@ const (
 	NSWindowSharingReadOnly = 1
 )
 
-// Overlay manages the rendering of quad-grid overlays using native platform APIs.
+// Overlay manages the rendering of recursive_grid overlays using native platform APIs.
 type Overlay struct {
 	window C.OverlayWindow
-	config config.QuadGridConfig
+	config config.RecursiveGridConfig
 	logger *zap.Logger
 
 	callbackManager *overlayutil.CallbackManager
@@ -38,8 +38,8 @@ type Overlay struct {
 	cachedLabels    map[string]*C.char
 }
 
-// NewOverlay creates a new quad-grid overlay instance.
-func NewOverlay(cfg config.QuadGridConfig, logger *zap.Logger) (*Overlay, error) {
+// NewOverlay creates a new recursive_grid overlay instance.
+func NewOverlay(cfg config.RecursiveGridConfig, logger *zap.Logger) (*Overlay, error) {
 	base, err := overlayutil.NewBaseOverlay(logger)
 	if err != nil {
 		return nil, err
@@ -55,9 +55,9 @@ func NewOverlay(cfg config.QuadGridConfig, logger *zap.Logger) (*Overlay, error)
 	}, nil
 }
 
-// NewOverlayWithWindow creates a quad-grid overlay instance using a shared window.
+// NewOverlayWithWindow creates a recursive_grid overlay instance using a shared window.
 func NewOverlayWithWindow(
-	cfg config.QuadGridConfig,
+	cfg config.RecursiveGridConfig,
 	logger *zap.Logger,
 	windowPtr unsafe.Pointer,
 ) *Overlay {
@@ -78,8 +78,8 @@ func (o *Overlay) Window() C.OverlayWindow {
 	return o.window
 }
 
-// Config returns the quad-grid config.
-func (o *Overlay) Config() config.QuadGridConfig {
+// Config returns the recursive_grid config.
+func (o *Overlay) Config() config.RecursiveGridConfig {
 	return o.config
 }
 
@@ -89,7 +89,7 @@ func (o *Overlay) Logger() *zap.Logger {
 }
 
 // SetConfig updates the overlay's config.
-func (o *Overlay) SetConfig(cfg config.QuadGridConfig) {
+func (o *Overlay) SetConfig(cfg config.RecursiveGridConfig) {
 	o.config = cfg
 	o.styleCache.Free()
 	o.freeLabelCache()
@@ -136,8 +136,8 @@ func (o *Overlay) ResizeToActiveScreen() {
 	C.NeruResizeOverlayToActiveScreen(o.window)
 }
 
-// DrawQuadGrid renders the quad-grid with current bounds, depth, keys, and gridSize.
-func (o *Overlay) DrawQuadGrid(
+// DrawRecursiveGrid renders the recursive_grid with current bounds, depth, keys, and gridSize.
+func (o *Overlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
@@ -150,7 +150,7 @@ func (o *Overlay) DrawQuadGrid(
 		return nil
 	}
 
-	o.logger.Debug("Drawing quad-grid",
+	o.logger.Debug("Drawing recursive-grid",
 		zap.Int("bounds_x", bounds.Min.X),
 		zap.Int("bounds_y", bounds.Min.Y),
 		zap.Int("bounds_width", bounds.Dx()),
@@ -166,9 +166,9 @@ func (o *Overlay) DrawQuadGrid(
 	keyCount := gridSize * gridSize
 
 	// Validate grid size (must be at least 2)
-	if gridSize < quadgrid.GridSize2x2 {
+	if gridSize < recursivegrid.GridSize2x2 {
 		// Fallback to default 2x2 if invalid
-		gridSize = quadgrid.GridSize2x2
+		gridSize = recursivegrid.GridSize2x2
 		keyCount = gridSize * gridSize
 		keys = "uijk"
 	}
@@ -195,7 +195,7 @@ func (o *Overlay) DrawQuadGrid(
 				maxY = bounds.Max.Y
 			}
 
-			quadrant := image.Rectangle{
+			cell := image.Rectangle{
 				Min: image.Point{
 					X: bounds.Min.X + col*cellWidth,
 					Y: bounds.Min.Y + row*cellHeight,
@@ -213,7 +213,7 @@ func (o *Overlay) DrawQuadGrid(
 			label := strings.ToUpper(labelStr)
 			cells[idx] = C.GridCell{
 				label:               o.getOrCacheLabel(label),
-				bounds:              o.rectToCRect(quadrant),
+				bounds:              o.rectToCRect(cell),
 				isMatched:           C.int(0),
 				isSubgrid:           C.int(0),
 				matchedPrefixLength: C.int(0),
@@ -311,7 +311,7 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 	return cStr
 }
 
-// Style represents the visual style for quad-grid.
+// Style represents the visual style for recursive_grid.
 type Style struct {
 	lineColor       string
 	lineWidth       int
@@ -351,8 +351,8 @@ func (s Style) LabelFontFamily() string {
 	return s.labelFontFamily
 }
 
-// BuildStyle creates a Style from QuadGridConfig.
-func BuildStyle(cfg config.QuadGridConfig) Style {
+// BuildStyle creates a Style from RecursiveGridConfig.
+func BuildStyle(cfg config.RecursiveGridConfig) Style {
 	return Style{
 		lineColor:       cfg.LineColor,
 		lineWidth:       cfg.LineWidth,

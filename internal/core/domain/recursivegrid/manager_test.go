@@ -1,11 +1,11 @@
-package quadgrid_test
+package recursivegrid_test
 
 import (
 	"image"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/y3owk1n/neru/internal/core/domain/quadgrid"
+	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 	"go.uber.org/zap"
 )
 
@@ -13,7 +13,7 @@ func TestNewManager(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 
-	manager := quadgrid.NewManager(
+	manager := recursivegrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -31,7 +31,7 @@ func TestNewManagerDefaultKeys(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 
-	manager := quadgrid.NewManager(
+	manager := recursivegrid.NewManager(
 		bounds,
 		"", // Empty keys - should use default
 		",",
@@ -41,15 +41,20 @@ func TestNewManagerDefaultKeys(t *testing.T) {
 		logger,
 	)
 
-	assert.Equal(t, quadgrid.DefaultKeys, manager.Keys(), "Should use default keys when empty")
+	assert.Equal(
+		t,
+		recursivegrid.DefaultKeys,
+		manager.Keys(),
+		"Should use default keys when empty",
+	)
 }
 
-func TestManagerHandleInputQuadrantSelection(t *testing.T) {
+func TestManagerHandleInputCellSelection(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 
 	updateCalled := false
-	manager := quadgrid.NewManager(
+	manager := recursivegrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -59,10 +64,10 @@ func TestManagerHandleInputQuadrantSelection(t *testing.T) {
 		logger,
 	)
 
-	// Select top-left quadrant (key 'u')
+	// Select top-left cell (key 'u')
 	point, completed, shouldExit := manager.HandleInput("u")
 
-	assert.Equal(t, image.Point{X: 25, Y: 25}, point, "Should return center of top-left quadrant")
+	assert.Equal(t, image.Point{X: 25, Y: 25}, point, "Should return center of top-left cell")
 	assert.False(t, completed, "Should not be completed")
 	assert.False(t, shouldExit, "Should not exit")
 	assert.True(t, updateCalled, "Update callback should be called")
@@ -73,7 +78,7 @@ func TestManagerHandleInputExitKey(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 
-	manager := quadgrid.NewManager(
+	manager := recursivegrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -95,7 +100,7 @@ func TestManagerHandleInputResetKey(t *testing.T) {
 	logger := zap.NewNop()
 
 	updateCalled := false
-	manager := quadgrid.NewManager(
+	manager := recursivegrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -123,7 +128,7 @@ func TestManagerHandleInputBacktrack(t *testing.T) {
 	logger := zap.NewNop()
 
 	updateCalled := false
-	manager := quadgrid.NewManager(
+	manager := recursivegrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -154,7 +159,7 @@ func TestManagerHandleInputUnmappedKey(t *testing.T) {
 	logger := zap.NewNop()
 
 	updateCalled := false
-	manager := quadgrid.NewManager(
+	manager := recursivegrid.NewManager(
 		bounds,
 		"uijk",
 		",",
@@ -180,7 +185,7 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 
 	var completePoint image.Point
 
-	manager := quadgrid.NewManagerWithConfig(
+	manager := recursivegrid.NewManagerWithConfig(
 		bounds,
 		"uijk",
 		",",
@@ -214,7 +219,7 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 	logger := zap.NewNop()
 
 	completeCalled := false
-	manager := quadgrid.NewManagerWithConfig(
+	manager := recursivegrid.NewManagerWithConfig(
 		bounds,
 		"uijk",
 		",",
@@ -239,21 +244,29 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 	assert.Equal(t, 2, manager.CurrentDepth(), "Should stay at max depth")
 
 	// Input at Max Depth
-	// Should return sub-quadrant center but NOT change depth
+	// Should return sub-cell center but NOT change depth
 	point3, completed3, _ := manager.HandleInput("k") // Select BottomRight of current
 	assert.True(t, completed3)
 	assert.Equal(t, 2, manager.CurrentDepth(), "Should still be at max depth")
-	assert.NotEqual(t, point2, point3, "Should return different point (sub-quadrant center)")
+	assert.NotEqual(t, point2, point3, "Should return different point (sub-cell center)")
 }
 
 func TestHandleInput_InvalidKeyLength_FallsBackToDefault(t *testing.T) {
 	keys := "€ab" // 3 runes, invalid length
 	logger := zap.NewNop()
 	screenBounds := image.Rect(0, 0, 100, 100)
-	manager := quadgrid.NewManager(screenBounds, keys, ",", []string{"escape"}, nil, nil, logger)
+	manager := recursivegrid.NewManager(
+		screenBounds,
+		keys,
+		",",
+		[]string{"escape"},
+		nil,
+		nil,
+		logger,
+	)
 	assert.Equal(
 		t,
-		quadgrid.DefaultKeys,
+		recursivegrid.DefaultKeys,
 		manager.Keys(),
 		"Should fall back to default keys when given invalid length keys (even with multibyte)",
 	)
@@ -267,7 +280,15 @@ func TestHandleInput_ValidMultibyteKeys(t *testing.T) {
 	keys := "€abc" // 4 runes, valid length
 	logger := zap.NewNop()
 	screenBounds := image.Rect(0, 0, 100, 100)
-	manager := quadgrid.NewManager(screenBounds, keys, ",", []string{"escape"}, nil, nil, logger)
+	manager := recursivegrid.NewManager(
+		screenBounds,
+		keys,
+		",",
+		[]string{"escape"},
+		nil,
+		nil,
+		logger,
+	)
 	assert.Equal(
 		t,
 		"€abc",
@@ -276,7 +297,7 @@ func TestHandleInput_ValidMultibyteKeys(t *testing.T) {
 	)
 	assert.NotPanics(t, func() {
 		// Test handling a multibyte key input
-		// € is the first key, so it should map to Quadrant 0 (TopLeft)
+		// € is the first key, so it should map to Cell 0 (TopLeft)
 		center, _, _ := manager.HandleInput("€")
 		// TopLeft of 100x100 is 0,0 to 50,50. Center is 25,25.
 		assert.Equal(t, image.Point{X: 25, Y: 25}, center)

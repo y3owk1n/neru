@@ -194,6 +194,10 @@ func processHotkeyBindings(config *config.Config, logger *zap.Logger) []string {
 			continue
 		}
 
+		if mode == domain.ModeString(domain.ModeRecursiveGrid) && !config.RecursiveGrid.Enabled {
+			continue
+		}
+
 		keys = append(keys, key)
 	}
 
@@ -235,7 +239,7 @@ func (a *App) registerOverlays() {
 		a.overlayManager.UseGridOverlay(*a.gridComponent.Context.GridOverlay())
 	}
 
-	if a.quadGridComponent != nil && a.quadGridComponent.Overlay != nil {
-		a.overlayManager.UseQuadGridOverlay(a.quadGridComponent.Overlay)
+	if a.recursiveGridComponent != nil && a.recursiveGridComponent.Overlay != nil {
+		a.overlayManager.UseRecursiveGridOverlay(a.recursiveGridComponent.Overlay)
 	}
 }

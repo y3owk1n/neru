@@ -1,16 +1,16 @@
-package quadgrid_test
+package recursivegrid_test
 
 import (
 	"image"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/y3owk1n/neru/internal/core/domain/quadgrid"
+	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 )
 
-func TestNewQuadGrid(t *testing.T) {
+func TestNewRecursiveGrid(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
-	grid := quadgrid.NewQuadGrid(bounds, 25, 10)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 10)
 
 	assert.Equal(t, bounds, grid.CurrentBounds(), "Current bounds should match initial bounds")
 	assert.Equal(t, 0, grid.CurrentDepth(), "Initial depth should be 0")
@@ -18,51 +18,56 @@ func TestNewQuadGrid(t *testing.T) {
 
 func TestDivide(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
-	grid := quadgrid.NewQuadGrid(bounds, 25, 10)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 10)
 
-	quadrants := grid.Divide()
+	cells := grid.Divide()
 
-	// Verify 4 quadrants
-	assert.Len(t, quadrants, 4, "Should have 4 quadrants")
+	// Verify 4 cells
+	assert.Len(t, cells, 4, "Should have 4 cells")
 
-	// Verify top-left quadrant
+	// Verify top-left cell
 	expectedTL := image.Rect(0, 0, 50, 50)
-	assert.Equal(t, expectedTL, quadrants[quadgrid.TopLeft], "Top-left quadrant should be correct")
+	assert.Equal(
+		t,
+		expectedTL,
+		cells[recursivegrid.TopLeft],
+		"Top-left cell should be correct",
+	)
 
-	// Verify top-right quadrant
+	// Verify top-right cell
 	expectedTR := image.Rect(50, 0, 100, 50)
 	assert.Equal(
 		t,
 		expectedTR,
-		quadrants[quadgrid.TopRight],
-		"Top-right quadrant should be correct",
+		cells[recursivegrid.TopRight],
+		"Top-right cell should be correct",
 	)
 
-	// Verify bottom-left quadrant
+	// Verify bottom-left cell
 	expectedBL := image.Rect(0, 50, 50, 100)
 	assert.Equal(
 		t,
 		expectedBL,
-		quadrants[quadgrid.BottomLeft],
-		"Bottom-left quadrant should be correct",
+		cells[recursivegrid.BottomLeft],
+		"Bottom-left cell should be correct",
 	)
 
-	// Verify bottom-right quadrant
+	// Verify bottom-right cell
 	expectedBR := image.Rect(50, 50, 100, 100)
 	assert.Equal(
 		t,
 		expectedBR,
-		quadrants[quadgrid.BottomRight],
-		"Bottom-right quadrant should be correct",
+		cells[recursivegrid.BottomRight],
+		"Bottom-right cell should be correct",
 	)
 }
 
-func TestSelectQuadrant(t *testing.T) {
+func TestSelectCell(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
-	grid := quadgrid.NewQuadGrid(bounds, 25, 10)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 10)
 
 	// Select top-left
-	center, completed := grid.SelectQuadrant(quadgrid.TopLeft)
+	center, completed := grid.SelectCell(recursivegrid.TopLeft)
 
 	expectedCenter := image.Point{X: 25, Y: 25}
 	assert.Equal(t, expectedCenter, center, "Center should be at (25, 25)")
@@ -77,20 +82,20 @@ func TestSelectQuadrant(t *testing.T) {
 		t,
 		expectedBounds,
 		grid.CurrentBounds(),
-		"Bounds should be narrowed to top-left quadrant",
+		"Bounds should be narrowed to top-left cell",
 	)
 }
 
-func TestSelectQuadrantCompletion(t *testing.T) {
+func TestSelectCellCompletion(t *testing.T) {
 	// Create a small grid where one selection reaches minimum size
 	// With bounds 50x50 and minSize 25:
-	// - First division creates 25x25 quadrants
+	// - First division creates 25x25 cells
 	// - 25/2 = 12 < 25, so CanDivide returns false after first selection
 	bounds := image.Rect(0, 0, 50, 50)
-	grid := quadgrid.NewQuadGrid(bounds, 25, 10)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 10)
 
-	// Select top-left - should complete since resulting quadrant (25x25) cannot be divided further
-	center, completed := grid.SelectQuadrant(quadgrid.TopLeft)
+	// Select top-left - should complete since resulting cell (25x25) cannot be divided further
+	center, completed := grid.SelectCell(recursivegrid.TopLeft)
 
 	// After selecting top-left, bounds are (0,0)-(25,25), center is at (12, 12)
 	expectedCenter := image.Point{X: 12, Y: 12}
@@ -138,7 +143,7 @@ func TestCanDivide(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			grid := quadgrid.NewQuadGrid(tt.bounds, tt.minSize, tt.maxDepth)
+			grid := recursivegrid.NewRecursiveGrid(tt.bounds, tt.minSize, tt.maxDepth)
 			result := grid.CanDivide()
 			assert.Equal(t, tt.expected, result)
 		})
@@ -147,10 +152,10 @@ func TestCanDivide(t *testing.T) {
 
 func TestBacktrack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
-	grid := quadgrid.NewQuadGrid(bounds, 25, 10)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 10)
 
 	// Make a selection
-	grid.SelectQuadrant(quadgrid.TopLeft)
+	grid.SelectCell(recursivegrid.TopLeft)
 
 	// Backtrack
 	result := grid.Backtrack()
@@ -166,11 +171,11 @@ func TestBacktrack(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
-	grid := quadgrid.NewQuadGrid(bounds, 25, 10)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 10)
 
 	// Make some selections
-	grid.SelectQuadrant(quadgrid.TopLeft)
-	grid.SelectQuadrant(quadgrid.BottomRight)
+	grid.SelectCell(recursivegrid.TopLeft)
+	grid.SelectCell(recursivegrid.BottomRight)
 
 	// Reset
 	grid.Reset()
@@ -181,50 +186,50 @@ func TestReset(t *testing.T) {
 
 func TestCurrentCenter(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
-	grid := quadgrid.NewQuadGrid(bounds, 25, 10)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 10)
 
 	center := grid.CurrentCenter()
 	expected := image.Point{X: 50, Y: 50}
 	assert.Equal(t, expected, center, "Center should be at (50, 50)")
 
-	// Select a quadrant and check new center
-	grid.SelectQuadrant(quadgrid.TopLeft)
+	// Select a cell and check new center
+	grid.SelectCell(recursivegrid.TopLeft)
 	center = grid.CurrentCenter()
 	expected = image.Point{X: 25, Y: 25}
 	assert.Equal(t, expected, center, "Center should be at (25, 25) after selecting top-left")
 }
 
-func TestQuadrantBounds(t *testing.T) {
+func TestCellBounds(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
-	grid := quadgrid.NewQuadGrid(bounds, 25, 10)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 10)
 
-	tl := grid.QuadrantBounds(quadgrid.TopLeft)
+	tl := grid.CellBounds(recursivegrid.TopLeft)
 	expected := image.Rect(0, 0, 50, 50)
 	assert.Equal(t, expected, tl, "Top-left bounds should be correct")
 
-	br := grid.QuadrantBounds(quadgrid.BottomRight)
+	br := grid.CellBounds(recursivegrid.BottomRight)
 	expected = image.Rect(50, 50, 100, 100)
 	assert.Equal(t, expected, br, "Bottom-right bounds should be correct")
 }
 
-func TestQuadrantCenter(t *testing.T) {
+func TestCellCenter(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
-	grid := quadgrid.NewQuadGrid(bounds, 25, 10)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 10)
 
-	center := grid.QuadrantCenter(quadgrid.TopRight)
+	center := grid.CellCenter(recursivegrid.TopRight)
 	expected := image.Point{X: 75, Y: 25}
 	assert.Equal(t, expected, center, "Top-right center should be at (75, 25)")
 }
 
 func TestIsComplete(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
-	grid := quadgrid.NewQuadGrid(bounds, 25, 10)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 10)
 
 	assert.False(t, grid.IsComplete(), "Should not be complete initially")
 
 	// Select until we can't divide anymore
 	for grid.CanDivide() {
-		grid.SelectQuadrant(quadgrid.TopLeft)
+		grid.SelectCell(recursivegrid.TopLeft)
 	}
 
 	assert.True(t, grid.IsComplete(), "Should be complete when CanDivide returns false")

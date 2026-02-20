@@ -40,7 +40,7 @@ neru services status     # Check service status
 neru profile             # Show profiling setup instructions
 neru hints               # Start hint mode
 neru grid                # Start grid mode
-neru quadgrid            # Start quad-grid mode
+neru recursive_grid            # Start recursive-grid mode
 neru scroll              # Start scroll mode
 neru action left_click   # Click at cursor (immediate)
 neru config reload       # Reload config
@@ -54,7 +54,7 @@ neru config reload       # Reload config
 
 - `neru hints` - Show clickable hints
 - `neru grid` - Show coordinate grid
-- `neru quadgrid` - Recursive quadrant selection
+- `neru recursive_grid` - Recursive grid selection
 - `neru scroll` - Vim-style scrolling
 
 **Actions:**
@@ -187,28 +187,28 @@ Execute action immediately upon selection:
 neru hints --action left_click     # Left-click via hints
 neru hints --action right_click    # Right-click via hints
 neru grid --action middle_click    # Middle-click via grid
-neru quadgrid --action left_click  # Left-click via quad-grid
+neru recursive_grid --action left_click  # Left-click via recursive-grid
 ```
 
 **Behavior:** Action executes automatically when location is selected, then mode exits.
 
 ---
 
-## Quad-Grid Mode
+## Recursive-Grid Mode
 
-Recursive quadrant navigation with immediate preview at center after each selection.
+Recursive grid navigation with immediate preview at center after each selection.
 
 **Keys (default):**
 
 - `u` - upper-left, `i` - upper-right, `j` - lower-left, `k` - lower-right
 - `backspace/delete` - move up one depth and recenter
 - `reset_key` (default `,`) - return to initial center and clear state
-- `Esc` - exit quad-grid mode
+- `Esc` - exit recursive-grid mode
 
 **Workflow example:**
 
 ```bash
-neru quadgrid
+neru recursive_grid # or neru recursive-grid (alias)
 # Press u/i/j/k to narrow selection
 # Press backspace to move up a level
 # Press , to reset to the initial center

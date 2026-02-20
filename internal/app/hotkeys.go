@@ -35,6 +35,10 @@ func (a *App) registerHotkeys() {
 			continue
 		}
 
+		if mode == domain.ModeString(domain.ModeRecursiveGrid) && !a.config.RecursiveGrid.Enabled {
+			continue
+		}
+
 		a.logger.Info(
 			"Registering hotkey binding",
 			zap.String("key", trimmedKey),

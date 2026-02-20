@@ -72,13 +72,13 @@ Neru is a capable **free and open-source** replacement for:
 1. **Hints Mode** - Accessibility-based labels on clickable elements
 2. **Grid Mode** - Universal coordinate-based navigation (works everywhere!)
 3. **Scroll Mode** - Vim-style scrolling at cursor position
-4. **Quad-Grid Mode** - Recursive quadrant selection (u/i/j/k), reset key returns to initial center
+4. **Recursive Grid Mode** - Recursive cell selection (u/i/j/k), reset key returns to initial center
 
 <div align="center">
 
 ![hints-preview](https://github.com/user-attachments/assets/71b13850-1b87-40b5-9ac0-93cff1f2e89b)
 ![grid-preview](https://github.com/user-attachments/assets/d452f972-ce23-4798-955b-6dbfa8435504)
-![quad-grid-preview](https://github.com/user-attachments/assets/0d46fa7c-345a-45ee-ad44-7a601c2b7cb1)
+![recursive-grid-preview](https://github.com/user-attachments/assets/0d46fa7c-345a-45ee-ad44-7a601c2b7cb1)
 
 [Hints Demo](demos/hints.md) • [Grid Demo](demos/grid.md)
 
@@ -120,7 +120,7 @@ neru services install
 # Try default hotkeys:
 # Cmd+Shift+Space - Hint mode
 # Cmd+Shift+G     - Grid mode
-# Cmd+Shift+C     - Quad-Grid mode
+# Cmd+Shift+C     - Recursive Grid mode
 # Cmd+Shift+S     - Scroll
 ```
 

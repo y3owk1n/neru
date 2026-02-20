@@ -13,7 +13,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
+	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -75,8 +75,8 @@ func (n *NoOpManager) UseGridOverlay(o *grid.Overlay) {}
 // UseScrollOverlay is a no-op implementation.
 func (n *NoOpManager) UseScrollOverlay(o *scroll.Overlay) {}
 
-// UseQuadGridOverlay is a no-op implementation.
-func (n *NoOpManager) UseQuadGridOverlay(o *quadgrid.Overlay) {}
+// UseRecursiveGridOverlay is a no-op implementation.
+func (n *NoOpManager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {}
 
 // HintOverlay returns nil.
 func (n *NoOpManager) HintOverlay() *hints.Overlay { return nil }
@@ -87,8 +87,8 @@ func (n *NoOpManager) GridOverlay() *grid.Overlay { return nil }
 // ScrollOverlay returns nil.
 func (n *NoOpManager) ScrollOverlay() *scroll.Overlay { return nil }
 
-// QuadGridOverlay returns nil.
-func (n *NoOpManager) QuadGridOverlay() *quadgrid.Overlay { return nil }
+// RecursiveGridOverlay returns nil.
+func (n *NoOpManager) RecursiveGridOverlay() *recursivegrid.Overlay { return nil }
 
 // DrawHintsWithStyle is a no-op implementation.
 func (n *NoOpManager) DrawHintsWithStyle(
@@ -110,13 +110,13 @@ func (n *NoOpManager) DrawGrid(
 	return nil
 }
 
-// DrawQuadGrid is a no-op implementation.
-func (n *NoOpManager) DrawQuadGrid(
+// DrawRecursiveGrid is a no-op implementation.
+func (n *NoOpManager) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
 	gridSize int,
-	style quadgrid.Style,
+	style recursivegrid.Style,
 ) error {
 	return nil
 }
@@ -145,8 +145,8 @@ const (
 	ModeGrid Mode = "grid"
 	// ModeScroll represents the scroll mode.
 	ModeScroll Mode = "scroll"
-	// ModeQuadGrid represents the quad-grid mode.
-	ModeQuadGrid Mode = "quadgrid"
+	// ModeRecursiveGrid represents the recursive-grid mode.
+	ModeRecursiveGrid Mode = "recursive_grid"
 )
 
 // StateChange represents a change in overlay mode.
@@ -181,22 +181,22 @@ type ManagerInterface interface {
 	UseHintOverlay(o *hints.Overlay)
 	UseGridOverlay(o *grid.Overlay)
 	UseScrollOverlay(o *scroll.Overlay)
-	UseQuadGridOverlay(o *quadgrid.Overlay)
+	UseRecursiveGridOverlay(o *recursivegrid.Overlay)
 
 	HintOverlay() *hints.Overlay
 	GridOverlay() *grid.Overlay
 	ScrollOverlay() *scroll.Overlay
-	QuadGridOverlay() *quadgrid.Overlay
+	RecursiveGridOverlay() *recursivegrid.Overlay
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
 	DrawScrollIndicator(x, y int)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
-	DrawQuadGrid(
+	DrawRecursiveGrid(
 		bounds image.Rectangle,
 		depth int,
 		keys string,
 		gridSize int,
-		style quadgrid.Style,
+		style recursivegrid.Style,
 	) error
 	UpdateGridMatches(prefix string)
 	ShowSubgrid(cell *domainGrid.Cell, style grid.Style)
@@ -216,10 +216,10 @@ type Manager struct {
 	nextID uint64
 
 	// Overlay renderers
-	hintOverlay     *hints.Overlay
-	gridOverlay     *grid.Overlay
-	scrollOverlay   *scroll.Overlay
-	quadGridOverlay *quadgrid.Overlay
+	hintOverlay          *hints.Overlay
+	gridOverlay          *grid.Overlay
+	scrollOverlay        *scroll.Overlay
+	recursiveGridOverlay *recursivegrid.Overlay
 }
 
 var (
@@ -353,9 +353,9 @@ func (m *Manager) UseScrollOverlay(o *scroll.Overlay) {
 	m.scrollOverlay = o
 }
 
-// UseQuadGridOverlay sets the quad-grid overlay renderer.
-func (m *Manager) UseQuadGridOverlay(o *quadgrid.Overlay) {
-	m.quadGridOverlay = o
+// UseRecursiveGridOverlay sets the recursive-grid overlay renderer.
+func (m *Manager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {
+	m.recursiveGridOverlay = o
 }
 
 // HintOverlay returns the hint overlay renderer.
@@ -373,9 +373,9 @@ func (m *Manager) ScrollOverlay() *scroll.Overlay {
 	return m.scrollOverlay
 }
 
-// QuadGridOverlay returns the quad-grid overlay renderer.
-func (m *Manager) QuadGridOverlay() *quadgrid.Overlay {
-	return m.quadGridOverlay
+// RecursiveGridOverlay returns the recursive-grid overlay renderer.
+func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay {
+	return m.recursiveGridOverlay
 }
 
 // DrawHintsWithStyle draws hints with the specified style using the hint overlay renderer.
@@ -416,20 +416,30 @@ func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) e
 	return nil
 }
 
-// DrawQuadGrid renders a quad-grid with the specified style using the quad-grid overlay renderer.
-func (m *Manager) DrawQuadGrid(
+// DrawRecursiveGrid renders a recursive-grid with the specified style using the recursive-grid overlay renderer.
+func (m *Manager) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
 	gridSize int,
-	style quadgrid.Style,
+	style recursivegrid.Style,
 ) error {
-	if m.quadGridOverlay == nil {
+	if m.recursiveGridOverlay == nil {
 		return nil
 	}
-	drawQuadGridErr := m.quadGridOverlay.DrawQuadGrid(bounds, depth, keys, gridSize, style)
-	if drawQuadGridErr != nil {
-		return derrors.Wrap(drawQuadGridErr, derrors.CodeOverlayFailed, "failed to draw quad-grid")
+	drawRecursiveGridErr := m.recursiveGridOverlay.DrawRecursiveGrid(
+		bounds,
+		depth,
+		keys,
+		gridSize,
+		style,
+	)
+	if drawRecursiveGridErr != nil {
+		return derrors.Wrap(
+			drawRecursiveGridErr,
+			derrors.CodeOverlayFailed,
+			"failed to draw recursive-grid",
+		)
 	}
 
 	return nil
@@ -478,12 +488,12 @@ func (m *Manager) SetSharingType(hide bool) {
 
 	C.NeruSetOverlaySharingType(m.window, sharingType)
 
-	// Also update grid and quadgrid overlay windows if they exist
+	// Also update grid and recursive_grid overlay windows if they exist
 	if m.gridOverlay != nil {
 		m.gridOverlay.SetSharingType(hide)
 	}
-	if m.quadGridOverlay != nil {
-		m.quadGridOverlay.SetSharingType(hide)
+	if m.recursiveGridOverlay != nil {
+		m.recursiveGridOverlay.SetSharingType(hide)
 	}
 
 	if m.logger != nil {

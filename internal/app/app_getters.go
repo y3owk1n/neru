@@ -30,9 +30,9 @@ func (a *App) GridEnabled() bool {
 	return a.config != nil && a.config.Grid.Enabled
 }
 
-// QuadGridEnabled returns true if quad-grid is enabled.
-func (a *App) QuadGridEnabled() bool {
-	return a.config != nil && a.config.QuadGrid.Enabled
+// RecursiveGridEnabled returns true if recursive-grid is enabled.
+func (a *App) RecursiveGridEnabled() bool {
+	return a.config != nil && a.config.RecursiveGrid.Enabled
 }
 
 // Config returns the application configuration.

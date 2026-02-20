@@ -12,21 +12,21 @@ import (
 
 // mockApp implements AppInterface for testing.
 type mockApp struct {
-	hintsEnabled    bool
-	gridEnabled     bool
-	quadGridEnabled bool
-	isEnabled       bool
-	activatedMode   domain.Mode
-	configPath      string
-	reloadCalled    bool
-	cleanupCalled   bool
-	enabledCallback func(bool)
+	hintsEnabled         bool
+	gridEnabled          bool
+	recursiveGridEnabled bool
+	isEnabled            bool
+	activatedMode        domain.Mode
+	configPath           string
+	reloadCalled         bool
+	cleanupCalled        bool
+	enabledCallback      func(bool)
 }
 
-func (m *mockApp) HintsEnabled() bool    { return m.hintsEnabled }
-func (m *mockApp) GridEnabled() bool     { return m.gridEnabled }
-func (m *mockApp) QuadGridEnabled() bool { return m.quadGridEnabled }
-func (m *mockApp) IsEnabled() bool       { return m.isEnabled }
+func (m *mockApp) HintsEnabled() bool         { return m.hintsEnabled }
+func (m *mockApp) GridEnabled() bool          { return m.gridEnabled }
+func (m *mockApp) RecursiveGridEnabled() bool { return m.recursiveGridEnabled }
+func (m *mockApp) IsEnabled() bool            { return m.isEnabled }
 func (m *mockApp) SetEnabled(enabled bool) {
 	m.isEnabled = enabled
 	if m.enabledCallback != nil {

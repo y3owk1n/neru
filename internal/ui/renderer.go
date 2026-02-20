@@ -5,17 +5,17 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
+	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // OverlayRenderer manages rendering operations for all application overlays.
 type OverlayRenderer struct {
-	manager       overlay.ManagerInterface
-	hintStyle     hints.StyleMode
-	gridStyle     grid.Style
-	quadGridStyle quadgrid.Style
+	manager            overlay.ManagerInterface
+	hintStyle          hints.StyleMode
+	gridStyle          grid.Style
+	recursiveGridStyle recursivegrid.Style
 }
 
 // NewOverlayRenderer initializes a new overlay renderer with the specified components.
@@ -23,13 +23,13 @@ func NewOverlayRenderer(
 	manager overlay.ManagerInterface,
 	hintStyle hints.StyleMode,
 	gridStyle grid.Style,
-	quadGridStyle quadgrid.Style,
+	recursiveGridStyle recursivegrid.Style,
 ) *OverlayRenderer {
 	return &OverlayRenderer{
-		manager:       manager,
-		hintStyle:     hintStyle,
-		gridStyle:     gridStyle,
-		quadGridStyle: quadGridStyle,
+		manager:            manager,
+		hintStyle:          hintStyle,
+		gridStyle:          gridStyle,
+		recursiveGridStyle: recursiveGridStyle,
 	}
 }
 
@@ -37,11 +37,11 @@ func NewOverlayRenderer(
 func (r *OverlayRenderer) UpdateConfig(
 	hintStyle hints.StyleMode,
 	gridStyle grid.Style,
-	quadGridStyle quadgrid.Style,
+	recursiveGridStyle recursivegrid.Style,
 ) {
 	r.hintStyle = hintStyle
 	r.gridStyle = gridStyle
-	r.quadGridStyle = quadGridStyle
+	r.recursiveGridStyle = recursiveGridStyle
 }
 
 // DrawHints draws hints with the configured style.
@@ -91,12 +91,12 @@ func (r *OverlayRenderer) DrawScrollIndicator(x, y int) {
 	r.manager.DrawScrollIndicator(x, y)
 }
 
-// DrawQuadGrid draws a quad-grid with the current bounds and depth.
-func (r *OverlayRenderer) DrawQuadGrid(
+// DrawRecursiveGrid draws a recursive-grid with the current bounds and depth.
+func (r *OverlayRenderer) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
 	gridSize int,
 ) error {
-	return r.manager.DrawQuadGrid(bounds, depth, keys, gridSize, r.quadGridStyle)
+	return r.manager.DrawRecursiveGrid(bounds, depth, keys, gridSize, r.recursiveGridStyle)
 }

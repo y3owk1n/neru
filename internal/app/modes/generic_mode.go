@@ -48,8 +48,8 @@ func (m *GenericMode) Activate(action *string) {
 			m.handler.activateHintModeWithAction(action)
 		case domain.ModeGrid:
 			m.handler.activateGridModeWithAction(action)
-		case domain.ModeQuadGrid:
-			m.handler.activateQuadGridModeWithAction(action)
+		case domain.ModeRecursiveGrid:
+			m.handler.activateRecursiveGridModeWithAction(action)
 		case domain.ModeScroll:
 			m.handler.StartInteractiveScroll()
 		case domain.ModeIdle:
@@ -69,8 +69,8 @@ func (m *GenericMode) HandleKey(key string) {
 			m.handler.handleHintsModeKey(key)
 		case domain.ModeGrid:
 			m.handler.handleGridModeKey(key)
-		case domain.ModeQuadGrid:
-			m.handler.handleQuadGridKey(key)
+		case domain.ModeRecursiveGrid:
+			m.handler.handleRecursiveGridKey(key)
 		case domain.ModeScroll:
 			m.handler.handleGenericScrollKey(key)
 		case domain.ModeIdle:
@@ -90,8 +90,8 @@ func (m *GenericMode) Exit() {
 			m.handler.cleanupHintsMode()
 		case domain.ModeGrid:
 			m.handler.cleanupGridMode()
-		case domain.ModeQuadGrid:
-			m.handler.cleanupQuadGridMode()
+		case domain.ModeRecursiveGrid:
+			m.handler.cleanupRecursiveGridMode()
 		case domain.ModeScroll:
 			if m.handler.scroll != nil && m.handler.scroll.Context != nil {
 				m.handler.scroll.Context.SetIsActive(false)
