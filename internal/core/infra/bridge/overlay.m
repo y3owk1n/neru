@@ -181,6 +181,15 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		cleanString = [cleanString substringFromIndex:1];
 	}
 
+	// Expand 3-char hex to 6-char (e.g., F0A -> FF00AA)
+	if (cleanString.length == 3) {
+		NSString *expanded = [NSString
+		    stringWithFormat:@"%c%c%c%c%c%c", [cleanString characterAtIndex:0], [cleanString characterAtIndex:0],
+		                     [cleanString characterAtIndex:1], [cleanString characterAtIndex:1],
+		                     [cleanString characterAtIndex:2], [cleanString characterAtIndex:2]];
+		cleanString = expanded;
+	}
+
 	if (cleanString.length != 6 && cleanString.length != 8) {
 		return defaultColor;
 	}
@@ -379,11 +388,21 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		return [NSColor blackColor];
 	}
 
-	unsigned rgbValue = 0;
-	NSScanner *scanner = [NSScanner scannerWithString:hexString];
+	NSString *cleanString = hexString;
 	if ([hexString hasPrefix:@"#"]) {
-		[scanner setScanLocation:1];
+		cleanString = [hexString substringFromIndex:1];
 	}
+
+	// Expand 3-char hex to 6-char (e.g., F0A -> FF00AA)
+	if ([cleanString length] == 3) {
+		cleanString = [NSString stringWithFormat:@"%c%c%c%c%c%c", [cleanString characterAtIndex:0],
+		                                         [cleanString characterAtIndex:0], [cleanString characterAtIndex:1],
+		                                         [cleanString characterAtIndex:1], [cleanString characterAtIndex:2],
+		                                         [cleanString characterAtIndex:2]];
+	}
+
+	unsigned rgbValue = 0;
+	NSScanner *scanner = [NSScanner scannerWithString:cleanString];
 	[scanner scanHexInt:&rgbValue];
 
 	return [NSColor colorWithRed:((rgbValue & 0xFF0000) >> 16) / 255.0
