@@ -631,13 +631,13 @@ func ValidateColor(color, fieldName string) error {
 		return derrors.Newf(derrors.CodeInvalidConfig, "%s cannot be empty", fieldName)
 	}
 
-	// Match hex color format: #RGB, #RRGGBB, #RRGGBBAA
+	// Match hex color format: #RGB, #RRGGBB, #AARRGGBB
 	hexColorRegex := regexp.MustCompile(`^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$`)
 
 	if !hexColorRegex.MatchString(color) {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"%s has invalid hex color format: %s (expected #RGB, #RRGGBB, or #RRGGBBAA)",
+			"%s has invalid hex color format: %s (expected #RGB, #RRGGBB, or #AARRGGBB)",
 			fieldName,
 			color,
 		)
