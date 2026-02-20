@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.20.0](https://github.com/y3owk1n/neru/compare/v1.19.0...v1.20.0) (2026-02-20)
+
+
+### Features
+
+* **recursive_grid:** allow `grid_cols` and `grid_rows` instead of a fixed NxN ([#404](https://github.com/y3owk1n/neru/issues/404)) ([84c445e](https://github.com/y3owk1n/neru/commit/84c445e744243df743e046045da241d968f1cdbf))
+* **recursive_grid:** split `min_size` to `min_size_width` and `min_size_height` ([#405](https://github.com/y3owk1n/neru/issues/405)) ([50ce224](https://github.com/y3owk1n/neru/commit/50ce2243409b67f783ea98493a5e87bc66b8e0a0))
+* rename `quadgrid` to `recursive_grid` ([#403](https://github.com/y3owk1n/neru/issues/403)) ([1c251bb](https://github.com/y3owk1n/neru/commit/1c251bb68801cd1f94f85c2902611d761e555154))
+* **systray:** add version-aware docs URL with fallback to main ([#400](https://github.com/y3owk1n/neru/issues/400)) ([28f3c9b](https://github.com/y3owk1n/neru/commit/28f3c9b3b33e76aebb4f846bc8b620cecfd16e86))
+* use hex alpha for transparency control ([#399](https://github.com/y3owk1n/neru/issues/399)) ([50f4056](https://github.com/y3owk1n/neru/commit/50f405608d25b77fa7fc30aaab78e634ae56def3))
+
+
+### Bug Fixes
+
+* replace NSWindowSharingReadWrite with NSWindowSharingReadOnly ([#396](https://github.com/y3owk1n/neru/issues/396)) ([f0774b0](https://github.com/y3owk1n/neru/commit/f0774b0e4669b0676d85c703bf678c50856c92cd))
+
 ## [1.19.0](https://github.com/y3owk1n/neru/compare/v1.18.3...v1.19.0) (2026-02-19)
 
 
