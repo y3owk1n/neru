@@ -30,7 +30,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 @property(nonatomic, assign) CGFloat hintPadding;           ///< Hint padding
 
 @property(nonatomic, strong) NSMutableArray *gridCells;           ///< Grid cells array
-@property(nonatomic, strong) NSMutableArray *gridLines;           ///< Grid lines array
 @property(nonatomic, strong) NSFont *gridFont;                    ///< Grid font
 @property(nonatomic, strong) NSColor *gridTextColor;              ///< Grid text color
 @property(nonatomic, strong) NSColor *gridMatchedTextColor;       ///< Grid matched text color
@@ -66,7 +65,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	if (self) {
 		_hints = [NSMutableArray arrayWithCapacity:100];     // Pre-size for typical hint count
 		_gridCells = [NSMutableArray arrayWithCapacity:100]; // Pre-size for typical grid size
-		_gridLines = [NSMutableArray arrayWithCapacity:50];  // Pre-size for typical line count
 
 		_hintFont = [NSFont boldSystemFontOfSize:14.0];
 		_hintTextColor = [NSColor blackColor];
@@ -106,9 +104,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	// Clear background
 	[[NSColor clearColor] setFill];
 	NSRectFill(dirtyRect);
-
-	// Draw grid lines first (behind everything)
-	[self drawGridLines];
 
 	// Draw grid cells
 	[self drawGridCells];
@@ -380,37 +375,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	}
 }
 
-/// Create color from hex string
-/// @param hexString Hex color string
-/// @return NSColor instance
-- (NSColor *)colorFromHex:(NSString *)hexString {
-	if (!hexString || [hexString length] == 0) {
-		return [NSColor blackColor];
-	}
-
-	NSString *cleanString = hexString;
-	if ([hexString hasPrefix:@"#"]) {
-		cleanString = [hexString substringFromIndex:1];
-	}
-
-	// Expand 3-char hex to 6-char (e.g., F0A -> FF00AA)
-	if ([cleanString length] == 3) {
-		cleanString = [NSString stringWithFormat:@"%c%c%c%c%c%c", [cleanString characterAtIndex:0],
-		                                         [cleanString characterAtIndex:0], [cleanString characterAtIndex:1],
-		                                         [cleanString characterAtIndex:1], [cleanString characterAtIndex:2],
-		                                         [cleanString characterAtIndex:2]];
-	}
-
-	unsigned rgbValue = 0;
-	NSScanner *scanner = [NSScanner scannerWithString:cleanString];
-	[scanner scanHexInt:&rgbValue];
-
-	return [NSColor colorWithRed:((rgbValue & 0xFF0000) >> 16) / 255.0
-	                       green:((rgbValue & 0xFF00) >> 8) / 255.0
-	                        blue:(rgbValue & 0xFF) / 255.0
-	                       alpha:1.0];
-}
-
 /// Draw grid cells
 - (void)drawGridCells {
 	if ([self.gridCells count] == 0)
@@ -508,38 +472,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 			[attrString drawAtPoint:NSMakePoint(textX, textY)];
 		}
-	}
-
-	[context restoreGraphicsState];
-}
-
-/// Draw grid lines
-- (void)drawGridLines {
-	if ([self.gridLines count] == 0)
-		return;
-
-	NSGraphicsContext *context = [NSGraphicsContext currentContext];
-	[context saveGraphicsState];
-
-	for (NSDictionary *lineDict in self.gridLines) {
-		NSValue *rectValue = lineDict[@"rect"];
-		NSString *colorHex = lineDict[@"color"];
-		NSNumber *widthNum = lineDict[@"width"];
-		NSNumber *opacityNum = lineDict[@"opacity"];
-
-		CGRect lineRect = [rectValue rectValue];
-		int width = [widthNum intValue];
-		double opacity = [opacityNum doubleValue];
-
-		CGFloat screenHeight = self.bounds.size.height;
-		CGFloat flippedY = screenHeight - lineRect.origin.y - lineRect.size.height;
-		NSRect rect = NSMakeRect(lineRect.origin.x, flippedY, lineRect.size.width, lineRect.size.height);
-
-		NSColor *color = [self colorFromHex:colorHex];
-		CGFloat existingAlpha = color.alphaComponent;
-		color = [color colorWithAlphaComponent:existingAlpha * opacity];
-		[color setFill];
-		NSRectFill(rect);
 	}
 
 	[context restoreGraphicsState];
@@ -702,14 +634,12 @@ void NeruClearOverlay(OverlayWindow window) {
 	if ([NSThread isMainThread]) {
 		[controller.overlayView.hints removeAllObjects];
 		[controller.overlayView.gridCells removeAllObjects];
-		[controller.overlayView.gridLines removeAllObjects];
 
 		[controller.overlayView setNeedsDisplay:YES];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			[controller.overlayView.hints removeAllObjects];
 			[controller.overlayView.gridCells removeAllObjects];
-			[controller.overlayView.gridLines removeAllObjects];
 
 			[controller.overlayView setNeedsDisplay:YES];
 		});
