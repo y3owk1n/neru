@@ -424,7 +424,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(style.BorderWidth()),
-		backgroundOpacity:      C.double(style.Opacity()),
+		backgroundOpacity:      C.double(1.0),
 		textOpacity:            C.double(1.0),
 	}
 
@@ -652,7 +652,7 @@ func (o *Overlay) drawGridIncrementalStructural(
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(currentStyle.BorderWidth()),
-		backgroundOpacity:      C.double(currentStyle.Opacity()),
+		backgroundOpacity:      C.double(1.0),
 		textOpacity:            C.double(1.0),
 	}
 
@@ -871,7 +871,7 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(style.BorderWidth()),
-		backgroundOpacity:      C.double(style.Opacity()),
+		backgroundOpacity:      C.double(1.0),
 		textOpacity:            C.double(1.0),
 	}
 
@@ -889,7 +889,6 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 type Style struct {
 	fontSize               int
 	fontFamily             string
-	opacity                float64
 	borderWidth            int
 	backgroundColor        string
 	textColor              string
@@ -907,11 +906,6 @@ func (s Style) FontSize() int {
 // FontFamily returns the font family.
 func (s Style) FontFamily() string {
 	return s.fontFamily
-}
-
-// Opacity returns the opacity.
-func (s Style) Opacity() float64 {
-	return s.opacity
 }
 
 // BorderWidth returns the border width.
@@ -954,7 +948,6 @@ func BuildStyle(cfg config.GridConfig) Style {
 	style := Style{
 		fontSize:               cfg.FontSize,
 		fontFamily:             cfg.FontFamily,
-		opacity:                1.0, // Alpha is now in the hex color itself
 		borderWidth:            cfg.BorderWidth,
 		backgroundColor:        cfg.BackgroundColor,
 		textColor:              cfg.TextColor,

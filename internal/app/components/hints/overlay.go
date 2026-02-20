@@ -62,7 +62,6 @@ type StyleMode struct {
 	borderRadius     int
 	padding          int
 	borderWidth      int
-	opacity          float64
 	backgroundColor  string
 	textColor        string
 	matchedTextColor string
@@ -92,11 +91,6 @@ func (s StyleMode) Padding() int {
 // BorderWidth returns the border width.
 func (s StyleMode) BorderWidth() int {
 	return s.borderWidth
-}
-
-// Opacity returns the opacity.
-func (s StyleMode) Opacity() float64 {
-	return s.opacity
 }
 
 // BackgroundColor returns the background color.
@@ -230,7 +224,6 @@ func BuildStyle(cfg config.HintsConfig) StyleMode {
 		borderRadius:     cfg.BorderRadius,
 		padding:          cfg.Padding,
 		borderWidth:      cfg.BorderWidth,
-		opacity:          1.0, // Alpha is now in the hex color itself
 		backgroundColor:  cfg.BackgroundColor,
 		textColor:        cfg.TextColor,
 		matchedTextColor: cfg.MatchedTextColor,
@@ -371,7 +364,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		borderRadius:     C.int(style.BorderRadius()),
 		borderWidth:      C.int(style.BorderWidth()),
 		padding:          C.int(style.Padding()),
-		opacity:          C.double(style.Opacity()),
+		opacity:          C.double(1.0),
 		showArrow:        C.int(arrowFlag),
 	}
 
@@ -601,7 +594,7 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		borderRadius:     C.int(currentStyle.BorderRadius()),
 		borderWidth:      C.int(currentStyle.BorderWidth()),
 		padding:          C.int(currentStyle.Padding()),
-		opacity:          C.double(currentStyle.Opacity()),
+		opacity:          C.double(1.0),
 		showArrow:        C.int(arrowFlag),
 	}
 
