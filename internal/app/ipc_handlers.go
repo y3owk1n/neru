@@ -116,7 +116,7 @@ func (h *IPCControllerModes) RegisterHandlers(
 ) {
 	handlers["hints"] = h.handleHints
 	handlers["grid"] = h.handleGrid
-	handlers["quadgrid"] = h.handleQuadGrid
+	handlers["recursive_grid"] = h.handleRecursiveGrid
 	handlers["scroll"] = h.handleScroll
 	handlers["idle"] = h.handleIdle
 }
@@ -162,7 +162,7 @@ func (h *IPCControllerModes) handleGrid(_ context.Context, cmd ipc.Command) ipc.
 	return ipc.Response{Success: true, Message: "grid mode activated", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerModes) handleQuadGrid(_ context.Context, cmd ipc.Command) ipc.Response {
+func (h *IPCControllerModes) handleRecursiveGrid(_ context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
 		return h.modesUnavailableResponse()
 	}
@@ -173,9 +173,9 @@ func (h *IPCControllerModes) handleQuadGrid(_ context.Context, cmd ipc.Command) 
 		action = &cmd.Args[1]
 	}
 
-	h.modes.ActivateModeWithAction(domain.ModeQuadGrid, action)
+	h.modes.ActivateModeWithAction(domain.ModeRecursiveGrid, action)
 
-	return ipc.Response{Success: true, Message: "quad-grid mode activated", Code: ipc.CodeOK}
+	return ipc.Response{Success: true, Message: "recursive-grid mode activated", Code: ipc.CodeOK}
 }
 
 func (h *IPCControllerModes) handleScroll(_ context.Context, _ ipc.Command) ipc.Response {

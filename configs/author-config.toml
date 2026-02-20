@@ -10,7 +10,7 @@ mode_exit_keys = ["escape", "Ctrl+C"]
 # ============================================================================
 [hotkeys]
 # "Ctrl+F" = "grid"               # Grid navigation
-"Ctrl+F" = "quadgrid"             # Quad Grid navigation
+"Ctrl+F" = "recursive_grid"             # Recursive Grid navigation
 "Ctrl+S" = "scroll"               # Scroll mode
 
 # These keys dont have to be here, i didn't want to install another program to run these
@@ -74,9 +74,9 @@ characters = "aoeuidhtnspyfgcrlqjkxbmwvz"  # Dvorak-optimized character set
 sublayer_keys = "gcrhtnmwv"
 
 # ============================================================================
-# Quad Grid Navigation
+# Recursive Grid Navigation
 # ============================================================================
-[quad_grid]
+[recursive_grid]
 enabled = true
 # grid_size = 2
 # keys = "crtn"

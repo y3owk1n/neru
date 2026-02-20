@@ -5,11 +5,11 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
+	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	domainQuadGrid "github.com/y3owk1n/neru/internal/core/domain/quadgrid"
+	domainRecursiveGrid "github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 	"go.uber.org/zap"
 )
 
@@ -95,20 +95,20 @@ func (s *ScrollComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 	s.KeyMap = scroll.NewKeyMap(cfg.Scroll.KeyBindings)
 }
 
-// QuadGridComponent encapsulates all quad-grid-related functionality.
-type QuadGridComponent struct {
-	Manager *domainQuadGrid.Manager
-	Overlay *quadgrid.Overlay
-	Context *quadgrid.Context
-	Style   quadgrid.Style
+// RecursiveGridComponent encapsulates all recursive-grid-related functionality.
+type RecursiveGridComponent struct {
+	Manager *domainRecursiveGrid.Manager
+	Overlay *recursivegrid.Overlay
+	Context *recursivegrid.Context
+	Style   recursivegrid.Style
 }
 
-// UpdateConfig updates the quad-grid component with new configuration.
-func (q *QuadGridComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
-	if cfg.QuadGrid.Enabled {
-		q.Style = quadgrid.BuildStyle(cfg.QuadGrid)
+// UpdateConfig updates the recursive-grid component with new configuration.
+func (q *RecursiveGridComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
+	if cfg.RecursiveGrid.Enabled {
+		q.Style = recursivegrid.BuildStyle(cfg.RecursiveGrid)
 		if q.Overlay != nil {
-			q.Overlay.SetConfig(cfg.QuadGrid)
+			q.Overlay.SetConfig(cfg.RecursiveGrid)
 		}
 	}
 }

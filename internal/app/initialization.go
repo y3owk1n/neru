@@ -235,7 +235,7 @@ func (a *App) registerOverlays() {
 		a.overlayManager.UseGridOverlay(*a.gridComponent.Context.GridOverlay())
 	}
 
-	if a.quadGridComponent != nil && a.quadGridComponent.Overlay != nil {
-		a.overlayManager.UseQuadGridOverlay(a.quadGridComponent.Overlay)
+	if a.recursiveGridComponent != nil && a.recursiveGridComponent.Overlay != nil {
+		a.overlayManager.UseRecursiveGridOverlay(a.recursiveGridComponent.Overlay)
 	}
 }

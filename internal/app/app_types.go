@@ -65,11 +65,11 @@ type App struct {
 	configService *config.Service
 
 	// Feature components
-	hintsComponent    *components.HintsComponent
-	gridComponent     *components.GridComponent
-	scrollComponent   *components.ScrollComponent
-	quadGridComponent *components.QuadGridComponent
-	systrayComponent  SystrayComponent
+	hintsComponent         *components.HintsComponent
+	gridComponent          *components.GridComponent
+	scrollComponent        *components.ScrollComponent
+	recursiveGridComponent *components.RecursiveGridComponent
+	systrayComponent       SystrayComponent
 
 	// Lifecycle management
 	gcCancel         context.CancelFunc

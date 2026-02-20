@@ -18,7 +18,7 @@ import (
 type AppInterface interface {
 	HintsEnabled() bool
 	GridEnabled() bool
-	QuadGridEnabled() bool
+	RecursiveGridEnabled() bool
 	IsEnabled() bool
 	SetEnabled(enabled bool)
 	ActivateMode(mode domain.Mode)
@@ -54,7 +54,7 @@ type Component struct {
 	mModes             *systray.MenuItem
 	mHints             *systray.MenuItem
 	mGrid              *systray.MenuItem
-	mQuadGrid          *systray.MenuItem
+	mRecursiveGrid     *systray.MenuItem
 	mReloadConfig      *systray.MenuItem
 	mHelp              *systray.MenuItem
 	mSourceCode        *systray.MenuItem
@@ -151,10 +151,10 @@ func (c *Component) OnReady() {
 		c.mGrid.Disable()
 	}
 
-	c.mQuadGrid = c.mModes.AddSubMenuItem("Quad Grid")
-	if !c.app.QuadGridEnabled() {
-		c.mQuadGrid.SetTitle("Quad Grid: Disabled")
-		c.mQuadGrid.Disable()
+	c.mRecursiveGrid = c.mModes.AddSubMenuItem("Recursive Grid")
+	if !c.app.RecursiveGridEnabled() {
+		c.mRecursiveGrid.SetTitle("Recursive Grid: Disabled")
+		c.mRecursiveGrid.Disable()
 	}
 
 	systray.AddSeparator()
@@ -230,8 +230,8 @@ func (c *Component) handleEvents() {
 			c.app.ActivateMode(domain.ModeHints)
 		case <-c.mGrid.ClickedCh:
 			c.app.ActivateMode(domain.ModeGrid)
-		case <-c.mQuadGrid.ClickedCh:
-			c.app.ActivateMode(domain.ModeQuadGrid)
+		case <-c.mRecursiveGrid.ClickedCh:
+			c.app.ActivateMode(domain.ModeRecursiveGrid)
 		case <-c.mReloadConfig.ClickedCh:
 			c.handleReloadConfig()
 		case <-c.mSourceCode.ClickedCh:

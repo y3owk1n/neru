@@ -1,22 +1,22 @@
-// Package quadgrid provides recursive quadrant-based navigation for screen coordinates.
+// Package recursivegrid provides recursive cell-based navigation for screen coordinates.
 //
-// The quadgrid system divides the screen into 4 equal quadrants and allows users to
-// navigate by repeatedly selecting quadrants until reaching a minimum size threshold.
+// The recursivegrid system divides the screen into NxN cells and allows users to
+// navigate by repeatedly selecting cells until reaching a minimum size threshold.
 //
 // Key Features:
-//   - Recursive division: Each selection narrows the active area to 1/4 of the previous
+//   - Recursive division: Each selection narrows the active area
 //   - Configurable limits: Minimum size and maximum depth constraints
 //   - Backtracking: Support for undoing selections via backspace
 //   - warpd-compatible: Uses u/i/j/k key mapping by default (top-left, top-right, bottom-left, bottom-right)
 //
 // Basic Usage:
 //
-//	// Create a new quad-grid for a 1920x1080 screen
+//	// Create a new recursive grid for a 1920x1080 screen
 //	bounds := image.Rect(0, 0, 1920, 1080)
-//	grid := quadgrid.NewQuadGrid(bounds, 25, 10) // 25px min, 10 max depth
+//	grid := recursive_grid.NewRecursiveGrid(bounds, 25, 10) // 25px min, 10 max depth
 //
-//	// Select top-left quadrant (key 'u')
-//	center, complete := grid.SelectQuadrant(quadgrid.TopLeft)
+//	// Select top-left cell (key 'u')
+//	center, complete := grid.SelectCell(recursive_grid.TopLeft)
 //
 //	// center is the cursor position to move to
 //	// complete is true if minimum size has been reached
@@ -24,7 +24,7 @@
 // Manager Usage:
 //
 //	// Create a manager with callbacks
-//	manager := quadgrid.NewManager(
+//	manager := recursive_grid.NewManager(
 //	    bounds,
 //	    "uijk",                    // Key mapping
 //	    ",",                       // Reset key
@@ -39,13 +39,13 @@
 //
 // Key Mapping:
 //   - Default: u (top-left), i (top-right), j (bottom-left), k (bottom-right)
-//   - Customizable via 4-character string
+//   - Customizable via N-character string
 //
 // Exit Conditions:
-//   - Quadrant size < minimum size (default 25px)
+//   - Cell size < minimum size (default 25px)
 //   - Maximum recursion depth reached (default 10)
 //   - User presses exit key
 //
 // The package is designed to integrate with the Neru mode system and follows
 // the same patterns as the existing grid and hints modes.
-package quadgrid
+package recursivegrid

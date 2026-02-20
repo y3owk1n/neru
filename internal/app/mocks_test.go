@@ -10,7 +10,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
+	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
@@ -164,16 +164,16 @@ func (m *mockOverlayManager) Mode() overlay.Mode {
 	return m.mode
 }
 
-func (m *mockOverlayManager) WindowPtr() unsafe.Pointer              { return nil }
-func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)        {}
-func (m *mockOverlayManager) UseGridOverlay(_ *grid.Overlay)         {}
-func (m *mockOverlayManager) UseScrollOverlay(_ *scroll.Overlay)     {}
-func (m *mockOverlayManager) UseQuadGridOverlay(_ *quadgrid.Overlay) {}
+func (m *mockOverlayManager) WindowPtr() unsafe.Pointer                        { return nil }
+func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)                  {}
+func (m *mockOverlayManager) UseGridOverlay(_ *grid.Overlay)                   {}
+func (m *mockOverlayManager) UseScrollOverlay(_ *scroll.Overlay)               {}
+func (m *mockOverlayManager) UseRecursiveGridOverlay(_ *recursivegrid.Overlay) {}
 
 func (m *mockOverlayManager) HintOverlay() *hints.Overlay    { return nil }
 func (m *mockOverlayManager) GridOverlay() *grid.Overlay     { return nil }
 func (m *mockOverlayManager) ScrollOverlay() *scroll.Overlay { return nil }
-func (m *mockOverlayManager) QuadGridOverlay() *quadgrid.Overlay {
+func (m *mockOverlayManager) RecursiveGridOverlay() *recursivegrid.Overlay {
 	return nil
 }
 
@@ -193,12 +193,12 @@ func (m *mockOverlayManager) DrawGrid(
 	return nil
 }
 
-func (m *mockOverlayManager) DrawQuadGrid(
+func (m *mockOverlayManager) DrawRecursiveGrid(
 	_ image.Rectangle,
 	_ int,
 	_ string,
 	_ int,
-	_ quadgrid.Style,
+	_ recursivegrid.Style,
 ) error {
 	return nil
 }

@@ -1,4 +1,4 @@
-package quadgrid
+package recursivegrid
 
 import (
 	"image"
@@ -9,15 +9,15 @@ const (
 	GridSize2x2 = 2
 )
 
-// Quadrant represents the index of a cell in the grid.
+// Cell represents the index of a cell in the grid.
 // For 2x2 grids: 0=TL, 1=TR, 2=BL, 3=BR (named constants below).
 // For NxN grids: indices 0 to (N*N-1) are ordered left-to-right, top-to-bottom.
 // The named constants (TopLeft, TopRight, etc.) are only meaningful for 2x2 grids.
-type Quadrant int
+type Cell int
 
 const (
 	// TopLeft represents the upper-left cell in a 2x2 grid (index 0).
-	TopLeft Quadrant = iota
+	TopLeft Cell = iota
 	// TopRight represents the upper-right cell in a 2x2 grid (index 1).
 	TopRight
 	// BottomLeft represents the lower-left cell in a 2x2 grid (index 2).
@@ -26,28 +26,31 @@ const (
 	BottomRight
 )
 
-// DefaultKeys is the default key mapping for quadrants (warpd convention).
+// DefaultKeys is the default key mapping for cells (warpd convention).
 const DefaultKeys = "uijk"
 
-// QuadGrid represents the recursive grid state for quadrant-based navigation.
-type QuadGrid struct {
+// RecursiveGrid represents the recursive grid state for cell-based navigation.
+type RecursiveGrid struct {
 	currentBounds image.Rectangle   // Current active area
 	initialBounds image.Rectangle   // Original screen bounds
 	depth         int               // Current recursion depth
 	maxDepth      int               // Maximum allowed depth
-	minSize       int               // Minimum quadrant size in pixels
+	minSize       int               // Minimum cell size in pixels
 	gridSize      int               // Grid size: 2 for 2x2, 3 for 3x3
 	history       []image.Rectangle // Stack of previous bounds for backtracking
 }
 
-// NewQuadGrid creates a new quad-grid starting with the given screen bounds.
-func NewQuadGrid(screenBounds image.Rectangle, minSize, maxDepth int) *QuadGrid {
-	return NewQuadGridWithSize(screenBounds, minSize, maxDepth, GridSize2x2)
+// NewRecursiveGrid creates a new recursive-grid starting with the given screen bounds.
+func NewRecursiveGrid(screenBounds image.Rectangle, minSize, maxDepth int) *RecursiveGrid {
+	return NewRecursiveGridWithSize(screenBounds, minSize, maxDepth, GridSize2x2)
 }
 
-// NewQuadGridWithSize creates a new quad-grid with a specific grid size.
-func NewQuadGridWithSize(screenBounds image.Rectangle, minSize, maxDepth, gridSize int) *QuadGrid {
-	return &QuadGrid{
+// NewRecursiveGridWithSize creates a new recursive-grid with a specific grid size.
+func NewRecursiveGridWithSize(
+	screenBounds image.Rectangle,
+	minSize, maxDepth, gridSize int,
+) *RecursiveGrid {
+	return &RecursiveGrid{
 		currentBounds: screenBounds,
 		initialBounds: screenBounds,
 		depth:         0,
@@ -59,18 +62,18 @@ func NewQuadGridWithSize(screenBounds image.Rectangle, minSize, maxDepth, gridSi
 }
 
 // GridSize returns the grid size (2 for 2x2, 3 for 3x3).
-func (qg *QuadGrid) GridSize() int {
+func (qg *RecursiveGrid) GridSize() int {
 	return qg.gridSize
 }
 
-// Divide splits the current bounds into quadrants based on grid size.
-// For 2x2: returns 4 quadrants (TL, TR, BL, BR).
-// For 3x3: returns 9 quadrants (left-to-right, top-to-bottom).
-func (qg *QuadGrid) Divide() []image.Rectangle {
+// Divide splits the current bounds into cells based on grid size.
+// For 2x2: returns 4 cells (TL, TR, BL, BR).
+// For 3x3: returns 9 cells (left-to-right, top-to-bottom).
+func (qg *RecursiveGrid) Divide() []image.Rectangle {
 	cellWidth := qg.currentBounds.Dx() / qg.gridSize
 	cellHeight := qg.currentBounds.Dy() / qg.gridSize
 
-	quadrants := make([]image.Rectangle, qg.gridSize*qg.gridSize)
+	cells := make([]image.Rectangle, qg.gridSize*qg.gridSize)
 
 	for row := range qg.gridSize {
 		for col := range qg.gridSize {
@@ -86,7 +89,7 @@ func (qg *QuadGrid) Divide() []image.Rectangle {
 				maxY = qg.currentBounds.Max.Y
 			}
 
-			quadrants[idx] = image.Rect(
+			cells[idx] = image.Rect(
 				qg.currentBounds.Min.X+col*cellWidth,
 				qg.currentBounds.Min.Y+row*cellHeight,
 				maxX,
@@ -95,19 +98,19 @@ func (qg *QuadGrid) Divide() []image.Rectangle {
 		}
 	}
 
-	return quadrants
+	return cells
 }
 
-// QuadrantCenter returns the center point of the specified quadrant.
-func (qg *QuadGrid) QuadrantCenter(quadrant Quadrant) image.Point {
-	quadrants := qg.Divide()
-	idx := int(quadrant)
+// CellCenter returns the center point of the specified cell.
+func (qg *RecursiveGrid) CellCenter(cell Cell) image.Point {
+	cells := qg.Divide()
+	idx := int(cell)
 
-	if idx < 0 || idx >= len(quadrants) {
+	if idx < 0 || idx >= len(cells) {
 		return qg.CurrentCenter()
 	}
 
-	selected := quadrants[idx]
+	selected := cells[idx]
 
 	return image.Point{
 		X: selected.Min.X + selected.Dx()/2,
@@ -115,26 +118,26 @@ func (qg *QuadGrid) QuadrantCenter(quadrant Quadrant) image.Point {
 	}
 }
 
-// SelectQuadrant narrows the active area to the selected quadrant.
-// Returns the center point of the selected quadrant and whether the selection is complete.
+// SelectCell narrows the active area to the selected cell.
+// Returns the center point of the selected cell and whether the selection is complete.
 // Selection is complete when the minimum size is reached.
-func (qg *QuadGrid) SelectQuadrant(quadrant Quadrant) (image.Point, bool) {
-	quadrants := qg.Divide()
-	idx := int(quadrant)
+func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
+	cells := qg.Divide()
+	idx := int(cell)
 
-	// Bounds check - return center of current bounds for invalid quadrant
-	if idx >= len(quadrants) || idx < 0 {
+	// Bounds check - return center of current bounds for invalid cell
+	if idx >= len(cells) || idx < 0 {
 		return qg.CurrentCenter(), true
 	}
 
 	// Check if we can divide further
 	if !qg.CanDivide() {
 		// If we can't divide further (max depth or min size),
-		// return the center of the selected quadrant without changing bounds.
-		return qg.QuadrantCenter(quadrant), true
+		// return the center of the selected cell without changing bounds.
+		return qg.CellCenter(cell), true
 	}
 
-	selected := quadrants[idx]
+	selected := cells[idx]
 
 	// Save current bounds for backtracking
 	qg.history = append(qg.history, qg.currentBounds)
@@ -155,8 +158,8 @@ func (qg *QuadGrid) SelectQuadrant(quadrant Quadrant) (image.Point, bool) {
 }
 
 // CanDivide checks if the current bounds can be divided further.
-// Returns false when the quadrant would be smaller than minSize or maxDepth is reached.
-func (qg *QuadGrid) CanDivide() bool {
+// Returns false when the cell would be smaller than minSize or maxDepth is reached.
+func (qg *RecursiveGrid) CanDivide() bool {
 	// Check depth limit
 	if qg.depth >= qg.maxDepth {
 		return false
@@ -171,7 +174,7 @@ func (qg *QuadGrid) CanDivide() bool {
 }
 
 // CurrentCenter returns the center point of the current bounds.
-func (qg *QuadGrid) CurrentCenter() image.Point {
+func (qg *RecursiveGrid) CurrentCenter() image.Point {
 	return image.Point{
 		X: qg.currentBounds.Min.X + qg.currentBounds.Dx()/2,
 		Y: qg.currentBounds.Min.Y + qg.currentBounds.Dy()/2,
@@ -179,33 +182,33 @@ func (qg *QuadGrid) CurrentCenter() image.Point {
 }
 
 // CurrentBounds returns the current active bounds.
-func (qg *QuadGrid) CurrentBounds() image.Rectangle {
+func (qg *RecursiveGrid) CurrentBounds() image.Rectangle {
 	return qg.currentBounds
 }
 
 // InitialBounds returns the original screen bounds.
-func (qg *QuadGrid) InitialBounds() image.Rectangle {
+func (qg *RecursiveGrid) InitialBounds() image.Rectangle {
 	return qg.initialBounds
 }
 
 // CurrentDepth returns the current recursion depth.
-func (qg *QuadGrid) CurrentDepth() int {
+func (qg *RecursiveGrid) CurrentDepth() int {
 	return qg.depth
 }
 
 // MaxDepth returns the maximum allowed recursion depth.
-func (qg *QuadGrid) MaxDepth() int {
+func (qg *RecursiveGrid) MaxDepth() int {
 	return qg.maxDepth
 }
 
-// MinSize returns the minimum quadrant size.
-func (qg *QuadGrid) MinSize() int {
+// MinSize returns the minimum cell size.
+func (qg *RecursiveGrid) MinSize() int {
 	return qg.minSize
 }
 
 // Backtrack returns to the previous bounds (undo last selection).
 // Returns true if backtracking was successful, false if there's no history.
-func (qg *QuadGrid) Backtrack() bool {
+func (qg *RecursiveGrid) Backtrack() bool {
 	if len(qg.history) == 0 {
 		return false
 	}
@@ -220,31 +223,31 @@ func (qg *QuadGrid) Backtrack() bool {
 }
 
 // HasHistory returns true if there's backtrack history available.
-func (qg *QuadGrid) HasHistory() bool {
+func (qg *RecursiveGrid) HasHistory() bool {
 	return len(qg.history) > 0
 }
 
 // Reset restores the grid to its initial state.
-func (qg *QuadGrid) Reset() {
+func (qg *RecursiveGrid) Reset() {
 	qg.currentBounds = qg.initialBounds
 	qg.depth = 0
 	qg.history = qg.history[:0]
 }
 
 // IsComplete returns true if the minimum size has been reached.
-func (qg *QuadGrid) IsComplete() bool {
+func (qg *RecursiveGrid) IsComplete() bool {
 	return !qg.CanDivide()
 }
 
-// QuadrantBounds returns the bounds for a specific quadrant without selecting it.
+// CellBounds returns the bounds for a specific cell without selecting it.
 // Useful for visual rendering.
-func (qg *QuadGrid) QuadrantBounds(q Quadrant) image.Rectangle {
-	quadrants := qg.Divide()
+func (qg *RecursiveGrid) CellBounds(q Cell) image.Rectangle {
+	cells := qg.Divide()
 	idx := int(q)
 
-	if idx < 0 || idx >= len(quadrants) {
+	if idx < 0 || idx >= len(cells) {
 		return qg.currentBounds
 	}
 
-	return quadrants[idx]
+	return cells[idx]
 }

@@ -12,7 +12,7 @@ Neru uses TOML for configuration. This guide covers all available options with e
 - [Keyboard Layout Requirements](#keyboard-layout-requirements)
 - [Hint Mode](#hint-mode)
 - [Grid Mode](#grid-mode)
-- [Quad-Grid Mode](#quad-grid-mode)
+- [Recursive Grid Mode](#recursive-grid-mode)
 - [Scroll Mode](#scroll-mode)
 - [Mouse Movement Actions](#mouse-movement-actions)
 - [Smooth Cursor](#smooth-cursor)
@@ -120,8 +120,8 @@ Bind global hotkeys to Neru actions. Remove or comment out to disable.
 # Grid mode
 "Cmd+Shift+G" = "grid"
 
-# Quad-Grid mode
-"Cmd+Shift+C" = "quadgrid"
+# Recursive-Grid mode
+"Cmd+Shift+C" = "recursive_grid"
 
 # Scroll
 "Cmd+Shift+S" = "scroll"
@@ -447,28 +447,28 @@ Notes:
 
 ---
 
-## Quad-Grid Mode
+## Recursive Grid Mode
 
-Quad-grid provides recursive quadrant-based navigation that works anywhere. The screen is divided into NxN quadrants using configurable keys. Each selection narrows the active area. The reset key returns to the initial center, and backspace/delete move up one depth and recenter.
+Recursive grid provides recursive cell-based navigation that works anywhere. The screen is divided into NxN cells using configurable keys. Each selection narrows the active area. The reset key returns to the initial center, and backspace/delete move up one depth and recenter.
 
 ### Basic Configuration
 
 ```toml
-[quad_grid]
+[recursive_grid]
 enabled = true
 
 # Grid layout: NxN grid (default: 2 for 2x2)
 # Must be at least 2. Higher values create finer grid division.
 grid_size = 2
 
-# Quadrant keys (must be exactly grid_size * grid_size characters)
+# Cell keys (must be exactly grid_size * grid_size characters)
 # For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
 # For 3x3: 9 keys
 # For 4x4: 16 keys
 keys = "uijk"
 
 # Behavior
-min_size = 25        # Minimum quadrant size in pixels
+min_size = 25        # Minimum cell size in pixels
 max_depth = 10       # Maximum recursion depth
 reset_key = ","      # Reset to initial center (can be modifier combo like "Ctrl+R")
 
@@ -483,7 +483,7 @@ label_font_family = "SF Mono"
 
 ### Key Behavior
 
-- Press quadrant key to narrow selection and preview cursor at center
+- Press cell key to narrow selection and preview cursor at center
 - Press backspace/delete to move up one depth and recenter cursor
 - Press reset_key to return to initial center and clear state
 - Press exit key (default: escape) to exit mode
@@ -493,7 +493,7 @@ label_font_family = "SF Mono"
 For larger grids, adjust grid_size and provide the corresponding number of keys:
 
 ```toml
-[quad_grid]
+[recursive_grid]
 grid_size = 3
 keys = "gcrhtnmwv"  # 9 keys
 

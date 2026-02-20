@@ -767,7 +767,7 @@ func (c *Config) checkModeExitKeysConflicts() error {
 		{c.Grid.Characters, "grid.characters", "grid input"},
 		{c.Grid.RowLabels, "grid.row_labels", "row selection"},
 		{c.Grid.ColLabels, "grid.col_labels", "column selection"},
-		{c.QuadGrid.Keys, "quadgrid.keys", "quadrant selection"},
+		{c.RecursiveGrid.Keys, "recursive_grid.keys", "cell selection"},
 	}
 
 	for _, check := range checks {
@@ -882,38 +882,38 @@ func validateResetKeyCombo(key string) error {
 	return validateModifierCombo(key, "grid.reset_key")
 }
 
-// ValidateQuadGrid validates the quad-grid configuration.
-func (c *Config) ValidateQuadGrid() error {
-	if !c.QuadGrid.Enabled {
+// ValidateRecursiveGrid validates the recursive-grid configuration.
+func (c *Config) ValidateRecursiveGrid() error {
+	if !c.RecursiveGrid.Enabled {
 		return nil
 	}
 
 	// Validate grid_size (must be at least 2)
-	if c.QuadGrid.GridSize < DefaultQuadGridMinGridSize {
+	if c.RecursiveGrid.GridSize < DefaultRecursiveGridMinGridSize {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"quadgrid.grid_size must be at least 2",
+			"recursive_grid.grid_size must be at least 2",
 		)
 	}
 
 	// Calculate expected key count based on grid size
-	expectedKeyCount := c.QuadGrid.GridSize * c.QuadGrid.GridSize
+	expectedKeyCount := c.RecursiveGrid.GridSize * c.RecursiveGrid.GridSize
 
 	// Validate keys - must match grid size
-	keys := strings.TrimSpace(c.QuadGrid.Keys)
+	keys := strings.TrimSpace(c.RecursiveGrid.Keys)
 	if keys == "" {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"quadgrid.keys cannot be empty",
+			"recursive_grid.keys cannot be empty",
 		)
 	}
 
 	if utf8.RuneCountInString(keys) != expectedKeyCount {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"quadgrid.keys must be exactly %d characters for grid_size %d",
+			"recursive_grid.keys must be exactly %d characters for grid_size %d",
 			expectedKeyCount,
-			c.QuadGrid.GridSize,
+			c.RecursiveGrid.GridSize,
 		)
 	}
 
@@ -923,7 +923,7 @@ func (c *Config) ValidateQuadGrid() error {
 		if keyMap[key] {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
-				"quadgrid.keys contains duplicate character: %c",
+				"recursive_grid.keys contains duplicate character: %c",
 				key,
 			)
 		}
@@ -936,28 +936,28 @@ func (c *Config) ValidateQuadGrid() error {
 		if r > unicode.MaxASCII {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"quadgrid.keys can only contain ASCII characters",
+				"recursive_grid.keys can only contain ASCII characters",
 			)
 		}
 	}
 
 	// Validate min size
-	if c.QuadGrid.MinSize < 10 { //nolint:mnd
+	if c.RecursiveGrid.MinSize < 10 { //nolint:mnd
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"quadgrid.min_size must be at least 10",
+			"recursive_grid.min_size must be at least 10",
 		)
 	}
 
 	// Validate max depth
-	if c.QuadGrid.MaxDepth < 1 || c.QuadGrid.MaxDepth > 20 {
+	if c.RecursiveGrid.MaxDepth < 1 || c.RecursiveGrid.MaxDepth > 20 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"quadgrid.max_depth must be between 1 and 20",
+			"recursive_grid.max_depth must be between 1 and 20",
 		)
 	}
 
-	resetKey := c.QuadGrid.ResetKey
+	resetKey := c.RecursiveGrid.ResetKey
 	if resetKey == "" {
 		resetKey = ","
 	}
@@ -969,13 +969,13 @@ func (c *Config) ValidateQuadGrid() error {
 		if err != nil {
 			return err
 		}
-		// Modifier combos don't conflict with quadgrid keys, so we can return early
+		// Modifier combos don't conflict with recursive_grid keys, so we can return early
 	} else {
 		// Validate single character reset key
 		if len(resetKey) != 1 {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"quadgrid.reset_key must be either a single character or a modifier combo (e.g. 'Ctrl+R')",
+				"recursive_grid.reset_key must be either a single character or a modifier combo (e.g. 'Ctrl+R')",
 			)
 		}
 
@@ -983,7 +983,7 @@ func (c *Config) ValidateQuadGrid() error {
 		if rune(resetKey[0]) > unicode.MaxASCII {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"quadgrid.reset_key must be an ASCII character",
+				"recursive_grid.reset_key must be an ASCII character",
 			)
 		}
 
@@ -992,39 +992,39 @@ func (c *Config) ValidateQuadGrid() error {
 		if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"quadgrid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
+				"recursive_grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
 			)
 		}
 
-		// Single-character reset key cannot be in quadgrid keys
-		if strings.Contains(strings.ToLower(c.QuadGrid.Keys), strings.ToLower(resetKey)) {
+		// Single-character reset key cannot be in recursive_grid keys
+		if strings.Contains(strings.ToLower(c.RecursiveGrid.Keys), strings.ToLower(resetKey)) {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"quadgrid.keys cannot contain '"+resetKey+"' as it is reserved for reset",
+				"recursive_grid.keys cannot contain '"+resetKey+"' as it is reserved for reset",
 			)
 		}
 	}
 
 	// Validate styling
-	if c.QuadGrid.LineWidth < 0 {
+	if c.RecursiveGrid.LineWidth < 0 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"quadgrid.line_width must be non-negative",
+			"recursive_grid.line_width must be non-negative",
 		)
 	}
 
-	if c.QuadGrid.LabelFontSize < 6 || c.QuadGrid.LabelFontSize > 72 {
+	if c.RecursiveGrid.LabelFontSize < 6 || c.RecursiveGrid.LabelFontSize > 72 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"quadgrid.label_font_size must be between 6 and 72",
+			"recursive_grid.label_font_size must be between 6 and 72",
 		)
 	}
 
 	// Validate colors
 	err := validateColors([]colorField{
-		{c.QuadGrid.LineColor, "quadgrid.line_color"},
-		{c.QuadGrid.HighlightColor, "quadgrid.highlight_color"},
-		{c.QuadGrid.LabelColor, "quadgrid.label_color"},
+		{c.RecursiveGrid.LineColor, "recursive_grid.line_color"},
+		{c.RecursiveGrid.HighlightColor, "recursive_grid.highlight_color"},
+		{c.RecursiveGrid.LabelColor, "recursive_grid.label_color"},
 	})
 	if err != nil {
 		return err

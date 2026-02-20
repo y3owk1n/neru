@@ -6,7 +6,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/app/components/quadgrid"
+	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
@@ -175,40 +175,43 @@ func (f *ComponentFactory) CreateScrollComponent(
 	}, nil
 }
 
-// CreateQuadGridComponent creates a quad-grid component with standardized error handling.
-func (f *ComponentFactory) CreateQuadGridComponent(
+// CreateRecursiveGridComponent creates a recursive-grid component with standardized error handling.
+func (f *ComponentFactory) CreateRecursiveGridComponent(
 	opts ComponentCreationOptions,
-) (*components.QuadGridComponent, error) {
+) (*components.RecursiveGridComponent, error) {
 	// Create overlay
-	var quadGridOverlay *quadgrid.Overlay
+	var recursiveGridOverlay *recursivegrid.Overlay
 	if opts.OverlayType != "" {
-		overlay, err := f.createOverlay("quadgrid", f.config.QuadGrid)
+		overlay, err := f.createOverlay("recursive_grid", f.config.RecursiveGrid)
 		if err != nil {
 			if opts.Required {
 				return nil, derrors.Wrap(
 					err,
 					derrors.CodeOverlayFailed,
-					"failed to create quadgrid overlay",
+					"failed to create recursive_grid overlay",
 				)
 			}
 
 			f.logger.Warn(
-				"Failed to create quadgrid overlay, continuing without overlay",
+				"Failed to create recursive_grid overlay, continuing without overlay",
 				zap.Error(err),
 			)
 		} else {
-			if quadGridOverlayTyped, ok := overlay.(*quadgrid.Overlay); ok {
-				quadGridOverlay = quadGridOverlayTyped
+			if recursiveGridOverlayTyped, ok := overlay.(*recursivegrid.Overlay); ok {
+				recursiveGridOverlay = recursiveGridOverlayTyped
 			} else {
-				f.logger.Error("Unexpected overlay type for quadgrid", zap.Any("overlay", overlay))
+				f.logger.Error(
+					"Unexpected overlay type for recursive_grid",
+					zap.Any("overlay", overlay),
+				)
 			}
 		}
 	}
 
-	return &components.QuadGridComponent{
-		Overlay: quadGridOverlay,
-		Context: &quadgrid.Context{},
-		Style:   quadgrid.BuildStyle(f.config.QuadGrid),
+	return &components.RecursiveGridComponent{
+		Overlay: recursiveGridOverlay,
+		Context: &recursivegrid.Context{},
+		Style:   recursivegrid.BuildStyle(f.config.RecursiveGrid),
 	}, nil
 }
 
@@ -232,14 +235,14 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 		}
 
 		return scroll.NewOverlayWithWindow(scrollConfig, f.logger, f.overlayManager.WindowPtr())
-	case "quadgrid":
-		quadGridConfig, ok := cfg.(config.QuadGridConfig)
+	case "recursive_grid":
+		recursiveGridConfig, ok := cfg.(config.RecursiveGridConfig)
 		if !ok {
-			return nil, derrors.New(derrors.CodeInvalidInput, "invalid quadgrid config type")
+			return nil, derrors.New(derrors.CodeInvalidInput, "invalid recursive_grid config type")
 		}
 
-		return quadgrid.NewOverlayWithWindow(
-			quadGridConfig,
+		return recursivegrid.NewOverlayWithWindow(
+			recursiveGridConfig,
 			f.logger,
 			f.overlayManager.WindowPtr(),
 		), nil

@@ -1,8 +1,8 @@
-// Package quadgrid provides the quad-grid component.
-package quadgrid
+// Package recursivegrid provides the recursivegrid component.
+package recursivegrid
 
 import (
-	"github.com/y3owk1n/neru/internal/core/domain/quadgrid"
+	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 )
 
 // baseContext provides common functionality for mode component contexts.
@@ -25,19 +25,19 @@ func (c *baseContext) Reset() {
 	c.pendingAction = nil
 }
 
-// Context holds the state and context for quad-grid mode operations.
+// Context holds the state and context for recursive_grid mode operations.
 type Context struct {
 	baseContext
 }
 
-// Reset resets the quad-grid context to its initial state.
+// Reset resets the recursive_grid context to its initial state.
 func (c *Context) Reset() {
 	c.baseContext.Reset()
 }
 
-// Component holds the components for quad-grid mode.
+// Component holds the components for recursive_grid mode.
 type Component struct {
-	Manager *quadgrid.Manager
+	Manager *recursivegrid.Manager
 	Overlay *Overlay
 	Context *Context
 	Style   Style

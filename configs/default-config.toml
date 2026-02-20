@@ -42,7 +42,7 @@ hide_overlay_in_screen_share = false
 # Examples: "Cmd+Shift+Space" = "hints", "Cmd+Shift+G" = "grid"
 "Cmd+Shift+Space" = "hints"
 "Cmd+Shift+G" = "grid"
-"Cmd+Shift+C" = "quadgrid"
+"Cmd+Shift+C" = "recursive_grid"
 "Cmd+Shift+S" = "scroll"
 
 # Direct actions are available in hints/grid mode without mode switching
@@ -199,15 +199,15 @@ prewarm_enabled = true
 # Enable periodic garbage collection every 5 minutes to reduce peak memory usage, but adds CPU overhead
 enable_gc = false
 
-[quad_grid]
-# Whether to enable quad-grid mode
+[recursive_grid]
+# Whether to enable recursive-grid mode
 enabled = true
 
 # Grid layout: NxN grid (must be >= 2)
 # Higher values create finer grid division
 grid_size = 2
 
-# Key bindings for quadrant selection
+# Key bindings for cell selection
 # Must be exactly grid_size * grid_size characters
 # For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
 keys = "uijk"
@@ -215,13 +215,13 @@ keys = "uijk"
 # Visual appearance
 line_color = "#FF8EE2FF"          # Color of grid lines (light blue, alpha FF = 100% opacity)
 line_width = 1                  # Width of grid lines
-highlight_color = "#4D00BFFF"     # Color for quadrant highlighting (deep sky blue, alpha 4D ≈ 30% opacity)
-label_color = "#FFFFFFFF"         # Color of quadrant labels (white, alpha FF = 100% opacity)
+highlight_color = "#4D00BFFF"     # Color for cell highlighting (deep sky blue, alpha 4D ≈ 30% opacity)
+label_color = "#FFFFFFFF"         # Color of cell labels (white, alpha FF = 100% opacity)
 label_font_size = 12            # Font size for labels
 label_font_family = "SF Mono"   # Font family for labels
 
 # Behavior
-min_size = 25                   # Minimum quadrant size in pixels (stops dividing when reached)
+min_size = 25                   # Minimum cell size in pixels (stops dividing when reached)
 max_depth = 10                  # Maximum recursion depth (safety limit)
 reset_key = ","                 # Reset to initial center and clear state
 

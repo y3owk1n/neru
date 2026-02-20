@@ -167,16 +167,16 @@ const (
 	// IPCTimeoutSeconds is the IPC timeout seconds.
 	IPCTimeoutSeconds = 5
 
-	// DefaultQuadGridMinSize is the default minimum quadrant size in pixels.
-	DefaultQuadGridMinSize = 25
-	// DefaultQuadGridMaxDepth is the default maximum recursion depth.
-	DefaultQuadGridMaxDepth = 10
-	// DefaultQuadGridMinGridSize is the minimum allowed grid size (NxN).
-	DefaultQuadGridMinGridSize = 2
-	// DefaultQuadGridLineWidth is the default line width for grid lines.
-	DefaultQuadGridLineWidth = 1
-	// DefaultQuadGridLabelFontSize is the default font size for quadrant labels.
-	DefaultQuadGridLabelFontSize = 12
+	// DefaultRecursiveGridMinSize is the default minimum cell size in pixels.
+	DefaultRecursiveGridMinSize = 25
+	// DefaultRecursiveGridMaxDepth is the default maximum recursion depth.
+	DefaultRecursiveGridMaxDepth = 10
+	// DefaultRecursiveGridMinGridSize is the minimum allowed grid size (NxN).
+	DefaultRecursiveGridMinGridSize = 2
+	// DefaultRecursiveGridLineWidth is the default line width for grid lines.
+	DefaultRecursiveGridLineWidth = 1
+	// DefaultRecursiveGridLabelFontSize is the default font size for cell labels.
+	DefaultRecursiveGridLabelFontSize = 12
 )
 
 // DefaultConfig returns the default application configuration with sensible defaults.
@@ -193,7 +193,7 @@ func DefaultConfig() *Config {
 			Bindings: map[string]string{
 				"Cmd+Shift+Space": "hints",
 				"Cmd+Shift+G":     "grid",
-				"Cmd+Shift+C":     "quadgrid",
+				"Cmd+Shift+C":     "recursive_grid",
 				"Cmd+Shift+S":     "scroll",
 			},
 		},
@@ -276,21 +276,21 @@ func DefaultConfig() *Config {
 			EnableGC:        false,
 			ResetKey:        ",",
 		},
-		QuadGrid: QuadGridConfig{
+		RecursiveGrid: RecursiveGridConfig{
 			Enabled:  true,
 			GridSize: 2, //nolint:mnd
 
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
 
 			LineColor:       "#FF8EE2FF", // Light blue, alpha FF = 100% opacity
-			LineWidth:       DefaultQuadGridLineWidth,
+			LineWidth:       DefaultRecursiveGridLineWidth,
 			HighlightColor:  "#4D00BFFF", // Deep sky blue, alpha 4D ≈ 30% opacity
 			LabelColor:      "#FFFFFFFF", // White, alpha FF = 100% opacity
-			LabelFontSize:   DefaultQuadGridLabelFontSize,
+			LabelFontSize:   DefaultRecursiveGridLabelFontSize,
 			LabelFontFamily: "SF Mono",
 
-			MinSize:  DefaultQuadGridMinSize,
-			MaxDepth: DefaultQuadGridMaxDepth,
+			MinSize:  DefaultRecursiveGridMinSize,
+			MaxDepth: DefaultRecursiveGridMaxDepth,
 			ResetKey: ",",
 		},
 		Scroll: ScrollConfig{

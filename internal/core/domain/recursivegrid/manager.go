@@ -1,4 +1,4 @@
-package quadgrid
+package recursivegrid
 
 import (
 	"image"
@@ -10,11 +10,11 @@ import (
 	"go.uber.org/zap"
 )
 
-// Manager handles quad-grid navigation state and input processing.
+// Manager handles recursive-grid navigation state and input processing.
 type Manager struct {
 	domain.BaseManager
 
-	grid       *QuadGrid
+	grid       *RecursiveGrid
 	keys       string            // Key mapping (e.g., "uijk")
 	gridSize   int               // Grid size: 2 for 2x2, 3 for 3x3
 	onUpdate   func()            // Callback for overlay updates
@@ -23,7 +23,7 @@ type Manager struct {
 	exitKeys   []string
 }
 
-// NewManager creates a quad-grid manager with the specified configuration.
+// NewManager creates a recursive-grid manager with the specified configuration.
 func NewManager(
 	screenBounds image.Rectangle,
 	keys string,
@@ -85,7 +85,7 @@ func NewManagerWithConfig(
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
-		grid:       NewQuadGridWithSize(screenBounds, minSize, maxDepth, gridSize),
+		grid:       NewRecursiveGridWithSize(screenBounds, minSize, maxDepth, gridSize),
 		keys:       strings.ToLower(keys),
 		gridSize:   gridSize,
 		onUpdate:   onUpdate,
@@ -105,7 +105,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 	// Check exit keys first
 	for _, exitKey := range m.exitKeys {
 		if config.IsExitKey(key, []string{exitKey}) {
-			m.Logger.Debug("Exit key pressed in quad-grid mode",
+			m.Logger.Debug("Exit key pressed in recursive-grid mode",
 				zap.String("key", key))
 
 			return image.Point{}, false, true
@@ -114,7 +114,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 
 	// Handle reset key
 	if config.IsResetKey(key, m.resetKey) {
-		m.Logger.Debug("Reset key pressed in quad-grid mode",
+		m.Logger.Debug("Reset key pressed in recursive-grid mode",
 			zap.String("key", key))
 		m.Reset()
 
@@ -129,36 +129,36 @@ func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 	// Handle backspace/delete for backtracking
 	if config.IsBackspaceKey(key) {
 		if m.grid.Backtrack() {
-			m.Logger.Debug("Backtracked in quad-grid mode",
+			m.Logger.Debug("Backtracked in recursive-grid mode",
 				zap.Int("new_depth", m.grid.CurrentDepth()))
 
 			if m.onUpdate != nil {
 				m.onUpdate()
 			}
 
-			// Return new center (of parent quadrant) to move cursor
+			// Return new center (of parent cell) to move cursor
 			return m.grid.CurrentCenter(), false, false
 		}
 
 		return image.Point{}, false, false
 	}
 
-	// Map key to quadrant
-	quadrant := m.keyToQuadrant(key)
-	if quadrant < 0 {
-		// Key not mapped to any quadrant
-		m.Logger.Debug("Unmapped key pressed in quad-grid mode",
+	// Map key to cell
+	cell := m.keyToCell(key)
+	if cell < 0 {
+		// Key not mapped to any cell
+		m.Logger.Debug("Unmapped key pressed in recursive-grid mode",
 			zap.String("key", key))
 
 		return image.Point{}, false, false
 	}
 
-	// Select the quadrant
-	center, isComplete := m.grid.SelectQuadrant(quadrant)
+	// Select the cell
+	center, isComplete := m.grid.SelectCell(cell)
 
-	m.Logger.Debug("Quadrant selected",
+	m.Logger.Debug("Cell selected",
 		zap.String("key", key),
-		zap.Int("quadrant", int(quadrant)),
+		zap.Int("cell", int(cell)),
 		zap.Int("depth", m.grid.CurrentDepth()),
 		zap.Bool("complete", isComplete),
 		zap.Int("center_x", center.X),
@@ -183,8 +183,8 @@ func (m *Manager) Reset() {
 	m.grid.Reset()
 }
 
-// CurrentGrid returns the underlying QuadGrid instance.
-func (m *Manager) CurrentGrid() *QuadGrid {
+// CurrentGrid returns the underlying RecursiveGrid instance.
+func (m *Manager) CurrentGrid() *RecursiveGrid {
 	return m.grid
 }
 
@@ -213,14 +213,14 @@ func (m *Manager) CurrentCenter() image.Point {
 	return m.grid.CurrentCenter()
 }
 
-// QuadrantCenter returns the center point for a specific quadrant.
-func (m *Manager) QuadrantCenter(q Quadrant) image.Point {
-	return m.grid.QuadrantCenter(q)
+// CellCenter returns the center point for a specific cell.
+func (m *Manager) CellCenter(q Cell) image.Point {
+	return m.grid.CellCenter(q)
 }
 
-// QuadrantBounds returns the bounds for a specific quadrant.
-func (m *Manager) QuadrantBounds(q Quadrant) image.Rectangle {
-	return m.grid.QuadrantBounds(q)
+// CellBounds returns the bounds for a specific cell.
+func (m *Manager) CellBounds(q Cell) image.Rectangle {
+	return m.grid.CellBounds(q)
 }
 
 // Keys returns the current key mapping.
@@ -252,13 +252,13 @@ func (m *Manager) HasHistory() bool {
 	return m.grid.HasHistory()
 }
 
-// keyToQuadrant maps an input key to a quadrant index.
+// keyToCell maps an input key to a cell index.
 // Returns -1 if the key is not mapped.
-func (m *Manager) keyToQuadrant(key string) Quadrant {
+func (m *Manager) keyToCell(key string) Cell {
 	idx := 0
 	for _, k := range m.keys {
 		if string(k) == key {
-			return Quadrant(idx)
+			return Cell(idx)
 		}
 
 		idx++
