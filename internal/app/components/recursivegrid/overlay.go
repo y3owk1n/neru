@@ -184,13 +184,22 @@ func (o *Overlay) DrawRecursiveGrid(
 		keys = "uijk"
 	}
 
+	// Validate keys length matches grid dimensions
+	keyRunes := []rune(keys)
+	if len(keyRunes) != keyCount {
+		o.logger.Warn(
+			"Keys length mismatch in DrawRecursiveGrid, some cells will have empty labels",
+			zap.Int("key_count", len(keyRunes)),
+			zap.Int("expected", keyCount),
+		)
+	}
+
 	// Calculate cell dimensions
 	cellWidth := bounds.Dx() / gridCols
 	cellHeight := bounds.Dy() / gridRows
 
 	// Create grid cells dynamically
 	cells := make([]C.GridCell, keyCount)
-	keyRunes := []rune(keys)
 
 	for row := range gridRows {
 		for col := range gridCols {
