@@ -950,11 +950,19 @@ func (c *Config) ValidateRecursiveGrid() error {
 		}
 	}
 
-	// Validate min size
-	if c.RecursiveGrid.MinSize < 10 { //nolint:mnd
+	// Validate min size width
+	if c.RecursiveGrid.MinSizeWidth < 10 { //nolint:mnd
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"recursive_grid.min_size must be at least 10",
+			"recursive_grid.min_size_width must be at least 10",
+		)
+	}
+
+	// Validate min size height
+	if c.RecursiveGrid.MinSizeHeight < 10 { //nolint:mnd
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.min_size_height must be at least 10",
 		)
 	}
 

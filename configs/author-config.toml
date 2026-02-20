@@ -78,17 +78,13 @@ sublayer_keys = "gcrhtnmwv"
 # ============================================================================
 [recursive_grid]
 enabled = true
-# grid_cols = 2
-# grid_rows = 2
-# keys = "crtn"
-grid_cols = 3
-grid_rows = 3
-keys = "gcrhtnmwv"
-# grid_cols = 4
-# grid_rows = 4
-# keys = "7890gcrlhtnsmwvz"
+grid_cols = 2
+grid_rows = 2
+keys = "crtn"
 label_font_family = "JetBrainsMonoNLNFP-Bold"
 line_width = 1
+min_size_width = 10
+min_size_height = 10
 
 # ============================================================================
 # Actions

@@ -43,39 +43,39 @@ Neru supports alpha transparency in colors. You can use different hex formats:
 
 ### Supported Formats
 
-| Format | Example | Description |
-|--------|---------|-------------|
+| Format      | Example     | Description                       |
+| ----------- | ----------- | --------------------------------- |
 | `#AARRGGBB` | `#FF000000` | 8-char: Alpha + RGB (recommended) |
-| `#RRGGBB` | `#FF0000` | 6-char: RGB only (fully opaque) |
-| `#RGB` | `#F00` | 3-char: shorthand RGB |
+| `#RRGGBB`   | `#FF0000`   | 6-char: RGB only (fully opaque)   |
+| `#RGB`      | `#F00`      | 3-char: shorthand RGB             |
 
 ### Format Breakdown: `#AARRGGBB`
 
-| Component | Description | Range |
-|-----------|-------------|-------|
-| `AA` | Alpha (transparency) | `00` (transparent) to `FF` (opaque) |
-| `RR` | Red | `00` to `FF` |
-| `GG` | Green | `00` to `FF` |
-| `BB` | Blue | `00` to `FF` |
+| Component | Description          | Range                               |
+| --------- | -------------------- | ----------------------------------- |
+| `AA`      | Alpha (transparency) | `00` (transparent) to `FF` (opaque) |
+| `RR`      | Red                  | `00` to `FF`                        |
+| `GG`      | Green                | `00` to `FF`                        |
+| `BB`      | Blue                 | `00` to `FF`                        |
 
 > **Recommendation:** Use 8-character format (`#AARRGGBB`) for full control over transparency. The 6-character format (`#RRGGBB`) is treated as fully opaque (alpha = FF).
 
 ### Quick Reference: Opacity to Alpha
 
-| Opacity | Alpha (hex) | Example |
-|---------|-------------|---------|
-| 100% | `FF` | `#FF000000` (opaque black) |
-| 95% | `F2` | `#F2FFD700` (gold) |
-| 90% | `E6` | `#E6000000` |
-| 80% | `CC` | `#CCFFD700` |
-| 70% | `B3` | `#B3ABE9B3` (light green) |
-| 60% | `99` | `#99000000` |
-| 50% | `80` | `#80000000` |
-| 40% | `66` | `#66000000` |
-| 30% | `4D` | `#4D00BFFF` (deep sky blue) |
-| 20% | `33` | `#33000000` |
-| 10% | `1A` | `#1A000000` |
-| 0% | `00` | `#00000000` (fully transparent) |
+| Opacity | Alpha (hex) | Example                         |
+| ------- | ----------- | ------------------------------- |
+| 100%    | `FF`        | `#FF000000` (opaque black)      |
+| 95%     | `F2`        | `#F2FFD700` (gold)              |
+| 90%     | `E6`        | `#E6000000`                     |
+| 80%     | `CC`        | `#CCFFD700`                     |
+| 70%     | `B3`        | `#B3ABE9B3` (light green)       |
+| 60%     | `99`        | `#99000000`                     |
+| 50%     | `80`        | `#80000000`                     |
+| 40%     | `66`        | `#66000000`                     |
+| 30%     | `4D`        | `#4D00BFFF` (deep sky blue)     |
+| 20%     | `33`        | `#33000000`                     |
+| 10%     | `1A`        | `#1A000000`                     |
+| 0%      | `00`        | `#00000000` (fully transparent) |
 
 ### Formula
 
@@ -409,11 +409,15 @@ reset_key = "," # hotkey to reset/clear grid input
 
 # Visual styling
 font_size = 12
+font_family = "SF Mono"
+border_width = 1
 
-background_color = "#abe9b3"
-text_color = "#000000"
-matched_text_color = "#f8bd96"
-border_color = "#abe9b3"
+background_color = "#B3ABE9B3"       # Light purple with alpha (B3 ≈ 70% opacity)
+text_color = "#FF000000"
+matched_text_color = "#FFF8BD96"     # Orange with alpha
+matched_background_color = "#B3F8BD96"
+matched_border_color = "#B3F8BD96"
+border_color = "#B3ABE9B3"
 ```
 
 ### Grid Behavior
@@ -470,8 +474,9 @@ grid_rows = 2
 keys = "uijk"
 
 # Behavior
-min_size = 25        # Minimum cell size in pixels
-max_depth = 10       # Maximum recursion depth
+min_size_width = 25   # Minimum cell width in pixels (stops dividing when width is reached)
+min_size_height = 25  # Minimum cell height in pixels (stops dividing when height is reached)
+max_depth = 10        # Maximum recursion depth
 reset_key = ","      # Reset to initial center (can be modifier combo like "Ctrl+R")
 
 # Visual styling
@@ -531,9 +536,9 @@ scroll_step_full = 1000000 # gg/G (top/bottom)
 # Scroll indicator styling
 font_size = 12
 font_family = "SF Mono"
-background_color = "#FFD700"
-text_color = "#000000"
-border_color = "#000000"
+background_color = "#F2FFD700"  # Gold with alpha (F2 ≈ 95% opacity)
+text_color = "#FF000000"
+border_color = "#FF000000"
 border_width = 1
 padding = 4
 border_radius = 4
@@ -790,73 +795,151 @@ tail -f ~/Library/Logs/neru/app.log
 
 ## Complete Example
 
-A full configuration example:
+A full configuration example with all available options:
 
 ```toml
 # ~/.config/neru/config.toml
 
+# =============================================================================
+# Hotkeys
+# =============================================================================
 [hotkeys]
 "Cmd+Shift+Space" = "hints"
 "Cmd+Shift+G" = "grid"
+"Cmd+Shift+C" = "recursive_grid"
 "Cmd+Shift+S" = "scroll"
 
+# =============================================================================
+# General Settings
+# =============================================================================
 [general]
-excluded_apps = ["com.apple.Terminal", "com.googlecode.iterm2"]
+excluded_apps = []  # Bundle IDs to exclude (e.g., "com.apple.finder")
 accessibility_check_on_start = true
 restore_cursor_position = false
+mode_exit_keys = ["escape"]
+hide_overlay_in_screen_share = false
 
+# =============================================================================
+# Hint Mode
+# =============================================================================
 [hints]
 enabled = true
 hint_characters = "asdfghjkl"
-font_size = 14
-border_radius = 6
-padding = 5
-background_color = "#FFD700"
-text_color = "#000000"
-matched_text_color = "#737373"
-border_color = "#000000"
+font_size = 12
+font_family = "SF Mono"
+border_radius = 4
+padding = 4
+border_width = 1
+mouse_action_refresh_delay = 0
+background_color = "#F2FFD700"
+text_color = "#FF000000"
+matched_text_color = "#FF737373"
+border_color = "#FF000000"
 include_menubar_hints = false
 include_dock_hints = false
 include_nc_hints = false
 include_stage_manager_hints = false
 detect_mission_control = false
-clickable_roles = ["AXButton", "AXLink", "AXTextField", "AXCheckBox"]
+clickable_roles = [
+    "AXButton", "AXComboBox", "AXCheckBox", "AXRadioButton",
+    "AXLink", "AXPopUpButton", "AXTextField", "AXSlider",
+    "AXTabButton", "AXSwitch", "AXDisclosureTriangle",
+    "AXTextArea", "AXMenuButton", "AXMenuItem", "AXCell", "AXRow",
+]
 ignore_clickable_check = false
-mouse_action_refresh_delay = 0
 
-[[hints.app_configs]]
-bundle_id = "com.google.Chrome"
-additional_clickable_roles = ["AXTabGroup"]
-mouse_action_refresh_delay = 0
+# Additional menubar bundle IDs to include
+additional_menubar_hints_targets = [
+    "com.apple.TextInputMenuAgent",
+    "com.apple.controlcenter",
+    "com.apple.systemuiserver",
+]
+
+# Per-app configuration examples:
+# [[hints.app_configs]]
+# bundle_id = "com.google.Chrome"
+# additional_clickable_roles = ["AXTabGroup"]
+# ignore_clickable_check = true
+# mouse_action_refresh_delay = 100
 
 [hints.additional_ax_support]
 enable = false
+additional_electron_bundles = []
+additional_chromium_bundles = []
+additional_firefox_bundles = []
 
-[systray]
-enabled = true
-
+# =============================================================================
+# Grid Mode
+# =============================================================================
 [grid]
 enabled = true
 characters = "abcdefghijklmnpqrstuvwxyz"
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
+reset_key = ","
 font_size = 12
-background_color = "#abe9b3"
-text_color = "#000000"
-matched_text_color = "#f8bd96"
-matched_background_color = "#f8bd96"
-matched_border_color = "#f8bd96"
-border_color = "#abe9b3"
+font_family = "SF Mono"
+border_width = 1
+background_color = "#B3ABE9B3"
+text_color = "#FF000000"
+matched_text_color = "#FFF8BD96"
+matched_background_color = "#B3F8BD96"
+matched_border_color = "#B3F8BD96"
+border_color = "#B3ABE9B3"
 live_match_update = true
 hide_unmatched = true
+prewarm_enabled = true
+enable_gc = false
 
+# =============================================================================
+# Recursive Grid Mode
+# =============================================================================
+[recursive_grid]
+enabled = true
+grid_cols = 2
+grid_rows = 2
+keys = "uijk"
+line_color = "#FF8EE2FF"
+line_width = 1
+highlight_color = "#4D00BFFF"
+label_color = "#FFFFFFFF"
+label_font_size = 12
+label_font_family = "SF Mono"
+min_size_width = 25
+min_size_height = 25
+max_depth = 10
+reset_key = ","
+
+# =============================================================================
+# Scroll Mode
+# =============================================================================
 [scroll]
-scroll_step = 60
-scroll_step_half = 400
+scroll_step = 50
+scroll_step_half = 500
 scroll_step_full = 1000000
-highlight_scroll_area = true
-highlight_color = "#00FF00"
-highlight_width = 3
+font_size = 12
+font_family = "SF Mono"
+background_color = "#F2FFD700"
+text_color = "#FF000000"
+border_color = "#FF000000"
+border_width = 1
+padding = 4
+border_radius = 4
+indicator_x_offset = 20
+indicator_y_offset = 20
 
+[scroll.key_bindings]
+scroll_up = ["k", "Up"]
+scroll_down = ["j", "Down"]
+scroll_left = ["h", "Left"]
+scroll_right = ["l", "Right"]
+go_top = ["gg", "Cmd+Up"]
+go_bottom = ["Shift+G", "Cmd+Down"]
+page_up = ["Ctrl+U", "PageUp"]
+page_down = ["Ctrl+D", "PageDown"]
+
+# =============================================================================
+# Mouse Movement Actions
+# =============================================================================
 [action]
 move_mouse_step = 10
 
@@ -871,16 +954,32 @@ move_mouse_down = "Down"
 move_mouse_left = "Left"
 move_mouse_right = "Right"
 
+# =============================================================================
+# Smooth Cursor
+# =============================================================================
 [smooth_cursor]
-move_mouse_enabled = true
+move_mouse_enabled = false
 steps = 10
 delay = 1
 
+# =============================================================================
+# System Tray
+# =============================================================================
+[systray]
+enabled = true
+
+# =============================================================================
+# Metrics
+# =============================================================================
 [metrics]
 enabled = false
 
+# =============================================================================
+# Logging
+# =============================================================================
 [logging]
 log_level = "info"
+log_file = ""
 structured_logging = true
 disable_file_logging = false
 max_file_size = 10

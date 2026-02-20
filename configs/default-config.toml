@@ -223,8 +223,9 @@ label_font_size = 12            # Font size for labels
 label_font_family = "SF Mono"   # Font family for labels
 
 # Behavior
-min_size = 25                   # Minimum cell size in pixels (stops dividing when reached)
-max_depth = 10                  # Maximum recursion depth (safety limit)
+min_size_width = 25            # Minimum cell width in pixels (stops dividing when width is reached)
+min_size_height = 25           # Minimum cell height in pixels (stops dividing when height is reached)
+max_depth = 10                 # Maximum recursion depth (safety limit)
 reset_key = ","                 # Reset to initial center and clear state
 
 [scroll]
