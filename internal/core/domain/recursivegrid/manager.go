@@ -16,7 +16,8 @@ type Manager struct {
 
 	grid       *RecursiveGrid
 	keys       string            // Key mapping (e.g., "uijk")
-	gridSize   int               // Grid size: 2 for 2x2, 3 for 3x3
+	gridCols   int               // Number of grid columns
+	gridRows   int               // Number of grid rows
 	onUpdate   func()            // Callback for overlay updates
 	onComplete func(image.Point) // Callback when selection is complete
 	resetKey   string
@@ -40,29 +41,36 @@ func NewManager(
 		exitKeys,
 		25, //nolint:mnd
 		10, //nolint:mnd
-		GridSize2x2,
+		MinGridDimension,
+		MinGridDimension,
 		onUpdate,
 		onComplete,
 		logger,
 	)
 }
 
-// NewManagerWithConfig creates a manager with custom minSize, maxDepth, and gridSize.
+// NewManagerWithConfig creates a manager with custom minSize, maxDepth, gridCols, and gridRows.
 func NewManagerWithConfig(
 	screenBounds image.Rectangle,
 	keys string,
 	resetKey string,
 	exitKeys []string,
-	minSize, maxDepth, gridSize int,
+	minSize, maxDepth, gridCols, gridRows int,
 	onUpdate func(),
 	onComplete func(image.Point),
 	logger *zap.Logger,
 ) *Manager {
-	// Use default grid size if invalid (< 2)
-	if gridSize < GridSize2x2 {
-		logger.Warn("Invalid grid size, using default 2x2",
-			zap.Int("provided", gridSize))
-		gridSize = GridSize2x2
+	// Use default grid dimensions if invalid (< 2)
+	if gridCols < MinGridDimension {
+		logger.Warn("Invalid grid cols, using default 2",
+			zap.Int("provided", gridCols))
+		gridCols = MinGridDimension
+	}
+
+	if gridRows < MinGridDimension {
+		logger.Warn("Invalid grid rows, using default 2",
+			zap.Int("provided", gridRows))
+		gridRows = MinGridDimension
 	}
 
 	// Use default keys if not provided
@@ -70,24 +78,32 @@ func NewManagerWithConfig(
 		keys = DefaultKeys
 	}
 
-	// Ensure we have the correct number of keys based on grid size
-	expectedKeyCount := gridSize * gridSize
+	// Ensure we have the correct number of keys based on grid dimensions
+	expectedKeyCount := gridCols * gridRows
 	if utf8.RuneCountInString(keys) != expectedKeyCount {
 		logger.Warn("Invalid key mapping length, using default",
 			zap.String("provided", keys),
 			zap.Int("length", utf8.RuneCountInString(keys)),
 			zap.Int("expected", expectedKeyCount))
 		keys = DefaultKeys
-		gridSize = GridSize2x2
+		gridCols = MinGridDimension
+		gridRows = MinGridDimension
 	}
 
 	return &Manager{
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
-		grid:       NewRecursiveGridWithSize(screenBounds, minSize, maxDepth, gridSize),
+		grid: NewRecursiveGridWithDimensions(
+			screenBounds,
+			minSize,
+			maxDepth,
+			gridCols,
+			gridRows,
+		),
 		keys:       strings.ToLower(keys),
-		gridSize:   gridSize,
+		gridCols:   gridCols,
+		gridRows:   gridRows,
 		onUpdate:   onUpdate,
 		onComplete: onComplete,
 		resetKey:   resetKey,
@@ -228,14 +244,19 @@ func (m *Manager) Keys() string {
 	return m.keys
 }
 
-// GridSize returns the current grid size (2 for 2x2, 3 for 3x3).
-func (m *Manager) GridSize() int {
-	return m.gridSize
+// GridCols returns the number of grid columns.
+func (m *Manager) GridCols() int {
+	return m.gridCols
+}
+
+// GridRows returns the number of grid rows.
+func (m *Manager) GridRows() int {
+	return m.gridRows
 }
 
 // UpdateKeys updates the key mapping.
 func (m *Manager) UpdateKeys(keys string) {
-	expectedKeyCount := m.gridSize * m.gridSize
+	expectedKeyCount := m.gridCols * m.gridRows
 	if utf8.RuneCountInString(keys) == expectedKeyCount {
 		m.keys = strings.ToLower(keys)
 	}

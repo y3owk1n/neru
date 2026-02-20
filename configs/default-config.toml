@@ -203,12 +203,14 @@ enable_gc = false
 # Whether to enable recursive-grid mode
 enabled = true
 
-# Grid layout: NxN grid (must be >= 2)
+# Grid layout: columns and rows (default: 2x2, must be >= 2)
 # Higher values create finer grid division
-grid_size = 2
+# For non-square grids, use different values (e.g., grid_cols = 3, grid_rows = 2)
+grid_cols = 2
+grid_rows = 2
 
 # Key bindings for cell selection
-# Must be exactly grid_size * grid_size characters
+# Must be exactly grid_cols * grid_rows characters
 # For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
 keys = "uijk"
 

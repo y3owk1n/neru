@@ -192,7 +192,8 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 		[]string{"escape"},
 		50, // minSize large enough to complete quickly
 		10,
-		2, // gridSize 2x2
+		2, // gridCols 2
+		2, // gridRows 2
 		nil,
 		func(p image.Point) {
 			completeCalled = true
@@ -226,7 +227,8 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 		[]string{"escape"},
 		1, // minSize
 		2, // maxDepth
-		2, // gridSize 2x2
+		2, // gridCols 2
+		2, // gridRows 2
 		func() {},
 		func(point image.Point) { completeCalled = true },
 		logger,

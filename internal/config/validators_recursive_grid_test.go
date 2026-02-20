@@ -18,7 +18,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:        true,
-					GridSize:       2,
+					GridCols:       2,
+					GridRows:       2,
 					Keys:           "uijk",
 					ResetKey:       ",",
 					MinSize:        50,
@@ -48,7 +49,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
-					GridSize: 2,
+					GridCols: 2,
+					GridRows: 2,
 					Keys:     "",
 				},
 			},
@@ -59,7 +61,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
-					GridSize: 2,
+					GridCols: 2,
+					GridRows: 2,
 					Keys:     "abc", // Need 4 for 2x2
 				},
 			},
@@ -70,7 +73,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
-					GridSize: 2,
+					GridCols: 2,
+					GridRows: 2,
 					Keys:     "uiju", // Duplicate 'u'
 				},
 			},
@@ -81,7 +85,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
-					GridSize: 2,
+					GridCols: 2,
+					GridRows: 2,
 					Keys:     "uijé",
 				},
 			},
@@ -92,7 +97,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
-					GridSize: 2,
+					GridCols: 2,
+					GridRows: 2,
 					Keys:     "uijk",
 					MinSize:  5, // Too small (< 10)
 				},
@@ -104,7 +110,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
-					GridSize: 2,
+					GridCols: 2,
+					GridRows: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 0, // Too small (< 1)
@@ -117,7 +124,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:        true,
-					GridSize:       2,
+					GridCols:       2,
+					GridRows:       2,
 					Keys:           "uijk",
 					ResetKey:       "",
 					MinSize:        50,
@@ -136,7 +144,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:        true,
-					GridSize:       2,
+					GridCols:       2,
+					GridRows:       2,
 					Keys:           "uijk",
 					ResetKey:       "Ctrl+R",
 					MinSize:        50,
@@ -155,7 +164,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
-					GridSize: 2,
+					GridCols: 2,
+					GridRows: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 10,
@@ -169,7 +179,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
-					GridSize: 2,
+					GridCols: 2,
+					GridRows: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 10,
@@ -183,7 +194,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
-					GridSize: 2,
+					GridCols: 2,
+					GridRows: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 10,
@@ -197,7 +209,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
-					GridSize: 2,
+					GridCols: 2,
+					GridRows: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 10,
@@ -211,7 +224,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:  true,
-					GridSize: 2,
+					GridCols: 2,
+					GridRows: 2,
 					Keys:     "uijk",
 					MinSize:  10,
 					MaxDepth: 10,
@@ -225,7 +239,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:   true,
-					GridSize:  2,
+					GridCols:  2,
+					GridRows:  2,
 					Keys:      "uijk",
 					MinSize:   10,
 					MaxDepth:  10,

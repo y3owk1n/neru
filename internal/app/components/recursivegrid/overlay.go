@@ -136,12 +136,13 @@ func (o *Overlay) ResizeToActiveScreen() {
 	C.NeruResizeOverlayToActiveScreen(o.window)
 }
 
-// DrawRecursiveGrid renders the recursive_grid with current bounds, depth, keys, and gridSize.
+// DrawRecursiveGrid renders the recursive_grid with current bounds, depth, keys, gridCols, and gridRows.
 func (o *Overlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
-	gridSize int,
+	gridCols int,
+	gridRows int,
 	style Style,
 ) error {
 	if bounds.Empty() {
@@ -156,42 +157,52 @@ func (o *Overlay) DrawRecursiveGrid(
 		zap.Int("bounds_width", bounds.Dx()),
 		zap.Int("bounds_height", bounds.Dy()),
 		zap.Int("depth", depth),
-		zap.Int("grid_size", gridSize),
+		zap.Int("grid_cols", gridCols),
+		zap.Int("grid_rows", gridRows),
 		zap.String("keys", keys))
 
 	// Clear previous drawing
 	o.Clear()
 
-	// Use the provided gridSize and calculate key count
-	keyCount := gridSize * gridSize
+	// Use the provided dimensions and calculate key count
+	keyCount := gridCols * gridRows
 
-	// Validate grid size (must be at least 2)
-	if gridSize < recursivegrid.GridSize2x2 {
+	// Validate grid dimensions (must be at least 2)
+	if gridCols < recursivegrid.MinGridDimension {
 		// Fallback to default 2x2 if invalid
-		gridSize = recursivegrid.GridSize2x2
-		keyCount = gridSize * gridSize
+		gridCols = recursivegrid.MinGridDimension
+		gridRows = recursivegrid.MinGridDimension
+		keyCount = gridCols * gridRows
+		keys = "uijk"
+	}
+
+	if gridRows < recursivegrid.MinGridDimension {
+		// Fallback to default 2x2 if invalid
+		gridCols = recursivegrid.MinGridDimension
+		gridRows = recursivegrid.MinGridDimension
+		keyCount = gridCols * gridRows
 		keys = "uijk"
 	}
 
 	// Calculate cell dimensions
-	cellWidth := bounds.Dx() / gridSize
-	cellHeight := bounds.Dy() / gridSize
+	cellWidth := bounds.Dx() / gridCols
+	cellHeight := bounds.Dy() / gridRows
 
 	// Create grid cells dynamically
 	cells := make([]C.GridCell, keyCount)
 	keyRunes := []rune(keys)
 
-	for row := range gridSize {
-		for col := range gridSize {
-			idx := row*gridSize + col
+	for row := range gridRows {
+		for col := range gridCols {
+			idx := row*gridCols + col
 
 			maxX := bounds.Min.X + (col+1)*cellWidth
-			if col == gridSize-1 {
+			if col == gridCols-1 {
 				maxX = bounds.Max.X
 			}
 
 			maxY := bounds.Min.Y + (row+1)*cellHeight
-			if row == gridSize-1 {
+			if row == gridRows-1 {
 				maxY = bounds.Max.Y
 			}
 
