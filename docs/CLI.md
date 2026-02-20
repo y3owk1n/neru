@@ -208,7 +208,7 @@ Recursive grid navigation with immediate preview at center after each selection.
 **Workflow example:**
 
 ```bash
-neru recursive_grid
+neru recursive_grid # or neru recursive-grid (alias)
 # Press u/i/j/k to narrow selection
 # Press backspace to move up a level
 # Press , to reset to the initial center
