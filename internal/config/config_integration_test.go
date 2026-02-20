@@ -48,7 +48,6 @@ font_size = 14
 font_family = "Monaco"
 background_color = "#FFFF00"
 text_color = "#000000"
-opacity = 0.9
 
 [grid]
 enabled = true
@@ -56,7 +55,6 @@ font_size = 12
 font_family = "Arial"
 background_color = "#FFFFFF"
 text_color = "#000000"
-opacity = 0.8
 
 [action]
 enabled = true

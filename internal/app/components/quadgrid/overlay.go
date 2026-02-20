@@ -242,8 +242,6 @@ func (o *Overlay) DrawQuadGrid(
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(style.LineWidth()),
-		backgroundOpacity:      C.double(style.HighlightOpacity()),
-		textOpacity:            C.double(1.0),
 	}
 
 	// Draw the grid cells
@@ -315,13 +313,12 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 
 // Style represents the visual style for quad-grid.
 type Style struct {
-	lineColor        string
-	lineWidth        int
-	highlightColor   string
-	highlightOpacity float64
-	labelColor       string
-	labelFontSize    int
-	labelFontFamily  string
+	lineColor       string
+	lineWidth       int
+	highlightColor  string
+	labelColor      string
+	labelFontSize   int
+	labelFontFamily string
 }
 
 // LineColor returns the line color.
@@ -337,11 +334,6 @@ func (s Style) LineWidth() int {
 // HighlightColor returns the highlight color.
 func (s Style) HighlightColor() string {
 	return s.highlightColor
-}
-
-// HighlightOpacity returns the highlight opacity.
-func (s Style) HighlightOpacity() float64 {
-	return s.highlightOpacity
 }
 
 // LabelColor returns the label color.
@@ -362,12 +354,11 @@ func (s Style) LabelFontFamily() string {
 // BuildStyle creates a Style from QuadGridConfig.
 func BuildStyle(cfg config.QuadGridConfig) Style {
 	return Style{
-		lineColor:        cfg.LineColor,
-		lineWidth:        cfg.LineWidth,
-		highlightColor:   cfg.HighlightColor,
-		highlightOpacity: cfg.HighlightOpacity,
-		labelColor:       cfg.LabelColor,
-		labelFontSize:    cfg.LabelFontSize,
-		labelFontFamily:  cfg.LabelFontFamily,
+		lineColor:       cfg.LineColor,
+		lineWidth:       cfg.LineWidth,
+		highlightColor:  cfg.HighlightColor,
+		labelColor:      cfg.LabelColor,
+		labelFontSize:   cfg.LabelFontSize,
+		labelFontFamily: cfg.LabelFontFamily,
 	}
 }

@@ -18,7 +18,6 @@ func TestConfig_ValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -65,7 +64,6 @@ func TestConfig_ValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "123!@#", // Valid - ASCII digits and symbols
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -187,7 +185,6 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			config: config.Config{
 				Grid: config.GridConfig{
 					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-					Opacity:                0.8,
 					BackgroundColor:        "#FF0000",
 					TextColor:              "#FFFFFF",
 					MatchedTextColor:       "#000000",
@@ -468,7 +465,6 @@ func TestConfig_ValidateGrid(t *testing.T) {
 				Grid: config.GridConfig{
 					Characters:             "123!@#",    // Valid - ASCII digits and symbols
 					SublayerKeys:           "abcdefghi", // Required for subgrid
-					Opacity:                0.8,
 					BackgroundColor:        "#FF0000",
 					TextColor:              "#FFFFFF",
 					MatchedTextColor:       "#000000",

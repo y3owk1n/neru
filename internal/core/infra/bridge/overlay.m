@@ -30,7 +30,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 @property(nonatomic, assign) CGFloat hintPadding;           ///< Hint padding
 
 @property(nonatomic, strong) NSMutableArray *gridCells;           ///< Grid cells array
-@property(nonatomic, strong) NSMutableArray *gridLines;           ///< Grid lines array
 @property(nonatomic, strong) NSFont *gridFont;                    ///< Grid font
 @property(nonatomic, strong) NSColor *gridTextColor;              ///< Grid text color
 @property(nonatomic, strong) NSColor *gridMatchedTextColor;       ///< Grid matched text color
@@ -39,13 +38,11 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 @property(nonatomic, strong) NSColor *gridBackgroundColor;        ///< Grid background color
 @property(nonatomic, strong) NSColor *gridBorderColor;            ///< Grid border color
 @property(nonatomic, assign) CGFloat gridBorderWidth;             ///< Grid border width
-@property(nonatomic, assign) CGFloat gridBackgroundOpacity;       ///< Grid background opacity
-@property(nonatomic, assign) CGFloat gridTextOpacity;             ///< Grid text opacity
 @property(nonatomic, assign) BOOL hideUnmatched;                  ///< Hide unmatched cells
 
-// Cached colors with opacity to reduce allocations during drawing
-@property(nonatomic, strong) NSColor *cachedGridTextColorWithOpacity;        ///< Cached grid text color with opacity
-@property(nonatomic, strong) NSColor *cachedGridMatchedTextColorWithOpacity; ///< Cached matched text color with opacity
+// Cached grid text colors to reduce allocations during drawing
+@property(nonatomic, strong) NSColor *cachedGridTextColor;
+@property(nonatomic, strong) NSColor *cachedGridMatchedTextColor;
 
 // Cached string buffer to reduce allocations
 @property(nonatomic, strong) NSMutableAttributedString *cachedAttributedString; ///< Cached attributed string buffer
@@ -66,7 +63,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	if (self) {
 		_hints = [NSMutableArray arrayWithCapacity:100];     // Pre-size for typical hint count
 		_gridCells = [NSMutableArray arrayWithCapacity:100]; // Pre-size for typical grid size
-		_gridLines = [NSMutableArray arrayWithCapacity:50];  // Pre-size for typical line count
 
 		_hintFont = [NSFont boldSystemFontOfSize:14.0];
 		_hintTextColor = [NSColor blackColor];
@@ -84,13 +80,11 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		_gridBackgroundColor = [NSColor whiteColor];
 		_gridBorderColor = [NSColor colorWithWhite:0.7 alpha:1.0];
 		_gridBorderWidth = 1.0;
-		_gridBackgroundOpacity = 0.85;
-		_gridTextOpacity = 1.0;
 		_hideUnmatched = NO;
 
-		// Initialize cached colors with opacity
-		_cachedGridTextColorWithOpacity = [_gridTextColor colorWithAlphaComponent:_gridTextOpacity];
-		_cachedGridMatchedTextColorWithOpacity = [_gridMatchedTextColor colorWithAlphaComponent:_gridTextOpacity];
+		// Initialize cached colors
+		_cachedGridTextColor = _gridTextColor;
+		_cachedGridMatchedTextColor = _gridMatchedTextColor;
 
 		// Initialize cached string buffer
 		_cachedAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
@@ -106,9 +100,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	// Clear background
 	[[NSColor clearColor] setFill];
 	NSRectFill(dirtyRect);
-
-	// Draw grid lines first (behind everything)
-	[self drawGridLines];
 
 	// Draw grid cells
 	[self drawGridCells];
@@ -150,12 +141,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	NSString *matchedTextHex = style.matchedTextColor ? [NSString stringWithUTF8String:style.matchedTextColor] : nil;
 	NSString *borderHex = style.borderColor ? [NSString stringWithUTF8String:style.borderColor] : nil;
 
-	NSColor *backgroundColor = [self colorFromHex:backgroundHex defaultColor:defaultBg];
-	CGFloat opacity = style.opacity;
-	if (opacity < 0.0 || opacity > 1.0) {
-		opacity = 0.95;
-	}
-	self.hintBackgroundColor = [backgroundColor colorWithAlphaComponent:opacity];
+	self.hintBackgroundColor = [self colorFromHex:backgroundHex defaultColor:defaultBg];
 	self.hintTextColor = [self colorFromHex:textHex defaultColor:defaultText];
 	self.hintMatchedTextColor = [self colorFromHex:matchedTextHex defaultColor:defaultMatchedText];
 	self.hintBorderColor = [self colorFromHex:borderHex defaultColor:defaultBorder];
@@ -178,6 +164,15 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	    [hexString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
 	if ([cleanString hasPrefix:@"#"]) {
 		cleanString = [cleanString substringFromIndex:1];
+	}
+
+	// Expand 3-char hex to 6-char (e.g., F0A -> FF00AA)
+	if (cleanString.length == 3) {
+		NSString *expanded = [NSString
+		    stringWithFormat:@"%c%c%c%c%c%c", [cleanString characterAtIndex:0], [cleanString characterAtIndex:0],
+		                     [cleanString characterAtIndex:1], [cleanString characterAtIndex:1],
+		                     [cleanString characterAtIndex:2], [cleanString characterAtIndex:2]];
+		cleanString = expanded;
 	}
 
 	if (cleanString.length != 6 && cleanString.length != 8) {
@@ -370,27 +365,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	}
 }
 
-/// Create color from hex string
-/// @param hexString Hex color string
-/// @return NSColor instance
-- (NSColor *)colorFromHex:(NSString *)hexString {
-	if (!hexString || [hexString length] == 0) {
-		return [NSColor blackColor];
-	}
-
-	unsigned rgbValue = 0;
-	NSScanner *scanner = [NSScanner scannerWithString:hexString];
-	if ([hexString hasPrefix:@"#"]) {
-		[scanner setScanLocation:1];
-	}
-	[scanner scanHexInt:&rgbValue];
-
-	return [NSColor colorWithRed:((rgbValue & 0xFF0000) >> 16) / 255.0
-	                       green:((rgbValue & 0xFF00) >> 8) / 255.0
-	                        blue:(rgbValue & 0xFF) / 255.0
-	                       alpha:1.0];
-}
-
 /// Draw grid cells
 - (void)drawGridCells {
 	if ([self.gridCells count] == 0)
@@ -419,13 +393,12 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
 		NSRect cellRect = NSMakeRect(bounds.origin.x, flippedY, bounds.size.width, bounds.size.height);
 
-		// Draw cell background with opacity
+		// Draw cell background
 		NSColor *bgBase = self.gridBackgroundColor;
 		if (isMatched && self.gridMatchedBackgroundColor) {
 			bgBase = self.gridMatchedBackgroundColor;
 		}
-		NSColor *bgColor = [bgBase colorWithAlphaComponent:self.gridBackgroundOpacity];
-		[bgColor setFill];
+		[bgBase setFill];
 		NSRectFill(cellRect);
 
 		// Draw cell border
@@ -467,17 +440,15 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 			NSRange fullRange = NSMakeRange(0, [label length]);
 			[attrString setAttributes:@{NSFontAttributeName : self.gridFont} range:fullRange];
 
-			// Use cached color with opacity to avoid repeated allocations
-			[attrString addAttribute:NSForegroundColorAttributeName
-			                   value:self.cachedGridTextColorWithOpacity
-			                   range:fullRange];
+			// Use cached color to avoid repeated allocations
+			[attrString addAttribute:NSForegroundColorAttributeName value:self.cachedGridTextColor range:fullRange];
 
 			NSNumber *matchedPrefixLengthNum = cellDict[@"matchedPrefixLength"];
 			int matchedPrefixLength = matchedPrefixLengthNum ? [matchedPrefixLengthNum intValue] : 0;
 			if (isMatched && matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
-				// Use cached matched color with opacity
+				// Use cached matched color
 				[attrString addAttribute:NSForegroundColorAttributeName
-				                   value:self.cachedGridMatchedTextColorWithOpacity
+				                   value:self.cachedGridMatchedTextColor
 				                   range:NSMakeRange(0, matchedPrefixLength)];
 			}
 
@@ -487,37 +458,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 			[attrString drawAtPoint:NSMakePoint(textX, textY)];
 		}
-	}
-
-	[context restoreGraphicsState];
-}
-
-/// Draw grid lines
-- (void)drawGridLines {
-	if ([self.gridLines count] == 0)
-		return;
-
-	NSGraphicsContext *context = [NSGraphicsContext currentContext];
-	[context saveGraphicsState];
-
-	for (NSDictionary *lineDict in self.gridLines) {
-		NSValue *rectValue = lineDict[@"rect"];
-		NSString *colorHex = lineDict[@"color"];
-		NSNumber *widthNum = lineDict[@"width"];
-		NSNumber *opacityNum = lineDict[@"opacity"];
-
-		CGRect lineRect = [rectValue rectValue];
-		int width = [widthNum intValue];
-		double opacity = [opacityNum doubleValue];
-
-		CGFloat screenHeight = self.bounds.size.height;
-		CGFloat flippedY = screenHeight - lineRect.origin.y - lineRect.size.height;
-		NSRect rect = NSMakeRect(lineRect.origin.x, flippedY, lineRect.size.width, lineRect.size.height);
-
-		NSColor *color = [self colorFromHex:colorHex];
-		color = [color colorWithAlphaComponent:opacity];
-		[color setFill];
-		NSRectFill(rect);
 	}
 
 	[context restoreGraphicsState];
@@ -680,14 +620,12 @@ void NeruClearOverlay(OverlayWindow window) {
 	if ([NSThread isMainThread]) {
 		[controller.overlayView.hints removeAllObjects];
 		[controller.overlayView.gridCells removeAllObjects];
-		[controller.overlayView.gridLines removeAllObjects];
 
 		[controller.overlayView setNeedsDisplay:YES];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			[controller.overlayView.hints removeAllObjects];
 			[controller.overlayView.gridCells removeAllObjects];
-			[controller.overlayView.gridLines removeAllObjects];
 
 			[controller.overlayView setNeedsDisplay:YES];
 		});
@@ -914,7 +852,6 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 		                       .borderRadius = style.borderRadius,
 		                       .borderWidth = style.borderWidth,
 		                       .padding = style.padding,
-		                       .opacity = style.opacity,
 		                       .showArrow = style.showArrow,
 		                       .fontFamily = safe_strdup(style.fontFamily),
 		                       .backgroundColor = safe_strdup(style.backgroundColor),
@@ -1010,7 +947,6 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	int borderRadius = style.borderRadius;
 	int borderWidth = style.borderWidth;
 	int padding = style.padding;
-	double opacity = style.opacity;
 	int showArrow = style.showArrow;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
@@ -1053,10 +989,6 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 		}
 		if (padding >= 0) {
 			controller.overlayView.hintPadding = padding;
-		}
-		if (opacity >= 0.0 && opacity <= 1.0) {
-			NSColor *bg = controller.overlayView.hintBackgroundColor;
-			controller.overlayView.hintBackgroundColor = [bg colorWithAlphaComponent:opacity];
 		}
 
 		// Remove hints that match the positions to remove
@@ -1178,9 +1110,6 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	NSString *matchedBorderHex = style.matchedBorderColor ? @(style.matchedBorderColor) : nil;
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
 	int borderWidth = style.borderWidth;
-	double backgroundOpacity = style.backgroundOpacity;
-	double textOpacity = style.textOpacity;
-
 	dispatch_async(dispatch_get_main_queue(), ^{
 		// Apply style
 		NSFont *font = nil;
@@ -1208,15 +1137,9 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 		controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
 		                                                                 defaultColor:[NSColor grayColor]];
 		controller.overlayView.gridBorderWidth = borderWidth > 0 ? borderWidth : 1.0;
-		controller.overlayView.gridBackgroundOpacity =
-		    (backgroundOpacity >= 0.0 && backgroundOpacity <= 1.0) ? backgroundOpacity : 0.85;
-		controller.overlayView.gridTextOpacity = (textOpacity >= 0.0 && textOpacity <= 1.0) ? textOpacity : 1.0;
 
-		// Update cached colors after setting style properties
-		controller.overlayView.cachedGridTextColorWithOpacity =
-		    [controller.overlayView.gridTextColor colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
-		controller.overlayView.cachedGridMatchedTextColorWithOpacity = [controller.overlayView.gridMatchedTextColor
-		    colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
+		controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
+		controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
 
 		[controller.overlayView.gridCells removeAllObjects];
 		[controller.overlayView.gridCells addObjectsFromArray:cellDicts];
@@ -1363,9 +1286,6 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 	NSString *matchedBorderHex = style.matchedBorderColor ? @(style.matchedBorderColor) : nil;
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
 	int borderWidth = style.borderWidth;
-	double backgroundOpacity = style.backgroundOpacity;
-	double textOpacity = style.textOpacity;
-
 	dispatch_async(dispatch_get_main_queue(), ^{
 		// Apply style if provided (only update if style properties are non-null)
 		if (fontFamily || bgHex || textHex || matchedTextHex || matchedBgHex || matchedBorderHex || borderHex) {
@@ -1408,18 +1328,9 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 			if (borderWidth > 0) {
 				controller.overlayView.gridBorderWidth = borderWidth;
 			}
-			if (backgroundOpacity >= 0.0 && backgroundOpacity <= 1.0) {
-				controller.overlayView.gridBackgroundOpacity = backgroundOpacity;
-			}
-			if (textOpacity >= 0.0 && textOpacity <= 1.0) {
-				controller.overlayView.gridTextOpacity = textOpacity;
-			}
 
-			// Update cached colors after setting style properties
-			controller.overlayView.cachedGridTextColorWithOpacity =
-			    [controller.overlayView.gridTextColor colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
-			controller.overlayView.cachedGridMatchedTextColorWithOpacity = [controller.overlayView.gridMatchedTextColor
-			    colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
+			controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
+			controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
 		}
 
 		// Remove cells that match the bounds to remove

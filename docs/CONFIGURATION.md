@@ -37,6 +37,75 @@ Neru uses TOML configuration files. Configuration is loaded from:
 
 ---
 
+## Color Format
+
+Neru supports alpha transparency in colors. You can use different hex formats:
+
+### Supported Formats
+
+| Format | Example | Description |
+|--------|---------|-------------|
+| `#AARRGGBB` | `#FF000000` | 8-char: Alpha + RGB (recommended) |
+| `#RRGGBB` | `#FF0000` | 6-char: RGB only (fully opaque) |
+| `#RGB` | `#F00` | 3-char: shorthand RGB |
+
+### Format Breakdown: `#AARRGGBB`
+
+| Component | Description | Range |
+|-----------|-------------|-------|
+| `AA` | Alpha (transparency) | `00` (transparent) to `FF` (opaque) |
+| `RR` | Red | `00` to `FF` |
+| `GG` | Green | `00` to `FF` |
+| `BB` | Blue | `00` to `FF` |
+
+> **Recommendation:** Use 8-character format (`#AARRGGBB`) for full control over transparency. The 6-character format (`#RRGGBB`) is treated as fully opaque (alpha = FF).
+
+### Quick Reference: Opacity to Alpha
+
+| Opacity | Alpha (hex) | Example |
+|---------|-------------|---------|
+| 100% | `FF` | `#FF000000` (opaque black) |
+| 95% | `F2` | `#F2FFD700` (gold) |
+| 90% | `E6` | `#E6000000` |
+| 80% | `CC` | `#CCFFD700` |
+| 70% | `B3` | `#B3ABE9B3` (light green) |
+| 60% | `99` | `#99000000` |
+| 50% | `80` | `#80000000` |
+| 40% | `66` | `#66000000` |
+| 30% | `4D` | `#4D00BFFF` (deep sky blue) |
+| 20% | `33` | `#33000000` |
+| 10% | `1A` | `#1A000000` |
+| 0% | `00` | `#00000000` (fully transparent) |
+
+### Formula
+
+To convert any conceptual opacity (0.0 - 1.0) to an alpha channel value:
+
+```bash
+# Example: 70% opacity = 0.7 * 255 = 178.5 → round to 179 → 0xB3
+alpha_hex = round(opacity * 255)
+```
+
+### Examples
+
+```toml
+# Fully opaque (100%)
+background_color = "#FF000000"   # Black
+background_color = "#FFFFD700"   # Gold
+
+# Partially transparent (transparency is controlled entirely by the alpha channel)
+background_color = "#F2FFD700"   # Gold, alpha F2 (~95% opacity)
+background_color = "#B3ABE9B3"   # Light green, alpha B3 (~70% opacity)
+background_color = "#4D00BFFF"   # Deep sky blue, alpha 4D (~30% opacity)
+
+# Fully transparent
+background_color = "#00000000"   # Completely invisible
+```
+
+> **Tip:** You can use online tools like "hex color converter" to calculate alpha values for specific opacity percentages.
+
+---
+
 ## Hotkeys
 
 Bind global hotkeys to Neru actions. Remove or comment out to disable.
@@ -202,7 +271,6 @@ font_size = 12
 font_family = ""               # System default
 border_radius = 4
 padding = 4
-opacity = 0.95
 
 background_color = "#FFD700"
 text_color = "#000000"
@@ -341,7 +409,6 @@ reset_key = "," # hotkey to reset/clear grid input
 
 # Visual styling
 font_size = 12
-opacity = 0.7
 
 background_color = "#abe9b3"
 text_color = "#000000"
@@ -409,7 +476,6 @@ reset_key = ","      # Reset to initial center (can be modifier combo like "Ctrl
 line_color = "#8EE2FF"
 line_width = 1
 highlight_color = "#00BFFF"
-highlight_opacity = 0.3
 label_color = "#FFFFFF"
 label_font_size = 12
 label_font_family = "SF Mono"
@@ -453,7 +519,6 @@ scroll_step_full = 1000000 # gg/G (top/bottom)
 # Scroll indicator styling
 font_size = 12
 font_family = "SF Mono"
-opacity = 0.95
 background_color = "#FFD700"
 text_color = "#000000"
 border_color = "#000000"
@@ -734,7 +799,6 @@ hint_characters = "asdfghjkl"
 font_size = 14
 border_radius = 6
 padding = 5
-opacity = 0.9
 background_color = "#FFD700"
 text_color = "#000000"
 matched_text_color = "#737373"
@@ -764,7 +828,6 @@ enabled = true
 characters = "abcdefghijklmnpqrstuvwxyz"
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 font_size = 12
-opacity = 0.7
 background_color = "#abe9b3"
 text_color = "#000000"
 matched_text_color = "#f8bd96"

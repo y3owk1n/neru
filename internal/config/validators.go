@@ -70,10 +70,6 @@ func (c *Config) ValidateHints() error {
 		}
 	}
 
-	if c.Hints.Opacity < 0 || c.Hints.Opacity > 1 {
-		return derrors.New(derrors.CodeInvalidConfig, "hints.opacity must be between 0 and 1")
-	}
-
 	err := validateColors([]colorField{
 		{c.Hints.BackgroundColor, "hints.background_color"},
 		{c.Hints.TextColor, "hints.text_color"},
@@ -387,10 +383,6 @@ func (c *Config) ValidateGrid() error {
 		return derrors.New(derrors.CodeInvalidConfig, "grid.border_width must be non-negative")
 	}
 
-	if c.Grid.Opacity < 0 || c.Grid.Opacity > 1 {
-		return derrors.New(derrors.CodeInvalidConfig, "grid.opacity must be between 0 and 1")
-	}
-
 	// Validate per-action grid colors
 	err := validateColors([]colorField{
 		{c.Grid.BackgroundColor, "grid.background_color"},
@@ -639,13 +631,13 @@ func ValidateColor(color, fieldName string) error {
 		return derrors.Newf(derrors.CodeInvalidConfig, "%s cannot be empty", fieldName)
 	}
 
-	// Match hex color format: #RGB, #RRGGBB, #RRGGBBAA
+	// Match hex color format: #RGB, #RRGGBB, #AARRGGBB
 	hexColorRegex := regexp.MustCompile(`^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$`)
 
 	if !hexColorRegex.MatchString(color) {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"%s has invalid hex color format: %s (expected #RGB, #RRGGBB, or #RRGGBBAA)",
+			"%s has invalid hex color format: %s (expected #RGB, #RRGGBB, or #AARRGGBB)",
 			fieldName,
 			color,
 		)
@@ -1025,13 +1017,6 @@ func (c *Config) ValidateQuadGrid() error {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"quadgrid.label_font_size must be between 6 and 72",
-		)
-	}
-
-	if c.QuadGrid.HighlightOpacity < 0 || c.QuadGrid.HighlightOpacity > 1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"quadgrid.highlight_opacity must be between 0 and 1",
 		)
 	}
 
