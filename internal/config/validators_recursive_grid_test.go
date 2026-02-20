@@ -235,6 +235,82 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "valid non-square recursive_grid config (3x2)",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:        true,
+					GridCols:       3,
+					GridRows:       2,
+					Keys:           "gcrhtn",
+					ResetKey:       ",",
+					MinSize:        50,
+					MaxDepth:       4,
+					LineWidth:      2,
+					LabelFontSize:  12,
+					LineColor:      "#FF0000",
+					HighlightColor: "#00FF00",
+					LabelColor:     "#0000FF",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid non-square recursive_grid config (2x3)",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:        true,
+					GridCols:       2,
+					GridRows:       3,
+					Keys:           "gcrhtn",
+					ResetKey:       ",",
+					MinSize:        50,
+					MaxDepth:       4,
+					LineWidth:      2,
+					LabelFontSize:  12,
+					LineColor:      "#FF0000",
+					HighlightColor: "#00FF00",
+					LabelColor:     "#0000FF",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "non-square grid with wrong key count - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:  true,
+					GridCols: 3,
+					GridRows: 2,
+					Keys:     "uijk", // 4 keys but need 6 for 3x2
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid with invalid grid_cols only (rows valid)",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:  true,
+					GridCols: 1, // Invalid (< 2)
+					GridRows: 3,
+					Keys:     "uijk",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid with invalid grid_rows only (cols valid)",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:  true,
+					GridCols: 3,
+					GridRows: 0, // Invalid (< 2)
+					Keys:     "uijk",
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "recursive_grid with invalid styling (negative width)",
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{

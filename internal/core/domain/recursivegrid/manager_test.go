@@ -253,6 +253,84 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 	assert.NotEqual(t, point2, point3, "Should return different point (sub-cell center)")
 }
 
+func TestManagerWithConfig_NonSquare3x2(t *testing.T) {
+	bounds := image.Rect(0, 0, 120, 100)
+	logger := zap.NewNop()
+	updateCalled := false
+	manager := recursivegrid.NewManagerWithConfig(
+		bounds,
+		"gcrhtn", // 6 keys for 3x2
+		",",
+		[]string{"escape"},
+		10, // minSize
+		10, // maxDepth
+		3,  // gridCols
+		2,  // gridRows
+		func() { updateCalled = true },
+		nil,
+		logger,
+	)
+	assert.Equal(t, 3, manager.GridCols())
+	assert.Equal(t, 2, manager.GridRows())
+	assert.Equal(t, "gcrhtn", manager.Keys())
+	// Select cell 'g' (index 0, top-left) -> (0,0)-(40,50), center (20,25)
+	point, completed, shouldExit := manager.HandleInput("g")
+	assert.Equal(t, image.Point{X: 20, Y: 25}, point)
+	assert.False(t, completed)
+	assert.False(t, shouldExit)
+	assert.True(t, updateCalled)
+	assert.Equal(t, 1, manager.CurrentDepth())
+}
+
+func TestManagerWithConfig_InvalidColsOnly_FallsBack(t *testing.T) {
+	bounds := image.Rect(0, 0, 100, 100)
+	logger := zap.NewNop()
+	// gridCols=1 is invalid, gridRows=3 is valid
+	// Manager corrects gridCols to 2, then key count = 2*3 = 6
+	// "uijk" has 4 keys ≠ 6, so it falls back to default keys "uijk" with 2x2
+	manager := recursivegrid.NewManagerWithConfig(
+		bounds,
+		"uijk",
+		",",
+		[]string{"escape"},
+		10,
+		10,
+		1, // invalid gridCols
+		3, // valid gridRows
+		nil,
+		nil,
+		logger,
+	)
+	// After fallback, should use default 2x2 with default keys
+	assert.Equal(t, 2, manager.GridCols())
+	assert.Equal(t, 2, manager.GridRows())
+	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
+}
+
+func TestManagerWithConfig_InvalidRowsOnly_FallsBack(t *testing.T) {
+	bounds := image.Rect(0, 0, 100, 100)
+	logger := zap.NewNop()
+	// gridCols=3 is valid, gridRows=0 is invalid
+	// Manager corrects gridRows to 2, then key count = 3*2 = 6
+	// "uijk" has 4 keys ≠ 6, so it falls back to default keys "uijk" with 2x2
+	manager := recursivegrid.NewManagerWithConfig(
+		bounds,
+		"uijk",
+		",",
+		[]string{"escape"},
+		10,
+		10,
+		3, // valid gridCols
+		0, // invalid gridRows
+		nil,
+		nil,
+		logger,
+	)
+	assert.Equal(t, 2, manager.GridCols())
+	assert.Equal(t, 2, manager.GridRows())
+	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
+}
+
 func TestHandleInput_InvalidKeyLength_FallsBackToDefault(t *testing.T) {
 	keys := "€ab" // 3 runes, invalid length
 	logger := zap.NewNop()
