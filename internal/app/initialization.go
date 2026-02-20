@@ -194,6 +194,10 @@ func processHotkeyBindings(config *config.Config, logger *zap.Logger) []string {
 			continue
 		}
 
+		if mode == domain.ModeString(domain.ModeRecursiveGrid) && !config.RecursiveGrid.Enabled {
+			continue
+		}
+
 		keys = append(keys, key)
 	}
 

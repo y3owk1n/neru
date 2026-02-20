@@ -363,6 +363,10 @@ func (a *App) printStartupInfo() {
 			continue
 		}
 
+		if mode == domain.ModeString(domain.ModeRecursiveGrid) && !a.config.RecursiveGrid.Enabled {
+			continue
+		}
+
 		toShow := value
 		if strings.HasPrefix(value, "exec") {
 			runes := []rune(value)
