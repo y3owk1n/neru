@@ -60,16 +60,13 @@ func NewManagerWithConfig(
 	onComplete func(image.Point),
 	logger *zap.Logger,
 ) *Manager {
-	// Use default grid dimensions if invalid (< 2)
-	if gridCols < MinGridDimension {
-		logger.Warn("Invalid grid cols, using default 2",
-			zap.Int("provided", gridCols))
+	// Use default grid dimensions if either is invalid (< 2)
+	// Reset both to 2x2 for consistency (matches overlay fallback behavior)
+	if gridCols < MinGridDimension || gridRows < MinGridDimension {
+		logger.Warn("Invalid grid dimensions, using default 2x2",
+			zap.Int("provided_cols", gridCols),
+			zap.Int("provided_rows", gridRows))
 		gridCols = MinGridDimension
-	}
-
-	if gridRows < MinGridDimension {
-		logger.Warn("Invalid grid rows, using default 2",
-			zap.Int("provided", gridRows))
 		gridRows = MinGridDimension
 	}
 
