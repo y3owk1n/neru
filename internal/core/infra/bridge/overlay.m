@@ -155,7 +155,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	if (opacity < 0.0 || opacity > 1.0) {
 		opacity = 0.95;
 	}
-	self.hintBackgroundColor = [backgroundColor colorWithAlphaComponent:opacity];
+	CGFloat existingBgAlpha = backgroundColor.alphaComponent;
+	self.hintBackgroundColor = [backgroundColor colorWithAlphaComponent:existingBgAlpha * opacity];
 	self.hintTextColor = [self colorFromHex:textHex defaultColor:defaultText];
 	self.hintMatchedTextColor = [self colorFromHex:matchedTextHex defaultColor:defaultMatchedText];
 	self.hintBorderColor = [self colorFromHex:borderHex defaultColor:defaultBorder];
@@ -419,12 +420,13 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
 		NSRect cellRect = NSMakeRect(bounds.origin.x, flippedY, bounds.size.width, bounds.size.height);
 
-		// Draw cell background with opacity
+		// Draw cell background with opacity (multiply alphas, don't replace)
 		NSColor *bgBase = self.gridBackgroundColor;
 		if (isMatched && self.gridMatchedBackgroundColor) {
 			bgBase = self.gridMatchedBackgroundColor;
 		}
-		NSColor *bgColor = [bgBase colorWithAlphaComponent:self.gridBackgroundOpacity];
+		CGFloat existingBgAlpha = bgBase.alphaComponent;
+		NSColor *bgColor = [bgBase colorWithAlphaComponent:existingBgAlpha * self.gridBackgroundOpacity];
 		[bgColor setFill];
 		NSRectFill(cellRect);
 
@@ -515,7 +517,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		NSRect rect = NSMakeRect(lineRect.origin.x, flippedY, lineRect.size.width, lineRect.size.height);
 
 		NSColor *color = [self colorFromHex:colorHex];
-		color = [color colorWithAlphaComponent:opacity];
+		CGFloat existingAlpha = color.alphaComponent;
+		color = [color colorWithAlphaComponent:existingAlpha * opacity];
 		[color setFill];
 		NSRectFill(rect);
 	}
@@ -1056,7 +1059,8 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 		}
 		if (opacity >= 0.0 && opacity <= 1.0) {
 			NSColor *bg = controller.overlayView.hintBackgroundColor;
-			controller.overlayView.hintBackgroundColor = [bg colorWithAlphaComponent:opacity];
+			CGFloat existingBgAlpha = bg.alphaComponent;
+			controller.overlayView.hintBackgroundColor = [bg colorWithAlphaComponent:existingBgAlpha * opacity];
 		}
 
 		// Remove hints that match the positions to remove
@@ -1212,11 +1216,13 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 		    (backgroundOpacity >= 0.0 && backgroundOpacity <= 1.0) ? backgroundOpacity : 0.85;
 		controller.overlayView.gridTextOpacity = (textOpacity >= 0.0 && textOpacity <= 1.0) ? textOpacity : 1.0;
 
-		// Update cached colors after setting style properties
-		controller.overlayView.cachedGridTextColorWithOpacity =
-		    [controller.overlayView.gridTextColor colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
+		// Update cached colors after setting style properties (multiply alphas, don't replace)
+		CGFloat existingTextAlpha = controller.overlayView.gridTextColor.alphaComponent;
+		CGFloat existingMatchedTextAlpha = controller.overlayView.gridMatchedTextColor.alphaComponent;
+		controller.overlayView.cachedGridTextColorWithOpacity = [controller.overlayView.gridTextColor
+		    colorWithAlphaComponent:existingTextAlpha * controller.overlayView.gridTextOpacity];
 		controller.overlayView.cachedGridMatchedTextColorWithOpacity = [controller.overlayView.gridMatchedTextColor
-		    colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
+		    colorWithAlphaComponent:existingMatchedTextAlpha * controller.overlayView.gridTextOpacity];
 
 		[controller.overlayView.gridCells removeAllObjects];
 		[controller.overlayView.gridCells addObjectsFromArray:cellDicts];
@@ -1415,11 +1421,13 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 				controller.overlayView.gridTextOpacity = textOpacity;
 			}
 
-			// Update cached colors after setting style properties
-			controller.overlayView.cachedGridTextColorWithOpacity =
-			    [controller.overlayView.gridTextColor colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
+			// Update cached colors after setting style properties (multiply alphas, don't replace)
+			CGFloat existingTextAlpha = controller.overlayView.gridTextColor.alphaComponent;
+			CGFloat existingMatchedTextAlpha = controller.overlayView.gridMatchedTextColor.alphaComponent;
+			controller.overlayView.cachedGridTextColorWithOpacity = [controller.overlayView.gridTextColor
+			    colorWithAlphaComponent:existingTextAlpha * controller.overlayView.gridTextOpacity];
 			controller.overlayView.cachedGridMatchedTextColorWithOpacity = [controller.overlayView.gridMatchedTextColor
-			    colorWithAlphaComponent:controller.overlayView.gridTextOpacity];
+			    colorWithAlphaComponent:existingMatchedTextAlpha * controller.overlayView.gridTextOpacity];
 		}
 
 		// Remove cells that match the bounds to remove

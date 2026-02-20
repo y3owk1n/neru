@@ -9,8 +9,6 @@ const (
 	DefaultHintBorderRadius = 4
 	// DefaultHintPadding is the default padding for hints.
 	DefaultHintPadding = 4
-	// DefaultHintOpacity is the default opacity for hints.
-	DefaultHintOpacity = 0.95
 
 	// DefaultMouseActionRefreshDelay is the default delay before refreshing hints after mouse actions.
 	DefaultMouseActionRefreshDelay = 0
@@ -20,8 +18,6 @@ const (
 
 	// DefaultGridFontSize is the default font size for grid.
 	DefaultGridFontSize = 12
-	// DefaultGridOpacity is the default opacity for grid.
-	DefaultGridOpacity = 0.7
 
 	// DefaultScrollStep is the default scroll step.
 	DefaultScrollStep = 50
@@ -32,8 +28,6 @@ const (
 
 	// DefaultScrollFontSize is the default font size for scroll indicator.
 	DefaultScrollFontSize = 12
-	// DefaultScrollOpacity is the default opacity for scroll indicator.
-	DefaultScrollOpacity = 0.95
 	// DefaultScrollPadding is the default padding for scroll indicator.
 	DefaultScrollPadding = 4
 	// DefaultScrollBorderRadius is the default border radius for scroll indicator.
@@ -183,8 +177,6 @@ const (
 	DefaultQuadGridLineWidth = 1
 	// DefaultQuadGridLabelFontSize is the default font size for quadrant labels.
 	DefaultQuadGridLabelFontSize = 12
-	// DefaultQuadGridHighlightOpacity is the default opacity for quadrant highlighting.
-	DefaultQuadGridHighlightOpacity = 0.3
 )
 
 // DefaultConfig returns the default application configuration with sensible defaults.
@@ -213,13 +205,12 @@ func DefaultConfig() *Config {
 			BorderRadius:            DefaultHintBorderRadius,
 			Padding:                 DefaultHintPadding,
 			BorderWidth:             1,
-			Opacity:                 DefaultHintOpacity,
 			MouseActionRefreshDelay: DefaultMouseActionRefreshDelay,
 
-			BackgroundColor:  "#FFD700",
-			TextColor:        "#000000",
-			MatchedTextColor: "#737373",
-			BorderColor:      "#000000",
+			BackgroundColor:  "#F2FFD700", // Gold with 95% opacity
+			TextColor:        "#FF000000", // Black
+			MatchedTextColor: "#FF737373", // Gray with 100% opacity (matched text)
+			BorderColor:      "#FF000000", // Black
 
 			IncludeMenubarHints: false,
 			AdditionalMenubarHintsTargets: []string{
@@ -270,15 +261,14 @@ func DefaultConfig() *Config {
 
 			FontSize:    DefaultGridFontSize,
 			FontFamily:  "SF Mono",
-			Opacity:     DefaultGridOpacity,
 			BorderWidth: 1,
 
-			BackgroundColor:        "#abe9b3",
-			TextColor:              "#000000",
-			MatchedTextColor:       "#f8bd96",
-			MatchedBackgroundColor: "#f8bd96",
-			MatchedBorderColor:     "#f8bd96",
-			BorderColor:            "#abe9b3",
+			BackgroundColor:        "#B3ABE9B3", // Light green with 70% opacity
+			TextColor:              "#FF000000", // Black
+			MatchedTextColor:       "#FFF8BD96", // Orange with 100% opacity
+			MatchedBackgroundColor: "#B3F8BD96", // Orange with 70% opacity (matches bg)
+			MatchedBorderColor:     "#B3F8BD96", // Orange with 70% opacity
+			BorderColor:            "#B3ABE9B3", // Light green with 70% opacity
 
 			LiveMatchUpdate: true,
 			HideUnmatched:   true,
@@ -292,13 +282,12 @@ func DefaultConfig() *Config {
 
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
 
-			LineColor:        "#8EE2FF",
-			LineWidth:        DefaultQuadGridLineWidth,
-			HighlightColor:   "#00BFFF", // Deep sky blue
-			HighlightOpacity: DefaultQuadGridHighlightOpacity,
-			LabelColor:       "#FFFFFF",
-			LabelFontSize:    DefaultQuadGridLabelFontSize,
-			LabelFontFamily:  "SF Mono",
+			LineColor:       "#FF8EE2FF", // Light blue with 100% opacity
+			LineWidth:       DefaultQuadGridLineWidth,
+			HighlightColor:  "#4D00BFFF", // Deep sky blue with 30% opacity
+			LabelColor:      "#FFFFFFFF", // White with 100% opacity
+			LabelFontSize:   DefaultQuadGridLabelFontSize,
+			LabelFontFamily: "SF Mono",
 
 			MinSize:  DefaultQuadGridMinSize,
 			MaxDepth: DefaultQuadGridMaxDepth,
@@ -323,10 +312,9 @@ func DefaultConfig() *Config {
 			// New styling defaults
 			FontSize:         DefaultScrollFontSize,
 			FontFamily:       "SF Mono",
-			Opacity:          DefaultScrollOpacity,
-			BackgroundColor:  "#FFD700",
-			TextColor:        "#000000",
-			BorderColor:      "#000000",
+			BackgroundColor:  "#F2FFD700", // Gold with 95% opacity
+			TextColor:        "#FF000000", // Black
+			BorderColor:      "#FF000000", // Black
 			BorderWidth:      1,
 			Padding:          DefaultScrollPadding,
 			BorderRadius:     DefaultScrollBorderRadius,

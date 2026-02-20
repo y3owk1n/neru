@@ -188,15 +188,14 @@ type ScrollConfig struct {
 	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
 
 	// New styling fields
-	FontSize        int     `json:"fontSize"        toml:"font_size"`
-	FontFamily      string  `json:"fontFamily"      toml:"font_family"`
-	Opacity         float64 `json:"opacity"         toml:"opacity"`
-	BackgroundColor string  `json:"backgroundColor" toml:"background_color"`
-	TextColor       string  `json:"textColor"       toml:"text_color"`
-	BorderColor     string  `json:"borderColor"     toml:"border_color"`
-	BorderWidth     int     `json:"borderWidth"     toml:"border_width"`
-	Padding         int     `json:"padding"         toml:"padding"`
-	BorderRadius    int     `json:"borderRadius"    toml:"border_radius"`
+	FontSize        int    `json:"fontSize"        toml:"font_size"`
+	FontFamily      string `json:"fontFamily"      toml:"font_family"`
+	BackgroundColor string `json:"backgroundColor" toml:"background_color"`
+	TextColor       string `json:"textColor"       toml:"text_color"`
+	BorderColor     string `json:"borderColor"     toml:"border_color"`
+	BorderWidth     int    `json:"borderWidth"     toml:"border_width"`
+	Padding         int    `json:"padding"         toml:"padding"`
+	BorderRadius    int    `json:"borderRadius"    toml:"border_radius"`
 
 	// Indicator positioning
 	IndicatorXOffset int `json:"indicatorXOffset" toml:"indicator_x_offset"`
@@ -205,15 +204,14 @@ type ScrollConfig struct {
 
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
-	Enabled                 bool    `json:"enabled"                 toml:"enabled"`
-	HintCharacters          string  `json:"hintCharacters"          toml:"hint_characters"`
-	FontSize                int     `json:"fontSize"                toml:"font_size"`
-	FontFamily              string  `json:"fontFamily"              toml:"font_family"`
-	BorderRadius            int     `json:"borderRadius"            toml:"border_radius"`
-	Padding                 int     `json:"padding"                 toml:"padding"`
-	BorderWidth             int     `json:"borderWidth"             toml:"border_width"`
-	Opacity                 float64 `json:"opacity"                 toml:"opacity"`
-	MouseActionRefreshDelay int     `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
+	Enabled                 bool   `json:"enabled"                 toml:"enabled"`
+	HintCharacters          string `json:"hintCharacters"          toml:"hint_characters"`
+	FontSize                int    `json:"fontSize"                toml:"font_size"`
+	FontFamily              string `json:"fontFamily"              toml:"font_family"`
+	BorderRadius            int    `json:"borderRadius"            toml:"border_radius"`
+	Padding                 int    `json:"padding"                 toml:"padding"`
+	BorderWidth             int    `json:"borderWidth"             toml:"border_width"`
+	MouseActionRefreshDelay int    `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
 
 	BackgroundColor  string `json:"backgroundColor"  toml:"background_color"`
 	TextColor        string `json:"textColor"        toml:"text_color"`
@@ -247,10 +245,9 @@ type GridConfig struct {
 	RowLabels string `json:"rowLabels" toml:"row_labels"`
 	ColLabels string `json:"colLabels" toml:"col_labels"`
 
-	FontSize    int     `json:"fontSize"    toml:"font_size"`
-	FontFamily  string  `json:"fontFamily"  toml:"font_family"`
-	Opacity     float64 `json:"opacity"     toml:"opacity"`
-	BorderWidth int     `json:"borderWidth" toml:"border_width"`
+	FontSize    int    `json:"fontSize"    toml:"font_size"`
+	FontFamily  string `json:"fontFamily"  toml:"font_family"`
+	BorderWidth int    `json:"borderWidth" toml:"border_width"`
 
 	BackgroundColor        string `json:"backgroundColor"        toml:"background_color"`
 	TextColor              string `json:"textColor"              toml:"text_color"`
@@ -277,13 +274,12 @@ type QuadGridConfig struct {
 	Keys string `json:"keys" toml:"keys"`
 
 	// Visual styling
-	LineColor        string  `json:"lineColor"        toml:"line_color"`
-	LineWidth        int     `json:"lineWidth"        toml:"line_width"`
-	HighlightColor   string  `json:"highlightColor"   toml:"highlight_color"`
-	HighlightOpacity float64 `json:"highlightOpacity" toml:"highlight_opacity"`
-	LabelColor       string  `json:"labelColor"       toml:"label_color"`
-	LabelFontSize    int     `json:"labelFontSize"    toml:"label_font_size"`
-	LabelFontFamily  string  `json:"labelFontFamily"  toml:"label_font_family"`
+	LineColor       string `json:"lineColor"       toml:"line_color"`
+	LineWidth       int    `json:"lineWidth"       toml:"line_width"`
+	HighlightColor  string `json:"highlightColor"  toml:"highlight_color"`
+	LabelColor      string `json:"labelColor"      toml:"label_color"`
+	LabelFontSize   int    `json:"labelFontSize"   toml:"label_font_size"`
+	LabelFontFamily string `json:"labelFontFamily" toml:"label_font_family"`
 
 	// Behavior
 	MinSize  int    `json:"minSize"  toml:"min_size"`  // Default: 25

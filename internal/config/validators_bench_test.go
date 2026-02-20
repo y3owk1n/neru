@@ -22,7 +22,6 @@ func BenchmarkValidateHints(b *testing.B) {
 	config := &config.Config{
 		Hints: config.HintsConfig{
 			HintCharacters:   "ABCDEFGH",
-			Opacity:          0.9,
 			BackgroundColor:  "#000000",
 			TextColor:        "#FFFFFF",
 			MatchedTextColor: "#FF0000",

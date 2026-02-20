@@ -954,7 +954,7 @@ func BuildStyle(cfg config.GridConfig) Style {
 	style := Style{
 		fontSize:               cfg.FontSize,
 		fontFamily:             cfg.FontFamily,
-		opacity:                cfg.Opacity,
+		opacity:                1.0, // Alpha is now in the hex color itself
 		borderWidth:            cfg.BorderWidth,
 		backgroundColor:        cfg.BackgroundColor,
 		textColor:              cfg.TextColor,

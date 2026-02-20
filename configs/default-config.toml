@@ -66,17 +66,16 @@ font_family = "SF Mono"  # Font family for hints
 border_radius = 4   # Corner radius for hint borders
 padding = 4         # Padding inside hint borders
 border_width = 1    # Width of hint borders
-opacity = 0.95      # Opacity of hint overlays
 
 # Delay in milliseconds before refreshing hints after mouse click actions.
 # Set to 0 for immediate refresh. Higher values reduce rapid refreshes
 # when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
 mouse_action_refresh_delay = 0
 
-background_color = "#FFD700"    # Hint background color
-text_color = "#000000"          # Hint text color
-matched_text_color = "#737373"  # Text color for matched hints
-border_color = "#000000"        # Hint border color
+background_color = "#F2FFD700"    # Hint background color (gold with 95% opacity)
+text_color = "#FF000000"          # Hint text color (black)
+matched_text_color = "#FF737373"  # Text color for matched hints (gray)
+border_color = "#FF000000"        # Hint border color (black)
 
 # Additional hint targets
 include_menubar_hints = false              # Include menubar items in hints
@@ -183,15 +182,14 @@ reset_key = ","
 # Visual appearance
 font_size = 12      # Font size for grid labels
 font_family = "SF Mono"  # Font family for grid labels
-opacity = 0.7       # Opacity of grid overlay
 border_width = 1    # Width of grid cell borders
 
-background_color = "#abe9b3"        # Grid cell background color
-text_color = "#000000"              # Grid label text color
-matched_text_color = "#f8bd96"       # Text color for matched grid cells
-matched_background_color = "#f8bd96" # Background color for matched grid cells
-matched_border_color = "#f8bd96"     # Border color for matched grid cells
-border_color = "#abe9b3"             # Grid cell border color
+background_color = "#B3ABE9B3"        # Grid cell background color (light green with 70% opacity)
+text_color = "#FF000000"              # Grid label text color (black)
+matched_text_color = "#FFF8BD96"       # Text color for matched grid cells (orange)
+matched_background_color = "#B3F8BD96" # Background color for matched grid cells (orange with 70% opacity)
+matched_border_color = "#B3F8BD96"     # Border color for matched grid cells (orange with 70% opacity)
+border_color = "#B3ABE9B3"             # Grid cell border color (light green with 70% opacity)
 
 # Behavior
 live_match_update = true
@@ -215,11 +213,10 @@ grid_size = 2
 keys = "uijk"
 
 # Visual appearance
-line_color = "#8EE2FF"          # Color of grid lines
+line_color = "#FF8EE2FF"          # Color of grid lines (light blue with 100% opacity)
 line_width = 1                  # Width of grid lines
-highlight_color = "#00BFFF"     # Color for quadrant highlighting (deep sky blue)
-highlight_opacity = 0.3         # Opacity of highlight (0.0 - 1.0)
-label_color = "#FFFFFF"         # Color of quadrant labels
+highlight_color = "#4D00BFFF"     # Color for quadrant highlighting (deep sky blue with 30% opacity)
+label_color = "#FFFFFFFF"         # Color of quadrant labels (white with 100% opacity)
 label_font_size = 12            # Font size for labels
 label_font_family = "SF Mono"   # Font family for labels
 
@@ -237,10 +234,9 @@ scroll_step_full = 1000000 # Scroll distance for Shift+G/g keys
 # Scroll indicator appearance
 font_size = 12           # Font size for scroll indicator
 font_family = "SF Mono"  # Font family for scroll indicator
-opacity = 0.95           # Opacity of scroll indicator
-background_color = "#FFD700" # Background color
-text_color = "#000000"       # Text color
-border_color = "#000000"     # Border color
+background_color = "#F2FFD700" # Background color (gold with 95% opacity)
+text_color = "#FF000000"       # Text color (black)
+border_color = "#FF000000"     # Border color (black)
 border_width = 1         # Border width
 padding = 4              # Padding inside the indicator
 border_radius = 4        # Corner radius

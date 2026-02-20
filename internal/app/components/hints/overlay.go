@@ -230,7 +230,7 @@ func BuildStyle(cfg config.HintsConfig) StyleMode {
 		borderRadius:     cfg.BorderRadius,
 		padding:          cfg.Padding,
 		borderWidth:      cfg.BorderWidth,
-		opacity:          cfg.Opacity,
+		opacity:          1.0, // Alpha is now in the hex color itself
 		backgroundColor:  cfg.BackgroundColor,
 		textColor:        cfg.TextColor,
 		matchedTextColor: cfg.MatchedTextColor,

@@ -18,7 +18,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -42,7 +41,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -61,7 +59,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "a",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -80,7 +77,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "invalid",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -99,7 +95,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "invalid",
 					MatchedTextColor: "#FF0000",
@@ -118,7 +113,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "invalid",
@@ -137,7 +131,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -156,7 +149,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -175,7 +167,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -194,7 +185,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -213,7 +203,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -232,7 +221,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -251,7 +239,6 @@ func TestValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:   "abcd",
-					Opacity:          0.9,
 					BackgroundColor:  "#FFFFFF",
 					TextColor:        "#000000",
 					MatchedTextColor: "#FF0000",
@@ -261,44 +248,6 @@ func TestValidateHints(t *testing.T) {
 					Padding:          4,
 					BorderWidth:      1,
 					ClickableRoles:   []string{"AXButton", ""},
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "opacity too low",
-			config: config.Config{
-				Hints: config.HintsConfig{
-					HintCharacters:   "abcd",
-					Opacity:          -0.1,
-					BackgroundColor:  "#FFFFFF",
-					TextColor:        "#000000",
-					MatchedTextColor: "#FF0000",
-					BorderColor:      "#000000",
-					FontSize:         12,
-					BorderRadius:     4,
-					Padding:          4,
-					BorderWidth:      1,
-					ClickableRoles:   []string{"AXButton"},
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "opacity too high",
-			config: config.Config{
-				Hints: config.HintsConfig{
-					HintCharacters:   "abcd",
-					Opacity:          1.1,
-					BackgroundColor:  "#FFFFFF",
-					TextColor:        "#000000",
-					MatchedTextColor: "#FF0000",
-					BorderColor:      "#000000",
-					FontSize:         12,
-					BorderRadius:     4,
-					Padding:          4,
-					BorderWidth:      1,
-					ClickableRoles:   []string{"AXButton"},
 				},
 			},
 			wantErr: true,
