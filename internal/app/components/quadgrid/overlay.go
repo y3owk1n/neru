@@ -242,8 +242,6 @@ func (o *Overlay) DrawQuadGrid(
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(style.LineWidth()),
-		backgroundOpacity:      C.double(1.0),
-		textOpacity:            C.double(1.0),
 	}
 
 	// Draw the grid cells

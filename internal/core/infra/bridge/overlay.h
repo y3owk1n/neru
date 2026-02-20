@@ -27,7 +27,6 @@ typedef struct {
 	int borderRadius;       ///< Border radius
 	int borderWidth;        ///< Border width
 	int padding;            ///< Padding
-	double opacity;         ///< Opacity
 	int showArrow;          ///< Show arrow (0 = no arrow, 1 = show arrow)
 } HintStyle;
 
@@ -50,8 +49,6 @@ typedef struct {
 	char *matchedBorderColor;     ///< Matched border color
 	char *borderColor;            ///< Border color
 	int borderWidth;              ///< Border width
-	double backgroundOpacity;     ///< Background opacity
-	double textOpacity;           ///< Text opacity
 } GridCellStyle;
 
 /// Grid cell data

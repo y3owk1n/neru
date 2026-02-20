@@ -72,7 +72,7 @@ border_width = 1    # Width of hint borders
 # when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
 mouse_action_refresh_delay = 0
 
-background_color = "#F2FFD700"    # Hint background color (gold with 95% opacity)
+background_color = "#F2FFD700"    # Hint background color (gold, alpha F2 ≈ 95% opacity)
 text_color = "#FF000000"          # Hint text color (black)
 matched_text_color = "#FF737373"  # Text color for matched hints (gray)
 border_color = "#FF000000"        # Hint border color (black)
@@ -184,12 +184,12 @@ font_size = 12      # Font size for grid labels
 font_family = "SF Mono"  # Font family for grid labels
 border_width = 1    # Width of grid cell borders
 
-background_color = "#B3ABE9B3"        # Grid cell background color (light green with 70% opacity)
+background_color = "#B3ABE9B3"        # Grid cell background color (light green, alpha B3 ≈ 70% opacity)
 text_color = "#FF000000"              # Grid label text color (black)
 matched_text_color = "#FFF8BD96"       # Text color for matched grid cells (orange)
-matched_background_color = "#B3F8BD96" # Background color for matched grid cells (orange with 70% opacity)
-matched_border_color = "#B3F8BD96"     # Border color for matched grid cells (orange with 70% opacity)
-border_color = "#B3ABE9B3"             # Grid cell border color (light green with 70% opacity)
+matched_background_color = "#B3F8BD96" # Background color for matched grid cells (orange, alpha B3 ≈ 70% opacity)
+matched_border_color = "#B3F8BD96"     # Border color for matched grid cells (orange, alpha B3 ≈ 70% opacity)
+border_color = "#B3ABE9B3"             # Grid cell border color (light green, alpha B3 ≈ 70% opacity)
 
 # Behavior
 live_match_update = true
@@ -213,10 +213,10 @@ grid_size = 2
 keys = "uijk"
 
 # Visual appearance
-line_color = "#FF8EE2FF"          # Color of grid lines (light blue with 100% opacity)
+line_color = "#FF8EE2FF"          # Color of grid lines (light blue, alpha FF = 100% opacity)
 line_width = 1                  # Width of grid lines
-highlight_color = "#4D00BFFF"     # Color for quadrant highlighting (deep sky blue with 30% opacity)
-label_color = "#FFFFFFFF"         # Color of quadrant labels (white with 100% opacity)
+highlight_color = "#4D00BFFF"     # Color for quadrant highlighting (deep sky blue, alpha 4D ≈ 30% opacity)
+label_color = "#FFFFFFFF"         # Color of quadrant labels (white, alpha FF = 100% opacity)
 label_font_size = 12            # Font size for labels
 label_font_family = "SF Mono"   # Font family for labels
 

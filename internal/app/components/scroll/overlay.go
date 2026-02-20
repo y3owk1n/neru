@@ -168,7 +168,6 @@ func (o *Overlay) DrawScrollIndicator(xCoordinate, yCoordinate int) {
 		borderRadius:     C.int(o.config.BorderRadius),
 		borderWidth:      C.int(o.config.BorderWidth),
 		padding:          C.int(o.config.Padding),
-		opacity:          C.double(1.0),
 		showArrow:        0, // No arrow for scroll indicator
 	}
 

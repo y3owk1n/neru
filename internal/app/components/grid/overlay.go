@@ -424,8 +424,6 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(style.BorderWidth()),
-		backgroundOpacity:      C.double(1.0),
-		textOpacity:            C.double(1.0),
 	}
 
 	C.NeruClearOverlay(o.window)
@@ -652,8 +650,6 @@ func (o *Overlay) drawGridIncrementalStructural(
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(currentStyle.BorderWidth()),
-		backgroundOpacity:      C.double(1.0),
-		textOpacity:            C.double(1.0),
 	}
 
 	// Call incremental C API
@@ -871,8 +867,6 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(style.BorderWidth()),
-		backgroundOpacity:      C.double(1.0),
-		textOpacity:            C.double(1.0),
 	}
 
 	C.NeruClearOverlay(o.window)

@@ -364,7 +364,6 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		borderRadius:     C.int(style.BorderRadius()),
 		borderWidth:      C.int(style.BorderWidth()),
 		padding:          C.int(style.Padding()),
-		opacity:          C.double(1.0),
 		showArrow:        C.int(arrowFlag),
 	}
 
@@ -594,7 +593,6 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		borderRadius:     C.int(currentStyle.BorderRadius()),
 		borderWidth:      C.int(currentStyle.BorderWidth()),
 		padding:          C.int(currentStyle.Padding()),
-		opacity:          C.double(1.0),
 		showArrow:        C.int(arrowFlag),
 	}
 

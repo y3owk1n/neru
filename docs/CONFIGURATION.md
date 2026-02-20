@@ -79,7 +79,7 @@ Neru supports alpha transparency in colors. You can use different hex formats:
 
 ### Formula
 
-To convert any opacity (0.0 - 1.0) to alpha hex:
+To convert any conceptual opacity (0.0 - 1.0) to an alpha channel value:
 
 ```bash
 # Example: 70% opacity = 0.7 * 255 = 178.5 → round to 179 → 0xB3
@@ -93,10 +93,10 @@ alpha_hex = round(opacity * 255)
 background_color = "#FF000000"   # Black
 background_color = "#FFFFD700"   # Gold
 
-# Partially transparent
-background_color = "#F2FFD700"   # Gold with 95% opacity
-background_color = "#B3ABE9B3"   # Light green with 70% opacity
-background_color = "#4D00BFFF"   # Deep sky blue with 30% opacity
+# Partially transparent (transparency is controlled entirely by the alpha channel)
+background_color = "#F2FFD700"   # Gold, alpha F2 (~95% opacity)
+background_color = "#B3ABE9B3"   # Light green, alpha B3 (~70% opacity)
+background_color = "#4D00BFFF"   # Deep sky blue, alpha 4D (~30% opacity)
 
 # Fully transparent
 background_color = "#00000000"   # Completely invisible

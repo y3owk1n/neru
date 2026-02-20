@@ -207,7 +207,7 @@ func DefaultConfig() *Config {
 			BorderWidth:             1,
 			MouseActionRefreshDelay: DefaultMouseActionRefreshDelay,
 
-			BackgroundColor:  "#F2FFD700", // Gold with 95% opacity
+			BackgroundColor:  "#F2FFD700", // Gold, alpha F2 ≈ 95% opacity
 			TextColor:        "#FF000000", // Black
 			MatchedTextColor: "#FF737373", // Gray with 100% opacity (matched text)
 			BorderColor:      "#FF000000", // Black
@@ -263,12 +263,12 @@ func DefaultConfig() *Config {
 			FontFamily:  "SF Mono",
 			BorderWidth: 1,
 
-			BackgroundColor:        "#B3ABE9B3", // Light green with 70% opacity
+			BackgroundColor:        "#B3ABE9B3", // Light green, alpha B3 ≈ 70% opacity
 			TextColor:              "#FF000000", // Black
-			MatchedTextColor:       "#FFF8BD96", // Orange with 100% opacity
-			MatchedBackgroundColor: "#B3F8BD96", // Orange with 70% opacity (matches bg)
-			MatchedBorderColor:     "#B3F8BD96", // Orange with 70% opacity
-			BorderColor:            "#B3ABE9B3", // Light green with 70% opacity
+			MatchedTextColor:       "#FFF8BD96", // Orange, alpha FF = 100% opacity
+			MatchedBackgroundColor: "#B3F8BD96", // Orange, alpha B3 ≈ 70% opacity (matches bg)
+			MatchedBorderColor:     "#B3F8BD96", // Orange, alpha B3 ≈ 70% opacity
+			BorderColor:            "#B3ABE9B3", // Light green, alpha B3 ≈ 70% opacity
 
 			LiveMatchUpdate: true,
 			HideUnmatched:   true,
@@ -282,10 +282,10 @@ func DefaultConfig() *Config {
 
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
 
-			LineColor:       "#FF8EE2FF", // Light blue with 100% opacity
+			LineColor:       "#FF8EE2FF", // Light blue, alpha FF = 100% opacity
 			LineWidth:       DefaultQuadGridLineWidth,
-			HighlightColor:  "#4D00BFFF", // Deep sky blue with 30% opacity
-			LabelColor:      "#FFFFFFFF", // White with 100% opacity
+			HighlightColor:  "#4D00BFFF", // Deep sky blue, alpha 4D ≈ 30% opacity
+			LabelColor:      "#FFFFFFFF", // White, alpha FF = 100% opacity
 			LabelFontSize:   DefaultQuadGridLabelFontSize,
 			LabelFontFamily: "SF Mono",
 
