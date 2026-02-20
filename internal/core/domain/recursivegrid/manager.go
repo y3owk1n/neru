@@ -40,6 +40,7 @@ func NewManager(
 		resetKey,
 		exitKeys,
 		25, //nolint:mnd
+		25, //nolint:mnd
 		10, //nolint:mnd
 		MinGridDimension,
 		MinGridDimension,
@@ -49,13 +50,13 @@ func NewManager(
 	)
 }
 
-// NewManagerWithConfig creates a manager with custom minSize, maxDepth, gridCols, and gridRows.
+// NewManagerWithConfig creates a manager with custom minSizeWidth, minSizeHeight, maxDepth, gridCols, and gridRows.
 func NewManagerWithConfig(
 	screenBounds image.Rectangle,
 	keys string,
 	resetKey string,
 	exitKeys []string,
-	minSize, maxDepth, gridCols, gridRows int,
+	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
 	onUpdate func(),
 	onComplete func(image.Point),
 	logger *zap.Logger,
@@ -93,7 +94,8 @@ func NewManagerWithConfig(
 		},
 		grid: NewRecursiveGridWithDimensions(
 			screenBounds,
-			minSize,
+			minSizeWidth,
+			minSizeHeight,
 			maxDepth,
 			gridCols,
 			gridRows,

@@ -190,7 +190,8 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 		"uijk",
 		",",
 		[]string{"escape"},
-		50, // minSize large enough to complete quickly
+		50, // minSizeWidth large enough to complete quickly
+		50, // minSizeHeight
 		10,
 		2, // gridCols 2
 		2, // gridRows 2
@@ -225,7 +226,8 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 		"uijk",
 		",",
 		[]string{"escape"},
-		1, // minSize
+		1, // minSizeWidth
+		1, // minSizeHeight
 		2, // maxDepth
 		2, // gridCols 2
 		2, // gridRows 2
@@ -262,7 +264,8 @@ func TestManagerWithConfig_NonSquare3x2(t *testing.T) {
 		"gcrhtn", // 6 keys for 3x2
 		",",
 		[]string{"escape"},
-		10, // minSize
+		10, // minSizeWidth
+		10, // minSizeHeight
 		10, // maxDepth
 		3,  // gridCols
 		2,  // gridRows
@@ -295,6 +298,7 @@ func TestManagerWithConfig_InvalidColsOnly_FallsBack(t *testing.T) {
 		[]string{"escape"},
 		10,
 		10,
+		10,
 		1, // invalid gridCols
 		3, // valid gridRows
 		nil,
@@ -318,6 +322,7 @@ func TestManagerWithConfig_InvalidRowsOnly_FallsBack(t *testing.T) {
 		"uijk",
 		",",
 		[]string{"escape"},
+		10,
 		10,
 		10,
 		3, // valid gridCols

@@ -167,8 +167,10 @@ const (
 	// IPCTimeoutSeconds is the IPC timeout seconds.
 	IPCTimeoutSeconds = 5
 
-	// DefaultRecursiveGridMinSize is the default minimum cell size in pixels.
-	DefaultRecursiveGridMinSize = 25
+	// DefaultRecursiveGridMinSizeWidth is the default minimum cell width in pixels.
+	DefaultRecursiveGridMinSizeWidth = 25
+	// DefaultRecursiveGridMinSizeHeight is the default minimum cell height in pixels.
+	DefaultRecursiveGridMinSizeHeight = 25
 	// DefaultRecursiveGridMaxDepth is the default maximum recursion depth.
 	DefaultRecursiveGridMaxDepth = 10
 	// DefaultRecursiveGridMinGridCols is the minimum allowed grid columns.
@@ -292,9 +294,10 @@ func DefaultConfig() *Config {
 			LabelFontSize:   DefaultRecursiveGridLabelFontSize,
 			LabelFontFamily: "SF Mono",
 
-			MinSize:  DefaultRecursiveGridMinSize,
-			MaxDepth: DefaultRecursiveGridMaxDepth,
-			ResetKey: ",",
+			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
+			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
+			MaxDepth:      DefaultRecursiveGridMaxDepth,
+			ResetKey:      ",",
 		},
 		Scroll: ScrollConfig{
 			ScrollStep:     DefaultScrollStep,

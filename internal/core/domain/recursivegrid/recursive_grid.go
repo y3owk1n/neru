@@ -35,17 +35,24 @@ type RecursiveGrid struct {
 	initialBounds image.Rectangle   // Original screen bounds
 	depth         int               // Current recursion depth
 	maxDepth      int               // Maximum allowed depth
-	minSize       int               // Minimum cell size in pixels
+	minSizeWidth  int               // Minimum cell width in pixels
+	minSizeHeight int               // Minimum cell height in pixels
 	gridCols      int               // Number of grid columns
 	gridRows      int               // Number of grid rows
 	history       []image.Rectangle // Stack of previous bounds for backtracking
 }
 
 // NewRecursiveGrid creates a new recursive-grid starting with the given screen bounds.
-func NewRecursiveGrid(screenBounds image.Rectangle, minSize, maxDepth int) *RecursiveGrid {
+func NewRecursiveGrid(
+	screenBounds image.Rectangle,
+	minSizeWidth,
+	minSizeHeight,
+	maxDepth int,
+) *RecursiveGrid {
 	return NewRecursiveGridWithDimensions(
 		screenBounds,
-		minSize,
+		minSizeWidth,
+		minSizeHeight,
 		maxDepth,
 		MinGridDimension,
 		MinGridDimension,
@@ -55,14 +62,15 @@ func NewRecursiveGrid(screenBounds image.Rectangle, minSize, maxDepth int) *Recu
 // NewRecursiveGridWithDimensions creates a new recursive-grid with specific column and row counts.
 func NewRecursiveGridWithDimensions(
 	screenBounds image.Rectangle,
-	minSize, maxDepth, gridCols, gridRows int,
+	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
 ) *RecursiveGrid {
 	return &RecursiveGrid{
 		currentBounds: screenBounds,
 		initialBounds: screenBounds,
 		depth:         0,
 		maxDepth:      maxDepth,
-		minSize:       minSize,
+		minSizeWidth:  minSizeWidth,
+		minSizeHeight: minSizeHeight,
 		gridCols:      gridCols,
 		gridRows:      gridRows,
 		history:       make([]image.Rectangle, 0, maxDepth),
@@ -178,11 +186,11 @@ func (qg *RecursiveGrid) CanDivide() bool {
 	}
 
 	// Check size constraints - both dimensions must be divisible
-	// and the result must be >= minSize
+	// and the result must be >= minSizeWidth and minSizeHeight
 	cellWidth := qg.currentBounds.Dx() / qg.gridCols
 	cellHeight := qg.currentBounds.Dy() / qg.gridRows
 
-	return cellWidth >= qg.minSize && cellHeight >= qg.minSize
+	return cellWidth >= qg.minSizeWidth && cellHeight >= qg.minSizeHeight
 }
 
 // CurrentCenter returns the center point of the current bounds.
@@ -213,9 +221,14 @@ func (qg *RecursiveGrid) MaxDepth() int {
 	return qg.maxDepth
 }
 
-// MinSize returns the minimum cell size.
-func (qg *RecursiveGrid) MinSize() int {
-	return qg.minSize
+// MinSizeWidth returns the minimum cell width.
+func (qg *RecursiveGrid) MinSizeWidth() int {
+	return qg.minSizeWidth
+}
+
+// MinSizeHeight returns the minimum cell height.
+func (qg *RecursiveGrid) MinSizeHeight() int {
+	return qg.minSizeHeight
 }
 
 // Backtrack returns to the previous bounds (undo last selection).

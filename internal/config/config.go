@@ -283,9 +283,10 @@ type RecursiveGridConfig struct {
 	LabelFontFamily string `json:"labelFontFamily" toml:"label_font_family"`
 
 	// Behavior
-	MinSize  int    `json:"minSize"  toml:"min_size"`  // Default: 25
-	MaxDepth int    `json:"maxDepth" toml:"max_depth"` // Default: 10
-	ResetKey string `json:"resetKey" toml:"reset_key"`
+	MinSizeWidth  int    `json:"minSizeWidth"  toml:"min_size_width"`  // Default: 25
+	MinSizeHeight int    `json:"minSizeHeight" toml:"min_size_height"` // Default: 25
+	MaxDepth      int    `json:"maxDepth"      toml:"max_depth"`       // Default: 10
+	ResetKey      string `json:"resetKey"      toml:"reset_key"`
 }
 
 // LoggingConfig defines the logging behavior and file management settings.
