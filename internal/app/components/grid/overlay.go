@@ -223,6 +223,17 @@ func (o *Overlay) Clear() {
 	o.gridStateMu.Unlock()
 }
 
+// Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)
+// without destroying the native window. Use this for overlays that share a
+// window managed by the overlay Manager.
+func (o *Overlay) Cleanup() {
+	if o.callbackManager != nil {
+		o.callbackManager.Cleanup()
+	}
+	o.styleCache.Free()
+	o.freeLabelCache()
+}
+
 // Destroy destroys the grid overlay window.
 func (o *Overlay) Destroy() {
 	// Clean up callback manager first to stop background goroutines
@@ -230,8 +241,8 @@ func (o *Overlay) Destroy() {
 		o.callbackManager.Cleanup()
 	}
 
-	o.styleCache.Free()
-	o.freeLabelCache()
+	o.Cleanup()
+
 	C.NeruDestroyOverlayWindow(o.window)
 }
 

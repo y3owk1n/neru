@@ -240,6 +240,16 @@ func (o *Overlay) SetConfig(config config.HintsConfig) {
 	o.styleCache.Free()
 }
 
+// Cleanup frees Go-side resources (callbackManager, styleCache) without
+// destroying the native window. Use this for overlays that share a window
+// managed by the overlay Manager.
+func (o *Overlay) Cleanup() {
+	if o.callbackManager != nil {
+		o.callbackManager.Cleanup()
+	}
+	o.styleCache.Free()
+}
+
 // Destroy destroys the overlay.
 func (o *Overlay) Destroy() {
 	// Clean up callback manager first to stop background goroutines
@@ -247,8 +257,9 @@ func (o *Overlay) Destroy() {
 		o.callbackManager.Cleanup()
 	}
 
+	o.Cleanup()
+
 	if o.window != nil {
-		o.styleCache.Free()
 		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
 	}
