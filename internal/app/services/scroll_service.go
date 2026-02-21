@@ -104,21 +104,6 @@ func (s *ScrollService) Hide(ctx context.Context) error {
 	return s.HideOverlay(ctx, "hide scroll")
 }
 
-// GetCursorPosition returns the current cursor position.
-func (s *ScrollService) GetCursorPosition(ctx context.Context) (int, int, error) {
-	point, err := s.accessibility.CursorPosition(ctx)
-	if err != nil {
-		return 0, 0, core.WrapAccessibilityFailed(err, "get cursor position")
-	}
-
-	return point.X, point.Y, nil
-}
-
-// UpdateIndicatorPosition updates the mode indicator position.
-func (s *ScrollService) UpdateIndicatorPosition(x, y int) {
-	s.overlay.DrawModeIndicator(x, y)
-}
-
 // UpdateConfig updates the scroll configuration.
 // This allows changing scroll behavior at runtime.
 func (s *ScrollService) UpdateConfig(_ context.Context, config config.ScrollConfig) {
