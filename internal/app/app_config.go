@@ -63,9 +63,17 @@ func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
 func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	a.configureEventTapHotkeys(loadResult.Config, a.logger)
 
-	a.hintsComponent.UpdateConfig(loadResult.Config, a.logger)
-	a.gridComponent.UpdateConfig(loadResult.Config, a.logger)
-	a.scrollComponent.UpdateConfig(loadResult.Config, a.logger)
+	if a.hintsComponent != nil {
+		a.hintsComponent.UpdateConfig(loadResult.Config, a.logger)
+	}
+
+	if a.gridComponent != nil {
+		a.gridComponent.UpdateConfig(loadResult.Config, a.logger)
+	}
+
+	if a.scrollComponent != nil {
+		a.scrollComponent.UpdateConfig(loadResult.Config, a.logger)
+	}
 
 	if a.modeIndicatorComponent != nil {
 		a.modeIndicatorComponent.UpdateConfig(loadResult.Config, a.logger)
