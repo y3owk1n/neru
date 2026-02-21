@@ -68,6 +68,7 @@ type App struct {
 	hintsComponent         *components.HintsComponent
 	gridComponent          *components.GridComponent
 	scrollComponent        *components.ScrollComponent
+	modeIndicatorComponent *components.ModeIndicatorComponent
 	recursiveGridComponent *components.RecursiveGridComponent
 	systrayComponent       SystrayComponent
 

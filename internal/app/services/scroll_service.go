@@ -94,7 +94,7 @@ func (s *ScrollService) Show(ctx context.Context) error {
 	}
 
 	// Draw indicator
-	s.overlay.DrawScrollIndicator(point.X, point.Y)
+	s.overlay.DrawModeIndicator(point.X, point.Y)
 
 	return nil
 }
@@ -114,9 +114,9 @@ func (s *ScrollService) GetCursorPosition(ctx context.Context) (int, int, error)
 	return point.X, point.Y, nil
 }
 
-// UpdateIndicatorPosition updates the scroll indicator position.
+// UpdateIndicatorPosition updates the mode indicator position.
 func (s *ScrollService) UpdateIndicatorPosition(x, y int) {
-	s.overlay.DrawScrollIndicator(x, y)
+	s.overlay.DrawModeIndicator(x, y)
 }
 
 // UpdateConfig updates the scroll configuration.

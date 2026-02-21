@@ -226,8 +226,8 @@ func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger
 
 // registerOverlays registers all component overlays with the overlay manager.
 func (a *App) registerOverlays() {
-	if a.scrollComponent != nil && a.scrollComponent.Overlay != nil {
-		a.overlayManager.UseScrollOverlay(a.scrollComponent.Overlay)
+	if a.modeIndicatorComponent != nil && a.modeIndicatorComponent.Overlay != nil {
+		a.overlayManager.UseModeIndicatorOverlay(a.modeIndicatorComponent.Overlay)
 	}
 
 	if a.hintsComponent != nil && a.hintsComponent.Overlay != nil {

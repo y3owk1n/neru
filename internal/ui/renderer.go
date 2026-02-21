@@ -86,9 +86,9 @@ func (r *OverlayRenderer) ResizeActive() {
 	r.manager.ResizeToActiveScreen()
 }
 
-// DrawScrollIndicator draws a scroll indicator at the specified position.
-func (r *OverlayRenderer) DrawScrollIndicator(x, y int) {
-	r.manager.DrawScrollIndicator(x, y)
+// DrawModeIndicator draws a mode indicator at the specified position.
+func (r *OverlayRenderer) DrawModeIndicator(x, y int) {
+	r.manager.DrawModeIndicator(x, y)
 }
 
 // DrawRecursiveGrid draws a recursive-grid with the current bounds and depth.

@@ -79,20 +79,27 @@ func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) 
 	}
 }
 
-// ScrollComponent encapsulates all scroll-related functionality.
+// ScrollComponent encapsulates scroll key mapping and state (no overlay).
 type ScrollComponent struct {
-	Overlay *scroll.Overlay
 	Context *scroll.Context
 	KeyMap  *scroll.KeyMap
 }
 
 // UpdateConfig updates the scroll component with new configuration.
 func (s *ScrollComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
-	if s.Overlay != nil {
-		s.Overlay.UpdateConfig(cfg.Scroll)
-	}
-
 	s.KeyMap = scroll.NewKeyMap(cfg.Scroll.KeyBindings)
+}
+
+// ModeIndicatorComponent encapsulates the shared mode indicator overlay.
+type ModeIndicatorComponent struct {
+	Overlay *scroll.Overlay
+}
+
+// UpdateConfig updates the mode indicator component with new configuration.
+func (m *ModeIndicatorComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
+	if m.Overlay != nil {
+		m.Overlay.UpdateConfig(cfg.Scroll, cfg.ModeIndicator)
+	}
 }
 
 // RecursiveGridComponent encapsulates all recursive-grid-related functionality.

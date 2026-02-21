@@ -38,6 +38,8 @@ func (h *Handler) performModeSpecificCleanup() {
 
 // clearAndHideOverlay clears and hides the overlay manager.
 func (h *Handler) clearAndHideOverlay() {
+	h.stopModeIndicatorPolling()
+
 	h.overlayManager.Clear()
 	h.overlayManager.Hide()
 }
@@ -70,7 +72,7 @@ func (h *Handler) cleanupGridMode() {
 
 // performCommonCleanup handles common cleanup logic for all modes.
 func (h *Handler) performCommonCleanup() {
-	h.overlayManager.Clear()
+	h.clearAndHideOverlay()
 
 	// Stop any pending hints refresh timer to prevent re-activation after exit
 	if h.refreshHintsTimer != nil {

@@ -72,8 +72,8 @@ func (n *NoOpManager) UseHintOverlay(o *hints.Overlay) {}
 // UseGridOverlay is a no-op implementation.
 func (n *NoOpManager) UseGridOverlay(o *grid.Overlay) {}
 
-// UseScrollOverlay is a no-op implementation.
-func (n *NoOpManager) UseScrollOverlay(o *scroll.Overlay) {}
+// UseModeIndicatorOverlay is a no-op implementation.
+func (n *NoOpManager) UseModeIndicatorOverlay(o *scroll.Overlay) {}
 
 // UseRecursiveGridOverlay is a no-op implementation.
 func (n *NoOpManager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {}
@@ -84,8 +84,8 @@ func (n *NoOpManager) HintOverlay() *hints.Overlay { return nil }
 // GridOverlay returns nil.
 func (n *NoOpManager) GridOverlay() *grid.Overlay { return nil }
 
-// ScrollOverlay returns nil.
-func (n *NoOpManager) ScrollOverlay() *scroll.Overlay { return nil }
+// ModeIndicatorOverlay returns nil.
+func (n *NoOpManager) ModeIndicatorOverlay() *scroll.Overlay { return nil }
 
 // RecursiveGridOverlay returns nil.
 func (n *NoOpManager) RecursiveGridOverlay() *recursivegrid.Overlay { return nil }
@@ -98,8 +98,8 @@ func (n *NoOpManager) DrawHintsWithStyle(
 	return nil
 }
 
-// DrawScrollIndicator is a no-op implementation.
-func (n *NoOpManager) DrawScrollIndicator(x, y int) {}
+// DrawModeIndicator is a no-op implementation.
+func (n *NoOpManager) DrawModeIndicator(x, y int) {}
 
 // DrawGrid is a no-op implementation.
 func (n *NoOpManager) DrawGrid(
@@ -181,16 +181,16 @@ type ManagerInterface interface {
 
 	UseHintOverlay(o *hints.Overlay)
 	UseGridOverlay(o *grid.Overlay)
-	UseScrollOverlay(o *scroll.Overlay)
+	UseModeIndicatorOverlay(o *scroll.Overlay)
 	UseRecursiveGridOverlay(o *recursivegrid.Overlay)
 
 	HintOverlay() *hints.Overlay
 	GridOverlay() *grid.Overlay
-	ScrollOverlay() *scroll.Overlay
+	ModeIndicatorOverlay() *scroll.Overlay
 	RecursiveGridOverlay() *recursivegrid.Overlay
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
-	DrawScrollIndicator(x, y int)
+	DrawModeIndicator(x, y int)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
 	DrawRecursiveGrid(
 		bounds image.Rectangle,
@@ -220,7 +220,7 @@ type Manager struct {
 	// Overlay renderers
 	hintOverlay          *hints.Overlay
 	gridOverlay          *grid.Overlay
-	scrollOverlay        *scroll.Overlay
+	modeIndicatorOverlay *scroll.Overlay
 	recursiveGridOverlay *recursivegrid.Overlay
 }
 
@@ -275,6 +275,14 @@ func (m *Manager) Show() {
 // Hide hides the overlay window.
 func (m *Manager) Hide() {
 	C.NeruHideOverlayWindow(m.window)
+
+	if m.modeIndicatorOverlay != nil {
+		m.modeIndicatorOverlay.Hide()
+	}
+
+	if m.recursiveGridOverlay != nil {
+		m.recursiveGridOverlay.Hide()
+	}
 }
 
 // Clear clears the overlay window.
@@ -285,6 +293,14 @@ func (m *Manager) Clear() {
 	}
 	if m.hintOverlay != nil {
 		m.hintOverlay.Clear()
+	}
+
+	if m.modeIndicatorOverlay != nil {
+		m.modeIndicatorOverlay.Clear()
+	}
+
+	if m.recursiveGridOverlay != nil {
+		m.recursiveGridOverlay.Clear()
 	}
 }
 
@@ -334,6 +350,11 @@ func (m *Manager) Unsubscribe(id uint64) {
 
 // Destroy destroys the overlay window.
 func (m *Manager) Destroy() {
+	if m.modeIndicatorOverlay != nil {
+		m.modeIndicatorOverlay.Destroy()
+		m.modeIndicatorOverlay = nil
+	}
+
 	if m.window != nil {
 		C.NeruDestroyOverlayWindow(m.window)
 		m.window = nil
@@ -350,9 +371,9 @@ func (m *Manager) UseGridOverlay(o *grid.Overlay) {
 	m.gridOverlay = o
 }
 
-// UseScrollOverlay sets the scroll overlay renderer.
-func (m *Manager) UseScrollOverlay(o *scroll.Overlay) {
-	m.scrollOverlay = o
+// UseModeIndicatorOverlay sets the shared mode-indicator overlay renderer.
+func (m *Manager) UseModeIndicatorOverlay(o *scroll.Overlay) {
+	m.modeIndicatorOverlay = o
 }
 
 // UseRecursiveGridOverlay sets the recursive-grid overlay renderer.
@@ -370,9 +391,9 @@ func (m *Manager) GridOverlay() *grid.Overlay {
 	return m.gridOverlay
 }
 
-// ScrollOverlay returns the scroll overlay renderer.
-func (m *Manager) ScrollOverlay() *scroll.Overlay {
-	return m.scrollOverlay
+// ModeIndicatorOverlay returns the mode-indicator overlay renderer.
+func (m *Manager) ModeIndicatorOverlay() *scroll.Overlay {
+	return m.modeIndicatorOverlay
 }
 
 // RecursiveGridOverlay returns the recursive-grid overlay renderer.
@@ -397,12 +418,30 @@ func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) er
 	return nil
 }
 
-// DrawScrollIndicator renders a scroll indicator using the scroll overlay renderer.
-func (m *Manager) DrawScrollIndicator(x, y int) {
-	if m.scrollOverlay == nil {
+// DrawModeIndicator renders a mode indicator using the shared overlay renderer.
+func (m *Manager) DrawModeIndicator(xCoordinate, yCoordinate int) {
+	if m.modeIndicatorOverlay == nil {
 		return
 	}
-	m.scrollOverlay.DrawScrollIndicator(x, y)
+
+	var label string
+
+	switch m.Mode() {
+	case ModeIdle:
+		return
+	case ModeHints:
+		label = "Hints"
+	case ModeGrid:
+		label = "Grid"
+	case ModeScroll:
+		label = "Scroll"
+	case ModeRecursiveGrid:
+		label = "Recursive Grid"
+	default:
+		return
+	}
+
+	m.modeIndicatorOverlay.DrawModeIndicator(label, xCoordinate, yCoordinate)
 }
 
 // DrawGrid renders a grid with the specified style using the grid overlay renderer.

@@ -37,16 +37,19 @@ func resizeScrollCompletionCallback(context unsafe.Pointer) {
 // Overlay manages the rendering of scroll mode overlays using native platform APIs.
 type Overlay struct {
 	window          C.OverlayWindow
-	config          config.ScrollConfig
+	scrollConfig    config.ScrollConfig
+	indicatorConfig config.ModeIndicatorConfig
 	logger          *zap.Logger
 	callbackManager *overlayutil.CallbackManager
-
-	// Cached C strings for style properties
-	styleCache *overlayutil.StyleCache
+	styleCache      *overlayutil.StyleCache
 }
 
 // NewOverlay initializes a new scroll overlay instance with its own window.
-func NewOverlay(config config.ScrollConfig, logger *zap.Logger) (*Overlay, error) {
+func NewOverlay(
+	scrollCfg config.ScrollConfig,
+	indicatorCfg config.ModeIndicatorConfig,
+	logger *zap.Logger,
+) (*Overlay, error) {
 	base, err := overlayutil.NewBaseOverlay(logger)
 	if err != nil {
 		return nil, err
@@ -54,7 +57,8 @@ func NewOverlay(config config.ScrollConfig, logger *zap.Logger) (*Overlay, error
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
-		config:          config,
+		scrollConfig:    scrollCfg,
+		indicatorConfig: indicatorCfg,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
@@ -63,7 +67,8 @@ func NewOverlay(config config.ScrollConfig, logger *zap.Logger) (*Overlay, error
 
 // NewOverlayWithWindow initializes a scroll overlay instance using a shared window.
 func NewOverlayWithWindow(
-	config config.ScrollConfig,
+	scrollCfg config.ScrollConfig,
+	indicatorCfg config.ModeIndicatorConfig,
 	logger *zap.Logger,
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
@@ -71,7 +76,8 @@ func NewOverlayWithWindow(
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
-		config:          config,
+		scrollConfig:    scrollCfg,
+		indicatorConfig: indicatorCfg,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
@@ -85,7 +91,7 @@ func (o *Overlay) Window() C.OverlayWindow {
 
 // Config returns the scroll configuration.
 func (o *Overlay) Config() config.ScrollConfig {
-	return o.config
+	return o.scrollConfig
 }
 
 // Logger returns the logger.
@@ -123,13 +129,16 @@ func (o *Overlay) ResizeToActiveScreen() {
 	})
 }
 
-// DrawScrollIndicator draws a "Scroll" indicator at the specified position.
-func (o *Overlay) DrawScrollIndicator(xCoordinate, yCoordinate int) {
-	// Offset from cursor to avoid covering it
-	xOffset := o.config.IndicatorXOffset
-	yOffset := o.config.IndicatorYOffset
+// DrawModeIndicator draws a mode label at the specified position.
+func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate int) {
+	// Ensure the indicator window is visible before drawing.
+	C.NeruShowOverlayWindow(o.window)
 
-	label := C.CString("Scroll")
+	// Offset from cursor to avoid covering it
+	xOffset := o.indicatorConfig.IndicatorXOffset
+	yOffset := o.indicatorConfig.IndicatorYOffset
+
+	label := C.CString(labelText)
 	defer C.free(unsafe.Pointer(label)) //nolint:nlreturn
 
 	// Create a single hint for the indicator
@@ -149,25 +158,25 @@ func (o *Overlay) DrawScrollIndicator(xCoordinate, yCoordinate int) {
 
 	// Use cached style strings to avoid repeated allocations and fix use-after-free
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
-		cached.FontFamily = unsafe.Pointer(C.CString(o.config.FontFamily))
-		cached.BgColor = unsafe.Pointer(C.CString(o.config.BackgroundColor))
-		cached.TextColor = unsafe.Pointer(C.CString(o.config.TextColor))
+		cached.FontFamily = unsafe.Pointer(C.CString(o.indicatorConfig.FontFamily))
+		cached.BgColor = unsafe.Pointer(C.CString(o.indicatorConfig.BackgroundColor))
+		cached.TextColor = unsafe.Pointer(C.CString(o.indicatorConfig.TextColor))
 		cached.MatchedTextColor = unsafe.Pointer(
-			C.CString(o.config.TextColor),
+			C.CString(o.indicatorConfig.TextColor),
 		) // No matching in scroll mode
-		cached.BorderColor = unsafe.Pointer(C.CString(o.config.BorderColor))
+		cached.BorderColor = unsafe.Pointer(C.CString(o.indicatorConfig.BorderColor))
 	})
 
 	style := C.HintStyle{
-		fontSize:         C.int(o.config.FontSize),
+		fontSize:         C.int(o.indicatorConfig.FontSize),
 		fontFamily:       (*C.char)(cachedStyle.FontFamily),
 		backgroundColor:  (*C.char)(cachedStyle.BgColor),
 		textColor:        (*C.char)(cachedStyle.TextColor),
 		matchedTextColor: (*C.char)(cachedStyle.MatchedTextColor),
 		borderColor:      (*C.char)(cachedStyle.BorderColor),
-		borderRadius:     C.int(o.config.BorderRadius),
-		borderWidth:      C.int(o.config.BorderWidth),
-		padding:          C.int(o.config.Padding),
+		borderRadius:     C.int(o.indicatorConfig.BorderRadius),
+		borderWidth:      C.int(o.indicatorConfig.BorderWidth),
+		padding:          C.int(o.indicatorConfig.Padding),
 		showArrow:        0, // No arrow for scroll indicator
 	}
 
@@ -176,8 +185,12 @@ func (o *Overlay) DrawScrollIndicator(xCoordinate, yCoordinate int) {
 }
 
 // UpdateConfig updates the overlay configuration.
-func (o *Overlay) UpdateConfig(config config.ScrollConfig) {
-	o.config = config
+func (o *Overlay) UpdateConfig(
+	scrollCfg config.ScrollConfig,
+	indicatorCfg config.ModeIndicatorConfig,
+) {
+	o.scrollConfig = scrollCfg
+	o.indicatorConfig = indicatorCfg
 	// Invalidate style cache when config changes
 	o.styleCache.Free()
 }

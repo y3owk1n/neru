@@ -10,6 +10,28 @@ import (
 // StartInteractiveScroll activates the interactive scroll mode,
 // showing the scroll overlay and enabling key handling for scrolling.
 func (h *Handler) StartInteractiveScroll() {
+	if h.config != nil && !h.config.ModeIndicator.ScrollEnabled {
+		h.cursorState.SkipNextRestore()
+		h.scroll.Context.SetIsActive(false)
+		h.scroll.Context.SetLastKey("")
+		h.ExitMode()
+
+		if h.enableEventTap != nil {
+			h.enableEventTap()
+		}
+
+		h.scroll.Context.SetIsActive(true)
+
+		h.overlayManager.ResizeToActiveScreen()
+
+		h.SetModeScroll()
+
+		h.logger.Info("Interactive scroll activated")
+		h.logger.Info("Use configured keys for navigation")
+
+		return
+	}
+
 	h.cursorState.SkipNextRestore()
 	h.scroll.Context.SetIsActive(false)
 	h.scroll.Context.SetLastKey("")

@@ -47,9 +47,9 @@ func (d *MetricsDecorator) ShowGrid(ctx context.Context) error {
 	return d.next.ShowGrid(ctx)
 }
 
-// DrawScrollIndicator implements ports.OverlayPort.
-func (d *MetricsDecorator) DrawScrollIndicator(x, y int) {
-	d.next.DrawScrollIndicator(x, y)
+// DrawModeIndicator implements ports.OverlayPort.
+func (d *MetricsDecorator) DrawModeIndicator(x, y int) {
+	d.next.DrawModeIndicator(x, y)
 }
 
 // Hide implements ports.OverlayPort.

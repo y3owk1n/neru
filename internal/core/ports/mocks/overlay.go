@@ -52,8 +52,8 @@ func (m *MockOverlayPort) ShowGrid(ctx context.Context) error {
 	return nil
 }
 
-// DrawScrollIndicator implements ports.OverlayPort.
-func (m *MockOverlayPort) DrawScrollIndicator(x, y int) {
+// DrawModeIndicator implements ports.OverlayPort.
+func (m *MockOverlayPort) DrawModeIndicator(x, y int) {
 	if m.DrawScrollIndicatorFunc != nil {
 		m.DrawScrollIndicatorFunc(x, y)
 	}

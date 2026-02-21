@@ -112,7 +112,7 @@ func (m *mockOverlayPort) ShowGrid(ctx context.Context) error {
 func (m *mockOverlayPort) Show() {
 }
 
-func (m *mockOverlayPort) DrawScrollIndicator(x, y int) {
+func (m *mockOverlayPort) DrawModeIndicator(x, y int) {
 }
 
 func (m *mockOverlayPort) Hide(ctx context.Context) error {

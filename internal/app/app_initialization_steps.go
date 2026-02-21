@@ -137,13 +137,24 @@ func initializeUIComponents(app *App) error {
 	scrollComponent, err := factory.CreateScrollComponent(ComponentCreationOptions{
 		SkipIfDisabled: false,
 		Required:       false,
-		OverlayType:    "scroll",
+		OverlayType:    "",
 	})
 	if err != nil {
 		return err
 	}
 
 	app.scrollComponent = scrollComponent
+
+	modeIndicatorComponent, err := factory.CreateModeIndicatorComponent(ComponentCreationOptions{
+		SkipIfDisabled: false,
+		Required:       false,
+		OverlayType:    "mode_indicator",
+	})
+	if err != nil {
+		return err
+	}
+
+	app.modeIndicatorComponent = modeIndicatorComponent
 
 	recursiveGridComponent, err := factory.CreateRecursiveGridComponent(ComponentCreationOptions{
 		SkipIfDisabled: false,
@@ -418,6 +429,7 @@ func cleanupUIComponents(app *App) {
 	app.hintsComponent = nil
 	app.gridComponent = nil
 	app.scrollComponent = nil
+	app.modeIndicatorComponent = nil
 
 	// Clean up renderer
 	app.renderer = nil

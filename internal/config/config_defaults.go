@@ -299,6 +299,24 @@ func DefaultConfig() *Config {
 			MaxDepth:      DefaultRecursiveGridMaxDepth,
 			ResetKey:      ",",
 		},
+		ModeIndicator: ModeIndicatorConfig{
+			ScrollEnabled:        true,
+			HintsEnabled:         false,
+			GridEnabled:          false,
+			RecursiveGridEnabled: false,
+
+			FontSize:        DefaultScrollFontSize,
+			FontFamily:      "SF Mono",
+			BackgroundColor: "#F2FFD700",
+			TextColor:       "#FF000000",
+			BorderColor:     "#FF000000",
+			BorderWidth:     1,
+			Padding:         DefaultScrollPadding,
+			BorderRadius:    DefaultScrollBorderRadius,
+
+			IndicatorXOffset: DefaultScrollIndicatorXOffset,
+			IndicatorYOffset: DefaultScrollIndicatorYOffset,
+		},
 		Scroll: ScrollConfig{
 			ScrollStep:     DefaultScrollStep,
 			ScrollStepHalf: DefaultScrollStepHalf,
@@ -314,18 +332,6 @@ func DefaultConfig() *Config {
 				"page_up":      {"Ctrl+U", "PageUp"},
 				"page_down":    {"Ctrl+D", "PageDown"},
 			},
-
-			// New styling defaults
-			FontSize:         DefaultScrollFontSize,
-			FontFamily:       "SF Mono",
-			BackgroundColor:  "#F2FFD700", // Gold with 95% opacity
-			TextColor:        "#FF000000", // Black
-			BorderColor:      "#FF000000", // Black
-			BorderWidth:      1,
-			Padding:          DefaultScrollPadding,
-			BorderRadius:     DefaultScrollBorderRadius,
-			IndicatorXOffset: DefaultScrollIndicatorXOffset,
-			IndicatorYOffset: DefaultScrollIndicatorYOffset,
 		},
 		Action: ActionConfig{
 			MoveMouseStep: DefaultMoveMouseStep,

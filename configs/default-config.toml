@@ -45,6 +45,23 @@ hide_overlay_in_screen_share = false
 "Cmd+Shift+C" = "recursive_grid"
 "Cmd+Shift+S" = "scroll"
 
+[mode_indicator]
+scroll_enabled = true
+hints_enabled = false
+grid_enabled = false
+recursive_grid_enabled = false
+
+font_size = 12                 # Font size for mode indicators
+font_family = "SF Mono"        # Font family for mode indicators
+background_color = "#F2FFD700" # Background color (gold with 95% opacity)
+text_color = "#FF000000"       # Text color (black)
+border_color = "#FF000000"     # Border color (black)
+border_width = 1               # Border width
+padding = 4                    # Padding inside the indicator
+border_radius = 4              # Corner radius
+indicator_x_offset = 20        # X offset from cursor position
+indicator_y_offset = 20        # Y offset from cursor position
+
 # Direct actions are available in hints/grid mode without mode switching
 # Use Cmd+L for left click, Cmd+R for right click, Cmd+M for middle click, etc.
 # See the [action.key_bindings] section below for all available direct action keys.
@@ -233,18 +250,6 @@ reset_key = ","                 # Reset to initial center and clear state
 scroll_step = 50         # Base scroll distance for j/k keys
 scroll_step_half = 500   # Scroll distance for Ctrl+D/U keys
 scroll_step_full = 1000000 # Scroll distance for Shift+G/g keys
-
-# Scroll indicator appearance
-font_size = 12           # Font size for scroll indicator
-font_family = "SF Mono"  # Font family for scroll indicator
-background_color = "#F2FFD700" # Background color (gold with 95% opacity)
-text_color = "#FF000000"       # Text color (black)
-border_color = "#FF000000"     # Border color (black)
-border_width = 1         # Border width
-padding = 4              # Padding inside the indicator
-border_radius = 4        # Corner radius
-indicator_x_offset = 20  # X offset from cursor position
-indicator_y_offset = 20  # Y offset from cursor position
 
 # Key bindings for scroll mode
 # Each action can have multiple keys assigned to it

@@ -228,6 +228,30 @@ When `hide_overlay_in_screen_share = true`, the overlay will not appear in share
 
 ---
 
+## Mode Indicator
+
+Control whether a small mode label appears near the cursor for each mode.
+When enabled for a mode, the indicator follows the cursor position in that mode.
+
+### Basic Configuration
+
+```toml
+[mode_indicator]
+scroll_enabled = true
+hints_enabled = false
+grid_enabled = false
+recursive_grid_enabled = false
+```
+
+- `scroll_enabled`: When `true`, shows a cursor-following indicator in scroll mode.
+- `hints_enabled`: When `true`, shows a cursor-following indicator in hints mode.
+- `grid_enabled`: When `true`, shows a cursor-following indicator in grid mode.
+- `recursive_grid_enabled`: When `true`, shows a cursor-following indicator in recursive-grid mode.
+
+Setting all flags to `false` disables mode indicators entirely.
+
+---
+
 ## Keyboard Layout Requirements
 
 Neru automatically detects and supports various keyboard layouts using macOS system APIs. The keyboard layout is read directly from your macOS input settings.
