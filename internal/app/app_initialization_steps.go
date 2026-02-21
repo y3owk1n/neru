@@ -424,6 +424,7 @@ func cleanupServicesAndAdapters(app *App) {
 	app.gridService = nil
 	app.actionService = nil
 	app.scrollService = nil
+	app.modeIndicatorService = nil
 	app.configService = nil
 	app.metrics = nil
 }
