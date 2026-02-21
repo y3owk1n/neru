@@ -7,6 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
@@ -58,11 +59,12 @@ type App struct {
 	stopOnce sync.Once
 
 	// New Architecture Services
-	hintService   *services.HintService
-	gridService   *services.GridService
-	actionService *services.ActionService
-	scrollService *services.ScrollService
-	configService *config.Service
+	hintService          *services.HintService
+	gridService          *services.GridService
+	actionService        *services.ActionService
+	scrollService        *services.ScrollService
+	modeIndicatorService *modeindicator.Service
+	configService        *config.Service
 
 	// Feature components
 	hintsComponent         *components.HintsComponent

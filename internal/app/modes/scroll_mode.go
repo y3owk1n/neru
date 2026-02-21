@@ -90,7 +90,7 @@ func (h *Handler) startModeIndicatorPolling(mode domain.Mode) {
 			case <-ticker.C:
 				// Use a timeout for the individual call to prevent hanging.
 				reqCtx, reqCancel := context.WithTimeout(ctx, scrollPollTimeout)
-				cursorX, cursorY, err := h.scrollService.GetCursorPosition(reqCtx)
+				cursorX, cursorY, err := h.modeIndicatorService.GetCursorPosition(reqCtx)
 
 				reqCancel()
 
@@ -102,7 +102,7 @@ func (h *Handler) startModeIndicatorPolling(mode domain.Mode) {
 					continue
 				}
 
-				h.scrollService.UpdateIndicatorPosition(cursorX, cursorY)
+				h.modeIndicatorService.UpdateIndicatorPosition(cursorX, cursorY)
 			}
 		}
 	}()
