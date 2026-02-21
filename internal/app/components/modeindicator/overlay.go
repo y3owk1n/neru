@@ -196,15 +196,20 @@ func (o *Overlay) SetSharingType(hide bool) {
 	C.NeruSetOverlaySharingType(o.window, sharingType)
 }
 
-// Destroy releases the overlay window resources.
-func (o *Overlay) Destroy() {
-	// Clean up callback manager first to stop background goroutines
+// Cleanup frees Go-side resources (callbackManager, styleCache) without
+// destroying the native window.
+func (o *Overlay) Cleanup() {
 	if o.callbackManager != nil {
 		o.callbackManager.Cleanup()
 	}
+	o.styleCache.Free()
+}
+
+// Destroy releases the overlay window resources.
+func (o *Overlay) Destroy() {
+	o.Cleanup()
 
 	if o.window != nil {
-		o.styleCache.Free()
 		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
 	}
