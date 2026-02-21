@@ -307,6 +307,10 @@ func (m *Manager) Clear() {
 // ResizeToActiveScreen resizes the overlay window to the active screen.
 func (m *Manager) ResizeToActiveScreen() {
 	C.NeruResizeOverlayToActiveScreen(m.window)
+
+	if m.modeIndicatorOverlay != nil {
+		m.modeIndicatorOverlay.ResizeToActiveScreen()
+	}
 }
 
 // SwitchTo transitions the overlay to the specified mode and notifies subscribers.
