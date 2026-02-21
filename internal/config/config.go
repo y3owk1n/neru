@@ -414,6 +414,26 @@ func (c *Config) Validate() error {
 
 // ValidateModeIndicator validates the mode indicator configuration.
 func (c *Config) ValidateModeIndicator() error {
+	err := validateMinValue(c.ModeIndicator.FontSize, 1, "mode_indicator.font_size")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.ModeIndicator.BorderWidth, 0, "mode_indicator.border_width")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.ModeIndicator.Padding, 0, "mode_indicator.padding")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.ModeIndicator.BorderRadius, 0, "mode_indicator.border_radius")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
