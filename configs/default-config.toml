@@ -290,16 +290,6 @@ border_radius = 4              # Corner radius
 indicator_x_offset = 20        # X offset from cursor position
 indicator_y_offset = 20        # Y offset from cursor position
 
-# Direct actions are available in hints/grid mode without mode switching
-# Use Cmd+L for left click, Cmd+R for right click, Cmd+M for middle click, etc.
-# See the [action.key_bindings] section below for all available direct action keys.
-
-# To run a shell command from a hotkey, prefix the value with `exec `:
-# "Ctrl+Alt+T" = "exec open -a Terminal"
-# "Ctrl+Alt+F" = "exec osascript -e 'display notification \"This is a test notification!\" with title \"Hello from Terminal\"'"
-# Multi-key sequences (exactly 2 characters, no modifiers):
-# go_top = ["gg"]  # Press g then g to go to top
-
 # Action keybindings for use in hints/grid mode
 # Valid formats:
 #   - Modifier+Key: Cmd+L, Shift+Return (at least 1 modifier + alphabet or Return/Enter)
