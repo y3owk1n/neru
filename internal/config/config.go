@@ -146,6 +146,7 @@ type Config struct {
 	RecursiveGrid RecursiveGridConfig `json:"recursiveGrid" toml:"recursive_grid"`
 	Scroll        ScrollConfig        `json:"scroll"        toml:"scroll"`
 	Action        ActionConfig        `json:"action"        toml:"action"`
+	ModeIndicator ModeIndicatorConfig `json:"modeIndicator" toml:"mode_indicator"`
 	Logging       LoggingConfig       `json:"logging"       toml:"logging"`
 	SmoothCursor  SmoothCursorConfig  `json:"smoothCursor"  toml:"smooth_cursor"`
 	Metrics       MetricsConfig       `json:"metrics"       toml:"metrics"`
@@ -159,6 +160,26 @@ type GeneralConfig struct {
 	RestoreCursorPosition     bool     `json:"restoreCursorPosition"     toml:"restore_cursor_position"`
 	ModeExitKeys              []string `json:"modeExitKeys"              toml:"mode_exit_keys"`
 	HideOverlayInScreenShare  bool     `json:"hideOverlayInScreenShare"  toml:"hide_overlay_in_screen_share"`
+}
+
+// ModeIndicatorConfig defines per-mode indicator visibility.
+type ModeIndicatorConfig struct {
+	ScrollEnabled        bool `json:"scrollEnabled"        toml:"scroll_enabled"`
+	HintsEnabled         bool `json:"hintsEnabled"         toml:"hints_enabled"`
+	GridEnabled          bool `json:"gridEnabled"          toml:"grid_enabled"`
+	RecursiveGridEnabled bool `json:"recursiveGridEnabled" toml:"recursive_grid_enabled"`
+
+	FontSize        int    `json:"fontSize"        toml:"font_size"`
+	FontFamily      string `json:"fontFamily"      toml:"font_family"`
+	BackgroundColor string `json:"backgroundColor" toml:"background_color"`
+	TextColor       string `json:"textColor"       toml:"text_color"`
+	BorderColor     string `json:"borderColor"     toml:"border_color"`
+	BorderWidth     int    `json:"borderWidth"     toml:"border_width"`
+	Padding         int    `json:"padding"         toml:"padding"`
+	BorderRadius    int    `json:"borderRadius"    toml:"border_radius"`
+
+	IndicatorXOffset int `json:"indicatorXOffset" toml:"indicator_x_offset"`
+	IndicatorYOffset int `json:"indicatorYOffset" toml:"indicator_y_offset"`
 }
 
 // AppConfig defines application-specific settings for role customization.
@@ -186,20 +207,6 @@ type ScrollConfig struct {
 	ScrollStepFull int `json:"scrollStepFull" toml:"scroll_step_full"`
 
 	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
-
-	// New styling fields
-	FontSize        int    `json:"fontSize"        toml:"font_size"`
-	FontFamily      string `json:"fontFamily"      toml:"font_family"`
-	BackgroundColor string `json:"backgroundColor" toml:"background_color"`
-	TextColor       string `json:"textColor"       toml:"text_color"`
-	BorderColor     string `json:"borderColor"     toml:"border_color"`
-	BorderWidth     int    `json:"borderWidth"     toml:"border_width"`
-	Padding         int    `json:"padding"         toml:"padding"`
-	BorderRadius    int    `json:"borderRadius"    toml:"border_radius"`
-
-	// Indicator positioning
-	IndicatorXOffset int `json:"indicatorXOffset" toml:"indicator_x_offset"`
-	IndicatorYOffset int `json:"indicatorYOffset" toml:"indicator_y_offset"`
 }
 
 // HintsConfig defines the visual and behavioral settings for hints mode.
@@ -345,6 +352,11 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	err = c.ValidateModeIndicator()
+	if err != nil {
+		return err
+	}
+
 	// Validate mode exit keys
 	err = c.ValidateModeExitKeys()
 	if err != nil {
@@ -393,6 +405,31 @@ func (c *Config) Validate() error {
 
 	// Validate smooth cursor settings
 	err = c.ValidateSmoothCursor()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidateModeIndicator validates the mode indicator configuration.
+func (c *Config) ValidateModeIndicator() error {
+	err := validateMinValue(c.ModeIndicator.FontSize, 1, "mode_indicator.font_size")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.ModeIndicator.BorderWidth, 0, "mode_indicator.border_width")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.ModeIndicator.Padding, 0, "mode_indicator.padding")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.ModeIndicator.BorderRadius, 0, "mode_indicator.border_radius")
 	if err != nil {
 		return err
 	}

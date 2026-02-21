@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/systray"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -78,7 +79,7 @@ func initializeServicesAndAdapters(app *App) error {
 	)
 
 	// Initialize services
-	hintService, gridService, actionService, scrollService, err := initializeServices(
+	hintService, gridService, actionService, scrollService, modeIndicatorService, err := initializeServices(
 		cfg,
 		accAdapter,
 		overlayAdapter,
@@ -93,6 +94,7 @@ func initializeServicesAndAdapters(app *App) error {
 	app.gridService = gridService
 	app.actionService = actionService
 	app.scrollService = scrollService
+	app.modeIndicatorService = modeIndicatorService
 	app.configService = cfgService
 
 	return nil
@@ -137,13 +139,24 @@ func initializeUIComponents(app *App) error {
 	scrollComponent, err := factory.CreateScrollComponent(ComponentCreationOptions{
 		SkipIfDisabled: false,
 		Required:       false,
-		OverlayType:    "scroll",
+		OverlayType:    "",
 	})
 	if err != nil {
 		return err
 	}
 
 	app.scrollComponent = scrollComponent
+
+	modeIndicatorComponent, err := factory.CreateModeIndicatorComponent(ComponentCreationOptions{
+		SkipIfDisabled: false,
+		Required:       false,
+		OverlayType:    "mode_indicator",
+	})
+	if err != nil {
+		return err
+	}
+
+	app.modeIndicatorComponent = modeIndicatorComponent
 
 	recursiveGridComponent, err := factory.CreateRecursiveGridComponent(ComponentCreationOptions{
 		SkipIfDisabled: false,
@@ -219,10 +232,11 @@ func initializeModeHandler(app *App) {
 		overlayManager OverlayManager
 		renderer       *ui.OverlayRenderer
 		services       struct {
-			hint   *services.HintService
-			grid   *services.GridService
-			action *services.ActionService
-			scroll *services.ScrollService
+			hint          *services.HintService
+			grid          *services.GridService
+			action        *services.ActionService
+			scroll        *services.ScrollService
+			modeIndicator *modeindicator.Service
 		}
 		components struct {
 			hints         *components.HintsComponent
@@ -243,15 +257,17 @@ func initializeModeHandler(app *App) {
 		overlayManager: app.overlayManager,
 		renderer:       app.renderer,
 		services: struct {
-			hint   *services.HintService
-			grid   *services.GridService
-			action *services.ActionService
-			scroll *services.ScrollService
+			hint          *services.HintService
+			grid          *services.GridService
+			action        *services.ActionService
+			scroll        *services.ScrollService
+			modeIndicator *modeindicator.Service
 		}{
-			hint:   app.hintService,
-			grid:   app.gridService,
-			action: app.actionService,
-			scroll: app.scrollService,
+			hint:          app.hintService,
+			grid:          app.gridService,
+			action:        app.actionService,
+			scroll:        app.scrollService,
+			modeIndicator: app.modeIndicatorService,
 		},
 		components: struct {
 			hints         *components.HintsComponent
@@ -286,6 +302,7 @@ func initializeModeHandler(app *App) {
 		deps.services.grid,
 		deps.services.action,
 		deps.services.scroll,
+		deps.services.modeIndicator,
 		deps.components.hints,
 		deps.components.grid,
 		deps.components.scroll,
@@ -407,6 +424,7 @@ func cleanupServicesAndAdapters(app *App) {
 	app.gridService = nil
 	app.actionService = nil
 	app.scrollService = nil
+	app.modeIndicatorService = nil
 	app.configService = nil
 	app.metrics = nil
 }
@@ -418,6 +436,7 @@ func cleanupUIComponents(app *App) {
 	app.hintsComponent = nil
 	app.gridComponent = nil
 	app.scrollComponent = nil
+	app.modeIndicatorComponent = nil
 
 	// Clean up renderer
 	app.renderer = nil

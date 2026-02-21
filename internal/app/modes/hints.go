@@ -199,4 +199,6 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 
 	h.SetModeHints()
 	h.logger.Info("Hints mode activated")
+
+	h.startModeIndicatorPolling(domain.ModeHints)
 }

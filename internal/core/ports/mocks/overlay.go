@@ -12,12 +12,12 @@ type MockOverlayPort struct {
 	ShowFunc      func()
 	ShowHintsFunc func(context.Context, []*hint.Interface) error
 	ShowGridFunc  func(ctx context.Context) error
-	// DrawScrollIndicatorFunc mocks DrawScrollIndicator.
-	DrawScrollIndicatorFunc func(x, y int)
-	HideFunc                func(context.Context) error
-	IsVisibleFunc           func() bool
-	RefreshFunc             func(context.Context) error
-	HealthFunc              func(context.Context) error
+	// DrawModeIndicatorFunc mocks DrawModeIndicator.
+	DrawModeIndicatorFunc func(x, y int)
+	HideFunc              func(context.Context) error
+	IsVisibleFunc         func() bool
+	RefreshFunc           func(context.Context) error
+	HealthFunc            func(context.Context) error
 
 	// State tracking for tests
 	visible bool
@@ -52,10 +52,10 @@ func (m *MockOverlayPort) ShowGrid(ctx context.Context) error {
 	return nil
 }
 
-// DrawScrollIndicator implements ports.OverlayPort.
-func (m *MockOverlayPort) DrawScrollIndicator(x, y int) {
-	if m.DrawScrollIndicatorFunc != nil {
-		m.DrawScrollIndicatorFunc(x, y)
+// DrawModeIndicator implements ports.OverlayPort.
+func (m *MockOverlayPort) DrawModeIndicator(x, y int) {
+	if m.DrawModeIndicatorFunc != nil {
+		m.DrawModeIndicatorFunc(x, y)
 	}
 }
 

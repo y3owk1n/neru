@@ -23,13 +23,6 @@ func (h *Handler) StartInteractiveScroll() {
 
 	h.overlayManager.ResizeToActiveScreen()
 
-	ctx := context.Background()
-
-	showScrollErr := h.scrollService.Show(ctx)
-	if showScrollErr != nil {
-		h.logger.Error("Failed to show scroll overlay", zap.Error(showScrollErr))
-	}
-
 	h.SetModeScroll()
 
 	h.logger.Info("Interactive scroll activated")

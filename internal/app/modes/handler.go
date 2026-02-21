@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
@@ -44,10 +45,11 @@ type Handler struct {
 	overlayManager overlay.ManagerInterface
 	renderer       *ui.OverlayRenderer
 	// New Services
-	hintService   *services.HintService
-	gridService   *services.GridService
-	actionService *services.ActionService
-	scrollService *services.ScrollService
+	hintService          *services.HintService
+	gridService          *services.GridService
+	actionService        *services.ActionService
+	scrollService        *services.ScrollService
+	modeIndicatorService *modeindicator.Service
 
 	hints         *components.HintsComponent
 	grid          *components.GridComponent
@@ -84,6 +86,7 @@ func NewHandler(
 	gridService *services.GridService,
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
+	modeIndicatorService *modeindicator.Service,
 	hintsComponent *components.HintsComponent,
 	grid *components.GridComponent,
 	scroll *components.ScrollComponent,
@@ -96,25 +99,26 @@ func NewHandler(
 	screenBounds := bridge.ActiveScreenBounds()
 
 	handler := &Handler{
-		config:          config,
-		logger:          logger,
-		appState:        appState,
-		cursorState:     cursorState,
-		overlayManager:  overlayManager,
-		renderer:        renderer,
-		hintService:     hintService,
-		gridService:     gridService,
-		actionService:   actionService,
-		scrollService:   scrollService,
-		hints:           hintsComponent,
-		grid:            grid,
-		scroll:          scroll,
-		recursiveGrid:   recursiveGridComponent,
-		screenBounds:    screenBounds,
-		enableEventTap:  enableEventTap,
-		disableEventTap: disableEventTap,
-		refreshHotkeys:  refreshHotkeys,
-		refreshHintsCh:  make(chan struct{}, 1),
+		config:               config,
+		logger:               logger,
+		appState:             appState,
+		cursorState:          cursorState,
+		overlayManager:       overlayManager,
+		renderer:             renderer,
+		hintService:          hintService,
+		gridService:          gridService,
+		actionService:        actionService,
+		scrollService:        scrollService,
+		modeIndicatorService: modeIndicatorService,
+		hints:                hintsComponent,
+		grid:                 grid,
+		scroll:               scroll,
+		recursiveGrid:        recursiveGridComponent,
+		screenBounds:         screenBounds,
+		enableEventTap:       enableEventTap,
+		disableEventTap:      disableEventTap,
+		refreshHotkeys:       refreshHotkeys,
+		refreshHintsCh:       make(chan struct{}, 1),
 	}
 
 	// Initialize mode implementations

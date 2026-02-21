@@ -234,18 +234,6 @@ scroll_step = 50         # Base scroll distance for j/k keys
 scroll_step_half = 500   # Scroll distance for Ctrl+D/U keys
 scroll_step_full = 1000000 # Scroll distance for Shift+G/g keys
 
-# Scroll indicator appearance
-font_size = 12           # Font size for scroll indicator
-font_family = "SF Mono"  # Font family for scroll indicator
-background_color = "#F2FFD700" # Background color (gold with 95% opacity)
-text_color = "#FF000000"       # Text color (black)
-border_color = "#FF000000"     # Border color (black)
-border_width = 1         # Border width
-padding = 4              # Padding inside the indicator
-border_radius = 4        # Corner radius
-indicator_x_offset = 20  # X offset from cursor position
-indicator_y_offset = 20  # Y offset from cursor position
-
 # Key bindings for scroll mode
 # Each action can have multiple keys assigned to it
 # Key format:
@@ -282,8 +270,25 @@ page_down = ["Ctrl+D", "PageDown"]
 # go_top = ["gg", "Home"]
 # go_bottom = ["G", "End"]
 #
-# Multi-key sequences (exactly 2 characters, no modifiers):
-# go_top = ["gg"]  # Press g then g to go to top
+
+# Mode indicator - cursor-following label showing current mode
+# When enabled for a mode, displays the mode name near the cursor
+[mode_indicator]
+scroll_enabled = true
+hints_enabled = false
+grid_enabled = false
+recursive_grid_enabled = false
+
+font_size = 12                 # Font size for mode indicators
+font_family = "SF Mono"        # Font family for mode indicators
+background_color = "#F2FFD700" # Background color (gold with 95% opacity)
+text_color = "#FF000000"       # Text color (black)
+border_color = "#FF000000"     # Border color (black)
+border_width = 1               # Border width
+padding = 4                    # Padding inside the indicator
+border_radius = 4              # Corner radius
+indicator_x_offset = 20        # X offset from cursor position
+indicator_y_offset = 20        # Y offset from cursor position
 
 # Action keybindings for use in hints/grid mode
 # Valid formats:

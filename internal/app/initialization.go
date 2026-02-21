@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
@@ -133,11 +134,11 @@ func initializeServices(
 	accAdapter ports.AccessibilityPort,
 	overlayAdapter ports.OverlayPort,
 	logger *zap.Logger,
-) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, error) {
+) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, *modeindicator.Service, error) {
 	// Hint Generator - creates unique labels for UI elements
 	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
 	if hintGenErr != nil {
-		return nil, nil, nil, nil, derrors.Wrap(
+		return nil, nil, nil, nil, nil, derrors.Wrap(
 			hintGenErr,
 			derrors.CodeHintGenerationFailed,
 			"failed to create hint generator",
@@ -163,7 +164,14 @@ func initializeServices(
 	// Scroll Service - manages scrolling operations
 	scrollService := services.NewScrollService(accAdapter, overlayAdapter, cfg.Scroll, logger)
 
-	return hintService, gridService, actionService, scrollService, nil
+	// Mode Indicator Service - manages mode indicator overlay
+	modeIndicatorService := modeindicator.NewService(
+		accAdapter,
+		overlayAdapter,
+		logger,
+	)
+
+	return hintService, gridService, actionService, scrollService, modeIndicatorService, nil
 }
 
 // processHotkeyBindings processes and filters hotkey bindings from configuration.
@@ -226,8 +234,8 @@ func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger
 
 // registerOverlays registers all component overlays with the overlay manager.
 func (a *App) registerOverlays() {
-	if a.scrollComponent != nil && a.scrollComponent.Overlay != nil {
-		a.overlayManager.UseScrollOverlay(a.scrollComponent.Overlay)
+	if a.modeIndicatorComponent != nil && a.modeIndicatorComponent.Overlay != nil {
+		a.overlayManager.UseModeIndicatorOverlay(a.modeIndicatorComponent.Overlay)
 	}
 
 	if a.hintsComponent != nil && a.hintsComponent.Overlay != nil {

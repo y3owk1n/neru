@@ -70,6 +70,8 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
 
 	h.logger.Info("Recursive-grid mode activated", zap.String("action", actionString))
 	h.logger.Info("Press u/i/j/k to select cells, backspace to backtrack, escape to exit")
+
+	h.startModeIndicatorPolling(domain.ModeRecursiveGrid)
 }
 
 // initializeRecursiveGridManager initializes the recursive-grid manager.

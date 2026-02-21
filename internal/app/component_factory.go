@@ -6,6 +6,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
@@ -139,39 +140,53 @@ func (f *ComponentFactory) CreateGridComponent(
 }
 
 // CreateScrollComponent creates a scroll component with standardized error handling.
+// This component now only owns scroll context and key mappings; the visual mode
+// indicator overlay is managed separately.
 func (f *ComponentFactory) CreateScrollComponent(
 	opts ComponentCreationOptions,
 ) (*components.ScrollComponent, error) {
-	// Create overlay
-	var scrollOverlay *scroll.Overlay
+	_ = opts
+
+	return &components.ScrollComponent{
+		Context: &scroll.Context{},
+		KeyMap:  scroll.NewKeyMap(f.config.Scroll.KeyBindings),
+	}, nil
+}
+
+// CreateModeIndicatorComponent creates the shared mode indicator overlay component.
+func (f *ComponentFactory) CreateModeIndicatorComponent(
+	opts ComponentCreationOptions,
+) (*components.ModeIndicatorComponent, error) {
+	var indicatorOverlay *modeindicator.Overlay
 	if opts.OverlayType != "" {
-		overlay, err := f.createOverlay("scroll", f.config.Scroll)
+		overlay, err := f.createOverlay("mode_indicator", f.config.ModeIndicator)
 		if err != nil {
 			if opts.Required {
 				return nil, derrors.Wrap(
 					err,
 					derrors.CodeOverlayFailed,
-					"failed to create scroll overlay",
+					"failed to create mode indicator overlay",
 				)
 			}
 
 			f.logger.Warn(
-				"Failed to create scroll overlay, continuing without overlay",
+				"Failed to create mode indicator overlay, continuing without overlay",
 				zap.Error(err),
 			)
 		} else {
-			if scrollOverlayTyped, ok := overlay.(*scroll.Overlay); ok {
-				scrollOverlay = scrollOverlayTyped
+			if typed, ok := overlay.(*modeindicator.Overlay); ok {
+				indicatorOverlay = typed
 			} else {
-				f.logger.Error("Unexpected overlay type for scroll", zap.Any("overlay", overlay))
+				f.logger.Error(
+					"Unexpected overlay type for mode indicator",
+					zap.Any("overlay", overlay),
+				)
 			}
 		}
 	}
 
-	return &components.ScrollComponent{
-		Overlay: scrollOverlay,
-		Context: &scroll.Context{},
-		KeyMap:  scroll.NewKeyMap(f.config.Scroll.KeyBindings),
+	return &components.ModeIndicatorComponent{
+		Overlay: indicatorOverlay,
 	}, nil
 }
 
@@ -228,13 +243,25 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 		return hints.NewOverlayWithWindow(hintsConfig, f.logger, f.overlayManager.WindowPtr())
 	case "grid":
 		return f.createGridOverlay(), nil
-	case "scroll":
-		scrollConfig, ok := cfg.(config.ScrollConfig)
+	case "mode_indicator":
+		indicatorConfig, ok := cfg.(config.ModeIndicatorConfig)
 		if !ok {
-			return nil, derrors.New(derrors.CodeInvalidInput, "invalid scroll config type")
+			return nil, derrors.New(derrors.CodeInvalidInput, "invalid mode indicator config type")
 		}
 
-		return scroll.NewOverlayWithWindow(scrollConfig, f.logger, f.overlayManager.WindowPtr())
+		// Use a dedicated window so the mode indicator doesn't conflict
+		// with hints/grid content drawn on the shared manager window.
+		// When no real overlay window exists (e.g. in tests), return nil
+		// rather than creating an overlay with a nil C window handle,
+		// which would crash on any CGo call.
+		if f.overlayManager.WindowPtr() == nil {
+			return (*modeindicator.Overlay)(nil), nil
+		}
+
+		return modeindicator.NewOverlay(
+			indicatorConfig,
+			f.logger,
+		)
 	case "recursive_grid":
 		recursiveGridConfig, ok := cfg.(config.RecursiveGridConfig)
 		if !ok {

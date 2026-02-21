@@ -20,8 +20,8 @@ type GridDisplay interface {
 
 // HighlightDisplay defines the interface for displaying highlight overlays.
 type HighlightDisplay interface {
-	// DrawScrollIndicator draws a scroll indicator at the specified position.
-	DrawScrollIndicator(x, y int)
+	// DrawModeIndicator draws a mode indicator at the specified position.
+	DrawModeIndicator(x, y int)
 }
 
 // OverlayVisibility defines the interface for overlay visibility management.
@@ -53,8 +53,8 @@ type OverlayPort interface {
 	// Show shows the overlay.
 	Show()
 
-	// DrawScrollIndicator draws a scroll indicator at the specified position.
-	DrawScrollIndicator(x, y int)
+	// DrawModeIndicator draws a mode indicator at the specified position.
+	DrawModeIndicator(x, y int)
 
 	// Hide hides the overlay.s from the screen.
 	Hide(ctx context.Context) error
