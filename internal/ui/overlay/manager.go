@@ -144,8 +144,8 @@ const (
 	ModeHints Mode = "hints"
 	// ModeGrid represents the grid mode.
 	ModeGrid Mode = "grid"
-	// ModeScroll represents the modeindicator mode.
-	ModeScroll Mode = "modeindicator"
+	// ModeScroll represents the scroll mode.
+	ModeScroll Mode = "scroll"
 	// ModeRecursiveGrid represents the recursive-grid mode.
 	ModeRecursiveGrid Mode = "recursive_grid"
 )
