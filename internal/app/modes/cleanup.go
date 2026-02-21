@@ -72,7 +72,8 @@ func (h *Handler) cleanupGridMode() {
 
 // performCommonCleanup handles common cleanup logic for all modes.
 func (h *Handler) performCommonCleanup() {
-	h.clearAndHideOverlay()
+	h.stopModeIndicatorPolling()
+	h.overlayManager.Clear()
 
 	// Stop any pending hints refresh timer to prevent re-activation after exit
 	if h.refreshHintsTimer != nil {
