@@ -212,7 +212,7 @@ type ManagerInterface interface {
 type Manager struct {
 	window C.OverlayWindow
 	logger *zap.Logger
-	mu     sync.Mutex
+	mu     sync.RWMutex
 	mode   Mode
 	subs   map[uint64]func(StateChange)
 	nextID uint64
@@ -259,6 +259,9 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 
 // Mode returns the current overlay mode.
 func (m *Manager) Mode() Mode {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	return m.mode
 }
 
