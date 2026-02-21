@@ -71,6 +71,10 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 		a.modeIndicatorComponent.UpdateConfig(loadResult.Config, a.logger)
 	}
 
+	if a.recursiveGridComponent != nil {
+		a.recursiveGridComponent.UpdateConfig(loadResult.Config, a.logger)
+	}
+
 	if a.modes != nil {
 		a.modes.UpdateConfig(loadResult.Config)
 	}
