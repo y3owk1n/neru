@@ -233,8 +233,8 @@ func BuildStyle(cfg config.HintsConfig) StyleMode {
 	return style
 }
 
-// UpdateConfig updates the overlay configuration.
-func (o *Overlay) UpdateConfig(config config.HintsConfig) {
+// SetConfig sets the overlay configuration.
+func (o *Overlay) SetConfig(config config.HintsConfig) {
 	o.config = config
 	// Invalidate style cache when config changes
 	o.styleCache.Free()

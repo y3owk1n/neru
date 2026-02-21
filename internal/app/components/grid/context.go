@@ -30,7 +30,6 @@ type Context struct {
 	baseContext
 
 	gridInstance **domainGrid.Grid
-	gridOverlay  **Overlay
 }
 
 // SetGridInstance sets the grid instance.
@@ -48,24 +47,8 @@ func (c *Context) GridInstance() **domainGrid.Grid {
 	return c.gridInstance
 }
 
-// SetGridOverlay sets the grid overlay.
-func (c *Context) SetGridOverlay(gridOverlay **Overlay) {
-	c.gridOverlay = gridOverlay
-}
-
-// SetGridOverlayValue sets the value of the grid overlay pointer.
-func (c *Context) SetGridOverlayValue(gridOverlay *Overlay) {
-	*c.gridOverlay = gridOverlay
-}
-
-// GridOverlay returns the grid overlay.
-func (c *Context) GridOverlay() **Overlay {
-	return c.gridOverlay
-}
-
 // Reset resets the grid context to its initial state.
 func (c *Context) Reset() {
 	c.gridInstance = nil
-	c.gridOverlay = nil
 	c.baseContext.Reset()
 }

@@ -179,8 +179,8 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 	C.NeruDrawHints(o.window, &hint, 1, style)
 }
 
-// UpdateConfig updates the overlay configuration.
-func (o *Overlay) UpdateConfig(indicatorCfg config.ModeIndicatorConfig) {
+// SetConfig sets the overlay configuration.
+func (o *Overlay) SetConfig(indicatorCfg config.ModeIndicatorConfig) {
 	o.indicatorConfig = indicatorCfg
 	// Invalidate style cache when config changes
 	o.styleCache.Free()

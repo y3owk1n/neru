@@ -107,7 +107,7 @@ func (h *Handler) createGridInstance() *domainGrid.Grid {
 
 // updateGridOverlayConfig updates the grid overlay configuration.
 func (h *Handler) updateGridOverlayConfig() {
-	(*h.grid.Context.GridOverlay()).SetConfig(h.config.Grid)
+	h.grid.Overlay.SetConfig(h.config.Grid)
 }
 
 // initializeGridManager initializes the grid manager with the new grid instance.
