@@ -252,19 +252,18 @@ func (f *ComponentFactory) CreateRecursiveGridComponent(
 // Helper methods
 
 func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, error) {
-	// When no real overlay window exists (e.g. in tests with a no-op overlay
-	// manager), return nil rather than creating an overlay with a nil C window
-	// handle, which would crash on any CGo call.
-	//nolint:nilnil
-	if f.overlayManager.WindowPtr() == nil {
-		return nil, nil
-	}
-
 	switch overlayType {
 	case "hints":
 		hintsConfig, ok := cfg.(config.HintsConfig)
 		if !ok {
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid hints config type")
+		}
+
+		// When no real overlay window exists (e.g. in tests with a no-op overlay
+		// manager), return nil rather than creating an overlay with a nil C window
+		// handle, which would crash on any CGo call.
+		if f.overlayManager.WindowPtr() == nil {
+			return nil, nil //nolint:nilnil
 		}
 
 		return hints.NewOverlayWithWindow(hintsConfig, f.logger, f.overlayManager.WindowPtr())
@@ -274,6 +273,10 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid grid config type")
 		}
 
+		if f.overlayManager.WindowPtr() == nil {
+			return nil, nil //nolint:nilnil
+		}
+
 		return grid.NewOverlayWithWindow(gridConfig, f.logger, f.overlayManager.WindowPtr()), nil
 	case "mode_indicator":
 		indicatorConfig, ok := cfg.(config.ModeIndicatorConfig)
@@ -281,8 +284,9 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid mode indicator config type")
 		}
 
-		// Mode indicator uses a dedicated window (not the shared manager window)
-		// so it doesn't conflict with hints/grid content.
+		// Mode indicator creates its own dedicated window (not the shared manager
+		// window) so it doesn't conflict with hints/grid content. No nil-window
+		// guard needed here since it doesn't use the shared window.
 		return modeindicator.NewOverlay(
 			indicatorConfig,
 			f.logger,
@@ -291,6 +295,10 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 		recursiveGridConfig, ok := cfg.(config.RecursiveGridConfig)
 		if !ok {
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid recursive_grid config type")
+		}
+
+		if f.overlayManager.WindowPtr() == nil {
+			return nil, nil //nolint:nilnil
 		}
 
 		return recursivegrid.NewOverlayWithWindow(
