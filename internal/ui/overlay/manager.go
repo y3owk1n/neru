@@ -531,12 +531,15 @@ func (m *Manager) SetSharingType(hide bool) {
 
 	C.NeruSetOverlaySharingType(m.window, sharingType)
 
-	// Also update grid and recursive_grid overlay windows if they exist
+	// Also update grid, recursive_grid, and mode indicator overlay windows if they exist
 	if m.gridOverlay != nil {
 		m.gridOverlay.SetSharingType(hide)
 	}
 	if m.recursiveGridOverlay != nil {
 		m.recursiveGridOverlay.SetSharingType(hide)
+	}
+	if m.modeIndicatorOverlay != nil {
+		m.modeIndicatorOverlay.SetSharingType(hide)
 	}
 
 	if m.logger != nil {

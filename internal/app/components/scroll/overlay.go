@@ -23,6 +23,11 @@ const (
 	defaultIndicatorWidth = 60
 	// defaultIndicatorHeight is the default height for the scroll indicator.
 	defaultIndicatorHeight = 20
+
+	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	NSWindowSharingNone = 0
+	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
+	NSWindowSharingReadOnly = 1
 )
 
 //export resizeScrollCompletionCallback
@@ -193,6 +198,16 @@ func (o *Overlay) UpdateConfig(
 	o.indicatorConfig = indicatorCfg
 	// Invalidate style cache when config changes
 	o.styleCache.Free()
+}
+
+// SetSharingType sets the window sharing type for screen sharing visibility.
+func (o *Overlay) SetSharingType(hide bool) {
+	sharingType := C.int(NSWindowSharingReadOnly)
+	if hide {
+		sharingType = C.int(NSWindowSharingNone)
+	}
+
+	C.NeruSetOverlaySharingType(o.window, sharingType)
 }
 
 // Destroy releases the overlay window resources.
