@@ -45,23 +45,6 @@ hide_overlay_in_screen_share = false
 "Cmd+Shift+C" = "recursive_grid"
 "Cmd+Shift+S" = "scroll"
 
-[mode_indicator]
-scroll_enabled = true
-hints_enabled = false
-grid_enabled = false
-recursive_grid_enabled = false
-
-font_size = 12                 # Font size for mode indicators
-font_family = "SF Mono"        # Font family for mode indicators
-background_color = "#F2FFD700" # Background color (gold with 95% opacity)
-text_color = "#FF000000"       # Text color (black)
-border_color = "#FF000000"     # Border color (black)
-border_width = 1               # Border width
-padding = 4                    # Padding inside the indicator
-border_radius = 4              # Corner radius
-indicator_x_offset = 20        # X offset from cursor position
-indicator_y_offset = 20        # Y offset from cursor position
-
 # Direct actions are available in hints/grid mode without mode switching
 # Use Cmd+L for left click, Cmd+R for right click, Cmd+M for middle click, etc.
 # See the [action.key_bindings] section below for all available direct action keys.
@@ -287,6 +270,33 @@ page_down = ["Ctrl+D", "PageDown"]
 # go_top = ["gg", "Home"]
 # go_bottom = ["G", "End"]
 #
+
+# Mode indicator - cursor-following label showing current mode
+# When enabled for a mode, displays the mode name near the cursor
+[mode_indicator]
+scroll_enabled = true
+hints_enabled = false
+grid_enabled = false
+recursive_grid_enabled = false
+
+font_size = 12                 # Font size for mode indicators
+font_family = "SF Mono"        # Font family for mode indicators
+background_color = "#F2FFD700" # Background color (gold with 95% opacity)
+text_color = "#FF000000"       # Text color (black)
+border_color = "#FF000000"     # Border color (black)
+border_width = 1               # Border width
+padding = 4                    # Padding inside the indicator
+border_radius = 4              # Corner radius
+indicator_x_offset = 20        # X offset from cursor position
+indicator_y_offset = 20        # Y offset from cursor position
+
+# Direct actions are available in hints/grid mode without mode switching
+# Use Cmd+L for left click, Cmd+R for right click, Cmd+M for middle click, etc.
+# See the [action.key_bindings] section below for all available direct action keys.
+
+# To run a shell command from a hotkey, prefix the value with `exec `:
+# "Ctrl+Alt+T" = "exec open -a Terminal"
+# "Ctrl+Alt+F" = "exec osascript -e 'display notification \"This is a test notification!\" with title \"Hello from Terminal\"'"
 # Multi-key sequences (exactly 2 characters, no modifiers):
 # go_top = ["gg"]  # Press g then g to go to top
 
