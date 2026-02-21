@@ -249,6 +249,16 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid mode indicator config type")
 		}
 
+		// Use a dedicated window so the mode indicator doesn't conflict
+		// with hints/grid content drawn on the shared manager window.
+		// Fall back to the shared window when no real overlay exists (tests).
+		if f.overlayManager.WindowPtr() != nil {
+			return modeindicator.NewOverlay(
+				indicatorConfig,
+				f.logger,
+			)
+		}
+
 		return modeindicator.NewOverlayWithWindow(
 			indicatorConfig,
 			f.logger,
