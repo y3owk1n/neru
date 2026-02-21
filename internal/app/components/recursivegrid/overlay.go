@@ -123,10 +123,6 @@ func (o *Overlay) Cleanup() {
 
 // Destroy destroys the overlay window.
 func (o *Overlay) Destroy() {
-	if o.callbackManager != nil {
-		o.callbackManager.Cleanup()
-	}
-
 	o.Cleanup()
 
 	C.NeruDestroyOverlayWindow(o.window)
