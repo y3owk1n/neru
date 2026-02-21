@@ -169,9 +169,9 @@ func TestScrollService_ShowScrollOverlay(t *testing.T) {
 				acc.CursorPositionFunc = func(_ context.Context) (image.Point, error) {
 					return image.Point{X: 100, Y: 100}, nil
 				}
-				ov.DrawScrollIndicatorFunc = func(x, y int) {
+				ov.DrawModeIndicatorFunc = func(x, y int) {
 					if x != 100 || y != 100 {
-						t.Errorf("Unexpected scroll indicator position: (%d, %d)", x, y)
+						t.Errorf("Unexpected mode indicator position: (%d, %d)", x, y)
 					}
 				}
 			},
