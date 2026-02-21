@@ -74,7 +74,7 @@ func (f *ComponentFactory) CreateHintsComponent(
 				"Failed to create hints overlay, continuing without overlay",
 				zap.Error(err),
 			)
-		} else {
+		} else if hintOverlay != nil {
 			if overlay, ok := hintOverlay.(*hints.Overlay); ok {
 				component.Overlay = overlay
 			} else {
@@ -125,7 +125,7 @@ func (f *ComponentFactory) CreateGridComponent(
 				"Failed to create grid overlay, continuing without overlay",
 				zap.Error(err),
 			)
-		} else {
+		} else if overlay != nil {
 			if gridOverlayTyped, ok := overlay.(*grid.Overlay); ok {
 				component.Overlay = gridOverlayTyped
 			} else {
@@ -192,7 +192,7 @@ func (f *ComponentFactory) CreateModeIndicatorComponent(
 				"Failed to create mode indicator overlay, continuing without overlay",
 				zap.Error(err),
 			)
-		} else {
+		} else if overlay != nil {
 			if typed, ok := overlay.(*modeindicator.Overlay); ok {
 				indicatorOverlay = typed
 			} else {
@@ -230,7 +230,7 @@ func (f *ComponentFactory) CreateRecursiveGridComponent(
 				"Failed to create recursive_grid overlay, continuing without overlay",
 				zap.Error(err),
 			)
-		} else {
+		} else if overlay != nil {
 			if recursiveGridOverlayTyped, ok := overlay.(*recursivegrid.Overlay); ok {
 				recursiveGridOverlay = recursiveGridOverlayTyped
 			} else {
