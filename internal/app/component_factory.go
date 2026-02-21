@@ -252,6 +252,14 @@ func (f *ComponentFactory) CreateRecursiveGridComponent(
 // Helper methods
 
 func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, error) {
+	// When no real overlay window exists (e.g. in tests with a no-op overlay
+	// manager), return nil rather than creating an overlay with a nil C window
+	// handle, which would crash on any CGo call.
+	//nolint:nilnil
+	if f.overlayManager.WindowPtr() == nil {
+		return nil, nil
+	}
+
 	switch overlayType {
 	case "hints":
 		hintsConfig, ok := cfg.(config.HintsConfig)
@@ -273,15 +281,8 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid mode indicator config type")
 		}
 
-		// Use a dedicated window so the mode indicator doesn't conflict
-		// with hints/grid content drawn on the shared manager window.
-		// When no real overlay window exists (e.g. in tests), return nil
-		// rather than creating an overlay with a nil C window handle,
-		// which would crash on any CGo call.
-		if f.overlayManager.WindowPtr() == nil {
-			return (*modeindicator.Overlay)(nil), nil
-		}
-
+		// Mode indicator uses a dedicated window (not the shared manager window)
+		// so it doesn't conflict with hints/grid content.
 		return modeindicator.NewOverlay(
 			indicatorConfig,
 			f.logger,
