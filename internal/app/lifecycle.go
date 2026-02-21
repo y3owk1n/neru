@@ -288,7 +288,7 @@ func (a *App) handleHintScreenChange(ctx context.Context) bool {
 
 // handleScrollScreenChange handles scroll overlay updates when screen parameters change.
 // Returns true if the overlay was resized.
-func (a *App) handleScrollScreenChange(ctx context.Context) bool {
+func (a *App) handleScrollScreenChange(_ context.Context) bool {
 	if a.scrollComponent.Context == nil || !a.scrollComponent.Context.IsActive() {
 		return false
 	}
@@ -297,17 +297,7 @@ func (a *App) handleScrollScreenChange(ctx context.Context) bool {
 		a.overlayManager.ResizeToActiveScreen()
 	}
 
-	showScrollOverlayErr := a.scrollService.Show(ctx)
-	if showScrollOverlayErr != nil {
-		a.logger.Error(
-			"Failed to refresh scroll overlay after screen change",
-			zap.Error(showScrollOverlayErr),
-		)
-
-		return true
-	}
-
-	a.logger.Info("Scroll overlay resized and regenerated for new screen bounds")
+	a.logger.Info("Scroll overlay resized for new screen bounds")
 
 	return true
 }

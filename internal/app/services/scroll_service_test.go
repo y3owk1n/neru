@@ -2,7 +2,6 @@ package services_test
 
 import (
 	"context"
-	"image"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -152,57 +151,6 @@ func TestScrollService_Scroll(t *testing.T) {
 
 			if (scrollErr != nil) != testCase.wantErr {
 				t.Errorf("Scroll() error = %v, wantErr %v", scrollErr, testCase.wantErr)
-			}
-		})
-	}
-}
-
-func TestScrollService_ShowScrollOverlay(t *testing.T) {
-	tests := []struct {
-		name       string
-		setupMocks func(*mocks.MockAccessibilityPort, *mocks.MockOverlayPort)
-		wantErr    bool
-	}{
-		{
-			name: "successful show",
-			setupMocks: func(acc *mocks.MockAccessibilityPort, ov *mocks.MockOverlayPort) {
-				acc.CursorPositionFunc = func(_ context.Context) (image.Point, error) {
-					return image.Point{X: 100, Y: 100}, nil
-				}
-				ov.DrawModeIndicatorFunc = func(x, y int) {
-					if x != 100 || y != 100 {
-						t.Errorf("Unexpected mode indicator position: (%d, %d)", x, y)
-					}
-				}
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			mockAcc := &mocks.MockAccessibilityPort{}
-			mockOverlay := &mocks.MockOverlayPort{}
-			config := config.ScrollConfig{
-				ScrollStep: 10,
-			}
-			logger := logger.Get()
-
-			if testCase.setupMocks != nil {
-				testCase.setupMocks(mockAcc, mockOverlay)
-			}
-
-			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
-			ctx := context.Background()
-
-			showScrollOverlayErr := service.Show(ctx)
-
-			if (showScrollOverlayErr != nil) != testCase.wantErr {
-				t.Errorf(
-					"Show() error = %v, wantErr %v",
-					showScrollOverlayErr,
-					testCase.wantErr,
-				)
 			}
 		})
 	}
