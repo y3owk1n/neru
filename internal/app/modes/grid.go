@@ -75,7 +75,7 @@ func (h *Handler) activateGridModeWithAction(actionStr *string) {
 	h.logger.Info("Grid mode activated", zap.String("action", actionString))
 	h.logger.Info("Type a grid label to select a location")
 
-	h.startModeIndicatorPolling()
+	h.startModeIndicatorPolling(domain.ModeGrid)
 }
 
 // createGridInstance creates a new grid instance with proper bounds and characters.

@@ -24,7 +24,7 @@ func NewScrollMode(handler *Handler) *ScrollMode {
 		ActivateFunc: func(handler *Handler, action *string) {
 			// Scroll mode ignores the action parameter as it has a single activation flow
 			handler.StartInteractiveScroll()
-			handler.startModeIndicatorPolling()
+			handler.startModeIndicatorPolling(domain.ModeScroll)
 		},
 		ExitFunc: func(handler *Handler) {
 			handler.stopModeIndicatorPolling()
@@ -48,17 +48,14 @@ func NewScrollMode(handler *Handler) *ScrollMode {
 	}
 }
 
-func (h *Handler) startModeIndicatorPolling() {
+func (h *Handler) startModeIndicatorPolling(mode domain.Mode) {
 	// If polling is already active, do not start another goroutine.
 	if h.scrollTicker != nil || h.scrollStopCh != nil {
 		return
 	}
 
-	// Only start polling if at least one mode indicator is enabled.
-	if h.config == nil || (!h.config.ModeIndicator.ScrollEnabled &&
-		!h.config.ModeIndicator.HintsEnabled &&
-		!h.config.ModeIndicator.GridEnabled &&
-		!h.config.ModeIndicator.RecursiveGridEnabled) {
+	// Only start polling if the current mode's indicator is enabled.
+	if h.config == nil || !h.modeIndicatorEnabled(mode) {
 		return
 	}
 
@@ -132,7 +129,7 @@ func (h *Handler) stopModeIndicatorPolling() {
 	}
 }
 
-func (h *Handler) shouldShowModeIndicator(mode domain.Mode) bool {
+func (h *Handler) modeIndicatorEnabled(mode domain.Mode) bool {
 	if h.config == nil {
 		return false
 	}
@@ -151,4 +148,8 @@ func (h *Handler) shouldShowModeIndicator(mode domain.Mode) bool {
 	default:
 		return false
 	}
+}
+
+func (h *Handler) shouldShowModeIndicator(mode domain.Mode) bool {
+	return h.modeIndicatorEnabled(mode)
 }
