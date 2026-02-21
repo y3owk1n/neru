@@ -59,6 +59,16 @@ func (h *Handler) startModeIndicatorPolling(mode domain.Mode) {
 		return
 	}
 
+	// Ensure the mode indicator overlay covers the correct screen before
+	// the goroutine starts drawing. Scroll and hints modes already call
+	// overlayManager.ResizeToActiveScreen() which covers this, but grid
+	// and recursive-grid modes manage their own windows and skip that
+	// call, so the mode indicator overlay could still be sized for a
+	// different monitor.
+	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
+		ind.ResizeToActiveScreen()
+	}
+
 	stopCh := make(chan struct{})
 	doneCh := make(chan struct{})
 	ticker := time.NewTicker(scrollPollInterval)
