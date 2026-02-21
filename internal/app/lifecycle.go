@@ -182,11 +182,10 @@ func (a *App) handleScreenParametersChange() {
 
 	gridResized := a.handleGridScreenChange()
 	hintResized := a.handleHintScreenChange(ctx)
-	scrollResized := a.handleScrollScreenChange(ctx)
 
 	// Final resize only if no handler already resized the overlay AND we are not idle.
 	// Resizing the overlay when idle would cause it to become visible, which we want to avoid.
-	if !gridResized && !hintResized && !scrollResized && !isIdle {
+	if !gridResized && !hintResized && !isIdle {
 		if a.overlayManager != nil {
 			a.overlayManager.ResizeToActiveScreen()
 		}
@@ -282,22 +281,6 @@ func (a *App) handleHintScreenChange(ctx context.Context) bool {
 	}
 
 	a.logger.Info("Hint overlay resized and regenerated for new screen bounds")
-
-	return true
-}
-
-// handleScrollScreenChange handles scroll overlay updates when screen parameters change.
-// Returns true if the overlay was resized.
-func (a *App) handleScrollScreenChange(_ context.Context) bool {
-	if a.scrollComponent.Context == nil || !a.scrollComponent.Context.IsActive() {
-		return false
-	}
-
-	if a.overlayManager != nil {
-		a.overlayManager.ResizeToActiveScreen()
-	}
-
-	a.logger.Info("Scroll overlay resized for new screen bounds")
 
 	return true
 }
