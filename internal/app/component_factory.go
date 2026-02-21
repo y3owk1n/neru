@@ -284,13 +284,14 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid mode indicator config type")
 		}
 
+		// Mode indicator creates its own dedicated window (not the shared manager
+		// window) so it doesn't conflict with hints/grid content. The nil-window
+		// check here serves as a proxy for detecting headless/test environments
+		// where no native windows should be created at all.
 		if f.overlayManager.WindowPtr() == nil {
 			return nil, nil //nolint:nilnil
 		}
 
-		// Mode indicator creates its own dedicated window (not the shared manager
-		// window) so it doesn't conflict with hints/grid content. No nil-window
-		// guard needed here since it doesn't use the shared window.
 		return modeindicator.NewOverlay(
 			indicatorConfig,
 			f.logger,
