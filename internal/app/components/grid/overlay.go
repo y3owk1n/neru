@@ -238,7 +238,10 @@ func (o *Overlay) Cleanup() {
 func (o *Overlay) Destroy() {
 	o.Cleanup()
 
-	C.NeruDestroyOverlayWindow(o.window)
+	if o.window != nil {
+		C.NeruDestroyOverlayWindow(o.window)
+		o.window = nil
+	}
 }
 
 // ReplaceWindow atomically replaces the underlying overlay window on the main thread.
