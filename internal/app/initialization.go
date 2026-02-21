@@ -242,9 +242,8 @@ func (a *App) registerOverlays() {
 		a.overlayManager.UseHintOverlay(a.hintsComponent.Overlay)
 	}
 
-	if a.gridComponent != nil && a.gridComponent.Context != nil &&
-		a.gridComponent.Context.GridOverlay() != nil {
-		a.overlayManager.UseGridOverlay(*a.gridComponent.Context.GridOverlay())
+	if a.gridComponent != nil && a.gridComponent.Overlay != nil {
+		a.overlayManager.UseGridOverlay(a.gridComponent.Overlay)
 	}
 
 	if a.recursiveGridComponent != nil && a.recursiveGridComponent.Overlay != nil {

@@ -110,15 +110,25 @@ func (o *Overlay) Clear() {
 	C.NeruClearOverlay(o.window)
 }
 
-// Destroy destroys the overlay window.
-func (o *Overlay) Destroy() {
+// Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)
+// without destroying the native window. Use this for overlays that share a
+// window managed by the overlay Manager.
+func (o *Overlay) Cleanup() {
 	if o.callbackManager != nil {
 		o.callbackManager.Cleanup()
 	}
-
 	o.styleCache.Free()
 	o.freeLabelCache()
-	C.NeruDestroyOverlayWindow(o.window)
+}
+
+// Destroy destroys the overlay window.
+func (o *Overlay) Destroy() {
+	o.Cleanup()
+
+	if o.window != nil {
+		C.NeruDestroyOverlayWindow(o.window)
+		o.window = nil
+	}
 }
 
 // ReplaceWindow atomically replaces the underlying overlay window.

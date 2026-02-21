@@ -195,8 +195,7 @@ func (a *App) handleScreenParametersChange() {
 // handleGridScreenChange handles grid overlay updates when screen parameters change.
 // Returns true if the overlay was resized.
 func (a *App) handleGridScreenChange() bool {
-	if !a.config.Grid.Enabled || a.gridComponent.Context == nil ||
-		a.gridComponent.Context.GridOverlay() == nil {
+	if !a.config.Grid.Enabled || a.gridComponent.Overlay == nil {
 		return false
 	}
 

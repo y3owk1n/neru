@@ -25,12 +25,13 @@ type HintsComponent struct {
 func (h *HintsComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
 	if h.Overlay != nil && cfg.Hints.Enabled {
 		h.Style = hints.BuildStyle(cfg.Hints)
-		h.Overlay.UpdateConfig(cfg.Hints)
+		h.Overlay.SetConfig(cfg.Hints)
 	}
 }
 
 // GridComponent encapsulates all grid-related functionality.
 type GridComponent struct {
+	Overlay *grid.Overlay
 	Manager *domainGrid.Manager
 	Router  *domainGrid.Router
 	Context *grid.Context
@@ -41,8 +42,8 @@ type GridComponent struct {
 func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) {
 	if config.Grid.Enabled {
 		g.Style = grid.BuildStyle(config.Grid)
-		if g.Context != nil && g.Context.GridOverlay() != nil {
-			(*g.Context.GridOverlay()).SetConfig(config.Grid)
+		if g.Overlay != nil {
+			g.Overlay.SetConfig(config.Grid)
 		}
 
 		if g.Manager != nil {
@@ -99,7 +100,7 @@ type ModeIndicatorComponent struct {
 // UpdateConfig updates the mode indicator component with new configuration.
 func (m *ModeIndicatorComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
 	if m.Overlay != nil {
-		m.Overlay.UpdateConfig(cfg.ModeIndicator)
+		m.Overlay.SetConfig(cfg.ModeIndicator)
 	}
 }
 

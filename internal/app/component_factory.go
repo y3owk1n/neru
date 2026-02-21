@@ -74,7 +74,7 @@ func (f *ComponentFactory) CreateHintsComponent(
 				"Failed to create hints overlay, continuing without overlay",
 				zap.Error(err),
 			)
-		} else {
+		} else if hintOverlay != nil {
 			if overlay, ok := hintOverlay.(*hints.Overlay); ok {
 				component.Overlay = overlay
 			} else {
@@ -111,8 +111,27 @@ func (f *ComponentFactory) CreateGridComponent(
 
 	// Create overlay
 	if opts.OverlayType != "" {
-		gridOverlay := f.createGridOverlay()
-		ctx.SetGridOverlay(&gridOverlay)
+		overlay, err := f.createOverlay("grid", f.config.Grid)
+		if err != nil {
+			if opts.Required {
+				return nil, derrors.Wrap(
+					err,
+					derrors.CodeOverlayFailed,
+					"failed to create grid overlay",
+				)
+			}
+
+			f.logger.Warn(
+				"Failed to create grid overlay, continuing without overlay",
+				zap.Error(err),
+			)
+		} else if overlay != nil {
+			if gridOverlayTyped, ok := overlay.(*grid.Overlay); ok {
+				component.Overlay = gridOverlayTyped
+			} else {
+				f.logger.Error("Unexpected overlay type for grid", zap.Any("overlay", overlay))
+			}
+		}
 	}
 
 	// Create grid manager with callbacks
@@ -173,7 +192,7 @@ func (f *ComponentFactory) CreateModeIndicatorComponent(
 				"Failed to create mode indicator overlay, continuing without overlay",
 				zap.Error(err),
 			)
-		} else {
+		} else if overlay != nil {
 			if typed, ok := overlay.(*modeindicator.Overlay); ok {
 				indicatorOverlay = typed
 			} else {
@@ -211,7 +230,7 @@ func (f *ComponentFactory) CreateRecursiveGridComponent(
 				"Failed to create recursive_grid overlay, continuing without overlay",
 				zap.Error(err),
 			)
-		} else {
+		} else if overlay != nil {
 			if recursiveGridOverlayTyped, ok := overlay.(*recursivegrid.Overlay); ok {
 				recursiveGridOverlay = recursiveGridOverlayTyped
 			} else {
@@ -240,22 +259,37 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid hints config type")
 		}
 
+		// When no real overlay window exists (e.g. in tests with a no-op overlay
+		// manager), return nil rather than creating an overlay with a nil C window
+		// handle, which would crash on any CGo call.
+		if f.overlayManager.WindowPtr() == nil {
+			return nil, nil //nolint:nilnil
+		}
+
 		return hints.NewOverlayWithWindow(hintsConfig, f.logger, f.overlayManager.WindowPtr())
 	case "grid":
-		return f.createGridOverlay(), nil
+		gridConfig, ok := cfg.(config.GridConfig)
+		if !ok {
+			return nil, derrors.New(derrors.CodeInvalidInput, "invalid grid config type")
+		}
+
+		if f.overlayManager.WindowPtr() == nil {
+			return nil, nil //nolint:nilnil
+		}
+
+		return grid.NewOverlayWithWindow(gridConfig, f.logger, f.overlayManager.WindowPtr()), nil
 	case "mode_indicator":
 		indicatorConfig, ok := cfg.(config.ModeIndicatorConfig)
 		if !ok {
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid mode indicator config type")
 		}
 
-		// Use a dedicated window so the mode indicator doesn't conflict
-		// with hints/grid content drawn on the shared manager window.
-		// When no real overlay window exists (e.g. in tests), return nil
-		// rather than creating an overlay with a nil C window handle,
-		// which would crash on any CGo call.
+		// Mode indicator creates its own dedicated window (not the shared manager
+		// window) so it doesn't conflict with hints/grid content. The nil-window
+		// check here serves as a proxy for detecting headless/test environments
+		// where no native windows should be created at all.
 		if f.overlayManager.WindowPtr() == nil {
-			return (*modeindicator.Overlay)(nil), nil
+			return nil, nil //nolint:nilnil
 		}
 
 		return modeindicator.NewOverlay(
@@ -268,6 +302,10 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid recursive_grid config type")
 		}
 
+		if f.overlayManager.WindowPtr() == nil {
+			return nil, nil //nolint:nilnil
+		}
+
 		return recursivegrid.NewOverlayWithWindow(
 			recursiveGridConfig,
 			f.logger,
@@ -276,10 +314,6 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 	default:
 		return nil, derrors.New(derrors.CodeInvalidInput, "unknown overlay type: "+overlayType)
 	}
-}
-
-func (f *ComponentFactory) createGridOverlay() *grid.Overlay {
-	return grid.NewOverlayWithWindow(f.config.Grid, f.logger, f.overlayManager.WindowPtr())
 }
 
 func (f *ComponentFactory) getGridCharacters() string {

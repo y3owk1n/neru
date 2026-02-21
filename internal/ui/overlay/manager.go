@@ -355,8 +355,26 @@ func (m *Manager) Unsubscribe(id uint64) {
 	m.mu.Unlock()
 }
 
-// Destroy destroys the overlay window.
+// Destroy destroys the overlay window and cleans up all overlay resources.
 func (m *Manager) Destroy() {
+	// Clean up Go-side resources (callbackManager, styleCache, labelCache) for
+	// overlays that share the manager's window. We call Cleanup() instead of
+	// Destroy() because the shared window is destroyed below — calling each
+	// overlay's Destroy() would double-destroy the same native window.
+	if m.hintOverlay != nil {
+		m.hintOverlay.Cleanup()
+		m.hintOverlay = nil
+	}
+	if m.gridOverlay != nil {
+		m.gridOverlay.Cleanup()
+		m.gridOverlay = nil
+	}
+	if m.recursiveGridOverlay != nil {
+		m.recursiveGridOverlay.Cleanup()
+		m.recursiveGridOverlay = nil
+	}
+
+	// Mode indicator owns its own window, so use full Destroy().
 	if m.modeIndicatorOverlay != nil {
 		m.modeIndicatorOverlay.Destroy()
 		m.modeIndicatorOverlay = nil
