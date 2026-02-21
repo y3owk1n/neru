@@ -126,10 +126,9 @@ func (o *Overlay) ResizeToActiveScreen() {
 }
 
 // DrawModeIndicator draws a mode label at the specified position.
+// The caller is responsible for calling Show() once before the first draw
+// (e.g. in startModeIndicatorPolling) rather than showing every tick.
 func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate int) {
-	// Ensure the indicator window is visible before drawing.
-	C.NeruShowOverlayWindow(o.window)
-
 	// Offset from cursor to avoid covering it
 	xOffset := o.indicatorConfig.IndicatorXOffset
 	yOffset := o.indicatorConfig.IndicatorYOffset

@@ -67,6 +67,7 @@ func (h *Handler) startModeIndicatorPolling(mode domain.Mode) {
 	// different monitor.
 	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
 		ind.ResizeToActiveScreen()
+		ind.Show()
 	}
 
 	stopCh := make(chan struct{})
