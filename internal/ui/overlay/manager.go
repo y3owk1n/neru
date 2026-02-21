@@ -13,8 +13,8 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
-	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
@@ -73,7 +73,7 @@ func (n *NoOpManager) UseHintOverlay(o *hints.Overlay) {}
 func (n *NoOpManager) UseGridOverlay(o *grid.Overlay) {}
 
 // UseModeIndicatorOverlay is a no-op implementation.
-func (n *NoOpManager) UseModeIndicatorOverlay(o *scroll.Overlay) {}
+func (n *NoOpManager) UseModeIndicatorOverlay(o *modeindicator.Overlay) {}
 
 // UseRecursiveGridOverlay is a no-op implementation.
 func (n *NoOpManager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {}
@@ -85,7 +85,7 @@ func (n *NoOpManager) HintOverlay() *hints.Overlay { return nil }
 func (n *NoOpManager) GridOverlay() *grid.Overlay { return nil }
 
 // ModeIndicatorOverlay returns nil.
-func (n *NoOpManager) ModeIndicatorOverlay() *scroll.Overlay { return nil }
+func (n *NoOpManager) ModeIndicatorOverlay() *modeindicator.Overlay { return nil }
 
 // RecursiveGridOverlay returns nil.
 func (n *NoOpManager) RecursiveGridOverlay() *recursivegrid.Overlay { return nil }
@@ -144,8 +144,8 @@ const (
 	ModeHints Mode = "hints"
 	// ModeGrid represents the grid mode.
 	ModeGrid Mode = "grid"
-	// ModeScroll represents the scroll mode.
-	ModeScroll Mode = "scroll"
+	// ModeScroll represents the modeindicator mode.
+	ModeScroll Mode = "modeindicator"
 	// ModeRecursiveGrid represents the recursive-grid mode.
 	ModeRecursiveGrid Mode = "recursive_grid"
 )
@@ -181,12 +181,12 @@ type ManagerInterface interface {
 
 	UseHintOverlay(o *hints.Overlay)
 	UseGridOverlay(o *grid.Overlay)
-	UseModeIndicatorOverlay(o *scroll.Overlay)
+	UseModeIndicatorOverlay(o *modeindicator.Overlay)
 	UseRecursiveGridOverlay(o *recursivegrid.Overlay)
 
 	HintOverlay() *hints.Overlay
 	GridOverlay() *grid.Overlay
-	ModeIndicatorOverlay() *scroll.Overlay
+	ModeIndicatorOverlay() *modeindicator.Overlay
 	RecursiveGridOverlay() *recursivegrid.Overlay
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
@@ -220,7 +220,7 @@ type Manager struct {
 	// Overlay renderers
 	hintOverlay          *hints.Overlay
 	gridOverlay          *grid.Overlay
-	modeIndicatorOverlay *scroll.Overlay
+	modeIndicatorOverlay *modeindicator.Overlay
 	recursiveGridOverlay *recursivegrid.Overlay
 }
 
@@ -372,7 +372,7 @@ func (m *Manager) UseGridOverlay(o *grid.Overlay) {
 }
 
 // UseModeIndicatorOverlay sets the shared mode-indicator overlay renderer.
-func (m *Manager) UseModeIndicatorOverlay(o *scroll.Overlay) {
+func (m *Manager) UseModeIndicatorOverlay(o *modeindicator.Overlay) {
 	m.modeIndicatorOverlay = o
 }
 
@@ -392,7 +392,7 @@ func (m *Manager) GridOverlay() *grid.Overlay {
 }
 
 // ModeIndicatorOverlay returns the mode-indicator overlay renderer.
-func (m *Manager) ModeIndicatorOverlay() *scroll.Overlay {
+func (m *Manager) ModeIndicatorOverlay() *modeindicator.Overlay {
 	return m.modeIndicatorOverlay
 }
 

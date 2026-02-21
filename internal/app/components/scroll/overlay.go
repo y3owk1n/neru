@@ -18,18 +18,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	// defaultIndicatorWidth is the default width for the scroll indicator.
-	defaultIndicatorWidth = 60
-	// defaultIndicatorHeight is the default height for the scroll indicator.
-	defaultIndicatorHeight = 20
-
-	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
-	NSWindowSharingNone = 0
-	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
-	NSWindowSharingReadOnly = 1
-)
-
 //export resizeScrollCompletionCallback
 func resizeScrollCompletionCallback(context unsafe.Pointer) {
 	// Read callback ID from the pointer (points to a slice element in callbackIDStore)
@@ -40,10 +28,10 @@ func resizeScrollCompletionCallback(context unsafe.Pointer) {
 }
 
 // Overlay manages the rendering of scroll mode overlays using native platform APIs.
+// Note: This overlay is no longer used for mode indication - use modeindicator.Overlay instead.
 type Overlay struct {
 	window          C.OverlayWindow
-	scrollConfig    config.ScrollConfig
-	indicatorConfig config.ModeIndicatorConfig
+	config          config.ScrollConfig
 	logger          *zap.Logger
 	callbackManager *overlayutil.CallbackManager
 	styleCache      *overlayutil.StyleCache
@@ -51,8 +39,7 @@ type Overlay struct {
 
 // NewOverlay initializes a new scroll overlay instance with its own window.
 func NewOverlay(
-	scrollCfg config.ScrollConfig,
-	indicatorCfg config.ModeIndicatorConfig,
+	cfg config.ScrollConfig,
 	logger *zap.Logger,
 ) (*Overlay, error) {
 	base, err := overlayutil.NewBaseOverlay(logger)
@@ -62,8 +49,7 @@ func NewOverlay(
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
-		scrollConfig:    scrollCfg,
-		indicatorConfig: indicatorCfg,
+		config:          cfg,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
@@ -72,8 +58,7 @@ func NewOverlay(
 
 // NewOverlayWithWindow initializes a scroll overlay instance using a shared window.
 func NewOverlayWithWindow(
-	scrollCfg config.ScrollConfig,
-	indicatorCfg config.ModeIndicatorConfig,
+	cfg config.ScrollConfig,
 	logger *zap.Logger,
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
@@ -81,8 +66,7 @@ func NewOverlayWithWindow(
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
-		scrollConfig:    scrollCfg,
-		indicatorConfig: indicatorCfg,
+		config:          cfg,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
@@ -96,7 +80,7 @@ func (o *Overlay) Window() C.OverlayWindow {
 
 // Config returns the scroll configuration.
 func (o *Overlay) Config() config.ScrollConfig {
-	return o.scrollConfig
+	return o.config
 }
 
 // Logger returns the logger.
@@ -134,80 +118,9 @@ func (o *Overlay) ResizeToActiveScreen() {
 	})
 }
 
-// DrawModeIndicator draws a mode label at the specified position.
-func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate int) {
-	// Ensure the indicator window is visible before drawing.
-	C.NeruShowOverlayWindow(o.window)
-
-	// Offset from cursor to avoid covering it
-	xOffset := o.indicatorConfig.IndicatorXOffset
-	yOffset := o.indicatorConfig.IndicatorYOffset
-
-	label := C.CString(labelText)
-	defer C.free(unsafe.Pointer(label)) //nolint:nlreturn
-
-	// Create a single hint for the indicator
-	hint := C.HintData{
-		label: label,
-		position: C.CGPoint{
-			x: C.double(xCoordinate + xOffset),
-			y: C.double(yCoordinate + yOffset),
-		},
-		size: C.CGSize{
-			// Size is not strictly needed for just drawing the label, but providing reasonable defaults
-			width:  defaultIndicatorWidth,
-			height: defaultIndicatorHeight,
-		},
-		matchedPrefixLength: 0,
-	}
-
-	// Use cached style strings to avoid repeated allocations and fix use-after-free
-	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
-		cached.FontFamily = unsafe.Pointer(C.CString(o.indicatorConfig.FontFamily))
-		cached.BgColor = unsafe.Pointer(C.CString(o.indicatorConfig.BackgroundColor))
-		cached.TextColor = unsafe.Pointer(C.CString(o.indicatorConfig.TextColor))
-		cached.MatchedTextColor = unsafe.Pointer(
-			C.CString(o.indicatorConfig.TextColor),
-		) // No matching in scroll mode
-		cached.BorderColor = unsafe.Pointer(C.CString(o.indicatorConfig.BorderColor))
-	})
-
-	style := C.HintStyle{
-		fontSize:         C.int(o.indicatorConfig.FontSize),
-		fontFamily:       (*C.char)(cachedStyle.FontFamily),
-		backgroundColor:  (*C.char)(cachedStyle.BgColor),
-		textColor:        (*C.char)(cachedStyle.TextColor),
-		matchedTextColor: (*C.char)(cachedStyle.MatchedTextColor),
-		borderColor:      (*C.char)(cachedStyle.BorderColor),
-		borderRadius:     C.int(o.indicatorConfig.BorderRadius),
-		borderWidth:      C.int(o.indicatorConfig.BorderWidth),
-		padding:          C.int(o.indicatorConfig.Padding),
-		showArrow:        0, // No arrow for scroll indicator
-	}
-
-	// Reuse NeruDrawHints which can draw arbitrary labels
-	C.NeruDrawHints(o.window, &hint, 1, style)
-}
-
 // UpdateConfig updates the overlay configuration.
-func (o *Overlay) UpdateConfig(
-	scrollCfg config.ScrollConfig,
-	indicatorCfg config.ModeIndicatorConfig,
-) {
-	o.scrollConfig = scrollCfg
-	o.indicatorConfig = indicatorCfg
-	// Invalidate style cache when config changes
-	o.styleCache.Free()
-}
-
-// SetSharingType sets the window sharing type for screen sharing visibility.
-func (o *Overlay) SetSharingType(hide bool) {
-	sharingType := C.int(NSWindowSharingReadOnly)
-	if hide {
-		sharingType = C.int(NSWindowSharingNone)
-	}
-
-	C.NeruSetOverlaySharingType(o.window, sharingType)
+func (o *Overlay) UpdateConfig(cfg config.ScrollConfig) {
+	o.config = cfg
 }
 
 // Destroy releases the overlay window resources.

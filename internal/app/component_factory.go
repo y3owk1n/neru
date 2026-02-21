@@ -6,6 +6,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
@@ -156,9 +157,9 @@ func (f *ComponentFactory) CreateScrollComponent(
 func (f *ComponentFactory) CreateModeIndicatorComponent(
 	opts ComponentCreationOptions,
 ) (*components.ModeIndicatorComponent, error) {
-	var indicatorOverlay *scroll.Overlay
+	var indicatorOverlay *modeindicator.Overlay
 	if opts.OverlayType != "" {
-		overlay, err := f.createOverlay("scroll", f.config.Scroll)
+		overlay, err := f.createOverlay("mode_indicator", f.config.ModeIndicator)
 		if err != nil {
 			if opts.Required {
 				return nil, derrors.Wrap(
@@ -173,7 +174,7 @@ func (f *ComponentFactory) CreateModeIndicatorComponent(
 				zap.Error(err),
 			)
 		} else {
-			if typed, ok := overlay.(*scroll.Overlay); ok {
+			if typed, ok := overlay.(*modeindicator.Overlay); ok {
 				indicatorOverlay = typed
 			} else {
 				f.logger.Error(
@@ -242,15 +243,14 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 		return hints.NewOverlayWithWindow(hintsConfig, f.logger, f.overlayManager.WindowPtr())
 	case "grid":
 		return f.createGridOverlay(), nil
-	case "scroll":
-		scrollConfig, ok := cfg.(config.ScrollConfig)
+	case "mode_indicator":
+		indicatorConfig, ok := cfg.(config.ModeIndicatorConfig)
 		if !ok {
-			return nil, derrors.New(derrors.CodeInvalidInput, "invalid scroll config type")
+			return nil, derrors.New(derrors.CodeInvalidInput, "invalid mode indicator config type")
 		}
 
-		return scroll.NewOverlayWithWindow(
-			scrollConfig,
-			f.config.ModeIndicator,
+		return modeindicator.NewOverlayWithWindow(
+			indicatorConfig,
 			f.logger,
 			f.overlayManager.WindowPtr(),
 		)
