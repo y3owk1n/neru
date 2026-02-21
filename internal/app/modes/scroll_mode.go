@@ -88,6 +88,14 @@ func (h *Handler) startModeIndicatorPolling(mode domain.Mode) {
 			case <-stopCh:
 				return
 			case <-ticker.C:
+				// Re-check stopCh before doing any work to minimize the
+				// window where a draw can be dispatched after stop is
+				// signaled.
+				select {
+				case <-stopCh:
+					return
+				default:
+				}
 				// Use a timeout for the individual call to prevent hanging.
 				reqCtx, reqCancel := context.WithTimeout(ctx, scrollPollTimeout)
 				cursorX, cursorY, err := h.modeIndicatorService.GetCursorPosition(reqCtx)
@@ -120,6 +128,14 @@ func (h *Handler) stopModeIndicatorPolling() {
 	if h.scrollDoneCh != nil {
 		<-h.scrollDoneCh
 		h.scrollDoneCh = nil
+	}
+
+	// Clear and hide the mode indicator overlay AFTER the goroutine has fully
+	// stopped. This ensures any late draw dispatched by the last tick is
+	// overridden, preventing the indicator from persisting on screen.
+	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
+		ind.Clear()
+		ind.Hide()
 	}
 
 	// Clean up resources after loop has exited.
