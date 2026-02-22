@@ -1,94 +1,97 @@
-# Neru
+<div align="center">
 
-**Master your keyboard, refine your workflow**
+# 練る · Neru
 
-Navigate macOS without touching your mouse with maximum flexibility - keyboard-driven productivity at its finest 🖱️⌨️
-
-<div align="left">
+**Mouse-free macOS navigation. Free, open-source, endlessly customisable.**
 
 [![License](https://img.shields.io/github/license/y3owk1n/neru)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
 ![Go Version](https://img.shields.io/github/go-mod/go-version/y3owk1n/neru)
 [![Latest Release](https://img.shields.io/github/v/release/y3owk1n/neru)](https://github.com/y3owk1n/neru/releases)
 
-</div>
-
-<p align="left">
-  <a href="#-get-started">Get Started</a> •
-  <a href="#-core-features">Features</a> •
-  <a href="#-documentation">Docs</a> •
-  <a href="#-contributing">Contributing</a>
-</p>
+[**Get Started**](#-get-started) · [**Features**](#-features) · [**Configuration**](#%EF%B8%8F-configuration) · [**Docs**](#-documentation) · [**Contributing**](#-contributing)
 
 ---
 
-## ✨ What is Neru?
+<table>
+<tr>
+<td align="center" width="33%">
+<img src="https://github.com/user-attachments/assets/0d46fa7c-345a-45ee-ad44-7a601c2b7cb1" alt="Recursive Grid Mode" /><br/>
+<sub><b>Recursive Grid</b> · recommended</sub>
+</td>
+<td align="center" width="33%">
+<img src="https://github.com/user-attachments/assets/d452f972-ce23-4798-955b-6dbfa8435504" alt="Grid Mode" /><br/>
+<sub><b>Grid</b></sub>
+</td>
+<td align="center" width="33%">
+<img src="https://github.com/user-attachments/assets/71b13850-1b87-40b5-9ac0-93cff1f2e89b" alt="Hints Mode" /><br/>
+<sub><b>Hints</b></sub>
+</td>
+</tr>
+</table>
 
-**Neru (練る)** - a Japanese word meaning "to refine, polish, and master through practice" - is a free, open-source keyboard navigation tool for macOS. Navigate, click, and scroll anywhere on your screen without ever touching your mouse.
-
-Feel free to read the progress and how I use Neru [here](HOW-I-USE-NERU.md) if you're interested with it.
-
-### 🎯 Why Choose Neru?
-
-- 🆓 **Always free** - No paywalls, no subscriptions, no "upgrade to pro"
-- ⚙️ **Max Flexibility** - Every part of Neru is customisable, from keys to appearances, it's all yours
-- 🎬 **Universal compatibility** - Works with native macOS apps, Electron apps, and all browsers
-- ⚡ **Lightning fast** - Native performance with instant response
-- 🛠️ **Power-user friendly** - Text-based config for version control and dotfile management
-- 🤝 **Community-owned** - Your contributions shape the project
-- 🔧 **Scriptable** - CLI commands enable automation and integration
-
-### 🆚 Free Alternative To
-
-Neru is a capable **free and open-source** replacement for:
-
-- [Homerow](https://www.homerow.app/) - Modern keyboard navigation (paid)
-- [Shortcat](https://shortcat.app/) - Keyboard productivity tool (discontinued)
-- [Vimac](https://github.com/dexterleng/vimac) - Vim-style navigation (unmaintained)
-- [Mouseless](https://mouseless.click/) - Grid based keyboard navigation (paid)
-- [Wooshy](https://wooshy.app) - Modern keyboard navigation (paid)
+</div>
 
 ---
 
-## 🎯 Core Features
+## What is Neru?
 
-<div align="center">
+**Neru (練る)** — Japanese for *"to refine and master through practice"* — lets you navigate, click, and scroll anywhere on macOS using only your keyboard. No mouse. No trackpad. No limits.
 
-| Feature                   | Description                                                        |
-| ------------------------- | ------------------------------------------------------------------ |
-| 🎯 **Hint & Grid Labels** | Click any visible element using keyboard labels                    |
-| ⚡ **Direct Actions**     | Perform mouse actions directly in hints/grid mode (Shift+L, etc.)  |
-| 📜 **Vim Scrolling**      | Fully configurable scroll keys: `j`/`k`, `gg`/`G`, custom bindings |
-| 🌐 **Universal Support**  | Native apps, Electron, Chrome, Firefox, system UI                  |
-| ⚡ **Native Performance** | Built with Objective-C and Go for instant response                 |
-| 🛠️ **TOML Config**        | Highly customizable with text-based configuration                  |
-| 🚫 **App Exclusion**      | Disable Neru in specific applications                              |
-| 💬 **CLI Control**        | IPC commands for scripting and automation                          |
+It's the free, open-source alternative to [Homerow](https://www.homerow.app/), [Mouseless](https://mouseless.click/), and [Wooshy](https://wooshy.app) — with zero paywalls, zero subscriptions, and everything configurable down to the last pixel.
 
-</div>
+> Want to see how the author actually uses Neru day-to-day? [Read the full story →](HOW-I-USE-NERU.md)
 
-### 🎮 How It Works
+---
 
-**Navigation Modes:**
+## ✨ Features
 
-1. **Hints Mode** - Accessibility-based labels on clickable elements
-2. **Grid Mode** - Universal coordinate-based navigation (works everywhere!)
-3. **Scroll Mode** - Vim-style scrolling at cursor position
-4. **Recursive Grid Mode** - Recursive cell selection (u/i/j/k), reset key returns to initial center
+### 🎯 3 Navigation Modes
 
-<div align="center">
+**Recursive Grid Mode** *(recommended)* — divide your screen into a coordinate grid and drill into any region with `u`/`i`/`j`/`k` until you land exactly where you want. Works in every app, every window, every corner of macOS — no exceptions, no app-specific setup.
 
-![hints-preview](https://github.com/user-attachments/assets/71b13850-1b87-40b5-9ac0-93cff1f2e89b)
-![grid-preview](https://github.com/user-attachments/assets/d452f972-ce23-4798-955b-6dbfa8435504)
-![recursive-grid-preview](https://github.com/user-attachments/assets/0d46fa7c-345a-45ee-ad44-7a601c2b7cb1)
+**Grid Mode** — same coordinate-based approach without the recursive subdivision, great for quick coarse navigation.
 
-[Hints Demo](demos/hints.md) • [Grid Demo](demos/grid.md)
+**Hints Mode** — labels appear on every clickable element for instant accessibility-driven navigation. Requires accessibility tree support, so some apps may need additional configuration.
 
-</div>
+> Recursive Grid is recommended as your daily driver: it's precise, predictable, works everywhere out-of-the-box, and never needs app-specific tweaks.
+
+### 🖱️ Direct Mouse Actions
+
+In any navigation mode, trigger mouse actions without switching modes — left click, right click, double click, middle click, and drag & drop via direct action keybindings.
+
+### 📜 Vim-Style Scrolling
+
+Scroll anywhere with familiar `j`/`k`, `gg`/`G`, and `Ctrl+D`/`Ctrl+U` bindings — all fully remappable.
+
+### 🚫 Per-App Exclusions
+
+Disable Neru in specific apps where you don't need it.
+
+### 💬 CLI & Scripting
+
+Full IPC-based CLI lets you control Neru programmatically, integrate with other tools, or build your own automation workflows.
+
+---
+
+## ⚙️ Configuration
+
+Neru is configured entirely through a single **TOML file** — no GUI required. Every keybinding, every color, every behavior is yours to define.
+
+**Why TOML over a settings UI?**
+
+- Version-control your config in your dotfiles
+- Edit faster than clicking through preference panels
+- No UI = less code to maintain = more stability
+- Shareable, reproducible, scriptable
+
+See the full [Configuration Reference →](docs/CONFIGURATION.md)
+
+---
 
 ## 🚀 Get Started
 
-### Install
+### 1. Install
 
 ```bash
 # Homebrew (recommended)
@@ -96,158 +99,118 @@ brew tap y3owk1n/tap
 brew install --cask y3owk1n/tap/neru
 
 # Nix Flake
-# Add to flake.nix: inputs.neru.url = "github:y3owk1n/neru";
-# See docs/INSTALLATION.md for nix-darwin/home-manager setup
+# inputs.neru.url = "github:y3owk1n/neru";
+# See docs/INSTALLATION.md for nix-darwin / home-manager setup
 
-# Or build from source
+# Build from source
 git clone https://github.com/y3owk1n/neru.git
 cd neru && just release
 ```
 
-### Grant Permissions
+### 2. Grant Accessibility Permission
 
-1. Open **System Settings**
-2. Navigate to **Privacy & Security → Accessibility**
-3. Enable **Neru**
+1. Open **System Settings → Privacy & Security → Accessibility**
+2. Enable **Neru**
 
-### Try It
+### 3. Launch & Try
 
 ```bash
 # Start Neru
 open -a Neru
 
-# Or install as launchd service for auto-startup
+# Auto-start on login
 neru services install
-
-# Try default hotkeys:
-# Cmd+Shift+Space - Hint mode
-# Cmd+Shift+G     - Grid mode
-# Cmd+Shift+C     - Recursive Grid mode
-# Cmd+Shift+S     - Scroll
 ```
 
-When in hint or grid mode, selecting a hint or label will move the cursor to that point. You can also press action keybindings (e.g., Shift+L for left click, Shift+R for right click) to perform actions without switching modes.
+| Default Hotkey | Action |
+|---|---|
+| `Cmd+Shift+C` | **Recursive grid mode** *(recommended)* |
+| `Cmd+Shift+G` | Grid mode |
+| `Cmd+Shift+Space` | Hints mode |
+| `Cmd+Shift+S` | Scroll mode |
+| `Shift+L` | Left click (in any mode) |
+| `Shift+R` | Right click (in any mode) |
 
-> [!NOTE]
-> These are all default configurations, you can customise every bit of them.
+> These are just subset of available keys. All hotkeys and actions are fully remappable.
 
-See [Installation Guide](docs/INSTALLATION.md) for detailed setup instructions.
+Full setup walkthrough: [Installation Guide →](docs/INSTALLATION.md)
+
+---
+
+## ✅ Works Everywhere
+
+| Category | Apps |
+|---|---|
+| Native macOS | Finder, Safari, Mail, System Settings, Terminal |
+| Electron | VS Code, Cursor, Slack, Spotify, Obsidian, Discord |
+| Browsers | Chrome, Firefox, Safari, Arc, Brave, Zen |
+| Creative | Figma, Adobe Illustrator, Photoshop |
+| System UI | Menubar, Dock, Mission Control, Notification Center |
+
+Grid mode works universally. Hints mode works where the accessibility tree is exposed — see the [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for app-specific notes.
+
+---
+
+## 🆚 Free Alternative To
+
+| Tool | Status | Neru |
+|---|---|---|
+| [Homerow](https://www.homerow.app/) | Paid | ✅ Free |
+| [Mouseless](https://mouseless.click/) | Paid | ✅ Free |
+| [Wooshy](https://wooshy.app) | Paid | ✅ Free |
+| [Shortcat](https://shortcat.app/) | Discontinued | ✅ Active |
+| [Vimac](https://github.com/dexterleng/vimac) | Unmaintained | ✅ Maintained |
 
 ---
 
 ## 📚 Documentation
 
-- **[Installation Guide](docs/INSTALLATION.md)** - Homebrew, Nix, source builds
-- **[Configuration](docs/CONFIGURATION.md)** - Complete TOML reference
-- **[CLI Usage](docs/CLI.md)** - Command-line interface
-- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues & solutions
-- **[Development](docs/DEVELOPMENT.md)** - Building & contributing
+- [Installation Guide](docs/INSTALLATION.md) — Homebrew, Nix, source builds
+- [Configuration Reference](docs/CONFIGURATION.md) — every TOML option
+- [CLI Usage](docs/CLI.md) — IPC commands and scripting
+- [Troubleshooting](docs/TROUBLESHOOTING.md) — common issues and app-specific fixes
+- [Development](docs/DEVELOPMENT.md) — architecture and build instructions
 
-### ⚙️ Configuration
-
-Neru uses TOML configuration with sensible defaults. Customize everything from hotkeys to visual styling.
-
-```toml
-[hotkeys]
-"Cmd+Shift+Space" = "hints"
-"Cmd+Shift+G" = "grid"
-
-[hints]
-hint_characters = "asdfghjkl"
-background_color = "#FFD700"
-```
-
-See [Configuration Guide](docs/CONFIGURATION.md) for all options.
-
-### 🏗️ Design Philosophy
-
-**Why TOML config over GUI?**
-
-- ⚡ Faster editing than clicking through settings
-- 📝 Version control friendly (dotfiles, git)
-- 🔧 More powerful than UI constraints
-- 🛠️ Reduces maintenance burden
-
-**Why we recommend grid over hints navigation?**
-
-- ✅ Works everywhere (native apps, Electron, browsers, system UI)
-- ⚡ Fast and reliable (no accessibility tree traversal)
-- 🎯 Always accurate (clicks at exact coordinates)
-- 🔧 Simple maintenance (no app-specific workarounds)
-
-> [!NOTE]
-> We support both hints and grid modes, but we recommend using grid mode as it is mostly usable out of the box without
-> further configuration.
-
-### 📊 Project Status
-
-**Actively maintained** with community contributions. PRs welcome!
-
-**Contribution ideas:**
-
-- Improved app icons & logo
-- More navigation mechanism
-- More mouse actions
-- Website & docs
-- More configuration examples for different use cases
-- More demo videos
-
-## ✅ Compatibility
-
-Neru works with **everything**:
-
-- **Native macOS Apps** - Finder, Safari, System Settings, Mail, etc.
-- **Electron Apps** - VS Code, Cursor, Slack, Spotify, Obsidian, Discord
-- **Browsers** - Chrome, Firefox, Safari, Arc, Brave, Zen
-- **Creative Apps** - Adobe Illustrator, Photoshop, Figma
-- **System UI** - Menubar, Dock, Mission Control, Notification Center
-
-See [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for app-specific issues.
+---
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how to get started:
+Contributions are welcome. The project is small and the codebase is approachable.
 
-1. **Fork & Clone** the repository
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Make your changes** following our [Coding Standards](docs/CODING_STANDARDS.md)
-4. **Test thoroughly** (`just test && just lint`)
-5. **Commit conventionally** and open a Pull Request
+```bash
+git checkout -b feature/your-idea
+just test && just lint
+# open a PR
+```
 
-**Guidelines:**
+Follow the [Coding Standards](docs/CODING_STANDARDS.md) and keep PRs focused on a single change. See [Development Guide](docs/DEVELOPMENT.md) for architecture details.
 
-- Keep PRs focused on a single change
-- Add tests for new features
-- Update documentation
-- Follow existing code style
-
-See [Development Guide](docs/DEVELOPMENT.md) for build instructions and architecture details.
+**Good first contributions:**
+- App icon / logo improvements
+- New navigation mechanisms
+- Additional mouse action types
+- Config examples for common setups
+- Demo videos
+- Performance improvements
+- Bug fixes
 
 ---
 
 ## 🙏 Acknowledgments
 
-Inspired by these excellent projects:
+Built on the shoulders of:
+[Homerow](https://www.homerow.app/) · [Vimac](https://github.com/dexterleng/vimac) · [Vimium](https://github.com/philc/vimium) · [Mouseless](https://mouseless.click/) · [Shortcat](https://shortcat.app/)
 
-- [Homerow](https://www.homerow.app/) - Modern keyboard navigation
-- [Vimac](https://github.com/dexterleng/vimac) - Vim-style navigation
-- [Shortcat](https://shortcat.app/) - Keyboard productivity tool
-- [Vimium](https://github.com/philc/vimium) - Browser Vim bindings
-- [Mouseless](https://mouseless.click/) - Grid navigation
-
-## 💬 Support
-
-- 📖 [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for common issues
-- 🐛 [Open an issue](https://github.com/y3owk1n/neru/issues) for bugs
-- 💬 [Discussions](https://github.com/y3owk1n/neru/discussions) for questions
-- ⭐ Star this repo if you find Neru useful!
+---
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
 **Made with ❤️ by [y3owk1n](https://github.com/y3owk1n)**
+
+⭐ Star this repo if Neru makes your workflow better
 
 </div>
