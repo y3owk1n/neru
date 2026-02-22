@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.21.0](https://github.com/y3owk1n/neru/compare/v1.20.0...v1.21.0) (2026-02-22)
+
+
+### Features
+
+* add configurable mode indicator overlay for every mode ([#408](https://github.com/y3owk1n/neru/issues/408)) ([3463c7e](https://github.com/y3owk1n/neru/commit/3463c7e373d22235ace5325255887bb96e19d84d))
+
+
+### Bug Fixes
+
+* standardize overlay creation and lifecycle across components ([#410](https://github.com/y3owk1n/neru/issues/410)) ([35285c9](https://github.com/y3owk1n/neru/commit/35285c94145d3c5215332799ec0d019eca1a610b))
+
 ## [1.20.0](https://github.com/y3owk1n/neru/compare/v1.19.0...v1.20.0) (2026-02-20)
 
 
