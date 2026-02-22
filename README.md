@@ -2,9 +2,9 @@
 
 **Master your keyboard, refine your workflow**
 
-Navigate macOS without touching your mouse - keyboard-driven productivity at its finest 🖱️⌨️
+Navigate macOS without touching your mouse with maximum flexibility - keyboard-driven productivity at its finest 🖱️⌨️
 
-<div align="center">
+<div align="left">
 
 [![License](https://img.shields.io/github/license/y3owk1n/neru)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
@@ -13,7 +13,7 @@ Navigate macOS without touching your mouse - keyboard-driven productivity at its
 
 </div>
 
-<p align="center">
+<p align="left">
   <a href="#-get-started">Get Started</a> •
   <a href="#-core-features">Features</a> •
   <a href="#-documentation">Docs</a> •
@@ -31,6 +31,7 @@ Feel free to read the progress and how I use Neru [here](HOW-I-USE-NERU.md) if y
 ### 🎯 Why Choose Neru?
 
 - 🆓 **Always free** - No paywalls, no subscriptions, no "upgrade to pro"
+- ⚙️ **Max Flexibility** - Every part of Neru is customisable, from keys to appearances, it's all yours
 - 🎬 **Universal compatibility** - Works with native macOS apps, Electron apps, and all browsers
 - ⚡ **Lightning fast** - Native performance with instant response
 - 🛠️ **Power-user friendly** - Text-based config for version control and dotfile management
@@ -45,6 +46,7 @@ Neru is a capable **free and open-source** replacement for:
 - [Shortcat](https://shortcat.app/) - Keyboard productivity tool (discontinued)
 - [Vimac](https://github.com/dexterleng/vimac) - Vim-style navigation (unmaintained)
 - [Mouseless](https://mouseless.click/) - Grid based keyboard navigation (paid)
+- [Wooshy](https://wooshy.app) - Modern keyboard navigation (paid)
 
 ---
 
@@ -126,6 +128,9 @@ neru services install
 
 When in hint or grid mode, selecting a hint or label will move the cursor to that point. You can also press action keybindings (e.g., Shift+L for left click, Shift+R for right click) to perform actions without switching modes.
 
+> [!NOTE]
+> These are all default configurations, you can customise every bit of them.
+
 See [Installation Guide](docs/INSTALLATION.md) for detailed setup instructions.
 
 ---
@@ -185,6 +190,7 @@ See [Configuration Guide](docs/CONFIGURATION.md) for all options.
 - More mouse actions
 - Website & docs
 - More configuration examples for different use cases
+- More demo videos
 
 ## ✅ Compatibility
 
