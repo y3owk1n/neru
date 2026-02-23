@@ -838,7 +838,6 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
 				@"label" : @(hint.label),
 				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
-				@"size" : [NSValue valueWithSize:CGSizeMake(hint.size.width, hint.size.height)],
 				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
 				@"showArrow" : @(style.showArrow)
 			}];
@@ -854,7 +853,6 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
 				@"label" : @(hint.label),
 				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
-				@"size" : [NSValue valueWithSize:CGSizeMake(hint.size.width, hint.size.height)],
 				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
 				@"showArrow" : @(style.showArrow)
 			}];
@@ -933,7 +931,6 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
 				@"label" : hint.label ? @(hint.label) : @"",
 				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
-				@"size" : [NSValue valueWithSize:CGSizeMake(hint.size.width, hint.size.height)],
 				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
 				@"showArrow" : @(style.showArrow)
 			}];
