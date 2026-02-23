@@ -49,6 +49,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 - (void)applyStyle:(HintStyle)style;                                                  ///< Apply hint style
 - (NSColor *)colorFromHex:(NSString *)hexString defaultColor:(NSColor *)defaultColor; ///< Color from hex string
+- (CGFloat)currentBackingScaleFactor;                                                 ///< Current backing scale factor
 @end
 
 #pragma mark - Overlay View Implementation
@@ -66,7 +67,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		self.layer.opaque = NO;
 		self.layer.backgroundColor = [[NSColor clearColor] CGColor];
 		CGFloat initialScale = [NSScreen mainScreen].backingScaleFactor;
-		self.layer.contentsScale = initialScale > 0 ? initialScale : 1.0;
+		self.layer.contentsScale = [self currentBackingScaleFactor];
 
 		_hints = [NSMutableArray arrayWithCapacity:100];     // Pre-size for typical hint count
 		_gridCells = [NSMutableArray arrayWithCapacity:100]; // Pre-size for typical grid size
@@ -99,19 +100,24 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	return self;
 }
 
+/// Return the backing scale factor for the current screen, with fallbacks.
+/// Uses the window's actual screen (not mainScreen) to ensure correct rendering
+/// when the overlay moves between displays with different scale factors
+/// (e.g., Retina vs non-Retina). Falls back to mainScreen, then 1.0.
+- (CGFloat)currentBackingScaleFactor {
+	CGFloat scale = self.window.screen.backingScaleFactor;
+	if (scale == 0) {
+		scale = [NSScreen mainScreen].backingScaleFactor;
+	}
+	return scale > 0 ? scale : 1.0;
+}
+
 /// Set view frame and update contents scale for high-DPI displays
 /// @param frame New frame
 - (void)setFrame:(NSRect)frame {
 	[super setFrame:frame];
-	// Update contents scale using the window's actual screen (not mainScreen)
-	// to ensure correct rendering when the overlay moves between displays
-	// with different scale factors (e.g., Retina vs non-Retina)
 	if (self.layer) {
-		CGFloat scale = self.window.screen.backingScaleFactor;
-		if (scale == 0) {
-			scale = [NSScreen mainScreen].backingScaleFactor;
-		}
-		self.layer.contentsScale = scale > 0 ? scale : 1.0;
+		self.layer.contentsScale = [self currentBackingScaleFactor];
 	}
 }
 
@@ -121,11 +127,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 - (void)viewDidChangeBackingProperties {
 	[super viewDidChangeBackingProperties];
 	if (self.layer) {
-		CGFloat scale = self.window.screen.backingScaleFactor;
-		if (scale == 0) {
-			scale = [NSScreen mainScreen].backingScaleFactor;
-		}
-		self.layer.contentsScale = scale > 0 ? scale : 1.0;
+		self.layer.contentsScale = [self currentBackingScaleFactor];
 	}
 }
 
