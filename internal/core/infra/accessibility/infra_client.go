@@ -92,7 +92,12 @@ func (c *InfraAXClient) ClickableNodes(
 
 	clickableNodes := tree.FindClickableElements(allowedRoles)
 
+	// Release tree nodes that are not part of the result to avoid
+	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
+	releaseTreeExcept(tree, clickableNodes)
+
 	clickableNodesResult := make([]AXNode, len(clickableNodes))
+
 	for i, node := range clickableNodes {
 		clickableNodesResult[i] = &InfraNode{node: node}
 	}
@@ -306,7 +311,7 @@ func (n *InfraNode) ID() string {
 		return ""
 	}
 
-	return fmt.Sprintf("elem_%p", n.node.Element)
+	return fmt.Sprintf("elem_%p", n.node.Element())
 }
 
 // Bounds returns the node bounds.
@@ -361,4 +366,11 @@ func (n *InfraNode) IsClickable() bool {
 	}
 
 	return n.node.Element().IsClickable(n.node.Info(), nil)
+}
+
+// Release releases the underlying AXUIElementRef held by this node.
+func (n *InfraNode) Release() {
+	if n.node != nil && n.node.Element() != nil {
+		n.node.Element().Release()
+	}
 }

@@ -70,6 +70,9 @@ func (a *Adapter) addMenubarElements(
 	} else {
 		for _, node := range menubarNodes {
 			element, elementErr := a.convertToDomainElement(node)
+
+			node.Release()
+
 			if elementErr != nil {
 				a.logger.Debug("Failed to convert menubar element", zap.Error(elementErr))
 
@@ -97,6 +100,9 @@ func (a *Adapter) addMenubarElements(
 
 		for _, node := range additionalNodes {
 			element, elementErr := a.convertToDomainElement(node)
+
+			node.Release()
+
 			if elementErr != nil {
 				a.logger.Debug(
 					"Failed to convert additional menubar element",
@@ -169,6 +175,9 @@ func (a *Adapter) addDockElements(
 
 	for _, node := range dockNodes {
 		element, elementErr := a.convertToDomainElement(node)
+
+		node.Release()
+
 		if elementErr != nil {
 			a.logger.Warn("Failed to convert dock element", zap.Error(elementErr))
 
@@ -201,6 +210,9 @@ func (a *Adapter) addNotificationCenterElements(
 
 	for _, node := range ncNodes {
 		element, elementErr := a.convertToDomainElement(node)
+
+		node.Release()
+
 		if elementErr != nil {
 			a.logger.Warn("Failed to convert notification center element", zap.Error(elementErr))
 
@@ -257,6 +269,9 @@ func (a *Adapter) addStageManagerElements(
 
 	for _, node := range wmNodes {
 		element, elementErr := a.convertToDomainElement(node)
+
+		node.Release()
+
 		if elementErr != nil {
 			a.logger.Warn("Failed to convert window manager element", zap.Error(elementErr))
 

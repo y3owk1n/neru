@@ -443,11 +443,22 @@ func (a *Adapter) processClickableNodes(
 		if index%contextCheckInterval == 0 {
 			err := a.checkContext(ctx)
 			if err != nil {
+				// Release remaining nodes that won't be processed.
+				for _, remaining := range clickableNodes[index:] {
+					remaining.Release()
+				}
+
 				return nil, err
 			}
 		}
 
 		elem, err := a.convertToDomainElement(node)
+
+		// Release the underlying AXUIElementRef now that data has been
+		// extracted (or conversion failed). The domain element is a pure
+		// value copy and no longer needs the native ref.
+		node.Release()
+
 		if err != nil {
 			a.logger.Warn("Failed to convert element", zap.Error(err))
 
@@ -512,12 +523,22 @@ func (a *Adapter) processClickableNodesConcurrent(
 
 			for idx, node := range chunk {
 				if idx%contextCheckInterval == 0 && ctx.Err() != nil {
+					// Release remaining nodes in this chunk that won't be processed.
+					for _, remaining := range chunk[idx:] {
+						remaining.Release()
+					}
+
 					results <- result{err: ctx.Err()}
 
 					return
 				}
 
 				elem, err := a.convertToDomainElement(node)
+
+				// Release the underlying AXUIElementRef now that data has been
+				// extracted (or conversion failed).
+				node.Release()
+
 				if err != nil {
 					continue
 				}

@@ -295,6 +295,7 @@ func buildChildrenSequential(
 			info, err = child.Info()
 			if err != nil {
 				opts.Logger().Debug("Failed to get child element info", zap.Error(err))
+				child.Release()
 
 				continue
 			}
@@ -305,6 +306,8 @@ func buildChildrenSequential(
 			opts.Logger().Debug("Skipping child element (filtered out)",
 				zap.String("role", info.Role()),
 				zap.String("title", info.Title()))
+
+			child.Release()
 
 			continue
 		}
@@ -373,6 +376,9 @@ func buildChildrenParallel(
 						"Failed to get child element info in parallel processing",
 						zap.Error(err),
 					)
+
+					elem.Release()
+
 					results <- childResult{node: nil, index: idx, err: err}
 
 					return
@@ -384,6 +390,9 @@ func buildChildrenParallel(
 				opts.Logger().Debug("Skipping child element in parallel processing (filtered out)",
 					zap.String("role", info.Role()),
 					zap.String("title", info.Title()))
+
+				elem.Release()
+
 				results <- childResult{node: nil, index: idx}
 
 				return
@@ -483,6 +492,28 @@ func (n *TreeNode) FindClickableElements(allowedRoles map[string]struct{}) []*Tr
 	})
 
 	return result
+}
+
+// Release releases the AXUIElementRef for every node in the subtree except
+// those whose elements appear in the provided keep set. Nodes in the keep set
+// are left untouched so callers can continue using them. The root element is
+// always skipped because it is owned by the caller (e.g., the frontmost window).
+func (n *TreeNode) Release(keep map[*Element]struct{}) {
+	n.walkTree(func(node *TreeNode) bool {
+		if node == n {
+			// Skip root — owned by the caller.
+			return true
+		}
+		if node.element == nil {
+			return true
+		}
+		if _, kept := keep[node.element]; kept {
+			return true
+		}
+		node.element.Release()
+
+		return true
+	})
 }
 
 // walkTree walks the tree and calls the visitor function for each node.
