@@ -597,7 +597,6 @@ void NeruShowOverlayWindow(OverlayWindow window) {
 
 		[controller.window setIsVisible:YES];
 		[controller.window orderFrontRegardless];
-		[controller.window makeKeyAndOrderFront:nil];
 
 		[controller.window display];
 		[controller.overlayView setNeedsDisplay:YES];
@@ -680,7 +679,6 @@ void NeruResizeOverlayToMainScreen(OverlayWindow window) {
 			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
 			[controller.window setIsVisible:YES];
 			[controller.window orderFrontRegardless];
-			[controller.window makeKeyAndOrderFront:nil];
 		});
 	});
 }
@@ -731,7 +729,6 @@ void NeruResizeOverlayToActiveScreen(OverlayWindow window) {
 			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
 			[controller.window setIsVisible:YES];
 			[controller.window orderFrontRegardless];
-			[controller.window makeKeyAndOrderFront:nil];
 		});
 	});
 }
@@ -790,7 +787,6 @@ void NeruResizeOverlayToActiveScreenWithCallback(OverlayWindow window, ResizeCom
 			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
 			[controller.window setIsVisible:YES];
 			[controller.window orderFrontRegardless];
-			[controller.window makeKeyAndOrderFront:nil];
 
 			if (callback) {
 				callback(context);
