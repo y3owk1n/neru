@@ -475,7 +475,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 #pragma mark - Overlay Window Controller Interface
 
 @interface OverlayWindowController : NSObject
-@property(nonatomic, strong) NSWindow *window;         ///< Window instance
+@property(nonatomic, strong) NSPanel *window;          ///< Panel instance (non-activating overlay)
 @property(nonatomic, strong) OverlayView *overlayView; ///< Overlay view instance
 @property(nonatomic, assign) NSInteger sharingType;    ///< Current window sharing type
 @property(nonatomic, assign) BOOL sharingTypeExplicit; ///< Whether sharingType was explicitly configured
