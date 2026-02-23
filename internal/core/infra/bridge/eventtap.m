@@ -251,6 +251,12 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 		CFRunLoopAddSource(CFRunLoopGetMain(), context->runLoopSource, kCFRunLoopCommonModes);
 	} else {
 		dispatch_block_t block = dispatch_block_create(0, ^{
+			// Guard against execution after cancellation (e.g., if destroyEventTap
+			// cancelled this block but it was already dequeued for execution).
+			if (dispatch_block_testcancel(context->pendingAddSourceBlock)) {
+				return;
+			}
+
 			CFRunLoopAddSource(CFRunLoopGetMain(), context->runLoopSource, kCFRunLoopCommonModes);
 			context->pendingAddSourceBlock = nil;
 		});
@@ -306,6 +312,11 @@ void enableEventTap(EventTap tap) {
 
 		// Create delayed enable block
 		dispatch_block_t innerBlock = dispatch_block_create(0, ^{
+			// Guard against execution after cancellation
+			if (dispatch_block_testcancel(context->pendingEnableBlock)) {
+				return;
+			}
+
 			CGEventTapEnable(context->eventTap, true);
 			context->pendingEnableBlock = nil;
 		});
