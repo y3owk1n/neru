@@ -65,7 +65,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		[self setWantsLayer:YES];
 		self.layer.opaque = NO;
 		self.layer.backgroundColor = [[NSColor clearColor] CGColor];
-		self.layer.contentsScale = [NSScreen mainScreen].backingScaleFactor;
+		CGFloat initialScale = [NSScreen mainScreen].backingScaleFactor;
+		self.layer.contentsScale = initialScale > 0 ? initialScale : 1.0;
 
 		_hints = [NSMutableArray arrayWithCapacity:100];     // Pre-size for typical hint count
 		_gridCells = [NSMutableArray arrayWithCapacity:100]; // Pre-size for typical grid size
