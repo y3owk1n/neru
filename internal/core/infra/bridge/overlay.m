@@ -66,7 +66,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		[self setWantsLayer:YES];
 		self.layer.opaque = NO;
 		self.layer.backgroundColor = [[NSColor clearColor] CGColor];
-		CGFloat initialScale = [NSScreen mainScreen].backingScaleFactor;
 		self.layer.contentsScale = [self currentBackingScaleFactor];
 
 		_hints = [NSMutableArray arrayWithCapacity:100];     // Pre-size for typical hint count
