@@ -359,8 +359,9 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		CGFloat boxWidth = MAX(contentWidth, contentHeight);
 		CGFloat boxHeight = contentHeight + arrowHeight;
 		// Position tooltip above element with arrow pointing down to element center
-		CGFloat elementCenterX = position.x + (hint[@"size"] ? [hint[@"size"] sizeValue].width : 0) / 2.0;
-		CGFloat elementCenterY = position.y + (hint[@"size"] ? [hint[@"size"] sizeValue].height : 0) / 2.0;
+		// position is already the element center (set via element.Center() in Go)
+		CGFloat elementCenterX = position.x;
+		CGFloat elementCenterY = position.y;
 		// Position tooltip body above element (arrow points down)
 		CGFloat gap = 3.0;
 		CGFloat tooltipX = elementCenterX - boxWidth / 2.0;
