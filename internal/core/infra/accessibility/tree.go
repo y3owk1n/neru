@@ -295,6 +295,7 @@ func buildChildrenSequential(
 			info, err = child.Info()
 			if err != nil {
 				opts.Logger().Debug("Failed to get child element info", zap.Error(err))
+				child.Release()
 
 				continue
 			}
@@ -305,6 +306,8 @@ func buildChildrenSequential(
 			opts.Logger().Debug("Skipping child element (filtered out)",
 				zap.String("role", info.Role()),
 				zap.String("title", info.Title()))
+
+			child.Release()
 
 			continue
 		}
@@ -373,6 +376,9 @@ func buildChildrenParallel(
 						"Failed to get child element info in parallel processing",
 						zap.Error(err),
 					)
+
+					elem.Release()
+
 					results <- childResult{node: nil, index: idx, err: err}
 
 					return
@@ -384,6 +390,9 @@ func buildChildrenParallel(
 				opts.Logger().Debug("Skipping child element in parallel processing (filtered out)",
 					zap.String("role", info.Role()),
 					zap.String("title", info.Title()))
+
+				elem.Release()
+
 				results <- childResult{node: nil, index: idx}
 
 				return
