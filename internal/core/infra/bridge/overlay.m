@@ -56,28 +56,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 @implementation OverlayView
 
-/// Dealloc - release retained properties under MRC
-- (void)dealloc {
-	[_hints release];
-	[_hintFont release];
-	[_hintTextColor release];
-	[_hintMatchedTextColor release];
-	[_hintBackgroundColor release];
-	[_hintBorderColor release];
-	[_gridCells release];
-	[_gridFont release];
-	[_gridTextColor release];
-	[_gridMatchedTextColor release];
-	[_gridMatchedBackgroundColor release];
-	[_gridMatchedBorderColor release];
-	[_gridBackgroundColor release];
-	[_gridBorderColor release];
-	[_cachedGridTextColor release];
-	[_cachedGridMatchedTextColor release];
-	[_cachedAttributedString release];
-	[super dealloc];
-}
-
 /// Initialize with frame
 /// @param frame View frame
 /// @return Initialized instance
@@ -90,31 +68,30 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		self.layer.backgroundColor = [[NSColor clearColor] CGColor];
 		self.layer.contentsScale = [self currentBackingScaleFactor];
 
-		_hints = [[NSMutableArray alloc] initWithCapacity:100];     // Pre-size for typical hint count
-		_gridCells = [[NSMutableArray alloc] initWithCapacity:100]; // Pre-size for typical grid size
+		_hints = [NSMutableArray arrayWithCapacity:100];     // Pre-size for typical hint count
+		_gridCells = [NSMutableArray arrayWithCapacity:100]; // Pre-size for typical grid size
 
-		_hintFont = [[NSFont boldSystemFontOfSize:14.0] retain];
-		_hintTextColor = [[NSColor blackColor] retain];
-		_hintMatchedTextColor = [[NSColor systemBlueColor] retain];
-		_hintBackgroundColor = [[[NSColor colorWithRed:1.0 green:0.84 blue:0.0
-		                                         alpha:1.0] colorWithAlphaComponent:0.95] retain];
-		_hintBorderColor = [[NSColor blackColor] retain];
+		_hintFont = [NSFont boldSystemFontOfSize:14.0];
+		_hintTextColor = [NSColor blackColor];
+		_hintMatchedTextColor = [NSColor systemBlueColor];
+		_hintBackgroundColor = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.95];
+		_hintBorderColor = [NSColor blackColor];
 		_hintBorderRadius = 4.0;
 		_hintBorderWidth = 1.0;
 		_hintPadding = 4.0;
 
 		// Grid defaults
-		_gridFont = [[NSFont fontWithName:@"Menlo" size:10.0] retain];
-		_gridTextColor = [[NSColor colorWithWhite:0.2 alpha:1.0] retain];
-		_gridMatchedTextColor = [[NSColor colorWithRed:0.0 green:0.4 blue:1.0 alpha:1.0] retain];
-		_gridBackgroundColor = [[NSColor whiteColor] retain];
-		_gridBorderColor = [[NSColor colorWithWhite:0.7 alpha:1.0] retain];
+		_gridFont = [NSFont fontWithName:@"Menlo" size:10.0];
+		_gridTextColor = [NSColor colorWithWhite:0.2 alpha:1.0];
+		_gridMatchedTextColor = [NSColor colorWithRed:0.0 green:0.4 blue:1.0 alpha:1.0];
+		_gridBackgroundColor = [NSColor whiteColor];
+		_gridBorderColor = [NSColor colorWithWhite:0.7 alpha:1.0];
 		_gridBorderWidth = 1.0;
 		_hideUnmatched = NO;
 
 		// Initialize cached colors
-		_cachedGridTextColor = [_gridTextColor retain];
-		_cachedGridMatchedTextColor = [_gridMatchedTextColor retain];
+		_cachedGridTextColor = _gridTextColor;
+		_cachedGridMatchedTextColor = _gridMatchedTextColor;
 
 		// Initialize cached string buffer
 		_cachedAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
@@ -509,13 +486,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 @implementation OverlayWindowController
 
-/// Deallocate controller and release owned objects (MRC)
-- (void)dealloc {
-	[_window release];
-	[_overlayView release];
-	[super dealloc];
-}
-
 /// Initialize
 /// @return Initialized instance
 - (instancetype)init {
@@ -544,8 +514,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 	self.window = panel;
 
-	[panel release]; // Balance alloc; the retain property now owns it
-
 	if ([self.window respondsToSelector:@selector(setAnimationBehavior:)]) {
 		[self.window setAnimationBehavior:NSWindowAnimationBehaviorNone];
 	}
@@ -569,9 +537,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	[self.window setSharingType:self.sharingType];
 
 	NSRect viewFrame = NSMakeRect(0, 0, screenFrame.size.width, screenFrame.size.height);
-	OverlayView *view = [[OverlayView alloc] initWithFrame:viewFrame];
-	self.overlayView = view;
-	[view release]; // Balance alloc; the retain property now owns it
+	self.overlayView = [[OverlayView alloc] initWithFrame:viewFrame];
 	[self.window setContentView:self.overlayView];
 }
 
@@ -590,7 +556,8 @@ OverlayWindow createOverlayWindow(void) {
 			controller = [[OverlayWindowController alloc] init];
 		});
 	}
-	return (void *)controller;
+
+	return (__bridge_retained void *)controller; // Transfer ownership to caller
 }
 
 /// Destroy overlay window
@@ -600,14 +567,14 @@ void NeruDestroyOverlayWindow(OverlayWindow window) {
 		return;
 	}
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 	if ([NSThread isMainThread]) {
 		[controller.window close];
-		[controller release];
+		CFRelease(window); // Balance the CFBridgingRetain from createOverlayWindow
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			[controller.window close];
-			[controller release];
+			CFRelease(window); // Balance the CFBridgingRetain from createOverlayWindow
 		});
 	}
 }
@@ -619,7 +586,7 @@ void NeruShowOverlayWindow(OverlayWindow window) {
 		return;
 	}
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		[controller.window setLevel:kCGMaximumWindowLevel];
@@ -644,7 +611,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 		return;
 	}
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	if ([NSThread isMainThread]) {
 		[controller.window orderOut:nil];
@@ -662,7 +629,7 @@ void NeruClearOverlay(OverlayWindow window) {
 		return;
 	}
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	if ([NSThread isMainThread]) {
 		[controller.overlayView.hints removeAllObjects];
@@ -686,7 +653,7 @@ void NeruResizeOverlayToMainScreen(OverlayWindow window) {
 		return;
 	}
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 	dispatch_async(dispatch_get_main_queue(), ^{
 		NSScreen *mainScreen = [NSScreen mainScreen];
 		if (!mainScreen) {
@@ -724,7 +691,7 @@ void NeruResizeOverlayToActiveScreen(OverlayWindow window) {
 		return;
 	}
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 	dispatch_async(dispatch_get_main_queue(), ^{
 		NSPoint mouseLoc = [NSEvent mouseLocation];
 
@@ -780,7 +747,7 @@ void NeruResizeOverlayToActiveScreenWithCallback(OverlayWindow window, ResizeCom
 		return;
 	}
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 	dispatch_async(dispatch_get_main_queue(), ^{
 		NSPoint mouseLoc = [NSEvent mouseLocation];
 
@@ -860,7 +827,7 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 	if (!window || !hints)
 		return;
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	if ([NSThread isMainThread]) {
 		[controller.overlayView.hints removeAllObjects];
@@ -921,7 +888,7 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 	if (!window)
 		return;
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	NSString *prefixStr = prefix ? @(prefix) : @"";
 
@@ -953,7 +920,7 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	if (!window)
 		return;
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	// Build hint data arrays for hints to add/update
 	NSMutableArray *hintDictsToAdd = nil;
@@ -1101,7 +1068,7 @@ void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
 	if (!pwindow)
 		return;
 	dispatch_async(dispatch_get_main_queue(), ^{
-		OverlayWindowController *oldController = (OverlayWindowController *)(*pwindow);
+		OverlayWindowController *oldController = (__bridge OverlayWindowController *)(*pwindow);
 		NSInteger sharingType = NSWindowSharingReadOnly; // Default to visible
 		if (oldController) {
 			sharingType = oldController.sharingType;
@@ -1112,9 +1079,9 @@ void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
 		[newController.window setSharingType:sharingType];
 		if (oldController) {
 			[oldController.window close];
-			[oldController release];
+			CFRelease(*pwindow); // Balance the CFBridgingRetain from createOverlayWindow
 		}
-		*pwindow = (void *)newController;
+		*pwindow = (__bridge_retained void *)newController; // Transfer ownership to caller
 	});
 }
 
@@ -1127,7 +1094,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	if (!window || !cells)
 		return;
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	// Build cell data array and copy all strings NOW
 	NSMutableArray *cellDicts = [NSMutableArray arrayWithCapacity:count];
@@ -1197,7 +1164,7 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 	if (!window)
 		return;
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	NSString *prefixStr = prefix ? @(prefix) : @"";
 
@@ -1237,7 +1204,7 @@ void NeruSetOverlayLevel(OverlayWindow window, int level) {
 	if (!window)
 		return;
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	if ([NSThread isMainThread]) {
 		[controller.window setLevel:level];
@@ -1255,7 +1222,7 @@ void NeruSetHideUnmatched(OverlayWindow window, int hide) {
 	if (!window)
 		return;
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		controller.overlayView.hideUnmatched = hide ? YES : NO;
@@ -1270,7 +1237,7 @@ void NeruSetOverlaySharingType(OverlayWindow window, int sharingType) {
 	if (!window)
 		return;
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		controller.sharingType = sharingType;
@@ -1290,7 +1257,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 	if (!window)
 		return;
 
-	OverlayWindowController *controller = (OverlayWindowController *)window;
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	// Build cell data arrays for cells to add/update
 	NSMutableArray *cellDictsToAdd = nil;

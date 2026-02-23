@@ -1,7 +1,7 @@
 package bridge
 
 /*
-#cgo CFLAGS: -x objective-c
+#cgo CFLAGS: -x objective-c -fobjc-arc
 #cgo LDFLAGS: -framework ApplicationServices -framework Cocoa -framework Carbon -framework CoreGraphics
 #include "accessibility.h"
 #include "overlay.h"

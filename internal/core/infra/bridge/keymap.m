@@ -414,17 +414,11 @@ static void buildLayoutMaps(void) {
 			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
 
 			[gKeymapLock lock];
-			[gKeyNameToCodeMap release];
 			gKeyNameToCodeMap = [nameToCode copy];
-			[gKeyCodeToNameMap release];
 			gKeyCodeToNameMap = [codeToName copy];
-			[gKeyCodeToCharUnshifted release];
 			gKeyCodeToCharUnshifted = [unshifted copy];
-			[gKeyCodeToCharShifted release];
 			gKeyCodeToCharShifted = [shifted copy];
-			[gKeyCodeToCharCaps release];
 			gKeyCodeToCharCaps = [caps copy];
-			[gKeyCodeToCharShiftedCaps release];
 			gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 			[gKeymapLock unlock];
 			return;
@@ -439,17 +433,11 @@ static void buildLayoutMaps(void) {
 			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
 
 			[gKeymapLock lock];
-			[gKeyNameToCodeMap release];
 			gKeyNameToCodeMap = [nameToCode copy];
-			[gKeyCodeToNameMap release];
 			gKeyCodeToNameMap = [codeToName copy];
-			[gKeyCodeToCharUnshifted release];
 			gKeyCodeToCharUnshifted = [unshifted copy];
-			[gKeyCodeToCharShifted release];
 			gKeyCodeToCharShifted = [shifted copy];
-			[gKeyCodeToCharCaps release];
 			gKeyCodeToCharCaps = [caps copy];
-			[gKeyCodeToCharShiftedCaps release];
 			gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 			// don't touch gCurrentInputSource/gCurrentKeyboardLayout —
 			// keep previous valid layout for live UCKeyTranslate fallback
@@ -519,20 +507,12 @@ static void buildLayoutMaps(void) {
 		gCurrentInputSource = inputSource;
 		gCurrentKeyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
 
-		// Release old dictionaries before assigning new ones (MRC)
-		// Transfer ownership from local vars (already +1 from copy) to globals
-		[gKeyNameToCodeMap release];
 		gKeyNameToCodeMap = newNameToCode;
-		[gKeyCodeToNameMap release];
 		gKeyCodeToNameMap = newCodeToName;
 
-		[gKeyCodeToCharUnshifted release];
 		gKeyCodeToCharUnshifted = [unshifted copy];
-		[gKeyCodeToCharShifted release];
 		gKeyCodeToCharShifted = [shifted copy];
-		[gKeyCodeToCharCaps release];
 		gKeyCodeToCharCaps = [caps copy];
-		[gKeyCodeToCharShiftedCaps release];
 		gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
 		[gKeymapLock unlock];
 	}
@@ -641,8 +621,6 @@ NSDictionary<NSString *, NSNumber *> *keyNameToCodeMap(void) {
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyNameToCodeMap;
-	// Retain to ensure dictionary stays valid after releasing lock
-	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	return map;
@@ -655,8 +633,6 @@ NSDictionary<NSNumber *, NSString *> *keyCodeToNameMap(void) {
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyCodeToNameMap;
-	// Retain to ensure dictionary stays valid after releasing lock
-	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	return map;
@@ -673,8 +649,6 @@ CGKeyCode keyNameToCode(NSString *keyName) {
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyNameToCodeMap;
-	// Retain to ensure dictionary stays valid after releasing lock
-	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	NSNumber *code = map[keyName];
@@ -693,8 +667,6 @@ NSString *keyCodeToName(CGKeyCode keyCode) {
 	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyCodeToNameMap;
-	// Retain to ensure dictionary stays valid after releasing lock
-	map = [[map retain] autorelease];
 	[gKeymapLock unlock];
 
 	return map[@(keyCode)];
@@ -772,8 +744,7 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	} else {
 		map = gKeyCodeToCharShiftedCaps;
 	}
-	// Retain to ensure dictionary stays valid after releasing lock
-	map = [[map retain] autorelease];
+
 	const UCKeyboardLayout *layout = gCurrentKeyboardLayout;
 	TISInputSourceRef localSource = gCurrentInputSource;
 	if (localSource)
