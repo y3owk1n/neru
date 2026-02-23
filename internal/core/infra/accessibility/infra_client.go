@@ -311,7 +311,7 @@ func (n *InfraNode) ID() string {
 		return ""
 	}
 
-	return fmt.Sprintf("elem_%p", n.node.Element)
+	return fmt.Sprintf("elem_%p", n.node.Element())
 }
 
 // Bounds returns the node bounds.
