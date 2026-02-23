@@ -486,6 +486,13 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 @implementation OverlayWindowController
 
+/// Deallocate controller and release owned objects (MRC)
+- (void)dealloc {
+	[_window release];
+	[_overlayView release];
+	[super dealloc];
+}
+
 /// Initialize
 /// @return Initialized instance
 - (instancetype)init {
@@ -514,6 +521,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 	self.window = panel;
 
+	[panel release]; // Balance alloc; the retain property now owns it
+
 	if ([self.window respondsToSelector:@selector(setAnimationBehavior:)]) {
 		[self.window setAnimationBehavior:NSWindowAnimationBehaviorNone];
 	}
@@ -537,7 +546,9 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	[self.window setSharingType:self.sharingType];
 
 	NSRect viewFrame = NSMakeRect(0, 0, screenFrame.size.width, screenFrame.size.height);
-	self.overlayView = [[OverlayView alloc] initWithFrame:viewFrame];
+	OverlayView *view = [[OverlayView alloc] initWithFrame:viewFrame];
+	self.overlayView = view;
+	[view release]; // Balance alloc; the retain property now owns it
 	[self.window setContentView:self.overlayView];
 }
 
