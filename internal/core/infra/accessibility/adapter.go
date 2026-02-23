@@ -443,6 +443,11 @@ func (a *Adapter) processClickableNodes(
 		if index%contextCheckInterval == 0 {
 			err := a.checkContext(ctx)
 			if err != nil {
+				// Release remaining nodes that won't be processed.
+				for _, remaining := range clickableNodes[index:] {
+					remaining.Release()
+				}
+
 				return nil, err
 			}
 		}
@@ -518,6 +523,11 @@ func (a *Adapter) processClickableNodesConcurrent(
 
 			for idx, node := range chunk {
 				if idx%contextCheckInterval == 0 && ctx.Err() != nil {
+					// Release remaining nodes in this chunk that won't be processed.
+					for _, remaining := range chunk[idx:] {
+						remaining.Release()
+					}
+
 					results <- result{err: ctx.Err()}
 
 					return
