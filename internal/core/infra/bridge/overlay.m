@@ -1067,7 +1067,13 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
 	if (!pwindow)
 		return;
-	dispatch_async(dispatch_get_main_queue(), ^{
+
+	// Must use dispatch_sync (not dispatch_async) because pwindow points into
+	// Go struct memory (&o.window).  The pointer is only guaranteed to remain
+	// valid while the calling Go function is on the stack; an async dispatch
+	// could dereference it after the Go side has moved on, causing a
+	// use-after-free.
+	void (^replaceBlock)(void) = ^{
 		OverlayWindowController *oldController = (__bridge OverlayWindowController *)(*pwindow);
 		NSInteger sharingType = NSWindowSharingReadOnly; // Default to visible
 		if (oldController) {
@@ -1082,7 +1088,13 @@ void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
 			CFRelease(*pwindow); // Balance the CFBridgingRetain from createOverlayWindow
 		}
 		*pwindow = (__bridge_retained void *)newController; // Transfer ownership to caller
-	});
+	};
+
+	if ([NSThread isMainThread]) {
+		replaceBlock();
+	} else {
+		dispatch_sync(dispatch_get_main_queue(), replaceBlock);
+	}
 }
 
 /// Draw grid cells
