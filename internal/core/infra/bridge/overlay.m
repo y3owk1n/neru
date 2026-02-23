@@ -475,7 +475,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 #pragma mark - Overlay Window Controller Interface
 
 @interface OverlayWindowController : NSObject
-@property(nonatomic, strong) NSWindow *window;         ///< Window instance
+@property(nonatomic, strong) NSPanel *window;          ///< Panel instance (non-activating overlay)
 @property(nonatomic, strong) OverlayView *overlayView; ///< Overlay view instance
 @property(nonatomic, assign) NSInteger sharingType;    ///< Current window sharing type
 @property(nonatomic, assign) BOOL sharingTypeExplicit; ///< Whether sharingType was explicitly configured
@@ -500,10 +500,17 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	NSScreen *mainScreen = [NSScreen mainScreen];
 	NSRect screenFrame = [mainScreen frame];
 
-	self.window = [[NSWindow alloc] initWithContentRect:screenFrame
-	                                          styleMask:NSWindowStyleMaskBorderless
-	                                            backing:NSBackingStoreBuffered
-	                                              defer:NO];
+	// Use NSPanel for better floating overlay behavior
+	// Non-activating panel won't steal focus from other apps
+	NSPanel *panel =
+	    [[NSPanel alloc] initWithContentRect:screenFrame
+	                               styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
+	                                 backing:NSBackingStoreBuffered
+	                                   defer:NO];
+
+	[panel setHidesOnDeactivate:NO];
+
+	self.window = panel;
 
 	if ([self.window respondsToSelector:@selector(setAnimationBehavior:)]) {
 		[self.window setAnimationBehavior:NSWindowAnimationBehaviorNone];
@@ -590,7 +597,6 @@ void NeruShowOverlayWindow(OverlayWindow window) {
 
 		[controller.window setIsVisible:YES];
 		[controller.window orderFrontRegardless];
-		[controller.window makeKeyAndOrderFront:nil];
 
 		[controller.window display];
 		[controller.overlayView setNeedsDisplay:YES];
@@ -673,7 +679,6 @@ void NeruResizeOverlayToMainScreen(OverlayWindow window) {
 			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
 			[controller.window setIsVisible:YES];
 			[controller.window orderFrontRegardless];
-			[controller.window makeKeyAndOrderFront:nil];
 		});
 	});
 }
@@ -724,7 +729,6 @@ void NeruResizeOverlayToActiveScreen(OverlayWindow window) {
 			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
 			[controller.window setIsVisible:YES];
 			[controller.window orderFrontRegardless];
-			[controller.window makeKeyAndOrderFront:nil];
 		});
 	});
 }
@@ -783,7 +787,6 @@ void NeruResizeOverlayToActiveScreenWithCallback(OverlayWindow window, ResizeCom
 			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
 			[controller.window setIsVisible:YES];
 			[controller.window orderFrontRegardless];
-			[controller.window makeKeyAndOrderFront:nil];
 
 			if (callback) {
 				callback(context);
