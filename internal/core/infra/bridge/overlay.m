@@ -102,9 +102,29 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 /// @param frame New frame
 - (void)setFrame:(NSRect)frame {
 	[super setFrame:frame];
-	// Update contents scale for Retina displays
+	// Update contents scale using the window's actual screen (not mainScreen)
+	// to ensure correct rendering when the overlay moves between displays
+	// with different scale factors (e.g., Retina vs non-Retina)
 	if (self.layer) {
-		self.layer.contentsScale = [NSScreen mainScreen].backingScaleFactor;
+		CGFloat scale = self.window.screen.backingScaleFactor;
+		if (scale == 0) {
+			scale = [NSScreen mainScreen].backingScaleFactor;
+		}
+		self.layer.contentsScale = scale;
+	}
+}
+
+/// Update contents scale when the view moves between screens with different
+/// backing properties (e.g., Retina to non-Retina or vice versa).
+/// This is the Apple-recommended callback for responding to scale factor changes.
+- (void)viewDidChangeBackingProperties {
+	[super viewDidChangeBackingProperties];
+	if (self.layer) {
+		CGFloat scale = self.window.screen.backingScaleFactor;
+		if (scale == 0) {
+			scale = [NSScreen mainScreen].backingScaleFactor;
+		}
+		self.layer.contentsScale = scale;
 	}
 }
 
