@@ -12,14 +12,14 @@
 #pragma mark - Type Definitions
 
 typedef struct {
-	CFMachPortRef eventTap;                 ///< Event tap reference
-	CFRunLoopSourceRef runLoopSource;       ///< Run loop source
-	EventTapCallback callback;              ///< Callback function
-	void *userData;                         ///< User data pointer
-	NSMutableArray *hotkeys;                ///< Hotkeys array
-	dispatch_queue_t accessQueue;           ///< Thread-safe access queue
-	dispatch_block_t pendingEnableBlock;    ///< Pending enable block (inner delayed block)
-	dispatch_block_t pendingAddSourceBlock; ///< Pending add source block
+	CFMachPortRef eventTap;                          ///< Event tap reference
+	CFRunLoopSourceRef runLoopSource;                ///< Run loop source
+	EventTapCallback callback;                       ///< Callback function
+	void *userData;                                  ///< User data pointer
+	NSMutableArray *__strong hotkeys;                ///< Hotkeys array
+	dispatch_queue_t __strong accessQueue;           ///< Thread-safe access queue
+	dispatch_block_t __strong pendingEnableBlock;    ///< Pending enable block (inner delayed block)
+	dispatch_block_t __strong pendingAddSourceBlock; ///< Pending add source block
 } EventTapContext;
 
 #pragma mark - Helper Functions
