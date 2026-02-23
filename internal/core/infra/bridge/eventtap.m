@@ -219,7 +219,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 /// @param userData User data pointer
 /// @return Event tap handle
 EventTap createEventTap(EventTapCallback callback, void *userData) {
-	EventTapContext *context = (EventTapContext *)malloc(sizeof(EventTapContext));
+	EventTapContext *context = (EventTapContext *)calloc(1, sizeof(EventTapContext));
 	if (!context)
 		return NULL;
 
