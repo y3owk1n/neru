@@ -125,7 +125,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		if (scale == 0) {
 			scale = [NSScreen mainScreen].backingScaleFactor;
 		}
-		self.layer.contentsScale = scale;
+		self.layer.contentsScale = scale > 0 ? scale : 1.0;
 	}
 }
 
