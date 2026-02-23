@@ -510,6 +510,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	                                   defer:NO];
 
 	[panel setHidesOnDeactivate:NO];
+	[panel setReleasedWhenClosed:NO];
 
 	self.window = panel;
 
