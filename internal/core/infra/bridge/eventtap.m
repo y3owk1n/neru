@@ -12,14 +12,14 @@
 #pragma mark - Type Definitions
 
 typedef struct {
-	CFMachPortRef eventTap;                 ///< Event tap reference
-	CFRunLoopSourceRef runLoopSource;       ///< Run loop source
-	EventTapCallback callback;              ///< Callback function
-	void *userData;                         ///< User data pointer
-	NSMutableArray *hotkeys;                ///< Hotkeys array
-	dispatch_queue_t accessQueue;           ///< Thread-safe access queue
-	dispatch_block_t pendingEnableBlock;    ///< Pending enable block (inner delayed block)
-	dispatch_block_t pendingAddSourceBlock; ///< Pending add source block
+	CFMachPortRef eventTap;                          ///< Event tap reference
+	CFRunLoopSourceRef runLoopSource;                ///< Run loop source
+	EventTapCallback callback;                       ///< Callback function
+	void *userData;                                  ///< User data pointer
+	NSMutableArray *__strong hotkeys;                ///< Hotkeys array
+	dispatch_queue_t __strong accessQueue;           ///< Thread-safe access queue
+	dispatch_block_t __strong pendingEnableBlock;    ///< Pending enable block (inner delayed block)
+	dispatch_block_t __strong pendingAddSourceBlock; ///< Pending add source block
 } EventTapContext;
 
 #pragma mark - Helper Functions
@@ -219,7 +219,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 /// @param userData User data pointer
 /// @return Event tap handle
 EventTap createEventTap(EventTapCallback callback, void *userData) {
-	EventTapContext *context = (EventTapContext *)malloc(sizeof(EventTapContext));
+	EventTapContext *context = (EventTapContext *)calloc(1, sizeof(EventTapContext));
 	if (!context)
 		return NULL;
 
@@ -250,9 +250,18 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	if ([NSThread isMainThread]) {
 		CFRunLoopAddSource(CFRunLoopGetMain(), context->runLoopSource, kCFRunLoopCommonModes);
 	} else {
-		dispatch_block_t block = dispatch_block_create(0, ^{
+		__block dispatch_block_t block;
+		block = dispatch_block_create(0, ^{
+			// Guard against execution after cancellation (e.g., if destroyEventTap
+			// cancelled this block but it was already dequeued for execution).
+			if (dispatch_block_testcancel(block)) {
+				block = nil; // Break retain cycle
+				return;
+			}
+
 			CFRunLoopAddSource(CFRunLoopGetMain(), context->runLoopSource, kCFRunLoopCommonModes);
 			context->pendingAddSourceBlock = nil;
+			block = nil; // Break retain cycle
 		});
 
 		context->pendingAddSourceBlock = block;
@@ -305,9 +314,17 @@ void enableEventTap(EventTap tap) {
 		}
 
 		// Create delayed enable block
-		dispatch_block_t innerBlock = dispatch_block_create(0, ^{
+		__block dispatch_block_t innerBlock;
+		innerBlock = dispatch_block_create(0, ^{
+			// Guard against execution after cancellation
+			if (dispatch_block_testcancel(innerBlock)) {
+				innerBlock = nil; // Break retain cycle
+				return;
+			}
+
 			CGEventTapEnable(context->eventTap, true);
 			context->pendingEnableBlock = nil;
+			innerBlock = nil; // Break retain cycle
 		});
 
 		context->pendingEnableBlock = innerBlock;
