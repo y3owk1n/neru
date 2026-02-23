@@ -448,6 +448,12 @@ func (a *Adapter) processClickableNodes(
 		}
 
 		elem, err := a.convertToDomainElement(node)
+
+		// Release the underlying AXUIElementRef now that data has been
+		// extracted (or conversion failed). The domain element is a pure
+		// value copy and no longer needs the native ref.
+		node.Release()
+
 		if err != nil {
 			a.logger.Warn("Failed to convert element", zap.Error(err))
 
@@ -518,6 +524,11 @@ func (a *Adapter) processClickableNodesConcurrent(
 				}
 
 				elem, err := a.convertToDomainElement(node)
+
+				// Release the underlying AXUIElementRef now that data has been
+				// extracted (or conversion failed).
+				node.Release()
+
 				if err != nil {
 					continue
 				}

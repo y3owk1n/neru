@@ -202,3 +202,6 @@ func (n *MockNode) Description() string {
 func (n *MockNode) IsClickable() bool {
 	return n.MockClickable
 }
+
+// Release is a no-op for mock nodes.
+func (n *MockNode) Release() {}

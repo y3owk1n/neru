@@ -367,3 +367,10 @@ func (n *InfraNode) IsClickable() bool {
 
 	return n.node.Element().IsClickable(n.node.Info(), nil)
 }
+
+// Release releases the underlying AXUIElementRef held by this node.
+func (n *InfraNode) Release() {
+	if n.node != nil && n.node.Element() != nil {
+		n.node.Element().Release()
+	}
+}

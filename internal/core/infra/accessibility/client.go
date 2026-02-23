@@ -67,4 +67,5 @@ type AXNode interface {
 	Title() string
 	Description() string
 	IsClickable() bool
+	Release()
 }
