@@ -507,6 +507,9 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	                               styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
 	                                 backing:NSBackingStoreBuffered
 	                                   defer:NO];
+
+	[panel setHidesOnDeactivate:NO];
+
 	self.window = panel;
 
 	if ([self.window respondsToSelector:@selector(setAnimationBehavior:)]) {
