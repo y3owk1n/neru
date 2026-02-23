@@ -128,19 +128,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	}
 }
 
-/// Draw rectangle
-/// @param dirtyRect Dirty rectangle
-- (void)drawRect:(NSRect)dirtyRect {
-	[super drawRect:dirtyRect];
-	// Clear background
-	[[NSColor clearColor] setFill];
-	NSRectFill(dirtyRect);
-	// Draw grid cells
-	[self drawGridCells];
-	// Draw hints
-	[self drawHints];
-}
-
 /// Draw layer (GPU-accelerated rendering for layer-backed views)
 /// @param layer Layer
 /// @param ctx Graphics context
