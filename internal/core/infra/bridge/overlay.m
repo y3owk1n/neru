@@ -145,6 +145,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 /// @param layer Layer
 /// @param ctx Graphics context
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
+	// Clear previous layer content to prevent ghost artifacts from prior renders
+	CGContextClearRect(ctx, layer.bounds);
 	// Wrap CGContext in NSGraphicsContext for AppKit drawing compatibility
 	[NSGraphicsContext saveGraphicsState];
 	NSGraphicsContext *nsContext = [NSGraphicsContext graphicsContextWithCGContext:ctx flipped:NO];
