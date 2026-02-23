@@ -128,18 +128,15 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	}
 }
 
-/// Draw rectangle (fallback for non-layer-backed contexts)
+/// Draw rectangle
 /// @param dirtyRect Dirty rectangle
 - (void)drawRect:(NSRect)dirtyRect {
 	[super drawRect:dirtyRect];
-
 	// Clear background
 	[[NSColor clearColor] setFill];
 	NSRectFill(dirtyRect);
-
 	// Draw grid cells
 	[self drawGridCells];
-
 	// Draw hints
 	[self drawHints];
 }
@@ -152,17 +149,10 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	[NSGraphicsContext saveGraphicsState];
 	NSGraphicsContext *nsContext = [NSGraphicsContext graphicsContextWithCGContext:ctx flipped:NO];
 	[NSGraphicsContext setCurrentContext:nsContext];
-
-	// Clear background
-	[[NSColor clearColor] setFill];
-	CGContextFillRect(ctx, self.bounds);
-
-	// Draw grid cells (with coordinate flipping for non-flipped context)
-	[self drawGridCellsInContext:ctx];
-
-	// Draw hints (with coordinate flipping for non-flipped context)
-	[self drawHintsInContext:ctx];
-
+	// Draw grid cells
+	[self drawGridCells];
+	// Draw hints
+	[self drawHints];
 	[NSGraphicsContext restoreGraphicsState];
 }
 
@@ -334,67 +324,54 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	return path;
 }
 
-/// Draw hints
+/// Draw hint labels above target elements
 - (void)drawHints {
 	for (NSDictionary *hint in self.hints) {
 		NSString *label = hint[@"label"];
 		if (!label || [label length] == 0)
 			continue;
-
 		NSPoint position = [hint[@"position"] pointValue];
 		NSNumber *matchedPrefixLengthNum = hint[@"matchedPrefixLength"];
 		int matchedPrefixLength = matchedPrefixLengthNum ? [matchedPrefixLengthNum intValue] : 0;
 		NSNumber *showArrowNum = hint[@"showArrow"];
 		BOOL showArrow = showArrowNum ? [showArrowNum boolValue] : YES;
-
 		// Create attributed string with matched prefix in different color
 		// Reuse cached attributed string buffer
 		NSMutableAttributedString *attrString = self.cachedAttributedString;
 		[[attrString mutableString] setString:label];
-
 		// Clear previous attributes and set new ones
 		NSRange fullRange = NSMakeRange(0, [label length]);
 		[attrString
 		    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
 		            range:fullRange];
-
 		// Highlight matched prefix
 		if (matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
 			[attrString addAttribute:NSForegroundColorAttributeName
 			                   value:self.hintMatchedTextColor
 			                   range:NSMakeRange(0, matchedPrefixLength)];
 		}
-
 		NSSize textSize = [attrString size];
-
 		// Calculate hint box size (include arrow space if needed)
 		CGFloat padding = self.hintPadding;
 		CGFloat arrowHeight = showArrow ? 2.0 : 0.0;
-
 		// Calculate dimensions - ensure box is at least square
 		CGFloat contentWidth = textSize.width + (padding * 2);
 		CGFloat contentHeight = textSize.height + (padding * 2);
-
 		// Make box square if content is narrow, otherwise use content width
 		CGFloat boxWidth = MAX(contentWidth, contentHeight);
 		CGFloat boxHeight = contentHeight + arrowHeight;
-
 		// Position tooltip above element with arrow pointing down to element center
 		CGFloat elementCenterX = position.x + (hint[@"size"] ? [hint[@"size"] sizeValue].width : 0) / 2.0;
 		CGFloat elementCenterY = position.y + (hint[@"size"] ? [hint[@"size"] sizeValue].height : 0) / 2.0;
-
 		// Position tooltip body above element (arrow points down)
 		CGFloat gap = 3.0;
 		CGFloat tooltipX = elementCenterX - boxWidth / 2.0;
 		CGFloat tooltipY = elementCenterY + arrowHeight + gap;
-
 		// Convert coordinates (macOS uses bottom-left origin, we need top-left)
 		CGFloat screenHeight = self.bounds.size.height;
 		CGFloat flippedY = screenHeight - tooltipY - boxHeight;
 		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
-
 		NSRect hintRect = NSMakeRect(tooltipX, flippedY, boxWidth, boxHeight);
-
 		// Draw tooltip background
 		NSBezierPath *path;
 		if (showArrow) {
@@ -407,50 +384,37 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 			                                       xRadius:self.hintBorderRadius
 			                                       yRadius:self.hintBorderRadius];
 		}
-
 		[self.hintBackgroundColor setFill];
 		[path fill];
-
 		[self.hintBorderColor setStroke];
 		[path setLineWidth:self.hintBorderWidth];
 		[path stroke];
-
 		// Draw text (centered in tooltip body)
 		CGFloat textX = hintRect.origin.x + (boxWidth - textSize.width) / 2.0;
 		CGFloat textY = hintRect.origin.y + padding;
-		NSPoint textPosition = NSMakePoint(textX, textY);
-		[attrString drawAtPoint:textPosition];
+		[attrString drawAtPoint:NSMakePoint(textX, textY)];
 	}
 }
 
-/// Draw grid cells
+/// Draw grid cells with labels and borders
 - (void)drawGridCells {
 	if ([self.gridCells count] == 0)
 		return;
-
-	NSGraphicsContext *context = [NSGraphicsContext currentContext];
-	[context saveGraphicsState];
-
 	CGFloat screenHeight = self.bounds.size.height;
 	CGFloat screenWidth = self.bounds.size.width;
-
 	for (NSDictionary *cellDict in self.gridCells) {
 		NSString *label = cellDict[@"label"];
 		NSValue *boundsValue = cellDict[@"bounds"];
 		BOOL isMatched = [cellDict[@"isMatched"] boolValue];
 		BOOL isSubgrid = [cellDict[@"isSubgrid"] boolValue];
-
 		// Skip drawing unmatched cells if hideUnmatched is enabled AND it's not a subgrid cell
 		if (self.hideUnmatched && !isMatched && !isSubgrid) {
 			continue;
 		}
-
 		CGRect bounds = [boundsValue rectValue];
-
 		// Convert coordinates (macOS uses bottom-left origin)
 		CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
 		NSRect cellRect = NSMakeRect(bounds.origin.x, flippedY, bounds.size.width, bounds.size.height);
-
 		// Draw cell background
 		NSColor *bgBase = self.gridBackgroundColor;
 		if (isMatched && self.gridMatchedBackgroundColor) {
@@ -458,49 +422,40 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		}
 		[bgBase setFill];
 		NSRectFill(cellRect);
-
 		// Draw cell border
 		NSColor *borderColor = self.gridBorderColor;
 		if (isMatched && self.gridMatchedBorderColor) {
 			borderColor = self.gridMatchedBorderColor;
 		}
 		[borderColor setStroke];
-
 		NSRect borderRect = cellRect;
 		// For odd border widths (like 1.0), offset by 0.5 to ensure crisp lines
 		// and proper overlap at shared edges.
 		if ((int)self.gridBorderWidth % 2 == 1) {
 			borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
 		}
-
 		// Adjust for right screen edge to ensure border is visible
 		if (NSMaxX(cellRect) >= screenWidth) {
 			borderRect.size.width -= 1.0;
 		}
-
 		// Adjust for bottom screen edge to ensure border is visible
 		if (NSMinY(cellRect) <= 0) {
 			borderRect.origin.y += ceil(self.gridBorderWidth / 2.0);
 			borderRect.size.height -= ceil(self.gridBorderWidth / 2.0);
 		}
-
 		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
 		[borderPath setLineWidth:self.gridBorderWidth];
 		[borderPath stroke];
-
 		// Draw text label centered in cell
 		if (label && [label length] > 0) {
 			// Reuse cached attributed string buffer
 			NSMutableAttributedString *attrString = self.cachedAttributedString;
 			[[attrString mutableString] setString:label];
-
 			// Clear previous attributes and set new ones
 			NSRange fullRange = NSMakeRange(0, [label length]);
 			[attrString setAttributes:@{NSFontAttributeName : self.gridFont} range:fullRange];
-
 			// Use cached color to avoid repeated allocations
 			[attrString addAttribute:NSForegroundColorAttributeName value:self.cachedGridTextColor range:fullRange];
-
 			NSNumber *matchedPrefixLengthNum = cellDict[@"matchedPrefixLength"];
 			int matchedPrefixLength = matchedPrefixLengthNum ? [matchedPrefixLengthNum intValue] : 0;
 			if (isMatched && matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
@@ -509,178 +464,9 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 				                   value:self.cachedGridMatchedTextColor
 				                   range:NSMakeRange(0, matchedPrefixLength)];
 			}
-
 			NSSize textSize = [attrString size];
 			CGFloat textX = cellRect.origin.x + (cellRect.size.width - textSize.width) / 2.0;
 			CGFloat textY = cellRect.origin.y + (cellRect.size.height - textSize.height) / 2.0;
-
-			[attrString drawAtPoint:NSMakePoint(textX, textY)];
-		}
-	}
-
-	[context restoreGraphicsState];
-}
-
-/// Draw hints in CGContext (for layer-backed rendering)
-/// @param ctx Core Graphics context
-- (void)drawHintsInContext:(CGContextRef)ctx {
-	for (NSDictionary *hint in self.hints) {
-		NSString *label = hint[@"label"];
-		if (!label || [label length] == 0)
-			continue;
-
-		NSPoint position = [hint[@"position"] pointValue];
-		NSNumber *matchedPrefixLengthNum = hint[@"matchedPrefixLength"];
-		int matchedPrefixLength = matchedPrefixLengthNum ? [matchedPrefixLengthNum intValue] : 0;
-		NSNumber *showArrowNum = hint[@"showArrow"];
-		BOOL showArrow = showArrowNum ? [showArrowNum boolValue] : YES;
-
-		// Create attributed string with matched prefix in different color
-		NSMutableAttributedString *attrString = self.cachedAttributedString;
-		[[attrString mutableString] setString:label];
-
-		NSRange fullRange = NSMakeRange(0, [label length]);
-		[attrString
-		    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
-		            range:fullRange];
-
-		if (matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
-			[attrString addAttribute:NSForegroundColorAttributeName
-			                   value:self.hintMatchedTextColor
-			                   range:NSMakeRange(0, matchedPrefixLength)];
-		}
-
-		NSSize textSize = [attrString size];
-
-		CGFloat padding = self.hintPadding;
-		CGFloat arrowHeight = showArrow ? 2.0 : 0.0;
-
-		CGFloat contentWidth = textSize.width + (padding * 2);
-		CGFloat contentHeight = textSize.height + (padding * 2);
-
-		CGFloat boxWidth = MAX(contentWidth, contentHeight);
-		CGFloat boxHeight = contentHeight + arrowHeight;
-
-		CGFloat elementCenterX = position.x + (hint[@"size"] ? [hint[@"size"] sizeValue].width : 0) / 2.0;
-		CGFloat elementCenterY = position.y + (hint[@"size"] ? [hint[@"size"] sizeValue].height : 0) / 2.0;
-
-		CGFloat gap = 3.0;
-		CGFloat tooltipX = elementCenterX - boxWidth / 2.0;
-		CGFloat tooltipY = elementCenterY + arrowHeight + gap;
-
-		// Flip Y coordinate for CGContext (bottom-left origin)
-		CGFloat screenHeight = self.bounds.size.height;
-		CGFloat flippedY = screenHeight - tooltipY - boxHeight;
-		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
-
-		NSRect hintRect = NSMakeRect(tooltipX, flippedY, boxWidth, boxHeight);
-
-		// Draw tooltip background
-		NSBezierPath *path;
-		if (showArrow) {
-			path = [self createTooltipPath:hintRect
-			                     arrowSize:arrowHeight
-			                elementCenterX:elementCenterX
-			                elementCenterY:flippedElementCenterY];
-		} else {
-			path = [NSBezierPath bezierPathWithRoundedRect:hintRect
-			                                       xRadius:self.hintBorderRadius
-			                                       yRadius:self.hintBorderRadius];
-		}
-
-		[self.hintBackgroundColor setFill];
-		[path fill];
-
-		[self.hintBorderColor setStroke];
-		[path setLineWidth:self.hintBorderWidth];
-		[path stroke];
-
-		// Draw text
-		CGFloat textX = hintRect.origin.x + (boxWidth - textSize.width) / 2.0;
-		CGFloat textY = hintRect.origin.y + padding;
-		[attrString drawAtPoint:NSMakePoint(textX, textY)];
-	}
-}
-
-/// Draw grid cells in CGContext (for layer-backed rendering)
-/// @param ctx Core Graphics context
-- (void)drawGridCellsInContext:(CGContextRef)ctx {
-	if ([self.gridCells count] == 0)
-		return;
-
-	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat screenWidth = self.bounds.size.width;
-
-	for (NSDictionary *cellDict in self.gridCells) {
-		NSString *label = cellDict[@"label"];
-		NSValue *boundsValue = cellDict[@"bounds"];
-		BOOL isMatched = [cellDict[@"isMatched"] boolValue];
-		BOOL isSubgrid = [cellDict[@"isSubgrid"] boolValue];
-
-		if (self.hideUnmatched && !isMatched && !isSubgrid) {
-			continue;
-		}
-
-		CGRect bounds = [boundsValue rectValue];
-
-		// Flip Y coordinate for CGContext (bottom-left origin)
-		CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
-		NSRect cellRect = NSMakeRect(bounds.origin.x, flippedY, bounds.size.width, bounds.size.height);
-
-		// Draw cell background
-		NSColor *bgBase = self.gridBackgroundColor;
-		if (isMatched && self.gridMatchedBackgroundColor) {
-			bgBase = self.gridMatchedBackgroundColor;
-		}
-		[bgBase setFill];
-		NSRectFill(cellRect);
-
-		// Draw cell border
-		NSColor *borderColor = self.gridBorderColor;
-		if (isMatched && self.gridMatchedBorderColor) {
-			borderColor = self.gridMatchedBorderColor;
-		}
-		[borderColor setStroke];
-
-		NSRect borderRect = cellRect;
-		if ((int)self.gridBorderWidth % 2 == 1) {
-			borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
-		}
-
-		if (NSMaxX(cellRect) >= screenWidth) {
-			borderRect.size.width -= 1.0;
-		}
-
-		if (NSMinY(cellRect) <= 0) {
-			borderRect.origin.y += ceil(self.gridBorderWidth / 2.0);
-			borderRect.size.height -= ceil(self.gridBorderWidth / 2.0);
-		}
-
-		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
-		[borderPath setLineWidth:self.gridBorderWidth];
-		[borderPath stroke];
-
-		// Draw text label
-		if (label && [label length] > 0) {
-			NSMutableAttributedString *attrString = self.cachedAttributedString;
-			[[attrString mutableString] setString:label];
-
-			NSRange fullRange = NSMakeRange(0, [label length]);
-			[attrString setAttributes:@{NSFontAttributeName : self.gridFont} range:fullRange];
-			[attrString addAttribute:NSForegroundColorAttributeName value:self.cachedGridTextColor range:fullRange];
-
-			NSNumber *matchedPrefixLengthNum = cellDict[@"matchedPrefixLength"];
-			int matchedPrefixLength = matchedPrefixLengthNum ? [matchedPrefixLengthNum intValue] : 0;
-			if (isMatched && matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
-				[attrString addAttribute:NSForegroundColorAttributeName
-				                   value:self.cachedGridMatchedTextColor
-				                   range:NSMakeRange(0, matchedPrefixLength)];
-			}
-
-			NSSize textSize = [attrString size];
-			CGFloat textX = cellRect.origin.x + (cellRect.size.width - textSize.width) / 2.0;
-			CGFloat textY = cellRect.origin.y + (cellRect.size.height - textSize.height) / 2.0;
-
 			[attrString drawAtPoint:NSMakePoint(textX, textY)];
 		}
 	}
