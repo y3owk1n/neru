@@ -500,10 +500,14 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	NSScreen *mainScreen = [NSScreen mainScreen];
 	NSRect screenFrame = [mainScreen frame];
 
-	self.window = [[NSWindow alloc] initWithContentRect:screenFrame
-	                                          styleMask:NSWindowStyleMaskBorderless
-	                                            backing:NSBackingStoreBuffered
-	                                              defer:NO];
+	// Use NSPanel for better floating overlay behavior
+	// Non-activating panel won't steal focus from other apps
+	NSPanel *panel =
+	    [[NSPanel alloc] initWithContentRect:screenFrame
+	                               styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
+	                                 backing:NSBackingStoreBuffered
+	                                   defer:NO];
+	self.window = panel;
 
 	if ([self.window respondsToSelector:@selector(setAnimationBehavior:)]) {
 		[self.window setAnimationBehavior:NSWindowAnimationBehaviorNone];
