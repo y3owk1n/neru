@@ -128,6 +128,13 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	}
 }
 
+/// Required: AppKit uses the presence of drawRect: to determine that this
+/// view has custom drawing content. Without it, setNeedsDisplay:YES may not
+/// trigger layer redisplay. Actual rendering is handled by drawLayer:inContext:.
+/// @param dirtyRect Dirty rectangle (unused)
+- (void)drawRect:(NSRect)dirtyRect {
+}
+
 /// Draw layer (GPU-accelerated rendering for layer-backed views)
 /// @param layer Layer
 /// @param ctx Graphics context
