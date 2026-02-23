@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
 )
 
@@ -17,9 +16,6 @@ const (
 var (
 	globalCache *InfoCache
 	cacheOnce   sync.Once
-
-	// Pre-allocated common errors.
-	errNoFrontmostWindow = derrors.New(derrors.CodeAccessibilityFailed, "no frontmost window found")
 )
 
 func rectFromInfo(info *ElementInfo) image.Rectangle {
@@ -32,42 +28,6 @@ func rectFromInfo(info *ElementInfo) image.Rectangle {
 		pos.X+size.X,
 		pos.Y+size.Y,
 	)
-}
-
-// ClickableElements retrieves all clickable UI elements in the frontmost window.
-func ClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
-	logger.Debug("Getting clickable elements for frontmost window")
-
-	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL, logger)
-	})
-
-	window := FrontmostWindow()
-	if window == nil {
-		logger.Warn("No frontmost window found")
-
-		return nil, errNoFrontmostWindow
-	}
-	defer window.Release()
-
-	opts := DefaultTreeOptions(logger)
-	opts.cache = globalCache
-
-	tree, err := BuildTree(window, opts)
-	if err != nil {
-		logger.Error("Failed to build tree for frontmost window", zap.Error(err))
-
-		return nil, err
-	}
-
-	elements := tree.FindClickableElements(nil)
-
-	// Release tree nodes that are not part of the result to avoid
-	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
-	releaseTreeExcept(tree, elements)
-	logger.Debug("Found clickable elements", zap.Int("count", len(elements)))
-
-	return elements, nil
 }
 
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
