@@ -92,7 +92,12 @@ func (c *InfraAXClient) ClickableNodes(
 
 	clickableNodes := tree.FindClickableElements(allowedRoles)
 
+	// Release tree nodes that are not part of the result to avoid
+	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
+	releaseTreeExcept(tree, clickableNodes)
+
 	clickableNodesResult := make([]AXNode, len(clickableNodes))
+
 	for i, node := range clickableNodes {
 		clickableNodesResult[i] = &InfraNode{node: node}
 	}

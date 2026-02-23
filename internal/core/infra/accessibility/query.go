@@ -61,6 +61,10 @@ func ClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 	}
 
 	elements := tree.FindClickableElements(nil)
+
+	// Release tree nodes that are not part of the result to avoid
+	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
+	releaseTreeExcept(tree, elements)
 	logger.Debug("Found clickable elements", zap.Int("count", len(elements)))
 
 	return elements, nil
@@ -119,6 +123,11 @@ func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 	allowedRoles["AXMenuBarItem"] = struct{}{}
 
 	elements := tree.FindClickableElements(allowedRoles)
+
+	// Release tree nodes that are not part of the result to avoid
+	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
+	releaseTreeExcept(tree, elements)
+
 	logger.Debug("Found menu bar clickable elements", zap.Int("count", len(elements)))
 
 	return elements, nil
@@ -174,9 +183,29 @@ func ClickableElementsFromBundleID(
 	}
 
 	elements := tree.FindClickableElements(allowedRoles)
+
+	// Release tree nodes that are not part of the result to avoid
+	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
+	releaseTreeExcept(tree, elements)
+
 	logger.Debug("Found clickable elements for application",
 		zap.String("bundle_id", bundleID),
 		zap.Int("count", len(elements)))
 
 	return elements, nil
+}
+
+// releaseTreeExcept releases all AXUIElementRefs in the tree except those
+// belonging to the keep list. This prevents leaking CFRetain'd refs from
+// getChildren/getVisibleRows that are stored in tree nodes but never returned
+// to callers.
+func releaseTreeExcept(tree *TreeNode, keep []*TreeNode) {
+	keepSet := make(map[*Element]struct{}, len(keep))
+	for _, node := range keep {
+		if node.Element() != nil {
+			keepSet[node.Element()] = struct{}{}
+		}
+	}
+
+	tree.Release(keepSet)
 }

@@ -485,6 +485,28 @@ func (n *TreeNode) FindClickableElements(allowedRoles map[string]struct{}) []*Tr
 	return result
 }
 
+// Release releases the AXUIElementRef for every node in the subtree except
+// those whose elements appear in the provided keep set. Nodes in the keep set
+// are left untouched so callers can continue using them. The root element is
+// always skipped because it is owned by the caller (e.g., the frontmost window).
+func (n *TreeNode) Release(keep map[*Element]struct{}) {
+	n.walkTree(func(node *TreeNode) bool {
+		if node == n {
+			// Skip root — owned by the caller.
+			return true
+		}
+		if node.element == nil {
+			return true
+		}
+		if _, kept := keep[node.element]; kept {
+			return true
+		}
+		node.element.Release()
+
+		return true
+	})
+}
+
 // walkTree walks the tree and calls the visitor function for each node.
 func (n *TreeNode) walkTree(visit func(*TreeNode) bool) {
 	if !visit(n) {
