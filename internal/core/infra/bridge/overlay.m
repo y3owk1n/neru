@@ -551,11 +551,9 @@ OverlayWindow createOverlayWindow(void) {
 	__block OverlayWindowController *controller = nil;
 	if ([NSThread isMainThread]) {
 		controller = [[OverlayWindowController alloc] init];
-		[controller retain];
 	} else {
 		dispatch_sync(dispatch_get_main_queue(), ^{
 			controller = [[OverlayWindowController alloc] init];
-			[controller retain];
 		});
 	}
 	return (void *)controller;
@@ -1078,7 +1076,6 @@ void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
 		newController.sharingType = sharingType;
 		newController.sharingTypeExplicit = YES;
 		[newController.window setSharingType:sharingType];
-		[newController retain];
 		if (oldController) {
 			[oldController.window close];
 			[oldController release];
