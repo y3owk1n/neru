@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.21.1](https://github.com/y3owk1n/neru/compare/v1.21.0...v1.21.1) (2026-02-23)
+
+
+### Bug Fixes
+
+* **accessibility:** prevent AXUIElementRef leaks by releasing tree nodes after use ([#418](https://github.com/y3owk1n/neru/issues/418)) ([fd80ec3](https://github.com/y3owk1n/neru/commit/fd80ec3768fbe0ff4dfa01edaad0a0a06cd0e2f4))
+* **bridge:** add explicit __strong qualifiers to ObjC fields in EventTapContext struct ([#417](https://github.com/y3owk1n/neru/issues/417)) ([1809167](https://github.com/y3owk1n/neru/commit/18091675c61a6ddafda85961162843575f72c7a7))
+* **bridge:** enable ARC and fix memory management in bridge package ([#416](https://github.com/y3owk1n/neru/issues/416)) ([00ce086](https://github.com/y3owk1n/neru/commit/00ce086688385fc23ad248f16ed4b398241e2f58))
+* **overlay:** include size in hint dicts and use position as center directly ([#415](https://github.com/y3owk1n/neru/issues/415)) ([a931c5a](https://github.com/y3owk1n/neru/commit/a931c5a673142474cffb53207e6c20e1fdf6be98))
+* **overlay:** switch to layer-backed rendering with Retina/multi-monitor support ([#412](https://github.com/y3owk1n/neru/issues/412)) ([77e2be5](https://github.com/y3owk1n/neru/commit/77e2be5b4c1792ac6c925b121044ca612d04c6b1))
+* **overlay:** use NSPanel with non-activating style to prevent focus stealing ([#414](https://github.com/y3owk1n/neru/issues/414)) ([d04a0c4](https://github.com/y3owk1n/neru/commit/d04a0c4ebd118dcc87a31cb69abf300e3b39473b))
+
 ## [1.21.0](https://github.com/y3owk1n/neru/compare/v1.20.0...v1.21.0) (2026-02-22)
 
 
