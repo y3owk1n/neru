@@ -146,6 +146,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		self.layer.contentsScale = [self currentBackingScaleFactor];
 
 		_colorCache = [[NSCache alloc] init];
+		_colorCache.countLimit = 64;
 
 		_hints = [NSMutableArray arrayWithCapacity:100];     // Pre-size for typical hint count
 		_gridCells = [NSMutableArray arrayWithCapacity:100]; // Pre-size for typical grid size
