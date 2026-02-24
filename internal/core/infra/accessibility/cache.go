@@ -1,6 +1,7 @@
 package accessibility
 
 import (
+	"container/heap"
 	"container/list"
 	"sync"
 	"time"
@@ -35,6 +36,38 @@ type CachedInfo struct {
 	key         uint64
 	elementRef  *Element      // Retained reference for equality checks
 	elementNode *list.Element // For LRU tracking
+	heapIndex   int           // Index in expirationHeap (-1 = not in heap)
+	removed     bool          // Marked as removed from cache (lazy heap cleanup)
+}
+
+// expirationHeap implements a min-heap ordered by expiresAt for efficient expired entry removal.
+type expirationHeap []*CachedInfo
+
+func (h *expirationHeap) Len() int { return len(*h) }
+
+func (h *expirationHeap) Less(i, j int) bool { return (*h)[i].expiresAt.Before((*h)[j].expiresAt) }
+
+func (h *expirationHeap) Swap(i, j int) {
+	(*h)[i], (*h)[j] = (*h)[j], (*h)[i]
+	(*h)[i].heapIndex = i
+	(*h)[j].heapIndex = j
+}
+
+func (h *expirationHeap) Push(x any) {
+	item := x.(*CachedInfo) //nolint:forcetypeassert
+	item.heapIndex = len(*h)
+	*h = append(*h, item)
+}
+
+func (h *expirationHeap) Pop() any {
+	old := *h
+	n := len(old)
+	item := old[n-1]
+	old[n-1] = nil
+	*h = old[0 : n-1]
+	item.heapIndex = -1
+
+	return item
 }
 
 // staticRoles defines roles that should use longer (static) TTL.
@@ -67,23 +100,23 @@ func isStaticElement(info *ElementInfo) bool {
 
 // InfoCache implements a thread-safe time-to-live cache for element information.
 type InfoCache struct {
-	mu      sync.RWMutex
-	data    map[uint64][]*CachedInfo // Bucket for hash collisions
-	lru     *list.List               // For LRU eviction
-	maxSize int                      // Maximum cache size (0 = unlimited)
-	ttl     time.Duration
-	stopCh  chan struct{}
-	stopped bool
-	logger  *zap.Logger
+	mu              sync.RWMutex
+	data            map[uint64][]*CachedInfo // Bucket for hash collisions
+	lru             *list.List               // For LRU eviction
+	expirationQueue expirationHeap           // Min-heap ordered by expiresAt for cleanup
+	maxSize         int                      // Maximum cache size (0 = unlimited)
+	stopCh          chan struct{}
+	stopped         bool
+	logger          *zap.Logger
 }
 
-// NewInfoCache initializes a new cache with the specified time-to-live duration.
-func NewInfoCache(ttl time.Duration, logger *zap.Logger) *InfoCache {
-	return NewInfoCacheWithSize(ttl, DefaultMaxCacheSize, logger)
+// NewInfoCache initializes a new cache with per-role TTLs and the default maximum size.
+func NewInfoCache(logger *zap.Logger) *InfoCache {
+	return NewInfoCacheWithSize(DefaultMaxCacheSize, logger)
 }
 
-// NewInfoCacheWithSize initializes a new cache with the specified time-to-live duration and maximum size.
-func NewInfoCacheWithSize(ttl time.Duration, maxSize int, logger *zap.Logger) *InfoCache {
+// NewInfoCacheWithSize initializes a new cache with per-role TTLs and the specified maximum size.
+func NewInfoCacheWithSize(maxSize int, logger *zap.Logger) *InfoCache {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -92,7 +125,6 @@ func NewInfoCacheWithSize(ttl time.Duration, maxSize int, logger *zap.Logger) *I
 		data:    make(map[uint64][]*CachedInfo, DefaultCacheSize),
 		lru:     list.New(),
 		maxSize: maxSize,
-		ttl:     ttl,
 		stopCh:  make(chan struct{}),
 		logger:  logger,
 	}
@@ -117,18 +149,28 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if c.stopped {
+		return nil
+	}
+
 	bucket, exists := c.data[hash]
 	if !exists {
 		return nil
 	}
 
 	// Iterate bucket to find exact match
-	for i, cached := range bucket {
+	for idx, cached := range bucket {
 		// Use Equal to verify it's the same underlying object
 		if elem.Equal(cached.elementRef) {
+			// Note: no need to check cached.removed here — all code paths that
+			// set removed=true also call removeFromBucket, so an entry found
+			// in the bucket is guaranteed to have removed==false.
 			if time.Now().After(cached.expiresAt) {
 				// Remove expired entry from bucket
-				c.removeFromBucket(hash, i)
+				c.removeFromBucket(hash, idx)
+
+				// Mark as removed for lazy heap cleanup
+				cached.removed = true
 
 				// Remove from LRU and release
 				if cached.elementNode != nil {
@@ -166,6 +208,10 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if c.stopped {
+		return
+	}
+
 	bucket := c.data[hash]
 
 	// Check if already in cache and update
@@ -173,7 +219,21 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 		if elem.Equal(cached.elementRef) {
 			cached.info = info
 			cached.expiresAt = time.Now().Add(c.getTTL(info))
+			// Note: cached.removed is guaranteed false here (same invariant as Get).
 			c.lru.MoveToFront(cached.elementNode)
+
+			// Fix heap position in-place instead of pushing a duplicate entry.
+			// heapIndex should always be >= 0 here since entries are pushed
+			// onto the heap when created and only popped by cleanup().
+			if cached.heapIndex >= 0 {
+				heap.Fix(&c.expirationQueue, cached.heapIndex)
+			} else {
+				c.logger.Warn("Cache entry missing from expiration heap during update",
+					zap.Uint64("hash", hash),
+					zap.String("role", info.Role()))
+				heap.Push(&c.expirationQueue, cached)
+			}
+
 			c.logger.Debug("Updated cached element info",
 				zap.Uint64("hash", hash),
 				zap.String("role", info.Role()),
@@ -207,10 +267,14 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 		expiresAt:  expiresAt,
 		key:        hash,
 		elementRef: clonedElem,
+		heapIndex:  -1,
 	}
 
 	// Add to LRU list (front = most recently used)
 	cachedInfo.elementNode = c.lru.PushFront(cachedInfo)
+
+	// Add to expiration heap for efficient cleanup
+	heap.Push(&c.expirationQueue, cachedInfo)
 
 	// Add to bucket
 	c.data[hash] = append(c.data[hash], cachedInfo)
@@ -228,6 +292,10 @@ func (c *InfoCache) Size() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
+	if c.stopped {
+		return 0
+	}
+
 	return c.lru.Len()
 }
 
@@ -243,8 +311,12 @@ func (c *InfoCache) Clear() {
 		}
 	}
 
+	// Reset all data structures. No need to mark entries removed — the old
+	// heap, bucket map, and LRU list are all discarded so no code path will
+	// ever process the old CachedInfo pointers again.
 	c.data = make(map[uint64][]*CachedInfo, DefaultCacheSize)
 	c.lru = list.New()
+	c.expirationQueue = nil
 
 	c.logger.Debug("Cache cleared")
 }
@@ -270,13 +342,19 @@ func (c *InfoCache) Stop() {
 
 	c.data = nil
 	c.lru = nil
+	c.expirationQueue = nil
 
 	c.logger.Debug("Cache stopped")
 }
 
 // cleanupLoop runs a periodic cleanup process to remove expired cache entries.
 func (c *InfoCache) cleanupLoop() {
-	ticker := time.NewTicker(c.ttl / CacheCleanupDivisor) // Cleanup at half the TTL interval
+	// Tick at DynamicElementTTL/2 (1s) — the shortest per-role TTL — to ensure
+	// dynamic elements holding Objective-C references are released promptly.
+	// For static-only workloads most ticks are no-ops, but the heap peek is O(1)
+	// so the overhead is negligible.
+	ticker := time.NewTicker(DynamicElementTTL / CacheCleanupDivisor)
+
 	defer ticker.Stop()
 
 	for {
@@ -291,7 +369,7 @@ func (c *InfoCache) cleanupLoop() {
 	}
 }
 
-// cleanup removes all expired entries from the cache.
+// cleanup removes all expired entries from the cache using the expiration heap.
 func (c *InfoCache) cleanup() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -303,42 +381,48 @@ func (c *InfoCache) cleanup() {
 	now := time.Now()
 	expiredCount := 0
 
-	// Walk LRU from back (oldest) to find expired items
-	// This optimization assumes older items are more likely to be expired,
-	// though TTL varies by role.
-	// A full scan is safer for correctness given varying TTLs.
+	// Use min-heap to efficiently find and remove expired items
+	// Pop items whose expiration time has passed
+	for c.expirationQueue.Len() > 0 {
+		cached := c.expirationQueue[0] // Peek at earliest expiration
 
-	for element := c.lru.Back(); element != nil; {
-		cached, ok := element.Value.(*CachedInfo)
-		if !ok {
-			// Should ensure we iterate correctly even if type is wrong, but safe to skip or log
-			element = element.Prev()
+		// If already removed via LRU eviction, pop and continue (lazy cleanup)
+		if cached.removed {
+			heap.Pop(&c.expirationQueue)
 
 			continue
 		}
 
-		prev := element.Prev() // Save prev since we might remove element
-
-		if now.After(cached.expiresAt) {
-			// Found expired item
-			bucket := c.data[cached.key]
-
-			// Find and remove from bucket
-			for i, item := range bucket {
-				if item == cached {
-					c.removeFromBucket(cached.key, i)
-
-					break
-				}
-			}
-
-			c.lru.Remove(element)
-			cached.elementRef.Release()
-
-			expiredCount++
+		// If not expired yet, we're done (heap is sorted by expiration)
+		if !now.After(cached.expiresAt) {
+			break
 		}
 
-		element = prev
+		// Pop the expired item from heap
+		heap.Pop(&c.expirationQueue)
+
+		// Remove from bucket
+		bucket := c.data[cached.key]
+		for itemIdx, item := range bucket {
+			if item == cached {
+				c.removeFromBucket(cached.key, itemIdx)
+
+				break
+			}
+		}
+
+		// Remove from LRU list
+		if cached.elementNode != nil {
+			c.lru.Remove(cached.elementNode)
+		}
+
+		// Release element reference
+		cached.elementRef.Release()
+
+		// Mark as removed to prevent double-Release from duplicate heap entries
+		cached.removed = true
+
+		expiredCount++
 	}
 
 	if expiredCount > 0 {
@@ -391,6 +475,12 @@ func (c *InfoCache) evictLRU() {
 
 		return
 	}
+
+	// Mark as removed for lazy heap cleanup instead of calling heap.Remove
+	// (O(log n)) on the hot path. Ghost entries remain in the heap until their
+	// expiresAt is reached, at which point cleanup() pops and discards them.
+	// The number of ghosts is bounded by maxSize.
+	cachedInfo.removed = true
 
 	// Remove from bucket
 	hash := cachedInfo.key
