@@ -516,7 +516,9 @@ func (c *InfoCache) Stop() {
 	c.lru = nil
 	c.expirationQueue = nil
 
-	c.logger.Debug("Cache stopped")
+	if ce := c.logger.Check(zap.DebugLevel, "Cache stopped"); ce != nil {
+		ce.Write()
+	}
 }
 
 // drainPromotions flushes all pending LRU promotions from the promotion
@@ -547,7 +549,9 @@ func (c *InfoCache) cleanupLoop() {
 		case <-ticker.C:
 			c.cleanup()
 		case <-c.stopCh:
-			c.logger.Debug("Cache cleanup loop stopped")
+			if ce := c.logger.Check(zap.DebugLevel, "Cache cleanup loop stopped"); ce != nil {
+				ce.Write()
+			}
 
 			return
 		}
