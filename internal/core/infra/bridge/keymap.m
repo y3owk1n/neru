@@ -35,7 +35,7 @@ static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharShiftedCaps = nil;
 static dispatch_block_t gLayoutChangeDebounceBlock = nil;
 
 /// optional callback invoked after layout maps are rebuilt
-static KeymapLayoutChangeCallback gLayoutChangeCallback = NULL;
+static _Atomic(KeymapLayoutChangeCallback) gLayoutChangeCallback = NULL;
 
 #pragma mark - UCKeyTranslate Helper
 
@@ -535,8 +535,9 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 
 	gLayoutChangeDebounceBlock = dispatch_block_create(0, ^{
 		buildLayoutMaps();
-		if (gLayoutChangeCallback)
-			gLayoutChangeCallback();
+		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
+		if (cb)
+			cb();
 		gLayoutChangeDebounceBlock = nil;
 	});
 
@@ -809,4 +810,6 @@ void refreshKeyboardLayoutMaps(void) {
 	}
 }
 
-void setKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback) { gLayoutChangeCallback = callback; }
+void setKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback) {
+	atomic_store(&gLayoutChangeCallback, callback);
+}
