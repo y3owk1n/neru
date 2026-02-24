@@ -459,7 +459,10 @@ func (c *InfoCache) evictLRU() {
 		return
 	}
 
-	// Mark as removed for lazy heap cleanup
+	// Mark as removed for lazy heap cleanup instead of calling heap.Remove
+	// (O(log n)) on the hot path. Ghost entries remain in the heap until their
+	// expiresAt is reached, at which point cleanup() pops and discards them.
+	// The number of ghosts is bounded by maxSize.
 	cachedInfo.removed = true
 
 	// Remove from bucket
