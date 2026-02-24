@@ -36,6 +36,7 @@ type CachedInfo struct {
 	key         uint64
 	elementRef  *Element      // Retained reference for equality checks
 	elementNode *list.Element // For LRU tracking
+	heapIndex   int           // Index in expirationHeap (-1 = not in heap)
 	removed     bool          // Marked as removed from cache (lazy heap cleanup)
 }
 
@@ -46,14 +47,19 @@ func (h *expirationHeap) Len() int { return len(*h) }
 
 func (h *expirationHeap) Less(i, j int) bool { return (*h)[i].expiresAt.Before((*h)[j].expiresAt) }
 
-func (h *expirationHeap) Swap(i, j int) { (*h)[i], (*h)[j] = (*h)[j], (*h)[i] }
+func (h *expirationHeap) Swap(i, j int) {
+	(*h)[i], (*h)[j] = (*h)[j], (*h)[i]
+	(*h)[i].heapIndex = i
+	(*h)[j].heapIndex = j
+}
 
 func (h *expirationHeap) Push(x any) {
-	y, ok := x.(*CachedInfo)
+	y, ok := x.(*CachedInfo) //nolint:varnamelen
 	if !ok {
 		return
 	}
 
+	y.heapIndex = len(*h)
 	*h = append(*h, y)
 }
 
@@ -63,6 +69,7 @@ func (h *expirationHeap) Pop() any {
 	item := old[n-1]
 	old[n-1] = nil
 	*h = old[0 : n-1]
+	item.heapIndex = -1
 
 	return item
 }
@@ -214,7 +221,14 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 			cached.expiresAt = time.Now().Add(c.getTTL(info))
 			cached.removed = false
 			c.lru.MoveToFront(cached.elementNode)
-			heap.Push(&c.expirationQueue, cached)
+
+			// Fix heap position in-place instead of pushing a duplicate entry
+			if cached.heapIndex >= 0 {
+				heap.Fix(&c.expirationQueue, cached.heapIndex)
+			} else {
+				heap.Push(&c.expirationQueue, cached)
+			}
+
 			c.logger.Debug("Updated cached element info",
 				zap.Uint64("hash", hash),
 				zap.String("role", info.Role()),
@@ -248,6 +262,7 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 		expiresAt:  expiresAt,
 		key:        hash,
 		elementRef: clonedElem,
+		heapIndex:  -1,
 	}
 
 	// Add to LRU list (front = most recently used)
