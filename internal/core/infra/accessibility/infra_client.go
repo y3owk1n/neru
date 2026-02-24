@@ -27,6 +27,7 @@ func NewInfraAXClient(logger *zap.Logger, cache *InfoCache) *InfraAXClient {
 	if cache == nil {
 		cache = NewInfoCache(logger)
 	}
+
 	return &InfraAXClient{logger: logger, cache: cache}
 }
 
