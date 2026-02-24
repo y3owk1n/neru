@@ -136,6 +136,13 @@ func NewInfoCacheWithSize(maxSize int, logger *zap.Logger) *InfoCache {
 }
 
 // Get retrieves a cached element information if it exists and hasn't expired.
+//
+// It uses a two-phase locking strategy to reduce contention during parallel
+// tree building: a read lock for the common cache-hit path, upgrading to a
+// write lock only when an expired entry must be removed. On a cache hit the
+// LRU promotion (MoveToFront) is intentionally skipped to avoid requiring an
+// exclusive lock; this is a minor accuracy trade-off that keeps the hot path
+// fully concurrent.
 func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	if elem == nil {
 		return nil
@@ -146,6 +153,52 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 		return nil
 	}
 
+	// --- Phase 1: optimistic read lock (no mutations) ---
+	c.mu.RLock()
+
+	if c.stopped {
+		c.mu.RUnlock()
+
+		return nil
+	}
+
+	bucket, exists := c.data[hash]
+	if !exists {
+		c.mu.RUnlock()
+
+		return nil
+	}
+	// Scan the bucket under the read lock.
+	var (
+		foundInfo    *ElementInfo
+		foundIdx     = -1
+		foundExpired bool
+	)
+	for idx, cached := range bucket {
+		if elem.Equal(cached.elementRef) {
+			if time.Now().After(cached.expiresAt) {
+				foundIdx = idx
+				foundExpired = true
+			} else {
+				// Cache hit, not expired. Return without LRU promotion
+				// to stay under the read lock (concurrent-safe).
+				foundInfo = cached.info
+			}
+
+			break
+		}
+	}
+
+	c.mu.RUnlock()
+	// Fast path: cache hit, not expired — return immediately.
+	if foundInfo != nil {
+		return foundInfo
+	}
+	// Fast path: no match at all.
+	if foundIdx == -1 && !foundExpired {
+		return nil
+	}
+	// --- Phase 2: write lock to remove the expired entry ---
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -153,18 +206,16 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 		return nil
 	}
 
-	bucket, exists := c.data[hash]
+	// Re-fetch the bucket; another goroutine may have modified it between
+	// the RUnlock and Lock.
+	bucket, exists = c.data[hash]
+
 	if !exists {
 		return nil
 	}
 
-	// Iterate bucket to find exact match
 	for idx, cached := range bucket {
-		// Use Equal to verify it's the same underlying object
 		if elem.Equal(cached.elementRef) {
-			// Note: no need to check cached.removed here — all code paths that
-			// set removed=true also call removeFromBucket, so an entry found
-			// in the bucket is guaranteed to have removed==false.
 			if time.Now().After(cached.expiresAt) {
 				// Remove expired entry from bucket
 				c.removeFromBucket(hash, idx)
@@ -182,7 +233,9 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 				return nil
 			}
 
-			// Move to front of LRU list (most recently used)
+			// Entry was expired when we checked under RLock but another
+			// goroutine refreshed it before we acquired the write lock.
+			// Promote in LRU since we already hold the write lock.
 			c.lru.MoveToFront(cached.elementNode)
 
 			return cached.info
