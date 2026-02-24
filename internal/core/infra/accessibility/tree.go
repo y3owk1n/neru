@@ -132,11 +132,13 @@ func (o *TreeOptions) SetMaxDepth(depth int) {
 }
 
 // DefaultTreeOptions returns default tree traversal options.
+// Note: cache is nil by default; callers must set it via SetCache before
+// passing opts to BuildTree (which requires a non-nil cache).
 func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{
 		filterFunc:         nil,
 		includeOutOfBounds: false,
-		cache:              NewInfoCache(DefaultAccessibilityCacheTTL, logger),
+		cache:              nil,
 		parallelThreshold:  DefaultParallelThreshold,
 		maxParallelDepth:   DefaultMaxParallelDepth,
 		maxDepth:           config.DefaultMaxDepth,
