@@ -34,6 +34,9 @@ static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharShiftedCaps = nil;
 /// debounce timer for keyboard layout change notifications
 static dispatch_block_t gLayoutChangeDebounceBlock = nil;
 
+/// optional callback invoked after layout maps are rebuilt
+static _Atomic(KeymapLayoutChangeCallback) gLayoutChangeCallback = NULL;
+
 #pragma mark - UCKeyTranslate Helper
 
 /// figure out which character string each virtual keycode maps to
@@ -532,6 +535,9 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 
 	gLayoutChangeDebounceBlock = dispatch_block_create(0, ^{
 		buildLayoutMaps();
+		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
+		if (cb)
+			cb();
 		gLayoutChangeDebounceBlock = nil;
 	});
 
@@ -795,6 +801,10 @@ void refreshKeyboardLayoutMaps(void) {
 		}
 		initializeKeyMaps();
 		buildLayoutMaps();
+
+		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
+		if (cb)
+			cb();
 	};
 
 	if ([NSThread isMainThread]) {
@@ -802,4 +812,8 @@ void refreshKeyboardLayoutMaps(void) {
 	} else {
 		dispatch_async(dispatch_get_main_queue(), cancelAndRebuild);
 	}
+}
+
+void setKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback) {
+	atomic_store(&gLayoutChangeCallback, callback);
 }
