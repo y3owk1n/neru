@@ -446,6 +446,7 @@ func (a *App) Cleanup() {
 	// Stop accessibility cache cleanup goroutine
 	if a.axCacheStop != nil {
 		a.axCacheStop()
+		a.axCacheStop = nil
 	}
 
 	// Sync and close logger
