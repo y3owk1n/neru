@@ -67,7 +67,7 @@ func (c *InfraAXClient) ClickableNodes(
 	}
 
 	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL, c.logger)
+		globalCache = NewInfoCache(c.logger)
 	})
 
 	opts := DefaultTreeOptions(c.logger)

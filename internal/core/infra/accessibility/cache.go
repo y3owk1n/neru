@@ -109,19 +109,18 @@ type InfoCache struct {
 	lru             *list.List               // For LRU eviction
 	expirationQueue expirationHeap           // Min-heap ordered by expiresAt for cleanup
 	maxSize         int                      // Maximum cache size (0 = unlimited)
-	ttl             time.Duration
 	stopCh          chan struct{}
 	stopped         bool
 	logger          *zap.Logger
 }
 
-// NewInfoCache initializes a new cache with the specified time-to-live duration.
-func NewInfoCache(ttl time.Duration, logger *zap.Logger) *InfoCache {
-	return NewInfoCacheWithSize(ttl, DefaultMaxCacheSize, logger)
+// NewInfoCache initializes a new cache with per-role TTLs and the default maximum size.
+func NewInfoCache(logger *zap.Logger) *InfoCache {
+	return NewInfoCacheWithSize(DefaultMaxCacheSize, logger)
 }
 
-// NewInfoCacheWithSize initializes a new cache with the specified time-to-live duration and maximum size.
-func NewInfoCacheWithSize(ttl time.Duration, maxSize int, logger *zap.Logger) *InfoCache {
+// NewInfoCacheWithSize initializes a new cache with per-role TTLs and the specified maximum size.
+func NewInfoCacheWithSize(maxSize int, logger *zap.Logger) *InfoCache {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -130,7 +129,6 @@ func NewInfoCacheWithSize(ttl time.Duration, maxSize int, logger *zap.Logger) *I
 		data:    make(map[uint64][]*CachedInfo, DefaultCacheSize),
 		lru:     list.New(),
 		maxSize: maxSize,
-		ttl:     ttl,
 		stopCh:  make(chan struct{}),
 		logger:  logger,
 	}

@@ -3,15 +3,9 @@ package accessibility
 import (
 	"image"
 	"sync"
-	"time"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
-)
-
-const (
-	// DefaultAccessibilityCacheTTL is the default cache TTL for accessibility.
-	DefaultAccessibilityCacheTTL = 5 * time.Second
 )
 
 var (
@@ -36,7 +30,7 @@ func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
 
 	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL, logger)
+		globalCache = NewInfoCache(logger)
 	})
 
 	app := FocusedApplication()
@@ -109,7 +103,7 @@ func ClickableElementsFromBundleID(
 		zap.Int("role_count", len(roles)))
 
 	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(DefaultAccessibilityCacheTTL, logger)
+		globalCache = NewInfoCache(logger)
 	})
 
 	app := ApplicationByBundleID(bundleID)
