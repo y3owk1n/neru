@@ -16,30 +16,40 @@ typedef struct {
 	CFRunLoopSourceRef runLoopSource;                ///< Run loop source
 	EventTapCallback callback;                       ///< Callback function
 	void *userData;                                  ///< User data pointer
-	NSMutableArray *__strong hotkeys;                ///< Hotkeys array
+	NSMutableDictionary *__strong hotkeyLookup;      ///< Hotkey lookup table: @(lookupKey) -> @YES
 	dispatch_queue_t __strong accessQueue;           ///< Thread-safe access queue
 	dispatch_block_t __strong pendingEnableBlock;    ///< Pending enable block (inner delayed block)
 	dispatch_block_t __strong pendingAddSourceBlock; ///< Pending add source block
 } EventTapContext;
 
+static inline NSUInteger hotkeyLookupKey(CGKeyCode keyCode, CGEventFlags flags) {
+	uint8_t modifiers = 0;
+	if (flags & kCGEventFlagMaskCommand)
+		modifiers |= 1 << 0;
+	if (flags & kCGEventFlagMaskShift)
+		modifiers |= 1 << 1;
+	if (flags & kCGEventFlagMaskAlternate)
+		modifiers |= 1 << 2;
+	if (flags & kCGEventFlagMaskControl)
+		modifiers |= 1 << 3;
+	return (keyCode << 4) | modifiers;
+}
+
 #pragma mark - Helper Functions
 
-/// Helper function to check if current key combination matches a hotkey
-/// @param keyCode Key code
-/// @param flags Event flags
-/// @param hotkeyString Hotkey string
-/// @return YES if matches, NO otherwise
-BOOL isHotkeyMatch(CGKeyCode keyCode, CGEventFlags flags, NSString *hotkeyString) {
+static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uint8_t *outModifiers) {
 	if (!hotkeyString || [hotkeyString length] == 0) {
 		return NO;
 	}
+
+	*outKeyCode = 0xFFFF;
+	*outModifiers = 0;
 
 	@autoreleasepool {
 		NSArray *parts = [hotkeyString componentsSeparatedByString:@"+"];
 		NSString *mainKey = nil;
 		BOOL needsCmd = NO, needsShift = NO, needsAlt = NO, needsCtrl = NO;
 
-		// Parse hotkey string
 		for (NSString *part in parts) {
 			NSString *trimmed = [part stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
 
@@ -59,19 +69,23 @@ BOOL isHotkeyMatch(CGKeyCode keyCode, CGEventFlags flags, NSString *hotkeyString
 		if (!mainKey)
 			return NO;
 
-		// Check modifier flags
-		BOOL hasCmd = (flags & kCGEventFlagMaskCommand) != 0;
-		BOOL hasShift = (flags & kCGEventFlagMaskShift) != 0;
-		BOOL hasAlt = (flags & kCGEventFlagMaskAlternate) != 0;
-		BOOL hasCtrl = (flags & kCGEventFlagMaskControl) != 0;
-
-		if (needsCmd != hasCmd || needsShift != hasShift || needsAlt != hasAlt || needsCtrl != hasCtrl) {
+		CGKeyCode keyCode = keyNameToCode(mainKey);
+		if (keyCode == 0xFFFF)
 			return NO;
-		}
 
-		// Map key names to key codes using shared keymap
-		CGKeyCode expectedKeyCode = keyNameToCode(mainKey);
-		return expectedKeyCode != 0xFFFF && expectedKeyCode == keyCode;
+		uint8_t modifiers = 0;
+		if (needsCmd)
+			modifiers |= 1 << 0;
+		if (needsShift)
+			modifiers |= 1 << 1;
+		if (needsAlt)
+			modifiers |= 1 << 2;
+		if (needsCtrl)
+			modifiers |= 1 << 3;
+
+		*outKeyCode = keyCode;
+		*outModifiers = modifiers;
+		return YES;
 	}
 }
 
@@ -93,15 +107,11 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
 			CGEventFlags flags = CGEventGetFlags(event);
 
-			// Thread-safe hotkey check
+			// Thread-safe hotkey check (O(1) lookup)
 			__block BOOL isHotkey = NO;
 			dispatch_sync(context->accessQueue, ^{
-				for (NSString *hotkeyString in context->hotkeys) {
-					if (isHotkeyMatch(keyCode, flags, hotkeyString)) {
-						isHotkey = YES;
-						break;
-					}
-				}
+				NSUInteger lookupKey = hotkeyLookupKey(keyCode, flags);
+				isHotkey = [context->hotkeyLookup[@(lookupKey)] boolValue];
 			});
 
 			// If this is a registered hotkey, let it pass through
@@ -226,8 +236,8 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->callback = callback;
 	context->userData = userData;
 
-	// Initialize with ARC-compatible array
-	context->hotkeys = [[NSMutableArray alloc] init];
+	// Initialize with ARC-compatible dictionary
+	context->hotkeyLookup = [[NSMutableDictionary alloc] init];
 	context->accessQueue = dispatch_queue_create("com.neru.eventtap", DISPATCH_QUEUE_SERIAL);
 	context->pendingEnableBlock = nil;
 	context->pendingAddSourceBlock = nil;
@@ -238,7 +248,7 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	                                     eventTapCallback, context);
 
 	if (!context->eventTap) {
-		context->hotkeys = nil;
+		context->hotkeyLookup = nil;
 		context->accessQueue = nil;
 		free(context);
 		return NULL;
@@ -281,19 +291,24 @@ void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count) {
 	EventTapContext *context = (EventTapContext *)tap;
 
 	@autoreleasepool {
-		NSMutableArray *newHotkeys = [NSMutableArray arrayWithCapacity:count];
+		NSMutableDictionary *newLookup = [[NSMutableDictionary alloc] initWithCapacity:count];
 
 		for (int i = 0; i < count; i++) {
 			if (hotkeys[i] && strlen(hotkeys[i]) > 0) {
 				NSString *hotkeyString = [NSString stringWithUTF8String:hotkeys[i]];
-				[newHotkeys addObject:hotkeyString];
+				CGKeyCode keyCode;
+				uint8_t modifiers;
+				if (parseHotkeyString(hotkeyString, &keyCode, &modifiers)) {
+					NSUInteger lookupKey = (keyCode << 4) | modifiers;
+					newLookup[@(lookupKey)] = @YES;
+				}
 			}
 		}
 
 		// Thread-safe replacement
 		dispatch_sync(context->accessQueue, ^{
-			[context->hotkeys removeAllObjects];
-			[context->hotkeys addObjectsFromArray:newHotkeys];
+			[context->hotkeyLookup removeAllObjects];
+			[context->hotkeyLookup addEntriesFromDictionary:newLookup];
 		});
 	}
 }
@@ -385,8 +400,8 @@ void destroyEventTap(EventTap tap) {
 			context->runLoopSource = NULL;
 		}
 
-		// Clean up hotkeys and queue
-		context->hotkeys = nil;               // ARC will handle deallocation
+		// Clean up hotkey lookup and queue
+		context->hotkeyLookup = nil;          // ARC will handle deallocation
 		context->accessQueue = nil;           // ARC will handle deallocation
 		context->pendingEnableBlock = nil;    // ARC will handle deallocation
 		context->pendingAddSourceBlock = nil; // ARC will handle deallocation
