@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.21.2](https://github.com/y3owk1n/neru/compare/v1.21.1...v1.21.2) (2026-02-24)
+
+
+### Bug Fixes
+
+* **accessibility:** use priority queue for per-role TTL eviction in InfoCache ([#422](https://github.com/y3owk1n/neru/issues/422)) ([420ea16](https://github.com/y3owk1n/neru/commit/420ea16ac69dc6e75e6edda5bd894e1f17b68b56))
+* **eventtap:** use O(1) lookup table for hotkey matching ([#425](https://github.com/y3owk1n/neru/issues/425)) ([77c80fa](https://github.com/y3owk1n/neru/commit/77c80fad34cdbe5d9a91b8fb689b1bead1a840f8))
+* **hints:** add max_depth config for accessibility tree traversal safety ([#420](https://github.com/y3owk1n/neru/issues/420)) ([4d40358](https://github.com/y3owk1n/neru/commit/4d40358b6a8810383669933996c1595cbe613e7b))
+* **hints:** make parallel tree-building threshold configurable and lower default to 20 ([#427](https://github.com/y3owk1n/neru/issues/427)) ([112e6fd](https://github.com/y3owk1n/neru/commit/112e6fd755e6e65130e6cb24a66013937599eff7))
+* **overlay:** cache parsed hex colors to eliminate redundant parsing ([#426](https://github.com/y3owk1n/neru/issues/426)) ([82de189](https://github.com/y3owk1n/neru/commit/82de1899aa1ac42f8874ccf1cf2da0ddc4cf3a34))
+* **overlay:** replace NSDictionary with typed model classes for hint and grid cell data ([#423](https://github.com/y3owk1n/neru/issues/423)) ([3d5158e](https://github.com/y3owk1n/neru/commit/3d5158e20441cbe705bad9aa42be49b24edf89fa))
+* replace per-node debug logs with aggregate statistics ([#429](https://github.com/y3owk1n/neru/issues/429)) ([34ead23](https://github.com/y3owk1n/neru/commit/34ead23785561f2f776198bcdcbdeb0703138e26))
+
 ## [1.21.1](https://github.com/y3owk1n/neru/compare/v1.21.0...v1.21.1) (2026-02-23)
 
 
