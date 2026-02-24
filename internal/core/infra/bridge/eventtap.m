@@ -18,6 +18,7 @@ typedef struct {
 	void *userData;                                  ///< User data pointer
 	NSMutableDictionary *__strong hotkeyLookup;      ///< Hotkey lookup table: @(lookupKey) -> @YES
 	NSArray<NSString *> *__strong hotkeyStrings;     ///< Raw hotkey strings for rebuild on layout change
+	uint64_t hotkeyGeneration;                       ///< Generation counter for TOCTOU protection
 	dispatch_queue_t __strong accessQueue;           ///< Thread-safe access queue
 	dispatch_block_t __strong pendingEnableBlock;    ///< Pending enable block (inner delayed block)
 	dispatch_block_t __strong pendingAddSourceBlock; ///< Pending add source block
@@ -69,21 +70,27 @@ static void rebuildEventTapHotkeyLookup(void) {
 	if (!context)
 		return;
 
-	// Snapshot the current hotkey under the lock
+	// Snapshot the current hotkey strings and generation under the lock
 	__block NSArray<NSString *> *strings = nil;
+	__block uint64_t snapshotGeneration = 0;
 
 	dispatch_sync(context->accessQueue, ^{
 		strings = context->hotkeyStrings;
+		snapshotGeneration = context->hotkeyGeneration;
 	});
 
 	if (!strings || strings.count == 0)
 		return;
 
-	// Build the new lookup outside the lock
+	// Build the new lookup outside the lock (expensive work)
 	NSDictionary *newLookup = buildHotkeyLookupFromStrings(strings);
 
-	// Swap the lookup table under the lock
+	// Swap the lookup table under the lock only if generation hasn't changed
+	// (i.e., setEventTapHotkeys hasn't been called in the meantime)
 	dispatch_sync(context->accessQueue, ^{
+		if (context->hotkeyGeneration != snapshotGeneration)
+			return; // setEventTapHotkeys ran; our data is stale, skip
+
 		[context->hotkeyLookup removeAllObjects];
 		[context->hotkeyLookup addEntriesFromDictionary:newLookup];
 	});
@@ -368,6 +375,7 @@ void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count) {
 		// Thread-safe replacement
 		dispatch_sync(context->accessQueue, ^{
 			context->hotkeyStrings = [newStrings copy];
+			context->hotkeyGeneration++; // invalidate any in-flight rebuild
 			[context->hotkeyLookup removeAllObjects];
 			[context->hotkeyLookup addEntriesFromDictionary:newLookup];
 		});
