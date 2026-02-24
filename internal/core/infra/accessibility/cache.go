@@ -329,8 +329,10 @@ func (c *InfoCache) Stop() {
 
 // cleanupLoop runs a periodic cleanup process to remove expired cache entries.
 func (c *InfoCache) cleanupLoop() {
-	// Use DynamicElementTTL (shortest per-role TTL) to ensure dynamic elements
-	// holding Objective-C references are released promptly after expiration.
+	// Tick at DynamicElementTTL/2 (1s) — the shortest per-role TTL — to ensure
+	// dynamic elements holding Objective-C references are released promptly.
+	// For static-only workloads most ticks are no-ops, but the heap peek is O(1)
+	// so the overhead is negligible.
 	ticker := time.NewTicker(DynamicElementTTL / CacheCleanupDivisor)
 
 	defer ticker.Stop()
