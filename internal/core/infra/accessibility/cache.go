@@ -211,7 +211,7 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 		if elem.Equal(cached.elementRef) {
 			cached.info = info
 			cached.expiresAt = time.Now().Add(c.getTTL(info))
-			cached.removed = false
+			// Note: cached.removed is guaranteed false here (same invariant as Get).
 			c.lru.MoveToFront(cached.elementNode)
 
 			// Fix heap position in-place instead of pushing a duplicate entry
