@@ -54,6 +54,7 @@ func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 
 	if cfg := config.Global(); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
+		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
 	}
 
 	tree, err := BuildTree(menubar, opts)
@@ -120,6 +121,7 @@ func ClickableElementsFromBundleID(
 
 	if cfg := config.Global(); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
+		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
 	}
 
 	tree, err := BuildTree(app, opts)

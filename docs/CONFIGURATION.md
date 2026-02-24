@@ -367,6 +367,12 @@ The accessibility tree traversal has a maximum depth to prevent stack overflow a
 # Set to 0 for unlimited depth (no safety limit).
 # Default: 50
 max_depth = 50
+
+# Minimum number of children to trigger parallel tree building.
+# Lower values enable parallelization for smaller trees.
+# Higher values reduce goroutine overhead for tiny subtrees.
+# Default: 20
+parallel_threshold = 20
 ```
 
 ### Per-App Overrides

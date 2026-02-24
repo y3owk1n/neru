@@ -108,6 +108,11 @@ func (c *Config) ValidateHints() error {
 		return err
 	}
 
+	err = validateMinValue(c.Hints.ParallelThreshold, 0, "hints.parallel_threshold")
+	if err != nil {
+		return err
+	}
+
 	if c.Hints.MouseActionRefreshDelay > MaxMouseActionRefreshDelay {
 		return derrors.New(
 			derrors.CodeInvalidConfig,

@@ -71,7 +71,7 @@ const (
 	DefaultSubscriberMapSize = 4
 
 	// DefaultParallelThreshold is the default parallel threshold.
-	DefaultParallelThreshold = 100
+	DefaultParallelThreshold = 20
 	// DefaultMaxParallelDepth is the default max parallel depth.
 	DefaultMaxParallelDepth = 4
 
@@ -214,6 +214,7 @@ func DefaultConfig() *Config {
 			BorderWidth:             1,
 			MouseActionRefreshDelay: DefaultMouseActionRefreshDelay,
 			MaxDepth:                DefaultMaxDepth,
+			ParallelThreshold:       DefaultParallelThreshold,
 
 			BackgroundColor:  "#F2FFD700", // Gold, alpha F2 ≈ 95% opacity
 			TextColor:        "#FF000000", // Black

@@ -19,7 +19,7 @@ import (
 
 const (
 	// DefaultParallelThreshold is the default threshold for parallel processing.
-	DefaultParallelThreshold = 100
+	DefaultParallelThreshold = 20
 
 	// DefaultMaxParallelDepth is the default max depth for parallel recursion.
 	DefaultMaxParallelDepth = 4
@@ -129,6 +129,11 @@ func (o *TreeOptions) SetCache(cache *InfoCache) {
 // SetMaxDepth sets the max depth for tree traversal.
 func (o *TreeOptions) SetMaxDepth(depth int) {
 	o.maxDepth = depth
+}
+
+// SetParallelThreshold sets the threshold for parallel child processing.
+func (o *TreeOptions) SetParallelThreshold(threshold int) {
+	o.parallelThreshold = threshold
 }
 
 // DefaultTreeOptions returns default tree traversal options.
