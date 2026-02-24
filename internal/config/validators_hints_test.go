@@ -27,6 +27,7 @@ func TestValidateHints(t *testing.T) {
 					Padding:          4,
 					BorderWidth:      1,
 					ClickableRoles:   []string{"AXButton"},
+					MaxDepth:         50,
 					AdditionalAXSupport: config.AdditionalAXSupport{
 						AdditionalElectronBundles: []string{"com.example.app"},
 						AdditionalChromiumBundles: []string{"com.example.chromium"},
@@ -35,6 +36,44 @@ func TestValidateHints(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "valid hints config with unlimited max_depth",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					MaxDepth:         0,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "negative max_depth",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:   "abcd",
+					BackgroundColor:  "#FFFFFF",
+					TextColor:        "#000000",
+					MatchedTextColor: "#FF0000",
+					BorderColor:      "#000000",
+					FontSize:         12,
+					BorderRadius:     4,
+					Padding:          4,
+					BorderWidth:      1,
+					MaxDepth:         -1,
+					ClickableRoles:   []string{"AXButton"},
+				},
+			},
+			wantErr: true,
 		},
 		{
 			name: "empty hint_characters",
