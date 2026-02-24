@@ -141,7 +141,7 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 		cache:              NewInfoCache(DefaultAccessibilityCacheTTL, logger),
 		parallelThreshold:  DefaultParallelThreshold,
 		maxParallelDepth:   DefaultMaxParallelDepth,
-		maxDepth:           0, // Unlimited by default
+		maxDepth:           DefaultMaxDepth,
 		logger:             logger,
 	}
 }
