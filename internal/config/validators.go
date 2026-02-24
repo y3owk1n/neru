@@ -103,6 +103,11 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
+	err = validateMinValue(c.Hints.MaxDepth, 0, "hints.max_depth")
+	if err != nil {
+		return err
+	}
+
 	if c.Hints.MouseActionRefreshDelay > MaxMouseActionRefreshDelay {
 		return derrors.New(
 			derrors.CodeInvalidConfig,

@@ -23,6 +23,9 @@ const (
 	// DefaultMaxParallelDepth is the default max depth for parallel recursion.
 	DefaultMaxParallelDepth = 4
 
+	// DefaultMaxDepth is the default max depth for tree traversal.
+	DefaultMaxDepth = 50
+
 	// DefaultChildrenCapacity is the default capacity for children.
 	DefaultChildrenCapacity = 8
 )
@@ -71,6 +74,7 @@ type TreeOptions struct {
 	cache              *InfoCache
 	parallelThreshold  int
 	maxParallelDepth   int
+	maxDepth           int
 	logger             *zap.Logger
 }
 
@@ -99,6 +103,11 @@ func (o *TreeOptions) MaxParallelDepth() int {
 	return o.maxParallelDepth
 }
 
+// MaxDepth returns the max depth.
+func (o *TreeOptions) MaxDepth() int {
+	return o.maxDepth
+}
+
 // Logger returns the logger.
 func (o *TreeOptions) Logger() *zap.Logger {
 	return o.logger
@@ -119,6 +128,11 @@ func (o *TreeOptions) SetCache(cache *InfoCache) {
 	o.cache = cache
 }
 
+// SetMaxDepth sets the max depth for tree traversal.
+func (o *TreeOptions) SetMaxDepth(depth int) {
+	o.maxDepth = depth
+}
+
 // DefaultTreeOptions returns default tree traversal options.
 func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{
@@ -127,6 +141,7 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 		cache:              NewInfoCache(DefaultAccessibilityCacheTTL, logger),
 		parallelThreshold:  DefaultParallelThreshold,
 		maxParallelDepth:   DefaultMaxParallelDepth,
+		maxDepth:           0, // Unlimited by default
 		logger:             logger,
 	}
 }
@@ -222,6 +237,16 @@ func buildTreeRecursive(
 	opts TreeOptions,
 	windowBounds image.Rectangle,
 ) {
+	// Safety limit for recursion depth
+	if opts.maxDepth > 0 && depth > opts.maxDepth {
+		opts.Logger().Debug("Max depth reached",
+			zap.String("role", parent.info.Role()),
+			zap.Int("depth", depth),
+			zap.Int("maxDepth", opts.maxDepth))
+
+		return
+	}
+
 	// Early exit for roles that can't have interactive children
 	if nonInteractiveRoles[parent.info.Role()] {
 		opts.Logger().Debug("Skipping non-interactive role",

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
 )
 
@@ -55,7 +56,11 @@ func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 	defer menubar.Release()
 
 	opts := DefaultTreeOptions(logger)
-	opts.cache = globalCache
+	opts.SetCache(globalCache)
+
+	if cfg := config.Global(); cfg != nil {
+		opts.SetMaxDepth(cfg.Hints.MaxDepth)
+	}
 
 	tree, err := BuildTree(menubar, opts)
 	if err != nil {
@@ -116,8 +121,12 @@ func ClickableElementsFromBundleID(
 	defer app.Release()
 
 	opts := DefaultTreeOptions(logger)
-	opts.cache = globalCache
-	opts.includeOutOfBounds = true
+	opts.SetCache(globalCache)
+	opts.SetIncludeOutOfBounds(true)
+
+	if cfg := config.Global(); cfg != nil {
+		opts.SetMaxDepth(cfg.Hints.MaxDepth)
+	}
 
 	tree, err := BuildTree(app, opts)
 	if err != nil {
