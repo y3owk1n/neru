@@ -105,8 +105,8 @@ func initializeAdapters(
 	excludedBundles := cfg.General.ExcludedApps
 	clickableRoles := cfg.Hints.ClickableRoles
 
-	// Create infrastructure client
-	axClient := accessibilityAdapter.NewInfraAXClient(logger)
+	// Create infrastructure client (nil cache = use default)
+	axClient := accessibilityAdapter.NewInfraAXClient(logger, nil)
 
 	// Create base accessibility adapter with core functionality
 	baseAccessibilityAdapter := accessibilityAdapter.NewAdapter(

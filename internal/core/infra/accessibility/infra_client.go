@@ -18,21 +18,16 @@ type InfraAXClient struct {
 }
 
 // NewInfraAXClient creates a new infrastructure-based AXClient.
-// An optional InfoCache can be provided; if omitted or nil, a default cache is created.
-func NewInfraAXClient(logger *zap.Logger, cache ...*InfoCache) *InfraAXClient {
+// If cache is nil, a default InfoCache is created automatically.
+func NewInfraAXClient(logger *zap.Logger, cache *InfoCache) *InfraAXClient {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	var _cache *InfoCache
-
-	if len(cache) > 0 && cache[0] != nil {
-		_cache = cache[0]
-	} else {
-		_cache = NewInfoCache(logger)
+	if cache == nil {
+		cache = NewInfoCache(logger)
 	}
-
-	return &InfraAXClient{logger: logger, cache: _cache}
+	return &InfraAXClient{logger: logger, cache: cache}
 }
 
 // Cache returns the InfoCache used by this client.
