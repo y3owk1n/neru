@@ -64,14 +64,26 @@ static NSDictionary *buildHotkeyLookupFromStrings(NSArray<NSString *> *strings) 
 /// Rebuild the hotkey lookup table from stored hotkey strings.
 /// Called after keyboard layout changes to re-resolve key names to keycodes.
 /// Must be called on the main thread (same as handleKeyboardLayoutChanged).
-void rebuildEventTapHotkeyLookup(void) {
+static void rebuildEventTapHotkeyLookup(void) {
 	EventTapContext *context = gEventTapContext;
 	if (!context)
 		return;
+
+	// Snapshot the current hotkey under the lock
+	__block NSArray<NSString *> *strings = nil;
+
 	dispatch_sync(context->accessQueue, ^{
-		if (!context->hotkeyStrings || context->hotkeyStrings.count == 0)
-			return;
-		NSDictionary *newLookup = buildHotkeyLookupFromStrings(context->hotkeyStrings);
+		strings = context->hotkeyStrings;
+	});
+
+	if (!strings || strings.count == 0)
+		return;
+
+	// Build the new lookup outside the lock
+	NSDictionary *newLookup = buildHotkeyLookupFromStrings(strings);
+
+	// Swap the lookup table under the lock
+	dispatch_sync(context->accessQueue, ^{
 		[context->hotkeyLookup removeAllObjects];
 		[context->hotkeyLookup addEntriesFromDictionary:newLookup];
 	});
@@ -285,6 +297,11 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	// Only a single event tap instance is supported; assert to catch misuse.
 	NSCAssert(gEventTapContext == nil, @"createEventTap called while another event tap instance is active");
 	gEventTapContext = context;
+
+	// Register for keyboard layout change notifications so the hotkey
+	// lookup table is rebuilt when key names map to different keycodes.
+	setKeymapLayoutChangeCallback(rebuildEventTapHotkeyLookup);
+
 	context->pendingEnableBlock = nil;
 	context->pendingAddSourceBlock = nil;
 
@@ -295,6 +312,7 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 
 	if (!context->eventTap) {
 		gEventTapContext = nil;
+		setKeymapLayoutChangeCallback(NULL);
 		context->hotkeyLookup = nil;
 		context->hotkeyStrings = nil;
 		context->accessQueue = nil;
@@ -446,8 +464,10 @@ void destroyEventTap(EventTap tap) {
 		}
 
 		// Clear global reference before freeing
-		if (gEventTapContext == context)
+		if (gEventTapContext == context) {
 			gEventTapContext = nil;
+			setKeymapLayoutChangeCallback(NULL);
+		}
 
 		// Clean up hotkey lookup and queue
 		context->hotkeyLookup = nil;          // ARC will handle deallocation

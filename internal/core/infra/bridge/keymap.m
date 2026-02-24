@@ -6,7 +6,6 @@
 //
 
 #import "keymap.h"
-#import "eventtap.h"
 #include <stdatomic.h>
 
 #pragma mark - Static Data
@@ -34,6 +33,9 @@ static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharShiftedCaps = nil;
 
 /// debounce timer for keyboard layout change notifications
 static dispatch_block_t gLayoutChangeDebounceBlock = nil;
+
+/// optional callback invoked after layout maps are rebuilt
+static KeymapLayoutChangeCallback gLayoutChangeCallback = NULL;
 
 #pragma mark - UCKeyTranslate Helper
 
@@ -533,7 +535,8 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 
 	gLayoutChangeDebounceBlock = dispatch_block_create(0, ^{
 		buildLayoutMaps();
-		rebuildEventTapHotkeyLookup();
+		if (gLayoutChangeCallback)
+			gLayoutChangeCallback();
 		gLayoutChangeDebounceBlock = nil;
 	});
 
@@ -805,3 +808,5 @@ void refreshKeyboardLayoutMaps(void) {
 		dispatch_async(dispatch_get_main_queue(), cancelAndRebuild);
 	}
 }
+
+void setKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback) { gLayoutChangeCallback = callback; }

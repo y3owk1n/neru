@@ -165,4 +165,12 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags);
 /// the rebuild is dispatched asynchronously to the main queue.
 void refreshKeyboardLayoutMaps(void);
 
+/// Callback type invoked after keyboard layout maps are rebuilt.
+typedef void (*KeymapLayoutChangeCallback)(void);
+
+/// Register a callback to be invoked after keyboard layout maps are rebuilt.
+/// Only one callback is supported; subsequent calls replace the previous one.
+/// Pass NULL to unregister.
+void setKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback);
+
 #endif // KEYMAP_H
