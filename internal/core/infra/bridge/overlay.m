@@ -982,7 +982,6 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	int borderRadius = style.borderRadius;
 	int borderWidth = style.borderWidth;
 	int padding = style.padding;
-	int showArrow = style.showArrow;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		// Apply style updates
