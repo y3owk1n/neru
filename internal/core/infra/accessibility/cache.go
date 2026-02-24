@@ -222,10 +222,15 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 			// Note: cached.removed is guaranteed false here (same invariant as Get).
 			c.lru.MoveToFront(cached.elementNode)
 
-			// Fix heap position in-place instead of pushing a duplicate entry
+			// Fix heap position in-place instead of pushing a duplicate entry.
+			// heapIndex should always be >= 0 here since entries are pushed
+			// onto the heap when created and only popped by cleanup().
 			if cached.heapIndex >= 0 {
 				heap.Fix(&c.expirationQueue, cached.heapIndex)
 			} else {
+				c.logger.Warn("Cache entry missing from expiration heap during update",
+					zap.Uint64("hash", hash),
+					zap.String("role", info.Role()))
 				heap.Push(&c.expirationQueue, cached)
 			}
 
