@@ -139,6 +139,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		// Enable layer-backed rendering for GPU acceleration
 		[self setWantsLayer:YES];
 		self.layer.opaque = NO;
+		self.layer.drawsAsynchronously = YES;
 		self.layer.backgroundColor = [[NSColor clearColor] CGColor];
 		self.layer.contentsScale = [self currentBackingScaleFactor];
 
