@@ -560,7 +560,6 @@ func (c *InfoCache) cleanupLoop() {
 
 // cleanup removes all expired entries from the cache using the expiration heap.
 func (c *InfoCache) cleanup() {
-	shouldEmit := false
 	func() {
 		c.mu.Lock()
 		defer c.mu.Unlock()
@@ -614,16 +613,12 @@ func (c *InfoCache) cleanup() {
 		if expiredCount > 0 && c.stats != nil {
 			c.stats.expiredRemoved.Add(int64(expiredCount))
 			c.stats.currentSize.Store(int64(c.lru.Len()))
-
-			shouldEmit = true
 		}
 	}()
 
-	// Emit stats outside the lock to avoid potential deadlock if a zap
-	// hook or sink ever calls back into the cache.
-	if shouldEmit {
-		c.EmitStats()
-	}
+	// Always emit stats outside the lock regardless of whether any
+	// entries expired in this cycle.
+	c.EmitStats()
 }
 
 // removeFromBucket removes an item from a bucket at index i.
