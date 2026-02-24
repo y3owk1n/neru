@@ -121,6 +121,9 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 @property(nonatomic, strong)
     NSMutableAttributedString *cachedGridCellAttributedString; ///< Cached attributed string buffer for grid cells
 
+/// Cached parsed colors keyed by normalized hex string
+@property(nonatomic, strong) NSCache *colorCache;
+
 - (void)applyStyle:(HintStyle)style;                                                  ///< Apply hint style
 - (NSColor *)colorFromHex:(NSString *)hexString defaultColor:(NSColor *)defaultColor; ///< Color from hex string
 - (CGFloat)currentBackingScaleFactor;                                                 ///< Current backing scale factor
@@ -141,6 +144,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		self.layer.opaque = NO;
 		self.layer.backgroundColor = [[NSColor clearColor] CGColor];
 		self.layer.contentsScale = [self currentBackingScaleFactor];
+
+		_colorCache = [[NSCache alloc] init];
 
 		_hints = [NSMutableArray arrayWithCapacity:100];     // Pre-size for typical hint count
 		_gridCells = [NSMutableArray arrayWithCapacity:100]; // Pre-size for typical grid size
@@ -286,15 +291,24 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	if ([cleanString hasPrefix:@"#"]) {
 		cleanString = [cleanString substringFromIndex:1];
 	}
+	cleanString = [cleanString lowercaseString];
 
-	// Expand 3-char hex to 6-char (e.g., F0A -> FF00AA)
-	if (cleanString.length == 3) {
-		NSString *expanded = [NSString
-		    stringWithFormat:@"%c%c%c%c%c%c", [cleanString characterAtIndex:0], [cleanString characterAtIndex:0],
-		                     [cleanString characterAtIndex:1], [cleanString characterAtIndex:1],
-		                     [cleanString characterAtIndex:2], [cleanString characterAtIndex:2]];
-		cleanString = expanded;
+	// Expand 3-char hex to 6-char (e.g., f0a -> ff00aa) for consistent cache keys
+	NSString *cacheKey = cleanString;
+	if (cacheKey.length == 3) {
+		cacheKey =
+		    [NSString stringWithFormat:@"%c%c%c%c%c%c", [cacheKey characterAtIndex:0], [cacheKey characterAtIndex:0],
+		                               [cacheKey characterAtIndex:1], [cacheKey characterAtIndex:1],
+		                               [cacheKey characterAtIndex:2], [cacheKey characterAtIndex:2]];
 	}
+
+	NSColor *cachedColor = [self.colorCache objectForKey:cacheKey];
+	if (cachedColor) {
+		return cachedColor;
+	}
+
+	// Use expanded string for parsing
+	cleanString = cacheKey;
 
 	if (cleanString.length != 6 && cleanString.length != 8) {
 		return defaultColor;
@@ -314,7 +328,9 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	CGFloat green = ((hexValue & 0x0000FF00) >> 8) / 255.0;
 	CGFloat blue = (hexValue & 0x000000FF) / 255.0;
 
-	return [NSColor colorWithRed:red green:green blue:blue alpha:alpha];
+	NSColor *result = [NSColor colorWithRed:red green:green blue:blue alpha:alpha];
+	[self.colorCache setObject:result forKey:cacheKey];
+	return result;
 }
 
 /// Create tooltip path with arrow
