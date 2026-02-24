@@ -180,6 +180,11 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 
 	hash, err := elem.Hash()
 	if err != nil {
+		if c.stats != nil {
+			c.stats.hashErrors.Add(1)
+			c.stats.misses.Add(1)
+		}
+
 		return nil
 	}
 
