@@ -162,6 +162,13 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 		return event;
 
 	@autoreleasepool {
+		// macOS disables the event tap if the callback takes too long.
+		// Re-enable it automatically so key events keep flowing.
+		if (type == kCGEventTapDisabledByTimeout) {
+			CGEventTapEnable(context->eventTap, true);
+			return event;
+		}
+
 		if (type == kCGEventKeyDown) {
 			CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
 			CGEventFlags flags = CGEventGetFlags(event);
