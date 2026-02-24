@@ -294,6 +294,9 @@ func (c *InfoCache) Clear() {
 		}
 	}
 
+	// Reset all data structures. No need to mark entries removed — the old
+	// heap, bucket map, and LRU list are all discarded so no code path will
+	// ever process the old CachedInfo pointers again.
 	c.data = make(map[uint64][]*CachedInfo, DefaultCacheSize)
 	c.lru = list.New()
 	c.expirationQueue = nil
