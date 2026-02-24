@@ -288,6 +288,7 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 				if c.stats != nil {
 					c.stats.misses.Add(1)
 					c.stats.expiredRemoved.Add(1)
+					c.stats.currentSize.Store(int64(c.lru.Len()))
 				}
 
 				return nil
@@ -472,7 +473,13 @@ func (c *InfoCache) Clear() {
 	c.lru = list.New()
 	c.expirationQueue = nil
 
-	c.logger.Debug("Cache cleared")
+	if c.stats != nil {
+		c.stats.currentSize.Store(0)
+	}
+
+	if ce := c.logger.Check(zap.DebugLevel, "Cache cleared"); ce != nil {
+		ce.Write()
+	}
 }
 
 // Stop terminates the cache cleanup goroutine and releases resources.
