@@ -149,6 +149,10 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if c.stopped {
+		return nil
+	}
+
 	bucket, exists := c.data[hash]
 	if !exists {
 		return nil
@@ -203,6 +207,10 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if c.stopped {
+		return
+	}
 
 	bucket := c.data[hash]
 
@@ -278,6 +286,10 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 func (c *InfoCache) Size() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
+	if c.stopped {
+		return 0
+	}
 
 	return c.lru.Len()
 }
