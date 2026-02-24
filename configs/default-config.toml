@@ -72,6 +72,11 @@ border_width = 1    # Width of hint borders
 # when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
 mouse_action_refresh_delay = 0
 
+# Maximum depth for accessibility tree traversal.
+# Set to 0 for unlimited depth (no safety limit).
+# Default: 50
+max_depth = 50
+
 background_color = "#F2FFD700"    # Hint background color (gold, alpha F2 ≈ 95% opacity)
 text_color = "#FF000000"          # Hint text color (black)
 matched_text_color = "#FF737373"  # Text color for matched hints (gray)

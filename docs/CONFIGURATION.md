@@ -355,7 +355,18 @@ This option is useful for applications like browsers that needs to wait for a bi
 # when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
 # You can also override this for specific apps in the [app_configs] section below.
 mouse_action_refresh_delay = 0
+```
 
+### Accessibility Tree Depth Limit
+
+The accessibility tree traversal has a maximum depth to prevent stack overflow and memory pressure from deeply nested UI elements (e.g., complex web apps in Electron containers).
+
+```toml
+[hints]
+# Maximum depth for accessibility tree traversal.
+# Set to 0 for unlimited depth (no safety limit).
+# Default: 50
+max_depth = 50
 ```
 
 ### Per-App Overrides

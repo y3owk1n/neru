@@ -12,6 +12,7 @@ import (
 	"image"
 	"sync"
 
+	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
 )
@@ -71,6 +72,7 @@ type TreeOptions struct {
 	cache              *InfoCache
 	parallelThreshold  int
 	maxParallelDepth   int
+	maxDepth           int
 	logger             *zap.Logger
 }
 
@@ -99,6 +101,11 @@ func (o *TreeOptions) MaxParallelDepth() int {
 	return o.maxParallelDepth
 }
 
+// MaxDepth returns the max depth.
+func (o *TreeOptions) MaxDepth() int {
+	return o.maxDepth
+}
+
 // Logger returns the logger.
 func (o *TreeOptions) Logger() *zap.Logger {
 	return o.logger
@@ -119,14 +126,22 @@ func (o *TreeOptions) SetCache(cache *InfoCache) {
 	o.cache = cache
 }
 
+// SetMaxDepth sets the max depth for tree traversal.
+func (o *TreeOptions) SetMaxDepth(depth int) {
+	o.maxDepth = depth
+}
+
 // DefaultTreeOptions returns default tree traversal options.
+// Note: cache is nil by default; callers must set it via SetCache before
+// passing opts to BuildTree (which requires a non-nil cache).
 func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{
 		filterFunc:         nil,
 		includeOutOfBounds: false,
-		cache:              NewInfoCache(DefaultAccessibilityCacheTTL, logger),
+		cache:              nil,
 		parallelThreshold:  DefaultParallelThreshold,
 		maxParallelDepth:   DefaultMaxParallelDepth,
+		maxDepth:           config.DefaultMaxDepth,
 		logger:             logger,
 	}
 }
@@ -222,6 +237,16 @@ func buildTreeRecursive(
 	opts TreeOptions,
 	windowBounds image.Rectangle,
 ) {
+	// Safety limit for recursion depth
+	if opts.maxDepth > 0 && depth > opts.maxDepth {
+		opts.Logger().Debug("Max depth reached",
+			zap.String("role", parent.info.Role()),
+			zap.Int("depth", depth),
+			zap.Int("maxDepth", opts.maxDepth))
+
+		return
+	}
+
 	// Early exit for roles that can't have interactive children
 	if nonInteractiveRoles[parent.info.Role()] {
 		opts.Logger().Debug("Skipping non-interactive role",

@@ -75,6 +75,9 @@ const (
 	// DefaultMaxParallelDepth is the default max parallel depth.
 	DefaultMaxParallelDepth = 4
 
+	// DefaultMaxDepth is the default max depth for accessibility tree traversal.
+	DefaultMaxDepth = 50
+
 	// DefaultMetricsCapacity is the default metrics capacity.
 	DefaultMetricsCapacity = 1000
 
@@ -210,6 +213,7 @@ func DefaultConfig() *Config {
 			Padding:                 DefaultHintPadding,
 			BorderWidth:             1,
 			MouseActionRefreshDelay: DefaultMouseActionRefreshDelay,
+			MaxDepth:                DefaultMaxDepth,
 
 			BackgroundColor:  "#F2FFD700", // Gold, alpha F2 ≈ 95% opacity
 			TextColor:        "#FF000000", // Black

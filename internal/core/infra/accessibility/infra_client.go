@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
@@ -70,8 +71,12 @@ func (c *InfraAXClient) ClickableNodes(
 	})
 
 	opts := DefaultTreeOptions(c.logger)
-	opts.cache = globalCache
+	opts.SetCache(globalCache)
 	opts.SetIncludeOutOfBounds(includeOffscreen)
+
+	if cfg := config.Global(); cfg != nil {
+		opts.SetMaxDepth(cfg.Hints.MaxDepth)
+	}
 
 	tree, treeErr := BuildTree(element, opts)
 	if treeErr != nil {
