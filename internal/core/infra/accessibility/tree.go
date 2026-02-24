@@ -17,14 +17,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	// DefaultMaxParallelDepth is the default max depth for parallel recursion.
-	DefaultMaxParallelDepth = 4
-
-	// DefaultChildrenCapacity is the default capacity for children.
-	DefaultChildrenCapacity = 8
-)
-
 // Pre-allocated common errors.
 var errRootElementNil = derrors.New(derrors.CodeAccessibilityFailed, "root element is nil")
 
@@ -142,7 +134,7 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 		includeOutOfBounds: false,
 		cache:              nil,
 		parallelThreshold:  config.DefaultParallelThreshold,
-		maxParallelDepth:   DefaultMaxParallelDepth,
+		maxParallelDepth:   config.DefaultMaxParallelDepth,
 		maxDepth:           config.DefaultMaxDepth,
 		logger:             logger,
 	}
@@ -195,7 +187,7 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 		children: make(
 			[]*TreeNode,
 			0,
-			DefaultChildrenCapacity,
+			config.DefaultChildrenCapacity,
 		), // Pre-allocate for typical children count
 	}
 
