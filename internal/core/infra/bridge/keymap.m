@@ -801,6 +801,10 @@ void refreshKeyboardLayoutMaps(void) {
 		}
 		initializeKeyMaps();
 		buildLayoutMaps();
+
+		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
+		if (cb)
+			cb();
 	};
 
 	if ([NSThread isMainThread]) {
