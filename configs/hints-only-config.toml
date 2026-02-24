@@ -28,6 +28,7 @@ accessibility_check_on_start = true
 [hints]
 enabled = true
 max_depth = 50
+parallel_threshold = 20
 
 # Hints-specific settings - all enabled for maximum hint coverage
 include_menubar_hints = true               # Show hints on menubar

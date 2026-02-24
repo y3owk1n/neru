@@ -77,6 +77,10 @@ mouse_action_refresh_delay = 0
 # Default: 50
 max_depth = 50
 
+# Minimum children to trigger parallel tree building.
+# Default: 20
+parallel_threshold = 20
+
 background_color = "#F2FFD700"    # Hint background color (gold, alpha F2 ≈ 95% opacity)
 text_color = "#FF000000"          # Hint text color (black)
 matched_text_color = "#FF737373"  # Text color for matched hints (gray)

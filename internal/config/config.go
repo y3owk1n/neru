@@ -220,6 +220,7 @@ type HintsConfig struct {
 	BorderWidth             int    `json:"borderWidth"             toml:"border_width"`
 	MouseActionRefreshDelay int    `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
 	MaxDepth                int    `json:"maxDepth"                toml:"max_depth"`
+	ParallelThreshold       int    `json:"parallelThreshold"       toml:"parallel_threshold"`
 
 	BackgroundColor  string `json:"backgroundColor"  toml:"background_color"`
 	TextColor        string `json:"textColor"        toml:"text_color"`

@@ -76,6 +76,7 @@ func (c *InfraAXClient) ClickableNodes(
 
 	if cfg := config.Global(); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
+		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
 	}
 
 	tree, treeErr := BuildTree(element, opts)
