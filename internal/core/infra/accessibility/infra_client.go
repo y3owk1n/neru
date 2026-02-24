@@ -18,7 +18,7 @@ type InfraAXClient struct {
 }
 
 // NewInfraAXClient creates a new infrastructure-based AXClient.
-// An optional InfoCache can be provided; if nil, a default cache is created.
+// An optional InfoCache can be provided; if omitted or nil, a default cache is created.
 func NewInfraAXClient(logger *zap.Logger, cache ...*InfoCache) *InfraAXClient {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -31,12 +31,6 @@ func NewInfraAXClient(logger *zap.Logger, cache ...*InfoCache) *InfraAXClient {
 	} else {
 		_cache = NewInfoCache(logger)
 	}
-
-	// Also set the package-level globalCache so that Element.Children() and
-	// Element.IsClickable() (which cannot receive a cache through their call
-	// chain) can use it. This replaces the old sync.Once pattern and allows
-	// tests to reset the cache by constructing a new InfraAXClient.
-	SetGlobalCache(_cache)
 
 	return &InfraAXClient{logger: logger, cache: _cache}
 }
@@ -113,7 +107,7 @@ func (c *InfraAXClient) ClickableNodes(
 		}
 	}
 
-	clickableNodes := tree.FindClickableElements(allowedRoles)
+	clickableNodes := tree.FindClickableElements(allowedRoles, c.cache)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
@@ -388,7 +382,7 @@ func (n *InfraNode) IsClickable() bool {
 		return false
 	}
 
-	return n.node.Element().IsClickable(n.node.Info(), nil)
+	return n.node.Element().IsClickable(n.node.Info(), nil, nil)
 }
 
 // Release releases the underlying AXUIElementRef held by this node.

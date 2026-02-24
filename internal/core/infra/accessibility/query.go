@@ -2,17 +2,10 @@ package accessibility
 
 import (
 	"image"
-	"sync/atomic"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
 )
-
-// globalCachePtr is the package-level cache used by Element.Children and
-// Element.IsClickable when no cache is threaded through TreeOptions.
-// It is set by SetGlobalCache and should be initialized once at startup
-// via InfraAXClient construction. Access is synchronized via atomic.Pointer.
-var globalCachePtr atomic.Pointer[InfoCache]
 
 func rectFromInfo(info *ElementInfo) image.Rectangle {
 	pos := info.Position()
@@ -24,22 +17,6 @@ func rectFromInfo(info *ElementInfo) image.Rectangle {
 		pos.X+size.X,
 		pos.Y+size.Y,
 	)
-}
-
-// SetGlobalCache sets the package-level cache used by Element methods that
-// cannot receive a cache through their call chain (Children, IsClickable).
-// Call this once during initialisation; in tests, call it with a fresh cache
-// to reset state between runs.
-func SetGlobalCache(cache *InfoCache) {
-	if old := globalCachePtr.Swap(cache); old != nil {
-		old.Stop()
-	}
-}
-
-// getGlobalCache returns the current package-level cache. It is safe to call
-// concurrently from any goroutine.
-func getGlobalCache() *InfoCache {
-	return globalCachePtr.Load()
 }
 
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
@@ -95,7 +72,7 @@ func MenuBarClickableElements(logger *zap.Logger, cache *InfoCache) ([]*TreeNode
 	// Add menubar specific role
 	allowedRoles["AXMenuBarItem"] = struct{}{}
 
-	elements := tree.FindClickableElements(allowedRoles)
+	elements := tree.FindClickableElements(allowedRoles, cache)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
@@ -157,7 +134,7 @@ func ClickableElementsFromBundleID(
 		}
 	}
 
-	elements := tree.FindClickableElements(allowedRoles)
+	elements := tree.FindClickableElements(allowedRoles, cache)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.

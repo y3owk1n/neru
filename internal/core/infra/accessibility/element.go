@@ -244,7 +244,7 @@ func (e *Element) Info() (*ElementInfo, error) {
 }
 
 // Children returns all child elements of this element.
-func (e *Element) Children() ([]*Element, error) {
+func (e *Element) Children(cache *InfoCache) ([]*Element, error) {
 	if e.ref == nil {
 		return nil, errGetChildrenNil
 	}
@@ -253,8 +253,8 @@ func (e *Element) Children() ([]*Element, error) {
 	var rawChildren unsafe.Pointer
 
 	var info *ElementInfo
-	if gc := getGlobalCache(); gc != nil {
-		info = gc.Get(e)
+	if cache != nil {
+		info = cache.Get(e)
 	}
 
 	if info == nil {
@@ -267,8 +267,8 @@ func (e *Element) Children() ([]*Element, error) {
 				"failed to get element info",
 			)
 		}
-		if gc := getGlobalCache(); gc != nil {
-			gc.Set(e, info)
+		if cache != nil {
+			cache.Set(e, info)
 		}
 	}
 
@@ -679,7 +679,11 @@ func CurrentCursorPosition() image.Point {
 }
 
 // IsClickable checks if the element is clickable.
-func (e *Element) IsClickable(info *ElementInfo, allowedRoles map[string]struct{}) bool {
+func (e *Element) IsClickable(
+	info *ElementInfo,
+	allowedRoles map[string]struct{},
+	cache *InfoCache,
+) bool {
 	if e.ref == nil {
 		return false
 	}
@@ -698,8 +702,8 @@ func (e *Element) IsClickable(info *ElementInfo, allowedRoles map[string]struct{
 	if info == nil {
 		var infoErr error
 		// Try cache first if available
-		if gc := getGlobalCache(); gc != nil {
-			info = gc.Get(e)
+		if cache != nil {
+			info = cache.Get(e)
 		}
 
 		if info == nil {
@@ -707,8 +711,8 @@ func (e *Element) IsClickable(info *ElementInfo, allowedRoles map[string]struct{
 			if infoErr != nil {
 				return false
 			}
-			if gc := getGlobalCache(); gc != nil {
-				gc.Set(e, info)
+			if cache != nil {
+				cache.Set(e, info)
 			}
 		}
 	}

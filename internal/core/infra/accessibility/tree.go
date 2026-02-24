@@ -259,7 +259,7 @@ func buildTreeRecursive(
 		return
 	}
 
-	children, err := parent.element.Children()
+	children, err := parent.element.Children(opts.cache)
 	if err != nil || len(children) == 0 {
 		if err != nil {
 			opts.Logger().Debug("No children found due to error",
@@ -500,10 +500,13 @@ func shouldIncludeElement(
 }
 
 // FindClickableElements finds all clickable elements in the tree.
-func (n *TreeNode) FindClickableElements(allowedRoles map[string]struct{}) []*TreeNode {
+func (n *TreeNode) FindClickableElements(
+	allowedRoles map[string]struct{},
+	cache *InfoCache,
+) []*TreeNode {
 	var result []*TreeNode
 	n.walkTree(func(node *TreeNode) bool {
-		if node.element.IsClickable(node.info, allowedRoles) {
+		if node.element.IsClickable(node.info, allowedRoles, cache) {
 			result = append(result, node)
 		}
 
