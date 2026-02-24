@@ -127,7 +127,9 @@ func initializeAdapters(
 	// Wrap with metrics decorator to track rendering performance
 	overlayPort := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
 
-	return accAdapter, overlayPort, func() { axClient.Cache().Stop() }
+	axCache := axClient.Cache()
+
+	return accAdapter, overlayPort, func() { axCache.Stop() }
 }
 
 // initializeServices creates and initializes the domain services.
