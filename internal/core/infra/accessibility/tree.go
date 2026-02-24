@@ -12,6 +12,7 @@ import (
 	"image"
 	"sync"
 
+	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
 )
@@ -22,9 +23,6 @@ const (
 
 	// DefaultMaxParallelDepth is the default max depth for parallel recursion.
 	DefaultMaxParallelDepth = 4
-
-	// DefaultMaxDepth is the default max depth for tree traversal.
-	DefaultMaxDepth = 50
 
 	// DefaultChildrenCapacity is the default capacity for children.
 	DefaultChildrenCapacity = 8
@@ -141,7 +139,7 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 		cache:              NewInfoCache(DefaultAccessibilityCacheTTL, logger),
 		parallelThreshold:  DefaultParallelThreshold,
 		maxParallelDepth:   DefaultMaxParallelDepth,
-		maxDepth:           DefaultMaxDepth,
+		maxDepth:           config.DefaultMaxDepth,
 		logger:             logger,
 	}
 }
