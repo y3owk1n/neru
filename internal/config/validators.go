@@ -108,7 +108,7 @@ func (c *Config) ValidateHints() error {
 		return err
 	}
 
-	err = validateMinValue(c.Hints.ParallelThreshold, 0, "hints.parallel_threshold")
+	err = validateMinValue(c.Hints.ParallelThreshold, 1, "hints.parallel_threshold")
 	if err != nil {
 		return err
 	}
