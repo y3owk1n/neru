@@ -443,6 +443,11 @@ func (a *App) Cleanup() {
 		a.eventTap.Destroy()
 	}
 
+	// Stop accessibility cache cleanup goroutine
+	if a.axCacheStop != nil {
+		a.axCacheStop()
+	}
+
 	// Sync and close logger
 	loggerSyncErr := logger.Sync()
 	if loggerSyncErr != nil {
