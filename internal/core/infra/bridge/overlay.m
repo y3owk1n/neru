@@ -46,6 +46,15 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 @end
 
 @implementation GridCellItem
+- (instancetype)init {
+	self = [super init];
+	if (self) {
+		_isMatched = NO;
+		_isSubgrid = NO;
+		_matchedPrefixLength = 0;
+	}
+	return self;
+}
 @end
 
 #pragma mark - Overlay View Interface
