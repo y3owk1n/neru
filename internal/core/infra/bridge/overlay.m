@@ -85,8 +85,11 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 @property(nonatomic, strong) NSColor *cachedGridTextColor;
 @property(nonatomic, strong) NSColor *cachedGridMatchedTextColor;
 
-// Cached string buffer to reduce allocations
-@property(nonatomic, strong) NSMutableAttributedString *cachedAttributedString; ///< Cached attributed string buffer
+// Cached string buffers to reduce allocations (one per drawing method to avoid shared mutable state)
+@property(nonatomic, strong)
+    NSMutableAttributedString *cachedHintAttributedString; ///< Cached attributed string buffer for hints
+@property(nonatomic, strong)
+    NSMutableAttributedString *cachedGridCellAttributedString; ///< Cached attributed string buffer for grid cells
 
 - (void)applyStyle:(HintStyle)style;                                                  ///< Apply hint style
 - (NSColor *)colorFromHex:(NSString *)hexString defaultColor:(NSColor *)defaultColor; ///< Color from hex string
@@ -134,8 +137,9 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		_cachedGridTextColor = _gridTextColor;
 		_cachedGridMatchedTextColor = _gridMatchedTextColor;
 
-		// Initialize cached string buffer
-		_cachedAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
+		// Initialize cached string buffers
+		_cachedHintAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
+		_cachedGridCellAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
 	}
 	return self;
 }
@@ -373,8 +377,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		int matchedPrefixLength = hint.matchedPrefixLength;
 		BOOL showArrow = hint.showArrow;
 		// Create attributed string with matched prefix in different color
-		// Reuse cached attributed string buffer
-		NSMutableAttributedString *attrString = self.cachedAttributedString;
+		// Reuse cached hint attributed string buffer
+		NSMutableAttributedString *attrString = self.cachedHintAttributedString;
 		[[attrString mutableString] setString:label];
 		// Clear previous attributes and set new ones
 		NSRange fullRange = NSMakeRange(0, [label length]);
@@ -485,8 +489,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		[borderPath stroke];
 		// Draw text label centered in cell
 		if (label && [label length] > 0) {
-			// Reuse cached attributed string buffer
-			NSMutableAttributedString *attrString = self.cachedAttributedString;
+			// Reuse cached grid cell attributed string buffer
+			NSMutableAttributedString *attrString = self.cachedGridCellAttributedString;
 			[[attrString mutableString] setString:label];
 			// Clear previous attributes and set new ones
 			NSRange fullRange = NSMakeRange(0, [label length]);
