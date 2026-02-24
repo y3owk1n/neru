@@ -26,6 +26,13 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 @end
 
 @implementation HintItem
+- (instancetype)init {
+	self = [super init];
+	if (self) {
+		_showArrow = YES;
+	}
+	return self;
+}
 @end
 
 #pragma mark - GridCellItem Class
