@@ -289,6 +289,7 @@ func (c *InfoCache) Clear() {
 
 	c.data = make(map[uint64][]*CachedInfo, DefaultCacheSize)
 	c.lru = list.New()
+	c.expirationQueue = nil
 
 	c.logger.Debug("Cache cleared")
 }
@@ -314,6 +315,7 @@ func (c *InfoCache) Stop() {
 
 	c.data = nil
 	c.lru = nil
+	c.expirationQueue = nil
 
 	c.logger.Debug("Cache stopped")
 }
@@ -384,6 +386,9 @@ func (c *InfoCache) cleanup() {
 
 		// Release element reference
 		cached.elementRef.Release()
+
+		// Mark as removed to prevent double-Release from duplicate heap entries
+		cached.removed = true
 
 		expiredCount++
 	}
