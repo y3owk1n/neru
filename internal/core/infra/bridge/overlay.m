@@ -16,29 +16,54 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	       fabs(a.size.width - b.size.width) < epsilon && fabs(a.size.height - b.size.height) < epsilon;
 }
 
+#pragma mark - HintItem Class
+
+@interface HintItem : NSObject
+@property(nonatomic, copy) NSString *label;
+@property(nonatomic, assign) CGPoint position;
+@property(nonatomic, assign) int matchedPrefixLength;
+@property(nonatomic, assign) BOOL showArrow;
+@end
+
+@implementation HintItem
+@end
+
+#pragma mark - GridCellItem Class
+
+@interface GridCellItem : NSObject
+@property(nonatomic, copy) NSString *label;
+@property(nonatomic, assign) CGRect bounds;
+@property(nonatomic, assign) BOOL isMatched;
+@property(nonatomic, assign) BOOL isSubgrid;
+@property(nonatomic, assign) int matchedPrefixLength;
+@end
+
+@implementation GridCellItem
+@end
+
 #pragma mark - Overlay View Interface
 
 @interface OverlayView : NSView
-@property(nonatomic, strong) NSMutableArray *hints;         ///< Hints array
-@property(nonatomic, strong) NSFont *hintFont;              ///< Hint font
-@property(nonatomic, strong) NSColor *hintTextColor;        ///< Hint text color
-@property(nonatomic, strong) NSColor *hintMatchedTextColor; ///< Hint matched text color
-@property(nonatomic, strong) NSColor *hintBackgroundColor;  ///< Hint background color
-@property(nonatomic, strong) NSColor *hintBorderColor;      ///< Hint border color
-@property(nonatomic, assign) CGFloat hintBorderRadius;      ///< Hint border radius
-@property(nonatomic, assign) CGFloat hintBorderWidth;       ///< Hint border width
-@property(nonatomic, assign) CGFloat hintPadding;           ///< Hint padding
+@property(nonatomic, strong) NSMutableArray<HintItem *> *hints; ///< Hints array
+@property(nonatomic, strong) NSFont *hintFont;                  ///< Hint font
+@property(nonatomic, strong) NSColor *hintTextColor;            ///< Hint text color
+@property(nonatomic, strong) NSColor *hintMatchedTextColor;     ///< Hint matched text color
+@property(nonatomic, strong) NSColor *hintBackgroundColor;      ///< Hint background color
+@property(nonatomic, strong) NSColor *hintBorderColor;          ///< Hint border color
+@property(nonatomic, assign) CGFloat hintBorderRadius;          ///< Hint border radius
+@property(nonatomic, assign) CGFloat hintBorderWidth;           ///< Hint border width
+@property(nonatomic, assign) CGFloat hintPadding;               ///< Hint padding
 
-@property(nonatomic, strong) NSMutableArray *gridCells;           ///< Grid cells array
-@property(nonatomic, strong) NSFont *gridFont;                    ///< Grid font
-@property(nonatomic, strong) NSColor *gridTextColor;              ///< Grid text color
-@property(nonatomic, strong) NSColor *gridMatchedTextColor;       ///< Grid matched text color
-@property(nonatomic, strong) NSColor *gridMatchedBackgroundColor; ///< Grid matched background color
-@property(nonatomic, strong) NSColor *gridMatchedBorderColor;     ///< Grid matched border color
-@property(nonatomic, strong) NSColor *gridBackgroundColor;        ///< Grid background color
-@property(nonatomic, strong) NSColor *gridBorderColor;            ///< Grid border color
-@property(nonatomic, assign) CGFloat gridBorderWidth;             ///< Grid border width
-@property(nonatomic, assign) BOOL hideUnmatched;                  ///< Hide unmatched cells
+@property(nonatomic, strong) NSMutableArray<GridCellItem *> *gridCells; ///< Grid cells array
+@property(nonatomic, strong) NSFont *gridFont;                          ///< Grid font
+@property(nonatomic, strong) NSColor *gridTextColor;                    ///< Grid text color
+@property(nonatomic, strong) NSColor *gridMatchedTextColor;             ///< Grid matched text color
+@property(nonatomic, strong) NSColor *gridMatchedBackgroundColor;       ///< Grid matched background color
+@property(nonatomic, strong) NSColor *gridMatchedBorderColor;           ///< Grid matched border color
+@property(nonatomic, strong) NSColor *gridBackgroundColor;              ///< Grid background color
+@property(nonatomic, strong) NSColor *gridBorderColor;                  ///< Grid border color
+@property(nonatomic, assign) CGFloat gridBorderWidth;                   ///< Grid border width
+@property(nonatomic, assign) BOOL hideUnmatched;                        ///< Hide unmatched cells
 
 // Cached grid text colors to reduce allocations during drawing
 @property(nonatomic, strong) NSColor *cachedGridTextColor;
@@ -324,15 +349,13 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 /// Draw hint labels above target elements
 - (void)drawHints {
-	for (NSDictionary *hint in self.hints) {
-		NSString *label = hint[@"label"];
+	for (HintItem *hint in self.hints) {
+		NSString *label = hint.label;
 		if (!label || [label length] == 0)
 			continue;
-		NSPoint position = [hint[@"position"] pointValue];
-		NSNumber *matchedPrefixLengthNum = hint[@"matchedPrefixLength"];
-		int matchedPrefixLength = matchedPrefixLengthNum ? [matchedPrefixLengthNum intValue] : 0;
-		NSNumber *showArrowNum = hint[@"showArrow"];
-		BOOL showArrow = showArrowNum ? [showArrowNum boolValue] : YES;
+		NSPoint position = hint.position;
+		int matchedPrefixLength = hint.matchedPrefixLength;
+		BOOL showArrow = hint.showArrow;
 		// Create attributed string with matched prefix in different color
 		// Reuse cached attributed string buffer
 		NSMutableAttributedString *attrString = self.cachedAttributedString;
@@ -401,16 +424,15 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		return;
 	CGFloat screenHeight = self.bounds.size.height;
 	CGFloat screenWidth = self.bounds.size.width;
-	for (NSDictionary *cellDict in self.gridCells) {
-		NSString *label = cellDict[@"label"];
-		NSValue *boundsValue = cellDict[@"bounds"];
-		BOOL isMatched = [cellDict[@"isMatched"] boolValue];
-		BOOL isSubgrid = [cellDict[@"isSubgrid"] boolValue];
+	for (GridCellItem *cellItem in self.gridCells) {
+		NSString *label = cellItem.label;
+		CGRect bounds = cellItem.bounds;
+		BOOL isMatched = cellItem.isMatched;
+		BOOL isSubgrid = cellItem.isSubgrid;
 		// Skip drawing unmatched cells if hideUnmatched is enabled AND it's not a subgrid cell
 		if (self.hideUnmatched && !isMatched && !isSubgrid) {
 			continue;
 		}
-		CGRect bounds = [boundsValue rectValue];
 		// Convert coordinates (macOS uses bottom-left origin)
 		CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
 		NSRect cellRect = NSMakeRect(bounds.origin.x, flippedY, bounds.size.width, bounds.size.height);
@@ -455,8 +477,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 			[attrString setAttributes:@{NSFontAttributeName : self.gridFont} range:fullRange];
 			// Use cached color to avoid repeated allocations
 			[attrString addAttribute:NSForegroundColorAttributeName value:self.cachedGridTextColor range:fullRange];
-			NSNumber *matchedPrefixLengthNum = cellDict[@"matchedPrefixLength"];
-			int matchedPrefixLength = matchedPrefixLengthNum ? [matchedPrefixLengthNum intValue] : 0;
+			int matchedPrefixLength = cellItem.matchedPrefixLength;
 			if (isMatched && matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
 				// Use cached matched color
 				[attrString addAttribute:NSForegroundColorAttributeName
@@ -835,28 +856,25 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 
 		for (int i = 0; i < count; i++) {
 			HintData hint = hints[i];
-			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
-				@"label" : @(hint.label),
-				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
-				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
-				@"showArrow" : @(style.showArrow)
-			}];
-			[controller.overlayView.hints addObject:hintDict];
+			HintItem *hintItem = [[HintItem alloc] init];
+			hintItem.label = @(hint.label);
+			hintItem.position = hint.position;
+			hintItem.matchedPrefixLength = hint.matchedPrefixLength;
+			hintItem.showArrow = style.showArrow ? YES : NO;
+			[controller.overlayView.hints addObject:hintItem];
 		}
 
 		[controller.overlayView setNeedsDisplay:YES];
 	} else {
-		// Copy hint data
-		NSMutableArray *hintDicts = [NSMutableArray arrayWithCapacity:count];
+		NSMutableArray<HintItem *> *hintItems = [NSMutableArray arrayWithCapacity:count];
 		for (int i = 0; i < count; i++) {
 			HintData hint = hints[i];
-			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
-				@"label" : @(hint.label),
-				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
-				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
-				@"showArrow" : @(style.showArrow)
-			}];
-			[hintDicts addObject:hintDict];
+			HintItem *hintItem = [[HintItem alloc] init];
+			hintItem.label = @(hint.label);
+			hintItem.position = hint.position;
+			hintItem.matchedPrefixLength = hint.matchedPrefixLength;
+			hintItem.showArrow = style.showArrow ? YES : NO;
+			[hintItems addObject:hintItem];
 		}
 
 		HintStyle styleCopy = {.fontSize = style.fontSize,
@@ -873,7 +891,7 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 		dispatch_async(dispatch_get_main_queue(), ^{
 			[controller.overlayView.hints removeAllObjects];
 			[controller.overlayView applyStyle:styleCopy];
-			[controller.overlayView.hints addObjectsFromArray:hintDicts];
+			[controller.overlayView.hints addObjectsFromArray:hintItems];
 			[controller.overlayView setNeedsDisplay:YES];
 
 			free_hint_style_strings(&styleCopy);
@@ -893,8 +911,8 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 	NSString *prefixStr = prefix ? @(prefix) : @"";
 
 	dispatch_async(dispatch_get_main_queue(), ^{
-		for (NSMutableDictionary *hintDict in controller.overlayView.hints) {
-			NSString *label = hintDict[@"label"] ?: @"";
+		for (HintItem *hintItem in controller.overlayView.hints) {
+			NSString *label = hintItem.label ?: @"";
 			int matchedPrefixLength = 0;
 			if ([prefixStr length] > 0 && [label length] >= [prefixStr length]) {
 				NSString *lblPrefix = [label substringToIndex:[prefixStr length]];
@@ -902,7 +920,7 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 					matchedPrefixLength = (int)[prefixStr length];
 				}
 			}
-			hintDict[@"matchedPrefixLength"] = @(matchedPrefixLength);
+			hintItem.matchedPrefixLength = matchedPrefixLength;
 		}
 		[controller.overlayView setNeedsDisplay:YES];
 	});
@@ -923,18 +941,17 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	// Build hint data arrays for hints to add/update
-	NSMutableArray *hintDictsToAdd = nil;
+	NSMutableArray<HintItem *> *hintItemsToAdd = nil;
 	if (hintsToAdd && addCount > 0) {
-		hintDictsToAdd = [NSMutableArray arrayWithCapacity:addCount];
+		hintItemsToAdd = [NSMutableArray arrayWithCapacity:addCount];
 		for (int i = 0; i < addCount; i++) {
 			HintData hint = hintsToAdd[i];
-			NSMutableDictionary *hintDict = [NSMutableDictionary dictionaryWithDictionary:@{
-				@"label" : hint.label ? @(hint.label) : @"",
-				@"position" : [NSValue valueWithPoint:NSPointFromCGPoint(hint.position)],
-				@"matchedPrefixLength" : @(hint.matchedPrefixLength),
-				@"showArrow" : @(style.showArrow)
-			}];
-			[hintDictsToAdd addObject:hintDict];
+			HintItem *hintItem = [[HintItem alloc] init];
+			hintItem.label = hint.label ? @(hint.label) : @"";
+			hintItem.position = hint.position;
+			hintItem.matchedPrefixLength = hint.matchedPrefixLength;
+			hintItem.showArrow = style.showArrow ? YES : NO;
+			[hintItemsToAdd addObject:hintItem];
 		}
 	}
 
@@ -1012,48 +1029,46 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 				[positionsToRemoveSet addObject:key];
 			}
 
-			NSMutableArray *hintsToKeep = [NSMutableArray arrayWithCapacity:[controller.overlayView.hints count]];
-			for (NSDictionary *hintDict in controller.overlayView.hints) {
-				NSValue *hintPositionValue = hintDict[@"position"];
-				NSPoint hintPosition = [hintPositionValue pointValue];
+			NSMutableArray<HintItem *> *hintsToKeep =
+			    [NSMutableArray arrayWithCapacity:[controller.overlayView.hints count]];
+			for (HintItem *hintItem in controller.overlayView.hints) {
+				NSPoint hintPosition = hintItem.position;
 				NSString *hintKey = [NSString stringWithFormat:@"%.6f,%.6f", hintPosition.x, hintPosition.y];
 				BOOL shouldRemove = [positionsToRemoveSet containsObject:hintKey];
 
 				if (!shouldRemove) {
-					[hintsToKeep addObject:hintDict];
+					[hintsToKeep addObject:hintItem];
 				}
 			}
 			controller.overlayView.hints = hintsToKeep;
 		}
 
 		// Add or update hints
-		if (hintDictsToAdd && [hintDictsToAdd count] > 0) {
+		if (hintItemsToAdd && [hintItemsToAdd count] > 0) {
 			// Build lookup map for existing hints by position
 			NSMutableDictionary *hintsByPosition =
 			    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.hints count]];
-			for (NSDictionary *hintDict in controller.overlayView.hints) {
-				NSValue *posValue = hintDict[@"position"];
-				NSPoint pos = [posValue pointValue];
+			for (HintItem *hintItem in controller.overlayView.hints) {
+				NSPoint pos = hintItem.position;
 				NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", pos.x, pos.y];
-				hintsByPosition[key] = hintDict;
+				hintsByPosition[key] = hintItem;
 			}
 
 			// For each hint to add/update, check if it already exists (by position) and replace it, otherwise add it
-			for (NSDictionary *newHintDict in hintDictsToAdd) {
-				NSValue *newPositionValue = newHintDict[@"position"];
-				NSPoint newPosition = [newPositionValue pointValue];
+			for (HintItem *newHintItem in hintItemsToAdd) {
+				NSPoint newPosition = newHintItem.position;
 				NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", newPosition.x, newPosition.y];
 
-				NSDictionary *existingHint = hintsByPosition[key];
+				HintItem *existingHint = hintsByPosition[key];
 				if (existingHint) {
 					// Replace existing hint
 					NSUInteger index = [controller.overlayView.hints indexOfObject:existingHint];
 					if (index != NSNotFound) {
-						controller.overlayView.hints[index] = newHintDict;
+						controller.overlayView.hints[index] = newHintItem;
 					}
 				} else {
 					// Add as new hint
-					[controller.overlayView.hints addObject:newHintDict];
+					[controller.overlayView.hints addObject:newHintItem];
 				}
 			}
 		}
@@ -1109,17 +1124,16 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	// Build cell data array and copy all strings NOW
-	NSMutableArray *cellDicts = [NSMutableArray arrayWithCapacity:count];
+	NSMutableArray<GridCellItem *> *cellItems = [NSMutableArray arrayWithCapacity:count];
 	for (int i = 0; i < count; i++) {
 		GridCell cell = cells[i];
-		NSDictionary *cellDict = @{
-			@"label" : cell.label ? @(cell.label) : @"",
-			@"bounds" : [NSValue valueWithRect:NSRectFromCGRect(cell.bounds)],
-			@"isMatched" : @(cell.isMatched),
-			@"isSubgrid" : @(cell.isSubgrid),
-			@"matchedPrefixLength" : @(cell.matchedPrefixLength)
-		};
-		[cellDicts addObject:cellDict];
+		GridCellItem *cellItem = [[GridCellItem alloc] init];
+		cellItem.label = cell.label ? @(cell.label) : @"";
+		cellItem.bounds = cell.bounds;
+		cellItem.isMatched = cell.isMatched ? YES : NO;
+		cellItem.isSubgrid = cell.isSubgrid ? YES : NO;
+		cellItem.matchedPrefixLength = cell.matchedPrefixLength;
+		[cellItems addObject:cellItem];
 	}
 
 	// Copy all style properties NOW (before async block)
@@ -1164,7 +1178,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 		controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
 
 		[controller.overlayView.gridCells removeAllObjects];
-		[controller.overlayView.gridCells addObjectsFromArray:cellDicts];
+		[controller.overlayView.gridCells addObjectsFromArray:cellItems];
 		[controller.overlayView setNeedsDisplay:YES];
 	});
 }
@@ -1181,9 +1195,8 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 	NSString *prefixStr = prefix ? @(prefix) : @"";
 
 	dispatch_async(dispatch_get_main_queue(), ^{
-		NSMutableArray *updated = [NSMutableArray arrayWithCapacity:[controller.overlayView.gridCells count]];
-		for (NSDictionary *cellDict in controller.overlayView.gridCells) {
-			NSString *label = cellDict[@"label"] ?: @"";
+		for (GridCellItem *cellItem in controller.overlayView.gridCells) {
+			NSString *label = cellItem.label ?: @"";
 			BOOL isMatched = NO;
 			int matchedPrefixLength = 0;
 			if ([prefixStr length] > 0 && [label length] >= [prefixStr length]) {
@@ -1193,18 +1206,9 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 					matchedPrefixLength = (int)[prefixStr length];
 				}
 			}
-			BOOL isSubgrid = [cellDict[@"isSubgrid"] boolValue];
-			NSDictionary *newDict = @{
-				@"label" : label,
-				@"bounds" : cellDict[@"bounds"],
-				@"isMatched" : @(isMatched),
-				@"isSubgrid" : @(isSubgrid),
-				@"matchedPrefixLength" : @(matchedPrefixLength)
-			};
-			[updated addObject:newDict];
+			cellItem.isMatched = isMatched;
+			cellItem.matchedPrefixLength = matchedPrefixLength;
 		}
-		[controller.overlayView.gridCells removeAllObjects];
-		[controller.overlayView.gridCells addObjectsFromArray:updated];
 		[controller.overlayView setNeedsDisplay:YES];
 	});
 }
@@ -1272,19 +1276,18 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	// Build cell data arrays for cells to add/update
-	NSMutableArray *cellDictsToAdd = nil;
+	NSMutableArray<GridCellItem *> *cellItemsToAdd = nil;
 	if (cellsToAdd && addCount > 0) {
-		cellDictsToAdd = [NSMutableArray arrayWithCapacity:addCount];
+		cellItemsToAdd = [NSMutableArray arrayWithCapacity:addCount];
 		for (int i = 0; i < addCount; i++) {
 			GridCell cell = cellsToAdd[i];
-			NSDictionary *cellDict = @{
-				@"label" : cell.label ? @(cell.label) : @"",
-				@"bounds" : [NSValue valueWithRect:NSRectFromCGRect(cell.bounds)],
-				@"isMatched" : @(cell.isMatched),
-				@"isSubgrid" : @(cell.isSubgrid),
-				@"matchedPrefixLength" : @(cell.matchedPrefixLength)
-			};
-			[cellDictsToAdd addObject:cellDict];
+			GridCellItem *cellItem = [[GridCellItem alloc] init];
+			cellItem.label = cell.label ? @(cell.label) : @"";
+			cellItem.bounds = cell.bounds;
+			cellItem.isMatched = cell.isMatched ? YES : NO;
+			cellItem.isSubgrid = cell.isSubgrid ? YES : NO;
+			cellItem.matchedPrefixLength = cell.matchedPrefixLength;
+			[cellItemsToAdd addObject:cellItem];
 		}
 	}
 
@@ -1357,10 +1360,10 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 
 		// Remove cells that match the bounds to remove
 		if (boundsToRemove && [boundsToRemove count] > 0) {
-			NSMutableArray *cellsToKeep = [NSMutableArray arrayWithCapacity:[controller.overlayView.gridCells count]];
-			for (NSDictionary *cellDict in controller.overlayView.gridCells) {
-				NSValue *cellBoundsValue = cellDict[@"bounds"];
-				NSRect cellBounds = [cellBoundsValue rectValue];
+			NSMutableArray<GridCellItem *> *cellsToKeep =
+			    [NSMutableArray arrayWithCapacity:[controller.overlayView.gridCells count]];
+			for (GridCellItem *cellItem in controller.overlayView.gridCells) {
+				NSRect cellBounds = cellItem.bounds;
 				BOOL shouldRemove = NO;
 
 				// Check if this cell's bounds match any of the bounds to remove
@@ -1374,43 +1377,41 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 				}
 
 				if (!shouldRemove) {
-					[cellsToKeep addObject:cellDict];
+					[cellsToKeep addObject:cellItem];
 				}
 			}
 			controller.overlayView.gridCells = cellsToKeep;
 		}
 
 		// Add or update cells
-		if (cellDictsToAdd && [cellDictsToAdd count] > 0) {
+		if (cellItemsToAdd && [cellItemsToAdd count] > 0) {
 			// Build lookup map for existing cells by bounds
 			NSMutableDictionary *cellsByBounds =
 			    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.gridCells count]];
-			for (NSDictionary *cellDict in controller.overlayView.gridCells) {
-				NSValue *boundsValue = cellDict[@"bounds"];
-				NSRect bounds = [boundsValue rectValue];
+			for (GridCellItem *cellItem in controller.overlayView.gridCells) {
+				NSRect bounds = cellItem.bounds;
 				NSString *key = [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", bounds.origin.x, bounds.origin.y,
 				                                           bounds.size.width, bounds.size.height];
-				cellsByBounds[key] = cellDict;
+				cellsByBounds[key] = cellItem;
 			}
 
 			// For each cell to add/update, check if it already exists (by bounds) and replace it, otherwise add it
-			for (NSDictionary *newCellDict in cellDictsToAdd) {
-				NSValue *newBoundsValue = newCellDict[@"bounds"];
-				NSRect newBounds = [newBoundsValue rectValue];
+			for (GridCellItem *newCellItem in cellItemsToAdd) {
+				NSRect newBounds = newCellItem.bounds;
 				NSString *key =
 				    [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", newBounds.origin.x, newBounds.origin.y,
 				                               newBounds.size.width, newBounds.size.height];
 
-				NSDictionary *existingCell = cellsByBounds[key];
+				GridCellItem *existingCell = cellsByBounds[key];
 				if (existingCell) {
 					// Replace existing cell
 					NSUInteger index = [controller.overlayView.gridCells indexOfObject:existingCell];
 					if (index != NSNotFound) {
-						controller.overlayView.gridCells[index] = newCellDict;
+						controller.overlayView.gridCells[index] = newCellItem;
 					}
 				} else {
 					// Add as new cell
-					[controller.overlayView.gridCells addObject:newCellDict];
+					[controller.overlayView.gridCells addObject:newCellItem];
 				}
 			}
 		}
