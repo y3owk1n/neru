@@ -112,7 +112,7 @@ func (c *InfraAXClient) ClickableNodes(
 	clickableNodesResult := make([]AXNode, len(clickableNodes))
 
 	for i, node := range clickableNodes {
-		clickableNodesResult[i] = &InfraNode{node: node}
+		clickableNodesResult[i] = &InfraNode{node: node, cache: c.cache}
 	}
 
 	return clickableNodesResult, nil
@@ -141,7 +141,7 @@ func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
 
 	nodesResult := make([]AXNode, len(nodes))
 	for index, node := range nodes {
-		nodesResult[index] = &InfraNode{node: node}
+		nodesResult[index] = &InfraNode{node: node, cache: c.cache}
 	}
 
 	return nodesResult, nil
@@ -163,7 +163,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 
 	nodesResult := make([]AXNode, len(nodes))
 	for index, node := range nodes {
-		nodesResult[index] = &InfraNode{node: node}
+		nodesResult[index] = &InfraNode{node: node, cache: c.cache}
 	}
 
 	return nodesResult, nil
@@ -315,7 +315,8 @@ func (a *InfraApp) Info() (*AXAppInfo, error) {
 
 // InfraNode wraps an TreeNode.
 type InfraNode struct {
-	node *TreeNode
+	node  *TreeNode
+	cache *InfoCache
 }
 
 // ID returns the node ID.
@@ -378,7 +379,7 @@ func (n *InfraNode) IsClickable() bool {
 		return false
 	}
 
-	return n.node.Element().IsClickable(n.node.Info(), nil, nil)
+	return n.node.Element().IsClickable(n.node.Info(), nil, n.cache)
 }
 
 // Release releases the underlying AXUIElementRef held by this node.
