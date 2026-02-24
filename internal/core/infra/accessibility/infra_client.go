@@ -14,15 +14,36 @@ import (
 // InfraAXClient implements AXClient using the infrastructure layer.
 type InfraAXClient struct {
 	logger *zap.Logger
+	cache  *InfoCache
 }
 
 // NewInfraAXClient creates a new infrastructure-based AXClient.
-func NewInfraAXClient(logger *zap.Logger) *InfraAXClient {
+// An optional InfoCache can be provided; if nil, a default cache is created.
+func NewInfraAXClient(logger *zap.Logger, cache ...*InfoCache) *InfraAXClient {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	return &InfraAXClient{logger: logger}
+	var _cache *InfoCache
+
+	if len(cache) > 0 && cache[0] != nil {
+		_cache = cache[0]
+	} else {
+		_cache = NewInfoCache(logger)
+	}
+
+	// Also set the package-level globalCache so that Element.Children() and
+	// Element.IsClickable() (which cannot receive a cache through their call
+	// chain) can use it. This replaces the old sync.Once pattern and allows
+	// tests to reset the cache by constructing a new InfraAXClient.
+	SetGlobalCache(_cache)
+
+	return &InfraAXClient{logger: logger, cache: _cache}
+}
+
+// Cache returns the InfoCache used by this client.
+func (c *InfraAXClient) Cache() *InfoCache {
+	return c.cache
 }
 
 // FrontmostWindow returns the frontmost window.
@@ -66,12 +87,8 @@ func (c *InfraAXClient) ClickableNodes(
 		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
 	}
 
-	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(c.logger)
-	})
-
 	opts := DefaultTreeOptions(c.logger)
-	opts.SetCache(globalCache)
+	opts.SetCache(c.cache)
 	opts.SetIncludeOutOfBounds(includeOffscreen)
 
 	if cfg := config.Global(); cfg != nil {
@@ -123,7 +140,7 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 
 // MenuBarClickableElements returns clickable elements in the menu bar.
 func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
-	nodes, nodesErr := MenuBarClickableElements(c.logger)
+	nodes, nodesErr := MenuBarClickableElements(c.logger, c.cache)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,
@@ -145,7 +162,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 ) ([]AXNode, error) {
-	nodes, nodesErr := ClickableElementsFromBundleID(bundleID, roles, c.logger)
+	nodes, nodesErr := ClickableElementsFromBundleID(bundleID, roles, c.logger, c.cache)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,

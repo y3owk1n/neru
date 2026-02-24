@@ -2,16 +2,16 @@ package accessibility
 
 import (
 	"image"
-	"sync"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
 )
 
-var (
-	globalCache *InfoCache
-	cacheOnce   sync.Once
-)
+// globalCache is the package-level cache used by Element.Children and
+// Element.IsClickable when no cache is threaded through TreeOptions.
+// It is set by SetGlobalCache and should be initialized once at startup
+// via InfraAXClient construction.
+var globalCache *InfoCache
 
 func rectFromInfo(info *ElementInfo) image.Rectangle {
 	pos := info.Position()
@@ -25,13 +25,17 @@ func rectFromInfo(info *ElementInfo) image.Rectangle {
 	)
 }
 
-// MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
-func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
-	logger.Debug("Getting clickable elements for menu bar")
+// SetGlobalCache sets the package-level cache used by Element methods that
+// cannot receive a cache through their call chain (Children, IsClickable).
+// Call this once during initialisation; in tests, call it with a fresh cache
+// to reset state between runs.
+func SetGlobalCache(cache *InfoCache) {
+	globalCache = cache
+}
 
-	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(logger)
-	})
+// MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
+func MenuBarClickableElements(logger *zap.Logger, cache *InfoCache) ([]*TreeNode, error) {
+	logger.Debug("Getting clickable elements for menu bar")
 
 	app := FocusedApplication()
 	if app == nil {
@@ -50,7 +54,7 @@ func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 	defer menubar.Release()
 
 	opts := DefaultTreeOptions(logger)
-	opts.SetCache(globalCache)
+	opts.SetCache(cache)
 
 	if cfg := config.Global(); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
@@ -98,14 +102,11 @@ func ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 	logger *zap.Logger,
+	cache *InfoCache,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for bundle ID",
 		zap.String("bundle_id", bundleID),
 		zap.Int("role_count", len(roles)))
-
-	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(logger)
-	})
 
 	app := ApplicationByBundleID(bundleID)
 	if app == nil {
@@ -116,7 +117,7 @@ func ClickableElementsFromBundleID(
 	defer app.Release()
 
 	opts := DefaultTreeOptions(logger)
-	opts.SetCache(globalCache)
+	opts.SetCache(cache)
 	opts.SetIncludeOutOfBounds(true)
 
 	if cfg := config.Global(); cfg != nil {
