@@ -189,12 +189,20 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	if c.stopped {
 		c.mu.RUnlock()
 
+		if c.stats != nil {
+			c.stats.misses.Add(1)
+		}
+
 		return nil
 	}
 
 	bucket, exists := c.data[hash]
 	if !exists {
 		c.mu.RUnlock()
+
+		if c.stats != nil {
+			c.stats.misses.Add(1)
+		}
 
 		return nil
 	}
