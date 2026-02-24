@@ -158,11 +158,9 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	for idx, cached := range bucket {
 		// Use Equal to verify it's the same underlying object
 		if elem.Equal(cached.elementRef) {
-			// Check if removed via LRU eviction (lazy heap cleanup)
-			if cached.removed {
-				return nil
-			}
-
+			// Note: no need to check cached.removed here — all code paths that
+			// set removed=true also call removeFromBucket, so an entry found
+			// in the bucket is guaranteed to have removed==false.
 			if time.Now().After(cached.expiresAt) {
 				// Remove expired entry from bucket
 				c.removeFromBucket(hash, idx)
