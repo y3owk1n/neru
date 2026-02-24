@@ -548,66 +548,68 @@ func (c *InfoCache) cleanupLoop() {
 
 // cleanup removes all expired entries from the cache using the expiration heap.
 func (c *InfoCache) cleanup() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	shouldEmit := false
+	func() {
+		c.mu.Lock()
+		defer c.mu.Unlock()
 
-	if c.stopped || c.lru == nil {
-		return
-	}
-
-	// Flush any deferred LRU promotions while we hold the write lock.
-	c.drainPromotions()
-
-	now := time.Now()
-	expiredCount := 0
-
-	// Use min-heap to efficiently find and remove expired items
-	// Pop items whose expiration time has passed
-	for c.expirationQueue.Len() > 0 {
-		cached := c.expirationQueue[0] // Peek at earliest expiration
-
-		// If already removed via LRU eviction, pop and continue (lazy cleanup)
-		if cached.removed {
-			heap.Pop(&c.expirationQueue)
-
-			continue
+		if c.stopped || c.lru == nil {
+			return
 		}
+		// Flush any deferred LRU promotions while we hold the write lock.
+		c.drainPromotions()
 
-		// If not expired yet, we're done (heap is sorted by expiration)
-		if !now.After(cached.expiresAt) {
-			break
-		}
+		now := time.Now()
+		expiredCount := 0
 
-		// Pop the expired item from heap
-		heap.Pop(&c.expirationQueue)
+		// Use min-heap to efficiently find and remove expired items
+		// Pop items whose expiration time has passed
+		for c.expirationQueue.Len() > 0 {
+			cached := c.expirationQueue[0] // Peek at earliest expiration
+			// If already removed via LRU eviction, pop and continue (lazy cleanup)
+			if cached.removed {
+				heap.Pop(&c.expirationQueue)
 
-		// Remove from bucket
-		bucket := c.data[cached.key]
-		for itemIdx, item := range bucket {
-			if item == cached {
-				c.removeFromBucket(cached.key, itemIdx)
-
+				continue
+			}
+			// If not expired yet, we're done (heap is sorted by expiration)
+			if !now.After(cached.expiresAt) {
 				break
 			}
+			// Pop the expired item from heap
+			heap.Pop(&c.expirationQueue)
+
+			// Remove from bucket
+			bucket := c.data[cached.key]
+			for itemIdx, item := range bucket {
+				if item == cached {
+					c.removeFromBucket(cached.key, itemIdx)
+
+					break
+				}
+			}
+			// Remove from LRU list
+			if cached.elementNode != nil {
+				c.lru.Remove(cached.elementNode)
+			}
+			// Release element reference
+			cached.elementRef.Release()
+			// Mark as removed to prevent double-Release from duplicate heap entries
+			cached.removed = true
+			expiredCount++
 		}
 
-		// Remove from LRU list
-		if cached.elementNode != nil {
-			c.lru.Remove(cached.elementNode)
+		if expiredCount > 0 && c.stats != nil {
+			c.stats.expiredRemoved.Add(int64(expiredCount))
+			c.stats.currentSize.Store(int64(c.lru.Len()))
+
+			shouldEmit = true
 		}
+	}()
 
-		// Release element reference
-		cached.elementRef.Release()
-
-		// Mark as removed to prevent double-Release from duplicate heap entries
-		cached.removed = true
-
-		expiredCount++
-	}
-
-	if expiredCount > 0 && c.stats != nil {
-		c.stats.expiredRemoved.Add(int64(expiredCount))
-		c.stats.currentSize.Store(int64(c.lru.Len()))
+	// Emit stats outside the lock to avoid potential deadlock if a zap
+	// hook or sink ever calls back into the cache.
+	if shouldEmit {
 		c.EmitStats()
 	}
 }
