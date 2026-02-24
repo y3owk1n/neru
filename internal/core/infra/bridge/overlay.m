@@ -864,7 +864,7 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 		for (int i = 0; i < count; i++) {
 			HintData hint = hints[i];
 			HintItem *hintItem = [[HintItem alloc] init];
-			hintItem.label = @(hint.label);
+			hintItem.label = hint.label ? @(hint.label) : @"";
 			hintItem.position = hint.position;
 			hintItem.matchedPrefixLength = hint.matchedPrefixLength;
 			hintItem.showArrow = style.showArrow ? YES : NO;
@@ -877,7 +877,7 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 		for (int i = 0; i < count; i++) {
 			HintData hint = hints[i];
 			HintItem *hintItem = [[HintItem alloc] init];
-			hintItem.label = @(hint.label);
+			hintItem.label = hint.label ? @(hint.label) : @"";
 			hintItem.position = hint.position;
 			hintItem.matchedPrefixLength = hint.matchedPrefixLength;
 			hintItem.showArrow = style.showArrow ? YES : NO;
