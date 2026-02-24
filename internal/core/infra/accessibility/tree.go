@@ -11,6 +11,7 @@ import "C"
 import (
 	"image"
 	"sync"
+	"sync/atomic"
 
 	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -63,6 +64,7 @@ type TreeOptions struct {
 	maxParallelDepth   int
 	maxDepth           int
 	logger             *zap.Logger
+	stats              *treeStats
 }
 
 // FilterFunc returns the filter function.
@@ -98,6 +100,11 @@ func (o *TreeOptions) MaxDepth() int {
 // Logger returns the logger.
 func (o *TreeOptions) Logger() *zap.Logger {
 	return o.logger
+}
+
+// Stats returns the tree stats.
+func (o *TreeOptions) Stats() *treeStats {
+	return o.stats
 }
 
 // SetFilterFunc sets the filter function.
@@ -140,10 +147,42 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	}
 }
 
+// treeStats collects aggregate counters during tree traversal.
+// All fields use atomic operations for goroutine safety.
+type treeStats struct {
+	nodesVisited          atomic.Int64
+	skippedNonInteractive atomic.Int64
+	stoppedAtLeaf         atomic.Int64
+	maxDepthHits          atomic.Int64
+	childErrors           atomic.Int64
+	filteredOut           atomic.Int64
+	noChildren            atomic.Int64
+	childrenErrors        atomic.Int64
+	parallelBatches       atomic.Int64
+	sequentialBatches     atomic.Int64
+	maxDepthSeen          atomic.Int64
+}
+
+// recordDepth atomically updates the max depth seen.
+func (s *treeStats) recordDepth(depth int) {
+	for {
+		old := s.maxDepthSeen.Load()
+		if int64(depth) <= old {
+			return
+		}
+		if s.maxDepthSeen.CompareAndSwap(old, int64(depth)) {
+			return
+		}
+	}
+}
+
 // BuildTree constructs an accessibility tree starting from the specified root element.
 func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 	if root == nil {
-		opts.Logger().Debug("BuildTree called with nil root element")
+		if ce := opts.Logger().
+			Check(zap.DebugLevel, "BuildTree called with nil root element"); ce != nil {
+			ce.Write()
+		}
 
 		return nil, errRootElementNil
 	}
@@ -173,10 +212,7 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 		return nil, derrors.New(derrors.CodeAccessibilityFailed, "root element info is nil")
 	}
 
-	opts.Logger().Debug("Building tree from root element",
-		zap.String("role", info.Role()),
-		zap.String("title", info.Title()),
-		zap.Int("pid", info.PID()))
+	stats := &treeStats{}
 
 	// Calculate window bounds for spatial filtering
 	windowBounds := rectFromInfo(info)
@@ -191,11 +227,27 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 		), // Pre-allocate for typical children count
 	}
 
+	opts.stats = stats
 	buildTreeRecursive(node, 1, opts, windowBounds)
 
-	opts.Logger().Debug("Tree building completed",
-		zap.String("root_role", info.Role()),
-		zap.String("root_title", info.Title()))
+	if ce := opts.Logger().Check(zap.DebugLevel, "Tree build completed"); ce != nil {
+		ce.Write(
+			zap.String("root_role", info.Role()),
+			zap.String("root_title", info.Title()),
+			zap.Int("pid", info.PID()),
+			zap.Int64("nodes_visited", stats.nodesVisited.Load()),
+			zap.Int64("skipped_non_interactive", stats.skippedNonInteractive.Load()),
+			zap.Int64("stopped_at_leaf", stats.stoppedAtLeaf.Load()),
+			zap.Int64("max_depth_hits", stats.maxDepthHits.Load()),
+			zap.Int64("child_errors", stats.childErrors.Load()),
+			zap.Int64("filtered_out", stats.filteredOut.Load()),
+			zap.Int64("no_children", stats.noChildren.Load()),
+			zap.Int64("children_errors", stats.childrenErrors.Load()),
+			zap.Int64("parallel_batches", stats.parallelBatches.Load()),
+			zap.Int64("sequential_batches", stats.sequentialBatches.Load()),
+			zap.Int64("max_depth_seen", stats.maxDepthSeen.Load()),
+		)
+	}
 
 	return node, nil
 }
@@ -231,45 +283,46 @@ func buildTreeRecursive(
 	opts TreeOptions,
 	windowBounds image.Rectangle,
 ) {
+	if opts.stats != nil {
+		opts.stats.nodesVisited.Add(1)
+		opts.stats.recordDepth(depth)
+	}
+
 	// Safety limit for recursion depth
 	if opts.maxDepth > 0 && depth > opts.maxDepth {
-		opts.Logger().Debug("Max depth reached",
-			zap.String("role", parent.info.Role()),
-			zap.Int("depth", depth),
-			zap.Int("maxDepth", opts.maxDepth))
+		if opts.stats != nil {
+			opts.stats.maxDepthHits.Add(1)
+		}
 
 		return
 	}
 
 	// Early exit for roles that can't have interactive children
 	if nonInteractiveRoles[parent.info.Role()] {
-		opts.Logger().Debug("Skipping non-interactive role",
-			zap.String("role", parent.info.Role()),
-			zap.Int("depth", depth))
+		if opts.stats != nil {
+			opts.stats.skippedNonInteractive.Add(1)
+		}
 
 		return
 	}
 
 	// Don't traverse deeper into interactive leaf elements
 	if interactiveLeafRoles[parent.info.Role()] {
-		opts.Logger().Debug("Stopping at interactive leaf role",
-			zap.String("role", parent.info.Role()),
-			zap.Int("depth", depth))
+		if opts.stats != nil {
+			opts.stats.stoppedAtLeaf.Add(1)
+		}
 
 		return
 	}
 
 	children, err := parent.element.Children(opts.cache)
 	if err != nil || len(children) == 0 {
-		if err != nil {
-			opts.Logger().Debug("No children found due to error",
-				zap.String("role", parent.info.Role()),
-				zap.Error(err),
-				zap.Int("depth", depth))
-		} else {
-			opts.Logger().Debug("No children found",
-				zap.String("role", parent.info.Role()),
-				zap.Int("depth", depth))
+		if opts.stats != nil {
+			if err != nil {
+				opts.stats.childrenErrors.Add(1)
+			} else {
+				opts.stats.noChildren.Add(1)
+			}
 		}
 
 		return
@@ -278,12 +331,6 @@ func buildTreeRecursive(
 	// Decide whether to parallelize
 	shouldParallelize := depth <= opts.maxParallelDepth &&
 		len(children) >= opts.parallelThreshold
-
-	opts.Logger().Debug("Processing children",
-		zap.String("parent_role", parent.info.Role()),
-		zap.Int("child_count", len(children)),
-		zap.Int("depth", depth),
-		zap.Bool("parallel", shouldParallelize))
 
 	if shouldParallelize {
 		buildChildrenParallel(parent, children, depth, opts, windowBounds)
@@ -313,7 +360,9 @@ func buildChildrenSequential(
 			var err error
 			info, err = child.Info()
 			if err != nil {
-				opts.Logger().Debug("Failed to get child element info", zap.Error(err))
+				if opts.stats != nil {
+					opts.stats.childErrors.Add(1)
+				}
 				child.Release()
 
 				continue
@@ -322,10 +371,9 @@ func buildChildrenSequential(
 		}
 
 		if !shouldIncludeElement(info, opts, windowBounds) {
-			opts.Logger().Debug("Skipping child element (filtered out)",
-				zap.String("role", info.Role()),
-				zap.String("title", info.Title()))
-
+			if opts.stats != nil {
+				opts.stats.filteredOut.Add(1)
+			}
 			child.Release()
 
 			continue
@@ -350,10 +398,9 @@ func buildChildrenSequential(
 		buildTreeRecursive(childNode, depth+1, opts, windowBounds)
 	}
 
-	opts.Logger().Debug("Sequential child processing completed",
-		zap.String("parent_role", parent.info.Role()),
-		zap.Int("processed_children", len(validChildren)),
-		zap.Int("total_children", len(children)))
+	if opts.stats != nil {
+		opts.stats.sequentialBatches.Add(1)
+	}
 }
 
 func buildChildrenParallel(
@@ -363,11 +410,6 @@ func buildChildrenParallel(
 	opts TreeOptions,
 	windowBounds image.Rectangle,
 ) {
-	opts.Logger().Debug("Starting parallel child processing",
-		zap.String("parent_role", parent.info.Role()),
-		zap.Int("child_count", len(children)),
-		zap.Int("depth", depth))
-
 	// Pre-allocate result slice with exact capacity
 	type childResult struct {
 		node  *TreeNode
@@ -391,10 +433,9 @@ func buildChildrenParallel(
 				var err error
 				info, err = elem.Info()
 				if err != nil {
-					opts.Logger().Debug(
-						"Failed to get child element info in parallel processing",
-						zap.Error(err),
-					)
+					if opts.stats != nil {
+						opts.stats.childErrors.Add(1)
+					}
 
 					elem.Release()
 
@@ -406,9 +447,9 @@ func buildChildrenParallel(
 			}
 
 			if !shouldIncludeElement(info, opts, windowBounds) {
-				opts.Logger().Debug("Skipping child element in parallel processing (filtered out)",
-					zap.String("role", info.Role()),
-					zap.String("title", info.Title()))
+				if opts.stats != nil {
+					opts.stats.filteredOut.Add(1)
+				}
 
 				elem.Release()
 
@@ -456,10 +497,9 @@ func buildChildrenParallel(
 		}
 	}
 
-	opts.Logger().Debug("Parallel child processing completed",
-		zap.String("parent_role", parent.info.Role()),
-		zap.Int("processed_children", validCount),
-		zap.Int("total_children", len(children)))
+	if opts.stats != nil {
+		opts.stats.parallelBatches.Add(1)
+	}
 }
 
 // shouldIncludeElement combines all filtering logic into one function.
@@ -481,12 +521,6 @@ func shouldIncludeElement(
 		// For non-zero sized elements, check if they overlap with window bounds
 		if elementRect.Dx() > 0 && elementRect.Dy() > 0 {
 			if !elementRect.Overlaps(windowBounds) {
-				opts.Logger().Debug("Element filtered out (no overlap)",
-					zap.String("role", info.Role()),
-					zap.String("title", info.Title()),
-					zap.Any("element_rect", elementRect),
-					zap.Any("window_bounds", windowBounds))
-
 				return false
 			}
 		}

@@ -161,15 +161,17 @@ func (o *Overlay) DrawRecursiveGrid(
 		return nil
 	}
 
-	o.logger.Debug("Drawing recursive-grid",
-		zap.Int("bounds_x", bounds.Min.X),
-		zap.Int("bounds_y", bounds.Min.Y),
-		zap.Int("bounds_width", bounds.Dx()),
-		zap.Int("bounds_height", bounds.Dy()),
-		zap.Int("depth", depth),
-		zap.Int("grid_cols", gridCols),
-		zap.Int("grid_rows", gridRows),
-		zap.String("keys", keys))
+	if ce := o.logger.Check(zap.DebugLevel, "Drawing recursive-grid"); ce != nil {
+		ce.Write(
+			zap.Int("bounds_x", bounds.Min.X),
+			zap.Int("bounds_y", bounds.Min.Y),
+			zap.Int("bounds_width", bounds.Dx()),
+			zap.Int("bounds_height", bounds.Dy()),
+			zap.Int("depth", depth),
+			zap.Int("grid_cols", gridCols),
+			zap.Int("grid_rows", gridRows),
+			zap.String("keys", keys))
+	}
 
 	// Clear previous drawing
 	o.Clear()
