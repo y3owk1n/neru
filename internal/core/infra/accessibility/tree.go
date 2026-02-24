@@ -18,9 +18,6 @@ import (
 )
 
 const (
-	// DefaultParallelThreshold is the default threshold for parallel processing.
-	DefaultParallelThreshold = 20
-
 	// DefaultMaxParallelDepth is the default max depth for parallel recursion.
 	DefaultMaxParallelDepth = 4
 
@@ -144,7 +141,7 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 		filterFunc:         nil,
 		includeOutOfBounds: false,
 		cache:              nil,
-		parallelThreshold:  DefaultParallelThreshold,
+		parallelThreshold:  config.DefaultParallelThreshold,
 		maxParallelDepth:   DefaultMaxParallelDepth,
 		maxDepth:           config.DefaultMaxDepth,
 		logger:             logger,
