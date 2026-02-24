@@ -27,6 +27,12 @@ const (
 
 	// DynamicElementTTL is the TTL for dynamic UI elements (text fields, scrollable content, etc.).
 	DynamicElementTTL = 2 * time.Second
+
+	// promotionBufSize is the capacity of the lock-free ring buffer used to
+	// defer LRU promotions from the read-only Get() fast path. Hits beyond
+	// this capacity are silently dropped (minor LRU accuracy loss under
+	// extreme concurrency, but no correctness impact).
+	promotionBufSize = 64
 )
 
 // CachedInfo wraps ElementInfo with an expiration timestamp and LRU tracking for caching.
@@ -108,6 +114,13 @@ type InfoCache struct {
 	stopCh          chan struct{}
 	stopped         bool
 	logger          *zap.Logger
+
+	// promotionBuf collects deferred LRU promotions from the read-only
+	// Get() fast path. Entries are flushed to the LRU list the next time
+	// a write lock is acquired (Set, cleanup, or expired-entry removal).
+	// The channel is non-blocking: sends that would block are dropped,
+	// trading minor LRU accuracy for zero contention on the hot path.
+	promotionBuf chan *list.Element
 }
 
 // NewInfoCache initializes a new cache with per-role TTLs and the default maximum size.
@@ -122,11 +135,12 @@ func NewInfoCacheWithSize(maxSize int, logger *zap.Logger) *InfoCache {
 	}
 
 	cache := &InfoCache{
-		data:    make(map[uint64][]*CachedInfo, DefaultCacheSize),
-		lru:     list.New(),
-		maxSize: maxSize,
-		stopCh:  make(chan struct{}),
-		logger:  logger,
+		data:         make(map[uint64][]*CachedInfo, DefaultCacheSize),
+		lru:          list.New(),
+		maxSize:      maxSize,
+		stopCh:       make(chan struct{}),
+		logger:       logger,
+		promotionBuf: make(chan *list.Element, promotionBufSize),
 	}
 
 	// Start cleanup goroutine
@@ -136,6 +150,12 @@ func NewInfoCacheWithSize(maxSize int, logger *zap.Logger) *InfoCache {
 }
 
 // Get retrieves a cached element information if it exists and hasn't expired.
+//
+// It uses a two-phase locking strategy to reduce contention during parallel
+// tree building: a read lock for the common cache-hit path, upgrading to a
+// write lock only when an expired entry must be removed. On a cache hit the
+// LRU promotion is deferred to a buffered channel and flushed the next time a
+// write lock is acquired, keeping the hot path fully concurrent.
 func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	if elem == nil {
 		return nil
@@ -146,6 +166,58 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 		return nil
 	}
 
+	// --- Phase 1: optimistic read lock (no mutations) ---
+	c.mu.RLock()
+
+	if c.stopped {
+		c.mu.RUnlock()
+
+		return nil
+	}
+
+	bucket, exists := c.data[hash]
+	if !exists {
+		c.mu.RUnlock()
+
+		return nil
+	}
+	// Scan the bucket under the read lock.
+	var (
+		foundInfo    *ElementInfo
+		foundIdx     = -1
+		foundExpired bool
+	)
+	for idx, cached := range bucket {
+		if elem.Equal(cached.elementRef) {
+			if time.Now().After(cached.expiresAt) {
+				foundIdx = idx
+				foundExpired = true
+			} else {
+				// Cache hit, not expired. Defer LRU promotion via the
+				// non-blocking promotion buffer to stay under the read
+				// lock. If the buffer is full the send is dropped — a
+				// minor LRU accuracy loss with no correctness impact.
+				foundInfo = cached.info
+				select {
+				case c.promotionBuf <- cached.elementNode:
+				default:
+				}
+			}
+
+			break
+		}
+	}
+
+	c.mu.RUnlock()
+	// Fast path: cache hit, not expired — return immediately.
+	if foundInfo != nil {
+		return foundInfo
+	}
+	// Fast path: no match at all.
+	if foundIdx == -1 && !foundExpired {
+		return nil
+	}
+	// --- Phase 2: write lock to remove the expired entry ---
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -153,18 +225,19 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 		return nil
 	}
 
-	bucket, exists := c.data[hash]
+	// Flush any deferred LRU promotions while we hold the write lock.
+	c.drainPromotions()
+
+	// Re-fetch the bucket; another goroutine may have modified it between
+	// the RUnlock and Lock.
+	bucket, exists = c.data[hash]
+
 	if !exists {
 		return nil
 	}
 
-	// Iterate bucket to find exact match
 	for idx, cached := range bucket {
-		// Use Equal to verify it's the same underlying object
 		if elem.Equal(cached.elementRef) {
-			// Note: no need to check cached.removed here — all code paths that
-			// set removed=true also call removeFromBucket, so an entry found
-			// in the bucket is guaranteed to have removed==false.
 			if time.Now().After(cached.expiresAt) {
 				// Remove expired entry from bucket
 				c.removeFromBucket(hash, idx)
@@ -182,7 +255,9 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 				return nil
 			}
 
-			// Move to front of LRU list (most recently used)
+			// Entry was expired when we checked under RLock but another
+			// goroutine refreshed it before we acquired the write lock.
+			// Promote in LRU since we already hold the write lock.
 			c.lru.MoveToFront(cached.elementNode)
 
 			return cached.info
@@ -211,6 +286,9 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 	if c.stopped {
 		return
 	}
+
+	// Flush any deferred LRU promotions while we hold the write lock.
+	c.drainPromotions()
 
 	bucket := c.data[hash]
 
@@ -304,6 +382,10 @@ func (c *InfoCache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// Discard any deferred LRU promotions — the entire LRU list is about
+	// to be replaced so promoting into the old list is pointless.
+	c.drainPromotions()
+
 	// Release all retained elements
 	for _, bucket := range c.data {
 		for _, cached := range bucket {
@@ -330,6 +412,9 @@ func (c *InfoCache) Stop() {
 		return
 	}
 
+	// Discard any deferred LRU promotions before tearing down.
+	c.drainPromotions()
+
 	close(c.stopCh)
 	c.stopped = true
 
@@ -345,6 +430,19 @@ func (c *InfoCache) Stop() {
 	c.expirationQueue = nil
 
 	c.logger.Debug("Cache stopped")
+}
+
+// drainPromotions flushes all pending LRU promotions from the promotion
+// buffer. Must be called while c.mu is held for writing.
+func (c *InfoCache) drainPromotions() {
+	for {
+		select {
+		case node := <-c.promotionBuf:
+			c.lru.MoveToFront(node)
+		default:
+			return
+		}
+	}
 }
 
 // cleanupLoop runs a periodic cleanup process to remove expired cache entries.
@@ -377,6 +475,9 @@ func (c *InfoCache) cleanup() {
 	if c.stopped || c.lru == nil {
 		return
 	}
+
+	// Flush any deferred LRU promotions while we hold the write lock.
+	c.drainPromotions()
 
 	now := time.Now()
 	expiredCount := 0

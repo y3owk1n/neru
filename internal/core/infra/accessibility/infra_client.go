@@ -14,15 +14,26 @@ import (
 // InfraAXClient implements AXClient using the infrastructure layer.
 type InfraAXClient struct {
 	logger *zap.Logger
+	cache  *InfoCache
 }
 
 // NewInfraAXClient creates a new infrastructure-based AXClient.
-func NewInfraAXClient(logger *zap.Logger) *InfraAXClient {
+// If cache is nil, a default InfoCache is created automatically.
+func NewInfraAXClient(logger *zap.Logger, cache *InfoCache) *InfraAXClient {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	return &InfraAXClient{logger: logger}
+	if cache == nil {
+		cache = NewInfoCache(logger)
+	}
+
+	return &InfraAXClient{logger: logger, cache: cache}
+}
+
+// Cache returns the InfoCache used by this client.
+func (c *InfraAXClient) Cache() *InfoCache {
+	return c.cache
 }
 
 // FrontmostWindow returns the frontmost window.
@@ -66,12 +77,8 @@ func (c *InfraAXClient) ClickableNodes(
 		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
 	}
 
-	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(c.logger)
-	})
-
 	opts := DefaultTreeOptions(c.logger)
-	opts.SetCache(globalCache)
+	opts.SetCache(c.cache)
 	opts.SetIncludeOutOfBounds(includeOffscreen)
 
 	if cfg := config.Global(); cfg != nil {
@@ -96,7 +103,7 @@ func (c *InfraAXClient) ClickableNodes(
 		}
 	}
 
-	clickableNodes := tree.FindClickableElements(allowedRoles)
+	clickableNodes := tree.FindClickableElements(allowedRoles, c.cache)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
@@ -105,7 +112,7 @@ func (c *InfraAXClient) ClickableNodes(
 	clickableNodesResult := make([]AXNode, len(clickableNodes))
 
 	for i, node := range clickableNodes {
-		clickableNodesResult[i] = &InfraNode{node: node}
+		clickableNodesResult[i] = &InfraNode{node: node, cache: c.cache}
 	}
 
 	return clickableNodesResult, nil
@@ -123,7 +130,7 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 
 // MenuBarClickableElements returns clickable elements in the menu bar.
 func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
-	nodes, nodesErr := MenuBarClickableElements(c.logger)
+	nodes, nodesErr := MenuBarClickableElements(c.logger, c.cache)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,
@@ -134,7 +141,7 @@ func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
 
 	nodesResult := make([]AXNode, len(nodes))
 	for index, node := range nodes {
-		nodesResult[index] = &InfraNode{node: node}
+		nodesResult[index] = &InfraNode{node: node, cache: c.cache}
 	}
 
 	return nodesResult, nil
@@ -145,7 +152,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 ) ([]AXNode, error) {
-	nodes, nodesErr := ClickableElementsFromBundleID(bundleID, roles, c.logger)
+	nodes, nodesErr := ClickableElementsFromBundleID(bundleID, roles, c.logger, c.cache)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,
@@ -156,7 +163,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 
 	nodesResult := make([]AXNode, len(nodes))
 	for index, node := range nodes {
-		nodesResult[index] = &InfraNode{node: node}
+		nodesResult[index] = &InfraNode{node: node, cache: c.cache}
 	}
 
 	return nodesResult, nil
@@ -308,7 +315,8 @@ func (a *InfraApp) Info() (*AXAppInfo, error) {
 
 // InfraNode wraps an TreeNode.
 type InfraNode struct {
-	node *TreeNode
+	node  *TreeNode
+	cache *InfoCache
 }
 
 // ID returns the node ID.
@@ -371,7 +379,7 @@ func (n *InfraNode) IsClickable() bool {
 		return false
 	}
 
-	return n.node.Element().IsClickable(n.node.Info(), nil)
+	return n.node.Element().IsClickable(n.node.Info(), nil, n.cache)
 }
 
 // Release releases the underlying AXUIElementRef held by this node.

@@ -2,15 +2,9 @@ package accessibility
 
 import (
 	"image"
-	"sync"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
-)
-
-var (
-	globalCache *InfoCache
-	cacheOnce   sync.Once
 )
 
 func rectFromInfo(info *ElementInfo) image.Rectangle {
@@ -26,12 +20,8 @@ func rectFromInfo(info *ElementInfo) image.Rectangle {
 }
 
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
-func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
+func MenuBarClickableElements(logger *zap.Logger, cache *InfoCache) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
-
-	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(logger)
-	})
 
 	app := FocusedApplication()
 	if app == nil {
@@ -50,7 +40,7 @@ func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 	defer menubar.Release()
 
 	opts := DefaultTreeOptions(logger)
-	opts.SetCache(globalCache)
+	opts.SetCache(cache)
 
 	if cfg := config.Global(); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
@@ -82,7 +72,7 @@ func MenuBarClickableElements(logger *zap.Logger) ([]*TreeNode, error) {
 	// Add menubar specific role
 	allowedRoles["AXMenuBarItem"] = struct{}{}
 
-	elements := tree.FindClickableElements(allowedRoles)
+	elements := tree.FindClickableElements(allowedRoles, cache)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
@@ -98,14 +88,11 @@ func ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 	logger *zap.Logger,
+	cache *InfoCache,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for bundle ID",
 		zap.String("bundle_id", bundleID),
 		zap.Int("role_count", len(roles)))
-
-	cacheOnce.Do(func() {
-		globalCache = NewInfoCache(logger)
-	})
 
 	app := ApplicationByBundleID(bundleID)
 	if app == nil {
@@ -116,7 +103,7 @@ func ClickableElementsFromBundleID(
 	defer app.Release()
 
 	opts := DefaultTreeOptions(logger)
-	opts.SetCache(globalCache)
+	opts.SetCache(cache)
 	opts.SetIncludeOutOfBounds(true)
 
 	if cfg := config.Global(); cfg != nil {
@@ -147,7 +134,7 @@ func ClickableElementsFromBundleID(
 		}
 	}
 
-	elements := tree.FindClickableElements(allowedRoles)
+	elements := tree.FindClickableElements(allowedRoles, cache)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.

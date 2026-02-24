@@ -71,12 +71,14 @@ func initializeServicesAndAdapters(app *App) error {
 	app.metrics = metricsCollector
 
 	// Initialize adapters
-	accAdapter, overlayAdapter := initializeAdapters(
+	accAdapter, overlayAdapter, axCacheStop := initializeAdapters(
 		cfg,
 		logger,
 		app.overlayManager,
 		metricsCollector,
 	)
+
+	app.axCacheStop = axCacheStop
 
 	// Initialize services
 	hintService, gridService, actionService, scrollService, modeIndicatorService, err := initializeServices(
@@ -412,12 +414,19 @@ func cleanupInfrastructure(app *App) {
 		app.appWatcher = nil
 	}
 
-	// Note: overlayManager and accessibility don't need explicit cleanup here
-	// as they're handled by the main Cleanup() method
+	// Note: overlayManager doesn't need explicit cleanup here as it's handled
+	// by the main Cleanup() method. The accessibility cache is stopped via
+	// axCacheStop in cleanupServicesAndAdapters / Cleanup().
 }
 
 // cleanupServicesAndAdapters cleans up resources allocated during services initialization.
 func cleanupServicesAndAdapters(app *App) {
+	// Stop accessibility cache cleanup goroutine if initialisation failed partway
+	if app.axCacheStop != nil {
+		app.axCacheStop()
+		app.axCacheStop = nil
+	}
+
 	// Services are cleaned up by their respective Close methods when the app is properly initialized
 	// For partial cleanup, we just nil out the references
 	app.hintService = nil

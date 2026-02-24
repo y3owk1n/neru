@@ -247,8 +247,9 @@ func initializeRealAdapters(
 	// Initialize metrics collector
 	metricsCollector := appmetrics.NewCollector()
 
-	// Create infrastructure client
-	axClient := accessibility.NewInfraAXClient(logger)
+	// Create infrastructure client (nil cache = use default)
+	axClient := accessibility.NewInfraAXClient(logger, nil)
+	t.Cleanup(func() { axClient.Cache().Stop() })
 
 	// Create base accessibility adapter
 	baseAccessibilityAdapter := accessibility.NewAdapter(
