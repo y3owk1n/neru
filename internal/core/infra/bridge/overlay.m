@@ -33,6 +33,20 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	}
 	return self;
 }
+- (BOOL)isEqual:(id)object {
+	if (self == object)
+		return YES;
+	if (![object isKindOfClass:[HintItem class]])
+		return NO;
+	HintItem *other = (HintItem *)object;
+	return self.position.x == other.position.x && self.position.y == other.position.y;
+}
+- (NSUInteger)hash {
+	// Combine x and y into a single hash using bit manipulation
+	NSUInteger hx = [[NSNumber numberWithDouble:self.position.x] hash];
+	NSUInteger hy = [[NSNumber numberWithDouble:self.position.y] hash];
+	return hx ^ (hy * 31);
+}
 @end
 
 #pragma mark - GridCellItem Class
@@ -54,6 +68,22 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		_matchedPrefixLength = 0;
 	}
 	return self;
+}
+- (BOOL)isEqual:(id)object {
+	if (self == object)
+		return YES;
+	if (![object isKindOfClass:[GridCellItem class]])
+		return NO;
+	GridCellItem *other = (GridCellItem *)object;
+	return CGRectEqualToRect(self.bounds, other.bounds);
+}
+- (NSUInteger)hash {
+	// Combine bounds components into a single hash
+	NSUInteger hx = [[NSNumber numberWithDouble:self.bounds.origin.x] hash];
+	NSUInteger hy = [[NSNumber numberWithDouble:self.bounds.origin.y] hash];
+	NSUInteger hw = [[NSNumber numberWithDouble:self.bounds.size.width] hash];
+	NSUInteger hh = [[NSNumber numberWithDouble:self.bounds.size.height] hash];
+	return hx ^ (hy * 31) ^ (hw * 127) ^ (hh * 8191);
 }
 @end
 
