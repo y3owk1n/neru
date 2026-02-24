@@ -296,11 +296,21 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 			o.previousStyle = style
 			o.hintStateMu.Unlock()
 
-			o.logger.Debug("Hints incremental update successful")
+			if ce := o.logger.Check(
+				zap.DebugLevel,
+				"Hints incremental update successful",
+			); ce != nil {
+				ce.Write()
+			}
 
 			return nil
 		}
-		o.logger.Debug("Hints incremental update failed, falling back to full redraw")
+		if ce := o.logger.Check(
+			zap.DebugLevel,
+			"Hints incremental update failed, falling back to full redraw",
+		); ce != nil {
+			ce.Write()
+		}
 	}
 	tmpHints := hintDataPool.Get()
 	cHintsPtr, _ := tmpHints.(*[]C.HintData)
@@ -342,9 +352,11 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		}
 	}
 
-	o.logger.Debug("Hint match statistics",
-		zap.Int("total_hints", len(hints)),
-		zap.Int("matched_hints", matchedCount))
+	if ce := o.logger.Check(zap.DebugLevel, "Hint match statistics"); ce != nil {
+		ce.Write(
+			zap.Int("total_hints", len(hints)),
+			zap.Int("matched_hints", matchedCount))
+	}
 
 	// Use cached style strings to avoid repeated allocations
 	cachedStyle := o.styleCache.Get(func(s *overlayutil.CachedStyle) {
@@ -394,8 +406,9 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	o.previousStyle = style
 	o.hintStateMu.Unlock()
 
-	o.logger.Debug("Hints drawn successfully",
-		zap.Duration("duration", time.Since(start)))
+	if ce := o.logger.Check(zap.DebugLevel, "Hints drawn successfully"); ce != nil {
+		ce.Write(zap.Duration("duration", time.Since(start)))
+	}
 
 	return nil
 }
@@ -487,8 +500,9 @@ func (o *Overlay) updateMatchesIncremental(newInput string) {
 
 	C.NeruUpdateHintMatchPrefix(o.window, cPrefix)
 
-	o.logger.Debug("Incremental match update",
-		zap.String("new_input", newInput))
+	if ce := o.logger.Check(zap.DebugLevel, "Incremental match update"); ce != nil {
+		ce.Write(zap.String("new_input", newInput))
+	}
 }
 
 // drawHintsIncrementalStructural handles structural changes using the incremental C API.
@@ -621,9 +635,11 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		finalStyle,
 	)
 
-	o.logger.Debug("Incremental structural update",
-		zap.Int("hints_added", len(hintsToAdd)),
-		zap.Int("hints_removed", len(positionsToRemove)))
+	if ce := o.logger.Check(zap.DebugLevel, "Incremental structural update"); ce != nil {
+		ce.Write(
+			zap.Int("hints_added", len(hintsToAdd)),
+			zap.Int("hints_removed", len(positionsToRemove)))
+	}
 
 	return true
 }

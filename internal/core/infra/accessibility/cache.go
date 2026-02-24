@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"container/list"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -34,6 +35,20 @@ const (
 	// extreme concurrency, but no correctness impact).
 	promotionBufSize = 64
 )
+
+// cacheStats collects aggregate counters during cache operations.
+// All fields use atomic operations for goroutine safety.
+type cacheStats struct {
+	hits           atomic.Int64
+	misses         atomic.Int64
+	sets           atomic.Int64
+	updates        atomic.Int64
+	evictions      atomic.Int64
+	expiredRemoved atomic.Int64
+	hashErrors     atomic.Int64
+	cloneErrors    atomic.Int64
+	currentSize    atomic.Int64
+}
 
 // CachedInfo wraps ElementInfo with an expiration timestamp and LRU tracking for caching.
 type CachedInfo struct {
@@ -114,6 +129,7 @@ type InfoCache struct {
 	stopCh          chan struct{}
 	stopped         bool
 	logger          *zap.Logger
+	stats           *cacheStats
 
 	// promotionBuf collects deferred LRU promotions from the read-only
 	// Get() fast path. Entries are flushed to the LRU list the next time
@@ -140,6 +156,7 @@ func NewInfoCacheWithSize(maxSize int, logger *zap.Logger) *InfoCache {
 		maxSize:      maxSize,
 		stopCh:       make(chan struct{}),
 		logger:       logger,
+		stats:        &cacheStats{},
 		promotionBuf: make(chan *list.Element, promotionBufSize),
 	}
 
@@ -163,6 +180,11 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 
 	hash, err := elem.Hash()
 	if err != nil {
+		if c.stats != nil {
+			c.stats.hashErrors.Add(1)
+			c.stats.misses.Add(1)
+		}
+
 		return nil
 	}
 
@@ -172,12 +194,20 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	if c.stopped {
 		c.mu.RUnlock()
 
+		if c.stats != nil {
+			c.stats.misses.Add(1)
+		}
+
 		return nil
 	}
 
 	bucket, exists := c.data[hash]
 	if !exists {
 		c.mu.RUnlock()
+
+		if c.stats != nil {
+			c.stats.misses.Add(1)
+		}
 
 		return nil
 	}
@@ -211,10 +241,18 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	c.mu.RUnlock()
 	// Fast path: cache hit, not expired — return immediately.
 	if foundInfo != nil {
+		if c.stats != nil {
+			c.stats.hits.Add(1)
+		}
+
 		return foundInfo
 	}
 	// Fast path: no match at all.
 	if foundIdx == -1 && !foundExpired {
+		if c.stats != nil {
+			c.stats.misses.Add(1)
+		}
+
 		return nil
 	}
 	// --- Phase 2: write lock to remove the expired entry ---
@@ -222,6 +260,10 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	defer c.mu.Unlock()
 
 	if c.stopped {
+		if c.stats != nil {
+			c.stats.misses.Add(1)
+		}
+
 		return nil
 	}
 
@@ -233,6 +275,10 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	bucket, exists = c.data[hash]
 
 	if !exists {
+		if c.stats != nil {
+			c.stats.misses.Add(1)
+		}
+
 		return nil
 	}
 
@@ -252,6 +298,12 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 
 				cached.elementRef.Release()
 
+				if c.stats != nil {
+					c.stats.misses.Add(1)
+					c.stats.expiredRemoved.Add(1)
+					c.stats.currentSize.Store(int64(c.lru.Len()))
+				}
+
 				return nil
 			}
 
@@ -260,8 +312,16 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 			// Promote in LRU since we already hold the write lock.
 			c.lru.MoveToFront(cached.elementNode)
 
+			if c.stats != nil {
+				c.stats.hits.Add(1)
+			}
+
 			return cached.info
 		}
+	}
+
+	if c.stats != nil {
+		c.stats.misses.Add(1)
 	}
 
 	return nil
@@ -275,7 +335,9 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 
 	hash, err := elem.Hash()
 	if err != nil {
-		c.logger.Debug("Failed to get element hash for caching", zap.Error(err))
+		if c.stats != nil {
+			c.stats.hashErrors.Add(1)
+		}
 
 		return
 	}
@@ -312,10 +374,9 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 				heap.Push(&c.expirationQueue, cached)
 			}
 
-			c.logger.Debug("Updated cached element info",
-				zap.Uint64("hash", hash),
-				zap.String("role", info.Role()),
-				zap.String("title", info.Title()))
+			if c.stats != nil {
+				c.stats.updates.Add(1)
+			}
 
 			return
 		}
@@ -330,7 +391,9 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 	// Clone the element to retain it for the cache
 	clonedElem, cloneErr := elem.Clone()
 	if cloneErr != nil {
-		c.logger.Debug("Failed to clone element for caching", zap.Error(cloneErr))
+		if c.stats != nil {
+			c.stats.cloneErrors.Add(1)
+		}
 
 		return
 	}
@@ -357,12 +420,10 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 	// Add to bucket
 	c.data[hash] = append(c.data[hash], cachedInfo)
 
-	c.logger.Debug("Caching element info",
-		zap.Uint64("hash", hash),
-		zap.String("role", info.Role()),
-		zap.String("title", info.Title()),
-		zap.Duration("ttl", ttl),
-		zap.Int("cache_size", c.lru.Len()))
+	if c.stats != nil {
+		c.stats.sets.Add(1)
+		c.stats.currentSize.Store(int64(c.lru.Len()))
+	}
 }
 
 // Size returns the current number of entries in the cache.
@@ -375,6 +436,31 @@ func (c *InfoCache) Size() int {
 	}
 
 	return c.lru.Len()
+}
+
+// Stats returns the current cache statistics.
+func (c *InfoCache) Stats() *cacheStats {
+	return c.stats
+}
+
+// EmitStats logs aggregate cache statistics at debug level.
+func (c *InfoCache) EmitStats() {
+	if c.stats == nil {
+		return
+	}
+
+	if ce := c.logger.Check(zap.DebugLevel, "Cache statistics"); ce != nil {
+		ce.Write(
+			zap.Int64("hits", c.stats.hits.Load()),
+			zap.Int64("misses", c.stats.misses.Load()),
+			zap.Int64("sets", c.stats.sets.Load()),
+			zap.Int64("updates", c.stats.updates.Load()),
+			zap.Int64("evictions", c.stats.evictions.Load()),
+			zap.Int64("expired_removed", c.stats.expiredRemoved.Load()),
+			zap.Int64("hash_errors", c.stats.hashErrors.Load()),
+			zap.Int64("clone_errors", c.stats.cloneErrors.Load()),
+			zap.Int64("current_size", c.stats.currentSize.Load()))
+	}
 }
 
 // Clear removes all entries from the cache.
@@ -400,7 +486,13 @@ func (c *InfoCache) Clear() {
 	c.lru = list.New()
 	c.expirationQueue = nil
 
-	c.logger.Debug("Cache cleared")
+	if c.stats != nil {
+		c.stats.currentSize.Store(0)
+	}
+
+	if ce := c.logger.Check(zap.DebugLevel, "Cache cleared"); ce != nil {
+		ce.Write()
+	}
 }
 
 // Stop terminates the cache cleanup goroutine and releases resources.
@@ -429,7 +521,9 @@ func (c *InfoCache) Stop() {
 	c.lru = nil
 	c.expirationQueue = nil
 
-	c.logger.Debug("Cache stopped")
+	if ce := c.logger.Check(zap.DebugLevel, "Cache stopped"); ce != nil {
+		ce.Write()
+	}
 }
 
 // drainPromotions flushes all pending LRU promotions from the promotion
@@ -460,7 +554,9 @@ func (c *InfoCache) cleanupLoop() {
 		case <-ticker.C:
 			c.cleanup()
 		case <-c.stopCh:
-			c.logger.Debug("Cache cleanup loop stopped")
+			if ce := c.logger.Check(zap.DebugLevel, "Cache cleanup loop stopped"); ce != nil {
+				ce.Write()
+			}
 
 			return
 		}
@@ -469,68 +565,65 @@ func (c *InfoCache) cleanupLoop() {
 
 // cleanup removes all expired entries from the cache using the expiration heap.
 func (c *InfoCache) cleanup() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	func() {
+		c.mu.Lock()
+		defer c.mu.Unlock()
 
-	if c.stopped || c.lru == nil {
-		return
-	}
-
-	// Flush any deferred LRU promotions while we hold the write lock.
-	c.drainPromotions()
-
-	now := time.Now()
-	expiredCount := 0
-
-	// Use min-heap to efficiently find and remove expired items
-	// Pop items whose expiration time has passed
-	for c.expirationQueue.Len() > 0 {
-		cached := c.expirationQueue[0] // Peek at earliest expiration
-
-		// If already removed via LRU eviction, pop and continue (lazy cleanup)
-		if cached.removed {
-			heap.Pop(&c.expirationQueue)
-
-			continue
+		if c.stopped || c.lru == nil {
+			return
 		}
+		// Flush any deferred LRU promotions while we hold the write lock.
+		c.drainPromotions()
 
-		// If not expired yet, we're done (heap is sorted by expiration)
-		if !now.After(cached.expiresAt) {
-			break
-		}
+		now := time.Now()
+		expiredCount := 0
 
-		// Pop the expired item from heap
-		heap.Pop(&c.expirationQueue)
+		// Use min-heap to efficiently find and remove expired items
+		// Pop items whose expiration time has passed
+		for c.expirationQueue.Len() > 0 {
+			cached := c.expirationQueue[0] // Peek at earliest expiration
+			// If already removed via LRU eviction, pop and continue (lazy cleanup)
+			if cached.removed {
+				heap.Pop(&c.expirationQueue)
 
-		// Remove from bucket
-		bucket := c.data[cached.key]
-		for itemIdx, item := range bucket {
-			if item == cached {
-				c.removeFromBucket(cached.key, itemIdx)
-
+				continue
+			}
+			// If not expired yet, we're done (heap is sorted by expiration)
+			if !now.After(cached.expiresAt) {
 				break
 			}
+			// Pop the expired item from heap
+			heap.Pop(&c.expirationQueue)
+
+			// Remove from bucket
+			bucket := c.data[cached.key]
+			for itemIdx, item := range bucket {
+				if item == cached {
+					c.removeFromBucket(cached.key, itemIdx)
+
+					break
+				}
+			}
+			// Remove from LRU list
+			if cached.elementNode != nil {
+				c.lru.Remove(cached.elementNode)
+			}
+			// Release element reference
+			cached.elementRef.Release()
+			// Mark as removed to prevent double-Release from duplicate heap entries
+			cached.removed = true
+			expiredCount++
 		}
 
-		// Remove from LRU list
-		if cached.elementNode != nil {
-			c.lru.Remove(cached.elementNode)
+		if expiredCount > 0 && c.stats != nil {
+			c.stats.expiredRemoved.Add(int64(expiredCount))
+			c.stats.currentSize.Store(int64(c.lru.Len()))
 		}
+	}()
 
-		// Release element reference
-		cached.elementRef.Release()
-
-		// Mark as removed to prevent double-Release from duplicate heap entries
-		cached.removed = true
-
-		expiredCount++
-	}
-
-	if expiredCount > 0 {
-		c.logger.Debug("Cache cleanup completed",
-			zap.Int("removed_entries", expiredCount),
-			zap.Int("remaining_entries", c.lru.Len()))
-	}
+	// Always emit stats outside the lock regardless of whether any
+	// entries expired in this cycle.
+	c.EmitStats()
 }
 
 // removeFromBucket removes an item from a bucket at index i.
@@ -599,8 +692,8 @@ func (c *InfoCache) evictLRU() {
 	c.lru.Remove(lruElement)
 	cachedInfo.elementRef.Release()
 
-	c.logger.Debug("Evicted LRU cache entry",
-		zap.Uint64("hash", hash),
-		zap.String("role", cachedInfo.info.Role()),
-		zap.String("title", cachedInfo.info.Title()))
+	if c.stats != nil {
+		c.stats.evictions.Add(1)
+		c.stats.currentSize.Store(int64(c.lru.Len()))
+	}
 }
