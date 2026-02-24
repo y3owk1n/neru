@@ -1,6 +1,7 @@
 package accessibility
 
 import (
+	"container/heap"
 	"container/list"
 	"sync"
 	"time"
@@ -35,6 +36,35 @@ type CachedInfo struct {
 	key         uint64
 	elementRef  *Element      // Retained reference for equality checks
 	elementNode *list.Element // For LRU tracking
+	removed     bool          // Marked as removed from cache (lazy heap cleanup)
+}
+
+// expirationHeap implements a min-heap ordered by expiresAt for efficient expired entry removal.
+type expirationHeap []*CachedInfo
+
+func (h *expirationHeap) Len() int { return len(*h) }
+
+func (h *expirationHeap) Less(i, j int) bool { return (*h)[i].expiresAt.Before((*h)[j].expiresAt) }
+
+func (h *expirationHeap) Swap(i, j int) { (*h)[i], (*h)[j] = (*h)[j], (*h)[i] }
+
+func (h *expirationHeap) Push(x any) {
+	y, ok := x.(*CachedInfo)
+	if !ok {
+		return
+	}
+
+	*h = append(*h, y)
+}
+
+func (h *expirationHeap) Pop() any {
+	old := *h
+	n := len(old)
+	item := old[n-1]
+	old[n-1] = nil
+	*h = old[0 : n-1]
+
+	return item
 }
 
 // staticRoles defines roles that should use longer (static) TTL.
@@ -67,14 +97,15 @@ func isStaticElement(info *ElementInfo) bool {
 
 // InfoCache implements a thread-safe time-to-live cache for element information.
 type InfoCache struct {
-	mu      sync.RWMutex
-	data    map[uint64][]*CachedInfo // Bucket for hash collisions
-	lru     *list.List               // For LRU eviction
-	maxSize int                      // Maximum cache size (0 = unlimited)
-	ttl     time.Duration
-	stopCh  chan struct{}
-	stopped bool
-	logger  *zap.Logger
+	mu              sync.RWMutex
+	data            map[uint64][]*CachedInfo // Bucket for hash collisions
+	lru             *list.List               // For LRU eviction
+	expirationQueue expirationHeap           // Min-heap ordered by expiresAt for cleanup
+	maxSize         int                      // Maximum cache size (0 = unlimited)
+	ttl             time.Duration
+	stopCh          chan struct{}
+	stopped         bool
+	logger          *zap.Logger
 }
 
 // NewInfoCache initializes a new cache with the specified time-to-live duration.
@@ -123,12 +154,20 @@ func (c *InfoCache) Get(elem *Element) *ElementInfo {
 	}
 
 	// Iterate bucket to find exact match
-	for i, cached := range bucket {
+	for idx, cached := range bucket {
 		// Use Equal to verify it's the same underlying object
 		if elem.Equal(cached.elementRef) {
+			// Check if removed via LRU eviction (lazy heap cleanup)
+			if cached.removed {
+				return nil
+			}
+
 			if time.Now().After(cached.expiresAt) {
 				// Remove expired entry from bucket
-				c.removeFromBucket(hash, i)
+				c.removeFromBucket(hash, idx)
+
+				// Mark as removed for lazy heap cleanup
+				cached.removed = true
 
 				// Remove from LRU and release
 				if cached.elementNode != nil {
@@ -173,7 +212,9 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 		if elem.Equal(cached.elementRef) {
 			cached.info = info
 			cached.expiresAt = time.Now().Add(c.getTTL(info))
+			cached.removed = false
 			c.lru.MoveToFront(cached.elementNode)
+			heap.Push(&c.expirationQueue, cached)
 			c.logger.Debug("Updated cached element info",
 				zap.Uint64("hash", hash),
 				zap.String("role", info.Role()),
@@ -211,6 +252,9 @@ func (c *InfoCache) Set(elem *Element, info *ElementInfo) {
 
 	// Add to LRU list (front = most recently used)
 	cachedInfo.elementNode = c.lru.PushFront(cachedInfo)
+
+	// Add to expiration heap for efficient cleanup
+	heap.Push(&c.expirationQueue, cachedInfo)
 
 	// Add to bucket
 	c.data[hash] = append(c.data[hash], cachedInfo)
@@ -291,7 +335,7 @@ func (c *InfoCache) cleanupLoop() {
 	}
 }
 
-// cleanup removes all expired entries from the cache.
+// cleanup removes all expired entries from the cache using the expiration heap.
 func (c *InfoCache) cleanup() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -303,42 +347,45 @@ func (c *InfoCache) cleanup() {
 	now := time.Now()
 	expiredCount := 0
 
-	// Walk LRU from back (oldest) to find expired items
-	// This optimization assumes older items are more likely to be expired,
-	// though TTL varies by role.
-	// A full scan is safer for correctness given varying TTLs.
+	// Use min-heap to efficiently find and remove expired items
+	// Pop items whose expiration time has passed
+	for c.expirationQueue.Len() > 0 {
+		cached := c.expirationQueue[0] // Peek at earliest expiration
 
-	for element := c.lru.Back(); element != nil; {
-		cached, ok := element.Value.(*CachedInfo)
-		if !ok {
-			// Should ensure we iterate correctly even if type is wrong, but safe to skip or log
-			element = element.Prev()
+		// If already removed via LRU eviction, pop and continue (lazy cleanup)
+		if cached.removed {
+			heap.Pop(&c.expirationQueue)
 
 			continue
 		}
 
-		prev := element.Prev() // Save prev since we might remove element
-
-		if now.After(cached.expiresAt) {
-			// Found expired item
-			bucket := c.data[cached.key]
-
-			// Find and remove from bucket
-			for i, item := range bucket {
-				if item == cached {
-					c.removeFromBucket(cached.key, i)
-
-					break
-				}
-			}
-
-			c.lru.Remove(element)
-			cached.elementRef.Release()
-
-			expiredCount++
+		// If not expired yet, we're done (heap is sorted by expiration)
+		if !now.After(cached.expiresAt) {
+			break
 		}
 
-		element = prev
+		// Pop the expired item from heap
+		heap.Pop(&c.expirationQueue)
+
+		// Remove from bucket
+		bucket := c.data[cached.key]
+		for itemIdx, item := range bucket {
+			if item == cached {
+				c.removeFromBucket(cached.key, itemIdx)
+
+				break
+			}
+		}
+
+		// Remove from LRU list
+		if cached.elementNode != nil {
+			c.lru.Remove(cached.elementNode)
+		}
+
+		// Release element reference
+		cached.elementRef.Release()
+
+		expiredCount++
 	}
 
 	if expiredCount > 0 {
@@ -391,6 +438,9 @@ func (c *InfoCache) evictLRU() {
 
 		return
 	}
+
+	// Mark as removed for lazy heap cleanup
+	cachedInfo.removed = true
 
 	// Remove from bucket
 	hash := cachedInfo.key
