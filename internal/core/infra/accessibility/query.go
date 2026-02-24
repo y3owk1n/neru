@@ -2,16 +2,17 @@ package accessibility
 
 import (
 	"image"
+	"sync/atomic"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
 )
 
-// globalCache is the package-level cache used by Element.Children and
+// globalCachePtr is the package-level cache used by Element.Children and
 // Element.IsClickable when no cache is threaded through TreeOptions.
 // It is set by SetGlobalCache and should be initialized once at startup
-// via InfraAXClient construction.
-var globalCache *InfoCache
+// via InfraAXClient construction. Access is synchronized via atomic.Pointer.
+var globalCachePtr atomic.Pointer[InfoCache]
 
 func rectFromInfo(info *ElementInfo) image.Rectangle {
 	pos := info.Position()
@@ -30,7 +31,15 @@ func rectFromInfo(info *ElementInfo) image.Rectangle {
 // Call this once during initialisation; in tests, call it with a fresh cache
 // to reset state between runs.
 func SetGlobalCache(cache *InfoCache) {
-	globalCache = cache
+	if old := globalCachePtr.Swap(cache); old != nil {
+		old.Stop()
+	}
+}
+
+// getGlobalCache returns the current package-level cache. It is safe to call
+// concurrently from any goroutine.
+func getGlobalCache() *InfoCache {
+	return globalCachePtr.Load()
 }
 
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.

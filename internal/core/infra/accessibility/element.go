@@ -253,8 +253,8 @@ func (e *Element) Children() ([]*Element, error) {
 	var rawChildren unsafe.Pointer
 
 	var info *ElementInfo
-	if globalCache != nil {
-		info = globalCache.Get(e)
+	if gc := getGlobalCache(); gc != nil {
+		info = gc.Get(e)
 	}
 
 	if info == nil {
@@ -267,8 +267,8 @@ func (e *Element) Children() ([]*Element, error) {
 				"failed to get element info",
 			)
 		}
-		if globalCache != nil {
-			globalCache.Set(e, info)
+		if gc := getGlobalCache(); gc != nil {
+			gc.Set(e, info)
 		}
 	}
 
@@ -698,8 +698,8 @@ func (e *Element) IsClickable(info *ElementInfo, allowedRoles map[string]struct{
 	if info == nil {
 		var infoErr error
 		// Try cache first if available
-		if globalCache != nil {
-			info = globalCache.Get(e)
+		if gc := getGlobalCache(); gc != nil {
+			info = gc.Get(e)
 		}
 
 		if info == nil {
@@ -707,8 +707,8 @@ func (e *Element) IsClickable(info *ElementInfo, allowedRoles map[string]struct{
 			if infoErr != nil {
 				return false
 			}
-			if globalCache != nil {
-				globalCache.Set(e, info)
+			if gc := getGlobalCache(); gc != nil {
+				gc.Set(e, info)
 			}
 		}
 	}
