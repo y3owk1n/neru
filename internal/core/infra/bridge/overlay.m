@@ -1067,8 +1067,8 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 
 				HintItem *existingHint = hintsByPosition[key];
 				if (existingHint) {
-					// Replace existing hint
-					NSUInteger index = [controller.overlayView.hints indexOfObject:existingHint];
+					// Replace existing hint (use identity lookup since the map stores the same pointers)
+					NSUInteger index = [controller.overlayView.hints indexOfObjectIdenticalTo:existingHint];
 					if (index != NSNotFound) {
 						controller.overlayView.hints[index] = newHintItem;
 					}
@@ -1410,8 +1410,8 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 
 				GridCellItem *existingCell = cellsByBounds[key];
 				if (existingCell) {
-					// Replace existing cell
-					NSUInteger index = [controller.overlayView.gridCells indexOfObject:existingCell];
+					// Replace existing cell (use identity lookup since the map stores the same pointers)
+					NSUInteger index = [controller.overlayView.gridCells indexOfObjectIdenticalTo:existingCell];
 					if (index != NSNotFound) {
 						controller.overlayView.gridCells[index] = newCellItem;
 					}
