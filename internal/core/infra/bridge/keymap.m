@@ -6,6 +6,7 @@
 //
 
 #import "keymap.h"
+#import "eventtap.h"
 #include <stdatomic.h>
 
 #pragma mark - Static Data
@@ -532,6 +533,7 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 
 	gLayoutChangeDebounceBlock = dispatch_block_create(0, ^{
 		buildLayoutMaps();
+		rebuildEventTapHotkeyLookup();
 		gLayoutChangeDebounceBlock = nil;
 	});
 

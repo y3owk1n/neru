@@ -46,4 +46,8 @@ void destroyEventTap(EventTap tap);
 /// @param count Number of hotkeys
 void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count);
 
+/// Rebuild the event tap hotkey lookup table from stored hotkey strings.
+/// Called after keyboard layout changes to re-resolve key names to keycodes.
+void rebuildEventTapHotkeyLookup(void);
+
 #endif // EVENTTAP_H

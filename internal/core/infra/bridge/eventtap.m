@@ -17,10 +17,14 @@ typedef struct {
 	EventTapCallback callback;                       ///< Callback function
 	void *userData;                                  ///< User data pointer
 	NSMutableDictionary *__strong hotkeyLookup;      ///< Hotkey lookup table: @(lookupKey) -> @YES
+	NSArray<NSString *> *__strong hotkeyStrings;     ///< Raw hotkey strings for rebuild on layout change
 	dispatch_queue_t __strong accessQueue;           ///< Thread-safe access queue
 	dispatch_block_t __strong pendingEnableBlock;    ///< Pending enable block (inner delayed block)
 	dispatch_block_t __strong pendingAddSourceBlock; ///< Pending add source block
 } EventTapContext;
+
+/// Global event tap context for layout-change rebuild (single instance expected)
+static EventTapContext *gEventTapContext = nil;
 
 static inline NSUInteger hotkeyLookupKey(CGKeyCode keyCode, CGEventFlags flags) {
 	uint8_t modifiers = 0;
@@ -36,6 +40,42 @@ static inline NSUInteger hotkeyLookupKey(CGKeyCode keyCode, CGEventFlags flags) 
 }
 
 #pragma mark - Helper Functions
+
+// Forward declaration for use in buildHotkeyLookupFromStrings
+static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uint8_t *outModifiers);
+
+/// Build a lookup dictionary from an array of hotkey strings.
+/// Each valid hotkey is parsed and its packed (keyCode, modifiers) key is mapped to @YES.
+static NSDictionary *buildHotkeyLookupFromStrings(NSArray<NSString *> *strings) {
+	NSMutableDictionary *lookup = [[NSMutableDictionary alloc] initWithCapacity:strings.count];
+	for (NSString *hotkeyString in strings) {
+		CGKeyCode keyCode;
+		uint8_t modifiers;
+		if (parseHotkeyString(hotkeyString, &keyCode, &modifiers)) {
+			NSUInteger lookupKey = hotkeyLookupKey(keyCode, (modifiers & (1 << 0) ? kCGEventFlagMaskCommand : 0) |
+			                                                    (modifiers & (1 << 1) ? kCGEventFlagMaskShift : 0) |
+			                                                    (modifiers & (1 << 2) ? kCGEventFlagMaskAlternate : 0) |
+			                                                    (modifiers & (1 << 3) ? kCGEventFlagMaskControl : 0));
+			lookup[@(lookupKey)] = @YES;
+		}
+	}
+	return lookup;
+}
+/// Rebuild the hotkey lookup table from stored hotkey strings.
+/// Called after keyboard layout changes to re-resolve key names to keycodes.
+/// Must be called on the main thread (same as handleKeyboardLayoutChanged).
+void rebuildEventTapHotkeyLookup(void) {
+	EventTapContext *context = gEventTapContext;
+	if (!context)
+		return;
+	dispatch_sync(context->accessQueue, ^{
+		if (!context->hotkeyStrings || context->hotkeyStrings.count == 0)
+			return;
+		NSDictionary *newLookup = buildHotkeyLookupFromStrings(context->hotkeyStrings);
+		[context->hotkeyLookup removeAllObjects];
+		[context->hotkeyLookup addEntriesFromDictionary:newLookup];
+	});
+}
 
 static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uint8_t *outModifiers) {
 	if (!hotkeyString || [hotkeyString length] == 0) {
@@ -238,7 +278,11 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 
 	// Initialize with ARC-compatible dictionary
 	context->hotkeyLookup = [[NSMutableDictionary alloc] init];
+	context->hotkeyStrings = nil;
 	context->accessQueue = dispatch_queue_create("com.neru.eventtap", DISPATCH_QUEUE_SERIAL);
+
+	// Store global reference for layout-change rebuild
+	gEventTapContext = context;
 	context->pendingEnableBlock = nil;
 	context->pendingAddSourceBlock = nil;
 
@@ -248,7 +292,9 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	                                     eventTapCallback, context);
 
 	if (!context->eventTap) {
+		gEventTapContext = nil;
 		context->hotkeyLookup = nil;
+		context->hotkeyStrings = nil;
 		context->accessQueue = nil;
 		free(context);
 		return NULL;
@@ -291,22 +337,19 @@ void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count) {
 	EventTapContext *context = (EventTapContext *)tap;
 
 	@autoreleasepool {
-		NSMutableDictionary *newLookup = [[NSMutableDictionary alloc] initWithCapacity:count];
+		NSMutableArray<NSString *> *newStrings = [NSMutableArray arrayWithCapacity:count];
 
 		for (int i = 0; i < count; i++) {
 			if (hotkeys[i] && strlen(hotkeys[i]) > 0) {
-				NSString *hotkeyString = [NSString stringWithUTF8String:hotkeys[i]];
-				CGKeyCode keyCode;
-				uint8_t modifiers;
-				if (parseHotkeyString(hotkeyString, &keyCode, &modifiers)) {
-					NSUInteger lookupKey = (keyCode << 4) | modifiers;
-					newLookup[@(lookupKey)] = @YES;
-				}
+				[newStrings addObject:[NSString stringWithUTF8String:hotkeys[i]]];
 			}
 		}
 
+		NSDictionary *newLookup = buildHotkeyLookupFromStrings(newStrings);
+
 		// Thread-safe replacement
 		dispatch_sync(context->accessQueue, ^{
+			context->hotkeyStrings = [newStrings copy];
 			[context->hotkeyLookup removeAllObjects];
 			[context->hotkeyLookup addEntriesFromDictionary:newLookup];
 		});
@@ -400,8 +443,13 @@ void destroyEventTap(EventTap tap) {
 			context->runLoopSource = NULL;
 		}
 
+		// Clear global reference before freeing
+		if (gEventTapContext == context)
+			gEventTapContext = nil;
+
 		// Clean up hotkey lookup and queue
 		context->hotkeyLookup = nil;          // ARC will handle deallocation
+		context->hotkeyStrings = nil;         // ARC will handle deallocation
 		context->accessQueue = nil;           // ARC will handle deallocation
 		context->pendingEnableBlock = nil;    // ARC will handle deallocation
 		context->pendingAddSourceBlock = nil; // ARC will handle deallocation
