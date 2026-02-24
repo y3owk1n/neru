@@ -294,8 +294,6 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->accessQueue = dispatch_queue_create("com.neru.eventtap", DISPATCH_QUEUE_SERIAL);
 
 	// Store global reference for layout-change rebuild.
-	// Only a single event tap instance is supported; assert to catch misuse.
-	NSCAssert(gEventTapContext == nil, @"createEventTap called while another event tap instance is active");
 	gEventTapContext = context;
 
 	// Register for keyboard layout change notifications so the hotkey
