@@ -54,13 +54,9 @@ func (h *expirationHeap) Swap(i, j int) {
 }
 
 func (h *expirationHeap) Push(x any) {
-	y, ok := x.(*CachedInfo) //nolint:varnamelen
-	if !ok {
-		return
-	}
-
-	y.heapIndex = len(*h)
-	*h = append(*h, y)
+	item := x.(*CachedInfo) //nolint:forcetypeassert
+	item.heapIndex = len(*h)
+	*h = append(*h, item)
 }
 
 func (h *expirationHeap) Pop() any {
