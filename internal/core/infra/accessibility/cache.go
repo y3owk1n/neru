@@ -337,7 +337,10 @@ func (c *InfoCache) Stop() {
 
 // cleanupLoop runs a periodic cleanup process to remove expired cache entries.
 func (c *InfoCache) cleanupLoop() {
-	ticker := time.NewTicker(c.ttl / CacheCleanupDivisor) // Cleanup at half the TTL interval
+	// Use DynamicElementTTL (shortest per-role TTL) to ensure dynamic elements
+	// holding Objective-C references are released promptly after expiration.
+	ticker := time.NewTicker(DynamicElementTTL / CacheCleanupDivisor)
+
 	defer ticker.Stop()
 
 	for {
