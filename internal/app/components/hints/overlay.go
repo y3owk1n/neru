@@ -11,7 +11,6 @@ extern void resizeHintCompletionCallback(void* context);
 import "C"
 
 import (
-	"fmt"
 	"image"
 	"sync"
 	"time"
@@ -557,13 +556,6 @@ func (o *Overlay) hintsAreStructurallyEqual(hintsA, hintsB []*Hint) bool {
 	return true
 }
 
-// hintPositionKey generates a unique key for a hint based on its position.
-func (o *Overlay) hintPositionKey(hint *Hint) string {
-	pos := hint.Position()
-
-	return fmt.Sprintf("%d,%d", pos.X, pos.Y)
-}
-
 // updateMatchesIncremental updates match states incrementally when input changes.
 func (o *Overlay) updateMatchesIncremental(newInput string) {
 	cPrefix := C.CString(newInput)
@@ -587,23 +579,19 @@ func (o *Overlay) drawHintsIncrementalStructural(
 	showArrow bool,
 ) bool {
 	// Build maps for efficient lookup
-	previousHintMap := make(map[string]*Hint)
+	previousHintMap := make(map[image.Point]*Hint, len(previousHints))
 	for _, hint := range previousHints {
-		key := o.hintPositionKey(hint)
-		previousHintMap[key] = hint
+		previousHintMap[hint.Position()] = hint
 	}
-
-	currentHintMap := make(map[string]*Hint)
+	currentHintMap := make(map[image.Point]*Hint, len(currentHints))
 	for _, hint := range currentHints {
-		key := o.hintPositionKey(hint)
-		currentHintMap[key] = hint
+		currentHintMap[hint.Position()] = hint
 	}
 
 	// Find hints to add/update (in current but not in previous, or changed)
 	var hintsToAdd []*Hint
 	for _, hint := range currentHints {
-		key := o.hintPositionKey(hint)
-		prevHint, exists := previousHintMap[key]
+		prevHint, exists := previousHintMap[hint.Position()]
 		if !exists { //nolint:gocritic
 			// New hint
 			hintsToAdd = append(hintsToAdd, hint)
@@ -619,8 +607,7 @@ func (o *Overlay) drawHintsIncrementalStructural(
 	// Find hints to remove (in previous but not in current)
 	var positionsToRemove []image.Point
 	for _, hint := range previousHints {
-		key := o.hintPositionKey(hint)
-		if _, exists := currentHintMap[key]; !exists {
+		if _, exists := currentHintMap[hint.Position()]; !exists {
 			positionsToRemove = append(positionsToRemove, hint.Position())
 		}
 	}
