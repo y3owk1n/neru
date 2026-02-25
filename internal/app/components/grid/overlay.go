@@ -598,16 +598,10 @@ func (o *Overlay) drawGridIncrementalStructural(
 	currentCells := currentGrid.AllCells()
 	previousCells := previousGrid.AllCells()
 
-	// Build maps for efficient lookup
-	previousCellMap := make(map[string]*domainGrid.Cell)
-	for _, cell := range previousCells {
-		previousCellMap[cell.Coordinate()] = cell
-	}
-
-	currentCellMap := make(map[string]*domainGrid.Cell)
-	for _, cell := range currentCells {
-		currentCellMap[cell.Coordinate()] = cell
-	}
+	// Reuse the coordinate→cell index already built on the Grid domain object
+	// instead of allocating new maps on every structural diff.
+	previousCellMap := previousGrid.Index()
+	currentCellMap := currentGrid.Index()
 
 	// Find cells to add/update (in current but not in previous, or changed)
 	var cellsToAdd []*domainGrid.Cell

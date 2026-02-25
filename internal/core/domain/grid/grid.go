@@ -220,6 +220,8 @@ func NewGridWithLabels(
 			characters: uppercaseChars,
 			bounds:     bounds,
 			cells:      []*Cell{},
+			index:      make(map[string]*Cell),
+			prefixes:   make(map[string]bool),
 		}
 	}
 
@@ -387,7 +389,8 @@ func (g *Grid) Cells() []*Cell {
 	return g.cells
 }
 
-// Index returns the cell index map.
+// Index returns the coordinate→cell index built at construction time.
+// The returned map is shared internal state and must not be modified by callers.
 func (g *Grid) Index() map[string]*Cell {
 	return g.index
 }
