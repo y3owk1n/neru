@@ -1087,6 +1087,46 @@ static inline void free_hint_style_strings(const HintStyle *style) {
 		free((void *)style->borderColor);
 }
 
+/// Build GridCellItem array from C GridCell array.
+/// Safe to call from any thread (only creates ObjC objects from C data).
+/// @param cells Array of grid cell data
+/// @param count Number of cells
+/// @return Array of GridCellItem objects
+static NSMutableArray<GridCellItem *> *buildGridCellItems(GridCell *cells, int count) {
+	NSMutableArray<GridCellItem *> *cellItems = [NSMutableArray arrayWithCapacity:count];
+	for (int i = 0; i < count; i++) {
+		GridCell cell = cells[i];
+		GridCellItem *cellItem = [[GridCellItem alloc] init];
+		cellItem.label = cell.label ? @(cell.label) : @"";
+		cellItem.bounds = cell.bounds;
+		cellItem.isMatched = cell.isMatched ? YES : NO;
+		cellItem.isSubgrid = cell.isSubgrid ? YES : NO;
+		cellItem.matchedPrefixLength = cell.matchedPrefixLength;
+		[cellItems addObject:cellItem];
+	}
+	return cellItems;
+}
+
+/// Build HintItem array from C HintData array.
+/// Safe to call from any thread (only creates ObjC objects from C data).
+/// @param hints Array of hint data
+/// @param count Number of hints
+/// @param showArrow Whether hints should show an arrow
+/// @return Array of HintItem objects
+static NSMutableArray<HintItem *> *buildHintItems(HintData *hints, int count, BOOL showArrow) {
+	NSMutableArray<HintItem *> *hintItems = [NSMutableArray arrayWithCapacity:count];
+	for (int i = 0; i < count; i++) {
+		HintData hint = hints[i];
+		HintItem *hintItem = [[HintItem alloc] init];
+		hintItem.label = hint.label ? @(hint.label) : @"";
+		hintItem.position = hint.position;
+		hintItem.matchedPrefixLength = hint.matchedPrefixLength;
+		hintItem.showArrow = showArrow;
+		[hintItems addObject:hintItem];
+	}
+	return hintItems;
+}
+
 /// Draw hints
 /// @param window Overlay window handle
 /// @param hints Array of hint data
@@ -1098,33 +1138,15 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
+	// Build hint items upfront — safe from any thread
+	NSMutableArray<HintItem *> *hintItems = buildHintItems(hints, count, style.showArrow ? YES : NO);
+
 	if ([NSThread isMainThread]) {
 		[controller.overlayView.hints removeAllObjects];
 		[controller.overlayView applyStyle:style];
-
-		for (int i = 0; i < count; i++) {
-			HintData hint = hints[i];
-			HintItem *hintItem = [[HintItem alloc] init];
-			hintItem.label = hint.label ? @(hint.label) : @"";
-			hintItem.position = hint.position;
-			hintItem.matchedPrefixLength = hint.matchedPrefixLength;
-			hintItem.showArrow = style.showArrow ? YES : NO;
-			[controller.overlayView.hints addObject:hintItem];
-		}
-
+		[controller.overlayView.hints addObjectsFromArray:hintItems];
 		[controller.overlayView setNeedsDisplay:YES];
 	} else {
-		NSMutableArray<HintItem *> *hintItems = [NSMutableArray arrayWithCapacity:count];
-		for (int i = 0; i < count; i++) {
-			HintData hint = hints[i];
-			HintItem *hintItem = [[HintItem alloc] init];
-			hintItem.label = hint.label ? @(hint.label) : @"";
-			hintItem.position = hint.position;
-			hintItem.matchedPrefixLength = hint.matchedPrefixLength;
-			hintItem.showArrow = style.showArrow ? YES : NO;
-			[hintItems addObject:hintItem];
-		}
-
 		HintStyle styleCopy = {.fontSize = style.fontSize,
 		                       .borderRadius = style.borderRadius,
 		                       .borderWidth = style.borderWidth,
@@ -1200,16 +1222,7 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	// Build hint data arrays for hints to add/update
 	NSMutableArray<HintItem *> *hintItemsToAdd = nil;
 	if (hintsToAdd && addCount > 0) {
-		hintItemsToAdd = [NSMutableArray arrayWithCapacity:addCount];
-		for (int i = 0; i < addCount; i++) {
-			HintData hint = hintsToAdd[i];
-			HintItem *hintItem = [[HintItem alloc] init];
-			hintItem.label = hint.label ? @(hint.label) : @"";
-			hintItem.position = hint.position;
-			hintItem.matchedPrefixLength = hint.matchedPrefixLength;
-			hintItem.showArrow = style.showArrow ? YES : NO;
-			[hintItemsToAdd addObject:hintItem];
-		}
+		hintItemsToAdd = buildHintItems(hintsToAdd, addCount, style.showArrow ? YES : NO);
 	}
 
 	// Build positions array for hints to remove
@@ -1387,18 +1400,8 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-	// Build cell data array and copy all strings NOW
-	NSMutableArray<GridCellItem *> *cellItems = [NSMutableArray arrayWithCapacity:count];
-	for (int i = 0; i < count; i++) {
-		GridCell cell = cells[i];
-		GridCellItem *cellItem = [[GridCellItem alloc] init];
-		cellItem.label = cell.label ? @(cell.label) : @"";
-		cellItem.bounds = cell.bounds;
-		cellItem.isMatched = cell.isMatched ? YES : NO;
-		cellItem.isSubgrid = cell.isSubgrid ? YES : NO;
-		cellItem.matchedPrefixLength = cell.matchedPrefixLength;
-		[cellItems addObject:cellItem];
-	}
+	// Build cell data array upfront — safe from any thread
+	NSMutableArray<GridCellItem *> *cellItems = buildGridCellItems(cells, count);
 
 	// Copy all style properties NOW (before async block)
 	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
@@ -1601,17 +1604,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 	// Build cell data arrays for cells to add/update
 	NSMutableArray<GridCellItem *> *cellItemsToAdd = nil;
 	if (cellsToAdd && addCount > 0) {
-		cellItemsToAdd = [NSMutableArray arrayWithCapacity:addCount];
-		for (int i = 0; i < addCount; i++) {
-			GridCell cell = cellsToAdd[i];
-			GridCellItem *cellItem = [[GridCellItem alloc] init];
-			cellItem.label = cell.label ? @(cell.label) : @"";
-			cellItem.bounds = cell.bounds;
-			cellItem.isMatched = cell.isMatched ? YES : NO;
-			cellItem.isSubgrid = cell.isSubgrid ? YES : NO;
-			cellItem.matchedPrefixLength = cell.matchedPrefixLength;
-			[cellItemsToAdd addObject:cellItem];
-		}
+		cellItemsToAdd = buildGridCellItems(cellsToAdd, addCount);
 	}
 
 	// Build bounds array for cells to remove
