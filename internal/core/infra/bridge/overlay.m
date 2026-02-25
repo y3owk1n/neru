@@ -448,15 +448,15 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 }
 
 /// Draw all hint labels above target elements.
-/// Delegates to drawHintsInRect: with a rect large enough to include all items.
+/// Delegates to drawHintsInRect: with NSZeroRect to signal "draw all, skip intersection checks".
 - (void)drawHints {
-	[self drawHintsInRect:NSMakeRect(-CGFLOAT_MAX / 2, -CGFLOAT_MAX / 2, CGFLOAT_MAX, CGFLOAT_MAX)];
+	[self drawHintsInRect:NSZeroRect];
 }
 
 /// Draw all grid cells with labels and borders.
-/// Delegates to drawGridCellsInRect: with a rect large enough to include all items.
+/// Delegates to drawGridCellsInRect: with NSZeroRect to signal "draw all, skip intersection checks".
 - (void)drawGridCells {
-	[self drawGridCellsInRect:NSMakeRect(-CGFLOAT_MAX / 2, -CGFLOAT_MAX / 2, CGFLOAT_MAX, CGFLOAT_MAX)];
+	[self drawGridCellsInRect:NSZeroRect];
 }
 
 /// Compute the screen-space bounding rect for a hint item (view coordinates, bottom-left origin).
@@ -515,16 +515,19 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 /// Draw hint labels whose bounding rects intersect the given dirty rect.
 /// This is the single implementation of hint drawing; drawHints delegates here.
-/// @param dirtyRect The dirty region to redraw (pass a huge rect to draw all)
+/// @param dirtyRect The dirty region to redraw. Pass NSZeroRect to draw all items (skips intersection checks).
 - (void)drawHintsInRect:(NSRect)dirtyRect {
+	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
 	for (HintItem *hint in self.hints) {
 		NSString *label = hint.label;
 		if (!label || [label length] == 0)
 			continue;
-		// Skip hints outside the dirty region
-		NSRect hintBounds = [self boundingRectForHint:hint];
-		if (!NSIntersectsRect(hintBounds, dirtyRect))
-			continue;
+		// Skip hints outside the dirty region (only when filtering)
+		if (filterByRect) {
+			NSRect hintBounds = [self boundingRectForHint:hint];
+			if (!NSIntersectsRect(hintBounds, dirtyRect))
+				continue;
+		}
 		NSPoint position = hint.position;
 		int matchedPrefixLength = hint.matchedPrefixLength;
 		BOOL showArrow = hint.showArrow;
@@ -579,10 +582,11 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 /// Draw grid cells whose bounding rects intersect the given dirty rect.
 /// This is the single implementation of grid cell drawing; drawGridCells delegates here.
-/// @param dirtyRect The dirty region to redraw (pass a huge rect to draw all)
+/// @param dirtyRect The dirty region to redraw. Pass NSZeroRect to draw all items (skips intersection checks).
 - (void)drawGridCellsInRect:(NSRect)dirtyRect {
 	if ([self.gridCells count] == 0)
 		return;
+	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
 	CGFloat screenHeight = self.bounds.size.height;
 	CGFloat screenWidth = self.bounds.size.width;
 	for (GridCellItem *cellItem in self.gridCells) {
@@ -595,8 +599,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		}
 		CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
 		NSRect cellRect = NSMakeRect(bounds.origin.x, flippedY, bounds.size.width, bounds.size.height);
-		// Skip cells outside the dirty region
-		if (!NSIntersectsRect(cellRect, dirtyRect))
+		// Skip cells outside the dirty region (only when filtering)
+		if (filterByRect && !NSIntersectsRect(cellRect, dirtyRect))
 			continue;
 		// Draw cell background
 		NSColor *bgBase = self.gridBackgroundColor;
