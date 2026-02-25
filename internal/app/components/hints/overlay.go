@@ -50,6 +50,10 @@ type Overlay struct {
 	labelCacheMu sync.RWMutex
 	cachedLabels map[string]*C.char
 
+	// drawMu serializes draw operations against cache invalidation.
+	// Draw paths hold RLock; freeLabelCache holds Lock.
+	drawMu sync.RWMutex
+
 	// State tracking for incremental updates
 	// NOTE: Assumes Hint instances are immutable between draws to avoid aliasing issues
 	hintStateMu   sync.RWMutex
@@ -263,7 +267,11 @@ func (o *Overlay) Destroy() {
 }
 
 // freeLabelCache frees all cached label C strings.
+// It acquires drawMu to ensure no in-flight draw is referencing the pointers.
 func (o *Overlay) freeLabelCache() {
+	o.drawMu.Lock()
+	defer o.drawMu.Unlock()
+
 	o.labelCacheMu.Lock()
 	defer o.labelCacheMu.Unlock()
 	for _, cStr := range o.cachedLabels {
@@ -348,6 +356,12 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 			ce.Write()
 		}
 	}
+
+	// Hold drawMu.RLock for the entire span from label lookup through the C
+	// draw call so that freeLabelCache (which takes drawMu.Lock) cannot free
+	// the C strings while they are still referenced in the HintData slice.
+	o.drawMu.RLock()
+
 	tmpHints := hintDataPool.Get()
 	cHintsPtr, _ := tmpHints.(*[]C.HintData)
 	if cap(*cHintsPtr) < len(hints) {
@@ -414,6 +428,8 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 
 	// Draw hints
 	C.NeruDrawHints(o.window, &cHints[0], C.int(len(cHints)), finalStyle)
+
+	o.drawMu.RUnlock()
 
 	*cHintsPtr = (*cHintsPtr)[:0]
 	hintDataPool.Put(cHintsPtr)
@@ -587,6 +603,10 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		return true
 	}
 
+	// Hold drawMu.RLock for the entire span from label lookup through the C
+	// draw call so that freeLabelCache cannot free labels mid-draw.
+	o.drawMu.RLock()
+
 	// Convert hints to C structures (labels are cached, not freed per call)
 	hintsToAddC := o.convertHintsToC(hintsToAdd, currentInput)
 
@@ -647,6 +667,8 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		C.int(len(positionsToRemoveC)),
 		finalStyle,
 	)
+
+	o.drawMu.RUnlock()
 
 	if ce := o.logger.Check(zap.DebugLevel, "Incremental structural update"); ce != nil {
 		ce.Write(

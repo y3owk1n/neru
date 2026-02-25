@@ -69,6 +69,10 @@ type Overlay struct {
 	labelCacheMu sync.RWMutex
 	cachedLabels map[string]*C.char
 
+	// drawMu serializes draw operations against cache invalidation.
+	// Draw paths hold RLock; freeLabelCache holds Lock.
+	drawMu sync.RWMutex
+
 	// Pre-allocated buffer for grid lines (always 4 lines for highlights)
 	gridLineBuffer [DefaultGridLinesCount]C.CGRect
 
@@ -338,6 +342,10 @@ func (o *Overlay) UpdateMatches(prefix string) {
 
 // ShowSubgrid draws a 3x3 subgrid inside the selected cell.
 func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
+	// Hold drawMu.RLock for the entire span from label lookup through the C
+	// draw call so that freeLabelCache cannot free labels mid-draw.
+	o.drawMu.RLock()
+
 	keys := o.config.SublayerKeys
 	if strings.TrimSpace(keys) == "" {
 		keys = o.config.Characters
@@ -437,6 +445,8 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 
 	C.NeruClearOverlay(o.window)
 	C.NeruDrawGridCells(o.window, &cells[0], C.int(len(cells)), finalStyle)
+
+	o.drawMu.RUnlock()
 
 	*cellsPtr = (*cellsPtr)[:0]
 	*labelsPtr = (*labelsPtr)[:0]
@@ -617,6 +627,10 @@ func (o *Overlay) drawGridIncrementalStructural(
 		return true
 	}
 
+	// Hold drawMu.RLock for the entire span from label lookup through the C
+	// draw call so that freeLabelCache cannot free labels mid-draw.
+	o.drawMu.RLock()
+
 	// Convert cells to C structures
 	cellsToAddC := o.convertCellsToC(cellsToAdd, currentInput)
 
@@ -679,6 +693,8 @@ func (o *Overlay) drawGridIncrementalStructural(
 		C.int(len(cellsToRemoveC)),
 		finalStyle,
 	)
+
+	o.drawMu.RUnlock()
 
 	o.logger.Debug("Incremental structural update",
 		zap.Int("cells_added", len(cellsToAdd)),
@@ -756,7 +772,11 @@ func (o *Overlay) filterCellsByViewport(cells []*domainGrid.Cell) []*domainGrid.
 }
 
 // freeLabelCache frees all cached label C strings.
+// It acquires drawMu to ensure no in-flight draw is referencing the pointers.
 func (o *Overlay) freeLabelCache() {
+	o.drawMu.Lock()
+	defer o.drawMu.Unlock()
+
 	o.labelCacheMu.Lock()
 	defer o.labelCacheMu.Unlock()
 
@@ -795,6 +815,10 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 
 // drawGridCells draws all grid cells with their labels.
 func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string, style Style) {
+	// Hold drawMu.RLock for the entire span from label lookup through the C
+	// draw call so that freeLabelCache cannot free labels mid-draw.
+	o.drawMu.RLock()
+
 	tmpCells := gridCellSlicePool.Get()
 	cGridCellsPtr, ok := tmpCells.(*[]C.GridCell)
 	if !ok {
@@ -880,6 +904,8 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 
 	C.NeruClearOverlay(o.window)
 	C.NeruDrawGridCells(o.window, &cGridCells[0], C.int(len(cGridCells)), finalStyle)
+
+	o.drawMu.RUnlock()
 
 	*cGridCellsPtr = (*cGridCellsPtr)[:0]
 	*cLabelsPtr = (*cLabelsPtr)[:0]
