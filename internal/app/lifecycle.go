@@ -163,11 +163,15 @@ func (a *App) adaptiveGC() bool {
 			zap.Bool("aggressive_mode", true))
 		runtime.GC()
 
+		// Re-read metrics after GC to get the actual post-GC heap size
+		postGCHeapAlloc, _ := readMemMetrics()
+		postGCHeapAllocMB := postGCHeapAlloc / BytesPerMB
+
 		// Exit aggressive mode if memory drops below low threshold
-		if heapAllocMB < lowThresholdMB {
+		if postGCHeapAllocMB < lowThresholdMB {
 			a.gcAggressiveMode = false
 			a.logger.Debug("Exiting aggressive GC mode",
-				zap.Uint64("heap_alloc_mb", heapAllocMB))
+				zap.Uint64("heap_alloc_mb", postGCHeapAllocMB))
 		}
 
 		return true
