@@ -1196,7 +1196,12 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 
 	// Copy all style properties NOW (before async block)
 	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 14.0;
-	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+	NSString *fontFamily = nil;
+	if (style.fontFamily) {
+		fontFamily = @(style.fontFamily);
+		if (fontFamily.length == 0)
+			fontFamily = nil;
+	}
 	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
 	NSString *textHex = style.textColor ? @(style.textColor) : nil;
 	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
@@ -1369,7 +1374,12 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 
 	// Copy all style properties NOW (before async block)
 	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 10.0;
-	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+	NSString *fontFamily = nil;
+	if (style.fontFamily) {
+		fontFamily = @(style.fontFamily);
+		if (fontFamily.length == 0)
+			fontFamily = nil;
+	}
 	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
 	NSString *textHex = style.textColor ? @(style.textColor) : nil;
 	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
@@ -1588,7 +1598,12 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 
 	// Copy all style properties NOW (before async block)
 	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 10.0;
-	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+	NSString *fontFamily = nil;
+	if (style.fontFamily) {
+		fontFamily = @(style.fontFamily);
+		if (fontFamily.length == 0)
+			fontFamily = nil;
+	}
 	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
 	NSString *textHex = style.textColor ? @(style.textColor) : nil;
 	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
