@@ -115,18 +115,28 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 @property(nonatomic, strong) NSColor *cachedGridTextColor;
 @property(nonatomic, strong) NSColor *cachedGridMatchedTextColor;
 
-// Cached string buffers to reduce allocations (one per drawing method to avoid shared mutable state)
+// Cached string buffers to reduce allocations during drawing.
+// Each buffer is exclusively used by its corresponding method to avoid shared mutable state.
 @property(nonatomic, strong)
-    NSMutableAttributedString *cachedHintAttributedString; ///< Cached attributed string buffer for hints
+    NSMutableAttributedString *cachedHintAttributedString; ///< Cached attributed string buffer for drawHintsInRect:
 @property(nonatomic, strong)
-    NSMutableAttributedString *cachedGridCellAttributedString; ///< Cached attributed string buffer for grid cells
+    NSMutableAttributedString *cachedHintMeasureString; ///< Cached attributed string buffer for boundingRectForHint:
+@property(nonatomic, strong) NSMutableAttributedString
+    *cachedGridCellAttributedString; ///< Cached attributed string buffer for drawGridCellsInRect:
 
 /// Cached parsed colors keyed by normalized hex string
 @property(nonatomic, strong) NSCache *colorCache;
 
+/// When YES, drawLayer:inContext: clears the full bounds and redraws everything.
+/// When NO, only the dirty region (clip box) is cleared and items intersecting it are redrawn.
+/// Defaults to YES; set to NO by match-prefix-only updates that use setNeedsDisplayInRect:.
+@property(nonatomic, assign) BOOL fullRedraw;
+
 - (void)applyStyle:(HintStyle)style;                                                  ///< Apply hint style
 - (NSColor *)colorFromHex:(NSString *)hexString defaultColor:(NSColor *)defaultColor; ///< Color from hex string
 - (CGFloat)currentBackingScaleFactor;                                                 ///< Current backing scale factor
+- (NSRect)boundingRectForHint:(HintItem *)hint;           ///< Compute bounding rect for hint
+- (NSRect)screenRectForGridCell:(GridCellItem *)cellItem; ///< Compute screen-space rect for grid cell
 @end
 
 #pragma mark - Overlay View Implementation
@@ -175,7 +185,11 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 		// Initialize cached string buffers
 		_cachedHintAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
+		_cachedHintMeasureString = [[NSMutableAttributedString alloc] initWithString:@""];
 		_cachedGridCellAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
+
+		// Initialize fullRedraw to YES for structural changes
+		_fullRedraw = YES;
 	}
 	return self;
 }
@@ -218,20 +232,43 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 - (void)drawRect:(NSRect)dirtyRect {
 }
 
-/// Draw layer (GPU-accelerated rendering for layer-backed views)
+/// Draw layer (GPU-accelerated rendering for layer-backed views).
+/// When fullRedraw is YES (structural changes), clears entire bounds and redraws all items.
+/// When fullRedraw is NO (match-prefix-only changes), uses the CGContext clip box to
+/// clear and redraw only the dirty regions, skipping items outside the dirty area.
 /// @param layer Layer
 /// @param ctx Graphics context
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-	// Clear previous layer content to prevent ghost artifacts from prior renders
-	CGContextClearRect(ctx, self.bounds);
-	// Wrap CGContext in NSGraphicsContext for AppKit drawing compatibility
 	[NSGraphicsContext saveGraphicsState];
 	NSGraphicsContext *nsContext = [NSGraphicsContext graphicsContextWithCGContext:ctx flipped:NO];
 	[NSGraphicsContext setCurrentContext:nsContext];
-	// Draw grid cells
-	[self drawGridCells];
-	// Draw hints
-	[self drawHints];
+	if (self.fullRedraw) {
+		// Full redraw: clear everything and draw all items
+		CGContextClearRect(ctx, self.bounds);
+		[self drawGridCells];
+		[self drawHints];
+	} else {
+		// Partial redraw: only clear and redraw items intersecting the dirty region.
+		// Core Animation sets the clip to the union of invalidated rects.
+		CGRect clipBox = CGContextGetClipBoundingBox(ctx);
+		NSRect dirtyRect = NSRectFromCGRect(clipBox);
+		// If the clip box covers the full bounds, fall back to full redraw
+		if (NSContainsRect(dirtyRect, self.bounds)) {
+			CGContextClearRect(ctx, self.bounds);
+			[self drawGridCells];
+			[self drawHints];
+		} else {
+			// Clear only the dirty region
+			CGContextClearRect(ctx, clipBox);
+			// Redraw grid cells that intersect the dirty rect
+			[self drawGridCellsInRect:dirtyRect];
+			// Redraw hints that intersect the dirty rect
+			[self drawHintsInRect:dirtyRect];
+		}
+	}
+	// Reset to full redraw for next cycle; partial-redraw callers
+	// set this to NO before calling setNeedsDisplayInRect:
+	self.fullRedraw = YES;
 	[NSGraphicsContext restoreGraphicsState];
 }
 
@@ -414,54 +451,139 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	return path;
 }
 
-/// Draw hint labels above target elements
+/// Draw all hint labels above target elements.
+/// Delegates to drawHintsInRect: with NSZeroRect to signal "draw all, skip intersection checks".
 - (void)drawHints {
+	[self drawHintsInRect:NSZeroRect];
+}
+
+/// Draw all grid cells with labels and borders.
+/// Delegates to drawGridCellsInRect: with NSZeroRect to signal "draw all, skip intersection checks".
+- (void)drawGridCells {
+	[self drawGridCellsInRect:NSZeroRect];
+}
+
+/// Compute the screen-space bounding rect for a hint item (view coordinates, bottom-left origin).
+/// Mirrors the geometry logic in drawHintsInRect: so callers can determine dirty rects without drawing.
+/// Uses cachedHintMeasureString (a dedicated buffer separate from cachedHintAttributedString)
+/// to avoid allocations while not mutating the buffer used by drawHintsInRect:.
+/// @param hint Hint item
+/// @return Bounding rectangle including border and arrow
+- (NSRect)boundingRectForHint:(HintItem *)hint {
+	NSString *label = hint.label;
+	if (!label || [label length] == 0)
+		return NSZeroRect;
+	// Reuse cachedHintMeasureString for text measurement.
+	// This is a separate buffer from cachedHintAttributedString (used by drawHintsInRect:)
+	// so the two methods can safely call each other without corrupting shared state.
+	NSMutableAttributedString *measureString = self.cachedHintMeasureString;
+	[[measureString mutableString] setString:label];
+	NSRange fullRange = NSMakeRange(0, [label length]);
+	[measureString
+	    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
+	            range:fullRange];
+	NSSize textSize = [measureString size];
+	CGFloat padding = self.hintPadding;
+	CGFloat arrowHeight = hint.showArrow ? 2.0 : 0.0;
+	CGFloat contentWidth = textSize.width + (padding * 2);
+	CGFloat contentHeight = textSize.height + (padding * 2);
+	CGFloat boxWidth = MAX(contentWidth, contentHeight);
+	CGFloat boxHeight = contentHeight + arrowHeight;
+	NSPoint position = hint.position;
+	CGFloat elementCenterX = position.x;
+	CGFloat elementCenterY = position.y;
+	CGFloat gap = 3.0;
+	CGFloat tooltipX = elementCenterX - boxWidth / 2.0;
+	CGFloat tooltipY = elementCenterY + arrowHeight + gap;
+	CGFloat screenHeight = self.bounds.size.height;
+	CGFloat flippedY = screenHeight - tooltipY - boxHeight;
+	// Expand by border width + 1pt to cover anti-aliased stroke edges
+	CGFloat expand = ceil(self.hintBorderWidth / 2.0) + 1.0;
+	NSRect hintRect = NSMakeRect(tooltipX - expand, flippedY - expand, boxWidth + expand * 2, boxHeight + expand * 2);
+	// Extend upward to include arrow tip if present
+	if (hint.showArrow) {
+		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
+		if (flippedElementCenterY > NSMaxY(hintRect)) {
+			hintRect.size.height = flippedElementCenterY + 1.0 - hintRect.origin.y;
+		}
+	}
+	return hintRect;
+}
+
+/// Compute the screen-space bounding rect for a grid cell item (view coordinates).
+/// @param cellItem Grid cell item
+/// @return Bounding rectangle including border stroke
+- (NSRect)screenRectForGridCell:(GridCellItem *)cellItem {
+	CGRect bounds = cellItem.bounds;
+	CGFloat screenHeight = self.bounds.size.height;
+	CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
+	CGFloat expand = ceil(self.gridBorderWidth / 2.0) + 1.0;
+	return NSMakeRect(bounds.origin.x - expand, flippedY - expand, bounds.size.width + expand * 2,
+	                  bounds.size.height + expand * 2);
+}
+
+/// Draw hint labels whose bounding rects intersect the given dirty rect.
+/// This is the single implementation of hint drawing; drawHints delegates here.
+/// When filtering is active, the intersection test is performed inline using the
+/// same geometry computed for drawing, so text is measured only once per hint.
+/// @param dirtyRect The dirty region to redraw. Pass NSZeroRect to draw all items (skips intersection checks).
+- (void)drawHintsInRect:(NSRect)dirtyRect {
+	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
+	CGFloat screenHeight = self.bounds.size.height;
+	CGFloat padding = self.hintPadding;
 	for (HintItem *hint in self.hints) {
 		NSString *label = hint.label;
 		if (!label || [label length] == 0)
 			continue;
+
 		NSPoint position = hint.position;
 		int matchedPrefixLength = hint.matchedPrefixLength;
 		BOOL showArrow = hint.showArrow;
-		// Create attributed string with matched prefix in different color
-		// Reuse cached hint attributed string buffer
+		// Set up attributed string with colors for drawing
 		NSMutableAttributedString *attrString = self.cachedHintAttributedString;
 		[[attrString mutableString] setString:label];
-		// Clear previous attributes and set new ones
 		NSRange fullRange = NSMakeRange(0, [label length]);
 		[attrString
 		    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
 		            range:fullRange];
-		// Highlight matched prefix
 		if (matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
 			[attrString addAttribute:NSForegroundColorAttributeName
 			                   value:self.hintMatchedTextColor
 			                   range:NSMakeRange(0, matchedPrefixLength)];
 		}
+		// Compute geometry once — used for both intersection test and drawing,
+		// avoiding the double text measurement that would occur if we called
+		// boundingRectForHint: separately for the intersection check.
 		NSSize textSize = [attrString size];
-		// Calculate hint box size (include arrow space if needed)
-		CGFloat padding = self.hintPadding;
 		CGFloat arrowHeight = showArrow ? 2.0 : 0.0;
-		// Calculate dimensions - ensure box is at least square
 		CGFloat contentWidth = textSize.width + (padding * 2);
 		CGFloat contentHeight = textSize.height + (padding * 2);
-		// Make box square if content is narrow, otherwise use content width
 		CGFloat boxWidth = MAX(contentWidth, contentHeight);
 		CGFloat boxHeight = contentHeight + arrowHeight;
-		// Position tooltip above element with arrow pointing down to element center
-		// position is already the element center (set via element.Center() in Go)
 		CGFloat elementCenterX = position.x;
 		CGFloat elementCenterY = position.y;
-		// Position tooltip body above element (arrow points down)
 		CGFloat gap = 3.0;
 		CGFloat tooltipX = elementCenterX - boxWidth / 2.0;
 		CGFloat tooltipY = elementCenterY + arrowHeight + gap;
-		// Convert coordinates (macOS uses bottom-left origin, we need top-left)
-		CGFloat screenHeight = self.bounds.size.height;
 		CGFloat flippedY = screenHeight - tooltipY - boxHeight;
 		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
 		NSRect hintRect = NSMakeRect(tooltipX, flippedY, boxWidth, boxHeight);
-		// Draw tooltip background
+
+		// Intersection test using the computed geometry inline, so we only
+		// measure text once per hint instead of twice (once here, once in
+		// boundingRectForHint:). The attributed string setup above is cheap
+		// relative to text measurement and is needed for drawing anyway.
+		if (filterByRect) {
+			CGFloat expand = ceil(self.hintBorderWidth / 2.0) + 1.0;
+			NSRect testRect =
+			    NSMakeRect(tooltipX - expand, flippedY - expand, boxWidth + expand * 2, boxHeight + expand * 2);
+			if (showArrow && flippedElementCenterY > NSMaxY(testRect)) {
+				testRect.size.height = flippedElementCenterY + 1.0 - testRect.origin.y;
+			}
+			if (!NSIntersectsRect(testRect, dirtyRect))
+				continue;
+		}
+
 		NSBezierPath *path;
 		if (showArrow) {
 			path = [self createTooltipPath:hintRect
@@ -478,17 +600,19 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		[self.hintBorderColor setStroke];
 		[path setLineWidth:self.hintBorderWidth];
 		[path stroke];
-		// Draw text (centered in tooltip body)
 		CGFloat textX = hintRect.origin.x + (boxWidth - textSize.width) / 2.0;
 		CGFloat textY = hintRect.origin.y + padding;
 		[attrString drawAtPoint:NSMakePoint(textX, textY)];
 	}
 }
 
-/// Draw grid cells with labels and borders
-- (void)drawGridCells {
+/// Draw grid cells whose bounding rects intersect the given dirty rect.
+/// This is the single implementation of grid cell drawing; drawGridCells delegates here.
+/// @param dirtyRect The dirty region to redraw. Pass NSZeroRect to draw all items (skips intersection checks).
+- (void)drawGridCellsInRect:(NSRect)dirtyRect {
 	if ([self.gridCells count] == 0)
 		return;
+	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
 	CGFloat screenHeight = self.bounds.size.height;
 	CGFloat screenWidth = self.bounds.size.width;
 	for (GridCellItem *cellItem in self.gridCells) {
@@ -496,13 +620,14 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		CGRect bounds = cellItem.bounds;
 		BOOL isMatched = cellItem.isMatched;
 		BOOL isSubgrid = cellItem.isSubgrid;
-		// Skip drawing unmatched cells if hideUnmatched is enabled AND it's not a subgrid cell
 		if (self.hideUnmatched && !isMatched && !isSubgrid) {
 			continue;
 		}
-		// Convert coordinates (macOS uses bottom-left origin)
 		CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
 		NSRect cellRect = NSMakeRect(bounds.origin.x, flippedY, bounds.size.width, bounds.size.height);
+		// Skip cells outside the dirty region (only when filtering)
+		if (filterByRect && !NSIntersectsRect(cellRect, dirtyRect))
+			continue;
 		// Draw cell background
 		NSColor *bgBase = self.gridBackgroundColor;
 		if (isMatched && self.gridMatchedBackgroundColor) {
@@ -510,23 +635,18 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		}
 		[bgBase setFill];
 		NSRectFill(cellRect);
-		// Draw cell border
 		NSColor *borderColor = self.gridBorderColor;
 		if (isMatched && self.gridMatchedBorderColor) {
 			borderColor = self.gridMatchedBorderColor;
 		}
 		[borderColor setStroke];
 		NSRect borderRect = cellRect;
-		// For odd border widths (like 1.0), offset by 0.5 to ensure crisp lines
-		// and proper overlap at shared edges.
 		if ((int)self.gridBorderWidth % 2 == 1) {
 			borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
 		}
-		// Adjust for right screen edge to ensure border is visible
 		if (NSMaxX(cellRect) >= screenWidth) {
 			borderRect.size.width -= 1.0;
 		}
-		// Adjust for bottom screen edge to ensure border is visible
 		if (NSMinY(cellRect) <= 0) {
 			borderRect.origin.y += ceil(self.gridBorderWidth / 2.0);
 			borderRect.size.height -= ceil(self.gridBorderWidth / 2.0);
@@ -534,19 +654,14 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
 		[borderPath setLineWidth:self.gridBorderWidth];
 		[borderPath stroke];
-		// Draw text label centered in cell
 		if (label && [label length] > 0) {
-			// Reuse cached grid cell attributed string buffer
 			NSMutableAttributedString *attrString = self.cachedGridCellAttributedString;
 			[[attrString mutableString] setString:label];
-			// Clear previous attributes and set new ones
 			NSRange fullRange = NSMakeRange(0, [label length]);
 			[attrString setAttributes:@{NSFontAttributeName : self.gridFont} range:fullRange];
-			// Use cached color to avoid repeated allocations
 			[attrString addAttribute:NSForegroundColorAttributeName value:self.cachedGridTextColor range:fullRange];
 			int matchedPrefixLength = cellItem.matchedPrefixLength;
 			if (isMatched && matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
-				// Use cached matched color
 				[attrString addAttribute:NSForegroundColorAttributeName
 				                   value:self.cachedGridMatchedTextColor
 				                   range:NSMakeRange(0, matchedPrefixLength)];
@@ -966,30 +1081,41 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 	}
 }
 
-/// Update hint match prefix (incremental update for typing)
+/// Update hint match prefix (incremental update for typing).
+/// Only invalidates the bounding rects of hints whose matchedPrefixLength actually changed,
+/// enabling partial redraw in drawLayer:inContext:.
 /// @param window Overlay window handle
 /// @param prefix Match prefix
 void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 	if (!window)
 		return;
-
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
-
 	NSString *prefixStr = prefix ? @(prefix) : @"";
-
 	dispatch_async(dispatch_get_main_queue(), ^{
+		BOOL anyInvalidated = NO;
 		for (HintItem *hintItem in controller.overlayView.hints) {
 			NSString *label = hintItem.label ?: @"";
-			int matchedPrefixLength = 0;
+			int newMatchedPrefixLength = 0;
 			if ([prefixStr length] > 0 && [label length] >= [prefixStr length]) {
 				NSString *lblPrefix = [label substringToIndex:[prefixStr length]];
 				if ([lblPrefix isEqualToString:prefixStr]) {
-					matchedPrefixLength = (int)[prefixStr length];
+					newMatchedPrefixLength = (int)[prefixStr length];
 				}
 			}
-			hintItem.matchedPrefixLength = matchedPrefixLength;
+			// Only invalidate if the match state actually changed
+			if (hintItem.matchedPrefixLength != newMatchedPrefixLength) {
+				hintItem.matchedPrefixLength = newMatchedPrefixLength;
+				NSRect dirtyRect = [controller.overlayView boundingRectForHint:hintItem];
+				if (!NSIsEmptyRect(dirtyRect)) {
+					[controller.overlayView setNeedsDisplayInRect:dirtyRect];
+					anyInvalidated = YES;
+				}
+			}
 		}
-		[controller.overlayView setNeedsDisplay:YES];
+		if (anyInvalidated) {
+			// Signal partial redraw mode so drawLayer:inContext: uses the clip box
+			controller.overlayView.fullRedraw = NO;
+		}
 	});
 }
 
@@ -1249,33 +1375,88 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	});
 }
 
-/// Update grid match prefix
+/// Update grid match prefix (incremental update for typing).
+/// Only invalidates the bounding rects of cells whose match state actually changed,
+/// enabling partial redraw in drawLayer:inContext:.
 /// @param window Overlay window handle
 /// @param prefix Match prefix
 void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 	if (!window)
 		return;
-
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
-
 	NSString *prefixStr = prefix ? @(prefix) : @"";
-
 	dispatch_async(dispatch_get_main_queue(), ^{
-		for (GridCellItem *cellItem in controller.overlayView.gridCells) {
+		OverlayView *view = controller.overlayView;
+		NSUInteger cellCount = [view.gridCells count];
+		if (cellCount == 0)
+			return;
+		BOOL anyMatchStateChanged = NO;
+		// First pass: update all cells and track which changed
+		// Use a stack-allocated array for small counts, heap for large
+		BOOL stackFlags[256];
+		BOOL *changedFlags = cellCount <= 256 ? stackFlags : (BOOL *)calloc(cellCount, sizeof(BOOL));
+		NSUInteger changedCount = 0;
+		NSUInteger idx = 0;
+		for (GridCellItem *cellItem in view.gridCells) {
 			NSString *label = cellItem.label ?: @"";
-			BOOL isMatched = NO;
-			int matchedPrefixLength = 0;
+			BOOL newIsMatched = NO;
+			int newMatchedPrefixLength = 0;
 			if ([prefixStr length] > 0 && [label length] >= [prefixStr length]) {
 				NSString *lblPrefix = [label substringToIndex:[prefixStr length]];
-				isMatched = [lblPrefix isEqualToString:prefixStr];
-				if (isMatched) {
-					matchedPrefixLength = (int)[prefixStr length];
+				newIsMatched = [lblPrefix isEqualToString:prefixStr];
+				if (newIsMatched) {
+					newMatchedPrefixLength = (int)[prefixStr length];
 				}
 			}
-			cellItem.isMatched = isMatched;
-			cellItem.matchedPrefixLength = matchedPrefixLength;
+			BOOL changed =
+			    (cellItem.isMatched != newIsMatched || cellItem.matchedPrefixLength != newMatchedPrefixLength);
+			if (cellItem.isMatched != newIsMatched) {
+				anyMatchStateChanged = YES;
+			}
+			if (changed) {
+				cellItem.isMatched = newIsMatched;
+				cellItem.matchedPrefixLength = newMatchedPrefixLength;
+				changedFlags[idx] = YES;
+				changedCount++;
+			} else {
+				changedFlags[idx] = NO;
+			}
+			idx++;
 		}
-		[controller.overlayView setNeedsDisplay:YES];
+		if (changedCount == 0) {
+			if (changedFlags != stackFlags)
+				free(changedFlags);
+			return;
+		}
+		// If hideUnmatched is active and cells toggled visibility, full redraw needed
+		if (view.hideUnmatched && anyMatchStateChanged) {
+			if (changedFlags != stackFlags)
+				free(changedFlags);
+			view.fullRedraw = YES;
+			[view setNeedsDisplay:YES];
+			return;
+		}
+		// Partial redraw: only invalidate changed cells
+		BOOL anyInvalidated = NO;
+		idx = 0;
+		for (GridCellItem *cellItem in view.gridCells) {
+			if (changedFlags[idx]) {
+				NSRect dirtyRect = [view screenRectForGridCell:cellItem];
+				if (!NSIsEmptyRect(dirtyRect)) {
+					[view setNeedsDisplayInRect:dirtyRect];
+					anyInvalidated = YES;
+				}
+			}
+			idx++;
+		}
+
+		if (changedFlags != stackFlags)
+			free(changedFlags);
+
+		if (anyInvalidated) {
+			// Signal partial redraw mode so drawLayer:inContext: uses the clip box
+			view.fullRedraw = NO;
+		}
 	});
 }
 
