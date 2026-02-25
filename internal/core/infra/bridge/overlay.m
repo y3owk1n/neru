@@ -620,13 +620,11 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	// Expand by border width + 1pt to cover anti-aliased stroke edges
 	CGFloat expand = ceil(self.hintBorderWidth / 2.0) + 1.0;
 	NSRect hintRect = NSMakeRect(tooltipX - expand, flippedY - expand, boxWidth + expand * 2, boxHeight + expand * 2);
-	// Extend downward to include arrow tip if present
+	// Extend upward to include arrow tip if present
 	if (hint.showArrow) {
 		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
-		if (flippedElementCenterY < NSMinY(hintRect)) {
-			CGFloat top = NSMaxY(hintRect);
-			hintRect.origin.y = flippedElementCenterY - 1.0;
-			hintRect.size.height = top - hintRect.origin.y;
+		if (flippedElementCenterY > NSMaxY(hintRect)) {
+			hintRect.size.height = flippedElementCenterY + 1.0 - hintRect.origin.y;
 		}
 	}
 	return hintRect;
