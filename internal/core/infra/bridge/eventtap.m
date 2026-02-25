@@ -86,12 +86,16 @@ static void rebuildEventTapHotkeyLookup(void) {
 	NSDictionary *newLookup = buildHotkeyLookupFromStrings(strings);
 
 	// Swap the lookup table under the lock only if generation hasn't changed
-	// (i.e., setEventTapHotkeys hasn't been called in the meantime)
+	// (i.e., setEventTapHotkeys hasn't been called in the meantime).
+	// Save old pointer so ARC releases it outside the lock.
+	NSDictionary *oldLookup = nil;
 	os_unfair_lock_lock(&context->hotkeyLock);
 	if (context->hotkeyGeneration == snapshotGeneration) {
+		oldLookup = context->hotkeyLookup;
 		context->hotkeyLookup = newLookup;
 	}
 	os_unfair_lock_unlock(&context->hotkeyLock);
+	oldLookup = nil; // ARC releases old dictionary here, outside the lock
 }
 
 static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uint8_t *outModifiers) {
@@ -382,13 +386,20 @@ void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count) {
 		NSArray<NSString *> *copiedStrings = [newStrings copy];
 
 		// Thread-safe replacement using os_unfair_lock.
-		// Swap in the new immutable lookup; the old dictionary is released
-		// by ARC after the lock is dropped (assignment retains new, releases old).
+		// Save old pointers so ARC releases them outside the lock —
+		// deallocation of a large dictionary must not block the event tap callback.
+		NSDictionary *oldLookup;
+		NSArray *oldStrings;
 		os_unfair_lock_lock(&context->hotkeyLock);
+		oldStrings = context->hotkeyStrings;
+		oldLookup = context->hotkeyLookup;
 		context->hotkeyStrings = copiedStrings;
 		context->hotkeyGeneration++; // invalidate any in-flight rebuild
 		context->hotkeyLookup = newLookup;
 		os_unfair_lock_unlock(&context->hotkeyLock);
+		// ARC releases old objects here, outside the lock
+		oldLookup = nil;
+		oldStrings = nil;
 	}
 }
 
