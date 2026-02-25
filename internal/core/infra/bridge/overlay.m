@@ -1093,14 +1093,12 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 	NSString *prefixStr = prefix ? @(prefix) : @"";
 	dispatch_async(dispatch_get_main_queue(), ^{
 		BOOL anyInvalidated = NO;
+		NSUInteger prefixLen = [prefixStr length];
 		for (HintItem *hintItem in controller.overlayView.hints) {
 			NSString *label = hintItem.label ?: @"";
 			int newMatchedPrefixLength = 0;
-			if ([prefixStr length] > 0 && [label length] >= [prefixStr length]) {
-				NSString *lblPrefix = [label substringToIndex:[prefixStr length]];
-				if ([lblPrefix isEqualToString:prefixStr]) {
-					newMatchedPrefixLength = (int)[prefixStr length];
-				}
+			if (prefixLen > 0 && [label length] >= prefixLen && [label hasPrefix:prefixStr]) {
+				newMatchedPrefixLength = (int)prefixLen;
 			}
 			// Only invalidate if the match state actually changed
 			if (hintItem.matchedPrefixLength != newMatchedPrefixLength) {
@@ -1390,6 +1388,7 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 		NSUInteger cellCount = [view.gridCells count];
 		if (cellCount == 0)
 			return;
+		NSUInteger prefixLen = [prefixStr length];
 		BOOL anyMatchStateChanged = NO;
 		// First pass: update all cells and track which changed
 		// Use a stack-allocated array for small counts, heap for large
@@ -1401,11 +1400,10 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 			NSString *label = cellItem.label ?: @"";
 			BOOL newIsMatched = NO;
 			int newMatchedPrefixLength = 0;
-			if ([prefixStr length] > 0 && [label length] >= [prefixStr length]) {
-				NSString *lblPrefix = [label substringToIndex:[prefixStr length]];
-				newIsMatched = [lblPrefix isEqualToString:prefixStr];
+			if (prefixLen > 0 && [label length] >= prefixLen) {
+				newIsMatched = [label hasPrefix:prefixStr];
 				if (newIsMatched) {
-					newMatchedPrefixLength = (int)[prefixStr length];
+					newMatchedPrefixLength = (int)prefixLen;
 				}
 			}
 			BOOL changed =
