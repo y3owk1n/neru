@@ -41,18 +41,15 @@ func getTreeNode(elem *Element, info *ElementInfo, parent *TreeNode, childrenCap
 	_node.element = elem
 	_node.info = info
 	_node.parent = parent
-	// When childrenCap > 0 the caller knows an initial capacity upfront
-	// (e.g. the root node). Reuse the pooled backing array when it is
-	// large enough; otherwise allocate a fresh slice.
-	// When childrenCap == 0 the caller will set the children slice later
-	// (e.g. buildChildrenSequential/Parallel), so leave whatever the
-	// pool provided — putTreeNode already reset it to [:0].
-	if childrenCap > 0 {
-		if cap(_node.children) >= childrenCap {
-			_node.children = _node.children[:0]
-		} else {
-			_node.children = make([]*TreeNode, 0, childrenCap)
-		}
+	// Reuse the pooled backing array when it is large enough for the
+	// requested capacity; otherwise allocate a fresh slice.
+	// When childrenCap == 0 the children slice is still explicitly reset
+	// to [:0] (or nil→[:0]) so the node is always in a clean state —
+	// callers are not required to overwrite children before use.
+	if cap(_node.children) >= childrenCap {
+		_node.children = _node.children[:0]
+	} else {
+		_node.children = make([]*TreeNode, 0, childrenCap)
 	}
 
 	return _node
