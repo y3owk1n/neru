@@ -416,9 +416,16 @@
 		// a lighter weight (e.g. Medium instead of Bold).
 		NSFontTraitMask actualTraits = [fm traitsOfFont:font];
 		if (!(actualTraits & NSBoldFontMask)) {
+			// convertFont:toHaveTrait: never returns nil per Apple docs —
+			// it returns the original font unchanged if the trait cannot be added.
+			// We must re-check traits to know whether the conversion succeeded.
 			NSFont *boldFont = [fm convertFont:font toHaveTrait:NSBoldFontMask];
-			if (boldFont)
+			NSFontTraitMask boldTraits = [fm traitsOfFont:boldFont];
+			if (boldTraits & NSBoldFontMask) {
 				font = boldFont;
+			} else {
+				NSLog(@"[Neru] Font family \"%@\" has no bold variant; using regular weight", name);
+			}
 		}
 	}
 
