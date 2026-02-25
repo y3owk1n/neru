@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/metrics"
 	"strings"
 	"syscall"
 	"time"
@@ -43,6 +44,12 @@ const (
 
 	// BytesPerMB is the number of bytes in a megabyte.
 	BytesPerMB = 1024 * 1024
+
+	// metricHeapObjects is the runtime/metrics name for live heap object bytes (equivalent to MemStats.HeapAlloc).
+	metricHeapObjects = "/memory/classes/heap/objects:bytes"
+
+	// metricGCGoal is the runtime/metrics name for the GC heap goal (equivalent to MemStats.NextGC).
+	metricGCGoal = "/gc/heap/goal:bytes"
 )
 
 // Run starts the main application loop and initializes all subsystems.
@@ -109,13 +116,27 @@ func (a *App) Run() error {
 	return a.waitForShutdown()
 }
 
+// readMemMetrics reads HeapAlloc and NextGC equivalents via runtime/metrics,
+// which does not require a full stop-the-world pause unlike runtime.ReadMemStats.
+func readMemMetrics() (uint64, uint64) {
+	samples := []metrics.Sample{
+		{Name: metricHeapObjects},
+		{Name: metricGCGoal},
+	}
+	metrics.Read(samples)
+
+	return samples[0].Value.Uint64(), samples[1].Value.Uint64()
+}
+
 // adaptiveGC performs garbage collection based on current memory pressure.
 // Returns true if high memory pressure is detected.
+//
+// It uses runtime/metrics to read only HeapAlloc and NextGC equivalents,
+// avoiding the full stop-the-world pause that runtime.ReadMemStats incurs.
 func (a *App) adaptiveGC() bool {
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
+	heapAlloc, nextGC := readMemMetrics()
 
-	heapAllocMB := memStats.HeapAlloc / BytesPerMB
+	heapAllocMB := heapAlloc / BytesPerMB
 	highThresholdMB := uint64(HighMemoryThreshold / BytesPerMB)
 	lowThresholdMB := uint64(LowMemoryThreshold / BytesPerMB)
 
@@ -127,7 +148,7 @@ func (a *App) adaptiveGC() bool {
 	if a.gcAggressiveMode {
 		a.logger.Debug("Running GC due to high memory pressure",
 			zap.Uint64("heap_alloc_mb", heapAllocMB),
-			zap.Uint64("next_gc_mb", memStats.NextGC/BytesPerMB),
+			zap.Uint64("next_gc_mb", nextGC/BytesPerMB),
 			zap.Bool("aggressive_mode", true))
 		runtime.GC()
 
