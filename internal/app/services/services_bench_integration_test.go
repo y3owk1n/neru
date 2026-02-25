@@ -24,7 +24,7 @@ func (m *mockGenerator) Generate(
 	ctx context.Context,
 	elements []*element.Element,
 ) ([]*hint.Interface, error) {
-	// Return hints for the provided elements to exercise incremental rendering
+	// Return hints for the provided elements to exercise hint generation
 	hints := make([]*hint.Interface, 0, len(elements))
 	for i, elem := range elements {
 		label := strconv.Itoa(i)
@@ -46,8 +46,8 @@ func (m *mockGenerator) Characters() string {
 	return "abcdefghijklmnopqrstuvwxyz"
 }
 
-// BenchmarkHintService_ShowHints_Incremental benchmarks the incremental rendering performance.
-func BenchmarkHintService_ShowHints_Incremental(b *testing.B) {
+// BenchmarkHintService_ShowHints benchmarks the hint display performance.
+func BenchmarkHintService_ShowHints(b *testing.B) {
 	// Setup
 	logger := zap.NewNop()
 	cfg := config.DefaultConfig()
@@ -100,8 +100,7 @@ func BenchmarkHintService_ShowHints_Incremental(b *testing.B) {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		// This will exercise the incremental rendering logic
-		// The benchmark measures the performance of the hint display with incremental updates
+		// Measures the performance of hint discovery and generation
 		_, err := hintService.ShowHints(ctx)
 		if err != nil {
 			b.Fatalf("ShowHints failed: %v", err)
