@@ -1625,24 +1625,25 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
 	int borderWidth = style.borderWidth;
 	dispatch_async(dispatch_get_main_queue(), ^{
-		// Apply style if provided (only update if style properties are non-null)
-		if (fontFamily || bgHex || textHex || matchedTextHex || matchedBgHex || matchedBorderHex || borderHex) {
-			// Only re-create the grid font when family or size changed.
-			BOOL gridFamilyChanged = (fontFamily != controller.overlayView.cachedGridFontFamily &&
-			                          ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
-			if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
-				NSFont *font = nil;
-				if (fontFamily && [fontFamily length] > 0) {
-					font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
-				}
-				if (!font) {
-					font = [NSFont systemFontOfSize:fontSize];
-				}
-				controller.overlayView.gridFont = font;
-				controller.overlayView.cachedGridFontFamily = fontFamily;
-				controller.overlayView.cachedGridFontSize = fontSize;
+		// Only re-create the grid font when family or size changed.
+		// This is outside the color guard so font-size-only changes are never skipped.
+		BOOL gridFamilyChanged = (fontFamily != controller.overlayView.cachedGridFontFamily &&
+		                          ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
+		if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
+			NSFont *font = nil;
+			if (fontFamily && [fontFamily length] > 0) {
+				font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
 			}
+			if (!font) {
+				font = [NSFont systemFontOfSize:fontSize];
+			}
+			controller.overlayView.gridFont = font;
+			controller.overlayView.cachedGridFontFamily = fontFamily;
+			controller.overlayView.cachedGridFontSize = fontSize;
+		}
 
+		// Apply color/style updates if provided
+		if (bgHex || textHex || matchedTextHex || matchedBgHex || matchedBorderHex || borderHex) {
 			if (bgHex) {
 				controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
 				                                                                     defaultColor:[NSColor whiteColor]];
