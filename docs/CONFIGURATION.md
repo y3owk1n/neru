@@ -7,6 +7,8 @@ Neru uses TOML for configuration. This guide covers all available options with e
 ## Table of Contents
 
 - [Configuration Overview](#configuration-overview)
+- [Color Format](#color-format)
+- [Font Configuration](#font-configuration)
 - [Hotkeys](#hotkeys)
 - [General Settings](#general-settings)
 - [Keyboard Layout Requirements](#keyboard-layout-requirements)
@@ -105,6 +107,52 @@ background_color = "#00000000"   # Completely invisible
 > **Tip:** You can use online tools like "hex color converter" to calculate alpha values for specific opacity percentages.
 
 ---
+
+## Font Configuration
+
+Several sections (`hints`, `grid`, `recursive_grid`, `scroll`) accept `font_family` (or `label_font_family`) to customize the overlay font. This section explains how font resolution works.
+
+### Default: System Font
+
+When `font_family` is set to `""` (the default), Neru uses the macOS system font:
+
+- **Hint overlays** use `NSFont boldSystemFontOfSize:` (bold system font)
+- **Grid / scroll overlays** use `NSFont systemFontOfSize:` (regular system font)
+  The system font is always available on every macOS installation, so the default works out of the box.
+
+### Font Name Resolution
+
+When you specify a non-empty `font_family`, Neru resolves the font using a two-step process:
+
+1. **PostScript name lookup** — Tries `[NSFont fontWithName:size:]` first. This is the fastest path and works with PostScript names like `"SFMono-Bold"` or `"Menlo-Regular"`.
+2. **Family name lookup** — If the PostScript name fails, falls back to `NSFontManager`'s `fontWithFamily:traits:weight:size:`, which correctly handles display/family names like `"SF Mono"`, `"JetBrains Mono"`, or `"Fira Code"`.
+   If neither lookup succeeds, Neru falls back to the system font.
+   For hint overlays, the bold variant of the font is automatically selected when available. If the font family doesn't have a bold variant, Neru attempts to synthesize one via `NSFontManager`.
+
+### Examples
+
+```toml
+# Use system font (default — always available)
+font_family = ""
+# PostScript name (exact match)
+font_family = "SFMono-Bold"
+# Family/display name (resolved via NSFontManager)
+font_family = "SF Mono"
+font_family = "JetBrains Mono"
+font_family = "Fira Code"
+font_family = "Menlo"
+```
+
+### Finding Font Names
+
+You can list available font families on your system using the terminal:
+
+```bash
+# List all font families
+system_profiler SPFontsDataType | grep "Family:"
+```
+
+> **Tip:** Family names (e.g. `"SF Mono"`) are generally more portable and readable than PostScript names (e.g. `"SFMono-Regular"`). Use family names unless you need a specific font variant.
 
 ## Hotkeys
 
