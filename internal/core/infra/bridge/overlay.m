@@ -1097,7 +1097,7 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 		for (HintItem *hintItem in controller.overlayView.hints) {
 			NSString *label = hintItem.label ?: @"";
 			int newMatchedPrefixLength = 0;
-			if (prefixLen > 0 && [label length] >= prefixLen && [label hasPrefix:prefixStr]) {
+			if (prefixLen > 0 && [label hasPrefix:prefixStr]) {
 				newMatchedPrefixLength = (int)prefixLen;
 			}
 			// Only invalidate if the match state actually changed
@@ -1400,7 +1400,7 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 			NSString *label = cellItem.label ?: @"";
 			BOOL newIsMatched = NO;
 			int newMatchedPrefixLength = 0;
-			if (prefixLen > 0 && [label length] >= prefixLen) {
+			if (prefixLen > 0) {
 				newIsMatched = [label hasPrefix:prefixStr];
 				if (newIsMatched) {
 					newMatchedPrefixLength = (int)prefixLen;
