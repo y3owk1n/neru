@@ -388,10 +388,9 @@ func buildChildrenSequential(
 	// Second pass: create nodes and recurse
 	for _, data := range validChildren {
 		childNode := &TreeNode{
-			element:  data.element,
-			info:     data.info,
-			parent:   parent,
-			children: []*TreeNode{},
+			element: data.element,
+			info:    data.info,
+			parent:  parent,
 		}
 
 		parent.children = append(parent.children, childNode)
@@ -459,10 +458,9 @@ func buildChildrenParallel(
 			}
 
 			childNode := &TreeNode{
-				element:  elem,
-				info:     info,
-				parent:   parent,
-				children: []*TreeNode{},
+				element: elem,
+				info:    info,
+				parent:  parent,
 			}
 
 			// Recursively build (this may spawn more goroutines at deeper levels)
