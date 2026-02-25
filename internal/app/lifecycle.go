@@ -118,6 +118,7 @@ func (a *App) Run() error {
 
 // readMemMetrics reads HeapAlloc and NextGC equivalents via runtime/metrics,
 // which does not require a full stop-the-world pause unlike runtime.ReadMemStats.
+// Returns (0, 0) if the metrics are unavailable or have an unexpected kind.
 func readMemMetrics() (uint64, uint64) {
 	samples := []metrics.Sample{
 		{Name: metricHeapObjects},
@@ -125,7 +126,17 @@ func readMemMetrics() (uint64, uint64) {
 	}
 	metrics.Read(samples)
 
-	return samples[0].Value.Uint64(), samples[1].Value.Uint64()
+	var heapAlloc, nextGC uint64
+
+	if samples[0].Value.Kind() == metrics.KindUint64 {
+		heapAlloc = samples[0].Value.Uint64()
+	}
+
+	if samples[1].Value.Kind() == metrics.KindUint64 {
+		nextGC = samples[1].Value.Uint64()
+	}
+
+	return heapAlloc, nextGC
 }
 
 // adaptiveGC performs garbage collection based on current memory pressure.
