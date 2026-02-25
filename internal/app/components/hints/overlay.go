@@ -31,9 +31,8 @@ func resizeHintCompletionCallback(context unsafe.Pointer) {
 }
 
 var (
-	hintDataPool    sync.Pool
-	cLabelSlicePool sync.Pool
-	hintPoolOnce    sync.Once
+	hintDataPool sync.Pool
+	hintPoolOnce sync.Once
 )
 
 // Overlay manages the rendering of hint overlays using native platform APIs.
@@ -46,6 +45,14 @@ type Overlay struct {
 
 	// Cached C strings for style properties to reduce allocations
 	styleCache *overlayutil.StyleCache
+
+	// Cached C strings for hint labels to avoid malloc/free per draw
+	labelCacheMu sync.RWMutex
+	cachedLabels map[string]*C.char
+
+	// drawMu serializes draw operations against cache invalidation.
+	// Draw paths hold RLock; freeAllCaches holds Lock.
+	drawMu sync.RWMutex
 
 	// State tracking for incremental updates
 	// NOTE: Assumes Hint instances are immutable between draws to avoid aliasing issues
@@ -121,11 +128,6 @@ func initPools() {
 
 			return &s
 		}}
-		cLabelSlicePool = sync.Pool{New: func() any {
-			s := make([]*C.char, 0)
-
-			return &s
-		}}
 	})
 }
 
@@ -143,6 +145,7 @@ func NewOverlay(config config.HintsConfig, logger *zap.Logger) (*Overlay, error)
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
+		cachedLabels:    make(map[string]*C.char),
 	}, nil
 }
 
@@ -161,6 +164,7 @@ func NewOverlayWithWindow(
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
+		cachedLabels:    make(map[string]*C.char),
 	}, nil
 }
 
@@ -236,18 +240,18 @@ func BuildStyle(cfg config.HintsConfig) StyleMode {
 // SetConfig sets the overlay configuration.
 func (o *Overlay) SetConfig(config config.HintsConfig) {
 	o.config = config
-	// Invalidate style cache when config changes
-	o.styleCache.Free()
+	// Invalidate caches when config changes
+	o.freeAllCaches()
 }
 
-// Cleanup frees Go-side resources (callbackManager, styleCache) without
-// destroying the native window. Use this for overlays that share a window
-// managed by the overlay Manager.
+// Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)
+// without destroying the native window. Use this for overlays that share a
+// window managed by the overlay Manager.
 func (o *Overlay) Cleanup() {
 	if o.callbackManager != nil {
 		o.callbackManager.Cleanup()
 	}
-	o.styleCache.Free()
+	o.freeAllCaches()
 }
 
 // Destroy destroys the overlay.
@@ -258,6 +262,51 @@ func (o *Overlay) Destroy() {
 		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
 	}
+}
+
+// freeAllCaches frees both the style cache and the label cache under drawMu
+// so that no in-flight draw can reference freed C pointers.
+func (o *Overlay) freeAllCaches() {
+	o.drawMu.Lock()
+	defer o.drawMu.Unlock()
+
+	o.styleCache.Free()
+	o.freeLabelCacheLocked()
+}
+
+// freeLabelCacheLocked frees all cached label C strings.
+// Caller must hold drawMu.Lock.
+func (o *Overlay) freeLabelCacheLocked() {
+	o.labelCacheMu.Lock()
+	defer o.labelCacheMu.Unlock()
+	for _, cStr := range o.cachedLabels {
+		if cStr != nil {
+			C.free(unsafe.Pointer(cStr))
+		}
+	}
+	// Re-initialize map to clear references
+	o.cachedLabels = make(map[string]*C.char)
+}
+
+// getOrCacheLabel returns a cached C string for the label, creating it if needed.
+func (o *Overlay) getOrCacheLabel(label string) *C.char {
+	o.labelCacheMu.RLock()
+	if cStr, ok := o.cachedLabels[label]; ok {
+		o.labelCacheMu.RUnlock()
+
+		return cStr
+	}
+	o.labelCacheMu.RUnlock()
+	o.labelCacheMu.Lock()
+	defer o.labelCacheMu.Unlock()
+	// Double-check
+	if cStr, ok := o.cachedLabels[label]; ok {
+		return cStr
+	}
+	cStr := C.CString(label)
+	o.cachedLabels[label] = cStr
+
+	return cStr
 }
 
 // drawHintsInternal is the internal implementation for drawing hints.
@@ -312,6 +361,12 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 			ce.Write()
 		}
 	}
+
+	// Hold drawMu.RLock for the entire span from label lookup through the C
+	// draw call so that freeLabelCache (which takes drawMu.Lock) cannot free
+	// the C strings while they are still referenced in the HintData slice.
+	o.drawMu.RLock()
+
 	tmpHints := hintDataPool.Get()
 	cHintsPtr, _ := tmpHints.(*[]C.HintData)
 	if cap(*cHintsPtr) < len(hints) {
@@ -321,21 +376,12 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		*cHintsPtr = (*cHintsPtr)[:len(hints)]
 	}
 	cHints := *cHintsPtr
-	tmpCLables := cLabelSlicePool.Get()
-	cLabelsPtr, _ := tmpCLables.(*[]*C.char)
-	if cap(*cLabelsPtr) < len(hints) {
-		s := make([]*C.char, len(hints))
-		cLabelsPtr = &s
-	} else {
-		*cLabelsPtr = (*cLabelsPtr)[:len(hints)]
-	}
-	cLabels := *cLabelsPtr
 
 	matchedCount := 0
 	for i, hint := range hints {
-		cLabels[i] = C.CString(hint.Label())
+		cLabel := o.getOrCacheLabel(hint.Label())
 		cHints[i] = C.HintData{
-			label: cLabels[i],
+			label: cLabel,
 			position: C.CGPoint{
 				x: C.double(hint.Position().X),
 				y: C.double(hint.Position().Y),
@@ -388,15 +434,18 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	// Draw hints
 	C.NeruDrawHints(o.window, &cHints[0], C.int(len(cHints)), finalStyle)
 
-	// Free all C strings
-	for _, cLabel := range cLabels {
-		C.free(unsafe.Pointer(cLabel))
+	o.drawMu.RUnlock()
+
+	// Zero out cached-label pointers in the backing array before returning to pool.
+	// After RUnlock, freeAllCaches could free the C strings these point to;
+	// clearing them prevents any future pool consumer from seeing dangling pointers.
+	for i := range *cHintsPtr {
+		(*cHintsPtr)[i].label = nil
 	}
+
 	*cHintsPtr = (*cHintsPtr)[:0]
-	*cLabelsPtr = (*cLabelsPtr)[:0]
 	hintDataPool.Put(cHintsPtr)
-	cLabelSlicePool.Put(cLabelsPtr)
-	// Note: We don't free cached style strings - they're reused across draws
+	// Note: We don't free cached label or style strings - they're reused across draws
 
 	// Update cached state
 	o.hintStateMu.Lock()
@@ -566,16 +615,12 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		return true
 	}
 
-	// Convert hints to C structures
+	// Hold drawMu.RLock for the entire span from label lookup through the C
+	// draw call so that freeLabelCache cannot free labels mid-draw.
+	o.drawMu.RLock()
+
+	// Convert hints to C structures (labels are cached, not freed per call)
 	hintsToAddC := o.convertHintsToC(hintsToAdd, currentInput)
-	defer func() {
-		// Free C strings for labels
-		for _, cHint := range hintsToAddC {
-			if cHint.label != nil {
-				C.free(unsafe.Pointer(cHint.label))
-			}
-		}
-	}()
 
 	// Convert positions to C structures
 	var positionsToRemoveC []C.CGPoint
@@ -635,6 +680,8 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		finalStyle,
 	)
 
+	o.drawMu.RUnlock()
+
 	if ce := o.logger.Check(zap.DebugLevel, "Incremental structural update"); ce != nil {
 		ce.Write(
 			zap.Int("hints_added", len(hintsToAdd)),
@@ -645,6 +692,8 @@ func (o *Overlay) drawHintsIncrementalStructural(
 }
 
 // convertHintsToC converts hint objects to C HintData structures.
+// Caller must hold drawMu.RLock to prevent label cache invalidation while
+// the returned structs reference cached C strings.
 func (o *Overlay) convertHintsToC(hintsGo []*Hint, currentInput string) []C.HintData {
 	if len(hintsGo) == 0 {
 		return nil
@@ -653,7 +702,7 @@ func (o *Overlay) convertHintsToC(hintsGo []*Hint, currentInput string) []C.Hint
 	cHints := make([]C.HintData, len(hintsGo))
 
 	for hintIndex, hint := range hintsGo {
-		label := C.CString(hint.Label())
+		cLabel := o.getOrCacheLabel(hint.Label())
 
 		matchedPrefixLength := 0
 		if currentInput != "" {
@@ -661,7 +710,7 @@ func (o *Overlay) convertHintsToC(hintsGo []*Hint, currentInput string) []C.Hint
 		}
 
 		cHints[hintIndex] = C.HintData{
-			label: label,
+			label: cLabel,
 			position: C.CGPoint{
 				x: C.double(hint.Position().X),
 				y: C.double(hint.Position().Y),
