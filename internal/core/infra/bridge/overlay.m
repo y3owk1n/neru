@@ -79,6 +79,11 @@
 }
 @end
 
+/// Default font size for hint overlays (bold system font).
+static const CGFloat kDefaultHintFontSize = 12.0;
+/// Default font size for grid overlays (regular system font).
+static const CGFloat kDefaultGridFontSize = 12.0;
+
 #pragma mark - Overlay View Interface
 
 @interface OverlayView : NSView
@@ -116,6 +121,12 @@
 @property(nonatomic, strong) NSMutableAttributedString
     *cachedGridCellAttributedString; ///< Cached attributed string buffer for drawGridCellsInRect:
 
+// Cached font keys: only re-create NSFont when family or size actually changes.
+@property(nonatomic, copy) NSString *cachedHintFontFamily; ///< Last resolved hint font family
+@property(nonatomic, assign) CGFloat cachedHintFontSize;   ///< Last resolved hint font size
+@property(nonatomic, copy) NSString *cachedGridFontFamily; ///< Last resolved grid font family
+@property(nonatomic, assign) CGFloat cachedGridFontSize;   ///< Last resolved grid font size
+
 /// Cached parsed colors keyed by normalized hex string
 @property(nonatomic, strong) NSCache *colorCache;
 
@@ -129,6 +140,11 @@
 - (CGFloat)currentBackingScaleFactor;                                                 ///< Current backing scale factor
 - (NSRect)boundingRectForHint:(HintItem *)hint;           ///< Compute bounding rect for hint
 - (NSRect)screenRectForGridCell:(GridCellItem *)cellItem; ///< Compute screen-space rect for grid cell
+
+/// Resolve a font by name (accepts both PostScript names and family names).
+/// Tries [NSFont fontWithName:] first, then NSFontManager family lookup.
+/// Returns nil if the name cannot be resolved.
+- (NSFont *)resolveFont:(NSString *)name size:(CGFloat)size bold:(BOOL)bold;
 @end
 
 #pragma mark - Overlay View Implementation
@@ -153,7 +169,8 @@
 		_hints = [NSMutableArray arrayWithCapacity:100];     // Pre-size for typical hint count
 		_gridCells = [NSMutableArray arrayWithCapacity:100]; // Pre-size for typical grid size
 
-		_hintFont = [NSFont boldSystemFontOfSize:14.0];
+		// Hint defaults
+		_hintFont = [NSFont boldSystemFontOfSize:kDefaultHintFontSize];
 		_hintTextColor = [NSColor blackColor];
 		_hintMatchedTextColor = [NSColor systemBlueColor];
 		_hintBackgroundColor = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.95];
@@ -163,7 +180,7 @@
 		_hintPadding = 4.0;
 
 		// Grid defaults
-		_gridFont = [NSFont fontWithName:@"Menlo" size:10.0];
+		_gridFont = [NSFont systemFontOfSize:kDefaultGridFontSize];
 		_gridTextColor = [NSColor colorWithWhite:0.2 alpha:1.0];
 		_gridMatchedTextColor = [NSColor colorWithRed:0.0 green:0.4 blue:1.0 alpha:1.0];
 		_gridBackgroundColor = [NSColor whiteColor];
@@ -179,6 +196,12 @@
 		_cachedHintAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
 		_cachedHintMeasureString = [[NSMutableAttributedString alloc] initWithString:@""];
 		_cachedGridCellAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
+
+		// Initialize cached font keys (match defaults above)
+		_cachedHintFontFamily = nil;
+		_cachedHintFontSize = kDefaultHintFontSize;
+		_cachedGridFontFamily = nil;
+		_cachedGridFontSize = kDefaultGridFontSize;
 
 		// Initialize fullRedraw to YES for structural changes
 		_fullRedraw = YES;
@@ -267,7 +290,7 @@
 /// Apply hint style
 /// @param style Hint style
 - (void)applyStyle:(HintStyle)style {
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 14.0;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultHintFontSize;
 	NSString *fontFamily = nil;
 	if (style.fontFamily) {
 		fontFamily = [NSString stringWithUTF8String:style.fontFamily];
@@ -275,17 +298,22 @@
 			fontFamily = nil;
 		}
 	}
-	NSFont *font = nil;
-	if (fontFamily.length > 0) {
-		font = [NSFont fontWithName:fontFamily size:fontSize];
+
+	// Only re-create the font when the family or size actually changed.
+	BOOL familyChanged =
+	    (fontFamily != self.cachedHintFontFamily && ![fontFamily isEqualToString:self.cachedHintFontFamily]);
+	if (familyChanged || fontSize != self.cachedHintFontSize) {
+		NSFont *font = nil;
+		if (fontFamily.length > 0) {
+			font = [self resolveFont:fontFamily size:fontSize bold:YES];
+		}
+		if (!font) {
+			font = [NSFont boldSystemFontOfSize:fontSize];
+		}
+		self.hintFont = font;
+		self.cachedHintFontFamily = fontFamily;
+		self.cachedHintFontSize = fontSize;
 	}
-	if (!font) {
-		font = [NSFont fontWithName:@"Menlo-Bold" size:fontSize];
-	}
-	if (!font) {
-		font = [NSFont boldSystemFontOfSize:fontSize];
-	}
-	self.hintFont = font;
 
 	NSColor *defaultBg = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.95];
 	NSColor *defaultText = [NSColor blackColor];
@@ -361,6 +389,52 @@
 	NSColor *result = [NSColor colorWithRed:red green:green blue:blue alpha:alpha];
 	[self.colorCache setObject:result forKey:cacheKey];
 	return result;
+}
+
+/// Resolve a font by name, accepting both PostScript names (e.g. "SFMono-Bold")
+/// and family/display names (e.g. "SF Mono", "JetBrains Mono").
+/// Tries [NSFont fontWithName:] first (PostScript name lookup), then falls back
+/// to NSFontManager family lookup which handles display/family names correctly.
+/// @param name Font name (PostScript or family)
+/// @param size Font size
+/// @param bold Whether to prefer a bold variant
+/// @return Resolved NSFont, or nil if the name cannot be resolved
+- (NSFont *)resolveFont:(NSString *)name size:(CGFloat)size bold:(BOOL)bold {
+	if (!name || name.length == 0)
+		return nil;
+	NSFontManager *fm = [NSFontManager sharedFontManager];
+	// Try PostScript name first (fast path)
+	NSFont *font = [NSFont fontWithName:name size:size];
+
+	if (!font) {
+		// Fall back to family name lookup via NSFontManager
+		NSFontTraitMask traits = bold ? NSBoldFontMask : 0;
+		NSInteger weight = bold ? 9 : 5; // 9 = bold, 5 = regular in AppKit weight scale
+		font = [fm fontWithFamily:name traits:traits weight:weight size:size];
+	}
+
+	if (font && bold) {
+		// Verify the resolved font actually has the bold trait, regardless of
+		// whether it came from the PostScript path or the family-name path.
+		// A user-supplied PostScript name like "SFMono-Regular" would otherwise
+		// bypass bold enforcement; NSFontManager family lookup may also return
+		// a lighter weight (e.g. Medium instead of Bold).
+		NSFontTraitMask actualTraits = [fm traitsOfFont:font];
+		if (!(actualTraits & NSBoldFontMask)) {
+			// convertFont:toHaveTrait: never returns nil per Apple docs —
+			// it returns the original font unchanged if the trait cannot be added.
+			// We must re-check traits to know whether the conversion succeeded.
+			NSFont *boldFont = [fm convertFont:font toHaveTrait:NSBoldFontMask];
+			NSFontTraitMask boldTraits = [fm traitsOfFont:boldFont];
+			if (boldTraits & NSBoldFontMask) {
+				font = boldFont;
+			} else {
+				NSLog(@"[Neru] Font family \"%@\" has no bold variant; using regular weight", name);
+			}
+		}
+	}
+
+	return font;
 }
 
 /// Create tooltip path with arrow
@@ -1149,8 +1223,13 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	}
 
 	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 14.0;
-	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultHintFontSize;
+	NSString *fontFamily = nil;
+	if (style.fontFamily) {
+		fontFamily = @(style.fontFamily);
+		if (fontFamily.length == 0)
+			fontFamily = nil;
+	}
 	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
 	NSString *textHex = style.textColor ? @(style.textColor) : nil;
 	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
@@ -1160,18 +1239,21 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	int padding = style.padding;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
-		// Apply style updates
-		NSFont *font = controller.overlayView.hintFont;
-		if (fontFamily && [fontFamily length] > 0) {
-			font = [NSFont fontWithName:fontFamily size:fontSize];
+		// Apply style updates — only re-create the hint font when family or size changed.
+		BOOL hintFamilyChanged = (fontFamily != controller.overlayView.cachedHintFontFamily &&
+		                          ![fontFamily isEqualToString:controller.overlayView.cachedHintFontFamily]);
+		if (hintFamilyChanged || fontSize != controller.overlayView.cachedHintFontSize) {
+			NSFont *font = nil;
+			if (fontFamily && [fontFamily length] > 0) {
+				font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:YES];
+			}
+			if (!font) {
+				font = [NSFont boldSystemFontOfSize:fontSize];
+			}
+			controller.overlayView.hintFont = font;
+			controller.overlayView.cachedHintFontFamily = fontFamily;
+			controller.overlayView.cachedHintFontSize = fontSize;
 		}
-		if (!font) {
-			font = [NSFont fontWithName:@"Menlo-Bold" size:fontSize];
-		}
-		if (!font) {
-			font = [NSFont boldSystemFontOfSize:fontSize];
-		}
-		controller.overlayView.hintFont = font;
 
 		if (bgHex) {
 			NSColor *defaultBg = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0
@@ -1319,8 +1401,13 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	}
 
 	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 10.0;
-	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
+	NSString *fontFamily = nil;
+	if (style.fontFamily) {
+		fontFamily = @(style.fontFamily);
+		if (fontFamily.length == 0)
+			fontFamily = nil;
+	}
 	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
 	NSString *textHex = style.textColor ? @(style.textColor) : nil;
 	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
@@ -1329,18 +1416,21 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
 	int borderWidth = style.borderWidth;
 	dispatch_async(dispatch_get_main_queue(), ^{
-		// Apply style
-		NSFont *font = nil;
-		if (fontFamily && [fontFamily length] > 0) {
-			font = [NSFont fontWithName:fontFamily size:fontSize];
+		// Apply style — only re-create the grid font when family or size changed.
+		BOOL gridFamilyChanged = (fontFamily != controller.overlayView.cachedGridFontFamily &&
+		                          ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
+		if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
+			NSFont *font = nil;
+			if (fontFamily && [fontFamily length] > 0) {
+				font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
+			}
+			if (!font) {
+				font = [NSFont systemFontOfSize:fontSize];
+			}
+			controller.overlayView.gridFont = font;
+			controller.overlayView.cachedGridFontFamily = fontFamily;
+			controller.overlayView.cachedGridFontSize = fontSize;
 		}
-		if (!font) {
-			font = [NSFont fontWithName:@"Menlo" size:fontSize];
-		}
-		if (!font) {
-			font = [NSFont systemFontOfSize:fontSize];
-		}
-		controller.overlayView.gridFont = font;
 
 		controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
 		                                                                     defaultColor:[NSColor whiteColor]];
@@ -1535,8 +1625,13 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 	}
 
 	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 10.0;
-	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
+	NSString *fontFamily = nil;
+	if (style.fontFamily) {
+		fontFamily = @(style.fontFamily);
+		if (fontFamily.length == 0)
+			fontFamily = nil;
+	}
 	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
 	NSString *textHex = style.textColor ? @(style.textColor) : nil;
 	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
@@ -1545,51 +1640,57 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
 	int borderWidth = style.borderWidth;
 	dispatch_async(dispatch_get_main_queue(), ^{
-		// Apply style if provided (only update if style properties are non-null)
-		if (fontFamily || bgHex || textHex || matchedTextHex || matchedBgHex || matchedBorderHex || borderHex) {
-			NSFont *font = controller.overlayView.gridFont;
+		// Only re-create the grid font when family or size changed.
+		// This is outside the color guard so font-size-only changes are never skipped.
+		BOOL gridFamilyChanged = (fontFamily != controller.overlayView.cachedGridFontFamily &&
+		                          ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
+		if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
+			NSFont *font = nil;
 			if (fontFamily && [fontFamily length] > 0) {
-				font = [NSFont fontWithName:fontFamily size:fontSize];
-			}
-			if (!font) {
-				font = [NSFont fontWithName:@"Menlo" size:fontSize];
+				font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
 			}
 			if (!font) {
 				font = [NSFont systemFontOfSize:fontSize];
 			}
 			controller.overlayView.gridFont = font;
-
-			if (bgHex) {
-				controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
-				                                                                     defaultColor:[NSColor whiteColor]];
-			}
-			if (textHex) {
-				controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
-				                                                               defaultColor:[NSColor blackColor]];
-			}
-			if (matchedTextHex) {
-				controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
-				                                                                      defaultColor:[NSColor blueColor]];
-			}
-			if (matchedBgHex) {
-				controller.overlayView.gridMatchedBackgroundColor =
-				    [controller.overlayView colorFromHex:matchedBgHex defaultColor:[NSColor blueColor]];
-			}
-			if (matchedBorderHex) {
-				controller.overlayView.gridMatchedBorderColor =
-				    [controller.overlayView colorFromHex:matchedBorderHex defaultColor:[NSColor blueColor]];
-			}
-			if (borderHex) {
-				controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
-				                                                                 defaultColor:[NSColor grayColor]];
-			}
-			if (borderWidth > 0) {
-				controller.overlayView.gridBorderWidth = borderWidth;
-			}
-
-			controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
-			controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
+			controller.overlayView.cachedGridFontFamily = fontFamily;
+			controller.overlayView.cachedGridFontSize = fontSize;
 		}
+
+		// Apply color updates if provided
+		if (bgHex) {
+			controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
+			                                                                     defaultColor:[NSColor whiteColor]];
+		}
+		if (textHex) {
+			controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
+			                                                               defaultColor:[NSColor blackColor]];
+		}
+		if (matchedTextHex) {
+			controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
+			                                                                      defaultColor:[NSColor blueColor]];
+		}
+		if (matchedBgHex) {
+			controller.overlayView.gridMatchedBackgroundColor =
+			    [controller.overlayView colorFromHex:matchedBgHex defaultColor:[NSColor blueColor]];
+		}
+		if (matchedBorderHex) {
+			controller.overlayView.gridMatchedBorderColor = [controller.overlayView colorFromHex:matchedBorderHex
+			                                                                        defaultColor:[NSColor blueColor]];
+		}
+		if (borderHex) {
+			controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
+			                                                                 defaultColor:[NSColor grayColor]];
+		}
+		// Apply borderWidth and cached text colors unconditionally,
+		// matching NeruDrawGridCells behavior. Previously these were
+		// gated behind the color guard and would be skipped if only
+		// borderWidth changed without any color properties.
+		if (borderWidth > 0) {
+			controller.overlayView.gridBorderWidth = borderWidth;
+		}
+		controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
+		controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
 
 		// Remove cells that match the bounds to remove
 		if (boundsToRemove && [boundsToRemove count] > 0) {

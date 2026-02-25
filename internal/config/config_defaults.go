@@ -208,7 +208,7 @@ func DefaultConfig() *Config {
 			Enabled:                 true,
 			HintCharacters:          "asdfghjkl",
 			FontSize:                DefaultHintFontSize,
-			FontFamily:              "SF Mono",
+			FontFamily:              "",
 			BorderRadius:            DefaultHintBorderRadius,
 			Padding:                 DefaultHintPadding,
 			BorderWidth:             1,
@@ -269,7 +269,7 @@ func DefaultConfig() *Config {
 			SublayerKeys: "abcdefghijklmnpqrstuvwxyz",
 
 			FontSize:    DefaultGridFontSize,
-			FontFamily:  "SF Mono",
+			FontFamily:  "",
 			BorderWidth: 1,
 
 			BackgroundColor:        "#B3ABE9B3", // Light green, alpha B3 ≈ 70% opacity
@@ -297,7 +297,7 @@ func DefaultConfig() *Config {
 			HighlightColor:  "#4D00BFFF", // Deep sky blue, alpha 4D ≈ 30% opacity
 			LabelColor:      "#FFFFFFFF", // White, alpha FF = 100% opacity
 			LabelFontSize:   DefaultRecursiveGridLabelFontSize,
-			LabelFontFamily: "SF Mono",
+			LabelFontFamily: "",
 
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
 			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
@@ -311,7 +311,7 @@ func DefaultConfig() *Config {
 			RecursiveGridEnabled: false,
 
 			FontSize:        DefaultScrollFontSize,
-			FontFamily:      "SF Mono",
+			FontFamily:      "",
 			BackgroundColor: "#F2FFD700",
 			TextColor:       "#FF000000",
 			BorderColor:     "#FF000000",
