@@ -1606,7 +1606,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 			for (NSValue *removeBoundsValue in boundsToRemove) {
 				NSRect removeBounds = [removeBoundsValue rectValue];
 				NSString *key =
-				    [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", removeBounds.origin.x, removeBounds.origin.y,
+				    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", removeBounds.origin.x, removeBounds.origin.y,
 				                               removeBounds.size.width, removeBounds.size.height];
 				[boundsToRemoveSet addObject:key];
 			}
@@ -1617,7 +1617,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 				NSRect cellBounds = cellItem.bounds;
 
 				NSString *cellKey =
-				    [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", cellBounds.origin.x, cellBounds.origin.y,
+				    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", cellBounds.origin.x, cellBounds.origin.y,
 				                               cellBounds.size.width, cellBounds.size.height];
 				if (![boundsToRemoveSet containsObject:cellKey]) {
 					[cellsToKeep addObject:cellItem];
@@ -1633,7 +1633,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 			    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.gridCells count]];
 			for (GridCellItem *cellItem in controller.overlayView.gridCells) {
 				NSRect bounds = cellItem.bounds;
-				NSString *key = [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", bounds.origin.x, bounds.origin.y,
+				NSString *key = [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", bounds.origin.x, bounds.origin.y,
 				                                           bounds.size.width, bounds.size.height];
 				cellsByBounds[key] = cellItem;
 			}
@@ -1642,7 +1642,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 			for (GridCellItem *newCellItem in cellItemsToAdd) {
 				NSRect newBounds = newCellItem.bounds;
 				NSString *key =
-				    [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", newBounds.origin.x, newBounds.origin.y,
+				    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", newBounds.origin.x, newBounds.origin.y,
 				                               newBounds.size.width, newBounds.size.height];
 
 				GridCellItem *existingCell = cellsByBounds[key];
