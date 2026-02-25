@@ -79,6 +79,11 @@
 }
 @end
 
+/// Default font size for hint overlays (bold system font).
+static const CGFloat kDefaultHintFontSize = 12.0;
+/// Default font size for grid overlays (regular system font).
+static const CGFloat kDefaultGridFontSize = 12.0;
+
 #pragma mark - Overlay View Interface
 
 @interface OverlayView : NSView
@@ -165,7 +170,7 @@
 		_gridCells = [NSMutableArray arrayWithCapacity:100]; // Pre-size for typical grid size
 
 		// Hint defaults
-		_hintFont = [NSFont boldSystemFontOfSize:12.0];
+		_hintFont = [NSFont boldSystemFontOfSize:kDefaultHintFontSize];
 		_hintTextColor = [NSColor blackColor];
 		_hintMatchedTextColor = [NSColor systemBlueColor];
 		_hintBackgroundColor = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.95];
@@ -175,7 +180,7 @@
 		_hintPadding = 4.0;
 
 		// Grid defaults
-		_gridFont = [NSFont systemFontOfSize:12.0];
+		_gridFont = [NSFont systemFontOfSize:kDefaultGridFontSize];
 		_gridTextColor = [NSColor colorWithWhite:0.2 alpha:1.0];
 		_gridMatchedTextColor = [NSColor colorWithRed:0.0 green:0.4 blue:1.0 alpha:1.0];
 		_gridBackgroundColor = [NSColor whiteColor];
@@ -194,9 +199,9 @@
 
 		// Initialize cached font keys (match defaults above)
 		_cachedHintFontFamily = nil;
-		_cachedHintFontSize = 12.0;
+		_cachedHintFontSize = kDefaultHintFontSize;
 		_cachedGridFontFamily = nil;
-		_cachedGridFontSize = 12.0;
+		_cachedGridFontSize = kDefaultGridFontSize;
 
 		// Initialize fullRedraw to YES for structural changes
 		_fullRedraw = YES;
@@ -285,7 +290,7 @@
 /// Apply hint style
 /// @param style Hint style
 - (void)applyStyle:(HintStyle)style {
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 12.0;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultHintFontSize;
 	NSString *fontFamily = nil;
 	if (style.fontFamily) {
 		fontFamily = [NSString stringWithUTF8String:style.fontFamily];
@@ -1218,7 +1223,7 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	}
 
 	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 12.0;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultHintFontSize;
 	NSString *fontFamily = nil;
 	if (style.fontFamily) {
 		fontFamily = @(style.fontFamily);
@@ -1396,7 +1401,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	}
 
 	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 12.0;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
 	NSString *fontFamily = nil;
 	if (style.fontFamily) {
 		fontFamily = @(style.fontFamily);
@@ -1620,7 +1625,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 	}
 
 	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 12.0;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
 	NSString *fontFamily = nil;
 	if (style.fontFamily) {
 		fontFamily = @(style.fontFamily);
