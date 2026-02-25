@@ -285,7 +285,7 @@
 /// Apply hint style
 /// @param style Hint style
 - (void)applyStyle:(HintStyle)style {
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 14.0;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 12.0;
 	NSString *fontFamily = nil;
 	if (style.fontFamily) {
 		fontFamily = [NSString stringWithUTF8String:style.fontFamily];
@@ -1195,7 +1195,7 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	}
 
 	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 14.0;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 12.0;
 	NSString *fontFamily = nil;
 	if (style.fontFamily) {
 		fontFamily = @(style.fontFamily);
@@ -1373,7 +1373,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	}
 
 	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 10.0;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 12.0;
 	NSString *fontFamily = nil;
 	if (style.fontFamily) {
 		fontFamily = @(style.fontFamily);
@@ -1597,7 +1597,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 	}
 
 	// Copy all style properties NOW (before async block)
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 10.0;
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 12.0;
 	NSString *fontFamily = nil;
 	if (style.fontFamily) {
 		fontFamily = @(style.fontFamily);
