@@ -95,15 +95,21 @@ func (s *HintService) ShowHints(
 
 	s.logger.Info("Found clickable elements", zap.Int("count", len(elements)))
 
-	// Check for incremental updates
-	elements = s.filterChangedElements(elements)
+	// Check for incremental updates — skip generate+draw if nothing changed
+	changedElements := s.filterChangedElements(elements)
 
-	s.logger.Info("Elements after incremental filtering", zap.Int("count", len(elements)))
+	s.logger.Info("Elements after incremental filtering", zap.Int("changed", len(changedElements)))
 
-	// Update cache with new elements
+	if len(changedElements) == 0 {
+		s.logger.Info("No elements changed, skipping hint generation")
+
+		return nil, nil
+	}
+
+	// Update cache with ALL elements (not just changed ones)
 	s.updateElementCache(elements)
 
-	// Generate hints
+	// Generate hints for ALL elements
 	hints, elementsErr := s.generator.Generate(ctx, elements)
 	if elementsErr != nil {
 		s.logger.Error("Failed to generate hints", zap.Error(elementsErr))
