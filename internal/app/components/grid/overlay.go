@@ -446,6 +446,16 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 
 	o.drawMu.RUnlock()
 
+	// Zero out cached-label pointers in the backing arrays before returning to pool.
+	// After RUnlock, freeAllCaches could free the C strings these point to;
+	// clearing them prevents any future pool consumer from seeing dangling pointers.
+	for i := range *cellsPtr {
+		(*cellsPtr)[i].label = nil
+	}
+	for i := range *labelsPtr {
+		(*labelsPtr)[i] = nil
+	}
+
 	*cellsPtr = (*cellsPtr)[:0]
 	*labelsPtr = (*labelsPtr)[:0]
 	subgridCellSlicePool.Put(cellsPtr)
@@ -911,6 +921,16 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 	C.NeruDrawGridCells(o.window, &cGridCells[0], C.int(len(cGridCells)), finalStyle)
 
 	o.drawMu.RUnlock()
+
+	// Zero out cached-label pointers in the backing arrays before returning to pool.
+	// After RUnlock, freeAllCaches could free the C strings these point to;
+	// clearing them prevents any future pool consumer from seeing dangling pointers.
+	for i := range *cGridCellsPtr {
+		(*cGridCellsPtr)[i].label = nil
+	}
+	for i := range *cLabelsPtr {
+		(*cLabelsPtr)[i] = nil
+	}
 
 	*cGridCellsPtr = (*cGridCellsPtr)[:0]
 	*cLabelsPtr = (*cLabelsPtr)[:0]

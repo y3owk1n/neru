@@ -436,6 +436,13 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 
 	o.drawMu.RUnlock()
 
+	// Zero out cached-label pointers in the backing array before returning to pool.
+	// After RUnlock, freeAllCaches could free the C strings these point to;
+	// clearing them prevents any future pool consumer from seeing dangling pointers.
+	for i := range *cHintsPtr {
+		(*cHintsPtr)[i].label = nil
+	}
+
 	*cHintsPtr = (*cHintsPtr)[:0]
 	hintDataPool.Put(cHintsPtr)
 	// Note: We don't free cached label or style strings - they're reused across draws
