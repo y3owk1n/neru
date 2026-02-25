@@ -115,11 +115,13 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 @property(nonatomic, strong) NSColor *cachedGridTextColor;
 @property(nonatomic, strong) NSColor *cachedGridMatchedTextColor;
 
-// Cached string buffers to reduce allocations (one per drawing method to avoid shared mutable state)
+// Cached string buffers to reduce allocations during drawing.
+// Each buffer is exclusively used by its corresponding drawXxxInRect: method.
+// boundingRectForHint: intentionally uses a local measurement to avoid mutating these.
 @property(nonatomic, strong)
-    NSMutableAttributedString *cachedHintAttributedString; ///< Cached attributed string buffer for hints
-@property(nonatomic, strong)
-    NSMutableAttributedString *cachedGridCellAttributedString; ///< Cached attributed string buffer for grid cells
+    NSMutableAttributedString *cachedHintAttributedString; ///< Cached attributed string buffer for drawHintsInRect:
+@property(nonatomic, strong) NSMutableAttributedString
+    *cachedGridCellAttributedString; ///< Cached attributed string buffer for drawGridCellsInRect:
 
 /// Cached parsed colors keyed by normalized hex string
 @property(nonatomic, strong) NSCache *colorCache;
@@ -461,19 +463,18 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 /// Compute the screen-space bounding rect for a hint item (view coordinates, bottom-left origin).
 /// Mirrors the geometry logic in drawHints so callers can determine dirty rects without drawing.
+/// Uses a local attributed string instead of cachedHintAttributedString to avoid
+/// shared mutable state with drawHintsInRect:, which also mutates that buffer.
 /// @param hint Hint item
 /// @return Bounding rectangle including border and arrow
 - (NSRect)boundingRectForHint:(HintItem *)hint {
 	NSString *label = hint.label;
 	if (!label || [label length] == 0)
 		return NSZeroRect;
-	// Measure text size using the same attributed string approach as drawHints/drawHintsInRect
-	NSMutableAttributedString *attrString = self.cachedHintAttributedString;
-	[[attrString mutableString] setString:label];
-	[attrString
-	    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
-	            range:NSMakeRange(0, [label length])];
-	NSSize textSize = [attrString size];
+	// Measure text size using a local attributed string to avoid mutating cachedHintAttributedString,
+	// which is also used by drawHintsInRect:. This decouples the two call sites so that
+	// boundingRectForHint: can safely be called from any context without affecting drawing state.
+	NSSize textSize = [label sizeWithAttributes:@{NSFontAttributeName : self.hintFont}];
 	CGFloat padding = self.hintPadding;
 	CGFloat arrowHeight = hint.showArrow ? 2.0 : 0.0;
 	CGFloat contentWidth = textSize.width + (padding * 2);
