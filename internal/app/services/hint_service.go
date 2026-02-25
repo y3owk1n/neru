@@ -100,12 +100,6 @@ func (s *HintService) ShowHints(
 
 	s.logger.Info("Elements after incremental filtering", zap.Int("changed", len(changedElements)))
 
-	if len(changedElements) == 0 {
-		s.logger.Info("No elements changed, skipping hint generation")
-
-		return nil, nil
-	}
-
 	// Update cache with ALL elements (not just changed ones)
 	s.updateElementCache(elements)
 
