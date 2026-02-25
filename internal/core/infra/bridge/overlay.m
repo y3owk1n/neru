@@ -1645,39 +1645,40 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 			controller.overlayView.cachedGridFontSize = fontSize;
 		}
 
-		// Apply color/style updates if provided
-		if (bgHex || textHex || matchedTextHex || matchedBgHex || matchedBorderHex || borderHex) {
-			if (bgHex) {
-				controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
-				                                                                     defaultColor:[NSColor whiteColor]];
-			}
-			if (textHex) {
-				controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
-				                                                               defaultColor:[NSColor blackColor]];
-			}
-			if (matchedTextHex) {
-				controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
-				                                                                      defaultColor:[NSColor blueColor]];
-			}
-			if (matchedBgHex) {
-				controller.overlayView.gridMatchedBackgroundColor =
-				    [controller.overlayView colorFromHex:matchedBgHex defaultColor:[NSColor blueColor]];
-			}
-			if (matchedBorderHex) {
-				controller.overlayView.gridMatchedBorderColor =
-				    [controller.overlayView colorFromHex:matchedBorderHex defaultColor:[NSColor blueColor]];
-			}
-			if (borderHex) {
-				controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
-				                                                                 defaultColor:[NSColor grayColor]];
-			}
-			if (borderWidth > 0) {
-				controller.overlayView.gridBorderWidth = borderWidth;
-			}
-
-			controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
-			controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
+		// Apply color updates if provided
+		if (bgHex) {
+			controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
+			                                                                     defaultColor:[NSColor whiteColor]];
 		}
+		if (textHex) {
+			controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
+			                                                               defaultColor:[NSColor blackColor]];
+		}
+		if (matchedTextHex) {
+			controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
+			                                                                      defaultColor:[NSColor blueColor]];
+		}
+		if (matchedBgHex) {
+			controller.overlayView.gridMatchedBackgroundColor =
+			    [controller.overlayView colorFromHex:matchedBgHex defaultColor:[NSColor blueColor]];
+		}
+		if (matchedBorderHex) {
+			controller.overlayView.gridMatchedBorderColor = [controller.overlayView colorFromHex:matchedBorderHex
+			                                                                        defaultColor:[NSColor blueColor]];
+		}
+		if (borderHex) {
+			controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
+			                                                                 defaultColor:[NSColor grayColor]];
+		}
+		// Apply borderWidth and cached text colors unconditionally,
+		// matching NeruDrawGridCells behavior. Previously these were
+		// gated behind the color guard and would be skipped if only
+		// borderWidth changed without any color properties.
+		if (borderWidth > 0) {
+			controller.overlayView.gridBorderWidth = borderWidth;
+		}
+		controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
+		controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
 
 		// Remove cells that match the bounds to remove
 		if (boundsToRemove && [boundsToRemove count] > 0) {
