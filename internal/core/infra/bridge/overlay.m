@@ -8,14 +8,6 @@
 #import "overlay.h"
 #import <Cocoa/Cocoa.h>
 
-#pragma mark - Helper Functions
-
-/// Compare two rectangles with epsilon for floating point precision
-static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
-	return fabs(a.origin.x - b.origin.x) < epsilon && fabs(a.origin.y - b.origin.y) < epsilon &&
-	       fabs(a.size.width - b.size.width) < epsilon && fabs(a.size.height - b.size.height) < epsilon;
-}
-
 #pragma mark - HintItem Class
 
 @interface HintItem : NSObject
