@@ -1062,7 +1062,7 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 	NSString *prefixStr = prefix ? @(prefix) : @"";
 	dispatch_async(dispatch_get_main_queue(), ^{
-		BOOL anyChanged = NO;
+		BOOL anyInvalidated = NO;
 		for (HintItem *hintItem in controller.overlayView.hints) {
 			NSString *label = hintItem.label ?: @"";
 			int newMatchedPrefixLength = 0;
@@ -1078,11 +1078,11 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 				NSRect dirtyRect = [controller.overlayView boundingRectForHint:hintItem];
 				if (!NSIsEmptyRect(dirtyRect)) {
 					[controller.overlayView setNeedsDisplayInRect:dirtyRect];
+					anyInvalidated = YES;
 				}
-				anyChanged = YES;
 			}
 		}
-		if (anyChanged) {
+		if (anyInvalidated) {
 			// Signal partial redraw mode so drawLayer:inContext: uses the clip box
 			controller.overlayView.fullRedraw = NO;
 		}
