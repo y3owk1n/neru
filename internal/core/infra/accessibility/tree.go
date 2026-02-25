@@ -67,6 +67,12 @@ func putTreeNode(node *TreeNode) {
 }
 
 // TreeNode represents a node in the accessibility element hierarchy.
+//
+// After Release is called on the tree, non-kept nodes are recycled into
+// treeNodePool. Kept nodes (those in the keep set) have their children and
+// parent fields cleared to prevent dangling references to recycled nodes.
+// Callers holding kept nodes (e.g. via InfraNode) must only access Element()
+// and Info() after Release.
 type TreeNode struct {
 	element  *Element
 	info     *ElementInfo
@@ -606,6 +612,12 @@ func (n *TreeNode) Release(keep map[*Element]struct{}) {
 			return
 		}
 		if _, kept := keep[node.element]; kept {
+			// Clear tree pointers so the kept node does not retain
+			// references to recycled pool nodes. InfraNode only uses
+			// Element() and Info(), so children/parent are not needed.
+			node.children = nil
+			node.parent = nil
+
 			return
 		}
 		node.element.Release()
