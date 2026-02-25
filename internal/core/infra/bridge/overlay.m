@@ -447,149 +447,16 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	return path;
 }
 
-/// Draw hint labels above target elements
+/// Draw all hint labels above target elements.
+/// Delegates to drawHintsInRect: with a rect large enough to include all items.
 - (void)drawHints {
-	for (HintItem *hint in self.hints) {
-		NSString *label = hint.label;
-		if (!label || [label length] == 0)
-			continue;
-		NSPoint position = hint.position;
-		int matchedPrefixLength = hint.matchedPrefixLength;
-		BOOL showArrow = hint.showArrow;
-		// Create attributed string with matched prefix in different color
-		// Reuse cached hint attributed string buffer
-		NSMutableAttributedString *attrString = self.cachedHintAttributedString;
-		[[attrString mutableString] setString:label];
-		// Clear previous attributes and set new ones
-		NSRange fullRange = NSMakeRange(0, [label length]);
-		[attrString
-		    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
-		            range:fullRange];
-		// Highlight matched prefix
-		if (matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
-			[attrString addAttribute:NSForegroundColorAttributeName
-			                   value:self.hintMatchedTextColor
-			                   range:NSMakeRange(0, matchedPrefixLength)];
-		}
-		NSSize textSize = [attrString size];
-		// Calculate hint box size (include arrow space if needed)
-		CGFloat padding = self.hintPadding;
-		CGFloat arrowHeight = showArrow ? 2.0 : 0.0;
-		// Calculate dimensions - ensure box is at least square
-		CGFloat contentWidth = textSize.width + (padding * 2);
-		CGFloat contentHeight = textSize.height + (padding * 2);
-		// Make box square if content is narrow, otherwise use content width
-		CGFloat boxWidth = MAX(contentWidth, contentHeight);
-		CGFloat boxHeight = contentHeight + arrowHeight;
-		// Position tooltip above element with arrow pointing down to element center
-		// position is already the element center (set via element.Center() in Go)
-		CGFloat elementCenterX = position.x;
-		CGFloat elementCenterY = position.y;
-		// Position tooltip body above element (arrow points down)
-		CGFloat gap = 3.0;
-		CGFloat tooltipX = elementCenterX - boxWidth / 2.0;
-		CGFloat tooltipY = elementCenterY + arrowHeight + gap;
-		// Convert coordinates (macOS uses bottom-left origin, we need top-left)
-		CGFloat screenHeight = self.bounds.size.height;
-		CGFloat flippedY = screenHeight - tooltipY - boxHeight;
-		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
-		NSRect hintRect = NSMakeRect(tooltipX, flippedY, boxWidth, boxHeight);
-		// Draw tooltip background
-		NSBezierPath *path;
-		if (showArrow) {
-			path = [self createTooltipPath:hintRect
-			                     arrowSize:arrowHeight
-			                elementCenterX:elementCenterX
-			                elementCenterY:flippedElementCenterY];
-		} else {
-			path = [NSBezierPath bezierPathWithRoundedRect:hintRect
-			                                       xRadius:self.hintBorderRadius
-			                                       yRadius:self.hintBorderRadius];
-		}
-		[self.hintBackgroundColor setFill];
-		[path fill];
-		[self.hintBorderColor setStroke];
-		[path setLineWidth:self.hintBorderWidth];
-		[path stroke];
-		// Draw text (centered in tooltip body)
-		CGFloat textX = hintRect.origin.x + (boxWidth - textSize.width) / 2.0;
-		CGFloat textY = hintRect.origin.y + padding;
-		[attrString drawAtPoint:NSMakePoint(textX, textY)];
-	}
+	[self drawHintsInRect:NSMakeRect(-CGFLOAT_MAX / 2, -CGFLOAT_MAX / 2, CGFLOAT_MAX, CGFLOAT_MAX)];
 }
 
-/// Draw grid cells with labels and borders
+/// Draw all grid cells with labels and borders.
+/// Delegates to drawGridCellsInRect: with a rect large enough to include all items.
 - (void)drawGridCells {
-	if ([self.gridCells count] == 0)
-		return;
-	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat screenWidth = self.bounds.size.width;
-	for (GridCellItem *cellItem in self.gridCells) {
-		NSString *label = cellItem.label;
-		CGRect bounds = cellItem.bounds;
-		BOOL isMatched = cellItem.isMatched;
-		BOOL isSubgrid = cellItem.isSubgrid;
-		// Skip drawing unmatched cells if hideUnmatched is enabled AND it's not a subgrid cell
-		if (self.hideUnmatched && !isMatched && !isSubgrid) {
-			continue;
-		}
-		// Convert coordinates (macOS uses bottom-left origin)
-		CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
-		NSRect cellRect = NSMakeRect(bounds.origin.x, flippedY, bounds.size.width, bounds.size.height);
-		// Draw cell background
-		NSColor *bgBase = self.gridBackgroundColor;
-		if (isMatched && self.gridMatchedBackgroundColor) {
-			bgBase = self.gridMatchedBackgroundColor;
-		}
-		[bgBase setFill];
-		NSRectFill(cellRect);
-		// Draw cell border
-		NSColor *borderColor = self.gridBorderColor;
-		if (isMatched && self.gridMatchedBorderColor) {
-			borderColor = self.gridMatchedBorderColor;
-		}
-		[borderColor setStroke];
-		NSRect borderRect = cellRect;
-		// For odd border widths (like 1.0), offset by 0.5 to ensure crisp lines
-		// and proper overlap at shared edges.
-		if ((int)self.gridBorderWidth % 2 == 1) {
-			borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
-		}
-		// Adjust for right screen edge to ensure border is visible
-		if (NSMaxX(cellRect) >= screenWidth) {
-			borderRect.size.width -= 1.0;
-		}
-		// Adjust for bottom screen edge to ensure border is visible
-		if (NSMinY(cellRect) <= 0) {
-			borderRect.origin.y += ceil(self.gridBorderWidth / 2.0);
-			borderRect.size.height -= ceil(self.gridBorderWidth / 2.0);
-		}
-		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
-		[borderPath setLineWidth:self.gridBorderWidth];
-		[borderPath stroke];
-		// Draw text label centered in cell
-		if (label && [label length] > 0) {
-			// Reuse cached grid cell attributed string buffer
-			NSMutableAttributedString *attrString = self.cachedGridCellAttributedString;
-			[[attrString mutableString] setString:label];
-			// Clear previous attributes and set new ones
-			NSRange fullRange = NSMakeRange(0, [label length]);
-			[attrString setAttributes:@{NSFontAttributeName : self.gridFont} range:fullRange];
-			// Use cached color to avoid repeated allocations
-			[attrString addAttribute:NSForegroundColorAttributeName value:self.cachedGridTextColor range:fullRange];
-			int matchedPrefixLength = cellItem.matchedPrefixLength;
-			if (isMatched && matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
-				// Use cached matched color
-				[attrString addAttribute:NSForegroundColorAttributeName
-				                   value:self.cachedGridMatchedTextColor
-				                   range:NSMakeRange(0, matchedPrefixLength)];
-			}
-			NSSize textSize = [attrString size];
-			CGFloat textX = cellRect.origin.x + (cellRect.size.width - textSize.width) / 2.0;
-			CGFloat textY = cellRect.origin.y + (cellRect.size.height - textSize.height) / 2.0;
-			[attrString drawAtPoint:NSMakePoint(textX, textY)];
-		}
-	}
+	[self drawGridCellsInRect:NSMakeRect(-CGFLOAT_MAX / 2, -CGFLOAT_MAX / 2, CGFLOAT_MAX, CGFLOAT_MAX)];
 }
 
 /// Compute the screen-space bounding rect for a hint item (view coordinates, bottom-left origin).
@@ -633,6 +500,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	}
 	return hintRect;
 }
+
 /// Compute the screen-space bounding rect for a grid cell item (view coordinates).
 /// @param cellItem Grid cell item
 /// @return Bounding rectangle including border stroke
@@ -644,8 +512,10 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	return NSMakeRect(bounds.origin.x - expand, flippedY - expand, bounds.size.width + expand * 2,
 	                  bounds.size.height + expand * 2);
 }
-/// Draw only hint labels whose bounding rects intersect the given dirty rect.
-/// @param dirtyRect The dirty region to redraw
+
+/// Draw hint labels whose bounding rects intersect the given dirty rect.
+/// This is the single implementation of hint drawing; drawHints delegates here.
+/// @param dirtyRect The dirty region to redraw (pass a huge rect to draw all)
 - (void)drawHintsInRect:(NSRect)dirtyRect {
 	for (HintItem *hint in self.hints) {
 		NSString *label = hint.label;
@@ -655,7 +525,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		NSRect hintBounds = [self boundingRectForHint:hint];
 		if (!NSIntersectsRect(hintBounds, dirtyRect))
 			continue;
-		// --- Identical drawing logic to drawHints ---
 		NSPoint position = hint.position;
 		int matchedPrefixLength = hint.matchedPrefixLength;
 		BOOL showArrow = hint.showArrow;
@@ -707,8 +576,10 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		[attrString drawAtPoint:NSMakePoint(textX, textY)];
 	}
 }
-/// Draw only grid cells whose bounding rects intersect the given dirty rect.
-/// @param dirtyRect The dirty region to redraw
+
+/// Draw grid cells whose bounding rects intersect the given dirty rect.
+/// This is the single implementation of grid cell drawing; drawGridCells delegates here.
+/// @param dirtyRect The dirty region to redraw (pass a huge rect to draw all)
 - (void)drawGridCellsInRect:(NSRect)dirtyRect {
 	if ([self.gridCells count] == 0)
 		return;
@@ -727,7 +598,7 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		// Skip cells outside the dirty region
 		if (!NSIntersectsRect(cellRect, dirtyRect))
 			continue;
-		// --- Identical drawing logic to drawGridCells ---
+		// Draw cell background
 		NSColor *bgBase = self.gridBackgroundColor;
 		if (isMatched && self.gridMatchedBackgroundColor) {
 			bgBase = self.gridMatchedBackgroundColor;
