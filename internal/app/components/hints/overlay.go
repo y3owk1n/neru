@@ -51,7 +51,7 @@ type Overlay struct {
 	cachedLabels map[string]*C.char
 
 	// drawMu serializes draw operations against cache invalidation.
-	// Draw paths hold RLock; freeLabelCache holds Lock.
+	// Draw paths hold RLock; freeAllCaches holds Lock.
 	drawMu sync.RWMutex
 
 	// State tracking for incremental updates
@@ -241,8 +241,7 @@ func BuildStyle(cfg config.HintsConfig) StyleMode {
 func (o *Overlay) SetConfig(config config.HintsConfig) {
 	o.config = config
 	// Invalidate caches when config changes
-	o.styleCache.Free()
-	o.freeLabelCache()
+	o.freeAllCaches()
 }
 
 // Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)
@@ -252,8 +251,7 @@ func (o *Overlay) Cleanup() {
 	if o.callbackManager != nil {
 		o.callbackManager.Cleanup()
 	}
-	o.styleCache.Free()
-	o.freeLabelCache()
+	o.freeAllCaches()
 }
 
 // Destroy destroys the overlay.
@@ -266,12 +264,19 @@ func (o *Overlay) Destroy() {
 	}
 }
 
-// freeLabelCache frees all cached label C strings.
-// It acquires drawMu to ensure no in-flight draw is referencing the pointers.
-func (o *Overlay) freeLabelCache() {
+// freeAllCaches frees both the style cache and the label cache under drawMu
+// so that no in-flight draw can reference freed C pointers.
+func (o *Overlay) freeAllCaches() {
 	o.drawMu.Lock()
 	defer o.drawMu.Unlock()
 
+	o.styleCache.Free()
+	o.freeLabelCacheLocked()
+}
+
+// freeLabelCacheLocked frees all cached label C strings.
+// Caller must hold drawMu.Lock.
+func (o *Overlay) freeLabelCacheLocked() {
 	o.labelCacheMu.Lock()
 	defer o.labelCacheMu.Unlock()
 	for _, cStr := range o.cachedLabels {
