@@ -8,14 +8,6 @@
 #import "overlay.h"
 #import <Cocoa/Cocoa.h>
 
-#pragma mark - Helper Functions
-
-/// Compare two rectangles with epsilon for floating point precision
-static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
-	return fabs(a.origin.x - b.origin.x) < epsilon && fabs(a.origin.y - b.origin.y) < epsilon &&
-	       fabs(a.size.width - b.size.width) < epsilon && fabs(a.size.height - b.size.height) < epsilon;
-}
-
 #pragma mark - HintItem Class
 
 @interface HintItem : NSObject
@@ -1601,23 +1593,25 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 
 		// Remove cells that match the bounds to remove
 		if (boundsToRemove && [boundsToRemove count] > 0) {
+			// Build an NSSet of string keys for O(1) lookup instead of O(n×m) nested loop
+			NSMutableSet *boundsToRemoveSet = [NSMutableSet setWithCapacity:[boundsToRemove count]];
+			for (NSValue *removeBoundsValue in boundsToRemove) {
+				NSRect removeBounds = [removeBoundsValue rectValue];
+				NSString *key =
+				    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", removeBounds.origin.x, removeBounds.origin.y,
+				                               removeBounds.size.width, removeBounds.size.height];
+				[boundsToRemoveSet addObject:key];
+			}
+
 			NSMutableArray<GridCellItem *> *cellsToKeep =
 			    [NSMutableArray arrayWithCapacity:[controller.overlayView.gridCells count]];
 			for (GridCellItem *cellItem in controller.overlayView.gridCells) {
 				NSRect cellBounds = cellItem.bounds;
-				BOOL shouldRemove = NO;
 
-				// Check if this cell's bounds match any of the bounds to remove
-				for (NSValue *removeBoundsValue in boundsToRemove) {
-					NSRect removeBounds = [removeBoundsValue rectValue];
-					// Use rectsEqual for floating point comparison
-					if (rectsEqual(cellBounds, removeBounds, 0.1)) {
-						shouldRemove = YES;
-						break;
-					}
-				}
-
-				if (!shouldRemove) {
+				NSString *cellKey =
+				    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", cellBounds.origin.x, cellBounds.origin.y,
+				                               cellBounds.size.width, cellBounds.size.height];
+				if (![boundsToRemoveSet containsObject:cellKey]) {
 					[cellsToKeep addObject:cellItem];
 				}
 			}
@@ -1631,7 +1625,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 			    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.gridCells count]];
 			for (GridCellItem *cellItem in controller.overlayView.gridCells) {
 				NSRect bounds = cellItem.bounds;
-				NSString *key = [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", bounds.origin.x, bounds.origin.y,
+				NSString *key = [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", bounds.origin.x, bounds.origin.y,
 				                                           bounds.size.width, bounds.size.height];
 				cellsByBounds[key] = cellItem;
 			}
@@ -1640,7 +1634,7 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 			for (GridCellItem *newCellItem in cellItemsToAdd) {
 				NSRect newBounds = newCellItem.bounds;
 				NSString *key =
-				    [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", newBounds.origin.x, newBounds.origin.y,
+				    [NSString stringWithFormat:@"%.6f,%.6f,%.6f,%.6f", newBounds.origin.x, newBounds.origin.y,
 				                               newBounds.size.width, newBounds.size.height];
 
 				GridCellItem *existingCell = cellsByBounds[key];
