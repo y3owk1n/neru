@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.21.3](https://github.com/y3owk1n/neru/compare/v1.21.2...v1.21.3) (2026-02-25)
+
+
+### Bug Fixes
+
+* **accessibility:** add pointer fast-path in Element.Equal to avoid CGo on cache hits ([#438](https://github.com/y3owk1n/neru/issues/438)) ([1a2a3f8](https://github.com/y3owk1n/neru/commit/1a2a3f8ded8b06a684353ebe7f97adbb3fa2137e))
+* **accessibility:** use nil instead of empty slice for leaf node children ([#437](https://github.com/y3owk1n/neru/issues/437)) ([a422f9a](https://github.com/y3owk1n/neru/commit/a422f9ae12e892dd8f85f2c1f854257bf15851e2))
+* **bridge:** avoid temporary NSString allocation in prefix matching loops ([#435](https://github.com/y3owk1n/neru/issues/435)) ([32451f4](https://github.com/y3owk1n/neru/commit/32451f45ffac80bac6ef219e80ac543e4a50005a))
+* **bridge:** use NSSet for O(1) lookup in NeruDrawIncrementGrid removal pass ([#436](https://github.com/y3owk1n/neru/issues/436)) ([5fb5551](https://github.com/y3owk1n/neru/commit/5fb555112d5900394a1539a09d5d81601b5a8df2))
+* **eventtap:** replace dispatch_sync with os_unfair_lock for hotkey lookup ([#433](https://github.com/y3owk1n/neru/issues/433)) ([029b767](https://github.com/y3owk1n/neru/commit/029b76714403bacc45f7d86b282a3dada7465560))
+* **gc:** replace runtime.ReadMemStats with runtime/metrics to avoid STW pause ([#439](https://github.com/y3owk1n/neru/issues/439)) ([3c97f48](https://github.com/y3owk1n/neru/commit/3c97f48c134b6cb3e7fff45f90ef0e837a802b69))
+* **grid:** gate runtime.ReadMemStats behind debug log level in DrawGrid ([#441](https://github.com/y3owk1n/neru/issues/441)) ([d94227f](https://github.com/y3owk1n/neru/commit/d94227f3575cceeefbaba1fc5aaf5f40be5f328f))
+* **grid:** reuse Grid.Index() in drawGridIncrementalStructural instead of rebuilding maps ([#445](https://github.com/y3owk1n/neru/issues/445)) ([0ea1493](https://github.com/y3owk1n/neru/commit/0ea1493de0c4abaa611a758d27ac8c470214afb8))
+* **hints:** avoid map allocation in hintsAreStructurallyEqual on hot path ([#442](https://github.com/y3owk1n/neru/issues/442)) ([2b239bf](https://github.com/y3owk1n/neru/commit/2b239bf94f5e1b379b34b20e81714f13f3add54f))
+* **hints:** remove element caching from HintService ([#444](https://github.com/y3owk1n/neru/issues/444)) ([cb45be1](https://github.com/y3owk1n/neru/commit/cb45be12e322f8c9bdf2d30df8b34cb9a51bf036))
+* **hints:** replace fmt.Sprintf map keys with image.Point in drawHintsIncrementalStructural ([#443](https://github.com/y3owk1n/neru/issues/443)) ([b495951](https://github.com/y3owk1n/neru/commit/b49595117ca260d7b0438d69cd390fda135af37c))
+* **overlays:** cache hint labels and add drawMu to prevent use-after-free across all overlays ([#434](https://github.com/y3owk1n/neru/issues/434)) ([30243d9](https://github.com/y3owk1n/neru/commit/30243d9db314bc32cbebc64a355dd6b2adaa68ca))
+* **overlay:** use dirty-rect partial redraw for match-prefix-only updates ([#431](https://github.com/y3owk1n/neru/issues/431)) ([2ca0373](https://github.com/y3owk1n/neru/commit/2ca03739cb2289ee2479b23123bb3ea95a953e86))
+* **overlay:** use system font as default, cache NSFont, and improve font resolution ([#446](https://github.com/y3owk1n/neru/issues/446)) ([5f5c08a](https://github.com/y3owk1n/neru/commit/5f5c08a0c9a1579e7a07d2685c2bfb6b8890a6ab))
+* **tree:** add sync.Pool for TreeNode to reduce GC pressure ([#440](https://github.com/y3owk1n/neru/issues/440)) ([b4e9290](https://github.com/y3owk1n/neru/commit/b4e9290e82d5e8ff45ac4a7bb3d4b318478f3912))
+
 ## [1.21.2](https://github.com/y3owk1n/neru/compare/v1.21.1...v1.21.2) (2026-02-24)
 
 
