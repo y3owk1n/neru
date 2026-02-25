@@ -397,20 +397,23 @@
 - (NSFont *)resolveFont:(NSString *)name size:(CGFloat)size bold:(BOOL)bold {
 	if (!name || name.length == 0)
 		return nil;
+	NSFontManager *fm = [NSFontManager sharedFontManager];
 	// Try PostScript name first (fast path)
 	NSFont *font = [NSFont fontWithName:name size:size];
-	if (font)
-		return font;
-	// Fall back to family name lookup via NSFontManager
-	NSFontManager *fm = [NSFontManager sharedFontManager];
-	NSFontTraitMask traits = bold ? NSBoldFontMask : 0;
-	NSInteger weight = bold ? 9 : 5; // 9 = bold, 5 = regular in AppKit weight scale
-	font = [fm fontWithFamily:name traits:traits weight:weight size:size];
+
+	if (!font) {
+		// Fall back to family name lookup via NSFontManager
+		NSFontTraitMask traits = bold ? NSBoldFontMask : 0;
+		NSInteger weight = bold ? 9 : 5; // 9 = bold, 5 = regular in AppKit weight scale
+		font = [fm fontWithFamily:name traits:traits weight:weight size:size];
+	}
 
 	if (font && bold) {
-		// NSFontManager may return a lighter weight if the exact bold weight isn't
-		// available (e.g. Medium instead of Bold). Verify the returned font actually
-		// has the bold trait; if not, ask NSFontManager to convert it to bold.
+		// Verify the resolved font actually has the bold trait, regardless of
+		// whether it came from the PostScript path or the family-name path.
+		// A user-supplied PostScript name like "SFMono-Regular" would otherwise
+		// bypass bold enforcement; NSFontManager family lookup may also return
+		// a lighter weight (e.g. Medium instead of Bold).
 		NSFontTraitMask actualTraits = [fm traitsOfFont:font];
 		if (!(actualTraits & NSBoldFontMask)) {
 			NSFont *boldFont = [fm convertFont:font toHaveTrait:NSBoldFontMask];
