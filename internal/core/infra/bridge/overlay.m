@@ -1428,19 +1428,26 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 			return;
 		}
 		// Partial redraw: only invalidate changed cells
-		view.fullRedraw = NO;
+		BOOL anyInvalidated = NO;
 		idx = 0;
 		for (GridCellItem *cellItem in view.gridCells) {
 			if (changedFlags[idx]) {
 				NSRect dirtyRect = [view screenRectForGridCell:cellItem];
 				if (!NSIsEmptyRect(dirtyRect)) {
 					[view setNeedsDisplayInRect:dirtyRect];
+					anyInvalidated = YES;
 				}
 			}
 			idx++;
 		}
+
 		if (changedFlags != stackFlags)
 			free(changedFlags);
+
+		if (anyInvalidated) {
+			// Signal partial redraw mode so drawLayer:inContext: uses the clip box
+			view.fullRedraw = NO;
+		}
 	});
 }
 
