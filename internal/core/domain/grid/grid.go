@@ -220,6 +220,8 @@ func NewGridWithLabels(
 			characters: uppercaseChars,
 			bounds:     bounds,
 			cells:      []*Cell{},
+			index:      make(map[string]*Cell),
+			prefixes:   make(map[string]bool),
 		}
 	}
 
