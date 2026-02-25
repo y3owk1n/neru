@@ -419,8 +419,12 @@ func buildChildrenSequential(
 		validChildren = append(validChildren, childData{element: child, info: info})
 	}
 
-	// Pre-allocate with exact capacity
-	parent.children = make([]*TreeNode, 0, len(validChildren))
+	// Reuse the pooled backing array when it has enough room.
+	if cap(parent.children) >= len(validChildren) {
+		parent.children = parent.children[:0]
+	} else {
+		parent.children = make([]*TreeNode, 0, len(validChildren))
+	}
 
 	// Second pass: create nodes and recurse
 	for _, data := range validChildren {
@@ -516,8 +520,13 @@ func buildChildrenParallel(
 		}
 	}
 
-	// Pre-allocate final children slice with exact valid count
-	parent.children = make([]*TreeNode, 0, validCount)
+	// Reuse the pooled backing array when it has enough room.
+	if cap(parent.children) >= validCount {
+		parent.children = parent.children[:0]
+	} else {
+		parent.children = make([]*TreeNode, 0, validCount)
+	}
+
 	for _, node := range collected {
 		if node != nil {
 			parent.children = append(parent.children, node)
