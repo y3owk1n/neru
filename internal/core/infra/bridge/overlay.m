@@ -515,22 +515,21 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 /// Draw hint labels whose bounding rects intersect the given dirty rect.
 /// This is the single implementation of hint drawing; drawHints delegates here.
+/// When filtering is active, geometry is computed once and reused for both the
+/// intersection test and drawing, avoiding redundant text measurement.
 /// @param dirtyRect The dirty region to redraw. Pass NSZeroRect to draw all items (skips intersection checks).
 - (void)drawHintsInRect:(NSRect)dirtyRect {
 	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
+	CGFloat screenHeight = self.bounds.size.height;
+	CGFloat padding = self.hintPadding;
 	for (HintItem *hint in self.hints) {
 		NSString *label = hint.label;
 		if (!label || [label length] == 0)
 			continue;
-		// Skip hints outside the dirty region (only when filtering)
-		if (filterByRect) {
-			NSRect hintBounds = [self boundingRectForHint:hint];
-			if (!NSIntersectsRect(hintBounds, dirtyRect))
-				continue;
-		}
 		NSPoint position = hint.position;
 		int matchedPrefixLength = hint.matchedPrefixLength;
 		BOOL showArrow = hint.showArrow;
+		// Set up attributed string with colors (needed for both measurement and drawing)
 		NSMutableAttributedString *attrString = self.cachedHintAttributedString;
 		[[attrString mutableString] setString:label];
 		NSRange fullRange = NSMakeRange(0, [label length]);
@@ -542,8 +541,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 			                   value:self.hintMatchedTextColor
 			                   range:NSMakeRange(0, matchedPrefixLength)];
 		}
+		// Compute geometry once — used for both intersection test and drawing
 		NSSize textSize = [attrString size];
-		CGFloat padding = self.hintPadding;
 		CGFloat arrowHeight = showArrow ? 2.0 : 0.0;
 		CGFloat contentWidth = textSize.width + (padding * 2);
 		CGFloat contentHeight = textSize.height + (padding * 2);
@@ -554,8 +553,21 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		CGFloat gap = 3.0;
 		CGFloat tooltipX = elementCenterX - boxWidth / 2.0;
 		CGFloat tooltipY = elementCenterY + arrowHeight + gap;
-		CGFloat screenHeight = self.bounds.size.height;
 		CGFloat flippedY = screenHeight - tooltipY - boxHeight;
+		// Skip hints outside the dirty region using the computed geometry
+		if (filterByRect) {
+			CGFloat expand = ceil(self.hintBorderWidth / 2.0) + 1.0;
+			NSRect hintBounds =
+			    NSMakeRect(tooltipX - expand, flippedY - expand, boxWidth + expand * 2, boxHeight + expand * 2);
+			if (showArrow) {
+				CGFloat flippedElemY = screenHeight - elementCenterY;
+				if (flippedElemY > NSMaxY(hintBounds)) {
+					hintBounds.size.height = flippedElemY + 1.0 - hintBounds.origin.y;
+				}
+			}
+			if (!NSIntersectsRect(hintBounds, dirtyRect))
+				continue;
+		}
 		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
 		NSRect hintRect = NSMakeRect(tooltipX, flippedY, boxWidth, boxHeight);
 		NSBezierPath *path;
