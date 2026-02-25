@@ -8,6 +8,7 @@
 #import "eventtap.h"
 #import "keymap.h"
 #import <Carbon/Carbon.h>
+#import <os/lock.h>
 
 #pragma mark - Type Definitions
 
@@ -16,10 +17,10 @@ typedef struct {
 	CFRunLoopSourceRef runLoopSource;                ///< Run loop source
 	EventTapCallback callback;                       ///< Callback function
 	void *userData;                                  ///< User data pointer
-	NSMutableDictionary *__strong hotkeyLookup;      ///< Hotkey lookup table: @(lookupKey) -> @YES
+	NSDictionary *__strong hotkeyLookup;             ///< Immutable hotkey lookup table: @(lookupKey) -> @YES
 	NSArray<NSString *> *__strong hotkeyStrings;     ///< Raw hotkey strings for rebuild on layout change
 	uint64_t hotkeyGeneration;                       ///< Generation counter for TOCTOU protection
-	dispatch_queue_t __strong accessQueue;           ///< Thread-safe access queue
+	os_unfair_lock hotkeyLock;                       ///< Lightweight lock for hotkey lookup/strings/generation
 	dispatch_block_t __strong pendingEnableBlock;    ///< Pending enable block (inner delayed block)
 	dispatch_block_t __strong pendingAddSourceBlock; ///< Pending add source block
 } EventTapContext;
@@ -60,7 +61,7 @@ static NSDictionary *buildHotkeyLookupFromStrings(NSArray<NSString *> *strings) 
 			lookup[@(lookupKey)] = @YES;
 		}
 	}
-	return lookup;
+	return [lookup copy]; // return truly immutable NSDictionary
 }
 /// Rebuild the hotkey lookup table from stored hotkey strings.
 /// Called after keyboard layout changes to re-resolve key names to keycodes.
@@ -70,14 +71,13 @@ static void rebuildEventTapHotkeyLookup(void) {
 	if (!context)
 		return;
 
-	// Snapshot the current hotkey strings and generation under the lock
-	__block NSArray<NSString *> *strings = nil;
-	__block uint64_t snapshotGeneration = 0;
+	NSArray<NSString *> *strings = nil;
+	uint64_t snapshotGeneration = 0;
 
-	dispatch_sync(context->accessQueue, ^{
-		strings = context->hotkeyStrings;
-		snapshotGeneration = context->hotkeyGeneration;
-	});
+	os_unfair_lock_lock(&context->hotkeyLock);
+	strings = context->hotkeyStrings;
+	snapshotGeneration = context->hotkeyGeneration;
+	os_unfair_lock_unlock(&context->hotkeyLock);
 
 	if (!strings || strings.count == 0)
 		return;
@@ -86,14 +86,16 @@ static void rebuildEventTapHotkeyLookup(void) {
 	NSDictionary *newLookup = buildHotkeyLookupFromStrings(strings);
 
 	// Swap the lookup table under the lock only if generation hasn't changed
-	// (i.e., setEventTapHotkeys hasn't been called in the meantime)
-	dispatch_sync(context->accessQueue, ^{
-		if (context->hotkeyGeneration != snapshotGeneration)
-			return; // setEventTapHotkeys ran; our data is stale, skip
-
-		[context->hotkeyLookup removeAllObjects];
-		[context->hotkeyLookup addEntriesFromDictionary:newLookup];
-	});
+	// (i.e., setEventTapHotkeys hasn't been called in the meantime).
+	// Save old pointer so ARC releases it outside the lock.
+	NSDictionary *oldLookup = nil;
+	os_unfair_lock_lock(&context->hotkeyLock);
+	if (context->hotkeyGeneration == snapshotGeneration) {
+		oldLookup = context->hotkeyLookup;
+		context->hotkeyLookup = newLookup;
+	}
+	os_unfair_lock_unlock(&context->hotkeyLock);
+	oldLookup = nil; // ARC releases old dictionary here, outside the lock
 }
 
 static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uint8_t *outModifiers) {
@@ -174,11 +176,16 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			CGEventFlags flags = CGEventGetFlags(event);
 
 			// Thread-safe hotkey check (O(1) lookup)
-			__block BOOL isHotkey = NO;
-			dispatch_sync(context->accessQueue, ^{
-				NSUInteger lookupKey = hotkeyLookupKey(keyCode, flags);
-				isHotkey = [context->hotkeyLookup[@(lookupKey)] boolValue];
-			});
+			// Uses os_unfair_lock for minimal latency on the event tap thread.
+			// The lock only protects snapshotting the immutable hotkeyLookup
+			// pointer; the dictionary lookup runs outside the critical section
+			// since the dictionary is never mutated — writers swap in a new instance.
+			NSUInteger lookupKey = hotkeyLookupKey(keyCode, flags);
+			NSDictionary *lookup;
+			os_unfair_lock_lock(&context->hotkeyLock);
+			lookup = context->hotkeyLookup;
+			os_unfair_lock_unlock(&context->hotkeyLock);
+			BOOL isHotkey = [lookup[@(lookupKey)] boolValue];
 
 			// If this is a registered hotkey, let it pass through
 			if (isHotkey) {
@@ -302,10 +309,10 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->callback = callback;
 	context->userData = userData;
 
-	// Initialize with ARC-compatible dictionary
-	context->hotkeyLookup = [[NSMutableDictionary alloc] init];
+	// Initialize hotkey state with lightweight lock (no dispatch queue overhead)
+	context->hotkeyLookup = [[NSDictionary alloc] init];
 	context->hotkeyStrings = nil;
-	context->accessQueue = dispatch_queue_create("com.neru.eventtap", DISPATCH_QUEUE_SERIAL);
+	context->hotkeyLock = OS_UNFAIR_LOCK_INIT;
 
 	// Store global reference for layout-change rebuild.
 	gEventTapContext = context;
@@ -327,7 +334,6 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 		setKeymapLayoutChangeCallback(NULL);
 		context->hotkeyLookup = nil;
 		context->hotkeyStrings = nil;
-		context->accessQueue = nil;
 		free(context);
 		return NULL;
 	}
@@ -379,13 +385,23 @@ void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count) {
 
 		NSDictionary *newLookup = buildHotkeyLookupFromStrings(newStrings);
 
-		// Thread-safe replacement
-		dispatch_sync(context->accessQueue, ^{
-			context->hotkeyStrings = [newStrings copy];
-			context->hotkeyGeneration++; // invalidate any in-flight rebuild
-			[context->hotkeyLookup removeAllObjects];
-			[context->hotkeyLookup addEntriesFromDictionary:newLookup];
-		});
+		NSArray<NSString *> *copiedStrings = [newStrings copy];
+
+		// Thread-safe replacement using os_unfair_lock.
+		// Save old pointers so ARC releases them outside the lock —
+		// deallocation of a large dictionary must not block the event tap callback.
+		NSDictionary *oldLookup;
+		NSArray *oldStrings;
+		os_unfair_lock_lock(&context->hotkeyLock);
+		oldStrings = context->hotkeyStrings;
+		oldLookup = context->hotkeyLookup;
+		context->hotkeyStrings = copiedStrings;
+		context->hotkeyGeneration++; // invalidate any in-flight rebuild
+		context->hotkeyLookup = newLookup;
+		os_unfair_lock_unlock(&context->hotkeyLock);
+		// ARC releases old objects here, outside the lock
+		oldLookup = nil;
+		oldStrings = nil;
 	}
 }
 
@@ -482,10 +498,24 @@ void destroyEventTap(EventTap tap) {
 			setKeymapLayoutChangeCallback(NULL);
 		}
 
-		// Clean up hotkey lookup and queue
-		context->hotkeyLookup = nil;          // ARC will handle deallocation
-		context->hotkeyStrings = nil;         // ARC will handle deallocation
-		context->accessQueue = nil;           // ARC will handle deallocation
+		// Synchronize with any in-flight event tap callback that may be
+		// holding hotkeyLock on the Mach port thread.  Acquiring the lock
+		// here acts as a barrier: once we hold it, we know the callback
+		// has left its critical section.  We then nil out the ARC fields
+		// under the lock so the callback cannot retain a dangling pointer,
+		// and release the lock before freeing the struct.
+		NSDictionary *oldLookup;
+		NSArray *oldStrings;
+		os_unfair_lock_lock(&context->hotkeyLock);
+		oldLookup = context->hotkeyLookup;
+		oldStrings = context->hotkeyStrings;
+		context->hotkeyLookup = nil;
+		context->hotkeyStrings = nil;
+		os_unfair_lock_unlock(&context->hotkeyLock);
+		// ARC releases old objects outside the lock
+		oldLookup = nil;
+		oldStrings = nil;
+
 		context->pendingEnableBlock = nil;    // ARC will handle deallocation
 		context->pendingAddSourceBlock = nil; // ARC will handle deallocation
 
