@@ -12,6 +12,7 @@ extern void resizeModeIndicatorCompletionCallback(void* context);
 import "C"
 
 import (
+	"sync"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
@@ -47,6 +48,13 @@ type Overlay struct {
 	logger          *zap.Logger
 	callbackManager *overlayutil.CallbackManager
 	styleCache      *overlayutil.StyleCache
+
+	// Cached C strings for indicator labels to avoid malloc/free per draw
+	labelCacheMu sync.RWMutex
+	cachedLabels map[string]*C.char
+	// drawMu serializes draw operations against cache invalidation.
+	// Draw paths hold RLock; freeAllCaches holds Lock.
+	drawMu sync.RWMutex
 }
 
 // NewOverlay initializes a new mode indicator overlay instance with its own window.
@@ -65,6 +73,7 @@ func NewOverlay(
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
+		cachedLabels:    make(map[string]*C.char),
 	}, nil
 }
 
@@ -82,6 +91,7 @@ func NewOverlayWithWindow(
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
+		cachedLabels:    make(map[string]*C.char),
 	}, nil
 }
 
@@ -133,8 +143,11 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 	xOffset := o.indicatorConfig.IndicatorXOffset
 	yOffset := o.indicatorConfig.IndicatorYOffset
 
-	label := C.CString(labelText)
-	defer C.free(unsafe.Pointer(label)) //nolint:nlreturn
+	// Hold drawMu.RLock for the entire span from label lookup through the C
+	// draw call so that freeAllCaches (which takes drawMu.Lock) cannot free
+	// the C strings while they are still referenced.
+	o.drawMu.RLock()
+	label := o.getOrCacheLabel(labelText)
 
 	// Create a single hint for the indicator
 	hint := C.HintData{
@@ -177,13 +190,15 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 
 	// Reuse NeruDrawHints which can draw arbitrary labels
 	C.NeruDrawHints(o.window, &hint, 1, style)
+
+	o.drawMu.RUnlock()
 }
 
 // SetConfig sets the overlay configuration.
 func (o *Overlay) SetConfig(indicatorCfg config.ModeIndicatorConfig) {
 	o.indicatorConfig = indicatorCfg
-	// Invalidate style cache when config changes
-	o.styleCache.Free()
+	// Invalidate caches when config changes
+	o.freeAllCaches()
 }
 
 // SetSharingType sets the window sharing type for screen sharing visibility.
@@ -196,13 +211,13 @@ func (o *Overlay) SetSharingType(hide bool) {
 	C.NeruSetOverlaySharingType(o.window, sharingType)
 }
 
-// Cleanup frees Go-side resources (callbackManager, styleCache) without
-// destroying the native window.
+// Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)
+// without destroying the native window.
 func (o *Overlay) Cleanup() {
 	if o.callbackManager != nil {
 		o.callbackManager.Cleanup()
 	}
-	o.styleCache.Free()
+	o.freeAllCaches()
 }
 
 // Destroy releases the overlay window resources.
@@ -213,4 +228,48 @@ func (o *Overlay) Destroy() {
 		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
 	}
+}
+
+// freeAllCaches frees both the style cache and the label cache under drawMu
+// so that no in-flight draw can reference freed C pointers.
+func (o *Overlay) freeAllCaches() {
+	o.drawMu.Lock()
+	defer o.drawMu.Unlock()
+	o.styleCache.Free()
+	o.freeLabelCacheLocked()
+}
+
+// freeLabelCacheLocked frees all cached label C strings.
+// Caller must hold drawMu.Lock.
+func (o *Overlay) freeLabelCacheLocked() {
+	o.labelCacheMu.Lock()
+	defer o.labelCacheMu.Unlock()
+	for _, cStr := range o.cachedLabels {
+		if cStr != nil {
+			C.free(unsafe.Pointer(cStr))
+		}
+	}
+	// Re-initialize map to clear references
+	o.cachedLabels = make(map[string]*C.char)
+}
+
+// getOrCacheLabel returns a cached C string for the label, creating it if needed.
+func (o *Overlay) getOrCacheLabel(label string) *C.char {
+	o.labelCacheMu.RLock()
+	if cStr, ok := o.cachedLabels[label]; ok {
+		o.labelCacheMu.RUnlock()
+
+		return cStr
+	}
+	o.labelCacheMu.RUnlock()
+	o.labelCacheMu.Lock()
+	defer o.labelCacheMu.Unlock()
+	// Double-check
+	if cStr, ok := o.cachedLabels[label]; ok {
+		return cStr
+	}
+	cStr := C.CString(label)
+	o.cachedLabels[label] = cStr
+
+	return cStr
 }
