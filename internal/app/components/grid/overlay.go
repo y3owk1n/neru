@@ -281,9 +281,18 @@ func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Sty
 		return nil
 	}
 
-	start := time.Now()
+	// Only collect memory stats when debug logging is enabled, because
+	// runtime.ReadMemStats is a stop-the-world operation that would add
+	// a full STW pause to every grid activation on the hot path.
+	debugPerf := o.logger.Core().Enabled(zap.DebugLevel)
+
+	var start time.Time
 	var msBefore runtime.MemStats
-	runtime.ReadMemStats(&msBefore)
+
+	if debugPerf {
+		start = time.Now()
+		runtime.ReadMemStats(&msBefore)
+	}
 
 	// Check if we can do incremental updates (always try if we have previous state)
 	o.gridStateMu.RLock()
@@ -320,13 +329,15 @@ func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Sty
 	o.previousStyle = style
 	o.gridStateMu.Unlock()
 
-	var msAfter runtime.MemStats
-	runtime.ReadMemStats(&msAfter)
-	o.logger.Info("Grid draw perf",
-		zap.Int("cell_count", len(cells)),
-		zap.Duration("duration", time.Since(start)),
-		zap.Uint64("alloc_bytes_delta", msAfter.Alloc-msBefore.Alloc),
-		zap.Uint64("sys_bytes_delta", msAfter.Sys-msBefore.Sys))
+	if debugPerf {
+		var msAfter runtime.MemStats
+		runtime.ReadMemStats(&msAfter)
+		o.logger.Debug("Grid draw perf",
+			zap.Int("cell_count", len(cells)),
+			zap.Duration("duration", time.Since(start)),
+			zap.Uint64("alloc_bytes_delta", msAfter.Alloc-msBefore.Alloc),
+			zap.Uint64("sys_bytes_delta", msAfter.Sys-msBefore.Sys))
+	}
 
 	return nil
 }
