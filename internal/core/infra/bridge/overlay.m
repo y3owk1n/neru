@@ -406,6 +406,19 @@
 	NSFontTraitMask traits = bold ? NSBoldFontMask : 0;
 	NSInteger weight = bold ? 9 : 5; // 9 = bold, 5 = regular in AppKit weight scale
 	font = [fm fontWithFamily:name traits:traits weight:weight size:size];
+
+	if (font && bold) {
+		// NSFontManager may return a lighter weight if the exact bold weight isn't
+		// available (e.g. Medium instead of Bold). Verify the returned font actually
+		// has the bold trait; if not, ask NSFontManager to convert it to bold.
+		NSFontTraitMask actualTraits = [fm traitsOfFont:font];
+		if (!(actualTraits & NSBoldFontMask)) {
+			NSFont *boldFont = [fm convertFont:font toHaveTrait:NSBoldFontMask];
+			if (boldFont)
+				font = boldFont;
+		}
+	}
+
 	return font;
 }
 
