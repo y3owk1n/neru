@@ -1601,23 +1601,25 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 
 		// Remove cells that match the bounds to remove
 		if (boundsToRemove && [boundsToRemove count] > 0) {
+			// Build an NSSet of string keys for O(1) lookup instead of O(n×m) nested loop
+			NSMutableSet *boundsToRemoveSet = [NSMutableSet setWithCapacity:[boundsToRemove count]];
+			for (NSValue *removeBoundsValue in boundsToRemove) {
+				NSRect removeBounds = [removeBoundsValue rectValue];
+				NSString *key =
+				    [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", removeBounds.origin.x, removeBounds.origin.y,
+				                               removeBounds.size.width, removeBounds.size.height];
+				[boundsToRemoveSet addObject:key];
+			}
+
 			NSMutableArray<GridCellItem *> *cellsToKeep =
 			    [NSMutableArray arrayWithCapacity:[controller.overlayView.gridCells count]];
 			for (GridCellItem *cellItem in controller.overlayView.gridCells) {
 				NSRect cellBounds = cellItem.bounds;
-				BOOL shouldRemove = NO;
 
-				// Check if this cell's bounds match any of the bounds to remove
-				for (NSValue *removeBoundsValue in boundsToRemove) {
-					NSRect removeBounds = [removeBoundsValue rectValue];
-					// Use rectsEqual for floating point comparison
-					if (rectsEqual(cellBounds, removeBounds, 0.1)) {
-						shouldRemove = YES;
-						break;
-					}
-				}
-
-				if (!shouldRemove) {
+				NSString *cellKey =
+				    [NSString stringWithFormat:@"%.1f,%.1f,%.1f,%.1f", cellBounds.origin.x, cellBounds.origin.y,
+				                               cellBounds.size.width, cellBounds.size.height];
+				if (![boundsToRemoveSet containsObject:cellKey]) {
 					[cellsToKeep addObject:cellItem];
 				}
 			}
