@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"testing"
 
@@ -117,7 +118,7 @@ func TestHintService_ShowHints(t *testing.T) {
 
 					for index := range 100 {
 						elem, _ := element.NewElement(
-							element.ID("elem"+string(rune(index))),
+							element.ID(fmt.Sprintf("elem%d", index)),
 							image.Rect(index*10, index*10, index*10+40, index*10+40),
 							element.RoleButton,
 						)

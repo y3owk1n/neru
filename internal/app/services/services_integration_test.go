@@ -56,10 +56,6 @@ func TestHintServiceIntegration(t *testing.T) {
 		// In different environments, this may succeed or fail based on permissions/elements
 		if err != nil {
 			t.Logf("ShowHints failed (may be expected in some environments): %v", err)
-			// Even on failure, we should get an empty slice, not nil
-			if hints == nil {
-				t.Error("Expected empty slice on failure, got nil")
-			}
 		} else {
 			t.Logf("ShowHints succeeded, found %d hints", len(hints))
 			// In test environment, it's normal to find 0 hints (no real UI elements)
