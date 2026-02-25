@@ -61,7 +61,7 @@ static NSDictionary *buildHotkeyLookupFromStrings(NSArray<NSString *> *strings) 
 			lookup[@(lookupKey)] = @YES;
 		}
 	}
-	return lookup;
+	return [lookup copy]; // return truly immutable NSDictionary
 }
 /// Rebuild the hotkey lookup table from stored hotkey strings.
 /// Called after keyboard layout changes to re-resolve key names to keycodes.
