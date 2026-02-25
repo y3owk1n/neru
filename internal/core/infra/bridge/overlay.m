@@ -1424,6 +1424,7 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 		if (view.hideUnmatched && anyMatchStateChanged) {
 			if (changedFlags != stackFlags)
 				free(changedFlags);
+			view.fullRedraw = YES;
 			[view setNeedsDisplay:YES];
 			return;
 		}
