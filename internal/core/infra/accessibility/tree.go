@@ -21,6 +21,51 @@ import (
 // Pre-allocated common errors.
 var errRootElementNil = derrors.New(derrors.CodeAccessibilityFailed, "root element is nil")
 
+// treeNodePool is a pool of TreeNode structs to reduce GC pressure during
+// tree building. Hundreds of nodes are allocated per activation and released
+// shortly after processClickableNodes extracts the kept elements.
+var treeNodePool = sync.Pool{
+	New: func() any {
+		return &TreeNode{}
+	},
+}
+
+// getTreeNode retrieves a TreeNode from the pool and initializes its fields.
+// The children slice is reused from a previous lifecycle when available,
+// otherwise a fresh slice with the requested capacity is allocated.
+func getTreeNode(elem *Element, info *ElementInfo, parent *TreeNode, childrenCap int) *TreeNode {
+	_node, ok := treeNodePool.Get().(*TreeNode)
+	if !ok {
+		_node = &TreeNode{}
+	}
+	_node.element = elem
+	_node.info = info
+	_node.parent = parent
+	// Reuse the existing backing array when it has enough room.
+	if cap(_node.children) >= childrenCap {
+		_node.children = _node.children[:0]
+	} else {
+		_node.children = make([]*TreeNode, 0, childrenCap)
+	}
+
+	return _node
+}
+
+// putTreeNode clears all references in the node and returns it to the pool.
+func putTreeNode(node *TreeNode) {
+	// Nil out pointer fields to avoid retaining references to released
+	// elements / info structs while the node sits in the pool.
+	node.element = nil
+	node.info = nil
+	node.parent = nil
+	// Clear child pointers but keep the backing array for reuse.
+	for i := range node.children {
+		node.children[i] = nil
+	}
+	node.children = node.children[:0]
+	treeNodePool.Put(node)
+}
+
 // TreeNode represents a node in the accessibility element hierarchy.
 type TreeNode struct {
 	element  *Element
@@ -217,15 +262,7 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 	// Calculate window bounds for spatial filtering
 	windowBounds := rectFromInfo(info)
 
-	node := &TreeNode{
-		element: root,
-		info:    info,
-		children: make(
-			[]*TreeNode,
-			0,
-			config.DefaultChildrenCapacity,
-		), // Pre-allocate for typical children count
-	}
+	node := getTreeNode(root, info, nil, config.DefaultChildrenCapacity)
 
 	opts.stats = stats
 	buildTreeRecursive(node, 1, opts, windowBounds)
@@ -387,11 +424,7 @@ func buildChildrenSequential(
 
 	// Second pass: create nodes and recurse
 	for _, data := range validChildren {
-		childNode := &TreeNode{
-			element: data.element,
-			info:    data.info,
-			parent:  parent,
-		}
+		childNode := getTreeNode(data.element, data.info, parent, 0)
 
 		parent.children = append(parent.children, childNode)
 		buildTreeRecursive(childNode, depth+1, opts, windowBounds)
@@ -457,11 +490,7 @@ func buildChildrenParallel(
 				return
 			}
 
-			childNode := &TreeNode{
-				element: elem,
-				info:    info,
-				parent:  parent,
-			}
+			childNode := getTreeNode(elem, info, parent, 0)
 
 			// Recursively build (this may spawn more goroutines at deeper levels)
 			buildTreeRecursive(childNode, depth+1, opts, windowBounds)
@@ -552,25 +581,31 @@ func (n *TreeNode) FindClickableElements(
 // those whose elements appear in the provided keep set. Nodes in the keep set
 // are left untouched so callers can continue using them. The root element is
 // always skipped because it is owned by the caller (e.g., the frontmost window).
+//
+// Released (non-kept, non-root) nodes are returned to treeNodePool for reuse.
+// A post-order walk is used so that children are processed before their parent,
+// which is required because putTreeNode clears the children slice.
 func (n *TreeNode) Release(keep map[*Element]struct{}) {
-	n.walkTree(func(node *TreeNode) bool {
+	n.walkTreePostOrder(func(node *TreeNode) {
 		if node == n {
 			// Skip root — owned by the caller.
-			return true
+			return
 		}
 		if node.element == nil {
-			return true
+			putTreeNode(node)
+
+			return
 		}
 		if _, kept := keep[node.element]; kept {
-			return true
+			return
 		}
 		node.element.Release()
 
-		return true
+		putTreeNode(node)
 	})
 }
 
-// walkTree walks the tree and calls the visitor function for each node.
+// walkTree walks the tree in pre-order and calls the visitor function for each node.
 func (n *TreeNode) walkTree(visit func(*TreeNode) bool) {
 	if !visit(n) {
 		return
@@ -579,4 +614,14 @@ func (n *TreeNode) walkTree(visit func(*TreeNode) bool) {
 	for _, child := range n.children {
 		child.walkTree(visit)
 	}
+}
+
+// walkTreePostOrder walks the tree in post-order (children before parent).
+// This is safe for operations that modify or recycle the visited node because
+// all descendants have already been visited by the time the parent callback runs.
+func (n *TreeNode) walkTreePostOrder(visit func(*TreeNode)) {
+	for _, child := range n.children {
+		child.walkTreePostOrder(visit)
+	}
+	visit(n)
 }
