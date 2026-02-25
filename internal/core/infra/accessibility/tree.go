@@ -597,13 +597,17 @@ func (n *TreeNode) FindClickableElements(
 // are left untouched so callers can continue using them. The root element is
 // always skipped because it is owned by the caller (e.g., the frontmost window).
 //
-// Released (non-kept, non-root) nodes are returned to treeNodePool for reuse.
+// All TreeNode structs (including the root) are returned to treeNodePool for
+// reuse, except kept nodes which only have their tree pointers cleared.
 // A post-order walk is used so that children are processed before their parent,
 // which is required because putTreeNode clears the children slice.
 func (n *TreeNode) Release(keep map[*Element]struct{}) {
 	n.walkTreePostOrder(func(node *TreeNode) {
 		if node == n {
-			// Skip root — owned by the caller.
+			// Root element is owned by the caller — do not release it.
+			// But recycle the TreeNode struct back to the pool.
+			putTreeNode(node)
+
 			return
 		}
 		if node.element == nil {
