@@ -58,6 +58,12 @@ func getTreeNode(elem *Element, info *ElementInfo, parent *TreeNode, childrenCap
 	return _node
 }
 
+// maxPooledChildrenCap is the maximum children slice capacity retained when a
+// TreeNode is returned to the pool. Nodes that once held more children than
+// this threshold have their backing array discarded to avoid holding
+// disproportionately large allocations in the pool indefinitely.
+const maxPooledChildrenCap = 64
+
 // putTreeNode clears all references in the node and returns it to the pool.
 func putTreeNode(node *TreeNode) {
 	// Nil out pointer fields to avoid retaining references to released
@@ -65,11 +71,17 @@ func putTreeNode(node *TreeNode) {
 	node.element = nil
 	node.info = nil
 	node.parent = nil
-	// Clear child pointers but keep the backing array for reuse.
-	for i := range node.children {
-		node.children[i] = nil
+	// Clear child pointers but keep the backing array for reuse — unless it
+	// exceeds the cap threshold, in which case discard it entirely so the
+	// pool does not retain oversized allocations from pathological trees.
+	if cap(node.children) > maxPooledChildrenCap {
+		node.children = nil
+	} else {
+		for i := range node.children {
+			node.children[i] = nil
+		}
+		node.children = node.children[:0]
 	}
-	node.children = node.children[:0]
 	treeNodePool.Put(node)
 }
 
