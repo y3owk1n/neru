@@ -43,7 +43,7 @@ type HintService struct {
 	logger    *zap.Logger
 
 	// Cache for incremental updates
-	elementCache map[string]*elementCacheEntry
+	elementCache map[element.ID]*elementCacheEntry
 	cacheMutex   sync.RWMutex
 }
 
@@ -60,7 +60,7 @@ func NewHintService(
 		generator:    generator,
 		config:       config,
 		logger:       logger,
-		elementCache: make(map[string]*elementCacheEntry),
+		elementCache: make(map[element.ID]*elementCacheEntry),
 	}
 }
 
@@ -186,12 +186,12 @@ func (s *HintService) filterChangedElements(elements []*element.Element) []*elem
 
 	for _, elem := range elements {
 		bounds := elem.Bounds()
-		elementID := string(elem.ID())
+		id := elem.ID()
 
 		// Compute binary hash without string allocations
 		hash := computeElementHash(bounds)
 
-		cached, exists := s.elementCache[elementID]
+		cached, exists := s.elementCache[id]
 		if !exists || cached.hash != hash {
 			// Element is new or has changed
 			changedElements = append(changedElements, elem)
@@ -222,12 +222,12 @@ func (s *HintService) updateElementCache(elements []*element.Element) {
 	// Update cache with new elements
 	for _, elem := range elements {
 		bounds := elem.Bounds()
-		elementID := string(elem.ID())
+		id := elem.ID()
 
 		// Compute binary hash without string allocations
 		hash := computeElementHash(bounds)
 
-		s.elementCache[elementID] = &elementCacheEntry{
+		s.elementCache[id] = &elementCacheEntry{
 			element:   elem,
 			position:  bounds,
 			hash:      hash,
