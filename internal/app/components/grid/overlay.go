@@ -712,6 +712,8 @@ func (o *Overlay) drawGridIncrementalStructural(
 }
 
 // convertCellsToC converts domain grid cells to C GridCell structures.
+// Caller must hold drawMu.RLock to prevent label cache invalidation while
+// the returned structs reference cached C strings.
 func (o *Overlay) convertCellsToC(cellsGo []*domainGrid.Cell, currentInput string) []C.GridCell {
 	if len(cellsGo) == 0 {
 		return nil

@@ -692,6 +692,8 @@ func (o *Overlay) drawHintsIncrementalStructural(
 }
 
 // convertHintsToC converts hint objects to C HintData structures.
+// Caller must hold drawMu.RLock to prevent label cache invalidation while
+// the returned structs reference cached C strings.
 func (o *Overlay) convertHintsToC(hintsGo []*Hint, currentInput string) []C.HintData {
 	if len(hintsGo) == 0 {
 		return nil
