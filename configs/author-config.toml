@@ -63,6 +63,13 @@ label_font_family = "JetBrainsMonoNLNFP-Bold"
 line_width = 1
 min_size_width = 10
 min_size_height = 10
+label_color = "#00000000"
+
+# ============================================================================
+# Mode Indicator
+# ============================================================================
+[mode_indicator]
+font_family = "JetBrainsMonoNLNFP-Bold"
 
 # ============================================================================
 # Actions
