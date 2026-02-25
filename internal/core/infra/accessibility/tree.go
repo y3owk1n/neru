@@ -605,7 +605,17 @@ func (n *TreeNode) Release(keep map[*Element]struct{}) {
 	n.walkTreePostOrder(func(node *TreeNode) {
 		if node == n {
 			// Root element is owned by the caller — do not release it.
-			// But recycle the TreeNode struct back to the pool.
+			// If the root is in the keep set, treat it like any other kept
+			// node: clear tree pointers but do NOT pool it, so that callers
+			// (e.g. InfraNode) can still access Element() and Info().
+			if _, kept := keep[node.element]; kept {
+				node.children = nil
+				node.parent = nil
+
+				return
+			}
+
+			// Root is not kept — recycle the TreeNode struct.
 			putTreeNode(node)
 
 			return
