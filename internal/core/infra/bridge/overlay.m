@@ -1398,14 +1398,10 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 		NSUInteger idx = 0;
 		for (GridCellItem *cellItem in view.gridCells) {
 			NSString *label = cellItem.label ?: @"";
-			BOOL newIsMatched = NO;
-			int newMatchedPrefixLength = 0;
-			if (prefixLen > 0) {
-				newIsMatched = [label hasPrefix:prefixStr];
-				if (newIsMatched) {
-					newMatchedPrefixLength = (int)prefixLen;
-				}
-			}
+
+			BOOL newIsMatched = (prefixLen > 0 && [label hasPrefix:prefixStr]);
+			int newMatchedPrefixLength = newIsMatched ? (int)prefixLen : 0;
+
 			BOOL changed =
 			    (cellItem.isMatched != newIsMatched || cellItem.matchedPrefixLength != newMatchedPrefixLength);
 			if (cellItem.isMatched != newIsMatched) {
