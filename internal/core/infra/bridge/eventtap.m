@@ -496,9 +496,24 @@ void destroyEventTap(EventTap tap) {
 			setKeymapLayoutChangeCallback(NULL);
 		}
 
-		// Clean up hotkey lookup and ARC-managed fields
-		context->hotkeyLookup = nil;          // ARC will handle deallocation
-		context->hotkeyStrings = nil;         // ARC will handle deallocation
+		// Synchronize with any in-flight event tap callback that may be
+		// holding hotkeyLock on the Mach port thread.  Acquiring the lock
+		// here acts as a barrier: once we hold it, we know the callback
+		// has left its critical section.  We then nil out the ARC fields
+		// under the lock so the callback cannot retain a dangling pointer,
+		// and release the lock before freeing the struct.
+		NSDictionary *oldLookup;
+		NSArray *oldStrings;
+		os_unfair_lock_lock(&context->hotkeyLock);
+		oldLookup = context->hotkeyLookup;
+		oldStrings = context->hotkeyStrings;
+		context->hotkeyLookup = nil;
+		context->hotkeyStrings = nil;
+		os_unfair_lock_unlock(&context->hotkeyLock);
+		// ARC releases old objects outside the lock
+		oldLookup = nil;
+		oldStrings = nil;
+
 		context->pendingEnableBlock = nil;    // ARC will handle deallocation
 		context->pendingAddSourceBlock = nil; // ARC will handle deallocation
 
