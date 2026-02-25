@@ -510,12 +510,34 @@ func (o *Overlay) drawHintsIncremental(
 }
 
 // hintsAreStructurallyEqual checks if two hint lists have the same structure (same hints at same positions).
+// It first tries a fast index-by-index comparison (O(n), zero allocations) which succeeds when
+// the slices are in the same order — the common case since previousHints is a copy of the prior
+// hints slice. Only if the fast path detects a mismatch does it fall back to a map-based lookup.
 func (o *Overlay) hintsAreStructurallyEqual(hintsA, hintsB []*Hint) bool {
 	if len(hintsA) != len(hintsB) {
 		return false
 	}
 
-	// Build position map for efficient lookup
+	// Fast path: index-by-index comparison (no allocation).
+	// This succeeds when both slices are in the same order, which is the
+	// typical case because previousHints is populated with copy().
+	fastEqual := true
+	for i, hintA := range hintsA {
+		hintB := hintsB[i]
+		if hintA.Position() != hintB.Position() ||
+			hintA.Label() != hintB.Label() ||
+			hintA.Size() != hintB.Size() {
+			fastEqual = false
+
+			break
+		}
+	}
+
+	if fastEqual {
+		return true
+	}
+
+	// Slow path: order differs, fall back to map-based lookup.
 	hintsBMap := make(map[image.Point]*Hint, len(hintsB))
 	for _, hint := range hintsB {
 		hintsBMap[hint.Position()] = hint
