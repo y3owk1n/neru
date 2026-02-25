@@ -367,6 +367,9 @@ func (e *Element) Hash() (uint64, error) {
 }
 
 // Equal checks if this element refers to the same underlying UI element as another.
+// It uses a fast-path pointer comparison before falling back to the CGo call
+// (C.areElementsEqual). Cloned elements share the same underlying pointer, so
+// this avoids crossing the CGo boundary in the common case during cache lookups.
 func (e *Element) Equal(other *Element) bool {
 	if e == nil && other == nil {
 		return true
@@ -379,6 +382,12 @@ func (e *Element) Equal(other *Element) bool {
 	}
 	if e.ref == nil || other.ref == nil {
 		return false
+	}
+
+	// Fast path: if both Go-side pointers are identical (e.g. cloned
+	// elements), the underlying AXUIElementRefs are guaranteed equal.
+	if e.ref == other.ref {
+		return true
 	}
 
 	result := C.areElementsEqual(e.ref, other.ref) //nolint:nlreturn
