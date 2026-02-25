@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/metrics"
 	"strings"
 	"syscall"
 	"time"
@@ -43,6 +44,12 @@ const (
 
 	// BytesPerMB is the number of bytes in a megabyte.
 	BytesPerMB = 1024 * 1024
+
+	// metricHeapObjects is the runtime/metrics name for live heap object bytes (equivalent to MemStats.HeapAlloc).
+	metricHeapObjects = "/memory/classes/heap/objects:bytes"
+
+	// metricGCGoal is the runtime/metrics name for the GC heap goal (equivalent to MemStats.NextGC).
+	metricGCGoal = "/gc/heap/goal:bytes"
 )
 
 // Run starts the main application loop and initializes all subsystems.
@@ -109,13 +116,38 @@ func (a *App) Run() error {
 	return a.waitForShutdown()
 }
 
+// readMemMetrics reads HeapAlloc and NextGC equivalents via runtime/metrics,
+// which does not require a full stop-the-world pause unlike runtime.ReadMemStats.
+// Returns (0, 0) if the metrics are unavailable or have an unexpected kind.
+func readMemMetrics() (uint64, uint64) {
+	samples := []metrics.Sample{
+		{Name: metricHeapObjects},
+		{Name: metricGCGoal},
+	}
+	metrics.Read(samples)
+
+	var heapAlloc, nextGC uint64
+
+	if samples[0].Value.Kind() == metrics.KindUint64 {
+		heapAlloc = samples[0].Value.Uint64()
+	}
+
+	if samples[1].Value.Kind() == metrics.KindUint64 {
+		nextGC = samples[1].Value.Uint64()
+	}
+
+	return heapAlloc, nextGC
+}
+
 // adaptiveGC performs garbage collection based on current memory pressure.
 // Returns true if high memory pressure is detected.
+//
+// It uses runtime/metrics to read only HeapAlloc and NextGC equivalents,
+// avoiding the full stop-the-world pause that runtime.ReadMemStats incurs.
 func (a *App) adaptiveGC() bool {
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
+	heapAlloc, nextGC := readMemMetrics()
 
-	heapAllocMB := memStats.HeapAlloc / BytesPerMB
+	heapAllocMB := heapAlloc / BytesPerMB
 	highThresholdMB := uint64(HighMemoryThreshold / BytesPerMB)
 	lowThresholdMB := uint64(LowMemoryThreshold / BytesPerMB)
 
@@ -127,15 +159,19 @@ func (a *App) adaptiveGC() bool {
 	if a.gcAggressiveMode {
 		a.logger.Debug("Running GC due to high memory pressure",
 			zap.Uint64("heap_alloc_mb", heapAllocMB),
-			zap.Uint64("next_gc_mb", memStats.NextGC/BytesPerMB),
+			zap.Uint64("next_gc_mb", nextGC/BytesPerMB),
 			zap.Bool("aggressive_mode", true))
 		runtime.GC()
 
+		// Re-read metrics after GC to get the actual post-GC heap size
+		postGCHeapAlloc, _ := readMemMetrics()
+		postGCHeapAllocMB := postGCHeapAlloc / BytesPerMB
+
 		// Exit aggressive mode if memory drops below low threshold
-		if heapAllocMB < lowThresholdMB {
+		if postGCHeapAllocMB < lowThresholdMB {
 			a.gcAggressiveMode = false
 			a.logger.Debug("Exiting aggressive GC mode",
-				zap.Uint64("heap_alloc_mb", heapAllocMB))
+				zap.Uint64("heap_alloc_mb", postGCHeapAllocMB))
 		}
 
 		return true
