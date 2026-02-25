@@ -450,7 +450,7 @@ reset_key = "," # hotkey to reset/clear grid input
 
 # Visual styling
 font_size = 12
-font_family = "SF Mono"
+font_family = ""
 border_width = 1
 
 background_color = "#B3ABE9B3"       # Light purple with alpha (B3 ≈ 70% opacity)
@@ -526,7 +526,7 @@ line_width = 1
 highlight_color = "#00BFFF"
 label_color = "#FFFFFF"
 label_font_size = 12
-label_font_family = "SF Mono"
+label_font_family = ""
 ```
 
 ### Key Behavior
@@ -576,7 +576,7 @@ scroll_step_full = 1000000 # gg/G (top/bottom)
 
 # Scroll indicator styling
 font_size = 12
-font_family = "SF Mono"
+font_family = ""
 background_color = "#F2FFD700"  # Gold with alpha (F2 ≈ 95% opacity)
 text_color = "#FF000000"
 border_color = "#FF000000"
@@ -867,7 +867,7 @@ hide_overlay_in_screen_share = false
 enabled = true
 hint_characters = "asdfghjkl"
 font_size = 12
-font_family = "SF Mono"
+font_family = ""
 border_radius = 4
 padding = 4
 border_width = 1
@@ -918,7 +918,7 @@ characters = "abcdefghijklmnpqrstuvwxyz"
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 reset_key = ","
 font_size = 12
-font_family = "SF Mono"
+font_family = ""
 border_width = 1
 background_color = "#B3ABE9B3"
 text_color = "#FF000000"
@@ -944,7 +944,7 @@ line_width = 1
 highlight_color = "#4D00BFFF"
 label_color = "#FFFFFFFF"
 label_font_size = 12
-label_font_family = "SF Mono"
+label_font_family = ""
 min_size_width = 25
 min_size_height = 25
 max_depth = 10
@@ -958,7 +958,7 @@ scroll_step = 50
 scroll_step_half = 500
 scroll_step_full = 1000000
 font_size = 12
-font_family = "SF Mono"
+font_family = ""
 background_color = "#F2FFD700"
 text_color = "#FF000000"
 border_color = "#FF000000"

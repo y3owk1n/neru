@@ -62,7 +62,7 @@ hint_characters = "asdfghjkl"
 
 # Visual appearance
 font_size = 12      # Font size for hints
-font_family = "SF Mono"  # Font family for hints
+font_family = ""  # Font family for hints
 border_radius = 4   # Corner radius for hint borders
 padding = 4         # Padding inside hint borders
 border_width = 1    # Width of hint borders
@@ -190,7 +190,7 @@ reset_key = ","
 
 # Visual appearance
 font_size = 12      # Font size for grid labels
-font_family = "SF Mono"  # Font family for grid labels
+font_family = ""  # Font family for grid labels
 border_width = 1    # Width of grid cell borders
 
 background_color = "#B3ABE9B3"        # Grid cell background color (light green, alpha B3 ≈ 70% opacity)
@@ -229,7 +229,7 @@ line_width = 1                  # Width of grid lines
 highlight_color = "#4D00BFFF"     # Color for cell highlighting (deep sky blue, alpha 4D ≈ 30% opacity)
 label_color = "#FFFFFFFF"         # Color of cell labels (white, alpha FF = 100% opacity)
 label_font_size = 12            # Font size for labels
-label_font_family = "SF Mono"   # Font family for labels
+label_font_family = ""   # Font family for labels
 
 # Behavior
 min_size_width = 25            # Minimum cell width in pixels (stops dividing when width is reached)
@@ -289,7 +289,7 @@ grid_enabled = false
 recursive_grid_enabled = false
 
 font_size = 12                 # Font size for mode indicators
-font_family = "SF Mono"        # Font family for mode indicators
+font_family = ""        # Font family for mode indicators
 background_color = "#F2FFD700" # Background color (gold with 95% opacity)
 text_color = "#FF000000"       # Text color (black)
 border_color = "#FF000000"     # Border color (black)
