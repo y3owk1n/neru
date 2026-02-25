@@ -2,36 +2,13 @@ package services
 
 import (
 	"context"
-	"encoding/binary"
-	"image"
-	"sync"
-	"time"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
-	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
 )
-
-const (
-	// EstimatedUnchangedRatio is the divisor for pre-allocating the changed-elements slice.
-	// A value of 2 means roughly half the elements are expected to change.
-	EstimatedUnchangedRatio = 2
-
-	// cacheExpiration is the duration after which cache entries are considered stale.
-	cacheExpiration = 30 * time.Second
-)
-
-// elementCacheEntry represents a cached element with its position hash.
-type elementCacheEntry struct {
-	element   *element.Element
-	position  image.Rectangle
-	hash      uint64 // xxhash as uint64 for faster comparison
-	timestamp time.Time
-}
 
 // HintService orchestrates hint generation and display.
 // It coordinates between the accessibility system, hint generator, and overlay.
@@ -41,10 +18,6 @@ type HintService struct {
 	generator hint.Generator
 	config    config.HintsConfig
 	logger    *zap.Logger
-
-	// Cache for incremental updates
-	elementCache map[element.ID]*elementCacheEntry
-	cacheMutex   sync.RWMutex
 }
 
 // NewHintService creates a new hint service with the given dependencies.
@@ -56,11 +29,10 @@ func NewHintService(
 	logger *zap.Logger,
 ) *HintService {
 	return &HintService{
-		BaseService:  NewBaseService(accessibility, overlay),
-		generator:    generator,
-		config:       config,
-		logger:       logger,
-		elementCache: make(map[element.ID]*elementCacheEntry),
+		BaseService: NewBaseService(accessibility, overlay),
+		generator:   generator,
+		config:      config,
+		logger:      logger,
 	}
 }
 
@@ -95,15 +67,7 @@ func (s *HintService) ShowHints(
 
 	s.logger.Info("Found clickable elements", zap.Int("count", len(elements)))
 
-	// Check for incremental updates — skip generate+draw if nothing changed
-	changedElements := s.filterChangedElements(elements)
-
-	s.logger.Info("Elements after incremental filtering", zap.Int("changed", len(changedElements)))
-
-	// Update cache with ALL elements (not just changed ones)
-	s.updateElementCache(elements)
-
-	// Generate hints for ALL elements
+	// Generate hints
 	hints, elementsErr := s.generator.Generate(ctx, elements)
 	if elementsErr != nil {
 		s.logger.Error("Failed to generate hints", zap.Error(elementsErr))
@@ -175,76 +139,4 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 
 	s.generator = generator
 	s.logger.Info("Hint generator updated")
-}
-
-// filterChangedElements filters elements to only include those that have changed position or are new.
-func (s *HintService) filterChangedElements(elements []*element.Element) []*element.Element {
-	s.cacheMutex.RLock()
-	defer s.cacheMutex.RUnlock()
-
-	changedElements := make([]*element.Element, 0, len(elements)/EstimatedUnchangedRatio)
-
-	for _, elem := range elements {
-		bounds := elem.Bounds()
-		id := elem.ID()
-
-		// Compute binary hash without string allocations
-		hash := computeElementHash(bounds)
-
-		cached, exists := s.elementCache[id]
-		if !exists || cached.hash != hash {
-			// Element is new or has changed
-			changedElements = append(changedElements, elem)
-		}
-	}
-
-	s.logger.Debug("Incremental update filtering",
-		zap.Int("total_elements", len(elements)),
-		zap.Int("changed_elements", len(changedElements)))
-
-	return changedElements
-}
-
-// updateElementCache updates the cache with new element positions.
-func (s *HintService) updateElementCache(elements []*element.Element) {
-	s.cacheMutex.Lock()
-	defer s.cacheMutex.Unlock()
-
-	now := time.Now()
-
-	// Clear old cache entries (older than cacheExpiration)
-	for elementID, entry := range s.elementCache {
-		if now.Sub(entry.timestamp) > cacheExpiration {
-			delete(s.elementCache, elementID)
-		}
-	}
-
-	// Update cache with new elements
-	for _, elem := range elements {
-		bounds := elem.Bounds()
-		id := elem.ID()
-
-		// Compute binary hash without string allocations
-		hash := computeElementHash(bounds)
-
-		s.elementCache[id] = &elementCacheEntry{
-			element:   elem,
-			position:  bounds,
-			hash:      hash,
-			timestamp: now,
-		}
-	}
-
-	s.logger.Debug("Updated element cache", zap.Int("cached_elements", len(s.elementCache)))
-}
-
-// computeElementHash computes a fast hash of element bounds using xxhash.
-func computeElementHash(bounds image.Rectangle) uint64 {
-	var buf [16]byte
-	binary.LittleEndian.PutUint32(buf[0:4], uint32(int32(bounds.Min.X)))
-	binary.LittleEndian.PutUint32(buf[4:8], uint32(int32(bounds.Min.Y)))
-	binary.LittleEndian.PutUint32(buf[8:12], uint32(int32(bounds.Max.X)))
-	binary.LittleEndian.PutUint32(buf[12:16], uint32(int32(bounds.Max.Y)))
-
-	return xxhash.Sum64(buf[:])
 }
