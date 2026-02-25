@@ -113,8 +113,13 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 		return
 	}
 
-	// Filter hints to only those on the active screen for multi-monitor support
+	// Filter hints to only those on the active screen for multi-monitor support,
+	// and deduplicate by position so that downstream code (overlay incremental
+	// updates, Objective-C NeruDrawIncrementHints) can safely use position as a
+	// unique key without silently dropping entries.
 	filteredHints := make([]*domainHint.Interface, 0, len(domainHints))
+	seenPositions := make(map[image.Point]struct{}, len(domainHints))
+
 	for _, hint := range domainHints {
 		hintBounds := hint.Element().Bounds()
 		hintCenter := image.Point{
@@ -123,9 +128,18 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 		}
 
 		// Include hint if its center is within the active screen bounds
-		if hintCenter.In(activeScreenBounds) {
-			filteredHints = append(filteredHints, hint)
+		if !hintCenter.In(activeScreenBounds) {
+			continue
 		}
+		// Skip duplicate positions — two hints at the same pixel would
+		// visually overlap and confuse the incremental update logic.
+		if _, exists := seenPositions[hintCenter]; exists {
+			continue
+		}
+
+		seenPositions[hintCenter] = struct{}{}
+
+		filteredHints = append(filteredHints, hint)
 	}
 
 	h.logger.Debug("Filtered hints by screen",
