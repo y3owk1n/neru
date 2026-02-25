@@ -524,9 +524,8 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 
 /// Draw hint labels whose bounding rects intersect the given dirty rect.
 /// This is the single implementation of hint drawing; drawHints delegates here.
-/// When filtering is active, boundingRectForHint: is used for a cheap intersection
-/// test before setting up the attributed string, so skipped hints avoid the cost
-/// of string mutation and text measurement entirely.
+/// When filtering is active, the intersection test is performed inline using the
+/// same geometry computed for drawing, so text is measured only once per hint.
 /// @param dirtyRect The dirty region to redraw. Pass NSZeroRect to draw all items (skips intersection checks).
 - (void)drawHintsInRect:(NSRect)dirtyRect {
 	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
@@ -536,15 +535,6 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		NSString *label = hint.label;
 		if (!label || [label length] == 0)
 			continue;
-
-		// Early rejection: use boundingRectForHint: for a cheap intersection test
-		// before doing any attributed string work. This avoids string mutation and
-		// text measurement for hints that won't be drawn.
-		if (filterByRect) {
-			NSRect hintBounds = [self boundingRectForHint:hint];
-			if (NSIsEmptyRect(hintBounds) || !NSIntersectsRect(hintBounds, dirtyRect))
-				continue;
-		}
 
 		NSPoint position = hint.position;
 		int matchedPrefixLength = hint.matchedPrefixLength;
@@ -561,7 +551,9 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 			                   value:self.hintMatchedTextColor
 			                   range:NSMakeRange(0, matchedPrefixLength)];
 		}
-		// Compute geometry for drawing
+		// Compute geometry once — used for both intersection test and drawing,
+		// avoiding the double text measurement that would occur if we called
+		// boundingRectForHint: separately for the intersection check.
 		NSSize textSize = [attrString size];
 		CGFloat arrowHeight = showArrow ? 2.0 : 0.0;
 		CGFloat contentWidth = textSize.width + (padding * 2);
@@ -576,6 +568,22 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 		CGFloat flippedY = screenHeight - tooltipY - boxHeight;
 		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
 		NSRect hintRect = NSMakeRect(tooltipX, flippedY, boxWidth, boxHeight);
+
+		// Intersection test using the computed geometry inline, so we only
+		// measure text once per hint instead of twice (once here, once in
+		// boundingRectForHint:). The attributed string setup above is cheap
+		// relative to text measurement and is needed for drawing anyway.
+		if (filterByRect) {
+			CGFloat expand = ceil(self.hintBorderWidth / 2.0) + 1.0;
+			NSRect testRect =
+			    NSMakeRect(tooltipX - expand, flippedY - expand, boxWidth + expand * 2, boxHeight + expand * 2);
+			if (showArrow && flippedElementCenterY > NSMaxY(testRect)) {
+				testRect.size.height = flippedElementCenterY + 1.0 - testRect.origin.y;
+			}
+			if (!NSIntersectsRect(testRect, dirtyRect))
+				continue;
+		}
+
 		NSBezierPath *path;
 		if (showArrow) {
 			path = [self createTooltipPath:hintRect
