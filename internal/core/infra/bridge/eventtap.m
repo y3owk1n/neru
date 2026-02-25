@@ -177,13 +177,15 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 			// Thread-safe hotkey check (O(1) lookup)
 			// Uses os_unfair_lock for minimal latency on the event tap thread.
-			// The lock protects reading the immutable hotkeyLookup pointer; the
-			// dictionary itself is never mutated — writers swap in a new instance.
-			BOOL isHotkey = NO;
+			// The lock only protects snapshotting the immutable hotkeyLookup
+			// pointer; the dictionary lookup runs outside the critical section
+			// since the dictionary is never mutated — writers swap in a new instance.
 			NSUInteger lookupKey = hotkeyLookupKey(keyCode, flags);
+			NSDictionary *lookup;
 			os_unfair_lock_lock(&context->hotkeyLock);
-			isHotkey = [context->hotkeyLookup[@(lookupKey)] boolValue];
+			lookup = context->hotkeyLookup;
 			os_unfair_lock_unlock(&context->hotkeyLock);
+			BOOL isHotkey = [lookup[@(lookupKey)] boolValue];
 
 			// If this is a registered hotkey, let it pass through
 			if (isHotkey) {
