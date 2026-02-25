@@ -600,9 +600,13 @@ static inline BOOL rectsEqual(NSRect a, NSRect b, CGFloat epsilon) {
 	NSString *label = hint.label;
 	if (!label || [label length] == 0)
 		return NSZeroRect;
-	// Measure text size using current font
-	NSDictionary *attrs = @{NSFontAttributeName : self.hintFont};
-	NSSize textSize = [label sizeWithAttributes:attrs];
+	// Measure text size using the same attributed string approach as drawHints/drawHintsInRect
+	NSMutableAttributedString *attrString = self.cachedHintAttributedString;
+	[[attrString mutableString] setString:label];
+	[attrString
+	    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
+	            range:NSMakeRange(0, [label length])];
+	NSSize textSize = [attrString size];
 	CGFloat padding = self.hintPadding;
 	CGFloat arrowHeight = hint.showArrow ? 2.0 : 0.0;
 	CGFloat contentWidth = textSize.width + (padding * 2);
