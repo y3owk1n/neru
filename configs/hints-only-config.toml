@@ -1,12 +1,4 @@
 # Neru Configuration - Hints Only Mode
-#
-# This configuration enables ONLY hints mode with all hint-related features turned on.
-# Grid mode is completely disabled.
-#
-# Copy to:
-#   - macOS: ~/Library/Application Support/neru/config.toml
-#   - XDG:   ~/.config/neru/config.toml
-# Or use: neru launch --config /path/to/this/config.toml
 
 [general]
 # Applications to exclude from Neru functionality
@@ -16,14 +8,8 @@ excluded_apps = []
 accessibility_check_on_start = true
 
 [hotkeys]
-# Hints mode hotkeys - all actions available
 "Cmd+Shift+Space" = "hints"
 "Cmd+Shift+S" = "scroll"
-
-# Grid mode - DISABLED (no hotkeys assigned)
-
-# Shell command examples
-# "Cmd+Alt+T" = "exec open -a Terminal"
 
 [hints]
 enabled = true
@@ -84,4 +70,8 @@ additional_firefox_bundles = []
 
 [grid]
 # Grid mode - DISABLED
+enabled = false
+
+[recursive_grid]
+# Recursive grid mode - DISABLED
 enabled = false

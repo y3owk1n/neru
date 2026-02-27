@@ -298,6 +298,21 @@ recursive_grid_enabled = false
 
 Setting all flags to `false` disables mode indicators entirely.
 
+### Appearance
+
+```toml
+font_size = 10                 # Font size for mode indicators
+font_family = ""      # Font family for mode indicators
+background_color = "#F2FFD700" # Background color (gold with 95% opacity)
+text_color = "#FF000000"       # Text color (black)
+border_color = "#FF000000"     # Border color (black)
+border_width = 1               # Border width
+padding = 4                    # Padding inside the indicator
+border_radius = 4              # Corner radius
+indicator_x_offset = 20        # X offset from cursor position
+indicator_y_offset = 20        # Y offset from cursor position
+```
+
 ---
 
 ## Keyboard Layout Requirements
@@ -621,18 +636,6 @@ Vim-style scrolling with fully configurable keybindings:
 scroll_step = 50           # j/k keys
 scroll_step_half = 500     # Ctrl+D/U
 scroll_step_full = 1000000 # gg/G (top/bottom)
-
-# Scroll indicator styling
-font_size = 10
-font_family = ""
-background_color = "#F2FFD700"  # Gold with alpha (F2 ≈ 95% opacity)
-text_color = "#FF000000"
-border_color = "#FF000000"
-border_width = 1
-padding = 4
-border_radius = 4
-indicator_x_offset = 20
-indicator_y_offset = 20
 ```
 
 ### Customizable Key Bindings
@@ -878,200 +881,4 @@ Then check logs:
 
 ```bash
 tail -f ~/Library/Logs/neru/app.log
-```
-
----
-
-## Complete Example
-
-A full configuration example with all available options:
-
-```toml
-# ~/.config/neru/config.toml
-
-# =============================================================================
-# Hotkeys
-# =============================================================================
-[hotkeys]
-"Cmd+Shift+Space" = "hints"
-"Cmd+Shift+G" = "grid"
-"Cmd+Shift+C" = "recursive_grid"
-"Cmd+Shift+S" = "scroll"
-
-# =============================================================================
-# General Settings
-# =============================================================================
-[general]
-excluded_apps = []  # Bundle IDs to exclude (e.g., "com.apple.finder")
-accessibility_check_on_start = true
-restore_cursor_position = false
-mode_exit_keys = ["escape"]
-hide_overlay_in_screen_share = false
-
-# =============================================================================
-# Hint Mode
-# =============================================================================
-[hints]
-enabled = true
-hint_characters = "asdfghjkl"
-font_size = 10
-font_family = ""
-border_radius = 4
-padding = 4
-border_width = 1
-mouse_action_refresh_delay = 0
-background_color = "#F2FFD700"
-text_color = "#FF000000"
-matched_text_color = "#FF737373"
-border_color = "#FF000000"
-include_menubar_hints = false
-include_dock_hints = false
-include_nc_hints = false
-include_stage_manager_hints = false
-detect_mission_control = false
-clickable_roles = [
-    "AXButton", "AXComboBox", "AXCheckBox", "AXRadioButton",
-    "AXLink", "AXPopUpButton", "AXTextField", "AXSlider",
-    "AXTabButton", "AXSwitch", "AXDisclosureTriangle",
-    "AXTextArea", "AXMenuButton", "AXMenuItem", "AXCell", "AXRow",
-]
-ignore_clickable_check = false
-
-# Additional menubar bundle IDs to include
-additional_menubar_hints_targets = [
-    "com.apple.TextInputMenuAgent",
-    "com.apple.controlcenter",
-    "com.apple.systemuiserver",
-]
-
-# Per-app configuration examples:
-# [[hints.app_configs]]
-# bundle_id = "com.google.Chrome"
-# additional_clickable_roles = ["AXTabGroup"]
-# ignore_clickable_check = true
-# mouse_action_refresh_delay = 100
-
-[hints.additional_ax_support]
-enable = false
-additional_electron_bundles = []
-additional_chromium_bundles = []
-additional_firefox_bundles = []
-
-# =============================================================================
-# Grid Mode
-# =============================================================================
-[grid]
-enabled = true
-characters = "abcdefghijklmnpqrstuvwxyz"
-sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
-reset_key = ","
-font_size = 10
-font_family = ""
-border_width = 1
-background_color = "#B3ABE9B3"
-text_color = "#FF000000"
-matched_text_color = "#FFF8BD96"
-matched_background_color = "#B3F8BD96"
-matched_border_color = "#B3F8BD96"
-border_color = "#B3ABE9B3"
-live_match_update = true
-hide_unmatched = true
-prewarm_enabled = true
-enable_gc = false
-
-# =============================================================================
-# Recursive Grid Mode
-# =============================================================================
-[recursive_grid]
-enabled = true
-grid_cols = 2
-grid_rows = 2
-keys = "uijk"
-line_color = "#FF8EE2FF"
-line_width = 1
-highlight_color = "#4D00BFFF"
-label_color = "#FFFFFFFF"
-label_font_size = 10
-label_font_family = ""
-min_size_width = 25
-min_size_height = 25
-max_depth = 10
-reset_key = ","
-
-# =============================================================================
-# Scroll Mode
-# =============================================================================
-[scroll]
-scroll_step = 50
-scroll_step_half = 500
-scroll_step_full = 1000000
-font_size = 10
-font_family = ""
-background_color = "#F2FFD700"
-text_color = "#FF000000"
-border_color = "#FF000000"
-border_width = 1
-padding = 4
-border_radius = 4
-indicator_x_offset = 20
-indicator_y_offset = 20
-
-[scroll.key_bindings]
-scroll_up = ["k", "Up"]
-scroll_down = ["j", "Down"]
-scroll_left = ["h", "Left"]
-scroll_right = ["l", "Right"]
-go_top = ["gg", "Cmd+Up"]
-go_bottom = ["Shift+G", "Cmd+Down"]
-page_up = ["Ctrl+U", "PageUp"]
-page_down = ["Ctrl+D", "PageDown"]
-
-# =============================================================================
-# Mouse Movement Actions
-# =============================================================================
-[action]
-move_mouse_step = 10
-
-[action.key_bindings]
-left_click = "Shift+L"
-right_click = "Shift+R"
-middle_click = "Shift+M"
-mouse_down = "Shift+I"
-mouse_up = "Shift+U"
-move_mouse_up = "Up"
-move_mouse_down = "Down"
-move_mouse_left = "Left"
-move_mouse_right = "Right"
-
-# =============================================================================
-# Smooth Cursor
-# =============================================================================
-[smooth_cursor]
-move_mouse_enabled = false
-steps = 10
-delay = 1
-
-# =============================================================================
-# System Tray
-# =============================================================================
-[systray]
-enabled = true
-
-# =============================================================================
-# Metrics
-# =============================================================================
-[metrics]
-enabled = false
-
-# =============================================================================
-# Logging
-# =============================================================================
-[logging]
-log_level = "info"
-log_file = ""
-structured_logging = true
-disable_file_logging = false
-max_file_size = 10
-max_backups = 5
-max_age = 30
 ```

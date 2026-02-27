@@ -1,20 +1,4 @@
 # Neru Configuration - Grid Only Mode
-#
-# This configuration enables ONLY grid mode with all grid-related features turned on.
-# Hints mode is completely disabled.
-#
-# Grid mode provides universal compatibility - works everywhere including:
-# - Electron apps (VS Code, Slack, Obsidian)
-# - Chromium browsers (Chrome, Brave, Arc)
-# - Firefox browsers
-# - Menubar items
-# - Dock and Mission Control
-# - All native macOS apps
-#
-# Copy to:
-#   - macOS: ~/Library/Application Support/neru/config.toml
-#   - XDG:   ~/.config/neru/config.toml
-# Or use: neru launch --config /path/to/this/config.toml
 
 [general]
 # Applications to exclude from Neru functionality
@@ -24,14 +8,8 @@ excluded_apps = []
 accessibility_check_on_start = true
 
 [hotkeys]
-# Grid mode hotkeys - all actions available
 "Cmd+Shift+Space" = "grid"
 "Cmd+Shift+S" = "scroll"
-
-# Hints mode - DISABLED (no hotkeys assigned)
-
-# Shell command examples
-# "Cmd+Alt+T" = "exec open -a Terminal"
 
 [hints]
 # Hints mode - DISABLED
@@ -49,3 +27,7 @@ characters = "abcdefghijklmnpqrstuvwxyz"
 prewarm_enabled = true
 # Enable periodic garbage collection every 5 minutes to reduce peak memory usage, but adds CPU overhead
 enable_gc = false
+
+[recursive_grid]
+# Recursive grid mode - DISABLED
+enabled = false

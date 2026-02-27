@@ -225,7 +225,7 @@ keys = "uijk"
 
 # Visual appearance
 line_color = "#FF8EE2FF"          # Color of grid lines (light blue, alpha FF = 100% opacity)
-line_width = 1                  # Width of grid lines
+line_width = 1                    # Width of grid lines
 highlight_color = "#4D00BFFF"     # Color for cell highlighting (deep sky blue, alpha 4D ≈ 30% opacity)
 label_color = "#FFFFFFFF"         # Color of cell labels (white, alpha FF = 100% opacity)
 label_font_size = 10              # Font size for labels
@@ -235,13 +235,13 @@ label_font_family = ""            # Font family for labels
 min_size_width = 25            # Minimum cell width in pixels (stops dividing when width is reached)
 min_size_height = 25           # Minimum cell height in pixels (stops dividing when height is reached)
 max_depth = 10                 # Maximum recursion depth (safety limit)
-reset_key = ","                 # Reset to initial center and clear state
+reset_key = ","                # Reset to initial center and clear state
 
 [scroll]
 # Scroll step sizes
-scroll_step = 50         # Base scroll distance for j/k keys
-scroll_step_half = 500   # Scroll distance for Ctrl+D/U keys
-scroll_step_full = 1000000 # Scroll distance for Shift+G/g keys
+scroll_step = 50            # Base scroll distance for j/k keys
+scroll_step_half = 500      # Scroll distance for Ctrl+D/U keys
+scroll_step_full = 1000000  # Scroll distance for Shift+G/g keys
 
 # Key bindings for scroll mode
 # Each action can have multiple keys assigned to it
@@ -308,14 +308,14 @@ indicator_y_offset = 20        # Y offset from cursor position
 move_mouse_step = 10
 
 [action.key_bindings]
-left_click = "Shift+L"    # Left click at current cursor position
-right_click = "Shift+R"   # Right click at current cursor position
-middle_click = "Shift+M"  # Middle click at current cursor position
-mouse_down = "Shift+I"    # Press and hold mouse button
-mouse_up = "Shift+U"      # Release mouse button
-move_mouse_up = "Up"      # Move cursor up by move_mouse_step pixels
-move_mouse_down = "Down"  # Move cursor down by move_mouse_step pixels
-move_mouse_left = "Left"  # Move cursor left by move_mouse_step pixels
+left_click = "Shift+L"     # Left click at current cursor position
+right_click = "Shift+R"    # Right click at current cursor position
+middle_click = "Shift+M"   # Middle click at current cursor position
+mouse_down = "Shift+I"     # Press and hold mouse button
+mouse_up = "Shift+U"       # Release mouse button
+move_mouse_up = "Up"       # Move cursor up by move_mouse_step pixels
+move_mouse_down = "Down"   # Move cursor down by move_mouse_step pixels
+move_mouse_left = "Left"   # Move cursor left by move_mouse_step pixels
 move_mouse_right = "Right" # Move cursor right by move_mouse_step pixels
 
 # Alternative formats examples:
