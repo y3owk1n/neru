@@ -80,9 +80,9 @@
 @end
 
 /// Default font size for hint overlays (bold system font).
-static const CGFloat kDefaultHintFontSize = 12.0;
+static const CGFloat kDefaultHintFontSize = 10.0;
 /// Default font size for grid overlays (regular system font).
-static const CGFloat kDefaultGridFontSize = 12.0;
+static const CGFloat kDefaultGridFontSize = 10.0;
 
 #pragma mark - Overlay View Interface
 

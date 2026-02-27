@@ -339,7 +339,7 @@ enabled = true
 hint_characters = "asdfghjkl"  # Home row keys recommended
 
 # Visual styling
-font_size = 12
+font_size = 10
 font_family = ""               # System default
 border_radius = 4
 padding = 4
@@ -497,7 +497,7 @@ reset_key = "," # hotkey to reset/clear grid input
 # col_labels = "aoeuidhtns"     # Dvorak-style for columns
 
 # Visual styling
-font_size = 12
+font_size = 10
 font_family = ""
 border_width = 1
 
@@ -573,7 +573,7 @@ line_color = "#8EE2FF"
 line_width = 1
 highlight_color = "#00BFFF"
 label_color = "#FFFFFF"
-label_font_size = 12
+label_font_size = 10
 label_font_family = ""
 ```
 
@@ -623,7 +623,7 @@ scroll_step_half = 500     # Ctrl+D/U
 scroll_step_full = 1000000 # gg/G (top/bottom)
 
 # Scroll indicator styling
-font_size = 12
+font_size = 10
 font_family = ""
 background_color = "#F2FFD700"  # Gold with alpha (F2 ≈ 95% opacity)
 text_color = "#FF000000"
@@ -914,7 +914,7 @@ hide_overlay_in_screen_share = false
 [hints]
 enabled = true
 hint_characters = "asdfghjkl"
-font_size = 12
+font_size = 10
 font_family = ""
 border_radius = 4
 padding = 4
@@ -965,7 +965,7 @@ enabled = true
 characters = "abcdefghijklmnpqrstuvwxyz"
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 reset_key = ","
-font_size = 12
+font_size = 10
 font_family = ""
 border_width = 1
 background_color = "#B3ABE9B3"
@@ -991,7 +991,7 @@ line_color = "#FF8EE2FF"
 line_width = 1
 highlight_color = "#4D00BFFF"
 label_color = "#FFFFFFFF"
-label_font_size = 12
+label_font_size = 10
 label_font_family = ""
 min_size_width = 25
 min_size_height = 25
@@ -1005,7 +1005,7 @@ reset_key = ","
 scroll_step = 50
 scroll_step_half = 500
 scroll_step_full = 1000000
-font_size = 12
+font_size = 10
 font_family = ""
 background_color = "#F2FFD700"
 text_color = "#FF000000"

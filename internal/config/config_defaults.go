@@ -4,7 +4,7 @@ import "time"
 
 const (
 	// DefaultHintFontSize is the default font size for hints.
-	DefaultHintFontSize = 12
+	DefaultHintFontSize = 10
 	// DefaultHintBorderRadius is the default border radius for hints.
 	DefaultHintBorderRadius = 4
 	// DefaultHintPadding is the default padding for hints.
@@ -17,7 +17,7 @@ const (
 	MaxMouseActionRefreshDelay = 10000
 
 	// DefaultGridFontSize is the default font size for grid.
-	DefaultGridFontSize = 12
+	DefaultGridFontSize = 10
 
 	// DefaultScrollStep is the default scroll step.
 	DefaultScrollStep = 50
@@ -27,7 +27,7 @@ const (
 	DefaultScrollStepFull = 1000000
 
 	// DefaultScrollFontSize is the default font size for scroll indicator.
-	DefaultScrollFontSize = 12
+	DefaultScrollFontSize = 10
 	// DefaultScrollPadding is the default padding for scroll indicator.
 	DefaultScrollPadding = 4
 	// DefaultScrollBorderRadius is the default border radius for scroll indicator.
@@ -183,7 +183,7 @@ const (
 	// DefaultRecursiveGridLineWidth is the default line width for grid lines.
 	DefaultRecursiveGridLineWidth = 1
 	// DefaultRecursiveGridLabelFontSize is the default font size for cell labels.
-	DefaultRecursiveGridLabelFontSize = 12
+	DefaultRecursiveGridLabelFontSize = 10
 )
 
 // DefaultConfig returns the default application configuration with sensible defaults.
