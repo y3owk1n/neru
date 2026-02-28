@@ -58,13 +58,10 @@ func (h *Handler) handleGenericScrollKey(key string) {
 		zap.Bool("found", found))
 
 	if !found {
-		currentLastKey := h.scroll.Context.LastKey()
-		if currentLastKey != "" {
+		if currentLastKey := h.scroll.Context.LastKey(); currentLastKey != "" {
 			h.logger.Debug("key lookup failed but sequence in progress, not clearing lastKey",
 				zap.String("key", key),
 				zap.String("lastKey", currentLastKey))
-		} else {
-			h.scroll.Context.SetLastKey("")
 		}
 
 		return
