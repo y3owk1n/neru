@@ -2,7 +2,9 @@ package logger_test
 
 import (
 	"bytes"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
@@ -121,4 +123,24 @@ func TestWith(t *testing.T) {
 	if childLogger == nil {
 		t.Error("With() returned nil")
 	}
+}
+
+func TestRaceCondition(t *testing.T) {
+	var waitGroup sync.WaitGroup
+
+	logger.Reset()
+
+	for range 5 {
+		waitGroup.Go(func() {
+			for range 100 {
+				logger.Info("background logging")
+			}
+		})
+	}
+
+	waitGroup.Go(func() {
+		_ = logger.Init("info", "", true, true, 10, 5, 30, os.Stdout)
+	})
+
+	waitGroup.Wait()
 }
