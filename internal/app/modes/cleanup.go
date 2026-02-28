@@ -131,6 +131,5 @@ func (h *Handler) handleCursorRestoration() {
 	h.cursorState.Reset()
 	// Always reset scroll context regardless of whether we performed cursor restoration.
 	// This ensures proper state cleanup when switching between modes.
-	h.scroll.Context.SetIsActive(false)
-	h.scroll.Context.SetLastKey("")
+	h.scroll.Context.Reset()
 }

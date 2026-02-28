@@ -11,8 +11,7 @@ import (
 // showing the scroll overlay and enabling key handling for scrolling.
 func (h *Handler) StartInteractiveScroll() {
 	h.cursorState.SkipNextRestore()
-	h.scroll.Context.SetIsActive(false)
-	h.scroll.Context.SetLastKey("")
+	h.scroll.Context.Reset()
 
 	h.exitModeLocked()
 
