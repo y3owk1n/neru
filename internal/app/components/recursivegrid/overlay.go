@@ -4,6 +4,9 @@ package recursivegrid
 #cgo CFLAGS: -x objective-c
 #include "../../../core/infra/bridge/overlay.h"
 #include <stdlib.h>
+
+// Callback function that Go can reference.
+extern void recursiveGridResizeCompletionCallback(void* context);
 */
 import "C"
 
@@ -18,6 +21,15 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 	"go.uber.org/zap"
 )
+
+//export recursiveGridResizeCompletionCallback
+func recursiveGridResizeCompletionCallback(context unsafe.Pointer) {
+	// Read callback context from the C-heap-allocated CallbackContext
+	ctx := *(*overlayutil.CallbackContext)(context)
+	// Free the C-allocated context now that we've copied the values
+	overlayutil.FreeCallbackContext(context)
+	overlayutil.CompleteGlobalCallback(ctx.CallbackID, ctx.Generation)
+}
 
 const (
 	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
@@ -143,9 +155,24 @@ func (o *Overlay) ResizeToMainScreen() {
 	C.NeruResizeOverlayToMainScreen(o.window)
 }
 
-// ResizeToActiveScreen resizes the overlay window to the active screen.
+// ResizeToActiveScreen resizes the overlay window with callback notification.
+// Falls back to a non-callback resize if the callback ID pool is exhausted.
 func (o *Overlay) ResizeToActiveScreen() {
-	C.NeruResizeOverlayToActiveScreen(o.window)
+	started := o.callbackManager.StartResizeOperation(func(callbackID uint64, generation uint64) {
+		// Pass callback ID and generation as opaque pointer context for C callback.
+		// Uses CallbackIDToPointer to convert in a way that go vet accepts.
+		contextPtr := overlayutil.CallbackIDToPointer(callbackID, generation)
+		C.NeruResizeOverlayToActiveScreenWithCallback(
+			o.window,
+			(C.ResizeCompletionCallback)(C.recursiveGridResizeCompletionCallback),
+			contextPtr,
+		)
+	})
+	if !started {
+		// Pool exhausted — fall back to non-callback resize so the overlay
+		// is still moved to the correct screen.
+		C.NeruResizeOverlayToActiveScreen(o.window)
+	}
 }
 
 // DrawRecursiveGrid renders the recursive_grid with current bounds, depth, keys, gridCols, and gridRows.

@@ -392,6 +392,26 @@ func TestAppState_HintOverlayNeedsRefresh(t *testing.T) {
 	}
 }
 
+func TestAppState_RecursiveGridOverlayNeedsRefresh(t *testing.T) {
+	_state := state.NewAppState()
+
+	if _state.RecursiveGridOverlayNeedsRefresh() {
+		t.Error("Expected recursive-grid overlay refresh to be false initially")
+	}
+
+	_state.SetRecursiveGridOverlayNeedsRefresh(true)
+
+	if !_state.RecursiveGridOverlayNeedsRefresh() {
+		t.Error("Expected recursive-grid overlay to need refresh")
+	}
+
+	_state.SetRecursiveGridOverlayNeedsRefresh(false)
+
+	if _state.RecursiveGridOverlayNeedsRefresh() {
+		t.Error("Expected recursive-grid overlay to not need refresh")
+	}
+}
+
 func TestAppState_HotkeyRefreshPending(t *testing.T) {
 	_state := state.NewAppState()
 

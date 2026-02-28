@@ -259,6 +259,58 @@ func (qg *RecursiveGrid) Reset() {
 	qg.history = qg.history[:0]
 }
 
+// RemapToNewBounds proportionally remaps all bounds (history + currentBounds)
+// from the old initial bounds to newBounds, preserving the user's depth and
+// selection progress. This is used during screen changes so the zoomed-in
+// region maps to the equivalent proportional area on the new screen.
+func (qg *RecursiveGrid) RemapToNewBounds(newBounds image.Rectangle) {
+	oldInitial := qg.initialBounds
+	for i, h := range qg.history {
+		qg.history[i] = remapRect(h, oldInitial, newBounds)
+	}
+
+	qg.currentBounds = remapRect(qg.currentBounds, oldInitial, newBounds)
+	qg.initialBounds = newBounds
+}
+
+// remapRect proportionally maps r from the coordinate space of oldRef into newRef.
+// It uses rounded integer division to minimize per-remap error, reducing drift
+// when multiple successive screen changes occur.
+func remapRect(rect, oldRef, newRef image.Rectangle) image.Rectangle {
+	oldW := oldRef.Dx()
+	oldH := oldRef.Dy()
+
+	if oldW == 0 || oldH == 0 {
+		return newRef
+	}
+
+	// Express rect's edges as fractions of oldRef, then scale to newRef.
+	// Use divRound for rounding to nearest instead of truncation, which
+	// halves the maximum per-remap error (~0.5px vs ~1px) and reduces
+	// cumulative drift across successive screen changes.
+	minX := newRef.Min.X + divRound((rect.Min.X-oldRef.Min.X)*newRef.Dx(), oldW)
+	minY := newRef.Min.Y + divRound((rect.Min.Y-oldRef.Min.Y)*newRef.Dy(), oldH)
+	maxX := newRef.Min.X + divRound((rect.Max.X-oldRef.Min.X)*newRef.Dx(), oldW)
+	maxY := newRef.Min.Y + divRound((rect.Max.Y-oldRef.Min.Y)*newRef.Dy(), oldH)
+
+	return image.Rect(minX, minY, maxX, maxY)
+}
+
+// divRound performs integer division of numerator by denominator, rounding to
+// the nearest integer instead of truncating toward zero.
+func divRound(numerator, denominator int) int {
+	if denominator == 0 {
+		return 0
+	}
+
+	// Handle negative results correctly: round toward nearest, not toward zero.
+	if (numerator < 0) != (denominator < 0) {
+		return (numerator - denominator/2) / denominator
+	}
+
+	return (numerator + denominator/2) / denominator
+}
+
 // IsComplete returns true if the minimum size has been reached.
 func (qg *RecursiveGrid) IsComplete() bool {
 	return !qg.CanDivide()

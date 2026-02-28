@@ -25,12 +25,13 @@ type AppState struct {
 	nextCallbackID            uint64
 
 	// Operational flags
-	hotkeysRegistered        bool
-	screenChangeProcessing   bool
-	screenChangePendingRetry bool
-	gridOverlayNeedsRefresh  bool
-	hintOverlayNeedsRefresh  bool
-	hotkeyRefreshPending     bool
+	hotkeysRegistered                bool
+	screenChangeProcessing           bool
+	screenChangePendingRetry         bool
+	gridOverlayNeedsRefresh          bool
+	hintOverlayNeedsRefresh          bool
+	recursiveGridOverlayNeedsRefresh bool
+	hotkeyRefreshPending             bool
 }
 
 // NewAppState creates a new AppState with default values.
@@ -294,6 +295,22 @@ func (s *AppState) SetHintOverlayNeedsRefresh(needs bool) {
 	defer s.mu.Unlock()
 
 	s.hintOverlayNeedsRefresh = needs
+}
+
+// RecursiveGridOverlayNeedsRefresh returns whether the recursive-grid overlay needs refresh.
+func (s *AppState) RecursiveGridOverlayNeedsRefresh() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.recursiveGridOverlayNeedsRefresh
+}
+
+// SetRecursiveGridOverlayNeedsRefresh sets the recursive-grid overlay refresh flag.
+func (s *AppState) SetRecursiveGridOverlayNeedsRefresh(needs bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.recursiveGridOverlayNeedsRefresh = needs
 }
 
 // HotkeyRefreshPending returns whether a hotkey refresh is pending.

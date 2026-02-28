@@ -30,6 +30,8 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
 	h.exitModeLocked()
 	h.overlayManager.Clear()
 
+	h.appState.SetRecursiveGridOverlayNeedsRefresh(false)
+
 	// Get screen bounds
 	screenBounds := bridge.ActiveScreenBounds()
 	h.screenBounds = screenBounds
