@@ -2,7 +2,7 @@ package eventtap
 
 import (
 	"context"
-	"sync/atomic"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
@@ -12,39 +12,47 @@ import (
 type Adapter struct {
 	tap     *EventTap
 	logger  *zap.Logger
-	enabled atomic.Bool
+	mu      sync.Mutex
+	enabled bool
 }
 
 // NewAdapter creates a new event tap adapter.
 func NewAdapter(tap *EventTap, logger *zap.Logger) *Adapter {
-	adapter := &Adapter{
-		tap:    tap,
-		logger: logger,
+	return &Adapter{
+		tap:     tap,
+		logger:  logger,
+		enabled: false,
 	}
-	adapter.enabled.Store(false)
-
-	return adapter
 }
 
 // Enable enables the event tap.
 func (a *Adapter) Enable(_ context.Context) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	a.tap.Enable()
-	a.enabled.Store(true)
+	a.enabled = true
 
 	return nil
 }
 
 // Disable disables the event tap.
 func (a *Adapter) Disable(_ context.Context) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	a.tap.Disable()
-	a.enabled.Store(false)
+	a.enabled = false
 
 	return nil
 }
 
 // IsEnabled returns true if event capture is active.
 func (a *Adapter) IsEnabled() bool {
-	return a.enabled.Load()
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.enabled
 }
 
 // SetHandler sets the function to call when a key is pressed.
@@ -54,6 +62,9 @@ func (a *Adapter) SetHandler(_ func(key string)) {
 
 // SetHotkeys configures which hotkeys the event tap should monitor.
 func (a *Adapter) SetHotkeys(hotkeys []string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	if len(hotkeys) == 0 {
 		a.logger.Warn("SetHotkeys called with empty hotkeys slice")
 
@@ -65,8 +76,11 @@ func (a *Adapter) SetHotkeys(hotkeys []string) {
 
 // Destroy cleans up the event tap resources.
 func (a *Adapter) Destroy() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	a.tap.Destroy()
-	a.enabled.Store(false)
+	a.enabled = false
 }
 
 // Ensure Adapter implements ports.EventTapPort.
