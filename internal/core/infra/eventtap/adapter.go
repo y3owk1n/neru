@@ -12,7 +12,7 @@ import (
 type Adapter struct {
 	tap     *EventTap
 	logger  *zap.Logger
-	mu      sync.Mutex
+	mu      sync.RWMutex
 	enabled bool
 }
 
@@ -48,8 +48,8 @@ func (a *Adapter) Disable(_ context.Context) error {
 
 // IsEnabled returns true if event capture is active.
 func (a *Adapter) IsEnabled() bool {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
 	return a.enabled
 }
