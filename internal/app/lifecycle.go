@@ -367,9 +367,19 @@ func (a *App) handleRecursiveGridScreenChange(currentMode domain.Mode) bool {
 	}
 
 	a.overlayManager.ResizeToActiveScreen()
+
 	// Delegate to the modes handler which holds the recursive-grid manager
 	// state and can reinitialize it with new screen bounds under the mutex.
-	a.modes.RefreshRecursiveGridForScreenChange()
+	// RefreshRecursiveGridForScreenChange re-checks the mode under h.mu to
+	// guard against a concurrent mode exit (TOCTOU between the snapshot in
+	// processScreenChange and the actual work here).
+	if !a.modes.RefreshRecursiveGridForScreenChange() {
+		// Mode was exited concurrently — don't show the overlay.
+		a.logger.Debug("Recursive-grid mode exited during screen change; skipping show")
+
+		return true
+	}
+
 	a.overlayManager.Show()
 	a.logger.Info("Recursive-grid overlay resized and regenerated for new screen bounds")
 

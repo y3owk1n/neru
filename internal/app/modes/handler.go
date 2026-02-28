@@ -155,9 +155,23 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 // bounds to the new screen dimensions, preserving the user's current depth
 // and selection progress. Called from the screen-change handler in
 // lifecycle.go when ModeRecursiveGrid is active.
-func (h *Handler) RefreshRecursiveGridForScreenChange() {
+//
+// Returns true if the refresh was performed, false if the mode was exited
+// concurrently (TOCTOU guard — the caller snapshots the mode without holding
+// h.mu, so a concurrent ExitMode could have transitioned to Idle by the time
+// we acquire the lock here).
+func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	// Re-check mode under the lock to close the TOCTOU window between the
+	// snapshot in processScreenChange and the actual work here.
+	if h.appState.CurrentMode() != domain.ModeRecursiveGrid {
+		h.logger.Debug("Skipping recursive-grid screen-change refresh: mode exited concurrently")
+
+		return false
+	}
+
 	// Re-read screen bounds under the lock so the overlay uses coordinates
 	// that match the resized window.
 	screenBounds := bridge.ActiveScreenBounds()
@@ -175,6 +189,8 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() {
 
 	// Redraw the overlay with the remapped grid.
 	h.updateRecursiveGridOverlay()
+
+	return true
 }
 
 // UpdateConfig updates the handler with new configuration.
