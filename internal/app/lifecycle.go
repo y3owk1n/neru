@@ -217,18 +217,23 @@ func (a *App) handleScreenParametersChange() {
 
 // processScreenChange performs the actual screen-change handling logic.
 func (a *App) processScreenChange() {
+	// Snapshot the mode once so every decision in this pass uses a consistent value.
+	// Without the snapshot, a concurrent mode transition could cause the idle check,
+	// the grid handler, and the hint handler to each see a different mode.
+	currentMode := a.appState.CurrentMode()
+
 	// Only log and adjust overlays if we are in an active mode.
 	// In Idle mode, we just want to update the needs-refresh flags (handled by sub-handlers)
 	// but avoid showing the overlay window which happens in ResizeToActiveScreen.
-	isIdle := a.appState.CurrentMode() == domain.ModeIdle
+	isIdle := currentMode == domain.ModeIdle
 	if !isIdle {
 		a.logger.Info("Screen parameters changed; adjusting overlays")
 	}
 
 	ctx := context.Background()
 
-	gridResized := a.handleGridScreenChange()
-	hintResized := a.handleHintScreenChange(ctx)
+	gridResized := a.handleGridScreenChange(currentMode)
+	hintResized := a.handleHintScreenChange(ctx, currentMode)
 
 	// Final resize only if no handler already resized the overlay AND we are not idle.
 	// Resizing the overlay when idle would cause it to become visible, which we want to avoid.
@@ -241,12 +246,12 @@ func (a *App) processScreenChange() {
 
 // handleGridScreenChange handles grid overlay updates when screen parameters change.
 // Returns true if the overlay was resized.
-func (a *App) handleGridScreenChange() bool {
+func (a *App) handleGridScreenChange(currentMode domain.Mode) bool {
 	if !a.config.Grid.Enabled || a.gridComponent.Overlay == nil {
 		return false
 	}
 
-	if a.appState.CurrentMode() != domain.ModeGrid {
+	if currentMode != domain.ModeGrid {
 		a.appState.SetGridOverlayNeedsRefresh(true)
 
 		return false
@@ -299,12 +304,12 @@ func (a *App) handleGridScreenChange() bool {
 
 // handleHintScreenChange handles hint overlay updates when screen parameters change.
 // Returns true if the overlay was resized.
-func (a *App) handleHintScreenChange(ctx context.Context) bool {
+func (a *App) handleHintScreenChange(ctx context.Context, currentMode domain.Mode) bool {
 	if !a.config.Hints.Enabled || a.hintsComponent.Overlay == nil {
 		return false
 	}
 
-	if a.appState.CurrentMode() != domain.ModeHints {
+	if currentMode != domain.ModeHints {
 		a.appState.SetHintOverlayNeedsRefresh(true)
 
 		return false
