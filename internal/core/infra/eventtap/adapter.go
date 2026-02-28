@@ -2,6 +2,7 @@ package eventtap
 
 import (
 	"context"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
@@ -11,20 +12,23 @@ import (
 type Adapter struct {
 	tap     *EventTap
 	logger  *zap.Logger
+	mu      sync.RWMutex
 	enabled bool
 }
 
 // NewAdapter creates a new event tap adapter.
 func NewAdapter(tap *EventTap, logger *zap.Logger) *Adapter {
 	return &Adapter{
-		tap:     tap,
-		logger:  logger,
-		enabled: false,
+		tap:    tap,
+		logger: logger,
 	}
 }
 
 // Enable enables the event tap.
 func (a *Adapter) Enable(_ context.Context) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	a.tap.Enable()
 	a.enabled = true
 
@@ -33,6 +37,9 @@ func (a *Adapter) Enable(_ context.Context) error {
 
 // Disable disables the event tap.
 func (a *Adapter) Disable(_ context.Context) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	a.tap.Disable()
 	a.enabled = false
 
@@ -41,6 +48,9 @@ func (a *Adapter) Disable(_ context.Context) error {
 
 // IsEnabled returns true if event capture is active.
 func (a *Adapter) IsEnabled() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
 	return a.enabled
 }
 
@@ -51,6 +61,9 @@ func (a *Adapter) SetHandler(_ func(key string)) {
 
 // SetHotkeys configures which hotkeys the event tap should monitor.
 func (a *Adapter) SetHotkeys(hotkeys []string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	if len(hotkeys) == 0 {
 		a.logger.Warn("SetHotkeys called with empty hotkeys slice")
 
@@ -62,6 +75,9 @@ func (a *Adapter) SetHotkeys(hotkeys []string) {
 
 // Destroy cleans up the event tap resources.
 func (a *Adapter) Destroy() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	a.tap.Destroy()
 	a.enabled = false
 }

@@ -20,6 +20,11 @@ func (a *App) IsEnabled() bool {
 	return a.appState.IsEnabled()
 }
 
+// ToggleEnabled atomically toggles the enabled state.
+func (a *App) ToggleEnabled() {
+	a.appState.ToggleEnabled()
+}
+
 // HintsEnabled returns true if hints are enabled.
 func (a *App) HintsEnabled() bool {
 	return a.config != nil && a.config.Hints.Enabled
@@ -127,6 +132,11 @@ func (a *App) IsOverlayHiddenForScreenShare() bool {
 func (a *App) SetOverlayHiddenForScreenShare(hide bool) {
 	// Update app state (this will trigger callbacks)
 	a.appState.SetHiddenForScreenShare(hide)
+}
+
+// ToggleOverlayHiddenForScreenShare atomically toggles the screen share hidden state.
+func (a *App) ToggleOverlayHiddenForScreenShare() bool {
+	return a.appState.ToggleHiddenForScreenShare()
 }
 
 // OnScreenShareStateChanged registers a callback for when the screen share state changes.

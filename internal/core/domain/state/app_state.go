@@ -112,6 +112,30 @@ func (s *AppState) OffEnabledStateChanged(id uint64) {
 	s.mu.Unlock()
 }
 
+// ToggleEnabled atomically toggles the enabled state and notifies callbacks.
+// This avoids the check-then-act race of calling IsEnabled() + SetEnabled().
+func (s *AppState) ToggleEnabled() {
+	s.mu.Lock()
+	oldEnabled := s.enabled
+	s.enabled = !oldEnabled
+	newEnabled := s.enabled
+
+	// Copy callbacks to slice for iteration outside lock
+	callbacks := make([]func(bool), 0, len(s.enabledStateCallbacks))
+	for _, cb := range s.enabledStateCallbacks {
+		callbacks = append(callbacks, cb)
+	}
+
+	s.mu.Unlock()
+
+	// State always changes in a toggle, notify all callbacks
+	for _, callback := range callbacks {
+		if callback != nil {
+			go callback(newEnabled)
+		}
+	}
+}
+
 // Enable enables the application.
 func (s *AppState) Enable() {
 	s.SetEnabled(true)
@@ -152,6 +176,32 @@ func (s *AppState) SetHiddenForScreenShare(hidden bool) {
 			}
 		}
 	}
+}
+
+// ToggleHiddenForScreenShare atomically toggles the screen share hidden state and notifies callbacks.
+// This avoids the check-then-act race of calling IsHiddenForScreenShare() + SetHiddenForScreenShare().
+func (s *AppState) ToggleHiddenForScreenShare() bool {
+	s.mu.Lock()
+	oldHidden := s.hiddenForScreenShare
+	s.hiddenForScreenShare = !oldHidden
+	newHidden := s.hiddenForScreenShare
+
+	// Copy callbacks to slice for iteration outside lock
+	callbacks := make([]func(bool), 0, len(s.screenShareStateCallbacks))
+	for _, cb := range s.screenShareStateCallbacks {
+		callbacks = append(callbacks, cb)
+	}
+
+	s.mu.Unlock()
+
+	// State always changes in a toggle, notify all callbacks
+	for _, callback := range callbacks {
+		if callback != nil {
+			go callback(newHidden)
+		}
+	}
+
+	return newHidden
 }
 
 // OnScreenShareStateChanged registers a callback for when the screen share state changes.
