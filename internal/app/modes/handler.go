@@ -165,11 +165,12 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 }
 
 // RefreshGridForScreenChange regenerates the grid with updated screen bounds
-// under the handler mutex, preserving the user's current input. Called from
-// the screen-change handler in lifecycle.go when ModeGrid is active.
+// under the handler mutex. The user's current input is reset because old cell
+// coordinates are invalid on the new screen. Called from the screen-change
+// handler in lifecycle.go when ModeGrid is active.
 //
 // Returns true if the refresh was performed, false if the mode was exited
-// concurrently (TOCTOU guard).
+// concurrently (TOCTOU guard) or the draw failed.
 func (h *Handler) RefreshGridForScreenChange() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()

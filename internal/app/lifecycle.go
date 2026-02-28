@@ -280,8 +280,10 @@ func (a *App) handleGridScreenChange(currentMode domain.Mode) bool {
 	// RefreshGridForScreenChange re-checks the mode under h.mu to guard
 	// against a concurrent mode exit (TOCTOU).
 	if !a.modes.RefreshGridForScreenChange() {
-		// Mode was exited concurrently — don't show the overlay.
-		a.logger.Debug("Grid mode exited during screen change; skipping show")
+		// Mode was exited concurrently or draw failed — don't show the overlay.
+		a.logger.Debug(
+			"Grid screen-change refresh skipped (mode exited or draw failed); skipping show",
+		)
 
 		return true
 	}
