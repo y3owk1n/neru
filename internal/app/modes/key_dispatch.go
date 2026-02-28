@@ -34,7 +34,6 @@ func (h *Handler) handleEscapeKey() {
 	}
 
 	h.exitModeLocked()
-	h.SetModeIdle()
 }
 
 // handleModeSpecificKey handles mode-specific key processing.
