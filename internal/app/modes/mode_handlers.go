@@ -96,12 +96,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 				h.refreshHintsTimer = time.AfterFunc(
 					time.Duration(delay)*time.Millisecond,
 					func() {
-						// Dispatch to main thread via channel to avoid race conditions
-						select {
-						case h.refreshHintsCh <- struct{}{}:
-						default:
-							// Channel already has a pending signal, skip
-						}
+						h.activateHintModeInternal(false, nil)
 					},
 				)
 			}

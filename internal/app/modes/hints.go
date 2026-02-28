@@ -70,11 +70,12 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 		// Handle mode transitions: if already in hints mode, do partial cleanup to preserve state;
 		// otherwise exit completely to reset all state
 		if h.appState.CurrentMode() == domain.ModeHints {
-			// During refresh, only clear overlay but do NOT reset manager state
-			// Calling Reset() would trigger callback with stale hints before new hints are set
+			// During refresh, only clear overlay and stop polling but do NOT change mode
+			// or disable event tap. The success path will call SetModeHints() to restore state.
+			// This prevents leaving the app in idle mode with event tap disabled if hint
+			// generation fails.
 			h.overlayManager.Clear()
-			h.performCommonCleanup()
-			// Skip cursor restoration to maintain position during hint mode transitions
+			h.stopModeIndicatorPolling()
 		} else {
 			h.ExitMode()
 		}
