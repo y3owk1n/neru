@@ -21,12 +21,19 @@ type Context struct {
 }
 
 // SetLastKey sets the last key pressed during scroll operations.
+// When key is non-empty, the timestamp is updated to now.
+// When key is empty (clearing state), the timestamp is zeroed.
 func (c *Context) SetLastKey(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.lastKey = key
-	c.lastKeyTime = time.Now().UnixNano()
+
+	if key != "" {
+		c.lastKeyTime = time.Now().UnixNano()
+	} else {
+		c.lastKeyTime = 0
+	}
 }
 
 // LastKey returns the last key pressed during scroll operations.
