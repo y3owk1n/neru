@@ -198,6 +198,32 @@ func TestAppState_TrySetScreenChangeProcessing_MultipleRetries(t *testing.T) {
 	}
 }
 
+func TestAppState_ResetScreenChangeProcessing_ClearsBothFlags(t *testing.T) {
+	_state := state.NewAppState()
+
+	// Acquire processing and set pending retry.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to succeed")
+	}
+
+	if _state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to fail while processing")
+	}
+
+	// Reset should clear both flags unconditionally.
+	_state.ResetScreenChangeProcessing()
+
+	// After reset, TrySet should succeed again.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to succeed after Reset")
+	}
+
+	// And Finish should report no pending retry (the old pendingRetry was cleared by Reset).
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected no retry after Reset cleared pending flag")
+	}
+}
+
 func TestAppState_GridOverlayNeedsRefresh(t *testing.T) {
 	_state := state.NewAppState()
 

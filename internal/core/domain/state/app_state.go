@@ -234,6 +234,17 @@ func (s *AppState) TrySetScreenChangeProcessing() bool {
 	return true
 }
 
+// ResetScreenChangeProcessing unconditionally clears both the processing
+// and pending-retry flags. It is intended only for panic-recovery paths
+// where the normal Finish protocol cannot complete.
+func (s *AppState) ResetScreenChangeProcessing() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.screenChangeProcessing = false
+	s.screenChangePendingRetry = false
+}
+
 // FinishScreenChangeProcessing checks whether a retry was requested while
 // processing was in progress. If a retry is pending, the processing flag
 // remains set (caller retains exclusive ownership) and the pending-retry

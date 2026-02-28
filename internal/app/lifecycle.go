@@ -202,6 +202,15 @@ func (a *App) handleScreenParametersChange() {
 		return
 	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			a.logger.Error("panic during screen change processing", zap.Any("recovered", r))
+			// Force-clear both flags so future screen-change events are not
+			// permanently blocked.
+			a.appState.ResetScreenChangeProcessing()
+		}
+	}()
+
 	for {
 		a.processScreenChange()
 		// If another screen-change event arrived while we were processing,
