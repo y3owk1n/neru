@@ -42,10 +42,10 @@ const (
 
 //export gridResizeCompletionCallback
 func gridResizeCompletionCallback(context unsafe.Pointer) {
-	// Read callback ID from the pointer (points to a slice element in callbackIDStore)
-	id := *(*uint64)(context)
+	// Read callback context from the pointer (points to a slice element in callbackIDStore)
+	ctx := *(*overlayutil.CallbackContext)(context)
 
-	overlayutil.CompleteGlobalCallback(id)
+	overlayutil.CompleteGlobalCallback(ctx.CallbackID, ctx.Generation)
 }
 
 var (
@@ -258,10 +258,10 @@ func (o *Overlay) ResizeToMainScreen() {
 
 // ResizeToActiveScreen resizes the overlay window with callback notification.
 func (o *Overlay) ResizeToActiveScreen() {
-	o.callbackManager.StartResizeOperation(func(callbackID uint64) {
-		// Pass integer ID as opaque pointer context for C callback.
+	o.callbackManager.StartResizeOperation(func(callbackID uint64, generation uint64) {
+		// Pass callback ID and generation as opaque pointer context for C callback.
 		// Uses CallbackIDToPointer to convert in a way that go vet accepts.
-		contextPtr := overlayutil.CallbackIDToPointer(callbackID)
+		contextPtr := overlayutil.CallbackIDToPointer(callbackID, generation)
 
 		C.NeruResizeOverlayToActiveScreenWithCallback(
 			o.window,

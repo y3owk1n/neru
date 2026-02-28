@@ -17,9 +17,15 @@ const (
 	DefaultCallbackIDStoreCapacity = 1024
 )
 
+// registryEntry holds the manager and its generation for validation.
+type registryEntry struct {
+	manager    *CallbackManager
+	generation uint64
+}
+
 var (
-	// Global registry mapping callback IDs to CallbackManager instances.
-	callbackManagerRegistry   = make(map[uint64]*CallbackManager)
+	// Global registry mapping callback IDs to registryEntry (manager + generation).
+	callbackManagerRegistry   = make(map[uint64]registryEntry)
 	callbackManagerRegistryMu sync.RWMutex
 
 	// freeCallbackIDs is a pool of available callback IDs for reuse.
@@ -31,13 +37,19 @@ var (
 	allocatedCallbackIDs   = make(map[uint64]bool)
 	allocatedCallbackIDsMu sync.Mutex
 
-	// callbackIDStore stores callback IDs in a fixed-size slice to allow safe pointer conversion.
-	// The slice index is the callback ID, and the value is the same ID (for pointer stability).
+	// callbackIDStore stores callback context (ID + generation) in a fixed-size slice
+	// to allow safe pointer conversion. The slice index is the callback ID.
 	// We never reallocate this slice to keep pointers handed to C valid for the lifetime
 	// of the process; bump DefaultCallbackIDStoreCapacity if you need more IDs.
-	callbackIDStore   = make([]uint64, DefaultCallbackIDStoreCapacity)
+	callbackIDStore   = make([]CallbackContext, DefaultCallbackIDStoreCapacity)
 	callbackIDStoreMu sync.Mutex
 )
+
+// CallbackContext holds both the callback ID and its generation for validation.
+type CallbackContext struct {
+	CallbackID uint64
+	Generation uint64
+}
 
 func init() {
 	// Initialize the free ID pool with all available IDs.
@@ -81,25 +93,33 @@ func releaseCallbackID(callbackID uint64) {
 
 // CompleteGlobalCallback completes a callback by ID using the global registry.
 // This function is called by C callbacks that can't access instance methods.
-func CompleteGlobalCallback(callbackID uint64) {
+// It validates the generation to ensure the callback is still valid (not stale).
+func CompleteGlobalCallback(callbackID uint64, expectedGeneration uint64) {
 	callbackManagerRegistryMu.RLock()
 
-	manager, ok := callbackManagerRegistry[callbackID]
+	entry, ok := callbackManagerRegistry[callbackID]
 
 	callbackManagerRegistryMu.RUnlock()
 
-	if ok {
-		manager.CompleteCallback(callbackID)
-
-		// Release the callback ID back to the free pool
-		releaseCallbackID(callbackID)
+	if !ok {
+		return
 	}
+
+	// Validate generation to detect stale callbacks (ID was reused)
+	if entry.generation != expectedGeneration {
+		return
+	}
+
+	entry.manager.CompleteCallback(callbackID)
+
+	// Release the callback ID back to the free pool
+	releaseCallbackID(callbackID)
 }
 
-// CallbackIDToPointer converts a callback ID to unsafe.Pointer in a way that go vet accepts.
-// It stores the ID in a fixed-size slice and returns a pointer to the slice element.
+// CallbackIDToPointer converts a callback ID and generation to unsafe.Pointer in a way that go vet accepts.
+// It stores both in a fixed-size slice and returns a pointer to the slice element.
 // The pointer remains valid for the lifetime of the process since the slice is never reallocated.
-func CallbackIDToPointer(callbackID uint64) unsafe.Pointer {
+func CallbackIDToPointer(callbackID uint64, generation uint64) unsafe.Pointer {
 	if callbackID >= uint64(len(callbackIDStore)) {
 		// Defensive: avoid silently corrupting memory if we ever run out of slots.
 		panic("overlayutil: callbackID exceeds callback ID store capacity")
@@ -107,7 +127,10 @@ func CallbackIDToPointer(callbackID uint64) unsafe.Pointer {
 
 	callbackIDStoreMu.Lock()
 
-	callbackIDStore[callbackID] = callbackID
+	callbackIDStore[callbackID] = CallbackContext{
+		CallbackID: callbackID,
+		Generation: generation,
+	}
 	ptr := unsafe.Pointer(&callbackIDStore[callbackID])
 
 	callbackIDStoreMu.Unlock()
@@ -122,6 +145,11 @@ type CallbackManager struct {
 	callbackMu  sync.Mutex
 	cancelCh    chan struct{}
 	cleanupOnce sync.Once
+
+	// generation is incremented for each new resize operation.
+	// This allows us to detect stale callbacks when IDs are reused.
+	generation   uint64
+	generationMu sync.Mutex
 }
 
 // NewCallbackManager creates a new callback manager.
@@ -134,7 +162,7 @@ func NewCallbackManager(logger *zap.Logger) *CallbackManager {
 }
 
 // StartResizeOperation begins a resize operation with callback tracking.
-func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64)) {
+func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)) {
 	done := make(chan struct{})
 
 	// Allocate an ID from the free pool
@@ -157,27 +185,40 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64)) {
 
 	allocatedCallbackIDsMu.Unlock()
 
+	// Increment generation for this new operation
+	c.generationMu.Lock()
+	currentGeneration := c.generation
+	c.generation++
+	c.generationMu.Unlock()
+
 	// Store channel in instance map
 	c.callbackMu.Lock()
 	c.callbackMap[callbackID] = done
 	c.callbackMu.Unlock()
 
-	// Register this callback manager in global registry
+	// Register this callback manager in global registry with current generation
 	callbackManagerRegistryMu.Lock()
 
-	callbackManagerRegistry[callbackID] = c
+	callbackManagerRegistry[callbackID] = registryEntry{
+		manager:    c,
+		generation: currentGeneration,
+	}
 
 	callbackManagerRegistryMu.Unlock()
 
 	if c.logger != nil {
-		c.logger.Debug("Overlay resize started", zap.Uint64("callback_id", callbackID))
+		c.logger.Debug(
+			"Overlay resize started",
+			zap.Uint64("callback_id", callbackID),
+			zap.Uint64("generation", currentGeneration),
+		)
 	}
 
-	// Call the platform-specific resize function
-	callbackFunc(callbackID)
+	// Call the platform-specific resize function with both ID and generation
+	callbackFunc(callbackID, currentGeneration)
 
 	// Start background cleanup goroutine
-	go c.handleResizeCallback(callbackID, done)
+	go c.handleResizeCallback(callbackID, currentGeneration, done)
 }
 
 // CompleteCallback marks a callback as complete.
@@ -214,11 +255,16 @@ func (c *CallbackManager) Cleanup() {
 }
 
 // handleResizeCallback manages the callback lifecycle.
-func (c *CallbackManager) handleResizeCallback(callbackID uint64, done chan struct{}) {
+func (c *CallbackManager) handleResizeCallback(
+	callbackID uint64,
+	generation uint64,
+	done chan struct{},
+) {
 	if c.logger != nil {
 		c.logger.Debug(
 			"Overlay resize background cleanup started",
 			zap.Uint64("callback_id", callbackID),
+			zap.Uint64("generation", generation),
 		)
 	}
 
@@ -237,32 +283,32 @@ func (c *CallbackManager) handleResizeCallback(callbackID uint64, done chan stru
 		}
 	case <-timer.C:
 		// Long timeout for cleanup only - callback likely failed
+		// DO NOT release the callback ID here. Keep it allocated with its generation
+		// so that if a late C callback arrives, it will be validated and ignored as stale.
+		// The ID will be released when the C callback finally arrives (or never, if it doesn't).
 		c.callbackMu.Lock()
 		delete(c.callbackMap, callbackID)
 		c.callbackMu.Unlock()
-
-		// Release the callback ID back to the free pool
-		releaseCallbackID(callbackID)
 
 		if c.logger != nil {
 			c.logger.Debug(
 				"Overlay resize cleanup timeout - removed callback from map",
 				zap.Uint64("callback_id", callbackID),
+				zap.Uint64("generation", generation),
 			)
 		}
 	case <-c.cancelCh:
 		// Manager is being cleaned up, clean up this callback
+		// DO NOT release the callback ID here either - same reason as timeout case
 		c.callbackMu.Lock()
 		delete(c.callbackMap, callbackID)
 		c.callbackMu.Unlock()
-
-		// Release the callback ID back to the free pool
-		releaseCallbackID(callbackID)
 
 		if c.logger != nil {
 			c.logger.Debug(
 				"Overlay resize callback canceled during cleanup",
 				zap.Uint64("callback_id", callbackID),
+				zap.Uint64("generation", generation),
 			)
 		}
 	}
