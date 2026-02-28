@@ -2,6 +2,7 @@ package overlayutil
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -29,6 +30,12 @@ type registryEntry struct {
 }
 
 var (
+	// globalGeneration is a process-wide monotonic counter so that no two
+	// operations (even across different CallbackManager instances) ever share
+	// the same generation value. This prevents a reused callback ID from
+	// matching a stale C callback that originated from a different manager.
+	globalGeneration atomic.Uint64
+
 	// Global registry mapping callback IDs to registryEntry (manager + generation).
 	callbackManagerRegistry   = make(map[uint64]registryEntry)
 	callbackManagerRegistryMu sync.RWMutex
@@ -161,11 +168,6 @@ type CallbackManager struct {
 	callbackMu  sync.Mutex
 	cancelCh    chan struct{}
 	cleanupOnce sync.Once
-
-	// generation is incremented for each new resize operation.
-	// This allows us to detect stale callbacks when IDs are reused.
-	generation   uint64
-	generationMu sync.Mutex
 }
 
 // NewCallbackManager creates a new callback manager.
@@ -201,11 +203,11 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)
 
 	allocatedCallbackIDsMu.Unlock()
 
-	// Increment generation for this new operation
-	c.generationMu.Lock()
-	currentGeneration := c.generation
-	c.generation++
-	c.generationMu.Unlock()
+	// Mint a globally unique generation for this operation.
+	// Using a global counter (not per-manager) ensures that even if two
+	// different managers reuse the same callback ID, their generations
+	// will never collide.
+	currentGeneration := globalGeneration.Add(1)
 
 	// Store channel in instance map
 	c.callbackMu.Lock()
