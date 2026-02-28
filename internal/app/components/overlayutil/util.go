@@ -265,8 +265,19 @@ func (c *CallbackManager) Cleanup() {
 		// Close the cancel channel to stop all background goroutines
 		close(c.cancelCh)
 
-		// Clear the callback map
+		// Remove this manager's entries from the global registry so that
+		// late C callbacks find no entry in CompleteGlobalCallback and are
+		// rejected immediately, rather than being routed to this cleaned-up
+		// manager. The deferred release timers will still fire and call
+		// releaseCallbackID, which is a no-op for already-deleted entries.
 		c.callbackMu.Lock()
+		callbackManagerRegistryMu.Lock()
+		for id := range c.callbackMap {
+			delete(callbackManagerRegistry, id)
+		}
+
+		callbackManagerRegistryMu.Unlock()
+
 		c.callbackMap = make(map[uint64]chan struct{})
 		c.callbackMu.Unlock()
 
