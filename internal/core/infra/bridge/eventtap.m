@@ -450,6 +450,12 @@ void disableEventTap(EventTap tap) {
 
 	// Disable on main thread to avoid races
 	dispatch_async(dispatch_get_main_queue(), ^{
+		// Cancel any pending enable block
+		if (context->pendingEnableBlock) {
+			dispatch_block_cancel(context->pendingEnableBlock);
+			context->pendingEnableBlock = nil;
+		}
+
 		CGEventTapEnable(context->eventTap, false);
 	});
 }
