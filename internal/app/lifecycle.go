@@ -312,7 +312,7 @@ func (a *App) handleHintScreenChange(ctx context.Context) bool {
 
 	if len(domainHints) > 0 {
 		hintCollection := domainHint.NewCollection(domainHints)
-		a.hintsComponent.Context.SetHints(hintCollection)
+		a.modes.RefreshHintsForScreenChange(hintCollection)
 	}
 
 	a.logger.Info("Hint overlay resized and regenerated for new screen bounds")

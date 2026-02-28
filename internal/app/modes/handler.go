@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui"
@@ -134,6 +135,19 @@ func NewHandler(
 	}
 
 	return handler
+}
+
+// RefreshHintsForScreenChange updates the hint collection under the handler
+// mutex so that the onUpdate callback can safely read h.screenBounds and
+// write to h.overlayManager. Called from the screen-change goroutine in
+// lifecycle.go.
+func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collection) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	// Re-read screen bounds under the lock so the onUpdate callback
+	// uses coordinates that match the resized overlay.
+	h.screenBounds = bridge.ActiveScreenBounds()
+	h.hints.Context.SetHints(hintCollection)
 }
 
 // UpdateConfig updates the handler with new configuration.
