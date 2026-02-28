@@ -223,9 +223,8 @@ func (h *IPCControllerOverlay) handleToggleScreenShare(
 	_ context.Context,
 	_ ipc.Command,
 ) ipc.Response {
-	currentState := h.appState.IsHiddenForScreenShare()
-	newState := !currentState
-	h.appState.SetHiddenForScreenShare(newState)
+	// Atomically toggle to avoid check-then-act race
+	newState := h.appState.ToggleHiddenForScreenShare()
 
 	status := "visible"
 	if newState {

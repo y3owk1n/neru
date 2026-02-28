@@ -46,9 +46,18 @@ func (m *mockApp) OnEnabledStateChanged(callback func(bool)) uint64 {
 
 	return 0
 }
-func (m *mockApp) OffEnabledStateChanged(id uint64)         {}
+func (m *mockApp) OffEnabledStateChanged(id uint64) {}
+func (m *mockApp) ToggleEnabled() {
+	m.SetEnabled(!m.isEnabled)
+}
 func (m *mockApp) IsOverlayHiddenForScreenShare() bool      { return false }
 func (m *mockApp) SetOverlayHiddenForScreenShare(hide bool) {}
+func (m *mockApp) ToggleOverlayHiddenForScreenShare() bool {
+	m.SetOverlayHiddenForScreenShare(!m.IsOverlayHiddenForScreenShare())
+
+	return !m.IsOverlayHiddenForScreenShare()
+}
+
 func (m *mockApp) OnScreenShareStateChanged(callback func(bool)) uint64 {
 	return 0
 }

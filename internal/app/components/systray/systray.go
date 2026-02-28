@@ -21,6 +21,7 @@ type AppInterface interface {
 	RecursiveGridEnabled() bool
 	IsEnabled() bool
 	SetEnabled(enabled bool)
+	ToggleEnabled()
 	ActivateMode(mode domain.Mode)
 	GetConfigPath() string
 	ReloadConfig(ctx context.Context, configPath string) error
@@ -33,6 +34,7 @@ type AppInterface interface {
 	// Overlay screen share visibility
 	IsOverlayHiddenForScreenShare() bool
 	SetOverlayHiddenForScreenShare(hide bool)
+	ToggleOverlayHiddenForScreenShare() bool
 	OnScreenShareStateChanged(callback func(bool)) uint64
 	OffScreenShareStateChanged(id uint64)
 }
@@ -353,8 +355,8 @@ func (c *Component) handleVersionCopy() {
 
 // handleToggleEnable toggles the enabled state of the application.
 func (c *Component) handleToggleEnable() {
-	// Toggle the enabled state - the callback will update the menu items
-	c.app.SetEnabled(!c.app.IsEnabled())
+	// Atomically toggle the enabled state - the callback will update the menu items
+	c.app.ToggleEnabled()
 }
 
 // handleReloadConfig reloads the configuration from disk.
@@ -371,10 +373,8 @@ func (c *Component) handleReloadConfig() {
 
 // handleToggleScreenShare toggles the overlay visibility in screen sharing.
 func (c *Component) handleToggleScreenShare() {
-	currentState := c.app.IsOverlayHiddenForScreenShare()
-	newState := !currentState
-	c.app.SetOverlayHiddenForScreenShare(newState)
-	// Note: updateScreenShareMenuItem will be called via the state change callback
+	// Atomically toggle - the callback will update the menu item
+	newState := c.app.ToggleOverlayHiddenForScreenShare()
 
 	status := "visible"
 	if newState {
