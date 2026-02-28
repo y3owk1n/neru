@@ -355,6 +355,8 @@ func (a *App) handleRecursiveGridScreenChange(currentMode domain.Mode) bool {
 	}
 
 	if currentMode != domain.ModeRecursiveGrid {
+		a.appState.SetRecursiveGridOverlayNeedsRefresh(true)
+
 		return false
 	}
 
