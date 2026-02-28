@@ -187,7 +187,9 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)
 		freeCallbackIDsMu.Unlock()
 
 		if c.logger != nil {
-			c.logger.Warn("No available callback IDs, skipping resize operation (pool temporarily exhausted by deferred releases)")
+			c.logger.Warn(
+				"No available callback IDs, skipping resize operation (pool temporarily exhausted by deferred releases)",
+			)
 		}
 
 		return
