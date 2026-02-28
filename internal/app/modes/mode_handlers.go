@@ -5,6 +5,7 @@ import (
 	"image"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
@@ -99,6 +100,13 @@ func (h *Handler) handleHintsModeKey(key string) {
 						// Lock to serialize with HandleKeyPress on the event tap thread
 						h.mu.Lock()
 						defer h.mu.Unlock()
+
+						// Guard against stale timer: if the user exited hints mode
+						// (e.g. pressed escape) while we were waiting for the lock,
+						// do not re-activate.
+						if h.appState.CurrentMode() != domain.ModeHints {
+							return
+						}
 
 						h.activateHintModeInternal(false, nil)
 					},
