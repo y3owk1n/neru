@@ -2,7 +2,9 @@ package logger_test
 
 import (
 	"bytes"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
@@ -121,4 +123,45 @@ func TestWith(t *testing.T) {
 	if childLogger == nil {
 		t.Error("With() returned nil")
 	}
+}
+
+func TestRaceCondition(t *testing.T) {
+	var waitGroup sync.WaitGroup
+
+	logger.Reset()
+
+	// Concurrent logging (exercises Get)
+	for range 5 {
+		waitGroup.Go(func() {
+			for range 100 {
+				logger.Info("background logging")
+			}
+		})
+	}
+
+	// Concurrent Init (write path)
+	waitGroup.Go(func() {
+		_ = logger.Init("info", "", true, true, 10, 5, 30, os.Stdout)
+	})
+
+	// Concurrent Sync (read-copy-unlock path)
+	waitGroup.Go(func() {
+		for range 50 {
+			_ = logger.Sync()
+		}
+	})
+	// Concurrent Reset (write path)
+	waitGroup.Go(func() {
+		for range 10 {
+			logger.Reset()
+		}
+	})
+	// Concurrent Close (write path)
+	waitGroup.Go(func() {
+		for range 10 {
+			_ = logger.Close()
+		}
+	})
+
+	waitGroup.Wait()
 }

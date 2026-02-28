@@ -22,7 +22,7 @@ var (
 	// globalLogger is the global logger instance.
 	globalLogger *zap.Logger
 	logFile      *lumberjack.Logger
-	logFileMu    sync.Mutex
+	logFileMu    sync.RWMutex
 )
 
 // Init configures and initializes the global logger with the specified settings.
@@ -152,8 +152,22 @@ func Init(
 // Get retrieves the global logger instance.
 // If the logger hasn't been initialized, it returns a development logger as a fallback.
 func Get() *zap.Logger {
+	logFileMu.RLock()
+
+	if globalLogger != nil {
+		logger := globalLogger
+
+		logFileMu.RUnlock()
+
+		return logger
+	}
+
+	logFileMu.RUnlock()
+
+	logFileMu.Lock()
+	defer logFileMu.Unlock()
+
 	if globalLogger == nil {
-		// Fallback to development logger
 		globalLogger, _ = zap.NewDevelopment()
 	}
 
@@ -162,12 +176,19 @@ func Get() *zap.Logger {
 
 // Reset resets the global logger instance.
 func Reset() {
+	logFileMu.Lock()
+	defer logFileMu.Unlock()
+
 	globalLogger = nil
 }
 
 // Sync flushes any buffered log entries to their outputs.
 // This ensures that all pending log messages are written before the application exits.
 func Sync() error {
+	logFileMu.RLock()
+
+	defer logFileMu.RUnlock()
+
 	if globalLogger != nil {
 		err := globalLogger.Sync()
 		if err != nil {
