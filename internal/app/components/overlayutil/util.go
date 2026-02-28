@@ -15,6 +15,11 @@ const (
 	DefaultCallbackTimeout = 2 * time.Second
 	// DefaultCallbackIDStoreCapacity is the default initial capacity for callback ID store.
 	DefaultCallbackIDStoreCapacity = 1024
+	// StaleCallbackGracePeriod is how long we keep a timed-out/canceled callback
+	// ID allocated before forcibly releasing it. This gives late C callbacks time
+	// to arrive and be validated via generation mismatch, while preventing
+	// permanent ID leaks if the C side never invokes the callback.
+	StaleCallbackGracePeriod = 30 * time.Second
 )
 
 // registryEntry holds the manager and its generation for validation.
@@ -89,6 +94,17 @@ func releaseCallbackID(callbackID uint64) {
 
 	// Note: We don't clean up from callbackIDStore here because the pointer
 	// may still be in use by C code. The ID is returned to the free pool for reuse.
+}
+
+// deferredReleaseCallbackID schedules a callback ID to be released after StaleCallbackGracePeriod.
+// This is used on timeout/cancel paths: the ID stays allocated long enough for a late C callback
+// to arrive and be rejected via generation mismatch, but is eventually reclaimed to prevent leaks.
+// If the C callback arrives before the grace period expires and calls CompleteGlobalCallback,
+// the double-release guard in releaseCallbackID ensures the deferred release is a no-op.
+func deferredReleaseCallbackID(callbackID uint64) {
+	time.AfterFunc(StaleCallbackGracePeriod, func() {
+		releaseCallbackID(callbackID)
+	})
 }
 
 // CompleteGlobalCallback completes a callback by ID using the global registry.
@@ -283,30 +299,34 @@ func (c *CallbackManager) handleResizeCallback(
 		}
 	case <-timer.C:
 		// Long timeout for cleanup only - callback likely failed
-		// DO NOT release the callback ID here. Keep it allocated with its generation
-		// so that if a late C callback arrives, it will be validated and ignored as stale.
-		// The ID will be released when the C callback finally arrives (or never, if it doesn't).
 		c.callbackMu.Lock()
 		delete(c.callbackMap, callbackID)
 		c.callbackMu.Unlock()
 
+		// Schedule deferred release: keep the ID allocated for StaleCallbackGracePeriod
+		// so late C callbacks can still be validated and rejected via generation mismatch,
+		// then reclaim the ID to prevent permanent leaks.
+		deferredReleaseCallbackID(callbackID)
+
 		if c.logger != nil {
 			c.logger.Debug(
-				"Overlay resize cleanup timeout - removed callback from map",
+				"Overlay resize cleanup timeout - removed callback from map, deferred ID release scheduled",
 				zap.Uint64("callback_id", callbackID),
 				zap.Uint64("generation", generation),
 			)
 		}
 	case <-c.cancelCh:
 		// Manager is being cleaned up, clean up this callback
-		// DO NOT release the callback ID here either - same reason as timeout case
 		c.callbackMu.Lock()
 		delete(c.callbackMap, callbackID)
 		c.callbackMu.Unlock()
 
+		// Schedule deferred release - same reasoning as timeout case
+		deferredReleaseCallbackID(callbackID)
+
 		if c.logger != nil {
 			c.logger.Debug(
-				"Overlay resize callback canceled during cleanup",
+				"Overlay resize callback canceled during cleanup, deferred ID release scheduled",
 				zap.Uint64("callback_id", callbackID),
 				zap.Uint64("generation", generation),
 			)
