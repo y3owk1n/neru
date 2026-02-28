@@ -94,8 +94,7 @@ func (m *GenericMode) Exit() {
 			m.handler.cleanupRecursiveGridMode()
 		case domain.ModeScroll:
 			if m.handler.scroll != nil && m.handler.scroll.Context != nil {
-				m.handler.scroll.Context.SetIsActive(false)
-				m.handler.scroll.Context.SetLastKey("")
+				m.handler.scroll.Context.Reset()
 			}
 
 			if m.handler.cursorState != nil {
