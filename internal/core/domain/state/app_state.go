@@ -229,6 +229,21 @@ func (s *AppState) SetScreenChangeProcessing(processing bool) {
 	s.screenChangeProcessing = processing
 }
 
+// TrySetScreenChangeProcessing atomically sets the flag to true only if it's currently false.
+// Returns true if the flag was successfully set, false if it was already set.
+func (s *AppState) TrySetScreenChangeProcessing() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.screenChangeProcessing {
+		return false
+	}
+
+	s.screenChangeProcessing = true
+
+	return true
+}
+
 // GridOverlayNeedsRefresh returns whether the grid overlay needs refresh.
 func (s *AppState) GridOverlayNeedsRefresh() bool {
 	s.mu.RLock()

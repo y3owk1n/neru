@@ -198,11 +198,9 @@ func (a *App) setupAppWatcherCallbacks() {
 
 // handleScreenParametersChange responds to display configuration changes by updating overlays.
 func (a *App) handleScreenParametersChange() {
-	if a.appState.ScreenChangeProcessing() {
+	if !a.appState.TrySetScreenChangeProcessing() {
 		return
 	}
-
-	a.appState.SetScreenChangeProcessing(true)
 
 	defer func() { a.appState.SetScreenChangeProcessing(false) }()
 
