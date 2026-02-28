@@ -98,6 +98,10 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 	if actionString == domain.UnknownAction {
 		h.logger.Warn("Unknown action string, ignoring")
 
+		if isRefresh {
+			h.exitModeLocked()
+		}
+
 		return
 	}
 
@@ -124,6 +128,10 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 			zap.Error(domainHintsErr),
 			zap.String("action", actionString),
 		)
+
+		if isRefresh {
+			h.exitModeLocked()
+		}
 
 		return
 	}
@@ -166,6 +174,10 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 
 	if len(domainHints) == 0 {
 		h.logger.Warn("No hints generated for action", zap.String("action", actionString))
+
+		if isRefresh {
+			h.exitModeLocked()
+		}
 
 		return
 	}
