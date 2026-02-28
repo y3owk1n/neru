@@ -16,16 +16,28 @@ import (
 // This replaces the global configuration pattern with dependency injection.
 
 // safeSendConfig attempts to send a config without blocking.
-// Returns true if sent successfully, false if channel is full.
-// Note: Channels are never closed by the server; consumers terminate via context cancellation.
-func safeSendConfig(ch chan<- *Config, config *Config) bool {
-	select {
-	case ch <- config:
-		return true
-	default:
-		// Channel is full
-		return false
-	}
+// Returns true if sent successfully, false if channel is full or closed.
+func safeSendConfig(_channel chan<- *Config, config *Config) bool {
+	sent := true
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Channel was closed between copying watchers and sending.
+				// This is expected when a watcher's context is canceled
+				// concurrently with a Reload or Update.
+				sent = false
+			}
+		}()
+
+		select {
+		case _channel <- config:
+		default:
+			// Channel is full
+			sent = false
+		}
+	}()
+
+	return sent
 }
 
 // Service manages application configuration with thread-safe access and change notifications.
@@ -280,9 +292,7 @@ func (s *Service) ReloadConfig(path string) error {
 }
 
 // Watch returns a channel that receives configuration updates.
-// The watcher terminates when the context is canceled.
-// Note: The channel is never closed by the server; consumers should select on both
-// the channel and ctx.Done() to detect when to stop listening.
+// The channel is closed when the context is canceled.
 func (s *Service) Watch(ctx context.Context) <-chan *Config {
 	channel := make(chan *Config, 1)
 
@@ -309,7 +319,8 @@ func (s *Service) Watch(ctx context.Context) <-chan *Config {
 			}
 		}
 
-		// Note: Channel is not closed; consumers detect termination via ctx.Done()
+		// Close channel to honor interface contract
+		close(channel)
 	}()
 
 	return channel

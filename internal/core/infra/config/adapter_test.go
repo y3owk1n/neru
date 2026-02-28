@@ -3,6 +3,7 @@ package config_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	configPkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/config"
@@ -114,7 +115,7 @@ func TestAdapter_Watch(t *testing.T) {
 		t.Error("Expected initial config from watch channel")
 	}
 
-	// Cancel context and check channel closes
+	// Cancel context and verify channel is closed by the cleanup goroutine
 	cancel()
 
 	select {
@@ -122,7 +123,7 @@ func TestAdapter_Watch(t *testing.T) {
 		if ok {
 			t.Error("Expected watch channel to be closed")
 		}
-	default:
-		// Channel already closed, which is fine
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timed out waiting for watch channel to close after context cancellation")
 	}
 }
