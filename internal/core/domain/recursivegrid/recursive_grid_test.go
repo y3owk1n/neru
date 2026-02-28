@@ -352,6 +352,37 @@ func TestRemapToNewBounds_NonOriginScreen(t *testing.T) {
 	assert.Equal(t, image.Rect(1000, 500, 2000, 1000), grid.CurrentBounds())
 }
 
+func TestRemapToNewBounds_RoundTripMinimizesDrift(t *testing.T) {
+	// Remap 1920→1080→1920 and verify the coordinates return close to original.
+	// With rounding, drift should be ≤1px per coordinate; without rounding
+	// (truncation) the error can be larger.
+	bounds := image.Rect(0, 0, 1920, 1080)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 10, 10, 20)
+	// Build some depth so history has non-trivial coordinates.
+	grid.SelectCell(recursivegrid.BottomRight) // (960,540)-(1920,1080)
+	grid.SelectCell(recursivegrid.TopLeft)     // (960,540)-(1440,810)
+	originalBounds := grid.CurrentBounds()
+	// Remap to a smaller screen and back.
+	grid.RemapToNewBounds(image.Rect(0, 0, 1080, 720))
+	grid.RemapToNewBounds(image.Rect(0, 0, 1920, 1080))
+	result := grid.CurrentBounds()
+	// Allow ≤1px drift per edge due to integer rounding.
+	for _, pair := range [][2]int{
+		{originalBounds.Min.X, result.Min.X},
+		{originalBounds.Min.Y, result.Min.Y},
+		{originalBounds.Max.X, result.Max.X},
+		{originalBounds.Max.Y, result.Max.Y},
+	} {
+		diff := pair[0] - pair[1]
+		if diff < 0 {
+			diff = -diff
+		}
+
+		assert.LessOrEqual(t, diff, 1,
+			"Round-trip drift should be ≤1px, got original=%d result=%d", pair[0], pair[1])
+	}
+}
+
 func TestRemapToNewBounds_ZeroOldBounds(t *testing.T) {
 	// Edge case: zero-size old bounds should not panic (division by zero guard).
 	oldBounds := image.Rect(0, 0, 0, 0)

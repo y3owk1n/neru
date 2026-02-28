@@ -274,6 +274,8 @@ func (qg *RecursiveGrid) RemapToNewBounds(newBounds image.Rectangle) {
 }
 
 // remapRect proportionally maps r from the coordinate space of oldRef into newRef.
+// It uses rounded integer division to minimize per-remap error, reducing drift
+// when multiple successive screen changes occur.
 func remapRect(rect, oldRef, newRef image.Rectangle) image.Rectangle {
 	oldW := oldRef.Dx()
 	oldH := oldRef.Dy()
@@ -281,13 +283,32 @@ func remapRect(rect, oldRef, newRef image.Rectangle) image.Rectangle {
 	if oldW == 0 || oldH == 0 {
 		return newRef
 	}
-	// Express r's edges as fractions of oldRef, then scale to newRef.
-	minX := newRef.Min.X + (rect.Min.X-oldRef.Min.X)*newRef.Dx()/oldW
-	minY := newRef.Min.Y + (rect.Min.Y-oldRef.Min.Y)*newRef.Dy()/oldH
-	maxX := newRef.Min.X + (rect.Max.X-oldRef.Min.X)*newRef.Dx()/oldW
-	maxY := newRef.Min.Y + (rect.Max.Y-oldRef.Min.Y)*newRef.Dy()/oldH
+
+	// Express rect's edges as fractions of oldRef, then scale to newRef.
+	// Use divRound for rounding to nearest instead of truncation, which
+	// halves the maximum per-remap error (~0.5px vs ~1px) and reduces
+	// cumulative drift across successive screen changes.
+	minX := newRef.Min.X + divRound((rect.Min.X-oldRef.Min.X)*newRef.Dx(), oldW)
+	minY := newRef.Min.Y + divRound((rect.Min.Y-oldRef.Min.Y)*newRef.Dy(), oldH)
+	maxX := newRef.Min.X + divRound((rect.Max.X-oldRef.Min.X)*newRef.Dx(), oldW)
+	maxY := newRef.Min.Y + divRound((rect.Max.Y-oldRef.Min.Y)*newRef.Dy(), oldH)
 
 	return image.Rect(minX, minY, maxX, maxY)
+}
+
+// divRound performs integer division of numerator by denominator, rounding to
+// the nearest integer instead of truncating toward zero.
+func divRound(numerator, denominator int) int {
+	if denominator == 0 {
+		return 0
+	}
+
+	// Handle negative results correctly: round toward nearest, not toward zero.
+	if (numerator < 0) != (denominator < 0) {
+		return (numerator - denominator/2) / denominator
+	}
+
+	return (numerator + denominator/2) / denominator
 }
 
 // IsComplete returns true if the minimum size has been reached.
