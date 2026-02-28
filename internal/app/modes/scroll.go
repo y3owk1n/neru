@@ -31,7 +31,7 @@ func (h *Handler) StartInteractiveScroll() {
 }
 
 func (h *Handler) handleGenericScrollKey(key string) {
-	lastKey := h.scroll.Context.LastKey()
+	lastKey, lastKeyTime := h.scroll.Context.LastKeyState()
 
 	h.logger.Debug("handleGenericScrollKey",
 		zap.String("key", key),
@@ -43,7 +43,7 @@ func (h *Handler) handleGenericScrollKey(key string) {
 	)
 
 	if lastKey != "" {
-		action, found = h.handleSequenceKey(key, lastKey)
+		action, found = h.handleSequenceKey(key, lastKey, lastKeyTime)
 	} else {
 		action, found = h.handleSingleKey(key)
 	}
@@ -107,12 +107,12 @@ func (h *Handler) handleSingleKey(key string) (string, bool) {
 	return "", false
 }
 
-func (h *Handler) handleSequenceKey(key, firstKey string) (string, bool) {
+func (h *Handler) handleSequenceKey(key, firstKey string, firstKeyTime int64) (string, bool) {
 	h.logger.Debug("handleSequenceKey",
 		zap.String("key", key),
 		zap.String("firstKey", firstKey))
 
-	seqState := scroll.NewSequenceState(firstKey, h.scroll.Context.LastKeyTime())
+	seqState := scroll.NewSequenceState(firstKey, firstKeyTime)
 	if seqState.Expired() {
 		h.logger.Debug("sequence expired")
 		h.scroll.Context.SetLastKey("")

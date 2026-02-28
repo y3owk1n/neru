@@ -45,6 +45,16 @@ func (c *Context) LastKeyTime() int64 {
 	return c.lastKeyTime
 }
 
+// LastKeyState atomically returns both the last key and its timestamp.
+// Use this instead of separate LastKey()/LastKeyTime() calls when both
+// values are needed together to avoid TOCTOU races.
+func (c *Context) LastKeyState() (string, int64) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.lastKey, c.lastKeyTime
+}
+
 // SetIsActive sets whether scroll mode is currently active.
 func (c *Context) SetIsActive(active bool) {
 	c.mu.Lock()
