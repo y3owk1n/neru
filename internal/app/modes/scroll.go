@@ -12,6 +12,12 @@ import (
 func (h *Handler) StartInteractiveScroll() {
 	h.cursorState.SkipNextRestore()
 
+	// Defensively reset scroll context before exiting the current mode.
+	// exitModeLocked returns early when already idle without running cleanup,
+	// so this ensures no stale lastKey/isActive state leaks into the new
+	// scroll activation.
+	h.scroll.Context.Reset()
+
 	h.exitModeLocked()
 
 	if h.enableEventTap != nil {
