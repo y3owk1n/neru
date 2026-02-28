@@ -10,53 +10,53 @@ import (
 )
 
 func TestNewAppState(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
-	if state == nil {
+	if _state == nil {
 		t.Fatal("NewAppState() returned nil")
 	}
 
-	if !state.IsEnabled() {
+	if !_state.IsEnabled() {
 		t.Error("Expected new state to be enabled by default")
 	}
 
-	if state.CurrentMode() != domain.ModeIdle {
-		t.Errorf("Expected initial mode to be ModeIdle, got %v", state.CurrentMode())
+	if _state.CurrentMode() != domain.ModeIdle {
+		t.Errorf("Expected initial mode to be ModeIdle, got %v", _state.CurrentMode())
 	}
 }
 
 func TestAppState_EnableDisable(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	// Test Enable
-	state.Disable()
+	_state.Disable()
 
-	if state.IsEnabled() {
+	if _state.IsEnabled() {
 		t.Error("Expected state to be disabled")
 	}
 
-	state.Enable()
+	_state.Enable()
 
-	if !state.IsEnabled() {
+	if !_state.IsEnabled() {
 		t.Error("Expected state to be enabled")
 	}
 
 	// Test SetEnabled
-	state.SetEnabled(false)
+	_state.SetEnabled(false)
 
-	if state.IsEnabled() {
+	if _state.IsEnabled() {
 		t.Error("Expected state to be disabled after SetEnabled(false)")
 	}
 
-	state.SetEnabled(true)
+	_state.SetEnabled(true)
 
-	if !state.IsEnabled() {
+	if !_state.IsEnabled() {
 		t.Error("Expected state to be enabled after SetEnabled(true)")
 	}
 }
 
 func TestAppState_Mode(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	modes := []domain.Mode{
 		domain.ModeIdle,
@@ -65,117 +65,187 @@ func TestAppState_Mode(t *testing.T) {
 	}
 
 	for _, mode := range modes {
-		state.SetMode(mode)
+		_state.SetMode(mode)
 
-		if state.CurrentMode() != mode {
-			t.Errorf("Expected mode %v, got %v", mode, state.CurrentMode())
+		if _state.CurrentMode() != mode {
+			t.Errorf("Expected mode %v, got %v", mode, _state.CurrentMode())
 		}
 	}
 }
 
 func TestAppState_HotkeysRegistered(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
-	if state.HotkeysRegistered() {
+	if _state.HotkeysRegistered() {
 		t.Error("Expected hotkeys to not be registered initially")
 	}
 
-	state.SetHotkeysRegistered(true)
+	_state.SetHotkeysRegistered(true)
 
-	if !state.HotkeysRegistered() {
+	if !_state.HotkeysRegistered() {
 		t.Error("Expected hotkeys to be registered")
 	}
 
-	state.SetHotkeysRegistered(false)
+	_state.SetHotkeysRegistered(false)
 
-	if state.HotkeysRegistered() {
+	if _state.HotkeysRegistered() {
 		t.Error("Expected hotkeys to not be registered")
 	}
 }
 
 func TestAppState_ScreenChangeProcessing(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
-	if state.ScreenChangeProcessing() {
+	if _state.ScreenChangeProcessing() {
 		t.Error("Expected screen change processing to be false initially")
 	}
 
-	state.SetScreenChangeProcessing(true)
+	_state.SetScreenChangeProcessing(true)
 
-	if !state.ScreenChangeProcessing() {
+	if !_state.ScreenChangeProcessing() {
 		t.Error("Expected screen change processing to be true")
 	}
 
-	state.SetScreenChangeProcessing(false)
+	_state.SetScreenChangeProcessing(false)
 
-	if state.ScreenChangeProcessing() {
+	if _state.ScreenChangeProcessing() {
 		t.Error("Expected screen change processing to be false")
 	}
 }
 
-func TestAppState_GridOverlayNeedsRefresh(t *testing.T) {
-	state := state.NewAppState()
+func TestAppState_TrySetScreenChangeProcessing_SetsRetryFlag(t *testing.T) {
+	_state := state.NewAppState()
 
-	if state.GridOverlayNeedsRefresh() {
+	// First call should succeed.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected first TrySet to succeed")
+	}
+
+	// Second call should fail and set the pending-retry flag.
+	if _state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected second TrySet to fail while processing")
+	}
+
+	// Finish should report that a retry is pending.
+	if !_state.FinishScreenChangeProcessing() {
+		t.Error("Expected FinishScreenChangeProcessing to return true (retry pending)")
+	}
+
+	// After finish, no retry should be pending.
+	// Re-acquire to test a clean finish.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to succeed after finish")
+	}
+
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected FinishScreenChangeProcessing to return false (no retry)")
+	}
+}
+
+func TestAppState_FinishScreenChangeProcessing_NoRetryByDefault(t *testing.T) {
+	_state := state.NewAppState()
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to succeed")
+	}
+
+	// No concurrent event arrived, so finish should return false.
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected no retry when no concurrent event arrived")
+	}
+}
+
+func TestAppState_TrySetScreenChangeProcessing_MultipleRetries(t *testing.T) {
+	_state := state.NewAppState()
+
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected first TrySet to succeed")
+	}
+
+	// Multiple concurrent events should still result in a single retry.
+	for range 5 {
+		if _state.TrySetScreenChangeProcessing() {
+			t.Fatal("Expected TrySet to fail while processing")
+		}
+	}
+
+	// Only one retry should be reported.
+	if !_state.FinishScreenChangeProcessing() {
+		t.Error("Expected retry after multiple concurrent events")
+	}
+
+	// And the flag should be cleared.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to succeed after finish")
+	}
+
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected no retry on clean finish")
+	}
+}
+
+func TestAppState_GridOverlayNeedsRefresh(t *testing.T) {
+	_state := state.NewAppState()
+
+	if _state.GridOverlayNeedsRefresh() {
 		t.Error("Expected grid overlay refresh to be false initially")
 	}
 
-	state.SetGridOverlayNeedsRefresh(true)
+	_state.SetGridOverlayNeedsRefresh(true)
 
-	if !state.GridOverlayNeedsRefresh() {
+	if !_state.GridOverlayNeedsRefresh() {
 		t.Error("Expected grid overlay to need refresh")
 	}
 
-	state.SetGridOverlayNeedsRefresh(false)
+	_state.SetGridOverlayNeedsRefresh(false)
 
-	if state.GridOverlayNeedsRefresh() {
+	if _state.GridOverlayNeedsRefresh() {
 		t.Error("Expected grid overlay to not need refresh")
 	}
 }
 
 func TestAppState_HintOverlayNeedsRefresh(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
-	if state.HintOverlayNeedsRefresh() {
+	if _state.HintOverlayNeedsRefresh() {
 		t.Error("Expected hint overlay refresh to be false initially")
 	}
 
-	state.SetHintOverlayNeedsRefresh(true)
+	_state.SetHintOverlayNeedsRefresh(true)
 
-	if !state.HintOverlayNeedsRefresh() {
+	if !_state.HintOverlayNeedsRefresh() {
 		t.Error("Expected hint overlay to need refresh")
 	}
 
-	state.SetHintOverlayNeedsRefresh(false)
+	_state.SetHintOverlayNeedsRefresh(false)
 
-	if state.HintOverlayNeedsRefresh() {
+	if _state.HintOverlayNeedsRefresh() {
 		t.Error("Expected hint overlay to not need refresh")
 	}
 }
 
 func TestAppState_HotkeyRefreshPending(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
-	if state.HotkeyRefreshPending() {
+	if _state.HotkeyRefreshPending() {
 		t.Error("Expected hotkey refresh pending to be false initially")
 	}
 
-	state.SetHotkeyRefreshPending(true)
+	_state.SetHotkeyRefreshPending(true)
 
-	if !state.HotkeyRefreshPending() {
+	if !_state.HotkeyRefreshPending() {
 		t.Error("Expected hotkey refresh to be pending")
 	}
 
-	state.SetHotkeyRefreshPending(false)
+	_state.SetHotkeyRefreshPending(false)
 
-	if state.HotkeyRefreshPending() {
+	if _state.HotkeyRefreshPending() {
 		t.Error("Expected hotkey refresh to not be pending")
 	}
 }
 
 // TestAppState_Concurrency tests thread-safe access to state.
 func TestAppState_Concurrency(_ *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	var waitGroup sync.WaitGroup
 
@@ -186,15 +256,15 @@ func TestAppState_Concurrency(_ *testing.T) {
 		go func() {
 			defer waitGroup.Done()
 
-			state.SetEnabled(true)
-			_ = state.IsEnabled()
+			_state.SetEnabled(true)
+			_ = _state.IsEnabled()
 		}()
 
 		go func() {
 			defer waitGroup.Done()
 
-			state.SetMode(domain.ModeHints)
-			_ = state.CurrentMode()
+			_state.SetMode(domain.ModeHints)
+			_ = _state.CurrentMode()
 		}()
 	}
 
@@ -205,7 +275,7 @@ func TestAppState_Concurrency(_ *testing.T) {
 
 // TestAppState_RapidModeTransitions tests rapid mode switching.
 func TestAppState_RapidModeTransitions(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 	modes := []domain.Mode{
 		domain.ModeIdle,
 		domain.ModeHints,
@@ -216,10 +286,10 @@ func TestAppState_RapidModeTransitions(t *testing.T) {
 	// Perform 1000 rapid mode transitions
 	for range 1000 {
 		for _, mode := range modes {
-			state.SetMode(mode)
+			_state.SetMode(mode)
 
-			if state.CurrentMode() != mode {
-				t.Errorf("Expected mode %v, got %v", mode, state.CurrentMode())
+			if _state.CurrentMode() != mode {
+				t.Errorf("Expected mode %v, got %v", mode, _state.CurrentMode())
 			}
 		}
 	}
@@ -262,18 +332,18 @@ func TestAppState_StateTransitionSequences(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			state := state.NewAppState()
+			_state := state.NewAppState()
 
 			for _, mode := range testCase.sequence {
-				state.SetMode(mode)
+				_state.SetMode(mode)
 
-				if state.CurrentMode() != mode {
-					t.Errorf("After SetMode(%v), CurrentMode() = %v", mode, state.CurrentMode())
+				if _state.CurrentMode() != mode {
+					t.Errorf("After SetMode(%v), CurrentMode() = %v", mode, _state.CurrentMode())
 				}
 			}
 
-			if state.CurrentMode() != testCase.wantFinal {
-				t.Errorf("Final mode = %v, want %v", state.CurrentMode(), testCase.wantFinal)
+			if _state.CurrentMode() != testCase.wantFinal {
+				t.Errorf("Final mode = %v, want %v", _state.CurrentMode(), testCase.wantFinal)
 			}
 		})
 	}
@@ -285,7 +355,7 @@ func TestAppState_ConcurrentStressTest(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	var waitGroup sync.WaitGroup
 
@@ -303,18 +373,18 @@ func TestAppState_ConcurrentStressTest(t *testing.T) {
 			// Each goroutine performs multiple operations
 			for rangeIndex := range 10 {
 				// Toggle enabled state
-				state.SetEnabled(index%2 == 0)
+				_state.SetEnabled(index%2 == 0)
 
 				// We cannot assert state.IsEnabled() here due to concurrency.
 				// The goal is to ensure thread safety.
 
 				// Cycle through modes
 				mode := modes[rangeIndex%len(modes)]
-				state.SetMode(mode)
+				_state.SetMode(mode)
 
 				// Read current state
-				_ = state.CurrentMode()
-				_ = state.IsEnabled()
+				_ = _state.CurrentMode()
+				_ = _state.IsEnabled()
 			}
 		}(index)
 	}
@@ -330,56 +400,56 @@ func TestAppState_ConcurrentStressTest(t *testing.T) {
 
 // TestAppState_StateInvariants validates state invariants.
 func TestAppState_StateInvariants(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	// Invariant 1: New state should be enabled
-	if !state.IsEnabled() {
+	if !_state.IsEnabled() {
 		t.Error("Invariant violated: new state should be enabled")
 	}
 
 	// Invariant 2: New state should be in ModeIdle
-	if state.CurrentMode() != domain.ModeIdle {
+	if _state.CurrentMode() != domain.ModeIdle {
 		t.Error("Invariant violated: new state should be in ModeIdle")
 	}
 
 	// Invariant 3: Disable() should set enabled to false
-	state.Disable()
+	_state.Disable()
 
-	if state.IsEnabled() {
+	if _state.IsEnabled() {
 		t.Error("Invariant violated: Disable() should set enabled to false")
 	}
 
 	// Invariant 4: Enable() should set enabled to true
-	state.Enable()
+	_state.Enable()
 
-	if !state.IsEnabled() {
+	if !_state.IsEnabled() {
 		t.Error("Invariant violated: Enable() should set enabled to true")
 	}
 
 	// Invariant 5: SetMode() should update CurrentMode()
-	state.SetMode(domain.ModeHints)
+	_state.SetMode(domain.ModeHints)
 
-	if state.CurrentMode() != domain.ModeHints {
+	if _state.CurrentMode() != domain.ModeHints {
 		t.Error("Invariant violated: SetMode() should update CurrentMode()")
 	}
 
 	// Invariant 6: Mode should persist across enable/disable
-	state.Disable()
+	_state.Disable()
 
-	if state.CurrentMode() != domain.ModeHints {
+	if _state.CurrentMode() != domain.ModeHints {
 		t.Error("Invariant violated: mode should persist across disable")
 	}
 
-	state.Enable()
+	_state.Enable()
 
-	if state.CurrentMode() != domain.ModeHints {
+	if _state.CurrentMode() != domain.ModeHints {
 		t.Error("Invariant violated: mode should persist across enable")
 	}
 }
 
 // TestAppState_MultipleFlags tests concurrent modification of multiple flags.
 func TestAppState_MultipleFlags(_ *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	var waitGroup sync.WaitGroup
 
@@ -390,36 +460,36 @@ func TestAppState_MultipleFlags(_ *testing.T) {
 		go func() {
 			defer waitGroup.Done()
 
-			state.SetEnabled(true)
+			_state.SetEnabled(true)
 		}()
 
 		go func() {
 			defer waitGroup.Done()
 
-			state.SetEnabled(false)
+			_state.SetEnabled(false)
 		}()
 	}
 
 	waitGroup.Wait()
 
 	// State should be consistent (either true or false, not corrupted)
-	_ = state.IsEnabled() // Should not panic or return invalid value
+	_ = _state.IsEnabled() // Should not panic or return invalid value
 }
 
 // Callback tests for OnEnabledStateChanged and OffEnabledStateChanged.
 
 // TestAppState_OnEnabledStateChanged_Registration tests callback registration returns valid ID.
 func TestAppState_OnEnabledStateChanged_Registration(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
-	id := state.OnEnabledStateChanged(func(enabled bool) {})
+	id := _state.OnEnabledStateChanged(func(enabled bool) {})
 
 	if id != 1 {
 		t.Errorf("Expected first callback ID to be 1, got %d", id)
 	}
 
 	// Register second callback
-	id2 := state.OnEnabledStateChanged(func(enabled bool) {})
+	id2 := _state.OnEnabledStateChanged(func(enabled bool) {})
 
 	if id2 != 2 {
 		t.Errorf("Expected second callback ID to be 2, got %d", id2)
@@ -428,11 +498,11 @@ func TestAppState_OnEnabledStateChanged_Registration(t *testing.T) {
 
 // TestAppState_OnEnabledStateChanged_ImmediateInvocation tests callback is called immediately with current state.
 func TestAppState_OnEnabledStateChanged_ImmediateInvocation(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	called := make(chan bool, 1)
 
-	state.OnEnabledStateChanged(func(enabled bool) {
+	_state.OnEnabledStateChanged(func(enabled bool) {
 		called <- enabled
 	})
 
@@ -449,11 +519,11 @@ func TestAppState_OnEnabledStateChanged_ImmediateInvocation(t *testing.T) {
 
 // TestAppState_OnEnabledStateChanged_StateChangeNotification tests callbacks are invoked on state changes.
 func TestAppState_OnEnabledStateChanged_StateChangeNotification(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	called := make(chan bool, 1)
 
-	state.OnEnabledStateChanged(func(enabled bool) {
+	_state.OnEnabledStateChanged(func(enabled bool) {
 		select {
 		case called <- enabled:
 		default:
@@ -468,7 +538,7 @@ func TestAppState_OnEnabledStateChanged_StateChangeNotification(t *testing.T) {
 	}
 
 	// Change state
-	state.SetEnabled(false)
+	_state.SetEnabled(false)
 
 	// Wait for state change notification
 	select {
@@ -483,7 +553,7 @@ func TestAppState_OnEnabledStateChanged_StateChangeNotification(t *testing.T) {
 
 // TestAppState_OnEnabledStateChanged_NoNotificationOnSameState tests no callback when state doesn't change.
 func TestAppState_OnEnabledStateChanged_NoNotificationOnSameState(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	callCount := 0
 
@@ -493,7 +563,7 @@ func TestAppState_OnEnabledStateChanged_NoNotificationOnSameState(t *testing.T) 
 
 	waitGroup.Add(1)
 
-	state.OnEnabledStateChanged(func(enabled bool) {
+	_state.OnEnabledStateChanged(func(enabled bool) {
 		defer waitGroup.Done()
 
 		callbackMutex.Lock()
@@ -515,7 +585,7 @@ func TestAppState_OnEnabledStateChanged_NoNotificationOnSameState(t *testing.T) 
 	callbackMutex.Unlock()
 
 	// Set same state (true -> true)
-	state.SetEnabled(true)
+	_state.SetEnabled(true)
 
 	callbackMutex.Lock()
 
@@ -528,19 +598,19 @@ func TestAppState_OnEnabledStateChanged_NoNotificationOnSameState(t *testing.T) 
 
 // TestAppState_OnEnabledStateChanged_MultipleCallbacks tests multiple callbacks are all invoked.
 func TestAppState_OnEnabledStateChanged_MultipleCallbacks(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	called1 := make(chan bool, 1)
 	called2 := make(chan bool, 1)
 
-	state.OnEnabledStateChanged(func(enabled bool) {
+	_state.OnEnabledStateChanged(func(enabled bool) {
 		select {
 		case called1 <- enabled:
 		default:
 		}
 	})
 
-	state.OnEnabledStateChanged(func(enabled bool) {
+	_state.OnEnabledStateChanged(func(enabled bool) {
 		select {
 		case called2 <- enabled:
 		default:
@@ -563,23 +633,23 @@ func TestAppState_OnEnabledStateChanged_MultipleCallbacks(t *testing.T) {
 
 // TestAppState_OnEnabledStateChanged_NilCallback tests nil callback doesn't panic.
 func TestAppState_OnEnabledStateChanged_NilCallback(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	// Should not panic and return 0
-	subscriptionID := state.OnEnabledStateChanged(nil)
+	subscriptionID := _state.OnEnabledStateChanged(nil)
 
 	if subscriptionID != 0 {
 		t.Errorf("Expected nil callback to return 0, got %d", subscriptionID)
 	}
 
 	// State changes should not panic
-	state.SetEnabled(false)
-	state.SetEnabled(true)
+	_state.SetEnabled(false)
+	_state.SetEnabled(true)
 }
 
 // TestAppState_OffEnabledStateChanged_Unsubscribe tests unsubscribing removes callback.
 func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	callbackCalled := make(chan bool, 2)
 
@@ -587,7 +657,7 @@ func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
 
 	waitGroup.Add(1)
 
-	subscriptionID := state.OnEnabledStateChanged(func(enabled bool) {
+	subscriptionID := _state.OnEnabledStateChanged(func(enabled bool) {
 		defer waitGroup.Done()
 
 		select {
@@ -606,10 +676,10 @@ func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
 	}
 
 	// Unsubscribe
-	state.OffEnabledStateChanged(subscriptionID)
+	_state.OffEnabledStateChanged(subscriptionID)
 
 	// Change state - callback should not be called
-	state.SetEnabled(false)
+	_state.SetEnabled(false)
 
 	// Verify callback was not invoked after unsubscribe
 	select {
@@ -622,13 +692,13 @@ func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
 
 // TestAppState_OffEnabledStateChanged_InvalidID tests unsubscribing with invalid ID is no-op.
 func TestAppState_OffEnabledStateChanged_InvalidID(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	// Should not panic with non-existent ID
-	state.OffEnabledStateChanged(9999)
+	_state.OffEnabledStateChanged(9999)
 
 	// Should not panic with ID that was never issued
-	state.OffEnabledStateChanged(0)
+	_state.OffEnabledStateChanged(0)
 }
 
 // TestAppState_OnEnabledStateChanged_Concurrent tests concurrent callback operations.
@@ -637,7 +707,7 @@ func TestAppState_OnEnabledStateChanged_Concurrent(t *testing.T) {
 		t.Skip("Skipping concurrent test in short mode")
 	}
 
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	var waitGroup sync.WaitGroup
 
@@ -646,7 +716,7 @@ func TestAppState_OnEnabledStateChanged_Concurrent(t *testing.T) {
 	// Concurrent registrations
 	for range 100 {
 		waitGroup.Go(func() {
-			id := state.OnEnabledStateChanged(func(enabled bool) {})
+			id := _state.OnEnabledStateChanged(func(enabled bool) {})
 			ids <- id
 		})
 	}
@@ -674,20 +744,20 @@ func TestAppState_OnEnabledStateChanged_Concurrent(t *testing.T) {
 		go func(subID uint64) {
 			defer waitGroup.Done()
 
-			state.OffEnabledStateChanged(subID)
+			_state.OffEnabledStateChanged(subID)
 		}(subscriptionID)
 	}
 
 	waitGroup.Wait()
 
 	// State changes should not panic after all unsubscriptions
-	state.SetEnabled(false)
-	state.SetEnabled(true)
+	_state.SetEnabled(false)
+	_state.SetEnabled(true)
 }
 
 // TestAppState_CallbackValueCorrectness tests correct state value is passed to callbacks.
 func TestAppState_CallbackValueCorrectness(t *testing.T) {
-	state := state.NewAppState()
+	_state := state.NewAppState()
 
 	var waitGroup sync.WaitGroup
 
@@ -698,7 +768,7 @@ func TestAppState_CallbackValueCorrectness(t *testing.T) {
 	// Add to waitgroup before registration to catch goroutine callback
 	waitGroup.Add(1)
 
-	state.OnEnabledStateChanged(func(enabled bool) {
+	_state.OnEnabledStateChanged(func(enabled bool) {
 		defer waitGroup.Done()
 
 		valuesMutex.Lock()
@@ -714,8 +784,8 @@ func TestAppState_CallbackValueCorrectness(t *testing.T) {
 	// Reset for state change callbacks
 	waitGroup.Add(2)
 
-	state.SetEnabled(false)
-	state.SetEnabled(true)
+	_state.SetEnabled(false)
+	_state.SetEnabled(true)
 
 	// Wait for both state change callbacks
 	waitGroup.Wait()

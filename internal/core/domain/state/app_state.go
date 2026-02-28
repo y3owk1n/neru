@@ -25,11 +25,12 @@ type AppState struct {
 	nextCallbackID            uint64
 
 	// Operational flags
-	hotkeysRegistered       bool
-	screenChangeProcessing  bool
-	gridOverlayNeedsRefresh bool
-	hintOverlayNeedsRefresh bool
-	hotkeyRefreshPending    bool
+	hotkeysRegistered        bool
+	screenChangeProcessing   bool
+	screenChangePendingRetry bool
+	gridOverlayNeedsRefresh  bool
+	hintOverlayNeedsRefresh  bool
+	hotkeyRefreshPending     bool
 }
 
 // NewAppState creates a new AppState with default values.
@@ -229,19 +230,38 @@ func (s *AppState) SetScreenChangeProcessing(processing bool) {
 	s.screenChangeProcessing = processing
 }
 
-// TrySetScreenChangeProcessing atomically sets the flag to true only if it's currently false.
-// Returns true if the flag was successfully set, false if it was already set.
+// TrySetScreenChangeProcessing atomically sets the processing flag to true only if it's
+// currently false. If processing is already in progress, it sets a pending-retry flag so
+// the caller knows to re-run after the current processing completes.
+// Returns true if the flag was successfully set (caller should proceed), false if
+// processing is already in progress (pending-retry flag has been set).
 func (s *AppState) TrySetScreenChangeProcessing() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.screenChangeProcessing {
+		s.screenChangePendingRetry = true
+
 		return false
 	}
 
 	s.screenChangeProcessing = true
 
 	return true
+}
+
+// FinishScreenChangeProcessing clears the processing flag and returns whether a
+// retry was requested while processing was in progress. If true is returned, the
+// pending-retry flag is also cleared and the caller should re-process.
+func (s *AppState) FinishScreenChangeProcessing() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.screenChangeProcessing = false
+	retry := s.screenChangePendingRetry
+	s.screenChangePendingRetry = false
+
+	return retry
 }
 
 // GridOverlayNeedsRefresh returns whether the grid overlay needs refresh.

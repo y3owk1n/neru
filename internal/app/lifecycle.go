@@ -202,8 +202,23 @@ func (a *App) handleScreenParametersChange() {
 		return
 	}
 
-	defer func() { a.appState.SetScreenChangeProcessing(false) }()
+	for {
+		a.processScreenChange()
+		// If another screen-change event arrived while we were processing,
+		// loop to handle it so no display configuration update is lost.
+		if !a.appState.FinishScreenChangeProcessing() {
+			return
+		}
+		// Re-acquire the processing flag for the retry iteration.
+		// This should always succeed because FinishScreenChangeProcessing
+		// just cleared it and we are the only goroutine that proceeds past
+		// TrySetScreenChangeProcessing.
+		a.appState.TrySetScreenChangeProcessing()
+	}
+}
 
+// processScreenChange performs the actual screen-change handling logic.
+func (a *App) processScreenChange() {
 	// Only log and adjust overlays if we are in an active mode.
 	// In Idle mode, we just want to update the needs-refresh flags (handled by sub-handlers)
 	// but avoid showing the overlay window which happens in ResizeToActiveScreen.
