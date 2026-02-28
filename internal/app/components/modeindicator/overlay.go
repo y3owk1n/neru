@@ -52,6 +52,9 @@ type Overlay struct {
 	callbackManager *overlayutil.CallbackManager
 	styleCache      *overlayutil.StyleCache
 
+	// configMu protects indicatorConfig from concurrent read/write.
+	configMu sync.RWMutex
+
 	// Cached C strings for indicator labels to avoid malloc/free per draw
 	labelCacheMu sync.RWMutex
 	cachedLabels map[string]*C.char
@@ -148,6 +151,11 @@ func (o *Overlay) ResizeToActiveScreen() {
 // The caller is responsible for calling Show() once before the first draw
 // (e.g. in startModeIndicatorPolling) rather than showing every tick.
 func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate int) {
+	// Hold configMu.RLock for entire draw to prevent SetConfig from
+	// writing to indicatorConfig while we read it.
+	o.configMu.RLock()
+	defer o.configMu.RUnlock()
+
 	// Offset from cursor to avoid covering it
 	xOffset := o.indicatorConfig.IndicatorXOffset
 	yOffset := o.indicatorConfig.IndicatorYOffset
@@ -205,7 +213,9 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 
 // SetConfig sets the overlay configuration.
 func (o *Overlay) SetConfig(indicatorCfg config.ModeIndicatorConfig) {
+	o.configMu.Lock()
 	o.indicatorConfig = indicatorCfg
+	o.configMu.Unlock()
 	// Invalidate caches when config changes
 	o.freeAllCaches()
 }
