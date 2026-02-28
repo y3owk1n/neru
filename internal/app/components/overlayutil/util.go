@@ -185,7 +185,12 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)
 
 	if len(freeCallbackIDs) == 0 {
 		freeCallbackIDsMu.Unlock()
-		panic("overlayutil: no available callback IDs")
+
+		if c.logger != nil {
+			c.logger.Warn("No available callback IDs, skipping resize operation (pool temporarily exhausted by deferred releases)")
+		}
+
+		return
 	}
 
 	callbackID := freeCallbackIDs[len(freeCallbackIDs)-1]
