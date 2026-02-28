@@ -94,7 +94,9 @@ func (h *Handler) handleHintsModeKey(key string) {
 					h.refreshHintsTimer.Stop()
 				}
 
-				h.refreshHintsTimer = time.AfterFunc(
+				var _timer *time.Timer
+
+				_timer = time.AfterFunc(
 					time.Duration(delay)*time.Millisecond,
 					func() {
 						// Lock to serialize with HandleKeyPress on the event tap thread
@@ -108,9 +110,17 @@ func (h *Handler) handleHintsModeKey(key string) {
 							return
 						}
 
+						// Clear our own timer reference only if we are still the active one.
+						// A newer timer may have replaced us while we were waiting for the lock.
+						if h.refreshHintsTimer == _timer {
+							h.refreshHintsTimer = nil
+						}
+
 						h.activateHintModeInternal(false, nil)
 					},
 				)
+
+				h.refreshHintsTimer = _timer
 			}
 		}
 

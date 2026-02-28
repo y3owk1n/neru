@@ -90,12 +90,6 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 			// generation fails.
 			h.overlayManager.Clear()
 			h.stopModeIndicatorPolling()
-
-			// Stop any pending refresh timer to prevent stale re-activation
-			if h.refreshHintsTimer != nil {
-				h.refreshHintsTimer.Stop()
-				h.refreshHintsTimer = nil
-			}
 		} else {
 			h.exitModeLocked()
 		}
