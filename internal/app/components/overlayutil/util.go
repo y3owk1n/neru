@@ -14,7 +14,7 @@ const (
 	DefaultCallbackMapSize = 8
 	// DefaultCallbackTimeout is the default timeout for callbacks.
 	DefaultCallbackTimeout = 2 * time.Second
-	// DefaultCallbackIDStoreCapacity is the default initial capacity for callback ID store.
+	// DefaultCallbackIDStoreCapacity is the default initial capacity for the callback ID pool.
 	DefaultCallbackIDStoreCapacity = 1024
 	// StaleCallbackGracePeriod is how long we keep a timed-out/canceled callback
 	// ID allocated before forcibly releasing it. This gives late C callbacks time
@@ -49,12 +49,12 @@ var (
 	allocatedCallbackIDs   = make(map[uint64]bool)
 	allocatedCallbackIDsMu sync.Mutex
 
-	// callbackIDStore stores callback context (ID + generation) in a fixed-size slice
-	// to allow safe pointer conversion. The slice index is the callback ID.
-	// We never reallocate this slice to keep pointers handed to C valid for the lifetime
-	// of the process; bump DefaultCallbackIDStoreCapacity if you need more IDs.
-	callbackIDStore   = make([]CallbackContext, DefaultCallbackIDStoreCapacity)
-	callbackIDStoreMu sync.Mutex
+	// callbackContextStore maps callback IDs to individually heap-allocated
+	// CallbackContext pointers. Each operation gets its own allocation so that
+	// reusing a callback ID never overwrites a context that a late C callback
+	// might still be pointing at.
+	callbackContextStore   = make(map[uint64]*CallbackContext, DefaultCallbackIDStoreCapacity)
+	callbackContextStoreMu sync.Mutex
 )
 
 // CallbackContext holds both the callback ID and its generation for validation.
@@ -92,15 +92,18 @@ func releaseCallbackID(callbackID uint64) {
 	delete(callbackManagerRegistry, callbackID)
 	callbackManagerRegistryMu.Unlock()
 
+	// Clean up the context store entry. By this point the C callback has either
+	// already read the pointer (normal path) or will never read it (deferred release).
+	callbackContextStoreMu.Lock()
+	delete(callbackContextStore, callbackID)
+	callbackContextStoreMu.Unlock()
+
 	// Return the ID to the free pool for reuse
 	freeCallbackIDsMu.Lock()
 
 	freeCallbackIDs = append(freeCallbackIDs, callbackID)
 
 	freeCallbackIDsMu.Unlock()
-
-	// Note: We don't clean up from callbackIDStore here because the pointer
-	// may still be in use by C code. The ID is returned to the free pool for reuse.
 }
 
 // deferredReleaseCallbackID schedules a callback ID to be released after StaleCallbackGracePeriod.
@@ -139,26 +142,20 @@ func CompleteGlobalCallback(callbackID uint64, expectedGeneration uint64) {
 	releaseCallbackID(callbackID)
 }
 
-// CallbackIDToPointer converts a callback ID and generation to unsafe.Pointer in a way that go vet accepts.
-// It stores both in a fixed-size slice and returns a pointer to the slice element.
-// The pointer remains valid for the lifetime of the process since the slice is never reallocated.
+// CallbackIDToPointer heap-allocates a new CallbackContext for each operation so that the pointer given to C is
+// never overwritten when the callback ID is later reused. The old allocation stays alive as long
+// as the C side (or the deferred-release timer) holds a reference; after that it becomes GC-eligible.
 func CallbackIDToPointer(callbackID uint64, generation uint64) unsafe.Pointer {
-	if callbackID >= uint64(len(callbackIDStore)) {
-		// Defensive: avoid silently corrupting memory if we ever run out of slots.
-		panic("overlayutil: callbackID exceeds callback ID store capacity")
-	}
-
-	callbackIDStoreMu.Lock()
-
-	callbackIDStore[callbackID] = CallbackContext{
+	ctx := &CallbackContext{
 		CallbackID: callbackID,
 		Generation: generation,
 	}
-	ptr := unsafe.Pointer(&callbackIDStore[callbackID])
 
-	callbackIDStoreMu.Unlock()
+	callbackContextStoreMu.Lock()
+	callbackContextStore[callbackID] = ctx
+	callbackContextStoreMu.Unlock()
 
-	return ptr
+	return unsafe.Pointer(ctx)
 }
 
 // CallbackManager manages asynchronous callbacks for overlay operations.
