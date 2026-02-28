@@ -25,8 +25,11 @@ func (h *Handler) ActivateMode(mode domain.Mode) {
 
 // ActivateModeWithAction activates a mode with an optional action parameter.
 func (h *Handler) ActivateModeWithAction(mode domain.Mode, action *string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	if mode == domain.ModeIdle {
-		h.ExitMode()
+		h.exitModeLocked()
 
 		return
 	}
@@ -76,8 +79,14 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 			// generation fails.
 			h.overlayManager.Clear()
 			h.stopModeIndicatorPolling()
+
+			// Stop any pending refresh timer to prevent stale re-activation
+			if h.refreshHintsTimer != nil {
+				h.refreshHintsTimer.Stop()
+				h.refreshHintsTimer = nil
+			}
 		} else {
-			h.ExitMode()
+			h.exitModeLocked()
 		}
 	}
 

@@ -11,8 +11,16 @@ import (
 	"go.uber.org/zap"
 )
 
-// ExitMode exits the current mode.
+// ExitMode exits the current mode. Safe to call from any goroutine.
 func (h *Handler) ExitMode() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.exitModeLocked()
+}
+
+// exitModeLocked exits the current mode. Caller must hold h.mu.
+func (h *Handler) exitModeLocked() {
 	if h.appState.CurrentMode() == domain.ModeIdle {
 		return
 	}
@@ -79,12 +87,6 @@ func (h *Handler) performCommonCleanup() {
 	if h.refreshHintsTimer != nil {
 		h.refreshHintsTimer.Stop()
 		h.refreshHintsTimer = nil
-	}
-
-	// Drain any pending refresh signal from the channel
-	select {
-	case <-h.refreshHintsCh:
-	default:
 	}
 
 	if h.disableEventTap != nil {

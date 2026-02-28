@@ -27,7 +27,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
 
 	actionString := domain.ActionString(actionEnum)
 
-	h.ExitMode()
+	h.exitModeLocked()
 	h.overlayManager.Clear()
 
 	// Get screen bounds
@@ -137,7 +137,7 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 	center, completed, shouldExit := h.recursiveGrid.Manager.HandleInput(key)
 
 	if shouldExit {
-		h.ExitMode()
+		h.exitModeLocked()
 
 		return
 	}

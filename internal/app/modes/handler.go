@@ -2,6 +2,7 @@ package modes
 
 import (
 	"image"
+	"sync"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/app/components"
@@ -38,6 +39,11 @@ type Mode interface {
 
 // Handler encapsulates mode-specific logic and dependencies.
 type Handler struct {
+	// mu serializes access to Handler state between the event tap callback thread
+	// and timer goroutines (e.g., refreshHintsTimer). All public entry points
+	// (HandleKeyPress, ActivateMode, ExitMode) and timer callbacks must hold this lock.
+	mu sync.Mutex
+
 	config         *config.Config
 	logger         *zap.Logger
 	appState       *state.AppState
@@ -66,7 +72,6 @@ type Handler struct {
 	disableEventTap   func()
 	refreshHotkeys    func()
 	refreshHintsTimer *time.Timer
-	refreshHintsCh    chan struct{} // Channel for dispatching timer callback to main thread
 
 	// Scroll mode polling
 	scrollTicker *time.Ticker
@@ -118,7 +123,6 @@ func NewHandler(
 		enableEventTap:       enableEventTap,
 		disableEventTap:      disableEventTap,
 		refreshHotkeys:       refreshHotkeys,
-		refreshHintsCh:       make(chan struct{}, 1),
 	}
 
 	// Initialize mode implementations
@@ -134,7 +138,11 @@ func NewHandler(
 
 // UpdateConfig updates the handler with new configuration.
 func (h *Handler) UpdateConfig(config *config.Config) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	h.config = config
+
 	if h.renderer != nil {
 		h.renderer.UpdateConfig(
 			hints.BuildStyle(config.Hints),

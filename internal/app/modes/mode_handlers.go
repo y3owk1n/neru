@@ -27,7 +27,7 @@ func (h *Handler) executeActionAtPoint(action *string, point image.Point) {
 		h.logger.Error("Failed to perform pending action", zap.Error(performActionErr))
 	}
 
-	h.ExitMode()
+	h.exitModeLocked()
 }
 
 // moveCursorAndHandleAction moves the cursor to a point and executes any pending action.
@@ -96,6 +96,10 @@ func (h *Handler) handleHintsModeKey(key string) {
 				h.refreshHintsTimer = time.AfterFunc(
 					time.Duration(delay)*time.Millisecond,
 					func() {
+						// Lock to serialize with HandleKeyPress on the event tap thread
+						h.mu.Lock()
+						defer h.mu.Unlock()
+
 						h.activateHintModeInternal(false, nil)
 					},
 				)
@@ -114,7 +118,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 	hintKeyResult := h.hints.Context.Router().RouteKey(key)
 	if hintKeyResult.Exit() {
-		h.ExitMode()
+		h.exitModeLocked()
 
 		return
 	}
@@ -156,7 +160,7 @@ func (h *Handler) handleGridModeKey(key string) {
 
 	gridKeyResult := h.grid.Router.RouteKey(key)
 	if gridKeyResult.Exit() {
-		h.ExitMode()
+		h.exitModeLocked()
 
 		return
 	}
