@@ -1,7 +1,9 @@
 package state_test
 
 import (
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -221,6 +223,132 @@ func TestAppState_ResetScreenChangeProcessing_ClearsBothFlags(t *testing.T) {
 	// And Finish should report no pending retry (the old pendingRetry was cleared by Reset).
 	if _state.FinishScreenChangeProcessing() {
 		t.Error("Expected no retry after Reset cleared pending flag")
+	}
+}
+
+// TestAppState_ScreenChangeProcessing_ConcurrentStress exercises the TrySet/Finish
+// protocol under heavy concurrent contention. The key invariant is that exactly one
+// goroutine "wins" TrySet at any given time, and the protocol never deadlocks or
+// corrupts state. Run with -race to verify mutex correctness.
+func TestAppState_ScreenChangeProcessing_ConcurrentStress(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping stress test in short mode")
+	}
+
+	_state := state.NewAppState()
+
+	const (
+		numProducers = 50
+		numCycles    = 200
+	)
+	// wins counts how many goroutines successfully acquired the processing flag.
+	var (
+		wins      sync.Map
+		waitGroup sync.WaitGroup
+	)
+	// Simulate the real handleScreenParametersChange pattern:
+	// each goroutine tries to acquire, processes in a loop draining retries,
+	// then releases.
+
+	for producer := range numProducers {
+		waitGroup.Add(1)
+
+		go func(index int) {
+			defer waitGroup.Done()
+
+			for range numCycles {
+				if !_state.TrySetScreenChangeProcessing() {
+					// Another goroutine owns the flag; this is expected.
+					continue
+				}
+				// Record that this goroutine entered the critical section.
+				wins.Store(index, true)
+				// Simulate the retry-drain loop.
+				for {
+					// Simulate a small amount of work.
+					runtime.Gosched()
+
+					if !_state.FinishScreenChangeProcessing() {
+						break
+					}
+				}
+			}
+		}(producer)
+	}
+
+	waitGroup.Wait()
+	// After all goroutines finish, the processing flag must be cleared so new
+	// events can be handled.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Error("Expected processing flag to be cleared after all goroutines finished")
+	}
+	// Clean up.
+	_state.FinishScreenChangeProcessing()
+	// At least one goroutine should have won the flag at some point.
+	count := 0
+	wins.Range(func(_, _ any) bool {
+		count++
+
+		return true
+	})
+
+	if count == 0 {
+		t.Error("Expected at least one goroutine to acquire the processing flag")
+	}
+}
+
+// TestAppState_ScreenChangeProcessing_MutualExclusion verifies that only one
+// goroutine can be inside the critical section at a time by using an atomic
+// counter to detect concurrent entry.
+func TestAppState_ScreenChangeProcessing_MutualExclusion(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping stress test in short mode")
+	}
+
+	_state := state.NewAppState()
+
+	const (
+		numGoroutines = 100
+		numCycles     = 100
+	)
+
+	var (
+		inside     atomic.Int32
+		violations atomic.Int32
+		waitGroup  sync.WaitGroup
+	)
+
+	for range numGoroutines {
+		waitGroup.Go(func() {
+			for range numCycles {
+				if !_state.TrySetScreenChangeProcessing() {
+					continue
+				}
+				// We are now the exclusive owner. If another goroutine is
+				// also inside, the counter will exceed 1.
+				if inside.Add(1) > 1 {
+					violations.Add(1)
+				}
+				// Simulate work.
+				runtime.Gosched()
+				inside.Add(-1)
+				// Drain retries.
+				for _state.FinishScreenChangeProcessing() {
+					if inside.Add(1) > 1 {
+						violations.Add(1)
+					}
+
+					runtime.Gosched()
+					inside.Add(-1)
+				}
+			}
+		})
+	}
+
+	waitGroup.Wait()
+
+	if v := violations.Load(); v > 0 {
+		t.Errorf("Mutual exclusion violated %d time(s)", v)
 	}
 }
 
