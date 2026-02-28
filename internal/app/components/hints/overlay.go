@@ -43,6 +43,9 @@ type Overlay struct {
 	config config.HintsConfig
 	logger *zap.Logger
 
+	// configMu protects config from concurrent read/write.
+	configMu sync.RWMutex
+
 	callbackManager *overlayutil.CallbackManager
 
 	// Cached C strings for style properties to reduce allocations
@@ -176,7 +179,12 @@ func (o *Overlay) Window() C.OverlayWindow {
 }
 
 // Config returns the hints config.
-func (o *Overlay) Config() config.HintsConfig { return o.config }
+func (o *Overlay) Config() config.HintsConfig {
+	o.configMu.RLock()
+	defer o.configMu.RUnlock()
+
+	return o.config
+}
 
 // Logger returns the logger.
 func (o *Overlay) Logger() *zap.Logger { return o.logger }
@@ -247,7 +255,10 @@ func BuildStyle(cfg config.HintsConfig) StyleMode {
 
 // SetConfig sets the overlay configuration.
 func (o *Overlay) SetConfig(config config.HintsConfig) {
+	o.configMu.Lock()
 	o.config = config
+	o.configMu.Unlock()
+
 	// Invalidate caches when config changes
 	o.freeAllCaches()
 }
