@@ -214,22 +214,6 @@ func (s *AppState) SetHotkeysRegistered(registered bool) {
 	s.hotkeysRegistered = registered
 }
 
-// ScreenChangeProcessing returns whether a screen change is being processed.
-func (s *AppState) ScreenChangeProcessing() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.screenChangeProcessing
-}
-
-// SetScreenChangeProcessing sets the screen change processing flag.
-func (s *AppState) SetScreenChangeProcessing(processing bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.screenChangeProcessing = processing
-}
-
 // TrySetScreenChangeProcessing atomically sets the processing flag to true only if it's
 // currently false. If processing is already in progress, it sets a pending-retry flag so
 // the caller knows to re-run after the current processing completes.

@@ -93,26 +93,6 @@ func TestAppState_HotkeysRegistered(t *testing.T) {
 	}
 }
 
-func TestAppState_ScreenChangeProcessing(t *testing.T) {
-	_state := state.NewAppState()
-
-	if _state.ScreenChangeProcessing() {
-		t.Error("Expected screen change processing to be false initially")
-	}
-
-	_state.SetScreenChangeProcessing(true)
-
-	if !_state.ScreenChangeProcessing() {
-		t.Error("Expected screen change processing to be true")
-	}
-
-	_state.SetScreenChangeProcessing(false)
-
-	if _state.ScreenChangeProcessing() {
-		t.Error("Expected screen change processing to be false")
-	}
-}
-
 func TestAppState_TrySetScreenChangeProcessing_SetsRetryFlag(t *testing.T) {
 	_state := state.NewAppState()
 
