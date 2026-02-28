@@ -6,6 +6,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"go.uber.org/zap"
 )
 
@@ -48,13 +49,6 @@ var (
 	// This is a safety net - IDs should only be released once, but this guards against bugs.
 	allocatedCallbackIDs   = make(map[uint64]bool)
 	allocatedCallbackIDsMu sync.Mutex
-
-	// callbackContextStore maps callback IDs to individually heap-allocated
-	// CallbackContext pointers. Each operation gets its own allocation so that
-	// reusing a callback ID never overwrites a context that a late C callback
-	// might still be pointing at.
-	callbackContextStore   = make(map[uint64]*CallbackContext, DefaultCallbackIDStoreCapacity)
-	callbackContextStoreMu sync.Mutex
 )
 
 // CallbackContext holds both the callback ID and its generation for validation.
@@ -91,12 +85,6 @@ func releaseCallbackID(callbackID uint64) {
 	callbackManagerRegistryMu.Lock()
 	delete(callbackManagerRegistry, callbackID)
 	callbackManagerRegistryMu.Unlock()
-
-	// Clean up the context store entry. By this point the C callback has either
-	// already read the pointer (normal path) or will never read it (deferred release).
-	callbackContextStoreMu.Lock()
-	delete(callbackContextStore, callbackID)
-	callbackContextStoreMu.Unlock()
 
 	// Return the ID to the free pool for reuse
 	freeCallbackIDsMu.Lock()
@@ -142,20 +130,19 @@ func CompleteGlobalCallback(callbackID uint64, expectedGeneration uint64) {
 	releaseCallbackID(callbackID)
 }
 
-// CallbackIDToPointer heap-allocates a new CallbackContext for each operation so that the pointer given to C is
-// never overwritten when the callback ID is later reused. The old allocation stays alive as long
-// as the C side (or the deferred-release timer) holds a reference; after that it becomes GC-eligible.
+// CallbackIDToPointer allocates a CallbackContext on the C heap via bridge.MallocCallbackContext
+// and returns an unsafe.Pointer to it. Because the memory lives on the C heap (not the Go heap),
+// it is safe for C code to retain across async dispatch boundaries and is not subject to Go's GC.
+// The caller's C callback must call FreeCallbackContext after reading the values to avoid leaks.
 func CallbackIDToPointer(callbackID uint64, generation uint64) unsafe.Pointer {
-	ctx := &CallbackContext{
-		CallbackID: callbackID,
-		Generation: generation,
-	}
+	return bridge.MallocCallbackContext(callbackID, generation)
+}
 
-	callbackContextStoreMu.Lock()
-	callbackContextStore[callbackID] = ctx
-	callbackContextStoreMu.Unlock()
-
-	return unsafe.Pointer(ctx)
+// FreeCallbackContext frees a C-heap-allocated CallbackContext previously created by CallbackIDToPointer.
+// Must be called exactly once per CallbackIDToPointer call, typically in the C callback after reading
+// the CallbackID and Generation fields. Safe to call with nil.
+func FreeCallbackContext(ptr unsafe.Pointer) {
+	bridge.FreeCallbackContext(ptr)
 }
 
 // CallbackManager manages asynchronous callbacks for overlay operations.

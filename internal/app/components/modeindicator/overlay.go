@@ -34,8 +34,11 @@ const (
 
 //export resizeModeIndicatorCompletionCallback
 func resizeModeIndicatorCompletionCallback(context unsafe.Pointer) {
-	// Read callback context from the heap-allocated CallbackContext pointer
+	// Read callback context from the C-heap-allocated CallbackContext
 	ctx := *(*overlayutil.CallbackContext)(context)
+
+	// Free the C-allocated context now that we've copied the values
+	overlayutil.FreeCallbackContext(context)
 
 	// Delegate to global callback manager
 	overlayutil.CompleteGlobalCallback(ctx.CallbackID, ctx.Generation)
