@@ -189,7 +189,14 @@ func (h *Handler) RefreshGridForScreenChange() bool {
 	currentInput := ""
 
 	if h.grid.Manager != nil {
-		currentInput = h.grid.Manager.CurrentInput()
+		// Sync the Manager's internal grid reference so subsequent key presses
+		// use the new grid's geometry for cell matching (fixes stale-bounds bug).
+		h.grid.Manager.UpdateGrid(gridInstance)
+
+		// Reset input state because old cell coordinates/bounds are invalid on
+		// the new screen, and any in-progress subgrid selection would reference
+		// a stale cell.
+		h.grid.Manager.Reset()
 	}
 
 	drawGridErr := h.renderer.DrawGrid(gridInstance, currentInput)
