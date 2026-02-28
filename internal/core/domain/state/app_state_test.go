@@ -106,15 +106,32 @@ func TestAppState_TrySetScreenChangeProcessing_SetsRetryFlag(t *testing.T) {
 		t.Fatal("Expected second TrySet to fail while processing")
 	}
 
-	// Finish should report that a retry is pending.
+	// Finish should report that a retry is pending and keep processing flag set.
 	if !_state.FinishScreenChangeProcessing() {
 		t.Error("Expected FinishScreenChangeProcessing to return true (retry pending)")
 	}
 
-	// After finish, no retry should be pending.
-	// Re-acquire to test a clean finish.
+	// Processing flag should still be held — TrySet should fail.
+	if _state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to fail because processing flag is still held after retry")
+	}
+
+	// The failed TrySet above set pendingRetry again as a side effect.
+	// Drain it so we can test a truly clean finish.
+	if !_state.FinishScreenChangeProcessing() {
+		t.Error(
+			"Expected FinishScreenChangeProcessing to return true (side-effect retry from TrySet)",
+		)
+	}
+
+	// Now finish with no pending retry — processing flag should be cleared.
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected FinishScreenChangeProcessing to return false (no retry)")
+	}
+
+	// Processing flag is now cleared — TrySet should succeed.
 	if !_state.TrySetScreenChangeProcessing() {
-		t.Fatal("Expected TrySet to succeed after finish")
+		t.Fatal("Expected TrySet to succeed after clean finish")
 	}
 
 	if _state.FinishScreenChangeProcessing() {
@@ -148,14 +165,32 @@ func TestAppState_TrySetScreenChangeProcessing_MultipleRetries(t *testing.T) {
 		}
 	}
 
-	// Only one retry should be reported.
+	// Only one retry should be reported; processing flag stays held.
 	if !_state.FinishScreenChangeProcessing() {
 		t.Error("Expected retry after multiple concurrent events")
 	}
 
-	// And the flag should be cleared.
+	// Processing flag is still held — TrySet should fail.
+	if _state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to fail because processing flag is still held")
+	}
+
+	// The failed TrySet above set pendingRetry again as a side effect.
+	// Drain it so we can test a truly clean finish.
+	if !_state.FinishScreenChangeProcessing() {
+		t.Error(
+			"Expected FinishScreenChangeProcessing to return true (side-effect retry from TrySet)",
+		)
+	}
+
+	// Clean finish — no retry pending, processing flag cleared.
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected no retry on clean finish")
+	}
+
+	// Now TrySet should succeed.
 	if !_state.TrySetScreenChangeProcessing() {
-		t.Fatal("Expected TrySet to succeed after finish")
+		t.Fatal("Expected TrySet to succeed after clean finish")
 	}
 
 	if _state.FinishScreenChangeProcessing() {

@@ -234,16 +234,21 @@ func (s *AppState) TrySetScreenChangeProcessing() bool {
 	return true
 }
 
-// FinishScreenChangeProcessing clears the processing flag and returns whether a
-// retry was requested while processing was in progress. If true is returned, the
-// pending-retry flag is also cleared and the caller should re-process.
+// FinishScreenChangeProcessing checks whether a retry was requested while
+// processing was in progress. If a retry is pending, the processing flag
+// remains set (caller retains exclusive ownership) and the pending-retry
+// flag is cleared — the caller should re-process. If no retry is pending,
+// the processing flag is cleared and the caller is done.
 func (s *AppState) FinishScreenChangeProcessing() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.screenChangeProcessing = false
 	retry := s.screenChangePendingRetry
 	s.screenChangePendingRetry = false
+
+	if !retry {
+		s.screenChangeProcessing = false
+	}
 
 	return retry
 }
