@@ -16,6 +16,7 @@ type mockApp struct {
 	gridEnabled          bool
 	recursiveGridEnabled bool
 	isEnabled            bool
+	hiddenForScreenShare bool
 	activatedMode        domain.Mode
 	configPath           string
 	reloadCalled         bool
@@ -50,12 +51,13 @@ func (m *mockApp) OffEnabledStateChanged(id uint64) {}
 func (m *mockApp) ToggleEnabled() {
 	m.SetEnabled(!m.isEnabled)
 }
-func (m *mockApp) IsOverlayHiddenForScreenShare() bool      { return false }
-func (m *mockApp) SetOverlayHiddenForScreenShare(hide bool) {}
+func (m *mockApp) IsOverlayHiddenForScreenShare() bool      { return m.hiddenForScreenShare }
+func (m *mockApp) SetOverlayHiddenForScreenShare(hide bool) { m.hiddenForScreenShare = hide }
 func (m *mockApp) ToggleOverlayHiddenForScreenShare() bool {
-	m.SetOverlayHiddenForScreenShare(!m.IsOverlayHiddenForScreenShare())
+	newState := !m.hiddenForScreenShare
+	m.hiddenForScreenShare = newState
 
-	return !m.IsOverlayHiddenForScreenShare()
+	return newState
 }
 
 func (m *mockApp) OnScreenShareStateChanged(callback func(bool)) uint64 {
