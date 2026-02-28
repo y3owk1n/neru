@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui"
+	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
 )
@@ -148,6 +149,23 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 	// uses coordinates that match the resized overlay.
 	h.screenBounds = bridge.ActiveScreenBounds()
 	h.hints.Context.SetHints(hintCollection)
+}
+
+// RefreshRecursiveGridForScreenChange reinitializes the recursive-grid manager
+// with updated screen bounds and redraws the overlay. Called from the
+// screen-change handler in lifecycle.go when ModeRecursiveGrid is active.
+func (h *Handler) RefreshRecursiveGridForScreenChange() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	// Re-read screen bounds under the lock so the overlay uses coordinates
+	// that match the resized window.
+	screenBounds := bridge.ActiveScreenBounds()
+	h.screenBounds = screenBounds
+	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
+	// Reinitialize the recursive-grid manager with the new bounds.
+	h.initializeRecursiveGridManager(normalizedBounds)
+	// Redraw the overlay with the regenerated grid.
+	h.updateRecursiveGridOverlay()
 }
 
 // UpdateConfig updates the handler with new configuration.

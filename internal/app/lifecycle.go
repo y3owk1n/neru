@@ -243,10 +243,11 @@ func (a *App) processScreenChange() {
 
 	gridResized := a.handleGridScreenChange(currentMode)
 	hintResized := a.handleHintScreenChange(ctx, currentMode)
+	recursiveGridResized := a.handleRecursiveGridScreenChange(currentMode)
 
 	// Final resize only if no handler already resized the overlay AND we are not idle.
 	// Resizing the overlay when idle would cause it to become visible, which we want to avoid.
-	if !gridResized && !hintResized && !isIdle {
+	if !gridResized && !hintResized && !recursiveGridResized && !isIdle {
 		if a.overlayManager != nil {
 			a.overlayManager.ResizeToActiveScreen()
 		}
@@ -341,6 +342,34 @@ func (a *App) handleHintScreenChange(ctx context.Context, currentMode domain.Mod
 	}
 
 	a.logger.Info("Hint overlay resized and regenerated for new screen bounds")
+
+	return true
+}
+
+// handleRecursiveGridScreenChange handles recursive-grid overlay updates when screen parameters change.
+// Returns true if the overlay was resized.
+func (a *App) handleRecursiveGridScreenChange(currentMode domain.Mode) bool {
+	if !a.config.RecursiveGrid.Enabled || a.recursiveGridComponent == nil ||
+		a.recursiveGridComponent.Overlay == nil {
+		return false
+	}
+
+	if currentMode != domain.ModeRecursiveGrid {
+		return false
+	}
+
+	if a.overlayManager == nil {
+		a.logger.Warn("overlay manager unavailable; skipping recursive-grid refresh")
+
+		return false
+	}
+
+	a.overlayManager.ResizeToActiveScreen()
+	// Delegate to the modes handler which holds the recursive-grid manager
+	// state and can reinitialize it with new screen bounds under the mutex.
+	a.modes.RefreshRecursiveGridForScreenChange()
+	a.overlayManager.Show()
+	a.logger.Info("Recursive-grid overlay resized and regenerated for new screen bounds")
 
 	return true
 }
