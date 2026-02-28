@@ -5,6 +5,7 @@ import (
 	"image"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
@@ -27,7 +28,7 @@ func (h *Handler) executeActionAtPoint(action *string, point image.Point) {
 		h.logger.Error("Failed to perform pending action", zap.Error(performActionErr))
 	}
 
-	h.ExitMode()
+	h.exitModeLocked()
 }
 
 // moveCursorAndHandleAction moves the cursor to a point and executes any pending action.
@@ -93,17 +94,33 @@ func (h *Handler) handleHintsModeKey(key string) {
 					h.refreshHintsTimer.Stop()
 				}
 
-				h.refreshHintsTimer = time.AfterFunc(
+				var _timer *time.Timer
+
+				_timer = time.AfterFunc(
 					time.Duration(delay)*time.Millisecond,
 					func() {
-						// Dispatch to main thread via channel to avoid race conditions
-						select {
-						case h.refreshHintsCh <- struct{}{}:
-						default:
-							// Channel already has a pending signal, skip
+						// Lock to serialize with HandleKeyPress on the event tap thread
+						h.mu.Lock()
+						defer h.mu.Unlock()
+
+						// Guard against stale timer: if the user exited hints mode
+						// (e.g. pressed escape) while we were waiting for the lock,
+						// do not re-activate.
+						if h.appState.CurrentMode() != domain.ModeHints {
+							return
 						}
+
+						// Clear our own timer reference only if we are still the active one.
+						// A newer timer may have replaced us while we were waiting for the lock.
+						if h.refreshHintsTimer == _timer {
+							h.refreshHintsTimer = nil
+						}
+
+						h.activateHintModeInternal(false, nil)
 					},
 				)
+
+				h.refreshHintsTimer = _timer
 			}
 		}
 
@@ -119,7 +136,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 	hintKeyResult := h.hints.Context.Router().RouteKey(key)
 	if hintKeyResult.Exit() {
-		h.ExitMode()
+		h.exitModeLocked()
 
 		return
 	}
@@ -161,7 +178,7 @@ func (h *Handler) handleGridModeKey(key string) {
 
 	gridKeyResult := h.grid.Router.RouteKey(key)
 	if gridKeyResult.Exit() {
-		h.ExitMode()
+		h.exitModeLocked()
 
 		return
 	}

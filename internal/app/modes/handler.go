@@ -2,6 +2,7 @@ package modes
 
 import (
 	"image"
+	"sync"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/app/components"
@@ -12,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui"
@@ -38,6 +40,11 @@ type Mode interface {
 
 // Handler encapsulates mode-specific logic and dependencies.
 type Handler struct {
+	// mu serializes access to Handler state between the event tap callback thread
+	// and timer goroutines (e.g., refreshHintsTimer). All public entry points
+	// (HandleKeyPress, ActivateMode, ExitMode) and timer callbacks must hold this lock.
+	mu sync.Mutex
+
 	config         *config.Config
 	logger         *zap.Logger
 	appState       *state.AppState
@@ -66,7 +73,6 @@ type Handler struct {
 	disableEventTap   func()
 	refreshHotkeys    func()
 	refreshHintsTimer *time.Timer
-	refreshHintsCh    chan struct{} // Channel for dispatching timer callback to main thread
 
 	// Scroll mode polling
 	scrollTicker *time.Ticker
@@ -118,7 +124,6 @@ func NewHandler(
 		enableEventTap:       enableEventTap,
 		disableEventTap:      disableEventTap,
 		refreshHotkeys:       refreshHotkeys,
-		refreshHintsCh:       make(chan struct{}, 1),
 	}
 
 	// Initialize mode implementations
@@ -132,9 +137,26 @@ func NewHandler(
 	return handler
 }
 
+// RefreshHintsForScreenChange updates the hint collection under the handler
+// mutex so that the onUpdate callback can safely read h.screenBounds and
+// write to h.overlayManager. Called from the screen-change goroutine in
+// lifecycle.go.
+func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collection) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	// Re-read screen bounds under the lock so the onUpdate callback
+	// uses coordinates that match the resized overlay.
+	h.screenBounds = bridge.ActiveScreenBounds()
+	h.hints.Context.SetHints(hintCollection)
+}
+
 // UpdateConfig updates the handler with new configuration.
 func (h *Handler) UpdateConfig(config *config.Config) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	h.config = config
+
 	if h.renderer != nil {
 		h.renderer.UpdateConfig(
 			hints.BuildStyle(config.Hints),

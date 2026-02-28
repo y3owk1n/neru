@@ -26,7 +26,8 @@ func (h *Handler) activateGridModeWithAction(actionStr *string) {
 
 	actionString := domain.ActionString(actionEnum)
 
-	h.ExitMode()
+	h.exitModeLocked()
+
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing grid.
 	// This prevents scroll highlights from persisting when switching from scroll mode to grid mode.
 	h.overlayManager.Clear()

@@ -6,13 +6,8 @@ import (
 
 // HandleKeyPress dispatches key events by current mode.
 func (h *Handler) HandleKeyPress(key string) {
-	// Process any pending hints refresh from timer callback (dispatched to main thread)
-	select {
-	case <-h.refreshHintsCh:
-		h.activateHintModeInternal(false, nil)
-	default:
-		// No pending refresh
-	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	// Determine escape/exit keys from config with sensible defaults
 	exitKeys := h.config.General.ModeExitKeys
@@ -31,14 +26,14 @@ func (h *Handler) HandleKeyPress(key string) {
 }
 
 // handleEscapeKey handles the escape key to exit the current mode.
+// Caller must hold h.mu.
 func (h *Handler) handleEscapeKey() {
 	_, exists := h.modes[h.appState.CurrentMode()]
 	if !exists {
 		return
 	}
 
-	h.ExitMode()
-	h.SetModeIdle()
+	h.exitModeLocked()
 }
 
 // handleModeSpecificKey handles mode-specific key processing.

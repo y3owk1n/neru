@@ -25,8 +25,11 @@ func (h *Handler) ActivateMode(mode domain.Mode) {
 
 // ActivateModeWithAction activates a mode with an optional action parameter.
 func (h *Handler) ActivateModeWithAction(mode domain.Mode, action *string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	if mode == domain.ModeIdle {
-		h.ExitMode()
+		h.exitModeLocked()
 
 		return
 	}
@@ -55,12 +58,22 @@ func (h *Handler) activateHintModeWithAction(action *string) {
 //
 //nolint:unparam
 func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *string) {
+	// Detect refresh before validation so we can clean up on failure
+	isRefresh := !preserveActionMode && h.appState.CurrentMode() == domain.ModeHints
+
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameHints,
 		h.config.Hints.Enabled,
 		action.TypeMoveMouse,
 	)
 	if !ok {
+		// If validation fails during a refresh (e.g., secure input activated,
+		// focused app became excluded), exit cleanly instead of leaving stale
+		// hints on the overlay.
+		if isRefresh {
+			h.exitModeLocked()
+		}
+
 		return
 	}
 
@@ -69,19 +82,25 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 	if !preserveActionMode {
 		// Handle mode transitions: if already in hints mode, do partial cleanup to preserve state;
 		// otherwise exit completely to reset all state
-		if h.appState.CurrentMode() == domain.ModeHints {
-			// During refresh, only clear overlay but do NOT reset manager state
-			// Calling Reset() would trigger callback with stale hints before new hints are set
+		if isRefresh {
+			// During refresh, only clear overlay and stop polling but do NOT change mode
+			// or disable event tap. Mode and event tap are already in the correct state,
+			// so SetModeHints() can be skipped on the success path.
+			// This prevents leaving the app in idle mode with event tap disabled if hint
+			// generation fails.
 			h.overlayManager.Clear()
-			h.performCommonCleanup()
-			// Skip cursor restoration to maintain position during hint mode transitions
+			h.stopModeIndicatorPolling()
 		} else {
-			h.ExitMode()
+			h.exitModeLocked()
 		}
 	}
 
 	if actionString == domain.UnknownAction {
 		h.logger.Warn("Unknown action string, ignoring")
+
+		if isRefresh {
+			h.exitModeLocked()
+		}
 
 		return
 	}
@@ -109,6 +128,10 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 			zap.Error(domainHintsErr),
 			zap.String("action", actionString),
 		)
+
+		if isRefresh {
+			h.exitModeLocked()
+		}
 
 		return
 	}
@@ -152,6 +175,10 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 	if len(domainHints) == 0 {
 		h.logger.Warn("No hints generated for action", zap.String("action", actionString))
 
+		if isRefresh {
+			h.exitModeLocked()
+		}
+
 		return
 	}
 
@@ -162,19 +189,25 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 	// Note: Manager is created once and reused across activations (holds mutable state).
 	// Router is recreated each activation (stateless, needs fresh exit keys from config).
 	if h.hints.Context.Manager() == nil {
-		manager := domainHint.NewManager(h.logger)
+		manager := domainHint.NewManager(h.logger, &h.mu)
 		// Set callback to update overlay when hints are filtered
 		manager.SetUpdateCallback(func(filteredHints []*domainHint.Interface) {
+			// Caller must hold h.mu. Synchronous call sites (SetHints, Reset,
+			// HandleInput) already hold it. The async debouncedUpdate timer
+			// acquires it via the external mutex set below.
 			if h.hints.Overlay == nil {
 				return
 			}
+
+			screenBounds := h.screenBounds
+
 			// Convert domain hints to overlay hints for rendering
 			overlayHints := make([]*hints.Hint, len(filteredHints))
 			for index, hint := range filteredHints {
 				// Convert screen-absolute coordinates to overlay-local coordinates
 				localPos := image.Point{
-					X: hint.Position().X - h.screenBounds.Min.X,
-					Y: hint.Position().Y - h.screenBounds.Min.Y,
+					X: hint.Position().X - screenBounds.Min.X,
+					Y: hint.Position().Y - screenBounds.Min.Y,
 				}
 				overlayHints[index] = hints.NewHint(
 					hint.Label(),
@@ -211,7 +244,12 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 		h.logger.Info("Hints mode activated with pending action", zap.String("action", *actionStr))
 	}
 
-	h.SetModeHints()
+	// Only set mode and enable event tap on initial activation;
+	// during refresh these are already in the correct state.
+	if !isRefresh {
+		h.SetModeHints()
+	}
+
 	h.logger.Info("Hints mode activated")
 
 	h.startModeIndicatorPolling(domain.ModeHints)

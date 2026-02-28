@@ -13,7 +13,8 @@ func (h *Handler) StartInteractiveScroll() {
 	h.cursorState.SkipNextRestore()
 	h.scroll.Context.SetIsActive(false)
 	h.scroll.Context.SetLastKey("")
-	h.ExitMode()
+
+	h.exitModeLocked()
 
 	if h.enableEventTap != nil {
 		h.enableEventTap()

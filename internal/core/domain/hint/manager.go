@@ -20,6 +20,13 @@ type Manager struct {
 	debounceDuration time.Duration
 	mu               sync.Mutex // Protects onUpdate callback
 
+	// externalMu is an optional mutex acquired by debouncedUpdate's timer
+	// callback before invoking onUpdate. This allows the caller to protect
+	// shared state (e.g., screen bounds, overlay manager) that the callback
+	// reads/writes without introducing locking inside the callback itself
+	// (which would deadlock on synchronous call paths).
+	externalMu *sync.Mutex
+
 	// Performance optimization: reuse slice buffer for filtered hints
 	cachedFilteredHints []*Interface
 }
@@ -29,13 +36,18 @@ const (
 	DefaultDebounceDuration = 50 * time.Millisecond
 )
 
-// NewManager creates a new hint manager with the specified logger.
-func NewManager(logger *zap.Logger) *Manager {
+// NewManager creates a new hint manager with the specified logger and an
+// optional external mutex. When non-nil, debouncedUpdate's timer callback
+// acquires externalMu before invoking onUpdate so the caller can protect
+// shared state (e.g., screen bounds, overlay manager) without locking
+// inside the callback itself (which would deadlock on synchronous paths).
+func NewManager(logger *zap.Logger, externalMu *sync.Mutex) *Manager {
 	return &Manager{
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
 		debounceDuration: DefaultDebounceDuration,
+		externalMu:       externalMu,
 	}
 }
 
@@ -214,6 +226,13 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 
 	// Start new timer
 	m.debounceTimer = time.AfterFunc(m.debounceDuration, func() {
+		// Acquire the external mutex first (if set) so the callback can
+		// safely access caller-owned state (e.g., screen bounds, overlay).
+		if m.externalMu != nil {
+			m.externalMu.Lock()
+			defer m.externalMu.Unlock()
+		}
+
 		m.mu.Lock()
 		defer m.mu.Unlock()
 

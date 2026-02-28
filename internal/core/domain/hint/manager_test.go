@@ -18,7 +18,7 @@ func TestManager_Filtering(t *testing.T) {
 	h3, _ := hint.NewHint("AC", element, image.Point{0, 0})
 
 	collection := hint.NewCollection([]*hint.Interface{h1, h2, h3})
-	manager := hint.NewManager(logger.Get())
+	manager := hint.NewManager(logger.Get(), nil)
 	manager.SetHints(collection)
 
 	tests := []struct {
@@ -73,7 +73,7 @@ func TestManager_Backspace(t *testing.T) {
 	element, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
 	h1, _ := hint.NewHint("AA", element, image.Point{0, 0})
 	collection := hint.NewCollection([]*hint.Interface{h1})
-	manager := hint.NewManager(logger.Get())
+	manager := hint.NewManager(logger.Get(), nil)
 	manager.SetHints(collection)
 
 	// Type 'A'
@@ -99,7 +99,7 @@ func TestHintManager_RouterIntegration(t *testing.T) {
 	logger := logger.Get()
 
 	// Create hint manager
-	hintManager := hint.NewManager(logger)
+	hintManager := hint.NewManager(logger, nil)
 
 	// Create hint router
 	hintRouter := hint.NewRouter(hintManager, logger)
@@ -173,7 +173,7 @@ func TestCollection_Empty(t *testing.T) {
 
 func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 	logger := logger.Get()
-	hintManager := hint.NewManager(logger)
+	hintManager := hint.NewManager(logger, nil)
 
 	// Create test elements
 	elem1, _ := element.NewElement("elem1", image.Rect(10, 10, 50, 50), element.RoleButton)
