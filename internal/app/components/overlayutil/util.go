@@ -177,7 +177,10 @@ func NewCallbackManager(logger *zap.Logger) *CallbackManager {
 }
 
 // StartResizeOperation begins a resize operation with callback tracking.
-func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)) {
+// Returns true if the operation was started, false if the callback ID pool
+// was exhausted. Callers should fall back to a non-callback resize when false
+// is returned so the overlay is still resized correctly.
+func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)) bool {
 	done := make(chan struct{})
 
 	// Allocate an ID from the free pool
@@ -192,7 +195,7 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)
 			)
 		}
 
-		return
+		return false
 	}
 
 	callbackID := freeCallbackIDs[len(freeCallbackIDs)-1]
@@ -241,6 +244,8 @@ func (c *CallbackManager) StartResizeOperation(callbackFunc func(uint64, uint64)
 
 	// Start background cleanup goroutine
 	go c.handleResizeCallback(callbackID, currentGeneration, done)
+
+	return true
 }
 
 // CompleteCallback marks a callback as complete.

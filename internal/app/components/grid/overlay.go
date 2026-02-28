@@ -42,7 +42,7 @@ const (
 
 //export gridResizeCompletionCallback
 func gridResizeCompletionCallback(context unsafe.Pointer) {
-	// Read callback context from the pointer (points to a slice element in callbackIDStore)
+	// Read callback context from the heap-allocated CallbackContext pointer
 	ctx := *(*overlayutil.CallbackContext)(context)
 
 	overlayutil.CompleteGlobalCallback(ctx.CallbackID, ctx.Generation)
@@ -257,8 +257,9 @@ func (o *Overlay) ResizeToMainScreen() {
 }
 
 // ResizeToActiveScreen resizes the overlay window with callback notification.
+// Falls back to a non-callback resize if the callback ID pool is exhausted.
 func (o *Overlay) ResizeToActiveScreen() {
-	o.callbackManager.StartResizeOperation(func(callbackID uint64, generation uint64) {
+	started := o.callbackManager.StartResizeOperation(func(callbackID uint64, generation uint64) {
 		// Pass callback ID and generation as opaque pointer context for C callback.
 		// Uses CallbackIDToPointer to convert in a way that go vet accepts.
 		contextPtr := overlayutil.CallbackIDToPointer(callbackID, generation)
@@ -269,6 +270,11 @@ func (o *Overlay) ResizeToActiveScreen() {
 			contextPtr,
 		)
 	})
+	if !started {
+		// Pool exhausted — fall back to non-callback resize so the overlay
+		// is still moved to the correct screen.
+		C.NeruResizeOverlayToActiveScreen(o.window)
+	}
 }
 
 // DrawGrid renders the flat grid with all 3-char cells visible.
