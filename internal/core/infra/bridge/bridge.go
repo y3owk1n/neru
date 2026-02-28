@@ -203,7 +203,7 @@ func HandleScreenParametersChanged() {
 	if watcher != nil {
 		log.Debug("Bridge: Forwarding screen parameters changed event")
 
-		watcher.HandleScreenParametersChanged()
+		go watcher.HandleScreenParametersChanged()
 	}
 }
 

@@ -2,6 +2,7 @@ package bridge_test
 
 import (
 	"testing"
+	"time"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
@@ -150,12 +151,15 @@ func TestCallbacks(t *testing.T) {
 		}
 	})
 
-	t.Run("HandleScreenParametersChanged", func(_ *testing.T) {
+	t.Run("HandleScreenParametersChanged", func(t *testing.T) {
 		bridge.HandleScreenParametersChanged()
-		// Since it runs in a goroutine, we need to wait a bit
-		// But for unit test reliability, we might just check if it didn't panic
-		// or use a channel in mock to sync.
-		// For now, let's just ensure it doesn't panic.
+
+		// The handler is dispatched in a goroutine, so wait briefly for it to complete.
+		time.Sleep(50 * time.Millisecond)
+
+		if mock.screenChangeCalls != 1 {
+			t.Errorf("Expected 1 screen change call, got %d", mock.screenChangeCalls)
+		}
 	})
 }
 
