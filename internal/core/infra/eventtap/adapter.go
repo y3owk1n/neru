@@ -19,9 +19,8 @@ type Adapter struct {
 // NewAdapter creates a new event tap adapter.
 func NewAdapter(tap *EventTap, logger *zap.Logger) *Adapter {
 	return &Adapter{
-		tap:     tap,
-		logger:  logger,
-		enabled: false,
+		tap:    tap,
+		logger: logger,
 	}
 }
 
