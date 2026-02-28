@@ -192,16 +192,22 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 		manager := domainHint.NewManager(h.logger)
 		// Set callback to update overlay when hints are filtered
 		manager.SetUpdateCallback(func(filteredHints []*domainHint.Interface) {
+			// Caller must hold h.mu. Synchronous call sites (SetHints, Reset,
+			// HandleInput) already hold it. The async debouncedUpdate timer
+			// acquires it via the external mutex set below.
 			if h.hints.Overlay == nil {
 				return
 			}
+
+			screenBounds := h.screenBounds
+
 			// Convert domain hints to overlay hints for rendering
 			overlayHints := make([]*hints.Hint, len(filteredHints))
 			for index, hint := range filteredHints {
 				// Convert screen-absolute coordinates to overlay-local coordinates
 				localPos := image.Point{
-					X: hint.Position().X - h.screenBounds.Min.X,
-					Y: hint.Position().Y - h.screenBounds.Min.Y,
+					X: hint.Position().X - screenBounds.Min.X,
+					Y: hint.Position().Y - screenBounds.Min.Y,
 				}
 				overlayHints[index] = hints.NewHint(
 					hint.Label(),
@@ -216,6 +222,12 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 				h.logger.Error("Failed to update hints overlay", zap.Error(drawHintsErr))
 			}
 		})
+		// Provide the handler mutex so that debouncedUpdate's timer callback
+		// acquires h.mu before invoking the update callback. This ensures
+		// h.screenBounds and h.overlayManager are accessed safely from the
+		// async goroutine.
+		manager.SetExternalMu(&h.mu)
+
 		h.hints.Context.SetManager(manager)
 	}
 
