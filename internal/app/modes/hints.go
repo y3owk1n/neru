@@ -69,12 +69,17 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 
 	actionString := domain.ActionString(actionEnum)
 
+	isRefresh := false
+
 	if !preserveActionMode {
 		// Handle mode transitions: if already in hints mode, do partial cleanup to preserve state;
 		// otherwise exit completely to reset all state
 		if h.appState.CurrentMode() == domain.ModeHints {
+			isRefresh = true
+
 			// During refresh, only clear overlay and stop polling but do NOT change mode
-			// or disable event tap. The success path will call SetModeHints() to restore state.
+			// or disable event tap. Mode and event tap are already in the correct state,
+			// so SetModeHints() can be skipped on the success path.
 			// This prevents leaving the app in idle mode with event tap disabled if hint
 			// generation fails.
 			h.overlayManager.Clear()
@@ -221,7 +226,12 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 		h.logger.Info("Hints mode activated with pending action", zap.String("action", *actionStr))
 	}
 
-	h.SetModeHints()
+	// Only set mode and enable event tap on initial activation;
+	// during refresh these are already in the correct state.
+	if !isRefresh {
+		h.SetModeHints()
+	}
+
 	h.logger.Info("Hints mode activated")
 
 	h.startModeIndicatorPolling(domain.ModeHints)
