@@ -58,25 +58,31 @@ func (h *Handler) activateHintModeWithAction(action *string) {
 //
 //nolint:unparam
 func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *string) {
+	// Detect refresh before validation so we can clean up on failure
+	isRefresh := !preserveActionMode && h.appState.CurrentMode() == domain.ModeHints
+
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameHints,
 		h.config.Hints.Enabled,
 		action.TypeMoveMouse,
 	)
 	if !ok {
+		// If validation fails during a refresh (e.g., secure input activated,
+		// focused app became excluded), exit cleanly instead of leaving stale
+		// hints on the overlay.
+		if isRefresh {
+			h.exitModeLocked()
+		}
+
 		return
 	}
 
 	actionString := domain.ActionString(actionEnum)
 
-	isRefresh := false
-
 	if !preserveActionMode {
 		// Handle mode transitions: if already in hints mode, do partial cleanup to preserve state;
 		// otherwise exit completely to reset all state
-		if h.appState.CurrentMode() == domain.ModeHints {
-			isRefresh = true
-
+		if isRefresh {
 			// During refresh, only clear overlay and stop polling but do NOT change mode
 			// or disable event tap. Mode and event tap are already in the correct state,
 			// so SetModeHints() can be skipped on the success path.
