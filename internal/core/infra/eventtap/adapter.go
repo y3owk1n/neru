@@ -2,6 +2,7 @@ package eventtap
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
@@ -11,22 +12,24 @@ import (
 type Adapter struct {
 	tap     *EventTap
 	logger  *zap.Logger
-	enabled bool
+	enabled atomic.Bool
 }
 
 // NewAdapter creates a new event tap adapter.
 func NewAdapter(tap *EventTap, logger *zap.Logger) *Adapter {
-	return &Adapter{
-		tap:     tap,
-		logger:  logger,
-		enabled: false,
+	adapter := &Adapter{
+		tap:    tap,
+		logger: logger,
 	}
+	adapter.enabled.Store(false)
+
+	return adapter
 }
 
 // Enable enables the event tap.
 func (a *Adapter) Enable(_ context.Context) error {
 	a.tap.Enable()
-	a.enabled = true
+	a.enabled.Store(true)
 
 	return nil
 }
@@ -34,14 +37,14 @@ func (a *Adapter) Enable(_ context.Context) error {
 // Disable disables the event tap.
 func (a *Adapter) Disable(_ context.Context) error {
 	a.tap.Disable()
-	a.enabled = false
+	a.enabled.Store(false)
 
 	return nil
 }
 
 // IsEnabled returns true if event capture is active.
 func (a *Adapter) IsEnabled() bool {
-	return a.enabled
+	return a.enabled.Load()
 }
 
 // SetHandler sets the function to call when a key is pressed.
@@ -63,7 +66,7 @@ func (a *Adapter) SetHotkeys(hotkeys []string) {
 // Destroy cleans up the event tap resources.
 func (a *Adapter) Destroy() {
 	a.tap.Destroy()
-	a.enabled = false
+	a.enabled.Store(false)
 }
 
 // Ensure Adapter implements ports.EventTapPort.
