@@ -17,7 +17,6 @@ import (
 
 // safeSendConfig attempts to send a config without blocking.
 // Returns true if sent successfully, false if channel is full.
-// Note: Channels are never closed by the server; consumers terminate via context cancellation.
 func safeSendConfig(ch chan<- *Config, config *Config) bool {
 	select {
 	case ch <- config:
@@ -309,7 +308,8 @@ func (s *Service) Watch(ctx context.Context) <-chan *Config {
 			}
 		}
 
-		// Note: Channel is not closed; consumers detect termination via ctx.Done()
+		// Close channel to honor interface contract
+		close(channel)
 	}()
 
 	return channel
