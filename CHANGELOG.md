@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.21.4](https://github.com/y3owk1n/neru/compare/v1.21.3...v1.21.4) (2026-02-28)
+
+
+### Bug Fixes
+
+* add mutex to protect indicatorConfig from concurrent access ([#469](https://github.com/y3owk1n/neru/issues/469)) ([79aecb8](https://github.com/y3owk1n/neru/commit/79aecb82ed419cf030b3694f18f4570676338a8d))
+* **bridge:** add mutex to protect global appWatcher from data races ([#465](https://github.com/y3owk1n/neru/issues/465)) ([7db27b8](https://github.com/y3owk1n/neru/commit/7db27b86fc84b9e3e47a34677fcfa12320fdd69d))
+* **bridge:** add mutex to protect global logger from data races ([#464](https://github.com/y3owk1n/neru/issues/464)) ([ec6cf07](https://github.com/y3owk1n/neru/commit/ec6cf073cdc7760356072c15649b324c1b2f11fb))
+* **bridge:** cancel pending enable block in disableEventTap ([#451](https://github.com/y3owk1n/neru/issues/451)) ([38f399a](https://github.com/y3owk1n/neru/commit/38f399a029390406af4b81aaa2b06f2030b9c58e))
+* **config:** change default font_size to `10.0` ([#449](https://github.com/y3owk1n/neru/issues/449)) ([d387caa](https://github.com/y3owk1n/neru/commit/d387caa1049ae722cb7dde159d70bbf155bfb925))
+* **config:** close Watch channel on context cancellation ([#470](https://github.com/y3owk1n/neru/issues/470)) ([6996684](https://github.com/y3owk1n/neru/commit/699668407d688bdb98f1b410265cfe0d58644ef8))
+* **hints:** preserve mode state during refresh and enable auto-activation ([#454](https://github.com/y3owk1n/neru/issues/454)) ([7a1accc](https://github.com/y3owk1n/neru/commit/7a1accca4d5ca40b70b08caa1689e6a5b8f2f16e))
+* **infra:** add mutex synchronization for eventtap adapter state transitions ([#471](https://github.com/y3owk1n/neru/issues/471)) ([56b2045](https://github.com/y3owk1n/neru/commit/56b20458a182703b79521a08e66be4c2eb4be4d1))
+* **lifecycle:** resolve TOCTOU race in handleScreenParametersChange ([#466](https://github.com/y3owk1n/neru/issues/466)) ([bbc0ba6](https://github.com/y3owk1n/neru/commit/bbc0ba68aff959e20a0d2ac2c3938976c84c0c9b))
+* **logger:** resolve data race in global logger access ([#463](https://github.com/y3owk1n/neru/issues/463)) ([f6c4d0c](https://github.com/y3owk1n/neru/commit/f6c4d0c248d7a166273a41938a5339c87b1c886d))
+* **overlayutil:** validate generation to prevent stale callback race ([#467](https://github.com/y3owk1n/neru/issues/467)) ([9788b42](https://github.com/y3owk1n/neru/commit/9788b42defe10a20b0ebd1e83fad2a65b213b6ef))
+* **recursivegrid:** add screen-change handling with callback-based resize and TOCTOU guards ([#468](https://github.com/y3owk1n/neru/issues/468)) ([a6fc091](https://github.com/y3owk1n/neru/commit/a6fc0915901653b09dfb8e3f35071452b7ef4d13))
+* **scroll:** add mutex synchronization for context state access ([#472](https://github.com/y3owk1n/neru/issues/472)) ([c10bcfe](https://github.com/y3owk1n/neru/commit/c10bcfe9da8ca63c218e82806aa3b917179791e2))
+
 ## [1.21.3](https://github.com/y3owk1n/neru/compare/v1.21.2...v1.21.3) (2026-02-25)
 
 
