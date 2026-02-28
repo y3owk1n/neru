@@ -19,6 +19,7 @@ import "C"
 
 import (
 	"image"
+	"sync"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -74,7 +75,10 @@ func HasClickAction(element unsafe.Pointer) bool {
 }
 
 // appWatcher is the global application watcher instance.
-var appWatcher AppWatcherInterface
+var (
+	appWatcher   AppWatcherInterface
+	appWatcherMu sync.RWMutex
+)
 
 // AppWatcherInterface interface defines callbacks for application lifecycle events.
 type AppWatcherInterface interface {
@@ -87,14 +91,21 @@ type AppWatcherInterface interface {
 
 // AppWatcher returns the global application watcher instance.
 func AppWatcher() AppWatcherInterface {
+	appWatcherMu.RLock()
+	defer appWatcherMu.RUnlock()
+
 	return appWatcher
 }
 
 // SetAppWatcher configures the application watcher implementation.
-func SetAppWatcher(w AppWatcherInterface) {
+func SetAppWatcher(watcher AppWatcherInterface) {
 	log := getLogger()
 	log.Debug("Bridge: Setting app watcher")
-	appWatcher = w
+
+	appWatcherMu.Lock()
+	defer appWatcherMu.Unlock()
+
+	appWatcher = watcher
 }
 
 // StartAppWatcher begins monitoring application lifecycle events.
@@ -116,12 +127,16 @@ func HandleAppLaunch(appName, bundleID string) {
 	log := getLogger()
 	log.Debug("Bridge: handleAppLaunch called")
 
-	if appWatcher != nil {
+	appWatcherMu.RLock()
+	watcher := appWatcher
+	appWatcherMu.RUnlock()
+
+	if watcher != nil {
 		log.Debug("Bridge: Forwarding app launch event",
 			zap.String("app_name", appName),
 			zap.String("bundle_id", bundleID))
 
-		appWatcher.HandleLaunch(appName, bundleID)
+		watcher.HandleLaunch(appName, bundleID)
 	}
 }
 
@@ -135,12 +150,16 @@ func HandleAppTerminate(appName, bundleID string) {
 	log := getLogger()
 	log.Debug("Bridge: handleAppTerminate called")
 
-	if appWatcher != nil {
+	appWatcherMu.RLock()
+	watcher := appWatcher
+	appWatcherMu.RUnlock()
+
+	if watcher != nil {
 		log.Debug("Bridge: Forwarding app terminate event",
 			zap.String("app_name", appName),
 			zap.String("bundle_id", bundleID))
 
-		appWatcher.HandleTerminate(appName, bundleID)
+		watcher.HandleTerminate(appName, bundleID)
 	}
 }
 
@@ -154,12 +173,16 @@ func HandleAppActivate(appName, bundleID string) {
 	log := getLogger()
 	log.Debug("Bridge: handleAppActivate called")
 
-	if appWatcher != nil {
+	appWatcherMu.RLock()
+	watcher := appWatcher
+	appWatcherMu.RUnlock()
+
+	if watcher != nil {
 		log.Debug("Bridge: Forwarding app activate event",
 			zap.String("app_name", appName),
 			zap.String("bundle_id", bundleID))
 
-		appWatcher.HandleActivate(appName, bundleID)
+		watcher.HandleActivate(appName, bundleID)
 	}
 }
 
@@ -173,10 +196,14 @@ func HandleScreenParametersChanged() {
 	log := getLogger()
 	log.Debug("Bridge: handleScreenParametersChanged called")
 
-	if appWatcher != nil {
+	appWatcherMu.RLock()
+	watcher := appWatcher
+	appWatcherMu.RUnlock()
+
+	if watcher != nil {
 		log.Debug("Bridge: Forwarding screen parameters changed event")
 
-		go appWatcher.HandleScreenParametersChanged()
+		go watcher.HandleScreenParametersChanged()
 	}
 }
 
@@ -190,12 +217,16 @@ func HandleAppDeactivate(appName, bundleID string) {
 	log := getLogger()
 	log.Debug("Bridge: handleAppDeactivate called")
 
-	if appWatcher != nil {
+	appWatcherMu.RLock()
+	watcher := appWatcher
+	appWatcherMu.RUnlock()
+
+	if watcher != nil {
 		log.Debug("Bridge: Forwarding app deactivate event",
 			zap.String("app_name", appName),
 			zap.String("bundle_id", bundleID))
 
-		appWatcher.HandleDeactivate(appName, bundleID)
+		watcher.HandleDeactivate(appName, bundleID)
 	}
 }
 
