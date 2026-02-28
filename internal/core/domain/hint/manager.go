@@ -36,13 +36,18 @@ const (
 	DefaultDebounceDuration = 50 * time.Millisecond
 )
 
-// NewManager creates a new hint manager with the specified logger.
-func NewManager(logger *zap.Logger) *Manager {
+// NewManager creates a new hint manager with the specified logger and an
+// optional external mutex. When non-nil, debouncedUpdate's timer callback
+// acquires externalMu before invoking onUpdate so the caller can protect
+// shared state (e.g., screen bounds, overlay manager) without locking
+// inside the callback itself (which would deadlock on synchronous paths).
+func NewManager(logger *zap.Logger, externalMu *sync.Mutex) *Manager {
 	return &Manager{
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
 		debounceDuration: DefaultDebounceDuration,
+		externalMu:       externalMu,
 	}
 }
 
@@ -52,14 +57,6 @@ func (m *Manager) SetUpdateCallback(callback func([]*Interface)) {
 	defer m.mu.Unlock()
 
 	m.onUpdate = callback
-}
-
-// SetExternalMu sets an external mutex that debouncedUpdate's timer callback
-// will acquire before invoking the update callback. Synchronous call sites
-// (SetHints, Reset, HandleInput) are expected to already hold this mutex;
-// only the async timer path needs to acquire it.
-func (m *Manager) SetExternalMu(mu *sync.Mutex) {
-	m.externalMu = mu
 }
 
 // SetHints updates the current hint collection and resets the input state.
