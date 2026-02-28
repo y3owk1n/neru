@@ -109,24 +109,33 @@ func deferredReleaseCallbackID(callbackID uint64) {
 // This function is called by C callbacks that can't access instance methods.
 // It validates the generation to ensure the callback is still valid (not stale).
 func CompleteGlobalCallback(callbackID uint64, expectedGeneration uint64) {
-	callbackManagerRegistryMu.RLock()
+	callbackManagerRegistryMu.Lock()
 
 	entry, ok := callbackManagerRegistry[callbackID]
 
-	callbackManagerRegistryMu.RUnlock()
-
 	if !ok {
+		callbackManagerRegistryMu.Unlock()
+
 		return
 	}
 
 	// Validate generation to detect stale callbacks (ID was reused)
 	if entry.generation != expectedGeneration {
+		callbackManagerRegistryMu.Unlock()
+
 		return
 	}
 
+	// Atomically remove the registry entry so no concurrent deferred release
+	// or new allocation can race with us on this callback ID.
+	delete(callbackManagerRegistry, callbackID)
+	callbackManagerRegistryMu.Unlock()
+
 	entry.manager.CompleteCallback(callbackID)
 
-	// Release the callback ID back to the free pool
+	// Return the ID to the free pool. Since we already deleted the registry
+	// entry above, releaseCallbackID will skip the registry delete (no-op)
+	// but will still clear allocatedCallbackIDs and return the ID to the pool.
 	releaseCallbackID(callbackID)
 }
 
