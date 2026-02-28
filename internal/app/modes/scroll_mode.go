@@ -32,8 +32,7 @@ func NewScrollMode(handler *Handler) *ScrollMode {
 			handler.clearAndHideOverlay()
 
 			if handler.scroll != nil && handler.scroll.Context != nil {
-				handler.scroll.Context.SetIsActive(false)
-				handler.scroll.Context.SetLastKey("")
+				handler.scroll.Context.Reset()
 			}
 			// Reset cursor state when exiting scroll mode to ensure proper cursor restoration
 			// in subsequent modes

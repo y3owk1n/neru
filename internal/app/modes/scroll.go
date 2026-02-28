@@ -11,8 +11,12 @@ import (
 // showing the scroll overlay and enabling key handling for scrolling.
 func (h *Handler) StartInteractiveScroll() {
 	h.cursorState.SkipNextRestore()
-	h.scroll.Context.SetIsActive(false)
-	h.scroll.Context.SetLastKey("")
+
+	// Defensively reset scroll context before exiting the current mode.
+	// exitModeLocked returns early when already idle without running cleanup,
+	// so this ensures no stale lastKey/isActive state leaks into the new
+	// scroll activation.
+	h.scroll.Context.Reset()
 
 	h.exitModeLocked()
 
@@ -31,7 +35,7 @@ func (h *Handler) StartInteractiveScroll() {
 }
 
 func (h *Handler) handleGenericScrollKey(key string) {
-	lastKey := h.scroll.Context.LastKey()
+	lastKey, lastKeyTime := h.scroll.Context.LastKeyState()
 
 	h.logger.Debug("handleGenericScrollKey",
 		zap.String("key", key),
@@ -43,7 +47,7 @@ func (h *Handler) handleGenericScrollKey(key string) {
 	)
 
 	if lastKey != "" {
-		action, found = h.handleSequenceKey(key, lastKey)
+		action, found = h.handleSequenceKey(key, lastKey, lastKeyTime)
 	} else {
 		action, found = h.handleSingleKey(key)
 	}
@@ -54,13 +58,10 @@ func (h *Handler) handleGenericScrollKey(key string) {
 		zap.Bool("found", found))
 
 	if !found {
-		currentLastKey := h.scroll.Context.LastKey()
-		if currentLastKey != "" {
+		if currentLastKey := h.scroll.Context.LastKey(); currentLastKey != "" {
 			h.logger.Debug("key lookup failed but sequence in progress, not clearing lastKey",
 				zap.String("key", key),
 				zap.String("lastKey", currentLastKey))
-		} else {
-			h.scroll.Context.SetLastKey("")
 		}
 
 		return
@@ -107,12 +108,12 @@ func (h *Handler) handleSingleKey(key string) (string, bool) {
 	return "", false
 }
 
-func (h *Handler) handleSequenceKey(key, firstKey string) (string, bool) {
+func (h *Handler) handleSequenceKey(key, firstKey string, firstKeyTime int64) (string, bool) {
 	h.logger.Debug("handleSequenceKey",
 		zap.String("key", key),
 		zap.String("firstKey", firstKey))
 
-	seqState := scroll.NewSequenceState(firstKey, h.scroll.Context.LastKeyTime())
+	seqState := scroll.NewSequenceState(firstKey, firstKeyTime)
 	if seqState.Expired() {
 		h.logger.Debug("sequence expired")
 		h.scroll.Context.SetLastKey("")

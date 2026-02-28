@@ -1,9 +1,14 @@
 package scroll
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 // Context holds the state and context for scroll mode operations.
 type Context struct {
+	mu sync.RWMutex
+
 	// lastKey tracks the last key pressed during scroll operations
 	// This is used for multi-key operations like "gg" for top
 	lastKey string
@@ -16,33 +21,68 @@ type Context struct {
 }
 
 // SetLastKey sets the last key pressed during scroll operations.
+// When key is non-empty, the timestamp is updated to now.
+// When key is empty (clearing state), the timestamp is zeroed.
 func (c *Context) SetLastKey(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.lastKey = key
-	c.lastKeyTime = time.Now().UnixNano()
+
+	if key != "" {
+		c.lastKeyTime = time.Now().UnixNano()
+	} else {
+		c.lastKeyTime = 0
+	}
 }
 
 // LastKey returns the last key pressed during scroll operations.
 func (c *Context) LastKey() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	return c.lastKey
 }
 
 // LastKeyTime returns the timestamp when the last key was pressed.
 func (c *Context) LastKeyTime() int64 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	return c.lastKeyTime
+}
+
+// LastKeyState atomically returns both the last key and its timestamp.
+// Use this instead of separate LastKey()/LastKeyTime() calls when both
+// values are needed together to avoid TOCTOU races.
+func (c *Context) LastKeyState() (string, int64) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.lastKey, c.lastKeyTime
 }
 
 // SetIsActive sets whether scroll mode is currently active.
 func (c *Context) SetIsActive(active bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.isActive = active
 }
 
 // IsActive returns whether scroll mode is currently active.
 func (c *Context) IsActive() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	return c.isActive
 }
 
 // Reset resets the scroll context to its initial state.
 func (c *Context) Reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.lastKey = ""
 	c.lastKeyTime = 0
 	c.isActive = false
