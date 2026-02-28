@@ -1,6 +1,7 @@
 package bridge_test
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
@@ -15,7 +16,7 @@ type MockAppWatcher struct {
 	terminateCalls    []AppEvent
 	activateCalls     []AppEvent
 	deactivateCalls   []AppEvent
-	screenChangeCalls int
+	screenChangeCalls atomic.Int64
 }
 
 // AppEvent represents an app event.
@@ -41,7 +42,7 @@ func (m *MockAppWatcher) HandleDeactivate(appName, bundleID string) {
 }
 
 func (m *MockAppWatcher) HandleScreenParametersChanged() {
-	m.screenChangeCalls++
+	m.screenChangeCalls.Add(1)
 }
 
 func TestInitializeLogger(t *testing.T) {
@@ -157,8 +158,8 @@ func TestCallbacks(t *testing.T) {
 		// The handler is dispatched in a goroutine, so wait briefly for it to complete.
 		time.Sleep(50 * time.Millisecond)
 
-		if mock.screenChangeCalls != 1 {
-			t.Errorf("Expected 1 screen change call, got %d", mock.screenChangeCalls)
+		if got := mock.screenChangeCalls.Load(); got != 1 {
+			t.Errorf("Expected 1 screen change call, got %d", got)
 		}
 	})
 }
