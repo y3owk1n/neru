@@ -12,13 +12,10 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
-	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/core/infra/electron"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
-	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
 )
 
@@ -229,6 +226,8 @@ func (a *App) processScreenChange() {
 	// Snapshot the mode once so every decision in this pass uses a consistent value.
 	// Without the snapshot, a concurrent mode transition could cause the idle check,
 	// the grid handler, and the hint handler to each see a different mode.
+	// Each handler's Refresh* method re-checks the mode under h.mu to guard
+	// against a concurrent ExitMode between the snapshot and the actual work.
 	currentMode := a.appState.CurrentMode()
 
 	// Only log and adjust overlays if we are in an active mode.
@@ -276,32 +275,13 @@ func (a *App) handleGridScreenChange(currentMode domain.Mode) bool {
 
 	a.overlayManager.ResizeToActiveScreen()
 
-	// Regenerate the grid with updated screen bounds and redraw with proper styling
-	screenBounds := bridge.ActiveScreenBounds()
-	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
-
-	characters := a.config.Grid.Characters
-	if strings.TrimSpace(characters) == "" {
-		characters = a.config.Hints.HintCharacters
-	}
-
-	gridInstance := domainGrid.NewGridWithLabels(
-		characters,
-		a.config.Grid.RowLabels,
-		a.config.Grid.ColLabels,
-		normalizedBounds,
-		a.logger,
-	)
-	a.gridComponent.Context.SetGridInstanceValue(gridInstance)
-
-	currentInput := ""
-	if a.gridComponent.Manager != nil {
-		currentInput = a.gridComponent.Manager.CurrentInput()
-	}
-
-	drawGridErr := a.renderer.DrawGrid(gridInstance, currentInput)
-	if drawGridErr != nil {
-		a.logger.Error("Failed to refresh grid after screen change", zap.Error(drawGridErr))
+	// Delegate to the modes handler which holds the grid manager state and
+	// can regenerate the grid with new screen bounds under the mutex.
+	// RefreshGridForScreenChange re-checks the mode under h.mu to guard
+	// against a concurrent mode exit (TOCTOU).
+	if !a.modes.RefreshGridForScreenChange() {
+		// Mode was exited concurrently — don't show the overlay.
+		a.logger.Debug("Grid mode exited during screen change; skipping show")
 
 		return true
 	}
@@ -338,7 +318,14 @@ func (a *App) handleHintScreenChange(ctx context.Context, currentMode domain.Mod
 
 	if len(domainHints) > 0 {
 		hintCollection := domainHint.NewCollection(domainHints)
-		a.modes.RefreshHintsForScreenChange(hintCollection)
+
+		// RefreshHintsForScreenChange re-checks the mode under h.mu to guard
+		// against a concurrent mode exit (TOCTOU).
+		if !a.modes.RefreshHintsForScreenChange(hintCollection) {
+			a.logger.Debug("Hint mode exited during screen change; skipping show")
+
+			return true
+		}
 	}
 
 	a.logger.Info("Hint overlay resized and regenerated for new screen bounds")

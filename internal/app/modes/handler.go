@@ -142,13 +142,64 @@ func NewHandler(
 // mutex so that the onUpdate callback can safely read h.screenBounds and
 // write to h.overlayManager. Called from the screen-change goroutine in
 // lifecycle.go.
-func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collection) {
+//
+// Returns true if the refresh was performed, false if the mode was exited
+// concurrently (TOCTOU guard).
+func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collection) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	// Re-check mode under the lock to close the TOCTOU window between the
+	// snapshot in processScreenChange and the actual work here.
+	if h.appState.CurrentMode() != domain.ModeHints {
+		h.logger.Debug("Skipping hint screen-change refresh: mode exited concurrently")
+
+		return false
+	}
 	// Re-read screen bounds under the lock so the onUpdate callback
 	// uses coordinates that match the resized overlay.
 	h.screenBounds = bridge.ActiveScreenBounds()
 	h.hints.Context.SetHints(hintCollection)
+
+	return true
+}
+
+// RefreshGridForScreenChange regenerates the grid with updated screen bounds
+// under the handler mutex, preserving the user's current input. Called from
+// the screen-change handler in lifecycle.go when ModeGrid is active.
+//
+// Returns true if the refresh was performed, false if the mode was exited
+// concurrently (TOCTOU guard).
+func (h *Handler) RefreshGridForScreenChange() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Re-check mode under the lock to close the TOCTOU window between the
+	// snapshot in processScreenChange and the actual work here.
+	if h.appState.CurrentMode() != domain.ModeGrid {
+		h.logger.Debug("Skipping grid screen-change refresh: mode exited concurrently")
+
+		return false
+	}
+
+	// Regenerate the grid with updated screen bounds.
+	// createGridInstance also updates h.screenBounds and sets the grid on the context.
+	gridInstance := h.createGridInstance()
+
+	currentInput := ""
+
+	if h.grid.Manager != nil {
+		currentInput = h.grid.Manager.CurrentInput()
+	}
+
+	drawGridErr := h.renderer.DrawGrid(gridInstance, currentInput)
+	if drawGridErr != nil {
+		h.logger.Error("Failed to refresh grid after screen change", zap.Error(drawGridErr))
+
+		return false
+	}
+
+	return true
 }
 
 // RefreshRecursiveGridForScreenChange remaps the recursive-grid manager's
