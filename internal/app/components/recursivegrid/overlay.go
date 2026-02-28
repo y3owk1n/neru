@@ -44,6 +44,9 @@ type Overlay struct {
 	config config.RecursiveGridConfig
 	logger *zap.Logger
 
+	// configMu protects config from concurrent read/write.
+	configMu sync.RWMutex
+
 	callbackManager *overlayutil.CallbackManager
 	styleCache      *overlayutil.StyleCache
 	labelCacheMu    sync.RWMutex
@@ -96,6 +99,9 @@ func (o *Overlay) Window() C.OverlayWindow {
 
 // Config returns the recursive_grid config.
 func (o *Overlay) Config() config.RecursiveGridConfig {
+	o.configMu.RLock()
+	defer o.configMu.RUnlock()
+
 	return o.config
 }
 
@@ -106,7 +112,10 @@ func (o *Overlay) Logger() *zap.Logger {
 
 // SetConfig updates the overlay's config.
 func (o *Overlay) SetConfig(cfg config.RecursiveGridConfig) {
+	o.configMu.Lock()
 	o.config = cfg
+	o.configMu.Unlock()
+
 	o.freeAllCaches()
 }
 

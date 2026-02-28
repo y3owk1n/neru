@@ -65,6 +65,9 @@ type Overlay struct {
 	config config.GridConfig
 	logger *zap.Logger
 
+	// configMu protects config from concurrent read/write.
+	configMu sync.RWMutex
+
 	callbackManager *overlayutil.CallbackManager
 
 	// Cached C strings for style properties to reduce allocations
@@ -184,6 +187,9 @@ func (o *Overlay) Window() C.OverlayWindow {
 
 // Config returns the grid config.
 func (o *Overlay) Config() config.GridConfig {
+	o.configMu.RLock()
+	defer o.configMu.RUnlock()
+
 	return o.config
 }
 
@@ -194,7 +200,10 @@ func (o *Overlay) Logger() *zap.Logger {
 
 // SetConfig updates the overlay's config (e.g., after config reload).
 func (o *Overlay) SetConfig(config config.GridConfig) {
+	o.configMu.Lock()
 	o.config = config
+	o.configMu.Unlock()
+
 	// Invalidate caches when config changes
 	o.freeAllCaches()
 }
@@ -360,14 +369,19 @@ func (o *Overlay) UpdateMatches(prefix string) {
 
 // ShowSubgrid draws a 3x3 subgrid inside the selected cell.
 func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
+	// Snapshot config fields under configMu to avoid racing with SetConfig.
+	o.configMu.RLock()
+	keys := o.config.SublayerKeys
+	characters := o.config.Characters
+	o.configMu.RUnlock()
+	if strings.TrimSpace(keys) == "" {
+		keys = characters
+	}
+
 	// Hold drawMu.RLock for the entire span from label lookup through the C
 	// draw call so that freeLabelCache cannot free labels mid-draw.
 	o.drawMu.RLock()
 
-	keys := o.config.SublayerKeys
-	if strings.TrimSpace(keys) == "" {
-		keys = o.config.Characters
-	}
 	chars := []rune(keys)
 	// Subgrid is always 3x3
 	const rows = 3
