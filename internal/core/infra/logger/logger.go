@@ -187,12 +187,10 @@ func Reset() {
 func Sync() error {
 	logFileMu.RLock()
 
-	logger := globalLogger
+	defer logFileMu.RUnlock()
 
-	logFileMu.RUnlock()
-
-	if logger != nil {
-		err := logger.Sync()
+	if globalLogger != nil {
+		err := globalLogger.Sync()
 		if err != nil {
 			return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to sync logger")
 		}
