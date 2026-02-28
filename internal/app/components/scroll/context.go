@@ -7,7 +7,7 @@ import (
 
 // Context holds the state and context for scroll mode operations.
 type Context struct {
-	mu sync.Mutex
+	mu sync.RWMutex
 
 	// lastKey tracks the last key pressed during scroll operations
 	// This is used for multi-key operations like "gg" for top
@@ -31,16 +31,16 @@ func (c *Context) SetLastKey(key string) {
 
 // LastKey returns the last key pressed during scroll operations.
 func (c *Context) LastKey() string {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	return c.lastKey
 }
 
 // LastKeyTime returns the timestamp when the last key was pressed.
 func (c *Context) LastKeyTime() int64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	return c.lastKeyTime
 }
@@ -55,8 +55,8 @@ func (c *Context) SetIsActive(active bool) {
 
 // IsActive returns whether scroll mode is currently active.
 func (c *Context) IsActive() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	return c.isActive
 }
