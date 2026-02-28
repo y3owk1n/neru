@@ -259,6 +259,37 @@ func (qg *RecursiveGrid) Reset() {
 	qg.history = qg.history[:0]
 }
 
+// RemapToNewBounds proportionally remaps all bounds (history + currentBounds)
+// from the old initial bounds to newBounds, preserving the user's depth and
+// selection progress. This is used during screen changes so the zoomed-in
+// region maps to the equivalent proportional area on the new screen.
+func (qg *RecursiveGrid) RemapToNewBounds(newBounds image.Rectangle) {
+	oldInitial := qg.initialBounds
+	for i, h := range qg.history {
+		qg.history[i] = remapRect(h, oldInitial, newBounds)
+	}
+
+	qg.currentBounds = remapRect(qg.currentBounds, oldInitial, newBounds)
+	qg.initialBounds = newBounds
+}
+
+// remapRect proportionally maps r from the coordinate space of oldRef into newRef.
+func remapRect(rect, oldRef, newRef image.Rectangle) image.Rectangle {
+	oldW := oldRef.Dx()
+	oldH := oldRef.Dy()
+
+	if oldW == 0 || oldH == 0 {
+		return newRef
+	}
+	// Express r's edges as fractions of oldRef, then scale to newRef.
+	minX := newRef.Min.X + (rect.Min.X-oldRef.Min.X)*newRef.Dx()/oldW
+	minY := newRef.Min.Y + (rect.Min.Y-oldRef.Min.Y)*newRef.Dy()/oldH
+	maxX := newRef.Min.X + (rect.Max.X-oldRef.Min.X)*newRef.Dx()/oldW
+	maxY := newRef.Min.Y + (rect.Max.Y-oldRef.Min.Y)*newRef.Dy()/oldH
+
+	return image.Rect(minX, minY, maxX, maxY)
+}
+
 // IsComplete returns true if the minimum size has been reached.
 func (qg *RecursiveGrid) IsComplete() bool {
 	return !qg.CanDivide()

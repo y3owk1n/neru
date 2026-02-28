@@ -308,6 +308,60 @@ func TestGridDimensionAccessors(t *testing.T) {
 	assert.Equal(t, 2, grid.GridRows())
 }
 
+func TestRemapToNewBounds_PreservesDepthAndHistory(t *testing.T) {
+	// Start with a 100×100 grid, select top-left twice to build history.
+	bounds := image.Rect(0, 0, 100, 100)
+	grid := recursivegrid.NewRecursiveGrid(bounds, 10, 10, 10)
+	// Depth 0 → 1: currentBounds narrows to (0,0)-(50,50)
+	grid.SelectCell(recursivegrid.TopLeft)
+	// Depth 1 → 2: currentBounds narrows to (0,0)-(25,25)
+	grid.SelectCell(recursivegrid.TopLeft)
+	assert.Equal(t, 2, grid.CurrentDepth(), "Depth should be 2 before remap")
+	// Remap to a 200×200 screen (2× scale).
+	newBounds := image.Rect(0, 0, 200, 200)
+	grid.RemapToNewBounds(newBounds)
+	// Depth and history length must be preserved.
+	assert.Equal(t, 2, grid.CurrentDepth(), "Depth should still be 2 after remap")
+	// currentBounds (0,0)-(25,25) on 100×100 → (0,0)-(50,50) on 200×200
+	assert.Equal(t, image.Rect(0, 0, 50, 50), grid.CurrentBounds(),
+		"Current bounds should be proportionally remapped")
+	// initialBounds should be updated.
+	assert.Equal(t, newBounds, grid.InitialBounds(),
+		"Initial bounds should be updated to new bounds")
+	// Backtrack should restore the remapped parent bounds.
+	grid.Backtrack()
+	// History[1] was (0,0)-(50,50) on 100×100 → (0,0)-(100,100) on 200×200
+	assert.Equal(t, image.Rect(0, 0, 100, 100), grid.CurrentBounds(),
+		"Backtracked bounds should be proportionally remapped")
+	grid.Backtrack()
+	// History[0] was (0,0)-(100,100) on 100×100 → (0,0)-(200,200) on 200×200
+	assert.Equal(t, newBounds, grid.CurrentBounds(),
+		"Fully backtracked bounds should equal new initial bounds")
+}
+
+func TestRemapToNewBounds_NonOriginScreen(t *testing.T) {
+	// Simulate a screen that doesn't start at (0,0), e.g., a secondary monitor.
+	oldBounds := image.Rect(0, 0, 1000, 500)
+	grid := recursivegrid.NewRecursiveGrid(oldBounds, 10, 10, 10)
+	// Select bottom-right: currentBounds → (500,250)-(1000,500)
+	grid.SelectCell(recursivegrid.BottomRight)
+	// Remap to a new screen with different origin and size.
+	newBounds := image.Rect(0, 0, 2000, 1000)
+	grid.RemapToNewBounds(newBounds)
+	// (500,250)-(1000,500) on 1000×500 → (1000,500)-(2000,1000) on 2000×1000
+	assert.Equal(t, image.Rect(1000, 500, 2000, 1000), grid.CurrentBounds())
+}
+
+func TestRemapToNewBounds_ZeroOldBounds(t *testing.T) {
+	// Edge case: zero-size old bounds should not panic (division by zero guard).
+	oldBounds := image.Rect(0, 0, 0, 0)
+	grid := recursivegrid.NewRecursiveGridWithDimensions(oldBounds, 0, 0, 10, 2, 2)
+	newBounds := image.Rect(0, 0, 200, 200)
+	grid.RemapToNewBounds(newBounds)
+	// With zero old bounds, currentBounds should fall back to newBounds.
+	assert.Equal(t, newBounds, grid.CurrentBounds())
+}
+
 func TestIsComplete(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 25, 10)

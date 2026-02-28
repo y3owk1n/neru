@@ -151,9 +151,10 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 	h.hints.Context.SetHints(hintCollection)
 }
 
-// RefreshRecursiveGridForScreenChange reinitializes the recursive-grid manager
-// with updated screen bounds and redraws the overlay. Called from the
-// screen-change handler in lifecycle.go when ModeRecursiveGrid is active.
+// RefreshRecursiveGridForScreenChange remaps the recursive-grid manager's
+// bounds to the new screen dimensions, preserving the user's current depth
+// and selection progress. Called from the screen-change handler in
+// lifecycle.go when ModeRecursiveGrid is active.
 func (h *Handler) RefreshRecursiveGridForScreenChange() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -162,9 +163,17 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() {
 	screenBounds := bridge.ActiveScreenBounds()
 	h.screenBounds = screenBounds
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
-	// Reinitialize the recursive-grid manager with the new bounds.
-	h.initializeRecursiveGridManager(normalizedBounds)
-	// Redraw the overlay with the regenerated grid.
+
+	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
+		// Proportionally remap all bounds (history + currentBounds) so the
+		// user's zoomed-in region maps to the equivalent area on the new screen.
+		h.recursiveGrid.Manager.CurrentGrid().RemapToNewBounds(normalizedBounds)
+	} else {
+		// No existing manager — fall back to full initialization.
+		h.initializeRecursiveGridManager(normalizedBounds)
+	}
+
+	// Redraw the overlay with the remapped grid.
 	h.updateRecursiveGridOverlay()
 }
 
