@@ -158,7 +158,7 @@ enabled = true
 # Requirements:
 # - Must contain at least 2 characters
 # - Only ASCII characters allowed (no Unicode)
-# - Cannot contain '<' (reserved for reset)
+# - Cannot contain the reset_key character (',' by default)
 # - No duplicate characters (case-insensitive)
 # - Examples: "asdfghjkl", "qwertyuiop", "1234567890"
 characters = "abcdefghijklmnpqrstuvwxyz"
@@ -179,14 +179,14 @@ reset_key = ","
 # Requirements (when specified):
 # - Must contain at least 2 characters
 # - Only ASCII characters allowed
-# - Cannot contain '<' (reserved for reset)
+# - Cannot contain the reset_key character (',' by default)
 # - No duplicate characters (case-insensitive)
 # - Can include symbols like ',.pyfgcrl/aoeuidhtns-;qjkxbmwvz='
 # Examples:
 # row_labels = "123456789"      # Numbers for rows
 # col_labels = "abcdefghij"     # Letters for columns
-# row_labels = "',.pyfgcrl/"    # Symbols for rows
-# col_labels = "aoeuidhtns"     # Dvorak-style for columns
+# row_labels = "',.pyfgcrl/"    # Dvorak-style rows (requires reset_key other than ',')
+# col_labels = "aoeuidhtns"     # Dvorak-style columns
 
 # Visual appearance
 font_size = 10      # Font size for grid labels

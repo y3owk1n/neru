@@ -20,11 +20,17 @@ The Neru CLI communicates with the daemon via IPC (Inter-Process Communication) 
 - [Screen Sharing](#screen-sharing)
 - [Service Management](#service-management)
 - [Navigation Commands](#navigation-commands)
+  - [Basic Navigation](#basic-navigation)
+  - [Hints Mode](#hints-mode)
+  - [Grid Mode](#grid-mode)
+  - [Recursive-Grid Mode](#recursive-grid-mode)
+  - [Scroll Mode](#scroll-mode)
 - [Action Commands](#action-commands)
 - [Status & Info](#status--info)
 - [Shell Integration](#shell-integration)
 - [Scripting](#scripting)
 - [Technical Details](#technical-details)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -39,7 +45,7 @@ neru services install    # Install launchd service
 neru services status     # Check service status
 neru hints               # Start hint mode
 neru grid                # Start grid mode
-neru recursive_grid            # Start recursive-grid mode
+neru recursive_grid      # Start recursive-grid mode
 neru scroll              # Start scroll mode
 neru action left_click   # Click at cursor (immediate)
 neru config reload       # Reload config
@@ -70,12 +76,19 @@ neru config reload       # Reload config
 ## Daemon Control
 
 ```bash
-neru launch              # Start daemon
-neru launch --config file # Start with custom config
-neru start               # Resume paused daemon
-neru stop                # Pause daemon (keep running)
-neru idle                # Cancel active mode
+neru launch                                # Start daemon
+neru launch --config /path/to/config.toml  # Start with custom config file
+# or shorter:
+neru launch -c ./configs/author-config.toml
+neru start                                 # Resume paused daemon
+neru stop                                  # Pause daemon (keep running)
+neru idle                                  # Cancel active mode
 ```
+
+**Options:**
+
+- `--config, -c` - Path to custom config file
+- `--timeout` - IPC timeout in seconds (default: 5)
 
 **Use `stop`** for temporary disable, **`idle`** to cancel modes.
 
@@ -96,7 +109,7 @@ neru toggle-screen-share     # Toggle overlay visibility in screen sharing
 - The state resets to **visible** on Neru restart
 - Also accessible via system tray menu: "Screen Share: Visible/Hidden"
 
-**Note:** This feature uses macOS `NSWindow.sharingType` API. Effectiveness varies by screen sharing application:
+**Note:** This feature uses macOS `NSWindow.sharingType` API (deprecated and no better workaround now yet). Effectiveness varies by screen sharing application:
 
 - Works reliably on macOS 14 and earlier with all applications
 - Limited effectiveness on macOS 15.4+ with modern screen capture (ScreenCaptureKit)
@@ -151,8 +164,8 @@ Perform actions at current cursor position (subcommands only):
 neru action left_click          # Left click
 neru action right_click         # Right click
 neru action middle_click        # Middle click
-neru action mouse_down         # Hold mouse button
-neru action mouse_up           # Release mouse button
+neru action mouse_down          # Hold mouse button
+neru action mouse_up            # Release mouse button
 
 # Mouse movement (absolute coordinates)
 neru action move_mouse --x 500 --y 300
@@ -170,48 +183,92 @@ neru action move_mouse_relative --dx 10 --dy -5
 
 ## Navigation Commands
 
+Neru provides four navigation modes: hints, grid, recursive-grid, and scroll. Each mode can be activated via CLI or hotkey.
+
 ### Basic Navigation
 
 ```bash
-neru hints    # Show clickable hints
-neru grid     # Show coordinate grid
-neru scroll   # Vim-style scrolling
+neru hints              # Show clickable hints on UI elements
+neru grid               # Show coordinate grid for screen
+neru recursive_grid     # Recursive cell-based navigation
+neru scroll             # Vim-style scrolling
 ```
 
-### Direct Actions in Hints/Grid
+**Using the `--action` flag:**
 
-Execute action immediately upon selection:
+All navigation modes support an `--action` or `-a` flag to perform an action immediately upon selection:
 
 ```bash
-neru hints --action left_click     # Left-click via hints
-neru hints --action right_click    # Right-click via hints
-neru grid --action middle_click    # Middle-click via grid
+neru hints --action left_click           # Left-click via hints
+neru hints --action right_click          # Right-click via hints
+neru hints --action middle_click         # Middle-click via hints
+neru grid --action left_click            # Left-click via grid
+neru grid --action right_click           # Right-click via grid
 neru recursive_grid --action left_click  # Left-click via recursive-grid
 ```
 
-**Behavior:** Action executes automatically when location is selected, then mode exits.
+**Behavior:** When `--action` is specified, the action executes automatically when a location is selected, then the mode exits.
 
----
-
-## Recursive-Grid Mode
-
-Recursive grid navigation with immediate preview at center after each selection.
-
-**Keys (default):**
-
-- `u` - upper-left, `i` - upper-right, `j` - lower-left, `k` - lower-right
-- `backspace/delete` - move up one depth and recenter
-- `reset_key` (default `,`) - return to initial center and clear state
-- `Esc` - exit recursive-grid mode
-
-**Workflow example:**
+**Note:** `recursive_grid` also accepts the alias `recursive-grid`:
 
 ```bash
-neru recursive_grid # or neru recursive-grid (alias)
+neru recursive-grid --action left_click  # Same as above
+```
+
+### Hints Mode
+
+Hint mode uses macOS Accessibility APIs to identify clickable UI elements and overlays hint labels on them.
+
+**Quick start:**
+
+```bash
+neru hints
+# Type the hint label to select an element
+# The action (click by default) executes automatically
+```
+
+See [Configuration Guide](CONFIGURATION.md#hint-mode) for customization options.
+
+### Grid Mode
+
+Grid mode divides the screen into a coordinate-based grid for accessibility-independent navigation.
+
+**Quick start:**
+
+```bash
+neru grid
+# Type row+column labels (e.g., "ab") to select position
+# The action executes automatically
+```
+
+See [Configuration Guide](CONFIGURATION.md#grid-mode) for customization options.
+
+### Recursive-Grid Mode
+
+Recursive grid provides recursive cell-based navigation that works anywhere on screen. The screen is divided into a grid (default 2x2), and each selection narrows the active area.
+
+**Default keys:**
+
+| Key                    | Action                         |
+| ---------------------- | ------------------------------ |
+| `u`                    | Upper-left cell                |
+| `i`                    | Upper-right cell               |
+| `j`                    | Lower-left cell                |
+| `k`                    | Lower-right cell               |
+| `Backspace` / `Delete` | Move up one depth and recenter |
+| `,` (default)          | Reset to initial center        |
+| `Esc`                  | Exit mode                      |
+
+**Quick start:**
+
+```bash
+neru recursive_grid
 # Press u/i/j/k to narrow selection
 # Press backspace to move up a level
-# Press , to reset to the initial center
+# Press , to reset to initial center
 ```
+
+See [Configuration Guide](CONFIGURATION.md#recursive-grid-mode) for customization options.
 
 ---
 
@@ -225,7 +282,7 @@ Activate vim-style scrolling at the current cursor position. Keys are configurab
 - `h` / `l` - Scroll left/right
 - `Ctrl+d` / `Ctrl+u` - Half-page down/up
 - `gg` - Jump to top
-- `G` - Jump to bottom
+- `Shift+G` - Jump to bottom
 - `Esc` - Exit scroll mode
 
 **Customization:** See `[scroll.key_bindings]` in your config file. Each action can have multiple keys, including modifier combinations (e.g., `Cmd+Up`) and multi-key sequences (e.g., `gg`).
@@ -252,7 +309,7 @@ neru --version        # Version info
 ```
 
 **Status values:** `running`, `disabled`
-**Mode values:** `idle`, `hints`, `grid`, `scroll`
+**Mode values:** `idle`, `hints`, `grid`, `recursive_grid`, `scroll`
 
 ---
 
