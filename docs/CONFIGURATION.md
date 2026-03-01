@@ -548,7 +548,8 @@ Override labels for rows and columns separately.
 row_labels = "123456789"
 col_labels = "abcdefghij"
 
-# Dvorak-style
+# Dvorak-style (requires reset_key other than ',')
+# reset_key = "."
 row_labels = "',.pyfgcrl/"
 col_labels = "aoeuidhtns"
 

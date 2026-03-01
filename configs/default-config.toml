@@ -185,8 +185,8 @@ reset_key = ","
 # Examples:
 # row_labels = "123456789"      # Numbers for rows
 # col_labels = "abcdefghij"     # Letters for columns
-# row_labels = "',.pyfgcrl/"    # Symbols for rows
-# col_labels = "aoeuidhtns"     # Dvorak-style for columns
+# row_labels = "',.pyfgcrl/"    # Dvorak-style rows (requires reset_key other than ',')
+# col_labels = "aoeuidhtns"     # Dvorak-style columns
 
 # Visual appearance
 font_size = 10      # Font size for grid labels
