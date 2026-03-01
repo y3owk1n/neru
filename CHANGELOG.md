@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.22.0](https://github.com/y3owk1n/neru/compare/v1.21.4...v1.22.0) (2026-03-01)
+
+
+### Features
+
+* remove profile and metrics features ([#474](https://github.com/y3owk1n/neru/issues/474)) ([f53f3ef](https://github.com/y3owk1n/neru/commit/f53f3ef6c9325e9c45490bd31c2faccb5f789a08))
+
+
+### Bug Fixes
+
+* also support `-c` and `--config` for launch command ([#476](https://github.com/y3owk1n/neru/issues/476)) ([f1b890d](https://github.com/y3owk1n/neru/commit/f1b890d1a47e4b8a502919cbda32d8542c756e9e))
+
 ## [1.21.4](https://github.com/y3owk1n/neru/compare/v1.21.3...v1.21.4) (2026-02-28)
 
 
