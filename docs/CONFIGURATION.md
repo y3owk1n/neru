@@ -888,9 +888,6 @@ Animate cursor movement between positions.
 [smooth_cursor]
 move_mouse_enabled = false  # default (instant)
 
-# When enabled:
-move_mouse_enabled = true
-
 # Smooth but slower
 steps = 10
 delay = 10
