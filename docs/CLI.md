@@ -282,7 +282,7 @@ Activate vim-style scrolling at the current cursor position. Keys are configurab
 - `h` / `l` - Scroll left/right
 - `Ctrl+d` / `Ctrl+u` - Half-page down/up
 - `gg` - Jump to top
-- `G` - Jump to bottom
+- `Shift+G` - Jump to bottom
 - `Esc` - Exit scroll mode
 
 **Customization:** See `[scroll.key_bindings]` in your config file. Each action can have multiple keys, including modifier combinations (e.g., `Cmd+Up`) and multi-key sequences (e.g., `gg`).
