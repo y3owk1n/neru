@@ -1,866 +1,1155 @@
 # Configuration Guide
 
-Neru uses TOML for configuration. This guide covers all available options with examples.
+Neru uses TOML for configuration. This guide covers all available options with explanations, use cases, and examples.
 
 ---
 
 ## Table of Contents
 
 - [Configuration Overview](#configuration-overview)
-- [Color Format](#color-format)
-- [Font Configuration](#font-configuration)
 - [Hotkeys](#hotkeys)
-- [General Settings](#general-settings)
 - [Keyboard Layout Requirements](#keyboard-layout-requirements)
+- [General Settings](#general-settings)
 - [Hint Mode](#hint-mode)
 - [Grid Mode](#grid-mode)
 - [Recursive Grid Mode](#recursive-grid-mode)
 - [Scroll Mode](#scroll-mode)
 - [Mouse Movement Actions](#mouse-movement-actions)
+- [Mode Indicator](#mode-indicator)
 - [Smooth Cursor](#smooth-cursor)
 - [Systray](#systray)
+- [Font Configuration](#font-configuration)
+- [Color Format](#color-format)
 - [Logging](#logging)
-- [Complete Example](#complete-example)
 
 ---
 
 ## Configuration Overview
 
-Neru uses TOML configuration files. Configuration is loaded from:
+Neru uses TOML configuration files. Configuration is loaded from (in order of priority):
 
-1. `~/.config/neru/config.toml` (recommended)
-2. `~/Library/Application Support/neru/config.toml`
-3. Custom path via `--config` flag
+1. **`~/.config/neru/config.toml`** (recommended)
+    - User-level configuration directory
+    - Create if it doesn't exist
 
-**No config file?** Neru uses sensible defaults. Copy from [default-config.toml](../configs/default-config.toml) to get started.
+2. **`~/Library/Application Support/neru/config.toml`**
+    - macOS Application Support directory
+    - Used as fallback if first location doesn't exist
 
-**Reload config:** Use `neru config reload` or restart the app.
+3. **`--config` or `-c` flag**
+    - Specify a custom config file path when launching
+    - Example: `neru launch -c ~/my-neru-config.toml`
 
----
+**No config file?** Neru works out of the box with sensible defaults. Copy from [default-config.toml](../configs/default-config.toml) to customize.
 
-## Color Format
-
-Neru supports alpha transparency in colors. You can use different hex formats:
-
-### Supported Formats
-
-| Format      | Example     | Description                       |
-| ----------- | ----------- | --------------------------------- |
-| `#AARRGGBB` | `#FF000000` | 8-char: Alpha + RGB (recommended) |
-| `#RRGGBB`   | `#FF0000`   | 6-char: RGB only (fully opaque)   |
-| `#RGB`      | `#F00`      | 3-char: shorthand RGB             |
-
-### Format Breakdown: `#AARRGGBB`
-
-| Component | Description          | Range                               |
-| --------- | -------------------- | ----------------------------------- |
-| `AA`      | Alpha (transparency) | `00` (transparent) to `FF` (opaque) |
-| `RR`      | Red                  | `00` to `FF`                        |
-| `GG`      | Green                | `00` to `FF`                        |
-| `BB`      | Blue                 | `00` to `FF`                        |
-
-> **Recommendation:** Use 8-character format (`#AARRGGBB`) for full control over transparency. The 6-character format (`#RRGGBB`) is treated as fully opaque (alpha = FF).
-
-### Quick Reference: Opacity to Alpha
-
-| Opacity | Alpha (hex) | Example                         |
-| ------- | ----------- | ------------------------------- |
-| 100%    | `FF`        | `#FF000000` (opaque black)      |
-| 95%     | `F2`        | `#F2FFD700` (gold)              |
-| 90%     | `E6`        | `#E6000000`                     |
-| 80%     | `CC`        | `#CCFFD700`                     |
-| 70%     | `B3`        | `#B3ABE9B3` (light green)       |
-| 60%     | `99`        | `#99000000`                     |
-| 50%     | `80`        | `#80000000`                     |
-| 40%     | `66`        | `#66000000`                     |
-| 30%     | `4D`        | `#4D00BFFF` (deep sky blue)     |
-| 20%     | `33`        | `#33000000`                     |
-| 10%     | `1A`        | `#1A000000`                     |
-| 0%      | `00`        | `#00000000` (fully transparent) |
-
-### Formula
-
-To convert any conceptual opacity (0.0 - 1.0) to an alpha channel value:
+**Reload config changes:**
 
 ```bash
-# Example: 70% opacity = 0.7 * 255 = 178.5 → round to 179 → 0xB3
-alpha_hex = round(opacity * 255)
+neru config reload
 ```
 
-### Examples
-
-```toml
-# Fully opaque (100%)
-background_color = "#FF000000"   # Black
-background_color = "#FFFFD700"   # Gold
-
-# Partially transparent (transparency is controlled entirely by the alpha channel)
-background_color = "#F2FFD700"   # Gold, alpha F2 (~95% opacity)
-background_color = "#B3ABE9B3"   # Light green, alpha B3 (~70% opacity)
-background_color = "#4D00BFFF"   # Deep sky blue, alpha 4D (~30% opacity)
-
-# Fully transparent
-background_color = "#00000000"   # Completely invisible
-```
-
-> **Tip:** You can use online tools like "hex color converter" to calculate alpha values for specific opacity percentages.
+Or restart the daemon: `pkill neru && neru launch`
 
 ---
-
-## Font Configuration
-
-Several sections (`hints`, `grid`, `recursive_grid`, `scroll`) accept `font_family` (or `label_font_family`) to customize the overlay font. This section explains how font resolution works.
-
-### Default: System Font
-
-When `font_family` is set to `""` (the default), Neru uses the macOS system font:
-
-- **Hint overlays** use `NSFont boldSystemFontOfSize:` (bold system font)
-- **Grid / scroll overlays** use `NSFont systemFontOfSize:` (regular system font)
-  The system font is always available on every macOS installation, so the default works out of the box.
-
-### Font Name Resolution
-
-When you specify a non-empty `font_family`, Neru resolves the font using a two-step process:
-
-1. **PostScript name lookup** — Tries `[NSFont fontWithName:size:]` first. This is the fastest path and works with PostScript names like `"SFMono-Bold"` or `"Menlo-Regular"`.
-2. **Family name lookup** — If the PostScript name fails, falls back to `NSFontManager`'s `fontWithFamily:traits:weight:size:`, which correctly handles display/family names like `"SF Mono"`, `"JetBrains Mono"`, or `"Fira Code"`.
-   If neither lookup succeeds, Neru falls back to the system font.
-   For hint overlays, the bold variant of the font is automatically selected when available. If the font family doesn't have a bold variant, Neru attempts to synthesize one via `NSFontManager`.
-
-### Examples
-
-```toml
-# Use system font (default — always available)
-font_family = ""
-# PostScript name (exact match)
-font_family = "SFMono-Bold"
-# Family/display name (resolved via NSFontManager)
-font_family = "SF Mono"
-font_family = "JetBrains Mono"
-font_family = "Fira Code"
-font_family = "Menlo"
-```
-
-### Finding Font Names
-
-You can list available font families on your system using the terminal:
-
-```bash
-# List all font families
-system_profiler SPFontsDataType | grep "Family:"
-```
-
-> **Tip:** Family names (e.g. `"SF Mono"`) are generally more portable and readable than PostScript names (e.g. `"SFMono-Regular"`). Use family names unless you need a specific font variant.
 
 ## Hotkeys
 
-Bind global hotkeys to Neru actions. Remove or comment out to disable.
+Global hotkeys trigger Neru navigation modes from anywhere.
 
-> **⚠️ Important:** Providing any custom hotkeys **replaces all defaults**. If you define even one custom hotkey, you must explicitly define all hotkeys you want to use. The defaults (Cmd+Shift+Space, Cmd+Shift+G, Cmd+Shift+S) will be disabled.
+### Why Configure Hotkeys?
+
+- Activate navigation modes without CLI
+- Customize key combinations to your preference
+- Execute shell commands directly from keyboard
+
+### Syntax
+
+**Modifiers:** `Cmd`, `Ctrl`, `Alt`/`Option`, `Shift` (case-insensitive)
+**Format:** `"Modifier1+Modifier2+Key" = "action"`
+
+**Actions can be:**
+
+- **Neru commands**: `"Cmd+Shift+Space" = "hints"`
+- **Commands with actions**: `"Cmd+Shift+G" = "grid left_click"`
+- **Shell commands**: `"Cmd+Alt+T" = "exec open -a Terminal"`
+
+### Important Note
+
+> Defining **any** custom hotkey **replaces ALL defaults**. You must explicitly define every hotkey you want.
+
+Defaults that will be disabled:
+
+- `Cmd+Shift+Space` → hints
+- `Cmd+Shift+G` → grid
+- `Cmd+Shift+C` → recursive_grid
+- `Cmd+Shift+S` → scroll
+
+### Common Configurations
+
+**Basic (enable only what you need):**
 
 ```toml
 [hotkeys]
-# Hint modes
 "Cmd+Shift+Space" = "hints"
-
-# Grid mode
-"Cmd+Shift+G" = "grid"
-
-# Recursive-Grid mode
-"Cmd+Shift+C" = "recursive_grid"
-
-# Scroll
-"Cmd+Shift+S" = "scroll"
-
-# Execute shell commands
-# "Cmd+Alt+T" = "exec open -a Terminal"
-# "Cmd+Alt+N" = "exec osascript -e 'display notification \"Hello!\" with title \"Neru\"'"
 ```
 
-### Hotkey Syntax
-
-**Modifiers:** `Cmd`, `Ctrl`, `Alt`/`Option`, `Shift`
-**Format:** `"Modifier1+Modifier2+Key" = "action"`
-
-An `action` can be one of the following:
-
-- A Neru command (essentially any Neru CLI command without the `neru` prefix)
-  - Say in CLI you can run `neru hints` and `neru grid`
-  - To map it into a hotkey, just omit the `neru` prefix: `"Cmd+Shift+Space" = "hints"`
-- A shell command (using `exec <command>`)
-  - Say in CLI you can run `open -a Terminal` to launch Terminal
-  - To map it into a hotkey, use the full command: `"Cmd+Alt+T" = "exec open -a Terminal"`
-
-**Shell Commands:**
+**With auto-click (recommended):**
 
 ```toml
-"Cmd+Alt+T" = "exec open -a Terminal"
-"Cmd+Alt+C" = "exec open -a 'Visual Studio Code'"
-"Cmd+Alt+S" = "exec ~/scripts/screenshot.sh"
+[hotkeys]
+"Cmd+Shift+Space" = "hints left_click"
+"Cmd+Shift+G" = "grid left_click"
+"Cmd+Shift+S" = "scroll"
 ```
 
-**Alternative:** Use [skhd](https://github.com/koekeishiya/skhd) for hotkey management:
+**Execute shell commands:**
+
+```toml
+[hotkeys]
+# Open Terminal
+"Cmd+Alt+T" = "exec open -a Terminal"
+
+# Open specific app
+"Cmd+Alt+C" = "exec open -a 'Visual Studio Code'"
+
+# Run script
+"Cmd+Alt+S" = "exec ~/scripts/screenshot.sh"
+
+# Show notification
+"Cmd+Alt+N" = "exec osascript -e 'display notification \"Hello!\" with title \"Neru\"'"
+```
+
+### Alternative: External Hotkey Manager
+
+Use [skhd](https://github.com/koekeishiya/skhd) or [Karabiner](https://karabiner-elements.pqrs.org/) for more complex hotkey setups:
 
 ```bash
 # ~/.config/skhd/skhdrc
 ctrl - f : neru hints
 ctrl - g : neru grid
-```
-
----
-
-## General Settings
-
-```toml
-[general]
-# Exclude apps by bundle ID
-excluded_apps = [
-    "com.apple.Terminal",
-    "com.googlecode.iterm2",
-    "com.microsoft.rdc.macos",
-]
-accessibility_check_on_start = true
-restore_cursor_position = true
-mode_exit_keys = ["escape"]
-hide_overlay_in_screen_share = false
-```
-
-**Cursor restoration:**
-
-- When `restore_cursor_position = true`, the cursor returns to its original coordinates after exiting any mode.
-- Handles screen resolution changes by restoring proportionally within the current active screen.
-- Default is `false` if omitted.
-
-**Finding Bundle IDs:**
-
-```bash
-osascript -e 'id of app "Safari"'  # com.apple.Safari
-osascript -e 'id of app "VS Code"' # com.microsoft.VSCode
-```
-
-**Mode Exit Keys:**
-
-Use `general.mode_exit_keys` to specify which keys should exit any active mode (hints/grid/scroll).
-
-Examples:
-
-```toml
-[general]
-mode_exit_keys = ["escape"]                # default: Escape key
-# mode_exit_keys = ["Ctrl+C"]              # Ctrl+C to exit
-# mode_exit_keys = ["escape", "Ctrl+C"]    # accept either Escape or Ctrl+C
-```
-
-Format notes:
-
-- Use plain text key names: `escape`, `return`, `tab`, `space`, `backspace`, `delete`, `home`, `end`, `pageup`, `pagedown`
-- Modifiers: `Cmd`, `Ctrl`, `Alt`/`Option`, `Shift`
-- Modifier combos: `Modifier+Key` (e.g. `Ctrl+R`, `Cmd+Shift+Space`)
-
-**Hide Overlay in Screen Share:**
-
-> [!NOTE]
-> This APIs is sort of deprecated as well, it might or might not work
-> Maybe in future versions, apple will provide a new API to interface with screen sharing
-> Reference: [issue from tauri](https://github.com/tauri-apps/tauri/issues/14200)
-
-When `hide_overlay_in_screen_share = true`, the overlay will not appear in shared screens but remains visible locally.
-
-**Note:** This feature uses macOS `NSWindow.sharingType` API. Effectiveness varies by screen sharing application:
-
-- Works reliably on macOS 14 and earlier with all applications
-- Limited effectiveness on macOS 15.4+ with modern screen capture (ScreenCaptureKit)
-- Always test with your specific video conferencing software
-
----
-
-## Mode Indicator
-
-Control whether a small mode label appears near the cursor for each mode.
-When enabled for a mode, the indicator follows the cursor position in that mode.
-
-### Basic Configuration
-
-```toml
-[mode_indicator]
-scroll_enabled = true
-hints_enabled = false
-grid_enabled = false
-recursive_grid_enabled = false
-```
-
-- `scroll_enabled`: When `true`, shows a cursor-following indicator in scroll mode.
-- `hints_enabled`: When `true`, shows a cursor-following indicator in hints mode.
-- `grid_enabled`: When `true`, shows a cursor-following indicator in grid mode.
-- `recursive_grid_enabled`: When `true`, shows a cursor-following indicator in recursive-grid mode.
-
-Setting all flags to `false` disables mode indicators entirely.
-
-### Appearance
-
-```toml
-font_size = 10                 # Font size for mode indicators
-font_family = ""      # Font family for mode indicators
-background_color = "#F2FFD700" # Background color (gold with 95% opacity)
-text_color = "#FF000000"       # Text color (black)
-border_color = "#FF000000"     # Border color (black)
-border_width = 1               # Border width
-padding = 4                    # Padding inside the indicator
-border_radius = 4              # Corner radius
-indicator_x_offset = 20        # X offset from cursor position
-indicator_y_offset = 20        # Y offset from cursor position
+ctrl - r : neru hints --action right_click
 ```
 
 ---
 
 ## Keyboard Layout Requirements
 
-Neru automatically detects and supports various keyboard layouts using macOS system APIs. The keyboard layout is read directly from your macOS input settings.
+Neru automatically detects your keyboard layout via macOS APIs - no configuration needed.
 
-**Supported Layouts:**
+### Supported Layouts
 
-- US QWERTY
-- AZERTY (French)
-- QWERTZ (German, Swiss)
-- Dvorak
-- Colemak
-- Most other standard physical keyboard layouts
+| Layout  | Regions               | Works Out of Box |
+| ------- | --------------------- | ---------------- |
+| QWERTY  | US, UK, International | Yes              |
+| AZERTY  | French                | Yes              |
+| QWERTZ  | German, Swiss         | Yes              |
+| Dvorak  | English (Dvorak)      | Yes              |
+| Colemak | English (Colemak)     | Yes              |
 
-Neru automatically detects your active keyboard layout and translates keycodes accordingly. No configuration is required.
+### How It Works
 
-### Input Method Support
+Neru reads your macOS input source settings and translates keycodes accordingly. This means:
 
-Neru supports CJK input methods (Pinyin, Wubi, etc.). When using an input method:
+- Your physical key positions are used for hint characters
+- Layout switching in macOS is respected
 
-- Hints work correctly with your physical keyboard layout
-- Key presses are translated through the physical layout before being sent to the input method
-- The input method receives the expected key events
+### Input Methods (CJK)
 
-This allows you to use Chinese, Japanese, or Korean input methods while maintaining full keyboard navigation functionality.
+Neru supports Chinese, Japanese, and Korean input methods:
+
+- Hints display based on your **physical keyboard layout**
+- Key presses are translated through your layout before being sent to the IME
+- The IME receives the expected key events
+
+**No additional configuration required.**
+
+---
+
+## General Settings
+
+Core behavior settings that affect all Neru functionality.
+
+### Option Reference
+
+| Option                         | Type  | Default      | Description                                |
+| ------------------------------ | ----- | ------------ | ------------------------------------------ |
+| `excluded_apps`                | array | `[]`         | Bundle IDs where Neru won't activate       |
+| `accessibility_check_on_start` | bool  | `true`       | Verify accessibility permissions on launch |
+| `restore_cursor_position`      | bool  | `false`      | Return cursor to pre-mode position on exit |
+| `mode_exit_keys`               | array | `["escape"]` | Keys that exit any active mode             |
+| `hide_overlay_in_screen_share` | bool  | `false`      | Hide overlay in screen sharing apps        |
+
+### excluded_apps
+
+Prevent Neru from activating in specific applications.
+
+```toml
+[general]
+excluded_apps = [
+    "com.apple.Terminal",        # Terminal
+    "com.googlecode.iterm2",     # iTerm2
+    "com.microsoft.rdc.macos",   # Microsoft Remote Desktop
+    "com.apple.finder",          # Finder (optional)
+]
+```
+
+**Finding Bundle IDs:**
+
+```bash
+osascript -e 'id of app "Safari"'
+# Output: com.apple.Safari
+```
+
+**Use case:** Exclude terminal apps where you prefer keyboard-only workflows, or exclude screen sharing apps.
+
+### accessibility_check_on_start
+
+Ensures Neru has accessibility permissions before running.
+
+```toml
+[general]
+accessibility_check_on_start = true  # default
+```
+
+- `true`: Show error if permissions missing
+- `false`: Skip check (may cause runtime errors)
+
+### restore_cursor_position
+
+Return cursor to where it was before entering a navigation mode.
+
+```toml
+[general]
+restore_cursor_position = false  # default
+```
+
+- `true`: Cursor returns to original position after mode exits
+- `false`: Cursor stays at last navigated position
+
+**Use case:** Set to `true` if you prefer the cursor not moving unexpectedly.
+
+### mode_exit_keys
+
+Keys that exit any active mode (hints, grid, scroll, recursive_grid).
+
+```toml
+[general]
+mode_exit_keys = ["escape"]           # default
+# mode_exit_keys = ["Ctrl+C"]         # Vim-style
+# mode_exit_keys = ["escape", "q"]    # Multiple keys
+```
+
+**Valid keys:**
+
+- Plain: `escape`, `return`, `tab`, `space`, `backspace`, `delete`
+- Navigation: `home`, `end`, `pageup`, `pagedown`
+- With modifiers: `Ctrl+C`, `Cmd+Q`, `Alt+X`
+
+### hide_overlay_in_screen_share
+
+Hide Neru overlays during screen sharing.
+
+```toml
+[general]
+hide_overlay_in_screen_share = false  # default
+```
+
+- `true`: Overlay hidden in shared screens (visible locally)
+- `false`: Overlay always visible
+
+> **Note:** Uses macOS `NSWindow.sharingType` API. Reliability varies:
+>
+> - macOS 14 and earlier: Works well with most apps
+> - macOS 15.4+: Limited effectiveness with ScreenCaptureKit-based apps
+> - Test with your specific video conferencing software
 
 ---
 
 ## Hint Mode
 
-Hint mode overlays clickable labels on UI elements using macOS accessibility APIs.
+Hint mode uses macOS Accessibility APIs to identify clickable UI elements and overlay short labels on them.
+
+### When to Use
+
+- **Clicking buttons, links, menus** in applications
+- **Forms and dialogs** with multiple clickable elements
+- **Any application** with standard macOS UI elements
 
 ### Basic Configuration
 
+| Option               | Type   | Default       | Description                |
+| -------------------- | ------ | ------------- | -------------------------- |
+| `enabled`            | bool   | `true`        | Enable/disable hints mode  |
+| `hint_characters`    | string | `"asdfghjkl"` | Characters used for labels |
+| `font_size`          | int    | `10`          | Label font size            |
+| `font_family`        | string | `""`          | Font name (empty = system) |
+| `border_radius`      | int    | `4`           | Corner radius in pixels    |
+| `border_width`       | int    | `1`           | Border width in pixels     |
+| `padding`            | int    | `4`           | Internal padding in pixels |
+| `background_color`   | string | `"#FFD700"`   | Label background (gold)    |
+| `text_color`         | string | `"#FF000000"` | Label text (black)         |
+| `matched_text_color` | string | `"#FF737373"` | Typed text color (gray)    |
+| `border_color`       | string | `"#FF000000"` | Border color (black)       |
+
+### hint_characters
+
+Characters used to generate hint labels. Order matters for ergonomics.
+
 ```toml
 [hints]
-enabled = true
-hint_characters = "asdfghjkl"  # Home row keys recommended
-
-# Visual styling
-font_size = 10
-font_family = ""               # System default
-border_radius = 4
-padding = 4
-
-background_color = "#FFD700"
-text_color = "#000000"
-matched_text_color = "#737373"
-border_color = "#000000"
+hint_characters = "asdfghjkl"    # Home row (default, recommended)
+# hint_characters = "jkl;asdfg"  # Alternative home row
+# hint_characters = "fjdksla;g"  # Center columns
+# hint_characters = "hjklasdfg"  # Vim-style
 ```
+
+**Requirements:**
+
+- At least 2 unique ASCII characters
+- No duplicates (case-insensitive)
+- No commas (reserved for grid reset)
 
 ### Visibility Options
 
+Control which system areas show hints.
+
+| Option                             | Type  | Default   | Description                                           |
+| ---------------------------------- | ----- | --------- | ----------------------------------------------------- |
+| `include_menubar_hints`            | bool  | `false`   | Show hints on menubar items                           |
+| `include_dock_hints`               | bool  | `false`   | Show hints on Dock items                              |
+| `include_nc_hints`                 | bool  | `false`   | Show hints in Notification Center                     |
+| `include_stage_manager_hints`      | bool  | `false`   | Show hints in Stage Manager                           |
+| `detect_mission_control`           | bool  | `false`   | Auto-disable active app hints when in Mission Control |
+| `additional_menubar_hints_targets` | array | see below | Extra menubar bundle IDs                              |
+
 ```toml
 [hints]
-# Show hints in system areas
-include_menubar_hints = false # Menubar
-include_dock_hints = false # Dock
-include_nc_hints = false # Notification Center
-include_stage_manager_hints = false # Stage Manager
+# Enable system area hints
+include_menubar_hints = true
+include_dock_hints = true
+include_nc_hints = false
+include_stage_manager_hints = false
 
-# Detects if we are in Mission Control
-# If true, when in Mission Control, hints on the menubar and active window will be disabled
-# Warning: It produce false positives for macOS below Tahoe (26.x)
-# If you are using macOS below Tahoe (26.x), you should not enable this option at all cost!!!!
-# See https://github.com/y3owk1n/neru/issues/386 for more details
-detect_mission_control = false
+# Mission Control detection (macOS 26+ only!)
+# WARNING: Do NOT enable on macOS < 26.x - causes false positives
+# detect_mission_control = true
 
-# Target specific menubar apps
+# Add specific menubar apps
 additional_menubar_hints_targets = [
-     "com.apple.TextInputMenuAgent",
-     "com.apple.controlcenter",
+    "com.apple.TextInputMenuAgent",     # Input menu
+    "com.apple.controlcenter",          # Control Center
+    "com.apple.systemuiserver",         # System UI
 ]
 ```
 
 ### Clickable Elements
 
-Define which UI elements are clickable:
+Define which UI element types generate hints.
+
+| Option                   | Type  | Default     | Description                 |
+| ------------------------ | ----- | ----------- | --------------------------- |
+| `clickable_roles`        | array | (see below) | AX roles that are clickable |
+| `ignore_clickable_check` | bool  | `false`     | Skip clickability heuristic |
+
+**Default clickable roles:**
 
 ```toml
 [hints]
-# Clickable roles that should generate hints
 clickable_roles = [
-     "AXButton", "AXLink", "AXTextField", "AXCheckBox",
-     "AXComboBox", "AXRadioButton", "AXPopUpButton",
-     "AXSlider", "AXTabButton", "AXSwitch"
+    "AXButton",
+    "AXComboBox",
+    "AXCheckBox",
+    "AXRadioButton",
+    "AXLink",
+    "AXPopUpButton",
+    "AXTextField",
+    "AXSlider",
+    "AXTabButton",
+    "AXSwitch",
+    "AXDisclosureTriangle",
+    "AXTextArea",
+    "AXMenuButton",
+    "AXMenuItem",
+    "AXCell",
+    "AXRow",
 ]
-
-# We have a heuristic to detect if an element is clickable to avoid noises
-# If you do not want to use this heuristic, set ignore_clickable_check = true
-ignore_clickable_check = false
 ```
 
-### Refresh Hints with delay after mouse action
-
-This option is useful for applications like browsers that needs to wait for a bit to get the latest content.
+**Use case:** Add custom roles for specific apps:
 
 ```toml
 [hints]
-# Delay (in milliseconds) before refreshing hints after mouse click actions.
-# Set to 0 for immediate refresh (default). Higher values reduce rapid refreshes
-# when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
-# You can also override this for specific apps in the [app_configs] section below.
-mouse_action_refresh_delay = 0
+# Add tab groups for Chrome
+[[hints.app_configs]]
+bundle_id = "com.google.Chrome"
+additional_clickable_roles = ["AXTabGroup"]
 ```
 
-### Accessibility Tree Depth Limit
+### Performance Tuning
 
-The accessibility tree traversal has a maximum depth to prevent stack overflow and memory pressure from deeply nested UI elements (e.g., complex web apps in Electron containers).
+| Option                       | Type | Default | Description                           |
+| ---------------------------- | ---- | ------- | ------------------------------------- |
+| `mouse_action_refresh_delay` | int  | `0`     | Delay after click before refresh (ms) |
+| `max_depth`                  | int  | `50`    | Max accessibility tree depth          |
+| `parallel_threshold`         | int  | `20`    | Min children for parallel processing  |
 
 ```toml
 [hints]
-# Maximum depth for accessibility tree traversal.
-# Set to 0 for unlimited depth (no safety limit).
-# Default: 50
+# Delay before refreshing hints after an action (for slow-loading apps or browser dynamic contents)
+# 0 = immediate, 10000 = max 10 seconds
+mouse_action_refresh_delay = 500  # 0.5 seconds
+
+# Tree depth limit (prevents stack overflow on complex UIs)
+# 0 = unlimited, 50 = default
 max_depth = 50
 
-# Minimum number of children to trigger parallel tree building.
-# Lower values enable parallelization for smaller trees.
-# Higher values reduce goroutine overhead for tiny subtrees.
-# Default: 20
+# Parallel processing threshold
+# Lower = more parallelization for small trees
+# Higher = less overhead for tiny subtrees
 parallel_threshold = 20
 ```
 
-### Per-App Overrides
+### Per-App Configuration
+
+Override settings for specific applications.
 
 ```toml
+# Chrome: add tab groups
 [[hints.app_configs]]
 bundle_id = "com.google.Chrome"
 additional_clickable_roles = ["AXTabGroup"]
 
+# Adobe apps: may need custom roles
 [[hints.app_configs]]
 bundle_id = "com.adobe.illustrator"
 additional_clickable_roles = ["AXStaticText", "AXImage"]
 ignore_clickable_check = true
 
-# Override mouse action refresh delay for specific apps.
-# Omit mouse_action_refresh_delay to use the global hints.mouse_action_refresh_delay.
-# Set to 0 for immediate refresh, or a positive value for delay in milliseconds.
+# Safari: delay for dynamic content
 [[hints.app_configs]]
 bundle_id = "com.apple.Safari"
-mouse_action_refresh_delay = 1000 # refresh hints after 1000ms / 1 second
+mouse_action_refresh_delay = 1000  # 1 second
 ```
 
 ### Enhanced Browser Support
 
-Enable improved accessibility for Electron/Chromium/Firefox apps:
+Enable additional accessibility features for web browsers and Electron apps. These require special handling because they don't expose standard macOS accessibility APIs by default.
+
+**How it works:**
+
+- **Electron apps**: Sets `AXManualAccessibility` attribute
+- **Chromium/Firefox browsers**: Sets `AXEnhancedUserInterface` attribute
+
+#### Default Auto-Detected Bundles
+
+**Electron apps** (require `AXManualAccessibility`):
+
+| Bundle ID                   | Application        |
+| --------------------------- | ------------------ |
+| `com.microsoft.VSCode`      | Visual Studio Code |
+| `com.exafunction.windsurf`  | Windsurf           |
+| `com.tinyspeck.slackmacgap` | Slack              |
+| `com.spotify.client`        | Spotify            |
+| `md.obsidian`               | Obsidian           |
+
+**Chromium browsers** (require `AXEnhancedUserInterface`):
+
+| Bundle ID                    | Application   |
+| ---------------------------- | ------------- |
+| `com.google.Chrome`          | Google Chrome |
+| `com.brave.Browser`          | Brave Browser |
+| `net.imput.helium`           | Helium        |
+| `company.thebrowser.Browser` | Arc Browser   |
+
+**Firefox browsers** (require `AXEnhancedUserInterface`):
+
+| Bundle ID             | Application     |
+| --------------------- | --------------- |
+| `org.mozilla.firefox` | Mozilla Firefox |
+| `app.zen-browser.zen` | Zen Browser     |
+
+#### Configuration
 
 ```toml
 [hints.additional_ax_support]
-enable = false
+enable = false  # default
 
-# Auto-detected: VS Code, Chrome, Firefox, Slack, etc.
-additional_electron_bundles = ["com.example.app"]
+# Auto-detected bundles work automatically
+# Add custom bundles if needed:
+additional_electron_bundles = ["com.example.electronapp"]
 additional_chromium_bundles = ["com.example.browser"]
 additional_firefox_bundles = ["com.example.firefox"]
+```
+
+#### Enabling for Custom Apps
+
+If you have an Electron/Chromium/Firefox app not in the default list:
+
+```toml
+[hints.additional_ax_support]
+enable = true
+
+# Add your custom app
+additional_electron_bundles = ["com.your.customapp"]
+additional_chromium_bundles = ["com.your.customapp"]
+additional_firefox_bundles = ["com.your.customapp"]
 ```
 
 ---
 
 ## Grid Mode
 
-Grid mode provides accessibility-independent navigation using coordinate-based selection.
+Grid mode divides the screen into a coordinate-based grid for direct position selection.
+
+### When to Use
+
+- **No accessibility support** in target app
+- **Precise cursor positioning** needed
+- **Fast navigation** without scanning elements
+- **Anywhere on screen** - works universally
 
 ### Basic Configuration
 
+| Option          | Type   | Default              | Description              |
+| --------------- | ------ | -------------------- | ------------------------ |
+| `enabled`       | bool   | `true`               | Enable/disable grid mode |
+| `characters`    | string | (see below)          | Primary grid labels      |
+| `sublayer_keys` | string | (same as characters) | Subgrid labels           |
+| `reset_key`     | string | `","`                | Key to clear input       |
+| `font_size`     | int    | `10`                 | Label font size          |
+| `font_family`   | string | `""`                 | Font name                |
+| `border_width`  | int    | `1`                  | Cell border width        |
+
+**Default characters:** `abcdefghijklmnpqrstuvwxyz`
+
+### Character Requirements
+
+- At least 2 unique ASCII characters
+- No duplicates (case-insensitive)
+- Cannot contain the reset key (`,` by default)
+
 ```toml
 [grid]
-enabled = true
-
-# Characters to use for grid labels
-# Requirements:
-# - Must contain at least 2 characters
-# - Only ASCII characters allowed (no Unicode)
-# - Cannot contain ',' (reserved for reset)
-# - No duplicate characters (case-insensitive)
+# Default (all lowercase letters)
 characters = "abcdefghijklmnpqrstuvwxyz"
 
-# Characters to use for subgrid labels (fallback to grid.characters)
-# Same requirements as characters above
-sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
+# Custom character sets
+# characters = "asdfghjkl"          # Home row
+# characters = "1234567890"         # Numbers only
+# characters = "hjklasdfg"          # Vim-style
+```
 
-reset_key = "," # hotkey to reset/clear grid input
+### Custom Row/Column Labels
 
-# Optional custom labels for rows and columns
-# If not provided, labels will be inferred from characters
-# Requirements (when specified):
-# - Must contain at least 2 characters
-# - Only ASCII characters allowed
-# - Cannot contain ',' (reserved for reset)
-# - No duplicate characters (case-insensitive)
-# - Can include symbols for advanced keyboard layouts
-# row_labels = "123456789"      # Numbers for rows
-# col_labels = "abcdefghij"     # Letters for columns
-# row_labels = "'.pyfgcrl/"     # Symbols for rows
-# col_labels = "aoeuidhtns"     # Dvorak-style for columns
+Override labels for rows and columns separately.
 
-# Visual styling
-font_size = 10
-font_family = ""
-border_width = 1
+```toml
+[grid]
+# Numbers for rows, letters for columns
+row_labels = "123456789"
+col_labels = "abcdefghij"
 
-background_color = "#B3ABE9B3"       # Light purple with alpha (B3 ≈ 70% opacity)
-text_color = "#FF000000"
-matched_text_color = "#FFF8BD96"     # Orange with alpha
-matched_background_color = "#B3F8BD96"
-matched_border_color = "#B3F8BD96"
-border_color = "#B3ABE9B3"
+# Dvorak-style
+row_labels = "',.pyfgcrl/"
+col_labels = "aoeuidhtns"
+
+# Symbols (advanced keyboard layouts)
+row_labels = "7890gcrlhtnsmwvz"
+col_labels = "7890gcrlhtnsmwvz"
 ```
 
 ### Grid Behavior
 
+| Option              | Type | Default | Description                 |
+| ------------------- | ---- | ------- | --------------------------- |
+| `live_match_update` | bool | `true`  | Highlight cells as you type |
+| `hide_unmatched`    | bool | `true`  | Hide non-matching cells     |
+| `prewarm_enabled`   | bool | `true`  | Pre-compute grid on startup |
+| `enable_gc`         | bool | `false` | Periodic memory cleanup     |
+
 ```toml
 [grid]
-live_match_update = true  # Highlight matches as you type
-hide_unmatched = true     # Hide non-matching cells
-prewarm_enabled = true    # Prewarm grid caches on startup for faster first use, but uses ~1.5MB memory and CPU at startup. Disable to reduce startup overhead.
-enable_gc = false         # Enable periodic garbage collection every 5 minutes to reduce peak memory usage, but adds CPU overhead. Enable if memory is a concern.
-```
+# Real-time feedback
+live_match_update = true   # Highlight as you type
+hide_unmatched = true      # Dim non-matching cells
 
-**Workflow:** Press grid hotkey → Type coordinates → Action executes
+# Performance
+prewarm_enabled = true     # Faster first use (~1.5MB RAM)
+enable_gc = false          # Enable if memory is tight
+```
 
 ### Reset Key
 
-Use `grid.reset_key` to set the key that clears current grid input. It can be a single character (`,` by default) or a modifier combo.
-
-Examples:
+Key to clear current input and start over.
 
 ```toml
 [grid]
-reset_key = ","        # default behavior: comma resets current grid input
-reset_key = "Ctrl+R"   # use Ctrl+R to reset instead
+reset_key = ","         # default
+# reset_key = "."       # period
+# reset_key = "Ctrl+R"  # modifier combo
 ```
-
-Notes:
-
-- Single-character reset keys are reserved and must not appear in `grid.characters` or label sets.
-- Modifier combos (e.g. `Ctrl+R`) do not conflict with single-character grid labels.
 
 ---
 
-## Recursive Grid Mode
+## Recursive Grid Mode (Recommended)
 
-Recursive grid provides recursive cell-based navigation that works anywhere. The screen is divided into a grid using configurable columns and rows. Each selection narrows the active area. The reset key returns to the initial center, and backspace/delete move up one depth and recenter.
+Recursive grid divides the screen into cells, narrowing selection with each keypress.
+
+### When to Use
+
+- **Extremely precise** cursor positioning
+- **Large screens** where grid would have too many cells
+- **Repetitive workflows** - muscle memory for common areas
+
+### How It Works
+
+1. Screen divided into NxN cells (default 2x2)
+2. Press a cell key to narrow to that region
+3. Selected region divides again recursively
+4. Continues until cell is small enough (min_size_width/height)
 
 ### Basic Configuration
 
+| Option            | Type   | Default  | Description              |
+| ----------------- | ------ | -------- | ------------------------ |
+| `enabled`         | bool   | `true`   | Enable/disable mode      |
+| `grid_cols`       | int    | `2`      | Number of columns        |
+| `grid_rows`       | int    | `2`      | Number of rows           |
+| `keys`            | string | `"uijk"` | Cell selection keys      |
+| `min_size_width`  | int    | `25`     | Min cell width (pixels)  |
+| `min_size_height` | int    | `25`     | Min cell height (pixels) |
+| `max_depth`       | int    | `10`     | Maximum recursion levels |
+| `reset_key`       | string | `","`    | Key to reset to start    |
+
+### Grid Dimensions
+
 ```toml
 [recursive_grid]
-enabled = true
-
-# Grid layout: columns and rows (default: 2x2)
-# Both must be at least 2. Higher values create finer grid division.
-# For non-square grids, use different values for grid_cols and grid_rows.
+# 2x2 (default, 4 cells)
 grid_cols = 2
 grid_rows = 2
+keys = "uijk"  # u=TL, i=TR, j=BL, k=BR
 
-# Cell keys (must be exactly grid_cols * grid_rows characters)
-# For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
-# For 3x3: 9 keys
-# For 3x2: 6 keys
-keys = "uijk"
+# 3x3 (9 cells)
+grid_cols = 3
+grid_rows = 3
+keys = "gcrhtnmwv"  # 9 unique characters
 
-# Behavior
-min_size_width = 25   # Minimum cell width in pixels (stops dividing when width is reached)
-min_size_height = 25  # Minimum cell height in pixels (stops dividing when height is reached)
-max_depth = 10        # Maximum recursion depth
-reset_key = ","      # Reset to initial center (can be modifier combo like "Ctrl+R")
-
-# Visual styling
-line_color = "#8EE2FF"
-line_width = 1
-highlight_color = "#00BFFF"
-label_color = "#FFFFFF"
-label_font_size = 10
-label_font_family = ""
+# 3x2 (non-square, 6 cells)
+grid_cols = 3
+grid_rows = 2
+keys = "gcrhtn"  # 6 unique characters
 ```
 
 ### Key Behavior
 
-- Press cell key to narrow selection and preview cursor at center
-- Press backspace/delete to move up one depth and recenter cursor
-- Press reset_key to return to initial center and clear state
-- Press exit key (default: escape) to exit mode
+| Key                                    | Action                   |
+| -------------------------------------- | ------------------------ |
+| Cell keys (`u`,`i`,`j`,`k` by default) | Narrow to that cell      |
+| `Backspace` or `Delete`                | Go up one level          |
+| Reset key (`,` by default)             | Return to initial center |
+| `Esc`                                  | Exit mode                |
 
-### Custom Grid Dimensions
+### Cell Key Mapping
 
-Adjust grid_cols and grid_rows and provide the corresponding number of keys:
+Default 2x2 layout:
 
-```toml
-# Square 3x3 grid
-[recursive_grid]
-grid_cols = 3
-grid_rows = 3
-keys = "gcrhtnmwv"  # 9 keys
-
-# Non-square 3x2 grid (3 columns, 2 rows)
-[recursive_grid]
-grid_cols = 3
-grid_rows = 2
-keys = "gcrhtn"  # 6 keys
-
-# Square 4x4 grid
-[recursive_grid]
-grid_cols = 4
-grid_rows = 4
-keys = "7890gcrlhtnsmwvz"  # 16 keys
+```
+u   →   i          u = Upper-left
+                   i = Upper-right
+j   →   k          j = Lower-left
+                   k = Lower-right
 ```
 
-> You can configure any grid dimensions, but square grids (2x2, 3x3) are recommended for most use cases.
+### Visual Options
+
+| Option            | Type   | Default       | Description             |
+| ----------------- | ------ | ------------- | ----------------------- |
+| `line_color`      | string | `"#FF8EE2FF"` | Grid line color         |
+| `line_width`      | int    | `1`           | Line thickness          |
+| `highlight_color` | string | `"#4D00BFFF"` | Selected cell highlight |
+| `label_color`     | string | `"#FFFFFFFF"` | Cell label text         |
+| `label_font_size` | int    | `10`          | Label size              |
 
 ---
 
 ## Scroll Mode
 
-Vim-style scrolling with fully configurable keybindings:
+Vim-style scrolling at the cursor position.
+
+### When to Use
+
+- **Scrolling documents** without reaching for mouse
+- **Code review** in terminal or editors
+- **Long web pages** in browsers
+
+### Basic Configuration
+
+| Option             | Type | Default   | Description                  |
+| ------------------ | ---- | --------- | ---------------------------- |
+| `scroll_step`      | int  | `50`      | Pixels per j/k press         |
+| `scroll_step_half` | int  | `500`     | Pixels for Ctrl+D/U          |
+| `scroll_step_full` | int  | `1000000` | Pixels for gg/G (top/bottom) |
 
 ```toml
 [scroll]
-scroll_step = 50           # j/k keys
-scroll_step_half = 500     # Ctrl+D/U
-scroll_step_full = 1000000 # gg/G (top/bottom)
+scroll_step = 50            # j/k: 50 pixels
+scroll_step_half = 500      # Ctrl+D/U: half page
+scroll_step_full = 1000000  # gg/G: jump to top/bottom
 ```
 
-### Customizable Key Bindings
+### Key Bindings
 
-Configure which keys trigger each scroll action. Each action can have multiple keys:
+Configure which keys perform each action. Each action can have multiple keys.
 
 ```toml
 [scroll.key_bindings]
-# Movement
-scroll_up = ["k", "Up"]      # Scroll up by one line
-scroll_down = ["j", "Down"]  # Scroll down by one line
-scroll_left = ["h", "Left"]  # Scroll left by one line
-scroll_right = ["l", "Right"] # Scroll right by one line
+# Movement (one line)
+scroll_up = ["k", "Up"]
+scroll_down = ["j", "Down"]
+scroll_left = ["h", "Left"]
+scroll_right = ["l", "Right"]
 
-# Navigation
-go_top = ["gg", "Cmd+Up"]    # Go to top of page
-go_bottom = ["G", "Cmd+Down"] # Go to bottom of page
+# Navigation (jump to position)
+go_top = ["gg", "Cmd+Up"]
+go_bottom = ["G", "Cmd+Down"]
 
 # Page movement
-page_up = ["Ctrl+U", "PageUp"]   # Scroll up by half page
-page_down = ["Ctrl+D", "PageDown"] # Scroll down by half page
+page_up = ["Ctrl+U", "PageUp"]
+page_down = ["Ctrl+D", "PageDown"]
 ```
 
-**Key Format Options:**
+### Key Format
 
-| Format             | Example                                     | Description                            |
-| ------------------ | ------------------------------------------- | -------------------------------------- |
-| Single key         | `"j"`, `"k"`                                | Direct key press                       |
-| Arrow keys         | `"Up"`, `"Down"`                            | Named arrow keys                       |
-| Modifier combo     | `"Ctrl+U"`, `"Cmd+Down"`                    | Modifier + key                         |
-| Special keys       | `"PageUp"`, `"PageDown"`, `"Home"`, `"End"` | Named special keys                     |
-| Multi-key sequence | `"gg"`                                      | Press keys in sequence (500ms timeout) |
+| Format         | Example                       | Description              |
+| -------------- | ----------------------------- | ------------------------ |
+| Single key     | `"j"`, `"k"`, `"g"`           | Direct press             |
+| Arrow keys     | `"Up"`, `"Down"`              | Named keys               |
+| Modifier combo | `"Ctrl+U"`, `"Cmd+Down"`      | Modifier + key           |
+| Special keys   | `"PageUp"`, `"Home"`, `"End"` | Named specials           |
+| Multi-key      | `"gg"`, `"j j"`               | Sequence (500ms timeout) |
 
-**Multi-key Sequences:**
+### Customization Examples
 
-- Must be exactly 2 letters (a-z, A-Z)
-- Case-insensitive (both "gg" and "GG" work)
-- 500ms timeout between key presses
-- Example: `"gg"` for go to top
-
-**Supported Modifiers:**
-
-- `Cmd`/`Command` - Command key
-- `Ctrl`/`Control` - Control key
-- `Alt`/`Option` - Option/Alt key
-- `Shift` - Shift key
-
-**Default Bindings:**
-
-| Action       | Keys                 |
-| ------------ | -------------------- |
-| scroll_up    | `k`, `Up`            |
-| scroll_down  | `j`, `Down`          |
-| scroll_left  | `h`, `Left`          |
-| scroll_right | `l`, `Right`         |
-| go_top       | `gg`, `Cmd+Up`       |
-| go_bottom    | `G`, `Cmd+Down`      |
-| page_up      | `Ctrl+U`, `PageUp`   |
-| page_down    | `Ctrl+D`, `PageDown` |
-
-**Customization Examples:**
+**Vim-style:**
 
 ```toml
-# Vim-style with arrow keys
-# [scroll.key_bindings]
-# scroll_up = ["k", "Up", "Ctrl+P"]
-# scroll_down = ["j", "Down", "Ctrl+N"]
-# go_top = ["gg", "Home"]
-# go_bottom = ["G", "End"]
-
-# Home/End for navigation
-# [scroll.key_bindings]
-# scroll_up = ["k"]
-# scroll_down = ["j"]
-# scroll_left = ["h"]
-# scroll_right = ["l"]
-# go_top = ["gg", "Home"]
-# go_bottom = ["G", "End"]
-# page_up = ["PageUp"]
-# page_down = ["PageDown"]
-
-# Mac-style with Command arrows for navigation
-# [scroll.key_bindings]
-# scroll_up = ["k", "Up"]
-# scroll_down = ["j", "Down"]
-# go_top = ["gg", "Cmd+Up"]
-# go_bottom = ["G", "Cmd+Down"]
+[scroll.key_bindings]
+scroll_up = ["k"]
+scroll_down = ["j"]
+scroll_left = ["h"]
+scroll_right = ["l"]
+go_top = ["g", "g"]
+go_bottom = ["G"]
 ```
 
-**Exit:** Press `Esc` to exit scroll mode.
+**Mac-style:**
+
+```toml
+[scroll.key_bindings]
+scroll_up = ["k", "Up"]
+scroll_down = ["j", "Down"]
+go_top = ["Cmd+Up"]
+go_bottom = ["Cmd+Down"]
+page_up = ["PageUp"]
+page_down = ["PageDown"]
+```
+
+**Home/End navigation:**
+
+```toml
+[scroll.key_bindings]
+scroll_up = ["k"]
+scroll_down = ["j"]
+go_top = ["Home"]
+go_bottom = ["End"]
+page_up = ["PageUp"]
+page_down = ["PageDown"]
+```
+
+---
 
 ## Mouse Movement Actions
 
-Move the cursor using keyboard keys in hints or grid mode. Configure the step size and key bindings:
+Keyboard-driven cursor movement within hints/grid modes.
+
+### When to Use
+
+- **Fine-grained positioning** after selecting a hint/grid cell
+- **Adjusting position** before clicking
+- **Mouse-free navigation** combined with clicking
+
+### Configuration
+
+| Option            | Type | Default | Description                |
+| ----------------- | ---- | ------- | -------------------------- |
+| `move_mouse_step` | int  | `10`    | Pixels per arrow key press |
+
+**Default keybindings:**
 
 ```toml
 [action]
-move_mouse_step = 10  # Pixels to move per key press (default: 10)
+move_mouse_step = 10  # pixels per press
 
 [action.key_bindings]
-left_click = "Shift+L"       # Left click at cursor position
-right_click = "Shift+R"      # Right click at cursor position
-middle_click = "Shift+M"     # Middle click at cursor position
-mouse_down = "Shift+I"       # Press and hold mouse button
-mouse_up = "Shift+U"         # Release mouse button
-move_mouse_up = "Up"         # Move cursor up by move_mouse_step
-move_mouse_down = "Down"     # Move cursor down by move_mouse_step
-move_mouse_left = "Left"     # Move cursor left by move_mouse_step
-move_mouse_right = "Right"   # Move cursor right by move_mouse_step
+left_click = "Shift+L"
+right_click = "Shift+R"
+middle_click = "Shift+M"
+mouse_down = "Shift+I"
+mouse_up = "Shift+U"
+move_mouse_up = "Up"
+move_mouse_down = "Down"
+move_mouse_left = "Left"
+move_mouse_right = "Right"
 ```
 
-### Arrow Key Movement
-
-The arrow keys (`Up`, `Down`, `Left`, `Right`) move the cursor by `move_mouse_step` pixels in the corresponding direction. The cursor stays at the new position after exiting the mode (unless `restore_cursor_position` is enabled in `[general]`).
-
-**Customizing step size:**
+### Step Size
 
 ```toml
 [action]
-move_mouse_step = 5   # Smaller movements (more precise)
-# move_mouse_step = 20  # Larger movements (faster navigation)
+move_mouse_step = 10   # default, ~1mm on typical display
+move_mouse_step = 5    # finer control
+move_mouse_step = 20   # faster movement
 ```
 
-### Valid Key Formats
+### Usage
 
-| Format              | Example                     | Description                  |
-| ------------------- | --------------------------- | ---------------------------- |
-| Modifier + alphabet | `Cmd+L`, `Shift+R`          | At least 1 modifier + letter |
-| Modifier + special  | `Shift+Return`, `Cmd+Enter` | Modifier + Return/Enter      |
-| Single special      | `Return`, `Enter`           | Standalone special key       |
+1. Enter hints or grid mode
+2. Type to select a position
+3. Use arrow keys to adjust
+4. Click or press action key
 
-### Supported Modifiers
+---
 
-- `Cmd`/`Command` - Command key
-- `Ctrl`/`Control` - Control key
-- `Alt`/`Option` - Option/Alt key
-- `Shift` - Shift key
+## Mode Indicator
 
-**Usage:** Press the configured key in hints or grid mode to perform the action at the current cursor position.
+A small label that follows the cursor showing the current mode.
+
+### When to Use
+
+- **Visual feedback** on which mode is active
+- **Multiple monitors** - helps track which screen
+- **Beginners** learning Neru
+
+### Configuration
+
+| Option                   | Type | Default | Description                 |
+| ------------------------ | ---- | ------- | --------------------------- |
+| `scroll_enabled`         | bool | `true`  | Show in scroll mode         |
+| `hints_enabled`          | bool | `false` | Show in hints mode          |
+| `grid_enabled`           | bool | `false` | Show in grid mode           |
+| `recursive_grid_enabled` | bool | `false` | Show in recursive_grid mode |
+
+```toml
+[mode_indicator]
+# Enable per-mode
+scroll_enabled = true
+hints_enabled = false
+grid_enabled = false
+recursive_grid_enabled = false
+```
+
+### Appearance
+
+| Option               | Type   | Default       | Description            |
+| -------------------- | ------ | ------------- | ---------------------- |
+| `font_size`          | int    | `10`          | Text size              |
+| `font_family`        | string | `""`          | Font (empty = system)  |
+| `background_color`   | string | `"#F2FFD700"` | Background (gold, 95%) |
+| `text_color`         | string | `"#FF000000"` | Text (black)           |
+| `border_color`       | string | `"#FF000000"` | Border (black)         |
+| `border_width`       | int    | `1`           | Border width           |
+| `padding`            | int    | `4`           | Internal padding       |
+| `border_radius`      | int    | `4`           | Corner radius          |
+| `indicator_x_offset` | int    | `20`          | X offset from cursor   |
+| `indicator_y_offset` | int    | `20`          | Y offset from cursor   |
 
 ---
 
 ## Smooth Cursor
 
-Configure smooth mouse movement, note that this is refering the when a mouse move from a point to another point, enabled
-means you can see it moves, where disabled means it will show on another point instantly:
+Animate cursor movement between positions.
+
+### When to Use
+
+- **Visual tracking** - see where cursor is going
+- **Aesthetic preference** - smooth motion looks nicer
+- **Large jumps** - helps track movement
+
+### Configuration
+
+| Option               | Type | Default | Description                      |
+| -------------------- | ---- | ------- | -------------------------------- |
+| `move_mouse_enabled` | bool | `false` | Enable smooth movement           |
+| `steps`              | int  | `10`    | Number of intermediate positions |
+| `delay`              | int  | `1`     | Milliseconds between steps       |
 
 ```toml
 [smooth_cursor]
+move_mouse_enabled = false  # default (instant)
+
+# When enabled:
 move_mouse_enabled = true
-steps = 10        # Intermediate positions
-delay = 1         # Milliseconds between steps
-```
 
-**Parameters:**
-
-- `move_mouse_enabled`: When `true`, mouse movements will be smooth instead of instant
-- `steps`: Number of intermediate positions between start and end (higher = smoother but slower)
-- `delay`: Time in milliseconds between each step (lower = faster but less smooth)
-
-**Example configurations:**
-
-```toml
-# Very smooth, slow movement
-[smooth_cursor]
-move_mouse_enabled = true
+# Smooth but slower
 steps = 10
 delay = 10
 
-# Fast, less smooth movement
-[smooth_cursor]
-move_mouse_enabled = true
+# Faster, less smooth
 steps = 5
 delay = 2
-
-# Disable smooth movement entirely
-[smooth_cursor]
-move_mouse_enabled = false
 ```
 
 ---
 
 ## Systray
 
-Configure system tray behavior:
+System tray (menu bar) icon configuration.
+
+### When to Use
+
+- **Quick access** to menu options
+- **Status indicator** - see if Neru is running
+- **Manual control** - start/stop from menu
+
+### Configuration
+
+| Option    | Type | Default | Description           |
+| --------- | ---- | ------- | --------------------- |
+| `enabled` | bool | `true`  | Show icon in menu bar |
 
 ```toml
 [systray]
-enabled = true # Enable system tray icon (set to false for headless mode)
+enabled = true     # Show icon (default)
+# enabled = false  # Headless mode
 ```
 
-**Headless Mode:**
+### Headless Mode
 
-- When `enabled = false`, Neru runs without a menu bar icon.
-- You can still control the application via hotkeys and the CLI.
-- Useful for minimal setups or when using other status bar tools.
+When disabled:
 
-> [!NOTE]
-> Changing this setting requires a restart to take effect (`neru config reload` is not sufficient).
+- No menu bar icon
+- Control via hotkeys and CLI only
+- Useful for minimal setups or custom status bars
+
+> **Note:** Changing this requires restart (`neru config reload` won't work).
+
+---
+
+## Font Configuration
+
+Customize fonts used in overlays.
+
+### Default Behavior
+
+When `font_family = ""` (empty string):
+
+- **Hints**: Bold system font
+- **Grid/Scroll**: Regular system font
+
+### Font Resolution
+
+Neru tries to find fonts in this order:
+
+1. **PostScript name** (exact match)
+    - `"SFMono-Bold"`, `"Menlo-Regular"`, `"CourierNew-Bold"`
+
+2. **Family name** (looser matching)
+    - `"SF Mono"`, `"JetBrains Mono"`, `"Fira Code"`
+
+3. **Fallback** to system font
+
+### Common Fonts
+
+```toml
+[hints]
+# System default
+font_family = ""
+
+# Monospace fonts
+font_family = "SF Mono"
+font_family = "Menlo"
+font_family = "Monaco"
+font_family = "JetBrains Mono"
+font_family = "Fira Code"
+font_family = "Source Code Pro"
+
+# With variants (PostScript names)
+font_family = "SFMono-Bold"
+font_family = "Menlo-Bold"
+```
+
+### Finding Available Fonts
+
+```bash
+# List all font families
+system_profiler SPFontsDataType | grep "Family:"
+
+# Or use a font manager app like Font Book
+open -a "Font Book"
+```
+
+> **Tip:** Family names (e.g., "SF Mono") are more portable than PostScript names.
+
+---
+
+## Color Format
+
+Neru colors use hex notation with optional alpha transparency.
+
+### Supported Formats
+
+| Format      | Example     | Alpha | Description                       |
+| ----------- | ----------- | ----- | --------------------------------- |
+| `#AARRGGBB` | `#FF000000` | Yes   | 8-char: Alpha + RGB (recommended) |
+| `#RRGGBB`   | `#FF0000`   | No    | 6-char: RGB only (fully opaque)   |
+| `#RGB`      | `#F00`      | No    | 3-char shorthand                  |
+
+### Format Breakdown: `#AARRGGBB`
+
+| Position | Component | Range | Description          |
+| -------- | --------- | ----- | -------------------- |
+| 1-2      | AA        | 00-FF | Alpha (transparency) |
+| 3-4      | RR        | 00-FF | Red                  |
+| 5-6      | GG        | 00-FF | Green                |
+| 7-8      | BB        | 00-FF | Blue                 |
+
+### Alpha Channel Reference
+
+| Opacity | Alpha | Use Case                            |
+| ------- | ----- | ----------------------------------- |
+| 100%    | `FF`  | Solid colors, high contrast         |
+| 95%     | `F2`  | Slight transparency                 |
+| 90%     | `E6`  | Moderate transparency               |
+| 80%     | `CC`  | Noticeable transparency             |
+| 70%     | `B3`  | Semi-transparent (default for grid) |
+| 60%     | `99`  | More transparent                    |
+| 50%     | `80`  | Half transparent                    |
+| 40%     | `66`  | Low visibility                      |
+| 30%     | `4D`  | Subtle (default highlight)          |
+| 20%     | `33`  | Very subtle                         |
+| 10%     | `1A`  | Barely visible                      |
+| 0%      | `00`  | Invisible                           |
+
+### Formula
+
+To calculate alpha from opacity:
+
+```bash
+alpha_hex = round(opacity * 255)
+
+# Examples:
+# 70% = 0.7 * 255 = 178.5 → round to 179 → 0xB3
+# 95% = 0.95 * 255 = 242.25 → round to 242 → 0xF2
+```
+
+### Common Examples
+
+```toml
+# Gold (classic hint color)
+background_color = "#F2FFD700"          # FF = opaque, F2 = 95%
+background_color = "#FFD700"            # 6-char, fully opaque
+
+# Grid colors
+background_color = "#B3ABE9B3"          # Light purple, 70%
+matched_background_color = "#B3F8BD96"  # Orange, 70%
+
+# Blue highlight
+highlight_color = "#4D00BFFF"           # Deep sky blue, 30%
+
+# White/black
+text_color = "#FF000000"                # Black, opaque
+label_color = "#FFFFFFFF"               # White, opaque
+```
 
 ---
 
 ## Logging
 
+Control how Neru logs information for debugging and monitoring.
+
+### Configuration
+
+| Option                 | Type   | Default  | Description          |
+| ---------------------- | ------ | -------- | -------------------- |
+| `log_level`            | string | `"info"` | Minimum level to log |
+| `log_file`             | string | `""`     | Custom log path      |
+| `structured_logging`   | bool   | `true`   | JSON format          |
+| `disable_file_logging` | bool   | `false`  | Console only         |
+| `max_file_size`        | int    | `10`     | MB before rotation   |
+| `max_backups`          | int    | `5`      | Old files to keep    |
+| `max_age`              | int    | `30`     | Days to keep         |
+
+### Log Levels
+
+| Level   | What Gets Logged     |
+| ------- | -------------------- |
+| `debug` | Everything (verbose) |
+| `info`  | Normal operations    |
+| `warn`  | Warnings and errors  |
+| `error` | Errors only          |
+
+### Common Configurations
+
+**Default (recommended):**
+
 ```toml
 [logging]
-log_level = "info"          # "debug", "info", "warn", "error"
-log_file = ""               # Empty = ~/Library/Logs/neru/app.log
-structured_logging = true   # JSON format for file logs
-disable_file_logging = false # Disable file logging
-max_file_size = 10          # Max file size in MB
-max_backups = 5             # Max number of backups
-max_age = 30                # Max age in days
+log_level = "info"
+structured_logging = true
 ```
 
-**Default location:** `~/Library/Logs/neru/app.log`
-
-**Debug logging:**
+**Debug mode (troubleshooting):**
 
 ```toml
 [logging]
 log_level = "debug"
 ```
 
-Then check logs:
+**Console only (no file):**
+
+```toml
+[logging]
+disable_file_logging = true
+```
+
+**Custom location:**
+
+```toml
+[logging]
+log_file = "/var/log/neru.log"
+```
+
+### Log Location
+
+Default: `~/Library/Logs/neru/app.log`
+
+### Viewing Logs
 
 ```bash
+# Real-time monitoring
 tail -f ~/Library/Logs/neru/app.log
+
+# Last 50 lines
+tail -50 ~/Library/Logs/neru/app.log
+
+# Search for errors
+grep ERROR ~/Library/Logs/neru/app.log
+
+# Search for specific app
+grep "com.apple.Safari" ~/Library/Logs/neru/app.log
 ```
+
+### Log Rotation
+
+Logs automatically rotate based on settings:
+
+- **max_file_size**: Triggers rotation when file exceeds this
+- **max_backups**: Number of old logs to keep
+- **max_age**: Days before old logs are deleted
+
+Example: With 10MB max size, 5 backups, 30-day max age
+
+- Logs rotate when current file hits 10MB
+- Keep last 5 rotated files
+- Delete files older than 30 days
