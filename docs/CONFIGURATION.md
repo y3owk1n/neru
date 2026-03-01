@@ -70,7 +70,7 @@ Global hotkeys trigger Neru navigation modes from anywhere.
 **Actions can be:**
 
 - **Neru commands**: `"Cmd+Shift+Space" = "hints"`
-- **Commands with actions**: `"Cmd+Shift+G" = "grid left_click"`
+- **Commands with actions**: `"Cmd+Shift+G" = "grid --action left_click"`
 - **Shell commands**: `"Cmd+Alt+T" = "exec open -a Terminal"`
 
 ### Important Note
@@ -97,8 +97,8 @@ Defaults that will be disabled:
 
 ```toml
 [hotkeys]
-"Cmd+Shift+Space" = "hints left_click"
-"Cmd+Shift+G" = "grid left_click"
+"Cmd+Shift+Space" = "hints --action left_click"
+"Cmd+Shift+G" = "grid --action left_click"
 "Cmd+Shift+S" = "scroll"
 ```
 
