@@ -7,7 +7,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"go.uber.org/zap"
 )
@@ -26,8 +25,7 @@ type IPCController struct {
 	Config   *config.Config
 
 	// Infrastructure
-	Logger  *zap.Logger
-	Metrics appmetrics.Collector
+	Logger *zap.Logger
 
 	// Mode management
 	Modes *modes.Handler
@@ -50,7 +48,6 @@ func NewIPCController(
 	config *config.Config,
 	modesHandler *modes.Handler,
 	logger *zap.Logger,
-	metricsCollector appmetrics.Collector,
 	configPath string,
 ) *IPCController {
 	ipcController := &IPCController{
@@ -63,7 +60,6 @@ func NewIPCController(
 		Config:        config,
 		Modes:         modesHandler,
 		Logger:        logger,
-		Metrics:       metricsCollector,
 		ConfigPath:    configPath,
 		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
@@ -107,7 +103,6 @@ func (c *IPCController) RegisterHandlers() {
 		c.GridService,
 		c.ActionService,
 		c.ScrollService,
-		c.Metrics,
 		c.ConfigPath,
 		c.Logger,
 	)

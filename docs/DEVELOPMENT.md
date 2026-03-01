@@ -206,21 +206,6 @@ To debug Neru during development:
     dlv debug ./cmd/neru
     ```
 
-### Profiling
-
-Enable Go's pprof HTTP server to profile the running application:
-
-```bash
-# Start Neru with pprof server on port 6060
-NERU_PPROF=:6060 ./bin/neru launch
-
-# Access profiles in browser
-open http://localhost:6060/debug/pprof/
-
-# Or use command line tools
-go tool pprof http://localhost:6060/debug/pprof/heap
-```
-
 ---
 
 ## Building
@@ -916,21 +901,6 @@ log_level = "debug"
 
 # Watch logs
 tail -f ~/Library/Logs/neru/app.log
-```
-
-### Profiling
-
-Enable pprof for performance analysis:
-
-```bash
-# Start with profiling
-NERU_PPROF=:6060 ./bin/neru launch
-
-# Access profiles
-open http://localhost:6060/debug/pprof/
-
-# CPU profile
-go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
 ```
 
 ### Useful Commands

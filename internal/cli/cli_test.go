@@ -82,18 +82,16 @@ func TestBuildActionCommand(t *testing.T) {
 func TestCommandInitialization(t *testing.T) {
 	// Test that global commands are properly initialized
 	expectedCommands := map[string]bool{
-		"start":   false,
-		"stop":    false,
-		"idle":    false,
-		"hints":   false,
-		"grid":    false,
-		"scroll":  false,
-		"action":  false,
-		"status":  false,
-		"doctor":  false,
-		"metrics": false,
-		"profile": false,
-		"launch":  false,
+		"start":  false,
+		"stop":   false,
+		"idle":   false,
+		"hints":  false,
+		"grid":   false,
+		"scroll": false,
+		"action": false,
+		"status": false,
+		"doctor": false,
+		"launch": false,
 	}
 
 	for _, cmd := range cli.RootCmd.Commands() {
@@ -152,8 +150,6 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{"action_middle_click", getActionCmd("middle_click"), true},
 		{"status", getCmd("status"), true},
 		{"doctor", getCmd("doctor"), true},
-		{"metrics", getCmd("metrics"), false}, // Metrics just prints status, doesn't need daemon
-		{"profile", getCmd("profile"), false}, // Profile just prints help, doesn't need daemon
 	}
 
 	for _, testCase := range tests {

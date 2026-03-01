@@ -13,7 +13,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -240,15 +239,12 @@ func initializeRealAdapters(
 ) (ports.AccessibilityPort, ports.OverlayPort) {
 	t.Helper()
 
-	// Initialize metrics collector
-	metricsCollector := appmetrics.NewCollector()
-
 	// Create infrastructure client (nil cache = use default)
 	axClient := accessibility.NewInfraAXClient(logger, nil)
 	t.Cleanup(func() { axClient.Cache().Stop() })
 
 	// Create base accessibility adapter
-	baseAccessibilityAdapter := accessibility.NewAdapter(
+	accAdapter := accessibility.NewAdapter(
 		logger,
 		cfg.General.ExcludedApps,
 		cfg.Hints.ClickableRoles,
@@ -256,20 +252,11 @@ func initializeRealAdapters(
 		cfg.Hints.DetectMissionControl,
 	)
 
-	// Wrap with metrics decorator
-	accAdapter := accessibility.NewMetricsDecorator(
-		baseAccessibilityAdapter,
-		metricsCollector,
-	)
-
 	// Initialize overlay manager (always use no-op for integration tests)
 	overlayManager := &uiOverlay.NoOpManager{}
 
 	// Create overlay adapter
-	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)
-
-	// Wrap with metrics decorator
-	overlay := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
+	overlay := overlayAdapter.NewAdapter(overlayManager, logger)
 
 	return accAdapter, overlay
 }

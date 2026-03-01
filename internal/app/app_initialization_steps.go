@@ -14,7 +14,6 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	eventtapadapter "github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	ipcadapter "github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"github.com/y3owk1n/neru/internal/ui"
@@ -60,22 +59,11 @@ func initializeServicesAndAdapters(app *App) error {
 	// Initialize config service
 	cfgService := config.NewService(cfg, app.ConfigPath, logger)
 
-	// Initialize metrics
-	var metricsCollector appmetrics.Collector
-	if cfg.Metrics.Enabled {
-		metricsCollector = appmetrics.NewCollector()
-	} else {
-		metricsCollector = &appmetrics.NoOpCollector{}
-	}
-
-	app.metrics = metricsCollector
-
 	// Initialize adapters
 	accAdapter, overlayAdapter, axCacheStop := initializeAdapters(
 		cfg,
 		logger,
 		app.overlayManager,
-		metricsCollector,
 	)
 
 	app.axCacheStop = axCacheStop
@@ -327,7 +315,6 @@ func initializeIPCController(app *App) {
 		app.config,
 		app.modes,
 		app.logger,
-		app.metrics,
 		app.ConfigPath,
 	)
 }
@@ -435,7 +422,6 @@ func cleanupServicesAndAdapters(app *App) {
 	app.scrollService = nil
 	app.modeIndicatorService = nil
 	app.configService = nil
-	app.metrics = nil
 }
 
 // cleanupUIComponents cleans up resources allocated during UI components initialization.

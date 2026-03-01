@@ -2,14 +2,12 @@ package app_test
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"go.uber.org/zap"
 )
@@ -18,7 +16,6 @@ func newTestController() *app.IPCController {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger, _ := zap.NewDevelopment()
-	metricsCollector := appmetrics.NewCollector()
 	configService := config.NewService(cfg, "", logger)
 
 	// Create controller with minimal dependencies for basic command testing
@@ -27,7 +24,6 @@ func newTestController() *app.IPCController {
 		Config:        cfg,
 		ConfigService: configService,
 		Logger:        logger,
-		Metrics:       metricsCollector,
 		ConfigPath:    "/test/config.toml",
 		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
@@ -44,7 +40,6 @@ func newTestController() *app.IPCController {
 		nil, // gridService
 		nil, // actionService
 		nil, // scrollService
-		metricsCollector,
 		"/test/config.toml",
 		logger,
 	)
@@ -156,29 +151,6 @@ func TestIPCController_HandleConfig(t *testing.T) {
 		t.Errorf("Expected data to be *config.Config, got %T", commandResponse.Data)
 	} else if cfg == nil {
 		t.Error("Expected valid config struct, got nil")
-	}
-}
-
-func TestIPCController_HandleMetrics(t *testing.T) {
-	controller := newTestController()
-
-	ctx := context.Background()
-
-	commandResponse := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandMetrics})
-	if !commandResponse.Success {
-		t.Errorf("Expected success=true, got %v", commandResponse.Success)
-	}
-
-	if commandResponse.Message == "" {
-		t.Error("Expected non-empty message with metrics JSON")
-	}
-
-	// Verify it's valid JSON
-	var metricsData []any
-
-	err := json.Unmarshal([]byte(commandResponse.Message), &metricsData)
-	if err != nil {
-		t.Errorf("Expected valid JSON metrics, got error: %v", err)
 	}
 }
 

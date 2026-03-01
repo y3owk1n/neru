@@ -149,7 +149,6 @@ type Config struct {
 	ModeIndicator ModeIndicatorConfig `json:"modeIndicator" toml:"mode_indicator"`
 	Logging       LoggingConfig       `json:"logging"       toml:"logging"`
 	SmoothCursor  SmoothCursorConfig  `json:"smoothCursor"  toml:"smooth_cursor"`
-	Metrics       MetricsConfig       `json:"metrics"       toml:"metrics"`
 	Systray       SystrayConfig       `json:"systray"       toml:"systray"`
 }
 
@@ -324,11 +323,6 @@ type AdditionalAXSupport struct {
 	AdditionalElectronBundles []string `json:"additionalElectronBundles" toml:"additional_electron_bundles"`
 	AdditionalChromiumBundles []string `json:"additionalChromiumBundles" toml:"additional_chromium_bundles"`
 	AdditionalFirefoxBundles  []string `json:"additionalFirefoxBundles"  toml:"additional_firefox_bundles"`
-}
-
-// MetricsConfig defines metrics collection settings.
-type MetricsConfig struct {
-	Enabled bool `json:"enabled" toml:"enabled"`
 }
 
 // SystrayConfig defines system tray settings.
