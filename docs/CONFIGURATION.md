@@ -286,7 +286,7 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | `border_radius`      | int    | `4`           | Corner radius in pixels    |
 | `border_width`       | int    | `1`           | Border width in pixels     |
 | `padding`            | int    | `4`           | Internal padding in pixels |
-| `background_color`   | string | `"#FFD700"`   | Label background (gold)    |
+| `background_color`   | string | `"#F2FFD700"` | Label background (gold)    |
 | `text_color`         | string | `"#FF000000"` | Label text (black)         |
 | `matched_text_color` | string | `"#FF737373"` | Typed text color (gray)    |
 | `border_color`       | string | `"#FF000000"` | Border color (black)       |
@@ -712,7 +712,7 @@ scroll_right = ["l", "Right"]
 
 # Navigation (jump to position)
 go_top = ["gg", "Cmd+Up"]
-go_bottom = ["G", "Cmd+Down"]
+go_bottom = ["Shift+G", "Cmd+Down"]
 
 # Page movement
 page_up = ["Ctrl+U", "PageUp"]
@@ -727,7 +727,7 @@ page_down = ["Ctrl+D", "PageDown"]
 | Arrow keys     | `"Up"`, `"Down"`              | Named keys               |
 | Modifier combo | `"Ctrl+U"`, `"Cmd+Down"`      | Modifier + key           |
 | Special keys   | `"PageUp"`, `"Home"`, `"End"` | Named specials           |
-| Multi-key      | `"gg"`, `"j j"`               | Sequence (500ms timeout) |
+| Multi-key      | `"gg"`                        | Sequence (500ms timeout) |
 
 ### Customization Examples
 
@@ -739,8 +739,8 @@ scroll_up = ["k"]
 scroll_down = ["j"]
 scroll_left = ["h"]
 scroll_right = ["l"]
-go_top = ["g", "g"]
-go_bottom = ["G"]
+go_top = ["gg"]
+go_bottom = ["Shift+G"]
 ```
 
 **Mac-style:**
