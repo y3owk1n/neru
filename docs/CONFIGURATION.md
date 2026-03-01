@@ -307,7 +307,6 @@ hint_characters = "asdfghjkl"    # Home row (default, recommended)
 
 - At least 2 unique ASCII characters
 - No duplicates (case-insensitive)
-- No commas (reserved for grid reset)
 
 ### Visibility Options
 
