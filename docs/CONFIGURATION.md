@@ -18,7 +18,6 @@ Neru uses TOML for configuration. This guide covers all available options with e
 - [Scroll Mode](#scroll-mode)
 - [Mouse Movement Actions](#mouse-movement-actions)
 - [Smooth Cursor](#smooth-cursor)
-- [Metrics](#metrics)
 - [Systray](#systray)
 - [Logging](#logging)
 - [Complete Example](#complete-example)
@@ -815,23 +814,6 @@ delay = 2
 [smooth_cursor]
 move_mouse_enabled = false
 ```
-
----
-
-## Metrics
-
-Configure application metrics collection:
-
-```toml
-[metrics]
-enabled = false  # Enable metrics collection
-```
-
-**When enabled:**
-
-- Metrics are exposed via the `neru metrics` command
-- Tracks accessibility element counts and other performance data
-- Disabled by default to reduce overhead
 
 ---
 

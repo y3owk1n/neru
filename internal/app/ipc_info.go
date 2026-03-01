@@ -11,7 +11,6 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"go.uber.org/zap"
 )
@@ -26,7 +25,6 @@ type IPCControllerInfo struct {
 	gridService   *services.GridService
 	actionService *services.ActionService
 	scrollService *services.ScrollService
-	metrics       appmetrics.Collector
 	configPath    string
 	logger        *zap.Logger
 }
@@ -41,7 +39,6 @@ func NewIPCControllerInfo(
 	gridService *services.GridService,
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
-	metrics appmetrics.Collector,
 	configPath string,
 	logger *zap.Logger,
 ) *IPCControllerInfo {
@@ -54,7 +51,6 @@ func NewIPCControllerInfo(
 		gridService:   gridService,
 		actionService: actionService,
 		scrollService: scrollService,
-		metrics:       metrics,
 		configPath:    configPath,
 		logger:        logger,
 	}
@@ -68,7 +64,6 @@ func (h *IPCControllerInfo) RegisterHandlers(
 	handlers[domain.CommandConfig] = h.handleConfig
 	handlers[domain.CommandReloadConfig] = h.handleReloadConfig
 	handlers[domain.CommandHealth] = h.handleHealth
-	handlers[domain.CommandMetrics] = h.handleMetrics
 }
 
 // ResolveConfigPath determines the configuration file path for status reporting.
@@ -209,33 +204,4 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 	}
 
 	return response
-}
-
-func (h *IPCControllerInfo) handleMetrics(_ context.Context, _ ipc.Command) ipc.Response {
-	if h.metrics == nil {
-		return ipc.Response{
-			Success: false,
-			Message: "metrics not enabled",
-			Code:    ipc.CodeActionFailed,
-		}
-	}
-
-	metrics := h.metrics.Snapshot()
-
-	metricsJSON, err := json.Marshal(metrics)
-	if err != nil {
-		h.logger.Error("Failed to marshal metrics", zap.Error(err))
-
-		return ipc.Response{
-			Success: false,
-			Message: "failed to marshal metrics: " + err.Error(),
-			Code:    ipc.CodeActionFailed,
-		}
-	}
-
-	return ipc.Response{
-		Success: true,
-		Message: string(metricsJSON),
-		Code:    ipc.CodeOK,
-	}
 }

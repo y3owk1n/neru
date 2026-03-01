@@ -78,9 +78,6 @@ const (
 	// DefaultMaxDepth is the default max depth for accessibility tree traversal.
 	DefaultMaxDepth = 50
 
-	// DefaultMetricsCapacity is the default metrics capacity.
-	DefaultMetricsCapacity = 1000
-
 	// DefaultChildrenCapacity is the default children capacity.
 	DefaultChildrenCapacity = 8
 
@@ -365,9 +362,6 @@ func DefaultConfig() *Config {
 			MoveMouseEnabled: false,
 			Steps:            DefaultSmoothCursorSteps,
 			Delay:            1, // 1ms delay between steps
-		},
-		Metrics: MetricsConfig{
-			Enabled: false, // Disabled by default
 		},
 		Systray: SystrayConfig{
 			Enabled: true, // Enabled by default

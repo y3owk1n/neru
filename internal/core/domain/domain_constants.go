@@ -32,7 +32,6 @@ const (
 	CommandConfig            = "config"
 	CommandReloadConfig      = "reload"
 	CommandHealth            = "health"
-	CommandMetrics           = "metrics"
 	CommandToggleScreenShare = "toggle-screen-share"
 )
 

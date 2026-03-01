@@ -37,7 +37,6 @@ neru launch              # Start daemon
 neru status              # Check status
 neru services install    # Install launchd service
 neru services status     # Check service status
-neru profile             # Show profiling setup instructions
 neru hints               # Start hint mode
 neru grid                # Start grid mode
 neru recursive_grid            # Start recursive-grid mode
@@ -247,34 +246,13 @@ neru scroll
 
 ```bash
 neru status           # Daemon status and mode
-neru profile          # Profiling setup instructions
 neru config dump      # Show loaded configuration
 neru config reload    # Reload config without restart
-neru metrics          # Show metrics (if enabled)
 neru --version        # Version info
-neru --help           # General help
-neru command --help   # Command-specific help
 ```
 
 **Status values:** `running`, `disabled`
 **Mode values:** `idle`, `hints`, `grid`, `scroll`
-
-### Profiling
-
-```bash
-neru profile    # Show profiling setup instructions
-```
-
-For performance analysis, enable Go's pprof HTTP server via environment variable:
-
-```bash
-export NERU_PPROF=:6060
-neru launch
-# Then visit http://localhost:6060/debug/pprof/ in browser
-# Or use: go tool pprof http://localhost:6060/debug/pprof/heap
-```
-
-The `neru profile` command prints these instructions for easy reference.
 
 ---
 

@@ -11,7 +11,6 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 	"go.uber.org/zap"
@@ -50,7 +49,6 @@ type App struct {
 	eventTap       ports.EventTapPort
 	ipcServer      ports.IPCPort
 	appWatcher     Watcher
-	metrics        appmetrics.Collector
 
 	modes *modes.Handler
 

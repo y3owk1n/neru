@@ -350,10 +350,6 @@ delay = 1
 # If false, the application will run in headless mode without a menu bar icon
 enabled = true
 
-[metrics]
-# Whether to enable metrics collection
-enabled = false
-
 [logging]
 # Log level: debug, info, warn, error
 log_level = "info"

@@ -11,7 +11,6 @@ import (
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	accessibilityAdapter "github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/core/infra/appmetrics"
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
@@ -100,7 +99,6 @@ func initializeAdapters(
 	cfg *config.Config,
 	logger *zap.Logger,
 	overlayManager OverlayManager,
-	metricsCollector appmetrics.Collector,
 ) (ports.AccessibilityPort, ports.OverlayPort, func()) {
 	excludedBundles := cfg.General.ExcludedApps
 	clickableRoles := cfg.Hints.ClickableRoles
@@ -109,23 +107,16 @@ func initializeAdapters(
 	axClient := accessibilityAdapter.NewInfraAXClient(logger, nil)
 
 	// Create base accessibility adapter with core functionality
-	baseAccessibilityAdapter := accessibilityAdapter.NewAdapter(
+	accAdapter := accessibilityAdapter.NewAdapter(
 		logger,
 		excludedBundles,
 		clickableRoles,
 		axClient,
 		cfg.Hints.DetectMissionControl,
 	)
-	// Wrap with metrics decorator to track performance
-	accAdapter := accessibilityAdapter.NewMetricsDecorator(
-		baseAccessibilityAdapter,
-		metricsCollector,
-	)
 
 	// Create overlay adapter for UI rendering
-	baseOverlayAdapter := overlayAdapter.NewAdapter(overlayManager, logger)
-	// Wrap with metrics decorator to track rendering performance
-	overlayPort := overlayAdapter.NewMetricsDecorator(baseOverlayAdapter, metricsCollector)
+	overlayPort := overlayAdapter.NewAdapter(overlayManager, logger)
 
 	axCache := axClient.Cache()
 
