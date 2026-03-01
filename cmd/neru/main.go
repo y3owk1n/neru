@@ -3,8 +3,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	_ "net/http/pprof" // Register pprof handlers
 	"os"
 	"path/filepath"
 	"runtime"
@@ -28,19 +26,6 @@ func main() {
 
 // LaunchDaemon is called by the CLI to launch the daemon.
 func LaunchDaemon(configPath string) {
-	// Start pprof server if enabled via environment variable
-	// Usage: NERU_PPROF=:6060 neru launch
-	if pprofAddr := os.Getenv("NERU_PPROF"); pprofAddr != "" {
-		go func() {
-			fmt.Fprintf(os.Stderr, "Starting pprof server on %s\\n", pprofAddr)
-
-			pprofServerErr := http.ListenAndServe(pprofAddr, nil)
-			if pprofServerErr != nil {
-				fmt.Fprintf(os.Stderr, "pprof server error: %v\\n", pprofServerErr)
-			}
-		}()
-	}
-
 	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop())
 	configResult := service.LoadWithValidation(configPath)
 
