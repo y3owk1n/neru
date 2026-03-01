@@ -309,7 +309,7 @@ neru --version        # Version info
 ```
 
 **Status values:** `running`, `disabled`
-**Mode values:** `idle`, `hints`, `grid`, `scroll`
+**Mode values:** `idle`, `hints`, `grid`, `recursive_grid`, `scroll`
 
 ---
 
