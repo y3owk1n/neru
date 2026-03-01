@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.1](https://github.com/y3owk1n/neru/compare/v1.22.0...v1.22.1) (2026-03-01)
+
+
+### Bug Fixes
+
+* **docs:** need `--action` for command with action ([0789121](https://github.com/y3owk1n/neru/commit/07891213752d8e10cefd7c9a982f1c1e1106b102))
+
 ## [1.22.0](https://github.com/y3owk1n/neru/compare/v1.21.4...v1.22.0) (2026-03-01)
 
 
