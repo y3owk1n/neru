@@ -245,7 +245,7 @@ func (c *Config) ValidateGrid() error {
 
 	resetKey := c.Grid.ResetKey
 	if resetKey == "" {
-		resetKey = ","
+		resetKey = " "
 	}
 
 	// Validate reset key format: either single character or modifier combo
@@ -986,7 +986,7 @@ func (c *Config) ValidateRecursiveGrid() error {
 
 	resetKey := c.RecursiveGrid.ResetKey
 	if resetKey == "" {
-		resetKey = ","
+		resetKey = " "
 	}
 
 	// Validate reset key format: either single character or modifier combo

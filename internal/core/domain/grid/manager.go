@@ -66,7 +66,7 @@ func NewManager(
 func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	resetKey := m.resetKey
 	if resetKey == "" {
-		resetKey = ","
+		resetKey = " "
 	}
 
 	// Handle reset key to clear input and return to initial state.

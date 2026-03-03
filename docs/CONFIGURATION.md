@@ -514,7 +514,7 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 | `enabled`       | bool   | `true`               | Enable/disable grid mode |
 | `characters`    | string | (see below)          | Primary grid labels      |
 | `sublayer_keys` | string | (same as characters) | Subgrid labels           |
-| `reset_key`     | string | `","`                | Key to clear input       |
+| `reset_key`     | string | `" "`                | Key to clear input       |
 | `font_size`     | int    | `10`                 | Label font size          |
 | `font_family`   | string | `""`                 | Font name                |
 | `border_width`  | int    | `1`                  | Cell border width        |
@@ -548,8 +548,7 @@ Override labels for rows and columns separately.
 row_labels = "123456789"
 col_labels = "abcdefghij"
 
-# Dvorak-style (requires reset_key other than ',')
-# reset_key = "."
+# Dvorak-style
 row_labels = "',.pyfgcrl/"
 col_labels = "aoeuidhtns"
 
@@ -584,7 +583,8 @@ Key to clear current input and start over.
 
 ```toml
 [grid]
-reset_key = ","         # default
+reset_key = " "         # default (space)
+# reset_key = ","       # comma
 # reset_key = "."       # period
 # reset_key = "Ctrl+R"  # modifier combo
 ```
@@ -619,7 +619,7 @@ Recursive grid divides the screen into cells, narrowing selection with each keyp
 | `min_size_width`  | int    | `25`     | Min cell width (pixels)  |
 | `min_size_height` | int    | `25`     | Min cell height (pixels) |
 | `max_depth`       | int    | `10`     | Maximum recursion levels |
-| `reset_key`       | string | `","`    | Key to reset to start    |
+| `reset_key`       | string | `" "`    | Key to reset to start    |
 
 ### Grid Dimensions
 

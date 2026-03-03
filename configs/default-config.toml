@@ -172,7 +172,7 @@ sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 # Useful for correcting mistakes while selecting grid coordinates
 # Common choices: "," (comma), "." (period), "r" (r key), "backspace"
 # Note: Cannot be the same as any grid character to avoid conflicts
-reset_key = ","
+reset_key = " "
 
 # Optional custom labels for rows and columns
 # If not provided, labels will be inferred from characters
@@ -235,7 +235,7 @@ label_font_family = ""            # Font family for labels
 min_size_width = 25            # Minimum cell width in pixels (stops dividing when width is reached)
 min_size_height = 25           # Minimum cell height in pixels (stops dividing when height is reached)
 max_depth = 10                 # Maximum recursion depth (safety limit)
-reset_key = ","                # Reset to initial center and clear state
+reset_key = " "                # Reset to initial center and clear state
 
 [scroll]
 # Scroll step sizes
