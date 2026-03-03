@@ -232,7 +232,7 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			name: "grid with reserved reset character",
 			config: config.Config{
 				Grid: config.GridConfig{
-					Characters: "ABC,DEF", // Contains ','
+					Characters: "ABC DEF", // Contains ' ' (space, the default reset key)
 				},
 			},
 			wantErr: true,
@@ -330,7 +330,7 @@ func TestConfig_ValidateGrid(t *testing.T) {
 					TextColor:              "#000000",
 					MatchedTextColor:       "#000000",
 					MatchedBackgroundColor: "#ffffff",
-					MatchedBorderColor:     "#ffffff",
+					MatchedBorderColor:     "#000000",
 					BorderColor:            "#ffffff",
 				},
 			},
@@ -493,7 +493,7 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			config: config.Config{
 				Grid: config.GridConfig{
 					Characters:   "ABC",
-					SublayerKeys: "abcdefg,h", // Invalid - contains ','
+					SublayerKeys: "abcdefg h", // Invalid - contains ' ' (space, the default reset key)
 				},
 			},
 			wantErr: true,

@@ -525,7 +525,7 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 
 - At least 2 unique ASCII characters
 - No duplicates (case-insensitive)
-- Cannot contain the reset key (`,` by default)
+- Cannot contain the reset key (` ` / space by default)
 
 ```toml
 [grid]
@@ -647,7 +647,7 @@ keys = "gcrhtn"  # 6 unique characters
 | -------------------------------------- | ------------------------ |
 | Cell keys (`u`,`i`,`j`,`k` by default) | Narrow to that cell      |
 | `Backspace` or `Delete`                | Go up one level          |
-| Reset key (`,` by default)             | Return to initial center |
+| Reset key (` ` / space by default)     | Return to initial center |
 | `Esc`                                  | Exit mode                |
 
 ### Cell Key Mapping
