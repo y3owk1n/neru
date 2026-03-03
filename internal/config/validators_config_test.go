@@ -540,7 +540,7 @@ func TestConfig_ValidateModeExitKeys_ResetKeyConflicts(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "literal space exit key conflicts with default grid reset key",
+			name: "literal space exit key rejected as empty after trim",
 			config: func() config.Config {
 				cfg := *config.DefaultConfig()
 				cfg.General.ModeExitKeys = []string{"escape", " "}
