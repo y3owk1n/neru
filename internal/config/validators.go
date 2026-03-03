@@ -251,7 +251,7 @@ func (c *Config) ValidateGrid() error {
 	// Validate reset key format: either single character or modifier combo
 	if strings.Contains(resetKey, "+") {
 		// Validate modifier combo (e.g. "Ctrl+R")
-		err := validateResetKeyCombo(resetKey)
+		err := validateResetKeyCombo(resetKey, "grid.reset_key")
 		if err != nil {
 			return err
 		}
@@ -888,8 +888,9 @@ func validateModeExitKeyCombo(key string, index int) error {
 }
 
 // validateResetKeyCombo validates a modifier combo reset key format (e.g. "Ctrl+R").
-func validateResetKeyCombo(key string) error {
-	return validateModifierCombo(key, "grid.reset_key")
+// The fieldName parameter is used in error messages to identify which config field is being validated.
+func validateResetKeyCombo(key string, fieldName string) error {
+	return validateModifierCombo(key, fieldName)
 }
 
 // ValidateRecursiveGrid validates the recursive-grid configuration.
@@ -992,7 +993,7 @@ func (c *Config) ValidateRecursiveGrid() error {
 	// Validate reset key format: either single character or modifier combo
 	if strings.Contains(resetKey, "+") {
 		// Validate modifier combo (e.g. "Ctrl+R")
-		err := validateResetKeyCombo(resetKey)
+		err := validateResetKeyCombo(resetKey, "recursive_grid.reset_key")
 		if err != nil {
 			return err
 		}

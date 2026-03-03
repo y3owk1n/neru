@@ -128,7 +128,12 @@ func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 	}
 
 	// Handle reset key
-	if config.IsResetKey(key, m.resetKey) {
+	resetKey := m.resetKey
+	if resetKey == "" {
+		resetKey = " "
+	}
+
+	if config.IsResetKey(key, resetKey) {
 		m.Logger.Debug("Reset key pressed in recursive-grid mode",
 			zap.String("key", key))
 		m.Reset()
