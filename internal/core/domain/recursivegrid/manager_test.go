@@ -123,6 +123,32 @@ func TestManagerHandleInputResetKey(t *testing.T) {
 	assert.Equal(t, 0, manager.CurrentDepth(), "Depth should be reset to 0")
 }
 
+func TestManagerHandleInputResetKeyEmptyFallbackToSpace(t *testing.T) {
+	bounds := image.Rect(0, 0, 100, 100)
+	logger := zap.NewNop()
+	updateCalled := false
+	manager := recursivegrid.NewManager(
+		bounds,
+		"uijk",
+		"", // Empty reset key — should fall back to space
+		[]string{"escape"},
+		func() { updateCalled = true },
+		nil,
+		logger,
+	)
+	manager.HandleInput("u")
+	assert.Equal(t, 1, manager.CurrentDepth())
+	// Space should trigger reset via the empty-string-to-space fallback
+	point, completed, shouldExit := manager.HandleInput(" ")
+
+	assert.NotEqual(t, image.Point{}, point, "Should return center point")
+	assert.Equal(t, image.Point{X: 50, Y: 50}, point, "Should return initial center point")
+	assert.False(t, completed, "Should not be completed")
+	assert.False(t, shouldExit, "Should not exit")
+	assert.True(t, updateCalled, "Update callback should be called")
+	assert.Equal(t, 0, manager.CurrentDepth(), "Depth should be reset to 0")
+}
+
 func TestManagerHandleInputBacktrack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
