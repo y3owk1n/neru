@@ -280,7 +280,7 @@ func DefaultConfig() *Config {
 			HideUnmatched:   true,
 			PrewarmEnabled:  true,
 			EnableGC:        false,
-			ResetKey:        ",",
+			ResetKey:        " ",
 		},
 		RecursiveGrid: RecursiveGridConfig{
 			Enabled:  true,
@@ -299,7 +299,7 @@ func DefaultConfig() *Config {
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
 			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
 			MaxDepth:      DefaultRecursiveGridMaxDepth,
-			ResetKey:      ",",
+			ResetKey:      " ",
 		},
 		ModeIndicator: ModeIndicatorConfig{
 			ScrollEnabled:        true,
