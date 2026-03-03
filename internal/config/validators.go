@@ -808,6 +808,14 @@ func (c *Config) checkModeExitKeysConflicts() error {
 		return err
 	}
 
+	// Check for conflicts between exit keys and reset keys.
+	// Exit keys are checked before reset keys at runtime (in key_dispatch.go),
+	// so if an exit key matches the reset key, reset will never work.
+	err = c.checkExitKeysResetKeyConflicts()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -832,6 +840,63 @@ func checkExitKeyConflict(
 				fieldName,
 				actionDesc,
 			)
+		}
+	}
+
+	return nil
+}
+
+// checkExitKeysResetKeyConflicts detects if any exit key conflicts with the grid or recursive-grid reset key.
+// At runtime, exit keys are checked before reset keys (in key_dispatch.go), so a conflict means
+// the reset key will never fire — the mode will exit instead.
+func (c *Config) checkExitKeysResetKeyConflicts() error {
+	if len(c.General.ModeExitKeys) == 0 {
+		return nil
+	}
+
+	// Normalize all exit keys for comparison
+	var normalizedExitKeys []string
+	for _, key := range c.General.ModeExitKeys {
+		normalizedExitKeys = append(normalizedExitKeys, NormalizeKeyForComparison(strings.TrimSpace(key)))
+	}
+
+	// Check grid reset key conflict
+	gridResetKey := c.Grid.ResetKey
+	if gridResetKey == "" {
+		gridResetKey = " "
+	}
+
+	// Only check single-character (non-modifier) reset keys; modifier combos (e.g. "Ctrl+R")
+	// won't collide with the named/single-char exit keys checked here.
+	if !strings.Contains(gridResetKey, "+") {
+		normalizedGridReset := NormalizeKeyForComparison(gridResetKey)
+		for _, normExit := range normalizedExitKeys {
+			if normExit == normalizedGridReset {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains a key that conflicts with grid.reset_key ('%s'); the exit key will always take priority, making grid reset non-functional",
+					gridResetKey,
+				)
+			}
+		}
+	}
+
+	// Check recursive-grid reset key conflict
+	rgResetKey := c.RecursiveGrid.ResetKey
+	if rgResetKey == "" {
+		rgResetKey = " "
+	}
+
+	if !strings.Contains(rgResetKey, "+") {
+		normalizedRGReset := NormalizeKeyForComparison(rgResetKey)
+		for _, normExit := range normalizedExitKeys {
+			if normExit == normalizedRGReset {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains a key that conflicts with recursive_grid.reset_key ('%s'); the exit key will always take priority, making recursive-grid reset non-functional",
+					rgResetKey,
+				)
+			}
 		}
 	}
 

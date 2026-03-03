@@ -521,6 +521,88 @@ func TestConfig_ValidateGrid(t *testing.T) {
 	}
 }
 
+// TestConfig_ValidateModeExitKeys_ResetKeyConflicts tests that mode exit keys
+// cannot conflict with grid or recursive-grid reset keys.
+func TestConfig_ValidateModeExitKeys_ResetKeyConflicts(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  func() config.Config
+		wantErr bool
+	}{
+		{
+			name: "space exit key conflicts with default grid reset key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "space"}
+				// Grid.ResetKey defaults to " " (space)
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "literal space exit key conflicts with default grid reset key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", " "}
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "space exit key conflicts with default recursive-grid reset key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "space"}
+				cfg.Grid.ResetKey = "," // Avoid grid conflict to test recursive-grid
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "comma exit key conflicts with custom grid reset key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", ","}
+				cfg.Grid.ResetKey = ","
+				cfg.RecursiveGrid.ResetKey = "."
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no conflict with modifier combo reset key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "space"}
+				cfg.Grid.ResetKey = "Ctrl+R"
+				cfg.RecursiveGrid.ResetKey = "Ctrl+R"
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when exit keys do not match reset key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape"}
+				// Default reset key is space, no space in exit keys
+				return cfg
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := testCase.config()
+			err := cfg.ValidateModeExitKeys()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("Config.ValidateModeExitKeys() error = %v, wantErr %v", err, testCase.wantErr)
+			}
+		})
+	}
+}
+
 // TestConfig_ValidateAction tests the Config.ValidateAction method.
 func TestConfig_ValidateAction(t *testing.T) {
 	tests := []struct {
