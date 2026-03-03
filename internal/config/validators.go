@@ -865,39 +865,45 @@ func (c *Config) checkExitKeysResetKeyConflicts() error {
 		)
 	}
 
-	// Check grid reset key conflict
-	gridResetKey := c.Grid.ResetKey
-	if gridResetKey == "" {
-		gridResetKey = " "
-	}
+	// Check grid reset key conflict (only when grid mode is enabled)
+	if c.Grid.Enabled {
+		gridResetKey := c.Grid.ResetKey
 
-	// Only check single-character (non-modifier) reset keys; modifier combos (e.g. "Ctrl+R")
-	// won't collide with the named/single-char exit keys checked here.
-	if !strings.Contains(gridResetKey, "+") {
-		normalizedGridReset := NormalizeKeyForComparison(gridResetKey)
-		if slices.Contains(normalizedExitKeys, normalizedGridReset) {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"general.mode_exit_keys contains a key that conflicts with grid.reset_key ('%s'); the exit key will always take priority, making grid reset non-functional",
-				gridResetKey,
-			)
+		if gridResetKey == "" {
+			gridResetKey = " "
+		}
+
+		// Only check single-character (non-modifier) reset keys; modifier combos (e.g. "Ctrl+R")
+		// won't collide with the named/single-char exit keys checked here.
+		if !strings.Contains(gridResetKey, "+") {
+			normalizedGridReset := NormalizeKeyForComparison(gridResetKey)
+			if slices.Contains(normalizedExitKeys, normalizedGridReset) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains a key that conflicts with grid.reset_key ('%s'); the exit key will always take priority, making grid reset non-functional",
+					gridResetKey,
+				)
+			}
 		}
 	}
 
-	// Check recursive-grid reset key conflict
-	rgResetKey := c.RecursiveGrid.ResetKey
-	if rgResetKey == "" {
-		rgResetKey = " "
-	}
+	// Check recursive-grid reset key conflict (only when recursive-grid mode is enabled)
+	if c.RecursiveGrid.Enabled {
+		rgResetKey := c.RecursiveGrid.ResetKey
 
-	if !strings.Contains(rgResetKey, "+") {
-		normalizedRGReset := NormalizeKeyForComparison(rgResetKey)
-		if slices.Contains(normalizedExitKeys, normalizedRGReset) {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"general.mode_exit_keys contains a key that conflicts with recursive_grid.reset_key ('%s'); the exit key will always take priority, making recursive-grid reset non-functional",
-				rgResetKey,
-			)
+		if rgResetKey == "" {
+			rgResetKey = " "
+		}
+
+		if !strings.Contains(rgResetKey, "+") {
+			normalizedRGReset := NormalizeKeyForComparison(rgResetKey)
+			if slices.Contains(normalizedExitKeys, normalizedRGReset) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains a key that conflicts with recursive_grid.reset_key ('%s'); the exit key will always take priority, making recursive-grid reset non-functional",
+					rgResetKey,
+				)
+			}
 		}
 	}
 

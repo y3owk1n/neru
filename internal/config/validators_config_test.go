@@ -561,6 +561,30 @@ func TestConfig_ValidateModeExitKeys_ResetKeyConflicts(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "no conflict when grid mode is disabled",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "space"}
+				cfg.Grid.Enabled = false
+				cfg.RecursiveGrid.ResetKey = "," // Avoid recursive-grid conflict
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when recursive-grid mode is disabled",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "space"}
+				cfg.Grid.ResetKey = ","           // Avoid grid conflict
+				cfg.RecursiveGrid.Enabled = false // Disabled, so no conflict
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
 			name: "comma exit key conflicts with custom grid reset key",
 			config: func() config.Config {
 				cfg := *config.DefaultConfig()
