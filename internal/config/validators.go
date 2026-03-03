@@ -755,6 +755,16 @@ func (c *Config) ValidateModeExitKeys() error {
 
 // checkModeExitKeysConflicts detects if any single-character exit keys conflict with input characters.
 func (c *Config) checkModeExitKeysConflicts() error {
+	// Check for conflicts between exit keys and reset keys first.
+	// This check uses normalized key comparison and handles both named keys (e.g. "space")
+	// and single-character keys, so it must run before the single-char-only early return below.
+	// Exit keys are checked before reset keys at runtime (in key_dispatch.go),
+	// so if an exit key matches the reset key, reset will never work.
+	err := c.checkExitKeysResetKeyConflicts()
+	if err != nil {
+		return err
+	}
+
 	// Extract single-character exit keys (case-insensitive)
 	var singleCharExitKeys []string
 	for _, key := range c.General.ModeExitKeys {
@@ -764,7 +774,7 @@ func (c *Config) checkModeExitKeysConflicts() error {
 	}
 
 	if len(singleCharExitKeys) == 0 {
-		return nil // No single-char exit keys, no conflicts possible
+		return nil // No single-char exit keys, no character-set conflicts possible
 	}
 
 	// Check for conflicts between exit keys and character sets
@@ -798,20 +808,12 @@ func (c *Config) checkModeExitKeysConflicts() error {
 		sublayerKeys = c.Grid.Characters
 	}
 
-	err := checkExitKeyConflict(
+	err = checkExitKeyConflict(
 		singleCharExitKeys,
 		sublayerKeys,
 		"grid.sublayer_keys",
 		"subgrid selection",
 	)
-	if err != nil {
-		return err
-	}
-
-	// Check for conflicts between exit keys and reset keys.
-	// Exit keys are checked before reset keys at runtime (in key_dispatch.go),
-	// so if an exit key matches the reset key, reset will never work.
-	err = c.checkExitKeysResetKeyConflicts()
 	if err != nil {
 		return err
 	}
@@ -857,7 +859,10 @@ func (c *Config) checkExitKeysResetKeyConflicts() error {
 	// Normalize all exit keys for comparison
 	var normalizedExitKeys []string
 	for _, key := range c.General.ModeExitKeys {
-		normalizedExitKeys = append(normalizedExitKeys, NormalizeKeyForComparison(strings.TrimSpace(key)))
+		normalizedExitKeys = append(
+			normalizedExitKeys,
+			NormalizeKeyForComparison(strings.TrimSpace(key)),
+		)
 	}
 
 	// Check grid reset key conflict
@@ -870,14 +875,12 @@ func (c *Config) checkExitKeysResetKeyConflicts() error {
 	// won't collide with the named/single-char exit keys checked here.
 	if !strings.Contains(gridResetKey, "+") {
 		normalizedGridReset := NormalizeKeyForComparison(gridResetKey)
-		for _, normExit := range normalizedExitKeys {
-			if normExit == normalizedGridReset {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains a key that conflicts with grid.reset_key ('%s'); the exit key will always take priority, making grid reset non-functional",
-					gridResetKey,
-				)
-			}
+		if slices.Contains(normalizedExitKeys, normalizedGridReset) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"general.mode_exit_keys contains a key that conflicts with grid.reset_key ('%s'); the exit key will always take priority, making grid reset non-functional",
+				gridResetKey,
+			)
 		}
 	}
 
@@ -889,14 +892,12 @@ func (c *Config) checkExitKeysResetKeyConflicts() error {
 
 	if !strings.Contains(rgResetKey, "+") {
 		normalizedRGReset := NormalizeKeyForComparison(rgResetKey)
-		for _, normExit := range normalizedExitKeys {
-			if normExit == normalizedRGReset {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"general.mode_exit_keys contains a key that conflicts with recursive_grid.reset_key ('%s'); the exit key will always take priority, making recursive-grid reset non-functional",
-					rgResetKey,
-				)
-			}
+		if slices.Contains(normalizedExitKeys, normalizedRGReset) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"general.mode_exit_keys contains a key that conflicts with recursive_grid.reset_key ('%s'); the exit key will always take priority, making recursive-grid reset non-functional",
+				rgResetKey,
+			)
 		}
 	}
 

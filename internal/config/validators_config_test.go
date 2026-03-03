@@ -544,6 +544,7 @@ func TestConfig_ValidateModeExitKeys_ResetKeyConflicts(t *testing.T) {
 			config: func() config.Config {
 				cfg := *config.DefaultConfig()
 				cfg.General.ModeExitKeys = []string{"escape", " "}
+
 				return cfg
 			},
 			wantErr: true,
@@ -554,6 +555,7 @@ func TestConfig_ValidateModeExitKeys_ResetKeyConflicts(t *testing.T) {
 				cfg := *config.DefaultConfig()
 				cfg.General.ModeExitKeys = []string{"escape", "space"}
 				cfg.Grid.ResetKey = "," // Avoid grid conflict to test recursive-grid
+
 				return cfg
 			},
 			wantErr: true,
@@ -565,6 +567,7 @@ func TestConfig_ValidateModeExitKeys_ResetKeyConflicts(t *testing.T) {
 				cfg.General.ModeExitKeys = []string{"escape", ","}
 				cfg.Grid.ResetKey = ","
 				cfg.RecursiveGrid.ResetKey = "."
+
 				return cfg
 			},
 			wantErr: true,
@@ -576,6 +579,7 @@ func TestConfig_ValidateModeExitKeys_ResetKeyConflicts(t *testing.T) {
 				cfg.General.ModeExitKeys = []string{"escape", "space"}
 				cfg.Grid.ResetKey = "Ctrl+R"
 				cfg.RecursiveGrid.ResetKey = "Ctrl+R"
+
 				return cfg
 			},
 			wantErr: false,
@@ -595,9 +599,14 @@ func TestConfig_ValidateModeExitKeys_ResetKeyConflicts(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			cfg := testCase.config()
+
 			err := cfg.ValidateModeExitKeys()
 			if (err != nil) != testCase.wantErr {
-				t.Errorf("Config.ValidateModeExitKeys() error = %v, wantErr %v", err, testCase.wantErr)
+				t.Errorf(
+					"Config.ValidateModeExitKeys() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
 			}
 		})
 	}
