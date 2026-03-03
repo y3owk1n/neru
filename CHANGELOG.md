@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.22.1](https://github.com/y3owk1n/neru/compare/v1.22.0...v1.22.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* default reset_key to space in grid and recursive-grid modes ([#481](https://github.com/y3owk1n/neru/issues/481)) ([b39c6a9](https://github.com/y3owk1n/neru/commit/b39c6a98d865b425c05e4a0ce5ef75809ebe3554))
+* **docs:** need `--action` for command with action ([0789121](https://github.com/y3owk1n/neru/commit/07891213752d8e10cefd7c9a982f1c1e1106b102))
+
 ## [1.22.0](https://github.com/y3owk1n/neru/compare/v1.21.4...v1.22.0) (2026-03-01)
 
 
