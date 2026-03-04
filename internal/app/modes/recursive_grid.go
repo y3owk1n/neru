@@ -131,11 +131,13 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 			return
 		}
 
-		if actionName, ok := h.actionService.GetActionForKey(key); ok {
-			if slices.Contains(h.config.RecursiveGrid.AutoExitActions, actionName) {
-				h.exitModeLocked()
+		if err == nil {
+			if actionName, ok := h.actionService.GetActionForKey(key); ok {
+				if slices.Contains(h.config.RecursiveGrid.AutoExitActions, actionName) {
+					h.exitModeLocked()
 
-				return
+					return
+				}
 			}
 		}
 

@@ -73,11 +73,13 @@ func (h *Handler) handleHintsModeKey(key string) {
 			return
 		}
 
-		if actionName, ok := h.actionService.GetActionForKey(key); ok {
-			if slices.Contains(h.config.Hints.AutoExitActions, actionName) {
-				h.exitModeLocked()
+		if err == nil {
+			if actionName, ok := h.actionService.GetActionForKey(key); ok {
+				if slices.Contains(h.config.Hints.AutoExitActions, actionName) {
+					h.exitModeLocked()
 
-				return
+					return
+				}
 			}
 		}
 
@@ -180,11 +182,13 @@ func (h *Handler) handleGridModeKey(key string) {
 			return
 		}
 
-		if actionName, ok := h.actionService.GetActionForKey(key); ok {
-			if slices.Contains(h.config.Grid.AutoExitActions, actionName) {
-				h.exitModeLocked()
+		if err == nil {
+			if actionName, ok := h.actionService.GetActionForKey(key); ok {
+				if slices.Contains(h.config.Grid.AutoExitActions, actionName) {
+					h.exitModeLocked()
 
-				return
+					return
+				}
 			}
 		}
 
