@@ -583,3 +583,123 @@ func TestIsMoveMouseKey(t *testing.T) {
 		})
 	}
 }
+
+func TestIsMoveMouseKey_shiftLetterBindings(t *testing.T) {
+	mockAcc := newMockAccessibilityPort()
+	actionConfig := config.ActionConfig{
+		MoveMouseStep: 10,
+		KeyBindings: config.ActionKeyBindingsCfg{
+			MoveMouseUp:    "Shift+K",
+			MoveMouseDown:  "Shift+J",
+			MoveMouseLeft:  "Shift+H",
+			MoveMouseRight: "Shift+L",
+		},
+	}
+	logger, _ := zap.NewDevelopment()
+	actionService := services.NewActionService(
+		mockAcc,
+		&mockOverlayPort{},
+		actionConfig,
+		actionConfig.KeyBindings,
+		actionConfig.MoveMouseStep,
+		logger,
+	)
+
+	tests := []struct {
+		key      string
+		expected bool
+	}{
+		// Shift+Letter bindings (direct match)
+		{"Shift+K", true},
+		{"Shift+J", true},
+		{"Shift+H", true},
+		{"Shift+L", true},
+		// Uppercase letters (Shift+Letter normalization)
+		{"K", true},
+		{"J", true},
+		{"H", true},
+		{"L", true},
+		// Non-move mouse keys
+		{"k", false},
+		{"j", false},
+		{"a", false},
+		{"Up", false},
+		{"", false},
+	}
+	for _, test := range tests {
+		t.Run(test.key, func(t *testing.T) {
+			result := actionService.IsMoveMouseKey(test.key)
+			if result != test.expected {
+				t.Errorf("IsMoveMouseKey(%q) = %v, want %v", test.key, result, test.expected)
+			}
+		})
+	}
+}
+
+func TestHandleDirectActionKey_shiftLetterBindings(t *testing.T) {
+	tests := []struct {
+		name      string
+		key       string
+		expectedX int
+		expectedY int
+	}{
+		{"Shift+K (uppercase K) moves up", "K", 100, 90},
+		{"Shift+J (uppercase J) moves down", "J", 100, 110},
+		{"Shift+H (uppercase H) moves left", "H", 90, 100},
+		{"Shift+L (uppercase L) moves right", "L", 110, 100},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockAcc := newMockAccessibilityPort()
+			actionConfig := config.ActionConfig{
+				MoveMouseStep: 10,
+				KeyBindings: config.ActionKeyBindingsCfg{
+					MoveMouseUp:    "Shift+K",
+					MoveMouseDown:  "Shift+J",
+					MoveMouseLeft:  "Shift+H",
+					MoveMouseRight: "Shift+L",
+				},
+			}
+			logger, _ := zap.NewDevelopment()
+			actionService := services.NewActionService(
+				mockAcc,
+				&mockOverlayPort{},
+				actionConfig,
+				actionConfig.KeyBindings,
+				actionConfig.MoveMouseStep,
+				logger,
+			)
+			ctx := context.Background()
+
+			actionName, handled, err := actionService.HandleDirectActionKey(ctx, testCase.key)
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			if !handled {
+				t.Errorf("Expected %s key to be handled as direct action", testCase.key)
+			}
+
+			if actionName != "move_mouse_relative" {
+				t.Errorf("Expected action name 'move_mouse_relative', got %q", actionName)
+			}
+
+			if len(mockAcc.moveCalls) != 1 {
+				t.Fatalf(
+					"Expected 1 move call after %s key, got %d",
+					testCase.key,
+					len(mockAcc.moveCalls),
+				)
+			}
+
+			movedTo := mockAcc.moveCalls[0]
+			if movedTo.X != testCase.expectedX {
+				t.Errorf("Expected X = %d, got %d", testCase.expectedX, movedTo.X)
+			}
+
+			if movedTo.Y != testCase.expectedY {
+				t.Errorf("Expected Y = %d, got %d", testCase.expectedY, movedTo.Y)
+			}
+		})
+	}
+}
