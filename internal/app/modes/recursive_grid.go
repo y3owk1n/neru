@@ -124,9 +124,11 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 	if wasHandled {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
+
+			return
 		}
 
-		if err == nil && h.shouldAutoExit(h.config.RecursiveGrid.AutoExitActions, actionName) {
+		if h.shouldAutoExit(h.config.RecursiveGrid.AutoExitActions, actionName) {
 			h.exitModeLocked()
 		}
 
