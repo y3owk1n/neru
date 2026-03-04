@@ -253,6 +253,14 @@ func (s *ActionService) IsMoveMouseKey(key string) bool {
 	return false
 }
 
+// GetActionForKey returns the action name for a given key if it's a direct action keybinding.
+// Returns the action name (e.g., "left_click", "move_mouse") and true if found, or empty string and false otherwise.
+func (s *ActionService) GetActionForKey(key string) (string, bool) {
+	action, _, ok := s.getActionMapping(key)
+
+	return action, ok
+}
+
 // HandleDirectActionKey processes a direct action key and performs the corresponding action.
 // Returns true if the key was handled as a direct action, false otherwise.
 // Returns an error if the action failed to execute.

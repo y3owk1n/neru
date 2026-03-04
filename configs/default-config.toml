@@ -57,6 +57,12 @@ hide_overlay_in_screen_share = false
 # Whether to enable hints mode
 enabled = true
 
+# Actions that will cause hints mode to exit automatically after execution
+# Valid values: one of `action.key_bindings`
+# Default: [] (empty - no auto-exit)
+# Example: auto_exit_actions = ["left_click", "middle_click"]
+auto_exit_actions = []
+
 # Characters to use for hint labels
 hint_characters = "asdfghjkl"
 
@@ -154,6 +160,12 @@ additional_firefox_bundles = []         # Extra Firefox app bundle IDs
 # Whether to enable grid mode
 enabled = true
 
+# Actions that will cause grid mode to exit automatically after execution
+# Valid values: one of `action.key_bindings`
+# Default: [] (empty - no auto-exit)
+# Example: auto_exit_actions = ["left_click", "middle_click"]
+auto_exit_actions = []
+
 # Characters to use for grid labels
 # Requirements:
 # - Must contain at least 2 characters
@@ -211,6 +223,12 @@ enable_gc = false
 [recursive_grid]
 # Whether to enable recursive-grid mode
 enabled = true
+
+# Actions that will cause recursive-grid mode to exit automatically after execution
+# Valid values: one of `action.key_bindings`
+# Default: [] (empty - no auto-exit)
+# Example: auto_exit_actions = ["left_click", "middle_click"]
+auto_exit_actions = []
 
 # Grid layout: columns and rows (default: 2x2, must be >= 2)
 # Higher values create finer grid division

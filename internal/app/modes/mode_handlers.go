@@ -3,6 +3,7 @@ package modes
 import (
 	"context"
 	"image"
+	"slices"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
@@ -70,6 +71,14 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 		if !wasHandled {
 			return
+		}
+
+		if actionName, ok := h.actionService.GetActionForKey(key); ok {
+			if slices.Contains(h.config.Hints.AutoExitActions, actionName) {
+				h.exitModeLocked()
+
+				return
+			}
 		}
 
 		// Only refresh hints after non-move-mouse actions
@@ -165,6 +174,14 @@ func (h *Handler) handleGridModeKey(key string) {
 		_, err := h.actionService.HandleDirectActionKey(ctx, key)
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
+		}
+
+		if actionName, ok := h.actionService.GetActionForKey(key); ok {
+			if slices.Contains(h.config.Grid.AutoExitActions, actionName) {
+				h.exitModeLocked()
+
+				return
+			}
 		}
 
 		return
