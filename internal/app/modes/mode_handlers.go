@@ -59,28 +59,25 @@ func (h *Handler) moveCursorAndHandleAction(
 	}
 }
 
+// shouldAutoExit checks if the given action name is in the auto-exit list.
+func (h *Handler) shouldAutoExit(autoExitActions []string, actionName string) bool {
+	return len(autoExitActions) > 0 && slices.Contains(autoExitActions, actionName)
+}
+
 // handleHintsModeKey handles key processing for hints mode.
 func (h *Handler) handleHintsModeKey(key string) {
 	ctx := context.Background()
 
-	if h.actionService.IsDirectActionKey(key) {
-		wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	if wasHandled {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
 		}
 
-		if !wasHandled {
+		if err == nil && h.shouldAutoExit(h.config.Hints.AutoExitActions, actionName) {
+			h.exitModeLocked()
+
 			return
-		}
-
-		if err == nil {
-			if actionName, ok := h.actionService.GetActionForKey(key); ok {
-				if slices.Contains(h.config.Hints.AutoExitActions, actionName) {
-					h.exitModeLocked()
-
-					return
-				}
-			}
 		}
 
 		// Only refresh hints after non-move-mouse actions
@@ -172,24 +169,14 @@ func (h *Handler) handleHintsModeKey(key string) {
 func (h *Handler) handleGridModeKey(key string) {
 	ctx := context.Background()
 
-	if h.actionService.IsDirectActionKey(key) {
-		wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	if wasHandled {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
 		}
 
-		if !wasHandled {
-			return
-		}
-
-		if err == nil {
-			if actionName, ok := h.actionService.GetActionForKey(key); ok {
-				if slices.Contains(h.config.Grid.AutoExitActions, actionName) {
-					h.exitModeLocked()
-
-					return
-				}
-			}
+		if err == nil && h.shouldAutoExit(h.config.Grid.AutoExitActions, actionName) {
+			h.exitModeLocked()
 		}
 
 		return

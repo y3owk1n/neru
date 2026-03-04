@@ -3,7 +3,6 @@ package modes
 import (
 	"context"
 	"image"
-	"slices"
 
 	"github.com/y3owk1n/neru/internal/app/components"
 	componentrecursivegrid "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
@@ -121,24 +120,14 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 	ctx := context.Background()
 
 	// Handle direct action keys first
-	if h.actionService.IsDirectActionKey(key) {
-		wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	if wasHandled {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
 		}
 
-		if !wasHandled {
-			return
-		}
-
-		if err == nil {
-			if actionName, ok := h.actionService.GetActionForKey(key); ok {
-				if slices.Contains(h.config.RecursiveGrid.AutoExitActions, actionName) {
-					h.exitModeLocked()
-
-					return
-				}
-			}
+		if err == nil && h.shouldAutoExit(h.config.RecursiveGrid.AutoExitActions, actionName) {
+			h.exitModeLocked()
 		}
 
 		return
