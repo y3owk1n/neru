@@ -58,7 +58,7 @@ hide_overlay_in_screen_share = false
 enabled = true
 
 # Actions that will cause hints mode to exit automatically after execution
-# Valid values: one of `action.key_bindings`
+# Valid values: left_click, right_click, middle_click, mouse_down, mouse_up, move_mouse_relative
 # Default: [] (empty - no auto-exit)
 # Example: auto_exit_actions = ["left_click", "middle_click"]
 auto_exit_actions = []
@@ -161,7 +161,7 @@ additional_firefox_bundles = []         # Extra Firefox app bundle IDs
 enabled = true
 
 # Actions that will cause grid mode to exit automatically after execution
-# Valid values: one of `action.key_bindings`
+# Valid values: left_click, right_click, middle_click, mouse_down, mouse_up, move_mouse_relative
 # Default: [] (empty - no auto-exit)
 # Example: auto_exit_actions = ["left_click", "middle_click"]
 auto_exit_actions = []
@@ -225,7 +225,7 @@ enable_gc = false
 enabled = true
 
 # Actions that will cause recursive-grid mode to exit automatically after execution
-# Valid values: one of `action.key_bindings`
+# Valid values: left_click, right_click, middle_click, mouse_down, mouse_up, move_mouse_relative
 # Default: [] (empty - no auto-exit)
 # Example: auto_exit_actions = ["left_click", "middle_click"]
 auto_exit_actions = []

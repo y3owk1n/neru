@@ -14,13 +14,13 @@ import (
 
 func validateAutoExitActions(actions []string, fieldName string) error {
 	for _, actionName := range actions {
-		if !action.IsKnownName(action.Name(actionName)) {
+		if !action.IsDirectKeyBindingName(action.Name(actionName)) {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"%s contains unknown action '%s' (valid: %s)",
 				fieldName,
 				actionName,
-				action.SupportedNamesString(),
+				action.DirectKeyBindingNamesString(),
 			)
 		}
 	}
