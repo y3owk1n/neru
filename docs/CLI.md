@@ -209,11 +209,16 @@ neru recursive_grid --action left_click  # Left-click via recursive-grid
 
 **Behavior:** When `--action` is specified, the action executes automatically when a location is selected, then the mode exits.
 
-**Note:** `recursive_grid` also accepts the alias `recursive-grid`:
+#### How `--action` flag works in detail in different modes
 
-```bash
-neru recursive-grid --action left_click  # Same as above
-```
+This flag was introduced to imitate workflow of `vimium` style. When you are in the hint mode with `--action`, once you satifies the label (e.g. AA), it will perform the action directly.
+
+This flag is exceptionally useful for `hints` mode, but not for other modes. Right now grid mode with `--action` is a little bit silly.
+
+- Grid: it will perform the click after the last selection of sublayer (3x3)
+- Recursive Grid: it will perform the click after the last selection of the last depth
+
+Right now, i don't think anyone should use this flag other than `hints` mode, use the `auto_exit_actions` in config file might be a better choice.
 
 ### Hints Mode
 
