@@ -3,6 +3,7 @@ package modes
 import (
 	"context"
 	"image"
+	"slices"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
@@ -58,17 +59,26 @@ func (h *Handler) moveCursorAndHandleAction(
 	}
 }
 
+// shouldAutoExit checks if the given action name is in the auto-exit list.
+func (h *Handler) shouldAutoExit(autoExitActions []string, actionName string) bool {
+	return len(autoExitActions) > 0 && slices.Contains(autoExitActions, actionName)
+}
+
 // handleHintsModeKey handles key processing for hints mode.
 func (h *Handler) handleHintsModeKey(key string) {
 	ctx := context.Background()
 
-	if h.actionService.IsDirectActionKey(key) {
-		wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	if wasHandled {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
+
+			return
 		}
 
-		if !wasHandled {
+		if h.shouldAutoExit(h.config.Hints.AutoExitActions, actionName) {
+			h.exitModeLocked()
+
 			return
 		}
 
@@ -161,10 +171,16 @@ func (h *Handler) handleHintsModeKey(key string) {
 func (h *Handler) handleGridModeKey(key string) {
 	ctx := context.Background()
 
-	if h.actionService.IsDirectActionKey(key) {
-		_, err := h.actionService.HandleDirectActionKey(ctx, key)
+	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	if wasHandled {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
+
+			return
+		}
+
+		if h.shouldAutoExit(h.config.Grid.AutoExitActions, actionName) {
+			h.exitModeLocked()
 		}
 
 		return

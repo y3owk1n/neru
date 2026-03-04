@@ -189,7 +189,8 @@ func (s *ActionService) HandleActionKey(
 	key string,
 	mode string,
 ) (bool, error) {
-	act, logMsg, ok := s.getActionMapping(key)
+	act, logMsg, _, ok := s.getActionMapping(key)
+
 	if !ok {
 		s.logger.Debug("Unknown action key",
 			zap.String("mode", mode),
@@ -220,14 +221,8 @@ func (s *ActionService) HandleActionKey(
 	return true, nil
 }
 
-// IsDirectActionKey checks if the given key is a direct action keybinding.
-func (s *ActionService) IsDirectActionKey(key string) bool {
-	_, _, ok := s.getActionMapping(key)
-
-	return ok
-}
-
 // IsMoveMouseKey checks if the given key is a move mouse keybinding.
+// It handles Shift+Letter normalization (e.g. "K" matching "Shift+K").
 func (s *ActionService) IsMoveMouseKey(key string) bool {
 	if key == "" {
 		return false
@@ -240,13 +235,24 @@ func (s *ActionService) IsMoveMouseKey(key string) bool {
 		s.keyBindings.MoveMouseRight,
 	}
 
-	for _, b := range bindings {
-		if b == "" {
+	keysToCheck := []string{key}
+	// If key is a single uppercase letter, also check against Shift+Key
+	if len(key) == 1 {
+		r := rune(key[0])
+		if r >= 'A' && r <= 'Z' {
+			keysToCheck = append(keysToCheck, "Shift+"+key)
+		}
+	}
+
+	for _, binding := range bindings {
+		if binding == "" {
 			continue
 		}
 
-		if strings.EqualFold(key, b) {
-			return true
+		for _, k := range keysToCheck {
+			if strings.EqualFold(k, binding) {
+				return true
+			}
 		}
 	}
 
@@ -254,20 +260,24 @@ func (s *ActionService) IsMoveMouseKey(key string) bool {
 }
 
 // HandleDirectActionKey processes a direct action key and performs the corresponding action.
-// Returns true if the key was handled as a direct action, false otherwise.
-// Returns an error if the action failed to execute.
-func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) (bool, error) {
-	actionString, logMsg, ok := s.getActionMapping(key)
+// Returns the action name (e.g., "left_click", "move_mouse_relative"), whether the key was
+// handled as a direct action, and any error if the action failed to execute.
+func (s *ActionService) HandleDirectActionKey(
+	ctx context.Context,
+	key string,
+) (string, bool, error) {
+	actionString, logMsg, resolvedKey, ok := s.getActionMapping(key)
+
 	if !ok {
-		return false, nil
+		return "", false, nil
 	}
 
-	keyLower := strings.ToLower(key)
+	resolvedKeyLower := strings.ToLower(resolvedKey)
 
 	if actionString == string(action.NameMoveMouseRelative) {
 		var deltaX, deltaY int
 
-		switch keyLower {
+		switch resolvedKeyLower {
 		case strings.ToLower(s.keyBindings.MoveMouseUp):
 			deltaY = -s.moveMouseStep
 		case strings.ToLower(s.keyBindings.MoveMouseDown):
@@ -277,7 +287,7 @@ func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) (
 		case strings.ToLower(s.keyBindings.MoveMouseRight):
 			deltaX = s.moveMouseStep
 		default:
-			return false, nil
+			return "", false, nil
 		}
 
 		s.logger.Info("Performing move mouse relative",
@@ -291,17 +301,17 @@ func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) (
 		if moveErr != nil {
 			s.logger.Error("Failed to move mouse relative", zap.Error(moveErr))
 
-			return true, moveErr
+			return actionString, true, moveErr
 		}
 
-		return true, nil
+		return actionString, true, nil
 	}
 
 	cursorPos, cursorPosErr := s.CursorPosition(ctx)
 	if cursorPosErr != nil {
 		s.logger.Error("Failed to get cursor position", zap.Error(cursorPosErr))
 
-		return true, core.WrapAccessibilityFailed(cursorPosErr, "get cursor position")
+		return actionString, true, core.WrapAccessibilityFailed(cursorPosErr, "get cursor position")
 	}
 
 	s.logger.Info("Performing direct action",
@@ -313,16 +323,18 @@ func (s *ActionService) HandleDirectActionKey(ctx context.Context, key string) (
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform direct action", zap.Error(performActionErr))
 
-		return true, performActionErr
+		return actionString, true, performActionErr
 	}
 
-	return true, nil
+	return actionString, true, nil
 }
 
-// getActionMapping returns the action string and log message for an action key.
-func (s *ActionService) getActionMapping(key string) (string, string, bool) {
+// getActionMapping returns the action string, log message, and the resolved binding key for an action key.
+// The resolved binding key is the key string that actually matched a configured binding
+// (which may differ from the input key due to Shift+Letter normalization).
+func (s *ActionService) getActionMapping(key string) (string, string, string, bool) {
 	if key == "" {
-		return "", "", false
+		return "", "", "", false
 	}
 
 	normalizedKey := key
@@ -333,7 +345,9 @@ func (s *ActionService) getActionMapping(key string) (string, string, bool) {
 
 	// Check direct match first
 	if s.matchActionKey(normalizedKey) {
-		return s.getActionForBinding(normalizedKey)
+		actionStr, logMsg, ok := s.getActionForBinding(normalizedKey)
+
+		return actionStr, logMsg, normalizedKey, ok
 	}
 
 	// If key is a single uppercase letter (A-Z), check if Shift+Key is configured
@@ -343,12 +357,14 @@ func (s *ActionService) getActionMapping(key string) (string, string, bool) {
 		if r >= 'A' && r <= 'Z' {
 			shiftKey := "Shift+" + normalizedKey
 			if s.matchActionKey(shiftKey) {
-				return s.getActionForBinding(shiftKey)
+				actionStr, logMsg, ok := s.getActionForBinding(shiftKey)
+
+				return actionStr, logMsg, shiftKey, ok
 			}
 		}
 	}
 
-	return "", "", false
+	return "", "", "", false
 }
 
 // matchActionKey checks if the key matches any configured binding.

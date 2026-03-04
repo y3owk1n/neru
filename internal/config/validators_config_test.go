@@ -509,6 +509,91 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "valid grid config with auto_exit_actions",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					BackgroundColor:        "#FF0000",
+					TextColor:              "#FFFFFF",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#333333",
+					MatchedBorderColor:     "#FF0000",
+					BorderColor:            "#666666",
+					FontSize:               14,
+					AutoExitActions:        []string{"left_click", "right_click"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid grid config with empty auto_exit_actions",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					BackgroundColor:        "#FF0000",
+					TextColor:              "#FFFFFF",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#333333",
+					MatchedBorderColor:     "#FF0000",
+					BorderColor:            "#666666",
+					FontSize:               14,
+					AutoExitActions:        []string{},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid grid auto_exit_actions with unknown action",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					BackgroundColor:        "#FF0000",
+					TextColor:              "#FFFFFF",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#333333",
+					MatchedBorderColor:     "#FF0000",
+					BorderColor:            "#666666",
+					FontSize:               14,
+					AutoExitActions:        []string{"unknown_action"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid grid auto_exit_actions with scroll (IPC-only)",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					BackgroundColor:        "#FF0000",
+					TextColor:              "#FFFFFF",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#333333",
+					MatchedBorderColor:     "#FF0000",
+					BorderColor:            "#666666",
+					FontSize:               14,
+					AutoExitActions:        []string{"scroll"},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid grid auto_exit_actions with move_mouse (IPC-only)",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					BackgroundColor:        "#FF0000",
+					TextColor:              "#FFFFFF",
+					MatchedTextColor:       "#000000",
+					MatchedBackgroundColor: "#333333",
+					MatchedBorderColor:     "#FF0000",
+					BorderColor:            "#666666",
+					FontSize:               14,
+					AutoExitActions:        []string{"move_mouse"},
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, testCase := range tests {

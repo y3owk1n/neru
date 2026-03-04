@@ -210,16 +210,17 @@ type ScrollConfig struct {
 
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
-	Enabled                 bool   `json:"enabled"                 toml:"enabled"`
-	HintCharacters          string `json:"hintCharacters"          toml:"hint_characters"`
-	FontSize                int    `json:"fontSize"                toml:"font_size"`
-	FontFamily              string `json:"fontFamily"              toml:"font_family"`
-	BorderRadius            int    `json:"borderRadius"            toml:"border_radius"`
-	Padding                 int    `json:"padding"                 toml:"padding"`
-	BorderWidth             int    `json:"borderWidth"             toml:"border_width"`
-	MouseActionRefreshDelay int    `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
-	MaxDepth                int    `json:"maxDepth"                toml:"max_depth"`
-	ParallelThreshold       int    `json:"parallelThreshold"       toml:"parallel_threshold"`
+	Enabled                 bool     `json:"enabled"                 toml:"enabled"`
+	AutoExitActions         []string `json:"autoExitActions"         toml:"auto_exit_actions"`
+	HintCharacters          string   `json:"hintCharacters"          toml:"hint_characters"`
+	FontSize                int      `json:"fontSize"                toml:"font_size"`
+	FontFamily              string   `json:"fontFamily"              toml:"font_family"`
+	BorderRadius            int      `json:"borderRadius"            toml:"border_radius"`
+	Padding                 int      `json:"padding"                 toml:"padding"`
+	BorderWidth             int      `json:"borderWidth"             toml:"border_width"`
+	MouseActionRefreshDelay int      `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
+	MaxDepth                int      `json:"maxDepth"                toml:"max_depth"`
+	ParallelThreshold       int      `json:"parallelThreshold"       toml:"parallel_threshold"`
 
 	BackgroundColor  string `json:"backgroundColor"  toml:"background_color"`
 	TextColor        string `json:"textColor"        toml:"text_color"`
@@ -243,7 +244,8 @@ type HintsConfig struct {
 
 // GridConfig defines the visual and behavioral settings for grid mode.
 type GridConfig struct {
-	Enabled bool `json:"enabled" toml:"enabled"`
+	Enabled         bool     `json:"enabled"         toml:"enabled"`
+	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
 
 	Characters   string `json:"characters"   toml:"characters"`
 	SublayerKeys string `json:"sublayerKeys" toml:"sublayer_keys"`
@@ -273,7 +275,8 @@ type GridConfig struct {
 
 // RecursiveGridConfig defines the visual and behavioral settings for recursive-grid mode.
 type RecursiveGridConfig struct {
-	Enabled bool `json:"enabled" toml:"enabled"`
+	Enabled         bool     `json:"enabled"         toml:"enabled"`
+	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
 
 	// Grid dimensions: columns and rows (default: 2x2)
 	GridCols int `json:"gridCols" toml:"grid_cols"`

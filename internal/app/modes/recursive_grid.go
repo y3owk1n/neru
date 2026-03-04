@@ -120,10 +120,16 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 	ctx := context.Background()
 
 	// Handle direct action keys first
-	if h.actionService.IsDirectActionKey(key) {
-		_, err := h.actionService.HandleDirectActionKey(ctx, key)
+	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	if wasHandled {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
+
+			return
+		}
+
+		if h.shouldAutoExit(h.config.RecursiveGrid.AutoExitActions, actionName) {
+			h.exitModeLocked()
 		}
 
 		return

@@ -277,19 +277,32 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 
 ### Basic Configuration
 
-| Option               | Type   | Default       | Description                |
-| -------------------- | ------ | ------------- | -------------------------- |
-| `enabled`            | bool   | `true`        | Enable/disable hints mode  |
-| `hint_characters`    | string | `"asdfghjkl"` | Characters used for labels |
-| `font_size`          | int    | `10`          | Label font size            |
-| `font_family`        | string | `""`          | Font name (empty = system) |
-| `border_radius`      | int    | `4`           | Corner radius in pixels    |
-| `border_width`       | int    | `1`           | Border width in pixels     |
-| `padding`            | int    | `4`           | Internal padding in pixels |
-| `background_color`   | string | `"#F2FFD700"` | Label background (gold)    |
-| `text_color`         | string | `"#FF000000"` | Label text (black)         |
-| `matched_text_color` | string | `"#FF737373"` | Typed text color (gray)    |
-| `border_color`       | string | `"#FF000000"` | Border color (black)       |
+| Option               | Type   | Default       | Description                                        |
+| -------------------- | ------ | ------------- | -------------------------------------------------- |
+| `enabled`            | bool   | `true`        | Enable/disable hints mode                          |
+| `auto_exit_actions`  | array  | `[]`          | Actions that auto-exit after execution (see below) |
+| `hint_characters`    | string | `"asdfghjkl"` | Characters used for labels                         |
+| `font_size`          | int    | `10`          | Label font size                                    |
+| `font_family`        | string | `""`          | Font name (empty = system)                         |
+| `border_radius`      | int    | `4`           | Corner radius in pixels                            |
+| `border_width`       | int    | `1`           | Border width in pixels                             |
+| `padding`            | int    | `4`           | Internal padding in pixels                         |
+| `background_color`   | string | `"#F2FFD700"` | Label background (gold)                            |
+| `text_color`         | string | `"#FF000000"` | Label text (black)                                 |
+| `matched_text_color` | string | `"#FF737373"` | Typed text color (gray)                            |
+| `border_color`       | string | `"#FF000000"` | Border color (black)                               |
+
+### auto_exit_actions
+
+Actions that cause hints mode to exit automatically after execution. When a direct action key (configured in `[action.key_bindings]`) is pressed and matches an action in this list, the mode will exit immediately after performing the action. See [Mouse Movement Actions](#mouse-movement-actions) for available action names.
+
+> **Warning:** Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge (Up/Down/Left/Right), which is usually undesirable. This action is primarily intended for fine-tuning cursor position while staying in the mode.
+
+```toml
+[hints]
+# Exit hints mode after left or middle click
+auto_exit_actions = ["left_click", "middle_click"]
+```
 
 ### hint_characters
 
@@ -509,17 +522,30 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 
 ### Basic Configuration
 
-| Option          | Type   | Default              | Description              |
-| --------------- | ------ | -------------------- | ------------------------ |
-| `enabled`       | bool   | `true`               | Enable/disable grid mode |
-| `characters`    | string | (see below)          | Primary grid labels      |
-| `sublayer_keys` | string | (same as characters) | Subgrid labels           |
-| `reset_key`     | string | `" "`                | Key to clear input       |
-| `font_size`     | int    | `10`                 | Label font size          |
-| `font_family`   | string | `""`                 | Font name                |
-| `border_width`  | int    | `1`                  | Cell border width        |
+| Option              | Type   | Default              | Description                                        |
+| ------------------- | ------ | -------------------- | -------------------------------------------------- |
+| `enabled`           | bool   | `true`               | Enable/disable grid mode                           |
+| `auto_exit_actions` | array  | `[]`                 | Actions that auto-exit after execution (see below) |
+| `characters`        | string | (see below)          | Primary grid labels                                |
+| `sublayer_keys`     | string | (same as characters) | Subgrid labels                                     |
+| `reset_key`         | string | `" "`                | Key to clear input                                 |
+| `font_size`         | int    | `10`                 | Label font size                                    |
+| `font_family`       | string | `""`                 | Font name                                          |
+| `border_width`      | int    | `1`                  | Cell border width                                  |
 
 **Default characters:** `abcdefghijklmnpqrstuvwxyz`
+
+### auto_exit_actions
+
+Actions that cause grid mode to exit automatically after execution. See [Mouse Movement Actions](#mouse-movement-actions) for available action names.
+
+> **Warning:** Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge, which is usually undesirable.
+
+```toml
+[grid]
+# Exit grid mode after left click
+auto_exit_actions = ["left_click"]
+```
 
 ### Character Requirements
 
@@ -610,16 +636,29 @@ Recursive grid divides the screen into cells, narrowing selection with each keyp
 
 ### Basic Configuration
 
-| Option            | Type   | Default  | Description              |
-| ----------------- | ------ | -------- | ------------------------ |
-| `enabled`         | bool   | `true`   | Enable/disable mode      |
-| `grid_cols`       | int    | `2`      | Number of columns        |
-| `grid_rows`       | int    | `2`      | Number of rows           |
-| `keys`            | string | `"uijk"` | Cell selection keys      |
-| `min_size_width`  | int    | `25`     | Min cell width (pixels)  |
-| `min_size_height` | int    | `25`     | Min cell height (pixels) |
-| `max_depth`       | int    | `10`     | Maximum recursion levels |
-| `reset_key`       | string | `" "`    | Key to reset to start    |
+| Option              | Type   | Default  | Description                                        |
+| ------------------- | ------ | -------- | -------------------------------------------------- |
+| `enabled`           | bool   | `true`   | Enable/disable mode                                |
+| `auto_exit_actions` | array  | `[]`     | Actions that auto-exit after execution (see below) |
+| `grid_cols`         | int    | `2`      | Number of columns                                  |
+| `grid_rows`         | int    | `2`      | Number of rows                                     |
+| `keys`              | string | `"uijk"` | Cell selection keys                                |
+| `min_size_width`    | int    | `25`     | Min cell width (pixels)                            |
+| `min_size_height`   | int    | `25`     | Min cell height (pixels)                           |
+| `max_depth`         | int    | `10`     | Maximum recursion levels                           |
+| `reset_key`         | string | `" "`    | Key to reset to start                              |
+
+### auto_exit_actions
+
+Actions that cause recursive-grid mode to exit automatically after execution. See [Mouse Movement Actions](#mouse-movement-actions) for available action names.
+
+> **Warning:** Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge, which is usually undesirable.
+
+```toml
+[recursive_grid]
+# Exit recursive-grid mode after left or right click
+auto_exit_actions = ["left_click", "right_click"]
+```
 
 ### Grid Dimensions
 

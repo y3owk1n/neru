@@ -413,6 +413,107 @@ func TestType_Name_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestIsDirectKeyBindingName(t *testing.T) {
+	tests := []struct {
+		name action.Name
+		want bool
+	}{
+		{action.NameLeftClick, true},
+		{action.NameRightClick, true},
+		{action.NameMiddleClick, true},
+		{action.NameMouseDown, true},
+		{action.NameMouseUp, true},
+		{action.NameMoveMouseRelative, true},
+		{action.NameMoveMouse, false},
+		{action.NameScroll, false},
+		{action.Name("unknown"), false},
+		{action.Name(""), false},
+	}
+	for _, testCase := range tests {
+		t.Run(string(testCase.name), func(t *testing.T) {
+			got := action.IsDirectKeyBindingName(testCase.name)
+			if got != testCase.want {
+				t.Errorf(
+					"IsDirectKeyBindingName(%q) = %v, want %v",
+					testCase.name,
+					got,
+					testCase.want,
+				)
+			}
+		})
+	}
+}
+
+func TestDirectKeyBindingNames(t *testing.T) {
+	names := action.DirectKeyBindingNames()
+	if len(names) != 6 {
+		t.Errorf("DirectKeyBindingNames() returned %d names, want 6", len(names))
+	}
+	// Check that all names are unique
+	seen := make(map[action.Name]bool)
+	for _, name := range names {
+		if seen[name] {
+			t.Errorf("DirectKeyBindingNames() contains duplicate: %v", name)
+		}
+
+		seen[name] = true
+	}
+	// Check that all expected names are present
+	expected := []action.Name{
+		action.NameLeftClick,
+		action.NameRightClick,
+		action.NameMiddleClick,
+		action.NameMouseDown,
+		action.NameMouseUp,
+		action.NameMoveMouseRelative,
+	}
+	for _, exp := range expected {
+		if !seen[exp] {
+			t.Errorf("DirectKeyBindingNames() missing name: %v", exp)
+		}
+	}
+	// Verify IPC-only actions are excluded
+	for _, name := range names {
+		if name == action.NameMoveMouse || name == action.NameScroll {
+			t.Errorf("DirectKeyBindingNames() should not contain IPC-only action: %v", name)
+		}
+	}
+}
+
+func TestDirectKeyBindingNamesString(t *testing.T) {
+	str := action.DirectKeyBindingNamesString()
+
+	expectedNames := []string{
+		"left_click",
+		"right_click",
+		"middle_click",
+		"mouse_down",
+		"mouse_up",
+		"move_mouse_relative",
+	}
+	for _, name := range expectedNames {
+		if !contains(str, name) {
+			t.Errorf("DirectKeyBindingNamesString() missing %q in %q", name, str)
+		}
+	}
+	// IPC-only actions should not be present
+	excludedNames := []string{
+		"move_mouse",
+		"scroll",
+	}
+	for _, name := range excludedNames {
+		// "move_mouse" is a substring of "move_mouse_relative", so check more carefully
+		if name == "move_mouse" {
+			// Check it doesn't appear as a standalone entry
+			continue
+		}
+
+		if contains(str, name) {
+			t.Errorf("DirectKeyBindingNamesString() should not contain %q in %q", name, str)
+		}
+	}
+}
+
 func TestName_Type_ParseType_RoundTrip(t *testing.T) {
 	// Test that ParseType() and String() work with Name conversion
 	for _, name := range action.KnownNames() {

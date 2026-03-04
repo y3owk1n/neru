@@ -150,6 +150,18 @@ var knownNames = []Name{
 	NameScroll,
 }
 
+// directKeyBindingNames lists the action names that can be triggered via direct
+// key bindings (action.key_bindings). Actions like "move_mouse" and "scroll"
+// are only available through IPC / CLI and are excluded.
+var directKeyBindingNames = []Name{
+	NameLeftClick,
+	NameRightClick,
+	NameMiddleClick,
+	NameMouseDown,
+	NameMouseUp,
+	NameMoveMouseRelative,
+}
+
 // KnownNames returns a slice containing all supported action names.
 func KnownNames() []Name {
 	result := make([]Name, len(knownNames))
@@ -168,6 +180,44 @@ func SupportedNamesString() string {
 	}
 
 	return strings.Join(strs, ", ")
+}
+
+// DirectKeyBindingNames returns the action names that can be triggered via direct key bindings.
+func DirectKeyBindingNames() []Name {
+	result := make([]Name, len(directKeyBindingNames))
+	copy(result, directKeyBindingNames)
+
+	return result
+}
+
+// DirectKeyBindingNamesString returns a comma-separated string of direct key binding action names.
+func DirectKeyBindingNamesString() string {
+	names := DirectKeyBindingNames()
+
+	strs := make([]string, len(names))
+
+	for i, name := range names {
+		strs[i] = string(name)
+	}
+
+	return strings.Join(strs, ", ")
+}
+
+// IsDirectKeyBindingName checks whether the given name is a valid direct key binding action.
+func IsDirectKeyBindingName(name Name) bool {
+	switch name {
+	case NameLeftClick,
+		NameRightClick,
+		NameMiddleClick,
+		NameMouseDown,
+		NameMouseUp,
+		NameMoveMouseRelative:
+		return true
+	case NameMoveMouse, NameScroll:
+		return false
+	default:
+		return false
+	}
 }
 
 // IsKnownName determines whether the specified action name is supported.

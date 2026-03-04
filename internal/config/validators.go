@@ -8,8 +8,25 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
+
+func validateAutoExitActions(actions []string, fieldName string) error {
+	for _, actionName := range actions {
+		if !action.IsDirectKeyBindingName(action.Name(actionName)) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s contains unknown action '%s' (valid: %s)",
+				fieldName,
+				actionName,
+				action.DirectKeyBindingNamesString(),
+			)
+		}
+	}
+
+	return nil
+}
 
 var validModifiers = map[string]bool{
 	"Cmd":    true,
@@ -50,6 +67,14 @@ func (c *Config) ValidateHints() error {
 		}
 	}
 
+	err := validateAutoExitActions(
+		c.Hints.AutoExitActions,
+		"hints.auto_exit_actions",
+	)
+	if err != nil {
+		return err
+	}
+
 	if strings.TrimSpace(c.Hints.HintCharacters) == "" {
 		return derrors.New(derrors.CodeInvalidConfig, "hint_characters cannot be empty")
 	}
@@ -70,7 +95,7 @@ func (c *Config) ValidateHints() error {
 		}
 	}
 
-	err := validateColors([]colorField{
+	err = validateColors([]colorField{
 		{c.Hints.BackgroundColor, "hints.background_color"},
 		{c.Hints.TextColor, "hints.text_color"},
 		{c.Hints.MatchedTextColor, "hints.matched_text_color"},
@@ -450,6 +475,14 @@ func (c *Config) ValidateGrid() error {
 			"grid.sublayer_keys must contain at least %d characters for 3x3 subgrid selection",
 			required,
 		)
+	}
+
+	err = validateAutoExitActions(
+		c.Grid.AutoExitActions,
+		"grid.auto_exit_actions",
+	)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -1126,6 +1159,14 @@ func (c *Config) ValidateRecursiveGrid() error {
 		{c.RecursiveGrid.HighlightColor, "recursive_grid.highlight_color"},
 		{c.RecursiveGrid.LabelColor, "recursive_grid.label_color"},
 	})
+	if err != nil {
+		return err
+	}
+
+	err = validateAutoExitActions(
+		c.RecursiveGrid.AutoExitActions,
+		"recursive_grid.auto_exit_actions",
+	)
 	if err != nil {
 		return err
 	}
