@@ -296,6 +296,8 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 
 Actions that cause hints mode to exit automatically after execution. When a direct action key (configured in `[action.key_bindings]`) is pressed and matches an action in this list, the mode will exit immediately after performing the action. See [Mouse Movement Actions](#mouse-movement-actions) for available action names.
 
+> **Warning:** Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge (Up/Down/Left/Right), which is usually undesirable. This action is primarily intended for fine-tuning cursor position while staying in the mode.
+
 ```toml
 [hints]
 # Exit hints mode after left or middle click
@@ -537,6 +539,8 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 
 Actions that cause grid mode to exit automatically after execution. See [Mouse Movement Actions](#mouse-movement-actions) for available action names.
 
+> **Warning:** Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge, which is usually undesirable.
+
 ```toml
 [grid]
 # Exit grid mode after left click
@@ -647,6 +651,8 @@ Recursive grid divides the screen into cells, narrowing selection with each keyp
 ### auto_exit_actions
 
 Actions that cause recursive-grid mode to exit automatically after execution. See [Mouse Movement Actions](#mouse-movement-actions) for available action names.
+
+> **Warning:** Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge, which is usually undesirable.
 
 ```toml
 [recursive_grid]

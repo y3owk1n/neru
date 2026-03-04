@@ -61,6 +61,7 @@ enabled = true
 # Valid values: left_click, right_click, middle_click, mouse_down, mouse_up, move_mouse_relative
 # Default: [] (empty - no auto-exit)
 # Example: auto_exit_actions = ["left_click", "middle_click"]
+# Note: Including "move_mouse_relative" will exit on every arrow-key nudge, which is usually undesirable.
 auto_exit_actions = []
 
 # Characters to use for hint labels
@@ -164,6 +165,7 @@ enabled = true
 # Valid values: left_click, right_click, middle_click, mouse_down, mouse_up, move_mouse_relative
 # Default: [] (empty - no auto-exit)
 # Example: auto_exit_actions = ["left_click", "middle_click"]
+# Note: Including "move_mouse_relative" will exit on every arrow-key nudge, which is usually undesirable.
 auto_exit_actions = []
 
 # Characters to use for grid labels
@@ -228,6 +230,7 @@ enabled = true
 # Valid values: left_click, right_click, middle_click, mouse_down, mouse_up, move_mouse_relative
 # Default: [] (empty - no auto-exit)
 # Example: auto_exit_actions = ["left_click", "middle_click"]
+# Note: Including "move_mouse_relative" will exit on every arrow-key nudge, which is usually undesirable.
 auto_exit_actions = []
 
 # Grid layout: columns and rows (default: 2x2, must be >= 2)
