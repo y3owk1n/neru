@@ -13,6 +13,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
+	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/core/infra/electron"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
@@ -191,6 +192,10 @@ func (a *App) setupAppWatcherCallbacks() {
 	a.appWatcher.OnScreenParametersChanged(func() {
 		a.handleScreenParametersChange()
 	})
+
+	// Watch for macOS theme changes (Dark Mode / Light Mode) to update
+	// theme-aware label colors without requiring restart.
+	a.setupThemeObserver()
 }
 
 // handleScreenParametersChange responds to display configuration changes by updating overlays.
@@ -497,6 +502,40 @@ func (a *App) Stop() {
 	})
 }
 
+// setupThemeObserver starts the macOS theme change observer and registers
+// a callback that refreshes theme-aware styles (e.g. label_color) when the
+// system appearance changes between Light and Dark Mode.
+func (a *App) setupThemeObserver() {
+	bridge.SetThemeChangeHandler(func(isDark bool) {
+		a.handleThemeChange(isDark)
+	})
+	bridge.StartThemeObserver()
+}
+
+// handleThemeChange is called when the macOS system appearance changes.
+// It refreshes overlay styles that depend on the theme (e.g. recursive grid
+// label_color) when the color was not explicitly set by the user.
+func (a *App) handleThemeChange(isDark bool) {
+	a.logger.Info("System theme changed",
+		zap.Bool("is_dark", isDark))
+
+	// Only update if label color is not user-specified (empty = theme-aware default)
+	if a.config.RecursiveGrid.LabelColor != "" {
+		a.logger.Debug("label_color is user-specified, skipping theme-aware update")
+
+		return
+	}
+
+	// Re-build styles with the new theme state
+	if a.recursiveGridComponent != nil {
+		a.recursiveGridComponent.UpdateConfig(a.config, a.logger)
+	}
+
+	if a.modes != nil {
+		a.modes.UpdateConfig(a.config)
+	}
+}
+
 // Cleanup cleans up resources.
 func (a *App) Cleanup() {
 	a.logger.Info("Cleaning up")
@@ -507,6 +546,10 @@ func (a *App) Cleanup() {
 	}
 
 	a.ExitMode()
+
+	// Stop theme observer
+	bridge.StopThemeObserver()
+	bridge.SetThemeChangeHandler(nil)
 
 	// Stop IPC server first to prevent new requests
 	if a.ipcServer != nil {

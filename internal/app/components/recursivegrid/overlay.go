@@ -439,12 +439,14 @@ func (s Style) LabelFontFamily() string {
 }
 
 // BuildStyle creates a Style from RecursiveGridConfig.
-func BuildStyle(cfg config.RecursiveGridConfig) Style {
+// The theme parameter is used to resolve the label color when it is not
+// explicitly specified in the configuration (empty string = theme-aware default).
+func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Style {
 	return Style{
 		lineColor:       cfg.LineColor,
 		lineWidth:       cfg.LineWidth,
 		highlightColor:  cfg.HighlightColor,
-		labelColor:      cfg.LabelColor,
+		labelColor:      config.ResolvedLabelColor(cfg.LabelColor, theme),
 		labelFontSize:   cfg.LabelFontSize,
 		labelFontFamily: cfg.LabelFontFamily,
 	}

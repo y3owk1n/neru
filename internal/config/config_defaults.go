@@ -181,6 +181,11 @@ const (
 	DefaultRecursiveGridLineWidth = 1
 	// DefaultRecursiveGridLabelFontSize is the default font size for cell labels.
 	DefaultRecursiveGridLabelFontSize = 10
+
+	// LabelColorDarkMode is the default label color for Dark Mode (white, fully opaque).
+	LabelColorDarkMode = "#FFFFFFFF"
+	// LabelColorLightMode is the default label color for Light Mode (black, fully opaque).
+	LabelColorLightMode = "#FF000000"
 )
 
 // DefaultConfig returns the default application configuration with sensible defaults.
@@ -292,7 +297,7 @@ func DefaultConfig() *Config {
 			LineColor:       "#FF8EE2FF", // Light blue, alpha FF = 100% opacity
 			LineWidth:       DefaultRecursiveGridLineWidth,
 			HighlightColor:  "#4D00BFFF", // Deep sky blue, alpha 4D ≈ 30% opacity
-			LabelColor:      "#FFFFFFFF", // White, alpha FF = 100% opacity
+			LabelColor:      "",           // Empty = theme-aware default (white in Dark Mode, black in Light Mode)
 			LabelFontSize:   DefaultRecursiveGridLabelFontSize,
 			LabelFontFamily: "",
 

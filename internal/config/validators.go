@@ -1154,11 +1154,17 @@ func (c *Config) ValidateRecursiveGrid() error {
 	}
 
 	// Validate colors
-	err := validateColors([]colorField{
+	colorFields := []colorField{
 		{c.RecursiveGrid.LineColor, "recursive_grid.line_color"},
 		{c.RecursiveGrid.HighlightColor, "recursive_grid.highlight_color"},
-		{c.RecursiveGrid.LabelColor, "recursive_grid.label_color"},
-	})
+	}
+	// Only validate LabelColor if user specified it (non-empty).
+	// Empty string means theme-aware default and is valid.
+	if c.RecursiveGrid.LabelColor != "" {
+		colorFields = append(colorFields, colorField{c.RecursiveGrid.LabelColor, "recursive_grid.label_color"})
+	}
+
+	err := validateColors(colorFields)
 	if err != nil {
 		return err
 	}

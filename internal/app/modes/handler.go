@@ -11,7 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
-	"github.com/y3owk1n/neru/internal/config"
+	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
@@ -46,7 +46,7 @@ type Handler struct {
 	// (HandleKeyPress, ActivateMode, ExitMode) and timer callbacks must hold this lock.
 	mu sync.Mutex
 
-	config         *config.Config
+	config         *configpkg.Config
 	logger         *zap.Logger
 	appState       *state.AppState
 	cursorState    *state.CursorState
@@ -83,7 +83,7 @@ type Handler struct {
 
 // NewHandler creates a new mode handler.
 func NewHandler(
-	config *config.Config,
+	config *configpkg.Config,
 	logger *zap.Logger,
 	appState *state.AppState,
 	cursorState *state.CursorState,
@@ -253,17 +253,22 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 }
 
 // UpdateConfig updates the handler with new configuration.
-func (h *Handler) UpdateConfig(config *config.Config) {
+func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	h.config = config
 
 	if h.renderer != nil {
+		var theme configpkg.ThemeProvider
+		if h.recursiveGrid != nil {
+			theme = h.recursiveGrid.ThemeProvider
+		}
+
 		h.renderer.UpdateConfig(
 			hints.BuildStyle(config.Hints),
 			grid.BuildStyle(config.Grid),
-			recursivegrid.BuildStyle(config.RecursiveGrid),
+			recursivegrid.BuildStyle(config.RecursiveGrid, theme),
 		)
 	}
 }
