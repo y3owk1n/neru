@@ -610,16 +610,17 @@ Recursive grid divides the screen into cells, narrowing selection with each keyp
 
 ### Basic Configuration
 
-| Option            | Type   | Default  | Description              |
-| ----------------- | ------ | -------- | ------------------------ |
-| `enabled`         | bool   | `true`   | Enable/disable mode      |
-| `grid_cols`       | int    | `2`      | Number of columns        |
-| `grid_rows`       | int    | `2`      | Number of rows           |
-| `keys`            | string | `"uijk"` | Cell selection keys      |
-| `min_size_width`  | int    | `25`     | Min cell width (pixels)  |
-| `min_size_height` | int    | `25`     | Min cell height (pixels) |
-| `max_depth`       | int    | `10`     | Maximum recursion levels |
-| `reset_key`       | string | `" "`    | Key to reset to start    |
+| Option              | Type     | Default  | Description                              |
+| ------------------- | -------- | -------- | ---------------------------------------- |
+| `enabled`           | bool     | `true`   | Enable/disable mode                      |
+| `grid_cols`         | int      | `2`      | Number of columns                        |
+| `grid_rows`         | int      | `2`      | Number of rows                           |
+| `keys`              | string   | `"uijk"` | Cell selection keys                      |
+| `min_size_width`    | int      | `25`     | Min cell width (pixels)                  |
+| `min_size_height`   | int      | `25`     | Min cell height (pixels)                 |
+| `max_depth`         | int      | `10`     | Maximum recursion levels                 |
+| `reset_key`         | string   | `" "`    | Key to reset to start                    |
+| `auto_exit_actions` | string[] | `[]`     | Actions that auto-close the overlay      |
 
 ### Grid Dimensions
 
@@ -670,6 +671,25 @@ j   →   k          j = Lower-left
 | `highlight_color` | string | `"#4D00BFFF"` | Selected cell highlight |
 | `label_color`     | string | `"#FFFFFFFF"` | Cell label text         |
 | `label_font_size` | int    | `10`          | Label size              |
+
+### Auto-Exit Actions
+
+By default, the recursive grid overlay stays open after performing click actions (e.g., left click), allowing consecutive clicks in the same area without reactivating the mode. If you prefer the overlay to close automatically after certain actions, use `auto_exit_actions`:
+
+```toml
+[recursive_grid]
+# Close overlay after left or middle click
+auto_exit_actions = ["left_click", "middle_click"]
+```
+
+**Valid actions:**
+- `left_click` - Left mouse button click
+- `right_click` - Right mouse button click
+- `middle_click` - Middle mouse button click
+- `mouse_down` - Press and hold mouse button
+- `mouse_up` - Release mouse button
+
+**Note:** Movement actions (`move_mouse`, `move_mouse_relative`) are not valid for auto-exit since they don't perform clicks.
 
 ---
 

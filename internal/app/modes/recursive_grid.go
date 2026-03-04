@@ -121,9 +121,21 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 
 	// Handle direct action keys first
 	if h.actionService.IsDirectActionKey(key) {
+		// Get the action name to check for auto-exit
+		actionName := h.actionService.GetActionNameForKey(key)
+
 		_, err := h.actionService.HandleDirectActionKey(ctx, key)
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
+		}
+
+		// Check if this action should trigger auto-exit (only for non-move-mouse actions)
+		if actionName != "" && !h.actionService.IsMoveMouseKey(key) {
+			if h.config.RecursiveGrid.IsAutoExitAction(actionName) {
+				h.logger.Info("Auto-exiting recursive-grid mode after action",
+					zap.String("action", actionName))
+				h.exitModeLocked()
+			}
 		}
 
 		return

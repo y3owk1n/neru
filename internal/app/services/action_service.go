@@ -227,6 +227,17 @@ func (s *ActionService) IsDirectActionKey(key string) bool {
 	return ok
 }
 
+// GetActionNameForKey returns the action name (e.g., "left_click") for a key binding.
+// Returns empty string if the key is not a direct action key.
+func (s *ActionService) GetActionNameForKey(key string) string {
+	actionString, _, ok := s.getActionMapping(key)
+	if !ok {
+		return ""
+	}
+
+	return actionString
+}
+
 // IsMoveMouseKey checks if the given key is a move mouse keybinding.
 func (s *ActionService) IsMoveMouseKey(key string) bool {
 	if key == "" {

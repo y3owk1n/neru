@@ -659,3 +659,63 @@ func TestNormalizeKeyForComparison_CJKInputMethodScenarios(t *testing.T) {
 		})
 	}
 }
+
+func TestRecursiveGridConfig_IsAutoExitAction(t *testing.T) {
+	tests := []struct {
+		name            string
+		autoExitActions []string
+		actionName      string
+		want            bool
+	}{
+		{
+			name:            "empty auto_exit_actions",
+			autoExitActions: []string{},
+			actionName:      "left_click",
+			want:            false,
+		},
+		{
+			name:            "action in list",
+			autoExitActions: []string{"left_click", "right_click"},
+			actionName:      "left_click",
+			want:            true,
+		},
+		{
+			name:            "action not in list",
+			autoExitActions: []string{"left_click", "right_click"},
+			actionName:      "middle_click",
+			want:            false,
+		},
+		{
+			name:            "single action in list - match",
+			autoExitActions: []string{"middle_click"},
+			actionName:      "middle_click",
+			want:            true,
+		},
+		{
+			name:            "all click actions",
+			autoExitActions: []string{"left_click", "right_click", "middle_click", "mouse_down", "mouse_up"},
+			actionName:      "mouse_up",
+			want:            true,
+		},
+		{
+			name:            "empty action name",
+			autoExitActions: []string{"left_click"},
+			actionName:      "",
+			want:            false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := config.RecursiveGridConfig{
+				AutoExitActions: testCase.autoExitActions,
+			}
+			got := cfg.IsAutoExitAction(testCase.actionName)
+			if got != testCase.want {
+				t.Errorf("IsAutoExitAction(%q) = %v, want %v",
+					testCase.actionName, got, testCase.want)
+			}
+		})
+	}
+}
+

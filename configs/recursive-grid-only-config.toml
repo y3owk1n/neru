@@ -31,3 +31,7 @@ grid_rows = 2
 # Must be exactly grid_cols * grid_rows characters
 # For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
 keys = "uijk"
+
+# Actions that automatically exit the overlay after execution
+auto_exit_actions = []
+

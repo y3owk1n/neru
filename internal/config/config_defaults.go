@@ -296,10 +296,11 @@ func DefaultConfig() *Config {
 			LabelFontSize:   DefaultRecursiveGridLabelFontSize,
 			LabelFontFamily: "",
 
-			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
-			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
-			MaxDepth:      DefaultRecursiveGridMaxDepth,
-			ResetKey:      " ",
+			MinSizeWidth:    DefaultRecursiveGridMinSizeWidth,
+			MinSizeHeight:   DefaultRecursiveGridMinSizeHeight,
+			MaxDepth:        DefaultRecursiveGridMaxDepth,
+			ResetKey:        " ",
+			AutoExitActions: []string{}, // Default: empty (no auto-exit)
 		},
 		ModeIndicator: ModeIndicatorConfig{
 			ScrollEnabled:        true,

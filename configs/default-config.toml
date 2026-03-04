@@ -237,6 +237,11 @@ min_size_height = 25           # Minimum cell height in pixels (stops dividing w
 max_depth = 10                 # Maximum recursion depth (safety limit)
 reset_key = " "                # Reset to initial center and clear state
 
+# Actions that automatically exit the overlay after execution
+# Valid values: "left_click", "right_click", "middle_click", "mouse_down", "mouse_up"
+# Example: auto_exit_actions = ["left_click", "middle_click"]
+auto_exit_actions = []
+
 [scroll]
 # Scroll step sizes
 scroll_step = 50            # Base scroll distance for j/k keys

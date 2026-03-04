@@ -1130,5 +1130,26 @@ func (c *Config) ValidateRecursiveGrid() error {
 		return err
 	}
 
+	// Validate auto_exit_actions
+	if len(c.RecursiveGrid.AutoExitActions) > 0 {
+		validActions := map[string]bool{
+			"left_click":   true,
+			"right_click":  true,
+			"middle_click": true,
+			"mouse_down":   true,
+			"mouse_up":     true,
+		}
+
+		for _, actionName := range c.RecursiveGrid.AutoExitActions {
+			if !validActions[actionName] {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"recursive_grid.auto_exit_actions contains invalid action '%s'; valid actions are: left_click, right_click, middle_click, mouse_down, mouse_up",
+					actionName,
+				)
+			}
+		}
+	}
+
 	return nil
 }

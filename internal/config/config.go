@@ -291,10 +291,11 @@ type RecursiveGridConfig struct {
 	LabelFontFamily string `json:"labelFontFamily" toml:"label_font_family"`
 
 	// Behavior
-	MinSizeWidth  int    `json:"minSizeWidth"  toml:"min_size_width"`  // Default: 25
-	MinSizeHeight int    `json:"minSizeHeight" toml:"min_size_height"` // Default: 25
-	MaxDepth      int    `json:"maxDepth"      toml:"max_depth"`       // Default: 10
-	ResetKey      string `json:"resetKey"      toml:"reset_key"`
+	MinSizeWidth    int      `json:"minSizeWidth"    toml:"min_size_width"`  // Default: 25
+	MinSizeHeight   int      `json:"minSizeHeight"   toml:"min_size_height"` // Default: 25
+	MaxDepth        int      `json:"maxDepth"        toml:"max_depth"`       // Default: 10
+	ResetKey        string   `json:"resetKey"        toml:"reset_key"`
+	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"` // Actions that auto-exit mode
 }
 
 // LoggingConfig defines the logging behavior and file management settings.
@@ -822,4 +823,16 @@ func IsAllLetters(keyStr string) bool {
 	}
 
 	return len(keyStr) > 0
+}
+
+// IsAutoExitAction checks if the given action should trigger auto-exit in recursive grid mode.
+// Returns true if the action is in the AutoExitActions list.
+func (c *RecursiveGridConfig) IsAutoExitAction(actionName string) bool {
+	for _, a := range c.AutoExitActions {
+		if a == actionName {
+			return true
+		}
+	}
+
+	return false
 }

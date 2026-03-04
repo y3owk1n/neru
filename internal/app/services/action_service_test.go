@@ -579,3 +579,62 @@ func TestIsMoveMouseKey(t *testing.T) {
 		})
 	}
 }
+
+func TestGetActionNameForKey(t *testing.T) {
+	mockAcc := newMockAccessibilityPort()
+
+	actionConfig := config.ActionConfig{
+		MoveMouseStep: 10,
+		KeyBindings: config.ActionKeyBindingsCfg{
+			LeftClick:      "Shift+L",
+			RightClick:     "Shift+R",
+			MiddleClick:    "Shift+M",
+			MouseDown:      "Shift+I",
+			MouseUp:        "Shift+U",
+			MoveMouseUp:    "Up",
+			MoveMouseDown:  "Down",
+			MoveMouseLeft:  "Left",
+			MoveMouseRight: "Right",
+		},
+	}
+
+	logger, _ := zap.NewDevelopment()
+
+	actionService := services.NewActionService(
+		mockAcc,
+		&mockOverlayPort{},
+		actionConfig,
+		actionConfig.KeyBindings,
+		actionConfig.MoveMouseStep,
+		logger,
+	)
+
+	tests := []struct {
+		key      string
+		expected string
+	}{
+		{"Shift+L", "left_click"},
+		{"Shift+R", "right_click"},
+		{"Shift+M", "middle_click"},
+		{"Shift+I", "mouse_down"},
+		{"Shift+U", "mouse_up"},
+		{"Up", "move_mouse_relative"},
+		{"Down", "move_mouse_relative"},
+		{"Left", "move_mouse_relative"},
+		{"Right", "move_mouse_relative"},
+		// Unknown keys return empty string
+		{"a", ""},
+		{"unknown", ""},
+		{"", ""},
+	}
+
+	for _, test := range tests {
+		t.Run(test.key, func(t *testing.T) {
+			result := actionService.GetActionNameForKey(test.key)
+			if result != test.expected {
+				t.Errorf("GetActionNameForKey(%q) = %q, want %q", test.key, result, test.expected)
+			}
+		})
+	}
+}
+
