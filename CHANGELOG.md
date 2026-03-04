@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.0](https://github.com/y3owk1n/neru/compare/v1.22.1...v1.23.0) (2026-03-04)
+
+
+### Features
+
+* add auto_exit_actions config option for modes ([#486](https://github.com/y3owk1n/neru/issues/486)) ([e70f6aa](https://github.com/y3owk1n/neru/commit/e70f6aa35bc8f84fdcb225b46bf0017f6dafceef))
+
 ## [1.22.1](https://github.com/y3owk1n/neru/compare/v1.22.0...v1.22.1) (2026-03-03)
 
 
