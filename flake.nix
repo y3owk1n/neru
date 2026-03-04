@@ -14,7 +14,7 @@
       ];
 
       # Update this to your latest release version
-      latestVersion = "1.22.1";
+      latestVersion = "1.23.0";
 
       # Function to build package with specific version
       makeNeruPackage =
