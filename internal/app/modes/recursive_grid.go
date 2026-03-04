@@ -122,9 +122,13 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 
 	// Handle direct action keys first
 	if h.actionService.IsDirectActionKey(key) {
-		_, err := h.actionService.HandleDirectActionKey(ctx, key)
+		wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
+		}
+
+		if !wasHandled {
+			return
 		}
 
 		if actionName, ok := h.actionService.GetActionForKey(key); ok {
