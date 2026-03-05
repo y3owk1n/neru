@@ -462,6 +462,27 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "recursive_grid with empty label_color (theme-aware default) - valid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:        true,
+					GridCols:       2,
+					GridRows:       2,
+					Keys:           "uijk",
+					ResetKey:       ",",
+					MinSizeWidth:   50,
+					MinSizeHeight:  50,
+					MaxDepth:       4,
+					LineWidth:      2,
+					LabelFontSize:  12,
+					LineColor:      "#FF0000",
+					HighlightColor: "#00FF00",
+					LabelColor:     "",
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, testCase := range tests {

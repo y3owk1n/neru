@@ -702,13 +702,19 @@ j   →   k          j = Lower-left
 
 ### Visual Options
 
-| Option            | Type   | Default       | Description             |
-| ----------------- | ------ | ------------- | ----------------------- |
-| `line_color`      | string | `"#FF8EE2FF"` | Grid line color         |
-| `line_width`      | int    | `1`           | Line thickness          |
-| `highlight_color` | string | `"#4D00BFFF"` | Selected cell highlight |
-| `label_color`     | string | `"#FFFFFFFF"` | Cell label text         |
-| `label_font_size` | int    | `10`          | Label size              |
+| Option            | Type   | Default              | Description                                                                    |
+| ----------------- | ------ | -------------------- | ------------------------------------------------------------------------------ |
+| `line_color`      | string | `"#FF8EE2FF"`        | Grid line color                                                                |
+| `line_width`      | int    | `1`                  | Line thickness                                                                 |
+| `highlight_color` | string | `"#4D00BFFF"`        | Selected cell highlight                                                        |
+| `label_color`     | string | _(theme-aware)_      | Cell label text. Auto-adapts to macOS Dark/Light Mode if not explicitly set     |
+| `label_font_size` | int    | `10`                 | Label size                                                                     |
+
+> **Theme-aware `label_color`:** When `label_color` is not set in your config file,
+> Neru automatically uses white (`#FFFFFFFF`) in Dark Mode and black (`#FF000000`) in
+> Light Mode. The color updates in real time when you switch system themes — no restart
+> required. If you explicitly set `label_color`, your value is always used regardless
+> of the system theme.
 
 ---
 

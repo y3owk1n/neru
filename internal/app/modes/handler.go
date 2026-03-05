@@ -11,7 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
-	"github.com/y3owk1n/neru/internal/config"
+	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
@@ -46,7 +46,8 @@ type Handler struct {
 	// (HandleKeyPress, ActivateMode, ExitMode) and timer callbacks must hold this lock.
 	mu sync.Mutex
 
-	config         *config.Config
+	config         *configpkg.Config
+	themeProvider  configpkg.ThemeProvider
 	logger         *zap.Logger
 	appState       *state.AppState
 	cursorState    *state.CursorState
@@ -83,7 +84,7 @@ type Handler struct {
 
 // NewHandler creates a new mode handler.
 func NewHandler(
-	config *config.Config,
+	config *configpkg.Config,
 	logger *zap.Logger,
 	appState *state.AppState,
 	cursorState *state.CursorState,
@@ -101,6 +102,7 @@ func NewHandler(
 	enableEventTap func(),
 	disableEventTap func(),
 	refreshHotkeys func(),
+	themeProvider configpkg.ThemeProvider,
 ) *Handler {
 	// Initialize screen bounds for coordinate conversion
 	screenBounds := bridge.ActiveScreenBounds()
@@ -125,6 +127,7 @@ func NewHandler(
 		enableEventTap:       enableEventTap,
 		disableEventTap:      disableEventTap,
 		refreshHotkeys:       refreshHotkeys,
+		themeProvider:        themeProvider,
 	}
 
 	// Initialize mode implementations
@@ -252,8 +255,26 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 	return true
 }
 
+// RefreshRecursiveGridForThemeChange redraws the recursive-grid overlay with
+// updated styles after a system theme change. Only performs the redraw if
+// ModeRecursiveGrid is currently active.
+//
+// Returns true if a redraw was performed.
+func (h *Handler) RefreshRecursiveGridForThemeChange() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeRecursiveGrid {
+		return false
+	}
+
+	h.updateRecursiveGridOverlay()
+
+	return true
+}
+
 // UpdateConfig updates the handler with new configuration.
-func (h *Handler) UpdateConfig(config *config.Config) {
+func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -263,7 +284,7 @@ func (h *Handler) UpdateConfig(config *config.Config) {
 		h.renderer.UpdateConfig(
 			hints.BuildStyle(config.Hints),
 			grid.BuildStyle(config.Grid),
-			recursivegrid.BuildStyle(config.RecursiveGrid),
+			recursivegrid.BuildStyle(config.RecursiveGrid, h.themeProvider),
 		)
 	}
 }

@@ -56,6 +56,10 @@ type App struct {
 	stopChan chan struct{}
 	stopOnce sync.Once
 
+	// configMu serializes access to config-dependent component state between
+	// concurrent writers (theme change observer, IPC config reload, systray reload).
+	configMu sync.RWMutex
+
 	// New Architecture Services
 	hintService          *services.HintService
 	gridService          *services.GridService

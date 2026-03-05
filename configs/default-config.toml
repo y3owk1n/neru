@@ -248,7 +248,8 @@ keys = "uijk"
 line_color = "#FF8EE2FF"          # Color of grid lines (light blue, alpha FF = 100% opacity)
 line_width = 1                    # Width of grid lines
 highlight_color = "#4D00BFFF"     # Color for cell highlighting (deep sky blue, alpha 4D ≈ 30% opacity)
-label_color = "#FFFFFFFF"         # Color of cell labels (white, alpha FF = 100% opacity)
+# label_color = ""               # Theme-aware: auto white in Dark Mode, black in Light Mode
+                                  # Uncomment and set a value to override (e.g. "#FFFFFFFF")
 label_font_size = 10              # Font size for labels
 label_font_family = ""            # Font family for labels
 

@@ -106,16 +106,17 @@ func (m *ModeIndicatorComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger)
 
 // RecursiveGridComponent encapsulates all recursive-grid-related functionality.
 type RecursiveGridComponent struct {
-	Manager *domainRecursiveGrid.Manager
-	Overlay *recursivegrid.Overlay
-	Context *recursivegrid.Context
-	Style   recursivegrid.Style
+	Manager       *domainRecursiveGrid.Manager
+	Overlay       *recursivegrid.Overlay
+	Context       *recursivegrid.Context
+	Style         recursivegrid.Style
+	ThemeProvider config.ThemeProvider
 }
 
 // UpdateConfig updates the recursive-grid component with new configuration.
 func (q *RecursiveGridComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
 	if cfg.RecursiveGrid.Enabled {
-		q.Style = recursivegrid.BuildStyle(cfg.RecursiveGrid)
+		q.Style = recursivegrid.BuildStyle(cfg.RecursiveGrid, q.ThemeProvider)
 		if q.Overlay != nil {
 			q.Overlay.SetConfig(cfg.RecursiveGrid)
 		}

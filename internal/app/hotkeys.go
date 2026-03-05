@@ -14,7 +14,9 @@ import (
 
 // registerHotkeys registers all global hotkeys defined in the configuration.
 func (a *App) registerHotkeys() {
-	for key, value := range a.config.Hotkeys.Bindings {
+	cfg := a.configSnapshot()
+
+	for key, value := range cfg.Hotkeys.Bindings {
 		trimmedKey := strings.TrimSpace(key)
 
 		actionStr := strings.TrimSpace(value)
@@ -27,15 +29,15 @@ func (a *App) registerHotkeys() {
 			mode = parts[0]
 		}
 
-		if mode == domain.ModeString(domain.ModeHints) && !a.config.Hints.Enabled {
+		if mode == domain.ModeString(domain.ModeHints) && !cfg.Hints.Enabled {
 			continue
 		}
 
-		if mode == domain.ModeString(domain.ModeGrid) && !a.config.Grid.Enabled {
+		if mode == domain.ModeString(domain.ModeGrid) && !cfg.Grid.Enabled {
 			continue
 		}
 
-		if mode == domain.ModeString(domain.ModeRecursiveGrid) && !a.config.RecursiveGrid.Enabled {
+		if mode == domain.ModeString(domain.ModeRecursiveGrid) && !cfg.RecursiveGrid.Enabled {
 			continue
 		}
 
@@ -182,7 +184,9 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 		}
 	}
 
-	if a.config.IsAppExcluded(bundleID) {
+	cfg := a.configSnapshot()
+
+	if cfg.IsAppExcluded(bundleID) {
 		if a.appState.HotkeysRegistered() {
 			a.logger.Info("Focused app excluded; unregistering global hotkeys",
 				zap.String("bundle_id", bundleID))

@@ -49,9 +49,6 @@ func (a *App) prepareForConfigUpdate() {
 
 // applyAppSpecificConfigUpdates applies app-specific configuration updates.
 func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
-	a.config = loadResult.Config
-	a.ConfigPath = loadResult.ConfigPath
-
 	if loadResult.Config.Hints.Enabled {
 		a.logger.Info("Updating clickable roles",
 			zap.Int("count", len(loadResult.Config.Hints.ClickableRoles)))
@@ -61,6 +58,12 @@ func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
 
 // reconfigureAfterUpdate reconfigures components and services after config update.
 func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
+	// Update the config pointer under configMu so that concurrent readers
+	// (e.g. screen-change handlers, theme observer) see a consistent value.
+	a.configMu.Lock()
+	a.config = loadResult.Config
+	a.ConfigPath = loadResult.ConfigPath
+	a.configMu.Unlock()
 	a.configureEventTapHotkeys(loadResult.Config, a.logger)
 
 	if a.hintsComponent != nil {

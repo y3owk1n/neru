@@ -11,6 +11,7 @@ package bridge
 #include "alert.h"
 #include "secureinput.h"
 #include "keymap.h"
+#include "theme.h"
 #include <stdlib.h>
 
 CGRect getActiveScreenBounds();
@@ -315,4 +316,55 @@ func ShowNotification(title, message string) {
 	defer C.free(unsafe.Pointer(cMessage)) //nolint: nlreturn
 
 	C.showNotification(cTitle, cMessage)
+}
+
+// themeChangeHandler is the global callback for theme change events.
+var (
+	themeChangeHandler   func(isDark bool)
+	themeChangeHandlerMu sync.RWMutex
+)
+
+// IsDarkMode checks if macOS Dark Mode is currently active.
+func IsDarkMode() bool {
+	result := C.isDarkMode()
+
+	return result == 1
+}
+
+// StartThemeObserver begins monitoring macOS theme changes.
+// When the theme changes, the registered callback will be called.
+func StartThemeObserver() {
+	log := getLogger()
+	log.Debug("Bridge: Starting theme observer")
+	C.startThemeObserver()
+}
+
+// StopThemeObserver ceases monitoring macOS theme changes.
+func StopThemeObserver() {
+	log := getLogger()
+	log.Debug("Bridge: Stopping theme observer")
+	C.stopThemeObserver()
+}
+
+// SetThemeChangeHandler registers a callback for theme change events.
+func SetThemeChangeHandler(handler func(isDark bool)) {
+	themeChangeHandlerMu.Lock()
+	defer themeChangeHandlerMu.Unlock()
+
+	themeChangeHandler = handler
+}
+
+//export handleThemeChanged
+func handleThemeChanged(isDark C.int) {
+	log := getLogger()
+	dark := isDark == 1
+	log.Debug("Bridge: Theme changed", zap.Bool("is_dark", dark))
+
+	themeChangeHandlerMu.RLock()
+	handler := themeChangeHandler
+	themeChangeHandlerMu.RUnlock()
+
+	if handler != nil {
+		go handler(dark)
+	}
 }

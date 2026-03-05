@@ -193,7 +193,10 @@ func initializeRendererAndOverlays(app *App) {
 		recursiveGridStyle = app.recursiveGridComponent.Style
 	} else {
 		// Fallback to default style if component is nil
-		recursiveGridStyle = recursivegrid.BuildStyle(config.DefaultConfig().RecursiveGrid)
+		recursiveGridStyle = recursivegrid.BuildStyle(
+			config.DefaultConfig().RecursiveGrid,
+			defaultThemeProvider,
+		)
 	}
 
 	app.renderer = ui.NewOverlayRenderer(
@@ -300,6 +303,7 @@ func initializeModeHandler(app *App) {
 		deps.callbacks.enableEventTap,
 		deps.callbacks.disableEventTap,
 		deps.callbacks.refreshHotkeys,
+		defaultThemeProvider,
 	)
 }
 
