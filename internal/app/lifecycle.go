@@ -516,6 +516,9 @@ func (a *App) setupThemeObserver() {
 // It refreshes overlay styles that depend on the theme (e.g. recursive grid
 // label_color) when the color was not explicitly set by the user.
 func (a *App) handleThemeChange(isDark bool) {
+	a.configMu.Lock()
+	defer a.configMu.Unlock()
+
 	a.logger.Info("System theme changed",
 		zap.Bool("is_dark", isDark))
 

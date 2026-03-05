@@ -61,6 +61,9 @@ func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
 
 // reconfigureAfterUpdate reconfigures components and services after config update.
 func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
+	a.configMu.Lock()
+	defer a.configMu.Unlock()
+
 	a.configureEventTapHotkeys(loadResult.Config, a.logger)
 
 	if a.hintsComponent != nil {
