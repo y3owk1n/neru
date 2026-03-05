@@ -105,6 +105,16 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 	cfg := h.config
 	h.configMu.RUnlock()
 
+	if cfg == nil {
+		h.logger.Error("Config is nil in handleStatus")
+
+		return ipc.Response{
+			Success: false,
+			Message: "config not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
 	status := map[string]any{
 		"enabled":                h.appState.IsEnabled(),
 		"mode":                   domain.ModeString(h.appState.CurrentMode()),
