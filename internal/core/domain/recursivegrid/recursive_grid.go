@@ -140,7 +140,8 @@ func (qg *RecursiveGrid) CellCenter(cell Cell) image.Point {
 
 // SelectCell narrows the active area to the selected cell.
 // Returns the center point of the selected cell and whether the selection is complete.
-// Selection is complete when the minimum size is reached.
+// If the grid cannot be divided further (min size or max depth), the selection completes
+// immediately without changing bounds. Otherwise, the bounds narrow to the selected cell.
 func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
 	cells := qg.Divide()
 	idx := int(cell)
@@ -306,7 +307,7 @@ func divRound(numerator, denominator int) int {
 	return (numerator + denominator/2) / denominator
 }
 
-// IsComplete returns true if the minimum size has been reached.
+// IsComplete returns true if the grid cannot be divided further (min size or max depth).
 func (qg *RecursiveGrid) IsComplete() bool {
 	return !qg.CanDivide()
 }

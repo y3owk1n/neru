@@ -223,7 +223,7 @@ func (m *Manager) CurrentDepth() int {
 	return m.grid.CurrentDepth()
 }
 
-// IsComplete returns true if the minimum size has been reached.
+// IsComplete returns true if the grid cannot be divided further (min size or max depth).
 func (m *Manager) IsComplete() bool {
 	return m.grid.IsComplete()
 }

@@ -20,7 +20,7 @@
 //	center, complete := grid.SelectCell(recursivegrid.TopLeft)
 //
 //	// center is the cursor position to move to
-//	// complete is true if minimum size has been reached
+//	// complete is true if the grid can no longer be divided (min size or max depth)
 //
 // Manager Usage:
 //
