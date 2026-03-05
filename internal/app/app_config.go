@@ -49,9 +49,6 @@ func (a *App) prepareForConfigUpdate() {
 
 // applyAppSpecificConfigUpdates applies app-specific configuration updates.
 func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
-	a.config = loadResult.Config
-	a.ConfigPath = loadResult.ConfigPath
-
 	if loadResult.Config.Hints.Enabled {
 		a.logger.Info("Updating clickable roles",
 			zap.Int("count", len(loadResult.Config.Hints.ClickableRoles)))
@@ -63,6 +60,10 @@ func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
 func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	a.configMu.Lock()
 	defer a.configMu.Unlock()
+
+	// Update the config pointer under configMu so that concurrent readers
+	a.config = loadResult.Config
+	a.ConfigPath = loadResult.ConfigPath
 
 	a.configureEventTapHotkeys(loadResult.Config, a.logger)
 
