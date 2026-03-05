@@ -105,6 +105,7 @@ func (h *IPCControllerInfo) UpdateConfig(cfg *config.Config) {
 func (h *IPCControllerInfo) configSnapshot() *config.Config {
 	h.configMu.RLock()
 	defer h.configMu.RUnlock()
+
 	return h.config
 }
 
