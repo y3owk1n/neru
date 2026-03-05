@@ -537,11 +537,11 @@ func (a *App) handleThemeChange(isDark bool) {
 
 	// Invalidate the overlay's native C string caches so the subsequent draw
 	// rebuilds them with the new theme-resolved colors.
-	if a.hintsComponent.Overlay != nil {
+	if a.hintsComponent != nil && a.hintsComponent.Overlay != nil {
 		a.hintsComponent.UpdateConfig(cfg, a.logger)
 	}
 
-	if a.gridComponent.Overlay != nil {
+	if a.gridComponent != nil && a.gridComponent.Overlay != nil {
 		a.gridComponent.UpdateConfig(cfg, a.logger)
 	}
 
