@@ -1146,21 +1146,17 @@ The following hex values represent some of the built-in defaults used by Neru.
 ```toml
 # Gold (classic hint color)
 background_color_light = "#F2FFD700"          # Gold, 95% opacity
-background_color_dark = "#F2B88600"           # Dark gold for Dark Mode
+background_color_dark = "#F2FFD700"           # same for Dark Mode
 
 # Grid colors
-background_color_light = "#B3ABE9B3"          # Light green/teal, 70%
-background_color_dark = "#B33D6B5E"           # Dark green/teal for Dark Mode
+background_color_light = "#B3ABE9B3"          # Light green, 70%
+background_color_dark = "#B3ABE9B3"           # same for Dark Mode
 matched_background_color_light = "#B3F8BD96"  # Orange, 70%
-matched_background_color_dark = "#B3CC6600"   # Dark orange for Dark Mode
+matched_background_color_dark = "#B3F8BD96"   # same for Dark Mode
 
 # Blue highlight (Recursive Grid)
 highlight_color_light = "#4D00BFFF"           # Deep sky blue, 30%
-highlight_color_dark = "#4D1E90FF"            # Dodger blue for Dark Mode
-
-# White/black text
-text_color_light = "#FF000000"                # Black for Light Mode
-text_color_dark = "#FFFFFFFF"                 # White for Dark Mode
+highlight_color_dark = "#4D00BFFF"            # same for Dark Mode
 ```
 
 ---
