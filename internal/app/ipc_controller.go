@@ -117,8 +117,6 @@ func (c *IPCController) RegisterHandlers() {
 
 // UpdateConfig updates the stored config.
 func (c *IPCController) UpdateConfig(cfg *config.Config) {
-	c.Config = cfg
-
 	if c.infoHandler != nil {
 		c.infoHandler.UpdateConfig(cfg)
 	}
