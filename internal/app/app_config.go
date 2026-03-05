@@ -62,6 +62,7 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	defer a.configMu.Unlock()
 
 	// Update the config pointer under configMu so that concurrent readers
+	// (e.g. screen-change handlers, theme observer) see a consistent value.
 	a.config = loadResult.Config
 	a.ConfigPath = loadResult.ConfigPath
 
