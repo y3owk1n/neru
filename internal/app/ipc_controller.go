@@ -128,9 +128,10 @@ func (c *IPCController) RegisterHandlers() {
 // UpdateConfig updates the stored config and configPath.
 func (c *IPCController) UpdateConfig(cfg *config.Config, configPath string) {
 	c.configMu.Lock()
+	defer c.configMu.Unlock()
+
 	c.Config = cfg
 	c.ConfigPath = configPath
-	c.configMu.Unlock()
 
 	if c.infoHandler != nil {
 		c.infoHandler.UpdateConfig(cfg, configPath)
