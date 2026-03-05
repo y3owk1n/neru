@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -27,6 +28,9 @@ type IPCControllerInfo struct {
 	scrollService *services.ScrollService
 	configPath    string
 	logger        *zap.Logger
+
+	// configMu protects config and configPath from concurrent read/write.
+	configMu sync.RWMutex
 }
 
 // NewIPCControllerInfo creates a new info/config command handler.
@@ -91,6 +95,9 @@ func (h *IPCControllerInfo) ResolveConfigPath() string {
 
 // UpdateConfig updates the stored config and configPath.
 func (h *IPCControllerInfo) UpdateConfig(cfg *config.Config, configPath string) {
+	h.configMu.Lock()
+	defer h.configMu.Unlock()
+
 	h.config = cfg
 	h.configPath = configPath
 }
@@ -98,12 +105,17 @@ func (h *IPCControllerInfo) UpdateConfig(cfg *config.Config, configPath string) 
 func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.Response {
 	configPath := h.ResolveConfigPath()
 
+	h.configMu.RLock()
+	cfg := h.config
+	h.configMu.RUnlock()
+
 	status := map[string]any{
-		"enabled":       h.appState.IsEnabled(),
-		"mode":          domain.ModeString(h.appState.CurrentMode()),
-		"config":        configPath,
-		"hints_enabled": h.config.Hints.Enabled,
-		"grid_enabled":  h.config.Grid.Enabled,
+		"enabled":                h.appState.IsEnabled(),
+		"mode":                   domain.ModeString(h.appState.CurrentMode()),
+		"config":                 configPath,
+		"hints_enabled":          cfg.Hints.Enabled,
+		"grid_enabled":           cfg.Grid.Enabled,
+		"recursive_grid_enabled": cfg.RecursiveGrid.Enabled,
 	}
 
 	return ipc.Response{
@@ -115,7 +127,11 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 }
 
 func (h *IPCControllerInfo) handleConfig(_ context.Context, _ ipc.Command) ipc.Response {
-	if h.config == nil {
+	h.configMu.RLock()
+	cfg := h.config
+	h.configMu.RUnlock()
+
+	if cfg == nil {
 		h.logger.Error("Config is nil in handleConfig")
 
 		return ipc.Response{
@@ -127,13 +143,17 @@ func (h *IPCControllerInfo) handleConfig(_ context.Context, _ ipc.Command) ipc.R
 
 	return ipc.Response{
 		Success: true,
-		Data:    h.config,
+		Data:    cfg,
 		Code:    ipc.CodeOK,
 	}
 }
 
 func (h *IPCControllerInfo) handleReloadConfig(_ context.Context, _ ipc.Command) ipc.Response {
-	err := h.configService.ReloadConfig(h.configPath)
+	h.configMu.RLock()
+	configPath := h.configPath
+	h.configMu.RUnlock()
+
+	err := h.configService.ReloadConfig(configPath)
 	if err != nil {
 		h.logger.Error("Failed to reload config", zap.Error(err))
 

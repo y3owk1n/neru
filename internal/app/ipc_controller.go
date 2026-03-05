@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -32,6 +33,9 @@ type IPCController struct {
 
 	// Config path for status reporting
 	ConfigPath string
+
+	// configMu protects Config and ConfigPath from concurrent read/write.
+	configMu sync.RWMutex
 
 	// Info handler for config updates
 	infoHandler *IPCControllerInfo
@@ -123,8 +127,10 @@ func (c *IPCController) RegisterHandlers() {
 
 // UpdateConfig updates the stored config and configPath.
 func (c *IPCController) UpdateConfig(cfg *config.Config, configPath string) {
+	c.configMu.Lock()
 	c.Config = cfg
 	c.ConfigPath = configPath
+	c.configMu.Unlock()
 
 	if c.infoHandler != nil {
 		c.infoHandler.UpdateConfig(cfg, configPath)
