@@ -101,12 +101,17 @@ func (h *IPCControllerInfo) UpdateConfig(cfg *config.Config) {
 	h.config = cfg
 }
 
+// configSnapshot returns the current config pointer under a read lock.
+func (h *IPCControllerInfo) configSnapshot() *config.Config {
+	h.configMu.RLock()
+	defer h.configMu.RUnlock()
+	return h.config
+}
+
 func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.Response {
 	configPath := h.ResolveConfigPath()
 
-	h.configMu.RLock()
-	cfg := h.config
-	h.configMu.RUnlock()
+	cfg := h.configSnapshot()
 
 	if cfg == nil {
 		h.logger.Error("Config is nil in handleStatus")
@@ -136,9 +141,7 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 }
 
 func (h *IPCControllerInfo) handleConfig(_ context.Context, _ ipc.Command) ipc.Response {
-	h.configMu.RLock()
-	cfg := h.config
-	h.configMu.RUnlock()
+	cfg := h.configSnapshot()
 
 	if cfg == nil {
 		h.logger.Error("Config is nil in handleConfig")
