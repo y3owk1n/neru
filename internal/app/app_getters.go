@@ -88,7 +88,11 @@ func (a *App) Renderer() *ui.OverlayRenderer {
 
 // GetConfigPath returns the config path.
 func (a *App) GetConfigPath() string {
-	return a.ConfigPath
+	a.configMu.RLock()
+	p := a.ConfigPath
+	a.configMu.RUnlock()
+
+	return p
 }
 
 // SetHintOverlayNeedsRefresh sets the hint overlay needs refresh flag.
