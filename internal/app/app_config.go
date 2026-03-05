@@ -90,14 +90,14 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 		a.modes.UpdateConfig(loadResult.Config)
 	}
 
+	if a.ipcController != nil {
+		a.ipcController.UpdateConfig(loadResult.Config, loadResult.ConfigPath)
+	}
+
 	// Sync hide_overlay_in_screen_share config if it changed
 	if a.appState.IsHiddenForScreenShare() != loadResult.Config.General.HideOverlayInScreenShare {
 		a.appState.SetHiddenForScreenShare(loadResult.Config.General.HideOverlayInScreenShare)
 	}
 
 	a.refreshHotkeysForAppOrCurrent("")
-
-	if a.ipcController != nil {
-		a.ipcController.UpdateConfig(loadResult.Config, loadResult.ConfigPath)
-	}
 }
