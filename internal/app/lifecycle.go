@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/infra/bridge"
@@ -73,7 +74,9 @@ func (a *App) Run() error {
 
 	a.logger.Info("Neru is running")
 
-	if a.config.Grid.EnableGC {
+	cfg := a.configSnapshot()
+
+	if cfg.Grid.EnableGC {
 		ctx, cancel := context.WithCancel(context.Background())
 		a.gcCancel = cancel
 
@@ -245,9 +248,11 @@ func (a *App) processScreenChange() {
 
 	ctx := context.Background()
 
-	gridResized := a.handleGridScreenChange(currentMode)
-	hintResized := a.handleHintScreenChange(ctx, currentMode)
-	recursiveGridResized := a.handleRecursiveGridScreenChange(currentMode)
+	cfg := a.configSnapshot()
+
+	gridResized := a.handleGridScreenChange(cfg, currentMode)
+	hintResized := a.handleHintScreenChange(ctx, cfg, currentMode)
+	recursiveGridResized := a.handleRecursiveGridScreenChange(cfg, currentMode)
 
 	// Final resize only if no handler already resized the overlay AND we are not idle.
 	// Resizing the overlay when idle would cause it to become visible, which we want to avoid.
@@ -260,8 +265,8 @@ func (a *App) processScreenChange() {
 
 // handleGridScreenChange handles grid overlay updates when screen parameters change.
 // Returns true if the overlay was resized.
-func (a *App) handleGridScreenChange(currentMode domain.Mode) bool {
-	if !a.config.Grid.Enabled || a.gridComponent.Overlay == nil {
+func (a *App) handleGridScreenChange(cfg *config.Config, currentMode domain.Mode) bool {
+	if !cfg.Grid.Enabled || a.gridComponent.Overlay == nil {
 		return false
 	}
 
@@ -301,8 +306,12 @@ func (a *App) handleGridScreenChange(currentMode domain.Mode) bool {
 
 // handleHintScreenChange handles hint overlay updates when screen parameters change.
 // Returns true if the overlay was resized.
-func (a *App) handleHintScreenChange(ctx context.Context, currentMode domain.Mode) bool {
-	if !a.config.Hints.Enabled || a.hintsComponent.Overlay == nil {
+func (a *App) handleHintScreenChange(
+	ctx context.Context,
+	cfg *config.Config,
+	currentMode domain.Mode,
+) bool {
+	if !cfg.Hints.Enabled || a.hintsComponent.Overlay == nil {
 		return false
 	}
 
@@ -342,8 +351,8 @@ func (a *App) handleHintScreenChange(ctx context.Context, currentMode domain.Mod
 
 // handleRecursiveGridScreenChange handles recursive-grid overlay updates when screen parameters change.
 // Returns true if the overlay was resized.
-func (a *App) handleRecursiveGridScreenChange(currentMode domain.Mode) bool {
-	if !a.config.RecursiveGrid.Enabled || a.recursiveGridComponent == nil ||
+func (a *App) handleRecursiveGridScreenChange(cfg *config.Config, currentMode domain.Mode) bool {
+	if !cfg.RecursiveGrid.Enabled || a.recursiveGridComponent == nil ||
 		a.recursiveGridComponent.Overlay == nil {
 		return false
 	}
@@ -382,6 +391,8 @@ func (a *App) handleRecursiveGridScreenChange(currentMode domain.Mode) bool {
 
 // handleAppActivation responds to application activation events.
 func (a *App) handleAppActivation(bundleID string) {
+	cfg := a.configSnapshot()
+
 	if a.appState.CurrentMode() == domain.ModeIdle {
 		go a.refreshHotkeysForAppOrCurrent(bundleID)
 	} else {
@@ -389,8 +400,8 @@ func (a *App) handleAppActivation(bundleID string) {
 		a.appState.SetHotkeyRefreshPending(true)
 	}
 
-	if a.config.Hints.Enabled {
-		if a.config.Hints.AdditionalAXSupport.Enable {
+	if cfg.Hints.Enabled {
+		if cfg.Hints.AdditionalAXSupport.Enable {
 			a.handleAdditionalAccessibility(bundleID)
 		}
 	}
@@ -398,7 +409,8 @@ func (a *App) handleAppActivation(bundleID string) {
 
 // handleAdditionalAccessibility configures accessibility support for Electron/Chromium/Firefox applications.
 func (a *App) handleAdditionalAccessibility(bundleID string) {
-	config := a.config.Hints.AdditionalAXSupport
+	cfg := a.configSnapshot()
+	config := cfg.Hints.AdditionalAXSupport
 
 	if electron.ShouldEnableElectronSupport(bundleID, config.AdditionalElectronBundles) {
 		electron.EnsureElectronAccessibility(bundleID, a.logger)
@@ -417,21 +429,23 @@ func (a *App) handleAdditionalAccessibility(bundleID string) {
 func (a *App) printStartupInfo() {
 	a.logger.Info("✓ Neru is running")
 
-	for key, value := range a.config.Hotkeys.Bindings {
+	cfg := a.configSnapshot()
+
+	for key, value := range cfg.Hotkeys.Bindings {
 		mode := value
 		if parts := strings.Split(value, " "); len(parts) > 0 {
 			mode = parts[0]
 		}
 
-		if mode == domain.ModeString(domain.ModeHints) && !a.config.Hints.Enabled {
+		if mode == domain.ModeString(domain.ModeHints) && !cfg.Hints.Enabled {
 			continue
 		}
 
-		if mode == domain.ModeString(domain.ModeGrid) && !a.config.Grid.Enabled {
+		if mode == domain.ModeString(domain.ModeGrid) && !cfg.Grid.Enabled {
 			continue
 		}
 
-		if mode == domain.ModeString(domain.ModeRecursiveGrid) && !a.config.RecursiveGrid.Enabled {
+		if mode == domain.ModeString(domain.ModeRecursiveGrid) && !cfg.RecursiveGrid.Enabled {
 			continue
 		}
 

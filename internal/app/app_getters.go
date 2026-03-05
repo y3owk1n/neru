@@ -10,6 +10,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// configSnapshot returns the current config pointer under a read lock.
+// Callers should use the returned pointer for all reads within a single
+// logical operation to avoid seeing a partially-updated config.
+func (a *App) configSnapshot() *config.Config {
+	a.configMu.RLock()
+	cfg := a.config
+	a.configMu.RUnlock()
+
+	return cfg
+}
+
 // SetEnabled sets the enabled state of the application.
 func (a *App) SetEnabled(v bool) {
 	a.appState.SetEnabled(v)
@@ -27,22 +38,28 @@ func (a *App) ToggleEnabled() {
 
 // HintsEnabled returns true if hints are enabled.
 func (a *App) HintsEnabled() bool {
-	return a.config != nil && a.config.Hints.Enabled
+	cfg := a.configSnapshot()
+
+	return cfg != nil && cfg.Hints.Enabled
 }
 
 // GridEnabled returns true if grid is enabled.
 func (a *App) GridEnabled() bool {
-	return a.config != nil && a.config.Grid.Enabled
+	cfg := a.configSnapshot()
+
+	return cfg != nil && cfg.Grid.Enabled
 }
 
 // RecursiveGridEnabled returns true if recursive-grid is enabled.
 func (a *App) RecursiveGridEnabled() bool {
-	return a.config != nil && a.config.RecursiveGrid.Enabled
+	cfg := a.configSnapshot()
+
+	return cfg != nil && cfg.RecursiveGrid.Enabled
 }
 
 // Config returns the application configuration.
 func (a *App) Config() *config.Config {
-	return a.config
+	return a.configSnapshot()
 }
 
 // Logger returns the application logger.
