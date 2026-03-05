@@ -288,13 +288,13 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | `border_width`             | int    | `1`           | Border width in pixels                             |
 | `padding`                  | int    | `4`           | Internal padding in pixels                         |
 | `background_color_light`   | string | `"#F2FFD700"` | Label background for Light Mode (theme-aware)      |
-| `background_color_dark`    | string | `"#F2B88600"` | Label background for Dark Mode (theme-aware)       |
+| `background_color_dark`    | string | `"#F2FFD700"` | Label background for Dark Mode (theme-aware)       |
 | `text_color_light`         | string | `"#FF000000"` | Label text for Light Mode (theme-aware)            |
-| `text_color_dark`          | string | `"#FFFFFFFF"` | Label text for Dark Mode (theme-aware)             |
+| `text_color_dark`          | string | `"#FF000000"` | Label text for Dark Mode (theme-aware)             |
 | `matched_text_color_light` | string | `"#FF737373"` | Typed text color for Light Mode (theme-aware)      |
-| `matched_text_color_dark`  | string | `"#FFBBBBBB"` | Typed text color for Dark Mode (theme-aware)       |
+| `matched_text_color_dark`  | string | `"#FF737373"` | Typed text color for Dark Mode (theme-aware)       |
 | `border_color_light`       | string | `"#FF000000"` | Border color for Light Mode (theme-aware)          |
-| `border_color_dark`        | string | `"#FF666666"` | Border color for Dark Mode (theme-aware)           |
+| `border_color_dark`        | string | `"#FF000000"` | Border color for Dark Mode (theme-aware)           |
 
 ### auto_exit_actions
 
@@ -526,28 +526,28 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 
 ### Basic Configuration
 
-| Option                           | Type   | Default              | Description                                                |
-| -------------------------------- | ------ | -------------------- | ---------------------------------------------------------- |
-| `enabled`                        | bool   | `true`               | Enable/disable grid mode                                   |
-| `auto_exit_actions`              | array  | `[]`                 | Actions that auto-exit after execution (see below)         |
-| `characters`                     | string | (see below)          | Primary grid labels                                        |
-| `sublayer_keys`                  | string | (same as characters) | Subgrid labels                                             |
-| `reset_key`                      | string | `" "`                | Key to clear input                                         |
-| `font_size`                      | int    | `10`                 | Label font size                                            |
-| `font_family`                    | string | `""`                 | Font name                                                  |
-| `border_width`                   | int    | `1`                  | Cell border width                                          |
-| `background_color_light`         | string | `"#B3ABE9B3"` | Cell background for Light Mode (theme-aware)       |
-| `background_color_dark`          | string | `"#B33D6B5E"` | Cell background for Dark Mode (theme-aware)        |
-| `text_color_light`               | string | `"#FF000000"` | Label text for Light Mode (theme-aware)            |
-| `text_color_dark`                | string | `"#FFFFFFFF"` | Label text for Dark Mode (theme-aware)             |
-| `matched_text_color_light`       | string | `"#FFF8BD96"` | Matched cell text for Light Mode (theme-aware)     |
-| `matched_text_color_dark`        | string | `"#FFFFCC99"` | Matched cell text for Dark Mode (theme-aware)      |
-| `matched_background_color_light` | string | `"#B3F8BD96"` | Matched cell background for Light Mode (theme-aware)|
-| `matched_background_color_dark`  | string | `"#B3CC6600"` | Matched cell background for Dark Mode (theme-aware) |
-| `matched_border_color_light`     | string | `"#B3F8BD96"` | Matched cell border for Light Mode (theme-aware)   |
-| `matched_border_color_dark`      | string | `"#B3CC6600"` | Matched cell border for Dark Mode (theme-aware)    |
-| `border_color_light`             | string | `"#B3ABE9B3"` | Cell border for Light Mode (theme-aware)           |
-| `border_color_dark`              | string | `"#B33D6B5E"` | Cell border for Dark Mode (theme-aware)            |
+| Option                           | Type   | Default              | Description                                          |
+| -------------------------------- | ------ | -------------------- | ---------------------------------------------------- |
+| `enabled`                        | bool   | `true`               | Enable/disable grid mode                             |
+| `auto_exit_actions`              | array  | `[]`                 | Actions that auto-exit after execution (see below)   |
+| `characters`                     | string | (see below)          | Primary grid labels                                  |
+| `sublayer_keys`                  | string | (same as characters) | Subgrid labels                                       |
+| `reset_key`                      | string | `" "`                | Key to clear input                                   |
+| `font_size`                      | int    | `10`                 | Label font size                                      |
+| `font_family`                    | string | `""`                 | Font name                                            |
+| `border_width`                   | int    | `1`                  | Cell border width                                    |
+| `background_color_light`         | string | `"#B3ABE9B3"`        | Cell background for Light Mode (theme-aware)         |
+| `background_color_dark`          | string | `"#B3ABE9B3"`        | Cell background for Dark Mode (theme-aware)          |
+| `text_color_light`               | string | `"#FF000000"`        | Label text for Light Mode (theme-aware)              |
+| `text_color_dark`                | string | `"#FF000000"`        | Label text for Dark Mode (theme-aware)               |
+| `matched_text_color_light`       | string | `"#FFF8BD96"`        | Matched cell text for Light Mode (theme-aware)       |
+| `matched_text_color_dark`        | string | `"#FFF8BD96"`        | Matched cell text for Dark Mode (theme-aware)        |
+| `matched_background_color_light` | string | `"#B3F8BD96"`        | Matched cell background for Light Mode (theme-aware) |
+| `matched_background_color_dark`  | string | `"#B3F8BD96"`        | Matched cell background for Dark Mode (theme-aware)  |
+| `matched_border_color_light`     | string | `"#B3F8BD96"`        | Matched cell border for Light Mode (theme-aware)     |
+| `matched_border_color_dark`      | string | `"#B3F8BD96"`        | Matched cell border for Dark Mode (theme-aware)      |
+| `border_color_light`             | string | `"#B3ABE9B3"`        | Cell border for Light Mode (theme-aware)             |
+| `border_color_dark`              | string | `"#B3ABE9B3"`        | Cell border for Dark Mode (theme-aware)              |
 
 > **Theme-aware colors:** When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
@@ -723,17 +723,17 @@ j   →   k          j = Lower-left
 
 ### Visual Options
 
-| Option               | Type   | Default         | Description                                                                     |
-| -------------------- | ------ | --------------- | ------------------------------------------------------------------------------- |
-| `line_color_light`   | string | `"#FF8EE2FF"` | Grid line color for Light Mode (theme-aware)      |
-| `line_color_dark`    | string | `"#FF1E90FF"` | Grid line color for Dark Mode (theme-aware)       |
-| `line_width`         | int    | `1`           | Line thickness                                    |
-| `highlight_color_light` | string | `"#4D00BFFF"` | Cell highlight for Light Mode (theme-aware)    |
-| `highlight_color_dark`  | string | `"#4D1E90FF"` | Cell highlight for Dark Mode (theme-aware)     |
-| `text_color_light`   | string | `"#FF000000"` | Cell text color for Light Mode (theme-aware)      |
-| `text_color_dark`    | string | `"#FFFFFFFF"` | Cell text color for Dark Mode (theme-aware)       |
-| `font_size`          | int    | `10`          | Font size for labels                              |
-| `font_family`        | string | `""`          | Font family for labels (empty = system)           |
+| Option                  | Type   | Default       | Description                                  |
+| ----------------------- | ------ | ------------- | -------------------------------------------- |
+| `line_color_light`      | string | `"#FF8EE2FF"` | Grid line color for Light Mode (theme-aware) |
+| `line_color_dark`       | string | `"#FF8EE2FF"` | Grid line color for Dark Mode (theme-aware)  |
+| `line_width`            | int    | `1`           | Line thickness                               |
+| `highlight_color_light` | string | `"#4D00BFFF"` | Cell highlight for Light Mode (theme-aware)  |
+| `highlight_color_dark`  | string | `"#4D00BFFF"` | Cell highlight for Dark Mode (theme-aware)   |
+| `text_color_light`      | string | `"#FFFFFFFF"` | Cell text color for Light Mode (theme-aware) |
+| `text_color_dark`       | string | `"#FFFFFFFF"` | Cell text color for Dark Mode (theme-aware)  |
+| `font_size`             | int    | `10`          | Font size for labels                         |
+| `font_family`           | string | `""`          | Font family for labels (empty = system)      |
 
 > **Theme-aware colors:** When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
@@ -920,21 +920,21 @@ recursive_grid_enabled = false
 
 ### Appearance
 
-| Option                   | Type   | Default       | Description                                |
-| ------------------------ | ------ | ------------- | ------------------------------------------ |
-| `font_size`              | int    | `10`          | Text size                                  |
-| `font_family`            | string | `""`          | Font (empty = system)                      |
-| `background_color_light` | string | `"#F2FFD700"` | Background for Light Mode (theme-aware)    |
-| `background_color_dark`  | string | `"#F2B88600"` | Background for Dark Mode (theme-aware)     |
-| `text_color_light`       | string | `"#FF000000"` | Text for Light Mode (theme-aware)          |
-| `text_color_dark`        | string | `"#FFFFFFFF"` | Text for Dark Mode (theme-aware)           |
-| `border_color_light`     | string | `"#FF000000"` | Border for Light Mode (theme-aware)        |
-| `border_color_dark`      | string | `"#FF666666"` | Border for Dark Mode (theme-aware)         |
-| `border_width`           | int    | `1`           | Border width                               |
-| `padding`                | int    | `4`           | Internal padding                           |
-| `border_radius`          | int    | `4`           | Corner radius                              |
-| `indicator_x_offset`     | int    | `20`          | X offset from cursor                       |
-| `indicator_y_offset`     | int    | `20`          | Y offset from cursor                       |
+| Option                   | Type   | Default       | Description                             |
+| ------------------------ | ------ | ------------- | --------------------------------------- |
+| `font_size`              | int    | `10`          | Text size                               |
+| `font_family`            | string | `""`          | Font (empty = system)                   |
+| `background_color_light` | string | `"#F2FFD700"` | Background for Light Mode (theme-aware) |
+| `background_color_dark`  | string | `"#F2FFD700"` | Background for Dark Mode (theme-aware)  |
+| `text_color_light`       | string | `"#FF000000"` | Text for Light Mode (theme-aware)       |
+| `text_color_dark`        | string | `"#FF000000"` | Text for Dark Mode (theme-aware)        |
+| `border_color_light`     | string | `"#FF000000"` | Border for Light Mode (theme-aware)     |
+| `border_color_dark`      | string | `"#FF000000"` | Border for Dark Mode (theme-aware)      |
+| `border_width`           | int    | `1`           | Border width                            |
+| `padding`                | int    | `4`           | Internal padding                        |
+| `border_radius`          | int    | `4`           | Corner radius                           |
+| `indicator_x_offset`     | int    | `20`          | X offset from cursor                    |
+| `indicator_y_offset`     | int    | `20`          | Y offset from cursor                    |
 
 ---
 
