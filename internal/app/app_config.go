@@ -24,7 +24,14 @@ func (a *App) ReloadConfig(ctx context.Context, configPath string) error {
 	if err != nil {
 		// Restore hotkeys with the current (unchanged) config so the app
 		// does not remain in a degraded state after a failed reload.
-		a.refreshHotkeysForAppOrCurrent("")
+		// Use registerHotkeys directly instead of refreshHotkeysForAppOrCurrent
+		// because the latter depends on FocusedAppBundleID which can fail,
+		// leaving the app without hotkeys.
+		if a.appState.IsEnabled() {
+			a.registerHotkeys()
+			a.appState.SetHotkeysRegistered(true)
+			a.logger.Debug("Hotkeys restored after failed config reload")
+		}
 
 		return err
 	}
