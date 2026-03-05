@@ -24,7 +24,6 @@ func newTestController() *app.IPCController {
 		Config:        cfg,
 		ConfigService: configService,
 		Logger:        logger,
-		ConfigPath:    "/test/config.toml",
 		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
 
@@ -40,7 +39,6 @@ func newTestController() *app.IPCController {
 		nil, // gridService
 		nil, // actionService
 		nil, // scrollService
-		"/test/config.toml",
 		logger,
 	)
 

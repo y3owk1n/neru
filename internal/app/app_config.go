@@ -91,7 +91,7 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	}
 
 	if a.ipcController != nil {
-		a.ipcController.UpdateConfig(loadResult.Config, loadResult.ConfigPath)
+		a.ipcController.UpdateConfig(loadResult.Config)
 	}
 
 	// Sync hide_overlay_in_screen_share config if it changed

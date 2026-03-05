@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"sync"
 
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -31,12 +30,6 @@ type IPCController struct {
 	// Mode management
 	Modes *modes.Handler
 
-	// Config path for status reporting
-	ConfigPath string
-
-	// configMu protects Config and ConfigPath from concurrent read/write.
-	configMu sync.RWMutex
-
 	// Info handler for config updates
 	infoHandler *IPCControllerInfo
 
@@ -55,7 +48,6 @@ func NewIPCController(
 	config *config.Config,
 	modesHandler *modes.Handler,
 	logger *zap.Logger,
-	configPath string,
 ) *IPCController {
 	ipcController := &IPCController{
 		HintService:   hintService,
@@ -67,7 +59,6 @@ func NewIPCController(
 		Config:        config,
 		Modes:         modesHandler,
 		Logger:        logger,
-		ConfigPath:    configPath,
 		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
 
@@ -110,7 +101,6 @@ func (c *IPCController) RegisterHandlers() {
 		c.GridService,
 		c.ActionService,
 		c.ScrollService,
-		c.ConfigPath,
 		c.Logger,
 	)
 
@@ -125,15 +115,11 @@ func (c *IPCController) RegisterHandlers() {
 	overlayHandler.RegisterHandlers(c.Handlers)
 }
 
-// UpdateConfig updates the stored config and configPath.
-func (c *IPCController) UpdateConfig(cfg *config.Config, configPath string) {
-	c.configMu.Lock()
-	defer c.configMu.Unlock()
-
+// UpdateConfig updates the stored config.
+func (c *IPCController) UpdateConfig(cfg *config.Config) {
 	c.Config = cfg
-	c.ConfigPath = configPath
 
 	if c.infoHandler != nil {
-		c.infoHandler.UpdateConfig(cfg, configPath)
+		c.infoHandler.UpdateConfig(cfg)
 	}
 }

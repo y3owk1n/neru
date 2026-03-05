@@ -26,10 +26,9 @@ type IPCControllerInfo struct {
 	gridService   *services.GridService
 	actionService *services.ActionService
 	scrollService *services.ScrollService
-	configPath    string
 	logger        *zap.Logger
 
-	// configMu protects config and configPath from concurrent read/write.
+	// configMu protects config from concurrent read/write.
 	configMu sync.RWMutex
 }
 
@@ -43,7 +42,6 @@ func NewIPCControllerInfo(
 	gridService *services.GridService,
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
-	configPath string,
 	logger *zap.Logger,
 ) *IPCControllerInfo {
 	return &IPCControllerInfo{
@@ -55,7 +53,6 @@ func NewIPCControllerInfo(
 		gridService:   gridService,
 		actionService: actionService,
 		scrollService: scrollService,
-		configPath:    configPath,
 		logger:        logger,
 	}
 }
@@ -93,13 +90,12 @@ func (h *IPCControllerInfo) ResolveConfigPath() string {
 	return configPath
 }
 
-// UpdateConfig updates the stored config and configPath.
-func (h *IPCControllerInfo) UpdateConfig(cfg *config.Config, configPath string) {
+// UpdateConfig updates the stored config.
+func (h *IPCControllerInfo) UpdateConfig(cfg *config.Config) {
 	h.configMu.Lock()
 	defer h.configMu.Unlock()
 
 	h.config = cfg
-	h.configPath = configPath
 }
 
 func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.Response {
@@ -149,9 +145,7 @@ func (h *IPCControllerInfo) handleConfig(_ context.Context, _ ipc.Command) ipc.R
 }
 
 func (h *IPCControllerInfo) handleReloadConfig(_ context.Context, _ ipc.Command) ipc.Response {
-	h.configMu.RLock()
-	configPath := h.configPath
-	h.configMu.RUnlock()
+	configPath := h.configService.GetConfigPath()
 
 	err := h.configService.ReloadConfig(configPath)
 	if err != nil {
