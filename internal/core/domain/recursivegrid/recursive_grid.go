@@ -169,11 +169,6 @@ func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
 		Y: selected.Min.Y + selected.Dy()/2,
 	}
 
-	// Check if we've reached minimum size after this selection
-	if !qg.CanDivide() {
-		return center, true
-	}
-
 	return center, false
 }
 

@@ -94,13 +94,26 @@ func TestSelectCellCompletion(t *testing.T) {
 	bounds := image.Rect(0, 0, 50, 50)
 	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 25, 10)
 
-	// Select top-left - should complete since resulting cell (25x25) cannot be divided further
+	// Select top-left - bounds narrow to (0,0)-(25,25), but NOT completed yet.
+	// The user gets one more selection at this final depth.
 	center, completed := grid.SelectCell(recursivegrid.TopLeft)
 
 	// After selecting top-left, bounds are (0,0)-(25,25), center is at (12, 12)
 	expectedCenter := image.Point{X: 12, Y: 12}
 	assert.Equal(t, expectedCenter, center, "Center should be at (12, 12)")
-	assert.True(t, completed, "Should be completed when min size is reached")
+	assert.False(
+		t,
+		completed,
+		"Should NOT be completed yet — user gets one more selection at final depth",
+	)
+
+	// Now at final depth (CanDivide is false), selecting a sub-cell completes
+	center2, completed2 := grid.SelectCell(recursivegrid.BottomRight)
+	assert.True(t, completed2, "Should be completed after selection at final depth")
+
+	// CellCenter of BottomRight within (0,0)-(25,25): cell is (12,12)-(25,25), center is (18, 18)
+	expectedCenter2 := image.Point{X: 18, Y: 18}
+	assert.Equal(t, expectedCenter2, center2, "Center should be at (18, 18)")
 }
 
 func TestCanDivide(t *testing.T) {

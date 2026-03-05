@@ -230,16 +230,28 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 	)
 
 	// Initial size 100x100
-	// Select u -> 50x50 (top-left)
-	// Since minSize is 50, 50x50 is >= 50. Wait, CanDivide checks halfWidth >= minSize.
-	// 50/2 = 25. 25 < 50. So CanDivide should be false.
+	// Select u -> 50x50 (top-left), depth becomes 1
+	// Since minSize is 50, 50/2 = 25 < 50. CanDivide is false.
+	// But completion only triggers on the NEXT key press (at the final depth).
 
 	point, completed, shouldExit := manager.HandleInput("u")
 
-	assert.True(t, completed, "Should be completed")
+	assert.False(
+		t,
+		completed,
+		"Should NOT be completed yet — user must make one more selection at final depth",
+	)
 	assert.False(t, shouldExit, "Should not exit")
+	assert.False(t, completeCalled, "Complete callback should NOT be called yet")
+	assert.Equal(t, image.Point{X: 25, Y: 25}, point, "Should return center of top-left cell")
+
+	// Now at final depth (CanDivide is false), select a sub-cell to complete
+	point2, completed2, shouldExit2 := manager.HandleInput("k") // BottomRight
+
+	assert.True(t, completed2, "Should be completed after selection at final depth")
+	assert.False(t, shouldExit2, "Should not exit")
 	assert.True(t, completeCalled, "Complete callback should be called")
-	assert.Equal(t, point, completePoint, "Complete point should match return point")
+	assert.Equal(t, point2, completePoint, "Complete point should match return point")
 }
 
 func TestManagerHandleInputMaxDepth(t *testing.T) {
@@ -267,18 +279,24 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 	assert.Equal(t, 1, manager.CurrentDepth())
 	assert.False(t, completeCalled)
 
-	// Depth 2 (Max)
-	point2, completed, _ := manager.HandleInput("u")
-	assert.True(t, completed)
-	assert.True(t, completeCalled)
-	assert.Equal(t, 2, manager.CurrentDepth(), "Should stay at max depth")
+	// Depth 2 (Max) — reaching max depth does NOT complete; user gets one more selection
+	_, completed, _ := manager.HandleInput("u")
+	assert.False(t, completed, "Should NOT complete when reaching max depth")
+	assert.False(t, completeCalled, "Complete callback should NOT fire yet")
+	assert.Equal(t, 2, manager.CurrentDepth(), "Should be at max depth")
 
-	// Input at Max Depth
-	// Should return sub-cell center but NOT change depth
+	// Selection AT max depth — this is the final selection that completes
 	point3, completed3, _ := manager.HandleInput("k") // Select BottomRight of current
-	assert.True(t, completed3)
+	assert.True(t, completed3, "Should complete on selection at max depth")
+	assert.True(t, completeCalled, "Complete callback should fire")
 	assert.Equal(t, 2, manager.CurrentDepth(), "Should still be at max depth")
-	assert.NotEqual(t, point2, point3, "Should return different point (sub-cell center)")
+
+	// Additional input at max depth should still complete
+	completeCalled = false
+	point4, completed4, _ := manager.HandleInput("u") // Select TopLeft
+	assert.True(t, completed4)
+	assert.Equal(t, 2, manager.CurrentDepth(), "Should still be at max depth")
+	assert.NotEqual(t, point3, point4, "Should return different point (different sub-cell center)")
 }
 
 func TestManagerWithConfig_NonSquare3x2(t *testing.T) {
