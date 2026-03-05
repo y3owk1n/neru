@@ -89,6 +89,12 @@ func (h *IPCControllerInfo) ResolveConfigPath() string {
 	return configPath
 }
 
+// UpdateConfig updates the stored config and configPath.
+func (h *IPCControllerInfo) UpdateConfig(cfg *config.Config, configPath string) {
+	h.config = cfg
+	h.configPath = configPath
+}
+
 func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.Response {
 	configPath := h.ResolveConfigPath()
 

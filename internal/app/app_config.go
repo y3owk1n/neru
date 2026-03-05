@@ -96,4 +96,8 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	}
 
 	a.refreshHotkeysForAppOrCurrent("")
+
+	if a.ipcController != nil {
+		a.ipcController.UpdateConfig(loadResult.Config, loadResult.ConfigPath)
+	}
 }

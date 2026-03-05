@@ -33,6 +33,9 @@ type IPCController struct {
 	// Config path for status reporting
 	ConfigPath string
 
+	// Info handler for config updates
+	infoHandler *IPCControllerInfo
+
 	// Command Handlers map
 	Handlers map[string]func(context.Context, ipc.Command) ipc.Response
 }
@@ -94,7 +97,7 @@ func (c *IPCController) RegisterHandlers() {
 	lifecycleHandler := NewIPCControllerLifecycle(c.AppState, c.Modes, c.Logger)
 	modesHandler := NewIPCControllerModes(c.Modes, c.Logger)
 	actionsHandler := NewIPCControllerActions(c.ActionService, c.Logger)
-	infoHandler := NewIPCControllerInfo(
+	c.infoHandler = NewIPCControllerInfo(
 		c.ConfigService,
 		c.AppState,
 		c.Config,
@@ -111,9 +114,19 @@ func (c *IPCController) RegisterHandlers() {
 	lifecycleHandler.RegisterHandlers(c.Handlers)
 	modesHandler.RegisterHandlers(c.Handlers)
 	actionsHandler.RegisterHandlers(c.Handlers)
-	infoHandler.RegisterHandlers(c.Handlers)
+	c.infoHandler.RegisterHandlers(c.Handlers)
 
 	// Register overlay handler
 	overlayHandler := NewIPCControllerOverlay(c.AppState, c.Logger)
 	overlayHandler.RegisterHandlers(c.Handlers)
+}
+
+// UpdateConfig updates the stored config and configPath.
+func (c *IPCController) UpdateConfig(cfg *config.Config, configPath string) {
+	c.Config = cfg
+	c.ConfigPath = configPath
+
+	if c.infoHandler != nil {
+		c.infoHandler.UpdateConfig(cfg, configPath)
+	}
 }
