@@ -87,6 +87,7 @@ line_width = 1
 min_size_width = 10
 min_size_height = 10
 text_color_light = "#00000000"
+text_color_dark = "#00000000"
 
 # ============================================================================
 # Mode Indicator
