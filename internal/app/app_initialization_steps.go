@@ -188,16 +188,14 @@ func initializeRendererAndOverlays(app *App) {
 		gridStyle = grid.BuildStyle(config.DefaultConfig().Grid)
 	}
 
-	var recursiveGridStyle recursivegrid.Style
-	if app.recursiveGridComponent != nil {
-		recursiveGridStyle = app.recursiveGridComponent.Style
-	} else {
-		// Fallback to default style if component is nil
-		recursiveGridStyle = recursivegrid.BuildStyle(
-			config.DefaultConfig().RecursiveGrid,
-			defaultThemeProvider,
-		)
+	// Build the style directly from config + live theme provider rather than
+	// reading a component field that would go stale after config reloads.
+	recursiveGridCfg := config.DefaultConfig().RecursiveGrid
+	if app.config != nil {
+		recursiveGridCfg = app.config.RecursiveGrid
 	}
+
+	recursiveGridStyle := recursivegrid.BuildStyle(recursiveGridCfg, defaultThemeProvider)
 
 	app.renderer = ui.NewOverlayRenderer(
 		app.overlayManager,

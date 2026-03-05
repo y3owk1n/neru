@@ -243,10 +243,8 @@ func (f *ComponentFactory) CreateRecursiveGridComponent(
 	}
 
 	return &components.RecursiveGridComponent{
-		Overlay:       recursiveGridOverlay,
-		Context:       &recursivegrid.Context{},
-		Style:         recursivegrid.BuildStyle(f.config.RecursiveGrid, defaultThemeProvider),
-		ThemeProvider: defaultThemeProvider,
+		Overlay: recursiveGridOverlay,
+		Context: &recursivegrid.Context{},
 	}, nil
 }
 
