@@ -168,6 +168,9 @@ func (h *IPCControllerInfo) handleReloadConfig(_ context.Context, _ ipc.Command)
 		}
 	}
 
+	// Update the local config copy so subsequent IPC queries reflect the reload.
+	h.UpdateConfig(h.configService.Get())
+
 	return ipc.Response{
 		Success: true,
 		Message: "config reloaded successfully",
