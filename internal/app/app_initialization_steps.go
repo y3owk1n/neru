@@ -303,6 +303,7 @@ func initializeModeHandler(app *App) {
 		deps.callbacks.enableEventTap,
 		deps.callbacks.disableEventTap,
 		deps.callbacks.refreshHotkeys,
+		defaultThemeProvider,
 	)
 }
 

@@ -47,6 +47,7 @@ type Handler struct {
 	mu sync.Mutex
 
 	config         *configpkg.Config
+	themeProvider  configpkg.ThemeProvider
 	logger         *zap.Logger
 	appState       *state.AppState
 	cursorState    *state.CursorState
@@ -101,6 +102,7 @@ func NewHandler(
 	enableEventTap func(),
 	disableEventTap func(),
 	refreshHotkeys func(),
+	themeProvider configpkg.ThemeProvider,
 ) *Handler {
 	// Initialize screen bounds for coordinate conversion
 	screenBounds := bridge.ActiveScreenBounds()
@@ -125,6 +127,7 @@ func NewHandler(
 		enableEventTap:       enableEventTap,
 		disableEventTap:      disableEventTap,
 		refreshHotkeys:       refreshHotkeys,
+		themeProvider:        themeProvider,
 	}
 
 	// Initialize mode implementations
@@ -278,15 +281,10 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	h.config = config
 
 	if h.renderer != nil {
-		var theme configpkg.ThemeProvider
-		if h.recursiveGrid != nil {
-			theme = h.recursiveGrid.ThemeProvider
-		}
-
 		h.renderer.UpdateConfig(
 			hints.BuildStyle(config.Hints),
 			grid.BuildStyle(config.Grid),
-			recursivegrid.BuildStyle(config.RecursiveGrid, theme),
+			recursivegrid.BuildStyle(config.RecursiveGrid, h.themeProvider),
 		)
 	}
 }
