@@ -158,6 +158,16 @@ func (h *IPCControllerInfo) handleConfig(_ context.Context, _ ipc.Command) ipc.R
 }
 
 func (h *IPCControllerInfo) handleReloadConfig(ctx context.Context, _ ipc.Command) ipc.Response {
+	if h.reloadConfig == nil {
+		h.logger.Error("Reload config callback is not set")
+
+		return ipc.Response{
+			Success: false,
+			Message: "reload config not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
 	configPath := h.configService.GetConfigPath()
 
 	err := h.reloadConfig(ctx, configPath)
