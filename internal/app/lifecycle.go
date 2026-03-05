@@ -550,9 +550,10 @@ func (a *App) Cleanup() {
 
 	a.ExitMode()
 
-	// Stop theme observer
-	bridge.StopThemeObserver()
+	// Stop theme observer: nil the handler first so any in-flight KVO callback
+	// (between the async dispatch and actual observer removal) is a no-op.
 	bridge.SetThemeChangeHandler(nil)
+	bridge.StopThemeObserver()
 
 	// Stop IPC server first to prevent new requests
 	if a.ipcServer != nil {
