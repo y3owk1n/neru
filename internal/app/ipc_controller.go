@@ -22,7 +22,6 @@ type IPCController struct {
 
 	// State
 	AppState *state.AppState
-	Config   *config.Config
 
 	// Infrastructure
 	Logger *zap.Logger
@@ -60,7 +59,6 @@ func NewIPCController(
 		ScrollService: scrollService,
 		ConfigService: configService,
 		AppState:      appState,
-		Config:        config,
 		Modes:         modesHandler,
 		ReloadConfig:  reloadConfig,
 		Logger:        logger,
@@ -68,7 +66,7 @@ func NewIPCController(
 	}
 
 	// Register command handlers
-	ipcController.RegisterHandlers()
+	ipcController.registerHandlers(config)
 
 	return ipcController
 }
@@ -91,8 +89,15 @@ func (c *IPCController) HandleCommand(ctx context.Context, command ipc.Command) 
 	}
 }
 
-// RegisterHandlers registers all command handlers by delegating to sub-controllers.
-func (c *IPCController) RegisterHandlers() {
+// UpdateConfig updates the stored config.
+func (c *IPCController) UpdateConfig(cfg *config.Config) {
+	if c.infoHandler != nil {
+		c.infoHandler.UpdateConfig(cfg)
+	}
+}
+
+// registerHandlers registers all command handlers by delegating to sub-controllers.
+func (c *IPCController) registerHandlers(cfg *config.Config) {
 	// Initialize handler components
 	lifecycleHandler := NewIPCControllerLifecycle(c.AppState, c.Modes, c.Logger)
 	modesHandler := NewIPCControllerModes(c.Modes, c.Logger)
@@ -100,7 +105,7 @@ func (c *IPCController) RegisterHandlers() {
 	c.infoHandler = NewIPCControllerInfo(
 		c.ConfigService,
 		c.AppState,
-		c.Config,
+		cfg,
 		c.Modes,
 		c.HintService,
 		c.GridService,
@@ -119,11 +124,4 @@ func (c *IPCController) RegisterHandlers() {
 	// Register overlay handler
 	overlayHandler := NewIPCControllerOverlay(c.AppState, c.Logger)
 	overlayHandler.RegisterHandlers(c.Handlers)
-}
-
-// UpdateConfig updates the stored config.
-func (c *IPCController) UpdateConfig(cfg *config.Config) {
-	if c.infoHandler != nil {
-		c.infoHandler.UpdateConfig(cfg)
-	}
 }
