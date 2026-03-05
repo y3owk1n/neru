@@ -222,7 +222,7 @@ const (
 	// GridBorderColorLight is the light mode border color for grid cells.
 	GridBorderColorLight = "#B3ABE9B3"
 	// GridBorderColorDark is the dark mode border color for grid cells.
-	GridBorderColorDark = "#B33D6B5E"
+	GridBorderColorDark = "#B3ABE9B3"
 
 	// RecursiveGridLineColorLight is the light mode line color for recursive grid.
 	RecursiveGridLineColorLight = "#FF8EE2FF"
