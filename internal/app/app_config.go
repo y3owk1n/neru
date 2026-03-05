@@ -22,6 +22,10 @@ func (a *App) ReloadConfig(ctx context.Context, configPath string) error {
 		a.logger,
 	)
 	if err != nil {
+		// Restore hotkeys with the current (unchanged) config so the app
+		// does not remain in a degraded state after a failed reload.
+		a.refreshHotkeysForAppOrCurrent("")
+
 		return err
 	}
 
