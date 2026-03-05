@@ -18,37 +18,18 @@ func newTestController() *app.IPCController {
 	logger, _ := zap.NewDevelopment()
 	configService := config.NewService(cfg, "", logger)
 
-	// Create controller with minimal dependencies for basic command testing
-	controller := &app.IPCController{
-		AppState:      appState,
-		Config:        cfg,
-		ConfigService: configService,
-		Logger:        logger,
-		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
-	}
-
-	// Initialize handler components with nil dependencies where needed
-	lifecycleHandler := app.NewIPCControllerLifecycle(appState, nil, logger)
-	modesHandler := app.NewIPCControllerModes(nil, logger)
-	infoHandler := app.NewIPCControllerInfo(
-		configService,
-		appState,
-		cfg,
-		nil, // modes
+	return app.NewIPCController(
 		nil, // hintService
 		nil, // gridService
 		nil, // actionService
 		nil, // scrollService
+		configService,
+		appState,
+		cfg,
+		nil, // modesHandler
 		nil, // reloadConfig
 		logger,
 	)
-
-	// Register handlers from each component
-	lifecycleHandler.RegisterHandlers(controller.Handlers)
-	modesHandler.RegisterHandlers(controller.Handlers)
-	infoHandler.RegisterHandlers(controller.Handlers)
-
-	return controller
 }
 
 func TestIPCController_HandlePing(t *testing.T) {
@@ -177,5 +158,40 @@ func TestIPCController_UnknownCommand(t *testing.T) {
 
 	if commandResponse.Code != ipc.CodeUnknownCommand {
 		t.Errorf("Expected code=%s, got %s", ipc.CodeUnknownCommand, commandResponse.Code)
+	}
+}
+
+func TestIPCController_UpdateConfig(t *testing.T) {
+	controller := newTestController()
+	ctx := context.Background()
+	// Verify initial config is returned
+	commandResponse := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
+	if !commandResponse.Success {
+		t.Fatalf("Expected success=true, got %v", commandResponse.Success)
+	}
+
+	initialCfg, initialCfgOk := commandResponse.Data.(*config.Config)
+	if !initialCfgOk || initialCfg == nil {
+		t.Fatal("Expected valid initial config")
+	}
+	// Create a new config with different values
+	newCfg := config.DefaultConfig()
+	newCfg.Hints.Enabled = !initialCfg.Hints.Enabled
+	// Propagate via UpdateConfig
+	controller.UpdateConfig(newCfg)
+	// Verify the config handler now returns the updated config
+	commandResponse = controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
+	if !commandResponse.Success {
+		t.Fatalf("Expected success=true after update, got %v", commandResponse.Success)
+	}
+
+	updatedCfg, initialCfgOk := commandResponse.Data.(*config.Config)
+	if !initialCfgOk || updatedCfg == nil {
+		t.Fatal("Expected valid updated config")
+	}
+
+	if updatedCfg.Hints.Enabled != newCfg.Hints.Enabled {
+		t.Errorf("Expected Hints.Enabled=%v after UpdateConfig, got %v",
+			newCfg.Hints.Enabled, updatedCfg.Hints.Enabled)
 	}
 }
