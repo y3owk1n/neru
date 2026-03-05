@@ -189,6 +189,18 @@ func (h *IPCControllerInfo) handleReloadConfig(ctx context.Context, _ ipc.Comman
 }
 
 func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc.Response {
+	// Guard against nil services so callers (including tests) don't panic.
+	if h.hintService == nil || h.gridService == nil || h.actionService == nil ||
+		h.scrollService == nil {
+		h.logger.Error("One or more services are nil in handleHealth")
+
+		return ipc.Response{
+			Success: false,
+			Message: "health check not available: services not initialized",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
 	// Get raw health status with errors
 	rawHealthStatus := map[string]map[string]error{
 		"hints":  h.hintService.Health(ctx),
