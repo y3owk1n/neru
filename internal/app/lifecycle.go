@@ -530,14 +530,15 @@ func (a *App) setupThemeObserver() {
 // It refreshes overlay styles that depend on the theme (e.g. recursive grid
 // label_color) when the color was not explicitly set by the user.
 func (a *App) handleThemeChange(isDark bool) {
-	a.configMu.Lock()
-	defer a.configMu.Unlock()
+	a.configMu.RLock()
+	cfg := a.config
+	a.configMu.RUnlock()
 
 	a.logger.Info("System theme changed",
 		zap.Bool("is_dark", isDark))
 
 	// Only update if label color is not user-specified (empty = theme-aware default)
-	if a.config.RecursiveGrid.LabelColor != "" {
+	if cfg.RecursiveGrid.LabelColor != "" {
 		a.logger.Debug("label_color is user-specified, skipping theme-aware update")
 
 		return
@@ -545,13 +546,13 @@ func (a *App) handleThemeChange(isDark bool) {
 
 	// Re-build styles with the new theme state
 	if a.recursiveGridComponent != nil {
-		a.recursiveGridComponent.UpdateConfig(a.config, a.logger)
+		a.recursiveGridComponent.UpdateConfig(cfg, a.logger)
 	}
 
 	if a.modes != nil {
-		a.modes.UpdateConfig(a.config)
+		a.modes.UpdateConfig(cfg)
 
-		if a.config.RecursiveGrid.Enabled {
+		if cfg.RecursiveGrid.Enabled {
 			a.modes.RefreshRecursiveGridForThemeChange()
 		}
 	}

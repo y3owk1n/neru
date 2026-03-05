@@ -58,14 +58,12 @@ func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
 
 // reconfigureAfterUpdate reconfigures components and services after config update.
 func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
-	a.configMu.Lock()
-	defer a.configMu.Unlock()
-
 	// Update the config pointer under configMu so that concurrent readers
 	// (e.g. screen-change handlers, theme observer) see a consistent value.
+	a.configMu.Lock()
 	a.config = loadResult.Config
 	a.ConfigPath = loadResult.ConfigPath
-
+	a.configMu.Unlock()
 	a.configureEventTapHotkeys(loadResult.Config, a.logger)
 
 	if a.hintsComponent != nil {
