@@ -6,6 +6,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components"
 	componentrecursivegrid "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
@@ -13,6 +14,14 @@ import (
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
 )
+
+type modesBridgeThemeProvider struct{}
+
+func (m *modesBridgeThemeProvider) IsDarkMode() bool {
+	return bridge.IsDarkMode()
+}
+
+var modesThemeProvider config.ThemeProvider = &modesBridgeThemeProvider{}
 
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter.
 func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
@@ -87,7 +96,11 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 	if h.recursiveGrid == nil {
 		h.recursiveGrid = &components.RecursiveGridComponent{
 			Context: &componentrecursivegrid.Context{},
-			Style:   componentrecursivegrid.BuildStyle(h.config.RecursiveGrid, nil),
+			Style: componentrecursivegrid.BuildStyle(
+				h.config.RecursiveGrid,
+				modesThemeProvider,
+			),
+			ThemeProvider: modesThemeProvider,
 		}
 	}
 
