@@ -89,6 +89,7 @@ func NewOverlay(
 // NewOverlayWithWindow initializes a mode indicator overlay instance using a shared window.
 func NewOverlayWithWindow(
 	indicatorCfg config.ModeIndicatorConfig,
+	theme config.ThemeProvider,
 	logger *zap.Logger,
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
@@ -97,6 +98,7 @@ func NewOverlayWithWindow(
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
 		indicatorConfig: indicatorCfg,
+		theme:           theme,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
