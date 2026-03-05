@@ -536,6 +536,10 @@ func (a *App) handleThemeChange(isDark bool) {
 
 	if a.modes != nil {
 		a.modes.UpdateConfig(a.config)
+
+		if a.config.RecursiveGrid.Enabled {
+			a.modes.RefreshRecursiveGridForThemeChange()
+		}
 	}
 }
 

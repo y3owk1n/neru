@@ -252,6 +252,24 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 	return true
 }
 
+// RefreshRecursiveGridForThemeChange redraws the recursive-grid overlay with
+// updated styles after a system theme change. Only performs the redraw if
+// ModeRecursiveGrid is currently active.
+//
+// Returns true if a redraw was performed.
+func (h *Handler) RefreshRecursiveGridForThemeChange() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeRecursiveGrid {
+		return false
+	}
+
+	h.updateRecursiveGridOverlay()
+
+	return true
+}
+
 // UpdateConfig updates the handler with new configuration.
 func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	h.mu.Lock()
