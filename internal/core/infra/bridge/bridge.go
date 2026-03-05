@@ -368,4 +368,3 @@ func handleThemeChanged(isDark C.int) {
 		go handler(dark)
 	}
 }
-

@@ -14,4 +14,3 @@ func (b *bridgeThemeProvider) IsDarkMode() bool {
 
 // defaultThemeProvider is the shared instance used throughout the app.
 var defaultThemeProvider = &bridgeThemeProvider{}
-

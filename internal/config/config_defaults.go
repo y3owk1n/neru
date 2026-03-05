@@ -297,7 +297,7 @@ func DefaultConfig() *Config {
 			LineColor:       "#FF8EE2FF", // Light blue, alpha FF = 100% opacity
 			LineWidth:       DefaultRecursiveGridLineWidth,
 			HighlightColor:  "#4D00BFFF", // Deep sky blue, alpha 4D ≈ 30% opacity
-			LabelColor:      "",           // Empty = theme-aware default (white in Dark Mode, black in Light Mode)
+			LabelColor:      "",          // Empty = theme-aware default (white in Dark Mode, black in Light Mode)
 			LabelFontSize:   DefaultRecursiveGridLabelFontSize,
 			LabelFontFamily: "",
 

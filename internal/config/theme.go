@@ -23,4 +23,3 @@ func ResolvedLabelColor(labelColor string, theme ThemeProvider) string {
 
 	return LabelColorLightMode
 }
-

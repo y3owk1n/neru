@@ -76,7 +76,10 @@ func TestDefaultConfig_LabelColorIsEmpty(t *testing.T) {
 	// (theme-aware sentinel).
 	cfg := config.DefaultConfig()
 	if cfg.RecursiveGrid.LabelColor != "" {
-		t.Errorf("Expected empty LabelColor in default config, got %q", cfg.RecursiveGrid.LabelColor)
+		t.Errorf(
+			"Expected empty LabelColor in default config, got %q",
+			cfg.RecursiveGrid.LabelColor,
+		)
 	}
 }
 
@@ -90,4 +93,3 @@ func TestLabelColorConstants(t *testing.T) {
 		t.Errorf("Expected LabelColorLightMode to be #FF000000, got %q", config.LabelColorLightMode)
 	}
 }
-

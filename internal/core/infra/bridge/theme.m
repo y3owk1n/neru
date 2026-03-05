@@ -45,13 +45,12 @@ int isDarkMode(void) {
 		NSAppearance *appearance = [NSApp effectiveAppearance];
 		if (!appearance) {
 			// Fallback: use system defaults
-			NSString *style =
-			    [[NSUserDefaults standardUserDefaults] stringForKey:@"AppleInterfaceStyle"];
+			NSString *style = [[NSUserDefaults standardUserDefaults] stringForKey:@"AppleInterfaceStyle"];
 			return [style isEqualToString:@"Dark"] ? 1 : 0;
 		}
 
-		NSAppearanceName bestMatch = [appearance
-		    bestMatchFromAppearancesWithNames:@[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
+		NSAppearanceName bestMatch =
+		    [appearance bestMatchFromAppearancesWithNames:@[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
 		return [bestMatch isEqualToString:NSAppearanceNameDarkAqua] ? 1 : 0;
 	}
 }
@@ -84,4 +83,3 @@ void stopThemeObserver(void) {
 		}
 	});
 }
-

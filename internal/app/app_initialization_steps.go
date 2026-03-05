@@ -193,7 +193,10 @@ func initializeRendererAndOverlays(app *App) {
 		recursiveGridStyle = app.recursiveGridComponent.Style
 	} else {
 		// Fallback to default style if component is nil
-		recursiveGridStyle = recursivegrid.BuildStyle(config.DefaultConfig().RecursiveGrid, defaultThemeProvider)
+		recursiveGridStyle = recursivegrid.BuildStyle(
+			config.DefaultConfig().RecursiveGrid,
+			defaultThemeProvider,
+		)
 	}
 
 	app.renderer = ui.NewOverlayRenderer(
