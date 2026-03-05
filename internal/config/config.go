@@ -449,6 +449,18 @@ func (c *Config) ValidateModeIndicator() error {
 		return err
 	}
 
+	err = validateColors([]colorField{
+		{c.ModeIndicator.BackgroundColorLight, "mode_indicator.background_color_light"},
+		{c.ModeIndicator.BackgroundColorDark, "mode_indicator.background_color_dark"},
+		{c.ModeIndicator.TextColorLight, "mode_indicator.text_color_light"},
+		{c.ModeIndicator.TextColorDark, "mode_indicator.text_color_dark"},
+		{c.ModeIndicator.BorderColorLight, "mode_indicator.border_color_light"},
+		{c.ModeIndicator.BorderColorDark, "mode_indicator.border_color_dark"},
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

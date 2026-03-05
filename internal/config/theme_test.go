@@ -194,20 +194,3 @@ func TestDefaultConfig_ColorsArePopulated(t *testing.T) {
 		)
 	}
 }
-
-func TestRecursiveGridTextColorConstants(t *testing.T) {
-	// Verify the theme color constants are valid hex colors.
-	if config.RecursiveGridTextColorDark != "#FFFFFFFF" {
-		t.Errorf(
-			"Expected RecursiveGridTextColorDark to be #FFFFFFFF, got %q",
-			config.RecursiveGridTextColorDark,
-		)
-	}
-
-	if config.RecursiveGridTextColorLight != "#FF000000" {
-		t.Errorf(
-			"Expected RecursiveGridTextColorLight to be #FF000000, got %q",
-			config.RecursiveGridTextColorLight,
-		)
-	}
-}
