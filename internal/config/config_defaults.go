@@ -182,48 +182,43 @@ const (
 	// DefaultRecursiveGridFontSize is the default font size for cell labels.
 	DefaultRecursiveGridFontSize = 10
 
-	// RecursiveGridTextColorDark is the default text color for Dark Mode (white, fully opaque).
-	RecursiveGridTextColorDark = "#FFFFFFFF"
-	// RecursiveGridTextColorLight is the default text color for Light Mode (black, fully opaque).
-	RecursiveGridTextColorLight = "#FF000000"
-
 	// HintsBackgroundColorLight is the light mode background color for hints.
 	HintsBackgroundColorLight = "#F2FFD700"
 	// HintsBackgroundColorDark is the dark mode background color for hints.
-	HintsBackgroundColorDark = "#F2B88600"
+	HintsBackgroundColorDark = "#F2FFD700"
 	// HintsTextColorLight is the light mode text color for hints.
 	HintsTextColorLight = "#FF000000"
 	// HintsTextColorDark is the dark mode text color for hints.
-	HintsTextColorDark = "#FFFFFFFF"
+	HintsTextColorDark = "#FF000000"
 	// HintsMatchedTextColorLight is the light mode matched text color for hints.
 	HintsMatchedTextColorLight = "#FF737373"
 	// HintsMatchedTextColorDark is the dark mode matched text color for hints.
-	HintsMatchedTextColorDark = "#FFBBBBBB"
+	HintsMatchedTextColorDark = "#FF737373"
 	// HintsBorderColorLight is the light mode border color for hints.
 	HintsBorderColorLight = "#FF000000"
 	// HintsBorderColorDark is the dark mode border color for hints.
-	HintsBorderColorDark = "#FF666666"
+	HintsBorderColorDark = "#FF000000"
 
 	// GridBackgroundColorLight is the light mode background color for grid cells.
 	GridBackgroundColorLight = "#B3ABE9B3"
 	// GridBackgroundColorDark is the dark mode background color for grid cells.
-	GridBackgroundColorDark = "#B33D6B5E"
+	GridBackgroundColorDark = "#B3ABE9B3"
 	// GridTextColorLight is the light mode text color for grid labels.
 	GridTextColorLight = "#FF000000"
 	// GridTextColorDark is the dark mode text color for grid labels.
-	GridTextColorDark = "#FFFFFFFF"
+	GridTextColorDark = "#FF000000"
 	// GridMatchedTextColorLight is the light mode matched text color for grid cells.
 	GridMatchedTextColorLight = "#FFF8BD96"
 	// GridMatchedTextColorDark is the dark mode matched text color for grid cells.
-	GridMatchedTextColorDark = "#FFFFCC99"
+	GridMatchedTextColorDark = "#FFF8BD96"
 	// GridMatchedBackgroundColorLight is the light mode matched background color for grid cells.
 	GridMatchedBackgroundColorLight = "#B3F8BD96"
 	// GridMatchedBackgroundColorDark is the dark mode matched background color for grid cells.
-	GridMatchedBackgroundColorDark = "#B3CC6600"
+	GridMatchedBackgroundColorDark = "#B3F8BD96"
 	// GridMatchedBorderColorLight is the light mode matched border color for grid cells.
 	GridMatchedBorderColorLight = "#B3F8BD96"
 	// GridMatchedBorderColorDark is the dark mode matched border color for grid cells.
-	GridMatchedBorderColorDark = "#B3CC6600"
+	GridMatchedBorderColorDark = "#B3F8BD96"
 	// GridBorderColorLight is the light mode border color for grid cells.
 	GridBorderColorLight = "#B3ABE9B3"
 	// GridBorderColorDark is the dark mode border color for grid cells.
@@ -232,24 +227,28 @@ const (
 	// RecursiveGridLineColorLight is the light mode line color for recursive grid.
 	RecursiveGridLineColorLight = "#FF8EE2FF"
 	// RecursiveGridLineColorDark is the dark mode line color for recursive grid.
-	RecursiveGridLineColorDark = "#FF1E90FF"
+	RecursiveGridLineColorDark = "#FF8EE2FF"
 	// RecursiveGridHighlightColorLight is the light mode highlight color for recursive grid.
 	RecursiveGridHighlightColorLight = "#4D00BFFF"
 	// RecursiveGridHighlightColorDark is the dark mode highlight color for recursive grid.
-	RecursiveGridHighlightColorDark = "#4D1E90FF"
+	RecursiveGridHighlightColorDark = "#4D00BFFF"
+	// RecursiveGridTextColorDark is the default text color for Dark Mode (white, fully opaque).
+	RecursiveGridTextColorDark = "#FFFFFFFF"
+	// RecursiveGridTextColorLight is the default text color for Light Mode (black, fully opaque).
+	RecursiveGridTextColorLight = "#FFFFFFFF"
 
 	// ModeIndicatorBackgroundColorLight is the light mode background color for the mode indicator.
 	ModeIndicatorBackgroundColorLight = "#F2FFD700"
 	// ModeIndicatorBackgroundColorDark is the dark mode background color for the mode indicator.
-	ModeIndicatorBackgroundColorDark = "#F2B88600"
+	ModeIndicatorBackgroundColorDark = "#F2FFD700"
 	// ModeIndicatorTextColorLight is the light mode text color for the mode indicator.
 	ModeIndicatorTextColorLight = "#FF000000"
 	// ModeIndicatorTextColorDark is the dark mode text color for the mode indicator.
-	ModeIndicatorTextColorDark = "#FFFFFFFF"
+	ModeIndicatorTextColorDark = "#FF000000"
 	// ModeIndicatorBorderColorLight is the light mode border color for the mode indicator.
 	ModeIndicatorBorderColorLight = "#FF000000"
 	// ModeIndicatorBorderColorDark is the dark mode border color for the mode indicator.
-	ModeIndicatorBorderColorDark = "#FF666666"
+	ModeIndicatorBorderColorDark = "#FF000000"
 )
 
 // DefaultConfig returns the default application configuration with sensible defaults.
