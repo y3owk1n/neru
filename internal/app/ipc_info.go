@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -25,8 +26,11 @@ type IPCControllerInfo struct {
 	gridService   *services.GridService
 	actionService *services.ActionService
 	scrollService *services.ScrollService
-	configPath    string
+	reloadConfig  func(ctx context.Context, configPath string) error
 	logger        *zap.Logger
+
+	// configMu protects config from concurrent read/write.
+	configMu sync.RWMutex
 }
 
 // NewIPCControllerInfo creates a new info/config command handler.
@@ -39,7 +43,7 @@ func NewIPCControllerInfo(
 	gridService *services.GridService,
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
-	configPath string,
+	reloadConfig func(ctx context.Context, configPath string) error,
 	logger *zap.Logger,
 ) *IPCControllerInfo {
 	return &IPCControllerInfo{
@@ -51,7 +55,7 @@ func NewIPCControllerInfo(
 		gridService:   gridService,
 		actionService: actionService,
 		scrollService: scrollService,
-		configPath:    configPath,
+		reloadConfig:  reloadConfig,
 		logger:        logger,
 	}
 }
@@ -89,15 +93,44 @@ func (h *IPCControllerInfo) ResolveConfigPath() string {
 	return configPath
 }
 
+// UpdateConfig updates the stored config.
+func (h *IPCControllerInfo) UpdateConfig(cfg *config.Config) {
+	h.configMu.Lock()
+	defer h.configMu.Unlock()
+
+	h.config = cfg
+}
+
+// configSnapshot returns the current config pointer under a read lock.
+func (h *IPCControllerInfo) configSnapshot() *config.Config {
+	h.configMu.RLock()
+	defer h.configMu.RUnlock()
+
+	return h.config
+}
+
 func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.Response {
 	configPath := h.ResolveConfigPath()
 
+	cfg := h.configSnapshot()
+
+	if cfg == nil {
+		h.logger.Error("Config is nil in handleStatus")
+
+		return ipc.Response{
+			Success: false,
+			Message: "config not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
 	status := map[string]any{
-		"enabled":       h.appState.IsEnabled(),
-		"mode":          domain.ModeString(h.appState.CurrentMode()),
-		"config":        configPath,
-		"hints_enabled": h.config.Hints.Enabled,
-		"grid_enabled":  h.config.Grid.Enabled,
+		"enabled":                h.appState.IsEnabled(),
+		"mode":                   domain.ModeString(h.appState.CurrentMode()),
+		"config":                 configPath,
+		"hints_enabled":          cfg.Hints.Enabled,
+		"grid_enabled":           cfg.Grid.Enabled,
+		"recursive_grid_enabled": cfg.RecursiveGrid.Enabled,
 	}
 
 	return ipc.Response{
@@ -109,7 +142,9 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 }
 
 func (h *IPCControllerInfo) handleConfig(_ context.Context, _ ipc.Command) ipc.Response {
-	if h.config == nil {
+	cfg := h.configSnapshot()
+
+	if cfg == nil {
 		h.logger.Error("Config is nil in handleConfig")
 
 		return ipc.Response{
@@ -121,13 +156,25 @@ func (h *IPCControllerInfo) handleConfig(_ context.Context, _ ipc.Command) ipc.R
 
 	return ipc.Response{
 		Success: true,
-		Data:    h.config,
+		Data:    cfg,
 		Code:    ipc.CodeOK,
 	}
 }
 
-func (h *IPCControllerInfo) handleReloadConfig(_ context.Context, _ ipc.Command) ipc.Response {
-	err := h.configService.ReloadConfig(h.configPath)
+func (h *IPCControllerInfo) handleReloadConfig(ctx context.Context, _ ipc.Command) ipc.Response {
+	if h.reloadConfig == nil {
+		h.logger.Error("Reload config callback is not set")
+
+		return ipc.Response{
+			Success: false,
+			Message: "reload config not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	configPath := h.configService.GetConfigPath()
+
+	err := h.reloadConfig(ctx, configPath)
 	if err != nil {
 		h.logger.Error("Failed to reload config", zap.Error(err))
 
@@ -146,6 +193,18 @@ func (h *IPCControllerInfo) handleReloadConfig(_ context.Context, _ ipc.Command)
 }
 
 func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc.Response {
+	// Guard against nil services so callers (including tests) don't panic.
+	if h.hintService == nil || h.gridService == nil || h.actionService == nil ||
+		h.scrollService == nil {
+		h.logger.Error("One or more services are nil in handleHealth")
+
+		return ipc.Response{
+			Success: false,
+			Message: "health check not available: services not initialized",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
 	// Get raw health status with errors
 	rawHealthStatus := map[string]map[string]error{
 		"hints":  h.hintService.Health(ctx),
