@@ -526,8 +526,7 @@ func (a *App) setupThemeObserver() {
 }
 
 // handleThemeChange is called when the macOS system appearance changes.
-// It refreshes overlay styles that depend on the theme (e.g. recursive grid
-// label_color) when the color was not explicitly set by the user.
+// It refreshes overlay styles that depend on the theme for all active modes.
 func (a *App) handleThemeChange(isDark bool) {
 	a.configMu.RLock()
 	cfg := a.config
@@ -536,26 +535,39 @@ func (a *App) handleThemeChange(isDark bool) {
 	a.logger.Info("System theme changed",
 		zap.Bool("is_dark", isDark))
 
-	// Only update if label color is not user-specified (empty = theme-aware default)
-	if cfg.RecursiveGrid.LabelColor != "" {
-		a.logger.Debug("label_color is user-specified, skipping theme-aware update")
-
-		return
+	// Invalidate the overlay's native C string caches so the subsequent draw
+	// rebuilds them with the new theme-resolved colors.
+	if a.hintsComponent != nil && a.hintsComponent.Overlay != nil {
+		a.hintsComponent.UpdateConfig(cfg, a.logger)
 	}
 
-	// Invalidate the overlay's native C string caches (via SetConfig →
-	// styleCache.Free + freeLabelCache) so the subsequent draw rebuilds
-	// them with the new theme-resolved colors.
+	if a.gridComponent != nil && a.gridComponent.Overlay != nil {
+		a.gridComponent.UpdateConfig(cfg, a.logger)
+	}
+
 	if a.recursiveGridComponent != nil {
 		a.recursiveGridComponent.UpdateConfig(cfg, a.logger)
 	}
 
-	// Re-build renderer style with the new theme state, then redraw.
+	if a.modeIndicatorComponent != nil {
+		a.modeIndicatorComponent.UpdateConfig(cfg, a.logger)
+	}
+
+	// Re-build renderer style with the new theme state, then redraw active mode.
 	if a.modes != nil {
 		a.modes.UpdateConfig(cfg)
 
-		if cfg.RecursiveGrid.Enabled {
+		currentMode := a.appState.CurrentMode()
+		switch currentMode {
+		case domain.ModeHints:
+			a.modes.RefreshHintsForThemeChange()
+		case domain.ModeGrid:
+			a.modes.RefreshGridForThemeChange()
+		case domain.ModeRecursiveGrid:
 			a.modes.RefreshRecursiveGridForThemeChange()
+		case domain.ModeIdle, domain.ModeScroll:
+			// No-op for idle and scroll modes as they don't have theme-dependent persistent overlays
+			// that need immediate refresh here. Scroll mode indicator is handled via its own component refresh above.
 		}
 	}
 }

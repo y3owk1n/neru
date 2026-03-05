@@ -48,6 +48,7 @@ func resizeModeIndicatorCompletionCallback(context unsafe.Pointer) {
 type Overlay struct {
 	window          C.OverlayWindow
 	indicatorConfig config.ModeIndicatorConfig
+	theme           config.ThemeProvider
 	logger          *zap.Logger
 	callbackManager *overlayutil.CallbackManager
 	styleCache      *overlayutil.StyleCache
@@ -66,6 +67,7 @@ type Overlay struct {
 // NewOverlay initializes a new mode indicator overlay instance with its own window.
 func NewOverlay(
 	indicatorCfg config.ModeIndicatorConfig,
+	theme config.ThemeProvider,
 	logger *zap.Logger,
 ) (*Overlay, error) {
 	base, err := overlayutil.NewBaseOverlay(logger)
@@ -76,6 +78,7 @@ func NewOverlay(
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
 		indicatorConfig: indicatorCfg,
+		theme:           theme,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
@@ -86,6 +89,7 @@ func NewOverlay(
 // NewOverlayWithWindow initializes a mode indicator overlay instance using a shared window.
 func NewOverlayWithWindow(
 	indicatorCfg config.ModeIndicatorConfig,
+	theme config.ThemeProvider,
 	logger *zap.Logger,
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
@@ -94,6 +98,7 @@ func NewOverlayWithWindow(
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
 		indicatorConfig: indicatorCfg,
+		theme:           theme,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
@@ -184,12 +189,50 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 	// Use cached style strings to avoid repeated allocations and fix use-after-free
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
 		cached.FontFamily = unsafe.Pointer(C.CString(o.indicatorConfig.FontFamily))
-		cached.BgColor = unsafe.Pointer(C.CString(o.indicatorConfig.BackgroundColor))
-		cached.TextColor = unsafe.Pointer(C.CString(o.indicatorConfig.TextColor))
+		cached.BgColor = unsafe.Pointer(
+			C.CString(
+				config.ResolveColor(
+					o.indicatorConfig.BackgroundColorLight,
+					o.indicatorConfig.BackgroundColorDark,
+					o.theme,
+					config.ModeIndicatorBackgroundColorLight,
+					config.ModeIndicatorBackgroundColorDark,
+				),
+			),
+		)
+		cached.TextColor = unsafe.Pointer(
+			C.CString(
+				config.ResolveColor(
+					o.indicatorConfig.TextColorLight,
+					o.indicatorConfig.TextColorDark,
+					o.theme,
+					config.ModeIndicatorTextColorLight,
+					config.ModeIndicatorTextColorDark,
+				),
+			),
+		)
 		cached.MatchedTextColor = unsafe.Pointer(
-			C.CString(o.indicatorConfig.TextColor),
+			C.CString(
+				config.ResolveColor(
+					o.indicatorConfig.TextColorLight,
+					o.indicatorConfig.TextColorDark,
+					o.theme,
+					config.ModeIndicatorTextColorLight,
+					config.ModeIndicatorTextColorDark,
+				),
+			),
 		) // No matching in indicator mode
-		cached.BorderColor = unsafe.Pointer(C.CString(o.indicatorConfig.BorderColor))
+		cached.BorderColor = unsafe.Pointer(
+			C.CString(
+				config.ResolveColor(
+					o.indicatorConfig.BorderColorLight,
+					o.indicatorConfig.BorderColorDark,
+					o.theme,
+					config.ModeIndicatorBorderColorLight,
+					config.ModeIndicatorBorderColorDark,
+				),
+			),
+		)
 	})
 
 	style := C.HintStyle{

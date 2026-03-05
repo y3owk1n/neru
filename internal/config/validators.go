@@ -96,10 +96,14 @@ func (c *Config) ValidateHints() error {
 	}
 
 	err = validateColors([]colorField{
-		{c.Hints.BackgroundColor, "hints.background_color"},
-		{c.Hints.TextColor, "hints.text_color"},
-		{c.Hints.MatchedTextColor, "hints.matched_text_color"},
-		{c.Hints.BorderColor, "hints.border_color"},
+		{c.Hints.BackgroundColorLight, "hints.background_color_light"},
+		{c.Hints.BackgroundColorDark, "hints.background_color_dark"},
+		{c.Hints.TextColorLight, "hints.text_color_light"},
+		{c.Hints.TextColorDark, "hints.text_color_dark"},
+		{c.Hints.MatchedTextColorLight, "hints.matched_text_color_light"},
+		{c.Hints.MatchedTextColorDark, "hints.matched_text_color_dark"},
+		{c.Hints.BorderColorLight, "hints.border_color_light"},
+		{c.Hints.BorderColorDark, "hints.border_color_dark"},
 	})
 	if err != nil {
 		return err
@@ -420,12 +424,18 @@ func (c *Config) ValidateGrid() error {
 
 	// Validate per-action grid colors
 	err := validateColors([]colorField{
-		{c.Grid.BackgroundColor, "grid.background_color"},
-		{c.Grid.TextColor, "grid.text_color"},
-		{c.Grid.MatchedTextColor, "grid.matched_text_color"},
-		{c.Grid.MatchedBackgroundColor, "grid.matched_background_color"},
-		{c.Grid.MatchedBorderColor, "grid.matched_border_color"},
-		{c.Grid.BorderColor, "grid.border_color"},
+		{c.Grid.BackgroundColorLight, "grid.background_color_light"},
+		{c.Grid.BackgroundColorDark, "grid.background_color_dark"},
+		{c.Grid.TextColorLight, "grid.text_color_light"},
+		{c.Grid.TextColorDark, "grid.text_color_dark"},
+		{c.Grid.MatchedTextColorLight, "grid.matched_text_color_light"},
+		{c.Grid.MatchedTextColorDark, "grid.matched_text_color_dark"},
+		{c.Grid.MatchedBackgroundColorLight, "grid.matched_background_color_light"},
+		{c.Grid.MatchedBackgroundColorDark, "grid.matched_background_color_dark"},
+		{c.Grid.MatchedBorderColorLight, "grid.matched_border_color_light"},
+		{c.Grid.MatchedBorderColorDark, "grid.matched_border_color_dark"},
+		{c.Grid.BorderColorLight, "grid.border_color_light"},
+		{c.Grid.BorderColorDark, "grid.border_color_dark"},
 	})
 	if err != nil {
 		return err
@@ -669,9 +679,10 @@ func ValidateHotkey(hotkey, fieldName string) error {
 }
 
 // ValidateColor validates a color string (hex format).
+// Empty string is valid and represents a theme-aware default.
 func ValidateColor(color, fieldName string) error {
-	if strings.TrimSpace(color) == "" {
-		return derrors.Newf(derrors.CodeInvalidConfig, "%s cannot be empty", fieldName)
+	if color == "" {
+		return nil
 	}
 
 	// Match hex color format: #RGB, #RRGGBB, #AARRGGBB
@@ -1146,25 +1157,21 @@ func (c *Config) ValidateRecursiveGrid() error {
 		)
 	}
 
-	if c.RecursiveGrid.LabelFontSize < 6 || c.RecursiveGrid.LabelFontSize > 72 {
+	if c.RecursiveGrid.FontSize < 6 || c.RecursiveGrid.FontSize > 72 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"recursive_grid.label_font_size must be between 6 and 72",
+			"recursive_grid.font_size must be between 6 and 72",
 		)
 	}
 
 	// Validate colors
 	colorFields := []colorField{
-		{c.RecursiveGrid.LineColor, "recursive_grid.line_color"},
-		{c.RecursiveGrid.HighlightColor, "recursive_grid.highlight_color"},
-	}
-	// Only validate LabelColor if user specified it (non-empty).
-	// Empty string means theme-aware default and is valid.
-	if c.RecursiveGrid.LabelColor != "" {
-		colorFields = append(
-			colorFields,
-			colorField{c.RecursiveGrid.LabelColor, "recursive_grid.label_color"},
-		)
+		{c.RecursiveGrid.LineColorLight, "recursive_grid.line_color_light"},
+		{c.RecursiveGrid.LineColorDark, "recursive_grid.line_color_dark"},
+		{c.RecursiveGrid.HighlightColorLight, "recursive_grid.highlight_color_light"},
+		{c.RecursiveGrid.HighlightColorDark, "recursive_grid.highlight_color_dark"},
+		{c.RecursiveGrid.TextColorLight, "recursive_grid.text_color_light"},
+		{c.RecursiveGrid.TextColorDark, "recursive_grid.text_color_dark"},
 	}
 
 	err := validateColors(colorFields)

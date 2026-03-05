@@ -19,12 +19,13 @@ type HintsComponent struct {
 	Overlay *hints.Overlay
 	Context *hints.Context
 	Style   hints.StyleMode
+	Theme   config.ThemeProvider
 }
 
 // UpdateConfig updates the hints component with new configuration.
 func (h *HintsComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
 	if h.Overlay != nil && cfg.Hints.Enabled {
-		h.Style = hints.BuildStyle(cfg.Hints)
+		h.Style = hints.BuildStyle(cfg.Hints, h.Theme)
 		h.Overlay.SetConfig(cfg.Hints)
 	}
 }
@@ -36,12 +37,13 @@ type GridComponent struct {
 	Router  *domainGrid.Router
 	Context *grid.Context
 	Style   grid.Style
+	Theme   config.ThemeProvider
 }
 
 // UpdateConfig updates the grid component with new configuration.
 func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) {
 	if config.Grid.Enabled {
-		g.Style = grid.BuildStyle(config.Grid)
+		g.Style = grid.BuildStyle(config.Grid, g.Theme)
 		if g.Overlay != nil {
 			g.Overlay.SetConfig(config.Grid)
 		}

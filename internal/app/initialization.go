@@ -116,7 +116,7 @@ func initializeAdapters(
 	)
 
 	// Create overlay adapter for UI rendering
-	overlayPort := overlayAdapter.NewAdapter(overlayManager, logger)
+	overlayPort := overlayAdapter.NewAdapter(overlayManager, defaultThemeProvider, logger)
 
 	axCache := axClient.Cache()
 

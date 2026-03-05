@@ -237,17 +237,41 @@ func (o *Overlay) DrawHintsWithStyle(hints []*Hint, style StyleMode) error {
 }
 
 // BuildStyle returns StyleMode based on action name using the provided config.
-func BuildStyle(cfg config.HintsConfig) StyleMode {
+func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 	style := StyleMode{
-		fontSize:         cfg.FontSize,
-		fontFamily:       cfg.FontFamily,
-		borderRadius:     cfg.BorderRadius,
-		padding:          cfg.Padding,
-		borderWidth:      cfg.BorderWidth,
-		backgroundColor:  cfg.BackgroundColor,
-		textColor:        cfg.TextColor,
-		matchedTextColor: cfg.MatchedTextColor,
-		borderColor:      cfg.BorderColor,
+		fontSize:     cfg.FontSize,
+		fontFamily:   cfg.FontFamily,
+		borderRadius: cfg.BorderRadius,
+		padding:      cfg.Padding,
+		borderWidth:  cfg.BorderWidth,
+		backgroundColor: config.ResolveColor(
+			cfg.BackgroundColorLight,
+			cfg.BackgroundColorDark,
+			theme,
+			config.HintsBackgroundColorLight,
+			config.HintsBackgroundColorDark,
+		),
+		textColor: config.ResolveColor(
+			cfg.TextColorLight,
+			cfg.TextColorDark,
+			theme,
+			config.HintsTextColorLight,
+			config.HintsTextColorDark,
+		),
+		matchedTextColor: config.ResolveColor(
+			cfg.MatchedTextColorLight,
+			cfg.MatchedTextColorDark,
+			theme,
+			config.HintsMatchedTextColorLight,
+			config.HintsMatchedTextColorDark,
+		),
+		borderColor: config.ResolveColor(
+			cfg.BorderColorLight,
+			cfg.BorderColorDark,
+			theme,
+			config.HintsBorderColorLight,
+			config.HintsBorderColorDark,
+		),
 	}
 
 	return style

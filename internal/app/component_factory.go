@@ -47,7 +47,9 @@ type ComponentCreationOptions struct {
 func (f *ComponentFactory) CreateHintsComponent(
 	opts ComponentCreationOptions,
 ) (*components.HintsComponent, error) {
-	component := &components.HintsComponent{}
+	component := &components.HintsComponent{
+		Theme: defaultThemeProvider,
+	}
 
 	// Check if component should be skipped
 	if opts.SkipIfDisabled && !f.config.Hints.Enabled {
@@ -55,7 +57,7 @@ func (f *ComponentFactory) CreateHintsComponent(
 	}
 
 	// Build style
-	component.Style = hints.BuildStyle(f.config.Hints)
+	component.Style = hints.BuildStyle(f.config.Hints, defaultThemeProvider)
 	component.Context = &hints.Context{}
 
 	// Create overlay
@@ -90,7 +92,9 @@ func (f *ComponentFactory) CreateHintsComponent(
 func (f *ComponentFactory) CreateGridComponent(
 	opts ComponentCreationOptions,
 ) (*components.GridComponent, error) {
-	component := &components.GridComponent{}
+	component := &components.GridComponent{
+		Theme: defaultThemeProvider,
+	}
 
 	// Initialize minimal context even when disabled
 	ctx := &grid.Context{}
@@ -105,7 +109,7 @@ func (f *ComponentFactory) CreateGridComponent(
 	}
 
 	// Build style and configuration
-	component.Style = grid.BuildStyle(f.config.Grid)
+	component.Style = grid.BuildStyle(f.config.Grid, defaultThemeProvider)
 	gridChars := f.getGridCharacters()
 	subKeys := f.getSublayerKeys(gridChars)
 
@@ -293,6 +297,7 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 
 		return modeindicator.NewOverlay(
 			indicatorConfig,
+			defaultThemeProvider,
 			f.logger,
 		)
 	case "recursive_grid":

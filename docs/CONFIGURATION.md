@@ -277,20 +277,24 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 
 ### Basic Configuration
 
-| Option               | Type   | Default       | Description                                        |
-| -------------------- | ------ | ------------- | -------------------------------------------------- |
-| `enabled`            | bool   | `true`        | Enable/disable hints mode                          |
-| `auto_exit_actions`  | array  | `[]`          | Actions that auto-exit after execution (see below) |
-| `hint_characters`    | string | `"asdfghjkl"` | Characters used for labels                         |
-| `font_size`          | int    | `10`          | Label font size                                    |
-| `font_family`        | string | `""`          | Font name (empty = system)                         |
-| `border_radius`      | int    | `4`           | Corner radius in pixels                            |
-| `border_width`       | int    | `1`           | Border width in pixels                             |
-| `padding`            | int    | `4`           | Internal padding in pixels                         |
-| `background_color`   | string | `"#F2FFD700"` | Label background (gold)                            |
-| `text_color`         | string | `"#FF000000"` | Label text (black)                                 |
-| `matched_text_color` | string | `"#FF737373"` | Typed text color (gray)                            |
-| `border_color`       | string | `"#FF000000"` | Border color (black)                               |
+| Option                     | Type   | Default       | Description                                        |
+| -------------------------- | ------ | ------------- | -------------------------------------------------- |
+| `enabled`                  | bool   | `true`        | Enable/disable hints mode                          |
+| `auto_exit_actions`        | array  | `[]`          | Actions that auto-exit after execution (see below) |
+| `hint_characters`          | string | `"asdfghjkl"` | Characters used for labels                         |
+| `font_size`                | int    | `10`          | Label font size                                    |
+| `font_family`              | string | `""`          | Font name (empty = system)                         |
+| `border_radius`            | int    | `4`           | Corner radius in pixels                            |
+| `border_width`             | int    | `1`           | Border width in pixels                             |
+| `padding`                  | int    | `4`           | Internal padding in pixels                         |
+| `background_color_light`   | string | `"#F2FFD700"` | Label background for Light Mode (theme-aware)      |
+| `background_color_dark`    | string | `"#F2FFD700"` | Label background for Dark Mode (theme-aware)       |
+| `text_color_light`         | string | `"#FF000000"` | Label text for Light Mode (theme-aware)            |
+| `text_color_dark`          | string | `"#FF000000"` | Label text for Dark Mode (theme-aware)             |
+| `matched_text_color_light` | string | `"#FF737373"` | Typed text color for Light Mode (theme-aware)      |
+| `matched_text_color_dark`  | string | `"#FF737373"` | Typed text color for Dark Mode (theme-aware)       |
+| `border_color_light`       | string | `"#FF000000"` | Border color for Light Mode (theme-aware)          |
+| `border_color_dark`        | string | `"#FF000000"` | Border color for Dark Mode (theme-aware)           |
 
 ### auto_exit_actions
 
@@ -522,16 +526,33 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 
 ### Basic Configuration
 
-| Option              | Type   | Default              | Description                                        |
-| ------------------- | ------ | -------------------- | -------------------------------------------------- |
-| `enabled`           | bool   | `true`               | Enable/disable grid mode                           |
-| `auto_exit_actions` | array  | `[]`                 | Actions that auto-exit after execution (see below) |
-| `characters`        | string | (see below)          | Primary grid labels                                |
-| `sublayer_keys`     | string | (same as characters) | Subgrid labels                                     |
-| `reset_key`         | string | `" "`                | Key to clear input                                 |
-| `font_size`         | int    | `10`                 | Label font size                                    |
-| `font_family`       | string | `""`                 | Font name                                          |
-| `border_width`      | int    | `1`                  | Cell border width                                  |
+| Option                           | Type   | Default              | Description                                          |
+| -------------------------------- | ------ | -------------------- | ---------------------------------------------------- |
+| `enabled`                        | bool   | `true`               | Enable/disable grid mode                             |
+| `auto_exit_actions`              | array  | `[]`                 | Actions that auto-exit after execution (see below)   |
+| `characters`                     | string | (see below)          | Primary grid labels                                  |
+| `sublayer_keys`                  | string | (same as characters) | Subgrid labels                                       |
+| `reset_key`                      | string | `" "`                | Key to clear input                                   |
+| `font_size`                      | int    | `10`                 | Label font size                                      |
+| `font_family`                    | string | `""`                 | Font name                                            |
+| `border_width`                   | int    | `1`                  | Cell border width                                    |
+| `background_color_light`         | string | `"#B3ABE9B3"`        | Cell background for Light Mode (theme-aware)         |
+| `background_color_dark`          | string | `"#B3ABE9B3"`        | Cell background for Dark Mode (theme-aware)          |
+| `text_color_light`               | string | `"#FF000000"`        | Label text for Light Mode (theme-aware)              |
+| `text_color_dark`                | string | `"#FF000000"`        | Label text for Dark Mode (theme-aware)               |
+| `matched_text_color_light`       | string | `"#FFF8BD96"`        | Matched cell text for Light Mode (theme-aware)       |
+| `matched_text_color_dark`        | string | `"#FFF8BD96"`        | Matched cell text for Dark Mode (theme-aware)        |
+| `matched_background_color_light` | string | `"#B3F8BD96"`        | Matched cell background for Light Mode (theme-aware) |
+| `matched_background_color_dark`  | string | `"#B3F8BD96"`        | Matched cell background for Dark Mode (theme-aware)  |
+| `matched_border_color_light`     | string | `"#B3F8BD96"`        | Matched cell border for Light Mode (theme-aware)     |
+| `matched_border_color_dark`      | string | `"#B3F8BD96"`        | Matched cell border for Dark Mode (theme-aware)      |
+| `border_color_light`             | string | `"#B3ABE9B3"`        | Cell border for Light Mode (theme-aware)             |
+| `border_color_dark`              | string | `"#B3ABE9B3"`        | Cell border for Dark Mode (theme-aware)              |
+
+> **Theme-aware colors:** When these are not set in your config file (empty string `""`),
+> Neru automatically uses sensible defaults that adapt to your system appearance.
+> The colors update in real time when you switch system themes. If you explicitly
+> set a value, it is always used regardless of the system theme.
 
 **Default characters:** `abcdefghijklmnpqrstuvwxyz`
 
@@ -702,19 +723,22 @@ j   →   k          j = Lower-left
 
 ### Visual Options
 
-| Option            | Type   | Default              | Description                                                                    |
-| ----------------- | ------ | -------------------- | ------------------------------------------------------------------------------ |
-| `line_color`      | string | `"#FF8EE2FF"`        | Grid line color                                                                |
-| `line_width`      | int    | `1`                  | Line thickness                                                                 |
-| `highlight_color` | string | `"#4D00BFFF"`        | Selected cell highlight                                                        |
-| `label_color`     | string | _(theme-aware)_      | Cell label text. Auto-adapts to macOS Dark/Light Mode if not explicitly set     |
-| `label_font_size` | int    | `10`                 | Label size                                                                     |
+| Option                  | Type   | Default       | Description                                  |
+| ----------------------- | ------ | ------------- | -------------------------------------------- |
+| `line_color_light`      | string | `"#FF8EE2FF"` | Grid line color for Light Mode (theme-aware) |
+| `line_color_dark`       | string | `"#FF8EE2FF"` | Grid line color for Dark Mode (theme-aware)  |
+| `line_width`            | int    | `1`           | Line thickness                               |
+| `highlight_color_light` | string | `"#4D00BFFF"` | Cell highlight for Light Mode (theme-aware)  |
+| `highlight_color_dark`  | string | `"#4D00BFFF"` | Cell highlight for Dark Mode (theme-aware)   |
+| `text_color_light`      | string | `"#FFFFFFFF"` | Cell text color for Light Mode (theme-aware) |
+| `text_color_dark`       | string | `"#FFFFFFFF"` | Cell text color for Dark Mode (theme-aware)  |
+| `font_size`             | int    | `10`          | Font size for labels                         |
+| `font_family`           | string | `""`          | Font family for labels (empty = system)      |
 
-> **Theme-aware `label_color`:** When `label_color` is not set in your config file,
-> Neru automatically uses white (`#FFFFFFFF`) in Dark Mode and black (`#FF000000`) in
-> Light Mode. The color updates in real time when you switch system themes — no restart
-> required. If you explicitly set `label_color`, your value is always used regardless
-> of the system theme.
+> **Theme-aware colors:** When these are not set in your config file (empty string `""`),
+> Neru automatically uses sensible defaults that adapt to your system appearance.
+> The colors update in real time when you switch system themes. If you explicitly
+> set a value, it is always used regardless of the system theme.
 
 ---
 
@@ -896,18 +920,21 @@ recursive_grid_enabled = false
 
 ### Appearance
 
-| Option               | Type   | Default       | Description            |
-| -------------------- | ------ | ------------- | ---------------------- |
-| `font_size`          | int    | `10`          | Text size              |
-| `font_family`        | string | `""`          | Font (empty = system)  |
-| `background_color`   | string | `"#F2FFD700"` | Background (gold, 95%) |
-| `text_color`         | string | `"#FF000000"` | Text (black)           |
-| `border_color`       | string | `"#FF000000"` | Border (black)         |
-| `border_width`       | int    | `1`           | Border width           |
-| `padding`            | int    | `4`           | Internal padding       |
-| `border_radius`      | int    | `4`           | Corner radius          |
-| `indicator_x_offset` | int    | `20`          | X offset from cursor   |
-| `indicator_y_offset` | int    | `20`          | Y offset from cursor   |
+| Option                   | Type   | Default       | Description                             |
+| ------------------------ | ------ | ------------- | --------------------------------------- |
+| `font_size`              | int    | `10`          | Text size                               |
+| `font_family`            | string | `""`          | Font (empty = system)                   |
+| `background_color_light` | string | `"#F2FFD700"` | Background for Light Mode (theme-aware) |
+| `background_color_dark`  | string | `"#F2FFD700"` | Background for Dark Mode (theme-aware)  |
+| `text_color_light`       | string | `"#FF000000"` | Text for Light Mode (theme-aware)       |
+| `text_color_dark`        | string | `"#FF000000"` | Text for Dark Mode (theme-aware)        |
+| `border_color_light`     | string | `"#FF000000"` | Border for Light Mode (theme-aware)     |
+| `border_color_dark`      | string | `"#FF000000"` | Border for Dark Mode (theme-aware)      |
+| `border_width`           | int    | `1`           | Border width                            |
+| `padding`                | int    | `4`           | Internal padding                        |
+| `border_radius`          | int    | `4`           | Corner radius                           |
+| `indicator_x_offset`     | int    | `20`          | X offset from cursor                    |
+| `indicator_y_offset`     | int    | `20`          | Y offset from cursor                    |
 
 ---
 
@@ -1039,6 +1066,33 @@ open -a "Font Book"
 
 Neru colors use hex notation with optional alpha transparency.
 
+### Default Behavior
+
+Neru comes with built-in **theme-aware defaults** for all color configurations. The hex values shown in the tables above represent these defaults.
+
+- **Light Mode active:** Neru uses the light variant defaults.
+- **Dark Mode active:** Neru uses the dark variant defaults.
+
+If you omit a color option from your config file, or explicitly set it to `""` (empty string), Neru will automatically use these built-in defaults. This ensures that the application always looks correct when you switch system themes in macOS System Settings.
+
+### Specifying Colors
+
+If you want to customize colors, you can set them explicitly in your config file. When a value is provided, it is always used for that specific theme variant, overriding the default behavior.
+
+```toml
+# Customizing only light mode background
+[hints]
+background_color_light = "#FF0000AA"  # Custom red for light mode
+# background_color_dark is left empty, so it uses the dark mode default
+```
+
+### Color Options Suffixes
+
+All color options use `_light` and `_dark` suffixes to support macOS Dark and Light Mode:
+
+- **`*_light`** — used when macOS is in Light Mode
+- **`*_dark`** — used when macOS is in Dark Mode
+
 ### Supported Formats
 
 | Format      | Example     | Alpha | Description                       |
@@ -1087,21 +1141,22 @@ alpha_hex = round(opacity * 255)
 
 ### Common Examples
 
+The following hex values represent some of the built-in defaults used by Neru.
+
 ```toml
 # Gold (classic hint color)
-background_color = "#F2FFD700"          # FF = opaque, F2 = 95%
-background_color = "#FFD700"            # 6-char, fully opaque
+background_color_light = "#F2FFD700"          # Gold, 95% opacity
+background_color_dark = "#F2FFD700"           # same for Dark Mode
 
 # Grid colors
-background_color = "#B3ABE9B3"          # Light purple, 70%
-matched_background_color = "#B3F8BD96"  # Orange, 70%
+background_color_light = "#B3ABE9B3"          # Light green, 70%
+background_color_dark = "#B3ABE9B3"           # same for Dark Mode
+matched_background_color_light = "#B3F8BD96"  # Orange, 70%
+matched_background_color_dark = "#B3F8BD96"   # same for Dark Mode
 
-# Blue highlight
-highlight_color = "#4D00BFFF"           # Deep sky blue, 30%
-
-# White/black
-text_color = "#FF000000"                # Black, opaque
-label_color = "#FFFFFFFF"               # White, opaque
+# Blue highlight (Recursive Grid)
+highlight_color_light = "#4D00BFFF"           # Deep sky blue, 30%
+highlight_color_dark = "#4D00BFFF"            # same for Dark Mode
 ```
 
 ---

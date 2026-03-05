@@ -297,17 +297,17 @@ func (o *Overlay) DrawRecursiveGrid(
 
 	// Get cached style
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
-		cached.FontFamily = unsafe.Pointer(C.CString(style.LabelFontFamily()))
+		cached.FontFamily = unsafe.Pointer(C.CString(style.FontFamily()))
 		cached.BgColor = unsafe.Pointer(C.CString(style.HighlightColor()))
-		cached.TextColor = unsafe.Pointer(C.CString(style.LabelColor()))
-		cached.MatchedTextColor = unsafe.Pointer(C.CString(style.LabelColor()))
+		cached.TextColor = unsafe.Pointer(C.CString(style.TextColor()))
+		cached.MatchedTextColor = unsafe.Pointer(C.CString(style.TextColor()))
 		cached.MatchedBgColor = unsafe.Pointer(C.CString(style.HighlightColor()))
 		cached.MatchedBorderColor = unsafe.Pointer(C.CString(style.LineColor()))
 		cached.BorderColor = unsafe.Pointer(C.CString(style.LineColor()))
 	})
 
 	finalStyle := C.GridCellStyle{
-		fontSize:               C.int(style.LabelFontSize()),
+		fontSize:               C.int(style.FontSize()),
 		fontFamily:             (*C.char)(cachedStyle.FontFamily),
 		backgroundColor:        (*C.char)(cachedStyle.BgColor),
 		textColor:              (*C.char)(cachedStyle.TextColor),
@@ -400,12 +400,12 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 
 // Style represents the visual style for recursive_grid.
 type Style struct {
-	lineColor       string
-	lineWidth       int
-	highlightColor  string
-	labelColor      string
-	labelFontSize   int
-	labelFontFamily string
+	lineColor      string
+	lineWidth      int
+	highlightColor string
+	textColor      string
+	fontSize       int
+	fontFamily     string
 }
 
 // LineColor returns the line color.
@@ -423,31 +423,49 @@ func (s Style) HighlightColor() string {
 	return s.highlightColor
 }
 
-// LabelColor returns the label color.
-func (s Style) LabelColor() string {
-	return s.labelColor
+// TextColor returns the text color.
+func (s Style) TextColor() string {
+	return s.textColor
 }
 
-// LabelFontSize returns the label font size.
-func (s Style) LabelFontSize() int {
-	return s.labelFontSize
+// FontSize returns the font size.
+func (s Style) FontSize() int {
+	return s.fontSize
 }
 
-// LabelFontFamily returns the label font family.
-func (s Style) LabelFontFamily() string {
-	return s.labelFontFamily
+// FontFamily returns the font family.
+func (s Style) FontFamily() string {
+	return s.fontFamily
 }
 
 // BuildStyle creates a Style from RecursiveGridConfig.
-// The theme parameter is used to resolve the label color when it is not
-// explicitly specified in the configuration (empty string = theme-aware default).
+// The theme parameter is used to resolve theme-aware colors when they are not
+// explicitly specified in the configuration (empty string = default).
 func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Style {
 	return Style{
-		lineColor:       cfg.LineColor,
-		lineWidth:       cfg.LineWidth,
-		highlightColor:  cfg.HighlightColor,
-		labelColor:      config.ResolvedLabelColor(cfg.LabelColor, theme),
-		labelFontSize:   cfg.LabelFontSize,
-		labelFontFamily: cfg.LabelFontFamily,
+		lineColor: config.ResolveColor(
+			cfg.LineColorLight,
+			cfg.LineColorDark,
+			theme,
+			config.RecursiveGridLineColorLight,
+			config.RecursiveGridLineColorDark,
+		),
+		lineWidth: cfg.LineWidth,
+		highlightColor: config.ResolveColor(
+			cfg.HighlightColorLight,
+			cfg.HighlightColorDark,
+			theme,
+			config.RecursiveGridHighlightColorLight,
+			config.RecursiveGridHighlightColorDark,
+		),
+		textColor: config.ResolveColor(
+			cfg.TextColorLight,
+			cfg.TextColorDark,
+			theme,
+			config.RecursiveGridTextColorLight,
+			config.RecursiveGridTextColorDark,
+		),
+		fontSize:   cfg.FontSize,
+		fontFamily: cfg.FontFamily,
 	}
 }

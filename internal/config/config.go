@@ -168,14 +168,17 @@ type ModeIndicatorConfig struct {
 	GridEnabled          bool `json:"gridEnabled"          toml:"grid_enabled"`
 	RecursiveGridEnabled bool `json:"recursiveGridEnabled" toml:"recursive_grid_enabled"`
 
-	FontSize        int    `json:"fontSize"        toml:"font_size"`
-	FontFamily      string `json:"fontFamily"      toml:"font_family"`
-	BackgroundColor string `json:"backgroundColor" toml:"background_color"`
-	TextColor       string `json:"textColor"       toml:"text_color"`
-	BorderColor     string `json:"borderColor"     toml:"border_color"`
-	BorderWidth     int    `json:"borderWidth"     toml:"border_width"`
-	Padding         int    `json:"padding"         toml:"padding"`
-	BorderRadius    int    `json:"borderRadius"    toml:"border_radius"`
+	FontSize             int    `json:"fontSize"             toml:"font_size"`
+	FontFamily           string `json:"fontFamily"           toml:"font_family"`
+	BackgroundColorLight string `json:"backgroundColorLight" toml:"background_color_light"`
+	BackgroundColorDark  string `json:"backgroundColorDark"  toml:"background_color_dark"`
+	TextColorLight       string `json:"textColorLight"       toml:"text_color_light"`
+	TextColorDark        string `json:"textColorDark"        toml:"text_color_dark"`
+	BorderColorLight     string `json:"borderColorLight"     toml:"border_color_light"`
+	BorderColorDark      string `json:"borderColorDark"      toml:"border_color_dark"`
+	BorderWidth          int    `json:"borderWidth"          toml:"border_width"`
+	Padding              int    `json:"padding"              toml:"padding"`
+	BorderRadius         int    `json:"borderRadius"         toml:"border_radius"`
 
 	IndicatorXOffset int `json:"indicatorXOffset" toml:"indicator_x_offset"`
 	IndicatorYOffset int `json:"indicatorYOffset" toml:"indicator_y_offset"`
@@ -222,10 +225,14 @@ type HintsConfig struct {
 	MaxDepth                int      `json:"maxDepth"                toml:"max_depth"`
 	ParallelThreshold       int      `json:"parallelThreshold"       toml:"parallel_threshold"`
 
-	BackgroundColor  string `json:"backgroundColor"  toml:"background_color"`
-	TextColor        string `json:"textColor"        toml:"text_color"`
-	MatchedTextColor string `json:"matchedTextColor" toml:"matched_text_color"`
-	BorderColor      string `json:"borderColor"      toml:"border_color"`
+	BackgroundColorLight  string `json:"backgroundColorLight"  toml:"background_color_light"`
+	BackgroundColorDark   string `json:"backgroundColorDark"   toml:"background_color_dark"`
+	TextColorLight        string `json:"textColorLight"        toml:"text_color_light"`
+	TextColorDark         string `json:"textColorDark"         toml:"text_color_dark"`
+	MatchedTextColorLight string `json:"matchedTextColorLight" toml:"matched_text_color_light"`
+	MatchedTextColorDark  string `json:"matchedTextColorDark"  toml:"matched_text_color_dark"`
+	BorderColorLight      string `json:"borderColorLight"      toml:"border_color_light"`
+	BorderColorDark       string `json:"borderColorDark"       toml:"border_color_dark"`
 
 	IncludeMenubarHints           bool     `json:"includeMenubarHints"           toml:"include_menubar_hints"`
 	AdditionalMenubarHintsTargets []string `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`
@@ -259,12 +266,18 @@ type GridConfig struct {
 	FontFamily  string `json:"fontFamily"  toml:"font_family"`
 	BorderWidth int    `json:"borderWidth" toml:"border_width"`
 
-	BackgroundColor        string `json:"backgroundColor"        toml:"background_color"`
-	TextColor              string `json:"textColor"              toml:"text_color"`
-	MatchedTextColor       string `json:"matchedTextColor"       toml:"matched_text_color"`
-	MatchedBackgroundColor string `json:"matchedBackgroundColor" toml:"matched_background_color"`
-	MatchedBorderColor     string `json:"matchedBorderColor"     toml:"matched_border_color"`
-	BorderColor            string `json:"borderColor"            toml:"border_color"`
+	BackgroundColorLight        string `json:"backgroundColorLight"        toml:"background_color_light"`
+	BackgroundColorDark         string `json:"backgroundColorDark"         toml:"background_color_dark"`
+	TextColorLight              string `json:"textColorLight"              toml:"text_color_light"`
+	TextColorDark               string `json:"textColorDark"               toml:"text_color_dark"`
+	MatchedTextColorLight       string `json:"matchedTextColorLight"       toml:"matched_text_color_light"`
+	MatchedTextColorDark        string `json:"matchedTextColorDark"        toml:"matched_text_color_dark"`
+	MatchedBackgroundColorLight string `json:"matchedBackgroundColorLight" toml:"matched_background_color_light"`
+	MatchedBackgroundColorDark  string `json:"matchedBackgroundColorDark"  toml:"matched_background_color_dark"`
+	MatchedBorderColorLight     string `json:"matchedBorderColorLight"     toml:"matched_border_color_light"`
+	MatchedBorderColorDark      string `json:"matchedBorderColorDark"      toml:"matched_border_color_dark"`
+	BorderColorLight            string `json:"borderColorLight"            toml:"border_color_light"`
+	BorderColorDark             string `json:"borderColorDark"             toml:"border_color_dark"`
 
 	LiveMatchUpdate bool   `json:"liveMatchUpdate" toml:"live_match_update"`
 	HideUnmatched   bool   `json:"hideUnmatched"   toml:"hide_unmatched"`
@@ -286,12 +299,15 @@ type RecursiveGridConfig struct {
 	Keys string `json:"keys" toml:"keys"`
 
 	// Visual styling
-	LineColor       string `json:"lineColor"       toml:"line_color"`
-	LineWidth       int    `json:"lineWidth"       toml:"line_width"`
-	HighlightColor  string `json:"highlightColor"  toml:"highlight_color"`
-	LabelColor      string `json:"labelColor"      toml:"label_color"`
-	LabelFontSize   int    `json:"labelFontSize"   toml:"label_font_size"`
-	LabelFontFamily string `json:"labelFontFamily" toml:"label_font_family"`
+	LineColorLight      string `json:"lineColorLight"      toml:"line_color_light"`
+	LineColorDark       string `json:"lineColorDark"       toml:"line_color_dark"`
+	LineWidth           int    `json:"lineWidth"           toml:"line_width"`
+	HighlightColorLight string `json:"highlightColorLight" toml:"highlight_color_light"`
+	HighlightColorDark  string `json:"highlightColorDark"  toml:"highlight_color_dark"`
+	TextColorLight      string `json:"textColorLight"      toml:"text_color_light"`
+	TextColorDark       string `json:"textColorDark"       toml:"text_color_dark"`
+	FontSize            int    `json:"fontSize"            toml:"font_size"`
+	FontFamily          string `json:"fontFamily"          toml:"font_family"`
 
 	// Behavior
 	MinSizeWidth  int    `json:"minSizeWidth"  toml:"min_size_width"`  // Default: 25
@@ -429,6 +445,18 @@ func (c *Config) ValidateModeIndicator() error {
 	}
 
 	err = validateMinValue(c.ModeIndicator.BorderRadius, 0, "mode_indicator.border_radius")
+	if err != nil {
+		return err
+	}
+
+	err = validateColors([]colorField{
+		{c.ModeIndicator.BackgroundColorLight, "mode_indicator.background_color_light"},
+		{c.ModeIndicator.BackgroundColorDark, "mode_indicator.background_color_dark"},
+		{c.ModeIndicator.TextColorLight, "mode_indicator.text_color_light"},
+		{c.ModeIndicator.TextColorDark, "mode_indicator.text_color_dark"},
+		{c.ModeIndicator.BorderColorLight, "mode_indicator.border_color_light"},
+		{c.ModeIndicator.BorderColorDark, "mode_indicator.border_color_dark"},
+	})
 	if err != nil {
 		return err
 	}

@@ -179,13 +179,76 @@ const (
 	DefaultRecursiveGridMinGridRows = 2
 	// DefaultRecursiveGridLineWidth is the default line width for grid lines.
 	DefaultRecursiveGridLineWidth = 1
-	// DefaultRecursiveGridLabelFontSize is the default font size for cell labels.
-	DefaultRecursiveGridLabelFontSize = 10
+	// DefaultRecursiveGridFontSize is the default font size for cell labels.
+	DefaultRecursiveGridFontSize = 10
 
-	// LabelColorDarkMode is the default label color for Dark Mode (white, fully opaque).
-	LabelColorDarkMode = "#FFFFFFFF"
-	// LabelColorLightMode is the default label color for Light Mode (black, fully opaque).
-	LabelColorLightMode = "#FF000000"
+	// HintsBackgroundColorLight is the light mode background color for hints.
+	HintsBackgroundColorLight = "#F2FFD700"
+	// HintsBackgroundColorDark is the dark mode background color for hints.
+	HintsBackgroundColorDark = "#F2FFD700"
+	// HintsTextColorLight is the light mode text color for hints.
+	HintsTextColorLight = "#FF000000"
+	// HintsTextColorDark is the dark mode text color for hints.
+	HintsTextColorDark = "#FF000000"
+	// HintsMatchedTextColorLight is the light mode matched text color for hints.
+	HintsMatchedTextColorLight = "#FF737373"
+	// HintsMatchedTextColorDark is the dark mode matched text color for hints.
+	HintsMatchedTextColorDark = "#FF737373"
+	// HintsBorderColorLight is the light mode border color for hints.
+	HintsBorderColorLight = "#FF000000"
+	// HintsBorderColorDark is the dark mode border color for hints.
+	HintsBorderColorDark = "#FF000000"
+
+	// GridBackgroundColorLight is the light mode background color for grid cells.
+	GridBackgroundColorLight = "#B3ABE9B3"
+	// GridBackgroundColorDark is the dark mode background color for grid cells.
+	GridBackgroundColorDark = "#B3ABE9B3"
+	// GridTextColorLight is the light mode text color for grid labels.
+	GridTextColorLight = "#FF000000"
+	// GridTextColorDark is the dark mode text color for grid labels.
+	GridTextColorDark = "#FF000000"
+	// GridMatchedTextColorLight is the light mode matched text color for grid cells.
+	GridMatchedTextColorLight = "#FFF8BD96"
+	// GridMatchedTextColorDark is the dark mode matched text color for grid cells.
+	GridMatchedTextColorDark = "#FFF8BD96"
+	// GridMatchedBackgroundColorLight is the light mode matched background color for grid cells.
+	GridMatchedBackgroundColorLight = "#B3F8BD96"
+	// GridMatchedBackgroundColorDark is the dark mode matched background color for grid cells.
+	GridMatchedBackgroundColorDark = "#B3F8BD96"
+	// GridMatchedBorderColorLight is the light mode matched border color for grid cells.
+	GridMatchedBorderColorLight = "#B3F8BD96"
+	// GridMatchedBorderColorDark is the dark mode matched border color for grid cells.
+	GridMatchedBorderColorDark = "#B3F8BD96"
+	// GridBorderColorLight is the light mode border color for grid cells.
+	GridBorderColorLight = "#B3ABE9B3"
+	// GridBorderColorDark is the dark mode border color for grid cells.
+	GridBorderColorDark = "#B3ABE9B3"
+
+	// RecursiveGridLineColorLight is the light mode line color for recursive grid.
+	RecursiveGridLineColorLight = "#FF8EE2FF"
+	// RecursiveGridLineColorDark is the dark mode line color for recursive grid.
+	RecursiveGridLineColorDark = "#FF8EE2FF"
+	// RecursiveGridHighlightColorLight is the light mode highlight color for recursive grid.
+	RecursiveGridHighlightColorLight = "#4D00BFFF"
+	// RecursiveGridHighlightColorDark is the dark mode highlight color for recursive grid.
+	RecursiveGridHighlightColorDark = "#4D00BFFF"
+	// RecursiveGridTextColorDark is the default text color for Dark Mode for recursive grid.
+	RecursiveGridTextColorDark = "#FFFFFFFF"
+	// RecursiveGridTextColorLight is the default text color for Light Mode for recursive grid.
+	RecursiveGridTextColorLight = "#FFFFFFFF"
+
+	// ModeIndicatorBackgroundColorLight is the light mode background color for the mode indicator.
+	ModeIndicatorBackgroundColorLight = "#F2FFD700"
+	// ModeIndicatorBackgroundColorDark is the dark mode background color for the mode indicator.
+	ModeIndicatorBackgroundColorDark = "#F2FFD700"
+	// ModeIndicatorTextColorLight is the light mode text color for the mode indicator.
+	ModeIndicatorTextColorLight = "#FF000000"
+	// ModeIndicatorTextColorDark is the dark mode text color for the mode indicator.
+	ModeIndicatorTextColorDark = "#FF000000"
+	// ModeIndicatorBorderColorLight is the light mode border color for the mode indicator.
+	ModeIndicatorBorderColorLight = "#FF000000"
+	// ModeIndicatorBorderColorDark is the dark mode border color for the mode indicator.
+	ModeIndicatorBorderColorDark = "#FF000000"
 )
 
 // DefaultConfig returns the default application configuration with sensible defaults.
@@ -218,10 +281,14 @@ func DefaultConfig() *Config {
 			MaxDepth:                DefaultMaxDepth,
 			ParallelThreshold:       DefaultParallelThreshold,
 
-			BackgroundColor:  "#F2FFD700", // Gold, alpha F2 ≈ 95% opacity
-			TextColor:        "#FF000000", // Black
-			MatchedTextColor: "#FF737373", // Gray with 100% opacity (matched text)
-			BorderColor:      "#FF000000", // Black
+			BackgroundColorLight:  HintsBackgroundColorLight,
+			BackgroundColorDark:   HintsBackgroundColorDark,
+			TextColorLight:        HintsTextColorLight,
+			TextColorDark:         HintsTextColorDark,
+			MatchedTextColorLight: HintsMatchedTextColorLight,
+			MatchedTextColorDark:  HintsMatchedTextColorDark,
+			BorderColorLight:      HintsBorderColorLight,
+			BorderColorDark:       HintsBorderColorDark,
 
 			IncludeMenubarHints: false,
 			AdditionalMenubarHintsTargets: []string{
@@ -274,12 +341,18 @@ func DefaultConfig() *Config {
 			FontFamily:  "",
 			BorderWidth: 1,
 
-			BackgroundColor:        "#B3ABE9B3", // Light green, alpha B3 ≈ 70% opacity
-			TextColor:              "#FF000000", // Black
-			MatchedTextColor:       "#FFF8BD96", // Orange, alpha FF = 100% opacity
-			MatchedBackgroundColor: "#B3F8BD96", // Orange, alpha B3 ≈ 70% opacity (matches bg)
-			MatchedBorderColor:     "#B3F8BD96", // Orange, alpha B3 ≈ 70% opacity
-			BorderColor:            "#B3ABE9B3", // Light green, alpha B3 ≈ 70% opacity
+			BackgroundColorLight:        GridBackgroundColorLight,
+			BackgroundColorDark:         GridBackgroundColorDark,
+			TextColorLight:              GridTextColorLight,
+			TextColorDark:               GridTextColorDark,
+			MatchedTextColorLight:       GridMatchedTextColorLight,
+			MatchedTextColorDark:        GridMatchedTextColorDark,
+			MatchedBackgroundColorLight: GridMatchedBackgroundColorLight,
+			MatchedBackgroundColorDark:  GridMatchedBackgroundColorDark,
+			MatchedBorderColorLight:     GridMatchedBorderColorLight,
+			MatchedBorderColorDark:      GridMatchedBorderColorDark,
+			BorderColorLight:            GridBorderColorLight,
+			BorderColorDark:             GridBorderColorDark,
 
 			LiveMatchUpdate: true,
 			HideUnmatched:   true,
@@ -294,12 +367,15 @@ func DefaultConfig() *Config {
 
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
 
-			LineColor:       "#FF8EE2FF", // Light blue, alpha FF = 100% opacity
-			LineWidth:       DefaultRecursiveGridLineWidth,
-			HighlightColor:  "#4D00BFFF", // Deep sky blue, alpha 4D ≈ 30% opacity
-			LabelColor:      "",          // Empty = theme-aware default (white in Dark Mode, black in Light Mode)
-			LabelFontSize:   DefaultRecursiveGridLabelFontSize,
-			LabelFontFamily: "",
+			LineColorLight:      RecursiveGridLineColorLight,
+			LineColorDark:       RecursiveGridLineColorDark,
+			LineWidth:           DefaultRecursiveGridLineWidth,
+			HighlightColorLight: RecursiveGridHighlightColorLight,
+			HighlightColorDark:  RecursiveGridHighlightColorDark,
+			TextColorLight:      RecursiveGridTextColorLight,
+			TextColorDark:       RecursiveGridTextColorDark,
+			FontSize:            DefaultRecursiveGridFontSize,
+			FontFamily:          "",
 
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
 			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
@@ -312,14 +388,17 @@ func DefaultConfig() *Config {
 			GridEnabled:          false,
 			RecursiveGridEnabled: false,
 
-			FontSize:        DefaultScrollFontSize,
-			FontFamily:      "",
-			BackgroundColor: "#F2FFD700",
-			TextColor:       "#FF000000",
-			BorderColor:     "#FF000000",
-			BorderWidth:     1,
-			Padding:         DefaultScrollPadding,
-			BorderRadius:    DefaultScrollBorderRadius,
+			FontSize:             DefaultScrollFontSize,
+			FontFamily:           "",
+			BackgroundColorLight: ModeIndicatorBackgroundColorLight,
+			BackgroundColorDark:  ModeIndicatorBackgroundColorDark,
+			TextColorLight:       ModeIndicatorTextColorLight,
+			TextColorDark:        ModeIndicatorTextColorDark,
+			BorderColorLight:     ModeIndicatorBorderColorLight,
+			BorderColorDark:      ModeIndicatorBorderColorDark,
+			BorderWidth:          1,
+			Padding:              DefaultScrollPadding,
+			BorderRadius:         DefaultScrollBorderRadius,
 
 			IndicatorXOffset: DefaultScrollIndicatorXOffset,
 			IndicatorYOffset: DefaultScrollIndicatorYOffset,

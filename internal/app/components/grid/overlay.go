@@ -1028,17 +1028,53 @@ func (s Style) BorderColor() string {
 }
 
 // BuildStyle returns Style based on action name using the provided config.
-func BuildStyle(cfg config.GridConfig) Style {
+func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 	style := Style{
-		fontSize:               cfg.FontSize,
-		fontFamily:             cfg.FontFamily,
-		borderWidth:            cfg.BorderWidth,
-		backgroundColor:        cfg.BackgroundColor,
-		textColor:              cfg.TextColor,
-		matchedTextColor:       cfg.MatchedTextColor,
-		matchedBackgroundColor: cfg.MatchedBackgroundColor,
-		matchedBorderColor:     cfg.MatchedBorderColor,
-		borderColor:            cfg.BorderColor,
+		fontSize:    cfg.FontSize,
+		fontFamily:  cfg.FontFamily,
+		borderWidth: cfg.BorderWidth,
+		backgroundColor: config.ResolveColor(
+			cfg.BackgroundColorLight,
+			cfg.BackgroundColorDark,
+			theme,
+			config.GridBackgroundColorLight,
+			config.GridBackgroundColorDark,
+		),
+		textColor: config.ResolveColor(
+			cfg.TextColorLight,
+			cfg.TextColorDark,
+			theme,
+			config.GridTextColorLight,
+			config.GridTextColorDark,
+		),
+		matchedTextColor: config.ResolveColor(
+			cfg.MatchedTextColorLight,
+			cfg.MatchedTextColorDark,
+			theme,
+			config.GridMatchedTextColorLight,
+			config.GridMatchedTextColorDark,
+		),
+		matchedBackgroundColor: config.ResolveColor(
+			cfg.MatchedBackgroundColorLight,
+			cfg.MatchedBackgroundColorDark,
+			theme,
+			config.GridMatchedBackgroundColorLight,
+			config.GridMatchedBackgroundColorDark,
+		),
+		matchedBorderColor: config.ResolveColor(
+			cfg.MatchedBorderColorLight,
+			cfg.MatchedBorderColorDark,
+			theme,
+			config.GridMatchedBorderColorLight,
+			config.GridMatchedBorderColorDark,
+		),
+		borderColor: config.ResolveColor(
+			cfg.BorderColorLight,
+			cfg.BorderColorDark,
+			theme,
+			config.GridBorderColorLight,
+			config.GridBorderColorDark,
+		),
 	}
 
 	return style

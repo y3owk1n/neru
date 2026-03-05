@@ -5,6 +5,7 @@ import (
 
 	gridFeature "github.com/y3owk1n/neru/internal/app/components/grid"
 	overlayHints "github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -17,13 +18,19 @@ import (
 // Adapter implements ports.OverlayPort by wrapping the existing overlay.Manager.
 type Adapter struct {
 	manager uiOverlay.ManagerInterface
+	theme   config.ThemeProvider
 	logger  *zap.Logger
 }
 
 // NewAdapter creates a new overlay adapter.
-func NewAdapter(manager uiOverlay.ManagerInterface, logger *zap.Logger) *Adapter {
+func NewAdapter(
+	manager uiOverlay.ManagerInterface,
+	theme config.ThemeProvider,
+	logger *zap.Logger,
+) *Adapter {
 	return &Adapter{
 		manager: manager,
+		theme:   theme,
 		logger:  logger,
 	}
 }
@@ -63,7 +70,7 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Interface) error 
 	// Retrieve config from overlay to build current style
 	var style overlayHints.StyleMode
 	if hintOverlay := a.manager.HintOverlay(); hintOverlay != nil {
-		style = overlayHints.BuildStyle(hintOverlay.Config())
+		style = overlayHints.BuildStyle(hintOverlay.Config(), a.theme)
 	}
 
 	drawHintsErr := a.manager.DrawHintsWithStyle(overlayHintList, style)
