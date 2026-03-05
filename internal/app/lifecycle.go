@@ -402,14 +402,13 @@ func (a *App) handleAppActivation(bundleID string) {
 
 	if cfg.Hints.Enabled {
 		if cfg.Hints.AdditionalAXSupport.Enable {
-			a.handleAdditionalAccessibility(bundleID)
+			a.handleAdditionalAccessibility(bundleID, cfg)
 		}
 	}
 }
 
 // handleAdditionalAccessibility configures accessibility support for Electron/Chromium/Firefox applications.
-func (a *App) handleAdditionalAccessibility(bundleID string) {
-	cfg := a.configSnapshot()
+func (a *App) handleAdditionalAccessibility(bundleID string, cfg *config.Config) {
 	config := cfg.Hints.AdditionalAXSupport
 
 	if electron.ShouldEnableElectronSupport(bundleID, config.AdditionalElectronBundles) {
