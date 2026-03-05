@@ -232,9 +232,9 @@ const (
 	RecursiveGridHighlightColorLight = "#4D00BFFF"
 	// RecursiveGridHighlightColorDark is the dark mode highlight color for recursive grid.
 	RecursiveGridHighlightColorDark = "#4D00BFFF"
-	// RecursiveGridTextColorDark is the default text color for Dark Mode (white, fully opaque).
+	// RecursiveGridTextColorDark is the default text color for Dark Mode for recursive grid.
 	RecursiveGridTextColorDark = "#FFFFFFFF"
-	// RecursiveGridTextColorLight is the default text color for Light Mode (black, fully opaque).
+	// RecursiveGridTextColorLight is the default text color for Light Mode for recursive grid.
 	RecursiveGridTextColorLight = "#FFFFFFFF"
 
 	// ModeIndicatorBackgroundColorLight is the light mode background color for the mode indicator.
