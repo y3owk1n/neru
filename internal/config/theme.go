@@ -9,11 +9,10 @@ type ThemeProvider interface {
 }
 
 // ResolveColor returns the effective color based on the current system theme.
-// If lightColor is non-empty, it is used as the base. If darkColor is also non-empty,
-// the appropriate color is selected based on the theme.
-// If darkColor is empty, falls back to lightColor.
-// If lightColor is empty, falls back to darkColor.
-// If both are empty, returns the provided theme-aware defaults.
+// If both lightColor and darkColor are non-empty, the appropriate one is
+// selected based on the theme.
+// If only one variant is set, it is used for its matching theme; the other
+// theme falls back to the corresponding default (defaultLight or defaultDark).
 func ResolveColor(
 	lightColor, darkColor string,
 	theme ThemeProvider,
@@ -24,13 +23,15 @@ func ResolveColor(
 			if darkColor != "" {
 				return darkColor
 			}
+
+			return defaultDark
 		}
 
 		if lightColor != "" {
 			return lightColor
 		}
 
-		return darkColor
+		return defaultLight
 	}
 
 	// Both are empty, use theme-aware defaults
