@@ -20,6 +20,15 @@ import (
 	"go.uber.org/zap"
 )
 
+// testThemeProvider is a simple ThemeProvider mock for integration tests.
+type testThemeProvider struct {
+	darkMode bool
+}
+
+func (t *testThemeProvider) IsDarkMode() bool {
+	return t.darkMode
+}
+
 // TestHintServiceIntegration tests the hint service with real adapters.
 func TestHintServiceIntegration(t *testing.T) {
 	if testing.Short() {
@@ -256,7 +265,8 @@ func initializeRealAdapters(
 	overlayManager := &uiOverlay.NoOpManager{}
 
 	// Create overlay adapter
-	overlay := overlayAdapter.NewAdapter(overlayManager, logger)
+	theme := &testThemeProvider{darkMode: false}
+	overlay := overlayAdapter.NewAdapter(overlayManager, theme, logger)
 
 	return accAdapter, overlay
 }

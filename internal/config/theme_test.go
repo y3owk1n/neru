@@ -15,81 +15,146 @@ func (m *mockThemeProvider) IsDarkMode() bool {
 	return m.darkMode
 }
 
-func TestResolvedLabelColor_UserSpecified(t *testing.T) {
-	// When user explicitly sets a label color, it should always be returned
-	// regardless of the theme.
-	userColor := "#FF0000FF" // Red
+func TestResolveColor_UserSpecified(t *testing.T) {
+	// When user explicitly sets colors, they should be used.
+	lightColor := "#111111"
+	darkColor := "#EEEEEE"
+	defaultLight := "#AAAAAA"
+	defaultDark := "#BBBBBB"
 
 	darkTheme := &mockThemeProvider{darkMode: true}
 	lightTheme := &mockThemeProvider{darkMode: false}
 
-	result := config.ResolvedLabelColor(userColor, darkTheme)
-	if result != userColor {
-		t.Errorf("Expected user color %q in dark mode, got %q", userColor, result)
+	// Dark mode picks dark color
+	result := config.ResolveColor(lightColor, darkColor, darkTheme, defaultLight, defaultDark)
+	if result != darkColor {
+		t.Errorf("Expected dark color %q, got %q", darkColor, result)
 	}
 
-	result = config.ResolvedLabelColor(userColor, lightTheme)
-	if result != userColor {
-		t.Errorf("Expected user color %q in light mode, got %q", userColor, result)
+	// Light mode picks light color
+	result = config.ResolveColor(lightColor, darkColor, lightTheme, defaultLight, defaultDark)
+	if result != lightColor {
+		t.Errorf("Expected light color %q, got %q", lightColor, result)
 	}
 
-	// Also with nil theme provider
-	result = config.ResolvedLabelColor(userColor, nil)
-	if result != userColor {
-		t.Errorf("Expected user color %q with nil theme, got %q", userColor, result)
+	// Nil theme picks light color
+	result = config.ResolveColor(lightColor, darkColor, nil, defaultLight, defaultDark)
+	if result != lightColor {
+		t.Errorf("Expected light color fallback %q, got %q", lightColor, result)
 	}
 }
 
-func TestResolvedLabelColor_ThemeAwareDarkMode(t *testing.T) {
-	// When label color is empty (theme-aware default) and Dark Mode is active,
-	// should return white.
+func TestResolveColor_ThemeAwareDefaults(t *testing.T) {
+	// When both light and dark colors are empty, use provided defaults.
+	defaultLight := "#AAAAAA"
+	defaultDark := "#BBBBBB"
+
 	darkTheme := &mockThemeProvider{darkMode: true}
-
-	result := config.ResolvedLabelColor("", darkTheme)
-	if result != config.LabelColorDarkMode {
-		t.Errorf("Expected dark mode color %q, got %q", config.LabelColorDarkMode, result)
-	}
-}
-
-func TestResolvedLabelColor_ThemeAwareLightMode(t *testing.T) {
-	// When label color is empty (theme-aware default) and Light Mode is active,
-	// should return black.
 	lightTheme := &mockThemeProvider{darkMode: false}
 
-	result := config.ResolvedLabelColor("", lightTheme)
-	if result != config.LabelColorLightMode {
-		t.Errorf("Expected light mode color %q, got %q", config.LabelColorLightMode, result)
+	// Dark mode picks default dark
+	result := config.ResolveColor("", "", darkTheme, defaultLight, defaultDark)
+	if result != defaultDark {
+		t.Errorf("Expected default dark %q, got %q", defaultDark, result)
+	}
+
+	// Light mode picks default light
+	result = config.ResolveColor("", "", lightTheme, defaultLight, defaultDark)
+	if result != defaultLight {
+		t.Errorf("Expected default light %q, got %q", defaultLight, result)
 	}
 }
 
-func TestResolvedLabelColor_NilThemeProvider(t *testing.T) {
-	// When theme provider is nil and label color is empty,
-	// should fall back to light mode color (safe default).
-	result := config.ResolvedLabelColor("", nil)
-	if result != config.LabelColorLightMode {
-		t.Errorf("Expected light mode fallback %q, got %q", config.LabelColorLightMode, result)
-	}
-}
+func TestResolveColor_RecursiveGridText(t *testing.T) {
+	// When text color is empty (theme-aware default), it should use the
+	// RecursiveGridTextColor constants.
+	darkTheme := &mockThemeProvider{darkMode: true}
+	lightTheme := &mockThemeProvider{darkMode: false}
 
-func TestDefaultConfig_LabelColorIsEmpty(t *testing.T) {
-	// Verify that the default config uses empty string for LabelColor
-	// (theme-aware sentinel).
-	cfg := config.DefaultConfig()
-	if cfg.RecursiveGrid.LabelColor != "" {
+	// Dark mode picks RecursiveGridTextColorDark (white)
+	result := config.ResolveColor(
+		"",
+		"",
+		darkTheme,
+		config.RecursiveGridTextColorLight,
+		config.RecursiveGridTextColorDark,
+	)
+	if result != config.RecursiveGridTextColorDark {
 		t.Errorf(
-			"Expected empty LabelColor in default config, got %q",
-			cfg.RecursiveGrid.LabelColor,
+			"Expected dark mode color %q, got %q",
+			config.RecursiveGridTextColorDark,
+			result,
+		)
+	}
+
+	// Light mode picks RecursiveGridTextColorLight (black)
+	result = config.ResolveColor(
+		"",
+		"",
+		lightTheme,
+		config.RecursiveGridTextColorLight,
+		config.RecursiveGridTextColorDark,
+	)
+	if result != config.RecursiveGridTextColorLight {
+		t.Errorf(
+			"Expected light mode color %q, got %q",
+			config.RecursiveGridTextColorLight,
+			result,
+		)
+	}
+
+	// Nil theme provider picks light mode color
+	result = config.ResolveColor(
+		"",
+		"",
+		nil,
+		config.RecursiveGridTextColorLight,
+		config.RecursiveGridTextColorDark,
+	)
+	if result != config.RecursiveGridTextColorLight {
+		t.Errorf(
+			"Expected light mode fallback %q, got %q",
+			config.RecursiveGridTextColorLight,
+			result,
 		)
 	}
 }
 
-func TestLabelColorConstants(t *testing.T) {
-	// Verify the theme color constants are valid hex colors.
-	if config.LabelColorDarkMode != "#FFFFFFFF" {
-		t.Errorf("Expected LabelColorDarkMode to be #FFFFFFFF, got %q", config.LabelColorDarkMode)
+func TestDefaultConfig_ColorsArePopulated(t *testing.T) {
+	// Verify that the default config now contains explicit color values
+	// instead of empty strings.
+	cfg := config.DefaultConfig()
+
+	if cfg.RecursiveGrid.TextColorLight != config.RecursiveGridTextColorLight {
+		t.Errorf(
+			"Expected RecursiveGridTextColorLight %q in default config, got %q",
+			config.RecursiveGridTextColorLight,
+			cfg.RecursiveGrid.TextColorLight,
+		)
 	}
 
-	if config.LabelColorLightMode != "#FF000000" {
-		t.Errorf("Expected LabelColorLightMode to be #FF000000, got %q", config.LabelColorLightMode)
+	if cfg.Hints.BackgroundColorLight != config.HintsBackgroundColorLight {
+		t.Errorf(
+			"Expected HintsBackgroundColorLight %q in default config, got %q",
+			config.HintsBackgroundColorLight,
+			cfg.Hints.BackgroundColorLight,
+		)
+	}
+}
+
+func TestRecursiveGridTextColorConstants(t *testing.T) {
+	// Verify the theme color constants are valid hex colors.
+	if config.RecursiveGridTextColorDark != "#FFFFFFFF" {
+		t.Errorf(
+			"Expected RecursiveGridTextColorDark to be #FFFFFFFF, got %q",
+			config.RecursiveGridTextColorDark,
+		)
+	}
+
+	if config.RecursiveGridTextColorLight != "#FF000000" {
+		t.Errorf(
+			"Expected RecursiveGridTextColorLight to be #FF000000, got %q",
+			config.RecursiveGridTextColorLight,
+		)
 	}
 }

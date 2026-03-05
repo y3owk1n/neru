@@ -255,6 +255,88 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 	return true
 }
 
+// RefreshHintsForThemeChange redraws the hints overlay with updated styles
+// after a system theme change. Only performs the redraw if ModeHints is
+// currently active.
+//
+// Returns true if a redraw was performed.
+func (h *Handler) RefreshHintsForThemeChange() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeHints {
+		return false
+	}
+
+	hintCollection := h.hints.Context.Hints()
+	if hintCollection == nil {
+		return false
+	}
+
+	// Convert domain hints to overlay hints for rendering
+	filteredHints := hintCollection.All()
+	overlayHints := make([]*hints.Hint, len(filteredHints))
+	screenBounds := h.screenBounds
+
+	for index, hint := range filteredHints {
+		// Convert screen-absolute coordinates to overlay-local coordinates
+		localPos := image.Point{
+			X: hint.Position().X - screenBounds.Min.X,
+			Y: hint.Position().Y - screenBounds.Min.Y,
+		}
+		overlayHints[index] = hints.NewHint(
+			hint.Label(),
+			localPos,
+			hint.Element().Bounds().Size(),
+			hint.MatchedPrefix(),
+		)
+	}
+
+	drawHintsErr := h.renderer.DrawHints(overlayHints)
+	if drawHintsErr != nil {
+		h.logger.Error("Failed to refresh hints after theme change", zap.Error(drawHintsErr))
+
+		return false
+	}
+
+	return true
+}
+
+// RefreshGridForThemeChange redraws the grid overlay with updated styles
+// after a system theme change. Only performs the redraw if ModeGrid is
+// currently active.
+//
+// Returns true if a redraw was performed.
+func (h *Handler) RefreshGridForThemeChange() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeGrid {
+		return false
+	}
+
+	gridInstancePtr := h.grid.Context.GridInstance()
+	if gridInstancePtr == nil || *gridInstancePtr == nil {
+		return false
+	}
+
+	gridInstance := *gridInstancePtr
+
+	currentInput := ""
+	if h.grid.Manager != nil {
+		currentInput = h.grid.Manager.CurrentInput()
+	}
+
+	drawGridErr := h.renderer.DrawGrid(gridInstance, currentInput)
+	if drawGridErr != nil {
+		h.logger.Error("Failed to refresh grid after theme change", zap.Error(drawGridErr))
+
+		return false
+	}
+
+	return true
+}
+
 // RefreshRecursiveGridForThemeChange redraws the recursive-grid overlay with
 // updated styles after a system theme change. Only performs the redraw if
 // ModeRecursiveGrid is currently active.
@@ -282,8 +364,8 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 
 	if h.renderer != nil {
 		h.renderer.UpdateConfig(
-			hints.BuildStyle(config.Hints),
-			grid.BuildStyle(config.Grid),
+			hints.BuildStyle(config.Hints, h.themeProvider),
+			grid.BuildStyle(config.Grid, h.themeProvider),
 			recursivegrid.BuildStyle(config.RecursiveGrid, h.themeProvider),
 		)
 	}

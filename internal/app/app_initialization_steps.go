@@ -179,8 +179,8 @@ func initializeRendererAndOverlays(app *App) {
 		cfg = app.config
 	}
 
-	hintStyle := hints.BuildStyle(cfg.Hints)
-	gridStyle := grid.BuildStyle(cfg.Grid)
+	hintStyle := hints.BuildStyle(cfg.Hints, defaultThemeProvider)
+	gridStyle := grid.BuildStyle(cfg.Grid, defaultThemeProvider)
 	recursiveGridStyle := recursivegrid.BuildStyle(cfg.RecursiveGrid, defaultThemeProvider)
 
 	app.renderer = ui.NewOverlayRenderer(

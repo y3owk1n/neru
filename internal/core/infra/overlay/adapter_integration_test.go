@@ -13,6 +13,15 @@ import (
 	overlayManager "github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
+// testThemeProvider is a simple ThemeProvider mock for integration tests.
+type testThemeProvider struct {
+	darkMode bool
+}
+
+func (t *testThemeProvider) IsDarkMode() bool {
+	return t.darkMode
+}
+
 // TestOverlayAdapterImplementsPort verifies the adapter implements the port interface.
 func TestOverlayAdapterImplementsPort(_ *testing.T) {
 	var _ ports.OverlayPort = (*overlay.Adapter)(nil)
@@ -27,7 +36,8 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 	// Setup
 	logger := logger.Get()
 	manager := overlayManager.Init(logger)
-	adapter := overlay.NewAdapter(manager, logger)
+	theme := &testThemeProvider{darkMode: false}
+	adapter := overlay.NewAdapter(manager, theme, logger)
 
 	ctx := context.Background()
 
@@ -78,7 +88,8 @@ func TestOverlayAdapterContextCancellation(t *testing.T) {
 
 	logger := logger.Get()
 	manager := overlayManager.Init(logger)
-	adapter := overlay.NewAdapter(manager, logger)
+	theme := &testThemeProvider{darkMode: false}
+	adapter := overlay.NewAdapter(manager, theme, logger)
 
 	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())

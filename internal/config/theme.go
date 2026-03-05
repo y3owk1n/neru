@@ -8,18 +8,35 @@ type ThemeProvider interface {
 	IsDarkMode() bool
 }
 
-// ResolvedLabelColor returns the effective label color for the recursive grid.
-// If the configured LabelColor is non-empty (user-specified), it is returned as-is.
-// If it is empty (theme-aware default), the color is resolved based on the current
-// system theme: white (#FFFFFFFF) in Dark Mode, black (#FF000000) in Light Mode.
-func ResolvedLabelColor(labelColor string, theme ThemeProvider) string {
-	if labelColor != "" {
-		return labelColor
+// ResolveColor returns the effective color based on the current system theme.
+// If lightColor is non-empty, it is used as the base. If darkColor is also non-empty,
+// the appropriate color is selected based on the theme.
+// If darkColor is empty, falls back to lightColor.
+// If lightColor is empty, falls back to darkColor.
+// If both are empty, returns the provided theme-aware defaults.
+func ResolveColor(
+	lightColor, darkColor string,
+	theme ThemeProvider,
+	defaultLight, defaultDark string,
+) string {
+	if lightColor != "" || darkColor != "" {
+		if theme != nil && theme.IsDarkMode() {
+			if darkColor != "" {
+				return darkColor
+			}
+		}
+
+		if lightColor != "" {
+			return lightColor
+		}
+
+		return darkColor
 	}
 
+	// Both are empty, use theme-aware defaults
 	if theme != nil && theme.IsDarkMode() {
-		return LabelColorDarkMode
+		return defaultDark
 	}
 
-	return LabelColorLightMode
+	return defaultLight
 }

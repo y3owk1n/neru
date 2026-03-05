@@ -39,10 +39,10 @@ func TestValidateColor(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:      "empty color",
+			name:      "empty color (theme-aware default)",
 			color:     "",
 			fieldName: "test_color",
-			wantErr:   true,
+			wantErr:   false,
 		},
 		{
 			name:      "missing hash",
