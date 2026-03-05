@@ -543,17 +543,20 @@ func (a *App) handleThemeChange(isDark bool) {
 		return
 	}
 
-	// Re-build styles with the new theme state
+	// Invalidate overlay caches first so the subsequent draw picks up
+	// the new theme-resolved style instead of returning stale cached
+	// C strings (StyleCache uses FontFamily==nil as the miss sentinel).
+	if a.recursiveGridComponent != nil {
+		a.recursiveGridComponent.UpdateConfig(cfg, a.logger)
+	}
+
+	// Re-build renderer style with the new theme state, then redraw.
 	if a.modes != nil {
 		a.modes.UpdateConfig(cfg)
 
 		if cfg.RecursiveGrid.Enabled {
 			a.modes.RefreshRecursiveGridForThemeChange()
 		}
-	}
-
-	if a.recursiveGridComponent != nil {
-		a.recursiveGridComponent.UpdateConfig(cfg, a.logger)
 	}
 }
 
