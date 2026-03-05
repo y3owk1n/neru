@@ -544,16 +544,16 @@ func (a *App) handleThemeChange(isDark bool) {
 	}
 
 	// Re-build styles with the new theme state
-	if a.recursiveGridComponent != nil {
-		a.recursiveGridComponent.UpdateConfig(cfg, a.logger)
-	}
-
 	if a.modes != nil {
 		a.modes.UpdateConfig(cfg)
 
 		if cfg.RecursiveGrid.Enabled {
 			a.modes.RefreshRecursiveGridForThemeChange()
 		}
+	}
+
+	if a.recursiveGridComponent != nil {
+		a.recursiveGridComponent.UpdateConfig(cfg, a.logger)
 	}
 }
 

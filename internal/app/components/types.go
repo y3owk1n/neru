@@ -115,10 +115,7 @@ type RecursiveGridComponent struct {
 
 // UpdateConfig updates the recursive-grid component with new configuration.
 func (q *RecursiveGridComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
-	if cfg.RecursiveGrid.Enabled {
-		q.Style = recursivegrid.BuildStyle(cfg.RecursiveGrid, q.ThemeProvider)
-		if q.Overlay != nil {
-			q.Overlay.SetConfig(cfg.RecursiveGrid)
-		}
+	if cfg.RecursiveGrid.Enabled && q.Overlay != nil {
+		q.Overlay.SetConfig(cfg.RecursiveGrid)
 	}
 }
