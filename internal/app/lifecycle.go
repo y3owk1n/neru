@@ -543,9 +543,9 @@ func (a *App) handleThemeChange(isDark bool) {
 		return
 	}
 
-	// Invalidate overlay caches first so the subsequent draw picks up
-	// the new theme-resolved style instead of returning stale cached
-	// C strings (StyleCache uses FontFamily==nil as the miss sentinel).
+	// Invalidate the overlay's native C string caches (via SetConfig →
+	// styleCache.Free + freeLabelCache) so the subsequent draw rebuilds
+	// them with the new theme-resolved colors.
 	if a.recursiveGridComponent != nil {
 		a.recursiveGridComponent.UpdateConfig(cfg, a.logger)
 	}
