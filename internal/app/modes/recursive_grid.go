@@ -87,11 +87,6 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 	if h.recursiveGrid == nil {
 		h.recursiveGrid = &components.RecursiveGridComponent{
 			Context: &componentrecursivegrid.Context{},
-			Style: componentrecursivegrid.BuildStyle(
-				h.config.RecursiveGrid,
-				h.themeProvider,
-			),
-			ThemeProvider: h.themeProvider,
 		}
 	}
 

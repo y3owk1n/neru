@@ -171,33 +171,17 @@ func initializeSystrayComponent(app *App) {
 // initializeRendererAndOverlays sets up the overlay renderer and registers
 // all overlays with the overlay manager.
 func initializeRendererAndOverlays(app *App) {
-	// Get styles with nil-safe fallbacks
-	var hintStyle hints.StyleMode
-	if app.hintsComponent != nil {
-		hintStyle = app.hintsComponent.Style
-	} else {
-		// Fallback to default style if component is nil
-		hintStyle = hints.BuildStyle(config.DefaultConfig().Hints)
+	// Build styles directly from config + live theme provider rather than
+	// reading component fields that would go stale after config reloads.
+	cfg := config.DefaultConfig()
+
+	if app.config != nil {
+		cfg = app.config
 	}
 
-	var gridStyle grid.Style
-	if app.gridComponent != nil {
-		gridStyle = app.gridComponent.Style
-	} else {
-		// Fallback to default style if component is nil
-		gridStyle = grid.BuildStyle(config.DefaultConfig().Grid)
-	}
-
-	var recursiveGridStyle recursivegrid.Style
-	if app.recursiveGridComponent != nil {
-		recursiveGridStyle = app.recursiveGridComponent.Style
-	} else {
-		// Fallback to default style if component is nil
-		recursiveGridStyle = recursivegrid.BuildStyle(
-			config.DefaultConfig().RecursiveGrid,
-			defaultThemeProvider,
-		)
-	}
+	hintStyle := hints.BuildStyle(cfg.Hints)
+	gridStyle := grid.BuildStyle(cfg.Grid)
+	recursiveGridStyle := recursivegrid.BuildStyle(cfg.RecursiveGrid, defaultThemeProvider)
 
 	app.renderer = ui.NewOverlayRenderer(
 		app.overlayManager,
