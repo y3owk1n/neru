@@ -39,6 +39,7 @@ func newTestController() *app.IPCController {
 		nil, // gridService
 		nil, // actionService
 		nil, // scrollService
+		nil, // reloadConfig
 		logger,
 	)
 

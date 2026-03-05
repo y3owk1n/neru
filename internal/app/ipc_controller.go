@@ -30,6 +30,9 @@ type IPCController struct {
 	// Mode management
 	Modes *modes.Handler
 
+	// Reload callback for full app-level config reload
+	ReloadConfig func(ctx context.Context, configPath string) error
+
 	// Info handler for config updates
 	infoHandler *IPCControllerInfo
 
@@ -47,6 +50,7 @@ func NewIPCController(
 	appState *state.AppState,
 	config *config.Config,
 	modesHandler *modes.Handler,
+	reloadConfig func(ctx context.Context, configPath string) error,
 	logger *zap.Logger,
 ) *IPCController {
 	ipcController := &IPCController{
@@ -58,6 +62,7 @@ func NewIPCController(
 		AppState:      appState,
 		Config:        config,
 		Modes:         modesHandler,
+		ReloadConfig:  reloadConfig,
 		Logger:        logger,
 		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
@@ -101,6 +106,7 @@ func (c *IPCController) RegisterHandlers() {
 		c.GridService,
 		c.ActionService,
 		c.ScrollService,
+		c.ReloadConfig,
 		c.Logger,
 	)
 

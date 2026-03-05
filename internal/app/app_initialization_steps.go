@@ -302,6 +302,7 @@ func initializeIPCController(app *App) {
 		app.appState,
 		app.config,
 		app.modes,
+		app.ReloadConfig,
 		app.logger,
 	)
 }

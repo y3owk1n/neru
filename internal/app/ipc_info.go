@@ -26,6 +26,7 @@ type IPCControllerInfo struct {
 	gridService   *services.GridService
 	actionService *services.ActionService
 	scrollService *services.ScrollService
+	reloadConfig  func(ctx context.Context, configPath string) error
 	logger        *zap.Logger
 
 	// configMu protects config from concurrent read/write.
@@ -42,6 +43,7 @@ func NewIPCControllerInfo(
 	gridService *services.GridService,
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
+	reloadConfig func(ctx context.Context, configPath string) error,
 	logger *zap.Logger,
 ) *IPCControllerInfo {
 	return &IPCControllerInfo{
@@ -53,6 +55,7 @@ func NewIPCControllerInfo(
 		gridService:   gridService,
 		actionService: actionService,
 		scrollService: scrollService,
+		reloadConfig:  reloadConfig,
 		logger:        logger,
 	}
 }
@@ -154,10 +157,10 @@ func (h *IPCControllerInfo) handleConfig(_ context.Context, _ ipc.Command) ipc.R
 	}
 }
 
-func (h *IPCControllerInfo) handleReloadConfig(_ context.Context, _ ipc.Command) ipc.Response {
+func (h *IPCControllerInfo) handleReloadConfig(ctx context.Context, _ ipc.Command) ipc.Response {
 	configPath := h.configService.GetConfigPath()
 
-	err := h.configService.ReloadConfig(configPath)
+	err := h.reloadConfig(ctx, configPath)
 	if err != nil {
 		h.logger.Error("Failed to reload config", zap.Error(err))
 
@@ -167,9 +170,6 @@ func (h *IPCControllerInfo) handleReloadConfig(_ context.Context, _ ipc.Command)
 			Code:    ipc.CodeActionFailed,
 		}
 	}
-
-	// Update the local config copy so subsequent IPC queries reflect the reload.
-	h.UpdateConfig(h.configService.Get())
 
 	return ipc.Response{
 		Success: true,
