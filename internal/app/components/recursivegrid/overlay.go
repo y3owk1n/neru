@@ -316,6 +316,7 @@ func (o *Overlay) DrawRecursiveGrid(
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
 		borderWidth:            C.int(style.LineWidth()),
+		drawLabelBackground:    C.int(boolToInt(style.LabelBackground())),
 	}
 
 	// Draw the grid cells
@@ -398,14 +399,23 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 	return cStr
 }
 
+func boolToInt(v bool) int {
+	if v {
+		return 1
+	}
+
+	return 0
+}
+
 // Style represents the visual style for recursive_grid.
 type Style struct {
-	lineColor      string
-	lineWidth      int
-	highlightColor string
-	textColor      string
-	fontSize       int
-	fontFamily     string
+	lineColor       string
+	lineWidth       int
+	highlightColor  string
+	textColor       string
+	fontSize        int
+	fontFamily      string
+	labelBackground bool
 }
 
 // LineColor returns the line color.
@@ -438,6 +448,11 @@ func (s Style) FontFamily() string {
 	return s.fontFamily
 }
 
+// LabelBackground returns whether labels should render with a badge background.
+func (s Style) LabelBackground() bool {
+	return s.labelBackground
+}
+
 // BuildStyle creates a Style from RecursiveGridConfig.
 // The theme parameter is used to resolve theme-aware colors when they are not
 // explicitly specified in the configuration (empty string = default).
@@ -465,7 +480,8 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			config.RecursiveGridTextColorLight,
 			config.RecursiveGridTextColorDark,
 		),
-		fontSize:   cfg.FontSize,
-		fontFamily: cfg.FontFamily,
+		fontSize:        cfg.FontSize,
+		fontFamily:      cfg.FontFamily,
+		labelBackground: cfg.LabelBackground,
 	}
 }

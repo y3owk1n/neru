@@ -310,6 +310,7 @@ type RecursiveGridConfig struct {
 	TextColorDark       string `json:"textColorDark"       toml:"text_color_dark"`
 	FontSize            int    `json:"fontSize"            toml:"font_size"`
 	FontFamily          string `json:"fontFamily"          toml:"font_family"`
+	LabelBackground     bool   `json:"labelBackground" toml:"label_background"`
 
 	// Behavior
 	MinSizeWidth  int    `json:"minSizeWidth"  toml:"min_size_width"`  // Default: 25

@@ -690,6 +690,7 @@ Recursive grid divides the screen into cells, narrowing selection with each keyp
 | `grid_cols`         | int    | `2`      | Number of columns                                  |
 | `grid_rows`         | int    | `2`      | Number of rows                                     |
 | `keys`              | string | `"uijk"` | Cell selection keys                                |
+| `label_background`  | bool   | `false`  | Draw labels as hint-like badges                    |
 | `min_size_width`    | int    | `25`     | Min cell width (pixels)                            |
 | `min_size_height`   | int    | `25`     | Min cell height (pixels)                           |
 | `max_depth`         | int    | `10`     | Maximum recursion levels                           |
@@ -760,11 +761,14 @@ j   →   k          j = Lower-left
 | `text_color_dark`       | string | `"#FF00CFCF"` | Cell text color for Dark Mode (theme-aware)  |
 | `font_size`             | int    | `10`          | Font size for labels                         |
 | `font_family`           | string | `""`          | Font family for labels (empty = system)      |
+| `label_background`      | bool   | `false`       | Draw labels as hint-like badges              |
 
 > **Theme-aware colors:** When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
 > The colors update in real time when you switch system themes. If you explicitly
 > set a value, it is always used regardless of the system theme.
+
+When `label_background = true`, recursive-grid labels render inside rounded badges for better contrast on busy or low-contrast content.
 
 ---
 

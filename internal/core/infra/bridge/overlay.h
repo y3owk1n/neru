@@ -49,6 +49,7 @@ typedef struct {
 	char *matchedBorderColor;     ///< Matched border color
 	char *borderColor;            ///< Border color
 	int borderWidth;              ///< Border width
+	int drawLabelBackground;      ///< Draw labels with a badge background
 } GridCellStyle;
 
 /// Grid cell data

@@ -277,6 +277,7 @@ text_color_light = "#FF007A9E"           # Text color for Light Mode (deep teal,
 text_color_dark = "#FF00CFCF"            # Text color for Dark Mode (bright cyan, fully opaque)
 font_size = 10                           # Font size for cell labels
 font_family = ""                         # Font family for cell labels
+label_background = false          # Render labels inside hint-like rounded badges for better contrast
 
 # Behavior
 min_size_width = 25            # Minimum cell width in pixels (stops dividing when width is reached)

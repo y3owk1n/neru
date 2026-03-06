@@ -27,4 +27,10 @@ func TestDefaultConfig(t *testing.T) {
 			)
 		}
 	})
+
+	t.Run("Recursive Grid Defaults", func(t *testing.T) {
+		if cfg.RecursiveGrid.LabelBackground {
+			t.Error("Expected RecursiveGrid.LabelBackground to be false by default")
+		}
+	})
 }

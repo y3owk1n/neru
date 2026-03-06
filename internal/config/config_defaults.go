@@ -378,6 +378,7 @@ func DefaultConfig() *Config {
 			TextColorDark:       RecursiveGridTextColorDark,
 			FontSize:            DefaultRecursiveGridFontSize,
 			FontFamily:          "",
+			LabelBackground:     false,
 
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
 			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
