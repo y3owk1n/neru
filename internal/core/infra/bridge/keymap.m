@@ -132,8 +132,7 @@ static BOOL inputSourceSupportsEnglish(TISInputSourceRef inputSource) {
 		}
 
 		NSString *language = (__bridge NSString *)languageValue;
-		if ([language caseInsensitiveCompare:@"en"] == NSOrderedSame ||
-		    [language hasPrefix:@"en-"] ||
+		if ([language caseInsensitiveCompare:@"en"] == NSOrderedSame || [language hasPrefix:@"en-"] ||
 		    [language hasPrefix:@"en_"]) {
 			return YES;
 		}
@@ -143,9 +142,8 @@ static BOOL inputSourceSupportsEnglish(TISInputSourceRef inputSource) {
 }
 
 static TISInputSourceRef copyFirstEnglishKeyboardLayoutInputSource(void) {
-	NSDictionary *filter = @{
-	    (__bridge NSString *)kTISPropertyInputSourceType : (__bridge NSString *)kTISTypeKeyboardLayout
-	};
+	NSDictionary *filter =
+	    @{(__bridge NSString *)kTISPropertyInputSourceType : (__bridge NSString *)kTISTypeKeyboardLayout};
 	CFArrayRef inputSourceList = TISCreateInputSourceList((__bridge CFDictionaryRef)filter, false);
 	if (!inputSourceList) {
 		return nil;
@@ -191,9 +189,8 @@ static void clearResolvedReferenceInputSourceLocked(void) {
 	gConfiguredInputSourceResolved = YES;
 }
 
-static TISInputSourceRef copyResolvedReferenceInputSource(
-    BOOL *configuredLayoutResolvedOut,
-    BOOL *usesCurrentFallbackOut) {
+static TISInputSourceRef copyResolvedReferenceInputSource(BOOL *configuredLayoutResolvedOut,
+                                                          BOOL *usesCurrentFallbackOut) {
 	[gKeymapLock lock];
 	TISInputSourceRef cachedInputSource = gReferenceInputSource;
 	NSString *configuredID = [gConfiguredInputSourceID copy];
