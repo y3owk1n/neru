@@ -1114,6 +1114,13 @@ int setReferenceKeyboardLayout(const char *inputSourceID) {
 			// In tests/CLI runs the main queue may not be pumping.
 			applyReferenceLayoutOnce();
 		}
+
+		// Re-read the authoritative value under lock to avoid a data race:
+		// the __block configuredResolved variable may be concurrently written
+		// by the main queue thread and read here without synchronization.
+		[gKeymapLock lock];
+		configuredResolved = gConfiguredInputSourceResolved;
+		[gKeymapLock unlock];
 	}
 
 	return configuredResolved ? 1 : 0;
