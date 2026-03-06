@@ -176,6 +176,7 @@ Core behavior settings that affect all Neru functionality.
 | `excluded_apps`                | array | `[]`         | Bundle IDs where Neru won't activate       |
 | `accessibility_check_on_start` | bool  | `true`       | Verify accessibility permissions on launch |
 | `restore_cursor_position`      | bool  | `false`      | Return cursor to pre-mode position on exit |
+| `center_cursor_position`       | bool  | `false`      | Center cursor on current screen on exit    |
 | `mode_exit_keys`               | array | `["escape"]` | Keys that exit any active mode             |
 | `hide_overlay_in_screen_share` | bool  | `false`      | Hide overlay in screen sharing apps        |
 
@@ -227,6 +228,22 @@ restore_cursor_position = false  # default
 - `false`: Cursor stays at last navigated position
 
 **Use case:** Set to `true` if you prefer the cursor not moving unexpectedly.
+
+### center_cursor_position
+
+Center the cursor on the current screen when exiting a navigation mode.
+
+```toml
+[general]
+center_cursor_position = false  # default
+```
+
+- `true`: Cursor is centered on the current screen after mode exits
+- `false`: Cursor stays at last navigated position
+
+**Note:** `restore_cursor_position` and `center_cursor_position` are mutually exclusive. Only one can be enabled at a time.
+
+**Use case:** Set to `true` if you want a predictable cursor location after navigation.
 
 ### mode_exit_keys
 

@@ -55,6 +55,27 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 	return h.cursorState.ShouldRestore()
 }
 
+// shouldCenterCursorOnExit determines if the cursor should be centered on mode exit.
+func (h *Handler) shouldCenterCursorOnExit() bool {
+	if h.config == nil {
+		return false
+	}
+
+	if !h.config.General.CenterCursorPosition {
+		return false
+	}
+
+	if !h.cursorState.IsCaptured() {
+		return false
+	}
+
+	if h.scroll != nil && h.scroll.Context != nil && h.scroll.Context.IsActive() {
+		return false
+	}
+
+	return h.cursorState.ShouldCenter()
+}
+
 // overlaySwitch switches the overlay mode.
 func (h *Handler) overlaySwitch(m overlay.Mode) {
 	if h.overlayManager != nil {

@@ -95,7 +95,10 @@ func initializeApplicationState(app *App) {
 	cfg := app.config
 
 	app.appState = state.NewAppState()
-	app.cursorState = state.NewCursorState(cfg.General.RestoreCursorPosition)
+	app.cursorState = state.NewCursorState(
+		cfg.General.RestoreCursorPosition,
+		cfg.General.CenterCursorPosition,
+	)
 }
 
 // initializeUIComponents creates and configures all UI components

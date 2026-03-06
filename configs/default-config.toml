@@ -18,6 +18,11 @@ accessibility_check_on_start = true
 # When true, cursor returns to its original position after hints/grid/scroll mode exits
 restore_cursor_position = false
 
+# Whether to center cursor position after exiting modes
+# When true, cursor is centered on the current screen after hints/grid/scroll mode exits
+# Note: restore_cursor_position and center_cursor_position are mutually exclusive
+center_cursor_position = false
+
 # Keys that exit any active mode (hints, grid, or scroll)
 # Supported formats:
 #   - Named keys: "escape", "return", "tab", "space", "backspace", "delete", "home", "end", "pageup", "pagedown"

@@ -12,20 +12,28 @@ func TestNewCursorState(t *testing.T) {
 	tests := []struct {
 		name           string
 		restoreEnabled bool
+		centerEnabled  bool
 	}{
 		{
 			name:           "restore enabled",
 			restoreEnabled: true,
+			centerEnabled:  false,
 		},
 		{
-			name:           "restore disabled",
+			name:           "center enabled",
 			restoreEnabled: false,
+			centerEnabled:  true,
+		},
+		{
+			name:           "both disabled",
+			restoreEnabled: false,
+			centerEnabled:  false,
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			state := state.NewCursorState(testCase.restoreEnabled)
+			state := state.NewCursorState(testCase.restoreEnabled, testCase.centerEnabled)
 
 			if state == nil {
 				t.Fatal("NewCursorState() returned nil")
@@ -39,6 +47,14 @@ func TestNewCursorState(t *testing.T) {
 				)
 			}
 
+			if state.IsCenterEnabled() != testCase.centerEnabled {
+				t.Errorf(
+					"Expected center enabled = %v, got %v",
+					testCase.centerEnabled,
+					state.IsCenterEnabled(),
+				)
+			}
+
 			if state.IsCaptured() {
 				t.Error("Expected new state to not be captured")
 			}
@@ -47,7 +63,7 @@ func TestNewCursorState(t *testing.T) {
 }
 
 func TestCursorState_Capture(t *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState(true, false)
 
 	pos := image.Point{X: 100, Y: 200}
 	bounds := image.Rect(0, 0, 1920, 1080)
@@ -70,7 +86,7 @@ func TestCursorState_Capture(t *testing.T) {
 }
 
 func TestCursorState_Reset(t *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState(true, false)
 
 	// Capture some state
 	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
@@ -132,7 +148,7 @@ func TestCursorState_ShouldRestore(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			state := state.NewCursorState(testCase.restoreEnabled)
+			state := state.NewCursorState(testCase.restoreEnabled, false)
 
 			if testCase.captured {
 				state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
@@ -151,7 +167,7 @@ func TestCursorState_ShouldRestore(t *testing.T) {
 }
 
 func TestCursorState_SetRestoreEnabled(t *testing.T) {
-	state := state.NewCursorState(false)
+	state := state.NewCursorState(false, false)
 
 	if state.IsRestoreEnabled() {
 		t.Error("Expected restore to be disabled initially")
@@ -171,7 +187,7 @@ func TestCursorState_SetRestoreEnabled(t *testing.T) {
 }
 
 func TestCursorState_SkipNextRestore(t *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState(true, false)
 	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
 
 	if !state.ShouldRestore() {
@@ -195,7 +211,7 @@ func TestCursorState_SkipNextRestore(t *testing.T) {
 
 // TestCursorState_Concurrency tests thread-safe access to cursor state.
 func TestCursorState_Concurrency(_ *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState(true, false)
 
 	var waitGroup sync.WaitGroup
 
@@ -232,7 +248,7 @@ func TestCursorState_Concurrency(_ *testing.T) {
 
 // TestCursorState_RapidStateTransitions tests rapid capture/release cycles.
 func TestCursorState_RapidStateTransitions(t *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState(true, false)
 
 	// Perform 1000 rapid transitions
 	for range 1000 {
@@ -284,7 +300,7 @@ func TestCursorState_ExtremeValues(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			state := state.NewCursorState(true)
+			state := state.NewCursorState(true, false)
 			state.Capture(testCase.pos, testCase.bounds)
 
 			if !state.IsCaptured() {
@@ -310,7 +326,7 @@ func TestCursorState_ConcurrentStressTest(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	state := state.NewCursorState(true)
+	state := state.NewCursorState(true, false)
 
 	var waitGroup sync.WaitGroup
 
@@ -354,7 +370,7 @@ func TestCursorState_ConcurrentStressTest(t *testing.T) {
 
 // TestCursorState_StateInvariants validates state invariants.
 func TestCursorState_StateInvariants(t *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState(true, false)
 
 	// Invariant 1: After Reset(), IsCaptured() should be false
 	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))

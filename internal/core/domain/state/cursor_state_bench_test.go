@@ -8,7 +8,7 @@ import (
 )
 
 func BenchmarkCursorState_Capture(b *testing.B) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState(true, false)
 	pos := image.Point{X: 100, Y: 200}
 	bounds := image.Rect(0, 0, 1920, 1080)
 
@@ -18,7 +18,7 @@ func BenchmarkCursorState_Capture(b *testing.B) {
 }
 
 func BenchmarkCursorState_ShouldRestore(b *testing.B) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState(true, false)
 	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
 
 	for b.Loop() {
@@ -27,7 +27,7 @@ func BenchmarkCursorState_ShouldRestore(b *testing.B) {
 }
 
 func BenchmarkCursorState_ConcurrentAccess(b *testing.B) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState(true, false)
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {

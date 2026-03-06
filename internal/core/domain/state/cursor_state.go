@@ -19,13 +19,15 @@ type CursorState struct {
 
 	// Behavior flags
 	restoreEnabled  bool
+	centerEnabled   bool
 	skipRestoreOnce bool
 }
 
-// NewCursorState creates a new CursorState with the specified restore behavior.
-func NewCursorState(restoreEnabled bool) *CursorState {
+// NewCursorState creates a new CursorState with the specified behavior flags.
+func NewCursorState(restoreEnabled, centerEnabled bool) *CursorState {
 	return &CursorState{
 		restoreEnabled: restoreEnabled,
+		centerEnabled:  centerEnabled,
 	}
 }
 
@@ -81,7 +83,15 @@ func (c *CursorState) ShouldRestore() bool {
 	return c.restoreEnabled && c.captured && !c.skipRestoreOnce
 }
 
-// SkipNextRestore sets a flag to skip the next cursor restoration.
+// ShouldCenter returns whether the cursor should be centered.
+func (c *CursorState) ShouldCenter() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.centerEnabled && c.captured && !c.skipRestoreOnce
+}
+
+// SkipNextRestore sets a flag to skip the next cursor restoration or centering.
 // This is useful for operations that want to leave the cursor at its new position.
 func (c *CursorState) SkipNextRestore() {
 	c.mu.Lock()
@@ -104,4 +114,20 @@ func (c *CursorState) IsRestoreEnabled() bool {
 	defer c.mu.RUnlock()
 
 	return c.restoreEnabled
+}
+
+// SetCenterEnabled enables or disables cursor centering.
+func (c *CursorState) SetCenterEnabled(enabled bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.centerEnabled = enabled
+}
+
+// IsCenterEnabled returns whether cursor centering is enabled.
+func (c *CursorState) IsCenterEnabled() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.centerEnabled
 }

@@ -258,6 +258,7 @@ func DefaultConfig() *Config {
 			ExcludedApps:              []string{},
 			AccessibilityCheckOnStart: true,
 			RestoreCursorPosition:     false,
+			CenterCursorPosition:      false,
 			ModeExitKeys:              []string{"escape"},
 			HideOverlayInScreenShare:  false,
 		},
