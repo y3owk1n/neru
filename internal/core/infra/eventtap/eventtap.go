@@ -31,6 +31,7 @@ type EventTap struct {
 	callbackQueue chan string
 	stopDispatch  chan struct{}
 	stopOnce      sync.Once
+	dispatchWg    sync.WaitGroup
 }
 
 const callbackQueueSize = 256
@@ -176,7 +177,7 @@ func (et *EventTap) handleCallback(key string) {
 }
 
 func (et *EventTap) startDispatcher() {
-	go func() {
+	et.dispatchWg.Go(func() {
 		for {
 			select {
 			case key := <-et.callbackQueue:
@@ -185,13 +186,15 @@ func (et *EventTap) startDispatcher() {
 				return
 			}
 		}
-	}()
+	})
 }
 
 func (et *EventTap) stopDispatcher() {
 	et.stopOnce.Do(func() {
 		close(et.stopDispatch)
 	})
+
+	et.dispatchWg.Wait()
 }
 
 func (et *EventTap) enqueueKey(key string) {
