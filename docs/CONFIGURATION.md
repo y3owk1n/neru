@@ -134,34 +134,30 @@ ctrl - r : neru hints --action right_click
 
 ## Keyboard Layout Requirements
 
-Neru automatically detects your keyboard layout via macOS APIs - no configuration needed.
+Neru uses a reference keyboard layout for key translation so hotkeys and mode keys
+stay stable even when you switch active input sources (for example EN/RU).
 
-### Supported Layouts
+### `general.kb_layout_to_use` (optional)
 
-| Layout  | Regions               | Works Out of Box |
-| ------- | --------------------- | ---------------- |
-| QWERTY  | US, UK, International | Yes              |
-| AZERTY  | French                | Yes              |
-| QWERTZ  | German, Swiss         | Yes              |
-| Dvorak  | English (Dvorak)      | Yes              |
-| Colemak | English (Colemak)     | Yes              |
+Set a macOS InputSourceID to force a specific layout:
 
-### How It Works
+```toml
+[general]
+kb_layout_to_use = "com.apple.keylayout.ABC"
+```
 
-Neru reads your macOS input source settings and translates keycodes accordingly. This means:
+Use `defaults read com.apple.HIToolbox AppleEnabledInputSources` to inspect available IDs.
 
-- Your physical key positions are used for hint characters
-- Layout switching in macOS is respected
+### Automatic fallback (when `kb_layout_to_use` is empty)
 
-### Input Methods (CJK)
+Neru auto-selects the first available layout in this order:
 
-Neru supports Chinese, Japanese, and Korean input methods:
+1. `com.apple.keylayout.ABC`
+2. `com.apple.keylayout.US`
+3. Any layout where `kTISPropertyInputSourceLanguages` contains `en`
+4. Current keyboard layout (last resort)
 
-- Hints display based on your **physical keyboard layout**
-- Key presses are translated through your layout before being sent to the IME
-- The IME receives the expected key events
-
-**No additional configuration required.**
+The resolved input source is cached and reused for key translation.
 
 ---
 
@@ -177,6 +173,7 @@ Core behavior settings that affect all Neru functionality.
 | `accessibility_check_on_start` | bool  | `true`       | Verify accessibility permissions on launch |
 | `restore_cursor_position`      | bool  | `false`      | Return cursor to pre-mode position on exit |
 | `center_cursor_position`       | bool  | `false`      | Center cursor on current screen on exit    |
+| `kb_layout_to_use`             | string | `""`         | Optional InputSourceID for layout mapping  |
 | `mode_exit_keys`               | array | `["escape"]` | Keys that exit any active mode             |
 | `hide_overlay_in_screen_share` | bool  | `false`      | Hide overlay in screen sharing apps        |
 
@@ -244,6 +241,18 @@ center_cursor_position = false  # default
 **Note:** `restore_cursor_position` and `center_cursor_position` are mutually exclusive. Only one can be enabled at a time.
 
 **Use case:** Set to `true` if you want a predictable cursor location after navigation.
+
+### kb_layout_to_use
+
+Optional reference layout InputSourceID used for key translation.
+
+```toml
+[general]
+kb_layout_to_use = ""                            # auto fallback (default)
+# kb_layout_to_use = "com.apple.keylayout.ABC"  # force ABC
+```
+
+Use this when you want physical keys interpreted consistently across multiple active input sources.
 
 ### mode_exit_keys
 

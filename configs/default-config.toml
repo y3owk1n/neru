@@ -23,6 +23,14 @@ restore_cursor_position = false
 # Note: restore_cursor_position and center_cursor_position are mutually exclusive
 center_cursor_position = false
 
+# Optional reference keyboard layout for layout-agnostic key interpretation.
+# Use macOS InputSourceID (e.g. "com.apple.keylayout.ABC").
+# When omitted/empty, Neru auto-selects in this order:
+#   1) com.apple.keylayout.ABC
+#   2) com.apple.keylayout.US
+#   3) First layout with language "en"
+kb_layout_to_use = ""
+
 # Keys that exit any active mode (hints, grid, or scroll)
 # Supported formats:
 #   - Named keys: "escape", "return", "tab", "space", "backspace", "delete", "home", "end", "pageup", "pagedown"

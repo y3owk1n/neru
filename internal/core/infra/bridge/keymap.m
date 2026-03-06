@@ -23,8 +23,15 @@ static NSDictionary<NSString *, NSNumber *> *gKeyNameToCodeMap = nil;
 static NSDictionary<NSNumber *, NSString *> *gKeyCodeToNameMap = nil;
 static TISInputSourceRef gCurrentInputSource = nil;
 static const UCKeyboardLayout *gCurrentKeyboardLayout = nil;
-/// optional configured input source ID for manual layout mapping
+
+/// user-configured input source ID (nil/empty means auto-detect fallback order)
 static NSString *gConfiguredInputSourceID = nil;
+/// resolved and cached reference input source used for key translation
+static TISInputSourceRef gReferenceInputSource = nil;
+/// true when using current-layout fallback because no stable latin layout was found
+static BOOL gUsesCurrentLayoutFallback = NO;
+/// whether the configured layout ID was resolved successfully (or no explicit ID was set)
+static BOOL gConfiguredInputSourceResolved = YES;
 
 /// cached keycode to char maps with common modifiers like shift and caps
 /// to avoid UCKeyTranslate calls during run
@@ -68,6 +75,8 @@ static NSString *translateKeyCodeViaLayout(const UCKeyboardLayout *keyboardLayou
 	return [NSString stringWithCharacters:chars length:actualLength];
 }
 
+#pragma mark - Input Source Resolution
+
 static BOOL inputSourceHasUnicodeLayoutData(TISInputSourceRef inputSource) {
 	if (!inputSource) {
 		return NO;
@@ -103,6 +112,172 @@ static TISInputSourceRef copyKeyboardLayoutInputSourceByID(NSString *inputSource
 	CFRelease(inputSourceList);
 
 	return matched;
+}
+
+static BOOL inputSourceSupportsEnglish(TISInputSourceRef inputSource) {
+	if (!inputSource) {
+		return NO;
+	}
+
+	CFArrayRef languages = (CFArrayRef)TISGetInputSourceProperty(inputSource, kTISPropertyInputSourceLanguages);
+	if (!languages) {
+		return NO;
+	}
+
+	CFIndex languageCount = CFArrayGetCount(languages);
+	for (CFIndex i = 0; i < languageCount; i++) {
+		CFTypeRef languageValue = CFArrayGetValueAtIndex(languages, i);
+		if (!languageValue || CFGetTypeID(languageValue) != CFStringGetTypeID()) {
+			continue;
+		}
+
+		NSString *language = (__bridge NSString *)languageValue;
+		if ([language caseInsensitiveCompare:@"en"] == NSOrderedSame ||
+		    [language hasPrefix:@"en-"] || [language hasPrefix:@"en_"]) {
+			return YES;
+		}
+	}
+
+	return NO;
+}
+
+static TISInputSourceRef copyFirstEnglishKeyboardLayoutInputSource(void) {
+	NSDictionary *filter = @{(__bridge NSString *)kTISPropertyInputSourceType : (__bridge NSString *)kTISTypeKeyboardLayout};
+	CFArrayRef inputSourceList = TISCreateInputSourceList((__bridge CFDictionaryRef)filter, false);
+	if (!inputSourceList) {
+		return nil;
+	}
+
+	TISInputSourceRef matched = nil;
+	CFIndex sourceCount = CFArrayGetCount(inputSourceList);
+	for (CFIndex i = 0; i < sourceCount; i++) {
+		TISInputSourceRef candidate = (TISInputSourceRef)CFArrayGetValueAtIndex(inputSourceList, i);
+		if (inputSourceHasUnicodeLayoutData(candidate) && inputSourceSupportsEnglish(candidate)) {
+			CFRetain(candidate);
+			matched = candidate;
+			break;
+		}
+	}
+
+	CFRelease(inputSourceList);
+
+	return matched;
+}
+
+static TISInputSourceRef copyCurrentKeyboardLayoutInputSourceWithData(void) {
+	TISInputSourceRef inputSource = TISCopyCurrentKeyboardLayoutInputSource();
+	if (!inputSource) {
+		return nil;
+	}
+
+	if (!inputSourceHasUnicodeLayoutData(inputSource)) {
+		CFRelease(inputSource);
+		return nil;
+	}
+
+	return inputSource;
+}
+
+static void clearResolvedReferenceInputSourceLocked(void) {
+	if (gReferenceInputSource) {
+		CFRelease(gReferenceInputSource);
+		gReferenceInputSource = nil;
+	}
+
+	gUsesCurrentLayoutFallback = NO;
+	gConfiguredInputSourceResolved = YES;
+}
+
+static TISInputSourceRef copyResolvedReferenceInputSource(BOOL *configuredLayoutResolvedOut, BOOL *usesCurrentFallbackOut) {
+	[gKeymapLock lock];
+	TISInputSourceRef cachedInputSource = gReferenceInputSource;
+	NSString *configuredID = [gConfiguredInputSourceID copy];
+	BOOL cachedConfiguredResolved = gConfiguredInputSourceResolved;
+	BOOL cachedUsesCurrentFallback = gUsesCurrentLayoutFallback;
+	if (cachedInputSource) {
+		CFRetain(cachedInputSource);
+	}
+	[gKeymapLock unlock];
+
+	if (cachedInputSource) {
+		if (configuredLayoutResolvedOut) {
+			*configuredLayoutResolvedOut = cachedConfiguredResolved;
+		}
+
+		if (usesCurrentFallbackOut) {
+			*usesCurrentFallbackOut = cachedUsesCurrentFallback;
+		}
+
+		return cachedInputSource;
+	}
+
+	NSArray<NSString *> *preferredIDs = @[
+		@"com.apple.keylayout.ABC",
+		@"com.apple.keylayout.US",
+	];
+
+	TISInputSourceRef resolvedInputSource = nil;
+	BOOL usesCurrentFallback = NO;
+	BOOL configuredResolved = YES;
+
+	if (configuredID.length > 0) {
+		resolvedInputSource = copyKeyboardLayoutInputSourceByID(configuredID);
+		if (!resolvedInputSource) {
+			configuredResolved = NO;
+		}
+	}
+
+	if (!resolvedInputSource) {
+		for (NSString *candidateID in preferredIDs) {
+			resolvedInputSource = copyKeyboardLayoutInputSourceByID(candidateID);
+			if (resolvedInputSource) {
+				break;
+			}
+		}
+	}
+
+	if (!resolvedInputSource) {
+		resolvedInputSource = copyFirstEnglishKeyboardLayoutInputSource();
+	}
+
+	if (!resolvedInputSource) {
+		resolvedInputSource = copyCurrentKeyboardLayoutInputSourceWithData();
+		if (resolvedInputSource) {
+			usesCurrentFallback = YES;
+		}
+	}
+
+	[gKeymapLock lock];
+	if (!gReferenceInputSource && resolvedInputSource) {
+		gReferenceInputSource = resolvedInputSource;
+		gUsesCurrentLayoutFallback = usesCurrentFallback;
+		gConfiguredInputSourceResolved = configuredResolved;
+		CFRetain(gReferenceInputSource);
+		cachedInputSource = gReferenceInputSource;
+	} else if (gReferenceInputSource) {
+		cachedInputSource = gReferenceInputSource;
+		CFRetain(cachedInputSource);
+		if (resolvedInputSource) {
+			CFRelease(resolvedInputSource);
+		}
+	} else {
+		gConfiguredInputSourceResolved = configuredResolved;
+		cachedInputSource = nil;
+	}
+
+	BOOL finalConfiguredResolved = gConfiguredInputSourceResolved;
+	BOOL finalUsesCurrentFallback = gUsesCurrentLayoutFallback;
+	[gKeymapLock unlock];
+
+	if (configuredLayoutResolvedOut) {
+		*configuredLayoutResolvedOut = finalConfiguredResolved;
+	}
+
+	if (usesCurrentFallbackOut) {
+		*usesCurrentFallbackOut = finalUsesCurrentFallback;
+	}
+
+	return cachedInputSource;
 }
 
 #pragma mark - QWERTY Fallback
@@ -447,24 +622,12 @@ static void buildLayoutMaps(void) {
 		UInt32 capsMod = (alphaLock >> 8) & 0xFF;
 		UInt32 shiftCapsMod = shiftMod | capsMod;
 
-		TISInputSourceRef inputSource = nil;
-		NSString *configuredInputSourceID = nil;
-		[gKeymapLock lock];
-		configuredInputSourceID = [gConfiguredInputSourceID copy];
-		[gKeymapLock unlock];
-
-		// Prefer configured layout ID when set; otherwise use current macOS layout.
-		if (configuredInputSourceID.length > 0) {
-			inputSource = copyKeyboardLayoutInputSourceByID(configuredInputSourceID);
-		}
-
+		// Resolve the reference input source once and reuse it until config reload.
+		// This keeps key interpretation stable across active layout switches.
+		TISInputSourceRef inputSource = copyResolvedReferenceInputSource(NULL, NULL);
 		if (!inputSource) {
-			inputSource = TISCopyCurrentKeyboardLayoutInputSource();
-		}
-
-		if (!inputSource) {
-			// no layout source available — populate with QWERTY fallback
-			// so special keys and basic key lookups still work
+			// no usable layout source available — populate with QWERTY fallback
+			// so special keys and basic key lookups still work.
 			buildQWERTYNameMaps(nameToCode, codeToName);
 			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
 
@@ -481,8 +644,8 @@ static void buildLayoutMaps(void) {
 
 		CFDataRef layoutData = (CFDataRef)TISGetInputSourceProperty(inputSource, kTISPropertyUnicodeKeyLayoutData);
 		if (!layoutData) {
-			// layout source exists but has no uchr data (e.g. some CJK IMEs)
-			// populate with QWERTY fallback, keep previous layout pointer if we had one
+			// layout source exists but has no uchr data
+			// populate with QWERTY fallback, keep previous layout pointer if we had one.
 			CFRelease(inputSource);
 			buildQWERTYNameMaps(nameToCode, codeToName);
 			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
@@ -581,11 +744,27 @@ static void buildLayoutMaps(void) {
 /// dispatched to the main queue, ensuring all access is serialized on the main thread.
 static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *observer, CFNotificationName name,
                                         const void *object, CFDictionaryRef userInfo) {
+	[gKeymapLock lock];
+	BOOL shouldRebuild = gUsesCurrentLayoutFallback;
+	[gKeymapLock unlock];
+
+	// With a resolved reference layout (configured or auto-detected), active
+	// layout switches should not affect key interpretation.
+	if (!shouldRebuild) {
+		return;
+	}
+
 	if (gLayoutChangeDebounceBlock) {
 		dispatch_block_cancel(gLayoutChangeDebounceBlock);
 	}
 
 	gLayoutChangeDebounceBlock = dispatch_block_create(0, ^{
+		[gKeymapLock lock];
+		// Re-resolve when current-layout fallback is active so layout switches
+		// pick up the new selected source.
+		clearResolvedReferenceInputSourceLocked();
+		[gKeymapLock unlock];
+
 		buildLayoutMaps();
 		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
 		if (cb)
@@ -875,25 +1054,22 @@ int setReferenceKeyboardLayout(const char *inputSourceID) {
 		}
 	}
 
-	BOOL configuredResolved = YES;
-	if (trimmedInputSourceID.length > 0) {
-		TISInputSourceRef resolved = copyKeyboardLayoutInputSourceByID(trimmedInputSourceID);
-		if (resolved) {
-			CFRelease(resolved);
-		} else {
-			configuredResolved = NO;
-		}
-	}
+	__block BOOL configuredResolved = YES;
 
 	void (^applyReferenceLayout)(void) = ^{
 		initializeKeyMaps();
 
 		[gKeymapLock lock];
 		gConfiguredInputSourceID = [trimmedInputSourceID copy];
+		clearResolvedReferenceInputSourceLocked();
 		[gKeymapLock unlock];
 
 		buildLayoutMaps();
 		atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
+
+		[gKeymapLock lock];
+		configuredResolved = gConfiguredInputSourceResolved;
+		[gKeymapLock unlock];
 
 		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
 		if (cb) {
