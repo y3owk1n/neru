@@ -81,6 +81,54 @@ func TestComputeRestoredPosition(t *testing.T) {
 	}
 }
 
+func TestComputeCenteredPosition(t *testing.T) {
+	tests := []struct {
+		name     string
+		bounds   image.Rectangle
+		expected image.Point
+	}{
+		{
+			name:     "standard 1920x1080 screen at origin",
+			bounds:   image.Rect(0, 0, 1920, 1080),
+			expected: image.Point{X: 960, Y: 540},
+		},
+		{
+			name:     "offset screen (second monitor)",
+			bounds:   image.Rect(1920, 0, 3840, 1080),
+			expected: image.Point{X: 2880, Y: 540},
+		},
+		{
+			name:     "small screen",
+			bounds:   image.Rect(100, 50, 300, 200),
+			expected: image.Point{X: 200, Y: 125},
+		},
+		{
+			name:     "zero-size bounds",
+			bounds:   image.Rect(100, 100, 100, 100),
+			expected: image.Point{X: 100, Y: 100},
+		},
+		{
+			name:     "odd dimensions (integer division truncates)",
+			bounds:   image.Rect(0, 0, 1921, 1081),
+			expected: image.Point{X: 960, Y: 540},
+		},
+		{
+			name:     "negative offset screen",
+			bounds:   image.Rect(-1920, -1080, 0, 0),
+			expected: image.Point{X: -960, Y: -540},
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := coordinates.ComputeCenteredPosition(testCase.bounds)
+			if result != testCase.expected {
+				t.Errorf("ComputeCenteredPosition(%v) = %v, expected %v",
+					testCase.bounds, result, testCase.expected)
+			}
+		})
+	}
+}
+
 func TestNormalizeToLocalCoordinates(t *testing.T) {
 	tests := []struct {
 		name         string
