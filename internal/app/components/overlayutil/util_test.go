@@ -40,6 +40,7 @@ func TestCallbackManagerCleanup_ReleasesCallbackMutexBeforeRegistryLock(t *testi
 	for time.Now().Before(deadline) {
 		if manager.callbackMu.TryLock() {
 			manager.callbackMu.Unlock()
+
 			acquired = true
 
 			break
