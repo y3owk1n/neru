@@ -52,10 +52,6 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 		return false
 	}
 
-	if !h.cursorState.IsCaptured() {
-		return false
-	}
-
 	if h.scroll != nil && h.scroll.Context != nil && h.scroll.Context.IsActive() {
 		return false
 	}
@@ -70,10 +66,6 @@ func (h *Handler) shouldCenterCursorOnExit() bool {
 	}
 
 	if !h.config.General.CenterCursorPosition {
-		return false
-	}
-
-	if !h.cursorState.IsCaptured() {
 		return false
 	}
 
