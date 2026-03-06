@@ -11,9 +11,18 @@ import (
 
 func TestCallbackManagerCleanup_ReleasesCallbackMutexBeforeRegistryLock(t *testing.T) {
 	manager := NewCallbackManager(zap.NewNop())
-	if started := manager.StartResizeOperation(func(uint64, uint64) {}); !started {
+
+	var allocatedID uint64
+	if started := manager.StartResizeOperation(func(id uint64, _ uint64) {
+		allocatedID = id
+	}); !started {
 		t.Fatal("expected resize operation to start")
 	}
+
+	// Eagerly release the callback ID after the test so the 30-second
+	// deferred release timer doesn't leak global state into other tests.
+	// releaseCallbackID is idempotent — the later timer firing is a no-op.
+	t.Cleanup(func() { releaseCallbackID(allocatedID) })
 
 	// Hold registry lock to force Cleanup to wait at the registry phase.
 	callbackManagerRegistryMu.Lock()
