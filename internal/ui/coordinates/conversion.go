@@ -37,6 +37,14 @@ func ComputeRestoredPosition(initPos image.Point, fromPoint, toPoint image.Recta
 	return image.Point{X: newX, Y: newY}
 }
 
+// ComputeCenteredPosition calculates the center position of the given screen bounds.
+func ComputeCenteredPosition(bounds image.Rectangle) image.Point {
+	return image.Point{
+		X: bounds.Min.X + bounds.Dx()/2,
+		Y: bounds.Min.Y + bounds.Dy()/2,
+	}
+}
+
 // NormalizeToLocalCoordinates converts screen-absolute coordinates to window-local coordinates.
 // The overlay window is positioned at the screen origin, but the view uses local coordinates.
 func NormalizeToLocalCoordinates(screenBounds image.Rectangle) image.Rectangle {

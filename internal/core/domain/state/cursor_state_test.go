@@ -9,45 +9,18 @@ import (
 )
 
 func TestNewCursorState(t *testing.T) {
-	tests := []struct {
-		name           string
-		restoreEnabled bool
-	}{
-		{
-			name:           "restore enabled",
-			restoreEnabled: true,
-		},
-		{
-			name:           "restore disabled",
-			restoreEnabled: false,
-		},
+	state := state.NewCursorState()
+	if state == nil {
+		t.Fatal("NewCursorState() returned nil")
 	}
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			state := state.NewCursorState(testCase.restoreEnabled)
-
-			if state == nil {
-				t.Fatal("NewCursorState() returned nil")
-			}
-
-			if state.IsRestoreEnabled() != testCase.restoreEnabled {
-				t.Errorf(
-					"Expected restore enabled = %v, got %v",
-					testCase.restoreEnabled,
-					state.IsRestoreEnabled(),
-				)
-			}
-
-			if state.IsCaptured() {
-				t.Error("Expected new state to not be captured")
-			}
-		})
+	if state.IsCaptured() {
+		t.Error("Expected new state to not be captured")
 	}
 }
 
 func TestCursorState_Capture(t *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState()
 
 	pos := image.Point{X: 100, Y: 200}
 	bounds := image.Rect(0, 0, 1920, 1080)
@@ -70,7 +43,7 @@ func TestCursorState_Capture(t *testing.T) {
 }
 
 func TestCursorState_Reset(t *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState()
 
 	// Capture some state
 	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
@@ -87,52 +60,41 @@ func TestCursorState_Reset(t *testing.T) {
 		t.Error("Expected state to not be captured after Reset()")
 	}
 
-	if state.ShouldRestore() {
-		t.Error("Expected ShouldRestore to be false after Reset()")
+	if state.ShouldMoveCursor() {
+		t.Error("Expected ShouldMoveCursor to be false after Reset()")
 	}
 }
 
-func TestCursorState_ShouldRestore(t *testing.T) {
+func TestCursorState_ShouldMoveCursor(t *testing.T) {
 	tests := []struct {
-		name           string
-		restoreEnabled bool
-		captured       bool
-		skipOnce       bool
-		expected       bool
+		name     string
+		captured bool
+		skipOnce bool
+		expected bool
 	}{
 		{
-			name:           "restore enabled, captured, not skipped",
-			restoreEnabled: true,
-			captured:       true,
-			skipOnce:       false,
-			expected:       true,
+			name:     "captured, not skipped",
+			captured: true,
+			skipOnce: false,
+			expected: true,
 		},
 		{
-			name:           "restore disabled",
-			restoreEnabled: false,
-			captured:       true,
-			skipOnce:       false,
-			expected:       false,
+			name:     "not captured",
+			captured: false,
+			skipOnce: false,
+			expected: false,
 		},
 		{
-			name:           "not captured",
-			restoreEnabled: true,
-			captured:       false,
-			skipOnce:       false,
-			expected:       false,
-		},
-		{
-			name:           "skip once set",
-			restoreEnabled: true,
-			captured:       true,
-			skipOnce:       true,
-			expected:       false,
+			name:     "captured, skip once set",
+			captured: true,
+			skipOnce: true,
+			expected: false,
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			state := state.NewCursorState(testCase.restoreEnabled)
+			state := state.NewCursorState()
 
 			if testCase.captured {
 				state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
@@ -142,60 +104,40 @@ func TestCursorState_ShouldRestore(t *testing.T) {
 				state.SkipNextRestore()
 			}
 
-			got := state.ShouldRestore()
+			got := state.ShouldMoveCursor()
 			if got != testCase.expected {
-				t.Errorf("ShouldRestore() = %v, want %v", got, testCase.expected)
+				t.Errorf("ShouldMoveCursor() = %v, want %v", got, testCase.expected)
 			}
 		})
 	}
 }
 
-func TestCursorState_SetRestoreEnabled(t *testing.T) {
-	state := state.NewCursorState(false)
-
-	if state.IsRestoreEnabled() {
-		t.Error("Expected restore to be disabled initially")
-	}
-
-	state.SetRestoreEnabled(true)
-
-	if !state.IsRestoreEnabled() {
-		t.Error("Expected restore to be enabled after SetRestoreEnabled(true)")
-	}
-
-	state.SetRestoreEnabled(false)
-
-	if state.IsRestoreEnabled() {
-		t.Error("Expected restore to be disabled after SetRestoreEnabled(false)")
-	}
-}
-
 func TestCursorState_SkipNextRestore(t *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState()
 	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
 
-	if !state.ShouldRestore() {
-		t.Error("Expected ShouldRestore to be true before SkipNextRestore()")
+	if !state.ShouldMoveCursor() {
+		t.Error("Expected ShouldMoveCursor to be true before SkipNextRestore()")
 	}
 
 	state.SkipNextRestore()
 
-	if state.ShouldRestore() {
-		t.Error("Expected ShouldRestore to be false after SkipNextRestore()")
+	if state.ShouldMoveCursor() {
+		t.Error("Expected ShouldMoveCursor to be false after SkipNextRestore()")
 	}
 
 	// Reset should clear the skip flag
 	state.Reset()
 	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
 
-	if !state.ShouldRestore() {
-		t.Error("Expected ShouldRestore to be true after Reset() and Capture()")
+	if !state.ShouldMoveCursor() {
+		t.Error("Expected ShouldMoveCursor to be true after Reset() and Capture()")
 	}
 }
 
 // TestCursorState_Concurrency tests thread-safe access to cursor state.
 func TestCursorState_Concurrency(_ *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState()
 
 	var waitGroup sync.WaitGroup
 
@@ -220,8 +162,7 @@ func TestCursorState_Concurrency(_ *testing.T) {
 		go func() {
 			defer waitGroup.Done()
 
-			state.SetRestoreEnabled(true)
-			_ = state.ShouldRestore()
+			_ = state.ShouldMoveCursor()
 		}()
 	}
 
@@ -232,7 +173,7 @@ func TestCursorState_Concurrency(_ *testing.T) {
 
 // TestCursorState_RapidStateTransitions tests rapid capture/release cycles.
 func TestCursorState_RapidStateTransitions(t *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState()
 
 	// Perform 1000 rapid transitions
 	for range 1000 {
@@ -284,7 +225,7 @@ func TestCursorState_ExtremeValues(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			state := state.NewCursorState(true)
+			state := state.NewCursorState()
 			state.Capture(testCase.pos, testCase.bounds)
 
 			if !state.IsCaptured() {
@@ -310,7 +251,7 @@ func TestCursorState_ConcurrentStressTest(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	state := state.NewCursorState(true)
+	state := state.NewCursorState()
 
 	var waitGroup sync.WaitGroup
 
@@ -336,7 +277,7 @@ func TestCursorState_ConcurrentStressTest(t *testing.T) {
 
 				_ = state.InitialPosition()
 				_ = state.InitialScreenBounds()
-				_ = state.ShouldRestore()
+				_ = state.ShouldMoveCursor()
 
 				state.Reset()
 			}
@@ -354,7 +295,7 @@ func TestCursorState_ConcurrentStressTest(t *testing.T) {
 
 // TestCursorState_StateInvariants validates state invariants.
 func TestCursorState_StateInvariants(t *testing.T) {
-	state := state.NewCursorState(true)
+	state := state.NewCursorState()
 
 	// Invariant 1: After Reset(), IsCaptured() should be false
 	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
@@ -364,11 +305,9 @@ func TestCursorState_StateInvariants(t *testing.T) {
 		t.Error("Invariant violated: IsCaptured() should be false after Reset()")
 	}
 
-	// Invariant 2: ShouldRestore() should match IsRestoreEnabled() when not captured
-	state.SetRestoreEnabled(true)
-
-	if state.ShouldRestore() {
-		t.Error("Invariant violated: ShouldRestore() should be false when not captured")
+	// Invariant 2: ShouldMoveCursor() should be false when not captured
+	if state.ShouldMoveCursor() {
+		t.Error("Invariant violated: ShouldMoveCursor() should be false when not captured")
 	}
 
 	// Invariant 3: After Capture(), IsCaptured() should be true
@@ -378,17 +317,17 @@ func TestCursorState_StateInvariants(t *testing.T) {
 		t.Error("Invariant violated: IsCaptured() should be true after Capture()")
 	}
 
-	// Invariant 4: ShouldRestore() should be true when captured and restore enabled
-	if !state.ShouldRestore() {
+	// Invariant 4: ShouldMoveCursor() should be true when captured
+	if !state.ShouldMoveCursor() {
 		t.Error(
-			"Invariant violated: ShouldRestore() should be true when captured and restore enabled",
+			"Invariant violated: ShouldMoveCursor() should be true when captured",
 		)
 	}
 
-	// Invariant 5: Disabling restore should affect ShouldRestore()
-	state.SetRestoreEnabled(false)
+	// Invariant 5: SkipNextRestore should affect ShouldMoveCursor()
+	state.SkipNextRestore()
 
-	if state.ShouldRestore() {
-		t.Error("Invariant violated: ShouldRestore() should be false when restore disabled")
+	if state.ShouldMoveCursor() {
+		t.Error("Invariant violated: ShouldMoveCursor() should be false after SkipNextRestore()")
 	}
 }

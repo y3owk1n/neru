@@ -2,6 +2,7 @@ package modes
 
 import (
 	"context"
+	"image"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
@@ -110,21 +111,41 @@ func (h *Handler) performCommonCleanup() {
 	}
 }
 
-// handleCursorRestoration handles cursor position restoration on exit.
+// handleCursorRestoration handles cursor position restoration or centering on exit.
 func (h *Handler) handleCursorRestoration() {
 	shouldRestore := h.shouldRestoreCursorOnExit()
-	if shouldRestore {
+	shouldCenter := h.shouldCenterCursorOnExit()
+
+	if shouldRestore && shouldCenter {
+		h.logger.Warn("Both restore and center cursor are enabled; restore takes priority")
+
+		shouldCenter = false
+	}
+
+	if shouldRestore || shouldCenter {
 		currentBounds := bridge.ActiveScreenBounds()
-		target := coordinates.ComputeRestoredPosition(
-			h.cursorState.InitialPosition(),
-			h.cursorState.InitialScreenBounds(),
-			currentBounds,
-		)
+
+		var target image.Point
+
+		if shouldRestore {
+			target = coordinates.ComputeRestoredPosition(
+				h.cursorState.InitialPosition(),
+				h.cursorState.InitialScreenBounds(),
+				currentBounds,
+			)
+		} else {
+			target = coordinates.ComputeCenteredPosition(currentBounds)
+		}
+
 		ctx := context.Background()
 
-		restoreCursorErr := h.actionService.MoveCursorToPoint(ctx, target)
-		if restoreCursorErr != nil {
-			h.logger.Error("Failed to restore cursor position", zap.Error(restoreCursorErr))
+		moveCursorErr := h.actionService.MoveCursorToPoint(ctx, target)
+		if moveCursorErr != nil {
+			if shouldRestore {
+				h.logger.Error("Failed to restore cursor position", zap.Error(moveCursorErr))
+			} else {
+				h.logger.Error("Failed to center cursor position", zap.Error(moveCursorErr))
+			}
 		}
 	}
 

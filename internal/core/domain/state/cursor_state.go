@@ -18,15 +18,12 @@ type CursorState struct {
 	captured            bool
 
 	// Behavior flags
-	restoreEnabled  bool
 	skipRestoreOnce bool
 }
 
-// NewCursorState creates a new CursorState with the specified restore behavior.
-func NewCursorState(restoreEnabled bool) *CursorState {
-	return &CursorState{
-		restoreEnabled: restoreEnabled,
-	}
+// NewCursorState creates a new CursorState.
+func NewCursorState() *CursorState {
+	return &CursorState{}
 }
 
 // Capture stores the current cursor position and screen bounds.
@@ -72,36 +69,22 @@ func (c *CursorState) InitialScreenBounds() image.Rectangle {
 	return c.initialScreenBounds
 }
 
-// ShouldRestore returns whether the cursor should be restored.
-// It considers both the restore enabled flag and the skip restore flag.
-func (c *CursorState) ShouldRestore() bool {
+// ShouldMoveCursor returns whether the cursor should be moved on mode exit.
+// The caller is responsible for deciding the policy (restore vs center)
+// based on config; this method only tracks whether the cursor was captured
+// and whether a skip was requested.
+func (c *CursorState) ShouldMoveCursor() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	return c.restoreEnabled && c.captured && !c.skipRestoreOnce
+	return c.captured && !c.skipRestoreOnce
 }
 
-// SkipNextRestore sets a flag to skip the next cursor restoration.
+// SkipNextRestore sets a flag to skip the next cursor restoration or centering.
 // This is useful for operations that want to leave the cursor at its new position.
 func (c *CursorState) SkipNextRestore() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.skipRestoreOnce = true
-}
-
-// SetRestoreEnabled enables or disables cursor restoration.
-func (c *CursorState) SetRestoreEnabled(enabled bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.restoreEnabled = enabled
-}
-
-// IsRestoreEnabled returns whether cursor restoration is enabled.
-func (c *CursorState) IsRestoreEnabled() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	return c.restoreEnabled
 }

@@ -157,6 +157,7 @@ type GeneralConfig struct {
 	ExcludedApps              []string `json:"excludedApps"              toml:"excluded_apps"`
 	AccessibilityCheckOnStart bool     `json:"accessibilityCheckOnStart" toml:"accessibility_check_on_start"`
 	RestoreCursorPosition     bool     `json:"restoreCursorPosition"     toml:"restore_cursor_position"`
+	CenterCursorPosition      bool     `json:"centerCursorPosition"      toml:"center_cursor_position"`
 	ModeExitKeys              []string `json:"modeExitKeys"              toml:"mode_exit_keys"`
 	HideOverlayInScreenShare  bool     `json:"hideOverlayInScreenShare"  toml:"hide_overlay_in_screen_share"`
 }
@@ -362,7 +363,12 @@ func (c *Config) Validate() error {
 		return derrors.New(derrors.CodeInvalidConfig, "configuration cannot be nil")
 	}
 
-	err := c.ValidateModes()
+	err := c.ValidateGeneral()
+	if err != nil {
+		return err
+	}
+
+	err = c.ValidateModes()
 	if err != nil {
 		return err
 	}
@@ -422,6 +428,18 @@ func (c *Config) Validate() error {
 	err = c.ValidateSmoothCursor()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// ValidateGeneral validates general settings.
+func (c *Config) ValidateGeneral() error {
+	if c.General.RestoreCursorPosition && c.General.CenterCursorPosition {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"restore_cursor_position and center_cursor_position cannot both be enabled",
+		)
 	}
 
 	return nil

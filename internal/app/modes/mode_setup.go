@@ -17,6 +17,14 @@ func (h *Handler) CurrModeString() string {
 
 // CaptureInitialCursorPosition captures the initial cursor position and screen bounds.
 func (h *Handler) CaptureInitialCursorPosition() {
+	if h.config == nil {
+		return
+	}
+
+	if !h.config.General.RestoreCursorPosition && !h.config.General.CenterCursorPosition {
+		return
+	}
+
 	if h.cursorState.IsCaptured() {
 		return
 	}
@@ -44,7 +52,20 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 		return false
 	}
 
-	if !h.cursorState.IsCaptured() {
+	if h.scroll != nil && h.scroll.Context != nil && h.scroll.Context.IsActive() {
+		return false
+	}
+
+	return h.cursorState.ShouldMoveCursor()
+}
+
+// shouldCenterCursorOnExit determines if the cursor should be centered on mode exit.
+func (h *Handler) shouldCenterCursorOnExit() bool {
+	if h.config == nil {
+		return false
+	}
+
+	if !h.config.General.CenterCursorPosition {
 		return false
 	}
 
@@ -52,7 +73,7 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 		return false
 	}
 
-	return h.cursorState.ShouldRestore()
+	return h.cursorState.ShouldMoveCursor()
 }
 
 // overlaySwitch switches the overlay mode.
