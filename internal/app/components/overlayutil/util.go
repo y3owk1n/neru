@@ -284,7 +284,9 @@ func (c *CallbackManager) Cleanup() {
 
 		callbackManagerRegistryMu.Lock()
 		for _, id := range callbackIDs {
-			delete(callbackManagerRegistry, id)
+			if entry, ok := callbackManagerRegistry[id]; ok && entry.manager == c {
+				delete(callbackManagerRegistry, id)
+			}
 		}
 		callbackManagerRegistryMu.Unlock()
 
