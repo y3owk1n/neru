@@ -280,6 +280,10 @@ font_family = ""                         # Font family for cell labels
 label_background = false                 # Add rounded label backgrounds behind recursive-grid letters
 label_background_color_light = "#CCFFD700" # Label background color for Light Mode (gold, alpha CC ≈ 80% opacity)
 label_background_color_dark = "#CCFFD700"  # Label background color for Dark Mode (gold, alpha CC ≈ 80% opacity)
+label_background_padding_x = -1         # Horizontal badge padding (-1 = auto based on font size)
+label_background_padding_y = -1         # Vertical badge padding (-1 = auto based on font size)
+label_background_corner_radius = -1     # Corner radius for label badges (-1 = auto pill)
+label_background_border_width = 1       # Border width for label badges (0 disables border)
 
 # Behavior
 min_size_width = 25            # Minimum cell width in pixels (stops dividing when width is reached)

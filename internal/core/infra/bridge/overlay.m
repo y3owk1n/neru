@@ -108,6 +108,10 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 @property(nonatomic, strong) NSColor *gridBorderColor;                  ///< Grid border color
 @property(nonatomic, assign) CGFloat gridBorderWidth;                   ///< Grid border width
 @property(nonatomic, assign) BOOL gridDrawLabelBackground;              ///< Draw label badge background
+@property(nonatomic, assign) CGFloat gridLabelBackgroundPaddingX;       ///< Grid label badge horizontal padding
+@property(nonatomic, assign) CGFloat gridLabelBackgroundPaddingY;       ///< Grid label badge vertical padding
+@property(nonatomic, assign) CGFloat gridLabelBackgroundCornerRadius;   ///< Grid label badge corner radius
+@property(nonatomic, assign) CGFloat gridLabelBackgroundBorderWidth;    ///< Grid label badge border width
 @property(nonatomic, assign) BOOL hideUnmatched;                        ///< Hide unmatched cells
 
 // Cached grid text colors to reduce allocations during drawing
@@ -194,6 +198,10 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		_gridBorderColor = [NSColor colorWithWhite:0.7 alpha:1.0];
 		_gridBorderWidth = 1.0;
 		_gridDrawLabelBackground = NO;
+		_gridLabelBackgroundPaddingX = -1.0;
+		_gridLabelBackgroundPaddingY = -1.0;
+		_gridLabelBackgroundCornerRadius = -1.0;
+		_gridLabelBackgroundBorderWidth = 1.0;
 		_hideUnmatched = NO;
 
 		// Initialize cached colors
@@ -764,8 +772,12 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		return;
 	}
 
-	CGFloat horizontalPadding = MAX(4.0, round(self.gridFont.pointSize * 0.4));
-	CGFloat verticalPadding = MAX(2.0, round(self.gridFont.pointSize * 0.2));
+	CGFloat horizontalPadding = self.gridLabelBackgroundPaddingX >= 0.0
+	                                ? self.gridLabelBackgroundPaddingX
+	                                : MAX(4.0, round(self.gridFont.pointSize * 0.4));
+	CGFloat verticalPadding = self.gridLabelBackgroundPaddingY >= 0.0
+	                              ? self.gridLabelBackgroundPaddingY
+	                              : MAX(2.0, round(self.gridFont.pointSize * 0.2));
 	CGFloat badgeWidth = MAX(textSize.width + (horizontalPadding * 2.0), textSize.height + (verticalPadding * 2.0));
 	CGFloat badgeHeight = textSize.height + (verticalPadding * 2.0);
 	CGFloat maxBadgeWidth = MAX(0.0, cellRect.size.width - 4.0);
@@ -785,13 +797,16 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	NSRect badgeRect = NSMakeRect(cellRect.origin.x + (cellRect.size.width - badgeWidth) / 2.0,
 	                              cellRect.origin.y + (cellRect.size.height - badgeHeight) / 2.0, badgeWidth,
 	                              badgeHeight);
-	CGFloat radius = MIN(badgeRect.size.height / 2.0, 6.0);
+	CGFloat maxRadius = MIN(badgeRect.size.width, badgeRect.size.height) / 2.0;
+	CGFloat radius = self.gridLabelBackgroundCornerRadius >= 0.0
+	                     ? MIN(self.gridLabelBackgroundCornerRadius, maxRadius)
+	                     : MIN(badgeRect.size.height / 2.0, 6.0);
 	NSBezierPath *badgePath = [NSBezierPath bezierPathWithRoundedRect:badgeRect xRadius:radius yRadius:radius];
 	[badgeFill setFill];
 	[badgePath fill];
-	if (badgeBorder) {
+	if (badgeBorder && self.gridLabelBackgroundBorderWidth > 0.0) {
 		[badgeBorder setStroke];
-		[badgePath setLineWidth:1.0];
+		[badgePath setLineWidth:self.gridLabelBackgroundBorderWidth];
 		[badgePath stroke];
 	}
 
@@ -1480,6 +1495,10 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
 	int borderWidth = style.borderWidth;
 	BOOL drawLabelBackground = style.drawLabelBackground ? YES : NO;
+	CGFloat labelBackgroundPaddingX = style.labelBackgroundPaddingX;
+	CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
+	CGFloat labelBackgroundCornerRadius = style.labelBackgroundCornerRadius;
+	CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
 	dispatch_async(dispatch_get_main_queue(), ^{
 		// Apply style — only re-create the grid font when family or size changed.
 		BOOL gridFamilyChanged = (fontFamily != controller.overlayView.cachedGridFontFamily &&
@@ -1515,6 +1534,10 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 		                                                                 defaultColor:[NSColor grayColor]];
 		controller.overlayView.gridBorderWidth = borderWidth > 0 ? borderWidth : 1.0;
 		controller.overlayView.gridDrawLabelBackground = drawLabelBackground;
+		controller.overlayView.gridLabelBackgroundPaddingX = labelBackgroundPaddingX;
+		controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
+		controller.overlayView.gridLabelBackgroundCornerRadius = labelBackgroundCornerRadius;
+		controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
 
 		controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
 		controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
@@ -1701,6 +1724,10 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
 	int borderWidth = style.borderWidth;
 	BOOL drawLabelBackground = style.drawLabelBackground ? YES : NO;
+	CGFloat labelBackgroundPaddingX = style.labelBackgroundPaddingX;
+	CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
+	CGFloat labelBackgroundCornerRadius = style.labelBackgroundCornerRadius;
+	CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
 	dispatch_async(dispatch_get_main_queue(), ^{
 		// Only re-create the grid font when family or size changed.
 		// This is outside the color guard so font-size-only changes are never skipped.
@@ -1758,6 +1785,10 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 			controller.overlayView.gridBorderWidth = borderWidth;
 		}
 		controller.overlayView.gridDrawLabelBackground = drawLabelBackground;
+		controller.overlayView.gridLabelBackgroundPaddingX = labelBackgroundPaddingX;
+		controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
+		controller.overlayView.gridLabelBackgroundCornerRadius = labelBackgroundCornerRadius;
+		controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
 		controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
 		controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
 

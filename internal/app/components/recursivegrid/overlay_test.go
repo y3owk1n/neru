@@ -32,6 +32,34 @@ func TestBuildStyle_UsesDefaultLabelBackgroundColors(t *testing.T) {
 	if lightStyle.TextColor() != config.RecursiveGridTextColorLight {
 		t.Fatalf("expected light text color %q, got %q", config.RecursiveGridTextColorLight, lightStyle.TextColor())
 	}
+	if lightStyle.LabelBackgroundPaddingX() != config.DefaultRecursiveGridLabelBackgroundPaddingX {
+		t.Fatalf(
+			"expected default label background padding x %d, got %d",
+			config.DefaultRecursiveGridLabelBackgroundPaddingX,
+			lightStyle.LabelBackgroundPaddingX(),
+		)
+	}
+	if lightStyle.LabelBackgroundPaddingY() != config.DefaultRecursiveGridLabelBackgroundPaddingY {
+		t.Fatalf(
+			"expected default label background padding y %d, got %d",
+			config.DefaultRecursiveGridLabelBackgroundPaddingY,
+			lightStyle.LabelBackgroundPaddingY(),
+		)
+	}
+	if lightStyle.LabelBackgroundCornerRadius() != config.DefaultRecursiveGridLabelBackgroundCornerRadius {
+		t.Fatalf(
+			"expected default label background corner radius %d, got %d",
+			config.DefaultRecursiveGridLabelBackgroundCornerRadius,
+			lightStyle.LabelBackgroundCornerRadius(),
+		)
+	}
+	if lightStyle.LabelBackgroundBorderWidth() != config.DefaultRecursiveGridLabelBackgroundBorderWidth {
+		t.Fatalf(
+			"expected default label background border width %d, got %d",
+			config.DefaultRecursiveGridLabelBackgroundBorderWidth,
+			lightStyle.LabelBackgroundBorderWidth(),
+		)
+	}
 
 	darkStyle := BuildStyle(cfg, &mockThemeProvider{darkMode: true})
 	if darkStyle.LabelBackgroundColor() != config.RecursiveGridLabelBackgroundColorDark {
@@ -53,6 +81,10 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 	cfg.LabelBackgroundColorDark = "#55667788"
 	cfg.TextColorLight = "#FF111111"
 	cfg.TextColorDark = "#FFEEEEEE"
+	cfg.LabelBackgroundPaddingX = 9
+	cfg.LabelBackgroundPaddingY = 5
+	cfg.LabelBackgroundCornerRadius = 3
+	cfg.LabelBackgroundBorderWidth = 2
 
 	lightStyle := BuildStyle(cfg, &mockThemeProvider{darkMode: false})
 	if lightStyle.LabelBackgroundColor() != "#11223344" {
@@ -61,6 +93,24 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 	if lightStyle.TextColor() != "#FF111111" {
 		t.Fatalf("expected custom light text color, got %q", lightStyle.TextColor())
 	}
+	if lightStyle.LabelBackgroundPaddingX() != 9 {
+		t.Fatalf("expected custom light label background padding x, got %d", lightStyle.LabelBackgroundPaddingX())
+	}
+	if lightStyle.LabelBackgroundPaddingY() != 5 {
+		t.Fatalf("expected custom light label background padding y, got %d", lightStyle.LabelBackgroundPaddingY())
+	}
+	if lightStyle.LabelBackgroundCornerRadius() != 3 {
+		t.Fatalf(
+			"expected custom light label background corner radius, got %d",
+			lightStyle.LabelBackgroundCornerRadius(),
+		)
+	}
+	if lightStyle.LabelBackgroundBorderWidth() != 2 {
+		t.Fatalf(
+			"expected custom light label background border width, got %d",
+			lightStyle.LabelBackgroundBorderWidth(),
+		)
+	}
 
 	darkStyle := BuildStyle(cfg, &mockThemeProvider{darkMode: true})
 	if darkStyle.LabelBackgroundColor() != "#55667788" {
@@ -68,6 +118,24 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 	}
 	if darkStyle.TextColor() != "#FFEEEEEE" {
 		t.Fatalf("expected custom dark text color, got %q", darkStyle.TextColor())
+	}
+	if darkStyle.LabelBackgroundPaddingX() != 9 {
+		t.Fatalf("expected custom dark label background padding x, got %d", darkStyle.LabelBackgroundPaddingX())
+	}
+	if darkStyle.LabelBackgroundPaddingY() != 5 {
+		t.Fatalf("expected custom dark label background padding y, got %d", darkStyle.LabelBackgroundPaddingY())
+	}
+	if darkStyle.LabelBackgroundCornerRadius() != 3 {
+		t.Fatalf(
+			"expected custom dark label background corner radius, got %d",
+			darkStyle.LabelBackgroundCornerRadius(),
+		)
+	}
+	if darkStyle.LabelBackgroundBorderWidth() != 2 {
+		t.Fatalf(
+			"expected custom dark label background border width, got %d",
+			darkStyle.LabelBackgroundBorderWidth(),
+		)
 	}
 }
 

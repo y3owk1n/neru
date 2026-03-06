@@ -51,6 +51,10 @@ typedef struct {
 	char *borderColor;            ///< Border color
 	int borderWidth;              ///< Border width
 	int drawLabelBackground;      ///< Draw labels with a badge background
+	int labelBackgroundPaddingX;  ///< Label badge horizontal padding (-1 = auto)
+	int labelBackgroundPaddingY;  ///< Label badge vertical padding (-1 = auto)
+	int labelBackgroundCornerRadius; ///< Label badge corner radius (-1 = auto)
+	int labelBackgroundBorderWidth;  ///< Label badge border width
 } GridCellStyle;
 
 /// Grid cell data

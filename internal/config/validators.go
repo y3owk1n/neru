@@ -1164,6 +1164,34 @@ func (c *Config) ValidateRecursiveGrid() error {
 		)
 	}
 
+	if c.RecursiveGrid.LabelBackgroundPaddingX < -1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.label_background_padding_x must be greater than or equal to -1",
+		)
+	}
+
+	if c.RecursiveGrid.LabelBackgroundPaddingY < -1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.label_background_padding_y must be greater than or equal to -1",
+		)
+	}
+
+	if c.RecursiveGrid.LabelBackgroundCornerRadius < -1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.label_background_corner_radius must be greater than or equal to -1",
+		)
+	}
+
+	if c.RecursiveGrid.LabelBackgroundBorderWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.label_background_border_width must be non-negative",
+		)
+	}
+
 	// Validate colors
 	colorFields := []colorField{
 		{c.RecursiveGrid.LineColorLight, "recursive_grid.line_color_light"},

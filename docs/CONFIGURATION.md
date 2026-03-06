@@ -691,6 +691,10 @@ Recursive grid divides the screen into cells, narrowing selection with each keyp
 | `grid_rows`         | int    | `2`      | Number of rows                                     |
 | `keys`              | string | `"uijk"` | Cell selection keys                                |
 | `label_background`  | bool   | `false`  | Add rounded backgrounds behind labels              |
+| `label_background_padding_x` | int | `-1` | Horizontal badge padding (`-1` = auto)            |
+| `label_background_padding_y` | int | `-1` | Vertical badge padding (`-1` = auto)              |
+| `label_background_corner_radius` | int | `-1` | Badge corner radius (`-1` = auto)                 |
+| `label_background_border_width` | int | `1` | Badge border width (`0` disables border)          |
 | `min_size_width`    | int    | `25`     | Min cell width (pixels)                            |
 | `min_size_height`   | int    | `25`     | Min cell height (pixels)                           |
 | `max_depth`         | int    | `10`     | Maximum recursion levels                           |
@@ -764,13 +768,17 @@ j   →   k          j = Lower-left
 | `label_background`      | bool   | `false`       | Add rounded backgrounds behind labels        |
 | `label_background_color_light` | string | `"#CCFFD700"` | Label background for Light Mode             |
 | `label_background_color_dark`  | string | `"#CCFFD700"` | Label background for Dark Mode              |
+| `label_background_padding_x` | int | `-1` | Horizontal badge padding (`-1` = auto)       |
+| `label_background_padding_y` | int | `-1` | Vertical badge padding (`-1` = auto)         |
+| `label_background_corner_radius` | int | `-1` | Badge corner radius (`-1` = auto)            |
+| `label_background_border_width` | int | `1` | Badge border width (`0` disables border)     |
 
 > **Theme-aware colors:** When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
 > The colors update in real time when you switch system themes. If you explicitly
 > set a value, it is always used regardless of the system theme.
 
-When `label_background = true`, Neru keeps the normal recursive-grid cell fill and adds a separate rounded label background behind each letter. The configured alpha is used as-is, so you can control the transparency precisely with `label_background_color_light` and `label_background_color_dark`.
+When `label_background = true`, Neru keeps the normal recursive-grid cell fill and adds a separate rounded label background behind each letter. The configured alpha is used as-is, so you can control the transparency precisely with `label_background_color_light` and `label_background_color_dark`. Badge geometry is configurable with `label_background_padding_x`, `label_background_padding_y`, `label_background_corner_radius`, and `label_background_border_width`. A value of `-1` keeps the automatic sizing behavior for padding and corner radius.
 
 ---
 

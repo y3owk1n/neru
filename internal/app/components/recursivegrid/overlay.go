@@ -308,17 +308,21 @@ func (o *Overlay) DrawRecursiveGrid(
 	})
 
 	finalStyle := C.GridCellStyle{
-		fontSize:               C.int(style.FontSize()),
-		fontFamily:             (*C.char)(cachedStyle.FontFamily),
-		backgroundColor:        (*C.char)(cachedStyle.BgColor),
-		labelBackgroundColor:   (*C.char)(cachedStyle.LabelBgColor),
-		textColor:              (*C.char)(cachedStyle.TextColor),
-		matchedTextColor:       (*C.char)(cachedStyle.MatchedTextColor),
-		matchedBackgroundColor: (*C.char)(cachedStyle.MatchedBgColor),
-		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
-		borderColor:            (*C.char)(cachedStyle.BorderColor),
-		borderWidth:            C.int(style.LineWidth()),
-		drawLabelBackground:    C.int(boolToInt(style.LabelBackground())),
+		fontSize:                    C.int(style.FontSize()),
+		fontFamily:                  (*C.char)(cachedStyle.FontFamily),
+		backgroundColor:             (*C.char)(cachedStyle.BgColor),
+		labelBackgroundColor:        (*C.char)(cachedStyle.LabelBgColor),
+		textColor:                   (*C.char)(cachedStyle.TextColor),
+		matchedTextColor:            (*C.char)(cachedStyle.MatchedTextColor),
+		matchedBackgroundColor:      (*C.char)(cachedStyle.MatchedBgColor),
+		matchedBorderColor:          (*C.char)(cachedStyle.MatchedBorderColor),
+		borderColor:                 (*C.char)(cachedStyle.BorderColor),
+		borderWidth:                 C.int(style.LineWidth()),
+		drawLabelBackground:         C.int(boolToInt(style.LabelBackground())),
+		labelBackgroundPaddingX:     C.int(style.LabelBackgroundPaddingX()),
+		labelBackgroundPaddingY:     C.int(style.LabelBackgroundPaddingY()),
+		labelBackgroundCornerRadius: C.int(style.LabelBackgroundCornerRadius()),
+		labelBackgroundBorderWidth:  C.int(style.LabelBackgroundBorderWidth()),
 	}
 
 	// Draw the grid cells
@@ -411,14 +415,18 @@ func boolToInt(v bool) int {
 
 // Style represents the visual style for recursive_grid.
 type Style struct {
-	lineColor            string
-	lineWidth            int
-	highlightColor       string
-	textColor            string
-	fontSize             int
-	fontFamily           string
-	labelBackground      bool
-	labelBackgroundColor string
+	lineColor                   string
+	lineWidth                   int
+	highlightColor              string
+	textColor                   string
+	fontSize                    int
+	fontFamily                  string
+	labelBackground             bool
+	labelBackgroundColor        string
+	labelBackgroundPaddingX     int
+	labelBackgroundPaddingY     int
+	labelBackgroundCornerRadius int
+	labelBackgroundBorderWidth  int
 }
 
 // LineColor returns the line color.
@@ -461,6 +469,26 @@ func (s Style) LabelBackgroundColor() string {
 	return s.labelBackgroundColor
 }
 
+// LabelBackgroundPaddingX returns the horizontal badge padding.
+func (s Style) LabelBackgroundPaddingX() int {
+	return s.labelBackgroundPaddingX
+}
+
+// LabelBackgroundPaddingY returns the vertical badge padding.
+func (s Style) LabelBackgroundPaddingY() int {
+	return s.labelBackgroundPaddingY
+}
+
+// LabelBackgroundCornerRadius returns the badge corner radius.
+func (s Style) LabelBackgroundCornerRadius() int {
+	return s.labelBackgroundCornerRadius
+}
+
+// LabelBackgroundBorderWidth returns the badge border width.
+func (s Style) LabelBackgroundBorderWidth() int {
+	return s.labelBackgroundBorderWidth
+}
+
 // BuildStyle creates a Style from RecursiveGridConfig.
 // The theme parameter is used to resolve theme-aware colors when they are not
 // explicitly specified in the configuration (empty string = default).
@@ -498,5 +526,9 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			config.RecursiveGridLabelBackgroundColorLight,
 			config.RecursiveGridLabelBackgroundColorDark,
 		),
+		labelBackgroundPaddingX:     cfg.LabelBackgroundPaddingX,
+		labelBackgroundPaddingY:     cfg.LabelBackgroundPaddingY,
+		labelBackgroundCornerRadius: cfg.LabelBackgroundCornerRadius,
+		labelBackgroundBorderWidth:  cfg.LabelBackgroundBorderWidth,
 	}
 }

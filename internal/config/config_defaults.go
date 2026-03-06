@@ -240,6 +240,14 @@ const (
 	RecursiveGridLabelBackgroundColorLight = "#CCFFD700"
 	// RecursiveGridLabelBackgroundColorDark is the default label badge color for Dark Mode.
 	RecursiveGridLabelBackgroundColorDark = "#CCFFD700"
+	// DefaultRecursiveGridLabelBackgroundPaddingX preserves automatic horizontal badge padding.
+	DefaultRecursiveGridLabelBackgroundPaddingX = -1
+	// DefaultRecursiveGridLabelBackgroundPaddingY preserves automatic vertical badge padding.
+	DefaultRecursiveGridLabelBackgroundPaddingY = -1
+	// DefaultRecursiveGridLabelBackgroundCornerRadius preserves the automatic pill radius.
+	DefaultRecursiveGridLabelBackgroundCornerRadius = -1
+	// DefaultRecursiveGridLabelBackgroundBorderWidth is the default label badge border width.
+	DefaultRecursiveGridLabelBackgroundBorderWidth = 1
 
 	// ModeIndicatorBackgroundColorLight is the light mode background color for the mode indicator.
 	ModeIndicatorBackgroundColorLight = "#F200CFCF"
@@ -373,18 +381,22 @@ func DefaultConfig() *Config {
 
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
 
-			LineColorLight:            RecursiveGridLineColorLight,
-			LineColorDark:             RecursiveGridLineColorDark,
-			LineWidth:                 DefaultRecursiveGridLineWidth,
-			HighlightColorLight:       RecursiveGridHighlightColorLight,
-			HighlightColorDark:        RecursiveGridHighlightColorDark,
-			TextColorLight:            RecursiveGridTextColorLight,
-			TextColorDark:             RecursiveGridTextColorDark,
-			FontSize:                  DefaultRecursiveGridFontSize,
-			FontFamily:                "",
-			LabelBackgroundColorLight: RecursiveGridLabelBackgroundColorLight,
-			LabelBackgroundColorDark:  RecursiveGridLabelBackgroundColorDark,
-			LabelBackground:           false,
+			LineColorLight:              RecursiveGridLineColorLight,
+			LineColorDark:               RecursiveGridLineColorDark,
+			LineWidth:                   DefaultRecursiveGridLineWidth,
+			HighlightColorLight:         RecursiveGridHighlightColorLight,
+			HighlightColorDark:          RecursiveGridHighlightColorDark,
+			TextColorLight:              RecursiveGridTextColorLight,
+			TextColorDark:               RecursiveGridTextColorDark,
+			FontSize:                    DefaultRecursiveGridFontSize,
+			FontFamily:                  "",
+			LabelBackgroundColorLight:   RecursiveGridLabelBackgroundColorLight,
+			LabelBackgroundColorDark:    RecursiveGridLabelBackgroundColorDark,
+			LabelBackgroundPaddingX:     DefaultRecursiveGridLabelBackgroundPaddingX,
+			LabelBackgroundPaddingY:     DefaultRecursiveGridLabelBackgroundPaddingY,
+			LabelBackgroundCornerRadius: DefaultRecursiveGridLabelBackgroundCornerRadius,
+			LabelBackgroundBorderWidth:  DefaultRecursiveGridLabelBackgroundBorderWidth,
+			LabelBackground:             false,
 
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
 			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,

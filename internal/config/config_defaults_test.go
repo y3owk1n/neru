@@ -46,5 +46,33 @@ func TestDefaultConfig(t *testing.T) {
 				cfg.RecursiveGrid.LabelBackgroundColorDark,
 			)
 		}
+		if cfg.RecursiveGrid.LabelBackgroundPaddingX != config.DefaultRecursiveGridLabelBackgroundPaddingX {
+			t.Errorf(
+				"Expected RecursiveGrid.LabelBackgroundPaddingX %d, got %d",
+				config.DefaultRecursiveGridLabelBackgroundPaddingX,
+				cfg.RecursiveGrid.LabelBackgroundPaddingX,
+			)
+		}
+		if cfg.RecursiveGrid.LabelBackgroundPaddingY != config.DefaultRecursiveGridLabelBackgroundPaddingY {
+			t.Errorf(
+				"Expected RecursiveGrid.LabelBackgroundPaddingY %d, got %d",
+				config.DefaultRecursiveGridLabelBackgroundPaddingY,
+				cfg.RecursiveGrid.LabelBackgroundPaddingY,
+			)
+		}
+		if cfg.RecursiveGrid.LabelBackgroundCornerRadius != config.DefaultRecursiveGridLabelBackgroundCornerRadius {
+			t.Errorf(
+				"Expected RecursiveGrid.LabelBackgroundCornerRadius %d, got %d",
+				config.DefaultRecursiveGridLabelBackgroundCornerRadius,
+				cfg.RecursiveGrid.LabelBackgroundCornerRadius,
+			)
+		}
+		if cfg.RecursiveGrid.LabelBackgroundBorderWidth != config.DefaultRecursiveGridLabelBackgroundBorderWidth {
+			t.Errorf(
+				"Expected RecursiveGrid.LabelBackgroundBorderWidth %d, got %d",
+				config.DefaultRecursiveGridLabelBackgroundBorderWidth,
+				cfg.RecursiveGrid.LabelBackgroundBorderWidth,
+			)
+		}
 	})
 }
