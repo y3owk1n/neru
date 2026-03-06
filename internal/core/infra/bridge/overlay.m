@@ -723,13 +723,16 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		// Skip cells outside the dirty region (only when filtering)
 		if (filterByRect && !NSIntersectsRect(cellRect, dirtyRect))
 			continue;
-		// Draw cell background
-		NSColor *bgBase = self.gridBackgroundColor;
-		if (isMatched && self.gridMatchedBackgroundColor) {
-			bgBase = self.gridMatchedBackgroundColor;
+		// In badge mode, leave the cell transparent and only draw the rounded
+		// label background so recursive-grid labels behave like hint pills.
+		if (!self.gridDrawLabelBackground) {
+			NSColor *bgBase = self.gridBackgroundColor;
+			if (isMatched && self.gridMatchedBackgroundColor) {
+				bgBase = self.gridMatchedBackgroundColor;
+			}
+			[bgBase setFill];
+			NSRectFill(cellRect);
 		}
-		[bgBase setFill];
-		NSRectFill(cellRect);
 		NSColor *borderColor = self.gridBorderColor;
 		if (isMatched && self.gridMatchedBorderColor) {
 			borderColor = self.gridMatchedBorderColor;
