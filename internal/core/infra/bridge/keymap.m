@@ -869,7 +869,8 @@ void refreshKeyboardLayoutMaps(void) {
 int setReferenceKeyboardLayout(const char *inputSourceID) {
 	NSString *trimmedInputSourceID = nil;
 	if (inputSourceID) {
-		trimmedInputSourceID = [@(inputSourceID) stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+		trimmedInputSourceID =
+		    [@(inputSourceID) stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
 		if (trimmedInputSourceID.length == 0) {
 			trimmedInputSourceID = nil;
 		}
