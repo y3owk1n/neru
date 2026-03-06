@@ -690,7 +690,7 @@ Recursive grid divides the screen into cells, narrowing selection with each keyp
 | `grid_cols`         | int    | `2`      | Number of columns                                  |
 | `grid_rows`         | int    | `2`      | Number of rows                                     |
 | `keys`              | string | `"uijk"` | Cell selection keys                                |
-| `label_background`  | bool   | `false`  | Draw labels as hint-like badges                    |
+| `label_background`  | bool   | `false`  | Add rounded backgrounds behind labels              |
 | `min_size_width`    | int    | `25`     | Min cell width (pixels)                            |
 | `min_size_height`   | int    | `25`     | Min cell height (pixels)                           |
 | `max_depth`         | int    | `10`     | Maximum recursion levels                           |
@@ -761,14 +761,16 @@ j   →   k          j = Lower-left
 | `text_color_dark`       | string | `"#FF00CFCF"` | Cell text color for Dark Mode (theme-aware)  |
 | `font_size`             | int    | `10`          | Font size for labels                         |
 | `font_family`           | string | `""`          | Font family for labels (empty = system)      |
-| `label_background`      | bool   | `false`       | Draw labels as hint-like badges              |
+| `label_background`      | bool   | `false`       | Add rounded backgrounds behind labels        |
+| `label_background_color_light` | string | `"#CCFFD700"` | Label background for Light Mode             |
+| `label_background_color_dark`  | string | `"#CCFFD700"` | Label background for Dark Mode              |
 
 > **Theme-aware colors:** When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
 > The colors update in real time when you switch system themes. If you explicitly
 > set a value, it is always used regardless of the system theme.
 
-When `label_background = true`, recursive-grid labels render inside rounded badges for better contrast on busy or low-contrast content.
+When `label_background = true`, Neru keeps the normal recursive-grid cell fill and adds a separate rounded label background behind each letter. The configured alpha is used as-is, so you can control the transparency precisely with `label_background_color_light` and `label_background_color_dark`.
 
 ---
 

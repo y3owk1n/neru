@@ -1172,6 +1172,8 @@ func (c *Config) ValidateRecursiveGrid() error {
 		{c.RecursiveGrid.HighlightColorDark, "recursive_grid.highlight_color_dark"},
 		{c.RecursiveGrid.TextColorLight, "recursive_grid.text_color_light"},
 		{c.RecursiveGrid.TextColorDark, "recursive_grid.text_color_dark"},
+		{c.RecursiveGrid.LabelBackgroundColorLight, "recursive_grid.label_background_color_light"},
+		{c.RecursiveGrid.LabelBackgroundColorDark, "recursive_grid.label_background_color_dark"},
 	}
 
 	err := validateColors(colorFields)

@@ -12,6 +12,7 @@ import (
 type CachedStyle struct {
 	FontFamily         unsafe.Pointer
 	BgColor            unsafe.Pointer
+	LabelBgColor       unsafe.Pointer
 	TextColor          unsafe.Pointer
 	MatchedTextColor   unsafe.Pointer
 	BorderColor        unsafe.Pointer
@@ -71,6 +72,8 @@ func (c *StyleCache) freeLocked() {
 	c.style.FontFamily = nil
 	bridge.FreeCString(c.style.BgColor)
 	c.style.BgColor = nil
+	bridge.FreeCString(c.style.LabelBgColor)
+	c.style.LabelBgColor = nil
 	bridge.FreeCString(c.style.TextColor)
 	c.style.TextColor = nil
 	bridge.FreeCString(c.style.MatchedTextColor)

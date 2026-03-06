@@ -32,5 +32,19 @@ func TestDefaultConfig(t *testing.T) {
 		if cfg.RecursiveGrid.LabelBackground {
 			t.Error("Expected RecursiveGrid.LabelBackground to be false by default")
 		}
+		if cfg.RecursiveGrid.LabelBackgroundColorLight != config.RecursiveGridLabelBackgroundColorLight {
+			t.Errorf(
+				"Expected RecursiveGrid.LabelBackgroundColorLight %q, got %q",
+				config.RecursiveGridLabelBackgroundColorLight,
+				cfg.RecursiveGrid.LabelBackgroundColorLight,
+			)
+		}
+		if cfg.RecursiveGrid.LabelBackgroundColorDark != config.RecursiveGridLabelBackgroundColorDark {
+			t.Errorf(
+				"Expected RecursiveGrid.LabelBackgroundColorDark %q, got %q",
+				config.RecursiveGridLabelBackgroundColorDark,
+				cfg.RecursiveGrid.LabelBackgroundColorDark,
+			)
+		}
 	})
 }

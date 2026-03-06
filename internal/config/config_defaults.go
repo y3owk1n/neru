@@ -236,6 +236,10 @@ const (
 	RecursiveGridTextColorLight = "#FF007A9E"
 	// RecursiveGridTextColorDark is the default text color for Dark Mode for recursive grid.
 	RecursiveGridTextColorDark = "#FF00CFCF"
+	// RecursiveGridLabelBackgroundColorLight is the default label badge color for Light Mode.
+	RecursiveGridLabelBackgroundColorLight = "#CCFFD700"
+	// RecursiveGridLabelBackgroundColorDark is the default label badge color for Dark Mode.
+	RecursiveGridLabelBackgroundColorDark = "#CCFFD700"
 
 	// ModeIndicatorBackgroundColorLight is the light mode background color for the mode indicator.
 	ModeIndicatorBackgroundColorLight = "#F200CFCF"
@@ -369,16 +373,18 @@ func DefaultConfig() *Config {
 
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
 
-			LineColorLight:      RecursiveGridLineColorLight,
-			LineColorDark:       RecursiveGridLineColorDark,
-			LineWidth:           DefaultRecursiveGridLineWidth,
-			HighlightColorLight: RecursiveGridHighlightColorLight,
-			HighlightColorDark:  RecursiveGridHighlightColorDark,
-			TextColorLight:      RecursiveGridTextColorLight,
-			TextColorDark:       RecursiveGridTextColorDark,
-			FontSize:            DefaultRecursiveGridFontSize,
-			FontFamily:          "",
-			LabelBackground:     false,
+			LineColorLight:            RecursiveGridLineColorLight,
+			LineColorDark:             RecursiveGridLineColorDark,
+			LineWidth:                 DefaultRecursiveGridLineWidth,
+			HighlightColorLight:       RecursiveGridHighlightColorLight,
+			HighlightColorDark:        RecursiveGridHighlightColorDark,
+			TextColorLight:            RecursiveGridTextColorLight,
+			TextColorDark:             RecursiveGridTextColorDark,
+			FontSize:                  DefaultRecursiveGridFontSize,
+			FontFamily:                "",
+			LabelBackgroundColorLight: RecursiveGridLabelBackgroundColorLight,
+			LabelBackgroundColorDark:  RecursiveGridLabelBackgroundColorDark,
+			LabelBackground:           false,
 
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
 			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,

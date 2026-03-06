@@ -43,6 +43,7 @@ typedef struct {
 	int fontSize;                 ///< Font size
 	char *fontFamily;             ///< Font family
 	char *backgroundColor;        ///< Background color
+	char *labelBackgroundColor;   ///< Label background color
 	char *textColor;              ///< Text color
 	char *matchedTextColor;       ///< Matched text color
 	char *matchedBackgroundColor; ///< Matched background color
