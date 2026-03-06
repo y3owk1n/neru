@@ -22,17 +22,27 @@ type Callback func(key string)
 
 // EventTap represents a keyboard event interceptor that captures global key presses.
 type EventTap struct {
-	handle   C.EventTap
-	callback Callback
-	logger   *zap.Logger
+	handle C.EventTap
+	logger *zap.Logger
+
+	callbackMu sync.RWMutex
+	callback   Callback
+
+	callbackQueue chan string
+	stopDispatch  chan struct{}
+	stopOnce      sync.Once
 }
+
+const callbackQueueSize = 256
 
 // NewEventTap initializes a new event tap for capturing global keyboard events.
 // Returns nil if the event tap cannot be created, typically due to missing Accessibility permissions.
 func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
 	eventTap := &EventTap{
-		callback: callback,
-		logger:   logger,
+		callback:      callback,
+		logger:        logger,
+		callbackQueue: make(chan string, callbackQueueSize),
+		stopDispatch:  make(chan struct{}),
 	}
 
 	eventTap.handle = C.createEventTap(C.EventTapCallback(C.eventTapCallbackBridge), nil)
@@ -41,6 +51,8 @@ func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
 
 		return nil
 	}
+
+	eventTap.startDispatcher()
 
 	// Store in global variable for callbacks with mutex protection
 	globalEventTapMu.Lock()
@@ -117,28 +129,36 @@ func (et *EventTap) Disable() {
 // This method ensures proper cleanup by disabling the tap first and clearing references.
 func (et *EventTap) Destroy() {
 	et.logger.Debug("Destroying event tap")
-	if et.handle != nil {
-		// Disable first to prevent any pending callbacks
-		et.Disable()
 
-		// Destroy the tap
-		C.destroyEventTap(et.handle)
-		et.handle = nil
-
-		// Clear callback to prevent any lingering references
-		et.callback = nil
-
-		// Clear global reference if this is the global event tap
-		globalEventTapMu.Lock()
-		if globalEventTap == et {
-			globalEventTap = nil
-		}
-		globalEventTapMu.Unlock()
-
-		et.logger.Debug("Event tap destroyed")
-	} else {
-		et.logger.Warn("Cannot destroy nil event tap")
+	// Clear global reference first so no new C callbacks enqueue keys while
+	// teardown is in progress.
+	globalEventTapMu.Lock()
+	if globalEventTap == et {
+		globalEventTap = nil
 	}
+	globalEventTapMu.Unlock()
+
+	et.stopDispatcher()
+
+	if et.handle == nil {
+		et.logger.Warn("Cannot destroy nil event tap")
+
+		return
+	}
+
+	// Disable first to prevent any pending callbacks
+	et.Disable()
+
+	// Destroy the tap
+	C.destroyEventTap(et.handle)
+	et.handle = nil
+
+	// Clear callback to prevent any lingering references
+	et.callbackMu.Lock()
+	et.callback = nil
+	et.callbackMu.Unlock()
+
+	et.logger.Debug("Event tap destroyed")
 }
 
 // handleCallback processes key press events received from the C event tap bridge.
@@ -146,8 +166,45 @@ func (et *EventTap) Destroy() {
 func (et *EventTap) handleCallback(key string) {
 	et.logger.Debug("Key pressed", zap.String("key", key))
 
-	if et.callback != nil {
-		et.callback(key)
+	et.callbackMu.RLock()
+	callback := et.callback
+	et.callbackMu.RUnlock()
+
+	if callback != nil {
+		callback(key)
+	}
+}
+
+func (et *EventTap) startDispatcher() {
+	go func() {
+		for {
+			select {
+			case key := <-et.callbackQueue:
+				et.handleCallback(key)
+			case <-et.stopDispatch:
+				return
+			}
+		}
+	}()
+}
+
+func (et *EventTap) stopDispatcher() {
+	et.stopOnce.Do(func() {
+		close(et.stopDispatch)
+	})
+}
+
+func (et *EventTap) enqueueKey(key string) {
+	select {
+	case <-et.stopDispatch:
+		return
+	default:
+	}
+
+	select {
+	case et.callbackQueue <- key:
+	default:
+		et.logger.Warn("Event tap queue full, dropping key", zap.String("key", key))
 	}
 }
 
@@ -169,6 +226,6 @@ func eventTapCallbackBridge(key *C.char, _ unsafe.Pointer) {
 
 	if eventTap != nil && key != nil {
 		goKey := C.GoString(key)
-		eventTap.handleCallback(goKey)
+		eventTap.enqueueKey(goKey)
 	}
 }
