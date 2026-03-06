@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.24.0](https://github.com/y3owk1n/neru/compare/v1.23.0...v1.24.0) (2026-03-06)
+
+
+### Features
+
+* add theme-aware default for label_color - Closes [#489](https://github.com/y3owk1n/neru/issues/489) ([#491](https://github.com/y3owk1n/neru/issues/491)) ([9d22a6e](https://github.com/y3owk1n/neru/commit/9d22a6eeab11a52def9b29ec38525cd80531a091))
+* **cursor:** Add `center_cursor_position` option ([#504](https://github.com/y3owk1n/neru/issues/504)) ([32f903a](https://github.com/y3owk1n/neru/commit/32f903ae24e46a3ccfe25246d0b78b1cea2349fa))
+* implements program wide theme aware config for all colors ([#500](https://github.com/y3owk1n/neru/issues/500)) ([8201eb4](https://github.com/y3owk1n/neru/commit/8201eb49a32c1022bbfba160f4a4eb02d2aac383))
+* stable reference keyboard layout with auto-detection and config override ([#507](https://github.com/y3owk1n/neru/issues/507)) ([c5cad50](https://github.com/y3owk1n/neru/commit/c5cad5048cd3d94047cc5a29bb18e2f56a3c3870))
+
+
+### Bug Fixes
+
+* **config:** revamp the default colors ([#505](https://github.com/y3owk1n/neru/issues/505)) ([c8b4d99](https://github.com/y3owk1n/neru/commit/c8b4d999674215fdc88af9c6234d37a138660051))
+* eliminate duplicate configSnapshot() in app activation path ([#494](https://github.com/y3owk1n/neru/issues/494)) ([972181b](https://github.com/y3owk1n/neru/commit/972181b259d365939a5f67a581d4efcb7d716be7))
+* **ipc:** wire IPC reload through app-level config reload and fix stale config ([#496](https://github.com/y3owk1n/neru/issues/496)) ([6ce064d](https://github.com/y3owk1n/neru/commit/6ce064d620a9c69f80657c74dd89b0ca4ddd0b2c))
+* **lifecycle:** remove dead q.Style write, keep cache invalidation ([#495](https://github.com/y3owk1n/neru/issues/495)) ([315134a](https://github.com/y3owk1n/neru/commit/315134a83c2bb61f1f4bcb48fa70cab2afc981f5))
+* prevent event tap from blocking native thread and fix deadlock in callback cleanup ([#509](https://github.com/y3owk1n/neru/issues/509)) ([9b98230](https://github.com/y3owk1n/neru/commit/9b982309ef72bf2363d5399c2591bda3eaeb0845))
+* **recursive-grid:** execute action on final depth selection instead of when reaching max depth ([#502](https://github.com/y3owk1n/neru/issues/502)) ([920104d](https://github.com/y3owk1n/neru/commit/920104d85df7a1cac6f249642b90ec9667631024))
+
 ## [1.23.0](https://github.com/y3owk1n/neru/compare/v1.22.1...v1.23.0) (2026-03-04)
 
 
