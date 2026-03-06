@@ -160,6 +160,7 @@ type GeneralConfig struct {
 	CenterCursorPosition      bool     `json:"centerCursorPosition"      toml:"center_cursor_position"`
 	ModeExitKeys              []string `json:"modeExitKeys"              toml:"mode_exit_keys"`
 	HideOverlayInScreenShare  bool     `json:"hideOverlayInScreenShare"  toml:"hide_overlay_in_screen_share"`
+	KBLayoutToUse             string   `json:"kbLayoutToUse"             toml:"kb_layout_to_use"`
 }
 
 // ModeIndicatorConfig defines per-mode indicator visibility.
@@ -439,6 +440,13 @@ func (c *Config) ValidateGeneral() error {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"restore_cursor_position and center_cursor_position cannot both be enabled",
+		)
+	}
+
+	if c.General.KBLayoutToUse != "" && strings.TrimSpace(c.General.KBLayoutToUse) == "" {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"general.kb_layout_to_use cannot be whitespace-only",
 		)
 	}
 

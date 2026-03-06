@@ -165,6 +165,12 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags);
 /// the rebuild is dispatched asynchronously to the main queue.
 void refreshKeyboardLayoutMaps(void);
 
+/// Set the reference keyboard layout used for key translation.
+/// Pass NULL or empty string to use the currently selected macOS layout.
+/// Returns 1 when explicit layout ID resolution succeeds (or auto/current mode is used),
+/// and 0 when an explicit ID was provided but could not be resolved.
+int setReferenceKeyboardLayout(const char *inputSourceID);
+
 /// Callback type invoked after keyboard layout maps are rebuilt.
 typedef void (*KeymapLayoutChangeCallback)(void);
 

@@ -23,6 +23,8 @@ static NSDictionary<NSString *, NSNumber *> *gKeyNameToCodeMap = nil;
 static NSDictionary<NSNumber *, NSString *> *gKeyCodeToNameMap = nil;
 static TISInputSourceRef gCurrentInputSource = nil;
 static const UCKeyboardLayout *gCurrentKeyboardLayout = nil;
+/// optional configured input source ID for manual layout mapping
+static NSString *gConfiguredInputSourceID = nil;
 
 /// cached keycode to char maps with common modifiers like shift and caps
 /// to avoid UCKeyTranslate calls during run
@@ -64,6 +66,43 @@ static NSString *translateKeyCodeViaLayout(const UCKeyboardLayout *keyboardLayou
 	}
 
 	return [NSString stringWithCharacters:chars length:actualLength];
+}
+
+static BOOL inputSourceHasUnicodeLayoutData(TISInputSourceRef inputSource) {
+	if (!inputSource) {
+		return NO;
+	}
+
+	CFDataRef layoutData = (CFDataRef)TISGetInputSourceProperty(inputSource, kTISPropertyUnicodeKeyLayoutData);
+
+	return layoutData && CFDataGetLength(layoutData) > 0;
+}
+
+static TISInputSourceRef copyKeyboardLayoutInputSourceByID(NSString *inputSourceID) {
+	if (!inputSourceID || inputSourceID.length == 0) {
+		return nil;
+	}
+
+	NSDictionary *filter = @{(__bridge NSString *)kTISPropertyInputSourceID : inputSourceID};
+	CFArrayRef inputSourceList = TISCreateInputSourceList((__bridge CFDictionaryRef)filter, false);
+	if (!inputSourceList) {
+		return nil;
+	}
+
+	TISInputSourceRef matched = nil;
+	CFIndex sourceCount = CFArrayGetCount(inputSourceList);
+	for (CFIndex i = 0; i < sourceCount; i++) {
+		TISInputSourceRef candidate = (TISInputSourceRef)CFArrayGetValueAtIndex(inputSourceList, i);
+		if (inputSourceHasUnicodeLayoutData(candidate)) {
+			CFRetain(candidate);
+			matched = candidate;
+			break;
+		}
+	}
+
+	CFRelease(inputSourceList);
+
+	return matched;
 }
 
 #pragma mark - QWERTY Fallback
@@ -408,8 +447,21 @@ static void buildLayoutMaps(void) {
 		UInt32 capsMod = (alphaLock >> 8) & 0xFF;
 		UInt32 shiftCapsMod = shiftMod | capsMod;
 
-		/// try to get the current keyboard layout
-		TISInputSourceRef inputSource = TISCopyCurrentKeyboardLayoutInputSource();
+		TISInputSourceRef inputSource = nil;
+		NSString *configuredInputSourceID = nil;
+		[gKeymapLock lock];
+		configuredInputSourceID = [gConfiguredInputSourceID copy];
+		[gKeymapLock unlock];
+
+		// Prefer configured layout ID when set; otherwise use current macOS layout.
+		if (configuredInputSourceID.length > 0) {
+			inputSource = copyKeyboardLayoutInputSourceByID(configuredInputSourceID);
+		}
+
+		if (!inputSource) {
+			inputSource = TISCopyCurrentKeyboardLayoutInputSource();
+		}
+
 		if (!inputSource) {
 			// no layout source available — populate with QWERTY fallback
 			// so special keys and basic key lookups still work
@@ -812,6 +864,50 @@ void refreshKeyboardLayoutMaps(void) {
 	} else {
 		dispatch_async(dispatch_get_main_queue(), cancelAndRebuild);
 	}
+}
+
+int setReferenceKeyboardLayout(const char *inputSourceID) {
+	NSString *trimmedInputSourceID = nil;
+	if (inputSourceID) {
+		trimmedInputSourceID = [@(inputSourceID) stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+		if (trimmedInputSourceID.length == 0) {
+			trimmedInputSourceID = nil;
+		}
+	}
+
+	BOOL configuredResolved = YES;
+	if (trimmedInputSourceID.length > 0) {
+		TISInputSourceRef resolved = copyKeyboardLayoutInputSourceByID(trimmedInputSourceID);
+		if (resolved) {
+			CFRelease(resolved);
+		} else {
+			configuredResolved = NO;
+		}
+	}
+
+	void (^applyReferenceLayout)(void) = ^{
+		initializeKeyMaps();
+
+		[gKeymapLock lock];
+		gConfiguredInputSourceID = [trimmedInputSourceID copy];
+		[gKeymapLock unlock];
+
+		buildLayoutMaps();
+		atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
+
+		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
+		if (cb) {
+			cb();
+		}
+	};
+
+	if ([NSThread isMainThread]) {
+		applyReferenceLayout();
+	} else {
+		dispatch_sync(dispatch_get_main_queue(), applyReferenceLayout);
+	}
+
+	return configuredResolved ? 1 : 0;
 }
 
 void setKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback) {

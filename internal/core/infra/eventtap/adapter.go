@@ -73,6 +73,14 @@ func (a *Adapter) SetHotkeys(hotkeys []string) {
 	a.tap.SetHotkeys(hotkeys)
 }
 
+// SetKeyboardLayout configures the reference keyboard layout used by key translation.
+func (a *Adapter) SetKeyboardLayout(layoutID string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.tap.SetKeyboardLayout(layoutID)
+}
+
 // Destroy cleans up the event tap resources.
 func (a *Adapter) Destroy() {
 	a.mu.Lock()

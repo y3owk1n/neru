@@ -52,6 +52,24 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "kb layout id set - valid",
+			config: config.Config{
+				General: config.GeneralConfig{
+					KBLayoutToUse: "com.apple.keylayout.ABC",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "kb layout id whitespace-only - invalid",
+			config: config.Config{
+				General: config.GeneralConfig{
+					KBLayoutToUse: "   ",
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, testCase := range tests {

@@ -261,6 +261,7 @@ func DefaultConfig() *Config {
 			CenterCursorPosition:      false,
 			ModeExitKeys:              []string{"escape"},
 			HideOverlayInScreenShare:  false,
+			KBLayoutToUse:             "",
 		},
 		Hotkeys: HotkeysConfig{
 			Bindings: map[string]string{

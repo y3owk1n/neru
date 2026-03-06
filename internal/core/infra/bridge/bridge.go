@@ -20,6 +20,7 @@ import "C"
 
 import (
 	"image"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -256,6 +257,28 @@ func ActiveScreenBounds() image.Rectangle {
 		zap.Int("height", result.Dy()))
 
 	return result
+}
+
+// SetReferenceKeyboardLayout configures the key translation reference layout.
+// Pass an empty inputSourceID to use automatic fallback resolution.
+// Returns false only when a non-empty layout ID was provided but could not be resolved.
+func SetReferenceKeyboardLayout(inputSourceID string) bool {
+	log := getLogger()
+	layoutID := strings.TrimSpace(inputSourceID)
+
+	var cLayoutID *C.char
+	if layoutID != "" {
+		cLayoutID = C.CString(layoutID)
+		defer C.free(unsafe.Pointer(cLayoutID)) //nolint:nlreturn
+	}
+
+	result := C.setReferenceKeyboardLayout(cLayoutID)
+
+	log.Debug("Bridge: Set reference keyboard layout",
+		zap.String("layout_id", layoutID),
+		zap.Bool("resolved", result == 1))
+
+	return result == 1
 }
 
 // ShowConfigValidationError displays a native macOS alert for config validation errors.

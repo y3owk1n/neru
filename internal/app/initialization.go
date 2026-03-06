@@ -209,6 +209,13 @@ func processHotkeyBindings(config *config.Config, logger *zap.Logger) []string {
 
 // configureEventTapHotkeys configures the event tap with hotkeys from the configuration.
 func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger) {
+	layoutID := strings.TrimSpace(config.General.KBLayoutToUse)
+	layoutResolved := a.eventTap.SetKeyboardLayout(layoutID)
+	if layoutID != "" && !layoutResolved {
+		logger.Warn("Configured keyboard layout was not found; using automatic fallback",
+			zap.String("layout_id", layoutID))
+	}
+
 	keys := processHotkeyBindings(config, logger)
 
 	// Log if no hotkeys are configured

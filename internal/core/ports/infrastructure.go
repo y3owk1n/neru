@@ -20,6 +20,10 @@ type EventTapPort interface {
 	// SetHotkeys configures which hotkeys the event tap should monitor.
 	SetHotkeys(hotkeys []string)
 
+	// SetKeyboardLayout configures the reference keyboard layout used for key translation.
+	// Returns false when an explicit layout ID is provided but cannot be resolved.
+	SetKeyboardLayout(layoutID string) bool
+
 	// Destroy cleans up the event tap resources.
 	Destroy()
 }
