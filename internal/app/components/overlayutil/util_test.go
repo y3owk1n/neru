@@ -35,17 +35,17 @@ func TestCallbackManagerCleanup_ReleasesCallbackMutexBeforeRegistryLock(t *testi
 		close(done)
 	}()
 
-	// Let Cleanup proceed.
+	// Let Cleanup proceed past callbackMu.
 	manager.callbackMu.Unlock()
-	// Give the cleanup goroutine a chance to acquire/release callbackMu.
-	time.Sleep(10 * time.Millisecond)
-
-	// If Cleanup still holds callbackMu while waiting for registry lock, this
-	// loop will time out. We expect callbackMu to be free at this point.
+	// Because we still hold callbackManagerRegistryMu, Cleanup cannot
+	// finish — it will block on the registry lock after releasing
+	// callbackMu. Poll TryLock until callbackMu is free, proving
+	// Cleanup released it before acquiring the registry lock.
+	// Use a generous deadline as a safety net only; under correct
+	// behavior TryLock succeeds almost immediately.
 	acquired := false
 
-	deadline := time.Now().Add(200 * time.Millisecond)
-
+	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		if manager.callbackMu.TryLock() {
 			manager.callbackMu.Unlock()
@@ -56,18 +56,16 @@ func TestCallbackManagerCleanup_ReleasesCallbackMutexBeforeRegistryLock(t *testi
 		}
 
 		runtime.Gosched()
-		time.Sleep(1 * time.Millisecond)
-	}
-
-	callbackManagerRegistryMu.Unlock()
-
-	select {
-	case <-done:
-	case <-time.After(300 * time.Millisecond):
-		t.Fatal("cleanup did not complete after releasing registry lock")
 	}
 
 	if !acquired {
 		t.Fatal("cleanup appears to hold callbackMu while waiting for registry lock")
+	}
+	callbackManagerRegistryMu.Unlock()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("cleanup did not complete after releasing registry lock")
 	}
 }
