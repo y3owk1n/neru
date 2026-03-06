@@ -1083,7 +1083,32 @@ int setReferenceKeyboardLayout(const char *inputSourceID) {
 	if ([NSThread isMainThread]) {
 		applyReferenceLayout();
 	} else {
-		dispatch_sync(dispatch_get_main_queue(), applyReferenceLayout);
+		NSLock *applyLock = [[NSLock alloc] init];
+		__block BOOL didApply = NO;
+		void (^applyReferenceLayoutOnce)(void) = ^{
+			[applyLock lock];
+			BOOL shouldApply = !didApply;
+			if (shouldApply) {
+				didApply = YES;
+			}
+			[applyLock unlock];
+
+			if (shouldApply) {
+				applyReferenceLayout();
+			}
+		};
+
+		dispatch_semaphore_t completed = dispatch_semaphore_create(0);
+		dispatch_async(dispatch_get_main_queue(), ^{
+			applyReferenceLayoutOnce();
+			dispatch_semaphore_signal(completed);
+		});
+
+		dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(500 * NSEC_PER_MSEC));
+		if (dispatch_semaphore_wait(completed, timeout) != 0) {
+			// In tests/CLI runs the main queue may not be pumping.
+			applyReferenceLayoutOnce();
+		}
 	}
 
 	return configuredResolved ? 1 : 0;
