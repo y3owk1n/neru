@@ -362,9 +362,6 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 
 	h.config = config
 
-	h.cursorState.SetRestoreEnabled(config.General.RestoreCursorPosition)
-	h.cursorState.SetCenterEnabled(config.General.CenterCursorPosition)
-
 	if h.renderer != nil {
 		h.renderer.UpdateConfig(
 			hints.BuildStyle(config.Hints, h.themeProvider),

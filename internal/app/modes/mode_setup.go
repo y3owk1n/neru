@@ -52,7 +52,7 @@ func (h *Handler) shouldRestoreCursorOnExit() bool {
 		return false
 	}
 
-	return h.cursorState.ShouldRestore()
+	return h.cursorState.ShouldMoveCursor()
 }
 
 // shouldCenterCursorOnExit determines if the cursor should be centered on mode exit.
@@ -73,7 +73,7 @@ func (h *Handler) shouldCenterCursorOnExit() bool {
 		return false
 	}
 
-	return h.cursorState.ShouldCenter()
+	return h.cursorState.ShouldMoveCursor()
 }
 
 // overlaySwitch switches the overlay mode.

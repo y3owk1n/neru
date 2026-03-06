@@ -18,17 +18,12 @@ type CursorState struct {
 	captured            bool
 
 	// Behavior flags
-	restoreEnabled  bool
-	centerEnabled   bool
 	skipRestoreOnce bool
 }
 
-// NewCursorState creates a new CursorState with the specified behavior flags.
-func NewCursorState(restoreEnabled, centerEnabled bool) *CursorState {
-	return &CursorState{
-		restoreEnabled: restoreEnabled,
-		centerEnabled:  centerEnabled,
-	}
+// NewCursorState creates a new CursorState.
+func NewCursorState() *CursorState {
+	return &CursorState{}
 }
 
 // Capture stores the current cursor position and screen bounds.
@@ -74,21 +69,15 @@ func (c *CursorState) InitialScreenBounds() image.Rectangle {
 	return c.initialScreenBounds
 }
 
-// ShouldRestore returns whether the cursor should be restored.
-// It considers both the restore enabled flag and the skip restore flag.
-func (c *CursorState) ShouldRestore() bool {
+// ShouldMoveCursor returns whether the cursor should be moved on mode exit.
+// The caller is responsible for deciding the policy (restore vs center)
+// based on config; this method only tracks whether the cursor was captured
+// and whether a skip was requested.
+func (c *CursorState) ShouldMoveCursor() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	return c.restoreEnabled && c.captured && !c.skipRestoreOnce
-}
-
-// ShouldCenter returns whether the cursor should be centered.
-func (c *CursorState) ShouldCenter() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	return c.centerEnabled && c.captured && !c.skipRestoreOnce
+	return c.captured && !c.skipRestoreOnce
 }
 
 // SkipNextRestore sets a flag to skip the next cursor restoration or centering.
@@ -98,36 +87,4 @@ func (c *CursorState) SkipNextRestore() {
 	defer c.mu.Unlock()
 
 	c.skipRestoreOnce = true
-}
-
-// SetRestoreEnabled enables or disables cursor restoration.
-func (c *CursorState) SetRestoreEnabled(enabled bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.restoreEnabled = enabled
-}
-
-// IsRestoreEnabled returns whether cursor restoration is enabled.
-func (c *CursorState) IsRestoreEnabled() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	return c.restoreEnabled
-}
-
-// SetCenterEnabled enables or disables cursor centering.
-func (c *CursorState) SetCenterEnabled(enabled bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.centerEnabled = enabled
-}
-
-// IsCenterEnabled returns whether cursor centering is enabled.
-func (c *CursorState) IsCenterEnabled() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	return c.centerEnabled
 }
