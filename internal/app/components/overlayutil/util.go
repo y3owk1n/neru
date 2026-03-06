@@ -266,10 +266,10 @@ func (c *CallbackManager) Cleanup() {
 		// Close the cancel channel to stop all background goroutines
 		close(c.cancelCh)
 
-		// Snapshot and clear callbackMap under callbackMu first, then remove from
-		// the global registry under callbackManagerRegistryMu. Keeping the lock
-		// acquisition order one-way avoids ABBA deadlocks with
-		// CompleteGlobalCallback (which takes registry lock then callbackMu).
+		// Snapshot and clear callbackMap under callbackMu first, then remove
+		// from the global registry under callbackManagerRegistryMu. This
+		// keeps a consistent lock-acquisition order (callbackMu before
+		// registryMu) and avoids holding both locks simultaneously.
 		var callbackIDs []uint64
 
 		c.callbackMu.Lock()
