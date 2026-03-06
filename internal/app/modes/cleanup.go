@@ -116,6 +116,12 @@ func (h *Handler) handleCursorRestoration() {
 	shouldRestore := h.shouldRestoreCursorOnExit()
 	shouldCenter := h.shouldCenterCursorOnExit()
 
+	if shouldRestore && shouldCenter {
+		h.logger.Warn("Both restore and center cursor are enabled; restore takes priority")
+
+		shouldCenter = false
+	}
+
 	if shouldRestore || shouldCenter {
 		currentBounds := bridge.ActiveScreenBounds()
 
