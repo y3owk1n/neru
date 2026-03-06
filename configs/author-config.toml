@@ -5,6 +5,7 @@
 restore_cursor_position = false
 mode_exit_keys = ["escape", "Ctrl+C"]
 hide_overlay_in_screen_share = true
+center_cursor_position = true
 
 # ============================================================================
 # Hotkeys
@@ -88,6 +89,7 @@ min_size_width = 10
 min_size_height = 10
 text_color_light = "#00000000"
 text_color_dark = "#00000000"
+reset_key = ","
 
 # ============================================================================
 # Mode Indicator
