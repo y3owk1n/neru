@@ -304,14 +304,14 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | `border_radius`            | int    | `4`           | Corner radius in pixels                            |
 | `border_width`             | int    | `1`           | Border width in pixels                             |
 | `padding`                  | int    | `4`           | Internal padding in pixels                         |
-| `background_color_light`   | string | `"#F2FFD700"` | Label background for Light Mode (theme-aware)      |
-| `background_color_dark`    | string | `"#F2FFD700"` | Label background for Dark Mode (theme-aware)       |
-| `text_color_light`         | string | `"#FF000000"` | Label text for Light Mode (theme-aware)            |
-| `text_color_dark`          | string | `"#FF000000"` | Label text for Dark Mode (theme-aware)             |
-| `matched_text_color_light` | string | `"#FF737373"` | Typed text color for Light Mode (theme-aware)      |
-| `matched_text_color_dark`  | string | `"#FF737373"` | Typed text color for Dark Mode (theme-aware)       |
-| `border_color_light`       | string | `"#FF000000"` | Border color for Light Mode (theme-aware)          |
-| `border_color_dark`        | string | `"#FF000000"` | Border color for Dark Mode (theme-aware)           |
+| `background_color_light`   | string | `"#F200CFCF"` | Label background for Light Mode (theme-aware)      |
+| `background_color_dark`    | string | `"#F2007A9E"` | Label background for Dark Mode (theme-aware)       |
+| `text_color_light`         | string | `"#FF003554"` | Label text for Light Mode (theme-aware)            |
+| `text_color_dark`          | string | `"#FFFFFFFF"` | Label text for Dark Mode (theme-aware)             |
+| `matched_text_color_light` | string | `"#FFAAEEFF"` | Typed text color for Light Mode (theme-aware)      |
+| `matched_text_color_dark`  | string | `"#FF003554"` | Typed text color for Dark Mode (theme-aware)       |
+| `border_color_light`       | string | `"#FF008A8A"` | Border color for Light Mode (theme-aware)          |
+| `border_color_dark`        | string | `"#FF00B4D8"` | Border color for Dark Mode (theme-aware)           |
 
 ### auto_exit_actions
 
@@ -553,18 +553,18 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 | `font_size`                      | int    | `10`                 | Label font size                                      |
 | `font_family`                    | string | `""`                 | Font name                                            |
 | `border_width`                   | int    | `1`                  | Cell border width                                    |
-| `background_color_light`         | string | `"#B3ABE9B3"`        | Cell background for Light Mode (theme-aware)         |
-| `background_color_dark`          | string | `"#B3ABE9B3"`        | Cell background for Dark Mode (theme-aware)          |
-| `text_color_light`               | string | `"#FF000000"`        | Label text for Light Mode (theme-aware)              |
-| `text_color_dark`                | string | `"#FF000000"`        | Label text for Dark Mode (theme-aware)               |
-| `matched_text_color_light`       | string | `"#FFF8BD96"`        | Matched cell text for Light Mode (theme-aware)       |
-| `matched_text_color_dark`        | string | `"#FFF8BD96"`        | Matched cell text for Dark Mode (theme-aware)        |
-| `matched_background_color_light` | string | `"#B3F8BD96"`        | Matched cell background for Light Mode (theme-aware) |
-| `matched_background_color_dark`  | string | `"#B3F8BD96"`        | Matched cell background for Dark Mode (theme-aware)  |
-| `matched_border_color_light`     | string | `"#B3F8BD96"`        | Matched cell border for Light Mode (theme-aware)     |
-| `matched_border_color_dark`      | string | `"#B3F8BD96"`        | Matched cell border for Dark Mode (theme-aware)      |
-| `border_color_light`             | string | `"#B3ABE9B3"`        | Cell border for Light Mode (theme-aware)             |
-| `border_color_dark`              | string | `"#B3ABE9B3"`        | Cell border for Dark Mode (theme-aware)              |
+| `background_color_light`         | string | `"#9900B4D8"`        | Cell background for Light Mode (theme-aware)         |
+| `background_color_dark`          | string | `"#99003554"`        | Cell background for Dark Mode (theme-aware)          |
+| `text_color_light`               | string | `"#FF003554"`        | Label text for Light Mode (theme-aware)              |
+| `text_color_dark`                | string | `"#FFB3E8F5"`        | Label text for Dark Mode (theme-aware)               |
+| `matched_text_color_light`       | string | `"#FFAAEEFF"`        | Matched cell text for Light Mode (theme-aware)       |
+| `matched_text_color_dark`        | string | `"#FFFFFFFF"`        | Matched cell text for Dark Mode (theme-aware)        |
+| `matched_background_color_light` | string | `"#B300CFCF"`        | Matched cell background for Light Mode (theme-aware) |
+| `matched_background_color_dark`  | string | `"#B300B4D8"`        | Matched cell background for Dark Mode (theme-aware)  |
+| `matched_border_color_light`     | string | `"#B300CFCF"`        | Matched cell border for Light Mode (theme-aware)     |
+| `matched_border_color_dark`      | string | `"#B300B4D8"`        | Matched cell border for Dark Mode (theme-aware)      |
+| `border_color_light`             | string | `"#9900B4D8"`        | Cell border for Light Mode (theme-aware)             |
+| `border_color_dark`              | string | `"#99003554"`        | Cell border for Dark Mode (theme-aware)              |
 
 > **Theme-aware colors:** When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
@@ -742,13 +742,13 @@ j   →   k          j = Lower-left
 
 | Option                  | Type   | Default       | Description                                  |
 | ----------------------- | ------ | ------------- | -------------------------------------------- |
-| `line_color_light`      | string | `"#FF8EE2FF"` | Grid line color for Light Mode (theme-aware) |
-| `line_color_dark`       | string | `"#FF8EE2FF"` | Grid line color for Dark Mode (theme-aware)  |
+| `line_color_light`      | string | `"#FF007A9E"` | Grid line color for Light Mode (theme-aware) |
+| `line_color_dark`       | string | `"#FF00CFCF"` | Grid line color for Dark Mode (theme-aware)  |
 | `line_width`            | int    | `1`           | Line thickness                               |
-| `highlight_color_light` | string | `"#4D00BFFF"` | Cell highlight for Light Mode (theme-aware)  |
-| `highlight_color_dark`  | string | `"#4D00BFFF"` | Cell highlight for Dark Mode (theme-aware)   |
-| `text_color_light`      | string | `"#FFFFFFFF"` | Cell text color for Light Mode (theme-aware) |
-| `text_color_dark`       | string | `"#FFFFFFFF"` | Cell text color for Dark Mode (theme-aware)  |
+| `highlight_color_light` | string | `"#4D007A9E"` | Cell highlight for Light Mode (theme-aware)  |
+| `highlight_color_dark`  | string | `"#4D00CFCF"` | Cell highlight for Dark Mode (theme-aware)   |
+| `text_color_light`      | string | `"#FF007A9E"` | Cell text color for Light Mode (theme-aware) |
+| `text_color_dark`       | string | `"#FF00CFCF"` | Cell text color for Dark Mode (theme-aware)  |
 | `font_size`             | int    | `10`          | Font size for labels                         |
 | `font_family`           | string | `""`          | Font family for labels (empty = system)      |
 
@@ -941,12 +941,12 @@ recursive_grid_enabled = false
 | ------------------------ | ------ | ------------- | --------------------------------------- |
 | `font_size`              | int    | `10`          | Text size                               |
 | `font_family`            | string | `""`          | Font (empty = system)                   |
-| `background_color_light` | string | `"#F2FFD700"` | Background for Light Mode (theme-aware) |
-| `background_color_dark`  | string | `"#F2FFD700"` | Background for Dark Mode (theme-aware)  |
-| `text_color_light`       | string | `"#FF000000"` | Text for Light Mode (theme-aware)       |
-| `text_color_dark`        | string | `"#FF000000"` | Text for Dark Mode (theme-aware)        |
-| `border_color_light`     | string | `"#FF000000"` | Border for Light Mode (theme-aware)     |
-| `border_color_dark`      | string | `"#FF000000"` | Border for Dark Mode (theme-aware)      |
+| `background_color_light` | string | `"#F200CFCF"` | Background for Light Mode (theme-aware) |
+| `background_color_dark`  | string | `"#F200CFCF"` | Background for Dark Mode (theme-aware)  |
+| `text_color_light`       | string | `"#FF003554"` | Text for Light Mode (theme-aware)       |
+| `text_color_dark`        | string | `"#FF003554"` | Text for Dark Mode (theme-aware)        |
+| `border_color_light`     | string | `"#FF007A9E"` | Border for Light Mode (theme-aware)     |
+| `border_color_dark`      | string | `"#FF007A9E"` | Border for Dark Mode (theme-aware)      |
 | `border_width`           | int    | `1`           | Border width                            |
 | `padding`                | int    | `4`           | Internal padding                        |
 | `border_radius`          | int    | `4`           | Corner radius                           |
@@ -1158,22 +1158,30 @@ alpha_hex = round(opacity * 255)
 
 ### Common Examples
 
-The following hex values represent some of the built-in defaults used by Neru.
+The following hex values represent the built-in defaults used by Neru.
 
 ```toml
-# Gold (classic hint color)
-background_color_light = "#F2FFD700"          # Gold, 95% opacity
-background_color_dark = "#F2FFD700"           # same for Dark Mode
+# Hints (cyan / deep teal)
+background_color_light = "#F200CFCF"    # Cyan, 95% opacity
+background_color_dark  = "#F2007A9E"    # Deep teal, 95% opacity
 
-# Grid colors
-background_color_light = "#B3ABE9B3"          # Light green, 70%
-background_color_dark = "#B3ABE9B3"           # same for Dark Mode
-matched_background_color_light = "#B3F8BD96"  # Orange, 70%
-matched_background_color_dark = "#B3F8BD96"   # same for Dark Mode
+# Grid background
+background_color_light = "#9900B4D8"    # Sky blue, 60% opacity
+background_color_dark  = "#99003554"    # Deep navy, 60% opacity
 
-# Blue highlight (Recursive Grid)
-highlight_color_light = "#4D00BFFF"           # Deep sky blue, 30%
-highlight_color_dark = "#4D00BFFF"            # same for Dark Mode
+# Grid matched cell highlight
+matched_background_color_light = "#B300CFCF"  # Cyan, 70% opacity
+matched_background_color_dark  = "#B300B4D8"  # Sky blue, 70% opacity
+
+# Recursive grid lines and highlights
+line_color_light      = "#FF007A9E"     # Deep teal, fully opaque
+line_color_dark       = "#FF00CFCF"     # Bright cyan, fully opaque
+highlight_color_light = "#4D007A9E"     # Deep teal, 30% opacity
+highlight_color_dark  = "#4D00CFCF"     # Bright cyan, 30% opacity
+
+# Mode indicator
+background_color_light = "#F200CFCF"    # Cyan, 95% opacity (same in both modes)
+background_color_dark  = "#F200CFCF"    # Cyan, 95% opacity
 ```
 
 ---
