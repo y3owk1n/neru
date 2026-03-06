@@ -1,3 +1,4 @@
+//nolint:testpackage // This test validates internal lock-order behavior.
 package overlayutil
 
 import (
@@ -33,13 +34,17 @@ func TestCallbackManagerCleanup_ReleasesCallbackMutexBeforeRegistryLock(t *testi
 	// If Cleanup still holds callbackMu while waiting for registry lock, this
 	// loop will time out. We expect callbackMu to be free at this point.
 	acquired := false
+
 	deadline := time.Now().Add(200 * time.Millisecond)
+
 	for time.Now().Before(deadline) {
 		if manager.callbackMu.TryLock() {
 			manager.callbackMu.Unlock()
 			acquired = true
+
 			break
 		}
+
 		runtime.Gosched()
 		time.Sleep(1 * time.Millisecond)
 	}

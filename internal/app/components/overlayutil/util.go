@@ -271,11 +271,14 @@ func (c *CallbackManager) Cleanup() {
 		// acquisition order one-way avoids ABBA deadlocks with
 		// CompleteGlobalCallback (which takes registry lock then callbackMu).
 		var callbackIDs []uint64
+
 		c.callbackMu.Lock()
 		callbackIDs = make([]uint64, 0, len(c.callbackMap))
+
 		for id := range c.callbackMap {
 			callbackIDs = append(callbackIDs, id)
 		}
+
 		c.callbackMap = make(map[uint64]chan struct{})
 		c.callbackMu.Unlock()
 
