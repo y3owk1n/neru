@@ -17,6 +17,14 @@ func (h *Handler) CurrModeString() string {
 
 // CaptureInitialCursorPosition captures the initial cursor position and screen bounds.
 func (h *Handler) CaptureInitialCursorPosition() {
+	if h.config == nil {
+		return
+	}
+
+	if !h.config.General.RestoreCursorPosition && !h.config.General.CenterCursorPosition {
+		return
+	}
+
 	if h.cursorState.IsCaptured() {
 		return
 	}
