@@ -147,9 +147,9 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 - (NSRect)boundingRectForHint:(HintItem *)hint;           ///< Compute bounding rect for hint
 - (NSRect)screenRectForGridCell:(GridCellItem *)cellItem; ///< Compute screen-space rect for grid cell
 - (void)drawGridLabel:(NSString *)label
-           inCellRect:(NSRect)cellRect
-            isMatched:(BOOL)isMatched
-  matchedPrefixLength:(int)matchedPrefixLength; ///< Draw grid label text or badge
+             inCellRect:(NSRect)cellRect
+              isMatched:(BOOL)isMatched
+    matchedPrefixLength:(int)matchedPrefixLength; ///< Draw grid label text or badge
 
 /// Resolve a font by name (accepts both PostScript names and family names).
 /// Tries [NSFont fontWithName:] first, then NSFontManager family lookup.
@@ -194,7 +194,8 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		_gridTextColor = [NSColor colorWithWhite:0.2 alpha:1.0];
 		_gridMatchedTextColor = [NSColor colorWithRed:0.0 green:0.4 blue:1.0 alpha:1.0];
 		_gridBackgroundColor = [NSColor whiteColor];
-		_gridLabelBackgroundColor = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.8];
+		_gridLabelBackgroundColor = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0
+		                                             alpha:1.0] colorWithAlphaComponent:0.8];
 		_gridBorderColor = [NSColor colorWithWhite:0.7 alpha:1.0];
 		_gridBorderWidth = 1.0;
 		_gridDrawLabelBackground = NO;
@@ -737,8 +738,8 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		[borderPath stroke];
 		if (label && [label length] > 0) {
 			[self drawGridLabel:label
-			         inCellRect:cellRect
-			          isMatched:isMatched
+			             inCellRect:cellRect
+			              isMatched:isMatched
 			    matchedPrefixLength:cellItem.matchedPrefixLength];
 		}
 	}
@@ -750,9 +751,9 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 /// @param isMatched Whether the cell currently matches the typed prefix
 /// @param matchedPrefixLength Number of leading characters to draw with matched styling
 - (void)drawGridLabel:(NSString *)label
-           inCellRect:(NSRect)cellRect
-            isMatched:(BOOL)isMatched
-  matchedPrefixLength:(int)matchedPrefixLength {
+             inCellRect:(NSRect)cellRect
+              isMatched:(BOOL)isMatched
+    matchedPrefixLength:(int)matchedPrefixLength {
 	NSMutableAttributedString *attrString = self.cachedGridCellAttributedString;
 	[[attrString mutableString] setString:label];
 	NSRange fullRange = NSMakeRange(0, [label length]);
@@ -775,9 +776,8 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	CGFloat horizontalPadding = self.gridLabelBackgroundPaddingX >= 0.0
 	                                ? self.gridLabelBackgroundPaddingX
 	                                : MAX(4.0, round(self.gridFont.pointSize * 0.4));
-	CGFloat verticalPadding = self.gridLabelBackgroundPaddingY >= 0.0
-	                              ? self.gridLabelBackgroundPaddingY
-	                              : MAX(2.0, round(self.gridFont.pointSize * 0.2));
+	CGFloat verticalPadding = self.gridLabelBackgroundPaddingY >= 0.0 ? self.gridLabelBackgroundPaddingY
+	                                                                  : MAX(2.0, round(self.gridFont.pointSize * 0.2));
 	CGFloat badgeWidth = MAX(textSize.width + (horizontalPadding * 2.0), textSize.height + (verticalPadding * 2.0));
 	CGFloat badgeHeight = textSize.height + (verticalPadding * 2.0);
 	CGFloat maxBadgeWidth = MAX(0.0, cellRect.size.width - 4.0);
@@ -792,15 +792,15 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	badgeHeight = MIN(badgeHeight, maxBadgeHeight);
 
 	NSColor *badgeFill = self.gridLabelBackgroundColor ? self.gridLabelBackgroundColor : self.gridBackgroundColor;
-	NSColor *badgeBorder = isMatched && self.gridMatchedBorderColor ? self.gridMatchedBorderColor : self.gridBorderColor;
+	NSColor *badgeBorder =
+	    isMatched && self.gridMatchedBorderColor ? self.gridMatchedBorderColor : self.gridBorderColor;
 
-	NSRect badgeRect = NSMakeRect(cellRect.origin.x + (cellRect.size.width - badgeWidth) / 2.0,
-	                              cellRect.origin.y + (cellRect.size.height - badgeHeight) / 2.0, badgeWidth,
-	                              badgeHeight);
+	NSRect badgeRect =
+	    NSMakeRect(cellRect.origin.x + (cellRect.size.width - badgeWidth) / 2.0,
+	               cellRect.origin.y + (cellRect.size.height - badgeHeight) / 2.0, badgeWidth, badgeHeight);
 	CGFloat maxRadius = MIN(badgeRect.size.width, badgeRect.size.height) / 2.0;
-	CGFloat radius = self.gridLabelBackgroundCornerRadius >= 0.0
-	                     ? MIN(self.gridLabelBackgroundCornerRadius, maxRadius)
-	                     : MIN(badgeRect.size.height / 2.0, 6.0);
+	CGFloat radius = self.gridLabelBackgroundCornerRadius >= 0.0 ? MIN(self.gridLabelBackgroundCornerRadius, maxRadius)
+	                                                             : MIN(badgeRect.size.height / 2.0, 6.0);
 	NSBezierPath *badgePath = [NSBezierPath bezierPathWithRoundedRect:badgeRect xRadius:radius yRadius:radius];
 	[badgeFill setFill];
 	[badgePath fill];
@@ -1518,10 +1518,9 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 
 		controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
 		                                                                     defaultColor:[NSColor whiteColor]];
-		controller.overlayView.gridLabelBackgroundColor =
-		    [controller.overlayView colorFromHex:labelBgHex
-		                           defaultColor:[[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0]
-		                                            colorWithAlphaComponent:0.8]];
+		controller.overlayView.gridLabelBackgroundColor = [controller.overlayView
+		    colorFromHex:labelBgHex
+		    defaultColor:[[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.8]];
 		controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
 		                                                               defaultColor:[NSColor blackColor]];
 		controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
@@ -1756,10 +1755,9 @@ void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCo
 			                                                               defaultColor:[NSColor blackColor]];
 		}
 		if (labelBgHex) {
-			controller.overlayView.gridLabelBackgroundColor =
-			    [controller.overlayView colorFromHex:labelBgHex
-			                           defaultColor:[[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0]
-			                                            colorWithAlphaComponent:0.8]];
+			controller.overlayView.gridLabelBackgroundColor = [controller.overlayView
+			    colorFromHex:labelBgHex
+			    defaultColor:[[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.8]];
 		}
 		if (matchedTextHex) {
 			controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
