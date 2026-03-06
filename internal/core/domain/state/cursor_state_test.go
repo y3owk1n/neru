@@ -166,6 +166,104 @@ func TestCursorState_ShouldRestore(t *testing.T) {
 	}
 }
 
+func TestCursorState_ShouldCenter(t *testing.T) {
+	tests := []struct {
+		name          string
+		centerEnabled bool
+		captured      bool
+		skipOnce      bool
+		expected      bool
+	}{
+		{
+			name:          "center enabled, captured, not skipped",
+			centerEnabled: true,
+			captured:      true,
+			skipOnce:      false,
+			expected:      true,
+		},
+		{
+			name:          "center disabled",
+			centerEnabled: false,
+			captured:      true,
+			skipOnce:      false,
+			expected:      false,
+		},
+		{
+			name:          "not captured",
+			centerEnabled: true,
+			captured:      false,
+			skipOnce:      false,
+			expected:      false,
+		},
+		{
+			name:          "skip once set",
+			centerEnabled: true,
+			captured:      true,
+			skipOnce:      true,
+			expected:      false,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			state := state.NewCursorState(false, testCase.centerEnabled)
+			if testCase.captured {
+				state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
+			}
+
+			if testCase.skipOnce {
+				state.SkipNextRestore()
+			}
+
+			got := state.ShouldCenter()
+			if got != testCase.expected {
+				t.Errorf("ShouldCenter() = %v, want %v", got, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestCursorState_SetCenterEnabled(t *testing.T) {
+	state := state.NewCursorState(false, false)
+	if state.IsCenterEnabled() {
+		t.Error("Expected center to be disabled initially")
+	}
+
+	state.SetCenterEnabled(true)
+
+	if !state.IsCenterEnabled() {
+		t.Error("Expected center to be enabled after SetCenterEnabled(true)")
+	}
+
+	state.SetCenterEnabled(false)
+
+	if state.IsCenterEnabled() {
+		t.Error("Expected center to be disabled after SetCenterEnabled(false)")
+	}
+}
+
+func TestCursorState_SkipNextCenter(t *testing.T) {
+	state := state.NewCursorState(false, true)
+	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
+
+	if !state.ShouldCenter() {
+		t.Error("Expected ShouldCenter to be true before SkipNextRestore()")
+	}
+
+	state.SkipNextRestore()
+
+	if state.ShouldCenter() {
+		t.Error("Expected ShouldCenter to be false after SkipNextRestore()")
+	}
+
+	// Reset should clear the skip flag
+	state.Reset()
+	state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
+
+	if !state.ShouldCenter() {
+		t.Error("Expected ShouldCenter to be true after Reset() and Capture()")
+	}
+}
+
 func TestCursorState_SetRestoreEnabled(t *testing.T) {
 	state := state.NewCursorState(false, false)
 
