@@ -1033,6 +1033,11 @@ void refreshKeyboardLayoutMaps(void) {
 			gLayoutChangeDebounceBlock = nil;
 		}
 		initializeKeyMaps();
+		// Clear cached reference so buildLayoutMaps re-resolves from scratch.
+		// Without this the rebuild would be a no-op when a stable reference is locked.
+		[gKeymapLock lock];
+		clearResolvedReferenceInputSourceLocked();
+		[gKeymapLock unlock];
 		buildLayoutMaps();
 
 		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
