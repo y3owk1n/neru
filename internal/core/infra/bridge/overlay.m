@@ -350,7 +350,7 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	self.hintBorderColor = [self colorFromHex:borderHex defaultColor:defaultBorder];
 
 	self.hintBorderRadius = style.borderRadius;
-	self.hintBorderWidth = style.borderWidth > 0 ? style.borderWidth : 1.0;
+	self.hintBorderWidth = style.borderWidth >= 0 ? style.borderWidth : 1.0;
 	self.hintPaddingX = style.paddingX;
 	self.hintPaddingY = style.paddingY;
 }
@@ -1389,9 +1389,7 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 			                                                                 defaultColor:[NSColor blackColor]];
 		}
 		controller.overlayView.hintBorderRadius = borderRadius;
-		if (borderWidth > 0) {
-			controller.overlayView.hintBorderWidth = borderWidth;
-		}
+		controller.overlayView.hintBorderWidth = borderWidth >= 0 ? borderWidth : 1.0;
 		controller.overlayView.hintPaddingX = paddingX;
 		controller.overlayView.hintPaddingY = paddingY;
 
