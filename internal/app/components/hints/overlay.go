@@ -72,7 +72,8 @@ type StyleMode struct {
 	fontSize         int
 	fontFamily       string
 	borderRadius     int
-	padding          int
+	paddingX         int
+	paddingY         int
 	borderWidth      int
 	backgroundColor  string
 	textColor        string
@@ -95,9 +96,14 @@ func (s StyleMode) BorderRadius() int {
 	return s.borderRadius
 }
 
-// Padding returns the padding.
-func (s StyleMode) Padding() int {
-	return s.padding
+// PaddingX returns the horizontal padding.
+func (s StyleMode) PaddingX() int {
+	return s.paddingX
+}
+
+// PaddingY returns the vertical padding.
+func (s StyleMode) PaddingY() int {
+	return s.paddingY
 }
 
 // BorderWidth returns the border width.
@@ -242,7 +248,8 @@ func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 		fontSize:     cfg.FontSize,
 		fontFamily:   cfg.FontFamily,
 		borderRadius: cfg.BorderRadius,
-		padding:      cfg.Padding,
+		paddingX:     cfg.PaddingX,
+		paddingY:     cfg.PaddingY,
 		borderWidth:  cfg.BorderWidth,
 		backgroundColor: config.ResolveColor(
 			cfg.BackgroundColorLight,
@@ -470,7 +477,8 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		borderColor:      (*C.char)(cachedStyle.BorderColor),
 		borderRadius:     C.int(style.BorderRadius()),
 		borderWidth:      C.int(style.BorderWidth()),
-		padding:          C.int(style.Padding()),
+		paddingX:         C.int(style.PaddingX()),
+		paddingY:         C.int(style.PaddingY()),
 		showArrow:        C.int(arrowFlag),
 	}
 
@@ -710,7 +718,8 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		borderColor:      (*C.char)(cachedStyle.BorderColor),
 		borderRadius:     C.int(currentStyle.BorderRadius()),
 		borderWidth:      C.int(currentStyle.BorderWidth()),
-		padding:          C.int(currentStyle.Padding()),
+		paddingX:         C.int(currentStyle.PaddingX()),
+		paddingY:         C.int(currentStyle.PaddingY()),
 		showArrow:        C.int(arrowFlag),
 	}
 

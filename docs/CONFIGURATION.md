@@ -303,24 +303,25 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 
 ### Basic Configuration
 
-| Option                     | Type   | Default       | Description                                        |
-| -------------------------- | ------ | ------------- | -------------------------------------------------- |
-| `enabled`                  | bool   | `true`        | Enable/disable hints mode                          |
-| `auto_exit_actions`        | array  | `[]`          | Actions that auto-exit after execution (see below) |
-| `hint_characters`          | string | `"asdfghjkl"` | Characters used for labels                         |
-| `font_size`                | int    | `10`          | Label font size                                    |
-| `font_family`              | string | `""`          | Font name (empty = system)                         |
-| `border_radius`            | int    | `4`           | Corner radius in pixels                            |
-| `border_width`             | int    | `1`           | Border width in pixels                             |
-| `padding`                  | int    | `4`           | Internal padding in pixels                         |
-| `background_color_light`   | string | `"#F200CFCF"` | Label background for Light Mode (theme-aware)      |
-| `background_color_dark`    | string | `"#F2007A9E"` | Label background for Dark Mode (theme-aware)       |
-| `text_color_light`         | string | `"#FF003554"` | Label text for Light Mode (theme-aware)            |
-| `text_color_dark`          | string | `"#FFFFFFFF"` | Label text for Dark Mode (theme-aware)             |
-| `matched_text_color_light` | string | `"#FFAAEEFF"` | Typed text color for Light Mode (theme-aware)      |
-| `matched_text_color_dark`  | string | `"#FF003554"` | Typed text color for Dark Mode (theme-aware)       |
-| `border_color_light`       | string | `"#FF008A8A"` | Border color for Light Mode (theme-aware)          |
-| `border_color_dark`        | string | `"#FF00B4D8"` | Border color for Dark Mode (theme-aware)           |
+| Option                     | Type   | Default       | Description                                         |
+| -------------------------- | ------ | ------------- | --------------------------------------------------- |
+| `enabled`                  | bool   | `true`        | Enable/disable hints mode                           |
+| `auto_exit_actions`        | array  | `[]`          | Actions that auto-exit after execution (see below)  |
+| `hint_characters`          | string | `"asdfghjkl"` | Characters used for labels                          |
+| `font_size`                | int    | `10`          | Label font size                                     |
+| `font_family`              | string | `""`          | Font name (empty = system)                          |
+| `border_radius`            | int    | `-1`          | Corner radius (`-1` = auto pill)                    |
+| `border_width`             | int    | `1`           | Border width in pixels                              |
+| `padding_x`                | int    | `-1`          | Horizontal padding (`-1` = auto based on font size) |
+| `padding_y`                | int    | `-1`          | Vertical padding (`-1` = auto based on font size)   |
+| `background_color_light`   | string | `"#F200CFCF"` | Label background for Light Mode (theme-aware)       |
+| `background_color_dark`    | string | `"#F2007A9E"` | Label background for Dark Mode (theme-aware)        |
+| `text_color_light`         | string | `"#FF003554"` | Label text for Light Mode (theme-aware)             |
+| `text_color_dark`          | string | `"#FFFFFFFF"` | Label text for Dark Mode (theme-aware)              |
+| `matched_text_color_light` | string | `"#FFAAEEFF"` | Typed text color for Light Mode (theme-aware)       |
+| `matched_text_color_dark`  | string | `"#FF003554"` | Typed text color for Dark Mode (theme-aware)        |
+| `border_color_light`       | string | `"#FF008A8A"` | Border color for Light Mode (theme-aware)           |
+| `border_color_dark`        | string | `"#FF00B4D8"` | Border color for Dark Mode (theme-aware)            |
 
 ### auto_exit_actions
 
@@ -955,21 +956,22 @@ recursive_grid_enabled = false
 
 ### Appearance
 
-| Option                   | Type   | Default       | Description                             |
-| ------------------------ | ------ | ------------- | --------------------------------------- |
-| `font_size`              | int    | `10`          | Text size                               |
-| `font_family`            | string | `""`          | Font (empty = system)                   |
-| `background_color_light` | string | `"#F200CFCF"` | Background for Light Mode (theme-aware) |
-| `background_color_dark`  | string | `"#F200CFCF"` | Background for Dark Mode (theme-aware)  |
-| `text_color_light`       | string | `"#FF003554"` | Text for Light Mode (theme-aware)       |
-| `text_color_dark`        | string | `"#FF003554"` | Text for Dark Mode (theme-aware)        |
-| `border_color_light`     | string | `"#FF007A9E"` | Border for Light Mode (theme-aware)     |
-| `border_color_dark`      | string | `"#FF007A9E"` | Border for Dark Mode (theme-aware)      |
-| `border_width`           | int    | `1`           | Border width                            |
-| `padding`                | int    | `4`           | Internal padding                        |
-| `border_radius`          | int    | `4`           | Corner radius                           |
-| `indicator_x_offset`     | int    | `20`          | X offset from cursor                    |
-| `indicator_y_offset`     | int    | `20`          | Y offset from cursor                    |
+| Option                   | Type   | Default       | Description                                         |
+| ------------------------ | ------ | ------------- | --------------------------------------------------- |
+| `font_size`              | int    | `10`          | Text size                                           |
+| `font_family`            | string | `""`          | Font (empty = system)                               |
+| `background_color_light` | string | `"#F200CFCF"` | Background for Light Mode (theme-aware)             |
+| `background_color_dark`  | string | `"#F200CFCF"` | Background for Dark Mode (theme-aware)              |
+| `text_color_light`       | string | `"#FF003554"` | Text for Light Mode (theme-aware)                   |
+| `text_color_dark`        | string | `"#FF003554"` | Text for Dark Mode (theme-aware)                    |
+| `border_color_light`     | string | `"#FF007A9E"` | Border for Light Mode (theme-aware)                 |
+| `border_color_dark`      | string | `"#FF007A9E"` | Border for Dark Mode (theme-aware)                  |
+| `border_width`           | int    | `1`           | Border width                                        |
+| `padding_x`              | int    | `-1`          | Horizontal padding (`-1` = auto based on font size) |
+| `padding_y`              | int    | `-1`          | Vertical padding (`-1` = auto based on font size)   |
+| `border_radius`          | int    | `-1`          | Corner radius (`-1` = auto pill)                    |
+| `indicator_x_offset`     | int    | `20`          | X offset from cursor                                |
+| `indicator_y_offset`     | int    | `20`          | Y offset from cursor                                |
 
 ---
 

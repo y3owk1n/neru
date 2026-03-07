@@ -95,7 +95,8 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 @property(nonatomic, strong) NSColor *hintBorderColor;          ///< Hint border color
 @property(nonatomic, assign) CGFloat hintBorderRadius;          ///< Hint border radius
 @property(nonatomic, assign) CGFloat hintBorderWidth;           ///< Hint border width
-@property(nonatomic, assign) CGFloat hintPadding;               ///< Hint padding
+@property(nonatomic, assign) CGFloat hintPaddingX;              ///< Hint horizontal padding
+@property(nonatomic, assign) CGFloat hintPaddingY;              ///< Hint vertical padding
 
 @property(nonatomic, strong) NSMutableArray<GridCellItem *> *gridCells; ///< Grid cells array
 @property(nonatomic, strong) NSFont *gridFont;                          ///< Grid font
@@ -185,9 +186,10 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		_hintMatchedTextColor = [NSColor systemBlueColor];
 		_hintBackgroundColor = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.95];
 		_hintBorderColor = [NSColor blackColor];
-		_hintBorderRadius = 4.0;
+		_hintBorderRadius = -1.0;
 		_hintBorderWidth = 1.0;
-		_hintPadding = 4.0;
+		_hintPaddingX = -1.0;
+		_hintPaddingY = -1.0;
 
 		// Grid defaults
 		_gridFont = [NSFont systemFontOfSize:kDefaultGridFontSize];
@@ -347,9 +349,10 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	self.hintMatchedTextColor = [self colorFromHex:matchedTextHex defaultColor:defaultMatchedText];
 	self.hintBorderColor = [self colorFromHex:borderHex defaultColor:defaultBorder];
 
-	self.hintBorderRadius = style.borderRadius > 0 ? style.borderRadius : 4.0;
+	self.hintBorderRadius = style.borderRadius;
 	self.hintBorderWidth = style.borderWidth > 0 ? style.borderWidth : 1.0;
-	self.hintPadding = style.padding >= 0 ? style.padding : 4.0;
+	self.hintPaddingX = style.paddingX;
+	self.hintPaddingY = style.paddingY;
 }
 
 /// Create color from hex string
@@ -469,6 +472,9 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	// Tooltip body rectangle (excluding arrow space)
 	NSRect bodyRect = NSMakeRect(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height - arrowSize);
 
+	// Resolve border radius (-1 = auto pill)
+	CGFloat radius = self.hintBorderRadius >= 0.0 ? self.hintBorderRadius : MIN(bodyRect.size.height / 2.0, 6.0);
+
 	// Arrow dimensions
 	CGFloat arrowTipX = elementCenterX;
 	CGFloat arrowTipY = elementCenterY;
@@ -478,32 +484,31 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	CGFloat arrowRight = arrowTipX + arrowWidth / 2;
 
 	// Clamp arrow to tooltip bounds
-	CGFloat tooltipLeft = bodyRect.origin.x + self.hintBorderRadius;
-	CGFloat tooltipRight = bodyRect.origin.x + bodyRect.size.width - self.hintBorderRadius;
+	CGFloat tooltipLeft = bodyRect.origin.x + radius;
+	CGFloat tooltipRight = bodyRect.origin.x + bodyRect.size.width - radius;
 	arrowLeft = MAX(arrowLeft, tooltipLeft);
 	arrowRight = MIN(arrowRight, tooltipRight);
 	arrowTipX = (arrowLeft + arrowRight) / 2;
 
 	// Start from top-left corner
-	[path moveToPoint:NSMakePoint(bodyRect.origin.x + self.hintBorderRadius, bodyRect.origin.y)];
+	[path moveToPoint:NSMakePoint(bodyRect.origin.x + radius, bodyRect.origin.y)];
 
 	// Top edge
-	[path lineToPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width - self.hintBorderRadius, bodyRect.origin.y)];
+	[path lineToPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width - radius, bodyRect.origin.y)];
 
 	// Top-right corner
 	[path appendBezierPathWithArcFromPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width, bodyRect.origin.y)
 	                               toPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width,
-	                                                   bodyRect.origin.y + self.hintBorderRadius)
-	                                radius:self.hintBorderRadius];
+	                                                   bodyRect.origin.y + radius)
+	                                radius:radius];
 
 	// Right edge
-	[path lineToPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width, arrowBaseY - self.hintBorderRadius)];
+	[path lineToPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width, arrowBaseY - radius)];
 
 	// Bottom-right corner
 	[path appendBezierPathWithArcFromPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width, arrowBaseY)
-	                               toPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width - self.hintBorderRadius,
-	                                                   arrowBaseY)
-	                                radius:self.hintBorderRadius];
+	                               toPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width - radius, arrowBaseY)
+	                                radius:radius];
 
 	// Bottom edge to arrow right side
 	[path lineToPoint:NSMakePoint(arrowRight, arrowBaseY)];
@@ -515,20 +520,20 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	[path lineToPoint:NSMakePoint(arrowLeft, arrowBaseY)];
 
 	// Continue bottom edge to bottom-left corner
-	[path lineToPoint:NSMakePoint(bodyRect.origin.x + self.hintBorderRadius, arrowBaseY)];
+	[path lineToPoint:NSMakePoint(bodyRect.origin.x + radius, arrowBaseY)];
 
 	// Bottom-left corner
 	[path appendBezierPathWithArcFromPoint:NSMakePoint(bodyRect.origin.x, arrowBaseY)
-	                               toPoint:NSMakePoint(bodyRect.origin.x, arrowBaseY - self.hintBorderRadius)
-	                                radius:self.hintBorderRadius];
+	                               toPoint:NSMakePoint(bodyRect.origin.x, arrowBaseY - radius)
+	                                radius:radius];
 
 	// Left edge
-	[path lineToPoint:NSMakePoint(bodyRect.origin.x, bodyRect.origin.y + self.hintBorderRadius)];
+	[path lineToPoint:NSMakePoint(bodyRect.origin.x, bodyRect.origin.y + radius)];
 
 	// Top-left corner
 	[path appendBezierPathWithArcFromPoint:NSMakePoint(bodyRect.origin.x, bodyRect.origin.y)
-	                               toPoint:NSMakePoint(bodyRect.origin.x + self.hintBorderRadius, bodyRect.origin.y)
-	                                radius:self.hintBorderRadius];
+	                               toPoint:NSMakePoint(bodyRect.origin.x + radius, bodyRect.origin.y)
+	                                radius:radius];
 
 	[path closePath];
 	return path;
@@ -566,10 +571,11 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
 	            range:fullRange];
 	NSSize textSize = [measureString size];
-	CGFloat padding = self.hintPadding;
+	CGFloat paddingX = self.hintPaddingX >= 0.0 ? self.hintPaddingX : MAX(4.0, round(self.hintFont.pointSize * 0.4));
+	CGFloat paddingY = self.hintPaddingY >= 0.0 ? self.hintPaddingY : MAX(2.0, round(self.hintFont.pointSize * 0.2));
 	CGFloat arrowHeight = hint.showArrow ? 2.0 : 0.0;
-	CGFloat contentWidth = textSize.width + (padding * 2);
-	CGFloat contentHeight = textSize.height + (padding * 2);
+	CGFloat contentWidth = textSize.width + (paddingX * 2);
+	CGFloat contentHeight = textSize.height + (paddingY * 2);
 	CGFloat boxWidth = MAX(contentWidth, contentHeight);
 	CGFloat boxHeight = contentHeight + arrowHeight;
 	NSPoint position = hint.position;
@@ -617,7 +623,8 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 - (void)drawHintsInRect:(NSRect)dirtyRect {
 	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
 	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat padding = self.hintPadding;
+	CGFloat paddingX = self.hintPaddingX >= 0.0 ? self.hintPaddingX : MAX(4.0, round(self.hintFont.pointSize * 0.4));
+	CGFloat paddingY = self.hintPaddingY >= 0.0 ? self.hintPaddingY : MAX(2.0, round(self.hintFont.pointSize * 0.2));
 	for (HintItem *hint in self.hints) {
 		NSString *label = hint.label;
 		if (!label || [label length] == 0)
@@ -643,8 +650,8 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		// boundingRectForHint: separately for the intersection check.
 		NSSize textSize = [attrString size];
 		CGFloat arrowHeight = showArrow ? 2.0 : 0.0;
-		CGFloat contentWidth = textSize.width + (padding * 2);
-		CGFloat contentHeight = textSize.height + (padding * 2);
+		CGFloat contentWidth = textSize.width + (paddingX * 2);
+		CGFloat contentHeight = textSize.height + (paddingY * 2);
 		CGFloat boxWidth = MAX(contentWidth, contentHeight);
 		CGFloat boxHeight = contentHeight + arrowHeight;
 		CGFloat elementCenterX = position.x;
@@ -671,6 +678,8 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 				continue;
 		}
 
+		CGFloat resolvedBorderRadius =
+		    self.hintBorderRadius >= 0.0 ? self.hintBorderRadius : MIN(hintRect.size.height / 2.0, 6.0);
 		NSBezierPath *path;
 		if (showArrow) {
 			path = [self createTooltipPath:hintRect
@@ -679,8 +688,8 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 			                elementCenterY:flippedElementCenterY];
 		} else {
 			path = [NSBezierPath bezierPathWithRoundedRect:hintRect
-			                                       xRadius:self.hintBorderRadius
-			                                       yRadius:self.hintBorderRadius];
+			                                       xRadius:resolvedBorderRadius
+			                                       yRadius:resolvedBorderRadius];
 		}
 		[self.hintBackgroundColor setFill];
 		[path fill];
@@ -688,7 +697,7 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		[path setLineWidth:self.hintBorderWidth];
 		[path stroke];
 		CGFloat textX = hintRect.origin.x + (boxWidth - textSize.width) / 2.0;
-		CGFloat textY = hintRect.origin.y + padding;
+		CGFloat textY = hintRect.origin.y + paddingY;
 		[attrString drawAtPoint:NSMakePoint(textX, textY)];
 	}
 }
@@ -1241,7 +1250,8 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 		HintStyle styleCopy = {.fontSize = style.fontSize,
 		                       .borderRadius = style.borderRadius,
 		                       .borderWidth = style.borderWidth,
-		                       .padding = style.padding,
+		                       .paddingX = style.paddingX,
+		                       .paddingY = style.paddingY,
 		                       .showArrow = style.showArrow,
 		                       .fontFamily = safe_strdup(style.fontFamily),
 		                       .backgroundColor = safe_strdup(style.backgroundColor),
@@ -1340,7 +1350,8 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
 	int borderRadius = style.borderRadius;
 	int borderWidth = style.borderWidth;
-	int padding = style.padding;
+	int paddingX = style.paddingX;
+	int paddingY = style.paddingY;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		// Apply style updates — only re-create the hint font when family or size changed.
@@ -1377,15 +1388,12 @@ void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addC
 			controller.overlayView.hintBorderColor = [controller.overlayView colorFromHex:borderHex
 			                                                                 defaultColor:[NSColor blackColor]];
 		}
-		if (borderRadius > 0) {
-			controller.overlayView.hintBorderRadius = borderRadius;
-		}
+		controller.overlayView.hintBorderRadius = borderRadius;
 		if (borderWidth > 0) {
 			controller.overlayView.hintBorderWidth = borderWidth;
 		}
-		if (padding >= 0) {
-			controller.overlayView.hintPadding = padding;
-		}
+		controller.overlayView.hintPaddingX = paddingX;
+		controller.overlayView.hintPaddingY = paddingY;
 
 		// Remove hints that match the positions to remove
 		if (positionsToRemoveArray && [positionsToRemoveArray count] > 0) {

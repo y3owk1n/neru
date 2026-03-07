@@ -179,7 +179,8 @@ type ModeIndicatorConfig struct {
 	BorderColorLight     string `json:"borderColorLight"     toml:"border_color_light"`
 	BorderColorDark      string `json:"borderColorDark"      toml:"border_color_dark"`
 	BorderWidth          int    `json:"borderWidth"          toml:"border_width"`
-	Padding              int    `json:"padding"              toml:"padding"`
+	PaddingX             int    `json:"paddingX"             toml:"padding_x"`
+	PaddingY             int    `json:"paddingY"             toml:"padding_y"`
 	BorderRadius         int    `json:"borderRadius"         toml:"border_radius"`
 
 	IndicatorXOffset int `json:"indicatorXOffset" toml:"indicator_x_offset"`
@@ -221,7 +222,8 @@ type HintsConfig struct {
 	FontSize                int      `json:"fontSize"                toml:"font_size"`
 	FontFamily              string   `json:"fontFamily"              toml:"font_family"`
 	BorderRadius            int      `json:"borderRadius"            toml:"border_radius"`
-	Padding                 int      `json:"padding"                 toml:"padding"`
+	PaddingX                int      `json:"paddingX"                toml:"padding_x"`
+	PaddingY                int      `json:"paddingY"                toml:"padding_y"`
 	BorderWidth             int      `json:"borderWidth"             toml:"border_width"`
 	MouseActionRefreshDelay int      `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
 	MaxDepth                int      `json:"maxDepth"                toml:"max_depth"`
@@ -472,14 +474,25 @@ func (c *Config) ValidateModeIndicator() error {
 		return err
 	}
 
-	err = validateMinValue(c.ModeIndicator.Padding, 0, "mode_indicator.padding")
-	if err != nil {
-		return err
+	if c.ModeIndicator.PaddingX < -1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"mode_indicator.padding_x must be greater than or equal to -1",
+		)
 	}
 
-	err = validateMinValue(c.ModeIndicator.BorderRadius, 0, "mode_indicator.border_radius")
-	if err != nil {
-		return err
+	if c.ModeIndicator.PaddingY < -1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"mode_indicator.padding_y must be greater than or equal to -1",
+		)
+	}
+
+	if c.ModeIndicator.BorderRadius < -1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"mode_indicator.border_radius must be greater than or equal to -1",
+		)
 	}
 
 	err = validateColors([]colorField{

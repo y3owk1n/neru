@@ -113,12 +113,25 @@ func (c *Config) ValidateHints() error {
 		return derrors.New(derrors.CodeInvalidConfig, "hints.font_size must be between 6 and 72")
 	}
 
-	if c.Hints.BorderRadius < 0 {
-		return derrors.New(derrors.CodeInvalidConfig, "hints.border_radius must be non-negative")
+	if c.Hints.BorderRadius < -1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.border_radius must be greater than or equal to -1",
+		)
 	}
 
-	if c.Hints.Padding < 0 {
-		return derrors.New(derrors.CodeInvalidConfig, "hints.padding must be non-negative")
+	if c.Hints.PaddingX < -1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.padding_x must be greater than or equal to -1",
+		)
+	}
+
+	if c.Hints.PaddingY < -1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.padding_y must be greater than or equal to -1",
+		)
 	}
 
 	if c.Hints.BorderWidth < 0 {
