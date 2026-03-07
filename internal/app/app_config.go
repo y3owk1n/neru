@@ -106,11 +106,7 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	}
 
 	if a.actionService != nil {
-		a.actionService.UpdateConfig(
-			loadResult.Config.Action,
-			loadResult.Config.Action.KeyBindings,
-			loadResult.Config.Action.MoveMouseStep,
-		)
+		a.actionService.UpdateConfig(loadResult.Config.Action)
 	}
 
 	if a.modes != nil {

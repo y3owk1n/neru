@@ -45,21 +45,17 @@ func NewActionService(
 
 // UpdateConfig updates the action service configuration.
 // This allows changing action key bindings and move mouse step at runtime.
-func (s *ActionService) UpdateConfig(
-	actionConfig config.ActionConfig,
-	keyBindings config.ActionKeyBindingsCfg,
-	moveMouseStep int,
-) {
+func (s *ActionService) UpdateConfig(actionConfig config.ActionConfig) {
 	s.mu.Lock()
 	s.config = actionConfig
-	s.keyBindings = keyBindings
-	s.moveMouseStep = moveMouseStep
+	s.keyBindings = actionConfig.KeyBindings
+	s.moveMouseStep = actionConfig.MoveMouseStep
 	s.mu.Unlock()
 
 	s.logger.Info("Action configuration updated",
-		zap.String("left_click", keyBindings.LeftClick),
-		zap.String("right_click", keyBindings.RightClick),
-		zap.Int("move_mouse_step", moveMouseStep))
+		zap.String("left_click", actionConfig.KeyBindings.LeftClick),
+		zap.String("right_click", actionConfig.KeyBindings.RightClick),
+		zap.Int("move_mouse_step", actionConfig.MoveMouseStep))
 }
 
 // ExecuteAction performs the specified action on the given element.
