@@ -109,7 +109,10 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 
 	lightStyle := recursivegrid.BuildStyle(cfg, &mockThemeProvider{darkMode: false})
 	if lightStyle.LabelBackgroundColor() != customLightLabelBG {
-		t.Fatalf("expected custom light label background color, got %q", lightStyle.LabelBackgroundColor())
+		t.Fatalf(
+			"expected custom light label background color, got %q",
+			lightStyle.LabelBackgroundColor(),
+		)
 	}
 
 	if lightStyle.TextColor() != "#FF111111" {
