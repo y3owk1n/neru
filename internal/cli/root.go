@@ -200,9 +200,9 @@ If --x and --y are also provided with --center, they act as offsets from center.
 	}
 
 	cmd.Flags().
-		IntVar(&targetX, "x", 0, "X coordinate (pixels, or offset from center with --center)")
+		IntVar(&targetX, "x", 0, "X coordinate (pixels); with --center, horizontal offset (default 0)")
 	cmd.Flags().
-		IntVar(&targetY, "y", 0, "Y coordinate (pixels, or offset from center with --center)")
+		IntVar(&targetY, "y", 0, "Y coordinate (pixels); with --center, vertical offset (default 0)")
 	cmd.Flags().BoolVar(&center, "center", false, "Move to the center of the active screen")
 
 	return cmd

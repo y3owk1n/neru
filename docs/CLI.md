@@ -173,8 +173,11 @@ neru action move_mouse --x 500 --y 300
 # Mouse movement to screen center
 neru action move_mouse --center
 
-# Mouse movement to screen center with offset
+# Mouse movement to screen center with offset (both axes)
 neru action move_mouse --center --x 50 --y -30
+
+# Mouse movement to screen center with single-axis offset (omitted axis defaults to 0)
+neru action move_mouse --center --x 100
 
 # Mouse movement (relative from current position)
 neru action move_mouse_relative --dx 10 --dy -5
@@ -184,7 +187,7 @@ neru action move_mouse_relative --dx 10 --dy -5
 
 - `move_mouse --x <pixels> --y <pixels>` - Move to absolute screen coordinates
 - `move_mouse --center` - Move to center of active screen
-- `move_mouse --center --x <pixels> --y <pixels>` - Move to center with offset
+- `move_mouse --center --x <pixels> --y <pixels>` - Move to center with offset (each is optional, defaults to 0)
 - `move_mouse_relative --dx <pixels> --dy <pixels>` - Move by delta from current position
 
 ---
