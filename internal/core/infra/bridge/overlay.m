@@ -809,9 +809,21 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	[badgeFill setFill];
 	[badgePath fill];
 	if (badgeBorder && self.gridLabelBackgroundBorderWidth > 0.0) {
-		[badgeBorder setStroke];
-		[badgePath setLineWidth:self.gridLabelBackgroundBorderWidth];
-		[badgePath stroke];
+		// Inset the stroke path by half the border width so the stroke
+		// stays entirely within the badge rect and does not bleed into
+		// adjacent cells.
+		CGFloat inset = self.gridLabelBackgroundBorderWidth / 2.0;
+		NSRect strokeRect = NSInsetRect(badgeRect, inset, inset);
+		if (strokeRect.size.width > 0.0 && strokeRect.size.height > 0.0) {
+			CGFloat strokeMaxRadius = MIN(strokeRect.size.width, strokeRect.size.height) / 2.0;
+			CGFloat strokeRadius = MIN(MAX(radius - inset, 0.0), strokeMaxRadius);
+			NSBezierPath *strokePath = [NSBezierPath bezierPathWithRoundedRect:strokeRect
+			                                                           xRadius:strokeRadius
+			                                                           yRadius:strokeRadius];
+			[badgeBorder setStroke];
+			[strokePath setLineWidth:self.gridLabelBackgroundBorderWidth];
+			[strokePath stroke];
+		}
 	}
 
 	CGFloat textX = badgeRect.origin.x + (badgeRect.size.width - textSize.width) / 2.0;
