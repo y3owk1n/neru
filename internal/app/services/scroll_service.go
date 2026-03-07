@@ -90,7 +90,7 @@ func (s *ScrollService) Hide(ctx context.Context) error {
 
 // UpdateConfig updates the scroll configuration.
 // This allows changing scroll behavior at runtime.
-func (s *ScrollService) UpdateConfig(_ context.Context, config config.ScrollConfig) {
+func (s *ScrollService) UpdateConfig(config config.ScrollConfig) {
 	s.mu.Lock()
 	s.config = config
 	s.mu.Unlock()

@@ -228,8 +228,7 @@ func TestScrollService_UpdateConfig(t *testing.T) {
 		ScrollStep:     100,
 		ScrollStepFull: 2000,
 	}
-	ctx := context.Background()
-	service.UpdateConfig(ctx, newConfig)
+	service.UpdateConfig(newConfig)
 
 	// Since config is private, we can't directly check, but ensure it doesn't crash.
 	// In a real scenario, we could test by calling methods that use config.

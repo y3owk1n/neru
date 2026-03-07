@@ -102,7 +102,7 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	}
 
 	if a.scrollService != nil {
-		a.scrollService.UpdateConfig(context.Background(), loadResult.Config.Scroll)
+		a.scrollService.UpdateConfig(loadResult.Config.Scroll)
 	}
 
 	if a.actionService != nil {
