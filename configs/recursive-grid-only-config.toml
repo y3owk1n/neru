@@ -34,8 +34,8 @@ keys = "uijk"
 
 # Add rounded label backgrounds behind recursive-grid letters
 label_background = false
-label_background_color_light = "#CCFFD700"
-label_background_color_dark = "#CCFFD700"
+label_background_color_light = "#FFAAEEFF"
+label_background_color_dark = "#FF003554"
 label_background_padding_x = -1
 label_background_padding_y = -1
 label_background_corner_radius = -1

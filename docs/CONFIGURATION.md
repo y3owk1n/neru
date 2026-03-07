@@ -766,8 +766,8 @@ j   →   k          j = Lower-left
 | `font_size`             | int    | `10`          | Font size for labels                         |
 | `font_family`           | string | `""`          | Font family for labels (empty = system)      |
 | `label_background`      | bool   | `false`       | Add rounded backgrounds behind labels        |
-| `label_background_color_light` | string | `"#CCFFD700"` | Label background for Light Mode             |
-| `label_background_color_dark`  | string | `"#CCFFD700"` | Label background for Dark Mode              |
+| `label_background_color_light` | string | `"#FFAAEEFF"` | Label background for Light Mode             |
+| `label_background_color_dark`  | string | `"#FF003554"` | Label background for Dark Mode              |
 | `label_background_padding_x` | int | `-1` | Horizontal badge padding (`-1` = auto)       |
 | `label_background_padding_y` | int | `-1` | Vertical badge padding (`-1` = auto)         |
 | `label_background_corner_radius` | int | `-1` | Badge corner radius (`-1` = auto)            |

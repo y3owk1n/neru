@@ -237,9 +237,9 @@ const (
 	// RecursiveGridTextColorDark is the default text color for Dark Mode for recursive grid.
 	RecursiveGridTextColorDark = "#FF00CFCF"
 	// RecursiveGridLabelBackgroundColorLight is the default label badge color for Light Mode.
-	RecursiveGridLabelBackgroundColorLight = "#CCFFD700"
+	RecursiveGridLabelBackgroundColorLight = "#FFAAEEFF"
 	// RecursiveGridLabelBackgroundColorDark is the default label badge color for Dark Mode.
-	RecursiveGridLabelBackgroundColorDark = "#CCFFD700"
+	RecursiveGridLabelBackgroundColorDark = "#FF003554"
 	// DefaultRecursiveGridLabelBackgroundPaddingX preserves automatic horizontal badge padding.
 	DefaultRecursiveGridLabelBackgroundPaddingX = -1
 	// DefaultRecursiveGridLabelBackgroundPaddingY preserves automatic vertical badge padding.
