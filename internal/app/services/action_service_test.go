@@ -173,22 +173,14 @@ func TestMoveMouseTo_clampsToScreenBounds(t *testing.T) {
 	}
 }
 
-func TestMoveMouseTo_center(t *testing.T) {
+func TestMoveMouseToCenter(t *testing.T) {
 	mockAcc := newMockAccessibilityPort()
 	actionService := newTestActionService(t, mockAcc)
 	ctx := context.Background()
-	// Simulate what IPC handler does with --center
-	screenBounds, err := mockAcc.ScreenBounds(ctx)
-	if err != nil {
-		t.Fatalf("ScreenBounds failed: %v", err)
-	}
 
-	centerX := screenBounds.Min.X + screenBounds.Dx()/2
-	centerY := screenBounds.Min.Y + screenBounds.Dy()/2
-
-	err = actionService.MoveMouseTo(ctx, centerX, centerY)
+	err := actionService.MoveMouseToCenter(ctx, 0, 0)
 	if err != nil {
-		t.Fatalf("MoveMouseTo failed: %v", err)
+		t.Fatalf("MoveMouseToCenter failed: %v", err)
 	}
 
 	if len(mockAcc.moveCalls) != 1 {
@@ -201,23 +193,14 @@ func TestMoveMouseTo_center(t *testing.T) {
 	}
 }
 
-func TestMoveMouseTo_centerWithOffset(t *testing.T) {
+func TestMoveMouseToCenter_withOffset(t *testing.T) {
 	mockAcc := newMockAccessibilityPort()
 	actionService := newTestActionService(t, mockAcc)
 	ctx := context.Background()
 
-	screenBounds, err := mockAcc.ScreenBounds(ctx)
+	err := actionService.MoveMouseToCenter(ctx, 50, -30)
 	if err != nil {
-		t.Fatalf("ScreenBounds failed: %v", err)
-	}
-
-	centerX := screenBounds.Min.X + screenBounds.Dx()/2
-	centerY := screenBounds.Min.Y + screenBounds.Dy()/2
-	offsetX, offsetY := 50, -30
-
-	err = actionService.MoveMouseTo(ctx, centerX+offsetX, centerY+offsetY)
-	if err != nil {
-		t.Fatalf("MoveMouseTo failed: %v", err)
+		t.Fatalf("MoveMouseToCenter failed: %v", err)
 	}
 
 	if len(mockAcc.moveCalls) != 1 {

@@ -186,6 +186,35 @@ func (s *ActionService) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 	return s.accessibility.ScreenBounds(ctx)
 }
 
+// MoveMouseToCenter moves the mouse cursor to the center of the active screen,
+// optionally offset by the given delta values. It fetches screen bounds once
+// for both center computation and clamping.
+func (s *ActionService) MoveMouseToCenter(ctx context.Context, offsetX, offsetY int) error {
+	screenBounds, err := s.accessibility.ScreenBounds(ctx)
+	if err != nil {
+		s.logger.Error("Failed to get screen bounds", zap.Error(err))
+
+		return core.WrapAccessibilityFailed(err, "get screen bounds")
+	}
+
+	centerX := screenBounds.Min.X + screenBounds.Dx()/2 //nolint:mnd
+	centerY := screenBounds.Min.Y + screenBounds.Dy()/2 //nolint:mnd
+	targetX := centerX + offsetX
+	targetY := centerY + offsetY
+	clampedX := min(max(targetX, screenBounds.Min.X), screenBounds.Max.X-1)
+	clampedY := min(max(targetY, screenBounds.Min.Y), screenBounds.Max.Y-1)
+	point := image.Point{X: clampedX, Y: clampedY}
+	s.logger.Info("Moving mouse cursor to center",
+		zap.Int("x", clampedX),
+		zap.Int("y", clampedY),
+		zap.Int("offsetX", offsetX),
+		zap.Int("offsetY", offsetY),
+		zap.Bool("clamped", clampedX != targetX || clampedY != targetY),
+	)
+
+	return s.accessibility.MoveCursorToPoint(ctx, point, false)
+}
+
 // HandleActionKey processes an action key and performs the corresponding action at the current cursor position.
 // Returns true if the key was handled as an action key, false otherwise.
 // Returns an error if the action failed to execute.

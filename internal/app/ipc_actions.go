@@ -158,21 +158,27 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	if isMoveMouse && hasCenter {
-		screenBounds, err := h.actionService.ScreenBounds(ctx)
+		h.logger.Info("Moving mouse to center via IPC",
+			zap.Int("offsetX", targetX),
+			zap.Int("offsetY", targetY),
+		)
+
+		err := h.actionService.MoveMouseToCenter(ctx, targetX, targetY)
 		if err != nil {
-			h.logger.Error("Failed to get screen bounds", zap.Error(err))
+			h.logger.Error("Failed to move mouse to center", zap.Error(err))
 
 			return ipc.Response{
 				Success: false,
-				Message: "failed to get screen bounds",
+				Message: "failed to perform action: " + err.Error(),
 				Code:    ipc.CodeActionFailed,
 			}
 		}
 
-		centerX := screenBounds.Min.X + screenBounds.Dx()/2 //nolint:mnd
-		centerY := screenBounds.Min.Y + screenBounds.Dy()/2 //nolint:mnd
-		targetX = centerX + targetX                         // targetX acts as offset (defaults to 0)
-		targetY = centerY + targetY                         // targetY acts as offset (defaults to 0)
+		return ipc.Response{
+			Success: true,
+			Message: actionName + " performed",
+			Code:    ipc.CodeOK,
+		}
 	}
 
 	if isMoveMouseRelative {
