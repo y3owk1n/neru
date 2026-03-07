@@ -125,18 +125,17 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	isMoveMouse := actionName == string(action.NameMoveMouse)
 	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
 
+	// Validation order matters:
+	// 1. Reject --x/--y mixed with --dx/--dy (always invalid).
+	// 2. Reject --center mixed with --dx/--dy (center uses --x/--y as offsets, not deltas).
+	// 3. Reject --center on non-move_mouse actions.
+	// 4. Require --x AND --y when --center is absent for move_mouse.
+	// Note: --center with --x/--y is intentionally allowed — x/y act as offsets from center.
+
 	if (isMoveMouse || isMoveMouseRelative) && (hasX || hasY) && (hasDX || hasDY) {
 		return ipc.Response{
 			Success: false,
 			Message: "use either --x/--y or --dx/--dy, not both",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if isMoveMouse && !hasCenter && (!hasX || !hasY) {
-		return ipc.Response{
-			Success: false,
-			Message: "move_mouse requires --x and --y flags, or --center",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -153,6 +152,14 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		return ipc.Response{
 			Success: false,
 			Message: "--center is only supported with move_mouse",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if isMoveMouse && !hasCenter && (!hasX || !hasY) {
+		return ipc.Response{
+			Success: false,
+			Message: "move_mouse requires --x and --y flags, or --center",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
