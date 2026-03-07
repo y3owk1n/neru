@@ -128,6 +128,10 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 		}
 
 		if h.shouldAutoExit(h.config.RecursiveGrid.AutoExitActions, actionName) {
+			if !h.actionService.IsMoveMouseKey(key) {
+				h.cursorState.MarkActionPerformed()
+			}
+
 			h.exitModeLocked()
 		}
 

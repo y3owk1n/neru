@@ -83,6 +83,10 @@ func (h *Handler) handleHintsModeKey(key string) {
 		}
 
 		if h.shouldAutoExit(h.config.Hints.AutoExitActions, actionName) {
+			if !h.actionService.IsMoveMouseKey(key) {
+				h.cursorState.MarkActionPerformed()
+			}
+
 			h.exitModeLocked()
 
 			return
@@ -186,6 +190,10 @@ func (h *Handler) handleGridModeKey(key string) {
 		}
 
 		if h.shouldAutoExit(h.config.Grid.AutoExitActions, actionName) {
+			if !h.actionService.IsMoveMouseKey(key) {
+				h.cursorState.MarkActionPerformed()
+			}
+
 			h.exitModeLocked()
 		}
 
