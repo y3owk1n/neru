@@ -120,11 +120,17 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 	}
 
 	if lightStyle.LabelBackgroundPaddingX() != 9 {
-		t.Fatalf("expected custom light label background padding x, got %d", lightStyle.LabelBackgroundPaddingX())
+		t.Fatalf(
+			"expected custom light label background padding x, got %d",
+			lightStyle.LabelBackgroundPaddingX(),
+		)
 	}
 
 	if lightStyle.LabelBackgroundPaddingY() != 5 {
-		t.Fatalf("expected custom light label background padding y, got %d", lightStyle.LabelBackgroundPaddingY())
+		t.Fatalf(
+			"expected custom light label background padding y, got %d",
+			lightStyle.LabelBackgroundPaddingY(),
+		)
 	}
 
 	if lightStyle.LabelBackgroundCornerRadius() != 3 {
@@ -143,7 +149,10 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 
 	darkStyle := recursivegrid.BuildStyle(cfg, &mockThemeProvider{darkMode: true})
 	if darkStyle.LabelBackgroundColor() != customDarkLabelBG {
-		t.Fatalf("expected custom dark label background color, got %q", darkStyle.LabelBackgroundColor())
+		t.Fatalf(
+			"expected custom dark label background color, got %q",
+			darkStyle.LabelBackgroundColor(),
+		)
 	}
 
 	if darkStyle.TextColor() != "#FFEEEEEE" {
@@ -151,11 +160,17 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 	}
 
 	if darkStyle.LabelBackgroundPaddingX() != 9 {
-		t.Fatalf("expected custom dark label background padding x, got %d", darkStyle.LabelBackgroundPaddingX())
+		t.Fatalf(
+			"expected custom dark label background padding x, got %d",
+			darkStyle.LabelBackgroundPaddingX(),
+		)
 	}
 
 	if darkStyle.LabelBackgroundPaddingY() != 5 {
-		t.Fatalf("expected custom dark label background padding y, got %d", darkStyle.LabelBackgroundPaddingY())
+		t.Fatalf(
+			"expected custom dark label background padding y, got %d",
+			darkStyle.LabelBackgroundPaddingY(),
+		)
 	}
 
 	if darkStyle.LabelBackgroundCornerRadius() != 3 {
@@ -189,7 +204,10 @@ func TestBuildStyle_LabelBackgroundDisabledPreservesNormalGridColors(t *testing.
 	}
 
 	if lightStyle.HighlightColor() != "#11442266" {
-		t.Fatalf("expected light highlight color to remain unchanged, got %q", lightStyle.HighlightColor())
+		t.Fatalf(
+			"expected light highlight color to remain unchanged, got %q",
+			lightStyle.HighlightColor(),
+		)
 	}
 
 	if lightStyle.TextColor() != "#FF101010" {
@@ -202,7 +220,10 @@ func TestBuildStyle_LabelBackgroundDisabledPreservesNormalGridColors(t *testing.
 	}
 
 	if darkStyle.HighlightColor() != "#228844AA" {
-		t.Fatalf("expected dark highlight color to remain unchanged, got %q", darkStyle.HighlightColor())
+		t.Fatalf(
+			"expected dark highlight color to remain unchanged, got %q",
+			darkStyle.HighlightColor(),
+		)
 	}
 
 	if darkStyle.TextColor() != "#FFF0F0F0" {
@@ -220,19 +241,31 @@ func TestBuildStyle_LabelBackgroundEnabledUsesDedicatedBadgeColor(t *testing.T) 
 
 	lightStyle := recursivegrid.BuildStyle(cfg, &mockThemeProvider{darkMode: false})
 	if lightStyle.HighlightColor() != "#11223344" {
-		t.Fatalf("expected light highlight color to remain unchanged, got %q", lightStyle.HighlightColor())
+		t.Fatalf(
+			"expected light highlight color to remain unchanged, got %q",
+			lightStyle.HighlightColor(),
+		)
 	}
 
 	if lightStyle.LabelBackgroundColor() != "#99ABCDEF" {
-		t.Fatalf("expected light badge color to use dedicated config, got %q", lightStyle.LabelBackgroundColor())
+		t.Fatalf(
+			"expected light badge color to use dedicated config, got %q",
+			lightStyle.LabelBackgroundColor(),
+		)
 	}
 
 	darkStyle := recursivegrid.BuildStyle(cfg, &mockThemeProvider{darkMode: true})
 	if darkStyle.HighlightColor() != "#55667788" {
-		t.Fatalf("expected dark highlight color to remain unchanged, got %q", darkStyle.HighlightColor())
+		t.Fatalf(
+			"expected dark highlight color to remain unchanged, got %q",
+			darkStyle.HighlightColor(),
+		)
 	}
 
 	if darkStyle.LabelBackgroundColor() != "#66FEDCBA" {
-		t.Fatalf("expected dark badge color to use dedicated config, got %q", darkStyle.LabelBackgroundColor())
+		t.Fatalf(
+			"expected dark badge color to use dedicated config, got %q",
+			darkStyle.LabelBackgroundColor(),
+		)
 	}
 }
