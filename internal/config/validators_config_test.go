@@ -1052,6 +1052,18 @@ func TestConfig_ValidateScrollKeyBindings(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "invalid function key out of supported range",
+			config: func() config.Config {
+				cfg := config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{
+					"scroll_up": {"F21"},
+				}
+
+				return *cfg
+			}(),
+			wantErr: true,
+		},
+		{
 			name: "valid single-letter keys",
 			config: func() config.Config {
 				cfg := config.DefaultConfig()
@@ -1116,6 +1128,14 @@ func TestConfig_ValidateScrollKeyBindings(t *testing.T) {
 						"F10",
 						"F11",
 						"F12",
+						"F13",
+						"F14",
+						"F15",
+						"F16",
+						"F17",
+						"F18",
+						"F19",
+						"F20",
 					},
 					"page_up": {
 						"Cmd+Up",

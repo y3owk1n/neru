@@ -585,6 +585,14 @@ static void initializeSpecialKeyMaps(void) {
 		@"F10" : @(kKeyCodeF10),
 		@"F11" : @(kKeyCodeF11),
 		@"F12" : @(kKeyCodeF12),
+		@"F13" : @(kKeyCodeF13),
+		@"F14" : @(kKeyCodeF14),
+		@"F15" : @(kKeyCodeF15),
+		@"F16" : @(kKeyCodeF16),
+		@"F17" : @(kKeyCodeF17),
+		@"F18" : @(kKeyCodeF18),
+		@"F19" : @(kKeyCodeF19),
+		@"F20" : @(kKeyCodeF20),
 	} copy];
 
 	NSMutableDictionary<NSNumber *, NSString *> *codeToName =

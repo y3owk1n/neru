@@ -853,6 +853,14 @@ func isValidScrollKeyName(key string) bool {
 		"F10":       true,
 		"F11":       true,
 		"F12":       true,
+		"F13":       true,
+		"F14":       true,
+		"F15":       true,
+		"F16":       true,
+		"F17":       true,
+		"F18":       true,
+		"F19":       true,
+		"F20":       true,
 	}
 
 	if validKeys[key] {

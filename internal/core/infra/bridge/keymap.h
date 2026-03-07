@@ -97,6 +97,14 @@ typedef NS_ENUM(uint16_t, KeyCode) {
 	kKeyCodeF10 = 109,
 	kKeyCodeF11 = 103,
 	kKeyCodeF12 = 111,
+	kKeyCodeF13 = 105,
+	kKeyCodeF14 = 107,
+	kKeyCodeF15 = 113,
+	kKeyCodeF16 = 106,
+	kKeyCodeF17 = 64,
+	kKeyCodeF18 = 79,
+	kKeyCodeF19 = 80,
+	kKeyCodeF20 = 90,
 
 	// Numpad
 	kKeyCodeNumpadDot = 65,
