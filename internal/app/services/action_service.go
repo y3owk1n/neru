@@ -158,19 +158,14 @@ func (s *ActionService) MoveMouseTo(
 		return core.WrapAccessibilityFailed(err, "get screen bounds")
 	}
 
-	target := image.Point{X: targetX, Y: targetY}
-	clamped := clampToScreenBounds(target, screenBounds)
-
 	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
 
-	s.logger.Info("Moving mouse cursor",
-		zap.Int("x", clamped.X),
-		zap.Int("y", clamped.Y),
-		zap.Bool("clamped", clamped != target),
-		zap.Bool("bypassSmooth", shouldBypass),
+	return s.moveMouseWithBounds(
+		ctx,
+		image.Point{X: targetX, Y: targetY},
+		screenBounds,
+		shouldBypass,
 	)
-
-	return s.accessibility.MoveCursorToPoint(ctx, clamped, shouldBypass)
 }
 
 // MoveMouseRelative moves the mouse cursor by the specified delta from the current position.
@@ -209,17 +204,15 @@ func (s *ActionService) MoveMouseToCenter(ctx context.Context, offsetX, offsetY 
 	centerX := screenBounds.Min.X + screenBounds.Dx()/2 //nolint:mnd
 	centerY := screenBounds.Min.Y + screenBounds.Dy()/2 //nolint:mnd
 	target := image.Point{X: centerX + offsetX, Y: centerY + offsetY}
-	clamped := clampToScreenBounds(target, screenBounds)
 
-	s.logger.Info("Moving mouse cursor to center",
-		zap.Int("x", clamped.X),
-		zap.Int("y", clamped.Y),
+	return s.moveMouseWithBounds(
+		ctx,
+		target,
+		screenBounds,
+		false,
 		zap.Int("offsetX", offsetX),
 		zap.Int("offsetY", offsetY),
-		zap.Bool("clamped", clamped != target),
 	)
-
-	return s.accessibility.MoveCursorToPoint(ctx, clamped, false)
 }
 
 // HandleActionKey processes an action key and performs the corresponding action at the current cursor position.
@@ -368,6 +361,31 @@ func (s *ActionService) HandleDirectActionKey(
 	}
 
 	return actionString, true, nil
+}
+
+// moveMouseWithBounds clamps target to the given screen bounds and moves the cursor.
+// This is the shared implementation used by MoveMouseTo and MoveMouseToCenter to
+// avoid duplicating clamp-and-move logic.
+func (s *ActionService) moveMouseWithBounds(
+	ctx context.Context,
+	target image.Point,
+	screenBounds image.Rectangle,
+	bypassSmooth bool,
+	fields ...zap.Field,
+) error {
+	clamped := clampToScreenBounds(target, screenBounds)
+	baseCount := 4
+	logFields := make([]zap.Field, 0, baseCount+len(fields))
+	logFields = append(logFields,
+		zap.Int("x", clamped.X),
+		zap.Int("y", clamped.Y),
+		zap.Bool("clamped", clamped != target),
+		zap.Bool("bypassSmooth", bypassSmooth),
+	)
+	logFields = append(logFields, fields...)
+	s.logger.Info("Moving mouse cursor", logFields...)
+
+	return s.accessibility.MoveCursorToPoint(ctx, clamped, bypassSmooth)
 }
 
 // getActionMapping returns the action string, log message, and the resolved binding key for an action key.
