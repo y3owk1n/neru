@@ -600,7 +600,11 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	CGRect bounds = cellItem.bounds;
 	CGFloat screenHeight = self.bounds.size.height;
 	CGFloat flippedY = screenHeight - bounds.origin.y - bounds.size.height;
-	CGFloat expand = ceil(self.gridBorderWidth / 2.0) + 1.0;
+	CGFloat maxBorder = self.gridBorderWidth;
+	if (self.gridDrawLabelBackground && self.gridLabelBackgroundBorderWidth > maxBorder) {
+		maxBorder = self.gridLabelBackgroundBorderWidth;
+	}
+	CGFloat expand = ceil(maxBorder / 2.0) + 1.0;
 	return NSMakeRect(bounds.origin.x - expand, flippedY - expand, bounds.size.width + expand * 2,
 	                  bounds.size.height + expand * 2);
 }
