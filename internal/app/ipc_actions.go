@@ -149,6 +149,14 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
+	if hasCenter && !isMoveMouse {
+		return ipc.Response{
+			Success: false,
+			Message: "--center is only supported with move_mouse",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	if isMoveMouse && hasCenter {
 		screenBounds, err := h.actionService.ScreenBounds(ctx)
 		if err != nil {
