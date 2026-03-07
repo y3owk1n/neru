@@ -181,13 +181,18 @@ If --x and --y are also provided with --center, they act as offsets from center.
 				)
 			}
 
-			args := []string{
-				"move_mouse",
-				fmt.Sprintf("--x=%d", targetX),
-				fmt.Sprintf("--y=%d", targetY),
-			}
+			args := []string{"move_mouse"}
+
 			if center {
 				args = append(args, "--center")
+			}
+
+			if cmd.Flags().Changed("x") {
+				args = append(args, fmt.Sprintf("--x=%d", targetX))
+			}
+
+			if cmd.Flags().Changed("y") {
+				args = append(args, fmt.Sprintf("--y=%d", targetY))
 			}
 
 			return sendCommand(cmd, "action", args)
