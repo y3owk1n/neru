@@ -5,10 +5,12 @@ import "time"
 const (
 	// DefaultHintFontSize is the default font size for hints.
 	DefaultHintFontSize = 10
-	// DefaultHintBorderRadius is the default border radius for hints.
-	DefaultHintBorderRadius = 4
-	// DefaultHintPadding is the default padding for hints.
-	DefaultHintPadding = 4
+	// DefaultHintBorderRadius is the default border radius for hints (-1 = auto).
+	DefaultHintBorderRadius = -1
+	// DefaultHintPaddingX is the default horizontal padding for hints (-1 = auto).
+	DefaultHintPaddingX = -1
+	// DefaultHintPaddingY is the default vertical padding for hints (-1 = auto).
+	DefaultHintPaddingY = -1
 
 	// DefaultMouseActionRefreshDelay is the default delay before refreshing hints after mouse actions.
 	DefaultMouseActionRefreshDelay = 0
@@ -28,10 +30,12 @@ const (
 
 	// DefaultScrollFontSize is the default font size for scroll indicator.
 	DefaultScrollFontSize = 10
-	// DefaultScrollPadding is the default padding for scroll indicator.
-	DefaultScrollPadding = 4
-	// DefaultScrollBorderRadius is the default border radius for scroll indicator.
-	DefaultScrollBorderRadius = 4
+	// DefaultScrollPaddingX is the default horizontal padding for scroll indicator (-1 = auto).
+	DefaultScrollPaddingX = -1
+	// DefaultScrollPaddingY is the default vertical padding for scroll indicator (-1 = auto).
+	DefaultScrollPaddingY = -1
+	// DefaultScrollBorderRadius is the default border radius for scroll indicator (-1 = auto).
+	DefaultScrollBorderRadius = -1
 
 	// DefaultScrollIndicatorXOffset is the default X offset for scroll indicator.
 	DefaultScrollIndicatorXOffset = 20
@@ -289,7 +293,8 @@ func DefaultConfig() *Config {
 			FontSize:                DefaultHintFontSize,
 			FontFamily:              "",
 			BorderRadius:            DefaultHintBorderRadius,
-			Padding:                 DefaultHintPadding,
+			PaddingX:                DefaultHintPaddingX,
+			PaddingY:                DefaultHintPaddingY,
 			BorderWidth:             1,
 			MouseActionRefreshDelay: DefaultMouseActionRefreshDelay,
 			MaxDepth:                DefaultMaxDepth,
@@ -418,7 +423,8 @@ func DefaultConfig() *Config {
 			BorderColorLight:     ModeIndicatorBorderColorLight,
 			BorderColorDark:      ModeIndicatorBorderColorDark,
 			BorderWidth:          1,
-			Padding:              DefaultScrollPadding,
+			PaddingX:             DefaultScrollPaddingX,
+			PaddingY:             DefaultScrollPaddingY,
 			BorderRadius:         DefaultScrollBorderRadius,
 
 			IndicatorXOffset: DefaultScrollIndicatorXOffset,

@@ -24,9 +24,10 @@ typedef struct {
 	char *textColor;        ///< Text color
 	char *matchedTextColor; ///< Matched text color
 	char *borderColor;      ///< Border color
-	int borderRadius;       ///< Border radius
+	int borderRadius;       ///< Border radius (-1 = auto)
 	int borderWidth;        ///< Border width
-	int padding;            ///< Padding
+	int paddingX;           ///< Horizontal padding (-1 = auto)
+	int paddingY;           ///< Vertical padding (-1 = auto)
 	int showArrow;          ///< Show arrow (0 = no arrow, 1 = show arrow)
 } HintStyle;
 

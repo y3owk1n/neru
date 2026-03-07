@@ -83,8 +83,9 @@ hint_characters = "asdfghjkl"
 # Visual appearance
 font_size = 10      # Font size for hints
 font_family = ""    # Font family for hints
-border_radius = 4   # Corner radius for hint borders
-padding = 4         # Padding inside hint borders
+border_radius = -1  # Corner radius for hint borders (-1 = auto pill)
+padding_x = -1      # Horizontal padding inside hint borders (-1 = auto based on font size)
+padding_y = -1      # Vertical padding inside hint borders (-1 = auto based on font size)
 border_width = 1    # Width of hint borders
 
 # Delay in milliseconds before refreshing hints after mouse click actions.
@@ -351,8 +352,9 @@ text_color_dark = "#FF003554"        # Text color for Dark Mode (deep navy)
 border_color_light = "#FF007A9E"     # Border color for Light Mode (deep teal)
 border_color_dark = "#FF007A9E"      # Border color for Dark Mode (deep teal)
 border_width = 1                     # Border width
-padding = 4                          # Padding inside the indicator
-border_radius = 4                    # Corner radius
+padding_x = -1                       # Horizontal padding (-1 = auto based on font size)
+padding_y = -1                       # Vertical padding (-1 = auto based on font size)
+border_radius = -1                   # Corner radius (-1 = auto pill)
 indicator_x_offset = 20              # X offset from cursor position
 indicator_y_offset = 20              # Y offset from cursor position
 

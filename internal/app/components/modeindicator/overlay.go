@@ -244,7 +244,8 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		borderColor:      (*C.char)(cachedStyle.BorderColor),
 		borderRadius:     C.int(o.indicatorConfig.BorderRadius),
 		borderWidth:      C.int(o.indicatorConfig.BorderWidth),
-		padding:          C.int(o.indicatorConfig.Padding),
+		paddingX:         C.int(o.indicatorConfig.PaddingX),
+		paddingY:         C.int(o.indicatorConfig.PaddingY),
 		showArrow:        0, // No arrow for mode indicator
 	}
 
