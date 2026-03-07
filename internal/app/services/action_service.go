@@ -169,7 +169,12 @@ func (s *ActionService) MoveMouseTo(
 }
 
 // MoveMouseRelative moves the mouse cursor by the specified delta from the current position.
-func (s *ActionService) MoveMouseRelative(ctx context.Context, deltaX, deltaY int) error {
+// If bypassSmooth is true, smooth cursor animation is skipped (used for keyboard-driven movements).
+func (s *ActionService) MoveMouseRelative(
+	ctx context.Context,
+	deltaX, deltaY int,
+	bypassSmooth ...bool,
+) error {
 	cursorPos, err := s.accessibility.CursorPosition(ctx)
 	if err != nil {
 		s.logger.Error("Failed to get cursor position", zap.Error(err))
@@ -177,7 +182,9 @@ func (s *ActionService) MoveMouseRelative(ctx context.Context, deltaX, deltaY in
 		return core.WrapAccessibilityFailed(err, "get cursor position")
 	}
 
-	return s.MoveMouseTo(ctx, cursorPos.X+deltaX, cursorPos.Y+deltaY, true)
+	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
+
+	return s.MoveMouseTo(ctx, cursorPos.X+deltaX, cursorPos.Y+deltaY, shouldBypass)
 }
 
 // CursorPosition returns the current cursor position.
@@ -331,7 +338,7 @@ func (s *ActionService) HandleDirectActionKey(
 			zap.Int("step", s.moveMouseStep),
 		)
 
-		moveErr := s.MoveMouseRelative(ctx, deltaX, deltaY)
+		moveErr := s.MoveMouseRelative(ctx, deltaX, deltaY, true)
 		if moveErr != nil {
 			s.logger.Error("Failed to move mouse relative", zap.Error(moveErr))
 
