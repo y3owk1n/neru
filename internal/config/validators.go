@@ -113,25 +113,19 @@ func (c *Config) ValidateHints() error {
 		return derrors.New(derrors.CodeInvalidConfig, "hints.font_size must be between 6 and 72")
 	}
 
-	if c.Hints.BorderRadius < -1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"hints.border_radius must be greater than or equal to -1",
-		)
+	err = validateMinValue(c.Hints.BorderRadius, -1, "hints.border_radius")
+	if err != nil {
+		return err
 	}
 
-	if c.Hints.PaddingX < -1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"hints.padding_x must be greater than or equal to -1",
-		)
+	err = validateMinValue(c.Hints.PaddingX, -1, "hints.padding_x")
+	if err != nil {
+		return err
 	}
 
-	if c.Hints.PaddingY < -1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"hints.padding_y must be greater than or equal to -1",
-		)
+	err = validateMinValue(c.Hints.PaddingY, -1, "hints.padding_y")
+	if err != nil {
+		return err
 	}
 
 	if c.Hints.BorderWidth < 0 {
@@ -1177,25 +1171,31 @@ func (c *Config) ValidateRecursiveGrid() error {
 		)
 	}
 
-	if c.RecursiveGrid.LabelBackgroundPaddingX < -1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"recursive_grid.label_background_padding_x must be greater than or equal to -1",
-		)
+	err := validateMinValue(
+		c.RecursiveGrid.LabelBackgroundCornerRadius,
+		-1,
+		"recursive_grid.label_background_corner_radius",
+	)
+	if err != nil {
+		return err
 	}
 
-	if c.RecursiveGrid.LabelBackgroundPaddingY < -1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"recursive_grid.label_background_padding_y must be greater than or equal to -1",
-		)
+	err = validateMinValue(
+		c.RecursiveGrid.LabelBackgroundPaddingX,
+		-1,
+		"recursive_grid.label_background_padding_x",
+	)
+	if err != nil {
+		return err
 	}
 
-	if c.RecursiveGrid.LabelBackgroundCornerRadius < -1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"recursive_grid.label_background_corner_radius must be greater than or equal to -1",
-		)
+	err = validateMinValue(
+		c.RecursiveGrid.LabelBackgroundPaddingY,
+		-1,
+		"recursive_grid.label_background_padding_y",
+	)
+	if err != nil {
+		return err
 	}
 
 	if c.RecursiveGrid.LabelBackgroundBorderWidth < 0 {
@@ -1217,7 +1217,7 @@ func (c *Config) ValidateRecursiveGrid() error {
 		{c.RecursiveGrid.LabelBackgroundColorDark, "recursive_grid.label_background_color_dark"},
 	}
 
-	err := validateColors(colorFields)
+	err = validateColors(colorFields)
 	if err != nil {
 		return err
 	}

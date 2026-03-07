@@ -474,25 +474,19 @@ func (c *Config) ValidateModeIndicator() error {
 		return err
 	}
 
-	if c.ModeIndicator.PaddingX < -1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"mode_indicator.padding_x must be greater than or equal to -1",
-		)
+	err = validateMinValue(c.ModeIndicator.PaddingX, -1, "mode_indicator.padding_x")
+	if err != nil {
+		return err
 	}
 
-	if c.ModeIndicator.PaddingY < -1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"mode_indicator.padding_y must be greater than or equal to -1",
-		)
+	err = validateMinValue(c.ModeIndicator.PaddingY, -1, "mode_indicator.padding_y")
+	if err != nil {
+		return err
 	}
 
-	if c.ModeIndicator.BorderRadius < -1 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"mode_indicator.border_radius must be greater than or equal to -1",
-		)
+	err = validateMinValue(c.ModeIndicator.BorderRadius, -1, "mode_indicator.border_radius")
+	if err != nil {
+		return err
 	}
 
 	err = validateColors([]colorField{
