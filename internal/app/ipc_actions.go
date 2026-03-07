@@ -55,11 +55,11 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	actionName := cmd.Args[0]
 
 	var (
-		targetX, targetY int
-		deltaX, deltaY   int
-		hasX, hasY       bool
-		hasDX, hasDY     bool
-		hasCenter        bool
+		xVal, yVal     int
+		deltaX, deltaY int
+		hasX, hasY     bool
+		hasDX, hasDY   bool
+		hasCenter      bool
 	)
 
 	parseErr := false
@@ -74,7 +74,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 				break
 			}
 
-			targetX = val
+			xVal = val
 			hasX = true
 
 		case strings.HasPrefix(arg, "--y="):
@@ -85,7 +85,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 				break
 			}
 
-			targetY = val
+			yVal = val
 			hasY = true
 
 		case strings.HasPrefix(arg, "--dx="):
@@ -158,12 +158,14 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	if isMoveMouse && hasCenter {
+		offsetX, offsetY := xVal, yVal
+
 		h.logger.Info("Moving mouse to center via IPC",
-			zap.Int("offsetX", targetX),
-			zap.Int("offsetY", targetY),
+			zap.Int("offsetX", offsetX),
+			zap.Int("offsetY", offsetY),
 		)
 
-		err := h.actionService.MoveMouseToCenter(ctx, targetX, targetY)
+		err := h.actionService.MoveMouseToCenter(ctx, offsetX, offsetY)
 		if err != nil {
 			h.logger.Error("Failed to move mouse to center", zap.Error(err))
 
@@ -201,20 +203,20 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 		}
 
-		targetX = cursorPos.X + deltaX
-		targetY = cursorPos.Y + deltaY
+		xVal = cursorPos.X + deltaX
+		yVal = cursorPos.Y + deltaY
 	}
 
 	h.logger.Info("Performing action via IPC",
 		zap.String("action", actionName),
-		zap.Int("x", targetX),
-		zap.Int("y", targetY),
+		zap.Int("x", xVal),
+		zap.Int("y", yVal),
 	)
 
 	var err error
 	switch actionName {
 	case string(action.NameMoveMouse), string(action.NameMoveMouseRelative):
-		err = h.actionService.MoveMouseTo(ctx, targetX, targetY, false)
+		err = h.actionService.MoveMouseTo(ctx, xVal, yVal, false)
 	default:
 		cursorPos, posErr := h.actionService.CursorPosition(ctx)
 		if posErr != nil {
