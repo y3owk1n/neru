@@ -133,10 +133,13 @@ func (s *ActionService) MoveCursorToPoint(ctx context.Context, point image.Point
 }
 
 // clampToScreenBounds clamps the given point so it stays within the screen bounds.
-func clampToScreenBounds(p image.Point, bounds image.Rectangle) image.Point {
+func clampToScreenBounds(point image.Point, bounds image.Rectangle) image.Point {
+	maxX := max(bounds.Max.X-1, bounds.Min.X)
+	maxY := max(bounds.Max.Y-1, bounds.Min.Y)
+
 	return image.Point{
-		X: min(max(p.X, bounds.Min.X), bounds.Max.X-1),
-		Y: min(max(p.Y, bounds.Min.Y), bounds.Max.Y-1),
+		X: min(max(point.X, bounds.Min.X), maxX),
+		Y: min(max(point.Y, bounds.Min.Y), maxY),
 	}
 }
 

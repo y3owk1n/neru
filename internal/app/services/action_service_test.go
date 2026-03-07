@@ -221,6 +221,32 @@ func TestMoveMouseToCenter_withOffset(t *testing.T) {
 	}
 }
 
+func TestMoveMouseTo_degenerateBounds(t *testing.T) {
+	mockAcc := newMockAccessibilityPort()
+	// Zero-width, zero-height screen (degenerate bounds)
+	mockAcc.screenBounds = image.Rectangle{
+		Min: image.Point{X: 0, Y: 0},
+		Max: image.Point{X: 0, Y: 0},
+	}
+	actionService := newTestActionService(t, mockAcc)
+	ctx := context.Background()
+
+	err := actionService.MoveMouseTo(ctx, 500, 500)
+	if err != nil {
+		t.Fatalf("MoveMouseTo failed: %v", err)
+	}
+
+	if len(mockAcc.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(mockAcc.moveCalls))
+	}
+
+	movedTo := mockAcc.moveCalls[0]
+	// With degenerate bounds, cursor should clamp to Min (0, 0)
+	if movedTo.X != 0 || movedTo.Y != 0 {
+		t.Errorf("Expected cursor clamped to (0, 0), got (%d, %d)", movedTo.X, movedTo.Y)
+	}
+}
+
 func TestMoveMouseRelative_movesFromCurrentPosition(t *testing.T) {
 	mockAcc := newMockAccessibilityPort()
 	actionService := newTestActionService(t, mockAcc)
