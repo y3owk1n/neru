@@ -19,6 +19,7 @@ type CursorState struct {
 
 	// Behavior flags
 	skipRestoreOnce bool
+	actionPerformed bool
 }
 
 // NewCursorState creates a new CursorState.
@@ -51,6 +52,7 @@ func (c *CursorState) Reset() {
 
 	c.captured = false
 	c.skipRestoreOnce = false
+	c.actionPerformed = false
 }
 
 // InitialPosition returns the captured cursor position.
@@ -87,4 +89,23 @@ func (c *CursorState) SkipNextRestore() {
 	defer c.mu.Unlock()
 
 	c.skipRestoreOnce = true
+}
+
+// MarkActionPerformed records that a click/mouse action was just executed.
+// handleCursorRestoration uses this to insert a settling delay before moving
+// the cursor, giving the target application time to finish processing the click.
+func (c *CursorState) MarkActionPerformed() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.actionPerformed = true
+}
+
+// WasActionPerformed returns whether a click action was performed in this
+// mode session. The flag is cleared by Reset.
+func (c *CursorState) WasActionPerformed() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.actionPerformed
 }

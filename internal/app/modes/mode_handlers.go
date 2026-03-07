@@ -29,6 +29,10 @@ func (h *Handler) executeActionAtPoint(action *string, point image.Point) {
 		h.logger.Error("Failed to perform pending action", zap.Error(performActionErr))
 	}
 
+	// Signal that a click was just performed so handleCursorRestoration
+	// can insert a settling delay before moving the cursor.
+	h.cursorState.MarkActionPerformed()
+
 	h.exitModeLocked()
 }
 
