@@ -301,22 +301,22 @@ type RecursiveGridConfig struct {
 	Keys string `json:"keys" toml:"keys"`
 
 	// Visual styling
-	LineColorLight              string `json:"lineColorLight"      toml:"line_color_light"`
-	LineColorDark               string `json:"lineColorDark"       toml:"line_color_dark"`
-	LineWidth                   int    `json:"lineWidth"           toml:"line_width"`
-	HighlightColorLight         string `json:"highlightColorLight" toml:"highlight_color_light"`
-	HighlightColorDark          string `json:"highlightColorDark"  toml:"highlight_color_dark"`
-	TextColorLight              string `json:"textColorLight"      toml:"text_color_light"`
-	TextColorDark               string `json:"textColorDark"       toml:"text_color_dark"`
-	FontSize                    int    `json:"fontSize"            toml:"font_size"`
-	FontFamily                  string `json:"fontFamily"          toml:"font_family"`
-	LabelBackground             bool   `json:"labelBackground"     toml:"label_background"`
-	LabelBackgroundColorLight   string `json:"labelBackgroundColorLight" toml:"label_background_color_light"`
-	LabelBackgroundColorDark    string `json:"labelBackgroundColorDark"  toml:"label_background_color_dark"`
-	LabelBackgroundPaddingX     int    `json:"labelBackgroundPaddingX"   toml:"label_background_padding_x"`
-	LabelBackgroundPaddingY     int    `json:"labelBackgroundPaddingY"   toml:"label_background_padding_y"`
+	LineColorLight              string `json:"lineColorLight"              toml:"line_color_light"`
+	LineColorDark               string `json:"lineColorDark"               toml:"line_color_dark"`
+	LineWidth                   int    `json:"lineWidth"                   toml:"line_width"`
+	HighlightColorLight         string `json:"highlightColorLight"         toml:"highlight_color_light"`
+	HighlightColorDark          string `json:"highlightColorDark"          toml:"highlight_color_dark"`
+	TextColorLight              string `json:"textColorLight"              toml:"text_color_light"`
+	TextColorDark               string `json:"textColorDark"               toml:"text_color_dark"`
+	FontSize                    int    `json:"fontSize"                    toml:"font_size"`
+	FontFamily                  string `json:"fontFamily"                  toml:"font_family"`
+	LabelBackground             bool   `json:"labelBackground"             toml:"label_background"`
+	LabelBackgroundColorLight   string `json:"labelBackgroundColorLight"   toml:"label_background_color_light"`
+	LabelBackgroundColorDark    string `json:"labelBackgroundColorDark"    toml:"label_background_color_dark"`
+	LabelBackgroundPaddingX     int    `json:"labelBackgroundPaddingX"     toml:"label_background_padding_x"`
+	LabelBackgroundPaddingY     int    `json:"labelBackgroundPaddingY"     toml:"label_background_padding_y"`
 	LabelBackgroundCornerRadius int    `json:"labelBackgroundCornerRadius" toml:"label_background_corner_radius"`
-	LabelBackgroundBorderWidth  int    `json:"labelBackgroundBorderWidth" toml:"label_background_border_width"`
+	LabelBackgroundBorderWidth  int    `json:"labelBackgroundBorderWidth"  toml:"label_background_border_width"`
 
 	// Behavior
 	MinSizeWidth  int    `json:"minSizeWidth"  toml:"min_size_width"`  // Default: 25
