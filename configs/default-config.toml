@@ -201,7 +201,7 @@ sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 # Single-character key to reset/clear grid input during grid mode
 # While in grid mode, pressing this key clears your current input and starts over
 # Useful for correcting mistakes while selecting grid coordinates
-# Common choices: "," (comma), "." (period), "r" (r key), "backspace"
+# Common choices: "," (comma), "." (period), "r" (r key)
 # Note: Cannot be the same as any grid character to avoid conflicts
 reset_key = " "
 
