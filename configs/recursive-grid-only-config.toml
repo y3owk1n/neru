@@ -31,3 +31,12 @@ grid_rows = 2
 # Must be exactly grid_cols * grid_rows characters
 # For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
 keys = "uijk"
+
+# Add rounded label backgrounds behind recursive-grid letters
+label_background = false
+label_background_color_light = "#FFAAEEFF"
+label_background_color_dark = "#FF003554"
+label_background_padding_x = -1
+label_background_padding_y = -1
+label_background_corner_radius = -1
+label_background_border_width = 1

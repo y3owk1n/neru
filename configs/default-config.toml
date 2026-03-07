@@ -277,6 +277,13 @@ text_color_light = "#FF007A9E"           # Text color for Light Mode (deep teal,
 text_color_dark = "#FF00CFCF"            # Text color for Dark Mode (bright cyan, fully opaque)
 font_size = 10                           # Font size for cell labels
 font_family = ""                         # Font family for cell labels
+label_background = false                 # Add rounded label backgrounds behind recursive-grid letters
+label_background_color_light = "#FFAAEEFF" # Label background color for Light Mode (light blue, alpha FF = 100% opacity)
+label_background_color_dark = "#FF003554"  # Label background color for Dark Mode (deep blue, alpha FF = 100% opacity)
+label_background_padding_x = -1         # Horizontal badge padding (-1 = auto based on font size)
+label_background_padding_y = -1         # Vertical badge padding (-1 = auto based on font size)
+label_background_corner_radius = -1     # Corner radius for label badges (-1 = auto pill)
+label_background_border_width = 1       # Border width for label badges (0 disables border)
 
 # Behavior
 min_size_width = 25            # Minimum cell width in pixels (stops dividing when width is reached)
