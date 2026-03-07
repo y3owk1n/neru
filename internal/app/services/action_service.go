@@ -132,6 +132,14 @@ func (s *ActionService) MoveCursorToPoint(ctx context.Context, point image.Point
 	return s.accessibility.MoveCursorToPoint(ctx, point, false)
 }
 
+// clampToScreenBounds clamps the given point so it stays within the screen bounds.
+func clampToScreenBounds(p image.Point, bounds image.Rectangle) image.Point {
+	return image.Point{
+		X: min(max(p.X, bounds.Min.X), bounds.Max.X-1),
+		Y: min(max(p.Y, bounds.Min.Y), bounds.Max.Y-1),
+	}
+}
+
 // MoveMouseTo moves the mouse cursor to the specified coordinates (absolute).
 // Coordinates are clamped to the screen bounds.
 // If bypassSmooth is true, smooth cursor is bypassed for keyboard-driven movements.
@@ -147,21 +155,19 @@ func (s *ActionService) MoveMouseTo(
 		return core.WrapAccessibilityFailed(err, "get screen bounds")
 	}
 
-	clampedX := min(max(targetX, screenBounds.Min.X), screenBounds.Max.X-1)
-	clampedY := min(max(targetY, screenBounds.Min.Y), screenBounds.Max.Y-1)
-
-	point := image.Point{X: clampedX, Y: clampedY}
+	target := image.Point{X: targetX, Y: targetY}
+	clamped := clampToScreenBounds(target, screenBounds)
 
 	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
 
 	s.logger.Info("Moving mouse cursor",
-		zap.Int("x", clampedX),
-		zap.Int("y", clampedY),
-		zap.Bool("clamped", clampedX != targetX || clampedY != targetY),
+		zap.Int("x", clamped.X),
+		zap.Int("y", clamped.Y),
+		zap.Bool("clamped", clamped != target),
 		zap.Bool("bypassSmooth", shouldBypass),
 	)
 
-	return s.accessibility.MoveCursorToPoint(ctx, point, shouldBypass)
+	return s.accessibility.MoveCursorToPoint(ctx, clamped, shouldBypass)
 }
 
 // MoveMouseRelative moves the mouse cursor by the specified delta from the current position.
@@ -199,20 +205,18 @@ func (s *ActionService) MoveMouseToCenter(ctx context.Context, offsetX, offsetY 
 
 	centerX := screenBounds.Min.X + screenBounds.Dx()/2 //nolint:mnd
 	centerY := screenBounds.Min.Y + screenBounds.Dy()/2 //nolint:mnd
-	targetX := centerX + offsetX
-	targetY := centerY + offsetY
-	clampedX := min(max(targetX, screenBounds.Min.X), screenBounds.Max.X-1)
-	clampedY := min(max(targetY, screenBounds.Min.Y), screenBounds.Max.Y-1)
-	point := image.Point{X: clampedX, Y: clampedY}
+	target := image.Point{X: centerX + offsetX, Y: centerY + offsetY}
+	clamped := clampToScreenBounds(target, screenBounds)
+
 	s.logger.Info("Moving mouse cursor to center",
-		zap.Int("x", clampedX),
-		zap.Int("y", clampedY),
+		zap.Int("x", clamped.X),
+		zap.Int("y", clamped.Y),
 		zap.Int("offsetX", offsetX),
 		zap.Int("offsetY", offsetY),
-		zap.Bool("clamped", clampedX != targetX || clampedY != targetY),
+		zap.Bool("clamped", clamped != target),
 	)
 
-	return s.accessibility.MoveCursorToPoint(ctx, point, false)
+	return s.accessibility.MoveCursorToPoint(ctx, clamped, false)
 }
 
 // HandleActionKey processes an action key and performs the corresponding action at the current cursor position.
