@@ -31,7 +31,10 @@ func (h *Handler) executeActionAtPoint(action *string, point image.Point) {
 
 	// Signal that a click was just performed so handleCursorRestoration
 	// can insert a settling delay before moving the cursor.
-	if performActionErr == nil {
+	// Skip move-mouse actions — they don't produce clicks that need settling.
+	if performActionErr == nil &&
+		*action != "move_mouse" &&
+		*action != "move_mouse_relative" {
 		h.cursorState.MarkActionPerformed()
 	}
 
