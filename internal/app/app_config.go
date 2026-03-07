@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/y3owk1n/neru/internal/config"
+	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	infra "github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"go.uber.org/zap"
 )
@@ -99,6 +100,15 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 
 	if a.hintService != nil {
 		a.hintService.UpdateConfig(loadResult.Config.Hints)
+
+		// Re-create the hint generator if hint_characters changed
+		newGen, genErr := domainHint.NewAlphabetGenerator(loadResult.Config.Hints.HintCharacters)
+		if genErr != nil {
+			a.logger.Error("Failed to create hint generator during reload",
+				zap.Error(genErr))
+		} else {
+			a.hintService.UpdateGenerator(context.Background(), newGen)
+		}
 	}
 
 	if a.scrollService != nil {
