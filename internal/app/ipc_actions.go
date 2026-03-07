@@ -59,6 +59,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		deltaX, deltaY   int
 		hasX, hasY       bool
 		hasDX, hasDY     bool
+		hasCenter        bool
 	)
 
 	parseErr := false
@@ -108,6 +109,8 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 			deltaY = val
 			hasDY = true
+		case arg == "--center":
+			hasCenter = true
 		}
 	}
 
@@ -130,12 +133,38 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if isMoveMouse && (!hasX || !hasY) {
+	if isMoveMouse && !hasCenter && (!hasX || !hasY) {
 		return ipc.Response{
 			Success: false,
-			Message: "move_mouse requires --x and --y flags",
+			Message: "move_mouse requires --x and --y flags, or --center",
 			Code:    ipc.CodeInvalidInput,
 		}
+	}
+
+	if hasCenter && (hasDX || hasDY) {
+		return ipc.Response{
+			Success: false,
+			Message: "use either --center or --dx/--dy, not both",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if isMoveMouse && hasCenter {
+		screenBounds, err := h.actionService.ScreenBounds(ctx)
+		if err != nil {
+			h.logger.Error("Failed to get screen bounds", zap.Error(err))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to get screen bounds",
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		centerX := screenBounds.Min.X + screenBounds.Dx()/2 //nolint:mnd
+		centerY := screenBounds.Min.Y + screenBounds.Dy()/2 //nolint:mnd
+		targetX = centerX + targetX                         // targetX acts as offset (defaults to 0)
+		targetY = centerY + targetY                         // targetY acts as offset (defaults to 0)
 	}
 
 	if isMoveMouseRelative {

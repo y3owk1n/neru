@@ -173,6 +173,71 @@ func TestMoveMouseTo_clampsToScreenBounds(t *testing.T) {
 	}
 }
 
+func TestMoveMouseTo_center(t *testing.T) {
+	mockAcc := newMockAccessibilityPort()
+	actionService := newTestActionService(t, mockAcc)
+	ctx := context.Background()
+	// Simulate what IPC handler does with --center
+	screenBounds, err := mockAcc.ScreenBounds(ctx)
+	if err != nil {
+		t.Fatalf("ScreenBounds failed: %v", err)
+	}
+
+	centerX := screenBounds.Min.X + screenBounds.Dx()/2
+	centerY := screenBounds.Min.Y + screenBounds.Dy()/2
+
+	err = actionService.MoveMouseTo(ctx, centerX, centerY)
+	if err != nil {
+		t.Fatalf("MoveMouseTo failed: %v", err)
+	}
+
+	if len(mockAcc.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(mockAcc.moveCalls))
+	}
+
+	movedTo := mockAcc.moveCalls[0]
+	if movedTo.X != 960 || movedTo.Y != 540 {
+		t.Errorf("Expected cursor at screen center (960, 540), got (%d, %d)", movedTo.X, movedTo.Y)
+	}
+}
+
+func TestMoveMouseTo_centerWithOffset(t *testing.T) {
+	mockAcc := newMockAccessibilityPort()
+	actionService := newTestActionService(t, mockAcc)
+	ctx := context.Background()
+
+	screenBounds, err := mockAcc.ScreenBounds(ctx)
+	if err != nil {
+		t.Fatalf("ScreenBounds failed: %v", err)
+	}
+
+	centerX := screenBounds.Min.X + screenBounds.Dx()/2
+	centerY := screenBounds.Min.Y + screenBounds.Dy()/2
+	offsetX, offsetY := 50, -30
+
+	err = actionService.MoveMouseTo(ctx, centerX+offsetX, centerY+offsetY)
+	if err != nil {
+		t.Fatalf("MoveMouseTo failed: %v", err)
+	}
+
+	if len(mockAcc.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(mockAcc.moveCalls))
+	}
+
+	movedTo := mockAcc.moveCalls[0]
+
+	expectedX, expectedY := 1010, 510
+	if movedTo.X != expectedX || movedTo.Y != expectedY {
+		t.Errorf(
+			"Expected cursor at (%d, %d), got (%d, %d)",
+			expectedX,
+			expectedY,
+			movedTo.X,
+			movedTo.Y,
+		)
+	}
+}
+
 func TestMoveMouseRelative_movesFromCurrentPosition(t *testing.T) {
 	mockAcc := newMockAccessibilityPort()
 	actionService := newTestActionService(t, mockAcc)

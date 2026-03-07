@@ -158,33 +158,47 @@ func BuildActionCommand(use, short, long string, params []string) *cobra.Command
 
 // BuildMoveMouseCommand creates a move_mouse cobra command with x and y flags.
 func BuildMoveMouseCommand() *cobra.Command {
-	var targetX, targetY int
+	var (
+		targetX, targetY int
+		center           bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "move_mouse",
 		Short: "Move mouse cursor to absolute position",
 		Long: `Move the mouse cursor to the specified absolute position.
-Coordinates are relative to the current display.`,
+Coordinates are relative to the current display.
+When --center is used, the cursor moves to the center of the active screen.
+If --x and --y are also provided with --center, they act as offsets from center.`,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
 			return requiresRunningInstance()
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return sendCommand(
-				cmd,
-				"action",
-				[]string{
-					"move_mouse",
-					fmt.Sprintf("--x=%d", targetX),
-					fmt.Sprintf("--y=%d", targetY),
-				},
-			)
+			if !center && (!cmd.Flags().Changed("x") || !cmd.Flags().Changed("y")) {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"both --x and --y are required when --center is not used",
+				)
+			}
+
+			args := []string{
+				"move_mouse",
+				fmt.Sprintf("--x=%d", targetX),
+				fmt.Sprintf("--y=%d", targetY),
+			}
+			if center {
+				args = append(args, "--center")
+			}
+
+			return sendCommand(cmd, "action", args)
 		},
 	}
 
-	cmd.Flags().IntVar(&targetX, "x", 0, "X coordinate (pixels)")
-	cmd.Flags().IntVar(&targetY, "y", 0, "Y coordinate (pixels)")
-	_ = cmd.MarkFlagRequired("x")
-	_ = cmd.MarkFlagRequired("y")
+	cmd.Flags().
+		IntVar(&targetX, "x", 0, "X coordinate (pixels, or offset from center with --center)")
+	cmd.Flags().
+		IntVar(&targetY, "y", 0, "Y coordinate (pixels, or offset from center with --center)")
+	cmd.Flags().BoolVar(&center, "center", false, "Move to the center of the active screen")
 
 	return cmd
 }

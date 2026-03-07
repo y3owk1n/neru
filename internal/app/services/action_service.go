@@ -181,6 +181,11 @@ func (s *ActionService) CursorPosition(ctx context.Context) (image.Point, error)
 	return s.accessibility.CursorPosition(ctx)
 }
 
+// ScreenBounds returns the bounds of the active screen.
+func (s *ActionService) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
+	return s.accessibility.ScreenBounds(ctx)
+}
+
 // HandleActionKey processes an action key and performs the corresponding action at the current cursor position.
 // Returns true if the key was handled as an action key, false otherwise.
 // Returns an error if the action failed to execute.
