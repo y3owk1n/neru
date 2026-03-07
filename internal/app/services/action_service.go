@@ -132,6 +132,17 @@ func (s *ActionService) MoveCursorToPoint(ctx context.Context, point image.Point
 	return s.accessibility.MoveCursorToPoint(ctx, point, false)
 }
 
+// clampToScreenBounds clamps the given point so it stays within the screen bounds.
+func clampToScreenBounds(point image.Point, bounds image.Rectangle) image.Point {
+	maxX := max(bounds.Max.X-1, bounds.Min.X)
+	maxY := max(bounds.Max.Y-1, bounds.Min.Y)
+
+	return image.Point{
+		X: min(max(point.X, bounds.Min.X), maxX),
+		Y: min(max(point.Y, bounds.Min.Y), maxY),
+	}
+}
+
 // MoveMouseTo moves the mouse cursor to the specified coordinates (absolute).
 // Coordinates are clamped to the screen bounds.
 // If bypassSmooth is true, smooth cursor is bypassed for keyboard-driven movements.
@@ -147,25 +158,23 @@ func (s *ActionService) MoveMouseTo(
 		return core.WrapAccessibilityFailed(err, "get screen bounds")
 	}
 
-	clampedX := min(max(targetX, screenBounds.Min.X), screenBounds.Max.X-1)
-	clampedY := min(max(targetY, screenBounds.Min.Y), screenBounds.Max.Y-1)
-
-	point := image.Point{X: clampedX, Y: clampedY}
-
 	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
 
-	s.logger.Info("Moving mouse cursor",
-		zap.Int("x", clampedX),
-		zap.Int("y", clampedY),
-		zap.Bool("clamped", clampedX != targetX || clampedY != targetY),
-		zap.Bool("bypassSmooth", shouldBypass),
+	return s.moveMouseWithBounds(
+		ctx,
+		image.Point{X: targetX, Y: targetY},
+		screenBounds,
+		shouldBypass,
 	)
-
-	return s.accessibility.MoveCursorToPoint(ctx, point, shouldBypass)
 }
 
 // MoveMouseRelative moves the mouse cursor by the specified delta from the current position.
-func (s *ActionService) MoveMouseRelative(ctx context.Context, deltaX, deltaY int) error {
+// If bypassSmooth is true, smooth cursor animation is skipped (used for keyboard-driven movements).
+func (s *ActionService) MoveMouseRelative(
+	ctx context.Context,
+	deltaX, deltaY int,
+	bypassSmooth ...bool,
+) error {
 	cursorPos, err := s.accessibility.CursorPosition(ctx)
 	if err != nil {
 		s.logger.Error("Failed to get cursor position", zap.Error(err))
@@ -173,12 +182,44 @@ func (s *ActionService) MoveMouseRelative(ctx context.Context, deltaX, deltaY in
 		return core.WrapAccessibilityFailed(err, "get cursor position")
 	}
 
-	return s.MoveMouseTo(ctx, cursorPos.X+deltaX, cursorPos.Y+deltaY, true)
+	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
+
+	return s.MoveMouseTo(ctx, cursorPos.X+deltaX, cursorPos.Y+deltaY, shouldBypass)
 }
 
 // CursorPosition returns the current cursor position.
 func (s *ActionService) CursorPosition(ctx context.Context) (image.Point, error) {
 	return s.accessibility.CursorPosition(ctx)
+}
+
+// ScreenBounds returns the bounds of the active screen.
+func (s *ActionService) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
+	return s.accessibility.ScreenBounds(ctx)
+}
+
+// MoveMouseToCenter moves the mouse cursor to the center of the active screen,
+// optionally offset by the given delta values. It fetches screen bounds once
+// for both center computation and clamping.
+func (s *ActionService) MoveMouseToCenter(ctx context.Context, offsetX, offsetY int) error {
+	screenBounds, err := s.accessibility.ScreenBounds(ctx)
+	if err != nil {
+		s.logger.Error("Failed to get screen bounds", zap.Error(err))
+
+		return core.WrapAccessibilityFailed(err, "get screen bounds")
+	}
+
+	centerX := screenBounds.Min.X + screenBounds.Dx()/2 //nolint:mnd
+	centerY := screenBounds.Min.Y + screenBounds.Dy()/2 //nolint:mnd
+	target := image.Point{X: centerX + offsetX, Y: centerY + offsetY}
+
+	return s.moveMouseWithBounds(
+		ctx,
+		target,
+		screenBounds,
+		false,
+		zap.Int("offsetX", offsetX),
+		zap.Int("offsetY", offsetY),
+	)
 }
 
 // HandleActionKey processes an action key and performs the corresponding action at the current cursor position.
@@ -297,7 +338,7 @@ func (s *ActionService) HandleDirectActionKey(
 			zap.Int("step", s.moveMouseStep),
 		)
 
-		moveErr := s.MoveMouseRelative(ctx, deltaX, deltaY)
+		moveErr := s.MoveMouseRelative(ctx, deltaX, deltaY, true)
 		if moveErr != nil {
 			s.logger.Error("Failed to move mouse relative", zap.Error(moveErr))
 
@@ -327,6 +368,31 @@ func (s *ActionService) HandleDirectActionKey(
 	}
 
 	return actionString, true, nil
+}
+
+// moveMouseWithBounds clamps target to the given screen bounds and moves the cursor.
+// This is the shared implementation used by MoveMouseTo and MoveMouseToCenter to
+// avoid duplicating clamp-and-move logic.
+func (s *ActionService) moveMouseWithBounds(
+	ctx context.Context,
+	target image.Point,
+	screenBounds image.Rectangle,
+	bypassSmooth bool,
+	fields ...zap.Field,
+) error {
+	clamped := clampToScreenBounds(target, screenBounds)
+	baseCount := 4
+	logFields := make([]zap.Field, 0, baseCount+len(fields))
+	logFields = append(logFields,
+		zap.Int("x", clamped.X),
+		zap.Int("y", clamped.Y),
+		zap.Bool("clamped", clamped != target),
+		zap.Bool("bypassSmooth", bypassSmooth),
+	)
+	logFields = append(logFields, fields...)
+	s.logger.Info("Moving mouse cursor", logFields...)
+
+	return s.accessibility.MoveCursorToPoint(ctx, clamped, bypassSmooth)
 }
 
 // getActionMapping returns the action string, log message, and the resolved binding key for an action key.

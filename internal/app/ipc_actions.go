@@ -55,10 +55,11 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	actionName := cmd.Args[0]
 
 	var (
-		targetX, targetY int
-		deltaX, deltaY   int
-		hasX, hasY       bool
-		hasDX, hasDY     bool
+		xVal, yVal     int
+		deltaX, deltaY int
+		hasX, hasY     bool
+		hasDX, hasDY   bool
+		hasCenter      bool
 	)
 
 	parseErr := false
@@ -73,7 +74,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 				break
 			}
 
-			targetX = val
+			xVal = val
 			hasX = true
 
 		case strings.HasPrefix(arg, "--y="):
@@ -84,7 +85,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 				break
 			}
 
-			targetY = val
+			yVal = val
 			hasY = true
 
 		case strings.HasPrefix(arg, "--dx="):
@@ -108,6 +109,8 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 			deltaY = val
 			hasDY = true
+		case arg == "--center":
+			hasCenter = true
 		}
 	}
 
@@ -122,6 +125,22 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	isMoveMouse := actionName == string(action.NameMoveMouse)
 	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
 
+	// Validation order matters:
+	// 1. Reject coordinate flags on non-mouse-move actions.
+	// 2. Reject --x/--y mixed with --dx/--dy (always invalid).
+	// 3. Reject --center mixed with --dx/--dy (center uses --x/--y as offsets, not deltas).
+	// 4. Reject --center on non-move_mouse actions.
+	// 5. Require --x AND --y when --center is absent for move_mouse.
+	// Note: --center with --x/--y is intentionally allowed — x/y act as offsets from center.
+
+	if !isMoveMouse && !isMoveMouseRelative && (hasX || hasY || hasDX || hasDY) {
+		return ipc.Response{
+			Success: false,
+			Message: "--x/--y/--dx/--dy flags are only supported with move_mouse or move_mouse_relative",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	if (isMoveMouse || isMoveMouseRelative) && (hasX || hasY) && (hasDX || hasDY) {
 		return ipc.Response{
 			Success: false,
@@ -130,11 +149,53 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if isMoveMouse && (!hasX || !hasY) {
+	if hasCenter && (hasDX || hasDY) {
 		return ipc.Response{
 			Success: false,
-			Message: "move_mouse requires --x and --y flags",
+			Message: "use either --center or --dx/--dy, not both",
 			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if hasCenter && !isMoveMouse {
+		return ipc.Response{
+			Success: false,
+			Message: "--center is only supported with move_mouse",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if isMoveMouse && !hasCenter && (!hasX || !hasY) {
+		return ipc.Response{
+			Success: false,
+			Message: "move_mouse requires --x and --y flags, or --center",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if isMoveMouse && hasCenter {
+		offsetX, offsetY := xVal, yVal
+
+		h.logger.Info("Moving mouse to center via IPC",
+			zap.Int("offsetX", offsetX),
+			zap.Int("offsetY", offsetY),
+		)
+
+		err := h.actionService.MoveMouseToCenter(ctx, offsetX, offsetY)
+		if err != nil {
+			h.logger.Error("Failed to move mouse to center", zap.Error(err))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to perform action: " + err.Error(),
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		return ipc.Response{
+			Success: true,
+			Message: actionName + " performed",
+			Code:    ipc.CodeOK,
 		}
 	}
 
@@ -147,31 +208,39 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 		}
 
-		cursorPos, err := h.actionService.CursorPosition(ctx)
+		h.logger.Info("Moving mouse relative via IPC",
+			zap.Int("dx", deltaX),
+			zap.Int("dy", deltaY),
+		)
+
+		err := h.actionService.MoveMouseRelative(ctx, deltaX, deltaY, false)
 		if err != nil {
-			h.logger.Error("Failed to get cursor position", zap.Error(err))
+			h.logger.Error("Failed to move mouse relative", zap.Error(err))
 
 			return ipc.Response{
 				Success: false,
-				Message: "failed to get cursor position",
+				Message: "failed to perform action: " + err.Error(),
 				Code:    ipc.CodeActionFailed,
 			}
 		}
 
-		targetX = cursorPos.X + deltaX
-		targetY = cursorPos.Y + deltaY
+		return ipc.Response{
+			Success: true,
+			Message: actionName + " performed",
+			Code:    ipc.CodeOK,
+		}
 	}
 
 	h.logger.Info("Performing action via IPC",
 		zap.String("action", actionName),
-		zap.Int("x", targetX),
-		zap.Int("y", targetY),
+		zap.Int("x", xVal),
+		zap.Int("y", yVal),
 	)
 
 	var err error
 	switch actionName {
-	case string(action.NameMoveMouse), string(action.NameMoveMouseRelative):
-		err = h.actionService.MoveMouseTo(ctx, targetX, targetY, false)
+	case string(action.NameMoveMouse):
+		err = h.actionService.MoveMouseTo(ctx, xVal, yVal, false)
 	default:
 		cursorPos, posErr := h.actionService.CursorPosition(ctx)
 		if posErr != nil {
