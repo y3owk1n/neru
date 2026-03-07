@@ -156,6 +156,12 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 /// Tries [NSFont fontWithName:] first, then NSFontManager family lookup.
 /// Returns nil if the name cannot be resolved.
 - (NSFont *)resolveFont:(NSString *)name size:(CGFloat)size bold:(BOOL)bold;
+
+/// Resolve horizontal hint padding (-1 = auto based on font size).
+- (CGFloat)resolvedHintPaddingX;
+
+/// Resolve vertical hint padding (-1 = auto based on font size).
+- (CGFloat)resolvedHintPaddingY;
 @end
 
 #pragma mark - Overlay View Implementation
@@ -457,6 +463,18 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	return font;
 }
 
+/// Resolve horizontal hint padding.
+/// Returns hintPaddingX if >= 0, otherwise auto-computes from font size.
+- (CGFloat)resolvedHintPaddingX {
+	return self.hintPaddingX >= 0.0 ? self.hintPaddingX : MAX(4.0, round(self.hintFont.pointSize * 0.4));
+}
+
+/// Resolve vertical hint padding.
+/// Returns hintPaddingY if >= 0, otherwise auto-computes from font size.
+- (CGFloat)resolvedHintPaddingY {
+	return self.hintPaddingY >= 0.0 ? self.hintPaddingY : MAX(2.0, round(self.hintFont.pointSize * 0.2));
+}
+
 /// Create tooltip path with arrow
 /// @param rect Tooltip rectangle
 /// @param arrowSize Arrow size
@@ -571,8 +589,8 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
 	            range:fullRange];
 	NSSize textSize = [measureString size];
-	CGFloat paddingX = self.hintPaddingX >= 0.0 ? self.hintPaddingX : MAX(4.0, round(self.hintFont.pointSize * 0.4));
-	CGFloat paddingY = self.hintPaddingY >= 0.0 ? self.hintPaddingY : MAX(2.0, round(self.hintFont.pointSize * 0.2));
+	CGFloat paddingX = [self resolvedHintPaddingX];
+	CGFloat paddingY = [self resolvedHintPaddingY];
 	CGFloat arrowHeight = hint.showArrow ? 2.0 : 0.0;
 	CGFloat contentWidth = textSize.width + (paddingX * 2);
 	CGFloat contentHeight = textSize.height + (paddingY * 2);
@@ -623,8 +641,8 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 - (void)drawHintsInRect:(NSRect)dirtyRect {
 	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
 	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat paddingX = self.hintPaddingX >= 0.0 ? self.hintPaddingX : MAX(4.0, round(self.hintFont.pointSize * 0.4));
-	CGFloat paddingY = self.hintPaddingY >= 0.0 ? self.hintPaddingY : MAX(2.0, round(self.hintFont.pointSize * 0.2));
+	CGFloat paddingX = [self resolvedHintPaddingX];
+	CGFloat paddingY = [self resolvedHintPaddingY];
 	for (HintItem *hint in self.hints) {
 		NSString *label = hint.label;
 		if (!label || [label length] == 0)
