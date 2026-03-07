@@ -693,9 +693,11 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		}
 		[self.hintBackgroundColor setFill];
 		[path fill];
-		[self.hintBorderColor setStroke];
-		[path setLineWidth:self.hintBorderWidth];
-		[path stroke];
+		if (self.hintBorderWidth > 0) {
+			[self.hintBorderColor setStroke];
+			[path setLineWidth:self.hintBorderWidth];
+			[path stroke];
+		}
 		CGFloat textX = hintRect.origin.x + (boxWidth - textSize.width) / 2.0;
 		CGFloat textY = hintRect.origin.y + paddingY;
 		[attrString drawAtPoint:NSMakePoint(textX, textY)];
