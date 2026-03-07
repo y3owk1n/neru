@@ -13,6 +13,15 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// postActionSettleDelay is the time to wait after a click action completes
+	// before moving the cursor for restoration/centering. This gives the target
+	// application time to finish processing the mouseUp event. Without this
+	// delay, cursor restoration can race with click processing in slow apps
+	// (Electron, web views) causing missed clicks.
+	postActionSettleDelay = 75 * time.Millisecond
+)
+
 // ExitMode exits the current mode. Safe to call from any goroutine.
 func (h *Handler) ExitMode() {
 	h.mu.Lock()
@@ -111,15 +120,6 @@ func (h *Handler) performCommonCleanup() {
 		}
 	}
 }
-
-const (
-	// postActionSettleDelay is the time to wait after a click action completes
-	// before moving the cursor for restoration/centering. This gives the target
-	// application time to finish processing the mouseUp event. Without this
-	// delay, cursor restoration can race with click processing in slow apps
-	// (Electron, web views) causing missed clicks.
-	postActionSettleDelay = 75 * time.Millisecond
-)
 
 // handleCursorRestoration handles cursor position restoration or centering on exit.
 func (h *Handler) handleCursorRestoration() {
