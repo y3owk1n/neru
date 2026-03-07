@@ -167,15 +167,15 @@ Core behavior settings that affect all Neru functionality.
 
 ### Option Reference
 
-| Option                         | Type  | Default      | Description                                |
-| ------------------------------ | ----- | ------------ | ------------------------------------------ |
-| `excluded_apps`                | array | `[]`         | Bundle IDs where Neru won't activate       |
-| `accessibility_check_on_start` | bool  | `true`       | Verify accessibility permissions on launch |
-| `restore_cursor_position`      | bool  | `false`      | Return cursor to pre-mode position on exit |
-| `center_cursor_position`       | bool  | `false`      | Center cursor on current screen on exit    |
+| Option                         | Type   | Default      | Description                                |
+| ------------------------------ | ------ | ------------ | ------------------------------------------ |
+| `excluded_apps`                | array  | `[]`         | Bundle IDs where Neru won't activate       |
+| `accessibility_check_on_start` | bool   | `true`       | Verify accessibility permissions on launch |
+| `restore_cursor_position`      | bool   | `false`      | Return cursor to pre-mode position on exit |
+| `center_cursor_position`       | bool   | `false`      | Center cursor on current screen on exit    |
 | `kb_layout_to_use`             | string | `""`         | Optional InputSourceID for layout mapping  |
-| `mode_exit_keys`               | array | `["escape"]` | Keys that exit any active mode             |
-| `hide_overlay_in_screen_share` | bool  | `false`      | Hide overlay in screen sharing apps        |
+| `mode_exit_keys`               | array  | `["escape"]` | Keys that exit any active mode             |
+| `hide_overlay_in_screen_share` | bool   | `false`      | Hide overlay in screen sharing apps        |
 
 ### excluded_apps
 
@@ -690,11 +690,6 @@ Recursive grid divides the screen into cells, narrowing selection with each keyp
 | `grid_cols`         | int    | `2`      | Number of columns                                  |
 | `grid_rows`         | int    | `2`      | Number of rows                                     |
 | `keys`              | string | `"uijk"` | Cell selection keys                                |
-| `label_background`  | bool   | `false`  | Add rounded backgrounds behind labels              |
-| `label_background_padding_x` | int | `-1` | Horizontal badge padding (`-1` = auto)            |
-| `label_background_padding_y` | int | `-1` | Vertical badge padding (`-1` = auto)              |
-| `label_background_corner_radius` | int | `-1` | Badge corner radius (`-1` = auto)                 |
-| `label_background_border_width` | int | `1` | Badge border width (`0` disables border)          |
 | `min_size_width`    | int    | `25`     | Min cell width (pixels)                            |
 | `min_size_height`   | int    | `25`     | Min cell height (pixels)                           |
 | `max_depth`         | int    | `10`     | Maximum recursion levels                           |
@@ -754,24 +749,24 @@ j   →   k          j = Lower-left
 
 ### Visual Options
 
-| Option                  | Type   | Default       | Description                                  |
-| ----------------------- | ------ | ------------- | -------------------------------------------- |
-| `line_color_light`      | string | `"#FF007A9E"` | Grid line color for Light Mode (theme-aware) |
-| `line_color_dark`       | string | `"#FF00CFCF"` | Grid line color for Dark Mode (theme-aware)  |
-| `line_width`            | int    | `1`           | Line thickness                               |
-| `highlight_color_light` | string | `"#4D007A9E"` | Cell highlight for Light Mode (theme-aware)  |
-| `highlight_color_dark`  | string | `"#4D00CFCF"` | Cell highlight for Dark Mode (theme-aware)   |
-| `text_color_light`      | string | `"#FF007A9E"` | Cell text color for Light Mode (theme-aware) |
-| `text_color_dark`       | string | `"#FF00CFCF"` | Cell text color for Dark Mode (theme-aware)  |
-| `font_size`             | int    | `10`          | Font size for labels                         |
-| `font_family`           | string | `""`          | Font family for labels (empty = system)      |
-| `label_background`      | bool   | `false`       | Add rounded backgrounds behind labels        |
-| `label_background_color_light` | string | `"#FFAAEEFF"` | Label background for Light Mode             |
-| `label_background_color_dark`  | string | `"#FF003554"` | Label background for Dark Mode              |
-| `label_background_padding_x` | int | `-1` | Horizontal badge padding (`-1` = auto)       |
-| `label_background_padding_y` | int | `-1` | Vertical badge padding (`-1` = auto)         |
-| `label_background_corner_radius` | int | `-1` | Badge corner radius (`-1` = auto)            |
-| `label_background_border_width` | int | `1` | Badge border width (`0` disables border)     |
+| Option                           | Type   | Default       | Description                                  |
+| -------------------------------- | ------ | ------------- | -------------------------------------------- |
+| `line_color_light`               | string | `"#FF007A9E"` | Grid line color for Light Mode (theme-aware) |
+| `line_color_dark`                | string | `"#FF00CFCF"` | Grid line color for Dark Mode (theme-aware)  |
+| `line_width`                     | int    | `1`           | Line thickness                               |
+| `highlight_color_light`          | string | `"#4D007A9E"` | Cell highlight for Light Mode (theme-aware)  |
+| `highlight_color_dark`           | string | `"#4D00CFCF"` | Cell highlight for Dark Mode (theme-aware)   |
+| `text_color_light`               | string | `"#FF007A9E"` | Cell text color for Light Mode (theme-aware) |
+| `text_color_dark`                | string | `"#FF00CFCF"` | Cell text color for Dark Mode (theme-aware)  |
+| `font_size`                      | int    | `10`          | Font size for labels                         |
+| `font_family`                    | string | `""`          | Font family for labels (empty = system)      |
+| `label_background`               | bool   | `false`       | Add rounded backgrounds behind labels        |
+| `label_background_color_light`   | string | `"#FFAAEEFF"` | Label background for Light Mode              |
+| `label_background_color_dark`    | string | `"#FF003554"` | Label background for Dark Mode               |
+| `label_background_padding_x`     | int    | `-1`          | Horizontal badge padding (`-1` = auto)       |
+| `label_background_padding_y`     | int    | `-1`          | Vertical badge padding (`-1` = auto)         |
+| `label_background_corner_radius` | int    | `-1`          | Badge corner radius (`-1` = auto)            |
+| `label_background_border_width`  | int    | `1`           | Badge border width (`0` disables border)     |
 
 > **Theme-aware colors:** When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
