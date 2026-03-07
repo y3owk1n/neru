@@ -128,6 +128,17 @@ func (s *HintService) RefreshHints(ctx context.Context) error {
 	return nil
 }
 
+// UpdateConfig updates the hints configuration.
+// This allows changing hint filter settings at runtime.
+func (s *HintService) UpdateConfig(config config.HintsConfig) {
+	s.config = config
+	s.logger.Info("Hints configuration updated",
+		zap.Bool("include_menubar", config.IncludeMenubarHints),
+		zap.Bool("include_dock", config.IncludeDockHints),
+		zap.Bool("include_nc", config.IncludeNCHints),
+		zap.Bool("include_stage_manager", config.IncludeStageManagerHints))
+}
+
 // UpdateGenerator updates the hint generator.
 // This allows changing the hint generation strategy at runtime.
 func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generator) {

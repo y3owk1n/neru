@@ -97,6 +97,22 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 		a.recursiveGridComponent.UpdateConfig(loadResult.Config, a.logger)
 	}
 
+	if a.hintService != nil {
+		a.hintService.UpdateConfig(loadResult.Config.Hints)
+	}
+
+	if a.scrollService != nil {
+		a.scrollService.UpdateConfig(context.Background(), loadResult.Config.Scroll)
+	}
+
+	if a.actionService != nil {
+		a.actionService.UpdateConfig(
+			loadResult.Config.Action,
+			loadResult.Config.Action.KeyBindings,
+			loadResult.Config.Action.MoveMouseStep,
+		)
+	}
+
 	if a.modes != nil {
 		a.modes.UpdateConfig(loadResult.Config)
 	}
