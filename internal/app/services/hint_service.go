@@ -46,6 +46,7 @@ func (s *HintService) ShowHints(
 
 	s.mu.RLock()
 	cfg := s.config
+	gen := s.generator
 	s.mu.RUnlock()
 
 	filter := ports.DefaultElementFilter()
@@ -74,7 +75,7 @@ func (s *HintService) ShowHints(
 	s.logger.Info("Found clickable elements", zap.Int("count", len(elements)))
 
 	// Generate hints
-	hints, elementsErr := s.generator.Generate(ctx, elements)
+	hints, elementsErr := gen.Generate(ctx, elements)
 	if elementsErr != nil {
 		s.logger.Error("Failed to generate hints", zap.Error(elementsErr))
 
