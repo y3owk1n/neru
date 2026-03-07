@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
@@ -15,6 +16,7 @@ import (
 type HintService struct {
 	BaseService
 
+	mu        sync.RWMutex
 	generator hint.Generator
 	config    config.HintsConfig
 	logger    *zap.Logger
@@ -42,14 +44,18 @@ func (s *HintService) ShowHints(
 ) ([]*hint.Interface, error) {
 	s.logger.Info("Showing hints")
 
+	s.mu.RLock()
+	cfg := s.config
+	s.mu.RUnlock()
+
 	filter := ports.DefaultElementFilter()
 
 	// Populate filter with configuration
-	filter.IncludeMenubar = s.config.IncludeMenubarHints
-	filter.AdditionalMenubarTargets = s.config.AdditionalMenubarHintsTargets
-	filter.IncludeDock = s.config.IncludeDockHints
-	filter.IncludeNotificationCenter = s.config.IncludeNCHints
-	filter.IncludeStageManager = s.config.IncludeStageManagerHints
+	filter.IncludeMenubar = cfg.IncludeMenubarHints
+	filter.AdditionalMenubarTargets = cfg.AdditionalMenubarHintsTargets
+	filter.IncludeDock = cfg.IncludeDockHints
+	filter.IncludeNotificationCenter = cfg.IncludeNCHints
+	filter.IncludeStageManager = cfg.IncludeStageManagerHints
 
 	// Get clickable elements
 	elements, elementsErr := s.accessibility.ClickableElements(ctx, filter)
@@ -131,7 +137,10 @@ func (s *HintService) RefreshHints(ctx context.Context) error {
 // UpdateConfig updates the hints configuration.
 // This allows changing hint filter settings at runtime.
 func (s *HintService) UpdateConfig(config config.HintsConfig) {
+	s.mu.Lock()
 	s.config = config
+	s.mu.Unlock()
+
 	s.logger.Info("Hints configuration updated",
 		zap.Bool("include_menubar", config.IncludeMenubarHints),
 		zap.Bool("include_dock", config.IncludeDockHints),
@@ -148,6 +157,9 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 		return
 	}
 
+	s.mu.Lock()
 	s.generator = generator
+	s.mu.Unlock()
+
 	s.logger.Info("Hint generator updated")
 }

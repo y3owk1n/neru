@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
@@ -39,6 +40,7 @@ const (
 type ScrollService struct {
 	BaseService
 
+	mu     sync.RWMutex
 	config config.ScrollConfig
 	logger *zap.Logger
 }
@@ -63,7 +65,9 @@ func (s *ScrollService) Scroll(
 	direction ScrollDirection,
 	amount ScrollAmount,
 ) error {
+	s.mu.RLock()
 	deltaX, deltaY := s.calculateDelta(direction, amount)
+	s.mu.RUnlock()
 
 	s.logger.Debug("Scrolling",
 		zap.Int("dir", int(direction)),
@@ -87,7 +91,10 @@ func (s *ScrollService) Hide(ctx context.Context) error {
 // UpdateConfig updates the scroll configuration.
 // This allows changing scroll behavior at runtime.
 func (s *ScrollService) UpdateConfig(_ context.Context, config config.ScrollConfig) {
+	s.mu.Lock()
 	s.config = config
+	s.mu.Unlock()
+
 	s.logger.Info("Scroll configuration updated",
 		zap.Int("scroll_step", config.ScrollStep),
 		zap.Int("scroll_step_full", config.ScrollStepFull))
