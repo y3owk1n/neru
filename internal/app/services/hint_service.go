@@ -139,8 +139,9 @@ func (s *HintService) RefreshHints(ctx context.Context) error {
 // This allows changing hint filter settings at runtime.
 func (s *HintService) UpdateConfig(config config.HintsConfig) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.config = config
-	s.mu.Unlock()
 
 	s.logger.Info("Hints configuration updated",
 		zap.Bool("include_menubar", config.IncludeMenubarHints),
@@ -159,8 +160,9 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 	}
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.generator = generator
-	s.mu.Unlock()
 
 	s.logger.Info("Hint generator updated")
 }

@@ -47,10 +47,11 @@ func NewActionService(
 // This allows changing action key bindings and move mouse step at runtime.
 func (s *ActionService) UpdateConfig(actionConfig config.ActionConfig) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.config = actionConfig
 	s.keyBindings = actionConfig.KeyBindings
 	s.moveMouseStep = actionConfig.MoveMouseStep
-	s.mu.Unlock()
 
 	s.logger.Info("Action configuration updated",
 		zap.String("left_click", actionConfig.KeyBindings.LeftClick),
