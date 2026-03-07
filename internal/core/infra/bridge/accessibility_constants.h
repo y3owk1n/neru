@@ -18,7 +18,7 @@ extern "C" {
 static const CFTimeInterval kNeruMouseClickDownUpDelay = 0.008;
 
 /// Delay after click processing before restoring cursor (seconds)
-static const CFTimeInterval kNeruMouseClickProcessingDelay = 0.05;
+static const CFTimeInterval kNeruMouseClickProcessingDelay = 0.075;
 
 /// Delay after mouse move to allow event processing (seconds)
 static const CFTimeInterval kNeruMouseMoveDelay = 0.01;
