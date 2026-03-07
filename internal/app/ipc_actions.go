@@ -126,11 +126,20 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
 
 	// Validation order matters:
-	// 1. Reject --x/--y mixed with --dx/--dy (always invalid).
-	// 2. Reject --center mixed with --dx/--dy (center uses --x/--y as offsets, not deltas).
-	// 3. Reject --center on non-move_mouse actions.
-	// 4. Require --x AND --y when --center is absent for move_mouse.
+	// 1. Reject coordinate flags on non-mouse-move actions.
+	// 2. Reject --x/--y mixed with --dx/--dy (always invalid).
+	// 3. Reject --center mixed with --dx/--dy (center uses --x/--y as offsets, not deltas).
+	// 4. Reject --center on non-move_mouse actions.
+	// 5. Require --x AND --y when --center is absent for move_mouse.
 	// Note: --center with --x/--y is intentionally allowed — x/y act as offsets from center.
+
+	if !isMoveMouse && !isMoveMouseRelative && (hasX || hasY || hasDX || hasDY) {
+		return ipc.Response{
+			Success: false,
+			Message: "--x/--y/--dx/--dy flags are only supported with move_mouse or move_mouse_relative",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
 
 	if (isMoveMouse || isMoveMouseRelative) && (hasX || hasY) && (hasDX || hasDY) {
 		return ipc.Response{
