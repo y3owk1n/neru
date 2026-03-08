@@ -12,6 +12,9 @@ const testModifierBackspaceKey = "Ctrl+H"
 // testActionConflictKey is a shared test constant for backspace vs action key binding conflict scenarios.
 const testActionConflictKey = "Shift+L"
 
+// testResetKeyConflictBinding is a shared test constant for reset key vs action key binding conflict scenarios.
+const testResetKeyConflictBinding = "Space"
+
 // TestConfig_ValidateHints tests the Config.ValidateHints method.
 func TestConfig_ValidateHints(t *testing.T) {
 	tests := []struct {
@@ -1641,6 +1644,95 @@ func TestConfig_Validate_BackspaceKeyActionKeyConflicts(t *testing.T) {
 			cfg := testCase.config()
 			err := cfg.Validate()
 
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.Validate() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
+// TestConfig_Validate_ResetKeyActionKeyConflicts tests that reset keys
+// cannot conflict with action key bindings (checked via full Validate()).
+func TestConfig_Validate_ResetKeyActionKeyConflicts(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  func() config.Config
+		wantErr bool
+	}{
+		{
+			name: "action binding 'Space' conflicts with default grid reset_key (space)",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Action.KeyBindings.LeftClick = testResetKeyConflictBinding
+				// Grid.ResetKey defaults to " " (space)
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "action binding 'Space' conflicts with default recursive_grid reset_key (space)",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Action.KeyBindings.MiddleClick = testResetKeyConflictBinding
+				cfg.Grid.ResetKey = "," // Avoid grid conflict
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no conflict when grid mode is disabled",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Action.KeyBindings.LeftClick = testResetKeyConflictBinding
+				cfg.Grid.Enabled = false
+				cfg.RecursiveGrid.ResetKey = "," // Avoid recursive-grid conflict
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when action binding differs from reset key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				// Default action bindings (Shift+L, etc.) don't conflict with space reset key
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "action binding conflicts with custom grid reset_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ResetKey = "F1"
+				cfg.Action.KeyBindings.RightClick = "F1"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no conflict when action binding is empty",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Action.KeyBindings.LeftClick = ""
+
+				return cfg
+			},
+			wantErr: false,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := testCase.config()
+
+			err := cfg.Validate()
 			if (err != nil) != testCase.wantErr {
 				t.Errorf(
 					"Config.Validate() error = %v, wantErr %v",

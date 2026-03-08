@@ -535,6 +535,14 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// Validate reset keys don't conflict with action key bindings.
+	// At runtime, direct action keys are checked before reset keys,
+	// so a conflict means reset will never fire.
+	err = c.checkResetKeyActionKeyConflicts()
+	if err != nil {
+		return err
+	}
+
 	// Validate smooth cursor settings
 	err = c.ValidateSmoothCursor()
 	if err != nil {

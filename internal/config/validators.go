@@ -1034,6 +1034,73 @@ func checkBackspaceKeyCharConflict(
 	return nil
 }
 
+// checkResetKeyActionKeyConflicts checks if any mode's reset_key conflicts with an action
+// key binding. At runtime, direct action keys are checked before reset keys
+// (in mode_handlers.go), so a conflict means the reset key will never fire — the action
+// will always take priority.
+func (c *Config) checkResetKeyActionKeyConflicts() error {
+	bindings := []struct {
+		value     string
+		fieldName string
+	}{
+		{c.Action.KeyBindings.LeftClick, "action.key_bindings.left_click"},
+		{c.Action.KeyBindings.RightClick, "action.key_bindings.right_click"},
+		{c.Action.KeyBindings.MiddleClick, "action.key_bindings.middle_click"},
+		{c.Action.KeyBindings.MouseDown, "action.key_bindings.mouse_down"},
+		{c.Action.KeyBindings.MouseUp, "action.key_bindings.mouse_up"},
+		{c.Action.KeyBindings.MoveMouseUp, "action.key_bindings.move_mouse_up"},
+		{c.Action.KeyBindings.MoveMouseDown, "action.key_bindings.move_mouse_down"},
+		{c.Action.KeyBindings.MoveMouseLeft, "action.key_bindings.move_mouse_left"},
+		{c.Action.KeyBindings.MoveMouseRight, "action.key_bindings.move_mouse_right"},
+	}
+
+	type modeResetKey struct {
+		key       string
+		modeName  string
+		isEnabled bool
+	}
+
+	gridResetKey := c.Grid.ResetKey
+	if gridResetKey == "" {
+		gridResetKey = " "
+	}
+
+	rgResetKey := c.RecursiveGrid.ResetKey
+	if rgResetKey == "" {
+		rgResetKey = " "
+	}
+
+	modes := []modeResetKey{
+		{gridResetKey, "grid", c.Grid.Enabled},
+		{rgResetKey, "recursive_grid", c.RecursiveGrid.Enabled},
+	}
+	for _, mode := range modes {
+		if !mode.isEnabled {
+			continue
+		}
+
+		normalizedReset := NormalizeKeyForComparison(mode.key)
+		for _, binding := range bindings {
+			if binding.value == "" {
+				continue
+			}
+
+			if normalizedReset == NormalizeKeyForComparison(binding.value) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s.reset_key '%s' conflicts with %s ('%s'); the action key is checked first at runtime, so reset will never fire",
+					mode.modeName,
+					mode.key,
+					binding.fieldName,
+					binding.value,
+				)
+			}
+		}
+	}
+
+	return nil
+}
+
 // checkBackspaceKeyActionKeyConflicts checks if any mode's backspace_key conflicts with
 // an action key binding. At runtime, direct action keys are checked before backspace keys
 // (in mode_handlers.go), so a conflict means the backspace key will never fire — the action
