@@ -21,6 +21,7 @@ type Manager struct {
 	inSubgrid     bool
 	selectedCell  *Cell
 	resetKey      string
+	backspaceKey  string
 	// Subgrid configuration
 	subRows int
 	subCols int
@@ -34,6 +35,7 @@ func NewManager(
 	subCols int,
 	subKeys string,
 	resetKey string,
+	backspaceKey string,
 	onUpdate func(redraw bool),
 	onShowSub func(cell *Cell),
 	logger *zap.Logger,
@@ -48,14 +50,15 @@ func NewManager(
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
-		grid:        grid,
-		labelLength: labelLength,
-		onUpdate:    onUpdate,
-		onShowSub:   onShowSub,
-		subRows:     subRows,
-		subCols:     subCols,
-		subKeys:     strings.ToUpper(strings.TrimSpace(subKeys)),
-		resetKey:    resetKey,
+		grid:         grid,
+		labelLength:  labelLength,
+		onUpdate:     onUpdate,
+		onShowSub:    onShowSub,
+		subRows:      subRows,
+		subCols:      subCols,
+		subKeys:      strings.ToUpper(strings.TrimSpace(subKeys)),
+		resetKey:     resetKey,
+		backspaceKey: backspaceKey,
 	}
 }
 
@@ -79,7 +82,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	}
 
 	// Handle backspace for input correction
-	if config.IsBackspaceKey(key) {
+	if config.IsConfiguredBackspaceKey(key, m.backspaceKey) {
 		return m.handleBackspace()
 	}
 

@@ -703,6 +703,124 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "recursive_grid backspace_key conflicts with keys - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					BackspaceKey:  "u", // Conflicts with keys
+					MinSizeWidth:  10,
+					MinSizeHeight: 10,
+					MaxDepth:      10,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid backspace_key named key conflicts with key char - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "ui\tk",
+					ResetKey:      ",",
+					BackspaceKey:  "tab", // Named key resolves to \t which is in keys
+					MinSizeWidth:  10,
+					MinSizeHeight: 10,
+					MaxDepth:      10,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid backspace_key case-insensitive conflict - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					BackspaceKey:  "U", // Conflicts (case-insensitive)
+					MinSizeWidth:  10,
+					MinSizeHeight: 10,
+					MaxDepth:      10,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid backspace_key no conflict",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:             true,
+					GridCols:            2,
+					GridRows:            2,
+					Keys:                "uijk",
+					ResetKey:            ",",
+					BackspaceKey:        "x", // Not in keys
+					MinSizeWidth:        50,
+					MinSizeHeight:       50,
+					MaxDepth:            4,
+					LineWidth:           2,
+					FontSize:            12,
+					LineColorLight:      "#FF0000",
+					LineColorDark:       "#FF0000",
+					HighlightColorLight: "#00FF00",
+					HighlightColorDark:  "#00FF00",
+					TextColorLight:      "#0000FF",
+					TextColorDark:       "#0000FF",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "recursive_grid backspace_key modifier combo no conflict",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:             true,
+					GridCols:            2,
+					GridRows:            2,
+					Keys:                "uijk",
+					ResetKey:            ",",
+					BackspaceKey:        testModifierBackspaceKey, // Modifier combo, no conflict
+					MinSizeWidth:        50,
+					MinSizeHeight:       50,
+					MaxDepth:            4,
+					LineWidth:           2,
+					FontSize:            12,
+					LineColorLight:      "#FF0000",
+					LineColorDark:       "#FF0000",
+					HighlightColorLight: "#00FF00",
+					HighlightColorDark:  "#00FF00",
+					TextColorLight:      "#0000FF",
+					TextColorDark:       "#0000FF",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "recursive_grid modifier combo reset_key conflicts with same modifier combo backspace_key - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      testModifierBackspaceKey,
+					BackspaceKey:  testModifierBackspaceKey, // Same as reset_key
+					MinSizeWidth:  10,
+					MinSizeHeight: 10,
+					MaxDepth:      10,
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "recursive_grid with empty label background colors (theme-aware default) - valid",
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{

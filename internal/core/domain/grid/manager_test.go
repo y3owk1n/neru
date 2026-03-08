@@ -20,6 +20,7 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 		testGrid,
 		3, 3, "asdf",
 		",",
+		"",
 		func(redraw bool) {
 			// Update callback
 		},
@@ -119,7 +120,7 @@ func TestManager_CurrentInput(t *testing.T) {
 	logger := logger.Get()
 	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
 
-	manager := grid.NewManager(testGrid, 2, 2, "12", ",", nil, nil, logger)
+	manager := grid.NewManager(testGrid, 2, 2, "12", ",", "", nil, nil, logger)
 
 	// Initially empty
 	if input := manager.CurrentInput(); input != "" {
@@ -139,7 +140,7 @@ func TestManager_Reset(t *testing.T) {
 	// Use unique parameters to avoid cache conflicts
 	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 50, 50), logger)
 
-	manager := grid.NewManager(testGrid, 2, 2, "12", ",", nil, nil, logger)
+	manager := grid.NewManager(testGrid, 2, 2, "12", ",", "", nil, nil, logger)
 
 	manager.HandleInput("A")
 
@@ -159,7 +160,7 @@ func TestManager_ResetWithModifierKey(t *testing.T) {
 	testGrid := grid.NewGrid("ABC", image.Rect(0, 0, 300, 300), logger)
 
 	// Use Ctrl+R as reset key
-	manager := grid.NewManager(testGrid, 2, 2, "12", "Ctrl+R", nil, nil, logger)
+	manager := grid.NewManager(testGrid, 2, 2, "12", "Ctrl+R", "", nil, nil, logger)
 
 	// Type a valid character
 	manager.HandleInput("A")
@@ -188,7 +189,7 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 	// Create grid with only numbers and symbols
 	testGrid := grid.NewGrid("123!@", image.Rect(0, 0, 500, 500), logger)
 
-	manager := grid.NewManager(testGrid, 2, 2, "ab", ",", nil, nil, logger)
+	manager := grid.NewManager(testGrid, 2, 2, "ab", ",", "", nil, nil, logger)
 
 	// Test that numbers are accepted
 	_, complete := manager.HandleInput("1")
@@ -225,7 +226,7 @@ func TestManager_CustomLabelsWithSymbols(t *testing.T) {
 		t.Errorf("ValidCharacters() = %q, should contain ','", validChars)
 	}
 
-	manager := grid.NewManager(testGrid, 2, 2, "ab", ",", nil, nil, logger)
+	manager := grid.NewManager(testGrid, 2, 2, "ab", ",", "", nil, nil, logger)
 
 	// Test that regular characters work
 	_, complete := manager.HandleInput("A")
@@ -296,7 +297,7 @@ func TestManager_InputValidation(t *testing.T) {
 
 	// Create a simple grid with known coordinates: AA, AB, AC, BA, BB, BC, CA, CB, CC
 	testGrid := grid.NewGrid("ABC", image.Rect(0, 0, 100, 100), logger)
-	manager := grid.NewManager(testGrid, 2, 2, "ab", ",", nil, nil, logger)
+	manager := grid.NewManager(testGrid, 2, 2, "ab", ",", "", nil, nil, logger)
 
 	// Test 1: Valid first character should be accepted
 	_, complete := manager.HandleInput("A")
@@ -385,7 +386,7 @@ func TestManager_PrefixValidationRegression(t *testing.T) {
 
 	// Create a grid with known coordinates: AA, AB, BA, BB (for "AB" characters)
 	testGrid := grid.NewGrid("AB", image.Rect(0, 0, 100, 100), logger)
-	manager := grid.NewManager(testGrid, 2, 2, "ab", ",", nil, nil, logger)
+	manager := grid.NewManager(testGrid, 2, 2, "ab", ",", "", nil, nil, logger)
 
 	// Get all coordinates
 	cells := testGrid.AllCells()

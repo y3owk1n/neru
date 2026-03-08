@@ -362,6 +362,16 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 
 	h.config = config
 
+	// Update the backspace key on the live hint manager (if one exists) so
+	// an active hints session picks up the new value immediately without
+	// being torn down. The router is recreated on every activation, so it
+	// will naturally get the latest exit keys on next use.
+	if h.hints != nil && h.hints.Context != nil {
+		if mgr := h.hints.Context.Manager(); mgr != nil {
+			mgr.SetBackspaceKey(config.Hints.BackspaceKey)
+		}
+	}
+
 	if h.renderer != nil {
 		h.renderer.UpdateConfig(
 			hints.BuildStyle(config.Hints, h.themeProvider),

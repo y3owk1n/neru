@@ -17,6 +17,7 @@ func TestNewManager(t *testing.T) {
 		bounds,
 		"uijk",
 		",",
+		"",
 		[]string{"escape"},
 		func() {},
 		func(point image.Point) {},
@@ -35,6 +36,7 @@ func TestNewManagerDefaultKeys(t *testing.T) {
 		bounds,
 		"", // Empty keys - should use default
 		",",
+		"",
 		[]string{"escape"},
 		nil,
 		nil,
@@ -58,6 +60,7 @@ func TestManagerHandleInputCellSelection(t *testing.T) {
 		bounds,
 		"uijk",
 		",",
+		"",
 		[]string{"escape"},
 		func() { updateCalled = true },
 		nil,
@@ -82,6 +85,7 @@ func TestManagerHandleInputExitKey(t *testing.T) {
 		bounds,
 		"uijk",
 		",",
+		"",
 		[]string{"escape"},
 		nil,
 		nil,
@@ -104,6 +108,7 @@ func TestManagerHandleInputResetKey(t *testing.T) {
 		bounds,
 		"uijk",
 		",",
+		"",
 		[]string{"escape"},
 		func() { updateCalled = true },
 		nil,
@@ -131,6 +136,7 @@ func TestManagerHandleInputResetKeyEmptyFallbackToSpace(t *testing.T) {
 		bounds,
 		"uijk",
 		"", // Empty reset key — should fall back to space
+		"",
 		[]string{"escape"},
 		func() { updateCalled = true },
 		nil,
@@ -158,6 +164,7 @@ func TestManagerHandleInputBacktrack(t *testing.T) {
 		bounds,
 		"uijk",
 		",",
+		"",
 		[]string{"escape"},
 		func() { updateCalled = true },
 		nil,
@@ -189,6 +196,7 @@ func TestManagerHandleInputUnmappedKey(t *testing.T) {
 		bounds,
 		"uijk",
 		",",
+		"",
 		[]string{"escape"},
 		func() { updateCalled = true },
 		nil,
@@ -215,6 +223,7 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 		bounds,
 		"uijk",
 		",",
+		"",
 		[]string{"escape"},
 		50, // minSizeWidth large enough to complete quickly
 		50, // minSizeHeight
@@ -263,6 +272,7 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 		bounds,
 		"uijk",
 		",",
+		"",
 		[]string{"escape"},
 		1, // minSizeWidth
 		1, // minSizeHeight
@@ -307,6 +317,7 @@ func TestManagerWithConfig_NonSquare3x2(t *testing.T) {
 		bounds,
 		"gcrhtn", // 6 keys for 3x2
 		",",
+		"",
 		[]string{"escape"},
 		10, // minSizeWidth
 		10, // minSizeHeight
@@ -339,6 +350,7 @@ func TestManagerWithConfig_InvalidColsOnly_FallsBack(t *testing.T) {
 		bounds,
 		"uijk",
 		",",
+		"",
 		[]string{"escape"},
 		10,
 		10,
@@ -365,6 +377,7 @@ func TestManagerWithConfig_InvalidRowsOnly_FallsBack(t *testing.T) {
 		bounds,
 		"uijk",
 		",",
+		"",
 		[]string{"escape"},
 		10,
 		10,
@@ -388,6 +401,7 @@ func TestHandleInput_InvalidKeyLength_FallsBackToDefault(t *testing.T) {
 		screenBounds,
 		keys,
 		",",
+		"",
 		[]string{"escape"},
 		nil,
 		nil,
@@ -413,6 +427,7 @@ func TestHandleInput_ValidMultibyteKeys(t *testing.T) {
 		screenBounds,
 		keys,
 		",",
+		"",
 		[]string{"escape"},
 		nil,
 		nil,

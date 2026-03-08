@@ -6,6 +6,12 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
+// testModifierBackspaceKey is a shared test constant for modifier-combo backspace key scenarios.
+const testModifierBackspaceKey = "Ctrl+H"
+
+// testActionConflictKey is a shared test constant for backspace vs action key binding conflict scenarios.
+const testActionConflictKey = "Shift+L"
+
 // TestConfig_ValidateHints tests the Config.ValidateHints method.
 func TestConfig_ValidateHints(t *testing.T) {
 	tests := []struct {
@@ -64,6 +70,112 @@ func TestConfig_ValidateHints(t *testing.T) {
 				},
 			},
 			wantErr: true,
+		},
+
+		{
+			name: "hints backspace_key conflicts with hint_characters - invalid",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters: "abcd",
+					BackspaceKey:   "a", // Conflicts with hint_characters
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints backspace_key case-insensitive conflict - invalid",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters: "ABCD",
+					BackspaceKey:   "a", // Conflicts (case-insensitive)
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints backspace_key named key 'space' conflicts with space in hint_characters - invalid",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters: "ab cd", // Contains space character
+					BackspaceKey:   "space", // Named key resolves to space
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints backspace_key no conflict",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:        "abcd",
+					BackspaceKey:          "x", // No conflict
+					BackgroundColorLight:  "#FFFFFF",
+					BackgroundColorDark:   "#FFFFFF",
+					TextColorLight:        "#000000",
+					TextColorDark:         "#000000",
+					MatchedTextColorLight: "#FF0000",
+					MatchedTextColorDark:  "#FF0000",
+					BorderColorLight:      "#000000",
+					BorderColorDark:       "#000000",
+					FontSize:              12,
+					BorderRadius:          4,
+					PaddingX:              4,
+					PaddingY:              4,
+					BorderWidth:           1,
+					ClickableRoles:        []string{"AXButton"},
+					ParallelThreshold:     20,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "hints backspace_key modifier combo no conflict with characters",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:        "abcd",
+					BackspaceKey:          testModifierBackspaceKey, // Modifier combo, no conflict
+					BackgroundColorLight:  "#FFFFFF",
+					BackgroundColorDark:   "#FFFFFF",
+					TextColorLight:        "#000000",
+					TextColorDark:         "#000000",
+					MatchedTextColorLight: "#FF0000",
+					MatchedTextColorDark:  "#FF0000",
+					BorderColorLight:      "#000000",
+					BorderColorDark:       "#000000",
+					FontSize:              12,
+					BorderRadius:          4,
+					PaddingX:              4,
+					PaddingY:              4,
+					BorderWidth:           1,
+					ClickableRoles:        []string{"AXButton"},
+					ParallelThreshold:     20,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "hints backspace_key empty string uses default - valid",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:        "abcd",
+					BackspaceKey:          "", // Empty = default backspace/delete
+					BackgroundColorLight:  "#FFFFFF",
+					BackgroundColorDark:   "#FFFFFF",
+					TextColorLight:        "#000000",
+					TextColorDark:         "#000000",
+					MatchedTextColorLight: "#FF0000",
+					MatchedTextColorDark:  "#FF0000",
+					BorderColorLight:      "#000000",
+					BorderColorDark:       "#000000",
+					FontSize:              12,
+					BorderRadius:          4,
+					PaddingX:              4,
+					PaddingY:              4,
+					BorderWidth:           1,
+					ClickableRoles:        []string{"AXButton"},
+					ParallelThreshold:     20,
+				},
+			},
+			wantErr: false,
 		},
 		{
 			name: "hints with valid ASCII digits and symbols",
@@ -551,6 +663,119 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "grid backspace_key conflicts with characters - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					BackspaceKey: "a", // Conflicts with characters
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key named key 'tab' conflicts with tab in characters - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "AB\tCDEFGHIJKLMNOPQRSTUVWXYZ",
+					BackspaceKey: "tab", // Named key resolves to \t
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key conflicts with row_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					RowLabels:    "123456789",
+					BackspaceKey: "1", // Conflicts with row_labels
+					FontSize:     12,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key conflicts with col_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					ColLabels:    "123456789x",
+					BackspaceKey: "x", // Conflicts with col_labels
+					FontSize:     12,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key conflicts with sublayer_keys - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					SublayerKeys: "123456789",
+					BackspaceKey: "1", // Conflicts with sublayer_keys
+					FontSize:     12,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key no conflict",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:                  "ABCDEFGHIJKLMNOPQRSTUVWXY",
+					BackspaceKey:                "z", // Not in characters
+					BackgroundColorLight:        "#FF0000",
+					BackgroundColorDark:         "#FF0000",
+					TextColorLight:              "#FFFFFF",
+					TextColorDark:               "#FFFFFF",
+					MatchedTextColorLight:       "#000000",
+					MatchedTextColorDark:        "#000000",
+					MatchedBackgroundColorLight: "#333333",
+					MatchedBackgroundColorDark:  "#333333",
+					MatchedBorderColorLight:     "#FF0000",
+					MatchedBorderColorDark:      "#FF0000",
+					BorderColorLight:            "#666666",
+					BorderColorDark:             "#666666",
+					FontSize:                    14,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "grid backspace_key modifier combo no conflict",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					BackspaceKey:                testModifierBackspaceKey, // Modifier combo, no conflict
+					BackgroundColorLight:        "#FF0000",
+					BackgroundColorDark:         "#FF0000",
+					TextColorLight:              "#FFFFFF",
+					TextColorDark:               "#FFFFFF",
+					MatchedTextColorLight:       "#000000",
+					MatchedTextColorDark:        "#000000",
+					MatchedBackgroundColorLight: "#333333",
+					MatchedBackgroundColorDark:  "#333333",
+					MatchedBorderColorLight:     "#FF0000",
+					MatchedBorderColorDark:      "#FF0000",
+					BorderColorLight:            "#666666",
+					BorderColorDark:             "#666666",
+					FontSize:                    14,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "grid modifier combo reset_key conflicts with same modifier combo backspace_key - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					ResetKey:     testModifierBackspaceKey,
+					BackspaceKey: testModifierBackspaceKey, // Same as reset_key
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "negative font size",
 			config: config.Config{
 				Grid: config.GridConfig{
@@ -781,6 +1006,91 @@ func TestConfig_ValidateModeExitKeys_ResetKeyConflicts(t *testing.T) {
 				cfg := *config.DefaultConfig()
 				cfg.General.ModeExitKeys = []string{"escape"}
 				// Default reset key is space, no space in exit keys
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "exit key conflicts with custom hints backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "x"}
+				cfg.Hints.BackspaceKey = "x"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "exit key conflicts with custom grid backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "x"}
+				cfg.Grid.BackspaceKey = "x"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "exit key conflicts with custom recursive_grid backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "x"}
+				cfg.RecursiveGrid.BackspaceKey = "x"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "exit key 'backspace' conflicts with default backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "backspace"}
+				cfg.Hints.BackspaceKey = "" // default
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "exit key 'delete' conflicts with default backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "delete"}
+				cfg.Hints.BackspaceKey = "" // default
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no conflict when backspace_key is modifier combo",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "Ctrl+C"}
+				cfg.Hints.BackspaceKey = testModifierBackspaceKey // modifier combo won't conflict
+				cfg.Grid.BackspaceKey = testModifierBackspaceKey
+				cfg.RecursiveGrid.BackspaceKey = testModifierBackspaceKey
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when mode with conflicting backspace_key is disabled",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "x"}
+				cfg.Hints.Enabled = false
+				cfg.Hints.BackspaceKey = "x" // would conflict, but hints is disabled
+				// Remove "x" from grid characters/sublayer_keys to avoid exit key vs characters conflict
+				cfg.Grid.Characters = "abcdefghijklmnpqrstuvwy"
+				cfg.Grid.SublayerKeys = "abcdefghijklmnpqrstuvwy"
+				cfg.Grid.BackspaceKey = "backspace"
+				cfg.RecursiveGrid.BackspaceKey = "backspace"
+
 				return cfg
 			},
 			wantErr: false,
@@ -1196,6 +1506,131 @@ func TestConfig_ValidateScrollKeyBindings(t *testing.T) {
 			if (err != nil) != testCase.wantErr {
 				t.Errorf(
 					"Config.ValidateScrollKeyBindings() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
+// TestConfig_Validate_BackspaceKeyActionKeyConflicts tests that backspace keys
+// cannot conflict with action key bindings (checked via full Validate()).
+func TestConfig_Validate_BackspaceKeyActionKeyConflicts(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  func() config.Config
+		wantErr bool
+	}{
+		{
+			name: "hints backspace_key conflicts with left_click binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = testActionConflictKey
+				cfg.Action.KeyBindings.LeftClick = testActionConflictKey
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key conflicts with right_click binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.BackspaceKey = "Cmd+R"
+				cfg.Action.KeyBindings.RightClick = "Cmd+R"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid backspace_key conflicts with move_mouse_up binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.RecursiveGrid.BackspaceKey = "Shift+K"
+				cfg.Action.KeyBindings.MoveMouseUp = "Shift+K"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "backspace_key conflicts case-insensitive with action binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = "shift+l"
+				cfg.Action.KeyBindings.LeftClick = testActionConflictKey
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no conflict when backspace_key differs from all action bindings",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = "Ctrl+Z"
+
+				// Default action bindings don't include Ctrl+Z
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when backspace_key is empty (default) and no action binding is delete",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = ""
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty backspace_key (default) no conflict with non-delete action bindings",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = "" // default backspace/delete
+				cfg.Grid.BackspaceKey = ""
+				cfg.RecursiveGrid.BackspaceKey = ""
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when mode is disabled",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.Enabled = false
+				cfg.Hints.BackspaceKey = testActionConflictKey
+				cfg.Action.KeyBindings.LeftClick = testActionConflictKey
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when action binding is empty",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = testActionConflictKey
+				cfg.Action.KeyBindings.LeftClick = ""
+
+				return cfg
+			},
+			wantErr: false,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := testCase.config()
+			err := cfg.Validate()
+
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.Validate() error = %v, wantErr %v",
 					err,
 					testCase.wantErr,
 				)

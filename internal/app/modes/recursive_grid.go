@@ -94,6 +94,7 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 		screenBounds,
 		h.config.RecursiveGrid.Keys,
 		h.config.RecursiveGrid.ResetKey,
+		h.config.RecursiveGrid.BackspaceKey,
 		exitKeys,
 		h.config.RecursiveGrid.MinSizeWidth,
 		h.config.RecursiveGrid.MinSizeHeight,

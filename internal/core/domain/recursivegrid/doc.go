@@ -29,6 +29,7 @@
 //	    bounds,
 //	    "uijk",                    // Key mapping
 //	    ",",                       // Reset key
+//	    "",                        // Backspace key (empty = default backspace/delete)
 //	    []string{"escape"},        // Exit keys
 //	    func() { /* update overlay */ },
 //	    func(point) { /* selection complete */ },
