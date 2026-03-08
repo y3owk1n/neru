@@ -674,8 +674,9 @@ func (c *Config) ValidateActionKeyBindings() error {
 
 // ValidateActionKeyBinding validates an action keybinding.
 // Valid formats:
-//   - Modifiers + key: Cmd+L, Shift+Return (at least 1 modifier + alphabet, named key, or \r)
+//   - Single printable ASCII character: "L", "w", "1" (any character from ! to ~)
 //   - Single named key: Return, Enter, Up, Down, F1, etc.
+//   - Modifiers + key: Cmd+L, Shift+Return (at least 1 modifier + character or named key)
 func ValidateActionKeyBinding(keybinding, fieldName string) error {
 	if strings.TrimSpace(keybinding) == "" {
 		return nil
@@ -688,14 +689,22 @@ func ValidateActionKeyBinding(keybinding, fieldName string) error {
 		return nil
 	}
 
-	// Format 2: Modifiers + key (e.g., Cmd+L, Shift+Return)
+	// Format 2: Single printable ASCII character (e.g. "L", "w", "1")
+	if len(normalizedKey) == 1 {
+		r := rune(normalizedKey[0])
+		if r >= '!' && r <= '~' {
+			return nil
+		}
+	}
+
+	// Format 3: Modifiers + key (e.g., Cmd+L, Shift+Return)
 	parts := strings.Split(normalizedKey, "+")
 
 	const minParts = 2
 	if len(parts) < minParts {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"%s must be a named key (e.g. Return, Up, F1) or have at least one modifier (e.g., Cmd+L, Shift+Return): %s",
+			"%s must be a single character, a named key (e.g. Return, Up, F1), or have at least one modifier (e.g., Cmd+L, Shift+Return): %s",
 			fieldName,
 			keybinding,
 		)
@@ -732,7 +741,7 @@ func ValidateActionKeyBinding(keybinding, fieldName string) error {
 		)
 	}
 
-	// Validate the key part: alphabet A-Z, named key, or \r
+	// Validate the key part: single printable ASCII character, named key, or \r
 	if trimmedKey == "\r" {
 		// Single \r is valid
 		return nil
@@ -744,14 +753,14 @@ func ValidateActionKeyBinding(keybinding, fieldName string) error {
 
 	if len(trimmedKey) == 1 {
 		r := rune(trimmedKey[0])
-		if r >= 'A' && r <= 'Z' {
+		if r >= '!' && r <= '~' {
 			return nil
 		}
 	}
 
 	return derrors.Newf(
 		derrors.CodeInvalidConfig,
-		"%s has invalid key '%s' in: %s (must be alphabet A-Z or a named key like Return, Up, F1, etc.)",
+		"%s has invalid key '%s' in: %s (must be a single character, a named key like Return, Up, F1, etc.)",
 		fieldName,
 		trimmedKey,
 		keybinding,

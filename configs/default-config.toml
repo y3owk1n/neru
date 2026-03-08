@@ -387,9 +387,10 @@ indicator_y_offset = 20              # Y offset from cursor position
 
 # Action keybindings for use in hints/grid mode
 # Valid formats:
-#   - Modifier+Key: Cmd+L, Shift+Return (at least 1 modifier + key)
+#   - Single character: any printable ASCII character (e.g. "w", "L", "1")
 #   - Single named key: Return, Enter, Up, Down, Left, Right, Home, End,
 #                        PageUp, PageDown, F1-F20, Space, Tab, etc.
+#   - Modifier+Key: Cmd+L, Shift+Return (at least 1 modifier + key)
 [action]
 # Step size in pixels for keyboard-driven mouse movement (Up/Down/Left/Right keys)
 move_mouse_step = 10

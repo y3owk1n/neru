@@ -1172,11 +1172,24 @@ func TestConfig_ValidateAction(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "invalid key binding format",
+			name: "valid single lowercase key binding",
 			config: config.Config{
 				Action: config.ActionConfig{
+					MoveMouseStep: 10,
 					KeyBindings: config.ActionKeyBindingsCfg{
-						LeftClick: "l", // lowercase not allowed
+						MoveMouseUp: "w", // lowercase single char is valid
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid multi-char key binding",
+			config: config.Config{
+				Action: config.ActionConfig{
+					MoveMouseStep: 10,
+					KeyBindings: config.ActionKeyBindingsCfg{
+						LeftClick: "abc", // multi-char string is not valid
 					},
 				},
 			},
@@ -1692,23 +1705,28 @@ func TestValidateActionKeyBinding(t *testing.T) {
 			wantErr:    false,
 		},
 		{
-			name:       "invalid single lowercase alphabet",
+			name:       "valid single lowercase alphabet",
 			keybinding: "l",
-			wantErr:    true,
+			wantErr:    false,
 		},
 		{
-			name:       "invalid single uppercase alphabet",
+			name:       "valid single uppercase alphabet",
 			keybinding: "L",
-			wantErr:    true,
+			wantErr:    false,
 		},
 		{
-			name:       "invalid single number",
+			name:       "valid single number",
 			keybinding: "1",
-			wantErr:    true,
+			wantErr:    false,
 		},
 		{
-			name:       "invalid single symbol",
+			name:       "valid single symbol",
 			keybinding: "!",
+			wantErr:    false,
+		},
+		{
+			name:       "invalid multi-char non-named key",
+			keybinding: "abc",
 			wantErr:    true,
 		},
 		{
@@ -1722,9 +1740,9 @@ func TestValidateActionKeyBinding(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name:       "invalid lowercase key with modifier",
+			name:       "valid lowercase key with modifier",
 			keybinding: "Cmd+l",
-			wantErr:    true,
+			wantErr:    false,
 		},
 		{
 			name:       "invalid modifier name",
