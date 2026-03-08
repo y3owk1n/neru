@@ -303,6 +303,17 @@ func (c *Config) ValidateGrid() error {
 		if err != nil {
 			return err
 		}
+
+		// Even modifier-combo reset keys must not conflict with the configured backspace key
+		if gridBackspaceKey := c.Grid.BackspaceKey; gridBackspaceKey != "" &&
+			NormalizeKeyForComparison(resetKey) == NormalizeKeyForComparison(gridBackspaceKey) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"grid.reset_key cannot be the same as grid.backspace_key ('%s')",
+				gridBackspaceKey,
+			)
+		}
+
 		// Modifier combos don't conflict with grid characters, so we can return early
 	} else {
 		// Validate single character reset key
@@ -1269,6 +1280,17 @@ func (c *Config) ValidateRecursiveGrid() error {
 		if err != nil {
 			return err
 		}
+
+		// Even modifier-combo reset keys must not conflict with the configured backspace key
+		if rgBackspaceKey := c.RecursiveGrid.BackspaceKey; rgBackspaceKey != "" &&
+			NormalizeKeyForComparison(resetKey) == NormalizeKeyForComparison(rgBackspaceKey) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"recursive_grid.reset_key cannot be the same as recursive_grid.backspace_key ('%s')",
+				rgBackspaceKey,
+			)
+		}
+
 		// Modifier combos don't conflict with recursive_grid keys, so we can return early
 	} else {
 		// Validate single character reset key

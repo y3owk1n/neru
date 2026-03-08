@@ -804,6 +804,23 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "recursive_grid modifier combo reset_key conflicts with same modifier combo backspace_key - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      testModifierBackspaceKey,
+					BackspaceKey:  testModifierBackspaceKey, // Same as reset_key
+					MinSizeWidth:  10,
+					MinSizeHeight: 10,
+					MaxDepth:      10,
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "recursive_grid with empty label background colors (theme-aware default) - valid",
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{

@@ -762,6 +762,17 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "grid modifier combo reset_key conflicts with same modifier combo backspace_key - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					ResetKey:     testModifierBackspaceKey,
+					BackspaceKey: testModifierBackspaceKey, // Same as reset_key
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "negative font size",
 			config: config.Config{
 				Grid: config.GridConfig{
