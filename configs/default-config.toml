@@ -83,7 +83,7 @@ hint_characters = "asdfghjkl"
 # Key used for backspace/input correction in hints mode
 # Default: "backspace" (the standard backspace/delete key)
 # Can be set to any key name (e.g. "backspace", "delete", "x", "Ctrl+H")
-backspace_key = ""
+backspace_key = "backspace"
 
 # Visual appearance
 font_size = 10      # Font size for hints
