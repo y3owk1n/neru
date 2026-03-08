@@ -321,7 +321,7 @@ func (o *Overlay) DrawRecursiveGrid(
 		drawLabelBackground:         C.int(boolToInt(style.LabelBackground())),
 		labelBackgroundPaddingX:     C.int(style.LabelBackgroundPaddingX()),
 		labelBackgroundPaddingY:     C.int(style.LabelBackgroundPaddingY()),
-		labelBackgroundCornerRadius: C.int(style.LabelBackgroundBorderRadius()),
+		labelBackgroundBorderRadius: C.int(style.LabelBackgroundBorderRadius()),
 		labelBackgroundBorderWidth:  C.int(style.LabelBackgroundBorderWidth()),
 	}
 
