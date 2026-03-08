@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.25.0](https://github.com/y3owk1n/neru/compare/v1.24.0...v1.25.0) (2026-03-08)
+
+
+### Features
+
+* **action:** add --center flag to move_mouse command ([#516](https://github.com/y3owk1n/neru/issues/516)) ([d462bbe](https://github.com/y3owk1n/neru/commit/d462bbe58fd0843d556a244e1c417b572da48a0c))
+* **hotkeys:** support function keys F13 through F20 ([#524](https://github.com/y3owk1n/neru/issues/524)) ([5ba6fc4](https://github.com/y3owk1n/neru/commit/5ba6fc4adbc4f64e285c333294bd870e138eeb9d))
+* make `backspace` configurable in config for each mode ([#530](https://github.com/y3owk1n/neru/issues/530)) ([c989188](https://github.com/y3owk1n/neru/commit/c9891882b3b11e152d812b785188c4fe9de5d52c))
+* **overlay:** implements auto detected `padding` and `border radius` labels ([#526](https://github.com/y3owk1n/neru/issues/526)) ([6f12b54](https://github.com/y3owk1n/neru/commit/6f12b547633018cd617823d7f85e635dfd93c70a))
+* **recursive-grid:** add optional rounded label badge backgrounds with theme-aware styling ([#512](https://github.com/y3owk1n/neru/issues/512)) ([d74c3d1](https://github.com/y3owk1n/neru/commit/d74c3d1af5524c87872caefd35f420f7f087033b))
+
+
+### Bug Fixes
+
+* centralize key mapping with unified ValidNamedKeys registry ([#531](https://github.com/y3owk1n/neru/issues/531)) ([9127b7a](https://github.com/y3owk1n/neru/commit/9127b7a4076b6af6d7c6cd01c0e001fa0ce670e4))
+* **config:** disable file logging by default ([#529](https://github.com/y3owk1n/neru/issues/529)) ([30bb9ee](https://github.com/y3owk1n/neru/commit/30bb9eef57e0d32ec8cc71671873b0cb743eafbb))
+* **config:** move all visual related configuration to `ui` section ([#533](https://github.com/y3owk1n/neru/issues/533)) ([3947c75](https://github.com/y3owk1n/neru/commit/3947c75661cefa3f97ba21c73e1a4547e2125666))
+* **config:** propagate service config updates during hot-reload ([#521](https://github.com/y3owk1n/neru/issues/521)) ([26d1d19](https://github.com/y3owk1n/neru/commit/26d1d19c02997b731dc28a579ef72d6e3a6eebae))
+* **config:** rename corner_radius to border_radius for consistency ([#532](https://github.com/y3owk1n/neru/issues/532)) ([0e14253](https://github.com/y3owk1n/neru/commit/0e142530d4bb38328bbe02071e88aa54e6575f4d))
+* **cursor:** add settling delay before cursor restore after click actions ([#514](https://github.com/y3owk1n/neru/issues/514)) ([da4de9d](https://github.com/y3owk1n/neru/commit/da4de9d9803f6fc020e88b1f3f3ad5d79540c5db))
+* **docs:** `backspace` is not supported for `reset_key` for now ([#520](https://github.com/y3owk1n/neru/issues/520)) ([7e14d56](https://github.com/y3owk1n/neru/commit/7e14d56196a4b857a85365b565cef9725964312f))
+
 ## [1.24.0](https://github.com/y3owk1n/neru/compare/v1.23.0...v1.24.0) (2026-03-06)
 
 
