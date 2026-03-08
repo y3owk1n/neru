@@ -110,39 +110,32 @@ func NormalizeKeyForComparison(key string) string {
 	key = normalizeFullwidthChars(key)
 	key = strings.ToLower(key)
 
+	// Handle escape sequences and aliases that map to a different canonical form.
 	switch key {
-	case "\x1b", KeyNameEscape, "esc":
+	case "\x1b", "esc":
 		return KeyNameEscape
-	case "\r", KeyNameReturn, "enter":
+	case "\r", "enter":
 		return KeyNameReturn
-	case "\t", KeyNameTab:
+	case "\t":
 		return KeyNameTab
-	case " ", KeyNameSpace:
+	case " ":
 		return KeyNameSpace
-	case "\x08", "\x7f", KeyNameDelete, KeyNameBackspace:
+	case "\x08", "\x7f", KeyNameBackspace:
 		// On macOS, the Delete key (above Return) sends \x7f.
 		// \x08 is the ASCII BS control character (rarely generated on macOS but included for completeness).
 		// Treat "delete", "backspace", \x7f, and \x08 as synonyms for user-friendly matching.
 		return KeyNameDelete
-	case KeyNameHome:
-		return KeyNameHome
-	case KeyNameEnd:
-		return KeyNameEnd
-	case KeyNamePageUp:
-		return KeyNamePageUp
-	case KeyNamePageDown:
-		return KeyNamePageDown
-	case KeyNameUp:
-		return KeyNameUp
-	case KeyNameDown:
-		return KeyNameDown
-	case KeyNameLeft:
-		return KeyNameLeft
-	case KeyNameRight:
-		return KeyNameRight
-	default:
+	}
+
+	// All named keys (navigation, function, special) are already lowercase after
+	// strings.ToLower above, so they pass through as-is. This single check covers
+	// Escape, Return, Tab, Space, Delete, Home, End, PageUp, PageDown,
+	// Up, Down, Left, Right, and F1–F20 uniformly.
+	if validNamedKeysLower[key] {
 		return key
 	}
+
+	return key
 }
 
 // normalizeFullwidthChars converts fullwidth CJK characters (U+FF01-U+FF5E)
