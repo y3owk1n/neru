@@ -112,9 +112,13 @@ func IsValidNamedKey(key string) bool {
 // If the key is not a recognized named key, it returns the input unchanged
 // and false as the second return value.
 func CanonicalNamedKeyForm(key string) (string, bool) {
-	display, ok := namedKeyDisplayForm[strings.ToLower(key)]
+	display, displayOk := namedKeyDisplayForm[strings.ToLower(key)]
 
-	return display, ok
+	if !displayOk {
+		return key, false
+	}
+
+	return display, displayOk
 }
 
 // NormalizeKeyForComparison converts escape sequences and key names to a canonical form for comparison.
