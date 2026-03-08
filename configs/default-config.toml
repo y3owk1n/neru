@@ -420,7 +420,7 @@ log_file = ""
 structured_logging = true
 
 # Whether to disable file logging entirely (logs only to stdout/stderr)
-disable_file_logging = false
+disable_file_logging = true
 
 # Maximum size in megabytes of the log file before it gets rotated
 max_file_size = 10

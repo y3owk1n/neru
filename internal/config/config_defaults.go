@@ -464,7 +464,7 @@ func DefaultConfig() *Config {
 			LogLevel:           "info",
 			LogFile:            "",
 			StructuredLogging:  true,
-			DisableFileLogging: false,
+			DisableFileLogging: true,
 			MaxFileSize:        DefaultMaxFileSize,
 			MaxBackups:         DefaultMaxBackups,
 			MaxAge:             DefaultMaxAge,

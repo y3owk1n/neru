@@ -1217,7 +1217,7 @@ Control how Neru logs information for debugging and monitoring.
 | `log_level`            | string | `"info"` | Minimum level to log |
 | `log_file`             | string | `""`     | Custom log path      |
 | `structured_logging`   | bool   | `true`   | JSON format          |
-| `disable_file_logging` | bool   | `false`  | Console only         |
+| `disable_file_logging` | bool   | `true`   | Console only         |
 | `max_file_size`        | int    | `10`     | MB before rotation   |
 | `max_backups`          | int    | `5`      | Old files to keep    |
 | `max_age`              | int    | `30`     | Days to keep         |
