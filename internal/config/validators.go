@@ -955,9 +955,10 @@ func checkExitKeyConflict(
 	return nil
 }
 
-// checkExitKeysResetKeyConflicts detects if any exit key conflicts with the grid or recursive-grid reset key.
-// At runtime, exit keys are checked before reset keys (in key_dispatch.go), so a conflict means
-// the reset key will never fire — the mode will exit instead.
+// checkExitKeysResetKeyConflicts detects if any exit key conflicts with the grid or recursive-grid reset key,
+// or with any mode's configured backspace key.
+// At runtime, exit keys are checked before reset/backspace keys (in key_dispatch.go), so a conflict means
+// the reset/backspace key will never fire — the mode will exit instead.
 func (c *Config) checkExitKeysResetKeyConflicts() error {
 	if len(c.General.ModeExitKeys) == 0 {
 		return nil
@@ -1009,6 +1010,65 @@ func (c *Config) checkExitKeysResetKeyConflicts() error {
 					derrors.CodeInvalidConfig,
 					"general.mode_exit_keys contains a key that conflicts with recursive_grid.reset_key ('%s'); the exit key will always take priority, making recursive-grid reset non-functional",
 					rgResetKey,
+				)
+			}
+		}
+	}
+	// Check backspace key conflicts with exit keys for each mode.
+	// At runtime, exit keys are checked before backspace keys, so a conflict means
+	// the backspace key will never fire — the mode will exit instead.
+	err := c.checkExitKeysBackspaceKeyConflicts(normalizedExitKeys)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkExitKeysBackspaceKeyConflicts detects if any exit key conflicts with a mode's configured backspace key.
+// At runtime, exit keys are checked before backspace keys (in key_dispatch.go), so a conflict means
+// the backspace key will never fire — the mode will exit instead.
+func (c *Config) checkExitKeysBackspaceKeyConflicts(normalizedExitKeys []string) error {
+	type modeBackspaceKey struct {
+		key       string
+		modeName  string
+		isEnabled bool
+	}
+
+	modes := []modeBackspaceKey{
+		{c.Hints.BackspaceKey, "hints", c.Hints.Enabled},
+		{c.Grid.BackspaceKey, "grid", c.Grid.Enabled},
+		{c.RecursiveGrid.BackspaceKey, "recursive_grid", c.RecursiveGrid.Enabled},
+	}
+	for _, mode := range modes {
+		if !mode.isEnabled {
+			continue
+		}
+
+		bsKey := mode.key
+		if bsKey == "" {
+			// Default backspace key: check if any exit key normalizes to "delete"
+			// (which is the canonical form of backspace/delete).
+			if slices.Contains(normalizedExitKeys, KeyNameDelete) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains a key that conflicts with the default backspace key used by %s mode; the exit key will always take priority, making backspace non-functional",
+					mode.modeName,
+				)
+			}
+
+			continue
+		}
+		// Custom backspace key: only check non-modifier keys; modifier combos (e.g. "Ctrl+H")
+		// won't collide with the named/single-char exit keys checked here.
+		if !strings.Contains(bsKey, "+") {
+			normalizedBS := NormalizeKeyForComparison(bsKey)
+			if slices.Contains(normalizedExitKeys, normalizedBS) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains a key that conflicts with %s.backspace_key ('%s'); the exit key will always take priority, making backspace non-functional",
+					mode.modeName,
+					bsKey,
 				)
 			}
 		}

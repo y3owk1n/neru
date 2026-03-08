@@ -770,7 +770,7 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 					GridRows:            2,
 					Keys:                "uijk",
 					ResetKey:            ",",
-					BackspaceKey:        "Ctrl+H", // Modifier combo, no conflict
+					BackspaceKey:        testModifierBackspaceKey, // Modifier combo, no conflict
 					MinSizeWidth:        50,
 					MinSizeHeight:       50,
 					MaxDepth:            4,

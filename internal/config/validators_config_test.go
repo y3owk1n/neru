@@ -6,6 +6,9 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
+// testModifierBackspaceKey is a shared test constant for modifier-combo backspace key scenarios.
+const testModifierBackspaceKey = "Ctrl+H"
+
 // TestConfig_ValidateHints tests the Config.ValidateHints method.
 func TestConfig_ValidateHints(t *testing.T) {
 	tests := []struct {
@@ -116,7 +119,7 @@ func TestConfig_ValidateHints(t *testing.T) {
 			config: config.Config{
 				Hints: config.HintsConfig{
 					HintCharacters:        "abcd",
-					BackspaceKey:          "Ctrl+H", // Modifier combo, no conflict
+					BackspaceKey:          testModifierBackspaceKey, // Modifier combo, no conflict
 					BackgroundColorLight:  "#FFFFFF",
 					BackgroundColorDark:   "#FFFFFF",
 					TextColorLight:        "#000000",
@@ -720,7 +723,7 @@ func TestConfig_ValidateGrid(t *testing.T) {
 			config: config.Config{
 				Grid: config.GridConfig{
 					Characters:                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-					BackspaceKey:                "Ctrl+H", // Modifier combo, no conflict
+					BackspaceKey:                testModifierBackspaceKey, // Modifier combo, no conflict
 					BackgroundColorLight:        "#FF0000",
 					BackgroundColorDark:         "#FF0000",
 					TextColorLight:              "#FFFFFF",
@@ -969,6 +972,91 @@ func TestConfig_ValidateModeExitKeys_ResetKeyConflicts(t *testing.T) {
 				cfg := *config.DefaultConfig()
 				cfg.General.ModeExitKeys = []string{"escape"}
 				// Default reset key is space, no space in exit keys
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "exit key conflicts with custom hints backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "x"}
+				cfg.Hints.BackspaceKey = "x"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "exit key conflicts with custom grid backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "x"}
+				cfg.Grid.BackspaceKey = "x"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "exit key conflicts with custom recursive_grid backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "x"}
+				cfg.RecursiveGrid.BackspaceKey = "x"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "exit key 'backspace' conflicts with default backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "backspace"}
+				cfg.Hints.BackspaceKey = "" // default
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "exit key 'delete' conflicts with default backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "delete"}
+				cfg.Hints.BackspaceKey = "" // default
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no conflict when backspace_key is modifier combo",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "Ctrl+C"}
+				cfg.Hints.BackspaceKey = testModifierBackspaceKey // modifier combo won't conflict
+				cfg.Grid.BackspaceKey = testModifierBackspaceKey
+				cfg.RecursiveGrid.BackspaceKey = testModifierBackspaceKey
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when mode with conflicting backspace_key is disabled",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.General.ModeExitKeys = []string{"escape", "x"}
+				cfg.Hints.Enabled = false
+				cfg.Hints.BackspaceKey = "x" // would conflict, but hints is disabled
+				// Remove "x" from grid characters/sublayer_keys to avoid exit key vs characters conflict
+				cfg.Grid.Characters = "abcdefghijklmnpqrstuvwy"
+				cfg.Grid.SublayerKeys = "abcdefghijklmnpqrstuvwy"
+				cfg.Grid.BackspaceKey = "backspace"
+				cfg.RecursiveGrid.BackspaceKey = "backspace"
+
 				return cfg
 			},
 			wantErr: false,
