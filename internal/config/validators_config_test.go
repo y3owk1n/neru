@@ -9,6 +9,9 @@ import (
 // testModifierBackspaceKey is a shared test constant for modifier-combo backspace key scenarios.
 const testModifierBackspaceKey = "Ctrl+H"
 
+// testActionConflictKey is a shared test constant for backspace vs action key binding conflict scenarios.
+const testActionConflictKey = "Shift+L"
+
 // TestConfig_ValidateHints tests the Config.ValidateHints method.
 func TestConfig_ValidateHints(t *testing.T) {
 	tests := []struct {
@@ -1503,6 +1506,119 @@ func TestConfig_ValidateScrollKeyBindings(t *testing.T) {
 			if (err != nil) != testCase.wantErr {
 				t.Errorf(
 					"Config.ValidateScrollKeyBindings() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
+// TestConfig_Validate_BackspaceKeyActionKeyConflicts tests that backspace keys
+// cannot conflict with action key bindings (checked via full Validate()).
+func TestConfig_Validate_BackspaceKeyActionKeyConflicts(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  func() config.Config
+		wantErr bool
+	}{
+		{
+			name: "hints backspace_key conflicts with left_click binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = testActionConflictKey
+				cfg.Action.KeyBindings.LeftClick = testActionConflictKey
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key conflicts with right_click binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.BackspaceKey = "Cmd+R"
+				cfg.Action.KeyBindings.RightClick = "Cmd+R"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid backspace_key conflicts with move_mouse_up binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.RecursiveGrid.BackspaceKey = "Shift+K"
+				cfg.Action.KeyBindings.MoveMouseUp = "Shift+K"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "backspace_key conflicts case-insensitive with action binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = "shift+l"
+				cfg.Action.KeyBindings.LeftClick = testActionConflictKey
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no conflict when backspace_key differs from all action bindings",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = "Ctrl+Z"
+
+				// Default action bindings don't include Ctrl+Z
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when backspace_key is empty (default)",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = ""
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when mode is disabled",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.Enabled = false
+				cfg.Hints.BackspaceKey = testActionConflictKey
+				cfg.Action.KeyBindings.LeftClick = testActionConflictKey
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when action binding is empty",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = testActionConflictKey
+				cfg.Action.KeyBindings.LeftClick = ""
+
+				return cfg
+			},
+			wantErr: false,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := testCase.config()
+			err := cfg.Validate()
+
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.Validate() error = %v, wantErr %v",
 					err,
 					testCase.wantErr,
 				)

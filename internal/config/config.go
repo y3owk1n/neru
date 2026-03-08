@@ -446,6 +446,14 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// Validate backspace keys don't conflict with action key bindings.
+	// At runtime, direct action keys are checked before backspace keys,
+	// so a conflict means backspace will never fire.
+	err = c.checkBackspaceKeyActionKeyConflicts()
+	if err != nil {
+		return err
+	}
+
 	// Validate smooth cursor settings
 	err = c.ValidateSmoothCursor()
 	if err != nil {

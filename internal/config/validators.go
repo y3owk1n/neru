@@ -972,6 +972,64 @@ func checkBackspaceKeyCharConflict(
 	return nil
 }
 
+// checkBackspaceKeyActionKeyConflicts checks if any mode's backspace_key conflicts with
+// an action key binding. At runtime, direct action keys are checked before backspace keys
+// (in mode_handlers.go), so a conflict means the backspace key will never fire — the action
+// will always take priority.
+func (c *Config) checkBackspaceKeyActionKeyConflicts() error {
+	bindings := []struct {
+		value     string
+		fieldName string
+	}{
+		{c.Action.KeyBindings.LeftClick, "action.key_bindings.left_click"},
+		{c.Action.KeyBindings.RightClick, "action.key_bindings.right_click"},
+		{c.Action.KeyBindings.MiddleClick, "action.key_bindings.middle_click"},
+		{c.Action.KeyBindings.MouseDown, "action.key_bindings.mouse_down"},
+		{c.Action.KeyBindings.MouseUp, "action.key_bindings.mouse_up"},
+		{c.Action.KeyBindings.MoveMouseUp, "action.key_bindings.move_mouse_up"},
+		{c.Action.KeyBindings.MoveMouseDown, "action.key_bindings.move_mouse_down"},
+		{c.Action.KeyBindings.MoveMouseLeft, "action.key_bindings.move_mouse_left"},
+		{c.Action.KeyBindings.MoveMouseRight, "action.key_bindings.move_mouse_right"},
+	}
+
+	type modeBackspaceKey struct {
+		key       string
+		modeName  string
+		isEnabled bool
+	}
+
+	modes := []modeBackspaceKey{
+		{c.Hints.BackspaceKey, "hints", c.Hints.Enabled},
+		{c.Grid.BackspaceKey, "grid", c.Grid.Enabled},
+		{c.RecursiveGrid.BackspaceKey, "recursive_grid", c.RecursiveGrid.Enabled},
+	}
+	for _, mode := range modes {
+		if !mode.isEnabled || mode.key == "" {
+			continue
+		}
+
+		normalizedBS := strings.ToLower(mode.key)
+		for _, binding := range bindings {
+			if binding.value == "" {
+				continue
+			}
+
+			if strings.EqualFold(normalizedBS, binding.value) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s.backspace_key '%s' conflicts with %s ('%s'); the action key is checked first at runtime, so backspace will never fire",
+					mode.modeName,
+					mode.key,
+					binding.fieldName,
+					binding.value,
+				)
+			}
+		}
+	}
+
+	return nil
+}
+
 // checkExitKeyConflict checks if any single-character exit key conflicts with a character set.
 func checkExitKeyConflict(
 	exitKeys []string,
