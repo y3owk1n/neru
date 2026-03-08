@@ -65,11 +65,11 @@ func TestDefaultConfig(t *testing.T) {
 			)
 		}
 
-		if cfg.RecursiveGrid.LabelBackgroundCornerRadius != config.DefaultRecursiveGridLabelBackgroundCornerRadius {
+		if cfg.RecursiveGrid.LabelBackgroundBorderRadius != config.DefaultRecursiveGridLabelBackgroundBorderRadius {
 			t.Errorf(
-				"Expected RecursiveGrid.LabelBackgroundCornerRadius %d, got %d",
-				config.DefaultRecursiveGridLabelBackgroundCornerRadius,
-				cfg.RecursiveGrid.LabelBackgroundCornerRadius,
+				"Expected RecursiveGrid.LabelBackgroundBorderRadius %d, got %d",
+				config.DefaultRecursiveGridLabelBackgroundBorderRadius,
+				cfg.RecursiveGrid.LabelBackgroundBorderRadius,
 			)
 		}
 

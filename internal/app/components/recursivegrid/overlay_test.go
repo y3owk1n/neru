@@ -56,11 +56,11 @@ func TestBuildStyle_UsesDefaultLabelBackgroundColors(t *testing.T) {
 		)
 	}
 
-	if lightStyle.LabelBackgroundCornerRadius() != config.DefaultRecursiveGridLabelBackgroundCornerRadius {
+	if lightStyle.LabelBackgroundBorderRadius() != config.DefaultRecursiveGridLabelBackgroundBorderRadius {
 		t.Fatalf(
-			"expected default label background corner radius %d, got %d",
-			config.DefaultRecursiveGridLabelBackgroundCornerRadius,
-			lightStyle.LabelBackgroundCornerRadius(),
+			"expected default label background border radius %d, got %d",
+			config.DefaultRecursiveGridLabelBackgroundBorderRadius,
+			lightStyle.LabelBackgroundBorderRadius(),
 		)
 	}
 
@@ -104,7 +104,7 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 	cfg.TextColorDark = "#FFEEEEEE"
 	cfg.LabelBackgroundPaddingX = 9
 	cfg.LabelBackgroundPaddingY = 5
-	cfg.LabelBackgroundCornerRadius = 3
+	cfg.LabelBackgroundBorderRadius = 3
 	cfg.LabelBackgroundBorderWidth = 2
 
 	lightStyle := recursivegrid.BuildStyle(cfg, &mockThemeProvider{darkMode: false})
@@ -133,10 +133,10 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 		)
 	}
 
-	if lightStyle.LabelBackgroundCornerRadius() != 3 {
+	if lightStyle.LabelBackgroundBorderRadius() != 3 {
 		t.Fatalf(
-			"expected custom light label background corner radius, got %d",
-			lightStyle.LabelBackgroundCornerRadius(),
+			"expected custom light label background border radius, got %d",
+			lightStyle.LabelBackgroundBorderRadius(),
 		)
 	}
 
@@ -173,10 +173,10 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 		)
 	}
 
-	if darkStyle.LabelBackgroundCornerRadius() != 3 {
+	if darkStyle.LabelBackgroundBorderRadius() != 3 {
 		t.Fatalf(
-			"expected custom dark label background corner radius, got %d",
-			darkStyle.LabelBackgroundCornerRadius(),
+			"expected custom dark label background border radius, got %d",
+			darkStyle.LabelBackgroundBorderRadius(),
 		)
 	}
 

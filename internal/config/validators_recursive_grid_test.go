@@ -539,7 +539,7 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 					LabelBackground:             true,
 					LabelBackgroundPaddingX:     10,
 					LabelBackgroundPaddingY:     6,
-					LabelBackgroundCornerRadius: 4,
+					LabelBackgroundBorderRadius: 4,
 					LabelBackgroundBorderWidth:  2,
 				},
 			},
@@ -598,7 +598,7 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "recursive_grid with invalid label background corner radius - invalid",
+			name: "recursive_grid with invalid label background border radius - invalid",
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{
 					Enabled:                     true,
@@ -618,7 +618,7 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 					TextColorLight:              "#0000FF",
 					TextColorDark:               "#0000FF",
 					LabelBackground:             true,
-					LabelBackgroundCornerRadius: -2,
+					LabelBackgroundBorderRadius: -2,
 				},
 			},
 			wantErr: true,
