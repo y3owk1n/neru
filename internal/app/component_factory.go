@@ -145,6 +145,7 @@ func (f *ComponentFactory) CreateGridComponent(
 		domain.SubgridCols,
 		subKeys,
 		f.config.Grid.ResetKey,
+		f.config.Grid.BackspaceKey,
 		func(_ bool) {
 			instancePtr := ctx.GridInstance()
 			if instancePtr == nil || *instancePtr == nil || (*instancePtr).Characters() == "" {

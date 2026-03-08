@@ -47,11 +47,10 @@ func NormalizeKeyForComparison(key string) string {
 		return KeyNameTab
 	case " ", KeyNameSpace:
 		return KeyNameSpace
-	case "\x08":
-		return KeyNameBackspace
-	case "\x7f", KeyNameDelete, KeyNameBackspace:
+	case "\x08", "\x7f", KeyNameDelete, KeyNameBackspace:
 		// On macOS, the Delete key (above Return) sends \x7f.
-		// Treat both "delete" and "backspace" as synonyms for the DEL key for user-friendly matching.
+		// \x08 is the ASCII BS control character (rarely generated on macOS but included for completeness).
+		// Treat "delete", "backspace", \x7f, and \x08 as synonyms for user-friendly matching.
 		return KeyNameDelete
 	default:
 		return key
@@ -116,6 +115,16 @@ func IsResetKey(key, resetKey string) bool {
 // This normalizes all variations: "\x7f", "delete", "backspace", "Delete", "Backspace", etc.
 func IsBackspaceKey(key string) bool {
 	return NormalizeKeyForComparison(key) == KeyNameDelete
+}
+
+// IsConfiguredBackspaceKey checks if a key matches the configured backspace key.
+// If configuredKey is empty, it falls back to the default backspace/delete check.
+func IsConfiguredBackspaceKey(key, configuredKey string) bool {
+	if configuredKey == "" {
+		return IsBackspaceKey(key)
+	}
+
+	return NormalizeKeyForComparison(key) == NormalizeKeyForComparison(configuredKey)
 }
 
 // ActionConfig defines the visual and behavioral settings for action mode.
@@ -219,6 +228,7 @@ type HintsConfig struct {
 	Enabled                 bool     `json:"enabled"                 toml:"enabled"`
 	AutoExitActions         []string `json:"autoExitActions"         toml:"auto_exit_actions"`
 	HintCharacters          string   `json:"hintCharacters"          toml:"hint_characters"`
+	BackspaceKey            string   `json:"backspaceKey"            toml:"backspace_key"`
 	FontSize                int      `json:"fontSize"                toml:"font_size"`
 	FontFamily              string   `json:"fontFamily"              toml:"font_family"`
 	BorderRadius            int      `json:"borderRadius"            toml:"border_radius"`
@@ -260,6 +270,7 @@ type GridConfig struct {
 
 	Characters   string `json:"characters"   toml:"characters"`
 	SublayerKeys string `json:"sublayerKeys" toml:"sublayer_keys"`
+	BackspaceKey string `json:"backspaceKey" toml:"backspace_key"`
 
 	// Optional custom labels for rows and columns
 	// If not provided, labels will be inferred from characters
@@ -300,7 +311,8 @@ type RecursiveGridConfig struct {
 	GridRows int `json:"gridRows" toml:"grid_rows"`
 
 	// Key bindings (warpd convention for 2x2: u=TL, i=TR, j=BL, k=BR)
-	Keys string `json:"keys" toml:"keys"`
+	Keys         string `json:"keys"         toml:"keys"`
+	BackspaceKey string `json:"backspaceKey" toml:"backspace_key"`
 
 	// Visual styling
 	LineColorLight              string `json:"lineColorLight"              toml:"line_color_light"`

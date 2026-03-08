@@ -95,6 +95,18 @@ func (c *Config) ValidateHints() error {
 		}
 	}
 
+	// Validate backspace key doesn't conflict with hint characters
+	err = checkBackspaceKeyCharConflict(
+		c.Hints.BackspaceKey,
+		c.Hints.HintCharacters,
+		"hints.backspace_key",
+		"hints.hint_characters",
+		"hint selection",
+	)
+	if err != nil {
+		return err
+	}
+
 	err = validateColors([]colorField{
 		{c.Hints.BackgroundColorLight, "hints.background_color_light"},
 		{c.Hints.BackgroundColorDark, "hints.background_color_dark"},
@@ -309,13 +321,29 @@ func (c *Config) ValidateGrid() error {
 			)
 		}
 
-		// Backspace and delete are reserved for input correction
-		normalizedResetKey := NormalizeKeyForComparison(resetKey)
-		if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
-			return derrors.New(
-				derrors.CodeInvalidConfig,
-				"grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
-			)
+		// Reset key cannot match the configured backspace key (they would conflict)
+		gridBackspaceKey := c.Grid.BackspaceKey
+		if gridBackspaceKey == "" {
+			// Default: backspace and delete are reserved for input correction.
+			// NormalizeKeyForComparison maps all backspace/delete variants to KeyNameDelete.
+			normalizedResetKey := NormalizeKeyForComparison(resetKey)
+			if normalizedResetKey == KeyNameDelete {
+				return derrors.New(
+					derrors.CodeInvalidConfig,
+					"grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
+				)
+			}
+		} else {
+			normalizedResetKey := NormalizeKeyForComparison(resetKey)
+
+			normalizedBackspaceKey := NormalizeKeyForComparison(gridBackspaceKey)
+			if normalizedResetKey == normalizedBackspaceKey {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"grid.reset_key cannot be the same as grid.backspace_key ('%s')",
+					gridBackspaceKey,
+				)
+			}
 		}
 
 		// Single-character reset key cannot be in grid characters
@@ -492,6 +520,29 @@ func (c *Config) ValidateGrid() error {
 			"grid.sublayer_keys must contain at least %d characters for 3x3 subgrid selection",
 			required,
 		)
+	}
+
+	// Validate backspace key doesn't conflict with grid characters/labels/sublayer keys
+	bsChecks := []struct {
+		chars     string
+		fieldName string
+	}{
+		{c.Grid.Characters, "grid.characters"},
+		{c.Grid.RowLabels, "grid.row_labels"},
+		{c.Grid.ColLabels, "grid.col_labels"},
+		{keys, "grid.sublayer_keys"},
+	}
+	for _, check := range bsChecks {
+		err = checkBackspaceKeyCharConflict(
+			c.Grid.BackspaceKey,
+			check.chars,
+			"grid.backspace_key",
+			check.fieldName,
+			"grid input",
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = validateAutoExitActions(
@@ -872,6 +923,44 @@ func (c *Config) checkModeExitKeysConflicts() error {
 	return nil
 }
 
+// checkBackspaceKeyCharConflict checks if a configured backspace key conflicts with a character set.
+// It normalizes both the backspace key and each character in the set to their canonical forms
+// (via NormalizeKeyForComparison) before comparing, so named keys like "space" are correctly
+// detected as conflicting with a space character in the character set.
+// Modifier combos (e.g. "Ctrl+H") are skipped since they cannot conflict with single-character input.
+func checkBackspaceKeyCharConflict(
+	backspaceKey string,
+	chars string,
+	bsFieldName string,
+	charsFieldName string,
+	actionDesc string,
+) error {
+	if backspaceKey == "" || chars == "" {
+		return nil
+	}
+
+	// Modifier combos can't conflict with single-character input
+	if strings.Contains(backspaceKey, "+") {
+		return nil
+	}
+
+	normalizedBS := NormalizeKeyForComparison(backspaceKey)
+	for _, r := range chars {
+		if NormalizeKeyForComparison(string(r)) == normalizedBS {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s '%s' conflicts with %s; pressing this key would always trigger backspace instead of %s",
+				bsFieldName,
+				backspaceKey,
+				charsFieldName,
+				actionDesc,
+			)
+		}
+	}
+
+	return nil
+}
+
 // checkExitKeyConflict checks if any single-character exit key conflicts with a character set.
 func checkExitKeyConflict(
 	exitKeys []string,
@@ -899,9 +988,10 @@ func checkExitKeyConflict(
 	return nil
 }
 
-// checkExitKeysResetKeyConflicts detects if any exit key conflicts with the grid or recursive-grid reset key.
-// At runtime, exit keys are checked before reset keys (in key_dispatch.go), so a conflict means
-// the reset key will never fire — the mode will exit instead.
+// checkExitKeysResetKeyConflicts detects if any exit key conflicts with the grid or recursive-grid reset key,
+// or with any mode's configured backspace key.
+// At runtime, exit keys are checked before reset/backspace keys (in key_dispatch.go), so a conflict means
+// the reset/backspace key will never fire — the mode will exit instead.
 func (c *Config) checkExitKeysResetKeyConflicts() error {
 	if len(c.General.ModeExitKeys) == 0 {
 		return nil
@@ -953,6 +1043,65 @@ func (c *Config) checkExitKeysResetKeyConflicts() error {
 					derrors.CodeInvalidConfig,
 					"general.mode_exit_keys contains a key that conflicts with recursive_grid.reset_key ('%s'); the exit key will always take priority, making recursive-grid reset non-functional",
 					rgResetKey,
+				)
+			}
+		}
+	}
+	// Check backspace key conflicts with exit keys for each mode.
+	// At runtime, exit keys are checked before backspace keys, so a conflict means
+	// the backspace key will never fire — the mode will exit instead.
+	err := c.checkExitKeysBackspaceKeyConflicts(normalizedExitKeys)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkExitKeysBackspaceKeyConflicts detects if any exit key conflicts with a mode's configured backspace key.
+// At runtime, exit keys are checked before backspace keys (in key_dispatch.go), so a conflict means
+// the backspace key will never fire — the mode will exit instead.
+func (c *Config) checkExitKeysBackspaceKeyConflicts(normalizedExitKeys []string) error {
+	type modeBackspaceKey struct {
+		key       string
+		modeName  string
+		isEnabled bool
+	}
+
+	modes := []modeBackspaceKey{
+		{c.Hints.BackspaceKey, "hints", c.Hints.Enabled},
+		{c.Grid.BackspaceKey, "grid", c.Grid.Enabled},
+		{c.RecursiveGrid.BackspaceKey, "recursive_grid", c.RecursiveGrid.Enabled},
+	}
+	for _, mode := range modes {
+		if !mode.isEnabled {
+			continue
+		}
+
+		bsKey := mode.key
+		if bsKey == "" {
+			// Default backspace key: check if any exit key normalizes to "delete"
+			// (which is the canonical form of backspace/delete).
+			if slices.Contains(normalizedExitKeys, KeyNameDelete) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains a key that conflicts with the default backspace key used by %s mode; the exit key will always take priority, making backspace non-functional",
+					mode.modeName,
+				)
+			}
+
+			continue
+		}
+		// Custom backspace key: only check non-modifier keys; modifier combos (e.g. "Ctrl+H")
+		// won't collide with the named/single-char exit keys checked here.
+		if !strings.Contains(bsKey, "+") {
+			normalizedBS := NormalizeKeyForComparison(bsKey)
+			if slices.Contains(normalizedExitKeys, normalizedBS) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"general.mode_exit_keys contains a key that conflicts with %s.backspace_key ('%s'); the exit key will always take priority, making backspace non-functional",
+					mode.modeName,
+					bsKey,
 				)
 			}
 		}
@@ -1138,13 +1287,29 @@ func (c *Config) ValidateRecursiveGrid() error {
 			)
 		}
 
-		// Backspace and delete are reserved for input correction
-		normalizedResetKey := NormalizeKeyForComparison(resetKey)
-		if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
-			return derrors.New(
-				derrors.CodeInvalidConfig,
-				"recursive_grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
-			)
+		// Reset key cannot match the configured backspace key (they would conflict)
+		rgBackspaceKey := c.RecursiveGrid.BackspaceKey
+		if rgBackspaceKey == "" {
+			// Default: backspace and delete are reserved for input correction.
+			// NormalizeKeyForComparison maps all backspace/delete variants to KeyNameDelete.
+			normalizedResetKey := NormalizeKeyForComparison(resetKey)
+			if normalizedResetKey == KeyNameDelete {
+				return derrors.New(
+					derrors.CodeInvalidConfig,
+					"recursive_grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
+				)
+			}
+		} else {
+			normalizedResetKey := NormalizeKeyForComparison(resetKey)
+
+			normalizedBackspaceKey := NormalizeKeyForComparison(rgBackspaceKey)
+			if normalizedResetKey == normalizedBackspaceKey {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"recursive_grid.reset_key cannot be the same as recursive_grid.backspace_key ('%s')",
+					rgBackspaceKey,
+				)
+			}
 		}
 
 		// Single-character reset key cannot be in recursive_grid keys
@@ -1154,6 +1319,18 @@ func (c *Config) ValidateRecursiveGrid() error {
 				"recursive_grid.keys cannot contain '"+resetKey+"' as it is reserved for reset",
 			)
 		}
+	}
+
+	// Validate backspace key doesn't conflict with recursive_grid keys
+	err := checkBackspaceKeyCharConflict(
+		c.RecursiveGrid.BackspaceKey,
+		keys,
+		"recursive_grid.backspace_key",
+		"recursive_grid.keys",
+		"cell selection",
+	)
+	if err != nil {
+		return err
 	}
 
 	// Validate styling
@@ -1171,7 +1348,7 @@ func (c *Config) ValidateRecursiveGrid() error {
 		)
 	}
 
-	err := validateMinValue(
+	err = validateMinValue(
 		c.RecursiveGrid.LabelBackgroundCornerRadius,
 		-1,
 		"recursive_grid.label_background_corner_radius",

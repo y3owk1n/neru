@@ -362,6 +362,12 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 
 	h.config = config
 
+	// Clear hint manager so it gets recreated on next activation with fresh
+	// config values (e.g., backspace_key).
+	if h.hints != nil && h.hints.Context != nil {
+		h.hints.Context.SetManager(nil)
+	}
+
 	if h.renderer != nil {
 		h.renderer.UpdateConfig(
 			hints.BuildStyle(config.Hints, h.themeProvider),

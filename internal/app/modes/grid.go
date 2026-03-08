@@ -165,6 +165,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 		subCols,
 		keys,
 		h.config.Grid.ResetKey,
+		h.config.Grid.BackspaceKey,
 		// Update callback: handles grid redrawing and match filtering
 		func(forceRedraw bool) {
 			// Defensive check for grid manager
