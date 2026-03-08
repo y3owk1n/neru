@@ -427,7 +427,7 @@ type RecursiveGridConfig struct {
 	LabelBackgroundColorDark    string `json:"labelBackgroundColorDark"    toml:"label_background_color_dark"`
 	LabelBackgroundPaddingX     int    `json:"labelBackgroundPaddingX"     toml:"label_background_padding_x"`
 	LabelBackgroundPaddingY     int    `json:"labelBackgroundPaddingY"     toml:"label_background_padding_y"`
-	LabelBackgroundCornerRadius int    `json:"labelBackgroundCornerRadius" toml:"label_background_corner_radius"`
+	LabelBackgroundBorderRadius int    `json:"labelBackgroundBorderRadius" toml:"label_background_border_radius"`
 	LabelBackgroundBorderWidth  int    `json:"labelBackgroundBorderWidth"  toml:"label_background_border_width"`
 
 	// Behavior

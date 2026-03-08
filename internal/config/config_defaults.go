@@ -248,8 +248,8 @@ const (
 	DefaultRecursiveGridLabelBackgroundPaddingX = -1
 	// DefaultRecursiveGridLabelBackgroundPaddingY preserves automatic vertical badge padding.
 	DefaultRecursiveGridLabelBackgroundPaddingY = -1
-	// DefaultRecursiveGridLabelBackgroundCornerRadius preserves the automatic pill radius.
-	DefaultRecursiveGridLabelBackgroundCornerRadius = -1
+	// DefaultRecursiveGridLabelBackgroundBorderRadius preserves the automatic pill radius.
+	DefaultRecursiveGridLabelBackgroundBorderRadius = -1
 	// DefaultRecursiveGridLabelBackgroundBorderWidth is the default label badge border width.
 	DefaultRecursiveGridLabelBackgroundBorderWidth = 1
 
@@ -402,7 +402,7 @@ func DefaultConfig() *Config {
 			LabelBackgroundColorDark:    RecursiveGridLabelBackgroundColorDark,
 			LabelBackgroundPaddingX:     DefaultRecursiveGridLabelBackgroundPaddingX,
 			LabelBackgroundPaddingY:     DefaultRecursiveGridLabelBackgroundPaddingY,
-			LabelBackgroundCornerRadius: DefaultRecursiveGridLabelBackgroundCornerRadius,
+			LabelBackgroundBorderRadius: DefaultRecursiveGridLabelBackgroundBorderRadius,
 			LabelBackgroundBorderWidth:  DefaultRecursiveGridLabelBackgroundBorderWidth,
 			LabelBackground:             false,
 

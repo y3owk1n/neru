@@ -321,7 +321,7 @@ func (o *Overlay) DrawRecursiveGrid(
 		drawLabelBackground:         C.int(boolToInt(style.LabelBackground())),
 		labelBackgroundPaddingX:     C.int(style.LabelBackgroundPaddingX()),
 		labelBackgroundPaddingY:     C.int(style.LabelBackgroundPaddingY()),
-		labelBackgroundCornerRadius: C.int(style.LabelBackgroundCornerRadius()),
+		labelBackgroundCornerRadius: C.int(style.LabelBackgroundBorderRadius()),
 		labelBackgroundBorderWidth:  C.int(style.LabelBackgroundBorderWidth()),
 	}
 
@@ -425,7 +425,7 @@ type Style struct {
 	labelBackgroundColor        string
 	labelBackgroundPaddingX     int
 	labelBackgroundPaddingY     int
-	labelBackgroundCornerRadius int
+	labelBackgroundBorderRadius int
 	labelBackgroundBorderWidth  int
 }
 
@@ -479,9 +479,9 @@ func (s Style) LabelBackgroundPaddingY() int {
 	return s.labelBackgroundPaddingY
 }
 
-// LabelBackgroundCornerRadius returns the badge corner radius.
-func (s Style) LabelBackgroundCornerRadius() int {
-	return s.labelBackgroundCornerRadius
+// LabelBackgroundBorderRadius returns the badge border radius.
+func (s Style) LabelBackgroundBorderRadius() int {
+	return s.labelBackgroundBorderRadius
 }
 
 // LabelBackgroundBorderWidth returns the badge border width.
@@ -528,7 +528,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 		),
 		labelBackgroundPaddingX:     cfg.LabelBackgroundPaddingX,
 		labelBackgroundPaddingY:     cfg.LabelBackgroundPaddingY,
-		labelBackgroundCornerRadius: cfg.LabelBackgroundCornerRadius,
+		labelBackgroundBorderRadius: cfg.LabelBackgroundBorderRadius,
 		labelBackgroundBorderWidth:  cfg.LabelBackgroundBorderWidth,
 	}
 }

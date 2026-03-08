@@ -91,7 +91,7 @@ backspace_key = "Backspace"
 # Visual appearance
 font_size = 10      # Font size for hints
 font_family = ""    # Font family for hints
-border_radius = -1  # Corner radius for hint borders (-1 = auto pill)
+border_radius = -1  # Border radius for hint borders (-1 = auto pill)
 padding_x = -1      # Horizontal padding inside hint borders (-1 = auto based on font size)
 padding_y = -1      # Vertical padding inside hint borders (-1 = auto based on font size)
 border_width = 1    # Width of hint borders
@@ -299,7 +299,7 @@ label_background_color_light = "#FFAAEEFF" # Label background color for Light Mo
 label_background_color_dark = "#FF003554"  # Label background color for Dark Mode (deep blue, alpha FF = 100% opacity)
 label_background_padding_x = -1         # Horizontal badge padding (-1 = auto based on font size)
 label_background_padding_y = -1         # Vertical badge padding (-1 = auto based on font size)
-label_background_corner_radius = -1     # Corner radius for label badges (-1 = auto pill)
+label_background_border_radius = -1     # Border radius for label badges (-1 = auto pill)
 label_background_border_width = 1       # Border width for label badges (0 disables border)
 
 # Behavior
@@ -381,7 +381,7 @@ border_color_dark = "#FF007A9E"      # Border color for Dark Mode (deep teal)
 border_width = 1                     # Border width
 padding_x = -1                       # Horizontal padding (-1 = auto based on font size)
 padding_y = -1                       # Vertical padding (-1 = auto based on font size)
-border_radius = -1                   # Corner radius (-1 = auto pill)
+border_radius = -1                   # Border radius (-1 = auto pill)
 indicator_x_offset = 20              # X offset from cursor position
 indicator_y_offset = 20              # Y offset from cursor position
 

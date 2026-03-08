@@ -314,7 +314,7 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | `hint_characters`          | string | `"asdfghjkl"` | Characters used for labels                          |
 | `font_size`                | int    | `10`          | Label font size                                     |
 | `font_family`              | string | `""`          | Font name (empty = system)                          |
-| `border_radius`            | int    | `-1`          | Corner radius (`-1` = auto pill)                    |
+| `border_radius`            | int    | `-1`          | Border radius (`-1` = auto pill)                    |
 | `border_width`             | int    | `1`           | Border width in pixels                              |
 | `padding_x`                | int    | `-1`          | Horizontal padding (`-1` = auto based on font size) |
 | `padding_y`                | int    | `-1`          | Vertical padding (`-1` = auto based on font size)   |
@@ -774,7 +774,7 @@ j   →   k          j = Lower-left
 | `label_background_color_dark`    | string | `"#FF003554"` | Label background for Dark Mode               |
 | `label_background_padding_x`     | int    | `-1`          | Horizontal badge padding (`-1` = auto)       |
 | `label_background_padding_y`     | int    | `-1`          | Vertical badge padding (`-1` = auto)         |
-| `label_background_corner_radius` | int    | `-1`          | Badge corner radius (`-1` = auto)            |
+| `label_background_border_radius` | int    | `-1`          | Badge border radius (`-1` = auto)            |
 | `label_background_border_width`  | int    | `1`           | Badge border width (`0` disables border)     |
 
 > **Theme-aware colors:** When these are not set in your config file (empty string `""`),
@@ -782,7 +782,7 @@ j   →   k          j = Lower-left
 > The colors update in real time when you switch system themes. If you explicitly
 > set a value, it is always used regardless of the system theme.
 
-When `label_background = true`, Neru keeps the normal recursive-grid cell fill and adds a separate rounded label background behind each letter. The configured alpha is used as-is, so you can control the transparency precisely with `label_background_color_light` and `label_background_color_dark`. Badge geometry is configurable with `label_background_padding_x`, `label_background_padding_y`, `label_background_corner_radius`, and `label_background_border_width`. A value of `-1` keeps the automatic sizing behavior for padding and corner radius.
+When `label_background = true`, Neru keeps the normal recursive-grid cell fill and adds a separate rounded label background behind each letter. The configured alpha is used as-is, so you can control the transparency precisely with `label_background_color_light` and `label_background_color_dark`. Badge geometry is configurable with `label_background_padding_x`, `label_background_padding_y`, `label_background_border_radius`, and `label_background_border_width`. A value of `-1` keeps the automatic sizing behavior for padding and border radius.
 
 ---
 
@@ -978,7 +978,7 @@ recursive_grid_enabled = false
 | `border_width`           | int    | `1`           | Border width                                        |
 | `padding_x`              | int    | `-1`          | Horizontal padding (`-1` = auto based on font size) |
 | `padding_y`              | int    | `-1`          | Vertical padding (`-1` = auto based on font size)   |
-| `border_radius`          | int    | `-1`          | Corner radius (`-1` = auto pill)                    |
+| `border_radius`          | int    | `-1`          | Border radius (`-1` = auto pill)                    |
 | `indicator_x_offset`     | int    | `20`          | X offset from cursor                                |
 | `indicator_y_offset`     | int    | `20`          | Y offset from cursor                                |
 

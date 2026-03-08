@@ -1612,9 +1612,9 @@ func (c *Config) ValidateRecursiveGrid() error {
 	}
 
 	err = validateMinValue(
-		c.RecursiveGrid.LabelBackgroundCornerRadius,
+		c.RecursiveGrid.LabelBackgroundBorderRadius,
 		-1,
-		"recursive_grid.label_background_corner_radius",
+		"recursive_grid.label_background_border_radius",
 	)
 	if err != nil {
 		return err
