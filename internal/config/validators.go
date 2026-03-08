@@ -325,9 +325,10 @@ func (c *Config) ValidateGrid() error {
 		// Reset key cannot match the configured backspace key (they would conflict)
 		gridBackspaceKey := c.Grid.BackspaceKey
 		if gridBackspaceKey == "" {
-			// Default: backspace and delete are reserved for input correction
+			// Default: backspace and delete are reserved for input correction.
+			// NormalizeKeyForComparison maps all backspace/delete variants to KeyNameDelete.
 			normalizedResetKey := NormalizeKeyForComparison(resetKey)
-			if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
+			if normalizedResetKey == KeyNameDelete {
 				return derrors.New(
 					derrors.CodeInvalidConfig,
 					"grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
@@ -1196,9 +1197,10 @@ func (c *Config) ValidateRecursiveGrid() error {
 		// Reset key cannot match the configured backspace key (they would conflict)
 		rgBackspaceKey := c.RecursiveGrid.BackspaceKey
 		if rgBackspaceKey == "" {
-			// Default: backspace and delete are reserved for input correction
+			// Default: backspace and delete are reserved for input correction.
+			// NormalizeKeyForComparison maps all backspace/delete variants to KeyNameDelete.
 			normalizedResetKey := NormalizeKeyForComparison(resetKey)
-			if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
+			if normalizedResetKey == KeyNameDelete {
 				return derrors.New(
 					derrors.CodeInvalidConfig,
 					"recursive_grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
