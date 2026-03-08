@@ -290,6 +290,7 @@ func DefaultConfig() *Config {
 		Hints: HintsConfig{
 			Enabled:                 true,
 			HintCharacters:          "asdfghjkl",
+			BackspaceKey:            "backspace",
 			FontSize:                DefaultHintFontSize,
 			FontFamily:              "",
 			BorderRadius:            DefaultHintBorderRadius,
@@ -355,6 +356,7 @@ func DefaultConfig() *Config {
 
 			Characters:   "abcdefghijklmnpqrstuvwxyz",
 			SublayerKeys: "abcdefghijklmnpqrstuvwxyz",
+			BackspaceKey: "backspace",
 
 			FontSize:    DefaultGridFontSize,
 			FontFamily:  "",
@@ -384,7 +386,8 @@ func DefaultConfig() *Config {
 			GridCols: 2, //nolint:mnd
 			GridRows: 2, //nolint:mnd
 
-			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
+			Keys:         "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
+			BackspaceKey: "backspace",
 
 			LineColorLight:              RecursiveGridLineColorLight,
 			LineColorDark:               RecursiveGridLineColorDark,

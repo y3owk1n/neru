@@ -80,6 +80,11 @@ auto_exit_actions = []
 # Characters to use for hint labels
 hint_characters = "asdfghjkl"
 
+# Key used for backspace/input correction in hints mode
+# Default: "backspace" (the standard backspace/delete key)
+# Can be set to any key name (e.g. "backspace", "delete", "x", "Ctrl+H")
+backspace_key = ""
+
 # Visual appearance
 font_size = 10      # Font size for hints
 font_family = ""    # Font family for hints
@@ -206,6 +211,11 @@ sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 # Note: Cannot be the same as any grid character to avoid conflicts
 reset_key = " "
 
+# Key used for backspace/input correction in grid mode
+# Default: "backspace" (the standard backspace/delete key)
+# Can be set to any key name (e.g. "backspace", "delete", "x", "Ctrl+H")
+backspace_key = "backspace"
+
 # Optional custom labels for rows and columns
 # If not provided, labels will be inferred from characters
 # Requirements (when specified):
@@ -291,6 +301,11 @@ min_size_width = 25            # Minimum cell width in pixels (stops dividing wh
 min_size_height = 25           # Minimum cell height in pixels (stops dividing when height is reached)
 max_depth = 10                 # Maximum recursion depth (safety limit)
 reset_key = " "                # Reset to initial center and clear state
+
+# Key used for backspace/backtracking in recursive-grid mode
+# Default: "backspace" (the standard backspace/delete key)
+# Can be set to any key name (e.g. "backspace", "delete", "x", "Ctrl+H")
+backspace_key = "backspace"
 
 [scroll]
 # Scroll step sizes

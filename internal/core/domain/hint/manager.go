@@ -27,6 +27,10 @@ type Manager struct {
 	// (which would deadlock on synchronous call paths).
 	externalMu *sync.Mutex
 
+	// backspaceKey is the configured key for backspace/input correction.
+	// Empty string means use the default backspace/delete key.
+	backspaceKey string
+
 	// Performance optimization: reuse slice buffer for filtered hints
 	cachedFilteredHints []*Interface
 }
@@ -41,13 +45,14 @@ const (
 // acquires externalMu before invoking onUpdate so the caller can protect
 // shared state (e.g., screen bounds, overlay manager) without locking
 // inside the callback itself (which would deadlock on synchronous paths).
-func NewManager(logger *zap.Logger, externalMu *sync.Mutex) *Manager {
+func NewManager(logger *zap.Logger, externalMu *sync.Mutex, backspaceKey string) *Manager {
 	return &Manager{
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
 		debounceDuration: DefaultDebounceDuration,
 		externalMu:       externalMu,
+		backspaceKey:     backspaceKey,
 	}
 }
 
@@ -119,7 +124,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	}
 
 	// Handle backspace to allow input correction
-	if config.IsBackspaceKey(key) {
+	if config.IsConfiguredBackspaceKey(key, m.backspaceKey) {
 		if len(m.CurrentInput()) > 0 {
 			m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
 

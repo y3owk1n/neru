@@ -14,14 +14,15 @@ import (
 type Manager struct {
 	domain.BaseManager
 
-	grid       *RecursiveGrid
-	keys       string            // Key mapping (e.g., "uijk")
-	gridCols   int               // Number of grid columns
-	gridRows   int               // Number of grid rows
-	onUpdate   func()            // Callback for overlay updates
-	onComplete func(image.Point) // Callback when selection is complete
-	resetKey   string
-	exitKeys   []string
+	grid         *RecursiveGrid
+	keys         string            // Key mapping (e.g., "uijk")
+	gridCols     int               // Number of grid columns
+	gridRows     int               // Number of grid rows
+	onUpdate     func()            // Callback for overlay updates
+	onComplete   func(image.Point) // Callback when selection is complete
+	resetKey     string
+	backspaceKey string
+	exitKeys     []string
 }
 
 // NewManager creates a recursive-grid manager with the specified configuration.
@@ -29,6 +30,7 @@ func NewManager(
 	screenBounds image.Rectangle,
 	keys string,
 	resetKey string,
+	backspaceKey string,
 	exitKeys []string,
 	onUpdate func(),
 	onComplete func(image.Point),
@@ -38,6 +40,7 @@ func NewManager(
 		screenBounds,
 		keys,
 		resetKey,
+		backspaceKey,
 		exitKeys,
 		25, //nolint:mnd
 		25, //nolint:mnd
@@ -55,6 +58,7 @@ func NewManagerWithConfig(
 	screenBounds image.Rectangle,
 	keys string,
 	resetKey string,
+	backspaceKey string,
 	exitKeys []string,
 	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
 	onUpdate func(),
@@ -100,13 +104,14 @@ func NewManagerWithConfig(
 			gridCols,
 			gridRows,
 		),
-		keys:       strings.ToLower(keys),
-		gridCols:   gridCols,
-		gridRows:   gridRows,
-		onUpdate:   onUpdate,
-		onComplete: onComplete,
-		resetKey:   resetKey,
-		exitKeys:   exitKeys,
+		keys:         strings.ToLower(keys),
+		gridCols:     gridCols,
+		gridRows:     gridRows,
+		onUpdate:     onUpdate,
+		onComplete:   onComplete,
+		resetKey:     resetKey,
+		backspaceKey: backspaceKey,
+		exitKeys:     exitKeys,
 	}
 }
 
@@ -147,7 +152,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 	}
 
 	// Handle backspace/delete for backtracking
-	if config.IsBackspaceKey(key) {
+	if config.IsConfiguredBackspaceKey(key, m.backspaceKey) {
 		if m.grid.Backtrack() {
 			m.Logger.Debug("Backtracked in recursive-grid mode",
 				zap.Int("new_depth", m.grid.CurrentDepth()))

@@ -309,13 +309,28 @@ func (c *Config) ValidateGrid() error {
 			)
 		}
 
-		// Backspace and delete are reserved for input correction
-		normalizedResetKey := NormalizeKeyForComparison(resetKey)
-		if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
-			return derrors.New(
-				derrors.CodeInvalidConfig,
-				"grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
-			)
+		// Reset key cannot match the configured backspace key (they would conflict)
+		gridBackspaceKey := c.Grid.BackspaceKey
+		if gridBackspaceKey == "" {
+			// Default: backspace and delete are reserved for input correction
+			normalizedResetKey := NormalizeKeyForComparison(resetKey)
+			if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
+				return derrors.New(
+					derrors.CodeInvalidConfig,
+					"grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
+				)
+			}
+		} else {
+			normalizedResetKey := NormalizeKeyForComparison(resetKey)
+
+			normalizedBackspaceKey := NormalizeKeyForComparison(gridBackspaceKey)
+			if normalizedResetKey == normalizedBackspaceKey {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"grid.reset_key cannot be the same as grid.backspace_key ('%s')",
+					gridBackspaceKey,
+				)
+			}
 		}
 
 		// Single-character reset key cannot be in grid characters
@@ -1138,13 +1153,28 @@ func (c *Config) ValidateRecursiveGrid() error {
 			)
 		}
 
-		// Backspace and delete are reserved for input correction
-		normalizedResetKey := NormalizeKeyForComparison(resetKey)
-		if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
-			return derrors.New(
-				derrors.CodeInvalidConfig,
-				"recursive_grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
-			)
+		// Reset key cannot match the configured backspace key (they would conflict)
+		rgBackspaceKey := c.RecursiveGrid.BackspaceKey
+		if rgBackspaceKey == "" {
+			// Default: backspace and delete are reserved for input correction
+			normalizedResetKey := NormalizeKeyForComparison(resetKey)
+			if normalizedResetKey == KeyNameBackspace || normalizedResetKey == KeyNameDelete {
+				return derrors.New(
+					derrors.CodeInvalidConfig,
+					"recursive_grid.reset_key cannot be 'backspace' or 'delete'; these keys are reserved for input correction",
+				)
+			}
+		} else {
+			normalizedResetKey := NormalizeKeyForComparison(resetKey)
+
+			normalizedBackspaceKey := NormalizeKeyForComparison(rgBackspaceKey)
+			if normalizedResetKey == normalizedBackspaceKey {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"recursive_grid.reset_key cannot be the same as recursive_grid.backspace_key ('%s')",
+					rgBackspaceKey,
+				)
+			}
 		}
 
 		// Single-character reset key cannot be in recursive_grid keys
