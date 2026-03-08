@@ -418,7 +418,10 @@ func (c *Config) ValidateGrid() error {
 		}
 
 		// Single-character reset key cannot be in grid characters
-		if strings.Contains(strings.ToLower(c.Grid.Characters), strings.ToLower(resetKey)) {
+		if strings.ContainsRune(
+			strings.ToLower(c.Grid.Characters),
+			rune(strings.ToLower(resetKey)[0]),
+		) {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
 				"grid.characters cannot contain '"+resetKey+"' as it is reserved for reset",
@@ -453,10 +456,11 @@ func (c *Config) ValidateGrid() error {
 		}
 
 		// Only check for reset key conflict if reset key is a single character
-		lowerResetKey := strings.ToLower(resetKey)
-		lowerRowLabels := strings.ToLower(c.Grid.RowLabels)
-
-		if !strings.Contains(resetKey, "+") && strings.Contains(lowerRowLabels, lowerResetKey) {
+		if len(resetKey) == 1 &&
+			strings.ContainsRune(
+				strings.ToLower(c.Grid.RowLabels),
+				rune(strings.ToLower(resetKey)[0]),
+			) {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
 				"grid.row_labels cannot contain '"+resetKey+"' as it is reserved for reset",
@@ -491,11 +495,11 @@ func (c *Config) ValidateGrid() error {
 		}
 
 		// Only check for reset key conflict if reset key is a single character (case-insensitive)
-
-		lowerResetKey := strings.ToLower(resetKey)
-
-		lowerColLabels := strings.ToLower(c.Grid.ColLabels)
-		if !strings.Contains(resetKey, "+") && strings.Contains(lowerColLabels, lowerResetKey) {
+		if len(resetKey) == 1 &&
+			strings.ContainsRune(
+				strings.ToLower(c.Grid.ColLabels),
+				rune(strings.ToLower(resetKey)[0]),
+			) {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
 				"grid.col_labels cannot contain '"+resetKey+"' as it is reserved for reset",
@@ -555,11 +559,8 @@ func (c *Config) ValidateGrid() error {
 
 	// Apply same ASCII and reserved character validation as grid.characters
 	// Only check for reset key conflict if reset key is a single character (case-insensitive)
-
-	lowerResetKey := strings.ToLower(resetKey)
-
-	lowerKeys := strings.ToLower(keys)
-	if !strings.Contains(resetKey, "+") && strings.Contains(lowerKeys, lowerResetKey) {
+	if len(resetKey) == 1 &&
+		strings.ContainsRune(strings.ToLower(keys), rune(strings.ToLower(resetKey)[0])) {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"grid.sublayer_keys cannot contain '"+resetKey+"' as it is reserved for reset",
@@ -1496,7 +1497,10 @@ func (c *Config) ValidateRecursiveGrid() error {
 		}
 
 		// Single-character reset key cannot be in recursive_grid keys
-		if strings.Contains(strings.ToLower(c.RecursiveGrid.Keys), strings.ToLower(resetKey)) {
+		if strings.ContainsRune(
+			strings.ToLower(c.RecursiveGrid.Keys),
+			rune(strings.ToLower(resetKey)[0]),
+		) {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
 				"recursive_grid.keys cannot contain '"+resetKey+"' as it is reserved for reset",
