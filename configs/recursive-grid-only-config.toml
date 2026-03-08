@@ -38,5 +38,5 @@ label_background_color_light = "#FFAAEEFF"
 label_background_color_dark = "#FF003554"
 label_background_padding_x = -1
 label_background_padding_y = -1
-label_background_corner_radius = -1
+label_background_border_radius = -1
 label_background_border_width = 1
