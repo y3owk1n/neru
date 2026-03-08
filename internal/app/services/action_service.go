@@ -342,12 +342,12 @@ func (s *ActionService) HandleDirectActionKey(
 		return "", false, nil
 	}
 
-	normalizedResolved := config.NormalizeKeyForComparison(resolvedKey)
-
+	// resolvedKey is already normalized by getActionMapping, so we only
+	// need to normalize the config binding values for comparison.
 	if actionString == string(action.NameMoveMouseRelative) {
 		var deltaX, deltaY int
 
-		switch normalizedResolved {
+		switch resolvedKey {
 		case config.NormalizeKeyForComparison(keyBindings.MoveMouseUp):
 			deltaY = -step
 		case config.NormalizeKeyForComparison(keyBindings.MoveMouseDown):
@@ -463,27 +463,25 @@ func (s *ActionService) getActionMapping(key string) (string, string, string, bo
 	return "", "", "", false
 }
 
-// matchActionKey checks if the key matches any configured binding.
-// Uses NormalizeKeyForComparison on both sides so that escape sequences,
-// named key aliases, and case differences are handled consistently.
-func (s *ActionService) matchActionKey(key string) bool {
-	normalized := config.NormalizeKeyForComparison(key)
-
-	return normalized == config.NormalizeKeyForComparison(s.keyBindings.LeftClick) ||
-		normalized == config.NormalizeKeyForComparison(s.keyBindings.RightClick) ||
-		normalized == config.NormalizeKeyForComparison(s.keyBindings.MiddleClick) ||
-		normalized == config.NormalizeKeyForComparison(s.keyBindings.MouseDown) ||
-		normalized == config.NormalizeKeyForComparison(s.keyBindings.MouseUp) ||
-		normalized == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseUp) ||
-		normalized == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseDown) ||
-		normalized == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseLeft) ||
-		normalized == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseRight)
+// matchActionKey checks if a pre-normalized key matches any configured binding.
+// The key parameter must already be normalized via NormalizeKeyForComparison;
+// only the binding values (from config) are normalized here.
+func (s *ActionService) matchActionKey(normalizedKey string) bool {
+	return normalizedKey == config.NormalizeKeyForComparison(s.keyBindings.LeftClick) ||
+		normalizedKey == config.NormalizeKeyForComparison(s.keyBindings.RightClick) ||
+		normalizedKey == config.NormalizeKeyForComparison(s.keyBindings.MiddleClick) ||
+		normalizedKey == config.NormalizeKeyForComparison(s.keyBindings.MouseDown) ||
+		normalizedKey == config.NormalizeKeyForComparison(s.keyBindings.MouseUp) ||
+		normalizedKey == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseUp) ||
+		normalizedKey == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseDown) ||
+		normalizedKey == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseLeft) ||
+		normalizedKey == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseRight)
 }
 
-// getActionForBinding returns the action for a matching binding.
-func (s *ActionService) getActionForBinding(binding string) (string, string, bool) {
-	normalized := config.NormalizeKeyForComparison(binding)
-
+// getActionForBinding returns the action for a pre-normalized binding key.
+// The binding parameter must already be normalized via NormalizeKeyForComparison;
+// only the config values are normalized here.
+func (s *ActionService) getActionForBinding(normalizedBinding string) (string, string, bool) {
 	bindings := []struct {
 		config string
 		action action.Name
@@ -501,7 +499,7 @@ func (s *ActionService) getActionForBinding(binding string) (string, string, boo
 	}
 
 	for _, b := range bindings {
-		if normalized == config.NormalizeKeyForComparison(b.config) {
+		if normalizedBinding == config.NormalizeKeyForComparison(b.config) {
 			return string(b.action), b.logMsg, true
 		}
 	}
