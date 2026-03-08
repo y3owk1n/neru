@@ -1004,15 +1004,32 @@ func (c *Config) checkBackspaceKeyActionKeyConflicts() error {
 		{c.RecursiveGrid.BackspaceKey, "recursive_grid", c.RecursiveGrid.Enabled},
 	}
 	for _, mode := range modes {
-		if !mode.isEnabled || mode.key == "" {
+		if !mode.isEnabled {
 			continue
 		}
 
-		normalizedBS := NormalizeKeyForComparison(mode.key)
 		for _, binding := range bindings {
 			if binding.value == "" {
 				continue
 			}
+
+			if mode.key == "" {
+				// Default backspace key: check if any action binding normalizes to "delete"
+				// (which is the canonical form of backspace/delete).
+				if NormalizeKeyForComparison(binding.value) == KeyNameDelete {
+					return derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"%s uses the default backspace key which conflicts with %s ('%s'); the action key is checked first at runtime, so backspace will never fire",
+						mode.modeName,
+						binding.fieldName,
+						binding.value,
+					)
+				}
+
+				continue
+			}
+
+			normalizedBS := NormalizeKeyForComparison(mode.key)
 
 			if normalizedBS == NormalizeKeyForComparison(binding.value) {
 				return derrors.Newf(

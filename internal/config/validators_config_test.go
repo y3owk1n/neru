@@ -1578,10 +1578,22 @@ func TestConfig_Validate_BackspaceKeyActionKeyConflicts(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "no conflict when backspace_key is empty (default)",
+			name: "no conflict when backspace_key is empty (default) and no action binding is delete",
 			config: func() config.Config {
 				cfg := *config.DefaultConfig()
 				cfg.Hints.BackspaceKey = ""
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty backspace_key (default) no conflict with non-delete action bindings",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.BackspaceKey = "" // default backspace/delete
+				cfg.Grid.BackspaceKey = ""
+				cfg.RecursiveGrid.BackspaceKey = ""
 
 				return cfg
 			},
