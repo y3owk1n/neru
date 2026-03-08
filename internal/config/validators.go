@@ -95,6 +95,19 @@ func (c *Config) ValidateHints() error {
 		}
 	}
 
+	// Validate backspace key doesn't conflict with hint characters
+	if c.Hints.BackspaceKey != "" && !strings.Contains(c.Hints.BackspaceKey, "+") &&
+		len(c.Hints.BackspaceKey) == 1 {
+		lowerBackspaceKey := strings.ToLower(c.Hints.BackspaceKey)
+		if strings.Contains(strings.ToLower(c.Hints.HintCharacters), lowerBackspaceKey) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"hints.backspace_key '%s' conflicts with hints.hint_characters; pressing this key would always trigger backspace instead of hint selection",
+				c.Hints.BackspaceKey,
+			)
+		}
+	}
+
 	err = validateColors([]colorField{
 		{c.Hints.BackgroundColorLight, "hints.background_color_light"},
 		{c.Hints.BackgroundColorDark, "hints.background_color_dark"},
@@ -507,6 +520,33 @@ func (c *Config) ValidateGrid() error {
 			"grid.sublayer_keys must contain at least %d characters for 3x3 subgrid selection",
 			required,
 		)
+	}
+
+	// Validate backspace key doesn't conflict with grid characters/labels/sublayer keys
+	if c.Grid.BackspaceKey != "" && !strings.Contains(c.Grid.BackspaceKey, "+") &&
+		len(c.Grid.BackspaceKey) == 1 {
+		lowerBackspaceKey := strings.ToLower(c.Grid.BackspaceKey)
+
+		bsChecks := []struct {
+			chars     string
+			fieldName string
+		}{
+			{c.Grid.Characters, "grid.characters"},
+			{c.Grid.RowLabels, "grid.row_labels"},
+			{c.Grid.ColLabels, "grid.col_labels"},
+			{keys, "grid.sublayer_keys"},
+		}
+		for _, check := range bsChecks {
+			if check.chars != "" &&
+				strings.Contains(strings.ToLower(check.chars), lowerBackspaceKey) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"grid.backspace_key '%s' conflicts with %s; pressing this key would always trigger backspace instead of grid input",
+					c.Grid.BackspaceKey,
+					check.fieldName,
+				)
+			}
+		}
 	}
 
 	err = validateAutoExitActions(
@@ -1182,6 +1222,19 @@ func (c *Config) ValidateRecursiveGrid() error {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
 				"recursive_grid.keys cannot contain '"+resetKey+"' as it is reserved for reset",
+			)
+		}
+	}
+
+	// Validate backspace key doesn't conflict with recursive_grid keys
+	if c.RecursiveGrid.BackspaceKey != "" && !strings.Contains(c.RecursiveGrid.BackspaceKey, "+") &&
+		len(c.RecursiveGrid.BackspaceKey) == 1 {
+		lowerBackspaceKey := strings.ToLower(c.RecursiveGrid.BackspaceKey)
+		if strings.Contains(strings.ToLower(keys), lowerBackspaceKey) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"recursive_grid.backspace_key '%s' conflicts with recursive_grid.keys; pressing this key would always trigger backspace instead of cell selection",
+				c.RecursiveGrid.BackspaceKey,
 			)
 		}
 	}

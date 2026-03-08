@@ -65,6 +65,102 @@ func TestConfig_ValidateHints(t *testing.T) {
 			},
 			wantErr: true,
 		},
+
+		{
+			name: "hints backspace_key conflicts with hint_characters - invalid",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters: "abcd",
+					BackspaceKey:   "a", // Conflicts with hint_characters
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints backspace_key case-insensitive conflict - invalid",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters: "ABCD",
+					BackspaceKey:   "a", // Conflicts (case-insensitive)
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints backspace_key no conflict",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:        "abcd",
+					BackspaceKey:          "x", // No conflict
+					BackgroundColorLight:  "#FFFFFF",
+					BackgroundColorDark:   "#FFFFFF",
+					TextColorLight:        "#000000",
+					TextColorDark:         "#000000",
+					MatchedTextColorLight: "#FF0000",
+					MatchedTextColorDark:  "#FF0000",
+					BorderColorLight:      "#000000",
+					BorderColorDark:       "#000000",
+					FontSize:              12,
+					BorderRadius:          4,
+					PaddingX:              4,
+					PaddingY:              4,
+					BorderWidth:           1,
+					ClickableRoles:        []string{"AXButton"},
+					ParallelThreshold:     20,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "hints backspace_key modifier combo no conflict with characters",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:        "abcd",
+					BackspaceKey:          "Ctrl+H", // Modifier combo, no conflict
+					BackgroundColorLight:  "#FFFFFF",
+					BackgroundColorDark:   "#FFFFFF",
+					TextColorLight:        "#000000",
+					TextColorDark:         "#000000",
+					MatchedTextColorLight: "#FF0000",
+					MatchedTextColorDark:  "#FF0000",
+					BorderColorLight:      "#000000",
+					BorderColorDark:       "#000000",
+					FontSize:              12,
+					BorderRadius:          4,
+					PaddingX:              4,
+					PaddingY:              4,
+					BorderWidth:           1,
+					ClickableRoles:        []string{"AXButton"},
+					ParallelThreshold:     20,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "hints backspace_key empty string uses default - valid",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters:        "abcd",
+					BackspaceKey:          "", // Empty = default backspace/delete
+					BackgroundColorLight:  "#FFFFFF",
+					BackgroundColorDark:   "#FFFFFF",
+					TextColorLight:        "#000000",
+					TextColorDark:         "#000000",
+					MatchedTextColorLight: "#FF0000",
+					MatchedTextColorDark:  "#FF0000",
+					BorderColorLight:      "#000000",
+					BorderColorDark:       "#000000",
+					FontSize:              12,
+					BorderRadius:          4,
+					PaddingX:              4,
+					PaddingY:              4,
+					BorderWidth:           1,
+					ClickableRoles:        []string{"AXButton"},
+					ParallelThreshold:     20,
+				},
+			},
+			wantErr: false,
+		},
 		{
 			name: "hints with valid ASCII digits and symbols",
 			config: config.Config{
@@ -549,6 +645,98 @@ func TestConfig_ValidateGrid(t *testing.T) {
 				},
 			},
 			wantErr: true,
+		},
+		{
+			name: "grid backspace_key conflicts with characters - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					BackspaceKey: "a", // Conflicts with characters
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key conflicts with row_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					RowLabels:    "123456789",
+					BackspaceKey: "1", // Conflicts with row_labels
+					FontSize:     12,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key conflicts with col_labels - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					ColLabels:    "123456789x",
+					BackspaceKey: "x", // Conflicts with col_labels
+					FontSize:     12,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key conflicts with sublayer_keys - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					SublayerKeys: "123456789",
+					BackspaceKey: "1", // Conflicts with sublayer_keys
+					FontSize:     12,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key no conflict",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:                  "ABCDEFGHIJKLMNOPQRSTUVWXY",
+					BackspaceKey:                "z", // Not in characters
+					BackgroundColorLight:        "#FF0000",
+					BackgroundColorDark:         "#FF0000",
+					TextColorLight:              "#FFFFFF",
+					TextColorDark:               "#FFFFFF",
+					MatchedTextColorLight:       "#000000",
+					MatchedTextColorDark:        "#000000",
+					MatchedBackgroundColorLight: "#333333",
+					MatchedBackgroundColorDark:  "#333333",
+					MatchedBorderColorLight:     "#FF0000",
+					MatchedBorderColorDark:      "#FF0000",
+					BorderColorLight:            "#666666",
+					BorderColorDark:             "#666666",
+					FontSize:                    14,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "grid backspace_key modifier combo no conflict",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+					BackspaceKey:                "Ctrl+H", // Modifier combo, no conflict
+					BackgroundColorLight:        "#FF0000",
+					BackgroundColorDark:         "#FF0000",
+					TextColorLight:              "#FFFFFF",
+					TextColorDark:               "#FFFFFF",
+					MatchedTextColorLight:       "#000000",
+					MatchedTextColorDark:        "#000000",
+					MatchedBackgroundColorLight: "#333333",
+					MatchedBackgroundColorDark:  "#333333",
+					MatchedBorderColorLight:     "#FF0000",
+					MatchedBorderColorDark:      "#FF0000",
+					BorderColorLight:            "#666666",
+					BorderColorDark:             "#666666",
+					FontSize:                    14,
+				},
+			},
+			wantErr: false,
 		},
 		{
 			name: "negative font size",
