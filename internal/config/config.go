@@ -146,14 +146,8 @@ func NormalizeKeyForComparison(key string) string {
 		return KeyNameDelete
 	}
 
-	// All named keys (navigation, function, special) are already lowercase after
-	// strings.ToLower above, so they pass through as-is. This single check covers
-	// Escape, Return, Tab, Space, Delete, Home, End, PageUp, PageDown,
-	// Up, Down, Left, Right, and F1–F20 uniformly.
-	if validNamedKeysLower[key] {
-		return key
-	}
-
+	// All other keys (named keys, plain characters, modifier combos) are already
+	// lowercased by strings.ToLower above and pass through as-is.
 	return key
 }
 
