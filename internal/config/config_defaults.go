@@ -275,7 +275,7 @@ func DefaultConfig() *Config {
 			AccessibilityCheckOnStart: true,
 			RestoreCursorPosition:     false,
 			CenterCursorPosition:      false,
-			ModeExitKeys:              []string{"escape"},
+			ModeExitKeys:              []string{"Escape"},
 			HideOverlayInScreenShare:  false,
 			KBLayoutToUse:             "",
 		},
@@ -290,7 +290,7 @@ func DefaultConfig() *Config {
 		Hints: HintsConfig{
 			Enabled:                 true,
 			HintCharacters:          "asdfghjkl",
-			BackspaceKey:            "backspace",
+			BackspaceKey:            "Backspace",
 			FontSize:                DefaultHintFontSize,
 			FontFamily:              "",
 			BorderRadius:            DefaultHintBorderRadius,
@@ -356,7 +356,7 @@ func DefaultConfig() *Config {
 
 			Characters:   "abcdefghijklmnpqrstuvwxyz",
 			SublayerKeys: "abcdefghijklmnpqrstuvwxyz",
-			BackspaceKey: "backspace",
+			BackspaceKey: "Backspace",
 
 			FontSize:    DefaultGridFontSize,
 			FontFamily:  "",
@@ -387,7 +387,7 @@ func DefaultConfig() *Config {
 			GridRows: 2, //nolint:mnd
 
 			Keys:         "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
-			BackspaceKey: "backspace",
+			BackspaceKey: "Backspace",
 
 			LineColorLight:              RecursiveGridLineColorLight,
 			LineColorDark:               RecursiveGridLineColorDark,

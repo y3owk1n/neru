@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 	"image"
-	"strings"
+	"slices"
 	"sync"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -283,7 +283,8 @@ func (s *ActionService) HandleActionKey(
 }
 
 // IsMoveMouseKey checks if the given key is a move mouse keybinding.
-// It handles Shift+Letter normalization (e.g. "K" matching "Shift+K").
+// Uses NormalizeKeyForComparison for consistent matching, and handles
+// Shift+Letter normalization (e.g. "K" matching "Shift+K").
 func (s *ActionService) IsMoveMouseKey(key string) bool {
 	if key == "" {
 		return false
@@ -298,12 +299,14 @@ func (s *ActionService) IsMoveMouseKey(key string) bool {
 	}
 	s.mu.RUnlock()
 
-	keysToCheck := []string{key}
-	// If key is a single uppercase letter, also check against Shift+Key
+	normalized := config.NormalizeKeyForComparison(key)
+	keysToCheck := []string{normalized}
+	// If the ORIGINAL key is a single uppercase letter, also check against Shift+Key.
+	// Must use original key to avoid matching plain lowercase letters against Shift bindings.
 	if len(key) == 1 {
 		r := rune(key[0])
 		if r >= 'A' && r <= 'Z' {
-			keysToCheck = append(keysToCheck, "Shift+"+key)
+			keysToCheck = append(keysToCheck, config.NormalizeKeyForComparison("Shift+"+key))
 		}
 	}
 
@@ -312,10 +315,10 @@ func (s *ActionService) IsMoveMouseKey(key string) bool {
 			continue
 		}
 
-		for _, k := range keysToCheck {
-			if strings.EqualFold(k, binding) {
-				return true
-			}
+		normalizedBinding := config.NormalizeKeyForComparison(binding)
+
+		if slices.Contains(keysToCheck, normalizedBinding) {
+			return true
 		}
 	}
 
@@ -339,19 +342,19 @@ func (s *ActionService) HandleDirectActionKey(
 		return "", false, nil
 	}
 
-	resolvedKeyLower := strings.ToLower(resolvedKey)
+	normalizedResolved := config.NormalizeKeyForComparison(resolvedKey)
 
 	if actionString == string(action.NameMoveMouseRelative) {
 		var deltaX, deltaY int
 
-		switch resolvedKeyLower {
-		case strings.ToLower(keyBindings.MoveMouseUp):
+		switch normalizedResolved {
+		case config.NormalizeKeyForComparison(keyBindings.MoveMouseUp):
 			deltaY = -step
-		case strings.ToLower(keyBindings.MoveMouseDown):
+		case config.NormalizeKeyForComparison(keyBindings.MoveMouseDown):
 			deltaY = step
-		case strings.ToLower(keyBindings.MoveMouseLeft):
+		case config.NormalizeKeyForComparison(keyBindings.MoveMouseLeft):
 			deltaX = -step
-		case strings.ToLower(keyBindings.MoveMouseRight):
+		case config.NormalizeKeyForComparison(keyBindings.MoveMouseRight):
 			deltaX = step
 		default:
 			return "", false, nil
@@ -429,11 +432,9 @@ func (s *ActionService) getActionMapping(key string) (string, string, string, bo
 		return "", "", "", false
 	}
 
-	normalizedKey := key
-	// Normalize carriage return to "Return"
-	if key == "\r" {
-		normalizedKey = "Return"
-	}
+	// Normalize special key representations to their canonical forms
+	// so that "\r" matches "Return", "\x1b" matches "Escape", etc.
+	normalizedKey := config.NormalizeKeyForComparison(key)
 
 	// Check direct match first
 	if s.matchActionKey(normalizedKey) {
@@ -442,12 +443,15 @@ func (s *ActionService) getActionMapping(key string) (string, string, string, bo
 		return actionStr, logMsg, normalizedKey, ok
 	}
 
-	// If key is a single uppercase letter (A-Z), check if Shift+Key is configured
-	// This handles the case where Shift+Letter is pressed but C code sends uppercase letter
-	if len(normalizedKey) == 1 {
-		r := rune(normalizedKey[0])
+	// If the ORIGINAL key is a single uppercase letter (A-Z), check if Shift+Key is configured.
+	// This handles the case where Shift+Letter is pressed but the event tap sends just
+	// the uppercase letter (e.g. "L" instead of "Shift+L") when keyCodeToName returns nil.
+	// We must check the original key (not the normalized one) because normalization lowercases,
+	// which would cause plain lowercase "l" to falsely trigger the Shift+L binding.
+	if len(key) == 1 {
+		r := rune(key[0])
 		if r >= 'A' && r <= 'Z' {
-			shiftKey := "Shift+" + normalizedKey
+			shiftKey := config.NormalizeKeyForComparison("Shift+" + key)
 			if s.matchActionKey(shiftKey) {
 				actionStr, logMsg, ok := s.getActionForBinding(shiftKey)
 
@@ -460,23 +464,25 @@ func (s *ActionService) getActionMapping(key string) (string, string, string, bo
 }
 
 // matchActionKey checks if the key matches any configured binding.
+// Uses NormalizeKeyForComparison on both sides so that escape sequences,
+// named key aliases, and case differences are handled consistently.
 func (s *ActionService) matchActionKey(key string) bool {
-	keyLower := strings.ToLower(key)
+	normalized := config.NormalizeKeyForComparison(key)
 
-	return keyLower == strings.ToLower(s.keyBindings.LeftClick) ||
-		keyLower == strings.ToLower(s.keyBindings.RightClick) ||
-		keyLower == strings.ToLower(s.keyBindings.MiddleClick) ||
-		keyLower == strings.ToLower(s.keyBindings.MouseDown) ||
-		keyLower == strings.ToLower(s.keyBindings.MouseUp) ||
-		keyLower == strings.ToLower(s.keyBindings.MoveMouseUp) ||
-		keyLower == strings.ToLower(s.keyBindings.MoveMouseDown) ||
-		keyLower == strings.ToLower(s.keyBindings.MoveMouseLeft) ||
-		keyLower == strings.ToLower(s.keyBindings.MoveMouseRight)
+	return normalized == config.NormalizeKeyForComparison(s.keyBindings.LeftClick) ||
+		normalized == config.NormalizeKeyForComparison(s.keyBindings.RightClick) ||
+		normalized == config.NormalizeKeyForComparison(s.keyBindings.MiddleClick) ||
+		normalized == config.NormalizeKeyForComparison(s.keyBindings.MouseDown) ||
+		normalized == config.NormalizeKeyForComparison(s.keyBindings.MouseUp) ||
+		normalized == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseUp) ||
+		normalized == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseDown) ||
+		normalized == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseLeft) ||
+		normalized == config.NormalizeKeyForComparison(s.keyBindings.MoveMouseRight)
 }
 
 // getActionForBinding returns the action for a matching binding.
 func (s *ActionService) getActionForBinding(binding string) (string, string, bool) {
-	bindingLower := strings.ToLower(binding)
+	normalized := config.NormalizeKeyForComparison(binding)
 
 	bindings := []struct {
 		config string
@@ -495,7 +501,7 @@ func (s *ActionService) getActionForBinding(binding string) (string, string, boo
 	}
 
 	for _, b := range bindings {
-		if bindingLower == strings.ToLower(b.config) {
+		if normalized == config.NormalizeKeyForComparison(b.config) {
 			return string(b.action), b.logMsg, true
 		}
 	}

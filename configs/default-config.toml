@@ -33,14 +33,17 @@ kb_layout_to_use = ""
 
 # Keys that exit any active mode (hints, grid, or scroll)
 # Supported formats:
-#   - Named keys: "escape", "return", "tab", "space", "backspace", "delete", "home", "end", "pageup", "pagedown"
+#   - Named keys: "Escape", "Return", "Tab", "Space", "Backspace", "Delete",
+#                  "Home", "End", "PageUp", "PageDown",
+#                  "Up", "Down", "Left", "Right",
+#                  "F1" through "F20"
 #   - Modifier combos: "Ctrl+C", "Cmd+Q", "Alt+X"
 #   - Single characters: single letter/digit keys
 # Examples:
-#   mode_exit_keys = ["escape"]           # Exit with Escape key
+#   mode_exit_keys = ["Escape"]           # Exit with Escape key
 #   mode_exit_keys = ["Ctrl+C"]           # Exit with Ctrl+C
-#   mode_exit_keys = ["escape", "q"]      # Exit with Escape or Q
-mode_exit_keys = ["escape"]
+#   mode_exit_keys = ["Escape", "q"]      # Exit with Escape or Q
+mode_exit_keys = ["Escape"]
 
 # Whether to hide the overlay from screen sharing (Zoom, Google Meet, OBS, etc.)
 # When true, the overlay will not appear in shared screens but remains visible locally
@@ -81,9 +84,9 @@ auto_exit_actions = []
 hint_characters = "asdfghjkl"
 
 # Key used for backspace/input correction in hints mode
-# Default: "backspace" (the standard backspace/delete key)
-# Can be set to any key name (e.g. "backspace", "delete", "x", "Ctrl+H")
-backspace_key = "backspace"
+# Default: "Backspace" (the standard backspace/delete key)
+# Can be set to any key name (e.g. "Backspace", "Delete", "x", "Ctrl+H")
+backspace_key = "Backspace"
 
 # Visual appearance
 font_size = 10      # Font size for hints
@@ -204,17 +207,20 @@ characters = "abcdefghijklmnpqrstuvwxyz"
 # Same requirements as characters above
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
 
-# Single-character key to reset/clear grid input during grid mode
+# Key to reset/clear grid input during grid mode
 # While in grid mode, pressing this key clears your current input and starts over
 # Useful for correcting mistakes while selecting grid coordinates
-# Common choices: "," (comma), "." (period), "r" (r key)
+# Supported formats:
+#   - Single character: " " (space), "," (comma), "." (period)
+#   - Named key: "Home", "End", "F1", "Tab", etc.
+#   - Modifier combo: "Ctrl+R"
 # Note: Cannot be the same as any grid character to avoid conflicts
 reset_key = " "
 
 # Key used for backspace/input correction in grid mode
-# Default: "backspace" (the standard backspace/delete key)
-# Can be set to any key name (e.g. "backspace", "delete", "x", "Ctrl+H")
-backspace_key = "backspace"
+# Default: "Backspace" (the standard backspace/delete key)
+# Can be set to any key name (e.g. "Backspace", "Delete", "x", "Ctrl+H")
+backspace_key = "Backspace"
 
 # Optional custom labels for rows and columns
 # If not provided, labels will be inferred from characters
@@ -300,12 +306,18 @@ label_background_border_width = 1       # Border width for label badges (0 disab
 min_size_width = 25            # Minimum cell width in pixels (stops dividing when width is reached)
 min_size_height = 25           # Minimum cell height in pixels (stops dividing when height is reached)
 max_depth = 10                 # Maximum recursion depth (safety limit)
-reset_key = " "                # Reset to initial center and clear state
+
+# Key to reset to initial center and clear state
+# Supported formats:
+#   - Single character: " " (space), "," (comma), "." (period)
+#   - Named key: "Home", "End", "F1", "Tab", etc.
+#   - Modifier combo: "Ctrl+R"
+reset_key = " "
 
 # Key used for backspace/backtracking in recursive-grid mode
-# Default: "backspace" (the standard backspace/delete key)
-# Can be set to any key name (e.g. "backspace", "delete", "x", "Ctrl+H")
-backspace_key = "backspace"
+# Default: "Backspace" (the standard backspace/delete key)
+# Can be set to any key name (e.g. "Backspace", "Delete", "x", "Ctrl+H")
+backspace_key = "Backspace"
 
 [scroll]
 # Scroll step sizes
@@ -375,8 +387,9 @@ indicator_y_offset = 20              # Y offset from cursor position
 
 # Action keybindings for use in hints/grid mode
 # Valid formats:
-#   - Modifier+Key: Cmd+L, Shift+Return (at least 1 modifier + alphabet or Return/Enter)
-#   - Single special key: Return, Enter
+#   - Modifier+Key: Cmd+L, Shift+Return (at least 1 modifier + key)
+#   - Single named key: Return, Enter, Up, Down, Left, Right, Home, End,
+#                        PageUp, PageDown, F1-F20, Space, Tab, etc.
 [action]
 # Step size in pixels for keyboard-driven mouse movement (Up/Down/Left/Right keys)
 move_mouse_step = 10

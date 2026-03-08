@@ -13,6 +13,7 @@ import (
 const SequenceTimeout = 500 * time.Millisecond
 
 // Arrow key names for normalized key mapping.
+// These use the canonical display forms from the centralized ValidNamedKeys registry.
 const (
 	ArrowUp    = "Up"
 	ArrowDown  = "Down"
@@ -110,41 +111,20 @@ func NewKeyMap(bindings map[string][]string) *KeyMap {
 	return keyMap
 }
 
+// isNamedKey checks if the key is a recognized named key or a modifier combo.
+// Uses the centralized ValidNamedKeys registry for named key detection.
 func isNamedKey(key string) bool {
-	namedKeys := map[string]bool{
-		"Space":     true,
-		"Return":    true,
-		"Enter":     true,
-		"Escape":    true,
-		"Tab":       true,
-		"Delete":    true,
-		"Backspace": true,
-		"Home":      true,
-		"End":       true,
-		"PageUp":    true,
-		"PageDown":  true,
-		"Up":        true,
-		"Down":      true,
-		"Left":      true,
-		"Right":     true,
-		"Cmd+Up":    true,
-		"Cmd+Down":  true,
-		"Cmd+Left":  true,
-		"Cmd+Right": true,
-		"Cmd+Home":  true,
-		"Cmd+End":   true,
-		"Alt+Up":    true,
-		"Alt+Down":  true,
-		"Alt+Left":  true,
-		"Alt+Right": true,
-		"Ctrl+Z":    true,
-		"Ctrl+U":    true,
-		"Ctrl+D":    true,
-		"Ctrl+A":    true,
-		"Ctrl+E":    true,
+	// Check if it's a known named key (e.g. Up, PageDown, F1)
+	if config.IsValidNamedKey(key) {
+		return true
 	}
 
-	return namedKeys[key]
+	// Check if it's a modifier combo (e.g. Cmd+Up, Ctrl+D)
+	if strings.Contains(key, "+") {
+		return true
+	}
+
+	return false
 }
 
 // Action returns the Action struct for a given action name and whether it was found.
@@ -205,40 +185,27 @@ func (m *KeyMap) Sequences() map[string]string {
 }
 
 func (m *KeyMap) normalizeKey(key string) string {
-	switch key {
-	case ArrowUp, "\x1f":
-		return ArrowUp
-	case ArrowDown, "\x1e":
-		return ArrowDown
-	case ArrowLeft, "\x1d":
-		return ArrowLeft
-	case ArrowRight, "\x1c":
-		return ArrowRight
-	case PageUp:
-		return PageUp
-	case PageDown:
-		return PageDown
-	case "Home":
-		return "Home"
-	case "End":
-		return "End"
-	default:
-		lower := strings.ToLower(key)
-		if strings.HasPrefix(lower, "ctrl+") || strings.HasPrefix(lower, "alt+") ||
-			strings.HasPrefix(lower, "cmd+") ||
-			strings.HasPrefix(lower, "option+") {
-			return lower
-		}
-
-		if len(key) == 1 {
-			r := rune(key[0])
-			if r >= 0x01 && r <= 0x1a {
-				return fmt.Sprintf("ctrl+%c", 'a'+r-1)
-			}
-		}
-
+	// Named keys are preserved in their display form (e.g. "Up", "PageDown", "F1")
+	// so that config values and event tap output match directly.
+	if config.IsValidNamedKey(key) {
 		return key
 	}
+	// Modifier combos are lowercased for case-insensitive matching.
+	lower := strings.ToLower(key)
+	if strings.HasPrefix(lower, "ctrl+") || strings.HasPrefix(lower, "alt+") ||
+		strings.HasPrefix(lower, "cmd+") || strings.HasPrefix(lower, "shift+") ||
+		strings.HasPrefix(lower, "option+") {
+		return lower
+	}
+	// Control characters (Ctrl+A through Ctrl+Z) → normalized modifier form.
+	if len(key) == 1 {
+		r := rune(key[0])
+		if r >= 0x01 && r <= 0x1a {
+			return fmt.Sprintf("ctrl+%c", 'a'+r-1)
+		}
+	}
+
+	return key
 }
 
 func (m *KeyMap) sequenceFirstKey(seq string) string {

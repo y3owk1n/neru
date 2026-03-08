@@ -13,28 +13,38 @@ func TestNormalizeKey(t *testing.T) {
 		input    string
 		expected string
 	}{
+		// Named keys are preserved in display form
 		{"Up", scroll.ArrowUp},
 		{"Down", scroll.ArrowDown},
 		{"Left", scroll.ArrowLeft},
 		{"Right", scroll.ArrowRight},
-		{"\x1f", scroll.ArrowUp},
-		{"\x1e", scroll.ArrowDown},
-		{"\x1d", scroll.ArrowLeft},
-		{"\x1c", scroll.ArrowRight},
+		{"Home", "Home"},
+		{"End", "End"},
+		{"PageUp", "PageUp"},
+		{"PageDown", "PageDown"},
+		{"F1", "F1"},
+		{"F12", "F12"},
+
+		// Modifier combos are lowercased
 		{"Ctrl+U", "ctrl+u"},
 		{"Ctrl+D", "ctrl+d"},
 		{"Ctrl+Z", "ctrl+z"},
+		{"Shift+G", "shift+g"},
+
+		// Control characters normalize to modifier form
 		{"\x1a", "ctrl+z"},
 		{"\x03", "ctrl+c"},
 		{"\x07", "ctrl+g"},
+
+		// Other modifier formats
 		{"Alt+Z", "alt+z"},
 		{"Cmd+Z", "cmd+z"},
 		{"Option+Z", "option+z"},
+
+		// Plain keys pass through
 		{"k", "k"},
 		{"j", "j"},
 		{"gg", "gg"},
-		{"Home", "Home"},
-		{"End", "End"},
 	}
 
 	for _, tc := range testCases {

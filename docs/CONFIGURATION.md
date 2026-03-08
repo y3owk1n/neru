@@ -174,7 +174,7 @@ Core behavior settings that affect all Neru functionality.
 | `restore_cursor_position`      | bool   | `false`      | Return cursor to pre-mode position on exit |
 | `center_cursor_position`       | bool   | `false`      | Center cursor on current screen on exit    |
 | `kb_layout_to_use`             | string | `""`         | Optional InputSourceID for layout mapping  |
-| `mode_exit_keys`               | array  | `["escape"]` | Keys that exit any active mode             |
+| `mode_exit_keys`               | array  | `["Escape"]` | Keys that exit any active mode             |
 | `hide_overlay_in_screen_share` | bool   | `false`      | Hide overlay in screen sharing apps        |
 
 ### excluded_apps
@@ -260,16 +260,20 @@ Keys that exit any active mode (hints, grid, scroll, recursive_grid).
 
 ```toml
 [general]
-mode_exit_keys = ["escape"]           # default
+mode_exit_keys = ["Escape"]           # default
 # mode_exit_keys = ["Ctrl+C"]         # Vim-style
-# mode_exit_keys = ["escape", "q"]    # Multiple keys
+# mode_exit_keys = ["Escape", "q"]    # Multiple keys
 ```
 
 **Valid keys:**
 
-- Plain: `escape`, `return`, `tab`, `space`, `backspace`, `delete`
-- Navigation: `home`, `end`, `pageup`, `pagedown`
+- Plain: `Escape`, `Return`, `Tab`, `Space`, `Backspace`, `Delete`
+- Navigation: `Home`, `End`, `PageUp`, `PageDown`, `Up`, `Down`, `Left`, `Right`
+- Function keys: `F1` through `F20`
 - With modifiers: `Ctrl+C`, `Cmd+Q`, `Alt+X`
+- Single characters: any single letter or digit
+
+> **Note:** Named key casing is flexible — `"escape"`, `"Escape"`, and `"ESCAPE"` all work. Title case (e.g. `"Escape"`) is the recommended convention.
 
 ### hide_overlay_in_screen_share
 
@@ -661,7 +665,11 @@ reset_key = " "         # default (space)
 # reset_key = ","       # comma
 # reset_key = "."       # period
 # reset_key = "Ctrl+R"  # modifier combo
+# reset_key = "Home"    # named key
+# reset_key = "F1"      # function key
 ```
+
+**Valid formats:** single character, named key (`Home`, `End`, `Tab`, `F1`–`F20`, etc.), or modifier combo (`Ctrl+R`).
 
 ---
 
@@ -826,13 +834,14 @@ page_down = ["Ctrl+D", "PageDown"]
 
 ### Key Format
 
-| Format         | Example                       | Description              |
-| -------------- | ----------------------------- | ------------------------ |
-| Single key     | `"j"`, `"k"`, `"g"`           | Direct press             |
-| Arrow keys     | `"Up"`, `"Down"`              | Named keys               |
-| Modifier combo | `"Ctrl+U"`, `"Cmd+Down"`      | Modifier + key           |
-| Special keys   | `"PageUp"`, `"Home"`, `"End"` | Named specials           |
-| Multi-key      | `"gg"`                        | Sequence (500ms timeout) |
+| Format         | Example                       | Description                  |
+| -------------- | ----------------------------- | ---------------------------- |
+| Single key     | `"j"`, `"k"`, `"g"`           | Direct press                 |
+| Arrow keys     | `"Up"`, `"Down"`              | Named keys                   |
+| Modifier combo | `"Ctrl+U"`, `"Cmd+Down"`      | Modifier + key               |
+| Special keys   | `"PageUp"`, `"Home"`, `"End"` | Named specials               |
+| Function keys  | `"F1"`, `"F12"`, `"F20"`      | Function keys F1 through F20 |
+| Multi-key      | `"gg"`                        | Sequence (500ms timeout)     |
 
 ### Customization Examples
 

@@ -5,12 +5,9 @@ import (
 )
 
 const (
-	// KeyTab represents the tab key.
-	KeyTab = "\t"
-	// KeyEscape represents the escape key (primary representation).
-	KeyEscape = "\x1b"
-	// KeyEscape2 represents the escape key (alternative representation).
-	KeyEscape2 = "escape"
+	// KeyEscape2 represents the escape key name for DefaultModeExitKeys.
+	// Uses title case to match the ValidNamedKeys registry convention.
+	KeyEscape2 = "Escape"
 
 	// ModeNameAction is the name for action mode.
 	ModeNameAction = "Action"
