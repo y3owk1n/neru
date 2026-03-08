@@ -1008,13 +1008,13 @@ func (c *Config) checkBackspaceKeyActionKeyConflicts() error {
 			continue
 		}
 
-		normalizedBS := strings.ToLower(mode.key)
+		normalizedBS := NormalizeKeyForComparison(mode.key)
 		for _, binding := range bindings {
 			if binding.value == "" {
 				continue
 			}
 
-			if strings.EqualFold(normalizedBS, binding.value) {
+			if normalizedBS == NormalizeKeyForComparison(binding.value) {
 				return derrors.Newf(
 					derrors.CodeInvalidConfig,
 					"%s.backspace_key '%s' conflicts with %s ('%s'); the action key is checked first at runtime, so backspace will never fire",
