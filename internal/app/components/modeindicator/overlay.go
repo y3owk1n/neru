@@ -162,8 +162,8 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 	defer o.configMu.RUnlock()
 
 	// Offset from cursor to avoid covering it
-	xOffset := o.indicatorConfig.IndicatorXOffset
-	yOffset := o.indicatorConfig.IndicatorYOffset
+	xOffset := o.indicatorConfig.UI.IndicatorXOffset
+	yOffset := o.indicatorConfig.UI.IndicatorYOffset
 
 	// Hold drawMu.RLock for the entire span from label lookup through the C
 	// draw call so that freeAllCaches (which takes drawMu.Lock) cannot free
@@ -188,12 +188,12 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 
 	// Use cached style strings to avoid repeated allocations and fix use-after-free
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
-		cached.FontFamily = unsafe.Pointer(C.CString(o.indicatorConfig.FontFamily))
+		cached.FontFamily = unsafe.Pointer(C.CString(o.indicatorConfig.UI.FontFamily))
 		cached.BgColor = unsafe.Pointer(
 			C.CString(
 				config.ResolveColor(
-					o.indicatorConfig.BackgroundColorLight,
-					o.indicatorConfig.BackgroundColorDark,
+					o.indicatorConfig.UI.BackgroundColorLight,
+					o.indicatorConfig.UI.BackgroundColorDark,
 					o.theme,
 					config.ModeIndicatorBackgroundColorLight,
 					config.ModeIndicatorBackgroundColorDark,
@@ -203,8 +203,8 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		cached.TextColor = unsafe.Pointer(
 			C.CString(
 				config.ResolveColor(
-					o.indicatorConfig.TextColorLight,
-					o.indicatorConfig.TextColorDark,
+					o.indicatorConfig.UI.TextColorLight,
+					o.indicatorConfig.UI.TextColorDark,
 					o.theme,
 					config.ModeIndicatorTextColorLight,
 					config.ModeIndicatorTextColorDark,
@@ -214,8 +214,8 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		cached.MatchedTextColor = unsafe.Pointer(
 			C.CString(
 				config.ResolveColor(
-					o.indicatorConfig.TextColorLight,
-					o.indicatorConfig.TextColorDark,
+					o.indicatorConfig.UI.TextColorLight,
+					o.indicatorConfig.UI.TextColorDark,
 					o.theme,
 					config.ModeIndicatorTextColorLight,
 					config.ModeIndicatorTextColorDark,
@@ -225,8 +225,8 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		cached.BorderColor = unsafe.Pointer(
 			C.CString(
 				config.ResolveColor(
-					o.indicatorConfig.BorderColorLight,
-					o.indicatorConfig.BorderColorDark,
+					o.indicatorConfig.UI.BorderColorLight,
+					o.indicatorConfig.UI.BorderColorDark,
 					o.theme,
 					config.ModeIndicatorBorderColorLight,
 					config.ModeIndicatorBorderColorDark,
@@ -236,16 +236,16 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 	})
 
 	style := C.HintStyle{
-		fontSize:         C.int(o.indicatorConfig.FontSize),
+		fontSize:         C.int(o.indicatorConfig.UI.FontSize),
 		fontFamily:       (*C.char)(cachedStyle.FontFamily),
 		backgroundColor:  (*C.char)(cachedStyle.BgColor),
 		textColor:        (*C.char)(cachedStyle.TextColor),
 		matchedTextColor: (*C.char)(cachedStyle.MatchedTextColor),
 		borderColor:      (*C.char)(cachedStyle.BorderColor),
-		borderRadius:     C.int(o.indicatorConfig.BorderRadius),
-		borderWidth:      C.int(o.indicatorConfig.BorderWidth),
-		paddingX:         C.int(o.indicatorConfig.PaddingX),
-		paddingY:         C.int(o.indicatorConfig.PaddingY),
+		borderRadius:     C.int(o.indicatorConfig.UI.BorderRadius),
+		borderWidth:      C.int(o.indicatorConfig.UI.BorderWidth),
+		paddingX:         C.int(o.indicatorConfig.UI.PaddingX),
+		paddingY:         C.int(o.indicatorConfig.UI.PaddingY),
 		showArrow:        0, // No arrow for mode indicator
 	}
 

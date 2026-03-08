@@ -29,55 +29,55 @@ func TestDefaultConfig(t *testing.T) {
 	})
 
 	t.Run("Recursive Grid Defaults", func(t *testing.T) {
-		if cfg.RecursiveGrid.LabelBackground {
-			t.Error("Expected RecursiveGrid.LabelBackground to be false by default")
+		if cfg.RecursiveGrid.UI.LabelBackground {
+			t.Error("Expected RecursiveGrid.UI.LabelBackground to be false by default")
 		}
 
-		if cfg.RecursiveGrid.LabelBackgroundColorLight != config.RecursiveGridLabelBackgroundColorLight {
+		if cfg.RecursiveGrid.UI.LabelBackgroundColorLight != config.RecursiveGridLabelBackgroundColorLight {
 			t.Errorf(
-				"Expected RecursiveGrid.LabelBackgroundColorLight %q, got %q",
+				"Expected RecursiveGrid.UI.LabelBackgroundColorLight %q, got %q",
 				config.RecursiveGridLabelBackgroundColorLight,
-				cfg.RecursiveGrid.LabelBackgroundColorLight,
+				cfg.RecursiveGrid.UI.LabelBackgroundColorLight,
 			)
 		}
 
-		if cfg.RecursiveGrid.LabelBackgroundColorDark != config.RecursiveGridLabelBackgroundColorDark {
+		if cfg.RecursiveGrid.UI.LabelBackgroundColorDark != config.RecursiveGridLabelBackgroundColorDark {
 			t.Errorf(
-				"Expected RecursiveGrid.LabelBackgroundColorDark %q, got %q",
+				"Expected RecursiveGrid.UI.LabelBackgroundColorDark %q, got %q",
 				config.RecursiveGridLabelBackgroundColorDark,
-				cfg.RecursiveGrid.LabelBackgroundColorDark,
+				cfg.RecursiveGrid.UI.LabelBackgroundColorDark,
 			)
 		}
 
-		if cfg.RecursiveGrid.LabelBackgroundPaddingX != config.DefaultRecursiveGridLabelBackgroundPaddingX {
+		if cfg.RecursiveGrid.UI.LabelBackgroundPaddingX != config.DefaultRecursiveGridLabelBackgroundPaddingX {
 			t.Errorf(
-				"Expected RecursiveGrid.LabelBackgroundPaddingX %d, got %d",
+				"Expected RecursiveGrid.UI.LabelBackgroundPaddingX %d, got %d",
 				config.DefaultRecursiveGridLabelBackgroundPaddingX,
-				cfg.RecursiveGrid.LabelBackgroundPaddingX,
+				cfg.RecursiveGrid.UI.LabelBackgroundPaddingX,
 			)
 		}
 
-		if cfg.RecursiveGrid.LabelBackgroundPaddingY != config.DefaultRecursiveGridLabelBackgroundPaddingY {
+		if cfg.RecursiveGrid.UI.LabelBackgroundPaddingY != config.DefaultRecursiveGridLabelBackgroundPaddingY {
 			t.Errorf(
-				"Expected RecursiveGrid.LabelBackgroundPaddingY %d, got %d",
+				"Expected RecursiveGrid.UI.LabelBackgroundPaddingY %d, got %d",
 				config.DefaultRecursiveGridLabelBackgroundPaddingY,
-				cfg.RecursiveGrid.LabelBackgroundPaddingY,
+				cfg.RecursiveGrid.UI.LabelBackgroundPaddingY,
 			)
 		}
 
-		if cfg.RecursiveGrid.LabelBackgroundBorderRadius != config.DefaultRecursiveGridLabelBackgroundBorderRadius {
+		if cfg.RecursiveGrid.UI.LabelBackgroundBorderRadius != config.DefaultRecursiveGridLabelBackgroundBorderRadius {
 			t.Errorf(
-				"Expected RecursiveGrid.LabelBackgroundBorderRadius %d, got %d",
+				"Expected RecursiveGrid.UI.LabelBackgroundBorderRadius %d, got %d",
 				config.DefaultRecursiveGridLabelBackgroundBorderRadius,
-				cfg.RecursiveGrid.LabelBackgroundBorderRadius,
+				cfg.RecursiveGrid.UI.LabelBackgroundBorderRadius,
 			)
 		}
 
-		if cfg.RecursiveGrid.LabelBackgroundBorderWidth != config.DefaultRecursiveGridLabelBackgroundBorderWidth {
+		if cfg.RecursiveGrid.UI.LabelBackgroundBorderWidth != config.DefaultRecursiveGridLabelBackgroundBorderWidth {
 			t.Errorf(
-				"Expected RecursiveGrid.LabelBackgroundBorderWidth %d, got %d",
+				"Expected RecursiveGrid.UI.LabelBackgroundBorderWidth %d, got %d",
 				config.DefaultRecursiveGridLabelBackgroundBorderWidth,
-				cfg.RecursiveGrid.LabelBackgroundBorderWidth,
+				cfg.RecursiveGrid.UI.LabelBackgroundBorderWidth,
 			)
 		}
 	})

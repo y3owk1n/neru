@@ -21,12 +21,14 @@ func BenchmarkValidateHotkey(b *testing.B) {
 func BenchmarkValidateHints(b *testing.B) {
 	config := &config.Config{
 		Hints: config.HintsConfig{
-			HintCharacters:        "ABCDEFGH",
-			BackgroundColorLight:  "#000000",
-			TextColorLight:        "#FFFFFF",
-			MatchedTextColorLight: "#FF0000",
-			BorderColorLight:      "#333333",
-			FontSize:              14,
+			HintCharacters: "ABCDEFGH",
+			UI: config.HintsUI{
+				BackgroundColorLight:  "#000000",
+				TextColorLight:        "#FFFFFF",
+				MatchedTextColorLight: "#FF0000",
+				BorderColorLight:      "#333333",
+				FontSize:              14,
+			},
 		},
 	}
 

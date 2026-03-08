@@ -44,17 +44,17 @@ excluded_apps = ["com.apple.finder", "com.test.app"]
 [hints]
 enabled = true
 hint_characters = "asdfqwertzxcvb"
+
+[hints.ui]
 font_size = 14
 font_family = "Monaco"
-background_color = "#FFFF00"
-text_color = "#000000"
 
 [grid]
 enabled = true
+
+[grid.ui]
 font_size = 12
 font_family = "Arial"
-background_color = "#FFFFFF"
-text_color = "#000000"
 
 [action]
 enabled = true
@@ -93,8 +93,8 @@ max_age = 30
 			)
 		}
 
-		if cfg.Grid.FontSize != 12 {
-			t.Errorf("Expected grid font_size 12, got %d", cfg.Grid.FontSize)
+		if cfg.Grid.UI.FontSize != 12 {
+			t.Errorf("Expected grid ui.font_size 12, got %d", cfg.Grid.UI.FontSize)
 		}
 
 		if cfg.Systray.Enabled {
@@ -106,6 +106,7 @@ max_age = 30
 		// Create initial config file
 		initialContent := `
 [hints]
+[hints.ui]
 font_size = 12
 `
 
@@ -122,6 +123,7 @@ font_size = 12
 		// Modify the real config file
 		updatedContent := `
 [hints]
+[hints.ui]
 font_size = 16
 `
 
@@ -134,8 +136,11 @@ font_size = 16
 		}
 
 		// Verify config was reloaded from the real file
-		if configSvc.Get().Hints.FontSize != 16 {
-			t.Errorf("Expected reloaded font_size to be 16, got %d", configSvc.Get().Hints.FontSize)
+		if configSvc.Get().Hints.UI.FontSize != 16 {
+			t.Errorf(
+				"Expected reloaded font_size to be 16, got %d",
+				configSvc.Get().Hints.UI.FontSize,
+			)
 		}
 	})
 

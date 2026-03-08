@@ -270,13 +270,8 @@ type GeneralConfig struct {
 	KBLayoutToUse             string   `json:"kbLayoutToUse"             toml:"kb_layout_to_use"`
 }
 
-// ModeIndicatorConfig defines per-mode indicator visibility.
-type ModeIndicatorConfig struct {
-	ScrollEnabled        bool `json:"scrollEnabled"        toml:"scroll_enabled"`
-	HintsEnabled         bool `json:"hintsEnabled"         toml:"hints_enabled"`
-	GridEnabled          bool `json:"gridEnabled"          toml:"grid_enabled"`
-	RecursiveGridEnabled bool `json:"recursiveGridEnabled" toml:"recursive_grid_enabled"`
-
+// ModeIndicatorUI defines the visual/appearance settings for the mode indicator.
+type ModeIndicatorUI struct {
 	FontSize             int    `json:"fontSize"             toml:"font_size"`
 	FontFamily           string `json:"fontFamily"           toml:"font_family"`
 	BackgroundColorLight string `json:"backgroundColorLight" toml:"background_color_light"`
@@ -289,9 +284,17 @@ type ModeIndicatorConfig struct {
 	PaddingX             int    `json:"paddingX"             toml:"padding_x"`
 	PaddingY             int    `json:"paddingY"             toml:"padding_y"`
 	BorderRadius         int    `json:"borderRadius"         toml:"border_radius"`
+	IndicatorXOffset     int    `json:"indicatorXOffset"     toml:"indicator_x_offset"`
+	IndicatorYOffset     int    `json:"indicatorYOffset"     toml:"indicator_y_offset"`
+}
 
-	IndicatorXOffset int `json:"indicatorXOffset" toml:"indicator_x_offset"`
-	IndicatorYOffset int `json:"indicatorYOffset" toml:"indicator_y_offset"`
+// ModeIndicatorConfig defines per-mode indicator visibility.
+type ModeIndicatorConfig struct {
+	ScrollEnabled        bool            `json:"scrollEnabled"        toml:"scroll_enabled"`
+	HintsEnabled         bool            `json:"hintsEnabled"         toml:"hints_enabled"`
+	GridEnabled          bool            `json:"gridEnabled"          toml:"grid_enabled"`
+	RecursiveGridEnabled bool            `json:"recursiveGridEnabled" toml:"recursive_grid_enabled"`
+	UI                   ModeIndicatorUI `json:"ui"                   toml:"ui"`
 }
 
 // AppConfig defines application-specific settings for role customization.
@@ -321,22 +324,14 @@ type ScrollConfig struct {
 	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
 }
 
-// HintsConfig defines the visual and behavioral settings for hints mode.
-type HintsConfig struct {
-	Enabled                 bool     `json:"enabled"                 toml:"enabled"`
-	AutoExitActions         []string `json:"autoExitActions"         toml:"auto_exit_actions"`
-	HintCharacters          string   `json:"hintCharacters"          toml:"hint_characters"`
-	BackspaceKey            string   `json:"backspaceKey"            toml:"backspace_key"`
-	FontSize                int      `json:"fontSize"                toml:"font_size"`
-	FontFamily              string   `json:"fontFamily"              toml:"font_family"`
-	BorderRadius            int      `json:"borderRadius"            toml:"border_radius"`
-	PaddingX                int      `json:"paddingX"                toml:"padding_x"`
-	PaddingY                int      `json:"paddingY"                toml:"padding_y"`
-	BorderWidth             int      `json:"borderWidth"             toml:"border_width"`
-	MouseActionRefreshDelay int      `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
-	MaxDepth                int      `json:"maxDepth"                toml:"max_depth"`
-	ParallelThreshold       int      `json:"parallelThreshold"       toml:"parallel_threshold"`
-
+// HintsUI defines the visual/appearance settings for hints mode.
+type HintsUI struct {
+	FontSize              int    `json:"fontSize"              toml:"font_size"`
+	FontFamily            string `json:"fontFamily"            toml:"font_family"`
+	BorderRadius          int    `json:"borderRadius"          toml:"border_radius"`
+	PaddingX              int    `json:"paddingX"              toml:"padding_x"`
+	PaddingY              int    `json:"paddingY"              toml:"padding_y"`
+	BorderWidth           int    `json:"borderWidth"           toml:"border_width"`
 	BackgroundColorLight  string `json:"backgroundColorLight"  toml:"background_color_light"`
 	BackgroundColorDark   string `json:"backgroundColorDark"   toml:"background_color_dark"`
 	TextColorLight        string `json:"textColorLight"        toml:"text_color_light"`
@@ -345,6 +340,18 @@ type HintsConfig struct {
 	MatchedTextColorDark  string `json:"matchedTextColorDark"  toml:"matched_text_color_dark"`
 	BorderColorLight      string `json:"borderColorLight"      toml:"border_color_light"`
 	BorderColorDark       string `json:"borderColorDark"       toml:"border_color_dark"`
+}
+
+// HintsConfig defines the visual and behavioral settings for hints mode.
+type HintsConfig struct {
+	Enabled                 bool     `json:"enabled"                 toml:"enabled"`
+	AutoExitActions         []string `json:"autoExitActions"         toml:"auto_exit_actions"`
+	HintCharacters          string   `json:"hintCharacters"          toml:"hint_characters"`
+	BackspaceKey            string   `json:"backspaceKey"            toml:"backspace_key"`
+	MouseActionRefreshDelay int      `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
+	MaxDepth                int      `json:"maxDepth"                toml:"max_depth"`
+	ParallelThreshold       int      `json:"parallelThreshold"       toml:"parallel_threshold"`
+	UI                      HintsUI  `json:"ui"                      toml:"ui"`
 
 	IncludeMenubarHints           bool     `json:"includeMenubarHints"           toml:"include_menubar_hints"`
 	AdditionalMenubarHintsTargets []string `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`
@@ -361,20 +368,8 @@ type HintsConfig struct {
 	AdditionalAXSupport AdditionalAXSupport `json:"additionalAxSupport" toml:"additional_ax_support"`
 }
 
-// GridConfig defines the visual and behavioral settings for grid mode.
-type GridConfig struct {
-	Enabled         bool     `json:"enabled"         toml:"enabled"`
-	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
-
-	Characters   string `json:"characters"   toml:"characters"`
-	SublayerKeys string `json:"sublayerKeys" toml:"sublayer_keys"`
-	BackspaceKey string `json:"backspaceKey" toml:"backspace_key"`
-
-	// Optional custom labels for rows and columns
-	// If not provided, labels will be inferred from characters
-	RowLabels string `json:"rowLabels" toml:"row_labels"`
-	ColLabels string `json:"colLabels" toml:"col_labels"`
-
+// GridUI defines the visual/appearance settings for grid mode.
+type GridUI struct {
 	FontSize    int    `json:"fontSize"    toml:"font_size"`
 	FontFamily  string `json:"fontFamily"  toml:"font_family"`
 	BorderWidth int    `json:"borderWidth" toml:"border_width"`
@@ -391,7 +386,20 @@ type GridConfig struct {
 	MatchedBorderColorDark      string `json:"matchedBorderColorDark"      toml:"matched_border_color_dark"`
 	BorderColorLight            string `json:"borderColorLight"            toml:"border_color_light"`
 	BorderColorDark             string `json:"borderColorDark"             toml:"border_color_dark"`
+}
 
+// GridConfig defines the visual and behavioral settings for grid mode.
+type GridConfig struct {
+	Enabled         bool     `json:"enabled"         toml:"enabled"`
+	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
+	Characters      string   `json:"characters"      toml:"characters"`
+	SublayerKeys    string   `json:"sublayerKeys"    toml:"sublayer_keys"`
+	BackspaceKey    string   `json:"backspaceKey"    toml:"backspace_key"`
+	// Optional custom labels for rows and columns
+	// If not provided, labels will be inferred from characters
+	RowLabels       string `json:"rowLabels"       toml:"row_labels"`
+	ColLabels       string `json:"colLabels"       toml:"col_labels"`
+	UI              GridUI `json:"ui"              toml:"ui"`
 	LiveMatchUpdate bool   `json:"liveMatchUpdate" toml:"live_match_update"`
 	HideUnmatched   bool   `json:"hideUnmatched"   toml:"hide_unmatched"`
 	PrewarmEnabled  bool   `json:"prewarmEnabled"  toml:"prewarm_enabled"`
@@ -399,19 +407,8 @@ type GridConfig struct {
 	ResetKey        string `json:"resetKey"        toml:"reset_key"`
 }
 
-// RecursiveGridConfig defines the visual and behavioral settings for recursive-grid mode.
-type RecursiveGridConfig struct {
-	Enabled         bool     `json:"enabled"         toml:"enabled"`
-	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
-
-	// Grid dimensions: columns and rows (default: 2x2)
-	GridCols int `json:"gridCols" toml:"grid_cols"`
-	GridRows int `json:"gridRows" toml:"grid_rows"`
-
-	// Key bindings (warpd convention for 2x2: u=TL, i=TR, j=BL, k=BR)
-	Keys         string `json:"keys"         toml:"keys"`
-	BackspaceKey string `json:"backspaceKey" toml:"backspace_key"`
-
+// RecursiveGridUI defines the visual/appearance settings for recursive-grid mode.
+type RecursiveGridUI struct {
 	// Visual styling
 	LineColorLight              string `json:"lineColorLight"              toml:"line_color_light"`
 	LineColorDark               string `json:"lineColorDark"               toml:"line_color_dark"`
@@ -429,7 +426,19 @@ type RecursiveGridConfig struct {
 	LabelBackgroundPaddingY     int    `json:"labelBackgroundPaddingY"     toml:"label_background_padding_y"`
 	LabelBackgroundBorderRadius int    `json:"labelBackgroundBorderRadius" toml:"label_background_border_radius"`
 	LabelBackgroundBorderWidth  int    `json:"labelBackgroundBorderWidth"  toml:"label_background_border_width"`
+}
 
+// RecursiveGridConfig defines the visual and behavioral settings for recursive-grid mode.
+type RecursiveGridConfig struct {
+	Enabled         bool     `json:"enabled"         toml:"enabled"`
+	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
+	// Grid dimensions: columns and rows (default: 2x2)
+	GridCols int `json:"gridCols" toml:"grid_cols"`
+	GridRows int `json:"gridRows" toml:"grid_rows"`
+	// Key bindings (warpd convention for 2x2: u=TL, i=TR, j=BL, k=BR)
+	Keys         string          `json:"keys"         toml:"keys"`
+	BackspaceKey string          `json:"backspaceKey" toml:"backspace_key"`
+	UI           RecursiveGridUI `json:"ui"           toml:"ui"`
 	// Behavior
 	MinSizeWidth  int    `json:"minSizeWidth"  toml:"min_size_width"`  // Default: 25
 	MinSizeHeight int    `json:"minSizeHeight" toml:"min_size_height"` // Default: 25
@@ -590,38 +599,38 @@ func (c *Config) ValidateGeneral() error {
 
 // ValidateModeIndicator validates the mode indicator configuration.
 func (c *Config) ValidateModeIndicator() error {
-	err := validateMinValue(c.ModeIndicator.FontSize, 1, "mode_indicator.font_size")
+	err := validateMinValue(c.ModeIndicator.UI.FontSize, 1, "mode_indicator.ui.font_size")
 	if err != nil {
 		return err
 	}
 
-	err = validateMinValue(c.ModeIndicator.BorderWidth, 0, "mode_indicator.border_width")
+	err = validateMinValue(c.ModeIndicator.UI.BorderWidth, 0, "mode_indicator.ui.border_width")
 	if err != nil {
 		return err
 	}
 
-	err = validateMinValue(c.ModeIndicator.PaddingX, -1, "mode_indicator.padding_x")
+	err = validateMinValue(c.ModeIndicator.UI.PaddingX, -1, "mode_indicator.ui.padding_x")
 	if err != nil {
 		return err
 	}
 
-	err = validateMinValue(c.ModeIndicator.PaddingY, -1, "mode_indicator.padding_y")
+	err = validateMinValue(c.ModeIndicator.UI.PaddingY, -1, "mode_indicator.ui.padding_y")
 	if err != nil {
 		return err
 	}
 
-	err = validateMinValue(c.ModeIndicator.BorderRadius, -1, "mode_indicator.border_radius")
+	err = validateMinValue(c.ModeIndicator.UI.BorderRadius, -1, "mode_indicator.ui.border_radius")
 	if err != nil {
 		return err
 	}
 
 	err = validateColors([]colorField{
-		{c.ModeIndicator.BackgroundColorLight, "mode_indicator.background_color_light"},
-		{c.ModeIndicator.BackgroundColorDark, "mode_indicator.background_color_dark"},
-		{c.ModeIndicator.TextColorLight, "mode_indicator.text_color_light"},
-		{c.ModeIndicator.TextColorDark, "mode_indicator.text_color_dark"},
-		{c.ModeIndicator.BorderColorLight, "mode_indicator.border_color_light"},
-		{c.ModeIndicator.BorderColorDark, "mode_indicator.border_color_dark"},
+		{c.ModeIndicator.UI.BackgroundColorLight, "mode_indicator.ui.background_color_light"},
+		{c.ModeIndicator.UI.BackgroundColorDark, "mode_indicator.ui.background_color_dark"},
+		{c.ModeIndicator.UI.TextColorLight, "mode_indicator.ui.text_color_light"},
+		{c.ModeIndicator.UI.TextColorDark, "mode_indicator.ui.text_color_dark"},
+		{c.ModeIndicator.UI.BorderColorLight, "mode_indicator.ui.border_color_light"},
+		{c.ModeIndicator.UI.BorderColorDark, "mode_indicator.ui.border_color_dark"},
 	})
 	if err != nil {
 		return err

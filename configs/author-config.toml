@@ -2,10 +2,8 @@
 # General Settings
 # ============================================================================
 [general]
-restore_cursor_position = false
 mode_exit_keys = ["escape", "Ctrl+C"]
 hide_overlay_in_screen_share = true
-center_cursor_position = true
 
 # ============================================================================
 # Hotkeys
@@ -87,9 +85,11 @@ font_family = "JetBrainsMonoNLNFP-Bold"
 line_width = 1
 min_size_width = 10
 min_size_height = 10
+reset_key = ","
+
+[recursive_grid.ui]
 text_color_light = "#00000000"
 text_color_dark = "#00000000"
-reset_key = ","
 
 # ============================================================================
 # Mode Indicator

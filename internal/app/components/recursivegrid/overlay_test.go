@@ -17,7 +17,7 @@ func (m *mockThemeProvider) IsDarkMode() bool {
 
 func TestBuildStyle_UsesDefaultLabelBackgroundColors(t *testing.T) {
 	cfg := config.DefaultConfig().RecursiveGrid
-	cfg.LabelBackground = true
+	cfg.UI.LabelBackground = true
 
 	lightStyle := recursivegrid.BuildStyle(cfg, &mockThemeProvider{darkMode: false})
 	if !lightStyle.LabelBackground() {
@@ -97,15 +97,15 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 	)
 
 	cfg := config.DefaultConfig().RecursiveGrid
-	cfg.LabelBackground = true
-	cfg.LabelBackgroundColorLight = customLightLabelBG
-	cfg.LabelBackgroundColorDark = customDarkLabelBG
-	cfg.TextColorLight = "#FF111111"
-	cfg.TextColorDark = "#FFEEEEEE"
-	cfg.LabelBackgroundPaddingX = 9
-	cfg.LabelBackgroundPaddingY = 5
-	cfg.LabelBackgroundBorderRadius = 3
-	cfg.LabelBackgroundBorderWidth = 2
+	cfg.UI.LabelBackground = true
+	cfg.UI.LabelBackgroundColorLight = customLightLabelBG
+	cfg.UI.LabelBackgroundColorDark = customDarkLabelBG
+	cfg.UI.TextColorLight = "#FF111111"
+	cfg.UI.TextColorDark = "#FFEEEEEE"
+	cfg.UI.LabelBackgroundPaddingX = 9
+	cfg.UI.LabelBackgroundPaddingY = 5
+	cfg.UI.LabelBackgroundBorderRadius = 3
+	cfg.UI.LabelBackgroundBorderWidth = 2
 
 	lightStyle := recursivegrid.BuildStyle(cfg, &mockThemeProvider{darkMode: false})
 	if lightStyle.LabelBackgroundColor() != customLightLabelBG {
@@ -190,13 +190,13 @@ func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
 
 func TestBuildStyle_LabelBackgroundDisabledPreservesNormalGridColors(t *testing.T) {
 	cfg := config.DefaultConfig().RecursiveGrid
-	cfg.LabelBackground = false
-	cfg.HighlightColorLight = "#11442266"
-	cfg.HighlightColorDark = "#228844AA"
-	cfg.TextColorLight = "#FF101010"
-	cfg.TextColorDark = "#FFF0F0F0"
-	cfg.LabelBackgroundColorLight = "#CCFFD700"
-	cfg.LabelBackgroundColorDark = "#99FFD700"
+	cfg.UI.LabelBackground = false
+	cfg.UI.HighlightColorLight = "#11442266"
+	cfg.UI.HighlightColorDark = "#228844AA"
+	cfg.UI.TextColorLight = "#FF101010"
+	cfg.UI.TextColorDark = "#FFF0F0F0"
+	cfg.UI.LabelBackgroundColorLight = "#CCFFD700"
+	cfg.UI.LabelBackgroundColorDark = "#99FFD700"
 
 	lightStyle := recursivegrid.BuildStyle(cfg, &mockThemeProvider{darkMode: false})
 	if lightStyle.LabelBackground() {
@@ -233,11 +233,11 @@ func TestBuildStyle_LabelBackgroundDisabledPreservesNormalGridColors(t *testing.
 
 func TestBuildStyle_LabelBackgroundEnabledUsesDedicatedBadgeColor(t *testing.T) {
 	cfg := config.DefaultConfig().RecursiveGrid
-	cfg.LabelBackground = true
-	cfg.HighlightColorLight = "#11223344"
-	cfg.HighlightColorDark = "#55667788"
-	cfg.LabelBackgroundColorLight = "#99ABCDEF"
-	cfg.LabelBackgroundColorDark = "#66FEDCBA"
+	cfg.UI.LabelBackground = true
+	cfg.UI.HighlightColorLight = "#11223344"
+	cfg.UI.HighlightColorDark = "#55667788"
+	cfg.UI.LabelBackgroundColorLight = "#99ABCDEF"
+	cfg.UI.LabelBackgroundColorDark = "#66FEDCBA"
 
 	lightStyle := recursivegrid.BuildStyle(cfg, &mockThemeProvider{darkMode: false})
 	if lightStyle.HighlightColor() != "#11223344" {

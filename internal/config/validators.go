@@ -143,40 +143,40 @@ func (c *Config) ValidateHints() error {
 	}
 
 	err = validateColors([]colorField{
-		{c.Hints.BackgroundColorLight, "hints.background_color_light"},
-		{c.Hints.BackgroundColorDark, "hints.background_color_dark"},
-		{c.Hints.TextColorLight, "hints.text_color_light"},
-		{c.Hints.TextColorDark, "hints.text_color_dark"},
-		{c.Hints.MatchedTextColorLight, "hints.matched_text_color_light"},
-		{c.Hints.MatchedTextColorDark, "hints.matched_text_color_dark"},
-		{c.Hints.BorderColorLight, "hints.border_color_light"},
-		{c.Hints.BorderColorDark, "hints.border_color_dark"},
+		{c.Hints.UI.BackgroundColorLight, "hints.ui.background_color_light"},
+		{c.Hints.UI.BackgroundColorDark, "hints.ui.background_color_dark"},
+		{c.Hints.UI.TextColorLight, "hints.ui.text_color_light"},
+		{c.Hints.UI.TextColorDark, "hints.ui.text_color_dark"},
+		{c.Hints.UI.MatchedTextColorLight, "hints.ui.matched_text_color_light"},
+		{c.Hints.UI.MatchedTextColorDark, "hints.ui.matched_text_color_dark"},
+		{c.Hints.UI.BorderColorLight, "hints.ui.border_color_light"},
+		{c.Hints.UI.BorderColorDark, "hints.ui.border_color_dark"},
 	})
 	if err != nil {
 		return err
 	}
 
-	if c.Hints.FontSize < 6 || c.Hints.FontSize > 72 {
-		return derrors.New(derrors.CodeInvalidConfig, "hints.font_size must be between 6 and 72")
+	if c.Hints.UI.FontSize < 6 || c.Hints.UI.FontSize > 72 {
+		return derrors.New(derrors.CodeInvalidConfig, "hints.ui.font_size must be between 6 and 72")
 	}
 
-	err = validateMinValue(c.Hints.BorderRadius, -1, "hints.border_radius")
+	err = validateMinValue(c.Hints.UI.BorderRadius, -1, "hints.ui.border_radius")
 	if err != nil {
 		return err
 	}
 
-	err = validateMinValue(c.Hints.PaddingX, -1, "hints.padding_x")
+	err = validateMinValue(c.Hints.UI.PaddingX, -1, "hints.ui.padding_x")
 	if err != nil {
 		return err
 	}
 
-	err = validateMinValue(c.Hints.PaddingY, -1, "hints.padding_y")
+	err = validateMinValue(c.Hints.UI.PaddingY, -1, "hints.ui.padding_y")
 	if err != nil {
 		return err
 	}
 
-	if c.Hints.BorderWidth < 0 {
-		return derrors.New(derrors.CodeInvalidConfig, "hints.border_width must be non-negative")
+	if c.Hints.UI.BorderWidth < 0 {
+		return derrors.New(derrors.CodeInvalidConfig, "hints.ui.border_width must be non-negative")
 	}
 
 	if c.Hints.MouseActionRefreshDelay < 0 {
@@ -524,28 +524,28 @@ func (c *Config) ValidateGrid() error {
 		}
 	}
 
-	if c.Grid.FontSize < 6 || c.Grid.FontSize > 72 {
-		return derrors.New(derrors.CodeInvalidConfig, "grid.font_size must be between 6 and 72")
+	if c.Grid.UI.FontSize < 6 || c.Grid.UI.FontSize > 72 {
+		return derrors.New(derrors.CodeInvalidConfig, "grid.ui.font_size must be between 6 and 72")
 	}
 
-	if c.Grid.BorderWidth < 0 {
-		return derrors.New(derrors.CodeInvalidConfig, "grid.border_width must be non-negative")
+	if c.Grid.UI.BorderWidth < 0 {
+		return derrors.New(derrors.CodeInvalidConfig, "grid.ui.border_width must be non-negative")
 	}
 
 	// Validate per-action grid colors
 	err := validateColors([]colorField{
-		{c.Grid.BackgroundColorLight, "grid.background_color_light"},
-		{c.Grid.BackgroundColorDark, "grid.background_color_dark"},
-		{c.Grid.TextColorLight, "grid.text_color_light"},
-		{c.Grid.TextColorDark, "grid.text_color_dark"},
-		{c.Grid.MatchedTextColorLight, "grid.matched_text_color_light"},
-		{c.Grid.MatchedTextColorDark, "grid.matched_text_color_dark"},
-		{c.Grid.MatchedBackgroundColorLight, "grid.matched_background_color_light"},
-		{c.Grid.MatchedBackgroundColorDark, "grid.matched_background_color_dark"},
-		{c.Grid.MatchedBorderColorLight, "grid.matched_border_color_light"},
-		{c.Grid.MatchedBorderColorDark, "grid.matched_border_color_dark"},
-		{c.Grid.BorderColorLight, "grid.border_color_light"},
-		{c.Grid.BorderColorDark, "grid.border_color_dark"},
+		{c.Grid.UI.BackgroundColorLight, "grid.ui.background_color_light"},
+		{c.Grid.UI.BackgroundColorDark, "grid.ui.background_color_dark"},
+		{c.Grid.UI.TextColorLight, "grid.ui.text_color_light"},
+		{c.Grid.UI.TextColorDark, "grid.ui.text_color_dark"},
+		{c.Grid.UI.MatchedTextColorLight, "grid.ui.matched_text_color_light"},
+		{c.Grid.UI.MatchedTextColorDark, "grid.ui.matched_text_color_dark"},
+		{c.Grid.UI.MatchedBackgroundColorLight, "grid.ui.matched_background_color_light"},
+		{c.Grid.UI.MatchedBackgroundColorDark, "grid.ui.matched_background_color_dark"},
+		{c.Grid.UI.MatchedBorderColorLight, "grid.ui.matched_border_color_light"},
+		{c.Grid.UI.MatchedBorderColorDark, "grid.ui.matched_border_color_dark"},
+		{c.Grid.UI.BorderColorLight, "grid.ui.border_color_light"},
+		{c.Grid.UI.BorderColorDark, "grid.ui.border_color_dark"},
 	})
 	if err != nil {
 		return err
@@ -1597,64 +1597,70 @@ func (c *Config) ValidateRecursiveGrid() error {
 	}
 
 	// Validate styling
-	if c.RecursiveGrid.LineWidth < 0 {
+	if c.RecursiveGrid.UI.LineWidth < 0 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"recursive_grid.line_width must be non-negative",
+			"recursive_grid.ui.line_width must be non-negative",
 		)
 	}
 
-	if c.RecursiveGrid.FontSize < 6 || c.RecursiveGrid.FontSize > 72 {
+	if c.RecursiveGrid.UI.FontSize < 6 || c.RecursiveGrid.UI.FontSize > 72 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"recursive_grid.font_size must be between 6 and 72",
+			"recursive_grid.ui.font_size must be between 6 and 72",
 		)
 	}
 
 	err = validateMinValue(
-		c.RecursiveGrid.LabelBackgroundBorderRadius,
+		c.RecursiveGrid.UI.LabelBackgroundBorderRadius,
 		-1,
-		"recursive_grid.label_background_border_radius",
+		"recursive_grid.ui.label_background_border_radius",
 	)
 	if err != nil {
 		return err
 	}
 
 	err = validateMinValue(
-		c.RecursiveGrid.LabelBackgroundPaddingX,
+		c.RecursiveGrid.UI.LabelBackgroundPaddingX,
 		-1,
-		"recursive_grid.label_background_padding_x",
+		"recursive_grid.ui.label_background_padding_x",
 	)
 	if err != nil {
 		return err
 	}
 
 	err = validateMinValue(
-		c.RecursiveGrid.LabelBackgroundPaddingY,
+		c.RecursiveGrid.UI.LabelBackgroundPaddingY,
 		-1,
-		"recursive_grid.label_background_padding_y",
+		"recursive_grid.ui.label_background_padding_y",
 	)
 	if err != nil {
 		return err
 	}
 
-	if c.RecursiveGrid.LabelBackgroundBorderWidth < 0 {
+	if c.RecursiveGrid.UI.LabelBackgroundBorderWidth < 0 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"recursive_grid.label_background_border_width must be non-negative",
+			"recursive_grid.ui.label_background_border_width must be non-negative",
 		)
 	}
 
 	// Validate colors
 	colorFields := []colorField{
-		{c.RecursiveGrid.LineColorLight, "recursive_grid.line_color_light"},
-		{c.RecursiveGrid.LineColorDark, "recursive_grid.line_color_dark"},
-		{c.RecursiveGrid.HighlightColorLight, "recursive_grid.highlight_color_light"},
-		{c.RecursiveGrid.HighlightColorDark, "recursive_grid.highlight_color_dark"},
-		{c.RecursiveGrid.TextColorLight, "recursive_grid.text_color_light"},
-		{c.RecursiveGrid.TextColorDark, "recursive_grid.text_color_dark"},
-		{c.RecursiveGrid.LabelBackgroundColorLight, "recursive_grid.label_background_color_light"},
-		{c.RecursiveGrid.LabelBackgroundColorDark, "recursive_grid.label_background_color_dark"},
+		{c.RecursiveGrid.UI.LineColorLight, "recursive_grid.ui.line_color_light"},
+		{c.RecursiveGrid.UI.LineColorDark, "recursive_grid.ui.line_color_dark"},
+		{c.RecursiveGrid.UI.HighlightColorLight, "recursive_grid.ui.highlight_color_light"},
+		{c.RecursiveGrid.UI.HighlightColorDark, "recursive_grid.ui.highlight_color_dark"},
+		{c.RecursiveGrid.UI.TextColorLight, "recursive_grid.ui.text_color_light"},
+		{c.RecursiveGrid.UI.TextColorDark, "recursive_grid.ui.text_color_dark"},
+		{
+			c.RecursiveGrid.UI.LabelBackgroundColorLight,
+			"recursive_grid.ui.label_background_color_light",
+		},
+		{
+			c.RecursiveGrid.UI.LabelBackgroundColorDark,
+			"recursive_grid.ui.label_background_color_dark",
+		},
 	}
 
 	err = validateColors(colorFields)

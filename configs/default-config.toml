@@ -88,14 +88,6 @@ hint_characters = "asdfghjkl"
 # Can be set to any key name (e.g. "Backspace", "Delete", "x", "Ctrl+H")
 backspace_key = "Backspace"
 
-# Visual appearance
-font_size = 10      # Font size for hints
-font_family = ""    # Font family for hints
-border_radius = -1  # Border radius for hint borders (-1 = auto pill)
-padding_x = -1      # Horizontal padding inside hint borders (-1 = auto based on font size)
-padding_y = -1      # Vertical padding inside hint borders (-1 = auto based on font size)
-border_width = 1    # Width of hint borders
-
 # Delay in milliseconds before refreshing hints after mouse click actions.
 # Set to 0 for immediate refresh. Higher values reduce rapid refreshes
 # when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
@@ -109,15 +101,6 @@ max_depth = 50
 # Minimum children to trigger parallel tree building.
 # Default: 20
 parallel_threshold = 20
-
-background_color_light = "#F200CFCF"    # Hint background color for Light Mode (cyan, alpha F2 ≈ 95% opacity)
-background_color_dark = "#F2007A9E"     # Hint background color for Dark Mode (deep teal, alpha F2 ≈ 95% opacity)
-text_color_light = "#FF003554"          # Hint text color for Light Mode (deep navy)
-text_color_dark = "#FFFFFFFF"           # Hint text color for Dark Mode (white)
-matched_text_color_light = "#FFAAEEFF"  # Text color for matched hints for Light Mode (light sky blue)
-matched_text_color_dark = "#FF003554"   # Text color for matched hints for Dark Mode (deep navy)
-border_color_light = "#FF008A8A"        # Hint border color for Light Mode (teal)
-border_color_dark = "#FF00B4D8"         # Hint border color for Dark Mode (sky blue)
 
 # Additional hint targets
 include_menubar_hints = false              # Include menubar items in hints
@@ -183,6 +166,22 @@ additional_electron_bundles = []        # Extra Electron app bundle IDs
 additional_chromium_bundles = []        # Extra Chromium app bundle IDs
 additional_firefox_bundles = []         # Extra Firefox app bundle IDs
 
+[hints.ui]
+font_size = 10                          # Font size for hints
+font_family = ""                        # Font family for hints
+border_radius = -1                      # Border radius for hint borders (-1 = auto pill)
+padding_x = -1                          # Horizontal padding inside hint borders (-1 = auto based on font size)
+padding_y = -1                          # Vertical padding inside hint borders (-1 = auto based on font size)
+border_width = 1                        # Width of hint borders
+background_color_light = "#F200CFCF"    # Hint background color for Light Mode (cyan, alpha F2 ≈ 95% opacity)
+background_color_dark = "#F2007A9E"     # Hint background color for Dark Mode (deep teal, alpha F2 ≈ 95% opacity)
+text_color_light = "#FF003554"          # Hint text color for Light Mode (deep navy)
+text_color_dark = "#FFFFFFFF"           # Hint text color for Dark Mode (white)
+matched_text_color_light = "#FFAAEEFF"  # Text color for matched hints for Light Mode (light sky blue)
+matched_text_color_dark = "#FF003554"   # Text color for matched hints for Dark Mode (deep navy)
+border_color_light = "#FF008A8A"        # Hint border color for Light Mode (teal)
+border_color_dark = "#FF00B4D8"         # Hint border color for Dark Mode (sky blue)
+
 [grid]
 # Whether to enable grid mode
 enabled = true
@@ -236,11 +235,18 @@ backspace_key = "Backspace"
 # row_labels = "',.pyfgcrl/"    # Dvorak-style rows
 # col_labels = "aoeuidhtns"     # Dvorak-style columns
 
-# Visual appearance
-font_size = 10      # Font size for grid labels
-font_family = ""    # Font family for grid labels
-border_width = 1    # Width of grid cell borders
+# Behavior
+live_match_update = true
+hide_unmatched = true
+# Prewarm grid caches on startup for faster first use, but uses ~1.5MB memory and CPU at startup
+prewarm_enabled = true
+# Enable periodic garbage collection every 5 minutes to reduce peak memory usage, but adds CPU overhead
+enable_gc = false
 
+[grid.ui]
+font_size = 10                               # Font size for grid labels
+font_family = ""                             # Font family for grid labels
+border_width = 1                             # Width of grid cell borders
 background_color_light = "#9900B4D8"         # Grid cell background color for Light Mode (sky blue, alpha 99 ≈ 60% opacity)
 background_color_dark = "#99003554"          # Grid cell background color for Dark Mode (deep navy, alpha 99 ≈ 60% opacity)
 text_color_light = "#FF003554"               # Grid label text color for Light Mode (deep navy)
@@ -253,14 +259,6 @@ matched_border_color_light = "#B300CFCF"     # Border color for matched grid cel
 matched_border_color_dark = "#B300B4D8"      # Border color for matched grid cells for Dark Mode (sky blue, alpha B3 ≈ 70% opacity)
 border_color_light = "#9900B4D8"             # Grid cell border color for Light Mode (sky blue, alpha 99 ≈ 60% opacity)
 border_color_dark = "#99003554"              # Grid cell border color for Dark Mode (deep navy, alpha 99 ≈ 60% opacity)
-
-# Behavior
-live_match_update = true
-hide_unmatched = true
-# Prewarm grid caches on startup for faster first use, but uses ~1.5MB memory and CPU at startup
-prewarm_enabled = true
-# Enable periodic garbage collection every 5 minutes to reduce peak memory usage, but adds CPU overhead
-enable_gc = false
 
 [recursive_grid]
 # Whether to enable recursive-grid mode
@@ -284,24 +282,6 @@ grid_rows = 2
 # For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
 keys = "uijk"
 
-# Visual appearance
-line_color_light = "#FF007A9E"           # Color of grid lines for Light Mode (deep teal, alpha FF = 100% opacity)
-line_color_dark = "#FF00CFCF"            # Color of grid lines for Dark Mode (bright cyan, alpha FF = 100% opacity)
-line_width = 1                           # Width of grid lines
-highlight_color_light = "#4D007A9E"      # Color for cell highlighting for Light Mode (deep teal, alpha 4D ≈ 30% opacity)
-highlight_color_dark = "#4D00CFCF"       # Color for cell highlighting for Dark Mode (bright cyan, alpha 4D ≈ 30% opacity)
-text_color_light = "#FF007A9E"           # Text color for Light Mode (deep teal, fully opaque)
-text_color_dark = "#FF00CFCF"            # Text color for Dark Mode (bright cyan, fully opaque)
-font_size = 10                           # Font size for cell labels
-font_family = ""                         # Font family for cell labels
-label_background = false                 # Add rounded label backgrounds behind recursive-grid letters
-label_background_color_light = "#FFAAEEFF" # Label background color for Light Mode (light blue, alpha FF = 100% opacity)
-label_background_color_dark = "#FF003554"  # Label background color for Dark Mode (deep blue, alpha FF = 100% opacity)
-label_background_padding_x = -1         # Horizontal badge padding (-1 = auto based on font size)
-label_background_padding_y = -1         # Vertical badge padding (-1 = auto based on font size)
-label_background_border_radius = -1     # Border radius for label badges (-1 = auto pill)
-label_background_border_width = 1       # Border width for label badges (0 disables border)
-
 # Behavior
 min_size_width = 25            # Minimum cell width in pixels (stops dividing when width is reached)
 min_size_height = 25           # Minimum cell height in pixels (stops dividing when height is reached)
@@ -318,6 +298,24 @@ reset_key = " "
 # Default: "Backspace" (the standard backspace/delete key)
 # Can be set to any key name (e.g. "Backspace", "Delete", "x", "Ctrl+H")
 backspace_key = "Backspace"
+
+[recursive_grid.ui]
+line_color_light = "#FF007A9E"              # Color of grid lines for Light Mode (deep teal, alpha FF = 100% opacity)
+line_color_dark = "#FF00CFCF"               # Color of grid lines for Dark Mode (bright cyan, alpha FF = 100% opacity)
+line_width = 1                              # Width of grid lines
+highlight_color_light = "#4D007A9E"         # Color for cell highlighting for Light Mode (deep teal, alpha 4D ≈ 30% opacity)
+highlight_color_dark = "#4D00CFCF"          # Color for cell highlighting for Dark Mode (bright cyan, alpha 4D ≈ 30% opacity)
+text_color_light = "#FF007A9E"              # Text color for Light Mode (deep teal, fully opaque)
+text_color_dark = "#FF00CFCF"               # Text color for Dark Mode (bright cyan, fully opaque)
+font_size = 10                              # Font size for cell labels
+font_family = ""                            # Font family for cell labels
+label_background = false                    # Add rounded label backgrounds behind recursive-grid letters
+label_background_color_light = "#FFAAEEFF"  # Label background color for Light Mode (light blue, alpha FF = 100% opacity)
+label_background_color_dark = "#FF003554"   # Label background color for Dark Mode (deep blue, alpha FF = 100% opacity)
+label_background_padding_x = -1             # Horizontal badge padding (-1 = auto based on font size)
+label_background_padding_y = -1             # Vertical badge padding (-1 = auto based on font size)
+label_background_border_radius = -1         # Border radius for label badges (-1 = auto pill)
+label_background_border_width = 1           # Border width for label badges (0 disables border)
 
 [scroll]
 # Scroll step sizes
@@ -370,6 +368,7 @@ hints_enabled = false
 grid_enabled = false
 recursive_grid_enabled = false
 
+[mode_indicator.ui]
 font_size = 10                       # Font size for mode indicators
 font_family = ""			         # Font family for mode indicators
 background_color_light = "#F200CFCF" # Background color for Light Mode (cyan, alpha F2 ≈ 95% opacity)
