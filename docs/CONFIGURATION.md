@@ -307,11 +307,16 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 
 ### Basic Configuration
 
+| Option              | Type   | Default       | Description                                        |
+| ------------------- | ------ | ------------- | -------------------------------------------------- |
+| `enabled`           | bool   | `true`        | Enable/disable hints mode                          |
+| `auto_exit_actions` | array  | `[]`          | Actions that auto-exit after execution (see below) |
+| `hint_characters`   | string | `"asdfghjkl"` | Characters used for labels                         |
+
+### Visual Options (`[hints.ui]`)
+
 | Option                     | Type   | Default       | Description                                         |
 | -------------------------- | ------ | ------------- | --------------------------------------------------- |
-| `enabled`                  | bool   | `true`        | Enable/disable hints mode                           |
-| `auto_exit_actions`        | array  | `[]`          | Actions that auto-exit after execution (see below)  |
-| `hint_characters`          | string | `"asdfghjkl"` | Characters used for labels                          |
 | `font_size`                | int    | `10`          | Label font size                                     |
 | `font_family`              | string | `""`          | Font name (empty = system)                          |
 | `border_radius`            | int    | `-1`          | Border radius (`-1` = auto pill)                    |
@@ -557,28 +562,33 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 
 ### Basic Configuration
 
-| Option                           | Type   | Default              | Description                                          |
-| -------------------------------- | ------ | -------------------- | ---------------------------------------------------- |
-| `enabled`                        | bool   | `true`               | Enable/disable grid mode                             |
-| `auto_exit_actions`              | array  | `[]`                 | Actions that auto-exit after execution (see below)   |
-| `characters`                     | string | (see below)          | Primary grid labels                                  |
-| `sublayer_keys`                  | string | (same as characters) | Subgrid labels                                       |
-| `reset_key`                      | string | `" "`                | Key to clear input                                   |
-| `font_size`                      | int    | `10`                 | Label font size                                      |
-| `font_family`                    | string | `""`                 | Font name                                            |
-| `border_width`                   | int    | `1`                  | Cell border width                                    |
-| `background_color_light`         | string | `"#9900B4D8"`        | Cell background for Light Mode (theme-aware)         |
-| `background_color_dark`          | string | `"#99003554"`        | Cell background for Dark Mode (theme-aware)          |
-| `text_color_light`               | string | `"#FF003554"`        | Label text for Light Mode (theme-aware)              |
-| `text_color_dark`                | string | `"#FFB3E8F5"`        | Label text for Dark Mode (theme-aware)               |
-| `matched_text_color_light`       | string | `"#FFAAEEFF"`        | Matched cell text for Light Mode (theme-aware)       |
-| `matched_text_color_dark`        | string | `"#FFFFFFFF"`        | Matched cell text for Dark Mode (theme-aware)        |
-| `matched_background_color_light` | string | `"#B300CFCF"`        | Matched cell background for Light Mode (theme-aware) |
-| `matched_background_color_dark`  | string | `"#B300B4D8"`        | Matched cell background for Dark Mode (theme-aware)  |
-| `matched_border_color_light`     | string | `"#B300CFCF"`        | Matched cell border for Light Mode (theme-aware)     |
-| `matched_border_color_dark`      | string | `"#B300B4D8"`        | Matched cell border for Dark Mode (theme-aware)      |
-| `border_color_light`             | string | `"#9900B4D8"`        | Cell border for Light Mode (theme-aware)             |
-| `border_color_dark`              | string | `"#99003554"`        | Cell border for Dark Mode (theme-aware)              |
+| Option              | Type   | Default              | Description                                        |
+| ------------------- | ------ | -------------------- | -------------------------------------------------- |
+| `enabled`           | bool   | `true`               | Enable/disable grid mode                           |
+| `auto_exit_actions` | array  | `[]`                 | Actions that auto-exit after execution (see below) |
+| `characters`        | string | (see below)          | Primary grid labels                                |
+| `sublayer_keys`     | string | (same as characters) | Subgrid labels                                     |
+| `reset_key`         | string | `" "`                | Key to clear input                                 |
+
+### Visual Options (`[grid.ui]`)
+
+| Option                           | Type   | Default       | Description                                          |
+| -------------------------------- | ------ | ------------- | ---------------------------------------------------- |
+| `font_size`                      | int    | `10`          | Label font size                                      |
+| `font_family`                    | string | `""`          | Font name                                            |
+| `border_width`                   | int    | `1`           | Cell border width                                    |
+| `background_color_light`         | string | `"#9900B4D8"` | Cell background for Light Mode (theme-aware)         |
+| `background_color_dark`          | string | `"#99003554"` | Cell background for Dark Mode (theme-aware)          |
+| `text_color_light`               | string | `"#FF003554"` | Label text for Light Mode (theme-aware)              |
+| `text_color_dark`                | string | `"#FFB3E8F5"` | Label text for Dark Mode (theme-aware)               |
+| `matched_text_color_light`       | string | `"#FFAAEEFF"` | Matched cell text for Light Mode (theme-aware)       |
+| `matched_text_color_dark`        | string | `"#FFFFFFFF"` | Matched cell text for Dark Mode (theme-aware)        |
+| `matched_background_color_light` | string | `"#B300CFCF"` | Matched cell background for Light Mode (theme-aware) |
+| `matched_background_color_dark`  | string | `"#B300B4D8"` | Matched cell background for Dark Mode (theme-aware)  |
+| `matched_border_color_light`     | string | `"#B300CFCF"` | Matched cell border for Light Mode (theme-aware)     |
+| `matched_border_color_dark`      | string | `"#B300B4D8"` | Matched cell border for Dark Mode (theme-aware)      |
+| `border_color_light`             | string | `"#9900B4D8"` | Cell border for Light Mode (theme-aware)             |
+| `border_color_dark`              | string | `"#99003554"` | Cell border for Dark Mode (theme-aware)              |
 
 > **Theme-aware colors:** When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
@@ -756,7 +766,7 @@ j   →   k          j = Lower-left
                    k = Lower-right
 ```
 
-### Visual Options
+### Visual Options (`[recursive_grid.ui]`)
 
 | Option                           | Type   | Default       | Description                                  |
 | -------------------------------- | ------ | ------------- | -------------------------------------------- |
@@ -963,7 +973,7 @@ grid_enabled = false
 recursive_grid_enabled = false
 ```
 
-### Appearance
+### Appearance (`[mode_indicator.ui]`)
 
 | Option                   | Type   | Default       | Description                                         |
 | ------------------------ | ------ | ------------- | --------------------------------------------------- |
@@ -1078,6 +1088,8 @@ Neru tries to find fonts in this order:
 
 ```toml
 [hints]
+
+[hints.ui]
 # System default
 font_family = ""
 
@@ -1128,6 +1140,8 @@ If you want to customize colors, you can set them explicitly in your config file
 ```toml
 # Customizing only light mode background
 [hints]
+
+[hints.ui]
 background_color_light = "#FF0000AA"  # Custom red for light mode
 # background_color_dark is left empty, so it uses the dark mode default
 ```
