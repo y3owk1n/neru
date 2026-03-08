@@ -86,16 +86,35 @@ var ValidNamedKeys = map[string]bool{
 // validNamedKeysLower is a precomputed lowercase lookup for IsValidNamedKey.
 var validNamedKeysLower map[string]bool
 
+// namedKeyDisplayForm maps lowercase key names to their canonical display form
+// (e.g. "pagedown" → "PageDown", "f1" → "F1"). Used by CanonicalNamedKeyForm.
+var namedKeyDisplayForm map[string]string
+
 func init() {
 	validNamedKeysLower = make(map[string]bool, len(ValidNamedKeys))
+
+	namedKeyDisplayForm = make(map[string]string, len(ValidNamedKeys))
+
 	for k := range ValidNamedKeys {
-		validNamedKeysLower[strings.ToLower(k)] = true
+		lower := strings.ToLower(k)
+		validNamedKeysLower[lower] = true
+		namedKeyDisplayForm[lower] = k
 	}
 }
 
 // IsValidNamedKey checks whether a key name is a recognized named key (case-insensitive).
 func IsValidNamedKey(key string) bool {
 	return validNamedKeysLower[strings.ToLower(key)]
+}
+
+// CanonicalNamedKeyForm returns the canonical display form of a named key
+// (e.g. "pagedown" → "PageDown", "UP" → "Up", "f1" → "F1").
+// If the key is not a recognized named key, it returns the input unchanged
+// and false as the second return value.
+func CanonicalNamedKeyForm(key string) (string, bool) {
+	display, ok := namedKeyDisplayForm[strings.ToLower(key)]
+
+	return display, ok
 }
 
 // NormalizeKeyForComparison converts escape sequences and key names to a canonical form for comparison.

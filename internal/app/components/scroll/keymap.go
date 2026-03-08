@@ -185,11 +185,12 @@ func (m *KeyMap) Sequences() map[string]string {
 }
 
 func (m *KeyMap) normalizeKey(key string) string {
-	// Named keys are preserved in their display form (e.g. "Up", "PageDown", "F1")
-	// so that config values and event tap output match directly.
-	if config.IsValidNamedKey(key) {
-		return key
+	// Named keys are canonicalized to their display form (e.g. "up" → "Up", "pagedown" → "PageDown")
+	// so that config values match event tap output regardless of user casing.
+	if canonical, ok := config.CanonicalNamedKeyForm(key); ok {
+		return canonical
 	}
+
 	// Modifier combos are lowercased for case-insensitive matching.
 	lower := strings.ToLower(key)
 	if strings.HasPrefix(lower, "ctrl+") || strings.HasPrefix(lower, "alt+") ||
@@ -197,6 +198,7 @@ func (m *KeyMap) normalizeKey(key string) string {
 		strings.HasPrefix(lower, "option+") {
 		return lower
 	}
+
 	// Control characters (Ctrl+A through Ctrl+Z) → normalized modifier form.
 	if len(key) == 1 {
 		r := rune(key[0])
