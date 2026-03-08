@@ -47,11 +47,10 @@ func NormalizeKeyForComparison(key string) string {
 		return KeyNameTab
 	case " ", KeyNameSpace:
 		return KeyNameSpace
-	case "\x08":
-		return KeyNameBackspace
-	case "\x7f", KeyNameDelete, KeyNameBackspace:
+	case "\x08", "\x7f", KeyNameDelete, KeyNameBackspace:
 		// On macOS, the Delete key (above Return) sends \x7f.
-		// Treat both "delete" and "backspace" as synonyms for the DEL key for user-friendly matching.
+		// \x08 is the ASCII BS control character (rarely generated on macOS but included for completeness).
+		// Treat "delete", "backspace", \x7f, and \x08 as synonyms for user-friendly matching.
 		return KeyNameDelete
 	default:
 		return key
