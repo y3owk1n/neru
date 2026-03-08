@@ -252,6 +252,14 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				return NULL;
 			}
 
+			// Special handling for tab key (Shift+Tab handled in Shift-only block)
+			if (keyCode == kKeyCodeTab) {
+				if (context->callback) {
+					context->callback("Tab", context->userData);
+				}
+				return NULL;
+			}
+
 			// Handle arrow keys, navigation keys, and function keys using lookup table
 			// Note: Shift+Arrow is handled in Shift-only block since keyCodeToName returns non-nil for these
 			{
