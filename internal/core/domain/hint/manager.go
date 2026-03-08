@@ -218,6 +218,20 @@ func (m *Manager) FilteredHints() []*Interface {
 	return m.hints.FilterByPrefix(m.CurrentInput())
 }
 
+// Stop cancels any pending debounce timer and clears the update callback.
+// Call this before discarding a Manager to prevent stale timer goroutines
+// from firing after the manager is no longer in use.
+func (m *Manager) Stop() {
+	if m.debounceTimer != nil {
+		m.debounceTimer.Stop()
+		m.debounceTimer = nil
+	}
+
+	m.mu.Lock()
+	m.onUpdate = nil
+	m.mu.Unlock()
+}
+
 // debouncedUpdate schedules a debounced update of the overlay.
 func (m *Manager) debouncedUpdate(hints []*Interface) {
 	// Cancel any existing timer

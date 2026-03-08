@@ -363,8 +363,14 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	h.config = config
 
 	// Clear hint manager so it gets recreated on next activation with fresh
-	// config values (e.g., backspace_key).
+	// config values (e.g., backspace_key). Stop the old manager first to
+	// cancel any pending debounce timer that would otherwise fire and
+	// trigger a stale overlay update.
 	if h.hints != nil && h.hints.Context != nil {
+		if oldManager := h.hints.Context.Manager(); oldManager != nil {
+			oldManager.Stop()
+		}
+
 		h.hints.Context.SetManager(nil)
 	}
 
