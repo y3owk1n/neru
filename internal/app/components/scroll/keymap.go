@@ -13,7 +13,7 @@ import (
 const SequenceTimeout = 500 * time.Millisecond
 
 // Arrow key names for normalized key mapping.
-// These use the canonical display forms from the centralized ValidNamedKeys registry.
+// These use the canonical display forms from the centralized validNamedKeys registry.
 const (
 	ArrowUp    = "Up"
 	ArrowDown  = "Down"
@@ -112,7 +112,7 @@ func NewKeyMap(bindings map[string][]string) *KeyMap {
 }
 
 // isNamedKey checks if the key is a recognized named key or a modifier combo.
-// Uses the centralized ValidNamedKeys registry for named key detection.
+// Uses the centralized validNamedKeys registry for named key detection.
 func isNamedKey(key string) bool {
 	// Check if it's a known named key (e.g. Up, PageDown, F1)
 	if config.IsValidNamedKey(key) {

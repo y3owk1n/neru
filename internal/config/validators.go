@@ -41,7 +41,7 @@ func isValidModifier(mod string) bool {
 }
 
 // validateBackspaceKeyFormat validates that a backspace_key value is a recognized key format.
-// Valid formats: empty (default backspace/delete), single character, named key (from ValidNamedKeys),
+// Valid formats: empty (default backspace/delete), single character, named key (from validNamedKeys),
 // or a modifier combo (e.g. "Ctrl+H").
 // The fieldName parameter is used in error messages.
 func validateBackspaceKeyFormat(key, fieldName string) error {
@@ -890,7 +890,7 @@ func (c *Config) ValidateModeExitKeys() error {
 			)
 		}
 
-		// Check if it's a named key (uses centralized ValidNamedKeys registry)
+		// Check if it's a named key (uses centralized validNamedKeys registry)
 		if IsValidNamedKey(key) || strings.EqualFold(key, "esc") {
 			continue
 		}

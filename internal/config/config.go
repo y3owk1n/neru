@@ -36,13 +36,14 @@ const (
 	KeyNameRight     = "right"
 )
 
-// ValidNamedKeys is the canonical set of all named keys the system supports.
-// Every validator, normalizer, and key parser should reference this set instead
-// of maintaining its own ad-hoc list. The keys are stored in their display form
-// (the casing that the event tap / config files use).
+// validNamedKeys is the canonical set of all named keys the system supports.
+// Every validator, normalizer, and key parser should reference this set via the
+// public helpers (IsValidNamedKey, CanonicalNamedKeyForm) instead of maintaining
+// its own ad-hoc list. The keys are stored in their display form (the casing
+// that the event tap / config files use).
 //
-// To check membership, use IsValidNamedKey which does case-insensitive lookup.
-var ValidNamedKeys = map[string]bool{
+// The variable is unexported to prevent accidental mutation by other packages.
+var validNamedKeys = map[string]bool{
 	// Special keys
 	"Space":     true,
 	"Return":    true,
@@ -91,11 +92,10 @@ var validNamedKeysLower map[string]bool
 var namedKeyDisplayForm map[string]string
 
 func init() {
-	validNamedKeysLower = make(map[string]bool, len(ValidNamedKeys))
+	validNamedKeysLower = make(map[string]bool, len(validNamedKeys))
+	namedKeyDisplayForm = make(map[string]string, len(validNamedKeys))
 
-	namedKeyDisplayForm = make(map[string]string, len(ValidNamedKeys))
-
-	for k := range ValidNamedKeys {
+	for k := range validNamedKeys {
 		lower := strings.ToLower(k)
 		validNamedKeysLower[lower] = true
 		namedKeyDisplayForm[lower] = k
@@ -966,7 +966,7 @@ func validateScrollKey(key, fieldName string) error {
 
 // isValidScrollKeyName checks if a key name is valid for scroll keybindings.
 // This validates the base key part (after modifier splitting in validateScrollKey).
-// Uses the centralized ValidNamedKeys registry for named key validation.
+// Uses the centralized validNamedKeys registry for named key validation.
 func isValidScrollKeyName(key string) bool {
 	if IsValidNamedKey(key) {
 		return true

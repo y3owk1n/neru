@@ -6,7 +6,7 @@ import (
 
 const (
 	// KeyEscape2 represents the escape key name for DefaultModeExitKeys.
-	// Uses title case to match the ValidNamedKeys registry convention.
+	// Uses title case to match the validNamedKeys registry convention.
 	KeyEscape2 = "Escape"
 
 	// ModeNameAction is the name for action mode.
