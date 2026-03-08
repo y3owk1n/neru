@@ -362,21 +362,14 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 
 	h.config = config
 
-	// Clear hint manager and router so they get recreated on next activation
-	// with fresh config values (e.g., backspace_key). Stop the old manager
-	// first to cancel any pending debounce timer that would otherwise fire
-	// and trigger a stale overlay update.
-	// The router must also be cleared because it holds a direct pointer to the
-	// old manager; without clearing it, key presses would still be routed to
-	// the stopped manager (whose onUpdate is nil), causing silent input
-	// processing with no visual feedback.
+	// Update the backspace key on the live hint manager (if one exists) so
+	// an active hints session picks up the new value immediately without
+	// being torn down. The router is recreated on every activation, so it
+	// will naturally get the latest exit keys on next use.
 	if h.hints != nil && h.hints.Context != nil {
-		if oldManager := h.hints.Context.Manager(); oldManager != nil {
-			oldManager.Stop()
+		if mgr := h.hints.Context.Manager(); mgr != nil {
+			mgr.SetBackspaceKey(config.Hints.BackspaceKey)
 		}
-
-		h.hints.Context.SetManager(nil)
-		h.hints.Context.SetRouter(nil)
 	}
 
 	if h.renderer != nil {

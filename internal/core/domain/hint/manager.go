@@ -218,6 +218,13 @@ func (m *Manager) FilteredHints() []*Interface {
 	return m.hints.FilterByPrefix(m.CurrentInput())
 }
 
+// SetBackspaceKey updates the configured backspace key on a live manager.
+// This allows hot-reloading the backspace key without tearing down the
+// manager (which would break an active hints session).
+func (m *Manager) SetBackspaceKey(key string) {
+	m.backspaceKey = key
+}
+
 // Stop cancels any pending debounce timer and clears the update callback.
 // Call this before discarding a Manager to prevent stale timer goroutines
 // from firing after the manager is no longer in use.
