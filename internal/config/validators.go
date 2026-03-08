@@ -96,16 +96,15 @@ func (c *Config) ValidateHints() error {
 	}
 
 	// Validate backspace key doesn't conflict with hint characters
-	if c.Hints.BackspaceKey != "" && !strings.Contains(c.Hints.BackspaceKey, "+") &&
-		len(c.Hints.BackspaceKey) == 1 {
-		lowerBackspaceKey := strings.ToLower(c.Hints.BackspaceKey)
-		if strings.Contains(strings.ToLower(c.Hints.HintCharacters), lowerBackspaceKey) {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"hints.backspace_key '%s' conflicts with hints.hint_characters; pressing this key would always trigger backspace instead of hint selection",
-				c.Hints.BackspaceKey,
-			)
-		}
+	err = checkBackspaceKeyCharConflict(
+		c.Hints.BackspaceKey,
+		c.Hints.HintCharacters,
+		"hints.backspace_key",
+		"hints.hint_characters",
+		"hint selection",
+	)
+	if err != nil {
+		return err
 	}
 
 	err = validateColors([]colorField{
@@ -524,29 +523,25 @@ func (c *Config) ValidateGrid() error {
 	}
 
 	// Validate backspace key doesn't conflict with grid characters/labels/sublayer keys
-	if c.Grid.BackspaceKey != "" && !strings.Contains(c.Grid.BackspaceKey, "+") &&
-		len(c.Grid.BackspaceKey) == 1 {
-		lowerBackspaceKey := strings.ToLower(c.Grid.BackspaceKey)
-
-		bsChecks := []struct {
-			chars     string
-			fieldName string
-		}{
-			{c.Grid.Characters, "grid.characters"},
-			{c.Grid.RowLabels, "grid.row_labels"},
-			{c.Grid.ColLabels, "grid.col_labels"},
-			{keys, "grid.sublayer_keys"},
-		}
-		for _, check := range bsChecks {
-			if check.chars != "" &&
-				strings.Contains(strings.ToLower(check.chars), lowerBackspaceKey) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"grid.backspace_key '%s' conflicts with %s; pressing this key would always trigger backspace instead of grid input",
-					c.Grid.BackspaceKey,
-					check.fieldName,
-				)
-			}
+	bsChecks := []struct {
+		chars     string
+		fieldName string
+	}{
+		{c.Grid.Characters, "grid.characters"},
+		{c.Grid.RowLabels, "grid.row_labels"},
+		{c.Grid.ColLabels, "grid.col_labels"},
+		{keys, "grid.sublayer_keys"},
+	}
+	for _, check := range bsChecks {
+		err = checkBackspaceKeyCharConflict(
+			c.Grid.BackspaceKey,
+			check.chars,
+			"grid.backspace_key",
+			check.fieldName,
+			"grid input",
+		)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -928,6 +923,44 @@ func (c *Config) checkModeExitKeysConflicts() error {
 	return nil
 }
 
+// checkBackspaceKeyCharConflict checks if a configured backspace key conflicts with a character set.
+// It normalizes both the backspace key and each character in the set to their canonical forms
+// (via NormalizeKeyForComparison) before comparing, so named keys like "space" are correctly
+// detected as conflicting with a space character in the character set.
+// Modifier combos (e.g. "Ctrl+H") are skipped since they cannot conflict with single-character input.
+func checkBackspaceKeyCharConflict(
+	backspaceKey string,
+	chars string,
+	bsFieldName string,
+	charsFieldName string,
+	actionDesc string,
+) error {
+	if backspaceKey == "" || chars == "" {
+		return nil
+	}
+
+	// Modifier combos can't conflict with single-character input
+	if strings.Contains(backspaceKey, "+") {
+		return nil
+	}
+
+	normalizedBS := NormalizeKeyForComparison(backspaceKey)
+	for _, r := range chars {
+		if NormalizeKeyForComparison(string(r)) == normalizedBS {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s '%s' conflicts with %s; pressing this key would always trigger backspace instead of %s",
+				bsFieldName,
+				backspaceKey,
+				charsFieldName,
+				actionDesc,
+			)
+		}
+	}
+
+	return nil
+}
+
 // checkExitKeyConflict checks if any single-character exit key conflicts with a character set.
 func checkExitKeyConflict(
 	exitKeys []string,
@@ -1289,16 +1322,15 @@ func (c *Config) ValidateRecursiveGrid() error {
 	}
 
 	// Validate backspace key doesn't conflict with recursive_grid keys
-	if c.RecursiveGrid.BackspaceKey != "" && !strings.Contains(c.RecursiveGrid.BackspaceKey, "+") &&
-		len(c.RecursiveGrid.BackspaceKey) == 1 {
-		lowerBackspaceKey := strings.ToLower(c.RecursiveGrid.BackspaceKey)
-		if strings.Contains(strings.ToLower(keys), lowerBackspaceKey) {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"recursive_grid.backspace_key '%s' conflicts with recursive_grid.keys; pressing this key would always trigger backspace instead of cell selection",
-				c.RecursiveGrid.BackspaceKey,
-			)
-		}
+	err := checkBackspaceKeyCharConflict(
+		c.RecursiveGrid.BackspaceKey,
+		keys,
+		"recursive_grid.backspace_key",
+		"recursive_grid.keys",
+		"cell selection",
+	)
+	if err != nil {
+		return err
 	}
 
 	// Validate styling
@@ -1316,7 +1348,7 @@ func (c *Config) ValidateRecursiveGrid() error {
 		)
 	}
 
-	err := validateMinValue(
+	err = validateMinValue(
 		c.RecursiveGrid.LabelBackgroundCornerRadius,
 		-1,
 		"recursive_grid.label_background_corner_radius",

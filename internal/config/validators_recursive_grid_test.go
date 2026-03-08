@@ -720,6 +720,23 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "recursive_grid backspace_key named key conflicts with key char - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "ui\tk",
+					ResetKey:      ",",
+					BackspaceKey:  "tab", // Named key resolves to \t which is in keys
+					MinSizeWidth:  10,
+					MinSizeHeight: 10,
+					MaxDepth:      10,
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "recursive_grid backspace_key case-insensitive conflict - invalid",
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{

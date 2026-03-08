@@ -90,6 +90,16 @@ func TestConfig_ValidateHints(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "hints backspace_key named key 'space' conflicts with space in hint_characters - invalid",
+			config: config.Config{
+				Hints: config.HintsConfig{
+					HintCharacters: "ab cd", // Contains space character
+					BackspaceKey:   "space", // Named key resolves to space
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "hints backspace_key no conflict",
 			config: config.Config{
 				Hints: config.HintsConfig{
@@ -655,6 +665,16 @@ func TestConfig_ValidateGrid(t *testing.T) {
 				Grid: config.GridConfig{
 					Characters:   "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
 					BackspaceKey: "a", // Conflicts with characters
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid backspace_key named key 'tab' conflicts with tab in characters - invalid",
+			config: config.Config{
+				Grid: config.GridConfig{
+					Characters:   "AB\tCDEFGHIJKLMNOPQRSTUVWXYZ",
+					BackspaceKey: "tab", // Named key resolves to \t
 				},
 			},
 			wantErr: true,
