@@ -322,6 +322,13 @@ type ScrollConfig struct {
 	ScrollStepFull int      `json:"scrollStepFull" toml:"scroll_step_full"`
 	ModeExitKeys   []string `json:"modeExitKeys"   toml:"mode_exit_keys"`
 
+	// StayActiveInBackground keeps scroll mode alive when the user switches to
+	// another application. When true, Cmd+Tab and Cmd+Shift+Tab pass through the
+	// event tap so the OS can handle app switching. The event tap is then suspended
+	// (disabled) while another app is frontmost; pressing the scroll hotkey again
+	// resumes the mode without restarting it.
+	StayActiveInBackground bool `json:"stayActiveInBackground" toml:"stay_active_in_background"`
+
 	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
 }
 

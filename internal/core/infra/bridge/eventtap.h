@@ -46,4 +46,13 @@ void destroyEventTap(EventTap tap);
 /// @param count Number of hotkeys
 void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count);
 
+/// Set event tap passthrough keys
+/// Keys in this list are passed through to the OS without consuming them and
+/// without invoking the Go callback. Used to allow system shortcuts (e.g.
+/// Cmd+Tab) to reach the OS while a mode is active.
+/// @param tap Event tap handle
+/// @param keys Array of key strings (same format as hotkeys, e.g. "Cmd+Tab")
+/// @param count Number of keys
+void setEventTapPassthroughKeys(EventTap tap, const char **keys, int count);
+
 #endif // EVENTTAP_H

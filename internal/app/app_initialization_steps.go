@@ -220,9 +220,10 @@ func initializeModeHandler(app *App) {
 			recursivegrid *components.RecursiveGridComponent
 		}
 		callbacks struct {
-			enableEventTap  func()
-			disableEventTap func()
-			refreshHotkeys  func()
+			enableEventTap     func()
+			disableEventTap    func()
+			setPassthroughKeys func(keys []string)
+			refreshHotkeys     func()
 		}
 	}{
 		config:         cfg,
@@ -256,13 +257,15 @@ func initializeModeHandler(app *App) {
 			recursivegrid: app.recursiveGridComponent,
 		},
 		callbacks: struct {
-			enableEventTap  func()
-			disableEventTap func()
-			refreshHotkeys  func()
+			enableEventTap     func()
+			disableEventTap    func()
+			setPassthroughKeys func(keys []string)
+			refreshHotkeys     func()
 		}{
-			enableEventTap:  app.enableEventTap,
-			disableEventTap: app.disableEventTap,
-			refreshHotkeys:  func() { app.refreshHotkeysForAppOrCurrent("") },
+			enableEventTap:     app.enableEventTap,
+			disableEventTap:    app.disableEventTap,
+			setPassthroughKeys: app.setEventTapPassthroughKeys,
+			refreshHotkeys:     func() { app.refreshHotkeysForAppOrCurrent("") },
 		},
 	}
 
@@ -284,6 +287,7 @@ func initializeModeHandler(app *App) {
 		deps.components.recursivegrid,
 		deps.callbacks.enableEventTap,
 		deps.callbacks.disableEventTap,
+		deps.callbacks.setPassthroughKeys,
 		deps.callbacks.refreshHotkeys,
 		defaultThemeProvider,
 	)

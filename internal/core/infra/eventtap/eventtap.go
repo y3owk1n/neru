@@ -109,6 +109,40 @@ func (et *EventTap) SetHotkeys(hotkeys []string) {
 	et.logger.Debug("Event tap hotkeys set")
 }
 
+// SetPassthroughKeys configures keys that pass through to the OS without being
+// consumed and without invoking the Go callback.
+func (et *EventTap) SetPassthroughKeys(keys []string) {
+	et.logger.Debug("Setting event tap passthrough keys", zap.Int("count", len(keys)))
+
+	if et.handle == nil {
+		et.logger.Warn("Cannot set passthrough keys on nil event tap")
+
+		return
+	}
+
+	// Convert Go string slice to C array
+	cKeys := make([]*C.char, len(keys))
+	for index, key := range keys {
+		if key != "" {
+			cKeys[index] = C.CString(key)
+
+			defer C.free(unsafe.Pointer(cKeys[index])) //nolint:nlreturn
+
+			et.logger.Debug("Adding passthrough key", zap.String("key", key))
+		} else {
+			cKeys[index] = nil
+		}
+	}
+
+	cKeysPtr := (**C.char)(nil)
+	if len(cKeys) > 0 {
+		cKeysPtr = &cKeys[0]
+	}
+
+	C.setEventTapPassthroughKeys(et.handle, cKeysPtr, C.int(len(cKeys)))
+	et.logger.Debug("Event tap passthrough keys set")
+}
+
 // SetKeyboardLayout configures the reference keyboard layout used by key translation.
 // Returns false when an explicit layout ID is provided but cannot be resolved.
 func (et *EventTap) SetKeyboardLayout(layoutID string) bool {

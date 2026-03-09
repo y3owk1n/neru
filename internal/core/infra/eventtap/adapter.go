@@ -73,6 +73,15 @@ func (a *Adapter) SetHotkeys(hotkeys []string) {
 	a.tap.SetHotkeys(hotkeys)
 }
 
+// SetPassthroughKeys configures keys that pass through to the OS without being
+// consumed and without invoking the Go callback.
+func (a *Adapter) SetPassthroughKeys(keys []string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.tap.SetPassthroughKeys(keys)
+}
+
 // SetKeyboardLayout configures the reference keyboard layout used by key translation.
 func (a *Adapter) SetKeyboardLayout(layoutID string) bool {
 	return a.tap.SetKeyboardLayout(layoutID)

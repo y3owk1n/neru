@@ -21,6 +21,9 @@ typedef struct {
 	NSArray<NSString *> *__strong hotkeyStrings;     ///< Raw hotkey strings for rebuild on layout change
 	uint64_t hotkeyGeneration;                       ///< Generation counter for TOCTOU protection
 	os_unfair_lock hotkeyLock;                       ///< Lightweight lock for hotkey lookup/strings/generation
+	NSDictionary *__strong passthroughLookup;        ///< Passthrough key lookup table: @(lookupKey) -> @YES
+	NSArray<NSString *> *__strong passthroughStrings; ///< Raw passthrough key strings
+	os_unfair_lock passthroughLock;                  ///< Lightweight lock for passthrough lookup/strings
 	dispatch_block_t __strong pendingEnableBlock;    ///< Pending enable block (inner delayed block)
 	dispatch_block_t __strong pendingAddSourceBlock; ///< Pending add source block
 } EventTapContext;
@@ -189,6 +192,18 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 			// If this is a registered hotkey, let it pass through
 			if (isHotkey) {
+				return event;
+			}
+
+			// Check passthrough keys: these pass through to the OS without
+			// consuming the event and without invoking the Go callback.
+			// Used for system shortcuts like Cmd+Tab when scroll mode is active
+			// with stay_active_in_background enabled.
+			NSDictionary *ptLookup;
+			os_unfair_lock_lock(&context->passthroughLock);
+			ptLookup = context->passthroughLookup;
+			os_unfair_lock_unlock(&context->passthroughLock);
+			if (ptLookup != nil && [ptLookup[@(lookupKey)] boolValue]) {
 				return event;
 			}
 
@@ -435,6 +450,44 @@ void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count) {
 		context->hotkeyGeneration++; // invalidate any in-flight rebuild
 		context->hotkeyLookup = newLookup;
 		os_unfair_lock_unlock(&context->hotkeyLock);
+		// ARC releases old objects here, outside the lock
+		oldLookup = nil;
+		oldStrings = nil;
+	}
+}
+
+/// Set event tap passthrough keys
+/// Keys in this list pass through to the OS without being consumed and without
+/// invoking the Go callback. Mirrors setEventTapHotkeys but uses the separate
+/// passthroughLookup / passthroughLock pair.
+/// @param tap Event tap handle
+/// @param keys Array of key strings
+/// @param count Number of keys
+void setEventTapPassthroughKeys(EventTap tap, const char **keys, int count) {
+	if (!tap)
+		return;
+	EventTapContext *context = (EventTapContext *)tap;
+
+	@autoreleasepool {
+		NSMutableArray<NSString *> *newStrings = [NSMutableArray arrayWithCapacity:count];
+
+		for (int i = 0; i < count; i++) {
+			if (keys[i] && strlen(keys[i]) > 0) {
+				[newStrings addObject:[NSString stringWithUTF8String:keys[i]]];
+			}
+		}
+
+		NSDictionary *newLookup = buildHotkeyLookupFromStrings(newStrings);
+		NSArray<NSString *> *copiedStrings = [newStrings copy];
+
+		NSDictionary *oldLookup;
+		NSArray *oldStrings;
+		os_unfair_lock_lock(&context->passthroughLock);
+		oldStrings = context->passthroughStrings;
+		oldLookup = context->passthroughLookup;
+		context->passthroughStrings = copiedStrings;
+		context->passthroughLookup = newLookup;
+		os_unfair_lock_unlock(&context->passthroughLock);
 		// ARC releases old objects here, outside the lock
 		oldLookup = nil;
 		oldStrings = nil;

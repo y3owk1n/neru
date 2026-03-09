@@ -32,6 +32,12 @@ type AppState struct {
 	hintOverlayNeedsRefresh          bool
 	recursiveGridOverlayNeedsRefresh bool
 	hotkeyRefreshPending             bool
+
+	// scrollSuspended is true when scroll mode is active but the event tap has
+	// been temporarily disabled because the user switched to another application
+	// (stay_active_in_background = true). Pressing the scroll hotkey while this
+	// flag is set resumes the mode instead of restarting it.
+	scrollSuspended bool
 }
 
 // NewAppState creates a new AppState with default values.
@@ -377,4 +383,21 @@ func (s *AppState) SetHotkeyRefreshPending(pending bool) {
 	defer s.mu.Unlock()
 
 	s.hotkeyRefreshPending = pending
+}
+
+// IsScrollSuspended returns true when scroll mode is active but temporarily suspended
+// because the user switched to another application (stay_active_in_background = true).
+func (s *AppState) IsScrollSuspended() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.scrollSuspended
+}
+
+// SetScrollSuspended sets the scroll-suspended flag.
+func (s *AppState) SetScrollSuspended(suspended bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.scrollSuspended = suspended
 }

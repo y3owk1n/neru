@@ -61,6 +61,9 @@ func (m *mockEventTap) SetHandler(handler func(string)) {
 // SetHotkeys implements ports.EventTapPort.
 func (m *mockEventTap) SetHotkeys(_ []string) {}
 
+// SetPassthroughKeys implements ports.EventTapPort.
+func (m *mockEventTap) SetPassthroughKeys(_ []string) {}
+
 // SetKeyboardLayout implements ports.EventTapPort.
 func (m *mockEventTap) SetKeyboardLayout(_ string) bool { return true }
 

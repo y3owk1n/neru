@@ -453,9 +453,10 @@ func DefaultConfig() *Config {
 			},
 		},
 		Scroll: ScrollConfig{
-			ScrollStep:     DefaultScrollStep,
-			ScrollStepHalf: DefaultScrollStepHalf,
-			ScrollStepFull: DefaultScrollStepFull,
+			ScrollStep:             DefaultScrollStep,
+			ScrollStepHalf:         DefaultScrollStepHalf,
+			ScrollStepFull:         DefaultScrollStepFull,
+			StayActiveInBackground: false,
 
 			KeyBindings: map[string][]string{
 				"scroll_up":    {"k", "Up"},

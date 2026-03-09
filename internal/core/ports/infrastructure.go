@@ -20,6 +20,11 @@ type EventTapPort interface {
 	// SetHotkeys configures which hotkeys the event tap should monitor.
 	SetHotkeys(hotkeys []string)
 
+	// SetPassthroughKeys configures keys that pass through to the OS without
+	// being consumed and without invoking the Go callback. Used to allow system
+	// shortcuts (e.g. Cmd+Tab) to reach the OS while a mode is active.
+	SetPassthroughKeys(keys []string)
+
 	// SetKeyboardLayout configures the reference keyboard layout used for key translation.
 	// Returns false when an explicit layout ID is provided but cannot be resolved.
 	SetKeyboardLayout(layoutID string) bool

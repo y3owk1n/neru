@@ -191,6 +191,10 @@ func (a *App) setupAppWatcherCallbacks() {
 		a.handleAppActivation(bundleID)
 	})
 
+	a.appWatcher.OnDeactivate(func(appName, _ string) {
+		a.handleAppDeactivation(appName)
+	})
+
 	// Watch for display parameter changes (monitor unplug/plug, resolution changes)
 	a.appWatcher.OnScreenParametersChanged(func() {
 		a.handleScreenParametersChange()
@@ -404,6 +408,28 @@ func (a *App) handleAppActivation(bundleID string) {
 		if cfg.Hints.AdditionalAXSupport.Enable {
 			a.handleAdditionalAccessibility(bundleID, cfg)
 		}
+	}
+}
+
+// handleAppDeactivation responds to the current application losing focus.
+// When scroll mode is active and stay_active_in_background is enabled,
+// it suspends the scroll session so the OS receives Cmd+Tab normally.
+func (a *App) handleAppDeactivation(appName string) {
+	cfg := a.configSnapshot()
+
+	if !cfg.Scroll.StayActiveInBackground {
+		return
+	}
+
+	if a.appState.CurrentMode() != domain.ModeScroll {
+		return
+	}
+
+	a.logger.Info("App deactivated while scroll mode active, suspending scroll",
+		zap.String("app", appName))
+
+	if a.modes != nil {
+		a.modes.SuspendScrollMode()
 	}
 }
 

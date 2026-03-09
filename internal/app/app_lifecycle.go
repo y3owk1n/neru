@@ -35,3 +35,11 @@ func (a *App) disableEventTap() {
 		}
 	}
 }
+
+// setEventTapPassthroughKeys updates the list of keys that pass through to the
+// OS without being consumed and without invoking the Go callback.
+func (a *App) setEventTapPassthroughKeys(keys []string) {
+	if a.eventTap != nil {
+		a.eventTap.SetPassthroughKeys(keys)
+	}
+}

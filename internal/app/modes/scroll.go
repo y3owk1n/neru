@@ -4,12 +4,26 @@ import (
 	"context"
 
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
 )
 
+// scrollPassthroughKeys are the keys passed through to the OS when scroll mode
+// is active with stay_active_in_background = true.
+var scrollPassthroughKeys = []string{"Cmd+Tab", "Cmd+Shift+Tab"}
+
 // StartInteractiveScroll activates the interactive scroll mode,
 // showing the scroll overlay and enabling key handling for scrolling.
+// If scroll mode is currently suspended (user switched apps while it was
+// active and stay_active_in_background = true), this resumes the suspended
+// session instead of starting a fresh one.
 func (h *Handler) StartInteractiveScroll() {
+	// If we are resuming a suspended scroll session, branch early.
+	if h.appState.IsScrollSuspended() {
+		h.resumeSuspendedScroll()
+		return
+	}
+
 	h.cursorState.SkipNextRestore()
 
 	// Defensively reset scroll context before exiting the current mode.
@@ -30,8 +44,34 @@ func (h *Handler) StartInteractiveScroll() {
 
 	h.SetModeScroll()
 
+	// Register Cmd+Tab / Cmd+Shift+Tab as passthrough keys so the user can
+	// still switch applications while scroll mode is active (only when the
+	// feature is enabled in config).
+	if h.config != nil && h.config.Scroll.StayActiveInBackground {
+		if h.setPassthroughKeys != nil {
+			h.setPassthroughKeys(scrollPassthroughKeys)
+		}
+	}
+
 	h.logger.Info("Interactive scroll activated")
 	h.logger.Info("Use configured keys for navigation")
+}
+
+// resumeSuspendedScroll re-activates a scroll session that was suspended when
+// the user switched away from the application. It re-enables the event tap and
+// restarts the mode-indicator polling without re-running the full mode setup.
+func (h *Handler) resumeSuspendedScroll() {
+	h.appState.SetScrollSuspended(false)
+
+	if h.enableEventTap != nil {
+		h.enableEventTap()
+	}
+
+	// The mode is still ModeScroll — just restart the overlay + indicator.
+	h.overlayManager.ResizeToActiveScreen()
+	h.startModeIndicatorPolling(domain.ModeScroll)
+
+	h.logger.Info("Scroll mode resumed after app switch")
 }
 
 func (h *Handler) handleGenericScrollKey(key string) {
