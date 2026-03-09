@@ -316,6 +316,10 @@ label_background_padding_x = -1             # Horizontal badge padding (-1 = aut
 label_background_padding_y = -1             # Vertical badge padding (-1 = auto based on font size)
 label_background_border_radius = -1         # Border radius for label badges (-1 = auto pill)
 label_background_border_width = 1           # Border width for label badges (0 disables border)
+sub_key_preview = false                     # Draw a miniature key grid inside each cell (off by default)
+sub_key_preview_font_size = 6               # Font size for sub-key preview labels (4–72)
+sub_key_preview_text_color_light = "#66007A9E"  # Sub-key label color for Light Mode (40% opacity)
+sub_key_preview_text_color_dark = "#6600CFCF"   # Sub-key label color for Dark Mode (40% opacity)
 
 [scroll]
 # Scroll step sizes

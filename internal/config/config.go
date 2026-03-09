@@ -426,6 +426,11 @@ type RecursiveGridUI struct {
 	LabelBackgroundPaddingY     int    `json:"labelBackgroundPaddingY"     toml:"label_background_padding_y"`
 	LabelBackgroundBorderRadius int    `json:"labelBackgroundBorderRadius" toml:"label_background_border_radius"`
 	LabelBackgroundBorderWidth  int    `json:"labelBackgroundBorderWidth"  toml:"label_background_border_width"`
+	// Sub-key preview: draw a miniature version of the key grid inside each cell
+	SubKeyPreview               bool   `json:"subKeyPreview"               toml:"sub_key_preview"`
+	SubKeyPreviewFontSize       int    `json:"subKeyPreviewFontSize"       toml:"sub_key_preview_font_size"`
+	SubKeyPreviewTextColorLight string `json:"subKeyPreviewTextColorLight" toml:"sub_key_preview_text_color_light"`
+	SubKeyPreviewTextColorDark  string `json:"subKeyPreviewTextColorDark"  toml:"sub_key_preview_text_color_dark"`
 }
 
 // RecursiveGridConfig defines the visual and behavioral settings for recursive-grid mode.

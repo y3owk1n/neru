@@ -253,6 +253,15 @@ const (
 	// DefaultRecursiveGridLabelBackgroundBorderWidth is the default label badge border width.
 	DefaultRecursiveGridLabelBackgroundBorderWidth = 1
 
+	// DefaultRecursiveGridSubKeyPreview controls whether the sub-key mini-grid is shown inside each cell.
+	DefaultRecursiveGridSubKeyPreview = false
+	// DefaultRecursiveGridSubKeyPreviewFontSize is the default font size for sub-key preview labels.
+	DefaultRecursiveGridSubKeyPreviewFontSize = 6
+	// RecursiveGridSubKeyPreviewTextColorLight is the default Light Mode color for sub-key preview labels.
+	RecursiveGridSubKeyPreviewTextColorLight = "#66007A9E"
+	// RecursiveGridSubKeyPreviewTextColorDark is the default Dark Mode color for sub-key preview labels.
+	RecursiveGridSubKeyPreviewTextColorDark = "#6600CFCF"
+
 	// ModeIndicatorBackgroundColorLight is the light mode background color for the mode indicator.
 	ModeIndicatorBackgroundColorLight = "#F200CFCF"
 	// ModeIndicatorBackgroundColorDark is the dark mode background color for the mode indicator.
@@ -409,6 +418,10 @@ func DefaultConfig() *Config {
 				LabelBackgroundBorderRadius: DefaultRecursiveGridLabelBackgroundBorderRadius,
 				LabelBackgroundBorderWidth:  DefaultRecursiveGridLabelBackgroundBorderWidth,
 				LabelBackground:             false,
+				SubKeyPreview:               DefaultRecursiveGridSubKeyPreview,
+				SubKeyPreviewFontSize:       DefaultRecursiveGridSubKeyPreviewFontSize,
+				SubKeyPreviewTextColorLight: RecursiveGridSubKeyPreviewTextColorLight,
+				SubKeyPreviewTextColorDark:  RecursiveGridSubKeyPreviewTextColorDark,
 			},
 
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
