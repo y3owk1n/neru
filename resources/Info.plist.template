@@ -12,26 +12,26 @@
 	<key>CFBundleIconFile</key>
 	<string>icon</string>
 
-    <key>CFBundleExecutable</key>
-    <string>Neru</string>
+	<key>CFBundleExecutable</key>
+	<string>Neru</string>
 
-    <key>CFBundleIdentifier</key>
-    <string>com.y3owk1n.neru</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.y3owk1n.neru</string>
 
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 
-    <key>CFBundleName</key>
-    <string>Neru</string>
+	<key>CFBundleName</key>
+	<string>Neru</string>
 
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
 
-    <key>CFBundleVersion</key>
-    <string>VERSION</string>
+	<key>CFBundleVersion</key>
+	<string>VERSION</string>
 
-    <key>CFBundleShortVersionString</key>
-    <string>VERSION</string>
+	<key>CFBundleShortVersionString</key>
+	<string>VERSION</string>
 
 	<key>CSResourcesFileMapped</key>
 	<true/>
@@ -42,10 +42,10 @@
 	<key>LSUIElement</key>
 	<true/>
 
-    <key>NSAppleEventsUsageDescription</key>
-    <string>Used for automation</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Used for automation</string>
 
-    <key>NSAccessibilityUsageDescription</key>
-    <string>Requires accessibility access</string>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>Requires accessibility access</string>
 </dict>
 </plist>
