@@ -209,6 +209,12 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	// Resolve per-mode color overrides (falls back to UI defaults).
 	modeConfig := o.resolveModeConfig(mode)
 
+	if modeConfig == nil {
+		o.drawMu.RUnlock()
+
+		return
+	}
+
 	// Use cached style strings to avoid repeated allocations and fix use-after-free
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
 		cached.FontFamily = unsafe.Pointer(C.CString(o.indicatorConfig.UI.FontFamily))
