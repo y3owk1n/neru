@@ -256,7 +256,7 @@ Use this when you want physical keys interpreted consistently across multiple ac
 
 ### mode_exit_keys
 
-Keys that exit any active mode (hints, grid, scroll, recursive_grid). Note that you this affects all the mode, you can add more mode specific exit keys in the mode section.
+Keys that exit any active mode (hints, grid, scroll, recursive_grid). Note that this affects all modes. You can add more mode-specific exit keys in each mode's section.
 
 ```toml
 [general]
