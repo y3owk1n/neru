@@ -573,6 +573,14 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// Validate per-mode exit keys don't conflict with action key bindings.
+	// At runtime, exit keys are checked before action keys (in key_dispatch.go),
+	// so a conflict means the action will never fire.
+	err = c.checkPerModeExitKeysActionKeyConflicts()
+	if err != nil {
+		return err
+	}
+
 	// Validate smooth cursor settings
 	err = c.ValidateSmoothCursor()
 	if err != nil {

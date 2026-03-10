@@ -2224,6 +2224,145 @@ func TestConfig_ValidatePerModeExitKeys(t *testing.T) {
 	}
 }
 
+// TestConfig_Validate_PerModeExitKeysActionKeyConflicts tests that per-mode exit keys
+// cannot conflict with action key bindings (checked via full Validate()).
+func TestConfig_Validate_PerModeExitKeysActionKeyConflicts(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  func() config.Config
+		wantErr bool
+	}{
+		{
+			name: "hints per-mode exit key conflicts with move_mouse_up binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"Up"}
+				// Default move_mouse_up = "Up"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints per-mode exit key conflicts with left_click binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"Shift+L"}
+				// Default left_click = "Shift+L"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid per-mode exit key conflicts with right_click binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"Shift+R"}
+				// Default right_click = "Shift+R"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid per-mode exit key conflicts with mouse_down binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.RecursiveGrid.ModeExitKeys = []string{"Shift+I"}
+				// Default mouse_down = "Shift+I"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "scroll per-mode exit key does NOT check action bindings (scroll has no action keys)",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.ModeExitKeys = []string{"Shift+L"}
+				// Even though left_click = "Shift+L", scroll mode doesn't use action keys
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when per-mode exit key differs from all action bindings",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"q"}
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when mode is disabled",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.Enabled = false
+				cfg.Hints.ModeExitKeys = []string{"Up"} // would conflict, but hints disabled
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when action binding is empty",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"Shift+L"}
+				cfg.Action.KeyBindings.LeftClick = ""
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "case-insensitive conflict detection",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"shift+l"}
+				cfg.Action.KeyBindings.LeftClick = "Shift+L"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no conflict with Ctrl+Q exit key and default action bindings",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"Ctrl+Q"}
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "per-mode exit key conflicts with custom single-char action binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"w"}
+				cfg.Action.KeyBindings.MoveMouseUp = "w"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := testCase.config()
+
+			err := cfg.Validate()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.Validate() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
 // TestMergeExitKeys tests the MergeExitKeys helper function.
 func TestMergeExitKeys(t *testing.T) {
 	tests := []struct {

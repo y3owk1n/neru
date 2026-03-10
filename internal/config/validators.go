@@ -1639,6 +1639,71 @@ func checkPerModeExitKeysResetKeyConflict(
 	return nil
 }
 
+// checkPerModeExitKeysActionKeyConflicts checks if any per-mode exit key conflicts with
+// an action key binding. At runtime, exit keys are checked before action keys
+// (in key_dispatch.go), so a conflict means the action key will never fire — the mode
+// will exit instead. Only hints, grid, and recursive_grid modes use action keys.
+func (c *Config) checkPerModeExitKeysActionKeyConflicts() error {
+	bindings := []struct {
+		value     string
+		fieldName string
+	}{
+		{c.Action.KeyBindings.LeftClick, "action.key_bindings.left_click"},
+		{c.Action.KeyBindings.RightClick, "action.key_bindings.right_click"},
+		{c.Action.KeyBindings.MiddleClick, "action.key_bindings.middle_click"},
+		{c.Action.KeyBindings.MouseDown, "action.key_bindings.mouse_down"},
+		{c.Action.KeyBindings.MouseUp, "action.key_bindings.mouse_up"},
+		{c.Action.KeyBindings.MoveMouseUp, "action.key_bindings.move_mouse_up"},
+		{c.Action.KeyBindings.MoveMouseDown, "action.key_bindings.move_mouse_down"},
+		{c.Action.KeyBindings.MoveMouseLeft, "action.key_bindings.move_mouse_left"},
+		{c.Action.KeyBindings.MoveMouseRight, "action.key_bindings.move_mouse_right"},
+	}
+
+	type modeExitKeys struct {
+		keys      []string
+		modeName  string
+		isEnabled bool
+	}
+
+	modes := []modeExitKeys{
+		{c.Hints.ModeExitKeys, "hints", c.Hints.Enabled},
+		{c.Grid.ModeExitKeys, "grid", c.Grid.Enabled},
+		{c.RecursiveGrid.ModeExitKeys, "recursive_grid", c.RecursiveGrid.Enabled},
+	}
+	for _, mode := range modes {
+		if !mode.isEnabled || len(mode.keys) == 0 {
+			continue
+		}
+
+		var normalizedExitKeys []string
+		for _, key := range mode.keys {
+			normalizedExitKeys = append(
+				normalizedExitKeys,
+				NormalizeKeyForComparison(strings.TrimSpace(key)),
+			)
+		}
+
+		for _, binding := range bindings {
+			if binding.value == "" {
+				continue
+			}
+
+			normalizedBinding := NormalizeKeyForComparison(binding.value)
+			if slices.Contains(normalizedExitKeys, normalizedBinding) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s.mode_exit_keys contains a key that conflicts with %s ('%s'); the exit key is checked first at runtime, so the action will never fire",
+					mode.modeName,
+					binding.fieldName,
+					binding.value,
+				)
+			}
+		}
+	}
+
+	return nil
+}
+
 // checkPerModeExitKeysScrollBindingConflicts checks if any per-mode exit key for scroll mode
 // conflicts with the configured scroll key bindings.
 func checkPerModeExitKeysScrollBindingConflicts(
