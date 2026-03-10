@@ -36,7 +36,7 @@
 
 ## What is Neru?
 
-**Neru (練る)** — Japanese for *"to refine and master through practice"* — lets you navigate, click, and scroll anywhere on macOS using only your keyboard. No mouse. No trackpad. No limits.
+**Neru (練る)** — Japanese for _"to refine and master through practice"_ — lets you navigate, click, and scroll anywhere on macOS using only your keyboard. No mouse. No trackpad. No limits.
 
 It's the free, open-source alternative to [Homerow](https://www.homerow.app/), [Mouseless](https://mouseless.click/), and [Wooshy](https://wooshy.app) — with zero paywalls, zero subscriptions, and everything configurable down to the last pixel.
 
@@ -48,7 +48,7 @@ It's the free, open-source alternative to [Homerow](https://www.homerow.app/), [
 
 ### 🎯 3 Navigation Modes
 
-**Recursive Grid Mode** *(recommended)* — divide your screen into a coordinate grid and drill into any region with `u`/`i`/`j`/`k` until you land exactly where you want. Works in every app, every window, every corner of macOS — no exceptions, no app-specific setup.
+**Recursive Grid Mode** _(recommended)_ — divide your screen into a coordinate grid and drill into any region with `u`/`i`/`j`/`k` until you land exactly where you want. Works in every app, every window, every corner of macOS — no exceptions, no app-specific setup.
 
 **Grid Mode** — same coordinate-based approach without the recursive subdivision, great for quick coarse navigation.
 
@@ -87,6 +87,8 @@ Neru is configured entirely through a single **TOML file** — no GUI required. 
 
 See the full [Configuration Reference →](docs/CONFIGURATION.md)
 
+Want to get inspired? Check out other neru users' configs [here](https://github.com/y3owk1n/neru/discussions/542)
+
 ---
 
 ## 🚀 Get Started
@@ -122,14 +124,14 @@ open -a Neru
 neru services install
 ```
 
-| Default Hotkey | Action |
-|---|---|
-| `Cmd+Shift+C` | **Recursive grid mode** *(recommended)* |
-| `Cmd+Shift+G` | Grid mode |
-| `Cmd+Shift+Space` | Hints mode |
-| `Cmd+Shift+S` | Scroll mode |
-| `Shift+L` | Left click (in any mode) |
-| `Shift+R` | Right click (in any mode) |
+| Default Hotkey    | Action                                  |
+| ----------------- | --------------------------------------- |
+| `Cmd+Shift+C`     | **Recursive grid mode** _(recommended)_ |
+| `Cmd+Shift+G`     | Grid mode                               |
+| `Cmd+Shift+Space` | Hints mode                              |
+| `Cmd+Shift+S`     | Scroll mode                             |
+| `Shift+L`         | Left click (in any mode)                |
+| `Shift+R`         | Right click (in any mode)               |
 
 > These are just subset of available keys. All hotkeys and actions are fully remappable.
 
@@ -139,13 +141,13 @@ Full setup walkthrough: [Installation Guide →](docs/INSTALLATION.md)
 
 ## ✅ Works Everywhere
 
-| Category | Apps |
-|---|---|
-| Native macOS | Finder, Safari, Mail, System Settings, Terminal |
-| Electron | VS Code, Cursor, Slack, Spotify, Obsidian, Discord |
-| Browsers | Chrome, Firefox, Safari, Arc, Brave, Zen |
-| Creative | Figma, Adobe Illustrator, Photoshop |
-| System UI | Menubar, Dock, Mission Control, Notification Center |
+| Category     | Apps                                                |
+| ------------ | --------------------------------------------------- |
+| Native macOS | Finder, Safari, Mail, System Settings, Terminal     |
+| Electron     | VS Code, Cursor, Slack, Spotify, Obsidian, Discord  |
+| Browsers     | Chrome, Firefox, Safari, Arc, Brave, Zen            |
+| Creative     | Figma, Adobe Illustrator, Photoshop                 |
+| System UI    | Menubar, Dock, Mission Control, Notification Center |
 
 Grid mode works universally. Hints mode works where the accessibility tree is exposed — see the [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for app-specific notes.
 
@@ -153,12 +155,12 @@ Grid mode works universally. Hints mode works where the accessibility tree is ex
 
 ## 🆚 Free Alternative To
 
-| Tool | Status | Neru |
-|---|---|---|
-| [Homerow](https://www.homerow.app/) | Paid | ✅ Free |
-| [Mouseless](https://mouseless.click/) | Paid | ✅ Free |
-| [Wooshy](https://wooshy.app) | Paid | ✅ Free |
-| [Shortcat](https://shortcat.app/) | Discontinued | ✅ Active |
+| Tool                                         | Status       | Neru          |
+| -------------------------------------------- | ------------ | ------------- |
+| [Homerow](https://www.homerow.app/)          | Paid         | ✅ Free       |
+| [Mouseless](https://mouseless.click/)        | Paid         | ✅ Free       |
+| [Wooshy](https://wooshy.app)                 | Paid         | ✅ Free       |
+| [Shortcat](https://shortcat.app/)            | Discontinued | ✅ Active     |
 | [Vimac](https://github.com/dexterleng/vimac) | Unmaintained | ✅ Maintained |
 
 ---
@@ -186,6 +188,7 @@ just test && just lint
 Follow the [Coding Standards](docs/CODING_STANDARDS.md) and keep PRs focused on a single change. See [Development Guide](docs/DEVELOPMENT.md) for architecture details.
 
 **Good first contributions:**
+
 - App icon / logo improvements
 - New navigation mechanisms
 - Additional mouse action types
