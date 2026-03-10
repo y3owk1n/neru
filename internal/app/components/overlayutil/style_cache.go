@@ -19,6 +19,7 @@ type CachedStyle struct {
 	MatchedBgColor     unsafe.Pointer
 	MatchedBorderColor unsafe.Pointer
 	HighlightColor     unsafe.Pointer
+	SubKeyTextColor    unsafe.Pointer
 }
 
 // StyleCache manages caching of C strings for styles to reduce allocations.
@@ -86,4 +87,6 @@ func (c *StyleCache) freeLocked() {
 	c.style.MatchedBorderColor = nil
 	bridge.FreeCString(c.style.HighlightColor)
 	c.style.HighlightColor = nil
+	bridge.FreeCString(c.style.SubKeyTextColor)
+	c.style.SubKeyTextColor = nil
 }

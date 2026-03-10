@@ -1992,6 +1992,14 @@ func (c *Config) ValidateRecursiveGrid() error {
 		)
 	}
 
+	if c.RecursiveGrid.UI.SubKeyPreviewFontSize < 4 ||
+		c.RecursiveGrid.UI.SubKeyPreviewFontSize > 72 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.ui.sub_key_preview_font_size must be between 4 and 72",
+		)
+	}
+
 	err = validateMinValue(
 		c.RecursiveGrid.UI.LabelBackgroundBorderRadius,
 		-1,
@@ -2041,6 +2049,14 @@ func (c *Config) ValidateRecursiveGrid() error {
 		{
 			c.RecursiveGrid.UI.LabelBackgroundColorDark,
 			"recursive_grid.ui.label_background_color_dark",
+		},
+		{
+			c.RecursiveGrid.UI.SubKeyPreviewTextColorLight,
+			"recursive_grid.ui.sub_key_preview_text_color_light",
+		},
+		{
+			c.RecursiveGrid.UI.SubKeyPreviewTextColorDark,
+			"recursive_grid.ui.sub_key_preview_text_color_dark",
 		},
 	}
 

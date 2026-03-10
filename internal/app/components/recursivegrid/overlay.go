@@ -305,6 +305,7 @@ func (o *Overlay) DrawRecursiveGrid(
 		cached.MatchedBgColor = unsafe.Pointer(C.CString(style.HighlightColor()))
 		cached.MatchedBorderColor = unsafe.Pointer(C.CString(style.LineColor()))
 		cached.BorderColor = unsafe.Pointer(C.CString(style.LineColor()))
+		cached.SubKeyTextColor = unsafe.Pointer(C.CString(style.SubKeyPreviewTextColor()))
 	})
 
 	finalStyle := C.GridCellStyle{
@@ -323,6 +324,11 @@ func (o *Overlay) DrawRecursiveGrid(
 		labelBackgroundPaddingY:     C.int(style.LabelBackgroundPaddingY()),
 		labelBackgroundBorderRadius: C.int(style.LabelBackgroundBorderRadius()),
 		labelBackgroundBorderWidth:  C.int(style.LabelBackgroundBorderWidth()),
+		gridCols:                    C.int(gridCols),
+		gridRows:                    C.int(gridRows),
+		drawSubKeyPreview:           C.int(boolToInt(style.SubKeyPreview())),
+		subKeyFontSize:              C.int(style.SubKeyPreviewFontSize()),
+		subKeyTextColor:             (*C.char)(cachedStyle.SubKeyTextColor),
 	}
 
 	// Draw the grid cells
@@ -427,6 +433,9 @@ type Style struct {
 	labelBackgroundPaddingY     int
 	labelBackgroundBorderRadius int
 	labelBackgroundBorderWidth  int
+	subKeyPreview               bool
+	subKeyPreviewFontSize       int
+	subKeyPreviewTextColor      string
 }
 
 // LineColor returns the line color.
@@ -489,6 +498,21 @@ func (s Style) LabelBackgroundBorderWidth() int {
 	return s.labelBackgroundBorderWidth
 }
 
+// SubKeyPreview returns whether sub-key preview is enabled.
+func (s Style) SubKeyPreview() bool {
+	return s.subKeyPreview
+}
+
+// SubKeyPreviewFontSize returns the font size for sub-key preview labels.
+func (s Style) SubKeyPreviewFontSize() int {
+	return s.subKeyPreviewFontSize
+}
+
+// SubKeyPreviewTextColor returns the text color for sub-key preview labels.
+func (s Style) SubKeyPreviewTextColor() string {
+	return s.subKeyPreviewTextColor
+}
+
 // BuildStyle creates a Style from RecursiveGridConfig.
 // The theme parameter is used to resolve theme-aware colors when they are not
 // explicitly specified in the configuration (empty string = default).
@@ -530,5 +554,14 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 		labelBackgroundPaddingY:     cfg.UI.LabelBackgroundPaddingY,
 		labelBackgroundBorderRadius: cfg.UI.LabelBackgroundBorderRadius,
 		labelBackgroundBorderWidth:  cfg.UI.LabelBackgroundBorderWidth,
+		subKeyPreview:               cfg.UI.SubKeyPreview,
+		subKeyPreviewFontSize:       cfg.UI.SubKeyPreviewFontSize,
+		subKeyPreviewTextColor: config.ResolveColor(
+			cfg.UI.SubKeyPreviewTextColorLight,
+			cfg.UI.SubKeyPreviewTextColorDark,
+			theme,
+			config.RecursiveGridSubKeyPreviewTextColorLight,
+			config.RecursiveGridSubKeyPreviewTextColorDark,
+		),
 	}
 }
