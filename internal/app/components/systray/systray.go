@@ -173,6 +173,9 @@ func (c *Component) OnReady() {
 
 	c.mQuit = systray.AddMenuItem("Quit")
 
+	// Clear text title once since we use an icon
+	systray.SetTitle("")
+
 	// Initialize all state-dependent UI elements
 	c.updateMenuItems(c.app.IsEnabled())
 
@@ -202,9 +205,6 @@ func (c *Component) Close() {
 
 // updateMenuItems updates the systray menu items based on the current enabled state.
 func (c *Component) updateMenuItems(enabled bool) {
-	// Clear text title since we use an icon
-	systray.SetTitle("")
-
 	// Update icon, tooltip, and menu items to show current status
 	if enabled {
 		systray.SetTemplateIcon(trayIcon, true)
