@@ -36,10 +36,18 @@ func (a *App) disableEventTap() {
 	}
 }
 
-// setEventTapPassthroughKeys updates the list of keys that pass through to the
-// OS without being consumed and without invoking the Go callback.
-func (a *App) setEventTapPassthroughKeys(keys []string) {
+// setEventTapModifierPassthrough configures whether unbound modifier shortcuts
+// should pass through to macOS and which ones remain blacklisted.
+func (a *App) setEventTapModifierPassthrough(enabled bool, blacklist []string) {
 	if a.eventTap != nil {
-		a.eventTap.SetPassthroughKeys(keys)
+		a.eventTap.SetModifierPassthrough(enabled, blacklist)
+	}
+}
+
+// setEventTapInterceptedModifierKeys updates the modifier shortcuts the active
+// mode still wants Neru to consume.
+func (a *App) setEventTapInterceptedModifierKeys(keys []string) {
+	if a.eventTap != nil {
+		a.eventTap.SetInterceptedModifierKeys(keys)
 	}
 }

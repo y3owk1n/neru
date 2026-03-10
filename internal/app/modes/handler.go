@@ -71,11 +71,12 @@ type Handler struct {
 	// Screen bounds for coordinate conversion (grid and hints)
 	screenBounds image.Rectangle
 
-	enableEventTap     func()
-	disableEventTap    func()
-	setPassthroughKeys func(keys []string)
-	refreshHotkeys     func()
-	refreshHintsTimer  *time.Timer
+	enableEventTap             func()
+	disableEventTap            func()
+	setModifierPassthrough     func(enabled bool, blacklist []string)
+	setInterceptedModifierKeys func(keys []string)
+	refreshHotkeys             func()
+	refreshHintsTimer          *time.Timer
 
 	// Scroll mode polling
 	scrollTicker *time.Ticker
@@ -102,7 +103,8 @@ func NewHandler(
 	recursiveGridComponent *components.RecursiveGridComponent,
 	enableEventTap func(),
 	disableEventTap func(),
-	setPassthroughKeys func(keys []string),
+	setModifierPassthrough func(enabled bool, blacklist []string),
+	setInterceptedModifierKeys func(keys []string),
 	refreshHotkeys func(),
 	themeProvider configpkg.ThemeProvider,
 ) *Handler {
@@ -110,27 +112,28 @@ func NewHandler(
 	screenBounds := bridge.ActiveScreenBounds()
 
 	handler := &Handler{
-		config:               config,
-		logger:               logger,
-		appState:             appState,
-		cursorState:          cursorState,
-		overlayManager:       overlayManager,
-		renderer:             renderer,
-		hintService:          hintService,
-		gridService:          gridService,
-		actionService:        actionService,
-		scrollService:        scrollService,
-		modeIndicatorService: modeIndicatorService,
-		hints:                hintsComponent,
-		grid:                 grid,
-		scroll:               scroll,
-		recursiveGrid:        recursiveGridComponent,
-		screenBounds:         screenBounds,
-		enableEventTap:       enableEventTap,
-		disableEventTap:      disableEventTap,
-		setPassthroughKeys:   setPassthroughKeys,
-		refreshHotkeys:       refreshHotkeys,
-		themeProvider:        themeProvider,
+		config:                     config,
+		logger:                     logger,
+		appState:                   appState,
+		cursorState:                cursorState,
+		overlayManager:             overlayManager,
+		renderer:                   renderer,
+		hintService:                hintService,
+		gridService:                gridService,
+		actionService:              actionService,
+		scrollService:              scrollService,
+		modeIndicatorService:       modeIndicatorService,
+		hints:                      hintsComponent,
+		grid:                       grid,
+		scroll:                     scroll,
+		recursiveGrid:              recursiveGridComponent,
+		screenBounds:               screenBounds,
+		enableEventTap:             enableEventTap,
+		disableEventTap:            disableEventTap,
+		setModifierPassthrough:     setModifierPassthrough,
+		setInterceptedModifierKeys: setInterceptedModifierKeys,
+		refreshHotkeys:             refreshHotkeys,
+		themeProvider:              themeProvider,
 	}
 
 	// Initialize mode implementations
@@ -358,37 +361,6 @@ func (h *Handler) RefreshRecursiveGridForThemeChange() bool {
 	return true
 }
 
-// SuspendScrollMode suspends an active scroll mode when the user switches
-// applications (app-deactivation event). It:
-//  1. Stops the mode-indicator polling goroutine and hides the overlay.
-//  2. Disables the event tap so the OS receives subsequent key events normally.
-//  3. Marks appState as scroll-suspended so that the next scroll hotkey press
-//     resumes the suspended session instead of starting a new one.
-//
-// Must be called with h.mu NOT held (it acquires the lock internally).
-// No-op if the current mode is not ModeScroll.
-func (h *Handler) SuspendScrollMode() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.appState.CurrentMode() != domain.ModeScroll {
-		return
-	}
-
-	// Stop the indicator polling goroutine and hide the overlay.
-	h.stopModeIndicatorPolling()
-
-	// Disable the event tap so Cmd+Tab and other keys reach the OS.
-	if h.disableEventTap != nil {
-		h.disableEventTap()
-	}
-
-	// Mark as suspended — the next scroll hotkey will resume rather than restart.
-	h.appState.SetScrollSuspended(true)
-
-	h.logger.Info("Scroll mode suspended (app switched away)")
-}
-
 // UpdateConfig updates the handler with new configuration.
 func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	h.mu.Lock()
@@ -413,4 +385,6 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 			recursivegrid.BuildStyle(config.RecursiveGrid, h.themeProvider),
 		)
 	}
+
+	h.syncModifierPassthrough(h.appState.CurrentMode())
 }

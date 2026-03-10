@@ -39,14 +39,6 @@ func NewScrollMode(handler *Handler) *ScrollMode {
 			if handler.cursorState != nil {
 				handler.cursorState.Reset()
 			}
-			// Clear any passthrough keys registered for stay_active_in_background.
-			if handler.setPassthroughKeys != nil {
-				handler.setPassthroughKeys(nil)
-			}
-			// Clear suspended flag so a fresh activation is used next time.
-			if handler.appState != nil {
-				handler.appState.SetScrollSuspended(false)
-			}
 		},
 	}
 

@@ -46,13 +46,19 @@ void destroyEventTap(EventTap tap);
 /// @param count Number of hotkeys
 void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count);
 
-/// Set event tap passthrough keys
-/// Keys in this list are passed through to the OS without consuming them and
-/// without invoking the Go callback. Used to allow system shortcuts (e.g.
-/// Cmd+Tab) to reach the OS while a mode is active.
+/// Set event tap modifier passthrough behavior.
+/// When enabled, modifier shortcuts that are not claimed by the active mode are
+/// passed through to macOS. Blacklisted shortcuts remain consumed by Neru.
 /// @param tap Event tap handle
-/// @param keys Array of key strings (same format as hotkeys, e.g. "Cmd+Tab")
+/// @param enabled Non-zero to enable passthrough
+/// @param blacklistKeys Array of blacklisted key strings (same format as hotkeys)
+/// @param count Number of blacklisted keys
+void setEventTapModifierPassthrough(EventTap tap, int enabled, const char **blacklistKeys, int count);
+
+/// Set modifier shortcuts that the active mode still wants Neru to consume.
+/// @param tap Event tap handle
+/// @param keys Array of key strings (same format as hotkeys)
 /// @param count Number of keys
-void setEventTapPassthroughKeys(EventTap tap, const char **keys, int count);
+void setEventTapInterceptedModifierKeys(EventTap tap, const char **keys, int count);
 
 #endif // EVENTTAP_H

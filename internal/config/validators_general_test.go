@@ -70,6 +70,24 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "passthrough blacklist with modifier combo - valid",
+			config: config.Config{
+				General: config.GeneralConfig{
+					PassthroughUnboundedKeysBlacklist: []string{"Cmd+W", "Ctrl+Space"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "passthrough blacklist without passthrough modifier - invalid",
+			config: config.Config{
+				General: config.GeneralConfig{
+					PassthroughUnboundedKeysBlacklist: []string{"Shift+Tab"},
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, testCase := range tests {

@@ -155,6 +155,25 @@ func NormalizeKeyForComparison(key string) string {
 	return key
 }
 
+// HasPassthroughModifier reports whether the key contains a modifier that can
+// be allowed through to macOS while a mode is active. Shift-only combos are
+// excluded because they are commonly used inside modes.
+func HasPassthroughModifier(key string) bool {
+	parts := strings.Split(NormalizeKeyForComparison(key), "+")
+	if len(parts) < 2 {
+		return false
+	}
+
+	for _, part := range parts[:len(parts)-1] {
+		switch strings.TrimSpace(part) {
+		case "cmd", "ctrl", "alt", "option":
+			return true
+		}
+	}
+
+	return false
+}
+
 // normalizeFullwidthChars converts fullwidth CJK characters (U+FF01-U+FF5E)
 // to their halfwidth ASCII equivalents (U+0021-U+007E).
 // This ensures keys work correctly when using CJK input methods.
@@ -261,13 +280,15 @@ type Config struct {
 
 // GeneralConfig defines general application-wide settings.
 type GeneralConfig struct {
-	ExcludedApps              []string `json:"excludedApps"              toml:"excluded_apps"`
-	AccessibilityCheckOnStart bool     `json:"accessibilityCheckOnStart" toml:"accessibility_check_on_start"`
-	RestoreCursorPosition     bool     `json:"restoreCursorPosition"     toml:"restore_cursor_position"`
-	CenterCursorPosition      bool     `json:"centerCursorPosition"      toml:"center_cursor_position"`
-	ModeExitKeys              []string `json:"modeExitKeys"              toml:"mode_exit_keys"`
-	HideOverlayInScreenShare  bool     `json:"hideOverlayInScreenShare"  toml:"hide_overlay_in_screen_share"`
-	KBLayoutToUse             string   `json:"kbLayoutToUse"             toml:"kb_layout_to_use"`
+	ExcludedApps                      []string `json:"excludedApps"              toml:"excluded_apps"`
+	AccessibilityCheckOnStart         bool     `json:"accessibilityCheckOnStart" toml:"accessibility_check_on_start"`
+	RestoreCursorPosition             bool     `json:"restoreCursorPosition"     toml:"restore_cursor_position"`
+	CenterCursorPosition              bool     `json:"centerCursorPosition"      toml:"center_cursor_position"`
+	ModeExitKeys                      []string `json:"modeExitKeys"              toml:"mode_exit_keys"`
+	PassthroughUnboundedKeys          bool     `json:"passthroughUnboundedKeys"          toml:"passthrough_unbounded_keys"`
+	PassthroughUnboundedKeysBlacklist []string `json:"passthroughUnboundedKeysBlacklist" toml:"passthrough_unbounded_keys_blacklist"`
+	HideOverlayInScreenShare          bool     `json:"hideOverlayInScreenShare"          toml:"hide_overlay_in_screen_share"`
+	KBLayoutToUse                     string   `json:"kbLayoutToUse"                     toml:"kb_layout_to_use"`
 }
 
 // ModeIndicatorUI defines the visual/appearance settings for the mode indicator.
@@ -321,13 +342,6 @@ type ScrollConfig struct {
 	ScrollStepHalf int      `json:"scrollStepHalf" toml:"scroll_step_half"`
 	ScrollStepFull int      `json:"scrollStepFull" toml:"scroll_step_full"`
 	ModeExitKeys   []string `json:"modeExitKeys"   toml:"mode_exit_keys"`
-
-	// StayActiveInBackground keeps scroll mode alive when the user switches to
-	// another application. When true, Cmd+Tab and Cmd+Shift+Tab pass through the
-	// event tap so the OS can handle app switching. The event tap is then suspended
-	// (disabled) while another app is frontmost; pressing the scroll hotkey again
-	// resumes the mode without restarting it.
-	StayActiveInBackground bool `json:"stayActiveInBackground" toml:"stay_active_in_background"`
 
 	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
 }
@@ -616,6 +630,24 @@ func (c *Config) ValidateGeneral() error {
 			derrors.CodeInvalidConfig,
 			"general.kb_layout_to_use cannot be whitespace-only",
 		)
+	}
+
+	for index, key := range c.General.PassthroughUnboundedKeysBlacklist {
+		fieldName := fmt.Sprintf("general.passthrough_unbounded_keys_blacklist[%d]", index)
+
+		err := ValidateHotkey(key, fieldName)
+		if err != nil {
+			return err
+		}
+
+		if !HasPassthroughModifier(key) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s must include Cmd, Ctrl, Alt, or Option: %s",
+				fieldName,
+				key,
+			)
+		}
 	}
 
 	return nil

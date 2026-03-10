@@ -28,6 +28,19 @@ func TestDefaultConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("General Modifier Passthrough Defaults", func(t *testing.T) {
+		if cfg.General.PassthroughUnboundedKeys {
+			t.Error("Expected General.PassthroughUnboundedKeys to be false by default")
+		}
+
+		if len(cfg.General.PassthroughUnboundedKeysBlacklist) != 0 {
+			t.Errorf(
+				"Expected General.PassthroughUnboundedKeysBlacklist to be empty by default, got %v",
+				cfg.General.PassthroughUnboundedKeysBlacklist,
+			)
+		}
+	})
+
 	t.Run("Recursive Grid Defaults", func(t *testing.T) {
 		if cfg.RecursiveGrid.UI.LabelBackground {
 			t.Error("Expected RecursiveGrid.UI.LabelBackground to be false by default")

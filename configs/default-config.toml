@@ -45,6 +45,17 @@ kb_layout_to_use = ""
 #   mode_exit_keys = ["Escape", "q"]      # Exit with Escape or Q
 mode_exit_keys = ["Escape"]
 
+# Allow unbound Cmd/Ctrl/Alt shortcuts to keep reaching macOS while a mode is active.
+# Neru still consumes modifier shortcuts that are explicitly bound in the active mode.
+# Example use cases: Cmd+Tab, Cmd+Space, Cmd+`, Cmd+Q.
+passthrough_unbounded_keys = false
+
+# Optional blacklist for shortcuts that should stay consumed by Neru even when
+# passthrough_unbounded_keys is enabled.
+# Example:
+# passthrough_unbounded_keys_blacklist = ["Cmd+W", "Cmd+Q"]
+passthrough_unbounded_keys_blacklist = []
+
 # Whether to hide the overlay from screen sharing (Zoom, Google Meet, OBS, etc.)
 # When true, the overlay will not appear in shared screens but remains visible locally
 # Note: Uses macOS NSWindow.sharingType API - effectiveness varies by application

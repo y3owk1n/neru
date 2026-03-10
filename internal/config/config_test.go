@@ -609,6 +609,29 @@ func TestIsExitKey_WithFullwidthChars(t *testing.T) {
 	}
 }
 
+func TestHasPassthroughModifier(t *testing.T) {
+	tests := []struct {
+		name string
+		key  string
+		want bool
+	}{
+		{name: "cmd combo", key: "Cmd+Tab", want: true},
+		{name: "ctrl combo", key: "Ctrl+D", want: true},
+		{name: "option combo", key: "Option+Space", want: true},
+		{name: "shift only combo", key: "Shift+Tab", want: false},
+		{name: "plain key", key: "j", want: false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := config.HasPassthroughModifier(testCase.key)
+			if got != testCase.want {
+				t.Errorf("HasPassthroughModifier(%q) = %v, want %v", testCase.key, got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestNormalizeKeyForComparison_CJKInputMethodScenarios(t *testing.T) {
 	// These tests simulate real-world CJK input method scenarios
 	tests := []struct {

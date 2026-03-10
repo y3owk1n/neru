@@ -280,13 +280,15 @@ const (
 func DefaultConfig() *Config {
 	return &Config{
 		General: GeneralConfig{
-			ExcludedApps:              []string{},
-			AccessibilityCheckOnStart: true,
-			RestoreCursorPosition:     false,
-			CenterCursorPosition:      false,
-			ModeExitKeys:              []string{"Escape"},
-			HideOverlayInScreenShare:  false,
-			KBLayoutToUse:             "",
+			ExcludedApps:                      []string{},
+			AccessibilityCheckOnStart:         true,
+			RestoreCursorPosition:             false,
+			CenterCursorPosition:              false,
+			ModeExitKeys:                      []string{"Escape"},
+			PassthroughUnboundedKeys:          false,
+			PassthroughUnboundedKeysBlacklist: []string{},
+			HideOverlayInScreenShare:          false,
+			KBLayoutToUse:                     "",
 		},
 		Hotkeys: HotkeysConfig{
 			Bindings: map[string]string{
@@ -453,10 +455,9 @@ func DefaultConfig() *Config {
 			},
 		},
 		Scroll: ScrollConfig{
-			ScrollStep:             DefaultScrollStep,
-			ScrollStepHalf:         DefaultScrollStepHalf,
-			ScrollStepFull:         DefaultScrollStepFull,
-			StayActiveInBackground: false,
+			ScrollStep:     DefaultScrollStep,
+			ScrollStepHalf: DefaultScrollStepHalf,
+			ScrollStepFull: DefaultScrollStepFull,
 
 			KeyBindings: map[string][]string{
 				"scroll_up":    {"k", "Up"},

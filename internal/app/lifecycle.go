@@ -412,25 +412,10 @@ func (a *App) handleAppActivation(bundleID string) {
 }
 
 // handleAppDeactivation responds to the current application losing focus.
-// When scroll mode is active and stay_active_in_background is enabled,
-// it suspends the scroll session so the OS receives Cmd+Tab normally.
+// Modes remain active across app switches; modifier passthrough is handled
+// directly inside the event tap.
 func (a *App) handleAppDeactivation(appName string) {
-	cfg := a.configSnapshot()
-
-	if !cfg.Scroll.StayActiveInBackground {
-		return
-	}
-
-	if a.appState.CurrentMode() != domain.ModeScroll {
-		return
-	}
-
-	a.logger.Info("App deactivated while scroll mode active, suspending scroll",
-		zap.String("app", appName))
-
-	if a.modes != nil {
-		a.modes.SuspendScrollMode()
-	}
+	a.logger.Debug("App deactivated while mode remains active", zap.String("app", appName))
 }
 
 // handleAdditionalAccessibility configures accessibility support for Electron/Chromium/Firefox applications.

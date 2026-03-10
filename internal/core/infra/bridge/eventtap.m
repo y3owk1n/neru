@@ -13,19 +13,25 @@
 #pragma mark - Type Definitions
 
 typedef struct {
-	CFMachPortRef eventTap;                          ///< Event tap reference
-	CFRunLoopSourceRef runLoopSource;                ///< Run loop source
-	EventTapCallback callback;                       ///< Callback function
-	void *userData;                                  ///< User data pointer
-	NSDictionary *__strong hotkeyLookup;             ///< Immutable hotkey lookup table: @(lookupKey) -> @YES
-	NSArray<NSString *> *__strong hotkeyStrings;     ///< Raw hotkey strings for rebuild on layout change
-	uint64_t hotkeyGeneration;                       ///< Generation counter for TOCTOU protection
-	os_unfair_lock hotkeyLock;                       ///< Lightweight lock for hotkey lookup/strings/generation
-	NSDictionary *__strong passthroughLookup;        ///< Passthrough key lookup table: @(lookupKey) -> @YES
-	NSArray<NSString *> *__strong passthroughStrings; ///< Raw passthrough key strings
-	os_unfair_lock passthroughLock;                  ///< Lightweight lock for passthrough lookup/strings
-	dispatch_block_t __strong pendingEnableBlock;    ///< Pending enable block (inner delayed block)
-	dispatch_block_t __strong pendingAddSourceBlock; ///< Pending add source block
+	CFMachPortRef eventTap;                               ///< Event tap reference
+	CFRunLoopSourceRef runLoopSource;                     ///< Run loop source
+	EventTapCallback callback;                            ///< Callback function
+	void *userData;                                       ///< User data pointer
+	NSDictionary *__strong hotkeyLookup;                  ///< Immutable hotkey lookup table: @(lookupKey) -> @YES
+	NSArray<NSString *> *__strong hotkeyStrings;          ///< Raw hotkey strings for rebuild on layout change
+	uint64_t hotkeyGeneration;                            ///< Generation counter for TOCTOU protection
+	os_unfair_lock hotkeyLock;                            ///< Lightweight lock for hotkey lookup/strings/generation
+	NSDictionary *__strong interceptedModifierLookup;     ///< Modifier shortcuts Neru still consumes
+	NSArray<NSString *> *__strong interceptedModifierStrings; ///< Raw modifier shortcut strings
+	uint64_t interceptedModifierGeneration;               ///< Generation counter for layout rebuild
+	os_unfair_lock interceptedModifierLock;               ///< Lock for intercepted modifier lookup/strings/generation
+	NSDictionary *__strong modifierBlacklistLookup;       ///< Blacklisted modifier shortcuts
+	NSArray<NSString *> *__strong modifierBlacklistStrings; ///< Raw blacklist strings
+	uint64_t modifierBlacklistGeneration;                 ///< Generation counter for layout rebuild
+	BOOL passthroughUnboundedModifiers;                   ///< Whether unbound modifier shortcuts reach macOS
+	os_unfair_lock modifierPassthroughLock;               ///< Lock for modifier passthrough config
+	dispatch_block_t __strong pendingEnableBlock;         ///< Pending enable block (inner delayed block)
+	dispatch_block_t __strong pendingAddSourceBlock;      ///< Pending add source block
 } EventTapContext;
 
 /// Global event tap context for layout-change rebuild (single instance expected)
@@ -46,12 +52,12 @@ static inline NSUInteger hotkeyLookupKey(CGKeyCode keyCode, CGEventFlags flags) 
 
 #pragma mark - Helper Functions
 
-// Forward declaration for use in buildHotkeyLookupFromStrings
+// Forward declaration for use in buildKeyLookupFromStrings
 static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uint8_t *outModifiers);
 
-/// Build a lookup dictionary from an array of hotkey strings.
-/// Each valid hotkey is parsed and its packed (keyCode, modifiers) key is mapped to @YES.
-static NSDictionary *buildHotkeyLookupFromStrings(NSArray<NSString *> *strings) {
+/// Build a lookup dictionary from an array of key strings.
+/// Each valid key is parsed and its packed (keyCode, modifiers) key is mapped to @YES.
+static NSDictionary *buildKeyLookupFromStrings(NSArray<NSString *> *strings) {
 	NSMutableDictionary *lookup = [[NSMutableDictionary alloc] initWithCapacity:strings.count];
 	for (NSString *hotkeyString in strings) {
 		CGKeyCode keyCode;
@@ -66,10 +72,11 @@ static NSDictionary *buildHotkeyLookupFromStrings(NSArray<NSString *> *strings) 
 	}
 	return [lookup copy]; // return truly immutable NSDictionary
 }
-/// Rebuild the hotkey lookup table from stored hotkey strings.
+
+/// Rebuild the lookup tables that depend on keyboard layout translation.
 /// Called after keyboard layout changes to re-resolve key names to keycodes.
 /// Must be called on the main thread (same as handleKeyboardLayoutChanged).
-static void rebuildEventTapHotkeyLookup(void) {
+static void rebuildEventTapLookups(void) {
 	EventTapContext *context = gEventTapContext;
 	if (!context)
 		return;
@@ -82,23 +89,63 @@ static void rebuildEventTapHotkeyLookup(void) {
 	snapshotGeneration = context->hotkeyGeneration;
 	os_unfair_lock_unlock(&context->hotkeyLock);
 
-	if (!strings || strings.count == 0)
+	if (strings && strings.count > 0) {
+		// Build the new lookup outside the lock (expensive work)
+		NSDictionary *newLookup = buildKeyLookupFromStrings(strings);
+
+		// Swap the lookup table under the lock only if generation hasn't changed
+		// (i.e., setEventTapHotkeys hasn't been called in the meantime).
+		// Save old pointer so ARC releases it outside the lock.
+		NSDictionary *oldLookup = nil;
+		os_unfair_lock_lock(&context->hotkeyLock);
+		if (context->hotkeyGeneration == snapshotGeneration) {
+			oldLookup = context->hotkeyLookup;
+			context->hotkeyLookup = newLookup;
+		}
+		os_unfair_lock_unlock(&context->hotkeyLock);
+		oldLookup = nil; // ARC releases old dictionary here, outside the lock
+	}
+
+	NSArray<NSString *> *modifierStrings = nil;
+	uint64_t modifierGeneration = 0;
+
+	os_unfair_lock_lock(&context->interceptedModifierLock);
+	modifierStrings = context->interceptedModifierStrings;
+	modifierGeneration = context->interceptedModifierGeneration;
+	os_unfair_lock_unlock(&context->interceptedModifierLock);
+
+	if (modifierStrings && modifierStrings.count > 0) {
+		NSDictionary *newModifierLookup = buildKeyLookupFromStrings(modifierStrings);
+		NSDictionary *oldModifierLookup = nil;
+		os_unfair_lock_lock(&context->interceptedModifierLock);
+		if (context->interceptedModifierGeneration == modifierGeneration) {
+			oldModifierLookup = context->interceptedModifierLookup;
+			context->interceptedModifierLookup = newModifierLookup;
+		}
+		os_unfair_lock_unlock(&context->interceptedModifierLock);
+		oldModifierLookup = nil;
+	}
+
+	NSArray<NSString *> *blacklistStrings = nil;
+	uint64_t blacklistGeneration = 0;
+
+	os_unfair_lock_lock(&context->modifierPassthroughLock);
+	blacklistStrings = context->modifierBlacklistStrings;
+	blacklistGeneration = context->modifierBlacklistGeneration;
+	os_unfair_lock_unlock(&context->modifierPassthroughLock);
+
+	if (!blacklistStrings || blacklistStrings.count == 0)
 		return;
 
-	// Build the new lookup outside the lock (expensive work)
-	NSDictionary *newLookup = buildHotkeyLookupFromStrings(strings);
-
-	// Swap the lookup table under the lock only if generation hasn't changed
-	// (i.e., setEventTapHotkeys hasn't been called in the meantime).
-	// Save old pointer so ARC releases it outside the lock.
-	NSDictionary *oldLookup = nil;
-	os_unfair_lock_lock(&context->hotkeyLock);
-	if (context->hotkeyGeneration == snapshotGeneration) {
-		oldLookup = context->hotkeyLookup;
-		context->hotkeyLookup = newLookup;
+	NSDictionary *newBlacklistLookup = buildKeyLookupFromStrings(blacklistStrings);
+	NSDictionary *oldBlacklistLookup = nil;
+	os_unfair_lock_lock(&context->modifierPassthroughLock);
+	if (context->modifierBlacklistGeneration == blacklistGeneration) {
+		oldBlacklistLookup = context->modifierBlacklistLookup;
+		context->modifierBlacklistLookup = newBlacklistLookup;
 	}
-	os_unfair_lock_unlock(&context->hotkeyLock);
-	oldLookup = nil; // ARC releases old dictionary here, outside the lock
+	os_unfair_lock_unlock(&context->modifierPassthroughLock);
+	oldBlacklistLookup = nil;
 }
 
 static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uint8_t *outModifiers) {
@@ -153,6 +200,79 @@ static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uin
 	}
 }
 
+static NSString *specialKeyName(CGKeyCode keyCode) {
+	switch (keyCode) {
+	case kKeyCodeSpace:
+		return @"Space";
+	case kKeyCodeReturn:
+		return @"Return";
+	case kKeyCodeEscape:
+		return @"Escape";
+	case kKeyCodeTab:
+		return @"Tab";
+	case kKeyCodeDelete:
+		return @"Delete";
+	case kKeyCodeUp:
+		return @"Up";
+	case kKeyCodeDown:
+		return @"Down";
+	case kKeyCodeLeft:
+		return @"Left";
+	case kKeyCodeRight:
+		return @"Right";
+	case kKeyCodePageUp:
+		return @"PageUp";
+	case kKeyCodePageDown:
+		return @"PageDown";
+	case kKeyCodeHome:
+		return @"Home";
+	case kKeyCodeEnd:
+		return @"End";
+	case kKeyCodeF1:
+		return @"F1";
+	case kKeyCodeF2:
+		return @"F2";
+	case kKeyCodeF3:
+		return @"F3";
+	case kKeyCodeF4:
+		return @"F4";
+	case kKeyCodeF5:
+		return @"F5";
+	case kKeyCodeF6:
+		return @"F6";
+	case kKeyCodeF7:
+		return @"F7";
+	case kKeyCodeF8:
+		return @"F8";
+	case kKeyCodeF9:
+		return @"F9";
+	case kKeyCodeF10:
+		return @"F10";
+	case kKeyCodeF11:
+		return @"F11";
+	case kKeyCodeF12:
+		return @"F12";
+	case kKeyCodeF13:
+		return @"F13";
+	case kKeyCodeF14:
+		return @"F14";
+	case kKeyCodeF15:
+		return @"F15";
+	case kKeyCodeF16:
+		return @"F16";
+	case kKeyCodeF17:
+		return @"F17";
+	case kKeyCodeF18:
+		return @"F18";
+	case kKeyCodeF19:
+		return @"F19";
+	case kKeyCodeF20:
+		return @"F20";
+	default:
+		return nil;
+	}
+}
+
 #pragma mark - Event Tap Callback
 
 /// Event tap callback function
@@ -195,27 +315,37 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				return event;
 			}
 
-			// Check passthrough keys: these pass through to the OS without
-			// consuming the event and without invoking the Go callback.
-			// Used for system shortcuts like Cmd+Tab when scroll mode is active
-			// with stay_active_in_background enabled.
-			NSDictionary *ptLookup;
-			os_unfair_lock_lock(&context->passthroughLock);
-			ptLookup = context->passthroughLookup;
-			os_unfair_lock_unlock(&context->passthroughLock);
-			if (ptLookup != nil && [ptLookup[@(lookupKey)] boolValue]) {
-				return event;
-			}
-
 			// Check for modifiers (Shift alone is handled separately; Shift+Cmd/Alt/Ctrl is included in string)
 			BOOL hasCmd = (flags & kCGEventFlagMaskCommand) != 0;
 			BOOL hasShift = (flags & kCGEventFlagMaskShift) != 0;
 			BOOL hasAlt = (flags & kCGEventFlagMaskAlternate) != 0;
 			BOOL hasCtrl = (flags & kCGEventFlagMaskControl) != 0;
 
-			// If there are modifiers (Cmd, Alt, Ctrl), construct a modifier key name
 			if (hasCmd || hasAlt || hasCtrl) {
+				BOOL passthroughEnabled = NO;
+				NSDictionary *blacklistLookup = nil;
+				os_unfair_lock_lock(&context->modifierPassthroughLock);
+				passthroughEnabled = context->passthroughUnboundedModifiers;
+				blacklistLookup = context->modifierBlacklistLookup;
+				os_unfair_lock_unlock(&context->modifierPassthroughLock);
+
+				NSDictionary *interceptedLookup = nil;
+				os_unfair_lock_lock(&context->interceptedModifierLock);
+				interceptedLookup = context->interceptedModifierLookup;
+				os_unfair_lock_unlock(&context->interceptedModifierLock);
+
+				BOOL isIntercepted = interceptedLookup != nil && [interceptedLookup[@(lookupKey)] boolValue];
+				BOOL isBlacklisted = blacklistLookup != nil && [blacklistLookup[@(lookupKey)] boolValue];
+
+				if (passthroughEnabled && !isIntercepted && !isBlacklisted) {
+					return event;
+				}
+
 				NSString *keyName = keyCodeToName(keyCode);
+				if (!keyName) {
+					keyName = specialKeyName(keyCode);
+				}
+
 				if (keyName) {
 					NSMutableString *fullKey = [NSMutableString string];
 
@@ -240,6 +370,10 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			// Handle Shift+Letter for direct action matching (before Unicode translation)
 			if (hasShift && !hasCmd && !hasAlt && !hasCtrl) {
 				NSString *keyName = keyCodeToName(keyCode);
+				if (!keyName) {
+					keyName = specialKeyName(keyCode);
+				}
+
 				if (keyName) {
 					NSMutableString *fullKey = [NSMutableString stringWithString:@"Shift+"];
 					[fullKey appendString:keyName];
@@ -251,78 +385,10 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				}
 			}
 
-			// Special handling for delete/backspace key (Shift+Delete handled in Shift-only block)
-			if (keyCode == kKeyCodeDelete) {
-				if (context->callback) {
-					context->callback("Delete", context->userData);
-				}
+			NSString *namedKey = specialKeyName(keyCode);
+			if (namedKey && context->callback) {
+				context->callback([namedKey UTF8String], context->userData);
 				return NULL;
-			}
-
-			// Special handling for escape key (Shift+Escape handled in Shift-only block)
-			if (keyCode == kKeyCodeEscape) {
-				if (context->callback) {
-					context->callback("Escape", context->userData);
-				}
-				return NULL;
-			}
-
-			// Special handling for tab key (Shift+Tab handled in Shift-only block)
-			if (keyCode == kKeyCodeTab) {
-				if (context->callback) {
-					context->callback("Tab", context->userData);
-				}
-				return NULL;
-			}
-
-			// Handle arrow keys, navigation keys, and function keys using lookup table
-			// Note: Shift+Arrow is handled in Shift-only block since keyCodeToName returns non-nil for these
-			{
-				static const struct {
-					CGKeyCode code;
-					const char *name;
-				} specialKeys[] = {
-				    // Navigation keys
-				    {kKeyCodeUp, "Up"},
-				    {kKeyCodeDown, "Down"},
-				    {kKeyCodeLeft, "Left"},
-				    {kKeyCodeRight, "Right"},
-				    {kKeyCodePageUp, "PageUp"},
-				    {kKeyCodePageDown, "PageDown"},
-				    {kKeyCodeHome, "Home"},
-				    {kKeyCodeEnd, "End"},
-
-				    // Function keys
-				    {kKeyCodeF1, "F1"},
-				    {kKeyCodeF2, "F2"},
-				    {kKeyCodeF3, "F3"},
-				    {kKeyCodeF4, "F4"},
-				    {kKeyCodeF5, "F5"},
-				    {kKeyCodeF6, "F6"},
-				    {kKeyCodeF7, "F7"},
-				    {kKeyCodeF8, "F8"},
-				    {kKeyCodeF9, "F9"},
-				    {kKeyCodeF10, "F10"},
-				    {kKeyCodeF11, "F11"},
-				    {kKeyCodeF12, "F12"},
-				    {kKeyCodeF13, "F13"},
-				    {kKeyCodeF14, "F14"},
-				    {kKeyCodeF15, "F15"},
-				    {kKeyCodeF16, "F16"},
-				    {kKeyCodeF17, "F17"},
-				    {kKeyCodeF18, "F18"},
-				    {kKeyCodeF19, "F19"},
-				    {kKeyCodeF20, "F20"},
-				};
-
-				for (size_t i = 0; i < sizeof(specialKeys) / sizeof(specialKeys[0]); i++) {
-					if (keyCode == specialKeys[i].code) {
-						if (context->callback) {
-							context->callback(specialKeys[i].name, context->userData);
-						}
-						return NULL;
-					}
-				}
 			}
 
 			// Map key code to character using current keyboard layout (with US QWERTY fallback)
@@ -364,13 +430,20 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->hotkeyLookup = [[NSDictionary alloc] init];
 	context->hotkeyStrings = nil;
 	context->hotkeyLock = OS_UNFAIR_LOCK_INIT;
+	context->interceptedModifierLookup = [[NSDictionary alloc] init];
+	context->interceptedModifierStrings = nil;
+	context->interceptedModifierLock = OS_UNFAIR_LOCK_INIT;
+	context->modifierBlacklistLookup = [[NSDictionary alloc] init];
+	context->modifierBlacklistStrings = nil;
+	context->modifierPassthroughLock = OS_UNFAIR_LOCK_INIT;
+	context->passthroughUnboundedModifiers = NO;
 
 	// Store global reference for layout-change rebuild.
 	gEventTapContext = context;
 
-	// Register for keyboard layout change notifications so the hotkey
-	// lookup table is rebuilt when key names map to different keycodes.
-	setKeymapLayoutChangeCallback(rebuildEventTapHotkeyLookup);
+	// Register for keyboard layout change notifications so all key lookups are
+	// rebuilt when key names map to different keycodes.
+	setKeymapLayoutChangeCallback(rebuildEventTapLookups);
 
 	context->pendingEnableBlock = nil;
 	context->pendingAddSourceBlock = nil;
@@ -385,6 +458,10 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 		setKeymapLayoutChangeCallback(NULL);
 		context->hotkeyLookup = nil;
 		context->hotkeyStrings = nil;
+		context->interceptedModifierLookup = nil;
+		context->interceptedModifierStrings = nil;
+		context->modifierBlacklistLookup = nil;
+		context->modifierBlacklistStrings = nil;
 		free(context);
 		return NULL;
 	}
@@ -434,7 +511,7 @@ void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count) {
 			}
 		}
 
-		NSDictionary *newLookup = buildHotkeyLookupFromStrings(newStrings);
+		NSDictionary *newLookup = buildKeyLookupFromStrings(newStrings);
 
 		NSArray<NSString *> *copiedStrings = [newStrings copy];
 
@@ -456,14 +533,48 @@ void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count) {
 	}
 }
 
-/// Set event tap passthrough keys
-/// Keys in this list pass through to the OS without being consumed and without
-/// invoking the Go callback. Mirrors setEventTapHotkeys but uses the separate
-/// passthroughLookup / passthroughLock pair.
+/// Set modifier passthrough behavior for unbound Cmd/Ctrl/Alt shortcuts.
+/// @param tap Event tap handle
+/// @param enabled Non-zero to enable passthrough
+/// @param blacklistKeys Array of blacklisted modifier shortcuts
+/// @param count Number of blacklisted keys
+void setEventTapModifierPassthrough(EventTap tap, int enabled, const char **blacklistKeys, int count) {
+	if (!tap)
+		return;
+	EventTapContext *context = (EventTapContext *)tap;
+
+	@autoreleasepool {
+		NSMutableArray<NSString *> *newStrings = [NSMutableArray arrayWithCapacity:count];
+
+		for (int i = 0; i < count; i++) {
+			if (blacklistKeys[i] && strlen(blacklistKeys[i]) > 0) {
+				[newStrings addObject:[NSString stringWithUTF8String:blacklistKeys[i]]];
+			}
+		}
+
+		NSDictionary *newLookup = buildKeyLookupFromStrings(newStrings);
+		NSArray<NSString *> *copiedStrings = [newStrings copy];
+
+		NSDictionary *oldLookup;
+		NSArray *oldStrings;
+		os_unfair_lock_lock(&context->modifierPassthroughLock);
+		oldStrings = context->modifierBlacklistStrings;
+		oldLookup = context->modifierBlacklistLookup;
+		context->modifierBlacklistStrings = copiedStrings;
+		context->modifierBlacklistGeneration++;
+		context->modifierBlacklistLookup = newLookup;
+		context->passthroughUnboundedModifiers = enabled != 0;
+		os_unfair_lock_unlock(&context->modifierPassthroughLock);
+		oldLookup = nil;
+		oldStrings = nil;
+	}
+}
+
+/// Set modifier shortcuts that the active mode still wants Neru to consume.
 /// @param tap Event tap handle
 /// @param keys Array of key strings
 /// @param count Number of keys
-void setEventTapPassthroughKeys(EventTap tap, const char **keys, int count) {
+void setEventTapInterceptedModifierKeys(EventTap tap, const char **keys, int count) {
 	if (!tap)
 		return;
 	EventTapContext *context = (EventTapContext *)tap;
@@ -477,18 +588,18 @@ void setEventTapPassthroughKeys(EventTap tap, const char **keys, int count) {
 			}
 		}
 
-		NSDictionary *newLookup = buildHotkeyLookupFromStrings(newStrings);
+		NSDictionary *newLookup = buildKeyLookupFromStrings(newStrings);
 		NSArray<NSString *> *copiedStrings = [newStrings copy];
 
 		NSDictionary *oldLookup;
 		NSArray *oldStrings;
-		os_unfair_lock_lock(&context->passthroughLock);
-		oldStrings = context->passthroughStrings;
-		oldLookup = context->passthroughLookup;
-		context->passthroughStrings = copiedStrings;
-		context->passthroughLookup = newLookup;
-		os_unfair_lock_unlock(&context->passthroughLock);
-		// ARC releases old objects here, outside the lock
+		os_unfair_lock_lock(&context->interceptedModifierLock);
+		oldStrings = context->interceptedModifierStrings;
+		oldLookup = context->interceptedModifierLookup;
+		context->interceptedModifierStrings = copiedStrings;
+		context->interceptedModifierGeneration++;
+		context->interceptedModifierLookup = newLookup;
+		os_unfair_lock_unlock(&context->interceptedModifierLock);
 		oldLookup = nil;
 		oldStrings = nil;
 	}
@@ -610,6 +721,29 @@ void destroyEventTap(EventTap tap) {
 		// ARC releases old objects outside the lock
 		oldLookup = nil;
 		oldStrings = nil;
+
+		NSDictionary *oldInterceptedLookup;
+		NSArray *oldInterceptedStrings;
+		os_unfair_lock_lock(&context->interceptedModifierLock);
+		oldInterceptedLookup = context->interceptedModifierLookup;
+		oldInterceptedStrings = context->interceptedModifierStrings;
+		context->interceptedModifierLookup = nil;
+		context->interceptedModifierStrings = nil;
+		os_unfair_lock_unlock(&context->interceptedModifierLock);
+		oldInterceptedLookup = nil;
+		oldInterceptedStrings = nil;
+
+		NSDictionary *oldBlacklistLookup;
+		NSArray *oldBlacklistStrings;
+		os_unfair_lock_lock(&context->modifierPassthroughLock);
+		oldBlacklistLookup = context->modifierBlacklistLookup;
+		oldBlacklistStrings = context->modifierBlacklistStrings;
+		context->modifierBlacklistLookup = nil;
+		context->modifierBlacklistStrings = nil;
+		context->passthroughUnboundedModifiers = NO;
+		os_unfair_lock_unlock(&context->modifierPassthroughLock);
+		oldBlacklistLookup = nil;
+		oldBlacklistStrings = nil;
 
 		context->pendingEnableBlock = nil;    // ARC will handle deallocation
 		context->pendingAddSourceBlock = nil; // ARC will handle deallocation

@@ -175,6 +175,8 @@ Core behavior settings that affect all Neru functionality.
 | `center_cursor_position`       | bool   | `false`      | Center cursor on current screen on exit    |
 | `kb_layout_to_use`             | string | `""`         | Optional InputSourceID for layout mapping  |
 | `mode_exit_keys`               | array  | `["Escape"]` | Keys that exit any active mode             |
+| `passthrough_unbounded_keys`   | bool   | `false`      | Let unbound Cmd/Ctrl/Alt shortcuts reach macOS |
+| `passthrough_unbounded_keys_blacklist` | array | `[]` | Shortcuts to keep consumed while passthrough is enabled |
 | `hide_overlay_in_screen_share` | bool   | `false`      | Hide overlay in screen sharing apps        |
 
 ### excluded_apps
@@ -274,6 +276,34 @@ mode_exit_keys = ["Escape"]           # default
 - Single characters: any single letter or digit
 
 > **Note:** Named key casing is flexible — `"escape"`, `"Escape"`, and `"ESCAPE"` all work. Title case (e.g. `"Escape"`) is the recommended convention.
+
+### passthrough_unbounded_keys
+
+Allow unbound Cmd/Ctrl/Alt shortcuts to keep reaching macOS while a mode is active.
+
+```toml
+[general]
+passthrough_unbounded_keys = false  # default
+```
+
+- `true`: Neru passes through modifier shortcuts that the active mode does not use
+- `false`: Neru consumes all active-mode key presses
+
+**Examples that can pass through:** `Cmd+Tab`, `Cmd+Space`, `Cmd+W`, `Alt+Tab`
+
+> **Note:** Modifier shortcuts that Neru actively uses are still consumed. For example, scroll bindings like `Ctrl+D` or `Cmd+Down` continue working when they are configured in the active mode.
+
+### passthrough_unbounded_keys_blacklist
+
+Optional list of modifier shortcuts that should stay consumed by Neru even when `passthrough_unbounded_keys` is enabled.
+
+```toml
+[general]
+passthrough_unbounded_keys = true
+passthrough_unbounded_keys_blacklist = ["Cmd+W", "Cmd+Q"]
+```
+
+Use this when you want macOS shortcuts to keep working in general, but you want to suppress a few of them while a mode is active.
 
 ### hide_overlay_in_screen_share
 

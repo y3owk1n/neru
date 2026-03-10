@@ -20,10 +20,14 @@ type EventTapPort interface {
 	// SetHotkeys configures which hotkeys the event tap should monitor.
 	SetHotkeys(hotkeys []string)
 
-	// SetPassthroughKeys configures keys that pass through to the OS without
-	// being consumed and without invoking the Go callback. Used to allow system
-	// shortcuts (e.g. Cmd+Tab) to reach the OS while a mode is active.
-	SetPassthroughKeys(keys []string)
+	// SetModifierPassthrough configures whether unbound Cmd/Ctrl/Alt shortcuts
+	// should pass through to macOS, plus an optional blacklist of shortcuts to
+	// keep consumed by Neru even when they are otherwise unbound.
+	SetModifierPassthrough(enabled bool, blacklist []string)
+
+	// SetInterceptedModifierKeys configures which modifier shortcuts the active
+	// mode still wants Neru to consume while modifier passthrough is enabled.
+	SetInterceptedModifierKeys(keys []string)
 
 	// SetKeyboardLayout configures the reference keyboard layout used for key translation.
 	// Returns false when an explicit layout ID is provided but cannot be resolved.
