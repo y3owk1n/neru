@@ -71,24 +71,29 @@ For full details see the [Development Guide](docs/DEVELOPMENT.md).
 
 1. **Fork** the repository and clone your fork.
 2. **Create a branch** from `main`:
-   ```bash
-   git checkout -b feat/my-feature
-   ```
+
+    ```bash
+    git checkout -b feat/my-feature
+    ```
+
 3. **Make your changes** following the [Coding Standards](docs/CODING_STANDARDS.md).
 4. **Add or update tests** for any new or changed functionality.
 5. **Run the pre-commit checklist**:
-   ```bash
-   just fmt            # Format code
-   just lint           # Run linters
-   just test           # Run unit tests
-   just build          # Verify build
-   ```
+
+    ```bash
+    just fmt            # Format code
+    just lint           # Run linters
+    just test           # Run unit tests
+    just build          # Verify build
+    ```
+
 6. **Commit** using [conventional commits](#commit-messages).
 7. **Push** and open a pull request.
 
 ---
 
 ## Commit Messages
+
 We use [Conventional Commits](https://www.conventionalcommits.org/) to power automated releases via [Release Please](https://github.com/googleapis/release-please).
 
 **Format:**
@@ -100,18 +105,20 @@ We use [Conventional Commits](https://www.conventionalcommits.org/) to power aut
 ```
 
 **Types:**
-| Type       | When to use                          |
+
+| Type | When to use |
 | ---------- | ------------------------------------ |
-| `feat`     | New feature                          |
-| `fix`      | Bug fix                              |
-| `docs`     | Documentation only                   |
-| `style`    | Formatting, no logic change          |
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `style` | Formatting, no logic change |
 | `refactor` | Code restructuring, no behavior change |
-| `perf`     | Performance improvement              |
-| `test`     | Adding or updating tests             |
-| `chore`    | Build, CI, dependencies, tooling     |
+| `perf` | Performance improvement |
+| `test` | Adding or updating tests |
+| `chore` | Build, CI, dependencies, tooling |
 
 **Examples:**
+
 ```
 feat(grid): add recursive subdivision mode
 fix(hints): correct overlay positioning on multi-monitor setups
@@ -135,12 +142,12 @@ docs: update configuration reference for scroll mode
 
 Neru separates tests into unit and integration tests:
 
-| Type              | File pattern                        | Command                | Build tag      |
-| ----------------- | ----------------------------------- | ---------------------- | -------------- |
-| Unit tests        | `*_test.go`                         | `just test`            | —              |
-| Integration tests | `*_integration_test.go`             | `just test-integration`| `integration`  |
-| Unit benchmarks   | `*_bench_test.go`                   | `just bench`           | —              |
-| Integration bench | `*_bench_integration_test.go`       | `just bench-integration`| `integration` |
+| Type              | File pattern                  | Command                  | Build tag     |
+| ----------------- | ----------------------------- | ------------------------ | ------------- |
+| Unit tests        | `*_test.go`                   | `just test`              | —             |
+| Integration tests | `*_integration_test.go`       | `just test-integration`  | `integration` |
+| Unit benchmarks   | `*_bench_test.go`             | `just bench`             | —             |
+| Integration bench | `*_bench_integration_test.go` | `just bench-integration` | `integration` |
 
 **Guidelines:**
 
@@ -174,7 +181,6 @@ Not sure where to start? These are great entry points:
 - 📝 Documentation improvements or typo fixes
 - 📦 Config examples for common setups
 - 🎥 Demo videos or GIFs
-- 🎨 App icon / logo improvements
 - ⚡ Performance improvements
 - 🧪 Additional test coverage
 

@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/neru-appicon.png" alt="Neru Logo" width="128" />
+
 # 練る · Neru
 
 **Mouse-free macOS navigation. Free, open-source, endlessly customisable.**
@@ -189,7 +191,6 @@ Follow the [Coding Standards](docs/CODING_STANDARDS.md) and keep PRs focused on 
 
 **Good first contributions:**
 
-- App icon / logo improvements
 - New navigation mechanisms
 - Additional mouse action types
 - Config examples for common setups
