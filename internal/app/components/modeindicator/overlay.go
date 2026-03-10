@@ -56,6 +56,11 @@ type Overlay struct {
 	// configMu protects indicatorConfig from concurrent read/write.
 	configMu sync.RWMutex
 
+	// lastDrawnMode tracks the mode whose colors are currently cached in
+	// styleCache. When the mode changes the cache is invalidated so that
+	// per-mode color overrides take effect.
+	lastDrawnMode string
+
 	// Cached C strings for indicator labels to avoid malloc/free per draw
 	labelCacheMu sync.RWMutex
 	cachedLabels map[string]*C.char
@@ -167,6 +172,13 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	labelText := o.resolveLabelText(mode)
 	if labelText == "" {
 		return
+	}
+
+	// Invalidate the style cache when the mode changes so that per-mode
+	// color overrides are re-resolved instead of reusing stale values.
+	if mode != o.lastDrawnMode {
+		o.styleCache.Free()
+		o.lastDrawnMode = mode
 	}
 
 	// Offset from cursor to avoid covering it
@@ -346,6 +358,7 @@ func (o *Overlay) freeAllCaches() {
 	o.drawMu.Lock()
 	defer o.drawMu.Unlock()
 	o.styleCache.Free()
+	o.lastDrawnMode = ""
 	o.freeLabelCacheLocked()
 }
 
