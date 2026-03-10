@@ -20,8 +20,20 @@ func ResolveColorWithOverride(
 	defaultLight, defaultDark string,
 ) string {
 	// Use overrides if either variant is specified.
+	// For the unset variant, fall back to the shared UI default
+	// rather than jumping straight to the hardcoded default.
 	if overrideLight != "" || overrideDark != "" {
-		return ResolveColor(overrideLight, overrideDark, theme, defaultLight, defaultDark)
+		effLight := overrideLight
+		if effLight == "" {
+			effLight = uiLight
+		}
+
+		effDark := overrideDark
+		if effDark == "" {
+			effDark = uiDark
+		}
+
+		return ResolveColor(effLight, effDark, theme, defaultLight, defaultDark)
 	}
 
 	// Fall through to shared UI defaults.
