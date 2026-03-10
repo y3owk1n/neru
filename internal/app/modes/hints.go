@@ -225,11 +225,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 		h.hints.Context.SetManager(manager)
 	}
 
-	// Initialize domain router for hint navigation
 	exitKeys := h.config.ResolvedExitKeys("hints")
-	if len(exitKeys) == 0 {
-		exitKeys = DefaultModeExitKeys()
-	}
 
 	h.hints.Context.SetRouter(
 		domainHint.NewRouterWithExitKeys(h.hints.Context.Manager(), h.logger, exitKeys),
