@@ -17,6 +17,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
 )
 
@@ -158,8 +159,9 @@ func (o *Overlay) ResizeToActiveScreen() {
 }
 
 // DrawModeIndicator draws a mode label at the specified position.
-// The mode parameter is the overlay mode string (e.g. "hints", "grid",
-// "scroll", "recursive_grid"). The label text is resolved from config,
+// The mode parameter is the overlay mode string matching domain.ModeName*
+// constants (e.g. "hints", "grid", "scroll", "recursive_grid").
+// The label text is resolved from config,
 // allowing users to customize (or hide) each mode's indicator text.
 // The caller is responsible for calling Show() once before the first draw
 // (e.g. in startModeIndicatorPolling) rather than showing every tick.
@@ -334,13 +336,13 @@ func (o *Overlay) Destroy() {
 // Caller must hold configMu.RLock.
 func (o *Overlay) resolveModeConfig(mode string) *config.ModeIndicatorModeConfig {
 	switch mode {
-	case "hints":
+	case domain.ModeNameHints:
 		return &o.indicatorConfig.Hints
-	case "grid":
+	case domain.ModeNameGrid:
 		return &o.indicatorConfig.Grid
-	case "scroll":
+	case domain.ModeNameScroll:
 		return &o.indicatorConfig.Scroll
-	case "recursive_grid":
+	case domain.ModeNameRecursiveGrid:
 		return &o.indicatorConfig.RecursiveGrid
 	default:
 		return nil
