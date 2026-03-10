@@ -202,14 +202,17 @@ func (c *Component) Close() {
 
 // updateMenuItems updates the systray menu items based on the current enabled state.
 func (c *Component) updateMenuItems(enabled bool) {
+	// Clear text title since we use an icon
+	systray.SetTitle("")
+
 	// Update icon, tooltip, and menu items to show current status
 	if enabled {
-		systray.SetTitle("⌨️")
+		systray.SetTemplateIcon(trayIcon, true)
 		systray.SetTooltip("Neru - Running")
 		c.mToggleDisable.Show()
 		c.mToggleEnable.Hide()
 	} else {
-		systray.SetTitle("⏸️")
+		systray.SetTemplateIcon(trayIconDisabled, true)
 		systray.SetTooltip("Neru - Paused")
 		c.mToggleDisable.Hide()
 		c.mToggleEnable.Show()

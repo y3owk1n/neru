@@ -9,6 +9,9 @@
 	<key>CFBundleDisplayName</key>
 	<string>Neru</string>
 
+	<key>CFBundleIconFile</key>
+	<string>icon</string>
+
     <key>CFBundleExecutable</key>
     <string>Neru</string>
 

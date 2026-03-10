@@ -137,6 +137,8 @@ else
 
       cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/Neru
 
+      cp ${finalAttrs.src}/resources/icon.icns $out/Applications/Neru.app/Contents/Resources/icon.icns
+
       SRC_PLIST=${finalAttrs.src}/resources/Info.plist.template
 
       sed "s|VERSION|${finalAttrs.version}|g" $SRC_PLIST > $out/Applications/Neru.app/Contents/Info.plist

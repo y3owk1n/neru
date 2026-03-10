@@ -16,11 +16,12 @@ static BOOL _showSystray = YES;
 
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
 	if (_showSystray) {
-		self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
+		self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSSquareStatusItemLength];
 		self.menu = [[NSMenu alloc] init];
 		[self.menu setAutoenablesItems:NO];
 		[self.menu setDelegate:self];
 		[self.statusItem setMenu:self.menu];
+		[self.statusItem.button setImagePosition:NSImageOnly];
 	}
 
 	// Notify Go that we are ready
@@ -73,7 +74,12 @@ void quit(void) {
 void setIcon(const char *iconBytes, int length, bool isTemplate) {
 	NSData *data = [NSData dataWithBytes:iconBytes length:length];
 	NSImage *image = [[NSImage alloc] initWithData:data];
+	// Menu bar icons are 22×22 points (44×44 @2x retina). Setting the size
+	// explicitly ensures macOS renders the icon at the correct dimensions
+	// regardless of the source PNG pixel size.
+	[image setSize:NSMakeSize(22, 22)];
 	[image setTemplate:isTemplate];
+
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (appDelegate && appDelegate.statusItem) {
 			appDelegate.statusItem.button.image = image;
