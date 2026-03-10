@@ -1737,10 +1737,12 @@ func checkPerModeExitKeysScrollBindingConflicts(
 			}
 
 			// Check prefix conflicts: a single-character exit key that matches the
-			// first character of a 2-letter sequence (e.g. exit key "g" vs binding "gg")
+			// first character of a multi-letter sequence (e.g. exit key "g" vs binding "gg")
 			// will intercept the key at dispatch time before the scroll handler can
 			// start the sequence, silently breaking the binding.
-			if len(scrollKey) == 2 && IsAllLetters(scrollKey) {
+			// Currently validateScrollKey only allows 2-letter sequences, but we use
+			// >= 2 defensively so this stays correct if longer sequences are added.
+			if len(scrollKey) >= 2 && IsAllLetters(scrollKey) {
 				prefix := strings.ToLower(scrollKey[:1])
 				if slices.Contains(normalizedExitKeys, prefix) {
 					return derrors.Newf(
