@@ -18,6 +18,8 @@ func (m *mockThemeProvider) IsDarkMode() bool {
 const (
 	testDefaultLight = "#AAAAAA"
 	testDefaultDark  = "#BBBBBB"
+	testUILight      = "#330000"
+	testUIDark       = "#440000"
 )
 
 func TestResolveColor_UserSpecified(t *testing.T) {
@@ -94,6 +96,146 @@ func TestResolveColor_OnlyDarkSet(t *testing.T) {
 	result = config.ResolveColor("", darkColor, nil, defaultLight, defaultDark)
 	if result != defaultLight {
 		t.Errorf("Expected default light %q with nil theme, got %q", defaultLight, result)
+	}
+}
+
+func TestResolveColorWithOverride_BothOverridesSet(t *testing.T) {
+	// When both per-mode overrides are set, they take precedence over
+	// shared UI defaults and hardcoded defaults.
+	overrideLight := "#110000"
+	overrideDark := "#220000"
+	uiLight := testUILight
+	uiDark := testUIDark
+	defaultLight := testDefaultLight
+	defaultDark := testDefaultDark
+
+	darkTheme := &mockThemeProvider{darkMode: true}
+	lightTheme := &mockThemeProvider{darkMode: false}
+
+	// Dark mode picks per-mode dark override
+	result := config.ResolveColorWithOverride(
+		overrideLight, overrideDark, uiLight, uiDark, darkTheme, defaultLight, defaultDark,
+	)
+	if result != overrideDark {
+		t.Errorf("Expected per-mode dark override %q, got %q", overrideDark, result)
+	}
+
+	// Light mode picks per-mode light override
+	result = config.ResolveColorWithOverride(
+		overrideLight, overrideDark, uiLight, uiDark, lightTheme, defaultLight, defaultDark,
+	)
+	if result != overrideLight {
+		t.Errorf("Expected per-mode light override %q, got %q", overrideLight, result)
+	}
+}
+
+func TestResolveColorWithOverride_OnlyLightOverrideSet(t *testing.T) {
+	// When only the light per-mode override is set, dark mode should
+	// fall back to the shared UI dark value (not the hardcoded default).
+	overrideLight := "#110000"
+	uiLight := testUILight
+	uiDark := testUIDark
+	defaultLight := testDefaultLight
+	defaultDark := testDefaultDark
+
+	darkTheme := &mockThemeProvider{darkMode: true}
+	lightTheme := &mockThemeProvider{darkMode: false}
+
+	// Light mode picks per-mode light override
+	result := config.ResolveColorWithOverride(
+		overrideLight, "", uiLight, uiDark, lightTheme, defaultLight, defaultDark,
+	)
+	if result != overrideLight {
+		t.Errorf("Expected per-mode light override %q, got %q", overrideLight, result)
+	}
+
+	// Dark mode falls back to shared UI dark (middle tier), not hardcoded default
+	result = config.ResolveColorWithOverride(
+		overrideLight, "", uiLight, uiDark, darkTheme, defaultLight, defaultDark,
+	)
+	if result != uiDark {
+		t.Errorf("Expected shared UI dark %q, got %q", uiDark, result)
+	}
+}
+
+func TestResolveColorWithOverride_OnlyDarkOverrideSet(t *testing.T) {
+	// When only the dark per-mode override is set, light mode should
+	// fall back to the shared UI light value (not the hardcoded default).
+	overrideDark := "#220000"
+	uiLight := testUILight
+	uiDark := testUIDark
+	defaultLight := testDefaultLight
+	defaultDark := testDefaultDark
+
+	darkTheme := &mockThemeProvider{darkMode: true}
+	lightTheme := &mockThemeProvider{darkMode: false}
+
+	// Dark mode picks per-mode dark override
+	result := config.ResolveColorWithOverride(
+		"", overrideDark, uiLight, uiDark, darkTheme, defaultLight, defaultDark,
+	)
+	if result != overrideDark {
+		t.Errorf("Expected per-mode dark override %q, got %q", overrideDark, result)
+	}
+
+	// Light mode falls back to shared UI light (middle tier), not hardcoded default
+	result = config.ResolveColorWithOverride(
+		"", overrideDark, uiLight, uiDark, lightTheme, defaultLight, defaultDark,
+	)
+	if result != uiLight {
+		t.Errorf("Expected shared UI light %q, got %q", uiLight, result)
+	}
+}
+
+func TestResolveColorWithOverride_NoOverrides(t *testing.T) {
+	// When no per-mode overrides are set, falls through to shared UI defaults.
+	uiLight := testUILight
+	uiDark := testUIDark
+	defaultLight := testDefaultLight
+	defaultDark := testDefaultDark
+
+	darkTheme := &mockThemeProvider{darkMode: true}
+	lightTheme := &mockThemeProvider{darkMode: false}
+
+	// Dark mode picks shared UI dark
+	result := config.ResolveColorWithOverride(
+		"", "", uiLight, uiDark, darkTheme, defaultLight, defaultDark,
+	)
+	if result != uiDark {
+		t.Errorf("Expected shared UI dark %q, got %q", uiDark, result)
+	}
+
+	// Light mode picks shared UI light
+	result = config.ResolveColorWithOverride(
+		"", "", uiLight, uiDark, lightTheme, defaultLight, defaultDark,
+	)
+	if result != uiLight {
+		t.Errorf("Expected shared UI light %q, got %q", uiLight, result)
+	}
+}
+
+func TestResolveColorWithOverride_NoOverridesNoUI(t *testing.T) {
+	// When no overrides and no shared UI values are set, falls through
+	// to hardcoded defaults.
+	defaultLight := testDefaultLight
+	defaultDark := testDefaultDark
+	darkTheme := &mockThemeProvider{darkMode: true}
+	lightTheme := &mockThemeProvider{darkMode: false}
+
+	// Dark mode picks hardcoded default dark
+	result := config.ResolveColorWithOverride(
+		"", "", "", "", darkTheme, defaultLight, defaultDark,
+	)
+	if result != defaultDark {
+		t.Errorf("Expected hardcoded default dark %q, got %q", defaultDark, result)
+	}
+
+	// Light mode picks hardcoded default light
+	result = config.ResolveColorWithOverride(
+		"", "", "", "", lightTheme, defaultLight, defaultDark,
+	)
+	if result != defaultLight {
+		t.Errorf("Expected hardcoded default light %q, got %q", defaultLight, result)
 	}
 }
 
