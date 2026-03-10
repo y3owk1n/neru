@@ -176,16 +176,28 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		return
 	}
 
-	// Invalidate the style cache when the mode changes so that per-mode
-	// color overrides are re-resolved instead of reusing stale values.
-	if mode != o.lastDrawnMode {
-		o.styleCache.Free()
-		o.lastDrawnMode = mode
-	}
-
 	// Offset from cursor to avoid covering it
 	xOffset := o.indicatorConfig.UI.IndicatorXOffset
 	yOffset := o.indicatorConfig.UI.IndicatorYOffset
+
+	// Invalidate the style cache when the mode changes so that per-mode
+	// color overrides are re-resolved instead of reusing stale values.
+	// Both the read and write of lastDrawnMode must happen under drawMu
+	// to avoid racing with freeAllCaches (which also writes lastDrawnMode
+	// and frees the cache under drawMu.Lock).
+	o.drawMu.RLock()
+	needsInvalidation := mode != o.lastDrawnMode
+	o.drawMu.RUnlock()
+	if needsInvalidation {
+		o.drawMu.Lock()
+		// Double-check after acquiring the write lock, in case
+		// freeAllCaches ran between the check and the lock acquisition.
+		if mode != o.lastDrawnMode {
+			o.styleCache.Free()
+			o.lastDrawnMode = mode
+		}
+		o.drawMu.Unlock()
+	}
 
 	// Hold drawMu.RLock for the entire span from label lookup through the C
 	// draw call so that freeAllCaches (which takes drawMu.Lock) cannot free
