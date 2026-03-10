@@ -231,6 +231,7 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		_cachedHintAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
 		_cachedHintMeasureString = [[NSMutableAttributedString alloc] initWithString:@""];
 		_cachedGridCellAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
+		_cachedGridSubKeyAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
 
 		// Initialize cached font keys (match defaults above)
 		_cachedHintFontFamily = nil;
@@ -898,10 +899,6 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	if (subCellWidth < minSubCell || subCellHeight < minSubCell)
 		return;
 	NSMutableAttributedString *str = self.cachedGridSubKeyAttributedString;
-	if (!str) {
-		str = [[NSMutableAttributedString alloc] initWithString:@""];
-		self.cachedGridSubKeyAttributedString = str;
-	}
 	for (int row = 0; row < rows; row++) {
 		for (int col = 0; col < cols; col++) {
 			NSUInteger idx = (NSUInteger)(row * cols + col);
