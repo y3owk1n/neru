@@ -378,7 +378,8 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 					MinSizeHeight: 10,
 					MaxDepth:      10,
 					UI: config.RecursiveGridUI{
-						LineWidth: -1,
+						LineWidth:             -1,
+						SubKeyPreviewFontSize: 6,
 					},
 				},
 			},
