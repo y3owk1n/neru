@@ -164,13 +164,13 @@ func (h *Handler) modeIndicatorEnabled(mode domain.Mode) bool {
 	case domain.ModeIdle:
 		return false
 	case domain.ModeScroll:
-		return h.config.ModeIndicator.ScrollEnabled
+		return h.config.ModeIndicator.Scroll.Enabled
 	case domain.ModeHints:
-		return h.config.ModeIndicator.HintsEnabled
+		return h.config.ModeIndicator.Hints.Enabled
 	case domain.ModeGrid:
-		return h.config.ModeIndicator.GridEnabled
+		return h.config.ModeIndicator.Grid.Enabled
 	case domain.ModeRecursiveGrid:
-		return h.config.ModeIndicator.RecursiveGridEnabled
+		return h.config.ModeIndicator.RecursiveGrid.Enabled
 	default:
 		return false
 	}

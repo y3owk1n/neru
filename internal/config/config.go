@@ -288,13 +288,27 @@ type ModeIndicatorUI struct {
 	IndicatorYOffset     int    `json:"indicatorYOffset"     toml:"indicator_y_offset"`
 }
 
-// ModeIndicatorConfig defines per-mode indicator visibility.
+// ModeIndicatorModeConfig defines per-mode settings for the mode indicator.
+// Text is the label shown in the indicator; empty string hides the label.
+// Color overrides are optional; empty string inherits from [mode_indicator.ui].
+type ModeIndicatorModeConfig struct {
+	Enabled              bool   `json:"enabled"              toml:"enabled"`
+	Text                 string `json:"text"                 toml:"text"`
+	BackgroundColorLight string `json:"backgroundColorLight" toml:"background_color_light"`
+	BackgroundColorDark  string `json:"backgroundColorDark"  toml:"background_color_dark"`
+	TextColorLight       string `json:"textColorLight"       toml:"text_color_light"`
+	TextColorDark        string `json:"textColorDark"        toml:"text_color_dark"`
+	BorderColorLight     string `json:"borderColorLight"     toml:"border_color_light"`
+	BorderColorDark      string `json:"borderColorDark"      toml:"border_color_dark"`
+}
+
+// ModeIndicatorConfig defines per-mode indicator visibility and appearance.
 type ModeIndicatorConfig struct {
-	ScrollEnabled        bool            `json:"scrollEnabled"        toml:"scroll_enabled"`
-	HintsEnabled         bool            `json:"hintsEnabled"         toml:"hints_enabled"`
-	GridEnabled          bool            `json:"gridEnabled"          toml:"grid_enabled"`
-	RecursiveGridEnabled bool            `json:"recursiveGridEnabled" toml:"recursive_grid_enabled"`
-	UI                   ModeIndicatorUI `json:"ui"                   toml:"ui"`
+	Scroll        ModeIndicatorModeConfig `json:"scroll"        toml:"scroll"`
+	Hints         ModeIndicatorModeConfig `json:"hints"         toml:"hints"`
+	Grid          ModeIndicatorModeConfig `json:"grid"          toml:"grid"`
+	RecursiveGrid ModeIndicatorModeConfig `json:"recursiveGrid" toml:"recursive_grid"`
+	UI            ModeIndicatorUI         `json:"ui"            toml:"ui"`
 }
 
 // AppConfig defines application-specific settings for role customization.
@@ -651,6 +665,37 @@ func (c *Config) ValidateModeIndicator() error {
 	})
 	if err != nil {
 		return err
+	}
+
+	// Validate per-mode color overrides (only when non-empty).
+	modes := []struct {
+		cfg  ModeIndicatorModeConfig
+		name string
+	}{
+		{c.ModeIndicator.Scroll, "scroll"},
+		{c.ModeIndicator.Hints, "hints"},
+		{c.ModeIndicator.Grid, "grid"},
+		{c.ModeIndicator.RecursiveGrid, "recursive_grid"},
+	}
+
+	for _, mode := range modes {
+		err = validateColors([]colorField{
+			{
+				mode.cfg.BackgroundColorLight,
+				"mode_indicator." + mode.name + ".background_color_light",
+			},
+			{
+				mode.cfg.BackgroundColorDark,
+				"mode_indicator." + mode.name + ".background_color_dark",
+			},
+			{mode.cfg.TextColorLight, "mode_indicator." + mode.name + ".text_color_light"},
+			{mode.cfg.TextColorDark, "mode_indicator." + mode.name + ".text_color_dark"},
+			{mode.cfg.BorderColorLight, "mode_indicator." + mode.name + ".border_color_light"},
+			{mode.cfg.BorderColorDark, "mode_indicator." + mode.name + ".border_color_dark"},
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

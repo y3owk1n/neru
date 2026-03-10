@@ -153,13 +153,21 @@ func (o *Overlay) ResizeToActiveScreen() {
 }
 
 // DrawModeIndicator draws a mode label at the specified position.
+// The mode parameter is the overlay mode string (e.g. "hints", "grid",
+// "scroll", "recursive_grid"). The label text is resolved from config,
+// allowing users to customize (or hide) each mode's indicator text.
 // The caller is responsible for calling Show() once before the first draw
 // (e.g. in startModeIndicatorPolling) rather than showing every tick.
-func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate int) {
+func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	// Hold configMu.RLock for entire draw to prevent SetConfig from
 	// writing to indicatorConfig while we read it.
 	o.configMu.RLock()
 	defer o.configMu.RUnlock()
+
+	labelText := o.resolveLabelText(mode)
+	if labelText == "" {
+		return
+	}
 
 	// Offset from cursor to avoid covering it
 	xOffset := o.indicatorConfig.UI.IndicatorXOffset
@@ -186,12 +194,17 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		matchedPrefixLength: 0,
 	}
 
+	// Resolve per-mode color overrides (falls back to UI defaults).
+	modeConfig := o.resolveModeConfig(mode)
+
 	// Use cached style strings to avoid repeated allocations and fix use-after-free
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
 		cached.FontFamily = unsafe.Pointer(C.CString(o.indicatorConfig.UI.FontFamily))
 		cached.BgColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
+				config.ResolveColorWithOverride(
+					modeConfig.BackgroundColorLight,
+					modeConfig.BackgroundColorDark,
 					o.indicatorConfig.UI.BackgroundColorLight,
 					o.indicatorConfig.UI.BackgroundColorDark,
 					o.theme,
@@ -202,7 +215,9 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		)
 		cached.TextColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
+				config.ResolveColorWithOverride(
+					modeConfig.TextColorLight,
+					modeConfig.TextColorDark,
 					o.indicatorConfig.UI.TextColorLight,
 					o.indicatorConfig.UI.TextColorDark,
 					o.theme,
@@ -213,7 +228,9 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		)
 		cached.MatchedTextColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
+				config.ResolveColorWithOverride(
+					modeConfig.TextColorLight,
+					modeConfig.TextColorDark,
 					o.indicatorConfig.UI.TextColorLight,
 					o.indicatorConfig.UI.TextColorDark,
 					o.theme,
@@ -224,7 +241,9 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		) // No matching in indicator mode
 		cached.BorderColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
+				config.ResolveColorWithOverride(
+					modeConfig.BorderColorLight,
+					modeConfig.BorderColorDark,
 					o.indicatorConfig.UI.BorderColorLight,
 					o.indicatorConfig.UI.BorderColorDark,
 					o.theme,
@@ -291,6 +310,34 @@ func (o *Overlay) Destroy() {
 		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
 	}
+}
+
+// resolveModeConfig returns the per-mode config for the given mode.
+// Caller must hold configMu.RLock.
+func (o *Overlay) resolveModeConfig(mode string) *config.ModeIndicatorModeConfig {
+	switch mode {
+	case "hints":
+		return &o.indicatorConfig.Hints
+	case "grid":
+		return &o.indicatorConfig.Grid
+	case "scroll":
+		return &o.indicatorConfig.Scroll
+	case "recursive_grid":
+		return &o.indicatorConfig.RecursiveGrid
+	default:
+		return nil
+	}
+}
+
+// resolveLabelText returns the configured label text for the given mode.
+// Caller must hold configMu.RLock.
+func (o *Overlay) resolveLabelText(mode string) string {
+	mc := o.resolveModeConfig(mode)
+	if mc == nil {
+		return ""
+	}
+
+	return mc.Text
 }
 
 // freeAllCaches frees both the style cache and the label cache under drawMu

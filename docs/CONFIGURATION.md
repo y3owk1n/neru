@@ -983,25 +983,57 @@ A small label that follows the cursor showing the current mode.
 - **Multiple monitors** - helps track which screen
 - **Beginners** learning Neru
 
-### Configuration
+### Per-Mode Settings (`[mode_indicator.<mode>]`)
 
-| Option                   | Type | Default | Description                 |
-| ------------------------ | ---- | ------- | --------------------------- |
-| `scroll_enabled`         | bool | `true`  | Show in scroll mode         |
-| `hints_enabled`          | bool | `false` | Show in hints mode          |
-| `grid_enabled`           | bool | `false` | Show in grid mode           |
-| `recursive_grid_enabled` | bool | `false` | Show in recursive_grid mode |
+Each mode has its own sub-table under `[mode_indicator]`. Available modes: `scroll`, `hints`, `grid`, `recursive_grid`.
+
+| Option | Type | Default | Description |
+| ------------------------ | ------ | ------- | ----------------------------------------------------- |
+| `enabled` | bool | varies | Show indicator in this mode |
+| `text` | string | varies | Label text (empty string `""` hides the label) |
+| `background_color_light` | string | `""` | Per-mode background override for Light Mode |
+| `background_color_dark` | string | `""` | Per-mode background override for Dark Mode |
+| `text_color_light` | string | `""` | Per-mode text color override for Light Mode |
+| `text_color_dark` | string | `""` | Per-mode text color override for Dark Mode |
+| `border_color_light` | string | `""` | Per-mode border color override for Light Mode |
+| `border_color_dark` | string | `""` | Per-mode border color override for Dark Mode |
+Color overrides are optional. When left empty (`""`), the value from `[mode_indicator.ui]` is used.
 
 ```toml
-[mode_indicator]
-# Enable per-mode
-scroll_enabled = true
-hints_enabled = false
-grid_enabled = false
-recursive_grid_enabled = false
+[mode_indicator.scroll]
+enabled = true
+text = "Scroll"
+[mode_indicator.hints]
+enabled = false
+text = "Hints"
+[mode_indicator.grid]
+enabled = false
+text = "Grid"
+[mode_indicator.recursive_grid]
+enabled = false
+text = "Recursive Grid"
 ```
 
-### Appearance (`[mode_indicator.ui]`)
+**Customization examples:**
+
+```toml
+# Custom label text
+[mode_indicator.scroll]
+enabled = true
+text = "📜 Scroll"
+# Different color for hints mode
+[mode_indicator.hints]
+enabled = true
+text = "Hints"
+background_color_light = "#F2FF6B6B"
+background_color_dark = "#F2CC3333"
+# Hide label text but keep indicator enabled (empty text = hidden)
+[mode_indicator.grid]
+enabled = true
+text = ""
+```
+
+### Shared Appearance (`[mode_indicator.ui]`)
 
 | Option                   | Type   | Default       | Description                                         |
 | ------------------------ | ------ | ------------- | --------------------------------------------------- |

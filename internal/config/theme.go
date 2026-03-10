@@ -8,6 +8,26 @@ type ThemeProvider interface {
 	IsDarkMode() bool
 }
 
+// ResolveColorWithOverride resolves a color with a three-tier fallback:
+// per-mode override → shared UI default → hardcoded fallback.
+// If overrideLight/overrideDark is non-empty it takes precedence;
+// otherwise the resolution falls through to ResolveColor with the
+// shared UI values and the hardcoded defaults.
+func ResolveColorWithOverride(
+	overrideLight, overrideDark string,
+	uiLight, uiDark string,
+	theme ThemeProvider,
+	defaultLight, defaultDark string,
+) string {
+	// Use overrides if either variant is specified.
+	if overrideLight != "" || overrideDark != "" {
+		return ResolveColor(overrideLight, overrideDark, theme, defaultLight, defaultDark)
+	}
+
+	// Fall through to shared UI defaults.
+	return ResolveColor(uiLight, uiDark, theme, defaultLight, defaultDark)
+}
+
 // ResolveColor returns the effective color based on the current system theme.
 // If both lightColor and darkColor are non-empty, the appropriate one is
 // selected based on the theme.

@@ -449,24 +449,12 @@ func (m *Manager) DrawModeIndicator(xCoordinate, yCoordinate int) {
 		return
 	}
 
-	var label string
-
-	switch m.Mode() {
-	case ModeIdle:
-		return
-	case ModeHints:
-		label = "Hints"
-	case ModeGrid:
-		label = "Grid"
-	case ModeScroll:
-		label = "Scroll"
-	case ModeRecursiveGrid:
-		label = "Recursive Grid"
-	default:
+	mode := m.Mode()
+	if mode == ModeIdle {
 		return
 	}
 
-	m.modeIndicatorOverlay.DrawModeIndicator(label, xCoordinate, yCoordinate)
+	m.modeIndicatorOverlay.DrawModeIndicator(string(mode), xCoordinate, yCoordinate)
 }
 
 // DrawGrid renders a grid with the specified style using the grid overlay renderer.
