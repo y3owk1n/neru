@@ -686,8 +686,14 @@ func (c *Config) Save(path string) error {
 // ResolvedExitKeys returns the effective exit keys for a given mode.
 // Per-mode keys are merged on top of the global keys (additive).
 // If the mode has no per-mode keys, the global keys are returned as-is.
+// When global keys are empty, falls back to ["Escape"] to stay consistent
+// with the runtime fallback in resolveExitKeysForCurrentMode.
 func (c *Config) ResolvedExitKeys(modeName string) []string {
 	globalKeys := c.General.ModeExitKeys
+
+	if len(globalKeys) == 0 {
+		globalKeys = []string{"Escape"}
+	}
 
 	var modeKeys []string
 	switch modeName {
