@@ -876,16 +876,18 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 
 /// Draw a miniature version of the key grid inside a cell.
 /// Each sub-cell shows the corresponding key label at reduced size and opacity.
-/// The sub-cell at skipIdx is left blank — this is the current cell's own label,
-/// which is already drawn prominently by drawGridLabel: and would be redundant here.
 /// @param cellRect The cell rectangle in view coordinates (Y-up, already flipped)
-/// @param skipIdx  Index of the cell whose label should be omitted from the mini-grid
 - (void)drawSubKeyPreviewInCellRect:(NSRect)cellRect {
 	int cols = self.gridSubKeyCols;
 	int rows = self.gridSubKeyRows;
 	NSArray<GridCellItem *> *cells = self.gridCells;
 	NSUInteger count = [cells count];
 	if (cols <= 0 || rows <= 0 || count == 0)
+		return;
+	// Guard: gridCells must contain exactly cols*rows items so that
+	// the positional index (row * cols + col) maps to the correct label.
+	// If they are out of sync the preview would silently misalign.
+	if (count != (NSUInteger)(cols * rows))
 		return;
 	NSFont *subFont = self.gridSubKeyFont;
 	NSColor *subColor = self.gridSubKeyTextColor;
