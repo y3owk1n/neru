@@ -73,7 +73,7 @@ jobs:
                   mkdir -p build/amd64/Neru.app/Contents/{MacOS,Resources}
                   cp bin/neru-darwin-amd64 build/amd64/Neru.app/Contents/MacOS/Neru
                   chmod +x build/amd64/Neru.app/Contents/MacOS/Neru
-                  cp resources/icon.icns build/arm64/Neru.app/Contents/Resources/icon.icns
+                  cp resources/icon.icns build/amd64/Neru.app/Contents/Resources/icon.icns
                   sed "s/VERSION/${{ steps.release.outputs.tag_name }}/g" resources/Info.plist.template > build/amd64/Neru.app/Contents/Info.plist
 
                   # Copy binary to distribution folder
