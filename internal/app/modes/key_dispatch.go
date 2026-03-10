@@ -24,30 +24,9 @@ func (h *Handler) HandleKeyPress(key string) {
 }
 
 // resolveExitKeysForCurrentMode returns the effective exit keys for the current mode.
-// Per-mode keys are merged on top of global keys (additive). If no per-mode keys
-// are configured, the global keys are returned as-is.
+// It delegates to Config.ResolvedExitKeys to keep a single resolution path for all callers.
 func (h *Handler) resolveExitKeysForCurrentMode() []string {
-	globalKeys := h.config.General.ModeExitKeys
-	if len(globalKeys) == 0 {
-		globalKeys = DefaultModeExitKeys()
-	}
-
-	var modeKeys []string
-
-	switch h.appState.CurrentMode() {
-	case domain.ModeHints:
-		modeKeys = h.config.Hints.ModeExitKeys
-	case domain.ModeGrid:
-		modeKeys = h.config.Grid.ModeExitKeys
-	case domain.ModeRecursiveGrid:
-		modeKeys = h.config.RecursiveGrid.ModeExitKeys
-	case domain.ModeScroll:
-		modeKeys = h.config.Scroll.ModeExitKeys
-	case domain.ModeIdle:
-		// Idle mode has no per-mode exit keys
-	}
-
-	return config.MergeExitKeys(globalKeys, modeKeys)
+	return h.config.ResolvedExitKeys(domain.ModeString(h.appState.CurrentMode()))
 }
 
 // handleEscapeKey handles the escape key to exit the current mode.
