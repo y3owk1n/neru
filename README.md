@@ -46,6 +46,34 @@ It's the free, open-source alternative to [Homerow](https://www.homerow.app/), [
 
 ---
 
+Before you dive in, let's see if Neru fits your workflow.
+
+**You'll probably love Neru if you are:**
+
+- Uses a split keyboard
+- A Neovim/Vim user
+- Already using tools like Vimium, Homerow, Shortcat, Mouseless, etc, but looking for open source alternatives
+- The kind of person who remaps Caps Lock
+- Interested in tiling window managers or keyboard-driven UI
+- Someone who enjoys optimising tiny workflow inefficiencies
+- Wanted a dotfile based config
+- Like to customise hell out of everything
+- Like to have your own workflows
+
+**You'll probably not care about Neru if you:**
+
+- Prefer using the mouse for everything
+- Never thought about keyboard-driven workflows
+- Are perfectly happy switching between mouse and keyboard every few seconds
+- Prefer traditional desktop interaction over power-user tooling
+- In love with GUIs
+
+Neru is built for power users who want to stay on the keyboard and move fast.
+
+If that's you — welcome.
+
+---
+
 ## ✨ Features
 
 ### 🎯 3 Navigation Modes
