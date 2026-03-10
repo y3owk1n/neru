@@ -317,9 +317,10 @@ type HotkeysConfig struct {
 
 // ScrollConfig defines the behavior and appearance settings for scroll mode.
 type ScrollConfig struct {
-	ScrollStep     int `json:"scrollStep"     toml:"scroll_step"`
-	ScrollStepHalf int `json:"scrollStepHalf" toml:"scroll_step_half"`
-	ScrollStepFull int `json:"scrollStepFull" toml:"scroll_step_full"`
+	ScrollStep     int      `json:"scrollStep"     toml:"scroll_step"`
+	ScrollStepHalf int      `json:"scrollStepHalf" toml:"scroll_step_half"`
+	ScrollStepFull int      `json:"scrollStepFull" toml:"scroll_step_full"`
+	ModeExitKeys   []string `json:"modeExitKeys"   toml:"mode_exit_keys"`
 
 	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
 }
@@ -346,6 +347,7 @@ type HintsUI struct {
 type HintsConfig struct {
 	Enabled                 bool     `json:"enabled"                 toml:"enabled"`
 	AutoExitActions         []string `json:"autoExitActions"         toml:"auto_exit_actions"`
+	ModeExitKeys            []string `json:"modeExitKeys"            toml:"mode_exit_keys"`
 	HintCharacters          string   `json:"hintCharacters"          toml:"hint_characters"`
 	BackspaceKey            string   `json:"backspaceKey"            toml:"backspace_key"`
 	MouseActionRefreshDelay int      `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
@@ -392,6 +394,7 @@ type GridUI struct {
 type GridConfig struct {
 	Enabled         bool     `json:"enabled"         toml:"enabled"`
 	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
+	ModeExitKeys    []string `json:"modeExitKeys"    toml:"mode_exit_keys"`
 	Characters      string   `json:"characters"      toml:"characters"`
 	SublayerKeys    string   `json:"sublayerKeys"    toml:"sublayer_keys"`
 	BackspaceKey    string   `json:"backspaceKey"    toml:"backspace_key"`
@@ -432,6 +435,7 @@ type RecursiveGridUI struct {
 type RecursiveGridConfig struct {
 	Enabled         bool     `json:"enabled"         toml:"enabled"`
 	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
+	ModeExitKeys    []string `json:"modeExitKeys"    toml:"mode_exit_keys"`
 	// Grid dimensions: columns and rows (default: 2x2)
 	GridCols int `json:"gridCols" toml:"grid_cols"`
 	GridRows int `json:"gridRows" toml:"grid_rows"`
@@ -679,6 +683,53 @@ func (c *Config) Save(path string) error {
 	return closeErr
 }
 
+// ResolvedExitKeys returns the effective exit keys for a given mode.
+// Per-mode keys are merged on top of the global keys (additive).
+// If the mode has no per-mode keys, the global keys are returned as-is.
+func (c *Config) ResolvedExitKeys(modeName string) []string {
+	globalKeys := c.General.ModeExitKeys
+
+	var modeKeys []string
+	switch modeName {
+	case "hints":
+		modeKeys = c.Hints.ModeExitKeys
+	case "grid":
+		modeKeys = c.Grid.ModeExitKeys
+	case "recursive_grid":
+		modeKeys = c.RecursiveGrid.ModeExitKeys
+	case "scroll":
+		modeKeys = c.Scroll.ModeExitKeys
+	}
+
+	return MergeExitKeys(globalKeys, modeKeys)
+}
+
+// MergeExitKeys merges global and per-mode exit keys, deduplicating by normalized form.
+// Per-mode keys are appended after global keys. If modeKeys is empty, globalKeys is returned as-is.
+func MergeExitKeys(globalKeys, modeKeys []string) []string {
+	if len(modeKeys) == 0 {
+		return globalKeys
+	}
+
+	merged := make([]string, 0, len(globalKeys)+len(modeKeys))
+	merged = append(merged, globalKeys...)
+
+	seen := make(map[string]bool, len(globalKeys))
+	for _, k := range globalKeys {
+		seen[NormalizeKeyForComparison(k)] = true
+	}
+
+	for _, k := range modeKeys {
+		normalized := NormalizeKeyForComparison(k)
+		if !seen[normalized] {
+			merged = append(merged, k)
+			seen[normalized] = true
+		}
+	}
+
+	return merged
+}
+
 // IsAppExcluded checks if the given bundle ID is in the excluded apps list.
 func (c *Config) IsAppExcluded(bundleID string) bool {
 	if bundleID == "" {
@@ -813,6 +864,23 @@ func (c *Config) ValidateScroll() error {
 	err = c.ValidateScrollKeyBindings()
 	if err != nil {
 		return err
+	}
+
+	// Validate per-mode exit keys
+	if len(c.Scroll.ModeExitKeys) > 0 {
+		err = validatePerModeExitKeysFormat(c.Scroll.ModeExitKeys, "scroll.mode_exit_keys")
+		if err != nil {
+			return err
+		}
+
+		err = checkPerModeExitKeysScrollBindingConflicts(
+			c.Scroll.ModeExitKeys,
+			c.Scroll.KeyBindings,
+			"scroll.mode_exit_keys",
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

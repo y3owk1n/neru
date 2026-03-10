@@ -256,7 +256,7 @@ Use this when you want physical keys interpreted consistently across multiple ac
 
 ### mode_exit_keys
 
-Keys that exit any active mode (hints, grid, scroll, recursive_grid).
+Keys that exit any active mode (hints, grid, scroll, recursive_grid). Note that you this affects all the mode, you can add more mode specific exit keys in the mode section.
 
 ```toml
 [general]
@@ -311,6 +311,7 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | ------------------- | ------ | ------------- | -------------------------------------------------- |
 | `enabled`           | bool   | `true`        | Enable/disable hints mode                          |
 | `auto_exit_actions` | array  | `[]`          | Actions that auto-exit after execution (see below) |
+| `mode_exit_keys`    | array  | `[]`          | Additional keys that exit hints mode               |
 | `hint_characters`   | string | `"asdfghjkl"` | Characters used for labels                         |
 
 ### Visual Options (`[hints.ui]`)
@@ -343,6 +344,12 @@ Actions that cause hints mode to exit automatically after execution. When a dire
 # Exit hints mode after left or middle click
 auto_exit_actions = ["left_click", "middle_click"]
 ```
+
+### mode_exit_keys
+
+Keys that exit hints mode (merged with `general.mode_exit_keys`).
+
+> [!NOTE] `hints.mode_exit_keys` must not conflict with `hints.hint_characters`
 
 ### hint_characters
 
@@ -566,6 +573,7 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 | ------------------- | ------ | -------------------- | -------------------------------------------------- |
 | `enabled`           | bool   | `true`               | Enable/disable grid mode                           |
 | `auto_exit_actions` | array  | `[]`                 | Actions that auto-exit after execution (see below) |
+| `mode_exit_keys`    | array  | `[]`                 | Additional keys that exit grid mode                |
 | `characters`        | string | (see below)          | Primary grid labels                                |
 | `sublayer_keys`     | string | (same as characters) | Subgrid labels                                     |
 | `reset_key`         | string | `" "`                | Key to clear input                                 |
@@ -608,6 +616,12 @@ Actions that cause grid mode to exit automatically after execution. See [Mouse M
 # Exit grid mode after left click
 auto_exit_actions = ["left_click"]
 ```
+
+### mode_exit_keys
+
+Keys that exit grid mode (merged with `general.mode_exit_keys`).
+
+> [!NOTE] `grid.mode_exit_keys` must not conflict with `grid.characters`, `grid.row_labels`, `grid.col_labels`, `grid.sublayer_keys`, `grid.reset_key`, or `grid.backspace_key`
 
 ### Character Requirements
 
@@ -706,6 +720,7 @@ Recursive grid divides the screen into cells, narrowing selection with each keyp
 | ------------------- | ------ | -------- | -------------------------------------------------- |
 | `enabled`           | bool   | `true`   | Enable/disable mode                                |
 | `auto_exit_actions` | array  | `[]`     | Actions that auto-exit after execution (see below) |
+| `mode_exit_keys`    | array  | `[]`     | Additional keys that exit recursive-grid mode      |
 | `grid_cols`         | int    | `2`      | Number of columns                                  |
 | `grid_rows`         | int    | `2`      | Number of rows                                     |
 | `keys`              | string | `"uijk"` | Cell selection keys                                |
@@ -725,6 +740,12 @@ Actions that cause recursive-grid mode to exit automatically after execution. Se
 # Exit recursive-grid mode after left or right click
 auto_exit_actions = ["left_click", "right_click"]
 ```
+
+### mode_exit_keys
+
+Keys that exit recursive-grid mode (merged with `general.mode_exit_keys`).
+
+> [!NOTE] `recursive_grid.mode_exit_keys` must not conflict with `recursive_grid.keys`, `recursive_grid.reset_key`, or `recursive_grid.backspace_key`
 
 ### Grid Dimensions
 
@@ -808,11 +829,12 @@ Vim-style scrolling at the cursor position.
 
 ### Basic Configuration
 
-| Option             | Type | Default   | Description                  |
-| ------------------ | ---- | --------- | ---------------------------- |
-| `scroll_step`      | int  | `50`      | Pixels per j/k press         |
-| `scroll_step_half` | int  | `500`     | Pixels for Ctrl+D/U          |
-| `scroll_step_full` | int  | `1000000` | Pixels for gg/G (top/bottom) |
+| Option             | Type  | Default   | Description                           |
+| ------------------ | ----- | --------- | ------------------------------------- |
+| `scroll_step`      | int   | `50`      | Pixels per j/k press                  |
+| `scroll_step_half` | int   | `500`     | Pixels for Ctrl+D/U                   |
+| `scroll_step_full` | int   | `1000000` | Pixels for gg/G (top/bottom)          |
+| `mode_exit_keys`   | array | `[]`      | Additional keys that exit scroll mode |
 
 ```toml
 [scroll]
@@ -820,6 +842,12 @@ scroll_step = 50            # j/k: 50 pixels
 scroll_step_half = 500      # Ctrl+D/U: half page
 scroll_step_full = 1000000  # gg/G: jump to top/bottom
 ```
+
+### mode_exit_keys
+
+Keys that exit scroll mode (merged with `general.mode_exit_keys`).
+
+> [!NOTE] `scroll.mode_exit_keys` must not conflict with `scroll.key_bindings` keys
 
 ### Key Bindings
 

@@ -46,7 +46,7 @@ func (h *Handler) activateGridModeWithAction(actionStr *string) {
 
 	h.initializeGridManager(gridInstance)
 
-	exitKeys := h.config.General.ModeExitKeys
+	exitKeys := h.config.ResolvedExitKeys("grid")
 	if len(exitKeys) == 0 {
 		exitKeys = DefaultModeExitKeys()
 	}
