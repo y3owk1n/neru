@@ -72,15 +72,16 @@ void quit(void) {
 }
 
 void setIcon(const char *iconBytes, int length, bool isTemplate) {
+	// Copy the icon bytes before dispatching so the caller can free
+	// the original buffer immediately after this function returns.
 	NSData *data = [NSData dataWithBytes:iconBytes length:length];
-	NSImage *image = [[NSImage alloc] initWithData:data];
-	// Menu bar icons are 22×22 points (44×44 @2x retina). Setting the size
-	// explicitly ensures macOS renders the icon at the correct dimensions
-	// regardless of the source PNG pixel size.
-	[image setSize:NSMakeSize(22, 22)];
-	[image setTemplate:isTemplate];
-
 	dispatch_async(dispatch_get_main_queue(), ^{
+		NSImage *image = [[NSImage alloc] initWithData:data];
+		// Menu bar icons are 22×22 points (44×44 @2x retina). Setting the size
+		// explicitly ensures macOS renders the icon at the correct dimensions
+		// regardless of the source PNG pixel size.
+		[image setSize:NSMakeSize(22, 22)];
+		[image setTemplate:isTemplate];
 		if (appDelegate && appDelegate.statusItem) {
 			appDelegate.statusItem.button.image = image;
 		}
