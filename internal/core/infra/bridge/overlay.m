@@ -115,13 +115,14 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 @property(nonatomic, assign) CGFloat gridLabelBackgroundBorderWidth;    ///< Grid label badge border width
 @property(nonatomic, assign) BOOL hideUnmatched;                        ///< Hide unmatched cells
 // Sub-key preview: draws a miniature key grid inside each cell
-@property(nonatomic, assign) BOOL gridDrawSubKeyPreview;                ///< Draw sub-key preview mini-grid
-@property(nonatomic, assign) int gridSubKeyCols;                        ///< Sub-key preview grid columns
-@property(nonatomic, assign) int gridSubKeyRows;                        ///< Sub-key preview grid rows
-@property(nonatomic, strong) NSFont *gridSubKeyFont;                    ///< Sub-key preview font
-@property(nonatomic, strong) NSColor *gridSubKeyTextColor;              ///< Sub-key preview text color
-@property(nonatomic, assign) CGFloat cachedGridSubKeyFontSize;          ///< Cached sub-key font size
-@property(nonatomic, strong) NSMutableAttributedString *cachedGridSubKeyAttributedString; ///< Cached attributed string for sub-key drawing
+@property(nonatomic, assign) BOOL gridDrawSubKeyPreview;       ///< Draw sub-key preview mini-grid
+@property(nonatomic, assign) int gridSubKeyCols;               ///< Sub-key preview grid columns
+@property(nonatomic, assign) int gridSubKeyRows;               ///< Sub-key preview grid rows
+@property(nonatomic, strong) NSFont *gridSubKeyFont;           ///< Sub-key preview font
+@property(nonatomic, strong) NSColor *gridSubKeyTextColor;     ///< Sub-key preview text color
+@property(nonatomic, assign) CGFloat cachedGridSubKeyFontSize; ///< Cached sub-key font size
+@property(nonatomic, strong)
+    NSMutableAttributedString *cachedGridSubKeyAttributedString; ///< Cached attributed string for sub-key drawing
 
 // Cached grid text colors to reduce allocations during drawing
 @property(nonatomic, strong) NSColor *cachedGridTextColor;
@@ -158,8 +159,8 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 - (void)drawGridLabel:(NSString *)label
              inCellRect:(NSRect)cellRect
               isMatched:(BOOL)isMatched
-    matchedPrefixLength:(int)matchedPrefixLength; ///< Draw grid label text or badge
-- (void)drawSubKeyPreviewInCellRect:(NSRect)cellRect skipIndex:(NSUInteger)skipIdx; ///< Draw miniature sub-key grid inside a cell
+    matchedPrefixLength:(int)matchedPrefixLength;     ///< Draw grid label text or badge
+- (void)drawSubKeyPreviewInCellRect:(NSRect)cellRect; ///< Draw miniature sub-key grid inside a cell
 
 /// Resolve a font by name (accepts both PostScript names and family names).
 /// Tries [NSFont fontWithName:] first, then NSFontManager family lookup.
@@ -740,7 +741,6 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
 	CGFloat screenHeight = self.bounds.size.height;
 	CGFloat screenWidth = self.bounds.size.width;
-	NSUInteger centerIdx = (NSUInteger)((self.gridSubKeyRows / 2) * self.gridSubKeyCols + (self.gridSubKeyCols / 2));
 	for (GridCellItem *cellItem in self.gridCells) {
 		NSString *label = cellItem.label;
 		CGRect bounds = cellItem.bounds;
@@ -781,7 +781,7 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		[borderPath stroke];
 		if (label && [label length] > 0) {
 			if (self.gridDrawSubKeyPreview) {
-				[self drawSubKeyPreviewInCellRect:cellRect skipIndex:centerIdx];
+				[self drawSubKeyPreviewInCellRect:cellRect];
 			}
 			[self drawGridLabel:label
 			             inCellRect:cellRect
@@ -879,55 +879,40 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 /// which is already drawn prominently by drawGridLabel: and would be redundant here.
 /// @param cellRect The cell rectangle in view coordinates (Y-up, already flipped)
 /// @param skipIdx  Index of the cell whose label should be omitted from the mini-grid
-- (void)drawSubKeyPreviewInCellRect:(NSRect)cellRect skipIndex:(NSUInteger)skipIdx {
+- (void)drawSubKeyPreviewInCellRect:(NSRect)cellRect {
 	int cols = self.gridSubKeyCols;
 	int rows = self.gridSubKeyRows;
 	NSArray<GridCellItem *> *cells = self.gridCells;
 	NSUInteger count = [cells count];
-
 	if (cols <= 0 || rows <= 0 || count == 0)
 		return;
-
 	NSFont *subFont = self.gridSubKeyFont;
 	NSColor *subColor = self.gridSubKeyTextColor;
 	if (!subFont || !subColor)
 		return;
-
 	CGFloat subCellWidth = cellRect.size.width / cols;
 	CGFloat subCellHeight = cellRect.size.height / rows;
-
 	NSMutableAttributedString *str = self.cachedGridSubKeyAttributedString;
 	if (!str) {
 		str = [[NSMutableAttributedString alloc] initWithString:@""];
 		self.cachedGridSubKeyAttributedString = str;
 	}
-
 	for (int row = 0; row < rows; row++) {
 		for (int col = 0; col < cols; col++) {
 			NSUInteger idx = (NSUInteger)(row * cols + col);
 			if (idx >= count)
 				break;
-			if (idx == skipIdx)
-				continue;
-
 			NSString *subLabel = ((GridCellItem *)cells[idx]).label;
 			if (!subLabel || subLabel.length == 0)
 				continue;
-
 			// Sub-cells: row 0 is top of the cell.
 			// In NSView coordinates (Y increases upward), top = larger Y.
 			CGFloat subOriginX = cellRect.origin.x + col * subCellWidth;
 			CGFloat subOriginY = cellRect.origin.y + (rows - 1 - row) * subCellHeight;
 			NSRect subRect = NSMakeRect(subOriginX, subOriginY, subCellWidth, subCellHeight);
-
 			[[str mutableString] setString:subLabel];
 			NSRange range = NSMakeRange(0, subLabel.length);
-			[str setAttributes:@{
-				NSFontAttributeName : subFont,
-				NSForegroundColorAttributeName : subColor
-			}
-			             range:range];
-
+			[str setAttributes:@{NSFontAttributeName : subFont, NSForegroundColorAttributeName : subColor} range:range];
 			NSSize textSize = [str size];
 			CGFloat x = subRect.origin.x + (subCellWidth - textSize.width) / 2.0;
 			CGFloat y = subRect.origin.y + (subCellHeight - textSize.height) / 2.0;
@@ -1670,8 +1655,8 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 				controller.overlayView.gridSubKeyFont = [NSFont systemFontOfSize:subKeyFontSize];
 				controller.overlayView.cachedGridSubKeyFontSize = subKeyFontSize;
 			}
-			controller.overlayView.gridSubKeyTextColor =
-			    [controller.overlayView colorFromHex:subKeyTextHex defaultColor:[NSColor grayColor]];
+			controller.overlayView.gridSubKeyTextColor = [controller.overlayView colorFromHex:subKeyTextHex
+			                                                                     defaultColor:[NSColor grayColor]];
 		}
 
 		controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
