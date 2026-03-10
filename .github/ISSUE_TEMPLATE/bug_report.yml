@@ -5,53 +5,49 @@ body:
     - type: markdown
       attributes:
           value: |
-              Thank you for taking the time to fill out this bug report.
+              Thanks for taking the time to report a bug!
+              Please check [existing issues](https://github.com/y3owk1n/neru/issues?q=is%3Aissue) first to avoid duplicates.
+
+    - type: checkboxes
+      attributes:
+          label: Pre-flight checks
+          options:
+              - label: I have searched existing issues and this bug has not been reported yet
+                required: true
 
     - type: input
       attributes:
           label: Neru version
-          description: What version of Neru are you running? (e.g., 1.2.3)
+          description: Run `neru version` and paste the output.
+          placeholder: "1.26.0"
       validations:
           required: true
 
     - type: input
       attributes:
           label: macOS version
-          description: What version of macOS are you running? (Apple menu → About This Mac)
+          description: Apple menu → About This Mac (e.g., 15.3.1)
+          placeholder: "15.3.1"
       validations:
           required: true
 
-    - type: input
-      attributes:
-          label: Mac model
-          description: Which Mac are you using? (e.g., MacBook Pro 16" 2023, Mac Studio M2)
-      validations:
-          required: false
-
     - type: dropdown
       attributes:
-          label: Keyboard type
-          description: What keyboard are you using?
+          label: Navigation mode
+          description: Which mode were you using when the bug occurred?
           options:
-              - Built-in keyboard (MacBook)
-              - Apple Magic Keyboard
-              - Third-party mechanical keyboard
-              - Third-party membrane keyboard
-              - Other
+              - Recursive Grid
+              - Grid
+              - Hints
+              - Scroll
+              - N/A (startup / config / general)
       validations:
-          required: false
-
-    - type: input
-      attributes:
-          label: Other input apps
-          description: Are you running any other apps that modify keyboard input? (e.g., Karabiner-Elements, BetterTouchTool, Hammerspoon, Raycast)
-      validations:
-          required: false
+          required: true
 
     - type: textarea
       attributes:
           label: What happened?
-          description: What actually happened when you encountered the issue?
+          description: Describe the bug clearly. What actually happened?
       validations:
           required: true
 
@@ -65,24 +61,34 @@ body:
     - type: textarea
       attributes:
           label: Steps to reproduce
-          description: Please provide clear steps to reproduce the issue.
+          description: Minimal steps to reliably reproduce the issue.
           placeholder: |
-              1. Start Neru
-              2. Press trigger key
-              3. ...
+              1. Launch Neru
+              2. Press Cmd+Shift+C to enter recursive grid mode
+              3. Press 'u' to select top-left quadrant
+              4. ...
       validations:
           required: true
 
     - type: textarea
       attributes:
-          label: Screenshots / recordings
-          description: If applicable, add screenshots or screen recordings to help explain the problem. For keyboard issues, showing the key presses can be very helpful.
+          label: Config (relevant sections)
+          description: Paste the relevant sections of your config TOML. Remove any parts that aren't related to the bug.
+          render: toml
       validations:
           required: false
 
     - type: textarea
       attributes:
-          label: Workaround
-          description: If you've found a workaround, please share it here.
+          label: Screenshots / recordings
+          description: For UI issues (overlay misalignment, missing hints, etc.), a screenshot or short recording is very helpful.
+      validations:
+          required: false
+
+    - type: textarea
+      attributes:
+          label: Additional context
+          description: |
+              Any other relevant details: Mac model, keyboard type, other input apps (Karabiner-Elements, BetterTouchTool, Hammerspoon, etc.), affected application, or workarounds you've found.
       validations:
           required: false

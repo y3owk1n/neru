@@ -54,7 +54,11 @@ bundle: release
 
     cp -r bin/neru build/Neru.app/Contents/MacOS/Neru
 
+    cp resources/icon.icns build/Neru.app/Contents/Resources/icon.icns
+
     sed "s/VERSION/{{ VERSION }}/g" resources/Info.plist.template > build/Neru.app/Contents/Info.plist
+
+    codesign --force --deep --sign - build/Neru.app
 
     @echo "✓ Bundle complete: build/Neru.app"
 
@@ -120,7 +124,7 @@ fmt-check:
         if [ $RESULT -ne 0 ] && [ -n "$FILTERED" ]; then
             EXIT_CODE=1
         fi
-    done < <(find internal/core/infra/bridge \( -name "*.h" -o -name "*.m" \) -print0)
+    done < <(find internal/core/infra \( -name "*.h" -o -name "*.m" \) -print0)
     if [ $EXIT_CODE -ne 0 ]; then
         echo "Some Objective-C files are not properly formatted. Run 'just fmt' to fix them."
         exit 1
@@ -155,7 +159,7 @@ fmt:
     golangci-lint fmt
     golangci-lint run --fix
     @echo "Formatting Objective-C files..."
-    @find internal/core/infra/bridge \( -name "*.h" -o -name "*.m" \) -exec clang-format -i --style=file --assume-filename=file.m {} \;
+    @find internal/core/infra \( -name "*.h" -o -name "*.m" \) -exec clang-format -i --style=file --assume-filename=file.m {} \;
     @echo "✓ Format complete"
 
 # Lint code
@@ -184,3 +188,47 @@ verify:
     @echo "Verifying dependencies..."
     go mod verify
     @echo "✓ Dependencies verified"
+
+# Generate icon.icns from a source PNG (e.g., just generate-icns icon-1024.png)
+generate-icns SOURCE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Generating icon.icns from {{ SOURCE }}..."
+    ICONSET="icon.iconset"
+    mkdir -p "$ICONSET"
+    sips -z 16 16     "{{ SOURCE }}" --out "$ICONSET/icon_16x16.png"      >/dev/null
+    sips -z 32 32     "{{ SOURCE }}" --out "$ICONSET/icon_16x16@2x.png"   >/dev/null
+    sips -z 32 32     "{{ SOURCE }}" --out "$ICONSET/icon_32x32.png"      >/dev/null
+    sips -z 64 64     "{{ SOURCE }}" --out "$ICONSET/icon_32x32@2x.png"   >/dev/null
+    sips -z 128 128   "{{ SOURCE }}" --out "$ICONSET/icon_128x128.png"    >/dev/null
+    sips -z 256 256   "{{ SOURCE }}" --out "$ICONSET/icon_128x128@2x.png" >/dev/null
+    sips -z 256 256   "{{ SOURCE }}" --out "$ICONSET/icon_256x256.png"    >/dev/null
+    sips -z 512 512   "{{ SOURCE }}" --out "$ICONSET/icon_256x256@2x.png" >/dev/null
+    sips -z 512 512   "{{ SOURCE }}" --out "$ICONSET/icon_512x512.png"    >/dev/null
+    sips -z 1024 1024 "{{ SOURCE }}" --out "$ICONSET/icon_512x512@2x.png" >/dev/null
+    iconutil -c icns "$ICONSET" -o resources/icon.icns
+    rm -rf "$ICONSET"
+    echo "✓ Generated resources/icon.icns"
+
+# Generate systray tray icon PNGs from source PNGs
+# Resizes to 44×44 pixels (22pt @2x retina for macOS menu bar)
+
+# Usage: just generate-tray-icons active.png disabled.png
+generate-tray-icons ACTIVE DISABLED:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Generating tray icons..."
+    TRAY_DIR="internal/app/components/systray/resources"
+    mkdir -p "$TRAY_DIR"
+    sips -z 44 44 "{{ ACTIVE }}"   --out "$TRAY_DIR/tray-icon.png"          >/dev/null
+    sips -z 44 44 "{{ DISABLED }}" --out "$TRAY_DIR/tray-icon-disabled.png"  >/dev/null
+    echo "✓ Generated $TRAY_DIR/tray-icon.png (44×44, 22pt @2x)"
+    echo "✓ Generated $TRAY_DIR/tray-icon-disabled.png (44×44, 22pt @2x)"
+
+# Generate all icons from source PNGs
+
+# Usage: just generate-icons app-icon.png tray-active.png tray-disabled.png
+generate-icons APP_ICON TRAY_ACTIVE TRAY_DISABLED:
+    just generate-icns {{ APP_ICON }}
+    just generate-tray-icons {{ TRAY_ACTIVE }} {{ TRAY_DISABLED }}
+    @echo "✓ All icons generated"

@@ -258,3 +258,96 @@ func TestAppInitialization_Systray(t *testing.T) {
 		}
 	})
 }
+
+// TestPerModeExitKeysIntegration tests that per-mode exit keys work correctly at runtime.
+func TestPerModeExitKeysIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping per-mode exit keys integration test in short mode")
+	}
+
+	t.Run("Scroll per-mode exit key exits scroll mode", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.General.AccessibilityCheckOnStart = false
+		cfg.General.ModeExitKeys = []string{"Escape"}
+		cfg.Scroll.ModeExitKeys = []string{"q"} // 'q' only exits scroll
+
+		application, err := app.New(
+			app.WithConfig(cfg),
+			app.WithConfigPath(""),
+			app.WithIPCServer(&mockIPCServer{}),
+			app.WithWatcher(&mockAppWatcher{}),
+			app.WithOverlayManager(&mockOverlayManager{}),
+			app.WithHotkeyService(&mockHotkeyService{}),
+		)
+		if err != nil {
+			t.Fatalf("App initialization failed: %v", err)
+		}
+		defer application.Cleanup()
+
+		waitForAppReady(t, application)
+		// Activate scroll mode and exit with per-mode key
+		application.SetModeScroll()
+		waitForMode(t, application, domain.ModeScroll)
+		application.HandleKeyPress("q")
+		waitForMode(t, application, domain.ModeIdle)
+	})
+	t.Run("Per-mode exit key does not affect other modes", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.General.AccessibilityCheckOnStart = false
+		cfg.General.ModeExitKeys = []string{"Escape"}
+		cfg.Scroll.ModeExitKeys = []string{"q"} // 'q' only added to scroll
+
+		application, err := app.New(
+			app.WithConfig(cfg),
+			app.WithConfigPath(""),
+			app.WithIPCServer(&mockIPCServer{}),
+			app.WithWatcher(&mockAppWatcher{}),
+			app.WithOverlayManager(&mockOverlayManager{}),
+			app.WithHotkeyService(&mockHotkeyService{}),
+		)
+		if err != nil {
+			t.Fatalf("App initialization failed: %v", err)
+		}
+		defer application.Cleanup()
+
+		waitForAppReady(t, application)
+		// Activate hints mode — 'q' should NOT exit hints
+		application.SetModeHints()
+		waitForMode(t, application, domain.ModeHints)
+		application.HandleKeyPress("q")
+		time.Sleep(50 * time.Millisecond)
+
+		if application.CurrentMode() != domain.ModeHints {
+			t.Fatal("'q' should not exit hints mode when only configured for scroll")
+		}
+		// Escape should still work (global)
+		application.HandleKeyPress("\x1b")
+		waitForMode(t, application, domain.ModeIdle)
+	})
+	t.Run("Global exit key still works in mode with per-mode keys", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.General.AccessibilityCheckOnStart = false
+		cfg.General.ModeExitKeys = []string{"Escape"}
+		cfg.Scroll.ModeExitKeys = []string{"q"}
+
+		application, err := app.New(
+			app.WithConfig(cfg),
+			app.WithConfigPath(""),
+			app.WithIPCServer(&mockIPCServer{}),
+			app.WithWatcher(&mockAppWatcher{}),
+			app.WithOverlayManager(&mockOverlayManager{}),
+			app.WithHotkeyService(&mockHotkeyService{}),
+		)
+		if err != nil {
+			t.Fatalf("App initialization failed: %v", err)
+		}
+		defer application.Cleanup()
+
+		waitForAppReady(t, application)
+		// Escape (global) should still exit scroll even with per-mode keys
+		application.SetModeScroll()
+		waitForMode(t, application, domain.ModeScroll)
+		application.HandleKeyPress("\x1b")
+		waitForMode(t, application, domain.ModeIdle)
+	})
+}

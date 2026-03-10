@@ -1,5 +1,8 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
-    - name: Ask a question
+    - name: Questions & Discussion
       url: https://github.com/y3owk1n/neru/discussions
-      about: Have a question? Start a discussion instead of opening an issue.
+      about: Ask questions, share your config, or discuss ideas before opening an issue.
+    - name: Troubleshooting Guide
+      url: https://github.com/y3owk1n/neru/blob/main/docs/TROUBLESHOOTING.md
+      about: Check the troubleshooting guide for common issues and app-specific fixes.

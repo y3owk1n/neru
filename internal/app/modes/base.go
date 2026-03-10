@@ -5,10 +5,6 @@ import (
 )
 
 const (
-	// KeyEscape2 represents the escape key name for DefaultModeExitKeys.
-	// Uses title case to match the validNamedKeys registry convention.
-	KeyEscape2 = "Escape"
-
 	// ModeNameAction is the name for action mode.
 	ModeNameAction = "Action"
 	// ModeNameHints is the name for hints mode.
@@ -18,11 +14,6 @@ const (
 	// ModeNameScroll is the name for scroll mode.
 	ModeNameScroll = "Scroll"
 )
-
-// DefaultModeExitKeys returns the default exit keys when config is empty or validation is bypassed.
-func DefaultModeExitKeys() []string {
-	return []string{KeyEscape2}
-}
 
 // baseMode provides common functionality for all mode implementations.
 // It contains the shared handler dependency and mode type.

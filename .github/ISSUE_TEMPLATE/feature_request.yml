@@ -5,48 +5,71 @@ body:
     - type: markdown
       attributes:
           value: |
-              Thank you for taking the time to suggest an enhancement for Neru!
+              Thanks for suggesting an improvement!
+              Please check [existing issues](https://github.com/y3owk1n/neru/issues?q=is%3Aissue+label%3Aenhancement) and [discussions](https://github.com/y3owk1n/neru/discussions) first to avoid duplicates.
+
+    - type: checkboxes
+      attributes:
+          label: Pre-flight checks
+          options:
+              - label: I have searched existing issues and discussions and this has not been requested yet
+                required: true
+
+    - type: dropdown
+      attributes:
+          label: Category
+          description: What area of Neru does this relate to?
+          options:
+              - Navigation (hints, grid, recursive grid, scroll)
+              - Mouse actions (click, drag, scroll)
+              - Configuration
+              - CLI / IPC
+              - UI / Overlays
+              - Performance
+              - Other
+      validations:
+          required: true
 
     - type: textarea
       attributes:
-          label: Problem description
-          description: Describe the problem or limitation this feature would address.
-          placeholder: I'm always frustrated when...
+          label: Problem or use case
+          description: What problem does this solve, or what workflow does it improve?
+          placeholder: When I'm using hints mode in [app], I often need to...
       validations:
           required: true
 
     - type: textarea
       attributes:
           label: Proposed solution
-          description: Describe the solution you'd like to see.
+          description: How do you envision this working? Include config examples, keybindings, or behavior descriptions.
+          placeholder: |
+              A new config option like:
+
+              [hints]
+              example_option = true
+
+              This would allow...
       validations:
           required: true
 
     - type: textarea
       attributes:
           label: Alternatives considered
-          description: Describe any alternative solutions or features you've considered.
+          description: Other approaches you've thought about, or existing tools/features that partially address this.
       validations:
           required: false
 
     - type: textarea
       attributes:
           label: Screenshots / mockups
-          description: If applicable, add screenshots, mockups, or diagrams to help explain your feature request.
+          description: Visuals to illustrate the feature — mockups, annotated screenshots, or recordings of the current behavior you'd like to improve.
       validations:
           required: false
 
     - type: checkboxes
       attributes:
-          label: Would you like to contribute?
-          description: Check this box if you'd be willing to submit a pull request for this feature.
+          label: Contribution
+          description: Would you be willing to help implement this?
           options:
               - label: I'm willing to submit a PR for this feature
                 required: false
-
-    - type: textarea
-      attributes:
-          label: Additional context
-          description: Add any other context about the feature request here.
-      validations:
-          required: false

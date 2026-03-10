@@ -1921,3 +1921,596 @@ func TestValidateActionKeyBinding(t *testing.T) {
 		})
 	}
 }
+
+// TestConfig_ValidatePerModeExitKeys tests per-mode mode_exit_keys validation.
+func TestConfig_ValidatePerModeExitKeys(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  func() config.Config
+		wantErr bool
+	}{
+		{
+			name: "hints per-mode exit key valid - no conflict",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"q"}
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "hints per-mode exit key conflicts with hint_characters",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"a"}
+				// Default hint_characters = "asdfghjkl"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints per-mode exit key conflicts with backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"x"}
+				cfg.Hints.BackspaceKey = "x"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints per-mode exit key 'delete' conflicts with default backspace",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"delete"}
+				cfg.Hints.BackspaceKey = "" // default
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints per-mode exit key modifier combo valid",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"Ctrl+X"}
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "hints per-mode exit key invalid format",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"invalidkey"}
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints per-mode exit key empty string in slice",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"q", ""}
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid per-mode exit key conflicts with characters",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"a"}
+				// Default grid characters include 'a'
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid per-mode exit key conflicts with reset_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"space"}
+				// Default grid reset_key = " " (space)
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid per-mode exit key valid - no conflict",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"Ctrl+Q"}
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "recursive_grid per-mode exit key conflicts with keys",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.RecursiveGrid.ModeExitKeys = []string{"u"}
+				// Default recursive_grid keys = "uijk"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid per-mode exit key conflicts with reset_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.RecursiveGrid.ModeExitKeys = []string{"space"}
+				// Default recursive_grid reset_key = " " (space)
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid per-mode exit key valid",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.RecursiveGrid.ModeExitKeys = []string{"q"}
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "scroll per-mode exit key conflicts with scroll binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.ModeExitKeys = []string{"j"}
+				// Default scroll_down = ["j", "Down"]
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "scroll per-mode exit key conflicts with modifier scroll binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.ModeExitKeys = []string{"Ctrl+D"}
+				// Default page_down = ["Ctrl+D", "PageDown"]
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "scroll per-mode exit key valid - no conflict",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.ModeExitKeys = []string{"q"}
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty per-mode exit keys uses global fallback - valid",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				// All ModeExitKeys nil/empty = use global only
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "multiple modes with per-mode exit keys - all valid",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"q"}
+				cfg.Grid.ModeExitKeys = []string{"Ctrl+Q"}
+				cfg.RecursiveGrid.ModeExitKeys = []string{"q"}
+				cfg.Scroll.ModeExitKeys = []string{"q"}
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "per-mode exit key duplicate of global is accepted (deduplicated at runtime)",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"escape"} // same as global
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "grid per-mode exit key conflicts with sublayer_keys",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"b"}
+				// Default sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid per-mode exit key conflicts with row_labels",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"1"}
+				cfg.Grid.RowLabels = "123456789"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid per-mode exit key conflicts with col_labels",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"x"}
+				cfg.Grid.ColLabels = "wxyz123456"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid per-mode exit key conflicts with backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"x"}
+				cfg.Grid.BackspaceKey = "x"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid per-mode exit key conflicts with backspace_key",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.RecursiveGrid.ModeExitKeys = []string{"x"}
+				cfg.RecursiveGrid.BackspaceKey = "x"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "scroll per-mode exit key named key conflicts with arrow binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.ModeExitKeys = []string{"Up"}
+				// Default scroll_up = ["k", "Up"]
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "scroll per-mode exit key prefix conflicts with multi-key sequence",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.ModeExitKeys = []string{"g"}
+				// Default go_top = ["gg", "Cmd+Up"] — "g" is a prefix of "gg"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "scroll per-mode exit key no prefix conflict with non-matching sequence",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.ModeExitKeys = []string{"q"}
+				// Default go_top = ["gg", "Cmd+Up"] — "q" is not a prefix of "gg"
+				return cfg
+			},
+			wantErr: false,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := testCase.config()
+
+			err := cfg.Validate()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.Validate() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
+// TestConfig_Validate_PerModeExitKeysActionKeyConflicts tests that per-mode exit keys
+// cannot conflict with action key bindings (checked via full Validate()).
+func TestConfig_Validate_PerModeExitKeysActionKeyConflicts(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  func() config.Config
+		wantErr bool
+	}{
+		{
+			name: "hints per-mode exit key conflicts with move_mouse_up binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"Up"}
+				// Default move_mouse_up = "Up"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "hints per-mode exit key conflicts with left_click binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"Shift+L"}
+				// Default left_click = "Shift+L"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "grid per-mode exit key conflicts with right_click binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"Shift+R"}
+				// Default right_click = "Shift+R"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid per-mode exit key conflicts with mouse_down binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.RecursiveGrid.ModeExitKeys = []string{"Shift+I"}
+				// Default mouse_down = "Shift+I"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "scroll per-mode exit key does NOT check action bindings (scroll has no action keys)",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.ModeExitKeys = []string{"Shift+L"}
+				// Even though left_click = "Shift+L", scroll mode doesn't use action keys
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when per-mode exit key differs from all action bindings",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"q"}
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when mode is disabled",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.Enabled = false
+				cfg.Hints.ModeExitKeys = []string{"Up"} // would conflict, but hints disabled
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when action binding is empty",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"Shift+L"}
+				cfg.Action.KeyBindings.LeftClick = ""
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "case-insensitive conflict detection",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"shift+l"}
+				cfg.Action.KeyBindings.LeftClick = "Shift+L"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no conflict with Ctrl+Q exit key and default action bindings",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"Ctrl+Q"}
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "per-mode exit key conflicts with custom single-char action binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"w"}
+				cfg.Action.KeyBindings.MoveMouseUp = "w"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := testCase.config()
+
+			err := cfg.Validate()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.Validate() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
+// TestMergeExitKeys tests the MergeExitKeys helper function.
+func TestMergeExitKeys(t *testing.T) {
+	tests := []struct {
+		name       string
+		globalKeys []string
+		modeKeys   []string
+		wantLen    int
+	}{
+		{
+			name:       "no mode keys returns global only",
+			globalKeys: []string{"escape"},
+			modeKeys:   nil,
+			wantLen:    1,
+		},
+		{
+			name:       "empty mode keys returns global only",
+			globalKeys: []string{"escape"},
+			modeKeys:   []string{},
+			wantLen:    1,
+		},
+		{
+			name:       "mode keys merged with global",
+			globalKeys: []string{"escape"},
+			modeKeys:   []string{"q"},
+			wantLen:    2,
+		},
+		{
+			name:       "duplicate mode key is deduplicated",
+			globalKeys: []string{"escape"},
+			modeKeys:   []string{"escape"},
+			wantLen:    1,
+		},
+		{
+			name:       "case-insensitive deduplication",
+			globalKeys: []string{"Escape"},
+			modeKeys:   []string{"escape"},
+			wantLen:    1,
+		},
+		{
+			name:       "multiple mode keys merged",
+			globalKeys: []string{"escape"},
+			modeKeys:   []string{"q", "Ctrl+C"},
+			wantLen:    3,
+		},
+		{
+			name:       "multiple global keys with one mode key",
+			globalKeys: []string{"escape", "Ctrl+C"},
+			modeKeys:   []string{"q"},
+			wantLen:    3,
+		},
+		{
+			name:       "partial overlap deduplicated",
+			globalKeys: []string{"escape", "Ctrl+C"},
+			modeKeys:   []string{"Ctrl+C", "q"},
+			wantLen:    3,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := config.MergeExitKeys(testCase.globalKeys, testCase.modeKeys)
+			if len(result) != testCase.wantLen {
+				t.Errorf(
+					"MergeExitKeys() returned %d keys %v, want %d",
+					len(result),
+					result,
+					testCase.wantLen,
+				)
+			}
+		})
+	}
+}
+
+// TestConfig_ResolvedExitKeys tests the Config.ResolvedExitKeys method.
+func TestConfig_ResolvedExitKeys(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   func() config.Config
+		modeName string
+		wantLen  int
+	}{
+		{
+			name: "hints with no per-mode keys returns global",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+
+				return cfg
+			},
+			modeName: "hints",
+			wantLen:  1, // just "Escape"
+		},
+		{
+			name: "hints with per-mode key returns merged",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Hints.ModeExitKeys = []string{"q"}
+
+				return cfg
+			},
+			modeName: "hints",
+			wantLen:  2, // "Escape" + "q"
+		},
+		{
+			name: "scroll with per-mode key returns merged",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.ModeExitKeys = []string{"q", "Ctrl+X"}
+
+				return cfg
+			},
+			modeName: "scroll",
+			wantLen:  3, // "Escape" + "q" + "Ctrl+X"
+		},
+		{
+			name: "unknown mode name returns global only",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+
+				return cfg
+			},
+			modeName: "unknown",
+			wantLen:  1,
+		},
+		{
+			name: "grid with duplicate of global is deduplicated",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Grid.ModeExitKeys = []string{"escape", "q"}
+
+				return cfg
+			},
+			modeName: "grid",
+			wantLen:  2, // "Escape" + "q" (duplicate "escape" removed)
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := testCase.config()
+
+			result := cfg.ResolvedExitKeys(testCase.modeName)
+			if len(result) != testCase.wantLen {
+				t.Errorf(
+					"ResolvedExitKeys(%q) returned %d keys %v, want %d",
+					testCase.modeName,
+					len(result),
+					result,
+					testCase.wantLen,
+				)
+			}
+		})
+	}
+}

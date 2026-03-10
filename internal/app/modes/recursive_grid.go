@@ -78,10 +78,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
 
 // initializeRecursiveGridManager initializes the recursive-grid manager.
 func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
-	exitKeys := h.config.General.ModeExitKeys
-	if len(exitKeys) == 0 {
-		exitKeys = DefaultModeExitKeys()
-	}
+	exitKeys := h.config.ResolvedExitKeys("recursive_grid")
 
 	// Ensure recursiveGrid component is initialized
 	if h.recursiveGrid == nil {

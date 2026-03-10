@@ -242,6 +242,35 @@ func (c *Config) ValidateHints() error {
 		}
 	}
 
+	// Validate per-mode exit keys
+	if len(c.Hints.ModeExitKeys) > 0 {
+		err = validatePerModeExitKeysFormat(c.Hints.ModeExitKeys, "hints.mode_exit_keys")
+		if err != nil {
+			return err
+		}
+
+		err = checkPerModeExitKeyCharConflict(
+			c.Hints.ModeExitKeys,
+			c.Hints.HintCharacters,
+			"hints.mode_exit_keys",
+			"hints.hint_characters",
+			"selecting a hint",
+		)
+		if err != nil {
+			return err
+		}
+
+		err = checkPerModeExitKeysBackspaceConflict(
+			c.Hints.ModeExitKeys,
+			c.Hints.BackspaceKey,
+			"hints.mode_exit_keys",
+			"hints",
+		)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -617,6 +646,57 @@ func (c *Config) ValidateGrid() error {
 			"grid.backspace_key",
 			check.fieldName,
 			"grid input",
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Validate per-mode exit keys
+	if len(c.Grid.ModeExitKeys) > 0 {
+		err = validatePerModeExitKeysFormat(c.Grid.ModeExitKeys, "grid.mode_exit_keys")
+		if err != nil {
+			return err
+		}
+
+		gridExitKeyChecks := []struct {
+			chars      string
+			fieldName  string
+			actionDesc string
+		}{
+			{c.Grid.Characters, "grid.characters", "grid input"},
+			{c.Grid.RowLabels, "grid.row_labels", "row selection"},
+			{c.Grid.ColLabels, "grid.col_labels", "column selection"},
+			{keys, "grid.sublayer_keys", "subgrid selection"},
+		}
+		for _, check := range gridExitKeyChecks {
+			err = checkPerModeExitKeyCharConflict(
+				c.Grid.ModeExitKeys,
+				check.chars,
+				"grid.mode_exit_keys",
+				check.fieldName,
+				check.actionDesc,
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = checkPerModeExitKeysBackspaceConflict(
+			c.Grid.ModeExitKeys,
+			c.Grid.BackspaceKey,
+			"grid.mode_exit_keys",
+			"grid",
+		)
+		if err != nil {
+			return err
+		}
+
+		err = checkPerModeExitKeysResetKeyConflict(
+			c.Grid.ModeExitKeys,
+			c.Grid.ResetKey,
+			"grid.mode_exit_keys",
+			"grid",
 		)
 		if err != nil {
 			return err
@@ -1380,6 +1460,307 @@ func validateResetKeyCombo(key string, fieldName string) error {
 	return validateModifierCombo(key, fieldName)
 }
 
+// validatePerModeExitKeysFormat validates the format of a per-mode mode_exit_keys slice.
+// It reuses the same rules as general.mode_exit_keys: named keys, modifier combos, or single characters.
+func validatePerModeExitKeysFormat(keys []string, fieldName string) error {
+	for index, key := range keys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s[%d] cannot be empty",
+				fieldName,
+				index,
+			)
+		}
+
+		if IsValidNamedKey(key) || strings.EqualFold(key, "esc") {
+			continue
+		}
+
+		if strings.Contains(key, "+") {
+			err := validateModifierCombo(key, fmt.Sprintf("%s[%d]", fieldName, index))
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		if len(key) == 1 {
+			continue
+		}
+
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s[%d] = '%s' is invalid; must be a named key (e.g. 'escape'), modifier combo (e.g. 'Ctrl+C'), or single character",
+			fieldName,
+			index,
+			key,
+		)
+	}
+
+	return nil
+}
+
+// extractSingleCharExitKeys returns the single-character exit keys (lowercased) from a key list.
+func extractSingleCharExitKeys(keys []string) []string {
+	var result []string
+	for _, key := range keys {
+		trimmed := strings.TrimSpace(key)
+		if len(trimmed) == 1 && !strings.Contains(trimmed, "+") {
+			result = append(result, strings.ToLower(trimmed))
+		}
+	}
+
+	return result
+}
+
+// checkPerModeExitKeyCharConflict checks if any single-character exit key in modeExitKeys
+// conflicts with a character set.
+func checkPerModeExitKeyCharConflict(
+	modeExitKeys []string,
+	chars string,
+	exitKeysFieldName string,
+	charsFieldName string,
+	actionDesc string,
+) error {
+	singleCharKeys := extractSingleCharExitKeys(modeExitKeys)
+	if len(singleCharKeys) == 0 || chars == "" {
+		return nil
+	}
+
+	lowerChars := strings.ToLower(chars)
+	for _, exitKey := range singleCharKeys {
+		if strings.Contains(lowerChars, exitKey) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s contains '%s' which conflicts with %s; this key will always exit instead of being used for %s",
+				exitKeysFieldName,
+				strings.ToUpper(exitKey),
+				charsFieldName,
+				actionDesc,
+			)
+		}
+	}
+
+	return nil
+}
+
+// checkPerModeExitKeysBackspaceConflict checks if any per-mode exit key conflicts with
+// the mode's configured backspace key. At runtime, exit keys are checked before backspace,
+// so a conflict means backspace will never fire.
+func checkPerModeExitKeysBackspaceConflict(
+	modeExitKeys []string,
+	backspaceKey string,
+	exitKeysFieldName string,
+	modeName string,
+) error {
+	if len(modeExitKeys) == 0 {
+		return nil
+	}
+
+	var normalizedExitKeys []string
+	for _, key := range modeExitKeys {
+		normalizedExitKeys = append(
+			normalizedExitKeys,
+			NormalizeKeyForComparison(strings.TrimSpace(key)),
+		)
+	}
+
+	if backspaceKey == "" {
+		if slices.Contains(normalizedExitKeys, KeyNameDelete) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s contains a key that conflicts with the default backspace key used by %s mode; the exit key will always take priority, making backspace non-functional",
+				exitKeysFieldName,
+				modeName,
+			)
+		}
+
+		return nil
+	}
+
+	if !strings.Contains(backspaceKey, "+") {
+		normalizedBS := NormalizeKeyForComparison(backspaceKey)
+		if slices.Contains(normalizedExitKeys, normalizedBS) {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s contains a key that conflicts with %s.backspace_key ('%s'); the exit key will always take priority, making backspace non-functional",
+				exitKeysFieldName,
+				modeName,
+				backspaceKey,
+			)
+		}
+	}
+
+	return nil
+}
+
+// checkPerModeExitKeysResetKeyConflict checks if any per-mode exit key conflicts with
+// the mode's configured reset key.
+func checkPerModeExitKeysResetKeyConflict(
+	modeExitKeys []string,
+	resetKey string,
+	exitKeysFieldName string,
+	modeName string,
+) error {
+	if len(modeExitKeys) == 0 {
+		return nil
+	}
+
+	if resetKey == "" {
+		resetKey = " "
+	}
+
+	if strings.Contains(resetKey, "+") {
+		return nil
+	}
+
+	var normalizedExitKeys []string
+	for _, key := range modeExitKeys {
+		normalizedExitKeys = append(
+			normalizedExitKeys,
+			NormalizeKeyForComparison(strings.TrimSpace(key)),
+		)
+	}
+
+	normalizedReset := NormalizeKeyForComparison(resetKey)
+	if slices.Contains(normalizedExitKeys, normalizedReset) {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s contains a key that conflicts with %s.reset_key ('%s'); the exit key will always take priority, making reset non-functional",
+			exitKeysFieldName,
+			modeName,
+			resetKey,
+		)
+	}
+
+	return nil
+}
+
+// checkPerModeExitKeysActionKeyConflicts checks if any per-mode exit key conflicts with
+// an action key binding. At runtime, exit keys are checked before action keys
+// (in key_dispatch.go), so a conflict means the action key will never fire — the mode
+// will exit instead. Only hints, grid, and recursive_grid modes use action keys.
+func (c *Config) checkPerModeExitKeysActionKeyConflicts() error {
+	bindings := []struct {
+		value     string
+		fieldName string
+	}{
+		{c.Action.KeyBindings.LeftClick, "action.key_bindings.left_click"},
+		{c.Action.KeyBindings.RightClick, "action.key_bindings.right_click"},
+		{c.Action.KeyBindings.MiddleClick, "action.key_bindings.middle_click"},
+		{c.Action.KeyBindings.MouseDown, "action.key_bindings.mouse_down"},
+		{c.Action.KeyBindings.MouseUp, "action.key_bindings.mouse_up"},
+		{c.Action.KeyBindings.MoveMouseUp, "action.key_bindings.move_mouse_up"},
+		{c.Action.KeyBindings.MoveMouseDown, "action.key_bindings.move_mouse_down"},
+		{c.Action.KeyBindings.MoveMouseLeft, "action.key_bindings.move_mouse_left"},
+		{c.Action.KeyBindings.MoveMouseRight, "action.key_bindings.move_mouse_right"},
+	}
+
+	type modeExitKeys struct {
+		keys      []string
+		modeName  string
+		isEnabled bool
+	}
+
+	modes := []modeExitKeys{
+		{c.Hints.ModeExitKeys, "hints", c.Hints.Enabled},
+		{c.Grid.ModeExitKeys, "grid", c.Grid.Enabled},
+		{c.RecursiveGrid.ModeExitKeys, "recursive_grid", c.RecursiveGrid.Enabled},
+	}
+	for _, mode := range modes {
+		if !mode.isEnabled || len(mode.keys) == 0 {
+			continue
+		}
+
+		var normalizedExitKeys []string
+		for _, key := range mode.keys {
+			normalizedExitKeys = append(
+				normalizedExitKeys,
+				NormalizeKeyForComparison(strings.TrimSpace(key)),
+			)
+		}
+
+		for _, binding := range bindings {
+			if binding.value == "" {
+				continue
+			}
+
+			normalizedBinding := NormalizeKeyForComparison(binding.value)
+			if slices.Contains(normalizedExitKeys, normalizedBinding) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s.mode_exit_keys contains a key that conflicts with %s ('%s'); the exit key is checked first at runtime, so the action will never fire",
+					mode.modeName,
+					binding.fieldName,
+					binding.value,
+				)
+			}
+		}
+	}
+
+	return nil
+}
+
+// checkPerModeExitKeysScrollBindingConflicts checks if any per-mode exit key for scroll mode
+// conflicts with the configured scroll key bindings.
+func checkPerModeExitKeysScrollBindingConflicts(
+	modeExitKeys []string,
+	keyBindings map[string][]string,
+	exitKeysFieldName string,
+) error {
+	if len(modeExitKeys) == 0 || len(keyBindings) == 0 {
+		return nil
+	}
+
+	var normalizedExitKeys []string
+	for _, key := range modeExitKeys {
+		normalizedExitKeys = append(
+			normalizedExitKeys,
+			NormalizeKeyForComparison(strings.TrimSpace(key)),
+		)
+	}
+
+	for action, keys := range keyBindings {
+		for _, scrollKey := range keys {
+			normalizedScrollKey := NormalizeKeyForComparison(scrollKey)
+			if slices.Contains(normalizedExitKeys, normalizedScrollKey) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s contains a key that conflicts with scroll.key_bindings['%s'] ('%s'); the exit key will always take priority instead of scrolling",
+					exitKeysFieldName,
+					action,
+					scrollKey,
+				)
+			}
+
+			// Check prefix conflicts: a single-character exit key that matches the
+			// first character of a multi-letter sequence (e.g. exit key "g" vs binding "gg")
+			// will intercept the key at dispatch time before the scroll handler can
+			// start the sequence, silently breaking the binding.
+			// Currently validateScrollKey only allows 2-letter sequences, but we use
+			// >= 2 defensively so this stays correct if longer sequences are added.
+			if len(scrollKey) >= 2 && IsAllLetters(scrollKey) {
+				prefix := strings.ToLower(scrollKey[:1])
+				if slices.Contains(normalizedExitKeys, prefix) {
+					return derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"%s contains '%s' which is the first key of scroll.key_bindings['%s'] sequence '%s'; the exit key will intercept before the sequence can complete",
+						exitKeysFieldName,
+						prefix,
+						action,
+						scrollKey,
+					)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // ValidateRecursiveGrid validates the recursive-grid configuration.
 func (c *Config) ValidateRecursiveGrid() error {
 	if !c.RecursiveGrid.Enabled {
@@ -1681,6 +2062,48 @@ func (c *Config) ValidateRecursiveGrid() error {
 	err = validateColors(colorFields)
 	if err != nil {
 		return err
+	}
+
+	// Validate per-mode exit keys
+	if len(c.RecursiveGrid.ModeExitKeys) > 0 {
+		err = validatePerModeExitKeysFormat(
+			c.RecursiveGrid.ModeExitKeys,
+			"recursive_grid.mode_exit_keys",
+		)
+		if err != nil {
+			return err
+		}
+
+		err = checkPerModeExitKeyCharConflict(
+			c.RecursiveGrid.ModeExitKeys,
+			keys,
+			"recursive_grid.mode_exit_keys",
+			"recursive_grid.keys",
+			"cell selection",
+		)
+		if err != nil {
+			return err
+		}
+
+		err = checkPerModeExitKeysBackspaceConflict(
+			c.RecursiveGrid.ModeExitKeys,
+			c.RecursiveGrid.BackspaceKey,
+			"recursive_grid.mode_exit_keys",
+			"recursive_grid",
+		)
+		if err != nil {
+			return err
+		}
+
+		err = checkPerModeExitKeysResetKeyConflict(
+			c.RecursiveGrid.ModeExitKeys,
+			c.RecursiveGrid.ResetKey,
+			"recursive_grid.mode_exit_keys",
+			"recursive_grid",
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = validateAutoExitActions(

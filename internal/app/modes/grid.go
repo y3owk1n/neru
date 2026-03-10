@@ -46,10 +46,7 @@ func (h *Handler) activateGridModeWithAction(actionStr *string) {
 
 	h.initializeGridManager(gridInstance)
 
-	exitKeys := h.config.General.ModeExitKeys
-	if len(exitKeys) == 0 {
-		exitKeys = DefaultModeExitKeys()
-	}
+	exitKeys := h.config.ResolvedExitKeys("grid")
 
 	h.grid.Router = domainGrid.NewRouterWithExitKeys(h.grid.Manager, h.logger, exitKeys)
 

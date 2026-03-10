@@ -80,6 +80,11 @@ enabled = true
 # Note: Including "move_mouse_relative" will exit on every arrow-key nudge, which is usually undesirable.
 auto_exit_actions = []
 
+# Additional keys that exit hints mode (merged with general.mode_exit_keys)
+# These keys are added on top of the global exit keys, not replacing them.
+# Example: mode_exit_keys = ["q"]  # Escape (global) + q to exit hints
+mode_exit_keys = []
+
 # Characters to use for hint labels
 hint_characters = "asdfghjkl"
 
@@ -193,6 +198,9 @@ enabled = true
 # Note: Including "move_mouse_relative" will exit on every arrow-key nudge, which is usually undesirable.
 auto_exit_actions = []
 
+# Additional keys that exit grid mode (merged with general.mode_exit_keys)
+mode_exit_keys = []
+
 # Characters to use for grid labels
 # Requirements:
 # - Must contain at least 2 characters
@@ -271,6 +279,9 @@ enabled = true
 # Note: Including "move_mouse_relative" will exit on every arrow-key nudge, which is usually undesirable.
 auto_exit_actions = []
 
+# Additional keys that exit recursive-grid mode (merged with general.mode_exit_keys)
+mode_exit_keys = []
+
 # Grid layout: columns and rows (default: 2x2, must be >= 2)
 # Higher values create finer grid division
 # For non-square grids, use different values (e.g., grid_cols = 3, grid_rows = 2)
@@ -326,6 +337,11 @@ sub_key_preview_text_color_dark = "#6600CFCF"   # Sub-key label color for Dark M
 scroll_step = 50            # Base scroll distance for j/k keys
 scroll_step_half = 500      # Scroll distance for Ctrl+D/U keys
 scroll_step_full = 1000000  # Scroll distance for Shift+G/g keys
+
+# Additional keys that exit scroll mode (merged with general.mode_exit_keys)
+# Useful for adding quick-exit keys near your scroll bindings
+# Example: mode_exit_keys = ["q"]  # Escape (global) + q to exit scroll
+mode_exit_keys = []
 
 # Key bindings for scroll mode
 # Each action can have multiple keys assigned to it
