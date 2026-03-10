@@ -892,6 +892,11 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		return;
 	CGFloat subCellWidth = cellRect.size.width / cols;
 	CGFloat subCellHeight = cellRect.size.height / rows;
+	// Skip sub-key preview when sub-cells are too small to render legibly.
+	// Each sub-cell must be at least 2× the font size in both dimensions.
+	CGFloat minSubCell = subFont.pointSize * 1.5;
+	if (subCellWidth < minSubCell || subCellHeight < minSubCell)
+		return;
 	NSMutableAttributedString *str = self.cachedGridSubKeyAttributedString;
 	if (!str) {
 		str = [[NSMutableAttributedString alloc] initWithString:@""];
