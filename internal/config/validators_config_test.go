@@ -2187,6 +2187,26 @@ func TestConfig_ValidatePerModeExitKeys(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "scroll per-mode exit key prefix conflicts with multi-key sequence",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.ModeExitKeys = []string{"g"}
+				// Default go_top = ["gg", "Cmd+Up"] — "g" is a prefix of "gg"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "scroll per-mode exit key no prefix conflict with non-matching sequence",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.ModeExitKeys = []string{"q"}
+				// Default go_top = ["gg", "Cmd+Up"] — "q" is not a prefix of "gg"
+				return cfg
+			},
+			wantErr: false,
+		},
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {

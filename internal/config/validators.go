@@ -1670,6 +1670,24 @@ func checkPerModeExitKeysScrollBindingConflicts(
 					scrollKey,
 				)
 			}
+
+			// Check prefix conflicts: a single-character exit key that matches the
+			// first character of a 2-letter sequence (e.g. exit key "g" vs binding "gg")
+			// will intercept the key at dispatch time before the scroll handler can
+			// start the sequence, silently breaking the binding.
+			if len(scrollKey) == 2 && IsAllLetters(scrollKey) {
+				prefix := strings.ToLower(scrollKey[:1])
+				if slices.Contains(normalizedExitKeys, prefix) {
+					return derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"%s contains '%s' which is the first key of scroll.key_bindings['%s'] sequence '%s'; the exit key will intercept before the sequence can complete",
+						exitKeysFieldName,
+						prefix,
+						action,
+						scrollKey,
+					)
+				}
+			}
 		}
 	}
 
