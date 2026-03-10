@@ -143,6 +143,8 @@ else
 
       sed "s|VERSION|${finalAttrs.version}|g" $SRC_PLIST > $out/Applications/Neru.app/Contents/Info.plist
 
+      /usr/bin/codesign --force --deep --sign - $out/Applications/Neru.app || echo "⚠️  codesign skipped (sandbox or missing tool)"
+
       echo "✅ Neru.app bundle created at $out/Applications/Neru.app"
     '';
 
