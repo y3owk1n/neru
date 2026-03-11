@@ -67,6 +67,9 @@ func (m *mockEventTap) SetModifierPassthrough(_ bool, _ []string) {}
 // SetInterceptedModifierKeys implements ports.EventTapPort.
 func (m *mockEventTap) SetInterceptedModifierKeys(_ []string) {}
 
+// SetPassthroughCallback implements ports.EventTapPort.
+func (m *mockEventTap) SetPassthroughCallback(_ func()) {}
+
 // SetKeyboardLayout implements ports.EventTapPort.
 func (m *mockEventTap) SetKeyboardLayout(_ string) bool { return true }
 

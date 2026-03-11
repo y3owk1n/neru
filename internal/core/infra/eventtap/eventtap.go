@@ -6,6 +6,7 @@ package eventtap
 #include <stdlib.h>
 
 extern void eventTapCallbackBridge(char* key, void* userData);
+extern void eventTapPassthroughBridge(void* userData);
 */
 import "C"
 
@@ -20,13 +21,17 @@ import (
 // Callback defines the function signature for handling key press events.
 type Callback func(key string)
 
+// PassthroughCallback is invoked when a modifier shortcut passes through to macOS.
+type PassthroughCallback func()
+
 // EventTap represents a keyboard event interceptor that captures global key presses.
 type EventTap struct {
 	handle C.EventTap
 	logger *zap.Logger
 
-	callbackMu sync.RWMutex
-	callback   Callback
+	callbackMu          sync.RWMutex
+	callback            Callback
+	passthroughCallback PassthroughCallback
 
 	callbackQueue chan string
 	stopDispatch  chan struct{}
@@ -184,6 +189,28 @@ func (et *EventTap) SetInterceptedModifierKeys(keys []string) {
 	et.logger.Debug("Intercepted modifier keys set")
 }
 
+// SetPassthroughCallback registers a function to call when a modifier shortcut
+// passes through to macOS. Pass nil to clear the callback.
+func (et *EventTap) SetPassthroughCallback(_callback PassthroughCallback) {
+	et.callbackMu.Lock()
+	et.passthroughCallback = _callback
+	et.callbackMu.Unlock()
+	if et.handle == nil {
+		et.logger.Warn("Cannot set passthrough callback on nil event tap")
+
+		return
+	}
+
+	if _callback != nil {
+		C.setEventTapPassthroughCallback(
+			et.handle,
+			C.EventTapPassthroughCallback(C.eventTapPassthroughBridge),
+		)
+	} else {
+		C.setEventTapPassthroughCallback(et.handle, nil)
+	}
+}
+
 // SetKeyboardLayout configures the reference keyboard layout used by key translation.
 // Returns false when an explicit layout ID is provided but cannot be resolved.
 func (et *EventTap) SetKeyboardLayout(layoutID string) bool {
@@ -229,9 +256,10 @@ func (et *EventTap) Destroy() {
 	C.destroyEventTap(et.handle)
 	et.handle = nil
 
-	// Clear callback to prevent any lingering references
+	// Clear callbacks to prevent any lingering references
 	et.callbackMu.Lock()
 	et.callback = nil
+	et.passthroughCallback = nil
 	et.callbackMu.Unlock()
 
 	et.logger.Debug("Event tap destroyed")
@@ -305,5 +333,27 @@ func eventTapCallbackBridge(key *C.char, _ unsafe.Pointer) {
 	if eventTap != nil && key != nil {
 		goKey := C.GoString(key)
 		eventTap.enqueueKey(goKey)
+	}
+}
+
+// eventTapPassthroughBridge is the C-to-Go callback bridge for passthrough
+// notifications. It is invoked on the event tap thread when a modifier shortcut
+// passes through to macOS. The callback is dispatched directly (not queued)
+// because it is a lightweight notification that only schedules a timer.
+//
+//export eventTapPassthroughBridge
+func eventTapPassthroughBridge(_ unsafe.Pointer) {
+	globalEventTapMu.RLock()
+	eventTap := globalEventTap
+	globalEventTapMu.RUnlock()
+
+	if eventTap != nil {
+		eventTap.callbackMu.RLock()
+		cb := eventTap.passthroughCallback
+		eventTap.callbackMu.RUnlock()
+
+		if cb != nil {
+			cb()
+		}
 	}
 }

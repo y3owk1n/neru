@@ -91,6 +91,15 @@ func (a *Adapter) SetInterceptedModifierKeys(keys []string) {
 	a.tap.SetInterceptedModifierKeys(keys)
 }
 
+// SetPassthroughCallback registers a function to call when a modifier shortcut
+// passes through to macOS.
+func (a *Adapter) SetPassthroughCallback(cb func()) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.tap.SetPassthroughCallback(cb)
+}
+
 // SetKeyboardLayout configures the reference keyboard layout used by key translation.
 func (a *Adapter) SetKeyboardLayout(layoutID string) bool {
 	return a.tap.SetKeyboardLayout(layoutID)

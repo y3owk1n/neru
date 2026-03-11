@@ -51,3 +51,11 @@ func (a *App) setEventTapInterceptedModifierKeys(keys []string) {
 		a.eventTap.SetInterceptedModifierKeys(keys)
 	}
 }
+
+// setEventTapPassthroughCallback registers a function invoked when a modifier
+// shortcut passes through to macOS.
+func (a *App) setEventTapPassthroughCallback(cb func()) {
+	if a.eventTap != nil {
+		a.eventTap.SetPassthroughCallback(cb)
+	}
+}

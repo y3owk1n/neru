@@ -3,10 +3,18 @@ package modes
 import (
 	"slices"
 	"strings"
+	"time"
 
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"go.uber.org/zap"
 )
+
+// passthroughHintRefreshDelay is the delay before refreshing hints after a
+// modifier shortcut is passed through to macOS. This gives the OS time to
+// process the shortcut (e.g., Cmd+Tab app switch) before Neru re-collects
+// AX elements.
+const passthroughHintRefreshDelay = 300 * time.Millisecond
 
 func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 	enabled := h.config != nil &&
@@ -107,4 +115,57 @@ func appendActionModifierKeys(bindings configpkg.ActionKeyBindingsCfg, appendKey
 	appendKey(bindings.MoveMouseDown)
 	appendKey(bindings.MoveMouseLeft)
 	appendKey(bindings.MoveMouseRight)
+}
+
+// HandlePassthrough is the public entry point called when a modifier shortcut
+// was passed through to macOS while a mode is active. It acquires h.mu and
+// delegates to handlePassthroughLocked.
+func (h *Handler) HandlePassthrough() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.handlePassthroughLocked()
+}
+
+// handlePassthroughLocked is called when a modifier shortcut was passed through
+// to macOS while a mode is active. Only hints mode needs a refresh because its
+// labels point at AX elements that may have moved (e.g., Cmd+Tab switched the
+// focused app). Grid, recursive-grid, and scroll modes use screen coordinates
+// that remain valid regardless of what the OS does with the shortcut.
+//
+// Caller must hold h.mu.
+func (h *Handler) handlePassthroughLocked() {
+	if h.appState.CurrentMode() != domain.ModeHints {
+		return
+	}
+
+	h.logger.Debug("Scheduling hint refresh after modifier passthrough")
+
+	// Cancel any existing refresh timer to debounce rapid passthroughs.
+	if h.refreshHintsTimer != nil {
+		h.refreshHintsTimer.Stop()
+	}
+
+	var timer *time.Timer
+
+	timer = time.AfterFunc(passthroughHintRefreshDelay, func() {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+
+		// Guard against stale timer: if the user exited hints mode while we
+		// were waiting, do not re-activate.
+		if h.appState.CurrentMode() != domain.ModeHints {
+			return
+		}
+
+		// Clear our own timer reference only if we are still the active one.
+		if h.refreshHintsTimer == timer {
+			h.refreshHintsTimer = nil
+		}
+
+		h.logger.Debug("Refreshing hints after modifier passthrough",
+			zap.Duration("delay", passthroughHintRefreshDelay))
+		h.activateHintModeInternal(false, nil)
+	})
+	h.refreshHintsTimer = timer
 }

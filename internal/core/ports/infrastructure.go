@@ -29,6 +29,10 @@ type EventTapPort interface {
 	// mode still wants Neru to consume while modifier passthrough is enabled.
 	SetInterceptedModifierKeys(keys []string)
 
+	// SetPassthroughCallback registers a function invoked when a modifier
+	// shortcut passes through to macOS. Pass nil to clear.
+	SetPassthroughCallback(cb func())
+
 	// SetKeyboardLayout configures the reference keyboard layout used for key translation.
 	// Returns false when an explicit layout ID is provided but cannot be resolved.
 	SetKeyboardLayout(layoutID string) bool

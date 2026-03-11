@@ -17,6 +17,11 @@
 /// @param userData User data pointer
 typedef void (*EventTapCallback)(const char *key, void *userData);
 
+/// Passthrough notification callback type.
+/// Invoked when a modifier shortcut passes through to macOS.
+/// @param userData User data pointer
+typedef void (*EventTapPassthroughCallback)(void *userData);
+
 /// Event tap handle
 typedef void *EventTap;
 
@@ -60,5 +65,11 @@ void setEventTapModifierPassthrough(EventTap tap, int enabled, const char **blac
 /// @param keys Array of key strings (same format as hotkeys)
 /// @param count Number of keys
 void setEventTapInterceptedModifierKeys(EventTap tap, const char **keys, int count);
+
+/// Set callback invoked when a modifier shortcut passes through to macOS.
+/// The callback fires before the event is forwarded to the system.
+/// @param tap Event tap handle
+/// @param callback Passthrough callback function (may be NULL to clear)
+void setEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallback callback);
 
 #endif // EVENTTAP_H
