@@ -86,6 +86,10 @@ func (h *Handler) overlaySwitch(m overlay.Mode) {
 // SetModeIdle switches the application to idle mode, disabling active navigation modes.
 // This function resets the application state to idle, disables event tapping,
 // and switches the overlay display to the idle state.
+//
+// NOTE: Every code path that calls appState.SetMode() must also call
+// syncModifierPassthrough() with the same mode to keep the event tap
+// passthrough state consistent. See also: performCommonCleanup, setMode.
 func (h *Handler) SetModeIdle() {
 	h.appState.SetMode(domain.ModeIdle)
 	h.syncModifierPassthrough(domain.ModeIdle)
