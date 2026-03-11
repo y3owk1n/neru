@@ -326,7 +326,8 @@ hide_overlay_in_screen_share = false  # default
 - `true`: Overlay hidden in shared screens (visible locally)
 - `false`: Overlay always visible
 
-> [!NOTE] Uses macOS `NSWindow.sharingType` API. Reliability varies:
+> [!NOTE]
+> Uses macOS `NSWindow.sharingType` API. Reliability varies:
 >
 > - macOS 14 and earlier: Works well with most apps
 > - macOS 15.4+: Limited effectiveness with ScreenCaptureKit-based apps
@@ -658,7 +659,8 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 | `border_color_light`             | string | `"#9900B4D8"` | Cell border for Light Mode (theme-aware)             |
 | `border_color_dark`              | string | `"#99003554"` | Cell border for Dark Mode (theme-aware)              |
 
-> [!NOTE] Theme-aware colors:
+> [!NOTE]
+> Theme-aware colors:
 > When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
 > The colors update in real time when you switch system themes. If you explicitly
@@ -893,7 +895,8 @@ j   →   k          j = Lower-left
 | `sub_key_preview_text_color_light` | string | `"#66007A9E"` | Sub-key label color for Light Mode           |
 | `sub_key_preview_text_color_dark`  | string | `"#6600CFCF"` | Sub-key label color for Dark Mode            |
 
-> [!NOTE] Theme-aware colors:
+> [!NOTE]
+> Theme-aware colors:
 > When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
 > The colors update in real time when you switch system themes. If you explicitly
