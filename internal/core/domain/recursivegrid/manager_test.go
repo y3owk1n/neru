@@ -419,6 +419,123 @@ func TestHandleInput_InvalidKeyLength_FallsBackToDefault(t *testing.T) {
 	}, "HandleInput should not panic after fallback")
 }
 
+func TestNewManagerWithLayers_MismatchedDepthKeys_DropsOrphan(t *testing.T) {
+	bounds := image.Rect(0, 0, 120, 100)
+	logger := zap.NewNop()
+	// depthKeys has depth 0, but depthLayouts does not → depth 0 override should be dropped
+	depthLayouts := map[int]recursivegrid.DepthLayout{}
+	depthKeys := map[int]string{
+		0: "qwerasdf", // 8 keys, but no layout for depth 0
+	}
+	manager := recursivegrid.NewManagerWithLayers(
+		bounds,
+		"uijk",
+		",",
+		"",
+		[]string{"escape"},
+		10, 10, 10,
+		2, 2,
+		depthLayouts,
+		depthKeys,
+		nil, nil,
+		logger,
+	)
+	// At depth 0, should use default keys since the orphan override was dropped
+	assert.Equal(t, "uijk", manager.Keys())
+	assert.Equal(t, 2, manager.GridCols())
+	assert.Equal(t, 2, manager.GridRows())
+}
+
+func TestNewManagerWithLayers_MismatchedDepthLayouts_DropsOrphan(t *testing.T) {
+	bounds := image.Rect(0, 0, 120, 100)
+	logger := zap.NewNop()
+	// depthLayouts has depth 0, but depthKeys does not → depth 0 override should be dropped
+	depthLayouts := map[int]recursivegrid.DepthLayout{
+		0: {GridCols: 3, GridRows: 3},
+	}
+	depthKeys := map[int]string{}
+	manager := recursivegrid.NewManagerWithLayers(
+		bounds,
+		"uijk",
+		",",
+		"",
+		[]string{"escape"},
+		10, 10, 10,
+		2, 2,
+		depthLayouts,
+		depthKeys,
+		nil, nil,
+		logger,
+	)
+	// At depth 0, should use defaults since the orphan layout override was dropped
+	assert.Equal(t, "uijk", manager.Keys())
+	assert.Equal(t, 2, manager.GridCols())
+	assert.Equal(t, 2, manager.GridRows())
+}
+
+func TestNewManagerWithLayers_KeyCountMismatch_DropsOverride(t *testing.T) {
+	bounds := image.Rect(0, 0, 120, 100)
+	logger := zap.NewNop()
+	// depthLayouts says 3x3 (9 cells), but depthKeys only has 4 keys → mismatch
+	depthLayouts := map[int]recursivegrid.DepthLayout{
+		0: {GridCols: 3, GridRows: 3},
+	}
+	depthKeys := map[int]string{
+		0: "abcd", // 4 keys ≠ 9
+	}
+	manager := recursivegrid.NewManagerWithLayers(
+		bounds,
+		"uijk",
+		",",
+		"",
+		[]string{"escape"},
+		10, 10, 10,
+		2, 2,
+		depthLayouts,
+		depthKeys,
+		nil, nil,
+		logger,
+	)
+	// At depth 0, should use defaults since the mismatched override was dropped
+	assert.Equal(t, "uijk", manager.Keys())
+	assert.Equal(t, 2, manager.GridCols())
+	assert.Equal(t, 2, manager.GridRows())
+}
+
+func TestNewManagerWithLayers_ConsistentOverride_Works(t *testing.T) {
+	bounds := image.Rect(0, 0, 120, 100)
+	logger := zap.NewNop()
+	depthLayouts := map[int]recursivegrid.DepthLayout{
+		0: {GridCols: 3, GridRows: 3},
+	}
+	depthKeys := map[int]string{
+		0: "qweasdzxc", // 9 keys for 3x3
+	}
+	manager := recursivegrid.NewManagerWithLayers(
+		bounds,
+		"uijk",
+		",",
+		"",
+		[]string{"escape"},
+		10, 10, 10,
+		2, 2,
+		depthLayouts,
+		depthKeys,
+		nil, nil,
+		logger,
+	)
+	// At depth 0, should use the override
+	assert.Equal(t, "qweasdzxc", manager.Keys())
+	assert.Equal(t, 3, manager.GridCols())
+	assert.Equal(t, 3, manager.GridRows())
+	// After selecting a cell and moving to depth 1, should use defaults
+	manager.HandleInput("q")
+	assert.Equal(t, 1, manager.CurrentDepth())
+	assert.Equal(t, "uijk", manager.Keys())
+	assert.Equal(t, 2, manager.GridCols())
+	assert.Equal(t, 2, manager.GridRows())
+}
+
 func TestHandleInput_ValidMultibyteKeys(t *testing.T) {
 	keys := "€abc" // 4 runes, valid length
 	logger := zap.NewNop()
