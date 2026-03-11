@@ -126,6 +126,49 @@ func NewManagerWithLayers(
 		depthKeys = make(map[int]string)
 	}
 
+	if depthLayouts == nil {
+		depthLayouts = make(map[int]DepthLayout)
+	}
+
+	// Validate consistency: every depth that appears in one map must appear
+	// in the other, and the key count must match the layout dimensions.
+	// Mismatched entries are dropped with a warning to prevent keyToCell
+	// returning cell indices outside the range of Divide().
+	for depth := range depthLayouts {
+		depthKey, hasKeys := depthKeys[depth]
+		if !hasKeys {
+			logger.Warn(
+				"depthLayouts has depth with no matching depthKeys entry; dropping override",
+				zap.Int("depth", depth),
+			)
+			delete(depthLayouts, depth)
+
+			continue
+		}
+
+		expected := depthLayouts[depth].GridCols * depthLayouts[depth].GridRows
+		if utf8.RuneCountInString(depthKey) != expected {
+			logger.Warn(
+				"depthKeys length does not match depthLayouts dimensions; dropping override",
+				zap.Int("depth", depth),
+				zap.Int("expected_keys", expected),
+				zap.Int("actual_keys", utf8.RuneCountInString(depthKey)),
+			)
+			delete(depthLayouts, depth)
+			delete(depthKeys, depth)
+		}
+	}
+
+	for depth := range depthKeys {
+		if _, hasLayout := depthLayouts[depth]; !hasLayout {
+			logger.Warn(
+				"depthKeys has depth with no matching depthLayouts entry; dropping override",
+				zap.Int("depth", depth),
+			)
+			delete(depthKeys, depth)
+		}
+	}
+
 	// Normalize all depth keys to lowercase
 	normalizedDepthKeys := make(map[int]string, len(depthKeys))
 	for depth, dk := range depthKeys {
