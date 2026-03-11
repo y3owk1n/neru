@@ -199,6 +199,8 @@ func (et *EventTap) SetPassthroughCallback(callback PassthroughCallback) {
 	}
 
 	et.callbackMu.Lock()
+	defer et.callbackMu.Unlock()
+
 	et.passthroughCallback = callback
 
 	if callback != nil {
@@ -209,8 +211,6 @@ func (et *EventTap) SetPassthroughCallback(callback PassthroughCallback) {
 	} else {
 		C.setEventTapPassthroughCallback(et.handle, nil)
 	}
-
-	et.callbackMu.Unlock()
 }
 
 // SetKeyboardLayout configures the reference keyboard layout used by key translation.
