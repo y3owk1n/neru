@@ -260,9 +260,10 @@ func (et *EventTap) Destroy() {
 
 	// Clear callbacks to prevent any lingering references
 	et.callbackMu.Lock()
+	defer et.callbackMu.Unlock()
+
 	et.callback = nil
 	et.passthroughCallback = nil
-	et.callbackMu.Unlock()
 
 	et.logger.Debug("Event tap destroyed")
 }
