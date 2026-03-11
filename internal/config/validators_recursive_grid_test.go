@@ -1090,6 +1090,88 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "recursive_grid layer with depth >= max_depth - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					MinSizeWidth:  50,
+					MinSizeHeight: 50,
+					MaxDepth:      4,
+					UI: config.RecursiveGridUI{
+						LineWidth:             2,
+						FontSize:              12,
+						SubKeyPreviewFontSize: 6,
+					},
+					Layers: []config.RecursiveGridLayerConfig{
+						{
+							Depth:    4,
+							GridCols: 2,
+							GridRows: 2,
+							Keys:     "abcd",
+						}, // depth 4 == max_depth 4, unreachable
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid layer with depth > max_depth - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					MinSizeWidth:  50,
+					MinSizeHeight: 50,
+					MaxDepth:      4,
+					UI: config.RecursiveGridUI{
+						LineWidth:             2,
+						FontSize:              12,
+						SubKeyPreviewFontSize: 6,
+					},
+					Layers: []config.RecursiveGridLayerConfig{
+						{Depth: 10, GridCols: 2, GridRows: 2, Keys: "abcd"},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid layer at max valid depth (max_depth-1) - valid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					MinSizeWidth:  50,
+					MinSizeHeight: 50,
+					MaxDepth:      4,
+					UI: config.RecursiveGridUI{
+						LineWidth:             2,
+						FontSize:              12,
+						SubKeyPreviewFontSize: 6,
+					},
+					Layers: []config.RecursiveGridLayerConfig{
+						{
+							Depth:    3,
+							GridCols: 2,
+							GridRows: 2,
+							Keys:     "abcd",
+						}, // depth 3 < max_depth 4, valid
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "recursive_grid empty layers - valid",
 			config: config.Config{
 				RecursiveGrid: config.RecursiveGridConfig{

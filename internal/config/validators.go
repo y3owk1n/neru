@@ -2142,6 +2142,17 @@ func (c *Config) validateRecursiveGridLayers() error {
 			)
 		}
 
+		// Validate depth < max_depth (layers at or beyond max_depth are unreachable)
+		if c.RecursiveGrid.MaxDepth >= 1 && layer.Depth >= c.RecursiveGrid.MaxDepth {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.depth %d is unreachable; it must be less than max_depth (%d)",
+				fieldPrefix,
+				layer.Depth,
+				c.RecursiveGrid.MaxDepth,
+			)
+		}
+
 		// Check for duplicate depths
 		if seenDepths[layer.Depth] {
 			return derrors.Newf(
