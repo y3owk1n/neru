@@ -879,6 +879,9 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 /// Each sub-cell shows the corresponding key label at reduced size and opacity.
 /// Uses gridSubKeyLabels (the *next* depth's keys) so each cell previews what
 /// pressing that key will produce, rather than echoing the current depth's layout.
+/// When the preview layout has a true center cell (odd cols and odd rows),
+/// that center label is omitted so it does not sit directly beneath the
+/// prominently drawn main cell label.
 /// @param cellRect The cell rectangle in view coordinates (Y-up, already flipped)
 - (void)drawSubKeyPreviewInCellRect:(NSRect)cellRect {
 	int cols = self.gridSubKeyCols;
@@ -905,12 +908,18 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	CGFloat minSubCell = subFont.pointSize * 1.5;
 	if (subCellWidth < minSubCell || subCellHeight < minSubCell)
 		return;
+	NSUInteger centerIdx = NSNotFound;
+	if (cols % 2 == 1 && rows % 2 == 1) {
+		centerIdx = (NSUInteger)((rows / 2) * cols + (cols / 2));
+	}
 	NSMutableAttributedString *str = self.cachedGridSubKeyAttributedString;
 	for (int row = 0; row < rows; row++) {
 		for (int col = 0; col < cols; col++) {
 			NSUInteger idx = (NSUInteger)(row * cols + col);
 			if (idx >= count)
 				break;
+			if (idx == centerIdx)
+				continue;
 			NSString *subLabel = labels[idx];
 			if (!subLabel || subLabel.length == 0)
 				continue;

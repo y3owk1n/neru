@@ -936,7 +936,7 @@ j   →   k          j = Lower-left
 
 When `label_background = true`, Neru keeps the normal recursive-grid cell fill and adds a separate rounded label background behind each letter. The configured alpha is used as-is, so you can control the transparency precisely with `label_background_color_light` and `label_background_color_dark`. Badge geometry is configurable with `label_background_padding_x`, `label_background_padding_y`, `label_background_border_radius`, and `label_background_border_width`. A value of `-1` keeps the automatic sizing behavior for padding and border radius.
 
-When `sub_key_preview = true`, each cell in the recursive grid shows a miniature version of the key grid, giving you a visual preview of which key maps to which sub-region. This is helpful when learning the key layout or using non-default grid dimensions. The preview labels use `sub_key_preview_font_size` and `sub_key_preview_text_color_light`/`sub_key_preview_text_color_dark` for styling. The default colors are set at 40% opacity to keep them subtle.
+When `sub_key_preview = true`, each cell in the recursive grid shows a miniature version of the key grid, giving you a visual preview of which key maps to which sub-region. This is helpful when learning the key layout or using non-default grid dimensions. The preview labels use `sub_key_preview_font_size` and `sub_key_preview_text_color_light`/`sub_key_preview_text_color_dark` for styling. The default colors are set at 40% opacity to keep them subtle. For odd-sized preview grids, Neru leaves the exact center preview slot empty so it does not overlap the main cell label.
 
 ### Backspace Key
 
