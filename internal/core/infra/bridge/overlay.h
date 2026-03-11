@@ -56,8 +56,8 @@ typedef struct {
 	int labelBackgroundPaddingY;     ///< Label badge vertical padding (-1 = auto)
 	int labelBackgroundBorderRadius; ///< Label badge border radius (-1 = auto)
 	int labelBackgroundBorderWidth;  ///< Label badge border width
-	int gridCols;                    ///< Grid columns (used for sub-key preview layout)
-	int gridRows;                    ///< Grid rows (used for sub-key preview layout)
+	int subKeyGridCols;              ///< Sub-key preview grid columns (next depth's cols)
+	int subKeyGridRows;              ///< Sub-key preview grid rows (next depth's rows)
 	int drawSubKeyPreview;           ///< Draw miniature key grid inside each cell (1 = yes, 0 = no)
 	int subKeyFontSize;              ///< Font size for sub-key preview labels
 	char *subKeyTextColor;           ///< Text color for sub-key preview labels

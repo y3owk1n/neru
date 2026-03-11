@@ -1610,8 +1610,8 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
 	CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
 	BOOL drawSubKeyPreview = style.drawSubKeyPreview ? YES : NO;
-	int subKeyGridCols = style.gridCols;
-	int subKeyGridRows = style.gridRows;
+	int subKeyGridCols = style.subKeyGridCols;
+	int subKeyGridRows = style.subKeyGridRows;
 	CGFloat subKeyFontSize = style.subKeyFontSize > 0 ? style.subKeyFontSize : 6.0;
 	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
 	// Build sub-key labels array from the next-depth key string
