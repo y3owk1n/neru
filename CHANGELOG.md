@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.26.0](https://github.com/y3owk1n/neru/compare/v1.25.0...v1.26.0) (2026-03-11)
+
+
+### Features
+
+* add app icon with brand new systray icon ([#546](https://github.com/y3owk1n/neru/issues/546)) ([be8a856](https://github.com/y3owk1n/neru/commit/be8a856cf4aa3bce16dec5315a17292a6d299cf6))
+* **mode_indicator:** customisable text and mode respective colors ([#549](https://github.com/y3owk1n/neru/issues/549)) ([357f9ca](https://github.com/y3owk1n/neru/commit/357f9ca1de5eacfaf9bfcb1c7c93fd8f97de753e))
+* **passthrough:** refresh hints mode after modifier shortcut passes through to OS ([#551](https://github.com/y3owk1n/neru/issues/551)) ([31ba19b](https://github.com/y3owk1n/neru/commit/31ba19b08da94ac74619c1bee96fd2d3e5dae50f))
+* **recursive-grid:** add sub-key preview mini-grid inside each cell ([#540](https://github.com/y3owk1n/neru/issues/540)) ([19349ea](https://github.com/y3owk1n/neru/commit/19349ea4c4bea6d2a208e2e3e610cf4bc23c8fc4))
+* **recursive-grid:** support individual layer customisation for cols, row, keys ([#554](https://github.com/y3owk1n/neru/issues/554)) ([75cff13](https://github.com/y3owk1n/neru/commit/75cff13eb1416a4b089a7b1e7247dc50315fe848))
+* support `passthrough` unbounded keys to the OS ([#541](https://github.com/y3owk1n/neru/issues/541)) ([47db376](https://github.com/y3owk1n/neru/commit/47db376d86fa24544b469b12dcbe78ed0614ca6a))
+* support mode specific `exit_keys` that merges with the global `exit_keys` ([#543](https://github.com/y3owk1n/neru/issues/543)) ([1eaed7f](https://github.com/y3owk1n/neru/commit/1eaed7f782fd00a283b4bcaa8b92befbbc85c4c7))
+
+
+### Bug Fixes
+
+* **build:** ad-hoc codesign app bundle in justfile, CI release workflow and nix ([#547](https://github.com/y3owk1n/neru/issues/547)) ([da3fe6b](https://github.com/y3owk1n/neru/commit/da3fe6b0d5115b231f5f461eed7e5d26b5dc47c6))
+* **eventtap:** prevent use-after-free by always dispatching cleanup asynchronously ([#556](https://github.com/y3owk1n/neru/issues/556)) ([277f4fa](https://github.com/y3owk1n/neru/commit/277f4fae2a6624d6ce0a6426a8a8bc57ccfdfe6b))
+* **eventtap:** remove 150ms enable delay for instant key capture after mode activation ([#555](https://github.com/y3owk1n/neru/issues/555)) ([8c6d0df](https://github.com/y3owk1n/neru/commit/8c6d0df37b78f5dc6003ea530e1919434da466e6))
+* **recursive-grid:** avoid center sub-key preview overlap ([#558](https://github.com/y3owk1n/neru/issues/558)) ([4daea67](https://github.com/y3owk1n/neru/commit/4daea67b1b7647379f6a71ce538b596de02d27d4))
+* slim down default config and improve docs ([#552](https://github.com/y3owk1n/neru/issues/552)) ([3b48bc7](https://github.com/y3owk1n/neru/commit/3b48bc71afa9f0015d66766640fa58d87eadd98b))
+
 ## [1.25.0](https://github.com/y3owk1n/neru/compare/v1.24.0...v1.25.0) (2026-03-08)
 
 
