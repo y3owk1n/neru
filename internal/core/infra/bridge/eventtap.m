@@ -325,9 +325,11 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			if (hasCmd || hasAlt || hasCtrl) {
 				BOOL passthroughEnabled = NO;
 				NSDictionary *blacklistLookup = nil;
+				EventTapPassthroughCallback ptCallback = NULL;
 				os_unfair_lock_lock(&context->modifierPassthroughLock);
 				passthroughEnabled = context->passthroughUnboundedModifiers;
 				blacklistLookup = context->modifierBlacklistLookup;
+				ptCallback = context->passthroughCallback;
 				os_unfair_lock_unlock(&context->modifierPassthroughLock);
 
 				NSDictionary *interceptedLookup = nil;
@@ -342,8 +344,8 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 					// Notify Go that a modifier shortcut was passed through so
 					// the active mode can decide whether to refresh (e.g., hints
 					// mode re-collects AX elements after Cmd+Tab).
-					if (context->passthroughCallback) {
-						context->passthroughCallback(context->userData);
+					if (ptCallback) {
+						ptCallback(context->userData);
 					}
 
 					return event;
@@ -620,7 +622,9 @@ void setEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallback ca
 	if (!tap)
 		return;
 	EventTapContext *context = (EventTapContext *)tap;
+	os_unfair_lock_lock(&context->modifierPassthroughLock);
 	context->passthroughCallback = callback;
+	os_unfair_lock_unlock(&context->modifierPassthroughLock);
 }
 
 /// Enable event tap
@@ -759,6 +763,7 @@ void destroyEventTap(EventTap tap) {
 		context->modifierBlacklistLookup = nil;
 		context->modifierBlacklistStrings = nil;
 		context->passthroughUnboundedModifiers = NO;
+		context->passthroughCallback = NULL;
 		os_unfair_lock_unlock(&context->modifierPassthroughLock);
 		oldBlacklistLookup = nil;
 		oldBlacklistStrings = nil;
