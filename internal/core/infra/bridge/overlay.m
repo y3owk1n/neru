@@ -1616,15 +1616,19 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	int subKeyGridRows = style.subKeyGridRows;
 	CGFloat subKeyFontSize = style.subKeyFontSize > 0 ? style.subKeyFontSize : 6.0;
 	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
-	// Build sub-key labels array from the next-depth key string
+	// Build sub-key labels array from the next-depth key string.
+	// Use composed-character enumeration so this stays correct even if
+	// non-ASCII characters are ever allowed in the future.
 	NSString *subKeyKeysStr = style.subKeyKeys ? @(style.subKeyKeys) : nil;
 	NSMutableArray<NSString *> *subKeyLabels = nil;
 	if (subKeyKeysStr && subKeyKeysStr.length > 0) {
-		NSUInteger keyLen = subKeyKeysStr.length;
-		subKeyLabels = [NSMutableArray arrayWithCapacity:keyLen];
-		for (NSUInteger i = 0; i < keyLen; i++) {
-			[subKeyLabels addObject:[subKeyKeysStr substringWithRange:NSMakeRange(i, 1)]];
-		}
+		subKeyLabels = [NSMutableArray arrayWithCapacity:subKeyKeysStr.length];
+		[subKeyKeysStr enumerateSubstringsInRange:NSMakeRange(0, subKeyKeysStr.length)
+		                                  options:NSStringEnumerationByComposedCharacterSequences
+		                               usingBlock:^(NSString *substring, NSRange substringRange, NSRange enclosingRange,
+		                                            BOOL *stop) {
+			                               [subKeyLabels addObject:substring];
+		                               }];
 	}
 	dispatch_async(dispatch_get_main_queue(), ^{
 		// Apply style — only re-create the grid font when family or size changed.
