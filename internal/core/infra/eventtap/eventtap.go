@@ -338,8 +338,10 @@ func eventTapCallbackBridge(key *C.char, _ unsafe.Pointer) {
 
 // eventTapPassthroughBridge is the C-to-Go callback bridge for passthrough
 // notifications. It is invoked on the event tap thread when a modifier shortcut
-// passes through to macOS. The callback is dispatched directly (not queued)
-// because it is a lightweight notification that only schedules a timer.
+// passes through to macOS. The callback is dispatched asynchronously via a
+// goroutine to avoid blocking the CGEvent tap thread — if the callback needs to
+// acquire a mutex held by a long operation (e.g., AX element collection),
+// blocking would cause macOS to disable the tap (kCGEventTapDisabledByTimeout).
 //
 //export eventTapPassthroughBridge
 func eventTapPassthroughBridge(_ unsafe.Pointer) {
@@ -353,7 +355,7 @@ func eventTapPassthroughBridge(_ unsafe.Pointer) {
 		eventTap.callbackMu.RUnlock()
 
 		if cb != nil {
-			cb()
+			go cb()
 		}
 	}
 }
