@@ -191,10 +191,6 @@ func (a *App) setupAppWatcherCallbacks() {
 		a.handleAppActivation(bundleID)
 	})
 
-	a.appWatcher.OnDeactivate(func(appName, _ string) {
-		a.handleAppDeactivation(appName)
-	})
-
 	// Watch for display parameter changes (monitor unplug/plug, resolution changes)
 	a.appWatcher.OnScreenParametersChanged(func() {
 		a.handleScreenParametersChange()
@@ -409,13 +405,6 @@ func (a *App) handleAppActivation(bundleID string) {
 			a.handleAdditionalAccessibility(bundleID, cfg)
 		}
 	}
-}
-
-// handleAppDeactivation responds to the current application losing focus.
-// Modes remain active across app switches; modifier passthrough is handled
-// directly inside the event tap.
-func (a *App) handleAppDeactivation(appName string) {
-	a.logger.Debug("App deactivated while mode remains active", zap.String("app", appName))
 }
 
 // handleAdditionalAccessibility configures accessibility support for Electron/Chromium/Firefox applications.
