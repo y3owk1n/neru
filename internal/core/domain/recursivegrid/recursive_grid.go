@@ -29,17 +29,24 @@ const (
 // DefaultKeys is the default key mapping for cells (warpd convention).
 const DefaultKeys = "uijk"
 
+// DepthLayout defines the grid dimensions for a specific recursion depth.
+type DepthLayout struct {
+	GridCols int
+	GridRows int
+}
+
 // RecursiveGrid represents the recursive grid state for cell-based navigation.
 type RecursiveGrid struct {
-	currentBounds image.Rectangle   // Current active area
-	initialBounds image.Rectangle   // Original screen bounds
-	depth         int               // Current recursion depth
-	maxDepth      int               // Maximum allowed depth
-	minSizeWidth  int               // Minimum cell width in pixels
-	minSizeHeight int               // Minimum cell height in pixels
-	gridCols      int               // Number of grid columns
-	gridRows      int               // Number of grid rows
-	history       []image.Rectangle // Stack of previous bounds for backtracking
+	currentBounds image.Rectangle     // Current active area
+	initialBounds image.Rectangle     // Original screen bounds
+	depth         int                 // Current recursion depth
+	maxDepth      int                 // Maximum allowed depth
+	minSizeWidth  int                 // Minimum cell width in pixels
+	minSizeHeight int                 // Minimum cell height in pixels
+	gridCols      int                 // Default number of grid columns
+	gridRows      int                 // Default number of grid rows
+	depthLayouts  map[int]DepthLayout // Per-depth layout overrides (sparse)
+	history       []image.Rectangle   // Stack of previous bounds for backtracking
 }
 
 // NewRecursiveGrid creates a new recursive-grid starting with the given screen bounds.
@@ -64,6 +71,24 @@ func NewRecursiveGridWithDimensions(
 	screenBounds image.Rectangle,
 	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
 ) *RecursiveGrid {
+	return NewRecursiveGridWithLayers(
+		screenBounds,
+		minSizeWidth, minSizeHeight, maxDepth,
+		gridCols, gridRows,
+		nil,
+	)
+}
+
+// NewRecursiveGridWithLayers creates a new recursive-grid with per-depth layout overrides.
+func NewRecursiveGridWithLayers(
+	screenBounds image.Rectangle,
+	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
+	depthLayouts map[int]DepthLayout,
+) *RecursiveGrid {
+	if depthLayouts == nil {
+		depthLayouts = make(map[int]DepthLayout)
+	}
+
 	return &RecursiveGrid{
 		currentBounds: screenBounds,
 		initialBounds: screenBounds,
@@ -73,39 +98,67 @@ func NewRecursiveGridWithDimensions(
 		minSizeHeight: minSizeHeight,
 		gridCols:      gridCols,
 		gridRows:      gridRows,
+		depthLayouts:  depthLayouts,
 		history:       make([]image.Rectangle, 0, maxDepth),
 	}
 }
 
-// GridCols returns the number of grid columns.
+// LayoutForDepth returns the grid dimensions for the given depth.
+// If a per-depth override exists, it is returned; otherwise the defaults are used.
+func (qg *RecursiveGrid) LayoutForDepth(depth int) DepthLayout {
+	if layout, ok := qg.depthLayouts[depth]; ok {
+		return layout
+	}
+
+	return DepthLayout{GridCols: qg.gridCols, GridRows: qg.gridRows}
+}
+
+// GridCols returns the number of grid columns for the current depth.
 func (qg *RecursiveGrid) GridCols() int {
+	return qg.LayoutForDepth(qg.depth).GridCols
+}
+
+// GridRows returns the number of grid rows for the current depth.
+func (qg *RecursiveGrid) GridRows() int {
+	return qg.LayoutForDepth(qg.depth).GridRows
+}
+
+// DefaultGridCols returns the default (top-level) number of grid columns.
+func (qg *RecursiveGrid) DefaultGridCols() int {
 	return qg.gridCols
 }
 
-// GridRows returns the number of grid rows.
-func (qg *RecursiveGrid) GridRows() int {
+// DefaultGridRows returns the default (top-level) number of grid rows.
+func (qg *RecursiveGrid) DefaultGridRows() int {
 	return qg.gridRows
 }
 
-// Divide splits the current bounds into cells based on grid dimensions.
+// DepthLayouts returns the per-depth layout overrides map.
+func (qg *RecursiveGrid) DepthLayouts() map[int]DepthLayout {
+	return qg.depthLayouts
+}
+
+// Divide splits the current bounds into cells based on grid dimensions for the current depth.
 // Cells are ordered left-to-right, top-to-bottom.
 func (qg *RecursiveGrid) Divide() []image.Rectangle {
-	cellWidth := qg.currentBounds.Dx() / qg.gridCols
-	cellHeight := qg.currentBounds.Dy() / qg.gridRows
+	layout := qg.LayoutForDepth(qg.depth)
+	cols := layout.GridCols
+	rows := layout.GridRows
+	cellWidth := qg.currentBounds.Dx() / cols
+	cellHeight := qg.currentBounds.Dy() / rows
+	cells := make([]image.Rectangle, cols*rows)
 
-	cells := make([]image.Rectangle, qg.gridCols*qg.gridRows)
-
-	for row := range qg.gridRows {
-		for col := range qg.gridCols {
-			idx := row*qg.gridCols + col
+	for row := range rows {
+		for col := range cols {
+			idx := row*cols + col
 
 			maxX := qg.currentBounds.Min.X + (col+1)*cellWidth
-			if col == qg.gridCols-1 {
+			if col == cols-1 {
 				maxX = qg.currentBounds.Max.X
 			}
 
 			maxY := qg.currentBounds.Min.Y + (row+1)*cellHeight
-			if row == qg.gridRows-1 {
+			if row == rows-1 {
 				maxY = qg.currentBounds.Max.Y
 			}
 
@@ -181,10 +234,10 @@ func (qg *RecursiveGrid) CanDivide() bool {
 		return false
 	}
 
-	// Check size constraints - both dimensions must be divisible
-	// and the result must be >= minSizeWidth and minSizeHeight
-	cellWidth := qg.currentBounds.Dx() / qg.gridCols
-	cellHeight := qg.currentBounds.Dy() / qg.gridRows
+	// Check size constraints using the layout for the current depth
+	layout := qg.LayoutForDepth(qg.depth)
+	cellWidth := qg.currentBounds.Dx() / layout.GridCols
+	cellHeight := qg.currentBounds.Dy() / layout.GridRows
 
 	return cellWidth >= qg.minSizeWidth && cellHeight >= qg.minSizeHeight
 }

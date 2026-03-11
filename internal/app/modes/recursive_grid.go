@@ -87,7 +87,19 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 		}
 	}
 
-	h.recursiveGrid.Manager = recursivegrid.NewManagerWithConfig(
+	// Build per-depth layout and key overrides from config layers
+	depthLayouts := make(map[int]recursivegrid.DepthLayout, len(h.config.RecursiveGrid.Layers))
+	depthKeys := make(map[int]string, len(h.config.RecursiveGrid.Layers))
+
+	for _, layer := range h.config.RecursiveGrid.Layers {
+		depthLayouts[layer.Depth] = recursivegrid.DepthLayout{
+			GridCols: layer.GridCols,
+			GridRows: layer.GridRows,
+		}
+		depthKeys[layer.Depth] = layer.Keys
+	}
+
+	h.recursiveGrid.Manager = recursivegrid.NewManagerWithLayers(
 		screenBounds,
 		h.config.RecursiveGrid.Keys,
 		h.config.RecursiveGrid.ResetKey,
@@ -98,6 +110,8 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 		h.config.RecursiveGrid.MaxDepth,
 		h.config.RecursiveGrid.GridCols,
 		h.config.RecursiveGrid.GridRows,
+		depthLayouts,
+		depthKeys,
 		// Update callback
 		func() {
 			h.updateRecursiveGridOverlay()
@@ -179,13 +193,25 @@ func (h *Handler) updateRecursiveGridOverlay() {
 	}
 
 	manager := h.recursiveGrid.Manager
+	currentDepth := manager.CurrentDepth()
+
+	// For sub-key preview: resolve what the *next* depth's layout and keys
+	// will be so each cell shows a preview of what pressing that key will produce.
+	nextDepth := currentDepth + 1
+	nextKeys := manager.KeysForDepth(nextDepth)
+	nextLayout := manager.CurrentGrid().LayoutForDepth(nextDepth)
+	nextCols := nextLayout.GridCols
+	nextRows := nextLayout.GridRows
 
 	err := h.renderer.DrawRecursiveGrid(
 		manager.CurrentBounds(),
-		manager.CurrentDepth(),
+		currentDepth,
 		manager.Keys(),
 		manager.GridCols(),
 		manager.GridRows(),
+		nextKeys,
+		nextCols,
+		nextRows,
 	)
 	if err != nil {
 		h.logger.Debug("Failed to draw recursive-grid overlay", zap.Error(err))

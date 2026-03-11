@@ -118,6 +118,9 @@ func (n *NoOpManager) DrawRecursiveGrid(
 	keys string,
 	gridCols int,
 	gridRows int,
+	nextKeys string,
+	nextGridCols int,
+	nextGridRows int,
 	style recursivegrid.Style,
 ) error {
 	return nil
@@ -199,6 +202,9 @@ type ManagerInterface interface {
 		keys string,
 		gridCols int,
 		gridRows int,
+		nextKeys string,
+		nextGridCols int,
+		nextGridRows int,
 		style recursivegrid.Style,
 	) error
 	UpdateGridMatches(prefix string)
@@ -478,6 +484,9 @@ func (m *Manager) DrawRecursiveGrid(
 	keys string,
 	gridCols int,
 	gridRows int,
+	nextKeys string,
+	nextGridCols int,
+	nextGridRows int,
 	style recursivegrid.Style,
 ) error {
 	if m.recursiveGridOverlay == nil {
@@ -489,6 +498,9 @@ func (m *Manager) DrawRecursiveGrid(
 		keys,
 		gridCols,
 		gridRows,
+		nextKeys,
+		nextGridCols,
+		nextGridRows,
 		style,
 	)
 	if drawRecursiveGridErr != nil {

@@ -913,6 +913,204 @@ func TestConfig_ValidateRecursiveGrid(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		// --- Per-depth layer tests ---
+		{
+			name: "valid recursive_grid with layers",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					MinSizeWidth:  50,
+					MinSizeHeight: 50,
+					MaxDepth:      4,
+					UI: config.RecursiveGridUI{
+						LineWidth:             2,
+						FontSize:              12,
+						SubKeyPreviewFontSize: 6,
+					},
+					Layers: []config.RecursiveGridLayerConfig{
+						{Depth: 0, GridCols: 4, GridRows: 2, Keys: "qwerasdf"},
+						{Depth: 1, GridCols: 3, GridRows: 3, Keys: "qweasdzxc"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "recursive_grid layer with negative depth - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					MinSizeWidth:  50,
+					MinSizeHeight: 50,
+					MaxDepth:      4,
+					UI: config.RecursiveGridUI{
+						LineWidth:             2,
+						FontSize:              12,
+						SubKeyPreviewFontSize: 6,
+					},
+					Layers: []config.RecursiveGridLayerConfig{
+						{Depth: -1, GridCols: 2, GridRows: 2, Keys: "abcd"},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid layer with duplicate depths - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					MinSizeWidth:  50,
+					MinSizeHeight: 50,
+					MaxDepth:      4,
+					UI: config.RecursiveGridUI{
+						LineWidth:             2,
+						FontSize:              12,
+						SubKeyPreviewFontSize: 6,
+					},
+					Layers: []config.RecursiveGridLayerConfig{
+						{Depth: 0, GridCols: 2, GridRows: 2, Keys: "abcd"},
+						{Depth: 0, GridCols: 3, GridRows: 2, Keys: "qwerty"},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid layer with wrong key count - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					MinSizeWidth:  50,
+					MinSizeHeight: 50,
+					MaxDepth:      4,
+					UI: config.RecursiveGridUI{
+						LineWidth:             2,
+						FontSize:              12,
+						SubKeyPreviewFontSize: 6,
+					},
+					Layers: []config.RecursiveGridLayerConfig{
+						{Depth: 0, GridCols: 3, GridRows: 2, Keys: "abcd"}, // Need 6 for 3x2
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid layer with duplicate keys - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					MinSizeWidth:  50,
+					MinSizeHeight: 50,
+					MaxDepth:      4,
+					UI: config.RecursiveGridUI{
+						LineWidth:             2,
+						FontSize:              12,
+						SubKeyPreviewFontSize: 6,
+					},
+					Layers: []config.RecursiveGridLayerConfig{
+						{Depth: 0, GridCols: 2, GridRows: 2, Keys: "abba"}, // Duplicate 'a' and 'b'
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid layer with grid_cols < 2 - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					MinSizeWidth:  50,
+					MinSizeHeight: 50,
+					MaxDepth:      4,
+					UI: config.RecursiveGridUI{
+						LineWidth:             2,
+						FontSize:              12,
+						SubKeyPreviewFontSize: 6,
+					},
+					Layers: []config.RecursiveGridLayerConfig{
+						{Depth: 0, GridCols: 1, GridRows: 2, Keys: "ab"},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid layer keys conflict with reset key - invalid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      "a",
+					MinSizeWidth:  50,
+					MinSizeHeight: 50,
+					MaxDepth:      4,
+					UI: config.RecursiveGridUI{
+						LineWidth:             2,
+						FontSize:              12,
+						SubKeyPreviewFontSize: 6,
+					},
+					Layers: []config.RecursiveGridLayerConfig{
+						{
+							Depth:    0,
+							GridCols: 2,
+							GridRows: 2,
+							Keys:     "abcd",
+						}, // 'a' conflicts with reset_key
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "recursive_grid empty layers - valid",
+			config: config.Config{
+				RecursiveGrid: config.RecursiveGridConfig{
+					Enabled:       true,
+					GridCols:      2,
+					GridRows:      2,
+					Keys:          "uijk",
+					ResetKey:      ",",
+					MinSizeWidth:  50,
+					MinSizeHeight: 50,
+					MaxDepth:      4,
+					UI: config.RecursiveGridUI{
+						LineWidth:             2,
+						FontSize:              12,
+						SubKeyPreviewFontSize: 6,
+					},
+					Layers: []config.RecursiveGridLayerConfig{},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, testCase := range tests {

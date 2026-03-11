@@ -472,6 +472,15 @@ type RecursiveGridUI struct {
 	SubKeyPreviewTextColorDark  string `json:"subKeyPreviewTextColorDark"  toml:"sub_key_preview_text_color_dark"`
 }
 
+// RecursiveGridLayerConfig defines per-depth overrides for the recursive grid.
+// Depths not listed in the Layers slice use the top-level GridCols/GridRows/Keys defaults.
+type RecursiveGridLayerConfig struct {
+	Depth    int    `json:"depth"    toml:"depth"`
+	GridCols int    `json:"gridCols" toml:"grid_cols"`
+	GridRows int    `json:"gridRows" toml:"grid_rows"`
+	Keys     string `json:"keys"     toml:"keys"`
+}
+
 // RecursiveGridConfig defines the visual and behavioral settings for recursive-grid mode.
 type RecursiveGridConfig struct {
 	Enabled         bool     `json:"enabled"         toml:"enabled"`
@@ -489,6 +498,34 @@ type RecursiveGridConfig struct {
 	MinSizeHeight int    `json:"minSizeHeight" toml:"min_size_height"` // Default: 25
 	MaxDepth      int    `json:"maxDepth"      toml:"max_depth"`       // Default: 10
 	ResetKey      string `json:"resetKey"      toml:"reset_key"`
+	// Per-depth overrides for grid dimensions and keys.
+	// Depths not listed here use the top-level GridCols/GridRows/Keys.
+	Layers []RecursiveGridLayerConfig `json:"layers" toml:"layers"`
+}
+
+// AllKeysIncludingLayers returns a combined string of all unique keys from the
+// top-level config and all layers. Used for conflict validation.
+func (c *RecursiveGridConfig) AllKeysIncludingLayers() string {
+	seen := make(map[rune]bool)
+
+	var result []rune
+	for _, r := range c.Keys {
+		if !seen[r] {
+			seen[r] = true
+			result = append(result, r)
+		}
+	}
+
+	for _, layer := range c.Layers {
+		for _, r := range layer.Keys {
+			if !seen[r] {
+				seen[r] = true
+				result = append(result, r)
+			}
+		}
+	}
+
+	return string(result)
 }
 
 // LoggingConfig defines the logging behavior and file management settings.

@@ -92,12 +92,17 @@ func (r *OverlayRenderer) DrawModeIndicator(x, y int) {
 }
 
 // DrawRecursiveGrid draws a recursive-grid with the current bounds and depth.
+// nextKeys/nextGridCols/nextGridRows describe the *next* depth's layout
+// and are used by the sub-key preview mini-grid inside each cell.
 func (r *OverlayRenderer) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
 	gridCols int,
 	gridRows int,
+	nextKeys string,
+	nextGridCols int,
+	nextGridRows int,
 ) error {
 	return r.manager.DrawRecursiveGrid(
 		bounds,
@@ -105,6 +110,9 @@ func (r *OverlayRenderer) DrawRecursiveGrid(
 		keys,
 		gridCols,
 		gridRows,
+		nextKeys,
+		nextGridCols,
+		nextGridRows,
 		r.recursiveGridStyle,
 	)
 }

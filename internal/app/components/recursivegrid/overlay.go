@@ -185,12 +185,17 @@ func (o *Overlay) ResizeToActiveScreen() {
 }
 
 // DrawRecursiveGrid renders the recursive_grid with current bounds, depth, keys, gridCols, and gridRows.
+// nextKeys/nextGridCols/nextGridRows describe the *next* depth's layout and are used
+// for the sub-key preview mini-grid inside each cell.
 func (o *Overlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
 	gridCols int,
 	gridRows int,
+	nextKeys string,
+	nextGridCols int,
+	nextGridRows int,
 	style Style,
 ) error {
 	if bounds.Empty() {
@@ -295,6 +300,9 @@ func (o *Overlay) DrawRecursiveGrid(
 		}
 	}
 
+	// Build uppercased next-depth keys for sub-key preview
+	subKeyKeysUpper := strings.ToUpper(nextKeys)
+
 	// Get cached style
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
 		cached.FontFamily = unsafe.Pointer(C.CString(style.FontFamily()))
@@ -324,11 +332,12 @@ func (o *Overlay) DrawRecursiveGrid(
 		labelBackgroundPaddingY:     C.int(style.LabelBackgroundPaddingY()),
 		labelBackgroundBorderRadius: C.int(style.LabelBackgroundBorderRadius()),
 		labelBackgroundBorderWidth:  C.int(style.LabelBackgroundBorderWidth()),
-		gridCols:                    C.int(gridCols),
-		gridRows:                    C.int(gridRows),
+		gridCols:                    C.int(nextGridCols),
+		gridRows:                    C.int(nextGridRows),
 		drawSubKeyPreview:           C.int(boolToInt(style.SubKeyPreview())),
 		subKeyFontSize:              C.int(style.SubKeyPreviewFontSize()),
 		subKeyTextColor:             (*C.char)(cachedStyle.SubKeyTextColor),
+		subKeyKeys:                  o.getOrCacheLabel(subKeyKeysUpper),
 	}
 
 	// Draw the grid cells

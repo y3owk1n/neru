@@ -1042,7 +1042,7 @@ func (c *Config) checkModeExitKeysConflicts() error {
 		{c.Grid.Characters, "grid.characters", "grid input"},
 		{c.Grid.RowLabels, "grid.row_labels", "row selection"},
 		{c.Grid.ColLabels, "grid.col_labels", "column selection"},
-		{c.RecursiveGrid.Keys, "recursive_grid.keys", "cell selection"},
+		{c.RecursiveGrid.AllKeysIncludingLayers(), "recursive_grid.keys", "cell selection"},
 	}
 
 	for _, check := range checks {
@@ -1829,6 +1829,12 @@ func (c *Config) ValidateRecursiveGrid() error {
 		}
 	}
 
+	// Validate per-depth layers
+	err := c.validateRecursiveGridLayers()
+	if err != nil {
+		return err
+	}
+
 	// Validate min size width
 	if c.RecursiveGrid.MinSizeWidth < 10 { //nolint:mnd
 		return derrors.New(
@@ -1957,7 +1963,7 @@ func (c *Config) ValidateRecursiveGrid() error {
 	}
 
 	// Validate backspace key format
-	err := validateBackspaceKeyFormat(
+	err = validateBackspaceKeyFormat(
 		c.RecursiveGrid.BackspaceKey,
 		"recursive_grid.backspace_key",
 	)
@@ -2077,7 +2083,7 @@ func (c *Config) ValidateRecursiveGrid() error {
 
 		err = checkPerModeExitKeyCharConflict(
 			c.RecursiveGrid.ModeExitKeys,
-			keys,
+			c.RecursiveGrid.AllKeysIncludingLayers(),
 			"recursive_grid.mode_exit_keys",
 			"recursive_grid.keys",
 			"cell selection",
@@ -2113,6 +2119,137 @@ func (c *Config) ValidateRecursiveGrid() error {
 	)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// validateRecursiveGridLayers validates the per-depth layer overrides.
+func (c *Config) validateRecursiveGridLayers() error {
+	if len(c.RecursiveGrid.Layers) == 0 {
+		return nil
+	}
+
+	seenDepths := make(map[int]bool)
+	for index, layer := range c.RecursiveGrid.Layers {
+		fieldPrefix := fmt.Sprintf("recursive_grid.layers[%d]", index)
+		// Validate depth >= 0
+		if layer.Depth < 0 {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.depth must be non-negative",
+				fieldPrefix,
+			)
+		}
+
+		// Check for duplicate depths
+		if seenDepths[layer.Depth] {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.depth %d is duplicated; each depth can only appear once",
+				fieldPrefix,
+				layer.Depth,
+			)
+		}
+
+		seenDepths[layer.Depth] = true
+		// Validate grid_cols (must be at least 2)
+		if layer.GridCols < DefaultRecursiveGridMinGridCols {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.grid_cols must be at least 2",
+				fieldPrefix,
+			)
+		}
+
+		// Validate grid_rows (must be at least 2)
+		if layer.GridRows < DefaultRecursiveGridMinGridRows {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.grid_rows must be at least 2",
+				fieldPrefix,
+			)
+		}
+
+		// Validate keys
+		layerKeys := strings.TrimSpace(layer.Keys)
+		if layerKeys == "" {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.keys cannot be empty",
+				fieldPrefix,
+			)
+		}
+
+		expectedKeyCount := layer.GridCols * layer.GridRows
+		if utf8.RuneCountInString(layerKeys) != expectedKeyCount {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.keys must be exactly %d characters for grid_cols %d and grid_rows %d",
+				fieldPrefix,
+				expectedKeyCount,
+				layer.GridCols,
+				layer.GridRows,
+			)
+		}
+
+		// Check for duplicate keys within this layer
+		keyMap := make(map[rune]bool)
+		for _, key := range layerKeys {
+			if keyMap[key] {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s.keys contains duplicate character: %c",
+					fieldPrefix,
+					key,
+				)
+			}
+
+			keyMap[key] = true
+		}
+
+		// Validate ASCII
+		for _, r := range layerKeys {
+			if r > unicode.MaxASCII {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s.keys can only contain ASCII characters",
+					fieldPrefix,
+				)
+			}
+		}
+
+		// Validate layer keys don't conflict with reset key
+		resetKey := c.RecursiveGrid.ResetKey
+		if resetKey == "" {
+			resetKey = " "
+		}
+
+		if len(resetKey) == 1 && !strings.Contains(resetKey, "+") {
+			if strings.ContainsRune(
+				strings.ToLower(layerKeys),
+				rune(strings.ToLower(resetKey)[0]),
+			) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s.keys cannot contain '%s' as it is reserved for reset",
+					fieldPrefix,
+					resetKey,
+				)
+			}
+		}
+
+		// Validate layer keys don't conflict with backspace key
+		err := checkBackspaceKeyCharConflict(
+			c.RecursiveGrid.BackspaceKey,
+			layerKeys,
+			"recursive_grid.backspace_key",
+			fieldPrefix+".keys",
+			"cell selection",
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

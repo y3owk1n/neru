@@ -850,6 +850,35 @@ grid_rows = 2
 keys = "gcrhtn"  # 6 unique characters
 ```
 
+### Per-Depth Layers
+
+Override grid dimensions and keys at specific recursion depths. Depths without an entry use the top-level defaults.
+
+```toml
+[recursive_grid]
+grid_cols = 2
+grid_rows = 2
+keys = "uijk"
+
+# Depth 0: wide 4×2 grid
+[[recursive_grid.layers]]
+depth = 0
+grid_cols = 4
+grid_rows = 2
+keys = "qwerasdf"
+
+# Depth 1: 3×3 grid
+[[recursive_grid.layers]]
+depth = 1
+grid_cols = 3
+grid_rows = 3
+keys = "qweasdzxc"
+
+# Depth 2+: falls back to the 2×2 / "uijk" defaults
+```
+
+Each layer must specify all three fields (`grid_cols`, `grid_rows`, `keys`). The `keys` string must have exactly `grid_cols × grid_rows` unique ASCII characters. Duplicate depths are not allowed.
+
 ### Key Behavior
 
 | Key                                    | Action                   |
