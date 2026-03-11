@@ -334,7 +334,7 @@ func (o *Overlay) DrawRecursiveGrid(
 		labelBackgroundBorderWidth:  C.int(style.LabelBackgroundBorderWidth()),
 		subKeyGridCols:              C.int(nextGridCols),
 		subKeyGridRows:              C.int(nextGridRows),
-		drawSubKeyPreview:           C.int(boolToInt(style.SubKeyPreview())),
+		drawSubKeyPreview:           C.int(boolToInt(style.SubKeyPreview() && nextKeys != "")),
 		subKeyFontSize:              C.int(style.SubKeyPreviewFontSize()),
 		subKeyTextColor:             (*C.char)(cachedStyle.SubKeyTextColor),
 		subKeyKeys:                  o.getOrCacheLabel(subKeyKeysUpper),
