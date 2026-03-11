@@ -219,7 +219,7 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 
 	var completePoint image.Point
 
-	manager := recursivegrid.NewManagerWithConfig(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
 		",",
@@ -230,6 +230,7 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 		10,
 		2, // gridCols 2
 		2, // gridRows 2
+		nil, nil,
 		nil,
 		func(p image.Point) {
 			completeCalled = true
@@ -268,7 +269,7 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 	logger := zap.NewNop()
 
 	completeCalled := false
-	manager := recursivegrid.NewManagerWithConfig(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
 		",",
@@ -279,6 +280,7 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 		2, // maxDepth
 		2, // gridCols 2
 		2, // gridRows 2
+		nil, nil,
 		func() {},
 		func(point image.Point) { completeCalled = true },
 		logger,
@@ -309,11 +311,11 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 	assert.NotEqual(t, point3, point4, "Should return different point (different sub-cell center)")
 }
 
-func TestManagerWithConfig_NonSquare3x2(t *testing.T) {
+func TestManagerWithLayers_NonSquare3x2(t *testing.T) {
 	bounds := image.Rect(0, 0, 120, 100)
 	logger := zap.NewNop()
 	updateCalled := false
-	manager := recursivegrid.NewManagerWithConfig(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"gcrhtn", // 6 keys for 3x2
 		",",
@@ -324,6 +326,7 @@ func TestManagerWithConfig_NonSquare3x2(t *testing.T) {
 		10, // maxDepth
 		3,  // gridCols
 		2,  // gridRows
+		nil, nil,
 		func() { updateCalled = true },
 		nil,
 		logger,
@@ -340,13 +343,13 @@ func TestManagerWithConfig_NonSquare3x2(t *testing.T) {
 	assert.Equal(t, 1, manager.CurrentDepth())
 }
 
-func TestManagerWithConfig_InvalidColsOnly_FallsBack(t *testing.T) {
+func TestManagerWithLayers_InvalidColsOnly_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 	// gridCols=1 is invalid, gridRows=3 is valid
 	// Manager corrects gridCols to 2, then key count = 2*3 = 6
 	// "uijk" has 4 keys ≠ 6, so it falls back to default keys "uijk" with 2x2
-	manager := recursivegrid.NewManagerWithConfig(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
 		",",
@@ -357,6 +360,7 @@ func TestManagerWithConfig_InvalidColsOnly_FallsBack(t *testing.T) {
 		10,
 		1, // invalid gridCols
 		3, // valid gridRows
+		nil, nil,
 		nil,
 		nil,
 		logger,
@@ -367,13 +371,13 @@ func TestManagerWithConfig_InvalidColsOnly_FallsBack(t *testing.T) {
 	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
 }
 
-func TestManagerWithConfig_InvalidRowsOnly_FallsBack(t *testing.T) {
+func TestManagerWithLayers_InvalidRowsOnly_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 	// gridCols=3 is valid, gridRows=0 is invalid
 	// Manager corrects gridRows to 2, then key count = 3*2 = 6
 	// "uijk" has 4 keys ≠ 6, so it falls back to default keys "uijk" with 2x2
-	manager := recursivegrid.NewManagerWithConfig(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
 		",",
@@ -384,6 +388,7 @@ func TestManagerWithConfig_InvalidRowsOnly_FallsBack(t *testing.T) {
 		10,
 		3, // valid gridCols
 		0, // invalid gridRows
+		nil, nil,
 		nil,
 		nil,
 		logger,

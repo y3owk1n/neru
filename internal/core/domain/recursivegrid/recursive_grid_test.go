@@ -236,7 +236,7 @@ func TestCellCenter(t *testing.T) {
 
 func TestDivide_NonSquare3x2(t *testing.T) {
 	bounds := image.Rect(0, 0, 120, 100)
-	grid := recursivegrid.NewRecursiveGridWithDimensions(bounds, 10, 10, 10, 3, 2)
+	grid := recursivegrid.NewRecursiveGridWithLayers(bounds, 10, 10, 10, 3, 2, nil)
 	cells := grid.Divide()
 	// 3 cols × 2 rows = 6 cells
 	assert.Len(t, cells, 6, "Should have 6 cells for 3x2 grid")
@@ -253,7 +253,7 @@ func TestDivide_NonSquare3x2(t *testing.T) {
 
 func TestDivide_NonSquare2x3(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 120)
-	grid := recursivegrid.NewRecursiveGridWithDimensions(bounds, 10, 10, 10, 2, 3)
+	grid := recursivegrid.NewRecursiveGridWithLayers(bounds, 10, 10, 10, 2, 3, nil)
 	cells := grid.Divide()
 	// 2 cols × 3 rows = 6 cells
 	assert.Len(t, cells, 6, "Should have 6 cells for 2x3 grid")
@@ -271,7 +271,7 @@ func TestDivide_NonSquare2x3(t *testing.T) {
 
 func TestCellCenter_NonSquare3x2(t *testing.T) {
 	bounds := image.Rect(0, 0, 120, 100)
-	grid := recursivegrid.NewRecursiveGridWithDimensions(bounds, 10, 10, 10, 3, 2)
+	grid := recursivegrid.NewRecursiveGridWithLayers(bounds, 10, 10, 10, 3, 2, nil)
 	// Cell 0: (0,0)-(40,50), center = (20, 25)
 	assert.Equal(t, image.Point{X: 20, Y: 25}, grid.CellCenter(0))
 	// Cell 2: (80,0)-(120,50), center = (100, 25)
@@ -282,7 +282,7 @@ func TestCellCenter_NonSquare3x2(t *testing.T) {
 
 func TestSelectCell_NonSquare3x2(t *testing.T) {
 	bounds := image.Rect(0, 0, 120, 100)
-	grid := recursivegrid.NewRecursiveGridWithDimensions(bounds, 10, 10, 10, 3, 2)
+	grid := recursivegrid.NewRecursiveGridWithLayers(bounds, 10, 10, 10, 3, 2, nil)
 	// Select cell 4 (row1, col1) -> bounds narrow to (40,50)-(80,100)
 	center, completed := grid.SelectCell(4)
 	assert.Equal(t, image.Point{X: 60, Y: 75}, center, "Center of cell 4")
@@ -295,27 +295,27 @@ func TestCanDivide_NonSquare(t *testing.T) {
 	// 3 cols × 2 rows on 120×100 bounds with minSize=50
 	// cellWidth = 120/3 = 40, cellHeight = 100/2 = 50
 	// 40 < 50 → cannot divide
-	grid := recursivegrid.NewRecursiveGridWithDimensions(
-		image.Rect(0, 0, 120, 100), 50, 50, 10, 3, 2,
+	grid := recursivegrid.NewRecursiveGridWithLayers(
+		image.Rect(0, 0, 120, 100), 50, 50, 10, 3, 2, nil,
 	)
 	assert.False(t, grid.CanDivide(), "Width 40 < minSize 50, should not divide")
 	// 2 cols × 3 rows on 100×120 bounds with minSize=50
 	// cellWidth = 100/2 = 50, cellHeight = 120/3 = 40
 	// 40 < 50 → cannot divide
-	grid2 := recursivegrid.NewRecursiveGridWithDimensions(
-		image.Rect(0, 0, 100, 120), 50, 50, 10, 2, 3,
+	grid2 := recursivegrid.NewRecursiveGridWithLayers(
+		image.Rect(0, 0, 100, 120), 50, 50, 10, 2, 3, nil,
 	)
 	assert.False(t, grid2.CanDivide(), "Height 40 < minSize 50, should not divide")
 	// Both dimensions large enough
-	grid3 := recursivegrid.NewRecursiveGridWithDimensions(
-		image.Rect(0, 0, 300, 200), 50, 50, 10, 3, 2,
+	grid3 := recursivegrid.NewRecursiveGridWithLayers(
+		image.Rect(0, 0, 300, 200), 50, 50, 10, 3, 2, nil,
 	)
 	assert.True(t, grid3.CanDivide(), "Width 100 and height 100 both >= 50")
 }
 
 func TestGridDimensionAccessors(t *testing.T) {
-	grid := recursivegrid.NewRecursiveGridWithDimensions(
-		image.Rect(0, 0, 100, 100), 10, 10, 10, 3, 2,
+	grid := recursivegrid.NewRecursiveGridWithLayers(
+		image.Rect(0, 0, 100, 100), 10, 10, 10, 3, 2, nil,
 	)
 	assert.Equal(t, 3, grid.GridCols())
 	assert.Equal(t, 2, grid.GridRows())
@@ -399,7 +399,7 @@ func TestRemapToNewBounds_RoundTripMinimizesDrift(t *testing.T) {
 func TestRemapToNewBounds_ZeroOldBounds(t *testing.T) {
 	// Edge case: zero-size old bounds should not panic (division by zero guard).
 	oldBounds := image.Rect(0, 0, 0, 0)
-	grid := recursivegrid.NewRecursiveGridWithDimensions(oldBounds, 0, 0, 10, 2, 2)
+	grid := recursivegrid.NewRecursiveGridWithLayers(oldBounds, 0, 0, 10, 2, 2, nil)
 	newBounds := image.Rect(0, 0, 200, 200)
 	grid.RemapToNewBounds(newBounds)
 	// With zero old bounds, currentBounds should fall back to newBounds.

@@ -49,37 +49,24 @@ type RecursiveGrid struct {
 	history       []image.Rectangle   // Stack of previous bounds for backtracking
 }
 
-// NewRecursiveGrid creates a new recursive-grid starting with the given screen bounds.
+// NewRecursiveGrid creates a new recursive-grid starting with the given screen bounds
+// using the default 2×2 grid dimensions and no per-depth overrides.
 func NewRecursiveGrid(
 	screenBounds image.Rectangle,
 	minSizeWidth,
 	minSizeHeight,
 	maxDepth int,
 ) *RecursiveGrid {
-	return NewRecursiveGridWithDimensions(
-		screenBounds,
-		minSizeWidth,
-		minSizeHeight,
-		maxDepth,
-		MinGridDimension,
-		MinGridDimension,
-	)
-}
-
-// NewRecursiveGridWithDimensions creates a new recursive-grid with specific column and row counts.
-func NewRecursiveGridWithDimensions(
-	screenBounds image.Rectangle,
-	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
-) *RecursiveGrid {
 	return NewRecursiveGridWithLayers(
 		screenBounds,
 		minSizeWidth, minSizeHeight, maxDepth,
-		gridCols, gridRows,
+		MinGridDimension, MinGridDimension,
 		nil,
 	)
 }
 
-// NewRecursiveGridWithLayers creates a new recursive-grid with per-depth layout overrides.
+// NewRecursiveGridWithLayers creates a new recursive-grid with specific column/row counts
+// and optional per-depth layout overrides. Pass nil for depthLayouts to use default dimensions at all depths.
 func NewRecursiveGridWithLayers(
 	screenBounds image.Rectangle,
 	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
@@ -121,16 +108,6 @@ func (qg *RecursiveGrid) GridCols() int {
 // GridRows returns the number of grid rows for the current depth.
 func (qg *RecursiveGrid) GridRows() int {
 	return qg.LayoutForDepth(qg.depth).GridRows
-}
-
-// DefaultGridCols returns the default (top-level) number of grid columns.
-func (qg *RecursiveGrid) DefaultGridCols() int {
-	return qg.gridCols
-}
-
-// DefaultGridRows returns the default (top-level) number of grid rows.
-func (qg *RecursiveGrid) DefaultGridRows() int {
-	return qg.gridRows
 }
 
 // Divide splits the current bounds into cells based on grid dimensions for the current depth.

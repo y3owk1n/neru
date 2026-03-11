@@ -26,7 +26,8 @@ type Manager struct {
 	exitKeys     []string
 }
 
-// NewManager creates a recursive-grid manager with the specified configuration.
+// NewManager creates a recursive-grid manager with default dimensions (2×2)
+// and default size/depth limits. Used primarily in tests.
 func NewManager(
 	screenBounds image.Rectangle,
 	keys string,
@@ -37,7 +38,7 @@ func NewManager(
 	onComplete func(image.Point),
 	logger *zap.Logger,
 ) *Manager {
-	return NewManagerWithConfig(
+	return NewManagerWithLayers(
 		screenBounds,
 		keys,
 		resetKey,
@@ -48,32 +49,6 @@ func NewManager(
 		10, //nolint:mnd
 		MinGridDimension,
 		MinGridDimension,
-		onUpdate,
-		onComplete,
-		logger,
-	)
-}
-
-// NewManagerWithConfig creates a manager with custom minSizeWidth, minSizeHeight, maxDepth, gridCols, and gridRows.
-func NewManagerWithConfig(
-	screenBounds image.Rectangle,
-	keys string,
-	resetKey string,
-	backspaceKey string,
-	exitKeys []string,
-	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
-	onUpdate func(),
-	onComplete func(image.Point),
-	logger *zap.Logger,
-) *Manager {
-	return NewManagerWithLayers(
-		screenBounds,
-		keys,
-		resetKey,
-		backspaceKey,
-		exitKeys,
-		minSizeWidth, minSizeHeight, maxDepth,
-		gridCols, gridRows,
 		nil, nil,
 		onUpdate,
 		onComplete,
@@ -81,7 +56,9 @@ func NewManagerWithConfig(
 	)
 }
 
-// NewManagerWithLayers creates a manager with per-depth layout and key overrides.
+// NewManagerWithLayers creates a manager with custom dimensions and optional
+// per-depth layout and key overrides. Pass nil for depthLayouts/depthKeys
+// to use default dimensions at all depths.
 func NewManagerWithLayers(
 	screenBounds image.Rectangle,
 	keys string,

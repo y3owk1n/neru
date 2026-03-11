@@ -199,8 +199,11 @@ func (h *Handler) updateRecursiveGridOverlay() {
 	// will be so each cell shows a preview of what pressing that key will produce.
 	// If the grid can no longer be divided (max depth or min size reached),
 	// skip the preview entirely — those keys are unreachable.
-	var nextKeys string
-	var nextCols, nextRows int
+	var (
+		nextKeys           string
+		nextCols, nextRows int
+	)
+
 	if manager.CanDivide() {
 		nextDepth := currentDepth + 1
 		nextKeys = manager.KeysForDepth(nextDepth)
