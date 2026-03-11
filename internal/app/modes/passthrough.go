@@ -71,17 +71,22 @@ func (h *Handler) modeModifierKeys(mode domain.Mode) []string {
 	switch mode {
 	case domain.ModeIdle:
 	case domain.ModeHints:
+		appendKeys(h.config.Hints.ModeExitKeys)
 		appendActionModifierKeys(h.config.Action.KeyBindings, appendKey)
 		appendKey(h.config.Hints.BackspaceKey)
 	case domain.ModeGrid:
+		appendKeys(h.config.Grid.ModeExitKeys)
 		appendActionModifierKeys(h.config.Action.KeyBindings, appendKey)
 		appendKey(h.config.Grid.ResetKey)
 		appendKey(h.config.Grid.BackspaceKey)
 	case domain.ModeRecursiveGrid:
+		appendKeys(h.config.RecursiveGrid.ModeExitKeys)
 		appendActionModifierKeys(h.config.Action.KeyBindings, appendKey)
 		appendKey(h.config.RecursiveGrid.ResetKey)
 		appendKey(h.config.RecursiveGrid.BackspaceKey)
 	case domain.ModeScroll:
+		appendKeys(h.config.Scroll.ModeExitKeys)
+
 		for _, bindings := range h.config.Scroll.KeyBindings {
 			appendKeys(bindings)
 		}
