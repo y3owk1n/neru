@@ -1829,6 +1829,15 @@ func (c *Config) ValidateRecursiveGrid() error {
 		}
 	}
 
+	// Validate max depth (must run before layer validation so the depth-reachability
+	// check inside validateRecursiveGridLayers can rely on MaxDepth being in range)
+	if c.RecursiveGrid.MaxDepth < 1 || c.RecursiveGrid.MaxDepth > 20 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.max_depth must be between 1 and 20",
+		)
+	}
+
 	// Validate per-depth layers
 	err := c.validateRecursiveGridLayers()
 	if err != nil {
@@ -1848,14 +1857,6 @@ func (c *Config) ValidateRecursiveGrid() error {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"recursive_grid.min_size_height must be at least 10",
-		)
-	}
-
-	// Validate max depth
-	if c.RecursiveGrid.MaxDepth < 1 || c.RecursiveGrid.MaxDepth > 20 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"recursive_grid.max_depth must be between 1 and 20",
 		)
 	}
 
@@ -2143,7 +2144,7 @@ func (c *Config) validateRecursiveGridLayers() error {
 		}
 
 		// Validate depth < max_depth (layers at or beyond max_depth are unreachable)
-		if c.RecursiveGrid.MaxDepth >= 1 && layer.Depth >= c.RecursiveGrid.MaxDepth {
+		if layer.Depth >= c.RecursiveGrid.MaxDepth {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"%s.depth %d is unreachable; it must be less than max_depth (%d)",
