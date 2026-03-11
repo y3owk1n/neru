@@ -52,7 +52,14 @@ type Overlay struct {
 	theme           config.ThemeProvider
 	logger          *zap.Logger
 	callbackManager *overlayutil.CallbackManager
-	styleCache      *overlayutil.StyleCache
+
+	// styleCache holds cached C style strings for the currently drawn mode.
+	// It is shared across all modes and invalidated on mode change via
+	// lastDrawnMode tracking. This design assumes only one goroutine calls
+	// DrawModeIndicator at a time (enforced by startModeIndicatorPolling's
+	// single-poller guard). If concurrent multi-mode drawing is ever needed,
+	// the cache must be keyed per mode or replaced with per-call resolution.
+	styleCache *overlayutil.StyleCache
 
 	// configMu protects indicatorConfig from concurrent read/write.
 	configMu sync.RWMutex
@@ -165,6 +172,12 @@ func (o *Overlay) ResizeToActiveScreen() {
 // allowing users to customize (or hide) each mode's indicator text.
 // The caller is responsible for calling Show() once before the first draw
 // (e.g. in startModeIndicatorPolling) rather than showing every tick.
+//
+// IMPORTANT: This method must only be called from a single goroutine at a
+// time. The shared styleCache is invalidated and repopulated based on the
+// current mode; concurrent calls with different modes would cause one caller
+// to receive another mode's cached colors. This invariant is currently
+// enforced by startModeIndicatorPolling's single-poller guard.
 func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	// Hold configMu.RLock for entire draw to prevent SetConfig from
 	// writing to indicatorConfig while we read it.
