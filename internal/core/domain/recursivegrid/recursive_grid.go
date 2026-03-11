@@ -133,11 +133,6 @@ func (qg *RecursiveGrid) DefaultGridRows() int {
 	return qg.gridRows
 }
 
-// DepthLayouts returns the per-depth layout overrides map.
-func (qg *RecursiveGrid) DepthLayouts() map[int]DepthLayout {
-	return qg.depthLayouts
-}
-
 // Divide splits the current bounds into cells based on grid dimensions for the current depth.
 // Cells are ordered left-to-right, top-to-bottom.
 func (qg *RecursiveGrid) Divide() []image.Rectangle {
