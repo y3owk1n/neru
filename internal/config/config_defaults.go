@@ -432,11 +432,22 @@ func DefaultConfig() *Config {
 			ResetKey:      " ",
 		},
 		ModeIndicator: ModeIndicatorConfig{
-			ScrollEnabled:        true,
-			HintsEnabled:         false,
-			GridEnabled:          false,
-			RecursiveGridEnabled: false,
-
+			Scroll: ModeIndicatorModeConfig{
+				Enabled: true,
+				Text:    "Scroll",
+			},
+			Hints: ModeIndicatorModeConfig{
+				Enabled: false,
+				Text:    "Hints",
+			},
+			Grid: ModeIndicatorModeConfig{
+				Enabled: false,
+				Text:    "Grid",
+			},
+			RecursiveGrid: ModeIndicatorModeConfig{
+				Enabled: false,
+				Text:    "Recursive Grid",
+			},
 			UI: ModeIndicatorUI{
 				FontSize:             DefaultScrollFontSize,
 				FontFamily:           "",

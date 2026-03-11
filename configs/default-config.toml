@@ -392,13 +392,33 @@ page_down = ["Ctrl+D", "PageDown"]
 #
 
 # Mode indicator - cursor-following label showing current mode
-# When enabled for a mode, displays the mode name near the cursor
-[mode_indicator]
-scroll_enabled = true
-hints_enabled = false
-grid_enabled = false
-recursive_grid_enabled = false
+# When enabled for a mode, displays the mode name near the cursor.
+# Each mode has its own sub-table with `enabled`, `text`, and optional
+# color overrides. Colors left empty ("") inherit from [mode_indicator.ui].
+# Per-mode settings
+[mode_indicator.scroll]
+enabled = true
+text = "Scroll"
+# background_color_light = ""   # per-mode override (empty = inherit from ui)
+# background_color_dark = ""
+# text_color_light = ""
+# text_color_dark = ""
+# border_color_light = ""
+# border_color_dark = ""
 
+[mode_indicator.hints]
+enabled = false
+text = "Hints"
+
+[mode_indicator.grid]
+enabled = false
+text = "Grid"
+
+[mode_indicator.recursive_grid]
+enabled = false
+text = "Recursive Grid"
+
+# Shared appearance defaults (inherited by all modes unless overridden)
 [mode_indicator.ui]
 font_size = 10                       # Font size for mode indicators
 font_family = ""			         # Font family for mode indicators

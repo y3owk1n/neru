@@ -17,6 +17,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
 )
 
@@ -51,17 +52,29 @@ type Overlay struct {
 	theme           config.ThemeProvider
 	logger          *zap.Logger
 	callbackManager *overlayutil.CallbackManager
-	styleCache      *overlayutil.StyleCache
+
+	// styleCache holds cached C style strings for the currently drawn mode.
+	// It is shared across all modes and invalidated on mode change via
+	// lastDrawnMode tracking. This design assumes only one goroutine calls
+	// DrawModeIndicator at a time (enforced by startModeIndicatorPolling's
+	// single-poller guard). If concurrent multi-mode drawing is ever needed,
+	// the cache must be keyed per mode or replaced with per-call resolution.
+	styleCache *overlayutil.StyleCache
 
 	// configMu protects indicatorConfig from concurrent read/write.
 	configMu sync.RWMutex
+
+	// lastDrawnMode tracks the mode whose colors are currently cached in
+	// styleCache. When the mode changes the cache is invalidated so that
+	// per-mode color overrides take effect.
+	lastDrawnMode string
 
 	// Cached C strings for indicator labels to avoid malloc/free per draw
 	labelCacheMu sync.RWMutex
 	cachedLabels map[string]*C.char
 	// drawMu serializes draw operations against cache invalidation.
-	// Draw paths hold RLock; freeAllCaches holds Lock.
-	drawMu sync.RWMutex
+	// DrawModeIndicator and freeAllCaches both hold Lock.
+	drawMu sync.Mutex
 }
 
 // NewOverlay initializes a new mode indicator overlay instance with its own window.
@@ -153,22 +166,50 @@ func (o *Overlay) ResizeToActiveScreen() {
 }
 
 // DrawModeIndicator draws a mode label at the specified position.
+// The mode parameter is the overlay mode string matching domain.ModeName*
+// constants (e.g. "hints", "grid", "scroll", "recursive_grid").
+// The label text is resolved from config,
+// allowing users to customize (or hide) each mode's indicator text.
 // The caller is responsible for calling Show() once before the first draw
 // (e.g. in startModeIndicatorPolling) rather than showing every tick.
-func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate int) {
+//
+// IMPORTANT: This method must only be called from a single goroutine at a
+// time. The shared styleCache is invalidated and repopulated based on the
+// current mode; concurrent calls with different modes would cause one caller
+// to receive another mode's cached colors. This invariant is currently
+// enforced by startModeIndicatorPolling's single-poller guard.
+func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	// Hold configMu.RLock for entire draw to prevent SetConfig from
 	// writing to indicatorConfig while we read it.
 	o.configMu.RLock()
 	defer o.configMu.RUnlock()
 
+	labelText := o.resolveLabelText(mode)
+	if labelText == "" {
+		return
+	}
+
 	// Offset from cursor to avoid covering it
 	xOffset := o.indicatorConfig.UI.IndicatorXOffset
 	yOffset := o.indicatorConfig.UI.IndicatorYOffset
 
-	// Hold drawMu.RLock for the entire span from label lookup through the C
-	// draw call so that freeAllCaches (which takes drawMu.Lock) cannot free
-	// the C strings while they are still referenced.
-	o.drawMu.RLock()
+	// Hold drawMu.Lock for the entire span from mode-change invalidation
+	// through the C draw call.  This eliminates the gap between releasing
+	// the write lock after invalidation and re-acquiring a read lock for
+	// drawing, during which freeAllCaches could reset lastDrawnMode and
+	// free the cache, causing a redundant invalidation cycle on the next
+	// call.  Because only one polling goroutine calls DrawModeIndicator at
+	// a time the broader lock scope has no practical concurrency cost.
+	o.drawMu.Lock()
+	defer o.drawMu.Unlock()
+
+	// Invalidate the style cache when the mode changes so that per-mode
+	// color overrides are re-resolved instead of reusing stale values.
+	if mode != o.lastDrawnMode {
+		o.styleCache.Free()
+		o.lastDrawnMode = mode
+	}
+
 	label := o.getOrCacheLabel(labelText)
 
 	// Create a single hint for the indicator
@@ -186,12 +227,21 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		matchedPrefixLength: 0,
 	}
 
+	// Resolve per-mode color overrides (falls back to UI defaults).
+	modeConfig := o.resolveModeConfig(mode)
+
+	if modeConfig == nil {
+		return
+	}
+
 	// Use cached style strings to avoid repeated allocations and fix use-after-free
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
 		cached.FontFamily = unsafe.Pointer(C.CString(o.indicatorConfig.UI.FontFamily))
 		cached.BgColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
+				config.ResolveColorWithOverride(
+					modeConfig.BackgroundColorLight,
+					modeConfig.BackgroundColorDark,
 					o.indicatorConfig.UI.BackgroundColorLight,
 					o.indicatorConfig.UI.BackgroundColorDark,
 					o.theme,
@@ -202,7 +252,9 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		)
 		cached.TextColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
+				config.ResolveColorWithOverride(
+					modeConfig.TextColorLight,
+					modeConfig.TextColorDark,
 					o.indicatorConfig.UI.TextColorLight,
 					o.indicatorConfig.UI.TextColorDark,
 					o.theme,
@@ -213,7 +265,9 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		)
 		cached.MatchedTextColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
+				config.ResolveColorWithOverride(
+					modeConfig.TextColorLight,
+					modeConfig.TextColorDark,
 					o.indicatorConfig.UI.TextColorLight,
 					o.indicatorConfig.UI.TextColorDark,
 					o.theme,
@@ -224,7 +278,9 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 		) // No matching in indicator mode
 		cached.BorderColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
+				config.ResolveColorWithOverride(
+					modeConfig.BorderColorLight,
+					modeConfig.BorderColorDark,
 					o.indicatorConfig.UI.BorderColorLight,
 					o.indicatorConfig.UI.BorderColorDark,
 					o.theme,
@@ -251,8 +307,6 @@ func (o *Overlay) DrawModeIndicator(labelText string, xCoordinate, yCoordinate i
 
 	// Reuse NeruDrawHints which can draw arbitrary labels
 	C.NeruDrawHints(o.window, &hint, 1, style)
-
-	o.drawMu.RUnlock()
 }
 
 // SetConfig sets the overlay configuration.
@@ -293,12 +347,41 @@ func (o *Overlay) Destroy() {
 	}
 }
 
+// resolveModeConfig returns the per-mode config for the given mode.
+// Caller must hold configMu.RLock.
+func (o *Overlay) resolveModeConfig(mode string) *config.ModeIndicatorModeConfig {
+	switch mode {
+	case domain.ModeNameHints:
+		return &o.indicatorConfig.Hints
+	case domain.ModeNameGrid:
+		return &o.indicatorConfig.Grid
+	case domain.ModeNameScroll:
+		return &o.indicatorConfig.Scroll
+	case domain.ModeNameRecursiveGrid:
+		return &o.indicatorConfig.RecursiveGrid
+	default:
+		return nil
+	}
+}
+
+// resolveLabelText returns the configured label text for the given mode.
+// Caller must hold configMu.RLock.
+func (o *Overlay) resolveLabelText(mode string) string {
+	mc := o.resolveModeConfig(mode)
+	if mc == nil {
+		return ""
+	}
+
+	return mc.Text
+}
+
 // freeAllCaches frees both the style cache and the label cache under drawMu
 // so that no in-flight draw can reference freed C pointers.
 func (o *Overlay) freeAllCaches() {
 	o.drawMu.Lock()
 	defer o.drawMu.Unlock()
 	o.styleCache.Free()
+	o.lastDrawnMode = ""
 	o.freeLabelCacheLocked()
 }
 

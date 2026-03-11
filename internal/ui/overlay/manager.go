@@ -15,6 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
@@ -139,15 +140,15 @@ type Mode string
 
 const (
 	// ModeIdle represents the idle mode.
-	ModeIdle Mode = "idle"
+	ModeIdle Mode = Mode(domain.ModeNameIdle)
 	// ModeHints represents the hints mode.
-	ModeHints Mode = "hints"
+	ModeHints Mode = Mode(domain.ModeNameHints)
 	// ModeGrid represents the grid mode.
-	ModeGrid Mode = "grid"
+	ModeGrid Mode = Mode(domain.ModeNameGrid)
 	// ModeScroll represents the scroll mode.
-	ModeScroll Mode = "scroll"
+	ModeScroll Mode = Mode(domain.ModeNameScroll)
 	// ModeRecursiveGrid represents the recursive-grid mode.
-	ModeRecursiveGrid Mode = "recursive_grid"
+	ModeRecursiveGrid Mode = Mode(domain.ModeNameRecursiveGrid)
 )
 
 // StateChange represents a change in overlay mode.
@@ -449,24 +450,12 @@ func (m *Manager) DrawModeIndicator(xCoordinate, yCoordinate int) {
 		return
 	}
 
-	var label string
-
-	switch m.Mode() {
-	case ModeIdle:
-		return
-	case ModeHints:
-		label = "Hints"
-	case ModeGrid:
-		label = "Grid"
-	case ModeScroll:
-		label = "Scroll"
-	case ModeRecursiveGrid:
-		label = "Recursive Grid"
-	default:
+	mode := m.Mode()
+	if mode == ModeIdle {
 		return
 	}
 
-	m.modeIndicatorOverlay.DrawModeIndicator(label, xCoordinate, yCoordinate)
+	m.modeIndicatorOverlay.DrawModeIndicator(string(mode), xCoordinate, yCoordinate)
 }
 
 // DrawGrid renders a grid with the specified style using the grid overlay renderer.
