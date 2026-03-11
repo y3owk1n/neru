@@ -191,7 +191,7 @@ func (et *EventTap) SetInterceptedModifierKeys(keys []string) {
 
 // SetPassthroughCallback registers a function to call when a modifier shortcut
 // passes through to macOS. Pass nil to clear the callback.
-func (et *EventTap) SetPassthroughCallback(_callback PassthroughCallback) {
+func (et *EventTap) SetPassthroughCallback(callback PassthroughCallback) {
 	if et.handle == nil {
 		et.logger.Warn("Cannot set passthrough callback on nil event tap")
 
@@ -199,9 +199,9 @@ func (et *EventTap) SetPassthroughCallback(_callback PassthroughCallback) {
 	}
 
 	et.callbackMu.Lock()
-	et.passthroughCallback = _callback
+	et.passthroughCallback = callback
 
-	if _callback != nil {
+	if callback != nil {
 		C.setEventTapPassthroughCallback(
 			et.handle,
 			C.EventTapPassthroughCallback(C.eventTapPassthroughBridge),
