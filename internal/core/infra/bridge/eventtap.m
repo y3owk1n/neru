@@ -742,10 +742,10 @@ void destroyEventTap(EventTap tap) {
 		free(context);
 	};
 
-	// Execute cleanup on main thread
-	if ([NSThread isMainThread]) {
-		cleanupBlock();
-	} else {
-		dispatch_async(dispatch_get_main_queue(), cleanupBlock);
-	}
+	// Always dispatch cleanup asynchronously on the main queue so that any
+	// previously-enqueued enable/disable blocks (which also capture `context`)
+	// execute before we free the context.  GCD guarantees FIFO ordering on a
+	// serial queue, so this prevents use-after-free when destroyEventTap is
+	// called from the main thread.
+	dispatch_async(dispatch_get_main_queue(), cleanupBlock);
 }
