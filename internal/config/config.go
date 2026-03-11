@@ -20,20 +20,21 @@ const (
 // Key name constants for normalization.
 // These are the canonical lowercase forms used throughout the codebase.
 const (
-	KeyNameEscape    = "escape"
-	KeyNameReturn    = "return"
-	KeyNameTab       = "tab"
-	KeyNameSpace     = "space"
-	KeyNameBackspace = "backspace"
-	KeyNameDelete    = "delete"
-	KeyNameHome      = "home"
-	KeyNameEnd       = "end"
-	KeyNamePageUp    = "pageup"
-	KeyNamePageDown  = "pagedown"
-	KeyNameUp        = "up"
-	KeyNameDown      = "down"
-	KeyNameLeft      = "left"
-	KeyNameRight     = "right"
+	minimumModifierParts = 2
+	KeyNameEscape        = "escape"
+	KeyNameReturn        = "return"
+	KeyNameTab           = "tab"
+	KeyNameSpace         = "space"
+	KeyNameBackspace     = "backspace"
+	KeyNameDelete        = "delete"
+	KeyNameHome          = "home"
+	KeyNameEnd           = "end"
+	KeyNamePageUp        = "pageup"
+	KeyNamePageDown      = "pagedown"
+	KeyNameUp            = "up"
+	KeyNameDown          = "down"
+	KeyNameLeft          = "left"
+	KeyNameRight         = "right"
 )
 
 // validNamedKeys is the canonical set of all named keys the system supports.
@@ -160,7 +161,7 @@ func NormalizeKeyForComparison(key string) string {
 // excluded because they are commonly used inside modes.
 func HasPassthroughModifier(key string) bool {
 	parts := strings.Split(NormalizeKeyForComparison(key), "+")
-	if len(parts) < 2 {
+	if len(parts) < minimumModifierParts {
 		return false
 	}
 
@@ -280,11 +281,11 @@ type Config struct {
 
 // GeneralConfig defines general application-wide settings.
 type GeneralConfig struct {
-	ExcludedApps                      []string `json:"excludedApps"              toml:"excluded_apps"`
-	AccessibilityCheckOnStart         bool     `json:"accessibilityCheckOnStart" toml:"accessibility_check_on_start"`
-	RestoreCursorPosition             bool     `json:"restoreCursorPosition"     toml:"restore_cursor_position"`
-	CenterCursorPosition              bool     `json:"centerCursorPosition"      toml:"center_cursor_position"`
-	ModeExitKeys                      []string `json:"modeExitKeys"              toml:"mode_exit_keys"`
+	ExcludedApps                      []string `json:"excludedApps"                      toml:"excluded_apps"`
+	AccessibilityCheckOnStart         bool     `json:"accessibilityCheckOnStart"         toml:"accessibility_check_on_start"`
+	RestoreCursorPosition             bool     `json:"restoreCursorPosition"             toml:"restore_cursor_position"`
+	CenterCursorPosition              bool     `json:"centerCursorPosition"              toml:"center_cursor_position"`
+	ModeExitKeys                      []string `json:"modeExitKeys"                      toml:"mode_exit_keys"`
 	PassthroughUnboundedKeys          bool     `json:"passthroughUnboundedKeys"          toml:"passthrough_unbounded_keys"`
 	PassthroughUnboundedKeysBlacklist []string `json:"passthroughUnboundedKeysBlacklist" toml:"passthrough_unbounded_keys_blacklist"`
 	HideOverlayInScreenShare          bool     `json:"hideOverlayInScreenShare"          toml:"hide_overlay_in_screen_share"`

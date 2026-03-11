@@ -626,7 +626,12 @@ func TestHasPassthroughModifier(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			got := config.HasPassthroughModifier(testCase.key)
 			if got != testCase.want {
-				t.Errorf("HasPassthroughModifier(%q) = %v, want %v", testCase.key, got, testCase.want)
+				t.Errorf(
+					"HasPassthroughModifier(%q) = %v, want %v",
+					testCase.key,
+					got,
+					testCase.want,
+				)
 			}
 		})
 	}

@@ -13,25 +13,25 @@
 #pragma mark - Type Definitions
 
 typedef struct {
-	CFMachPortRef eventTap;                               ///< Event tap reference
-	CFRunLoopSourceRef runLoopSource;                     ///< Run loop source
-	EventTapCallback callback;                            ///< Callback function
-	void *userData;                                       ///< User data pointer
-	NSDictionary *__strong hotkeyLookup;                  ///< Immutable hotkey lookup table: @(lookupKey) -> @YES
-	NSArray<NSString *> *__strong hotkeyStrings;          ///< Raw hotkey strings for rebuild on layout change
-	uint64_t hotkeyGeneration;                            ///< Generation counter for TOCTOU protection
-	os_unfair_lock hotkeyLock;                            ///< Lightweight lock for hotkey lookup/strings/generation
-	NSDictionary *__strong interceptedModifierLookup;     ///< Modifier shortcuts Neru still consumes
+	CFMachPortRef eventTap;                                   ///< Event tap reference
+	CFRunLoopSourceRef runLoopSource;                         ///< Run loop source
+	EventTapCallback callback;                                ///< Callback function
+	void *userData;                                           ///< User data pointer
+	NSDictionary *__strong hotkeyLookup;                      ///< Immutable hotkey lookup table: @(lookupKey) -> @YES
+	NSArray<NSString *> *__strong hotkeyStrings;              ///< Raw hotkey strings for rebuild on layout change
+	uint64_t hotkeyGeneration;                                ///< Generation counter for TOCTOU protection
+	os_unfair_lock hotkeyLock;                                ///< Lightweight lock for hotkey lookup/strings/generation
+	NSDictionary *__strong interceptedModifierLookup;         ///< Modifier shortcuts Neru still consumes
 	NSArray<NSString *> *__strong interceptedModifierStrings; ///< Raw modifier shortcut strings
-	uint64_t interceptedModifierGeneration;               ///< Generation counter for layout rebuild
-	os_unfair_lock interceptedModifierLock;               ///< Lock for intercepted modifier lookup/strings/generation
-	NSDictionary *__strong modifierBlacklistLookup;       ///< Blacklisted modifier shortcuts
+	uint64_t interceptedModifierGeneration;                   ///< Generation counter for layout rebuild
+	os_unfair_lock interceptedModifierLock;                 ///< Lock for intercepted modifier lookup/strings/generation
+	NSDictionary *__strong modifierBlacklistLookup;         ///< Blacklisted modifier shortcuts
 	NSArray<NSString *> *__strong modifierBlacklistStrings; ///< Raw blacklist strings
-	uint64_t modifierBlacklistGeneration;                 ///< Generation counter for layout rebuild
-	BOOL passthroughUnboundedModifiers;                   ///< Whether unbound modifier shortcuts reach macOS
-	os_unfair_lock modifierPassthroughLock;               ///< Lock for modifier passthrough config
-	dispatch_block_t __strong pendingEnableBlock;         ///< Pending enable block (inner delayed block)
-	dispatch_block_t __strong pendingAddSourceBlock;      ///< Pending add source block
+	uint64_t modifierBlacklistGeneration;                   ///< Generation counter for layout rebuild
+	BOOL passthroughUnboundedModifiers;                     ///< Whether unbound modifier shortcuts reach macOS
+	os_unfair_lock modifierPassthroughLock;                 ///< Lock for modifier passthrough config
+	dispatch_block_t __strong pendingEnableBlock;           ///< Pending enable block (inner delayed block)
+	dispatch_block_t __strong pendingAddSourceBlock;        ///< Pending add source block
 } EventTapContext;
 
 /// Global event tap context for layout-change rebuild (single instance expected)

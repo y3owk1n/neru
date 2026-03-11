@@ -34,13 +34,15 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 	h.setInterceptedModifierKeys(keys)
 }
 
+const initialCapacity = 16
+
 func (h *Handler) modeModifierKeys(mode domain.Mode) []string {
 	if h.config == nil || mode == domain.ModeIdle {
 		return nil
 	}
 
-	keys := make([]string, 0, 16)
-	seen := make(map[string]struct{}, 16)
+	keys := make([]string, 0, initialCapacity)
+	seen := make(map[string]struct{}, initialCapacity)
 
 	appendKey := func(key string) {
 		trimmed := strings.TrimSpace(key)
@@ -54,6 +56,7 @@ func (h *Handler) modeModifierKeys(mode domain.Mode) []string {
 		}
 
 		seen[normalized] = struct{}{}
+
 		keys = append(keys, trimmed)
 	}
 
@@ -66,6 +69,7 @@ func (h *Handler) modeModifierKeys(mode domain.Mode) []string {
 	appendKeys(h.config.General.ModeExitKeys)
 
 	switch mode {
+	case domain.ModeIdle:
 	case domain.ModeHints:
 		appendActionModifierKeys(h.config.Action.KeyBindings, appendKey)
 		appendKey(h.config.Hints.BackspaceKey)
