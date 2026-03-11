@@ -74,7 +74,7 @@ type Overlay struct {
 	cachedLabels map[string]*C.char
 	// drawMu serializes draw operations against cache invalidation.
 	// DrawModeIndicator and freeAllCaches both hold Lock.
-	drawMu sync.RWMutex
+	drawMu sync.Mutex
 }
 
 // NewOverlay initializes a new mode indicator overlay instance with its own window.
@@ -201,6 +201,7 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	// call.  Because only one polling goroutine calls DrawModeIndicator at
 	// a time the broader lock scope has no practical concurrency cost.
 	o.drawMu.Lock()
+	defer o.drawMu.Unlock()
 
 	// Invalidate the style cache when the mode changes so that per-mode
 	// color overrides are re-resolved instead of reusing stale values.
@@ -230,8 +231,6 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	modeConfig := o.resolveModeConfig(mode)
 
 	if modeConfig == nil {
-		o.drawMu.Unlock()
-
 		return
 	}
 
@@ -308,8 +307,6 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 
 	// Reuse NeruDrawHints which can draw arbitrary labels
 	C.NeruDrawHints(o.window, &hint, 1, style)
-
-	o.drawMu.Unlock()
 }
 
 // SetConfig sets the overlay configuration.
