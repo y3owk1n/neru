@@ -31,7 +31,6 @@ typedef struct {
 	uint64_t modifierBlacklistGeneration;                   ///< Generation counter for layout rebuild
 	BOOL passthroughUnboundedModifiers;                     ///< Whether unbound modifier shortcuts reach macOS
 	os_unfair_lock modifierPassthroughLock;                 ///< Lock for modifier passthrough config
-	dispatch_block_t __strong pendingEnableBlock;           ///< Pending enable block (inner delayed block)
 	dispatch_block_t __strong pendingAddSourceBlock;        ///< Pending add source block
 } EventTapContext;
 
@@ -455,7 +454,6 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	// rebuilt when key names map to different keycodes.
 	setKeymapLayoutChangeCallback(rebuildEventTapLookups);
 
-	context->pendingEnableBlock = nil;
 	context->pendingAddSourceBlock = nil;
 
 	// Set up event tap
@@ -636,29 +634,11 @@ void enableEventTap(EventTap tap) {
 	EventTapContext *context = (EventTapContext *)tap;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
-		// Cancel any existing pending inner block
-		if (context->pendingEnableBlock) {
-			dispatch_block_cancel(context->pendingEnableBlock);
-			context->pendingEnableBlock = nil;
-		}
-
-		// Create delayed enable block
-		__block dispatch_block_t innerBlock;
-		innerBlock = dispatch_block_create(0, ^{
-			// Guard against execution after cancellation
-			if (dispatch_block_testcancel(innerBlock)) {
-				innerBlock = nil; // Break retain cycle
-				return;
-			}
-
-			CGEventTapEnable(context->eventTap, true);
-			context->pendingEnableBlock = nil;
-			innerBlock = nil; // Break retain cycle
-		});
-
-		context->pendingEnableBlock = innerBlock;
-		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.15 * NSEC_PER_SEC)), dispatch_get_main_queue(),
-		               innerBlock);
+		// Enable immediately — the event tap callback already lets registered
+		// hotkeys pass through (isHotkey check), so there is no need to delay.
+		// Removing the previous 150ms dispatch_after eliminates a dead window
+		// where key events are silently dropped right after mode activation.
+		CGEventTapEnable(context->eventTap, true);
 	});
 }
 
@@ -672,12 +652,6 @@ void disableEventTap(EventTap tap) {
 
 	// Disable on main thread to avoid races
 	dispatch_async(dispatch_get_main_queue(), ^{
-		// Cancel any pending enable block
-		if (context->pendingEnableBlock) {
-			dispatch_block_cancel(context->pendingEnableBlock);
-			context->pendingEnableBlock = nil;
-		}
-
 		CGEventTapEnable(context->eventTap, false);
 	});
 }
@@ -697,11 +671,6 @@ void destroyEventTap(EventTap tap) {
 		}
 		if (context->runLoopSource) {
 			CFRunLoopRemoveSource(CFRunLoopGetMain(), context->runLoopSource, kCFRunLoopCommonModes);
-		}
-		// Cancel any pending enable block
-		if (context->pendingEnableBlock) {
-			dispatch_block_cancel(context->pendingEnableBlock);
-			context->pendingEnableBlock = nil;
 		}
 		// Cancel any pending add source block
 		if (context->pendingAddSourceBlock) {
@@ -768,16 +737,15 @@ void destroyEventTap(EventTap tap) {
 		oldBlacklistLookup = nil;
 		oldBlacklistStrings = nil;
 
-		context->pendingEnableBlock = nil;    // ARC will handle deallocation
 		context->pendingAddSourceBlock = nil; // ARC will handle deallocation
 
 		free(context);
 	};
 
-	// Execute cleanup on main thread
-	if ([NSThread isMainThread]) {
-		cleanupBlock();
-	} else {
-		dispatch_async(dispatch_get_main_queue(), cleanupBlock);
-	}
+	// Always dispatch cleanup asynchronously on the main queue so that any
+	// previously-enqueued enable/disable blocks (which also capture `context`)
+	// execute before we free the context.  GCD guarantees FIFO ordering on a
+	// serial queue, so this prevents use-after-free when destroyEventTap is
+	// called from the main thread.
+	dispatch_async(dispatch_get_main_queue(), cleanupBlock);
 }
