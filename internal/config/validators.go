@@ -1042,7 +1042,11 @@ func (c *Config) checkModeExitKeysConflicts() error {
 		{c.Grid.Characters, "grid.characters", "grid input"},
 		{c.Grid.RowLabels, "grid.row_labels", "row selection"},
 		{c.Grid.ColLabels, "grid.col_labels", "column selection"},
-		{c.RecursiveGrid.AllKeysIncludingLayers(), "recursive_grid.keys", "cell selection"},
+		{
+			c.RecursiveGrid.AllKeysIncludingLayers(),
+			"recursive_grid.keys (including layers)",
+			"cell selection",
+		},
 	}
 
 	for _, check := range checks {
@@ -2086,7 +2090,7 @@ func (c *Config) ValidateRecursiveGrid() error {
 			c.RecursiveGrid.ModeExitKeys,
 			c.RecursiveGrid.AllKeysIncludingLayers(),
 			"recursive_grid.mode_exit_keys",
-			"recursive_grid.keys",
+			"recursive_grid.keys (including layers)",
 			"cell selection",
 		)
 		if err != nil {
