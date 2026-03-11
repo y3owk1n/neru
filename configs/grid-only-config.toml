@@ -1,33 +1,17 @@
 # Neru Configuration - Grid Only Mode
 
-[general]
-# Applications to exclude from Neru functionality
-excluded_apps = []
-
-# Check Accessibility permission on startup; exits with guidance if missing.
-accessibility_check_on_start = true
-
 [hotkeys]
 "Cmd+Shift+Space" = "grid"
 "Cmd+Shift+S" = "scroll"
 
 [hints]
-# Hints mode - DISABLED
 enabled = false
 
 [grid]
-# Grid mode - ENABLED with all features
 enabled = true
-
-# Characters for grid labels
 characters = "abcdefghijklmnpqrstuvwxyz"
-
-# Performance options
-# Prewarm grid caches on startup for faster first use, but uses ~1.5MB memory and CPU at startup
 prewarm_enabled = true
-# Enable periodic garbage collection every 5 minutes to reduce peak memory usage, but adds CPU overhead
 enable_gc = false
 
 [recursive_grid]
-# Recursive grid mode - DISABLED
 enabled = false

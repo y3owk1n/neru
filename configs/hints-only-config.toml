@@ -1,12 +1,5 @@
 # Neru Configuration - Hints Only Mode
 
-[general]
-# Applications to exclude from Neru functionality
-excluded_apps = []
-
-# Check Accessibility permission on startup; exits with guidance if missing.
-accessibility_check_on_start = true
-
 [hotkeys]
 "Cmd+Shift+Space" = "hints"
 "Cmd+Shift+S" = "scroll"
@@ -15,22 +8,16 @@ accessibility_check_on_start = true
 enabled = true
 max_depth = 50
 parallel_threshold = 20
-
-# Hints-specific settings - all enabled for maximum hint coverage
 include_menubar_hints = true               # Show hints on menubar
 include_dock_hints = true                  # Show hints on Dock and Mission Control
 include_nc_hints = true                    # Show hints on Notification Center
 include_stage_manager_hints = true         # Include stage manager items in hints
 detect_mission_control = false             # Skip frontmost window hints when Mission Control is active
-
-# Additional menubar targets for hint detection
 additional_menubar_hints_targets = [
   "com.apple.TextInputMenuAgent",
   "com.apple.controlcenter",
   "com.apple.systemuiserver",
 ]
-
-# Global clickable roles for hints
 clickable_roles = [
     "AXButton",
     "AXComboBox",
@@ -49,7 +36,6 @@ clickable_roles = [
     "AXCell",
     "AXRow",
 ]
-
 ignore_clickable_check = false
 
 # Application-specific configurations for customizing hint behavior per app
@@ -60,8 +46,6 @@ ignore_clickable_check = false
 # ignore_clickable_check = false
 
 [hints.additional_ax_support]
-# Enable enhanced accessibility for Electron, Chromium, and Firefox apps
-# Recommended for better hint detection in these apps
 enable = true
 
 additional_electron_bundles = []
@@ -69,9 +53,7 @@ additional_chromium_bundles = []
 additional_firefox_bundles = []
 
 [grid]
-# Grid mode - DISABLED
 enabled = false
 
 [recursive_grid]
-# Recursive grid mode - DISABLED
 enabled = false

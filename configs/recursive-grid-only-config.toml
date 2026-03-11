@@ -1,35 +1,19 @@
 # Neru Configuration - Recursive Grid Only Mode
 
-[general]
-# Applications to exclude from Neru functionality
-excluded_apps = []
-
-# Check Accessibility permission on startup; exits with guidance if missing.
-accessibility_check_on_start = true
-
 [hotkeys]
 "Cmd+Shift+Space" = "recursive_grid"
 "Cmd+Shift+S" = "scroll"
 
 [hints]
-# Hints mode - DISABLED
 enabled = false
 
 [grid]
-# Grid mode - DISABLED
 enabled = false
 
 [recursive_grid]
-# Recursive Grid mode - ENABLED with all features
 enabled = true
-
-# Grid layout: columns and rows (must be >= 2)
 grid_cols = 2
 grid_rows = 2
-
-# Key bindings for cell selection
-# Must be exactly grid_cols * grid_rows characters
-# For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
 keys = "uijk"
 
 [recursive_grid.ui]

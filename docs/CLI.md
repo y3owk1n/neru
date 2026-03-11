@@ -272,7 +272,7 @@ Recursive grid provides recursive cell-based navigation that works anywhere on s
 | `j`                    | Lower-left cell                |
 | `k`                    | Lower-right cell               |
 | `Backspace` / `Delete` | Move up one depth and recenter |
-| `,` (default)          | Reset to initial center        |
+| `Space` (default)      | Reset to initial center        |
 | `Esc`                  | Exit mode                      |
 
 **Quick start:**
@@ -281,7 +281,7 @@ Recursive grid provides recursive cell-based navigation that works anywhere on s
 neru recursive_grid
 # Press u/i/j/k to narrow selection
 # Press backspace to move up a level
-# Press , to reset to initial center
+# Press space to reset to initial center
 ```
 
 See [Configuration Guide](CONFIGURATION.md#recursive-grid-mode) for customization options.

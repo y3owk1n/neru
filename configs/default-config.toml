@@ -1,138 +1,52 @@
-# This is the default configuration file for Neru.
-# It is NOT loaded by the application at runtime.
-# To use this configuration, copy it to one of these locations:
-#   ~/.config/neru/config.toml
-#   ~/Library/Application Support/neru/config.toml
-# Or specify a custom path with the --config flag.
+# Neru default configuration
+# Copy to ~/.config/neru/config.toml to customize.
 
+# Full config reference: https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md
+# Full CLI reference: https://github.com/y3owk1n/neru/blob/main/docs/CLI.md
+
+# General settings
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#general-settings
 [general]
-# List of bundle IDs to exclude from Neru (e.g., "com.apple.finder")
-# When Neru is active, it won't process hints/grid in these applications
-excluded_apps = []
+excluded_apps = []                           # Bundle IDs to ignore (e.g. "com.apple.Terminal")
+accessibility_check_on_start = true          # Verify AX permissions on launch
+restore_cursor_position = false              # Return cursor to pre-mode position on exit
+center_cursor_position = false               # Center cursor on screen on exit (mutually exclusive with above)
+kb_layout_to_use = ""                        # Force a keyboard layout InputSourceID (empty = auto)
+mode_exit_keys = ["Escape"]                  # Keys that exit any active mode
+passthrough_unbounded_keys = false           # Let unbound Cmd/Ctrl/Alt shortcuts reach macOS
+passthrough_unbounded_keys_blacklist = []    # Shortcuts to still consume when passthrough is on
+hide_overlay_in_screen_share = false         # Hide overlay from screen sharing apps
 
-# Whether to check for accessibility permissions on startup
-# If true, Neru will verify that accessibility permissions are granted before enabling features
-accessibility_check_on_start = true
-
-# Whether to restore cursor position after exiting modes
-# When true, cursor returns to its original position after hints/grid/scroll mode exits
-restore_cursor_position = false
-
-# Whether to center cursor position after exiting modes
-# When true, cursor is centered on the current screen after hints/grid/scroll mode exits
-# Note: restore_cursor_position and center_cursor_position are mutually exclusive
-center_cursor_position = false
-
-# Optional reference keyboard layout for layout-agnostic key interpretation.
-# Use macOS InputSourceID (e.g. "com.apple.keylayout.ABC").
-# When omitted/empty, Neru auto-selects in this order:
-#   1) com.apple.keylayout.ABC
-#   2) com.apple.keylayout.US
-#   3) First layout with language "en"
-kb_layout_to_use = ""
-
-# Keys that exit any active mode (hints, grid, or scroll)
-# Supported formats:
-#   - Named keys: "Escape", "Return", "Tab", "Space", "Backspace", "Delete",
-#                  "Home", "End", "PageUp", "PageDown",
-#                  "Up", "Down", "Left", "Right",
-#                  "F1" through "F20"
-#   - Modifier combos: "Ctrl+C", "Cmd+Q", "Alt+X"
-#   - Single characters: single letter/digit keys
-# Examples:
-#   mode_exit_keys = ["Escape"]           # Exit with Escape key
-#   mode_exit_keys = ["Ctrl+C"]           # Exit with Ctrl+C
-#   mode_exit_keys = ["Escape", "q"]      # Exit with Escape or Q
-mode_exit_keys = ["Escape"]
-
-# Allow unbound Cmd/Ctrl/Alt shortcuts to keep reaching macOS while a mode is active.
-# Neru still consumes modifier shortcuts that are explicitly bound in the active mode.
-# Example use cases: Cmd+Tab, Cmd+Space, Cmd+`, Cmd+Q.
-passthrough_unbounded_keys = false
-
-# Optional blacklist for shortcuts that should stay consumed by Neru even when
-# passthrough_unbounded_keys is enabled.
-# Example:
-# passthrough_unbounded_keys_blacklist = ["Cmd+W", "Cmd+Q"]
-passthrough_unbounded_keys_blacklist = []
-
-# Whether to hide the overlay from screen sharing (Zoom, Google Meet, OBS, etc.)
-# When true, the overlay will not appear in shared screens but remains visible locally
-# Note: Uses macOS NSWindow.sharingType API - effectiveness varies by application
-# Note: This APIs is sort of deprecated as well, it might or might not work
-# See CLI.md documentation for more details
-hide_overlay_in_screen_share = false
-
+# Hotkeys
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#hotkeys
+# See https://github.com/y3owk1n/neru/blob/main/docs/CLI.md
 [hotkeys]
-# Hotkey bindings - key = action
-# Supported modifiers: Cmd, Ctrl, Alt, Shift, Option
-# Examples: "Cmd+Shift+Space" = "hints", "Cmd+Shift+G" = "grid"
 "Cmd+Shift+Space" = "hints"
 "Cmd+Shift+G" = "grid"
 "Cmd+Shift+C" = "recursive_grid"
 "Cmd+Shift+S" = "scroll"
 
-# Direct actions are available in hints/grid mode without mode switching
-# Use Cmd+L for left click, Cmd+R for right click, Cmd+M for middle click, etc.
-# See the [action.key_bindings] section below for all available direct action keys.
-
-# To run a shell command from a hotkey, prefix the value with `exec `:
-# "Ctrl+Alt+T" = "exec open -a Terminal"
-# "Ctrl+Alt+F" = "exec osascript -e 'display notification \"This is a test notification!\" with title \"Hello from Terminal\"'"
-
+# Hint mode
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#hint-mode
 [hints]
-# Whether to enable hints mode
 enabled = true
-
-# Actions that will cause hints mode to exit automatically after execution
-# Valid values: left_click, right_click, middle_click, mouse_down, mouse_up, move_mouse_relative
-# Default: [] (empty - no auto-exit)
-# Example: auto_exit_actions = ["left_click", "middle_click"]
-# Note: Including "move_mouse_relative" will exit on every arrow-key nudge, which is usually undesirable.
-auto_exit_actions = []
-
-# Additional keys that exit hints mode (merged with general.mode_exit_keys)
-# These keys are added on top of the global exit keys, not replacing them.
-# Example: mode_exit_keys = ["q"]  # Escape (global) + q to exit hints
-mode_exit_keys = []
-
-# Characters to use for hint labels
-hint_characters = "asdfghjkl"
-
-# Key used for backspace/input correction in hints mode
-# Default: "Backspace" (the standard backspace/delete key)
-# Can be set to any key name (e.g. "Backspace", "Delete", "x", "Ctrl+H")
-backspace_key = "Backspace"
-
-# Delay in milliseconds before refreshing hints after mouse click actions.
-# Set to 0 for immediate refresh. Higher values reduce rapid refreshes
-# when performing multiple clicks quickly. Maximum: 10000 (10 seconds).
-mouse_action_refresh_delay = 0
-
-# Maximum depth for accessibility tree traversal.
-# Set to 0 for unlimited depth (no safety limit).
-# Default: 50
-max_depth = 50
-
-# Minimum children to trigger parallel tree building.
-# Default: 20
-parallel_threshold = 20
-
-# Additional hint targets
-include_menubar_hints = false              # Include menubar items in hints
-additional_menubar_hints_targets = [       # Extra menubar bundle IDs to include
+auto_exit_actions = []                      # Actions that auto-exit hints (e.g. ["left_click"])
+mode_exit_keys = []                         # Extra exit keys (merged with general.mode_exit_keys)
+hint_characters = "asdfghjkl"               # Characters used for hint labels
+backspace_key = "Backspace"                 # Key for input correction
+mouse_action_refresh_delay = 0              # ms delay before refreshing hints after click (0 = immediate)
+max_depth = 50                              # Max accessibility tree depth (0 = unlimited)
+parallel_threshold = 20                     # Min children to trigger parallel tree building
+include_menubar_hints = false
+additional_menubar_hints_targets = [
     "com.apple.TextInputMenuAgent",
     "com.apple.controlcenter",
     "com.apple.systemuiserver",
 ]
-include_dock_hints = false                  # Include dock items in hints
-include_nc_hints = false                    # Include notification center in hints
-include_stage_manager_hints = false         # Include stage manager items in hints
-# Do not enable `detect_mission_control` if you are below macOS 26.x, it will break hints generation
-# See https://github.com/y3owk1n/neru/issues/386 for more details
-detect_mission_control = false              # Skip frontmost window hints when Mission Control is active
-
-# Roles considered clickable
+include_dock_hints = false
+include_nc_hints = false
+include_stage_manager_hints = false
+detect_mission_control = false
 clickable_roles = [
     "AXButton",
     "AXComboBox",
@@ -151,226 +65,107 @@ clickable_roles = [
     "AXCell",
     "AXRow",
 ]
-
-# Whether to ignore the clickable check (useful for some apps)
 ignore_clickable_check = false
 
-# Per-app role configurations
-# These allow you to add additional clickable/scrollable roles for specific applications
-# The roles defined here are ADDED to the global roles above (not replaced)
-# To find an app's bundle ID, run: osascript -e 'id of app "AppName"'
-#
-# Application-specific configurations for customizing hint behavior per app
-# Each entry allows overriding clickable roles, clickable check behavior, and
-# mouse action refresh delay for specific bundle IDs
-# [[hints.app_configs]]
-# bundle_id = "com.example.app"
-# additional_clickable_roles = ["AXCustomButton", "AXCustomLink"]
-# ignore_clickable_check = true
-# mouse_action_refresh_delay = 100  # Override delay for this app (nil/omitted = use global)
-#
-# [[hints.app_configs]]
-# bundle_id = "com.another.app"
-# additional_clickable_roles = ["AXSpecialRole"]
-# ignore_clickable_check = false
-# # Omit mouse_action_refresh_delay to use global hints.mouse_action_refresh_delay
-
-# Electron/Chromium/Firefox support
 [hints.additional_ax_support]
-enable = false                          # Enable enhanced accessibility for web apps
-additional_electron_bundles = []        # Extra Electron app bundle IDs
-additional_chromium_bundles = []        # Extra Chromium app bundle IDs
-additional_firefox_bundles = []         # Extra Firefox app bundle IDs
+enable = false                              # Enable enhanced AX for Electron/Chromium/Firefox apps
+additional_electron_bundles = []
+additional_chromium_bundles = []
+additional_firefox_bundles = []
 
 [hints.ui]
-font_size = 10                          # Font size for hints
-font_family = ""                        # Font family for hints
-border_radius = -1                      # Border radius for hint borders (-1 = auto pill)
-padding_x = -1                          # Horizontal padding inside hint borders (-1 = auto based on font size)
-padding_y = -1                          # Vertical padding inside hint borders (-1 = auto based on font size)
-border_width = 1                        # Width of hint borders
-background_color_light = "#F200CFCF"    # Hint background color for Light Mode (cyan, alpha F2 ≈ 95% opacity)
-background_color_dark = "#F2007A9E"     # Hint background color for Dark Mode (deep teal, alpha F2 ≈ 95% opacity)
-text_color_light = "#FF003554"          # Hint text color for Light Mode (deep navy)
-text_color_dark = "#FFFFFFFF"           # Hint text color for Dark Mode (white)
-matched_text_color_light = "#FFAAEEFF"  # Text color for matched hints for Light Mode (light sky blue)
-matched_text_color_dark = "#FF003554"   # Text color for matched hints for Dark Mode (deep navy)
-border_color_light = "#FF008A8A"        # Hint border color for Light Mode (teal)
-border_color_dark = "#FF00B4D8"         # Hint border color for Dark Mode (sky blue)
+font_size = 10
+font_family = ""                            # Empty = system font
+border_radius = -1                          # -1 = auto pill
+padding_x = -1                              # -1 = auto based on font size
+padding_y = -1                              # -1 = auto based on font size
+border_width = 1
+background_color_light = "#F200CFCF"
+background_color_dark = "#F2007A9E"
+text_color_light = "#FF003554"
+text_color_dark = "#FFFFFFFF"
+matched_text_color_light = "#FFAAEEFF"
+matched_text_color_dark = "#FF003554"
+border_color_light = "#FF008A8A"
+border_color_dark = "#FF00B4D8"
 
+# Grid mode
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#grid-mode
 [grid]
-# Whether to enable grid mode
 enabled = true
-
-# Actions that will cause grid mode to exit automatically after execution
-# Valid values: left_click, right_click, middle_click, mouse_down, mouse_up, move_mouse_relative
-# Default: [] (empty - no auto-exit)
-# Example: auto_exit_actions = ["left_click", "middle_click"]
-# Note: Including "move_mouse_relative" will exit on every arrow-key nudge, which is usually undesirable.
-auto_exit_actions = []
-
-# Additional keys that exit grid mode (merged with general.mode_exit_keys)
-mode_exit_keys = []
-
-# Characters to use for grid labels
-# Requirements:
-# - Must contain at least 2 characters
-# - Only ASCII characters allowed (no Unicode)
-# - Cannot contain the reset_key character (' ' / space by default)
-# - No duplicate characters (case-insensitive)
-# - Examples: "asdfghjkl", "qwertyuiop", "1234567890"
-characters = "abcdefghijklmnpqrstuvwxyz"
-
-# Characters to use for subgrid labels (fallback to grid.characters)
-# Same requirements as characters above
-sublayer_keys = "abcdefghijklmnpqrstuvwxyz"
-
-# Key to reset/clear grid input during grid mode
-# While in grid mode, pressing this key clears your current input and starts over
-# Useful for correcting mistakes while selecting grid coordinates
-# Supported formats:
-#   - Single character: " " (space), "," (comma), "." (period)
-#   - Named key: "Home", "End", "F1", "Tab", etc.
-#   - Modifier combo: "Ctrl+R"
-# Note: Cannot be the same as any grid character to avoid conflicts
-reset_key = " "
-
-# Key used for backspace/input correction in grid mode
-# Default: "Backspace" (the standard backspace/delete key)
-# Can be set to any key name (e.g. "Backspace", "Delete", "x", "Ctrl+H")
-backspace_key = "Backspace"
-
-# Optional custom labels for rows and columns
-# If not provided, labels will be inferred from characters
-# Requirements (when specified):
-# - Must contain at least 2 characters
-# - Only ASCII characters allowed
-# - Cannot contain the reset_key character (' ' / space by default)
-# - No duplicate characters (case-insensitive)
-# - Can include symbols like ',.pyfgcrl/aoeuidhtns-;qjkxbmwvz='
-# Examples:
-# row_labels = "123456789"      # Numbers for rows
-# col_labels = "abcdefghij"     # Letters for columns
-# row_labels = "',.pyfgcrl/"    # Dvorak-style rows
-# col_labels = "aoeuidhtns"     # Dvorak-style columns
-
-# Behavior
-live_match_update = true
-hide_unmatched = true
-# Prewarm grid caches on startup for faster first use, but uses ~1.5MB memory and CPU at startup
-prewarm_enabled = true
-# Enable periodic garbage collection every 5 minutes to reduce peak memory usage, but adds CPU overhead
-enable_gc = false
+auto_exit_actions = []                      # Actions that auto-exit grid (e.g. ["left_click"])
+mode_exit_keys = []                         # Extra exit keys (merged with general.mode_exit_keys)
+characters = "abcdefghijklmnpqrstuvwxyz"    # Primary grid labels
+sublayer_keys = "abcdefghijklmnpqrstuvwxyz" # Subgrid labels (fallback to characters)
+reset_key = " "                             # Key to clear input and start over
+backspace_key = "Backspace"                 # Key for input correction
+live_match_update = true                    # Highlight cells as you type
+hide_unmatched = true                       # Hide non-matching cells
+prewarm_enabled = true                      # Pre-compute grid on startup (~1.5MB RAM)
+enable_gc = false                           # Periodic memory cleanup (adds CPU overhead)
 
 [grid.ui]
-font_size = 10                               # Font size for grid labels
-font_family = ""                             # Font family for grid labels
-border_width = 1                             # Width of grid cell borders
-background_color_light = "#9900B4D8"         # Grid cell background color for Light Mode (sky blue, alpha 99 ≈ 60% opacity)
-background_color_dark = "#99003554"          # Grid cell background color for Dark Mode (deep navy, alpha 99 ≈ 60% opacity)
-text_color_light = "#FF003554"               # Grid label text color for Light Mode (deep navy)
-text_color_dark = "#FFB3E8F5"                # Grid label text color for Dark Mode (pale cyan)
-matched_text_color_light = "#FFAAEEFF"       # Text color for matched grid cells for Light Mode (light sky blue)
-matched_text_color_dark = "#FFFFFFFF"        # Text color for matched grid cells for Dark Mode (white)
-matched_background_color_light = "#B300CFCF" # Background color for matched grid cells for Light Mode (cyan, alpha B3 ≈ 70% opacity)
-matched_background_color_dark = "#B300B4D8"  # Background color for matched grid cells for Dark Mode (sky blue, alpha B3 ≈ 70% opacity)
-matched_border_color_light = "#B300CFCF"     # Border color for matched grid cells for Light Mode (cyan, alpha B3 ≈ 70% opacity)
-matched_border_color_dark = "#B300B4D8"      # Border color for matched grid cells for Dark Mode (sky blue, alpha B3 ≈ 70% opacity)
-border_color_light = "#9900B4D8"             # Grid cell border color for Light Mode (sky blue, alpha 99 ≈ 60% opacity)
-border_color_dark = "#99003554"              # Grid cell border color for Dark Mode (deep navy, alpha 99 ≈ 60% opacity)
+font_size = 10
+font_family = ""
+border_width = 1
+background_color_light = "#9900B4D8"
+background_color_dark = "#99003554"
+text_color_light = "#FF003554"
+text_color_dark = "#FFB3E8F5"
+matched_text_color_light = "#FFAAEEFF"
+matched_text_color_dark = "#FFFFFFFF"
+matched_background_color_light = "#B300CFCF"
+matched_background_color_dark = "#B300B4D8"
+matched_border_color_light = "#B300CFCF"
+matched_border_color_dark = "#B300B4D8"
+border_color_light = "#9900B4D8"
+border_color_dark = "#99003554"
 
+# Recursive grid mode (recommended)
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#recursive-grid-mode-recommended
 [recursive_grid]
-# Whether to enable recursive-grid mode
 enabled = true
-
-# Actions that will cause recursive-grid mode to exit automatically after execution
-# Valid values: left_click, right_click, middle_click, mouse_down, mouse_up, move_mouse_relative
-# Default: [] (empty - no auto-exit)
-# Example: auto_exit_actions = ["left_click", "middle_click"]
-# Note: Including "move_mouse_relative" will exit on every arrow-key nudge, which is usually undesirable.
-auto_exit_actions = []
-
-# Additional keys that exit recursive-grid mode (merged with general.mode_exit_keys)
-mode_exit_keys = []
-
-# Grid layout: columns and rows (default: 2x2, must be >= 2)
-# Higher values create finer grid division
-# For non-square grids, use different values (e.g., grid_cols = 3, grid_rows = 2)
-grid_cols = 2
-grid_rows = 2
-
-# Key bindings for cell selection
-# Must be exactly grid_cols * grid_rows characters
-# For 2x2: 4 keys (u=TL, i=TR, j=BL, k=BR)
-keys = "uijk"
-
-# Behavior
-min_size_width = 25            # Minimum cell width in pixels (stops dividing when width is reached)
-min_size_height = 25           # Minimum cell height in pixels (stops dividing when height is reached)
-max_depth = 10                 # Maximum recursion depth (safety limit)
-
-# Key to reset to initial center and clear state
-# Supported formats:
-#   - Single character: " " (space), "," (comma), "." (period)
-#   - Named key: "Home", "End", "F1", "Tab", etc.
-#   - Modifier combo: "Ctrl+R"
-reset_key = " "
-
-# Key used for backspace/backtracking in recursive-grid mode
-# Default: "Backspace" (the standard backspace/delete key)
-# Can be set to any key name (e.g. "Backspace", "Delete", "x", "Ctrl+H")
-backspace_key = "Backspace"
+auto_exit_actions = []                      # Actions that auto-exit (e.g. ["left_click"])
+mode_exit_keys = []                         # Extra exit keys (merged with general.mode_exit_keys)
+grid_cols = 2                               # Number of columns (>= 2)
+grid_rows = 2                               # Number of rows (>= 2)
+keys = "uijk"                               # Cell selection keys (must be grid_cols * grid_rows chars)
+backspace_key = "Backspace"                 # Key to go up one recursion level
+min_size_width = 25                         # Stop subdividing below this width (px)
+min_size_height = 25                        # Stop subdividing below this height (px)
+max_depth = 10                              # Maximum recursion levels (1–20)
+reset_key = " "                             # Key to reset to initial center
 
 [recursive_grid.ui]
-line_color_light = "#FF007A9E"              # Color of grid lines for Light Mode (deep teal, alpha FF = 100% opacity)
-line_color_dark = "#FF00CFCF"               # Color of grid lines for Dark Mode (bright cyan, alpha FF = 100% opacity)
-line_width = 1                              # Width of grid lines
-highlight_color_light = "#4D007A9E"         # Color for cell highlighting for Light Mode (deep teal, alpha 4D ≈ 30% opacity)
-highlight_color_dark = "#4D00CFCF"          # Color for cell highlighting for Dark Mode (bright cyan, alpha 4D ≈ 30% opacity)
-text_color_light = "#FF007A9E"              # Text color for Light Mode (deep teal, fully opaque)
-text_color_dark = "#FF00CFCF"               # Text color for Dark Mode (bright cyan, fully opaque)
-font_size = 10                              # Font size for cell labels
-font_family = ""                            # Font family for cell labels
-label_background = false                    # Add rounded label backgrounds behind recursive-grid letters
-label_background_color_light = "#FFAAEEFF"  # Label background color for Light Mode (light blue, alpha FF = 100% opacity)
-label_background_color_dark = "#FF003554"   # Label background color for Dark Mode (deep blue, alpha FF = 100% opacity)
-label_background_padding_x = -1             # Horizontal badge padding (-1 = auto based on font size)
-label_background_padding_y = -1             # Vertical badge padding (-1 = auto based on font size)
-label_background_border_radius = -1         # Border radius for label badges (-1 = auto pill)
-label_background_border_width = 1           # Border width for label badges (0 disables border)
-sub_key_preview = false                     # Draw a miniature key grid inside each cell (off by default)
-sub_key_preview_font_size = 8               # Font size for sub-key preview labels (4–72)
-sub_key_preview_text_color_light = "#66007A9E"  # Sub-key label color for Light Mode (40% opacity)
-sub_key_preview_text_color_dark = "#6600CFCF"   # Sub-key label color for Dark Mode (40% opacity)
+line_color_light = "#FF007A9E"
+line_color_dark = "#FF00CFCF"
+line_width = 1
+highlight_color_light = "#4D007A9E"
+highlight_color_dark = "#4D00CFCF"
+text_color_light = "#FF007A9E"
+text_color_dark = "#FF00CFCF"
+font_size = 10
+font_family = ""
+label_background = false                    # Add rounded backgrounds behind cell labels
+label_background_color_light = "#FFAAEEFF"
+label_background_color_dark = "#FF003554"
+label_background_padding_x = -1
+label_background_padding_y = -1
+label_background_border_radius = -1
+label_background_border_width = 1
+sub_key_preview = false                     # Draw miniature key grid inside each cell
+sub_key_preview_font_size = 8
+sub_key_preview_text_color_light = "#66007A9E"
+sub_key_preview_text_color_dark = "#6600CFCF"
 
+# Scroll mode
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#scroll-mode
 [scroll]
-# Scroll step sizes
-scroll_step = 50            # Base scroll distance for j/k keys
-scroll_step_half = 500      # Scroll distance for Ctrl+D/U keys
-scroll_step_full = 1000000  # Scroll distance for Shift+G/g keys
+scroll_step = 50                            # Pixels per j/k press
+scroll_step_half = 500                      # Pixels for Ctrl+D/U (half page)
+scroll_step_full = 1000000                  # Pixels for gg/G (top/bottom)
+mode_exit_keys = []                         # Extra exit keys (merged with general.mode_exit_keys)
 
-# Additional keys that exit scroll mode (merged with general.mode_exit_keys)
-# Useful for adding quick-exit keys near your scroll bindings
-# Example: mode_exit_keys = ["q"]  # Escape (global) + q to exit scroll
-mode_exit_keys = []
-
-# Key bindings for scroll mode
-# Each action can have multiple keys assigned to it
-# Key format:
-#   - Single key: "j", "k", "g", "G", etc.
-#   - Modifier keys: "Ctrl+U", "Cmd+Down", etc.
-#   - Multi-key sequences: "gg" (press g then g again)
-#   - Special keys: "Up", "Down", "Left", "Right", "PageUp", "PageDown", "Home", "End"
-#
-# Available actions:
-#   scroll_up    - Scroll up by one line
-#   scroll_down  - Scroll down by one line
-#   scroll_left  - Scroll left by one line
-#   scroll_right - Scroll right by one line
-#   go_top       - Scroll to the top of the page
-#   go_bottom    - Scroll to the bottom of the page
-#   page_up      - Scroll up by half page
-#   page_down    - Scroll down by half page
 [scroll.key_bindings]
 scroll_up = ["k", "Up"]
 scroll_down = ["j", "Down"]
@@ -381,30 +176,13 @@ go_bottom = ["Shift+G", "Cmd+Down"]
 page_up = ["Ctrl+U", "PageUp"]
 page_down = ["Ctrl+D", "PageDown"]
 
-# Custom examples:
-# To use vim-style navigation with arrow keys:
-# scroll_up = ["k", "Up", "Ctrl+P"]
-# scroll_down = ["j", "Down", "Ctrl+N"]
-#
-# To map Home/End for top/bottom:
-# go_top = ["gg", "Home"]
-# go_bottom = ["G", "End"]
-#
+# Mode indicator
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mode-indicator
+[mode_indicator]
 
-# Mode indicator - cursor-following label showing current mode
-# When enabled for a mode, displays the mode name near the cursor.
-# Each mode has its own sub-table with `enabled`, `text`, and optional
-# color overrides. Colors left empty ("") inherit from [mode_indicator.ui].
-# Per-mode settings
 [mode_indicator.scroll]
 enabled = true
 text = "Scroll"
-# background_color_light = ""   # per-mode override (empty = inherit from ui)
-# background_color_dark = ""
-# text_color_light = ""
-# text_color_dark = ""
-# border_color_light = ""
-# border_color_dark = ""
 
 [mode_indicator.hints]
 enabled = false
@@ -418,94 +196,57 @@ text = "Grid"
 enabled = false
 text = "Recursive Grid"
 
-# Shared appearance defaults (inherited by all modes unless overridden)
 [mode_indicator.ui]
-font_size = 10                       # Font size for mode indicators
-font_family = ""			         # Font family for mode indicators
-background_color_light = "#F200CFCF" # Background color for Light Mode (cyan, alpha F2 ≈ 95% opacity)
-background_color_dark = "#F200CFCF"  # Background color for Dark Mode (cyan, alpha F2 ≈ 95% opacity)
-text_color_light = "#FF003554"       # Text color for Light Mode (deep navy)
-text_color_dark = "#FF003554"        # Text color for Dark Mode (deep navy)
-border_color_light = "#FF007A9E"     # Border color for Light Mode (deep teal)
-border_color_dark = "#FF007A9E"      # Border color for Dark Mode (deep teal)
-border_width = 1                     # Border width
-padding_x = -1                       # Horizontal padding (-1 = auto based on font size)
-padding_y = -1                       # Vertical padding (-1 = auto based on font size)
-border_radius = -1                   # Border radius (-1 = auto pill)
-indicator_x_offset = 20              # X offset from cursor position
-indicator_y_offset = 20              # Y offset from cursor position
+font_size = 10
+font_family = ""
+background_color_light = "#F200CFCF"
+background_color_dark = "#F200CFCF"
+text_color_light = "#FF003554"
+text_color_dark = "#FF003554"
+border_color_light = "#FF007A9E"
+border_color_dark = "#FF007A9E"
+border_width = 1
+padding_x = -1
+padding_y = -1
+border_radius = -1
+indicator_x_offset = 20
+indicator_y_offset = 20
 
-# Action keybindings for use in hints/grid mode
-# Valid formats:
-#   - Single character: any printable ASCII character (e.g. "w", "L", "1")
-#   - Single named key: Return, Enter, Up, Down, Left, Right, Home, End,
-#                        PageUp, PageDown, F1-F20, Space, Tab, etc.
-#   - Modifier+Key: Cmd+L, Shift+Return (at least 1 modifier + key)
+# Mouse movement actions (used inside hints/grid modes)
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mouse-movement-actions
 [action]
-# Step size in pixels for keyboard-driven mouse movement (Up/Down/Left/Right keys)
-move_mouse_step = 10
+move_mouse_step = 10                        # Pixels per arrow key press
 
 [action.key_bindings]
-left_click = "Shift+L"     # Left click at current cursor position
-right_click = "Shift+R"    # Right click at current cursor position
-middle_click = "Shift+M"   # Middle click at current cursor position
-mouse_down = "Shift+I"     # Press and hold mouse button
-mouse_up = "Shift+U"       # Release mouse button
-move_mouse_up = "Up"       # Move cursor up by move_mouse_step pixels
-move_mouse_down = "Down"   # Move cursor down by move_mouse_step pixels
-move_mouse_left = "Left"   # Move cursor left by move_mouse_step pixels
-move_mouse_right = "Right" # Move cursor right by move_mouse_step pixels
+left_click = "Shift+L"
+right_click = "Shift+R"
+middle_click = "Shift+M"
+mouse_down = "Shift+I"                      # Press and hold mouse button
+mouse_up = "Shift+U"                        # Release mouse button
+move_mouse_up = "Up"
+move_mouse_down = "Down"
+move_mouse_left = "Left"
+move_mouse_right = "Right"
 
-# Alternative formats examples:
-# left_click = "Shift+Return"  # Modifier + Return
-# left_click = "Return"        # Single Return key
-# left_click = "Enter"         # Single Enter key
-# left_click = "Cmd+L"         # Use Cmd instead of Shift
-
-# Usage in hints/grid mode:
-# 1. Activate hints or grid mode
-# 2. Type a label to select an element/position
-# 3. Press the direct action key (e.g., Shift+L) to perform the action
-#    The action is performed at the selected position without needing to switch modes
-
-# CLI usage examples:
-# neru action move_mouse --x 500 --y 300          # Move cursor to absolute position
-# neru action move_mouse_relative --dx 10 --dy -5 # Move cursor relatively
-
+# Smooth cursor (animates cursor movement between positions)
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#smooth-cursor
 [smooth_cursor]
-# Whether to enable smooth mouse movement
-# Note that this is not smooth scrolling, but just smooth for moving the mouse cursor from one position to another
-move_mouse_enabled = false
+move_mouse_enabled = false                  # Enable smooth mouse movement
+steps = 10                                  # Number of intermediate positions
+delay = 1                                   # Milliseconds between steps
 
-# Number of steps for smooth movement
-steps = 10
-
-# Delay between steps in milliseconds
-delay = 1
-
+# Systray
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#systray
 [systray]
-# Whether to enable the system tray icon
-# If false, the application will run in headless mode without a menu bar icon
-enabled = true
+enabled = true                              # Show menu bar icon (false = headless mode)
 
+# Logging
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#logging
 [logging]
-# Log level: debug, info, warn, error
-log_level = "info"
-
-# Log file path (empty = default location)
-log_file = ""
-
-# Whether to use structured (JSON) logging
-structured_logging = true
-
-# Whether to disable file logging entirely (logs only to stdout/stderr)
-disable_file_logging = true
-
-# Maximum size in megabytes of the log file before it gets rotated
-max_file_size = 10
-
-# Maximum number of old log files to retain
-max_backups = 5
-
-# Maximum number of days to retain old log files
-max_age = 30
+log_level = "info"                          # debug, info, warn, error
+log_file = ""                               # Custom log path (empty = default location)
+structured_logging = true                   # JSON format
+disable_file_logging = true                 # Console only (no file)
+max_file_size = 10                          # MB before rotation
+max_backups = 5                             # Old log files to keep
+max_age = 30                                # Days to retain old logs

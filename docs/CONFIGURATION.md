@@ -167,17 +167,17 @@ Core behavior settings that affect all Neru functionality.
 
 ### Option Reference
 
-| Option                         | Type   | Default      | Description                                |
-| ------------------------------ | ------ | ------------ | ------------------------------------------ |
-| `excluded_apps`                | array  | `[]`         | Bundle IDs where Neru won't activate       |
-| `accessibility_check_on_start` | bool   | `true`       | Verify accessibility permissions on launch |
-| `restore_cursor_position`      | bool   | `false`      | Return cursor to pre-mode position on exit |
-| `center_cursor_position`       | bool   | `false`      | Center cursor on current screen on exit    |
-| `kb_layout_to_use`             | string | `""`         | Optional InputSourceID for layout mapping  |
-| `mode_exit_keys`               | array  | `["Escape"]` | Keys that exit any active mode             |
-| `passthrough_unbounded_keys`   | bool   | `false`      | Let unbound Cmd/Ctrl/Alt shortcuts reach macOS |
-| `passthrough_unbounded_keys_blacklist` | array | `[]` | Shortcuts to keep consumed while passthrough is enabled |
-| `hide_overlay_in_screen_share` | bool   | `false`      | Hide overlay in screen sharing apps        |
+| Option                                 | Type   | Default      | Description                                             |
+| -------------------------------------- | ------ | ------------ | ------------------------------------------------------- |
+| `excluded_apps`                        | array  | `[]`         | Bundle IDs where Neru won't activate                    |
+| `accessibility_check_on_start`         | bool   | `true`       | Verify accessibility permissions on launch              |
+| `restore_cursor_position`              | bool   | `false`      | Return cursor to pre-mode position on exit              |
+| `center_cursor_position`               | bool   | `false`      | Center cursor on current screen on exit                 |
+| `kb_layout_to_use`                     | string | `""`         | Optional InputSourceID for layout mapping               |
+| `mode_exit_keys`                       | array  | `["Escape"]` | Keys that exit any active mode                          |
+| `passthrough_unbounded_keys`           | bool   | `false`      | Let unbound Cmd/Ctrl/Alt shortcuts reach macOS          |
+| `passthrough_unbounded_keys_blacklist` | array  | `[]`         | Shortcuts to keep consumed while passthrough is enabled |
+| `hide_overlay_in_screen_share`         | bool   | `false`      | Hide overlay in screen sharing apps                     |
 
 ### excluded_apps
 
@@ -240,7 +240,8 @@ center_cursor_position = false  # default
 - `true`: Cursor is centered on the current screen after mode exits
 - `false`: Cursor stays at last navigated position
 
-**Note:** `restore_cursor_position` and `center_cursor_position` are mutually exclusive. Only one can be enabled at a time.
+> [!NOTE]
+> `restore_cursor_position` and `center_cursor_position` are mutually exclusive. Only one can be enabled at a time.
 
 **Use case:** Set to `true` if you want a predictable cursor location after navigation.
 
@@ -260,6 +261,9 @@ Use this when you want physical keys interpreted consistently across multiple ac
 
 Keys that exit any active mode (hints, grid, scroll, recursive_grid). Note that this affects all modes. You can add more mode-specific exit keys in each mode's section.
 
+> [!NOTE]
+> This array **cannot be empty** — at least one exit key must be defined.
+
 ```toml
 [general]
 mode_exit_keys = ["Escape"]           # default
@@ -275,7 +279,8 @@ mode_exit_keys = ["Escape"]           # default
 - With modifiers: `Ctrl+C`, `Cmd+Q`, `Alt+X`
 - Single characters: any single letter or digit
 
-> **Note:** Named key casing is flexible — `"escape"`, `"Escape"`, and `"ESCAPE"` all work. Title case (e.g. `"Escape"`) is the recommended convention.
+> [!NOTE]
+> Named key casing is flexible — `"escape"`, `"Escape"`, and `"ESCAPE"` all work. Title case (e.g. `"Escape"`) is the recommended convention.
 
 ### passthrough_unbounded_keys
 
@@ -291,7 +296,8 @@ passthrough_unbounded_keys = false  # default
 
 **Examples that can pass through:** `Cmd+Tab`, `Cmd+Space`, `Cmd+W`, `Alt+Tab`
 
-> **Note:** Modifier shortcuts that Neru actively uses are still consumed. For example, scroll bindings like `Ctrl+D` or `Cmd+Down` continue working when they are configured in the active mode.
+> [!NOTE]
+> Modifier shortcuts that Neru actively uses are still consumed. For example, scroll bindings like `Ctrl+D` or `Cmd+Down` continue working when they are configured in the active mode.
 
 ### passthrough_unbounded_keys_blacklist
 
@@ -305,6 +311,9 @@ passthrough_unbounded_keys_blacklist = ["Cmd+W", "Cmd+Q"]
 
 Use this when you want macOS shortcuts to keep working in general, but you want to suppress a few of them while a mode is active.
 
+> [!NOTE]
+> Each entry must include at least one of `Cmd`, `Ctrl`, `Alt`, or `Option` as a modifier. Plain keys or Shift-only combos are not valid here.
+
 ### hide_overlay_in_screen_share
 
 Hide Neru overlays during screen sharing.
@@ -317,7 +326,7 @@ hide_overlay_in_screen_share = false  # default
 - `true`: Overlay hidden in shared screens (visible locally)
 - `false`: Overlay always visible
 
-> **Note:** Uses macOS `NSWindow.sharingType` API. Reliability varies:
+> [!NOTE] Uses macOS `NSWindow.sharingType` API. Reliability varies:
 >
 > - macOS 14 and earlier: Works well with most apps
 > - macOS 15.4+: Limited effectiveness with ScreenCaptureKit-based apps
@@ -343,15 +352,16 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | `auto_exit_actions` | array  | `[]`          | Actions that auto-exit after execution (see below) |
 | `mode_exit_keys`    | array  | `[]`          | Additional keys that exit hints mode               |
 | `hint_characters`   | string | `"asdfghjkl"` | Characters used for labels                         |
+| `backspace_key`     | string | `"Backspace"` | Key for input correction (see below)               |
 
 ### Visual Options (`[hints.ui]`)
 
 | Option                     | Type   | Default       | Description                                         |
 | -------------------------- | ------ | ------------- | --------------------------------------------------- |
-| `font_size`                | int    | `10`          | Label font size                                     |
+| `font_size`                | int    | `10`          | Label font size (6–72)                              |
 | `font_family`              | string | `""`          | Font name (empty = system)                          |
 | `border_radius`            | int    | `-1`          | Border radius (`-1` = auto pill)                    |
-| `border_width`             | int    | `1`           | Border width in pixels                              |
+| `border_width`             | int    | `1`           | Border width in pixels (≥ 0)                        |
 | `padding_x`                | int    | `-1`          | Horizontal padding (`-1` = auto based on font size) |
 | `padding_y`                | int    | `-1`          | Vertical padding (`-1` = auto based on font size)   |
 | `background_color_light`   | string | `"#F200CFCF"` | Label background for Light Mode (theme-aware)       |
@@ -367,7 +377,8 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 
 Actions that cause hints mode to exit automatically after execution. When a direct action key (configured in `[action.key_bindings]`) is pressed and matches an action in this list, the mode will exit immediately after performing the action. See [Mouse Movement Actions](#mouse-movement-actions) for available action names.
 
-> **Warning:** Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge (Up/Down/Left/Right), which is usually undesirable. This action is primarily intended for fine-tuning cursor position while staying in the mode.
+> [!WARNING]
+> Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge (Up/Down/Left/Right), which is usually undesirable. This action is primarily intended for fine-tuning cursor position while staying in the mode.
 
 ```toml
 [hints]
@@ -379,7 +390,8 @@ auto_exit_actions = ["left_click", "middle_click"]
 
 Keys that exit hints mode (merged with `general.mode_exit_keys`).
 
-> [!NOTE] `hints.mode_exit_keys` must not conflict with `hints.hint_characters`
+> [!NOTE]
+> `hints.mode_exit_keys` must not conflict with `hints.hint_characters`
 
 ### hint_characters
 
@@ -397,6 +409,23 @@ hint_characters = "asdfghjkl"    # Home row (default, recommended)
 
 - At least 2 unique ASCII characters
 - No duplicates (case-insensitive)
+
+### backspace_key
+
+Key used for input correction (deleting the last typed character) in hints mode.
+
+```toml
+[hints]
+backspace_key = "Backspace"  # default
+# backspace_key = "Delete"   # macOS forward-delete key
+# backspace_key = "x"        # single character
+# backspace_key = "Ctrl+H"   # modifier combo
+```
+
+When empty (`""`), defaults to the standard Backspace/Delete key.
+
+> [!NOTE]
+> `hints.backspace_key` must not conflict with `hints.hint_characters` or `action.key_bindings`. At runtime, action keys are checked before the backspace key, so a conflict means backspace will never fire.
 
 ### Visibility Options
 
@@ -476,11 +505,11 @@ additional_clickable_roles = ["AXTabGroup"]
 
 ### Performance Tuning
 
-| Option                       | Type | Default | Description                           |
-| ---------------------------- | ---- | ------- | ------------------------------------- |
-| `mouse_action_refresh_delay` | int  | `0`     | Delay after click before refresh (ms) |
-| `max_depth`                  | int  | `50`    | Max accessibility tree depth          |
-| `parallel_threshold`         | int  | `20`    | Min children for parallel processing  |
+| Option                       | Type | Default | Description                                      |
+| ---------------------------- | ---- | ------- | ------------------------------------------------ |
+| `mouse_action_refresh_delay` | int  | `0`     | Delay after click before refresh in ms (0–10000) |
+| `max_depth`                  | int  | `50`    | Max accessibility tree depth (0 = unlimited)     |
+| `parallel_threshold`         | int  | `20`    | Min children for parallel processing (≥ 1)       |
 
 ```toml
 [hints]
@@ -605,16 +634,17 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 | `auto_exit_actions` | array  | `[]`                 | Actions that auto-exit after execution (see below) |
 | `mode_exit_keys`    | array  | `[]`                 | Additional keys that exit grid mode                |
 | `characters`        | string | (see below)          | Primary grid labels                                |
-| `sublayer_keys`     | string | (same as characters) | Subgrid labels                                     |
+| `sublayer_keys`     | string | (same as characters) | Subgrid labels (≥ 9 chars for 3×3 subgrid)         |
 | `reset_key`         | string | `" "`                | Key to clear input                                 |
+| `backspace_key`     | string | `"Backspace"`        | Key for input correction                           |
 
 ### Visual Options (`[grid.ui]`)
 
 | Option                           | Type   | Default       | Description                                          |
 | -------------------------------- | ------ | ------------- | ---------------------------------------------------- |
-| `font_size`                      | int    | `10`          | Label font size                                      |
-| `font_family`                    | string | `""`          | Font name                                            |
-| `border_width`                   | int    | `1`           | Cell border width                                    |
+| `font_size`                      | int    | `10`          | Label font size (6–72)                               |
+| `font_family`                    | string | `""`          | Font name (empty = system)                           |
+| `border_width`                   | int    | `1`           | Cell border width (≥ 0)                              |
 | `background_color_light`         | string | `"#9900B4D8"` | Cell background for Light Mode (theme-aware)         |
 | `background_color_dark`          | string | `"#99003554"` | Cell background for Dark Mode (theme-aware)          |
 | `text_color_light`               | string | `"#FF003554"` | Label text for Light Mode (theme-aware)              |
@@ -628,7 +658,8 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 | `border_color_light`             | string | `"#9900B4D8"` | Cell border for Light Mode (theme-aware)             |
 | `border_color_dark`              | string | `"#99003554"` | Cell border for Dark Mode (theme-aware)              |
 
-> **Theme-aware colors:** When these are not set in your config file (empty string `""`),
+> [!NOTE] Theme-aware colors:
+> When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
 > The colors update in real time when you switch system themes. If you explicitly
 > set a value, it is always used regardless of the system theme.
@@ -639,7 +670,8 @@ Grid mode divides the screen into a coordinate-based grid for direct position se
 
 Actions that cause grid mode to exit automatically after execution. See [Mouse Movement Actions](#mouse-movement-actions) for available action names.
 
-> **Warning:** Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge, which is usually undesirable.
+> [!WARNING]
+> Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge, which is usually undesirable.
 
 ```toml
 [grid]
@@ -651,7 +683,8 @@ auto_exit_actions = ["left_click"]
 
 Keys that exit grid mode (merged with `general.mode_exit_keys`).
 
-> [!NOTE] `grid.mode_exit_keys` must not conflict with `grid.characters`, `grid.row_labels`, `grid.col_labels`, `grid.sublayer_keys`, `grid.reset_key`, or `grid.backspace_key`
+> [!NOTE]
+> `grid.mode_exit_keys` must not conflict with `grid.characters`, `grid.row_labels`, `grid.col_labels`, `grid.sublayer_keys`, `grid.reset_key`, or `grid.backspace_key`
 
 ### Character Requirements
 
@@ -725,6 +758,21 @@ reset_key = " "         # default (space)
 
 **Valid formats:** single character, named key (`Home`, `End`, `Tab`, `F1`–`F20`, etc.), or modifier combo (`Ctrl+R`).
 
+### Backspace Key
+
+Key used for input correction (deleting the last typed character) in grid mode.
+
+```toml
+[grid]
+backspace_key = "Backspace"  # default
+# backspace_key = "Ctrl+H"   # modifier combo
+```
+
+When empty (`""`), defaults to the standard Backspace/Delete key.
+
+> [!NOTE]
+> `grid.backspace_key` must not conflict with `grid.characters`, `grid.row_labels`, `grid.col_labels`, `grid.sublayer_keys`, or `action.key_bindings`.
+
 ---
 
 ## Recursive Grid Mode (Recommended)
@@ -746,24 +794,26 @@ Recursive grid divides the screen into cells, narrowing selection with each keyp
 
 ### Basic Configuration
 
-| Option              | Type   | Default  | Description                                        |
-| ------------------- | ------ | -------- | -------------------------------------------------- |
-| `enabled`           | bool   | `true`   | Enable/disable mode                                |
-| `auto_exit_actions` | array  | `[]`     | Actions that auto-exit after execution (see below) |
-| `mode_exit_keys`    | array  | `[]`     | Additional keys that exit recursive-grid mode      |
-| `grid_cols`         | int    | `2`      | Number of columns                                  |
-| `grid_rows`         | int    | `2`      | Number of rows                                     |
-| `keys`              | string | `"uijk"` | Cell selection keys                                |
-| `min_size_width`    | int    | `25`     | Min cell width (pixels)                            |
-| `min_size_height`   | int    | `25`     | Min cell height (pixels)                           |
-| `max_depth`         | int    | `10`     | Maximum recursion levels                           |
-| `reset_key`         | string | `" "`    | Key to reset to start                              |
+| Option              | Type   | Default       | Description                                        |
+| ------------------- | ------ | ------------- | -------------------------------------------------- |
+| `enabled`           | bool   | `true`        | Enable/disable mode                                |
+| `auto_exit_actions` | array  | `[]`          | Actions that auto-exit after execution (see below) |
+| `mode_exit_keys`    | array  | `[]`          | Additional keys that exit recursive-grid mode      |
+| `grid_cols`         | int    | `2`           | Number of columns (≥ 2)                            |
+| `grid_rows`         | int    | `2`           | Number of rows (≥ 2)                               |
+| `keys`              | string | `"uijk"`      | Cell selection keys (exactly cols × rows chars)    |
+| `backspace_key`     | string | `"Backspace"` | Key for backtracking (go up one level)             |
+| `min_size_width`    | int    | `25`          | Min cell width in pixels (≥ 10)                    |
+| `min_size_height`   | int    | `25`          | Min cell height in pixels (≥ 10)                   |
+| `max_depth`         | int    | `10`          | Maximum recursion levels (1–20)                    |
+| `reset_key`         | string | `" "`         | Key to reset to start                              |
 
 ### auto_exit_actions
 
 Actions that cause recursive-grid mode to exit automatically after execution. See [Mouse Movement Actions](#mouse-movement-actions) for available action names.
 
-> **Warning:** Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge, which is usually undesirable.
+> [!WARNING]
+> Including `move_mouse_relative` will cause the mode to exit on every arrow-key nudge, which is usually undesirable.
 
 ```toml
 [recursive_grid]
@@ -775,7 +825,8 @@ auto_exit_actions = ["left_click", "right_click"]
 
 Keys that exit recursive-grid mode (merged with `general.mode_exit_keys`).
 
-> [!NOTE] `recursive_grid.mode_exit_keys` must not conflict with `recursive_grid.keys`, `recursive_grid.reset_key`, or `recursive_grid.backspace_key`
+> [!NOTE]
+> `recursive_grid.mode_exit_keys` must not conflict with `recursive_grid.keys`, `recursive_grid.reset_key`, or `recursive_grid.backspace_key`
 
 ### Grid Dimensions
 
@@ -819,31 +870,53 @@ j   →   k          j = Lower-left
 
 ### Visual Options (`[recursive_grid.ui]`)
 
-| Option                           | Type   | Default       | Description                                  |
-| -------------------------------- | ------ | ------------- | -------------------------------------------- |
-| `line_color_light`               | string | `"#FF007A9E"` | Grid line color for Light Mode (theme-aware) |
-| `line_color_dark`                | string | `"#FF00CFCF"` | Grid line color for Dark Mode (theme-aware)  |
-| `line_width`                     | int    | `1`           | Line thickness                               |
-| `highlight_color_light`          | string | `"#4D007A9E"` | Cell highlight for Light Mode (theme-aware)  |
-| `highlight_color_dark`           | string | `"#4D00CFCF"` | Cell highlight for Dark Mode (theme-aware)   |
-| `text_color_light`               | string | `"#FF007A9E"` | Cell text color for Light Mode (theme-aware) |
-| `text_color_dark`                | string | `"#FF00CFCF"` | Cell text color for Dark Mode (theme-aware)  |
-| `font_size`                      | int    | `10`          | Font size for labels                         |
-| `font_family`                    | string | `""`          | Font family for labels (empty = system)      |
-| `label_background`               | bool   | `false`       | Add rounded backgrounds behind labels        |
-| `label_background_color_light`   | string | `"#FFAAEEFF"` | Label background for Light Mode              |
-| `label_background_color_dark`    | string | `"#FF003554"` | Label background for Dark Mode               |
-| `label_background_padding_x`     | int    | `-1`          | Horizontal badge padding (`-1` = auto)       |
-| `label_background_padding_y`     | int    | `-1`          | Vertical badge padding (`-1` = auto)         |
-| `label_background_border_radius` | int    | `-1`          | Badge border radius (`-1` = auto)            |
-| `label_background_border_width`  | int    | `1`           | Badge border width (`0` disables border)     |
+| Option                             | Type   | Default       | Description                                  |
+| ---------------------------------- | ------ | ------------- | -------------------------------------------- |
+| `line_color_light`                 | string | `"#FF007A9E"` | Grid line color for Light Mode (theme-aware) |
+| `line_color_dark`                  | string | `"#FF00CFCF"` | Grid line color for Dark Mode (theme-aware)  |
+| `line_width`                       | int    | `1`           | Line thickness (≥ 0)                         |
+| `highlight_color_light`            | string | `"#4D007A9E"` | Cell highlight for Light Mode (theme-aware)  |
+| `highlight_color_dark`             | string | `"#4D00CFCF"` | Cell highlight for Dark Mode (theme-aware)   |
+| `text_color_light`                 | string | `"#FF007A9E"` | Cell text color for Light Mode (theme-aware) |
+| `text_color_dark`                  | string | `"#FF00CFCF"` | Cell text color for Dark Mode (theme-aware)  |
+| `font_size`                        | int    | `10`          | Font size for labels (6–72)                  |
+| `font_family`                      | string | `""`          | Font family for labels (empty = system)      |
+| `label_background`                 | bool   | `false`       | Add rounded backgrounds behind labels        |
+| `label_background_color_light`     | string | `"#FFAAEEFF"` | Label background for Light Mode              |
+| `label_background_color_dark`      | string | `"#FF003554"` | Label background for Dark Mode               |
+| `label_background_padding_x`       | int    | `-1`          | Horizontal badge padding (`-1` = auto)       |
+| `label_background_padding_y`       | int    | `-1`          | Vertical badge padding (`-1` = auto)         |
+| `label_background_border_radius`   | int    | `-1`          | Badge border radius (`-1` = auto)            |
+| `label_background_border_width`    | int    | `1`           | Badge border width (≥ 0, `0` disables)       |
+| `sub_key_preview`                  | bool   | `false`       | Draw miniature key grid inside each cell     |
+| `sub_key_preview_font_size`        | int    | `8`           | Font size for sub-key preview labels (4–72)  |
+| `sub_key_preview_text_color_light` | string | `"#66007A9E"` | Sub-key label color for Light Mode           |
+| `sub_key_preview_text_color_dark`  | string | `"#6600CFCF"` | Sub-key label color for Dark Mode            |
 
-> **Theme-aware colors:** When these are not set in your config file (empty string `""`),
+> [!NOTE] Theme-aware colors:
+> When these are not set in your config file (empty string `""`),
 > Neru automatically uses sensible defaults that adapt to your system appearance.
 > The colors update in real time when you switch system themes. If you explicitly
 > set a value, it is always used regardless of the system theme.
 
 When `label_background = true`, Neru keeps the normal recursive-grid cell fill and adds a separate rounded label background behind each letter. The configured alpha is used as-is, so you can control the transparency precisely with `label_background_color_light` and `label_background_color_dark`. Badge geometry is configurable with `label_background_padding_x`, `label_background_padding_y`, `label_background_border_radius`, and `label_background_border_width`. A value of `-1` keeps the automatic sizing behavior for padding and border radius.
+
+When `sub_key_preview = true`, each cell in the recursive grid shows a miniature version of the key grid, giving you a visual preview of which key maps to which sub-region. This is helpful when learning the key layout or using non-default grid dimensions. The preview labels use `sub_key_preview_font_size` and `sub_key_preview_text_color_light`/`sub_key_preview_text_color_dark` for styling. The default colors are set at 40% opacity to keep them subtle.
+
+### Backspace Key
+
+Key used for backtracking (going up one recursion level) in recursive-grid mode.
+
+```toml
+[recursive_grid]
+backspace_key = "Backspace"  # default
+# backspace_key = "Ctrl+H"   # modifier combo
+```
+
+When empty (`""`), defaults to the standard Backspace/Delete key.
+
+> [!NOTE]
+> `recursive_grid.backspace_key` must not conflict with `recursive_grid.keys` or `action.key_bindings`.
 
 ---
 
@@ -861,9 +934,9 @@ Vim-style scrolling at the cursor position.
 
 | Option             | Type  | Default   | Description                           |
 | ------------------ | ----- | --------- | ------------------------------------- |
-| `scroll_step`      | int   | `50`      | Pixels per j/k press                  |
-| `scroll_step_half` | int   | `500`     | Pixels for Ctrl+D/U                   |
-| `scroll_step_full` | int   | `1000000` | Pixels for gg/G (top/bottom)          |
+| `scroll_step`      | int   | `50`      | Pixels per j/k press (≥ 1)            |
+| `scroll_step_half` | int   | `500`     | Pixels for Ctrl+D/U (≥ 1)             |
+| `scroll_step_full` | int   | `1000000` | Pixels for gg/G (top/bottom, ≥ 1)     |
 | `mode_exit_keys`   | array | `[]`      | Additional keys that exit scroll mode |
 
 ```toml
@@ -877,7 +950,8 @@ scroll_step_full = 1000000  # gg/G: jump to top/bottom
 
 Keys that exit scroll mode (merged with `general.mode_exit_keys`).
 
-> [!NOTE] `scroll.mode_exit_keys` must not conflict with `scroll.key_bindings` keys
+> [!NOTE]
+> `scroll.mode_exit_keys` must not conflict with `scroll.key_bindings` keys
 
 ### Key Bindings
 
@@ -963,9 +1037,9 @@ Keyboard-driven cursor movement within hints/grid modes.
 
 ### Configuration
 
-| Option            | Type | Default | Description                |
-| ----------------- | ---- | ------- | -------------------------- |
-| `move_mouse_step` | int  | `10`    | Pixels per arrow key press |
+| Option            | Type | Default | Description                      |
+| ----------------- | ---- | ------- | -------------------------------- |
+| `move_mouse_step` | int  | `10`    | Pixels per arrow key press (≥ 1) |
 
 **Default keybindings:**
 
@@ -1017,16 +1091,17 @@ A small label that follows the cursor showing the current mode.
 
 Each mode has its own sub-table under `[mode_indicator]`. Available modes: `scroll`, `hints`, `grid`, `recursive_grid`.
 
-| Option | Type | Default | Description |
-| ------------------------ | ------ | ------- | ----------------------------------------------------- |
-| `enabled` | bool | varies | Show indicator in this mode |
-| `text` | string | varies | Label text (empty string `""` hides the label) |
-| `background_color_light` | string | `""` | Per-mode background override for Light Mode |
-| `background_color_dark` | string | `""` | Per-mode background override for Dark Mode |
-| `text_color_light` | string | `""` | Per-mode text color override for Light Mode |
-| `text_color_dark` | string | `""` | Per-mode text color override for Dark Mode |
-| `border_color_light` | string | `""` | Per-mode border color override for Light Mode |
-| `border_color_dark` | string | `""` | Per-mode border color override for Dark Mode |
+| Option                   | Type   | Default | Description                                    |
+| ------------------------ | ------ | ------- | ---------------------------------------------- |
+| `enabled`                | bool   | varies  | Show indicator in this mode                    |
+| `text`                   | string | varies  | Label text (empty string `""` hides the label) |
+| `background_color_light` | string | `""`    | Per-mode background override for Light Mode    |
+| `background_color_dark`  | string | `""`    | Per-mode background override for Dark Mode     |
+| `text_color_light`       | string | `""`    | Per-mode text color override for Light Mode    |
+| `text_color_dark`        | string | `""`    | Per-mode text color override for Dark Mode     |
+| `border_color_light`     | string | `""`    | Per-mode border color override for Light Mode  |
+| `border_color_dark`      | string | `""`    | Per-mode border color override for Dark Mode   |
+
 Color overrides are optional. When left empty (`""`), the value from `[mode_indicator.ui]` is used.
 
 ```toml
@@ -1067,7 +1142,7 @@ text = ""
 
 | Option                   | Type   | Default       | Description                                         |
 | ------------------------ | ------ | ------------- | --------------------------------------------------- |
-| `font_size`              | int    | `10`          | Text size                                           |
+| `font_size`              | int    | `10`          | Text size (≥ 1)                                     |
 | `font_family`            | string | `""`          | Font (empty = system)                               |
 | `background_color_light` | string | `"#F200CFCF"` | Background for Light Mode (theme-aware)             |
 | `background_color_dark`  | string | `"#F200CFCF"` | Background for Dark Mode (theme-aware)              |
@@ -1075,7 +1150,7 @@ text = ""
 | `text_color_dark`        | string | `"#FF003554"` | Text for Dark Mode (theme-aware)                    |
 | `border_color_light`     | string | `"#FF007A9E"` | Border for Light Mode (theme-aware)                 |
 | `border_color_dark`      | string | `"#FF007A9E"` | Border for Dark Mode (theme-aware)                  |
-| `border_width`           | int    | `1`           | Border width                                        |
+| `border_width`           | int    | `1`           | Border width (≥ 0)                                  |
 | `padding_x`              | int    | `-1`          | Horizontal padding (`-1` = auto based on font size) |
 | `padding_y`              | int    | `-1`          | Vertical padding (`-1` = auto based on font size)   |
 | `border_radius`          | int    | `-1`          | Border radius (`-1` = auto pill)                    |
@@ -1096,11 +1171,11 @@ Animate cursor movement between positions.
 
 ### Configuration
 
-| Option               | Type | Default | Description                      |
-| -------------------- | ---- | ------- | -------------------------------- |
-| `move_mouse_enabled` | bool | `false` | Enable smooth movement           |
-| `steps`              | int  | `10`    | Number of intermediate positions |
-| `delay`              | int  | `1`     | Milliseconds between steps       |
+| Option               | Type | Default | Description                            |
+| -------------------- | ---- | ------- | -------------------------------------- |
+| `move_mouse_enabled` | bool | `false` | Enable smooth movement                 |
+| `steps`              | int  | `10`    | Number of intermediate positions (≥ 1) |
+| `delay`              | int  | `1`     | Milliseconds between steps (≥ 0)       |
 
 ```toml
 [smooth_cursor]
@@ -1147,7 +1222,8 @@ When disabled:
 - Control via hotkeys and CLI only
 - Useful for minimal setups or custom status bars
 
-> **Note:** Changing this requires restart (`neru config reload` won't work).
+> [!NOTE]
+> Changing this requires restart (`neru config reload` won't work).
 
 ---
 
