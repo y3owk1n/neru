@@ -197,11 +197,17 @@ func (h *Handler) updateRecursiveGridOverlay() {
 
 	// For sub-key preview: resolve what the *next* depth's layout and keys
 	// will be so each cell shows a preview of what pressing that key will produce.
-	nextDepth := currentDepth + 1
-	nextKeys := manager.KeysForDepth(nextDepth)
-	nextLayout := manager.CurrentGrid().LayoutForDepth(nextDepth)
-	nextCols := nextLayout.GridCols
-	nextRows := nextLayout.GridRows
+	// If the grid can no longer be divided (max depth or min size reached),
+	// skip the preview entirely — those keys are unreachable.
+	var nextKeys string
+	var nextCols, nextRows int
+	if manager.CanDivide() {
+		nextDepth := currentDepth + 1
+		nextKeys = manager.KeysForDepth(nextDepth)
+		nextLayout := manager.CurrentGrid().LayoutForDepth(nextDepth)
+		nextCols = nextLayout.GridCols
+		nextRows = nextLayout.GridRows
+	}
 
 	err := h.renderer.DrawRecursiveGrid(
 		manager.CurrentBounds(),
