@@ -854,6 +854,9 @@ keys = "gcrhtn"  # 6 unique characters
 
 Override grid dimensions and keys at specific recursion depths. Depths without an entry use the top-level defaults.
 
+> [!NOTE]
+> Depths are `0`-indexed, so the first layer is depth `0`, and you don't have to start with `0`, it cen be configured at any depth, and the rest fallback to the top-level defaults.
+
 ```toml
 [recursive_grid]
 grid_cols = 2
