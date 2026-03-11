@@ -890,8 +890,10 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	// Guard: labels must contain exactly cols*rows items so that
 	// the positional index (row * cols + col) maps to the correct label.
 	// If they are out of sync the preview would silently misalign.
-	if (count != (NSUInteger)(cols * rows))
+	if (count != (NSUInteger)(cols * rows)) {
+		NSLog(@"[Neru] sub-key preview skipped: label count %lu != cols*rows %d", (unsigned long)count, cols * rows);
 		return;
+	}
 	NSFont *subFont = self.gridSubKeyFont;
 	NSColor *subColor = self.gridSubKeyTextColor;
 	if (!subFont || !subColor)
