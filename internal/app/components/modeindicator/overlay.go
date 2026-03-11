@@ -66,7 +66,7 @@ type Overlay struct {
 	labelCacheMu sync.RWMutex
 	cachedLabels map[string]*C.char
 	// drawMu serializes draw operations against cache invalidation.
-	// Draw paths hold RLock; freeAllCaches holds Lock.
+	// DrawModeIndicator and freeAllCaches both hold Lock.
 	drawMu sync.RWMutex
 }
 
@@ -180,29 +180,22 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	xOffset := o.indicatorConfig.UI.IndicatorXOffset
 	yOffset := o.indicatorConfig.UI.IndicatorYOffset
 
+	// Hold drawMu.Lock for the entire span from mode-change invalidation
+	// through the C draw call.  This eliminates the gap between releasing
+	// the write lock after invalidation and re-acquiring a read lock for
+	// drawing, during which freeAllCaches could reset lastDrawnMode and
+	// free the cache, causing a redundant invalidation cycle on the next
+	// call.  Because only one polling goroutine calls DrawModeIndicator at
+	// a time the broader lock scope has no practical concurrency cost.
+	o.drawMu.Lock()
+
 	// Invalidate the style cache when the mode changes so that per-mode
 	// color overrides are re-resolved instead of reusing stale values.
-	// Both the read and write of lastDrawnMode must happen under drawMu
-	// to avoid racing with freeAllCaches (which also writes lastDrawnMode
-	// and frees the cache under drawMu.Lock).
-	o.drawMu.RLock()
-	needsInvalidation := mode != o.lastDrawnMode
-	o.drawMu.RUnlock()
-	if needsInvalidation {
-		o.drawMu.Lock()
-		// Double-check after acquiring the write lock, in case
-		// freeAllCaches ran between the check and the lock acquisition.
-		if mode != o.lastDrawnMode {
-			o.styleCache.Free()
-			o.lastDrawnMode = mode
-		}
-		o.drawMu.Unlock()
+	if mode != o.lastDrawnMode {
+		o.styleCache.Free()
+		o.lastDrawnMode = mode
 	}
 
-	// Hold drawMu.RLock for the entire span from label lookup through the C
-	// draw call so that freeAllCaches (which takes drawMu.Lock) cannot free
-	// the C strings while they are still referenced.
-	o.drawMu.RLock()
 	label := o.getOrCacheLabel(labelText)
 
 	// Create a single hint for the indicator
@@ -224,7 +217,7 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	modeConfig := o.resolveModeConfig(mode)
 
 	if modeConfig == nil {
-		o.drawMu.RUnlock()
+		o.drawMu.Unlock()
 
 		return
 	}
@@ -303,7 +296,7 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	// Reuse NeruDrawHints which can draw arbitrary labels
 	C.NeruDrawHints(o.window, &hint, 1, style)
 
-	o.drawMu.RUnlock()
+	o.drawMu.Unlock()
 }
 
 // SetConfig sets the overlay configuration.
