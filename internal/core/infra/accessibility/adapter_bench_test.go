@@ -11,28 +11,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
-func BenchmarkScreenBounds(b *testing.B) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient, false)
-	ctx := context.Background()
-
-	for b.Loop() {
-		_, _ = adapter.ScreenBounds(ctx)
-	}
-}
-
-func BenchmarkCursorPosition(b *testing.B) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient, false)
-	ctx := context.Background()
-
-	for b.Loop() {
-		_, _ = adapter.CursorPosition(ctx)
-	}
-}
-
 func BenchmarkIsAppExcluded(b *testing.B) {
 	logger := zap.NewNop()
 	excludedBundles := []string{"com.apple.finder", "com.apple.dock"}

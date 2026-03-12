@@ -9,7 +9,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	_ "github.com/y3owk1n/neru/internal/core/infra/platform/darwin" // Link CGO implementations
+	darwinplatform "github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -25,16 +25,17 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	logger := logger.Get()
-	client := accessibility.NewInfraAXClient(logger, nil)
+	log := logger.Get()
+	client := accessibility.NewInfraAXClient(log, nil)
 	t.Cleanup(func() { client.Cache().Stop() })
 
-	adapter := accessibility.NewAdapter(logger, nil, nil, client, false)
+	adapter := accessibility.NewAdapter(log, nil, nil, client, false)
+	system := darwinplatform.NewSystemAdapter()
 
 	ctx := context.Background()
 
 	t.Run("ScreenBounds", func(t *testing.T) {
-		screenBounds, screenBoundsErr := adapter.ScreenBounds(ctx)
+		screenBounds, screenBoundsErr := system.ScreenBounds(ctx)
 		if screenBoundsErr != nil {
 			t.Fatalf("ScreenBounds() error = %v, want nil", screenBoundsErr)
 		}
@@ -45,7 +46,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("CursorPosition", func(t *testing.T) {
-		pos, err := adapter.CursorPosition(ctx)
+		pos, err := system.CursorPosition(ctx)
 		if err != nil {
 			t.Fatalf("CursorPosition() error = %v, want nil", err)
 		}
@@ -56,7 +57,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 
 	t.Run("MoveCursorToPoint", func(t *testing.T) {
 		// Get current position
-		startPos, startPosErr := adapter.CursorPosition(ctx)
+		startPos, startPosErr := system.CursorPosition(ctx)
 		if startPosErr != nil {
 			t.Fatalf("CursorPosition() error = %v, want nil", startPosErr)
 		}
@@ -64,13 +65,13 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		// Move slightly
 		target := image.Point{X: startPos.X + 10, Y: startPos.Y + 10}
 
-		startPosErr = adapter.MoveCursorToPoint(ctx, target, false)
+		startPosErr = system.MoveCursorToPoint(ctx, target, false)
 		if startPosErr != nil {
 			t.Errorf("MoveCursorToPoint() error = %v, want nil", startPosErr)
 		}
 
 		// Verify position (might be slightly off due to OS acceleration/constraints)
-		newPos, newPosErr := adapter.CursorPosition(ctx)
+		newPos, newPosErr := system.CursorPosition(ctx)
 		if newPosErr != nil {
 			t.Fatalf("CursorPosition() error = %v, want nil", newPosErr)
 		}
@@ -81,7 +82,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 
 	t.Run("MoveCursorToPoint bypassSmooth", func(t *testing.T) {
 		// Get current position
-		startPos, startPosErr := adapter.CursorPosition(ctx)
+		startPos, startPosErr := system.CursorPosition(ctx)
 		if startPosErr != nil {
 			t.Fatalf("CursorPosition() error = %v, want nil", startPosErr)
 		}
@@ -89,7 +90,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		// Move slightly with bypass smooth (direct movement)
 		target := image.Point{X: startPos.X + 20, Y: startPos.Y + 20}
 
-		startPosErr = adapter.MoveCursorToPoint(ctx, target, true)
+		startPosErr = system.MoveCursorToPoint(ctx, target, true)
 		if startPosErr != nil {
 			t.Errorf("MoveCursorToPoint(bypassSmooth=true) error = %v, want nil", startPosErr)
 		}

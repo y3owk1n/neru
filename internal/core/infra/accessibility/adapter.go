@@ -301,23 +301,6 @@ func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
 	return nil
 }
 
-// MoveCursorToPoint moves the mouse cursor to the specified point.
-func (a *Adapter) MoveCursorToPoint(_ context.Context, point image.Point, bypassSmooth bool) error {
-	a.logger.Debug("Moving cursor to point",
-		zap.Int("x", point.X),
-		zap.Int("y", point.Y),
-		zap.Bool("bypassSmooth", bypassSmooth))
-
-	a.client.MoveMouse(point, bypassSmooth)
-
-	return nil
-}
-
-// CursorPosition returns the current cursor position.
-func (a *Adapter) CursorPosition(_ context.Context) (image.Point, error) {
-	return a.client.CursorPosition(), nil
-}
-
 // FocusedAppBundleID returns the bundle ID of the currently focused application.
 func (a *Adapter) FocusedAppBundleID(ctx context.Context) (string, error) {
 	// Check context
@@ -345,19 +328,8 @@ func (a *Adapter) IsAppExcluded(_ context.Context, bundleID string) bool {
 	return a.excludedBundles[bundleID]
 }
 
-// ScreenBounds returns the bounds of the active screen.
-func (a *Adapter) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
-	// Check context
-	err := a.checkContext(ctx)
-	if err != nil {
-		return image.Rectangle{}, err
-	}
-
-	return a.client.ActiveScreenBounds(), nil
-}
-
-// CheckPermissions verifies that accessibility permissions are granted.
-func (a *Adapter) CheckPermissions(ctx context.Context) error {
+// Health checks if the accessibility permissions are granted.
+func (a *Adapter) Health(ctx context.Context) error {
 	// Check context
 	err := a.checkContext(ctx)
 	if err != nil {
@@ -370,11 +342,6 @@ func (a *Adapter) CheckPermissions(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// Health checks if the accessibility permissions are granted.
-func (a *Adapter) Health(ctx context.Context) error {
-	return a.CheckPermissions(ctx)
 }
 
 // UpdateClickableRoles updates the list of clickable roles.
