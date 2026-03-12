@@ -7,11 +7,12 @@ import (
 	"sync/atomic"
 
 	"github.com/atotto/clipboard"
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
-	"go.uber.org/zap"
 )
 
 // AppInterface defines the interface that the systray component needs from the app.

@@ -3,8 +3,9 @@ package grid
 import (
 	"image"
 
-	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
 // Router handles key routing for grid mode operations.

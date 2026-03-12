@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
@@ -18,7 +20,6 @@ import (
 	ipcadapter "github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/ui"
-	"go.uber.org/zap"
 )
 
 // initializeInfrastructure sets up the core infrastructure components

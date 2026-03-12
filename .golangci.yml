@@ -10,6 +10,12 @@ formatters:
         - gofmt
         - gofumpt
         - golines
+    settings:
+        gci:
+            sections:
+                - standard
+                - default
+                - prefix(github.com/y3owk1n/neru)
 linters:
     default: all
     disable:

@@ -15,9 +15,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"go.uber.org/zap"
 )
 
 // Pre-allocated common errors.

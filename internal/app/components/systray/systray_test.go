@@ -5,9 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"go.uber.org/zap/zaptest"
+
 	"github.com/y3owk1n/neru/internal/app/components/systray"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"go.uber.org/zap/zaptest"
 )
 
 // mockApp implements AppInterface for testing.

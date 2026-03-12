@@ -18,9 +18,10 @@ import (
 	"time"
 	"unsafe"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
-	"go.uber.org/zap"
 )
 
 //export resizeHintCompletionCallback

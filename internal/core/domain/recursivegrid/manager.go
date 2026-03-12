@@ -5,9 +5,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"go.uber.org/zap"
 )
 
 // Manager handles recursive-grid navigation state and input processing.

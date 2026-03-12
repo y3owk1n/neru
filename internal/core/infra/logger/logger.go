@@ -7,10 +7,11 @@ import (
 	"strings"
 	"sync"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 const (

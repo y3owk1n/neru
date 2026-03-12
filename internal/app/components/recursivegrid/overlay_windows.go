@@ -5,8 +5,9 @@ package recursivegrid
 import (
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // Style holds the styling information for a recursive grid.

@@ -3,10 +3,11 @@ package app
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	infra "github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"go.uber.org/zap"
 )
 
 // ReloadConfig reloads the configuration from the specified path.

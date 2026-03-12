@@ -6,9 +6,10 @@ import (
 	"slices"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
-	"go.uber.org/zap"
 )
 
 // executeActionAtPoint executes a pending action at the given point and exits the mode.

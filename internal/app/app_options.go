@@ -1,9 +1,10 @@
 package app
 
 import (
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 // Option is a functional option for configuring an App instance.

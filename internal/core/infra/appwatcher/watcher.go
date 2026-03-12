@@ -3,8 +3,9 @@ package appwatcher
 import (
 	"sync"
 
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 )
 
 // AppCallback defines the function signature for application event handlers.

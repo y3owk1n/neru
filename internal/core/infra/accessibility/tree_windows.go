@@ -5,8 +5,9 @@ package accessibility
 import (
 	"image"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // TreeNode represents a node in the accessibility element hierarchy (Windows stub).

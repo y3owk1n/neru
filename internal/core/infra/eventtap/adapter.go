@@ -4,8 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // Adapter implements ports.EventTapPort by wrapping the existing EventTap.

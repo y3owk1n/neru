@@ -5,10 +5,11 @@ package hotkeys
 import (
 	"sync"
 
+	"go.uber.org/zap"
+
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
-	"go.uber.org/zap"
 )
 
 // HotkeyID represents a unique identifier for a registered hotkey.

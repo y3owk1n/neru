@@ -3,6 +3,8 @@ package overlay
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	gridFeature "github.com/y3owk1n/neru/internal/app/components/grid"
 	overlayHints "github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/config"
@@ -11,7 +13,6 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	uiOverlay "github.com/y3owk1n/neru/internal/ui/overlay"
-	"go.uber.org/zap"
 )
 
 // Adapter implements ports.OverlayPort by wrapping the existing overlay.Manager.

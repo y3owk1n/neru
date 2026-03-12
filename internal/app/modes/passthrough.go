@@ -5,9 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"go.uber.org/zap"
 )
 
 // passthroughHintRefreshDelay is the delay before refreshing hints after a

@@ -11,8 +11,9 @@ import "C"
 import (
 	"unsafe"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
+
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 // BaseOverlay holds the common components for an overlay.

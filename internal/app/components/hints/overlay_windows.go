@@ -5,8 +5,9 @@ package hints
 import (
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // StyleMode represents the visual styling configuration for hint overlays.

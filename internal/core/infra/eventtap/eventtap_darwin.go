@@ -16,8 +16,9 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 )
 
 // Callback defines the function signature for handling key press events.

@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	plogger "github.com/y3owk1n/neru/internal/core/infra/logger"
 	"go.uber.org/zap"
+
+	plogger "github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
 func BenchmarkDebugLogging(b *testing.B) {

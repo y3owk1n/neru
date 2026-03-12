@@ -3,11 +3,12 @@ package app
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"go.uber.org/zap"
 )
 
 // IPCControllerLifecycle handles lifecycle-related IPC commands.

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 )
 

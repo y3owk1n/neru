@@ -18,10 +18,11 @@ import (
 	"sync"
 	"unsafe"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
-	"go.uber.org/zap"
 )
 
 //export recursiveGridResizeCompletionCallback

@@ -3,8 +3,9 @@ package config
 import (
 	"context"
 
-	"github.com/y3owk1n/neru/internal/core"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core"
 )
 
 // ReloadWithAppContext reloads configuration with app-specific context and side effects.

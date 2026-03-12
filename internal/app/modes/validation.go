@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
+
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 const (

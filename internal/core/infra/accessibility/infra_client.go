@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"image"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
-	"go.uber.org/zap"
 )
 
 // InfraAXClient implements AXClient using the infrastructure layer.

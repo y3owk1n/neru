@@ -4,9 +4,10 @@ import (
 	"strings"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
-	"go.uber.org/zap"
 )
 
 const (

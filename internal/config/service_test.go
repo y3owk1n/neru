@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 func TestNewService(t *testing.T) {

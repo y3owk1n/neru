@@ -5,8 +5,9 @@ package darwin_test
 import (
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 )
 
 func BenchmarkActiveScreenBounds(b *testing.B) {

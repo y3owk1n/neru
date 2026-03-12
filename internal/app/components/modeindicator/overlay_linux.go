@@ -6,8 +6,9 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // Overlay manages the rendering of mode indicator overlays using native platform APIs (Linux stub).

@@ -5,11 +5,12 @@ import (
 	"image"
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
-	"go.uber.org/zap"
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.

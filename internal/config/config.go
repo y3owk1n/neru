@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 

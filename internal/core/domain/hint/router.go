@@ -1,8 +1,9 @@
 package hint
 
 import (
-	"github.com/y3owk1n/neru/internal/core/domain"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
 // Router handles hint-related key routing and returns routing results.

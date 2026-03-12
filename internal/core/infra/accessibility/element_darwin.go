@@ -16,10 +16,11 @@ import (
 	"sync"
 	"unsafe"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
-	"go.uber.org/zap"
 )
 
 // Element represents a UI element in the macOS accessibility hierarchy.

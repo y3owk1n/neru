@@ -4,13 +4,14 @@ import (
 	"context"
 	"image"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/components"
 	componentrecursivegrid "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
-	"go.uber.org/zap"
 )
 
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter.

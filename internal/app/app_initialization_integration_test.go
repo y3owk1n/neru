@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"go.uber.org/zap"
 )
 
 // TestAppInitializationWithRealComponentsIntegration tests that the app can be initialized with real system components.

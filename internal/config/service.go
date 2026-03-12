@@ -7,9 +7,10 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/toml"
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"go.uber.org/zap"
 )
 
 // AlertProvider defines the interface for displaying native system alerts.

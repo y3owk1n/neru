@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
-	"go.uber.org/zap"
 )
 
 // BenchmarkModeTransitionsIntegration benchmarks mode transitions in integration.

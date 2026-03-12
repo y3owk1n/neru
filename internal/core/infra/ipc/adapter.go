@@ -4,9 +4,10 @@ import (
 	"context"
 	"sync"
 
+	"go.uber.org/zap"
+
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 // Adapter implements ports.IPCPort by wrapping the existing IPC server.

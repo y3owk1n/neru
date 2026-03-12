@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 )
 
 // mockInfraManager is a mock implementation of InfraManager for testing.
