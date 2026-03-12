@@ -92,10 +92,10 @@ type AppWatcherInterface interface {
 func SetAppWatcher(watcher AppWatcherInterface) {}
 
 // StartAppWatcher is a stub.
-func StartAppWatcher() error { return nil }
+func StartAppWatcher() {}
 
 // StopAppWatcher is a stub.
-func StopAppWatcher() error { return nil }
+func StopAppWatcher() {}
 
 // ShowNotification is a stub.
 func ShowNotification(title, message string) {}
