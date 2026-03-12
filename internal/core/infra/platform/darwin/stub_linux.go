@@ -1,7 +1,12 @@
-//go:build linux
+// This file intentionally left empty.
+// The darwin package is only compiled on macOS (all files carry //go:build darwin).
+// If you are seeing a compile error here it means some non-darwin-tagged file
+// is still importing internal/core/infra/platform/darwin — fix that import
+// by using a platform_darwin.go / platform_stub.go dispatch pair instead.
+// See docs/ARCHITECTURE_CROSS_PLATFORM.md.
 
-// Package darwin provides macOS-specific platform implementations.
-// On Linux this file provides stub implementations.
+//go:build ignore
+
 package darwin
 
 import (
@@ -78,6 +83,9 @@ func (s *SystemAdapter) ShowSecureInputNotification() {}
 
 // ShowAlert is a stub.
 func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) error { return nil }
+
+// ShowNotification is a stub.
+func (s *SystemAdapter) ShowNotification(title, message string) {}
 
 // ShowConfigValidationError is a stub.
 func ShowConfigValidationError(errorMessage, configPath string) {}

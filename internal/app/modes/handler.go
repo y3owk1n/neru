@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -113,10 +114,16 @@ func NewHandler(
 ) *Handler {
 	// Initialize screen bounds for coordinate conversion.
 	// Use a background context since this runs during startup.
+	// CodeNotSupported is expected on non-darwin platforms and is silently ignored;
+	// any other error is logged as a warning.
 	var screenBounds image.Rectangle
 
 	if systemPort != nil {
-		screenBounds, _ = systemPort.ScreenBounds(context.Background())
+		var boundsErr error
+		screenBounds, boundsErr = systemPort.ScreenBounds(context.Background())
+		if boundsErr != nil && !derrors.IsNotSupported(boundsErr) {
+			logger.Warn("Failed to get initial screen bounds", zap.Error(boundsErr))
+		}
 	}
 
 	handler := &Handler{
@@ -177,7 +184,11 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 	// Re-read screen bounds under the lock so the onUpdate callback
 	// uses coordinates that match the resized overlay.
 	if h.system != nil {
-		h.screenBounds, _ = h.system.ScreenBounds(context.Background())
+		if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+			h.screenBounds = b
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to refresh screen bounds after screen change", zap.Error(err))
+		}
 	}
 
 	h.hints.Context.SetHints(hintCollection)
@@ -255,7 +266,11 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 	// Re-read screen bounds under the lock so the overlay uses coordinates
 	// that match the resized window.
 	if h.system != nil {
-		h.screenBounds, _ = h.system.ScreenBounds(context.Background())
+		if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+			h.screenBounds = b
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to refresh screen bounds for recursive grid", zap.Error(err))
+		}
 	}
 
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(h.screenBounds)

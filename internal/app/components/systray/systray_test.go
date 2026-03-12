@@ -70,7 +70,7 @@ func TestNewComponent(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockApp := &mockApp{}
 
-	component := systray.NewComponent(mockApp, logger)
+	component := systray.NewComponent(mockApp, nil, logger)
 
 	if component == nil {
 		t.Fatal("NewComponent returned nil")
@@ -84,7 +84,7 @@ func TestComponent_OnReady(t *testing.T) {
 		gridEnabled:  true,
 	}
 
-	component := systray.NewComponent(mockApp, logger)
+	component := systray.NewComponent(mockApp, nil, logger)
 
 	// OnReady should not panic and set up menu items
 	// Note: We can't easily test systray.Run in unit tests
@@ -98,7 +98,7 @@ func TestComponent_OnExit(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockApp := &mockApp{}
 
-	component := systray.NewComponent(mockApp, logger)
+	component := systray.NewComponent(mockApp, nil, logger)
 
 	component.OnExit()
 

@@ -6,30 +6,37 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
+	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
 )
 
-func main() {
-	// Lock to main thread for macOS Cocoa - must be called before any goroutines
-	runtime.LockOSThread()
+// main is defined in main_os.go files (main_darwin.go / main_other.go)
+// so that platform-specific thread locking can be applied before any goroutines start.
+// This file contains only the shared daemon logic.
 
-	cli.LaunchFunc = LaunchDaemon
-
-	cli.Execute()
+type alertProvider struct {
+	system config.AlertProvider
 }
 
-type alertProvider struct{}
+func newAlertProvider() *alertProvider {
+	sp, err := platform.NewSystemPort()
+	if err != nil {
+		return &alertProvider{}
+	}
+
+	return &alertProvider{system: sp}
+}
 
 func (p *alertProvider) ShowAlert(ctx context.Context, title, message string) error {
-	darwin.ShowConfigValidationError(title, message)
+	if p.system != nil {
+		return p.system.ShowAlert(ctx, title, message)
+	}
 
 	return nil
 }
@@ -40,7 +47,7 @@ func LaunchDaemon(configPath string) {
 		config.DefaultConfig(),
 		configPath,
 		zap.NewNop(),
-		&alertProvider{},
+		newAlertProvider(),
 	)
 	configResult := service.LoadWithValidation(configPath)
 
@@ -90,7 +97,8 @@ func LaunchDaemon(configPath string) {
 	}
 }
 
-// showConfigErrorAlert displays a native macOS alert for config validation errors.
+// showConfigErrorAlert displays a native system alert for config validation errors.
 func showConfigErrorAlert(errorMessage, configPath string) {
-	darwin.ShowConfigValidationError(errorMessage, configPath)
+	provider := newAlertProvider()
+	_ = provider.ShowAlert(context.Background(), errorMessage, configPath)
 }

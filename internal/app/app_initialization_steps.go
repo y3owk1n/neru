@@ -176,7 +176,7 @@ func initializeUIComponents(app *App) error {
 
 // initializeSystrayComponent creates and configures the systray component.
 func initializeSystrayComponent(app *App) {
-	systrayComponent := systray.NewComponent(app, app.logger)
+	systrayComponent := systray.NewComponent(app, app.systemPort, app.logger)
 	app.systrayComponent = systrayComponent
 }
 

@@ -1,3 +1,5 @@
+//go:build darwin
+
 package cli
 
 import (
@@ -13,11 +15,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ServicesCmd is the CLI services command for managing launchd service.
+// ServicesCmd is the CLI services command for managing the launchd service (macOS only).
 var ServicesCmd = &cobra.Command{
 	Use:   "services",
-	Short: "Manage the neru launchd service",
-	Long:  `Manage the neru launchd service for automatic startup.`,
+	Short: "Manage the neru launchd service (macOS only)",
+	Long:  `Manage the neru launchd service for automatic startup on macOS.`,
 }
 
 // ServicesInstallCmd is the CLI install subcommand.

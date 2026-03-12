@@ -1,7 +1,11 @@
-// Package systray provides a cross-platform system tray menu implementation.
-// This package wraps platform-specific native code for menu management.
+// Package systray provides the system tray menu implementation.
 //
-// The Objective-C header (systray.h) lives in platform/darwin/ alongside all
-// other macOS headers. The .m implementation must remain in this directory
-// because CGo only compiles .c/.m files co-located with the Go package.
+// Platform-specific files:
+//   - systray_darwin.go + systray.m  — macOS Cocoa implementation (CGo)
+//   - systray_linux.go               — Linux stub (no-op until contributed)
+//   - systray_windows.go             — Windows stub (no-op until contributed)
+//
+// Note: The Objective-C header (systray.h) lives in platform/darwin/ alongside
+// all other macOS headers. The .m implementation must remain in this directory
+// because CGo only compiles .c/.m files co-located with the importing Go package.
 package systray

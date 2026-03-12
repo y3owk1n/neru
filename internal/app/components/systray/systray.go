@@ -11,8 +11,8 @@ import (
 
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // AppInterface defines the interface that the systray component needs from the app.
@@ -43,6 +43,7 @@ type AppInterface interface {
 // Component encapsulates systray functionality.
 type Component struct {
 	app    AppInterface
+	system ports.SystemPort
 	logger *zap.Logger
 
 	// Context for goroutine lifecycle management
@@ -79,10 +80,11 @@ type Component struct {
 }
 
 // NewComponent creates a new systray component.
-func NewComponent(app AppInterface, logger *zap.Logger) *Component {
+func NewComponent(app AppInterface, system ports.SystemPort, logger *zap.Logger) *Component {
 	ctx, cancel := context.WithCancel(context.Background())
 	component := &Component{
 		app:                     app,
+		system:                  system,
 		logger:                  logger,
 		ctx:                     ctx,
 		cancel:                  cancel,
@@ -352,8 +354,8 @@ func (c *Component) handleVersionCopy() {
 	writeToClipboardErr := clipboard.WriteAll(cli.Version)
 	if writeToClipboardErr != nil {
 		c.logger.Error("Error copying version to clipboard", zap.Error(writeToClipboardErr))
-	} else {
-		darwin.ShowNotification("Neru", "Version copied to clipboard")
+	} else if c.system != nil {
+		c.system.ShowNotification("Neru", "Version copied to clipboard")
 	}
 }
 
@@ -385,7 +387,9 @@ func (c *Component) handleToggleScreenShare() {
 		status = "hidden"
 	}
 
-	darwin.ShowNotification("Neru", "Screen share visibility: "+status)
+	if c.system != nil {
+		c.system.ShowNotification("Neru", "Screen share visibility: "+status)
+	}
 }
 
 // updateScreenShareMenuItem updates the screen share menu item text based on state.

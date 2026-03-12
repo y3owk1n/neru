@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
@@ -42,7 +43,11 @@ func (h *Handler) CaptureInitialCursorPosition() {
 	var screenBounds image.Rectangle
 
 	if h.system != nil {
-		screenBounds, _ = h.system.ScreenBounds(ctx)
+		if b, err := h.system.ScreenBounds(ctx); err == nil {
+			screenBounds = b
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to get screen bounds for cursor capture", zap.Error(err))
+		}
 	}
 
 	h.cursorState.Capture(pos, screenBounds)

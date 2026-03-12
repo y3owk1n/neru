@@ -23,6 +23,7 @@ type SystemMock struct {
 	IsSecureInputEnabledFunc        func() bool
 	ShowSecureInputNotificationFunc func()
 	ShowAlertFunc                   func(ctx context.Context, title, message string) error
+	ShowNotificationFunc            func(title, message string)
 	HealthFunc                      func(ctx context.Context) error
 }
 
@@ -152,6 +153,13 @@ func (m *SystemMock) ShowAlert(ctx context.Context, title, message string) error
 	}
 
 	return nil
+}
+
+// ShowNotification is a mock implementation.
+func (m *SystemMock) ShowNotification(title, message string) {
+	if m.ShowNotificationFunc != nil {
+		m.ShowNotificationFunc(title, message)
+	}
 }
 
 // Health is a mock implementation.

@@ -77,5 +77,10 @@ type SystemPort interface {
 	SecureInputPort
 
 	// ShowAlert displays a native system alert/notification.
+	// title   — brief summary shown as the alert heading (e.g. the error message)
+	// message — detail text shown in the alert body (e.g. the config file path)
 	ShowAlert(ctx context.Context, title, message string) error
+
+	// ShowNotification displays a lightweight toast/banner notification.
+	ShowNotification(title, message string)
 }

@@ -26,6 +26,9 @@ func (s *Service) ReloadWithAppContext(
 			zap.String("config_path", loadResult.ConfigPath))
 
 		if s.alertProvider != nil {
+			// ShowAlert(ctx, title, message):
+			//   title   = human-readable error summary
+			//   message = config file path so the user knows which file to fix
 			_ = s.alertProvider.ShowAlert(
 				ctx,
 				loadResult.ValidationError.Error(),

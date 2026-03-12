@@ -10,6 +10,7 @@ import (
 	componentrecursivegrid "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
@@ -36,7 +37,11 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
 	var screenBounds image.Rectangle
 
 	if h.system != nil {
-		screenBounds, _ = h.system.ScreenBounds(context.Background())
+		if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+			screenBounds = b
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to get screen bounds for recursive grid", zap.Error(err))
+		}
 	}
 
 	h.screenBounds = screenBounds

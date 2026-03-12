@@ -17,7 +17,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
@@ -39,7 +38,7 @@ func initializeLogger(config *config.Config) (*zap.Logger, error) {
 	}
 
 	logger := logger.Get()
-	darwin.InitializeLogger(logger)
+	initializePlatformLogger(logger)
 
 	return logger, nil
 }

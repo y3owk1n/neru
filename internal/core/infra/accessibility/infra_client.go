@@ -9,7 +9,6 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 )
 
 // InfraAXClient implements AXClient using the infrastructure layer.
@@ -172,7 +171,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 
 // ActiveScreenBounds returns the bounds of the active screen.
 func (c *InfraAXClient) ActiveScreenBounds() image.Rectangle {
-	return darwin.ActiveScreenBounds()
+	return platformActiveScreenBounds()
 }
 
 // PerformAction performs the specified action at the given point.

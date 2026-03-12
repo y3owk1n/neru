@@ -18,7 +18,6 @@ import (
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/infra/electron"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
 )
 
@@ -516,17 +515,7 @@ func (a *App) Stop() {
 	})
 }
 
-// setupThemeObserver starts the macOS theme change observer and registers
-// a callback that refreshes theme-aware styles (e.g. label_color) when the
-// system appearance changes between Light and Dark Mode.
-func (a *App) setupThemeObserver() {
-	darwin.SetThemeChangeHandler(func(isDark bool) {
-		a.handleThemeChange(isDark)
-	})
-	darwin.StartThemeObserver()
-}
-
-// handleThemeChange is called when the macOS system appearance changes.
+// handleThemeChange is called when the system appearance changes.
 // It refreshes overlay styles that depend on the theme for all active modes.
 func (a *App) handleThemeChange(isDark bool) {
 	a.configMu.RLock()
@@ -586,8 +575,7 @@ func (a *App) Cleanup() {
 
 	// Stop theme observer: nil the handler first so any in-flight KVO callback
 	// (between the async dispatch and actual observer removal) is a no-op.
-	darwin.SetThemeChangeHandler(nil)
-	darwin.StopThemeObserver()
+	a.stopThemeObserver()
 
 	// Stop IPC server first to prevent new requests
 	if a.ipcServer != nil {

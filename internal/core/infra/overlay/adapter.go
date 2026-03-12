@@ -96,6 +96,10 @@ func (a *Adapter) ShowGrid(ctx context.Context) error {
 	}
 
 	// Get screen bounds
+	if a.system == nil {
+		return derrors.New(derrors.CodeActionFailed, "system port not available")
+	}
+
 	bounds, boundsErr := a.system.ScreenBounds(ctx)
 	if boundsErr != nil {
 		return derrors.Wrap(boundsErr, derrors.CodeActionFailed, "failed to get screen bounds")

@@ -114,5 +114,10 @@ func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) er
 	return nil
 }
 
+// ShowNotification displays a lightweight toast/banner notification on macOS.
+func (s *SystemAdapter) ShowNotification(title, message string) {
+	ShowNotification(title, message)
+}
+
 // Ensure SystemAdapter implements ports.SystemPort.
 var _ ports.SystemPort = (*SystemAdapter)(nil)

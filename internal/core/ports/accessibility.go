@@ -28,18 +28,24 @@ type ActionExecution interface {
 
 // ApplicationInfo defines the interface for getting application information.
 type ApplicationInfo interface {
-	// FocusedAppBundleID returns the bundle ID of the currently focused application.
+	// FocusedAppBundleID returns the platform application identifier of the
+	// currently focused application. On macOS this is a bundle ID
+	// (e.g. "com.apple.Safari"). On Linux this will be a desktop ID or
+	// executable name; on Windows an AppUserModelID or executable path.
 	FocusedAppBundleID(ctx context.Context) (string, error)
 
-	// IsAppExcluded checks if the given bundle ID is in the exclusion list.
+	// IsAppExcluded checks if the given application identifier is in the
+	// configured exclusion list. The identifier format is platform-dependent
+	// (see FocusedAppBundleID).
 	IsAppExcluded(ctx context.Context, bundleID string) bool
 }
 
-// AccessibilityPort defines the interface for interacting with the platform accessibility API.
-// Implementations should handle all CGo/Objective-C/System-specific bridge complexity.
+// AccessibilityPort defines the interface for interacting with the platform
+// accessibility API (AXUIElement on macOS, AT-SPI on Linux, UIA on Windows).
+// Implementations handle all platform-specific bridge complexity and live in
+// internal/core/infra/accessibility/.
 //
-// This interface embeds segregated interfaces to reduce duplication and ensure
-// method signatures stay synchronized across different concerns.
+// This interface embeds segregated sub-interfaces to keep each concern focused.
 type AccessibilityPort interface {
 	HealthCheck
 	ElementDiscovery
@@ -67,13 +73,19 @@ type ElementFilter struct {
 	// AdditionalMenubarTargets specifies additional bundle IDs to scan for menubar elements.
 	AdditionalMenubarTargets []string
 
-	// IncludeDock includes dock elements.
+	// IncludeDock includes dock/taskbar elements.
+	// On macOS this queries com.apple.dock.
+	// TODO: map to platform equivalents on Linux/Windows.
 	IncludeDock bool
 
 	// IncludeNotificationCenter includes notification center elements.
+	// On macOS this queries com.apple.notificationcenterui.
+	// TODO: map to platform equivalents on Linux/Windows.
 	IncludeNotificationCenter bool
 
-	// IncludeStageManager includes stage manager elements.
+	// IncludeStageManager includes stage manager / window manager elements.
+	// On macOS this queries com.apple.WindowManager.
+	// TODO: map to platform equivalents on Linux/Windows.
 	IncludeStageManager bool
 }
 

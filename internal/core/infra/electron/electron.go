@@ -7,7 +7,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 )
 
 const (
@@ -60,7 +59,7 @@ func EnsureElectronAccessibility(bundleID string, logger *zap.Logger) bool {
 		return true
 	}
 
-	successSetElectron := darwin.SetApplicationAttribute(pid, electronAttributeName, true)
+	successSetElectron := platformSetApplicationAttribute(pid, electronAttributeName, true)
 
 	if !successSetElectron {
 		logger.Warn(
@@ -123,7 +122,7 @@ func ensureAccessibility(
 		return true
 	}
 
-	success := darwin.SetApplicationAttribute(pid, enhancedAttributeName, true)
+	success := platformSetApplicationAttribute(pid, enhancedAttributeName, true)
 
 	if !success {
 		logger.Warn("Failed to enable AXEnhancedUserInterface", zap.String("bundle_id", bundleID))
