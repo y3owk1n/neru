@@ -4,10 +4,10 @@
 
 # 練る · Neru
 
-**Mouse-free macOS navigation. Free, open-source, endlessly customisable.**
+**Mouse-free cross platform OS navigation. Free, open-source, endlessly customisable.**
 
 [![License](https://img.shields.io/github/license/y3owk1n/neru)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 ![Go Version](https://img.shields.io/github/go-mod/go-version/y3owk1n/neru)
 [![Latest Release](https://img.shields.io/github/v/release/y3owk1n/neru)](https://github.com/y3owk1n/neru/releases)
 
@@ -36,9 +36,15 @@
 
 ---
 
+> [!WARNING]
+> Neru claims that it can be cross platform, but currently only supports macOS.
+> Linux and Windows support foundations are laid out, but for the community to implement together.
+> The author does not have the resources to support Windows and Linux.
+> See [linux support discussion here](https://github.com/y3owk1n/neru/discussions/559)
+
 ## What is Neru?
 
-**Neru (練る)** — Japanese for _"to refine and master through practice"_ — lets you navigate, click, and scroll anywhere on macOS using only your keyboard. No mouse. No trackpad. No limits.
+**Neru (練る)** — Japanese for _"to refine and master through practice"_ — lets you navigate, click, and scroll anywhere on your screen using only your keyboard. No mouse. No trackpad. No limits.
 
 It's the free, open-source alternative to [Homerow](https://www.homerow.app/), [Mouseless](https://mouseless.click/), and [Wooshy](https://wooshy.app) — with zero paywalls, zero subscriptions, and everything configurable down to the last pixel.
 
@@ -202,6 +208,7 @@ Grid mode works universally. Hints mode works where the accessibility tree is ex
 - [CLI Usage](docs/CLI.md) — IPC commands and scripting
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — common issues and app-specific fixes
 - [Development](docs/DEVELOPMENT.md) — architecture and build instructions
+- [Cross-Platform Architecture](docs/ARCHITECTURE_CROSS_PLATFORM.md) — porting guide for Linux/Windows contributors
 
 ---
 

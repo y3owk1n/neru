@@ -40,7 +40,7 @@ neru/
 
 - **Directories**: lowercase, underscore-separated
 - **Files**: lowercase, underscore-separated
-- **Test files**: `*_test.go`, `*_bench_test.go`, `*_integration_test.go`
+- **Test files**: `*_test.go`, `*_integration_darwin_test.go`, `*_integration_linux_test.go`
 
 ## Documentation Standards
 
