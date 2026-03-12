@@ -247,22 +247,42 @@ func handleScreenParametersChanged() {
 
 // HandleAppLaunch simulates an app launch event for testing.
 func HandleAppLaunch(appName, bundleID string) {
-	handleAppLaunch(C.CString(appName), C.CString(bundleID))
+	cName := C.CString(appName)
+	cBundle := C.CString(bundleID)
+	defer C.free(unsafe.Pointer(cName))   //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cBundle)) //nolint:nlreturn
+
+	handleAppLaunch(cName, cBundle)
 }
 
 // HandleAppTerminate simulates an app terminate event for testing.
 func HandleAppTerminate(appName, bundleID string) {
-	handleAppTerminate(C.CString(appName), C.CString(bundleID))
+	cName := C.CString(appName)
+	cBundle := C.CString(bundleID)
+	defer C.free(unsafe.Pointer(cName))   //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cBundle)) //nolint:nlreturn
+
+	handleAppTerminate(cName, cBundle)
 }
 
 // HandleAppActivate simulates an app activate event for testing.
 func HandleAppActivate(appName, bundleID string) {
-	handleAppActivate(C.CString(appName), C.CString(bundleID))
+	cName := C.CString(appName)
+	cBundle := C.CString(bundleID)
+	defer C.free(unsafe.Pointer(cName))   //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cBundle)) //nolint:nlreturn
+
+	handleAppActivate(cName, cBundle)
 }
 
 // HandleAppDeactivate simulates an app deactivate event for testing.
 func HandleAppDeactivate(appName, bundleID string) {
-	handleAppDeactivate(C.CString(appName), C.CString(bundleID))
+	cName := C.CString(appName)
+	cBundle := C.CString(bundleID)
+	defer C.free(unsafe.Pointer(cName))   //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cBundle)) //nolint:nlreturn
+
+	handleAppDeactivate(cName, cBundle)
 }
 
 // HandleScreenParametersChanged simulates a screen parameters changed event for testing.
