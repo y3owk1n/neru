@@ -20,20 +20,42 @@ type EventTap struct {
 }
 
 // NewEventTap initializes a new event tap for Linux (stub).
-func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
-	// TODO: Implement using X11 (XRecord) or Wayland (input-method protocol)
+func NewEventTap(_ Callback, logger *zap.Logger) *EventTap {
 	return &EventTap{logger: logger}
 }
 
-func (et *EventTap) Enable()                                                 {}
-func (et *EventTap) Disable()                                                {}
-func (et *EventTap) Destroy()                                                {}
-func (et *EventTap) SetHotkeys(hotkeys []string)                             {}
-func (et *EventTap) SetModifierPassthrough(enabled bool, blacklist []string) {}
-func (et *EventTap) SetInterceptedModifierKeys(keys []string)                {}
-func (et *EventTap) SetPassthroughCallback(callback PassthroughCallback)     {}
-func (et *EventTap) SetKeyboardLayout(layoutID string) bool                  { return true }
-func (et *EventTap) IsEnabled() bool                                         { return false }
-func (et *EventTap) SetHandler(handler func(key string))                     {}
-func (et *EventTap) EnableWithContext(ctx context.Context) error             { return nil }
-func (et *EventTap) DisableWithContext(ctx context.Context) error            { return nil }
+// Enable enables the event tap (Linux stub).
+func (et *EventTap) Enable() {}
+
+// Disable disables the event tap (Linux stub).
+func (et *EventTap) Disable() {}
+
+// Destroy destroys the event tap (Linux stub).
+func (et *EventTap) Destroy() {}
+
+// SetHotkeys sets the hotkeys (Linux stub).
+func (et *EventTap) SetHotkeys(_ []string) {}
+
+// SetModifierPassthrough sets modifier passthrough (Linux stub).
+func (et *EventTap) SetModifierPassthrough(_ bool, _ []string) {}
+
+// SetInterceptedModifierKeys sets intercepted modifier keys (Linux stub).
+func (et *EventTap) SetInterceptedModifierKeys(_ []string) {}
+
+// SetPassthroughCallback sets the passthrough callback (Linux stub).
+func (et *EventTap) SetPassthroughCallback(_ PassthroughCallback) {}
+
+// SetKeyboardLayout sets the keyboard layout (Linux stub).
+func (et *EventTap) SetKeyboardLayout(_ string) bool { return true }
+
+// IsEnabled returns whether the event tap is enabled (Linux stub).
+func (et *EventTap) IsEnabled() bool { return false }
+
+// SetHandler sets the key handler (Linux stub).
+func (et *EventTap) SetHandler(_ func(key string)) {}
+
+// EnableWithContext enables the event tap with context (Linux stub).
+func (et *EventTap) EnableWithContext(_ context.Context) error { return nil }
+
+// DisableWithContext disables the event tap with context (Linux stub).
+func (et *EventTap) DisableWithContext(_ context.Context) error { return nil }

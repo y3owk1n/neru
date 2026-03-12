@@ -61,14 +61,29 @@ type ElementInfo struct {
 	pid             int
 }
 
-func (ei *ElementInfo) Position() image.Point   { return ei.position }
-func (ei *ElementInfo) Size() image.Point       { return ei.size }
-func (ei *ElementInfo) Title() string           { return ei.title }
-func (ei *ElementInfo) Role() string            { return ei.role }
+// Position returns the element position.
+func (ei *ElementInfo) Position() image.Point { return ei.position }
+
+// Size returns the element size.
+func (ei *ElementInfo) Size() image.Point { return ei.size }
+
+// Title returns the element title.
+func (ei *ElementInfo) Title() string { return ei.title }
+
+// Role returns the element role.
+func (ei *ElementInfo) Role() string { return ei.role }
+
+// RoleDescription returns the element role description.
 func (ei *ElementInfo) RoleDescription() string { return ei.roleDescription }
-func (ei *ElementInfo) IsEnabled() bool         { return ei.isEnabled }
-func (ei *ElementInfo) IsFocused() bool         { return ei.isFocused }
-func (ei *ElementInfo) PID() int                { return ei.pid }
+
+// IsEnabled returns whether the element is enabled.
+func (ei *ElementInfo) IsEnabled() bool { return ei.isEnabled }
+
+// IsFocused returns whether the element is focused.
+func (ei *ElementInfo) IsFocused() bool { return ei.isFocused }
+
+// PID returns the element's process ID.
+func (ei *ElementInfo) PID() int { return ei.pid }
 
 // CheckAccessibilityPermissions verifies permissions for Windows (stub).
 func CheckAccessibilityPermissions() bool {
@@ -91,7 +106,7 @@ func ApplicationByBundleID(bundleID string) *Element { return nil }
 func ElementAtPosition(x, y int) *Element { return nil }
 
 // AllWindows returns all windows (stub).
-func AllWindows() ([]*Element, error) { return nil, nil }
+func AllWindows() ([]*Element, error) { return []*Element{}, nil }
 
 // FrontmostWindow returns the frontmost window (stub).
 func FrontmostWindow() *Element { return nil }

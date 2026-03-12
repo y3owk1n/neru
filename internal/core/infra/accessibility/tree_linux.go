@@ -55,8 +55,8 @@ func (o *TreeOptions) SetMaxDepth(depth int) {}
 func (o *TreeOptions) SetParallelThreshold(threshold int) {}
 
 // BuildTree builds the accessibility tree for the specified root element (Linux stub).
-func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
-	return nil, nil
+func BuildTree(_ *Element, _ TreeOptions) (*TreeNode, error) {
+	return &TreeNode{}, nil
 }
 
 // ProcessClickableNodes processes the clickable nodes in the tree (Linux stub).

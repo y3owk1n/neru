@@ -1,5 +1,7 @@
 //go:build windows
 
+// Package darwin provides macOS-specific platform implementations.
+// On Windows this file provides stub implementations.
 package darwin
 
 import (
@@ -127,21 +129,47 @@ func StartThemeObserver() {}
 // StopThemeObserver stops the system theme observer (Windows stub).
 func StopThemeObserver() {}
 
-// Mouse functions (Windows stub)
-func SetLeftMouseDown(down bool, pos image.Point)                         {}
-func IsLeftMouseDown() bool                                               { return false }
-func GetLastMouseDownPosition() image.Point                               { return image.Point{} }
-func ClearLeftMouseDownState()                                            {}
-func EnsureMouseUp()                                                      {}
-func MoveMouse(point image.Point, bypassSmooth bool)                      {}
-func MoveMouseSmooth(end image.Point, steps, delay int, eventType uint32) {}
-func LeftClickAtPoint(point image.Point, restoreCursor bool) error        { return nil }
-func RightClickAtPoint(point image.Point, restoreCursor bool) error       { return nil }
-func MiddleClickAtPoint(point image.Point, restoreCursor bool) error      { return nil }
-func LeftMouseDownAtPoint(point image.Point) error                        { return nil }
-func LeftMouseUpAtPoint(point image.Point) error                          { return nil }
-func LeftMouseUp() error                                                  { return nil }
-func ScrollAtCursor(deltaX, deltaY int) error                             { return nil }
+// SetLeftMouseDown sets the left mouse down state (Windows stub).
+func SetLeftMouseDown(_ bool, _ image.Point) {}
+
+// IsLeftMouseDown returns whether the left mouse button is down (Windows stub).
+func IsLeftMouseDown() bool { return false }
+
+// GetLastMouseDownPosition returns the last mouse down position (Windows stub).
+func GetLastMouseDownPosition() image.Point { return image.Point{} }
+
+// ClearLeftMouseDownState clears the mouse down state (Windows stub).
+func ClearLeftMouseDownState() {}
+
+// EnsureMouseUp ensures the mouse is up (Windows stub).
+func EnsureMouseUp() {}
+
+// MoveMouse moves the mouse cursor (Windows stub).
+func MoveMouse(_ image.Point, _ bool) {}
+
+// MoveMouseSmooth moves the mouse cursor smoothly (Windows stub).
+func MoveMouseSmooth(_ image.Point, _, _ int, _ uint32) {}
+
+// LeftClickAtPoint performs a left click (Windows stub).
+func LeftClickAtPoint(_ image.Point, _ bool) error { return nil }
+
+// RightClickAtPoint performs a right click (Windows stub).
+func RightClickAtPoint(_ image.Point, _ bool) error { return nil }
+
+// MiddleClickAtPoint performs a middle click (Windows stub).
+func MiddleClickAtPoint(_ image.Point, _ bool) error { return nil }
+
+// LeftMouseDownAtPoint performs a left mouse down (Windows stub).
+func LeftMouseDownAtPoint(_ image.Point) error { return nil }
+
+// LeftMouseUpAtPoint performs a left mouse up (Windows stub).
+func LeftMouseUpAtPoint(_ image.Point) error { return nil }
+
+// LeftMouseUp performs a left mouse up at cursor (Windows stub).
+func LeftMouseUp() error { return nil }
+
+// ScrollAtCursor scrolls at the cursor (Windows stub).
+func ScrollAtCursor(_, _ int) error { return nil }
 
 // CursorPosition is a stub.
 func CursorPosition() image.Point { return image.Point{} }

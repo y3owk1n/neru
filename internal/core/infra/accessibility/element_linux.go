@@ -9,20 +9,13 @@ import (
 )
 
 // Element represents a UI element for Linux (e.g., AT-SPI).
-type Element struct {
-	// TODO: Add Linux-specific fields (e.g., DBus path)
-}
+type Element struct{}
 
-// SetClickableRoles configures which accessibility roles are treated as clickable.
-func SetClickableRoles(roles []string, logger *zap.Logger) {
-	// TODO: Implement for Linux
-}
+// SetClickableRoles configures which accessibility roles are treated as clickable (Linux stub).
+func SetClickableRoles(_ []string, _ *zap.Logger) {}
 
-// ClickableRoles returns the configured clickable roles.
-func ClickableRoles() []string {
-	// TODO: Implement for Linux
-	return nil
-}
+// ClickableRoles returns the configured clickable roles (Linux stub).
+func ClickableRoles() []string { return nil }
 
 // ElementInfo contains metadata and positioning information for a UI element.
 type ElementInfo struct {
@@ -36,166 +29,143 @@ type ElementInfo struct {
 	pid             int
 }
 
-func (ei *ElementInfo) Position() image.Point   { return ei.position }
-func (ei *ElementInfo) Size() image.Point       { return ei.size }
-func (ei *ElementInfo) Title() string           { return ei.title }
-func (ei *ElementInfo) Role() string            { return ei.role }
+// Position returns the element position.
+func (ei *ElementInfo) Position() image.Point { return ei.position }
+
+// Size returns the element size.
+func (ei *ElementInfo) Size() image.Point { return ei.size }
+
+// Title returns the element title.
+func (ei *ElementInfo) Title() string { return ei.title }
+
+// Role returns the element role.
+func (ei *ElementInfo) Role() string { return ei.role }
+
+// RoleDescription returns the element role description.
 func (ei *ElementInfo) RoleDescription() string { return ei.roleDescription }
-func (ei *ElementInfo) IsEnabled() bool         { return ei.isEnabled }
-func (ei *ElementInfo) IsFocused() bool         { return ei.isFocused }
-func (ei *ElementInfo) PID() int                { return ei.pid }
 
-// CheckAccessibilityPermissions verifies permissions for Linux.
-func CheckAccessibilityPermissions() bool {
-	// TODO: Implement for Linux
-	return true
-}
+// IsEnabled returns whether the element is enabled.
+func (ei *ElementInfo) IsEnabled() bool { return ei.isEnabled }
 
-func SystemWideElement() *Element {
-	// TODO: Implement for Linux
-	return nil
-}
+// IsFocused returns whether the element is focused.
+func (ei *ElementInfo) IsFocused() bool { return ei.isFocused }
 
-func FocusedApplication() *Element {
-	// TODO: Implement for Linux
-	return nil
-}
+// PID returns the element's process ID.
+func (ei *ElementInfo) PID() int { return ei.pid }
 
-func ApplicationByPID(pid int) *Element {
-	// TODO: Implement for Linux
-	return nil
-}
+// CheckAccessibilityPermissions verifies permissions for Linux (stub).
+func CheckAccessibilityPermissions() bool { return true }
 
-func ApplicationByBundleID(bundleID string) *Element {
-	// TODO: Implement for Linux
-	return nil
-}
+// SystemWideElement returns the system-wide element (Linux stub).
+func SystemWideElement() *Element { return nil }
 
-func ElementAtPosition(x, y int) *Element {
-	// TODO: Implement for Linux
-	return nil
-}
+// FocusedApplication returns the focused application (Linux stub).
+func FocusedApplication() *Element { return nil }
 
-func (e *Element) Info() (*ElementInfo, error) {
-	// TODO: Implement for Linux
-	return &ElementInfo{}, nil
-}
+// ApplicationByPID returns an application by PID (Linux stub).
+func ApplicationByPID(_ int) *Element { return nil }
 
-func (e *Element) Children(cache *InfoCache) ([]*Element, error) {
-	// TODO: Implement for Linux
-	return nil, nil
-}
+// ApplicationByBundleID returns an application by bundle ID (Linux stub).
+func ApplicationByBundleID(_ string) *Element { return nil }
 
-func (e *Element) SetFocus() error {
-	// TODO: Implement for Linux
-	return nil
-}
+// ElementAtPosition returns the element at a position (Linux stub).
+func ElementAtPosition(_, _ int) *Element { return nil }
 
-func (e *Element) Attribute(name string) (string, error) {
-	// TODO: Implement for Linux
-	return "", nil
-}
+// Info retrieves metadata and positioning information for the element (Linux stub).
+func (e *Element) Info() (*ElementInfo, error) { return &ElementInfo{}, nil }
 
-func (e *Element) Release() {
-	// TODO: Implement for Linux
-}
+// Children returns the element's children (Linux stub).
+func (e *Element) Children(_ *InfoCache) ([]*Element, error) { return []*Element{}, nil }
 
-func ReleaseAll(elements []*Element) {
-	// TODO: Implement for Linux
-}
+// SetFocus sets focus on the element (Linux stub).
+func (e *Element) SetFocus() error { return nil }
 
-func (e *Element) Hash() (uint64, error) {
-	// TODO: Implement for Linux
-	return 0, nil
-}
+// Attribute returns the value of the named attribute (Linux stub).
+func (e *Element) Attribute(_ string) (string, error) { return "", nil }
 
-func (e *Element) Equal(other *Element) bool {
-	// TODO: Implement for Linux
-	return false
-}
+// Release releases the element (Linux stub).
+func (e *Element) Release() {}
 
-func (e *Element) Clone() (*Element, error) {
-	// TODO: Implement for Linux
-	return nil, nil
-}
+// ReleaseAll releases all elements (Linux stub).
+func ReleaseAll(_ []*Element) {}
 
-func AllWindows() ([]*Element, error) {
-	// TODO: Implement for Linux
-	return nil, nil
-}
+// Hash returns a hash of the element (Linux stub).
+func (e *Element) Hash() (uint64, error) { return 0, nil }
 
-func FrontmostWindow() *Element {
-	// TODO: Implement for Linux
-	return nil
-}
+// Equal returns true if the elements are equal (Linux stub).
+func (e *Element) Equal(_ *Element) bool { return false }
 
-func (e *Element) MenuBar() *Element {
-	// TODO: Implement for Linux
-	return nil
-}
+// Clone returns a clone of the element (Linux stub).
+func (e *Element) Clone() (*Element, error) { return &Element{}, nil }
 
-func (e *Element) ApplicationName() string {
-	// TODO: Implement for Linux
-	return ""
-}
+// AllWindows returns all windows (Linux stub).
+func AllWindows() ([]*Element, error) { return []*Element{}, nil }
 
-func (e *Element) BundleIdentifier() string {
-	// TODO: Implement for Linux
-	return ""
-}
+// FrontmostWindow returns the frontmost window (Linux stub).
+func FrontmostWindow() *Element { return nil }
 
-func (e *Element) ScrollBounds() image.Rectangle {
-	// TODO: Implement for Linux
-	return image.Rectangle{}
-}
+// MenuBar returns the menu bar element (Linux stub).
+func (e *Element) MenuBar() *Element { return nil }
 
-func SetLeftMouseDown(down bool, position image.Point) {}
-func IsLeftMouseDown() bool                            { return false }
-func GetLastMouseDownPosition() image.Point            { return image.Point{} }
-func ClearLeftMouseDownState()                         {}
-func EnsureMouseUp()                                   {}
+// ApplicationName returns the application name (Linux stub).
+func (e *Element) ApplicationName() string { return "" }
 
-func MoveMouseToPoint(point image.Point, bypassSmooth bool) {}
-func LeftClickAtPoint(point image.Point, restoreCursor bool) error {
-	return nil
-}
+// BundleIdentifier returns the bundle identifier (Linux stub).
+func (e *Element) BundleIdentifier() string { return "" }
 
-func RightClickAtPoint(point image.Point, restoreCursor bool) error {
-	return nil
-}
+// ScrollBounds returns the scroll bounds (Linux stub).
+func (e *Element) ScrollBounds() image.Rectangle { return image.Rectangle{} }
 
-func MiddleClickAtPoint(point image.Point, restoreCursor bool) error {
-	return nil
-}
+// SetLeftMouseDown sets the left mouse down state (Linux stub).
+func SetLeftMouseDown(_ bool, _ image.Point) {}
 
-func LeftMouseDownAtPoint(point image.Point) error {
-	return nil
-}
+// IsLeftMouseDown returns whether the left mouse button is down (Linux stub).
+func IsLeftMouseDown() bool { return false }
 
-func LeftMouseUpAtPoint(point image.Point) error {
-	return nil
-}
+// GetLastMouseDownPosition returns the last mouse down position (Linux stub).
+func GetLastMouseDownPosition() image.Point { return image.Point{} }
 
-func LeftMouseUp() error {
-	return nil
-}
+// ClearLeftMouseDownState clears the mouse down state (Linux stub).
+func ClearLeftMouseDownState() {}
 
-func ScrollAtCursor(deltaX, deltaY int) error {
-	return nil
-}
+// EnsureMouseUp ensures the mouse is up (Linux stub).
+func EnsureMouseUp() {}
 
-func CurrentCursorPosition() image.Point {
-	return image.Point{}
-}
+// MoveMouseToPoint moves the mouse (Linux stub).
+func MoveMouseToPoint(_ image.Point, _ bool) {}
 
+// LeftClickAtPoint performs a left click (Linux stub).
+func LeftClickAtPoint(_ image.Point, _ bool) error { return nil }
+
+// RightClickAtPoint performs a right click (Linux stub).
+func RightClickAtPoint(_ image.Point, _ bool) error { return nil }
+
+// MiddleClickAtPoint performs a middle click (Linux stub).
+func MiddleClickAtPoint(_ image.Point, _ bool) error { return nil }
+
+// LeftMouseDownAtPoint performs a left mouse down (Linux stub).
+func LeftMouseDownAtPoint(_ image.Point) error { return nil }
+
+// LeftMouseUpAtPoint performs a left mouse up (Linux stub).
+func LeftMouseUpAtPoint(_ image.Point) error { return nil }
+
+// LeftMouseUp performs a left mouse up at cursor (Linux stub).
+func LeftMouseUp() error { return nil }
+
+// ScrollAtCursor scrolls at the cursor (Linux stub).
+func ScrollAtCursor(_, _ int) error { return nil }
+
+// CurrentCursorPosition returns the cursor position (Linux stub).
+func CurrentCursorPosition() image.Point { return image.Point{} }
+
+// IsClickable checks if the element is clickable (Linux stub).
 func (e *Element) IsClickable(
-	info *ElementInfo,
-	allowedRoles map[string]struct{},
-	cache *InfoCache,
+	_ *ElementInfo,
+	_ map[string]struct{},
+	_ *InfoCache,
 ) bool {
 	return false
 }
 
-func IsMissionControlActive() bool {
-	return false
-}
+// IsMissionControlActive returns whether Mission Control is active (Linux stub).
+func IsMissionControlActive() bool { return false }

@@ -3,8 +3,6 @@
 package hotkeys
 
 import (
-	"sync"
-
 	"go.uber.org/zap"
 )
 
@@ -17,7 +15,6 @@ type Callback func()
 // Manager handles the registration, unregistration, and dispatching of global hotkeys.
 type Manager struct {
 	callbacks map[HotkeyID]Callback
-	mu        sync.RWMutex
 	logger    *zap.Logger
 	nextID    HotkeyID
 }
@@ -32,23 +29,17 @@ func NewManager(logger *zap.Logger) *Manager {
 }
 
 // Register adds a new global hotkey (Linux stub).
-func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error) {
+func (m *Manager) Register(keyString string, _ Callback) (HotkeyID, error) {
 	m.logger.Debug("Registering hotkey (Linux stub)", zap.String("key", keyString))
-	// TODO: Implement using X11 (XGrabKey) or Wayland (global-shortcuts protocol)
+
 	return 0, nil
 }
 
 // Unregister removes a previously registered hotkey by its ID (Linux stub).
-func (m *Manager) Unregister(hotkeyID HotkeyID) {
-	// TODO: Implement for Linux
-}
+func (m *Manager) Unregister(_ HotkeyID) {}
 
 // UnregisterAll removes all currently registered hotkeys (Linux stub).
-func (m *Manager) UnregisterAll() {
-	// TODO: Implement for Linux
-}
+func (m *Manager) UnregisterAll() {}
 
 // SetGlobalManager assigns the global manager instance (Linux stub).
-func SetGlobalManager(manager *Manager) {
-	// TODO: Implement for Linux
-}
+func SetGlobalManager(_ *Manager) {}

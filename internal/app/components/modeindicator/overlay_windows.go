@@ -1,10 +1,10 @@
 //go:build windows
 
+// Package modeindicator provides mode indicator overlay components.
 package modeindicator
 
 import (
 	"sync"
-	"unsafe"
 
 	"go.uber.org/zap"
 
@@ -13,13 +13,10 @@ import (
 
 // Overlay manages the rendering of mode indicator overlays using native platform APIs (Windows stub).
 type Overlay struct {
-	window          unsafe.Pointer
 	indicatorConfig config.ModeIndicatorConfig
 	theme           config.ThemeProvider
 	logger          *zap.Logger
 	configMu        sync.RWMutex
-	lastDrawnMode   string
-	drawMu          sync.Mutex
 }
 
 // NewOverlay initializes a new mode indicator overlay instance with its own window (Windows stub).
@@ -59,6 +56,7 @@ func (o *Overlay) Destroy() {}
 func (o *Overlay) SetConfig(cfg config.ModeIndicatorConfig) {
 	o.configMu.Lock()
 	defer o.configMu.Unlock()
+
 	o.indicatorConfig = cfg
 }
 
@@ -71,5 +69,6 @@ func (o *Overlay) SetIndicatorConfig(cfg config.ModeIndicatorConfig) {
 func (o *Overlay) IndicatorConfig() config.ModeIndicatorConfig {
 	o.configMu.RLock()
 	defer o.configMu.RUnlock()
+
 	return o.indicatorConfig
 }

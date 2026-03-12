@@ -10,8 +10,6 @@ var (
 	menuItems     = make(map[int]*MenuItem)
 	menuItemsLock sync.RWMutex
 	nextID        = 1
-	onReady       func()
-	onExit        func()
 )
 
 // MenuItem represents a menu item in the system tray (Linux stub).
@@ -180,6 +178,4 @@ func ResetForTesting() {
 
 	menuItems = make(map[int]*MenuItem)
 	nextID = 1
-	onReady = nil
-	onExit = nil
 }

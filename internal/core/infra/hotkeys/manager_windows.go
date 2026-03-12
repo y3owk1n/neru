@@ -3,8 +3,6 @@
 package hotkeys
 
 import (
-	"sync"
-
 	"go.uber.org/zap"
 )
 
@@ -17,7 +15,6 @@ type Callback func()
 // Manager handles the registration, unregistration, and dispatching of global hotkeys (Windows stub).
 type Manager struct {
 	callbacks map[HotkeyID]Callback
-	mu        sync.RWMutex
 	logger    *zap.Logger
 	nextID    HotkeyID
 }

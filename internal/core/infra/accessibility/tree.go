@@ -24,6 +24,19 @@ import (
 // Pre-allocated common errors.
 var errRootElementNil = derrors.New(derrors.CodeAccessibilityFailed, "root element is nil")
 
+// rectFromInfo converts an ElementInfo's position and size into an image.Rectangle.
+func rectFromInfo(info *ElementInfo) image.Rectangle {
+	pos := info.Position()
+	size := info.Size()
+
+	return image.Rect(
+		pos.X,
+		pos.Y,
+		pos.X+size.X,
+		pos.Y+size.Y,
+	)
+}
+
 // treeNodePool is a pool of TreeNode structs to reduce GC pressure during
 // tree building. Hundreds of nodes are allocated per activation and released
 // shortly after processClickableNodes extracts the kept elements.
