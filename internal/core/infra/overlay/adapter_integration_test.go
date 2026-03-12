@@ -1,4 +1,4 @@
-//go:build integration
+//go:build integration && darwin
 
 package overlay_test
 
