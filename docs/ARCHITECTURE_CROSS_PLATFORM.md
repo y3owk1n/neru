@@ -14,6 +14,7 @@ If you violate this rule, `golangci-lint` will fail with a `depguard` error
 pointing you back to this document.
 
 The only code that may import `platform/darwin` is:
+
 - Files inside `internal/core/infra/platform/darwin/` (all carry `//go:build darwin`)
 - Files named `*_darwin.go` in any package (they carry `//go:build darwin`)
 - Integration test files named `*integration_darwin_test.go`
@@ -33,10 +34,14 @@ The only code that may import `platform/darwin` is:
 │  internal/core/ports  (interfaces only, no OS code)     │
 ├─────────────────────────────────────────────────────────┤
 │  internal/core/infra/platform/                          │
-│    factory.go          ← runtime.GOOS switch            │
-│    darwin/             ← //go:build darwin on all files │
-│    linux/              ← pure Go, no CGo                │
-│    windows/            ← pure Go, no CGo                │
+│    factory.go           ← shared package doc + error    │
+│    factory_darwin.go    ← //go:build darwin             │
+│    factory_linux.go     ← //go:build linux              │
+│    factory_windows.go   ← //go:build windows            │
+│    factory_others.go    ← //go:build !darwin&&!linux&&!windows │
+│    darwin/              ← //go:build darwin on all files│
+│    linux/               ← pure Go, no CGo               │
+│    windows/             ← pure Go, no CGo               │
 ├─────────────────────────────────────────────────────────┤
 │  internal/core/infra/  (other infra: hotkeys, eventtap) │
 │    package_darwin.go   ← platform dispatch (darwin)     │
@@ -45,7 +50,8 @@ The only code that may import `platform/darwin` is:
 ```
 
 OS selection happens **only** at:
-1. `internal/core/infra/platform/factory.go` — `NewSystemPort()` picks the right adapter.
+
+1. `internal/core/infra/platform/factory_<os>.go` — build-tagged files, each returning the right `SystemPort` adapter.
 2. Build-tagged `*_darwin.go` / `*_stub.go` pairs inside infra packages.
 
 ---
@@ -54,20 +60,22 @@ OS selection happens **only** at:
 
 ### Step 1 — Find the right adapter
 
-| What you want to implement | Where to implement it |
-|---|---|
-| Screen bounds, cursor, dark mode, notifications | `internal/core/infra/platform/<os>/system.go` |
-| Global hotkeys | `internal/core/infra/hotkeys/manager_<os>.go` |
-| Global keyboard event tap | `internal/core/infra/eventtap/eventtap_<os>.go` |
-| Application watcher (launch/activate events) | `internal/core/infra/appwatcher/platform_<os>.go` |
-| UI overlays | `internal/app/components/*/overlay_<os>.go` |
+| What you want to implement                      | Where to implement it                             |
+| ----------------------------------------------- | ------------------------------------------------- |
+| Screen bounds, cursor, dark mode, notifications | `internal/core/infra/platform/<os>/system.go`     |
+| Global hotkeys                                  | `internal/core/infra/hotkeys/manager_<os>.go`     |
+| Global keyboard event tap                       | `internal/core/infra/eventtap/eventtap_<os>.go`   |
+| Application watcher (launch/activate events)    | `internal/core/infra/appwatcher/platform_<os>.go` |
+| UI overlays                                     | `internal/app/components/*/overlay_<os>.go`       |
 
 ### Step 2 — Replace the `CodeNotSupported` stub
 
 Most unimplemented methods currently return:
+
 ```go
 return derrors.New(derrors.CodeNotSupported, "X not yet implemented on linux")
 ```
+
 Replace that with a real implementation. Remove the `TODO` comment when done.
 
 ### Step 3 — Add a test
@@ -106,18 +114,22 @@ If you need a new OS-specific operation that doesn't exist in `ports.SystemPort`
 If the operation is only needed in one infra package (e.g., `appwatcher`):
 
 1. Create `internal/core/infra/<package>/platform_darwin.go`:
-   ```go
-   //go:build darwin
-   package <package>
-   import "github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
-   func platformDoThing() { darwin.DoThing() }
-   ```
+
+    ```go
+    //go:build darwin
+    package <package>
+    import "github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
+    func platformDoThing() { darwin.DoThing() }
+    ```
+
 2. Create `internal/core/infra/<package>/platform_stub.go`:
-   ```go
-   //go:build !darwin
-   package <package>
-   func platformDoThing() {}
-   ```
+
+    ```go
+    //go:build !darwin
+    package <package>
+    func platformDoThing() {}
+    ```
+
 3. Call `platformDoThing()` from the package's shared code (no build tag needed there).
 
 **Never import `platform/darwin` from shared (untagged) code.** Use Option A or B.
@@ -139,17 +151,17 @@ functions which resolve to the right implementation per platform.
 
 ## Platform status
 
-| Capability | macOS | Linux | Windows |
-|---|---|---|---|
-| Screen bounds / cursor | ✅ | 🔲 TODO | 🔲 TODO |
-| Global hotkeys | ✅ | 🔲 TODO | 🔲 TODO |
-| Keyboard event tap | ✅ | 🔲 TODO | 🔲 TODO |
-| Accessibility (clickable elements) | ✅ | 🔲 TODO (AT-SPI) | 🔲 TODO (UIA) |
-| UI overlays | ✅ | 🔲 TODO | 🔲 TODO |
-| App watcher | ✅ | 🔲 TODO | 🔲 TODO |
-| Dark mode detection | ✅ | 🔲 TODO | 🔲 TODO |
-| Notifications / alerts | ✅ | 🔲 TODO | 🔲 TODO |
-| Config / log directories | ✅ | ✅ (XDG) | ✅ (AppData) |
+| Capability                         | macOS | Linux            | Windows       |
+| ---------------------------------- | ----- | ---------------- | ------------- |
+| Screen bounds / cursor             | ✅    | 🔲 TODO          | 🔲 TODO       |
+| Global hotkeys                     | ✅    | 🔲 TODO          | 🔲 TODO       |
+| Keyboard event tap                 | ✅    | 🔲 TODO          | 🔲 TODO       |
+| Accessibility (clickable elements) | ✅    | 🔲 TODO (AT-SPI) | 🔲 TODO (UIA) |
+| UI overlays                        | ✅    | 🔲 TODO          | 🔲 TODO       |
+| App watcher                        | ✅    | 🔲 TODO          | 🔲 TODO       |
+| Dark mode detection                | ✅    | 🔲 TODO          | 🔲 TODO       |
+| Notifications / alerts             | ✅    | 🔲 TODO          | 🔲 TODO       |
+| Config / log directories           | ✅    | ✅ (XDG)         | ✅ (AppData)  |
 
 🔲 = stub returns `CodeNotSupported`. Replace with real implementation.
 
@@ -158,11 +170,13 @@ functions which resolve to the right implementation per platform.
 ## Error handling in stubs
 
 Stubs that are not yet implemented return:
+
 ```go
 derrors.New(derrors.CodeNotSupported, "X not yet implemented on <os>")
 ```
 
 Callers that need to degrade gracefully should check:
+
 ```go
 if derrors.IsNotSupported(err) {
     // skip or log, don't crash
@@ -185,6 +199,7 @@ just test          # unit tests
 ```
 
 Cross-compilation from macOS:
+
 ```bash
 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build ./cmd/neru
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build ./cmd/neru
@@ -201,6 +216,7 @@ and macOS `.plist` files. On Linux/Windows, `services_other.go` provides a stub
 that prints a helpful message pointing users to their native service manager.
 
 **To add Linux service management:**
+
 1. Create `internal/cli/services_linux.go` with `//go:build linux`.
 2. Implement install/uninstall/start/stop using `systemctl` (systemd) or a
    cross-distro approach.
@@ -223,13 +239,13 @@ for Cocoa's main-thread requirement. `main_other.go` omits this. Never add
 
 Platform-specific defaults live in `internal/config/`:
 
-| File | Purpose |
-|---|---|
-| `config_darwin.go` | macOS bundle IDs for excluded apps, AX roles |
-| `config_linux.go` | Linux app IDs (desktop IDs), AT-SPI roles |
-| `config_windows.go` | Windows UIA control type roles |
-| `config_defaults.go` | `commonDefaultConfig()` — shared baseline |
-| `config_platform.go` | `DefaultConfig()` — calls common + platform |
+| File                 | Purpose                                      |
+| -------------------- | -------------------------------------------- |
+| `config_darwin.go`   | macOS bundle IDs for excluded apps, AX roles |
+| `config_linux.go`    | Linux app IDs (desktop IDs), AT-SPI roles    |
+| `config_windows.go`  | Windows UIA control type roles               |
+| `config_defaults.go` | `commonDefaultConfig()` — shared baseline    |
+| `config_platform.go` | `DefaultConfig()` — calls common + platform  |
 
 To add defaults for a new platform, add `applyPlatformDefaults` logic to the
 relevant `config_<os>.go` file.
@@ -241,11 +257,11 @@ relevant `config_<os>.go` file.
 The codebase uses "bundle ID" as a generic term for the platform application
 identifier. The mapping per platform is:
 
-| Platform | Term | Example |
-|---|---|---|
-| macOS | Bundle ID | `com.apple.Safari` |
-| Linux | Desktop ID / executable | `firefox.desktop` or `firefox` |
-| Windows | AppUserModelID / executable | `Microsoft.Edge` or `msedge.exe` |
+| Platform | Term                        | Example                          |
+| -------- | --------------------------- | -------------------------------- |
+| macOS    | Bundle ID                   | `com.apple.Safari`               |
+| Linux    | Desktop ID / executable     | `firefox.desktop` or `firefox`   |
+| Windows  | AppUserModelID / executable | `Microsoft.Edge` or `msedge.exe` |
 
 The `FocusedAppBundleID` method in `ports.AccessibilityPort` returns whatever
 the platform uses. The exclusion list in config (`general.excluded_apps`) should
