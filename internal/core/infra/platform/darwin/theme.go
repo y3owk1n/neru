@@ -47,6 +47,6 @@ func handleThemeChanged(isDark C.int) {
 	themeHandlerMu.RUnlock()
 
 	if handler != nil {
-		handler(isDark != 0)
+		go handler(isDark != 0)
 	}
 }

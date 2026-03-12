@@ -5,6 +5,7 @@ package darwin
 import (
 	"context"
 	"image"
+	"unsafe"
 
 	"go.uber.org/zap"
 )
@@ -135,3 +136,54 @@ func LeftMouseDownAtPoint(point image.Point) error                        { retu
 func LeftMouseUpAtPoint(point image.Point) error                          { return nil }
 func LeftMouseUp() error                                                  { return nil }
 func ScrollAtCursor(deltaX, deltaY int) error                             { return nil }
+
+// CursorPosition is a stub.
+func CursorPosition() image.Point { return image.Point{} }
+
+// HasClickAction is a stub.
+func HasClickAction(element unsafe.Pointer) bool { return false }
+
+// IsDarkMode is a stub (package-level).
+func IsDarkMode() bool { return false }
+
+// FreeCString is a stub.
+func FreeCString(ptr unsafe.Pointer) {}
+
+// MallocCallbackContext is a stub.
+func MallocCallbackContext(callbackID, generation uint64) unsafe.Pointer { return nil }
+
+// FreeCallbackContext is a stub.
+func FreeCallbackContext(ptr unsafe.Pointer) {}
+
+// SetReferenceKeyboardLayout is a stub.
+func SetReferenceKeyboardLayout(inputSourceID string) bool { return true }
+
+// RegisterHotkey is a stub.
+func RegisterHotkey(
+	keyCode, modifiers, hotkeyID int,
+	callback unsafe.Pointer,
+	userData unsafe.Pointer,
+) bool {
+	return false
+}
+
+// UnregisterHotkey is a stub.
+func UnregisterHotkey(hotkeyID int) {}
+
+// UnregisterAllHotkeys is a stub.
+func UnregisterAllHotkeys() {}
+
+// ParseKeyString is a stub.
+func ParseKeyString(keyString string) (int, int, bool) { return 0, 0, false }
+
+// HotkeyHandler defines the signature for hotkey event handlers (stub).
+type HotkeyHandler func(hotkeyID int)
+
+// SetHotkeyHandler is a stub.
+func SetHotkeyHandler(handler HotkeyHandler) {}
+
+// GetHotkeyCallbackBridge is a stub.
+func GetHotkeyCallbackBridge() unsafe.Pointer { return nil }
+
+// Logger returns nil on non-darwin (stub).
+func Logger() *zap.Logger { return nil }

@@ -241,7 +241,7 @@ func handleScreenParametersChanged() {
 
 	if watcher != nil {
 		log.Debug("Darwin: Forwarding screen parameters changed event")
-		watcher.HandleScreenParametersChanged()
+		go watcher.HandleScreenParametersChanged()
 	}
 }
 

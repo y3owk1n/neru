@@ -21,6 +21,9 @@ func NewSystemPort() (ports.SystemPort, error) {
 		return darwin.NewSystemAdapter(), nil
 	case "linux":
 		return linux.NewSystemAdapter(), nil
+	case "windows":
+		// Windows uses the darwin package stub (stub_windows.go provides no-op implementations).
+		return darwin.NewSystemAdapter(), nil
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedPlatform, runtime.GOOS)
 	}

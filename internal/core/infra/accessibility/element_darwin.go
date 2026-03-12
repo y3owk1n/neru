@@ -30,10 +30,6 @@ type Element struct {
 var (
 	clickableRoles   = make(map[string]struct{})
 	clickableRolesMu sync.RWMutex
-
-	isLeftMouseDown       bool
-	isLeftMouseDownMu     sync.RWMutex
-	lastMouseDownPosition image.Point
 )
 
 var (

@@ -34,13 +34,9 @@ func applyPlatformDefaults(cfg *Config) {
 		"AXSwitch",
 		"AXDisclosureTriangle",
 		"AXTextArea",
-		"AXMenuItem",
 		"AXMenuButton",
-		"AXLevelIndicator",
-		"AXRadioGroup",
-		"AXSegmentedControl",
-		"AXSearchField",
-		"AXImage",
-		"AXStaticText",
+		"AXMenuItem",
+		"AXCell",
+		"AXRow",
 	)
 }

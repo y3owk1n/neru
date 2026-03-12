@@ -13,6 +13,10 @@ import "unsafe"
 
 // HasClickAction checks if the accessibility element has a click action.
 func HasClickAction(element unsafe.Pointer) bool {
+	if element == nil {
+		return false
+	}
+
 	result := C.hasClickAction(element) != 0 //nolint:nlreturn
 
 	return result
