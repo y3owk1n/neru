@@ -28,11 +28,13 @@ func FocusedApplicationPID() (int, error) {
 		return 0, derrors.New(derrors.CodeAccessibilityFailed, "failed to get focused application")
 	}
 	defer C.releaseElement(ref) //nolint:nlreturn
-	info := C.getElementInfo(ref)
+
+	info := C.getElementInfo(ref) //nolint:nlreturn
 	if info == nil {
 		return 0, derrors.New(derrors.CodeAccessibilityFailed, "failed to get element info")
 	}
 	defer C.freeElementInfo(info) //nolint:nlreturn
+
 	return int(info.pid), nil
 }
 
@@ -40,12 +42,21 @@ func FocusedApplicationPID() (int, error) {
 func ApplicationNameByPID(pid int) (string, error) {
 	ref := C.getApplicationByPID(C.int(pid))
 	if ref == nil {
-		return "", derrors.Newf(derrors.CodeAccessibilityFailed, "failed to get application for PID %d", pid)
+		return "", derrors.Newf(
+			derrors.CodeAccessibilityFailed,
+			"failed to get application for PID %d",
+			pid,
+		)
 	}
 	defer C.releaseElement(ref) //nolint:nlreturn
-	cName := C.getApplicationName(ref)
+
+	cName := C.getApplicationName(ref) //nolint:nlreturn
 	if cName == nil {
-		return "", derrors.Newf(derrors.CodeAccessibilityFailed, "failed to get application name for PID %d", pid)
+		return "", derrors.Newf(
+			derrors.CodeAccessibilityFailed,
+			"failed to get application name for PID %d",
+			pid,
+		)
 	}
 	defer C.freeString(cName) //nolint:nlreturn
 	return C.GoString(cName), nil
@@ -55,12 +66,21 @@ func ApplicationNameByPID(pid int) (string, error) {
 func ApplicationBundleIDByPID(pid int) (string, error) {
 	ref := C.getApplicationByPID(C.int(pid))
 	if ref == nil {
-		return "", derrors.Newf(derrors.CodeAccessibilityFailed, "failed to get application for PID %d", pid)
+		return "", derrors.Newf(
+			derrors.CodeAccessibilityFailed,
+			"failed to get application for PID %d",
+			pid,
+		)
 	}
 	defer C.releaseElement(ref) //nolint:nlreturn
-	cBundleID := C.getBundleIdentifier(ref)
+
+	cBundleID := C.getBundleIdentifier(ref) //nolint:nlreturn
 	if cBundleID == nil {
-		return "", derrors.Newf(derrors.CodeAccessibilityFailed, "failed to get bundle ID for PID %d", pid)
+		return "", derrors.Newf(
+			derrors.CodeAccessibilityFailed,
+			"failed to get bundle ID for PID %d",
+			pid,
+		)
 	}
 	defer C.freeString(cBundleID) //nolint:nlreturn
 	return C.GoString(cBundleID), nil

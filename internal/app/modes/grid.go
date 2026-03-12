@@ -82,7 +82,8 @@ func (h *Handler) createGridInstance() *domainGrid.Grid {
 	var screenBounds image.Rectangle
 
 	if h.system != nil {
-		if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+		b, err := h.system.ScreenBounds(context.Background())
+		if err == nil {
 			screenBounds = b
 		} else if !derrors.IsNotSupported(err) {
 			h.logger.Warn("Failed to get screen bounds for grid", zap.Error(err))
@@ -132,7 +133,8 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 		var screenBounds image.Rectangle
 
 		if h.system != nil {
-			if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+			b, err := h.system.ScreenBounds(context.Background())
+			if err == nil {
 				screenBounds = b
 			} else if !derrors.IsNotSupported(err) {
 				h.logger.Warn("Failed to get screen bounds for grid fallback", zap.Error(err))

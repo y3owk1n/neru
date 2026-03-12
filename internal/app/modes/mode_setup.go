@@ -43,7 +43,8 @@ func (h *Handler) CaptureInitialCursorPosition() {
 	var screenBounds image.Rectangle
 
 	if h.system != nil {
-		if b, err := h.system.ScreenBounds(ctx); err == nil {
+		b, err := h.system.ScreenBounds(context.Background())
+		if err == nil {
 			screenBounds = b
 		} else if !derrors.IsNotSupported(err) {
 			h.logger.Warn("Failed to get screen bounds for cursor capture", zap.Error(err))

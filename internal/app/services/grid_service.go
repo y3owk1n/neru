@@ -61,13 +61,7 @@ func (s *GridService) HideGrid(ctx context.Context) error {
 
 // Health checks the health of the service's dependencies.
 func (s *GridService) Health(ctx context.Context) map[string]error {
-	result := map[string]error{
+	return map[string]error{
 		"overlay": s.overlay.Health(ctx),
 	}
-
-	if s.system != nil {
-		result["system"] = s.system.Health(ctx)
-	}
-
-	return result
 }

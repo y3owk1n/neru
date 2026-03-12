@@ -144,7 +144,8 @@ func (h *Handler) handleCursorRestoration() {
 		var currentBounds image.Rectangle
 
 		if h.system != nil {
-			if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+			b, err := h.system.ScreenBounds(context.Background())
+			if err == nil {
 				currentBounds = b
 			} else if !derrors.IsNotSupported(err) {
 				h.logger.Warn("Failed to get screen bounds for cursor restoration", zap.Error(err))

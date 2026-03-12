@@ -75,17 +75,17 @@ type ElementFilter struct {
 
 	// IncludeDock includes dock/taskbar elements.
 	// On macOS this queries com.apple.dock.
-	// TODO: map to platform equivalents on Linux/Windows.
+	// Platform equivalents on Linux/Windows are not yet mapped.
 	IncludeDock bool
 
 	// IncludeNotificationCenter includes notification center elements.
 	// On macOS this queries com.apple.notificationcenterui.
-	// TODO: map to platform equivalents on Linux/Windows.
+	// Platform equivalents on Linux/Windows are not yet mapped.
 	IncludeNotificationCenter bool
 
 	// IncludeStageManager includes stage manager / window manager elements.
 	// On macOS this queries com.apple.WindowManager.
-	// TODO: map to platform equivalents on Linux/Windows.
+	// Platform equivalents on Linux/Windows are not yet mapped.
 	IncludeStageManager bool
 }
 

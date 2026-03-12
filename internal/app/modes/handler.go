@@ -185,7 +185,8 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 	// Re-read screen bounds under the lock so the onUpdate callback
 	// uses coordinates that match the resized overlay.
 	if h.system != nil {
-		if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+		b, err := h.system.ScreenBounds(context.Background())
+		if err == nil {
 			h.screenBounds = b
 		} else if !derrors.IsNotSupported(err) {
 			h.logger.Warn("Failed to refresh screen bounds after screen change", zap.Error(err))
@@ -267,7 +268,8 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 	// Re-read screen bounds under the lock so the overlay uses coordinates
 	// that match the resized window.
 	if h.system != nil {
-		if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+		b, err := h.system.ScreenBounds(context.Background())
+		if err == nil {
 			h.screenBounds = b
 		} else if !derrors.IsNotSupported(err) {
 			h.logger.Warn("Failed to refresh screen bounds for recursive grid", zap.Error(err))

@@ -111,7 +111,8 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 	var activeScreenBounds image.Rectangle
 
 	if h.system != nil {
-		if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+		b, err := h.system.ScreenBounds(context.Background())
+		if err == nil {
 			activeScreenBounds = b
 		} else if !derrors.IsNotSupported(err) {
 			h.logger.Warn("Failed to get screen bounds for hints", zap.Error(err))

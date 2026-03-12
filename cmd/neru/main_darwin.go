@@ -1,6 +1,5 @@
 //go:build darwin
 
-// Package main is the entry point for the Neru application.
 package main
 
 import (
