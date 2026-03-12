@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -31,6 +32,10 @@ func NewService(
 
 // GetCursorPosition returns the current cursor position.
 func (s *Service) GetCursorPosition(ctx context.Context) (int, int, error) {
+	if s.system == nil {
+		return 0, 0, derrors.New(derrors.CodeActionFailed, "system port not available")
+	}
+
 	point, err := s.system.CursorPosition(ctx)
 	if err != nil {
 		return 0, 0, core.WrapAccessibilityFailed(err, "get cursor position")
