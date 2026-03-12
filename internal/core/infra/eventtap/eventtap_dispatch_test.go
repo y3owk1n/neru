@@ -1,3 +1,5 @@
+//go:build darwin
+
 //nolint:testpackage // This test validates internal queue/dispatcher behavior.
 package eventtap
 
