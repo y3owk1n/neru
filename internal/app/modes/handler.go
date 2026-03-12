@@ -16,9 +16,9 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
@@ -120,6 +120,7 @@ func NewHandler(
 
 	if systemPort != nil {
 		var boundsErr error
+
 		screenBounds, boundsErr = systemPort.ScreenBounds(context.Background())
 		if boundsErr != nil && !derrors.IsNotSupported(boundsErr) {
 			logger.Warn("Failed to get initial screen bounds", zap.Error(boundsErr))

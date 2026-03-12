@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -51,18 +52,17 @@ func (s *SystemAdapter) LogDir() (string, error) {
 
 // FocusedApplicationPID returns the PID of the currently focused application on macOS.
 func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) {
-	// This would typically call into darwin package functions
-	return 0, nil
+	return FocusedApplicationPID()
 }
 
 // ApplicationNameByPID returns the name of the application with the given PID on macOS.
 func (s *SystemAdapter) ApplicationNameByPID(ctx context.Context, pid int) (string, error) {
-	return "", nil
+	return ApplicationNameByPID(pid)
 }
 
 // ApplicationBundleIDByPID returns the bundle ID of the application with the given PID on macOS.
 func (s *SystemAdapter) ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error) {
-	return "", nil
+	return ApplicationBundleIDByPID(pid)
 }
 
 // ScreenBounds returns the bounds of the active screen on macOS.
@@ -93,7 +93,13 @@ func (s *SystemAdapter) IsDarkMode() bool {
 
 // CheckPermissions verifies accessibility permissions on macOS.
 func (s *SystemAdapter) CheckPermissions(ctx context.Context) error {
-	// This logic is usually in bridge or accessibility package
+	if !CheckAccessibilityPermissions() {
+		return derrors.New(
+			derrors.CodeAccessibilityDenied,
+			"accessibility permissions not granted - please enable in System Preferences > Privacy & Security > Accessibility",
+		)
+	}
+
 	return nil
 }
 

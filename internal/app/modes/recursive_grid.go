@@ -10,8 +10,8 @@ import (
 	componentrecursivegrid "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 

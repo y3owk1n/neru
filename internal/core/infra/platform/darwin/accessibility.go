@@ -9,7 +9,62 @@ package darwin
 */
 import "C"
 
-import "unsafe"
+import (
+	"unsafe"
+
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
+)
+
+// CheckAccessibilityPermissions verifies that the application has been granted
+// accessibility permissions in System Preferences > Privacy & Security > Accessibility.
+func CheckAccessibilityPermissions() bool {
+	return C.checkAccessibilityPermissions() != 0
+}
+
+// FocusedApplicationPID returns the PID of the currently focused application.
+func FocusedApplicationPID() (int, error) {
+	ref := C.getFocusedApplication()
+	if ref == nil {
+		return 0, derrors.New(derrors.CodeAccessibilityFailed, "failed to get focused application")
+	}
+	defer C.releaseElement(ref) //nolint:nlreturn
+	info := C.getElementInfo(ref)
+	if info == nil {
+		return 0, derrors.New(derrors.CodeAccessibilityFailed, "failed to get element info")
+	}
+	defer C.freeElementInfo(info) //nolint:nlreturn
+	return int(info.pid), nil
+}
+
+// ApplicationNameByPID returns the name of the application with the given PID.
+func ApplicationNameByPID(pid int) (string, error) {
+	ref := C.getApplicationByPID(C.int(pid))
+	if ref == nil {
+		return "", derrors.Newf(derrors.CodeAccessibilityFailed, "failed to get application for PID %d", pid)
+	}
+	defer C.releaseElement(ref) //nolint:nlreturn
+	cName := C.getApplicationName(ref)
+	if cName == nil {
+		return "", derrors.Newf(derrors.CodeAccessibilityFailed, "failed to get application name for PID %d", pid)
+	}
+	defer C.freeString(cName) //nolint:nlreturn
+	return C.GoString(cName), nil
+}
+
+// ApplicationBundleIDByPID returns the bundle ID of the application with the given PID.
+func ApplicationBundleIDByPID(pid int) (string, error) {
+	ref := C.getApplicationByPID(C.int(pid))
+	if ref == nil {
+		return "", derrors.Newf(derrors.CodeAccessibilityFailed, "failed to get application for PID %d", pid)
+	}
+	defer C.releaseElement(ref) //nolint:nlreturn
+	cBundleID := C.getBundleIdentifier(ref)
+	if cBundleID == nil {
+		return "", derrors.Newf(derrors.CodeAccessibilityFailed, "failed to get bundle ID for PID %d", pid)
+	}
+	defer C.freeString(cBundleID) //nolint:nlreturn
+	return C.GoString(cBundleID), nil
+}
 
 // HasClickAction checks if the accessibility element has a click action.
 func HasClickAction(element unsafe.Pointer) bool {

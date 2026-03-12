@@ -10,9 +10,11 @@
 // On non-darwin platforms all functions are no-ops (see native_stub.go).
 package native
 
-import "github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
+import (
+	"unsafe"
 
-import "unsafe"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
+)
 
 // MallocCallbackContext allocates a CallbackContext struct on the C heap.
 // The returned pointer is safe for C code to retain across async dispatch

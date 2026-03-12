@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app"
-	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"

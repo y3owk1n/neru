@@ -9,8 +9,8 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 

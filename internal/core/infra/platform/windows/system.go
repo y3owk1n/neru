@@ -77,25 +77,37 @@ func (s *SystemAdapter) LogDir() (string, error) {
 // FocusedApplicationPID returns the PID of the currently focused application on Windows.
 // TODO(windows): implement using GetForegroundWindow + GetWindowThreadProcessId.
 func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) {
-	return 0, derrors.New(derrors.CodeNotSupported, "FocusedApplicationPID not yet implemented on windows")
+	return 0, derrors.New(
+		derrors.CodeNotSupported,
+		"FocusedApplicationPID not yet implemented on windows",
+	)
 }
 
 // ApplicationNameByPID returns the name of the application with the given PID on Windows.
 // TODO(windows): implement using OpenProcess + QueryFullProcessImageName.
 func (s *SystemAdapter) ApplicationNameByPID(ctx context.Context, pid int) (string, error) {
-	return "", derrors.New(derrors.CodeNotSupported, "ApplicationNameByPID not yet implemented on windows")
+	return "", derrors.New(
+		derrors.CodeNotSupported,
+		"ApplicationNameByPID not yet implemented on windows",
+	)
 }
 
 // ApplicationBundleIDByPID returns the application identifier for Windows.
 // TODO(windows): Windows does not have bundle IDs; use executable path or AppUserModelID.
 func (s *SystemAdapter) ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error) {
-	return "", derrors.New(derrors.CodeNotSupported, "ApplicationBundleIDByPID not yet implemented on windows")
+	return "", derrors.New(
+		derrors.CodeNotSupported,
+		"ApplicationBundleIDByPID not yet implemented on windows",
+	)
 }
 
 // ScreenBounds returns the bounds of the active screen on Windows.
 // TODO(windows): implement using MonitorFromPoint + GetMonitorInfo.
 func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
-	return image.Rectangle{}, derrors.New(derrors.CodeNotSupported, "ScreenBounds not yet implemented on windows")
+	return image.Rectangle{}, derrors.New(
+		derrors.CodeNotSupported,
+		"ScreenBounds not yet implemented on windows",
+	)
 }
 
 // MoveCursorToPoint moves the mouse cursor to the specified point on Windows.
@@ -111,7 +123,10 @@ func (s *SystemAdapter) MoveCursorToPoint(
 // CursorPosition returns the current cursor position on Windows.
 // TODO(windows): implement using GetCursorPos (user32.dll).
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
-	return image.Point{}, derrors.New(derrors.CodeNotSupported, "CursorPosition not yet implemented on windows")
+	return image.Point{}, derrors.New(
+		derrors.CodeNotSupported,
+		"CursorPosition not yet implemented on windows",
+	)
 }
 
 // IsDarkMode returns true if Windows dark mode is currently active.

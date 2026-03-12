@@ -10,8 +10,8 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 const (
