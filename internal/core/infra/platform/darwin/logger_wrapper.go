@@ -1,4 +1,6 @@
-package bridge
+//go:build darwin
+
+package darwin
 
 import (
 	"sync"
@@ -40,7 +42,7 @@ var (
 	logMu        sync.RWMutex
 )
 
-// InitializeLogger sets the global logger instance for the bridge package.
+// InitializeLogger sets the global logger instance for the darwin package.
 func InitializeLogger(logger *zap.Logger) {
 	logMu.Lock()
 	defer logMu.Unlock()
@@ -49,7 +51,7 @@ func InitializeLogger(logger *zap.Logger) {
 	log = &loggingBridge{logger: logger}
 }
 
-// Logger returns the global logger instance for the bridge package.
+// Logger returns the global logger instance for the darwin package.
 func Logger() *zap.Logger {
 	logMu.RLock()
 	defer logMu.RUnlock()

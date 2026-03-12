@@ -49,11 +49,12 @@ type ScrollService struct {
 func NewScrollService(
 	accessibility ports.AccessibilityPort,
 	overlay ports.OverlayPort,
+	system ports.SystemPort,
 	config config.ScrollConfig,
 	logger *zap.Logger,
 ) *ScrollService {
 	return &ScrollService{
-		BaseService: NewBaseService(accessibility, overlay),
+		BaseService: NewBaseService(accessibility, overlay, system),
 		config:      config,
 		logger:      logger,
 	}

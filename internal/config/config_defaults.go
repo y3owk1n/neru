@@ -276,8 +276,8 @@ const (
 	ModeIndicatorBorderColorDark = "#FF007A9E"
 )
 
-// DefaultConfig returns the default application configuration with sensible defaults.
-func DefaultConfig() *Config {
+// commonDefaultConfig returns the common application configuration with sensible defaults.
+func commonDefaultConfig() *Config {
 	return &Config{
 		General: GeneralConfig{
 			ExcludedApps:                      []string{},
@@ -323,35 +323,14 @@ func DefaultConfig() *Config {
 				BorderColorDark:       HintsBorderColorDark,
 			},
 
-			IncludeMenubarHints: false,
-			AdditionalMenubarHintsTargets: []string{
-				"com.apple.TextInputMenuAgent",
-				"com.apple.controlcenter",
-				"com.apple.systemuiserver",
-			},
-			IncludeDockHints:         false,
-			IncludeNCHints:           false,
-			IncludeStageManagerHints: false,
-			DetectMissionControl:     false,
+			IncludeMenubarHints:           false,
+			AdditionalMenubarHintsTargets: []string{},
+			IncludeDockHints:              false,
+			IncludeNCHints:                false,
+			IncludeStageManagerHints:      false,
+			DetectMissionControl:          false,
 
-			ClickableRoles: []string{
-				"AXButton",
-				"AXComboBox",
-				"AXCheckBox",
-				"AXRadioButton",
-				"AXLink",
-				"AXPopUpButton",
-				"AXTextField",
-				"AXSlider",
-				"AXTabButton",
-				"AXSwitch",
-				"AXDisclosureTriangle",
-				"AXTextArea",
-				"AXMenuButton",
-				"AXMenuItem",
-				"AXCell",
-				"AXRow",
-			},
+			ClickableRoles: []string{},
 
 			IgnoreClickableCheck: false,
 

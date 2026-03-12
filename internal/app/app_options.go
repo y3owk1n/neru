@@ -88,3 +88,13 @@ func WithHotkeyService(hotkeyService HotkeyService) Option {
 		return nil
 	}
 }
+
+// WithSystemPort sets the system port implementation.
+// Note: systemPort can be nil, will be initialized during app startup if not provided.
+func WithSystemPort(systemPort ports.SystemPort) Option {
+	return func(a *App) error {
+		a.systemPort = systemPort
+
+		return nil
+	}
+}

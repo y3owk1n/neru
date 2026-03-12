@@ -148,7 +148,7 @@ func TestAppInitializationWithRealComponentsIntegration(t *testing.T) {
 		}
 
 		// Load the config via the same path logic used by the CLI
-		svc := config.NewService(config.DefaultConfig(), "", zap.NewNop())
+		svc := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 
 		load := svc.LoadWithValidation(tmpf.Name())
 		if load.ValidationError != nil {

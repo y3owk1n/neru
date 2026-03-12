@@ -12,13 +12,19 @@ import (
 type BaseService struct {
 	accessibility ports.AccessibilityPort
 	overlay       ports.OverlayPort
+	system        ports.SystemPort
 }
 
 // NewBaseService creates a new base service with the given dependencies.
-func NewBaseService(accessibility ports.AccessibilityPort, overlay ports.OverlayPort) BaseService {
+func NewBaseService(
+	accessibility ports.AccessibilityPort,
+	overlay ports.OverlayPort,
+	system ports.SystemPort,
+) BaseService {
 	return BaseService{
 		accessibility: accessibility,
 		overlay:       overlay,
+		system:        system,
 	}
 }
 

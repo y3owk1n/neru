@@ -7,7 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
 )
 
@@ -171,7 +171,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 
 // ActiveScreenBounds returns the bounds of the active screen.
 func (c *InfraAXClient) ActiveScreenBounds() image.Rectangle {
-	return bridge.ActiveScreenBounds()
+	return darwin.ActiveScreenBounds()
 }
 
 // PerformAction performs the specified action at the given point.

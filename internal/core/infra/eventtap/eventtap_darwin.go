@@ -1,8 +1,10 @@
+//go:build darwin
+
 package eventtap
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../bridge/eventtap.h"
+#include "../platform/darwin/eventtap.h"
 #include <stdlib.h>
 
 extern void eventTapCallbackBridge(char* key, void* userData);
@@ -14,7 +16,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
 )
 
@@ -216,7 +218,7 @@ func (et *EventTap) SetPassthroughCallback(callback PassthroughCallback) {
 // SetKeyboardLayout configures the reference keyboard layout used by key translation.
 // Returns false when an explicit layout ID is provided but cannot be resolved.
 func (et *EventTap) SetKeyboardLayout(layoutID string) bool {
-	return bridge.SetReferenceKeyboardLayout(layoutID)
+	return darwin.SetReferenceKeyboardLayout(layoutID)
 }
 
 // Disable deactivates the event tap, stopping keyboard event capture.
@@ -268,7 +270,7 @@ func (et *EventTap) Destroy() {
 	et.logger.Debug("Event tap destroyed")
 }
 
-// handleCallback processes key press events received from the C event tap bridge.
+// handleCallback processes key press events received from the C event tap darwin.
 // It forwards the key information to the registered callback function if one exists.
 func (et *EventTap) handleCallback(key string) {
 	et.logger.Debug("Key pressed", zap.String("key", key))

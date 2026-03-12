@@ -1,8 +1,10 @@
+//go:build darwin
+
 package accessibility
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../bridge/accessibility.h"
+#include "../platform/darwin/accessibility.h"
 #include <stdlib.h>
 */
 import "C"
@@ -16,6 +18,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
 )
 
@@ -500,191 +503,79 @@ func (e *Element) ScrollBounds() image.Rectangle {
 
 // SetLeftMouseDown sets the left mouse button down state.
 func SetLeftMouseDown(down bool, position image.Point) {
-	isLeftMouseDownMu.Lock()
-	defer isLeftMouseDownMu.Unlock()
-	isLeftMouseDown = down
-	lastMouseDownPosition = position
+	darwin.SetLeftMouseDown(down, position)
 }
 
 // IsLeftMouseDown returns whether the left mouse button is down.
 func IsLeftMouseDown() bool {
-	isLeftMouseDownMu.RLock()
-	defer isLeftMouseDownMu.RUnlock()
-
-	return isLeftMouseDown
+	return darwin.IsLeftMouseDown()
 }
 
 // GetLastMouseDownPosition returns the last position where mouse down occurred.
 func GetLastMouseDownPosition() image.Point {
-	isLeftMouseDownMu.RLock()
-	defer isLeftMouseDownMu.RUnlock()
-
-	return lastMouseDownPosition
+	return darwin.GetLastMouseDownPosition()
 }
 
 // ClearLeftMouseDownState clears the left mouse button down state.
 func ClearLeftMouseDownState() {
-	isLeftMouseDownMu.Lock()
-	defer isLeftMouseDownMu.Unlock()
-	isLeftMouseDown = false
+	darwin.ClearLeftMouseDownState()
 }
 
 // EnsureMouseUp ensures that if the left mouse button is down, it is released.
 // This should be called before any action that is incompatible with a drag operation.
 func EnsureMouseUp() {
-	if IsLeftMouseDown() {
-		pos := CurrentCursorPosition()
-		_ = LeftMouseUpAtPoint(pos)
-	}
+	darwin.EnsureMouseUp()
 }
 
 // MoveMouseToPoint moves the cursor to a specific screen point.
 // If bypassSmooth is true, smooth cursor configuration is bypassed.
 func MoveMouseToPoint(point image.Point, bypassSmooth bool) {
-	var eventType C.CGEventType = C.CGEventType(C.kCGEventMouseMoved)
-	if IsLeftMouseDown() {
-		eventType = C.CGEventType(C.kCGEventLeftMouseDragged)
-	}
-
-	config := config.Global()
-	if config != nil && config.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
-		MoveMouseToPointSmooth(
-			point,
-			config.SmoothCursor.Steps,
-			config.SmoothCursor.Delay,
-			eventType,
-		)
-	} else {
-		pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-		C.moveMouseWithType(pos, eventType)
-	}
+	darwin.MoveMouse(point, bypassSmooth)
 }
 
 // MoveMouseToPointSmooth moves the cursor smoothly to a specific screen point.
 func MoveMouseToPointSmooth(end image.Point, steps, delay int, eventType C.CGEventType) {
-	start := CurrentCursorPosition()
-	startPos := C.CGPoint{x: C.double(start.X), y: C.double(start.Y)}
-	endPos := C.CGPoint{x: C.double(end.X), y: C.double(end.Y)}
-	C.moveMouseSmoothWithType(startPos, endPos, C.int(steps), C.int(delay), eventType)
+	darwin.MoveMouseSmooth(end, steps, delay, uint32(eventType))
 }
 
 // LeftClickAtPoint performs a left mouse click at the specified point.
 func LeftClickAtPoint(point image.Point, restoreCursor bool) error {
-	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performLeftClickAtPosition(pos, C.bool(restoreCursor))
-	if result == 0 {
-		return derrors.Newf(
-			derrors.CodeActionFailed,
-			"failed to perform left-click at position (%d, %d)",
-			point.X,
-			point.Y,
-		)
-	}
-
-	return nil
+	return darwin.LeftClickAtPoint(point, restoreCursor)
 }
 
 // RightClickAtPoint performs a right mouse click at the specified point.
 func RightClickAtPoint(point image.Point, restoreCursor bool) error {
-	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performRightClickAtPosition(pos, C.bool(restoreCursor))
-	if result == 0 {
-		return derrors.Newf(
-			derrors.CodeActionFailed,
-			"failed to perform right-click at position (%d, %d)",
-			point.X,
-			point.Y,
-		)
-	}
-
-	return nil
+	return darwin.RightClickAtPoint(point, restoreCursor)
 }
 
 // MiddleClickAtPoint performs a middle mouse click at the specified point.
 func MiddleClickAtPoint(point image.Point, restoreCursor bool) error {
-	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performMiddleClickAtPosition(pos, C.bool(restoreCursor))
-	if result == 0 {
-		return derrors.Newf(
-			derrors.CodeActionFailed,
-			"failed to perform middle-click at position (%d, %d)",
-			point.X,
-			point.Y,
-		)
-	}
-
-	return nil
+	return darwin.MiddleClickAtPoint(point, restoreCursor)
 }
 
 // LeftMouseDownAtPoint performs a left mouse down action at the specified point.
 func LeftMouseDownAtPoint(point image.Point) error {
-	SetLeftMouseDown(true, point)
-	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performLeftMouseDownAtPosition(pos)
-	if result == 0 {
-		ClearLeftMouseDownState()
-
-		return derrors.Newf(
-			derrors.CodeActionFailed,
-			"failed to perform left-mouse-down at position (%d, %d)",
-			point.X,
-			point.Y,
-		)
-	}
-
-	return nil
+	return darwin.LeftMouseDownAtPoint(point)
 }
 
 // LeftMouseUpAtPoint performs a left mouse up action at the specified point.
 func LeftMouseUpAtPoint(point image.Point) error {
-	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performLeftMouseUpAtPosition(pos)
-	if result == 0 {
-		return derrors.Newf(
-			derrors.CodeActionFailed,
-			"failed to perform left-mouse-up at position (%d, %d)",
-			point.X,
-			point.Y,
-		)
-	}
-
-	ClearLeftMouseDownState()
-
-	return nil
+	return darwin.LeftMouseUpAtPoint(point)
 }
 
 // LeftMouseUp performs a left mouse up action at the current cursor position.
 func LeftMouseUp() error {
-	result := C.performLeftMouseUpAtCursor()
-	if result == 0 {
-		return derrors.New(derrors.CodeActionFailed, "failed to perform left-mouse-up at cursor")
-	}
-
-	ClearLeftMouseDownState()
-
-	return nil
+	return darwin.LeftMouseUp()
 }
 
 // ScrollAtCursor scrolls the element at the current cursor position by the specified deltas.
 func ScrollAtCursor(deltaX, deltaY int) error {
-	result := C.scrollAtCursor(C.int(deltaX), C.int(deltaY))
-	if result == 0 {
-		return derrors.Newf(
-			derrors.CodeActionFailed,
-			"failed to scroll at cursor with delta (%d, %d)",
-			deltaX,
-			deltaY,
-		)
-	}
-
-	return nil
+	return darwin.ScrollAtCursor(deltaX, deltaY)
 }
 
 // CurrentCursorPosition returns the current cursor position in screen coordinates.
 func CurrentCursorPosition() image.Point {
-	pos := C.getCurrentCursorPosition()
-
-	return image.Point{X: int(pos.x), Y: int(pos.y)}
+	return darwin.CursorPosition()
 }
 
 // IsClickable checks if the element is clickable.
@@ -745,8 +636,6 @@ func (e *Element) IsClickable(
 
 	return false
 }
-
-// IsClickable checks if the element is clickable
 
 // IsMissionControlActive checks if Mission Control is currently active.
 func IsMissionControlActive() bool {

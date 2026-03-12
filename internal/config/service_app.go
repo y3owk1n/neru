@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/y3owk1n/neru/internal/core"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"go.uber.org/zap"
 )
 
@@ -25,10 +24,13 @@ func (s *Service) ReloadWithAppContext(
 			zap.Error(loadResult.ValidationError),
 			zap.String("config_path", loadResult.ConfigPath))
 
-		bridge.ShowConfigValidationError(
-			loadResult.ValidationError.Error(),
-			loadResult.ConfigPath,
-		)
+		if s.alertProvider != nil {
+			_ = s.alertProvider.ShowAlert(
+				ctx,
+				loadResult.ConfigPath,
+				loadResult.ValidationError.Error(),
+			)
+		}
 
 		return loadResult, core.WrapConfigFailed(loadResult.ValidationError, "validate config")
 	}

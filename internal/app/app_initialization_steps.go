@@ -16,6 +16,7 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	eventtapadapter "github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	ipcadapter "github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/ui"
 	"go.uber.org/zap"
 )
@@ -25,6 +26,16 @@ import (
 func initializeInfrastructure(app *App) error {
 	cfg := app.config
 	logger := app.logger
+
+	// Initialize platform system port if not provided
+	if app.systemPort == nil {
+		systemPort, err := platform.NewSystemPort()
+		if err != nil {
+			return err
+		}
+
+		app.systemPort = systemPort
+	}
 
 	// Initialize overlay manager if not provided
 	if app.overlayManager == nil {
@@ -57,13 +68,14 @@ func initializeServicesAndAdapters(app *App) error {
 	logger := app.logger
 
 	// Initialize config service
-	cfgService := config.NewService(cfg, app.ConfigPath, logger)
+	cfgService := config.NewService(cfg, app.ConfigPath, logger, app.systemPort)
 
 	// Initialize adapters
 	accAdapter, overlayAdapter, axCacheStop := initializeAdapters(
 		cfg,
 		logger,
 		app.overlayManager,
+		app.systemPort,
 	)
 
 	app.axCacheStop = axCacheStop
@@ -73,6 +85,7 @@ func initializeServicesAndAdapters(app *App) error {
 		cfg,
 		accAdapter,
 		overlayAdapter,
+		app.systemPort,
 		logger,
 	)
 	if err != nil {
@@ -99,7 +112,7 @@ func initializeApplicationState(app *App) {
 // initializeUIComponents creates and configures all UI components
 // for the different interaction modes.
 func initializeUIComponents(app *App) error {
-	factory := NewComponentFactory(app.config, app.logger, app.overlayManager)
+	factory := NewComponentFactory(app.config, app.logger, app.overlayManager, app.systemPort)
 
 	// Create UI components for different interaction modes with standardized patterns
 	hintsComponent, err := factory.CreateHintsComponent(ComponentCreationOptions{
@@ -177,9 +190,9 @@ func initializeRendererAndOverlays(app *App) {
 		cfg = app.config
 	}
 
-	hintStyle := hints.BuildStyle(cfg.Hints, defaultThemeProvider)
-	gridStyle := grid.BuildStyle(cfg.Grid, defaultThemeProvider)
-	recursiveGridStyle := recursivegrid.BuildStyle(cfg.RecursiveGrid, defaultThemeProvider)
+	hintStyle := hints.BuildStyle(cfg.Hints, app.systemPort)
+	gridStyle := grid.BuildStyle(cfg.Grid, app.systemPort)
+	recursiveGridStyle := recursivegrid.BuildStyle(cfg.RecursiveGrid, app.systemPort)
 
 	app.renderer = ui.NewOverlayRenderer(
 		app.overlayManager,
@@ -293,7 +306,7 @@ func initializeModeHandler(app *App) {
 		deps.callbacks.setModifierPassthrough,
 		deps.callbacks.setInterceptedModifierKeys,
 		deps.callbacks.refreshHotkeys,
-		defaultThemeProvider,
+		app.systemPort,
 	)
 }
 

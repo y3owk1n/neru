@@ -16,7 +16,7 @@ func newTestController() *app.IPCController {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger, _ := zap.NewDevelopment()
-	configService := config.NewService(cfg, "", logger)
+	configService := config.NewService(cfg, "", logger, nil)
 
 	return app.NewIPCController(
 		nil, // hintService

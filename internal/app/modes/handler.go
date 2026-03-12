@@ -15,7 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
@@ -109,7 +109,7 @@ func NewHandler(
 	themeProvider configpkg.ThemeProvider,
 ) *Handler {
 	// Initialize screen bounds for coordinate conversion
-	screenBounds := bridge.ActiveScreenBounds()
+	screenBounds := darwin.ActiveScreenBounds()
 
 	handler := &Handler{
 		config:                     config,
@@ -167,7 +167,7 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 	}
 	// Re-read screen bounds under the lock so the onUpdate callback
 	// uses coordinates that match the resized overlay.
-	h.screenBounds = bridge.ActiveScreenBounds()
+	h.screenBounds = darwin.ActiveScreenBounds()
 	h.hints.Context.SetHints(hintCollection)
 
 	return true
@@ -242,7 +242,7 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 
 	// Re-read screen bounds under the lock so the overlay uses coordinates
 	// that match the resized window.
-	screenBounds := bridge.ActiveScreenBounds()
+	screenBounds := darwin.ActiveScreenBounds()
 	h.screenBounds = screenBounds
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
 

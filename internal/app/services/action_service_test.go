@@ -94,6 +94,41 @@ func (m *mockAccessibilityPort) CheckPermissions(ctx context.Context) error {
 	return nil
 }
 
+func (m *mockAccessibilityPort) ConfigDir() (string, error) {
+	return "", nil
+}
+
+func (m *mockAccessibilityPort) UserDataDir() (string, error) {
+	return "", nil
+}
+
+func (m *mockAccessibilityPort) LogDir() (string, error) {
+	return "", nil
+}
+
+func (m *mockAccessibilityPort) FocusedApplicationPID(ctx context.Context) (int, error) {
+	return 0, nil
+}
+
+func (m *mockAccessibilityPort) ApplicationNameByPID(ctx context.Context, pid int) (string, error) {
+	return "", nil
+}
+
+func (m *mockAccessibilityPort) ApplicationBundleIDByPID(
+	ctx context.Context,
+	pid int,
+) (string, error) {
+	return "", nil
+}
+
+func (m *mockAccessibilityPort) IsDarkMode() bool {
+	return false
+}
+
+func (m *mockAccessibilityPort) ShowAlert(ctx context.Context, title, message string) error {
+	return nil
+}
+
 // mockOverlayPort is a mock implementation of OverlayPort for testing.
 type mockOverlayPort struct{}
 
@@ -145,6 +180,7 @@ func newTestActionService(t *testing.T, mockAcc *mockAccessibilityPort) *service
 	return services.NewActionService(
 		mockAcc,
 		&mockOverlayPort{},
+		mockAcc,
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -346,6 +382,7 @@ func TestHandleDirectActionKey_directionalKeys(t *testing.T) {
 			actionService := services.NewActionService(
 				mockAcc,
 				&mockOverlayPort{},
+				mockAcc,
 				actionConfig,
 				actionConfig.KeyBindings,
 				actionConfig.MoveMouseStep,
@@ -405,6 +442,7 @@ func TestHandleDirectActionKey_repeatedKeyPressesMoveContinuously(t *testing.T) 
 	actionService := services.NewActionService(
 		mockAcc,
 		&mockOverlayPort{},
+		mockAcc,
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -466,6 +504,7 @@ func TestHandleDirectActionKey_caseInsensitive(t *testing.T) {
 	actionService := services.NewActionService(
 		mockAcc,
 		&mockOverlayPort{},
+		mockAcc,
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -512,6 +551,7 @@ func TestMoveMouseTo_doesNotBounceBack(t *testing.T) {
 	actionService := services.NewActionService(
 		mockAcc,
 		&mockOverlayPort{},
+		mockAcc,
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -577,6 +617,7 @@ func TestMoveMouseRelative_clampsToScreenBounds(t *testing.T) {
 	actionService := services.NewActionService(
 		mockAcc,
 		&mockOverlayPort{},
+		mockAcc,
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -620,6 +661,7 @@ func TestIsMoveMouseKey(t *testing.T) {
 	actionService := services.NewActionService(
 		mockAcc,
 		&mockOverlayPort{},
+		mockAcc,
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -673,6 +715,7 @@ func TestIsMoveMouseKey_shiftLetterBindings(t *testing.T) {
 	actionService := services.NewActionService(
 		mockAcc,
 		&mockOverlayPort{},
+		mockAcc,
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -738,6 +781,7 @@ func TestHandleDirectActionKey_shiftLetterBindings(t *testing.T) {
 			actionService := services.NewActionService(
 				mockAcc,
 				&mockOverlayPort{},
+				mockAcc,
 				actionConfig,
 				actionConfig.KeyBindings,
 				actionConfig.MoveMouseStep,

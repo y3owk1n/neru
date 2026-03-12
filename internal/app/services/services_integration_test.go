@@ -15,6 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	uiOverlay "github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -43,7 +44,7 @@ func TestHintServiceIntegration(t *testing.T) {
 	cfg.General.AccessibilityCheckOnStart = false
 
 	// Initialize real adapters like the app does
-	accAdapter, overlay := initializeRealAdapters(t, cfg, logger)
+	accAdapter, overlay, systemPort := initializeRealAdapters(t, cfg, logger)
 
 	// Create hint generator
 	hintGen, err := hint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
@@ -52,7 +53,14 @@ func TestHintServiceIntegration(t *testing.T) {
 	}
 
 	// Create hint service
-	hintService := services.NewHintService(accAdapter, overlay, hintGen, cfg.Hints, logger)
+	hintService := services.NewHintService(
+		accAdapter,
+		overlay,
+		systemPort,
+		hintGen,
+		cfg.Hints,
+		logger,
+	)
 
 	ctx := context.Background()
 
@@ -123,11 +131,12 @@ func TestActionServiceIntegration(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.General.AccessibilityCheckOnStart = false
 
-	accAdapter, overlayAdapter := initializeRealAdapters(t, cfg, logger)
+	accAdapter, overlayAdapter, systemPort := initializeRealAdapters(t, cfg, logger)
 
 	actionService := services.NewActionService(
 		accAdapter,
 		overlayAdapter,
+		systemPort,
 		cfg.Action,
 		cfg.Action.KeyBindings,
 		cfg.Action.MoveMouseStep,
@@ -190,9 +199,11 @@ func TestGridServiceIntegration(t *testing.T) {
 	cfg.Grid.Enabled = true
 	cfg.General.AccessibilityCheckOnStart = false
 
-	_, overlay := initializeRealAdapters(t, cfg, logger)
+	// Initialize real adapters
+	_, overlay, systemPort := initializeRealAdapters(t, cfg, logger)
 
-	gridService := services.NewGridService(overlay, logger)
+	// Create grid service
+	gridService := services.NewGridService(overlay, systemPort, logger)
 
 	ctx := context.Background()
 
@@ -222,9 +233,11 @@ func TestScrollServiceIntegration(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.General.AccessibilityCheckOnStart = false
 
-	accAdapter, overlay := initializeRealAdapters(t, cfg, logger)
+	// Initialize real adapters
+	accAdapter, overlay, systemPort := initializeRealAdapters(t, cfg, logger)
 
-	scrollService := services.NewScrollService(accAdapter, overlay, cfg.Scroll, logger)
+	// Create scroll service
+	scrollService := services.NewScrollService(accAdapter, overlay, systemPort, cfg.Scroll, logger)
 
 	ctx := context.Background()
 
@@ -245,7 +258,7 @@ func initializeRealAdapters(
 	t *testing.T,
 	cfg *config.Config,
 	logger *zap.Logger,
-) (ports.AccessibilityPort, ports.OverlayPort) {
+) (ports.AccessibilityPort, ports.OverlayPort, ports.SystemPort) {
 	t.Helper()
 
 	// Create infrastructure client (nil cache = use default)
@@ -264,9 +277,15 @@ func initializeRealAdapters(
 	// Initialize overlay manager (always use no-op for integration tests)
 	overlayManager := &uiOverlay.NoOpManager{}
 
+	// Initialize system port
+	systemPort, err := platform.NewSystemPort()
+	if err != nil {
+		t.Fatalf("Failed to create system port: %v", err)
+	}
+
 	// Create overlay adapter
 	theme := &testThemeProvider{darkMode: false}
 	overlay := overlayAdapter.NewAdapter(overlayManager, theme, logger)
 
-	return accAdapter, overlay
+	return accAdapter, overlay, systemPort
 }

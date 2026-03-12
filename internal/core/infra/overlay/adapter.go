@@ -9,7 +9,7 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	uiOverlay "github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -93,7 +93,7 @@ func (a *Adapter) ShowGrid(ctx context.Context) error {
 	}
 
 	// Get screen bounds
-	bounds := bridge.ActiveScreenBounds()
+	bounds := darwin.ActiveScreenBounds()
 
 	// Create grid
 	grid := domainGrid.NewGrid("abcdefghijklmnopqrstuvwxyz", bounds, a.logger)

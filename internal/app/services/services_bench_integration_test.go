@@ -93,7 +93,14 @@ func BenchmarkHintService_ShowHints(b *testing.B) {
 	overlayAdapter := &mocks.MockOverlayPort{}
 	generator := &mockGenerator{}
 
-	hintService := services.NewHintService(accAdapter, overlayAdapter, generator, cfg.Hints, logger)
+	hintService := services.NewHintService(
+		accAdapter,
+		overlayAdapter,
+		&mocks.SystemMock{},
+		generator,
+		cfg.Hints,
+		logger,
+	)
 
 	ctx := context.Background()
 
@@ -116,7 +123,7 @@ func BenchmarkGridService_ShowGrid_Incremental(b *testing.B) {
 	// Create mock overlay port
 	overlayAdapter := &mocks.MockOverlayPort{}
 
-	gridService := services.NewGridService(overlayAdapter, logger)
+	gridService := services.NewGridService(overlayAdapter, &mocks.SystemMock{}, logger)
 
 	ctx := context.Background()
 

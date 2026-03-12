@@ -361,7 +361,7 @@ func TestFindConfigFile(t *testing.T) {
 		}
 	}()
 
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 	result := service.FindConfigFile()
 
 	// Result should be a string (could be empty if no config found)

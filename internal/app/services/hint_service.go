@@ -26,12 +26,13 @@ type HintService struct {
 func NewHintService(
 	accessibility ports.AccessibilityPort,
 	overlay ports.OverlayPort,
+	system ports.SystemPort,
 	generator hint.Generator,
 	config config.HintsConfig,
 	logger *zap.Logger,
 ) *HintService {
 	return &HintService{
-		BaseService: NewBaseService(accessibility, overlay),
+		BaseService: NewBaseService(accessibility, overlay, system),
 		generator:   generator,
 		config:      config,
 		logger:      logger,

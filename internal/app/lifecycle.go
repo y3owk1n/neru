@@ -14,9 +14,9 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/core/infra/electron"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
 	"go.uber.org/zap"
 )
@@ -519,10 +519,10 @@ func (a *App) Stop() {
 // a callback that refreshes theme-aware styles (e.g. label_color) when the
 // system appearance changes between Light and Dark Mode.
 func (a *App) setupThemeObserver() {
-	bridge.SetThemeChangeHandler(func(isDark bool) {
+	darwin.SetThemeChangeHandler(func(isDark bool) {
 		a.handleThemeChange(isDark)
 	})
-	bridge.StartThemeObserver()
+	darwin.StartThemeObserver()
 }
 
 // handleThemeChange is called when the macOS system appearance changes.
@@ -585,8 +585,8 @@ func (a *App) Cleanup() {
 
 	// Stop theme observer: nil the handler first so any in-flight KVO callback
 	// (between the async dispatch and actual observer removal) is a no-op.
-	bridge.SetThemeChangeHandler(nil)
-	bridge.StopThemeObserver()
+	darwin.SetThemeChangeHandler(nil)
+	darwin.StopThemeObserver()
 
 	// Stop IPC server first to prevent new requests
 	if a.ipcServer != nil {

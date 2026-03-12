@@ -1,8 +1,10 @@
+//go:build darwin
+
 package overlayutil
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../../../core/infra/bridge/overlay.h"
+#include "../../../core/infra/platform/darwin/overlay.h"
 */
 import "C"
 

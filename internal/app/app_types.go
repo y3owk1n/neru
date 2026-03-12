@@ -40,6 +40,8 @@ type App struct {
 	ConfigPath string
 	logger     *zap.Logger
 
+	systemPort ports.SystemPort
+
 	appState    *state.AppState
 	cursorState *state.CursorState
 

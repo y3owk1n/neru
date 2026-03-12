@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
 )
 
@@ -59,7 +59,7 @@ func EnsureElectronAccessibility(bundleID string, logger *zap.Logger) bool {
 		return true
 	}
 
-	successSetElectron := bridge.SetApplicationAttribute(pid, electronAttributeName, true)
+	successSetElectron := darwin.SetApplicationAttribute(pid, electronAttributeName, true)
 
 	if !successSetElectron {
 		logger.Warn(
@@ -122,7 +122,7 @@ func ensureAccessibility(
 		return true
 	}
 
-	success := bridge.SetApplicationAttribute(pid, enhancedAttributeName, true)
+	success := darwin.SetApplicationAttribute(pid, enhancedAttributeName, true)
 
 	if !success {
 		logger.Warn("Failed to enable AXEnhancedUserInterface", zap.String("bundle_id", bundleID))

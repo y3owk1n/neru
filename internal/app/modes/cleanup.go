@@ -7,7 +7,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -140,7 +140,7 @@ func (h *Handler) handleCursorRestoration() {
 			time.Sleep(postActionSettleDelay)
 		}
 
-		currentBounds := bridge.ActiveScreenBounds()
+		currentBounds := darwin.ActiveScreenBounds()
 
 		var target image.Point
 

@@ -10,7 +10,7 @@ jobs:
         name: ${{ matrix.check }}
         strategy:
             matrix:
-                os: [macos-latest]
+                os: [macos-latest, ubuntu-latest, windows-latest]
                 check: [lint, formatting, vet, test, build]
         runs-on: ${{ matrix.os }}
         steps:
@@ -19,33 +19,78 @@ jobs:
                   repository: ${{ github.event.pull_request.head.repo.full_name }}
                   ref: ${{ github.head_ref }}
 
+            # Install Devbox on Linux/macOS only
             - name: Install Devbox
+              if: runner.os != 'Windows'
               uses: jetify-com/devbox-install-action@v0.14.0
               with:
                   enable-cache: true
 
+            # Install Go directly on Windows
+            - name: Setup Go
+              if: runner.os == 'Windows'
+              uses: actions/setup-go@v6
+              with:
+                  go-version-file: "go.mod"
+                  cache: true
+
+            # Install Golangci directly on Windows
+            - name: Setup Golangci
+              if: runner.os == 'Windows'
+              uses: golangci/golangci-lint-action@v8
+              with:
+                  version: v2.9.0
+
+            # Install just on Windows
+            - name: Install just
+              if: runner.os == 'Windows'
+              run: |
+                  choco install just -y
+              shell: pwsh
+
+            # Run checks with Devbox on Linux/macOS
             - name: Run just lint
-              if: ${{ matrix.check == 'lint' }}
+              if: matrix.check == 'lint' && runner.os != 'Windows'
               run: devbox run -- just lint
 
             - name: Run just fmt-check
-              if: ${{ matrix.check == 'formatting' }}
+              if: matrix.check == 'formatting' && runner.os != 'Windows'
               run: devbox run -- just fmt-check
 
             - name: Run just vet
-              if: ${{ matrix.check == 'vet' }}
+              if: matrix.check == 'vet' && runner.os != 'Windows'
               run: devbox run -- just vet
 
             - name: Run just build
-              if: ${{ matrix.check == 'build' }}
+              if: matrix.check == 'build' && runner.os != 'Windows'
               run: devbox run -- just build
 
             - name: Run just test-all
-              if: ${{ matrix.check == 'test' }}
+              if: matrix.check == 'test' && runner.os != 'Windows'
               run: devbox run -- just test-all
 
-            - name: Upload coverage to Codecov
-              if: ${{ matrix.check == 'test' }}
-              uses: codecov/codecov-action@v5
-              with:
-                  token: ${{ secrets.CODECOV_TOKEN }}
+            # Run checks directly on Windows
+            - name: Run just lint
+              if: matrix.check == 'lint' && runner.os == 'Windows'
+              run: just lint
+              shell: pwsh
+
+            - name: Run just fmt-check
+              if: matrix.check == 'formatting' && runner.os == 'Windows'
+              run: just fmt-check
+              shell: pwsh
+
+            - name: Run just vet
+              if: matrix.check == 'vet' && runner.os == 'Windows'
+              run: just vet
+              shell: pwsh
+
+            - name: Run just build
+              if: matrix.check == 'build' && runner.os == 'Windows'
+              run: just build
+              shell: pwsh
+
+            - name: Run just test-all
+              if: matrix.check == 'test' && runner.os == 'Windows'
+              run: just test-all
+              shell: pwsh

@@ -77,7 +77,7 @@ max_age = 30
 		writeConfigFile(t, configPath, configContent, 0o644)
 
 		// Load config from real file
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 		loadResult := service.LoadWithValidation(configPath)
 
 		if loadResult.ValidationError != nil {
@@ -113,7 +113,7 @@ font_size = 12
 		writeConfigFile(t, configPath, initialContent, 0o644)
 
 		// Create a config service and load initial config
-		configSvc := config.NewService(config.DefaultConfig(), configPath, zap.NewNop())
+		configSvc := config.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
 
 		initialLoad := configSvc.LoadWithValidation(configPath)
 		if initialLoad.ValidationError != nil {
@@ -154,7 +154,7 @@ enabled = true
 		writeConfigFile(t, configPath, configContent, 0o600)
 
 		// Should still be able to load it
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {

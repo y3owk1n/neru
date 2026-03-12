@@ -1,8 +1,10 @@
+//go:build darwin
+
 package grid
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../../../core/infra/bridge/overlay.h"
+#include "../../../core/infra/platform/darwin/overlay.h"
 #include <stdlib.h>
 
 // Callback function that Go can reference.

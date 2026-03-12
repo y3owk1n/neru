@@ -35,27 +35,8 @@ type ApplicationInfo interface {
 	IsAppExcluded(ctx context.Context, bundleID string) bool
 }
 
-// ScreenManagement defines the interface for screen and cursor operations.
-type ScreenManagement interface {
-	// ScreenBounds returns the bounds of the active screen.
-	ScreenBounds(ctx context.Context) (image.Rectangle, error)
-
-	// MoveCursorToPoint moves the mouse cursor to the specified point.
-	// If bypassSmooth is true, smooth cursor configuration is bypassed.
-	MoveCursorToPoint(ctx context.Context, point image.Point, bypassSmooth bool) error
-
-	// CursorPosition returns the current cursor position.
-	CursorPosition(ctx context.Context) (image.Point, error)
-}
-
-// PermissionManagement defines the interface for accessibility permissions.
-type PermissionManagement interface {
-	// CheckPermissions verifies that accessibility permissions are granted.
-	CheckPermissions(ctx context.Context) error
-}
-
-// AccessibilityPort defines the interface for interacting with the macOS accessibility API.
-// Implementations should handle all CGo/Objective-C bridge complexity.
+// AccessibilityPort defines the interface for interacting with the platform accessibility API.
+// Implementations should handle all CGo/Objective-C/System-specific bridge complexity.
 //
 // This interface embeds segregated interfaces to reduce duplication and ensure
 // method signatures stay synchronized across different concerns.
@@ -64,8 +45,6 @@ type AccessibilityPort interface {
 	ElementDiscovery
 	ActionExecution
 	ApplicationInfo
-	ScreenManagement
-	PermissionManagement
 }
 
 // ElementFilter defines criteria for filtering UI elements.

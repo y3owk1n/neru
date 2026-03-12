@@ -98,7 +98,11 @@ jobs:
               run: |
                   shasum -a 256 neru-darwin-arm64.zip | awk '{print $1}' > neru-darwin-arm64.zip.sha256
                   shasum -a 256 neru-darwin-amd64.zip | awk '{print $1}' > neru-darwin-amd64.zip.sha256
-                  ls -l *.zip*
+                  # shasum -a 256 bin/neru-linux-amd64 | awk '{print $1}' > neru-linux-amd64.sha256
+                  # shasum -a 256 bin/neru-linux-arm64 | awk '{print $1}' > neru-linux-arm64.sha256
+                  # shasum -a 256 bin/neru-windows-amd64.exe | awk '{print $1}' > neru-windows-amd64.exe.sha256
+                  # shasum -a 256 bin/neru-windows-arm64.exe | awk '{print $1}' > neru-windows-arm64.exe.sha256
+                  ls -l *.zip* *.sha256
 
             # Upload release artifacts and their respective checksum files
             - name: Upload Release Artifacts
@@ -110,3 +114,11 @@ jobs:
                   gh release upload "${{ steps.release.outputs.tag_name }}" neru-darwin-arm64.zip.sha256
                   gh release upload "${{ steps.release.outputs.tag_name }}" neru-darwin-amd64.zip
                   gh release upload "${{ steps.release.outputs.tag_name }}" neru-darwin-amd64.zip.sha256
+                  # gh release upload "${{ steps.release.outputs.tag_name }}" bin/neru-linux-amd64
+                  # gh release upload "${{ steps.release.outputs.tag_name }}" neru-linux-amd64.sha256
+                  # gh release upload "${{ steps.release.outputs.tag_name }}" bin/neru-linux-arm64
+                  # gh release upload "${{ steps.release.outputs.tag_name }}" neru-linux-arm64.sha256
+                  # gh release upload "${{ steps.release.outputs.tag_name }}" bin/neru-windows-amd64.exe
+                  # gh release upload "${{ steps.release.outputs.tag_name }}" neru-windows-amd64.exe.sha256
+                  # gh release upload "${{ steps.release.outputs.tag_name }}" bin/neru-windows-arm64.exe
+                  # gh release upload "${{ steps.release.outputs.tag_name }}" neru-windows-arm64.exe.sha256

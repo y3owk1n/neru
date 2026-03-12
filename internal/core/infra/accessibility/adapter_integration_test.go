@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	_ "github.com/y3owk1n/neru/internal/core/infra/bridge" // Link CGO implementations
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
+	_ "github.com/y3owk1n/neru/internal/core/infra/platform/darwin" // Link CGO implementations
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 

@@ -29,7 +29,7 @@ clickable_roles = ["AXButton"]
 		t.Fatalf("Failed to write temp config: %v", writeFileErr)
 	}
 
-	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop())
+	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
 
 	// Test Reload
 	ctx := context.Background()

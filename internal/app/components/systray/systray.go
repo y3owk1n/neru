@@ -9,7 +9,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
 	"go.uber.org/zap"
 )
@@ -352,7 +352,7 @@ func (c *Component) handleVersionCopy() {
 	if writeToClipboardErr != nil {
 		c.logger.Error("Error copying version to clipboard", zap.Error(writeToClipboardErr))
 	} else {
-		bridge.ShowNotification("Neru", "Version copied to clipboard")
+		darwin.ShowNotification("Neru", "Version copied to clipboard")
 	}
 }
 
@@ -384,7 +384,7 @@ func (c *Component) handleToggleScreenShare() {
 		status = "hidden"
 	}
 
-	bridge.ShowNotification("Neru", "Screen share visibility: "+status)
+	darwin.ShowNotification("Neru", "Screen share visibility: "+status)
 }
 
 // updateScreenShareMenuItem updates the screen share menu item text based on state.

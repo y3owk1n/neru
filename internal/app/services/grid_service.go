@@ -16,9 +16,13 @@ type GridService struct {
 }
 
 // NewGridService creates a new grid service.
-func NewGridService(overlay ports.OverlayPort, logger *zap.Logger) *GridService {
+func NewGridService(
+	overlay ports.OverlayPort,
+	system ports.SystemPort,
+	logger *zap.Logger,
+) *GridService {
 	return &GridService{
-		BaseService: NewBaseService(nil, overlay),
+		BaseService: NewBaseService(nil, overlay, system),
 		logger:      logger,
 	}
 }
@@ -58,5 +62,6 @@ func (s *GridService) HideGrid(ctx context.Context) error {
 func (s *GridService) Health(ctx context.Context) map[string]error {
 	return map[string]error{
 		"overlay": s.overlay.Health(ctx),
+		"system":  s.system.Health(ctx),
 	}
 }

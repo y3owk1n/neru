@@ -1,4 +1,4 @@
-package bridge_test
+package darwin_test
 
 import (
 	"sync/atomic"
@@ -6,7 +6,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
 )
 
@@ -63,10 +63,10 @@ func TestInitializeLogger(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			// Should not panic
-			bridge.InitializeLogger(testCase.logger)
+			darwin.InitializeLogger(testCase.logger)
 
 			// Verify logger was set
-			if testCase.logger != nil && bridge.Logger() == nil {
+			if testCase.logger != nil && darwin.Logger() == nil {
 				t.Error("Expected logger to be set")
 			}
 		})
@@ -76,7 +76,7 @@ func TestInitializeLogger(t *testing.T) {
 func TestSetAppWatcher(t *testing.T) {
 	tests := []struct {
 		name    string
-		watcher bridge.AppWatcherInterface
+		watcher darwin.AppWatcherInterface
 	}{
 		{
 			name:    "set mock watcher",
@@ -91,13 +91,13 @@ func TestSetAppWatcher(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			// Initialize logger for testing
-			bridge.InitializeLogger(zap.NewNop())
+			darwin.InitializeLogger(zap.NewNop())
 
 			// Should not panic
-			bridge.SetAppWatcher(testCase.watcher)
+			darwin.SetAppWatcher(testCase.watcher)
 
 			// Verify watcher was set
-			if testCase.watcher != nil && bridge.AppWatcher() == nil {
+			if testCase.watcher != nil && darwin.AppWatcher() == nil {
 				t.Error("Expected watcher to be set")
 			}
 		})
@@ -106,14 +106,14 @@ func TestSetAppWatcher(t *testing.T) {
 
 func TestCallbacks(t *testing.T) {
 	// Initialize logger
-	bridge.InitializeLogger(zap.NewNop())
+	darwin.InitializeLogger(zap.NewNop())
 
 	// Setup mock watcher
 	mock := &MockAppWatcher{}
-	bridge.SetAppWatcher(mock)
+	darwin.SetAppWatcher(mock)
 
 	t.Run("HandleAppLaunch", func(t *testing.T) {
-		bridge.HandleAppLaunch("TestApp", "com.test.app")
+		darwin.HandleAppLaunch("TestApp", "com.test.app")
 
 		if len(mock.launchCalls) != 1 {
 			t.Errorf("Expected 1 launch call, got %d", len(mock.launchCalls))
@@ -129,7 +129,7 @@ func TestCallbacks(t *testing.T) {
 	})
 
 	t.Run("HandleAppTerminate", func(t *testing.T) {
-		bridge.HandleAppTerminate("TestApp", "com.test.app")
+		darwin.HandleAppTerminate("TestApp", "com.test.app")
 
 		if len(mock.terminateCalls) != 1 {
 			t.Errorf("Expected 1 terminate call, got %d", len(mock.terminateCalls))
@@ -137,7 +137,7 @@ func TestCallbacks(t *testing.T) {
 	})
 
 	t.Run("HandleAppActivate", func(t *testing.T) {
-		bridge.HandleAppActivate("TestApp", "com.test.app")
+		darwin.HandleAppActivate("TestApp", "com.test.app")
 
 		if len(mock.activateCalls) != 1 {
 			t.Errorf("Expected 1 activate call, got %d", len(mock.activateCalls))
@@ -145,7 +145,7 @@ func TestCallbacks(t *testing.T) {
 	})
 
 	t.Run("HandleAppDeactivate", func(t *testing.T) {
-		bridge.HandleAppDeactivate("TestApp", "com.test.app")
+		darwin.HandleAppDeactivate("TestApp", "com.test.app")
 
 		if len(mock.deactivateCalls) != 1 {
 			t.Errorf("Expected 1 deactivate call, got %d", len(mock.deactivateCalls))
@@ -153,7 +153,7 @@ func TestCallbacks(t *testing.T) {
 	})
 
 	t.Run("HandleScreenParametersChanged", func(t *testing.T) {
-		bridge.HandleScreenParametersChanged()
+		darwin.HandleScreenParametersChanged()
 
 		// The handler is dispatched in a goroutine, so wait briefly for it to complete.
 		time.Sleep(50 * time.Millisecond)
@@ -180,9 +180,9 @@ func TestHasClickAction(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			// Initialize logger for testing
-			bridge.InitializeLogger(zap.NewNop())
+			darwin.InitializeLogger(zap.NewNop())
 
-			got := bridge.HasClickAction(testCase.element)
+			got := darwin.HasClickAction(testCase.element)
 			if got != testCase.want {
 				t.Errorf("HasClickAction() = %v, want %v", got, testCase.want)
 			}
@@ -192,9 +192,9 @@ func TestHasClickAction(t *testing.T) {
 
 func TestActiveScreenBounds(t *testing.T) {
 	// Initialize logger for testing
-	bridge.InitializeLogger(zap.NewNop())
+	darwin.InitializeLogger(zap.NewNop())
 
-	bounds := bridge.ActiveScreenBounds()
+	bounds := darwin.ActiveScreenBounds()
 
 	// Verify bounds are valid (non-zero)
 	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
@@ -241,7 +241,7 @@ func TestShowConfigValidationError(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			// Initialize logger for testing
-			bridge.InitializeLogger(zap.NewNop())
+			darwin.InitializeLogger(zap.NewNop())
 
 			// Note: This will actually show a dialog in test environment
 			// In a real test environment, we'd mock the C function
@@ -280,7 +280,7 @@ func TestSetApplicationAttribute(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			// Initialize logger for testing
-			bridge.InitializeLogger(zap.NewNop())
+			darwin.InitializeLogger(zap.NewNop())
 
 			// Note: This requires actual accessibility permissions
 			// In a real test environment, we'd mock the C function
@@ -295,9 +295,9 @@ func TestSetApplicationAttribute(t *testing.T) {
 
 func TestIsSecureInputEnabled(t *testing.T) {
 	// Initialize logger for testing
-	bridge.InitializeLogger(zap.NewNop())
+	darwin.InitializeLogger(zap.NewNop())
 
 	// This function should not panic - we can't control whether secure input
 	// is enabled in tests, but we can verify the CGO binding works
-	_ = bridge.IsSecureInputEnabled()
+	_ = darwin.IsSecureInputEnabled()
 }

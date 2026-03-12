@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,7 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
 	"go.uber.org/zap"
 )
@@ -24,9 +25,22 @@ func main() {
 	cli.Execute()
 }
 
+type alertProvider struct{}
+
+func (p *alertProvider) ShowAlert(ctx context.Context, title, message string) error {
+	darwin.ShowConfigValidationError(message, title)
+
+	return nil
+}
+
 // LaunchDaemon is called by the CLI to launch the daemon.
 func LaunchDaemon(configPath string) {
-	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop())
+	service := config.NewService(
+		config.DefaultConfig(),
+		configPath,
+		zap.NewNop(),
+		&alertProvider{},
+	)
 	configResult := service.LoadWithValidation(configPath)
 
 	// If there's a validation error, show alert and continue with default config
@@ -77,5 +91,5 @@ func LaunchDaemon(configPath string) {
 
 // showConfigErrorAlert displays a native macOS alert for config validation errors.
 func showConfigErrorAlert(errorMessage, configPath string) {
-	bridge.ShowConfigValidationError(errorMessage, configPath)
+	darwin.ShowConfigValidationError(errorMessage, configPath)
 }

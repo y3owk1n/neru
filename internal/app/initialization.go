@@ -12,10 +12,10 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	accessibilityAdapter "github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -38,7 +38,7 @@ func initializeLogger(config *config.Config) (*zap.Logger, error) {
 	}
 
 	logger := logger.Get()
-	bridge.InitializeLogger(logger)
+	darwin.InitializeLogger(logger)
 
 	return logger, nil
 }
@@ -99,6 +99,7 @@ func initializeAdapters(
 	cfg *config.Config,
 	logger *zap.Logger,
 	overlayManager OverlayManager,
+	systemPort ports.SystemPort,
 ) (ports.AccessibilityPort, ports.OverlayPort, func()) {
 	excludedBundles := cfg.General.ExcludedApps
 	clickableRoles := cfg.Hints.ClickableRoles
@@ -116,7 +117,7 @@ func initializeAdapters(
 	)
 
 	// Create overlay adapter for UI rendering
-	overlayPort := overlayAdapter.NewAdapter(overlayManager, defaultThemeProvider, logger)
+	overlayPort := overlayAdapter.NewAdapter(overlayManager, newThemeProvider(systemPort), logger)
 
 	axCache := axClient.Cache()
 
@@ -128,6 +129,7 @@ func initializeServices(
 	cfg *config.Config,
 	accAdapter ports.AccessibilityPort,
 	overlayAdapter ports.OverlayPort,
+	systemPort ports.SystemPort,
 	logger *zap.Logger,
 ) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, *modeindicator.Service, error) {
 	// Hint Generator - creates unique labels for UI elements
@@ -141,15 +143,23 @@ func initializeServices(
 	}
 
 	// Hint Service - orchestrates hint generation and display
-	hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, cfg.Hints, logger)
+	hintService := services.NewHintService(
+		accAdapter,
+		overlayAdapter,
+		systemPort,
+		hintGen,
+		cfg.Hints,
+		logger,
+	)
 
 	// Grid Service - manages grid-based navigation overlays
-	gridService := services.NewGridService(overlayAdapter, logger)
+	gridService := services.NewGridService(overlayAdapter, systemPort, logger)
 
 	// Action Service - handles UI element interactions
 	actionService := services.NewActionService(
 		accAdapter,
 		overlayAdapter,
+		systemPort,
 		cfg.Action,
 		cfg.Action.KeyBindings,
 		cfg.Action.MoveMouseStep,
@@ -157,11 +167,17 @@ func initializeServices(
 	)
 
 	// Scroll Service - manages scrolling operations
-	scrollService := services.NewScrollService(accAdapter, overlayAdapter, cfg.Scroll, logger)
+	scrollService := services.NewScrollService(
+		accAdapter,
+		overlayAdapter,
+		systemPort,
+		cfg.Scroll,
+		logger,
+	)
 
 	// Mode Indicator Service - manages mode indicator overlay
 	modeIndicatorService := modeindicator.NewService(
-		accAdapter,
+		systemPort,
 		overlayAdapter,
 		logger,
 	)

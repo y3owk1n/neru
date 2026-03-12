@@ -5,7 +5,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
 )
@@ -38,7 +38,7 @@ func (h *Handler) CaptureInitialCursorPosition() {
 		return
 	}
 
-	screenBounds := bridge.ActiveScreenBounds()
+	screenBounds := darwin.ActiveScreenBounds()
 	h.cursorState.Capture(pos, screenBounds)
 }
 

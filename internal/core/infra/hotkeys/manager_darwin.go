@@ -1,20 +1,13 @@
+//go:build darwin
+
 package hotkeys
-
-/*
-#cgo CFLAGS: -x objective-c
-#include "../bridge/hotkeys.h"
-#include <stdlib.h>
-
-extern void hotkeyCallbackBridge(int hotkeyId, void* userData);
-*/
-import "C"
 
 import (
 	"sync"
-	"unsafe"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
 )
 
@@ -55,13 +48,8 @@ func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error
 	defer m.mu.Unlock()
 
 	// Parse key string
-	var keyCode, modifiers C.int
-	cKeyString := C.CString(keyString)
-
-	defer C.free(unsafe.Pointer(cKeyString)) //nolint:nlreturn
-
-	result := C.parseKeyString(cKeyString, &keyCode, &modifiers)
-	if result == 0 {
+	keyCode, modifiers, ok := darwin.ParseKeyString(keyString)
+	if !ok {
 		m.logger.Error("Failed to parse key string", zap.String("key", keyString))
 
 		return 0, derrors.Newf(
@@ -77,15 +65,15 @@ func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error
 
 	m.logger.Debug("Parsed key string",
 		zap.String("key", keyString),
-		zap.Int("key_code", int(keyCode)),
-		zap.Int("modifiers", int(modifiers)),
+		zap.Int("key_code", keyCode),
+		zap.Int("modifiers", modifiers),
 		zap.Int("id", int(hotkeyID)))
 
 	// Register hotkey
-	success := C.registerHotkey(keyCode, modifiers, C.int(hotkeyID),
-		C.HotkeyCallback(C.hotkeyCallbackBridge), nil)
+	success := darwin.RegisterHotkey(keyCode, modifiers, int(hotkeyID),
+		darwin.GetHotkeyCallbackBridge(), nil)
 
-	if success == 0 {
+	if !success {
 		m.logger.Error("Failed to register hotkey", zap.String("key", keyString))
 
 		return 0, derrors.Newf(
@@ -113,7 +101,7 @@ func (m *Manager) Unregister(hotkeyID HotkeyID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	C.unregisterHotkey(C.int(hotkeyID))
+	darwin.UnregisterHotkey(int(hotkeyID))
 	delete(m.callbacks, hotkeyID)
 
 	m.logger.Info("Unregistered hotkey", zap.Int("id", int(hotkeyID)))
@@ -127,13 +115,14 @@ func (m *Manager) UnregisterAll() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	C.unregisterAllHotkeys()
+	darwin.UnregisterAllHotkeys()
+
 	m.callbacks = make(map[HotkeyID]Callback)
 
 	m.logger.Info("Unregistered all hotkeys")
 }
 
-// handleCallback processes hotkey events received from the C callback bridge.
+// handleCallback processes hotkey events received from the C callback darwin.
 // It looks up the appropriate callback function and executes it in a goroutine.
 func (m *Manager) handleCallback(hotkeyID HotkeyID) {
 	m.logger.Debug("Handling hotkey callback", zap.Int("id", int(hotkeyID)))
@@ -154,7 +143,7 @@ func (m *Manager) handleCallback(hotkeyID HotkeyID) {
 // This allows the C bridge function to forward events to the appropriate manager instance.
 var globalManager *Manager
 
-// SetGlobalManager assigns the global manager instance used by the C callback bridge.
+// SetGlobalManager assigns the global manager instance used by the C callback darwin.
 // This should be called once during application initialization with the main hotkey manager.
 func SetGlobalManager(manager *Manager) {
 	if manager != nil {
@@ -163,16 +152,19 @@ func SetGlobalManager(manager *Manager) {
 		// This would be unusual but let's log it
 		logger.Get().Info("Setting global hotkey manager to nil")
 	}
-	globalManager = manager
-}
 
-// hotkeyCallbackBridge serves as the C-to-Go callback bridge for hotkey events.
-// It forwards hotkey events to the global manager's handleCallback method.
-//
-//export hotkeyCallbackBridge
-func hotkeyCallbackBridge(hotkeyID C.int, _ unsafe.Pointer) {
-	if globalManager != nil {
-		globalManager.logger.Debug("Hotkey callback bridge called", zap.Int("id", int(hotkeyID)))
-		go globalManager.handleCallback(HotkeyID(hotkeyID))
+	globalManager = manager
+
+	// Set the handler in the darwin package
+	if manager != nil {
+		darwin.SetHotkeyHandler(func(hotkeyID int) {
+			if globalManager != nil {
+				globalManager.logger.Debug("Hotkey callback bridge called", zap.Int("id", hotkeyID))
+
+				go globalManager.handleCallback(HotkeyID(hotkeyID))
+			}
+		})
+	} else {
+		darwin.SetHotkeyHandler(nil)
 	}
 }

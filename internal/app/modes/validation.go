@@ -5,7 +5,7 @@ import (
 	"time"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
 )
 
@@ -19,12 +19,12 @@ const (
 func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) error {
 	// Check for secure input mode first - this is a macOS security feature
 	// that blocks keyboard events when password fields are focused
-	if bridge.IsSecureInputEnabled() {
+	if darwin.IsSecureInputEnabled() {
 		h.logger.Warn("Secure input is enabled, blocking mode activation",
 			zap.String("mode", modeName))
 
 		// Show notification to inform the user
-		bridge.ShowSecureInputNotification()
+		darwin.ShowSecureInputNotification()
 
 		return derrors.New(
 			derrors.CodeSecureInputEnabled,

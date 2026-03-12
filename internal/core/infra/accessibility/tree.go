@@ -1,8 +1,10 @@
+//go:build darwin
+
 package accessibility
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../bridge/accessibility.h"
+#include "../platform/darwin/accessibility.h"
 #include <stdlib.h>
 
 */

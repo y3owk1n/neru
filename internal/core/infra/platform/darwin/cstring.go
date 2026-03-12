@@ -1,8 +1,9 @@
-package bridge
+//go:build darwin
+
+package darwin
 
 /*
 #cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework ApplicationServices -framework Cocoa -framework Carbon -framework CoreGraphics
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
