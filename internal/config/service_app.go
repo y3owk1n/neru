@@ -27,8 +27,8 @@ func (s *Service) ReloadWithAppContext(
 		if s.alertProvider != nil {
 			_ = s.alertProvider.ShowAlert(
 				ctx,
-				loadResult.ConfigPath,
 				loadResult.ValidationError.Error(),
+				loadResult.ConfigPath,
 			)
 		}
 

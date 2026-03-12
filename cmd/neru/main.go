@@ -28,7 +28,7 @@ func main() {
 type alertProvider struct{}
 
 func (p *alertProvider) ShowAlert(ctx context.Context, title, message string) error {
-	darwin.ShowConfigValidationError(message, title)
+	darwin.ShowConfigValidationError(title, message)
 
 	return nil
 }

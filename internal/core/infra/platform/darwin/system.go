@@ -99,7 +99,7 @@ func (s *SystemAdapter) CheckPermissions(ctx context.Context) error {
 
 // ShowAlert displays a native system alert on macOS.
 func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) error {
-	ShowConfigValidationError(message, title)
+	ShowConfigValidationError(title, message)
 
 	return nil
 }
