@@ -300,6 +300,12 @@ func (m *Manager) CanDivide() bool {
 	return m.grid.CanDivide()
 }
 
+// CanPreviewNextDepth returns whether the current bounds should render a
+// sub-key preview for an additional recursive step.
+func (m *Manager) CanPreviewNextDepth() bool {
+	return m.grid.CanPreviewNextDepth()
+}
+
 // CurrentCenter returns the center point of the current bounds.
 func (m *Manager) CurrentCenter() image.Point {
 	return m.grid.CurrentCenter()

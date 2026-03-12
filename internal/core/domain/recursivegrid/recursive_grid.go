@@ -214,6 +214,36 @@ func (qg *RecursiveGrid) CanDivide() bool {
 	return cellWidth >= qg.minSizeWidth && cellHeight >= qg.minSizeHeight
 }
 
+// CanPreviewNextDepth returns whether the current cell can truthfully preview
+// another recursive step after the next selection.
+//
+// This is stricter than CanDivide: the current bounds must be able to divide
+// now, and the smallest possible selected child cell must also be large enough
+// for the following depth to divide again. The preview is drawn uniformly for
+// every current cell, so this conservative check avoids showing a sub-key
+// preview on the terminal interactive depth.
+func (qg *RecursiveGrid) CanPreviewNextDepth() bool {
+	if !qg.CanDivide() {
+		return false
+	}
+
+	nextDepth := qg.depth + 1
+	if nextDepth >= qg.maxDepth {
+		return false
+	}
+
+	currentLayout := qg.LayoutForDepth(qg.depth)
+	nextLayout := qg.LayoutForDepth(nextDepth)
+
+	childWidth := qg.currentBounds.Dx() / currentLayout.GridCols
+	childHeight := qg.currentBounds.Dy() / currentLayout.GridRows
+
+	nextCellWidth := childWidth / nextLayout.GridCols
+	nextCellHeight := childHeight / nextLayout.GridRows
+
+	return nextCellWidth >= qg.minSizeWidth && nextCellHeight >= qg.minSizeHeight
+}
+
 // CurrentCenter returns the center point of the current bounds.
 func (qg *RecursiveGrid) CurrentCenter() image.Point {
 	return image.Point{

@@ -419,3 +419,38 @@ func TestIsComplete(t *testing.T) {
 
 	assert.True(t, grid.IsComplete(), "Should be complete when CanDivide returns false")
 }
+
+func TestCanPreviewNextDepth(t *testing.T) {
+	tests := []struct {
+		name     string
+		grid     *recursivegrid.RecursiveGrid
+		expected bool
+	}{
+		{
+			name:     "preview available when another recursive step remains",
+			grid:     recursivegrid.NewRecursiveGrid(image.Rect(0, 0, 200, 200), 25, 25, 10),
+			expected: true,
+		},
+		{
+			name:     "preview hidden on terminal interactive depth by size",
+			grid:     recursivegrid.NewRecursiveGrid(image.Rect(0, 0, 90, 90), 25, 25, 10),
+			expected: false,
+		},
+		{
+			name:     "preview hidden on terminal interactive depth by max depth",
+			grid:     recursivegrid.NewRecursiveGrid(image.Rect(0, 0, 200, 200), 25, 25, 1),
+			expected: false,
+		},
+		{
+			name:     "preview hidden when current bounds cannot divide",
+			grid:     recursivegrid.NewRecursiveGrid(image.Rect(0, 0, 40, 40), 25, 25, 10),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.grid.CanPreviewNextDepth())
+		})
+	}
+}
