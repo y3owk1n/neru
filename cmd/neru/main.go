@@ -42,6 +42,23 @@ func (p *alertProvider) ShowAlert(ctx context.Context, title, message string) er
 
 // LaunchDaemon is called by the CLI to launch the daemon.
 func LaunchDaemon(configPath string) {
+	if !platform.IsDarwin() {
+		fmt.Fprintf(
+			os.Stderr,
+			"⚠️  WARNING: Neru is running on %s, which is not yet fully supported.\n",
+			platform.CurrentOS(),
+		)
+		fmt.Fprintf(
+			os.Stderr,
+			"   Most features (hotkeys, overlays, accessibility, notifications) are stubs\n",
+		)
+		fmt.Fprintf(os.Stderr, "   and will not function. Only macOS is currently supported.\n")
+		fmt.Fprintf(
+			os.Stderr,
+			"   See docs/ARCHITECTURE_CROSS_PLATFORM.md for the contribution guide.\n\n",
+		)
+	}
+
 	service := config.NewService(
 		config.DefaultConfig(),
 		configPath,
