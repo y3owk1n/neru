@@ -11,7 +11,6 @@ func applyPlatformDefaults(cfg *Config) {
 		"com.apple.dock",
 		"com.apple.systemuiserver",
 		"com.apple.Spotlight",
-		"com.apple.finder",
 		"com.apple.ScreenSaver.Engine",
 	)
 
