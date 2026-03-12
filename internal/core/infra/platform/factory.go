@@ -1,30 +1,14 @@
 // Package platform provides a factory for platform-specific infrastructure components.
+//
+// The NewSystemPort function is defined in build-tagged files
+// (factory_darwin.go, factory_linux.go, factory_windows.go) so that each
+// platform only imports its own adapter package. This avoids pulling in CGo
+// dependencies (platform/darwin) on non-macOS builds.
 package platform
 
 import (
 	"errors"
-	"fmt"
-	"runtime"
-
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/windows"
-	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // ErrUnsupportedPlatform is returned when the current platform is not supported.
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
-
-// NewSystemPort returns a new SystemPort implementation for the current platform.
-func NewSystemPort() (ports.SystemPort, error) {
-	switch runtime.GOOS {
-	case "darwin":
-		return darwin.NewSystemAdapter(), nil
-	case "linux":
-		return linux.NewSystemAdapter(), nil
-	case "windows":
-		return windows.NewSystemAdapter(), nil
-	default:
-		return nil, fmt.Errorf("%w: %s", ErrUnsupportedPlatform, runtime.GOOS)
-	}
-}

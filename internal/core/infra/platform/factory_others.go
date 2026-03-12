@@ -1,0 +1,15 @@
+//go:build !darwin && !linux && !windows
+
+package platform
+
+import (
+	"fmt"
+	"runtime"
+
+	"github.com/y3owk1n/neru/internal/core/ports"
+)
+
+// NewSystemPort returns an error on unsupported platforms.
+func NewSystemPort() (ports.SystemPort, error) {
+	return nil, fmt.Errorf("%w: %s", ErrUnsupportedPlatform, runtime.GOOS)
+}
