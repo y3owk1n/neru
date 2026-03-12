@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"context"
 	"image"
 	"sync"
 	"time"
@@ -15,7 +16,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
+	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
@@ -48,6 +49,7 @@ type Handler struct {
 
 	config         *configpkg.Config
 	themeProvider  configpkg.ThemeProvider
+	system         ports.SystemPort
 	logger         *zap.Logger
 	appState       *state.AppState
 	cursorState    *state.CursorState
@@ -106,10 +108,15 @@ func NewHandler(
 	setModifierPassthrough func(enabled bool, blacklist []string),
 	setInterceptedModifierKeys func(keys []string),
 	refreshHotkeys func(),
-	themeProvider configpkg.ThemeProvider,
+	systemPort ports.SystemPort,
 ) *Handler {
-	// Initialize screen bounds for coordinate conversion
-	screenBounds := darwin.ActiveScreenBounds()
+	// Initialize screen bounds for coordinate conversion.
+	// Use a background context since this runs during startup.
+	var screenBounds image.Rectangle
+
+	if systemPort != nil {
+		screenBounds, _ = systemPort.ScreenBounds(context.Background())
+	}
 
 	handler := &Handler{
 		config:                     config,
@@ -133,7 +140,8 @@ func NewHandler(
 		setModifierPassthrough:     setModifierPassthrough,
 		setInterceptedModifierKeys: setInterceptedModifierKeys,
 		refreshHotkeys:             refreshHotkeys,
-		themeProvider:              themeProvider,
+		themeProvider:              systemPort,
+		system:                     systemPort,
 	}
 
 	// Initialize mode implementations
@@ -167,7 +175,10 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 	}
 	// Re-read screen bounds under the lock so the onUpdate callback
 	// uses coordinates that match the resized overlay.
-	h.screenBounds = darwin.ActiveScreenBounds()
+	if h.system != nil {
+		h.screenBounds, _ = h.system.ScreenBounds(context.Background())
+	}
+
 	h.hints.Context.SetHints(hintCollection)
 
 	return true
@@ -242,9 +253,11 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 
 	// Re-read screen bounds under the lock so the overlay uses coordinates
 	// that match the resized window.
-	screenBounds := darwin.ActiveScreenBounds()
-	h.screenBounds = screenBounds
-	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
+	if h.system != nil {
+		h.screenBounds, _ = h.system.ScreenBounds(context.Background())
+	}
+
+	normalizedBounds := coordinates.NormalizeToLocalCoordinates(h.screenBounds)
 
 	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
 		// Proportionally remap all bounds (history + currentBounds) so the

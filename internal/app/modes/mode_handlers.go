@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
 )
@@ -220,8 +219,7 @@ func (h *Handler) handleGridModeKey(key string) {
 		targetPoint := gridKeyResult.TargetPoint()
 
 		// Convert from window-local coordinates to absolute screen coordinates using helper
-		screenBounds := darwin.ActiveScreenBounds()
-		absolutePoint := coordinates.ConvertToAbsoluteCoordinates(targetPoint, screenBounds)
+		absolutePoint := coordinates.ConvertToAbsoluteCoordinates(targetPoint, h.screenBounds)
 
 		h.logger.Info(
 			"Grid move mouse",

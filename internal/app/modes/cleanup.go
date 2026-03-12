@@ -7,7 +7,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -140,7 +139,11 @@ func (h *Handler) handleCursorRestoration() {
 			time.Sleep(postActionSettleDelay)
 		}
 
-		currentBounds := darwin.ActiveScreenBounds()
+		var currentBounds image.Rectangle
+
+		if h.system != nil {
+			currentBounds, _ = h.system.ScreenBounds(context.Background())
+		}
 
 		var target image.Point
 

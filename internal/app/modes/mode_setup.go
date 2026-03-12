@@ -2,10 +2,10 @@ package modes
 
 import (
 	"context"
+	"image"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
 )
@@ -38,7 +38,12 @@ func (h *Handler) CaptureInitialCursorPosition() {
 		return
 	}
 
-	screenBounds := darwin.ActiveScreenBounds()
+	var screenBounds image.Rectangle
+
+	if h.system != nil {
+		screenBounds, _ = h.system.ScreenBounds(ctx)
+	}
+
 	h.cursorState.Capture(pos, screenBounds)
 }
 

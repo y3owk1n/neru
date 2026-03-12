@@ -97,6 +97,14 @@ func (s *SystemAdapter) CheckPermissions(ctx context.Context) error {
 	return nil
 }
 
+// IsSecureInputEnabled returns false on Linux (secure input is a macOS concept).
+func (s *SystemAdapter) IsSecureInputEnabled() bool {
+	return false
+}
+
+// ShowSecureInputNotification is a no-op on Linux.
+func (s *SystemAdapter) ShowSecureInputNotification() {}
+
 // ShowAlert displays a native system alert on Linux.
 func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) error {
 	return nil

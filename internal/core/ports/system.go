@@ -54,6 +54,18 @@ type ThemeProviderPort interface {
 	IsDarkMode() bool
 }
 
+// SecureInputPort defines the interface for secure input detection and notification.
+type SecureInputPort interface {
+	// IsSecureInputEnabled returns true if secure input mode is currently active
+	// (e.g. a password field is focused). On non-macOS platforms this always returns false.
+	IsSecureInputEnabled() bool
+
+	// ShowSecureInputNotification displays a platform notification informing the user
+	// that mode activation was blocked because secure input is active.
+	// On non-macOS platforms this is a no-op.
+	ShowSecureInputNotification()
+}
+
 // SystemPort combines various platform-specific system interfaces.
 type SystemPort interface {
 	HealthCheck
@@ -62,6 +74,7 @@ type SystemPort interface {
 	ScreenManagement
 	PermissionManagement
 	ThemeProviderPort
+	SecureInputPort
 
 	// ShowAlert displays a native system alert/notification.
 	ShowAlert(ctx context.Context, title, message string) error

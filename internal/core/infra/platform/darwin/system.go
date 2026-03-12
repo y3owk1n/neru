@@ -97,6 +97,16 @@ func (s *SystemAdapter) CheckPermissions(ctx context.Context) error {
 	return nil
 }
 
+// IsSecureInputEnabled returns true if macOS secure input mode is currently active.
+func (s *SystemAdapter) IsSecureInputEnabled() bool {
+	return IsSecureInputEnabled()
+}
+
+// ShowSecureInputNotification displays a macOS notification about active secure input.
+func (s *SystemAdapter) ShowSecureInputNotification() {
+	ShowSecureInputNotification()
+}
+
 // ShowAlert displays a native system alert on macOS.
 func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) error {
 	ShowConfigValidationError(title, message)

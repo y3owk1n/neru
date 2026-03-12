@@ -9,19 +9,21 @@ import (
 
 // SystemMock is a mock implementation of ports.SystemPort.
 type SystemMock struct {
-	ConfigDirFunc         func() (string, error)
-	UserDataDirFunc       func() (string, error)
-	LogDirFunc            func() (string, error)
-	FocusedAppPIDFunc     func(ctx context.Context) (int, error)
-	AppNameByPIDFunc      func(ctx context.Context, pid int) (string, error)
-	AppBundleIDByPIDFunc  func(ctx context.Context, pid int) (string, error)
-	ScreenBoundsFunc      func(ctx context.Context) (image.Rectangle, error)
-	MoveCursorToPointFunc func(ctx context.Context, point image.Point, bypassSmooth bool) error
-	CursorPositionFunc    func(ctx context.Context) (image.Point, error)
-	CheckPermissionsFunc  func(ctx context.Context) error
-	IsDarkModeFunc        func() bool
-	ShowAlertFunc         func(ctx context.Context, title, message string) error
-	HealthFunc            func(ctx context.Context) error
+	ConfigDirFunc                   func() (string, error)
+	UserDataDirFunc                 func() (string, error)
+	LogDirFunc                      func() (string, error)
+	FocusedAppPIDFunc               func(ctx context.Context) (int, error)
+	AppNameByPIDFunc                func(ctx context.Context, pid int) (string, error)
+	AppBundleIDByPIDFunc            func(ctx context.Context, pid int) (string, error)
+	ScreenBoundsFunc                func(ctx context.Context) (image.Rectangle, error)
+	MoveCursorToPointFunc           func(ctx context.Context, point image.Point, bypassSmooth bool) error
+	CursorPositionFunc              func(ctx context.Context) (image.Point, error)
+	CheckPermissionsFunc            func(ctx context.Context) error
+	IsDarkModeFunc                  func() bool
+	IsSecureInputEnabledFunc        func() bool
+	ShowSecureInputNotificationFunc func()
+	ShowAlertFunc                   func(ctx context.Context, title, message string) error
+	HealthFunc                      func(ctx context.Context) error
 }
 
 // ConfigDir is a mock implementation.
@@ -125,6 +127,22 @@ func (m *SystemMock) IsDarkMode() bool {
 	}
 
 	return false
+}
+
+// IsSecureInputEnabled is a mock implementation.
+func (m *SystemMock) IsSecureInputEnabled() bool {
+	if m.IsSecureInputEnabledFunc != nil {
+		return m.IsSecureInputEnabledFunc()
+	}
+
+	return false
+}
+
+// ShowSecureInputNotification is a mock implementation.
+func (m *SystemMock) ShowSecureInputNotification() {
+	if m.ShowSecureInputNotificationFunc != nil {
+		m.ShowSecureInputNotificationFunc()
+	}
 }
 
 // ShowAlert is a mock implementation.

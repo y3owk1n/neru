@@ -68,6 +68,12 @@ func (s *SystemAdapter) CheckPermissions(ctx context.Context) error { return nil
 // IsDarkMode is a stub.
 func (s *SystemAdapter) IsDarkMode() bool { return false }
 
+// IsSecureInputEnabled is a stub.
+func (s *SystemAdapter) IsSecureInputEnabled() bool { return false }
+
+// ShowSecureInputNotification is a stub.
+func (s *SystemAdapter) ShowSecureInputNotification() {}
+
 // ShowAlert is a stub.
 func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) error { return nil }
 

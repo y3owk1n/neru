@@ -9,7 +9,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
 )
 
@@ -107,7 +106,12 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 
 	// Always resize overlay to the active screen (where mouse is) before collecting elements.
 	// This ensures proper positioning when switching between multiple displays.
-	activeScreenBounds := darwin.ActiveScreenBounds()
+	var activeScreenBounds image.Rectangle
+
+	if h.system != nil {
+		activeScreenBounds, _ = h.system.ScreenBounds(context.Background())
+	}
+
 	h.screenBounds = activeScreenBounds
 	h.overlayManager.ResizeToActiveScreen()
 

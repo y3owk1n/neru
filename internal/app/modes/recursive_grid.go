@@ -9,7 +9,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
 )
@@ -33,7 +32,12 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
 	h.appState.SetRecursiveGridOverlayNeedsRefresh(false)
 
 	// Get screen bounds
-	screenBounds := darwin.ActiveScreenBounds()
+	var screenBounds image.Rectangle
+
+	if h.system != nil {
+		screenBounds, _ = h.system.ScreenBounds(context.Background())
+	}
+
 	h.screenBounds = screenBounds
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
 

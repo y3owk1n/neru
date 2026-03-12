@@ -8,7 +8,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
 )
@@ -78,7 +77,11 @@ func (h *Handler) activateGridModeWithAction(actionStr *string) {
 
 // createGridInstance creates a new grid instance with proper bounds and characters.
 func (h *Handler) createGridInstance() *domainGrid.Grid {
-	screenBounds := darwin.ActiveScreenBounds()
+	var screenBounds image.Rectangle
+
+	if h.system != nil {
+		screenBounds, _ = h.system.ScreenBounds(context.Background())
+	}
 
 	// Store screen bounds for coordinate conversion
 	h.screenBounds = screenBounds
@@ -120,7 +123,12 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 	if gridInstance == nil {
 		h.logger.Warn("Grid instance is nil, creating with default bounds")
 
-		screenBounds := darwin.ActiveScreenBounds()
+		var screenBounds image.Rectangle
+
+		if h.system != nil {
+			screenBounds, _ = h.system.ScreenBounds(context.Background())
+		}
+
 		bounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
 		gridInstance = domainGrid.NewGridWithLabels(
 			h.config.Grid.Characters,

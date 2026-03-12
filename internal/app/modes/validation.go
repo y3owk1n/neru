@@ -5,7 +5,6 @@ import (
 	"time"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"go.uber.org/zap"
 )
 
@@ -18,13 +17,14 @@ const (
 // Returns an error if the mode cannot be activated.
 func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) error {
 	// Check for secure input mode first - this is a macOS security feature
-	// that blocks keyboard events when password fields are focused
-	if darwin.IsSecureInputEnabled() {
+	// that blocks keyboard events when password fields are focused.
+	// On non-macOS platforms IsSecureInputEnabled always returns false.
+	if h.system != nil && h.system.IsSecureInputEnabled() {
 		h.logger.Warn("Secure input is enabled, blocking mode activation",
 			zap.String("mode", modeName))
 
 		// Show notification to inform the user
-		darwin.ShowSecureInputNotification()
+		h.system.ShowSecureInputNotification()
 
 		return derrors.New(
 			derrors.CodeSecureInputEnabled,
