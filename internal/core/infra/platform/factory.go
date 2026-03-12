@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/windows"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -22,8 +23,7 @@ func NewSystemPort() (ports.SystemPort, error) {
 	case "linux":
 		return linux.NewSystemAdapter(), nil
 	case "windows":
-		// Windows uses the darwin package stub (stub_windows.go provides no-op implementations).
-		return darwin.NewSystemAdapter(), nil
+		return windows.NewSystemAdapter(), nil
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedPlatform, runtime.GOOS)
 	}

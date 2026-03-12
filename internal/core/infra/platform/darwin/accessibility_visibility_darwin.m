@@ -5,8 +5,8 @@
 //  Copyright © 2025 Neru. All rights reserved.
 //
 
-#import "accessibility_visibility.h"
 #import "accessibility_constants.h"
+#import "accessibility_visibility.h"
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - Visibility Functions
