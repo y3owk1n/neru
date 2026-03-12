@@ -44,6 +44,8 @@ jobs:
               uses: golangci/golangci-lint-action@v8
               with:
                   version: v2.9.0
+                  install-mode: binary
+                  skip-run: true
 
             # Install just on Windows
             - name: Install just
