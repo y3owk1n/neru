@@ -82,3 +82,6 @@ func AddMenuItem(title string) *MenuItem {
 
 // AddSeparator adds a separator to the system tray (Linux stub).
 func AddSeparator() {}
+
+// ResetForTesting resets all global state (Linux stub).
+func ResetForTesting() {}

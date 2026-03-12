@@ -7,7 +7,7 @@ package systray
 #cgo LDFLAGS: -framework Cocoa
 
 #include <stdlib.h>
-#include "systray.h"
+#include "../platform/darwin/systray.h"
 */
 import "C"
 

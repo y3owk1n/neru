@@ -82,3 +82,6 @@ func AddMenuItem(title string) *MenuItem {
 
 // AddSeparator adds a separator to the system tray (Windows stub).
 func AddSeparator() {}
+
+// ResetForTesting resets all global state (Windows stub).
+func ResetForTesting() {}
