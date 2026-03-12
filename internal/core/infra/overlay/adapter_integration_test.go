@@ -9,6 +9,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	overlayManager "github.com/y3owk1n/neru/internal/ui/overlay"
 )
@@ -37,7 +38,13 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 	logger := logger.Get()
 	manager := overlayManager.Init(logger)
 	theme := &testThemeProvider{darkMode: false}
-	adapter := overlay.NewAdapter(manager, theme, logger)
+
+	systemPort, systemPortErr := platform.NewSystemPort()
+	if systemPortErr != nil {
+		t.Fatalf("Failed to create system port: %v", systemPortErr)
+	}
+
+	adapter := overlay.NewAdapter(manager, theme, systemPort, logger)
 
 	ctx := context.Background()
 
@@ -89,7 +96,13 @@ func TestOverlayAdapterContextCancellation(t *testing.T) {
 	logger := logger.Get()
 	manager := overlayManager.Init(logger)
 	theme := &testThemeProvider{darkMode: false}
-	adapter := overlay.NewAdapter(manager, theme, logger)
+
+	systemPort, systemPortErr := platform.NewSystemPort()
+	if systemPortErr != nil {
+		t.Fatalf("Failed to create system port: %v", systemPortErr)
+	}
+
+	adapter := overlay.NewAdapter(manager, theme, systemPort, logger)
 
 	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())

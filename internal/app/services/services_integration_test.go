@@ -285,7 +285,7 @@ func initializeRealAdapters(
 
 	// Create overlay adapter
 	theme := &testThemeProvider{darkMode: false}
-	overlay := overlayAdapter.NewAdapter(overlayManager, theme, logger)
+	overlay := overlayAdapter.NewAdapter(overlayManager, theme, systemPort, logger)
 
 	return accAdapter, overlay, systemPort
 }

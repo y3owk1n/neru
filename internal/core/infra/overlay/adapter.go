@@ -9,7 +9,6 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	uiOverlay "github.com/y3owk1n/neru/internal/ui/overlay"
 	"go.uber.org/zap"
@@ -19,6 +18,7 @@ import (
 type Adapter struct {
 	manager uiOverlay.ManagerInterface
 	theme   config.ThemeProvider
+	system  ports.SystemPort
 	logger  *zap.Logger
 }
 
@@ -26,11 +26,13 @@ type Adapter struct {
 func NewAdapter(
 	manager uiOverlay.ManagerInterface,
 	theme config.ThemeProvider,
+	system ports.SystemPort,
 	logger *zap.Logger,
 ) *Adapter {
 	return &Adapter{
 		manager: manager,
 		theme:   theme,
+		system:  system,
 		logger:  logger,
 	}
 }
@@ -93,7 +95,10 @@ func (a *Adapter) ShowGrid(ctx context.Context) error {
 	}
 
 	// Get screen bounds
-	bounds := darwin.ActiveScreenBounds()
+	bounds, boundsErr := a.system.ScreenBounds(ctx)
+	if boundsErr != nil {
+		return derrors.Wrap(boundsErr, derrors.CodeActionFailed, "failed to get screen bounds")
+	}
 
 	// Create grid
 	grid := domainGrid.NewGrid("abcdefghijklmnopqrstuvwxyz", bounds, a.logger)
