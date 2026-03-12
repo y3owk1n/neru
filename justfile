@@ -13,10 +13,12 @@ LDFLAGS := "-s -w -X github.com/y3owk1n/neru/internal/cli.Version=" + VERSION + 
 default: build
 
 # Build the application (development)
+
+# Uses CGO on macOS (required for Objective-C bridge), CGO_ENABLED=0 elsewhere
 build:
     @echo "Building Neru..."
     @echo "Version: {{ VERSION }}"
-    CGO_ENABLED=1 go build -ldflags="{{ LDFLAGS }}" -o bin/neru ./cmd/neru
+    {{ if os() == "macos" { "CGO_ENABLED=1" } else { "CGO_ENABLED=0" } }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru{{ if os() == "windows" { ".exe" } else { "" } }} ./cmd/neru
     @echo "✓ Build complete: bin/neru"
 
 # Build with optimizations for release
