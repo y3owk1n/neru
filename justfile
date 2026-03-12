@@ -128,20 +128,6 @@ fmt-check:
     fi
     echo "✓ All Objective-C files are properly formatted"
 
-# Run benchmarks
-bench: bench-unit bench-integration
-    @echo "Running all benchmarks..."
-
-# Run unit benchmarks
-bench-unit:
-    @echo "Running unit benchmarks..."
-    go test -bench=. -benchmem ./...
-
-# Run integration benchmarks
-bench-integration:
-    @echo "Running integration benchmarks..."
-    go test -tags=integration -bench=. -benchmem ./...
-
 # Clean build artifacts
 clean:
     @echo "Cleaning build artifacts..."
