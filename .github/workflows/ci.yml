@@ -1,6 +1,13 @@
 on:
     pull_request:
         branches: ["*"]
+        # Release-please PRs only bump versions in CHANGELOG/manifest files.
+        # The underlying code was already validated when the feature PRs merged
+        # to main, so running the full CI matrix again is pure waste.
+        paths-ignore:
+            - "CHANGELOG.md"
+            - ".release-please-manifest.json"
+            - "release-please-config.json"
 name: CI
 permissions:
     contents: read
