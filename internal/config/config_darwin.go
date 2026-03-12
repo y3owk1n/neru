@@ -14,11 +14,11 @@ func applyPlatformDefaults(cfg *Config) {
 		"com.apple.ScreenSaver.Engine",
 	)
 
-	cfg.Hints.AdditionalMenubarHintsTargets = []string{
+	cfg.Hints.AdditionalMenubarHintsTargets = append(cfg.Hints.AdditionalMenubarHintsTargets,
 		"com.apple.TextInputMenuAgent",
 		"com.apple.controlcenter",
 		"com.apple.systemuiserver",
-	}
+	)
 
 	cfg.Hints.ClickableRoles = append(cfg.Hints.ClickableRoles,
 		"AXButton",
