@@ -38,9 +38,9 @@ jobs:
                   go-version-file: "go.mod"
                   cache: true
 
-            # Install Golangci directly on Windows
+            # Install Golangci directly on Windows (install only, lint step runs it)
             - name: Setup Golangci
-              if: runner.os == 'Windows'
+              if: matrix.check == 'lint' && runner.os == 'Windows'
               uses: golangci/golangci-lint-action@v8
               with:
                   version: v2.9.0
