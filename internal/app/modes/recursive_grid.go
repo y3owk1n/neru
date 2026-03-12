@@ -204,7 +204,7 @@ func (h *Handler) updateRecursiveGridOverlay() {
 		nextCols, nextRows int
 	)
 
-	if manager.CanDivide() {
+	if manager.CanPreviewNextDepth() {
 		nextDepth := currentDepth + 1
 		nextKeys = manager.KeysForDepth(nextDepth)
 		nextLayout := manager.CurrentGrid().LayoutForDepth(nextDepth)
