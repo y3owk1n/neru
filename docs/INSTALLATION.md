@@ -334,7 +334,7 @@ neru status  # Should show "running"
 
 ### 4. Configure
 
-Neru loads config from `~/.config/neru/config.toml` (recommended) or `~/Library/Application Support/neru/config.toml`.
+Neru loads config from `~/.config/neru/config.toml` (recommended). See [CONFIGURATION.md](CONFIGURATION.md) for the full search order.
 
 **Get started:** Copy `configs/default-config.toml` to `~/.config/neru/config.toml`
 
