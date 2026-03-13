@@ -68,9 +68,6 @@ documentation:
           - any-glob-to-any-file:
                 - "docs/**"
                 - "*.md"
-                - "AGENTS.md"
-                - "CONTRIBUTING.md"
-                - "README.md"
           - all-globs-to-all-files:
                 - "!.github/**"
 ci:
