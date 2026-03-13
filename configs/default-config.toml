@@ -14,6 +14,7 @@ center_cursor_position = false               # Center cursor on screen on exit (
 kb_layout_to_use = ""                        # Force a keyboard layout InputSourceID (empty = auto)
 mode_exit_keys = ["Escape"]                  # Keys that exit any active mode
 passthrough_unbounded_keys = false           # Let unbound Cmd/Ctrl/Alt shortcuts reach macOS
+should_exit_after_passthrough = false        # Exit the current mode after a shortcut is passed through
 passthrough_unbounded_keys_blacklist = []    # Shortcuts to still consume when passthrough is on
 hide_overlay_in_screen_share = false         # Hide overlay from screen sharing apps
 

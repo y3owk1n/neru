@@ -180,6 +180,7 @@ Core behavior settings that affect all Neru functionality.
 | `kb_layout_to_use`                     | string | `""`         | Optional InputSourceID for layout mapping               |
 | `mode_exit_keys`                       | array  | `["Escape"]` | Keys that exit any active mode                          |
 | `passthrough_unbounded_keys`           | bool   | `false`      | Let unbound Cmd/Ctrl/Alt shortcuts reach macOS          |
+| `should_exit_after_passthrough`        | bool   | `false`      | Exit the current mode after a shortcut passes through   |
 | `passthrough_unbounded_keys_blacklist` | array  | `[]`         | Shortcuts to keep consumed while passthrough is enabled |
 | `hide_overlay_in_screen_share`         | bool   | `false`      | Hide overlay in screen sharing apps                     |
 
@@ -302,6 +303,24 @@ passthrough_unbounded_keys = false  # default
 
 > [!NOTE]
 > Modifier shortcuts that Neru actively uses are still consumed. For example, scroll bindings like `Ctrl+D` or `Cmd+Down` continue working when they are configured in the active mode.
+
+### should_exit_after_passthrough
+
+Exit the active mode after an unbound modifier shortcut is passed through.
+
+```toml
+[general]
+passthrough_unbounded_keys = true
+should_exit_after_passthrough = false  # default
+```
+
+- `true`: After a passthrough shortcut is detected, Neru exits the mode that observed it
+- `false`: Neru stays in the current mode after passthrough
+
+This is useful when shortcuts like `Cmd+Tab` or `Cmd+Space` should both reach macOS and dismiss the overlay.
+
+> [!NOTE]
+> This setting only has an effect when `passthrough_unbounded_keys` is enabled.
 
 ### passthrough_unbounded_keys_blacklist
 

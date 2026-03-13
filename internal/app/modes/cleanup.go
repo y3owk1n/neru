@@ -107,8 +107,7 @@ func (h *Handler) performCommonCleanup() {
 
 	accessibility.EnsureMouseUp()
 
-	h.appState.SetMode(domain.ModeIdle)
-	h.syncModifierPassthrough(domain.ModeIdle)
+	h.setAppModeLocked(domain.ModeIdle)
 	h.logger.Debug("Mode transition complete",
 		zap.String("to", "idle"))
 	h.overlayManager.SwitchTo(overlay.ModeIdle)

@@ -95,6 +95,12 @@ func (h *Handler) overlaySwitch(m overlay.Mode) {
 	}
 }
 
+func (h *Handler) setAppModeLocked(mode domain.Mode) {
+	h.modeSession++
+	h.appState.SetMode(mode)
+	h.syncModifierPassthrough(mode)
+}
+
 // SetModeIdle switches the application to idle mode, disabling active navigation modes.
 // This function resets the application state to idle, disables event tapping,
 // and switches the overlay display to the idle state.
@@ -103,8 +109,10 @@ func (h *Handler) overlaySwitch(m overlay.Mode) {
 // syncModifierPassthrough() with the same mode to keep the event tap
 // passthrough state consistent. See also: performCommonCleanup, setMode.
 func (h *Handler) SetModeIdle() {
-	h.appState.SetMode(domain.ModeIdle)
-	h.syncModifierPassthrough(domain.ModeIdle)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.setAppModeLocked(domain.ModeIdle)
 
 	if h.disableEventTap != nil {
 		h.disableEventTap()
@@ -115,8 +123,7 @@ func (h *Handler) SetModeIdle() {
 
 // setMode sets the application mode, enables event tap, and switches overlay.
 func (h *Handler) setMode(appMode domain.Mode, overlayMode overlay.Mode) {
-	h.appState.SetMode(appMode)
-	h.syncModifierPassthrough(appMode)
+	h.setAppModeLocked(appMode)
 
 	if h.enableEventTap != nil {
 		h.enableEventTap()

@@ -79,8 +79,10 @@ type Handler struct {
 	disableEventTap            func()
 	setModifierPassthrough     func(enabled bool, blacklist []string)
 	setInterceptedModifierKeys func(keys []string)
+	setPassthroughCallback     func(cb func())
 	refreshHotkeys             func()
 	refreshHintsTimer          *time.Timer
+	modeSession                uint64
 
 	// Scroll mode polling
 	scrollTicker *time.Ticker
@@ -109,6 +111,7 @@ func NewHandler(
 	disableEventTap func(),
 	setModifierPassthrough func(enabled bool, blacklist []string),
 	setInterceptedModifierKeys func(keys []string),
+	setPassthroughCallback func(cb func()),
 	refreshHotkeys func(),
 	systemPort ports.SystemPort,
 ) *Handler {
@@ -148,6 +151,7 @@ func NewHandler(
 		disableEventTap:            disableEventTap,
 		setModifierPassthrough:     setModifierPassthrough,
 		setInterceptedModifierKeys: setInterceptedModifierKeys,
+		setPassthroughCallback:     setPassthroughCallback,
 		refreshHotkeys:             refreshHotkeys,
 		themeProvider:              systemPort,
 		system:                     systemPort,

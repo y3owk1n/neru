@@ -27,6 +27,19 @@ type Callback func(key string)
 // PassthroughCallback is invoked when a modifier shortcut passes through to macOS.
 type PassthroughCallback func()
 
+type callbackEventKind uint8
+
+const (
+	callbackEventKey callbackEventKind = iota
+	callbackEventPassthrough
+)
+
+type callbackEvent struct {
+	kind                callbackEventKind
+	key                 string
+	passthroughCallback PassthroughCallback
+}
+
 // EventTap represents a keyboard event interceptor that captures global key presses.
 type EventTap struct {
 	handle C.EventTap
@@ -36,7 +49,7 @@ type EventTap struct {
 	callback            Callback
 	passthroughCallback PassthroughCallback
 
-	callbackQueue chan string
+	callbackQueue chan callbackEvent
 	stopDispatch  chan struct{}
 	stopOnce      sync.Once
 	dispatchWg    sync.WaitGroup
@@ -50,7 +63,7 @@ func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
 	eventTap := &EventTap{
 		callback:      callback,
 		logger:        logger,
-		callbackQueue: make(chan string, callbackQueueSize),
+		callbackQueue: make(chan callbackEvent, callbackQueueSize),
 		stopDispatch:  make(chan struct{}),
 	}
 
@@ -271,9 +284,9 @@ func (et *EventTap) Destroy() {
 	et.logger.Debug("Event tap destroyed")
 }
 
-// handleCallback processes key press events received from the C event tap darwin.
+// handleKeyCallback processes key press events received from the C event tap darwin.
 // It forwards the key information to the registered callback function if one exists.
-func (et *EventTap) handleCallback(key string) {
+func (et *EventTap) handleKeyCallback(key string) {
 	et.logger.Debug("Key pressed", zap.String("key", key))
 
 	et.callbackMu.RLock()
@@ -285,12 +298,23 @@ func (et *EventTap) handleCallback(key string) {
 	}
 }
 
+func (et *EventTap) handlePassthroughCallback(callback PassthroughCallback) {
+	if callback != nil {
+		callback()
+	}
+}
+
 func (et *EventTap) startDispatcher() {
 	et.dispatchWg.Go(func() {
 		for {
 			select {
-			case key := <-et.callbackQueue:
-				et.handleCallback(key)
+			case event := <-et.callbackQueue:
+				switch event.kind {
+				case callbackEventKey:
+					et.handleKeyCallback(event.key)
+				case callbackEventPassthrough:
+					et.handlePassthroughCallback(event.passthroughCallback)
+				}
 			case <-et.stopDispatch:
 				return
 			}
@@ -314,9 +338,33 @@ func (et *EventTap) enqueueKey(key string) {
 	}
 
 	select {
-	case et.callbackQueue <- key:
+	case et.callbackQueue <- callbackEvent{
+		kind: callbackEventKey,
+		key:  key,
+	}:
 	default:
 		et.logger.Warn("Event tap queue full, dropping key", zap.String("key", key))
+	}
+}
+
+func (et *EventTap) enqueuePassthrough(callback PassthroughCallback) {
+	if callback == nil {
+		return
+	}
+
+	select {
+	case <-et.stopDispatch:
+		return
+	default:
+	}
+
+	select {
+	case et.callbackQueue <- callbackEvent{
+		kind:                callbackEventPassthrough,
+		passthroughCallback: callback,
+	}:
+	default:
+		et.logger.Warn("Event tap queue full, dropping passthrough callback")
 	}
 }
 
@@ -344,10 +392,9 @@ func eventTapCallbackBridge(key *C.char, _ unsafe.Pointer) {
 
 // eventTapPassthroughBridge is the C-to-Go callback bridge for passthrough
 // notifications. It is invoked on the event tap thread when a modifier shortcut
-// passes through to macOS. The callback is dispatched asynchronously via a
-// goroutine to avoid blocking the CGEvent tap thread — if the callback needs to
-// acquire a mutex held by a long operation (e.g., AX element collection),
-// blocking would cause macOS to disable the tap (kCGEventTapDisabledByTimeout).
+// passes through to macOS. The callback snapshot is enqueued onto the existing
+// dispatcher so delivery stays ordered with key events without blocking the
+// CGEvent tap thread.
 //
 //export eventTapPassthroughBridge
 func eventTapPassthroughBridge(_ unsafe.Pointer) {
@@ -361,7 +408,7 @@ func eventTapPassthroughBridge(_ unsafe.Pointer) {
 		eventTap.callbackMu.RUnlock()
 
 		if cb != nil {
-			go cb()
+			eventTap.enqueuePassthrough(cb)
 		}
 	}
 }

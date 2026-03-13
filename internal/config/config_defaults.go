@@ -289,6 +289,7 @@ func commonDefaultConfig() *Config {
 			CenterCursorPosition:              false,
 			ModeExitKeys:                      []string{"Escape"},
 			PassthroughUnboundedKeys:          false,
+			ShouldExitAfterPassthrough:        false,
 			PassthroughUnboundedKeysBlacklist: []string{},
 			HideOverlayInScreenShare:          false,
 			KBLayoutToUse:                     "",

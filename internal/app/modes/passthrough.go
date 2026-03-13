@@ -22,6 +22,10 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 		mode != domain.ModeIdle &&
 		h.config.General.PassthroughUnboundedKeys
 
+	if h.setPassthroughCallback != nil {
+		h.setPassthroughCallback(h.passthroughCallbackFor(mode, enabled))
+	}
+
 	if h.setModifierPassthrough != nil {
 		blacklist := []string(nil)
 		if enabled {
@@ -41,6 +45,18 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 	}
 
 	h.setInterceptedModifierKeys(keys)
+}
+
+func (h *Handler) passthroughCallbackFor(mode domain.Mode, enabled bool) func() {
+	if !enabled {
+		return nil
+	}
+
+	session := h.modeSession
+
+	return func() {
+		h.handlePassthrough(mode, session)
+	}
 }
 
 const initialCapacity = 16
@@ -118,25 +134,41 @@ func appendActionModifierKeys(bindings configpkg.ActionKeyBindingsCfg, appendKey
 	appendKey(bindings.MoveMouseRight)
 }
 
-// HandlePassthrough is the public entry point called when a modifier shortcut
-// was passed through to macOS while a mode is active. It acquires h.mu and
-// delegates to handlePassthroughLocked.
-func (h *Handler) HandlePassthrough() {
+// handlePassthrough is called when a modifier shortcut was passed through to
+// macOS while a mode was active. The callback carries the mode/session that
+// were current when the event tap observed the passthrough so late callbacks
+// cannot act on a different activation.
+func (h *Handler) handlePassthrough(mode domain.Mode, session uint64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.handlePassthroughLocked()
+	h.handlePassthroughLocked(mode, session)
 }
 
 // handlePassthroughLocked is called when a modifier shortcut was passed through
-// to macOS while a mode is active. Only hints mode needs a refresh because its
-// labels point at AX elements that may have moved (e.g., Cmd+Tab switched the
-// focused app). Grid, recursive-grid, and scroll modes use screen coordinates
-// that remain valid regardless of what the OS does with the shortcut.
+// to macOS while a mode was active. The mode/session arguments identify the
+// originating activation so stale callbacks can be ignored safely. Only hints
+// mode needs a refresh because its labels point at AX elements that may have
+// moved (e.g., Cmd+Tab switched the focused app). Grid, recursive-grid, and
+// scroll modes use screen coordinates that remain valid regardless of what the
+// OS does with the shortcut.
 //
 // Caller must hold h.mu.
-func (h *Handler) handlePassthroughLocked() {
-	if h.appState.CurrentMode() != domain.ModeHints {
+func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
+	if h.modeSession != session || h.appState.CurrentMode() != mode {
+		return
+	}
+
+	if h.config != nil && h.config.General.ShouldExitAfterPassthrough {
+		h.logger.Debug("Exiting mode after passthrough",
+			zap.String("mode", domain.ModeString(mode)),
+			zap.Uint64("session", session))
+		h.exitModeLocked()
+
+		return
+	}
+
+	if mode != domain.ModeHints {
 		return
 	}
 

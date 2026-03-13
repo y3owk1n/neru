@@ -238,6 +238,7 @@ func initializeModeHandler(app *App) {
 			disableEventTap            func()
 			setModifierPassthrough     func(enabled bool, blacklist []string)
 			setInterceptedModifierKeys func(keys []string)
+			setPassthroughCallback     func(cb func())
 			refreshHotkeys             func()
 		}
 	}{
@@ -276,12 +277,14 @@ func initializeModeHandler(app *App) {
 			disableEventTap            func()
 			setModifierPassthrough     func(enabled bool, blacklist []string)
 			setInterceptedModifierKeys func(keys []string)
+			setPassthroughCallback     func(cb func())
 			refreshHotkeys             func()
 		}{
 			enableEventTap:             app.enableEventTap,
 			disableEventTap:            app.disableEventTap,
 			setModifierPassthrough:     app.setEventTapModifierPassthrough,
 			setInterceptedModifierKeys: app.setEventTapInterceptedModifierKeys,
+			setPassthroughCallback:     app.setEventTapPassthroughCallback,
 			refreshHotkeys:             func() { app.refreshHotkeysForAppOrCurrent("") },
 		},
 	}
@@ -306,6 +309,7 @@ func initializeModeHandler(app *App) {
 		deps.callbacks.disableEventTap,
 		deps.callbacks.setModifierPassthrough,
 		deps.callbacks.setInterceptedModifierKeys,
+		deps.callbacks.setPassthroughCallback,
 		deps.callbacks.refreshHotkeys,
 		app.systemPort,
 	)
@@ -371,13 +375,6 @@ func initializeEventTapAndIPC(app *App) error {
 
 	if app.eventTap != nil {
 		app.configureEventTapHotkeys(cfg, logger)
-
-		// Register passthrough callback so the mode handler is notified when
-		// a modifier shortcut passes through to macOS. This lets modes that
-		// depend on AX element positions (hints) refresh automatically.
-		if app.modes != nil {
-			app.setEventTapPassthroughCallback(app.modes.HandlePassthrough)
-		}
 	}
 
 	// Initialize IPC server if not provided

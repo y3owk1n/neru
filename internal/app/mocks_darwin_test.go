@@ -20,9 +20,10 @@ import (
 
 // mockEventTap is a mock implementation of ports.EventTapPort for testing.
 type mockEventTap struct {
-	mu      sync.RWMutex
-	enabled bool
-	handler func(string)
+	mu                  sync.RWMutex
+	enabled             bool
+	handler             func(string)
+	passthroughCallback func()
 }
 
 // Enable implements ports.EventTapPort.
@@ -68,7 +69,21 @@ func (m *mockEventTap) SetModifierPassthrough(_ bool, _ []string) {}
 func (m *mockEventTap) SetInterceptedModifierKeys(_ []string) {}
 
 // SetPassthroughCallback implements ports.EventTapPort.
-func (m *mockEventTap) SetPassthroughCallback(_ func()) {}
+func (m *mockEventTap) SetPassthroughCallback(cb func()) {
+	m.mu.Lock()
+	m.passthroughCallback = cb
+	m.mu.Unlock()
+}
+
+func (m *mockEventTap) triggerPassthrough() {
+	m.mu.RLock()
+	cb := m.passthroughCallback
+	m.mu.RUnlock()
+
+	if cb != nil {
+		cb()
+	}
+}
 
 // SetKeyboardLayout implements ports.EventTapPort.
 func (m *mockEventTap) SetKeyboardLayout(_ string) bool { return true }
