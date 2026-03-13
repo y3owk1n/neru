@@ -3,9 +3,9 @@ package config
 import (
 	"context"
 
-	"github.com/y3owk1n/neru/internal/core"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core"
 )
 
 // ReloadWithAppContext reloads configuration with app-specific context and side effects.
@@ -25,10 +25,16 @@ func (s *Service) ReloadWithAppContext(
 			zap.Error(loadResult.ValidationError),
 			zap.String("config_path", loadResult.ConfigPath))
 
-		bridge.ShowConfigValidationError(
-			loadResult.ValidationError.Error(),
-			loadResult.ConfigPath,
-		)
+		if s.alertProvider != nil {
+			// ShowAlert(ctx, title, message):
+			//   title   = human-readable error summary
+			//   message = config file path so the user knows which file to fix
+			_ = s.alertProvider.ShowAlert(
+				ctx,
+				loadResult.ValidationError.Error(),
+				loadResult.ConfigPath,
+			)
+		}
 
 		return loadResult, core.WrapConfigFailed(loadResult.ValidationError, "validate config")
 	}

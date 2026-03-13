@@ -1,8 +1,10 @@
+//go:build darwin
+
 package hints
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../../../core/infra/bridge/overlay.h"
+#include "../../../core/infra/platform/darwin/overlay.h"
 #include <stdlib.h>
 
 // Callback function that Go can reference.
@@ -16,9 +18,10 @@ import (
 	"time"
 	"unsafe"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
-	"go.uber.org/zap"
 )
 
 //export resizeHintCompletionCallback

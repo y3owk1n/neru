@@ -6,10 +6,10 @@ import (
 	"slices"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
-	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
 // executeActionAtPoint executes a pending action at the given point and exits the mode.
@@ -220,8 +220,7 @@ func (h *Handler) handleGridModeKey(key string) {
 		targetPoint := gridKeyResult.TargetPoint()
 
 		// Convert from window-local coordinates to absolute screen coordinates using helper
-		screenBounds := bridge.ActiveScreenBounds()
-		absolutePoint := coordinates.ConvertToAbsoluteCoordinates(targetPoint, screenBounds)
+		absolutePoint := coordinates.ConvertToAbsoluteCoordinates(targetPoint, h.screenBounds)
 
 		h.logger.Info(
 			"Grid move mouse",

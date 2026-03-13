@@ -7,9 +7,10 @@ import (
 	"errors"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 // TestIPCAdapterImplementsPort verifies the adapter implements the port interface.

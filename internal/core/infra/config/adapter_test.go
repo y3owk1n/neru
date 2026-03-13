@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewAdapter(t *testing.T) {
-	service := configPkg.NewService(configPkg.DefaultConfig(), "/test/path", nil)
+	service := configPkg.NewService(configPkg.DefaultConfig(), "/test/path", nil, nil)
 	adapter := config.NewAdapter(service)
 
 	if adapter == nil {
@@ -20,7 +20,7 @@ func TestNewAdapter(t *testing.T) {
 
 func TestAdapter_Get(t *testing.T) {
 	expectedConfig := configPkg.DefaultConfig()
-	service := configPkg.NewService(expectedConfig, "/test/path", nil)
+	service := configPkg.NewService(expectedConfig, "/test/path", nil, nil)
 	adapter := config.NewAdapter(service)
 
 	result := adapter.Get()
@@ -32,7 +32,7 @@ func TestAdapter_Get(t *testing.T) {
 
 func TestAdapter_Path(t *testing.T) {
 	expectedPath := "/test/config.toml"
-	service := configPkg.NewService(configPkg.DefaultConfig(), expectedPath, nil)
+	service := configPkg.NewService(configPkg.DefaultConfig(), expectedPath, nil, nil)
 	adapter := config.NewAdapter(service)
 
 	result := adapter.Path()
@@ -43,7 +43,7 @@ func TestAdapter_Path(t *testing.T) {
 }
 
 func TestAdapter_Reload(t *testing.T) {
-	service := configPkg.NewService(configPkg.DefaultConfig(), "/test/path", nil)
+	service := configPkg.NewService(configPkg.DefaultConfig(), "/test/path", nil, nil)
 	adapter := config.NewAdapter(service)
 
 	ctx := context.Background()
@@ -55,7 +55,7 @@ func TestAdapter_Reload(t *testing.T) {
 }
 
 func TestAdapter_Validate(t *testing.T) {
-	service := configPkg.NewService(configPkg.DefaultConfig(), "/test/path", nil)
+	service := configPkg.NewService(configPkg.DefaultConfig(), "/test/path", nil, nil)
 	adapter := config.NewAdapter(service)
 
 	validConfig := configPkg.DefaultConfig()
@@ -97,7 +97,7 @@ func TestAdapter_Validate(t *testing.T) {
 }
 
 func TestAdapter_Watch(t *testing.T) {
-	service := configPkg.NewService(configPkg.DefaultConfig(), "/test/path", nil)
+	service := configPkg.NewService(configPkg.DefaultConfig(), "/test/path", nil, nil)
 	adapter := config.NewAdapter(service)
 
 	ctx, cancel := context.WithCancel(context.Background())

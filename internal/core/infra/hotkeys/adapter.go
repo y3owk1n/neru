@@ -3,8 +3,9 @@ package hotkeys
 import (
 	"context"
 
-	"github.com/y3owk1n/neru/internal/core/ports"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // InfraManager defines the interface for the infrastructure hotkey manager.

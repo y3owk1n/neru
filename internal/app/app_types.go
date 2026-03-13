@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -13,7 +15,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
-	"go.uber.org/zap"
 )
 
 // Mode is the current mode of the application.
@@ -39,6 +40,8 @@ type App struct {
 	config     *config.Config
 	ConfigPath string
 	logger     *zap.Logger
+
+	systemPort ports.SystemPort
 
 	appState    *state.AppState
 	cursorState *state.CursorState

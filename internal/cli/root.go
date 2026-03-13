@@ -3,10 +3,9 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
+
 	"github.com/y3owk1n/neru/internal/cli/cliutil"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
@@ -36,9 +35,9 @@ var (
 // RootCmd is the root CLI command for Neru.
 var RootCmd = &cobra.Command{
 	Use:   "neru",
-	Short: "Neru - Keyboard-driven navigation for macOS",
-	Long: `Neru is a keyboard-driven navigation tool for macOS that provides
-vim-like navigation capabilities across all applications using accessibility APIs.`,
+	Short: "Neru - Keyboard-driven navigation tool",
+	Long: `Neru is a keyboard-driven navigation tool that provides
+vim-like navigation capabilities across applications using accessibility APIs.`,
 	Version: Version,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if IsRunningFromAppBundle() && len(args) == 0 {
@@ -78,20 +77,12 @@ func init() {
 		IntVar(&timeoutSec, "timeout", DefaultIPCTimeoutSeconds, "IPC timeout in seconds")
 }
 
-// IsRunningFromAppBundle checks if the executable is running from a macOS app bundle.
+// IsRunningFromAppBundle reports whether the executable is running from a
+// platform app bundle. On macOS this checks for ".app/Contents/MacOS".
+// On other platforms this always returns false (no bundle concept).
+// Implementation is in root_darwin.go / root_other.go.
 func IsRunningFromAppBundle() bool {
-	execPath, execPathErr := os.Executable()
-	if execPathErr != nil {
-		return false
-	}
-
-	// Resolve symlinks to get the real path
-	realPath, realPathErr := filepath.EvalSymlinks(execPath)
-	if realPathErr != nil {
-		realPath = execPath
-	}
-
-	return strings.Contains(realPath, ".app/Contents/MacOS")
+	return isRunningFromAppBundle()
 }
 
 func launchProgram(cmd *cobra.Command, cfgPath string) {

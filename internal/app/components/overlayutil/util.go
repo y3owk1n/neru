@@ -6,8 +6,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/app/components/overlayutil/native"
 )
 
 const (
@@ -139,19 +140,20 @@ func CompleteGlobalCallback(callbackID uint64, expectedGeneration uint64) {
 	releaseCallbackID(callbackID)
 }
 
-// CallbackIDToPointer allocates a CallbackContext on the C heap via bridge.MallocCallbackContext
+// CallbackIDToPointer allocates a CallbackContext on the C heap via native.MallocCallbackContext
 // and returns an unsafe.Pointer to it. Because the memory lives on the C heap (not the Go heap),
 // it is safe for C code to retain across async dispatch boundaries and is not subject to Go's GC.
 // The caller's C callback must call FreeCallbackContext after reading the values to avoid leaks.
+// On non-darwin platforms this returns nil (overlay callbacks are not used).
 func CallbackIDToPointer(callbackID uint64, generation uint64) unsafe.Pointer {
-	return bridge.MallocCallbackContext(callbackID, generation)
+	return native.MallocCallbackContext(callbackID, generation)
 }
 
 // FreeCallbackContext frees a C-heap-allocated CallbackContext previously created by CallbackIDToPointer.
 // Must be called exactly once per CallbackIDToPointer call, typically in the C callback after reading
 // the CallbackID and Generation fields. Safe to call with nil.
 func FreeCallbackContext(ptr unsafe.Pointer) {
-	bridge.FreeCallbackContext(ptr)
+	native.FreeCallbackContext(ptr)
 }
 
 // CallbackManager manages asynchronous callbacks for overlay operations.

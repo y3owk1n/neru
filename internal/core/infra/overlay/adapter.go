@@ -3,22 +3,23 @@ package overlay
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	gridFeature "github.com/y3owk1n/neru/internal/app/components/grid"
 	overlayHints "github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	uiOverlay "github.com/y3owk1n/neru/internal/ui/overlay"
-	"go.uber.org/zap"
 )
 
 // Adapter implements ports.OverlayPort by wrapping the existing overlay.Manager.
 type Adapter struct {
 	manager uiOverlay.ManagerInterface
 	theme   config.ThemeProvider
+	system  ports.SystemPort
 	logger  *zap.Logger
 }
 
@@ -26,11 +27,13 @@ type Adapter struct {
 func NewAdapter(
 	manager uiOverlay.ManagerInterface,
 	theme config.ThemeProvider,
+	system ports.SystemPort,
 	logger *zap.Logger,
 ) *Adapter {
 	return &Adapter{
 		manager: manager,
 		theme:   theme,
+		system:  system,
 		logger:  logger,
 	}
 }
@@ -93,7 +96,14 @@ func (a *Adapter) ShowGrid(ctx context.Context) error {
 	}
 
 	// Get screen bounds
-	bounds := bridge.ActiveScreenBounds()
+	if a.system == nil {
+		return derrors.New(derrors.CodeActionFailed, "system port not available")
+	}
+
+	bounds, boundsErr := a.system.ScreenBounds(ctx)
+	if boundsErr != nil {
+		return derrors.Wrap(boundsErr, derrors.CodeActionFailed, "failed to get screen bounds")
+	}
 
 	// Create grid
 	grid := domainGrid.NewGrid("abcdefghijklmnopqrstuvwxyz", bounds, a.logger)

@@ -40,20 +40,6 @@ func TestMockAccessibilityPort_Defaults(t *testing.T) {
 		t.Error("IsAppExcluded() default should return false")
 	}
 
-	bounds, err := mock.ScreenBounds(context.Background())
-	if !bounds.Empty() || err != nil {
-		t.Errorf(
-			"ScreenBounds() default should return (empty rect, nil), got (%v, %v)",
-			bounds,
-			err,
-		)
-	}
-
-	err = mock.CheckPermissions(context.Background())
-	if err != nil {
-		t.Errorf("CheckPermissions() default should return nil, got %v", err)
-	}
-
 	err = mock.Health(context.Background())
 	if err != nil {
 		t.Errorf("Health() default should return nil, got %v", err)

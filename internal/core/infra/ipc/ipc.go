@@ -11,9 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
+
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	trace "github.com/y3owk1n/neru/internal/core/infra/apptrace"
-	"go.uber.org/zap"
 )
 
 const (

@@ -4,9 +4,10 @@ import (
 	"image"
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"go.uber.org/zap"
 )
 
 // Manager handles variable-length grid coordinate input and manages grid state.

@@ -7,10 +7,17 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/toml"
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"go.uber.org/zap"
 )
+
+// AlertProvider defines the interface for displaying native system alerts.
+// This is used to break the import cycle between config and ports.
+type AlertProvider interface {
+	ShowAlert(ctx context.Context, title, message string) error
+}
 
 // Service manages application configuration with thread-safe access and change notifications.
 // This replaces the global configuration pattern with dependency injection.
@@ -43,15 +50,21 @@ func safeSendConfig(_channel chan<- *Config, config *Config) bool {
 // Service manages application configuration with thread-safe access and change notifications.
 // This replaces the global configuration pattern with dependency injection.
 type Service struct {
-	config   *Config
-	path     string
-	mu       sync.RWMutex
-	watchers []chan<- *Config
-	logger   *zap.Logger
+	config        *Config
+	path          string
+	mu            sync.RWMutex
+	watchers      []chan<- *Config
+	logger        *zap.Logger
+	alertProvider AlertProvider
 }
 
 // NewService creates a new configuration service.
-func NewService(cfg *Config, path string, logger *zap.Logger) *Service {
+func NewService(
+	cfg *Config,
+	path string,
+	logger *zap.Logger,
+	alertProvider AlertProvider,
+) *Service {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
@@ -61,9 +74,10 @@ func NewService(cfg *Config, path string, logger *zap.Logger) *Service {
 	}
 
 	return &Service{
-		config: cfg,
-		path:   path,
-		logger: logger,
+		config:        cfg,
+		path:          path,
+		logger:        logger,
+		alertProvider: alertProvider,
 	}
 }
 

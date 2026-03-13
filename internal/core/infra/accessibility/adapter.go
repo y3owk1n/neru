@@ -6,12 +6,13 @@ import (
 	"runtime"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 const (

@@ -5,11 +5,12 @@ import (
 	"os/exec"
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"go.uber.org/zap"
 )
 
 // registerHotkeys registers all global hotkeys defined in the configuration.

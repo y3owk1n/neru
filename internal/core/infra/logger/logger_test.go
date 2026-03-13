@@ -7,8 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
 func TestGet(t *testing.T) {

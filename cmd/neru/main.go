@@ -2,31 +2,53 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
+
+	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
-	"go.uber.org/zap"
 )
 
-func main() {
-	// Lock to main thread for macOS Cocoa - must be called before any goroutines
-	runtime.LockOSThread()
+// main is defined in main_os.go files (main_darwin.go / main_other.go)
+// so that platform-specific thread locking can be applied before any goroutines start.
+// This file contains only the shared daemon logic.
 
-	cli.LaunchFunc = LaunchDaemon
+type alertProvider struct {
+	system config.AlertProvider
+}
 
-	cli.Execute()
+func newAlertProvider() *alertProvider {
+	sp, err := platform.NewSystemPort()
+	if err != nil {
+		return &alertProvider{}
+	}
+
+	return &alertProvider{system: sp}
+}
+
+func (p *alertProvider) ShowAlert(ctx context.Context, title, message string) error {
+	if p.system != nil {
+		return p.system.ShowAlert(ctx, title, message)
+	}
+
+	return nil
 }
 
 // LaunchDaemon is called by the CLI to launch the daemon.
 func LaunchDaemon(configPath string) {
-	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop())
+	service := config.NewService(
+		config.DefaultConfig(),
+		configPath,
+		zap.NewNop(),
+		newAlertProvider(),
+	)
 	configResult := service.LoadWithValidation(configPath)
 
 	// If there's a validation error, show alert and continue with default config
@@ -75,7 +97,8 @@ func LaunchDaemon(configPath string) {
 	}
 }
 
-// showConfigErrorAlert displays a native macOS alert for config validation errors.
+// showConfigErrorAlert displays a native system alert for config validation errors.
 func showConfigErrorAlert(errorMessage, configPath string) {
-	bridge.ShowConfigValidationError(errorMessage, configPath)
+	provider := newAlertProvider()
+	_ = provider.ShowAlert(context.Background(), errorMessage, configPath)
 }

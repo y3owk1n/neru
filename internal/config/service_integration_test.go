@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 func TestService_Reload(t *testing.T) {
@@ -29,7 +30,7 @@ clickable_roles = ["AXButton"]
 		t.Fatalf("Failed to write temp config: %v", writeFileErr)
 	}
 
-	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop())
+	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
 
 	// Test Reload
 	ctx := context.Background()

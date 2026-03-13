@@ -5,9 +5,10 @@ import (
 	"image"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 func BenchmarkScreenBounds(b *testing.B) {

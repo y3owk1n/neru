@@ -4,11 +4,12 @@ import (
 	"context"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 // HintService orchestrates hint generation and display.
@@ -26,12 +27,13 @@ type HintService struct {
 func NewHintService(
 	accessibility ports.AccessibilityPort,
 	overlay ports.OverlayPort,
+	system ports.SystemPort,
 	generator hint.Generator,
 	config config.HintsConfig,
 	logger *zap.Logger,
 ) *HintService {
 	return &HintService{
-		BaseService: NewBaseService(accessibility, overlay),
+		BaseService: NewBaseService(accessibility, overlay, system),
 		generator:   generator,
 		config:      config,
 		logger:      logger,

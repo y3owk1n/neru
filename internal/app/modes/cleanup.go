@@ -5,12 +5,13 @@ import (
 	"image"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/domain"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
-	"go.uber.org/zap"
 )
 
 const (
@@ -140,7 +141,15 @@ func (h *Handler) handleCursorRestoration() {
 			time.Sleep(postActionSettleDelay)
 		}
 
-		currentBounds := bridge.ActiveScreenBounds()
+		var currentBounds image.Rectangle
+
+		if h.system != nil {
+			if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+				currentBounds = b
+			} else if !derrors.IsNotSupported(err) {
+				h.logger.Warn("Failed to get screen bounds for cursor restoration", zap.Error(err))
+			}
+		}
 
 		var target image.Point
 

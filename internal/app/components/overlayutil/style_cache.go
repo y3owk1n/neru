@@ -4,7 +4,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/app/components/overlayutil/native"
 )
 
 // CachedStyle holds pointers to C strings for style properties.
@@ -69,24 +69,24 @@ func (c *StyleCache) Free() {
 }
 
 func (c *StyleCache) freeLocked() {
-	bridge.FreeCString(c.style.FontFamily)
+	native.FreeCString(c.style.FontFamily)
 	c.style.FontFamily = nil
-	bridge.FreeCString(c.style.BgColor)
+	native.FreeCString(c.style.BgColor)
 	c.style.BgColor = nil
-	bridge.FreeCString(c.style.LabelBgColor)
+	native.FreeCString(c.style.LabelBgColor)
 	c.style.LabelBgColor = nil
-	bridge.FreeCString(c.style.TextColor)
+	native.FreeCString(c.style.TextColor)
 	c.style.TextColor = nil
-	bridge.FreeCString(c.style.MatchedTextColor)
+	native.FreeCString(c.style.MatchedTextColor)
 	c.style.MatchedTextColor = nil
-	bridge.FreeCString(c.style.BorderColor)
+	native.FreeCString(c.style.BorderColor)
 	c.style.BorderColor = nil
-	bridge.FreeCString(c.style.MatchedBgColor)
+	native.FreeCString(c.style.MatchedBgColor)
 	c.style.MatchedBgColor = nil
-	bridge.FreeCString(c.style.MatchedBorderColor)
+	native.FreeCString(c.style.MatchedBorderColor)
 	c.style.MatchedBorderColor = nil
-	bridge.FreeCString(c.style.HighlightColor)
+	native.FreeCString(c.style.HighlightColor)
 	c.style.HighlightColor = nil
-	bridge.FreeCString(c.style.SubKeyTextColor)
+	native.FreeCString(c.style.SubKeyTextColor)
 	c.style.SubKeyTextColor = nil
 }

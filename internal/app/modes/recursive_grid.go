@@ -4,14 +4,15 @@ import (
 	"context"
 	"image"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/components"
 	componentrecursivegrid "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
-	"go.uber.org/zap"
 )
 
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter.
@@ -33,7 +34,16 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
 	h.appState.SetRecursiveGridOverlayNeedsRefresh(false)
 
 	// Get screen bounds
-	screenBounds := bridge.ActiveScreenBounds()
+	var screenBounds image.Rectangle
+
+	if h.system != nil {
+		if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+			screenBounds = b
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to get screen bounds for recursive grid", zap.Error(err))
+		}
+	}
+
 	h.screenBounds = screenBounds
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
 

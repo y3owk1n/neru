@@ -5,12 +5,13 @@ import (
 	"image"
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
-	"go.uber.org/zap"
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
@@ -78,7 +79,15 @@ func (h *Handler) activateGridModeWithAction(actionStr *string) {
 
 // createGridInstance creates a new grid instance with proper bounds and characters.
 func (h *Handler) createGridInstance() *domainGrid.Grid {
-	screenBounds := bridge.ActiveScreenBounds()
+	var screenBounds image.Rectangle
+
+	if h.system != nil {
+		if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+			screenBounds = b
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to get screen bounds for grid", zap.Error(err))
+		}
+	}
 
 	// Store screen bounds for coordinate conversion
 	h.screenBounds = screenBounds
@@ -120,7 +129,16 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 	if gridInstance == nil {
 		h.logger.Warn("Grid instance is nil, creating with default bounds")
 
-		screenBounds := bridge.ActiveScreenBounds()
+		var screenBounds image.Rectangle
+
+		if h.system != nil {
+			if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+				screenBounds = b
+			} else if !derrors.IsNotSupported(err) {
+				h.logger.Warn("Failed to get screen bounds for grid fallback", zap.Error(err))
+			}
+		}
+
 		bounds := image.Rect(0, 0, screenBounds.Dx(), screenBounds.Dy())
 		gridInstance = domainGrid.NewGridWithLabels(
 			h.config.Grid.Characters,

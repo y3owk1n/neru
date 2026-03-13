@@ -1,8 +1,9 @@
 package domain
 
 import (
-	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // Router provides common routing functionality for mode-based key handling.

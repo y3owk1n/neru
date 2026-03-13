@@ -5,12 +5,13 @@ import (
 	"image"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
-	"go.uber.org/zap"
 )
 
 const (
@@ -107,7 +108,16 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 
 	// Always resize overlay to the active screen (where mouse is) before collecting elements.
 	// This ensures proper positioning when switching between multiple displays.
-	activeScreenBounds := bridge.ActiveScreenBounds()
+	var activeScreenBounds image.Rectangle
+
+	if h.system != nil {
+		if b, err := h.system.ScreenBounds(context.Background()); err == nil {
+			activeScreenBounds = b
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to get screen bounds for hints", zap.Error(err))
+		}
+	}
+
 	h.screenBounds = activeScreenBounds
 	h.overlayManager.ResizeToActiveScreen()
 

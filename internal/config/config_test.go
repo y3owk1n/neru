@@ -4,8 +4,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 func TestConfig_IsAppExcluded(t *testing.T) {
@@ -361,7 +362,7 @@ func TestFindConfigFile(t *testing.T) {
 		}
 	}()
 
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop())
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 	result := service.FindConfigFile()
 
 	// Result should be a string (could be empty if no config found)

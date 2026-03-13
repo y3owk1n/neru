@@ -1,16 +1,19 @@
+//go:build darwin
+
 package overlayutil
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../../../core/infra/bridge/overlay.h"
+#include "../../../core/infra/platform/darwin/overlay.h"
 */
 import "C"
 
 import (
 	"unsafe"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"go.uber.org/zap"
+
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 // BaseOverlay holds the common components for an overlay.

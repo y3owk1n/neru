@@ -3,6 +3,8 @@ package app
 import (
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
@@ -13,7 +15,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"go.uber.org/zap"
 )
 
 // ComponentFactory provides standardized component creation patterns.
@@ -21,6 +22,7 @@ type ComponentFactory struct {
 	config         *config.Config
 	logger         *zap.Logger
 	overlayManager OverlayManager
+	themeProvider  config.ThemeProvider
 }
 
 // NewComponentFactory creates a new component factory.
@@ -28,11 +30,13 @@ func NewComponentFactory(
 	config *config.Config,
 	logger *zap.Logger,
 	overlayManager OverlayManager,
+	themeProvider config.ThemeProvider,
 ) *ComponentFactory {
 	return &ComponentFactory{
 		config:         config,
 		logger:         logger,
 		overlayManager: overlayManager,
+		themeProvider:  themeProvider,
 	}
 }
 
@@ -48,7 +52,7 @@ func (f *ComponentFactory) CreateHintsComponent(
 	opts ComponentCreationOptions,
 ) (*components.HintsComponent, error) {
 	component := &components.HintsComponent{
-		Theme: defaultThemeProvider,
+		Theme: f.themeProvider,
 	}
 
 	// Check if component should be skipped
@@ -57,7 +61,7 @@ func (f *ComponentFactory) CreateHintsComponent(
 	}
 
 	// Build style
-	component.Style = hints.BuildStyle(f.config.Hints, defaultThemeProvider)
+	component.Style = hints.BuildStyle(f.config.Hints, f.themeProvider)
 	component.Context = &hints.Context{}
 
 	// Create overlay
@@ -93,7 +97,7 @@ func (f *ComponentFactory) CreateGridComponent(
 	opts ComponentCreationOptions,
 ) (*components.GridComponent, error) {
 	component := &components.GridComponent{
-		Theme: defaultThemeProvider,
+		Theme: f.themeProvider,
 	}
 
 	// Initialize minimal context even when disabled
@@ -109,7 +113,7 @@ func (f *ComponentFactory) CreateGridComponent(
 	}
 
 	// Build style and configuration
-	component.Style = grid.BuildStyle(f.config.Grid, defaultThemeProvider)
+	component.Style = grid.BuildStyle(f.config.Grid, f.themeProvider)
 	gridChars := f.getGridCharacters()
 	subKeys := f.getSublayerKeys(gridChars)
 
@@ -298,7 +302,7 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 
 		return modeindicator.NewOverlay(
 			indicatorConfig,
-			defaultThemeProvider,
+			f.themeProvider,
 			f.logger,
 		)
 	case "recursive_grid":

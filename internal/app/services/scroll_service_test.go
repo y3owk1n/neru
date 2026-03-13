@@ -144,7 +144,13 @@ func TestScrollService_Scroll(t *testing.T) {
 				testCase.setupMocks(mockAcc)
 			}
 
-			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
+			service := services.NewScrollService(
+				mockAcc,
+				mockOverlay,
+				&mocks.SystemMock{},
+				config,
+				logger,
+			)
 			ctx := context.Background()
 
 			scrollErr := service.Scroll(ctx, testCase.direction, testCase.amount)
@@ -196,7 +202,13 @@ func TestScrollService_Hide(t *testing.T) {
 				testCase.setupMocks(mockOverlay)
 			}
 
-			service := services.NewScrollService(mockAcc, mockOverlay, config, logger)
+			service := services.NewScrollService(
+				mockAcc,
+				mockOverlay,
+				&mocks.SystemMock{},
+				config,
+				logger,
+			)
 			ctx := context.Background()
 
 			hideScrollOverlayErr := service.Hide(ctx)
@@ -221,7 +233,13 @@ func TestScrollService_UpdateConfig(t *testing.T) {
 		ScrollStep:     50,
 		ScrollStepFull: 1000,
 	}
-	service := services.NewScrollService(mockAcc, mockOverlay, initialConfig, logger)
+	service := services.NewScrollService(
+		mockAcc,
+		mockOverlay,
+		&mocks.SystemMock{},
+		initialConfig,
+		logger,
+	)
 
 	// Update config
 	newConfig := config.ScrollConfig{

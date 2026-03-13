@@ -1,23 +1,10 @@
 package accessibility
 
 import (
-	"image"
+	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
-	"go.uber.org/zap"
 )
-
-func rectFromInfo(info *ElementInfo) image.Rectangle {
-	pos := info.Position()
-	size := info.Size()
-
-	return image.Rect(
-		pos.X,
-		pos.Y,
-		pos.X+size.X,
-		pos.Y+size.Y,
-	)
-}
 
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
 func MenuBarClickableElements(logger *zap.Logger, cache *InfoCache) ([]*TreeNode, error) {

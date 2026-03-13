@@ -1,9 +1,10 @@
 package app
 
 import (
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 // Option is a functional option for configuring an App instance.
@@ -84,6 +85,16 @@ func WithWatcher(watcher Watcher) Option {
 func WithHotkeyService(hotkeyService HotkeyService) Option {
 	return func(a *App) error {
 		a.hotkeyManager = hotkeyService
+
+		return nil
+	}
+}
+
+// WithSystemPort sets the system port implementation.
+// Note: systemPort can be nil, will be initialized during app startup if not provided.
+func WithSystemPort(systemPort ports.SystemPort) Option {
+	return func(a *App) error {
+		a.systemPort = systemPort
 
 		return nil
 	}

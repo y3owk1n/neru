@@ -13,10 +13,12 @@ LDFLAGS := "-s -w -X github.com/y3owk1n/neru/internal/cli.Version=" + VERSION + 
 default: build
 
 # Build the application (development)
+
+# Uses CGO on macOS (required for Objective-C bridge), CGO_ENABLED=0 elsewhere
 build:
     @echo "Building Neru..."
     @echo "Version: {{ VERSION }}"
-    CGO_ENABLED=1 go build -ldflags="{{ LDFLAGS }}" -o bin/neru ./cmd/neru
+    {{ if os() == "macos" { "CGO_ENABLED=1" } else { "CGO_ENABLED=0" } }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru{{ if os() == "windows" { ".exe" } else { "" } }} ./cmd/neru
     @echo "✓ Build complete: bin/neru"
 
 # Build with optimizations for release
@@ -45,6 +47,14 @@ release-ci VERSION_OVERRIDE:
     CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-arm64 ./cmd/neru
     @echo "Building darwin-amd64..."
     CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-amd64 ./cmd/neru
+    @echo "Building linux-amd64..."
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-amd64 ./cmd/neru
+    @echo "Building windows-amd64..."
+    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-amd64.exe ./cmd/neru
+    @echo "Building windows-arm64..."
+    CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-arm64.exe ./cmd/neru
+    @echo "Building linux-arm64..."
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-arm64 ./cmd/neru
     @echo "✓ Release artifacts built successfully"
 
 # Bundle the application
@@ -92,20 +102,7 @@ test-race-integration:
     @echo "Running integration tests with race detection..."
     go test -tags=integration -race -v ./...
 
-test-coverage:
-    @echo "Running tests with coverage..."
-    go test -tags=unit -coverprofile=coverage-unit.out ./...
-    go test -tags=integration -coverprofile=coverage-integration.out ./...
-    @head -1 coverage-unit.out > coverage.txt
-    @tail -n +2 coverage-unit.out >> coverage.txt
-    @tail -n +2 coverage-integration.out >> coverage.txt
-
-test-coverage-html:
-    @echo "Running tests with coverage (HTML)..."
-    just test-coverage
-    go tool cover -html=coverage.txt -o coverage.html
-
-test-all: test test-race test-coverage
+test-all: test test-race
 
 # Check if files are formatted correctly
 fmt-check:
