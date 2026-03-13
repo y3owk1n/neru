@@ -35,8 +35,8 @@ Neru uses TOML configuration files. Configuration is loaded from (in order of pr
 
 ### Linux
 
-1. **`~/.config/neru/config.toml`** (recommended)
-2. **`$XDG_CONFIG_HOME/neru/config.toml`**
+1. **`$XDG_CONFIG_HOME/neru/config.toml`** (if `XDG_CONFIG_HOME` is set)
+2. **`~/.config/neru/config.toml`** (recommended default)
 
 ### Windows
 
