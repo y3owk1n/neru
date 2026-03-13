@@ -156,7 +156,7 @@ If the operation is only needed in one infra package (e.g., `appwatcher`):
 
 ### `cmd/neru/main.go` — main thread locking
 
-## On macOS, the entry point calls `runtime.LockOSThread()` before anything else — required for Cocoa's main-thread requirement. Non-macOS builds omit this. Never add `LockOSThread` to shared code
+On macOS, the entry point calls `runtime.LockOSThread()` before anything else — required for Cocoa's main-thread requirement. Non-macOS builds omit this. Never add `LockOSThread` to shared code.
 
 ## Application Identifier Terminology
 
