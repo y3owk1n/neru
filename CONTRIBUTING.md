@@ -11,6 +11,7 @@ Thanks for your interest in contributing! Neru is a small project with an approa
 - [Development Setup](#development-setup)
 - [Making Changes](#making-changes)
 - [Commit Messages](#commit-messages)
+- [Architecture & Cross-Platform](#architecture--cross-platform)
 - [Pull Requests](#pull-requests)
 - [Testing](#testing)
 - [Code Style](#code-style)
@@ -63,6 +64,14 @@ golangci-lint --version
 just --list         # See all available commands
 ```
 
+### Cross-Platform Setup
+
+Neru can be developed on any OS, but some features require platform-specific APIs.
+
+- **macOS**: Full environment support (CGo, Accessibility, Overlays).
+- **Linux**: requires `gcc` and `pkg-config` for build foundations. AT-SPI and X11/Wayland development tools are recommended.
+- **Windows**: requires a C compiler (e.g., MinGW or MSVC) for CGo components. UI Automation (UIA) SDK is recommended.
+
 For full details see the [Development Guide](docs/DEVELOPMENT.md).
 
 ---
@@ -106,16 +115,16 @@ We use [Conventional Commits](https://www.conventionalcommits.org/) to power aut
 
 **Types:**
 
-| Type | When to use |
-| ---------- | ------------------------------------ |
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation only |
-| `style` | Formatting, no logic change |
+| Type       | When to use                            |
+| ---------- | -------------------------------------- |
+| `feat`     | New feature                            |
+| `fix`      | Bug fix                                |
+| `docs`     | Documentation only                     |
+| `style`    | Formatting, no logic change            |
 | `refactor` | Code restructuring, no behavior change |
-| `perf` | Performance improvement |
-| `test` | Adding or updating tests |
-| `chore` | Build, CI, dependencies, tooling |
+| `perf`     | Performance improvement                |
+| `test`     | Adding or updating tests               |
+| `chore`    | Build, CI, dependencies, tooling       |
 
 **Examples:**
 
@@ -124,6 +133,26 @@ feat(grid): add recursive subdivision mode
 fix(hints): correct overlay positioning on multi-monitor setups
 docs: update configuration reference for scroll mode
 ```
+
+---
+
+## Architecture & Cross-Platform
+
+Neru is designed as a cross-platform tool with a strong emphasis on architectural separation. Before contributing code, especially for Linux or Windows support, please review the [System Architecture](docs/ARCHITECTURE.md).
+
+### Key Architectural Rules
+
+1. **Platform Isolation**: OS-specific code must be strictly isolated. Non-darwin code must never import darwin-specific packages.
+2. **Hexagonal Architecture**: We use the Ports and Adapters pattern. Define interfaces (Ports) in `internal/core/ports` and implement them in `internal/core/infra`.
+3. **Build Tags**: Use Go build tags (e.g., `//go:build linux`) for OS-specific files.
+
+### Contributing to New Platforms
+
+If you are working on Linux or Windows support:
+
+- Check the current [Platform Status](docs/ARCHITECTURE.md#platform-status) in the architecture guide.
+- Start by replacing `CodeNotSupported` stubs in `internal/core/infra/platform/<os>/`.
+- Follow the patterns established in the macOS implementation where applicable.
 
 ---
 
@@ -142,12 +171,10 @@ docs: update configuration reference for scroll mode
 
 Neru separates tests into unit and integration tests:
 
-| Type              | File pattern                  | Command                  | Build tag     |
-| ----------------- | ----------------------------- | ------------------------ | ------------- |
-| Unit tests        | `*_test.go`                   | `just test`              | —             |
-| Integration tests | `*_integration_test.go`       | `just test-integration`  | `integration` |
-| Unit benchmarks   | `*_bench_test.go`             | `just bench`             | —             |
-| Integration bench | `*_bench_integration_test.go` | `just bench-integration` | `integration` |
+| Type              | File pattern            | Command                 | Build tag     |
+| ----------------- | ----------------------- | ----------------------- | ------------- |
+| Unit tests        | `*_test.go`             | `just test`             | —             |
+| Integration tests | `*_integration_test.go` | `just test-integration` | `integration` |
 
 **Guidelines:**
 

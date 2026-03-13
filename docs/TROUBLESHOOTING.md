@@ -470,7 +470,8 @@ include_dock_hints = true
 detect_mission_control = true
 ```
 
-> **Note:** `detect_mission_control` is only working on macOS 26.x (tahoe). Do not enable this if your macOS version is below Tahoe (26.x) at all cost!
+> [!NOTE]
+> `detect_mission_control` is only working on macOS 26.x (tahoe). Do not enable this if your macOS version is below Tahoe (26.x) at all cost!
 
 ---
 

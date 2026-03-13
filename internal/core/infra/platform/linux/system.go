@@ -3,7 +3,7 @@
 // Most methods currently return CodeNotSupported because Linux support is a
 // work-in-progress. Contributors should replace each stub with a real
 // implementation and remove the CodeNotSupported return when done.
-// See docs/ARCHITECTURE_CROSS_PLATFORM.md for the contribution guide.
+// See docs/ARCHITECTURE.md for the contribution guide.
 //
 //nolint:godox // TODO comments are intentional contributor guidance for unimplemented stubs.
 package linux
