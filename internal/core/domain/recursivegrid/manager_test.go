@@ -542,6 +542,55 @@ func TestNewManagerWithLayers_ConsistentOverride_Works(t *testing.T) {
 	assert.Equal(t, 2, manager.GridRows())
 }
 
+func TestManagerHandleInput_KeyToCellNormalizesNamedKeys(t *testing.T) {
+	bounds := image.Rect(0, 0, 100, 100)
+	logger := zap.NewNop()
+	// Use a key mapping that contains a literal space character (" ") as one of the 4 keys.
+	// The input system may deliver the named form "space" instead of the literal " ".
+	// After normalization both should resolve to the same canonical form ("space").
+	manager := recursivegrid.NewManager(
+		bounds,
+		"ui k", // keys: u=0, i=1, ' '=2, k=3
+		",",
+		",", // reset key is comma so space is free for cell mapping
+		[]string{"escape"},
+		func() {},
+		nil,
+		logger,
+	)
+	// Pressing the named key "space" should map to cell index 2 (bottom-left).
+	point, completed, shouldExit := manager.HandleInput("space")
+	assert.False(t, shouldExit, "Should not exit")
+	assert.False(t, completed, "Should not be completed")
+	// Bottom-left cell of 100x100 with 2x2 grid: (0,50)-(50,100), center (25,75)
+	assert.Equal(t, image.Point{X: 25, Y: 75}, point,
+		"Named key 'space' should match literal ' ' in key mapping")
+	assert.Equal(t, 1, manager.CurrentDepth(), "Depth should advance to 1")
+}
+
+func TestManagerHandleInput_KeyToCellNormalizesFullwidthChars(t *testing.T) {
+	bounds := image.Rect(0, 0, 100, 100)
+	logger := zap.NewNop()
+	manager := recursivegrid.NewManager(
+		bounds,
+		"uijk",
+		",",
+		"",
+		[]string{"escape"},
+		func() {},
+		nil,
+		logger,
+	)
+	// Fullwidth 'u' (U+FF55) should normalize to halfwidth 'u' and match cell 0.
+	point, completed, shouldExit := manager.HandleInput("\uFF55") // fullwidth u
+	assert.False(t, shouldExit, "Should not exit")
+	assert.False(t, completed, "Should not be completed")
+	// Top-left cell of 100x100 with 2x2 grid: (0,0)-(50,50), center (25,25)
+	assert.Equal(t, image.Point{X: 25, Y: 25}, point,
+		"Fullwidth 'ｕ' should match halfwidth 'u' in key mapping")
+	assert.Equal(t, 1, manager.CurrentDepth(), "Depth should advance to 1")
+}
+
 func TestHandleInput_ValidMultibyteKeys(t *testing.T) {
 	keys := "€abc" // 4 runes, valid length
 	logger := zap.NewNop()
