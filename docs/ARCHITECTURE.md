@@ -10,6 +10,8 @@ Neru is a keyboard-driven navigation tool for macOS (with Linux and Windows supp
 - [Cross-Platform Design Principles](#cross-platform-design-principles)
 - [Platform Status](#platform-status)
 - [Contributor's Guide to Platform Support](#contributors-guide-to-platform-support)
+- [CLI Layer Cross-Platform Notes](#cli-layer-cross-platform-notes)
+- [Application Identifier Terminology](#application-identifier-terminology)
 - [Codebase Navigation Guide](#codebase-navigation-guide)
 - [Coordinate Systems and Units](#coordinate-systems-and-units)
 - [Error Handling and Graceful Degradation](#error-handling-and-graceful-degradation)
@@ -134,6 +136,39 @@ If the operation is only needed in one infra package (e.g., `appwatcher`):
     ```
 
 3. Call `platformDoThing()` from the package's shared code (no build tag needed there).
+
+---
+
+## CLI Layer Cross-Platform Notes
+
+### `neru services` — service management
+
+`internal/cli/services.go` carries `//go:build darwin` because it uses `launchctl` and macOS `.plist` files. On non-darwin platforms, the `services` command is simply not registered.
+**To add Linux service management:**
+
+1. Create `internal/cli/services_linux.go` with `//go:build linux`.
+2. Implement install/uninstall/start/stop using `systemctl` (systemd) or a cross-distro approach.
+3. Register the subcommands in `init()` just like the darwin version does.
+
+### `IsRunningFromAppBundle`
+
+`internal/cli/root.go` defines `IsRunningFromAppBundle()` which delegates to a build-tagged `isRunningFromAppBundle()` helper. On macOS it detects `.app/Contents/MacOS` paths so the daemon auto-starts when double-clicked in Finder. On other platforms it always returns false.
+
+### `cmd/neru/main.go` — main thread locking
+
+## On macOS, the entry point calls `runtime.LockOSThread()` before anything else — required for Cocoa's main-thread requirement. Non-macOS builds omit this. Never add `LockOSThread` to shared code
+
+## Application Identifier Terminology
+
+The codebase uses "bundle ID" as a generic term for the platform application identifier. The mapping per platform is:
+
+| Platform | Term                        | Example                          |
+| -------- | --------------------------- | -------------------------------- |
+| macOS    | Bundle ID                   | `com.apple.Safari`               |
+| Linux    | Desktop ID / executable     | `firefox.desktop` or `firefox`   |
+| Windows  | AppUserModelID / executable | `Microsoft.Edge` or `msedge.exe` |
+
+The `FocusedAppBundleID` method in `ports.AccessibilityPort` returns whatever the platform uses. The exclusion list in config (`general.excluded_apps`) should use the same format for the target platform.
 
 ---
 
