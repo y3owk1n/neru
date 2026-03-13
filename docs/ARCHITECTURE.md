@@ -105,6 +105,16 @@ Replace that with a real implementation. Remove the `TODO` comment when done.
 
 Unit tests go next to the implementation file. Integration tests (that require a real display/OS) go in `*_integration_<os>_test.go` files with the matching build tag (`//go:build integration && linux`).
 
+#### Step 4 — Run CI locally
+
+```bash
+# On the target OS:
+just lint
+just vet
+just test
+just build
+```
+
 ### How to add a new OS-specific operation
 
 #### Option A — Add it to `SystemPort` (for broadly applicable operations)
