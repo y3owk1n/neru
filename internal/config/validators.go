@@ -2029,18 +2029,6 @@ func (c *Config) ValidateRecursiveGrid() error {
 		return err
 	}
 
-	err = validateMinValue(
-		c.RecursiveGrid.UI.SubKeyPreviewFontSize,
-		4, //nolint:mnd
-		"recursive_grid.ui.sub_key_preview_font_size",
-	)
-	if err != nil {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"recursive_grid.ui.sub_key_preview_font_size must be between 4 and 72",
-		)
-	}
-
 	if c.RecursiveGrid.UI.SubKeyPreviewAutohideThreshold < 0 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
