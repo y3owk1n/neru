@@ -6,6 +6,15 @@
 
 <!-- Link related issues: Closes #123, Fixes #456 -->
 
+## Target Platform
+
+<!-- Check all that apply: -->
+
+- [ ] Platform-agnostic (shared logic, no OS-specific code)
+- [ ] macOS
+- [ ] Linux
+- [ ] Windows
+
 ## Type of Change
 
 <!-- Check the one that applies: -->
@@ -18,7 +27,16 @@
 - [ ] `test` — Adding or updating tests
 - [ ] `chore` — Build, CI, dependencies, tooling
 
-## Checklist
+## Cross-Platform Checklist
+
+<!-- If your PR touches OS-specific code, verify the following. Check N/A if not applicable. -->
+
+- [ ] OS-specific files use correct build tags (e.g., `//go:build darwin`)
+- [ ] No darwin imports from untagged (shared) code — [The One Rule](docs/ARCHITECTURE.md#the-one-rule)
+- [ ] Stub implementations added for other platforms (returning `CodeNotSupported`)
+- [ ] N/A — This PR does not touch platform-specific code
+
+## General Checklist
 
 - [ ] Code formatted (`just fmt`)
 - [ ] Linters pass (`just lint`)

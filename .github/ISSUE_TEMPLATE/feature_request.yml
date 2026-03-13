@@ -26,7 +26,21 @@ body:
               - CLI / IPC
               - UI / Overlays
               - Performance
+              - Platform support (Linux / Windows)
               - Other
+      validations:
+          required: true
+
+    - type: dropdown
+      attributes:
+          label: Target platform
+          description: Which platform(s) does this feature apply to?
+          multiple: true
+          options:
+              - All platforms
+              - macOS
+              - Linux
+              - Windows
       validations:
           required: true
 
