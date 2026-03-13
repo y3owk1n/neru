@@ -150,7 +150,7 @@ Neru is designed as a cross-platform tool with a strong emphasis on architectura
 
 If you are working on Linux or Windows support:
 
-- Check the current [Platform Status](docs/ARCHITECTURE.md#platform-specific-implementations) in the architecture guide.
+- Check the current [Platform Status](docs/ARCHITECTURE.md#platform-status) in the architecture guide.
 - Start by replacing `CodeNotSupported` stubs in `internal/core/infra/platform/<os>/`.
 - Follow the patterns established in the macOS implementation where applicable.
 
