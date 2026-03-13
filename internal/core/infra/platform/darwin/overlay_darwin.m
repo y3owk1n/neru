@@ -224,6 +224,7 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		_gridLabelBackgroundPaddingY = -1.0;
 		_gridLabelBackgroundBorderRadius = -1.0;
 		_gridLabelBackgroundBorderWidth = 1.0;
+		_gridSubKeyAutohideMultiplier = 1.5;
 		_hideUnmatched = NO;
 
 		// Initialize cached colors
