@@ -257,6 +257,9 @@ const (
 	DefaultRecursiveGridSubKeyPreview = false
 	// DefaultRecursiveGridSubKeyPreviewFontSize is the default font size for sub-key preview labels.
 	DefaultRecursiveGridSubKeyPreviewFontSize = 8
+	// DefaultRecursiveGridSubKeyPreviewAutohideThreshold is the default minimum cell size multiplier
+	// for sub-key preview autohide. Set to 0 to disable autohide.
+	DefaultRecursiveGridSubKeyPreviewAutohideThreshold = 1.5
 	// RecursiveGridSubKeyPreviewTextColorLight is the default Light Mode color for sub-key preview labels.
 	RecursiveGridSubKeyPreviewTextColorLight = "#66007A9E"
 	// RecursiveGridSubKeyPreviewTextColorDark is the default Dark Mode color for sub-key preview labels.
@@ -383,26 +386,27 @@ func commonDefaultConfig() *Config {
 			BackspaceKey: "Backspace",
 
 			UI: RecursiveGridUI{
-				LineColorLight:              RecursiveGridLineColorLight,
-				LineColorDark:               RecursiveGridLineColorDark,
-				LineWidth:                   DefaultRecursiveGridLineWidth,
-				HighlightColorLight:         RecursiveGridHighlightColorLight,
-				HighlightColorDark:          RecursiveGridHighlightColorDark,
-				TextColorLight:              RecursiveGridTextColorLight,
-				TextColorDark:               RecursiveGridTextColorDark,
-				FontSize:                    DefaultRecursiveGridFontSize,
-				FontFamily:                  "",
-				LabelBackgroundColorLight:   RecursiveGridLabelBackgroundColorLight,
-				LabelBackgroundColorDark:    RecursiveGridLabelBackgroundColorDark,
-				LabelBackgroundPaddingX:     DefaultRecursiveGridLabelBackgroundPaddingX,
-				LabelBackgroundPaddingY:     DefaultRecursiveGridLabelBackgroundPaddingY,
-				LabelBackgroundBorderRadius: DefaultRecursiveGridLabelBackgroundBorderRadius,
-				LabelBackgroundBorderWidth:  DefaultRecursiveGridLabelBackgroundBorderWidth,
-				LabelBackground:             false,
-				SubKeyPreview:               DefaultRecursiveGridSubKeyPreview,
-				SubKeyPreviewFontSize:       DefaultRecursiveGridSubKeyPreviewFontSize,
-				SubKeyPreviewTextColorLight: RecursiveGridSubKeyPreviewTextColorLight,
-				SubKeyPreviewTextColorDark:  RecursiveGridSubKeyPreviewTextColorDark,
+				LineColorLight:                 RecursiveGridLineColorLight,
+				LineColorDark:                  RecursiveGridLineColorDark,
+				LineWidth:                      DefaultRecursiveGridLineWidth,
+				HighlightColorLight:            RecursiveGridHighlightColorLight,
+				HighlightColorDark:             RecursiveGridHighlightColorDark,
+				TextColorLight:                 RecursiveGridTextColorLight,
+				TextColorDark:                  RecursiveGridTextColorDark,
+				FontSize:                       DefaultRecursiveGridFontSize,
+				FontFamily:                     "",
+				LabelBackgroundColorLight:      RecursiveGridLabelBackgroundColorLight,
+				LabelBackgroundColorDark:       RecursiveGridLabelBackgroundColorDark,
+				LabelBackgroundPaddingX:        DefaultRecursiveGridLabelBackgroundPaddingX,
+				LabelBackgroundPaddingY:        DefaultRecursiveGridLabelBackgroundPaddingY,
+				LabelBackgroundBorderRadius:    DefaultRecursiveGridLabelBackgroundBorderRadius,
+				LabelBackgroundBorderWidth:     DefaultRecursiveGridLabelBackgroundBorderWidth,
+				LabelBackground:                false,
+				SubKeyPreview:                  DefaultRecursiveGridSubKeyPreview,
+				SubKeyPreviewFontSize:          DefaultRecursiveGridSubKeyPreviewFontSize,
+				SubKeyPreviewAutohideThreshold: DefaultRecursiveGridSubKeyPreviewAutohideThreshold,
+				SubKeyPreviewTextColorLight:    RecursiveGridSubKeyPreviewTextColorLight,
+				SubKeyPreviewTextColorDark:     RecursiveGridSubKeyPreviewTextColorDark,
 			},
 
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,

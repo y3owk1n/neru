@@ -60,6 +60,7 @@ typedef struct {
 	int subKeyGridRows;              ///< Sub-key preview grid rows (next depth's rows)
 	int drawSubKeyPreview;           ///< Draw miniature key grid inside each cell (1 = yes, 0 = no)
 	int subKeyFontSize;              ///< Font size for sub-key preview labels
+	float subKeyAutohideThreshold;   ///< Minimum cell size multiplier for sub-key preview autohide (0 = disable)
 	char *subKeyTextColor;           ///< Text color for sub-key preview labels
 	char *subKeyKeys;                ///< Key string for sub-key preview (next depth's keys, uppercased)
 } GridCellStyle;

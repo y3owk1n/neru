@@ -908,28 +908,29 @@ j   →   k          j = Lower-left
 
 ### Visual Options (`[recursive_grid.ui]`)
 
-| Option                             | Type   | Default       | Description                                  |
-| ---------------------------------- | ------ | ------------- | -------------------------------------------- |
-| `line_color_light`                 | string | `"#FF007A9E"` | Grid line color for Light Mode (theme-aware) |
-| `line_color_dark`                  | string | `"#FF00CFCF"` | Grid line color for Dark Mode (theme-aware)  |
-| `line_width`                       | int    | `1`           | Line thickness (≥ 0)                         |
-| `highlight_color_light`            | string | `"#4D007A9E"` | Cell highlight for Light Mode (theme-aware)  |
-| `highlight_color_dark`             | string | `"#4D00CFCF"` | Cell highlight for Dark Mode (theme-aware)   |
-| `text_color_light`                 | string | `"#FF007A9E"` | Cell text color for Light Mode (theme-aware) |
-| `text_color_dark`                  | string | `"#FF00CFCF"` | Cell text color for Dark Mode (theme-aware)  |
-| `font_size`                        | int    | `10`          | Font size for labels (6–72)                  |
-| `font_family`                      | string | `""`          | Font family for labels (empty = system)      |
-| `label_background`                 | bool   | `false`       | Add rounded backgrounds behind labels        |
-| `label_background_color_light`     | string | `"#FFAAEEFF"` | Label background for Light Mode              |
-| `label_background_color_dark`      | string | `"#FF003554"` | Label background for Dark Mode               |
-| `label_background_padding_x`       | int    | `-1`          | Horizontal badge padding (`-1` = auto)       |
-| `label_background_padding_y`       | int    | `-1`          | Vertical badge padding (`-1` = auto)         |
-| `label_background_border_radius`   | int    | `-1`          | Badge border radius (`-1` = auto)            |
-| `label_background_border_width`    | int    | `1`           | Badge border width (≥ 0, `0` disables)       |
-| `sub_key_preview`                  | bool   | `false`       | Draw miniature key grid inside each cell     |
-| `sub_key_preview_font_size`        | int    | `8`           | Font size for sub-key preview labels (4–72)  |
-| `sub_key_preview_text_color_light` | string | `"#66007A9E"` | Sub-key label color for Light Mode           |
-| `sub_key_preview_text_color_dark`  | string | `"#6600CFCF"` | Sub-key label color for Dark Mode            |
+| Option                               | Type   | Default       | Description                                                                                |
+| ------------------------------------ | ------ | ------------- | ------------------------------------------------------------------------------------------ |
+| `line_color_light`                   | string | `"#FF007A9E"` | Grid line color for Light Mode (theme-aware)                                               |
+| `line_color_dark`                    | string | `"#FF00CFCF"` | Grid line color for Dark Mode (theme-aware)                                                |
+| `line_width`                         | int    | `1`           | Line thickness (≥ 0)                                                                       |
+| `highlight_color_light`              | string | `"#4D007A9E"` | Cell highlight for Light Mode (theme-aware)                                                |
+| `highlight_color_dark`               | string | `"#4D00CFCF"` | Cell highlight for Dark Mode (theme-aware)                                                 |
+| `text_color_light`                   | string | `"#FF007A9E"` | Cell text color for Light Mode (theme-aware)                                               |
+| `text_color_dark`                    | string | `"#FF00CFCF"` | Cell text color for Dark Mode (theme-aware)                                                |
+| `font_size`                          | int    | `10`          | Font size for labels (6–72)                                                                |
+| `font_family`                        | string | `""`          | Font family for labels (empty = system)                                                    |
+| `label_background`                   | bool   | `false`       | Add rounded backgrounds behind labels                                                      |
+| `label_background_color_light`       | string | `"#FFAAEEFF"` | Label background for Light Mode                                                            |
+| `label_background_color_dark`        | string | `"#FF003554"` | Label background for Dark Mode                                                             |
+| `label_background_padding_x`         | int    | `-1`          | Horizontal badge padding (`-1` = auto)                                                     |
+| `label_background_padding_y`         | int    | `-1`          | Vertical badge padding (`-1` = auto)                                                       |
+| `label_background_border_radius`     | int    | `-1`          | Badge border radius (`-1` = auto)                                                          |
+| `label_background_border_width`      | int    | `1`           | Badge border width (≥ 0, `0` disables)                                                     |
+| `sub_key_preview`                    | bool   | `false`       | Draw miniature key grid inside each cell                                                   |
+| `sub_key_preview_font_size`          | int    | `8`           | Font size for sub-key preview labels (4–72)                                                |
+| `sub_key_preview_autohide_threshold` | float  | `1.5`         | Min cell size multiplier to hide the preview when cell is too small (0 = disable autohide) |
+| `sub_key_preview_text_color_light`   | string | `"#66007A9E"` | Sub-key label color for Light Mode                                                         |
+| `sub_key_preview_text_color_dark`    | string | `"#6600CFCF"` | Sub-key label color for Dark Mode                                                          |
 
 > [!NOTE]
 > Theme-aware colors:
