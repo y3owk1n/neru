@@ -36,7 +36,10 @@ jobs:
 
                       // --- Navigation mode (bug report dropdown) ---
                       const mode = fieldValue('Navigation mode');
-                      if (/Hints/i.test(mode)) labels.push('area: accessibility');
+                      if (/Hints/i.test(mode)) {
+                          labels.push('area: accessibility');
+                          labels.push('area: overlays');
+                      }
                       if (/Grid/i.test(mode)) labels.push('area: overlays');
                       if (/Scroll/i.test(mode)) labels.push('area: event-tap');
 
