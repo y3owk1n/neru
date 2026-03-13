@@ -3,31 +3,29 @@
 package cli
 
 import (
-	"github.com/spf13/cobra"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
-// ServicesCmd is a stub on non-macOS platforms.
-// Service management (launchd) is a macOS-only feature.
-// On Linux, use your system's service manager (systemd, openrc, etc.).
-// On Windows, use the Windows Service Manager or Task Scheduler.
-var ServicesCmd = &cobra.Command{
-	Use:   "services",
-	Short: "Manage the neru system service",
-	Long: `Manage the neru system service for automatic startup.
-
-NOTE: Automatic service management via this command is currently only
-supported on macOS (launchd). On Linux/Windows, please use your
-platform's native service manager:
-  - Linux:   systemd (systemctl), openrc, etc.
-  - Windows: Windows Service Manager or Task Scheduler`,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		cmd.Println("Service management is not yet implemented on this platform.")
-		cmd.Println("See 'neru services --help' for details.")
-
-		return nil
-	},
+func installService() error {
+	return derrors.New(derrors.CodeNotSupported, "services install is only supported on macOS")
 }
 
-func init() {
-	RootCmd.AddCommand(ServicesCmd)
+func uninstallService() error {
+	return derrors.New(derrors.CodeNotSupported, "services uninstall is only supported on macOS")
+}
+
+func startService() error {
+	return derrors.New(derrors.CodeNotSupported, "services start is only supported on macOS")
+}
+
+func stopService() error {
+	return derrors.New(derrors.CodeNotSupported, "services stop is only supported on macOS")
+}
+
+func restartService() error {
+	return derrors.New(derrors.CodeNotSupported, "services restart is only supported on macOS")
+}
+
+func statusService() string {
+	return "Service management is not supported on this platform"
 }

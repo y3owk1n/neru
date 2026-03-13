@@ -8,7 +8,6 @@
                 - "**/*_darwin.m"
                 - "**/*_darwin.h"
                 - "internal/core/infra/platform/darwin/**"
-                - "internal/cli/services.go" # has //go:build darwin; uses launchctl/launchd
 "platform: linux":
     - changed-files:
           - any-glob-to-any-file:
