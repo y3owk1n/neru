@@ -51,7 +51,7 @@ linters:
                           desc: >
                               Do not import platform/darwin directly. Use ports.SystemPort
                               or create a build-tagged platform_darwin.go / platform_stub.go
-                              pair in your package. See docs/ARCHITECTURE_CROSS_PLATFORM.md.
+                              pair in your package. See docs/ARCHITECTURE.md.
                     files:
                         # Allow all files inside the darwin package (including tests)
                         - "!**/platform/darwin/**"

@@ -55,7 +55,7 @@ func LaunchDaemon(configPath string) {
 		fmt.Fprintf(os.Stderr, "   and will not function. Only macOS is currently supported.\n")
 		fmt.Fprintf(
 			os.Stderr,
-			"   See docs/ARCHITECTURE_CROSS_PLATFORM.md for the contribution guide.\n\n",
+			"   See docs/ARCHITECTURE.md for the contribution guide.\n\n",
 		)
 	}
 
