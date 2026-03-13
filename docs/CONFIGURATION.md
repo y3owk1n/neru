@@ -28,19 +28,13 @@ Neru uses TOML for configuration. This guide covers all available options with e
 
 Neru uses TOML configuration files. Configuration is loaded from (in order of priority):
 
-### macOS
-
-1. **`~/.config/neru/config.toml`** (recommended)
-2. **`~/Library/Application Support/neru/config.toml`** (fallback)
-
-### Linux
-
 1. **`$XDG_CONFIG_HOME/neru/config.toml`** (if `XDG_CONFIG_HOME` is set)
-2. **`~/.config/neru/config.toml`** (recommended default)
+2. **`~/.config/neru/config.toml`** (recommended)
+3. **`~/.neru.toml`** (legacy)
+4. **`neru.toml`** (current directory)
+5. **`config.toml`** (current directory)
 
-### Windows
-
-1. **`%APPDATA%\neru\config.toml`**
+This search order is the same on all platforms (macOS, Linux, Windows).
 
 ### Global Flag
 
