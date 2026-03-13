@@ -75,6 +75,16 @@ const (
 
 	// CodeSecureInputEnabled indicates secure input mode is active on macOS.
 	CodeSecureInputEnabled Code = "SECURE_INPUT_ENABLED"
+
+	// CodeNotSupported indicates the operation is not supported on the current platform.
+	// Use this in stub implementations so callers can distinguish "not implemented yet"
+	// from "actually failed". Example:
+	//
+	//   func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
+	//       return image.Rectangle{}, derrors.New(derrors.CodeNotSupported,
+	//           "screen bounds not yet implemented on linux")
+	//   }
+	CodeNotSupported Code = "NOT_SUPPORTED"
 )
 
 // Error represents a domain error with code, message, and optional cause.
@@ -220,4 +230,10 @@ func IsUserError(err error) bool {
 // IsTransient checks if an error is potentially transient (retryable).
 func IsTransient(err error) bool {
 	return IsCode(err, CodeTimeout) || IsCode(err, CodeIPCFailed)
+}
+
+// IsNotSupported checks if an error indicates an unimplemented platform feature.
+// Use this in callers that should degrade gracefully when a feature is unavailable.
+func IsNotSupported(err error) bool {
+	return IsCode(err, CodeNotSupported)
 }

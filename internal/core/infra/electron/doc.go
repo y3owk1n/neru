@@ -1,9 +1,9 @@
-// Package electron provides enhanced accessibility support for Electron-based applications,
-// enabling proper UI element detection in applications that don't properly expose their
-// interface to the macOS accessibility API by default.
+// Package electron provides enhanced accessibility support for Electron, Chromium,
+// and Firefox-based applications that don't expose full accessibility information
+// by default.
 //
-// This package implements a specialized solution for Electron, Chromium, and Firefox-based
-// applications that suffer from accessibility limitations. Many modern applications built
-// with these frameworks don't expose complete accessibility information, making standard
-// accessibility-based navigation difficult or impossible.
+// On macOS this works by toggling AXManualAccessibility / AXEnhancedUserInterface
+// attributes via the platform accessibility API. The platform-specific call is
+// isolated in platform_darwin.go / platform_stub.go so this package compiles
+// on all platforms.
 package electron

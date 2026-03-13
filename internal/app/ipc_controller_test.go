@@ -4,19 +4,20 @@ import (
 	"context"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"go.uber.org/zap"
 )
 
 func newTestController() *app.IPCController {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger, _ := zap.NewDevelopment()
-	configService := config.NewService(cfg, "", logger)
+	configService := config.NewService(cfg, "", logger, nil)
 
 	return app.NewIPCController(
 		nil, // hintService

@@ -3,8 +3,9 @@ package modes
 import (
 	"context"
 
-	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/app/components/scroll"
 )
 
 // StartInteractiveScroll activates the interactive scroll mode,

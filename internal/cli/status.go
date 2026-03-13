@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/spf13/cobra"
+
 	"github.com/y3owk1n/neru/internal/cli/cliutil"
 )
 

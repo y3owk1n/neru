@@ -1,0 +1,9 @@
+# Ensure consistent line endings across platforms.
+# Go tooling (gci, gofmt, etc.) expects LF; CRLF on Windows causes
+# false-positive "not properly formatted" errors from golangci-lint.
+* text=auto eol=lf
+
+# Explicitly mark binary files
+*.png binary
+*.icns binary
+*.ico binary

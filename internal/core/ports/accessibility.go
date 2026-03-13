@@ -28,44 +28,29 @@ type ActionExecution interface {
 
 // ApplicationInfo defines the interface for getting application information.
 type ApplicationInfo interface {
-	// FocusedAppBundleID returns the bundle ID of the currently focused application.
+	// FocusedAppBundleID returns the platform application identifier of the
+	// currently focused application. On macOS this is a bundle ID
+	// (e.g. "com.apple.Safari"). On Linux this will be a desktop ID or
+	// executable name; on Windows an AppUserModelID or executable path.
 	FocusedAppBundleID(ctx context.Context) (string, error)
 
-	// IsAppExcluded checks if the given bundle ID is in the exclusion list.
+	// IsAppExcluded checks if the given application identifier is in the
+	// configured exclusion list. The identifier format is platform-dependent
+	// (see FocusedAppBundleID).
 	IsAppExcluded(ctx context.Context, bundleID string) bool
 }
 
-// ScreenManagement defines the interface for screen and cursor operations.
-type ScreenManagement interface {
-	// ScreenBounds returns the bounds of the active screen.
-	ScreenBounds(ctx context.Context) (image.Rectangle, error)
-
-	// MoveCursorToPoint moves the mouse cursor to the specified point.
-	// If bypassSmooth is true, smooth cursor configuration is bypassed.
-	MoveCursorToPoint(ctx context.Context, point image.Point, bypassSmooth bool) error
-
-	// CursorPosition returns the current cursor position.
-	CursorPosition(ctx context.Context) (image.Point, error)
-}
-
-// PermissionManagement defines the interface for accessibility permissions.
-type PermissionManagement interface {
-	// CheckPermissions verifies that accessibility permissions are granted.
-	CheckPermissions(ctx context.Context) error
-}
-
-// AccessibilityPort defines the interface for interacting with the macOS accessibility API.
-// Implementations should handle all CGo/Objective-C bridge complexity.
+// AccessibilityPort defines the interface for interacting with the platform
+// accessibility API (AXUIElement on macOS, AT-SPI on Linux, UIA on Windows).
+// Implementations handle all platform-specific bridge complexity and live in
+// internal/core/infra/accessibility/.
 //
-// This interface embeds segregated interfaces to reduce duplication and ensure
-// method signatures stay synchronized across different concerns.
+// This interface embeds segregated sub-interfaces to keep each concern focused.
 type AccessibilityPort interface {
 	HealthCheck
 	ElementDiscovery
 	ActionExecution
 	ApplicationInfo
-	ScreenManagement
-	PermissionManagement
 }
 
 // ElementFilter defines criteria for filtering UI elements.
@@ -88,13 +73,19 @@ type ElementFilter struct {
 	// AdditionalMenubarTargets specifies additional bundle IDs to scan for menubar elements.
 	AdditionalMenubarTargets []string
 
-	// IncludeDock includes dock elements.
+	// IncludeDock includes dock/taskbar elements.
+	// On macOS this queries com.apple.dock.
+	// Platform equivalents on Linux/Windows are not yet mapped.
 	IncludeDock bool
 
 	// IncludeNotificationCenter includes notification center elements.
+	// On macOS this queries com.apple.notificationcenterui.
+	// Platform equivalents on Linux/Windows are not yet mapped.
 	IncludeNotificationCenter bool
 
-	// IncludeStageManager includes stage manager elements.
+	// IncludeStageManager includes stage manager / window manager elements.
+	// On macOS this queries com.apple.WindowManager.
+	// Platform equivalents on Linux/Windows are not yet mapped.
 	IncludeStageManager bool
 }
 

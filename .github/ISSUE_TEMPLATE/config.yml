@@ -1,8 +1,14 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
-    - name: Questions & Discussion
+    - name: 💬 Linux Support Discussion
+      url: https://github.com/y3owk1n/neru/discussions/559
+      about: Discuss Linux porting efforts, share progress, and coordinate with other contributors.
+    - name: 📖 Platform Support Status
+      url: https://github.com/y3owk1n/neru#-platform-support
+      about: Check the current platform compatibility matrix before filing an issue.
+    - name: ❓ Questions & Discussion
       url: https://github.com/y3owk1n/neru/discussions
       about: Ask questions, share your config, or discuss ideas before opening an issue.
-    - name: Troubleshooting Guide
+    - name: 🔧 Troubleshooting Guide
       url: https://github.com/y3owk1n/neru/blob/main/docs/TROUBLESHOOTING.md
       about: Check the troubleshooting guide for common issues and app-specific fixes.

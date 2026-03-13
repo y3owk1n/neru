@@ -4,8 +4,9 @@ import (
 	"image"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/core/domain/grid"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/domain/grid"
 )
 
 func TestGridRouter_RouteKey(t *testing.T) {

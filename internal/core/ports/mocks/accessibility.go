@@ -10,6 +10,9 @@ import (
 )
 
 // MockAccessibilityPort is a mock implementation of ports.AccessibilityPort.
+// Note: ScreenBounds, MoveCursorToPoint, CursorPosition, and CheckPermissions
+// were removed from AccessibilityPort and moved to SystemPort. Use SystemMock
+// for those operations.
 type MockAccessibilityPort struct {
 	HealthFunc               func(context.Context) error
 	ClickableElementsFunc    func(context.Context, ports.ElementFilter) ([]*element.Element, error)
@@ -18,10 +21,6 @@ type MockAccessibilityPort struct {
 	ScrollFunc               func(context.Context, int, int) error
 	FocusedAppBundleIDFunc   func(context.Context) (string, error)
 	IsAppExcludedFunc        func(context.Context, string) bool
-	ScreenBoundsFunc         func(context.Context) (image.Rectangle, error)
-	MoveCursorToPointFunc    func(context.Context, image.Point, bool) error
-	CursorPositionFunc       func(context.Context) (image.Point, error)
-	CheckPermissionsFunc     func(context.Context) error
 }
 
 // Health implements ports.AccessibilityPort.
@@ -98,42 +97,5 @@ func (m *MockAccessibilityPort) IsAppExcluded(ctx context.Context, bundleID stri
 	return false
 }
 
-// ScreenBounds implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
-	if m.ScreenBoundsFunc != nil {
-		return m.ScreenBoundsFunc(ctx)
-	}
-
-	return image.Rectangle{}, nil
-}
-
-// MoveCursorToPoint implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) MoveCursorToPoint(
-	ctx context.Context,
-	point image.Point,
-	bypassSmooth bool,
-) error {
-	if m.MoveCursorToPointFunc != nil {
-		return m.MoveCursorToPointFunc(ctx, point, bypassSmooth)
-	}
-
-	return nil
-}
-
-// CursorPosition implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) CursorPosition(ctx context.Context) (image.Point, error) {
-	if m.CursorPositionFunc != nil {
-		return m.CursorPositionFunc(ctx)
-	}
-
-	return image.Point{}, nil
-}
-
-// CheckPermissions implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) CheckPermissions(ctx context.Context) error {
-	if m.CheckPermissionsFunc != nil {
-		return m.CheckPermissionsFunc(ctx)
-	}
-
-	return nil
-}
+// Ensure MockAccessibilityPort implements ports.AccessibilityPort.
+var _ ports.AccessibilityPort = (*MockAccessibilityPort)(nil)

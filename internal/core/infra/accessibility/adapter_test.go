@@ -7,12 +7,13 @@ import (
 	"slices"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 // errTestAccessibility is a static error for testing accessibility failures.
@@ -147,80 +148,6 @@ func TestAdapter_UpdateExcludedBundles(t *testing.T) {
 	// Verify old bundles are no longer excluded
 	if adapter.IsAppExcluded(ctx, "com.apple.finder") {
 		t.Error("Expected com.apple.finder to not be excluded after update")
-	}
-}
-
-func TestAdapter_ScreenBounds(t *testing.T) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{
-		MockScreenBounds: image.Rect(0, 0, 1920, 1080),
-	}
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient, false)
-	ctx := context.Background()
-
-	screenBounds, screenBoundsErr := adapter.ScreenBounds(ctx)
-	if screenBoundsErr != nil {
-		t.Fatalf("ScreenBounds() error = %v", screenBoundsErr)
-	}
-
-	// Verify bounds match mock
-	if screenBounds != mockClient.MockScreenBounds {
-		t.Errorf("ScreenBounds() = %v, want %v", screenBounds, mockClient.MockScreenBounds)
-	}
-}
-
-func TestAdapter_CursorPosition(t *testing.T) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient, false)
-	ctx := context.Background()
-
-	pos, posErr := adapter.CursorPosition(ctx)
-	if posErr != nil {
-		t.Fatalf("CursorPosition() error = %v", posErr)
-	}
-
-	// Cursor position should be zero as per mock default
-	if pos != (image.Point{}) {
-		t.Errorf("CursorPosition() = %v, want %v", pos, image.Point{})
-	}
-}
-
-func TestAdapter_MoveCursorToPoint(t *testing.T) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient, false)
-	ctx := context.Background()
-
-	tests := []struct {
-		name         string
-		point        image.Point
-		bypassSmooth bool
-	}{
-		{
-			name:         "move to center",
-			point:        image.Point{X: 500, Y: 500},
-			bypassSmooth: false,
-		},
-		{
-			name:         "move to origin",
-			point:        image.Point{X: 0, Y: 0},
-			bypassSmooth: false,
-		},
-		{
-			name:         "move with bypass smooth",
-			point:        image.Point{X: 100, Y: 100},
-			bypassSmooth: true,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			moveCursorErr := adapter.MoveCursorToPoint(ctx, testCase.point, testCase.bypassSmooth)
-			if moveCursorErr != nil {
-				t.Errorf("MoveCursorToPoint() error = %v", moveCursorErr)
-			}
-		})
 	}
 }
 
@@ -432,43 +359,15 @@ func TestAdapter_FocusedAppBundleID(t *testing.T) {
 	}
 }
 
-func TestAdapter_CheckPermissions(t *testing.T) {
-	tests := []struct {
-		name            string
-		mockPermissions bool
-		wantErr         bool
-	}{
-		{
-			name:            "permissions granted",
-			mockPermissions: true,
-			wantErr:         false,
-		},
-		{
-			name:            "permissions denied",
-			mockPermissions: false,
-			wantErr:         true,
-		},
-	}
+func TestAdapter_Health_PermissionsDenied(t *testing.T) {
+	logger := zap.NewNop()
+	mockClient := &accessibility.MockAXClient{MockPermissions: false}
+	adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient, false)
+	ctx := context.Background()
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			logger := zap.NewNop()
-			mockClient := &accessibility.MockAXClient{
-				MockPermissions: testCase.mockPermissions,
-			}
-			adapter := accessibility.NewAdapter(logger, []string{}, []string{}, mockClient, false)
-			ctx := context.Background()
-
-			permissionsErr := adapter.CheckPermissions(ctx)
-
-			if (permissionsErr != nil) != testCase.wantErr {
-				t.Errorf(
-					"CheckPermissions() error = %v, wantErr %v",
-					permissionsErr,
-					testCase.wantErr,
-				)
-			}
-		})
+	healthErr := adapter.Health(ctx)
+	if healthErr == nil {
+		t.Error("Health() expected error when permissions denied, got nil")
 	}
 }
 

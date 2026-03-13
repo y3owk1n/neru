@@ -2,12 +2,14 @@ package modes
 
 import (
 	"context"
+	"image"
+
+	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
-	"go.uber.org/zap"
 )
 
 // CurrModeString returns the current mode as a string.
@@ -38,7 +40,17 @@ func (h *Handler) CaptureInitialCursorPosition() {
 		return
 	}
 
-	screenBounds := bridge.ActiveScreenBounds()
+	var screenBounds image.Rectangle
+
+	if h.system != nil {
+		b, err := h.system.ScreenBounds(context.Background())
+		if err == nil {
+			screenBounds = b
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to get screen bounds for cursor capture", zap.Error(err))
+		}
+	}
+
 	h.cursorState.Capture(pos, screenBounds)
 }
 

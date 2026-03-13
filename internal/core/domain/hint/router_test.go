@@ -4,9 +4,10 @@ import (
 	"image"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
-	"go.uber.org/zap"
 )
 
 func TestRouter_RouteKey(t *testing.T) {

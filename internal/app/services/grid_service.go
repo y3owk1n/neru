@@ -3,9 +3,10 @@ package services
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 // GridService orchestrates grid navigation.
@@ -16,9 +17,13 @@ type GridService struct {
 }
 
 // NewGridService creates a new grid service.
-func NewGridService(overlay ports.OverlayPort, logger *zap.Logger) *GridService {
+func NewGridService(
+	overlay ports.OverlayPort,
+	system ports.SystemPort,
+	logger *zap.Logger,
+) *GridService {
 	return &GridService{
-		BaseService: NewBaseService(nil, overlay),
+		BaseService: NewBaseService(nil, overlay, system),
 		logger:      logger,
 	}
 }

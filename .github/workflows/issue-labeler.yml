@@ -1,0 +1,116 @@
+on:
+    issues:
+        types: [opened, edited]
+name: Label Issues
+permissions:
+    issues: write
+jobs:
+    label:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Auto-label issue from form fields
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const body = context.payload.issue.body || '';
+                      const labels = [];
+
+                      // Escape special regex characters in a string
+                      function escapeRegex(s) {
+                          return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                      }
+
+                      // Helper: extract the first non-empty line after a ### heading
+                      function fieldValue(heading) {
+                          const re = new RegExp('### ' + escapeRegex(heading) + '\\s*\\n\\s*(.*)', 'i');
+                          const m = body.match(re);
+                          return m ? m[1].trim() : '';
+                      }
+
+                      // Helper: extract a multi-line section between two ### headings
+                      function fieldSection(heading) {
+                          const re = new RegExp('### ' + escapeRegex(heading) + '\\s*\\n([\\s\\S]*?)(?=\\n###|$)', 'i');
+                          const m = body.match(re);
+                          return m ? m[1] : '';
+                      }
+
+                      // --- Operating system (bug report dropdown) ---
+                      const os = fieldValue('Operating system');
+                      if (/macOS/i.test(os)) labels.push('platform: macOS');
+                      if (/Linux/i.test(os)) labels.push('platform: linux');
+                      if (/Windows/i.test(os)) labels.push('platform: windows');
+
+                      // --- Navigation mode (bug report dropdown) ---
+                      const mode = fieldValue('Navigation mode');
+                      if (/Hints/i.test(mode)) {
+                          labels.push('area: accessibility');
+                          labels.push('area: overlays');
+                      }
+                      if (/Grid/i.test(mode)) labels.push('area: overlays');
+                      if (/Scroll/i.test(mode)) labels.push('area: event-tap');
+
+                      // --- Target platform (feature request multi-select dropdown) ---
+                      const platform = fieldSection('Target platform');
+                      if (platform) {
+                          if (/macOS/i.test(platform)) labels.push('platform: macOS');
+                          if (/Linux/i.test(platform)) labels.push('platform: linux');
+                          if (/Windows/i.test(platform)) labels.push('platform: windows');
+                          if (/All platforms/i.test(platform)) labels.push('cross-platform');
+                      }
+
+                      // --- Category (feature request dropdown) ---
+                      const cat = fieldValue('Category');
+                      if (/Platform support/i.test(cat)) labels.push('cross-platform');
+                      if (/UI \/ Overlays/i.test(cat)) labels.push('area: overlays');
+                      if (/Performance/i.test(cat)) labels.push('performance');
+                      if (/Navigation/i.test(cat)) {
+                          labels.push('area: accessibility');
+                          labels.push('area: overlays');
+                          labels.push('area: event-tap');
+                      }
+                      if (/CLI \/ IPC/i.test(cat)) labels.push('area: infra');
+
+                      // All labels this automation may manage
+                      const MANAGED = new Set([
+                          'platform: macOS',
+                          'platform: linux',
+                          'platform: windows',
+                          'cross-platform',
+                          'area: accessibility',
+                          'area: overlays',
+                          'area: event-tap',
+                          'area: infra',
+                          'performance',
+                      ]);
+
+                      // Deduplicate desired labels
+                      const desired = new Set(labels);
+
+                      // Fetch current labels on the issue
+                      const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: context.issue.number,
+                      });
+
+                      // Remove managed labels that no longer apply
+                      for (const label of currentLabels) {
+                          if (MANAGED.has(label.name) && !desired.has(label.name)) {
+                              await github.rest.issues.removeLabel({
+                                  owner: context.repo.owner,
+                                  repo: context.repo.repo,
+                                  issue_number: context.issue.number,
+                                  name: label.name,
+                              });
+                          }
+                      }
+
+                      // Add desired labels
+                      if (desired.size > 0) {
+                          await github.rest.issues.addLabels({
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              issue_number: context.issue.number,
+                              labels: [...desired],
+                          });
+                      }

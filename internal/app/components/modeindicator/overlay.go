@@ -1,9 +1,11 @@
+//go:build darwin
+
 // Package modeindicator provides the mode indicator overlay component.
 package modeindicator
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../../../core/infra/bridge/overlay.h"
+#include "../../../core/infra/platform/darwin/overlay.h"
 #include <stdlib.h>
 
 // Callback function that Go can reference.
@@ -15,10 +17,11 @@ import (
 	"sync"
 	"unsafe"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"go.uber.org/zap"
 )
 
 const (

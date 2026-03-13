@@ -166,22 +166,18 @@ chmod +x .git/hooks/pre-commit
 
 ### Common Development Tasks
 
-| Task   | Command                  | Description                        |
-| ------ | ------------------------ | ---------------------------------- |
-| Build  | `just build`             | Compile the application            |
-| Test   | `just test`              | Run unit and integration tests     |
-| Test   | `just test-unit`         | Run unit tests                     |
-| Test   | `just test-integration`  | Run integration tests              |
-| Test   | `just test-race`         | Run all tests with race detection  |
-| Test   | `just test-coverage`     | Run unit tests with coverage       |
-| Test   | `just test-all`          | Run all tests (unit + integration) |
-| Bench  | `just bench`             | Run all benchmarks                 |
-| Bench  | `just bench-unit`        | Run unit benchmarks                |
-| Bench  | `just bench-integration` | Run integration benchmarks         |
-| Lint   | `just lint`              | Run linters                        |
-| Format | `just fmt`               | Format code                        |
-| Run    | `just run`               | Build and run the application      |
-| Clean  | `just clean`             | Remove build artifacts             |
+| Task   | Command                 | Description                        |
+| ------ | ----------------------- | ---------------------------------- |
+| Build  | `just build`            | Compile the application            |
+| Test   | `just test`             | Run unit and integration tests     |
+| Test   | `just test-unit`        | Run unit tests                     |
+| Test   | `just test-integration` | Run integration tests              |
+| Test   | `just test-race`        | Run all tests with race detection  |
+| Test   | `just test-all`         | Run all tests (unit + integration) |
+| Lint   | `just lint`             | Run linters                        |
+| Format | `just fmt`              | Format code                        |
+| Run    | `just run`              | Build and run the application      |
+| Clean  | `just clean`            | Remove build artifacts             |
 
 ### Debugging
 
@@ -197,7 +193,11 @@ To debug Neru during development:
 2. **View Logs**:
 
     ```bash
+    # macOS
     tail -f ~/Library/Logs/neru/app.log
+
+    # Linux
+    tail -f ~/.local/state/neru/log/app.log
     ```
 
 3. **Use Delve Debugger**:
@@ -278,20 +278,17 @@ Neru has a comprehensive test suite with clear separation between unit tests and
 
 ### Test Organization
 
-| Test Type                  | File Pattern                  | Purpose                                                    | Command                  | Coverage                                            |
-| -------------------------- | ----------------------------- | ---------------------------------------------------------- | ------------------------ | --------------------------------------------------- |
-| **Unit Tests**             | `*_test.go`                   | Business logic with mocks (no build tag required)          | `just test`              | 50+ tests covering algorithms, isolated components  |
-| **Integration Tests**      | `*_integration_test.go`       | Real system interactions (tagged `//go:build integration`) | `just test-integration`  | 15+ tests covering macOS APIs, IPC, file operations |
-| **Unit Benchmarks**        | `*_bench_test.go`             | Performance testing                                        | `just bench`             | Performance benchmarks for critical paths           |
-| **Integration Benchmarks** | `*_bench_integration_test.go` | Real system performance                                    | `just bench-integration` | Performance testing with real macOS APIs            |
+| Test Type             | File Pattern              | Purpose                                                            | Command                 | Coverage                                           |
+| --------------------- | ------------------------- | ------------------------------------------------------------------ | ----------------------- | -------------------------------------------------- |
+| **Unit Tests**        | `*_test.go`               | Business logic with mocks (no build tag required)                  | `just test`             | 50+ tests covering algorithms, isolated components |
+| **Integration Tests** | `*_integration_*_test.go` | Real system interactions (tagged `//go:build integration && <os>`) | `just test-integration` | Tests covering platform APIs, IPC, file operations |
 
 ### Test File Naming Convention
 
 ```text
-package_test.go                    # Unit tests (logic, mocks)
-package_integration_test.go       # Integration tests (real system calls) //go:build integration
-package_bench_test.go             # Unit benchmarks (algorithms without system calls)
-package_bench_integration_test.go # Integration benchmarks (real system performance) //go:build integration
+package_test.go                          # Unit tests (logic, mocks)
+package_integration_darwin_test.go       # macOS integration tests //go:build integration && darwin
+package_integration_linux_test.go        # Linux integration tests  //go:build integration && linux
 ```
 
 ### Run Tests
@@ -306,14 +303,8 @@ just test-integration
 # All tests (unit + integration)
 just test-all
 
-# Benchmarks
-just bench
-
 # With race detection
 just test-race
-
-# Coverage report
-just test-coverage
 ```
 
 ### Test Coverage Areas
@@ -336,7 +327,6 @@ just test-coverage
 - **macOS Overlay API**: Real window/overlay management
 - **File System Operations**: Real config file loading/reloading
 - **Component Coordination**: Real service-to-adapter interactions
-- **System Benchmarks**: Performance testing with real macOS APIs
 
 ### Run Linter
 
@@ -376,7 +366,7 @@ go test -tags=integration ./internal/core/infra/accessibility/
 
 ### What Neru Does
 
-Neru is a keyboard-driven navigation tool for macOS that enhances productivity by allowing users to quickly navigate and interact with UI elements using keyboard shortcuts.
+Neru is a keyboard-driven navigation tool that enhances productivity by allowing users to quickly navigate and interact with UI elements using keyboard shortcuts. macOS is the primary supported platform; Linux and Windows support is in progress (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 
 **Four Navigation Modes:**
 
@@ -600,13 +590,13 @@ Implements use cases and orchestrates domain entities:
 
 Concrete implementations of ports:
 
-- **Accessibility**: macOS Accessibility API integration
+- **Accessibility**: Platform accessibility API integration (AXUIElement on macOS)
 - **Overlay**: UI overlay management and rendering
 - **Config**: Configuration loading and parsing
 - **EventTap**: Global input monitoring
 - **Hotkeys**: System hotkey registration
 - **IPC**: Inter-process communication
-- **Bridge**: Objective-C UI components
+- **Platform**: OS-specific adapters (`platform/darwin`, `platform/linux`, `platform/windows`)
 
 #### Presentation Layer (`internal/ui`)
 
@@ -653,13 +643,13 @@ Application orchestration and use cases:
 
 Infrastructure implementations:
 
-- **Accessibility**: macOS Accessibility API integration
+- **Accessibility**: Platform accessibility API integration (AXUIElement on macOS)
 - **Overlay**: UI overlay management and rendering
 - **Config**: Configuration loading and parsing
 - **EventTap**: Global input monitoring
 - **Hotkeys**: System hotkey registration
 - **IPC**: Inter-process communication
-- **Bridge**: Objective-C UI components
+- **Platform**: OS-specific adapters (`platform/darwin`, `platform/linux`, `platform/windows`)
 
 #### `internal/ui`
 
@@ -687,7 +677,7 @@ Configuration management:
 **Configuration Options:**
 
 1. Add fields to `internal/config/config.go` structs
-2. Update `DefaultConfig()` with sensible defaults
+2. Update `commonDefaultConfig()` with shared defaults; add platform-specific defaults to `internal/config/config_<os>.go`
 3. Add validation in `Validate*()` methods
 4. Update `configs/` examples and `docs/CONFIGURATION.md`
 
@@ -712,7 +702,7 @@ Configuration management:
 
 1. Create components in `internal/app/components/`
 2. Implement rendering in `internal/ui/`
-3. Add Objective-C in `internal/core/infra/bridge/` if needed
+3. Add macOS-specific Objective-C in `internal/core/infra/platform/darwin/` with a `//go:build darwin` tag; provide a no-op stub for other platforms
 4. Register in `internal/app/component_factory.go` or `internal/app/app_initialization.go`
 
 **CLI Commands:**
@@ -733,10 +723,10 @@ Neru uses manual dependency injection for better testability and explicit depend
 Example of dependency injection in action:
 
 ```go
-// In internal/app/app_initialization.go
-hintService := services.NewHintService(accAdapter, overlayAdapter, hintGen, cfg.Hints, logger)
-gridService := services.NewGridService(overlayAdapter, logger)
-actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Action, logger)
+// In internal/app/initialization.go
+hintService := services.NewHintService(accAdapter, overlayAdapter, systemPort, hintGen, cfg.Hints, logger)
+gridService := services.NewGridService(overlayAdapter, systemPort, logger)
+actionService := services.NewActionService(accAdapter, overlayAdapter, systemPort, cfg.Action, cfg.Action.KeyBindings, cfg.Action.MoveMouseStep, logger)
 ```
 
 ---
@@ -788,33 +778,20 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, cfg.Actio
 **Test Types:**
 
 - **Unit Tests**: Business logic, algorithms, validation (fast, no system deps)
-- **Integration Tests**: Real macOS APIs, file system, IPC (tagged `//go:build integration`)
-- **Benchmarks**: Performance testing (tagged based on whether they use system resources)
+- **Integration Tests**: Real platform APIs, file system, IPC (tagged `//go:build integration && <os>`)
 
 **When to Use:**
 
 - **Unit Tests**: Business logic, config validation, component interfaces, pure algorithms
-- **Integration Tests**: macOS APIs, file operations, IPC, component coordination
-- **Benchmarks**: Performance-critical code paths (unit for pure logic, integration for system calls)
+- **Integration Tests**: Platform APIs, file operations, IPC, component coordination
 
 **Test Organization:**
 
 ```
-package_test.go              # Unit tests (logic, mocks)
-package_integration_test.go # Integration tests (real system calls)
-package_bench_test.go        # Benchmarks (unit or integration based)
+package_test.go                        # Unit tests (logic, mocks)
+package_integration_darwin_test.go     # macOS integration tests //go:build integration && darwin
+package_integration_linux_test.go      # Linux integration tests  //go:build integration && linux
 ```
-
-**Benchmark Classification:**
-
-- **Unit Benchmarks** (`*_bench_test.go`): Pure algorithm performance, no system calls
-- **Integration Benchmarks** (`*_bench_integration_test.go`): Real system performance, tagged `//go:build integration`
-
-Examples:
-
-- Domain logic benchmarks → Unit benchmarks
-- File I/O benchmarks → Integration benchmarks
-- IPC performance benchmarks → Integration benchmarks
 
 ### Documentation
 
@@ -899,8 +876,11 @@ ls **/*.go | entr -r sh -c 'just build && ./bin/neru launch'
 [logging]
 log_level = "debug"
 
-# Watch logs
+# Watch logs (macOS)
 tail -f ~/Library/Logs/neru/app.log
+
+# Watch logs (Linux)
+tail -f ~/.local/state/neru/log/app.log
 ```
 
 ### Useful Commands

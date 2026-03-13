@@ -1,16 +1,24 @@
 package app
 
 import (
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
-// bridgeThemeProvider implements config.ThemeProvider using the native bridge.
-type bridgeThemeProvider struct{}
-
-// IsDarkMode returns true if macOS Dark Mode is currently active.
-func (b *bridgeThemeProvider) IsDarkMode() bool {
-	return bridge.IsDarkMode()
+// bridgeThemeProvider implements config.ThemeProvider using a SystemPort.
+type bridgeThemeProvider struct {
+	systemPort ports.SystemPort
 }
 
-// defaultThemeProvider is the shared instance used throughout the app.
-var defaultThemeProvider = &bridgeThemeProvider{}
+// IsDarkMode returns true if the platform's dark mode is currently active.
+func (b *bridgeThemeProvider) IsDarkMode() bool {
+	if b.systemPort == nil {
+		return false
+	}
+
+	return b.systemPort.IsDarkMode()
+}
+
+// newThemeProvider creates a new theme provider using the provided system port.
+func newThemeProvider(systemPort ports.SystemPort) *bridgeThemeProvider {
+	return &bridgeThemeProvider{systemPort: systemPort}
+}

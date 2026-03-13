@@ -2,6 +2,9 @@
 
 This guide covers all installation methods for Neru on macOS.
 
+> [!NOTE]
+> Neru currently only supports macOS. Linux and Windows support is in progress and requires community contribution. See the [Platform Support section in README.md](../README.md#💻-platform-support) for details.
+
 ## Requirements
 
 - macOS 11.0 or later
@@ -165,7 +168,8 @@ The module automatically:
 
 If you prefer to manage the service yourself, you can just use the overlay:
 
-> [!NOTE] Direct installation requires manual configuration and launch agent setup.
+> [!NOTE]
+> Direct installation requires manual configuration and launch agent setup.
 
 ```nix
 {
@@ -252,7 +256,8 @@ nix flake update neru
 
 ### Patch Go Version
 
-> [!NOTE] This is only required if you're using `nix`, you're using the `neru-source` package and nixpkgs is not on golang `1.26.0` yet.
+> [!NOTE]
+> This is only required if you're using `nix`, you're using the `neru-source` package and nixpkgs is not on golang `1.26.0` yet.
 
 The latest version of Neru requires Go 1.26 or later. But nixpkgs for golang doesn't have that supported yet, you can patch it as below to the latest version available (search from nixpkgs and see what are the latest version):
 
@@ -315,9 +320,10 @@ neru launch
 
 # Or install as launchd service for auto-startup
 neru services install
-
-> [!NOTE] If Neru is already installed via nix-darwin, home-manager, or other methods, `services install` will detect the conflict and refuse to install. Check your existing configurations first.
 ```
+
+> [!NOTE]
+> If Neru is already installed via nix-darwin, home-manager, or other methods, `services install` will detect the conflict and refuse to install. Check your existing configurations first.
 
 ### 3. Verify
 
@@ -328,7 +334,7 @@ neru status  # Should show "running"
 
 ### 4. Configure
 
-Neru loads config from `~/.config/neru/config.toml` (recommended) or `~/Library/Application Support/neru/config.toml`.
+Neru loads config from `~/.config/neru/config.toml` (recommended). See [CONFIGURATION.md](CONFIGURATION.md) for the full search order.
 
 **Get started:** Copy `configs/default-config.toml` to `~/.config/neru/config.toml`
 

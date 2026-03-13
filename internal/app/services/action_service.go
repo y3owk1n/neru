@@ -6,12 +6,13 @@ import (
 	"slices"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 // ActionService handles executing actions on UI elements.
@@ -29,13 +30,14 @@ type ActionService struct {
 func NewActionService(
 	accessibility ports.AccessibilityPort,
 	overlay ports.OverlayPort,
+	system ports.SystemPort,
 	actionConfig config.ActionConfig,
 	keyBindings config.ActionKeyBindingsCfg,
 	moveMouseStep int,
 	logger *zap.Logger,
 ) *ActionService {
 	return &ActionService{
-		BaseService:   NewBaseService(accessibility, overlay),
+		BaseService:   NewBaseService(accessibility, overlay, system),
 		config:        actionConfig,
 		keyBindings:   keyBindings,
 		moveMouseStep: moveMouseStep,
@@ -142,12 +144,12 @@ func (s *ActionService) MoveCursorToElement(
 ) error {
 	center := element.Center()
 
-	return s.accessibility.MoveCursorToPoint(ctx, center, false)
+	return s.system.MoveCursorToPoint(ctx, center, false)
 }
 
 // MoveCursorToPoint moves the cursor to the specified point.
 func (s *ActionService) MoveCursorToPoint(ctx context.Context, point image.Point) error {
-	return s.accessibility.MoveCursorToPoint(ctx, point, false)
+	return s.system.MoveCursorToPoint(ctx, point, false)
 }
 
 // clampToScreenBounds clamps the given point so it stays within the screen bounds.
@@ -169,7 +171,7 @@ func (s *ActionService) MoveMouseTo(
 	targetX, targetY int,
 	bypassSmooth ...bool,
 ) error {
-	screenBounds, err := s.accessibility.ScreenBounds(ctx)
+	screenBounds, err := s.system.ScreenBounds(ctx)
 	if err != nil {
 		s.logger.Error("Failed to get screen bounds", zap.Error(err))
 
@@ -193,7 +195,7 @@ func (s *ActionService) MoveMouseRelative(
 	deltaX, deltaY int,
 	bypassSmooth ...bool,
 ) error {
-	cursorPos, err := s.accessibility.CursorPosition(ctx)
+	cursorPos, err := s.system.CursorPosition(ctx)
 	if err != nil {
 		s.logger.Error("Failed to get cursor position", zap.Error(err))
 
@@ -207,19 +209,19 @@ func (s *ActionService) MoveMouseRelative(
 
 // CursorPosition returns the current cursor position.
 func (s *ActionService) CursorPosition(ctx context.Context) (image.Point, error) {
-	return s.accessibility.CursorPosition(ctx)
+	return s.system.CursorPosition(ctx)
 }
 
 // ScreenBounds returns the bounds of the active screen.
 func (s *ActionService) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
-	return s.accessibility.ScreenBounds(ctx)
+	return s.system.ScreenBounds(ctx)
 }
 
 // MoveMouseToCenter moves the mouse cursor to the center of the active screen,
 // optionally offset by the given delta values. It fetches screen bounds once
 // for both center computation and clamping.
 func (s *ActionService) MoveMouseToCenter(ctx context.Context, offsetX, offsetY int) error {
-	screenBounds, err := s.accessibility.ScreenBounds(ctx)
+	screenBounds, err := s.system.ScreenBounds(ctx)
 	if err != nil {
 		s.logger.Error("Failed to get screen bounds", zap.Error(err))
 
@@ -421,7 +423,7 @@ func (s *ActionService) moveMouseWithBounds(
 	logFields = append(logFields, fields...)
 	s.logger.Info("Moving mouse cursor", logFields...)
 
-	return s.accessibility.MoveCursorToPoint(ctx, clamped, bypassSmooth)
+	return s.system.MoveCursorToPoint(ctx, clamped, bypassSmooth)
 }
 
 // getActionMapping returns the action string, log message, and the resolved binding key for an action key.

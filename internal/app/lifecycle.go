@@ -11,14 +11,14 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
 	"github.com/y3owk1n/neru/internal/core/infra/electron"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
-	"go.uber.org/zap"
 )
 
 const (
@@ -515,63 +515,6 @@ func (a *App) Stop() {
 	})
 }
 
-// setupThemeObserver starts the macOS theme change observer and registers
-// a callback that refreshes theme-aware styles (e.g. label_color) when the
-// system appearance changes between Light and Dark Mode.
-func (a *App) setupThemeObserver() {
-	bridge.SetThemeChangeHandler(func(isDark bool) {
-		a.handleThemeChange(isDark)
-	})
-	bridge.StartThemeObserver()
-}
-
-// handleThemeChange is called when the macOS system appearance changes.
-// It refreshes overlay styles that depend on the theme for all active modes.
-func (a *App) handleThemeChange(isDark bool) {
-	a.configMu.RLock()
-	cfg := a.config
-	a.configMu.RUnlock()
-
-	a.logger.Info("System theme changed",
-		zap.Bool("is_dark", isDark))
-
-	// Invalidate the overlay's native C string caches so the subsequent draw
-	// rebuilds them with the new theme-resolved colors.
-	if a.hintsComponent != nil && a.hintsComponent.Overlay != nil {
-		a.hintsComponent.UpdateConfig(cfg, a.logger)
-	}
-
-	if a.gridComponent != nil && a.gridComponent.Overlay != nil {
-		a.gridComponent.UpdateConfig(cfg, a.logger)
-	}
-
-	if a.recursiveGridComponent != nil {
-		a.recursiveGridComponent.UpdateConfig(cfg, a.logger)
-	}
-
-	if a.modeIndicatorComponent != nil {
-		a.modeIndicatorComponent.UpdateConfig(cfg, a.logger)
-	}
-
-	// Re-build renderer style with the new theme state, then redraw active mode.
-	if a.modes != nil {
-		a.modes.UpdateConfig(cfg)
-
-		currentMode := a.appState.CurrentMode()
-		switch currentMode {
-		case domain.ModeHints:
-			a.modes.RefreshHintsForThemeChange()
-		case domain.ModeGrid:
-			a.modes.RefreshGridForThemeChange()
-		case domain.ModeRecursiveGrid:
-			a.modes.RefreshRecursiveGridForThemeChange()
-		case domain.ModeIdle, domain.ModeScroll:
-			// No-op for idle and scroll modes as they don't have theme-dependent persistent overlays
-			// that need immediate refresh here. Scroll mode indicator is handled via its own component refresh above.
-		}
-	}
-}
-
 // Cleanup cleans up resources.
 func (a *App) Cleanup() {
 	a.logger.Info("Cleaning up")
@@ -585,8 +528,7 @@ func (a *App) Cleanup() {
 
 	// Stop theme observer: nil the handler first so any in-flight KVO callback
 	// (between the async dispatch and actual observer removal) is a no-op.
-	bridge.SetThemeChangeHandler(nil)
-	bridge.StopThemeObserver()
+	a.stopThemeObserver()
 
 	// Stop IPC server first to prevent new requests
 	if a.ipcServer != nil {

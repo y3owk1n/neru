@@ -3,6 +3,8 @@ package components
 import (
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
@@ -11,7 +13,6 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	domainRecursiveGrid "github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
-	"go.uber.org/zap"
 )
 
 // HintsComponent encapsulates all hints-related functionality.

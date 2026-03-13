@@ -5,10 +5,11 @@ import (
 	"strconv"
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"go.uber.org/zap"
 )
 
 // IPCControllerActions handles action-related IPC commands.

@@ -41,12 +41,6 @@ const (
 	UnknownMode   = "unknown"
 )
 
-// Bundle ID constants for macOS system applications.
-const (
-	BundleIDDock               = "com.apple.dock"
-	BundleIDNotificationCenter = "com.apple.notificationcenterui"
-)
-
 // Timeout constants.
 const (
 	ShellCommandTimeout = 30 * time.Second

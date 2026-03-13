@@ -1,8 +1,8 @@
-// Package appwatcher provides comprehensive functionality for monitoring application lifecycle events
-// on macOS, enabling Neru to respond to application launches, terminations, activations, and deactivations.
+// Package appwatcher monitors application lifecycle events (launch, terminate,
+// activate, deactivate, screen change) and dispatches them to registered callbacks.
 //
-// This package implements a robust application watcher system that tracks the lifecycle of macOS
-// applications in real-time. It serves as a critical component for maintaining context-aware
-// behavior in Neru, allowing the application to adapt its functionality based on the currently
-// active application.
+// The platform-specific event source is abstracted behind build-tagged dispatch
+// files (platform_darwin.go / platform_stub.go), so this package compiles on
+// all platforms. On macOS the events come from the Objective-C NSWorkspace
+// observer; on other platforms the watcher is a no-op until implemented.
 package appwatcher

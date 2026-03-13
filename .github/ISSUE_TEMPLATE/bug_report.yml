@@ -8,6 +8,8 @@ body:
               Thanks for taking the time to report a bug!
               Please check [existing issues](https://github.com/y3owk1n/neru/issues?q=is%3Aissue) first to avoid duplicates.
 
+              > **Note:** Linux and Windows support is work-in-progress. If you're reporting a bug on those platforms, please check the [Platform Support](https://github.com/y3owk1n/neru#-platform-support) section first — many features are not yet implemented.
+
     - type: checkboxes
       attributes:
           label: Pre-flight checks
@@ -23,11 +25,25 @@ body:
       validations:
           required: true
 
+    - type: dropdown
+      attributes:
+          label: Operating system
+          description: Which OS are you running Neru on?
+          options:
+              - macOS
+              - Linux
+              - Windows
+      validations:
+          required: true
+
     - type: input
       attributes:
-          label: macOS version
-          description: Apple menu → About This Mac (e.g., 15.3.1)
-          placeholder: "15.3.1"
+          label: OS version
+          description: |
+              macOS: Apple menu → About This Mac (e.g., 15.3.1).
+              Linux: Distro and version (e.g., Ubuntu 24.04, Fedora 41).
+              Windows: Settings → System → About (e.g., Windows 11 23H2).
+          placeholder: "e.g., macOS 15.3.1 / Ubuntu 24.04 / Windows 11 23H2"
       validations:
           required: true
 
@@ -89,6 +105,10 @@ body:
       attributes:
           label: Additional context
           description: |
-              Any other relevant details: Mac model, keyboard type, other input apps (Karabiner-Elements, BetterTouchTool, Hammerspoon, etc.), affected application, or workarounds you've found.
+              Any other relevant details:
+              - **macOS**: Mac model, keyboard type, other input apps (Karabiner-Elements, BetterTouchTool, Hammerspoon, etc.)
+              - **Linux**: Desktop environment (GNOME, KDE, etc.), display server (X11/Wayland), accessibility toolkit
+              - **Windows**: Input method editors, accessibility tools
+              - **General**: Affected application, workarounds you've found
       validations:
           required: false

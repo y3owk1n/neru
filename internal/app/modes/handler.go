@@ -1,9 +1,12 @@
 package modes
 
 import (
+	"context"
 	"image"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/grid"
@@ -15,11 +18,11 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/core/infra/bridge"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
-	"go.uber.org/zap"
 )
 
 // Mode defines the interface that all navigation modes must implement.
@@ -48,6 +51,7 @@ type Handler struct {
 
 	config         *configpkg.Config
 	themeProvider  configpkg.ThemeProvider
+	system         ports.SystemPort
 	logger         *zap.Logger
 	appState       *state.AppState
 	cursorState    *state.CursorState
@@ -106,10 +110,22 @@ func NewHandler(
 	setModifierPassthrough func(enabled bool, blacklist []string),
 	setInterceptedModifierKeys func(keys []string),
 	refreshHotkeys func(),
-	themeProvider configpkg.ThemeProvider,
+	systemPort ports.SystemPort,
 ) *Handler {
-	// Initialize screen bounds for coordinate conversion
-	screenBounds := bridge.ActiveScreenBounds()
+	// Initialize screen bounds for coordinate conversion.
+	// Use a background context since this runs during startup.
+	// CodeNotSupported is expected on non-darwin platforms and is silently ignored;
+	// any other error is logged as a warning.
+	var screenBounds image.Rectangle
+
+	if systemPort != nil {
+		var boundsErr error
+
+		screenBounds, boundsErr = systemPort.ScreenBounds(context.Background())
+		if boundsErr != nil && !derrors.IsNotSupported(boundsErr) {
+			logger.Warn("Failed to get initial screen bounds", zap.Error(boundsErr))
+		}
+	}
 
 	handler := &Handler{
 		config:                     config,
@@ -133,7 +149,8 @@ func NewHandler(
 		setModifierPassthrough:     setModifierPassthrough,
 		setInterceptedModifierKeys: setInterceptedModifierKeys,
 		refreshHotkeys:             refreshHotkeys,
-		themeProvider:              themeProvider,
+		themeProvider:              systemPort,
+		system:                     systemPort,
 	}
 
 	// Initialize mode implementations
@@ -167,7 +184,15 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 	}
 	// Re-read screen bounds under the lock so the onUpdate callback
 	// uses coordinates that match the resized overlay.
-	h.screenBounds = bridge.ActiveScreenBounds()
+	if h.system != nil {
+		b, err := h.system.ScreenBounds(context.Background())
+		if err == nil {
+			h.screenBounds = b
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to refresh screen bounds after screen change", zap.Error(err))
+		}
+	}
+
 	h.hints.Context.SetHints(hintCollection)
 
 	return true
@@ -242,9 +267,16 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 
 	// Re-read screen bounds under the lock so the overlay uses coordinates
 	// that match the resized window.
-	screenBounds := bridge.ActiveScreenBounds()
-	h.screenBounds = screenBounds
-	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
+	if h.system != nil {
+		b, err := h.system.ScreenBounds(context.Background())
+		if err == nil {
+			h.screenBounds = b
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to refresh screen bounds for recursive grid", zap.Error(err))
+		}
+	}
+
+	normalizedBounds := coordinates.NormalizeToLocalCoordinates(h.screenBounds)
 
 	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
 		// Proportionally remap all bounds (history + currentBounds) so the

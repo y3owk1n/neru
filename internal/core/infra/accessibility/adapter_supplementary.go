@@ -3,9 +3,10 @@ package accessibility
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 // addSupplementaryElements adds menubar, dock, and notification center elements based on filter.

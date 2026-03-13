@@ -1,0 +1,83 @@
+# Auto-label PRs based on file paths
+# Used by .github/workflows/labeler.yml (actions/labeler)
+# --- Platform labels ---
+"platform: macOS":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "**/*_darwin.go"
+                - "**/*_darwin.m"
+                - "**/*_darwin.h"
+                - "internal/core/infra/platform/darwin/**"
+"platform: linux":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "**/*_linux.go"
+                - "**/*_linux.c"
+                - "**/*_linux.h"
+                - "internal/core/infra/platform/linux/**"
+"platform: windows":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "**/*_windows.go"
+                - "**/*_windows.c"
+                - "**/*_windows.h"
+                - "internal/core/infra/platform/windows/**"
+"cross-platform":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/core/infra/platform/factory.go"
+                - "internal/core/ports/**"
+# --- Area labels ---
+"area: ports":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/core/ports/**"
+"area: infra":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/core/infra/**"
+"area: accessibility":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/core/infra/accessibility/**"
+                - "internal/core/ports/accessibility.go"
+                - "**/*accessibility*"
+"area: overlays":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/app/components/overlayutil/**"
+                - "internal/app/components/modeindicator/**"
+                - "internal/app/services/modeindicator/**"
+                - "internal/core/ports/overlay.go"
+                - "**/*overlay*"
+                - "**/*modeindicator*"
+"area: event-tap":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/core/infra/eventtap/**"
+                - "**/*eventtap*"
+"area: hotkeys":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/core/infra/hotkeys/**"
+                - "**/*hotkey*"
+# --- Type labels ---
+documentation:
+    - changed-files:
+          - any-glob-to-any-file:
+                - "docs/**"
+    - changed-files:
+          - any-glob-to-any-file:
+                - "*.md"
+          - all-globs-to-all-files:
+                - "!.github/**"
+ci:
+    - changed-files:
+          - any-glob-to-any-file:
+                - ".github/**"
+performance:
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/core/infra/accessibility/cache.go"
+                - "**/*benchmark*"
+                - "**/*perf*"

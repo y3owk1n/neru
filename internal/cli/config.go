@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/spf13/cobra"
+
 	"github.com/y3owk1n/neru/internal/core/domain"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"

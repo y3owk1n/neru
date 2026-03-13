@@ -5,30 +5,53 @@ import (
 	"image"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
+	"github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
-// mockAccessibilityPort is a mock implementation of AccessibilityPort for testing.
-type mockAccessibilityPort struct {
+// mockAccessibilityPort is a no-op mock implementation of ports.AccessibilityPort for testing.
+// Cursor/screen operations are handled separately via the SystemPort mock (testSystemState).
+type mockAccessibilityPort struct{}
+
+// testSystemState holds the shared cursor/screen state used by the SystemPort mock.
+type testSystemState struct {
 	cursorPos    image.Point
 	screenBounds image.Rectangle
 	moveCalls    []image.Point
 }
 
-func newMockAccessibilityPort() *mockAccessibilityPort {
-	return &mockAccessibilityPort{
+func newTestSystemState() *testSystemState {
+	return &testSystemState{
 		cursorPos: image.Point{X: 100, Y: 100},
 		screenBounds: image.Rectangle{
 			Min: image.Point{X: 0, Y: 0},
 			Max: image.Point{X: 1920, Y: 1080},
 		},
 		moveCalls: []image.Point{},
+	}
+}
+
+func newSystemMock(state *testSystemState) *mocks.SystemMock {
+	return &mocks.SystemMock{
+		ScreenBoundsFunc: func(ctx context.Context) (image.Rectangle, error) {
+			return state.screenBounds, nil
+		},
+		CursorPositionFunc: func(ctx context.Context) (image.Point, error) {
+			return state.cursorPos, nil
+		},
+		MoveCursorToPointFunc: func(ctx context.Context, point image.Point, bypassSmooth bool) error {
+			state.moveCalls = append(state.moveCalls, point)
+			state.cursorPos = point
+
+			return nil
+		},
 	}
 }
 
@@ -71,29 +94,6 @@ func (m *mockAccessibilityPort) IsAppExcluded(ctx context.Context, bundleID stri
 	return false
 }
 
-func (m *mockAccessibilityPort) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
-	return m.screenBounds, nil
-}
-
-func (m *mockAccessibilityPort) MoveCursorToPoint(
-	ctx context.Context,
-	point image.Point,
-	bypassSmooth bool,
-) error {
-	m.moveCalls = append(m.moveCalls, point)
-	m.cursorPos = point // Update the simulated cursor position
-
-	return nil
-}
-
-func (m *mockAccessibilityPort) CursorPosition(ctx context.Context) (image.Point, error) {
-	return m.cursorPos, nil
-}
-
-func (m *mockAccessibilityPort) CheckPermissions(ctx context.Context) error {
-	return nil
-}
-
 // mockOverlayPort is a mock implementation of OverlayPort for testing.
 type mockOverlayPort struct{}
 
@@ -127,7 +127,10 @@ func (m *mockOverlayPort) Refresh(ctx context.Context) error {
 	return nil
 }
 
-func newTestActionService(t *testing.T, mockAcc *mockAccessibilityPort) *services.ActionService {
+func newTestActionService(
+	t *testing.T,
+	state *testSystemState,
+) *services.ActionService {
 	t.Helper()
 
 	actionConfig := config.ActionConfig{
@@ -143,8 +146,9 @@ func newTestActionService(t *testing.T, mockAcc *mockAccessibilityPort) *service
 	logger, _ := zap.NewDevelopment()
 
 	return services.NewActionService(
-		mockAcc,
+		&mockAccessibilityPort{},
 		&mockOverlayPort{},
+		newSystemMock(state),
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -153,8 +157,8 @@ func newTestActionService(t *testing.T, mockAcc *mockAccessibilityPort) *service
 }
 
 func TestMoveMouseTo_clampsToScreenBounds(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-	actionService := newTestActionService(t, mockAcc)
+	state := newTestSystemState()
+	actionService := newTestActionService(t, state)
 
 	ctx := context.Background()
 
@@ -163,19 +167,19 @@ func TestMoveMouseTo_clampsToScreenBounds(t *testing.T) {
 		t.Fatalf("MoveMouseTo failed: %v", err)
 	}
 
-	if len(mockAcc.moveCalls) != 1 {
-		t.Fatalf("Expected 1 move call, got %d", len(mockAcc.moveCalls))
+	if len(state.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(state.moveCalls))
 	}
 
-	movedTo := mockAcc.moveCalls[0]
+	movedTo := state.moveCalls[0]
 	if movedTo.X != 1919 || movedTo.Y != 1079 {
 		t.Errorf("Expected cursor moved to (1919, 1079), got (%d, %d)", movedTo.X, movedTo.Y)
 	}
 }
 
 func TestMoveMouseToCenter(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-	actionService := newTestActionService(t, mockAcc)
+	state := newTestSystemState()
+	actionService := newTestActionService(t, state)
 	ctx := context.Background()
 
 	err := actionService.MoveMouseToCenter(ctx, 0, 0)
@@ -183,19 +187,19 @@ func TestMoveMouseToCenter(t *testing.T) {
 		t.Fatalf("MoveMouseToCenter failed: %v", err)
 	}
 
-	if len(mockAcc.moveCalls) != 1 {
-		t.Fatalf("Expected 1 move call, got %d", len(mockAcc.moveCalls))
+	if len(state.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(state.moveCalls))
 	}
 
-	movedTo := mockAcc.moveCalls[0]
+	movedTo := state.moveCalls[0]
 	if movedTo.X != 960 || movedTo.Y != 540 {
 		t.Errorf("Expected cursor at screen center (960, 540), got (%d, %d)", movedTo.X, movedTo.Y)
 	}
 }
 
 func TestMoveMouseToCenter_withOffset(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-	actionService := newTestActionService(t, mockAcc)
+	state := newTestSystemState()
+	actionService := newTestActionService(t, state)
 	ctx := context.Background()
 
 	err := actionService.MoveMouseToCenter(ctx, 50, -30)
@@ -203,11 +207,11 @@ func TestMoveMouseToCenter_withOffset(t *testing.T) {
 		t.Fatalf("MoveMouseToCenter failed: %v", err)
 	}
 
-	if len(mockAcc.moveCalls) != 1 {
-		t.Fatalf("Expected 1 move call, got %d", len(mockAcc.moveCalls))
+	if len(state.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(state.moveCalls))
 	}
 
-	movedTo := mockAcc.moveCalls[0]
+	movedTo := state.moveCalls[0]
 
 	expectedX, expectedY := 1010, 510
 	if movedTo.X != expectedX || movedTo.Y != expectedY {
@@ -222,13 +226,13 @@ func TestMoveMouseToCenter_withOffset(t *testing.T) {
 }
 
 func TestMoveMouseTo_degenerateBounds(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
+	state := newTestSystemState()
 	// Zero-width, zero-height screen (degenerate bounds)
-	mockAcc.screenBounds = image.Rectangle{
+	state.screenBounds = image.Rectangle{
 		Min: image.Point{X: 0, Y: 0},
 		Max: image.Point{X: 0, Y: 0},
 	}
-	actionService := newTestActionService(t, mockAcc)
+	actionService := newTestActionService(t, state)
 	ctx := context.Background()
 
 	err := actionService.MoveMouseTo(ctx, 500, 500)
@@ -236,11 +240,12 @@ func TestMoveMouseTo_degenerateBounds(t *testing.T) {
 		t.Fatalf("MoveMouseTo failed: %v", err)
 	}
 
-	if len(mockAcc.moveCalls) != 1 {
-		t.Fatalf("Expected 1 move call, got %d", len(mockAcc.moveCalls))
+	if len(state.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(state.moveCalls))
 	}
 
-	movedTo := mockAcc.moveCalls[0]
+	movedTo := state.moveCalls[0]
+
 	// With degenerate bounds, cursor should clamp to Min (0, 0)
 	if movedTo.X != 0 || movedTo.Y != 0 {
 		t.Errorf("Expected cursor clamped to (0, 0), got (%d, %d)", movedTo.X, movedTo.Y)
@@ -248,8 +253,8 @@ func TestMoveMouseTo_degenerateBounds(t *testing.T) {
 }
 
 func TestMoveMouseRelative_movesFromCurrentPosition(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-	actionService := newTestActionService(t, mockAcc)
+	state := newTestSystemState()
+	actionService := newTestActionService(t, state)
 
 	ctx := context.Background()
 
@@ -258,11 +263,11 @@ func TestMoveMouseRelative_movesFromCurrentPosition(t *testing.T) {
 		t.Fatalf("MoveMouseRelative failed: %v", err)
 	}
 
-	if len(mockAcc.moveCalls) != 1 {
-		t.Fatalf("Expected 1 move call, got %d", len(mockAcc.moveCalls))
+	if len(state.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(state.moveCalls))
 	}
 
-	movedTo := mockAcc.moveCalls[0]
+	movedTo := state.moveCalls[0]
 	expectedX := 100 + 50  // original X + deltaX
 	expectedY := 100 + -30 // original Y + deltaY
 
@@ -278,8 +283,8 @@ func TestMoveMouseRelative_movesFromCurrentPosition(t *testing.T) {
 }
 
 func TestMoveMouseRelative_multipleCallsAccumulate(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-	actionService := newTestActionService(t, mockAcc)
+	state := newTestSystemState()
+	actionService := newTestActionService(t, state)
 
 	ctx := context.Background()
 
@@ -295,19 +300,19 @@ func TestMoveMouseRelative_multipleCallsAccumulate(t *testing.T) {
 		t.Fatalf("Second MoveMouseRelative failed: %v", err)
 	}
 
-	if len(mockAcc.moveCalls) != 2 {
-		t.Fatalf("Expected 2 move calls, got %d", len(mockAcc.moveCalls))
+	if len(state.moveCalls) != 2 {
+		t.Fatalf("Expected 2 move calls, got %d", len(state.moveCalls))
 	}
 
 	// First call should be from original position (100, 100)
-	firstCall := mockAcc.moveCalls[0]
+	firstCall := state.moveCalls[0]
 	if firstCall.X != 110 || firstCall.Y != 90 {
 		t.Errorf("First move: Expected (110, 90), got (%d, %d)", firstCall.X, firstCall.Y)
 	}
 
 	// Second call should be from the updated position after first move (110, 90)
 	// MoveMouseRelative calls CursorPosition, which returns the updated position
-	secondCall := mockAcc.moveCalls[1]
+	secondCall := state.moveCalls[1]
 	if secondCall.X != 115 || secondCall.Y != 110 {
 		t.Errorf("Second move: Expected (115, 110), got (%d, %d)", secondCall.X, secondCall.Y)
 	}
@@ -329,7 +334,7 @@ func TestHandleDirectActionKey_directionalKeys(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			mockAcc := newMockAccessibilityPort()
+			state := newTestSystemState()
 
 			actionConfig := config.ActionConfig{
 				MoveMouseStep: testCase.step,
@@ -344,8 +349,9 @@ func TestHandleDirectActionKey_directionalKeys(t *testing.T) {
 			logger, _ := zap.NewDevelopment()
 
 			actionService := services.NewActionService(
-				mockAcc,
+				&mockAccessibilityPort{},
 				&mockOverlayPort{},
+				newSystemMock(state),
 				actionConfig,
 				actionConfig.KeyBindings,
 				actionConfig.MoveMouseStep,
@@ -367,15 +373,15 @@ func TestHandleDirectActionKey_directionalKeys(t *testing.T) {
 				t.Errorf("Expected action name 'move_mouse_relative', got %q", actionName)
 			}
 
-			if len(mockAcc.moveCalls) != 1 {
+			if len(state.moveCalls) != 1 {
 				t.Fatalf(
 					"Expected 1 move call after %s key, got %d",
 					testCase.key,
-					len(mockAcc.moveCalls),
+					len(state.moveCalls),
 				)
 			}
 
-			movedTo := mockAcc.moveCalls[0]
+			movedTo := state.moveCalls[0]
 			if movedTo.X != testCase.expectedX {
 				t.Errorf("Expected X = %d, got %d", testCase.expectedX, movedTo.X)
 			}
@@ -388,7 +394,7 @@ func TestHandleDirectActionKey_directionalKeys(t *testing.T) {
 }
 
 func TestHandleDirectActionKey_repeatedKeyPressesMoveContinuously(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
+	state := newTestSystemState()
 
 	actionConfig := config.ActionConfig{
 		MoveMouseStep: 10,
@@ -403,8 +409,9 @@ func TestHandleDirectActionKey_repeatedKeyPressesMoveContinuously(t *testing.T) 
 	logger, _ := zap.NewDevelopment()
 
 	actionService := services.NewActionService(
-		mockAcc,
+		&mockAccessibilityPort{},
 		&mockOverlayPort{},
+		newSystemMock(state),
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -421,12 +428,12 @@ func TestHandleDirectActionKey_repeatedKeyPressesMoveContinuously(t *testing.T) 
 		}
 	}
 
-	if len(mockAcc.moveCalls) != 3 {
-		t.Fatalf("Expected 3 move calls after 3 Right key presses, got %d", len(mockAcc.moveCalls))
+	if len(state.moveCalls) != 3 {
+		t.Fatalf("Expected 3 move calls after 3 Right key presses, got %d", len(state.moveCalls))
 	}
 
 	// Each call should be from the updated cursor position (100 -> 110 -> 120 -> 130)
-	// because mockAcc.MoveCursorToPoint updates cursorPos
+	// because the system mock's MoveCursorToPoint updates cursorPos
 	expectedPositions := []struct{ x, y int }{
 		{110, 100}, // 100 + 10
 		{120, 100}, // 110 + 10
@@ -434,7 +441,7 @@ func TestHandleDirectActionKey_repeatedKeyPressesMoveContinuously(t *testing.T) 
 	}
 
 	for i, expected := range expectedPositions {
-		actual := mockAcc.moveCalls[i]
+		actual := state.moveCalls[i]
 		if actual.X != expected.x || actual.Y != expected.y {
 			t.Errorf(
 				"Move %d: Expected (%d, %d), got (%d, %d)",
@@ -449,7 +456,7 @@ func TestHandleDirectActionKey_repeatedKeyPressesMoveContinuously(t *testing.T) 
 }
 
 func TestHandleDirectActionKey_caseInsensitive(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
+	state := newTestSystemState()
 
 	actionConfig := config.ActionConfig{
 		MoveMouseStep: 10,
@@ -464,8 +471,9 @@ func TestHandleDirectActionKey_caseInsensitive(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 
 	actionService := services.NewActionService(
-		mockAcc,
+		&mockAccessibilityPort{},
 		&mockOverlayPort{},
+		newSystemMock(state),
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -484,42 +492,20 @@ func TestHandleDirectActionKey_caseInsensitive(t *testing.T) {
 		t.Error("Expected 'up' (lowercase) to be handled as direct action")
 	}
 
-	if len(mockAcc.moveCalls) != 1 {
-		t.Fatalf("Expected 1 move call after 'up' key, got %d", len(mockAcc.moveCalls))
+	if len(state.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call after 'up' key, got %d", len(state.moveCalls))
 	}
 
-	movedTo := mockAcc.moveCalls[0]
+	movedTo := state.moveCalls[0]
 	if movedTo.Y != 90 {
 		t.Errorf("Expected Y decreased to 90, got %d", movedTo.Y)
 	}
 }
 
 func TestMoveMouseTo_doesNotBounceBack(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-
-	actionConfig := config.ActionConfig{
-		MoveMouseStep: 10,
-		KeyBindings: config.ActionKeyBindingsCfg{
-			MoveMouseUp:    "Up",
-			MoveMouseDown:  "Down",
-			MoveMouseLeft:  "Left",
-			MoveMouseRight: "Right",
-		},
-	}
-
-	logger, _ := zap.NewDevelopment()
-
-	actionService := services.NewActionService(
-		mockAcc,
-		&mockOverlayPort{},
-		actionConfig,
-		actionConfig.KeyBindings,
-		actionConfig.MoveMouseStep,
-		logger,
-	)
-
+	state := newTestSystemState()
+	actionService := newTestActionService(t, state)
 	ctx := context.Background()
-
 	// Move cursor multiple times
 	_, _, err := actionService.HandleDirectActionKey(ctx, "Right")
 	if err != nil {
@@ -535,13 +521,8 @@ func TestMoveMouseTo_doesNotBounceBack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleDirectActionKey failed: %v", err)
 	}
-
-	// Verify cursor position is updated
-	finalPos, err := mockAcc.CursorPosition(ctx)
-	if err != nil {
-		t.Fatalf("CursorPosition failed: %v", err)
-	}
-
+	// Verify cursor position is updated via state
+	finalPos := state.cursorPos
 	// Final position should be (120, 110): started at (100, 100), +20 X, +10 Y
 	if finalPos.X != 120 || finalPos.Y != 110 {
 		t.Errorf(
@@ -550,52 +531,29 @@ func TestMoveMouseTo_doesNotBounceBack(t *testing.T) {
 			finalPos.Y,
 		)
 	}
-
 	// All moves should have been made
-	if len(mockAcc.moveCalls) != 3 {
-		t.Errorf("Expected 3 move calls, got %d", len(mockAcc.moveCalls))
+	if len(state.moveCalls) != 3 {
+		t.Errorf("Expected 3 move calls, got %d", len(state.moveCalls))
 	}
 }
 
 func TestMoveMouseRelative_clampsToScreenBounds(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
+	state := newTestSystemState()
 	// Start at bottom-right corner
-	mockAcc.cursorPos = image.Point{X: 1910, Y: 1070}
-
-	actionConfig := config.ActionConfig{
-		MoveMouseStep: 10,
-		KeyBindings: config.ActionKeyBindingsCfg{
-			MoveMouseUp:    "Up",
-			MoveMouseDown:  "Down",
-			MoveMouseLeft:  "Left",
-			MoveMouseRight: "Right",
-		},
-	}
-
-	logger, _ := zap.NewDevelopment()
-
-	actionService := services.NewActionService(
-		mockAcc,
-		&mockOverlayPort{},
-		actionConfig,
-		actionConfig.KeyBindings,
-		actionConfig.MoveMouseStep,
-		logger,
-	)
-
+	state.cursorPos = image.Point{X: 1910, Y: 1070}
+	actionService := newTestActionService(t, state)
 	ctx := context.Background()
-
 	// Try to move beyond bounds
 	err := actionService.MoveMouseRelative(ctx, 100, 100)
 	if err != nil {
 		t.Fatalf("MoveMouseRelative failed: %v", err)
 	}
 
-	if len(mockAcc.moveCalls) != 1 {
-		t.Fatalf("Expected 1 move call, got %d", len(mockAcc.moveCalls))
+	if len(state.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(state.moveCalls))
 	}
 
-	movedTo := mockAcc.moveCalls[0]
+	movedTo := state.moveCalls[0]
 	// Should be clamped to screen bounds (exclusive Max)
 	if movedTo.X != 1919 || movedTo.Y != 1079 {
 		t.Errorf("Expected cursor clamped to (1919, 1079), got (%d, %d)", movedTo.X, movedTo.Y)
@@ -603,8 +561,6 @@ func TestMoveMouseRelative_clampsToScreenBounds(t *testing.T) {
 }
 
 func TestIsMoveMouseKey(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
-
 	actionConfig := config.ActionConfig{
 		MoveMouseStep: 10,
 		KeyBindings: config.ActionKeyBindingsCfg{
@@ -618,8 +574,9 @@ func TestIsMoveMouseKey(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 
 	actionService := services.NewActionService(
-		mockAcc,
+		&mockAccessibilityPort{},
 		&mockOverlayPort{},
+		&mocks.SystemMock{},
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -659,7 +616,6 @@ func TestIsMoveMouseKey(t *testing.T) {
 }
 
 func TestIsMoveMouseKey_shiftLetterBindings(t *testing.T) {
-	mockAcc := newMockAccessibilityPort()
 	actionConfig := config.ActionConfig{
 		MoveMouseStep: 10,
 		KeyBindings: config.ActionKeyBindingsCfg{
@@ -671,8 +627,9 @@ func TestIsMoveMouseKey_shiftLetterBindings(t *testing.T) {
 	}
 	logger, _ := zap.NewDevelopment()
 	actionService := services.NewActionService(
-		mockAcc,
+		&mockAccessibilityPort{},
 		&mockOverlayPort{},
+		&mocks.SystemMock{},
 		actionConfig,
 		actionConfig.KeyBindings,
 		actionConfig.MoveMouseStep,
@@ -724,7 +681,7 @@ func TestHandleDirectActionKey_shiftLetterBindings(t *testing.T) {
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			mockAcc := newMockAccessibilityPort()
+			state := newTestSystemState()
 			actionConfig := config.ActionConfig{
 				MoveMouseStep: 10,
 				KeyBindings: config.ActionKeyBindingsCfg{
@@ -736,8 +693,9 @@ func TestHandleDirectActionKey_shiftLetterBindings(t *testing.T) {
 			}
 			logger, _ := zap.NewDevelopment()
 			actionService := services.NewActionService(
-				mockAcc,
+				&mockAccessibilityPort{},
 				&mockOverlayPort{},
+				newSystemMock(state),
 				actionConfig,
 				actionConfig.KeyBindings,
 				actionConfig.MoveMouseStep,
@@ -758,15 +716,15 @@ func TestHandleDirectActionKey_shiftLetterBindings(t *testing.T) {
 				t.Errorf("Expected action name 'move_mouse_relative', got %q", actionName)
 			}
 
-			if len(mockAcc.moveCalls) != 1 {
+			if len(state.moveCalls) != 1 {
 				t.Fatalf(
 					"Expected 1 move call after %s key, got %d",
 					testCase.key,
-					len(mockAcc.moveCalls),
+					len(state.moveCalls),
 				)
 			}
 
-			movedTo := mockAcc.moveCalls[0]
+			movedTo := state.moveCalls[0]
 			if movedTo.X != testCase.expectedX {
 				t.Errorf("Expected X = %d, got %d", testCase.expectedX, movedTo.X)
 			}
