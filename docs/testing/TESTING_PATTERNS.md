@@ -72,3 +72,38 @@ func TestValidate(t *testing.T) {
   }
 }
 ```
+
+## Cross-Platform Testing
+
+### Mocking Ports
+
+Since core services depend on `ports` interfaces, use **mocks** for unit tests.
+
+```go
+// In internal/core/ports/mocks/
+type MockAccessibilityPort struct {
+    // ...
+}
+```
+
+### OS-Specific Integration Tests
+
+Integration tests that depend on native APIs (like macOS Accessibility) must use build tags.
+
+```go
+//go:build integration && darwin
+
+package accessibility_test
+
+import "testing"
+
+func TestDarwinAccessibility(t *testing.T) {
+    // ...
+}
+```
+
+### Test Command Usage
+
+- `just test`: Runs all unit tests (platform-agnostic).
+- `just test-integration`: Runs integration tests for the **current OS**.
+- `just test-all`: Runs both unit and integration tests.

@@ -28,17 +28,23 @@ Neru uses TOML for configuration. This guide covers all available options with e
 
 Neru uses TOML configuration files. Configuration is loaded from (in order of priority):
 
+### macOS
+
 1. **`~/.config/neru/config.toml`** (recommended)
-    - User-level configuration directory
-    - Create if it doesn't exist
+2. **`~/Library/Application Support/neru/config.toml`** (fallback)
 
-2. **`~/Library/Application Support/neru/config.toml`**
-    - macOS Application Support directory
-    - Used as fallback if first location doesn't exist
+### Linux
 
-3. **`--config` or `-c` flag**
-    - Specify a custom config file path when launching
-    - Example: `neru launch -c ~/my-neru-config.toml`
+1. **`~/.config/neru/config.toml`** (recommended)
+2. **`$XDG_CONFIG_HOME/neru/config.toml`**
+
+### Windows
+
+1. **`%APPDATA%\neru\config.toml`**
+
+### Global Flag
+
+- **`--config` or `-c` flag**: Specify a custom config file path when launching.
 
 **No config file?** Neru works out of the box with sensible defaults. Copy from [default-config.toml](../configs/default-config.toml) to customize.
 
@@ -139,7 +145,9 @@ stay stable even when you switch active input sources (for example EN/RU).
 
 ### `general.kb_layout_to_use` (optional)
 
-Set a macOS InputSourceID to force a specific layout:
+#### macOS
+
+Set an `InputSourceID` to force a specific layout:
 
 ```toml
 [general]
@@ -148,16 +156,18 @@ kb_layout_to_use = "com.apple.keylayout.ABC"
 
 Use `defaults read com.apple.HIToolbox AppleEnabledInputSources` to inspect available IDs.
 
-### Automatic fallback (when `kb_layout_to_use` is empty)
+#### Linux / Windows
+
+(Planned) This setting will allow specifying a fallback XKB layout or Windows input locale.
+
+### Automatic fallback
 
 Neru auto-selects the first available layout in this order:
 
-1. `com.apple.keylayout.ABC`
-2. `com.apple.keylayout.US`
-3. Any layout where `kTISPropertyInputSourceLanguages` contains `en`
-4. Current keyboard layout (last resort)
-
-The resolved input source is cached and reused for key translation.
+1. **macOS**: `com.apple.keylayout.ABC`, `com.apple.keylayout.US`, or any English layout.
+2. **Linux**: (Planned) `us`, `abc`, or current layout.
+3. **Windows**: (Planned) `en-US` or current layout.
+4. Current keyboard layout (last resort).
 
 ---
 

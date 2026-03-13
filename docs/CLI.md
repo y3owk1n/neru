@@ -109,7 +109,8 @@ neru toggle-screen-share     # Toggle overlay visibility in screen sharing
 - The state resets to **visible** on Neru restart
 - Also accessible via system tray menu: "Screen Share: Visible/Hidden"
 
-**Note:** This feature uses macOS `NSWindow.sharingType` API (deprecated and no better workaround now yet). Effectiveness varies by screen sharing application:
+> [!NOTE]
+> This feature uses macOS `NSWindow.sharingType` API (deprecated and no better workaround now yet). Effectiveness varies by screen sharing application:
 
 - Works reliably on macOS 14 and earlier with all applications
 - Limited effectiveness on macOS 15.4+ with modern screen capture (ScreenCaptureKit)
@@ -119,40 +120,27 @@ neru toggle-screen-share     # Toggle overlay visibility in screen sharing
 
 ## Service Management
 
-Manage Neru as a launchd service for automatic startup:
+Manage Neru as a system service for automatic startup:
+
+### macOS (`launchd`)
 
 ```bash
-neru services install     # Install and load launchd service
-neru services uninstall   # Unload and remove launchd service
-neru services start       # Start the service
-neru services stop        # Stop the service
-neru services restart     # Restart the service
+neru services install     # Install and load launchd service (~/Library/LaunchAgents)
 neru services status      # Check service status
 ```
 
-**Installation:** Sets up Neru to start automatically on login with `KeepAlive = true`.
+### Linux (`systemd`)
 
-**Uninstallation:** Removes the service and stops automatic startup.
+(Planned) Neru will support `systemctl` for managing user services.
 
-**Status values:** `Service loaded` or `Service not loaded`
+### Windows (`Task Scheduler`)
 
-**Notes:** If you have Neru installed via other methods (nix-darwin, home-manager, etc.), `install` will detect conflicts and refuse to overwrite. Uninstall the existing service first.
+(Planned) Neru will support Windows Task Scheduler for auto-start on login.
 
-**Workflow example:**
+**Installation:** Sets up Neru to start automatically on login.
 
-```bash
-# Install for auto-startup
-neru services install
-
-# Check status
-neru services status  # Should show "Service loaded"
-
-# Restart service
-neru services restart
-
-# Remove auto-startup
-neru services uninstall
-```
+> [!NOTE]
+> If you have Neru installed via other methods (Nix, Homebrew), use their respective service managers (e.g., `home-manager`).
 
 ---
 

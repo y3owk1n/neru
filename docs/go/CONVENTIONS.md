@@ -167,6 +167,35 @@ b.WriteString("suffix")
 return b.String()
 ```
 
+## Cross-Platform Conventions
+
+### Build Tags
+
+Use Go build tags for OS-specific code. Always include a blank line after the tag.
+
+```go
+//go:build darwin
+
+package platform
+```
+
+### Platform Isolation
+
+- **The One Rule**: Non-darwin-tagged code must **never** import `internal/core/infra/platform/darwin`.
+- Use **Ports** ([internal/core/ports/](file:///Users/kylewong/Dev/neru/internal/core/ports/)) to define platform-agnostic interfaces.
+- Use **Adapters** ([internal/core/infra/](file:///Users/kylewong/Dev/neru/internal/core/infra/)) to implement those interfaces for specific platforms.
+
+### OS-Specific File Naming
+
+- `*_darwin.go`: macOS-specific code
+- `*_linux.go`: Linux-specific code
+- `*_windows.go`: Windows-specific code
+- `*_stub.go`: No-op or unsupported implementations for non-target platforms.
+
+### Platform Factory
+
+The `internal/core/infra/platform/` package uses build-tagged `factory_<os>.go` files to return the correct implementation of `ports.SystemPort`.
+
 ## See Also
 
 - [Testing Patterns](../testing/TESTING_PATTERNS.md)

@@ -4,14 +4,14 @@
 
 # 練る · Neru
 
-**Mouse-free cross platform OS navigation. Free, open-source, endlessly customisable.**
+**Mouse-free OS navigation. Free, open-source, endlessly customisable.**
 
 [![License](https://img.shields.io/github/license/y3owk1n/neru)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
+![Platform](<https://img.shields.io/badge/platform-macOS%20(stable)%20%7C%20Linux%20%26%20Windows%20(WIP)-lightgrey>)
 ![Go Version](https://img.shields.io/github/go-mod/go-version/y3owk1n/neru)
 [![Latest Release](https://img.shields.io/github/v/release/y3owk1n/neru)](https://github.com/y3owk1n/neru/releases)
 
-[**Get Started**](#-get-started) · [**Features**](#-features) · [**Configuration**](#%EF%B8%8F-configuration) · [**Docs**](#-documentation) · [**Contributing**](#-contributing)
+[**Features**](#-features) · [**Get Started**](#-get-started) · [**Docs**](#-documentation) · [**Platform Support**](#-platform-support)
 
 ---
 
@@ -36,12 +36,6 @@
 
 ---
 
-> [!WARNING]
-> Neru claims that it can be cross platform, but currently only supports macOS.
-> Linux and Windows support foundations are laid out, but for the community to implement together.
-> The author does not have the resources to support Windows and Linux.
-> See [linux support discussion here](https://github.com/y3owk1n/neru/discussions/559)
-
 ## What is Neru?
 
 **Neru (練る)** — Japanese for _"to refine and master through practice"_ — lets you navigate, click, and scroll anywhere on your screen using only your keyboard. No mouse. No trackpad. No limits.
@@ -49,34 +43,6 @@
 It's the free, open-source alternative to [Homerow](https://www.homerow.app/), [Mouseless](https://mouseless.click/), and [Wooshy](https://wooshy.app) — with zero paywalls, zero subscriptions, and everything configurable down to the last pixel.
 
 > Want to see how the author actually uses Neru day-to-day? [Read the full story →](HOW-I-USE-NERU.md)
-
----
-
-Before you dive in, let's see if Neru fits your workflow.
-
-**You'll probably love Neru if you are:**
-
-- Uses a split keyboard
-- A Neovim/Vim user
-- Already using tools like Vimium, Homerow, Shortcat, Mouseless, etc, but looking for open source alternatives
-- The kind of person who remaps Caps Lock
-- Interested in tiling window managers or keyboard-driven UI
-- Someone who enjoys optimising tiny workflow inefficiencies
-- Wanted a dotfile based config
-- Like to customise hell out of everything
-- Like to have your own workflows
-
-**You'll probably not care about Neru if you:**
-
-- Prefer using the mouse for everything
-- Never thought about keyboard-driven workflows
-- Are perfectly happy switching between mouse and keyboard every few seconds
-- Prefer traditional desktop interaction over power-user tooling
-- In love with GUIs
-
-Neru is built for power users who want to stay on the keyboard and move fast.
-
-If that's you — welcome.
 
 ---
 
@@ -107,23 +73,6 @@ Disable Neru in specific apps where you don't need it.
 ### 💬 CLI & Scripting
 
 Full IPC-based CLI lets you control Neru programmatically, integrate with other tools, or build your own automation workflows.
-
----
-
-## ⚙️ Configuration
-
-Neru is configured entirely through a single **TOML file** — no GUI required. Every keybinding, every color, every behavior is yours to define.
-
-**Why TOML over a settings UI?**
-
-- Version-control your config in your dotfiles
-- Edit faster than clicking through preference panels
-- No UI = less code to maintain = more stability
-- Shareable, reproducible, scriptable
-
-See the full [Configuration Reference →](docs/CONFIGURATION.md)
-
-Want to get inspired? Check out other neru users' configs [here](https://github.com/y3owk1n/neru/discussions/542)
 
 ---
 
@@ -189,6 +138,23 @@ Grid mode works universally. Hints mode works where the accessibility tree is ex
 
 ---
 
+## ⚙️ Configuration
+
+Neru is configured entirely through a single **TOML file** — no GUI required. Every keybinding, every color, every behavior is yours to define.
+
+**Why TOML over a settings UI?**
+
+- Version-control your config in your dotfiles
+- Edit faster than clicking through preference panels
+- No UI = less code to maintain = more stability
+- Shareable, reproducible, scriptable
+
+See the full [Configuration Reference →](docs/CONFIGURATION.md)
+
+Want to get inspired? Check out other neru users' configs [here](https://github.com/y3owk1n/neru/discussions/542)
+
+---
+
 ## 🆚 Free Alternative To
 
 | Tool                                         | Status       | Neru          |
@@ -207,8 +173,8 @@ Grid mode works universally. Hints mode works where the accessibility tree is ex
 - [Configuration Reference](docs/CONFIGURATION.md) — every TOML option
 - [CLI Usage](docs/CLI.md) — IPC commands and scripting
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — common issues and app-specific fixes
-- [Development](docs/DEVELOPMENT.md) — architecture and build instructions
-- [Cross-Platform Architecture](docs/ARCHITECTURE_CROSS_PLATFORM.md) — porting guide for Linux/Windows contributors
+- [Development Guide](docs/DEVELOPMENT.md) — architecture and build instructions
+- [System Architecture](docs/ARCHITECTURE.md) — comprehensive architecture guide and porting instructions
 
 ---
 
@@ -224,14 +190,50 @@ just test && just lint
 
 Follow the [Coding Standards](docs/CODING_STANDARDS.md) and keep PRs focused on a single change. See [Development Guide](docs/DEVELOPMENT.md) for architecture details.
 
-**Good first contributions:**
+---
 
-- New navigation mechanisms
-- Additional mouse action types
-- Config examples for common setups
-- Demo videos
-- Performance improvements
-- Bug fixes
+## 💻 Platform Support
+
+Neru is architected from the ground up to be cross-platform, using a **Hexagonal Architecture (Ports and Adapters)** that isolates OS-specific logic from core business rules.
+
+### Current Status
+
+- **macOS**: ✅ **100% Compatible**. All features are fully functional and stable.
+- **Linux & Windows**: 🔲 **Foundations Ready**. The infrastructure and interfaces are in place, but native implementations for accessibility, event capture, and overlays require community contribution.
+
+### Compatibility Matrix
+
+| Capability                    | macOS | Linux | Windows |
+| :---------------------------- | :---: | :---: | :-----: |
+| **Recursive Grid Mode**       |  ✅   |  🔲   |   🔲    |
+| **Grid Mode**                 |  ✅   |  🔲   |   🔲    |
+| **Hints Mode**                |  ✅   |  🔲   |   🔲    |
+| **Vim-Style Scrolling**       |  ✅   |  🔲   |   🔲    |
+| **Direct Mouse Actions**      |  ✅   |  🔲   |   🔲    |
+| **Global Hotkeys**            |  ✅   |  🔲   |   🔲    |
+| **Accessibility Integration** |  ✅   |  🔲   |   🔲    |
+| **Native Overlays**           |  ✅   |  🔲   |   🔲    |
+
+> ✅ = Fully Supported | 🔲 = Contributor Needed (Stub Implementation)
+
+### 🗺️ Roadmap
+
+Our goal is to make Neru the definitive keyboard-driven navigation tool for all major desktop platforms.
+
+- **Phase 1: macOS Refinement (Current)**
+  - [x] Stable core architecture
+  - [x] High-performance native macOS bridge
+  - [x] Comprehensive feature set
+- **Phase 2: Linux Expansion**
+  - [ ] AT-SPI accessibility integration
+  - [ ] X11/Wayland event capture
+  - [ ] Native Linux overlays
+- **Phase 3: Windows Expansion**
+  - [ ] UI Automation (UIA) integration
+  - [ ] Windows Hooks for event capture
+  - [ ] Win32/WinUI overlays
+
+**Looking for cross-platform tasks?** Check issues labeled [`cross-platform`](https://github.com/y3owk1n/neru/issues?q=is%3Aopen+is%3Aissue+label%3Across-platform) or join our [Linux Support Discussion](https://github.com/y3owk1n/neru/discussions/559).
 
 ---
 

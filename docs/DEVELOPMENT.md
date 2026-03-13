@@ -366,7 +366,7 @@ go test -tags=integration ./internal/core/infra/accessibility/
 
 ### What Neru Does
 
-Neru is a keyboard-driven navigation tool that enhances productivity by allowing users to quickly navigate and interact with UI elements using keyboard shortcuts. macOS is the primary supported platform; Linux and Windows support is in progress (see [ARCHITECTURE_CROSS_PLATFORM.md](ARCHITECTURE_CROSS_PLATFORM.md)).
+Neru is a keyboard-driven navigation tool that enhances productivity by allowing users to quickly navigate and interact with UI elements using keyboard shortcuts. macOS is the primary supported platform; Linux and Windows support is in progress (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 
 **Four Navigation Modes:**
 
