@@ -71,7 +71,7 @@ Violation of this rule is caught by `golangci-lint` using `depguard`.
 | App watcher                        | ✅    | 🔲 TODO          | 🔲 TODO       |
 | Dark mode detection                | ✅    | 🔲 TODO          | 🔲 TODO       |
 | Notifications / alerts             | ✅    | 🔲 TODO          | 🔲 TODO       |
-| Config / log directories           | ✅    | ✅ (XDG)         | ✅ (AppData)  |
+| Config / log directories           | ✅    | ⚠️ Partial       | ✅ (AppData)  |
 
 🔲 = stub returns `CodeNotSupported`. Replace with real implementation.
 
