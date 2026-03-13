@@ -43,8 +43,11 @@
     - changed-files:
           - any-glob-to-any-file:
                 - "internal/app/components/overlayutil/**"
+                - "internal/app/components/modeindicator/**"
+                - "internal/app/services/modeindicator/**"
                 - "internal/core/ports/overlay.go"
                 - "**/*overlay*"
+                - "**/*modeindicator*"
 "area: event-tap":
     - changed-files:
           - any-glob-to-any-file:
