@@ -67,6 +67,8 @@ documentation:
     - changed-files:
           - any-glob-to-any-file:
                 - "docs/**"
+    - changed-files:
+          - any-glob-to-any-file:
                 - "*.md"
           - all-globs-to-all-files:
                 - "!.github/**"
