@@ -15,15 +15,21 @@ jobs:
                       const body = context.payload.issue.body || '';
                       const labels = [];
 
+                      // Escape special regex characters in a string
+                      function escapeRegex(s) {
+                          return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                      }
+
                       // Helper: extract the first non-empty line after a ### heading
                       function fieldValue(heading) {
-                          const re = new RegExp('### ' + heading + '\\s*\\n\\s*(.*)', 'i');
+                          const re = new RegExp('### ' + escapeRegex(heading) + '\\s*\\n\\s*(.*)', 'i');
                           const m = body.match(re);
                           return m ? m[1].trim() : '';
                       }
+
                       // Helper: extract a multi-line section between two ### headings
                       function fieldSection(heading) {
-                          const re = new RegExp('### ' + heading + '\\s*\\n([\\s\\S]*?)(?=\\n###|$)', 'i');
+                          const re = new RegExp('### ' + escapeRegex(heading) + '\\s*\\n([\\s\\S]*?)(?=\\n###|$)', 'i');
                           const m = body.match(re);
                           return m ? m[1] : '';
                       }
