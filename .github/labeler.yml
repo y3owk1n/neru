@@ -13,11 +13,15 @@
     - changed-files:
           - any-glob-to-any-file:
                 - "**/*_linux.go"
+                - "**/*_linux.c"
+                - "**/*_linux.h"
                 - "internal/core/infra/platform/linux/**"
 "platform: windows":
     - changed-files:
           - any-glob-to-any-file:
                 - "**/*_windows.go"
+                - "**/*_windows.c"
+                - "**/*_windows.h"
                 - "internal/core/infra/platform/windows/**"
 "cross-platform":
     - changed-files:
