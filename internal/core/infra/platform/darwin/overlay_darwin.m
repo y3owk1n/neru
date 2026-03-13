@@ -115,13 +115,14 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 @property(nonatomic, assign) CGFloat gridLabelBackgroundBorderWidth;    ///< Grid label badge border width
 @property(nonatomic, assign) BOOL hideUnmatched;                        ///< Hide unmatched cells
 // Sub-key preview: draws a miniature key grid inside each cell
-@property(nonatomic, assign) BOOL gridDrawSubKeyPreview;          ///< Draw sub-key preview mini-grid
-@property(nonatomic, assign) int gridSubKeyCols;                  ///< Sub-key preview grid columns
-@property(nonatomic, assign) int gridSubKeyRows;                  ///< Sub-key preview grid rows
-@property(nonatomic, strong) NSFont *gridSubKeyFont;              ///< Sub-key preview font
-@property(nonatomic, strong) NSColor *gridSubKeyTextColor;        ///< Sub-key preview text color
-@property(nonatomic, assign) CGFloat cachedGridSubKeyFontSize;    ///< Cached sub-key font size
-@property(nonatomic, assign) CGFloat gridSubKeyAutohideThreshold; ///< Sub-key preview autohide threshold (0 = disable)
+@property(nonatomic, assign) BOOL gridDrawSubKeyPreview;       ///< Draw sub-key preview mini-grid
+@property(nonatomic, assign) int gridSubKeyCols;               ///< Sub-key preview grid columns
+@property(nonatomic, assign) int gridSubKeyRows;               ///< Sub-key preview grid rows
+@property(nonatomic, strong) NSFont *gridSubKeyFont;           ///< Sub-key preview font
+@property(nonatomic, strong) NSColor *gridSubKeyTextColor;     ///< Sub-key preview text color
+@property(nonatomic, assign) CGFloat cachedGridSubKeyFontSize; ///< Cached sub-key font size
+@property(nonatomic, assign)
+    CGFloat gridSubKeyAutohideMultiplier; ///< Sub-key preview autohide multiplier (0 = disable)
 @property(nonatomic, strong)
     NSMutableAttributedString *cachedGridSubKeyAttributedString;    ///< Cached attributed string for sub-key drawing
 @property(nonatomic, strong) NSArray<NSString *> *gridSubKeyLabels; ///< Labels for sub-key preview (next depth's keys)
@@ -905,10 +906,10 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	CGFloat subCellWidth = cellRect.size.width / cols;
 	CGFloat subCellHeight = cellRect.size.height / rows;
 	// Skip sub-key preview when sub-cells are too small to render legibly.
-	// Each sub-cell must be at least (threshold × font size) in both dimensions.
-	// A threshold of 0 disables autohide.
-	CGFloat minSubCell = subFont.pointSize * self.gridSubKeyAutohideThreshold;
-	if (self.gridSubKeyAutohideThreshold > 0 && (subCellWidth < minSubCell || subCellHeight < minSubCell))
+	// Each sub-cell must be at least (multiplier × font size) in both dimensions.
+	// A multiplier of 0 disables autohide.
+	CGFloat minSubCell = subFont.pointSize * self.gridSubKeyAutohideMultiplier;
+	if (self.gridSubKeyAutohideMultiplier > 0 && (subCellWidth < minSubCell || subCellHeight < minSubCell))
 		return;
 	NSUInteger centerIdx = NSNotFound;
 	if (cols % 2 == 1 && rows % 2 == 1) {
@@ -1626,7 +1627,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	int subKeyGridCols = style.subKeyGridCols;
 	int subKeyGridRows = style.subKeyGridRows;
 	CGFloat subKeyFontSize = style.subKeyFontSize > 0 ? style.subKeyFontSize : 6.0;
-	CGFloat subKeyAutohideThreshold = style.subKeyAutohideThreshold;
+	CGFloat subKeyAutohideMultiplier = style.subKeyAutohideMultiplier;
 	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
 	// Build sub-key labels array from the next-depth key string.
 	// Use composed-character enumeration so this stays correct even if
@@ -1691,7 +1692,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 				controller.overlayView.gridSubKeyFont = [NSFont systemFontOfSize:subKeyFontSize];
 				controller.overlayView.cachedGridSubKeyFontSize = subKeyFontSize;
 			}
-			controller.overlayView.gridSubKeyAutohideThreshold = subKeyAutohideThreshold;
+			controller.overlayView.gridSubKeyAutohideMultiplier = subKeyAutohideMultiplier;
 			controller.overlayView.gridSubKeyTextColor = [controller.overlayView colorFromHex:subKeyTextHex
 			                                                                     defaultColor:[NSColor grayColor]];
 		}
