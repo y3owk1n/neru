@@ -361,12 +361,17 @@ func (m *Manager) HasHistory() bool {
 
 // keyToCell maps an input key to a cell index using the current depth's key mapping.
 // Returns -1 if the key is not mapped.
+// Both the input key and each key in the mapping are normalized via
+// config.NormalizeKeyForComparison so that named keys (e.g. "space")
+// match their literal character equivalents (e.g. " ").
 func (m *Manager) keyToCell(key string) Cell {
+	normalizedKey := config.NormalizeKeyForComparison(key)
+
 	currentKeys := m.Keys()
 	idx := 0
 
 	for _, k := range currentKeys {
-		if string(k) == key {
+		if config.NormalizeKeyForComparison(string(k)) == normalizedKey {
 			return Cell(idx)
 		}
 
