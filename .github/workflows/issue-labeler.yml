@@ -54,7 +54,11 @@ jobs:
                       if (/Platform support/i.test(cat)) labels.push('cross-platform');
                       if (/UI \/ Overlays/i.test(cat)) labels.push('area: overlays');
                       if (/Performance/i.test(cat)) labels.push('performance');
-                      if (/Navigation/i.test(cat)) labels.push('area: accessibility');
+                      if (/Navigation/i.test(cat)) {
+                          labels.push('area: accessibility');
+                          labels.push('area: overlays');
+                          labels.push('area: event-tap');
+                      }
                       if (/CLI \/ IPC/i.test(cat)) labels.push('area: infra');
 
                       // All labels this automation may manage
