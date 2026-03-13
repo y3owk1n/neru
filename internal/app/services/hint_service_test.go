@@ -416,15 +416,6 @@ func TestHintService_Health(t *testing.T) {
 	generator, _ := hint.NewAlphabetGenerator("abcd")
 	logger := logger.Get()
 
-	service := services.NewHintService(
-		mockAcc,
-		mockOverlay,
-		&mocks.SystemMock{},
-		generator,
-		config.HintsConfig{},
-		logger,
-	)
-
 	// Setup mocks
 	mockAcc.HealthFunc = func(_ context.Context) error {
 		return nil
@@ -432,13 +423,26 @@ func TestHintService_Health(t *testing.T) {
 	mockOverlay.HealthFunc = func(_ context.Context) error {
 		return derrors.New(derrors.CodeOverlayFailed, "overlay unhealthy")
 	}
+	system := &mocks.SystemMock{
+		HealthFunc: func(_ context.Context) error {
+			return nil
+		},
+	}
 
 	ctx := context.Background()
+	service := services.NewHintService(
+		mockAcc,
+		mockOverlay,
+		system,
+		generator,
+		config.HintsConfig{},
+		logger,
+	)
 	health := service.Health(ctx)
 
-	// Check that health map has both keys
-	if len(health) != 2 {
-		t.Errorf("Health() returned %d entries, want 2", len(health))
+	// Check that health map includes all dependency keys.
+	if len(health) != 3 {
+		t.Errorf("Health() returned %d entries, want 3", len(health))
 	}
 
 	if _, ok := health["accessibility"]; !ok {
@@ -449,6 +453,10 @@ func TestHintService_Health(t *testing.T) {
 		t.Error("Health() missing 'overlay' key")
 	}
 
+	if _, ok := health["system"]; !ok {
+		t.Error("Health() missing 'system' key")
+	}
+
 	// Check that overlay has error
 	if health["overlay"] == nil {
 		t.Error("Health() overlay should have error")
@@ -456,6 +464,10 @@ func TestHintService_Health(t *testing.T) {
 
 	if health["accessibility"] != nil {
 		t.Error("Health() accessibility should not have error")
+	}
+
+	if health["system"] != nil {
+		t.Error("Health() system should not have error")
 	}
 }
 
