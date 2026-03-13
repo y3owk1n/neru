@@ -171,12 +171,10 @@ If you are working on Linux or Windows support:
 
 Neru separates tests into unit and integration tests:
 
-| Type              | File pattern                  | Command                  | Build tag     |
-| ----------------- | ----------------------------- | ------------------------ | ------------- |
-| Unit tests        | `*_test.go`                   | `just test`              | —             |
-| Integration tests | `*_integration_test.go`       | `just test-integration`  | `integration` |
-| Unit benchmarks   | `*_bench_test.go`             | `just bench`             | —             |
-| Integration bench | `*_bench_integration_test.go` | `just bench-integration` | `integration` |
+| Type              | File pattern            | Command                 | Build tag     |
+| ----------------- | ----------------------- | ----------------------- | ------------- |
+| Unit tests        | `*_test.go`             | `just test`             | —             |
+| Integration tests | `*_integration_test.go` | `just test-integration` | `integration` |
 
 **Guidelines:**
 

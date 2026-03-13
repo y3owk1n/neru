@@ -100,25 +100,3 @@ func TestMenuItemMethods(t *testing.T) {
 		t.Error("Expected Hidden() to be true after Hide()")
 	}
 }
-
-func BenchmarkAddMenuItem(b *testing.B) {
-	b.Cleanup(func() {
-		systray.ResetForTesting()
-	})
-
-	for b.Loop() {
-		systray.AddMenuItem("Benchmark Item")
-	}
-}
-
-func BenchmarkUpdateItem(b *testing.B) {
-	b.Cleanup(func() {
-		systray.ResetForTesting()
-	})
-
-	item := systray.AddMenuItem("Benchmark Item")
-
-	for b.Loop() {
-		item.SetTitle("Updated Title")
-	}
-}
