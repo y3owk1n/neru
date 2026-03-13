@@ -57,13 +57,47 @@ jobs:
                       if (/Navigation/i.test(cat)) labels.push('area: accessibility');
                       if (/CLI \/ IPC/i.test(cat)) labels.push('area: infra');
 
-                      // Deduplicate and apply
-                      const unique = [...new Set(labels)];
-                      if (unique.length > 0) {
+                      // All labels this automation may manage
+                      const MANAGED = new Set([
+                          'platform: macOS',
+                          'platform: linux',
+                          'platform: windows',
+                          'cross-platform',
+                          'area: accessibility',
+                          'area: overlays',
+                          'area: event-tap',
+                          'area: infra',
+                          'performance',
+                      ]);
+
+                      // Deduplicate desired labels
+                      const desired = new Set(labels);
+
+                      // Fetch current labels on the issue
+                      const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: context.issue.number,
+                      });
+
+                      // Remove managed labels that no longer apply
+                      for (const label of currentLabels) {
+                          if (MANAGED.has(label.name) && !desired.has(label.name)) {
+                              await github.rest.issues.removeLabel({
+                                  owner: context.repo.owner,
+                                  repo: context.repo.repo,
+                                  issue_number: context.issue.number,
+                                  name: label.name,
+                              });
+                          }
+                      }
+
+                      // Add desired labels
+                      if (desired.size > 0) {
                           await github.rest.issues.addLabels({
                               owner: context.repo.owner,
                               repo: context.repo.repo,
                               issue_number: context.issue.number,
-                              labels: unique,
+                              labels: [...desired],
                           });
                       }
