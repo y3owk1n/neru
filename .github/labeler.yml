@@ -59,11 +59,16 @@
 documentation:
     - changed-files:
           - any-glob-to-any-file:
-                - "**/*.md"
                 - "docs/**"
+                - "*.md"
+                - "**/*.md"
                 - "AGENTS.md"
                 - "CONTRIBUTING.md"
                 - "README.md"
+ci:
+    - changed-files:
+          - any-glob-to-any-file:
+                - ".github/**"
 performance:
     - changed-files:
           - any-glob-to-any-file:
