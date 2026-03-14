@@ -105,7 +105,9 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 			pos := C.CGPoint{x: C.double(intermediate.X), y: C.double(intermediate.Y)}
 			C.postMouseMoveEvent(pos, C.CGEventType(eventType))
 
-			time.Sleep(time.Duration(stepDelayMs) * time.Millisecond)
+			if step < actualSteps {
+				time.Sleep(time.Duration(stepDelayMs) * time.Millisecond)
+			}
 		}
 	})
 
