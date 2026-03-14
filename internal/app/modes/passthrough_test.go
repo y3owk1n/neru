@@ -5,10 +5,11 @@ import (
 	"slices"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"go.uber.org/zap"
 )
 
 func TestModeModifierKeys_HintsIncludesExitAndActionBindings(t *testing.T) {
@@ -91,6 +92,7 @@ func TestPassthroughCallbackFor_CapturesModeSession(t *testing.T) {
 	}
 
 	handler.modeSession = 2
+
 	appState.SetMode(domain.ModeGrid)
 
 	callback()

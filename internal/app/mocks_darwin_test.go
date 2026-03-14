@@ -75,6 +75,12 @@ func (m *mockEventTap) SetPassthroughCallback(cb func()) {
 	m.mu.Unlock()
 }
 
+// SetKeyboardLayout implements ports.EventTapPort.
+func (m *mockEventTap) SetKeyboardLayout(_ string) bool { return true }
+
+// Destroy implements ports.EventTapPort.
+func (m *mockEventTap) Destroy() {}
+
 func (m *mockEventTap) triggerPassthrough() {
 	m.mu.RLock()
 	cb := m.passthroughCallback
@@ -84,12 +90,6 @@ func (m *mockEventTap) triggerPassthrough() {
 		cb()
 	}
 }
-
-// SetKeyboardLayout implements ports.EventTapPort.
-func (m *mockEventTap) SetKeyboardLayout(_ string) bool { return true }
-
-// Destroy implements ports.EventTapPort.
-func (m *mockEventTap) Destroy() {}
 
 // mockIPCServer is a mock implementation of ports.IPCPort for testing.
 type mockIPCServer struct {

@@ -93,7 +93,10 @@ func TestStalePassthroughCallbackDoesNotExitNewModeIntegration(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	if application.CurrentMode() != domain.ModeGrid {
-		t.Fatalf("stale passthrough callback changed mode to %v, want grid", application.CurrentMode())
+		t.Fatalf(
+			"stale passthrough callback changed mode to %v, want grid",
+			application.CurrentMode(),
+		)
 	}
 
 	tap.triggerPassthrough()
