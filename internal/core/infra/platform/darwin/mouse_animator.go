@@ -38,8 +38,13 @@ func (a *smoothCursorAnimator) stop() {
 		a.cancel()
 		a.cancel = nil
 	}
-	a.mu.Unlock()
+
+	// Wait inside the lock so a concurrent animateTo cannot sneak in a new
+	// goroutine between Unlock and Wait.  The animation goroutine never
+	// acquires a.mu, so this cannot deadlock.
 	a.wg.Wait()
+
+	a.mu.Unlock()
 }
 
 func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType uint32) {
