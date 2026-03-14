@@ -119,6 +119,8 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 				var _timer *time.Timer
 
+				timerSession := h.modeSession
+
 				_timer = time.AfterFunc(
 					time.Duration(delay)*time.Millisecond,
 					func() {
@@ -128,8 +130,10 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 						// Guard against stale timer: if the user exited hints mode
 						// (e.g. pressed escape) while we were waiting for the lock,
-						// do not re-activate.
-						if h.appState.CurrentMode() != domain.ModeHints {
+						// or if hints was re-entered (new session), do not
+						// re-activate.
+						if h.modeSession != timerSession ||
+							h.appState.CurrentMode() != domain.ModeHints {
 							return
 						}
 
