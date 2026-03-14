@@ -164,13 +164,20 @@ static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uin
 		for (NSString *part in parts) {
 			NSString *trimmed = [part stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
 
-			if ([trimmed isEqualToString:@"Cmd"] || [trimmed isEqualToString:@"Command"]) {
+			// Support left/right-prefixed modifiers (e.g., RightCmd) commonly produced by Karabiner hyper mappings.
+			if ([trimmed isEqualToString:@"Cmd"] || [trimmed isEqualToString:@"Command"] ||
+			    [trimmed isEqualToString:@"RightCmd"] || [trimmed isEqualToString:@"RightCommand"] ||
+			    [trimmed isEqualToString:@"LeftCmd"] || [trimmed isEqualToString:@"LeftCommand"]) {
 				needsCmd = YES;
-			} else if ([trimmed isEqualToString:@"Shift"]) {
+			} else if ([trimmed isEqualToString:@"Shift"] || [trimmed isEqualToString:@"RightShift"] ||
+			           [trimmed isEqualToString:@"LeftShift"]) {
 				needsShift = YES;
-			} else if ([trimmed isEqualToString:@"Alt"] || [trimmed isEqualToString:@"Option"]) {
+			} else if ([trimmed isEqualToString:@"Alt"] || [trimmed isEqualToString:@"Option"] ||
+			           [trimmed isEqualToString:@"RightAlt"] || [trimmed isEqualToString:@"RightOption"] ||
+			           [trimmed isEqualToString:@"LeftAlt"] || [trimmed isEqualToString:@"LeftOption"]) {
 				needsAlt = YES;
-			} else if ([trimmed isEqualToString:@"Ctrl"] || [trimmed isEqualToString:@"Control"]) {
+			} else if ([trimmed isEqualToString:@"Ctrl"] || [trimmed isEqualToString:@"Control"] ||
+			           [trimmed isEqualToString:@"RightCtrl"] || [trimmed isEqualToString:@"LeftCtrl"]) {
 				needsCtrl = YES;
 			} else {
 				mainKey = trimmed;
