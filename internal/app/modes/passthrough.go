@@ -181,13 +181,16 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 
 	var timer *time.Timer
 
+	timerSession := h.modeSession
+
 	timer = time.AfterFunc(passthroughHintRefreshDelay, func() {
 		h.mu.Lock()
 		defer h.mu.Unlock()
 
 		// Guard against stale timer: if the user exited hints mode while we
-		// were waiting, do not re-activate.
-		if h.appState.CurrentMode() != domain.ModeHints {
+		// were waiting, or if hints was re-entered (new session), do not
+		// re-activate.
+		if h.modeSession != timerSession || h.appState.CurrentMode() != domain.ModeHints {
 			return
 		}
 
