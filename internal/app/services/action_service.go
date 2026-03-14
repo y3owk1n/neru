@@ -95,7 +95,7 @@ func (s *ActionService) PerformActionAtPoint(
 	ctx context.Context,
 	actionString string,
 	point image.Point,
-	modifiers ...action.Modifiers,
+	modifiers action.Modifiers,
 ) error {
 	// Parse action string to domain type
 	actionType, actionTypeErr := action.ParseType(actionString)
@@ -103,18 +103,13 @@ func (s *ActionService) PerformActionAtPoint(
 		return core.WrapConfigFailed(actionTypeErr, "validate action type")
 	}
 
-	var mods action.Modifiers
-	if len(modifiers) > 0 {
-		mods = modifiers[0]
-	}
-
 	s.logger.Info("Performing action at point",
 		zap.String("action", actionType.String()),
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y),
-		zap.String("modifiers", mods.String()))
+		zap.String("modifiers", modifiers.String()))
 
-	performActionErr := s.accessibility.PerformActionAtPoint(ctx, actionType, point, mods)
+	performActionErr := s.accessibility.PerformActionAtPoint(ctx, actionType, point, modifiers)
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform action at point",
 			zap.Error(performActionErr),
