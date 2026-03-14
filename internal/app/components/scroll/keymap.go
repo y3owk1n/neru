@@ -203,18 +203,7 @@ func (m *KeyMap) normalizeKey(key string) string {
 		strings.HasPrefix(lower, "rightcmd+") || strings.HasPrefix(lower, "leftcmd+") ||
 		strings.HasPrefix(lower, "rightshift+") || strings.HasPrefix(lower, "leftshift+") ||
 		strings.HasPrefix(lower, "rightoption+") || strings.HasPrefix(lower, "leftoption+") {
-		lower = strings.NewReplacer(
-			"rightcmd+", "cmd+",
-			"leftcmd+", "cmd+",
-			"rightctrl+", "ctrl+",
-			"leftctrl+", "ctrl+",
-			"rightalt+", "alt+",
-			"leftalt+", "alt+",
-			"rightoption+", "option+",
-			"leftoption+", "option+",
-			"rightshift+", "shift+",
-			"leftshift+", "shift+",
-		).Replace(lower)
+		lower = config.StripModifierPrefixes(lower)
 
 		return lower
 	}
