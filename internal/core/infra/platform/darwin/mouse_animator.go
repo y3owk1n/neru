@@ -94,6 +94,8 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 
 		stepDelayMs := max(int(math.Round(duration/float64(actualSteps))), minStepDelay)
 
+		stepDelay := time.Duration(stepDelayMs) * time.Millisecond
+
 		for step := 1; step <= actualSteps; step++ {
 			select {
 			case <-ctx.Done():
@@ -111,7 +113,17 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 			C.postMouseMoveEvent(pos, C.CGEventType(eventType))
 
 			if step < actualSteps {
-				time.Sleep(time.Duration(stepDelayMs) * time.Millisecond)
+				// Use a timer so that context cancellation interrupts the
+				// wait immediately instead of blocking until the full
+				// stepDelay elapses.
+				timer := time.NewTimer(stepDelay)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+
+					return
+				case <-timer.C:
+				}
 			}
 		}
 	})
