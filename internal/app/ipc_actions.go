@@ -48,6 +48,41 @@ type parsedActionArgs struct {
 	modifierStr    string
 }
 
+// extractStringFlag extracts a string value from --flag=value or --flag value form.
+// It returns the value, the updated index, and whether the extraction succeeded.
+func extractStringFlag(rawArgs []string, idx int, prefix string) (string, int, bool) {
+	arg := rawArgs[idx]
+	if after, ok := strings.CutPrefix(arg, prefix+"="); ok {
+		return after, idx, true
+	}
+
+	if arg == prefix {
+		if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
+			return rawArgs[idx+1], idx + 1, true
+		}
+
+		return "", idx, false
+	}
+
+	return "", idx, false
+}
+
+// extractIntFlag extracts an integer value from --flag=value or --flag value form.
+// It returns the value, the updated index, and whether the extraction succeeded.
+func extractIntFlag(rawArgs []string, idx int, prefix string) (int, int, bool) {
+	s, newIdx, ok := extractStringFlag(rawArgs, idx, prefix)
+	if !ok {
+		return 0, newIdx, false
+	}
+
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, newIdx, false
+	}
+
+	return val, newIdx, true
+}
+
 // parseActionArgs parses flag arguments from an action IPC command.
 // Supports both --flag=value and --flag value forms.
 func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
@@ -57,132 +92,77 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 	for idx := 0; idx < len(rawArgs); idx++ {
 		arg := rawArgs[idx]
 		switch {
-		case strings.HasPrefix(arg, "--modifier="):
-			parsed.modifierStr = strings.TrimPrefix(arg, "--modifier=")
-		case arg == "--modifier":
-			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
-				idx++
-				parsed.modifierStr = rawArgs[idx]
-			} else {
-				parseErr = true
-			}
-		case strings.HasPrefix(arg, "--x="):
-			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--x="))
-			if err != nil {
+		case strings.HasPrefix(arg, "--modifier") && (arg == "--modifier" || arg[len("--modifier")] == '='):
+			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--modifier")
+			if !ok {
 				parseErr = true
 
 				break
 			}
+
+			idx = newIdx
+			parsed.modifierStr = val
+		case strings.HasPrefix(arg, "--x") && (arg == "--x" || arg[len("--x")] == '='):
+			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--x")
+			if !ok {
+				parseErr = true
+
+				break
+			}
+
+			idx = newIdx
 
 			parsed.xVal = val
 			parsed.hasX = true
-		case arg == "--x":
-			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
-				idx++
-
-				val, err := strconv.Atoi(rawArgs[idx])
-				if err != nil {
-					parseErr = true
-
-					break
-				}
-
-				parsed.xVal = val
-				parsed.hasX = true
-			} else {
-				parseErr = true
-			}
-		case strings.HasPrefix(arg, "--y="):
-			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--y="))
-			if err != nil {
+		case strings.HasPrefix(arg, "--y") && (arg == "--y" || arg[len("--y")] == '='):
+			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--y")
+			if !ok {
 				parseErr = true
 
 				break
 			}
+
+			idx = newIdx
 
 			parsed.yVal = val
 			parsed.hasY = true
-		case arg == "--y":
-			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
-				idx++
-
-				val, err := strconv.Atoi(rawArgs[idx])
-				if err != nil {
-					parseErr = true
-
-					break
-				}
-
-				parsed.yVal = val
-				parsed.hasY = true
-			} else {
-				parseErr = true
-			}
-		case strings.HasPrefix(arg, "--dx="):
-			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dx="))
-			if err != nil {
+		case strings.HasPrefix(arg, "--dx") && (arg == "--dx" || arg[len("--dx")] == '='):
+			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--dx")
+			if !ok {
 				parseErr = true
 
 				break
 			}
+
+			idx = newIdx
 
 			parsed.deltaX = val
 			parsed.hasDX = true
-		case arg == "--dx":
-			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
-				idx++
-
-				val, err := strconv.Atoi(rawArgs[idx])
-				if err != nil {
-					parseErr = true
-
-					break
-				}
-
-				parsed.deltaX = val
-				parsed.hasDX = true
-			} else {
-				parseErr = true
-			}
-		case strings.HasPrefix(arg, "--dy="):
-			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dy="))
-			if err != nil {
+		case strings.HasPrefix(arg, "--dy") && (arg == "--dy" || arg[len("--dy")] == '='):
+			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--dy")
+			if !ok {
 				parseErr = true
 
 				break
 			}
 
+			idx = newIdx
+
 			parsed.deltaY = val
 			parsed.hasDY = true
-		case arg == "--dy":
-			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
-				idx++
-
-				val, err := strconv.Atoi(rawArgs[idx])
-				if err != nil {
-					parseErr = true
-
-					break
-				}
-
-				parsed.deltaY = val
-				parsed.hasDY = true
-			} else {
-				parseErr = true
-			}
 		case arg == "--center":
 			parsed.hasCenter = true
-		case strings.HasPrefix(arg, "--monitor="):
-			parsed.monitorName = strings.TrimPrefix(arg, "--monitor=")
-			parsed.hasMonitor = parsed.monitorName != ""
-		case arg == "--monitor":
-			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
-				idx++
-				parsed.monitorName = rawArgs[idx]
-				parsed.hasMonitor = parsed.monitorName != ""
-			} else {
+		case strings.HasPrefix(arg, "--monitor") && (arg == "--monitor" || arg[len("--monitor")] == '='):
+			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--monitor")
+			if !ok || val == "" {
 				parseErr = true
+
+				break
 			}
+
+			idx = newIdx
+			parsed.monitorName = val
+			parsed.hasMonitor = true
 		}
 	}
 
