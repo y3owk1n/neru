@@ -63,6 +63,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			if idx+1 < len(rawArgs) {
 				idx++
 				parsed.modifierStr = rawArgs[idx]
+			} else {
+				parseErr = true
 			}
 		case strings.HasPrefix(arg, "--x="):
 			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--x="))
@@ -87,6 +89,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 
 				parsed.xVal = val
 				parsed.hasX = true
+			} else {
+				parseErr = true
 			}
 		case strings.HasPrefix(arg, "--y="):
 			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--y="))
@@ -111,6 +115,9 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 
 				parsed.yVal = val
 				parsed.hasY = true
+
+			} else {
+				parseErr = true
 			}
 		case strings.HasPrefix(arg, "--dx="):
 			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dx="))
@@ -135,6 +142,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 
 				parsed.deltaX = val
 				parsed.hasDX = true
+			} else {
+				parseErr = true
 			}
 		case strings.HasPrefix(arg, "--dy="):
 			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dy="))
@@ -159,6 +168,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 
 				parsed.deltaY = val
 				parsed.hasDY = true
+			} else {
+				parseErr = true
 			}
 		case arg == "--center":
 			parsed.hasCenter = true
@@ -170,6 +181,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 				idx++
 				parsed.monitorName = rawArgs[idx]
 				parsed.hasMonitor = parsed.monitorName != ""
+			} else {
+				parseErr = true
 			}
 		}
 	}
@@ -200,7 +213,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	if parseErr {
 		return ipc.Response{
 			Success: false,
-			Message: "invalid coordinate value",
+			Message: "invalid or missing flag value",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
