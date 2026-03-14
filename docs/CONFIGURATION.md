@@ -1230,19 +1230,21 @@ Animate cursor movement between positions. Uses adaptive duration based on dista
 
 ### Configuration
 
-| Option               | Type   | Default | Description                                      |
-| -------------------- | ------ | ------- | ------------------------------------------------ |
-| `move_mouse_enabled` | bool   | `false` | Enable smooth mouse movement                     |
-| `steps`              | int    | `10`    | Number of intermediate positions                |
-| `max_duration`      | int    | `200`   | Maximum animation duration (ms)                  |
-| `duration_per_pixel` | float  | `0.1`   | Ms per pixel for adaptive duration calculation   |
+| Option               | Type  | Default | Description                                    |
+| -------------------- | ----- | ------- | ---------------------------------------------- |
+| `move_mouse_enabled` | bool  | `false` | Enable smooth mouse movement                   |
+| `steps`              | int   | `10`    | Number of intermediate positions               |
+| `max_duration`       | int   | `200`   | Maximum animation duration (ms)                |
+| `duration_per_pixel` | float | `0.1`   | Ms per pixel for adaptive duration calculation |
 
 ### How It Works
 
 The animation uses **adaptive duration**:
+
 - Distance-based: longer moves get longer animations
 - Capped at `max_duration` to prevent slowdowns
 - Minimum duration of 10ms ensures visibility
+- Steps are automatically reduced when needed so the total animation time stays within the computed duration
 
 The animation runs **asynchronously** in a goroutine, so key presses never block waiting for cursor movement.
 

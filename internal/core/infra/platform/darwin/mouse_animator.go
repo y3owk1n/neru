@@ -74,6 +74,16 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 		if actualSteps <= 0 {
 			actualSteps = 10
 		}
+
+		// Reduce steps so total time stays within the computed duration.
+		// Without this, a high step count with a short duration would be
+		// inflated by the minStepDelay floor (e.g. 100 steps × 1ms = 100ms
+		// even when the adaptive duration is only 10ms).
+		maxSteps := max(int(duration/float64(minStepDelay)), 1)
+		if actualSteps > maxSteps {
+			actualSteps = maxSteps
+		}
+
 		stepDelayMs := max(int(math.Round(duration/float64(actualSteps))), minStepDelay)
 
 		for step := 1; step <= actualSteps; step++ {
