@@ -1322,6 +1322,18 @@ func TestConfig_ValidateSmoothCursor(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "negative duration_per_pixel",
+			config: config.Config{
+				SmoothCursor: config.SmoothCursorConfig{
+					MoveMouseEnabled: true,
+					Steps:            10,
+					MaxDuration:      200,
+					DurationPerPixel: -0.1,
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, testCase := range tests {
