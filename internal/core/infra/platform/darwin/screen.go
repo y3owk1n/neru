@@ -31,25 +31,31 @@ func ActiveScreenBounds() image.Rectangle {
 // The C side returns a NUL-separated buffer (each name terminated by '\0')
 // so that display names containing commas are handled correctly.
 func ScreenNames() []string {
-	cNames := C.getScreenNames()
+	var bufLen C.int
+
+	cNames := C.getScreenNames(&bufLen)
 	if cNames == nil {
 		return nil
 	}
 	defer C.free(unsafe.Pointer(cNames)) //nolint:nlreturn
 
-	// The first byte being NUL means the buffer is empty (no screens).
-	if *cNames == 0 {
+	totalLen := int(bufLen)
+	if totalLen == 0 {
 		return nil
 	}
 
-	// Walk the NUL-separated buffer to extract each name.
+	// Walk the NUL-separated buffer using the known length as the bound.
 	var names []string
 
-	ptr := cNames
-	for *ptr != 0 {
-		name := C.GoString(ptr)
+	offset := 0
+	for offset < totalLen {
+		name := C.GoString((*C.char)(unsafe.Add(unsafe.Pointer(cNames), offset)))
+		if len(name) == 0 {
+			break
+		}
+
 		names = append(names, name)
-		ptr = (*C.char)(unsafe.Add(unsafe.Pointer(ptr), len(name)+1))
+		offset += len(name) + 1
 	}
 
 	return names

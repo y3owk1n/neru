@@ -374,11 +374,14 @@ CGRect getActiveScreenBounds(void) {
 }
 
 /// Get all connected screen names as a NUL-separated string
-/// @return NUL-separated localized display names terminated by a double NUL, or empty string if no screens
+/// @param outLen Output parameter for the total byte length of the returned buffer
+/// @return NUL-separated localized display names, or empty string if no screens
 /// @note Caller must free the returned string with free()
 /// @note NUL is used as the delimiter because display names may theoretically contain commas
-char *getScreenNames(void) {
+char *getScreenNames(int *outLen) {
 	@autoreleasepool {
+		*outLen = 0;
+
 		NSArray *screens = [NSScreen screens];
 		if (!screens || screens.count == 0) {
 			return strdup("");
@@ -395,6 +398,7 @@ char *getScreenNames(void) {
 		char *result = (char *)malloc(data.length);
 		if (result) {
 			memcpy(result, data.bytes, data.length);
+			*outLen = (int)data.length;
 		}
 
 		return result;
