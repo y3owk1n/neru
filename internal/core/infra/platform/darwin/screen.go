@@ -51,7 +51,11 @@ func ScreenNames() []string {
 	for offset < totalLen {
 		name := C.GoString((*C.char)(unsafe.Add(unsafe.Pointer(cNames), offset)))
 		if len(name) == 0 {
-			break
+			// Skip empty names (e.g. a hypothetical empty localizedName)
+			// and advance past the lone NUL terminator.
+			offset++
+
+			continue
 		}
 
 		names = append(names, name)
