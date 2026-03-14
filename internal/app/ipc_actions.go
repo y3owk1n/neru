@@ -228,10 +228,16 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if (isMoveMouse || isMoveMouseRelative) && modifiers != 0 {
+	isMouseButton := actionName == string(action.NameLeftClick) ||
+		actionName == string(action.NameRightClick) ||
+		actionName == string(action.NameMiddleClick) ||
+		actionName == string(action.NameMouseDown) ||
+		actionName == string(action.NameMouseUp)
+
+	if modifiers != 0 && !isMouseButton {
 		return ipc.Response{
 			Success: false,
-			Message: "--modifier is not supported with move_mouse or move_mouse_relative",
+			Message: "--modifier is only supported with click and mouse button actions",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
