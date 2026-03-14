@@ -237,9 +237,10 @@ CGRect getMainScreenBounds(void);
 /// @return Active screen bounds rectangle
 CGRect getActiveScreenBounds(void);
 
-/// Get all connected screen names as a comma-separated string
-/// @return Comma-separated localized display names, or empty string if no screens
+/// Get all connected screen names as a NUL-separated string
+/// @return NUL-separated localized display names terminated by a double NUL, or empty string if no screens
 /// @note Caller must free the returned string with free()
+/// @note NUL is used as the delimiter because display names may theoretically contain commas
 char *getScreenNames(void);
 
 /// Get screen bounds by localized display name (case-insensitive)

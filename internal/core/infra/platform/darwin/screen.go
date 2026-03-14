@@ -12,7 +12,6 @@ import "C"
 
 import (
 	"image"
-	"strings"
 	"unsafe"
 )
 
@@ -29,6 +28,8 @@ func ActiveScreenBounds() image.Rectangle {
 }
 
 // ScreenNames returns the localized display names of all connected screens.
+// The C side returns a NUL-separated buffer (each name terminated by '\0')
+// so that display names containing commas are handled correctly.
 func ScreenNames() []string {
 	cNames := C.getScreenNames()
 	if cNames == nil {
@@ -36,12 +37,22 @@ func ScreenNames() []string {
 	}
 	defer C.free(unsafe.Pointer(cNames)) //nolint:nlreturn
 
-	goNames := C.GoString(cNames)
-	if goNames == "" {
+	// The first byte being NUL means the buffer is empty (no screens).
+	if *cNames == 0 {
 		return nil
 	}
 
-	return strings.Split(goNames, ",")
+	// Walk the NUL-separated buffer to extract each name.
+	var names []string
+
+	ptr := cNames
+	for *ptr != 0 {
+		name := C.GoString(ptr)
+		names = append(names, name)
+		ptr = (*C.char)(unsafe.Add(unsafe.Pointer(ptr), len(name)+1))
+	}
+
+	return names
 }
 
 // ScreenBoundsByName returns the screen bounds for the display with the given

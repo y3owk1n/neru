@@ -373,9 +373,10 @@ CGRect getActiveScreenBounds(void) {
 	}
 }
 
-/// Get all connected screen names as a comma-separated string
-/// @return Comma-separated localized display names, or empty string if no screens
+/// Get all connected screen names as a NUL-separated string
+/// @return NUL-separated localized display names terminated by a double NUL, or empty string if no screens
 /// @note Caller must free the returned string with free()
+/// @note NUL is used as the delimiter because display names may theoretically contain commas
 char *getScreenNames(void) {
 	@autoreleasepool {
 		NSArray *screens = [NSScreen screens];
@@ -383,13 +384,20 @@ char *getScreenNames(void) {
 			return strdup("");
 		}
 
-		NSMutableArray *names = [NSMutableArray arrayWithCapacity:screens.count];
+		// Build a NUL-separated list: "name1\0name2\0"
+		NSMutableData *data = [NSMutableData data];
 		for (NSScreen *screen in screens) {
-			[names addObject:screen.localizedName];
+			const char *utf8 = [screen.localizedName UTF8String];
+			// Append name including its terminating NUL
+			[data appendBytes:utf8 length:strlen(utf8) + 1];
 		}
 
-		NSString *joined = [names componentsJoinedByString:@","];
-		return strdup([joined UTF8String]);
+		char *result = (char *)malloc(data.length);
+		if (result) {
+			memcpy(result, data.bytes, data.length);
+		}
+
+		return result;
 	}
 }
 
