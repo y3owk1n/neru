@@ -92,7 +92,12 @@ func (m *MockAXClient) ActiveScreenBounds() image.Rectangle {
 }
 
 // PerformAction returns the configured action error.
-func (m *MockAXClient) PerformAction(_ action.Type, _ image.Point, _ bool) error {
+func (m *MockAXClient) PerformAction(
+	_ action.Type,
+	_ image.Point,
+	_ bool,
+	_ action.Modifiers,
+) error {
 	return m.MockActionErr
 }
 

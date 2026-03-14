@@ -95,6 +95,7 @@ func (s *ActionService) PerformActionAtPoint(
 	ctx context.Context,
 	actionString string,
 	point image.Point,
+	modifiers ...action.Modifiers,
 ) error {
 	// Parse action string to domain type
 	actionType, actionTypeErr := action.ParseType(actionString)
@@ -102,12 +103,18 @@ func (s *ActionService) PerformActionAtPoint(
 		return core.WrapConfigFailed(actionTypeErr, "validate action type")
 	}
 
+	var mods action.Modifiers
+	if len(modifiers) > 0 {
+		mods = modifiers[0]
+	}
+
 	s.logger.Info("Performing action at point",
 		zap.String("action", actionType.String()),
 		zap.Int("x", point.X),
-		zap.Int("y", point.Y))
+		zap.Int("y", point.Y),
+		zap.String("modifiers", mods.String()))
 
-	performActionErr := s.accessibility.PerformActionAtPoint(ctx, actionType, point)
+	performActionErr := s.accessibility.PerformActionAtPoint(ctx, actionType, point, mods)
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform action at point",
 			zap.Error(performActionErr),
@@ -329,7 +336,7 @@ func (s *ActionService) HandleActionKey(
 		zap.String("action", logMsg))
 
 	// Perform action
-	performActionErr := s.PerformActionAtPoint(ctx, act, cursorPos)
+	performActionErr := s.PerformActionAtPoint(ctx, act, cursorPos, 0)
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform action", zap.Error(performActionErr))
 
@@ -446,7 +453,7 @@ func (s *ActionService) HandleDirectActionKey(
 		zap.Int("x", cursorPos.X),
 		zap.Int("y", cursorPos.Y))
 
-	performActionErr := s.PerformActionAtPoint(ctx, actionString, cursorPos)
+	performActionErr := s.PerformActionAtPoint(ctx, actionString, cursorPos, 0)
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform direct action", zap.Error(performActionErr))
 

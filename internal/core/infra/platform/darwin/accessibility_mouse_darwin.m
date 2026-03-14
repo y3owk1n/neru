@@ -69,9 +69,10 @@ int performLeftMouseUpAtCursor(void) {
 /// @param upEvent Mouse up event type
 /// @param button Mouse button
 /// @param restoreCursor Whether to restore cursor position after click
+/// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
 static int performClickAtPosition(CGPoint pos, CGEventType downEvent, CGEventType upEvent, CGMouseButton button,
-                                  bool restoreCursor) {
+                                  bool restoreCursor, CGEventFlags flags) {
 	CGPoint originalPosition = CGPointZero;
 	if (restoreCursor) {
 		CGEventRef currentEvent = CGEventCreate(NULL);
@@ -94,9 +95,9 @@ static int performClickAtPosition(CGPoint pos, CGEventType downEvent, CGEventTyp
 			moveMouseWithType(originalPosition, kCGEventMouseMoved);
 		return 0;
 	}
-	// Clear all modifier flags to ensure clean click without Cmd/Shift/etc
-	CGEventSetFlags(down, 0);
-	CGEventSetFlags(up, 0);
+	// Set modifier flags (0 = no modifiers for clean click)
+	CGEventSetFlags(down, flags);
+	CGEventSetFlags(up, flags);
 
 	// Post mouse down, allow the system to process it, then post mouse up.
 	CGEventPost(kCGHIDEventTap, down);
@@ -135,7 +136,7 @@ static long long getCurrentTimeMs(void) {
 /// @param position Target position
 /// @param restoreCursor Whether to restore cursor position after click
 /// @return 1 on success, 0 on failure
-int performLeftClickAtPosition(CGPoint position, bool restoreCursor) {
+int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags) {
 	CGPoint originalPosition = CGPointZero;
 	if (restoreCursor) {
 		CGEventRef currentEvent = CGEventCreate(NULL);
@@ -182,9 +183,9 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor) {
 		return 0;
 	}
 
-	// Clear all modifier flags to ensure clean click
-	CGEventSetFlags(down, 0);
-	CGEventSetFlags(up, 0);
+	// Set modifier flags (0 = no modifiers for clean click)
+	CGEventSetFlags(down, flags);
+	CGEventSetFlags(up, flags);
 
 	// Set the click count
 	CGEventSetIntegerValueField(down, kCGMouseEventClickState, clickState.clickCount);
@@ -211,31 +212,31 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor) {
 /// @param position Target position
 /// @param restoreCursor Whether to restore cursor position after click
 /// @return 1 on success, 0 on failure
-int performRightClickAtPosition(CGPoint position, bool restoreCursor) {
+int performRightClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags) {
 	return performClickAtPosition(position, kCGEventRightMouseDown, kCGEventRightMouseUp, kCGMouseButtonRight,
-	                              restoreCursor);
+	                              restoreCursor, flags);
 }
 
 /// Perform middle click at position
 /// @param position Target position
 /// @param restoreCursor Whether to restore cursor position after click
 /// @return 1 on success, 0 on failure
-int performMiddleClickAtPosition(CGPoint position, bool restoreCursor) {
+int performMiddleClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags) {
 	return performClickAtPosition(position, kCGEventOtherMouseDown, kCGEventOtherMouseUp, kCGMouseButtonCenter,
-	                              restoreCursor);
+	                              restoreCursor, flags);
 }
 
 /// Perform left mouse down at position
 /// @param position Target position
 /// @return 1 on success, 0 on failure
-int performLeftMouseDownAtPosition(CGPoint position) {
+int performLeftMouseDownAtPosition(CGPoint position, CGEventFlags flags) {
 	moveMouseWithType(position, kCGEventMouseMoved);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 	CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, position, kCGMouseButtonLeft);
 	if (!down)
 		return 0;
-	// Clear all modifier flags to ensure clean mouse down
-	CGEventSetFlags(down, 0);
+	// Set modifier flags (0 = no modifiers for clean mouse down)
+	CGEventSetFlags(down, flags);
 	CGEventPost(kCGHIDEventTap, down);
 	CFRelease(down);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
@@ -245,14 +246,14 @@ int performLeftMouseDownAtPosition(CGPoint position) {
 /// Perform left mouse up at position
 /// @param position Target position
 /// @return 1 on success, 0 on failure
-int performLeftMouseUpAtPosition(CGPoint position) {
+int performLeftMouseUpAtPosition(CGPoint position, CGEventFlags flags) {
 	moveMouseWithType(position, kCGEventMouseMoved);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 	CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, position, kCGMouseButtonLeft);
 	if (!up)
 		return 0;
-	// Clear all modifier flags to ensure clean mouse up
-	CGEventSetFlags(up, 0);
+	// Set modifier flags (0 = no modifiers for clean mouse up)
+	CGEventSetFlags(up, flags);
 	CGEventPost(kCGHIDEventTap, up);
 	CFRelease(up);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);

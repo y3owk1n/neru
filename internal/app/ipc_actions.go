@@ -36,6 +36,147 @@ func (h *IPCControllerActions) RegisterHandlers(
 	handlers["action"] = h.handleAction
 }
 
+// parsedActionArgs holds the parsed arguments from an action IPC command.
+type parsedActionArgs struct {
+	xVal, yVal     int
+	deltaX, deltaY int
+	hasX, hasY     bool
+	hasDX, hasDY   bool
+	hasCenter      bool
+	monitorName    string
+	hasMonitor     bool
+	modifierStr    string
+}
+
+// parseActionArgs parses flag arguments from an action IPC command.
+// Supports both --flag=value and --flag value forms.
+func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
+	var parsed parsedActionArgs
+
+	parseErr := false
+	for idx := 0; idx < len(rawArgs); idx++ {
+		arg := rawArgs[idx]
+		switch {
+		case strings.HasPrefix(arg, "--modifier="):
+			parsed.modifierStr = strings.TrimPrefix(arg, "--modifier=")
+		case arg == "--modifier":
+			if idx+1 < len(rawArgs) {
+				idx++
+				parsed.modifierStr = rawArgs[idx]
+			}
+		case strings.HasPrefix(arg, "--x="):
+			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--x="))
+			if err != nil {
+				parseErr = true
+
+				break
+			}
+
+			parsed.xVal = val
+			parsed.hasX = true
+		case arg == "--x":
+			if idx+1 < len(rawArgs) {
+				idx++
+
+				val, err := strconv.Atoi(rawArgs[idx])
+				if err != nil {
+					parseErr = true
+
+					break
+				}
+
+				parsed.xVal = val
+				parsed.hasX = true
+			}
+		case strings.HasPrefix(arg, "--y="):
+			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--y="))
+			if err != nil {
+				parseErr = true
+
+				break
+			}
+
+			parsed.yVal = val
+			parsed.hasY = true
+		case arg == "--y":
+			if idx+1 < len(rawArgs) {
+				idx++
+
+				val, err := strconv.Atoi(rawArgs[idx])
+				if err != nil {
+					parseErr = true
+
+					break
+				}
+
+				parsed.yVal = val
+				parsed.hasY = true
+			}
+		case strings.HasPrefix(arg, "--dx="):
+			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dx="))
+			if err != nil {
+				parseErr = true
+
+				break
+			}
+
+			parsed.deltaX = val
+			parsed.hasDX = true
+		case arg == "--dx":
+			if idx+1 < len(rawArgs) {
+				idx++
+
+				val, err := strconv.Atoi(rawArgs[idx])
+				if err != nil {
+					parseErr = true
+
+					break
+				}
+
+				parsed.deltaX = val
+				parsed.hasDX = true
+			}
+		case strings.HasPrefix(arg, "--dy="):
+			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dy="))
+			if err != nil {
+				parseErr = true
+
+				break
+			}
+
+			parsed.deltaY = val
+			parsed.hasDY = true
+		case arg == "--dy":
+			if idx+1 < len(rawArgs) {
+				idx++
+
+				val, err := strconv.Atoi(rawArgs[idx])
+				if err != nil {
+					parseErr = true
+
+					break
+				}
+
+				parsed.deltaY = val
+				parsed.hasDY = true
+			}
+		case arg == "--center":
+			parsed.hasCenter = true
+		case strings.HasPrefix(arg, "--monitor="):
+			parsed.monitorName = strings.TrimPrefix(arg, "--monitor=")
+			parsed.hasMonitor = parsed.monitorName != ""
+		case arg == "--monitor":
+			if idx+1 < len(rawArgs) {
+				idx++
+				parsed.monitorName = rawArgs[idx]
+				parsed.hasMonitor = parsed.monitorName != ""
+			}
+		}
+	}
+
+	return parsed, parseErr
+}
+
 func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if h.actionService == nil {
 		return ipc.Response{
@@ -55,75 +196,20 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	actionName := cmd.Args[0]
 
-	var (
-		xVal, yVal     int
-		deltaX, deltaY int
-		hasX, hasY     bool
-		hasDX, hasDY   bool
-		hasCenter      bool
-		monitorName    string
-		hasMonitor     bool
-	)
-
-	parseErr := false
-
-	for _, arg := range cmd.Args[1:] {
-		switch {
-		case strings.HasPrefix(arg, "--x="):
-			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--x="))
-			if err != nil {
-				parseErr = true
-
-				break
-			}
-
-			xVal = val
-			hasX = true
-
-		case strings.HasPrefix(arg, "--y="):
-			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--y="))
-			if err != nil {
-				parseErr = true
-
-				break
-			}
-
-			yVal = val
-			hasY = true
-
-		case strings.HasPrefix(arg, "--dx="):
-			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dx="))
-			if err != nil {
-				parseErr = true
-
-				break
-			}
-
-			deltaX = val
-			hasDX = true
-
-		case strings.HasPrefix(arg, "--dy="):
-			val, err := strconv.Atoi(strings.TrimPrefix(arg, "--dy="))
-			if err != nil {
-				parseErr = true
-
-				break
-			}
-
-			deltaY = val
-			hasDY = true
-		case arg == "--center":
-			hasCenter = true
-		case strings.HasPrefix(arg, "--monitor="):
-			monitorName = strings.TrimPrefix(arg, "--monitor=")
-			hasMonitor = monitorName != ""
-		}
-	}
-
+	parsed, parseErr := parseActionArgs(cmd.Args[1:])
 	if parseErr {
 		return ipc.Response{
 			Success: false,
 			Message: "invalid coordinate value",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
+	if modErr != nil {
+		return ipc.Response{
+			Success: false,
+			Message: modErr.Error(),
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -141,7 +227,8 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	// Note: --center with --x/--y is intentionally allowed — x/y act as offsets from center.
 	// Note: --monitor on non-move_mouse is caught by step 4 (if --center present) or step 5 (if absent).
 
-	if !isMoveMouse && !isMoveMouseRelative && (hasX || hasY || hasDX || hasDY) {
+	if !isMoveMouse && !isMoveMouseRelative &&
+		(parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY) {
 		return ipc.Response{
 			Success: false,
 			Message: "--x/--y/--dx/--dy flags are only supported with move_mouse or move_mouse_relative",
@@ -149,7 +236,8 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if (isMoveMouse || isMoveMouseRelative) && (hasX || hasY) && (hasDX || hasDY) {
+	if (isMoveMouse || isMoveMouseRelative) && (parsed.hasX || parsed.hasY) &&
+		(parsed.hasDX || parsed.hasDY) {
 		return ipc.Response{
 			Success: false,
 			Message: "use either --x/--y or --dx/--dy, not both",
@@ -157,7 +245,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if hasCenter && (hasDX || hasDY) {
+	if parsed.hasCenter && (parsed.hasDX || parsed.hasDY) {
 		return ipc.Response{
 			Success: false,
 			Message: "use either --center or --dx/--dy, not both",
@@ -165,7 +253,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if hasCenter && !isMoveMouse {
+	if parsed.hasCenter && !isMoveMouse {
 		return ipc.Response{
 			Success: false,
 			Message: "--center is only supported with move_mouse",
@@ -173,7 +261,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if hasMonitor && !hasCenter {
+	if parsed.hasMonitor && !parsed.hasCenter {
 		return ipc.Response{
 			Success: false,
 			Message: "--monitor requires --center",
@@ -181,7 +269,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if isMoveMouse && !hasCenter && (!hasX || !hasY) {
+	if isMoveMouse && !parsed.hasCenter && (!parsed.hasX || !parsed.hasY) {
 		return ipc.Response{
 			Success: false,
 			Message: "move_mouse requires --x and --y flags, or --center",
@@ -189,17 +277,22 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if isMoveMouse && hasCenter {
-		offsetX, offsetY := xVal, yVal
+	if isMoveMouse && parsed.hasCenter {
+		offsetX, offsetY := parsed.xVal, parsed.yVal
 
-		if hasMonitor {
+		if parsed.hasMonitor {
 			h.logger.Info("Moving mouse to center of monitor via IPC",
-				zap.String("monitor", monitorName),
+				zap.String("monitor", parsed.monitorName),
 				zap.Int("offsetX", offsetX),
 				zap.Int("offsetY", offsetY),
 			)
 
-			err := h.actionService.MoveMouseToCenterOfMonitor(ctx, monitorName, offsetX, offsetY)
+			err := h.actionService.MoveMouseToCenterOfMonitor(
+				ctx,
+				parsed.monitorName,
+				offsetX,
+				offsetY,
+			)
 			if err != nil {
 				h.logger.Error("Failed to move mouse to center of monitor", zap.Error(err))
 
@@ -241,7 +334,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	if isMoveMouseRelative {
-		if !hasDX || !hasDY {
+		if !parsed.hasDX || !parsed.hasDY {
 			return ipc.Response{
 				Success: false,
 				Message: "move_mouse_relative requires --dx and --dy flags",
@@ -250,11 +343,11 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 
 		h.logger.Info("Moving mouse relative via IPC",
-			zap.Int("dx", deltaX),
-			zap.Int("dy", deltaY),
+			zap.Int("dx", parsed.deltaX),
+			zap.Int("dy", parsed.deltaY),
 		)
 
-		err := h.actionService.MoveMouseRelative(ctx, deltaX, deltaY, false)
+		err := h.actionService.MoveMouseRelative(ctx, parsed.deltaX, parsed.deltaY, false)
 		if err != nil {
 			h.logger.Error("Failed to move mouse relative", zap.Error(err))
 
@@ -274,14 +367,14 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	h.logger.Info("Performing action via IPC",
 		zap.String("action", actionName),
-		zap.Int("x", xVal),
-		zap.Int("y", yVal),
+		zap.Int("x", parsed.xVal),
+		zap.Int("y", parsed.yVal),
 	)
 
 	var err error
 	switch actionName {
 	case string(action.NameMoveMouse):
-		err = h.actionService.MoveMouseTo(ctx, xVal, yVal, false)
+		err = h.actionService.MoveMouseTo(ctx, parsed.xVal, parsed.yVal, false)
 	default:
 		cursorPos, posErr := h.actionService.CursorPosition(ctx)
 		if posErr != nil {
@@ -294,7 +387,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 		}
 
-		err = h.actionService.PerformActionAtPoint(ctx, actionName, cursorPos)
+		err = h.actionService.PerformActionAtPoint(ctx, actionName, cursorPos, modifiers)
 	}
 
 	if err != nil {

@@ -27,7 +27,12 @@ type AXClient interface {
 	ActiveScreenBounds() image.Rectangle
 
 	// Actions
-	PerformAction(actionType action.Type, p image.Point, restoreCursor bool) error
+	PerformAction(
+		actionType action.Type,
+		p image.Point,
+		restoreCursor bool,
+		modifiers action.Modifiers,
+	) error
 	Scroll(deltaX, deltaY int) error
 	MoveMouse(p image.Point, bypassSmooth bool)
 	CursorPosition() image.Point

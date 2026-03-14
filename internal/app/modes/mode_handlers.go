@@ -24,7 +24,7 @@ func (h *Handler) executeActionAtPoint(action *string, point image.Point) {
 
 	ctx := context.Background()
 
-	performActionErr := h.actionService.PerformActionAtPoint(ctx, *action, point)
+	performActionErr := h.actionService.PerformActionAtPoint(ctx, *action, point, 0)
 	if performActionErr != nil {
 		h.logger.Error("Failed to perform pending action", zap.Error(performActionErr))
 	}

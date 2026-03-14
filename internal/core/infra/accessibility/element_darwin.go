@@ -19,6 +19,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 )
@@ -536,28 +537,28 @@ func MoveMouseToPointSmooth(end image.Point, steps int, eventType C.CGEventType)
 }
 
 // LeftClickAtPoint performs a left mouse click at the specified point.
-func LeftClickAtPoint(point image.Point, restoreCursor bool) error {
-	return darwin.LeftClickAtPoint(point, restoreCursor)
+func LeftClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
+	return darwin.LeftClickAtPoint(point, restoreCursor, modifiers)
 }
 
 // RightClickAtPoint performs a right mouse click at the specified point.
-func RightClickAtPoint(point image.Point, restoreCursor bool) error {
-	return darwin.RightClickAtPoint(point, restoreCursor)
+func RightClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
+	return darwin.RightClickAtPoint(point, restoreCursor, modifiers)
 }
 
 // MiddleClickAtPoint performs a middle mouse click at the specified point.
-func MiddleClickAtPoint(point image.Point, restoreCursor bool) error {
-	return darwin.MiddleClickAtPoint(point, restoreCursor)
+func MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
+	return darwin.MiddleClickAtPoint(point, restoreCursor, modifiers)
 }
 
 // LeftMouseDownAtPoint performs a left mouse down action at the specified point.
-func LeftMouseDownAtPoint(point image.Point) error {
-	return darwin.LeftMouseDownAtPoint(point)
+func LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
+	return darwin.LeftMouseDownAtPoint(point, modifiers)
 }
 
 // LeftMouseUpAtPoint performs a left mouse up action at the specified point.
-func LeftMouseUpAtPoint(point image.Point) error {
-	return darwin.LeftMouseUpAtPoint(point)
+func LeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
+	return darwin.LeftMouseUpAtPoint(point, modifiers)
 }
 
 // LeftMouseUp performs a left mouse up action at the current cursor position.

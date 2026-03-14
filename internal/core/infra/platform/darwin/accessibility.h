@@ -192,30 +192,35 @@ int scrollAtCursor(int deltaX, int deltaY);
 /// Perform left click at position
 /// @param position Target position
 /// @param restoreCursor Whether to restore cursor position after click
+/// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
-int performLeftClickAtPosition(CGPoint position, bool restoreCursor);
+int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags);
 
 /// Perform right click at position
 /// @param position Target position
 /// @param restoreCursor Whether to restore cursor position after click
+/// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
-int performRightClickAtPosition(CGPoint position, bool restoreCursor);
+int performRightClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags);
 
 /// Perform middle click at position
 /// @param position Target position
 /// @param restoreCursor Whether to restore cursor position after click
+/// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
-int performMiddleClickAtPosition(CGPoint position, bool restoreCursor);
+int performMiddleClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags);
 
 /// Perform left mouse down at position
 /// @param position Target position
+/// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
-int performLeftMouseDownAtPosition(CGPoint position);
+int performLeftMouseDownAtPosition(CGPoint position, CGEventFlags flags);
 
 /// Perform left mouse up at position
 /// @param position Target position
+/// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
-int performLeftMouseUpAtPosition(CGPoint position);
+int performLeftMouseUpAtPosition(CGPoint position, CGEventFlags flags);
 
 /// Perform left mouse up at cursor position
 /// @return 1 on success, 0 on failure

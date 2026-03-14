@@ -179,24 +179,25 @@ func (c *InfraAXClient) PerformAction(
 	actionType action.Type,
 	point image.Point,
 	restoreCursor bool,
+	modifiers action.Modifiers,
 ) error {
 	var performActionErr error
 
 	switch actionType {
 	case action.TypeLeftClick:
-		performActionErr = LeftClickAtPoint(point, restoreCursor)
+		performActionErr = LeftClickAtPoint(point, restoreCursor, modifiers)
 	case action.TypeRightClick:
 		EnsureMouseUp()
 
-		performActionErr = RightClickAtPoint(point, restoreCursor)
+		performActionErr = RightClickAtPoint(point, restoreCursor, modifiers)
 	case action.TypeMiddleClick:
 		EnsureMouseUp()
 
-		performActionErr = MiddleClickAtPoint(point, restoreCursor)
+		performActionErr = MiddleClickAtPoint(point, restoreCursor, modifiers)
 	case action.TypeMouseDown:
-		performActionErr = LeftMouseDownAtPoint(point)
+		performActionErr = LeftMouseDownAtPoint(point, modifiers)
 	case action.TypeMouseUp:
-		performActionErr = LeftMouseUpAtPoint(point)
+		performActionErr = LeftMouseUpAtPoint(point, modifiers)
 	case action.TypeMoveMouse, action.TypeMoveMouseRelative:
 		MoveMouseToPoint(point, false)
 

@@ -155,6 +155,12 @@ neru action middle_click        # Middle click
 neru action mouse_down          # Hold mouse button
 neru action mouse_up            # Release mouse button
 
+# With modifier keys
+neru action left_click --modifier cmd          # Cmd+click (e.g. open in new tab)
+neru action left_click --modifier shift        # Shift+click (e.g. extend selection)
+neru action left_click --modifier cmd,shift    # Cmd+Shift+click
+neru action right_click --modifier alt         # Alt+right-click
+
 # Mouse movement (absolute coordinates)
 neru action move_mouse --x 500 --y 300
 
@@ -176,6 +182,12 @@ neru action move_mouse --center --monitor "Built-in Retina Display" --x 50 --y -
 # Mouse movement (relative from current position)
 neru action move_mouse_relative --dx 10 --dy -5
 ```
+
+**Modifier option (click/mouse actions only):**
+
+- `--modifier <keys>` - Comma-separated modifier keys to hold during the action
+- Valid modifiers: `cmd` (or `command`), `shift`, `alt` (or `option`), `ctrl` (or `control`)
+- Example: `--modifier cmd,shift`
 
 **Mouse movement options:**
 
