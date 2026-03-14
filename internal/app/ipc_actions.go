@@ -165,6 +165,10 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 
 			parsed.monitorName = val
 			parsed.hasMonitor = true
+		default:
+			if strings.HasPrefix(arg, "--") {
+				parseErr = true
+			}
 		}
 	}
 
