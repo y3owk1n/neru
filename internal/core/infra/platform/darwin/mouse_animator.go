@@ -49,7 +49,10 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	a.cancel = cancel
-	a.mu.Unlock()
+
+	// Wait inside the lock so no other caller can race past and launch a
+	// second goroutine between Wait and Go.  The animation goroutine never
+	// acquires a.mu, so this cannot deadlock.
 	a.wg.Wait()
 
 	cfg := config.Global()
@@ -105,4 +108,6 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 			time.Sleep(time.Duration(stepDelayMs) * time.Millisecond)
 		}
 	})
+
+	a.mu.Unlock()
 }
