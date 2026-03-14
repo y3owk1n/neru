@@ -34,6 +34,17 @@ var validModifiers = map[string]bool{
 	"Alt":    true,
 	"Shift":  true,
 	"Option": true,
+	// Right/Left-prefixed modifiers (commonly used by remappers like Karabiner)
+	"RightCmd":    true,
+	"RightCtrl":   true,
+	"RightAlt":    true,
+	"RightOption": true,
+	"RightShift":  true,
+	"LeftCmd":     true,
+	"LeftCtrl":    true,
+	"LeftAlt":     true,
+	"LeftOption":  true,
+	"LeftShift":   true,
 }
 
 func isValidModifier(mod string) bool {

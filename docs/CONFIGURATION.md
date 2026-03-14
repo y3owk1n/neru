@@ -64,7 +64,8 @@ Global hotkeys trigger Neru navigation modes from anywhere.
 
 ### Syntax
 
-**Modifiers:** `Cmd`, `Ctrl`, `Alt`/`Option`, `Shift` (case-insensitive)
+**Modifiers:** `Cmd`, `Ctrl`, `Alt`/`Option`, `Shift` (case-insensitive). Right/Left-prefixed variants are also accepted (e.g., `RightCmd`, `RightCtrl`, `RightOption`, `RightShift`).
+
 **Format:** `"Modifier1+Modifier2+Key" = "action"`
 
 **Actions can be:**

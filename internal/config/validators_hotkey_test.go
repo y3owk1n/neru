@@ -45,6 +45,24 @@ func TestValidateHotkey(t *testing.T) {
 			wantErr:   false,
 		},
 		{
+			name:      "valid RightCmd modifier",
+			hotkey:    "RightCmd+Q",
+			fieldName: "test_hotkey",
+			wantErr:   false,
+		},
+		{
+			name:      "valid LeftShift modifier",
+			hotkey:    "LeftShift+W",
+			fieldName: "test_hotkey",
+			wantErr:   false,
+		},
+		{
+			name:      "valid multiple right-prefixed modifiers",
+			hotkey:    "RightCmd+RightCtrl+RightShift+RightOption+R",
+			fieldName: "test_hotkey",
+			wantErr:   false,
+		},
+		{
 			name:      "empty hotkey allowed",
 			hotkey:    "",
 			fieldName: "test_hotkey",
