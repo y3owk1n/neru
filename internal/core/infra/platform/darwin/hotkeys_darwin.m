@@ -209,8 +209,8 @@ int parseKeyString(const char *keyString, int *keyCode, int *modifiers) {
 			    [trimmed isEqualToString:@"RightCmd"] || [trimmed isEqualToString:@"RightCommand"] ||
 			    [trimmed isEqualToString:@"LeftCmd"] || [trimmed isEqualToString:@"LeftCommand"]) {
 				*modifiers |= ModifierCmd;
-			} else if ([trimmed isEqualToString:@"Shift"] ||
-			           [trimmed isEqualToString:@"RightShift"] || [trimmed isEqualToString:@"LeftShift"]) {
+			} else if ([trimmed isEqualToString:@"Shift"] || [trimmed isEqualToString:@"RightShift"] ||
+			           [trimmed isEqualToString:@"LeftShift"]) {
 				*modifiers |= ModifierShift;
 			} else if ([trimmed isEqualToString:@"Alt"] || [trimmed isEqualToString:@"Option"] ||
 			           [trimmed isEqualToString:@"RightAlt"] || [trimmed isEqualToString:@"RightOption"] ||
