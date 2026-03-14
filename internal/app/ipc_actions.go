@@ -60,7 +60,7 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 		case strings.HasPrefix(arg, "--modifier="):
 			parsed.modifierStr = strings.TrimPrefix(arg, "--modifier=")
 		case arg == "--modifier":
-			if idx+1 < len(rawArgs) {
+			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
 				idx++
 				parsed.modifierStr = rawArgs[idx]
 			} else {
@@ -77,7 +77,7 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.xVal = val
 			parsed.hasX = true
 		case arg == "--x":
-			if idx+1 < len(rawArgs) {
+			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
 				idx++
 
 				val, err := strconv.Atoi(rawArgs[idx])
@@ -103,7 +103,7 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.yVal = val
 			parsed.hasY = true
 		case arg == "--y":
-			if idx+1 < len(rawArgs) {
+			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
 				idx++
 
 				val, err := strconv.Atoi(rawArgs[idx])
@@ -129,7 +129,7 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.deltaX = val
 			parsed.hasDX = true
 		case arg == "--dx":
-			if idx+1 < len(rawArgs) {
+			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
 				idx++
 
 				val, err := strconv.Atoi(rawArgs[idx])
@@ -155,7 +155,7 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.deltaY = val
 			parsed.hasDY = true
 		case arg == "--dy":
-			if idx+1 < len(rawArgs) {
+			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
 				idx++
 
 				val, err := strconv.Atoi(rawArgs[idx])
@@ -176,7 +176,7 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.monitorName = strings.TrimPrefix(arg, "--monitor=")
 			parsed.hasMonitor = parsed.monitorName != ""
 		case arg == "--monitor":
-			if idx+1 < len(rawArgs) {
+			if idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--") {
 				idx++
 				parsed.monitorName = rawArgs[idx]
 				parsed.hasMonitor = parsed.monitorName != ""
