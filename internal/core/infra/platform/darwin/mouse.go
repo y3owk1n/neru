@@ -95,6 +95,8 @@ func CursorPosition() image.Point {
 
 // LeftClickAtPoint performs a left mouse click at the specified point.
 func LeftClickAtPoint(point image.Point, restoreCursor bool) error {
+	cursorAnimator.stop()
+
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performLeftClickAtPosition(pos, C.bool(restoreCursor))
 	if result == 0 {
@@ -111,6 +113,8 @@ func LeftClickAtPoint(point image.Point, restoreCursor bool) error {
 
 // RightClickAtPoint performs a right mouse click at the specified point.
 func RightClickAtPoint(point image.Point, restoreCursor bool) error {
+	cursorAnimator.stop()
+
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performRightClickAtPosition(pos, C.bool(restoreCursor))
 	if result == 0 {
@@ -127,6 +131,8 @@ func RightClickAtPoint(point image.Point, restoreCursor bool) error {
 
 // MiddleClickAtPoint performs a middle mouse click at the specified point.
 func MiddleClickAtPoint(point image.Point, restoreCursor bool) error {
+	cursorAnimator.stop()
+
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performMiddleClickAtPosition(pos, C.bool(restoreCursor))
 	if result == 0 {
@@ -143,6 +149,8 @@ func MiddleClickAtPoint(point image.Point, restoreCursor bool) error {
 
 // LeftMouseDownAtPoint performs a left mouse down action at the specified point.
 func LeftMouseDownAtPoint(point image.Point) error {
+	cursorAnimator.stop()
+
 	SetLeftMouseDown(true, point)
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
@@ -163,6 +171,8 @@ func LeftMouseDownAtPoint(point image.Point) error {
 
 // LeftMouseUpAtPoint performs a left mouse up action at the specified point.
 func LeftMouseUpAtPoint(point image.Point) error {
+	cursorAnimator.stop()
+
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 	result := C.performLeftMouseUpAtPosition(pos)
 	if result == 0 {
