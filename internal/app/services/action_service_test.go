@@ -3,6 +3,7 @@ package services_test
 import (
 	"context"
 	"image"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -12,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
@@ -22,9 +24,11 @@ type mockAccessibilityPort struct{}
 
 // testSystemState holds the shared cursor/screen state used by the SystemPort mock.
 type testSystemState struct {
-	cursorPos    image.Point
-	screenBounds image.Rectangle
-	moveCalls    []image.Point
+	cursorPos         image.Point
+	screenBounds      image.Rectangle
+	moveCalls         []image.Point
+	namedScreenBounds map[string]image.Rectangle // keyed by lowercase name
+	screenNames       []string                   // ordered list returned by ScreenNames
 }
 
 func newTestSystemState() *testSystemState {
@@ -51,6 +55,18 @@ func newSystemMock(state *testSystemState) *mocks.SystemMock {
 			state.cursorPos = point
 
 			return nil
+		},
+		ScreenBoundsByNameFunc: func(ctx context.Context, name string) (image.Rectangle, bool, error) {
+			if state.namedScreenBounds == nil {
+				return image.Rectangle{}, false, nil
+			}
+
+			bounds, ok := state.namedScreenBounds[strings.ToLower(name)]
+
+			return bounds, ok, nil
+		},
+		ScreenNamesFunc: func(ctx context.Context) ([]string, error) {
+			return state.screenNames, nil
 		},
 	}
 }
@@ -664,6 +680,221 @@ func TestIsMoveMouseKey_shiftLetterBindings(t *testing.T) {
 				t.Errorf("IsMoveMouseKey(%q) = %v, want %v", test.key, result, test.expected)
 			}
 		})
+	}
+}
+
+func TestMoveMouseToCenterOfMonitor(t *testing.T) {
+	state := newTestSystemState()
+	state.namedScreenBounds = map[string]image.Rectangle{
+		"dell u2720q": {
+			Min: image.Point{X: 1920, Y: 0},
+			Max: image.Point{X: 3840, Y: 1080},
+		},
+		"built-in retina display": {
+			Min: image.Point{X: 0, Y: 0},
+			Max: image.Point{X: 1920, Y: 1080},
+		},
+	}
+	state.screenNames = []string{"Built-in Retina Display", "DELL U2720Q"}
+	actionService := newTestActionService(t, state)
+	ctx := context.Background()
+
+	err := actionService.MoveMouseToCenterOfMonitor(ctx, "DELL U2720Q", 0, 0)
+	if err != nil {
+		t.Fatalf("MoveMouseToCenterOfMonitor failed: %v", err)
+	}
+
+	if len(state.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(state.moveCalls))
+	}
+
+	movedTo := state.moveCalls[0]
+	// Center of (1920,0)-(3840,1080) = (2880, 540)
+	if movedTo.X != 2880 || movedTo.Y != 540 {
+		t.Errorf("Expected cursor at (2880, 540), got (%d, %d)", movedTo.X, movedTo.Y)
+	}
+}
+
+func TestMoveMouseToCenterOfMonitor_withOffset(t *testing.T) {
+	state := newTestSystemState()
+	state.namedScreenBounds = map[string]image.Rectangle{
+		"built-in retina display": {
+			Min: image.Point{X: 0, Y: 0},
+			Max: image.Point{X: 1920, Y: 1080},
+		},
+	}
+	state.screenNames = []string{"Built-in Retina Display"}
+	actionService := newTestActionService(t, state)
+	ctx := context.Background()
+
+	err := actionService.MoveMouseToCenterOfMonitor(ctx, "Built-in Retina Display", 50, -30)
+	if err != nil {
+		t.Fatalf("MoveMouseToCenterOfMonitor failed: %v", err)
+	}
+
+	if len(state.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(state.moveCalls))
+	}
+
+	movedTo := state.moveCalls[0]
+	// Center (960, 540) + offset (50, -30) = (1010, 510)
+	if movedTo.X != 1010 || movedTo.Y != 510 {
+		t.Errorf("Expected cursor at (1010, 510), got (%d, %d)", movedTo.X, movedTo.Y)
+	}
+}
+
+func TestMoveMouseToCenterOfMonitor_offsetClampedToBounds(t *testing.T) {
+	state := newTestSystemState()
+	state.namedScreenBounds = map[string]image.Rectangle{
+		"small monitor": {
+			Min: image.Point{X: 0, Y: 0},
+			Max: image.Point{X: 800, Y: 600},
+		},
+	}
+	state.screenNames = []string{"Small Monitor"}
+	actionService := newTestActionService(t, state)
+	ctx := context.Background()
+	// Offset far beyond bounds
+	err := actionService.MoveMouseToCenterOfMonitor(ctx, "Small Monitor", 9999, 9999)
+	if err != nil {
+		t.Fatalf("MoveMouseToCenterOfMonitor failed: %v", err)
+	}
+
+	if len(state.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(state.moveCalls))
+	}
+
+	movedTo := state.moveCalls[0]
+	// Should be clamped to (799, 599) — the max pixel within bounds
+	if movedTo.X != 799 || movedTo.Y != 599 {
+		t.Errorf("Expected cursor clamped to (799, 599), got (%d, %d)", movedTo.X, movedTo.Y)
+	}
+}
+
+func TestMoveMouseToCenterOfMonitor_notFound(t *testing.T) {
+	state := newTestSystemState()
+	state.namedScreenBounds = map[string]image.Rectangle{
+		"built-in retina display": {
+			Min: image.Point{X: 0, Y: 0},
+			Max: image.Point{X: 1920, Y: 1080},
+		},
+	}
+	state.screenNames = []string{"Built-in Retina Display", "DELL U2720Q"}
+	actionService := newTestActionService(t, state)
+	ctx := context.Background()
+
+	err := actionService.MoveMouseToCenterOfMonitor(ctx, "NonExistent Monitor", 0, 0)
+	if err == nil {
+		t.Fatal("Expected error for non-existent monitor, got nil")
+	}
+
+	if !derrors.IsCode(err, derrors.CodeInvalidInput) {
+		t.Errorf("Expected CodeInvalidInput, got %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "NonExistent Monitor") {
+		t.Errorf("Error should contain monitor name, got: %s", err.Error())
+	}
+
+	if !strings.Contains(err.Error(), "Built-in Retina Display") {
+		t.Errorf("Error should list available monitors, got: %s", err.Error())
+	}
+
+	if len(state.moveCalls) != 0 {
+		t.Errorf("Expected no move calls, got %d", len(state.moveCalls))
+	}
+}
+
+func TestMoveMouseToCenterOfMonitor_notFoundNoScreens(t *testing.T) {
+	state := newTestSystemState()
+	// No named screens configured — simulates no screens detected
+	actionService := newTestActionService(t, state)
+	ctx := context.Background()
+
+	err := actionService.MoveMouseToCenterOfMonitor(ctx, "Anything", 0, 0)
+	if err == nil {
+		t.Fatal("Expected error for non-existent monitor, got nil")
+	}
+
+	if !derrors.IsCode(err, derrors.CodeInvalidInput) {
+		t.Errorf("Expected CodeInvalidInput, got %v", err)
+	}
+	// Should NOT contain "available monitors" since there are none
+	if strings.Contains(err.Error(), "available monitors") {
+		t.Errorf("Error should not list available monitors when none exist, got: %s", err.Error())
+	}
+}
+
+func TestMoveMouseToCenterOfMonitor_systemError(t *testing.T) {
+	state := newTestSystemState()
+	systemMock := newSystemMock(state)
+	// Override ScreenBoundsByNameFunc to return an error
+	systemMock.ScreenBoundsByNameFunc = func(
+		ctx context.Context,
+		name string,
+	) (image.Rectangle, bool, error) {
+		return image.Rectangle{}, false, derrors.New(derrors.CodeInternal, "system failure")
+	}
+	actionConfig := config.ActionConfig{
+		MoveMouseStep: 10,
+		KeyBindings: config.ActionKeyBindingsCfg{
+			MoveMouseUp:    "Up",
+			MoveMouseDown:  "Down",
+			MoveMouseLeft:  "Left",
+			MoveMouseRight: "Right",
+		},
+	}
+	logger, _ := zap.NewDevelopment()
+	actionService := services.NewActionService(
+		&mockAccessibilityPort{},
+		&mockOverlayPort{},
+		systemMock,
+		actionConfig,
+		actionConfig.KeyBindings,
+		actionConfig.MoveMouseStep,
+		logger,
+	)
+	ctx := context.Background()
+
+	err := actionService.MoveMouseToCenterOfMonitor(ctx, "Any Monitor", 0, 0)
+	if err == nil {
+		t.Fatal("Expected error when system fails, got nil")
+	}
+
+	if !derrors.IsCode(err, derrors.CodeAccessibilityFailed) {
+		t.Errorf("Expected CodeAccessibilityFailed, got %v", err)
+	}
+
+	if len(state.moveCalls) != 0 {
+		t.Errorf("Expected no move calls, got %d", len(state.moveCalls))
+	}
+}
+
+func TestMoveMouseToCenterOfMonitor_caseInsensitive(t *testing.T) {
+	state := newTestSystemState()
+	state.namedScreenBounds = map[string]image.Rectangle{
+		"dell u2720q": {
+			Min: image.Point{X: 0, Y: 0},
+			Max: image.Point{X: 2560, Y: 1440},
+		},
+	}
+	state.screenNames = []string{"DELL U2720Q"}
+	actionService := newTestActionService(t, state)
+	ctx := context.Background()
+	// Use mixed case that differs from both the key and the screen name
+	err := actionService.MoveMouseToCenterOfMonitor(ctx, "Dell U2720Q", 0, 0)
+	if err != nil {
+		t.Fatalf("MoveMouseToCenterOfMonitor failed: %v", err)
+	}
+
+	if len(state.moveCalls) != 1 {
+		t.Fatalf("Expected 1 move call, got %d", len(state.moveCalls))
+	}
+
+	movedTo := state.moveCalls[0]
+	// Center of (0,0)-(2560,1440) = (1280, 720)
+	if movedTo.X != 1280 || movedTo.Y != 720 {
+		t.Errorf("Expected cursor at (1280, 720), got (%d, %d)", movedTo.X, movedTo.Y)
 	}
 }
 
