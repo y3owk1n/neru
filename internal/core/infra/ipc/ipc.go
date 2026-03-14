@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -42,7 +43,11 @@ const (
 
 // buildVersion holds the application build version, set at startup via SetBuildVersion.
 // Both the client and server use this to detect CLI/daemon version mismatches.
-var buildVersion = defaultBuildVersion //nolint:gochecknoglobals
+// Access is guarded by atomic.Value so concurrent reads from IPC goroutines are safe.
+var buildVersion atomic.Value //nolint:gochecknoglobals
+func init() {
+	buildVersion.Store(defaultBuildVersion)
+}
 
 // SetBuildVersion sets the build version used for IPC version validation.
 // Call this early in program startup (e.g. from cli.init) before any IPC
@@ -50,13 +55,18 @@ var buildVersion = defaultBuildVersion //nolint:gochecknoglobals
 // version embedded in commands matches the version the server expects.
 func SetBuildVersion(v string) {
 	if v != "" {
-		buildVersion = v
+		buildVersion.Store(v)
 	}
 }
 
 // BuildVersion returns the current build version used for IPC validation.
 func BuildVersion() string {
-	return buildVersion
+	v, ok := buildVersion.Load().(string)
+	if !ok {
+		return defaultBuildVersion
+	}
+
+	return v
 }
 
 // Standard response codes used to indicate the result of IPC operations.
