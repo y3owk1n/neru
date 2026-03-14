@@ -152,6 +152,7 @@ func BuildMoveMouseCommand() *cobra.Command {
 	var (
 		targetX, targetY int
 		center           bool
+		monitor          string
 	)
 
 	cmd := &cobra.Command{
@@ -160,11 +161,24 @@ func BuildMoveMouseCommand() *cobra.Command {
 		Long: `Move the mouse cursor to the specified absolute position.
 Coordinates are relative to the current display.
 When --center is used, the cursor moves to the center of the active screen.
-If --x and --y are also provided with --center, they act as offsets from center.`,
+If --x and --y are also provided with --center, they act as offsets from center.
+When --monitor is used with --center, the cursor moves to the center of the
+named monitor instead of the active screen. Monitor names are matched
+case-insensitively against the localized display names reported by macOS
+(e.g. "Built-in Retina Display", "DELL U2720Q").`,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
 			return requiresRunningInstance()
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			hasMonitor := cmd.Flags().Changed("monitor")
+
+			if hasMonitor && !center {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--monitor requires --center",
+				)
+			}
+
 			if !center && (!cmd.Flags().Changed("x") || !cmd.Flags().Changed("y")) {
 				return derrors.New(
 					derrors.CodeInvalidInput,
@@ -176,6 +190,10 @@ If --x and --y are also provided with --center, they act as offsets from center.
 
 			if center {
 				args = append(args, "--center")
+			}
+
+			if hasMonitor {
+				args = append(args, "--monitor="+monitor)
 			}
 
 			if cmd.Flags().Changed("x") {
@@ -195,6 +213,8 @@ If --x and --y are also provided with --center, they act as offsets from center.
 	cmd.Flags().
 		IntVar(&targetY, "y", 0, "Y coordinate (pixels); with --center, vertical offset (default 0)")
 	cmd.Flags().BoolVar(&center, "center", false, "Move to the center of the active screen")
+	cmd.Flags().StringVar(&monitor, "monitor", "",
+		"Target monitor by display name (requires --center); e.g. \"Built-in Retina Display\"")
 
 	return cmd
 }

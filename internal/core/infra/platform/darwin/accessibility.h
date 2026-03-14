@@ -237,6 +237,17 @@ CGRect getMainScreenBounds(void);
 /// @return Active screen bounds rectangle
 CGRect getActiveScreenBounds(void);
 
+/// Get all connected screen names as a comma-separated string
+/// @return Comma-separated localized display names, or empty string if no screens
+/// @note Caller must free the returned string with free()
+char *getScreenNames(void);
+
+/// Get screen bounds by localized display name (case-insensitive)
+/// @param name Display name to match (e.g. "Built-in Retina Display", "DELL U2720Q")
+/// @param found Output parameter set to 1 if screen was found, 0 otherwise
+/// @return Screen bounds rectangle in CG coordinates, or CGRectZero if not found
+CGRect getScreenBoundsByName(const char *name, int *found);
+
 /// Get current cursor position
 /// @return Current cursor position
 CGPoint getCurrentCursorPosition(void);

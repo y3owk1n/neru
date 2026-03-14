@@ -16,6 +16,8 @@ type SystemMock struct {
 	AppNameByPIDFunc                func(ctx context.Context, pid int) (string, error)
 	AppBundleIDByPIDFunc            func(ctx context.Context, pid int) (string, error)
 	ScreenBoundsFunc                func(ctx context.Context) (image.Rectangle, error)
+	ScreenBoundsByNameFunc          func(ctx context.Context, name string) (image.Rectangle, bool, error)
+	ScreenNamesFunc                 func(ctx context.Context) ([]string, error)
 	MoveCursorToPointFunc           func(ctx context.Context, point image.Point, bypassSmooth bool) error
 	CursorPositionFunc              func(ctx context.Context) (image.Point, error)
 	CheckPermissionsFunc            func(ctx context.Context) error
@@ -88,6 +90,27 @@ func (m *SystemMock) ScreenBounds(ctx context.Context) (image.Rectangle, error) 
 	}
 
 	return image.Rectangle{}, nil
+}
+
+// ScreenBoundsByName is a mock implementation.
+func (m *SystemMock) ScreenBoundsByName(
+	ctx context.Context,
+	name string,
+) (image.Rectangle, bool, error) {
+	if m.ScreenBoundsByNameFunc != nil {
+		return m.ScreenBoundsByNameFunc(ctx, name)
+	}
+
+	return image.Rectangle{}, false, nil
+}
+
+// ScreenNames is a mock implementation.
+func (m *SystemMock) ScreenNames(ctx context.Context) ([]string, error) {
+	if m.ScreenNamesFunc != nil {
+		return m.ScreenNamesFunc(ctx)
+	}
+
+	return nil, nil
 }
 
 // MoveCursorToPoint is a mock implementation.

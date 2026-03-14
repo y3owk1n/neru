@@ -373,6 +373,72 @@ CGRect getActiveScreenBounds(void) {
 	}
 }
 
+/// Get all connected screen names as a comma-separated string
+/// @return Comma-separated localized display names, or empty string if no screens
+/// @note Caller must free the returned string with free()
+char *getScreenNames(void) {
+	@autoreleasepool {
+		NSArray *screens = [NSScreen screens];
+		if (!screens || screens.count == 0) {
+			return strdup("");
+		}
+
+		NSMutableArray *names = [NSMutableArray arrayWithCapacity:screens.count];
+		for (NSScreen *screen in screens) {
+			[names addObject:screen.localizedName];
+		}
+
+		NSString *joined = [names componentsJoinedByString:@","];
+		return strdup([joined UTF8String]);
+	}
+}
+
+/// Get screen bounds by localized display name (case-insensitive)
+/// @param name Display name to match (e.g. "Built-in Retina Display", "DELL U2720Q")
+/// @param found Output parameter set to 1 if screen was found, 0 otherwise
+/// @return Screen bounds rectangle in CG coordinates, or CGRectZero if not found
+CGRect getScreenBoundsByName(const char *name, int *found) {
+	@autoreleasepool {
+		*found = 0;
+
+		if (!name) {
+			return CGRectZero;
+		}
+
+		NSString *targetName = [NSString stringWithUTF8String:name];
+		if (!targetName || targetName.length == 0) {
+			return CGRectZero;
+		}
+
+		NSScreen *matchedScreen = nil;
+		for (NSScreen *screen in [NSScreen screens]) {
+			if ([screen.localizedName caseInsensitiveCompare:targetName] == NSOrderedSame) {
+				matchedScreen = screen;
+				break;
+			}
+		}
+
+		if (!matchedScreen) {
+			return CGRectZero;
+		}
+
+		*found = 1;
+
+		// Convert NSScreen frame (bottom-left origin, Y up) to CG coordinates (top-left origin, Y down)
+		NSRect nsFrame = matchedScreen.frame;
+		NSScreen *primaryScreen = [[NSScreen screens] firstObject];
+		CGFloat primaryScreenHeight = primaryScreen.frame.size.height;
+
+		CGRect cgFrame;
+		cgFrame.origin.x = nsFrame.origin.x;
+		cgFrame.origin.y = primaryScreenHeight - (nsFrame.origin.y + nsFrame.size.height);
+		cgFrame.size.width = nsFrame.size.width;
+		cgFrame.size.height = nsFrame.size.height;
+
+		return cgFrame;
+	}
+}
+
 /// Get current cursor position
 /// @return Current cursor position
 CGPoint getCurrentCursorPosition(void) {

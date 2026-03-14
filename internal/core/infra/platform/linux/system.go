@@ -97,6 +97,27 @@ func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 	)
 }
 
+// ScreenBoundsByName returns the bounds of the screen with the given name on Linux.
+// TODO(linux): implement using XRandR or Wayland output protocol.
+func (s *SystemAdapter) ScreenBoundsByName(
+	ctx context.Context,
+	name string,
+) (image.Rectangle, bool, error) {
+	return image.Rectangle{}, false, derrors.New(
+		derrors.CodeNotSupported,
+		"ScreenBoundsByName not yet implemented on linux",
+	)
+}
+
+// ScreenNames returns the display names of all connected screens on Linux.
+// TODO(linux): implement using XRandR or Wayland output protocol.
+func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
+	return nil, derrors.New(
+		derrors.CodeNotSupported,
+		"ScreenNames not yet implemented on linux",
+	)
+}
+
 // MoveCursorToPoint moves the mouse cursor to the specified point on Linux.
 // TODO(linux): implement using XTest (X11) or libinput (Wayland).
 func (s *SystemAdapter) MoveCursorToPoint(

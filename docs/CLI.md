@@ -167,6 +167,12 @@ neru action move_mouse --center --x 50 --y -30
 # Mouse movement to screen center with single-axis offset (omitted axis defaults to 0)
 neru action move_mouse --center --x 100
 
+# Mouse movement to center of a specific monitor (by display name)
+neru action move_mouse --center --monitor "DELL U2720Q"
+
+# Mouse movement to center of a specific monitor with offset
+neru action move_mouse --center --monitor "Built-in Retina Display" --x 50 --y -30
+
 # Mouse movement (relative from current position)
 neru action move_mouse_relative --dx 10 --dy -5
 ```
@@ -176,7 +182,13 @@ neru action move_mouse_relative --dx 10 --dy -5
 - `move_mouse --x <pixels> --y <pixels>` - Move to absolute screen coordinates
 - `move_mouse --center` - Move to center of active screen
 - `move_mouse --center --x <pixels> --y <pixels>` - Move to center with offset (each is optional, defaults to 0)
+- `move_mouse --center --monitor <name>` - Move to center of named monitor (case-insensitive)
+- `move_mouse --center --monitor <name> --x <pixels> --y <pixels>` - Move to center of named monitor with offset
 - `move_mouse_relative --dx <pixels> --dy <pixels>` - Move by delta from current position
+
+> [!TIP]
+> Monitor names are the localized display names reported by macOS (e.g. "Built-in Retina Display", "DELL U2720Q"). You can find your display names in **System Settings → Displays**.
+> If you use the wrong name, the error message will list all available monitor names so you can copy the correct one.
 
 ---
 

@@ -10,6 +10,15 @@ type ScreenManagement interface {
 	// ScreenBounds returns the bounds of the active screen.
 	ScreenBounds(ctx context.Context) (image.Rectangle, error)
 
+	// ScreenBoundsByName returns the bounds of the screen with the given
+	// localized display name (case-insensitive). Returns the bounds and
+	// true if found, or a zero rectangle and false if no screen matches.
+	ScreenBoundsByName(ctx context.Context, name string) (image.Rectangle, bool, error)
+
+	// ScreenNames returns the localized display names of all connected screens.
+	// Returns nil or an empty slice when no screens are detected.
+	ScreenNames(ctx context.Context) ([]string, error)
+
 	// MoveCursorToPoint moves the mouse cursor to the specified point.
 	// If bypassSmooth is true, smooth cursor configuration is bypassed.
 	MoveCursorToPoint(ctx context.Context, point image.Point, bypassSmooth bool) error

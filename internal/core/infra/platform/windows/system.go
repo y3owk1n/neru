@@ -112,6 +112,27 @@ func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 	)
 }
 
+// ScreenBoundsByName returns the bounds of the screen with the given name on Windows.
+// TODO(windows): implement using EnumDisplayDevices + GetMonitorInfo.
+func (s *SystemAdapter) ScreenBoundsByName(
+	ctx context.Context,
+	name string,
+) (image.Rectangle, bool, error) {
+	return image.Rectangle{}, false, derrors.New(
+		derrors.CodeNotSupported,
+		"ScreenBoundsByName not yet implemented on windows",
+	)
+}
+
+// ScreenNames returns the display names of all connected screens on Windows.
+// TODO(windows): implement using EnumDisplayDevices.
+func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
+	return nil, derrors.New(
+		derrors.CodeNotSupported,
+		"ScreenNames not yet implemented on windows",
+	)
+}
+
 // MoveCursorToPoint moves the mouse cursor to the specified point on Windows.
 // TODO(windows): implement using SetCursorPos (user32.dll).
 func (s *SystemAdapter) MoveCursorToPoint(

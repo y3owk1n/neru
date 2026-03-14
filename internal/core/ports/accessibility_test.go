@@ -187,6 +187,17 @@ func (m *mockScreenManager) ScreenBounds(ctx context.Context) (image.Rectangle, 
 	return image.Rect(0, 0, 1920, 1080), nil
 }
 
+func (m *mockScreenManager) ScreenBoundsByName(
+	ctx context.Context,
+	name string,
+) (image.Rectangle, bool, error) {
+	return image.Rectangle{}, false, nil
+}
+
+func (m *mockScreenManager) ScreenNames(ctx context.Context) ([]string, error) {
+	return nil, nil
+}
+
 func (m *mockScreenManager) MoveCursorToPoint(
 	ctx context.Context,
 	point image.Point,

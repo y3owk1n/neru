@@ -4,6 +4,7 @@ import (
 	"context"
 	"image"
 	"slices"
+	"strings"
 	"sync"
 
 	"go.uber.org/zap"
@@ -12,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -237,6 +239,59 @@ func (s *ActionService) MoveMouseToCenter(ctx context.Context, offsetX, offsetY 
 		target,
 		screenBounds,
 		false,
+
+		zap.Int("offsetX", offsetX),
+		zap.Int("offsetY", offsetY),
+	)
+}
+
+// MoveMouseToCenterOfMonitor moves the mouse cursor to the center of the named
+// monitor, optionally offset by the given delta values. The monitor name is
+// matched case-insensitively against the localized display names reported by
+// the operating system (e.g. "Built-in Retina Display", "DELL U2720Q").
+func (s *ActionService) MoveMouseToCenterOfMonitor(
+	ctx context.Context,
+	monitorName string,
+	offsetX, offsetY int,
+) error {
+	bounds, found, err := s.system.ScreenBoundsByName(ctx, monitorName)
+	if err != nil {
+		s.logger.Error("Failed to get screen bounds by name", zap.Error(err))
+
+		return core.WrapAccessibilityFailed(err, "get screen bounds by name")
+	}
+
+	if !found {
+		// Fetch available names to include in the error message for discoverability
+		available := ""
+
+		names, namesErr := s.system.ScreenNames(ctx)
+		if namesErr == nil && len(names) > 0 {
+			available = "; available monitors: " + strings.Join(names, ", ")
+		}
+
+		s.logger.Error("Monitor not found",
+			zap.String("monitor", monitorName),
+			zap.Strings("available", names))
+
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"monitor not found: %s%s",
+			monitorName,
+			available,
+		)
+	}
+
+	centerX := bounds.Min.X + bounds.Dx()/2 //nolint:mnd
+	centerY := bounds.Min.Y + bounds.Dy()/2 //nolint:mnd
+	target := image.Point{X: centerX + offsetX, Y: centerY + offsetY}
+
+	return s.moveMouseWithBounds(
+		ctx,
+		target,
+		bounds,
+		false,
+		zap.String("monitor", monitorName),
 		zap.Int("offsetX", offsetX),
 		zap.Int("offsetY", offsetY),
 	)

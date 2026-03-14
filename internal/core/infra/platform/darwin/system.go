@@ -70,6 +70,22 @@ func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 	return ActiveScreenBounds(), nil
 }
 
+// ScreenBoundsByName returns the bounds of the screen with the given localized
+// display name (case-insensitive) on macOS.
+func (s *SystemAdapter) ScreenBoundsByName(
+	ctx context.Context,
+	name string,
+) (image.Rectangle, bool, error) {
+	bounds, found := ScreenBoundsByName(name)
+
+	return bounds, found, nil
+}
+
+// ScreenNames returns the localized display names of all connected screens on macOS.
+func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
+	return ScreenNames(), nil
+}
+
 // MoveCursorToPoint moves the mouse cursor to the specified point on macOS.
 func (s *SystemAdapter) MoveCursorToPoint(
 	ctx context.Context,
