@@ -94,59 +94,60 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 		switch {
 		case strings.HasPrefix(arg, "--modifier") && (arg == "--modifier" || arg[len("--modifier")] == '='):
 			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--modifier")
+			idx = newIdx
+
 			if !ok || val == "" {
 				parseErr = true
 
 				break
 			}
 
-			idx = newIdx
 			parsed.modifierStr = val
 		case strings.HasPrefix(arg, "--x") && (arg == "--x" || arg[len("--x")] == '='):
 			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--x")
+			idx = newIdx
+
 			if !ok {
 				parseErr = true
 
 				break
 			}
-
-			idx = newIdx
 
 			parsed.xVal = val
 			parsed.hasX = true
 		case strings.HasPrefix(arg, "--y") && (arg == "--y" || arg[len("--y")] == '='):
 			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--y")
+			idx = newIdx
+
 			if !ok {
 				parseErr = true
 
 				break
 			}
-
-			idx = newIdx
 
 			parsed.yVal = val
 			parsed.hasY = true
 		case strings.HasPrefix(arg, "--dx") && (arg == "--dx" || arg[len("--dx")] == '='):
 			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--dx")
+			idx = newIdx
+
 			if !ok {
 				parseErr = true
 
 				break
 			}
-
-			idx = newIdx
 
 			parsed.deltaX = val
 			parsed.hasDX = true
 		case strings.HasPrefix(arg, "--dy") && (arg == "--dy" || arg[len("--dy")] == '='):
 			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--dy")
+			idx = newIdx
+
 			if !ok {
 				parseErr = true
 
 				break
 			}
-
-			idx = newIdx
 
 			parsed.deltaY = val
 			parsed.hasDY = true
@@ -154,13 +155,14 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.hasCenter = true
 		case strings.HasPrefix(arg, "--monitor") && (arg == "--monitor" || arg[len("--monitor")] == '='):
 			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--monitor")
+			idx = newIdx
+
 			if !ok || val == "" {
 				parseErr = true
 
 				break
 			}
 
-			idx = newIdx
 			parsed.monitorName = val
 			parsed.hasMonitor = true
 		}
