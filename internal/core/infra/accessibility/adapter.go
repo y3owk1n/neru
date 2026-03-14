@@ -245,7 +245,7 @@ func (a *Adapter) PerformAction(
 	restoreCursor := a.getRestoreCursor()
 
 	// Perform the action via client
-	performActionErr := a.client.PerformAction(actionType, center, restoreCursor)
+	performActionErr := a.client.PerformAction(actionType, center, restoreCursor, 0)
 	if performActionErr != nil {
 		return derrors.Wrap(performActionErr, derrors.CodeActionFailed, "failed to perform action")
 	}
@@ -258,6 +258,7 @@ func (a *Adapter) PerformActionAtPoint(
 	ctx context.Context,
 	actionType action.Type,
 	point image.Point,
+	modifiers action.Modifiers,
 ) error {
 	// Check context
 	err := a.checkContext(ctx)
@@ -273,7 +274,7 @@ func (a *Adapter) PerformActionAtPoint(
 	restoreCursor := a.getRestoreCursor()
 
 	// Perform the action via client
-	performActionErr := a.client.PerformAction(actionType, point, restoreCursor)
+	performActionErr := a.client.PerformAction(actionType, point, restoreCursor, modifiers)
 	if performActionErr != nil {
 		return derrors.Wrap(
 			performActionErr,

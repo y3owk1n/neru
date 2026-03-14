@@ -60,6 +60,11 @@ func Execute() {
 }
 
 func init() {
+	// Set the build version for IPC version validation so both the CLI
+	// client and the daemon (which also imports this package) agree on
+	// the expected version.
+	ipc.SetBuildVersion(Version)
+
 	// Initialize CLI utilities.
 	formatter = cliutil.NewOutputFormatter()
 
@@ -134,7 +139,9 @@ func BuildSimpleCommand(use, short, long string, action string) *cobra.Command {
 
 // BuildActionCommand creates an action cobra command with the given parameters.
 func BuildActionCommand(use, short, long string, params []string) *cobra.Command {
-	return &cobra.Command{
+	var modifier string
+
+	cmd := &cobra.Command{
 		Use:   use,
 		Short: short,
 		Long:  long,
@@ -142,9 +149,21 @@ func BuildActionCommand(use, short, long string, params []string) *cobra.Command
 			return requiresRunningInstance()
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return sendCommand(cmd, "action", params)
+			args := make([]string, 0, len(params)+1)
+			args = append(args, params...)
+
+			if modifier != "" {
+				args = append(args, "--modifier="+modifier)
+			}
+
+			return sendCommand(cmd, "action", args)
 		},
 	}
+
+	cmd.Flags().StringVar(&modifier, "modifier", "",
+		"Comma-separated modifier keys to hold during action (cmd, shift, alt, option, ctrl)")
+
+	return cmd
 }
 
 // BuildMoveMouseCommand creates a move_mouse cobra command with x and y flags.

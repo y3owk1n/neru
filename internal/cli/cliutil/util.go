@@ -50,8 +50,13 @@ func (c *IPCCommunicator) SendCommand(action string, args []string) (ipc.Respons
 func (c *IPCCommunicator) HandleResponse(cmd *cobra.Command, ipcResponse ipc.Response) error {
 	if !ipcResponse.Success {
 		if ipcResponse.Code != "" {
+			code := derrors.CodeIPCFailed
+			if ipcResponse.Code == ipc.CodeVersionMismatch {
+				code = derrors.CodeVersionMismatch
+			}
+
 			return derrors.Newf(
-				derrors.CodeIPCFailed,
+				code,
 				"%s (code: %s)",
 				ipcResponse.Message,
 				ipcResponse.Code,
@@ -74,64 +79,6 @@ func (c *IPCCommunicator) SendAndHandle(cmd *cobra.Command, action string, args 
 	}
 
 	return c.HandleResponse(cmd, ipcResponse)
-}
-
-// CommandBuilder helps build common CLI command patterns.
-type CommandBuilder struct {
-	communicator *IPCCommunicator
-}
-
-// NewCommandBuilder creates a new command builder.
-func NewCommandBuilder(communicator *IPCCommunicator) *CommandBuilder {
-	return &CommandBuilder{
-		communicator: communicator,
-	}
-}
-
-// BuildSimpleCommand creates a simple command that sends an action to the daemon.
-func (b *CommandBuilder) BuildSimpleCommand(use, short, long string, action string) *cobra.Command {
-	return &cobra.Command{
-		Use:   use,
-		Short: short,
-		Long:  long,
-		PreRunE: func(_ *cobra.Command, _ []string) error {
-			return b.CheckRunningInstance()
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return b.communicator.SendAndHandle(cmd, action, args)
-		},
-	}
-}
-
-// BuildActionCommand creates a command that sends an action with parameters.
-func (b *CommandBuilder) BuildActionCommand(
-	use, short, long string,
-	action string,
-	params []string,
-) *cobra.Command {
-	return &cobra.Command{
-		Use:   use,
-		Short: short,
-		Long:  long,
-		PreRunE: func(_ *cobra.Command, _ []string) error {
-			return b.CheckRunningInstance()
-		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return b.communicator.SendAndHandle(cmd, action, params)
-		},
-	}
-}
-
-// CheckRunningInstance verifies that a Neru instance is running.
-func (b *CommandBuilder) CheckRunningInstance() error {
-	if !ipc.IsServerRunning() {
-		return derrors.New(
-			derrors.CodeIPCServerNotRunning,
-			"neru is not running. Start it first with 'neru' or 'neru launch'",
-		)
-	}
-
-	return nil
 }
 
 // OutputFormatter handles formatted output for CLI commands.

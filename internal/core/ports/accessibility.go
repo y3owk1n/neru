@@ -20,7 +20,12 @@ type ActionExecution interface {
 	PerformAction(ctx context.Context, elem *element.Element, actionType action.Type) error
 
 	// PerformActionAtPoint executes an action at the specified point.
-	PerformActionAtPoint(ctx context.Context, actionType action.Type, point image.Point) error
+	PerformActionAtPoint(
+		ctx context.Context,
+		actionType action.Type,
+		point image.Point,
+		modifiers action.Modifiers,
+	) error
 
 	// Scroll performs a scroll action at the current cursor position.
 	Scroll(ctx context.Context, deltaX, deltaY int) error

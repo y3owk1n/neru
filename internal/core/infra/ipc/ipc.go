@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -27,10 +28,6 @@ const (
 	// ConnectionTimeout is the timeout for establishing a connection.
 	ConnectionTimeout = 2 * time.Second
 
-	// ProtocolVersion is the current IPC protocol version.
-	// Increment this when making breaking changes to the IPC protocol.
-	ProtocolVersion = "1.0.0"
-
 	// ConnectionReadTimeout is the timeout for reading from a connection.
 	ConnectionReadTimeout = 30 * time.Second
 
@@ -39,17 +36,49 @@ const (
 
 	// DefaultSocketPerms is the default socket permissions.
 	DefaultSocketPerms = 0o600
+
+	// defaultBuildVersion is the fallback version when SetBuildVersion is not called.
+	defaultBuildVersion = "dev"
 )
+
+// buildVersion holds the application build version, set at startup via SetBuildVersion.
+// Both the client and server use this to detect CLI/daemon version mismatches.
+// Access is guarded by atomic.Value so concurrent reads from IPC goroutines are safe.
+var buildVersion atomic.Value //nolint:gochecknoglobals
+func init() {
+	buildVersion.Store(defaultBuildVersion)
+}
+
+// SetBuildVersion sets the build version used for IPC version validation.
+// Call this early in program startup (e.g. from cli.init) before any IPC
+// operations. Both the CLI client and the daemon must call this so the
+// version embedded in commands matches the version the server expects.
+func SetBuildVersion(v string) {
+	if v != "" {
+		buildVersion.Store(v)
+	}
+}
+
+// BuildVersion returns the current build version used for IPC validation.
+func BuildVersion() string {
+	v, ok := buildVersion.Load().(string)
+	if !ok {
+		return defaultBuildVersion
+	}
+
+	return v
+}
 
 // Standard response codes used to indicate the result of IPC operations.
 const (
-	CodeOK             = "OK"
-	CodeUnknownCommand = "ERR_UNKNOWN_COMMAND"
-	CodeNotRunning     = "ERR_NOT_RUNNING"
-	CodeAlreadyRunning = "ERR_ALREADY_RUNNING"
-	CodeModeDisabled   = "ERR_MODE_DISABLED"
-	CodeInvalidInput   = "ERR_INVALID_INPUT"
-	CodeActionFailed   = "ERR_ACTION_FAILED"
+	CodeOK              = "OK"
+	CodeUnknownCommand  = "ERR_UNKNOWN_COMMAND"
+	CodeNotRunning      = "ERR_NOT_RUNNING"
+	CodeAlreadyRunning  = "ERR_ALREADY_RUNNING"
+	CodeModeDisabled    = "ERR_MODE_DISABLED"
+	CodeInvalidInput    = "ERR_INVALID_INPUT"
+	CodeActionFailed    = "ERR_ACTION_FAILED"
+	CodeVersionMismatch = "ERR_VERSION_MISMATCH"
 )
 
 // Command represents a command sent through the IPC interface.
@@ -257,21 +286,22 @@ func (s *Server) handleConnection(connection net.Conn) {
 		zap.String("version", cmd.Version),
 	)
 
-	// Validate protocol version if provided
-	if cmd.Version != "" && cmd.Version != ProtocolVersion {
-		logger.Warn("Protocol version mismatch",
+	// Validate build version if provided
+	serverVersion := BuildVersion()
+	if cmd.Version != "" && cmd.Version != serverVersion {
+		logger.Warn("Build version mismatch",
 			zap.String("client_version", cmd.Version),
-			zap.String("server_version", ProtocolVersion))
+			zap.String("server_version", serverVersion))
 
 		encodeErr := encoder.Encode(Response{
-			Version: ProtocolVersion,
+			Version: serverVersion,
 			Success: false,
 			Message: fmt.Sprintf(
-				"protocol version mismatch: client=%s, server=%s",
+				"version mismatch: client=%s, server=%s — please restart the neru daemon",
 				cmd.Version,
-				ProtocolVersion,
+				serverVersion,
 			),
-			Code: "ERR_VERSION_MISMATCH",
+			Code: CodeVersionMismatch,
 		})
 		if encodeErr != nil {
 			logger.Error("Failed to encode version mismatch response", zap.Error(encodeErr))
@@ -282,7 +312,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 
 	response := s.handler(ctx, cmd)
 	// Always include server version in response
-	response.Version = ProtocolVersion
+	response.Version = serverVersion
 
 	connectionDeadline = encoder.Encode(response)
 	if connectionDeadline != nil {
@@ -364,7 +394,7 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 	decoder := json.NewDecoder(connection)
 
 	if cmd.Version == "" {
-		cmd.Version = ProtocolVersion
+		cmd.Version = BuildVersion()
 	}
 
 	encodeErr := encoder.Encode(cmd)
@@ -423,8 +453,13 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 }
 
 // IsServerRunning determines if the IPC server is currently accepting connections.
+// It returns true even when the daemon has a different build version — the
+// version mismatch error will surface when the actual command is sent.
 func IsServerRunning() bool {
 	client := NewClient()
+
+	// We get a response (possibly a version-mismatch error) if the server is up.
+	// A transport-level error (connection refused, timeout) means it's not running.
 	_, err := client.SendWithTimeout(Command{Action: "ping"}, PingTimeout)
 
 	return err == nil

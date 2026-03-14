@@ -58,7 +58,7 @@ const (
 	// CodeConfigIOFailed indicates configuration file I/O failed.
 	CodeConfigIOFailed Code = "CONFIG_IO_FAILED"
 
-	// CodeVersionMismatch indicates an IPC protocol or version mismatch.
+	// CodeVersionMismatch indicates a CLI/daemon build version mismatch.
 	CodeVersionMismatch Code = "VERSION_MISMATCH"
 
 	// CodeHotkeyRegisterFailed indicates a hotkey registration error.

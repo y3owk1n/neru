@@ -283,6 +283,7 @@ func TestAdapter_PerformActionAtPoint(t *testing.T) {
 				ctx,
 				testCase.actionType,
 				testCase.point,
+				0,
 			)
 			if (performActionErr != nil) != testCase.wantErr {
 				t.Errorf(

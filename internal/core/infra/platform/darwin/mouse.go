@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
@@ -94,11 +95,15 @@ func CursorPosition() image.Point {
 }
 
 // LeftClickAtPoint performs a left mouse click at the specified point.
-func LeftClickAtPoint(point image.Point, restoreCursor bool) error {
+func LeftClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
 	cursorAnimator.stop()
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performLeftClickAtPosition(pos, C.bool(restoreCursor))
+	result := C.performLeftClickAtPosition(
+		pos,
+		C.bool(restoreCursor),
+		modifiersToCGEventFlags(modifiers),
+	)
 	if result == 0 {
 		return derrors.Newf(
 			derrors.CodeActionFailed,
@@ -112,11 +117,15 @@ func LeftClickAtPoint(point image.Point, restoreCursor bool) error {
 }
 
 // RightClickAtPoint performs a right mouse click at the specified point.
-func RightClickAtPoint(point image.Point, restoreCursor bool) error {
+func RightClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
 	cursorAnimator.stop()
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performRightClickAtPosition(pos, C.bool(restoreCursor))
+	result := C.performRightClickAtPosition(
+		pos,
+		C.bool(restoreCursor),
+		modifiersToCGEventFlags(modifiers),
+	)
 	if result == 0 {
 		return derrors.Newf(
 			derrors.CodeActionFailed,
@@ -130,11 +139,15 @@ func RightClickAtPoint(point image.Point, restoreCursor bool) error {
 }
 
 // MiddleClickAtPoint performs a middle mouse click at the specified point.
-func MiddleClickAtPoint(point image.Point, restoreCursor bool) error {
+func MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
 	cursorAnimator.stop()
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performMiddleClickAtPosition(pos, C.bool(restoreCursor))
+	result := C.performMiddleClickAtPosition(
+		pos,
+		C.bool(restoreCursor),
+		modifiersToCGEventFlags(modifiers),
+	)
 	if result == 0 {
 		return derrors.Newf(
 			derrors.CodeActionFailed,
@@ -148,13 +161,13 @@ func MiddleClickAtPoint(point image.Point, restoreCursor bool) error {
 }
 
 // LeftMouseDownAtPoint performs a left mouse down action at the specified point.
-func LeftMouseDownAtPoint(point image.Point) error {
+func LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
 	cursorAnimator.stop()
 
 	SetLeftMouseDown(true, point)
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performLeftMouseDownAtPosition(pos)
+	result := C.performLeftMouseDownAtPosition(pos, modifiersToCGEventFlags(modifiers))
 	if result == 0 {
 		ClearLeftMouseDownState()
 
@@ -170,11 +183,11 @@ func LeftMouseDownAtPoint(point image.Point) error {
 }
 
 // LeftMouseUpAtPoint performs a left mouse up action at the specified point.
-func LeftMouseUpAtPoint(point image.Point) error {
+func LeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
 	cursorAnimator.stop()
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performLeftMouseUpAtPosition(pos)
+	result := C.performLeftMouseUpAtPosition(pos, modifiersToCGEventFlags(modifiers))
 	if result == 0 {
 		return derrors.Newf(
 			derrors.CodeActionFailed,
@@ -218,4 +231,23 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 	}
 
 	return nil
+}
+
+// modifiersToCGEventFlags converts domain Modifiers to macOS CGEventFlags.
+func modifiersToCGEventFlags(mods action.Modifiers) C.CGEventFlags {
+	var flags C.CGEventFlags
+	if mods.Has(action.ModCmd) {
+		flags |= C.kCGEventFlagMaskCommand
+	}
+	if mods.Has(action.ModShift) {
+		flags |= C.kCGEventFlagMaskShift
+	}
+	if mods.Has(action.ModAlt) {
+		flags |= C.kCGEventFlagMaskAlternate
+	}
+	if mods.Has(action.ModCtrl) {
+		flags |= C.kCGEventFlagMaskControl
+	}
+
+	return flags
 }

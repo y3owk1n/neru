@@ -17,7 +17,7 @@ type MockAccessibilityPort struct {
 	HealthFunc               func(context.Context) error
 	ClickableElementsFunc    func(context.Context, ports.ElementFilter) ([]*element.Element, error)
 	PerformActionFunc        func(context.Context, *element.Element, action.Type) error
-	PerformActionAtPointFunc func(context.Context, action.Type, image.Point) error
+	PerformActionAtPointFunc func(context.Context, action.Type, image.Point, action.Modifiers) error
 	ScrollFunc               func(context.Context, int, int) error
 	FocusedAppBundleIDFunc   func(context.Context) (string, error)
 	IsAppExcludedFunc        func(context.Context, string) bool
@@ -62,9 +62,10 @@ func (m *MockAccessibilityPort) PerformActionAtPoint(
 	ctx context.Context,
 	actionType action.Type,
 	point image.Point,
+	modifiers action.Modifiers,
 ) error {
 	if m.PerformActionAtPointFunc != nil {
-		return m.PerformActionAtPointFunc(ctx, actionType, point)
+		return m.PerformActionAtPointFunc(ctx, actionType, point, modifiers)
 	}
 
 	return nil

@@ -94,6 +94,7 @@ func (m *mockAccessibilityPort) PerformActionAtPoint(
 	ctx context.Context,
 	actionType action.Type,
 	point image.Point,
+	modifiers action.Modifiers,
 ) error {
 	return nil
 }
