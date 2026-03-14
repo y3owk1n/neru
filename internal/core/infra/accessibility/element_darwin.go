@@ -531,8 +531,8 @@ func MoveMouseToPoint(point image.Point, bypassSmooth bool) {
 }
 
 // MoveMouseToPointSmooth moves the cursor smoothly to a specific screen point.
-func MoveMouseToPointSmooth(end image.Point, steps, delay int, eventType C.CGEventType) {
-	darwin.MoveMouseSmooth(end, steps, delay, uint32(eventType))
+func MoveMouseToPointSmooth(end image.Point, steps int, eventType C.CGEventType) {
+	darwin.MoveMouseSmooth(end, steps, uint32(eventType))
 }
 
 // LeftClickAtPoint performs a left mouse click at the specified point.
