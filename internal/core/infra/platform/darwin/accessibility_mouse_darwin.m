@@ -10,7 +10,6 @@
 #import "accessibility_visibility.h"
 #import <Cocoa/Cocoa.h>
 #include <sys/time.h>
-#include <unistd.h>
 
 #pragma mark - Mouse Functions
 
