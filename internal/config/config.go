@@ -288,6 +288,7 @@ type GeneralConfig struct {
 	CenterCursorPosition              bool     `json:"centerCursorPosition"              toml:"center_cursor_position"`
 	ModeExitKeys                      []string `json:"modeExitKeys"                      toml:"mode_exit_keys"`
 	PassthroughUnboundedKeys          bool     `json:"passthroughUnboundedKeys"          toml:"passthrough_unbounded_keys"`
+	ShouldExitAfterPassthrough        bool     `json:"shouldExitAfterPassthrough"        toml:"should_exit_after_passthrough"`
 	PassthroughUnboundedKeysBlacklist []string `json:"passthroughUnboundedKeysBlacklist" toml:"passthrough_unbounded_keys_blacklist"`
 	HideOverlayInScreenShare          bool     `json:"hideOverlayInScreenShare"          toml:"hide_overlay_in_screen_share"`
 	KBLayoutToUse                     string   `json:"kbLayoutToUse"                     toml:"kb_layout_to_use"`

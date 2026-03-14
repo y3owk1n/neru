@@ -20,7 +20,7 @@ func TestEventTapEnqueueKey_NonBlockingWhenQueueBackedUp(t *testing.T) {
 	eventTap := &EventTap{
 		logger:        zap.NewNop(),
 		callback:      func(string) { callbackStarted.Add(1); <-blockCh },
-		callbackQueue: make(chan string, 1),
+		callbackQueue: make(chan callbackEvent, 1),
 		stopDispatch:  make(chan struct{}),
 	}
 	eventTap.startDispatcher()
@@ -78,7 +78,7 @@ func TestEventTapEnqueueKey_PreservesOrder(t *testing.T) {
 
 			receivedMu.Unlock()
 		},
-		callbackQueue: make(chan string, 8),
+		callbackQueue: make(chan callbackEvent, 8),
 		stopDispatch:  make(chan struct{}),
 	}
 	eventTap.startDispatcher()
@@ -102,6 +102,81 @@ func TestEventTapEnqueueKey_PreservesOrder(t *testing.T) {
 
 	if len(received) != len(expected) {
 		t.Fatalf("received %d keys, want %d", len(received), len(expected))
+	}
+
+	for index := range expected {
+		if received[index] != expected[index] {
+			t.Fatalf(
+				"callback order mismatch at index %d: got %q, want %q",
+				index,
+				received[index],
+				expected[index],
+			)
+		}
+	}
+}
+
+func TestEventTapEnqueuePassthrough_PreservesSnapshotOrder(t *testing.T) {
+	var (
+		receivedMu sync.Mutex
+		received   []string
+		done       = make(chan struct{})
+	)
+
+	eventTap := &EventTap{
+		logger:        zap.NewNop(),
+		callbackQueue: make(chan callbackEvent, 8),
+		stopDispatch:  make(chan struct{}),
+	}
+	eventTap.startDispatcher()
+
+	defer eventTap.stopDispatcher()
+
+	appendEvent := func(value string) {
+		receivedMu.Lock()
+		defer receivedMu.Unlock()
+
+		received = append(received, value)
+		if len(received) == 4 {
+			select {
+			case <-done:
+			default:
+				close(done)
+			}
+		}
+	}
+
+	eventTap.callback = func(key string) {
+		appendEvent("key:" + key)
+	}
+
+	eventTap.enqueueKey("u")
+	eventTap.enqueuePassthrough(func() {
+		appendEvent("passthrough:first")
+	})
+	eventTap.enqueueKey("i")
+	eventTap.enqueuePassthrough(func() {
+		appendEvent("passthrough:second")
+	})
+
+	select {
+	case <-done:
+	case <-time.After(300 * time.Millisecond):
+		t.Fatal("did not receive all callbacks in time")
+	}
+
+	receivedMu.Lock()
+	defer receivedMu.Unlock()
+
+	expected := []string{
+		"key:u",
+		"passthrough:first",
+		"key:i",
+		"passthrough:second",
+	}
+
+	if len(received) != len(expected) {
+		t.Fatalf("received %d callbacks, want %d", len(received), len(expected))
 	}
 
 	for index := range expected {

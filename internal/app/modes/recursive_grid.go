@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
+	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter.
@@ -79,7 +80,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
 		)
 	}
 
-	h.SetModeRecursiveGrid()
+	h.setModeLocked(domain.ModeRecursiveGrid, overlay.ModeRecursiveGrid)
 
 	h.logger.Info("Recursive-grid mode activated", zap.String("action", actionString))
 	h.logger.Info("Press u/i/j/k to select cells, backspace to backtrack, escape to exit")

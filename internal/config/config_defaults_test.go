@@ -33,6 +33,10 @@ func TestDefaultConfig(t *testing.T) {
 			t.Error("Expected General.PassthroughUnboundedKeys to be false by default")
 		}
 
+		if cfg.General.ShouldExitAfterPassthrough {
+			t.Error("Expected General.ShouldExitAfterPassthrough to be false by default")
+		}
+
 		if len(cfg.General.PassthroughUnboundedKeysBlacklist) != 0 {
 			t.Errorf(
 				"Expected General.PassthroughUnboundedKeysBlacklist to be empty by default, got %v",

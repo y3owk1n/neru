@@ -12,6 +12,7 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
+	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
@@ -69,7 +70,7 @@ func (h *Handler) activateGridModeWithAction(actionStr *string) {
 		h.logger.Info("Grid mode activated with pending action", zap.String("action", *actionStr))
 	}
 
-	h.SetModeGrid()
+	h.setModeLocked(domain.ModeGrid, overlay.ModeGrid)
 
 	h.logger.Info("Grid mode activated", zap.String("action", actionString))
 	h.logger.Info("Type a grid label to select a location")
