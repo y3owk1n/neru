@@ -191,6 +191,8 @@ func LeftMouseUpAtPoint(point image.Point) error {
 
 // LeftMouseUp performs a left mouse up action at the current cursor position.
 func LeftMouseUp() error {
+	cursorAnimator.stop()
+
 	result := C.performLeftMouseUpAtCursor()
 	if result == 0 {
 		return derrors.New(derrors.CodeActionFailed, "failed to perform left-mouse-up at cursor")
@@ -203,6 +205,8 @@ func LeftMouseUp() error {
 
 // ScrollAtCursor performs a scroll action at the current cursor position.
 func ScrollAtCursor(deltaX, deltaY int) error {
+	cursorAnimator.stop()
+
 	result := C.scrollAtCursor(C.int(deltaX), C.int(deltaY))
 	if result == 0 {
 		return derrors.Newf(
