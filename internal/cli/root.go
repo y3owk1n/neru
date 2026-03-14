@@ -172,6 +172,13 @@ case-insensitively against the localized display names reported by macOS
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			hasMonitor := cmd.Flags().Changed("monitor")
 
+			if hasMonitor && monitor == "" {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--monitor value must not be empty",
+				)
+			}
+
 			if hasMonitor && !center {
 				return derrors.New(
 					derrors.CodeInvalidInput,
