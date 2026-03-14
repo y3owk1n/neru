@@ -5,6 +5,7 @@ package accessibility
 import (
 	"image"
 
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"go.uber.org/zap"
 )
 
@@ -135,19 +136,19 @@ func EnsureMouseUp() {}
 func MoveMouseToPoint(_ image.Point, _ bool) {}
 
 // LeftClickAtPoint performs a left click (Linux stub).
-func LeftClickAtPoint(_ image.Point, _ bool) error { return nil }
+func LeftClickAtPoint(_ image.Point, _ bool, _ action.Modifiers) error { return nil }
 
 // RightClickAtPoint performs a right click (Linux stub).
-func RightClickAtPoint(_ image.Point, _ bool) error { return nil }
+func RightClickAtPoint(_ image.Point, _ bool, _ action.Modifiers) error { return nil }
 
 // MiddleClickAtPoint performs a middle click (Linux stub).
-func MiddleClickAtPoint(_ image.Point, _ bool) error { return nil }
+func MiddleClickAtPoint(_ image.Point, _ bool, _ action.Modifiers) error { return nil }
 
 // LeftMouseDownAtPoint performs a left mouse down (Linux stub).
-func LeftMouseDownAtPoint(_ image.Point) error { return nil }
+func LeftMouseDownAtPoint(_ image.Point, _ action.Modifiers) error { return nil }
 
 // LeftMouseUpAtPoint performs a left mouse up (Linux stub).
-func LeftMouseUpAtPoint(_ image.Point) error { return nil }
+func LeftMouseUpAtPoint(_ image.Point, _ action.Modifiers) error { return nil }
 
 // LeftMouseUp performs a left mouse up at cursor (Linux stub).
 func LeftMouseUp() error { return nil }
