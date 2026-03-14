@@ -421,7 +421,7 @@ All mode implementations follow this pattern:
 - **Purpose**: Initialize the mode and set it as the active mode
 - **Parameters**: Optional action string for pending actions
 - **Responsibilities**:
-  - Call `handler.SetModeXXX()` to change app state
+  - Call `handler.setModeLocked()` to change app state (caller holds `h.mu`)
   - Show mode-specific overlays/UI
   - Initialize mode-specific state
   - Log mode activation
@@ -449,7 +449,7 @@ All mode implementations follow this pattern:
 - **Responsibilities**:
   - Hide overlays and UI elements
   - Reset mode-specific state
-  - Call `handler.SetModeIdle()` if needed
+  - Perform mode-specific cleanup only (common cleanup is handled by `exitModeLocked`)
 
 ##### `ToggleActionMode()`
 
@@ -481,16 +481,20 @@ func (m *ExampleMode) ModeType() domain.Mode {
 }
 
 func (m *ExampleMode) Activate(action *string) {
-    m.handler.SetModeExample()
+    // NOTE: Activate is called with h.mu already held (via ActivateModeWithAction).
+    // Use the *Locked helpers — never the public SetMode* methods (deadlock).
+    m.handler.setModeLocked(domain.ModeExample, overlay.ModeExample)
     // Show example overlay
     // Initialize state
     m.handler.logger.Info("Example mode activated")
 }
 
 func (m *ExampleMode) HandleKey(key string) {
+    // NOTE: HandleKey is called with h.mu already held (via HandleKeyPress).
+    // Use exitModeLocked — never the public SetModeIdle (deadlock).
     switch key {
     case "escape":
-        m.handler.SetModeIdle()
+        m.handler.exitModeLocked()
     // Handle other keys...
     }
 }
