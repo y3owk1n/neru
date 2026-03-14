@@ -94,7 +94,7 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 		switch {
 		case strings.HasPrefix(arg, "--modifier") && (arg == "--modifier" || arg[len("--modifier")] == '='):
 			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--modifier")
-			if !ok {
+			if !ok || val == "" {
 				parseErr = true
 
 				break
