@@ -60,6 +60,11 @@ func Execute() {
 }
 
 func init() {
+	// Set the build version for IPC version validation so both the CLI
+	// client and the daemon (which also imports this package) agree on
+	// the expected version.
+	ipc.SetBuildVersion(Version)
+
 	// Initialize CLI utilities.
 	formatter = cliutil.NewOutputFormatter()
 
