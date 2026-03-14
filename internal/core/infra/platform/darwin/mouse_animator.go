@@ -22,7 +22,6 @@ import (
 const (
 	minAnimationDuration = 10 // Minimum animation duration in ms
 	minStepDelay         = 1  // Minimum delay between steps in ms
-	minSteps             = 1  // Minimum number of steps
 )
 
 type smoothCursorAnimator struct {
@@ -71,7 +70,7 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 		if actualSteps <= 0 {
 			actualSteps = 10
 		}
-		stepDelayMs := max(int(duration)/actualSteps, minStepDelay)
+		stepDelayMs := max(int(math.Round(duration/float64(actualSteps))), minStepDelay)
 
 		for step := 1; step <= actualSteps; step++ {
 			select {
