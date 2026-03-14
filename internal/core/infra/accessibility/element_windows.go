@@ -5,8 +5,9 @@ package accessibility
 import (
 	"image"
 
-	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
 // Element represents a UI element for Windows (stub).
@@ -131,13 +132,31 @@ func EnsureMouseUp() {}
 func MoveMouseToPoint(point image.Point, bypassSmooth bool) {}
 
 // LeftClickAtPoint clicks the mouse (stub).
-func LeftClickAtPoint(point image.Point, restoreCursor bool, _ action.Modifiers) error { return nil }
+func LeftClickAtPoint(
+	point image.Point,
+	restoreCursor bool,
+	_ action.Modifiers,
+) error {
+	return nil
+}
 
 // RightClickAtPoint clicks the mouse (stub).
-func RightClickAtPoint(point image.Point, restoreCursor bool, _ action.Modifiers) error { return nil }
+func RightClickAtPoint(
+	point image.Point,
+	restoreCursor bool,
+	_ action.Modifiers,
+) error {
+	return nil
+}
 
 // MiddleClickAtPoint clicks the mouse (stub).
-func MiddleClickAtPoint(point image.Point, restoreCursor bool, _ action.Modifiers) error { return nil }
+func MiddleClickAtPoint(
+	point image.Point,
+	restoreCursor bool,
+	_ action.Modifiers,
+) error {
+	return nil
+}
 
 // LeftMouseDownAtPoint presses the mouse (stub).
 func LeftMouseDownAtPoint(point image.Point, _ action.Modifiers) error { return nil }

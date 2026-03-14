@@ -5,8 +5,9 @@ package accessibility
 import (
 	"image"
 
-	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
 // Element represents a UI element for Linux (e.g., AT-SPI).

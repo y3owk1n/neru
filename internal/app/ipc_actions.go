@@ -115,7 +115,6 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 
 				parsed.yVal = val
 				parsed.hasY = true
-
 			} else {
 				parseErr = true
 			}
