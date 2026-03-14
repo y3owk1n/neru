@@ -26,6 +26,7 @@ const (
 
 type smoothCursorAnimator struct {
 	cancel context.CancelFunc
+	wg     sync.WaitGroup
 	mu     sync.Mutex
 }
 
@@ -38,6 +39,7 @@ func (a *smoothCursorAnimator) stop() {
 		a.cancel = nil
 	}
 	a.mu.Unlock()
+	a.wg.Wait()
 }
 
 func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType uint32) {
@@ -48,6 +50,7 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 	ctx, cancel := context.WithCancel(context.Background())
 	a.cancel = cancel
 	a.mu.Unlock()
+	a.wg.Wait()
 
 	cfg := config.Global()
 	maxDuration := 200
@@ -57,7 +60,8 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 		durationPerPixel = cfg.SmoothCursor.DurationPerPixel
 	}
 
-	go func() {
+	a.wg.Go(func() {
+		defer cancel()
 		start := CursorPosition()
 		distance := math.Hypot(float64(end.X-start.X), float64(end.Y-start.Y))
 
@@ -90,5 +94,5 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 
 			time.Sleep(time.Duration(stepDelayMs) * time.Millisecond)
 		}
-	}()
+	})
 }
