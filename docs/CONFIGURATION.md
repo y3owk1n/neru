@@ -64,7 +64,12 @@ Global hotkeys trigger Neru navigation modes from anywhere.
 
 ### Syntax
 
-**Modifiers:** `Cmd`, `Ctrl`, `Alt`/`Option`, `Shift` (case-insensitive). Right/Left-prefixed variants are also accepted (e.g., `RightCmd`, `RightCtrl`, `RightOption`, `RightShift`).
+**Modifiers:** `Cmd`, `Ctrl`, `Alt`/`Option`, `Shift` (case-insensitive). Right/Left-prefixed variants are also accepted (e.g., `RightCmd`, `LeftShift`, `RightOption`, `RightCtrl`).
+
+> [!NOTE]
+> The Right/Left-prefixes are **aliases** — they map to the same modifier flag as the unprefixed form.
+> The macOS Carbon API does not distinguish left vs right modifier keys, so `RightCmd+Space` and `Cmd+Space` register the exact same hotkey.
+> The prefixed names exist for readability when using key remappers like Karabiner-Elements that produce side-specific modifiers.
 
 **Format:** `"Modifier1+Modifier2+Key" = "action"`
 
