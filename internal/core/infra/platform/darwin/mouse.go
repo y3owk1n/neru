@@ -75,6 +75,7 @@ func MoveMouse(point image.Point, bypassSmooth bool) {
 	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
 		MoveMouseSmooth(point, cfg.SmoothCursor.Steps, 0, uint32(eventType))
 	} else {
+		cursorAnimator.stop()
 		pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 		C.moveMouseWithType(pos, eventType)
 	}

@@ -32,6 +32,15 @@ type smoothCursorAnimator struct {
 
 var cursorAnimator smoothCursorAnimator
 
+func (a *smoothCursorAnimator) stop() {
+	a.mu.Lock()
+	if a.cancel != nil {
+		a.cancel()
+		a.cancel = nil
+	}
+	a.mu.Unlock()
+}
+
 func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType uint32) {
 	a.mu.Lock()
 	if a.cancel != nil {
