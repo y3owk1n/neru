@@ -6,6 +6,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
+	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // StartInteractiveScroll activates the interactive scroll mode,
@@ -25,7 +27,7 @@ func (h *Handler) StartInteractiveScroll() {
 
 	h.overlayManager.ResizeToActiveScreen()
 
-	h.SetModeScroll()
+	h.setModeLocked(domain.ModeScroll, overlay.ModeScroll)
 
 	h.logger.Info("Interactive scroll activated")
 	h.logger.Info("Use configured keys for navigation")

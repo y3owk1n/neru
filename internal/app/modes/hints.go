@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 const (
@@ -254,7 +255,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 	// Only set mode and enable event tap on initial activation;
 	// during refresh these are already in the correct state.
 	if !isRefresh {
-		h.SetModeHints()
+		h.setModeLocked(domain.ModeHints, overlay.ModeHints)
 	}
 
 	h.logger.Info("Hints mode activated")
