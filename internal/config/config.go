@@ -546,9 +546,10 @@ type LoggingConfig struct {
 
 // SmoothCursorConfig defines the smooth cursor movement settings.
 type SmoothCursorConfig struct {
-	MoveMouseEnabled bool `json:"moveMouseEnabled" toml:"move_mouse_enabled"`
-	Steps            int  `json:"steps"            toml:"steps"`
-	Delay            int  `json:"delay"            toml:"delay"` // Delay in milliseconds
+	MoveMouseEnabled bool    `json:"moveMouseEnabled" toml:"move_mouse_enabled"`
+	Steps            int     `json:"steps"            toml:"steps"`
+	MaxDuration      int     `json:"maxDuration"      toml:"max_duration"`       // Max animation duration in ms
+	DurationPerPixel float64 `json:"durationPerPixel" toml:"duration_per_pixel"` // Ms per pixel for adaptive duration
 }
 
 // AdditionalAXSupport defines accessibility support for specific application frameworks.

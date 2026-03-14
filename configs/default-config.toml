@@ -235,7 +235,8 @@ move_mouse_right = "Right"
 [smooth_cursor]
 move_mouse_enabled = false                  # Enable smooth mouse movement
 steps = 10                                  # Number of intermediate positions
-delay = 1                                   # Milliseconds between steps
+max_duration = 200                          # Maximum animation duration in ms
+duration_per_pixel = 0.1                    # Ms per pixel for adaptive duration
 
 # Systray
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#systray

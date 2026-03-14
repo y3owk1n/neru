@@ -73,7 +73,7 @@ func MoveMouse(point image.Point, bypassSmooth bool) {
 
 	cfg := config.Global()
 	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
-		MoveMouseSmooth(point, cfg.SmoothCursor.Steps, cfg.SmoothCursor.Delay, uint32(eventType))
+		MoveMouseSmooth(point, cfg.SmoothCursor.Steps, 0, uint32(eventType))
 	} else {
 		pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
 		C.moveMouseWithType(pos, eventType)
@@ -82,14 +82,7 @@ func MoveMouse(point image.Point, bypassSmooth bool) {
 
 // MoveMouseSmooth moves the mouse cursor smoothly to the specified point.
 func MoveMouseSmooth(end image.Point, steps, delay int, eventType uint32) {
-	current := CursorPosition()
-	C.moveMouseSmoothWithType(
-		C.CGPoint{x: C.double(current.X), y: C.double(current.Y)},
-		C.CGPoint{x: C.double(end.X), y: C.double(end.Y)},
-		C.int(steps),
-		C.int(delay),
-		C.CGEventType(eventType),
-	)
+	cursorAnimator.animateTo(end, steps, eventType)
 }
 
 // CursorPosition returns the current cursor position.

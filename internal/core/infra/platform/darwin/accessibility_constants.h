@@ -23,9 +23,6 @@ static const CFTimeInterval kNeruMouseClickProcessingDelay = 0.05;
 /// Delay after mouse move to allow event processing (seconds)
 static const CFTimeInterval kNeruMouseMoveDelay = 0.01;
 
-/// Delay between steps during smooth mouse movement (seconds)
-static const CFTimeInterval kNeruSmoothMoveStepDelay = 0.001;
-
 #pragma mark - Click Detection Constants
 
 /// Maximum time between clicks to be considered a multi-click sequence (milliseconds)

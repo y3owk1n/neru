@@ -854,8 +854,18 @@ func (c *Config) ValidateSmoothCursor() error {
 		return derrors.New(derrors.CodeInvalidConfig, "smooth_cursor.steps must be at least 1")
 	}
 
-	if c.SmoothCursor.Delay < 0 {
-		return derrors.New(derrors.CodeInvalidConfig, "smooth_cursor.delay must be non-negative")
+	if c.SmoothCursor.MaxDuration < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"smooth_cursor.max_duration must be non-negative",
+		)
+	}
+
+	if c.SmoothCursor.DurationPerPixel < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"smooth_cursor.duration_per_pixel must be non-negative",
+		)
 	}
 
 	return nil

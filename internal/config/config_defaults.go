@@ -55,6 +55,12 @@ const (
 	// DefaultSmoothCursorSteps is the default smooth cursor steps.
 	DefaultSmoothCursorSteps = 10
 
+	// DefaultSmoothCursorMaxDuration is the default max duration for smooth cursor animation (ms).
+	DefaultSmoothCursorMaxDuration = 200
+
+	// DefaultSmoothCursorDurationPerPixel is the default ms per pixel for adaptive duration.
+	DefaultSmoothCursorDurationPerPixel = 0.1
+
 	// DefaultMoveMouseStep is the default step size for keyboard-driven mouse movement.
 	DefaultMoveMouseStep = 10
 
@@ -491,7 +497,8 @@ func commonDefaultConfig() *Config {
 		SmoothCursor: SmoothCursorConfig{
 			MoveMouseEnabled: false,
 			Steps:            DefaultSmoothCursorSteps,
-			Delay:            1, // 1ms delay between steps
+			MaxDuration:      DefaultSmoothCursorMaxDuration,
+			DurationPerPixel: DefaultSmoothCursorDurationPerPixel,
 		},
 		Systray: SystrayConfig{
 			Enabled: true, // Enabled by default

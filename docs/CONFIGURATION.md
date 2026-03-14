@@ -1220,7 +1220,7 @@ text = ""
 
 ## Smooth Cursor
 
-Animate cursor movement between positions.
+Animate cursor movement between positions. Uses adaptive duration based on distance - short moves animate quickly, long moves take longer.
 
 ### When to Use
 
@@ -1230,23 +1230,37 @@ Animate cursor movement between positions.
 
 ### Configuration
 
-| Option               | Type | Default | Description                            |
-| -------------------- | ---- | ------- | -------------------------------------- |
-| `move_mouse_enabled` | bool | `false` | Enable smooth movement                 |
-| `steps`              | int  | `10`    | Number of intermediate positions (≥ 1) |
-| `delay`              | int  | `1`     | Milliseconds between steps (≥ 0)       |
+| Option               | Type   | Default | Description                                      |
+| -------------------- | ------ | ------- | ------------------------------------------------ |
+| `move_mouse_enabled` | bool   | `false` | Enable smooth mouse movement                     |
+| `steps`              | int    | `10`    | Number of intermediate positions                |
+| `max_duration`      | int    | `200`   | Maximum animation duration (ms)                  |
+| `duration_per_pixel` | float  | `0.1`   | Ms per pixel for adaptive duration calculation   |
+
+### How It Works
+
+The animation uses **adaptive duration**:
+- Distance-based: longer moves get longer animations
+- Capped at `max_duration` to prevent slowdowns
+- Minimum duration of 10ms ensures visibility
+
+The animation runs **asynchronously** in a goroutine, so key presses never block waiting for cursor movement.
+
+### Example
 
 ```toml
 [smooth_cursor]
 move_mouse_enabled = false  # default (instant)
 
-# Smooth but slower
-steps = 10
-delay = 10
+# Smoother (more intermediate positions)
+steps = 20
 
-# Faster, less smooth
+# Less smooth (fewer intermediate positions)
 steps = 5
-delay = 2
+
+# Adaptive duration (long moves take longer)
+max_duration = 200        # max 200ms
+duration_per_pixel = 0.1  # 100ms per 1000 pixels
 ```
 
 ---

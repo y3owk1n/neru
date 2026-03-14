@@ -27,33 +27,15 @@ void moveMouseWithType(CGPoint position, CGEventType eventType) {
 	}
 }
 
-/// Move mouse cursor smoothly to position with specified event type
-/// @param startPosition Starting position
-/// @param endPosition Target position
-/// @param steps Number of steps for smooth movement
-/// @param delay Delay between steps in milliseconds
+/// Post a single mouse move event (non-blocking, for async animation)
+/// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
-void moveMouseSmoothWithType(CGPoint startPosition, CGPoint endPosition, int steps, int delay, CGEventType eventType) {
-	if (steps <= 0)
-		steps = 10;
-	if (delay <= 0)
-		delay = 5;
-
-	for (int i = 1; i <= steps; i++) {
-		double progress = (double)i / (double)steps;
-		CGPoint currentPos = CGPointMake(startPosition.x + (endPosition.x - startPosition.x) * progress,
-		                                 startPosition.y + (endPosition.y - startPosition.y) * progress);
-
-		CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, currentPos, kCGMouseButtonLeft);
-		if (move) {
-			CGEventSetFlags(move, 0);
-			CGEventPost(kCGHIDEventTap, move);
-			CFRelease(move);
-			CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruSmoothMoveStepDelay, false);
-		}
-
-		// Small delay for smooth movement
-		usleep(delay * 1000);
+void postMouseMoveEvent(CGPoint position, CGEventType eventType) {
+	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, kCGMouseButtonLeft);
+	if (move) {
+		CGEventSetFlags(move, 0);
+		CGEventPost(kCGHIDEventTap, move);
+		CFRelease(move);
 	}
 }
 

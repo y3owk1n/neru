@@ -1285,7 +1285,8 @@ func TestConfig_ValidateSmoothCursor(t *testing.T) {
 				SmoothCursor: config.SmoothCursorConfig{
 					MoveMouseEnabled: true,
 					Steps:            10,
-					Delay:            5,
+					MaxDuration:      200,
+					DurationPerPixel: 0.1,
 				},
 			},
 			wantErr: false,
@@ -1311,12 +1312,12 @@ func TestConfig_ValidateSmoothCursor(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "negative delay",
+			name: "negative max_duration",
 			config: config.Config{
 				SmoothCursor: config.SmoothCursorConfig{
 					MoveMouseEnabled: true,
 					Steps:            10,
-					Delay:            -1,
+					MaxDuration:      -1,
 				},
 			},
 			wantErr: true,
