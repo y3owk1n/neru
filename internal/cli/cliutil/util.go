@@ -50,8 +50,13 @@ func (c *IPCCommunicator) SendCommand(action string, args []string) (ipc.Respons
 func (c *IPCCommunicator) HandleResponse(cmd *cobra.Command, ipcResponse ipc.Response) error {
 	if !ipcResponse.Success {
 		if ipcResponse.Code != "" {
+			code := derrors.CodeIPCFailed
+			if ipcResponse.Code == ipc.CodeVersionMismatch {
+				code = derrors.CodeVersionMismatch
+			}
+
 			return derrors.Newf(
-				derrors.CodeIPCFailed,
+				code,
 				"%s (code: %s)",
 				ipcResponse.Message,
 				ipcResponse.Code,

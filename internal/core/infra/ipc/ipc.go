@@ -71,13 +71,14 @@ func BuildVersion() string {
 
 // Standard response codes used to indicate the result of IPC operations.
 const (
-	CodeOK             = "OK"
-	CodeUnknownCommand = "ERR_UNKNOWN_COMMAND"
-	CodeNotRunning     = "ERR_NOT_RUNNING"
-	CodeAlreadyRunning = "ERR_ALREADY_RUNNING"
-	CodeModeDisabled   = "ERR_MODE_DISABLED"
-	CodeInvalidInput   = "ERR_INVALID_INPUT"
-	CodeActionFailed   = "ERR_ACTION_FAILED"
+	CodeOK              = "OK"
+	CodeUnknownCommand  = "ERR_UNKNOWN_COMMAND"
+	CodeNotRunning      = "ERR_NOT_RUNNING"
+	CodeAlreadyRunning  = "ERR_ALREADY_RUNNING"
+	CodeModeDisabled    = "ERR_MODE_DISABLED"
+	CodeInvalidInput    = "ERR_INVALID_INPUT"
+	CodeActionFailed    = "ERR_ACTION_FAILED"
+	CodeVersionMismatch = "ERR_VERSION_MISMATCH"
 )
 
 // Command represents a command sent through the IPC interface.
@@ -300,7 +301,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 				cmd.Version,
 				serverVersion,
 			),
-			Code: "ERR_VERSION_MISMATCH",
+			Code: CodeVersionMismatch,
 		})
 		if encodeErr != nil {
 			logger.Error("Failed to encode version mismatch response", zap.Error(encodeErr))
