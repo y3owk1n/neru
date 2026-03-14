@@ -1126,7 +1126,7 @@ func validateScrollKey(key, fieldName string) error {
 			if !isValidModifier(modifier) {
 				return derrors.Newf(
 					derrors.CodeInvalidConfig,
-					"%s has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option)",
+					"%s has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option, and Right*/Left* variants e.g. RightCmd, LeftShift)",
 					fieldName,
 					modifier,
 					key,
