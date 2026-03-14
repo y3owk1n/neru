@@ -167,8 +167,13 @@ func HasPassthroughModifier(key string) bool {
 	}
 
 	for _, part := range parts[:len(parts)-1] {
-		switch strings.TrimSpace(part) {
-		case "cmd", "ctrl", "alt", "option":
+		trimmed := strings.TrimSpace(part)
+		switch trimmed {
+		case "cmd", "ctrl", "alt", "option",
+			"rightcmd", "leftcmd",
+			"rightctrl", "leftctrl",
+			"rightalt", "leftalt",
+			"rightoption", "leftoption":
 			return true
 		}
 	}

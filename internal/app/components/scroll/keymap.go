@@ -192,10 +192,30 @@ func (m *KeyMap) normalizeKey(key string) string {
 	}
 
 	// Modifier combos are lowercased for case-insensitive matching.
+	// Strip Right/Left prefixes so that e.g. "RightCmd+j" normalizes to "cmd+j",
+	// matching the unprefixed modifier names produced by the event tap at runtime.
 	lower := strings.ToLower(key)
 	if strings.HasPrefix(lower, "ctrl+") || strings.HasPrefix(lower, "alt+") ||
 		strings.HasPrefix(lower, "cmd+") || strings.HasPrefix(lower, "shift+") ||
-		strings.HasPrefix(lower, "option+") {
+		strings.HasPrefix(lower, "option+") ||
+		strings.HasPrefix(lower, "rightctrl+") || strings.HasPrefix(lower, "leftctrl+") ||
+		strings.HasPrefix(lower, "rightalt+") || strings.HasPrefix(lower, "leftalt+") ||
+		strings.HasPrefix(lower, "rightcmd+") || strings.HasPrefix(lower, "leftcmd+") ||
+		strings.HasPrefix(lower, "rightshift+") || strings.HasPrefix(lower, "leftshift+") ||
+		strings.HasPrefix(lower, "rightoption+") || strings.HasPrefix(lower, "leftoption+") {
+		lower = strings.NewReplacer(
+			"rightcmd+", "cmd+",
+			"leftcmd+", "cmd+",
+			"rightctrl+", "ctrl+",
+			"leftctrl+", "ctrl+",
+			"rightalt+", "alt+",
+			"leftalt+", "alt+",
+			"rightoption+", "option+",
+			"leftoption+", "option+",
+			"rightshift+", "shift+",
+			"leftshift+", "shift+",
+		).Replace(lower)
+
 		return lower
 	}
 
