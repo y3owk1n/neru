@@ -249,6 +249,14 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
+	if (isMoveMouse || isMoveMouseRelative) && modifiers != 0 {
+		return ipc.Response{
+			Success: false,
+			Message: "--modifier is not supported with move_mouse or move_mouse_relative",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	if (isMoveMouse || isMoveMouseRelative) && (parsed.hasX || parsed.hasY) &&
 		(parsed.hasDX || parsed.hasDY) {
 		return ipc.Response{
