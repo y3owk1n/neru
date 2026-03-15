@@ -610,34 +610,73 @@ func TestIsExitKey_WithFullwidthChars(t *testing.T) {
 	}
 }
 
-func TestNormalizeKeyForComparison_ModifierEnter(t *testing.T) {
+func TestNormalizeKeyForComparison_ModifierComboAliases(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
 		expected string
 	}{
+		// Enter/Return aliases in modifier combos
 		{
-			name:     "shift enter",
+			name:     "Shift+Enter normalizes to shift+return",
 			input:    "Shift+Enter",
 			expected: "shift+return",
 		},
 		{
-			name:     "ctrl enter",
-			input:    "Ctrl+Enter",
-			expected: "ctrl+return",
-		},
-		{
-			name:     "right shift enter",
-			input:    "RightShift+Enter",
+			name:     "Shift+Return normalizes to shift+return",
+			input:    "Shift+Return",
 			expected: "shift+return",
 		},
 		{
-			name:     "enter alone still normalizes",
+			name:     "Cmd+Enter normalizes to cmd+return",
+			input:    "Cmd+Enter",
+			expected: "cmd+return",
+		},
+		{
+			name:     "Cmd+Shift+Enter normalizes to cmd+shift+return",
+			input:    "Cmd+Shift+Enter",
+			expected: "cmd+shift+return",
+		},
+		// Bare Enter still works
+		{
+			name:     "bare Enter normalizes to return",
 			input:    "Enter",
 			expected: "return",
 		},
+		{
+			name:     "bare Return normalizes to return",
+			input:    "Return",
+			expected: "return",
+		},
+		// Backspace/Delete aliases in modifier combos
+		{
+			name:     "Shift+Backspace normalizes to shift+delete",
+			input:    "Shift+Backspace",
+			expected: "shift+delete",
+		},
+		{
+			name:     "Cmd+Backspace normalizes to cmd+delete",
+			input:    "Cmd+Backspace",
+			expected: "cmd+delete",
+		},
+		// Esc alias in modifier combos
+		{
+			name:     "Ctrl+Esc normalizes to ctrl+escape",
+			input:    "Ctrl+Esc",
+			expected: "ctrl+escape",
+		},
+		// Non-aliased keys should pass through
+		{
+			name:     "Shift+Space unchanged",
+			input:    "Shift+Space",
+			expected: "shift+space",
+		},
+		{
+			name:     "Cmd+L unchanged",
+			input:    "Cmd+L",
+			expected: "cmd+l",
+		},
 	}
-
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			got := config.NormalizeKeyForComparison(testCase.input)

@@ -156,17 +156,11 @@ func NormalizeKeyForComparison(key string) string {
 	// matching the unprefixed modifier names the event tap always produces at runtime.
 	key = StripModifierPrefixes(key)
 
-	// Normalize Enter when used inside modifier combos (e.g. "Shift+Enter" -> "shift+return").
-	// This keeps config bindings aligned with event tap output ("Return").
-	if strings.Contains(key, "+") {
-		parts := strings.Split(key, "+")
-
-		last := strings.TrimSpace(parts[len(parts)-1])
-		if last == "enter" {
-			parts[len(parts)-1] = KeyNameReturn
-			key = strings.Join(parts, "+")
-		}
-	}
+	// Normalize key aliases inside modifier combos.
+	// The switch above only handles bare "enter" / "backspace" etc., but users may
+	// write "Shift+Enter" which lowercases to "shift+enter". The event tap always
+	// produces the canonical form "shift+return", so we must resolve the alias here.
+	key = normalizeKeyAliasesInCombo(key)
 
 	// All other keys (named keys, plain characters, modifier combos) are already
 	// lowercased by strings.ToLower above and pass through as-is.
@@ -214,6 +208,27 @@ func StripModifierPrefixes(key string) string {
 	}
 
 	return modifierPrefixReplacer.Replace(key)
+}
+
+// keyAliasReplacer normalizes key name aliases in the key part of compound key strings.
+// Operates on already-lowercased strings. Only replaces the final segment (after the
+// last "+") to avoid mangling modifier names.
+var keyAliasReplacer = strings.NewReplacer(
+	"+enter", "+return",
+	"+backspace", "+delete",
+	"+esc", "+escape",
+)
+
+// normalizeKeyAliasesInCombo resolves key name aliases inside modifier combos.
+// e.g. "shift+enter" → "shift+return", "cmd+backspace" → "cmd+delete".
+// Only applies to compound keys (containing "+"); bare keys are handled by the
+// switch in NormalizeKeyForComparison.
+func normalizeKeyAliasesInCombo(key string) string {
+	if !strings.Contains(key, "+") {
+		return key
+	}
+
+	return keyAliasReplacer.Replace(key)
 }
 
 // normalizeFullwidthChars converts fullwidth CJK characters (U+FF01-U+FF5E)
