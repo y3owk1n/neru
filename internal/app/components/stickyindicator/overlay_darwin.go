@@ -136,7 +136,7 @@ func (o *Overlay) ResizeToActiveScreen() {
 }
 
 // Draw draws the sticky modifier symbols at the specified position.
-// The caller is responsible for calling Show() once before the first draw.
+// The caller must call Show() before Draw() for the content to be visible.
 func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 	if symbols == "" {
 		return

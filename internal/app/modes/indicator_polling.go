@@ -33,16 +33,10 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 	// different monitor.
 	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
 		ind.ResizeToActiveScreen()
-		ind.Show()
 	}
 
 	if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 		stickyInd.ResizeToActiveScreen()
-		stickyInd.Show()
-		// Draw immediately when mode starts (don't wait for first poll tick)
-		if h.stickyModifiersEnabled() {
-			h.drawStickyModifiersIndicatorAtCurrentCursor()
-		}
 	}
 
 	stopCh := make(chan struct{})
@@ -89,15 +83,30 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 					continue
 				}
 
+				// Mode indicator: show and draw when enabled, hide otherwise.
 				if h.shouldShowModeIndicator(h.appState.CurrentMode()) {
+					if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
+						ind.Show()
+					}
+
 					h.modeIndicatorService.UpdateIndicatorPosition(cursorX, cursorY)
+				} else if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
+					ind.Clear()
+					ind.Hide()
 				}
 
+				// Sticky modifiers indicator: show and draw when modifiers
+				// are active, hide otherwise.
 				if h.stickyModifiersEnabled() {
 					if h.stickyModifiers() != 0 {
+						if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
+							stickyInd.Show()
+						}
+
 						h.drawStickyModifiersIndicator(cursorX, cursorY)
 					} else if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 						stickyInd.Clear()
+						stickyInd.Hide()
 					}
 				}
 			}
