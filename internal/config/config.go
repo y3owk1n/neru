@@ -210,25 +210,32 @@ func StripModifierPrefixes(key string) string {
 	return modifierPrefixReplacer.Replace(key)
 }
 
-// keyAliasReplacer normalizes key name aliases in the key part of compound key strings.
-// Operates on already-lowercased strings. Only replaces the final segment (after the
-// last "+") to avoid mangling modifier names.
-var keyAliasReplacer = strings.NewReplacer(
-	"+enter", "+return",
-	"+backspace", "+delete",
-	"+esc", "+escape",
-)
+// comboKeyAliases maps alias key names to their canonical forms.
+// Used by normalizeKeyAliasesInCombo to resolve the final segment of compound keys.
+var comboKeyAliases = map[string]string{
+	"enter":     "return",
+	"backspace": "delete",
+	"esc":       "escape",
+}
 
 // normalizeKeyAliasesInCombo resolves key name aliases inside modifier combos.
 // e.g. "shift+enter" → "shift+return", "cmd+backspace" → "cmd+delete".
 // Only applies to compound keys (containing "+"); bare keys are handled by the
 // switch in NormalizeKeyForComparison.
+// Splits on the last "+" and only normalizes the final segment to avoid mangling
+// modifier names or canonical forms that share a prefix (e.g. "escape" vs "esc").
 func normalizeKeyAliasesInCombo(key string) string {
-	if !strings.Contains(key, "+") {
+	idx := strings.LastIndex(key, "+")
+	if idx < 0 {
 		return key
 	}
 
-	return keyAliasReplacer.Replace(key)
+	prefix, suffix := key[:idx+1], key[idx+1:]
+	if canonical, ok := comboKeyAliases[suffix]; ok {
+		return prefix + canonical
+	}
+
+	return key
 }
 
 // normalizeFullwidthChars converts fullwidth CJK characters (U+FF01-U+FF5E)

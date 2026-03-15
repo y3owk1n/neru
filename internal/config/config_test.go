@@ -676,6 +676,22 @@ func TestNormalizeKeyForComparison_ModifierComboAliases(t *testing.T) {
 			input:    "Cmd+L",
 			expected: "cmd+l",
 		},
+		// Canonical forms must pass through unchanged (regression: +esc prefix of +escape)
+		{
+			name:     "Ctrl+Escape stays ctrl+escape",
+			input:    "Ctrl+Escape",
+			expected: "ctrl+escape",
+		},
+		{
+			name:     "Shift+Return stays shift+return",
+			input:    "Shift+Return",
+			expected: "shift+return",
+		},
+		{
+			name:     "Cmd+Delete stays cmd+delete",
+			input:    "Cmd+Delete",
+			expected: "cmd+delete",
+		},
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
