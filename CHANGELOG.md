@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.27.0](https://github.com/y3owk1n/neru/compare/v1.26.0...v1.27.0) (2026-03-15)
+
+
+### Features
+
+* **action:** add `--monitor` flag to move_mouse `--center` for multi-monitor support ([#579](https://github.com/y3owk1n/neru/issues/579)) ([a2c34fb](https://github.com/y3owk1n/neru/commit/a2c34fbce06b7bfd3dda29c65ffc82e0c1907019))
+* **action:** support `--modifier` flag ([#581](https://github.com/y3owk1n/neru/issues/581)) ([f51c379](https://github.com/y3owk1n/neru/commit/f51c379a9ab66373046245ddef2ad8035a564968))
+* add modifier+action workflow for modes ([#586](https://github.com/y3owk1n/neru/issues/586)) ([16a2e71](https://github.com/y3owk1n/neru/commit/16a2e71994d2cc49af321fcbd434088a8fb83540))
+* **hotkeys:** add support for left/right-prefixed modifiers ([#582](https://github.com/y3owk1n/neru/issues/582)) ([9914ec8](https://github.com/y3owk1n/neru/commit/9914ec8eaa1af044d4bddfd81c99ba82409218f4))
+* **passthrough:** add `should_exit_after_passthrough` option ([#575](https://github.com/y3owk1n/neru/issues/575)) ([4f386c9](https://github.com/y3owk1n/neru/commit/4f386c97c20b8a0444585fab4da610a5c19b03dc))
+
+
+### Bug Fixes
+
+* **ipc:** replace static ProtocolVersion with build version validation ([#583](https://github.com/y3owk1n/neru/issues/583)) ([d9f4ba1](https://github.com/y3owk1n/neru/commit/d9f4ba148185f46f809b6dcdfc1231883de880a6))
+* make smooth cursor animation non blocking ([#580](https://github.com/y3owk1n/neru/issues/580)) ([cd818ba](https://github.com/y3owk1n/neru/commit/cd818ba218c5b6692e775f0d610ea2a2d2de6193))
+* normalize key aliases (enter, backspace, esc) in modifier combo bindings ([#588](https://github.com/y3owk1n/neru/issues/588)) ([140cc31](https://github.com/y3owk1n/neru/commit/140cc310f96a5e572f46a108d4f5f307dbc92339))
+* **recursive_grid:** ensure to normalise `keyToCell` ([#565](https://github.com/y3owk1n/neru/issues/565)) ([0f531dc](https://github.com/y3owk1n/neru/commit/0f531dc1547d5cd105489491e7a816f41dd4c03c))
+* **recursive_grid:** make autohide preview multiplier configurable ([#573](https://github.com/y3owk1n/neru/issues/573)) ([a26acf4](https://github.com/y3owk1n/neru/commit/a26acf494e8ea08178a489da5bf55c7a0db173b2))
+* **sticky_modifier:** cancel pending modifier toggle on passthrough events ([#589](https://github.com/y3owk1n/neru/issues/589)) ([2f3406c](https://github.com/y3owk1n/neru/commit/2f3406c6c0e44de9b23ad99670db94e020676fed))
+
+
+### Documentation
+
+* update docs and stuffs for info and reading ([#568](https://github.com/y3owk1n/neru/issues/568)) ([e0de417](https://github.com/y3owk1n/neru/commit/e0de41706b8fac547751db1bf34d6e2a444baa4a))
+
 ## [1.26.0](https://github.com/y3owk1n/neru/compare/v1.25.0...v1.26.0) (2026-03-11)
 
 
