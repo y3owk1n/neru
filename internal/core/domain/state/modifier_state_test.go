@@ -99,13 +99,23 @@ func TestModifierState_OnChange(t *testing.T) {
 func TestModifierState_OffChange(t *testing.T) {
 	modifierState := state.NewModifierState()
 
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(1)
+
 	var receivedMods action.Modifiers
 
 	callback := func(mods action.Modifiers) {
 		receivedMods = mods
+
+		waitGroup.Done()
 	}
 
 	subscriptionID := modifierState.OnChange(callback)
+
+	// Wait for the initial async callback (fired by OnChange via goroutine)
+	// to complete before unsubscribing, so we don't race on receivedMods.
+	waitGroup.Wait()
+
 	modifierState.OffChange(subscriptionID)
 
 	modifierState.Toggle(action.ModShift)
