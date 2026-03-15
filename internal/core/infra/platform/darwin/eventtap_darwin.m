@@ -376,7 +376,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 					[fullKey appendString:keyName];
 
 					if (context->callback) {
-						context->callback([fullKey UTF8String], context -> userData);
+						context->callback([fullKey UTF8String], context->userData);
 					}
 					return NULL;
 				}
@@ -394,7 +394,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 					[fullKey appendString:keyName];
 
 					if (context->callback) {
-						context->callback([fullKey UTF8String], context -> userData);
+						context->callback([fullKey UTF8String], context->userData);
 					}
 					return NULL;
 				}
@@ -402,7 +402,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 			NSString *namedKey = specialKeyName(keyCode);
 			if (namedKey && context->callback) {
-				context->callback([namedKey UTF8String], context -> userData);
+				context->callback([namedKey UTF8String], context->userData);
 				return NULL;
 			}
 
