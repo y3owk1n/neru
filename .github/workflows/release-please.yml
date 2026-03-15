@@ -20,7 +20,6 @@ jobs:
               id: release
               with:
                   token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
-                  release-type: go
 
             # Checkout the repository.
             - uses: actions/checkout@v6
