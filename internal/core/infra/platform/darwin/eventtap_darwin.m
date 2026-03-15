@@ -309,13 +309,17 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 		// toggle only when keyup arrives without any intervening regular key.
 		if (type == kCGEventFlagsChanged) {
 			CGEventFlags flags = CGEventGetFlags(event);
-			CGEventFlags changed = flags ^ context->previousFlags;
-			CGEventFlags previousFlags = context->previousFlags;
-			context->previousFlags = flags;
 
+			// Read/write previousFlags under stickyModifierLock to avoid racing
+			// with setEventTapStickyModifierToggle which also writes it.
 			BOOL stickyEnabled = NO;
+			CGEventFlags changed;
+			CGEventFlags previousFlags;
 			os_unfair_lock_lock(&context->stickyModifierLock);
 			stickyEnabled = context->stickyModifierToggleEnabled;
+			changed = flags ^ context->previousFlags;
+			previousFlags = context->previousFlags;
+			context->previousFlags = flags;
 			os_unfair_lock_unlock(&context->stickyModifierLock);
 
 			if (!stickyEnabled) {
@@ -422,7 +426,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 					[fullKey appendString:keyName];
 
 					if (context->callback) {
-						context->callback([fullKey UTF8String], context->userData);
+						context->callback([fullKey UTF8String], context -> userData);
 					}
 					return NULL;
 				}
@@ -440,7 +444,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 					[fullKey appendString:keyName];
 
 					if (context->callback) {
-						context->callback([fullKey UTF8String], context->userData);
+						context->callback([fullKey UTF8String], context -> userData);
 					}
 					return NULL;
 				}
@@ -448,7 +452,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 			NSString *namedKey = specialKeyName(keyCode);
 			if (namedKey && context->callback) {
-				context->callback([namedKey UTF8String], context->userData);
+				context->callback([namedKey UTF8String], context -> userData);
 				return NULL;
 			}
 
