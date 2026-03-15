@@ -303,7 +303,10 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			return event;
 		}
 
-		// Handle modifier key toggle detection for sticky modifiers
+		// Handle modifier key toggle detection for sticky modifiers.
+		// Emits "__modifier_<name>_down" on key press and "__modifier_<name>_up"
+		// on key release so Go can implement clean tap detection:
+		// toggle only when keyup arrives without any intervening regular key.
 		if (type == kCGEventFlagsChanged) {
 			CGEventFlags flags = CGEventGetFlags(event);
 			CGEventFlags changed = flags ^ context->previousFlags;
@@ -319,27 +322,26 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				return event;
 			}
 
-			// Only handle key DOWN events (bit was added, not removed)
-			// Check if any modifier bit was ADDED (is in both flags and changed, but NOT in previous)
-			if (((changed & kCGEventFlagMaskCommand) && !(previousFlags & kCGEventFlagMaskCommand)) ||
-			    ((changed & kCGEventFlagMaskShift) && !(previousFlags & kCGEventFlagMaskShift)) ||
-			    ((changed & kCGEventFlagMaskAlternate) && !(previousFlags & kCGEventFlagMaskAlternate)) ||
-			    ((changed & kCGEventFlagMaskControl) && !(previousFlags & kCGEventFlagMaskControl))) {
-				const char *modName = NULL;
-				if (changed & kCGEventFlagMaskCommand) {
-					modName = "__modifier_cmd";
-				} else if (changed & kCGEventFlagMaskShift) {
-					modName = "__modifier_shift";
-				} else if (changed & kCGEventFlagMaskAlternate) {
-					modName = "__modifier_alt";
-				} else if (changed & kCGEventFlagMaskControl) {
-					modName = "__modifier_ctrl";
-				}
-
-				if (modName && context->callback) {
-					context->callback(modName, context->userData);
-					return NULL;
-				}
+			// Determine which modifier changed and whether it was pressed or released.
+			const char *modName = NULL;
+			BOOL isKeyDown = NO;
+			if (changed & kCGEventFlagMaskCommand) {
+				modName = (flags & kCGEventFlagMaskCommand) ? "__modifier_cmd_down" : "__modifier_cmd_up";
+				isKeyDown = !(previousFlags & kCGEventFlagMaskCommand);
+			} else if (changed & kCGEventFlagMaskShift) {
+				modName = (flags & kCGEventFlagMaskShift) ? "__modifier_shift_down" : "__modifier_shift_up";
+				isKeyDown = !(previousFlags & kCGEventFlagMaskShift);
+			} else if (changed & kCGEventFlagMaskAlternate) {
+				modName = (flags & kCGEventFlagMaskAlternate) ? "__modifier_alt_down" : "__modifier_alt_up";
+				isKeyDown = !(previousFlags & kCGEventFlagMaskAlternate);
+			} else if (changed & kCGEventFlagMaskControl) {
+				modName = (flags & kCGEventFlagMaskControl) ? "__modifier_ctrl_down" : "__modifier_ctrl_up";
+				isKeyDown = !(previousFlags & kCGEventFlagMaskControl);
+			}
+			(void)isKeyDown; // suppress unused warning; Go uses the suffix to distinguish
+			if (modName && context->callback) {
+				context->callback(modName, context->userData);
+				return NULL;
 			}
 			return event;
 		}
@@ -420,7 +422,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 					[fullKey appendString:keyName];
 
 					if (context->callback) {
-						context->callback([fullKey UTF8String], context->userData);
+						context->callback([fullKey UTF8String], context -> userData);
 					}
 					return NULL;
 				}
@@ -438,7 +440,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 					[fullKey appendString:keyName];
 
 					if (context->callback) {
-						context->callback([fullKey UTF8String], context->userData);
+						context->callback([fullKey UTF8String], context -> userData);
 					}
 					return NULL;
 				}
@@ -446,7 +448,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 			NSString *namedKey = specialKeyName(keyCode);
 			if (namedKey && context->callback) {
-				context->callback([namedKey UTF8String], context->userData);
+				context->callback([namedKey UTF8String], context -> userData);
 				return NULL;
 			}
 

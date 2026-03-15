@@ -88,9 +88,8 @@ type Handler struct {
 	refreshHintsTimer          *time.Timer
 	modeSession                uint64
 
-	// Pending modifier toggle for tap detection
-	pendingModifierToggle *time.Timer
-	pendingModifierKey    string
+	// Pending modifier key for tap detection (down/up without intervening keys)
+	pendingModifierKey string
 
 	// Scroll mode polling
 	scrollTicker *time.Ticker

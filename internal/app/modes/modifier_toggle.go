@@ -13,10 +13,7 @@ import (
 
 const modifierTogglePrefix = "__modifier_"
 
-const (
-	stickyToggleDelay      = 150 * time.Millisecond
-	stickyIndicatorTimeout = 100 * time.Millisecond
-)
+const stickyIndicatorTimeout = 100 * time.Millisecond
 
 var modifierToggleMap = map[string]action.Modifiers{
 	"cmd":   action.ModCmd,
@@ -25,61 +22,79 @@ var modifierToggleMap = map[string]action.Modifiers{
 	"ctrl":  action.ModCtrl,
 }
 
-func parseModifierToggleKey(key string) (action.Modifiers, bool) {
+// parseModifierEvent parses a modifier event key like "__modifier_shift_down"
+// or "__modifier_cmd_up" into the modifier and whether it's a down or up event.
+// Returns (modifier, isDown, ok).
+func parseModifierEvent(key string) (action.Modifiers, bool, bool) {
 	if !strings.HasPrefix(key, modifierTogglePrefix) {
-		return 0, false
+		return 0, false, false
 	}
 
 	suffix := strings.ToLower(strings.TrimPrefix(key, modifierTogglePrefix))
 
-	mod, ok := modifierToggleMap[suffix]
+	if strings.HasSuffix(suffix, "_down") {
+		name := strings.TrimSuffix(suffix, "_down")
+		mod, ok := modifierToggleMap[name]
 
-	return mod, ok
+		return mod, true, ok
+	}
+	if strings.HasSuffix(suffix, "_up") {
+		name := strings.TrimSuffix(suffix, "_up")
+		mod, ok := modifierToggleMap[name]
+		return mod, false, ok
+	}
+	return 0, false, false
 }
 
+// handleModifierToggle processes modifier down/up events for sticky toggle.
+//
+// The logic is simple and deterministic:
+//   - On modifier keydown: record which modifier is pending.
+//   - On modifier keyup: if the same modifier is still pending (no regular key
+//     was pressed in between), toggle it as sticky. Otherwise ignore.
+//   - Any regular key press cancels the pending modifier (see key_dispatch.go).
+//
+// This means Shift↓ → Shift↑ toggles sticky, but Shift↓ → L → Shift↑ does not.
 func (h *Handler) handleModifierToggle(key string) bool {
 	if !h.stickyModifiersEnabled() {
 		return false
 	}
 
-	mod, isModifier := parseModifierToggleKey(key)
-	if !isModifier {
+	mod, isDown, ok := parseModifierEvent(key)
+	if !ok {
 		return false
 	}
 
-	pendingKey := key
-	pendingMod := mod
+	if isDown {
+		h.pendingModifierKey = key
+		h.logger.Debug("Modifier key down", zap.String("key", key))
 
-	if h.pendingModifierToggle != nil {
-		h.pendingModifierToggle.Stop()
-		h.pendingModifierToggle = nil
+		return true
 	}
 
-	h.pendingModifierToggle = time.AfterFunc(stickyToggleDelay, func() {
-		h.mu.Lock()
-		defer h.mu.Unlock()
+	// Key up — toggle only if the matching down is still pending.
+	expectedDown := strings.TrimSuffix(key, "_up") + "_down"
+	if h.pendingModifierKey != expectedDown {
+		h.logger.Debug("Modifier key up ignored (no matching pending down)",
+			zap.String("key", key),
+			zap.String("pending", h.pendingModifierKey))
+		h.pendingModifierKey = ""
 
-		if h.pendingModifierKey == pendingKey {
-			newModifiers := h.modifierState.Toggle(pendingMod)
-			h.logger.Debug("Sticky modifier toggled",
-				zap.String("modifier", pendingMod.String()),
-				zap.String("state", newModifiers.String()))
-			h.pendingModifierToggle = nil
-			h.pendingModifierKey = ""
-		}
-	})
+		return true
+	}
 
-	h.pendingModifierKey = pendingKey
+	h.pendingModifierKey = ""
 
-	h.logger.Debug("Modifier tap started", zap.String("key", key))
+	newModifiers := h.modifierState.Toggle(mod)
+	h.logger.Debug("Sticky modifier toggled",
+		zap.String("modifier", mod.String()),
+		zap.String("state", newModifiers.String()))
 
 	return true
 }
 
 func (h *Handler) cancelPendingModifierToggle() {
-	if h.pendingModifierToggle != nil {
-		h.pendingModifierToggle.Stop()
-		h.pendingModifierToggle = nil
+	if h.pendingModifierKey != "" {
 		h.pendingModifierKey = ""
 		h.logger.Debug("Modifier tap canceled")
 	}

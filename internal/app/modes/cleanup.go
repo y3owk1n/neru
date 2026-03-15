@@ -43,11 +43,7 @@ func (h *Handler) exitModeLocked() {
 		h.modifierState.Reset()
 	}
 
-	if h.pendingModifierToggle != nil {
-		h.pendingModifierToggle.Stop()
-		h.pendingModifierToggle = nil
-		h.pendingModifierKey = ""
-	}
+	h.cancelPendingModifierToggle()
 
 	h.performModeSpecificCleanup()
 	h.performCommonCleanup()

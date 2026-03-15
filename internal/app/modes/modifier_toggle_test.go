@@ -1,4 +1,4 @@
-//nolint:testpackage // Tests internal function parseModifierToggleKey
+//nolint:testpackage // Tests internal function parseModifierEvent
 package modes
 
 import (
@@ -7,34 +7,43 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
-func TestParseModifierToggleKey(t *testing.T) {
+func TestParseModifierEvent(t *testing.T) {
 	tests := []struct {
-		key     string
-		wantMod action.Modifiers
-		wantOk  bool
+		key      string
+		wantMod  action.Modifiers
+		wantDown bool
+		wantOk   bool
 	}{
-		{"__modifier_shift", action.ModShift, true},
-		{"__modifier_cmd", action.ModCmd, true},
-		{"__modifier_alt", action.ModAlt, true},
-		{"__modifier_ctrl", action.ModCtrl, true},
-		{"__modifier_CMD", action.ModCmd, true},
-		{"__modifier_Shift", action.ModShift, true},
-		{"__modifier_CMD", action.ModCmd, true},
-		{"__modifier_ALT", action.ModAlt, true},
-		{"__modifier_CTRL", action.ModCtrl, true},
-		{"__modifier_foo", 0, false},
-		{"__modifier", 0, false},
-		{"shift", 0, false},
-		{"cmd", 0, false},
-		{"", 0, false},
+		// Down events
+		{"__modifier_shift_down", action.ModShift, true, true},
+		{"__modifier_cmd_down", action.ModCmd, true, true},
+		{"__modifier_alt_down", action.ModAlt, true, true},
+		{"__modifier_ctrl_down", action.ModCtrl, true, true},
+		{"__modifier_CMD_down", action.ModCmd, true, true},
+		{"__modifier_Shift_down", action.ModShift, true, true},
+		// Up events
+		{"__modifier_shift_up", action.ModShift, false, true},
+		{"__modifier_cmd_up", action.ModCmd, false, true},
+		{"__modifier_alt_up", action.ModAlt, false, true},
+		{"__modifier_ctrl_up", action.ModCtrl, false, true},
+		{"__modifier_CMD_up", action.ModCmd, false, true},
+		// Invalid
+		{"__modifier_shift", 0, false, false},
+		{"__modifier_cmd", 0, false, false},
+		{"__modifier_foo_down", 0, false, false},
+		{"__modifier_foo_up", 0, false, false},
+		{"__modifier", 0, false, false},
+		{"shift", 0, false, false},
+		{"cmd", 0, false, false},
+		{"", 0, false, false},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.key, func(t *testing.T) {
-			mod, ok := parseModifierToggleKey(testCase.key)
+			mod, isDown, ok := parseModifierEvent(testCase.key)
 			if ok != testCase.wantOk {
 				t.Errorf(
-					"parseModifierToggleKey(%q) ok = %v, want %v",
+					"parseModifierEvent(%q) ok = %v, want %v",
 					testCase.key,
 					ok,
 					testCase.wantOk,
@@ -45,10 +54,19 @@ func TestParseModifierToggleKey(t *testing.T) {
 
 			if mod != testCase.wantMod {
 				t.Errorf(
-					"parseModifierToggleKey(%q) = %v, want %v",
+					"parseModifierEvent(%q) mod = %v, want %v",
 					testCase.key,
 					mod,
 					testCase.wantMod,
+				)
+			}
+
+			if isDown != testCase.wantDown {
+				t.Errorf(
+					"parseModifierEvent(%q) isDown = %v, want %v",
+					testCase.key,
+					isDown,
+					testCase.wantDown,
 				)
 			}
 		})
