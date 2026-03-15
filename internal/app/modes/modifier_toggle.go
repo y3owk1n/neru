@@ -156,9 +156,5 @@ func (h *Handler) drawStickyModifiersIndicator(xCoordinate, yCoordinate int) {
 		return
 	}
 
-	uiConfig := h.config.StickyModifiers.UI
-	xOffset := xCoordinate + uiConfig.IndicatorXOffset
-	yOffset := yCoordinate + uiConfig.IndicatorYOffset
-
-	h.stickyIndicatorService.UpdateIndicatorPosition(xOffset, yOffset, symbols)
+	h.stickyIndicatorService.UpdateIndicatorPosition(xCoordinate, yCoordinate, symbols)
 }

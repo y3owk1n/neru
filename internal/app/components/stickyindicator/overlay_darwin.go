@@ -135,8 +135,10 @@ func (o *Overlay) ResizeToActiveScreen() {
 	}
 }
 
-// Draw draws the sticky modifier symbols at the specified position.
-// The caller must call Show() before Draw() for the content to be visible.
+// Draw draws the sticky modifier symbols near the specified cursor position.
+// X/Y offsets from uiConfig are applied internally (under configMu) to match
+// the mode indicator pattern. The caller must call Show() before Draw() for
+// the content to be visible.
 func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 	if symbols == "" {
 		return
@@ -146,6 +148,10 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 	// writing to uiConfig while we read it.
 	o.configMu.RLock()
 	defer o.configMu.RUnlock()
+
+	// Offset from cursor to avoid covering it
+	xOffset := o.uiConfig.IndicatorXOffset
+	yOffset := o.uiConfig.IndicatorYOffset
 
 	o.drawMu.Lock()
 	defer o.drawMu.Unlock()
@@ -204,8 +210,8 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 	hint := C.HintData{
 		label: label,
 		position: C.CGPoint{
-			x: C.double(xCoordinate),
-			y: C.double(yCoordinate),
+			x: C.double(xCoordinate + xOffset),
+			y: C.double(yCoordinate + yOffset),
 		},
 		size: C.CGSize{
 			width:  stickyIndicatorWidth,
