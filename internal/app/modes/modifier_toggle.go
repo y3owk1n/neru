@@ -86,15 +86,19 @@ func (h *Handler) handleModifierToggle(key string) bool {
 		return true
 	}
 
+	// Normalize to lowercase for consistent matching (parseModifierEvent also
+	// lowercases), so mixed-case event sources can never cause a silent mismatch.
+	normalizedKey := strings.ToLower(key)
+
 	if isDown {
-		h.pendingModifierKey = key
-		h.logger.Debug("Modifier key down", zap.String("key", key))
+		h.pendingModifierKey = normalizedKey
+		h.logger.Debug("Modifier key down", zap.String("key", normalizedKey))
 
 		return true
 	}
 
 	// Key up — toggle only if the matching down is still pending.
-	expectedDown := strings.TrimSuffix(key, "_up") + "_down"
+	expectedDown := strings.TrimSuffix(normalizedKey, "_up") + "_down"
 	if h.pendingModifierKey != expectedDown {
 		h.logger.Debug("Modifier key up ignored (no matching pending down)",
 			zap.String("key", key),
