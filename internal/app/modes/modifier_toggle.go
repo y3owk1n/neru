@@ -32,17 +32,20 @@ func parseModifierEvent(key string) (action.Modifiers, bool, bool) {
 
 	suffix := strings.ToLower(strings.TrimPrefix(key, modifierTogglePrefix))
 
-	if strings.HasSuffix(suffix, "_down") {
-		name := strings.TrimSuffix(suffix, "_down")
+	if before, ok := strings.CutSuffix(suffix, "_down"); ok {
+		name := before
 		mod, ok := modifierToggleMap[name]
 
 		return mod, true, ok
 	}
-	if strings.HasSuffix(suffix, "_up") {
-		name := strings.TrimSuffix(suffix, "_up")
+
+	if before, ok := strings.CutSuffix(suffix, "_up"); ok {
+		name := before
 		mod, ok := modifierToggleMap[name]
+
 		return mod, false, ok
 	}
+
 	return 0, false, false
 }
 

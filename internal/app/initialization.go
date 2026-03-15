@@ -194,6 +194,7 @@ func initializeServices(
 		overlayAdapter,
 		logger,
 	)
+
 	return hintService, gridService, actionService, scrollService, modeIndicatorService, stickyIndicatorService, nil
 }
 

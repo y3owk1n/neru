@@ -35,6 +35,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 		ind.ResizeToActiveScreen()
 		ind.Show()
 	}
+
 	if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 		stickyInd.ResizeToActiveScreen()
 		stickyInd.Show()
@@ -43,11 +44,13 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 			h.drawStickyModifiersIndicatorAtCurrentCursor()
 		}
 	}
+
 	stopCh := make(chan struct{})
 	doneCh := make(chan struct{})
 	ticker := time.NewTicker(indicatorPollInterval)
 	h.indicatorStopCh = stopCh
 	h.indicatorDoneCh = doneCh
+
 	h.indicatorTicker = ticker
 	go func() {
 		defer close(doneCh)
@@ -62,6 +65,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 			case <-ctx.Done():
 			}
 		}()
+
 		for {
 			select {
 			case <-stopCh:
@@ -78,13 +82,17 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 				// Use a timeout for the individual call to prevent hanging.
 				reqCtx, reqCancel := context.WithTimeout(ctx, indicatorPollTimeout)
 				cursorX, cursorY, err := h.modeIndicatorService.GetCursorPosition(reqCtx)
+
 				reqCancel()
+
 				if err != nil {
 					continue
 				}
+
 				if h.shouldShowModeIndicator(h.appState.CurrentMode()) {
 					h.modeIndicatorService.UpdateIndicatorPosition(cursorX, cursorY)
 				}
+
 				if h.stickyModifiersEnabled() {
 					if h.stickyModifiers() != 0 {
 						h.drawStickyModifiersIndicator(cursorX, cursorY)
@@ -134,6 +142,7 @@ func (h *Handler) modeIndicatorEnabled(mode domain.Mode) bool {
 	if h.config == nil {
 		return false
 	}
+
 	switch mode {
 	case domain.ModeIdle:
 		return false

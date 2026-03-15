@@ -3,11 +3,12 @@ package stickyindicator
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"go.uber.org/zap"
 )
 
 // Service manages the sticky modifiers indicator overlay.
@@ -35,10 +36,12 @@ func (s *Service) GetCursorPosition(ctx context.Context) (int, int, error) {
 	if s.system == nil {
 		return 0, 0, derrors.New(derrors.CodeActionFailed, "system port not available")
 	}
+
 	point, err := s.system.CursorPosition(ctx)
 	if err != nil {
 		return 0, 0, core.WrapAccessibilityFailed(err, "get cursor position")
 	}
+
 	return point.X, point.Y, nil
 }
 
@@ -53,18 +56,23 @@ func ModifierSymbolsString(mods action.Modifiers) string {
 	if mods == 0 {
 		return ""
 	}
+
 	var symbols string
 	if mods.Has(action.ModCmd) {
 		symbols += "⌘"
 	}
+
 	if mods.Has(action.ModShift) {
 		symbols += "⇧"
 	}
+
 	if mods.Has(action.ModAlt) {
 		symbols += "⌥"
 	}
+
 	if mods.Has(action.ModCtrl) {
 		symbols += "⌃"
 	}
+
 	return symbols
 }
