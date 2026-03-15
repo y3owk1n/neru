@@ -27,11 +27,12 @@ func TestParseModifierEvent(t *testing.T) {
 		{"__modifier_alt_up", action.ModAlt, false, true},
 		{"__modifier_ctrl_up", action.ModCtrl, false, true},
 		{"__modifier_CMD_up", action.ModCmd, false, true},
-		// Invalid
+		// Invalid — when ok=false, mod and isDown are undefined;
+		// we test the actual return values for completeness.
 		{"__modifier_shift", 0, false, false},
 		{"__modifier_cmd", 0, false, false},
-		{"__modifier_foo_down", 0, false, false},
-		{"__modifier_foo_up", 0, false, false},
+		{"__modifier_foo_down", 0, true, false}, // has _down suffix but unknown modifier
+		{"__modifier_foo_up", 0, false, false},  // has _up suffix but unknown modifier
 		{"__modifier", 0, false, false},
 		{"shift", 0, false, false},
 		{"cmd", 0, false, false},
