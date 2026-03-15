@@ -326,28 +326,31 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				return event;
 			}
 
-			// Determine which modifier changed and whether it was pressed or released.
-			const char *modName = NULL;
-			BOOL isKeyDown = NO;
-			if (changed & kCGEventFlagMaskCommand) {
-				modName = (flags & kCGEventFlagMaskCommand) ? "__modifier_cmd_down" : "__modifier_cmd_up";
-				isKeyDown = !(previousFlags & kCGEventFlagMaskCommand);
-			} else if (changed & kCGEventFlagMaskShift) {
-				modName = (flags & kCGEventFlagMaskShift) ? "__modifier_shift_down" : "__modifier_shift_up";
-				isKeyDown = !(previousFlags & kCGEventFlagMaskShift);
-			} else if (changed & kCGEventFlagMaskAlternate) {
-				modName = (flags & kCGEventFlagMaskAlternate) ? "__modifier_alt_down" : "__modifier_alt_up";
-				isKeyDown = !(previousFlags & kCGEventFlagMaskAlternate);
-			} else if (changed & kCGEventFlagMaskControl) {
-				modName = (flags & kCGEventFlagMaskControl) ? "__modifier_ctrl_down" : "__modifier_ctrl_up";
-				isKeyDown = !(previousFlags & kCGEventFlagMaskControl);
+			// Determine which modifier(s) changed and whether each was pressed or released.
+			// Although macOS typically generates one kCGEventFlagsChanged per physical key,
+			// multiple bits can change in a single event (e.g., programmatic event generation).
+			// Iterate all four modifiers so no change is silently lost.
+			static const struct {
+				CGEventFlags mask;
+				const char *downName;
+				const char *upName;
+			} modifiers[] = {
+			    {kCGEventFlagMaskCommand, "__modifier_cmd_down", "__modifier_cmd_up"},
+			    {kCGEventFlagMaskShift, "__modifier_shift_down", "__modifier_shift_up"},
+			    {kCGEventFlagMaskAlternate, "__modifier_alt_down", "__modifier_alt_up"},
+			    {kCGEventFlagMaskControl, "__modifier_ctrl_down", "__modifier_ctrl_up"},
+			};
+			BOOL handled = NO;
+			for (size_t i = 0; i < sizeof(modifiers) / sizeof(modifiers[0]); i++) {
+				if (changed & modifiers[i].mask) {
+					const char *modName = (flags & modifiers[i].mask) ? modifiers[i].downName : modifiers[i].upName;
+					if (context->callback) {
+						context->callback(modName, context->userData);
+						handled = YES;
+					}
+				}
 			}
-			(void)isKeyDown; // suppress unused warning; Go uses the suffix to distinguish
-			if (modName && context->callback) {
-				context->callback(modName, context->userData);
-				return NULL;
-			}
-			return event;
+			return handled ? NULL : event;
 		}
 
 		if (type == kCGEventKeyDown) {
