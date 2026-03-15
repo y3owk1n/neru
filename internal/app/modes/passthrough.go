@@ -159,6 +159,8 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 		return
 	}
 
+	h.cancelPendingModifierToggle()
+
 	if h.config != nil && h.config.General.ShouldExitAfterPassthrough {
 		h.logger.Debug("Exiting mode after passthrough",
 			zap.String("mode", domain.ModeString(mode)),
