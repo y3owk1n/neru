@@ -1,9 +1,7 @@
 package modes
 
 import (
-	"context"
 	"strings"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -12,8 +10,6 @@ import (
 )
 
 const modifierTogglePrefix = "__modifier_"
-
-const stickyIndicatorTimeout = 100 * time.Millisecond
 
 var modifierToggleMap = map[string]action.Modifiers{
 	"cmd":   action.ModCmd,
@@ -165,29 +161,4 @@ func (h *Handler) drawStickyModifiersIndicator(xCoordinate, yCoordinate int) {
 	yOffset := yCoordinate + uiConfig.IndicatorYOffset
 
 	h.stickyIndicatorService.UpdateIndicatorPosition(xOffset, yOffset, symbols)
-}
-
-func (h *Handler) drawStickyModifiersIndicatorAtCurrentCursor() {
-	if h.stickyIndicatorService == nil {
-		return
-	}
-
-	if !h.stickyModifiersEnabled() {
-		return
-	}
-
-	mods := h.stickyModifiers()
-	if mods == 0 {
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), stickyIndicatorTimeout)
-	defer cancel()
-
-	cursorX, cursorY, err := h.stickyIndicatorService.GetCursorPosition(ctx)
-	if err != nil {
-		return
-	}
-
-	h.drawStickyModifiersIndicator(cursorX, cursorY)
 }
