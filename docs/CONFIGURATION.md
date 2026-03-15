@@ -16,6 +16,7 @@ Neru uses TOML for configuration. This guide covers all available options with e
 - [Scroll Mode](#scroll-mode)
 - [Mouse Movement Actions](#mouse-movement-actions)
 - [Mode Indicator](#mode-indicator)
+- [Sticky Modifiers](#sticky-modifiers)
 - [Smooth Cursor](#smooth-cursor)
 - [Systray](#systray)
 - [Font Configuration](#font-configuration)
@@ -1221,6 +1222,77 @@ text = ""
 | `border_radius`          | int    | `-1`          | Border radius (`-1` = auto pill)                    |
 | `indicator_x_offset`     | int    | `20`          | X offset from cursor                                |
 | `indicator_y_offset`     | int    | `20`          | Y offset from cursor                                |
+
+---
+
+## Sticky Modifiers
+
+Tap a modifier key while in any navigation mode to "stick" it — the modifier will be applied to the next mouse action without physically holding the key.
+
+### When to Use
+
+- **Shift+click** to select ranges without holding Shift
+- **Cmd+click** to open links in new tabs
+- **Combining modifiers** like Cmd+Shift for complex actions
+
+### How It Works
+
+1. Enter any navigation mode (hints, grid, recursive grid, scroll)
+2. Tap Shift once (press and release without pressing any other key) — "⇧" appears near the cursor
+3. Perform an action (e.g., left click) — it executes as Shift+click
+4. Tap Shift again to remove it, or tap Cmd to add "⌘⇧"
+5. Modifiers reset automatically when exiting the mode
+    > [!NOTE]
+    > A modifier tap is only detected when the key is pressed and released cleanly without any other key in between. Pressing Shift+L (a common action binding) does **not** toggle Shift as sticky.
+
+### Configuration
+
+| Option    | Type | Default | Description                    |
+| --------- | ---- | ------- | ------------------------------ |
+| `enabled` | bool | `true`  | Enable sticky modifier feature |
+
+```toml
+[sticky_modifiers]
+enabled = true
+```
+
+### Visual Options (`[sticky_modifiers.ui]`)
+
+A small indicator near the cursor shows active sticky modifiers (e.g., "⌘⇧"). By default it appears to the **left** of the cursor, while the mode indicator appears to the **right**.
+
+| Option                   | Type   | Default       | Description                                         |
+| ------------------------ | ------ | ------------- | --------------------------------------------------- |
+| `font_size`              | int    | `10`          | Text size (≥ 1)                                     |
+| `font_family`            | string | `""`          | Font (empty = system)                               |
+| `background_color_light` | string | `"#F200CFCF"` | Background for Light Mode (theme-aware)             |
+| `background_color_dark`  | string | `"#F200CFCF"` | Background for Dark Mode (theme-aware)              |
+| `text_color_light`       | string | `"#FF003554"` | Text for Light Mode (theme-aware)                   |
+| `text_color_dark`        | string | `"#FF003554"` | Text for Dark Mode (theme-aware)                    |
+| `border_color_light`     | string | `"#FF007A9E"` | Border for Light Mode (theme-aware)                 |
+| `border_color_dark`      | string | `"#FF007A9E"` | Border for Dark Mode (theme-aware)                  |
+| `border_width`           | int    | `1`           | Border width (≥ 0)                                  |
+| `padding_x`              | int    | `-1`          | Horizontal padding (`-1` = auto based on font size) |
+| `padding_y`              | int    | `-1`          | Vertical padding (`-1` = auto based on font size)   |
+| `border_radius`          | int    | `-1`          | Border radius (`-1` = auto pill)                    |
+| `indicator_x_offset`     | int    | `-40`         | X offset from cursor (negative = left)              |
+| `indicator_y_offset`     | int    | `20`          | Y offset from cursor                                |
+
+### Positioning
+
+The sticky indicator and mode indicator are positioned relative to the cursor using their respective offsets:
+
+```
+          ⌘⇧  ↖ cursor ↗  Scroll
+     (-40, 20)           (20, 20)
+```
+
+To move the sticky indicator below the cursor instead:
+
+```toml
+[sticky_modifiers.ui]
+indicator_x_offset = 20
+indicator_y_offset = 40
+```
 
 ---
 
