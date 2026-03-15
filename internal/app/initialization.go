@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
+	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
@@ -136,11 +137,11 @@ func initializeServices(
 	overlayAdapter ports.OverlayPort,
 	systemPort ports.SystemPort,
 	logger *zap.Logger,
-) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, *modeindicator.Service, error) {
+) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, *modeindicator.Service, *stickyindicator.Service, error) {
 	// Hint Generator - creates unique labels for UI elements
 	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
 	if hintGenErr != nil {
-		return nil, nil, nil, nil, nil, derrors.Wrap(
+		return nil, nil, nil, nil, nil, nil, derrors.Wrap(
 			hintGenErr,
 			derrors.CodeHintGenerationFailed,
 			"failed to create hint generator",
@@ -187,7 +188,13 @@ func initializeServices(
 		logger,
 	)
 
-	return hintService, gridService, actionService, scrollService, modeIndicatorService, nil
+	// Sticky Indicator Service - manages sticky modifiers indicator overlay
+	stickyIndicatorService := stickyindicator.NewService(
+		systemPort,
+		overlayAdapter,
+		logger,
+	)
+	return hintService, gridService, actionService, scrollService, modeIndicatorService, stickyIndicatorService, nil
 }
 
 // processHotkeyBindings processes and filters hotkey bindings from configuration.

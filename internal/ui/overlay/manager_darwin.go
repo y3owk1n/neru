@@ -110,6 +110,10 @@ func (m *Manager) Hide() {
 		m.modeIndicatorOverlay.Hide()
 	}
 
+	if m.stickyModifiersOverlay != nil {
+		m.stickyModifiersOverlay.Hide()
+	}
+
 	if m.recursiveGridOverlay != nil {
 		m.recursiveGridOverlay.Hide()
 	}
@@ -129,6 +133,10 @@ func (m *Manager) Clear() {
 		m.modeIndicatorOverlay.Clear()
 	}
 
+	if m.stickyModifiersOverlay != nil {
+		m.stickyModifiersOverlay.Clear()
+	}
+
 	if m.recursiveGridOverlay != nil {
 		m.recursiveGridOverlay.Clear()
 	}
@@ -140,6 +148,10 @@ func (m *Manager) ResizeToActiveScreen() {
 
 	if m.modeIndicatorOverlay != nil {
 		m.modeIndicatorOverlay.ResizeToActiveScreen()
+	}
+
+	if m.stickyModifiersOverlay != nil {
+		m.stickyModifiersOverlay.ResizeToActiveScreen()
 	}
 }
 
@@ -205,6 +217,12 @@ func (m *Manager) Destroy() {
 	if m.modeIndicatorOverlay != nil {
 		m.modeIndicatorOverlay.Destroy()
 		m.modeIndicatorOverlay = nil
+	}
+
+	// Sticky modifiers indicator owns its own window, so use full Destroy().
+	if m.stickyModifiersOverlay != nil {
+		m.stickyModifiersOverlay.Destroy()
+		m.stickyModifiersOverlay = nil
 	}
 
 	if m.window != nil {
@@ -410,6 +428,10 @@ func (m *Manager) SetSharingType(hide bool) {
 	}
 	if m.modeIndicatorOverlay != nil {
 		m.modeIndicatorOverlay.SetSharingType(hide)
+	}
+
+	if m.stickyModifiersOverlay != nil {
+		m.stickyModifiersOverlay.SetSharingType(hide)
 	}
 
 	if m.logger != nil {

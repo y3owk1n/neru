@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
+	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
@@ -59,11 +60,12 @@ type Handler struct {
 	overlayManager overlay.ManagerInterface
 	renderer       *ui.OverlayRenderer
 	// New Services
-	hintService          *services.HintService
-	gridService          *services.GridService
-	actionService        *services.ActionService
-	scrollService        *services.ScrollService
-	modeIndicatorService *modeindicator.Service
+	hintService            *services.HintService
+	gridService            *services.GridService
+	actionService          *services.ActionService
+	scrollService          *services.ScrollService
+	modeIndicatorService   *modeindicator.Service
+	stickyIndicatorService *stickyindicator.Service
 
 	hints         *components.HintsComponent
 	grid          *components.GridComponent
@@ -109,6 +111,7 @@ func NewHandler(
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
 	modeIndicatorService *modeindicator.Service,
+	stickyIndicatorService *stickyindicator.Service,
 	hintsComponent *components.HintsComponent,
 	grid *components.GridComponent,
 	scroll *components.ScrollComponent,
@@ -150,6 +153,7 @@ func NewHandler(
 		actionService:              actionService,
 		scrollService:              scrollService,
 		modeIndicatorService:       modeIndicatorService,
+		stickyIndicatorService:     stickyIndicatorService,
 		hints:                      hintsComponent,
 		grid:                       grid,
 		scroll:                     scroll,

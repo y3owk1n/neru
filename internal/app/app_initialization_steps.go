@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
+	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -82,7 +83,7 @@ func initializeServicesAndAdapters(app *App) error {
 	app.axCacheStop = axCacheStop
 
 	// Initialize services
-	hintService, gridService, actionService, scrollService, modeIndicatorService, err := initializeServices(
+	hintService, gridService, actionService, scrollService, modeIndicatorService, stickyIndicatorService, err := initializeServices(
 		cfg,
 		accAdapter,
 		overlayAdapter,
@@ -99,6 +100,7 @@ func initializeServicesAndAdapters(app *App) error {
 	app.actionService = actionService
 	app.scrollService = scrollService
 	app.modeIndicatorService = modeIndicatorService
+	app.stickyIndicatorService = stickyIndicatorService
 	app.configService = cfgService
 
 	return nil
@@ -234,11 +236,12 @@ func initializeModeHandler(app *App) {
 		overlayManager OverlayManager
 		renderer       *ui.OverlayRenderer
 		services       struct {
-			hint          *services.HintService
-			grid          *services.GridService
-			action        *services.ActionService
-			scroll        *services.ScrollService
-			modeIndicator *modeindicator.Service
+			hint            *services.HintService
+			grid            *services.GridService
+			action          *services.ActionService
+			scroll          *services.ScrollService
+			modeIndicator   *modeindicator.Service
+			stickyIndicator *stickyindicator.Service
 		}
 		components struct {
 			hints         *components.HintsComponent
@@ -263,17 +266,19 @@ func initializeModeHandler(app *App) {
 		overlayManager: app.overlayManager,
 		renderer:       app.renderer,
 		services: struct {
-			hint          *services.HintService
-			grid          *services.GridService
-			action        *services.ActionService
-			scroll        *services.ScrollService
-			modeIndicator *modeindicator.Service
+			hint            *services.HintService
+			grid            *services.GridService
+			action          *services.ActionService
+			scroll          *services.ScrollService
+			modeIndicator   *modeindicator.Service
+			stickyIndicator *stickyindicator.Service
 		}{
-			hint:          app.hintService,
-			grid:          app.gridService,
-			action:        app.actionService,
-			scroll:        app.scrollService,
-			modeIndicator: app.modeIndicatorService,
+			hint:            app.hintService,
+			grid:            app.gridService,
+			action:          app.actionService,
+			scroll:          app.scrollService,
+			modeIndicator:   app.modeIndicatorService,
+			stickyIndicator: app.stickyIndicatorService,
 		},
 		components: struct {
 			hints         *components.HintsComponent
@@ -317,6 +322,7 @@ func initializeModeHandler(app *App) {
 		deps.services.action,
 		deps.services.scroll,
 		deps.services.modeIndicator,
+		deps.services.stickyIndicator,
 		deps.components.hints,
 		deps.components.grid,
 		deps.components.scroll,
@@ -450,6 +456,7 @@ func cleanupServicesAndAdapters(app *App) {
 	app.actionService = nil
 	app.scrollService = nil
 	app.modeIndicatorService = nil
+	app.stickyIndicatorService = nil
 	app.configService = nil
 }
 
@@ -461,6 +468,7 @@ func cleanupUIComponents(app *App) {
 	app.gridComponent = nil
 	app.scrollComponent = nil
 	app.modeIndicatorComponent = nil
+	app.stickyIndicatorComponent = nil
 
 	// Clean up renderer
 	app.renderer = nil

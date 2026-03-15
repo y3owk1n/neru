@@ -50,6 +50,12 @@ func (o *Overlay) ResizeToActiveScreen() {}
 // Destroy destroys the sticky modifiers indicator overlay (Windows stub).
 func (o *Overlay) Destroy() {}
 
+// Cleanup frees Go-side resources (Windows stub).
+func (o *Overlay) Cleanup() {}
+
+// SetSharingType sets the window sharing type for screen sharing visibility (Windows stub).
+func (o *Overlay) SetSharingType(_ bool) {}
+
 // SetConfig updates the overlay configuration (Windows stub).
 func (o *Overlay) SetConfig(cfg config.StickyModifiersUI) {
 	o.configMu.Lock()

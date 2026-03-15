@@ -7,6 +7,9 @@ package stickyindicator
 #cgo CFLAGS: -x objective-c
 #include "../../../core/infra/platform/darwin/overlay.h"
 #include <stdlib.h>
+
+// Callback function that Go can reference.
+extern void resizeStickyIndicatorCompletionCallback(void* context);
 */
 import "C"
 
@@ -23,21 +26,40 @@ import (
 const (
 	stickyIndicatorWidth  = 60
 	stickyIndicatorHeight = 20
+
+	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	NSWindowSharingNone = 0
+	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
+	NSWindowSharingReadOnly = 1
 )
+
+//export resizeStickyIndicatorCompletionCallback
+func resizeStickyIndicatorCompletionCallback(context unsafe.Pointer) {
+	// Read callback context from the C-heap-allocated CallbackContext
+	ctx := *(*overlayutil.CallbackContext)(context)
+	// Free the C-allocated context now that we've copied the values
+	overlayutil.FreeCallbackContext(context)
+	// Delegate to global callback manager
+	overlayutil.CompleteGlobalCallback(ctx.CallbackID, ctx.Generation)
+}
 
 // Overlay manages the rendering of sticky modifiers indicator overlay.
 type Overlay struct {
-	window     C.OverlayWindow
-	uiConfig   config.StickyModifiersUI
-	theme      config.ThemeProvider
-	logger     *zap.Logger
-	styleCache *overlayutil.StyleCache
+	window          C.OverlayWindow
+	uiConfig        config.StickyModifiersUI
+	theme           config.ThemeProvider
+	logger          *zap.Logger
+	callbackManager *overlayutil.CallbackManager
+	styleCache      *overlayutil.StyleCache
 
 	configMu sync.RWMutex
-	drawMu   sync.Mutex
 
+	// Cached C strings for labels to avoid malloc/free per draw.
 	labelCacheMu sync.RWMutex
 	cachedLabels map[string]*C.char
+
+	// drawMu serializes draw operations against cache invalidation.
+	drawMu sync.Mutex
 }
 
 // NewOverlay initializes a new sticky modifiers indicator overlay.
@@ -52,12 +74,13 @@ func NewOverlay(
 	}
 
 	return &Overlay{
-		window:       (C.OverlayWindow)(base.Window),
-		uiConfig:     uiConfig,
-		theme:        theme,
-		logger:       logger,
-		styleCache:   base.StyleCache,
-		cachedLabels: make(map[string]*C.char),
+		window:          (C.OverlayWindow)(base.Window),
+		uiConfig:        uiConfig,
+		theme:           theme,
+		logger:          logger,
+		callbackManager: base.CallbackManager,
+		styleCache:      base.StyleCache,
+		cachedLabels:    make(map[string]*C.char),
 	}, nil
 }
 
@@ -71,12 +94,13 @@ func NewOverlayWithWindow(
 	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
 
 	return &Overlay{
-		window:       (C.OverlayWindow)(base.Window),
-		uiConfig:     uiConfig,
-		theme:        theme,
-		logger:       logger,
-		styleCache:   base.StyleCache,
-		cachedLabels: make(map[string]*C.char),
+		window:          (C.OverlayWindow)(base.Window),
+		uiConfig:        uiConfig,
+		theme:           theme,
+		logger:          logger,
+		callbackManager: base.CallbackManager,
+		styleCache:      base.StyleCache,
+		cachedLabels:    make(map[string]*C.char),
 	}, nil
 }
 
@@ -95,57 +119,87 @@ func (o *Overlay) Clear() {
 	C.NeruClearOverlay(o.window)
 }
 
+// ResizeToActiveScreen adjusts the overlay window size with callback notification.
+// Falls back to a non-callback resize if the callback ID pool is exhausted.
+func (o *Overlay) ResizeToActiveScreen() {
+	started := o.callbackManager.StartResizeOperation(func(callbackID uint64, generation uint64) {
+		contextPtr := overlayutil.CallbackIDToPointer(callbackID, generation)
+		C.NeruResizeOverlayToActiveScreenWithCallback(
+			o.window,
+			(C.ResizeCompletionCallback)(C.resizeStickyIndicatorCompletionCallback),
+			contextPtr,
+		)
+	})
+	if !started {
+		C.NeruResizeOverlayToActiveScreen(o.window)
+	}
+}
+
 // Draw draws the sticky modifier symbols at the specified position.
+// The caller is responsible for calling Show() once before the first draw.
 func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 	if symbols == "" {
 		return
 	}
 
+	// Hold configMu.RLock for entire draw to prevent SetConfig from
+	// writing to uiConfig while we read it.
 	o.configMu.RLock()
-	uiConfig := o.uiConfig
-	o.configMu.RUnlock()
-
-	bgColor := config.ResolveColor(
-		uiConfig.BackgroundColorLight,
-		uiConfig.BackgroundColorDark,
-		o.theme,
-		"#000000",
-		"#FFFFFF",
-	)
-
-	textColor := config.ResolveColor(
-		uiConfig.TextColorLight,
-		uiConfig.TextColorDark,
-		o.theme,
-		"#FFFFFF",
-		"#000000",
-	)
-
-	borderColor := config.ResolveColor(
-		uiConfig.BorderColorLight,
-		uiConfig.BorderColorDark,
-		o.theme,
-		"#FFFFFF",
-		"#000000",
-	)
+	defer o.configMu.RUnlock()
 
 	o.drawMu.Lock()
 	defer o.drawMu.Unlock()
 
-	C.NeruShowOverlayWindow(o.window)
-
-	o.styleCache.Free()
-
 	label := o.getOrCacheLabel(symbols)
 
-	bgColorC := C.CString(bgColor)
-	defer C.free(unsafe.Pointer(bgColorC)) //nolint:nlreturn
-
-	textColorC := C.CString(textColor)
-	defer C.free(unsafe.Pointer(textColorC)) //nolint:nlreturn
-
-	borderColorC := C.CString(borderColor)
-	defer C.free(unsafe.Pointer(borderColorC)) //nolint:nlreturn
+	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
+		cached.FontFamily = unsafe.Pointer(C.CString(o.uiConfig.FontFamily))
+		cached.BgColor = unsafe.Pointer(
+			C.CString(
+				config.ResolveColor(
+					o.uiConfig.BackgroundColorLight,
+					o.uiConfig.BackgroundColorDark,
+					o.theme,
+					"#000000",
+					"#FFFFFF",
+				),
+			),
+		)
+		cached.TextColor = unsafe.Pointer(
+			C.CString(
+				config.ResolveColor(
+					o.uiConfig.TextColorLight,
+					o.uiConfig.TextColorDark,
+					o.theme,
+					"#FFFFFF",
+					"#000000",
+				),
+			),
+		)
+		// No matching in indicator mode; reuse TextColor.
+		cached.MatchedTextColor = unsafe.Pointer(
+			C.CString(
+				config.ResolveColor(
+					o.uiConfig.TextColorLight,
+					o.uiConfig.TextColorDark,
+					o.theme,
+					"#FFFFFF",
+					"#000000",
+				),
+			),
+		)
+		cached.BorderColor = unsafe.Pointer(
+			C.CString(
+				config.ResolveColor(
+					o.uiConfig.BorderColorLight,
+					o.uiConfig.BorderColorDark,
+					o.theme,
+					"#FFFFFF",
+					"#000000",
+				),
+			),
+		)
+	})
 
 	hint := C.HintData{
 		label: label,
@@ -161,16 +215,17 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 	}
 
 	style := C.HintStyle{
-		fontSize:        C.int(uiConfig.FontSize),
-		fontFamily:      nil,
-		backgroundColor: bgColorC,
-		textColor:       textColorC,
-		borderColor:     borderColorC,
-		borderRadius:    C.int(uiConfig.BorderRadius),
-		borderWidth:     C.int(uiConfig.BorderWidth),
-		paddingX:        C.int(uiConfig.PaddingX),
-		paddingY:        C.int(uiConfig.PaddingY),
-		showArrow:       0,
+		fontSize:         C.int(o.uiConfig.FontSize),
+		fontFamily:       (*C.char)(cachedStyle.FontFamily),
+		backgroundColor:  (*C.char)(cachedStyle.BgColor),
+		textColor:        (*C.char)(cachedStyle.TextColor),
+		matchedTextColor: (*C.char)(cachedStyle.MatchedTextColor),
+		borderColor:      (*C.char)(cachedStyle.BorderColor),
+		borderRadius:     C.int(o.uiConfig.BorderRadius),
+		borderWidth:      C.int(o.uiConfig.BorderWidth),
+		paddingX:         C.int(o.uiConfig.PaddingX),
+		paddingY:         C.int(o.uiConfig.PaddingY),
+		showArrow:        0,
 	}
 
 	C.NeruDrawHints(o.window, &hint, 1, style)
@@ -179,33 +234,80 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 // SetConfig updates the overlay configuration.
 func (o *Overlay) SetConfig(uiCfg config.StickyModifiersUI) {
 	o.configMu.Lock()
-	defer o.configMu.Unlock()
 	o.uiConfig = uiCfg
+
+	o.configMu.Unlock()
+
+	o.freeAllCaches()
 }
 
-// ResizeToActiveScreen adjusts the overlay window size to the active screen.
-func (o *Overlay) ResizeToActiveScreen() {
-	C.NeruResizeOverlayToActiveScreen(o.window)
+// SetSharingType sets the window sharing type for screen sharing visibility.
+func (o *Overlay) SetSharingType(hide bool) {
+	sharingType := C.int(NSWindowSharingReadOnly)
+	if hide {
+		sharingType = C.int(NSWindowSharingNone)
+	}
+	C.NeruSetOverlaySharingType(o.window, sharingType)
 }
 
+// Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)
+// without destroying the native window.
+func (o *Overlay) Cleanup() {
+	if o.callbackManager != nil {
+		o.callbackManager.Cleanup()
+	}
+	o.freeAllCaches()
+}
+
+// Destroy releases the overlay window resources.
+func (o *Overlay) Destroy() {
+	o.Cleanup()
+	if o.window != nil {
+		C.NeruDestroyOverlayWindow(o.window)
+		o.window = nil
+	}
+}
+
+func (o *Overlay) freeAllCaches() {
+	o.drawMu.Lock()
+	defer o.drawMu.Unlock()
+	o.styleCache.Free()
+	o.freeLabelCacheLocked()
+}
+
+// freeLabelCacheLocked frees all cached label C strings.
+// Caller must hold drawMu.Lock.
+func (o *Overlay) freeLabelCacheLocked() {
+	o.labelCacheMu.Lock()
+	defer o.labelCacheMu.Unlock()
+	for _, cStr := range o.cachedLabels {
+		if cStr != nil {
+			C.free(unsafe.Pointer(cStr))
+		}
+	}
+	o.cachedLabels = make(map[string]*C.char)
+}
+
+// getOrCacheLabel returns a cached C string for the label, creating it if needed.
 func (o *Overlay) getOrCacheLabel(text string) *C.char {
 	o.labelCacheMu.RLock()
-	label, exists := o.cachedLabels[text]
-	o.labelCacheMu.RUnlock()
+	if label, ok := o.cachedLabels[text]; ok {
+		o.labelCacheMu.RUnlock()
 
-	if exists {
 		return label
 	}
 
+	o.labelCacheMu.RUnlock()
 	o.labelCacheMu.Lock()
 	defer o.labelCacheMu.Unlock()
 
-	if label, exists := o.cachedLabels[text]; exists {
+	// Double-check
+	if label, ok := o.cachedLabels[text]; ok {
 		return label
 	}
 
-	cText := C.CString(text)
-	o.cachedLabels[text] = cText
+	label := C.CString(text)
+	o.cachedLabels[text] = label
 
-	return cText
+	return label
 }

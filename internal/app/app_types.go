@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
+	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
@@ -64,12 +65,13 @@ type App struct {
 	configMu sync.RWMutex
 
 	// New Architecture Services
-	hintService          *services.HintService
-	gridService          *services.GridService
-	actionService        *services.ActionService
-	scrollService        *services.ScrollService
-	modeIndicatorService *modeindicator.Service
-	configService        *config.Service
+	hintService            *services.HintService
+	gridService            *services.GridService
+	actionService          *services.ActionService
+	scrollService          *services.ScrollService
+	modeIndicatorService   *modeindicator.Service
+	stickyIndicatorService *stickyindicator.Service
+	configService          *config.Service
 
 	// Feature components
 	hintsComponent           *components.HintsComponent

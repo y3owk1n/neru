@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
@@ -22,39 +23,6 @@ var modifierToggleMap = map[string]action.Modifiers{
 	"shift": action.ModShift,
 	"alt":   action.ModAlt,
 	"ctrl":  action.ModCtrl,
-}
-
-var modifierSymbols = map[action.Modifiers]string{
-	action.ModCmd:   "⌘",
-	action.ModShift: "⇧",
-	action.ModAlt:   "⌥",
-	action.ModCtrl:  "⌃",
-}
-
-func modifierSymbolsString(mods action.Modifiers) string {
-	if mods == 0 {
-		return ""
-	}
-
-	var symbols string
-
-	if mods.Has(action.ModCmd) {
-		symbols += modifierSymbols[action.ModCmd]
-	}
-
-	if mods.Has(action.ModShift) {
-		symbols += modifierSymbols[action.ModShift]
-	}
-
-	if mods.Has(action.ModAlt) {
-		symbols += modifierSymbols[action.ModAlt]
-	}
-
-	if mods.Has(action.ModCtrl) {
-		symbols += modifierSymbols[action.ModCtrl]
-	}
-
-	return symbols
 }
 
 func parseModifierToggleKey(key string) (action.Modifiers, bool) {
@@ -134,15 +102,11 @@ func (h *Handler) stickyModifiers() action.Modifiers {
 }
 
 func (h *Handler) drawStickyModifiersIndicator(xCoordinate, yCoordinate int) {
-	if h.overlayManager == nil {
+	if h.stickyIndicatorService == nil {
 		return
 	}
 
-	if h.config == nil {
-		return
-	}
-
-	if !h.config.StickyModifiers.Enabled {
+	if !h.stickyModifiersEnabled() {
 		return
 	}
 
@@ -151,7 +115,7 @@ func (h *Handler) drawStickyModifiersIndicator(xCoordinate, yCoordinate int) {
 		return
 	}
 
-	symbols := modifierSymbolsString(mods)
+	symbols := stickyindicator.ModifierSymbolsString(mods)
 	if symbols == "" {
 		return
 	}
@@ -160,15 +124,15 @@ func (h *Handler) drawStickyModifiersIndicator(xCoordinate, yCoordinate int) {
 	xOffset := xCoordinate + uiConfig.IndicatorXOffset
 	yOffset := yCoordinate + uiConfig.IndicatorYOffset
 
-	h.overlayManager.DrawStickyModifiersIndicator(xOffset, yOffset, symbols)
+	h.stickyIndicatorService.UpdateIndicatorPosition(xOffset, yOffset, symbols)
 }
 
 func (h *Handler) drawStickyModifiersIndicatorAtCurrentCursor() {
-	if h.overlayManager == nil || h.system == nil {
+	if h.stickyIndicatorService == nil {
 		return
 	}
 
-	if h.config == nil || !h.config.StickyModifiers.Enabled {
+	if !h.stickyModifiersEnabled() {
 		return
 	}
 
@@ -180,10 +144,10 @@ func (h *Handler) drawStickyModifiersIndicatorAtCurrentCursor() {
 	ctx, cancel := context.WithTimeout(context.Background(), stickyIndicatorTimeout)
 	defer cancel()
 
-	point, err := h.system.CursorPosition(ctx)
+	cursorX, cursorY, err := h.stickyIndicatorService.GetCursorPosition(ctx)
 	if err != nil {
 		return
 	}
 
-	h.drawStickyModifiersIndicator(point.X, point.Y)
+	h.drawStickyModifiersIndicator(cursorX, cursorY)
 }

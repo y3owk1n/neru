@@ -51,6 +51,10 @@ func (a *App) handleThemeChange(isDark bool) {
 		a.modeIndicatorComponent.UpdateConfig(cfg, a.logger)
 	}
 
+	if a.stickyIndicatorComponent != nil {
+		a.stickyIndicatorComponent.UpdateConfig(cfg, a.logger)
+	}
+
 	// Re-build renderer style with the new theme state, then redraw active mode.
 	if a.modes != nil {
 		a.modes.UpdateConfig(cfg)
