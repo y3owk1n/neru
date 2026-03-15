@@ -165,9 +165,8 @@ static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uin
 			NSString *trimmed = [part stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
 
 			// Support left/right-prefixed modifiers (e.g., RightCmd) commonly produced by Karabiner hyper mappings.
-			if ([trimmed isEqualToString:@"Cmd"] || [trimmed isEqualToString:@"Command"] ||
-			    [trimmed isEqualToString:@"RightCmd"] || [trimmed isEqualToString:@"RightCommand"] ||
-			    [trimmed isEqualToString:@"LeftCmd"] || [trimmed isEqualToString:@"LeftCommand"]) {
+			if ([trimmed isEqualToString:@"Cmd"] || [trimmed isEqualToString:@"RightCmd"] ||
+			    [trimmed isEqualToString:@"LeftCmd"]) {
 				needsCmd = YES;
 			} else if ([trimmed isEqualToString:@"Shift"] || [trimmed isEqualToString:@"RightShift"] ||
 			           [trimmed isEqualToString:@"LeftShift"]) {
@@ -176,8 +175,8 @@ static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uin
 			           [trimmed isEqualToString:@"RightAlt"] || [trimmed isEqualToString:@"RightOption"] ||
 			           [trimmed isEqualToString:@"LeftAlt"] || [trimmed isEqualToString:@"LeftOption"]) {
 				needsAlt = YES;
-			} else if ([trimmed isEqualToString:@"Ctrl"] || [trimmed isEqualToString:@"Control"] ||
-			           [trimmed isEqualToString:@"RightCtrl"] || [trimmed isEqualToString:@"LeftCtrl"]) {
+			} else if ([trimmed isEqualToString:@"Ctrl"] || [trimmed isEqualToString:@"RightCtrl"] ||
+			           [trimmed isEqualToString:@"LeftCtrl"]) {
 				needsCtrl = YES;
 			} else {
 				mainKey = trimmed;
@@ -377,7 +376,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 					[fullKey appendString:keyName];
 
 					if (context->callback) {
-						context->callback([fullKey UTF8String], context->userData);
+						context->callback([fullKey UTF8String], context -> userData);
 					}
 					return NULL;
 				}
@@ -395,7 +394,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 					[fullKey appendString:keyName];
 
 					if (context->callback) {
-						context->callback([fullKey UTF8String], context->userData);
+						context->callback([fullKey UTF8String], context -> userData);
 					}
 					return NULL;
 				}
@@ -403,7 +402,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 			NSString *namedKey = specialKeyName(keyCode);
 			if (namedKey && context->callback) {
-				context->callback([namedKey UTF8String], context->userData);
+				context->callback([namedKey UTF8String], context -> userData);
 				return NULL;
 			}
 

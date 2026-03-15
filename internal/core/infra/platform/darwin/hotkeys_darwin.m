@@ -205,8 +205,7 @@ int parseKeyString(const char *keyString, int *keyCode, int *modifiers) {
 			NSString *trimmed = [part stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
 
 			// Support left/right-prefixed modifiers (e.g., RightCmd) commonly produced by Karabiner hyper mappings.
-			if ([trimmed isEqualToString:@"Cmd"] ||
-			    [trimmed isEqualToString:@"RightCmd"] ||
+			if ([trimmed isEqualToString:@"Cmd"] || [trimmed isEqualToString:@"RightCmd"] ||
 			    [trimmed isEqualToString:@"LeftCmd"]) {
 				*modifiers |= ModifierCmd;
 			} else if ([trimmed isEqualToString:@"Shift"] || [trimmed isEqualToString:@"RightShift"] ||
@@ -216,8 +215,8 @@ int parseKeyString(const char *keyString, int *keyCode, int *modifiers) {
 			           [trimmed isEqualToString:@"RightAlt"] || [trimmed isEqualToString:@"RightOption"] ||
 			           [trimmed isEqualToString:@"LeftAlt"] || [trimmed isEqualToString:@"LeftOption"]) {
 				*modifiers |= ModifierAlt;
-			} else if ([trimmed isEqualToString:@"Ctrl"] ||
-			           [trimmed isEqualToString:@"RightCtrl"] || [trimmed isEqualToString:@"LeftCtrl"]) {
+			} else if ([trimmed isEqualToString:@"Ctrl"] || [trimmed isEqualToString:@"RightCtrl"] ||
+			           [trimmed isEqualToString:@"LeftCtrl"]) {
 				*modifiers |= ModifierCtrl;
 			} else {
 				mainKey = trimmed;
