@@ -681,6 +681,9 @@ void setEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallback ca
 }
 
 /// Enable or disable sticky modifier toggle detection.
+/// When enabling, previousFlags is seeded with the current modifier state so
+/// that releasing hotkey modifiers (e.g., Cmd+Shift from the activation combo)
+/// is correctly seen as key-up, not key-down.
 /// @param tap Event tap handle
 /// @param enabled Non-zero to enable, zero to disable
 void setEventTapStickyModifierToggle(EventTap tap, int enabled) {
@@ -689,7 +692,16 @@ void setEventTapStickyModifierToggle(EventTap tap, int enabled) {
 	EventTapContext *context = (EventTapContext *)tap;
 	os_unfair_lock_lock(&context->stickyModifierLock);
 	context->stickyModifierToggleEnabled = enabled != 0;
-	if (!enabled) {
+	if (enabled) {
+		// Seed previousFlags with the current modifier state so the upcoming
+		// releases of the activation hotkey modifiers produce _up events
+		// (bit removed) instead of _down events (bit added from zero).
+		CGEventRef probe = CGEventCreate(NULL);
+		if (probe) {
+			context->previousFlags = CGEventGetFlags(probe);
+			CFRelease(probe);
+		}
+	} else {
 		context->previousFlags = 0;
 	}
 	os_unfair_lock_unlock(&context->stickyModifierLock);

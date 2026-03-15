@@ -109,6 +109,12 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 	// Cancel any pending modifier toggle from the activation hotkey.
 	h.cancelPendingModifierToggle()
 
+	// Disarm modifier detection until all modifiers have been released.
+	// This prevents hotkey modifiers (e.g., Cmd+Shift from the activation combo)
+	// or IPC tool key releases from being misinterpreted as intentional taps.
+	// Detection is re-armed when we see a _up event with no modifiers held.
+	h.modifierDetectionArmed = false
+
 	h.syncModifierPassthrough(mode)
 	h.syncStickyModifierToggle(mode)
 }

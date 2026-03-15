@@ -5,12 +5,20 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"go.uber.org/zap"
 )
 
 // HandleKeyPress dispatches key events by current mode.
 func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	// DEBUG: log every key event to trace modifier down/up flow
+	h.logger.Info("HandleKeyPress",
+		zap.String("key", key),
+		zap.String("mode", h.CurrModeString()),
+		zap.String("pendingMod", h.pendingModifierKey),
+		zap.String("stickyMods", h.stickyModifiers().String()))
 
 	// Cancel any pending modifier toggle if a non-modifier key is pressed
 	// This handles the case where Shift+L is pressed - the modifier tap

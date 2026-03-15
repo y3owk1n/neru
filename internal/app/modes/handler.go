@@ -89,7 +89,8 @@ type Handler struct {
 	modeSession                uint64
 
 	// Pending modifier key for tap detection (down/up without intervening keys)
-	pendingModifierKey string
+	pendingModifierKey     string
+	modifierDetectionArmed bool // true once all modifiers have been released after mode entry
 
 	// Scroll mode polling
 	scrollTicker *time.Ticker

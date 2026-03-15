@@ -65,6 +65,24 @@ func (h *Handler) handleModifierToggle(key string) bool {
 		return false
 	}
 
+	// Modifier detection is disarmed on mode entry and re-armed once we see
+	// a _up event (meaning all activation-related modifiers have been released
+	// and the user is starting fresh). Until armed, consume events silently.
+	if !h.modifierDetectionArmed {
+		if !isDown {
+			// A key-up means the user released a modifier — arm detection
+			// so the next intentional down/up pair will be processed.
+			h.modifierDetectionArmed = true
+			h.logger.Debug("Modifier detection armed (first key-up after mode entry)",
+				zap.String("key", key))
+		} else {
+			h.logger.Debug("Modifier event ignored (detection not armed)",
+				zap.String("key", key))
+		}
+
+		return true
+	}
+
 	if isDown {
 		h.pendingModifierKey = key
 		h.logger.Debug("Modifier key down", zap.String("key", key))
