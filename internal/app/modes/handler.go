@@ -92,10 +92,10 @@ type Handler struct {
 	pendingModifierKey     string
 	modifierDetectionArmed bool // true once all modifiers have been released after mode entry
 
-	// Scroll mode polling
-	scrollTicker *time.Ticker
-	scrollStopCh chan struct{}
-	scrollDoneCh chan struct{}
+	// Indicator polling (shared by all modes)
+	indicatorTicker *time.Ticker
+	indicatorStopCh chan struct{}
+	indicatorDoneCh chan struct{}
 }
 
 // NewHandler creates a new mode handler.

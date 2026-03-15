@@ -91,7 +91,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 			// This prevents leaving the app in idle mode with event tap disabled if hint
 			// generation fails.
 			h.overlayManager.Clear()
-			h.stopModeIndicatorPolling()
+			h.stopIndicatorPolling()
 		} else {
 			h.exitModeLocked()
 		}
@@ -260,5 +260,5 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 
 	h.logger.Info("Hints mode activated")
 
-	h.startModeIndicatorPolling(domain.ModeHints)
+	h.startIndicatorPolling(domain.ModeHints)
 }
