@@ -610,6 +610,45 @@ func TestIsExitKey_WithFullwidthChars(t *testing.T) {
 	}
 }
 
+func TestNormalizeKeyForComparison_ModifierEnter(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "shift enter",
+			input:    "Shift+Enter",
+			expected: "shift+return",
+		},
+		{
+			name:     "ctrl enter",
+			input:    "Ctrl+Enter",
+			expected: "ctrl+return",
+		},
+		{
+			name:     "right shift enter",
+			input:    "RightShift+Enter",
+			expected: "shift+return",
+		},
+		{
+			name:     "enter alone still normalizes",
+			input:    "Enter",
+			expected: "return",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := config.NormalizeKeyForComparison(testCase.input)
+			if got != testCase.expected {
+				t.Errorf("NormalizeKeyForComparison(%q) = %q, want %q",
+					testCase.input, got, testCase.expected)
+			}
+		})
+	}
+}
+
 func TestHasPassthroughModifier(t *testing.T) {
 	tests := []struct {
 		name string
