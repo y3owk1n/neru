@@ -132,7 +132,11 @@ func (h *Handler) startModeIndicatorPolling(mode domain.Mode) {
 				}
 
 				if h.stickyModifiersEnabled() {
-					h.drawStickyModifiersIndicator(cursorX, cursorY)
+					if h.stickyModifiers() != 0 {
+						h.drawStickyModifiersIndicator(cursorX, cursorY)
+					} else if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
+						stickyInd.Clear()
+					}
 				}
 			}
 		}
