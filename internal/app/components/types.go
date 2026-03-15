@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
+	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	domainRecursiveGrid "github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
@@ -104,6 +105,18 @@ type ModeIndicatorComponent struct {
 func (m *ModeIndicatorComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
 	if m.Overlay != nil {
 		m.Overlay.SetConfig(cfg.ModeIndicator)
+	}
+}
+
+// StickyIndicatorComponent encapsulates the sticky modifiers indicator overlay.
+type StickyIndicatorComponent struct {
+	Overlay *stickyindicator.Overlay
+}
+
+// UpdateConfig updates the sticky indicator component with new configuration.
+func (s *StickyIndicatorComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
+	if s.Overlay != nil {
+		s.Overlay.SetConfig(cfg.StickyModifiers.UI)
 	}
 }
 

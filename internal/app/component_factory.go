@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
+	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
@@ -218,6 +219,43 @@ func (f *ComponentFactory) CreateModeIndicatorComponent(
 	}, nil
 }
 
+// CreateStickyIndicatorComponent creates the sticky modifiers indicator overlay component.
+func (f *ComponentFactory) CreateStickyIndicatorComponent(
+	opts ComponentCreationOptions,
+) (*components.StickyIndicatorComponent, error) {
+	var stickyOverlay *stickyindicator.Overlay
+	if opts.OverlayType != "" {
+		overlay, err := f.createOverlay("sticky_modifiers", f.config.StickyModifiers.UI)
+		if err != nil {
+			if opts.Required {
+				return nil, derrors.Wrap(
+					err,
+					derrors.CodeOverlayFailed,
+					"failed to create sticky indicator overlay",
+				)
+			}
+
+			f.logger.Warn(
+				"Failed to create sticky indicator overlay, continuing without overlay",
+				zap.Error(err),
+			)
+		} else if overlay != nil {
+			if typed, ok := overlay.(*stickyindicator.Overlay); ok {
+				stickyOverlay = typed
+			} else {
+				f.logger.Error(
+					"Unexpected overlay type for sticky indicator",
+					zap.Any("overlay", overlay),
+				)
+			}
+		}
+	}
+
+	return &components.StickyIndicatorComponent{
+		Overlay: stickyOverlay,
+	}, nil
+}
+
 // CreateRecursiveGridComponent creates a recursive-grid component with standardized error handling.
 func (f *ComponentFactory) CreateRecursiveGridComponent(
 	opts ComponentCreationOptions,
@@ -320,6 +358,24 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			f.logger,
 			f.overlayManager.WindowPtr(),
 		), nil
+	case "sticky_modifiers":
+		uiConfig, ok := cfg.(config.StickyModifiersUI)
+		if !ok {
+			return nil, derrors.New(
+				derrors.CodeInvalidInput,
+				"invalid sticky modifiers config type",
+			)
+		}
+
+		if f.overlayManager.WindowPtr() == nil {
+			return nil, nil //nolint:nilnil
+		}
+
+		return stickyindicator.NewOverlay(
+			uiConfig,
+			f.themeProvider,
+			f.logger,
+		)
 	default:
 		return nil, derrors.New(derrors.CodeInvalidInput, "unknown overlay type: "+overlayType)
 	}

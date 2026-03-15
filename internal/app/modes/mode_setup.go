@@ -98,7 +98,40 @@ func (h *Handler) overlaySwitch(m overlay.Mode) {
 func (h *Handler) setAppModeLocked(mode domain.Mode) {
 	h.modeSession++
 	h.appState.SetMode(mode)
+
+	// Reset modifier state BEFORE enabling detection.
+	// This ensures any modifiers from the activation hotkey (e.g., Cmd+Shift+Space)
+	// don't get picked up as sticky modifiers.
+	if h.modifierState != nil {
+		h.modifierState.Reset()
+	}
+
+	// Cancel any pending modifier toggle from the activation hotkey.
+	h.cancelPendingModifierToggle()
+
+	// Disarm modifier detection until all modifiers have been released.
+	// This prevents hotkey modifiers (e.g., Cmd+Shift from the activation combo)
+	// or IPC tool key releases from being misinterpreted as intentional taps.
+	// Detection is re-armed when we see a _up event with no modifiers held.
+	h.modifierDetectionArmed = false
+
 	h.syncModifierPassthrough(mode)
+	h.syncStickyModifierToggle(mode)
+}
+
+func (h *Handler) syncStickyModifierToggle(mode domain.Mode) {
+	if h.setStickyModifierToggle == nil {
+		return
+	}
+
+	isNavMode := mode == domain.ModeHints ||
+		mode == domain.ModeGrid ||
+		mode == domain.ModeRecursiveGrid ||
+		mode == domain.ModeScroll
+
+	enabled := isNavMode && h.config != nil && h.config.StickyModifiers.Enabled
+
+	h.setStickyModifierToggle(enabled)
 }
 
 // SetModeIdle switches the application to idle mode, disabling active navigation modes.

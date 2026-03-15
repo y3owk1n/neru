@@ -31,6 +31,9 @@ typedef struct {
 	uint64_t modifierBlacklistGeneration;                   ///< Generation counter for layout rebuild
 	BOOL passthroughUnboundedModifiers;                     ///< Whether unbound modifier shortcuts reach macOS
 	os_unfair_lock modifierPassthroughLock;                 ///< Lock for modifier passthrough config
+	CGEventFlags previousFlags;                             ///< Previous modifier flags for toggle detection
+	BOOL stickyModifierToggleEnabled;                       ///< Whether to emit __modifier_ events
+	os_unfair_lock stickyModifierLock;                      ///< Lock for sticky modifier toggle config
 	dispatch_block_t __strong pendingAddSourceBlock;        ///< Pending add source block
 } EventTapContext;
 
@@ -300,6 +303,56 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			return event;
 		}
 
+		// Handle modifier key toggle detection for sticky modifiers.
+		// Emits "__modifier_<name>_down" on key press and "__modifier_<name>_up"
+		// on key release so Go can implement clean tap detection:
+		// toggle only when keyup arrives without any intervening regular key.
+		if (type == kCGEventFlagsChanged) {
+			CGEventFlags flags = CGEventGetFlags(event);
+
+			// Read/write previousFlags under stickyModifierLock to avoid racing
+			// with setEventTapStickyModifierToggle which also writes it.
+			BOOL stickyEnabled = NO;
+			CGEventFlags changed;
+			CGEventFlags previousFlags;
+			os_unfair_lock_lock(&context->stickyModifierLock);
+			stickyEnabled = context->stickyModifierToggleEnabled;
+			changed = flags ^ context->previousFlags;
+			previousFlags = context->previousFlags;
+			context->previousFlags = flags;
+			os_unfair_lock_unlock(&context->stickyModifierLock);
+
+			if (!stickyEnabled) {
+				return event;
+			}
+
+			// Determine which modifier(s) changed and whether each was pressed or released.
+			// Although macOS typically generates one kCGEventFlagsChanged per physical key,
+			// multiple bits can change in a single event (e.g., programmatic event generation).
+			// Iterate all four modifiers so no change is silently lost.
+			static const struct {
+				CGEventFlags mask;
+				const char *downName;
+				const char *upName;
+			} modifiers[] = {
+			    {kCGEventFlagMaskCommand, "__modifier_cmd_down", "__modifier_cmd_up"},
+			    {kCGEventFlagMaskShift, "__modifier_shift_down", "__modifier_shift_up"},
+			    {kCGEventFlagMaskAlternate, "__modifier_alt_down", "__modifier_alt_up"},
+			    {kCGEventFlagMaskControl, "__modifier_ctrl_down", "__modifier_ctrl_up"},
+			};
+			BOOL handled = NO;
+			for (size_t i = 0; i < sizeof(modifiers) / sizeof(modifiers[0]); i++) {
+				if (changed & modifiers[i].mask) {
+					const char *modName = (flags & modifiers[i].mask) ? modifiers[i].downName : modifiers[i].upName;
+					if (context->callback) {
+						context->callback(modName, context->userData);
+						handled = YES;
+					}
+				}
+			}
+			return handled ? NULL : event;
+		}
+
 		if (type == kCGEventKeyDown) {
 			CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
 			CGEventFlags flags = CGEventGetFlags(event);
@@ -452,6 +505,9 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->modifierBlacklistStrings = nil;
 	context->modifierPassthroughLock = OS_UNFAIR_LOCK_INIT;
 	context->passthroughUnboundedModifiers = NO;
+	context->previousFlags = 0;
+	context->stickyModifierToggleEnabled = NO;
+	context->stickyModifierLock = OS_UNFAIR_LOCK_INIT;
 
 	// Store global reference for layout-change rebuild.
 	gEventTapContext = context;
@@ -463,7 +519,7 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->pendingAddSourceBlock = nil;
 
 	// Set up event tap
-	CGEventMask eventMask = (1 << kCGEventKeyDown);
+	CGEventMask eventMask = (1 << kCGEventKeyDown) | (1 << kCGEventFlagsChanged);
 	context->eventTap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, eventMask,
 	                                     eventTapCallback, context);
 
@@ -629,6 +685,33 @@ void setEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallback ca
 	os_unfair_lock_lock(&context->modifierPassthroughLock);
 	context->passthroughCallback = callback;
 	os_unfair_lock_unlock(&context->modifierPassthroughLock);
+}
+
+/// Enable or disable sticky modifier toggle detection.
+/// When enabling, previousFlags is seeded with the current modifier state so
+/// that releasing hotkey modifiers (e.g., Cmd+Shift from the activation combo)
+/// is correctly seen as key-up, not key-down.
+/// @param tap Event tap handle
+/// @param enabled Non-zero to enable, zero to disable
+void setEventTapStickyModifierToggle(EventTap tap, int enabled) {
+	if (!tap)
+		return;
+	EventTapContext *context = (EventTapContext *)tap;
+	os_unfair_lock_lock(&context->stickyModifierLock);
+	context->stickyModifierToggleEnabled = enabled != 0;
+	if (enabled) {
+		// Seed previousFlags with the current modifier state so the upcoming
+		// releases of the activation hotkey modifiers produce _up events
+		// (bit removed) instead of _down events (bit added from zero).
+		CGEventRef probe = CGEventCreate(NULL);
+		if (probe) {
+			context->previousFlags = CGEventGetFlags(probe);
+			CFRelease(probe);
+		}
+	} else {
+		context->previousFlags = 0;
+	}
+	os_unfair_lock_unlock(&context->stickyModifierLock);
 }
 
 /// Enable event tap

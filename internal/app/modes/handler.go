@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
+	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
@@ -55,14 +56,16 @@ type Handler struct {
 	logger         *zap.Logger
 	appState       *state.AppState
 	cursorState    *state.CursorState
+	modifierState  *state.ModifierState
 	overlayManager overlay.ManagerInterface
 	renderer       *ui.OverlayRenderer
 	// New Services
-	hintService          *services.HintService
-	gridService          *services.GridService
-	actionService        *services.ActionService
-	scrollService        *services.ScrollService
-	modeIndicatorService *modeindicator.Service
+	hintService            *services.HintService
+	gridService            *services.GridService
+	actionService          *services.ActionService
+	scrollService          *services.ScrollService
+	modeIndicatorService   *modeindicator.Service
+	stickyIndicatorService *stickyindicator.Service
 
 	hints         *components.HintsComponent
 	grid          *components.GridComponent
@@ -80,14 +83,19 @@ type Handler struct {
 	setModifierPassthrough     func(enabled bool, blacklist []string)
 	setInterceptedModifierKeys func(keys []string)
 	setPassthroughCallback     func(cb func())
+	setStickyModifierToggle    func(enabled bool)
 	refreshHotkeys             func()
 	refreshHintsTimer          *time.Timer
 	modeSession                uint64
 
-	// Scroll mode polling
-	scrollTicker *time.Ticker
-	scrollStopCh chan struct{}
-	scrollDoneCh chan struct{}
+	// Pending modifier key for tap detection (down/up without intervening keys)
+	pendingModifierKey     string
+	modifierDetectionArmed bool // true once all modifiers have been released after mode entry
+
+	// Indicator polling (shared by all modes)
+	indicatorTicker *time.Ticker
+	indicatorStopCh chan struct{}
+	indicatorDoneCh chan struct{}
 }
 
 // NewHandler creates a new mode handler.
@@ -103,6 +111,7 @@ func NewHandler(
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
 	modeIndicatorService *modeindicator.Service,
+	stickyIndicatorService *stickyindicator.Service,
 	hintsComponent *components.HintsComponent,
 	grid *components.GridComponent,
 	scroll *components.ScrollComponent,
@@ -112,6 +121,7 @@ func NewHandler(
 	setModifierPassthrough func(enabled bool, blacklist []string),
 	setInterceptedModifierKeys func(keys []string),
 	setPassthroughCallback func(cb func()),
+	setStickyModifierToggle func(enabled bool),
 	refreshHotkeys func(),
 	systemPort ports.SystemPort,
 ) *Handler {
@@ -135,6 +145,7 @@ func NewHandler(
 		logger:                     logger,
 		appState:                   appState,
 		cursorState:                cursorState,
+		modifierState:              state.NewModifierState(),
 		overlayManager:             overlayManager,
 		renderer:                   renderer,
 		hintService:                hintService,
@@ -142,6 +153,7 @@ func NewHandler(
 		actionService:              actionService,
 		scrollService:              scrollService,
 		modeIndicatorService:       modeIndicatorService,
+		stickyIndicatorService:     stickyIndicatorService,
 		hints:                      hintsComponent,
 		grid:                       grid,
 		scroll:                     scroll,
@@ -152,6 +164,7 @@ func NewHandler(
 		setModifierPassthrough:     setModifierPassthrough,
 		setInterceptedModifierKeys: setInterceptedModifierKeys,
 		setPassthroughCallback:     setPassthroughCallback,
+		setStickyModifierToggle:    setStickyModifierToggle,
 		refreshHotkeys:             refreshHotkeys,
 		themeProvider:              systemPort,
 		system:                     systemPort,

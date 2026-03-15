@@ -8,6 +8,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
+	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 )
@@ -92,6 +93,9 @@ func (n *NoOpManager) UseModeIndicatorOverlay(o *modeindicator.Overlay) {}
 // UseRecursiveGridOverlay is a no-op implementation.
 func (n *NoOpManager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {}
 
+// UseStickyModifiersOverlay is a no-op implementation.
+func (n *NoOpManager) UseStickyModifiersOverlay(o *stickyindicator.Overlay) {}
+
 // HintOverlay returns nil.
 func (n *NoOpManager) HintOverlay() *hints.Overlay { return nil }
 
@@ -104,6 +108,9 @@ func (n *NoOpManager) ModeIndicatorOverlay() *modeindicator.Overlay { return nil
 // RecursiveGridOverlay returns nil.
 func (n *NoOpManager) RecursiveGridOverlay() *recursivegrid.Overlay { return nil }
 
+// StickyModifiersOverlay returns nil.
+func (n *NoOpManager) StickyModifiersOverlay() *stickyindicator.Overlay { return nil }
+
 // DrawHintsWithStyle is a no-op implementation.
 func (n *NoOpManager) DrawHintsWithStyle(
 	hs []*hints.Hint,
@@ -114,6 +121,9 @@ func (n *NoOpManager) DrawHintsWithStyle(
 
 // DrawModeIndicator is a no-op implementation.
 func (n *NoOpManager) DrawModeIndicator(x, y int) {}
+
+// DrawStickyModifiersIndicator is a no-op implementation.
+func (n *NoOpManager) DrawStickyModifiersIndicator(x, y int, symbols string) {}
 
 // DrawGrid is a no-op implementation.
 func (n *NoOpManager) DrawGrid(
@@ -168,14 +178,17 @@ type ManagerInterface interface {
 	UseGridOverlay(o *grid.Overlay)
 	UseModeIndicatorOverlay(o *modeindicator.Overlay)
 	UseRecursiveGridOverlay(o *recursivegrid.Overlay)
+	UseStickyModifiersOverlay(o *stickyindicator.Overlay)
 
 	HintOverlay() *hints.Overlay
 	GridOverlay() *grid.Overlay
 	ModeIndicatorOverlay() *modeindicator.Overlay
 	RecursiveGridOverlay() *recursivegrid.Overlay
+	StickyModifiersOverlay() *stickyindicator.Overlay
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
 	DrawModeIndicator(x, y int)
+	DrawStickyModifiersIndicator(x, y int, symbols string)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
 	DrawRecursiveGrid(
 		bounds image.Rectangle,

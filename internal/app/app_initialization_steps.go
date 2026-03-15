@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
+	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -82,7 +83,7 @@ func initializeServicesAndAdapters(app *App) error {
 	app.axCacheStop = axCacheStop
 
 	// Initialize services
-	hintService, gridService, actionService, scrollService, modeIndicatorService, err := initializeServices(
+	hintService, gridService, actionService, scrollService, modeIndicatorService, stickyIndicatorService, err := initializeServices(
 		cfg,
 		accAdapter,
 		overlayAdapter,
@@ -99,6 +100,7 @@ func initializeServicesAndAdapters(app *App) error {
 	app.actionService = actionService
 	app.scrollService = scrollService
 	app.modeIndicatorService = modeIndicatorService
+	app.stickyIndicatorService = stickyIndicatorService
 	app.configService = cfgService
 
 	return nil
@@ -159,6 +161,19 @@ func initializeUIComponents(app *App) error {
 	}
 
 	app.modeIndicatorComponent = modeIndicatorComponent
+
+	stickyIndicatorComponent, err := factory.CreateStickyIndicatorComponent(
+		ComponentCreationOptions{
+			SkipIfDisabled: false,
+			Required:       false,
+			OverlayType:    "sticky_modifiers",
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	app.stickyIndicatorComponent = stickyIndicatorComponent
 
 	recursiveGridComponent, err := factory.CreateRecursiveGridComponent(ComponentCreationOptions{
 		SkipIfDisabled: false,
@@ -221,11 +236,12 @@ func initializeModeHandler(app *App) {
 		overlayManager OverlayManager
 		renderer       *ui.OverlayRenderer
 		services       struct {
-			hint          *services.HintService
-			grid          *services.GridService
-			action        *services.ActionService
-			scroll        *services.ScrollService
-			modeIndicator *modeindicator.Service
+			hint            *services.HintService
+			grid            *services.GridService
+			action          *services.ActionService
+			scroll          *services.ScrollService
+			modeIndicator   *modeindicator.Service
+			stickyIndicator *stickyindicator.Service
 		}
 		components struct {
 			hints         *components.HintsComponent
@@ -239,6 +255,7 @@ func initializeModeHandler(app *App) {
 			setModifierPassthrough     func(enabled bool, blacklist []string)
 			setInterceptedModifierKeys func(keys []string)
 			setPassthroughCallback     func(cb func())
+			setStickyModifierToggle    func(enabled bool)
 			refreshHotkeys             func()
 		}
 	}{
@@ -249,17 +266,19 @@ func initializeModeHandler(app *App) {
 		overlayManager: app.overlayManager,
 		renderer:       app.renderer,
 		services: struct {
-			hint          *services.HintService
-			grid          *services.GridService
-			action        *services.ActionService
-			scroll        *services.ScrollService
-			modeIndicator *modeindicator.Service
+			hint            *services.HintService
+			grid            *services.GridService
+			action          *services.ActionService
+			scroll          *services.ScrollService
+			modeIndicator   *modeindicator.Service
+			stickyIndicator *stickyindicator.Service
 		}{
-			hint:          app.hintService,
-			grid:          app.gridService,
-			action:        app.actionService,
-			scroll:        app.scrollService,
-			modeIndicator: app.modeIndicatorService,
+			hint:            app.hintService,
+			grid:            app.gridService,
+			action:          app.actionService,
+			scroll:          app.scrollService,
+			modeIndicator:   app.modeIndicatorService,
+			stickyIndicator: app.stickyIndicatorService,
 		},
 		components: struct {
 			hints         *components.HintsComponent
@@ -278,6 +297,7 @@ func initializeModeHandler(app *App) {
 			setModifierPassthrough     func(enabled bool, blacklist []string)
 			setInterceptedModifierKeys func(keys []string)
 			setPassthroughCallback     func(cb func())
+			setStickyModifierToggle    func(enabled bool)
 			refreshHotkeys             func()
 		}{
 			enableEventTap:             app.enableEventTap,
@@ -285,6 +305,7 @@ func initializeModeHandler(app *App) {
 			setModifierPassthrough:     app.setEventTapModifierPassthrough,
 			setInterceptedModifierKeys: app.setEventTapInterceptedModifierKeys,
 			setPassthroughCallback:     app.setEventTapPassthroughCallback,
+			setStickyModifierToggle:    app.setEventTapStickyModifierToggle,
 			refreshHotkeys:             func() { app.refreshHotkeysForAppOrCurrent("") },
 		},
 	}
@@ -301,6 +322,7 @@ func initializeModeHandler(app *App) {
 		deps.services.action,
 		deps.services.scroll,
 		deps.services.modeIndicator,
+		deps.services.stickyIndicator,
 		deps.components.hints,
 		deps.components.grid,
 		deps.components.scroll,
@@ -310,6 +332,7 @@ func initializeModeHandler(app *App) {
 		deps.callbacks.setModifierPassthrough,
 		deps.callbacks.setInterceptedModifierKeys,
 		deps.callbacks.setPassthroughCallback,
+		deps.callbacks.setStickyModifierToggle,
 		deps.callbacks.refreshHotkeys,
 		app.systemPort,
 	)
@@ -433,6 +456,7 @@ func cleanupServicesAndAdapters(app *App) {
 	app.actionService = nil
 	app.scrollService = nil
 	app.modeIndicatorService = nil
+	app.stickyIndicatorService = nil
 	app.configService = nil
 }
 
@@ -444,6 +468,7 @@ func cleanupUIComponents(app *App) {
 	app.gridComponent = nil
 	app.scrollComponent = nil
 	app.modeIndicatorComponent = nil
+	app.stickyIndicatorComponent = nil
 
 	// Clean up renderer
 	app.renderer = nil

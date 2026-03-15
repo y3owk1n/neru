@@ -283,6 +283,34 @@ const (
 	ModeIndicatorBorderColorLight = "#FF007A9E"
 	// ModeIndicatorBorderColorDark is the dark mode border color for the mode indicator.
 	ModeIndicatorBorderColorDark = "#FF007A9E"
+
+	// StickyModifiersBackgroundColorLight is the light mode background color for the sticky modifiers indicator.
+	StickyModifiersBackgroundColorLight = "#F200CFCF"
+	// StickyModifiersBackgroundColorDark is the dark mode background color for the sticky modifiers indicator.
+	StickyModifiersBackgroundColorDark = "#F200CFCF"
+	// StickyModifiersTextColorLight is the light mode text color for the sticky modifiers indicator.
+	StickyModifiersTextColorLight = "#FF003554"
+	// StickyModifiersTextColorDark is the dark mode text color for the sticky modifiers indicator.
+	StickyModifiersTextColorDark = "#FF003554"
+	// StickyModifiersBorderColorLight is the light mode border color for the sticky modifiers indicator.
+	StickyModifiersBorderColorLight = "#FF007A9E"
+	// StickyModifiersBorderColorDark is the dark mode border color for the sticky modifiers indicator.
+	StickyModifiersBorderColorDark = "#FF007A9E"
+
+	// DefaultStickyModifiersFontSize is the default font size for the sticky modifiers indicator.
+	DefaultStickyModifiersFontSize = 10
+	// DefaultStickyModifiersBorderWidth is the default border width for the sticky modifiers indicator.
+	DefaultStickyModifiersBorderWidth = 1
+	// DefaultStickyModifiersPaddingX is the default horizontal padding for the sticky modifiers indicator (-1 = auto).
+	DefaultStickyModifiersPaddingX = -1
+	// DefaultStickyModifiersPaddingY is the default vertical padding for the sticky modifiers indicator (-1 = auto).
+	DefaultStickyModifiersPaddingY = -1
+	// DefaultStickyModifiersBorderRadius is the default border radius for the sticky modifiers indicator (-1 = auto).
+	DefaultStickyModifiersBorderRadius = -1
+	// DefaultStickyModifiersXOffset is the default X offset for the sticky modifiers indicator (negative = left of cursor).
+	DefaultStickyModifiersXOffset = -40
+	// DefaultStickyModifiersYOffset is the default Y offset for the sticky modifiers indicator.
+	DefaultStickyModifiersYOffset = 20
 )
 
 // commonDefaultConfig returns the common application configuration with sensible defaults.
@@ -453,6 +481,25 @@ func commonDefaultConfig() *Config {
 				BorderRadius:         DefaultScrollBorderRadius,
 				IndicatorXOffset:     DefaultScrollIndicatorXOffset,
 				IndicatorYOffset:     DefaultScrollIndicatorYOffset,
+			},
+		},
+		StickyModifiers: StickyModifiersConfig{
+			Enabled: true,
+			UI: StickyModifiersUI{
+				FontSize:             DefaultStickyModifiersFontSize,
+				FontFamily:           "",
+				BackgroundColorLight: StickyModifiersBackgroundColorLight,
+				BackgroundColorDark:  StickyModifiersBackgroundColorDark,
+				TextColorLight:       StickyModifiersTextColorLight,
+				TextColorDark:        StickyModifiersTextColorDark,
+				BorderColorLight:     StickyModifiersBorderColorLight,
+				BorderColorDark:      StickyModifiersBorderColorDark,
+				BorderWidth:          DefaultStickyModifiersBorderWidth,
+				PaddingX:             DefaultStickyModifiersPaddingX,
+				PaddingY:             DefaultStickyModifiersPaddingY,
+				BorderRadius:         DefaultStickyModifiersBorderRadius,
+				IndicatorXOffset:     DefaultStickyModifiersXOffset,
+				IndicatorYOffset:     DefaultStickyModifiersYOffset,
 			},
 		},
 		Scroll: ScrollConfig{

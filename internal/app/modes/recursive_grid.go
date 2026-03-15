@@ -85,7 +85,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
 	h.logger.Info("Recursive-grid mode activated", zap.String("action", actionString))
 	h.logger.Info("Press u/i/j/k to select cells, backspace to backtrack, escape to exit")
 
-	h.startModeIndicatorPolling(domain.ModeRecursiveGrid)
+	h.startIndicatorPolling(domain.ModeRecursiveGrid)
 }
 
 // initializeRecursiveGridManager initializes the recursive-grid manager.
@@ -143,7 +143,11 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 	ctx := context.Background()
 
 	// Handle direct action keys first
-	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(
+		ctx,
+		key,
+		h.stickyModifiers(),
+	)
 	if wasHandled {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))

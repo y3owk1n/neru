@@ -307,17 +307,18 @@ type ActionKeyBindingsCfg struct {
 
 // Config represents the complete application configuration structure.
 type Config struct {
-	General       GeneralConfig       `json:"general"       toml:"general"`
-	Hotkeys       HotkeysConfig       `json:"hotkeys"       toml:"hotkeys"`
-	Hints         HintsConfig         `json:"hints"         toml:"hints"`
-	Grid          GridConfig          `json:"grid"          toml:"grid"`
-	RecursiveGrid RecursiveGridConfig `json:"recursiveGrid" toml:"recursive_grid"`
-	Scroll        ScrollConfig        `json:"scroll"        toml:"scroll"`
-	Action        ActionConfig        `json:"action"        toml:"action"`
-	ModeIndicator ModeIndicatorConfig `json:"modeIndicator" toml:"mode_indicator"`
-	Logging       LoggingConfig       `json:"logging"       toml:"logging"`
-	SmoothCursor  SmoothCursorConfig  `json:"smoothCursor"  toml:"smooth_cursor"`
-	Systray       SystrayConfig       `json:"systray"       toml:"systray"`
+	General         GeneralConfig         `json:"general"         toml:"general"`
+	Hotkeys         HotkeysConfig         `json:"hotkeys"         toml:"hotkeys"`
+	Hints           HintsConfig           `json:"hints"           toml:"hints"`
+	Grid            GridConfig            `json:"grid"            toml:"grid"`
+	RecursiveGrid   RecursiveGridConfig   `json:"recursiveGrid"   toml:"recursive_grid"`
+	Scroll          ScrollConfig          `json:"scroll"          toml:"scroll"`
+	Action          ActionConfig          `json:"action"          toml:"action"`
+	ModeIndicator   ModeIndicatorConfig   `json:"modeIndicator"   toml:"mode_indicator"`
+	StickyModifiers StickyModifiersConfig `json:"stickyModifiers" toml:"sticky_modifiers"`
+	Logging         LoggingConfig         `json:"logging"         toml:"logging"`
+	SmoothCursor    SmoothCursorConfig    `json:"smoothCursor"    toml:"smooth_cursor"`
+	Systray         SystrayConfig         `json:"systray"         toml:"systray"`
 }
 
 // GeneralConfig defines general application-wide settings.
@@ -373,6 +374,30 @@ type ModeIndicatorConfig struct {
 	Grid          ModeIndicatorModeConfig `json:"grid"          toml:"grid"`
 	RecursiveGrid ModeIndicatorModeConfig `json:"recursiveGrid" toml:"recursive_grid"`
 	UI            ModeIndicatorUI         `json:"ui"            toml:"ui"`
+}
+
+// StickyModifiersUI defines the visual/appearance settings for the sticky modifiers indicator.
+type StickyModifiersUI struct {
+	FontSize             int    `json:"fontSize"             toml:"font_size"`
+	FontFamily           string `json:"fontFamily"           toml:"font_family"`
+	BackgroundColorLight string `json:"backgroundColorLight" toml:"background_color_light"`
+	BackgroundColorDark  string `json:"backgroundColorDark"  toml:"background_color_dark"`
+	TextColorLight       string `json:"textColorLight"       toml:"text_color_light"`
+	TextColorDark        string `json:"textColorDark"        toml:"text_color_dark"`
+	BorderColorLight     string `json:"borderColorLight"     toml:"border_color_light"`
+	BorderColorDark      string `json:"borderColorDark"      toml:"border_color_dark"`
+	BorderWidth          int    `json:"borderWidth"          toml:"border_width"`
+	PaddingX             int    `json:"paddingX"             toml:"padding_x"`
+	PaddingY             int    `json:"paddingY"             toml:"padding_y"`
+	BorderRadius         int    `json:"borderRadius"         toml:"border_radius"`
+	IndicatorXOffset     int    `json:"indicatorXOffset"     toml:"indicator_x_offset"`
+	IndicatorYOffset     int    `json:"indicatorYOffset"     toml:"indicator_y_offset"`
+}
+
+// StickyModifiersConfig defines settings for the sticky modifiers feature.
+type StickyModifiersConfig struct {
+	Enabled bool              `json:"enabled" toml:"enabled"`
+	UI      StickyModifiersUI `json:"ui"      toml:"ui"`
 }
 
 // AppConfig defines application-specific settings for role customization.

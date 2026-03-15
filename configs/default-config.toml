@@ -214,6 +214,27 @@ border_radius = -1
 indicator_x_offset = 20
 indicator_y_offset = 20
 
+# Sticky modifiers
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#sticky-modifiers
+[sticky_modifiers]
+enabled = true
+
+[sticky_modifiers.ui]
+font_size = 10
+font_family = ""
+background_color_light = "#F200CFCF"
+background_color_dark = "#F200CFCF"
+text_color_light = "#FF003554"
+text_color_dark = "#FF003554"
+border_color_light = "#FF007A9E"
+border_color_dark = "#FF007A9E"
+border_width = 1
+padding_x = -1
+padding_y = -1
+border_radius = -1
+indicator_x_offset = -40
+indicator_y_offset = 20
+
 # Mouse movement actions (used inside hints/grid modes)
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mouse-movement-actions
 [action]
