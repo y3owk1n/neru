@@ -59,3 +59,10 @@ func (a *App) setEventTapPassthroughCallback(cb func()) {
 		a.eventTap.SetPassthroughCallback(cb)
 	}
 }
+
+// setEventTapStickyModifierToggle enables or disables sticky modifier toggle detection.
+func (a *App) setEventTapStickyModifierToggle(enabled bool) {
+	if a.eventTap != nil {
+		a.eventTap.SetStickyModifierToggle(enabled)
+	}
+}

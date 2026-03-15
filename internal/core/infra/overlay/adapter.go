@@ -126,6 +126,11 @@ func (a *Adapter) DrawModeIndicator(x, y int) {
 	a.manager.DrawModeIndicator(x, y)
 }
 
+// DrawStickyModifiersIndicator draws the sticky modifiers indicator at the specified position.
+func (a *Adapter) DrawStickyModifiersIndicator(x, y int, symbols string) {
+	a.manager.DrawStickyModifiersIndicator(x, y, symbols)
+}
+
 // Hide removes all overlays from the screen.
 func (a *Adapter) Hide(ctx context.Context) error {
 	// Check context

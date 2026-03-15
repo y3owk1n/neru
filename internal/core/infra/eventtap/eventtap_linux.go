@@ -45,6 +45,9 @@ func (et *EventTap) SetInterceptedModifierKeys(_ []string) {}
 // SetPassthroughCallback sets the passthrough callback (Linux stub).
 func (et *EventTap) SetPassthroughCallback(_ PassthroughCallback) {}
 
+// SetStickyModifierToggle enables or disables sticky modifier toggle detection (Linux stub).
+func (et *EventTap) SetStickyModifierToggle(_ bool) {}
+
 // SetKeyboardLayout sets the keyboard layout (Linux stub).
 func (et *EventTap) SetKeyboardLayout(_ string) bool { return true }
 

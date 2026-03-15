@@ -1,6 +1,8 @@
 package modes
 
 import (
+	"strings"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
@@ -9,6 +11,18 @@ import (
 func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	// Cancel any pending modifier toggle if a non-modifier key is pressed
+	// This handles the case where Shift+L is pressed - the modifier tap
+	// is canceled when L comes in
+	if h.pendingModifierKey != "" && !strings.HasPrefix(key, modifierTogglePrefix) {
+		h.cancelPendingModifierToggle()
+	}
+
+	// Check for modifier toggle keys before any other processing
+	if h.handleModifierToggle(key) {
+		return
+	}
 
 	// Resolve exit keys for the current mode (global + per-mode, merged)
 	exitKeys := h.resolveExitKeysForCurrentMode()

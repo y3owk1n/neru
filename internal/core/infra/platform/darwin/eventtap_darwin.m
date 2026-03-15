@@ -31,6 +31,9 @@ typedef struct {
 	uint64_t modifierBlacklistGeneration;                   ///< Generation counter for layout rebuild
 	BOOL passthroughUnboundedModifiers;                     ///< Whether unbound modifier shortcuts reach macOS
 	os_unfair_lock modifierPassthroughLock;                 ///< Lock for modifier passthrough config
+	CGEventFlags previousFlags;                             ///< Previous modifier flags for toggle detection
+	BOOL stickyModifierToggleEnabled;                       ///< Whether to emit __modifier_ events
+	os_unfair_lock stickyModifierLock;                      ///< Lock for sticky modifier toggle config
 	dispatch_block_t __strong pendingAddSourceBlock;        ///< Pending add source block
 } EventTapContext;
 
@@ -300,6 +303,47 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			return event;
 		}
 
+		// Handle modifier key toggle detection for sticky modifiers
+		if (type == kCGEventFlagsChanged) {
+			CGEventFlags flags = CGEventGetFlags(event);
+			CGEventFlags changed = flags ^ context->previousFlags;
+			CGEventFlags previousFlags = context->previousFlags;
+			context->previousFlags = flags;
+
+			BOOL stickyEnabled = NO;
+			os_unfair_lock_lock(&context->stickyModifierLock);
+			stickyEnabled = context->stickyModifierToggleEnabled;
+			os_unfair_lock_unlock(&context->stickyModifierLock);
+
+			if (!stickyEnabled) {
+				return event;
+			}
+
+			// Only handle key DOWN events (bit was added, not removed)
+			// Check if any modifier bit was ADDED (is in both flags and changed, but NOT in previous)
+			if (((changed & kCGEventFlagMaskCommand) && !(previousFlags & kCGEventFlagMaskCommand)) ||
+			    ((changed & kCGEventFlagMaskShift) && !(previousFlags & kCGEventFlagMaskShift)) ||
+			    ((changed & kCGEventFlagMaskAlternate) && !(previousFlags & kCGEventFlagMaskAlternate)) ||
+			    ((changed & kCGEventFlagMaskControl) && !(previousFlags & kCGEventFlagMaskControl))) {
+				const char *modName = NULL;
+				if (changed & kCGEventFlagMaskCommand) {
+					modName = "__modifier_cmd";
+				} else if (changed & kCGEventFlagMaskShift) {
+					modName = "__modifier_shift";
+				} else if (changed & kCGEventFlagMaskAlternate) {
+					modName = "__modifier_alt";
+				} else if (changed & kCGEventFlagMaskControl) {
+					modName = "__modifier_ctrl";
+				}
+
+				if (modName && context->callback) {
+					context->callback(modName, context->userData);
+					return NULL;
+				}
+			}
+			return event;
+		}
+
 		if (type == kCGEventKeyDown) {
 			CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
 			CGEventFlags flags = CGEventGetFlags(event);
@@ -452,6 +496,9 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->modifierBlacklistStrings = nil;
 	context->modifierPassthroughLock = OS_UNFAIR_LOCK_INIT;
 	context->passthroughUnboundedModifiers = NO;
+	context->previousFlags = 0;
+	context->stickyModifierToggleEnabled = NO;
+	context->stickyModifierLock = OS_UNFAIR_LOCK_INIT;
 
 	// Store global reference for layout-change rebuild.
 	gEventTapContext = context;
@@ -463,7 +510,7 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->pendingAddSourceBlock = nil;
 
 	// Set up event tap
-	CGEventMask eventMask = (1 << kCGEventKeyDown);
+	CGEventMask eventMask = (1 << kCGEventKeyDown) | (1 << kCGEventFlagsChanged);
 	context->eventTap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, eventMask,
 	                                     eventTapCallback, context);
 
@@ -629,6 +676,21 @@ void setEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallback ca
 	os_unfair_lock_lock(&context->modifierPassthroughLock);
 	context->passthroughCallback = callback;
 	os_unfair_lock_unlock(&context->modifierPassthroughLock);
+}
+
+/// Enable or disable sticky modifier toggle detection.
+/// @param tap Event tap handle
+/// @param enabled Non-zero to enable, zero to disable
+void setEventTapStickyModifierToggle(EventTap tap, int enabled) {
+	if (!tap)
+		return;
+	EventTapContext *context = (EventTapContext *)tap;
+	os_unfair_lock_lock(&context->stickyModifierLock);
+	context->stickyModifierToggleEnabled = enabled != 0;
+	if (!enabled) {
+		context->previousFlags = 0;
+	}
+	os_unfair_lock_unlock(&context->stickyModifierLock);
 }
 
 /// Enable event tap

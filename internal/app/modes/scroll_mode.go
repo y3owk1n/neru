@@ -53,8 +53,9 @@ func (h *Handler) startModeIndicatorPolling(mode domain.Mode) {
 		return
 	}
 
-	// Only start polling if the current mode's indicator is enabled.
-	if h.config == nil || !h.modeIndicatorEnabled(mode) {
+	// Only start polling if at least one of mode indicator or sticky modifiers
+	// indicator is enabled for this mode.
+	if h.config == nil || (!h.modeIndicatorEnabled(mode) && !h.stickyModifiersEnabled()) {
 		return
 	}
 
@@ -67,6 +68,16 @@ func (h *Handler) startModeIndicatorPolling(mode domain.Mode) {
 	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
 		ind.ResizeToActiveScreen()
 		ind.Show()
+	}
+
+	if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
+		stickyInd.ResizeToActiveScreen()
+		stickyInd.Show()
+
+		// Draw immediately when mode starts (don't wait for first poll tick)
+		if h.stickyModifiersEnabled() {
+			h.drawStickyModifiersIndicatorAtCurrentCursor()
+		}
 	}
 
 	stopCh := make(chan struct{})
@@ -116,11 +127,13 @@ func (h *Handler) startModeIndicatorPolling(mode domain.Mode) {
 					continue
 				}
 
-				if !h.shouldShowModeIndicator(h.appState.CurrentMode()) {
-					continue
+				if h.shouldShowModeIndicator(h.appState.CurrentMode()) {
+					h.modeIndicatorService.UpdateIndicatorPosition(cursorX, cursorY)
 				}
 
-				h.modeIndicatorService.UpdateIndicatorPosition(cursorX, cursorY)
+				if h.stickyModifiersEnabled() {
+					h.drawStickyModifiersIndicator(cursorX, cursorY)
+				}
 			}
 		}
 	}()
@@ -146,6 +159,12 @@ func (h *Handler) stopModeIndicatorPolling() {
 	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
 		ind.Clear()
 		ind.Hide()
+	}
+
+	// Also clear and hide the sticky modifiers indicator.
+	if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
+		stickyInd.Clear()
+		stickyInd.Hide()
 	}
 
 	// Clean up resources after loop has exited.

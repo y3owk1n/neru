@@ -39,6 +39,16 @@ func (h *Handler) exitModeLocked() {
 
 	h.logger.Info("Exiting current mode", zap.String("mode", h.CurrModeString()))
 
+	if h.modifierState != nil {
+		h.modifierState.Reset()
+	}
+
+	if h.pendingModifierToggle != nil {
+		h.pendingModifierToggle.Stop()
+		h.pendingModifierToggle = nil
+		h.pendingModifierKey = ""
+	}
+
 	h.performModeSpecificCleanup()
 	h.performCommonCleanup()
 	h.handleCursorRestoration()

@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
+	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
@@ -43,10 +44,11 @@ type Manager struct {
 	nextID uint64
 
 	// Overlay renderers
-	hintOverlay          *hints.Overlay
-	gridOverlay          *grid.Overlay
-	modeIndicatorOverlay *modeindicator.Overlay
-	recursiveGridOverlay *recursivegrid.Overlay
+	hintOverlay            *hints.Overlay
+	gridOverlay            *grid.Overlay
+	modeIndicatorOverlay   *modeindicator.Overlay
+	recursiveGridOverlay   *recursivegrid.Overlay
+	stickyModifiersOverlay *stickyindicator.Overlay
 }
 
 var (
@@ -226,6 +228,11 @@ func (m *Manager) UseModeIndicatorOverlay(o *modeindicator.Overlay) {
 	m.modeIndicatorOverlay = o
 }
 
+// UseStickyModifiersOverlay sets the sticky modifiers overlay renderer.
+func (m *Manager) UseStickyModifiersOverlay(o *stickyindicator.Overlay) {
+	m.stickyModifiersOverlay = o
+}
+
 // UseRecursiveGridOverlay sets the recursive-grid overlay renderer.
 func (m *Manager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {
 	m.recursiveGridOverlay = o
@@ -244,6 +251,11 @@ func (m *Manager) GridOverlay() *grid.Overlay {
 // ModeIndicatorOverlay returns the mode-indicator overlay renderer.
 func (m *Manager) ModeIndicatorOverlay() *modeindicator.Overlay {
 	return m.modeIndicatorOverlay
+}
+
+// StickyModifiersOverlay returns the sticky modifiers overlay renderer.
+func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay {
+	return m.stickyModifiersOverlay
 }
 
 // RecursiveGridOverlay returns the recursive-grid overlay renderer.
@@ -280,6 +292,20 @@ func (m *Manager) DrawModeIndicator(xCoordinate, yCoordinate int) {
 	}
 
 	m.modeIndicatorOverlay.DrawModeIndicator(string(mode), xCoordinate, yCoordinate)
+}
+
+// DrawStickyModifiersIndicator renders the sticky modifiers indicator using the sticky modifiers overlay renderer.
+func (m *Manager) DrawStickyModifiersIndicator(xCoordinate, yCoordinate int, symbols string) {
+	if m.stickyModifiersOverlay == nil {
+		return
+	}
+
+	mode := m.Mode()
+	if mode == ModeIdle {
+		return
+	}
+
+	m.stickyModifiersOverlay.Draw(xCoordinate, yCoordinate, symbols)
 }
 
 // DrawGrid renders a grid with the specified style using the grid overlay renderer.

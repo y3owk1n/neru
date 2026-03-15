@@ -387,10 +387,17 @@ func (s *ActionService) IsMoveMouseKey(key string) bool {
 // HandleDirectActionKey processes a direct action key and performs the corresponding action.
 // Returns the action name (e.g., "left_click", "move_mouse_relative"), whether the key was
 // handled as a direct action, and any error if the action failed to execute.
+// Optional modifiers are applied to the action (e.g., for sticky modifier support).
 func (s *ActionService) HandleDirectActionKey(
 	ctx context.Context,
 	key string,
+	modifiers ...action.Modifiers,
 ) (string, bool, error) {
+	var mods action.Modifiers
+	if len(modifiers) > 0 {
+		mods = modifiers[0]
+	}
+
 	s.mu.RLock()
 	actionString, logMsg, resolvedKey, ok := s.getActionMapping(key)
 	keyBindings := s.keyBindings
@@ -446,9 +453,10 @@ func (s *ActionService) HandleDirectActionKey(
 	s.logger.Info("Performing direct action",
 		zap.String("action", logMsg),
 		zap.Int("x", cursorPos.X),
-		zap.Int("y", cursorPos.Y))
+		zap.Int("y", cursorPos.Y),
+		zap.String("modifiers", mods.String()))
 
-	performActionErr := s.PerformActionAtPoint(ctx, actionString, cursorPos, 0)
+	performActionErr := s.PerformActionAtPoint(ctx, actionString, cursorPos, mods)
 	if performActionErr != nil {
 		s.logger.Error("Failed to perform direct action", zap.Error(performActionErr))
 

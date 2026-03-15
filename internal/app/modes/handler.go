@@ -55,6 +55,7 @@ type Handler struct {
 	logger         *zap.Logger
 	appState       *state.AppState
 	cursorState    *state.CursorState
+	modifierState  *state.ModifierState
 	overlayManager overlay.ManagerInterface
 	renderer       *ui.OverlayRenderer
 	// New Services
@@ -80,9 +81,14 @@ type Handler struct {
 	setModifierPassthrough     func(enabled bool, blacklist []string)
 	setInterceptedModifierKeys func(keys []string)
 	setPassthroughCallback     func(cb func())
+	setStickyModifierToggle    func(enabled bool)
 	refreshHotkeys             func()
 	refreshHintsTimer          *time.Timer
 	modeSession                uint64
+
+	// Pending modifier toggle for tap detection
+	pendingModifierToggle *time.Timer
+	pendingModifierKey    string
 
 	// Scroll mode polling
 	scrollTicker *time.Ticker
@@ -112,6 +118,7 @@ func NewHandler(
 	setModifierPassthrough func(enabled bool, blacklist []string),
 	setInterceptedModifierKeys func(keys []string),
 	setPassthroughCallback func(cb func()),
+	setStickyModifierToggle func(enabled bool),
 	refreshHotkeys func(),
 	systemPort ports.SystemPort,
 ) *Handler {
@@ -135,6 +142,7 @@ func NewHandler(
 		logger:                     logger,
 		appState:                   appState,
 		cursorState:                cursorState,
+		modifierState:              state.NewModifierState(),
 		overlayManager:             overlayManager,
 		renderer:                   renderer,
 		hintService:                hintService,
@@ -152,6 +160,7 @@ func NewHandler(
 		setModifierPassthrough:     setModifierPassthrough,
 		setInterceptedModifierKeys: setInterceptedModifierKeys,
 		setPassthroughCallback:     setPassthroughCallback,
+		setStickyModifierToggle:    setStickyModifierToggle,
 		refreshHotkeys:             refreshHotkeys,
 		themeProvider:              systemPort,
 		system:                     systemPort,

@@ -262,6 +262,10 @@ func (a *App) registerOverlays() {
 		a.overlayManager.UseModeIndicatorOverlay(a.modeIndicatorComponent.Overlay)
 	}
 
+	if a.stickyIndicatorComponent != nil && a.stickyIndicatorComponent.Overlay != nil {
+		a.overlayManager.UseStickyModifiersOverlay(a.stickyIndicatorComponent.Overlay)
+	}
+
 	if a.hintsComponent != nil && a.hintsComponent.Overlay != nil {
 		a.overlayManager.UseHintOverlay(a.hintsComponent.Overlay)
 	}

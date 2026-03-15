@@ -132,6 +132,9 @@ func (m *mockOverlayPort) Show() {
 func (m *mockOverlayPort) DrawModeIndicator(x, y int) {
 }
 
+func (m *mockOverlayPort) DrawStickyModifiersIndicator(x, y int, symbols string) {
+}
+
 func (m *mockOverlayPort) Hide(ctx context.Context) error {
 	return nil
 }

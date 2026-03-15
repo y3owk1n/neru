@@ -56,6 +56,9 @@ type OverlayPort interface {
 	// DrawModeIndicator draws a mode indicator at the specified position.
 	DrawModeIndicator(x, y int)
 
+	// DrawStickyModifiersIndicator draws the sticky modifiers indicator at the specified position.
+	DrawStickyModifiersIndicator(x, y int, symbols string)
+
 	// Hide hides the overlay.s from the screen.
 	Hide(ctx context.Context) error
 

@@ -160,6 +160,19 @@ func initializeUIComponents(app *App) error {
 
 	app.modeIndicatorComponent = modeIndicatorComponent
 
+	stickyIndicatorComponent, err := factory.CreateStickyIndicatorComponent(
+		ComponentCreationOptions{
+			SkipIfDisabled: false,
+			Required:       false,
+			OverlayType:    "sticky_modifiers",
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	app.stickyIndicatorComponent = stickyIndicatorComponent
+
 	recursiveGridComponent, err := factory.CreateRecursiveGridComponent(ComponentCreationOptions{
 		SkipIfDisabled: false,
 		Required:       false,
@@ -239,6 +252,7 @@ func initializeModeHandler(app *App) {
 			setModifierPassthrough     func(enabled bool, blacklist []string)
 			setInterceptedModifierKeys func(keys []string)
 			setPassthroughCallback     func(cb func())
+			setStickyModifierToggle    func(enabled bool)
 			refreshHotkeys             func()
 		}
 	}{
@@ -278,6 +292,7 @@ func initializeModeHandler(app *App) {
 			setModifierPassthrough     func(enabled bool, blacklist []string)
 			setInterceptedModifierKeys func(keys []string)
 			setPassthroughCallback     func(cb func())
+			setStickyModifierToggle    func(enabled bool)
 			refreshHotkeys             func()
 		}{
 			enableEventTap:             app.enableEventTap,
@@ -285,6 +300,7 @@ func initializeModeHandler(app *App) {
 			setModifierPassthrough:     app.setEventTapModifierPassthrough,
 			setInterceptedModifierKeys: app.setEventTapInterceptedModifierKeys,
 			setPassthroughCallback:     app.setEventTapPassthroughCallback,
+			setStickyModifierToggle:    app.setEventTapStickyModifierToggle,
 			refreshHotkeys:             func() { app.refreshHotkeysForAppOrCurrent("") },
 		},
 	}
@@ -310,6 +326,7 @@ func initializeModeHandler(app *App) {
 		deps.callbacks.setModifierPassthrough,
 		deps.callbacks.setInterceptedModifierKeys,
 		deps.callbacks.setPassthroughCallback,
+		deps.callbacks.setStickyModifierToggle,
 		deps.callbacks.refreshHotkeys,
 		app.systemPort,
 	)

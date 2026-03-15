@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
+	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 )
 
@@ -76,6 +77,9 @@ func (m *Manager) UseGridOverlay(_ *grid.Overlay) {}
 // UseModeIndicatorOverlay sets the mode indicator overlay (Windows stub).
 func (m *Manager) UseModeIndicatorOverlay(_ *modeindicator.Overlay) {}
 
+// UseStickyModifiersOverlay sets the sticky modifiers overlay (Windows stub).
+func (m *Manager) UseStickyModifiersOverlay(_ *stickyindicator.Overlay) {}
+
 // UseRecursiveGridOverlay sets the recursive grid overlay (Windows stub).
 func (m *Manager) UseRecursiveGridOverlay(_ *recursivegrid.Overlay) {}
 
@@ -88,6 +92,9 @@ func (m *Manager) GridOverlay() *grid.Overlay { return nil }
 // ModeIndicatorOverlay returns the mode indicator overlay (Windows stub).
 func (m *Manager) ModeIndicatorOverlay() *modeindicator.Overlay { return nil }
 
+// StickyModifiersOverlay returns the sticky modifiers overlay (Windows stub).
+func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay { return nil }
+
 // RecursiveGridOverlay returns the recursive grid overlay (Windows stub).
 func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay { return nil }
 
@@ -98,6 +105,9 @@ func (m *Manager) DrawHintsWithStyle(_ []*hints.Hint, _ hints.StyleMode) error {
 
 // DrawModeIndicator draws the mode indicator (Windows stub).
 func (m *Manager) DrawModeIndicator(_, _ int) {}
+
+// DrawStickyModifiersIndicator draws the sticky modifiers indicator (Windows stub).
+func (m *Manager) DrawStickyModifiersIndicator(_, _ int, _ string) {}
 
 // DrawGrid draws the grid (Windows stub).
 func (m *Manager) DrawGrid(_ *domainGrid.Grid, _ string, _ grid.Style) error {

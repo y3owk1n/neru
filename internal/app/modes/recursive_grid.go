@@ -143,7 +143,11 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 	ctx := context.Background()
 
 	// Handle direct action keys first
-	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(
+		ctx,
+		key,
+		h.stickyModifiers(),
+	)
 	if wasHandled {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))

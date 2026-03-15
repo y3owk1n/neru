@@ -72,4 +72,11 @@ void setEventTapInterceptedModifierKeys(EventTap tap, const char **keys, int cou
 /// @param callback Passthrough callback function (may be NULL to clear)
 void setEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallback callback);
 
+/// Enable or disable sticky modifier toggle detection.
+/// When enabled, modifier key events (Shift, Cmd, Alt, Ctrl) are detected and
+/// callback is invoked with "__modifier_<name>" strings for sticky modifier toggling.
+/// @param tap Event tap handle
+/// @param enabled Non-zero to enable, zero to disable
+void setEventTapStickyModifierToggle(EventTap tap, int enabled);
+
 #endif // EVENTTAP_H

@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
+	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
@@ -74,6 +75,9 @@ func (m *mockEventTap) SetPassthroughCallback(cb func()) {
 	m.passthroughCallback = cb
 	m.mu.Unlock()
 }
+
+// SetStickyModifierToggle implements ports.EventTapPort.
+func (m *mockEventTap) SetStickyModifierToggle(_ bool) {}
 
 // SetKeyboardLayout implements ports.EventTapPort.
 func (m *mockEventTap) SetKeyboardLayout(_ string) bool { return true }
@@ -191,15 +195,20 @@ func (m *mockOverlayManager) Mode() overlay.Mode {
 	return m.mode
 }
 
-func (m *mockOverlayManager) WindowPtr() unsafe.Pointer                        { return nil }
-func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)                  {}
-func (m *mockOverlayManager) UseGridOverlay(_ *grid.Overlay)                   {}
-func (m *mockOverlayManager) UseModeIndicatorOverlay(_ *modeindicator.Overlay) {}
-func (m *mockOverlayManager) UseRecursiveGridOverlay(_ *recursivegrid.Overlay) {}
+func (m *mockOverlayManager) WindowPtr() unsafe.Pointer                            { return nil }
+func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)                      {}
+func (m *mockOverlayManager) UseGridOverlay(_ *grid.Overlay)                       {}
+func (m *mockOverlayManager) UseModeIndicatorOverlay(_ *modeindicator.Overlay)     {}
+func (m *mockOverlayManager) UseStickyModifiersOverlay(_ *stickyindicator.Overlay) {}
+func (m *mockOverlayManager) UseRecursiveGridOverlay(_ *recursivegrid.Overlay)     {}
 
 func (m *mockOverlayManager) HintOverlay() *hints.Overlay { return nil }
 func (m *mockOverlayManager) GridOverlay() *grid.Overlay  { return nil }
 func (m *mockOverlayManager) ModeIndicatorOverlay() *modeindicator.Overlay {
+	return nil
+}
+
+func (m *mockOverlayManager) StickyModifiersOverlay() *stickyindicator.Overlay {
 	return nil
 }
 
@@ -213,7 +222,8 @@ func (m *mockOverlayManager) DrawHintsWithStyle(
 ) error {
 	return nil
 }
-func (m *mockOverlayManager) DrawModeIndicator(_, _ int) {}
+func (m *mockOverlayManager) DrawModeIndicator(_, _ int)                      {}
+func (m *mockOverlayManager) DrawStickyModifiersIndicator(_, _ int, _ string) {}
 
 func (m *mockOverlayManager) DrawGrid(
 	_ *domainGrid.Grid,

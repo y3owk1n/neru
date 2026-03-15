@@ -24,7 +24,12 @@ func (h *Handler) executeActionAtPoint(action *string, point image.Point) {
 
 	ctx := context.Background()
 
-	performActionErr := h.actionService.PerformActionAtPoint(ctx, *action, point, 0)
+	performActionErr := h.actionService.PerformActionAtPoint(
+		ctx,
+		*action,
+		point,
+		h.stickyModifiers(),
+	)
 	if performActionErr != nil {
 		h.logger.Error("Failed to perform pending action", zap.Error(performActionErr))
 	}
@@ -77,7 +82,11 @@ func (h *Handler) shouldAutoExit(autoExitActions []string, actionName string) bo
 func (h *Handler) handleHintsModeKey(key string) {
 	ctx := context.Background()
 
-	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(
+		ctx,
+		key,
+		h.stickyModifiers(),
+	)
 	if wasHandled {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
@@ -188,7 +197,11 @@ func (h *Handler) handleHintsModeKey(key string) {
 func (h *Handler) handleGridModeKey(key string) {
 	ctx := context.Background()
 
-	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(ctx, key)
+	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(
+		ctx,
+		key,
+		h.stickyModifiers(),
+	)
 	if wasHandled {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
