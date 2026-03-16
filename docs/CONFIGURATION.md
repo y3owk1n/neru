@@ -1247,14 +1247,18 @@ Tap a modifier key while in any navigation mode to "stick" it — the modifier w
 
 ### Configuration
 
-| Option    | Type | Default | Description                    |
-| --------- | ---- | ------- | ------------------------------ |
-| `enabled` | bool | `true`  | Enable sticky modifier feature |
+| Option             | Type | Default | Description                                                                                  |
+| ------------------ | ---- | ------- | -------------------------------------------------------------------------------------------- |
+| `enabled`          | bool | `true`  | Enable sticky modifier feature                                                               |
+| `tap_max_duration` | int  | `300`   | Max hold duration (ms) for a tap to toggle sticky state. `0` = always toggle (no threshold). |
 
 ```toml
 [sticky_modifiers]
 enabled = true
+tap_max_duration = 300  # ms; 0 = always toggle
 ```
+
+If a modifier key is held longer than `tap_max_duration` before being released, the release will **not** toggle the sticky modifier. This prevents accidental toggles when you hold a modifier intending to use it as a chord (e.g., holding Ctrl for Ctrl+C) and then change your mind. Set to `0` to disable the threshold and preserve the previous always-toggle behavior.
 
 ### Visual Options (`[sticky_modifiers.ui]`)
 
