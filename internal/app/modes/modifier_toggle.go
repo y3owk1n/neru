@@ -87,7 +87,11 @@ func (h *Handler) handleModifierToggle(key string) bool {
 	normalizedKey := strings.ToLower(key)
 
 	if isDown {
-		h.pendingModifierKey = normalizedKey
+		if h.pendingModifierKeys == nil {
+			h.pendingModifierKeys = make(map[string]bool)
+		}
+
+		h.pendingModifierKeys[normalizedKey] = true
 		h.logger.Debug("Modifier key down", zap.String("key", normalizedKey))
 
 		return true
@@ -95,16 +99,15 @@ func (h *Handler) handleModifierToggle(key string) bool {
 
 	// Key up — toggle only if the matching down is still pending.
 	expectedDown := strings.TrimSuffix(normalizedKey, "_up") + "_down"
-	if h.pendingModifierKey != expectedDown {
+	if !h.pendingModifierKeys[expectedDown] {
 		h.logger.Debug("Modifier key up ignored (no matching pending down)",
 			zap.String("key", key),
-			zap.String("pending", h.pendingModifierKey))
-		h.pendingModifierKey = ""
+			zap.Any("pending", h.pendingModifierKeys))
 
 		return true
 	}
 
-	h.pendingModifierKey = ""
+	delete(h.pendingModifierKeys, expectedDown)
 
 	newModifiers := h.modifierState.Toggle(mod)
 	h.logger.Debug("Sticky modifier toggled",
@@ -115,8 +118,8 @@ func (h *Handler) handleModifierToggle(key string) bool {
 }
 
 func (h *Handler) cancelPendingModifierToggle() {
-	if h.pendingModifierKey != "" {
-		h.pendingModifierKey = ""
+	if len(h.pendingModifierKeys) > 0 {
+		h.pendingModifierKeys = nil
 		h.logger.Debug("Modifier tap canceled")
 	}
 }

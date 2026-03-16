@@ -269,7 +269,8 @@ func (a *Adapter) PerformActionAtPoint(
 	a.logger.Info("Performing action at point",
 		zap.String("action", actionType.String()),
 		zap.Int("x", point.X),
-		zap.Int("y", point.Y))
+		zap.Int("y", point.Y),
+		zap.String("modifiers", modifiers.String()))
 
 	restoreCursor := a.getRestoreCursor()
 

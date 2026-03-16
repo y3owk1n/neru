@@ -20,7 +20,9 @@ func (h *Handler) executeActionAtPoint(action *string, point image.Point) {
 		return
 	}
 
-	h.logger.Info("Executing pending action", zap.String("action", *action))
+	h.logger.Info("Executing pending action",
+		zap.String("action", *action),
+		zap.String("modifiers", h.stickyModifiers().String()))
 
 	ctx := context.Background()
 

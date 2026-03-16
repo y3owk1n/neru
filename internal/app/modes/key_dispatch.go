@@ -15,7 +15,7 @@ func (h *Handler) HandleKeyPress(key string) {
 	// Cancel any pending modifier toggle if a non-modifier key is pressed
 	// This handles the case where Shift+L is pressed - the modifier tap
 	// is canceled when L comes in
-	if h.pendingModifierKey != "" && !strings.HasPrefix(key, modifierTogglePrefix) {
+	if len(h.pendingModifierKeys) > 0 && !strings.HasPrefix(key, modifierTogglePrefix) {
 		h.cancelPendingModifierToggle()
 	}
 
