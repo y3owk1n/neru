@@ -89,7 +89,7 @@ type Handler struct {
 	modeSession                uint64
 
 	// Pending modifier key for tap detection (down/up without intervening keys)
-	pendingModifierKeys    map[string]bool
+	pendingModifierKeys    map[string]time.Time
 	modifierDetectionArmed bool // true once all modifiers have been released after mode entry
 
 	// Indicator polling (shared by all modes)

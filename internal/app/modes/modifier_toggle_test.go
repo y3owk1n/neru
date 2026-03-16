@@ -3,6 +3,7 @@ package modes
 
 import (
 	"testing"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -87,7 +88,8 @@ func newTestHandler() *Handler {
 		modifierDetectionArmed: true,
 		config: &configpkg.Config{
 			StickyModifiers: configpkg.StickyModifiersConfig{
-				Enabled: true,
+				Enabled:        true,
+				TapMaxDuration: 300,
 			},
 		},
 	}
@@ -249,5 +251,45 @@ func TestHandleModifierToggle_ArmingMechanism(t *testing.T) {
 
 	if got := testHandler.modifierState.Current(); got != action.ModShift {
 		t.Errorf("Expected ModShift after armed tap, got %v", got)
+	}
+}
+
+func TestHandleModifierToggle_HeldTooLong(t *testing.T) {
+	testHandler := newTestHandler()
+	testHandler.config.StickyModifiers.TapMaxDuration = 100 // 100ms threshold
+	// Simulate key down, then manually backdate the timestamp to simulate a long hold.
+	testHandler.handleModifierToggle("__modifier_shift_down")
+	// Overwrite the recorded time to 200ms ago (exceeds 100ms threshold).
+	testHandler.pendingModifierKeys["__modifier_shift_down"] = time.Now().
+		Add(-200 * time.Millisecond)
+	testHandler.handleModifierToggle("__modifier_shift_up")
+
+	if got := testHandler.modifierState.Current(); got != 0 {
+		t.Errorf("Expected 0 after holding too long, got %v", got)
+	}
+}
+
+func TestHandleModifierToggle_HeldWithinThreshold(t *testing.T) {
+	testHandler := newTestHandler()
+	testHandler.config.StickyModifiers.TapMaxDuration = 500 // 500ms threshold
+	// Quick tap — should toggle.
+	testHandler.handleModifierToggle("__modifier_shift_down")
+	testHandler.handleModifierToggle("__modifier_shift_up")
+
+	if got := testHandler.modifierState.Current(); got != action.ModShift {
+		t.Errorf("Expected ModShift after quick tap, got %v", got)
+	}
+}
+
+func TestHandleModifierToggle_ZeroThresholdAlwaysToggles(t *testing.T) {
+	testHandler := newTestHandler()
+	testHandler.config.StickyModifiers.TapMaxDuration = 0 // disabled
+	// Even a "long hold" should toggle when threshold is 0.
+	testHandler.handleModifierToggle("__modifier_shift_down")
+	testHandler.pendingModifierKeys["__modifier_shift_down"] = time.Now().Add(-10 * time.Second)
+	testHandler.handleModifierToggle("__modifier_shift_up")
+
+	if got := testHandler.modifierState.Current(); got != action.ModShift {
+		t.Errorf("Expected ModShift with zero threshold (always toggle), got %v", got)
 	}
 }

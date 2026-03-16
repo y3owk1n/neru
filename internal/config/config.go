@@ -418,8 +418,9 @@ type StickyModifiersUI struct {
 
 // StickyModifiersConfig defines settings for the sticky modifiers feature.
 type StickyModifiersConfig struct {
-	Enabled bool              `json:"enabled" toml:"enabled"`
-	UI      StickyModifiersUI `json:"ui"      toml:"ui"`
+	Enabled        bool              `json:"enabled"        toml:"enabled"`
+	TapMaxDuration int               `json:"tapMaxDuration" toml:"tap_max_duration"`
+	UI             StickyModifiersUI `json:"ui"             toml:"ui"`
 }
 
 // AppConfig defines application-specific settings for role customization.

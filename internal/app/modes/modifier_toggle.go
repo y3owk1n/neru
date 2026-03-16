@@ -2,6 +2,7 @@ package modes
 
 import (
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -88,10 +89,10 @@ func (h *Handler) handleModifierToggle(key string) bool {
 
 	if isDown {
 		if h.pendingModifierKeys == nil {
-			h.pendingModifierKeys = make(map[string]bool)
+			h.pendingModifierKeys = make(map[string]time.Time)
 		}
 
-		h.pendingModifierKeys[normalizedKey] = true
+		h.pendingModifierKeys[normalizedKey] = time.Now()
 		h.logger.Debug("Modifier key down", zap.String("key", normalizedKey))
 
 		return true
@@ -99,7 +100,9 @@ func (h *Handler) handleModifierToggle(key string) bool {
 
 	// Key up — toggle only if the matching down is still pending.
 	expectedDown := strings.TrimSuffix(normalizedKey, "_up") + "_down"
-	if !h.pendingModifierKeys[expectedDown] {
+	downTime, pending := h.pendingModifierKeys[expectedDown]
+
+	if !pending {
 		h.logger.Debug("Modifier key up ignored (no matching pending down)",
 			zap.String("key", key),
 			zap.Any("pending", h.pendingModifierKeys))
@@ -108,6 +111,19 @@ func (h *Handler) handleModifierToggle(key string) bool {
 	}
 
 	delete(h.pendingModifierKeys, expectedDown)
+
+	// If a tap-max-duration is configured, reject holds that exceeded it.
+	if maxDur := h.config.StickyModifiers.TapMaxDuration; maxDur > 0 {
+		elapsed := time.Since(downTime)
+		if elapsed > time.Duration(maxDur)*time.Millisecond {
+			h.logger.Debug("Modifier tap rejected (held too long)",
+				zap.String("modifier", mod.String()),
+				zap.Duration("held", elapsed),
+				zap.Int("maxMs", maxDur))
+
+			return true
+		}
+	}
 
 	newModifiers := h.modifierState.Toggle(mod)
 	h.logger.Debug("Sticky modifier toggled",

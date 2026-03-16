@@ -284,6 +284,12 @@ const (
 	// ModeIndicatorBorderColorDark is the dark mode border color for the mode indicator.
 	ModeIndicatorBorderColorDark = "#FF007A9E"
 
+	// DefaultStickyModifiersTapMaxDuration is the default maximum hold duration (ms)
+	// for a modifier key press to be considered a "tap" for sticky toggle.
+	// If held longer than this, the release will not toggle the sticky modifier.
+	// 0 means no threshold (always toggle on release).
+	DefaultStickyModifiersTapMaxDuration = 300
+
 	// StickyModifiersBackgroundColorLight is the light mode background color for the sticky modifiers indicator.
 	StickyModifiersBackgroundColorLight = "#F200CFCF"
 	// StickyModifiersBackgroundColorDark is the dark mode background color for the sticky modifiers indicator.
@@ -484,7 +490,8 @@ func commonDefaultConfig() *Config {
 			},
 		},
 		StickyModifiers: StickyModifiersConfig{
-			Enabled: true,
+			Enabled:        true,
+			TapMaxDuration: DefaultStickyModifiersTapMaxDuration,
 			UI: StickyModifiersUI{
 				FontSize:             DefaultStickyModifiersFontSize,
 				FontFamily:           "",
