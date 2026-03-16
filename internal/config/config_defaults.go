@@ -157,11 +157,6 @@ const (
 	// PrefixLengthCheck is the prefix length check.
 	PrefixLengthCheck = 2
 
-	// CtrlD is the byte value for Ctrl+D.
-	CtrlD = 4
-	// CtrlU is the byte value for Ctrl+U.
-	CtrlU = 21
-
 	// CacheCleanupDivisor is the cache cleanup interval divisor.
 	CacheCleanupDivisor = 2
 
@@ -521,8 +516,8 @@ func commonDefaultConfig() *Config {
 				"scroll_right": {"l", "Right"},
 				"go_top":       {"gg", "Cmd+Up"},
 				"go_bottom":    {"Shift+G", "Cmd+Down"},
-				"page_up":      {"Ctrl+U", "PageUp"},
-				"page_down":    {"Ctrl+D", "PageDown"},
+				"page_up":      {"u", "PageUp"},
+				"page_down":    {"d", "PageDown"},
 			},
 		},
 		Action: ActionConfig{

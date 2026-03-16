@@ -64,7 +64,7 @@ In any navigation mode, trigger mouse actions without switching modes — left c
 
 ### 📜 Vim-Style Scrolling
 
-Scroll anywhere with familiar `j`/`k`, `gg`/`G`, and `Ctrl+D`/`Ctrl+U` bindings — all fully remappable.
+Scroll anywhere with familiar `j`/`k`, `gg`/`G`, and `d`/`u` bindings — all fully remappable.
 
 ### 🚫 Per-App Exclusions
 

@@ -308,7 +308,7 @@ Activate vim-style scrolling at the current cursor position. Keys are configurab
 
 - `j` / `k` - Scroll down/up
 - `h` / `l` - Scroll left/right
-- `Ctrl+d` / `Ctrl+u` - Half-page down/up
+- `d` / `u` - Half-page down/up
 - `gg` - Jump to top
 - `Shift+G` - Jump to bottom
 - `Esc` - Exit scroll mode
@@ -321,7 +321,7 @@ Activate vim-style scrolling at the current cursor position. Keys are configurab
 # Start scroll mode
 neru scroll
 # Scrolls at current cursor position
-# Use j/k/gg/G/Ctrl+D/U to scroll (or your custom bindings)
+# Use j/k/gg/G/d/u to scroll (or your custom bindings)
 # Press Esc to exit
 ```
 

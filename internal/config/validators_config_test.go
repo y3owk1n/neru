@@ -1625,8 +1625,8 @@ func TestConfig_ValidateScrollKeyBindings(t *testing.T) {
 					"scroll_down": {"j", "Down"},
 					"go_top":      {"gg"},
 					"go_bottom":   {"G"},
-					"page_up":     {"Ctrl+U", "PageUp"},
-					"page_down":   {"Ctrl+D", "PageDown"},
+					"page_up":     {"u", "PageUp"},
+					"page_down":   {"d", "PageDown"},
 				}
 
 				return *cfg
@@ -2348,7 +2348,8 @@ func TestConfig_ValidatePerModeExitKeys(t *testing.T) {
 			config: func() config.Config {
 				cfg := *config.DefaultConfig()
 				cfg.Scroll.ModeExitKeys = []string{"Ctrl+D"}
-				// Default page_down = ["Ctrl+D", "PageDown"]
+				cfg.Scroll.KeyBindings["page_down"] = []string{"Ctrl+D", "PageDown"}
+
 				return cfg
 			},
 			wantErr: true,

@@ -309,7 +309,7 @@ passthrough_unbounded_keys = false  # default
 **Examples that can pass through:** `Cmd+Tab`, `Cmd+Space`, `Cmd+W`, `Alt+Tab`
 
 > [!NOTE]
-> Modifier shortcuts that Neru actively uses are still consumed. For example, scroll bindings like `Ctrl+D` or `Cmd+Down` continue working when they are configured in the active mode.
+> Modifier shortcuts that Neru actively uses are still consumed. For example, scroll bindings like `Cmd+Down` continue working when they are configured in the active mode.
 
 ### should_exit_after_passthrough
 
@@ -1001,14 +1001,14 @@ Vim-style scrolling at the cursor position.
 | Option             | Type  | Default   | Description                           |
 | ------------------ | ----- | --------- | ------------------------------------- |
 | `scroll_step`      | int   | `50`      | Pixels per j/k press (≥ 1)            |
-| `scroll_step_half` | int   | `500`     | Pixels for Ctrl+D/U (≥ 1)             |
+| `scroll_step_half` | int   | `500`     | Pixels for d/u (≥ 1)                  |
 | `scroll_step_full` | int   | `1000000` | Pixels for gg/G (top/bottom, ≥ 1)     |
 | `mode_exit_keys`   | array | `[]`      | Additional keys that exit scroll mode |
 
 ```toml
 [scroll]
 scroll_step = 50            # j/k: 50 pixels
-scroll_step_half = 500      # Ctrl+D/U: half page
+scroll_step_half = 500      # d/u: half page
 scroll_step_full = 1000000  # gg/G: jump to top/bottom
 ```
 
@@ -1036,8 +1036,8 @@ go_top = ["gg", "Cmd+Up"]
 go_bottom = ["Shift+G", "Cmd+Down"]
 
 # Page movement
-page_up = ["Ctrl+U", "PageUp"]
-page_down = ["Ctrl+D", "PageDown"]
+page_up = ["u", "PageUp"]
+page_down = ["d", "PageDown"]
 ```
 
 ### Key Format
@@ -1046,7 +1046,7 @@ page_down = ["Ctrl+D", "PageDown"]
 | -------------- | ----------------------------- | ---------------------------- |
 | Single key     | `"j"`, `"k"`, `"g"`           | Direct press                 |
 | Arrow keys     | `"Up"`, `"Down"`              | Named keys                   |
-| Modifier combo | `"Ctrl+U"`, `"Cmd+Down"`      | Modifier + key               |
+| Modifier combo | `"Ctrl+Z"`, `"Cmd+Down"`      | Modifier + key               |
 | Special keys   | `"PageUp"`, `"Home"`, `"End"` | Named specials               |
 | Function keys  | `"F1"`, `"F12"`, `"F20"`      | Function keys F1 through F20 |
 | Multi-key      | `"gg"`                        | Sequence (500ms timeout)     |

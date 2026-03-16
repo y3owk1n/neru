@@ -164,7 +164,7 @@ sub_key_preview_text_color_dark = "#6600CFCF"
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#scroll-mode
 [scroll]
 scroll_step = 50                            # Pixels per j/k press
-scroll_step_half = 500                      # Pixels for Ctrl+D/U (half page)
+scroll_step_half = 500                      # Pixels for d/u (half page)
 scroll_step_full = 1000000                  # Pixels for gg/G (top/bottom)
 mode_exit_keys = []                         # Extra exit keys (merged with general.mode_exit_keys)
 
@@ -175,8 +175,8 @@ scroll_left = ["h", "Left"]
 scroll_right = ["l", "Right"]
 go_top = ["gg", "Cmd+Up"]
 go_bottom = ["Shift+G", "Cmd+Down"]
-page_up = ["Ctrl+U", "PageUp"]
-page_down = ["Ctrl+D", "PageDown"]
+page_up = ["u", "PageUp"]
+page_down = ["d", "PageDown"]
 
 # Mode indicator
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mode-indicator

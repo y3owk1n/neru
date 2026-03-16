@@ -75,8 +75,8 @@ func TestKeyMapBasicBindings(t *testing.T) {
 		scroll.ActionScrollDown:  {"j", "Down"},
 		scroll.ActionGoTop:       {"gg"},
 		scroll.ActionGoBottom:    {"G"},
-		scroll.ActionPageUp:      {"ctrl+u", "PageUp", "cmd+up"},
-		scroll.ActionPageDown:    {"ctrl+d", "PageDown", "cmd+down"},
+		scroll.ActionPageUp:      {"u", "PageUp", "cmd+up"},
+		scroll.ActionPageDown:    {"d", "PageDown", "cmd+down"},
 		scroll.ActionScrollLeft:  {"h", "Left"},
 		scroll.ActionScrollRight: {"l", "Right"},
 	}
@@ -93,8 +93,8 @@ func TestKeyMapBasicBindings(t *testing.T) {
 		{"Up", true, scroll.ActionScrollUp},
 		{"Down", true, scroll.ActionScrollDown},
 		{"G", true, scroll.ActionGoBottom},
-		{"ctrl+u", true, scroll.ActionPageUp},
-		{"ctrl+d", true, scroll.ActionPageDown},
+		{"u", true, scroll.ActionPageUp},
+		{"d", true, scroll.ActionPageDown},
 		{"PageUp", true, scroll.ActionPageUp},
 		{"PageDown", true, scroll.ActionPageDown},
 		{"cmd+up", true, scroll.ActionPageUp},
@@ -102,9 +102,6 @@ func TestKeyMapBasicBindings(t *testing.T) {
 		{"h", true, scroll.ActionScrollLeft},
 		{"l", true, scroll.ActionScrollRight},
 		{"x", false, ""},
-		{"Ctrl+U", true, scroll.ActionPageUp},
-		{"CTRL+U", true, scroll.ActionPageUp},
-		{"CTRL+u", true, scroll.ActionPageUp},
 	}
 
 	for _, testCase := range testCases {
