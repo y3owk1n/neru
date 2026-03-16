@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.27.1](https://github.com/y3owk1n/neru/compare/v1.27.0...v1.27.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* **scroll:** remove `ctrl` for pageup and pagedown in default config ([#596](https://github.com/y3owk1n/neru/issues/596)) ([02be302](https://github.com/y3owk1n/neru/commit/02be30292b3dc75bc8c98f792c7237210ad16e4d))
+* **sticky_modifier:** add tap duration threshold for sticky modifier toggle ([#594](https://github.com/y3owk1n/neru/issues/594)) ([4aba731](https://github.com/y3owk1n/neru/commit/4aba731908146d1cbbb22d573dc5a90ff999683c))
+* support simultaneous modifier key taps for sticky modifiers ([#592](https://github.com/y3owk1n/neru/issues/592)) ([c902db8](https://github.com/y3owk1n/neru/commit/c902db834d5c17b5efe2345eeaa7e6ce481e6e0a))
+
 ## [1.27.0](https://github.com/y3owk1n/neru/compare/v1.26.0...v1.27.0) (2026-03-15)
 
 
