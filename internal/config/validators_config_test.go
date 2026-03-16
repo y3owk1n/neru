@@ -1272,6 +1272,241 @@ func TestConfig_ValidateAction(t *testing.T) {
 	}
 }
 
+// validStickyModifiersUI returns a StickyModifiersUI with all fields set to valid values.
+func validStickyModifiersUI() config.StickyModifiersUI {
+	return config.StickyModifiersUI{
+		FontSize:             10,
+		FontFamily:           "",
+		BackgroundColorLight: "#F200CFCF",
+		BackgroundColorDark:  "#F200CFCF",
+		TextColorLight:       "#FF003554",
+		TextColorDark:        "#FF003554",
+		BorderColorLight:     "#FF007A9E",
+		BorderColorDark:      "#FF007A9E",
+		BorderWidth:          1,
+		PaddingX:             -1,
+		PaddingY:             -1,
+		BorderRadius:         -1,
+		IndicatorXOffset:     -40,
+		IndicatorYOffset:     20,
+	}
+}
+
+// TestConfig_ValidateStickyModifiers tests the Config.ValidateStickyModifiers method.
+func TestConfig_ValidateStickyModifiers(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  config.Config
+		wantErr bool
+	}{
+		{
+			name: "valid default config",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					UI:             validStickyModifiersUI(),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "zero tap_max_duration is valid (disables threshold)",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 0,
+					UI:             validStickyModifiersUI(),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "negative tap_max_duration is invalid",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: -1,
+					UI:             validStickyModifiersUI(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "large tap_max_duration is valid",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 10000,
+					UI:             validStickyModifiersUI(),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "zero font_size is invalid",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					UI: func() config.StickyModifiersUI {
+						ui := validStickyModifiersUI()
+						ui.FontSize = 0
+
+						return ui
+					}(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "negative border_width is invalid",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					UI: func() config.StickyModifiersUI {
+						ui := validStickyModifiersUI()
+						ui.BorderWidth = -1
+
+						return ui
+					}(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "padding_x below -1 is invalid",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					UI: func() config.StickyModifiersUI {
+						ui := validStickyModifiersUI()
+						ui.PaddingX = -2
+
+						return ui
+					}(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "padding_y below -1 is invalid",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					UI: func() config.StickyModifiersUI {
+						ui := validStickyModifiersUI()
+						ui.PaddingY = -2
+
+						return ui
+					}(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "border_radius below -1 is invalid",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					UI: func() config.StickyModifiersUI {
+						ui := validStickyModifiersUI()
+						ui.BorderRadius = -2
+
+						return ui
+					}(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid background_color_light",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					UI: func() config.StickyModifiersUI {
+						ui := validStickyModifiersUI()
+						ui.BackgroundColorLight = "not-a-color"
+
+						return ui
+					}(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid text_color_dark",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					UI: func() config.StickyModifiersUI {
+						ui := validStickyModifiersUI()
+						ui.TextColorDark = "invalid"
+
+						return ui
+					}(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid border_color_light",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					UI: func() config.StickyModifiersUI {
+						ui := validStickyModifiersUI()
+						ui.BorderColorLight = "invalidxyz"
+
+						return ui
+					}(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty colors are valid (theme-aware defaults)",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					UI: func() config.StickyModifiersUI {
+						smUI := validStickyModifiersUI()
+						smUI.BackgroundColorLight = ""
+						smUI.BackgroundColorDark = ""
+						smUI.TextColorLight = ""
+						smUI.TextColorDark = ""
+						smUI.BorderColorLight = ""
+						smUI.BorderColorDark = ""
+
+						return smUI
+					}(),
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.config.ValidateStickyModifiers()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.ValidateStickyModifiers() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
 // TestConfig_ValidateSmoothCursor tests the Config.ValidateSmoothCursor method.
 func TestConfig_ValidateSmoothCursor(t *testing.T) {
 	tests := []struct {

@@ -859,6 +859,67 @@ func ValidateActionKeyBinding(keybinding, fieldName string) error {
 	)
 }
 
+// ValidateStickyModifiers validates the sticky modifiers configuration.
+func (c *Config) ValidateStickyModifiers() error {
+	if c.StickyModifiers.TapMaxDuration < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"sticky_modifiers.tap_max_duration must be non-negative",
+		)
+	}
+
+	err := validateMinValue(
+		c.StickyModifiers.UI.FontSize,
+		1,
+		"sticky_modifiers.ui.font_size",
+	)
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(
+		c.StickyModifiers.UI.BorderWidth,
+		0,
+		"sticky_modifiers.ui.border_width",
+	)
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.StickyModifiers.UI.PaddingX, -1, "sticky_modifiers.ui.padding_x")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.StickyModifiers.UI.PaddingY, -1, "sticky_modifiers.ui.padding_y")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(
+		c.StickyModifiers.UI.BorderRadius,
+		-1,
+		"sticky_modifiers.ui.border_radius",
+	)
+	if err != nil {
+		return err
+	}
+
+	err = validateColors([]colorField{
+		{c.StickyModifiers.UI.BackgroundColorLight, "sticky_modifiers.ui.background_color_light"},
+		{c.StickyModifiers.UI.BackgroundColorDark, "sticky_modifiers.ui.background_color_dark"},
+		{c.StickyModifiers.UI.TextColorLight, "sticky_modifiers.ui.text_color_light"},
+		{c.StickyModifiers.UI.TextColorDark, "sticky_modifiers.ui.text_color_dark"},
+		{c.StickyModifiers.UI.BorderColorLight, "sticky_modifiers.ui.border_color_light"},
+		{c.StickyModifiers.UI.BorderColorDark, "sticky_modifiers.ui.border_color_dark"},
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ValidateSmoothCursor validates the smooth cursor configuration.
 func (c *Config) ValidateSmoothCursor() error {
 	if c.SmoothCursor.Steps < 1 {

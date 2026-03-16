@@ -751,6 +751,12 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// Validate sticky modifiers settings
+	err = c.ValidateStickyModifiers()
+	if err != nil {
+		return err
+	}
+
 	// Validate smooth cursor settings
 	err = c.ValidateSmoothCursor()
 	if err != nil {
