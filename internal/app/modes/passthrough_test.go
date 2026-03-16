@@ -36,15 +36,15 @@ func TestModeModifierKeys_ScrollIncludesOnlyModifierBindings(t *testing.T) {
 		"scroll_up":   {"k", "Up"},
 		"go_top":      {"gg", "Cmd+Up"},
 		"go_bottom":   {"Shift+G", "Cmd+Down"},
-		"page_up":     {"Ctrl+U", "PageUp"},
-		"page_down":   {"Ctrl+D", "PageDown"},
+		"page_up":     {"u", "PageUp"},
+		"page_down":   {"d", "PageDown"},
 		"scroll_left": {"h"},
 	}
 
 	handler := &Handler{config: cfg}
 
 	got := handler.modeModifierKeys(domain.ModeScroll)
-	want := []string{"Cmd+Down", "Cmd+Up", "Ctrl+C", "Ctrl+D", "Ctrl+U"}
+	want := []string{"Cmd+Down", "Cmd+Up", "Ctrl+C"}
 
 	if !slices.Equal(got, want) {
 		t.Fatalf("modeModifierKeys(ModeScroll) = %v, want %v", got, want)
