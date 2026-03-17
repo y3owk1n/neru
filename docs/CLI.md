@@ -26,6 +26,7 @@ The Neru CLI communicates with the daemon via IPC (Inter-Process Communication) 
   - [Recursive-Grid Mode](#recursive-grid-mode)
   - [Scroll Mode](#scroll-mode)
 - [Action Commands](#action-commands)
+- [Configuration Management](#configuration-management)
 - [Status & Info](#status--info)
 - [Shell Integration](#shell-integration)
 - [Scripting](#scripting)
@@ -329,16 +330,62 @@ neru scroll
 
 ---
 
+## Configuration Management
+
+Manage the Neru configuration file without starting the daemon (except `dump` and `reload`, which require a running instance).
+
+### `config init`
+
+Create a default configuration file with all options documented:
+
+```bash
+neru config init        # Create at $XDG_CONFIG_HOME/neru/config.toml or ~/.config/neru/config.toml
+neru config init -f     # Overwrite an existing config file
+neru config init -c /path/to/config.toml  # Create at a custom path
+```
+
+**Options:**
+
+- `--force, -f` — Overwrite an existing config file
+- `--config, -c` — Write to a custom path instead of the default location
+  The generated file is a fully-commented copy of the built-in defaults, ready to customize. See [CONFIGURATION.md](CONFIGURATION.md) for the full reference.
+
+### `config validate`
+
+Check the configuration file for syntax errors, invalid values, and conflicts — without starting the daemon:
+
+```bash
+neru config validate                        # Validate config in standard locations
+neru config validate -c /path/to/config.toml  # Validate a specific file
+```
+
+If no config file is found, the command exits successfully with a note that defaults will be used.
+
+### `config dump`
+
+Print the currently active configuration as JSON (requires a running daemon):
+
+```bash
+neru config dump
+```
+
+### `config reload`
+
+Reload the configuration from disk without restarting (requires a running daemon):
+
+```bash
+neru config reload
+```
+
+> [!NOTE]
+> Some settings (e.g., `systray.enabled`) require a full restart. See [CONFIGURATION.md](CONFIGURATION.md) for details.
+
+---
+
 ## Status & Info
 
 ```bash
 neru status                               # Daemon status and mode
-neru config init                          # Create default config file (respects $XDG_CONFIG_HOME)
-neru config init -f                       # Overwrite existing config file
-neru config init -c /path/to/config.toml  # Create at custom path
-neru config validate                      # Validate config file without starting daemon
-neru config dump                          # Show loaded configuration
-neru config reload                        # Reload config without restart
 neru --version                            # Version info
 ```
 
