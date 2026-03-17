@@ -15,7 +15,7 @@ func WriteDefaultConfig(cfgPath string, force bool) error {
 	if statErr == nil && !force {
 		return derrors.Newf(
 			derrors.CodeInvalidInput,
-			"config file already exists at %s (use --force to overwrite)",
+			"config file already exists at %s",
 			cfgPath,
 		)
 	}
