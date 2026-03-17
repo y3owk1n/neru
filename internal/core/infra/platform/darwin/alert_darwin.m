@@ -72,14 +72,12 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 	// Activate the app to ensure the alert is visible and focused
 	[NSApp activateIgnoringOtherApps:YES];
 
-	// Schedule switch back to Accessory policy to hide Dock icon
-	// We use a small delay to ensure the focus is grabbed first
-	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-		[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
-	});
-
 	// Run modal
 	NSModalResponse response = [alert runModal];
+
+	// Revert to Accessory policy after the modal is dismissed so the
+	// alert stays in the foreground for the entire user interaction.
+	[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 
 	// Check which button was clicked
 	if (response == NSAlertFirstButtonReturn) {
@@ -142,11 +140,11 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 
 	[NSApp activateIgnoringOtherApps:YES];
 
-	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-		[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
-	});
-
 	NSModalResponse response = [alert runModal];
+
+	// Revert to Accessory policy after the modal is dismissed so the
+	// alert stays in the foreground for the entire user interaction.
+	[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 
 	if (response == NSAlertFirstButtonReturn) {
 		return 1;
