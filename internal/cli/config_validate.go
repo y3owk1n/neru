@@ -24,8 +24,6 @@ By default, searches for config in standard locations:
   ~/.config/neru/config.toml
   ~/.neru.toml
 Use the global --config flag to validate a specific file.`,
-	SilenceErrors: true,
-	SilenceUsage:  true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		return runConfigValidate(cmd)
 	},
