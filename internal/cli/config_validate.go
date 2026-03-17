@@ -1,10 +1,16 @@
 package cli
 
 import (
+	"errors"
+
 	"github.com/spf13/cobra"
 
 	"github.com/y3owk1n/neru/internal/config"
 )
+
+// errConfigValidationFailed is returned when config validation fails.
+// The detailed error is already printed to stderr by runConfigValidate.
+var errConfigValidationFailed = errors.New("config validation failed")
 
 // configValidateCmd is the CLI config validate command.
 var configValidateCmd = &cobra.Command{
@@ -18,6 +24,7 @@ By default, searches for config in standard locations:
   ~/.config/neru/config.toml
   ~/.neru.toml
 Use the global --config flag to validate a specific file.`,
+	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		return runConfigValidate(cmd)
 	},
@@ -51,7 +58,7 @@ func runConfigValidate(cmd *cobra.Command) error {
 		cmd.PrintErrln("")
 		cmd.PrintErrln("Config file: " + loadResult.ConfigPath)
 
-		return loadResult.ValidationError
+		return errConfigValidationFailed
 	}
 
 	cmd.Println("Configuration is valid")
