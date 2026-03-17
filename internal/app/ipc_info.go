@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"sync"
@@ -15,7 +14,11 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
+
+// healthNotInitialized is the status string for components that were not initialized.
+const healthNotInitialized = "not initialized"
 
 // IPCControllerInfo handles info and config-related IPC commands.
 type IPCControllerInfo struct {
@@ -27,6 +30,8 @@ type IPCControllerInfo struct {
 	gridService   *services.GridService
 	actionService *services.ActionService
 	scrollService *services.ScrollService
+	eventTap      ports.EventTapPort
+	ipcServer     ports.IPCPort
 	reloadConfig  func(ctx context.Context, configPath string) error
 	logger        *zap.Logger
 
@@ -44,6 +49,8 @@ func NewIPCControllerInfo(
 	gridService *services.GridService,
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
+	eventTap ports.EventTapPort,
+	ipcServer ports.IPCPort,
 	reloadConfig func(ctx context.Context, configPath string) error,
 	logger *zap.Logger,
 ) *IPCControllerInfo {
@@ -56,6 +63,8 @@ func NewIPCControllerInfo(
 		gridService:   gridService,
 		actionService: actionService,
 		scrollService: scrollService,
+		eventTap:      eventTap,
+		ipcServer:     ipcServer,
 		reloadConfig:  reloadConfig,
 		logger:        logger,
 	}
@@ -194,68 +203,113 @@ func (h *IPCControllerInfo) handleReloadConfig(ctx context.Context, _ ipc.Comman
 }
 
 func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc.Response {
-	// Guard against nil services so callers (including tests) don't panic.
-	if h.hintService == nil || h.gridService == nil || h.actionService == nil ||
-		h.scrollService == nil {
-		h.logger.Error("One or more services are nil in handleHealth")
-
-		return ipc.Response{
-			Success: false,
-			Message: "health check not available: services not initialized",
-			Code:    ipc.CodeActionFailed,
-		}
-	}
-
-	// Get raw health status with errors
-	rawHealthStatus := map[string]map[string]error{
-		"hints":  h.hintService.Health(ctx),
-		"grid":   h.gridService.Health(ctx),
-		"action": h.actionService.Health(ctx),
-		"scroll": h.scrollService.Health(ctx),
-	}
-
-	// Convert to serializable structure
-	healthStatus := make(map[string]map[string]string)
-	for service, checks := range rawHealthStatus {
-		healthStatus[service] = make(map[string]string)
-		for check, err := range checks {
-			if err != nil {
-				healthStatus[service][check] = err.Error()
-			} else {
-				healthStatus[service][check] = "ok"
-			}
-		}
-	}
-
-	// Check if any services have errors
 	hasErrors := false
-	for service, checks := range rawHealthStatus {
+	// --- component checks ---------------------------------------------------
+	components := make(map[string]string)
+	// Event tap — only enabled during active modes (hints/grid/scroll),
+	// so "disabled" in idle mode is expected and healthy.
+	if h.eventTap != nil {
+		if h.eventTap.IsEnabled() {
+			components["event_tap"] = "ok (active)"
+		} else {
+			components["event_tap"] = "ok (idle)"
+		}
+	} else {
+		components["event_tap"] = healthNotInitialized
+		hasErrors = true
+	}
+	// IPC server (implicitly healthy since we're responding, but verify)
+	if h.ipcServer != nil {
+		if h.ipcServer.IsRunning() {
+			components["ipc_server"] = "ok"
+		} else {
+			components["ipc_server"] = "not running"
+			hasErrors = true
+		}
+	} else {
+		components["ipc_server"] = healthNotInitialized
+		hasErrors = true
+	}
+	// Config
+	cfg := h.configSnapshot()
+	if cfg != nil {
+		validateErr := cfg.Validate()
+		if validateErr != nil {
+			components["config"] = validateErr.Error()
+			hasErrors = true
+		} else {
+			components["config"] = "ok"
+		}
+	} else {
+		components["config"] = "not loaded"
+		hasErrors = true
+	}
+	// Service health checks (accessibility + overlay per service)
+	serviceChecks := map[string]map[string]error{}
+	if h.hintService != nil {
+		serviceChecks["hints"] = h.hintService.Health(ctx)
+	} else {
+		components["hints"] = healthNotInitialized
+		hasErrors = true
+	}
+
+	if h.gridService != nil {
+		serviceChecks["grid"] = h.gridService.Health(ctx)
+	} else {
+		components["grid"] = healthNotInitialized
+		hasErrors = true
+	}
+
+	if h.actionService != nil {
+		serviceChecks["action"] = h.actionService.Health(ctx)
+	} else {
+		components["action"] = healthNotInitialized
+		hasErrors = true
+	}
+
+	if h.scrollService != nil {
+		serviceChecks["scroll"] = h.scrollService.Health(ctx)
+	} else {
+		components["scroll"] = healthNotInitialized
+		hasErrors = true
+	}
+	// Flatten service sub-checks into components map
+	for service, checks := range serviceChecks {
 		for check, err := range checks {
+			key := service + "." + check
+
 			if err != nil {
+				components[key] = err.Error()
+				hasErrors = true
+
 				h.logger.Warn("Health check failed",
 					zap.String("service", service),
 					zap.String("check", check),
 					zap.Error(err))
-
-				hasErrors = true
+			} else {
+				components[key] = "ok"
 			}
 		}
 	}
 
-	healthJSON, err := json.Marshal(healthStatus)
-	if err != nil {
-		h.logger.Error("Failed to marshal health status", zap.Error(err))
+	// --- metadata -----------------------------------------------------------
+	configPath := h.ResolveConfigPath()
 
-		return ipc.Response{
-			Success: false,
-			Message: "failed to marshal health status: " + err.Error(),
-			Code:    ipc.CodeActionFailed,
-		}
+	mode := ""
+	if h.appState != nil {
+		mode = domain.ModeString(h.appState.CurrentMode())
+	}
+
+	data := map[string]any{
+		"version":    ipc.BuildVersion(),
+		"config":     configPath,
+		"mode":       mode,
+		"components": components,
 	}
 
 	response := ipc.Response{
 		Success: !hasErrors,
-		Message: string(healthJSON),
+		Data:    data,
 		Code:    ipc.CodeOK,
 	}
 
