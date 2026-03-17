@@ -1,5 +1,6 @@
 # Auto-label PRs based on file paths
 # Used by .github/workflows/labeler.yml (actions/labeler)
+
 # --- Platform labels ---
 "platform: macOS":
     - changed-files:
@@ -8,6 +9,10 @@
                 - "**/*_darwin.m"
                 - "**/*_darwin.h"
                 - "internal/core/infra/platform/darwin/**"
+                - "internal/core/infra/platform/factory_darwin.go"
+                - "resources/Info.plist.template"
+                - "resources/icon.icns"
+
 "platform: linux":
     - changed-files:
           - any-glob-to-any-file:
@@ -15,6 +20,8 @@
                 - "**/*_linux.c"
                 - "**/*_linux.h"
                 - "internal/core/infra/platform/linux/**"
+                - "internal/core/infra/platform/factory_linux.go"
+
 "platform: windows":
     - changed-files:
           - any-glob-to-any-file:
@@ -22,58 +29,114 @@
                 - "**/*_windows.c"
                 - "**/*_windows.h"
                 - "internal/core/infra/platform/windows/**"
+                - "internal/core/infra/platform/factory_windows.go"
+
 "cross-platform":
     - changed-files:
           - any-glob-to-any-file:
                 - "internal/core/infra/platform/factory.go"
+                - "internal/core/infra/platform/factory_others.go"
                 - "internal/core/ports/**"
+
 # --- Area labels ---
-"area: ports":
+"area: cli":
     - changed-files:
           - any-glob-to-any-file:
-                - "internal/core/ports/**"
+                - "internal/cli/**"
+
+"area: config":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/config/**"
+                - "internal/core/infra/config/**"
+                - "configs/**"
+
+"area: domain":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/core/domain/**"
+
 "area: infra":
     - changed-files:
           - any-glob-to-any-file:
                 - "internal/core/infra/**"
+
+"area: ui":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/ui/**"
+                - "internal/app/components/**"
+
 "area: accessibility":
     - changed-files:
           - any-glob-to-any-file:
                 - "internal/core/infra/accessibility/**"
                 - "internal/core/ports/accessibility.go"
-                - "**/*accessibility*"
+
 "area: overlays":
     - changed-files:
           - any-glob-to-any-file:
+                - "internal/core/infra/overlay/**"
+                - "internal/ui/overlay/**"
                 - "internal/app/components/overlayutil/**"
                 - "internal/app/components/modeindicator/**"
                 - "internal/app/services/modeindicator/**"
                 - "internal/core/ports/overlay.go"
-                - "**/*overlay*"
-                - "**/*modeindicator*"
+
 "area: event-tap":
     - changed-files:
           - any-glob-to-any-file:
                 - "internal/core/infra/eventtap/**"
-                - "**/*eventtap*"
+
 "area: hotkeys":
     - changed-files:
           - any-glob-to-any-file:
                 - "internal/core/infra/hotkeys/**"
-                - "**/*hotkey*"
+                - "internal/app/hotkeys.go"
+
+"area: ipc":
+    - changed-files:
+          - any-glob-to-any-file:
+                - "internal/core/infra/ipc/**"
+                - "internal/app/ipc_*.go"
+
 # --- Type labels ---
 documentation:
     - changed-files:
           - any-glob-to-any-file:
                 - "docs/**"
                 - "*.md"
+
+tests:
+    - changed-files:
+          - any-glob-to-any-file:
+                - "**/*_test.go"
+                - "**/*_bench_test.go"
+
 ci:
     - changed-files:
           - any-glob-to-any-file:
                 - ".github/**"
+
+build:
+    - changed-files:
+          - any-glob-to-any-file:
+                - "justfile"
+                - ".golangci.yml"
+                - ".clang-format"
+                - "devbox.json"
+                - "devbox.lock"
+                - "scripts/**"
+                - "resources/**"
+dependencies:
+    - changed-files:
+          - any-glob-to-any-file:
+                - "go.mod"
+                - "go.sum"
+
 performance:
     - changed-files:
           - any-glob-to-any-file:
                 - "internal/core/infra/accessibility/cache.go"
-                - "**/*benchmark*"
-                - "**/*perf*"
+                - "internal/core/infra/appmetrics/**"
+                - "**/*_bench_test.go"
