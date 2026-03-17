@@ -144,7 +144,7 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 		return nil
 	}
 	// Print metadata header
-	cmd.Println("Neru Doctor:")
+	cmd.Println("Daemon status:")
 
 	if version, ok := healthData["version"].(string); ok && version != "" {
 		cmd.Println("  Version:  " + version)
