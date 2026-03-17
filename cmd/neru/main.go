@@ -139,7 +139,7 @@ func handleConfigOnboarding(
 		return configResult
 	}
 
-	err = config.WriteDefaultConfig(defaultPath, true)
+	err = config.WriteDefaultConfig(defaultPath, false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create config file: %v\n", err)
 
