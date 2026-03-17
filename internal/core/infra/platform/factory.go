@@ -18,4 +18,7 @@ const (
 	ConfigOnboardingCreate   = 1
 	ConfigOnboardingDefaults = 2
 	ConfigOnboardingQuit     = 3
+
+	ConfigValidationOK       = 1
+	ConfigValidationCopyPath = 2
 )

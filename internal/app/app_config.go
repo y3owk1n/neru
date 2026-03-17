@@ -29,7 +29,15 @@ func (a *App) ReloadConfig(ctx context.Context, configPath string) error {
 		// Use registerHotkeys directly instead of refreshHotkeysForAppOrCurrent
 		// because the latter depends on FocusedAppBundleID which can fail,
 		// leaving the app without hotkeys.
-		if a.appState.IsEnabled() {
+		//
+		// Guard with HotkeysRegistered() because the blocking native alert
+		// shown by ReloadWithAppContext can trigger a focus-change notification
+		// (NSWorkspaceDidActivateApplicationNotification), which causes the
+		// app observer to call refreshHotkeysForAppOrCurrent and re-register
+		// hotkeys before this error path runs. Without this check we would
+		// attempt to register duplicate hotkeys, producing HOTKEY_REGISTER_FAILED
+		// errors for every binding.
+		if a.appState.IsEnabled() && !a.appState.HotkeysRegistered() {
 			a.registerHotkeys()
 			a.appState.SetHotkeysRegistered(true)
 			a.logger.Debug("Hotkeys restored after failed config reload")

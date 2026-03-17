@@ -68,23 +68,9 @@ func LaunchDaemon(configPath string) {
 	)
 	configResult := service.LoadWithValidation(configPath)
 
-	// If there's a validation error, show alert and continue with default config
+	// If there's a validation error, show alert and exit
 	if configResult.ValidationError != nil {
-		fmt.Fprintf(
-			os.Stderr,
-			"⚠️  Configuration validation failed: %v\n",
-			configResult.ValidationError,
-		)
-		fmt.Fprintf(os.Stderr, "Config file: %s\n", configResult.ConfigPath)
-		fmt.Fprintf(os.Stderr, "Continuing with default configuration...\n\n")
-
-		// Show native macOS alert dialog asynchronously
-		// We use a goroutine and delay to ensure the main run loop has started
-		// otherwise the alert might hang or not show up
-		go func() {
-			absPath, _ := filepath.Abs(configResult.ConfigPath)
-			showConfigErrorAlert(configResult.ValidationError.Error(), absPath)
-		}()
+		handleConfigValidationError(configResult)
 	}
 
 	if configResult.ConfigPath == "" && configPath == "" {
@@ -118,10 +104,21 @@ func LaunchDaemon(configPath string) {
 	}
 }
 
-// showConfigErrorAlert displays a native system alert for config validation errors.
-func showConfigErrorAlert(errorMessage, configPath string) {
-	provider := newAlertProvider()
-	_ = provider.ShowAlert(context.Background(), errorMessage, configPath)
+// handleConfigValidationError shows a validation error and exits.
+// From an app bundle it displays a native alert; from a terminal it prints to stderr.
+func handleConfigValidationError(result *config.LoadResult) {
+	errMsg := result.ValidationError.Error()
+	cfgPath := result.ConfigPath
+	fmt.Fprintf(os.Stderr, "⚠️  Configuration validation failed: %v\n", result.ValidationError)
+	fmt.Fprintf(os.Stderr, "Config file: %s\n", cfgPath)
+	fmt.Fprintf(os.Stderr, "Please fix the configuration and relaunch Neru.\n")
+
+	if cli.IsRunningFromAppBundle() {
+		absPath, _ := filepath.Abs(cfgPath)
+		_ = platform.ShowConfigValidationErrorAlert(errMsg, absPath)
+	}
+
+	os.Exit(1)
 }
 
 func handleConfigOnboarding(

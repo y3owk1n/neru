@@ -18,7 +18,7 @@ static int showOnboardingAlertOnMainThread(const char *configPath);
 /// Show a config validation error alert with error details and config path
 /// @param errorMessage The error message to display
 /// @param configPath The path to the config file
-/// @return 1 if user clicked OK, 2 if user clicked Copy, 0 otherwise
+/// @return 1 if user clicked OK, 2 if user clicked Copy Path, 0 otherwise
 int showConfigValidationErrorAlert(const char *errorMessage, const char *configPath) {
 	@autoreleasepool {
 		__block int result = 0;
@@ -39,7 +39,7 @@ int showConfigValidationErrorAlert(const char *errorMessage, const char *configP
 /// Internal function to show alert on main thread
 /// @param errorMessage The error message to display
 /// @param configPath The path to the config file
-/// @return 1 if user clicked OK, 2 if user clicked Copy, 0 otherwise
+/// @return 1 if user clicked OK, 2 if user clicked Copy Path, 0 otherwise
 static int showAlertOnMainThread(const char *errorMessage, const char *configPath) {
 	NSString *error = errorMessage ? [NSString stringWithUTF8String:errorMessage] : @"Unknown error";
 	NSString *path = configPath ? [NSString stringWithUTF8String:configPath] : @"No config file";
@@ -48,7 +48,7 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 	alert.messageText = @"⚠️ Configuration Validation Failed";
 	alert.informativeText =
 	    [NSString stringWithFormat:@"Neru encountered an error while loading your configuration file:\n\n%@\n\nConfig "
-	                               @"file: %@\n\nThe application will continue running with default configuration.",
+	                               @"file: %@",
 	                               error, path];
 	alert.alertStyle = NSAlertStyleWarning;
 
@@ -84,7 +84,7 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 		// OK button
 		return 1;
 	} else if (response == NSAlertSecondButtonReturn) {
-		// Copy button
+		// Copy Path button
 		NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
 		[pasteboard clearContents];
 		[pasteboard setString:path forType:NSPasteboardTypeString];

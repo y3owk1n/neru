@@ -16,3 +16,8 @@ func NewSystemPort() (ports.SystemPort, error) {
 func ShowConfigOnboardingAlert(configPath string) int {
 	return int(darwin.ShowConfigOnboardingAlert(configPath))
 }
+
+// ShowConfigValidationErrorAlert displays a native macOS alert for config validation errors.
+func ShowConfigValidationErrorAlert(errorMessage, configPath string) int {
+	return int(darwin.ShowConfigValidationError(errorMessage, configPath))
+}

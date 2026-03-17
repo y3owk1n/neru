@@ -16,3 +16,8 @@ func NewSystemPort() (ports.SystemPort, error) {
 func ShowConfigOnboardingAlert(_ string) int {
 	return ConfigOnboardingDefaults
 }
+
+// ShowConfigValidationErrorAlert is a stub on Windows.
+func ShowConfigValidationErrorAlert(_, _ string) int {
+	return ConfigValidationOK
+}
