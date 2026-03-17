@@ -42,6 +42,12 @@ vim-like navigation capabilities across applications using accessibility APIs.`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	Version:       Version,
+	// PersistentPreRun propagates SilenceUsage to every subcommand.
+	// Cobra only checks SilenceUsage on the *executing* command, not the
+	// root, so setting it here in the struct literal alone is not enough.
+	PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+		cmd.SilenceUsage = true
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if IsRunningFromAppBundle() && len(args) == 0 {
 			launchProgram(cmd, configPath)
