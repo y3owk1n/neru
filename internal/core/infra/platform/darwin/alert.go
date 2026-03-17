@@ -11,6 +11,18 @@ import "C"
 
 import "unsafe"
 
+// ConfigOnboardingChoice represents the user's choice in the config onboarding alert.
+type ConfigOnboardingChoice int
+
+const (
+	// ConfigOnboardingCreate indicates the user chose to create a config file.
+	ConfigOnboardingCreate ConfigOnboardingChoice = 1
+	// ConfigOnboardingDefaults indicates the user chose to use default configuration.
+	ConfigOnboardingDefaults ConfigOnboardingChoice = 2
+	// ConfigOnboardingQuit indicates the user chose to quit the application.
+	ConfigOnboardingQuit ConfigOnboardingChoice = 3
+)
+
 // ShowConfigValidationError displays a native macOS alert for configuration validation errors.
 func ShowConfigValidationError(errorMessage, configPath string) {
 	cError := C.CString(errorMessage)
@@ -29,4 +41,12 @@ func ShowNotification(title, message string) {
 	defer C.free(unsafe.Pointer(cMessage)) //nolint:nlreturn
 
 	C.showNotification(cTitle, cMessage)
+}
+
+// ShowConfigOnboardingAlert displays a native macOS alert for new users without a config file.
+func ShowConfigOnboardingAlert(configPath string) ConfigOnboardingChoice {
+	cPath := C.CString(configPath)
+	defer C.free(unsafe.Pointer(cPath)) //nolint:nlreturn
+
+	return ConfigOnboardingChoice(C.showConfigOnboardingAlert(cPath))
 }

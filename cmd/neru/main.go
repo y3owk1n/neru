@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app"
+	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
@@ -86,6 +87,10 @@ func LaunchDaemon(configPath string) {
 		}()
 	}
 
+	if configResult.ConfigPath == "" && configPath == "" {
+		configResult = handleConfigOnboarding(service, configResult)
+	}
+
 	app, appErr := app.New(
 		app.WithConfig(configResult.Config),
 		app.WithConfigPath(configResult.ConfigPath),
@@ -117,4 +122,51 @@ func LaunchDaemon(configPath string) {
 func showConfigErrorAlert(errorMessage, configPath string) {
 	provider := newAlertProvider()
 	_ = provider.ShowAlert(context.Background(), errorMessage, configPath)
+}
+
+func handleConfigOnboarding(
+	service *config.Service,
+	configResult *config.LoadResult,
+) *config.LoadResult {
+	defaultPath, err := config.DefaultConfigPath()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to determine default config path: %v\n", err)
+
+		return configResult
+	}
+
+	if !promptConfigInit(defaultPath) {
+		return configResult
+	}
+
+	err = config.WriteDefaultConfig(defaultPath, true)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create config file: %v\n", err)
+
+		return configResult
+	}
+
+	return service.LoadWithValidation(defaultPath)
+}
+
+func promptConfigInit(configPath string) bool {
+	if cli.IsRunningFromAppBundle() {
+		absPath, _ := filepath.Abs(configPath)
+
+		choice := platform.ShowConfigOnboardingAlert(absPath)
+		switch choice {
+		case platform.ConfigOnboardingCreate:
+			return true
+		case platform.ConfigOnboardingQuit:
+			os.Exit(0)
+		case platform.ConfigOnboardingDefaults:
+			return false
+		}
+
+		return false
+	}
+
+	fmt.Fprintf(os.Stderr, "No config file found. Create one with: neru config init\n")
+
+	return false
 }

@@ -18,6 +18,11 @@
 /// @return 1 if user clicked OK, 2 if user clicked Copy, 0 otherwise
 int showConfigValidationErrorAlert(const char *errorMessage, const char *configPath);
 
+/// Show a config onboarding alert for new users
+/// @param configPath The default config path that will be created
+/// @return 1 if user clicked Create Config, 2 if user clicked Use Defaults, 3 if user clicked Quit
+int showConfigOnboardingAlert(const char *configPath);
+
 /// Show a macOS notification with a title and message
 /// Uses osascript to display a native macOS notification (works for CLI tools)
 /// @param title The notification title

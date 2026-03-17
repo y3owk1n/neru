@@ -108,6 +108,8 @@ const (
 
 	// DefaultDirPerms is the default directory permissions.
 	DefaultDirPerms = 0o750
+	// DefaultFilePerms is the default file permissions.
+	DefaultFilePerms = 0o644
 	// DefaultSocketPerms is the default socket permissions.
 	DefaultSocketPerms = 0o600
 

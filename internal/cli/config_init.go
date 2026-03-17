@@ -1,14 +1,9 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/spf13/cobra"
 
-	"github.com/y3owk1n/neru/configs"
 	"github.com/y3owk1n/neru/internal/config"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 // configInitCmd is the CLI config init command for creating a default configuration file.
@@ -43,55 +38,20 @@ func init() {
 func runConfigInit(cmd *cobra.Command, force bool) error {
 	var cfgPath string
 
-	// Respect the global --config flag when explicitly provided.
 	if configPath != "" {
 		cfgPath = configPath
 	} else {
-		configDir, err := config.DefaultConfigDir()
+		path, err := config.DefaultConfigPath()
 		if err != nil {
-			return derrors.Wrap(
-				err,
-				derrors.CodeConfigIOFailed,
-				"failed to determine config directory",
-			)
+			return err
 		}
 
-		cfgPath = filepath.Join(configDir, "config.toml")
+		cfgPath = path
 	}
 
-	// Check if config already exists
-	_, statErr := os.Stat(cfgPath)
-	if statErr == nil && !force {
-		return derrors.Newf(
-			derrors.CodeInvalidInput,
-			"config file already exists at %s (use --force to overwrite)",
-			cfgPath,
-		)
-	}
-
-	if statErr != nil && !os.IsNotExist(statErr) {
-		return derrors.Wrap(statErr, derrors.CodeConfigIOFailed, "failed to check config file")
-	}
-
-	// Create directory
-	mkdirErr := os.MkdirAll(filepath.Dir(cfgPath), config.DefaultDirPerms)
-	if mkdirErr != nil {
-		return derrors.Wrap(
-			mkdirErr,
-			derrors.CodeConfigIOFailed,
-			"failed to create config directory",
-		)
-	}
-
-	const filePerm = 0o644
-	// Write embedded default config
-	writeErr := os.WriteFile(
-		cfgPath,
-		configs.DefaultConfig,
-		filePerm,
-	)
-	if writeErr != nil {
-		return derrors.Wrap(writeErr, derrors.CodeConfigIOFailed, "failed to write config file")
+	err := config.WriteDefaultConfig(cfgPath, force)
+	if err != nil {
+		return err
 	}
 
 	cmd.Println("Created config at " + cfgPath)

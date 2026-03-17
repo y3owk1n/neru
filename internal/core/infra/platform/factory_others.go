@@ -13,3 +13,8 @@ import (
 func NewSystemPort() (ports.SystemPort, error) {
 	return nil, fmt.Errorf("%w: %s", ErrUnsupportedPlatform, runtime.GOOS)
 }
+
+// ShowConfigOnboardingAlert is a stub on non-darwin platforms.
+func ShowConfigOnboardingAlert(_ string) int {
+	return 0
+}
