@@ -128,7 +128,7 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 	alert.alertStyle = NSAlertStyleInformational;
 
 	[alert addButtonWithTitle:@"Create Config"];
-	[alert addButtonWithTitle:@"Use Defaults"];
+	[alert addButtonWithTitle:@"Use Defaults (No Config)"];
 	[alert addButtonWithTitle:@"Quit"];
 
 	[[alert window] setLevel:NSFloatingWindowLevel];
