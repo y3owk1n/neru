@@ -52,6 +52,11 @@ func runConfigInit(cmd *cobra.Command, force bool) error {
 			cfgPath,
 		)
 	}
+
+	if statErr != nil && !os.IsNotExist(statErr) {
+		return derrors.Wrap(statErr, derrors.CodeConfigIOFailed, "failed to check config file")
+	}
+
 	// Create directory
 	mkdirErr := os.MkdirAll(configDir, config.DefaultDirPerms)
 	if mkdirErr != nil {
