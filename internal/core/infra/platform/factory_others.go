@@ -21,5 +21,5 @@ func ShowConfigOnboardingAlert(_ string) int {
 
 // ShowConfigValidationErrorAlert is a stub on non-darwin platforms.
 func ShowConfigValidationErrorAlert(_, _ string) int {
-	return ConfigValidationQuit
+	return ConfigValidationOK
 }

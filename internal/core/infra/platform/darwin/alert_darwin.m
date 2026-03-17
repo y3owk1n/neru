@@ -18,7 +18,7 @@ static int showOnboardingAlertOnMainThread(const char *configPath);
 /// Show a config validation error alert with error details and config path
 /// @param errorMessage The error message to display
 /// @param configPath The path to the config file
-/// @return 1 if user clicked OK, 2 if user clicked Copy, 0 otherwise
+/// @return 1 if user clicked OK, 2 if user clicked Copy Path, 0 otherwise
 int showConfigValidationErrorAlert(const char *errorMessage, const char *configPath) {
 	@autoreleasepool {
 		__block int result = 0;
@@ -39,7 +39,7 @@ int showConfigValidationErrorAlert(const char *errorMessage, const char *configP
 /// Internal function to show alert on main thread
 /// @param errorMessage The error message to display
 /// @param configPath The path to the config file
-/// @return 1 if user clicked Quit, 2 if user clicked Copy Path & Quit, 0 otherwise
+/// @return 1 if user clicked OK, 2 if user clicked Copy Path, 0 otherwise
 static int showAlertOnMainThread(const char *errorMessage, const char *configPath) {
 	NSString *error = errorMessage ? [NSString stringWithUTF8String:errorMessage] : @"Unknown error";
 	NSString *path = configPath ? [NSString stringWithUTF8String:configPath] : @"No config file";
@@ -48,13 +48,13 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 	alert.messageText = @"⚠️ Configuration Validation Failed";
 	alert.informativeText =
 	    [NSString stringWithFormat:@"Neru encountered an error while loading your configuration file:\n\n%@\n\nConfig "
-	                               @"file: %@\n\nPlease fix the configuration and relaunch Neru.",
+	                               @"file: %@",
 	                               error, path];
 	alert.alertStyle = NSAlertStyleWarning;
 
 	// Add buttons
-	[alert addButtonWithTitle:@"Quit"];
-	[alert addButtonWithTitle:@"Copy Path & Quit"];
+	[alert addButtonWithTitle:@"OK"];
+	[alert addButtonWithTitle:@"Copy Path"];
 
 	// Set icon
 	alert.icon = [NSImage imageNamed:NSImageNameCaution];
@@ -81,10 +81,10 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 
 	// Check which button was clicked
 	if (response == NSAlertFirstButtonReturn) {
-		// Quit button
+		// OK button
 		return 1;
 	} else if (response == NSAlertSecondButtonReturn) {
-		// Copy Path & Quit button
+		// Copy Path button
 		NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
 		[pasteboard clearContents];
 		[pasteboard setString:path forType:NSPasteboardTypeString];

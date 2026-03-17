@@ -19,5 +19,5 @@ func ShowConfigOnboardingAlert(_ string) int {
 
 // ShowConfigValidationErrorAlert is a stub on Linux.
 func ShowConfigValidationErrorAlert(_, _ string) int {
-	return ConfigValidationQuit
+	return ConfigValidationOK
 }

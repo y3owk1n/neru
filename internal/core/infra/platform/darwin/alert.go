@@ -25,10 +25,10 @@ const (
 	// ConfigOnboardingQuit indicates the user chose to quit the application.
 	ConfigOnboardingQuit ConfigOnboardingChoice = 3
 
-	// ConfigValidationQuit indicates the user chose to quit.
-	ConfigValidationQuit ConfigValidationChoice = 1
-	// ConfigValidationCopyAndQuit indicates the user chose to copy the path and quit.
-	ConfigValidationCopyAndQuit ConfigValidationChoice = 2
+	// ConfigValidationOK indicates the user clicked OK.
+	ConfigValidationOK ConfigValidationChoice = 1
+	// ConfigValidationCopyPath indicates the user clicked Copy Path.
+	ConfigValidationCopyPath ConfigValidationChoice = 2
 )
 
 // ShowConfigValidationError displays a native macOS alert for configuration validation errors.
