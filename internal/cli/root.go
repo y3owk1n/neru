@@ -41,12 +41,6 @@ var RootCmd = &cobra.Command{
 vim-like navigation capabilities across applications using accessibility APIs.`,
 	SilenceErrors: true,
 	Version:       Version,
-	// PersistentPreRun propagates SilenceUsage to every subcommand.
-	// Cobra only checks SilenceUsage on the *executing* command, not the
-	// root, so setting it here in the struct literal alone is not enough.
-	PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-		cmd.SilenceUsage = true
-	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if IsRunningFromAppBundle() && len(args) == 0 {
 			launchProgram(cmd, configPath)
@@ -65,8 +59,41 @@ type silentError struct{ err error }
 func (e *silentError) Error() string { return e.err.Error() }
 func (e *silentError) Unwrap() error { return e.err }
 
+// setSilenceUsage walks the command tree and installs a PersistentPreRunE
+// wrapper on every command that sets SilenceUsage = true.  Because the
+// wrapper is attached directly to each command it cannot be silently
+// shadowed by a subcommand that defines its own PersistentPreRun(E) —
+// unlike a single PersistentPreRun on the root which Cobra would skip
+// whenever a child overrides the hook.
+func setSilenceUsage(cmd *cobra.Command) {
+	origE := cmd.PersistentPreRunE
+	origNonE := cmd.PersistentPreRun
+
+	// Clear the non-E variant so Cobra never double-calls it; the
+	// wrapper below invokes it when needed.
+	cmd.PersistentPreRun = nil
+
+	cmd.PersistentPreRunE = func(_cmd *cobra.Command, args []string) error {
+		_cmd.SilenceUsage = true
+		if origE != nil {
+			return origE(_cmd, args)
+		}
+		// Preserve a non-E hook if one was set instead.
+		if origNonE != nil {
+			origNonE(_cmd, args)
+		}
+
+		return nil
+	}
+	for _, child := range cmd.Commands() {
+		setSilenceUsage(child)
+	}
+}
+
 // Execute initializes and runs the CLI application.
 func Execute() {
+	setSilenceUsage(RootCmd)
+
 	executeErr := RootCmd.Execute()
 	if executeErr != nil {
 		// If the command already printed detailed output, don't repeat it.
