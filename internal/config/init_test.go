@@ -3,6 +3,7 @@ package config_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,11 @@ func TestWriteDefaultConfig(t *testing.T) {
 
 	info, statErr := os.Stat(cfgPath)
 	require.NoError(t, statErr)
-	assert.Equal(t, os.FileMode(0o644), info.Mode().Perm())
+
+	// Windows does not support Unix file permissions, so skip the perm check.
+	if runtime.GOOS != "windows" {
+		assert.Equal(t, os.FileMode(0o644), info.Mode().Perm())
+	}
 
 	content, readErr := os.ReadFile(cfgPath)
 	require.NoError(t, readErr)
@@ -67,18 +72,26 @@ func TestWriteDefaultConfig_CreatesParentDirs(t *testing.T) {
 }
 
 func TestDefaultConfigPath(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", "/custom/config")
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
 
 	path, err := config.DefaultConfigPath()
 	require.NoError(t, err)
-	assert.Equal(t, "/custom/config/neru/config.toml", path)
+	assert.Equal(t, filepath.Join(tmpDir, "neru", "config.toml"), path)
 }
 
 func TestDefaultConfigPath_NoXDG(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "")
-	t.Setenv("HOME", "/home/user")
+
+	// On Windows os.UserHomeDir reads USERPROFILE, on Unix it reads HOME.
+	homeDir := t.TempDir()
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", homeDir)
+	} else {
+		t.Setenv("HOME", homeDir)
+	}
 
 	path, err := config.DefaultConfigPath()
 	require.NoError(t, err)
-	assert.Equal(t, "/home/user/.config/neru/config.toml", path)
+	assert.Equal(t, filepath.Join(homeDir, ".config", "neru", "config.toml"), path)
 }
