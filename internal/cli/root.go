@@ -56,6 +56,7 @@ vim-like navigation capabilities across applications using accessibility APIs.`,
 type silentError struct{ err error }
 
 func (e *silentError) Error() string { return e.err.Error() }
+func (e *silentError) Unwrap() error { return e.err }
 
 // Execute initializes and runs the CLI application.
 func Execute() {
