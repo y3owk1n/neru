@@ -28,7 +28,7 @@ Common issues and solutions for Neru.
 # 1. Is daemon running?
 neru status
 
-# 2. Check permissions
+# 2. Run diagnostics (works even if daemon is down)
 neru doctor
 
 # 3. Test basic functionality
@@ -88,7 +88,7 @@ brew update && brew reinstall --cask neru
 2. Re-add Neru
 3. Restart: `pkill neru && neru launch`
 
-**Check health:** `neru doctor`
+**Check health:** `neru doctor` — look for `accessibility: ok` in the component list. If accessibility is denied, the doctor output will show the specific error.
 
 ---
 
@@ -99,8 +99,8 @@ brew update && brew reinstall --cask neru
 **Check:**
 
 ```bash
+neru doctor              # Full diagnostics (works even if daemon is down)
 neru status              # Daemon running?
-neru doctor              # Permissions OK?
 neru hints               # CLI works?
 ```
 
@@ -350,6 +350,9 @@ pkill neru && neru launch
 **Solution:**
 
 ```bash
+# Run diagnostics first (works without daemon)
+neru doctor
+
 # Start daemon
 neru launch
 
@@ -636,6 +639,7 @@ pkill neru && neru launch
 If none of these solutions work:
 
 1. **Gather information:**
+    - Run `neru doctor` and include the full output
     - macOS version: `sw_vers`
     - Neru version: `neru --version`
     - App name and version where issue occurs

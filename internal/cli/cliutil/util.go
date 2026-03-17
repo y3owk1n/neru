@@ -2,6 +2,8 @@ package cliutil
 
 import (
 	"encoding/json"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -130,30 +132,80 @@ func (f *OutputFormatter) PrintStatus(cmd *cobra.Command, data any) error {
 
 // PrintHealth prints health check results.
 func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any) error {
-	if success {
-		cmd.Println("✅ All systems operational")
+	healthData, ok := data.(map[string]any)
+	if !ok {
+		// Fallback for unexpected data shape
+		if success {
+			cmd.Println("✅ All systems operational")
+		} else {
+			cmd.Println("⚠️  Health check returned errors")
+		}
+
+		return nil
+	}
+	// Print metadata header
+	cmd.Println("Neru Doctor:")
+
+	if version, ok := healthData["version"].(string); ok && version != "" {
+		cmd.Println("  Version:  " + version)
+	}
+
+	if configPath, ok := healthData["config"].(string); ok && configPath != "" {
+		cmd.Println("  Config:   " + configPath)
+	}
+
+	if mode, ok := healthData["mode"].(string); ok && mode != "" {
+		cmd.Println("  Mode:     " + mode)
+	}
+
+	cmd.Println()
+	// Print component checks
+	components, hasComponents := healthData["components"].(map[string]any)
+	if !hasComponents {
+		if success {
+			cmd.Println("  ✅ All systems operational")
+		}
 
 		return nil
 	}
 
-	cmd.Println("⚠️  Some components are unhealthy:")
+	if success {
+		cmd.Println("  ✅ All components healthy")
+	} else {
+		cmd.Println("  ⚠️  Some components are unhealthy")
+	}
 
-	if healthData, ok := data.(map[string]any); ok {
-		for key, value := range healthData {
-			status := "OK"
-			if strVal, ok := value.(string); ok && strVal != "" {
-				status = strVal
-			}
+	cmd.Println()
+	// Sort keys for deterministic output
+	keys := sortedKeys(components)
+	for _, key := range keys {
+		value := components[key]
 
-			if status == "OK" {
-				cmd.Printf("  ✅ %s: %s\n", key, status)
-			} else {
-				cmd.Printf("  ❌ %s: %s\n", key, status)
-			}
+		status := "ok"
+		if strVal, ok := value.(string); ok {
+			status = strVal
+		}
+
+		if strings.HasPrefix(status, "ok") {
+			cmd.Printf("  ✅ %-24s %s\n", key, status)
+		} else {
+			cmd.Printf("  ❌ %-24s %s\n", key, status)
 		}
 	}
 
 	return nil
+}
+
+// sortedKeys returns the keys of a map sorted alphabetically.
+func sortedKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
+	return keys
 }
 
 // ErrorHandler provides consistent error handling for CLI commands.

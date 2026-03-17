@@ -339,6 +339,8 @@ func initializeModeHandler(app *App) {
 }
 
 // initializeIPCController sets up the IPC controller for external communication.
+// Note: eventTap and ipcServer are nil at this point; they are set later
+// via SetInfrastructure in initializeEventTapAndIPC (Phase 8).
 func initializeIPCController(app *App) {
 	app.ipcController = NewIPCController(
 		app.hintService,
@@ -349,6 +351,8 @@ func initializeIPCController(app *App) {
 		app.appState,
 		app.config,
 		app.modes,
+		nil, // eventTap — set in Phase 8
+		nil, // ipcServer — set in Phase 8
 		app.ReloadConfig,
 		app.logger,
 	)
@@ -412,6 +416,12 @@ func initializeEventTapAndIPC(app *App) error {
 		}
 
 		app.ipcServer = ipcadapter.NewAdapter(server, logger)
+	}
+
+	// Update the IPC controller with the now-initialized infrastructure
+	// references so the health handler can query their state.
+	if app.ipcController != nil {
+		app.ipcController.SetInfrastructure(app.eventTap, app.ipcServer)
 	}
 
 	return nil

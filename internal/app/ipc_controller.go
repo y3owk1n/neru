@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // IPCController handles IPC command routing and execution.
@@ -25,7 +26,9 @@ type IPCController struct {
 	AppState *state.AppState
 
 	// Infrastructure
-	Logger *zap.Logger
+	Logger    *zap.Logger
+	EventTap  ports.EventTapPort
+	IPCServer ports.IPCPort
 
 	// Mode management
 	Modes *modes.Handler
@@ -50,6 +53,8 @@ func NewIPCController(
 	appState *state.AppState,
 	config *config.Config,
 	modesHandler *modes.Handler,
+	eventTap ports.EventTapPort,
+	ipcServer ports.IPCPort,
 	reloadConfig func(ctx context.Context, configPath string) error,
 	logger *zap.Logger,
 ) *IPCController {
@@ -61,6 +66,8 @@ func NewIPCController(
 		ConfigService: configService,
 		AppState:      appState,
 		Modes:         modesHandler,
+		EventTap:      eventTap,
+		IPCServer:     ipcServer,
 		ReloadConfig:  reloadConfig,
 		Logger:        logger,
 		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
@@ -97,6 +104,19 @@ func (c *IPCController) UpdateConfig(cfg *config.Config) {
 	}
 }
 
+// SetInfrastructure updates the infrastructure references on the controller
+// and its info handler. This is called after event tap and IPC server are
+// initialized (Phase 8), since the IPC controller is created earlier (Phase 7).
+func (c *IPCController) SetInfrastructure(eventTap ports.EventTapPort, ipcServer ports.IPCPort) {
+	c.EventTap = eventTap
+
+	c.IPCServer = ipcServer
+	if c.infoHandler != nil {
+		c.infoHandler.eventTap = eventTap
+		c.infoHandler.ipcServer = ipcServer
+	}
+}
+
 // registerHandlers registers all command handlers by delegating to sub-controllers.
 func (c *IPCController) registerHandlers(cfg *config.Config) {
 	// Initialize handler components
@@ -112,6 +132,8 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 		c.GridService,
 		c.ActionService,
 		c.ScrollService,
+		c.EventTap,
+		c.IPCServer,
 		c.ReloadConfig,
 		c.Logger,
 	)

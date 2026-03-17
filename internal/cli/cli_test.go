@@ -150,7 +150,7 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{"action_mouse_down", getActionCmd("mouse_down"), true},
 		{"action_middle_click", getActionCmd("middle_click"), true},
 		{"status", getCmd("status"), true},
-		{"doctor", getCmd("doctor"), true},
+		{"doctor", getCmd("doctor"), false}, // doctor handles daemon-down gracefully
 	}
 
 	for _, testCase := range tests {

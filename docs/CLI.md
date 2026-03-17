@@ -52,6 +52,7 @@ neru action left_click   # Click at cursor (immediate)
 neru config init         # Create default config file
 neru config validate     # Validate config file
 neru config reload       # Reload config
+neru doctor              # Run system diagnostics
 ```
 
 **Screen Sharing:**
@@ -386,11 +387,15 @@ neru config reload
 
 ```bash
 neru status                               # Daemon status and mode
+neru doctor                               # Full system diagnostics
 neru --version                            # Version info
 ```
 
 **Status values:** `running`, `disabled`
 **Mode values:** `idle`, `hints`, `grid`, `recursive_grid`, `scroll`
+
+> [!TIP]
+> Use neru doctor as your first debugging step — unlike neru status, it works even when the daemon isn't running and checks config validity, socket health, and all internal components.
 
 ---
 
@@ -399,7 +404,7 @@ neru --version                            # Version info
 ### Health Check
 
 ```bash
-neru doctor    # Check component health
+neru doctor    # Run comprehensive system diagnostics
 ```
 
 ### Completions
