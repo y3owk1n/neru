@@ -14,5 +14,5 @@ func NewSystemPort() (ports.SystemPort, error) {
 
 // ShowConfigOnboardingAlert is a stub on Linux.
 func ShowConfigOnboardingAlert(_ string) int {
-	return 0
+	return ConfigOnboardingDefaults
 }

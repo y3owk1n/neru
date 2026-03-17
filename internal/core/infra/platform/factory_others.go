@@ -16,5 +16,5 @@ func NewSystemPort() (ports.SystemPort, error) {
 
 // ShowConfigOnboardingAlert is a stub on non-darwin platforms.
 func ShowConfigOnboardingAlert(_ string) int {
-	return 0
+	return ConfigOnboardingDefaults
 }
