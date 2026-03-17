@@ -69,7 +69,7 @@ func runConfigInit(cmd *cobra.Command, force bool) error {
 		configs.DefaultConfig,
 		filePerm,
 	)
-	if writeErr != nil { //nolint:gosec
+	if writeErr != nil {
 		return derrors.Wrap(writeErr, derrors.CodeConfigIOFailed, "failed to write config file")
 	}
 
