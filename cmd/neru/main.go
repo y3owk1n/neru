@@ -161,9 +161,15 @@ func promptConfigInit(configPath string) bool {
 			os.Exit(0)
 		case platform.ConfigOnboardingDefaults:
 			return false
-		}
+		default:
+			fmt.Fprintf(
+				os.Stderr,
+				"Unexpected onboarding alert response (%d), continuing with defaults\n",
+				choice,
+			)
 
-		return false
+			return false
+		}
 	}
 
 	fmt.Fprintf(os.Stderr, "No config file found. Create one with: neru config init\n")
