@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -8,6 +9,11 @@ import (
 	"github.com/y3owk1n/neru/internal/cli/cliutil"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+)
+
+var (
+	errDaemonNotRunning  = errors.New("daemon not running")
+	errDaemonUnreachable = errors.New("daemon unreachable")
 )
 
 // DoctorCmd is the CLI doctor command.
@@ -32,7 +38,7 @@ queries the running daemon for component-level health status.`,
 			cmd.Println("The neru daemon does not appear to be running.")
 			cmd.Println("Start it with: neru launch")
 
-			return nil
+			return &silentError{err: errDaemonNotRunning}
 		}
 
 		cmd.Printf("  ✅ %-24s %s\n", "ipc_socket", socketPath)
@@ -50,7 +56,7 @@ queries the running daemon for component-level health status.`,
 			cmd.Println("The daemon socket exists but is not responding.")
 			cmd.Println("Try restarting: neru launch")
 
-			return nil
+			return &silentError{err: errDaemonUnreachable}
 		}
 
 		return formatter.PrintHealth(cmd, ipcResponse.Success, ipcResponse.Data)
