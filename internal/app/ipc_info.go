@@ -275,14 +275,12 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 	}
 	// Flatten service sub-checks into components map
 	for service, checks := range serviceChecks {
-		allOK := true
 		for check, err := range checks {
 			key := service + "." + check
 
 			if err != nil {
 				components[key] = err.Error()
 				hasErrors = true
-				allOK = false
 
 				h.logger.Warn("Health check failed",
 					zap.String("service", service),
@@ -291,10 +289,6 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 			} else {
 				components[key] = "ok"
 			}
-		}
-
-		if allOK {
-			components[service] = "ok"
 		}
 	}
 
