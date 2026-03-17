@@ -15,7 +15,7 @@
 /// Show a config validation error alert with error details and config path
 /// @param errorMessage The error message to display
 /// @param configPath The path to the config file
-/// @return 1 if user clicked OK, 2 if user clicked Copy, 0 otherwise
+/// @return 1 if user clicked Quit, 2 if user clicked Copy Path & Quit, 0 otherwise
 int showConfigValidationErrorAlert(const char *errorMessage, const char *configPath);
 
 /// Show a config onboarding alert for new users
