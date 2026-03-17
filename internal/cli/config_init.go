@@ -37,23 +37,10 @@ func init() {
 	configCmd.AddCommand(configInitCmd)
 }
 
-func configInitDir() (string, error) {
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "neru"), nil
-	}
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", derrors.Wrap(err, derrors.CodeConfigIOFailed, "failed to get home directory")
-	}
-
-	return filepath.Join(homeDir, ".config", "neru"), nil
-}
-
 func runConfigInit(cmd *cobra.Command, force bool) error {
-	configDir, err := configInitDir()
+	configDir, err := config.DefaultConfigDir()
 	if err != nil {
-		return err
+		return derrors.Wrap(err, derrors.CodeConfigIOFailed, "failed to determine config directory")
 	}
 
 	cfgPath := filepath.Join(configDir, "config.toml")

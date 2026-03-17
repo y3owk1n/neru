@@ -185,28 +185,53 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	return configResult
 }
 
+// DefaultConfigDir returns the preferred directory for the Neru config file.
+// It checks $XDG_CONFIG_HOME first, falling back to ~/.config/neru.
+// This is the single source of truth for the primary config location,
+// used by both FindConfigFile and config init.
+func DefaultConfigDir() (string, error) {
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		return filepath.Join(xdg, "neru"), nil
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(homeDir, ".config", "neru"), nil
+}
+
 // FindConfigFile searches for a configuration file in standard locations.
 // Returns the path to the config file, or an empty string if not found.
 func (s *Service) FindConfigFile() string {
-	// Try XDG config directory first
-	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-		path := filepath.Join(xdgConfig, "neru", "config.toml")
+	// Try preferred config directory first (XDG_CONFIG_HOME or ~/.config)
+	configDir, dirErr := DefaultConfigDir()
+	if dirErr == nil {
+		path := filepath.Join(configDir, "config.toml")
 		if found := s.tryConfigPath(path); found != "" {
 			return found
+		}
+	} else {
+		s.logger.Warn("Failed to determine config directory", zap.Error(dirErr))
+	}
+
+	// When XDG_CONFIG_HOME is set, also check ~/.config as a fallback
+	if os.Getenv("XDG_CONFIG_HOME") != "" {
+		homeDir, homeErr := os.UserHomeDir()
+		if homeErr == nil {
+			path := filepath.Join(homeDir, ".config", "neru", "config.toml")
+			if found := s.tryConfigPath(path); found != "" {
+				return found
+			}
 		}
 	}
 
-	// Try standard config directory
+	// Try legacy and current-directory locations
 	homeDir, homeErr := os.UserHomeDir()
 	if homeErr == nil {
-		// Try .config/neru/config.toml
-		path := filepath.Join(homeDir, ".config", "neru", "config.toml")
-		if found := s.tryConfigPath(path); found != "" {
-			return found
-		}
-
 		// Try .neru.toml
-		path = filepath.Join(homeDir, ".neru.toml")
+		path := filepath.Join(homeDir, ".neru.toml")
 		if found := s.tryConfigPath(path); found != "" {
 			return found
 		}
