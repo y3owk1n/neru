@@ -42,7 +42,7 @@ This search order is the same on all platforms (macOS, Linux, Windows).
 Neru works out of the box with sensible defaults — no config file is required. When you're ready to customize, generate a fully-commented starter config:
 
 ```bash
-neru config init            # creates ~/.config/neru/config.toml
+neru config init            # creates $XDG_CONFIG_HOME/neru/config.toml or ~/.config/neru/config.toml
 neru config init --force    # overwrite an existing file
 ```
 

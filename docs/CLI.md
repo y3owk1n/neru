@@ -333,7 +333,7 @@ neru scroll
 
 ```bash
 neru status             # Daemon status and mode
-neru config init        # Create default config file (~/.config/neru/config.toml)
+neru config init        # Create default config file (respects $XDG_CONFIG_HOME)
 neru config init -f     # Overwrite existing config file
 neru config validate    # Validate config file without starting daemon
 neru config dump        # Show loaded configuration
