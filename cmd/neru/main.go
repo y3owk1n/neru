@@ -115,7 +115,7 @@ func handleConfigValidationError(result *config.LoadResult) {
 
 	if cli.IsRunningFromAppBundle() {
 		absPath, _ := filepath.Abs(cfgPath)
-		platform.ShowConfigValidationErrorAlert(errMsg, absPath)
+		_ = platform.ShowConfigValidationErrorAlert(errMsg, absPath)
 	}
 
 	os.Exit(1)
