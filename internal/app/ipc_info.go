@@ -250,24 +250,28 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 		serviceChecks["hints"] = h.hintService.Health(ctx)
 	} else {
 		components["hints"] = healthNotInitialized
+		hasErrors = true
 	}
 
 	if h.gridService != nil {
 		serviceChecks["grid"] = h.gridService.Health(ctx)
 	} else {
 		components["grid"] = healthNotInitialized
+		hasErrors = true
 	}
 
 	if h.actionService != nil {
 		serviceChecks["action"] = h.actionService.Health(ctx)
 	} else {
 		components["action"] = healthNotInitialized
+		hasErrors = true
 	}
 
 	if h.scrollService != nil {
 		serviceChecks["scroll"] = h.scrollService.Health(ctx)
 	} else {
 		components["scroll"] = healthNotInitialized
+		hasErrors = true
 	}
 	// Flatten service sub-checks into components map
 	for service, checks := range serviceChecks {
