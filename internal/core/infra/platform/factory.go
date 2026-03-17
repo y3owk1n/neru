@@ -12,3 +12,10 @@ import (
 
 // ErrUnsupportedPlatform is returned when the current platform is not supported.
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
+
+// ConfigOnboardingChoice constants represent user choices in the config onboarding alert.
+const (
+	ConfigOnboardingCreate   = 1
+	ConfigOnboardingDefaults = 2
+	ConfigOnboardingQuit     = 3
+)
