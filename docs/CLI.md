@@ -48,6 +48,8 @@ neru grid                # Start grid mode
 neru recursive_grid      # Start recursive-grid mode
 neru scroll              # Start scroll mode
 neru action left_click   # Click at cursor (immediate)
+neru config init         # Create default config file
+neru config validate     # Validate config file
 neru config reload       # Reload config
 ```
 
@@ -330,10 +332,13 @@ neru scroll
 ## Status & Info
 
 ```bash
-neru status           # Daemon status and mode
-neru config dump      # Show loaded configuration
-neru config reload    # Reload config without restart
-neru --version        # Version info
+neru status             # Daemon status and mode
+neru config init        # Create default config file (~/.config/neru/config.toml)
+neru config init -f     # Overwrite existing config file
+neru config validate    # Validate config file without starting daemon
+neru config dump        # Show loaded configuration
+neru config reload      # Reload config without restart
+neru --version          # Version info
 ```
 
 **Status values:** `running`, `disabled`

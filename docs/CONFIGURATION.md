@@ -37,19 +37,30 @@ Neru uses TOML configuration files. Configuration is loaded from (in order of pr
 
 This search order is the same on all platforms (macOS, Linux, Windows).
 
+### Creating a Config File
+
+Neru works out of the box with sensible defaults — no config file is required. When you're ready to customize, generate a fully-commented starter config:
+
+```bash
+neru config init            # creates ~/.config/neru/config.toml
+neru config init --force    # overwrite an existing file
+```
+
+You can also copy manually from [default-config.toml](../configs/default-config.toml).
+
+### Managing Your Config
+
+```bash
+neru config validate    # check for errors without starting the daemon
+neru config reload      # apply changes to a running daemon
+neru config dump        # print the loaded configuration
+```
+
+Alternatively, restart the daemon: `pkill neru && neru launch`
+
 ### Global Flag
 
 - **`--config` or `-c` flag**: Specify a custom config file path when launching.
-
-**No config file?** Neru works out of the box with sensible defaults. Copy from [default-config.toml](../configs/default-config.toml) to customize.
-
-**Reload config changes:**
-
-```bash
-neru config reload
-```
-
-Or restart the daemon: `pkill neru && neru launch`
 
 ---
 
