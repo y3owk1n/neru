@@ -332,13 +332,14 @@ neru scroll
 ## Status & Info
 
 ```bash
-neru status             # Daemon status and mode
-neru config init        # Create default config file (respects $XDG_CONFIG_HOME)
-neru config init -f     # Overwrite existing config file
-neru config validate    # Validate config file without starting daemon
-neru config dump        # Show loaded configuration
-neru config reload      # Reload config without restart
-neru --version          # Version info
+neru status                               # Daemon status and mode
+neru config init                          # Create default config file (respects $XDG_CONFIG_HOME)
+neru config init -f                       # Overwrite existing config file
+neru config init -c /path/to/config.toml  # Create at custom path
+neru config validate                      # Validate config file without starting daemon
+neru config dump                          # Show loaded configuration
+neru config reload                        # Reload config without restart
+neru --version                            # Version info
 ```
 
 **Status values:** `running`, `disabled`

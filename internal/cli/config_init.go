@@ -18,6 +18,7 @@ var configInitCmd = &cobra.Command{
 	Long: `Create a default configuration file.
 The config is written to $XDG_CONFIG_HOME/neru/config.toml when
 XDG_CONFIG_HOME is set, otherwise ~/.config/neru/config.toml.
+Use the global --config flag to write to a custom path instead.
 This copies the fully-commented default configuration to get you started.
 If a config file already exists, use --force to overwrite it.
 After running this command, start Neru with 'neru launch' and try:
@@ -38,12 +39,24 @@ func init() {
 }
 
 func runConfigInit(cmd *cobra.Command, force bool) error {
-	configDir, err := config.DefaultConfigDir()
-	if err != nil {
-		return derrors.Wrap(err, derrors.CodeConfigIOFailed, "failed to determine config directory")
+	var cfgPath string
+
+	// Respect the global --config flag when explicitly provided.
+	if configPath != "" {
+		cfgPath = configPath
+	} else {
+		configDir, err := config.DefaultConfigDir()
+		if err != nil {
+			return derrors.Wrap(
+				err,
+				derrors.CodeConfigIOFailed,
+				"failed to determine config directory",
+			)
+		}
+
+		cfgPath = filepath.Join(configDir, "config.toml")
 	}
 
-	cfgPath := filepath.Join(configDir, "config.toml")
 	// Check if config already exists
 	_, statErr := os.Stat(cfgPath)
 	if statErr == nil && !force {
@@ -59,7 +72,7 @@ func runConfigInit(cmd *cobra.Command, force bool) error {
 	}
 
 	// Create directory
-	mkdirErr := os.MkdirAll(configDir, config.DefaultDirPerms)
+	mkdirErr := os.MkdirAll(filepath.Dir(cfgPath), config.DefaultDirPerms)
 	if mkdirErr != nil {
 		return derrors.Wrap(
 			mkdirErr,
