@@ -26,6 +26,7 @@ After running this command, start Neru with 'neru launch' and try:
   Cmd+Shift+Space   Hints mode
   Cmd+Shift+S       Scroll mode
   Escape            Exit any mode`,
+	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		force, _ := cmd.Flags().GetBool("force")
 
