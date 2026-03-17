@@ -40,7 +40,6 @@ var RootCmd = &cobra.Command{
 	Long: `Neru is a keyboard-driven navigation tool that provides
 vim-like navigation capabilities across applications using accessibility APIs.`,
 	SilenceErrors: true,
-	SilenceUsage:  true,
 	Version:       Version,
 	// PersistentPreRun propagates SilenceUsage to every subcommand.
 	// Cobra only checks SilenceUsage on the *executing* command, not the
