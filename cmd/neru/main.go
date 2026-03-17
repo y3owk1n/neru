@@ -168,5 +168,7 @@ func promptConfigInit(configPath string) bool {
 
 	fmt.Fprintf(os.Stderr, "No config file found. Create one with: neru config init\n")
 
+	os.Exit(1)
+
 	return false
 }
