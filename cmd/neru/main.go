@@ -72,11 +72,11 @@ func LaunchDaemon(configPath string) {
 	if configResult.ValidationError != nil {
 		fmt.Fprintf(
 			os.Stderr,
-			"⚠️  Configuration validation failed: %v\\n",
+			"⚠️  Configuration validation failed: %v\n",
 			configResult.ValidationError,
 		)
-		fmt.Fprintf(os.Stderr, "Config file: %s\\n", configResult.ConfigPath)
-		fmt.Fprintf(os.Stderr, "Continuing with default configuration...\\n\\n")
+		fmt.Fprintf(os.Stderr, "Config file: %s\n", configResult.ConfigPath)
+		fmt.Fprintf(os.Stderr, "Continuing with default configuration...\n\n")
 
 		// Show native macOS alert dialog asynchronously
 		// We use a goroutine and delay to ensure the main run loop has started
@@ -96,14 +96,14 @@ func LaunchDaemon(configPath string) {
 		app.WithConfigPath(configResult.ConfigPath),
 	)
 	if appErr != nil {
-		fmt.Fprintf(os.Stderr, "Error creating app: %v\\n", appErr)
+		fmt.Fprintf(os.Stderr, "Error creating app: %v\n", appErr)
 		os.Exit(1)
 	}
 
 	go func() {
 		err := app.Run()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error running app: %v\\n", err)
+			fmt.Fprintf(os.Stderr, "Error running app: %v\n", err)
 		}
 	}()
 
