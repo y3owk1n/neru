@@ -59,7 +59,13 @@ queries the running daemon for component-level health status.`,
 			return &silentError{err: errDaemonUnreachable}
 		}
 
-		return formatter.PrintHealth(cmd, ipcResponse.Success, ipcResponse.Data)
+		err = formatter.PrintHealth(cmd, ipcResponse.Success, ipcResponse.Data)
+
+		if errors.Is(err, cliutil.ErrUnhealthy) {
+			return &silentError{err: err}
+		}
+
+		return err
 	},
 }
 

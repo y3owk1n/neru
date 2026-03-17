@@ -2,6 +2,7 @@ package cliutil
 
 import (
 	"encoding/json"
+	"errors"
 	"sort"
 	"strings"
 	"time"
@@ -11,6 +12,9 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
+
+// ErrUnhealthy is returned by PrintHealth when one or more components are unhealthy.
+var ErrUnhealthy = errors.New("unhealthy components detected")
 
 // IPCCommunicator handles IPC communication with the Neru daemon.
 type IPCCommunicator struct {
@@ -137,11 +141,13 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 		// Fallback for unexpected data shape
 		if success {
 			cmd.Println("✅ All systems operational")
-		} else {
-			cmd.Println("⚠️  Health check returned errors")
+
+			return nil
 		}
 
-		return nil
+		cmd.Println("  ⚠️  Health check returned errors")
+
+		return ErrUnhealthy
 	}
 	// Print metadata header
 	cmd.Println("Daemon status:")
@@ -193,6 +199,10 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 		} else {
 			cmd.Printf("  ❌ %-24s %s\n", key, status)
 		}
+	}
+
+	if !success {
+		return ErrUnhealthy
 	}
 
 	return nil
