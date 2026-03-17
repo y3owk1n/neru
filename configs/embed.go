@@ -1,4 +1,3 @@
-// Package configs provides embedded configuration files.
 package configs
 
 import _ "embed"
