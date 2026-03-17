@@ -170,11 +170,13 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 	if !hasComponents {
 		if success {
 			cmd.Println("  ✅ All systems operational")
-		} else {
-			cmd.Println("  ⚠️  Health check returned errors")
+
+			return nil
 		}
 
-		return nil
+		cmd.Println("  ⚠️  Health check returned errors")
+
+		return ErrUnhealthy
 	}
 
 	if success {
