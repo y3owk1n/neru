@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -50,11 +51,22 @@ vim-like navigation capabilities across applications using accessibility APIs.`,
 	},
 }
 
+// silentError wraps an error whose message has already been printed to stderr.
+// Execute() recognizes this type and skips duplicate output.
+type silentError struct{ err error }
+
+func (e *silentError) Error() string { return e.err.Error() }
+
 // Execute initializes and runs the CLI application.
 func Execute() {
 	executeErr := RootCmd.Execute()
 	if executeErr != nil {
-		fmt.Fprintln(os.Stderr, executeErr)
+		// If the command already printed detailed output, don't repeat it.
+		var silent *silentError
+		if !errors.As(executeErr, &silent) {
+			fmt.Fprintln(os.Stderr, executeErr)
+		}
+
 		os.Exit(1)
 	}
 }

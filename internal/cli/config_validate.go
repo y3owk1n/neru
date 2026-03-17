@@ -58,7 +58,7 @@ func runConfigValidate(cmd *cobra.Command) error {
 		cmd.PrintErrln("")
 		cmd.PrintErrln("Config file: " + loadResult.ConfigPath)
 
-		return errConfigValidationFailed
+		return &silentError{err: errConfigValidationFailed}
 	}
 
 	cmd.Println("Configuration is valid")
