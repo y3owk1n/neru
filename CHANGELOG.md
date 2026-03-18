@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.28.0](https://github.com/y3owk1n/neru/compare/v1.27.1...v1.28.0) (2026-03-18)
+
+
+### Features
+
+* add config onboarding flow on first launch ([#600](https://github.com/y3owk1n/neru/issues/600)) ([04cae66](https://github.com/y3owk1n/neru/commit/04cae662c853b324896f04c17505961081fd45b6))
+* **cli:** add `neru config init` and `neru config validate` commands ([#598](https://github.com/y3owk1n/neru/issues/598)) ([e4b0b91](https://github.com/y3owk1n/neru/commit/e4b0b9169b49075c35419a8f0858e3c3318e31f3))
+* **cli:** expand neru doctor into a comprehensive diagnostic tool ([#603](https://github.com/y3owk1n/neru/issues/603)) ([e140297](https://github.com/y3owk1n/neru/commit/e140297d48c08d5859607f4262fbd240aafc7815))
+
+
+### Bug Fixes
+
+* **cli:** prevent duplicate error messages in CLI commands ([#604](https://github.com/y3owk1n/neru/issues/604)) ([cd7221b](https://github.com/y3owk1n/neru/commit/cd7221b4388dab71405b4f9b7a43f6ba4f92bf49))
+* exit on config validation failure instead of silently continuing with defaults ([#601](https://github.com/y3owk1n/neru/issues/601)) ([41dc09d](https://github.com/y3owk1n/neru/commit/41dc09d31b7b372cdd00cf1073d713e20afb5189))
+* **hints:** clear accessibility cache before showing hints to prevent stale positions ([#606](https://github.com/y3owk1n/neru/issues/606)) ([31414f2](https://github.com/y3owk1n/neru/commit/31414f2f7077c248c182f82d18bd1a825b06cdd6))
+
 ## [1.27.1](https://github.com/y3owk1n/neru/compare/v1.27.0...v1.27.1) (2026-03-16)
 
 
