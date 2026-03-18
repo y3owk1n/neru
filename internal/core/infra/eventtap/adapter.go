@@ -61,12 +61,13 @@ func (a *Adapter) SetHandler(_ func(key string)) {
 }
 
 // SetHotkeys configures which hotkeys the event tap should monitor.
+// An empty slice is valid and clears all monitored hotkeys.
 func (a *Adapter) SetHotkeys(hotkeys []string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	if len(hotkeys) == 0 {
-		a.logger.Warn("SetHotkeys called with empty hotkeys slice")
+		a.logger.Debug("SetHotkeys called with empty slice — no hotkeys will be monitored")
 
 		return
 	}

@@ -224,6 +224,16 @@ Global hotkeys trigger Neru navigation modes from anywhere on screen.
 "Cmd+Alt+N" = "exec osascript -e 'display notification \"Hello!\" with title \"Neru\"'"
 ```
 
+### Disabling all hotkeys
+
+To disable **all** built-in hotkeys (e.g. when using an external hotkey daemon like skhd), provide an empty `[hotkeys]` section:
+
+```toml
+[hotkeys]
+# No bindings — all defaults are cleared.
+# Trigger modes via CLI: neru hints, neru grid, etc.
+```
+
 ### Alternative: external hotkey manager
 
 For more complex setups, use [skhd](https://github.com/koekeishiya/skhd) or [Karabiner-Elements](https://karabiner-elements.pqrs.org/):

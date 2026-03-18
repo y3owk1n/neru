@@ -140,9 +140,12 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		return configResult
 	}
 
-	// Process hotkeys from raw map
+	// Process hotkeys from raw map.
+	// When the user provides a [hotkeys] section (even if empty), clear all
+	// default bindings so that external hotkey daemons (e.g. skhd) can manage
+	// shortcuts without conflicts. Modes remain accessible via CLI commands.
 	if hot, ok := raw["hotkeys"]; ok {
-		if hotMap, ok := hot.(map[string]any); ok && len(hotMap) > 0 {
+		if hotMap, ok := hot.(map[string]any); ok {
 			// Clear default bindings when user provides hotkeys config
 			configResult.Config.Hotkeys.Bindings = map[string]string{}
 

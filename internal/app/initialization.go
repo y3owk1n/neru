@@ -248,9 +248,11 @@ func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger
 
 	keys := processHotkeyBindings(config, logger)
 
-	// Log if no hotkeys are configured
+	// Log hotkey registration status
 	if len(keys) == 0 {
-		logger.Warn("No hotkeys configured - application will not be activatable via hotkeys")
+		logger.Info(
+			"No hotkeys configured — use CLI commands (neru hints, neru grid, etc.) to trigger modes",
+		)
 	} else {
 		logger.Info("Registered hotkeys", zap.Int("count", len(keys)))
 	}
