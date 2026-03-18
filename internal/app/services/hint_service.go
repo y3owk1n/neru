@@ -51,6 +51,12 @@ func (s *HintService) ShowHints(
 	gen := s.generator
 	s.mu.RUnlock()
 
+	// Clear the accessibility cache before querying elements to ensure fresh
+	// position data. Without this, elements that moved due to scrolling would
+	// retain their stale pre-scroll positions from the cache (StaticElementTTL
+	// is 30s), causing hint labels to appear at wrong locations.
+	s.accessibility.ClearCache()
+
 	filter := ports.DefaultElementFilter()
 
 	// Populate filter with configuration

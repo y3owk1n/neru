@@ -111,6 +111,10 @@ func (m *mockAccessibilityPort) IsAppExcluded(ctx context.Context, bundleID stri
 	return false
 }
 
+func (m *mockAccessibilityPort) ClearCache() {
+	// No-op for mock
+}
+
 // mockOverlayPort is a mock implementation of OverlayPort for testing.
 type mockOverlayPort struct{}
 

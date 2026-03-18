@@ -45,6 +45,14 @@ type ApplicationInfo interface {
 	IsAppExcluded(ctx context.Context, bundleID string) bool
 }
 
+// CacheManagement defines the interface for managing the accessibility element cache.
+type CacheManagement interface {
+	// ClearCache removes all cached element information.
+	// This should be called before querying elements when the UI may have
+	// changed (e.g., after scrolling) to ensure fresh position data.
+	ClearCache()
+}
+
 // AccessibilityPort defines the interface for interacting with the platform
 // accessibility API (AXUIElement on macOS, AT-SPI on Linux, UIA on Windows).
 // Implementations handle all platform-specific bridge complexity and live in
@@ -56,6 +64,7 @@ type AccessibilityPort interface {
 	ElementDiscovery
 	ActionExecution
 	ApplicationInfo
+	CacheManagement
 }
 
 // ElementFilter defines criteria for filtering UI elements.

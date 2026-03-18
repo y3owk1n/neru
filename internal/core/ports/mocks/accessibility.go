@@ -98,5 +98,10 @@ func (m *MockAccessibilityPort) IsAppExcluded(ctx context.Context, bundleID stri
 	return false
 }
 
+// ClearCache implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) ClearCache() {
+	// No-op for mock
+}
+
 // Ensure MockAccessibilityPort implements ports.AccessibilityPort.
 var _ ports.AccessibilityPort = (*MockAccessibilityPort)(nil)
