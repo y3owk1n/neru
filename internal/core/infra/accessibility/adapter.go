@@ -351,9 +351,7 @@ func (a *Adapter) Health(ctx context.Context) error {
 // necessary after the user scrolls (element positions change but cached
 // ElementInfo still holds the pre-scroll coordinates).
 func (a *Adapter) ClearCache() {
-	if c, ok := a.client.(*InfraAXClient); ok {
-		c.Cache().Clear()
-	}
+	a.client.ClearCache()
 }
 
 // UpdateClickableRoles updates the list of clickable roles.

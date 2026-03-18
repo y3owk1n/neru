@@ -42,6 +42,9 @@ type AXClient interface {
 	SetClickableRoles(roles []string)
 	ClickableRoles() []string
 	IsMissionControlActive() bool
+
+	// Cache
+	ClearCache()
 }
 
 // AXWindow represents a window element.

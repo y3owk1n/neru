@@ -262,6 +262,11 @@ func (c *InfraAXClient) IsMissionControlActive() bool {
 	return IsMissionControlActive()
 }
 
+// ClearCache removes all entries from the element info cache.
+func (c *InfraAXClient) ClearCache() {
+	c.cache.Clear()
+}
+
 // Wrappers
 
 // InfraWindow wraps an Window.
