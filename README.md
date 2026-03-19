@@ -177,10 +177,10 @@ Want inspiration? Check out other users' configs in the [community discussion �
 
 ### Cross-platform / Linux / Windows tools
 
-| Tool                                                   | Platform      | Approach                        | Price | Status          |
-| ------------------------------------------------------ | ------------- | ------------------------------- | ----- | --------------- |
-| [warpd](https://github.com/rvaiya/warpd)               | macOS + Linux | Hints + Grid + Normal mode      | Free  | ⚠️ Low activity |
-| [mousemaster](https://github.com/petoncle/mousemaster) | Windows       | Hints + Grid + Normal mode      | Free  | ✅ Active       |
+| Tool                                                   | Platform      | Approach                   | Price | Status          |
+| ------------------------------------------------------ | ------------- | -------------------------- | ----- | --------------- |
+| [warpd](https://github.com/rvaiya/warpd)               | macOS + Linux | Hints + Grid + Normal mode | Free  | ⚠️ Low activity |
+| [mousemaster](https://github.com/petoncle/mousemaster) | Windows       | Hints + Grid + Normal mode | Free  | ✅ Active       |
 
 ### Browser extensions
 
