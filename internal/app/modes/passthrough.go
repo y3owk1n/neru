@@ -111,6 +111,7 @@ func (h *Handler) modeModifierKeys(mode domain.Mode) []string {
 		appendKey(h.config.RecursiveGrid.BackspaceKey)
 	case domain.ModeScroll:
 		appendKeys(h.config.Scroll.ModeExitKeys)
+		appendActionModifierKeys(h.config.Action.KeyBindings, appendKey)
 
 		for _, bindings := range h.config.Scroll.KeyBindings {
 			appendKeys(bindings)
