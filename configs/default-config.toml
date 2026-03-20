@@ -166,15 +166,16 @@ sub_key_preview_text_color_dark = "#6600CFCF"
 scroll_step = 50                            # Pixels per j/k press
 scroll_step_half = 500                      # Pixels for d/u (half page)
 scroll_step_full = 1000000                  # Pixels for gg/G (top/bottom)
+auto_exit_actions = []                      # Actions that auto-exit scroll (e.g. ["left_click"])
 mode_exit_keys = []                         # Extra exit keys (merged with general.mode_exit_keys)
 
 [scroll.key_bindings]
-scroll_up = ["k", "Up"]
-scroll_down = ["j", "Down"]
-scroll_left = ["h", "Left"]
-scroll_right = ["l", "Right"]
-go_top = ["gg", "Cmd+Up"]
-go_bottom = ["Shift+G", "Cmd+Down"]
+scroll_up = ["k"]
+scroll_down = ["j"]
+scroll_left = ["h"]
+scroll_right = ["l"]
+go_top = ["gg"]
+go_bottom = ["Shift+G"]
 page_up = ["u", "PageUp"]
 page_down = ["d", "PageDown"]
 
@@ -236,7 +237,7 @@ border_radius = -1
 indicator_x_offset = -40
 indicator_y_offset = 20
 
-# Mouse movement actions (used inside hints/grid modes)
+# Mouse movement actions (used inside hints/grid/scroll modes)
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mouse-movement-actions
 [action]
 move_mouse_step = 10                        # Pixels per arrow key press
