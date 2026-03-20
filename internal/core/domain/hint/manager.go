@@ -369,17 +369,26 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 			defer m.externalMu.Unlock()
 		}
 
+		// Read callback and check generation under m.mu, then release
+		// before invoking the callback. This matches the pattern used by
+		// immediateUpdate, SetHints, and Reset — keeping the callback
+		// invocation outside m.mu prevents a deadlock if the callback
+		// ever re-enters a m.mu-protected method (e.g., SetUpdateCallback).
 		m.mu.Lock()
-		defer m.mu.Unlock()
 
 		// A newer update (immediate or debounced) has occurred since this
 		// timer was scheduled — our data is stale, so skip the callback.
 		if m.updateGen != gen {
+			m.mu.Unlock()
+
 			return
 		}
 
-		if m.onUpdate != nil {
-			m.onUpdate(hintsCopy)
+		callback := m.onUpdate
+		m.mu.Unlock()
+
+		if callback != nil {
+			callback(hintsCopy)
 		}
 	})
 }
