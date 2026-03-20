@@ -143,7 +143,27 @@ func (m *KeyMap) Lookup(key string) (string, bool) {
 
 	action, found := m.keyToAction[normalized]
 
-	return action, found
+	if found {
+		return action, true
+	}
+
+	// If the ORIGINAL key is a single uppercase letter (A-Z), also check
+	// "shift+<letter>". On some keyboard layouts the event tap may send
+	// just the uppercase letter (e.g. "G") instead of "Shift+G" when
+	// keyCodeToName returns nil and the fallback Unicode translation is
+	// used. This mirrors the same defensive check in action_service.go's
+	// getActionMapping.
+	if len(key) == 1 {
+		r := rune(key[0])
+		if r >= 'A' && r <= 'Z' {
+			shiftKey := m.normalizeKey("Shift+" + key)
+			action, found = m.keyToAction[shiftKey]
+
+			return action, found
+		}
+	}
+
+	return "", false
 }
 
 // Normalize converts a key string to its canonical form.

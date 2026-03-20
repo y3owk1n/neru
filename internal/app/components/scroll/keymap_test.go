@@ -340,6 +340,43 @@ func TestKeyMapNamedKeyCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestKeyMapShiftLetterFallback(t *testing.T) {
+	// When the event tap sends just "G" (uppercase) instead of "Shift+G",
+	// Lookup should still match a "Shift+G" binding via the fallback.
+	bindings := map[string][]string{
+		scroll.ActionGoBottom: {"Shift+G"},
+		scroll.ActionScrollUp: {"k"},
+	}
+	keyMap := scroll.NewKeyMap(bindings)
+
+	testCases := []struct {
+		key     string
+		wantOK  bool
+		wantAct string
+	}{
+		// Direct modifier form always works
+		{"Shift+G", true, scroll.ActionGoBottom},
+		// Bare uppercase letter triggers the Shift+Letter fallback
+		{"G", true, scroll.ActionGoBottom},
+		// Lowercase must NOT match (would be a false positive)
+		{"g", false, ""},
+		// Non-Shift binding is unaffected
+		{"k", true, scroll.ActionScrollUp},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.key, func(t *testing.T) {
+			act, found := keyMap.Lookup(testCase.key)
+			if found != testCase.wantOK {
+				t.Errorf("Lookup(%q) found = %v, want %v", testCase.key, found, testCase.wantOK)
+			}
+
+			if found && act != testCase.wantAct {
+				t.Errorf("Lookup(%q) action = %q, want %q", testCase.key, act, testCase.wantAct)
+			}
+		})
+	}
+}
+
 func TestKeyMapInvalidKeysIgnored(t *testing.T) {
 	bindings := map[string][]string{
 		scroll.ActionScrollUp: {"k", ""},
