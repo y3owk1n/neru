@@ -41,6 +41,11 @@ type Manager struct {
 
 	// Performance optimization: reuse slice buffer for filtered hints
 	cachedFilteredHints []*Interface
+
+	// lastFilteredLen caches the filtered hint count from the previous
+	// HandleInput call, avoiding a redundant FilterByPrefix to capture
+	// the "before" count on each keystroke.
+	lastFilteredLen int
 }
 
 const (
@@ -87,6 +92,13 @@ func (m *Manager) SetHints(hints *Collection) {
 	m.hints = hints
 	m.SetCurrentInput("")
 
+	// Reset cached count to match the full hint set
+	if hints != nil {
+		m.lastFilteredLen = len(hints.All())
+	} else {
+		m.lastFilteredLen = 0
+	}
+
 	// Trigger immediate update callback with all hints on initial set
 	if hints != nil {
 		m.mu.Lock()
@@ -112,6 +124,14 @@ func (m *Manager) Reset() {
 	m.updateGen++
 
 	m.SetCurrentInput("")
+
+	// Reset cached count to match the full hint set
+	if m.hints != nil {
+		m.lastFilteredLen = len(m.hints.All())
+	} else {
+		m.lastFilteredLen = 0
+	}
+
 	// Trigger immediate update callback with all hints
 	if m.hints != nil {
 		m.mu.Lock()
@@ -142,7 +162,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	// Handle backspace to allow input correction
 	if config.IsConfiguredBackspaceKey(key, m.backspaceKey) {
 		if len(m.CurrentInput()) > 0 {
-			prevLen := len(m.hints.FilterByPrefix(m.CurrentInput()))
+			prevLen := m.lastFilteredLen
 			m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
 
 			// Update overlay to show filtered hints with new prefix
@@ -159,6 +179,8 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 				for i, h := range filtered {
 					m.cachedFilteredHints[i] = h.WithMatchedPrefix(m.CurrentInput())
 				}
+
+				m.lastFilteredLen = len(filtered)
 
 				// When the hint set structure changes (count differs), debounce
 				// to avoid excessive redraws. When only the matched prefix
@@ -183,7 +205,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 		return nil, false
 	}
 
-	prevLen := len(m.hints.FilterByPrefix(m.CurrentInput()))
+	prevLen := m.lastFilteredLen
 
 	// Accumulate input (convert to uppercase to match hints)
 	m.SetCurrentInput(m.CurrentInput() + strings.ToUpper(key))
@@ -197,6 +219,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	if len(filtered) == 0 {
 		// No matches - reset and show all hints immediately
 		m.SetCurrentInput("")
+		m.lastFilteredLen = len(m.hints.All())
 
 		if m.hints != nil {
 			m.debouncedUpdate(m.hints.All())
@@ -223,8 +246,12 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 				zap.String("label", m.cachedFilteredHints[0].Label()))
 		}
 
+		m.lastFilteredLen = len(filtered)
+
 		return m.cachedFilteredHints[0], true
 	}
+
+	m.lastFilteredLen = len(filtered)
 
 	// When the hint set structure changes (count differs), debounce to avoid
 	// excessive redraws. When only the matched prefix changed (same count),
