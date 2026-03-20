@@ -250,6 +250,19 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 				zap.String("label", m.cachedFilteredHints[0].Label()))
 		}
 
+		// Cancel any pending debounced update so it doesn't fire stale data
+		// after the caller acts on the match (e.g., exits hint mode).
+		if m.debounceTimer != nil {
+			m.debounceTimer.Stop()
+			m.debounceTimer = nil
+		}
+
+		// Bump generation so any already-fired (but blocked) debounce
+		// goroutine will see a stale generation and skip its callback.
+		m.mu.Lock()
+		m.updateGen++
+		m.mu.Unlock()
+
 		m.lastFilteredLen = len(filtered)
 
 		return m.cachedFilteredHints[0], true
