@@ -299,12 +299,29 @@ func (m *Manager) SetBackspaceKey(key string) {
 // pending debounced update. Use this for cheap updates (e.g., prefix color
 // changes) where the 50ms debounce delay would feel sluggish.
 //
+// IMPORTANT: The caller MUST hold externalMu (when set). Unlike debouncedUpdate
+// (whose timer goroutine acquires externalMu itself), immediateUpdate runs in
+// the caller's goroutine and relies on the caller already holding the lock to
+// protect shared state (e.g., screen bounds, overlay manager) accessed by the
+// callback. A debug assertion verifies this at runtime.
+//
 // Unlike debouncedUpdate, this does NOT copy the hints slice because the
 // callback executes synchronously in the caller's goroutine — the slice
 // is consumed (iterated to build overlay hints) before returning. If the
 // callback contract ever changes to store or defer processing of the
 // slice, a defensive copy must be added here.
 func (m *Manager) immediateUpdate(hints []*Interface) {
+	// Debug assertion: if externalMu is set, the caller must already hold it.
+	// TryLock succeeds only if the mutex is NOT held — meaning the caller
+	// forgot to lock it, which would cause a data race on shared state.
+	if m.externalMu != nil {
+		if m.externalMu.TryLock() {
+			m.externalMu.Unlock()
+
+			panic("hint.Manager.immediateUpdate: caller must hold externalMu")
+		}
+	}
+
 	// Cancel any pending debounced update so it doesn't fire stale data.
 	if m.debounceTimer != nil {
 		m.debounceTimer.Stop()

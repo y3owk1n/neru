@@ -3,6 +3,7 @@ package hint_test
 import (
 	"context"
 	"image"
+	"sync"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/domain/element"
@@ -168,6 +169,62 @@ func TestCollection_Empty(t *testing.T) {
 	nonEmpty := hint.NewCollection([]*hint.Interface{h})
 	if nonEmpty.Empty() {
 		t.Error("Non-empty collection should return false for Empty()")
+	}
+}
+
+func TestManager_ImmediateUpdatePanicsWithoutExternalMu(t *testing.T) {
+	// When externalMu is set, HandleInput's immediate-update path must be
+	// called while the caller holds externalMu. This test verifies the
+	// runtime assertion fires when the lock is NOT held.
+	var mut sync.Mutex
+
+	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
+	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
+	h2, _ := hint.NewHint("AB", elem, image.Point{0, 0})
+	collection := hint.NewCollection([]*hint.Interface{h1, h2})
+	manager := hint.NewManager(logger.Get(), &mut, "")
+	manager.SetUpdateCallback(func(_ []*hint.Interface) {})
+	// SetHints must be called while holding externalMu (mirrors production).
+	mut.Lock()
+	manager.SetHints(collection)
+	mut.Unlock()
+	// Calling HandleInput WITHOUT holding mu should panic on the
+	// immediate-update path (same count → immediateUpdate).
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("Expected panic when immediateUpdate called without holding externalMu")
+		}
+	}()
+	// "A" narrows to 2 hints (AA, AB) — same count as the full set (2),
+	// so this triggers immediateUpdate which should panic.
+	manager.HandleInput("A")
+}
+
+func TestManager_ImmediateUpdateSucceedsWithExternalMu(t *testing.T) {
+	// Mirror the production call pattern: hold externalMu, then call
+	// HandleInput. The immediate-update path should succeed without panic.
+	var mut sync.Mutex
+
+	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
+	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
+	h2, _ := hint.NewHint("AB", elem, image.Point{0, 0})
+	collection := hint.NewCollection([]*hint.Interface{h1, h2})
+	manager := hint.NewManager(logger.Get(), &mut, "")
+
+	var callbackCalled bool
+	manager.SetUpdateCallback(func(_ []*hint.Interface) {
+		callbackCalled = true
+	})
+	mut.Lock()
+	manager.SetHints(collection)
+	// "A" narrows to 2 hints (AA, AB) — same count → immediateUpdate.
+	// Caller holds mu, so the assertion should pass.
+	manager.HandleInput("A")
+	mut.Unlock()
+
+	if !callbackCalled {
+		t.Error("Expected callback to be called via immediateUpdate")
 	}
 }
 
