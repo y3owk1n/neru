@@ -19,7 +19,7 @@ type Manager struct {
 	onUpdate         func([]*Interface) // Callback when filtered hints change
 	debounceTimer    *time.Timer
 	debounceDuration time.Duration
-	mu               sync.Mutex // Protects onUpdate callback
+	mu               sync.Mutex // Protects onUpdate callback and updateGen
 
 	// externalMu is an optional mutex acquired by debouncedUpdate's timer
 	// callback before invoking onUpdate. This allows the caller to protect
@@ -87,7 +87,9 @@ func (m *Manager) SetHints(hints *Collection) {
 
 	// Bump generation so any already-fired (but blocked) debounce goroutine
 	// will see a stale generation and skip its onUpdate call.
+	m.mu.Lock()
 	m.updateGen++
+	m.mu.Unlock()
 
 	m.hints = hints
 	m.SetCurrentInput("")
@@ -121,7 +123,9 @@ func (m *Manager) Reset() {
 
 	// Bump generation so any already-fired (but blocked) debounce goroutine
 	// will see a stale generation and skip its onUpdate call.
+	m.mu.Lock()
 	m.updateGen++
+	m.mu.Unlock()
 
 	m.SetCurrentInput("")
 
@@ -309,9 +313,9 @@ func (m *Manager) immediateUpdate(hints []*Interface) {
 
 	// Bump generation so any already-fired (but blocked) debounce goroutine
 	// will see a stale generation and skip its onUpdate call.
+	m.mu.Lock()
 	m.updateGen++
 
-	m.mu.Lock()
 	callback := m.onUpdate
 	m.mu.Unlock()
 
@@ -330,8 +334,10 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 	// Bump generation and capture it for the closure. If a newer update
 	// (immediate or debounced) occurs before the timer fires, the captured
 	// generation will be stale and the callback will be skipped.
+	m.mu.Lock()
 	m.updateGen++
 	gen := m.updateGen
+	m.mu.Unlock()
 
 	// Copy hints to avoid race with slice reuse
 	hintsCopy := make([]*Interface, len(hints))
