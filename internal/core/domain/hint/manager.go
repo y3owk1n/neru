@@ -256,6 +256,12 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	// When the hint set structure changes (count differs), debounce to avoid
 	// excessive redraws. When only the matched prefix changed (same count),
 	// update immediately — the overlay only repaints text colors (very cheap).
+	//
+	// This count-based heuristic is safe because Collection is immutable after
+	// creation — the underlying hint set cannot change between keystrokes.
+	// Typing can only narrow (or maintain) the set; backspacing can only widen
+	// (or maintain) it. If Collection ever gains mutation methods, this
+	// assumption must be revisited.
 	if len(filtered) == prevLen {
 		m.immediateUpdate(m.cachedFilteredHints)
 	} else {
