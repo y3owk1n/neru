@@ -294,6 +294,12 @@ func (m *Manager) SetBackspaceKey(key string) {
 // immediateUpdate invokes the update callback synchronously, canceling any
 // pending debounced update. Use this for cheap updates (e.g., prefix color
 // changes) where the 50ms debounce delay would feel sluggish.
+//
+// Unlike debouncedUpdate, this does NOT copy the hints slice because the
+// callback executes synchronously in the caller's goroutine — the slice
+// is consumed (iterated to build overlay hints) before returning. If the
+// callback contract ever changes to store or defer processing of the
+// slice, a defensive copy must be added here.
 func (m *Manager) immediateUpdate(hints []*Interface) {
 	// Cancel any pending debounced update so it doesn't fire stale data.
 	if m.debounceTimer != nil {
