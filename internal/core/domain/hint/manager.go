@@ -217,7 +217,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	}
 
 	if len(filtered) == 0 {
-		// No matches - reset and show all hints immediately
+		// No matches - reset input and debounce-update to show all hints
 		m.SetCurrentInput("")
 		m.lastFilteredLen = len(m.hints.All())
 
