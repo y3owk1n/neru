@@ -1805,6 +1805,32 @@ func (c *Config) checkScrollKeyBindingsActionKeyConflicts() error {
 						}
 					}
 				}
+
+				// Reverse Shift+Letter shadow: if the action binding is a
+				// bare uppercase letter (e.g. "G") and a scroll binding is
+				// "Shift+G", the action service's direct match will consume
+				// bare "G" events before the scroll keymap sees them. The
+				// scroll binding only works when the event tap sends the full
+				// "Shift+G" modifier form, leading to inconsistent behavior.
+				if len(binding.value) == 1 {
+					r := rune(binding.value[0])
+					if r >= 'A' && r <= 'Z' {
+						actionShiftForm := NormalizeKeyForComparison(
+							"Shift+" + binding.value,
+						)
+						if normalizedScrollKey == actionShiftForm {
+							return derrors.Newf(
+								derrors.CodeInvalidConfig,
+								"scroll.key_bindings['%s'] contains '%s' which conflicts with %s ('%s') via reverse Shift+Letter fallback; the action key consumes bare '%s' events at runtime, so the scroll binding will only work inconsistently",
+								scrollAction,
+								scrollKey,
+								binding.fieldName,
+								binding.value,
+								binding.value,
+							)
+						}
+					}
+				}
 			}
 		}
 	}

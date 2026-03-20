@@ -2785,6 +2785,41 @@ func TestConfig_Validate_ScrollKeyBindingsActionKeyConflicts(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "reverse Shift+Letter shadow: action 'G' vs scroll 'Shift+G'",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings["go_bottom"] = []string{"Shift+G"}
+				cfg.Action.KeyBindings.LeftClick = "G"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no reverse Shift+Letter shadow when action is lowercase",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings["go_bottom"] = []string{"Shift+G"}
+				// Remove go_top = ["gg"] to avoid prefix conflict with "g"
+				delete(cfg.Scroll.KeyBindings, "go_top")
+				cfg.Action.KeyBindings.LeftClick = "g"
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no reverse Shift+Letter shadow when action binding is empty",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings["go_bottom"] = []string{"Shift+G"}
+				cfg.Action.KeyBindings.LeftClick = ""
+
+				return cfg
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, testCase := range tests {
