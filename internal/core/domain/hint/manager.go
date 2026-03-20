@@ -127,6 +127,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	// Handle backspace to allow input correction
 	if config.IsConfiguredBackspaceKey(key, m.backspaceKey) {
 		if len(m.CurrentInput()) > 0 {
+			prevLen := len(m.hints.FilterByPrefix(m.CurrentInput()))
 			m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
 
 			// Update overlay to show filtered hints with new prefix
@@ -144,7 +145,15 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 					m.cachedFilteredHints[i] = h.WithMatchedPrefix(m.CurrentInput())
 				}
 
-				m.debouncedUpdate(m.cachedFilteredHints)
+				// When the hint set structure changes (count differs), debounce
+				// to avoid excessive redraws. When only the matched prefix
+				// changed (same count), update immediately — the overlay only
+				// needs to repaint text colors which is very cheap.
+				if len(filtered) == prevLen {
+					m.immediateUpdate(m.cachedFilteredHints)
+				} else {
+					m.debouncedUpdate(m.cachedFilteredHints)
+				}
 			}
 		} else {
 			// Reset to show all hints if backspacing from empty input
@@ -158,6 +167,8 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	if len(key) != 1 {
 		return nil, false
 	}
+
+	prevLen := len(m.hints.FilterByPrefix(m.CurrentInput()))
 
 	// Accumulate input (convert to uppercase to match hints)
 	m.SetCurrentInput(m.CurrentInput() + strings.ToUpper(key))
@@ -200,8 +211,14 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 		return m.cachedFilteredHints[0], true
 	}
 
-	// Notify update callback with filtered hints (with matched prefix set)
-	m.debouncedUpdate(m.cachedFilteredHints)
+	// When the hint set structure changes (count differs), debounce to avoid
+	// excessive redraws. When only the matched prefix changed (same count),
+	// update immediately — the overlay only repaints text colors (very cheap).
+	if len(filtered) == prevLen {
+		m.immediateUpdate(m.cachedFilteredHints)
+	} else {
+		m.debouncedUpdate(m.cachedFilteredHints)
+	}
 
 	return nil, false
 }
@@ -224,6 +241,25 @@ func (m *Manager) FilteredHints() []*Interface {
 // manager (which would break an active hints session).
 func (m *Manager) SetBackspaceKey(key string) {
 	m.backspaceKey = key
+}
+
+// immediateUpdate invokes the update callback synchronously, canceling any
+// pending debounced update. Use this for cheap updates (e.g., prefix color
+// changes) where the 50ms debounce delay would feel sluggish.
+func (m *Manager) immediateUpdate(hints []*Interface) {
+	// Cancel any pending debounced update so it doesn't fire stale data
+	if m.debounceTimer != nil {
+		m.debounceTimer.Stop()
+		m.debounceTimer = nil
+	}
+
+	m.mu.Lock()
+	callback := m.onUpdate
+	m.mu.Unlock()
+
+	if callback != nil {
+		callback(hints)
+	}
 }
 
 // debouncedUpdate schedules a debounced update of the overlay.
