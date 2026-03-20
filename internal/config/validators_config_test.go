@@ -2717,6 +2717,39 @@ func TestConfig_Validate_ScrollKeyBindingsActionKeyConflicts(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "scroll sequence prefix conflicts with action binding (e.g. action 'g' vs scroll 'gg')",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings["go_top"] = []string{"gg"}
+				cfg.Action.KeyBindings.LeftClick = "g"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "scroll sequence no prefix conflict when action binding differs",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings["go_top"] = []string{"gg"}
+				cfg.Action.KeyBindings.LeftClick = "x"
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "scroll sequence prefix conflict case-insensitive",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings["go_top"] = []string{"GG"}
+				cfg.Action.KeyBindings.LeftClick = "g"
+
+				return cfg
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, testCase := range tests {

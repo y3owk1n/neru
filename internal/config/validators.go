@@ -1762,6 +1762,25 @@ func (c *Config) checkScrollKeyBindingsActionKeyConflicts() error {
 						binding.value,
 					)
 				}
+
+				// Check prefix conflicts: an action key that matches the first
+				// character of a multi-letter scroll sequence (e.g. action "g"
+				// vs scroll "gg") will consume the keystroke before the scroll
+				// handler can start the sequence, silently breaking it.
+				if len(scrollKey) >= 2 && IsAllLetters(scrollKey) {
+					prefix := strings.ToLower(scrollKey[:1])
+					if prefix == NormalizeKeyForComparison(binding.value) {
+						return derrors.Newf(
+							derrors.CodeInvalidConfig,
+							"scroll.key_bindings['%s'] sequence '%s' starts with '%s' which conflicts with %s ('%s'); the action key is checked first at runtime, so the sequence can never start",
+							scrollAction,
+							scrollKey,
+							prefix,
+							binding.fieldName,
+							binding.value,
+						)
+					}
+				}
 			}
 		}
 	}
