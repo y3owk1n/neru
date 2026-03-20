@@ -2466,7 +2466,7 @@ func TestConfig_ValidatePerModeExitKeys(t *testing.T) {
 			config: func() config.Config {
 				cfg := *config.DefaultConfig()
 				cfg.Scroll.ModeExitKeys = []string{"g"}
-				// Default go_top = ["gg", "Cmd+Up"] — "g" is a prefix of "gg"
+				// Default go_top = ["gg"] — "g" is a prefix of "gg"
 				return cfg
 			},
 			wantErr: true,
