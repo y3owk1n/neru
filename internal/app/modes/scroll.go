@@ -44,6 +44,11 @@ func (h *Handler) handleGenericScrollKey(key string) {
 	)
 
 	if wasHandled {
+		// Clear any pending sequence state so an interrupted sequence
+		// (e.g. g → Up → g) doesn't accidentally complete after the
+		// action key.
+		h.scroll.Context.SetLastKey("")
+
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
 
