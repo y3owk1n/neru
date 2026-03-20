@@ -1728,7 +1728,7 @@ func checkPerModeExitKeysResetKeyConflict(
 // checkPerModeExitKeysActionKeyConflicts checks if any per-mode exit key conflicts with
 // an action key binding. At runtime, exit keys are checked before action keys
 // (in key_dispatch.go), so a conflict means the action key will never fire — the mode
-// will exit instead. Only hints, grid, and recursive_grid modes use action keys.
+// will exit instead.
 func (c *Config) checkPerModeExitKeysActionKeyConflicts() error {
 	bindings := []struct {
 		value     string
@@ -1751,10 +1751,12 @@ func (c *Config) checkPerModeExitKeysActionKeyConflicts() error {
 		isEnabled bool
 	}
 
+	// Scroll mode is always available (no "enabled" toggle), so use true.
 	modes := []modeExitKeys{
 		{c.Hints.ModeExitKeys, "hints", c.Hints.Enabled},
 		{c.Grid.ModeExitKeys, "grid", c.Grid.Enabled},
 		{c.RecursiveGrid.ModeExitKeys, "recursive_grid", c.RecursiveGrid.Enabled},
+		{c.Scroll.ModeExitKeys, "scroll", true},
 	}
 	for _, mode := range modes {
 		if !mode.isEnabled || len(mode.keys) == 0 {

@@ -34,6 +34,33 @@ func (h *Handler) StartInteractiveScroll() {
 }
 
 func (h *Handler) handleGenericScrollKey(key string) {
+	ctx := context.Background()
+
+	// Handle direct action keys first (left_click, move_mouse, etc.)
+	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(
+		ctx,
+		key,
+		h.stickyModifiers(),
+	)
+
+	if wasHandled {
+		if err != nil {
+			h.logger.Error("Failed to handle direct action key", zap.Error(err))
+
+			return
+		}
+
+		if h.shouldAutoExit(h.config.Scroll.AutoExitActions, actionName) {
+			if !h.actionService.IsMoveMouseKey(key) {
+				h.cursorState.MarkActionPerformed()
+			}
+
+			h.exitModeLocked()
+		}
+
+		return
+	}
+
 	lastKey, lastKeyTime := h.scroll.Context.LastKeyState()
 
 	h.logger.Debug("handleGenericScrollKey",
@@ -80,8 +107,6 @@ func (h *Handler) handleGenericScrollKey(key string) {
 
 		return
 	}
-
-	ctx := context.Background()
 
 	scrollErr := h.scrollService.Scroll(ctx, scrollAction.Direction, scrollAction.Amount)
 	if scrollErr != nil {

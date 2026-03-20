@@ -926,17 +926,28 @@ Vim-style scrolling at the cursor position, with fully configurable key bindings
 
 ### Basic configuration
 
-| Option             | Type  | Default   | Description                              |
-| ------------------ | ----- | --------- | ---------------------------------------- |
-| `scroll_step`      | int   | `50`      | Pixels per j/k press (≥ 1)               |
-| `scroll_step_half` | int   | `500`     | Pixels for d/u half-page (≥ 1)           |
-| `scroll_step_full` | int   | `1000000` | Pixels for gg/G jump to top/bottom (≥ 1) |
-| `mode_exit_keys`   | array | `[]`      | Additional keys that exit scroll mode    |
+| Option              | Type  | Default   | Description                              |
+| ------------------- | ----- | --------- | ---------------------------------------- |
+| `scroll_step`       | int   | `50`      | Pixels per j/k press (≥ 1)               |
+| `scroll_step_half`  | int   | `500`     | Pixels for d/u half-page (≥ 1)           |
+| `scroll_step_full`  | int   | `1000000` | Pixels for gg/G jump to top/bottom (≥ 1) |
+| `auto_exit_actions` | array | `[]`      | Actions that auto-exit after execution   |
+| `mode_exit_keys`    | array | `[]`      | Additional keys that exit scroll mode    |
+
+### auto_exit_actions
+
+```toml
+[scroll]
+auto_exit_actions = ["left_click"]
+```
+
+> [!WARNING]
+> Do not add `move_mouse_relative` to `auto_exit_actions` — it causes the mode to exit on every arrow-key nudge. See [Mouse Movement Actions](#mouse-movement-actions).
 
 ### mode_exit_keys
 
 > [!NOTE]
-> `scroll.mode_exit_keys` must not conflict with `scroll.key_bindings` keys.
+> `scroll.mode_exit_keys` must not conflict with `scroll.key_bindings` keys or `action.key_bindings`.
 
 ### Key bindings
 
@@ -944,12 +955,12 @@ Each action can have multiple keys assigned.
 
 ```toml
 [scroll.key_bindings]
-scroll_up    = ["k", "Up"]
-scroll_down  = ["j", "Down"]
-scroll_left  = ["h", "Left"]
-scroll_right = ["l", "Right"]
-go_top       = ["gg", "Cmd+Up"]
-go_bottom    = ["Shift+G", "Cmd+Down"]
+scroll_up    = ["k"]
+scroll_down  = ["j"]
+scroll_left  = ["h"]
+scroll_right = ["l"]
+go_top       = ["gg"]
+go_bottom    = ["Shift+G"]
 page_up      = ["u", "PageUp"]
 page_down    = ["d", "PageDown"]
 ```
@@ -966,39 +977,33 @@ page_down    = ["d", "PageDown"]
 
 ### Customisation examples
 
-**Vim-style:**
+**With arrow keys for scrolling** (disables arrow-key mouse movement in scroll mode):
 
 ```toml
 [scroll.key_bindings]
-scroll_up    = ["k"]
-scroll_down  = ["j"]
-scroll_left  = ["h"]
-scroll_right = ["l"]
-go_top       = ["gg"]
-go_bottom    = ["Shift+G"]
+scroll_up    = ["k", "Up"]
+scroll_down  = ["j", "Down"]
+scroll_left  = ["h", "Left"]
+scroll_right = ["l", "Right"]
+go_top       = ["gg", "Cmd+Up"]
+go_bottom    = ["Shift+G", "Cmd+Down"]
+page_up      = ["u", "PageUp"]
+page_down    = ["d", "PageDown"]
 ```
 
-**Mac-style:**
-
-```toml
-[scroll.key_bindings]
-scroll_up   = ["k", "Up"]
-scroll_down = ["j", "Down"]
-go_top      = ["Cmd+Up"]
-go_bottom   = ["Cmd+Down"]
-page_up     = ["PageUp"]
-page_down   = ["PageDown"]
-```
+> [!NOTE]
+> Arrow keys (`Up`/`Down`/`Left`/`Right`) are used by default for `move_mouse_*` action bindings. If you add them to scroll key bindings, the action bindings take priority (action keys are checked first). To use arrow keys for scrolling, clear the corresponding `action.key_bindings` entries or rebind them.
 
 ---
 
 ## Mouse Movement Actions
 
-Keyboard-driven cursor nudging, available while inside hints or grid mode.
+Keyboard-driven cursor nudging and direct mouse actions, available while inside hints, grid, recursive grid, or scroll mode.
 
 ### When to use
 
 - Fine-tuning cursor position after selecting a hint or grid cell
+- Performing clicks or mouse movements while scrolling without exiting scroll mode
 - Adjusting before clicking without exiting the mode
 
 ### Configuration
@@ -1029,8 +1034,8 @@ move_mouse_right  = "Right"
 
 ### Typical workflow
 
-1. Enter hints or grid mode
-2. Type to select a position
+1. Enter hints, grid, or scroll mode
+2. Type to select a position (or scroll to the desired area)
 3. Use arrow keys to nudge the cursor
 4. Press an action key (e.g. `Shift+L`) to click
 

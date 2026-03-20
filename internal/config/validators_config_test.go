@@ -2455,7 +2455,8 @@ func TestConfig_ValidatePerModeExitKeys(t *testing.T) {
 			config: func() config.Config {
 				cfg := *config.DefaultConfig()
 				cfg.Scroll.ModeExitKeys = []string{"Up"}
-				// Default scroll_up = ["k", "Up"]
+				cfg.Scroll.KeyBindings["scroll_up"] = []string{"k", "Up"}
+
 				return cfg
 			},
 			wantErr: true,
@@ -2546,14 +2547,14 @@ func TestConfig_Validate_PerModeExitKeysActionKeyConflicts(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "scroll per-mode exit key does NOT check action bindings (scroll has no action keys)",
+			name: "scroll per-mode exit key conflicts with left_click binding",
 			config: func() config.Config {
 				cfg := *config.DefaultConfig()
 				cfg.Scroll.ModeExitKeys = []string{"Shift+L"}
-				// Even though left_click = "Shift+L", scroll mode doesn't use action keys
+				// Default left_click = "Shift+L", scroll mode now uses action keys
 				return cfg
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "no conflict when per-mode exit key differs from all action bindings",

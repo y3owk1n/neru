@@ -266,7 +266,7 @@ See [CONFIGURATION.md — Recursive Grid Mode](CONFIGURATION.md#recursive-grid-m
 
 ### Scroll Mode
 
-Vim-style scrolling at the current cursor position. Keys are fully configurable.
+Vim-style scrolling at the current cursor position. Keys are fully configurable. Action key bindings (left click, mouse movement, etc.) are also available in scroll mode.
 
 **Default scroll keys:**
 
@@ -279,9 +279,12 @@ Vim-style scrolling at the current cursor position. Keys are fully configurable.
 | `Shift+G` | Jump to bottom      |
 | `Esc`     | Exit scroll mode    |
 
+Action keys (e.g. `Shift+L` for left click, arrow keys for mouse movement) work in scroll mode just like in hints and grid modes.
+
 ```
 neru scroll
 # Use j/k to scroll, gg/G to jump, Esc to exit
+# Use arrow keys to nudge cursor, Shift+L to click
 ```
 
 See [CONFIGURATION.md — Scroll Mode](CONFIGURATION.md#scroll-mode) for configuring step sizes and custom key bindings.

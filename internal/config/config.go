@@ -314,7 +314,7 @@ type ActionConfig struct {
 	MoveMouseStep int                  `json:"moveMouseStep" toml:"move_mouse_step"`
 }
 
-// ActionKeyBindingsCfg defines direct action keybindings for use in hints/grid mode.
+// ActionKeyBindingsCfg defines direct action keybindings for use in hints/grid/scroll mode.
 type ActionKeyBindingsCfg struct {
 	LeftClick      string `json:"leftClick"      toml:"left_click"`
 	RightClick     string `json:"rightClick"     toml:"right_click"`
@@ -443,10 +443,11 @@ type HotkeysConfig struct {
 
 // ScrollConfig defines the behavior and appearance settings for scroll mode.
 type ScrollConfig struct {
-	ScrollStep     int      `json:"scrollStep"     toml:"scroll_step"`
-	ScrollStepHalf int      `json:"scrollStepHalf" toml:"scroll_step_half"`
-	ScrollStepFull int      `json:"scrollStepFull" toml:"scroll_step_full"`
-	ModeExitKeys   []string `json:"modeExitKeys"   toml:"mode_exit_keys"`
+	ScrollStep      int      `json:"scrollStep"      toml:"scroll_step"`
+	ScrollStepHalf  int      `json:"scrollStepHalf"  toml:"scroll_step_half"`
+	ScrollStepFull  int      `json:"scrollStepFull"  toml:"scroll_step_full"`
+	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
+	ModeExitKeys    []string `json:"modeExitKeys"    toml:"mode_exit_keys"`
 
 	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
 }
@@ -1101,6 +1102,14 @@ func (c *Config) ValidateScroll() error {
 	}
 
 	err = c.ValidateScrollKeyBindings()
+	if err != nil {
+		return err
+	}
+
+	err = validateAutoExitActions(
+		c.Scroll.AutoExitActions,
+		"scroll.auto_exit_actions",
+	)
 	if err != nil {
 		return err
 	}

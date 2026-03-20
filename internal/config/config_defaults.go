@@ -512,12 +512,12 @@ func commonDefaultConfig() *Config {
 			ScrollStepFull: DefaultScrollStepFull,
 
 			KeyBindings: map[string][]string{
-				"scroll_up":    {"k", "Up"},
-				"scroll_down":  {"j", "Down"},
-				"scroll_left":  {"h", "Left"},
-				"scroll_right": {"l", "Right"},
-				"go_top":       {"gg", "Cmd+Up"},
-				"go_bottom":    {"Shift+G", "Cmd+Down"},
+				"scroll_up":    {"k"},
+				"scroll_down":  {"j"},
+				"scroll_left":  {"h"},
+				"scroll_right": {"l"},
+				"go_top":       {"gg"},
+				"go_bottom":    {"Shift+G"},
 				"page_up":      {"u", "PageUp"},
 				"page_down":    {"d", "PageDown"},
 			},
