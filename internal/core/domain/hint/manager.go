@@ -78,7 +78,10 @@ func (m *Manager) SetUpdateCallback(callback func([]*Interface)) {
 }
 
 // SetHints updates the current hint collection and resets the input state.
+// The caller MUST hold externalMu (when set) — see assertExternalMuHeld.
 func (m *Manager) SetHints(hints *Collection) {
+	m.assertExternalMuHeld("SetHints")
+
 	// Cancel any pending debounced updates
 	if m.debounceTimer != nil {
 		m.debounceTimer.Stop()
@@ -114,7 +117,10 @@ func (m *Manager) SetHints(hints *Collection) {
 }
 
 // Reset clears the current input.
+// The caller MUST hold externalMu (when set) — see assertExternalMuHeld.
 func (m *Manager) Reset() {
+	m.assertExternalMuHeld("Reset")
+
 	// Cancel any pending debounced updates
 	if m.debounceTimer != nil {
 		m.debounceTimer.Stop()
@@ -318,6 +324,23 @@ func (m *Manager) SetBackspaceKey(key string) {
 	m.backspaceKey = key
 }
 
+// assertExternalMuHeld is a debug assertion verifying that the caller holds
+// externalMu (when set). Methods that invoke the onUpdate callback
+// synchronously (SetHints, Reset, immediateUpdate) must be called while
+// the caller holds externalMu to protect shared state (e.g., screen bounds,
+// overlay manager) accessed by the callback.
+//
+// TryLock succeeds only if the mutex is NOT held — meaning the caller
+// forgot to lock it, which would cause a data race on shared state.
+func (m *Manager) assertExternalMuHeld(caller string) {
+	if m.externalMu != nil {
+		if m.externalMu.TryLock() {
+			m.externalMu.Unlock()
+			panic("hint.Manager." + caller + ": caller must hold externalMu")
+		}
+	}
+}
+
 // immediateUpdate invokes the update callback synchronously, canceling any
 // pending debounced update. Use this for cheap updates (e.g., prefix color
 // changes) where the 50ms debounce delay would feel sluggish.
@@ -334,16 +357,7 @@ func (m *Manager) SetBackspaceKey(key string) {
 // callback contract ever changes to store or defer processing of the
 // slice, a defensive copy must be added here.
 func (m *Manager) immediateUpdate(hints []*Interface) {
-	// Debug assertion: if externalMu is set, the caller must already hold it.
-	// TryLock succeeds only if the mutex is NOT held — meaning the caller
-	// forgot to lock it, which would cause a data race on shared state.
-	if m.externalMu != nil {
-		if m.externalMu.TryLock() {
-			m.externalMu.Unlock()
-
-			panic("hint.Manager.immediateUpdate: caller must hold externalMu")
-		}
-	}
+	m.assertExternalMuHeld("immediateUpdate")
 
 	// Cancel any pending debounced update so it doesn't fire stale data.
 	if m.debounceTimer != nil {

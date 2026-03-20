@@ -201,6 +201,52 @@ func TestManager_ImmediateUpdatePanicsWithoutExternalMu(t *testing.T) {
 	manager.HandleInput("A")
 }
 
+func TestManager_SetHintsPanicsWithoutExternalMu(t *testing.T) {
+	// SetHints invokes the onUpdate callback synchronously, so the caller
+	// must hold externalMu. Verify the assertion fires when it is NOT held.
+	var mut sync.Mutex
+
+	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
+	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
+	collection := hint.NewCollection([]*hint.Interface{h1})
+	manager := hint.NewManager(logger.Get(), &mut, "")
+	manager.SetUpdateCallback(func(_ []*hint.Interface) {})
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("Expected panic when SetHints called without holding externalMu")
+		}
+	}()
+	// Calling SetHints WITHOUT holding mut should panic.
+	manager.SetHints(collection)
+}
+
+func TestManager_ResetPanicsWithoutExternalMu(t *testing.T) {
+	// Reset invokes the onUpdate callback synchronously, so the caller
+	// must hold externalMu. Verify the assertion fires when it is NOT held.
+	var mut sync.Mutex
+
+	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
+	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
+	collection := hint.NewCollection([]*hint.Interface{h1})
+	manager := hint.NewManager(logger.Get(), &mut, "")
+	manager.SetUpdateCallback(func(_ []*hint.Interface) {})
+	// SetHints must be called while holding externalMu.
+	mut.Lock()
+	manager.SetHints(collection)
+	mut.Unlock()
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("Expected panic when Reset called without holding externalMu")
+		}
+	}()
+	// Calling Reset WITHOUT holding mut should panic.
+	manager.Reset()
+}
+
 func TestManager_ImmediateUpdateSucceedsWithExternalMu(t *testing.T) {
 	// Mirror the production call pattern: hold externalMu, then call
 	// HandleInput. The immediate-update path should succeed without panic.
