@@ -28,6 +28,13 @@ type Manager struct {
 	// (which would deadlock on synchronous call paths).
 	externalMu *sync.Mutex
 
+	// updateGen is a monotonically increasing counter incremented by both
+	// immediateUpdate and debouncedUpdate. The debounced timer callback
+	// captures the generation at scheduling time and skips the onUpdate
+	// call if a newer update has occurred since, preventing a stale
+	// goroutine from overwriting a fresher immediate update.
+	updateGen uint64
+
 	// backspaceKey is the configured key for backspace/input correction.
 	// Empty string means use the default backspace/delete key.
 	backspaceKey string
@@ -73,6 +80,10 @@ func (m *Manager) SetHints(hints *Collection) {
 		m.debounceTimer = nil
 	}
 
+	// Bump generation so any already-fired (but blocked) debounce goroutine
+	// will see a stale generation and skip its onUpdate call.
+	m.updateGen++
+
 	m.hints = hints
 	m.SetCurrentInput("")
 
@@ -95,6 +106,10 @@ func (m *Manager) Reset() {
 		m.debounceTimer.Stop()
 		m.debounceTimer = nil
 	}
+
+	// Bump generation so any already-fired (but blocked) debounce goroutine
+	// will see a stale generation and skip its onUpdate call.
+	m.updateGen++
 
 	m.SetCurrentInput("")
 	// Trigger immediate update callback with all hints
@@ -247,11 +262,15 @@ func (m *Manager) SetBackspaceKey(key string) {
 // pending debounced update. Use this for cheap updates (e.g., prefix color
 // changes) where the 50ms debounce delay would feel sluggish.
 func (m *Manager) immediateUpdate(hints []*Interface) {
-	// Cancel any pending debounced update so it doesn't fire stale data
+	// Cancel any pending debounced update so it doesn't fire stale data.
 	if m.debounceTimer != nil {
 		m.debounceTimer.Stop()
 		m.debounceTimer = nil
 	}
+
+	// Bump generation so any already-fired (but blocked) debounce goroutine
+	// will see a stale generation and skip its onUpdate call.
+	m.updateGen++
 
 	m.mu.Lock()
 	callback := m.onUpdate
@@ -269,6 +288,12 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 		m.debounceTimer.Stop()
 	}
 
+	// Bump generation and capture it for the closure. If a newer update
+	// (immediate or debounced) occurs before the timer fires, the captured
+	// generation will be stale and the callback will be skipped.
+	m.updateGen++
+	gen := m.updateGen
+
 	// Copy hints to avoid race with slice reuse
 	hintsCopy := make([]*Interface, len(hints))
 	copy(hintsCopy, hints)
@@ -284,6 +309,12 @@ func (m *Manager) debouncedUpdate(hints []*Interface) {
 
 		m.mu.Lock()
 		defer m.mu.Unlock()
+
+		// A newer update (immediate or debounced) has occurred since this
+		// timer was scheduled — our data is stale, so skip the callback.
+		if m.updateGen != gen {
+			return
+		}
 
 		if m.onUpdate != nil {
 			m.onUpdate(hintsCopy)
