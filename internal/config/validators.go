@@ -1725,6 +1725,50 @@ func checkPerModeExitKeysResetKeyConflict(
 	return nil
 }
 
+// checkScrollKeyBindingsActionKeyConflicts checks if any scroll key binding conflicts
+// with an action key binding. At runtime, action keys are checked before scroll keys
+// (in scroll.go handleGenericScrollKey), so a conflict means the scroll binding will
+// never fire — the action will always take priority.
+func (c *Config) checkScrollKeyBindingsActionKeyConflicts() error {
+	bindings := []struct {
+		value     string
+		fieldName string
+	}{
+		{c.Action.KeyBindings.LeftClick, "action.key_bindings.left_click"},
+		{c.Action.KeyBindings.RightClick, "action.key_bindings.right_click"},
+		{c.Action.KeyBindings.MiddleClick, "action.key_bindings.middle_click"},
+		{c.Action.KeyBindings.MouseDown, "action.key_bindings.mouse_down"},
+		{c.Action.KeyBindings.MouseUp, "action.key_bindings.mouse_up"},
+		{c.Action.KeyBindings.MoveMouseUp, "action.key_bindings.move_mouse_up"},
+		{c.Action.KeyBindings.MoveMouseDown, "action.key_bindings.move_mouse_down"},
+		{c.Action.KeyBindings.MoveMouseLeft, "action.key_bindings.move_mouse_left"},
+		{c.Action.KeyBindings.MoveMouseRight, "action.key_bindings.move_mouse_right"},
+	}
+	for scrollAction, keys := range c.Scroll.KeyBindings {
+		for _, scrollKey := range keys {
+			normalizedScrollKey := NormalizeKeyForComparison(scrollKey)
+			for _, binding := range bindings {
+				if binding.value == "" {
+					continue
+				}
+
+				if normalizedScrollKey == NormalizeKeyForComparison(binding.value) {
+					return derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"scroll.key_bindings['%s'] contains '%s' which conflicts with %s ('%s'); the action key is checked first at runtime, so the scroll binding will never fire",
+						scrollAction,
+						scrollKey,
+						binding.fieldName,
+						binding.value,
+					)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // checkPerModeExitKeysActionKeyConflicts checks if any per-mode exit key conflicts with
 // an action key binding. At runtime, exit keys are checked before action keys
 // (in key_dispatch.go), so a conflict means the action key will never fire — the mode

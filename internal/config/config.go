@@ -752,6 +752,14 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// Validate scroll key bindings don't conflict with action key bindings.
+	// At runtime, action keys are checked before scroll keys (in scroll.go),
+	// so a conflict means the scroll binding will never fire.
+	err = c.checkScrollKeyBindingsActionKeyConflicts()
+	if err != nil {
+		return err
+	}
+
 	// Validate sticky modifiers settings
 	err = c.ValidateStickyModifiers()
 	if err != nil {

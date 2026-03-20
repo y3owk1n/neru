@@ -2637,6 +2637,104 @@ func TestConfig_Validate_PerModeExitKeysActionKeyConflicts(t *testing.T) {
 	}
 }
 
+// TestConfig_Validate_ScrollKeyBindingsActionKeyConflicts tests that scroll key bindings
+// cannot overlap with action key bindings (checked via full Validate()).
+func TestConfig_Validate_ScrollKeyBindingsActionKeyConflicts(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  func() config.Config
+		wantErr bool
+	}{
+		{
+			name: "scroll binding conflicts with move_mouse_up (arrow key overlap)",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings["scroll_up"] = []string{"k", "Up"}
+				// Default move_mouse_up = "Up"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "scroll binding conflicts with left_click",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings["scroll_up"] = []string{"Shift+L"}
+				// Default left_click = "Shift+L"
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "scroll binding case-insensitive conflict with action binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings["scroll_down"] = []string{"shift+l"}
+				cfg.Action.KeyBindings.LeftClick = "Shift+L"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no conflict with default scroll bindings (arrow keys removed)",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				// Default scroll bindings no longer include arrow keys
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "no conflict when action binding is empty",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings["scroll_up"] = []string{"Up"}
+				cfg.Action.KeyBindings.MoveMouseUp = ""
+
+				return cfg
+			},
+			wantErr: false,
+		},
+		{
+			name: "scroll binding conflicts with custom action binding",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings["page_up"] = []string{"Ctrl+U"}
+				cfg.Action.KeyBindings.MouseUp = "Ctrl+U"
+
+				return cfg
+			},
+			wantErr: true,
+		},
+		{
+			name: "no conflict when scroll bindings are empty",
+			config: func() config.Config {
+				cfg := *config.DefaultConfig()
+				cfg.Scroll.KeyBindings = map[string][]string{}
+
+				return cfg
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := testCase.config()
+
+			err := cfg.Validate()
+			if (err != nil) != testCase.wantErr {
+				t.Errorf(
+					"Config.Validate() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
 // TestMergeExitKeys tests the MergeExitKeys helper function.
 func TestMergeExitKeys(t *testing.T) {
 	tests := []struct {
