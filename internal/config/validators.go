@@ -1781,6 +1781,30 @@ func (c *Config) checkScrollKeyBindingsActionKeyConflicts() error {
 						)
 					}
 				}
+
+				// Check Shift+Letter fallback shadow: at runtime, both the
+				// action service and scroll keymap treat a bare uppercase
+				// letter (e.g. "G") as also matching "Shift+G". If a scroll
+				// binding uses a single uppercase letter and an action binding
+				// is "Shift+<that letter>", the action service will match
+				// first via the fallback, silently shadowing the scroll
+				// binding.
+				if len(scrollKey) == 1 {
+					r := rune(scrollKey[0])
+					if r >= 'A' && r <= 'Z' {
+						shiftForm := NormalizeKeyForComparison("Shift+" + scrollKey)
+						if shiftForm == NormalizeKeyForComparison(binding.value) {
+							return derrors.Newf(
+								derrors.CodeInvalidConfig,
+								"scroll.key_bindings['%s'] contains '%s' which conflicts with %s ('%s') via Shift+Letter fallback; the action key is checked first at runtime, so the scroll binding will never fire",
+								scrollAction,
+								scrollKey,
+								binding.fieldName,
+								binding.value,
+							)
+						}
+					}
+				}
 			}
 		}
 	}
