@@ -221,12 +221,22 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	}
 
 	if len(filtered) == 0 {
-		// No matches - reset input and debounce-update to show all hints
+		// No matches - reset input and update to show all hints
 		m.SetCurrentInput("")
-		m.lastFilteredLen = len(m.hints.All())
+		allLen := len(m.hints.All())
+		m.lastFilteredLen = allLen
 
 		if m.hints != nil {
-			m.debouncedUpdate(m.hints.All())
+			// Apply the same count-based heuristic as the other paths:
+			// if the hint count didn't change (e.g., repeated invalid
+			// keystrokes that keep resetting to the full set), update
+			// immediately since only text colors change. Otherwise
+			// debounce to batch the structural redraw.
+			if allLen == prevLen {
+				m.immediateUpdate(m.hints.All())
+			} else {
+				m.debouncedUpdate(m.hints.All())
+			}
 		}
 
 		return nil, false

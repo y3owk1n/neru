@@ -228,6 +228,41 @@ func TestManager_ImmediateUpdateSucceedsWithExternalMu(t *testing.T) {
 	}
 }
 
+func TestManager_NoMatchRepeatedUsesImmediateUpdate(t *testing.T) {
+	// When the user types an invalid key that resets to the full set, and
+	// then types another invalid key (still the full set), the count
+	// doesn't change so the no-match path should use immediateUpdate
+	// (synchronous callback) rather than debouncedUpdate.
+	var mut sync.Mutex
+
+	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
+	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
+	h2, _ := hint.NewHint("AB", elem, image.Point{0, 0})
+	collection := hint.NewCollection([]*hint.Interface{h1, h2})
+	manager := hint.NewManager(logger.Get(), &mut, "")
+	callCount := 0
+	manager.SetUpdateCallback(func(_ []*hint.Interface) {
+		callCount++
+	})
+	mut.Lock()
+	manager.SetHints(collection)
+	// First invalid key "X" → no match, resets to full set (count 2).
+	// Previous count was 2 (from SetHints), so same count → immediateUpdate.
+	manager.HandleInput("X")
+
+	if callCount != 2 { // 1 from SetHints + 1 from HandleInput("X")
+		t.Errorf("Expected 2 callback calls after first invalid key, got %d", callCount)
+	}
+	// Second invalid key "Z" → no match again, full set (count 2).
+	// Previous count was 2, same count → immediateUpdate (synchronous).
+	manager.HandleInput("Z")
+
+	if callCount != 3 { // +1 synchronous callback
+		t.Errorf("Expected 3 callback calls after second invalid key, got %d", callCount)
+	}
+	mut.Unlock()
+}
+
 func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 	logger := logger.Get()
 	hintManager := hint.NewManager(logger, nil, "")
