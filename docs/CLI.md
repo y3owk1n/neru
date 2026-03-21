@@ -20,6 +20,7 @@ Neru provides a comprehensive command-line interface for controlling the daemon,
 - [Action Commands](#action-commands)
 - [Configuration Management](#configuration-management)
 - [Status & Info](#status--info)
+- [Documentation](#documentation)
 - [Shell Completions](#shell-completions)
 - [Scripting](#scripting)
 - [Technical Details](#technical-details)
@@ -426,6 +427,19 @@ neru --version     # Version info
 
 > [!TIP]
 > Use `neru doctor` as your first debugging step. Unlike `neru status`, it works even when the daemon isn't running and checks config validity, socket health, and all internal components.
+
+---
+
+## Documentation
+
+Open version-aware documentation pages in the default browser. No running daemon required.
+
+```
+neru docs config    # Open configuration reference
+neru docs cli       # Open CLI reference
+```
+
+The URL points to the exact Git tag matching your installed version (e.g. `v1.29.0`). Unmatched or development builds fall back to the `main` branch.
 
 ---
 

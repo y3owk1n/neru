@@ -93,6 +93,7 @@ func TestCommandInitialization(t *testing.T) {
 		"status": false,
 		"doctor": false,
 		"launch": false,
+		"docs":   false,
 	}
 
 	for _, cmd := range cli.RootCmd.Commands() {
