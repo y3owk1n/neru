@@ -50,8 +50,8 @@ jobs:
               if: ${{ steps.release.outputs.release_created }}
               run: |
                   mkdir -p build/arm64/Neru.app/Contents/{MacOS,Resources}
-                  cp bin/neru-darwin-arm64 build/arm64/Neru.app/Contents/MacOS/Neru
-                  chmod +x build/arm64/Neru.app/Contents/MacOS/Neru
+                  cp bin/neru-darwin-arm64 build/arm64/Neru.app/Contents/MacOS/neru
+                  chmod +x build/arm64/Neru.app/Contents/MacOS/neru
                   cp resources/icon.icns build/arm64/Neru.app/Contents/Resources/icon.icns
                   sed "s/VERSION/${{ steps.release.outputs.tag_name }}/g" resources/Info.plist.template > build/arm64/Neru.app/Contents/Info.plist
 
@@ -73,8 +73,8 @@ jobs:
               if: ${{ steps.release.outputs.release_created }}
               run: |
                   mkdir -p build/amd64/Neru.app/Contents/{MacOS,Resources}
-                  cp bin/neru-darwin-amd64 build/amd64/Neru.app/Contents/MacOS/Neru
-                  chmod +x build/amd64/Neru.app/Contents/MacOS/Neru
+                  cp bin/neru-darwin-amd64 build/amd64/Neru.app/Contents/MacOS/neru
+                  chmod +x build/amd64/Neru.app/Contents/MacOS/neru
                   cp resources/icon.icns build/amd64/Neru.app/Contents/Resources/icon.icns
                   sed "s/VERSION/${{ steps.release.outputs.tag_name }}/g" resources/Info.plist.template > build/amd64/Neru.app/Contents/Info.plist
 

@@ -62,7 +62,7 @@ bundle: release
     @echo "Bundling Neru..."
     mkdir -p build/Neru.app/Contents/{MacOS,Resources}
 
-    cp -r bin/neru build/Neru.app/Contents/MacOS/Neru
+    cp -r bin/neru build/Neru.app/Contents/MacOS/neru
 
     cp resources/icon.icns build/Neru.app/Contents/Resources/icon.icns
 

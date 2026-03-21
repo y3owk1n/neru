@@ -135,7 +135,7 @@ else
       # Create a simple .app bundle on the fly
       mkdir -p $out/Applications/Neru.app/Contents/{MacOS,Resources}
 
-      cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/Neru
+      cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/neru
 
       cp ${finalAttrs.src}/resources/icon.icns $out/Applications/Neru.app/Contents/Resources/icon.icns
 
