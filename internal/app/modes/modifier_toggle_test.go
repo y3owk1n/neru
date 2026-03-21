@@ -95,11 +95,18 @@ func newTestHandler() *Handler {
 	}
 }
 
+// waitDebounce waits for the modifier toggle debounce timer to fire.
+// Uses 2x the debounce duration for a comfortable margin.
+func waitDebounce() {
+	time.Sleep(modifierToggleDebounce * 2)
+}
+
 func TestHandleModifierToggle_SingleModifier(t *testing.T) {
 	testHandler := newTestHandler()
 	// Shift↓ → Shift↑ should toggle Shift on.
 	testHandler.handleModifierToggle("__modifier_shift_down")
 	testHandler.handleModifierToggle("__modifier_shift_up")
+	waitDebounce()
 
 	if got := testHandler.modifierState.Current(); got != action.ModShift {
 		t.Errorf("Expected ModShift after single tap, got %v", got)
@@ -107,6 +114,7 @@ func TestHandleModifierToggle_SingleModifier(t *testing.T) {
 	// Shift↓ → Shift↑ again should toggle Shift off.
 	testHandler.handleModifierToggle("__modifier_shift_down")
 	testHandler.handleModifierToggle("__modifier_shift_up")
+	waitDebounce()
 
 	if got := testHandler.modifierState.Current(); got != 0 {
 		t.Errorf("Expected 0 after double tap, got %v", got)
@@ -121,6 +129,8 @@ func TestHandleModifierToggle_SimultaneousTwoModifiers(t *testing.T) {
 	testHandler.handleModifierToggle("__modifier_shift_down")
 	testHandler.handleModifierToggle("__modifier_cmd_up")
 	testHandler.handleModifierToggle("__modifier_shift_up")
+	waitDebounce()
+
 	got := testHandler.modifierState.Current()
 
 	want := action.ModCmd | action.ModShift
@@ -143,6 +153,8 @@ func TestHandleModifierToggle_SimultaneousThreeModifiers(t *testing.T) {
 	testHandler.handleModifierToggle("__modifier_cmd_up")
 	testHandler.handleModifierToggle("__modifier_shift_up")
 	testHandler.handleModifierToggle("__modifier_alt_up")
+	waitDebounce()
+
 	got := testHandler.modifierState.Current()
 
 	want := action.ModCmd | action.ModShift | action.ModAlt
@@ -167,6 +179,8 @@ func TestHandleModifierToggle_SimultaneousFourModifiers(t *testing.T) {
 	testHandler.handleModifierToggle("__modifier_shift_up")
 	testHandler.handleModifierToggle("__modifier_alt_up")
 	testHandler.handleModifierToggle("__modifier_ctrl_up")
+	waitDebounce()
+
 	got := testHandler.modifierState.Current()
 
 	want := action.ModCmd | action.ModShift | action.ModAlt | action.ModCtrl
@@ -189,6 +203,8 @@ func TestHandleModifierToggle_SimultaneousReleaseOrderReversed(t *testing.T) {
 	testHandler.handleModifierToggle("__modifier_alt_up")
 	testHandler.handleModifierToggle("__modifier_shift_up")
 	testHandler.handleModifierToggle("__modifier_cmd_up")
+	waitDebounce()
+
 	got := testHandler.modifierState.Current()
 
 	want := action.ModCmd | action.ModShift | action.ModAlt
@@ -210,6 +226,7 @@ func TestHandleModifierToggle_RegularKeyCancelsAllPending(t *testing.T) {
 	testHandler.cancelPendingModifierToggle() // simulates regular key press
 	testHandler.handleModifierToggle("__modifier_cmd_up")
 	testHandler.handleModifierToggle("__modifier_shift_up")
+	waitDebounce()
 
 	if got := testHandler.modifierState.Current(); got != 0 {
 		t.Errorf("Expected 0 after regular key canceled pending, got %v", got)
@@ -248,6 +265,7 @@ func TestHandleModifierToggle_ArmingMechanism(t *testing.T) {
 	// Now a clean tap should work.
 	testHandler.handleModifierToggle("__modifier_shift_down")
 	testHandler.handleModifierToggle("__modifier_shift_up")
+	waitDebounce()
 
 	if got := testHandler.modifierState.Current(); got != action.ModShift {
 		t.Errorf("Expected ModShift after armed tap, got %v", got)
@@ -263,6 +281,7 @@ func TestHandleModifierToggle_HeldTooLong(t *testing.T) {
 	testHandler.pendingModifierKeys["__modifier_shift_down"] = time.Now().
 		Add(-200 * time.Millisecond)
 	testHandler.handleModifierToggle("__modifier_shift_up")
+	waitDebounce()
 
 	if got := testHandler.modifierState.Current(); got != 0 {
 		t.Errorf("Expected 0 after holding too long, got %v", got)
@@ -275,6 +294,7 @@ func TestHandleModifierToggle_HeldWithinThreshold(t *testing.T) {
 	// Quick tap — should toggle.
 	testHandler.handleModifierToggle("__modifier_shift_down")
 	testHandler.handleModifierToggle("__modifier_shift_up")
+	waitDebounce()
 
 	if got := testHandler.modifierState.Current(); got != action.ModShift {
 		t.Errorf("Expected ModShift after quick tap, got %v", got)
@@ -288,8 +308,101 @@ func TestHandleModifierToggle_ZeroThresholdAlwaysToggles(t *testing.T) {
 	testHandler.handleModifierToggle("__modifier_shift_down")
 	testHandler.pendingModifierKeys["__modifier_shift_down"] = time.Now().Add(-10 * time.Second)
 	testHandler.handleModifierToggle("__modifier_shift_up")
+	waitDebounce()
 
 	if got := testHandler.modifierState.Current(); got != action.ModShift {
 		t.Errorf("Expected ModShift with zero threshold (always toggle), got %v", got)
+	}
+}
+
+// TestHandleModifierToggle_KarabinerScenario simulates the exact event sequence
+// that Karabiner sends when remapping Option+h → Left Arrow:
+// alt_down → alt_up → Left (regular key arrives after modifier released).
+// The debounce window should allow the regular key to cancel the toggle.
+func TestHandleModifierToggle_KarabinerScenario(t *testing.T) {
+	testHandler := newTestHandler()
+
+	// Phase 1: Karabiner sends alt_down, then immediately alt_up (flag cleared before arrow)
+	testHandler.handleModifierToggle("__modifier_alt_down")
+	testHandler.handleModifierToggle("__modifier_alt_up")
+
+	// Phase 2: The remapped arrow key arrives during the debounce window.
+	// This calls cancelPendingModifierToggle, which should stop the timer.
+	testHandler.cancelPendingModifierToggle()
+
+	waitDebounce()
+
+	if got := testHandler.modifierState.Current(); got != 0 {
+		t.Errorf("Expected 0 (Karabiner remapped key should cancel toggle), got %v", got)
+	}
+}
+
+// TestHandleModifierToggle_DebounceTimerCancelledByRegularKey verifies that a
+// regular key press arriving during the debounce window prevents the toggle,
+// even though the modifier down/up sequence was clean.
+func TestHandleModifierToggle_DebounceTimerCancelledByRegularKey(t *testing.T) {
+	testHandler := newTestHandler()
+
+	testHandler.handleModifierToggle("__modifier_shift_down")
+	testHandler.handleModifierToggle("__modifier_shift_up")
+
+	// Simulate a regular key press arriving during the debounce window.
+	// This should cancel both the pending key map entry and the timer.
+	testHandler.cancelPendingModifierToggle()
+
+	waitDebounce()
+
+	if got := testHandler.modifierState.Current(); got != 0 {
+		t.Errorf("Expected 0 after debounce timer canceled by regular key, got %v", got)
+	}
+
+	// Verify no timers are left dangling.
+	if len(testHandler.pendingModifierTimers) != 0 {
+		t.Errorf(
+			"Expected no pending timers after cancel, got %d",
+			len(testHandler.pendingModifierTimers),
+		)
+	}
+}
+
+// TestHandleModifierToggle_KarabinerRapidFire simulates the exact scenario
+// from the user's logs: the user presses Cmd+k repeatedly (Karabiner → Up arrow),
+// and between presses, Cmd is briefly released. The "Up" arrow key was pressed
+// just ~10ms before cmd_down, so the cooldown should suppress the toggle
+// even though no arrow key follows this particular cmd_down→cmd_up pair.
+func TestHandleModifierToggle_KarabinerRapidFire(t *testing.T) {
+	testHandler := newTestHandler()
+
+	// Simulate recent key activity (arrow key from previous Karabiner press).
+	testHandler.lastRegularKeyTime = time.Now()
+
+	// Modifier tap arrives shortly after (as seen in the logs: ~10ms gap).
+	testHandler.handleModifierToggle("__modifier_cmd_down")
+	testHandler.handleModifierToggle("__modifier_cmd_up")
+	waitDebounce()
+
+	// The cooldown should have suppressed the toggle.
+	if got := testHandler.modifierState.Current(); got != 0 {
+		t.Errorf(
+			"Expected 0 (cooldown should suppress toggle during rapid Karabiner use), got %v",
+			got,
+		)
+	}
+}
+
+// TestHandleModifierToggle_ToggleWorksAfterIdle verifies that the cooldown
+// does NOT block modifier toggles when the user has been idle (no recent keys).
+func TestHandleModifierToggle_ToggleWorksAfterIdle(t *testing.T) {
+	testHandler := newTestHandler()
+
+	// Simulate key activity from 500ms ago (well outside the 200ms cooldown).
+	testHandler.lastRegularKeyTime = time.Now().Add(-500 * time.Millisecond)
+
+	testHandler.handleModifierToggle("__modifier_shift_down")
+	testHandler.handleModifierToggle("__modifier_shift_up")
+	waitDebounce()
+
+	if got := testHandler.modifierState.Current(); got != action.ModShift {
+		t.Errorf("Expected ModShift after idle toggle, got %v", got)
 	}
 }
