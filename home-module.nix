@@ -72,7 +72,7 @@ in
       enable = cfg.launchd.enable;
       config = {
         ProgramArguments = [
-          "${cfg.package}/Applications/Neru.app/Contents/MacOS/Neru"
+          "${cfg.package}/Applications/Neru.app/Contents/MacOS/neru"
           "launch"
           "--config"
           "${config.xdg.configHome}/neru/config.toml"
