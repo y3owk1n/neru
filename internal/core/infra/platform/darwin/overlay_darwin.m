@@ -84,6 +84,13 @@ static const CGFloat kDefaultHintFontSize = 10.0;
 /// Default font size for grid overlays (regular system font).
 static const CGFloat kDefaultGridFontSize = 10.0;
 
+/// Height of the downward-pointing arrow on hint tooltips (0 when arrow is hidden).
+static const CGFloat kHintArrowHeight = 1.0;
+/// Width multiplier for the arrow base relative to its height.
+static const CGFloat kHintArrowWidthMultiplier = 3.5;
+/// Vertical gap between the arrow tip and the target element.
+static const CGFloat kHintArrowGap = 1.0;
+
 #pragma mark - Overlay View Interface
 
 @interface OverlayView : NSView
@@ -512,7 +519,7 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	CGFloat arrowTipX = elementCenterX;
 	CGFloat arrowTipY = elementCenterY;
 	CGFloat arrowBaseY = bodyRect.origin.y + bodyRect.size.height;
-	CGFloat arrowWidth = arrowSize * 3.5;
+	CGFloat arrowWidth = arrowSize * kHintArrowWidthMultiplier;
 	CGFloat arrowLeft = arrowTipX - arrowWidth / 2;
 	CGFloat arrowRight = arrowTipX + arrowWidth / 2;
 
@@ -606,7 +613,7 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	NSSize textSize = [measureString size];
 	CGFloat paddingX = [self resolvedHintPaddingX];
 	CGFloat paddingY = [self resolvedHintPaddingY];
-	CGFloat arrowHeight = hint.showArrow ? 1.0 : 0.0;
+	CGFloat arrowHeight = hint.showArrow ? kHintArrowHeight : 0.0;
 	CGFloat contentWidth = textSize.width + (paddingX * 2);
 	CGFloat contentHeight = textSize.height + (paddingY * 2);
 	CGFloat boxWidth = MAX(contentWidth, contentHeight);
@@ -614,7 +621,7 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 	NSPoint position = hint.position;
 	CGFloat elementCenterX = position.x;
 	CGFloat elementCenterY = position.y;
-	CGFloat gap = 1.0;
+	CGFloat gap = kHintArrowGap;
 	CGFloat tooltipX = elementCenterX - boxWidth / 2.0;
 	CGFloat tooltipY = elementCenterY + arrowHeight + gap;
 	CGFloat screenHeight = self.bounds.size.height;
@@ -682,14 +689,14 @@ static const CGFloat kDefaultGridFontSize = 10.0;
 		// avoiding the double text measurement that would occur if we called
 		// boundingRectForHint: separately for the intersection check.
 		NSSize textSize = [attrString size];
-		CGFloat arrowHeight = showArrow ? 1.0 : 0.0;
+		CGFloat arrowHeight = showArrow ? kHintArrowHeight : 0.0;
 		CGFloat contentWidth = textSize.width + (paddingX * 2);
 		CGFloat contentHeight = textSize.height + (paddingY * 2);
 		CGFloat boxWidth = MAX(contentWidth, contentHeight);
 		CGFloat boxHeight = contentHeight + arrowHeight;
 		CGFloat elementCenterX = position.x;
 		CGFloat elementCenterY = position.y;
-		CGFloat gap = 1.0;
+		CGFloat gap = kHintArrowGap;
 		CGFloat tooltipX = elementCenterX - boxWidth / 2.0;
 		CGFloat tooltipY = elementCenterY + arrowHeight + gap;
 		CGFloat flippedY = screenHeight - tooltipY - boxHeight;
