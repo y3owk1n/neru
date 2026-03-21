@@ -191,4 +191,4 @@ typedef void (*KeymapLayoutChangeCallback)(void);
 /// Pass NULL to unregister.
 void setKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback);
 
-#endif // KEYMAP_H
+#endif  // KEYMAP_H

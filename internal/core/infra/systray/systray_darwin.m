@@ -1,11 +1,25 @@
+//
+//  systray.m
+//  Neru
+//
+//  Copyright © 2025 Neru. All rights reserved.
+//
+
 #import "systray.h"
+
 #import <Cocoa/Cocoa.h>
+
+#pragma mark - External Function Declarations
 
 extern void systray_menu_item_selected(int menuId);
 extern void systray_on_ready(void);
 extern void systray_on_exit(void);
 
+#pragma mark - Static State
+
 static BOOL _showSystray = YES;
+
+#pragma mark - App Delegate
 
 @interface AppDelegate : NSObject <NSApplicationDelegate, NSMenuDelegate>
 @property(strong) NSStatusItem *statusItem;
@@ -39,6 +53,8 @@ static BOOL _showSystray = YES;
 
 @end
 
+#pragma mark - Native Loop Functions
+
 AppDelegate *appDelegate;
 
 void registerSystray(void) {
@@ -71,17 +87,22 @@ void quit(void) {
 	});
 }
 
+#pragma mark - Status Item Functions
+
 void setIcon(const char *iconBytes, int length, bool isTemplate) {
 	// Copy the icon bytes before dispatching so the caller can free
 	// the original buffer immediately after this function returns.
 	NSData *data = [NSData dataWithBytes:iconBytes length:length];
+
 	dispatch_async(dispatch_get_main_queue(), ^{
 		NSImage *image = [[NSImage alloc] initWithData:data];
+
 		// Menu bar icons are 22×22 points (44×44 @2x retina). Setting the size
 		// explicitly ensures macOS renders the icon at the correct dimensions
 		// regardless of the source PNG pixel size.
 		[image setSize:NSMakeSize(22, 22)];
 		[image setTemplate:isTemplate];
+
 		if (appDelegate && appDelegate.statusItem) {
 			appDelegate.statusItem.button.image = image;
 		}
@@ -90,6 +111,7 @@ void setIcon(const char *iconBytes, int length, bool isTemplate) {
 
 void setTitle(const char *title) {
 	NSString *str = [NSString stringWithUTF8String:title];
+
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (appDelegate && appDelegate.statusItem) {
 			appDelegate.statusItem.button.title = str;
@@ -99,6 +121,7 @@ void setTitle(const char *title) {
 
 void setTooltip(const char *tooltip) {
 	NSString *str = [NSString stringWithUTF8String:tooltip];
+
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (appDelegate && appDelegate.statusItem) {
 			appDelegate.statusItem.button.toolTip = str;
@@ -106,11 +129,13 @@ void setTooltip(const char *tooltip) {
 	});
 }
 
+#pragma mark - Menu Item Lookup
+
 NSMenuItem *findItemByTagInMenu(NSMenu *menu, int menuId) {
 	if (!menu)
 		return nil;
 
-	// First check top-level items
+	// Check top-level items first
 	NSMenuItem *item = [menu itemWithTag:menuId];
 	if (item)
 		return item;
@@ -123,14 +148,18 @@ NSMenuItem *findItemByTagInMenu(NSMenu *menu, int menuId) {
 				return item;
 		}
 	}
+
 	return nil;
 }
 
 NSMenuItem *findItemByTag(int menuId) {
 	if (!appDelegate || !appDelegate.menu)
 		return nil;
+
 	return findItemByTagInMenu(appDelegate.menu, menuId);
 }
+
+#pragma mark - Helper Functions
 
 void runOnMainThread(void (^block)(void)) {
 	if ([NSThread isMainThread]) {
@@ -139,6 +168,8 @@ void runOnMainThread(void (^block)(void)) {
 		dispatch_async(dispatch_get_main_queue(), block);
 	}
 }
+
+#pragma mark - Menu Item Functions
 
 void add_menu_item(int menuId, const char *title, short disabled, short checked) {
 	NSString *titleStr = [NSString stringWithUTF8String:title];
@@ -182,19 +213,20 @@ void add_separator(int parentId) {
 	runOnMainThread(^{
 		if (parentId == 0) {
 			[appDelegate.menu addItem:[NSMenuItem separatorItem]];
-		} else {
-			NSMenuItem *parent = findItemByTag(parentId);
-			if (!parent)
-				return;
-
-			if (![parent submenu]) {
-				NSMenu *submenu = [[NSMenu alloc] init];
-				[submenu setAutoenablesItems:NO];
-				[parent setSubmenu:submenu];
-			}
-
-			[[parent submenu] addItem:[NSMenuItem separatorItem]];
+			return;
 		}
+
+		NSMenuItem *parent = findItemByTag(parentId);
+		if (!parent)
+			return;
+
+		if (![parent submenu]) {
+			NSMenu *submenu = [[NSMenu alloc] init];
+			[submenu setAutoenablesItems:NO];
+			[parent setSubmenu:submenu];
+		}
+
+		[[parent submenu] addItem:[NSMenuItem separatorItem]];
 	});
 }
 
@@ -232,6 +264,7 @@ void set_item_disabled(int menuId, short disabled) {
 
 void set_item_title(int menuId, const char *title) {
 	NSString *str = [NSString stringWithUTF8String:title];
+
 	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)

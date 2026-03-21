@@ -6,6 +6,7 @@
 //
 
 #import "appwatcher.h"
+
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - External Function Declarations
@@ -41,10 +42,9 @@ extern void handleScreenParametersChanged(void);
 		if (!app)
 			return;
 
-		// Copy strings to prevent dangling pointers
+		// Copy strings to prevent dangling pointers across the thread boundary
 		NSString *appName = app.localizedName ?: @"Unknown";
 		NSString *bundleID = app.bundleIdentifier ?: @"unknown.bundle";
-
 		char *appNameCopy = strdup([appName UTF8String]);
 		char *bundleIDCopy = strdup([bundleID UTF8String]);
 
@@ -67,9 +67,9 @@ extern void handleScreenParametersChanged(void);
 		if (!app)
 			return;
 
+		// Copy strings to prevent dangling pointers across the thread boundary
 		NSString *appName = app.localizedName ?: @"Unknown";
 		NSString *bundleID = app.bundleIdentifier ?: @"unknown.bundle";
-
 		char *appNameCopy = strdup([appName UTF8String]);
 		char *bundleIDCopy = strdup([bundleID UTF8String]);
 
@@ -91,22 +91,19 @@ extern void handleScreenParametersChanged(void);
 		if (!app)
 			return;
 
+		// Copy strings to prevent dangling pointers across the thread boundary
 		NSString *appName = app.localizedName ?: @"Unknown";
 		NSString *bundleID = app.bundleIdentifier ?: @"unknown.bundle";
-
-		// Allocate copies that Go can safely use
 		char *appNameCopy = strdup([appName UTF8String]);
 		char *bundleIDCopy = strdup([bundleID UTF8String]);
 
 		if ([NSThread isMainThread]) {
-			// Already on main thread, call directly
 			if (appNameCopy && bundleIDCopy) {
 				handleAppActivate(appNameCopy, bundleIDCopy);
 			}
 			free(appNameCopy);
 			free(bundleIDCopy);
 		} else {
-			// Not on main thread, dispatch
 			dispatch_async(dispatch_get_main_queue(), ^{
 				if (appNameCopy && bundleIDCopy) {
 					handleAppActivate(appNameCopy, bundleIDCopy);
@@ -126,9 +123,9 @@ extern void handleScreenParametersChanged(void);
 		if (!app)
 			return;
 
+		// Copy strings to prevent dangling pointers across the thread boundary
 		NSString *appName = app.localizedName ?: @"Unknown";
 		NSString *bundleID = app.bundleIdentifier ?: @"unknown.bundle";
-
 		char *appNameCopy = strdup([appName UTF8String]);
 		char *bundleIDCopy = strdup([bundleID UTF8String]);
 
@@ -154,20 +151,25 @@ extern void handleScreenParametersChanged(void);
 - (void)screenParametersDidChange:(NSNotification *)notification {
 	dispatch_async(self.timerQueue, ^{
 		@autoreleasepool {
+			// Cancel any previously scheduled debounce timer
 			if (self.debounceTimer) {
 				dispatch_source_cancel(self.debounceTimer);
 				self.debounceTimer = nil;
 			}
-			dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0,
-			                                                 dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+
+			// Schedule a new debounce timer — fires 500ms after the last event
+			dispatch_source_t timer = dispatch_source_create(
+			    DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
 			if (timer) {
 				self.debounceTimer = timer;
-				dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 500 * NSEC_PER_MSEC),
-				                          DISPATCH_TIME_FOREVER, 50 * NSEC_PER_MSEC);
+				dispatch_source_set_timer(
+				    timer, dispatch_time(DISPATCH_TIME_NOW, 500 * NSEC_PER_MSEC), DISPATCH_TIME_FOREVER,
+				    50 * NSEC_PER_MSEC);
 				dispatch_source_set_event_handler(timer, ^{
 					handleScreenParametersChanged();
 					dispatch_source_cancel(timer);
-					// Clear property on timerQueue to avoid race
+
+					// Clear the timer property on timerQueue to avoid a race
 					dispatch_async(self.timerQueue, ^{
 						if (self.debounceTimer == timer) {
 							self.debounceTimer = nil;
@@ -195,67 +197,71 @@ void startAppWatcher(void) {
 	});
 
 	dispatch_sync(watcherQueue, ^{
-		if (delegate == nil) {
-			delegate = [[AppWatcherDelegate alloc] init];
+		if (delegate != nil)
+			return;
 
-			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
-			NSNotificationCenter *center = [workspace notificationCenter];
+		delegate = [[AppWatcherDelegate alloc] init];
 
-			[center addObserver:delegate
-			           selector:@selector(applicationDidLaunch:)
-			               name:NSWorkspaceDidLaunchApplicationNotification
-			             object:nil];
+		NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+		NSNotificationCenter *center = [workspace notificationCenter];
 
-			[center addObserver:delegate
-			           selector:@selector(applicationDidTerminate:)
-			               name:NSWorkspaceDidTerminateApplicationNotification
-			             object:nil];
+		// Register workspace notification observers
+		[center addObserver:delegate
+		           selector:@selector(applicationDidLaunch:)
+		               name:NSWorkspaceDidLaunchApplicationNotification
+		             object:nil];
 
-			[center addObserver:delegate
-			           selector:@selector(applicationDidActivate:)
-			               name:NSWorkspaceDidActivateApplicationNotification
-			             object:nil];
+		[center addObserver:delegate
+		           selector:@selector(applicationDidTerminate:)
+		               name:NSWorkspaceDidTerminateApplicationNotification
+		             object:nil];
 
-			[center addObserver:delegate
-			           selector:@selector(applicationDidDeactivate:)
-			               name:NSWorkspaceDidDeactivateApplicationNotification
-			             object:nil];
+		[center addObserver:delegate
+		           selector:@selector(applicationDidActivate:)
+		               name:NSWorkspaceDidActivateApplicationNotification
+		             object:nil];
 
-			[center addObserver:delegate
-			           selector:@selector(activeSpaceDidChange:)
-			               name:NSWorkspaceActiveSpaceDidChangeNotification
-			             object:nil];
+		[center addObserver:delegate
+		           selector:@selector(applicationDidDeactivate:)
+		               name:NSWorkspaceDidDeactivateApplicationNotification
+		             object:nil];
 
-			// Observe screen parameter changes (display add/remove, resolution changes)
-			[[NSNotificationCenter defaultCenter] addObserver:delegate
-			                                         selector:@selector(screenParametersDidChange:)
-			                                             name:NSApplicationDidChangeScreenParametersNotification
-			                                           object:nil];
-		}
+		[center addObserver:delegate
+		           selector:@selector(activeSpaceDidChange:)
+		               name:NSWorkspaceActiveSpaceDidChangeNotification
+		             object:nil];
+
+		// Observe screen parameter changes (display add/remove, resolution changes)
+		[[NSNotificationCenter defaultCenter] addObserver:delegate
+		                                         selector:@selector(screenParametersDidChange:)
+		                                             name:NSApplicationDidChangeScreenParametersNotification
+		                                           object:nil];
 	});
 }
 
 /// Stop the application watcher
 void stopAppWatcher(void) {
-	if (watcherQueue == nil) {
+	if (watcherQueue == nil)
 		return;
-	}
 
 	dispatch_sync(watcherQueue, ^{
-		if (delegate != nil) {
-			// Cancel any pending debounce timer synchronously
-			dispatch_sync(delegate.timerQueue, ^{
-				if (delegate.debounceTimer) {
-					dispatch_source_cancel(delegate.debounceTimer);
-					delegate.debounceTimer = nil;
-				}
-			});
-			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
-			NSNotificationCenter *center = [workspace notificationCenter];
-			[center removeObserver:delegate];
-			// Remove observer from default center (for screen parameter changes)
-			[[NSNotificationCenter defaultCenter] removeObserver:delegate];
-			delegate = nil; // ARC will handle deallocation
-		}
+		if (delegate == nil)
+			return;
+
+		// Cancel any pending debounce timer synchronously before tearing down
+		dispatch_sync(delegate.timerQueue, ^{
+			if (delegate.debounceTimer) {
+				dispatch_source_cancel(delegate.debounceTimer);
+				delegate.debounceTimer = nil;
+			}
+		});
+
+		// Remove all notification observers
+		NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+		NSNotificationCenter *center = [workspace notificationCenter];
+		[center removeObserver:delegate];
+		[[NSNotificationCenter defaultCenter] removeObserver:delegate];
+
+		delegate = nil;  // ARC will handle deallocation
 	});
 }

@@ -7,6 +7,7 @@
 
 #import "hotkeys.h"
 #import "keymap.h"
+
 #import <Carbon/Carbon.h>
 #import <Cocoa/Cocoa.h>
 
@@ -27,7 +28,7 @@ static dispatch_queue_t hotkeyQueue = nil;
 static void initializeStorage(void) {
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
-		hotkeyRefs = [NSMutableDictionary dictionaryWithCapacity:20]; // Pre-size for typical hotkey count
+		hotkeyRefs = [NSMutableDictionary dictionaryWithCapacity:20];  // Pre-size for typical hotkey count
 		hotkeyCallbacks = [NSMutableDictionary dictionaryWithCapacity:20];
 		hotkeyQueue = dispatch_queue_create("com.neru.hotkeys", DISPATCH_QUEUE_SERIAL);
 
@@ -85,7 +86,7 @@ static OSStatus hotkeyHandler(EventHandlerCallRef nextHandler, EventRef event, v
 int registerHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback callback, void *userData) {
 	initializeStorage();
 
-	// Convert modifiers
+	// Convert modifiers to Carbon format
 	UInt32 carbonModifiers = 0;
 	if (modifiers & ModifierCmd)
 		carbonModifiers |= cmdKey;
@@ -101,7 +102,7 @@ int registerHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback call
 	hotkeyID.signature = 'gvim';
 	hotkeyID.id = hotkeyId;
 
-	// Register hotkey
+	// Register with the system
 	EventHotKeyRef hotkeyRef;
 	OSStatus status =
 	    RegisterEventHotKey(keyCode, carbonModifiers, hotkeyID, GetApplicationEventTarget(), 0, &hotkeyRef);
@@ -130,10 +131,9 @@ void unregisterHotkey(int hotkeyId) {
 		return;
 
 	NSNumber *key = @(hotkeyId);
-
 	__block EventHotKeyRef hotkeyRef = NULL;
 
-	// Get ref (thread-safe)
+	// Retrieve and remove ref (thread-safe)
 	dispatch_sync(hotkeyQueue, ^{
 		NSValue *refValue = hotkeyRefs[key];
 		if (refValue) {
@@ -143,7 +143,7 @@ void unregisterHotkey(int hotkeyId) {
 		}
 	});
 
-	// Unregister outside lock
+	// Unregister outside the lock
 	if (hotkeyRef) {
 		UnregisterEventHotKey(hotkeyRef);
 	}
@@ -156,14 +156,14 @@ void unregisterAllHotkeys(void) {
 
 	__block NSArray *allRefs = nil;
 
-	// Get all refs (thread-safe)
+	// Retrieve and clear all refs (thread-safe)
 	dispatch_sync(hotkeyQueue, ^{
 		allRefs = [hotkeyRefs allValues];
 		[hotkeyRefs removeAllObjects];
 		[hotkeyCallbacks removeAllObjects];
 	});
 
-	// Unregister outside lock
+	// Unregister outside the lock
 	for (NSValue *refValue in allRefs) {
 		EventHotKeyRef hotkeyRef = [refValue pointerValue];
 		UnregisterEventHotKey(hotkeyRef);
@@ -208,15 +208,18 @@ int parseKeyString(const char *keyString, int *keyCode, int *modifiers) {
 			if ([trimmed isEqualToString:@"Cmd"] || [trimmed isEqualToString:@"RightCmd"] ||
 			    [trimmed isEqualToString:@"LeftCmd"]) {
 				*modifiers |= ModifierCmd;
-			} else if ([trimmed isEqualToString:@"Shift"] || [trimmed isEqualToString:@"RightShift"] ||
-			           [trimmed isEqualToString:@"LeftShift"]) {
+			} else if (
+			    [trimmed isEqualToString:@"Shift"] || [trimmed isEqualToString:@"RightShift"] ||
+			    [trimmed isEqualToString:@"LeftShift"]) {
 				*modifiers |= ModifierShift;
-			} else if ([trimmed isEqualToString:@"Alt"] || [trimmed isEqualToString:@"Option"] ||
-			           [trimmed isEqualToString:@"RightAlt"] || [trimmed isEqualToString:@"RightOption"] ||
-			           [trimmed isEqualToString:@"LeftAlt"] || [trimmed isEqualToString:@"LeftOption"]) {
+			} else if (
+			    [trimmed isEqualToString:@"Alt"] || [trimmed isEqualToString:@"Option"] ||
+			    [trimmed isEqualToString:@"RightAlt"] || [trimmed isEqualToString:@"RightOption"] ||
+			    [trimmed isEqualToString:@"LeftAlt"] || [trimmed isEqualToString:@"LeftOption"]) {
 				*modifiers |= ModifierAlt;
-			} else if ([trimmed isEqualToString:@"Ctrl"] || [trimmed isEqualToString:@"RightCtrl"] ||
-			           [trimmed isEqualToString:@"LeftCtrl"]) {
+			} else if (
+			    [trimmed isEqualToString:@"Ctrl"] || [trimmed isEqualToString:@"RightCtrl"] ||
+			    [trimmed isEqualToString:@"LeftCtrl"]) {
 				*modifiers |= ModifierCtrl;
 			} else {
 				mainKey = trimmed;
@@ -226,7 +229,7 @@ int parseKeyString(const char *keyString, int *keyCode, int *modifiers) {
 		if (!mainKey)
 			return 0;
 
-		// Map key names to key codes using shared keymap
+		// Map key name to key code using shared keymap
 		CGKeyCode keyCodeValue = keyNameToCode(mainKey);
 		if (keyCodeValue == 0xFFFF) {
 			return 0;

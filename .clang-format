@@ -16,18 +16,36 @@ AllowShortLoopsOnASingleLine: false
 # Line Length
 ColumnLimit: 120
 
+# Pointers & Qualifiers
+PointerAlignment: Right
+QualifierAlignment: Left
+
 # Spaces
-SpacesBeforeTrailingComments: 1
+SpacesBeforeTrailingComments: 2
 SpacesInContainerLiterals: true
 SpacesInSquareBrackets: false
 SpaceAfterCStyleCast: false
 SpaceBeforeAssignmentOperators: true
 SpaceBeforeParens: ControlStatements
 SpaceInEmptyParentheses: false
-SpacesInParentheses: false
+SpacesInParens: Never
 
-# Wrapping
-AlignAfterOpenBracket: Align
+# Includes
+IncludeBlocks: Regroup
+SortIncludes: CaseSensitive
+
+# Comments
+ReflowComments: true
+
+# Blank Lines & Separation
+SeparateDefinitionBlocks: Always
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: LogicalBlock
+
+# Wrapping & Alignment
+AlignAfterOpenBracket: AlwaysBreak
 AlignConsecutiveAssignments: None
 AlignConsecutiveDeclarations: None
 AlignOperands: Align
@@ -35,13 +53,20 @@ AlignTrailingComments:
     Kind: Always
     OverEmptyLines: 0
 
-# Penalties
-PenaltyBreakBeforeFirstCallParameter: 100
-PenaltyBreakComment: 300
-PenaltyBreakString: 1000
-PenaltyExcessCharacter: 1000000
-PenaltyReturnTypeOnItsOwnLine: 60
+# Ternary & Conditionals
+BreakBeforeTernaryOperators: true
 
 # Objective-C Specific
 ObjCBlockIndentWidth: 4
-ObjCBinPackProtocolList: Auto
+ObjCBinPackProtocolList: Never
+ObjCBreakBeforeNestedBlockParam: true
+
+# Penalties
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakComment: 300
+PenaltyBreakString: 1000
+PenaltyExcessCharacter: 1000000
+PenaltyReturnTypeOnItsOwnLine: 200
+
+# Misc
+InsertTrailingCommas: None

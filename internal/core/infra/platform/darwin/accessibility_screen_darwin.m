@@ -6,14 +6,15 @@
 //
 
 #import "accessibility.h"
+
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - Mission Control Detection State
 
 // State tracking for Mission Control detection
 static bool g_missionControlActive = false;
-static CFAbsoluteTime g_lastDetectionTime = 0;       // Use CFAbsoluteTime (double) instead of NSDate
-static NSTimeInterval g_detectionCacheTimeout = 0.5; // Cache for 500ms
+static CFAbsoluteTime g_lastDetectionTime = 0;        // Use CFAbsoluteTime (double) instead of NSDate
+static NSTimeInterval g_detectionCacheTimeout = 0.5;  // Cache for 500ms
 static id g_spaceChangeObserver = nil;
 static dispatch_queue_t g_detectionQueue = nil;
 
@@ -51,10 +52,12 @@ static bool isCacheValid(void) {
 		os_unfair_lock_unlock(&g_stateLock);
 		return false;
 	}
+
 	// Use CFAbsoluteTimeGetCurrent() - plain C function, no ObjC messaging under lock
 	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
 	NSTimeInterval timeSinceLastUpdate = now - g_lastDetectionTime;
 	bool valid = (timeSinceLastUpdate < g_detectionCacheTimeout);
+
 	os_unfair_lock_unlock(&g_stateLock);
 	return valid;
 }
@@ -70,7 +73,6 @@ CGRect getScrollBounds(void *element) {
 		return rect;
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
-
 	CFTypeRef positionValue = NULL;
 	CFTypeRef sizeValue = NULL;
 
@@ -106,7 +108,6 @@ int scrollAtCursor(int deltaX, int deltaY) {
 	CFRelease(event);
 
 	CGEventRef scrollEvent = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitPixel, 2, deltaY, deltaX);
-
 	if (scrollEvent) {
 		CGEventSetLocation(scrollEvent, cursorPos);
 		CGEventPost(kCGHIDEventTap, scrollEvent);
@@ -125,7 +126,6 @@ int scrollAtCursor(int deltaX, int deltaY) {
 static bool detectMissionControlActive(void) {
 	@autoreleasepool {
 		CFArrayRef windowList = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID);
-
 		if (!windowList) {
 			return false;
 		}
@@ -137,8 +137,8 @@ static bool detectMissionControlActive(void) {
 			return false;
 		}
 
-		// Store all screen sizes for proper multi-monitor detection
-		// This ensures we detect Mission Control windows on screens of any size
+		// Store all screen sizes for proper multi-monitor detection.
+		// This ensures we detect Mission Control windows on screens of any size.
 		NSMutableArray *screenSizes = [NSMutableArray arrayWithCapacity:screens.count];
 		for (NSScreen *screen in screens) {
 			NSValue *sizeValue = [NSValue valueWithSize:screen.frame.size];
@@ -164,14 +164,11 @@ static bool detectMissionControlActive(void) {
 
 			if (ownerName && CFStringCompare(ownerName, CFSTR("Dock"), 0) == kCFCompareEqualTo) {
 				CFStringRef windowName = (CFStringRef)CFDictionaryGetValue(windowInfo, kCGWindowName);
-
 				CFDictionaryRef bounds = (CFDictionaryRef)CFDictionaryGetValue(windowInfo, kCGWindowBounds);
-
 				CFNumberRef windowLayer = (CFNumberRef)CFDictionaryGetValue(windowInfo, kCGWindowLayer);
 
 				if (bounds) {
 					double x = 0, y = 0, w = 0, h = 0;
-
 					CFNumberRef xValue = (CFNumberRef)CFDictionaryGetValue(bounds, CFSTR("X"));
 					CFNumberRef yValue = (CFNumberRef)CFDictionaryGetValue(bounds, CFSTR("Y"));
 					CFNumberRef wValue = (CFNumberRef)CFDictionaryGetValue(bounds, CFSTR("Width"));
@@ -186,8 +183,8 @@ static bool detectMissionControlActive(void) {
 					if (hValue)
 						CFNumberGetValue(hValue, kCFNumberDoubleType, &h);
 
-					// Check if window is fullscreen on ANY connected monitor
-					// This is crucial for multi-monitor setups with different resolutions
+					// Check if window is fullscreen on ANY connected monitor.
+					// This is crucial for multi-monitor setups with different resolutions.
 					bool isFullscreen = false;
 					for (NSValue *sizeValue in screenSizes) {
 						CGSize screenSize = sizeValue.sizeValue;
@@ -219,21 +216,15 @@ static bool detectMissionControlActive(void) {
 
 		// Detection logic:
 		// 1. If Mission Control app window is visible, definitely MC
-		// 2. Otherwise, check for multiple fullscreen Dock windows
+		// 2. Otherwise, check for multiple fullscreen Dock windows:
 		//    - Mission Control with single space: 2 windows (layers 18 and 20)
 		//    - Mission Control with multiple spaces: 3+ windows
-
-		// Require at least 2 fullscreen Dock windows for single monitor
 		int minRequired = 2;
-
 		BOOL result = NO;
 
-		// Primary check: MC app window visible
 		if (missionControlAppVisible) {
 			result = YES;
-		}
-		// Secondary check: Multiple fullscreen Dock windows (2+)
-		else if (fullscreenDockWindows >= minRequired && highLayerDockWindows >= minRequired) {
+		} else if (fullscreenDockWindows >= minRequired && highLayerDockWindows >= minRequired) {
 			result = YES;
 		}
 
@@ -249,25 +240,23 @@ static void updateMissionControlState(void) {
 	});
 }
 
-/// Notification handler for space changes
-/// Triggered by NSWorkspaceActiveSpaceDidChangeNotification
+/// Notification handler for space changes.
+/// Triggered by NSWorkspaceActiveSpaceDidChangeNotification.
 static void spaceDidChangeNotification(NSNotification *notification) {
 	(void)notification;
-	// Immediately update state when space changes
 	updateMissionControlState();
 }
 
-/// Initialize Mission Control detection system
-/// Sets up notification observer and initial state
+/// Initialize Mission Control detection system.
+/// Sets up notification observer and initial state.
 /// Note: Called via dispatch_async from isMissionControlActive, so initialization
-/// is already guarded by the caller's dispatch_once
+/// is already guarded by the caller's dispatch_once.
 static void initializeMissionControlDetection(void) {
 	g_detectionQueue = dispatch_queue_create("com.neru.missioncontrol.detection", DISPATCH_QUEUE_SERIAL);
 
 	// Set up space change notification observer
 	NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
 	NSNotificationCenter *center = [workspace notificationCenter];
-
 	g_spaceChangeObserver = [center addObserverForName:NSWorkspaceActiveSpaceDidChangeNotification
 	                                            object:nil
 	                                             queue:[NSOperationQueue mainQueue]
@@ -275,26 +264,26 @@ static void initializeMissionControlDetection(void) {
 		                                        spaceDidChangeNotification(note);
 	                                        }];
 
-	// Initial detection
+	// Perform initial detection
 	updateMissionControlState();
 }
 
 #pragma mark - Screen Functions
 
-/// Try to detect if Mission Control is currently active
+/// Try to detect if Mission Control is currently active.
 /// Uses a hybrid approach:
 /// 1. NSWorkspaceActiveSpaceDidChangeNotification triggers detection when spaces change
 /// 2. Cached result is returned to avoid expensive window enumeration on every call
 /// 3. Cache expires after 500ms to ensure freshness
 ///
-/// Works on Sequoia 15.1 (Tahoe) and should work on older versions
+/// Works on Sequoia 15.1 (Tahoe) and should work on older versions.
 /// Reference: https://stackoverflow.com/questions/12683225/osx-how-to-detect-if-mission-control-is-running
 ///
 /// @return true if Mission Control is active, false otherwise
 bool isMissionControlActive(void) {
-	// Initialize on first call - must be on main thread for NSNotificationCenter
-	// Use dispatch_async to avoid deadlock in test environments where main queue might be blocked
-	// The notification observer will be set up asynchronously
+	// Initialize on first call — must be on main thread for NSNotificationCenter.
+	// Use dispatch_async to avoid deadlock in test environments where the main queue
+	// might be blocked. The notification observer is set up asynchronously.
 	static dispatch_once_t initToken;
 	dispatch_once(&initToken, ^{
 		dispatch_async(dispatch_get_main_queue(), ^{
@@ -302,15 +291,13 @@ bool isMissionControlActive(void) {
 		});
 	});
 
-	// Check if cache is still valid using thread-safe accessor
+	// Return cached state if still valid
 	if (isCacheValid()) {
 		return getCachedMissionControlState();
 	}
 
-	// Cache expired or not set, do synchronous detection
+	// Cache expired or not yet set — perform synchronous detection and update cache
 	bool result = detectMissionControlActive();
-
-	// Update cache synchronously to ensure consistency
 	setCachedMissionControlState(result);
 
 	return result;
@@ -324,6 +311,7 @@ CGRect getMainScreenBounds(void) {
 		if (!mainScreen) {
 			return CGRectZero;
 		}
+
 		NSRect frame = mainScreen.frame;
 		return NSRectToCGRect(frame);
 	}
@@ -349,20 +337,16 @@ CGRect getActiveScreenBounds(void) {
 		if (!activeScreen) {
 			activeScreen = [NSScreen mainScreen];
 		}
-
 		if (!activeScreen) {
 			return CGRectZero;
 		}
 
-		// Convert NSScreen frame (bottom-left origin, Y up) to CG coordinates (top-left origin, Y down)
-		// This matches the coordinate system used by accessibility APIs
+		// Convert NSScreen frame (bottom-left origin, Y up) to CG coordinates (top-left origin, Y down).
+		// This matches the coordinate system used by accessibility APIs.
 		NSRect nsFrame = activeScreen.frame;
-
-		// Get the primary screen height to flip Y coordinate
 		NSScreen *primaryScreen = [[NSScreen screens] firstObject];
 		CGFloat primaryScreenHeight = primaryScreen.frame.size.height;
 
-		// Convert to CG coordinates
 		CGRect cgFrame;
 		cgFrame.origin.x = nsFrame.origin.x;
 		cgFrame.origin.y = primaryScreenHeight - (nsFrame.origin.y + nsFrame.size.height);
@@ -422,6 +406,7 @@ CGRect getScreenBoundsByName(const char *name, int *found) {
 			return CGRectZero;
 		}
 
+		// Find the screen matching the given name
 		NSScreen *matchedScreen = nil;
 		for (NSScreen *screen in [NSScreen screens]) {
 			if ([screen.localizedName caseInsensitiveCompare:targetName] == NSOrderedSame) {

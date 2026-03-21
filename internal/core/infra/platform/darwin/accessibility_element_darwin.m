@@ -7,6 +7,7 @@
 
 #import "accessibility.h"
 #import "accessibility_visibility.h"
+
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - Element Accessor Functions
@@ -39,6 +40,7 @@ void *getFocusedApplication(void) {
 		NSRunningApplication *front = [NSWorkspace sharedWorkspace].frontmostApplication;
 		if (!front)
 			return NULL;
+
 		pid_t pid = front.processIdentifier;
 		AXUIElementRef axApp = AXUIElementCreateApplication(pid);
 		return (void *)axApp;
@@ -55,9 +57,11 @@ void *getMenuBar(void *app) {
 	AXUIElementRef axApp = (AXUIElementRef)app;
 	AXUIElementRef menubar = NULL;
 	AXError error = AXUIElementCopyAttributeValue(axApp, kAXMenuBarAttribute, (CFTypeRef *)&menubar);
+
 	if (error != kAXErrorSuccess) {
 		return NULL;
 	}
+
 	return (void *)menubar;
 }
 
@@ -80,9 +84,11 @@ void *getApplicationByBundleId(const char *bundle_id) {
 		NSString *bundleIdStr = [NSString stringWithUTF8String:bundle_id];
 		NSArray<NSRunningApplication *> *apps =
 		    [NSRunningApplication runningApplicationsWithBundleIdentifier:bundleIdStr];
+
 		if (apps.count == 0) {
 			return NULL;
 		}
+
 		NSRunningApplication *app = apps.firstObject;
 		pid_t pid = app.processIdentifier;
 		AXUIElementRef axApp = AXUIElementCreateApplication(pid);
@@ -192,6 +198,7 @@ void freeElementInfo(ElementInfo *info) {
 		free(info->role);
 	if (info->roleDescription)
 		free(info->roleDescription);
+
 	free(info);
 }
 
@@ -228,13 +235,12 @@ int getElementCenter(void *element, CGPoint *outPoint) {
 	AXUIElementRef axElement = (AXUIElementRef)element;
 	*outPoint = CGPointZero;
 
+	// Get position
 	CFTypeRef positionRef = NULL;
 	AXError error = AXUIElementCopyAttributeValue(axElement, kAXPositionAttribute, &positionRef);
-
 	if (error != kAXErrorSuccess || !positionRef) {
 		return 0;
 	}
-
 	if (!AXValueGetValue((AXValueRef)positionRef, kAXValueCGPointType, outPoint)) {
 		CFRelease(positionRef);
 		return 0;
@@ -386,7 +392,7 @@ int hasClickAction(void *element) {
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
 
-	// Ignore hidden or disabled elements early
+	// Ignore hidden elements early
 	CFBooleanRef hidden = NULL;
 	if (AXUIElementCopyAttributeValue(axElement, kAXHiddenAttribute, (CFTypeRef *)&hidden) == kAXErrorSuccess &&
 	    hidden) {
@@ -397,6 +403,7 @@ int hasClickAction(void *element) {
 		CFRelease(hidden);
 	}
 
+	// Ignore disabled elements early
 	CFBooleanRef enabled = NULL;
 	bool isEnabled = true;
 	if (AXUIElementCopyAttributeValue(axElement, kAXEnabledAttribute, (CFTypeRef *)&enabled) == kAXErrorSuccess &&
@@ -448,12 +455,14 @@ int hasClickAction(void *element) {
 	    focusable) {
 		if (CFBooleanGetValue(focusable)) {
 			CFRelease(focusable);
+
 			CGPoint center;
 			pid_t pid;
 			bool visible = true;
 			if (getElementCenter((void *)axElement, &center) && AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
 				visible = isPointVisible(center, pid);
 			}
+
 			if (role)
 				CFRelease(role);
 			return visible ? 1 : 0;
@@ -519,8 +528,9 @@ char *getElementAttribute(void *element, const char *attribute) {
 			if (AXValueGetValue((AXValueRef)value, kAXValueCGRectType, &rect)) {
 				result = malloc(128);
 				if (result) {
-					snprintf(result, 128, "{{%.1f, %.1f}, {%.1f, %.1f}}", rect.origin.x, rect.origin.y, rect.size.width,
-					         rect.size.height);
+					snprintf(
+					    result, 128, "{{%.1f, %.1f}, {%.1f, %.1f}}", rect.origin.x, rect.origin.y, rect.size.width,
+					    rect.size.height);
 				}
 			}
 		} else if (valueType == kAXValueCGPointType) {
