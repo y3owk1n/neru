@@ -62,7 +62,7 @@ func runConfigInit(cmd *cobra.Command, force bool) error {
 	cmd.Println("  5. Exit any mode:       Escape")
 	cmd.Println("")
 	cmd.Println("Edit the config file to customize hotkeys, colors, and behavior.")
-	cmd.Println("Full reference: https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md")
+	cmd.Println("Full reference: " + DocsURL("docs/CONFIGURATION.md", Version))
 
 	return nil
 }
