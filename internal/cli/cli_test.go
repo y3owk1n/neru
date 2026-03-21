@@ -30,6 +30,22 @@ func getActionCmd(name string) *cobra.Command {
 	return nil
 }
 
+// Helper to get a subcommand of a named root command.
+func getSubCmd(parentName, childName string) *cobra.Command {
+	parent := getCmd(parentName)
+	if parent == nil {
+		return nil
+	}
+
+	for _, cmd := range parent.Commands() {
+		if cmd.Use == childName {
+			return cmd
+		}
+	}
+
+	return nil
+}
+
 func TestBuildSimpleCommand(t *testing.T) {
 	cmd := cli.BuildSimpleCommand("test", "short desc", "long desc", "action")
 
@@ -166,8 +182,14 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{"action_mouse_up", getActionCmd("mouse_up"), true},
 		{"action_mouse_down", getActionCmd("mouse_down"), true},
 		{"action_middle_click", getActionCmd("middle_click"), true},
+		{"action_move_mouse", getActionCmd("move_mouse"), true},
+		{"action_move_mouse_relative", getActionCmd("move_mouse_relative"), true},
 		{"status", getCmd("status"), true},
 		{"doctor", getCmd("doctor"), true}, // doctor returns silentError when daemon is down
+		{"toggle-screen-share", getCmd("toggle-screen-share"), true},
+		{"recursive_grid", getCmd("recursive_grid"), true},
+		{"config_dump", getSubCmd("config", "dump"), true},
+		{"config_reload", getSubCmd("config", "reload"), true},
 	}
 
 	for _, testCase := range tests {
@@ -188,6 +210,14 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 			}
 		})
 	}
+
+	// NOTE: services subcommands (install, uninstall, start, stop,
+	// restart, status) are intentionally excluded from this test.
+	// On macOS they invoke launchctl and may succeed, fail, or cause
+	// real side-effects (e.g. install writes a plist and loads a
+	// launchd service). On other platforms they return
+	// CodeNotSupported. Their registration is already verified by
+	// TestCommandInitialization.
 }
 
 func TestLaunchCommandExecution(t *testing.T) {
