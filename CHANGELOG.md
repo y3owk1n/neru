@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.29.0](https://github.com/y3owk1n/neru/compare/v1.28.0...v1.29.0) (2026-03-21)
+
+
+### Features
+
+* **cli:** add docs command to open version aware docs ([#617](https://github.com/y3owk1n/neru/issues/617)) ([d4e591b](https://github.com/y3owk1n/neru/commit/d4e591ba09299f56399d164207043d8bb4f3df58))
+* **scroll:** add action key support to scroll mode ([#616](https://github.com/y3owk1n/neru/issues/616)) ([dc7d7b1](https://github.com/y3owk1n/neru/commit/dc7d7b16942cf64f55d82377bae3335c2d016c72))
+
+
+### Bug Fixes
+
+* **config:** allow disabling all hotkeys via empty [hotkeys] section ([#611](https://github.com/y3owk1n/neru/issues/611)) ([ced7236](https://github.com/y3owk1n/neru/commit/ced7236e6b5a80ba6a29487c6618d4e0359c2921))
+* **config:** remove unnecessary defaults for exclusions ([#612](https://github.com/y3owk1n/neru/issues/612)) ([d38e5c8](https://github.com/y3owk1n/neru/commit/d38e5c8981e759c86fd91f6f93206ddb4e226167))
+* **overlay:** make label arrow looking nicer in sizing ([#619](https://github.com/y3owk1n/neru/issues/619)) ([cab1b80](https://github.com/y3owk1n/neru/commit/cab1b80e67849af234a178f98f9230748e2dbc5d))
+* rename bundle binary from `Neru` to `neru` ([#621](https://github.com/y3owk1n/neru/issues/621)) ([ee93475](https://github.com/y3owk1n/neru/commit/ee93475f0b1b9e5fbc5d02d7c5121eb2df927c8d))
+
+
+### Performance Improvements
+
+* **hints:** skip debounce for same-count updates and prevent stale callbacks ([#615](https://github.com/y3owk1n/neru/issues/615)) ([ed1d579](https://github.com/y3owk1n/neru/commit/ed1d579f873deec3cfade1be7df2e9a8683f4838))
+
+
+### Documentation
+
+* add config showcases to documentation from discussion ([947077c](https://github.com/y3owk1n/neru/commit/947077cfaea3157e326fbe2b3b2298dc16c230a3))
+* add homebrew repo link ([d26fd65](https://github.com/y3owk1n/neru/commit/d26fd652e46d1e738458e9a794e9f5afc1c94947))
+* add tips & tricks to documentation from discussion ([bcb2301](https://github.com/y3owk1n/neru/commit/bcb2301f04ddd3373595f9ca04c6b1bdc0cc8fb3))
+* change INFO to NOTE for proper rendering on github ([e65b497](https://github.com/y3owk1n/neru/commit/e65b497cd41c9ead9019341519f27e91444580fb))
+* **cli:** improve readability and add more info ([1f7f571](https://github.com/y3owk1n/neru/commit/1f7f57129be6f4e339de342b756de3711aa6e850))
+* **config:** improve readability and add missing configuration keys ([9c48371](https://github.com/y3owk1n/neru/commit/9c48371a01280aee443f6697fbdb426a959d9dc8))
+
 ## [1.28.0](https://github.com/y3owk1n/neru/compare/v1.27.1...v1.28.0) (2026-03-18)
 
 
