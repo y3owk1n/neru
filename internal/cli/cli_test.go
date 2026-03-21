@@ -83,22 +83,31 @@ func TestBuildActionCommand(t *testing.T) {
 func TestCommandInitialization(t *testing.T) {
 	// Test that global commands are properly initialized
 	expectedCommands := map[string]bool{
-		"start":  false,
-		"stop":   false,
-		"idle":   false,
-		"hints":  false,
-		"grid":   false,
-		"scroll": false,
-		"action": false,
-		"status": false,
-		"doctor": false,
-		"launch": false,
-		"docs":   false,
+		"start":               false,
+		"stop":                false,
+		"idle":                false,
+		"hints":               false,
+		"grid":                false,
+		"scroll":              false,
+		"action":              false,
+		"status":              false,
+		"doctor":              false,
+		"launch":              false,
+		"docs":                false,
+		"config":              false,
+		"services":            false,
+		"toggle-screen-share": false,
+		"recursive_grid":      false,
 	}
 
 	for _, cmd := range cli.RootCmd.Commands() {
 		if _, ok := expectedCommands[cmd.Use]; ok {
 			expectedCommands[cmd.Use] = true
+		} else {
+			t.Errorf(
+				"unexpected command %q registered on RootCmd but not in expectedCommands",
+				cmd.Use,
+			)
 		}
 	}
 
@@ -110,16 +119,23 @@ func TestCommandInitialization(t *testing.T) {
 
 	// Test action subcommands
 	expectedActionSubcommands := map[string]bool{
-		"left_click":   false,
-		"right_click":  false,
-		"mouse_up":     false,
-		"mouse_down":   false,
-		"middle_click": false,
+		"left_click":          false,
+		"right_click":         false,
+		"mouse_up":            false,
+		"mouse_down":          false,
+		"middle_click":        false,
+		"move_mouse":          false,
+		"move_mouse_relative": false,
 	}
 
 	for _, cmd := range cli.ActionCmd.Commands() {
 		if _, ok := expectedActionSubcommands[cmd.Use]; ok {
 			expectedActionSubcommands[cmd.Use] = true
+		} else {
+			t.Errorf(
+				"unexpected action subcommand %q registered on ActionCmd but not in expectedActionSubcommands",
+				cmd.Use,
+			)
 		}
 	}
 
