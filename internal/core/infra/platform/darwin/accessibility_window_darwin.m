@@ -7,6 +7,7 @@
 
 #import "accessibility.h"
 #import "accessibility_visibility.h"
+
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - Focus Functions
@@ -87,17 +88,21 @@ void *getFrontmostWindow(void) {
 		AXUIElementRef appRef = focusedApp;
 		bool shouldReleaseAppRef = false;
 
+		// Fall back to NSWorkspace if AX couldn't find the focused app
 		if (!appRef) {
 			NSRunningApplication *front = [NSWorkspace sharedWorkspace].frontmostApplication;
 			if (!front)
 				return NULL;
+
 			pid_t pid = front.processIdentifier;
 			appRef = AXUIElementCreateApplication(pid);
 			if (!appRef)
 				return NULL;
+
 			shouldReleaseAppRef = true;
 		}
 
+		// Try focused window attribute first (fast path)
 		AXUIElementRef window = NULL;
 		AXError error = AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute, (CFTypeRef *)&window);
 
@@ -106,13 +111,12 @@ void *getFrontmostWindow(void) {
 		}
 
 		if (error == kAXErrorSuccess && window) {
-			if (focusedApp) {
+			if (focusedApp)
 				CFRelease(focusedApp);
-			}
 			return (void *)window;
 		}
 
-		// Fallback: try to get the application's windows list
+		// Fallback: try the application's windows list and return the first entry
 		if (focusedApp) {
 			pid_t pid;
 			if (AXUIElementGetPid(focusedApp, &pid) == kAXErrorSuccess) {
@@ -132,11 +136,13 @@ void *getFrontmostWindow(void) {
 							return (void *)firstWindow;
 						}
 					}
+
 					if (windowsValue)
 						CFRelease(windowsValue);
 					CFRelease(appFromPid);
 				}
 			}
+
 			CFRelease(focusedApp);
 		}
 

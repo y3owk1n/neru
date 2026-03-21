@@ -6,6 +6,7 @@
 //
 
 #import "keymap.h"
+
 #include <stdatomic.h>
 
 #pragma mark - Static Data
@@ -17,8 +18,8 @@ static NSLock *gKeymapLock = nil;
 static NSDictionary<NSString *, NSNumber *> *gSpecialNameToCodeMap = nil;
 static NSDictionary<NSNumber *, NSString *> *gSpecialCodeToNameMap = nil;
 
-/// overall keymaps layout independent and dependent
-/// rebuild on the fly when the keyboard layout changes
+/// overall keymaps (layout-independent and layout-dependent)
+/// rebuilt on the fly when the keyboard layout changes
 static NSDictionary<NSString *, NSNumber *> *gKeyNameToCodeMap = nil;
 static NSDictionary<NSNumber *, NSString *> *gKeyCodeToNameMap = nil;
 static TISInputSourceRef gCurrentInputSource = nil;
@@ -33,8 +34,8 @@ static BOOL gUsesCurrentLayoutFallback = NO;
 /// whether the configured layout ID was resolved successfully (or no explicit ID was set)
 static BOOL gConfiguredInputSourceResolved = YES;
 
-/// cached keycode to char maps with common modifiers like shift and caps
-/// to avoid UCKeyTranslate calls during run
+/// cached keycode-to-char maps for common modifier combinations (shift, caps, shift+caps)
+/// to avoid UCKeyTranslate calls during key event handling
 static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharUnshifted = nil;
 static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharShifted = nil;
 static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharCaps = nil;
@@ -48,14 +49,14 @@ static _Atomic(KeymapLayoutChangeCallback) gLayoutChangeCallback = NULL;
 
 #pragma mark - UCKeyTranslate Helper
 
-/// figure out which character string each virtual keycode maps to
-/// read the physical keyboard layout via TISCopyCurrentKeyboardLayoutInputSource
-
+/// Translate a virtual keycode to a character string using the given keyboard layout.
+/// Uses UCKeyTranslate to respect the active layout while bypassing input methods.
+/// @param keyboardLayout UCKeyboardLayout to translate against
 /// @param keyCode Virtual key code (0-127)
 /// @param modifierState Carbon-style modifier state ((EventRecord.modifiers >> 8) & 0xFF)
 /// @return Character string, or nil if translation fails
-static NSString *translateKeyCodeViaLayout(const UCKeyboardLayout *keyboardLayout, CGKeyCode keyCode,
-                                           UInt32 modifierState) {
+static NSString *translateKeyCodeViaLayout(
+    const UCKeyboardLayout *keyboardLayout, CGKeyCode keyCode, UInt32 modifierState) {
 	if (!keyboardLayout) {
 		return nil;
 	}
@@ -64,9 +65,9 @@ static NSString *translateKeyCodeViaLayout(const UCKeyboardLayout *keyboardLayou
 	UniChar chars[4];
 	UniCharCount actualLength = 0;
 
-	OSStatus status = UCKeyTranslate(keyboardLayout, keyCode, kUCKeyActionDown, modifierState, LMGetKbdType(),
-	                                 kUCKeyTranslateNoDeadKeysBit, &deadKeyState, sizeof(chars) / sizeof(chars[0]),
-	                                 &actualLength, chars);
+	OSStatus status = UCKeyTranslate(
+	    keyboardLayout, keyCode, kUCKeyActionDown, modifierState, LMGetKbdType(), kUCKeyTranslateNoDeadKeysBit,
+	    &deadKeyState, sizeof(chars) / sizeof(chars[0]), &actualLength, chars);
 
 	if (status != noErr || actualLength == 0) {
 		return nil;
@@ -83,7 +84,6 @@ static BOOL inputSourceHasUnicodeLayoutData(TISInputSourceRef inputSource) {
 	}
 
 	CFDataRef layoutData = (CFDataRef)TISGetInputSourceProperty(inputSource, kTISPropertyUnicodeKeyLayoutData);
-
 	return layoutData && CFDataGetLength(layoutData) > 0;
 }
 
@@ -110,7 +110,6 @@ static TISInputSourceRef copyKeyboardLayoutInputSourceByID(NSString *inputSource
 	}
 
 	CFRelease(inputSourceList);
-
 	return matched;
 }
 
@@ -161,7 +160,6 @@ static TISInputSourceRef copyFirstEnglishKeyboardLayoutInputSource(void) {
 	}
 
 	CFRelease(inputSourceList);
-
 	return matched;
 }
 
@@ -189,8 +187,9 @@ static void clearResolvedReferenceInputSourceLocked(void) {
 	gConfiguredInputSourceResolved = YES;
 }
 
-static TISInputSourceRef copyResolvedReferenceInputSource(BOOL *configuredLayoutResolvedOut,
-                                                          BOOL *usesCurrentFallbackOut) {
+static TISInputSourceRef copyResolvedReferenceInputSource(
+    BOOL *configuredLayoutResolvedOut, BOOL *usesCurrentFallbackOut) {
+	// Check cache under lock
 	[gKeymapLock lock];
 	TISInputSourceRef cachedInputSource = gReferenceInputSource;
 	NSString *configuredID = [gConfiguredInputSourceID copy];
@@ -205,14 +204,17 @@ static TISInputSourceRef copyResolvedReferenceInputSource(BOOL *configuredLayout
 		if (configuredLayoutResolvedOut) {
 			*configuredLayoutResolvedOut = cachedConfiguredResolved;
 		}
-
 		if (usesCurrentFallbackOut) {
 			*usesCurrentFallbackOut = cachedUsesCurrentFallback;
 		}
-
 		return cachedInputSource;
 	}
 
+	// Resolution order:
+	// 1. User-configured input source ID
+	// 2. Preferred stable Latin layouts (ABC, US)
+	// 3. First English keyboard layout
+	// 4. Current layout (fallback — unstable across layout switches)
 	NSArray<NSString *> *preferredIDs = @[
 		@"com.apple.keylayout.ABC",
 		@"com.apple.keylayout.US",
@@ -249,6 +251,7 @@ static TISInputSourceRef copyResolvedReferenceInputSource(BOOL *configuredLayout
 		}
 	}
 
+	// Store the resolved source under lock if it wasn't set concurrently
 	[gKeymapLock lock];
 	if (!gReferenceInputSource && resolvedInputSource) {
 		gReferenceInputSource = resolvedInputSource;
@@ -274,7 +277,6 @@ static TISInputSourceRef copyResolvedReferenceInputSource(BOOL *configuredLayout
 	if (configuredLayoutResolvedOut) {
 		*configuredLayoutResolvedOut = finalConfiguredResolved;
 	}
-
 	if (usesCurrentFallbackOut) {
 		*usesCurrentFallbackOut = finalUsesCurrentFallback;
 	}
@@ -284,9 +286,8 @@ static TISInputSourceRef copyResolvedReferenceInputSource(BOOL *configuredLayout
 
 #pragma mark - QWERTY Fallback
 
-/// hardcoded US QWERTY keycode-to-character mapping as fallback
-/// when UCKeyTranslate fails (e.g. missing layout data)
-
+/// Hardcoded US QWERTY keycode-to-character mapping used as fallback
+/// when UCKeyTranslate fails (e.g. missing layout data for CJK IMEs).
 /// @param keyCode Key code
 /// @param flags Event flags (for shift/capslock detection)
 /// @return Character string or nil if not found
@@ -401,8 +402,7 @@ static NSString *keyCodeToCharacterQWERTY(CGKeyCode keyCode, CGEventFlags flags)
 	}
 }
 
-/// hardcoded QWERTY keycode-to-name mapping for fallback
-
+/// Hardcoded QWERTY keycode-to-name mapping used as fallback.
 /// @param keyCode Key code
 /// @return Uppercase key name or nil
 static NSString *keyCodeToNameQWERTY(CGKeyCode keyCode) {
@@ -508,12 +508,11 @@ static NSString *keyCodeToNameQWERTY(CGKeyCode keyCode) {
 
 #pragma mark - Keymap Building
 
-/// build QWERTY-only fallback char maps using the hardcoded tables
-/// used when layout data is unavailable (e.g. CJK IME without underlying layout)
-static void buildQWERTYCharMaps(NSMutableDictionary<NSNumber *, NSString *> *unshifted,
-                                NSMutableDictionary<NSNumber *, NSString *> *shifted,
-                                NSMutableDictionary<NSNumber *, NSString *> *caps,
-                                NSMutableDictionary<NSNumber *, NSString *> *shiftedCaps) {
+/// Build QWERTY-only fallback char maps using the hardcoded tables.
+/// Used when layout data is unavailable (e.g. CJK IME without underlying layout).
+static void buildQWERTYCharMaps(
+    NSMutableDictionary<NSNumber *, NSString *> *unshifted, NSMutableDictionary<NSNumber *, NSString *> *shifted,
+    NSMutableDictionary<NSNumber *, NSString *> *caps, NSMutableDictionary<NSNumber *, NSString *> *shiftedCaps) {
 	for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeMaxPrintable; keyCode++) {
 		NSNumber *key = @(keyCode);
 
@@ -535,10 +534,10 @@ static void buildQWERTYCharMaps(NSMutableDictionary<NSNumber *, NSString *> *uns
 	}
 }
 
-/// populate name/code maps with QWERTY fallback entries
-/// ensures special keys and basic key lookups work even without layout data
-static void buildQWERTYNameMaps(NSMutableDictionary<NSString *, NSNumber *> *nameToCode,
-                                NSMutableDictionary<NSNumber *, NSString *> *codeToName) {
+/// Populate name/code maps with QWERTY fallback entries.
+/// Ensures special keys and basic key lookups work even without layout data.
+static void buildQWERTYNameMaps(
+    NSMutableDictionary<NSString *, NSNumber *> *nameToCode, NSMutableDictionary<NSNumber *, NSString *> *codeToName) {
 	for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeMaxPrintable; keyCode++) {
 		NSString *ch = keyCodeToNameQWERTY(keyCode);
 		if (ch) {
@@ -550,7 +549,7 @@ static void buildQWERTYNameMaps(NSMutableDictionary<NSString *, NSNumber *> *nam
 	}
 }
 
-/// build special key maps which should be layout independent
+/// Build special key maps which are layout-independent.
 static void initializeSpecialKeyMaps(void) {
 	gSpecialNameToCodeMap = [@{
 		// special keys
@@ -603,18 +602,16 @@ static void initializeSpecialKeyMaps(void) {
 		}
 	}];
 
-	// canonicalize duplicate names
+	// Canonicalize duplicate names (Enter -> Return, Backspace -> Delete)
 	codeToName[@(kKeyCodeReturn)] = @"Return";
 	codeToName[@(kKeyCodeDelete)] = @"Delete";
 
 	gSpecialCodeToNameMap = [codeToName copy];
 }
 
-/// layout aware/layout dependent keys
-/// we scan the keycodes via UCKeyTranslate and then merge with the layout
-/// independent keymaps to build the combined keymap to use
-
-/// locks gKeymapLock during build
+/// Build layout-aware (layout-dependent) key maps.
+/// Scans keycodes via UCKeyTranslate and merges with the layout-independent maps.
+/// Locks gKeymapLock during the final map swap.
 static void buildLayoutMaps(void) {
 	@autoreleasepool {
 		NSMutableDictionary<NSString *, NSNumber *> *nameToCode =
@@ -622,7 +619,7 @@ static void buildLayoutMaps(void) {
 		NSMutableDictionary<NSNumber *, NSString *> *codeToName =
 		    [NSMutableDictionary dictionaryWithDictionary:gSpecialCodeToNameMap];
 
-		// cache some keymaps with modifiers for speedyquick lookup
+		// Pre-build modifier-variant char maps to avoid UCKeyTranslate calls at event time
 		NSMutableDictionary<NSNumber *, NSString *> *unshifted = [NSMutableDictionary dictionary];
 		NSMutableDictionary<NSNumber *, NSString *> *shifted = [NSMutableDictionary dictionary];
 		NSMutableDictionary<NSNumber *, NSString *> *caps = [NSMutableDictionary dictionary];
@@ -635,9 +632,10 @@ static void buildLayoutMaps(void) {
 		// Resolve the reference input source once and reuse it until config reload.
 		// This keeps key interpretation stable across active layout switches.
 		TISInputSourceRef inputSource = copyResolvedReferenceInputSource(NULL, NULL);
+
 		if (!inputSource) {
-			// no usable layout source available — populate with QWERTY fallback
-			// so special keys and basic key lookups still work.
+			// No usable layout source — populate with QWERTY fallback so special
+			// keys and basic key lookups still work.
 			buildQWERTYNameMaps(nameToCode, codeToName);
 			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
 
@@ -653,9 +651,11 @@ static void buildLayoutMaps(void) {
 		}
 
 		CFDataRef layoutData = (CFDataRef)TISGetInputSourceProperty(inputSource, kTISPropertyUnicodeKeyLayoutData);
+
 		if (!layoutData) {
-			// layout source exists but has no uchr data
-			// populate with QWERTY fallback, keep previous layout pointer if we had one.
+			// Layout source exists but has no uchr data — populate with QWERTY fallback.
+			// Keep previous gCurrentInputSource/gCurrentKeyboardLayout if we had one
+			// so live UCKeyTranslate fallback remains valid.
 			CFRelease(inputSource);
 			buildQWERTYNameMaps(nameToCode, codeToName);
 			buildQWERTYCharMaps(unshifted, shifted, caps, shiftedCaps);
@@ -667,40 +667,39 @@ static void buildLayoutMaps(void) {
 			gKeyCodeToCharShifted = [shifted copy];
 			gKeyCodeToCharCaps = [caps copy];
 			gKeyCodeToCharShiftedCaps = [shiftedCaps copy];
-			// don't touch gCurrentInputSource/gCurrentKeyboardLayout —
-			// keep previous valid layout for live UCKeyTranslate fallback
 			[gKeymapLock unlock];
 			return;
 		}
 
 		const UCKeyboardLayout *keyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
 
-		// scan printable keycodes and translate via current keyboard layout
+		// Scan printable keycodes and translate via current keyboard layout
 		for (CGKeyCode keyCode = 0; keyCode <= kKeyCodeMaxPrintable; keyCode++) {
-			// skip keycodes already covered by special key maps
+			// Skip keycodes already covered by the special key maps
 			if (gSpecialCodeToNameMap[@(keyCode)]) {
 				continue;
 			}
+
 			NSNumber *key = @(keyCode);
 
 			NSString *ch = translateKeyCodeViaLayout(keyboardLayout, keyCode, 0);
 			if (!ch || ch.length == 0) {
-				// UCKeyTranslate failed use QWERTY fallback
+				// UCKeyTranslate failed — use QWERTY fallback
 				ch = keyCodeToNameQWERTY(keyCode);
 				if (!ch)
 					continue;
 			}
+
 			NSString *upper = ch.uppercaseString;
 			codeToName[key] = upper;
 
-			// add to name -> code mapping if not already present
-			// (the result is that the first keycode wins if it so
-			// happens that multiple keycodes produce the same character)
+			// Add to name -> code mapping if not already present.
+			// The first keycode wins if multiple keycodes produce the same character.
 			if (!nameToCode[upper]) {
 				nameToCode[upper] = key;
 			}
 
-			// char maps (reuse unshifted result)
+			// Build char maps, falling back to QWERTY for each modifier variant
 			unshifted[key] = ch;
 
 			NSString *sh = translateKeyCodeViaLayout(keyboardLayout, keyCode, shiftMod);
@@ -722,7 +721,7 @@ static void buildLayoutMaps(void) {
 				shiftedCaps[key] = sc;
 		}
 
-		// atomic swap combined maps
+		// Atomically swap in the new combined maps
 		NSDictionary *newNameToCode = [nameToCode copy];
 		NSDictionary *newCodeToName = [codeToName copy];
 
@@ -730,14 +729,13 @@ static void buildLayoutMaps(void) {
 		if (gCurrentInputSource) {
 			CFRelease(gCurrentInputSource);
 		}
-		// take ownership of input source so keyboard layout is
-		// valid while gCurrentInputSource lives
+		// Take ownership of input source so the keyboard layout pointer
+		// remains valid for the lifetime of gCurrentInputSource.
 		gCurrentInputSource = inputSource;
 		gCurrentKeyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
 
 		gKeyNameToCodeMap = newNameToCode;
 		gKeyCodeToNameMap = newCodeToName;
-
 		gKeyCodeToCharUnshifted = [unshifted copy];
 		gKeyCodeToCharShifted = [shifted copy];
 		gKeyCodeToCharCaps = [caps copy];
@@ -748,12 +746,13 @@ static void buildLayoutMaps(void) {
 
 #pragma mark - Layout Change Notification
 
-/// triggered by the system when keyboard layout changed to trigger rebuild
+/// Triggered by the system when the keyboard layout changes.
 /// Note: This callback is invoked on the main thread by CFNotificationCenterGetDistributedCenter,
 /// so unsynchronized access to gLayoutChangeDebounceBlock is safe. The debounced block is also
 /// dispatched to the main queue, ensuring all access is serialized on the main thread.
-static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *observer, CFNotificationName name,
-                                        const void *object, CFDictionaryRef userInfo) {
+static void handleKeyboardLayoutChanged(
+    CFNotificationCenterRef center, void *observer, CFNotificationName name, const void *object,
+    CFDictionaryRef userInfo) {
 	[gKeymapLock lock];
 	BOOL shouldRebuild = gUsesCurrentLayoutFallback;
 	[gKeymapLock unlock];
@@ -764,6 +763,7 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 		return;
 	}
 
+	// Debounce: cancel any pending rebuild and schedule a fresh one
 	if (gLayoutChangeDebounceBlock) {
 		dispatch_block_cancel(gLayoutChangeDebounceBlock);
 	}
@@ -776,14 +776,18 @@ static void handleKeyboardLayoutChanged(CFNotificationCenterRef center, void *ob
 		[gKeymapLock unlock];
 
 		buildLayoutMaps();
+
 		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
 		if (cb)
 			cb();
+
 		gLayoutChangeDebounceBlock = nil;
 	});
 
-	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(150 * NSEC_PER_MSEC)), dispatch_get_main_queue(),
-	               gLayoutChangeDebounceBlock);
+	dispatch_after(
+	    dispatch_time(DISPATCH_TIME_NOW, (int64_t)(150 * NSEC_PER_MSEC)), dispatch_get_main_queue(),
+	    gLayoutChangeDebounceBlock);
+
 	// Note: This introduces a 150ms window where keymap queries return stale data.
 	// Tradeoff is acceptable since CJK input methods fire multiple notifications per keystroke,
 	// and users aren't typically typing hotkeys during layout switches.
@@ -796,9 +800,9 @@ static atomic_bool gLayoutMapsInitialized = false;
 
 /// Register notification observer (called once from initializeKeyMaps)
 static void registerLayoutChangeObserver(void) {
-	CFNotificationCenterAddObserver(CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
-	                                kTISNotifySelectedKeyboardInputSourceChanged, NULL,
-	                                CFNotificationSuspensionBehaviorDeliverImmediately);
+	CFNotificationCenterAddObserver(
+	    CFNotificationCenterGetDistributedCenter(), NULL, handleKeyboardLayoutChanged,
+	    kTISNotifySelectedKeyboardInputSourceChanged, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 }
 
 static void initializeKeyMaps(void) {
@@ -808,20 +812,20 @@ static void initializeKeyMaps(void) {
 
 		initializeSpecialKeyMaps();
 
-		// Register observer early, before any layout maps building
+		// Register observer early, before any layout maps are built
 		registerLayoutChangeObserver();
 	});
 }
 
-/// Ensure layout maps are built (must be called after initializeKeyMaps)
-/// Blocks until layout maps are available
+/// Ensure layout maps are built (must be called after initializeKeyMaps).
+/// Blocks until layout maps are available.
 static void ensureLayoutMapsInitialized(void) {
 	if (atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
 		return;
 	}
 
-	// TIS APIs must be called on main thread
-	// Use dispatch_once to ensure single initialization, but dispatch OUTSIDE of it
+	// TIS APIs must be called on the main thread.
+	// Use dispatch_once to ensure single initialization, dispatching OUTSIDE of it.
 	static dispatch_once_t layoutOnceToken;
 	dispatch_once(&layoutOnceToken, ^{
 		if ([NSThread isMainThread]) {
@@ -830,7 +834,7 @@ static void ensureLayoutMapsInitialized(void) {
 		} else {
 			// Dispatch to main thread to build layout maps
 			dispatch_async(dispatch_get_main_queue(), ^{
-				// Guard against double execution if main thread already ran it
+				// Guard against double execution if the main thread already ran it
 				if (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
 					buildLayoutMaps();
 					atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
@@ -839,23 +843,23 @@ static void ensureLayoutMapsInitialized(void) {
 		}
 	});
 
-	// If we're on main thread and not initialized yet, run directly
-	// to avoid deadlock (the async block is queued behind us)
+	// If we're on the main thread and not yet initialized, run directly
+	// to avoid deadlock (the async block is queued behind us).
 	if (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire) && [NSThread isMainThread]) {
 		buildLayoutMaps();
 		atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
 		return;
 	}
 
-	// Poll with timeout for all waiters (semaphore only wakes one)
-	// This allows multiple concurrent background threads to all proceed
-	// once initialization is complete, rather than timing out
+	// Poll with timeout for all waiters.
+	// Allows multiple concurrent background threads to proceed once
+	// initialization is complete, rather than timing out individually.
 	dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC);
 	while (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
 		if (dispatch_time(DISPATCH_TIME_NOW, 0) >= timeout) {
-			break; // Timeout reached
+			break;  // Timeout reached
 		}
-		[NSThread sleepForTimeInterval:0.001]; // 1ms sleep to avoid busy-wait
+		[NSThread sleepForTimeInterval:0.001];  // 1ms sleep to avoid busy-wait
 	}
 }
 
@@ -865,7 +869,6 @@ NSDictionary<NSString *, NSNumber *> *keyNameToCodeMap(void) {
 	initializeKeyMaps();
 	ensureLayoutMapsInitialized();
 
-	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyNameToCodeMap;
 	[gKeymapLock unlock];
@@ -877,7 +880,6 @@ NSDictionary<NSNumber *, NSString *> *keyCodeToNameMap(void) {
 	initializeKeyMaps();
 	ensureLayoutMapsInitialized();
 
-	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyCodeToNameMap;
 	[gKeymapLock unlock];
@@ -893,7 +895,6 @@ CGKeyCode keyNameToCode(NSString *keyName) {
 	initializeKeyMaps();
 	ensureLayoutMapsInitialized();
 
-	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyNameToCodeMap;
 	[gKeymapLock unlock];
@@ -911,7 +912,6 @@ NSString *keyCodeToName(CGKeyCode keyCode) {
 	initializeKeyMaps();
 	ensureLayoutMapsInitialized();
 
-	// lock to prevent conflicts with rebuild
 	[gKeymapLock lock];
 	NSDictionary *map = gKeyCodeToNameMap;
 	[gKeymapLock unlock];
@@ -923,7 +923,7 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	initializeKeyMaps();
 	ensureLayoutMapsInitialized();
 
-	// for special keys layout independent hardcoded values
+	// Layout-independent special keys
 	switch (keyCode) {
 	case kKeyCodeSpace:
 		return @" ";
@@ -932,7 +932,7 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	case kKeyCodeTab:
 		return @"\t";
 
-	// numpad is layout independent
+	// Numpad keys are layout-independent
 	case kKeyCodeNumpadDot:
 		return @".";
 	case kKeyCodeNumpadMultiply:
@@ -974,12 +974,11 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 		break;
 	}
 
-	// attempt layout-aware translation
+	// Attempt layout-aware translation via cached modifier maps
 	BOOL hasShift = (flags & kCGEventFlagMaskShift) != 0;
 	BOOL hasCaps = (flags & kCGEventFlagMaskAlphaShift) != 0;
 
-	// try cached map lookup first
-	// (no modifiers, shift only, caps only, shift+caps) without any UCKeyTranslate calls
+	// Try cached map lookup first (no UCKeyTranslate calls for the four common modifier states)
 	[gKeymapLock lock];
 	NSDictionary *map;
 	if (hasShift && !hasCaps) {
@@ -991,11 +990,10 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	} else {
 		map = gKeyCodeToCharShiftedCaps;
 	}
-
 	const UCKeyboardLayout *layout = gCurrentKeyboardLayout;
 	TISInputSourceRef localSource = gCurrentInputSource;
 	if (localSource)
-		CFRetain(localSource); // keep backing data alive
+		CFRetain(localSource);  // keep backing data alive
 	[gKeymapLock unlock];
 
 	if (map) {
@@ -1007,10 +1005,9 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 		}
 	}
 
-	// live translation based on layout if the modifier
-	// state is not one which we have cached in the map
+	// Live translation for modifier states not covered by the cached maps
 	if (layout) {
-		// build Carbon-style modifier state for UCKeyTranslate
+		// Build Carbon-style modifier state for UCKeyTranslate
 		UInt32 modifierState = 0;
 		if (hasShift) {
 			modifierState |= (shiftKey >> 8) & 0xFF;
@@ -1018,6 +1015,7 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 		if (hasCaps) {
 			modifierState |= (alphaLock >> 8) & 0xFF;
 		}
+
 		NSString *result = translateKeyCodeViaLayout(layout, keyCode, modifierState);
 		if (result && result.length > 0) {
 			if (localSource)
@@ -1029,23 +1027,26 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	if (localSource)
 		CFRelease(localSource);
 
-	// as a last resort
-	// hardcoded US QWERTY fallback if layout translation fails
+	// Last resort: hardcoded US QWERTY fallback
 	return keyCodeToCharacterQWERTY(keyCode, flags);
 }
 
 void refreshKeyboardLayoutMaps(void) {
 	void (^cancelAndRebuild)(void) = ^{
+		// Cancel any pending debounce rebuild before running synchronously
 		if (gLayoutChangeDebounceBlock) {
 			dispatch_block_cancel(gLayoutChangeDebounceBlock);
 			gLayoutChangeDebounceBlock = nil;
 		}
+
 		initializeKeyMaps();
+
 		// Clear cached reference so buildLayoutMaps re-resolves from scratch.
 		// Without this the rebuild would be a no-op when a stable reference is locked.
 		[gKeymapLock lock];
 		clearResolvedReferenceInputSourceLocked();
 		[gKeymapLock unlock];
+
 		buildLayoutMaps();
 
 		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
@@ -1061,6 +1062,7 @@ void refreshKeyboardLayoutMaps(void) {
 }
 
 int setReferenceKeyboardLayout(const char *inputSourceID) {
+	// Normalise input — treat empty string as nil (auto-detect)
 	NSString *trimmedInputSourceID = nil;
 	if (inputSourceID) {
 		trimmedInputSourceID =
@@ -1096,8 +1098,10 @@ int setReferenceKeyboardLayout(const char *inputSourceID) {
 	if ([NSThread isMainThread]) {
 		applyReferenceLayout();
 	} else {
+		// Dispatch to main thread and wait, with a once-guard to prevent double execution
 		NSLock *applyLock = [[NSLock alloc] init];
 		__block BOOL didApply = NO;
+
 		void (^applyReferenceLayoutOnce)(void) = ^{
 			[applyLock lock];
 			BOOL shouldApply = !didApply;
@@ -1119,7 +1123,7 @@ int setReferenceKeyboardLayout(const char *inputSourceID) {
 
 		dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(500 * NSEC_PER_MSEC));
 		if (dispatch_semaphore_wait(completed, timeout) != 0) {
-			// In tests/CLI runs the main queue may not be pumping.
+			// In tests/CLI runs the main queue may not be pumping — run directly
 			applyReferenceLayoutOnce();
 		}
 

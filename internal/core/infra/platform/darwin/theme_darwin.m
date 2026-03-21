@@ -6,6 +6,7 @@
 //
 
 #import "theme.h"
+
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - External Function Declarations
@@ -43,6 +44,7 @@ static ThemeObserver *g_themeObserver = nil;
 int isDarkMode(void) {
 	@autoreleasepool {
 		NSAppearance *appearance = [NSApp effectiveAppearance];
+
 		if (!appearance) {
 			// Fallback: use system defaults
 			NSString *style = [[NSUserDefaults standardUserDefaults] stringForKey:@"AppleInterfaceStyle"];
@@ -58,9 +60,8 @@ int isDarkMode(void) {
 /// Start observing macOS theme changes using KVO on NSApp.effectiveAppearance
 void startThemeObserver(void) {
 	dispatch_async(dispatch_get_main_queue(), ^{
-		if (g_themeObserver != nil) {
-			return; // Already observing
-		}
+		if (g_themeObserver != nil)
+			return;
 
 		g_themeObserver = [[ThemeObserver alloc] init];
 		[NSApp addObserver:g_themeObserver
@@ -73,13 +74,15 @@ void startThemeObserver(void) {
 /// Stop observing macOS theme changes
 void stopThemeObserver(void) {
 	dispatch_async(dispatch_get_main_queue(), ^{
-		if (g_themeObserver != nil) {
-			@try {
-				[NSApp removeObserver:g_themeObserver forKeyPath:@"effectiveAppearance"];
-			} @catch (NSException *exception) {
-				// Observer was already removed or not registered
-			}
-			g_themeObserver = nil;
+		if (g_themeObserver == nil)
+			return;
+
+		@try {
+			[NSApp removeObserver:g_themeObserver forKeyPath:@"effectiveAppearance"];
+		} @catch (NSException *exception) {
+			// Observer was already removed or not registered
 		}
+
+		g_themeObserver = nil;
 	});
 }

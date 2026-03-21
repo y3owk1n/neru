@@ -18,60 +18,60 @@ typedef void *OverlayWindow;
 
 /// Hint style configuration
 typedef struct {
-	int fontSize;           ///< Font size
-	char *fontFamily;       ///< Font family
-	char *backgroundColor;  ///< Background color
-	char *textColor;        ///< Text color
-	char *matchedTextColor; ///< Matched text color
-	char *borderColor;      ///< Border color
-	int borderRadius;       ///< Border radius (-1 = auto)
-	int borderWidth;        ///< Border width
-	int paddingX;           ///< Horizontal padding (-1 = auto)
-	int paddingY;           ///< Vertical padding (-1 = auto)
-	int showArrow;          ///< Show arrow (0 = no arrow, 1 = show arrow)
+	int fontSize;            ///< Font size
+	char *fontFamily;        ///< Font family
+	char *backgroundColor;   ///< Background color
+	char *textColor;         ///< Text color
+	char *matchedTextColor;  ///< Matched text color
+	char *borderColor;       ///< Border color
+	int borderRadius;        ///< Border radius (-1 = auto)
+	int borderWidth;         ///< Border width
+	int paddingX;            ///< Horizontal padding (-1 = auto)
+	int paddingY;            ///< Vertical padding (-1 = auto)
+	int showArrow;           ///< Show arrow (0 = no arrow, 1 = show arrow)
 } HintStyle;
 
 /// Hint data
 typedef struct {
-	char *label;             ///< Hint label
-	CGPoint position;        ///< Hint position
-	CGSize size;             ///< Hint size
-	int matchedPrefixLength; ///< Number of matched characters to highlight
+	char *label;              ///< Hint label
+	CGPoint position;         ///< Hint position
+	CGSize size;              ///< Hint size
+	int matchedPrefixLength;  ///< Number of matched characters to highlight
 } HintData;
 
 /// Grid cell style configuration
 typedef struct {
-	int fontSize;                    ///< Font size
-	char *fontFamily;                ///< Font family
-	char *backgroundColor;           ///< Background color
-	char *labelBackgroundColor;      ///< Label background color
-	char *textColor;                 ///< Text color
-	char *matchedTextColor;          ///< Matched text color
-	char *matchedBackgroundColor;    ///< Matched background color
-	char *matchedBorderColor;        ///< Matched border color
-	char *borderColor;               ///< Border color
-	int borderWidth;                 ///< Border width
-	int drawLabelBackground;         ///< Draw labels with a badge background
-	int labelBackgroundPaddingX;     ///< Label badge horizontal padding (-1 = auto)
-	int labelBackgroundPaddingY;     ///< Label badge vertical padding (-1 = auto)
-	int labelBackgroundBorderRadius; ///< Label badge border radius (-1 = auto)
-	int labelBackgroundBorderWidth;  ///< Label badge border width
-	int subKeyGridCols;              ///< Sub-key preview grid columns (next depth's cols)
-	int subKeyGridRows;              ///< Sub-key preview grid rows (next depth's rows)
-	int drawSubKeyPreview;           ///< Draw miniature key grid inside each cell (1 = yes, 0 = no)
-	int subKeyFontSize;              ///< Font size for sub-key preview labels
-	float subKeyAutohideMultiplier;  ///< Minimum cell size multiplier for sub-key preview autohide (0 = disable)
-	char *subKeyTextColor;           ///< Text color for sub-key preview labels
-	char *subKeyKeys;                ///< Key string for sub-key preview (next depth's keys, uppercased)
+	int fontSize;                     ///< Font size
+	char *fontFamily;                 ///< Font family
+	char *backgroundColor;            ///< Background color
+	char *labelBackgroundColor;       ///< Label background color
+	char *textColor;                  ///< Text color
+	char *matchedTextColor;           ///< Matched text color
+	char *matchedBackgroundColor;     ///< Matched background color
+	char *matchedBorderColor;         ///< Matched border color
+	char *borderColor;                ///< Border color
+	int borderWidth;                  ///< Border width
+	int drawLabelBackground;          ///< Draw labels with a badge background
+	int labelBackgroundPaddingX;      ///< Label badge horizontal padding (-1 = auto)
+	int labelBackgroundPaddingY;      ///< Label badge vertical padding (-1 = auto)
+	int labelBackgroundBorderRadius;  ///< Label badge border radius (-1 = auto)
+	int labelBackgroundBorderWidth;   ///< Label badge border width
+	int subKeyGridCols;               ///< Sub-key preview grid columns (next depth's cols)
+	int subKeyGridRows;               ///< Sub-key preview grid rows (next depth's rows)
+	int drawSubKeyPreview;            ///< Draw miniature key grid inside each cell (1 = yes, 0 = no)
+	int subKeyFontSize;               ///< Font size for sub-key preview labels
+	float subKeyAutohideMultiplier;   ///< Minimum cell size multiplier for sub-key preview autohide (0 = disable)
+	char *subKeyTextColor;            ///< Text color for sub-key preview labels
+	char *subKeyKeys;                 ///< Key string for sub-key preview (next depth's keys, uppercased)
 } GridCellStyle;
 
 /// Grid cell data
 typedef struct {
-	char *label;             ///< Cell label
-	CGRect bounds;           ///< Cell rectangle
-	int isMatched;           ///< Cell matches current input (1 = yes, 0 = no)
-	int isSubgrid;           ///< Cell is part of subgrid (1 = yes, 0 = no)
-	int matchedPrefixLength; ///< Number of matched characters at beginning of label
+	char *label;              ///< Cell label
+	CGRect bounds;            ///< Cell rectangle
+	int isMatched;            ///< Cell matches current input (1 = yes, 0 = no)
+	int isSubgrid;            ///< Cell is part of subgrid (1 = yes, 0 = no)
+	int matchedPrefixLength;  ///< Number of matched characters at beginning of label
 } GridCell;
 
 /// Callback type for async operations
@@ -121,8 +121,9 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix);
 /// @param positionsToRemove Array of hint positions to remove (by matching position)
 /// @param removeCount Number of hints to remove
 /// @param style Hint style (used for new/updated hints)
-void NeruDrawIncrementHints(OverlayWindow window, HintData *hintsToAdd, int addCount, CGPoint *positionsToRemove,
-                            int removeCount, HintStyle style);
+void NeruDrawIncrementHints(
+    OverlayWindow window, HintData *hintsToAdd, int addCount, CGPoint *positionsToRemove, int removeCount,
+    HintStyle style);
 
 /// Set overlay level
 /// @param window Overlay window handle
@@ -150,8 +151,8 @@ void NeruResizeOverlayToActiveScreen(OverlayWindow window);
 /// @param window Overlay window handle
 /// @param callback Completion callback
 /// @param context Callback context
-void NeruResizeOverlayToActiveScreenWithCallback(OverlayWindow window, ResizeCompletionCallback callback,
-                                                 void *context);
+void NeruResizeOverlayToActiveScreenWithCallback(
+    OverlayWindow window, ResizeCompletionCallback callback, void *context);
 
 #pragma mark - Grid Functions
 
@@ -179,7 +180,8 @@ void NeruSetHideUnmatched(OverlayWindow window, int hide);
 /// @param cellsToRemove Array of cell bounds to remove (by matching bounds)
 /// @param removeCount Number of cells to remove
 /// @param style Grid cell style (used for new/updated cells)
-void NeruDrawIncrementGrid(OverlayWindow window, GridCell *cellsToAdd, int addCount, CGRect *cellsToRemove,
-                           int removeCount, GridCellStyle style);
+void NeruDrawIncrementGrid(
+    OverlayWindow window, GridCell *cellsToAdd, int addCount, CGRect *cellsToRemove, int removeCount,
+    GridCellStyle style);
 
-#endif // OVERLAY_H
+#endif  // OVERLAY_H

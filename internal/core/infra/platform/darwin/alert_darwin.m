@@ -6,6 +6,7 @@
 //
 
 #import "alert.h"
+
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - Internal Function Declaration
@@ -44,6 +45,7 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 	NSString *error = errorMessage ? [NSString stringWithUTF8String:errorMessage] : @"Unknown error";
 	NSString *path = configPath ? [NSString stringWithUTF8String:configPath] : @"No config file";
 
+	// Configure alert content
 	NSAlert *alert = [[NSAlert alloc] init];
 	alert.messageText = @"⚠️ Configuration Validation Failed";
 	alert.informativeText =
@@ -51,40 +53,27 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 	                               @"file: %@",
 	                               error, path];
 	alert.alertStyle = NSAlertStyleWarning;
+	alert.icon = [NSImage imageNamed:NSImageNameCaution];
 
 	// Add buttons
 	[alert addButtonWithTitle:@"OK"];
 	[alert addButtonWithTitle:@"Copy Path"];
 
-	// Set icon
-	alert.icon = [NSImage imageNamed:NSImageNameCaution];
-
-	// Ensure alert is on top
+	// Bring alert to front and ensure it receives focus
 	[[alert window] setLevel:NSFloatingWindowLevel];
-
-	// Temporarily switch to Regular policy to grab focus
 	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-
-	// Center the window
 	[[alert window] center];
 	[[alert window] makeKeyAndOrderFront:nil];
-
-	// Activate the app to ensure the alert is visible and focused
 	[NSApp activateIgnoringOtherApps:YES];
 
-	// Run modal
+	// Run modal and revert activation policy once dismissed
 	NSModalResponse response = [alert runModal];
-
-	// Revert to Accessory policy after the modal is dismissed so the
-	// alert stays in the foreground for the entire user interaction.
 	[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 
-	// Check which button was clicked
+	// Handle button response
 	if (response == NSAlertFirstButtonReturn) {
-		// OK button
 		return 1;
 	} else if (response == NSAlertSecondButtonReturn) {
-		// Copy Path button
 		NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
 		[pasteboard clearContents];
 		[pasteboard setString:path forType:NSPasteboardTypeString];
@@ -119,6 +108,7 @@ int showConfigOnboardingAlert(const char *configPath) {
 static int showOnboardingAlertOnMainThread(const char *configPath) {
 	NSString *path = configPath ? [NSString stringWithUTF8String:configPath] : @"~/.config/neru/config.toml";
 
+	// Configure alert content
 	NSAlert *alert = [[NSAlert alloc] init];
 	alert.messageText = @"👋 Welcome to Neru!";
 	alert.informativeText =
@@ -127,25 +117,23 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 	                               path];
 	alert.alertStyle = NSAlertStyleInformational;
 
+	// Add buttons
 	[alert addButtonWithTitle:@"Create Config"];
 	[alert addButtonWithTitle:@"Use Defaults (No Config)"];
 	[alert addButtonWithTitle:@"Quit"];
 
+	// Bring alert to front and ensure it receives focus
 	[[alert window] setLevel:NSFloatingWindowLevel];
-
 	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-
 	[[alert window] center];
 	[[alert window] makeKeyAndOrderFront:nil];
-
 	[NSApp activateIgnoringOtherApps:YES];
 
+	// Run modal and revert activation policy once dismissed
 	NSModalResponse response = [alert runModal];
-
-	// Revert to Accessory policy after the modal is dismissed so the
-	// alert stays in the foreground for the entire user interaction.
 	[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 
+	// Handle button response
 	if (response == NSAlertFirstButtonReturn) {
 		return 1;
 	} else if (response == NSAlertSecondButtonReturn) {
@@ -174,6 +162,7 @@ void showNotification(const char *title, const char *message) {
 		nsMessage = [nsMessage stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
 		nsMessage = [nsMessage stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
 
+		// Launch osascript to post the notification
 		NSTask *task = [[NSTask alloc] init];
 		task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/osascript"];
 		task.arguments = @[
@@ -185,6 +174,7 @@ void showNotification(const char *title, const char *message) {
 			NSLog(@"Neru: Failed to show notification: %@", error);
 			return;
 		}
+
 		[task waitUntilExit];
 		if (task.terminationStatus != 0) {
 			NSLog(@"Neru: osascript failed with status %d", task.terminationStatus);

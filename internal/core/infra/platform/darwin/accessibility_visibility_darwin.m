@@ -7,6 +7,7 @@
 
 #import "accessibility_constants.h"
 #import "accessibility_visibility.h"
+
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - Visibility Functions
@@ -25,15 +26,13 @@ bool isPointVisible(CGPoint point, pid_t elementPid) {
 	CFRelease(systemWide);
 
 	if (error != kAXErrorSuccess || !elementAtPoint) {
-		return true; // Assume visible if we can't check
+		return true;  // Assume visible if we can't check
 	}
 
-	// Get the PID of the element at this point
+	// The point is visible if it belongs to the same application
 	pid_t pidAtPoint;
 	bool isVisible = false;
-
 	if (AXUIElementGetPid(elementAtPoint, &pidAtPoint) == kAXErrorSuccess) {
-		// The point is visible if it belongs to the same application
 		isVisible = (pidAtPoint == elementPid);
 	}
 
@@ -48,11 +47,10 @@ bool isPointVisible(CGPoint point, pid_t elementPid) {
 static bool isElementOccluded(CGRect elementRect, pid_t elementPid) {
 	// Sample 5 points: center and 4 corners (slightly inset)
 	CGFloat inset = kNeruVisibilityInsetPoints;
-
 	CGPoint samplePoints[5] = {
 	    // Center
-	    CGPointMake(elementRect.origin.x + elementRect.size.width / 2,
-	                elementRect.origin.y + elementRect.size.height / 2),
+	    CGPointMake(
+	        elementRect.origin.x + elementRect.size.width / 2, elementRect.origin.y + elementRect.size.height / 2),
 	    // Top-left
 	    CGPointMake(elementRect.origin.x + inset, elementRect.origin.y + inset),
 	    // Top-right
@@ -60,21 +58,22 @@ static bool isElementOccluded(CGRect elementRect, pid_t elementPid) {
 	    // Bottom-left
 	    CGPointMake(elementRect.origin.x + inset, elementRect.origin.y + elementRect.size.height - inset),
 	    // Bottom-right
-	    CGPointMake(elementRect.origin.x + elementRect.size.width - inset,
-	                elementRect.origin.y + elementRect.size.height - inset)};
+	    CGPointMake(
+	        elementRect.origin.x + elementRect.size.width - inset,
+	        elementRect.origin.y + elementRect.size.height - inset)};
 
-	// Element is considered visible if at least 2 sample points are visible
+	// Element is considered visible if at least kNeruMinVisibleSamplePoints are visible
 	int visiblePoints = 0;
 	for (int i = 0; i < 5; i++) {
 		if (isPointVisible(samplePoints[i], elementPid)) {
 			visiblePoints++;
 			if (visiblePoints >= kNeruMinVisibleSamplePoints) {
-				return false; // Not occluded
+				return false;  // Not occluded
 			}
 		}
 	}
 
-	return true; // Occluded (less than 2 points visible)
+	return true;  // Occluded (fewer than kNeruMinVisibleSamplePoints visible)
 }
 
 #pragma mark - String Conversion Functions
@@ -88,6 +87,7 @@ char *cfStringToCString(CFStringRef cfStr) {
 
 	CFIndex length = CFStringGetLength(cfStr);
 	CFIndex maxSize = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8) + 1;
+
 	char *buffer = (char *)malloc(maxSize);
 	if (!buffer)
 		return NULL;
