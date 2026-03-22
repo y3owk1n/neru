@@ -868,6 +868,13 @@ func (c *Config) ValidateStickyModifiers() error {
 		)
 	}
 
+	if c.StickyModifiers.TapCooldown < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"sticky_modifiers.tap_cooldown must be non-negative",
+		)
+	}
+
 	err := validateMinValue(
 		c.StickyModifiers.UI.FontSize,
 		1,

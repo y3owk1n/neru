@@ -7,10 +7,17 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
 const modifierTogglePrefix = "__modifier_"
+
+// modifierToggleDebounce is the delay between a modifier key-up and the actual
+// sticky toggle. This allows remapped keys (e.g., Karabiner Option+h → Left)
+// to arrive and cancel the pending toggle before it fires. 50ms is long enough
+// for the remapped key event to arrive but short enough to feel instantaneous.
+const modifierToggleDebounce = 50 * time.Millisecond
 
 var modifierToggleMap = map[string]action.Modifiers{
 	"cmd":   action.ModCmd,
@@ -92,13 +99,24 @@ func (h *Handler) handleModifierToggle(key string) bool {
 			h.pendingModifierKeys = make(map[string]time.Time)
 		}
 
+		// If a debounce timer is already running for this modifier (rapid
+		// double-tap within the debounce window), stop it so the old callback
+		// doesn't consume the new pending entry when it fires.
+		if h.pendingModifierTimers != nil {
+			if existingTimer, exists := h.pendingModifierTimers[normalizedKey]; exists {
+				existingTimer.Stop()
+				delete(h.pendingModifierTimers, normalizedKey)
+			}
+		}
+
 		h.pendingModifierKeys[normalizedKey] = time.Now()
 		h.logger.Debug("Modifier key down", zap.String("key", normalizedKey))
 
 		return true
 	}
 
-	// Key up — toggle only if the matching down is still pending.
+	// Key up — schedule a debounced toggle only if the matching down is still pending.
+	// The debounce allows remapped keys (e.g., Karabiner) to cancel the pending toggle.
 	expectedDown := strings.TrimSuffix(normalizedKey, "_up") + "_down"
 	downTime, pending := h.pendingModifierKeys[expectedDown]
 
@@ -110,12 +128,12 @@ func (h *Handler) handleModifierToggle(key string) bool {
 		return true
 	}
 
-	delete(h.pendingModifierKeys, expectedDown)
-
-	// If a tap-max-duration is configured, reject holds that exceeded it.
+	// If a tap-max-duration is configured, reject holds that exceeded it
+	// before even scheduling the debounce.
 	if maxDur := h.config.StickyModifiers.TapMaxDuration; maxDur > 0 {
 		elapsed := time.Since(downTime)
 		if elapsed > time.Duration(maxDur)*time.Millisecond {
+			delete(h.pendingModifierKeys, expectedDown)
 			h.logger.Debug("Modifier tap rejected (held too long)",
 				zap.String("modifier", mod.String()),
 				zap.Duration("held", elapsed),
@@ -125,18 +143,138 @@ func (h *Handler) handleModifierToggle(key string) bool {
 		}
 	}
 
-	newModifiers := h.modifierState.Toggle(mod)
-	h.logger.Debug("Sticky modifier toggled",
-		zap.String("modifier", mod.String()),
-		zap.String("state", newModifiers.String()))
+	// Schedule a debounced toggle. The pending down entry stays in the map so
+	// that a regular key press arriving during the debounce window can cancel
+	// it via cancelPendingModifierToggle.
+	h.scheduleModifierToggle(expectedDown, mod)
 
 	return true
+}
+
+// scheduleModifierToggle starts a debounce timer that will toggle the given
+// modifier after modifierToggleDebounce unless canceled by a regular key press.
+func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifiers) {
+	if h.pendingModifierTimers == nil {
+		h.pendingModifierTimers = make(map[string]*time.Timer)
+	}
+
+	// Cancel any existing timer for this modifier (shouldn't happen, but be safe).
+	if existingTimer, exists := h.pendingModifierTimers[expectedDown]; exists {
+		existingTimer.Stop()
+	}
+
+	timerSession := h.modeSession
+
+	// Capture the down-time that this timer corresponds to. If a rapid
+	// double-tap overwrites pendingModifierKeys with a newer timestamp
+	// while this timer's goroutine is waiting for h.mu, the callback can
+	// detect the mismatch and bail out instead of consuming the new entry.
+	scheduledDownTime := h.pendingModifierKeys[expectedDown]
+
+	h.logger.Debug("Scheduling modifier toggle debounce",
+		zap.String("modifier", mod.String()),
+		zap.Duration("delay", modifierToggleDebounce))
+
+	timer := time.AfterFunc(modifierToggleDebounce, func() {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		defer h.notifyDebounceComplete()
+
+		// Guard against stale timer: if the mode session changed (user exited
+		// and re-entered a mode) while we were waiting, this timer belongs to
+		// a previous session and must not toggle anything. The primary cleanup
+		// path (cancelPendingModifierToggle via setAppModeLocked) already
+		// stops timers and nils pendingModifierKeys, but this check provides
+		// defense-in-depth in case a timer fires between the mode exit and the
+		// cancel — matching the pattern used by refreshHintsTimer.
+		if h.modeSession != timerSession {
+			delete(h.pendingModifierTimers, expectedDown)
+
+			return
+		}
+
+		// If the pending down was already canceled (by a regular key press),
+		// the entry will be gone from the map — do nothing.
+		downTime, stillPending := h.pendingModifierKeys[expectedDown]
+		if !stillPending {
+			h.logger.Debug("Modifier toggle debounce canceled (regular key intervened)",
+				zap.String("modifier", mod.String()))
+
+			delete(h.pendingModifierTimers, expectedDown)
+
+			return
+		}
+
+		// Guard against a rapid double-tap: if a new key-down overwrote the
+		// pending entry while this timer was waiting for h.mu, the stored
+		// timestamp will differ from the one we captured at scheduling time.
+		// Bail out so the newer tap's timer handles the toggle instead.
+		if !downTime.Equal(scheduledDownTime) {
+			h.logger.Debug("Modifier toggle debounce skipped (stale timer from rapid double-tap)",
+				zap.String("modifier", mod.String()))
+			delete(h.pendingModifierTimers, expectedDown)
+
+			return
+		}
+
+		// Suppress toggle if a regular key was pressed shortly before the
+		// modifier went down. We measure relative to the modifier-down time
+		// (not "now") so that long modifier holds don't defeat the cooldown.
+		// This catches both rapid Karabiner usage and ghost modifier events
+		// where Karabiner's internal timeout (~250ms) elapses.
+		// Only applied when tap_cooldown > 0 in config (default 0 = disabled).
+		cooldownMs := config.DefaultStickyModifiersTapCooldown
+		if h.config != nil {
+			cooldownMs = h.config.StickyModifiers.TapCooldown
+		}
+
+		if cooldownMs > 0 && !h.lastRegularKeyTime.IsZero() &&
+			downTime.Sub(h.lastRegularKeyTime) < time.Duration(cooldownMs)*time.Millisecond {
+			h.logger.Debug("Modifier toggle suppressed (key activity before modifier press)",
+				zap.String("modifier", mod.String()),
+				zap.Duration("key_to_mod_gap", downTime.Sub(h.lastRegularKeyTime)),
+				zap.Int("cooldownMs", cooldownMs))
+
+			delete(h.pendingModifierKeys, expectedDown)
+			delete(h.pendingModifierTimers, expectedDown)
+
+			return
+		}
+
+		delete(h.pendingModifierKeys, expectedDown)
+		delete(h.pendingModifierTimers, expectedDown)
+
+		newModifiers := h.modifierState.Toggle(mod)
+		h.logger.Debug("Sticky modifier toggled (after debounce)",
+			zap.String("modifier", mod.String()),
+			zap.String("state", newModifiers.String()))
+	})
+
+	h.pendingModifierTimers[expectedDown] = timer
+}
+
+// notifyDebounceComplete sends a non-blocking signal on debounceNotify so
+// tests can synchronize with the timer callback. In production the channel
+// is nil and this is a no-op.
+func (h *Handler) notifyDebounceComplete() {
+	if h.debounceNotify != nil {
+		select {
+		case h.debounceNotify <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func (h *Handler) cancelPendingModifierToggle() {
 	if len(h.pendingModifierKeys) > 0 {
 		h.pendingModifierKeys = nil
 		h.logger.Debug("Modifier tap canceled")
+	}
+
+	// Stop all debounce timers so the toggle callback finds no pending entry.
+	for key, timer := range h.pendingModifierTimers {
+		timer.Stop()
+		delete(h.pendingModifierTimers, key)
 	}
 }
 

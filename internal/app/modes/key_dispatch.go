@@ -2,6 +2,7 @@ package modes
 
 import (
 	"strings"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
@@ -15,7 +16,9 @@ func (h *Handler) HandleKeyPress(key string) {
 	// Cancel any pending modifier toggle if a non-modifier key is pressed
 	// This handles the case where Shift+L is pressed - the modifier tap
 	// is canceled when L comes in
-	if len(h.pendingModifierKeys) > 0 && !strings.HasPrefix(key, modifierTogglePrefix) {
+	if !strings.HasPrefix(key, modifierTogglePrefix) {
+		h.lastRegularKeyTime = time.Now()
+
 		h.cancelPendingModifierToggle()
 	}
 

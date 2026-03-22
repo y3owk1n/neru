@@ -83,8 +83,19 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 					continue
 				}
 
+				// Use TryLock to avoid deadlocking with stopIndicatorPolling,
+				// which is called while h.mu is held (e.g. exitModeLocked →
+				// performCommonCleanup → stopIndicatorPolling blocks on
+				// indicatorDoneCh). If the lock is contended, skip this tick.
+				if !h.mu.TryLock() {
+					continue
+				}
+				showModeInd := h.shouldShowModeIndicator(h.appState.CurrentMode())
+				stickyEnabled := h.stickyModifiersEnabled()
+				h.mu.Unlock()
+
 				// Mode indicator: show and draw when enabled, hide otherwise.
-				if h.shouldShowModeIndicator(h.appState.CurrentMode()) {
+				if showModeInd {
 					if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
 						ind.Show()
 					}
@@ -97,7 +108,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 
 				// Sticky modifiers indicator: show and draw when modifiers
 				// are active, hide otherwise.
-				if h.stickyModifiersEnabled() {
+				if stickyEnabled {
 					if h.stickyModifiers() != 0 {
 						if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 							stickyInd.Show()

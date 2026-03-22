@@ -90,7 +90,10 @@ type Handler struct {
 
 	// Pending modifier key for tap detection (down/up without intervening keys)
 	pendingModifierKeys    map[string]time.Time
-	modifierDetectionArmed bool // true once all modifiers have been released after mode entry
+	pendingModifierTimers  map[string]*time.Timer // debounce timers for delayed sticky toggle
+	modifierDetectionArmed bool                   // true once all modifiers have been released after mode entry
+	lastRegularKeyTime     time.Time              // timestamp of the last non-modifier key press
+	debounceNotify         chan struct{}          // test-only: signaled when a debounce callback completes
 
 	// Indicator polling (shared by all modes)
 	indicatorTicker *time.Ticker
