@@ -278,6 +278,24 @@ package = pkgs.neru-source.overrideAttrs (_: {
 });
 ```
 
+### Codesign for source build
+
+If you're using the `neru-source` package, you'll need to codesign the binary for macOS.
+
+Below is an example Home Manager module that codesigns the Neru app bundle:
+
+```nix
+postActivation = {
+ text = ''
+  # codesign Neru.app
+  if [ -e "/Users/${username}/Applications/Home Manager Apps/Neru.app" ]; then
+   /usr/bin/codesign --force --deep --sign - --timestamp=none "/Users/${username}/Applications/Home Manager Apps/Neru.app"
+   echo "Codesign Neru.app..."
+  fi
+ '';
+};
+```
+
 ---
 
 ## Method 3: From Source
