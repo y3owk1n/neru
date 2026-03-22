@@ -47,8 +47,5 @@
 
 	<key>NSAccessibilityUsageDescription</key>
 	<string>Requires accessibility access</string>
-
-	<key>NSUserNotificationsUsageDescription</key>
-	<string>Neru uses notifications to alert you about mode changes, secure input detection, and configuration issues.</string>
 </dict>
 </plist>
