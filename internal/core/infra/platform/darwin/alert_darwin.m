@@ -185,6 +185,8 @@ static BOOL _notificationSetupDone = NO;
 /// Completions arriving before the first authorization response are queued and
 /// drained once the result is known. Subsequent calls dispatch immediately.
 static void ensureNotificationSetup(void (^completion)(BOOL authorized)) {
+	// Static to ensure the delegate lives for the program's lifetime —
+	// UNUserNotificationCenter.delegate is weak and would silently nil out otherwise.
 	static NeruNotificationDelegate *delegate = nil;
 	static dispatch_once_t onceToken;
 
