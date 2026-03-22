@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.29.1](https://github.com/y3owk1n/neru/compare/v1.29.0...v1.29.1) (2026-03-22)
+
+
+### Bug Fixes
+
+* **alert:** use UserNotifications framework for alert if possible ([#628](https://github.com/y3owk1n/neru/issues/628)) ([5ebadd0](https://github.com/y3owk1n/neru/commit/5ebadd0d24f5bf6c5e412cbeedaeb99b453bc3f1))
+* **nix:** use `open` with flags instead of running the binary in launch agent ([#629](https://github.com/y3owk1n/neru/issues/629)) ([ae635f8](https://github.com/y3owk1n/neru/commit/ae635f82fa1931ab549c5a2d714ff978eed4ae0c))
+* **sticky_modifier:** add debounce and cooldown to prevent Karabiner conflicts ([#625](https://github.com/y3owk1n/neru/issues/625)) ([9052dee](https://github.com/y3owk1n/neru/commit/9052dee490f2c20fa250346952df51cd4f5e91c6))
+* **sticky_modifier:** emit physical key events when toggled ([#627](https://github.com/y3owk1n/neru/issues/627)) ([1a3ecb1](https://github.com/y3owk1n/neru/commit/1a3ecb168e2a39863249adc9806da455a4f159f9))
+
 ## [1.29.0](https://github.com/y3owk1n/neru/compare/v1.28.0...v1.29.0) (2026-03-21)
 
 
