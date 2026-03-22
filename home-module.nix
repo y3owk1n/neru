@@ -46,7 +46,7 @@ in
               status will be a non-zero number, for example:
               `-	1	org.nix-community.home.neru`
 
-            In case of failure, check the logs with `cat /tmp/neru.err.log`.
+            In case of failure, check the logs with `cat ~/Library/Logs/neru/app.log`.
 
             For more detailed service status, run `launchctl print gui/$(id -u)/org.nix-community.home.neru`.
           '';
@@ -83,8 +83,6 @@ in
         ];
         RunAtLoad = true;
         KeepAlive = cfg.launchd.keepAlive;
-        StandardOutPath = "/tmp/neru.log";
-        StandardErrorPath = "/tmp/neru.err.log";
         ProcessType = "Interactive";
         LimitLoadToSessionType = "Aqua";
         Nice = -10;
