@@ -83,9 +83,13 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 					continue
 				}
 
-				// Snapshot config-dependent flags under the lock so we don't
-				// race with UpdateConfig which writes h.config under h.mu.
-				h.mu.Lock()
+				// Use TryLock to avoid deadlocking with stopIndicatorPolling,
+				// which is called while h.mu is held (e.g. exitModeLocked →
+				// performCommonCleanup → stopIndicatorPolling blocks on
+				// indicatorDoneCh). If the lock is contended, skip this tick.
+				if !h.mu.TryLock() {
+					continue
+				}
 				showModeInd := h.shouldShowModeIndicator(h.appState.CurrentMode())
 				stickyEnabled := h.stickyModifiersEnabled()
 				h.mu.Unlock()
