@@ -82,7 +82,7 @@ const plistTemplateBinary = `<?xml version="1.0" encoding="UTF-8"?>
     <key>StandardOutPath</key>
     <string>/tmp/neru.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/neru.err</string>
+    <string>/tmp/neru.err.log</string>
 	<key>ProcessType</key>
     <string>Interactive</string>
     <key>LimitLoadToSessionType</key>
