@@ -19,7 +19,47 @@ const (
 	plistFile       = launchAgentsDir + "/" + serviceLabel + ".plist"
 )
 
-const plistTemplate = `<?xml version="1.0" encoding="UTF-8"?>
+// plistTemplateAppBundle is used when the binary is inside a .app bundle.
+// It launches via /usr/bin/open so macOS associates accessibility permissions
+// with the app bundle rather than the raw binary.
+const plistTemplateAppBundle = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.y3owk1n.neru</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/open</string>
+        <string>-W</string>
+        <string>-a</string>
+        <string>NERU_APP_PATH</string>
+        <string>--args</string>
+        <string>launch</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+	<key>ProcessType</key>
+    <string>Interactive</string>
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+    <key>Nice</key>
+    <integer>-10</integer>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>`
+
+// plistTemplateBinary is used when the binary is a standalone executable
+// (not inside a .app bundle). It invokes the binary directly.
+const plistTemplateBinary = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -70,6 +110,11 @@ func getBinaryPath() (string, error) {
 	return filepath.EvalSymlinks(execPath)
 }
 
+func getAppPath(binPath string) string {
+	// The binary lives at <app>/Contents/MacOS/Neru; walk up 3 levels.
+	return filepath.Dir(filepath.Dir(filepath.Dir(binPath)))
+}
+
 func isServiceLoaded() bool {
 	cmd := exec.CommandContext(context.Background(), "launchctl", "list", serviceLabel)
 
@@ -87,8 +132,15 @@ func installService() error {
 		return fmt.Errorf("failed to get binary path: %w", err)
 	}
 
-	// Replace placeholder in template
-	plistContent := strings.ReplaceAll(plistTemplate, "NERU_BINARY_PATH", binPath)
+	// When running from an app bundle, use `open -W -a` so macOS associates
+	// accessibility permissions with the bundle. Otherwise invoke the binary directly.
+	var plistContent string
+	if isRunningFromAppBundle() {
+		appPath := getAppPath(binPath)
+		plistContent = strings.ReplaceAll(plistTemplateAppBundle, "NERU_APP_PATH", appPath)
+	} else {
+		plistContent = strings.ReplaceAll(plistTemplateBinary, "NERU_BINARY_PATH", binPath)
+	}
 
 	// Expand launchAgentsDir
 	expandedDir, err := expandPath(launchAgentsDir)
