@@ -110,9 +110,41 @@ func getBinaryPath() (string, error) {
 	return filepath.EvalSymlinks(execPath)
 }
 
-func getAppPath(binPath string) string {
-	// The binary lives at <app>/Contents/MacOS/Neru; walk up 3 levels.
-	return filepath.Dir(filepath.Dir(filepath.Dir(binPath)))
+// findAppBundle locates a Neru.app bundle relative to the resolved binary path.
+// It checks two locations:
+//  1. The binary is inside the bundle: <prefix>/Neru.app/Contents/MacOS/neru
+//     → walk up 3 levels.
+//  2. The binary is a sibling: <prefix>/bin/neru with the bundle at
+//     <prefix>/Applications/Neru.app (typical Nix / Homebrew layout).
+//
+// Returns the .app path and true if a valid bundle is found, or ("", false).
+func findAppBundle(binPath string) (string, bool) {
+	// Case 1: binary lives inside the .app bundle.
+	ancestor := filepath.Dir(filepath.Dir(filepath.Dir(binPath)))
+	if strings.HasSuffix(ancestor, ".app") && isValidAppBundle(ancestor) {
+		return ancestor, true
+	}
+
+	// Case 2: binary is at <prefix>/bin/neru; bundle is at <prefix>/Applications/Neru.app.
+	prefix := filepath.Dir(filepath.Dir(binPath)) // <prefix>/bin/neru → <prefix>
+	sibling := filepath.Join(prefix, "Applications", "Neru.app")
+	if isValidAppBundle(sibling) {
+		return sibling, true
+	}
+
+	return "", false
+}
+
+// isValidAppBundle returns true when path ends with ".app" and contains
+// a Contents/MacOS directory.
+func isValidAppBundle(path string) bool {
+	if !strings.HasSuffix(path, ".app") {
+		return false
+	}
+
+	info, err := os.Stat(filepath.Join(path, "Contents", "MacOS"))
+
+	return err == nil && info.IsDir()
 }
 
 func isServiceLoaded() bool {
@@ -132,11 +164,11 @@ func installService() error {
 		return fmt.Errorf("failed to get binary path: %w", err)
 	}
 
-	// When running from an app bundle, use `open -W -a` so macOS associates
-	// accessibility permissions with the bundle. Otherwise invoke the binary directly.
+	// When an .app bundle is available, use `open -W -a` so macOS associates
+	// accessibility permissions with the bundle rather than the raw binary.
+	// Otherwise invoke the binary directly.
 	var plistContent string
-	if isRunningFromAppBundle() {
-		appPath := getAppPath(binPath)
+	if appPath, ok := findAppBundle(binPath); ok {
 		plistContent = strings.ReplaceAll(plistTemplateAppBundle, "NERU_APP_PATH", appPath)
 	} else {
 		plistContent = strings.ReplaceAll(plistTemplateBinary, "NERU_BINARY_PATH", binPath)
