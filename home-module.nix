@@ -72,6 +72,10 @@ in
     # When launched via `open -W -a`, launchd only manages the `open` wrapper;
     # the actual Neru process must be terminated explicitly so the new version
     # starts after `home-manager switch`.
+    #
+    # NOTE: home-manager has no dedicated "reloadLaunchd" DAG entry on macOS.
+    # We anchor before "reloadSystemd" (a no-op on darwin) to run late in the
+    # activation sequence, before launchd picks up the updated plist.
     home.activation.neruPreRestart = lib.hm.dag.entryBefore [ "reloadSystemd" ] ''
       if /usr/bin/pgrep -xq neru 2>/dev/null; then
         /usr/bin/osascript -e 'tell application "Neru" to quit' 2>/dev/null || true
