@@ -8,6 +8,7 @@
 #import "alert.h"
 
 #import <Cocoa/Cocoa.h>
+#import <CommonCrypto/CommonDigest.h>
 #import <UserNotifications/UserNotifications.h>
 
 #pragma mark - Internal Function Declaration
@@ -248,8 +249,18 @@ void showNotification(const char *title, const char *message) {
 /// Generates a deterministic identifier for notification coalescing.
 /// Notifications with the same title AND message will replace each other instead
 /// of stacking, while distinct messages (even under the same title) are shown separately.
+/// Uses a SHA-256 hash to avoid ambiguous separator collisions between different
+/// title/message pairs (e.g. title="a.b" + message="c" vs title="a" + message="b.c").
 static NSString *notificationIdentifierForContent(NSString *title, NSString *message) {
-	return [NSString stringWithFormat:@"neru.notification.%@.%@", title, message];
+	NSString *combined = [NSString stringWithFormat:@"%@\x1F%@", title, message];
+	NSData *data = [combined dataUsingEncoding:NSUTF8StringEncoding];
+	unsigned char hash[CC_SHA256_DIGEST_LENGTH];
+	CC_SHA256(data.bytes, (CC_LONG)data.length, hash);
+	NSMutableString *hex = [NSMutableString stringWithCapacity:CC_SHA256_DIGEST_LENGTH * 2];
+	for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) {
+		[hex appendFormat:@"%02x", hash[i]];
+	}
+	return [NSString stringWithFormat:@"neru.notification.%@", hex];
 }
 
 static void showNotificationWithUNUserNotificationCenter(NSString *title, NSString *message) {
