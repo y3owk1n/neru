@@ -3,6 +3,7 @@ package modes
 import (
 	"context"
 	"image"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -108,6 +109,11 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 
 	// Cancel any pending modifier toggle from the activation hotkey.
 	h.cancelPendingModifierToggle()
+
+	// Reset the regular-key timestamp so the cooldown doesn't leak across
+	// mode sessions (e.g., typing a hint char or pressing Escape just before
+	// re-entering a mode would otherwise suppress the first modifier toggle).
+	h.lastRegularKeyTime = time.Time{}
 
 	// Disarm modifier detection until all modifiers have been released.
 	// This prevents hotkey modifiers (e.g., Cmd+Shift from the activation combo)
