@@ -25,7 +25,7 @@ in
       environment.systemPackages = [ cfg.package ];
       launchd.user.agents.neru = {
         command =
-          "${cfg.package}/Applications/Neru.app/Contents/MacOS/neru launch"
+          "/usr/bin/open -W -a ${cfg.package}/Applications/Neru.app --args launch"
           + (lib.optionalString (cfg.config != "") " --config ${configFile}");
         serviceConfig = {
           KeepAlive = true;
