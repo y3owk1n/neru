@@ -46,7 +46,7 @@ const plistTemplateAppBundle = `<?xml version="1.0" encoding="UTF-8"?>
     <true/>
     <key>StandardErrorPath</key>
     <string>/tmp/neru.err.log</string>
-	<key>ProcessType</key>
+    <key>ProcessType</key>
     <string>Interactive</string>
     <key>LimitLoadToSessionType</key>
     <string>Aqua</string>
@@ -83,7 +83,7 @@ const plistTemplateBinary = `<?xml version="1.0" encoding="UTF-8"?>
     <string>/tmp/neru.log</string>
     <key>StandardErrorPath</key>
     <string>/tmp/neru.err.log</string>
-	<key>ProcessType</key>
+    <key>ProcessType</key>
     <string>Interactive</string>
     <key>LimitLoadToSessionType</key>
     <string>Aqua</string>
