@@ -3,8 +3,6 @@
 package darwin
 
 /*
-#cgo CFLAGS: -x objective-c
-
 #include "secureinput.h"
 */
 import "C"

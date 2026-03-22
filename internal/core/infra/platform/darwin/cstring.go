@@ -3,7 +3,6 @@
 package darwin
 
 /*
-#cgo CFLAGS: -x objective-c
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>

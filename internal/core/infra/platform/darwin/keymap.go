@@ -3,8 +3,6 @@
 package darwin
 
 /*
-#cgo CFLAGS: -x objective-c
-
 #include "keymap.h"
 #include <stdlib.h>
 */

@@ -3,8 +3,6 @@
 package darwin
 
 /*
-#cgo CFLAGS: -x objective-c -fobjc-arc
-
 #include "hotkeys.h"
 #include "theme.h"
 #include "appwatcher.h"
