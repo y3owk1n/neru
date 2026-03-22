@@ -169,6 +169,12 @@ func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifie
 
 	timerSession := h.modeSession
 
+	// Capture the down-time that this timer corresponds to. If a rapid
+	// double-tap overwrites pendingModifierKeys with a newer timestamp
+	// while this timer's goroutine is waiting for h.mu, the callback can
+	// detect the mismatch and bail out instead of consuming the new entry.
+	scheduledDownTime := h.pendingModifierKeys[expectedDown]
+
 	h.logger.Debug("Scheduling modifier toggle debounce",
 		zap.String("modifier", mod.String()),
 		zap.Duration("delay", modifierToggleDebounce))
@@ -198,6 +204,18 @@ func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifie
 			h.logger.Debug("Modifier toggle debounce canceled (regular key intervened)",
 				zap.String("modifier", mod.String()))
 
+			delete(h.pendingModifierTimers, expectedDown)
+
+			return
+		}
+
+		// Guard against a rapid double-tap: if a new key-down overwrote the
+		// pending entry while this timer was waiting for h.mu, the stored
+		// timestamp will differ from the one we captured at scheduling time.
+		// Bail out so the newer tap's timer handles the toggle instead.
+		if !downTime.Equal(scheduledDownTime) {
+			h.logger.Debug("Modifier toggle debounce skipped (stale timer from rapid double-tap)",
+				zap.String("modifier", mod.String()))
 			delete(h.pendingModifierTimers, expectedDown)
 
 			return
