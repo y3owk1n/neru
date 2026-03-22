@@ -10,7 +10,10 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
+	"time"
 )
 
 const (
@@ -244,8 +247,28 @@ func quitNeruApp() {
 	_ = quit.Run()
 
 	// Give the app a moment to shut down gracefully, then force-kill if needed.
-	kill := exec.CommandContext(context.Background(), "pkill", "-x", "neru")
-	_ = kill.Run()
+	time.Sleep(1 * time.Second)
+	killNeruProcesses()
+}
+
+// killNeruProcesses sends SIGTERM to all processes named "neru" except the
+// current process. This avoids the CLI killing itself when running commands
+// like `neru service stop` or `neru service uninstall`.
+func killNeruProcesses() {
+	out, err := exec.CommandContext(context.Background(), "pgrep", "-x", "neru").Output()
+	if err != nil {
+		return
+	}
+
+	self := os.Getpid()
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
+		pid, err := strconv.Atoi(strings.TrimSpace(line))
+		if err != nil || pid == self {
+			continue
+		}
+
+		_ = syscall.Kill(pid, syscall.SIGTERM)
+	}
 }
 
 func uninstallService() error {
