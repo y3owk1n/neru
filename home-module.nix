@@ -67,6 +67,18 @@ in
     xdg.configFile."neru/config.toml" =
       if cfg.configFile != null then { source = cfg.configFile; } else { text = cfg.config; };
 
+    # Quit the running Neru app before the launchd agent is restarted.
+    # When launched via `open -W -a`, launchd only manages the `open` wrapper;
+    # the actual Neru process must be terminated explicitly so the new version
+    # starts after `home-manager switch`.
+    home.activation.neruPreRestart = lib.hm.dag.entryBefore [ "reloadSystemd" ] ''
+      if /usr/bin/pgrep -xq neru 2>/dev/null; then
+        /usr/bin/osascript -e 'tell application "Neru" to quit' 2>/dev/null || true
+        sleep 1
+        /usr/bin/pkill -x neru 2>/dev/null || true
+      fi
+    '';
+
     # Launch agent for macOS
     launchd.agents.neru = lib.mkIf pkgs.stdenv.isDarwin {
       enable = cfg.launchd.enable;

@@ -230,6 +230,21 @@ func installService() error {
 	return nil
 }
 
+// quitNeruApp gracefully terminates a running Neru app process.
+// When the service uses `open -W -a`, launchd only manages the `open` wrapper;
+// the actual Neru process is a separate Launch Services process that must be
+// stopped explicitly.
+func quitNeruApp() {
+	// Try graceful quit via osascript first (respects the app's shutdown handler).
+	quit := exec.CommandContext(context.Background(),
+		"osascript", "-e", `tell application "Neru" to quit`)
+	_ = quit.Run()
+
+	// Give the app a moment to shut down gracefully, then force-kill if needed.
+	kill := exec.CommandContext(context.Background(), "pkill", "-x", "neru")
+	_ = kill.Run()
+}
+
 func uninstallService() error {
 	expandedPlist, err := expandPath(plistFile)
 	if err != nil {
@@ -249,6 +264,9 @@ func uninstallService() error {
 		"gui/"+currentUser.Uid+"/"+serviceLabel,
 	)
 	_ = cmd.Run() // Ignore error if not loaded
+
+	// Ensure the Neru app process is also terminated (it may outlive `open -W`).
+	quitNeruApp()
 
 	// Remove plist
 	err = os.Remove(expandedPlist)
@@ -278,11 +296,14 @@ func stopService() error {
 		return fmt.Errorf("failed to stop service: %w", err)
 	}
 
+	// Ensure the Neru app process is also terminated (it may outlive `open -W`).
+	quitNeruApp()
+
 	return nil
 }
 
 func restartService() error {
-	// Stop the service (ignore errors if already stopped)
+	// Stop the service and the Neru app process.
 	_ = stopService()
 
 	// Always attempt to start
