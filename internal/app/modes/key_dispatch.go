@@ -19,9 +19,7 @@ func (h *Handler) HandleKeyPress(key string) {
 	if !strings.HasPrefix(key, modifierTogglePrefix) {
 		h.lastRegularKeyTime = time.Now()
 
-		if len(h.pendingModifierKeys) > 0 {
-			h.cancelPendingModifierToggle()
-		}
+		h.cancelPendingModifierToggle()
 	}
 
 	// Check for modifier toggle keys before any other processing
