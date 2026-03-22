@@ -42,6 +42,10 @@ type EventTapPort interface {
 	// Returns false when an explicit layout ID is provided but cannot be resolved.
 	SetKeyboardLayout(layoutID string) bool
 
+	// PostModifierEvent simulates a physical modifier key press or release.
+	// modifier must be one of "cmd", "shift", "alt", "ctrl".
+	PostModifierEvent(modifier string, isDown bool)
+
 	// Destroy cleans up the event tap resources.
 	Destroy()
 }

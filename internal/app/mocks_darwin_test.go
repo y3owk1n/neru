@@ -77,7 +77,10 @@ func (m *mockEventTap) SetPassthroughCallback(cb func()) {
 }
 
 // SetStickyModifierToggle implements ports.EventTapPort.
-func (m *mockEventTap) SetStickyModifierToggle(_ bool) {}
+func (m *mockEventTap) SetStickyModifierToggle(enabled bool) {}
+
+// PostModifierEvent implements ports.EventTapPort.
+func (m *mockEventTap) PostModifierEvent(modifier string, isDown bool) {}
 
 // SetKeyboardLayout implements ports.EventTapPort.
 func (m *mockEventTap) SetKeyboardLayout(_ string) bool { return true }

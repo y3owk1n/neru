@@ -66,3 +66,10 @@ func (a *App) setEventTapStickyModifierToggle(enabled bool) {
 		a.eventTap.SetStickyModifierToggle(enabled)
 	}
 }
+
+// postEventTapModifierEvent posts a synthetic modifier event to the event tap.
+func (a *App) postEventTapModifierEvent(modifier string, isDown bool) {
+	if a.eventTap != nil {
+		a.eventTap.PostModifierEvent(modifier, isDown)
+	}
+}

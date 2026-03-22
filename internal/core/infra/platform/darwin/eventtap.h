@@ -78,5 +78,6 @@ void setEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallback ca
 /// @param tap Event tap handle
 /// @param enabled Non-zero to enable, zero to disable
 void setEventTapStickyModifierToggle(EventTap tap, int enabled);
+void postEventTapModifierEvent(const char* modifier, int isDown);
 
-#endif // EVENTTAP_H
+#endif /* EVENTTAP_H */

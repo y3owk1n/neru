@@ -84,6 +84,7 @@ type Handler struct {
 	setInterceptedModifierKeys func(keys []string)
 	setPassthroughCallback     func(cb func())
 	setStickyModifierToggle    func(enabled bool)
+	postModifierEvent          func(modifier string, isDown bool)
 	refreshHotkeys             func()
 	refreshHintsTimer          *time.Timer
 	modeSession                uint64
@@ -125,6 +126,7 @@ func NewHandler(
 	setInterceptedModifierKeys func(keys []string),
 	setPassthroughCallback func(cb func()),
 	setStickyModifierToggle func(enabled bool),
+	postModifierEvent func(modifier string, isDown bool),
 	refreshHotkeys func(),
 	systemPort ports.SystemPort,
 ) *Handler {
@@ -168,6 +170,7 @@ func NewHandler(
 		setInterceptedModifierKeys: setInterceptedModifierKeys,
 		setPassthroughCallback:     setPassthroughCallback,
 		setStickyModifierToggle:    setStickyModifierToggle,
+		postModifierEvent:          postModifierEvent,
 		refreshHotkeys:             refreshHotkeys,
 		themeProvider:              systemPort,
 		system:                     systemPort,

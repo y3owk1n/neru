@@ -11,6 +11,7 @@ extern void eventTapCallbackBridge(char* key, void* userData);
 extern void eventTapPassthroughBridge(void* userData);
 
 void setEventTapStickyModifierToggle(EventTap tap, int enabled);
+void postEventTapModifierEvent(const char* modifier, int isDown);
 */
 import "C"
 
@@ -253,6 +254,20 @@ func (et *EventTap) SetStickyModifierToggle(enabled bool) {
 // Returns false when an explicit layout ID is provided but cannot be resolved.
 func (et *EventTap) SetKeyboardLayout(layoutID string) bool {
 	return darwin.SetReferenceKeyboardLayout(layoutID)
+}
+
+// PostModifierEvent simulates a physical modifier key press or release.
+// modifier must be one of "cmd", "shift", "alt", "ctrl".
+func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
+	cModifier := C.CString(modifier)
+	defer C.free(unsafe.Pointer(cModifier)) //nolint:nlreturn
+
+	cDown := C.int(0)
+	if isDown {
+		cDown = C.int(1)
+	}
+
+	C.postEventTapModifierEvent(cModifier, cDown)
 }
 
 // Disable deactivates the event tap, stopping keyboard event capture.

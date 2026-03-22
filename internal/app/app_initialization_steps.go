@@ -256,6 +256,7 @@ func initializeModeHandler(app *App) {
 			setInterceptedModifierKeys func(keys []string)
 			setPassthroughCallback     func(cb func())
 			setStickyModifierToggle    func(enabled bool)
+			postModifierEvent          func(modifier string, isDown bool)
 			refreshHotkeys             func()
 		}
 	}{
@@ -298,6 +299,7 @@ func initializeModeHandler(app *App) {
 			setInterceptedModifierKeys func(keys []string)
 			setPassthroughCallback     func(cb func())
 			setStickyModifierToggle    func(enabled bool)
+			postModifierEvent          func(modifier string, isDown bool)
 			refreshHotkeys             func()
 		}{
 			enableEventTap:             app.enableEventTap,
@@ -306,6 +308,7 @@ func initializeModeHandler(app *App) {
 			setInterceptedModifierKeys: app.setEventTapInterceptedModifierKeys,
 			setPassthroughCallback:     app.setEventTapPassthroughCallback,
 			setStickyModifierToggle:    app.setEventTapStickyModifierToggle,
+			postModifierEvent:          app.postEventTapModifierEvent,
 			refreshHotkeys:             func() { app.refreshHotkeysForAppOrCurrent("") },
 		},
 	}
@@ -333,6 +336,7 @@ func initializeModeHandler(app *App) {
 		deps.callbacks.setInterceptedModifierKeys,
 		deps.callbacks.setPassthroughCallback,
 		deps.callbacks.setStickyModifierToggle,
+		deps.callbacks.postModifierEvent,
 		deps.callbacks.refreshHotkeys,
 		app.systemPort,
 	)

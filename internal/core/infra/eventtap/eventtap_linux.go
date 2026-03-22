@@ -48,6 +48,9 @@ func (et *EventTap) SetPassthroughCallback(_ PassthroughCallback) {}
 // SetStickyModifierToggle enables or disables sticky modifier toggle detection (Linux stub).
 func (et *EventTap) SetStickyModifierToggle(_ bool) {}
 
+// PostModifierEvent simulates a physical modifier key press or release (Linux stub).
+func (et *EventTap) PostModifierEvent(_ string, _ bool) {}
+
 // SetKeyboardLayout sets the keyboard layout (Linux stub).
 func (et *EventTap) SetKeyboardLayout(_ string) bool { return true }
 

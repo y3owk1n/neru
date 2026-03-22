@@ -305,6 +305,12 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 		return event;
 
 	@autoreleasepool {
+		// Ignore any events generated symmetrically by Neru itself (e.g., sticky modifiers)
+		// to prevent infinite loops where our synthetic events trigger our own hooks.
+		if (CGEventGetIntegerValueField(event, kCGEventSourceUserData) == 0x1337) {
+			return event;
+		}
+
 		// macOS disables the event tap if the callback takes too long.
 		// Re-enable it automatically so key events keep flowing.
 		if (type == kCGEventTapDisabledByTimeout) {
@@ -730,6 +736,40 @@ void setEventTapStickyModifierToggle(EventTap tap, int enabled) {
 		context->previousFlags = 0;
 	}
 	os_unfair_lock_unlock(&context->stickyModifierLock);
+}
+
+/// Post a physical modifier event to macOS.
+/// This sends a kCGEventFlagsChanged event to the system and stamps it with
+/// a custom userdata field so Neru recognizes and ignores its own generated events.
+void postEventTapModifierEvent(const char *modifier, int isDown) {
+	CGKeyCode keyCode = 0;
+	if (strcmp(modifier, "cmd") == 0) {
+		keyCode = kVK_Command;
+	} else if (strcmp(modifier, "shift") == 0) {
+		keyCode = kVK_Shift;
+	} else if (strcmp(modifier, "alt") == 0) {
+		keyCode = kVK_Option;
+	} else if (strcmp(modifier, "ctrl") == 0) {
+		keyCode = kVK_Control;
+	} else {
+		return;
+	}
+
+	CGEventSourceRef source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+	if (!source)
+		return;
+
+	CGEventRef event = CGEventCreateKeyboardEvent(source, keyCode, isDown);
+	if (event) {
+		// For modifier keys, setting the event type explicitly ensures it's processed correctly
+		CGEventSetType(event, kCGEventFlagsChanged);
+		// Stamp the event with a distinct value so our event tap can ignore it
+		CGEventSetIntegerValueField(event, kCGEventSourceUserData, 0x1337);
+
+		CGEventPost(kCGHIDEventTap, event);
+		CFRelease(event);
+	}
+	CFRelease(source);
 }
 
 /// Enable event tap

@@ -104,7 +104,7 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 	// This ensures any modifiers from the activation hotkey (e.g., Cmd+Shift+Space)
 	// don't get picked up as sticky modifiers.
 	if h.modifierState != nil {
-		h.modifierState.Reset()
+		h.clearStickyModifiers()
 	}
 
 	// Cancel any pending modifier toggle from the activation hotkey.

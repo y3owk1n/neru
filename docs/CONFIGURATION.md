@@ -1135,6 +1135,9 @@ Tap a modifier key while in any navigation mode to "stick" it. The modifier is a
 5. Modifiers reset automatically when you exit the mode.
 
 > [!NOTE]
+> Neru physically injects the modifier key-down event into macOS when a sticky modifier becomes active. This ensures full compatibility with third-party applications (like window managers or ghostty) that rely on reading physical keyboard states. Your normal Neru hotkey combinations will still work transparently.
+
+> [!NOTE]
 > A modifier tap is only detected when the key is pressed and released cleanly with no other key in between. Pressing `Shift+L` (a common action binding) does **not** toggle `Shift` as sticky.
 
 ### Configuration

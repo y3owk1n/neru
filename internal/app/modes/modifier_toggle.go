@@ -245,6 +245,24 @@ func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifie
 		delete(h.pendingModifierTimers, expectedDown)
 
 		newModifiers := h.modifierState.Toggle(mod)
+		isDownNow := newModifiers.Has(mod)
+
+		modName := ""
+		switch mod {
+		case action.ModCmd:
+			modName = "cmd"
+		case action.ModShift:
+			modName = "shift"
+		case action.ModAlt:
+			modName = "alt"
+		case action.ModCtrl:
+			modName = "ctrl"
+		}
+
+		if modName != "" && h.postModifierEvent != nil {
+			h.postModifierEvent(modName, isDownNow)
+		}
+
 		h.logger.Debug("Sticky modifier toggled (after debounce)",
 			zap.String("modifier", mod.String()),
 			zap.String("state", newModifiers.String()))
@@ -263,6 +281,34 @@ func (h *Handler) notifyDebounceComplete() {
 		default:
 		}
 	}
+}
+
+// clearStickyModifiers releases any physically injected modifiers and resets internal state.
+func (h *Handler) clearStickyModifiers() {
+	if h.modifierState == nil {
+		return
+	}
+
+	mods := h.modifierState.Current()
+	if h.postModifierEvent != nil {
+		if mods.Has(action.ModCmd) {
+			h.postModifierEvent("cmd", false)
+		}
+
+		if mods.Has(action.ModShift) {
+			h.postModifierEvent("shift", false)
+		}
+
+		if mods.Has(action.ModAlt) {
+			h.postModifierEvent("alt", false)
+		}
+
+		if mods.Has(action.ModCtrl) {
+			h.postModifierEvent("ctrl", false)
+		}
+	}
+
+	h.modifierState.Reset()
 }
 
 func (h *Handler) cancelPendingModifierToggle() {
