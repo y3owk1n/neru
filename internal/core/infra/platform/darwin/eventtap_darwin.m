@@ -743,14 +743,19 @@ void setEventTapStickyModifierToggle(EventTap tap, int enabled) {
 /// a custom userdata field so Neru recognizes and ignores its own generated events.
 void postEventTapModifierEvent(const char *modifier, int isDown) {
 	CGKeyCode keyCode = 0;
+	CGEventFlags modMask = 0;
 	if (strcmp(modifier, "cmd") == 0) {
 		keyCode = kVK_Command;
+		modMask = kCGEventFlagMaskCommand;
 	} else if (strcmp(modifier, "shift") == 0) {
 		keyCode = kVK_Shift;
+		modMask = kCGEventFlagMaskShift;
 	} else if (strcmp(modifier, "alt") == 0) {
 		keyCode = kVK_Option;
+		modMask = kCGEventFlagMaskAlternate;
 	} else if (strcmp(modifier, "ctrl") == 0) {
 		keyCode = kVK_Control;
+		modMask = kCGEventFlagMaskControl;
 	} else {
 		return;
 	}
@@ -763,6 +768,15 @@ void postEventTapModifierEvent(const char *modifier, int isDown) {
 	if (event) {
 		// For modifier keys, setting the event type explicitly ensures it's processed correctly
 		CGEventSetType(event, kCGEventFlagsChanged);
+		// Set the flags to reflect the desired modifier state so consumers
+		// (including third-party apps) see the correct active modifiers.
+		CGEventFlags flags = CGEventGetFlags(event);
+		if (isDown) {
+			flags |= modMask;
+		} else {
+			flags &= ~modMask;
+		}
+		CGEventSetFlags(event, flags);
 		// Stamp the event with a distinct value so our event tap can ignore it
 		CGEventSetIntegerValueField(event, kCGEventSourceUserData, 0x1337);
 
