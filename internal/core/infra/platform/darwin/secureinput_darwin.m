@@ -5,6 +5,7 @@
 //  Copyright © 2025 Neru. All rights reserved.
 //
 
+#import "alert.h"
 #import "secureinput.h"
 
 #import <Carbon/Carbon.h>
@@ -24,26 +25,9 @@ int isSecureInputEnabled(void) {
 #pragma mark - Secure Input Notification
 
 /// Show a notification informing the user that secure input is active.
-/// Uses osascript to display a native macOS notification.
-/// This approach works reliably for CLI tools without requiring an app bundle.
+/// Reuses the showNotification function from alert.m which handles
+/// UNUserNotificationCenter for app bundles and osascript fallback otherwise.
 void showSecureInputNotification(void) {
-	@autoreleasepool {
-		NSTask *task = [[NSTask alloc] init];
-		task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/osascript"];
-		task.arguments = @[
-			@"-e",
-			@"display notification \"Mode activation blocked. A password field or secure input is active.\" with title \"Neru: Secure Input Detected\""
-		];
-
-		NSError *error = nil;
-		if (![task launchAndReturnError:&error]) {
-			NSLog(@"Neru: Failed to show secure input notification: %@", error);
-			return;
-		}
-
-		[task waitUntilExit];
-		if (task.terminationStatus != 0) {
-			NSLog(@"Neru: osascript failed with status %d", task.terminationStatus);
-		}
-	}
+	showNotification(
+	    "Neru: Secure Input Detected", "Mode activation blocked. A password field or secure input is active.");
 }

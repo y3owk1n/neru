@@ -8,6 +8,7 @@
 #import "alert.h"
 
 #import <Cocoa/Cocoa.h>
+#import <UserNotifications/UserNotifications.h>
 
 #pragma mark - Internal Function Declaration
 
@@ -147,37 +148,83 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 
 #pragma mark - Notification Functions
 
-/// Show a macOS notification with a title and message
-/// Uses osascript to display a native macOS notification (works for CLI tools)
-/// @param title The notification title
-/// @param message The notification message
+static void showNotificationWithUNUserNotificationCenter(NSString *title, NSString *message);
+
+static void showNotificationFallbackOsascript(NSString *title, NSString *message);
+
 void showNotification(const char *title, const char *message) {
 	@autoreleasepool {
 		NSString *nsTitle = title ? [NSString stringWithUTF8String:title] : @"Neru";
 		NSString *nsMessage = message ? [NSString stringWithUTF8String:message] : @"";
 
-		// Escape backslashes and double quotes for AppleScript string interpolation
-		nsTitle = [nsTitle stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
-		nsTitle = [nsTitle stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
-		nsMessage = [nsMessage stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
-		nsMessage = [nsMessage stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
+		NSString *bundleId = [[NSBundle mainBundle] bundleIdentifier];
+		NSLog(@"Neru: showNotification bundleIdentifier=%@", bundleId);
 
-		// Launch osascript to post the notification
-		NSTask *task = [[NSTask alloc] init];
-		task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/osascript"];
-		task.arguments = @[
-			@"-e", [NSString stringWithFormat:@"display notification \"%@\" with title \"%@\"", nsMessage, nsTitle]
-		];
-
-		NSError *error = nil;
-		if (![task launchAndReturnError:&error]) {
-			NSLog(@"Neru: Failed to show notification: %@", error);
-			return;
+		if (bundleId != nil) {
+			showNotificationWithUNUserNotificationCenter(nsTitle, nsMessage);
+		} else {
+			showNotificationFallbackOsascript(nsTitle, nsMessage);
 		}
+	}
+}
 
-		[task waitUntilExit];
-		if (task.terminationStatus != 0) {
-			NSLog(@"Neru: osascript failed with status %d", task.terminationStatus);
-		}
+static void showNotificationWithUNUserNotificationCenter(NSString *title, NSString *message) {
+	UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+
+	[center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound)
+	                      completionHandler:^(BOOL granted, NSError *_Nullable error) {
+		                      if (!granted) {
+			                      NSLog(@"Neru: Notification authorization denied: %@", error);
+			                      return;
+		                      }
+
+		                      if (error) {
+			                      NSLog(@"Neru: Notification authorization error: %@", error);
+			                      return;
+		                      }
+
+		                      UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
+		                      content.title = title;
+		                      content.body = message;
+		                      content.sound = [UNNotificationSound defaultSound];
+
+		                      NSString *identifier = [[NSUUID UUID] UUIDString];
+		                      UNTimeIntervalNotificationTrigger *trigger =
+		                          [UNTimeIntervalNotificationTrigger triggerWithTimeInterval:0.1 repeats:NO];
+		                      UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:identifier
+		                                                                                            content:content
+		                                                                                            trigger:trigger];
+
+		                      [center addNotificationRequest:request
+		                               withCompletionHandler:^(NSError *_Nullable addError) {
+			                               if (addError) {
+				                               NSLog(@"Neru: Failed to add notification request: %@", addError);
+			                               }
+		                               }];
+	                      }];
+}
+
+static void showNotificationFallbackOsascript(NSString *title, NSString *message) {
+	// Escape backslashes and double quotes for AppleScript string interpolation
+	title = [title stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
+	title = [title stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
+	message = [message stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
+	message = [message stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
+
+	// Launch osascript to post the notification
+	NSTask *task = [[NSTask alloc] init];
+	task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/osascript"];
+	task.arguments =
+	    @[ @"-e", [NSString stringWithFormat:@"display notification \"%@\" with title \"%@\"", message, title] ];
+
+	NSError *error = nil;
+	if (![task launchAndReturnError:&error]) {
+		NSLog(@"Neru: Failed to show notification: %@", error);
+		return;
+	}
+
+	[task waitUntilExit];
+	if (task.terminationStatus != 0) {
+		NSLog(@"Neru: osascript failed with status %d", task.terminationStatus);
 	}
 }
