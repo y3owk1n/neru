@@ -395,8 +395,8 @@ func TestHandleModifierToggle_KarabinerRapidFire(t *testing.T) {
 func TestHandleModifierToggle_ToggleWorksAfterIdle(t *testing.T) {
 	testHandler := newTestHandler()
 
-	// Simulate key activity from 500ms ago (well outside the 200ms cooldown).
-	testHandler.lastRegularKeyTime = time.Now().Add(-500 * time.Millisecond)
+	// Simulate key activity from 600ms ago (well outside the 500ms cooldown).
+	testHandler.lastRegularKeyTime = time.Now().Add(-600 * time.Millisecond)
 
 	testHandler.handleModifierToggle("__modifier_shift_down")
 	testHandler.handleModifierToggle("__modifier_shift_up")

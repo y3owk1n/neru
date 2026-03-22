@@ -22,7 +22,8 @@ const modifierToggleDebounce = 50 * time.Millisecond
 // before a modifier tap can trigger a sticky toggle. This prevents accidental
 // toggles when the user is rapidly pressing Karabiner-remapped modifier+key
 // combos and briefly releases the modifier between presses.
-const modifierToggleCooldown = 200 * time.Millisecond
+// 500ms covers Karabiner's internal timeout (~250ms) plus modifier hold time.
+const modifierToggleCooldown = 500 * time.Millisecond
 
 var modifierToggleMap = map[string]action.Modifiers{
 	"cmd":   action.ModCmd,
@@ -168,7 +169,8 @@ func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifie
 
 		// If the pending down was already canceled (by a regular key press),
 		// the entry will be gone from the map — do nothing.
-		if _, stillPending := h.pendingModifierKeys[expectedDown]; !stillPending {
+		downTime, stillPending := h.pendingModifierKeys[expectedDown]
+		if !stillPending {
 			h.logger.Debug("Modifier toggle debounce canceled (regular key intervened)",
 				zap.String("modifier", mod.String()))
 
@@ -177,14 +179,16 @@ func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifie
 			return
 		}
 
-		// Suppress toggle if a regular key was pressed recently. This catches
-		// the Karabiner scenario where the user rapidly presses modifier+key
-		// combos and the modifier is briefly released between presses.
+		// Suppress toggle if a regular key was pressed shortly before the
+		// modifier went down. We measure relative to the modifier-down time
+		// (not "now") so that long modifier holds don't defeat the cooldown.
+		// This catches both rapid Karabiner usage and ghost modifier events
+		// where Karabiner's internal timeout (~250ms) elapses.
 		if !h.lastRegularKeyTime.IsZero() &&
-			time.Since(h.lastRegularKeyTime) < modifierToggleCooldown {
-			h.logger.Debug("Modifier toggle suppressed (recent key activity)",
+			downTime.Sub(h.lastRegularKeyTime) < modifierToggleCooldown {
+			h.logger.Debug("Modifier toggle suppressed (key activity before modifier press)",
 				zap.String("modifier", mod.String()),
-				zap.Duration("since_last_key", time.Since(h.lastRegularKeyTime)))
+				zap.Duration("key_to_mod_gap", downTime.Sub(h.lastRegularKeyTime)))
 
 			delete(h.pendingModifierKeys, expectedDown)
 			delete(h.pendingModifierTimers, expectedDown)
