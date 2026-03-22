@@ -24,7 +24,7 @@ int showConfigValidationErrorAlert(const char *errorMessage, const char *configP
 int showConfigOnboardingAlert(const char *configPath);
 
 /// Show a macOS notification with a title and message
-/// Uses osascript to display a native macOS notification (works for CLI tools)
+/// Uses UNUserNotificationCenter when running as an app bundle, falls back to osascript otherwise
 /// @param title The notification title
 /// @param message The notification message
 void showNotification(const char *title, const char *message);
