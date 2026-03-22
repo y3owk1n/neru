@@ -26,7 +26,7 @@ int isSecureInputEnabled(void) {
 
 /// Show a notification informing the user that secure input is active.
 /// Reuses the showNotification function from alert.m which handles
-/// UNUserNotificationCenter for app bundles and osascript fallback otherwise.
+/// UNUserNotificationCenter for app bundles and logs to console otherwise.
 void showSecureInputNotification(void) {
 	showNotification(
 	    "Neru: Secure Input Detected", "Mode activation blocked. A password field or secure input is active.");

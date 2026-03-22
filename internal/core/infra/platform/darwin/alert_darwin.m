@@ -150,20 +150,17 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 
 static void showNotificationWithUNUserNotificationCenter(NSString *title, NSString *message);
 
-static void showNotificationFallbackOsascript(NSString *title, NSString *message);
-
 void showNotification(const char *title, const char *message) {
 	@autoreleasepool {
 		NSString *nsTitle = title ? [NSString stringWithUTF8String:title] : @"Neru";
 		NSString *nsMessage = message ? [NSString stringWithUTF8String:message] : @"";
 
 		NSString *bundleId = [[NSBundle mainBundle] bundleIdentifier];
-		NSLog(@"Neru: showNotification bundleIdentifier=%@", bundleId);
 
 		if (bundleId != nil) {
 			showNotificationWithUNUserNotificationCenter(nsTitle, nsMessage);
 		} else {
-			showNotificationFallbackOsascript(nsTitle, nsMessage);
+			NSLog(@"Neru: [%@] %@", nsTitle, nsMessage);
 		}
 	}
 }
@@ -204,29 +201,4 @@ static void showNotificationWithUNUserNotificationCenter(NSString *title, NSStri
 			                               }
 		                               }];
 	                      }];
-}
-
-static void showNotificationFallbackOsascript(NSString *title, NSString *message) {
-	// Escape backslashes and double quotes for AppleScript string interpolation
-	title = [title stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
-	title = [title stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
-	message = [message stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
-	message = [message stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
-
-	// Launch osascript to post the notification
-	NSTask *task = [[NSTask alloc] init];
-	task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/osascript"];
-	task.arguments =
-	    @[ @"-e", [NSString stringWithFormat:@"display notification \"%@\" with title \"%@\"", message, title] ];
-
-	NSError *error = nil;
-	if (![task launchAndReturnError:&error]) {
-		NSLog(@"Neru: Failed to show notification: %@", error);
-		return;
-	}
-
-	[task waitUntilExit];
-	if (task.terminationStatus != 0) {
-		NSLog(@"Neru: osascript failed with status %d", task.terminationStatus);
-	}
 }
