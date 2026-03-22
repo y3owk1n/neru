@@ -176,6 +176,7 @@ func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifie
 	timer := time.AfterFunc(modifierToggleDebounce, func() {
 		h.mu.Lock()
 		defer h.mu.Unlock()
+		defer h.notifyDebounceComplete()
 
 		// Guard against stale timer: if the mode session changed (user exited
 		// and re-entered a mode) while we were waiting, this timer belongs to
@@ -236,6 +237,18 @@ func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifie
 	})
 
 	h.pendingModifierTimers[expectedDown] = timer
+}
+
+// notifyDebounceComplete sends a non-blocking signal on debounceNotify so
+// tests can synchronize with the timer callback. In production the channel
+// is nil and this is a no-op.
+func (h *Handler) notifyDebounceComplete() {
+	if h.debounceNotify != nil {
+		select {
+		case h.debounceNotify <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func (h *Handler) cancelPendingModifierToggle() {
