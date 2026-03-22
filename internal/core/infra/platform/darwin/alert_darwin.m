@@ -191,40 +191,42 @@ static void ensureNotificationSetup(void (^completion)(BOOL authorized)) {
 	static dispatch_once_t onceToken;
 
 	dispatch_once(&onceToken, ^{
-		_notificationSetupQueue = dispatch_queue_create("com.neru.notification.setup", DISPATCH_QUEUE_SERIAL);
-		_pendingCompletions = [NSMutableArray array];
+		@autoreleasepool {
+			_notificationSetupQueue = dispatch_queue_create("com.neru.notification.setup", DISPATCH_QUEUE_SERIAL);
+			_pendingCompletions = [NSMutableArray array];
 
-		delegate = [[NeruNotificationDelegate alloc] init];
+			delegate = [[NeruNotificationDelegate alloc] init];
 
-		UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-		center.delegate = delegate;
+			UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+			center.delegate = delegate;
 
-		[center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound |
-		                                         UNAuthorizationOptionBadge)
-		                      completionHandler:^(BOOL granted, NSError *_Nullable error) {
-			                      if (error) {
-				                      NSLog(@"Neru: Notification authorization error: %@", error);
-			                      }
-
-			                      if (!granted) {
-				                      NSLog(@"Neru: Notification authorization denied");
-			                      }
-
-			                      // Safe to dispatch_sync here: this completion handler runs on a
-			                      // system queue (not _notificationSetupQueue), so no deadlock.
-			                      // The pending blocks only call addNotificationRequest (async)
-			                      // and do not re-enter _notificationSetupQueue.
-			                      dispatch_sync(_notificationSetupQueue, ^{
-				                      _notificationAuthorized = granted;
-				                      _notificationSetupDone = YES;
-
-				                      for (void (^pending)(BOOL) in _pendingCompletions) {
-					                      pending(granted);
+			[center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound |
+			                                         UNAuthorizationOptionBadge)
+			                      completionHandler:^(BOOL granted, NSError *_Nullable error) {
+				                      if (error) {
+					                      NSLog(@"Neru: Notification authorization error: %@", error);
 				                      }
 
-				                      [_pendingCompletions removeAllObjects];
-			                      });
-		                      }];
+				                      if (!granted) {
+					                      NSLog(@"Neru: Notification authorization denied");
+				                      }
+
+				                      // Safe to dispatch_sync here: this completion handler runs on a
+				                      // system queue (not _notificationSetupQueue), so no deadlock.
+				                      // The pending blocks only call addNotificationRequest (async)
+				                      // and do not re-enter _notificationSetupQueue.
+				                      dispatch_sync(_notificationSetupQueue, ^{
+					                      _notificationAuthorized = granted;
+					                      _notificationSetupDone = YES;
+
+					                      for (void (^pending)(BOOL) in _pendingCompletions) {
+						                      pending(granted);
+					                      }
+
+					                      [_pendingCompletions removeAllObjects];
+				                      });
+			                      }];
+		}
 	});
 
 	dispatch_async(_notificationSetupQueue, ^{
