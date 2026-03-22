@@ -1344,6 +1344,42 @@ func TestConfig_ValidateStickyModifiers(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "zero tap_cooldown is valid (disables cooldown)",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					TapCooldown:    0,
+					UI:             validStickyModifiersUI(),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "positive tap_cooldown is valid",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					TapCooldown:    500,
+					UI:             validStickyModifiersUI(),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "negative tap_cooldown is invalid",
+			config: config.Config{
+				StickyModifiers: config.StickyModifiersConfig{
+					Enabled:        true,
+					TapMaxDuration: 300,
+					TapCooldown:    -1,
+					UI:             validStickyModifiersUI(),
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "zero font_size is invalid",
 			config: config.Config{
 				StickyModifiers: config.StickyModifiersConfig{

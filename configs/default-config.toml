@@ -220,6 +220,7 @@ indicator_y_offset = 20
 [sticky_modifiers]
 enabled = true
 tap_max_duration = 300
+tap_cooldown = 0
 
 [sticky_modifiers.ui]
 font_size = 10

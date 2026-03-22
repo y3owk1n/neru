@@ -1139,18 +1139,35 @@ Tap a modifier key while in any navigation mode to "stick" it. The modifier is a
 
 ### Configuration
 
-| Option             | Type | Default | Description                                                        |
-| ------------------ | ---- | ------- | ------------------------------------------------------------------ |
-| `enabled`          | bool | `true`  | Enable sticky modifiers                                            |
-| `tap_max_duration` | int  | `300`   | Max hold duration (ms) for a tap to register. `0` = always toggle. |
+| Option             | Type | Default | Description                                                                      |
+| ------------------ | ---- | ------- | -------------------------------------------------------------------------------- |
+| `enabled`          | bool | `true`  | Enable sticky modifiers                                                          |
+| `tap_max_duration` | int  | `300`   | Max hold duration (ms) for a tap to register. `0` = always toggle.               |
+| `tap_cooldown`     | int  | `0`     | Min quiet period (ms) after a key press before a tap can toggle. `0` = disabled. |
 
 ```toml
 [sticky_modifiers]
 enabled = true
 tap_max_duration = 300
+tap_cooldown = 0
 ```
 
 If a modifier is held longer than `tap_max_duration` before being released, it does **not** toggle the sticky state. This prevents accidental toggles when you hold a modifier intending to use it as a chord and then change your mind.
+
+#### Karabiner-Elements users
+
+If you use [Karabiner-Elements](https://karabiner-elements.pqrs.org/) to remap modifier+key combos (e.g. `Option+h → Left`), you may see false sticky toggles. This happens because Karabiner clears the modifier flag _before_ sending the remapped key, so Neru sees a clean modifier tap.
+Set `tap_cooldown` to suppress these ghost toggles:
+
+```toml
+[sticky_modifiers]
+tap_cooldown = 500   # 500 ms works well for most Karabiner setups as far as I tested
+```
+
+When `tap_cooldown > 0`, a modifier tap is ignored if a regular key was pressed within that many milliseconds **before** the modifier went down. This catches rapid Karabiner-remapped sequences without affecting normal usage — intentional modifier taps after a brief pause still work.
+
+> [!NOTE]
+> A 50 ms debounce is always active regardless of `tap_cooldown`. It delays the toggle just long enough for a Karabiner-remapped key to arrive and cancel the pending toggle. The cooldown is an additional layer for rapid-fire scenarios where the remapped key arrives _before_ the next modifier press.
 
 ### Visual options (`[sticky_modifiers.ui]`)
 

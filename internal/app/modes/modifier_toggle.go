@@ -18,12 +18,10 @@ const modifierTogglePrefix = "__modifier_"
 // for the remapped key event to arrive but short enough to feel instantaneous.
 const modifierToggleDebounce = 50 * time.Millisecond
 
-// modifierToggleCooldown is the minimum quiet period after a regular key press
-// before a modifier tap can trigger a sticky toggle. This prevents accidental
-// toggles when the user is rapidly pressing Karabiner-remapped modifier+key
-// combos and briefly releases the modifier between presses.
-// 500ms covers Karabiner's internal timeout (~250ms) plus modifier hold time.
-const modifierToggleCooldown = 500 * time.Millisecond
+// defaultModifierToggleCooldown is the fallback cooldown when the config value
+// is zero (disabled). Kept as a named constant for documentation; in practice
+// the cooldown is only applied when the user explicitly sets tap_cooldown > 0.
+const defaultModifierToggleCooldown = 0
 
 var modifierToggleMap = map[string]action.Modifiers{
 	"cmd":   action.ModCmd,
@@ -184,11 +182,18 @@ func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifie
 		// (not "now") so that long modifier holds don't defeat the cooldown.
 		// This catches both rapid Karabiner usage and ghost modifier events
 		// where Karabiner's internal timeout (~250ms) elapses.
-		if !h.lastRegularKeyTime.IsZero() &&
-			downTime.Sub(h.lastRegularKeyTime) < modifierToggleCooldown {
+		// Only applied when tap_cooldown > 0 in config (default 0 = disabled).
+		cooldownMs := defaultModifierToggleCooldown
+		if h.config != nil {
+			cooldownMs = h.config.StickyModifiers.TapCooldown
+		}
+
+		if cooldownMs > 0 && !h.lastRegularKeyTime.IsZero() &&
+			downTime.Sub(h.lastRegularKeyTime) < time.Duration(cooldownMs)*time.Millisecond {
 			h.logger.Debug("Modifier toggle suppressed (key activity before modifier press)",
 				zap.String("modifier", mod.String()),
-				zap.Duration("key_to_mod_gap", downTime.Sub(h.lastRegularKeyTime)))
+				zap.Duration("key_to_mod_gap", downTime.Sub(h.lastRegularKeyTime)),
+				zap.Int("cooldownMs", cooldownMs))
 
 			delete(h.pendingModifierKeys, expectedDown)
 			delete(h.pendingModifierTimers, expectedDown)

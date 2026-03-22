@@ -402,6 +402,7 @@ func TestHandleModifierToggle_DebounceTimerCancelledByRegularKey(t *testing.T) {
 // even though no arrow key follows this particular cmd_down→cmd_up pair.
 func TestHandleModifierToggle_KarabinerRapidFire(t *testing.T) {
 	testHandler := newTestHandler()
+	testHandler.config.StickyModifiers.TapCooldown = 500
 
 	// Simulate recent key activity (arrow key from previous Karabiner press).
 	testHandler.lastRegularKeyTime = time.Now()
@@ -426,6 +427,7 @@ func TestHandleModifierToggle_KarabinerRapidFire(t *testing.T) {
 // does NOT block modifier toggles when the user has been idle (no recent keys).
 func TestHandleModifierToggle_ToggleWorksAfterIdle(t *testing.T) {
 	testHandler := newTestHandler()
+	testHandler.config.StickyModifiers.TapCooldown = 500
 
 	// Simulate key activity from 600ms ago (well outside the 500ms cooldown).
 	testHandler.lastRegularKeyTime = time.Now().Add(-600 * time.Millisecond)
@@ -438,5 +440,25 @@ func TestHandleModifierToggle_ToggleWorksAfterIdle(t *testing.T) {
 
 	if got := testHandler.modifierState.Current(); got != action.ModShift {
 		t.Errorf("Expected ModShift after idle toggle, got %v", got)
+	}
+}
+
+// TestHandleModifierToggle_CooldownDisabledByDefault verifies that when
+// tap_cooldown is 0 (default), recent key activity does NOT suppress toggles.
+func TestHandleModifierToggle_CooldownDisabledByDefault(t *testing.T) {
+	testHandler := newTestHandler()
+
+	// TapCooldown defaults to 0 (disabled) — do not set it.
+	// Simulate recent key activity.
+	testHandler.lastRegularKeyTime = time.Now()
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_shift_down")
+	testHandler.handleModifierToggle("__modifier_shift_up")
+	testHandler.mu.Unlock()
+	waitDebounce()
+
+	// With cooldown disabled, the toggle should proceed normally.
+	if got := testHandler.modifierState.Current(); got != action.ModShift {
+		t.Errorf("Expected ModShift (cooldown disabled), got %v", got)
 	}
 }

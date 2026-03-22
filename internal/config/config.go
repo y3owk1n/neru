@@ -420,6 +420,7 @@ type StickyModifiersUI struct {
 type StickyModifiersConfig struct {
 	Enabled        bool              `json:"enabled"        toml:"enabled"`
 	TapMaxDuration int               `json:"tapMaxDuration" toml:"tap_max_duration"`
+	TapCooldown    int               `json:"tapCooldown"    toml:"tap_cooldown"`
 	UI             StickyModifiersUI `json:"ui"             toml:"ui"`
 }
 
