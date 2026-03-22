@@ -103,6 +103,22 @@ The module automatically:
 - Configures the agent to run at login with `KeepAlive = true` and `RunAtLoad = true`
 - Installs shell completions for bash, fish, and zsh
 
+> [!NOTE]
+> **Codesign for source builds (`neru-source`):** Add this to your nix-darwin configuration:
+>
+> ```nix
+> # In your nix-darwin module
+> system.activationScripts.postActivation.text = ''
+>   # codesign Neru.app
+>   if [ -e "/Users/${username}/Applications/Home Manager Apps/Neru.app" ]; then
+>      /usr/bin/codesign --force --deep --sign - --timestamp=none "/Users/${username}/Applications/Home Manager Apps/Neru.app"
+>      echo "Codesign Neru.app..."
+>   fi
+> '';
+> ```
+>
+> This is not needed for the default `pkgs.neru` (zip) package, which is pre-signed.
+
 ### Option 2: home-manager Module (User-Level)
 
 Use the home-manager module for user-specific installation:
@@ -167,6 +183,11 @@ The module automatically:
 - Creates a launchd user agent (if `launchd.enable` is `true`)
 - Configures the agent to run at login with `KeepAlive` (if `launchd.keepAlive` is `true`) and `RunAtLoad = true`
 - Installs shell completions for bash, fish, and zsh
+
+> [!NOTE]
+> You will need to codesign the Neru.app bundle in the nix store.
+> Refer to the nix-darwin module above for an example.
+> This is not needed for the default `pkgs.neru` (zip) package, which is pre-signed.
 
 ### Option 3: Using as an Overlay Only
 

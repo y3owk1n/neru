@@ -46,7 +46,8 @@ in
               status will be a non-zero number, for example:
               `-	1	org.nix-community.home.neru`
 
-            In case of failure, check the logs with `cat /tmp/neru.err.log`.
+            In case of failure, check the logs with `cat ~/Library/Logs/neru/app.log`.
+            If the app fails to launch at all, check `cat /tmp/neru.err.log` for errors from the `open` command.
 
             For more detailed service status, run `launchctl print gui/$(id -u)/org.nix-community.home.neru`.
           '';
@@ -67,19 +68,38 @@ in
     xdg.configFile."neru/config.toml" =
       if cfg.configFile != null then { source = cfg.configFile; } else { text = cfg.config; };
 
+    # Quit the running Neru app before the launchd agent is restarted.
+    # When launched via `open -W -a`, launchd only manages the `open` wrapper;
+    # the actual Neru process must be terminated explicitly so the new version
+    # starts after `home-manager switch`.
+    #
+    # NOTE: home-manager has no dedicated "reloadLaunchd" DAG entry on macOS.
+    # We anchor before "reloadSystemd" (a no-op on darwin) to run late in the
+    # activation sequence, before launchd picks up the updated plist.
+    home.activation.neruPreRestart = lib.hm.dag.entryBefore [ "reloadSystemd" ] ''
+      if /usr/bin/pgrep -xq neru 2>/dev/null; then
+        /usr/bin/osascript -e 'tell application "Neru" to quit' 2>/dev/null || true
+        sleep 1
+        /usr/bin/pkill -x neru 2>/dev/null || true
+      fi
+    '';
+
     # Launch agent for macOS
     launchd.agents.neru = lib.mkIf pkgs.stdenv.isDarwin {
       enable = cfg.launchd.enable;
       config = {
         ProgramArguments = [
-          "${cfg.package}/Applications/Neru.app/Contents/MacOS/neru"
+          "/usr/bin/open"
+          "-W"
+          "-a"
+          "${cfg.package}/Applications/Neru.app"
+          "--args"
           "launch"
           "--config"
           "${config.xdg.configHome}/neru/config.toml"
         ];
         RunAtLoad = true;
         KeepAlive = cfg.launchd.keepAlive;
-        StandardOutPath = "/tmp/neru.log";
         StandardErrorPath = "/tmp/neru.err.log";
         ProcessType = "Interactive";
         LimitLoadToSessionType = "Aqua";
