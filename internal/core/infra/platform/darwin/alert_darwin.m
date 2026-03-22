@@ -231,6 +231,8 @@ static void ensureNotificationSetup(void (^completion)(BOOL authorized)) {
 	});
 }
 
+/// Fire-and-forget: the UNUserNotificationCenter path is fully asynchronous.
+/// This function returns before the notification is actually delivered.
 void showNotification(const char *title, const char *message) {
 	@autoreleasepool {
 		NSString *nsTitle = title ? [NSString stringWithUTF8String:title] : @"Neru";

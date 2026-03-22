@@ -23,8 +23,11 @@ int showConfigValidationErrorAlert(const char *errorMessage, const char *configP
 /// @return 1 if user clicked Create Config, 2 if user clicked Use Defaults, 3 if user clicked Quit
 int showConfigOnboardingAlert(const char *configPath);
 
-/// Show a macOS notification with a title and message
-/// Uses UNUserNotificationCenter when running as an app bundle, logs to console otherwise
+/// Show a macOS notification with a title and message.
+/// Uses UNUserNotificationCenter when running as an app bundle, logs to console otherwise.
+/// @note This function is asynchronous — it returns immediately before the
+///       notification is delivered. Callers must not depend on the notification
+///       being visible when this function returns.
 /// @param title The notification title
 /// @param message The notification message
 void showNotification(const char *title, const char *message);
