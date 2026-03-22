@@ -167,16 +167,61 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 
 static void showNotificationWithUNUserNotificationCenter(NSString *title, NSString *message);
 
-/// Lazily initializes and returns the shared notification delegate.
-/// The delegate is set once on UNUserNotificationCenter and kept alive for the process lifetime.
-static NeruNotificationDelegate *getNotificationDelegate(void) {
+/// Serializes access to the pending completions array and authorization state.
+static dispatch_queue_t _notificationSetupQueue;
+static NSMutableArray<void (^)(BOOL)> *_pendingCompletions;
+static BOOL _notificationAuthorized = NO;
+static BOOL _notificationSetupDone = NO;
+
+/// Lazily initializes the notification delegate and requests authorization once.
+/// Completions arriving before the first authorization response are queued and
+/// drained once the result is known. Subsequent calls dispatch immediately.
+static void ensureNotificationSetup(void (^completion)(BOOL authorized)) {
 	static NeruNotificationDelegate *delegate = nil;
 	static dispatch_once_t onceToken;
+
 	dispatch_once(&onceToken, ^{
+		_notificationSetupQueue = dispatch_queue_create("com.neru.notification.setup", DISPATCH_QUEUE_SERIAL);
+		_pendingCompletions = [NSMutableArray array];
+
 		delegate = [[NeruNotificationDelegate alloc] init];
-		[UNUserNotificationCenter currentNotificationCenter].delegate = delegate;
+
+		UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+		center.delegate = delegate;
+		[center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound)
+		                      completionHandler:^(BOOL granted, NSError *_Nullable error) {
+			                      if (error) {
+				                      NSLog(@"Neru: Notification authorization error: %@", error);
+			                      }
+
+			                      if (!granted) {
+				                      NSLog(@"Neru: Notification authorization denied");
+			                      }
+
+			                      dispatch_sync(_notificationSetupQueue, ^{
+				                      _notificationAuthorized = granted;
+				                      _notificationSetupDone = YES;
+
+				                      for (void (^pending)(BOOL) in _pendingCompletions) {
+					                      pending(granted);
+				                      }
+
+				                      [_pendingCompletions removeAllObjects];
+			                      });
+		                      }];
 	});
-	return delegate;
+
+	dispatch_async(_notificationSetupQueue, ^{
+		if (_notificationSetupDone) {
+			if (completion) {
+				completion(_notificationAuthorized);
+			}
+		} else {
+			if (completion) {
+				[_pendingCompletions addObject:completion];
+			}
+		}
+	});
 }
 
 void showNotification(const char *title, const char *message) {
@@ -194,41 +239,33 @@ void showNotification(const char *title, const char *message) {
 	}
 }
 
+/// Generates a deterministic identifier for notification coalescing.
+/// Notifications with the same title will replace each other instead of stacking.
+static NSString *notificationIdentifierForTitle(NSString *title) {
+	return [NSString stringWithFormat:@"neru.notification.%@", title];
+}
+
 static void showNotificationWithUNUserNotificationCenter(NSString *title, NSString *message) {
-	// Ensure the delegate is set so foreground notifications are not suppressed
-	(void)getNotificationDelegate();
-
-	UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-
-	[center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound)
-	                      completionHandler:^(BOOL granted, NSError *_Nullable error) {
-		                      if (error) {
-			                      NSLog(@"Neru: Notification authorization error: %@", error);
-			                      if (!granted) {
-				                      return;
-			                      }
-		                      }
-
-		                      if (!granted) {
-			                      NSLog(@"Neru: Notification authorization denied");
-			                      return;
-		                      }
-
-		                      UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
-		                      content.title = title;
-		                      content.body = message;
-		                      content.sound = [UNNotificationSound defaultSound];
-
-		                      NSString *identifier = [[NSUUID UUID] UUIDString];
-		                      UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:identifier
-		                                                                                            content:content
-		                                                                                            trigger:nil];
-
-		                      [center addNotificationRequest:request
-		                               withCompletionHandler:^(NSError *_Nullable addError) {
-			                               if (addError) {
-				                               NSLog(@"Neru: Failed to add notification request: %@", addError);
-			                               }
-		                               }];
-	                      }];
+	ensureNotificationSetup(^(BOOL authorized) {
+		if (!authorized) {
+			return;
+		}
+		UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
+		content.title = title;
+		content.body = message;
+		content.sound = [UNNotificationSound defaultSound];
+		// Use a deterministic identifier so repeated notifications with the same
+		// title (e.g. secure input warnings) replace each other instead of stacking.
+		NSString *identifier = notificationIdentifierForTitle(title);
+		UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:identifier
+		                                                                      content:content
+		                                                                      trigger:nil];
+		[[UNUserNotificationCenter currentNotificationCenter]
+		    addNotificationRequest:request
+		     withCompletionHandler:^(NSError *_Nullable addError) {
+			     if (addError) {
+				     NSLog(@"Neru: Failed to add notification request: %@", addError);
+			     }
+		     }];
+	});
 }
