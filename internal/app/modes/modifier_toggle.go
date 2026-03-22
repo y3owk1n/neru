@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
@@ -17,11 +18,6 @@ const modifierTogglePrefix = "__modifier_"
 // to arrive and cancel the pending toggle before it fires. 50ms is long enough
 // for the remapped key event to arrive but short enough to feel instantaneous.
 const modifierToggleDebounce = 50 * time.Millisecond
-
-// defaultModifierToggleCooldown is the fallback cooldown when the config value
-// is zero (disabled). Kept as a named constant for documentation; in practice
-// the cooldown is only applied when the user explicitly sets tap_cooldown > 0.
-const defaultModifierToggleCooldown = 0
 
 var modifierToggleMap = map[string]action.Modifiers{
 	"cmd":   action.ModCmd,
@@ -227,7 +223,7 @@ func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifie
 		// This catches both rapid Karabiner usage and ghost modifier events
 		// where Karabiner's internal timeout (~250ms) elapses.
 		// Only applied when tap_cooldown > 0 in config (default 0 = disabled).
-		cooldownMs := defaultModifierToggleCooldown
+		cooldownMs := config.DefaultStickyModifiersTapCooldown
 		if h.config != nil {
 			cooldownMs = h.config.StickyModifiers.TapCooldown
 		}
