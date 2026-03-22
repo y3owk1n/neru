@@ -41,6 +41,8 @@ const plistTemplateAppBundle = `<?xml version="1.0" encoding="UTF-8"?>
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>StandardErrorPath</key>
+    <string>/tmp/neru.err.log</string>
 	<key>ProcessType</key>
     <string>Interactive</string>
     <key>LimitLoadToSessionType</key>
