@@ -188,7 +188,9 @@ static void ensureNotificationSetup(void (^completion)(BOOL authorized)) {
 
 		UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
 		center.delegate = delegate;
-		[center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound)
+
+		[center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound |
+		                                         UNAuthorizationOptionBadge)
 		                      completionHandler:^(BOOL granted, NSError *_Nullable error) {
 			                      if (error) {
 				                      NSLog(@"Neru: Notification authorization error: %@", error);
