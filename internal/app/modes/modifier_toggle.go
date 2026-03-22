@@ -167,6 +167,8 @@ func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifie
 		existingTimer.Stop()
 	}
 
+	timerSession := h.modeSession
+
 	h.logger.Debug("Scheduling modifier toggle debounce",
 		zap.String("modifier", mod.String()),
 		zap.Duration("delay", modifierToggleDebounce))
@@ -174,6 +176,19 @@ func (h *Handler) scheduleModifierToggle(expectedDown string, mod action.Modifie
 	timer := time.AfterFunc(modifierToggleDebounce, func() {
 		h.mu.Lock()
 		defer h.mu.Unlock()
+
+		// Guard against stale timer: if the mode session changed (user exited
+		// and re-entered a mode) while we were waiting, this timer belongs to
+		// a previous session and must not toggle anything. The primary cleanup
+		// path (cancelPendingModifierToggle via setAppModeLocked) already
+		// stops timers and nils pendingModifierKeys, but this check provides
+		// defense-in-depth in case a timer fires between the mode exit and the
+		// cancel — matching the pattern used by refreshHintsTimer.
+		if h.modeSession != timerSession {
+			delete(h.pendingModifierTimers, expectedDown)
+
+			return
+		}
 
 		// If the pending down was already canceled (by a regular key press),
 		// the entry will be gone from the map — do nothing.
