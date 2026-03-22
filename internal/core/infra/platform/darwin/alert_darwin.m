@@ -168,10 +168,17 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 
 static void showNotificationWithUNUserNotificationCenter(NSString *title, NSString *message);
 
-/// Serializes access to the pending completions array and authorization state.
+/// Guards all mutable notification state below. Every read/write of
+/// _pendingCompletions, _notificationAuthorized, and _notificationSetupDone
+/// MUST happen on this serial queue — do NOT access them from any other context.
 static dispatch_queue_t _notificationSetupQueue;
+/// Completions queued before the first authorization response is known.
+/// Protected by _notificationSetupQueue.
 static NSMutableArray<void (^)(BOOL)> *_pendingCompletions;
+/// Cached authorization result. Protected by _notificationSetupQueue.
 static BOOL _notificationAuthorized = NO;
+/// Set to YES once requestAuthorizationWithOptions has resolved.
+/// Protected by _notificationSetupQueue.
 static BOOL _notificationSetupDone = NO;
 
 /// Lazily initializes the notification delegate and requests authorization once.
