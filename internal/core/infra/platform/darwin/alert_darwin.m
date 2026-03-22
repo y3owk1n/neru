@@ -242,9 +242,10 @@ void showNotification(const char *title, const char *message) {
 }
 
 /// Generates a deterministic identifier for notification coalescing.
-/// Notifications with the same title will replace each other instead of stacking.
-static NSString *notificationIdentifierForTitle(NSString *title) {
-	return [NSString stringWithFormat:@"neru.notification.%@", title];
+/// Notifications with the same title AND message will replace each other instead
+/// of stacking, while distinct messages (even under the same title) are shown separately.
+static NSString *notificationIdentifierForContent(NSString *title, NSString *message) {
+	return [NSString stringWithFormat:@"neru.notification.%@.%@", title, message];
 }
 
 static void showNotificationWithUNUserNotificationCenter(NSString *title, NSString *message) {
@@ -257,8 +258,8 @@ static void showNotificationWithUNUserNotificationCenter(NSString *title, NSStri
 		content.body = message;
 		content.sound = [UNNotificationSound defaultSound];
 		// Use a deterministic identifier so repeated notifications with the same
-		// title (e.g. secure input warnings) replace each other instead of stacking.
-		NSString *identifier = notificationIdentifierForTitle(title);
+		// title and message (e.g. secure input warnings) replace each other instead of stacking.
+		NSString *identifier = notificationIdentifierForContent(title, message);
 		UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:identifier
 		                                                                      content:content
 		                                                                      trigger:nil];
