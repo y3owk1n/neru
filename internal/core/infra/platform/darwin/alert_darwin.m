@@ -173,13 +173,15 @@ static void showNotificationWithUNUserNotificationCenter(NSString *title, NSStri
 
 	[center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound)
 	                      completionHandler:^(BOOL granted, NSError *_Nullable error) {
-		                      if (!granted) {
-			                      NSLog(@"Neru: Notification authorization denied: %@", error);
-			                      return;
-		                      }
-
 		                      if (error) {
 			                      NSLog(@"Neru: Notification authorization error: %@", error);
+			                      if (!granted) {
+				                      return;
+			                      }
+		                      }
+
+		                      if (!granted) {
+			                      NSLog(@"Neru: Notification authorization denied");
 			                      return;
 		                      }
 
