@@ -200,6 +200,10 @@ static void ensureNotificationSetup(void (^completion)(BOOL authorized)) {
 				                      NSLog(@"Neru: Notification authorization denied");
 			                      }
 
+			                      // Safe to dispatch_sync here: this completion handler runs on a
+			                      // system queue (not _notificationSetupQueue), so no deadlock.
+			                      // The pending blocks only call addNotificationRequest (async)
+			                      // and do not re-enter _notificationSetupQueue.
 			                      dispatch_sync(_notificationSetupQueue, ^{
 				                      _notificationAuthorized = granted;
 				                      _notificationSetupDone = YES;
