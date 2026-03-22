@@ -129,6 +129,7 @@ func findAppBundle(binPath string) (string, bool) {
 
 	// Case 2: binary is at <prefix>/bin/neru; bundle is at <prefix>/Applications/Neru.app.
 	prefix := filepath.Dir(filepath.Dir(binPath)) // <prefix>/bin/neru → <prefix>
+
 	sibling := filepath.Join(prefix, "Applications", "Neru.app")
 	if isValidAppBundle(sibling) {
 		return sibling, true
