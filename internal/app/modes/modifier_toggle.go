@@ -103,6 +103,16 @@ func (h *Handler) handleModifierToggle(key string) bool {
 			h.pendingModifierKeys = make(map[string]time.Time)
 		}
 
+		// If a debounce timer is already running for this modifier (rapid
+		// double-tap within the debounce window), stop it so the old callback
+		// doesn't consume the new pending entry when it fires.
+		if h.pendingModifierTimers != nil {
+			if existingTimer, exists := h.pendingModifierTimers[normalizedKey]; exists {
+				existingTimer.Stop()
+				delete(h.pendingModifierTimers, normalizedKey)
+			}
+		}
+
 		h.pendingModifierKeys[normalizedKey] = time.Now()
 		h.logger.Debug("Modifier key down", zap.String("key", normalizedKey))
 
