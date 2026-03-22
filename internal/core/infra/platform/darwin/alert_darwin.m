@@ -146,9 +146,38 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 	return 0;
 }
 
+#pragma mark - Notification Delegate
+
+/// Delegate that allows notifications to be displayed even when the app is in the foreground.
+/// Without this, UNUserNotificationCenter silently suppresses foreground notifications.
+@interface NeruNotificationDelegate : NSObject <UNUserNotificationCenterDelegate>
+@end
+
+@implementation NeruNotificationDelegate
+
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+       willPresentNotification:(UNNotification *)notification
+         withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
+	completionHandler(UNNotificationPresentationOptionBanner | UNNotificationPresentationOptionSound);
+}
+
+@end
+
 #pragma mark - Notification Functions
 
 static void showNotificationWithUNUserNotificationCenter(NSString *title, NSString *message);
+
+/// Lazily initializes and returns the shared notification delegate.
+/// The delegate is set once on UNUserNotificationCenter and kept alive for the process lifetime.
+static NeruNotificationDelegate *getNotificationDelegate(void) {
+	static NeruNotificationDelegate *delegate = nil;
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^{
+		delegate = [[NeruNotificationDelegate alloc] init];
+		[UNUserNotificationCenter currentNotificationCenter].delegate = delegate;
+	});
+	return delegate;
+}
 
 void showNotification(const char *title, const char *message) {
 	@autoreleasepool {
@@ -166,6 +195,9 @@ void showNotification(const char *title, const char *message) {
 }
 
 static void showNotificationWithUNUserNotificationCenter(NSString *title, NSString *message) {
+	// Ensure the delegate is set so foreground notifications are not suppressed
+	(void)getNotificationDelegate();
+
 	UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
 
 	[center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound)
@@ -188,11 +220,9 @@ static void showNotificationWithUNUserNotificationCenter(NSString *title, NSStri
 		                      content.sound = [UNNotificationSound defaultSound];
 
 		                      NSString *identifier = [[NSUUID UUID] UUIDString];
-		                      UNTimeIntervalNotificationTrigger *trigger =
-		                          [UNTimeIntervalNotificationTrigger triggerWithTimeInterval:0.1 repeats:NO];
 		                      UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:identifier
 		                                                                                            content:content
-		                                                                                            trigger:trigger];
+		                                                                                            trigger:nil];
 
 		                      [center addNotificationRequest:request
 		                               withCompletionHandler:^(NSError *_Nullable addError) {
