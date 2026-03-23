@@ -101,7 +101,7 @@ devbox shell
 
 Devbox automatically installs and manages:
 
-- Go 1.26.0
+- Go 1.26+
 - gopls (Go language server)
 - gotools, gofumpt, golines (Go formatting tools)
 - golangci-lint (linter)
