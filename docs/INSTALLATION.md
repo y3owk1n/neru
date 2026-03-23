@@ -282,7 +282,7 @@ nix flake update neru
 ### Patch Go Version
 
 > [!NOTE]
-> This is only required if you're using `nix`, you're using the `neru-source` package and nixpkgs is not on golang `1.26.0` yet.
+> This is only required if you're using `nix`, you're using the `neru-source` package and nixpkgs is not on golang `1.26.1` yet.
 
 The latest version of Neru requires Go 1.26 or later. But nixpkgs for golang doesn't have that supported yet, you can patch it as below to the latest version available (search from nixpkgs and see what are the latest version):
 
@@ -290,7 +290,7 @@ The latest version of Neru requires Go 1.26 or later. But nixpkgs for golang doe
 package = pkgs.neru-source.overrideAttrs (_: {
   postPatch = ''
      substituteInPlace go.mod \
-       --replace-fail "go 1.26.0" "go 1.25.5"
+       --replace-fail "go 1.26.1" "go 1.25.5"
 
      # Verify it worked
      echo "=== go.mod after patch ==="

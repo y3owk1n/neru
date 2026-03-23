@@ -50,7 +50,7 @@ jobs:
               if: matrix.check == 'lint' && runner.os == 'Windows'
               uses: golangci/golangci-lint-action@v8
               with:
-                  version: v2.9.0
+                  version: v2.11.3
                   install-only: true
 
             # Install just on Windows
