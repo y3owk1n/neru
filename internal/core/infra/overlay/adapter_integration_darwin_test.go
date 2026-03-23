@@ -5,6 +5,7 @@ package overlay_test
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
@@ -32,6 +33,10 @@ func TestOverlayAdapterImplementsPort(_ *testing.T) {
 func TestOverlayAdapterIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
+	}
+
+	if os.Getenv("CI") != "" {
+		t.Skip("Skipping overlay integration test in CI (no window server run loop)")
 	}
 
 	// Setup
@@ -91,6 +96,10 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 func TestOverlayAdapterContextCancellation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
+	}
+
+	if os.Getenv("CI") != "" {
+		t.Skip("Skipping overlay integration test in CI (no window server run loop)")
 	}
 
 	logger := logger.Get()
