@@ -142,6 +142,14 @@ func TestCommandInitialization(t *testing.T) {
 		"middle_click":        false,
 		"move_mouse":          false,
 		"move_mouse_relative": false,
+		"scroll_up":           false,
+		"scroll_down":         false,
+		"scroll_left":         false,
+		"scroll_right":        false,
+		"go_top":              false,
+		"go_bottom":           false,
+		"page_up":             false,
+		"page_down":           false,
 	}
 
 	for _, cmd := range cli.ActionCmd.Commands() {
@@ -184,6 +192,14 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{"action_middle_click", getActionCmd("middle_click"), true},
 		{"action_move_mouse", getActionCmd("move_mouse"), true},
 		{"action_move_mouse_relative", getActionCmd("move_mouse_relative"), true},
+		{"action_scroll_up", getActionCmd("scroll_up"), true},
+		{"action_scroll_down", getActionCmd("scroll_down"), true},
+		{"action_scroll_left", getActionCmd("scroll_left"), true},
+		{"action_scroll_right", getActionCmd("scroll_right"), true},
+		{"action_go_top", getActionCmd("go_top"), true},
+		{"action_go_bottom", getActionCmd("go_bottom"), true},
+		{"action_page_up", getActionCmd("page_up"), true},
+		{"action_page_down", getActionCmd("page_down"), true},
 		{"status", getCmd("status"), true},
 		{"doctor", getCmd("doctor"), true}, // doctor returns silentError when daemon is down
 		{"toggle-screen-share", getCmd("toggle-screen-share"), true},

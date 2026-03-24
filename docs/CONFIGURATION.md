@@ -285,6 +285,7 @@ All actions from `[hotkeys]` work here:
 | --------------- | ------------------------------------------ | --------------------------- |
 | Mode activation | `"hints"`, `"grid"`, `"scroll"`            | Switch to another mode      |
 | IPC command     | `"action move_mouse --center"`             | Execute an IPC action       |
+| Scroll action   | `"action scroll_down"`                     | Scroll at cursor position   |
 | Shell command   | `"exec bash /path/script.sh"`              | Run a shell command         |
 | With flags      | `"action move_mouse --center --monitor 2"` | IPC action with extra flags |
 
@@ -1109,6 +1110,41 @@ move_mouse_right  = "Right"
 2. Type to select a position (or scroll to the desired area)
 3. Use arrow keys to nudge the cursor
 4. Press an action key (e.g. `Shift+L`) to click
+
+### Scroll actions via CLI
+
+Scroll at the current cursor position without entering scroll mode. These are available as `neru action` subcommands and can be used from hotkeys or custom hotkeys.
+
+| Subcommand     | Scroll amount             | Description              |
+| -------------- | ------------------------- | ------------------------ |
+| `scroll_up`    | `scroll.scroll_step`      | Scroll up by one line    |
+| `scroll_down`  | `scroll.scroll_step`      | Scroll down by one line  |
+| `scroll_left`  | `scroll.scroll_step`      | Scroll left by one line  |
+| `scroll_right` | `scroll.scroll_step`      | Scroll right by one line |
+| `go_top`       | `scroll.scroll_step_full` | Scroll to top of page    |
+| `go_bottom`    | `scroll.scroll_step_full` | Scroll to bottom of page |
+| `page_up`      | `scroll.scroll_step_half` | Scroll up by half page   |
+| `page_down`    | `scroll.scroll_step_half` | Scroll down by half page |
+
+**CLI examples:**
+
+```bash
+neru action scroll_down    # Scroll down by scroll_step pixels
+neru action page_up        # Scroll up by scroll_step_half pixels
+neru action go_top         # Jump to top (scroll_step_full)
+```
+
+**Hotkey examples:**
+
+```toml
+[hotkeys]
+"Cmd+Down" = "action scroll_down"
+"Cmd+Up"   = "action scroll_up"
+
+[scroll.custom_hotkeys]
+"Cmd+Shift+J" = "action page_down"
+"Cmd+Shift+K" = "action page_up"
+```
 
 ---
 

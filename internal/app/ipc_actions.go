@@ -15,16 +15,19 @@ import (
 // IPCControllerActions handles action-related IPC commands.
 type IPCControllerActions struct {
 	actionService *services.ActionService
+	scrollService *services.ScrollService
 	logger        *zap.Logger
 }
 
 // NewIPCControllerActions creates a new action command handler.
 func NewIPCControllerActions(
 	actionService *services.ActionService,
+	scrollService *services.ScrollService,
 	logger *zap.Logger,
 ) *IPCControllerActions {
 	return &IPCControllerActions{
 		actionService: actionService,
+		scrollService: scrollService,
 		logger:        logger,
 	}
 }
@@ -201,6 +204,11 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			Message: "invalid or missing flag value",
 			Code:    ipc.CodeInvalidInput,
 		}
+	}
+
+	// Handle scroll sub-actions (scroll_up, scroll_down, etc.)
+	if action.IsScrollSubAction(actionName) {
+		return h.handleScrollAction(ctx, actionName, parsed)
 	}
 
 	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
@@ -417,5 +425,88 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		Success: true,
 		Message: actionName + " performed",
 		Code:    ipc.CodeOK,
+	}
+}
+
+// handleScrollAction dispatches a scroll sub-action (scroll_up, page_down, etc.)
+// to the ScrollService. The optional --amount flag overrides the default magnitude.
+func (h *IPCControllerActions) handleScrollAction(
+	ctx context.Context,
+	actionName string,
+	parsed parsedActionArgs,
+) ipc.Response {
+	if h.scrollService == nil {
+		return ipc.Response{
+			Success: false,
+			Message: "scroll service not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	// Reject flags that are not applicable to scroll actions.
+	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
+		parsed.hasCenter || parsed.hasMonitor || parsed.modifierStr != "" {
+		return ipc.Response{
+			Success: false,
+			Message: "scroll actions only support the --amount flag",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	direction, amount, ok := scrollActionMapping(actionName)
+	if !ok {
+		return ipc.Response{
+			Success: false,
+			Message: "unknown scroll action: " + actionName,
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	h.logger.Info("Performing scroll action via IPC",
+		zap.String("action", actionName),
+		zap.Int("direction", int(direction)),
+		zap.Int("amount", int(amount)),
+	)
+
+	scrollErr := h.scrollService.Scroll(ctx, direction, amount)
+	if scrollErr != nil {
+		h.logger.Error("Scroll action failed", zap.Error(scrollErr),
+			zap.String("action", actionName))
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to perform scroll action: " + scrollErr.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: actionName + " performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
+// scrollActionMapping returns the direction, default amount, and validity for a scroll action name.
+func scrollActionMapping(name string) (services.ScrollDirection, services.ScrollAmount, bool) {
+	switch name {
+	case string(action.NameScrollUp):
+		return services.ScrollDirectionUp, services.ScrollAmountChar, true
+	case string(action.NameScrollDown):
+		return services.ScrollDirectionDown, services.ScrollAmountChar, true
+	case string(action.NameScrollLeft):
+		return services.ScrollDirectionLeft, services.ScrollAmountChar, true
+	case string(action.NameScrollRight):
+		return services.ScrollDirectionRight, services.ScrollAmountChar, true
+	case string(action.NameGoTop):
+		return services.ScrollDirectionUp, services.ScrollAmountEnd, true
+	case string(action.NameGoBottom):
+		return services.ScrollDirectionDown, services.ScrollAmountEnd, true
+	case string(action.NamePageUp):
+		return services.ScrollDirectionUp, services.ScrollAmountHalfPage, true
+	case string(action.NamePageDown):
+		return services.ScrollDirectionDown, services.ScrollAmountHalfPage, true
+	default:
+		return 0, 0, false
 	}
 }

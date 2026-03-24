@@ -9,15 +9,15 @@ import (
 // ActionCmd is the CLI action command for performing immediate actions.
 var ActionCmd = &cobra.Command{
 	Use:   "action",
-	Short: "Perform immediate mouse actions",
-	Long:  `Perform immediate mouse actions at the current cursor position.`,
+	Short: "Perform immediate mouse and scroll actions",
+	Long:  `Perform immediate mouse and scroll actions at the current cursor position.`,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return derrors.New(
 			derrors.CodeInvalidInput,
-			"action subcommand required (e.g., neru action left_click)",
+			"action subcommand required (e.g., neru action left_click, neru action scroll_up)",
 		)
 	},
 }
@@ -68,6 +68,62 @@ var ActionMoveMouseCmd = BuildMoveMouseCommand()
 // ActionMoveMouseRelativeCmd is the move mouse relative action command.
 var ActionMoveMouseRelativeCmd = BuildMoveMouseRelativeCommand()
 
+// ActionScrollUpCmd scrolls up at the current cursor position.
+var ActionScrollUpCmd = BuildScrollActionCommand(
+	"scroll_up",
+	"Scroll up at current cursor position",
+	`Scroll up at the current cursor location by scroll.scroll_step pixels.`,
+)
+
+// ActionScrollDownCmd scrolls down at the current cursor position.
+var ActionScrollDownCmd = BuildScrollActionCommand(
+	"scroll_down",
+	"Scroll down at current cursor position",
+	`Scroll down at the current cursor location by scroll.scroll_step pixels.`,
+)
+
+// ActionScrollLeftCmd scrolls left at the current cursor position.
+var ActionScrollLeftCmd = BuildScrollActionCommand(
+	"scroll_left",
+	"Scroll left at current cursor position",
+	`Scroll left at the current cursor location by scroll.scroll_step pixels.`,
+)
+
+// ActionScrollRightCmd scrolls right at the current cursor position.
+var ActionScrollRightCmd = BuildScrollActionCommand(
+	"scroll_right",
+	"Scroll right at current cursor position",
+	`Scroll right at the current cursor location by scroll.scroll_step pixels.`,
+)
+
+// ActionGoTopCmd scrolls to the top of the page.
+var ActionGoTopCmd = BuildScrollActionCommand(
+	"go_top",
+	"Scroll to top of page",
+	`Scroll to the top of the page at the current cursor location using scroll.scroll_step_full pixels.`,
+)
+
+// ActionGoBottomCmd scrolls to the bottom of the page.
+var ActionGoBottomCmd = BuildScrollActionCommand(
+	"go_bottom",
+	"Scroll to bottom of page",
+	`Scroll to the bottom of the page at the current cursor location using scroll.scroll_step_full pixels.`,
+)
+
+// ActionPageUpCmd scrolls up by half a page.
+var ActionPageUpCmd = BuildScrollActionCommand(
+	"page_up",
+	"Scroll up by half page",
+	`Scroll up by half a page at the current cursor location using scroll.scroll_step_half pixels.`,
+)
+
+// ActionPageDownCmd scrolls down by half a page.
+var ActionPageDownCmd = BuildScrollActionCommand(
+	"page_down",
+	"Scroll down by half page",
+	`Scroll down by half a page at the current cursor location using scroll.scroll_step_half pixels.`,
+)
+
 func init() {
 	ActionCmd.AddCommand(ActionLeftClickCmd)
 	ActionCmd.AddCommand(ActionRightClickCmd)
@@ -76,6 +132,14 @@ func init() {
 	ActionCmd.AddCommand(ActionMiddleClickCmd)
 	ActionCmd.AddCommand(ActionMoveMouseCmd)
 	ActionCmd.AddCommand(ActionMoveMouseRelativeCmd)
+	ActionCmd.AddCommand(ActionScrollUpCmd)
+	ActionCmd.AddCommand(ActionScrollDownCmd)
+	ActionCmd.AddCommand(ActionScrollLeftCmd)
+	ActionCmd.AddCommand(ActionScrollRightCmd)
+	ActionCmd.AddCommand(ActionGoTopCmd)
+	ActionCmd.AddCommand(ActionGoBottomCmd)
+	ActionCmd.AddCommand(ActionPageUpCmd)
+	ActionCmd.AddCommand(ActionPageDownCmd)
 
 	RootCmd.AddCommand(ActionCmd)
 }

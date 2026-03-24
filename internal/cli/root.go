@@ -292,6 +292,21 @@ case-insensitively against the localized display names reported by macOS
 	return cmd
 }
 
+// BuildScrollActionCommand creates a scroll action cobra command.
+func BuildScrollActionCommand(use, short, long string) *cobra.Command {
+	return &cobra.Command{
+		Use:   use,
+		Short: short,
+		Long:  long,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return sendCommand(cmd, "action", []string{use})
+		},
+	}
+}
+
 // BuildMoveMouseRelativeCommand creates a move_mouse_relative cobra command with deltaX and deltaY flags.
 func BuildMoveMouseRelativeCommand() *cobra.Command {
 	var deltaX, deltaY int
