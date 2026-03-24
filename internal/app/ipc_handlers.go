@@ -173,6 +173,19 @@ func (h *IPCControllerModes) extractModeOptions(
 	}
 
 	if opts.Action != nil {
+		// Validate that the action name is recognized so direct IPC callers
+		// get the same immediate feedback as the CLI (which checks via
+		// action.IsKnownName in mode_commands.go).
+		if !action.IsKnownName(action.Name(*opts.Action)) {
+			resp := ipc.Response{
+				Success: false,
+				Message: "invalid action: " + *opts.Action + ". Supported actions: " + action.SupportedNamesString(),
+				Code:    ipc.CodeInvalidInput,
+			}
+
+			return opts, &resp
+		}
+
 		// Scroll sub-actions (scroll_up, page_down, etc.) are IPC/CLI-only and
 		// cannot be used as pending mode actions. Reject them here so that
 		// direct IPC callers get the same validation as the CLI.
