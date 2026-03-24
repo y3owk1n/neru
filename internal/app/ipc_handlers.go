@@ -154,11 +154,21 @@ func (h *IPCControllerModes) extractModeOptions(
 	// Parse positional action arg and flag-style options from remaining args.
 	for i := 1; i < len(cmd.Args); i++ {
 		arg := cmd.Args[i]
-		if arg == "--repeat" || arg == "-r" {
+
+		switch {
+		case arg == "--repeat" || arg == "-r":
 			opts.Repeat = true
-		} else if opts.Action == nil {
+		case opts.Action == nil:
 			actionArg := arg
 			opts.Action = &actionArg
+		default:
+			resp := ipc.Response{
+				Success: false,
+				Message: "unexpected argument: " + arg,
+				Code:    ipc.CodeInvalidInput,
+			}
+
+			return opts, &resp
 		}
 	}
 
