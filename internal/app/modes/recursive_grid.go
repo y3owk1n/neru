@@ -273,6 +273,7 @@ func (h *Handler) updateRecursiveGridOverlay() {
 func (h *Handler) cleanupRecursiveGridMode() {
 	if h.recursiveGrid != nil {
 		h.recursiveGrid.Context.Reset()
+
 		if h.recursiveGrid.Manager != nil {
 			h.recursiveGrid.Manager.Reset()
 		}
