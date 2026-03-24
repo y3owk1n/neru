@@ -321,6 +321,9 @@ func (n Name) ToType() (Type, error) {
 		return TypeMoveMouse, nil
 	case NameMoveMouseRelative:
 		return TypeMoveMouseRelative, nil
+	// NOTE: scroll sub-actions map to the generic TypeScroll, which loses
+	// directional information. In practice these names are intercepted by
+	// IsScrollSubAction in the IPC handler before ToType is called.
 	case NameScroll,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown:
