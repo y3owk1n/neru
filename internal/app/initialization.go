@@ -201,21 +201,34 @@ func initializeServices(
 // processHotkeyBindings processes and filters hotkey bindings from configuration.
 func processHotkeyBindings(config *config.Config, logger *zap.Logger) []string {
 	keys := make([]string, 0, len(config.Hotkeys.Bindings))
-	for key, value := range config.Hotkeys.Bindings {
-		// Skip empty keys or values
-		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" {
+	for key, actions := range config.Hotkeys.Bindings {
+		// Skip empty keys or empty action arrays
+		if strings.TrimSpace(key) == "" || len(actions) == 0 {
 			logger.Warn(
 				"Skipping empty hotkey binding",
 				zap.String("key", key),
-				zap.String("value", value),
+				zap.Strings("actions", actions),
 			)
 
 			continue
 		}
 
-		mode := value
-		if parts := strings.Split(value, " "); len(parts) > 0 {
+		// Use the first action to determine the mode
+		var mode string
+		for _, action := range actions {
+			trimmedAction := strings.TrimSpace(action)
+			if trimmedAction == "" {
+				continue
+			}
+
+			parts := strings.Split(trimmedAction, " ")
 			mode = parts[0]
+
+			break
+		}
+
+		if mode == "" {
+			continue
 		}
 
 		if mode == domain.ModeString(domain.ModeHints) && !config.Hints.Enabled {

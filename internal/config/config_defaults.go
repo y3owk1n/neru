@@ -336,11 +336,11 @@ func commonDefaultConfig() *Config {
 			KBLayoutToUse:                     "",
 		},
 		Hotkeys: HotkeysConfig{
-			Bindings: map[string]string{
-				"Cmd+Shift+Space": "hints",
-				"Cmd+Shift+G":     "grid",
-				"Cmd+Shift+C":     "recursive_grid",
-				"Cmd+Shift+S":     "scroll",
+			Bindings: map[string][]string{
+				"Cmd+Shift+Space": {"hints"},
+				"Cmd+Shift+G":     {"grid"},
+				"Cmd+Shift+C":     {"recursive_grid"},
+				"Cmd+Shift+S":     {"scroll"},
 			},
 		},
 		Hints: HintsConfig{

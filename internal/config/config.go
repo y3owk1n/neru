@@ -12,6 +12,42 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
+// StringOrStringArray is a type that can unmarshal from either a TOML string
+// or a TOML array of strings. Used for backward compatibility.
+type StringOrStringArray []string
+
+// UnmarshalTOML implements custom unmarshaling for TOML compatibility.
+// It accepts both single string values and arrays of strings.
+func (s *StringOrStringArray) UnmarshalTOML(value any) error {
+	switch val := value.(type) {
+	case string:
+		*s = []string{val}
+
+	case []any:
+		*s = make([]string, 0, len(val))
+		for _, a := range val {
+			actionStr, ok := a.(string)
+			if !ok {
+				return derrors.Newf(derrors.CodeInvalidConfig, "expected string, got %T", a)
+			}
+
+			*s = append(*s, actionStr)
+		}
+
+	case []string:
+		*s = val
+
+	default:
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"cannot unmarshal %T into StringOrStringArray",
+			value,
+		)
+	}
+
+	return nil
+}
+
 // Accessibility role constants.
 const (
 	RoleMenuBarItem = "AXMenuBarItem"
@@ -447,8 +483,10 @@ type HotkeysConfig struct {
 	// Supported TOML format (preferred):
 	// [hotkeys]
 	// "Cmd+Shift+Space" = "hints"
-	// Values are strings. The special exec prefix is supported: "exec /usr/bin/say hi"
-	Bindings map[string]string `json:"bindings" toml:"bindings"`
+	// Values can be a single string or an array of strings:
+	// "PageUp" = ["action go_top", "action scroll_down"]
+	// The special exec prefix is supported: "exec /usr/bin/say hi"
+	Bindings map[string][]string `json:"bindings" toml:"bindings"`
 }
 
 // ScrollConfig defines the behavior and appearance settings for scroll mode.
@@ -461,7 +499,7 @@ type ScrollConfig struct {
 
 	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
 
-	CustomHotkeys map[string]string `json:"customHotkeys" toml:"custom_hotkeys"`
+	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"custom_hotkeys"`
 }
 
 // HintsUI defines the visual/appearance settings for hints mode.
@@ -508,7 +546,7 @@ type HintsConfig struct {
 
 	AdditionalAXSupport AdditionalAXSupport `json:"additionalAxSupport" toml:"additional_ax_support"`
 
-	CustomHotkeys map[string]string `json:"customHotkeys" toml:"custom_hotkeys"`
+	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"custom_hotkeys"`
 }
 
 // GridUI defines the visual/appearance settings for grid mode.
@@ -550,7 +588,7 @@ type GridConfig struct {
 	EnableGC        bool   `json:"enableGc"        toml:"enable_gc"`
 	ResetKey        string `json:"resetKey"        toml:"reset_key"`
 
-	CustomHotkeys map[string]string `json:"customHotkeys" toml:"custom_hotkeys"`
+	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"custom_hotkeys"`
 }
 
 // RecursiveGridUI defines the visual/appearance settings for recursive-grid mode.
@@ -610,7 +648,7 @@ type RecursiveGridConfig struct {
 	// Depths not listed here use the top-level GridCols/GridRows/Keys.
 	Layers []RecursiveGridLayerConfig `json:"layers" toml:"layers"`
 
-	CustomHotkeys map[string]string `json:"customHotkeys" toml:"custom_hotkeys"`
+	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"custom_hotkeys"`
 }
 
 // AllKeysIncludingLayers returns a combined string of all unique keys from the
@@ -979,7 +1017,7 @@ func (c *Config) ResolvedExitKeys(modeName string) []string {
 // CustomHotkeysForMode returns the custom_hotkeys map for the given mode name.
 // These are per-mode hotkeys that are only active while that mode is active,
 // using the same action syntax as [hotkeys] (e.g. "exec ...", "action ...", "hints", etc.).
-func (c *Config) CustomHotkeysForMode(modeName string) map[string]string {
+func (c *Config) CustomHotkeysForMode(modeName string) map[string]StringOrStringArray {
 	switch modeName {
 	case modeNameHints:
 		return c.Hints.CustomHotkeys

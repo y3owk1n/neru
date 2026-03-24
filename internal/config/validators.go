@@ -328,7 +328,7 @@ func (c *Config) ValidateAppConfigs() error {
 	}
 
 	// Validate hotkey bindings once, regardless of app configs
-	for key, value := range c.Hotkeys.Bindings {
+	for key, actions := range c.Hotkeys.Bindings {
 		if strings.TrimSpace(key) == "" {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
@@ -341,12 +341,22 @@ func (c *Config) ValidateAppConfigs() error {
 			return validateErr
 		}
 
-		if strings.TrimSpace(value) == "" {
+		if len(actions) == 0 {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
-				"hotkeys.bindings[%s] cannot be empty",
+				"hotkeys.bindings[%s] cannot have an empty action array",
 				key,
 			)
+		}
+
+		for _, action := range actions {
+			if strings.TrimSpace(action) == "" {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"hotkeys.bindings[%s] contains an empty action",
+					key,
+				)
+			}
 		}
 	}
 
@@ -953,7 +963,7 @@ func (c *Config) ValidateSmoothCursor() error {
 // ValidateCustomHotkeys validates the custom_hotkeys configuration for all modes.
 func (c *Config) ValidateCustomHotkeys() error {
 	type modeCustomHotkeys struct {
-		hotkeys  map[string]string
+		hotkeys  map[string]StringOrStringArray
 		modeName string
 	}
 
@@ -964,7 +974,7 @@ func (c *Config) ValidateCustomHotkeys() error {
 		{c.Scroll.CustomHotkeys, modeNameScroll},
 	}
 	for _, mode := range modes {
-		for key, value := range mode.hotkeys {
+		for key, actions := range mode.hotkeys {
 			fieldName := mode.modeName + ".custom_hotkeys"
 			if strings.TrimSpace(key) == "" {
 				return derrors.Newf(
@@ -979,13 +989,24 @@ func (c *Config) ValidateCustomHotkeys() error {
 				return err
 			}
 
-			if strings.TrimSpace(value) == "" {
+			if len(actions) == 0 {
 				return derrors.Newf(
 					derrors.CodeInvalidConfig,
-					"%s[%s] cannot have an empty action",
+					"%s[%s] cannot have an empty action array",
 					fieldName,
 					key,
 				)
+			}
+
+			for _, action := range actions {
+				if strings.TrimSpace(action) == "" {
+					return derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"%s[%s] contains an empty action",
+						fieldName,
+						key,
+					)
+				}
 			}
 		}
 	}
@@ -1027,7 +1048,7 @@ func (c *Config) checkCustomHotkeysConflicts() error {
 	}
 
 	type modeInfo struct {
-		hotkeys  map[string]string
+		hotkeys  map[string]StringOrStringArray
 		modeName string
 	}
 

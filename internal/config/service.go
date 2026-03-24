@@ -147,14 +147,40 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	if hot, ok := raw["hotkeys"]; ok {
 		if hotMap, ok := hot.(map[string]any); ok {
 			// Clear default bindings when user provides hotkeys config
-			configResult.Config.Hotkeys.Bindings = map[string]string{}
+			configResult.Config.Hotkeys.Bindings = map[string][]string{}
 
 			for key, value := range hotMap {
-				str, ok := value.(string)
-				if !ok {
+				switch v := value.(type) {
+				case string:
+					configResult.Config.Hotkeys.Bindings[key] = []string{v}
+				case []any:
+					actions := make([]string, 0, len(v))
+					for _, a := range v {
+						actionStr, ok := a.(string)
+						if !ok {
+							configResult.ValidationError = derrors.Newf(
+								derrors.CodeInvalidConfig,
+								"hotkeys.%s must be a string or array of strings",
+								key,
+							)
+							configResult.Config = DefaultConfig()
+
+							s.logger.Warn("Invalid hotkey configuration",
+								zap.String("key", key),
+								zap.Any("value", value),
+								zap.Error(configResult.ValidationError))
+
+							return configResult
+						}
+
+						actions = append(actions, actionStr)
+					}
+
+					configResult.Config.Hotkeys.Bindings[key] = actions
+				default:
 					configResult.ValidationError = derrors.Newf(
 						derrors.CodeInvalidConfig,
-						"hotkeys.%s must be a string action",
+						"hotkeys.%s must be a string or array of strings",
 						key,
 					)
 					configResult.Config = DefaultConfig()
@@ -166,8 +192,6 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 					return configResult
 				}
-
-				configResult.Config.Hotkeys.Bindings[key] = str
 			}
 		}
 	}

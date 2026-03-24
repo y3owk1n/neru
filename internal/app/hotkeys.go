@@ -17,39 +17,47 @@ import (
 func (a *App) registerHotkeys() {
 	cfg := a.configSnapshot()
 
-	for key, value := range cfg.Hotkeys.Bindings {
+	for key, actions := range cfg.Hotkeys.Bindings {
 		trimmedKey := strings.TrimSpace(key)
 
-		actionStr := strings.TrimSpace(value)
-		if trimmedKey == "" || actionStr == "" {
+		if trimmedKey == "" || len(actions) == 0 {
 			continue
 		}
 
-		mode := actionStr
-		if parts := strings.Split(actionStr, " "); len(parts) > 0 {
-			mode = parts[0]
+		var primaryMode string
+		for _, actionStr := range actions {
+			trimmedAction := strings.TrimSpace(actionStr)
+			if trimmedAction == "" {
+				continue
+			}
+
+			if primaryMode == "" {
+				parts := strings.Split(trimmedAction, " ")
+				primaryMode = parts[0]
+			}
 		}
 
-		if mode == domain.ModeString(domain.ModeHints) && !cfg.Hints.Enabled {
+		if primaryMode == domain.ModeString(domain.ModeHints) && !cfg.Hints.Enabled {
 			continue
 		}
 
-		if mode == domain.ModeString(domain.ModeGrid) && !cfg.Grid.Enabled {
+		if primaryMode == domain.ModeString(domain.ModeGrid) && !cfg.Grid.Enabled {
 			continue
 		}
 
-		if mode == domain.ModeString(domain.ModeRecursiveGrid) && !cfg.RecursiveGrid.Enabled {
+		if primaryMode == domain.ModeString(domain.ModeRecursiveGrid) &&
+			!cfg.RecursiveGrid.Enabled {
 			continue
 		}
 
 		a.logger.Info(
 			"Registering hotkey binding",
 			zap.String("key", trimmedKey),
-			zap.String("action", actionStr),
+			zap.Strings("actions", actions),
 		)
 
 		bindKey := trimmedKey
-		bindAction := actionStr
+		bindActions := actions
 
 		var registerHotkeyErr error
 
@@ -66,12 +74,14 @@ func (a *App) registerHotkeys() {
 					}
 				}()
 
-				executeHotkeyActionErr := a.executeHotkeyAction(bindKey, bindAction)
-				if executeHotkeyActionErr != nil {
-					a.logger.Error("hotkey action failed",
-						zap.String("key", bindKey),
-						zap.String("action", bindAction),
-						zap.Error(executeHotkeyActionErr))
+				for _, actionStr := range bindActions {
+					executeHotkeyActionErr := a.executeHotkeyAction(bindKey, actionStr)
+					if executeHotkeyActionErr != nil {
+						a.logger.Error("hotkey action failed",
+							zap.String("key", bindKey),
+							zap.String("action", actionStr),
+							zap.Error(executeHotkeyActionErr))
+					}
 				}
 			}()
 		})
@@ -79,7 +89,7 @@ func (a *App) registerHotkeys() {
 			a.logger.Error(
 				"Failed to register hotkey binding",
 				zap.String("key", trimmedKey),
-				zap.String("action", actionStr),
+				zap.Strings("actions", actions),
 				zap.Error(registerHotkeyErr),
 			)
 

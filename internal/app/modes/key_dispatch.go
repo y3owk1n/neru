@@ -155,36 +155,37 @@ func (h *Handler) handleCustomHotkey(key string) bool {
 	}
 
 	normalizedKey := config.NormalizeKeyForComparison(key)
-	for bindKey, actionStr := range customHotkeys {
+	for bindKey, actions := range customHotkeys {
 		if config.NormalizeKeyForComparison(bindKey) == normalizedKey {
 			h.logger.Info("Custom hotkey matched",
 				zap.String("mode", currentModeName),
 				zap.String("key", key),
-				zap.String("action", actionStr))
+				zap.Strings("actions", actions))
 
 			// Execute in a goroutine so the event tap callback returns quickly.
 			// This also avoids a deadlock: executeHotkeyAction may call
 			// ipcController.HandleCommand → ActivateModeWithOptions which
 			// acquires h.mu, but we already hold it.
 			capturedKey := bindKey
+			capturedActions := actions
 
-			capturedAction := actionStr
 			go func() {
 				defer func() {
 					if r := recover(); r != nil {
 						h.logger.Error("panic in custom hotkey handler",
 							zap.Any("recover", r),
-							zap.String("key", capturedKey),
-							zap.String("action", capturedAction))
+							zap.String("key", capturedKey))
 					}
 				}()
 
-				err := h.executeHotkeyAction(capturedKey, capturedAction)
-				if err != nil {
-					h.logger.Error("Custom hotkey action failed",
-						zap.String("key", capturedKey),
-						zap.String("action", capturedAction),
-						zap.Error(err))
+				for _, actionStr := range capturedActions {
+					err := h.executeHotkeyAction(capturedKey, actionStr)
+					if err != nil {
+						h.logger.Error("Custom hotkey action failed",
+							zap.String("key", capturedKey),
+							zap.String("action", actionStr),
+							zap.Error(err))
+					}
 				}
 			}()
 

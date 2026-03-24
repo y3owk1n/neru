@@ -225,6 +225,20 @@ Global hotkeys trigger Neru navigation modes from anywhere on screen.
 "Cmd+Alt+N" = "exec osascript -e 'display notification \"Hello!\" with title \"Neru\"'"
 ```
 
+### Multiple actions per hotkey
+
+You can bind multiple actions to a single hotkey by using an array:
+
+```toml
+[hotkeys]
+"PageUp" = ["action go_top", "action scroll_down"]
+"Cmd+Shift+D" = ["hints", "exec echo 'hints activated'"]
+```
+
+Actions are executed sequentially in order. This is useful when you want to perform multiple operations with a single hotkey, such as scrolling and then performing an action.
+
+Both `[hotkeys]` and `[<mode>.custom_hotkeys]` support this array syntax.
+
 ### Disabling all hotkeys
 
 To disable **all** built-in hotkeys (e.g. when using an external hotkey daemon like skhd), provide an empty `[hotkeys]` section:

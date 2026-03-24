@@ -430,10 +430,27 @@ func (a *App) printStartupInfo() {
 
 	cfg := a.configSnapshot()
 
-	for key, value := range cfg.Hotkeys.Bindings {
-		mode := value
-		if parts := strings.Split(value, " "); len(parts) > 0 {
+	for key, actions := range cfg.Hotkeys.Bindings {
+		if len(actions) == 0 {
+			continue
+		}
+
+		// Use the first action to determine the mode
+		var mode string
+		for _, action := range actions {
+			trimmedAction := strings.TrimSpace(action)
+			if trimmedAction == "" {
+				continue
+			}
+
+			parts := strings.Split(trimmedAction, " ")
 			mode = parts[0]
+
+			break
+		}
+
+		if mode == "" {
+			continue
 		}
 
 		if mode == domain.ModeString(domain.ModeHints) && !cfg.Hints.Enabled {
@@ -448,9 +465,10 @@ func (a *App) printStartupInfo() {
 			continue
 		}
 
-		toShow := value
-		if strings.HasPrefix(value, "exec") {
-			runes := []rune(value)
+		// For display, show first action or truncate if exec
+		toShow := actions[0]
+		if strings.HasPrefix(toShow, "exec") {
+			runes := []rune(toShow)
 			if len(runes) > MaxExecDisplayLength {
 				toShow = string(runes[:30]) + "..."
 			}
