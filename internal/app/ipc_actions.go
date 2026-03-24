@@ -429,7 +429,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 }
 
 // handleScrollAction dispatches a scroll sub-action (scroll_up, page_down, etc.)
-// to the ScrollService. The optional --amount flag overrides the default magnitude.
+// to the ScrollService.
 func (h *IPCControllerActions) handleScrollAction(
 	ctx context.Context,
 	actionName string,
@@ -448,7 +448,7 @@ func (h *IPCControllerActions) handleScrollAction(
 		parsed.hasCenter || parsed.hasMonitor || parsed.modifierStr != "" {
 		return ipc.Response{
 			Success: false,
-			Message: "scroll actions only support the --amount flag",
+			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--monitor/--modifier flags",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
