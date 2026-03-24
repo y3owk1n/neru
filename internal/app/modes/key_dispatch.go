@@ -179,11 +179,16 @@ func (h *Handler) handleCustomHotkey(key string) bool {
 				}()
 
 				for _, actionStr := range capturedActions {
-					err := h.executeHotkeyAction(capturedKey, actionStr)
+					trimmedAction := strings.TrimSpace(actionStr)
+					if trimmedAction == "" {
+						continue
+					}
+
+					err := h.executeHotkeyAction(capturedKey, trimmedAction)
 					if err != nil {
 						h.logger.Error("Custom hotkey action failed",
 							zap.String("key", capturedKey),
-							zap.String("action", actionStr),
+							zap.String("action", trimmedAction),
 							zap.Error(err))
 					}
 				}

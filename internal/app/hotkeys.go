@@ -75,11 +75,16 @@ func (a *App) registerHotkeys() {
 				}()
 
 				for _, actionStr := range bindActions {
-					executeHotkeyActionErr := a.executeHotkeyAction(bindKey, actionStr)
+					trimmedAction := strings.TrimSpace(actionStr)
+					if trimmedAction == "" {
+						continue
+					}
+
+					executeHotkeyActionErr := a.executeHotkeyAction(bindKey, trimmedAction)
 					if executeHotkeyActionErr != nil {
 						a.logger.Error("hotkey action failed",
 							zap.String("key", bindKey),
-							zap.String("action", actionStr),
+							zap.String("action", trimmedAction),
 							zap.Error(executeHotkeyActionErr))
 					}
 				}
