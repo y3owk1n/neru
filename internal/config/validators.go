@@ -1122,6 +1122,12 @@ func (c *Config) checkCustomHotkeyModeSpecificConflict(
 		if !strings.Contains(hotkeyKey, "+") && len(hotkeyKey) == 1 {
 			lowerHK := strings.ToLower(hotkeyKey)
 
+			// Resolve sublayer keys with fallback to grid.characters (same as ValidateGrid).
+			sublayerKeys := strings.TrimSpace(c.Grid.SublayerKeys)
+			if sublayerKeys == "" {
+				sublayerKeys = c.Grid.Characters
+			}
+
 			charSets := []struct {
 				chars     string
 				fieldDesc string
@@ -1129,6 +1135,7 @@ func (c *Config) checkCustomHotkeyModeSpecificConflict(
 				{c.Grid.Characters, "grid.characters"},
 				{c.Grid.RowLabels, "grid.row_labels"},
 				{c.Grid.ColLabels, "grid.col_labels"},
+				{sublayerKeys, "grid.sublayer_keys"},
 			}
 			for _, char := range charSets {
 				if char.chars != "" && strings.Contains(strings.ToLower(char.chars), lowerHK) {
