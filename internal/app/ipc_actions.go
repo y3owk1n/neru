@@ -179,14 +179,6 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 }
 
 func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command) ipc.Response {
-	if h.actionService == nil {
-		return ipc.Response{
-			Success: false,
-			Message: "action service not available",
-			Code:    ipc.CodeActionFailed,
-		}
-	}
-
 	if len(cmd.Args) == 0 {
 		return ipc.Response{
 			Success: false,
@@ -207,8 +199,17 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	// Handle scroll sub-actions (scroll_up, scroll_down, etc.)
+	// These only require scrollService, so dispatch before the actionService nil check.
 	if action.IsScrollSubAction(actionName) {
 		return h.handleScrollAction(ctx, actionName, parsed)
+	}
+
+	if h.actionService == nil {
+		return ipc.Response{
+			Success: false,
+			Message: "action service not available",
+			Code:    ipc.CodeActionFailed,
+		}
 	}
 
 	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
