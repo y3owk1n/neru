@@ -73,6 +73,10 @@ func (h *Handler) activateGridModeWithAction(actionStr *string, repeat bool) {
 	if drawGridErr != nil {
 		h.logger.Error("Failed to draw grid", zap.Error(drawGridErr))
 
+		if isRefresh {
+			h.exitModeLocked()
+		}
+
 		return
 	}
 
