@@ -18,18 +18,35 @@ import (
 
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter.
 func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string, repeat bool) {
+	// Detect refresh before validation so we can do partial cleanup on re-activation.
+	isRefresh := h.appState.CurrentMode() == domain.ModeRecursiveGrid
+
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameRecursiveGrid,
 		h.config.RecursiveGrid.Enabled,
 		action.TypeMoveMouse,
 	)
 	if !ok {
+		if isRefresh {
+			h.exitModeLocked()
+		}
+
 		return
 	}
 
 	actionString := domain.ActionString(actionEnum)
 
-	h.exitModeLocked()
+	if isRefresh {
+		// During refresh (e.g. --repeat re-activation), only clear overlay and
+		// stop polling. Mode and event tap are already in the correct state so
+		// we avoid the full exit cycle which would hide the overlay, disable the
+		// event tap, run cursor restoration, and transition to idle.
+		h.overlayManager.Clear()
+		h.stopIndicatorPolling()
+	} else {
+		h.exitModeLocked()
+	}
+
 	h.overlayManager.Clear()
 
 	h.appState.SetRecursiveGridOverlayNeedsRefresh(false)
@@ -82,7 +99,11 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string, repeat 
 		)
 	}
 
-	h.setModeLocked(domain.ModeRecursiveGrid, overlay.ModeRecursiveGrid)
+	// Only set mode and enable event tap on initial activation;
+	// during refresh these are already in the correct state.
+	if !isRefresh {
+		h.setModeLocked(domain.ModeRecursiveGrid, overlay.ModeRecursiveGrid)
+	}
 
 	h.logger.Info("Recursive-grid mode activated", zap.String("action", actionString))
 	h.logger.Info("Press u/i/j/k to select cells, backspace to backtrack, escape to exit")
