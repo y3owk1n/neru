@@ -37,11 +37,11 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string, repeat 
 	actionString := domain.ActionString(actionEnum)
 
 	if isRefresh {
-		// During refresh (e.g. --repeat re-activation), only clear overlay and
-		// stop polling. Mode and event tap are already in the correct state so
-		// we avoid the full exit cycle which would hide the overlay, disable the
-		// event tap, run cursor restoration, and transition to idle.
-		h.overlayManager.Clear()
+		// During refresh (e.g. --repeat re-activation), only stop polling.
+		// Mode and event tap are already in the correct state so we avoid the
+		// full exit cycle which would hide the overlay, disable the event tap,
+		// run cursor restoration, and transition to idle.
+		// The overlay is cleared unconditionally below.
 		h.stopIndicatorPolling()
 	} else {
 		h.exitModeLocked()
