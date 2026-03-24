@@ -132,6 +132,22 @@ func (h *Handler) handleHintsModeKey(key string) {
 		// Only refresh hints after non-move-mouse actions
 		// Move mouse actions should keep the overlay active
 		if !h.actionService.IsMoveMouseKey(key) {
+			// Capture repeat state before refresh so we can restore it on the
+			// fresh context. activateHintModeInternal resets the context,
+			// which would lose the --repeat and pendingAction flags.
+			savedPendingAction := h.hints.Context.PendingAction()
+			savedRepeat := h.hints.Context.Repeat()
+
+			// restoreRepeatState restores the repeat and pendingAction flags
+			// on the fresh hints context after a refresh re-activation.
+			restoreRepeatState := func() {
+				if savedRepeat && h.appState.CurrentMode() == domain.ModeHints &&
+					h.hints != nil && h.hints.Context != nil {
+					h.hints.Context.SetPendingAction(savedPendingAction)
+					h.hints.Context.SetRepeat(true)
+				}
+			}
+
 			bundleID, err := h.actionService.FocusedAppBundleID(ctx)
 			if err != nil {
 				h.logger.Warn(
@@ -146,6 +162,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 			if delay == 0 {
 				h.activateHintModeInternal(false, nil)
+				restoreRepeatState()
 			} else {
 				if h.refreshHintsTimer != nil {
 					h.refreshHintsTimer.Stop()
@@ -178,6 +195,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 						}
 
 						h.activateHintModeInternal(false, nil)
+						restoreRepeatState()
 					},
 				)
 
