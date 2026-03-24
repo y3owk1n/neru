@@ -240,6 +240,15 @@ func TestIsKnownName(t *testing.T) {
 		{action.NameMoveMouse, true},
 		{action.NameMoveMouseRelative, true},
 		{action.NameScroll, true},
+		// Scroll sub-actions are recognized by IsKnownName (superset of knownNames).
+		{action.NameScrollUp, true},
+		{action.NameScrollDown, true},
+		{action.NameScrollLeft, true},
+		{action.NameScrollRight, true},
+		{action.NameGoTop, true},
+		{action.NameGoBottom, true},
+		{action.NamePageUp, true},
+		{action.NamePageDown, true},
 		{action.Name("unknown"), false},
 		{action.Name(""), false},
 	}
@@ -249,6 +258,43 @@ func TestIsKnownName(t *testing.T) {
 			got := action.IsKnownName(testCase.name)
 			if got != testCase.want {
 				t.Errorf("IsKnownName(%q) = %v, want %v", testCase.name, got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestIsScrollSubAction(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		// Scroll sub-actions return true.
+		{"scroll_up", true},
+		{"scroll_down", true},
+		{"scroll_left", true},
+		{"scroll_right", true},
+		{"go_top", true},
+		{"go_bottom", true},
+		{"page_up", true},
+		{"page_down", true},
+		// Non-scroll actions return false.
+		{"left_click", false},
+		{"right_click", false},
+		{"middle_click", false},
+		{"mouse_down", false},
+		{"mouse_up", false},
+		{"move_mouse", false},
+		{"move_mouse_relative", false},
+		{"scroll", false},
+		// Unknown / empty return false.
+		{"unknown", false},
+		{"", false},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := action.IsScrollSubAction(testCase.name)
+			if got != testCase.want {
+				t.Errorf("IsScrollSubAction(%q) = %v, want %v", testCase.name, got, testCase.want)
 			}
 		})
 	}
@@ -366,6 +412,15 @@ func TestName_ToType(t *testing.T) {
 		{action.NameMoveMouse, action.TypeMoveMouse, false},
 		{action.NameMoveMouseRelative, action.TypeMoveMouseRelative, false},
 		{action.NameScroll, action.TypeScroll, false},
+		// Scroll sub-actions all map to the generic TypeScroll.
+		{action.NameScrollUp, action.TypeScroll, false},
+		{action.NameScrollDown, action.TypeScroll, false},
+		{action.NameScrollLeft, action.TypeScroll, false},
+		{action.NameScrollRight, action.TypeScroll, false},
+		{action.NameGoTop, action.TypeScroll, false},
+		{action.NameGoBottom, action.TypeScroll, false},
+		{action.NamePageUp, action.TypeScroll, false},
+		{action.NamePageDown, action.TypeScroll, false},
 		{action.Name("unknown"), 0, true},
 		{action.Name(""), 0, true},
 	}
@@ -426,6 +481,15 @@ func TestIsDirectKeyBindingName(t *testing.T) {
 		{action.NameMoveMouseRelative, true},
 		{action.NameMoveMouse, false},
 		{action.NameScroll, false},
+		// Scroll sub-actions are not direct key binding actions.
+		{action.NameScrollUp, false},
+		{action.NameScrollDown, false},
+		{action.NameScrollLeft, false},
+		{action.NameScrollRight, false},
+		{action.NameGoTop, false},
+		{action.NameGoBottom, false},
+		{action.NamePageUp, false},
+		{action.NamePageDown, false},
 		{action.Name("unknown"), false},
 		{action.Name(""), false},
 	}
