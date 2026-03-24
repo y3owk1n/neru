@@ -178,6 +178,25 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 			return
 		}
 
+		var (
+			pendingAction *string
+			repeat        bool
+		)
+
+		if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
+			pendingAction = h.recursiveGrid.Context.PendingAction()
+			repeat = h.recursiveGrid.Context.Repeat()
+		}
+
+		if h.repeatPendingDirectAction(
+			actionName,
+			pendingAction,
+			repeat,
+			func() { h.activateRecursiveGridModeWithAction(pendingAction, repeat) },
+		) {
+			return
+		}
+
 		if h.shouldAutoExit(h.config.RecursiveGrid.AutoExitActions, actionName) {
 			if !h.actionService.IsMoveMouseKey(key) {
 				h.cursorState.MarkActionPerformed()

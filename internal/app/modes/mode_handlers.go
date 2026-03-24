@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
@@ -96,6 +97,37 @@ func (h *Handler) moveCursorAndHandleAction(
 		h.logger.Info("Re-activating mode after cursor movement")
 		reActivateFunc()
 	}
+}
+
+// repeatPendingDirectAction re-activates the current mode when a direct action
+// key matches the mode's pending action and --repeat is active.
+func (h *Handler) repeatPendingDirectAction(
+	actionName string,
+	pendingAction *string,
+	repeat bool,
+	reActivateFunc func(),
+) bool {
+	if !repeat || pendingAction == nil || reActivateFunc == nil || *pendingAction != actionName {
+		return false
+	}
+
+	if h.cursorState != nil &&
+		actionName != string(action.NameMoveMouse) &&
+		actionName != string(action.NameMoveMouseRelative) {
+		h.cursorState.MarkActionPerformed()
+	}
+
+	if h.cursorState != nil && h.cursorState.WasActionPerformed() {
+		time.Sleep(postActionSettleDelay)
+	}
+
+	h.logger.Info(
+		"Re-activating mode after direct action (--repeat)",
+		zap.String("action", actionName),
+	)
+	reActivateFunc()
+
+	return true
 }
 
 // shouldAutoExit checks if the given action name is in the auto-exit list.
@@ -263,6 +295,25 @@ func (h *Handler) handleGridModeKey(key string) {
 		if err != nil {
 			h.logger.Error("Failed to handle direct action key", zap.Error(err))
 
+			return
+		}
+
+		var (
+			pendingAction *string
+			repeat        bool
+		)
+
+		if h.grid != nil && h.grid.Context != nil {
+			pendingAction = h.grid.Context.PendingAction()
+			repeat = h.grid.Context.Repeat()
+		}
+
+		if h.repeatPendingDirectAction(
+			actionName,
+			pendingAction,
+			repeat,
+			func() { h.activateGridModeWithAction(pendingAction, repeat) },
+		) {
 			return
 		}
 
