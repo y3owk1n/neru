@@ -308,6 +308,14 @@ func (h *Handler) handleGridModeKey(key string) {
 			repeat = h.grid.Context.Repeat()
 		}
 
+		if h.shouldAutoExit(h.config.Grid.AutoExitActions, actionName) {
+			if !h.actionService.IsMoveMouseKey(key) {
+				h.cursorState.MarkActionPerformed()
+			}
+
+			h.exitModeLocked()
+		}
+
 		if h.repeatPendingDirectAction(
 			actionName,
 			pendingAction,
@@ -315,14 +323,6 @@ func (h *Handler) handleGridModeKey(key string) {
 			func() { h.activateGridModeWithAction(pendingAction, repeat) },
 		) {
 			return
-		}
-
-		if h.shouldAutoExit(h.config.Grid.AutoExitActions, actionName) {
-			if !h.actionService.IsMoveMouseKey(key) {
-				h.cursorState.MarkActionPerformed()
-			}
-
-			h.exitModeLocked()
 		}
 
 		return

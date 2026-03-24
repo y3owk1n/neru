@@ -188,6 +188,14 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 			repeat = h.recursiveGrid.Context.Repeat()
 		}
 
+		if h.shouldAutoExit(h.config.RecursiveGrid.AutoExitActions, actionName) {
+			if !h.actionService.IsMoveMouseKey(key) {
+				h.cursorState.MarkActionPerformed()
+			}
+
+			h.exitModeLocked()
+		}
+
 		if h.repeatPendingDirectAction(
 			actionName,
 			pendingAction,
@@ -195,14 +203,6 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 			func() { h.activateRecursiveGridModeWithAction(pendingAction, repeat) },
 		) {
 			return
-		}
-
-		if h.shouldAutoExit(h.config.RecursiveGrid.AutoExitActions, actionName) {
-			if !h.actionService.IsMoveMouseKey(key) {
-				h.cursorState.MarkActionPerformed()
-			}
-
-			h.exitModeLocked()
 		}
 
 		return
