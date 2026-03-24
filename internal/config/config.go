@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -486,7 +487,11 @@ type HotkeysConfig struct {
 	// Values can be a single string or an array of strings:
 	// "PageUp" = ["action go_top", "action scroll_down"]
 	// The special exec prefix is supported: "exec /usr/bin/say hi"
-	Bindings map[string][]string `json:"bindings" toml:"bindings"`
+	// Bindings is never populated by the TOML struct decoder — it is always
+	// overwritten by the raw-map processing in service.go.  The toml:"-" tag
+	// prevents the encoder from emitting a nested [hotkeys.bindings] table;
+	// Save writes the flat [hotkeys] section manually instead.
+	Bindings map[string][]string `json:"bindings" toml:"-"`
 }
 
 // ScrollConfig defines the behavior and appearance settings for scroll mode.
@@ -976,12 +981,57 @@ func (c *Config) Save(path string) error {
 		}
 	}()
 
-	// Encode to TOML
+	// Encode the main config struct to TOML.
+	// Hotkeys.Bindings is tagged toml:"-" so the encoder emits an empty
+	// [hotkeys] section; we append the flat bindings manually afterwards.
 	encoder := toml.NewEncoder(file)
 
 	encodeErr := encoder.Encode(c)
 	if encodeErr != nil {
 		return derrors.Wrap(encodeErr, derrors.CodeSerializationFailed, "failed to encode config")
+	}
+
+	// Append hotkey bindings as flat keys under [hotkeys] so that
+	// LoadWithValidation can read them back via the raw-map path.
+	if len(c.Hotkeys.Bindings) > 0 {
+		_, err := fmt.Fprintln(file, "\n[hotkeys]")
+		if err != nil {
+			return derrors.Wrap(
+				err, derrors.CodeConfigIOFailed, "failed to write hotkeys section",
+			)
+		}
+		// Sort keys for deterministic output.
+		keys := make([]string, 0, len(c.Hotkeys.Bindings))
+		for k := range c.Hotkeys.Bindings {
+			keys = append(keys, k)
+		}
+
+		sort.Strings(keys)
+
+		for _, key := range keys {
+			actions := c.Hotkeys.Bindings[key]
+
+			var line string
+			if len(actions) == 1 {
+				// Single action: emit as a plain string for backward compat.
+				line = fmt.Sprintf("%q = %q", key, actions[0])
+			} else {
+				// Multiple actions: emit as a TOML array.
+				quoted := make([]string, 0, len(actions))
+				for _, a := range actions {
+					quoted = append(quoted, fmt.Sprintf("%q", a))
+				}
+
+				line = fmt.Sprintf("%q = [%s]", key, strings.Join(quoted, ", "))
+			}
+
+			_, err := fmt.Fprintln(file, line)
+			if err != nil {
+				return derrors.Wrap(
+					err, derrors.CodeConfigIOFailed, "failed to write hotkey binding",
+				)
+			}
+		}
 	}
 
 	return closeErr
