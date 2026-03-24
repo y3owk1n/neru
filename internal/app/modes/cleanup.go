@@ -83,6 +83,8 @@ func (h *Handler) cleanupDefaultMode() {
 
 // cleanupGridMode handles cleanup for grid mode.
 func (h *Handler) cleanupGridMode() {
+	h.grid.Context.Reset()
+
 	if h.grid.Manager != nil {
 		h.grid.Manager.Reset()
 	}
