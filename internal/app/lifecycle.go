@@ -474,6 +474,10 @@ func (a *App) printStartupInfo() {
 			}
 		}
 
+		if len(actions) > 1 {
+			toShow = fmt.Sprintf("%s (+%d more)", toShow, len(actions)-1)
+		}
+
 		a.logger.Info(fmt.Sprintf("  %s: %s", key, toShow))
 	}
 }
