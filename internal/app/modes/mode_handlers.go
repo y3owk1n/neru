@@ -221,7 +221,9 @@ func (h *Handler) handleHintsModeKey(key string) {
 				h.activateHintModeInternal(false, nil)
 				// Restore repeat and action on the fresh context so subsequent
 				// selections continue the repeat cycle.
-				if repeat && h.hints != nil && h.hints.Context != nil {
+				// Guard: only restore if re-activation succeeded (mode is still hints).
+				if repeat && h.appState.CurrentMode() == domain.ModeHints &&
+					h.hints != nil && h.hints.Context != nil {
 					h.hints.Context.SetPendingAction(pendingAction)
 					h.hints.Context.SetRepeat(true)
 				}
