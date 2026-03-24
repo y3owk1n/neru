@@ -44,19 +44,19 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 						action.SupportedNamesString(),
 					)
 				}
-			}
 
-			// Scroll sub-actions (scroll_up, page_down, etc.) are only
-			// valid as standalone CLI/IPC commands, not as pending mode
-			// actions. Reject them here so the user gets immediate feedback
-			// instead of a silent failure when the mode completes.
-			if action.IsScrollSubAction(actionFlag) {
-				return derrors.Newf(
-					derrors.CodeInvalidInput,
-					"scroll sub-action %q cannot be used as a mode --action flag; use 'neru action %s' instead",
-					actionFlag,
-					actionFlag,
-				)
+				// Scroll sub-actions (scroll_up, page_down, etc.) are only
+				// valid as standalone CLI/IPC commands, not as pending mode
+				// actions. Reject them here so the user gets immediate feedback
+				// instead of a silent failure when the mode completes.
+				if action.IsScrollSubAction(actionFlag) {
+					return derrors.Newf(
+						derrors.CodeInvalidInput,
+						"scroll sub-action %q cannot be used as a mode --action flag; use 'neru action %s' instead",
+						actionFlag,
+						actionFlag,
+					)
+				}
 			}
 
 			var params []string
