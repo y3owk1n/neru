@@ -950,6 +950,49 @@ func (c *Config) ValidateSmoothCursor() error {
 	return nil
 }
 
+// ValidateCustomHotkeys validates the custom_hotkeys configuration for all modes.
+func (c *Config) ValidateCustomHotkeys() error {
+	type modeCustomHotkeys struct {
+		hotkeys  map[string]string
+		modeName string
+	}
+
+	modes := []modeCustomHotkeys{
+		{c.Hints.CustomHotkeys, "hints"},
+		{c.Grid.CustomHotkeys, "grid"},
+		{c.RecursiveGrid.CustomHotkeys, "recursive_grid"},
+		{c.Scroll.CustomHotkeys, "scroll"},
+	}
+	for _, mode := range modes {
+		for key, value := range mode.hotkeys {
+			fieldName := mode.modeName + ".custom_hotkeys"
+			if strings.TrimSpace(key) == "" {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s contains an empty key",
+					fieldName,
+				)
+			}
+
+			err := ValidateHotkey(key, fieldName)
+			if err != nil {
+				return err
+			}
+
+			if strings.TrimSpace(value) == "" {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s[%s] cannot have an empty action",
+					fieldName,
+					key,
+				)
+			}
+		}
+	}
+
+	return nil
+}
+
 // ValidateHotkey validates a hotkey string format.
 func ValidateHotkey(hotkey, fieldName string) error {
 	if strings.TrimSpace(hotkey) == "" {

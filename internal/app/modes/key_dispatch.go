@@ -4,6 +4,8 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
@@ -28,6 +30,13 @@ func (h *Handler) HandleKeyPress(key string) {
 		return
 	}
 
+	// Check for per-mode custom hotkeys BEFORE stripping sticky modifiers.
+	// Custom hotkeys use full modifier combos (e.g. "Ctrl+J") and should
+	// match the raw key from the event tap.
+	if h.handleCustomHotkey(key) {
+		return
+	}
+
 	// Since sticky modifiers are injected as physical events, they appear in "key"
 	// (e.g. Cmd+Shift+L). This strips them out so bindings like "Shift+L" still match.
 	activeMods := h.stickyModifiers()
@@ -42,6 +51,12 @@ func (h *Handler) HandleKeyPress(key string) {
 	if config.IsExitKey(key, exitKeys) {
 		h.handleEscapeKey()
 
+		return
+	}
+
+	// Check for per-mode custom hotkeys before mode-specific handling.
+	// Custom hotkeys use the same action syntax as top-level [hotkeys].
+	if h.handleCustomHotkey(key) {
 		return
 	}
 
@@ -115,4 +130,52 @@ func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers)
 	}
 
 	return strings.Join(newParts, "+")
+}
+
+// handleCustomHotkey checks if the key matches a custom_hotkeys binding for the
+// current mode. If matched, it executes the action (IPC command or shell command)
+// using the same logic as top-level hotkeys. Returns true if the key was consumed.
+// Caller must hold h.mu.
+func (h *Handler) handleCustomHotkey(key string) bool {
+	if h.executeHotkeyAction == nil {
+		return false
+	}
+
+	currentModeName := domain.ModeString(h.appState.CurrentMode())
+
+	customHotkeys := h.config.CustomHotkeysForMode(currentModeName)
+	if len(customHotkeys) == 0 {
+		return false
+	}
+
+	normalizedKey := config.NormalizeKeyForComparison(key)
+	for bindKey, actionStr := range customHotkeys {
+		if config.NormalizeKeyForComparison(bindKey) == normalizedKey {
+			h.logger.Info("Custom hotkey matched",
+				zap.String("mode", currentModeName),
+				zap.String("key", key),
+				zap.String("action", actionStr))
+
+			// Execute in a goroutine so the event tap callback returns quickly.
+			// This also avoids a deadlock: executeHotkeyAction may call
+			// ipcController.HandleCommand → ActivateModeWithAction which
+			// acquires h.mu, but we already hold it.
+			capturedKey := bindKey
+
+			capturedAction := actionStr
+			go func() {
+				err := h.executeHotkeyAction(capturedKey, capturedAction)
+				if err != nil {
+					h.logger.Error("Custom hotkey action failed",
+						zap.String("key", capturedKey),
+						zap.String("action", capturedAction),
+						zap.Error(err))
+				}
+			}()
+
+			return true
+		}
+	}
+
+	return false
 }

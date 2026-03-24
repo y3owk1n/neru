@@ -258,6 +258,7 @@ func initializeModeHandler(app *App) {
 			setStickyModifierToggle    func(enabled bool)
 			postModifierEvent          func(modifier string, isDown bool)
 			refreshHotkeys             func()
+			executeHotkeyAction        func(key, actionStr string) error
 		}
 	}{
 		config:         cfg,
@@ -301,6 +302,7 @@ func initializeModeHandler(app *App) {
 			setStickyModifierToggle    func(enabled bool)
 			postModifierEvent          func(modifier string, isDown bool)
 			refreshHotkeys             func()
+			executeHotkeyAction        func(key, actionStr string) error
 		}{
 			enableEventTap:             app.enableEventTap,
 			disableEventTap:            app.disableEventTap,
@@ -310,6 +312,7 @@ func initializeModeHandler(app *App) {
 			setStickyModifierToggle:    app.setEventTapStickyModifierToggle,
 			postModifierEvent:          app.postEventTapModifierEvent,
 			refreshHotkeys:             func() { app.refreshHotkeysForAppOrCurrent("") },
+			executeHotkeyAction:        app.executeHotkeyAction,
 		},
 	}
 
@@ -338,6 +341,7 @@ func initializeModeHandler(app *App) {
 		deps.callbacks.setStickyModifierToggle,
 		deps.callbacks.postModifierEvent,
 		deps.callbacks.refreshHotkeys,
+		deps.callbacks.executeHotkeyAction,
 		app.systemPort,
 	)
 }
