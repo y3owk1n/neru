@@ -31,10 +31,14 @@ func (a *App) registerHotkeys() {
 				continue
 			}
 
-			if primaryMode == "" {
-				parts := strings.Split(trimmedAction, " ")
-				primaryMode = parts[0]
-			}
+			parts := strings.Split(trimmedAction, " ")
+			primaryMode = parts[0]
+
+			break
+		}
+
+		if primaryMode == "" {
+			continue
 		}
 
 		if primaryMode == domain.ModeString(domain.ModeHints) && !cfg.Hints.Enabled {
