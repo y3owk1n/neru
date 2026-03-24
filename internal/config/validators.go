@@ -1206,6 +1206,24 @@ func (c *Config) checkCustomHotkeyModeSpecificConflict(
 						scrollKey,
 					)
 				}
+
+				// Check prefix conflicts: a custom hotkey that matches the first
+				// character of a multi-letter scroll sequence (e.g. custom hotkey "g"
+				// vs scroll "gg") will consume the keystroke before the scroll
+				// handler can start the sequence, silently breaking it.
+				if len(scrollKey) >= 2 && IsAllLetters(scrollKey) {
+					prefix := strings.ToLower(scrollKey[:1])
+					if prefix == normalizedHK {
+						return derrors.Newf(
+							derrors.CodeInvalidConfig,
+							"%s[%s] conflicts with the first key of scroll.key_bindings['%s'] sequence '%s'; the custom hotkey is checked first at runtime, so the sequence can never start",
+							fieldName,
+							hotkeyKey,
+							scrollAction,
+							scrollKey,
+						)
+					}
+				}
 			}
 		}
 	}
