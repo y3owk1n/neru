@@ -155,7 +155,10 @@ const (
 	PrefixExec = "exec"
 )
 
-// knownNames is the cached slice of all supported action names to avoid heap allocation.
+// knownNames lists the action names that can be used as pending mode actions
+// (e.g. --action flag on hints/grid commands). Scroll sub-actions (scroll_up,
+// page_down, etc.) are intentionally excluded — they are IPC/CLI-only and are
+// recognized separately by IsScrollSubAction and IsKnownName.
 var knownNames = []Name{
 	NameLeftClick,
 	NameRightClick,
@@ -179,7 +182,7 @@ var directKeyBindingNames = []Name{
 	NameMoveMouseRelative,
 }
 
-// KnownNames returns a slice containing all supported action names.
+// KnownNames returns the mode-compatible action names (excludes scroll sub-actions).
 func KnownNames() []Name {
 	result := make([]Name, len(knownNames))
 	copy(result, knownNames)
@@ -187,7 +190,7 @@ func KnownNames() []Name {
 	return result
 }
 
-// SupportedNamesString returns a comma-separated string of supported actions for user messages.
+// SupportedNamesString returns a comma-separated string of mode-compatible action names for user messages.
 func SupportedNamesString() string {
 	names := KnownNames()
 
@@ -239,7 +242,10 @@ func IsDirectKeyBindingName(name Name) bool {
 	}
 }
 
-// IsKnownName determines whether the specified action name is supported.
+// IsKnownName determines whether the specified action name is recognized by the
+// application. This is a superset of the names in knownNames — it also includes
+// scroll sub-actions (scroll_up, page_down, etc.) which are IPC/CLI-only.
+// Use IsScrollSubAction to distinguish scroll sub-actions from mode-compatible names.
 func IsKnownName(name Name) bool {
 	switch name {
 	case NameLeftClick,
