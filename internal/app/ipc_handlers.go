@@ -154,7 +154,7 @@ func (h *IPCControllerModes) extractModeOptions(
 	// Parse positional action arg and flag-style options from remaining args.
 	for i := 1; i < len(cmd.Args); i++ {
 		arg := cmd.Args[i]
-		if arg == "--repeat" {
+		if arg == "--repeat" || arg == "-r" {
 			opts.Repeat = true
 		} else if opts.Action == nil {
 			actionArg := arg
