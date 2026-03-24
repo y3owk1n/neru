@@ -30,6 +30,13 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 		blacklist := []string(nil)
 		if enabled {
 			blacklist = append(blacklist, h.config.General.PassthroughUnboundedKeysBlacklist...)
+
+			// Custom hotkeys for the current mode must also be blacklisted
+			// so the event tap consumes them instead of passing them through.
+			customHotkeys := h.config.CustomHotkeysForMode(domain.ModeString(mode))
+			for key := range customHotkeys {
+				blacklist = append(blacklist, key)
+			}
 		}
 
 		h.setModifierPassthrough(enabled, blacklist)
@@ -116,6 +123,13 @@ func (h *Handler) modeModifierKeys(mode domain.Mode) []string {
 		for _, bindings := range h.config.Scroll.KeyBindings {
 			appendKeys(bindings)
 		}
+	}
+
+	// Append custom hotkey keys for the current mode so the event tap
+	// intercepts them instead of passing them through to macOS.
+	customHotkeys := h.config.CustomHotkeysForMode(domain.ModeString(mode))
+	for key := range customHotkeys {
+		appendKey(key)
 	}
 
 	slices.Sort(keys)

@@ -18,6 +18,15 @@ const (
 	RoleDockItem    = "AXDockItem"
 )
 
+// Mode name constants used in config lookups (ResolvedExitKeys, CustomHotkeysForMode, validation).
+// These mirror domain.ModeName* but are defined here to avoid a circular import.
+const (
+	modeNameHints         = "hints"
+	modeNameGrid          = "grid"
+	modeNameRecursiveGrid = "recursive_grid"
+	modeNameScroll        = "scroll"
+)
+
 // Key name constants for normalization.
 // These are the canonical lowercase forms used throughout the codebase.
 const (
@@ -451,6 +460,8 @@ type ScrollConfig struct {
 	ModeExitKeys    []string `json:"modeExitKeys"    toml:"mode_exit_keys"`
 
 	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
+
+	CustomHotkeys map[string]string `json:"customHotkeys" toml:"custom_hotkeys"`
 }
 
 // HintsUI defines the visual/appearance settings for hints mode.
@@ -496,6 +507,8 @@ type HintsConfig struct {
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
 	AdditionalAXSupport AdditionalAXSupport `json:"additionalAxSupport" toml:"additional_ax_support"`
+
+	CustomHotkeys map[string]string `json:"customHotkeys" toml:"custom_hotkeys"`
 }
 
 // GridUI defines the visual/appearance settings for grid mode.
@@ -536,6 +549,8 @@ type GridConfig struct {
 	PrewarmEnabled  bool   `json:"prewarmEnabled"  toml:"prewarm_enabled"`
 	EnableGC        bool   `json:"enableGc"        toml:"enable_gc"`
 	ResetKey        string `json:"resetKey"        toml:"reset_key"`
+
+	CustomHotkeys map[string]string `json:"customHotkeys" toml:"custom_hotkeys"`
 }
 
 // RecursiveGridUI defines the visual/appearance settings for recursive-grid mode.
@@ -594,6 +609,8 @@ type RecursiveGridConfig struct {
 	// Per-depth overrides for grid dimensions and keys.
 	// Depths not listed here use the top-level GridCols/GridRows/Keys.
 	Layers []RecursiveGridLayerConfig `json:"layers" toml:"layers"`
+
+	CustomHotkeys map[string]string `json:"customHotkeys" toml:"custom_hotkeys"`
 }
 
 // AllKeysIncludingLayers returns a combined string of all unique keys from the
@@ -773,6 +790,12 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// Validate per-mode custom hotkeys
+	err = c.ValidateCustomHotkeys()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -940,17 +963,35 @@ func (c *Config) ResolvedExitKeys(modeName string) []string {
 
 	var modeKeys []string
 	switch modeName {
-	case "hints":
+	case modeNameHints:
 		modeKeys = c.Hints.ModeExitKeys
-	case "grid":
+	case modeNameGrid:
 		modeKeys = c.Grid.ModeExitKeys
-	case "recursive_grid":
+	case modeNameRecursiveGrid:
 		modeKeys = c.RecursiveGrid.ModeExitKeys
-	case "scroll":
+	case modeNameScroll:
 		modeKeys = c.Scroll.ModeExitKeys
 	}
 
 	return MergeExitKeys(globalKeys, modeKeys)
+}
+
+// CustomHotkeysForMode returns the custom_hotkeys map for the given mode name.
+// These are per-mode hotkeys that are only active while that mode is active,
+// using the same action syntax as [hotkeys] (e.g. "exec ...", "action ...", "hints", etc.).
+func (c *Config) CustomHotkeysForMode(modeName string) map[string]string {
+	switch modeName {
+	case modeNameHints:
+		return c.Hints.CustomHotkeys
+	case modeNameGrid:
+		return c.Grid.CustomHotkeys
+	case modeNameRecursiveGrid:
+		return c.RecursiveGrid.CustomHotkeys
+	case modeNameScroll:
+		return c.Scroll.CustomHotkeys
+	default:
+		return nil
+	}
 }
 
 // MergeExitKeys merges global and per-mode exit keys, deduplicating by normalized form.

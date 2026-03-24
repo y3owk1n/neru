@@ -12,6 +12,7 @@ Neru uses TOML for configuration. This guide covers all available options with e
 - [Color Format](#color-format)
 - [Starter Config](#starter-config)
 - [Hotkeys](#hotkeys)
+- [Per-Mode Custom Hotkeys](#per-mode-custom-hotkeys)
 - [Keyboard Layout Requirements](#keyboard-layout-requirements)
 - [General Settings](#general-settings)
 - [Hint Mode](#hint-mode)
@@ -247,6 +248,72 @@ ctrl - r : neru hints --action right_click
 
 ---
 
+## Per-Mode Custom Hotkeys
+
+Define hotkeys that are only active while a specific mode is running. These use the **exact same action syntax** as `[hotkeys]` but are processed through the event tap instead of the Carbon API — they only fire while the mode's overlay is active.
+
+### When to use
+
+- Execute shell commands or IPC actions without leaving a mode
+- Trigger `action move_mouse --center` to re-center the cursor mid-mode
+- Run scripts that interact with the focused app while hints/grid/scroll is active
+
+### Syntax
+
+Add a `[<mode>.custom_hotkeys]` table to any mode section. The key format and action format are identical to `[hotkeys]`.
+
+```toml
+[recursive_grid.custom_hotkeys]
+"Cmd+Shift+G" = "action move_mouse --center"
+"Cmd+Shift+L" = "exec bash /path/script.sh"
+
+[hints.custom_hotkeys]
+"Cmd+Shift+R" = "exec open -a Safari"
+
+[grid.custom_hotkeys]
+"Ctrl+C"      = "action move_mouse --center"
+
+[scroll.custom_hotkeys]
+"Cmd+Shift+T" = "exec open -a Terminal"
+```
+
+### Supported actions
+
+All actions from `[hotkeys]` work here:
+
+| Action type     | Example                                    | Description                 |
+| --------------- | ------------------------------------------ | --------------------------- |
+| Mode activation | `"hints"`, `"grid"`, `"scroll"`            | Switch to another mode      |
+| IPC command     | `"action move_mouse --center"`             | Execute an IPC action       |
+| Shell command   | `"exec bash /path/script.sh"`              | Run a shell command         |
+| With flags      | `"action move_mouse --center --monitor 2"` | IPC action with extra flags |
+
+### Priority order
+
+When a key is pressed inside a mode, Neru checks in this order:
+
+1. **Exit keys** (`general.mode_exit_keys` + per-mode `mode_exit_keys`)
+2. **Custom hotkeys** (`<mode>.custom_hotkeys`)
+3. **Mode-specific keys** (hint characters, grid characters, scroll bindings, action key bindings)
+   Custom hotkeys override mode-specific key handling but never override exit keys.
+
+### How it differs from `[hotkeys]`
+
+| Aspect        | `[hotkeys]`                   | `[<mode>.custom_hotkeys]`                  |
+| ------------- | ----------------------------- | ------------------------------------------ |
+| Registration  | Carbon API (system-wide)      | Event tap (mode-active only)               |
+| When active   | Always (when Neru is enabled) | Only while the specific mode is active     |
+| Excluded apps | Unregistered in excluded apps | N/A — mode can't activate in excluded apps |
+| Scope         | Global across all modes       | Scoped to one mode                         |
+
+### Validation
+
+- Each key must be a valid hotkey format (same rules as `[hotkeys]`)
+- Each action must be non-empty
+- Invalid entries cause a startup validation error
+
+---
+
 ## Keyboard Layout Requirements
 
 Neru uses a reference keyboard layout for key translation so hotkeys and mode keys stay stable even when you switch active input sources (for example EN/RU).
@@ -450,6 +517,7 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | `enabled`                          | bool   | `true`        | Enable/disable hints mode                              |
 | `auto_exit_actions`                | array  | `[]`          | Actions that auto-exit after execution                 |
 | `mode_exit_keys`                   | array  | `[]`          | Additional keys that exit hints mode                   |
+| custom_hotkeys                     | table  | {}            | Per-mode hotkeys (same syntax as [hotkeys])            |
 | `hint_characters`                  | string | `"asdfghjkl"` | Characters used for labels                             |
 | `backspace_key`                    | string | `"Backspace"` | Key for input correction                               |
 | `mouse_action_refresh_delay`       | int    | `0`           | ms delay before refreshing hints after click (0–10000) |
@@ -664,6 +732,7 @@ Grid mode divides the screen into a labelled coordinate grid. Type a row+column 
 | `enabled`           | bool   | `true`               | Enable/disable grid mode                    |
 | `auto_exit_actions` | array  | `[]`                 | Actions that auto-exit after execution      |
 | `mode_exit_keys`    | array  | `[]`                 | Additional keys that exit grid mode         |
+| custom_hotkeys      | table  | {}                   | Per-mode hotkeys (same syntax as [hotkeys]) |
 | `characters`        | string | see below            | Primary grid labels                         |
 | `sublayer_keys`     | string | same as `characters` | Subgrid labels (≥ 9 chars for 3×3 subgrid)  |
 | `reset_key`         | string | `" "`                | Key to clear input and start over           |
@@ -773,6 +842,7 @@ Recursive grid divides the screen into cells and narrows the active area with ea
 | `enabled`           | bool   | `true`        | Enable/disable mode                             |
 | `auto_exit_actions` | array  | `[]`          | Actions that auto-exit after execution          |
 | `mode_exit_keys`    | array  | `[]`          | Additional keys that exit this mode             |
+| custom_hotkeys      | table  | {}            | Per-mode hotkeys (same syntax as [hotkeys])     |
 | `grid_cols`         | int    | `2`           | Number of columns (≥ 2)                         |
 | `grid_rows`         | int    | `2`           | Number of rows (≥ 2)                            |
 | `keys`              | string | `"uijk"`      | Cell selection keys (exactly cols × rows chars) |
@@ -926,13 +996,14 @@ Vim-style scrolling at the cursor position, with fully configurable key bindings
 
 ### Basic configuration
 
-| Option              | Type  | Default   | Description                              |
-| ------------------- | ----- | --------- | ---------------------------------------- |
-| `scroll_step`       | int   | `50`      | Pixels per j/k press (≥ 1)               |
-| `scroll_step_half`  | int   | `500`     | Pixels for d/u half-page (≥ 1)           |
-| `scroll_step_full`  | int   | `1000000` | Pixels for gg/G jump to top/bottom (≥ 1) |
-| `auto_exit_actions` | array | `[]`      | Actions that auto-exit after execution   |
-| `mode_exit_keys`    | array | `[]`      | Additional keys that exit scroll mode    |
+| Option              | Type  | Default   | Description                                 |
+| ------------------- | ----- | --------- | ------------------------------------------- |
+| `scroll_step`       | int   | `50`      | Pixels per j/k press (≥ 1)                  |
+| `scroll_step_half`  | int   | `500`     | Pixels for d/u half-page (≥ 1)              |
+| `scroll_step_full`  | int   | `1000000` | Pixels for gg/G jump to top/bottom (≥ 1)    |
+| `auto_exit_actions` | array | `[]`      | Actions that auto-exit after execution      |
+| `mode_exit_keys`    | array | `[]`      | Additional keys that exit scroll mode       |
+| custom_hotkeys      | table | {}        | Per-mode hotkeys (same syntax as [hotkeys]) |
 
 ### auto_exit_actions
 

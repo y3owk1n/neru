@@ -86,6 +86,7 @@ type Handler struct {
 	setStickyModifierToggle    func(enabled bool)
 	postModifierEvent          func(modifier string, isDown bool)
 	refreshHotkeys             func()
+	executeHotkeyAction        func(key, actionStr string) error
 	refreshHintsTimer          *time.Timer
 	modeSession                uint64
 
@@ -128,6 +129,7 @@ func NewHandler(
 	setStickyModifierToggle func(enabled bool),
 	postModifierEvent func(modifier string, isDown bool),
 	refreshHotkeys func(),
+	executeHotkeyAction func(key, actionStr string) error,
 	systemPort ports.SystemPort,
 ) *Handler {
 	// Initialize screen bounds for coordinate conversion.
@@ -172,6 +174,7 @@ func NewHandler(
 		setStickyModifierToggle:    setStickyModifierToggle,
 		postModifierEvent:          postModifierEvent,
 		refreshHotkeys:             refreshHotkeys,
+		executeHotkeyAction:        executeHotkeyAction,
 		themeProvider:              systemPort,
 		system:                     systemPort,
 	}
