@@ -235,7 +235,7 @@ You can bind multiple actions to a single hotkey by using an array:
 "Cmd+Shift+D" = ["hints", "exec echo 'hints activated'"]
 ```
 
-Actions are executed sequentially in order. This is useful when you want to perform multiple operations with a single hotkey, such as scrolling and then performing an action.
+Actions are executed sequentially in order. If an action fails, the error is logged but the remaining actions still run. This is useful when you want to perform multiple operations with a single hotkey, such as scrolling and then performing an action.
 
 Both `[hotkeys]` and `[<mode>.custom_hotkeys]` support this array syntax.
 
