@@ -958,10 +958,10 @@ func (c *Config) ValidateCustomHotkeys() error {
 	}
 
 	modes := []modeCustomHotkeys{
-		{c.Hints.CustomHotkeys, "hints"},
-		{c.Grid.CustomHotkeys, "grid"},
-		{c.RecursiveGrid.CustomHotkeys, "recursive_grid"},
-		{c.Scroll.CustomHotkeys, "scroll"},
+		{c.Hints.CustomHotkeys, modeNameHints},
+		{c.Grid.CustomHotkeys, modeNameGrid},
+		{c.RecursiveGrid.CustomHotkeys, modeNameRecursiveGrid},
+		{c.Scroll.CustomHotkeys, modeNameScroll},
 	}
 	for _, mode := range modes {
 		for key, value := range mode.hotkeys {
@@ -988,6 +988,268 @@ func (c *Config) ValidateCustomHotkeys() error {
 				)
 			}
 		}
+	}
+	// Check for conflicts between custom hotkeys and other mode bindings.
+	// At runtime, exit keys are checked before custom hotkeys (making the
+	// custom hotkey unreachable), and custom hotkeys are checked before
+	// mode-specific keys (shadowing them).
+	err := c.checkCustomHotkeysConflicts()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkCustomHotkeysConflicts detects conflicts between per-mode custom hotkeys and
+// other key bindings. At runtime the priority order is:
+//
+//	exit keys > custom hotkeys > mode-specific keys
+//
+// So a custom hotkey that matches an exit key is unreachable, and a custom hotkey that
+// matches a mode-specific binding (action keys, backspace, reset, characters, scroll
+// bindings) will shadow that binding.
+func (c *Config) checkCustomHotkeysConflicts() error {
+	// Collect action key bindings once — they apply to every mode.
+	actionBindings := []struct {
+		value     string
+		fieldName string
+	}{
+		{c.Action.KeyBindings.LeftClick, "action.key_bindings.left_click"},
+		{c.Action.KeyBindings.RightClick, "action.key_bindings.right_click"},
+		{c.Action.KeyBindings.MiddleClick, "action.key_bindings.middle_click"},
+		{c.Action.KeyBindings.MouseDown, "action.key_bindings.mouse_down"},
+		{c.Action.KeyBindings.MouseUp, "action.key_bindings.mouse_up"},
+		{c.Action.KeyBindings.MoveMouseUp, "action.key_bindings.move_mouse_up"},
+		{c.Action.KeyBindings.MoveMouseDown, "action.key_bindings.move_mouse_down"},
+		{c.Action.KeyBindings.MoveMouseLeft, "action.key_bindings.move_mouse_left"},
+		{c.Action.KeyBindings.MoveMouseRight, "action.key_bindings.move_mouse_right"},
+	}
+
+	type modeInfo struct {
+		hotkeys  map[string]string
+		modeName string
+	}
+
+	modes := []modeInfo{
+		{c.Hints.CustomHotkeys, modeNameHints},
+		{c.Grid.CustomHotkeys, modeNameGrid},
+		{c.RecursiveGrid.CustomHotkeys, modeNameRecursiveGrid},
+		{c.Scroll.CustomHotkeys, modeNameScroll},
+	}
+	for _, mode := range modes {
+		if len(mode.hotkeys) == 0 {
+			continue
+		}
+
+		fieldName := mode.modeName + ".custom_hotkeys"
+		// Resolve effective exit keys for this mode (global + per-mode merged).
+		exitKeys := c.ResolvedExitKeys(mode.modeName)
+		for hotkeyKey := range mode.hotkeys {
+			normalizedHK := NormalizeKeyForComparison(hotkeyKey)
+			// 1. Custom hotkey vs exit keys → custom hotkey is unreachable.
+			if IsExitKey(hotkeyKey, exitKeys) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s[%s] conflicts with an exit key; exit keys are checked first at runtime, so this custom hotkey will never fire",
+					fieldName,
+					hotkeyKey,
+				)
+			}
+
+			// 2. Custom hotkey vs action key bindings → shadows the action.
+			for _, actionBinding := range actionBindings {
+				if actionBinding.value == "" {
+					continue
+				}
+
+				if normalizedHK == NormalizeKeyForComparison(actionBinding.value) {
+					return derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"%s[%s] conflicts with %s ('%s'); the custom hotkey is checked first at runtime, so the action binding will never fire in %s mode",
+						fieldName,
+						hotkeyKey,
+						actionBinding.fieldName,
+						actionBinding.value,
+						mode.modeName,
+					)
+				}
+			}
+
+			// 3. Mode-specific conflicts.
+			err := c.checkCustomHotkeyModeSpecificConflict(
+				mode.modeName, fieldName, hotkeyKey, normalizedHK,
+			)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// checkCustomHotkeyModeSpecificConflict checks a single custom hotkey against
+// mode-specific bindings (characters, backspace, reset, scroll bindings).
+func (c *Config) checkCustomHotkeyModeSpecificConflict(
+	modeName, fieldName, hotkeyKey, normalizedHK string,
+) error {
+	switch modeName {
+	case modeNameHints:
+		// Hint characters are single chars; only single-char (non-modifier) hotkeys can conflict.
+		if !strings.Contains(hotkeyKey, "+") && len(hotkeyKey) == 1 {
+			if strings.Contains(
+				strings.ToLower(c.Hints.HintCharacters),
+				strings.ToLower(hotkeyKey),
+			) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s[%s] conflicts with hints.hint_characters; the custom hotkey is checked first at runtime, so the hint character will be consumed",
+					fieldName,
+					hotkeyKey,
+				)
+			}
+		}
+
+		err := checkCustomHotkeyBackspaceConflict(
+			fieldName, hotkeyKey, normalizedHK,
+			c.Hints.BackspaceKey, modeNameHints,
+		)
+		if err != nil {
+			return err
+		}
+	case modeNameGrid:
+		if !strings.Contains(hotkeyKey, "+") && len(hotkeyKey) == 1 {
+			lowerHK := strings.ToLower(hotkeyKey)
+
+			charSets := []struct {
+				chars     string
+				fieldDesc string
+			}{
+				{c.Grid.Characters, "grid.characters"},
+				{c.Grid.RowLabels, "grid.row_labels"},
+				{c.Grid.ColLabels, "grid.col_labels"},
+			}
+			for _, char := range charSets {
+				if char.chars != "" && strings.Contains(strings.ToLower(char.chars), lowerHK) {
+					return derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"%s[%s] conflicts with %s; the custom hotkey is checked first at runtime, so the grid character will be consumed",
+						fieldName,
+						hotkeyKey,
+						char.fieldDesc,
+					)
+				}
+			}
+		}
+
+		err := checkCustomHotkeyBackspaceConflict(
+			fieldName, hotkeyKey, normalizedHK,
+			c.Grid.BackspaceKey, modeNameGrid,
+		)
+		if err != nil {
+			return err
+		}
+
+		err = checkCustomHotkeyResetKeyConflict(
+			fieldName, hotkeyKey, normalizedHK,
+			c.Grid.ResetKey, modeNameGrid,
+		)
+		if err != nil {
+			return err
+		}
+	case modeNameRecursiveGrid:
+		if !strings.Contains(hotkeyKey, "+") && len(hotkeyKey) == 1 {
+			allKeys := c.RecursiveGrid.AllKeysIncludingLayers()
+			if strings.Contains(strings.ToLower(allKeys), strings.ToLower(hotkeyKey)) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s[%s] conflicts with recursive_grid.keys (including layers); the custom hotkey is checked first at runtime, so the cell key will be consumed",
+					fieldName,
+					hotkeyKey,
+				)
+			}
+		}
+
+		err := checkCustomHotkeyBackspaceConflict(
+			fieldName, hotkeyKey, normalizedHK,
+			c.RecursiveGrid.BackspaceKey, modeNameRecursiveGrid,
+		)
+		if err != nil {
+			return err
+		}
+
+		err = checkCustomHotkeyResetKeyConflict(
+			fieldName, hotkeyKey, normalizedHK,
+			c.RecursiveGrid.ResetKey, modeNameRecursiveGrid,
+		)
+		if err != nil {
+			return err
+		}
+	case modeNameScroll:
+		for scrollAction, keys := range c.Scroll.KeyBindings {
+			for _, scrollKey := range keys {
+				if NormalizeKeyForComparison(scrollKey) == normalizedHK {
+					return derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"%s[%s] conflicts with scroll.key_bindings['%s'] ('%s'); the custom hotkey is checked first at runtime, so the scroll binding will never fire",
+						fieldName,
+						hotkeyKey,
+						scrollAction,
+						scrollKey,
+					)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// checkCustomHotkeyBackspaceConflict checks if a custom hotkey conflicts with a mode's
+// backspace key. Custom hotkeys are checked before backspace at runtime.
+func checkCustomHotkeyBackspaceConflict(
+	fieldName, hotkeyKey, normalizedHK string,
+	backspaceKey, modeName string,
+) error {
+	var normalizedBS string
+	if backspaceKey == "" {
+		normalizedBS = KeyNameDelete
+	} else {
+		normalizedBS = NormalizeKeyForComparison(backspaceKey)
+	}
+
+	if normalizedHK == normalizedBS {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s[%s] conflicts with %s.backspace_key; the custom hotkey is checked first at runtime, so backspace will never fire",
+			fieldName,
+			hotkeyKey,
+			modeName,
+		)
+	}
+
+	return nil
+}
+
+// checkCustomHotkeyResetKeyConflict checks if a custom hotkey conflicts with a mode's
+// reset key. Custom hotkeys are checked before reset at runtime.
+func checkCustomHotkeyResetKeyConflict(
+	fieldName, hotkeyKey, normalizedHK string,
+	resetKey, modeName string,
+) error {
+	if resetKey == "" {
+		resetKey = " "
+	}
+
+	if normalizedHK == NormalizeKeyForComparison(resetKey) {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s[%s] conflicts with %s.reset_key; the custom hotkey is checked first at runtime, so reset will never fire",
+			fieldName,
+			hotkeyKey,
+			modeName,
+		)
 	}
 
 	return nil

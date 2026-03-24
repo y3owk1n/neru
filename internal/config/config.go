@@ -18,6 +18,15 @@ const (
 	RoleDockItem    = "AXDockItem"
 )
 
+// Mode name constants used in config lookups (ResolvedExitKeys, CustomHotkeysForMode, validation).
+// These mirror domain.ModeName* but are defined here to avoid a circular import.
+const (
+	modeNameHints         = "hints"
+	modeNameGrid          = "grid"
+	modeNameRecursiveGrid = "recursive_grid"
+	modeNameScroll        = "scroll"
+)
+
 // Key name constants for normalization.
 // These are the canonical lowercase forms used throughout the codebase.
 const (
@@ -954,13 +963,13 @@ func (c *Config) ResolvedExitKeys(modeName string) []string {
 
 	var modeKeys []string
 	switch modeName {
-	case "hints":
+	case modeNameHints:
 		modeKeys = c.Hints.ModeExitKeys
-	case "grid":
+	case modeNameGrid:
 		modeKeys = c.Grid.ModeExitKeys
-	case "recursive_grid":
+	case modeNameRecursiveGrid:
 		modeKeys = c.RecursiveGrid.ModeExitKeys
-	case "scroll":
+	case modeNameScroll:
 		modeKeys = c.Scroll.ModeExitKeys
 	}
 
@@ -972,13 +981,13 @@ func (c *Config) ResolvedExitKeys(modeName string) []string {
 // using the same action syntax as [hotkeys] (e.g. "exec ...", "action ...", "hints", etc.).
 func (c *Config) CustomHotkeysForMode(modeName string) map[string]string {
 	switch modeName {
-	case "hints":
+	case modeNameHints:
 		return c.Hints.CustomHotkeys
-	case "grid":
+	case modeNameGrid:
 		return c.Grid.CustomHotkeys
-	case "recursive_grid":
+	case modeNameRecursiveGrid:
 		return c.RecursiveGrid.CustomHotkeys
-	case "scroll":
+	case modeNameScroll:
 		return c.Scroll.CustomHotkeys
 	default:
 		return nil
