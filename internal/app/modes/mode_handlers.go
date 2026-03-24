@@ -54,6 +54,14 @@ func (h *Handler) executeActionAtPoint(
 	}
 
 	if repeat && reActivateFunc != nil {
+		// Wait for the target app to finish processing the click before
+		// re-activating (which may move the cursor for grid/recursive-grid).
+		// This mirrors the settle delay in handleCursorRestoration and
+		// prevents slow apps (Electron, web views) from missing clicks.
+		if h.cursorState.WasActionPerformed() {
+			time.Sleep(postActionSettleDelay)
+		}
+
 		h.logger.Info("Re-activating mode after action (--repeat)")
 		reActivateFunc()
 
