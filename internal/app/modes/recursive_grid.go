@@ -194,6 +194,8 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 			}
 
 			h.exitModeLocked()
+
+			return
 		}
 
 		if h.repeatPendingDirectAction(

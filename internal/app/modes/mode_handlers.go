@@ -314,6 +314,8 @@ func (h *Handler) handleGridModeKey(key string) {
 			}
 
 			h.exitModeLocked()
+
+			return
 		}
 
 		if h.repeatPendingDirectAction(
