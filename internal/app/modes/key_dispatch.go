@@ -170,6 +170,15 @@ func (h *Handler) handleCustomHotkey(key string) bool {
 
 			capturedAction := actionStr
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						h.logger.Error("panic in custom hotkey handler",
+							zap.Any("recover", r),
+							zap.String("key", capturedKey),
+							zap.String("action", capturedAction))
+					}
+				}()
+
 				err := h.executeHotkeyAction(capturedKey, capturedAction)
 				if err != nil {
 					h.logger.Error("Custom hotkey action failed",
