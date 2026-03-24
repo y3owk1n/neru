@@ -83,6 +83,15 @@ func (h *Handler) cleanupDefaultMode() {
 
 // cleanupGridMode handles cleanup for grid mode.
 func (h *Handler) cleanupGridMode() {
+	// Only reset the base context fields (pendingAction, repeat).
+	// Do NOT call h.grid.Context.Reset() because it nils out
+	// gridInstance (a **domainGrid.Grid pointer-to-pointer that is
+	// wired once during component setup in component_factory.go).
+	// Nilling it causes a nil-pointer dereference on re-activation
+	// when SetGridInstanceValue dereferences the pointer.
+	h.grid.Context.SetPendingAction(nil)
+	h.grid.Context.SetRepeat(false)
+
 	if h.grid.Manager != nil {
 		h.grid.Manager.Reset()
 	}

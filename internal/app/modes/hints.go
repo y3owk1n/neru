@@ -22,11 +22,17 @@ const (
 
 // ActivateMode activates a mode with a given action (for hints mode).
 func (h *Handler) ActivateMode(mode domain.Mode) {
-	h.ActivateModeWithAction(mode, nil)
+	h.ActivateModeWithOptions(mode, nil, false)
 }
 
 // ActivateModeWithAction activates a mode with an optional action parameter.
 func (h *Handler) ActivateModeWithAction(mode domain.Mode, action *string) {
+	h.ActivateModeWithOptions(mode, action, false)
+}
+
+// ActivateModeWithOptions activates a mode with an optional action and repeat flag.
+// When repeat is true the mode re-activates after performing the pending action.
+func (h *Handler) ActivateModeWithOptions(mode domain.Mode, action *string, repeat bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -43,12 +49,17 @@ func (h *Handler) ActivateModeWithAction(mode domain.Mode, action *string) {
 		return
 	}
 
-	modeImpl.Activate(action)
+	modeImpl.Activate(action, repeat)
 }
 
 // activateHintModeWithAction activates hint mode with optional action parameter.
-func (h *Handler) activateHintModeWithAction(action *string) {
+func (h *Handler) activateHintModeWithAction(action *string, repeat bool) {
 	h.activateHintModeInternal(false, action)
+
+	// Store repeat flag after activation so the context is already initialized.
+	if repeat && h.hints != nil && h.hints.Context != nil {
+		h.hints.Context.SetRepeat(true)
+	}
 }
 
 // activateHintModeInternal activates hint mode with option to preserve action mode state and optional action.

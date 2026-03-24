@@ -7,7 +7,7 @@ import (
 // ModeBehavior defines the behavior-specific functions for a mode.
 type ModeBehavior struct {
 	// ActivateFunc handles mode activation (optional, defaults to standard activation)
-	ActivateFunc func(handler *Handler, action *string)
+	ActivateFunc func(handler *Handler, action *string, repeat bool)
 
 	// HandleKeyFunc handles key processing (optional, defaults to standard key handling)
 	HandleKeyFunc func(handler *Handler, key string)
@@ -38,18 +38,18 @@ func NewGenericMode(
 }
 
 // Activate activates the mode using the configured behavior or default logic.
-func (m *GenericMode) Activate(action *string) {
+func (m *GenericMode) Activate(action *string, repeat bool) {
 	if m.behavior.ActivateFunc != nil {
-		m.behavior.ActivateFunc(m.handler, action)
+		m.behavior.ActivateFunc(m.handler, action, repeat)
 	} else {
 		// Default activation - try to activate with action
 		switch m.modeType {
 		case domain.ModeHints:
-			m.handler.activateHintModeWithAction(action)
+			m.handler.activateHintModeWithAction(action, repeat)
 		case domain.ModeGrid:
-			m.handler.activateGridModeWithAction(action)
+			m.handler.activateGridModeWithAction(action, repeat)
 		case domain.ModeRecursiveGrid:
-			m.handler.activateRecursiveGridModeWithAction(action)
+			m.handler.activateRecursiveGridModeWithAction(action, repeat)
 		case domain.ModeScroll:
 			m.handler.StartInteractiveScroll()
 		case domain.ModeIdle:

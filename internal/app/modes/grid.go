@@ -16,19 +16,35 @@ import (
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
-func (h *Handler) activateGridModeWithAction(actionStr *string) {
+func (h *Handler) activateGridModeWithAction(actionStr *string, repeat bool) {
+	// Detect refresh before validation so we can do partial cleanup on re-activation.
+	isRefresh := h.appState.CurrentMode() == domain.ModeGrid
+
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameGrid,
 		h.config.Grid.Enabled,
 		action.TypeMoveMouse,
 	)
 	if !ok {
+		if isRefresh {
+			h.exitModeLocked()
+		}
+
 		return
 	}
 
 	actionString := domain.ActionString(actionEnum)
 
-	h.exitModeLocked()
+	if isRefresh {
+		// During refresh (e.g. --repeat re-activation), only stop polling.
+		// Mode and event tap are already in the correct state so we avoid the
+		// full exit cycle which would hide the overlay, disable the event tap,
+		// run cursor restoration, and transition to idle.
+		// The overlay is cleared unconditionally below.
+		h.stopIndicatorPolling()
+	} else {
+		h.exitModeLocked()
+	}
 
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing grid.
 	// This prevents scroll highlights from persisting when switching from scroll mode to grid mode.
@@ -57,20 +73,31 @@ func (h *Handler) activateGridModeWithAction(actionStr *string) {
 	if drawGridErr != nil {
 		h.logger.Error("Failed to draw grid", zap.Error(drawGridErr))
 
+		if isRefresh {
+			h.exitModeLocked()
+		}
+
 		return
 	}
 
 	// Show the overlay (the grid is already drawn with proper style)
 	h.overlayManager.Show()
 
-	// Store pending action if provided
+	// Store pending action and repeat flag if provided
 	h.grid.Context.SetPendingAction(actionStr)
+	h.grid.Context.SetRepeat(repeat)
 
 	if actionStr != nil {
-		h.logger.Info("Grid mode activated with pending action", zap.String("action", *actionStr))
+		h.logger.Info("Grid mode activated with pending action",
+			zap.String("action", *actionStr),
+			zap.Bool("repeat", repeat))
 	}
 
-	h.setModeLocked(domain.ModeGrid, overlay.ModeGrid)
+	// Only set mode and enable event tap on initial activation;
+	// during refresh these are already in the correct state.
+	if !isRefresh {
+		h.setModeLocked(domain.ModeGrid, overlay.ModeGrid)
+	}
 
 	h.logger.Info("Grid mode activated", zap.String("action", actionString))
 	h.logger.Info("Type a grid label to select a location")

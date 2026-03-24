@@ -132,29 +132,85 @@ func (h *IPCControllerModes) modesUnavailableResponse() ipc.Response {
 	}
 }
 
-// extractModeAction extracts and validates the optional action parameter from
-// a mode IPC command. It returns the action pointer and an optional error
-// response. If the response is non-nil the caller should return it immediately.
-func (h *IPCControllerModes) extractModeAction(cmd ipc.Command) (*string, *ipc.Response) {
+// ModeActivationOptions holds the parsed options for activating a navigation mode.
+type ModeActivationOptions struct {
+	Action *string
+	Repeat bool
+}
+
+// extractModeOptions extracts and validates the optional action and repeat
+// parameters from a mode IPC command. It returns the options and an optional
+// error response. If the response is non-nil the caller should return it
+// immediately.
+func (h *IPCControllerModes) extractModeOptions(
+	cmd ipc.Command,
+) (ModeActivationOptions, *ipc.Response) {
+	var opts ModeActivationOptions
+
 	if len(cmd.Args) <= 1 {
-		return nil, nil
+		return opts, nil
 	}
 
-	actionArg := cmd.Args[1]
-	// Scroll sub-actions (scroll_up, page_down, etc.) are IPC/CLI-only and
-	// cannot be used as pending mode actions. Reject them here so that
-	// direct IPC callers get the same validation as the CLI.
-	if action.IsScrollSubAction(actionArg) {
+	// Parse positional action arg and flag-style options from remaining args.
+	for i := 1; i < len(cmd.Args); i++ {
+		arg := cmd.Args[i]
+
+		switch {
+		case arg == "--repeat" || arg == "-r":
+			opts.Repeat = true
+		case opts.Action == nil:
+			actionArg := arg
+			opts.Action = &actionArg
+		default:
+			resp := ipc.Response{
+				Success: false,
+				Message: "unexpected argument: " + arg,
+				Code:    ipc.CodeInvalidInput,
+			}
+
+			return opts, &resp
+		}
+	}
+
+	if opts.Action != nil {
+		// Validate that the action name is recognized so direct IPC callers
+		// get the same immediate feedback as the CLI (which checks via
+		// action.IsKnownName in mode_commands.go).
+		if !action.IsKnownName(action.Name(*opts.Action)) {
+			resp := ipc.Response{
+				Success: false,
+				Message: "invalid action: " + *opts.Action + ". Supported actions: " + action.SupportedNamesString(),
+				Code:    ipc.CodeInvalidInput,
+			}
+
+			return opts, &resp
+		}
+
+		// Scroll sub-actions (scroll_up, page_down, etc.) are IPC/CLI-only and
+		// cannot be used as pending mode actions. Reject them here so that
+		// direct IPC callers get the same validation as the CLI.
+		if action.IsScrollSubAction(*opts.Action) {
+			resp := ipc.Response{
+				Success: false,
+				Message: "scroll sub-action \"" + *opts.Action + "\" cannot be used as a mode action; use 'action " + *opts.Action + "' instead",
+				Code:    ipc.CodeInvalidInput,
+			}
+
+			return opts, &resp
+		}
+	}
+
+	if opts.Repeat && opts.Action == nil {
 		resp := ipc.Response{
 			Success: false,
-			Message: "scroll sub-action \"" + actionArg + "\" cannot be used as a mode action; use 'action " + actionArg + "' instead",
+			Message: "--repeat requires an action",
 			Code:    ipc.CodeInvalidInput,
 		}
 
-		return nil, &resp
+		return opts, &resp
 	}
 
-	return &actionArg, nil
+	return opts, nil
 }
 
 func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc.Response {
@@ -162,12 +218,12 @@ func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc
 		return h.modesUnavailableResponse()
 	}
 
-	modeAction, errResp := h.extractModeAction(cmd)
+	opts, errResp := h.extractModeOptions(cmd)
 	if errResp != nil {
 		return *errResp
 	}
 
-	h.modes.ActivateModeWithAction(domain.ModeHints, modeAction)
+	h.modes.ActivateModeWithOptions(domain.ModeHints, opts.Action, opts.Repeat)
 
 	return ipc.Response{Success: true, Message: "hints mode activated", Code: ipc.CodeOK}
 }
@@ -177,12 +233,12 @@ func (h *IPCControllerModes) handleGrid(_ context.Context, cmd ipc.Command) ipc.
 		return h.modesUnavailableResponse()
 	}
 
-	modeAction, errResp := h.extractModeAction(cmd)
+	opts, errResp := h.extractModeOptions(cmd)
 	if errResp != nil {
 		return *errResp
 	}
 
-	h.modes.ActivateModeWithAction(domain.ModeGrid, modeAction)
+	h.modes.ActivateModeWithOptions(domain.ModeGrid, opts.Action, opts.Repeat)
 
 	return ipc.Response{Success: true, Message: "grid mode activated", Code: ipc.CodeOK}
 }
@@ -192,12 +248,12 @@ func (h *IPCControllerModes) handleRecursiveGrid(_ context.Context, cmd ipc.Comm
 		return h.modesUnavailableResponse()
 	}
 
-	modeAction, errResp := h.extractModeAction(cmd)
+	opts, errResp := h.extractModeOptions(cmd)
 	if errResp != nil {
 		return *errResp
 	}
 
-	h.modes.ActivateModeWithAction(domain.ModeRecursiveGrid, modeAction)
+	h.modes.ActivateModeWithOptions(domain.ModeRecursiveGrid, opts.Action, opts.Repeat)
 
 	return ipc.Response{Success: true, Message: "recursive-grid mode activated", Code: ipc.CodeOK}
 }

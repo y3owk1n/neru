@@ -40,7 +40,7 @@ func (m *baseMode) ModeType() domain.Mode {
 }
 
 // Activate provides a default empty implementation for modes that don't need activation logic.
-func (m *baseMode) Activate(action *string) {
+func (m *baseMode) Activate(action *string, repeat bool) {
 	// Default empty implementation - modes can override if needed
 }
 

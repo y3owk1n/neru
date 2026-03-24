@@ -31,7 +31,9 @@ import (
 // and cleanup operations.
 type Mode interface {
 	// Activate activates the mode with an optional pending action.
-	Activate(action *string)
+	// When repeat is true the mode re-activates after performing the action
+	// instead of exiting.
+	Activate(action *string, repeat bool)
 
 	// HandleKey processes a key press within the mode's context.
 	HandleKey(key string)

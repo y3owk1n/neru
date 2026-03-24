@@ -164,7 +164,7 @@ func (h *Handler) handleCustomHotkey(key string) bool {
 
 			// Execute in a goroutine so the event tap callback returns quickly.
 			// This also avoids a deadlock: executeHotkeyAction may call
-			// ipcController.HandleCommand → ActivateModeWithAction which
+			// ipcController.HandleCommand → ActivateModeWithOptions which
 			// acquires h.mu, but we already hold it.
 			capturedKey := bindKey
 
