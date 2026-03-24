@@ -30,12 +30,9 @@ func (h *Handler) HandleKeyPress(key string) {
 		return
 	}
 
-	// Check for per-mode custom hotkeys BEFORE stripping sticky modifiers.
-	// Custom hotkeys use full modifier combos (e.g. "Ctrl+J") and should
-	// match the raw key from the event tap.
-	if h.handleCustomHotkey(key) {
-		return
-	}
+	// Save the raw key before sticky modifier stripping so we can try
+	// custom hotkey matching with the original modifier combo later.
+	rawKey := key
 
 	// Since sticky modifiers are injected as physical events, they appear in "key"
 	// (e.g. Cmd+Shift+L). This strips them out so bindings like "Shift+L" still match.
@@ -47,7 +44,8 @@ func (h *Handler) HandleKeyPress(key string) {
 	// Resolve exit keys for the current mode (global + per-mode, merged)
 	exitKeys := h.resolveExitKeysForCurrentMode()
 
-	// Check if key matches any configured exit keys (after normalization)
+	// Check if key matches any configured exit keys (after normalization).
+	// Exit keys ALWAYS take priority over custom hotkeys and mode-specific keys.
 	if config.IsExitKey(key, exitKeys) {
 		h.handleEscapeKey()
 
@@ -56,8 +54,16 @@ func (h *Handler) HandleKeyPress(key string) {
 
 	// Check for per-mode custom hotkeys before mode-specific handling.
 	// Custom hotkeys use the same action syntax as top-level [hotkeys].
-	if h.handleCustomHotkey(key) {
+	// Try the raw key first (preserves full modifier combos like "Cmd+Shift+G"
+	// even when sticky modifiers are active), then the stripped key.
+	if h.handleCustomHotkey(rawKey) {
 		return
+	}
+
+	if rawKey != key {
+		if h.handleCustomHotkey(key) {
+			return
+		}
 	}
 
 	h.handleModeSpecificKey(key)
