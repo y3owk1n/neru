@@ -16,7 +16,7 @@ import (
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
-func (h *Handler) activateGridModeWithAction(actionStr *string) {
+func (h *Handler) activateGridModeWithAction(actionStr *string, repeat bool) {
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameGrid,
 		h.config.Grid.Enabled,
@@ -63,11 +63,14 @@ func (h *Handler) activateGridModeWithAction(actionStr *string) {
 	// Show the overlay (the grid is already drawn with proper style)
 	h.overlayManager.Show()
 
-	// Store pending action if provided
+	// Store pending action and repeat flag if provided
 	h.grid.Context.SetPendingAction(actionStr)
+	h.grid.Context.SetRepeat(repeat)
 
 	if actionStr != nil {
-		h.logger.Info("Grid mode activated with pending action", zap.String("action", *actionStr))
+		h.logger.Info("Grid mode activated with pending action",
+			zap.String("action", *actionStr),
+			zap.Bool("repeat", repeat))
 	}
 
 	h.setModeLocked(domain.ModeGrid, overlay.ModeGrid)

@@ -8,6 +8,7 @@ import (
 // baseContext provides common functionality for mode component contexts.
 type baseContext struct {
 	pendingAction *string
+	repeat        bool
 }
 
 // SetPendingAction sets the action to execute when mode selection is complete.
@@ -20,9 +21,20 @@ func (c *baseContext) PendingAction() *string {
 	return c.pendingAction
 }
 
+// SetRepeat sets whether the mode should re-activate after performing the action.
+func (c *baseContext) SetRepeat(repeat bool) {
+	c.repeat = repeat
+}
+
+// Repeat returns whether the mode should re-activate after performing the action.
+func (c *baseContext) Repeat() bool {
+	return c.repeat
+}
+
 // Reset resets the base context to its initial state.
 func (c *baseContext) Reset() {
 	c.pendingAction = nil
+	c.repeat = false
 }
 
 // Context holds the state and context for recursive_grid mode operations.

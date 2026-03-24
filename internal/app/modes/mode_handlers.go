@@ -13,7 +13,14 @@ import (
 )
 
 // executeActionAtPoint executes a pending action at the given point and exits the mode.
-func (h *Handler) executeActionAtPoint(action *string, point image.Point) {
+// When repeat is true and reActivateFunc is provided, the mode is re-activated
+// instead of exiting after performing the action.
+func (h *Handler) executeActionAtPoint(
+	action *string,
+	point image.Point,
+	repeat bool,
+	reActivateFunc func(),
+) {
 	if action == nil {
 		h.logger.Warn("executeActionAtPoint called with nil action")
 
@@ -22,7 +29,8 @@ func (h *Handler) executeActionAtPoint(action *string, point image.Point) {
 
 	h.logger.Info("Executing pending action",
 		zap.String("action", *action),
-		zap.String("modifiers", h.stickyModifiers().String()))
+		zap.String("modifiers", h.stickyModifiers().String()),
+		zap.Bool("repeat", repeat))
 
 	ctx := context.Background()
 
@@ -45,6 +53,13 @@ func (h *Handler) executeActionAtPoint(action *string, point image.Point) {
 		h.cursorState.MarkActionPerformed()
 	}
 
+	if repeat && reActivateFunc != nil {
+		h.logger.Info("Re-activating mode after action (--repeat)")
+		reActivateFunc()
+
+		return
+	}
+
 	h.exitModeLocked()
 }
 
@@ -63,7 +78,7 @@ func (h *Handler) moveCursorAndHandleAction(
 	}
 
 	if pendingAction != nil {
-		h.executeActionAtPoint(pendingAction, point)
+		h.executeActionAtPoint(pendingAction, point, shouldReActivate, reActivateFunc)
 
 		return
 	}
@@ -186,11 +201,23 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 		h.logger.Info("Found element", zap.String("label", hint.Label()))
 
+		pendingAction := h.hints.Context.PendingAction()
+		repeat := h.hints.Context.Repeat()
+
 		h.moveCursorAndHandleAction(
 			center,
-			h.hints.Context.PendingAction(),
-			true,
-			func() { h.activateHintModeInternal(false, nil) },
+			pendingAction,
+			repeat ||
+				pendingAction == nil, // re-activate on repeat, or when no action (existing behavior)
+			func() {
+				h.activateHintModeInternal(false, nil)
+				// Restore repeat and action on the fresh context so subsequent
+				// selections continue the repeat cycle.
+				if repeat && h.hints != nil && h.hints.Context != nil {
+					h.hints.Context.SetPendingAction(pendingAction)
+					h.hints.Context.SetRepeat(true)
+				}
+			},
 		)
 	}
 }
@@ -247,11 +274,14 @@ func (h *Handler) handleGridModeKey(key string) {
 			zap.Int("y", absolutePoint.Y),
 		)
 
+		repeat := h.grid.Context.Repeat()
+		pendingAction := h.grid.Context.PendingAction()
+
 		h.moveCursorAndHandleAction(
 			absolutePoint,
-			h.grid.Context.PendingAction(),
-			false, // Grid mode doesn't re-activate after cursor movement
-			nil,
+			pendingAction,
+			repeat, // Re-activate grid mode when --repeat is set
+			func() { h.activateGridModeWithAction(pendingAction, repeat) },
 		)
 	}
 }

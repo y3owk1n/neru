@@ -17,7 +17,7 @@ import (
 )
 
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter.
-func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
+func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string, repeat bool) {
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameRecursiveGrid,
 		h.config.RecursiveGrid.Enabled,
@@ -68,15 +68,17 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string) {
 
 	h.overlayManager.Show()
 
-	// Store pending action if provided
+	// Store pending action and repeat flag if provided
 	if h.recursiveGrid.Context != nil {
 		h.recursiveGrid.Context.SetPendingAction(actionStr)
+		h.recursiveGrid.Context.SetRepeat(repeat)
 	}
 
 	if actionStr != nil {
 		h.logger.Info(
 			"Recursive-grid mode activated with pending action",
 			zap.String("action", *actionStr),
+			zap.Bool("repeat", repeat),
 		)
 	}
 
@@ -185,11 +187,14 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 		// Selection is complete - move cursor and execute pending action if any
 		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 
+		repeat := h.recursiveGrid.Context.Repeat()
+		pendingAction := h.recursiveGrid.Context.PendingAction()
+
 		h.moveCursorAndHandleAction(
 			absoluteCenter,
-			h.recursiveGrid.Context.PendingAction(),
-			false, // Recursive-grid mode doesn't re-activate after cursor movement
-			nil,
+			pendingAction,
+			repeat, // Re-activate recursive-grid mode when --repeat is set
+			func() { h.activateRecursiveGridModeWithAction(pendingAction, repeat) },
 		)
 	} else if !center.Eq(image.Point{}) {
 		// Move cursor to the center point for preview

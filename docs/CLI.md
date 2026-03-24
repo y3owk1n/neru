@@ -200,6 +200,19 @@ neru recursive_grid --action left_click  # Left-click via recursive-grid
 > [!TIP]
 > The `--action` flag is most useful in hints mode, where it mirrors a Vimium-style workflow: select a label and the action fires immediately. In grid and recursive-grid modes, the action triggers only after the final cell selection, which is less ergonomic. For those modes, consider using `auto_exit_actions` in your config file instead.
 
+### Using the `--repeat` flag
+
+Add `--repeat` (or `-r`) to stay in the mode after the action is performed. The mode re-activates so you can immediately select another target without re-entering the mode:
+
+```
+neru hints --action left_click --repeat           # Click, then show hints again
+neru recursive_grid --action left_click --repeat  # Click, then restart recursive-grid
+neru grid --action left_click --repeat            # Click, then restart grid
+```
+
+> [!TIP]
+> `--repeat` requires `--action`. It is especially useful for workflows that involve clicking multiple elements in succession — you stay in the mode until you press the exit key (default: Escape).
+
 ---
 
 ### Hints Mode
@@ -489,6 +502,7 @@ fi
 ctrl - f : neru hints
 ctrl - g : neru grid
 ctrl - r : neru hints --action right_click
+ctrl - t : neru hints --action left_click --repeat   # Multi-click workflow
 ```
 
 ### Status check in scripts

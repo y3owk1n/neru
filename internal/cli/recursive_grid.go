@@ -21,8 +21,9 @@ Navigation:
   - Press exit key (default: escape) to exit mode
 
 Examples:
-  neru recursive_grid                    # Start recursive-grid mode
-  neru recursive_grid --action click     # Start with pending click action`,
+  neru recursive_grid                                  # Start recursive-grid mode
+  neru recursive_grid --action click                   # Start with pending click action
+  neru recursive_grid --action left_click --repeat     # Click and restart mode`,
 	ActionDesc: "recursive-grid selection",
 })
 

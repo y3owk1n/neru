@@ -34,6 +34,18 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				return err
 			}
 
+			repeatFlag, err := cmd.Flags().GetBool("repeat")
+			if err != nil {
+				return err
+			}
+
+			if repeatFlag && actionFlag == "" {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--repeat requires --action",
+				)
+			}
+
 			if actionFlag != "" {
 				// Validate action
 				if !action.IsKnownName(action.Name(actionFlag)) {
@@ -66,6 +78,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, actionFlag)
 			}
 
+			if repeatFlag {
+				params = append(params, "--repeat")
+			}
+
 			return sendCommand(cmd, config.Name, params)
 		},
 	}
@@ -75,6 +91,13 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		"a",
 		"",
 		fmt.Sprintf("Action to perform on %s (%s)", config.ActionDesc, action.SupportedNamesString()),
+	)
+
+	cmd.Flags().BoolP(
+		"repeat",
+		"r",
+		false,
+		"Re-activate mode after performing the action (requires --action)",
 	)
 
 	return cmd
