@@ -14,7 +14,7 @@ func TestConfigValidateCustomHotkeys_Valid(t *testing.T) {
 		"action save_cursor_pos",
 		"idle",
 		"action wait_for_mode_exit",
-		"action restore_cursor",
+		"action restore_cursor_pos",
 	}
 
 	err := cfg.ValidateCustomHotkeys()

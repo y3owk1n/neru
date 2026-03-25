@@ -203,7 +203,7 @@ func (h *IPCControllerModes) extractModeOptions(
 			action.IsBackspaceAction(*opts.Action) ||
 			action.IsWaitForModeExitAction(*opts.Action) ||
 			action.IsSaveCursorPosAction(*opts.Action) ||
-			action.IsRestoreCursorAction(*opts.Action) {
+			action.IsRestoreCursorPosAction(*opts.Action) {
 			resp := ipc.Response{
 				Success: false,
 				Message: "mode action \"" + *opts.Action + "\" is not allowed; use 'action " + *opts.Action + "' instead",

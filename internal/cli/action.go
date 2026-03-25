@@ -96,16 +96,16 @@ var ActionWaitForModeExitCmd = BuildActionCommand(
 var ActionSaveCursorPosCmd = BuildActionCommand(
 	"save_cursor_pos",
 	"Save current cursor position",
-	`Save the current cursor position so it can be restored later with restore_cursor.`,
+	`Save the current cursor position so it can be restored later with restore_cursor_pos.`,
 	[]string{"save_cursor_pos"},
 )
 
-// ActionRestoreCursorCmd restores previously saved cursor position.
-var ActionRestoreCursorCmd = BuildActionCommand(
-	"restore_cursor",
+// ActionRestoreCursorPosCmd restores previously saved cursor position.
+var ActionRestoreCursorPosCmd = BuildActionCommand(
+	"restore_cursor_pos",
 	"Restore saved cursor position",
 	`Restore cursor position previously saved by save_cursor_pos.`,
-	[]string{"restore_cursor"},
+	[]string{"restore_cursor_pos"},
 )
 
 // ActionScrollUpCmd scrolls up at the current cursor position.
@@ -176,7 +176,7 @@ func init() {
 	ActionCmd.AddCommand(ActionBackspaceCmd)
 	ActionCmd.AddCommand(ActionWaitForModeExitCmd)
 	ActionCmd.AddCommand(ActionSaveCursorPosCmd)
-	ActionCmd.AddCommand(ActionRestoreCursorCmd)
+	ActionCmd.AddCommand(ActionRestoreCursorPosCmd)
 	ActionCmd.AddCommand(ActionScrollUpCmd)
 	ActionCmd.AddCommand(ActionScrollDownCmd)
 	ActionCmd.AddCommand(ActionScrollLeftCmd)

@@ -199,7 +199,7 @@ neru recursive_grid --action left_click  # Left-click via recursive-grid
 
 Supported `--action` values: `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, `move_mouse`, `move_mouse_relative`, `scroll`.
 
-Not allowed for mode `--action`: `reset`, `backspace`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor`, and scroll sub-actions (for example `scroll_up`, `page_down`, `go_top`).
+Not allowed for mode `--action`: `reset`, `backspace`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (for example `scroll_up`, `page_down`, `go_top`).
 
 > [!TIP]
 > The `--action` flag is most useful in hints mode, where it mirrors a Vimium-style workflow: select a label and the action fires immediately. In grid and recursive-grid modes, the action triggers only after the final cell selection, which is less ergonomic. For those modes, prefer composing behavior in per-mode `custom_hotkeys` (for example: `["action left_click", "idle"]`).
@@ -321,7 +321,7 @@ neru action middle_click        # Middle click
 neru action mouse_down          # Hold mouse button
 neru action mouse_up            # Release mouse button
 neru action save_cursor_pos     # Save current cursor position
-neru action restore_cursor      # Restore saved cursor position
+neru action restore_cursor_pos # Restore saved cursor position
 neru action scroll_up           # Scroll up at cursor
 neru action scroll_down         # Scroll down at cursor
 neru action scroll_left         # Scroll left at cursor

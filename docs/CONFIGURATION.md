@@ -211,7 +211,7 @@ Define hotkeys that are only active while a specific mode is running.
 All actions from `[hotkeys]` work here, including:
 
 - Mode commands: `idle`, `hints`, `grid`, `recursive_grid`, `scroll`
-- Action subcommands: `action left_click`, `action scroll_down`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor`
+- Action subcommands: `action left_click`, `action scroll_down`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor_pos`
 - Shell commands: `exec ...`
 
 ### Priority order
@@ -396,7 +396,7 @@ All one-shot actions are exposed through `action` subcommands and are valid in c
 - `reset`, `backspace`
 - `wait_for_mode_exit`
 - `save_cursor_pos`
-- `restore_cursor`
+- `restore_cursor_pos`
 
 ### New composition primitives
 
@@ -404,17 +404,17 @@ These are action subcommands used to compose advanced array hotkeys:
 
 - `action save_cursor_pos`
 - `action wait_for_mode_exit`
-- `action restore_cursor`
+- `action restore_cursor_pos`
 
 Example:
 
 ```toml
 [hints.custom_hotkeys]
-"Enter" = ["action save_cursor_pos", "idle", "action wait_for_mode_exit", "action restore_cursor"]
+"Enter" = ["action save_cursor_pos", "idle", "action wait_for_mode_exit", "action restore_cursor_pos"]
 ```
 
 > [!NOTE]
-> `reset`, `backspace`, `wait_for_mode_exit`, `save_cursor_pos`, and `restore_cursor` are not valid mode `--action` values. Use them as `neru action ...` or in hotkeys as `"action ..."`.
+> `reset`, `backspace`, `wait_for_mode_exit`, `save_cursor_pos`, and `restore_cursor_pos` are not valid mode `--action` values. Use them as `neru action ...` or in hotkeys as `"action ..."`.
 
 ---
 
