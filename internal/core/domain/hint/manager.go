@@ -7,7 +7,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
@@ -162,13 +161,6 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 		m.Logger.Debug("Hint manager: Processing input",
 			zap.String("key", key),
 			zap.String("current_input", m.CurrentInput()))
-	}
-
-	// Handle backspace to allow input correction
-	if config.NormalizeKeyForComparison(key) == config.KeyNameDelete {
-		m.HandleBackspace()
-
-		return nil, false
 	}
 
 	// Ignore non-single-character keys
