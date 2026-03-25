@@ -237,6 +237,9 @@ You can bind multiple actions to a single hotkey by using an array:
 
 Actions are executed sequentially in order. If an action fails, the error is logged but the remaining actions still run. This is useful when you want to perform multiple operations with a single hotkey, such as scrolling and then performing an action.
 
+> [!WARNING]
+> Shell commands (`exec …`) **block** until they finish (or the 30-second timeout expires). In a multi-action binding like `["exec sleep 10", "hints"]`, the `hints` action won't run until the shell command completes. Place `exec` actions last when possible, or run long-running commands in the background with `"exec my-script &"`.
+
 Both `[hotkeys]` and `[<mode>.custom_hotkeys]` support this array syntax.
 
 ### Disabling all hotkeys
