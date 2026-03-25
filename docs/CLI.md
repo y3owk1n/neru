@@ -267,6 +267,7 @@ Recursive grid divides the screen into cells. Each keypress narrows the active a
 | `i`         | Upper-right cell |
 | `j`         | Lower-left cell  |
 | `k`         | Lower-right cell |
+| `Space`     | Reset to center  |
 | `Backspace` | Go up one level  |
 | `Esc`       | Exit mode        |
 
@@ -309,9 +310,9 @@ See [CONFIGURATION.md](CONFIGURATION.md) for configuring step sizes and mode cus
 
 ## Action Commands
 
-### Staleless Actions
+### Stateless Actions
 
-These actions does not depends on anything and can be one shot.
+These actions do not depend on any active mode and can be used as one-shot commands.
 
 ```
 neru action left_click          # Left click
@@ -331,9 +332,9 @@ neru action go_top              # Jump to top at cursor
 neru action go_bottom           # Jump to bottom at cursor
 ```
 
-### Mode-aware Actions
+### Mode-Aware Actions
 
-These actions depends on the current mode (useless for just plain cli call)
+These actions depend on the current mode and are primarily useful inside `custom_hotkeys` arrays.
 
 ```
 neru action reset               # Reset state in current mode
