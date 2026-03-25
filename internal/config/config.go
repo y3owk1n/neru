@@ -904,10 +904,15 @@ func (c *Config) ValidateModeIndicator() error {
 // entries are emitted as plain strings for backward compatibility; multi-action
 // entries use TOML array syntax.  The section header (e.g. "[scroll.custom_hotkeys]")
 // is always written so that an empty map round-trips correctly.
+//
+// When defaults is non-nil, any default key not present in _map (after
+// normalization) is emitted as "__disabled__" so that Save+LoadWithValidation
+// round-trips correctly under merge-on-top-of-defaults semantics.
 func writeStringOrStringArrayMap(
 	file *os.File,
 	sectionHeader string,
 	_map map[string]StringOrStringArray,
+	defaults map[string]StringOrStringArray,
 ) error {
 	_, err := fmt.Fprintf(file, "\n[%s]\n", sectionHeader)
 	if err != nil {
@@ -951,6 +956,32 @@ func writeStringOrStringArrayMap(
 			return derrors.Wrap(
 				err, derrors.CodeConfigIOFailed, "failed to write binding",
 			)
+		}
+	}
+
+	// Emit __disabled__ markers for default bindings that were removed.
+	if defaults != nil {
+		disabledKeys := make([]string, 0)
+		for defaultKey := range defaults {
+			found := findNormalizedSOSAKey(_map, defaultKey)
+			if _, exists := _map[found]; !exists {
+				disabledKeys = append(disabledKeys, defaultKey)
+			}
+		}
+
+		sort.Strings(disabledKeys)
+
+		for _, key := range disabledKeys {
+			line := fmt.Sprintf("%q = %q", key, DisabledSentinel)
+
+			_, disabledErr := fmt.Fprintln(file, line)
+			if disabledErr != nil {
+				return derrors.Wrap(
+					disabledErr,
+					derrors.CodeConfigIOFailed,
+					"failed to write disabled binding marker",
+				)
+			}
 		}
 	}
 
@@ -1045,21 +1076,59 @@ func (c *Config) Save(path string) error {
 		}
 	}
 
+	// Emit __disabled__ markers for default bindings that were removed.
+	// Without these, LoadWithValidation would re-merge the defaults on reload
+	// because it starts from DefaultConfig() and merges the saved entries on top.
+	// Skip when bindings is empty: an empty [hotkeys] section already means
+	// "disable all" and needs no per-key markers.
+	defaults := commonDefaultConfig()
+
+	if len(c.Hotkeys.Bindings) > 0 {
+		disabledKeys := make([]string, 0)
+
+		for defaultKey := range defaults.Hotkeys.Bindings {
+			found := findNormalizedBindingsKey(c.Hotkeys.Bindings, defaultKey)
+			if _, exists := c.Hotkeys.Bindings[found]; !exists {
+				disabledKeys = append(disabledKeys, defaultKey)
+			}
+		}
+
+		sort.Strings(disabledKeys)
+
+		for _, key := range disabledKeys {
+			line := fmt.Sprintf("%q = %q", key, DisabledSentinel)
+
+			_, disabledErr := fmt.Fprintln(file, line)
+			if disabledErr != nil {
+				return derrors.Wrap(
+					disabledErr,
+					derrors.CodeConfigIOFailed,
+					"failed to write disabled hotkey marker",
+				)
+			}
+		}
+	}
+
 	// Write per-mode [<mode>.custom_hotkeys] sections.
 	// These fields are tagged toml:"-" so the encoder skips them; we write
 	// them manually to preserve the single-string format for single-action
 	// entries (backward compatibility).
 	customHotkeysSections := []struct {
-		header  string
-		hotkeys map[string]StringOrStringArray
+		header   string
+		hotkeys  map[string]StringOrStringArray
+		defaults map[string]StringOrStringArray
 	}{
-		{"scroll.custom_hotkeys", c.Scroll.CustomHotkeys},
-		{"hints.custom_hotkeys", c.Hints.CustomHotkeys},
-		{"grid.custom_hotkeys", c.Grid.CustomHotkeys},
-		{"recursive_grid.custom_hotkeys", c.RecursiveGrid.CustomHotkeys},
+		{"scroll.custom_hotkeys", c.Scroll.CustomHotkeys, defaults.Scroll.CustomHotkeys},
+		{"hints.custom_hotkeys", c.Hints.CustomHotkeys, defaults.Hints.CustomHotkeys},
+		{"grid.custom_hotkeys", c.Grid.CustomHotkeys, defaults.Grid.CustomHotkeys},
+		{
+			"recursive_grid.custom_hotkeys",
+			c.RecursiveGrid.CustomHotkeys,
+			defaults.RecursiveGrid.CustomHotkeys,
+		},
 	}
 	for _, section := range customHotkeysSections {
-		err = writeStringOrStringArrayMap(file, section.header, section.hotkeys)
+		err = writeStringOrStringArrayMap(file, section.header, section.hotkeys, section.defaults)
 		if err != nil {
 			return err
 		}
