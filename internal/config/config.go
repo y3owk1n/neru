@@ -983,6 +983,10 @@ func writeStringOrStringArrayMap(
 	for _, key := range keys {
 		actions := _map[key]
 
+		if len(actions) == 0 {
+			continue
+		}
+
 		var line string
 		if len(actions) == 1 {
 			line = fmt.Sprintf("%q = %q", key, actions[0])
@@ -1066,6 +1070,10 @@ func (c *Config) Save(path string) error {
 
 		for _, key := range keys {
 			actions := c.Hotkeys.Bindings[key]
+
+			if len(actions) == 0 {
+				continue
+			}
 
 			var line string
 			if len(actions) == 1 {
