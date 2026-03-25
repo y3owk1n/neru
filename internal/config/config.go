@@ -1033,7 +1033,7 @@ func (c *Config) Save(path string) error {
 	//
 	// Convert map[string][]string → map[string]StringOrStringArray so we can
 	// reuse writeStringOrStringArrayMap (StringOrStringArray is []string).
-	defaults := commonDefaultConfig()
+	defaults := DefaultConfig()
 
 	hotkeysSOSA := make(map[string]StringOrStringArray, len(c.Hotkeys.Bindings))
 	for k, v := range c.Hotkeys.Bindings {
