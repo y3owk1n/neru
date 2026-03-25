@@ -508,10 +508,10 @@ func (c *Config) ValidateRecursiveGrid() error {
 	}
 
 	for _, layer := range c.RecursiveGrid.Layers {
-		if layer.Depth < 1 {
+		if layer.Depth < 0 {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"recursive_grid.layers.depth must be >= 1",
+				"recursive_grid.layers.depth must be >= 0",
 			)
 		}
 
