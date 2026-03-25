@@ -244,7 +244,7 @@ func TestIsKnownName(t *testing.T) {
 		{action.NameBackspace, true},
 		{action.NameWaitForModeExit, true},
 		{action.NameSaveCursorPos, true},
-		{action.NameRestoreCursor, true},
+		{action.NameRestoreCursorPos, true},
 		// Scroll sub-actions are recognized by IsKnownName (superset of knownNames).
 		{action.NameScrollUp, true},
 		{action.NameScrollDown, true},
@@ -295,7 +295,7 @@ func TestIsScrollSubAction(t *testing.T) {
 		{"backspace", false},
 		{"wait_for_mode_exit", false},
 		{"save_cursor_pos", false},
-		{"restore_cursor", false},
+		{"restore_cursor_pos", false},
 		// Unknown / empty return false.
 		{"unknown", false},
 		{"", false},
@@ -435,7 +435,7 @@ func TestName_ToType(t *testing.T) {
 		{action.NameBackspace, 0, true},
 		{action.NameWaitForModeExit, 0, true},
 		{action.NameSaveCursorPos, 0, true},
-		{action.NameRestoreCursor, 0, true},
+		{action.NameRestoreCursorPos, 0, true},
 		{action.Name("unknown"), 0, true},
 		{action.Name(""), 0, true},
 	}

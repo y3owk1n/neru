@@ -244,8 +244,8 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		return h.handleSaveCursorPosAction(ctx, parsed)
 	}
 
-	if action.IsRestoreCursorAction(actionName) {
-		return h.handleRestoreCursorAction(ctx, parsed)
+	if action.IsRestoreCursorPosAction(actionName) {
+		return h.handleRestoreCursorPosAction(ctx, parsed)
 	}
 
 	if h.actionService == nil {
@@ -589,14 +589,14 @@ func (h *IPCControllerActions) handleSaveCursorPosAction(
 	return ipc.Response{Success: true, Message: "cursor position saved", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerActions) handleRestoreCursorAction(
+func (h *IPCControllerActions) handleRestoreCursorPosAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) ipc.Response {
 	if hasUnsupportedFlags(parsed) {
 		return ipc.Response{
 			Success: false,
-			Message: "restore_cursor does not support action flags",
+			Message: "restore_cursor_pos does not support action flags",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}

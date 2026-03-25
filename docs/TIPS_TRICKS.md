@@ -61,7 +61,7 @@ The old `restore_cursor_position` config field was removed. Compose the same beh
 "Cmd+Shift+Space" = ["action save_cursor_pos", "hints"] # add the save cursor pos action before launch hints
 
 [hints.custom_hotkeys]
-"Enter" = ["action left_click", "idle", "action restore_cursor"]
+"Enter" = ["action left_click", "idle", "action restore_cursor_pos"]
 ```
 
 This saves the cursor position, clicks, exits hints, waits for the mode to fully exit, then moves the cursor back.

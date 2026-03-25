@@ -141,8 +141,8 @@ const (
 	NameWaitForModeExit Name = "wait_for_mode_exit"
 	// NameSaveCursorPos saves the current cursor position for later restoration.
 	NameSaveCursorPos Name = "save_cursor_pos"
-	// NameRestoreCursor restores cursor position saved by save_cursor_pos.
-	NameRestoreCursor Name = "restore_cursor"
+	// NameRestoreCursorPos restores cursor position saved by save_cursor_pos.
+	NameRestoreCursorPos Name = "restore_cursor_pos"
 
 	// NameScrollUp represents the scroll-up action.
 	NameScrollUp Name = "scroll_up"
@@ -220,9 +220,9 @@ func IsSaveCursorPosAction(name string) bool {
 	return Name(name) == NameSaveCursorPos
 }
 
-// IsRestoreCursorAction reports whether the given action is restore_cursor.
-func IsRestoreCursorAction(name string) bool {
-	return Name(name) == NameRestoreCursor
+// IsRestoreCursorPosAction reports whether the given action is restore_cursor_pos.
+func IsRestoreCursorPosAction(name string) bool {
+	return Name(name) == NameRestoreCursorPos
 }
 
 // IsKnownName determines whether the specified action name is recognized by the
@@ -240,7 +240,7 @@ func IsKnownName(name Name) bool {
 		NameMoveMouseRelative,
 		NameScroll,
 		NameReset, NameBackspace,
-		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursor,
+		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown:
 		return true
@@ -259,7 +259,7 @@ func IsScrollSubAction(name string) bool {
 	case NameLeftClick, NameRightClick, NameMiddleClick,
 		NameMouseDown, NameMouseUp,
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
-		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursor:
+		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos:
 		return false
 	default:
 		return false
@@ -314,7 +314,7 @@ func (n Name) ToType() (Type, error) {
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown:
 		return TypeScroll, nil
-	case NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursor:
+	case NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "action name not executable: %s", n)
 	default:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "unknown action name: %s", n)
