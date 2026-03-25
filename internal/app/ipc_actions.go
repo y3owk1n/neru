@@ -528,6 +528,9 @@ func (h *IPCControllerActions) handleWaitForModeExitAction(
 
 	deadline := time.After(modeExitTimeout)
 
+	ticker := time.NewTicker(modeExitPollInterval)
+	defer ticker.Stop()
+
 	for h.appState.CurrentMode() != domain.ModeIdle {
 		select {
 		case <-ctx.Done():
@@ -542,7 +545,7 @@ func (h *IPCControllerActions) handleWaitForModeExitAction(
 				Message: "wait_for_mode_exit timed out after " + modeExitTimeout.String(),
 				Code:    ipc.CodeActionFailed,
 			}
-		case <-time.After(modeExitPollInterval):
+		case <-ticker.C:
 		}
 	}
 
