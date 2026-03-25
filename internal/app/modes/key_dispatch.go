@@ -11,7 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
-const customHotkeySequenceTimeout = 500 * time.Millisecond
+const hotkeySequenceTimeout = 500 * time.Millisecond
 
 // HandleKeyPress dispatches key events by current mode.
 func (h *Handler) HandleKeyPress(key string) {
@@ -33,7 +33,7 @@ func (h *Handler) HandleKeyPress(key string) {
 	}
 
 	// Save the raw key before sticky modifier stripping so we can try
-	// custom hotkey matching with the original modifier combo later.
+	// hotkey matching with the original modifier combo later.
 	rawKey := key
 
 	// Since sticky modifiers are injected as physical events, they appear in "key"
@@ -43,8 +43,8 @@ func (h *Handler) HandleKeyPress(key string) {
 		key = h.stripStickyModifiersFromKey(key, activeMods)
 	}
 
-	// Check for per-mode custom hotkeys before mode-specific handling.
-	// Custom hotkeys use the same action syntax as top-level hotkeys.
+	// Check for per-mode hotkeys before mode-specific handling.
+	// Per-mode hotkeys use the same action syntax as top-level hotkeys.
 	// Try the raw key first (preserves full modifier combos like "Cmd+Shift+G"
 	// even when sticky modifiers are active), then the stripped key.
 	//
@@ -56,16 +56,16 @@ func (h *Handler) HandleKeyPress(key string) {
 	// state so the second call with the stripped key can still complete
 	// the sequence.
 	if rawKey != key {
-		savedLastKey := h.customHotkeyLastKey
-		savedLastKeyTime := h.customHotkeyLastKeyTime
+		savedLastKey := h.hotkeyLastKey
+		savedLastKeyTime := h.hotkeyLastKeyTime
 
 		if h.handleHotkey(rawKey) {
 			return
 		}
 
 		// Restore pending sequence state that the failed rawKey attempt cleared.
-		h.customHotkeyLastKey = savedLastKey
-		h.customHotkeyLastKeyTime = savedLastKeyTime
+		h.hotkeyLastKey = savedLastKey
+		h.hotkeyLastKeyTime = savedLastKeyTime
 
 		if h.handleHotkey(key) {
 			return
@@ -148,18 +148,18 @@ func (h *Handler) handleHotkey(key string) bool {
 	normalizedKey := config.NormalizeKeyForComparison(key)
 
 	// Phase 1: complete pending sequence if available and still valid.
-	if h.customHotkeyLastKey != "" {
-		pending := h.customHotkeyLastKey
-		pendingAt := h.customHotkeyLastKeyTime
-		h.customHotkeyLastKey = ""
-		h.customHotkeyLastKeyTime = 0
+	if h.hotkeyLastKey != "" {
+		pending := h.hotkeyLastKey
+		pendingAt := h.hotkeyLastKeyTime
+		h.hotkeyLastKey = ""
+		h.hotkeyLastKeyTime = 0
 
-		if pendingAt > 0 && time.Since(time.Unix(0, pendingAt)) <= customHotkeySequenceTimeout {
-			if bindKey, actions, ok := findCustomHotkeySequenceMatch(
+		if pendingAt > 0 && time.Since(time.Unix(0, pendingAt)) <= hotkeySequenceTimeout {
+			if bindKey, actions, ok := findHotkeySequenceMatch(
 				hotkeys,
 				pending+normalizedKey,
 			); ok {
-				h.dispatchCustomHotkeyActions(currentModeName, bindKey, key, actions)
+				h.dispatchHotkeyActions(currentModeName, bindKey, key, actions)
 
 				return true
 			}
@@ -173,16 +173,16 @@ func (h *Handler) handleHotkey(key string) bool {
 	}
 
 	// Phase 2: direct single-key match.
-	if bindKey, actions, ok := findCustomHotkeyMatch(hotkeys, normalizedKey); ok {
-		h.dispatchCustomHotkeyActions(currentModeName, bindKey, key, actions)
+	if bindKey, actions, ok := findHotkeyMatch(hotkeys, normalizedKey); ok {
+		h.dispatchHotkeyActions(currentModeName, bindKey, key, actions)
 
 		return true
 	}
 
 	// Phase 3: start a new sequence for two-letter bindings.
-	if isCustomHotkeySequenceStart(hotkeys, normalizedKey) {
-		h.customHotkeyLastKey = normalizedKey
-		h.customHotkeyLastKeyTime = time.Now().UnixNano()
+	if isHotkeySequenceStart(hotkeys, normalizedKey) {
+		h.hotkeyLastKey = normalizedKey
+		h.hotkeyLastKeyTime = time.Now().UnixNano()
 
 		return true
 	}
@@ -190,7 +190,7 @@ func (h *Handler) handleHotkey(key string) bool {
 	return false
 }
 
-func findCustomHotkeyMatch(
+func findHotkeyMatch(
 	hotkeys map[string]config.StringOrStringArray,
 	normalizedKey string,
 ) (string, []string, bool) {
@@ -203,11 +203,11 @@ func findCustomHotkeyMatch(
 	return "", nil, false
 }
 
-// findCustomHotkeySequenceMatch is like findCustomHotkeyMatch but skips named
-// keys (e.g. "Up", "F1"). It is used exclusively by Phase 1 (sequence
-// completion) to prevent a concatenated sequence like "u"+"p" from matching the
-// named key "Up" whose normalized form is also "up".
-func findCustomHotkeySequenceMatch(
+// findHotkeySequenceMatch is like findHotkeyMatch but skips named keys
+// (e.g. "Up", "F1"). It is used exclusively by Phase 1 (sequence completion)
+// to prevent a concatenated sequence like "u"+"p" from matching the named key
+// "Up" whose normalized form is also "up".
+func findHotkeySequenceMatch(
 	hotkeys map[string]config.StringOrStringArray,
 	normalizedKey string,
 ) (string, []string, bool) {
@@ -224,7 +224,7 @@ func findCustomHotkeySequenceMatch(
 	return "", nil, false
 }
 
-func isCustomHotkeySequenceStart(
+func isHotkeySequenceStart(
 	hotkeys map[string]config.StringOrStringArray,
 	normalizedKey string,
 ) bool {
@@ -250,13 +250,13 @@ func isCustomHotkeySequenceStart(
 	return false
 }
 
-func (h *Handler) dispatchCustomHotkeyActions(
+func (h *Handler) dispatchHotkeyActions(
 	modeName string,
 	bindKey string,
 	rawKey string,
 	actions []string,
 ) {
-	h.logger.Info("Custom hotkey matched",
+	h.logger.Info("Hotkey matched",
 		zap.String("mode", modeName),
 		zap.String("bindKey", bindKey),
 		zap.String("key", rawKey),
@@ -273,7 +273,7 @@ func (h *Handler) dispatchCustomHotkeyActions(
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				h.logger.Error("panic in custom hotkey handler",
+				h.logger.Error("panic in hotkey handler",
 					zap.Any("recover", r),
 					zap.String("key", capturedKey))
 			}
@@ -287,7 +287,7 @@ func (h *Handler) dispatchCustomHotkeyActions(
 
 			err := h.executeHotkeyAction(capturedKey, trimmedAction)
 			if err != nil {
-				h.logger.Error("Custom hotkey action failed",
+				h.logger.Error("Hotkey action failed",
 					zap.String("key", capturedKey),
 					zap.String("action", trimmedAction),
 					zap.Error(err))
