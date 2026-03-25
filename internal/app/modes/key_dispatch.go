@@ -148,9 +148,11 @@ func (h *Handler) handleCustomHotkey(key string) bool {
 			}
 		}
 
-		if bindKey, actions, ok := findCustomHotkeyMatch(customHotkeys, pending); ok {
-			h.dispatchCustomHotkeyActions(currentModeName, bindKey, key, actions)
-		}
+		// Sequence failed to complete — drop the pending key (it was already
+		// consumed as a sequence start) and fall through to process the
+		// current key normally via Phase 2/3.  This matches the old scroll
+		// keymap behavior where an incomplete sequence silently discards the
+		// first key.
 	}
 
 	// Phase 2: direct single-key match.
