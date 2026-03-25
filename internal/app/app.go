@@ -11,9 +11,6 @@ func (a *App) ActivateMode(mode Mode) {
 	a.modes.ActivateMode(mode)
 }
 
-// CaptureInitialCursorPosition captures the initial cursor position.
-func (a *App) CaptureInitialCursorPosition() { a.modes.CaptureInitialCursorPosition() }
-
 // IsFocusedAppExcluded checks if the focused app is excluded.
 func (a *App) IsFocusedAppExcluded() bool {
 	// Use ActionService to check exclusion

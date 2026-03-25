@@ -1,50 +1,18 @@
 package modes
 
 import (
-	"context"
-	"image"
 	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // CurrModeString returns the current mode as a string.
 func (h *Handler) CurrModeString() string {
 	return domain.ModeString(h.appState.CurrentMode())
-}
-
-// CaptureInitialCursorPosition captures the initial cursor position and screen bounds.
-func (h *Handler) CaptureInitialCursorPosition() {
-	if h.cursorState.IsCaptured() {
-		return
-	}
-
-	ctx := context.Background()
-
-	pos, posErr := h.actionService.CursorPosition(ctx)
-	if posErr != nil {
-		h.logger.Error("Failed to get cursor position", zap.Error(posErr))
-
-		return
-	}
-
-	var screenBounds image.Rectangle
-
-	if h.system != nil {
-		b, err := h.system.ScreenBounds(context.Background())
-		if err == nil {
-			screenBounds = b
-		} else if !derrors.IsNotSupported(err) {
-			h.logger.Warn("Failed to get screen bounds for cursor capture", zap.Error(err))
-		}
-	}
-
-	h.cursorState.Capture(pos, screenBounds)
 }
 
 // overlaySwitch switches the overlay mode.
