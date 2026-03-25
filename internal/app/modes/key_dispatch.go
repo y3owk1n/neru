@@ -155,7 +155,7 @@ func (h *Handler) handleCustomHotkey(key string) bool {
 		h.customHotkeyLastKeyTime = 0
 
 		if pendingAt > 0 && time.Since(time.Unix(0, pendingAt)) <= customHotkeySequenceTimeout {
-			if bindKey, actions, ok := findCustomHotkeyMatch(
+			if bindKey, actions, ok := findCustomHotkeySequenceMatch(
 				customHotkeys,
 				pending+normalizedKey,
 			); ok {
@@ -203,6 +203,27 @@ func findCustomHotkeyMatch(
 	return "", nil, false
 }
 
+// findCustomHotkeySequenceMatch is like findCustomHotkeyMatch but skips named
+// keys (e.g. "Up", "F1"). It is used exclusively by Phase 1 (sequence
+// completion) to prevent a concatenated sequence like "u"+"p" from matching the
+// named key "Up" whose normalized form is also "up".
+func findCustomHotkeySequenceMatch(
+	customHotkeys map[string]config.StringOrStringArray,
+	normalizedKey string,
+) (string, []string, bool) {
+	for bindKey, actions := range customHotkeys {
+		if config.IsValidNamedKey(bindKey) {
+			continue
+		}
+
+		if config.NormalizeKeyForComparison(bindKey) == normalizedKey {
+			return bindKey, actions, true
+		}
+	}
+
+	return "", nil, false
+}
+
 func isCustomHotkeySequenceStart(
 	customHotkeys map[string]config.StringOrStringArray,
 	normalizedKey string,
@@ -212,6 +233,12 @@ func isCustomHotkeySequenceStart(
 	}
 
 	for bindKey := range customHotkeys {
+		// Only consider genuine two-letter sequences (e.g. "gg"), not named
+		// keys that happen to be two letters (e.g. "Up" normalizes to "up").
+		if config.IsValidNamedKey(bindKey) {
+			continue
+		}
+
 		normalizedBindKey := config.NormalizeKeyForComparison(bindKey)
 		if len(normalizedBindKey) == 2 &&
 			config.IsAllLetters(normalizedBindKey) &&

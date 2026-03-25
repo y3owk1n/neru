@@ -356,7 +356,7 @@ func (c *Config) checkCustomHotkeysConflicts() error {
 			}
 
 			for seqKey := range mode.table {
-				if len(seqKey) != 2 || !IsAllLetters(seqKey) {
+				if len(seqKey) != 2 || !IsAllLetters(seqKey) || IsValidNamedKey(seqKey) {
 					continue
 				}
 
