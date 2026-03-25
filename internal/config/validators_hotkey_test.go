@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -148,11 +149,114 @@ func TestValidateHotkey(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := config.ValidateHotkey(tt.hotkey, tt.fieldName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateHotkey() error = %v, wantErr %v", err, tt.wantErr)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := config.ValidateHotkey(testCase.hotkey, testCase.fieldName)
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("ValidateHotkey() error = %v, wantErr %v", err, testCase.wantErr)
+			}
+		})
+	}
+}
+
+// TestValidateHotkeyBindings_DuplicateNormalizedKeys tests that
+// ValidateHotkeyBindings detects duplicate keys after normalization.
+func TestValidateHotkeyBindings_DuplicateNormalizedKeys(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfg     func() *config.Config
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "no duplicates",
+			cfg: func() *config.Config {
+				_config := config.DefaultConfig()
+				_config.Hotkeys.Bindings = map[string][]string{
+					"Cmd+Shift+S": {"scroll"},
+					"Cmd+Shift+G": {"grid"},
+				}
+
+				return _config
+			},
+			wantErr: false,
+		},
+		{
+			name: "duplicate named keys different casing",
+			cfg: func() *config.Config {
+				_config := config.DefaultConfig()
+				// Both pass ValidateHotkey (IsValidNamedKey is case-insensitive)
+				// but normalize to the same key.
+				_config.Hotkeys.Bindings = map[string][]string{
+					"Escape": {"idle"},
+					"escape": {"hints"},
+				}
+
+				return _config
+			},
+			wantErr: true,
+			errMsg:  "duplicate bindings",
+		},
+		{
+			name: "duplicate via alias Enter and Return",
+			cfg: func() *config.Config {
+				_config := config.DefaultConfig()
+				// "Enter" and "Return" are both valid named keys that
+				// normalize to the same canonical form "return".
+				_config.Hotkeys.Bindings = map[string][]string{
+					"Enter":  {"hints"},
+					"Return": {"grid"},
+				}
+
+				return _config
+			},
+			wantErr: true,
+			errMsg:  "duplicate bindings",
+		},
+		{
+			name: "empty bindings valid",
+			cfg: func() *config.Config {
+				_config := config.DefaultConfig()
+				_config.Hotkeys.Bindings = map[string][]string{}
+
+				return _config
+			},
+			wantErr: false,
+		},
+		{
+			name: "single binding valid",
+			cfg: func() *config.Config {
+				c := config.DefaultConfig()
+				c.Hotkeys.Bindings = map[string][]string{
+					"Cmd+Shift+Space": {"hints"},
+				}
+
+				return c
+			},
+			wantErr: false,
+		},
+		{
+			name:    "default config valid",
+			cfg:     config.DefaultConfig,
+			wantErr: false,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.cfg().ValidateHotkeyBindings()
+
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("ValidateHotkeyBindings() error = %v, wantErr %v", err, testCase.wantErr)
+			}
+
+			if testCase.wantErr && testCase.errMsg != "" && err != nil {
+				if !strings.Contains(err.Error(), testCase.errMsg) {
+					t.Errorf(
+						"ValidateHotkeyBindings() error = %v, want error containing %q",
+						err,
+						testCase.errMsg,
+					)
+				}
 			}
 		})
 	}

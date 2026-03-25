@@ -730,6 +730,11 @@ func (c *Config) Validate() error {
 
 // ValidateHotkeyBindings validates the top-level [hotkeys] key format and action strings.
 func (c *Config) ValidateHotkeyBindings() error {
+	// Check for duplicate normalized keys (mirrors checkCustomHotkeysConflicts
+	// for per-mode hotkeys). After merge, two keys that normalize identically
+	// would cause ambiguous runtime behavior.
+	seen := make(map[string]string, len(c.Hotkeys.Bindings))
+
 	for key, actions := range c.Hotkeys.Bindings {
 		fieldName := "hotkeys." + key
 		if strings.TrimSpace(key) == "" {
@@ -738,6 +743,18 @@ func (c *Config) ValidateHotkeyBindings() error {
 				"hotkeys contains an empty key",
 			)
 		}
+
+		normalized := NormalizeKeyForComparison(key)
+		if prev, ok := seen[normalized]; ok {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"hotkeys has duplicate bindings (%q and %q)",
+				prev,
+				key,
+			)
+		}
+
+		seen[normalized] = key
 
 		err := ValidateHotkey(key, fieldName)
 		if err != nil {
