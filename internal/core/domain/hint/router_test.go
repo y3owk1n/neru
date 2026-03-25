@@ -18,25 +18,21 @@ func TestRouter_RouteKey(t *testing.T) {
 	tests := []struct {
 		name      string
 		key       string
-		wantExit  bool
 		wantExact bool
 	}{
 		{
 			name:      "escape key does not exit in router",
 			key:       "escape",
-			wantExit:  false,
 			wantExact: false,
 		},
 		{
 			name:      "backspace key",
 			key:       "backspace",
-			wantExit:  false,
 			wantExact: false,
 		},
 		{
 			name:      "regular key input",
 			key:       "a",
-			wantExit:  false,
 			wantExact: false,
 		},
 	}
@@ -44,10 +40,6 @@ func TestRouter_RouteKey(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			result := router.RouteKey(testCase.key)
-
-			if result.Exit() != testCase.wantExit {
-				t.Errorf("Exit() = %v, want %v", result.Exit(), testCase.wantExit)
-			}
 
 			if (result.ExactHint() != nil) != testCase.wantExact {
 				t.Errorf(
@@ -77,9 +69,6 @@ func TestRouter_WithHints(t *testing.T) {
 
 	// Test partial match - typing "A" should not complete yet
 	result := router.RouteKey("a")
-	if result.Exit() {
-		t.Error("Should not exit on partial match")
-	}
 
 	if result.ExactHint() != nil {
 		t.Error("Should not have exact hint match for partial input 'a'")
@@ -87,9 +76,6 @@ func TestRouter_WithHints(t *testing.T) {
 
 	// Test exact match - typing "AB" should complete
 	result = router.RouteKey("b")
-	if result.Exit() {
-		t.Error("Should not exit on exact match")
-	}
 
 	if result.ExactHint() == nil {
 		t.Error("Should have exact hint match for 'ab'")

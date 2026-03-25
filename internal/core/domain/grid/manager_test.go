@@ -33,16 +33,10 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 
 	t.Run("Grid routing workflow", func(t *testing.T) {
 		// Test typing "a" - should be valid input (4-char labels needed)
-		result1 := gridRouter.RouteKey("a")
-		if result1.Exit() {
-			t.Error("Expected not to exit on 'a'")
-		}
+		gridRouter.RouteKey("a")
 
 		// Test typing "s" - still not complete
 		result2 := gridRouter.RouteKey("s")
-		if result2.Exit() {
-			t.Error("Expected not to exit on 's'")
-		}
 
 		if result2.Complete() {
 			t.Error("Expected not complete on two characters")
@@ -50,9 +44,6 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 
 		// Test typing "d" - still not complete
 		result3 := gridRouter.RouteKey("d")
-		if result3.Exit() {
-			t.Error("Expected not to exit on 'd'")
-		}
 
 		if result3.Complete() {
 			t.Error("Expected not complete on three characters")
@@ -60,9 +51,6 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 
 		// Test typing "f" - should complete coordinate
 		result4 := gridRouter.RouteKey("f")
-		if result4.Exit() {
-			t.Error("Expected not to exit on 'f'")
-		}
 
 		if !result4.Complete() {
 			t.Error("Expected complete on fourth character")
@@ -99,9 +87,6 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 	t.Run("Grid escape and tab handling", func(t *testing.T) {
 		// Escape handling is now done by top-level custom hotkeys, not grid router.
 		result := gridRouter.RouteKey("escape")
-		if result.Exit() {
-			t.Error("Expected not to exit on escape in grid router")
-		}
 
 		if result.Complete() {
 			t.Error("Expected not complete on escape")

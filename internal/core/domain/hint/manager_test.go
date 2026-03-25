@@ -132,8 +132,8 @@ func TestHintManager_RouterIntegration(t *testing.T) {
 	t.Run("Hint manager and router integration", func(t *testing.T) {
 		// Router no longer handles mode exit keys.
 		result := hintRouter.RouteKey("escape")
-		if result.Exit() {
-			t.Error("Expected no exit on escape in hint router")
+		if result.ExactHint() != nil {
+			t.Error("Expected no exact match on escape in hint router")
 		}
 	})
 

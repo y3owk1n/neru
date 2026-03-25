@@ -17,14 +17,8 @@ type Router struct {
 
 // KeyResult captures the results of key routing decisions in grid mode.
 type KeyResult struct {
-	exit        bool        // Exit key pressed -> exit mode
 	targetPoint image.Point // Complete coordinate entered
 	complete    bool        // Coordinate selection complete
-}
-
-// Exit returns whether to exit grid mode.
-func (kr *KeyResult) Exit() bool {
-	return kr.exit
 }
 
 // TargetPoint returns the target point for the complete coordinate.

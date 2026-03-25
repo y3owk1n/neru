@@ -107,11 +107,6 @@ func (h *Handler) handleHintsModeKey(key string) {
 	}
 
 	hintKeyResult := h.hints.Context.Router().RouteKey(key)
-	if hintKeyResult.Exit() {
-		h.exitModeLocked()
-
-		return
-	}
 
 	// Hint input processed by router; if exact match, perform action
 	if hintKeyResult.ExactHint() != nil {
@@ -152,11 +147,6 @@ func (h *Handler) handleGridModeKey(key string) {
 	}
 
 	gridKeyResult := h.grid.Router.RouteKey(key)
-	if gridKeyResult.Exit() {
-		h.exitModeLocked()
-
-		return
-	}
 
 	if gridKeyResult.Complete() {
 		targetPoint := gridKeyResult.TargetPoint()
