@@ -47,14 +47,31 @@ func (h *Handler) HandleKeyPress(key string) {
 	// Custom hotkeys use the same action syntax as top-level hotkeys.
 	// Try the raw key first (preserves full modifier combos like "Cmd+Shift+G"
 	// even when sticky modifiers are active), then the stripped key.
-	if h.handleCustomHotkey(rawKey) {
-		return
-	}
-
+	//
+	// When sticky modifiers are active, rawKey differs from key (e.g.
+	// "Cmd+g" vs "g"). The first handleCustomHotkey(rawKey) call may
+	// destructively clear pending two-letter sequence state in Phase 1
+	// without completing it (because "g"+"cmd+g" won't match "gg"). If
+	// the first call doesn't consume the key, we restore the sequence
+	// state so the second call with the stripped key can still complete
+	// the sequence.
 	if rawKey != key {
+		savedLastKey := h.customHotkeyLastKey
+		savedLastKeyTime := h.customHotkeyLastKeyTime
+
+		if h.handleCustomHotkey(rawKey) {
+			return
+		}
+
+		// Restore pending sequence state that the failed rawKey attempt cleared.
+		h.customHotkeyLastKey = savedLastKey
+		h.customHotkeyLastKeyTime = savedLastKeyTime
+
 		if h.handleCustomHotkey(key) {
 			return
 		}
+	} else if h.handleCustomHotkey(rawKey) {
+		return
 	}
 
 	h.handleModeSpecificKey(key)
