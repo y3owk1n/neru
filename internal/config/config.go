@@ -991,15 +991,17 @@ func (c *Config) Save(path string) error {
 		return derrors.Wrap(encodeErr, derrors.CodeSerializationFailed, "failed to encode config")
 	}
 
-	// Append hotkey bindings as flat keys under [hotkeys] so that
-	// LoadWithValidation can read them back via the raw-map path.
+	// Always write the [hotkeys] section so that LoadWithValidation sees
+	// raw["hotkeys"] and clears the default bindings.  An empty section
+	// (no keys) is the documented way to disable all hotkeys.
+	_, err := fmt.Fprintln(file, "\n[hotkeys]")
+	if err != nil {
+		return derrors.Wrap(
+			err, derrors.CodeConfigIOFailed, "failed to write hotkeys section",
+		)
+	}
+
 	if len(c.Hotkeys.Bindings) > 0 {
-		_, err := fmt.Fprintln(file, "\n[hotkeys]")
-		if err != nil {
-			return derrors.Wrap(
-				err, derrors.CodeConfigIOFailed, "failed to write hotkeys section",
-			)
-		}
 		// Sort keys for deterministic output.
 		keys := make([]string, 0, len(c.Hotkeys.Bindings))
 		for k := range c.Hotkeys.Bindings {
