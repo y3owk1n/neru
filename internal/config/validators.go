@@ -427,7 +427,7 @@ func ValidateColor(color, fieldName string) error {
 		return nil
 	}
 
-	matched, err := regexp.MatchString("^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$", color)
+	matched, err := regexp.MatchString("^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$", color)
 	if err != nil {
 		return err
 	}
