@@ -13,24 +13,10 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
-// findNormalizedBindingsKey returns the existing map key in bindings whose
-// normalized form matches the normalized form of rawKey. If no match is found
-// it returns rawKey itself so callers can use the result directly.
-func findNormalizedBindingsKey(bindings map[string][]string, rawKey string) string {
-	norm := NormalizeKeyForComparison(rawKey)
-	for k := range bindings {
-		if NormalizeKeyForComparison(k) == norm {
-			return k
-		}
-	}
-
-	return rawKey
-}
-
-// findNormalizedSOSAKey returns the existing map key in m whose normalized form
+// findNormalizedMapKey returns the existing map key in m whose normalized form
 // matches the normalized form of rawKey. If no match is found it returns rawKey
 // itself so callers can use the result directly.
-func findNormalizedSOSAKey(m map[string]StringOrStringArray, rawKey string) string {
+func findNormalizedMapKey[V any](m map[string]V, rawKey string) string {
 	norm := NormalizeKeyForComparison(rawKey)
 	for k := range m {
 		if NormalizeKeyForComparison(k) == norm {
@@ -227,7 +213,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 			for key, value := range hotMap {
 				// Find the existing default key that normalizes to the same value
 				// so that e.g. "cmd+shift+s" correctly overrides "Cmd+Shift+S".
-				canonicalKey := findNormalizedBindingsKey(
+				canonicalKey := findNormalizedMapKey(
 					configResult.Config.Hotkeys.Bindings, key,
 				)
 
@@ -391,7 +377,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 			// Find the existing default key that normalizes to the same value
 			// so that e.g. "escape" correctly overrides "Escape".
-			canonicalKey := findNormalizedSOSAKey(*modeHotkey.dest, key)
+			canonicalKey := findNormalizedMapKey(*modeHotkey.dest, key)
 
 			// Sentinel value removes the default binding for this key.
 			if len(_sosa) == 1 && _sosa[0] == DisabledSentinel {

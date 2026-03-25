@@ -963,7 +963,7 @@ func writeStringOrStringArrayMap(
 	if defaults != nil {
 		disabledKeys := make([]string, 0)
 		for defaultKey := range defaults {
-			found := findNormalizedSOSAKey(_map, defaultKey)
+			found := findNormalizedMapKey(_map, defaultKey)
 			if _, exists := _map[found]; !exists {
 				disabledKeys = append(disabledKeys, defaultKey)
 			}
@@ -1027,86 +1027,27 @@ func (c *Config) Save(path string) error {
 		return derrors.Wrap(encodeErr, derrors.CodeSerializationFailed, "failed to encode config")
 	}
 
-	// Always write the [hotkeys] section so that LoadWithValidation sees
+	// Write the [hotkeys] section so that LoadWithValidation sees
 	// raw["hotkeys"] and merges user entries on top of defaults.  An empty
 	// section (no keys) is the documented way to disable all hotkeys.
-	_, err := fmt.Fprintln(file, "\n[hotkeys]")
-	if err != nil {
-		return derrors.Wrap(
-			err, derrors.CodeConfigIOFailed, "failed to write hotkeys section",
-		)
-	}
-
-	if len(c.Hotkeys.Bindings) > 0 {
-		// Sort keys for deterministic output.
-		keys := make([]string, 0, len(c.Hotkeys.Bindings))
-		for k := range c.Hotkeys.Bindings {
-			keys = append(keys, k)
-		}
-
-		sort.Strings(keys)
-
-		for _, key := range keys {
-			actions := c.Hotkeys.Bindings[key]
-
-			if len(actions) == 0 {
-				continue
-			}
-
-			var line string
-			if len(actions) == 1 {
-				// Single action: emit as a plain string for backward compat.
-				line = fmt.Sprintf("%q = %q", key, actions[0])
-			} else {
-				// Multiple actions: emit as a TOML array.
-				quoted := make([]string, 0, len(actions))
-				for _, a := range actions {
-					quoted = append(quoted, fmt.Sprintf("%q", a))
-				}
-
-				line = fmt.Sprintf("%q = [%s]", key, strings.Join(quoted, ", "))
-			}
-
-			_, err := fmt.Fprintln(file, line)
-			if err != nil {
-				return derrors.Wrap(
-					err, derrors.CodeConfigIOFailed, "failed to write hotkey binding",
-				)
-			}
-		}
-	}
-
-	// Emit __disabled__ markers for default bindings that were removed.
-	// Without these, LoadWithValidation would re-merge the defaults on reload
-	// because it starts from DefaultConfig() and merges the saved entries on top.
-	// Skip when bindings is empty: an empty [hotkeys] section already means
-	// "disable all" and needs no per-key markers.
+	//
+	// Convert map[string][]string → map[string]StringOrStringArray so we can
+	// reuse writeStringOrStringArrayMap (StringOrStringArray is []string).
 	defaults := commonDefaultConfig()
 
-	if len(c.Hotkeys.Bindings) > 0 {
-		disabledKeys := make([]string, 0)
+	hotkeysSOSA := make(map[string]StringOrStringArray, len(c.Hotkeys.Bindings))
+	for k, v := range c.Hotkeys.Bindings {
+		hotkeysSOSA[k] = StringOrStringArray(v)
+	}
 
-		for defaultKey := range defaults.Hotkeys.Bindings {
-			found := findNormalizedBindingsKey(c.Hotkeys.Bindings, defaultKey)
-			if _, exists := c.Hotkeys.Bindings[found]; !exists {
-				disabledKeys = append(disabledKeys, defaultKey)
-			}
-		}
+	defaultHotkeysSOSA := make(map[string]StringOrStringArray, len(defaults.Hotkeys.Bindings))
+	for k, v := range defaults.Hotkeys.Bindings {
+		defaultHotkeysSOSA[k] = StringOrStringArray(v)
+	}
 
-		sort.Strings(disabledKeys)
-
-		for _, key := range disabledKeys {
-			line := fmt.Sprintf("%q = %q", key, DisabledSentinel)
-
-			_, disabledErr := fmt.Fprintln(file, line)
-			if disabledErr != nil {
-				return derrors.Wrap(
-					disabledErr,
-					derrors.CodeConfigIOFailed,
-					"failed to write disabled hotkey marker",
-				)
-			}
-		}
+	err := writeStringOrStringArrayMap(file, "hotkeys", hotkeysSOSA, defaultHotkeysSOSA)
+	if err != nil {
+		return err
 	}
 
 	// Write per-mode [<mode>.custom_hotkeys] sections.

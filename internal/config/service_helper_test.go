@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestFindNormalizedBindingsKey(t *testing.T) {
+func TestFindNormalizedMapKey_Bindings(t *testing.T) {
 	bindings := map[string][]string{
 		"Cmd+Shift+S":     {"scroll"},
 		"Cmd+Shift+Space": {"hints"},
@@ -40,16 +40,16 @@ func TestFindNormalizedBindingsKey(t *testing.T) {
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := findNormalizedBindingsKey(bindings, testCase.rawKey)
+			got := findNormalizedMapKey(bindings, testCase.rawKey)
 			if got != testCase.expected {
-				t.Errorf("findNormalizedBindingsKey(%q) = %q, want %q",
+				t.Errorf("findNormalizedMapKey(%q) = %q, want %q",
 					testCase.rawKey, got, testCase.expected)
 			}
 		})
 	}
 }
 
-func TestFindNormalizedSOSAKey(t *testing.T) {
+func TestFindNormalizedMapKey_SOSA(t *testing.T) {
 	_map := map[string]StringOrStringArray{
 		"Escape":    {"idle"},
 		"Shift+L":   {"action left_click"},
@@ -96,9 +96,9 @@ func TestFindNormalizedSOSAKey(t *testing.T) {
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := findNormalizedSOSAKey(_map, testCase.rawKey)
+			got := findNormalizedMapKey(_map, testCase.rawKey)
 			if got != testCase.expected {
-				t.Errorf("findNormalizedSOSAKey(%q) = %q, want %q",
+				t.Errorf("findNormalizedMapKey(%q) = %q, want %q",
 					testCase.rawKey, got, testCase.expected)
 			}
 		})
