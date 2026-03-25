@@ -1037,11 +1037,9 @@ func (c *Config) Save(path string) error {
 		{"recursive_grid.custom_hotkeys", c.RecursiveGrid.CustomHotkeys},
 	}
 	for _, section := range customHotkeysSections {
-		if len(section.hotkeys) > 0 {
-			err = writeStringOrStringArrayMap(file, section.header, section.hotkeys)
-			if err != nil {
-				return err
-			}
+		err = writeStringOrStringArrayMap(file, section.header, section.hotkeys)
+		if err != nil {
+			return err
 		}
 	}
 
