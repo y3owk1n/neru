@@ -60,11 +60,10 @@ func TestManagerHandleInputCellSelection(t *testing.T) {
 	)
 
 	// Select top-left cell (key 'u')
-	point, completed, shouldExit := manager.HandleInput("u")
+	point, completed := manager.HandleInput("u")
 
 	assert.Equal(t, image.Point{X: 25, Y: 25}, point, "Should return center of top-left cell")
 	assert.False(t, completed, "Should not be completed")
-	assert.False(t, shouldExit, "Should not exit")
 	assert.True(t, updateCalled, "Update callback should be called")
 	assert.Equal(t, 1, manager.CurrentDepth(), "Depth should be 1")
 }
@@ -81,11 +80,10 @@ func TestManagerHandleInputEscapeKey(t *testing.T) {
 		logger,
 	)
 
-	point, completed, shouldExit := manager.HandleInput("escape")
+	point, completed := manager.HandleInput("escape")
 
 	assert.Equal(t, image.Point{}, point, "Should return zero point")
 	assert.False(t, completed, "Should not be completed")
-	assert.False(t, shouldExit, "Escape handling is now outside recursive-grid manager")
 }
 
 func TestManagerReset(t *testing.T) {
@@ -152,11 +150,10 @@ func TestManagerHandleInputUnmappedKey(t *testing.T) {
 		logger,
 	)
 
-	point, completed, shouldExit := manager.HandleInput("z")
+	point, completed := manager.HandleInput("z")
 
 	assert.Equal(t, image.Point{}, point, "Should return zero point")
 	assert.False(t, completed, "Should not be completed")
-	assert.False(t, shouldExit, "Should not exit")
 	assert.False(t, updateCalled, "Update callback should NOT be called")
 }
 
@@ -190,22 +187,20 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 	// Since minSize is 50, 50/2 = 25 < 50. CanDivide is false.
 	// But completion only triggers on the NEXT key press (at the final depth).
 
-	point, completed, shouldExit := manager.HandleInput("u")
+	point, completed := manager.HandleInput("u")
 
 	assert.False(
 		t,
 		completed,
 		"Should NOT be completed yet — user must make one more selection at final depth",
 	)
-	assert.False(t, shouldExit, "Should not exit")
 	assert.False(t, completeCalled, "Complete callback should NOT be called yet")
 	assert.Equal(t, image.Point{X: 25, Y: 25}, point, "Should return center of top-left cell")
 
 	// Now at final depth (CanDivide is false), select a sub-cell to complete
-	point2, completed2, shouldExit2 := manager.HandleInput("k") // BottomRight
+	point2, completed2 := manager.HandleInput("k") // BottomRight
 
 	assert.True(t, completed2, "Should be completed after selection at final depth")
-	assert.False(t, shouldExit2, "Should not exit")
 	assert.True(t, completeCalled, "Complete callback should be called")
 	assert.Equal(t, point2, completePoint, "Complete point should match return point")
 }
@@ -235,20 +230,20 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 	assert.False(t, completeCalled)
 
 	// Depth 2 (Max) — reaching max depth does NOT complete; user gets one more selection
-	_, completed, _ := manager.HandleInput("u")
+	_, completed := manager.HandleInput("u")
 	assert.False(t, completed, "Should NOT complete when reaching max depth")
 	assert.False(t, completeCalled, "Complete callback should NOT fire yet")
 	assert.Equal(t, 2, manager.CurrentDepth(), "Should be at max depth")
 
 	// Selection AT max depth — this is the final selection that completes
-	point3, completed3, _ := manager.HandleInput("k") // Select BottomRight of current
+	point3, completed3 := manager.HandleInput("k") // Select BottomRight of current
 	assert.True(t, completed3, "Should complete on selection at max depth")
 	assert.True(t, completeCalled, "Complete callback should fire")
 	assert.Equal(t, 2, manager.CurrentDepth(), "Should still be at max depth")
 
 	// Additional input at max depth should still complete
 	completeCalled = false
-	point4, completed4, _ := manager.HandleInput("u") // Select TopLeft
+	point4, completed4 := manager.HandleInput("u") // Select TopLeft
 	assert.True(t, completed4)
 	assert.Equal(t, 2, manager.CurrentDepth(), "Should still be at max depth")
 	assert.NotEqual(t, point3, point4, "Should return different point (different sub-cell center)")
@@ -275,10 +270,9 @@ func TestManagerWithLayers_NonSquare3x2(t *testing.T) {
 	assert.Equal(t, 2, manager.GridRows())
 	assert.Equal(t, "gcrhtn", manager.Keys())
 	// Select cell 'g' (index 0, top-left) -> (0,0)-(40,50), center (20,25)
-	point, completed, shouldExit := manager.HandleInput("g")
+	point, completed := manager.HandleInput("g")
 	assert.Equal(t, image.Point{X: 20, Y: 25}, point)
 	assert.False(t, completed)
-	assert.False(t, shouldExit)
 	assert.True(t, updateCalled)
 	assert.Equal(t, 1, manager.CurrentDepth())
 }
@@ -350,8 +344,7 @@ func TestHandleInput_InvalidKeyLength_FallsBackToDefault(t *testing.T) {
 		"Should fall back to default keys when given invalid length keys (even with multibyte)",
 	)
 	assert.NotPanics(t, func() {
-		_, _, shouldExit := manager.HandleInput("c")
-		assert.False(t, shouldExit, "Should not exit")
+		manager.HandleInput("c")
 	}, "HandleInput should not panic after fallback")
 }
 
@@ -472,8 +465,7 @@ func TestManagerHandleInput_KeyToCellLiteralSpaceKey(t *testing.T) {
 		logger,
 	)
 	// Pressing the literal space should map to cell index 2 (bottom-left).
-	point, completed, shouldExit := manager.HandleInput(" ")
-	assert.False(t, shouldExit, "Should not exit")
+	point, completed := manager.HandleInput(" ")
 	assert.False(t, completed, "Should not be completed")
 	// Bottom-left cell of 100x100 with 2x2 grid: (0,50)-(50,100), center (25,75)
 	assert.Equal(t, image.Point{X: 25, Y: 75}, point,
@@ -492,8 +484,7 @@ func TestManagerHandleInput_KeyToCellNormalizesFullwidthChars(t *testing.T) {
 		logger,
 	)
 	// Fullwidth 'u' (U+FF55) should normalize to halfwidth 'u' and match cell 0.
-	point, completed, shouldExit := manager.HandleInput("\uFF55") // fullwidth u
-	assert.False(t, shouldExit, "Should not exit")
+	point, completed := manager.HandleInput("\uFF55") // fullwidth u
 	assert.False(t, completed, "Should not be completed")
 	// Top-left cell of 100x100 with 2x2 grid: (0,0)-(50,50), center (25,25)
 	assert.Equal(t, image.Point{X: 25, Y: 25}, point,
@@ -521,7 +512,7 @@ func TestHandleInput_ValidMultibyteKeys(t *testing.T) {
 	assert.NotPanics(t, func() {
 		// Test handling a multibyte key input
 		// € is the first key, so it should map to Cell 0 (TopLeft)
-		center, _, _ := manager.HandleInput("€")
+		center, _ := manager.HandleInput("€")
 		// TopLeft of 100x100 is 0,0 to 50,50. Center is 25,25.
 		assert.Equal(t, image.Point{X: 25, Y: 25}, center)
 	}, "HandleInput should handle multibyte key input")

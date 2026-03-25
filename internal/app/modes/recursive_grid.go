@@ -167,13 +167,7 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 	}
 
 	// Process the key through the manager
-	center, completed, shouldExit := h.recursiveGrid.Manager.HandleInput(key)
-
-	if shouldExit {
-		h.exitModeLocked()
-
-		return
-	}
+	center, completed := h.recursiveGrid.Manager.HandleInput(key)
 
 	if completed {
 		// Selection is complete - move cursor and execute pending action if any

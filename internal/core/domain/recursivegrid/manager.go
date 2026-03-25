@@ -164,9 +164,8 @@ func NewManagerWithLayers(
 }
 
 // HandleInput processes a key press and updates the grid state.
-// Returns the new cursor position (if applicable), whether the selection is complete,
-// and whether the mode should exit.
-func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
+// Returns the new cursor position (if applicable) and whether the selection is complete.
+func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	// Normalize to canonical key form (handles named keys and fullwidth input),
 	// then lowercase for case-insensitive comparisons.
 	key = strings.ToLower(configpkg.NormalizeKeyForComparison(key))
@@ -178,7 +177,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 		m.Logger.Debug("Unmapped key pressed in recursive-grid mode",
 			zap.String("key", key))
 
-		return image.Point{}, false, false
+		return image.Point{}, false
 	}
 
 	// Select the cell
@@ -199,7 +198,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 			m.onComplete(center)
 		}
 
-		return center, isComplete, false
+		return center, isComplete
 	}
 
 	// Trigger update for visual feedback
@@ -207,7 +206,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
 		m.onUpdate()
 	}
 
-	return center, isComplete, false
+	return center, isComplete
 }
 
 // Reset clears the manager state and restores initial grid state.

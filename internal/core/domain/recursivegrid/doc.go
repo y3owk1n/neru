@@ -28,16 +28,13 @@
 //	manager := recursivegrid.NewManager(
 //	    bounds,
 //	    "uijk",                    // Key mapping
-//	    ",",                       // Reset key
-//	    "",                        // Backspace key (empty = default backspace/delete)
-//	    []string{"escape"},        // Exit keys
 //	    func() { /* update overlay */ },
 //	    func(point) { /* selection complete */ },
 //	    logger,
 //	)
 //
 //	// Process key input
-//	point, completed, shouldExit := manager.HandleInput("u")
+//	point, completed := manager.HandleInput("u")
 //
 // Key Mapping:
 //   - Default: u (top-left), i (top-right), j (bottom-left), k (bottom-right)
@@ -46,7 +43,7 @@
 // Exit Conditions:
 //   - Cell width < min_size_width (default 25px) OR cell height < min_size_height (default 25px)
 //   - Maximum recursion depth reached (default 10)
-//   - User presses exit key
+//   - User presses exit key (handled by custom_hotkeys, not the manager)
 //
 // The package is designed to integrate with the Neru mode system and follows
 // the same patterns as the existing grid and hints modes.
