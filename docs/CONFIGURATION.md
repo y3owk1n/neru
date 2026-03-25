@@ -135,14 +135,7 @@ background_color_light = "#FF0000AA"  # Custom for light mode
 A minimal config for most users — copy this as a starting point:
 
 ```toml
-[hotkeys]
-"Cmd+Shift+Space" = "hints"
-"Cmd+Shift+G"     = "grid"
-"Cmd+Shift+C"     = "recursive_grid"
-"Cmd+Shift+S"     = "scroll"
-
 [hints.custom_hotkeys]
-"Escape" = "idle"
 "Shift+L" = ["action left_click", "idle"]
 
 [scroll]
@@ -150,7 +143,7 @@ scroll_step = 50
 ```
 
 > [!NOTE]
-> This config overrides all built-in global hotkey defaults. Keep every binding you still want.
+> You only need to define the settings you want to change — all defaults are preserved automatically.
 
 ---
 
@@ -158,8 +151,24 @@ scroll_step = 50
 
 Global hotkeys trigger Neru navigation modes from anywhere on screen.
 
-> [!WARNING]
-> Defining **any** custom hotkey **replaces ALL defaults**. You must explicitly define every hotkey you want to keep.
+> [!TIP]
+> User-defined hotkeys are **merged on top of defaults**. You only need to define the bindings you want to add or change — all other defaults are preserved.
+
+### Merging behavior
+
+| Scenario                              | Result                                                |
+| ------------------------------------- | ----------------------------------------------------- |
+| `[hotkeys]` section absent            | All defaults are used                                 |
+| `[hotkeys]` section present but empty | All hotkeys disabled (for external daemons like skhd) |
+| `[hotkeys]` with entries              | Entries are merged on top of defaults                 |
+
+To **remove** a single default binding without affecting the rest, use the `__disabled__` sentinel:
+
+```toml
+[hotkeys]
+"Cmd+Shift+S" = "__disabled__"   # removes the default scroll hotkey
+"Ctrl+Space"  = "hints"          # adds a new binding; other defaults remain
+```
 
 ### Syntax
 
@@ -192,6 +201,25 @@ Both `[hotkeys]` and `[<mode>.custom_hotkeys]` support this array syntax.
 ## Per-Mode Custom Hotkeys
 
 Define hotkeys that are only active while a specific mode is running.
+
+> [!TIP]
+> Like `[hotkeys]`, per-mode custom hotkeys are **merged on top of defaults**. You only need to define what you want to add, change, or remove.
+
+### Merging behavior
+
+| Scenario                                            | Result                              |
+| --------------------------------------------------- | ----------------------------------- |
+| `[<mode>.custom_hotkeys]` section absent            | All defaults for that mode are used |
+| `[<mode>.custom_hotkeys]` section present but empty | All bindings for that mode disabled |
+| `[<mode>.custom_hotkeys]` with entries              | Entries merged on top of defaults   |
+
+To remove a single default binding, use `__disabled__`:
+
+```toml
+[scroll.custom_hotkeys]
+"h" = "__disabled__"             # removes default scroll_left on "h"
+"x" = "action scroll_left"      # adds "x" for scroll_left; all other defaults remain
+```
 
 ### Syntax
 

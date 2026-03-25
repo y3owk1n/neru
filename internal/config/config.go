@@ -64,6 +64,13 @@ const (
 	modeNameScroll        = "scroll"
 )
 
+// DisabledSentinel is a special action value that removes a default hotkey binding.
+// Use it in [hotkeys] or [<mode>.custom_hotkeys] to disable a specific default:
+//
+//	[scroll.custom_hotkeys]
+//	"j" = "__disabled__"   # removes the default "j" = "action scroll_down"
+const DisabledSentinel = "__disabled__"
+
 // Key name constants for normalization.
 // These are the canonical lowercase forms used throughout the codebase.
 const (
@@ -973,8 +980,8 @@ func (c *Config) Save(path string) error {
 	}
 
 	// Always write the [hotkeys] section so that LoadWithValidation sees
-	// raw["hotkeys"] and clears the default bindings.  An empty section
-	// (no keys) is the documented way to disable all hotkeys.
+	// raw["hotkeys"] and merges user entries on top of defaults.  An empty
+	// section (no keys) is the documented way to disable all hotkeys.
 	_, err := fmt.Fprintln(file, "\n[hotkeys]")
 	if err != nil {
 		return derrors.Wrap(
