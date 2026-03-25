@@ -33,6 +33,12 @@ type IPCControllerActions struct {
 
 const modeExitPollInterval = 10 * time.Millisecond
 
+// modeExitTimeout is the maximum time wait_for_mode_exit will block before
+// giving up. This prevents goroutine leaks when the mode never exits (e.g.
+// the user abandons the workflow). 5 minutes is generous for any interactive
+// mode session.
+const modeExitTimeout = 5 * time.Minute
+
 // NewIPCControllerActions creates a new action command handler.
 func NewIPCControllerActions(
 	actionService *services.ActionService,
@@ -520,12 +526,20 @@ func (h *IPCControllerActions) handleWaitForModeExitAction(
 		}
 	}
 
+	deadline := time.After(modeExitTimeout)
+
 	for h.appState.CurrentMode() != domain.ModeIdle {
 		select {
 		case <-ctx.Done():
 			return ipc.Response{
 				Success: false,
 				Message: "wait_for_mode_exit canceled: " + ctx.Err().Error(),
+				Code:    ipc.CodeActionFailed,
+			}
+		case <-deadline:
+			return ipc.Response{
+				Success: false,
+				Message: "wait_for_mode_exit timed out after " + modeExitTimeout.String(),
 				Code:    ipc.CodeActionFailed,
 			}
 		case <-time.After(modeExitPollInterval):
