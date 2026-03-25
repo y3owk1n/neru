@@ -708,10 +708,67 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// Validate top-level hotkey bindings
+	err = c.ValidateHotkeyBindings()
+	if err != nil {
+		return err
+	}
+
 	// Validate per-mode custom hotkeys
 	err = c.ValidateCustomHotkeys()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// ValidateHotkeyBindings validates the top-level [hotkeys] key format and action strings.
+func (c *Config) ValidateHotkeyBindings() error {
+	for key, actions := range c.Hotkeys.Bindings {
+		fieldName := "hotkeys." + key
+		if strings.TrimSpace(key) == "" {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"hotkeys contains an empty key",
+			)
+		}
+
+		err := ValidateHotkey(key, fieldName)
+		if err != nil {
+			return err
+		}
+
+		if len(actions) == 0 {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s cannot have an empty action list",
+				fieldName,
+			)
+		}
+
+		for actionIndex, actionStr := range actions {
+			trimmed := strings.TrimSpace(actionStr)
+			if trimmed == "" {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s[%d] cannot be empty",
+					fieldName,
+					actionIndex,
+				)
+			}
+
+			err := validateHotkeyActionString(trimmed)
+			if err != nil {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s[%d]: %v",
+					fieldName,
+					actionIndex,
+					err,
+				)
+			}
+		}
 	}
 
 	return nil

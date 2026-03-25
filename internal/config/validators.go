@@ -598,7 +598,11 @@ func validateHotkeyActionString(actionStr string) error {
 		return derrors.Newf(derrors.CodeInvalidConfig, "unknown action subcommand: %s", name)
 	}
 
-	switch trimmed {
+	// Mode commands may include flags (e.g. "hints --action left_click").
+	// Split on space and validate the first word as a known mode command.
+	cmd := strings.Fields(trimmed)[0]
+
+	switch cmd {
 	case "idle", "hints", "grid", "scroll", "recursive_grid":
 		return nil
 	default:
