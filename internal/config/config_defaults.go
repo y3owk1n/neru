@@ -12,12 +12,6 @@ const (
 	// DefaultHintPaddingY is the default vertical padding for hints (-1 = auto).
 	DefaultHintPaddingY = -1
 
-	// DefaultMouseActionRefreshDelay is the default delay before refreshing hints after mouse actions.
-	DefaultMouseActionRefreshDelay = 0
-
-	// MaxMouseActionRefreshDelay is the maximum delay before refreshing hints after mouse actions (10 seconds).
-	MaxMouseActionRefreshDelay = 10000
-
 	// DefaultGridFontSize is the default font size for grid.
 	DefaultGridFontSize = 10
 
@@ -335,11 +329,10 @@ func commonDefaultConfig() *Config {
 			},
 		},
 		Hints: HintsConfig{
-			Enabled:                 true,
-			HintCharacters:          "asdfghjkl",
-			MouseActionRefreshDelay: DefaultMouseActionRefreshDelay,
-			MaxDepth:                DefaultMaxDepth,
-			ParallelThreshold:       DefaultParallelThreshold,
+			Enabled:           true,
+			HintCharacters:    "asdfghjkl",
+			MaxDepth:          DefaultMaxDepth,
+			ParallelThreshold: DefaultParallelThreshold,
 			CustomHotkeys: map[string]StringOrStringArray{
 				"Escape":    {"idle"},
 				"Backspace": {"action backspace"},

@@ -29,7 +29,6 @@ hide_overlay_in_screen_share = false         # Hide overlay from screen sharing 
 [hints]
 enabled = true
 hint_characters = "asdfghjkl"               # Characters used for hint labels
-mouse_action_refresh_delay = 0              # ms delay before refreshing hints after click (0 = immediate)
 max_depth = 50                              # Max accessibility tree depth (0 = unlimited)
 parallel_threshold = 20                     # Min children to trigger parallel tree building
 include_menubar_hints = false

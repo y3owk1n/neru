@@ -281,22 +281,21 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 
 ### Basic configuration
 
-| Option                             | Type   | Default       | Description                                            |
-| ---------------------------------- | ------ | ------------- | ------------------------------------------------------ |
-| `enabled`                          | bool   | `true`        | Enable/disable hints mode                              |
-| `custom_hotkeys`                   | table  | `{}`          | Per-mode hotkeys                                       |
-| `hint_characters`                  | string | `"asdfghjkl"` | Characters used for labels                             |
-| `mouse_action_refresh_delay`       | int    | `0`           | ms delay before refreshing hints after click (0–10000) |
-| `max_depth`                        | int    | `50`          | Max accessibility tree depth (0 = unlimited)           |
-| `parallel_threshold`               | int    | `20`          | Min children to trigger parallel tree building (≥ 1)   |
-| `include_menubar_hints`            | bool   | `false`       | Show hints on menubar items                            |
-| `include_dock_hints`               | bool   | `false`       | Show hints on Dock items                               |
-| `include_nc_hints`                 | bool   | `false`       | Show hints in Notification Center                      |
-| `include_stage_manager_hints`      | bool   | `false`       | Show hints in Stage Manager                            |
-| `detect_mission_control`           | bool   | `false`       | Auto-disable hints when in Mission Control             |
-| `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                               |
-| `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                           |
-| `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                            |
+| Option                             | Type   | Default       | Description                                          |
+| ---------------------------------- | ------ | ------------- | ---------------------------------------------------- |
+| `enabled`                          | bool   | `true`        | Enable/disable hints mode                            |
+| `custom_hotkeys`                   | table  | `{}`          | Per-mode hotkeys                                     |
+| `hint_characters`                  | string | `"asdfghjkl"` | Characters used for labels                           |
+| `max_depth`                        | int    | `50`          | Max accessibility tree depth (0 = unlimited)         |
+| `parallel_threshold`               | int    | `20`          | Min children to trigger parallel tree building (≥ 1) |
+| `include_menubar_hints`            | bool   | `false`       | Show hints on menubar items                          |
+| `include_dock_hints`               | bool   | `false`       | Show hints on Dock items                             |
+| `include_nc_hints`                 | bool   | `false`       | Show hints in Notification Center                    |
+| `include_stage_manager_hints`      | bool   | `false`       | Show hints in Stage Manager                          |
+| `detect_mission_control`           | bool   | `false`       | Auto-disable hints when in Mission Control           |
+| `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                             |
+| `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                         |
+| `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                          |
 
 > [!NOTE]
 > `auto_exit_actions`, `mode_exit_keys`, and `backspace_key` were removed. Use `custom_hotkeys` arrays like `"Shift+L" = ["action left_click", "idle"]` and `"Backspace" = "action backspace"`.

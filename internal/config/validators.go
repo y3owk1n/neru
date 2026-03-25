@@ -115,13 +115,6 @@ func (c *Config) ValidateHints() error {
 		return derrors.New(derrors.CodeInvalidConfig, "hints.ui.border_width must be non-negative")
 	}
 
-	if c.Hints.MouseActionRefreshDelay < 0 {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"hints.mouse_action_refresh_delay must be non-negative",
-		)
-	}
-
 	err = validateMinValue(c.Hints.MaxDepth, 0, "hints.max_depth")
 	if err != nil {
 		return err
@@ -130,16 +123,6 @@ func (c *Config) ValidateHints() error {
 	err = validateMinValue(c.Hints.ParallelThreshold, 1, "hints.parallel_threshold")
 	if err != nil {
 		return err
-	}
-
-	if c.Hints.MouseActionRefreshDelay > MaxMouseActionRefreshDelay {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			fmt.Sprintf(
-				"hints.mouse_action_refresh_delay must be at most %d (10 seconds)",
-				MaxMouseActionRefreshDelay,
-			),
-		)
 	}
 
 	return nil
@@ -166,17 +149,6 @@ func (c *Config) ValidateAppConfigs() error {
 		}
 
 		seen[appConfig.BundleID] = struct{}{}
-
-		if appConfig.MouseActionRefreshDelay != nil &&
-			(*appConfig.MouseActionRefreshDelay < 0 ||
-				*appConfig.MouseActionRefreshDelay > MaxMouseActionRefreshDelay) {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"hints.app_configs[%d].mouse_action_refresh_delay must be between 0 and %d",
-				idx,
-				MaxMouseActionRefreshDelay,
-			)
-		}
 	}
 
 	return nil

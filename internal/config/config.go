@@ -406,10 +406,9 @@ type StickyModifiersConfig struct {
 
 // AppConfig defines application-specific settings for role customization.
 type AppConfig struct {
-	BundleID                string   `json:"bundleId"                toml:"bundle_id"`
-	AdditionalClickable     []string `json:"additionalClickable"     toml:"additional_clickable_roles"`
-	IgnoreClickableCheck    bool     `json:"ignoreClickableCheck"    toml:"ignore_clickable_check"`
-	MouseActionRefreshDelay *int     `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
+	BundleID             string   `json:"bundleId"             toml:"bundle_id"`
+	AdditionalClickable  []string `json:"additionalClickable"  toml:"additional_clickable_roles"`
+	IgnoreClickableCheck bool     `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
 }
 
 // HotkeysConfig defines hotkey mappings and their associated actions.
@@ -457,12 +456,11 @@ type HintsUI struct {
 
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
-	Enabled                 bool    `json:"enabled"                 toml:"enabled"`
-	HintCharacters          string  `json:"hintCharacters"          toml:"hint_characters"`
-	MouseActionRefreshDelay int     `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
-	MaxDepth                int     `json:"maxDepth"                toml:"max_depth"`
-	ParallelThreshold       int     `json:"parallelThreshold"       toml:"parallel_threshold"`
-	UI                      HintsUI `json:"ui"                      toml:"ui"`
+	Enabled           bool    `json:"enabled"           toml:"enabled"`
+	HintCharacters    string  `json:"hintCharacters"    toml:"hint_characters"`
+	MaxDepth          int     `json:"maxDepth"          toml:"max_depth"`
+	ParallelThreshold int     `json:"parallelThreshold" toml:"parallel_threshold"`
+	UI                HintsUI `json:"ui"                toml:"ui"`
 
 	IncludeMenubarHints           bool     `json:"includeMenubarHints"           toml:"include_menubar_hints"`
 	AdditionalMenubarHintsTargets []string `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`
@@ -1106,24 +1104,6 @@ func (c *Config) ShouldIgnoreClickableCheckForApp(bundleID string) bool {
 
 	// Fall back to global ignore_clickable_check
 	return c.Hints.IgnoreClickableCheck
-}
-
-// MouseActionRefreshDelayForApp returns the mouse action refresh delay for a specific app bundle ID.
-// It first checks for app-specific configuration, then falls back to the global setting.
-func (c *Config) MouseActionRefreshDelayForApp(bundleID string) int {
-	if len(c.Hints.AppConfigs) > 0 {
-		for _, appConfig := range c.Hints.AppConfigs {
-			if appConfig.BundleID == bundleID {
-				if appConfig.MouseActionRefreshDelay != nil {
-					return *appConfig.MouseActionRefreshDelay
-				}
-
-				break
-			}
-		}
-	}
-
-	return c.Hints.MouseActionRefreshDelay
 }
 
 // rolesMapToSlice converts a roles map to a slice.
