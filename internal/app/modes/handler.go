@@ -91,8 +91,8 @@ type Handler struct {
 	executeHotkeyAction        func(key, actionStr string) error
 	refreshHintsTimer          *time.Timer
 	modeSession                uint64
-	hotkeyLastKey        string
-	hotkeyLastKeyTime    int64
+	hotkeyLastKey              string
+	hotkeyLastKeyTime          int64
 
 	// Pending modifier key for tap detection (down/up without intervening keys)
 	pendingModifierKeys    map[string]time.Time
