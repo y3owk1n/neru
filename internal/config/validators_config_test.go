@@ -10,6 +10,12 @@ func TestConfigValidateCustomHotkeys_Valid(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.CustomHotkeys["PageUp"] = config.StringOrStringArray{"action page_up", "idle"}
 	cfg.Scroll.CustomHotkeys["gg"] = config.StringOrStringArray{"action go_top"}
+	cfg.Grid.CustomHotkeys["Enter"] = config.StringOrStringArray{
+		"action save_cursor_pos",
+		"idle",
+		"action wait_for_mode_exit",
+		"action restore_cursor",
+	}
 
 	err := cfg.ValidateCustomHotkeys()
 	if err != nil {

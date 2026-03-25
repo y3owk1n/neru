@@ -1,16 +1,12 @@
 package modes
 
 import (
-	"context"
-	"image"
 	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/ui/coordinates"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
@@ -134,61 +130,10 @@ func (h *Handler) performCommonCleanup() {
 	}
 }
 
-// handleCursorRestoration handles cursor position restoration or centering on exit.
+// handleCursorRestoration finalizes transient cursor and scroll state on mode exit.
 func (h *Handler) handleCursorRestoration() {
-	shouldRestore := h.shouldRestoreCursorOnExit()
-	shouldCenter := h.shouldCenterCursorOnExit()
-
-	if shouldRestore && shouldCenter {
-		h.logger.Warn("Both restore and center cursor are enabled; restore takes priority")
-
-		shouldCenter = false
-	}
-
-	if shouldRestore || shouldCenter {
-		// If a click action was just performed, wait for the target app to
-		// finish processing the click before we move the cursor away.
-		if h.cursorState.WasActionPerformed() {
-			time.Sleep(postActionSettleDelay)
-		}
-
-		var currentBounds image.Rectangle
-
-		if h.system != nil {
-			b, err := h.system.ScreenBounds(context.Background())
-			if err == nil {
-				currentBounds = b
-			} else if !derrors.IsNotSupported(err) {
-				h.logger.Warn("Failed to get screen bounds for cursor restoration", zap.Error(err))
-			}
-		}
-
-		var target image.Point
-
-		if shouldRestore {
-			target = coordinates.ComputeRestoredPosition(
-				h.cursorState.InitialPosition(),
-				h.cursorState.InitialScreenBounds(),
-				currentBounds,
-			)
-		} else {
-			target = coordinates.ComputeCenteredPosition(currentBounds)
-		}
-
-		ctx := context.Background()
-
-		moveCursorErr := h.actionService.MoveCursorToPoint(ctx, target)
-		if moveCursorErr != nil {
-			if shouldRestore {
-				h.logger.Error("Failed to restore cursor position", zap.Error(moveCursorErr))
-			} else {
-				h.logger.Error("Failed to center cursor position", zap.Error(moveCursorErr))
-			}
-		}
-	}
-
 	h.cursorState.Reset()
-	// Always reset scroll context regardless of whether we performed cursor restoration.
-	// This ensures proper state cleanup when switching between modes.
+
+	// Always reset scroll context to ensure proper state cleanup when switching modes.
 	h.scroll.Context.Reset()
 }

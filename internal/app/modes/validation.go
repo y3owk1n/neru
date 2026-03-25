@@ -63,10 +63,9 @@ func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) erro
 }
 
 // prepareForModeActivation performs common preparation steps before activating a mode.
-// This includes resetting scroll context and capturing the initial cursor position.
+// This includes resetting scroll context.
 func (h *Handler) prepareForModeActivation() {
 	h.resetScrollContext()
-	h.CaptureInitialCursorPosition()
 }
 
 // resetScrollContext resets scroll-related state to ensure clean mode transitions.

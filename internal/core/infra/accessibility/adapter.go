@@ -8,7 +8,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -242,10 +241,8 @@ func (a *Adapter) PerformAction(
 
 	center := element.Center()
 
-	restoreCursor := a.getRestoreCursor()
-
 	// Perform the action via client
-	performActionErr := a.client.PerformAction(actionType, center, restoreCursor, 0)
+	performActionErr := a.client.PerformAction(actionType, center, false, 0)
 	if performActionErr != nil {
 		return derrors.Wrap(performActionErr, derrors.CodeActionFailed, "failed to perform action")
 	}
@@ -272,10 +269,8 @@ func (a *Adapter) PerformActionAtPoint(
 		zap.Int("y", point.Y),
 		zap.String("modifiers", modifiers.String()))
 
-	restoreCursor := a.getRestoreCursor()
-
 	// Perform the action via client
-	performActionErr := a.client.PerformAction(actionType, point, restoreCursor, modifiers)
+	performActionErr := a.client.PerformAction(actionType, point, false, modifiers)
 	if performActionErr != nil {
 		return derrors.Wrap(
 			performActionErr,
@@ -379,13 +374,6 @@ func (a *Adapter) checkContext(ctx context.Context) error {
 	default:
 		return nil
 	}
-}
-
-// getRestoreCursor retrieves the restore cursor setting from global config.
-func (a *Adapter) getRestoreCursor() bool {
-	cfg := config.Global()
-
-	return cfg != nil && cfg.General.RestoreCursorPosition
 }
 
 // processClickableNodes converts and filters clickable nodes to domain elements.

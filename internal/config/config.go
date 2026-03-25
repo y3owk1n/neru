@@ -330,8 +330,6 @@ type Config struct {
 type GeneralConfig struct {
 	ExcludedApps                      []string `json:"excludedApps"                      toml:"excluded_apps"`
 	AccessibilityCheckOnStart         bool     `json:"accessibilityCheckOnStart"         toml:"accessibility_check_on_start"`
-	RestoreCursorPosition             bool     `json:"restoreCursorPosition"             toml:"restore_cursor_position"`
-	CenterCursorPosition              bool     `json:"centerCursorPosition"              toml:"center_cursor_position"`
 	PassthroughUnboundedKeys          bool     `json:"passthroughUnboundedKeys"          toml:"passthrough_unbounded_keys"`
 	ShouldExitAfterPassthrough        bool     `json:"shouldExitAfterPassthrough"        toml:"should_exit_after_passthrough"`
 	PassthroughUnboundedKeysBlacklist []string `json:"passthroughUnboundedKeysBlacklist" toml:"passthrough_unbounded_keys_blacklist"`
@@ -721,13 +719,6 @@ func (c *Config) Validate() error {
 
 // ValidateGeneral validates general settings.
 func (c *Config) ValidateGeneral() error {
-	if c.General.RestoreCursorPosition && c.General.CenterCursorPosition {
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"restore_cursor_position and center_cursor_position cannot both be enabled",
-		)
-	}
-
 	if c.General.KBLayoutToUse != "" && strings.TrimSpace(c.General.KBLayoutToUse) == "" {
 		return derrors.New(
 			derrors.CodeInvalidConfig,

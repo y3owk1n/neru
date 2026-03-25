@@ -84,6 +84,30 @@ var ActionBackspaceCmd = BuildActionCommand(
 	[]string{"backspace"},
 )
 
+// ActionWaitForModeExitCmd blocks until the current mode exits.
+var ActionWaitForModeExitCmd = BuildActionCommand(
+	"wait_for_mode_exit",
+	"Wait until mode exits",
+	`Block until the current mode exits and Neru returns to idle.`,
+	[]string{"wait_for_mode_exit"},
+)
+
+// ActionSaveCursorPosCmd saves cursor position for later restoration.
+var ActionSaveCursorPosCmd = BuildActionCommand(
+	"save_cursor_pos",
+	"Save current cursor position",
+	`Save the current cursor position so it can be restored later with restore_cursor.`,
+	[]string{"save_cursor_pos"},
+)
+
+// ActionRestoreCursorCmd restores previously saved cursor position.
+var ActionRestoreCursorCmd = BuildActionCommand(
+	"restore_cursor",
+	"Restore saved cursor position",
+	`Restore cursor position previously saved by save_cursor_pos.`,
+	[]string{"restore_cursor"},
+)
+
 // ActionScrollUpCmd scrolls up at the current cursor position.
 var ActionScrollUpCmd = BuildScrollActionCommand(
 	"scroll_up",
@@ -150,6 +174,9 @@ func init() {
 	ActionCmd.AddCommand(ActionMoveMouseRelativeCmd)
 	ActionCmd.AddCommand(ActionResetCmd)
 	ActionCmd.AddCommand(ActionBackspaceCmd)
+	ActionCmd.AddCommand(ActionWaitForModeExitCmd)
+	ActionCmd.AddCommand(ActionSaveCursorPosCmd)
+	ActionCmd.AddCommand(ActionRestoreCursorCmd)
 	ActionCmd.AddCommand(ActionScrollUpCmd)
 	ActionCmd.AddCommand(ActionScrollDownCmd)
 	ActionCmd.AddCommand(ActionScrollLeftCmd)

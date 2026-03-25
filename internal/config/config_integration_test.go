@@ -39,7 +39,6 @@ func TestConfigFileOperationsIntegration(t *testing.T) {
 		configContent := `
 [general]
 accessibility_check_on_start = false
-restore_cursor_position = true
 excluded_apps = ["com.apple.finder", "com.test.app"]
 
 [hints]
@@ -56,9 +55,6 @@ enabled = true
 [grid.ui]
 font_size = 12
 font_family = "Arial"
-
-[action]
-enabled = true
 
 [scroll]
 enabled = true

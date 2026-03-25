@@ -20,14 +20,6 @@ func (h *Handler) CurrModeString() string {
 
 // CaptureInitialCursorPosition captures the initial cursor position and screen bounds.
 func (h *Handler) CaptureInitialCursorPosition() {
-	if h.config == nil {
-		return
-	}
-
-	if !h.config.General.RestoreCursorPosition && !h.config.General.CenterCursorPosition {
-		return
-	}
-
 	if h.cursorState.IsCaptured() {
 		return
 	}
@@ -53,40 +45,6 @@ func (h *Handler) CaptureInitialCursorPosition() {
 	}
 
 	h.cursorState.Capture(pos, screenBounds)
-}
-
-// shouldRestoreCursorOnExit determines if the cursor should be restored on mode exit.
-func (h *Handler) shouldRestoreCursorOnExit() bool {
-	if h.config == nil {
-		return false
-	}
-
-	if !h.config.General.RestoreCursorPosition {
-		return false
-	}
-
-	if h.scroll != nil && h.scroll.Context != nil && h.scroll.Context.IsActive() {
-		return false
-	}
-
-	return h.cursorState.ShouldMoveCursor()
-}
-
-// shouldCenterCursorOnExit determines if the cursor should be centered on mode exit.
-func (h *Handler) shouldCenterCursorOnExit() bool {
-	if h.config == nil {
-		return false
-	}
-
-	if !h.config.General.CenterCursorPosition {
-		return false
-	}
-
-	if h.scroll != nil && h.scroll.Context != nil && h.scroll.Context.IsActive() {
-		return false
-	}
-
-	return h.cursorState.ShouldMoveCursor()
 }
 
 // overlaySwitch switches the overlay mode.
@@ -186,7 +144,7 @@ func (h *Handler) activateModeBase(
 		return action.TypeMoveMouse, false
 	}
 
-	// Prepare for mode activation (reset scroll, capture cursor)
+	// Prepare for mode activation (reset transient mode state)
 	h.prepareForModeActivation()
 
 	actionString := domain.ActionString(actionEnum)

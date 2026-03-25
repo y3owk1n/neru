@@ -199,7 +199,7 @@ neru recursive_grid --action left_click  # Left-click via recursive-grid
 
 Supported `--action` values: `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, `move_mouse`, `move_mouse_relative`, `scroll`.
 
-Not allowed for mode `--action`: `reset`, `backspace`, and scroll sub-actions (for example `scroll_up`, `page_down`, `go_top`).
+Not allowed for mode `--action`: `reset`, `backspace`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor`, and scroll sub-actions (for example `scroll_up`, `page_down`, `go_top`).
 
 > [!TIP]
 > The `--action` flag is most useful in hints mode, where it mirrors a Vimium-style workflow: select a label and the action fires immediately. In grid and recursive-grid modes, the action triggers only after the final cell selection, which is less ergonomic. For those modes, prefer composing behavior in per-mode `custom_hotkeys` (for example: `["action left_click", "idle"]`).
@@ -319,6 +319,9 @@ neru action mouse_down          # Hold mouse button
 neru action mouse_up            # Release mouse button
 neru action reset               # Reset state in current mode
 neru action backspace           # Mode-aware backspace
+neru action wait_for_mode_exit  # Block until mode exits to idle
+neru action save_cursor_pos     # Save current cursor position
+neru action restore_cursor      # Restore saved cursor position
 neru action scroll_up           # Scroll up at cursor
 neru action scroll_down         # Scroll down at cursor
 neru action scroll_left         # Scroll left at cursor
@@ -329,10 +332,13 @@ neru action go_top              # Jump to top at cursor
 neru action go_bottom           # Jump to bottom at cursor
 ```
 
-`action reset` and `action backspace` are mode-aware:
+`action reset`, `action backspace`, and cursor-flow helpers:
 
 - `action reset`: resets state in the current mode without exiting (notably grid and recursive-grid).
 - `action backspace`: applies backspace behavior in the current mode (hints input correction, grid input/subgrid backstep, recursive-grid backtrack).
+- `action save_cursor_pos`: captures the current cursor position.
+- `action restore_cursor`: restores cursor position captured by `action save_cursor_pos`.
+- `action wait_for_mode_exit`: blocks until Neru returns to idle (useful in multi-action hotkeys).
 
 ### Modifier keys
 

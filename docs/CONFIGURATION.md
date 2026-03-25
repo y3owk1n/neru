@@ -6,22 +6,7 @@ Neru configuration is TOML-based.
 
 In-mode bindings are defined only through per-mode `custom_hotkeys`.
 
-Removed legacy fields:
-
-- `general.mode_exit_keys`
-- `<mode>.auto_exit_actions`
-- `<mode>.mode_exit_keys`
-- `grid.reset_key`
-- `recursive_grid.reset_key`
-- `hints.backspace_key`
-- `grid.backspace_key`
-- `recursive_grid.backspace_key`
-- `[scroll.key_bindings]`
-- `[action]` and `[action.key_bindings]`
-
-## Priority Order
-
-When a mode is active:
+When a mode is active, the priority for key binding resolution are as below:
 
 1. modifier toggle
 2. mode `custom_hotkeys`
@@ -41,6 +26,9 @@ Examples:
 - `"action left_click"`
 - `"action move_mouse_relative --dx=0 --dy=-10"`
 - `"exec /usr/bin/say hello"`
+- `"action save_cursor_pos"`
+- `"action wait_for_mode_exit"`
+- `"action restore_cursor"`
 
 ## Multi-action Bindings
 
@@ -49,6 +37,7 @@ Bindings can be string or array:
 ```toml
 "Shift+L" = "action left_click"
 "Enter" = ["action left_click", "idle"]
+"Space" = ["action save_cursor_pos", "hints", "action wait_for_mode_exit", "action restore_cursor"]
 ```
 
 ## Multi-key Sequences

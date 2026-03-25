@@ -13,46 +13,6 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "both disabled - valid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					RestoreCursorPosition: false,
-					CenterCursorPosition:  false,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "restore enabled - valid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					RestoreCursorPosition: true,
-					CenterCursorPosition:  false,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "center enabled - valid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					RestoreCursorPosition: false,
-					CenterCursorPosition:  true,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "both enabled - invalid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					RestoreCursorPosition: true,
-					CenterCursorPosition:  true,
-				},
-			},
-			wantErr: true,
-		},
-		{
 			name: "kb layout id set - valid",
 			config: config.Config{
 				General: config.GeneralConfig{

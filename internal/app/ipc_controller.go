@@ -122,7 +122,13 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 	// Initialize handler components
 	lifecycleHandler := NewIPCControllerLifecycle(c.AppState, c.Modes, c.Logger)
 	modesHandler := NewIPCControllerModes(c.Modes, c.Logger)
-	actionsHandler := NewIPCControllerActions(c.ActionService, c.ScrollService, c.Modes, c.Logger)
+	actionsHandler := NewIPCControllerActions(
+		c.ActionService,
+		c.ScrollService,
+		c.Modes,
+		c.AppState,
+		c.Logger,
+	)
 	c.infoHandler = NewIPCControllerInfo(
 		c.ConfigService,
 		c.AppState,

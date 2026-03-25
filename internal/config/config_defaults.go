@@ -320,8 +320,6 @@ func commonDefaultConfig() *Config {
 		General: GeneralConfig{
 			ExcludedApps:                      []string{},
 			AccessibilityCheckOnStart:         true,
-			RestoreCursorPosition:             false,
-			CenterCursorPosition:              false,
 			PassthroughUnboundedKeys:          false,
 			ShouldExitAfterPassthrough:        false,
 			PassthroughUnboundedKeysBlacklist: []string{},
