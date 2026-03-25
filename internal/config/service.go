@@ -195,6 +195,34 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 			// Empty [hotkeys] section: disable all hotkeys.
 			configResult.Config.Hotkeys.Bindings = map[string][]string{}
 		} else {
+			// Detect duplicate normalized keys in the raw TOML input before
+			// merging. TOML keys are case-sensitive, so "Escape" and "escape"
+			// are distinct keys in the file but normalize identically. Without
+			// this check the merge result would be non-deterministic (Go map
+			// iteration order).
+			seenRaw := make(map[string]string, len(hotMap))
+			for key := range hotMap {
+				norm := NormalizeKeyForComparison(key)
+				if prev, dup := seenRaw[norm]; dup {
+					configResult.ValidationError = derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"hotkeys has duplicate bindings (%q and %q normalize to the same key)",
+						prev,
+						key,
+					)
+					configResult.Config = DefaultConfig()
+
+					s.logger.Warn("Duplicate normalized hotkey in config",
+						zap.String("key1", prev),
+						zap.String("key2", key),
+						zap.Error(configResult.ValidationError))
+
+					return configResult
+				}
+
+				seenRaw[norm] = key
+			}
+
 			// Merge user entries on top of defaults (already populated by DefaultConfig).
 			for key, value := range hotMap {
 				// Find the existing default key that normalizes to the same value
@@ -314,6 +342,33 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 			*modeHotkey.dest = make(map[string]StringOrStringArray)
 
 			continue
+		}
+
+		// Detect duplicate normalized keys in the raw TOML input before
+		// merging, same rationale as for global [hotkeys] above.
+		seenRaw := make(map[string]string, len(chMap))
+		for key := range chMap {
+			norm := NormalizeKeyForComparison(key)
+			if prev, dup := seenRaw[norm]; dup {
+				configResult.ValidationError = derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s.custom_hotkeys has duplicate bindings (%q and %q normalize to the same key)",
+					modeHotkey.modeKey,
+					prev,
+					key,
+				)
+				configResult.Config = DefaultConfig()
+
+				s.logger.Warn("Duplicate normalized custom hotkey in config",
+					zap.String("mode", modeHotkey.modeKey),
+					zap.String("key1", prev),
+					zap.String("key2", key),
+					zap.Error(configResult.ValidationError))
+
+				return configResult
+			}
+
+			seenRaw[norm] = key
 		}
 
 		// Merge user entries on top of defaults (already populated by DefaultConfig).
