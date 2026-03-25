@@ -49,7 +49,7 @@ func (h *Handler) HandleKeyPress(key string) {
 	// even when sticky modifiers are active), then the stripped key.
 	//
 	// When sticky modifiers are active, rawKey differs from key (e.g.
-	// "Cmd+g" vs "g"). The first handleCustomHotkey(rawKey) call may
+	// "Cmd+g" vs "g"). The first handleHotkey(rawKey) call may
 	// destructively clear pending two-letter sequence state in Phase 1
 	// without completing it (because "g"+"cmd+g" won't match "gg"). If
 	// the first call doesn't consume the key, we restore the sequence
@@ -59,7 +59,7 @@ func (h *Handler) HandleKeyPress(key string) {
 		savedLastKey := h.customHotkeyLastKey
 		savedLastKeyTime := h.customHotkeyLastKeyTime
 
-		if h.handleCustomHotkey(rawKey) {
+		if h.handleHotkey(rawKey) {
 			return
 		}
 
@@ -67,10 +67,10 @@ func (h *Handler) HandleKeyPress(key string) {
 		h.customHotkeyLastKey = savedLastKey
 		h.customHotkeyLastKeyTime = savedLastKeyTime
 
-		if h.handleCustomHotkey(key) {
+		if h.handleHotkey(key) {
 			return
 		}
-	} else if h.handleCustomHotkey(rawKey) {
+	} else if h.handleHotkey(rawKey) {
 		return
 	}
 
@@ -129,19 +129,19 @@ func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers)
 	return strings.Join(newParts, "+")
 }
 
-// handleCustomHotkey checks if the key matches a custom_hotkeys binding for the
+// handleHotkey checks if the key matches a hotkeys binding for the
 // current mode. If matched, it executes the action (IPC command or shell command)
 // using the same logic as top-level hotkeys. Returns true if the key was consumed.
 // Caller must hold h.mu.
-func (h *Handler) handleCustomHotkey(key string) bool {
+func (h *Handler) handleHotkey(key string) bool {
 	if h.executeHotkeyAction == nil {
 		return false
 	}
 
 	currentModeName := domain.ModeString(h.appState.CurrentMode())
 
-	customHotkeys := h.config.CustomHotkeysForMode(currentModeName)
-	if len(customHotkeys) == 0 {
+	hotkeys := h.config.HotkeysForMode(currentModeName)
+	if len(hotkeys) == 0 {
 		return false
 	}
 
@@ -156,7 +156,7 @@ func (h *Handler) handleCustomHotkey(key string) bool {
 
 		if pendingAt > 0 && time.Since(time.Unix(0, pendingAt)) <= customHotkeySequenceTimeout {
 			if bindKey, actions, ok := findCustomHotkeySequenceMatch(
-				customHotkeys,
+				hotkeys,
 				pending+normalizedKey,
 			); ok {
 				h.dispatchCustomHotkeyActions(currentModeName, bindKey, key, actions)
@@ -173,14 +173,14 @@ func (h *Handler) handleCustomHotkey(key string) bool {
 	}
 
 	// Phase 2: direct single-key match.
-	if bindKey, actions, ok := findCustomHotkeyMatch(customHotkeys, normalizedKey); ok {
+	if bindKey, actions, ok := findCustomHotkeyMatch(hotkeys, normalizedKey); ok {
 		h.dispatchCustomHotkeyActions(currentModeName, bindKey, key, actions)
 
 		return true
 	}
 
 	// Phase 3: start a new sequence for two-letter bindings.
-	if isCustomHotkeySequenceStart(customHotkeys, normalizedKey) {
+	if isCustomHotkeySequenceStart(hotkeys, normalizedKey) {
 		h.customHotkeyLastKey = normalizedKey
 		h.customHotkeyLastKeyTime = time.Now().UnixNano()
 
@@ -191,10 +191,10 @@ func (h *Handler) handleCustomHotkey(key string) bool {
 }
 
 func findCustomHotkeyMatch(
-	customHotkeys map[string]config.StringOrStringArray,
+	hotkeys map[string]config.StringOrStringArray,
 	normalizedKey string,
 ) (string, []string, bool) {
-	for bindKey, actions := range customHotkeys {
+	for bindKey, actions := range hotkeys {
 		if config.NormalizeKeyForComparison(bindKey) == normalizedKey {
 			return bindKey, actions, true
 		}
@@ -208,10 +208,10 @@ func findCustomHotkeyMatch(
 // completion) to prevent a concatenated sequence like "u"+"p" from matching the
 // named key "Up" whose normalized form is also "up".
 func findCustomHotkeySequenceMatch(
-	customHotkeys map[string]config.StringOrStringArray,
+	hotkeys map[string]config.StringOrStringArray,
 	normalizedKey string,
 ) (string, []string, bool) {
-	for bindKey, actions := range customHotkeys {
+	for bindKey, actions := range hotkeys {
 		if config.IsValidNamedKey(bindKey) {
 			continue
 		}
@@ -225,14 +225,14 @@ func findCustomHotkeySequenceMatch(
 }
 
 func isCustomHotkeySequenceStart(
-	customHotkeys map[string]config.StringOrStringArray,
+	hotkeys map[string]config.StringOrStringArray,
 	normalizedKey string,
 ) bool {
 	if len(normalizedKey) != 1 {
 		return false
 	}
 
-	for bindKey := range customHotkeys {
+	for bindKey := range hotkeys {
 		// Only consider genuine two-letter sequences (e.g. "gg"), not named
 		// keys that happen to be two letters (e.g. "Up" normalizes to "up").
 		if config.IsValidNamedKey(bindKey) {

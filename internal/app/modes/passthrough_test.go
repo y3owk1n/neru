@@ -12,9 +12,9 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 )
 
-func TestModeModifierKeys_HintsIncludesModifierCustomHotkeys(t *testing.T) {
+func TestModeModifierKeys_HintsIncludesModifierHotkeys(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.CustomHotkeys = map[string]config.StringOrStringArray{
+	cfg.Hints.Hotkeys = map[string]config.StringOrStringArray{
 		"Cmd+L": {"action left_click"},
 		"Alt+K": {"action move_mouse_relative --dx=0 --dy=-10"},
 		"k":     {"action scroll_up"},
@@ -30,9 +30,9 @@ func TestModeModifierKeys_HintsIncludesModifierCustomHotkeys(t *testing.T) {
 	}
 }
 
-func TestModeModifierKeys_ScrollIncludesOnlyModifierCustomHotkeys(t *testing.T) {
+func TestModeModifierKeys_ScrollIncludesOnlyModifierHotkeys(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Scroll.CustomHotkeys = map[string]config.StringOrStringArray{
+	cfg.Scroll.Hotkeys = map[string]config.StringOrStringArray{
 		"k":        {"action scroll_up"},
 		"Cmd+Up":   {"action go_top"},
 		"Cmd+Down": {"action go_bottom"},

@@ -135,7 +135,7 @@ background_color_light = "#FF0000AA"  # Custom for light mode
 A minimal config for most users — copy this as a starting point:
 
 ```toml
-[hints.custom_hotkeys]
+[hints.hotkeys]
 "Shift+L" = ["action left_click", "idle"]
 
 [scroll]
@@ -194,7 +194,7 @@ You can bind multiple actions to a single hotkey by using an array:
 
 Actions are executed sequentially in order. If an action fails, the error is logged but remaining actions continue.
 
-Both `[hotkeys]` and `[<mode>.custom_hotkeys]` support this array syntax.
+Both `[hotkeys]` and `[<mode>.hotkeys]` support this array syntax.
 
 ---
 
@@ -209,14 +209,14 @@ Define hotkeys that are only active while a specific mode is running.
 
 | Scenario                                            | Result                              |
 | --------------------------------------------------- | ----------------------------------- |
-| `[<mode>.custom_hotkeys]` section absent            | All defaults for that mode are used |
-| `[<mode>.custom_hotkeys]` section present but empty | All bindings for that mode disabled |
-| `[<mode>.custom_hotkeys]` with entries              | Entries merged on top of defaults   |
+| `[<mode>.hotkeys]` section absent            | All defaults for that mode are used |
+| `[<mode>.hotkeys]` section present but empty | All bindings for that mode disabled |
+| `[<mode>.hotkeys]` with entries              | Entries merged on top of defaults   |
 
 To remove a single default binding, use `__disabled__`:
 
 ```toml
-[scroll.custom_hotkeys]
+[scroll.hotkeys]
 "h" = "__disabled__"             # removes default scroll_left on "h"
 "x" = "action scroll_left"      # adds "x" for scroll_left; all other defaults remain
 ```
@@ -224,12 +224,12 @@ To remove a single default binding, use `__disabled__`:
 ### Syntax
 
 ```toml
-[hints.custom_hotkeys]
+[hints.hotkeys]
 "Escape" = "idle"
 "Backspace" = "action backspace"
 "Shift+L" = ["action left_click", "idle"]
 
-[scroll.custom_hotkeys]
+[scroll.hotkeys]
 "gg" = "action go_top"
 "Cmd+Shift+T" = "exec open -a Terminal"
 ```
@@ -247,15 +247,15 @@ All actions from `[hotkeys]` work here, including:
 When a key is pressed inside a mode, Neru checks in this order:
 
 1. modifier toggle
-2. mode custom hotkeys (`<mode>.custom_hotkeys`)
+2. mode custom hotkeys (`<mode>.hotkeys`)
 3. mode-specific keys (hint/grid/recursive-grid character input)
 
 ### Multi-key sequences
 
-Two-letter alphabetic sequences are supported in `custom_hotkeys`:
+Two-letter alphabetic sequences are supported in `hotkeys`:
 
 ```toml
-[scroll.custom_hotkeys]
+[scroll.hotkeys]
 "gg" = "action go_top"
 ```
 
@@ -312,7 +312,7 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | Option                             | Type   | Default       | Description                                          |
 | ---------------------------------- | ------ | ------------- | ---------------------------------------------------- |
 | `enabled`                          | bool   | `true`        | Enable/disable hints mode                            |
-| `custom_hotkeys`                   | table  | `{}`          | Per-mode hotkeys                                     |
+| `hotkeys`                   | table  | `{}`          | Per-mode hotkeys                                     |
 | `hint_characters`                  | string | `"asdfghjkl"` | Characters used for labels                           |
 | `max_depth`                        | int    | `50`          | Max accessibility tree depth (0 = unlimited)         |
 | `parallel_threshold`               | int    | `20`          | Min children to trigger parallel tree building (≥ 1) |
@@ -326,7 +326,7 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                          |
 
 > [!NOTE]
-> `auto_exit_actions`, `mode_exit_keys`, and `backspace_key` were removed. Use `custom_hotkeys` arrays like `"Shift+L" = ["action left_click", "idle"]` and `"Backspace" = "action backspace"`.
+> `auto_exit_actions`, `mode_exit_keys`, and `backspace_key` were removed. Use `hotkeys` arrays like `"Shift+L" = ["action left_click", "idle"]` and `"Backspace" = "action backspace"`.
 
 ---
 
@@ -339,7 +339,7 @@ Grid mode divides the screen into a labelled coordinate grid.
 | Option              | Type   | Default              | Description                   |
 | ------------------- | ------ | -------------------- | ----------------------------- |
 | `enabled`           | bool   | `true`               | Enable/disable grid mode      |
-| `custom_hotkeys`    | table  | `{}`                 | Per-mode hotkeys              |
+| `hotkeys`    | table  | `{}`                 | Per-mode hotkeys              |
 | `characters`        | string | see default config   | Primary grid labels           |
 | `sublayer_keys`     | string | same as `characters` | Subgrid labels                |
 | `live_match_update` | bool   | `true`               | Highlight cells as you type   |
@@ -350,7 +350,7 @@ Grid mode divides the screen into a labelled coordinate grid.
 | `col_labels`        | string | `""`                 | Optional custom column labels |
 
 > [!NOTE]
-> `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `custom_hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).
+> `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).
 
 ---
 
@@ -363,7 +363,7 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 | Option            | Type   | Default  | Description                         |
 | ----------------- | ------ | -------- | ----------------------------------- |
 | `enabled`         | bool   | `true`   | Enable/disable mode                 |
-| `custom_hotkeys`  | table  | `{}`     | Per-mode hotkeys                    |
+| `hotkeys`  | table  | `{}`     | Per-mode hotkeys                    |
 | `grid_cols`       | int    | `2`      | Number of columns (≥ 2)             |
 | `grid_rows`       | int    | `2`      | Number of rows (≥ 2)                |
 | `keys`            | string | `"uijk"` | Cell selection keys                 |
@@ -373,7 +373,7 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 | `layers`          | array  | `[]`     | Optional per-depth layout overrides |
 
 > [!NOTE]
-> `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `custom_hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).
+> `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).
 
 ---
 
@@ -388,15 +388,15 @@ Scroll mode provides keyboard-driven scrolling behavior.
 | `scroll_step`      | int   | `50`      | Pixels for line scroll actions          |
 | `scroll_step_half` | int   | `500`     | Pixels for half-page actions            |
 | `scroll_step_full` | int   | `1000000` | Pixels for top/bottom jump actions      |
-| `custom_hotkeys`   | table | `{}`      | Per-mode hotkeys (includes scroll keys) |
+| `hotkeys`   | table | `{}`      | Per-mode hotkeys (includes scroll keys) |
 
 > [!NOTE]
-> `auto_exit_actions`, `mode_exit_keys`, and `[scroll.key_bindings]` were removed. Bind scroll keys in `[scroll.custom_hotkeys]` instead.
+> `auto_exit_actions`, `mode_exit_keys`, and `[scroll.key_bindings]` were removed. Bind scroll keys in `[scroll.hotkeys]` instead.
 
 Example:
 
 ```toml
-[scroll.custom_hotkeys]
+[scroll.hotkeys]
 "Escape" = "idle"
 "k" = "action scroll_up"
 "j" = "action scroll_down"
@@ -437,7 +437,7 @@ These are action subcommands used to compose advanced array hotkeys:
 Example:
 
 ```toml
-[hints.custom_hotkeys]
+[hints.hotkeys]
 "Enter" = ["action save_cursor_pos", "idle", "action wait_for_mode_exit", "action restore_cursor_pos"]
 ```
 

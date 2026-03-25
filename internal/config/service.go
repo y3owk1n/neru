@@ -254,7 +254,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 					}
 
 					// Handle __disabled__ sentinel in array form for consistency
-					// with per-mode custom_hotkeys.
+					// with per-mode hotkeys.
 					if len(actions) == 1 && actions[0] == DisabledSentinel {
 						if _, exists := configResult.Config.Hotkeys.Bindings[canonicalKey]; !exists {
 							s.logger.Warn("__disabled__ used for key that is not a default binding",
@@ -284,25 +284,25 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		}
 	}
 
-	// Process per-mode custom_hotkeys from raw map.
+	// Process per-mode hotkeys from raw map.
 	// These fields are tagged toml:"-" (to prevent the encoder from emitting
 	// arrays for single-action entries), so the struct decoder skips them.
 	// User entries are merged on top of the defaults from DefaultConfig().
 	// To remove a default binding, set it to "__disabled__".
-	// An empty [<mode>.custom_hotkeys] section clears all bindings for that mode.
-	type modeCustomHotkeys struct {
+	// An empty [<mode>.hotkeys] section clears all bindings for that mode.
+	type modeHotkeys struct {
 		modeKey string
 		dest    *map[string]StringOrStringArray
 	}
 
-	modeHotkeys := []modeCustomHotkeys{
-		{"scroll", &configResult.Config.Scroll.CustomHotkeys},
-		{"hints", &configResult.Config.Hints.CustomHotkeys},
-		{"grid", &configResult.Config.Grid.CustomHotkeys},
-		{"recursive_grid", &configResult.Config.RecursiveGrid.CustomHotkeys},
+	modeHotkeyList := []modeHotkeys{
+		{"scroll", &configResult.Config.Scroll.Hotkeys},
+		{"hints", &configResult.Config.Hints.Hotkeys},
+		{"grid", &configResult.Config.Grid.Hotkeys},
+		{"recursive_grid", &configResult.Config.RecursiveGrid.Hotkeys},
 	}
 
-	for _, modeHotkey := range modeHotkeys {
+	for _, modeHotkey := range modeHotkeyList {
 		modeRaw, modeRawOk := raw[modeHotkey.modeKey]
 		if !modeRawOk {
 			continue
@@ -313,7 +313,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 			continue
 		}
 
-		chRaw, modeRawOk := modeMap["custom_hotkeys"]
+		chRaw, modeRawOk := modeMap["hotkeys"]
 		if !modeRawOk {
 			continue
 		}
@@ -338,7 +338,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 			if prev, dup := seenRaw[norm]; dup {
 				configResult.ValidationError = derrors.Newf(
 					derrors.CodeInvalidConfig,
-					"%s.custom_hotkeys has duplicate bindings (%q and %q normalize to the same key)",
+					"%s.hotkeys has duplicate bindings (%q and %q normalize to the same key)",
 					modeHotkey.modeKey,
 					prev,
 					key,
@@ -365,7 +365,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 			if err != nil {
 				configResult.ValidationError = derrors.Newf(
 					derrors.CodeInvalidConfig,
-					"%s.custom_hotkeys.%s: %v",
+					"%s.hotkeys.%s: %v",
 					modeHotkey.modeKey,
 					key,
 					err,

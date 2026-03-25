@@ -6,53 +6,53 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-func TestConfigValidateCustomHotkeys_Valid(t *testing.T) {
+func TestConfigValidateHotkeys_Valid(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.CustomHotkeys["PageUp"] = config.StringOrStringArray{"action page_up", "idle"}
-	cfg.Scroll.CustomHotkeys["gg"] = config.StringOrStringArray{"action go_top"}
-	cfg.Grid.CustomHotkeys["Enter"] = config.StringOrStringArray{
+	cfg.Hints.Hotkeys["PageUp"] = config.StringOrStringArray{"action page_up", "idle"}
+	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action go_top"}
+	cfg.Grid.Hotkeys["Enter"] = config.StringOrStringArray{
 		"action save_cursor_pos",
 		"idle",
 		"action wait_for_mode_exit",
 		"action restore_cursor_pos",
 	}
 
-	err := cfg.ValidateCustomHotkeys()
+	err := cfg.ValidateHotkeys()
 	if err != nil {
-		t.Fatalf("ValidateCustomHotkeys() unexpected error: %v", err)
+		t.Fatalf("ValidateHotkeys() unexpected error: %v", err)
 	}
 }
 
-func TestConfigValidateCustomHotkeys_InvalidAction(t *testing.T) {
+func TestConfigValidateHotkeys_InvalidAction(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.CustomHotkeys["x"] = config.StringOrStringArray{"action nope"}
+	cfg.Hints.Hotkeys["x"] = config.StringOrStringArray{"action nope"}
 
-	err := cfg.ValidateCustomHotkeys()
+	err := cfg.ValidateHotkeys()
 	if err == nil {
-		t.Fatal("ValidateCustomHotkeys() expected error, got nil")
+		t.Fatal("ValidateHotkeys() expected error, got nil")
 	}
 }
 
-func TestConfigValidateCustomHotkeys_PrefixConflict(t *testing.T) {
+func TestConfigValidateHotkeys_PrefixConflict(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Scroll.CustomHotkeys["g"] = config.StringOrStringArray{"action scroll_up"}
-	cfg.Scroll.CustomHotkeys["gg"] = config.StringOrStringArray{"action go_top"}
+	cfg.Scroll.Hotkeys["g"] = config.StringOrStringArray{"action scroll_up"}
+	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action go_top"}
 
-	err := cfg.ValidateCustomHotkeys()
+	err := cfg.ValidateHotkeys()
 	if err == nil {
-		t.Fatal("ValidateCustomHotkeys() expected prefix conflict error, got nil")
+		t.Fatal("ValidateHotkeys() expected prefix conflict error, got nil")
 	}
 }
 
-func TestConfigValidateCustomHotkeys_SequenceWithoutPrefixConflict(t *testing.T) {
+func TestConfigValidateHotkeys_SequenceWithoutPrefixConflict(t *testing.T) {
 	cfg := config.DefaultConfig()
 	// "gg" sequence with no single-key "g" binding should be fine
-	cfg.Scroll.CustomHotkeys["gg"] = config.StringOrStringArray{"action go_top"}
-	cfg.Scroll.CustomHotkeys["j"] = config.StringOrStringArray{"action scroll_down"}
+	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action go_top"}
+	cfg.Scroll.Hotkeys["j"] = config.StringOrStringArray{"action scroll_down"}
 
-	err := cfg.ValidateCustomHotkeys()
+	err := cfg.ValidateHotkeys()
 	if err != nil {
-		t.Fatalf("ValidateCustomHotkeys() unexpected error: %v", err)
+		t.Fatalf("ValidateHotkeys() unexpected error: %v", err)
 	}
 }
 

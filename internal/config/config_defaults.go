@@ -333,7 +333,7 @@ func commonDefaultConfig() *Config {
 			HintCharacters:    "asdfghjkl",
 			MaxDepth:          DefaultMaxDepth,
 			ParallelThreshold: DefaultParallelThreshold,
-			CustomHotkeys: map[string]StringOrStringArray{
+			Hotkeys: map[string]StringOrStringArray{
 				"Escape":    {"idle"},
 				"Backspace": {"action backspace"},
 				"Shift+L":   {"action left_click"},
@@ -389,7 +389,7 @@ func commonDefaultConfig() *Config {
 
 			Characters:   "abcdefghijklmnpqrstuvwxyz",
 			SublayerKeys: "abcdefghijklmnpqrstuvwxyz",
-			CustomHotkeys: map[string]StringOrStringArray{
+			Hotkeys: map[string]StringOrStringArray{
 				"Escape":    {"idle"},
 				"Space":     {"action reset"},
 				"Backspace": {"action backspace"},
@@ -433,7 +433,7 @@ func commonDefaultConfig() *Config {
 			GridRows: 2, //nolint:mnd
 
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
-			CustomHotkeys: map[string]StringOrStringArray{
+			Hotkeys: map[string]StringOrStringArray{
 				"Escape":    {"idle"},
 				"Space":     {"action reset"},
 				"Backspace": {"action backspace"},
@@ -535,7 +535,7 @@ func commonDefaultConfig() *Config {
 			ScrollStep:     DefaultScrollStep,
 			ScrollStepHalf: DefaultScrollStepHalf,
 			ScrollStepFull: DefaultScrollStepFull,
-			CustomHotkeys: map[string]StringOrStringArray{
+			Hotkeys: map[string]StringOrStringArray{
 				"Escape":   {"idle"},
 				"k":        {"action scroll_up"},
 				"j":        {"action scroll_down"},

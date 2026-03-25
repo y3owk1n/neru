@@ -55,7 +55,7 @@ const (
 	RoleDockItem    = "AXDockItem"
 )
 
-// Mode name constants used in config lookups (CustomHotkeysForMode, validation).
+// Mode name constants used in config lookups (HotkeysForMode, validation).
 // These mirror domain.ModeName* but are defined here to avoid a circular import.
 const (
 	modeNameHints         = "hints"
@@ -65,9 +65,9 @@ const (
 )
 
 // DisabledSentinel is a special action value that removes a default hotkey binding.
-// Use it in [hotkeys] or [<mode>.custom_hotkeys] to disable a specific default:
+// Use it in [hotkeys] or [<mode>.hotkeys] to disable a specific default:
 //
-//	[scroll.custom_hotkeys]
+//	[scroll.hotkeys]
 //	"j" = "__disabled__"   # removes the default "j" = "action scroll_down"
 const DisabledSentinel = "__disabled__"
 
@@ -440,7 +440,7 @@ type ScrollConfig struct {
 	ScrollStepHalf int `json:"scrollStepHalf" toml:"scroll_step_half"`
 	ScrollStepFull int `json:"scrollStepFull" toml:"scroll_step_full"`
 
-	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"-"`
+	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
 // HintsUI defines the visual/appearance settings for hints mode.
@@ -483,7 +483,7 @@ type HintsConfig struct {
 
 	AdditionalAXSupport AdditionalAXSupport `json:"additionalAxSupport" toml:"additional_ax_support"`
 
-	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"-"`
+	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
 // GridUI defines the visual/appearance settings for grid mode.
@@ -521,7 +521,7 @@ type GridConfig struct {
 	PrewarmEnabled  bool   `json:"prewarmEnabled"  toml:"prewarm_enabled"`
 	EnableGC        bool   `json:"enableGc"        toml:"enable_gc"`
 
-	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"-"`
+	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
 // RecursiveGridUI defines the visual/appearance settings for recursive-grid mode.
@@ -577,7 +577,7 @@ type RecursiveGridConfig struct {
 	// Depths not listed here use the top-level GridCols/GridRows/Keys.
 	Layers []RecursiveGridLayerConfig `json:"layers" toml:"layers"`
 
-	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"-"`
+	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
 // AllKeysIncludingLayers returns a combined string of all unique keys from the
@@ -720,7 +720,7 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate per-mode custom hotkeys
-	err = c.ValidateCustomHotkeys()
+	err = c.ValidateHotkeys()
 	if err != nil {
 		return err
 	}
@@ -902,7 +902,7 @@ func (c *Config) ValidateModeIndicator() error {
 // writeStringOrStringArrayMap writes a map[string]StringOrStringArray (or
 // map[string][]string) as a TOML table to the given file.  Single-action
 // entries are emitted as plain strings for backward compatibility; multi-action
-// entries use TOML array syntax.  The section header (e.g. "[scroll.custom_hotkeys]")
+// entries use TOML array syntax.  The section header (e.g. "[scroll.hotkeys]")
 // is always written so that an empty map round-trips correctly.
 //
 // When defaults is non-nil, any default key not present in _map (after
@@ -1050,25 +1050,25 @@ func (c *Config) Save(path string) error {
 		return err
 	}
 
-	// Write per-mode [<mode>.custom_hotkeys] sections.
+	// Write per-mode [<mode>.hotkeys] sections.
 	// These fields are tagged toml:"-" so the encoder skips them; we write
 	// them manually to preserve the single-string format for single-action
 	// entries (backward compatibility).
-	customHotkeysSections := []struct {
+	hotkeysSections := []struct {
 		header   string
 		hotkeys  map[string]StringOrStringArray
 		defaults map[string]StringOrStringArray
 	}{
-		{"scroll.custom_hotkeys", c.Scroll.CustomHotkeys, defaults.Scroll.CustomHotkeys},
-		{"hints.custom_hotkeys", c.Hints.CustomHotkeys, defaults.Hints.CustomHotkeys},
-		{"grid.custom_hotkeys", c.Grid.CustomHotkeys, defaults.Grid.CustomHotkeys},
+		{"scroll.hotkeys", c.Scroll.Hotkeys, defaults.Scroll.Hotkeys},
+		{"hints.hotkeys", c.Hints.Hotkeys, defaults.Hints.Hotkeys},
+		{"grid.hotkeys", c.Grid.Hotkeys, defaults.Grid.Hotkeys},
 		{
-			"recursive_grid.custom_hotkeys",
-			c.RecursiveGrid.CustomHotkeys,
-			defaults.RecursiveGrid.CustomHotkeys,
+			"recursive_grid.hotkeys",
+			c.RecursiveGrid.Hotkeys,
+			defaults.RecursiveGrid.Hotkeys,
 		},
 	}
-	for _, section := range customHotkeysSections {
+	for _, section := range hotkeysSections {
 		err = writeStringOrStringArrayMap(file, section.header, section.hotkeys, section.defaults)
 		if err != nil {
 			return err
@@ -1078,19 +1078,19 @@ func (c *Config) Save(path string) error {
 	return closeErr
 }
 
-// CustomHotkeysForMode returns the custom_hotkeys map for the given mode name.
+// HotkeysForMode returns the hotkeys map for the given mode name.
 // These are per-mode hotkeys that are only active while that mode is active,
 // using the same action syntax as [hotkeys] (e.g. "exec ...", "action ...", "hints", etc.).
-func (c *Config) CustomHotkeysForMode(modeName string) map[string]StringOrStringArray {
+func (c *Config) HotkeysForMode(modeName string) map[string]StringOrStringArray {
 	switch modeName {
 	case modeNameHints:
-		return c.Hints.CustomHotkeys
+		return c.Hints.Hotkeys
 	case modeNameGrid:
-		return c.Grid.CustomHotkeys
+		return c.Grid.Hotkeys
 	case modeNameRecursiveGrid:
-		return c.RecursiveGrid.CustomHotkeys
+		return c.RecursiveGrid.Hotkeys
 	case modeNameScroll:
-		return c.Scroll.CustomHotkeys
+		return c.Scroll.Hotkeys
 	default:
 		return nil
 	}

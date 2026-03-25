@@ -260,21 +260,21 @@ func (c *Config) ValidateSmoothCursor() error {
 	return nil
 }
 
-// ValidateCustomHotkeys validates per-mode custom hotkey syntax and actions.
-func (c *Config) ValidateCustomHotkeys() error {
+// ValidateHotkeys validates per-mode hotkey syntax and actions.
+func (c *Config) ValidateHotkeys() error {
 	modeHotkeys := []struct {
 		modeName string
 		table    map[string]StringOrStringArray
 	}{
-		{modeNameHints, c.Hints.CustomHotkeys},
-		{modeNameGrid, c.Grid.CustomHotkeys},
-		{modeNameRecursiveGrid, c.RecursiveGrid.CustomHotkeys},
-		{modeNameScroll, c.Scroll.CustomHotkeys},
+		{modeNameHints, c.Hints.Hotkeys},
+		{modeNameGrid, c.Grid.Hotkeys},
+		{modeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
+		{modeNameScroll, c.Scroll.Hotkeys},
 	}
 
 	for _, mode := range modeHotkeys {
 		for key, actions := range mode.table {
-			fieldName := fmt.Sprintf("%s.custom_hotkeys.%s", mode.modeName, key)
+			fieldName := fmt.Sprintf("%s.hotkeys.%s", mode.modeName, key)
 
 			err := ValidateHotkey(key, fieldName)
 			if err != nil {
@@ -310,18 +310,18 @@ func (c *Config) ValidateCustomHotkeys() error {
 		}
 	}
 
-	return c.checkCustomHotkeysConflicts()
+	return c.checkHotkeysConflicts()
 }
 
-func (c *Config) checkCustomHotkeysConflicts() error {
+func (c *Config) checkHotkeysConflicts() error {
 	modes := []struct {
 		modeName string
 		table    map[string]StringOrStringArray
 	}{
-		{modeNameHints, c.Hints.CustomHotkeys},
-		{modeNameGrid, c.Grid.CustomHotkeys},
-		{modeNameRecursiveGrid, c.RecursiveGrid.CustomHotkeys},
-		{modeNameScroll, c.Scroll.CustomHotkeys},
+		{modeNameHints, c.Hints.Hotkeys},
+		{modeNameGrid, c.Grid.Hotkeys},
+		{modeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
+		{modeNameScroll, c.Scroll.Hotkeys},
 	}
 
 	for _, mode := range modes {
@@ -331,7 +331,7 @@ func (c *Config) checkCustomHotkeysConflicts() error {
 			if prev, ok := seen[normalized]; ok {
 				return derrors.Newf(
 					derrors.CodeInvalidConfig,
-					"%s.custom_hotkeys has duplicate bindings (%q and %q)",
+					"%s.hotkeys has duplicate bindings (%q and %q)",
 					mode.modeName,
 					prev,
 					key,
@@ -364,7 +364,7 @@ func (c *Config) checkCustomHotkeysConflicts() error {
 				if strings.HasPrefix(normalizedSeq, normalized) {
 					return derrors.Newf(
 						derrors.CodeInvalidConfig,
-						"%s.custom_hotkeys has a prefix conflict: single-key binding %q shadows sequence %q; the single key is always matched first at runtime, so the sequence can never fire",
+						"%s.hotkeys has a prefix conflict: single-key binding %q shadows sequence %q; the single key is always matched first at runtime, so the sequence can never fire",
 						mode.modeName,
 						key,
 						seqKey,

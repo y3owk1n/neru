@@ -27,5 +27,5 @@ func (h *Handler) StartInteractiveScroll() {
 }
 
 // handleGenericScrollKey intentionally does nothing.
-// Scroll key behavior is fully driven by custom_hotkeys.
+// Scroll key behavior is fully driven by hotkeys.
 func (h *Handler) handleGenericScrollKey(_ string) {}
