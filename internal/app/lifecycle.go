@@ -444,7 +444,7 @@ func (a *App) printStartupInfo() {
 		if strings.HasPrefix(toShow, "exec") {
 			runes := []rune(toShow)
 			if len(runes) > MaxExecDisplayLength {
-				toShow = string(runes[:30]) + "..."
+				toShow = string(runes[:MaxExecDisplayLength]) + "..."
 			}
 		}
 
