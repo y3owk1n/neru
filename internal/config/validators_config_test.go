@@ -33,6 +33,29 @@ func TestConfigValidateCustomHotkeys_InvalidAction(t *testing.T) {
 	}
 }
 
+func TestConfigValidateCustomHotkeys_PrefixConflict(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Scroll.CustomHotkeys["g"] = config.StringOrStringArray{"action scroll_up"}
+	cfg.Scroll.CustomHotkeys["gg"] = config.StringOrStringArray{"action go_top"}
+
+	err := cfg.ValidateCustomHotkeys()
+	if err == nil {
+		t.Fatal("ValidateCustomHotkeys() expected prefix conflict error, got nil")
+	}
+}
+
+func TestConfigValidateCustomHotkeys_SequenceWithoutPrefixConflict(t *testing.T) {
+	cfg := config.DefaultConfig()
+	// "gg" sequence with no single-key "g" binding should be fine
+	cfg.Scroll.CustomHotkeys["gg"] = config.StringOrStringArray{"action go_top"}
+	cfg.Scroll.CustomHotkeys["j"] = config.StringOrStringArray{"action scroll_down"}
+
+	err := cfg.ValidateCustomHotkeys()
+	if err != nil {
+		t.Fatalf("ValidateCustomHotkeys() unexpected error: %v", err)
+	}
+}
+
 func TestConfigValidateScroll_OnlyStepValidation(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Scroll.ScrollStep = 0

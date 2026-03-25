@@ -340,6 +340,31 @@ func (c *Config) checkCustomHotkeysConflicts() error {
 
 			seen[normalized] = key
 		}
+		// Check prefix conflicts: a single-character binding shadows any
+		// two-letter sequence that starts with the same character, because
+		// at runtime Phase 2 (direct match) fires before Phase 3 (sequence
+		// start), making the sequence silently unreachable.
+		for key := range mode.table {
+			normalized := NormalizeKeyForComparison(key)
+			if len(normalized) != 1 {
+				continue
+			}
+
+			for seqKey := range mode.table {
+				normalizedSeq := NormalizeKeyForComparison(seqKey)
+				if len(normalizedSeq) == 2 &&
+					IsAllLetters(normalizedSeq) &&
+					strings.HasPrefix(normalizedSeq, normalized) {
+					return derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"%s.custom_hotkeys has a prefix conflict: single-key binding %q shadows sequence %q; the single key is always matched first at runtime, so the sequence can never fire",
+						mode.modeName,
+						key,
+						seqKey,
+					)
+				}
+			}
+		}
 	}
 
 	return nil
