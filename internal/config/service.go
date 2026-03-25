@@ -196,6 +196,67 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		}
 	}
 
+	// Process per-mode custom_hotkeys from raw map.
+	// These fields are tagged toml:"-" (to prevent the encoder from emitting
+	// arrays for single-action entries), so the struct decoder skips them.
+	// We populate them manually from the raw map here.
+	type modeCustomHotkeys struct {
+		modeKey string
+		dest    *map[string]StringOrStringArray
+	}
+
+	modeHotkeys := []modeCustomHotkeys{
+		{"scroll", &configResult.Config.Scroll.CustomHotkeys},
+		{"hints", &configResult.Config.Hints.CustomHotkeys},
+		{"grid", &configResult.Config.Grid.CustomHotkeys},
+		{"recursive_grid", &configResult.Config.RecursiveGrid.CustomHotkeys},
+	}
+
+	for _, modeHotkey := range modeHotkeys {
+		modeRaw, modeRawOk := raw[modeHotkey.modeKey]
+		if !modeRawOk {
+			continue
+		}
+
+		modeMap, modeRawOk := modeRaw.(map[string]any)
+		if !modeRawOk {
+			continue
+		}
+
+		chRaw, modeRawOk := modeMap["custom_hotkeys"]
+		if !modeRawOk {
+			continue
+		}
+
+		chMap, modeRawOk := chRaw.(map[string]any)
+		if !modeRawOk {
+			continue
+		}
+
+		result := make(map[string]StringOrStringArray, len(chMap))
+		for key, value := range chMap {
+			var _sosa StringOrStringArray
+
+			err := _sosa.UnmarshalTOML(value)
+			if err != nil {
+				configResult.ValidationError = derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s.custom_hotkeys.%s: %v",
+					modeHotkey.modeKey,
+					key,
+					err,
+				)
+				configResult.Config = DefaultConfig()
+
+				return configResult
+			}
+
+			result[key] = _sosa
+		}
+
+		*modeHotkey.dest = result
+	}
+
 	validateErr := configResult.Config.Validate()
 	if validateErr != nil {
 		configResult.ValidationError = core.WrapConfigFailed(validateErr, "validate configuration")

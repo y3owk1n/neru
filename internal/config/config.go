@@ -504,7 +504,7 @@ type ScrollConfig struct {
 
 	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
 
-	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"custom_hotkeys"`
+	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"-"`
 }
 
 // HintsUI defines the visual/appearance settings for hints mode.
@@ -551,7 +551,7 @@ type HintsConfig struct {
 
 	AdditionalAXSupport AdditionalAXSupport `json:"additionalAxSupport" toml:"additional_ax_support"`
 
-	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"custom_hotkeys"`
+	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"-"`
 }
 
 // GridUI defines the visual/appearance settings for grid mode.
@@ -593,7 +593,7 @@ type GridConfig struct {
 	EnableGC        bool   `json:"enableGc"        toml:"enable_gc"`
 	ResetKey        string `json:"resetKey"        toml:"reset_key"`
 
-	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"custom_hotkeys"`
+	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"-"`
 }
 
 // RecursiveGridUI defines the visual/appearance settings for recursive-grid mode.
@@ -653,7 +653,7 @@ type RecursiveGridConfig struct {
 	// Depths not listed here use the top-level GridCols/GridRows/Keys.
 	Layers []RecursiveGridLayerConfig `json:"layers" toml:"layers"`
 
-	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"custom_hotkeys"`
+	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"-"`
 }
 
 // AllKeysIncludingLayers returns a combined string of all unique keys from the
@@ -952,6 +952,60 @@ func (c *Config) ValidateModeIndicator() error {
 	return nil
 }
 
+// writeStringOrStringArrayMap writes a map[string]StringOrStringArray (or
+// map[string][]string) as a TOML table to the given file.  Single-action
+// entries are emitted as plain strings for backward compatibility; multi-action
+// entries use TOML array syntax.  The section header (e.g. "[scroll.custom_hotkeys]")
+// is always written so that an empty map round-trips correctly.
+func writeStringOrStringArrayMap(
+	file *os.File,
+	sectionHeader string,
+	_map map[string]StringOrStringArray,
+) error {
+	_, err := fmt.Fprintf(file, "\n[%s]\n", sectionHeader)
+	if err != nil {
+		return derrors.Wrap(
+			err, derrors.CodeConfigIOFailed, "failed to write section header",
+		)
+	}
+
+	if len(_map) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(_map))
+	for k := range _map {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		actions := _map[key]
+
+		var line string
+		if len(actions) == 1 {
+			line = fmt.Sprintf("%q = %q", key, actions[0])
+		} else {
+			quoted := make([]string, 0, len(actions))
+			for _, a := range actions {
+				quoted = append(quoted, fmt.Sprintf("%q", a))
+			}
+
+			line = fmt.Sprintf("%q = [%s]", key, strings.Join(quoted, ", "))
+		}
+
+		_, err := fmt.Fprintln(file, line)
+		if err != nil {
+			return derrors.Wrap(
+				err, derrors.CodeConfigIOFailed, "failed to write binding",
+			)
+		}
+	}
+
+	return nil
+}
+
 // Save saves the configuration to the specified path.
 func (c *Config) Save(path string) error {
 	// Create directory if it doesn't exist
@@ -1032,6 +1086,28 @@ func (c *Config) Save(path string) error {
 				return derrors.Wrap(
 					err, derrors.CodeConfigIOFailed, "failed to write hotkey binding",
 				)
+			}
+		}
+	}
+
+	// Write per-mode [<mode>.custom_hotkeys] sections.
+	// These fields are tagged toml:"-" so the encoder skips them; we write
+	// them manually to preserve the single-string format for single-action
+	// entries (backward compatibility).
+	customHotkeysSections := []struct {
+		header  string
+		hotkeys map[string]StringOrStringArray
+	}{
+		{"scroll.custom_hotkeys", c.Scroll.CustomHotkeys},
+		{"hints.custom_hotkeys", c.Hints.CustomHotkeys},
+		{"grid.custom_hotkeys", c.Grid.CustomHotkeys},
+		{"recursive_grid.custom_hotkeys", c.RecursiveGrid.CustomHotkeys},
+	}
+	for _, section := range customHotkeysSections {
+		if len(section.hotkeys) > 0 {
+			err = writeStringOrStringArrayMap(file, section.header, section.hotkeys)
+			if err != nil {
+				return err
 			}
 		}
 	}
