@@ -13,6 +13,34 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
+// findNormalizedBindingsKey returns the existing map key in bindings whose
+// normalized form matches the normalized form of rawKey. If no match is found
+// it returns rawKey itself so callers can use the result directly.
+func findNormalizedBindingsKey(bindings map[string][]string, rawKey string) string {
+	norm := NormalizeKeyForComparison(rawKey)
+	for k := range bindings {
+		if NormalizeKeyForComparison(k) == norm {
+			return k
+		}
+	}
+
+	return rawKey
+}
+
+// findNormalizedSOSAKey returns the existing map key in m whose normalized form
+// matches the normalized form of rawKey. If no match is found it returns rawKey
+// itself so callers can use the result directly.
+func findNormalizedSOSAKey(m map[string]StringOrStringArray, rawKey string) string {
+	norm := NormalizeKeyForComparison(rawKey)
+	for k := range m {
+		if NormalizeKeyForComparison(k) == norm {
+			return k
+		}
+	}
+
+	return rawKey
+}
+
 // AlertProvider defines the interface for displaying native system alerts.
 // This is used to break the import cycle between config and ports.
 type AlertProvider interface {
@@ -169,11 +197,19 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		} else {
 			// Merge user entries on top of defaults (already populated by DefaultConfig).
 			for key, value := range hotMap {
+				// Find the existing default key that normalizes to the same value
+				// so that e.g. "cmd+shift+s" correctly overrides "Cmd+Shift+S".
+				canonicalKey := findNormalizedBindingsKey(
+					configResult.Config.Hotkeys.Bindings, key,
+				)
+
 				switch _val := value.(type) {
 				case string:
 					if _val == DisabledSentinel {
-						delete(configResult.Config.Hotkeys.Bindings, key)
+						delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
 					} else {
+						// Remove old casing before inserting with user's casing.
+						delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
 						configResult.Config.Hotkeys.Bindings[key] = []string{_val}
 					}
 				case []any:
@@ -198,7 +234,14 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 						actions = append(actions, actionStr)
 					}
 
-					configResult.Config.Hotkeys.Bindings[key] = actions
+					// Handle __disabled__ sentinel in array form for consistency
+					// with per-mode custom_hotkeys.
+					if len(actions) == 1 && actions[0] == DisabledSentinel {
+						delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
+					} else {
+						delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
+						configResult.Config.Hotkeys.Bindings[key] = actions
+					}
 				default:
 					configResult.ValidationError = derrors.Newf(
 						derrors.CodeInvalidConfig,
@@ -281,10 +324,16 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 				return configResult
 			}
 
+			// Find the existing default key that normalizes to the same value
+			// so that e.g. "escape" correctly overrides "Escape".
+			canonicalKey := findNormalizedSOSAKey(*modeHotkey.dest, key)
+
 			// Sentinel value removes the default binding for this key.
 			if len(_sosa) == 1 && _sosa[0] == DisabledSentinel {
-				delete(*modeHotkey.dest, key)
+				delete(*modeHotkey.dest, canonicalKey)
 			} else {
+				// Remove old casing before inserting with user's casing.
+				delete(*modeHotkey.dest, canonicalKey)
 				(*modeHotkey.dest)[key] = _sosa
 			}
 		}
