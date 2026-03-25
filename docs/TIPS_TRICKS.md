@@ -6,6 +6,10 @@
 
 - [Vimium-Style Click-on-Select](#vimium-style-click-on-select)
 - [Homerow Action Clicks](#homerow-action-clicks)
+- [Auto-Exit After Click](#auto-exit-after-click)
+- [Restore Cursor Position After Mode Exit](#restore-cursor-position-after-mode-exit)
+- [Custom Mouse Movement Step Size](#custom-mouse-movement-step-size)
+- [Disabling All Built-In Hotkeys](#disabling-all-built-in-hotkeys)
 - [Checking the Accessibility Tree on macOS](#checking-the-accessibility-tree-on-macos)
 - [Running a Custom Configuration via App Bundle](#running-a-custom-configuration-via-app-bundle)
 - [Cycling Between Different Monitors](#cycling-between-different-monitors)
@@ -34,6 +38,72 @@ Homerow-style `Return` click actions via mode `custom_hotkeys`:
 "Enter" = "action left_click" # press twice quickly for double-click, three times for triple-click
 "Shift+Enter" = "action right_click"
 "Cmd+Enter" = "action middle_click"
+```
+
+## Auto-Exit After Click
+
+The old `auto_exit_actions` config field was removed. Use a `custom_hotkeys` array to click and exit in one key:
+
+```toml
+[hints.custom_hotkeys]
+"Shift+L" = ["action left_click", "idle"]
+"Shift+R" = ["action right_click", "idle"]
+```
+
+This works in any mode — hints, grid, recursive_grid, or scroll.
+
+## Restore Cursor Position After Mode Exit
+
+The old `restore_cursor_position` config field was removed. Compose the same behavior with action primitives:
+
+```toml
+[hotkeys]
+"Cmd+Shift+Space" = ["action save_cursor_pos", "hints"] # add the save cursor pos action before launch hints
+
+[hints.custom_hotkeys]
+"Enter" = ["action left_click", "idle", "action restore_cursor"]
+```
+
+This saves the cursor position, clicks, exits hints, waits for the mode to fully exit, then moves the cursor back.
+
+## Custom Mouse Movement Step Size
+
+The old `action.move_mouse_step` config field was removed. Control step size directly via `--dx`/`--dy` flags in `custom_hotkeys`:
+
+```toml
+[hints.custom_hotkeys]
+# Default 10px step
+"Up"    = "action move_mouse_relative --dx=0 --dy=-10"
+"Down"  = "action move_mouse_relative --dx=0 --dy=10"
+"Left"  = "action move_mouse_relative --dx=-10 --dy=0"
+"Right" = "action move_mouse_relative --dx=10 --dy=0"
+```
+
+To use a larger step (e.g. 20px), just change the values:
+
+```toml
+[hints.custom_hotkeys]
+"Up"    = "action move_mouse_relative --dx=0 --dy=-20"
+"Down"  = "action move_mouse_relative --dx=0 --dy=20"
+```
+
+## Disabling All Built-In Hotkeys
+
+To disable all built-in hotkeys (e.g. when using an external hotkey daemon like skhd), provide an empty `[hotkeys]` section:
+
+```toml
+[hotkeys]
+# No bindings — all defaults are cleared.
+# Trigger modes via CLI: neru hints, neru grid, etc.
+```
+
+### Using skhd or other external hotkey managers
+
+```bash
+# ~/.config/skhd/skhdrc
+ctrl - f : neru hints
+ctrl - g : neru grid
+ctrl - r : neru hints --action right_click
 ```
 
 ## Checking the Accessibility Tree on macOS
