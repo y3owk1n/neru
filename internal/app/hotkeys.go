@@ -114,14 +114,7 @@ func (a *App) registerHotkeys() {
 
 // executeHotkeyAction executes a hotkey action, which can be either a shell command or an IPC command.
 func (a *App) executeHotkeyAction(key, actionStr string) error {
-	trimmedAction := strings.TrimSpace(actionStr)
-	if config.IsHotkeyPrimitive(trimmedAction) {
-		// Backward compatibility: route bare primitives through the same
-		// IPC action path used by CLI action subcommands.
-		trimmedAction = "action " + trimmedAction
-	}
-
-	actionStr = trimmedAction
+	actionStr = strings.TrimSpace(actionStr)
 
 	if actionStr == action.PrefixExec || strings.HasPrefix(actionStr, action.PrefixExec+" ") {
 		return a.executeShellCommand(key, actionStr)
