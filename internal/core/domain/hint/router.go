@@ -37,21 +37,8 @@ func NewRouter(manager *Manager, logger *zap.Logger) *Router {
 	}
 }
 
-// NewRouterWithExitKeys creates a new hint router with custom exit keys.
-func NewRouterWithExitKeys(manager *Manager, logger *zap.Logger, exitKeys []string) *Router {
-	return &Router{
-		Router:  domain.NewRouterWithExitKeys(logger, exitKeys),
-		manager: manager,
-	}
-}
-
 // RouteKey processes a key press and returns the routing result.
 func (r *Router) RouteKey(key string) RouteResult {
-	// Check if key matches any configured exit keys
-	if r.IsExitKey(key) {
-		return RouteResult{exit: true}
-	}
-
 	// Process input through manager
 	hint, exactMatch := r.manager.HandleInput(key)
 	if exactMatch {

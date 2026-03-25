@@ -6,7 +6,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
@@ -21,8 +20,6 @@ type Manager struct {
 	onShowSub     func(cell *Cell)
 	inSubgrid     bool
 	selectedCell  *Cell
-	resetKey      string
-	backspaceKey  string
 	// Subgrid configuration
 	subRows int
 	subCols int
@@ -35,8 +32,6 @@ func NewManager(
 	subRows int,
 	subCols int,
 	subKeys string,
-	resetKey string,
-	backspaceKey string,
 	onUpdate func(redraw bool),
 	onShowSub func(cell *Cell),
 	logger *zap.Logger,
@@ -51,15 +46,13 @@ func NewManager(
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
-		grid:         grid,
-		labelLength:  labelLength,
-		onUpdate:     onUpdate,
-		onShowSub:    onShowSub,
-		subRows:      subRows,
-		subCols:      subCols,
-		subKeys:      strings.ToUpper(strings.TrimSpace(subKeys)),
-		resetKey:     resetKey,
-		backspaceKey: backspaceKey,
+		grid:        grid,
+		labelLength: labelLength,
+		onUpdate:    onUpdate,
+		onShowSub:   onShowSub,
+		subRows:     subRows,
+		subCols:     subCols,
+		subKeys:     strings.ToUpper(strings.TrimSpace(subKeys)),
 	}
 }
 
@@ -68,25 +61,6 @@ func NewManager(
 // Completion occurs when labelLength characters are entered or a subgrid selection is made.
 // Returns (point, true) when selection is complete, (zero point, false) otherwise.
 func (m *Manager) HandleInput(key string) (image.Point, bool) {
-	resetKey := m.resetKey
-	if resetKey == "" {
-		resetKey = " "
-	}
-
-	// Handle reset key to clear input and return to initial state.
-	// Accept modifier-style reset keys (e.g. "Ctrl+R") as well as single characters.
-	// Uses normalized comparison to handle case-insensitive modifier matching (Ctrl+R vs ctrl+r).
-	if config.IsResetKey(key, resetKey) {
-		m.handleResetKey(true)
-
-		return image.Point{}, false
-	}
-
-	// Handle backspace for input correction
-	if config.IsConfiguredBackspaceKey(key, m.backspaceKey) {
-		return m.handleBackspace()
-	}
-
 	// Ignore keys that are not single characters or not in the configured characters, except reset
 	upper := strings.ToUpper(key)
 
@@ -173,6 +147,40 @@ func (m *Manager) UpdateGrid(g *Grid) {
 // UpdateSubKeys updates the subgrid keys used for subgrid selection.
 func (m *Manager) UpdateSubKeys(subKeys string) {
 	m.subKeys = strings.ToUpper(strings.TrimSpace(subKeys))
+}
+
+// HandleBackspace applies grid backspace behavior: delete one input character,
+// or exit subgrid and restore main-grid input context when appropriate.
+func (m *Manager) HandleBackspace() (image.Point, bool) {
+	if len(m.CurrentInput()) > 0 {
+		m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
+
+		if m.onUpdate != nil {
+			m.onUpdate(false)
+		}
+
+		return image.Point{}, false
+	}
+
+	// If in subgrid, backspace exits subgrid and back to main grid
+	if m.inSubgrid {
+		m.inSubgrid = false
+		m.selectedCell = nil
+		// Restore main grid input
+		if len(m.mainGridInput) > 0 {
+			// remove the last character
+			m.SetCurrentInput(m.mainGridInput[:len(m.mainGridInput)-1])
+		} else {
+			// just in case
+			m.SetCurrentInput("")
+		}
+
+		if m.onUpdate != nil {
+			m.onUpdate(true)
+		}
+	}
+
+	return image.Point{}, false
 }
 
 // hasMatchingCoordinate checks if any grid cell coordinate starts with the given prefix.
@@ -276,44 +284,4 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 		zap.Int("x", xCoordinate), zap.Int("y", yCoordinate))
 	// m.Reset()
 	return image.Point{X: xCoordinate, Y: yCoordinate}, true
-}
-
-func (m *Manager) handleBackspace() (image.Point, bool) {
-	if len(m.CurrentInput()) > 0 {
-		m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
-
-		if m.onUpdate != nil {
-			m.onUpdate(false)
-		}
-
-		return image.Point{}, false
-	}
-
-	// If in subgrid, backspace exits subgrid and back to main grid
-	if m.inSubgrid {
-		m.inSubgrid = false
-		m.selectedCell = nil
-		// Restore main grid input
-		if len(m.mainGridInput) > 0 {
-			// remove the last character
-			m.SetCurrentInput(m.mainGridInput[:len(m.mainGridInput)-1])
-		} else {
-			// just in case
-			m.SetCurrentInput("")
-		}
-
-		if m.onUpdate != nil {
-			m.onUpdate(true)
-		}
-	}
-
-	return image.Point{}, false
-}
-
-func (m *Manager) handleResetKey(redraw bool) {
-	m.Reset()
-
-	if m.onUpdate != nil {
-		m.onUpdate(redraw)
-	}
 }

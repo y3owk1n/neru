@@ -133,6 +133,10 @@ const (
 	NameMoveMouseRelative Name = "move_mouse_relative"
 	// NameScroll represents the scroll action.
 	NameScroll Name = "scroll"
+	// NameReset resets current mode state.
+	NameReset Name = "reset"
+	// NameBackspace performs a mode-aware backspace operation.
+	NameBackspace Name = "backspace"
 
 	// NameScrollUp represents the scroll-up action.
 	NameScrollUp Name = "scroll_up"
@@ -170,18 +174,6 @@ var knownNames = []Name{
 	NameScroll,
 }
 
-// directKeyBindingNames lists the action names that can be triggered via direct
-// key bindings (action.key_bindings). Actions like "move_mouse" and "scroll"
-// are only available through IPC / CLI and are excluded.
-var directKeyBindingNames = []Name{
-	NameLeftClick,
-	NameRightClick,
-	NameMiddleClick,
-	NameMouseDown,
-	NameMouseUp,
-	NameMoveMouseRelative,
-}
-
 // KnownNames returns the mode-compatible action names (excludes scroll sub-actions).
 func KnownNames() []Name {
 	result := make([]Name, len(knownNames))
@@ -202,44 +194,14 @@ func SupportedNamesString() string {
 	return strings.Join(strs, ", ")
 }
 
-// DirectKeyBindingNames returns the action names that can be triggered via direct key bindings.
-func DirectKeyBindingNames() []Name {
-	result := make([]Name, len(directKeyBindingNames))
-	copy(result, directKeyBindingNames)
-
-	return result
+// IsResetAction reports whether the given action is reset.
+func IsResetAction(name string) bool {
+	return Name(name) == NameReset
 }
 
-// DirectKeyBindingNamesString returns a comma-separated string of direct key binding action names.
-func DirectKeyBindingNamesString() string {
-	names := DirectKeyBindingNames()
-
-	strs := make([]string, len(names))
-
-	for i, name := range names {
-		strs[i] = string(name)
-	}
-
-	return strings.Join(strs, ", ")
-}
-
-// IsDirectKeyBindingName checks whether the given name is a valid direct key binding action.
-func IsDirectKeyBindingName(name Name) bool {
-	switch name {
-	case NameLeftClick,
-		NameRightClick,
-		NameMiddleClick,
-		NameMouseDown,
-		NameMouseUp,
-		NameMoveMouseRelative:
-		return true
-	case NameMoveMouse, NameScroll,
-		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
-		NameGoTop, NameGoBottom, NamePageUp, NamePageDown:
-		return false
-	default:
-		return false
-	}
+// IsBackspaceAction reports whether the given action is backspace.
+func IsBackspaceAction(name string) bool {
+	return Name(name) == NameBackspace
 }
 
 // IsKnownName determines whether the specified action name is recognized by the
@@ -256,6 +218,7 @@ func IsKnownName(name Name) bool {
 		NameMoveMouse,
 		NameMoveMouseRelative,
 		NameScroll,
+		NameReset, NameBackspace,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown:
 		return true
@@ -273,7 +236,8 @@ func IsScrollSubAction(name string) bool {
 		return true
 	case NameLeftClick, NameRightClick, NameMiddleClick,
 		NameMouseDown, NameMouseUp,
-		NameMoveMouse, NameMoveMouseRelative, NameScroll:
+		NameMoveMouse, NameMoveMouseRelative, NameScroll,
+		NameReset, NameBackspace:
 		return false
 	default:
 		return false
@@ -328,6 +292,8 @@ func (n Name) ToType() (Type, error) {
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown:
 		return TypeScroll, nil
+	case NameReset, NameBackspace:
+		return 0, derrors.Newf(derrors.CodeInvalidInput, "action name not executable: %s", n)
 	default:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "unknown action name: %s", n)
 	}

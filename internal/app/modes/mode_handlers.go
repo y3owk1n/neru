@@ -3,13 +3,11 @@ package modes
 import (
 	"context"
 	"image"
-	"slices"
 	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
@@ -99,145 +97,8 @@ func (h *Handler) moveCursorAndHandleAction(
 	}
 }
 
-// repeatPendingDirectAction re-activates the current mode when a direct action
-// key matches the mode's pending action and --repeat is active.
-func (h *Handler) repeatPendingDirectAction(
-	actionName string,
-	pendingAction *string,
-	repeat bool,
-	reActivateFunc func(),
-) bool {
-	if !repeat || pendingAction == nil || reActivateFunc == nil || *pendingAction != actionName {
-		return false
-	}
-
-	if h.cursorState != nil &&
-		actionName != string(action.NameMoveMouse) &&
-		actionName != string(action.NameMoveMouseRelative) {
-		h.cursorState.MarkActionPerformed()
-	}
-
-	if h.cursorState != nil && h.cursorState.WasActionPerformed() {
-		time.Sleep(postActionSettleDelay)
-	}
-
-	h.logger.Info(
-		"Re-activating mode after direct action (--repeat)",
-		zap.String("action", actionName),
-	)
-	reActivateFunc()
-
-	return true
-}
-
-// shouldAutoExit checks if the given action name is in the auto-exit list.
-func (h *Handler) shouldAutoExit(autoExitActions []string, actionName string) bool {
-	return len(autoExitActions) > 0 && slices.Contains(autoExitActions, actionName)
-}
-
 // handleHintsModeKey handles key processing for hints mode.
 func (h *Handler) handleHintsModeKey(key string) {
-	ctx := context.Background()
-
-	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(
-		ctx,
-		key,
-		h.stickyModifiers(),
-	)
-	if wasHandled {
-		if err != nil {
-			h.logger.Error("Failed to handle direct action key", zap.Error(err))
-
-			return
-		}
-
-		if h.shouldAutoExit(h.config.Hints.AutoExitActions, actionName) {
-			if !h.actionService.IsMoveMouseKey(key) {
-				h.cursorState.MarkActionPerformed()
-			}
-
-			h.exitModeLocked()
-
-			return
-		}
-
-		// Only refresh hints after non-move-mouse actions
-		// Move mouse actions should keep the overlay active
-		if !h.actionService.IsMoveMouseKey(key) {
-			// Capture repeat state before refresh so we can restore it on the
-			// fresh context. activateHintModeInternal resets the context,
-			// which would lose the --repeat and pendingAction flags.
-			savedPendingAction := h.hints.Context.PendingAction()
-			savedRepeat := h.hints.Context.Repeat()
-
-			// restoreRepeatState restores the repeat and pendingAction flags
-			// on the fresh hints context after a refresh re-activation.
-			restoreRepeatState := func() {
-				if savedRepeat && h.appState.CurrentMode() == domain.ModeHints &&
-					h.hints != nil && h.hints.Context != nil {
-					h.hints.Context.SetPendingAction(savedPendingAction)
-					h.hints.Context.SetRepeat(true)
-				}
-			}
-
-			bundleID, err := h.actionService.FocusedAppBundleID(ctx)
-			if err != nil {
-				h.logger.Warn(
-					"Failed to get focused app bundle ID, using global delay",
-					zap.Error(err),
-				)
-
-				bundleID = ""
-			}
-
-			delay := h.config.MouseActionRefreshDelayForApp(bundleID)
-
-			if delay == 0 {
-				h.activateHintModeInternal(false, nil)
-				restoreRepeatState()
-			} else {
-				if h.refreshHintsTimer != nil {
-					h.refreshHintsTimer.Stop()
-				}
-
-				var _timer *time.Timer
-
-				timerSession := h.modeSession
-
-				_timer = time.AfterFunc(
-					time.Duration(delay)*time.Millisecond,
-					func() {
-						// Lock to serialize with HandleKeyPress on the event tap thread
-						h.mu.Lock()
-						defer h.mu.Unlock()
-
-						// Guard against stale timer: if the user exited hints mode
-						// (e.g. pressed escape) while we were waiting for the lock,
-						// or if hints was re-entered (new session), do not
-						// re-activate.
-						if h.modeSession != timerSession ||
-							h.appState.CurrentMode() != domain.ModeHints {
-							return
-						}
-
-						// Clear our own timer reference only if we are still the active one.
-						// A newer timer may have replaced us while we were waiting for the lock.
-						if h.refreshHintsTimer == _timer {
-							h.refreshHintsTimer = nil
-						}
-
-						h.activateHintModeInternal(false, nil)
-						restoreRepeatState()
-					},
-				)
-
-				h.refreshHintsTimer = _timer
-			}
-		}
-
-		return
-	}
-
 	// Route hint-specific keys via domain hints router
 	if h.hints.Context.Router() == nil {
 		h.logger.Warn("Hints router is nil - ignoring key press until hints initialized")
@@ -284,52 +145,6 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 // handleGridModeKey handles key processing for grid mode.
 func (h *Handler) handleGridModeKey(key string) {
-	ctx := context.Background()
-
-	actionName, wasHandled, err := h.actionService.HandleDirectActionKey(
-		ctx,
-		key,
-		h.stickyModifiers(),
-	)
-	if wasHandled {
-		if err != nil {
-			h.logger.Error("Failed to handle direct action key", zap.Error(err))
-
-			return
-		}
-
-		var (
-			pendingAction *string
-			repeat        bool
-		)
-
-		if h.grid != nil && h.grid.Context != nil {
-			pendingAction = h.grid.Context.PendingAction()
-			repeat = h.grid.Context.Repeat()
-		}
-
-		if h.shouldAutoExit(h.config.Grid.AutoExitActions, actionName) {
-			if !h.actionService.IsMoveMouseKey(key) {
-				h.cursorState.MarkActionPerformed()
-			}
-
-			h.exitModeLocked()
-
-			return
-		}
-
-		if h.repeatPendingDirectAction(
-			actionName,
-			pendingAction,
-			repeat,
-			func() { h.activateGridModeWithAction(pendingAction, repeat) },
-		) {
-			return
-		}
-
-		return
-	}
-
 	if h.grid.Router == nil {
 		h.logger.Warn("Grid router is nil - ignoring key press until grid router initialized")
 

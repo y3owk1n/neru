@@ -21,10 +21,10 @@ func TestValidateColor(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:      "valid 3-digit hex",
+			name:      "3-digit hex is invalid",
 			color:     "#F00",
 			fieldName: "test_color",
-			wantErr:   false,
+			wantErr:   true,
 		},
 		{
 			name:      "valid 8-digit hex with alpha",

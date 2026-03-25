@@ -12,7 +12,7 @@ import (
 
 func TestRouter_RouteKey(t *testing.T) {
 	logger := zap.NewNop()
-	manager := hint.NewManager(logger, nil, "")
+	manager := hint.NewManager(logger, nil)
 	router := hint.NewRouter(manager, logger)
 
 	tests := []struct {
@@ -22,9 +22,9 @@ func TestRouter_RouteKey(t *testing.T) {
 		wantExact bool
 	}{
 		{
-			name:      "escape key exits",
+			name:      "escape key does not exit in router",
 			key:       "escape",
-			wantExit:  true,
+			wantExit:  false,
 			wantExact: false,
 		},
 		{
@@ -62,7 +62,7 @@ func TestRouter_RouteKey(t *testing.T) {
 
 func TestRouter_WithHints(t *testing.T) {
 	logger := zap.NewNop()
-	manager := hint.NewManager(logger, nil, "")
+	manager := hint.NewManager(logger, nil)
 	router := hint.NewRouter(manager, logger)
 
 	// Set up hints in manager with multi-character labels

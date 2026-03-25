@@ -165,9 +165,6 @@ func initializeServices(
 		accAdapter,
 		overlayAdapter,
 		systemPort,
-		cfg.Action,
-		cfg.Action.KeyBindings,
-		cfg.Action.MoveMouseStep,
 		logger,
 	)
 

@@ -11,6 +11,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
+const customHotkeySequenceTimeout = 500 * time.Millisecond
+
 // HandleKeyPress dispatches key events by current mode.
 func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
@@ -41,19 +43,8 @@ func (h *Handler) HandleKeyPress(key string) {
 		key = h.stripStickyModifiersFromKey(key, activeMods)
 	}
 
-	// Resolve exit keys for the current mode (global + per-mode, merged)
-	exitKeys := h.resolveExitKeysForCurrentMode()
-
-	// Check if key matches any configured exit keys (after normalization).
-	// Exit keys ALWAYS take priority over custom hotkeys and mode-specific keys.
-	if config.IsExitKey(key, exitKeys) {
-		h.handleEscapeKey()
-
-		return
-	}
-
 	// Check for per-mode custom hotkeys before mode-specific handling.
-	// Custom hotkeys use the same action syntax as top-level [hotkeys].
+	// Custom hotkeys use the same action syntax as top-level hotkeys.
 	// Try the raw key first (preserves full modifier combos like "Cmd+Shift+G"
 	// even when sticky modifiers are active), then the stripped key.
 	if h.handleCustomHotkey(rawKey) {
@@ -67,23 +58,6 @@ func (h *Handler) HandleKeyPress(key string) {
 	}
 
 	h.handleModeSpecificKey(key)
-}
-
-// resolveExitKeysForCurrentMode returns the effective exit keys for the current mode.
-// It delegates to Config.ResolvedExitKeys to keep a single resolution path for all callers.
-func (h *Handler) resolveExitKeysForCurrentMode() []string {
-	return h.config.ResolvedExitKeys(domain.ModeString(h.appState.CurrentMode()))
-}
-
-// handleEscapeKey handles the escape key to exit the current mode.
-// Caller must hold h.mu.
-func (h *Handler) handleEscapeKey() {
-	_, exists := h.modes[h.appState.CurrentMode()]
-	if !exists {
-		return
-	}
-
-	h.exitModeLocked()
 }
 
 // handleModeSpecificKey handles mode-specific key processing.
@@ -155,48 +129,123 @@ func (h *Handler) handleCustomHotkey(key string) bool {
 	}
 
 	normalizedKey := config.NormalizeKeyForComparison(key)
+
+	// Phase 1: complete pending sequence if available and still valid.
+	if h.customHotkeyLastKey != "" {
+		pending := h.customHotkeyLastKey
+		pendingAt := h.customHotkeyLastKeyTime
+		h.customHotkeyLastKey = ""
+		h.customHotkeyLastKeyTime = 0
+
+		if pendingAt > 0 && time.Since(time.Unix(0, pendingAt)) <= customHotkeySequenceTimeout {
+			if bindKey, actions, ok := findCustomHotkeyMatch(
+				customHotkeys,
+				pending+normalizedKey,
+			); ok {
+				h.dispatchCustomHotkeyActions(currentModeName, bindKey, key, actions)
+
+				return true
+			}
+		}
+
+		if bindKey, actions, ok := findCustomHotkeyMatch(customHotkeys, pending); ok {
+			h.dispatchCustomHotkeyActions(currentModeName, bindKey, key, actions)
+		}
+	}
+
+	// Phase 2: direct single-key match.
+	if bindKey, actions, ok := findCustomHotkeyMatch(customHotkeys, normalizedKey); ok {
+		h.dispatchCustomHotkeyActions(currentModeName, bindKey, key, actions)
+
+		return true
+	}
+
+	// Phase 3: start a new sequence for two-letter bindings.
+	if isCustomHotkeySequenceStart(customHotkeys, normalizedKey) {
+		h.customHotkeyLastKey = normalizedKey
+		h.customHotkeyLastKeyTime = time.Now().UnixNano()
+
+		return true
+	}
+
+	return false
+}
+
+func findCustomHotkeyMatch(
+	customHotkeys map[string]config.StringOrStringArray,
+	normalizedKey string,
+) (string, []string, bool) {
 	for bindKey, actions := range customHotkeys {
 		if config.NormalizeKeyForComparison(bindKey) == normalizedKey {
-			h.logger.Info("Custom hotkey matched",
-				zap.String("mode", currentModeName),
-				zap.String("key", key),
-				zap.Strings("actions", actions))
+			return bindKey, actions, true
+		}
+	}
 
-			// Execute in a goroutine so the event tap callback returns quickly.
-			// This also avoids a deadlock: executeHotkeyAction may call
-			// ipcController.HandleCommand → ActivateModeWithOptions which
-			// acquires h.mu, but we already hold it.
-			capturedKey := bindKey
-			capturedActions := actions
+	return "", nil, false
+}
 
-			go func() {
-				defer func() {
-					if r := recover(); r != nil {
-						h.logger.Error("panic in custom hotkey handler",
-							zap.Any("recover", r),
-							zap.String("key", capturedKey))
-					}
-				}()
+func isCustomHotkeySequenceStart(
+	customHotkeys map[string]config.StringOrStringArray,
+	normalizedKey string,
+) bool {
+	if len(normalizedKey) != 1 {
+		return false
+	}
 
-				for _, actionStr := range capturedActions {
-					trimmedAction := strings.TrimSpace(actionStr)
-					if trimmedAction == "" {
-						continue
-					}
-
-					err := h.executeHotkeyAction(capturedKey, trimmedAction)
-					if err != nil {
-						h.logger.Error("Custom hotkey action failed",
-							zap.String("key", capturedKey),
-							zap.String("action", trimmedAction),
-							zap.Error(err))
-					}
-				}
-			}()
-
+	for bindKey := range customHotkeys {
+		normalizedBindKey := config.NormalizeKeyForComparison(bindKey)
+		if len(normalizedBindKey) == 2 &&
+			config.IsAllLetters(normalizedBindKey) &&
+			strings.HasPrefix(normalizedBindKey, normalizedKey) {
 			return true
 		}
 	}
 
 	return false
+}
+
+func (h *Handler) dispatchCustomHotkeyActions(
+	modeName string,
+	bindKey string,
+	rawKey string,
+	actions []string,
+) {
+	h.logger.Info("Custom hotkey matched",
+		zap.String("mode", modeName),
+		zap.String("bindKey", bindKey),
+		zap.String("key", rawKey),
+		zap.Strings("actions", actions))
+
+	// Execute in a goroutine so the event tap callback returns quickly.
+	// This also avoids a deadlock: executeHotkeyAction may call
+	// ipcController.HandleCommand -> ActivateModeWithOptions which
+	// acquires h.mu, but we already hold it.
+	capturedKey := bindKey
+
+	capturedActions := append([]string(nil), actions...)
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				h.logger.Error("panic in custom hotkey handler",
+					zap.Any("recover", r),
+					zap.String("key", capturedKey))
+			}
+		}()
+
+		for _, actionStr := range capturedActions {
+			trimmedAction := strings.TrimSpace(actionStr)
+			if trimmedAction == "" {
+				continue
+			}
+
+			err := h.executeHotkeyAction(capturedKey, trimmedAction)
+			if err != nil {
+				h.logger.Error("Custom hotkey action failed",
+					zap.String("key", capturedKey),
+					zap.String("action", trimmedAction),
+					zap.Error(err))
+			}
+		}
+	}()
 }

@@ -110,6 +110,9 @@ func (h *Handler) performCommonCleanup() {
 		h.refreshHintsTimer = nil
 	}
 
+	h.customHotkeyLastKey = ""
+	h.customHotkeyLastKeyTime = 0
+
 	if h.disableEventTap != nil {
 		h.disableEventTap()
 	}

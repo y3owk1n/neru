@@ -69,7 +69,7 @@ func (h *Handler) activateHintModeWithAction(action *string, repeat bool) {
 // The unparam linter is suppressed because while all current calls pass false, removing this parameter
 // would be a breaking change if future callers need the preserve behavior.
 //
-//nolint:unparam
+
 func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *string) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := !preserveActionMode && h.appState.CurrentMode() == domain.ModeHints
@@ -212,7 +212,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 	// Note: Manager is created once and reused across activations (holds mutable state).
 	// Router is recreated each activation (stateless, needs fresh exit keys from config).
 	if h.hints.Context.Manager() == nil {
-		manager := domainHint.NewManager(h.logger, &h.mu, h.config.Hints.BackspaceKey)
+		manager := domainHint.NewManager(h.logger, &h.mu)
 		// Set callback to update overlay when hints are filtered
 		manager.SetUpdateCallback(func(filteredHints []*domainHint.Interface) {
 			// Caller must hold h.mu. Synchronous call sites (SetHints, Reset,
@@ -248,11 +248,7 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 		h.hints.Context.SetManager(manager)
 	}
 
-	exitKeys := h.config.ResolvedExitKeys("hints")
-
-	h.hints.Context.SetRouter(
-		domainHint.NewRouterWithExitKeys(h.hints.Context.Manager(), h.logger, exitKeys),
-	)
+	h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
 
 	h.hints.Context.SetHints(hintCollection)
 

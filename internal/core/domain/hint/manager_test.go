@@ -19,7 +19,7 @@ func TestManager_Filtering(t *testing.T) {
 	h3, _ := hint.NewHint("AC", element, image.Point{0, 0})
 
 	collection := hint.NewCollection([]*hint.Interface{h1, h2, h3})
-	manager := hint.NewManager(logger.Get(), nil, "")
+	manager := hint.NewManager(logger.Get(), nil)
 	manager.SetHints(collection)
 
 	tests := []struct {
@@ -74,7 +74,7 @@ func TestManager_Backspace(t *testing.T) {
 	element, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
 	h1, _ := hint.NewHint("AA", element, image.Point{0, 0})
 	collection := hint.NewCollection([]*hint.Interface{h1})
-	manager := hint.NewManager(logger.Get(), nil, "")
+	manager := hint.NewManager(logger.Get(), nil)
 	manager.SetHints(collection)
 
 	// Type 'A'
@@ -100,7 +100,7 @@ func TestHintManager_RouterIntegration(t *testing.T) {
 	logger := logger.Get()
 
 	// Create hint manager
-	hintManager := hint.NewManager(logger, nil, "")
+	hintManager := hint.NewManager(logger, nil)
 
 	// Create hint router
 	hintRouter := hint.NewRouter(hintManager, logger)
@@ -130,11 +130,10 @@ func TestHintManager_RouterIntegration(t *testing.T) {
 	hintManager.SetHints(hints)
 
 	t.Run("Hint manager and router integration", func(t *testing.T) {
-		// Test that manager and router can work together
-		// Test escape - should exit
+		// Router no longer handles mode exit keys.
 		result := hintRouter.RouteKey("escape")
-		if !result.Exit() {
-			t.Error("Expected to exit on escape")
+		if result.Exit() {
+			t.Error("Expected no exit on escape in hint router")
 		}
 	})
 
@@ -182,7 +181,7 @@ func TestManager_ImmediateUpdatePanicsWithoutExternalMu(t *testing.T) {
 	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
 	h2, _ := hint.NewHint("AB", elem, image.Point{0, 0})
 	collection := hint.NewCollection([]*hint.Interface{h1, h2})
-	manager := hint.NewManager(logger.Get(), &mut, "")
+	manager := hint.NewManager(logger.Get(), &mut)
 	manager.SetUpdateCallback(func(_ []*hint.Interface) {})
 	// SetHints must be called while holding externalMu (mirrors production).
 	mut.Lock()
@@ -209,7 +208,7 @@ func TestManager_SetHintsPanicsWithoutExternalMu(t *testing.T) {
 	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
 	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
 	collection := hint.NewCollection([]*hint.Interface{h1})
-	manager := hint.NewManager(logger.Get(), &mut, "")
+	manager := hint.NewManager(logger.Get(), &mut)
 	manager.SetUpdateCallback(func(_ []*hint.Interface) {})
 
 	defer func() {
@@ -230,7 +229,7 @@ func TestManager_ResetPanicsWithoutExternalMu(t *testing.T) {
 	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
 	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
 	collection := hint.NewCollection([]*hint.Interface{h1})
-	manager := hint.NewManager(logger.Get(), &mut, "")
+	manager := hint.NewManager(logger.Get(), &mut)
 	manager.SetUpdateCallback(func(_ []*hint.Interface) {})
 	// SetHints must be called while holding externalMu.
 	mut.Lock()
@@ -256,7 +255,7 @@ func TestManager_ImmediateUpdateSucceedsWithExternalMu(t *testing.T) {
 	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
 	h2, _ := hint.NewHint("AB", elem, image.Point{0, 0})
 	collection := hint.NewCollection([]*hint.Interface{h1, h2})
-	manager := hint.NewManager(logger.Get(), &mut, "")
+	manager := hint.NewManager(logger.Get(), &mut)
 
 	var callbackCalled bool
 	manager.SetUpdateCallback(func(_ []*hint.Interface) {
@@ -285,7 +284,7 @@ func TestManager_NoMatchRepeatedUsesImmediateUpdate(t *testing.T) {
 	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
 	h2, _ := hint.NewHint("AB", elem, image.Point{0, 0})
 	collection := hint.NewCollection([]*hint.Interface{h1, h2})
-	manager := hint.NewManager(logger.Get(), &mut, "")
+	manager := hint.NewManager(logger.Get(), &mut)
 	callCount := 0
 	manager.SetUpdateCallback(func(_ []*hint.Interface) {
 		callCount++
@@ -311,7 +310,7 @@ func TestManager_NoMatchRepeatedUsesImmediateUpdate(t *testing.T) {
 
 func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 	logger := logger.Get()
-	hintManager := hint.NewManager(logger, nil, "")
+	hintManager := hint.NewManager(logger, nil)
 
 	// Create test elements
 	elem1, _ := element.NewElement("elem1", image.Rect(10, 10, 50, 50), element.RoleButton)

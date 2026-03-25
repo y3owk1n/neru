@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
@@ -16,6 +17,7 @@ import (
 type IPCControllerActions struct {
 	actionService *services.ActionService
 	scrollService *services.ScrollService
+	modesHandler  *modes.Handler
 	logger        *zap.Logger
 }
 
@@ -23,11 +25,13 @@ type IPCControllerActions struct {
 func NewIPCControllerActions(
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
+	modesHandler *modes.Handler,
 	logger *zap.Logger,
 ) *IPCControllerActions {
 	return &IPCControllerActions{
 		actionService: actionService,
 		scrollService: scrollService,
+		modesHandler:  modesHandler,
 		logger:        logger,
 	}
 }
@@ -202,6 +206,14 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	// These only require scrollService, so dispatch before the actionService nil check.
 	if action.IsScrollSubAction(actionName) {
 		return h.handleScrollAction(ctx, actionName, parsed)
+	}
+
+	if action.IsResetAction(actionName) {
+		return h.handleResetAction()
+	}
+
+	if action.IsBackspaceAction(actionName) {
+		return h.handleBackspaceAction()
 	}
 
 	if h.actionService == nil {
@@ -427,6 +439,34 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		Message: actionName + " performed",
 		Code:    ipc.CodeOK,
 	}
+}
+
+func (h *IPCControllerActions) handleResetAction() ipc.Response {
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: "modes handler not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	h.modesHandler.ResetCurrentMode()
+
+	return ipc.Response{Success: true, Message: "mode reset", Code: ipc.CodeOK}
+}
+
+func (h *IPCControllerActions) handleBackspaceAction() ipc.Response {
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: "modes handler not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	h.modesHandler.BackspaceCurrentMode()
+
+	return ipc.Response{Success: true, Message: "mode backspace", Code: ipc.CodeOK}
 }
 
 // handleScrollAction dispatches a scroll sub-action (scroll_up, page_down, etc.)

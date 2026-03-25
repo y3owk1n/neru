@@ -12,39 +12,37 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 )
 
-func TestModeModifierKeys_HintsIncludesExitAndActionBindings(t *testing.T) {
+func TestModeModifierKeys_HintsIncludesModifierCustomHotkeys(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.General.ModeExitKeys = []string{"Escape", "Ctrl+C"}
-	cfg.Action.KeyBindings.LeftClick = "Cmd+L"
-	cfg.Action.KeyBindings.MoveMouseUp = "Alt+K"
-	cfg.Hints.BackspaceKey = "Ctrl+H"
+	cfg.Hints.CustomHotkeys = map[string]config.StringOrStringArray{
+		"Cmd+L": {"action left_click"},
+		"Alt+K": {"action move_mouse_relative --dx=0 --dy=-10"},
+		"k":     {"action scroll_up"},
+	}
 
 	handler := &Handler{config: cfg}
 
 	got := handler.modeModifierKeys(domain.ModeHints)
-	want := []string{"Alt+K", "Cmd+L", "Ctrl+C", "Ctrl+H"}
+	want := []string{"Alt+K", "Cmd+L"}
 
 	if !slices.Equal(got, want) {
 		t.Fatalf("modeModifierKeys(ModeHints) = %v, want %v", got, want)
 	}
 }
 
-func TestModeModifierKeys_ScrollIncludesOnlyModifierBindings(t *testing.T) {
+func TestModeModifierKeys_ScrollIncludesOnlyModifierCustomHotkeys(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.General.ModeExitKeys = []string{"Escape", "Ctrl+C"}
-	cfg.Scroll.KeyBindings = map[string][]string{
-		"scroll_up":   {"k", "Up"},
-		"go_top":      {"gg", "Cmd+Up"},
-		"go_bottom":   {"Shift+G", "Cmd+Down"},
-		"page_up":     {"u", "PageUp"},
-		"page_down":   {"d", "PageDown"},
-		"scroll_left": {"h"},
+	cfg.Scroll.CustomHotkeys = map[string]config.StringOrStringArray{
+		"k":        {"action scroll_up"},
+		"Cmd+Up":   {"action go_top"},
+		"Cmd+Down": {"action go_bottom"},
+		"gg":       {"action go_top"},
 	}
 
 	handler := &Handler{config: cfg}
 
 	got := handler.modeModifierKeys(domain.ModeScroll)
-	want := []string{"Cmd+Down", "Cmd+Up", "Ctrl+C"}
+	want := []string{"Cmd+Down", "Cmd+Up"}
 
 	if !slices.Equal(got, want) {
 		t.Fatalf("modeModifierKeys(ModeScroll) = %v, want %v", got, want)

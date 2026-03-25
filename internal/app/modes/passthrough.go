@@ -92,39 +92,6 @@ func (h *Handler) modeModifierKeys(mode domain.Mode) []string {
 		keys = append(keys, trimmed)
 	}
 
-	appendKeys := func(values []string) {
-		for _, value := range values {
-			appendKey(value)
-		}
-	}
-
-	appendKeys(h.config.General.ModeExitKeys)
-
-	switch mode {
-	case domain.ModeIdle:
-	case domain.ModeHints:
-		appendKeys(h.config.Hints.ModeExitKeys)
-		appendActionModifierKeys(h.config.Action.KeyBindings, appendKey)
-		appendKey(h.config.Hints.BackspaceKey)
-	case domain.ModeGrid:
-		appendKeys(h.config.Grid.ModeExitKeys)
-		appendActionModifierKeys(h.config.Action.KeyBindings, appendKey)
-		appendKey(h.config.Grid.ResetKey)
-		appendKey(h.config.Grid.BackspaceKey)
-	case domain.ModeRecursiveGrid:
-		appendKeys(h.config.RecursiveGrid.ModeExitKeys)
-		appendActionModifierKeys(h.config.Action.KeyBindings, appendKey)
-		appendKey(h.config.RecursiveGrid.ResetKey)
-		appendKey(h.config.RecursiveGrid.BackspaceKey)
-	case domain.ModeScroll:
-		appendKeys(h.config.Scroll.ModeExitKeys)
-		appendActionModifierKeys(h.config.Action.KeyBindings, appendKey)
-
-		for _, bindings := range h.config.Scroll.KeyBindings {
-			appendKeys(bindings)
-		}
-	}
-
 	// Append custom hotkey keys for the current mode so the event tap
 	// intercepts them instead of passing them through to macOS.
 	customHotkeys := h.config.CustomHotkeysForMode(domain.ModeString(mode))
@@ -135,18 +102,6 @@ func (h *Handler) modeModifierKeys(mode domain.Mode) []string {
 	slices.Sort(keys)
 
 	return keys
-}
-
-func appendActionModifierKeys(bindings configpkg.ActionKeyBindingsCfg, appendKey func(string)) {
-	appendKey(bindings.LeftClick)
-	appendKey(bindings.RightClick)
-	appendKey(bindings.MiddleClick)
-	appendKey(bindings.MouseDown)
-	appendKey(bindings.MouseUp)
-	appendKey(bindings.MoveMouseUp)
-	appendKey(bindings.MoveMouseDown)
-	appendKey(bindings.MoveMouseLeft)
-	appendKey(bindings.MoveMouseRight)
 }
 
 // handlePassthrough is called when a modifier shortcut was passed through to

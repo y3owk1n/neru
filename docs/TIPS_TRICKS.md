@@ -27,16 +27,13 @@ Hints mode that clicks automatically when you finish typing a label — similar 
 
 ## Homerow Action Clicks
 
-Homerow-style `Return` to click actions:
+Homerow-style `Return` click actions via mode `custom_hotkeys`:
 
 ```toml
-[action]
-move_mouse_step = 10
-
-[action.key_bindings]
-left_click = "Enter" # press twice quickly for double-click, three times for triple-click
-right_click = "Shift+Enter"
-middle_click = "Cmd+Enter"
+[hints.custom_hotkeys]
+"Enter" = "action left_click" # press twice quickly for double-click, three times for triple-click
+"Shift+Enter" = "action right_click"
+"Cmd+Enter" = "action middle_click"
 ```
 
 ## Checking the Accessibility Tree on macOS

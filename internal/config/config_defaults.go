@@ -42,9 +42,6 @@ const (
 	// DefaultScrollIndicatorYOffset is the default Y offset for scroll indicator.
 	DefaultScrollIndicatorYOffset = 20
 
-	// DefaultScrollSequenceTimeout is the timeout for multi-key sequences.
-	DefaultScrollSequenceTimeout = 500 * time.Millisecond
-
 	// DefaultMaxFileSize is the default max file size for logs (10MB).
 	DefaultMaxFileSize = 10
 	// DefaultMaxBackups is the default max backups for logs.
@@ -60,9 +57,6 @@ const (
 
 	// DefaultSmoothCursorDurationPerPixel is the default ms per pixel for adaptive duration.
 	DefaultSmoothCursorDurationPerPixel = 0.1
-
-	// DefaultMoveMouseStep is the default step size for keyboard-driven mouse movement.
-	DefaultMoveMouseStep = 10
 
 	// DefaultIPCTimeout is the default IPC timeout.
 	DefaultIPCTimeout = 5
@@ -328,7 +322,6 @@ func commonDefaultConfig() *Config {
 			AccessibilityCheckOnStart:         true,
 			RestoreCursorPosition:             false,
 			CenterCursorPosition:              false,
-			ModeExitKeys:                      []string{"Escape"},
 			PassthroughUnboundedKeys:          false,
 			ShouldExitAfterPassthrough:        false,
 			PassthroughUnboundedKeysBlacklist: []string{},
@@ -346,10 +339,22 @@ func commonDefaultConfig() *Config {
 		Hints: HintsConfig{
 			Enabled:                 true,
 			HintCharacters:          "asdfghjkl",
-			BackspaceKey:            "Backspace",
 			MouseActionRefreshDelay: DefaultMouseActionRefreshDelay,
 			MaxDepth:                DefaultMaxDepth,
 			ParallelThreshold:       DefaultParallelThreshold,
+			CustomHotkeys: map[string]StringOrStringArray{
+				"Escape":    {"idle"},
+				"Backspace": {"action backspace"},
+				"Shift+L":   {"action left_click"},
+				"Shift+R":   {"action right_click"},
+				"Shift+M":   {"action middle_click"},
+				"Shift+I":   {"action mouse_down"},
+				"Shift+U":   {"action mouse_up"},
+				"Up":        {"action move_mouse_relative --dx=0 --dy=-10"},
+				"Down":      {"action move_mouse_relative --dx=0 --dy=10"},
+				"Left":      {"action move_mouse_relative --dx=-10 --dy=0"},
+				"Right":     {"action move_mouse_relative --dx=10 --dy=0"},
+			},
 
 			UI: HintsUI{
 				FontSize:              DefaultHintFontSize,
@@ -393,7 +398,19 @@ func commonDefaultConfig() *Config {
 
 			Characters:   "abcdefghijklmnpqrstuvwxyz",
 			SublayerKeys: "abcdefghijklmnpqrstuvwxyz",
-			BackspaceKey: "Backspace",
+			CustomHotkeys: map[string]StringOrStringArray{
+				"Escape":    {"idle"},
+				"Backspace": {"action backspace"},
+				"Shift+L":   {"action left_click"},
+				"Shift+R":   {"action right_click"},
+				"Shift+M":   {"action middle_click"},
+				"Shift+I":   {"action mouse_down"},
+				"Shift+U":   {"action mouse_up"},
+				"Up":        {"action move_mouse_relative --dx=0 --dy=-10"},
+				"Down":      {"action move_mouse_relative --dx=0 --dy=10"},
+				"Left":      {"action move_mouse_relative --dx=-10 --dy=0"},
+				"Right":     {"action move_mouse_relative --dx=10 --dy=0"},
+			},
 
 			UI: GridUI{
 				FontSize:                    DefaultGridFontSize,
@@ -417,15 +434,26 @@ func commonDefaultConfig() *Config {
 			HideUnmatched:   true,
 			PrewarmEnabled:  true,
 			EnableGC:        false,
-			ResetKey:        " ",
 		},
 		RecursiveGrid: RecursiveGridConfig{
 			Enabled:  true,
 			GridCols: 2, //nolint:mnd
 			GridRows: 2, //nolint:mnd
 
-			Keys:         "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
-			BackspaceKey: "Backspace",
+			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
+			CustomHotkeys: map[string]StringOrStringArray{
+				"Escape":    {"idle"},
+				"Backspace": {"action backspace"},
+				"Shift+L":   {"action left_click"},
+				"Shift+R":   {"action right_click"},
+				"Shift+M":   {"action middle_click"},
+				"Shift+I":   {"action mouse_down"},
+				"Shift+U":   {"action mouse_up"},
+				"Up":        {"action move_mouse_relative --dx=0 --dy=-10"},
+				"Down":      {"action move_mouse_relative --dx=0 --dy=10"},
+				"Left":      {"action move_mouse_relative --dx=-10 --dy=0"},
+				"Right":     {"action move_mouse_relative --dx=10 --dy=0"},
+			},
 
 			UI: RecursiveGridUI{
 				LineColorLight:                  RecursiveGridLineColorLight,
@@ -454,7 +482,6 @@ func commonDefaultConfig() *Config {
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
 			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
 			MaxDepth:      DefaultRecursiveGridMaxDepth,
-			ResetKey:      " ",
 		},
 		ModeIndicator: ModeIndicatorConfig{
 			Scroll: ModeIndicatorModeConfig{
@@ -515,30 +542,27 @@ func commonDefaultConfig() *Config {
 			ScrollStep:     DefaultScrollStep,
 			ScrollStepHalf: DefaultScrollStepHalf,
 			ScrollStepFull: DefaultScrollStepFull,
-
-			KeyBindings: map[string][]string{
-				"scroll_up":    {"k"},
-				"scroll_down":  {"j"},
-				"scroll_left":  {"h"},
-				"scroll_right": {"l"},
-				"go_top":       {"gg"},
-				"go_bottom":    {"Shift+G"},
-				"page_up":      {"u", "PageUp"},
-				"page_down":    {"d", "PageDown"},
-			},
-		},
-		Action: ActionConfig{
-			MoveMouseStep: DefaultMoveMouseStep,
-			KeyBindings: ActionKeyBindingsCfg{
-				LeftClick:      "Shift+L",
-				RightClick:     "Shift+R",
-				MiddleClick:    "Shift+M",
-				MouseDown:      "Shift+I",
-				MouseUp:        "Shift+U",
-				MoveMouseUp:    "Up",
-				MoveMouseDown:  "Down",
-				MoveMouseLeft:  "Left",
-				MoveMouseRight: "Right",
+			CustomHotkeys: map[string]StringOrStringArray{
+				"Escape":   {"idle"},
+				"k":        {"action scroll_up"},
+				"j":        {"action scroll_down"},
+				"h":        {"action scroll_left"},
+				"l":        {"action scroll_right"},
+				"gg":       {"action go_top"},
+				"Shift+G":  {"action go_bottom"},
+				"u":        {"action page_up"},
+				"PageUp":   {"action page_up"},
+				"d":        {"action page_down"},
+				"PageDown": {"action page_down"},
+				"Shift+L":  {"action left_click"},
+				"Shift+R":  {"action right_click"},
+				"Shift+M":  {"action middle_click"},
+				"Shift+I":  {"action mouse_down"},
+				"Shift+U":  {"action mouse_up"},
+				"Up":       {"action move_mouse_relative --dx=0 --dy=-10"},
+				"Down":     {"action move_mouse_relative --dx=0 --dy=10"},
+				"Left":     {"action move_mouse_relative --dx=-10 --dy=0"},
+				"Right":    {"action move_mouse_relative --dx=10 --dy=0"},
 			},
 		},
 		Logging: LoggingConfig{

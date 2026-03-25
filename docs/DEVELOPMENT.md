@@ -730,7 +730,7 @@ Example of dependency injection in action:
 // In internal/app/initialization.go
 hintService := services.NewHintService(accAdapter, overlayAdapter, systemPort, hintGen, cfg.Hints, logger)
 gridService := services.NewGridService(overlayAdapter, systemPort, logger)
-actionService := services.NewActionService(accAdapter, overlayAdapter, systemPort, cfg.Action, cfg.Action.KeyBindings, cfg.Action.MoveMouseStep, logger)
+actionService := services.NewActionService(accAdapter, overlayAdapter, systemPort, logger)
 ```
 
 ---

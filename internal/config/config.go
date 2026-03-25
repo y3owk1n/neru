@@ -55,7 +55,7 @@ const (
 	RoleDockItem    = "AXDockItem"
 )
 
-// Mode name constants used in config lookups (ResolvedExitKeys, CustomHotkeysForMode, validation).
+// Mode name constants used in config lookups (CustomHotkeysForMode, validation).
 // These mirror domain.ModeName* but are defined here to avoid a circular import.
 const (
 	modeNameHints         = "hints"
@@ -311,68 +311,6 @@ func normalizeFullwidthChars(key string) string {
 	}, key)
 }
 
-// IsExitKey checks if a key matches any configured exit key (with normalization).
-// This handles comparison between escape sequences (e.g. "\x1b") and key names (e.g. "escape").
-func IsExitKey(key string, exitKeys []string) bool {
-	if len(exitKeys) == 0 {
-		return false
-	}
-
-	normalizedKey := NormalizeKeyForComparison(key)
-	for _, exitKey := range exitKeys {
-		if normalizedKey == NormalizeKeyForComparison(exitKey) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// IsResetKey checks if a key matches the configured reset key (with normalization).
-// This handles comparison between single characters and modifier combos with case-insensitive matching.
-func IsResetKey(key, resetKey string) bool {
-	if resetKey == "" {
-		return false
-	}
-
-	return NormalizeKeyForComparison(key) == NormalizeKeyForComparison(resetKey)
-}
-
-// IsBackspaceKey checks if a key is a backspace/delete key.
-// This normalizes all variations: "\x7f", "delete", "backspace", "Delete", "Backspace", etc.
-func IsBackspaceKey(key string) bool {
-	return NormalizeKeyForComparison(key) == KeyNameDelete
-}
-
-// IsConfiguredBackspaceKey checks if a key matches the configured backspace key.
-// If configuredKey is empty, it falls back to the default backspace/delete check.
-func IsConfiguredBackspaceKey(key, configuredKey string) bool {
-	if configuredKey == "" {
-		return IsBackspaceKey(key)
-	}
-
-	return NormalizeKeyForComparison(key) == NormalizeKeyForComparison(configuredKey)
-}
-
-// ActionConfig defines the visual and behavioral settings for action mode.
-type ActionConfig struct {
-	KeyBindings   ActionKeyBindingsCfg `json:"keyBindings"   toml:"key_bindings"`
-	MoveMouseStep int                  `json:"moveMouseStep" toml:"move_mouse_step"`
-}
-
-// ActionKeyBindingsCfg defines direct action keybindings for use in hints/grid/scroll mode.
-type ActionKeyBindingsCfg struct {
-	LeftClick      string `json:"leftClick"      toml:"left_click"`
-	RightClick     string `json:"rightClick"     toml:"right_click"`
-	MiddleClick    string `json:"middleClick"    toml:"middle_click"`
-	MouseDown      string `json:"mouseDown"      toml:"mouse_down"`
-	MouseUp        string `json:"mouseUp"        toml:"mouse_up"`
-	MoveMouseUp    string `json:"moveMouseUp"    toml:"move_mouse_up"`
-	MoveMouseDown  string `json:"moveMouseDown"  toml:"move_mouse_down"`
-	MoveMouseLeft  string `json:"moveMouseLeft"  toml:"move_mouse_left"`
-	MoveMouseRight string `json:"moveMouseRight" toml:"move_mouse_right"`
-}
-
 // Config represents the complete application configuration structure.
 type Config struct {
 	General         GeneralConfig         `json:"general"         toml:"general"`
@@ -381,7 +319,6 @@ type Config struct {
 	Grid            GridConfig            `json:"grid"            toml:"grid"`
 	RecursiveGrid   RecursiveGridConfig   `json:"recursiveGrid"   toml:"recursive_grid"`
 	Scroll          ScrollConfig          `json:"scroll"          toml:"scroll"`
-	Action          ActionConfig          `json:"action"          toml:"action"`
 	ModeIndicator   ModeIndicatorConfig   `json:"modeIndicator"   toml:"mode_indicator"`
 	StickyModifiers StickyModifiersConfig `json:"stickyModifiers" toml:"sticky_modifiers"`
 	Logging         LoggingConfig         `json:"logging"         toml:"logging"`
@@ -395,7 +332,6 @@ type GeneralConfig struct {
 	AccessibilityCheckOnStart         bool     `json:"accessibilityCheckOnStart"         toml:"accessibility_check_on_start"`
 	RestoreCursorPosition             bool     `json:"restoreCursorPosition"             toml:"restore_cursor_position"`
 	CenterCursorPosition              bool     `json:"centerCursorPosition"              toml:"center_cursor_position"`
-	ModeExitKeys                      []string `json:"modeExitKeys"                      toml:"mode_exit_keys"`
 	PassthroughUnboundedKeys          bool     `json:"passthroughUnboundedKeys"          toml:"passthrough_unbounded_keys"`
 	ShouldExitAfterPassthrough        bool     `json:"shouldExitAfterPassthrough"        toml:"should_exit_after_passthrough"`
 	PassthroughUnboundedKeysBlacklist []string `json:"passthroughUnboundedKeysBlacklist" toml:"passthrough_unbounded_keys_blacklist"`
@@ -496,13 +432,9 @@ type HotkeysConfig struct {
 
 // ScrollConfig defines the behavior and appearance settings for scroll mode.
 type ScrollConfig struct {
-	ScrollStep      int      `json:"scrollStep"      toml:"scroll_step"`
-	ScrollStepHalf  int      `json:"scrollStepHalf"  toml:"scroll_step_half"`
-	ScrollStepFull  int      `json:"scrollStepFull"  toml:"scroll_step_full"`
-	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
-	ModeExitKeys    []string `json:"modeExitKeys"    toml:"mode_exit_keys"`
-
-	KeyBindings map[string][]string `json:"keyBindings" toml:"key_bindings"`
+	ScrollStep     int `json:"scrollStep"     toml:"scroll_step"`
+	ScrollStepHalf int `json:"scrollStepHalf" toml:"scroll_step_half"`
+	ScrollStepFull int `json:"scrollStepFull" toml:"scroll_step_full"`
 
 	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"-"`
 }
@@ -527,15 +459,12 @@ type HintsUI struct {
 
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
-	Enabled                 bool     `json:"enabled"                 toml:"enabled"`
-	AutoExitActions         []string `json:"autoExitActions"         toml:"auto_exit_actions"`
-	ModeExitKeys            []string `json:"modeExitKeys"            toml:"mode_exit_keys"`
-	HintCharacters          string   `json:"hintCharacters"          toml:"hint_characters"`
-	BackspaceKey            string   `json:"backspaceKey"            toml:"backspace_key"`
-	MouseActionRefreshDelay int      `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
-	MaxDepth                int      `json:"maxDepth"                toml:"max_depth"`
-	ParallelThreshold       int      `json:"parallelThreshold"       toml:"parallel_threshold"`
-	UI                      HintsUI  `json:"ui"                      toml:"ui"`
+	Enabled                 bool    `json:"enabled"                 toml:"enabled"`
+	HintCharacters          string  `json:"hintCharacters"          toml:"hint_characters"`
+	MouseActionRefreshDelay int     `json:"mouseActionRefreshDelay" toml:"mouse_action_refresh_delay"`
+	MaxDepth                int     `json:"maxDepth"                toml:"max_depth"`
+	ParallelThreshold       int     `json:"parallelThreshold"       toml:"parallel_threshold"`
+	UI                      HintsUI `json:"ui"                      toml:"ui"`
 
 	IncludeMenubarHints           bool     `json:"includeMenubarHints"           toml:"include_menubar_hints"`
 	AdditionalMenubarHintsTargets []string `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`
@@ -576,12 +505,9 @@ type GridUI struct {
 
 // GridConfig defines the visual and behavioral settings for grid mode.
 type GridConfig struct {
-	Enabled         bool     `json:"enabled"         toml:"enabled"`
-	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
-	ModeExitKeys    []string `json:"modeExitKeys"    toml:"mode_exit_keys"`
-	Characters      string   `json:"characters"      toml:"characters"`
-	SublayerKeys    string   `json:"sublayerKeys"    toml:"sublayer_keys"`
-	BackspaceKey    string   `json:"backspaceKey"    toml:"backspace_key"`
+	Enabled      bool   `json:"enabled"      toml:"enabled"`
+	Characters   string `json:"characters"   toml:"characters"`
+	SublayerKeys string `json:"sublayerKeys" toml:"sublayer_keys"`
 	// Optional custom labels for rows and columns
 	// If not provided, labels will be inferred from characters
 	RowLabels       string `json:"rowLabels"       toml:"row_labels"`
@@ -591,7 +517,6 @@ type GridConfig struct {
 	HideUnmatched   bool   `json:"hideUnmatched"   toml:"hide_unmatched"`
 	PrewarmEnabled  bool   `json:"prewarmEnabled"  toml:"prewarm_enabled"`
 	EnableGC        bool   `json:"enableGc"        toml:"enable_gc"`
-	ResetKey        string `json:"resetKey"        toml:"reset_key"`
 
 	CustomHotkeys map[string]StringOrStringArray `json:"customHotkeys" toml:"-"`
 }
@@ -634,21 +559,17 @@ type RecursiveGridLayerConfig struct {
 
 // RecursiveGridConfig defines the visual and behavioral settings for recursive-grid mode.
 type RecursiveGridConfig struct {
-	Enabled         bool     `json:"enabled"         toml:"enabled"`
-	AutoExitActions []string `json:"autoExitActions" toml:"auto_exit_actions"`
-	ModeExitKeys    []string `json:"modeExitKeys"    toml:"mode_exit_keys"`
+	Enabled bool `json:"enabled" toml:"enabled"`
 	// Grid dimensions: columns and rows (default: 2x2)
 	GridCols int `json:"gridCols" toml:"grid_cols"`
 	GridRows int `json:"gridRows" toml:"grid_rows"`
 	// Key bindings (warpd convention for 2x2: u=TL, i=TR, j=BL, k=BR)
-	Keys         string          `json:"keys"         toml:"keys"`
-	BackspaceKey string          `json:"backspaceKey" toml:"backspace_key"`
-	UI           RecursiveGridUI `json:"ui"           toml:"ui"`
+	Keys string          `json:"keys" toml:"keys"`
+	UI   RecursiveGridUI `json:"ui"   toml:"ui"`
 	// Behavior
-	MinSizeWidth  int    `json:"minSizeWidth"  toml:"min_size_width"`  // Default: 25
-	MinSizeHeight int    `json:"minSizeHeight" toml:"min_size_height"` // Default: 25
-	MaxDepth      int    `json:"maxDepth"      toml:"max_depth"`       // Default: 10
-	ResetKey      string `json:"resetKey"      toml:"reset_key"`
+	MinSizeWidth  int `json:"minSizeWidth"  toml:"min_size_width"`  // Default: 25
+	MinSizeHeight int `json:"minSizeHeight" toml:"min_size_height"` // Default: 25
+	MaxDepth      int `json:"maxDepth"      toml:"max_depth"`       // Default: 10
 	// Per-depth overrides for grid dimensions and keys.
 	// Depths not listed here use the top-level GridCols/GridRows/Keys.
 	Layers []RecursiveGridLayerConfig `json:"layers" toml:"layers"`
@@ -743,12 +664,6 @@ func (c *Config) Validate() error {
 		return err
 	}
 
-	// Validate mode exit keys
-	err = c.ValidateModeExitKeys()
-	if err != nil {
-		return err
-	}
-
 	// Validate hints configuration
 	err = c.ValidateHints()
 	if err != nil {
@@ -779,44 +694,6 @@ func (c *Config) Validate() error {
 
 	// Validate recursive-grid settings
 	err = c.ValidateRecursiveGrid()
-	if err != nil {
-		return err
-	}
-
-	// Validate action settings
-	err = c.ValidateAction()
-	if err != nil {
-		return err
-	}
-
-	// Validate backspace keys don't conflict with action key bindings.
-	// At runtime, direct action keys are checked before backspace keys,
-	// so a conflict means backspace will never fire.
-	err = c.checkBackspaceKeyActionKeyConflicts()
-	if err != nil {
-		return err
-	}
-
-	// Validate reset keys don't conflict with action key bindings.
-	// At runtime, direct action keys are checked before reset keys,
-	// so a conflict means reset will never fire.
-	err = c.checkResetKeyActionKeyConflicts()
-	if err != nil {
-		return err
-	}
-
-	// Validate per-mode exit keys don't conflict with action key bindings.
-	// At runtime, exit keys are checked before action keys (in key_dispatch.go),
-	// so a conflict means the action will never fire.
-	err = c.checkPerModeExitKeysActionKeyConflicts()
-	if err != nil {
-		return err
-	}
-
-	// Validate scroll key bindings don't conflict with action key bindings.
-	// At runtime, action keys are checked before scroll keys (in scroll.go),
-	// so a conflict means the scroll binding will never fire.
-	err = c.checkScrollKeyBindingsActionKeyConflicts()
 	if err != nil {
 		return err
 	}
@@ -1123,33 +1000,6 @@ func (c *Config) Save(path string) error {
 	return closeErr
 }
 
-// ResolvedExitKeys returns the effective exit keys for a given mode.
-// Per-mode keys are merged on top of the global keys (additive).
-// If the mode has no per-mode keys, the global keys are returned as-is.
-// When global keys are empty, falls back to ["Escape"] to stay consistent
-// with the runtime fallback in resolveExitKeysForCurrentMode.
-func (c *Config) ResolvedExitKeys(modeName string) []string {
-	globalKeys := c.General.ModeExitKeys
-
-	if len(globalKeys) == 0 {
-		globalKeys = []string{"Escape"}
-	}
-
-	var modeKeys []string
-	switch modeName {
-	case modeNameHints:
-		modeKeys = c.Hints.ModeExitKeys
-	case modeNameGrid:
-		modeKeys = c.Grid.ModeExitKeys
-	case modeNameRecursiveGrid:
-		modeKeys = c.RecursiveGrid.ModeExitKeys
-	case modeNameScroll:
-		modeKeys = c.Scroll.ModeExitKeys
-	}
-
-	return MergeExitKeys(globalKeys, modeKeys)
-}
-
 // CustomHotkeysForMode returns the custom_hotkeys map for the given mode name.
 // These are per-mode hotkeys that are only active while that mode is active,
 // using the same action syntax as [hotkeys] (e.g. "exec ...", "action ...", "hints", etc.).
@@ -1166,32 +1016,6 @@ func (c *Config) CustomHotkeysForMode(modeName string) map[string]StringOrString
 	default:
 		return nil
 	}
-}
-
-// MergeExitKeys merges global and per-mode exit keys, deduplicating by normalized form.
-// Per-mode keys are appended after global keys. If modeKeys is empty, globalKeys is returned as-is.
-func MergeExitKeys(globalKeys, modeKeys []string) []string {
-	if len(modeKeys) == 0 {
-		return globalKeys
-	}
-
-	merged := make([]string, 0, len(globalKeys)+len(modeKeys))
-	merged = append(merged, globalKeys...)
-
-	seen := make(map[string]bool, len(globalKeys))
-	for _, k := range globalKeys {
-		seen[NormalizeKeyForComparison(k)] = true
-	}
-
-	for _, k := range modeKeys {
-		normalized := NormalizeKeyForComparison(k)
-		if !seen[normalized] {
-			merged = append(merged, k)
-			seen[normalized] = true
-		}
-	}
-
-	return merged
 }
 
 // IsAppExcluded checks if the given bundle ID is in the excluded apps list.
@@ -1325,81 +1149,6 @@ func (c *Config) ValidateScroll() error {
 		return err
 	}
 
-	err = c.ValidateScrollKeyBindings()
-	if err != nil {
-		return err
-	}
-
-	err = validateAutoExitActions(
-		c.Scroll.AutoExitActions,
-		"scroll.auto_exit_actions",
-	)
-	if err != nil {
-		return err
-	}
-
-	// Validate per-mode exit keys
-	if len(c.Scroll.ModeExitKeys) > 0 {
-		err = validatePerModeExitKeysFormat(c.Scroll.ModeExitKeys, "scroll.mode_exit_keys")
-		if err != nil {
-			return err
-		}
-
-		err = checkPerModeExitKeysScrollBindingConflicts(
-			c.Scroll.ModeExitKeys,
-			c.Scroll.KeyBindings,
-			"scroll.mode_exit_keys",
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ValidateScrollKeyBindings validates the scroll keybindings configuration.
-func (c *Config) ValidateScrollKeyBindings() error {
-	if len(c.Scroll.KeyBindings) == 0 {
-		return nil
-	}
-
-	validActions := map[string]bool{
-		"scroll_up":    true,
-		"scroll_down":  true,
-		"scroll_left":  true,
-		"scroll_right": true,
-		"go_top":       true,
-		"go_bottom":    true,
-		"page_up":      true,
-		"page_down":    true,
-	}
-
-	for action, keys := range c.Scroll.KeyBindings {
-		if !validActions[action] {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"scroll.key_bindings has unknown action '%s' (valid: scroll_up, scroll_down, scroll_left, scroll_right, go_top, go_bottom, page_up, page_down)",
-				action,
-			)
-		}
-
-		if len(keys) == 0 {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"scroll.key_bindings['%s'] has no keys specified",
-				action,
-			)
-		}
-
-		for _, key := range keys {
-			err := validateScrollKey(key, fmt.Sprintf("scroll.key_bindings['%s']", action))
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -1436,96 +1185,6 @@ func (c *Config) buildRolesMap(bundleID string) map[string]struct{} {
 	}
 
 	return rolesMap
-}
-
-// validateScrollKey validates a single scroll key binding.
-func validateScrollKey(key, fieldName string) error {
-	if strings.TrimSpace(key) == "" {
-		return derrors.Newf(derrors.CodeInvalidConfig, "%s has empty key", fieldName)
-	}
-
-	switch {
-	case strings.Contains(key, "+"):
-		parts := strings.Split(key, "+")
-
-		for i := range len(parts) - 1 {
-			modifier := strings.TrimSpace(parts[i])
-			if !isValidModifier(modifier) {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"%s has invalid modifier '%s' in '%s' (valid: Cmd, Ctrl, Alt, Shift, Option, and Right*/Left* variants e.g. RightCmd, LeftShift)",
-					fieldName,
-					modifier,
-					key,
-				)
-			}
-		}
-
-		lastPart := strings.TrimSpace(parts[len(parts)-1])
-		if lastPart == "" {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"%s has empty key in '%s'",
-				fieldName,
-				key,
-			)
-		}
-
-		if !isValidScrollKeyName(lastPart) {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"%s has invalid key name '%s' in '%s'",
-				fieldName,
-				lastPart,
-				key,
-			)
-		}
-	case len(key) == 2 && IsAllLetters(key):
-		for _, r := range key {
-			if r < 'a' || r > 'z' {
-				if r < 'A' || r > 'Z' {
-					return derrors.Newf(
-						derrors.CodeInvalidConfig,
-						"%s has invalid sequence key '%s' - sequences must be 2 letters (a-z, A-Z)",
-						fieldName,
-						key,
-					)
-				}
-			}
-		}
-	default:
-		if len(key) == 1 && key[0] <= 31 {
-			return nil
-		}
-
-		if !isValidScrollKeyName(key) {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"%s has invalid key name '%s'",
-				fieldName,
-				key,
-			)
-		}
-	}
-
-	return nil
-}
-
-// isValidScrollKeyName checks if a key name is valid for scroll keybindings.
-// This validates the base key part (after modifier splitting in validateScrollKey).
-// Uses the centralized validNamedKeys registry for named key validation.
-func isValidScrollKeyName(key string) bool {
-	if IsValidNamedKey(key) {
-		return true
-	}
-
-	if len(key) == 1 {
-		r := rune(key[0])
-
-		return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
-	}
-
-	return false
 }
 
 // IsAllLetters checks if a string contains only letters (a-z, A-Z).

@@ -198,6 +198,16 @@ func (h *IPCControllerModes) extractModeOptions(
 
 			return opts, &resp
 		}
+
+		if action.IsResetAction(*opts.Action) || action.IsBackspaceAction(*opts.Action) {
+			resp := ipc.Response{
+				Success: false,
+				Message: "mode action \"" + *opts.Action + "\" is not allowed; use 'action " + *opts.Action + "' instead",
+				Code:    ipc.CodeInvalidInput,
+			}
+
+			return opts, &resp
+		}
 	}
 
 	if opts.Repeat && opts.Action == nil {

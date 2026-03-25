@@ -77,7 +77,7 @@ func TestService_Validate(t *testing.T) {
 
 				return c
 			}(),
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 

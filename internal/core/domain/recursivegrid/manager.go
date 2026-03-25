@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/config"
+	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
@@ -15,16 +15,13 @@ import (
 type Manager struct {
 	domain.BaseManager
 
-	grid         *RecursiveGrid
-	keys         string            // Default key mapping (e.g., "uijk")
-	depthKeys    map[int]string    // Per-depth key overrides (sparse)
-	gridCols     int               // Default number of grid columns
-	gridRows     int               // Default number of grid rows
-	onUpdate     func()            // Callback for overlay updates
-	onComplete   func(image.Point) // Callback when selection is complete
-	resetKey     string
-	backspaceKey string
-	exitKeys     []string
+	grid       *RecursiveGrid
+	keys       string            // Default key mapping (e.g., "uijk")
+	depthKeys  map[int]string    // Per-depth key overrides (sparse)
+	gridCols   int               // Default number of grid columns
+	gridRows   int               // Default number of grid rows
+	onUpdate   func()            // Callback for overlay updates
+	onComplete func(image.Point) // Callback when selection is complete
 }
 
 // NewManager creates a recursive-grid manager with default dimensions (2×2)
@@ -32,9 +29,6 @@ type Manager struct {
 func NewManager(
 	screenBounds image.Rectangle,
 	keys string,
-	resetKey string,
-	backspaceKey string,
-	exitKeys []string,
 	onUpdate func(),
 	onComplete func(image.Point),
 	logger *zap.Logger,
@@ -42,9 +36,6 @@ func NewManager(
 	return NewManagerWithLayers(
 		screenBounds,
 		keys,
-		resetKey,
-		backspaceKey,
-		exitKeys,
 		25, //nolint:mnd
 		25, //nolint:mnd
 		10, //nolint:mnd
@@ -63,9 +54,6 @@ func NewManager(
 func NewManagerWithLayers(
 	screenBounds image.Rectangle,
 	keys string,
-	resetKey string,
-	backspaceKey string,
-	exitKeys []string,
 	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
 	depthLayouts map[int]DepthLayout,
 	depthKeys map[int]string,
@@ -166,15 +154,12 @@ func NewManagerWithLayers(
 			gridRows,
 			depthLayouts,
 		),
-		keys:         strings.ToLower(keys),
-		depthKeys:    normalizedDepthKeys,
-		gridCols:     gridCols,
-		gridRows:     gridRows,
-		onUpdate:     onUpdate,
-		onComplete:   onComplete,
-		resetKey:     resetKey,
-		backspaceKey: backspaceKey,
-		exitKeys:     exitKeys,
+		keys:       strings.ToLower(keys),
+		depthKeys:  normalizedDepthKeys,
+		gridCols:   gridCols,
+		gridRows:   gridRows,
+		onUpdate:   onUpdate,
+		onComplete: onComplete,
 	}
 }
 
@@ -182,54 +167,9 @@ func NewManagerWithLayers(
 // Returns the new cursor position (if applicable), whether the selection is complete,
 // and whether the mode should exit.
 func (m *Manager) HandleInput(key string) (image.Point, bool, bool) {
-	// Normalize key to lowercase for comparison
-	key = strings.ToLower(key)
-
-	// Check exit keys first
-	for _, exitKey := range m.exitKeys {
-		if config.IsExitKey(key, []string{exitKey}) {
-			m.Logger.Debug("Exit key pressed in recursive-grid mode",
-				zap.String("key", key))
-
-			return image.Point{}, false, true
-		}
-	}
-
-	// Handle reset key
-	resetKey := m.resetKey
-	if resetKey == "" {
-		resetKey = " "
-	}
-
-	if config.IsResetKey(key, resetKey) {
-		m.Logger.Debug("Reset key pressed in recursive-grid mode",
-			zap.String("key", key))
-		m.Reset()
-
-		if m.onUpdate != nil {
-			m.onUpdate()
-		}
-
-		// Return initial center to move cursor back
-		return m.grid.CurrentCenter(), false, false
-	}
-
-	// Handle backspace/delete for backtracking
-	if config.IsConfiguredBackspaceKey(key, m.backspaceKey) {
-		if m.grid.Backtrack() {
-			m.Logger.Debug("Backtracked in recursive-grid mode",
-				zap.Int("new_depth", m.grid.CurrentDepth()))
-
-			if m.onUpdate != nil {
-				m.onUpdate()
-			}
-
-			// Return new center (of parent cell) to move cursor
-			return m.grid.CurrentCenter(), false, false
-		}
-
-		return image.Point{}, false, false
-	}
+	// Normalize to canonical key form (handles named keys and fullwidth input),
+	// then lowercase for case-insensitive comparisons.
+	key = strings.ToLower(configpkg.NormalizeKeyForComparison(key))
 
 	// Map key to cell
 	cell := m.keyToCell(key)
@@ -361,17 +301,13 @@ func (m *Manager) HasHistory() bool {
 
 // keyToCell maps an input key to a cell index using the current depth's key mapping.
 // Returns -1 if the key is not mapped.
-// Both the input key and each key in the mapping are normalized via
-// config.NormalizeKeyForComparison so that named keys (e.g. "space")
-// match their literal character equivalents (e.g. " ").
 func (m *Manager) keyToCell(key string) Cell {
-	normalizedKey := config.NormalizeKeyForComparison(key)
-
 	currentKeys := m.Keys()
 	idx := 0
 
 	for _, k := range currentKeys {
-		if config.NormalizeKeyForComparison(string(k)) == normalizedKey {
+		normalizedMapped := strings.ToLower(configpkg.NormalizeKeyForComparison(string(k)))
+		if strings.EqualFold(normalizedMapped, key) {
 			return Cell(idx)
 		}
 

@@ -14,7 +14,7 @@ func TestGridRouter_RouteKey(t *testing.T) {
 
 	// Create a simple grid for testing
 	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
-	manager := grid.NewManager(testGrid, 3, 3, "123456789", ",", "", nil, nil, logger)
+	manager := grid.NewManager(testGrid, 3, 3, "123456789", nil, nil, logger)
 	router := grid.NewRouter(manager, logger)
 
 	tests := []struct {
@@ -24,15 +24,15 @@ func TestGridRouter_RouteKey(t *testing.T) {
 		wantComplete bool
 	}{
 		{
-			name:         "escape key exits",
+			name:         "escape key does not exit in router",
 			key:          "escape",
-			wantExit:     true,
+			wantExit:     false,
 			wantComplete: false,
 		},
 		{
-			name:         "escape sequence exits",
+			name:         "escape sequence does not exit in router",
 			key:          "\x1b",
-			wantExit:     true,
+			wantExit:     false,
 			wantComplete: false,
 		},
 		{
@@ -75,13 +75,13 @@ func TestGridRouter_EscapeKey(t *testing.T) {
 
 	// Create a simple grid for testing
 	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
-	manager := grid.NewManager(testGrid, 3, 3, "123456789", ",", "", nil, nil, logger)
+	manager := grid.NewManager(testGrid, 3, 3, "123456789", nil, nil, logger)
 	router := grid.NewRouter(manager, logger)
 
-	// Test escape key
+	// Escape is handled by top-level custom hotkeys now, not router.
 	result := router.RouteKey("escape")
-	if !result.Exit() {
-		t.Error("Escape key should cause exit")
+	if result.Exit() {
+		t.Error("Escape key should not cause router exit")
 	}
 
 	if result.Complete() {

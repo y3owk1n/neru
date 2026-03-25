@@ -66,7 +66,7 @@ func TestValidateHotkey(t *testing.T) {
 			name:      "empty hotkey allowed",
 			hotkey:    "",
 			fieldName: "test_hotkey",
-			wantErr:   false,
+			wantErr:   true,
 		},
 		{
 			name:      "invalid modifier",
@@ -84,7 +84,7 @@ func TestValidateHotkey(t *testing.T) {
 			name:      "just modifiers",
 			hotkey:    "Cmd+Shift",
 			fieldName: "test_hotkey",
-			wantErr:   false, // Shift is treated as valid key
+			wantErr:   true,
 		},
 		{
 			name:      "duplicate modifiers",
@@ -96,7 +96,7 @@ func TestValidateHotkey(t *testing.T) {
 			name:      "any key allowed",
 			hotkey:    "Cmd+InvalidKey",
 			fieldName: "test_hotkey",
-			wantErr:   false, // Any non-empty key is valid
+			wantErr:   true,
 		},
 		{
 			name:      "single key without modifiers",

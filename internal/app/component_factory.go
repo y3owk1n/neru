@@ -149,8 +149,6 @@ func (f *ComponentFactory) CreateGridComponent(
 		domain.SubgridRows,
 		domain.SubgridCols,
 		subKeys,
-		f.config.Grid.ResetKey,
-		f.config.Grid.BackspaceKey,
 		func(_ bool) {
 			instancePtr := ctx.GridInstance()
 			if instancePtr == nil || *instancePtr == nil || (*instancePtr).Characters() == "" {
@@ -178,7 +176,6 @@ func (f *ComponentFactory) CreateScrollComponent(
 
 	return &components.ScrollComponent{
 		Context: &scroll.Context{},
-		KeyMap:  scroll.NewKeyMap(f.config.Scroll.KeyBindings),
 	}, nil
 }
 

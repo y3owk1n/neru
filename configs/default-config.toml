@@ -12,7 +12,6 @@ accessibility_check_on_start = true          # Verify AX permissions on launch
 restore_cursor_position = false              # Return cursor to pre-mode position on exit
 center_cursor_position = false               # Center cursor on screen on exit (mutually exclusive with above)
 kb_layout_to_use = ""                        # Force a keyboard layout InputSourceID (empty = auto)
-mode_exit_keys = ["Escape"]                  # Keys that exit any active mode
 passthrough_unbounded_keys = false           # Let unbound Cmd/Ctrl/Alt shortcuts reach macOS
 should_exit_after_passthrough = false        # Exit the current mode after a shortcut is passed through
 passthrough_unbounded_keys_blacklist = []    # Shortcuts to still consume when passthrough is on
@@ -31,10 +30,7 @@ hide_overlay_in_screen_share = false         # Hide overlay from screen sharing 
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#hint-mode
 [hints]
 enabled = true
-auto_exit_actions = []                      # Actions that auto-exit hints (e.g. ["left_click"])
-mode_exit_keys = []                         # Extra exit keys (merged with general.mode_exit_keys)
 hint_characters = "asdfghjkl"               # Characters used for hint labels
-backspace_key = "Backspace"                 # Key for input correction
 mouse_action_refresh_delay = 0              # ms delay before refreshing hints after click (0 = immediate)
 max_depth = 50                              # Max accessibility tree depth (0 = unlimited)
 parallel_threshold = 20                     # Min children to trigger parallel tree building
@@ -68,6 +64,19 @@ clickable_roles = [
 ]
 ignore_clickable_check = false
 
+[hints.custom_hotkeys]
+"Escape" = "idle"
+"Backspace" = "action backspace"
+"Shift+L" = "action left_click"
+"Shift+R" = "action right_click"
+"Shift+M" = "action middle_click"
+"Shift+I" = "action mouse_down"
+"Shift+U" = "action mouse_up"
+"Up" = "action move_mouse_relative --dx=0 --dy=-10"
+"Down" = "action move_mouse_relative --dx=0 --dy=10"
+"Left" = "action move_mouse_relative --dx=-10 --dy=0"
+"Right" = "action move_mouse_relative --dx=10 --dy=0"
+
 [hints.additional_ax_support]
 enable = false                              # Enable enhanced AX for Electron/Chromium/Firefox apps
 additional_electron_bundles = []
@@ -94,16 +103,26 @@ border_color_dark = "#FF00B4D8"
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#grid-mode
 [grid]
 enabled = true
-auto_exit_actions = []                      # Actions that auto-exit grid (e.g. ["left_click"])
-mode_exit_keys = []                         # Extra exit keys (merged with general.mode_exit_keys)
 characters = "abcdefghijklmnpqrstuvwxyz"    # Primary grid labels
 sublayer_keys = "abcdefghijklmnpqrstuvwxyz" # Subgrid labels (fallback to characters)
-reset_key = " "                             # Key to clear input and start over
-backspace_key = "Backspace"                 # Key for input correction
 live_match_update = true                    # Highlight cells as you type
 hide_unmatched = true                       # Hide non-matching cells
 prewarm_enabled = true                      # Pre-compute grid on startup (~1.5MB RAM)
 enable_gc = false                           # Periodic memory cleanup (adds CPU overhead)
+
+[grid.custom_hotkeys]
+"Escape" = "idle"
+"Space" = "action reset"
+"Backspace" = "action backspace"
+"Shift+L" = "action left_click"
+"Shift+R" = "action right_click"
+"Shift+M" = "action middle_click"
+"Shift+I" = "action mouse_down"
+"Shift+U" = "action mouse_up"
+"Up" = "action move_mouse_relative --dx=0 --dy=-10"
+"Down" = "action move_mouse_relative --dx=0 --dy=10"
+"Left" = "action move_mouse_relative --dx=-10 --dy=0"
+"Right" = "action move_mouse_relative --dx=10 --dy=0"
 
 [grid.ui]
 font_size = 10
@@ -126,16 +145,26 @@ border_color_dark = "#99003554"
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#recursive-grid-mode-recommended
 [recursive_grid]
 enabled = true
-auto_exit_actions = []                      # Actions that auto-exit (e.g. ["left_click"])
-mode_exit_keys = []                         # Extra exit keys (merged with general.mode_exit_keys)
 grid_cols = 2                               # Number of columns (>= 2)
 grid_rows = 2                               # Number of rows (>= 2)
 keys = "uijk"                               # Cell selection keys (must be grid_cols * grid_rows chars)
-backspace_key = "Backspace"                 # Key to go up one recursion level
 min_size_width = 25                         # Stop subdividing below this width (px)
 min_size_height = 25                        # Stop subdividing below this height (px)
 max_depth = 10                              # Maximum recursion levels (1–20)
-reset_key = " "                             # Key to reset to initial center
+
+[recursive_grid.custom_hotkeys]
+"Escape" = "idle"
+"Space" = "action reset"
+"Backspace" = "action backspace"
+"Shift+L" = "action left_click"
+"Shift+R" = "action right_click"
+"Shift+M" = "action middle_click"
+"Shift+I" = "action mouse_down"
+"Shift+U" = "action mouse_up"
+"Up" = "action move_mouse_relative --dx=0 --dy=-10"
+"Down" = "action move_mouse_relative --dx=0 --dy=10"
+"Left" = "action move_mouse_relative --dx=-10 --dy=0"
+"Right" = "action move_mouse_relative --dx=10 --dy=0"
 
 [recursive_grid.ui]
 line_color_light = "#FF007A9E"
@@ -166,18 +195,26 @@ sub_key_preview_text_color_dark = "#6600CFCF"
 scroll_step = 50                            # Pixels per j/k press
 scroll_step_half = 500                      # Pixels for d/u (half page)
 scroll_step_full = 1000000                  # Pixels for gg/G (top/bottom)
-auto_exit_actions = []                      # Actions that auto-exit scroll (e.g. ["left_click"])
-mode_exit_keys = []                         # Extra exit keys (merged with general.mode_exit_keys)
 
-[scroll.key_bindings]
-scroll_up = ["k"]
-scroll_down = ["j"]
-scroll_left = ["h"]
-scroll_right = ["l"]
-go_top = ["gg"]
-go_bottom = ["Shift+G"]
-page_up = ["u", "PageUp"]
-page_down = ["d", "PageDown"]
+[scroll.custom_hotkeys]
+"Escape" = "idle"
+"k" = "action scroll_up"
+"j" = "action scroll_down"
+"h" = "action scroll_left"
+"l" = "action scroll_right"
+"gg" = "action go_top"
+"Shift+G" = "action go_bottom"
+"u" = "action page_up"
+"d" = "action page_down"
+"Shift+L" = "action left_click"
+"Shift+R" = "action right_click"
+"Shift+M" = "action middle_click"
+"Shift+I" = "action mouse_down"
+"Shift+U" = "action mouse_up"
+"Up" = "action move_mouse_relative --dx=0 --dy=-10"
+"Down" = "action move_mouse_relative --dx=0 --dy=10"
+"Left" = "action move_mouse_relative --dx=-10 --dy=0"
+"Right" = "action move_mouse_relative --dx=10 --dy=0"
 
 # Mode indicator
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mode-indicator
@@ -237,22 +274,6 @@ padding_y = -1
 border_radius = -1
 indicator_x_offset = -40
 indicator_y_offset = 20
-
-# Mouse movement actions (used inside hints/grid/scroll modes)
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mouse-movement-actions
-[action]
-move_mouse_step = 10                        # Pixels per arrow key press
-
-[action.key_bindings]
-left_click = "Shift+L"
-right_click = "Shift+R"
-middle_click = "Shift+M"
-mouse_down = "Shift+I"                      # Press and hold mouse button
-mouse_up = "Shift+U"                        # Release mouse button
-move_mouse_up = "Up"
-move_mouse_down = "Down"
-move_mouse_left = "Left"
-move_mouse_right = "Right"
 
 # Smooth cursor (animates cursor movement between positions)
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#smooth-cursor

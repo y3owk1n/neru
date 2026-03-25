@@ -91,8 +91,8 @@ func TestAdapter_Validate(t *testing.T) {
 	invalidConfig3.Grid.Characters = "a" // Only 1 character, needs >=2
 
 	err = adapter.Validate(invalidConfig3)
-	if err == nil {
-		t.Error("Expected error for invalid config with insufficient grid characters")
+	if err != nil {
+		t.Errorf("Expected no error for short-but-valid grid characters, got %v", err)
 	}
 }
 

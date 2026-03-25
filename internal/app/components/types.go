@@ -88,12 +88,10 @@ func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) 
 // ScrollComponent encapsulates scroll key mapping and state (no overlay).
 type ScrollComponent struct {
 	Context *scroll.Context
-	KeyMap  *scroll.KeyMap
 }
 
 // UpdateConfig updates the scroll component with new configuration.
-func (s *ScrollComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
-	s.KeyMap = scroll.NewKeyMap(cfg.Scroll.KeyBindings)
+func (s *ScrollComponent) UpdateConfig(_ *config.Config, _ *zap.Logger) {
 }
 
 // ModeIndicatorComponent encapsulates the shared mode indicator overlay.

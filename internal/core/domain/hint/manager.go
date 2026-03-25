@@ -35,10 +35,6 @@ type Manager struct {
 	// goroutine from overwriting a fresher immediate update.
 	updateGen uint64
 
-	// backspaceKey is the configured key for backspace/input correction.
-	// Empty string means use the default backspace/delete key.
-	backspaceKey string
-
 	// Performance optimization: reuse slice buffer for filtered hints
 	cachedFilteredHints []*Interface
 
@@ -58,14 +54,13 @@ const (
 // acquires externalMu before invoking onUpdate so the caller can protect
 // shared state (e.g., screen bounds, overlay manager) without locking
 // inside the callback itself (which would deadlock on synchronous paths).
-func NewManager(logger *zap.Logger, externalMu *sync.Mutex, backspaceKey string) *Manager {
+func NewManager(logger *zap.Logger, externalMu *sync.Mutex) *Manager {
 	return &Manager{
 		BaseManager: domain.BaseManager{
 			Logger: logger,
 		},
 		debounceDuration: DefaultDebounceDuration,
 		externalMu:       externalMu,
-		backspaceKey:     backspaceKey,
 	}
 }
 
@@ -170,42 +165,8 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	}
 
 	// Handle backspace to allow input correction
-	if config.IsConfiguredBackspaceKey(key, m.backspaceKey) {
-		if len(m.CurrentInput()) > 0 {
-			prevLen := m.lastFilteredLen
-			m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
-
-			// Update overlay to show filtered hints with new prefix
-			if m.hints != nil {
-				filtered := m.hints.FilterByPrefix(m.CurrentInput())
-
-				// Reuse cached buffer
-				if cap(m.cachedFilteredHints) < len(filtered) {
-					m.cachedFilteredHints = make([]*Interface, len(filtered))
-				} else {
-					m.cachedFilteredHints = m.cachedFilteredHints[:len(filtered)]
-				}
-
-				for i, h := range filtered {
-					m.cachedFilteredHints[i] = h.WithMatchedPrefix(m.CurrentInput())
-				}
-
-				m.lastFilteredLen = len(filtered)
-
-				// When the hint set structure changes (count differs), debounce
-				// to avoid excessive redraws. When only the matched prefix
-				// changed (same count), update immediately — the overlay only
-				// needs to repaint text colors which is very cheap.
-				if len(filtered) == prevLen {
-					m.immediateUpdate(m.cachedFilteredHints)
-				} else {
-					m.debouncedUpdate(m.cachedFilteredHints)
-				}
-			}
-		} else {
-			// Reset to show all hints if backspacing from empty input
-			m.Reset()
-		}
+	if config.NormalizeKeyForComparison(key) == config.KeyNameDelete {
+		m.HandleBackspace()
 
 		return nil, false
 	}
@@ -317,11 +278,46 @@ func (m *Manager) FilteredHints() []*Interface {
 	return m.hints.FilterByPrefix(m.CurrentInput())
 }
 
-// SetBackspaceKey updates the configured backspace key on a live manager.
-// This allows hot-reloading the backspace key without tearing down the
-// manager (which would break an active hints session).
-func (m *Manager) SetBackspaceKey(key string) {
-	m.backspaceKey = key
+// HandleBackspace applies the same input-correction behavior used when
+// backspace is pressed during HandleInput.
+func (m *Manager) HandleBackspace() {
+	if len(m.CurrentInput()) > 0 {
+		prevLen := m.lastFilteredLen
+		m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
+
+		// Update overlay to show filtered hints with new prefix
+		if m.hints != nil {
+			filtered := m.hints.FilterByPrefix(m.CurrentInput())
+
+			// Reuse cached buffer
+			if cap(m.cachedFilteredHints) < len(filtered) {
+				m.cachedFilteredHints = make([]*Interface, len(filtered))
+			} else {
+				m.cachedFilteredHints = m.cachedFilteredHints[:len(filtered)]
+			}
+
+			for i, h := range filtered {
+				m.cachedFilteredHints[i] = h.WithMatchedPrefix(m.CurrentInput())
+			}
+
+			m.lastFilteredLen = len(filtered)
+
+			// When the hint set structure changes (count differs), debounce
+			// to avoid excessive redraws. When only the matched prefix
+			// changed (same count), update immediately — the overlay only
+			// needs to repaint text colors which is very cheap.
+			if len(filtered) == prevLen {
+				m.immediateUpdate(m.cachedFilteredHints)
+			} else {
+				m.debouncedUpdate(m.cachedFilteredHints)
+			}
+		}
+
+		return
+	}
+
+	// Reset to show all hints if backspacing from empty input
+	m.Reset()
 }
 
 // assertExternalMuHeld is a debug assertion verifying that the caller holds

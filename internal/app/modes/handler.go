@@ -91,6 +91,8 @@ type Handler struct {
 	executeHotkeyAction        func(key, actionStr string) error
 	refreshHintsTimer          *time.Timer
 	modeSession                uint64
+	customHotkeyLastKey        string
+	customHotkeyLastKeyTime    int64
 
 	// Pending modifier key for tap detection (down/up without intervening keys)
 	pendingModifierKeys    map[string]time.Time
@@ -428,16 +430,6 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 
 	h.config = config
 
-	// Update the backspace key on the live hint manager (if one exists) so
-	// an active hints session picks up the new value immediately without
-	// being torn down. The router is recreated on every activation, so it
-	// will naturally get the latest exit keys on next use.
-	if h.hints != nil && h.hints.Context != nil {
-		if mgr := h.hints.Context.Manager(); mgr != nil {
-			mgr.SetBackspaceKey(config.Hints.BackspaceKey)
-		}
-	}
-
 	if h.renderer != nil {
 		h.renderer.UpdateConfig(
 			hints.BuildStyle(config.Hints, h.themeProvider),
@@ -447,4 +439,85 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	}
 
 	h.syncModifierPassthrough(h.appState.CurrentMode())
+}
+
+// ResetCurrentMode resets current mode input state without exiting.
+func (h *Handler) ResetCurrentMode() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	switch h.appState.CurrentMode() {
+	case domain.ModeGrid:
+		if h.grid != nil && h.grid.Manager != nil {
+			h.grid.Manager.Reset()
+
+			gridInstancePtr := h.grid.Context.GridInstance()
+			if gridInstancePtr != nil && *gridInstancePtr != nil {
+				err := h.renderer.DrawGrid(
+					*gridInstancePtr,
+					h.grid.Manager.CurrentInput(),
+				)
+				if err != nil {
+					h.logger.Error("Failed to redraw grid after reset", zap.Error(err))
+				}
+			}
+		}
+	case domain.ModeRecursiveGrid:
+		if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
+			h.recursiveGrid.Manager.Reset()
+			h.updateRecursiveGridOverlay()
+
+			center := h.recursiveGrid.Manager.CurrentCenter()
+
+			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+
+			err := h.actionService.MoveCursorToPoint(
+				context.Background(),
+				absoluteCenter,
+			)
+			if err != nil {
+				h.logger.Error("Failed to move cursor after recursive-grid reset", zap.Error(err))
+			}
+		}
+	case domain.ModeIdle, domain.ModeHints, domain.ModeScroll:
+		// no-op
+	}
+}
+
+// BackspaceCurrentMode performs mode-aware backspace behavior without exiting.
+func (h *Handler) BackspaceCurrentMode() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	switch h.appState.CurrentMode() {
+	case domain.ModeHints:
+		if h.hints != nil && h.hints.Context != nil && h.hints.Context.Manager() != nil {
+			h.hints.Context.Manager().HandleBackspace()
+		}
+	case domain.ModeGrid:
+		if h.grid != nil && h.grid.Manager != nil {
+			h.grid.Manager.HandleBackspace()
+		}
+	case domain.ModeRecursiveGrid:
+		if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil &&
+			h.recursiveGrid.Manager.Backtrack() {
+			h.updateRecursiveGridOverlay()
+			center := h.recursiveGrid.Manager.CurrentCenter()
+
+			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+
+			err := h.actionService.MoveCursorToPoint(
+				context.Background(),
+				absoluteCenter,
+			)
+			if err != nil {
+				h.logger.Error(
+					"Failed to move cursor after recursive-grid backspace",
+					zap.Error(err),
+				)
+			}
+		}
+	case domain.ModeIdle, domain.ModeScroll:
+		// no-op
+	}
 }

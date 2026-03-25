@@ -128,10 +128,6 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 		a.scrollService.UpdateConfig(loadResult.Config.Scroll)
 	}
 
-	if a.actionService != nil {
-		a.actionService.UpdateConfig(loadResult.Config.Action)
-	}
-
 	if a.modes != nil {
 		a.modes.UpdateConfig(loadResult.Config)
 	}
