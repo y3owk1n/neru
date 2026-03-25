@@ -145,53 +145,67 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	// default bindings so that external hotkey daemons (e.g. skhd) can manage
 	// shortcuts without conflicts. Modes remain accessible via CLI commands.
 	if hot, ok := raw["hotkeys"]; ok {
-		if hotMap, ok := hot.(map[string]any); ok {
-			// Clear default bindings when user provides hotkeys config
-			configResult.Config.Hotkeys.Bindings = map[string][]string{}
+		hotMap, isTable := hot.(map[string]any)
+		if !isTable {
+			configResult.ValidationError = derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"[hotkeys] must be a TOML table, got %T",
+				hot,
+			)
+			configResult.Config = DefaultConfig()
 
-			for key, value := range hotMap {
-				switch v := value.(type) {
-				case string:
-					configResult.Config.Hotkeys.Bindings[key] = []string{v}
-				case []any:
-					actions := make([]string, 0, len(v))
-					for _, a := range v {
-						actionStr, ok := a.(string)
-						if !ok {
-							configResult.ValidationError = derrors.Newf(
-								derrors.CodeInvalidConfig,
-								"hotkeys.%s must be a string or array of strings",
-								key,
-							)
-							configResult.Config = DefaultConfig()
+			s.logger.Warn("Invalid hotkeys section type",
+				zap.Any("value", hot),
+				zap.Error(configResult.ValidationError))
 
-							s.logger.Warn("Invalid hotkey configuration",
-								zap.String("key", key),
-								zap.Any("value", value),
-								zap.Error(configResult.ValidationError))
+			return configResult
+		}
 
-							return configResult
-						}
+		// Clear default bindings when user provides hotkeys config
+		configResult.Config.Hotkeys.Bindings = map[string][]string{}
 
-						actions = append(actions, actionStr)
+		for key, value := range hotMap {
+			switch v := value.(type) {
+			case string:
+				configResult.Config.Hotkeys.Bindings[key] = []string{v}
+			case []any:
+				actions := make([]string, 0, len(v))
+				for _, a := range v {
+					actionStr, ok := a.(string)
+					if !ok {
+						configResult.ValidationError = derrors.Newf(
+							derrors.CodeInvalidConfig,
+							"hotkeys.%s must be a string or array of strings",
+							key,
+						)
+						configResult.Config = DefaultConfig()
+
+						s.logger.Warn("Invalid hotkey configuration",
+							zap.String("key", key),
+							zap.Any("value", value),
+							zap.Error(configResult.ValidationError))
+
+						return configResult
 					}
 
-					configResult.Config.Hotkeys.Bindings[key] = actions
-				default:
-					configResult.ValidationError = derrors.Newf(
-						derrors.CodeInvalidConfig,
-						"hotkeys.%s must be a string or array of strings",
-						key,
-					)
-					configResult.Config = DefaultConfig()
-
-					s.logger.Warn("Invalid hotkey configuration",
-						zap.String("key", key),
-						zap.Any("value", value),
-						zap.Error(configResult.ValidationError))
-
-					return configResult
+					actions = append(actions, actionStr)
 				}
+
+				configResult.Config.Hotkeys.Bindings[key] = actions
+			default:
+				configResult.ValidationError = derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"hotkeys.%s must be a string or array of strings",
+					key,
+				)
+				configResult.Config = DefaultConfig()
+
+				s.logger.Warn("Invalid hotkey configuration",
+					zap.String("key", key),
+					zap.Any("value", value),
+					zap.Error(configResult.ValidationError))
+
+				return configResult
 			}
 		}
 	}
