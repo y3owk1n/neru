@@ -730,7 +730,7 @@ func (c *Config) Validate() error {
 
 // ValidateHotkeyBindings validates the top-level [hotkeys] key format and action strings.
 func (c *Config) ValidateHotkeyBindings() error {
-	// Check for duplicate normalized keys (mirrors checkCustomHotkeysConflicts
+	// Check for duplicate normalized keys (mirrors checkHotkeysConflicts
 	// for per-mode hotkeys). After merge, two keys that normalize identically
 	// would cause ambiguous runtime behavior.
 	seen := make(map[string]string, len(c.Hotkeys.Bindings))
