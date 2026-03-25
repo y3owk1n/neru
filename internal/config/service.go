@@ -206,6 +206,11 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 				switch _val := value.(type) {
 				case string:
 					if _val == DisabledSentinel {
+						if _, exists := configResult.Config.Hotkeys.Bindings[canonicalKey]; !exists {
+							s.logger.Warn("__disabled__ used for key that is not a default binding",
+								zap.String("key", key))
+						}
+
 						delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
 					} else {
 						// Remove old casing before inserting with user's casing.
@@ -237,6 +242,11 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 					// Handle __disabled__ sentinel in array form for consistency
 					// with per-mode custom_hotkeys.
 					if len(actions) == 1 && actions[0] == DisabledSentinel {
+						if _, exists := configResult.Config.Hotkeys.Bindings[canonicalKey]; !exists {
+							s.logger.Warn("__disabled__ used for key that is not a default binding",
+								zap.String("key", key))
+						}
+
 						delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
 					} else {
 						delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
@@ -330,6 +340,12 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 			// Sentinel value removes the default binding for this key.
 			if len(_sosa) == 1 && _sosa[0] == DisabledSentinel {
+				if _, exists := (*modeHotkey.dest)[canonicalKey]; !exists {
+					s.logger.Warn("__disabled__ used for key that is not a default binding",
+						zap.String("mode", modeHotkey.modeKey),
+						zap.String("key", key))
+				}
+
 				delete(*modeHotkey.dest, canonicalKey)
 			} else {
 				// Remove old casing before inserting with user's casing.
