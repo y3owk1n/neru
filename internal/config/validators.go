@@ -344,6 +344,11 @@ func (c *Config) checkCustomHotkeysConflicts() error {
 		// two-letter sequence that starts with the same character, because
 		// at runtime Phase 2 (direct match) fires before Phase 3 (sequence
 		// start), making the sequence silently unreachable.
+		//
+		// We use the original key (not normalized) to identify sequences,
+		// matching the ValidateHotkey logic: a sequence is exactly 2 ASCII
+		// letters in the original form. Named keys like "Up" normalize to
+		// "up" which passes IsAllLetters, but they are not sequences.
 		for key := range mode.table {
 			normalized := NormalizeKeyForComparison(key)
 			if len(normalized) != 1 {
@@ -351,10 +356,12 @@ func (c *Config) checkCustomHotkeysConflicts() error {
 			}
 
 			for seqKey := range mode.table {
+				if len(seqKey) != 2 || !IsAllLetters(seqKey) {
+					continue
+				}
+
 				normalizedSeq := NormalizeKeyForComparison(seqKey)
-				if len(normalizedSeq) == 2 &&
-					IsAllLetters(normalizedSeq) &&
-					strings.HasPrefix(normalizedSeq, normalized) {
+				if strings.HasPrefix(normalizedSeq, normalized) {
 					return derrors.Newf(
 						derrors.CodeInvalidConfig,
 						"%s.custom_hotkeys has a prefix conflict: single-key binding %q shadows sequence %q; the single key is always matched first at runtime, so the sequence can never fire",
