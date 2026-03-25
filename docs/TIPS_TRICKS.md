@@ -31,10 +31,10 @@ Hints mode that clicks automatically when you finish typing a label — similar 
 
 ## Homerow Action Clicks
 
-Homerow-style `Return` click actions via mode `custom_hotkeys`:
+Homerow-style `Return` click actions via mode `hotkeys`:
 
 ```toml
-[hints.custom_hotkeys]
+[hints.hotkeys]
 "Enter" = "action left_click" # press twice quickly for double-click, three times for triple-click
 "Shift+Enter" = "action right_click"
 "Cmd+Enter" = "action middle_click"
@@ -42,10 +42,10 @@ Homerow-style `Return` click actions via mode `custom_hotkeys`:
 
 ## Auto-Exit After Click
 
-The old `auto_exit_actions` config field was removed. Use a `custom_hotkeys` array to click and exit in one key:
+The old `auto_exit_actions` config field was removed. Use a `hotkeys` array to click and exit in one key:
 
 ```toml
-[hints.custom_hotkeys]
+[hints.hotkeys]
 "Shift+L" = ["action left_click", "idle"]
 "Shift+R" = ["action right_click", "idle"]
 ```
@@ -60,7 +60,7 @@ The old `restore_cursor_position` config field was removed. Compose the same beh
 [hotkeys]
 "Cmd+Shift+Space" = ["action save_cursor_pos", "hints"] # add the save cursor pos action before launch hints
 
-[hints.custom_hotkeys]
+[hints.hotkeys]
 "Enter" = ["action left_click", "idle", "action restore_cursor_pos"]
 ```
 
@@ -68,10 +68,10 @@ This saves the cursor position, clicks, exits hints, waits for the mode to fully
 
 ## Custom Mouse Movement Step Size
 
-The old `action.move_mouse_step` config field was removed. Control step size directly via `--dx`/`--dy` flags in `custom_hotkeys`:
+The old `action.move_mouse_step` config field was removed. Control step size directly via `--dx`/`--dy` flags in `hotkeys`:
 
 ```toml
-[hints.custom_hotkeys]
+[hints.hotkeys]
 # Default 10px step
 "Up"    = "action move_mouse_relative --dx=0 --dy=-10"
 "Down"  = "action move_mouse_relative --dx=0 --dy=10"
@@ -82,7 +82,7 @@ The old `action.move_mouse_step` config field was removed. Control step size dir
 To use a larger step (e.g. 20px), just change the values:
 
 ```toml
-[hints.custom_hotkeys]
+[hints.hotkeys]
 "Up"    = "action move_mouse_relative --dx=0 --dy=-20"
 "Down"  = "action move_mouse_relative --dx=0 --dy=20"
 ```
@@ -92,7 +92,7 @@ To use a larger step (e.g. 20px), just change the values:
 On some apps (e.g. Discord), it requires you to wait for a bit after clicking before moving to consider as a success click. Try this snippet:
 
 ```toml
-[recursive_grid.custom_hotkeys]
+[recursive_grid.hotkeys]
 # Click, sleep for a bit, and then only reset (that moves the cursor to center in recursive grid mode)
 "Ctrl+J" = ["action left_click", "exec sleep 0.05", "action reset"]
 ```

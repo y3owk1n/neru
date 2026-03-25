@@ -43,7 +43,7 @@
 // Exit Conditions:
 //   - Cell width < min_size_width (default 25px) OR cell height < min_size_height (default 25px)
 //   - Maximum recursion depth reached (default 10)
-//   - User presses exit key (handled by custom_hotkeys, not the manager)
+//   - User presses exit key (handled by hotkeys, not the manager)
 //
 // The package is designed to integrate with the Neru mode system and follows
 // the same patterns as the existing grid and hints modes.

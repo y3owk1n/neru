@@ -61,7 +61,7 @@ clickable_roles = [
 ]
 ignore_clickable_check = false
 
-[hints.custom_hotkeys]
+[hints.hotkeys]
 "Escape" = "idle"
 "Backspace" = "action backspace"
 "Shift+L" = "action left_click"
@@ -107,7 +107,7 @@ hide_unmatched = true                       # Hide non-matching cells
 prewarm_enabled = true                      # Pre-compute grid on startup (~1.5MB RAM)
 enable_gc = false                           # Periodic memory cleanup (adds CPU overhead)
 
-[grid.custom_hotkeys]
+[grid.hotkeys]
 "Escape" = "idle"
 "Space" = "action reset"
 "Backspace" = "action backspace"
@@ -149,7 +149,7 @@ min_size_width = 25                         # Stop subdividing below this width 
 min_size_height = 25                        # Stop subdividing below this height (px)
 max_depth = 10                              # Maximum recursion levels (1–20)
 
-[recursive_grid.custom_hotkeys]
+[recursive_grid.hotkeys]
 "Escape" = "idle"
 "Space" = "action reset"
 "Backspace" = "action backspace"
@@ -193,7 +193,7 @@ scroll_step = 50                            # Pixels per j/k press
 scroll_step_half = 500                      # Pixels for d/u (half page)
 scroll_step_full = 1000000                  # Pixels for gg/G (top/bottom)
 
-[scroll.custom_hotkeys]
+[scroll.hotkeys]
 "Escape" = "idle"
 "k" = "action scroll_up"
 "j" = "action scroll_down"

@@ -202,7 +202,7 @@ Supported `--action` values: `left_click`, `right_click`, `middle_click`, `mouse
 Not allowed for mode `--action`: `reset`, `backspace`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (for example `scroll_up`, `page_down`, `go_top`).
 
 > [!TIP]
-> The `--action` flag is most useful in hints mode, where it mirrors a Vimium-style workflow: select a label and the action fires immediately. In grid and recursive-grid modes, the action triggers only after the final cell selection, which is less ergonomic. For those modes, prefer composing behavior in per-mode `custom_hotkeys` (for example: `["action left_click", "idle"]`).
+> The `--action` flag is most useful in hints mode, where it mirrors a Vimium-style workflow: select a label and the action fires immediately. In grid and recursive-grid modes, the action triggers only after the final cell selection, which is less ergonomic. For those modes, prefer composing behavior in per-mode `hotkeys` (for example: `["action left_click", "idle"]`).
 
 ### Using the `--repeat` flag
 
@@ -283,7 +283,7 @@ See [CONFIGURATION.md](CONFIGURATION.md) for customisation options.
 
 ### Scroll Mode
 
-Vim-style scrolling at the current cursor position. Keys are fully configurable through `scroll.custom_hotkeys`.
+Vim-style scrolling at the current cursor position. Keys are fully configurable through `scroll.hotkeys`.
 
 **Default scroll keys:**
 
@@ -296,7 +296,7 @@ Vim-style scrolling at the current cursor position. Keys are fully configurable 
 | `Shift+G` | Jump to bottom      |
 | `Esc`     | Exit scroll mode    |
 
-Action hotkeys (for example `Shift+L` for click and arrow-key mouse movement) can be defined in `scroll.custom_hotkeys`, just like other modes.
+Action hotkeys (for example `Shift+L` for click and arrow-key mouse movement) can be defined in `scroll.hotkeys`, just like other modes.
 
 ```
 neru scroll
@@ -334,7 +334,7 @@ neru action go_bottom           # Jump to bottom at cursor
 
 ### Mode-Aware Actions
 
-These actions depend on the current mode and are primarily useful inside `custom_hotkeys` arrays.
+These actions depend on the current mode and are primarily useful inside `hotkeys` arrays.
 
 ```
 neru action reset               # Reset state in current mode

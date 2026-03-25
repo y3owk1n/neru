@@ -74,8 +74,8 @@ func TestAppInitializationWithRealComponentsIntegration(t *testing.T) {
 		waitForMode(t, application, domain.ModeIdle)
 	})
 
-	// Test that Escape exits a mode via per-mode custom hotkeys defaults.
-	t.Run("Escape Exits Mode Via CustomHotkeys", func(t *testing.T) {
+	// Test that Escape exits a mode via per-mode hotkeys defaults.
+	t.Run("Escape Exits Mode Via Hotkeys", func(t *testing.T) {
 		cfg2 := config.DefaultConfig()
 		cfg2.Hints.Enabled = true
 		cfg2.Grid.Enabled = false

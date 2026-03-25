@@ -84,7 +84,7 @@ func TestManager_Backspace(t *testing.T) {
 		t.Error("Expected 1 hint after 'A'")
 	}
 
-	// Backspace via explicit API (backspace is driven by custom_hotkeys, not HandleInput)
+	// Backspace via explicit API (backspace is driven by hotkeys, not HandleInput)
 	manager.HandleBackspace()
 
 	if len(manager.FilteredHints()) != 1 {
