@@ -10,7 +10,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	accessibilityAdapter "github.com/y3owk1n/neru/internal/core/infra/accessibility"
@@ -213,33 +212,7 @@ func processHotkeyBindings(config *config.Config, logger *zap.Logger) []string {
 			continue
 		}
 
-		// Use the first action to determine the mode
-		var mode string
-		for _, action := range actions {
-			trimmedAction := strings.TrimSpace(action)
-			if trimmedAction == "" {
-				continue
-			}
-
-			parts := strings.Split(trimmedAction, " ")
-			mode = parts[0]
-
-			break
-		}
-
-		if mode == "" {
-			continue
-		}
-
-		if mode == domain.ModeString(domain.ModeHints) && !config.Hints.Enabled {
-			continue
-		}
-
-		if mode == domain.ModeString(domain.ModeGrid) && !config.Grid.Enabled {
-			continue
-		}
-
-		if mode == domain.ModeString(domain.ModeRecursiveGrid) && !config.RecursiveGrid.Enabled {
+		if actionsReferenceDisabledMode(actions, config) {
 			continue
 		}
 

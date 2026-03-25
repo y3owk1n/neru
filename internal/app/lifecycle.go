@@ -435,33 +435,7 @@ func (a *App) printStartupInfo() {
 			continue
 		}
 
-		// Use the first action to determine the mode
-		var mode string
-		for _, action := range actions {
-			trimmedAction := strings.TrimSpace(action)
-			if trimmedAction == "" {
-				continue
-			}
-
-			parts := strings.Split(trimmedAction, " ")
-			mode = parts[0]
-
-			break
-		}
-
-		if mode == "" {
-			continue
-		}
-
-		if mode == domain.ModeString(domain.ModeHints) && !cfg.Hints.Enabled {
-			continue
-		}
-
-		if mode == domain.ModeString(domain.ModeGrid) && !cfg.Grid.Enabled {
-			continue
-		}
-
-		if mode == domain.ModeString(domain.ModeRecursiveGrid) && !cfg.RecursiveGrid.Enabled {
+		if actionsReferenceDisabledMode(actions, cfg) {
 			continue
 		}
 

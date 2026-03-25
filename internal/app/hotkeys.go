@@ -7,11 +7,42 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
+
+// actionsReferenceDisabledMode reports whether any action in the list
+// activates a mode that is currently disabled in the configuration.
+// This ensures that multi-action bindings like ["exec echo test", "hints"]
+// are skipped entirely when hints is disabled, rather than only checking
+// the first action.
+func actionsReferenceDisabledMode(actions []string, cfg *config.Config) bool {
+	hintsStr := domain.ModeString(domain.ModeHints)
+	gridStr := domain.ModeString(domain.ModeGrid)
+
+	recursiveGridStr := domain.ModeString(domain.ModeRecursiveGrid)
+	for _, actionStr := range actions {
+		trimmed := strings.TrimSpace(actionStr)
+		if trimmed == "" {
+			continue
+		}
+
+		mode := strings.Split(trimmed, " ")[0]
+		switch {
+		case mode == hintsStr && !cfg.Hints.Enabled:
+			return true
+		case mode == gridStr && !cfg.Grid.Enabled:
+			return true
+		case mode == recursiveGridStr && !cfg.RecursiveGrid.Enabled:
+			return true
+		}
+	}
+
+	return false
+}
 
 // registerHotkeys registers all global hotkeys defined in the configuration.
 func (a *App) registerHotkeys() {
@@ -24,33 +55,7 @@ func (a *App) registerHotkeys() {
 			continue
 		}
 
-		var primaryMode string
-		for _, actionStr := range actions {
-			trimmedAction := strings.TrimSpace(actionStr)
-			if trimmedAction == "" {
-				continue
-			}
-
-			parts := strings.Split(trimmedAction, " ")
-			primaryMode = parts[0]
-
-			break
-		}
-
-		if primaryMode == "" {
-			continue
-		}
-
-		if primaryMode == domain.ModeString(domain.ModeHints) && !cfg.Hints.Enabled {
-			continue
-		}
-
-		if primaryMode == domain.ModeString(domain.ModeGrid) && !cfg.Grid.Enabled {
-			continue
-		}
-
-		if primaryMode == domain.ModeString(domain.ModeRecursiveGrid) &&
-			!cfg.RecursiveGrid.Enabled {
+		if actionsReferenceDisabledMode(actions, cfg) {
 			continue
 		}
 
