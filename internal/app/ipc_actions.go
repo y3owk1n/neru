@@ -413,7 +413,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			zap.Int("dy", parsed.deltaY),
 		)
 
-		err := h.actionService.MoveMouseRelative(ctx, parsed.deltaX, parsed.deltaY, false)
+		err := h.actionService.MoveMouseRelative(ctx, parsed.deltaX, parsed.deltaY, true)
 		if err != nil {
 			h.logger.Error("Failed to move mouse relative", zap.Error(err))
 
