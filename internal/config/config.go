@@ -376,7 +376,7 @@ type ActionKeyBindingsCfg struct {
 // Config represents the complete application configuration structure.
 type Config struct {
 	General         GeneralConfig         `json:"general"         toml:"general"`
-	Hotkeys         HotkeysConfig         `json:"hotkeys"         toml:"hotkeys"`
+	Hotkeys         HotkeysConfig         `json:"hotkeys"         toml:"-"`
 	Hints           HintsConfig           `json:"hints"           toml:"hints"`
 	Grid            GridConfig            `json:"grid"            toml:"grid"`
 	RecursiveGrid   RecursiveGridConfig   `json:"recursiveGrid"   toml:"recursive_grid"`
@@ -488,9 +488,9 @@ type HotkeysConfig struct {
 	// "PageUp" = ["action go_top", "action scroll_down"]
 	// The special exec prefix is supported: "exec /usr/bin/say hi"
 	// Bindings is never populated by the TOML struct decoder — it is always
-	// overwritten by the raw-map processing in service.go.  The toml:"-" tag
-	// prevents the encoder from emitting a nested [hotkeys.bindings] table;
-	// Save writes the flat [hotkeys] section manually instead.
+	// overwritten by the raw-map processing in service.go.  Both this field
+	// and the parent Config.Hotkeys are tagged toml:"-" so the encoder skips
+	// them entirely; Save writes the flat [hotkeys] section manually instead.
 	Bindings map[string][]string `json:"bindings" toml:"-"`
 }
 
@@ -982,8 +982,8 @@ func (c *Config) Save(path string) error {
 	}()
 
 	// Encode the main config struct to TOML.
-	// Hotkeys.Bindings is tagged toml:"-" so the encoder emits an empty
-	// [hotkeys] section; we append the flat bindings manually afterwards.
+	// The Hotkeys field is tagged toml:"-" so the encoder skips it entirely;
+	// we append the flat [hotkeys] section manually afterwards.
 	encoder := toml.NewEncoder(file)
 
 	encodeErr := encoder.Encode(c)
