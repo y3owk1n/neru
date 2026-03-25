@@ -398,6 +398,7 @@ func commonDefaultConfig() *Config {
 			SublayerKeys: "abcdefghijklmnpqrstuvwxyz",
 			CustomHotkeys: map[string]StringOrStringArray{
 				"Escape":    {"idle"},
+				"Space":     {"action reset"},
 				"Backspace": {"action backspace"},
 				"Shift+L":   {"action left_click"},
 				"Shift+R":   {"action right_click"},
@@ -441,6 +442,7 @@ func commonDefaultConfig() *Config {
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
 			CustomHotkeys: map[string]StringOrStringArray{
 				"Escape":    {"idle"},
+				"Space":     {"action reset"},
 				"Backspace": {"action backspace"},
 				"Shift+L":   {"action left_click"},
 				"Shift+R":   {"action right_click"},
