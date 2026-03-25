@@ -187,7 +187,7 @@ Neru provides four navigation modes. Each can be activated via CLI or a configur
 
 ### Using the `--action` flag
 
-All navigation modes accept an `--action` (or `-a`) flag to perform a click automatically when a position is selected:
+All navigation modes accept an `--action` (or `-a`) flag to perform an action automatically when a position is selected:
 
 ```
 neru hints --action left_click           # Left-click via hints
@@ -261,14 +261,14 @@ Recursive grid divides the screen into cells. Each keypress narrows the active a
 
 **All default keys:**
 
-| Key                    | Action                         |
-| ---------------------- | ------------------------------ |
-| `u`                    | Upper-left cell                |
-| `i`                    | Upper-right cell               |
-| `j`                    | Lower-left cell                |
-| `k`                    | Lower-right cell               |
-| `Backspace`            | Go up one level                |
-| `Esc`                  | Exit mode                      |
+| Key         | Action           |
+| ----------- | ---------------- |
+| `u`         | Upper-left cell  |
+| `i`         | Upper-right cell |
+| `j`         | Lower-left cell  |
+| `k`         | Lower-right cell |
+| `Backspace` | Go up one level  |
+| `Esc`       | Exit mode        |
 
 ```
 neru recursive_grid
@@ -309,7 +309,9 @@ See [CONFIGURATION.md](CONFIGURATION.md) for configuring step sizes and mode cus
 
 ## Action Commands
 
-Perform mouse actions at the current cursor position. These work as immediate one-shot commands — no navigation mode required.
+### Staleless Actions
+
+These actions does not depends on anything and can be one shot.
 
 ```
 neru action left_click          # Left click
@@ -317,9 +319,6 @@ neru action right_click         # Right click
 neru action middle_click        # Middle click
 neru action mouse_down          # Hold mouse button
 neru action mouse_up            # Release mouse button
-neru action reset               # Reset state in current mode
-neru action backspace           # Mode-aware backspace
-neru action wait_for_mode_exit  # Block until mode exits to idle
 neru action save_cursor_pos     # Save current cursor position
 neru action restore_cursor      # Restore saved cursor position
 neru action scroll_up           # Scroll up at cursor
@@ -332,13 +331,15 @@ neru action go_top              # Jump to top at cursor
 neru action go_bottom           # Jump to bottom at cursor
 ```
 
-`action reset`, `action backspace`, and cursor-flow helpers:
+### Mode-aware Actions
 
-- `action reset`: resets state in the current mode without exiting (notably grid and recursive-grid).
-- `action backspace`: applies backspace behavior in the current mode (hints input correction, grid input/subgrid backstep, recursive-grid backtrack).
-- `action save_cursor_pos`: captures the current cursor position.
-- `action restore_cursor`: restores cursor position captured by `action save_cursor_pos`.
-- `action wait_for_mode_exit`: blocks until Neru returns to idle (useful in multi-action hotkeys).
+These actions depends on the current mode (useless for just plain cli call)
+
+```
+neru action reset               # Reset state in current mode
+neru action backspace           # Mode-aware backspace
+neru action wait_for_mode_exit  # Block until mode exits to idle
+```
 
 ### Modifier keys
 

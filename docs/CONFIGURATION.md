@@ -1,103 +1,374 @@
-# Configuration
+# Configuration Guide
 
-Neru configuration is TOML-based.
+Neru uses TOML for configuration. This guide covers all available options with explanations, use cases, and examples.
 
-## Core Principle
+> **Throughout this guide**, "the daemon" refers to the background process started with `neru launch`.
 
-In-mode bindings are defined only through per-mode `custom_hotkeys`.
+---
 
-When a mode is active, the priority for key binding resolution are as below:
+## Table of Contents
 
-1. modifier toggle
-2. mode `custom_hotkeys`
-3. mode-specific input keys (hint/grid/recursive-grid character input)
+- [Configuration Overview](#configuration-overview)
+- [Color Format](#color-format)
+- [Starter Config](#starter-config)
+- [Hotkeys](#hotkeys)
+- [Per-Mode Custom Hotkeys](#per-mode-custom-hotkeys)
+- [Keyboard Layout Requirements](#keyboard-layout-requirements)
+- [General Settings](#general-settings)
+- [Hint Mode](#hint-mode)
+- [Grid Mode](#grid-mode)
+- [Recursive Grid Mode](#recursive-grid-mode)
+- [Scroll Mode](#scroll-mode)
+- [Action Commands and Primitives](#action-commands-and-primitives)
+- [Mode Indicator](#mode-indicator)
+- [Sticky Modifiers](#sticky-modifiers)
+- [Smooth Cursor](#smooth-cursor)
+- [Systray](#systray)
+- [Font Configuration](#font-configuration)
+- [Logging](#logging)
 
-## Actions
+---
 
-`custom_hotkeys` actions use the same syntax as `[hotkeys]` values.
+## Configuration Overview
 
-Examples:
+> **Recommended location:** `~/.config/neru/config.toml`
 
-- `"idle"`
-- `"hints"`
-- `"grid"`
-- `"recursive_grid"`
-- `"scroll"`
-- `"action left_click"`
-- `"action move_mouse_relative --dx=0 --dy=-10"`
-- `"exec /usr/bin/say hello"`
-- `"action save_cursor_pos"`
-- `"action wait_for_mode_exit"`
-- `"action restore_cursor"`
+Config files are loaded in this order (highest to lowest priority):
 
-## Multi-action Bindings
+1. `$XDG_CONFIG_HOME/neru/config.toml` (if `XDG_CONFIG_HOME` is set)
+2. `~/.config/neru/config.toml` _(recommended)_
+3. `~/.neru.toml` _(legacy)_
+4. `neru.toml` _(current directory)_
+5. `config.toml` _(current directory)_
 
-Bindings can be string or array:
+This search order is the same on macOS, Linux, and Windows.
 
-```toml
-"Shift+L" = "action left_click"
-"Enter" = ["action left_click", "idle"]
-"Space" = ["action save_cursor_pos", "hints", "action wait_for_mode_exit", "action restore_cursor"]
+### Creating a config file
+
+Neru works out of the box with sensible defaults — no config file is required. When you're ready to customise, generate a fully-commented starter file:
+
+```bash
+neru config init                          # Creates ~/.config/neru/config.toml
+neru config init --force                  # Overwrite an existing file
+neru config init -c /path/to/config.toml  # Create at a custom path
 ```
 
-## Multi-key Sequences
+You can also copy manually from [default-config.toml](../configs/default-config.toml).
+
+### Managing your config
+
+```bash
+neru config validate    # Check for errors (no daemon needed)
+neru config reload      # Apply changes to a running daemon
+neru config dump        # Print the loaded configuration as JSON (daemon required)
+```
+
+To restart the daemon instead: `pkill neru && neru launch`
+
+See [CLI.md — Configuration Management](CLI.md#configuration-management) for full flag documentation.
+
+### Global flag
+
+Use `--config` (or `-c`) when launching to specify a custom config file path:
+
+```bash
+neru launch -c /path/to/config.toml
+```
+
+---
+
+## Color Format
+
+> **Read this before customising any colors.** Color values appear throughout this guide — this section explains the format.
+
+Neru colors use hex notation with optional alpha transparency.
+
+### Supported formats
+
+| Format      | Example     | Alpha | Description                         |
+| ----------- | ----------- | ----- | ----------------------------------- |
+| `#AARRGGBB` | `#FF000000` | Yes   | 8-char: Alpha + RGB _(recommended)_ |
+| `#RRGGBB`   | `#FF0000`   | No    | 6-char: RGB only (fully opaque)     |
+| `#RGB`      | `#F00`      | No    | 3-char shorthand                    |
+
+### `#AARRGGBB` breakdown
+
+| Position | Component | Range | Description          |
+| -------- | --------- | ----- | -------------------- |
+| 1–2      | AA        | 00–FF | Alpha (transparency) |
+| 3–4      | RR        | 00–FF | Red                  |
+| 5–6      | GG        | 00–FF | Green                |
+| 7–8      | BB        | 00–FF | Blue                 |
+
+### Alpha channel reference
+
+| Opacity | Hex  | Common use                  |
+| ------- | ---- | --------------------------- |
+| 100%    | `FF` | Solid colors, high contrast |
+| 95%     | `F2` | Hint labels (default)       |
+| 70%     | `B3` | Grid cell backgrounds       |
+| 60%     | `99` | Grid borders                |
+| 30%     | `4D` | Subtle highlights           |
+| 0%      | `00` | Invisible                   |
+
+To calculate any alpha value: `round(opacity_fraction × 255)` → convert to hex.
+
+### Light and dark mode
+
+All color options come in `_light` and `_dark` variants:
+
+- `*_light` — used when macOS is in Light Mode
+- `*_dark` — used when macOS is in Dark Mode
+
+When a color is omitted or set to `""`, Neru uses its built-in theme-aware defaults. Colors update in real time when you switch system themes. Setting an explicit value always overrides the default for that variant.
+
+```toml
+[hints.ui]
+background_color_light = "#FF0000AA"  # Custom for light mode
+# background_color_dark is omitted — uses built-in dark default
+```
+
+---
+
+## Starter Config
+
+A minimal config for most users — copy this as a starting point:
+
+```toml
+[hotkeys]
+"Cmd+Shift+Space" = "hints"
+"Cmd+Shift+G"     = "grid"
+"Cmd+Shift+C"     = "recursive_grid"
+"Cmd+Shift+S"     = "scroll"
+
+[hints.custom_hotkeys]
+"Escape" = "idle"
+"Shift+L" = ["action left_click", "idle"]
+
+[scroll]
+scroll_step = 50
+```
+
+> [!NOTE]
+> This config overrides all built-in global hotkey defaults. Keep every binding you still want.
+
+---
+
+## Hotkeys
+
+Global hotkeys trigger Neru navigation modes from anywhere on screen.
+
+> [!WARNING]
+> Defining **any** custom hotkey **replaces ALL defaults**. You must explicitly define every hotkey you want to keep.
+
+### Syntax
+
+**Format:** `"Modifier1+Modifier2+Key" = "action"`
+
+**Modifiers:** `Cmd`, `Ctrl`, `Alt` / `Option`, `Shift` (case-insensitive).
+
+**Actions can be:**
+
+- A mode command: `"hints"`, `"grid"`, `"scroll"`, `"recursive_grid"`, `"idle"`
+- An IPC action command: `"action left_click"`, `"action move_mouse_relative --dx=0 --dy=-10"`
+- A shell command: `"exec open -a Terminal"`
+
+### Multiple actions per hotkey
+
+You can bind multiple actions to a single hotkey by using an array:
+
+```toml
+[hotkeys]
+"PageUp" = ["action go_top", "action page_down"]
+"Cmd+Shift+D" = ["hints", "exec echo 'hints activated'"]
+```
+
+Actions are executed sequentially in order. If an action fails, the error is logged but remaining actions continue.
+
+Both `[hotkeys]` and `[<mode>.custom_hotkeys]` support this array syntax.
+
+---
+
+## Per-Mode Custom Hotkeys
+
+Define hotkeys that are only active while a specific mode is running.
+
+### Syntax
+
+```toml
+[hints.custom_hotkeys]
+"Escape" = "idle"
+"Backspace" = "action backspace"
+"Shift+L" = ["action left_click", "idle"]
+
+[scroll.custom_hotkeys]
+"gg" = "action go_top"
+"Cmd+Shift+T" = "exec open -a Terminal"
+```
+
+### Supported actions
+
+All actions from `[hotkeys]` work here, including:
+
+- Mode commands: `idle`, `hints`, `grid`, `recursive_grid`, `scroll`
+- Action subcommands: `action left_click`, `action scroll_down`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor`
+- Shell commands: `exec ...`
+
+### Priority order
+
+When a key is pressed inside a mode, Neru checks in this order:
+
+1. modifier toggle
+2. mode custom hotkeys (`<mode>.custom_hotkeys`)
+3. mode-specific keys (hint/grid/recursive-grid character input)
+
+### Multi-key sequences
 
 Two-letter alphabetic sequences are supported in `custom_hotkeys`:
 
 ```toml
+[scroll.custom_hotkeys]
 "gg" = "action go_top"
 ```
 
 Sequence timeout is `500ms`.
 
-## Starter Config
+---
+
+## Keyboard Layout Requirements
+
+Neru uses a reference keyboard layout for key translation so hotkeys and mode keys stay stable even when you switch active input sources.
+
+### `general.kb_layout_to_use` (optional)
 
 ```toml
-[hotkeys]
-"Cmd+Shift+Space" = "hints"
-"Cmd+Shift+G" = "grid"
-"Cmd+Shift+C" = "recursive_grid"
-"Cmd+Shift+S" = "scroll"
+[general]
+kb_layout_to_use = "com.apple.keylayout.ABC"
+```
 
-[hints.custom_hotkeys]
-"Escape" = "idle"
-"Backspace" = "action backspace"
-"Shift+L" = "action left_click"
-"Shift+R" = "action right_click"
-"Shift+M" = "action middle_click"
-"Shift+I" = "action mouse_down"
-"Shift+U" = "action mouse_up"
-"Up" = "action move_mouse_relative --dx=0 --dy=-10"
-"Down" = "action move_mouse_relative --dx=0 --dy=10"
-"Left" = "action move_mouse_relative --dx=-10 --dy=0"
-"Right" = "action move_mouse_relative --dx=10 --dy=0"
+To find available layout IDs on macOS:
 
-[grid.custom_hotkeys]
-"Escape" = "idle"
-"Backspace" = "action backspace"
-"Shift+L" = "action left_click"
-"Shift+R" = "action right_click"
-"Shift+M" = "action middle_click"
-"Shift+I" = "action mouse_down"
-"Shift+U" = "action mouse_up"
-"Up" = "action move_mouse_relative --dx=0 --dy=-10"
-"Down" = "action move_mouse_relative --dx=0 --dy=10"
-"Left" = "action move_mouse_relative --dx=-10 --dy=0"
-"Right" = "action move_mouse_relative --dx=10 --dy=0"
+```bash
+defaults read com.apple.HIToolbox AppleEnabledInputSources
+```
 
-[recursive_grid.custom_hotkeys]
-"Escape" = "idle"
-"Backspace" = "action backspace"
-"Shift+L" = "action left_click"
-"Shift+R" = "action right_click"
-"Shift+M" = "action middle_click"
-"Shift+I" = "action mouse_down"
-"Shift+U" = "action mouse_up"
-"Up" = "action move_mouse_relative --dx=0 --dy=-10"
-"Down" = "action move_mouse_relative --dx=0 --dy=10"
-"Left" = "action move_mouse_relative --dx=-10 --dy=0"
-"Right" = "action move_mouse_relative --dx=10 --dy=0"
+---
 
+## General Settings
+
+Core behaviour settings that affect all Neru functionality.
+
+### Option reference
+
+| Option                                 | Type   | Default | Description                                            |
+| -------------------------------------- | ------ | ------- | ------------------------------------------------------ |
+| `excluded_apps`                        | array  | `[]`    | Bundle IDs where Neru won't activate                   |
+| `accessibility_check_on_start`         | bool   | `true`  | Verify accessibility permissions on launch             |
+| `kb_layout_to_use`                     | string | `""`    | Optional InputSourceID for layout mapping              |
+| `hide_overlay_in_screen_share`         | bool   | `false` | Hide overlay in screen sharing apps                    |
+| `passthrough_unbounded_keys`           | bool   | `false` | Let unbound modifier shortcuts pass through            |
+| `should_exit_after_passthrough`        | bool   | `false` | Exit current mode after passthrough                    |
+| `passthrough_unbounded_keys_blacklist` | array  | `[]`    | Shortcuts to keep consumed when passthrough is enabled |
+
+> [!NOTE]
+> Legacy fields `restore_cursor_position`, `center_cursor_position`, and `mode_exit_keys` were removed. Exit/cursor behavior is now composed with custom hotkey action arrays.
+
+---
+
+## Hint Mode
+
+Hint mode uses macOS Accessibility APIs to identify clickable UI elements and overlay short labels on them.
+
+### Basic configuration
+
+| Option                             | Type   | Default       | Description                                            |
+| ---------------------------------- | ------ | ------------- | ------------------------------------------------------ |
+| `enabled`                          | bool   | `true`        | Enable/disable hints mode                              |
+| `custom_hotkeys`                   | table  | `{}`          | Per-mode hotkeys                                       |
+| `hint_characters`                  | string | `"asdfghjkl"` | Characters used for labels                             |
+| `mouse_action_refresh_delay`       | int    | `0`           | ms delay before refreshing hints after click (0–10000) |
+| `max_depth`                        | int    | `50`          | Max accessibility tree depth (0 = unlimited)           |
+| `parallel_threshold`               | int    | `20`          | Min children to trigger parallel tree building (≥ 1)   |
+| `include_menubar_hints`            | bool   | `false`       | Show hints on menubar items                            |
+| `include_dock_hints`               | bool   | `false`       | Show hints on Dock items                               |
+| `include_nc_hints`                 | bool   | `false`       | Show hints in Notification Center                      |
+| `include_stage_manager_hints`      | bool   | `false`       | Show hints in Stage Manager                            |
+| `detect_mission_control`           | bool   | `false`       | Auto-disable hints when in Mission Control             |
+| `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                               |
+| `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                           |
+| `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                            |
+
+> [!NOTE]
+> `auto_exit_actions`, `mode_exit_keys`, and `backspace_key` were removed. Use `custom_hotkeys` arrays like `"Shift+L" = ["action left_click", "idle"]` and `"Backspace" = "action backspace"`.
+
+---
+
+## Grid Mode
+
+Grid mode divides the screen into a labelled coordinate grid.
+
+### Basic configuration
+
+| Option              | Type   | Default              | Description                   |
+| ------------------- | ------ | -------------------- | ----------------------------- |
+| `enabled`           | bool   | `true`               | Enable/disable grid mode      |
+| `custom_hotkeys`    | table  | `{}`                 | Per-mode hotkeys              |
+| `characters`        | string | see default config   | Primary grid labels           |
+| `sublayer_keys`     | string | same as `characters` | Subgrid labels                |
+| `live_match_update` | bool   | `true`               | Highlight cells as you type   |
+| `hide_unmatched`    | bool   | `true`               | Hide non-matching cells       |
+| `prewarm_enabled`   | bool   | `true`               | Pre-compute grid on startup   |
+| `enable_gc`         | bool   | `false`              | Periodic memory cleanup       |
+| `row_labels`        | string | `""`                 | Optional custom row labels    |
+| `col_labels`        | string | `""`                 | Optional custom column labels |
+
+> [!NOTE]
+> `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `custom_hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).
+
+---
+
+## Recursive Grid Mode
+
+Recursive grid narrows the active area with each keypress for precise cursor placement.
+
+### Basic configuration
+
+| Option            | Type   | Default  | Description                         |
+| ----------------- | ------ | -------- | ----------------------------------- |
+| `enabled`         | bool   | `true`   | Enable/disable mode                 |
+| `custom_hotkeys`  | table  | `{}`     | Per-mode hotkeys                    |
+| `grid_cols`       | int    | `2`      | Number of columns (≥ 2)             |
+| `grid_rows`       | int    | `2`      | Number of rows (≥ 2)                |
+| `keys`            | string | `"uijk"` | Cell selection keys                 |
+| `min_size_width`  | int    | `25`     | Minimum cell width in pixels        |
+| `min_size_height` | int    | `25`     | Minimum cell height in pixels       |
+| `max_depth`       | int    | `10`     | Maximum recursion levels (1–20)     |
+| `layers`          | array  | `[]`     | Optional per-depth layout overrides |
+
+> [!NOTE]
+> `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `custom_hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).
+
+---
+
+## Scroll Mode
+
+Scroll mode provides keyboard-driven scrolling behavior.
+
+### Basic configuration
+
+| Option             | Type  | Default   | Description                             |
+| ------------------ | ----- | --------- | --------------------------------------- |
+| `scroll_step`      | int   | `50`      | Pixels for line scroll actions          |
+| `scroll_step_half` | int   | `500`     | Pixels for half-page actions            |
+| `scroll_step_full` | int   | `1000000` | Pixels for top/bottom jump actions      |
+| `custom_hotkeys`   | table | `{}`      | Per-mode hotkeys (includes scroll keys) |
+
+> [!NOTE]
+> `auto_exit_actions`, `mode_exit_keys`, and `[scroll.key_bindings]` were removed. Bind scroll keys in `[scroll.custom_hotkeys]` instead.
+
+Example:
+
+```toml
 [scroll.custom_hotkeys]
 "Escape" = "idle"
 "k" = "action scroll_up"
@@ -107,16 +378,113 @@ Sequence timeout is `500ms`.
 "gg" = "action go_top"
 "Shift+G" = "action go_bottom"
 "u" = "action page_up"
-"PageUp" = "action page_up"
 "d" = "action page_down"
-"PageDown" = "action page_down"
-"Shift+L" = "action left_click"
-"Shift+R" = "action right_click"
-"Shift+M" = "action middle_click"
-"Shift+I" = "action mouse_down"
-"Shift+U" = "action mouse_up"
-"Up" = "action move_mouse_relative --dx=0 --dy=-10"
-"Down" = "action move_mouse_relative --dx=0 --dy=10"
-"Left" = "action move_mouse_relative --dx=-10 --dy=0"
-"Right" = "action move_mouse_relative --dx=10 --dy=0"
 ```
+
+---
+
+## Action Commands and Primitives
+
+All one-shot actions are exposed through `action` subcommands and are valid in custom hotkeys as `"action <name>"`.
+
+### Action subcommands
+
+- `left_click`, `right_click`, `middle_click`
+- `mouse_down`, `mouse_up`
+- `move_mouse`, `move_mouse_relative`
+- `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`
+- `page_up`, `page_down`, `go_top`, `go_bottom`
+- `reset`, `backspace`
+- `wait_for_mode_exit`
+- `save_cursor_pos`
+- `restore_cursor`
+
+### New composition primitives
+
+These are action subcommands used to compose advanced array hotkeys:
+
+- `action save_cursor_pos`
+- `action wait_for_mode_exit`
+- `action restore_cursor`
+
+Example:
+
+```toml
+[hints.custom_hotkeys]
+"Enter" = ["action save_cursor_pos", "idle", "action wait_for_mode_exit", "action restore_cursor"]
+```
+
+> [!NOTE]
+> `reset`, `backspace`, `wait_for_mode_exit`, `save_cursor_pos`, and `restore_cursor` are not valid mode `--action` values. Use them as `neru action ...` or in hotkeys as `"action ..."`.
+
+---
+
+## Mode Indicator
+
+A floating label that follows the cursor and shows the current mode.
+
+Per-mode and UI options remain unchanged from previous versions; refer to `configs/default-config.toml` for the full, current set.
+
+---
+
+## Sticky Modifiers
+
+Tap modifiers inside a mode to make them sticky for subsequent actions.
+
+Configuration remains:
+
+```toml
+[sticky_modifiers]
+enabled = true
+tap_max_duration = 300
+tap_cooldown = 0
+```
+
+UI customization remains under `[sticky_modifiers.ui]`.
+
+---
+
+## Smooth Cursor
+
+Optional cursor animation settings remain under `[smooth_cursor]`.
+
+```toml
+[smooth_cursor]
+move_mouse_enabled = false
+steps = 10
+max_duration = 200
+duration_per_pixel = 0.1
+```
+
+---
+
+## Systray
+
+```toml
+[systray]
+enabled = true
+```
+
+> [!NOTE]
+> Changing systray behavior requires daemon restart.
+
+---
+
+## Font Configuration
+
+Use `font_family` in each UI section (`hints.ui`, `grid.ui`, `recursive_grid.ui`, `mode_indicator.ui`, `sticky_modifiers.ui`). Empty string uses system defaults.
+
+---
+
+## Logging
+
+Logging settings remain under `[logging]`.
+
+```toml
+[logging]
+log_level = "info"
+structured_logging = true
+disable_file_logging = true
+```
+
+Use `neru doctor` and runtime logs for troubleshooting configuration issues.
