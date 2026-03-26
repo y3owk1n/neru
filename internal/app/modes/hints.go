@@ -263,6 +263,12 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 	// during refresh these are already in the correct state.
 	if !isRefresh {
 		h.setModeLocked(domain.ModeHints, overlay.ModeHints)
+	} else {
+		// During a refresh (e.g., after Cmd+Tab passthrough) the focused app
+		// may have changed. Re-sync the modifier passthrough blacklist so
+		// app-specific hotkey overrides for the new app are correctly
+		// intercepted instead of being passed through to macOS.
+		h.syncModifierPassthrough(domain.ModeHints)
 	}
 
 	h.logger.Info("Hints mode activated")
