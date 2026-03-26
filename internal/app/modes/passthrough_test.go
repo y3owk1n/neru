@@ -22,7 +22,7 @@ func TestModeModifierKeys_HintsIncludesModifierHotkeys(t *testing.T) {
 
 	handler := &Handler{config: cfg}
 
-	got := handler.modeModifierKeys(domain.ModeHints)
+	got := handler.modeModifierKeys(domain.ModeHints, "")
 	want := []string{"Alt+K", "Cmd+L"}
 
 	if !slices.Equal(got, want) {
@@ -41,7 +41,7 @@ func TestModeModifierKeys_ScrollIncludesOnlyModifierHotkeys(t *testing.T) {
 
 	handler := &Handler{config: cfg}
 
-	got := handler.modeModifierKeys(domain.ModeScroll)
+	got := handler.modeModifierKeys(domain.ModeScroll, "")
 	want := []string{"Cmd+Down", "Cmd+Up"}
 
 	if !slices.Equal(got, want) {
