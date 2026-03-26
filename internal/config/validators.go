@@ -354,7 +354,11 @@ func (c *Config) checkHotkeysConflicts() error {
 
 	for idx, appConfig := range c.Hints.AppConfigs {
 		err := checkHotkeyConflicts(
-			fmt.Sprintf("hints.app_configs[%d].hotkeys", idx),
+			fmt.Sprintf(
+				"hints.hotkeys merged with hints.app_configs[%d] (%s)",
+				idx,
+				appConfig.BundleID,
+			),
 			c.HotkeysForModeAndApp(modeNameHints, appConfig.BundleID),
 		)
 		if err != nil {
