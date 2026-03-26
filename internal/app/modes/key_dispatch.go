@@ -139,7 +139,11 @@ func (h *Handler) handleHotkey(key string) bool {
 	}
 
 	currentModeName := domain.ModeString(h.appState.CurrentMode())
-	bundleID := h.focusedBundleID()
+
+	var bundleID string
+	if h.appState.CurrentMode() == domain.ModeHints {
+		bundleID = h.focusedBundleID()
+	}
 
 	hotkeys := h.config.HotkeysForModeAndApp(currentModeName, bundleID)
 	if len(hotkeys) == 0 {
