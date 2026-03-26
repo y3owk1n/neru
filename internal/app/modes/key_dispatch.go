@@ -43,6 +43,15 @@ func (h *Handler) HandleKeyPress(key string) {
 		key = h.stripStickyModifiersFromKey(key, activeMods)
 	}
 
+	// Resolve the focused app bundle ID once so that both handleHotkey calls
+	// (rawKey and stripped key) share the same snapshot. This avoids a
+	// redundant macOS Accessibility IPC call when sticky modifiers are active
+	// and rawKey != key.
+	var bundleID string
+	if h.appState.CurrentMode() == domain.ModeHints && h.config.Hints.HasAppHotkeyOverrides() {
+		bundleID = h.focusedBundleID()
+	}
+
 	// Check for per-mode hotkeys before mode-specific handling.
 	// Per-mode hotkeys use the same action syntax as top-level hotkeys.
 	// Try the raw key first (preserves full modifier combos like "Cmd+Shift+G"
@@ -59,7 +68,7 @@ func (h *Handler) HandleKeyPress(key string) {
 		savedLastKey := h.hotkeyLastKey
 		savedLastKeyTime := h.hotkeyLastKeyTime
 
-		if h.handleHotkey(rawKey) {
+		if h.handleHotkey(rawKey, bundleID) {
 			return
 		}
 
@@ -67,10 +76,10 @@ func (h *Handler) HandleKeyPress(key string) {
 		h.hotkeyLastKey = savedLastKey
 		h.hotkeyLastKeyTime = savedLastKeyTime
 
-		if h.handleHotkey(key) {
+		if h.handleHotkey(key, bundleID) {
 			return
 		}
-	} else if h.handleHotkey(rawKey) {
+	} else if h.handleHotkey(rawKey, bundleID) {
 		return
 	}
 
@@ -132,15 +141,16 @@ func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers)
 // handleHotkey checks if the key matches a hotkeys binding for the
 // current mode. If matched, it executes the action (IPC command or shell command)
 // using the same logic as top-level hotkeys. Returns true if the key was consumed.
-// Caller must hold h.mu.
-func (h *Handler) handleHotkey(key string) bool {
+// Caller must hold h.mu. The bundleID is the focused app's bundle identifier,
+// resolved once by the caller to avoid redundant accessibility IPC calls.
+func (h *Handler) handleHotkey(key, bundleID string) bool {
 	if h.executeHotkeyAction == nil {
 		return false
 	}
 
 	currentModeName := domain.ModeString(h.appState.CurrentMode())
 
-	hotkeys := h.config.HotkeysForMode(currentModeName)
+	hotkeys := h.config.HotkeysForModeAndApp(currentModeName, bundleID)
 	if len(hotkeys) == 0 {
 		return false
 	}

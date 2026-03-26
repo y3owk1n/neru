@@ -22,6 +22,14 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 		mode != domain.ModeIdle &&
 		h.config.General.PassthroughUnboundedKeys
 
+	// Resolve the focused app bundle ID once so both the blacklist and the
+	// intercepted modifier key list use a consistent snapshot. The query is
+	// only needed for hints mode — other modes have no per-app overrides.
+	var bundleID string
+	if enabled && mode == domain.ModeHints && h.config.Hints.HasAppHotkeyOverrides() {
+		bundleID = h.focusedBundleID()
+	}
+
 	if h.setPassthroughCallback != nil {
 		h.setPassthroughCallback(h.passthroughCallbackFor(mode, enabled))
 	}
@@ -33,7 +41,7 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 
 			// Hotkeys for the current mode must also be blacklisted
 			// so the event tap consumes them instead of passing them through.
-			hotkeys := h.config.HotkeysForMode(domain.ModeString(mode))
+			hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), bundleID)
 			for key := range hotkeys {
 				blacklist = append(blacklist, key)
 			}
@@ -48,7 +56,7 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 
 	keys := []string(nil)
 	if enabled {
-		keys = h.modeModifierKeys(mode)
+		keys = h.modeModifierKeys(mode, bundleID)
 	}
 
 	h.setInterceptedModifierKeys(keys)
@@ -68,7 +76,7 @@ func (h *Handler) passthroughCallbackFor(mode domain.Mode, enabled bool) func() 
 
 const initialCapacity = 16
 
-func (h *Handler) modeModifierKeys(mode domain.Mode) []string {
+func (h *Handler) modeModifierKeys(mode domain.Mode, bundleID string) []string {
 	if h.config == nil || mode == domain.ModeIdle {
 		return nil
 	}
@@ -94,7 +102,7 @@ func (h *Handler) modeModifierKeys(mode domain.Mode) []string {
 
 	// Append hotkey keys for the current mode so the event tap
 	// intercepts them instead of passing them through to macOS.
-	hotkeys := h.config.HotkeysForMode(domain.ModeString(mode))
+	hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), bundleID)
 	for key := range hotkeys {
 		appendKey(key)
 	}

@@ -413,9 +413,10 @@ type StickyModifiersConfig struct {
 
 // AppConfig defines application-specific settings for role customization.
 type AppConfig struct {
-	BundleID             string   `json:"bundleId"             toml:"bundle_id"`
-	AdditionalClickable  []string `json:"additionalClickable"  toml:"additional_clickable_roles"`
-	IgnoreClickableCheck bool     `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
+	BundleID             string                         `json:"bundleId"             toml:"bundle_id"`
+	AdditionalClickable  []string                       `json:"additionalClickable"  toml:"additional_clickable_roles"`
+	IgnoreClickableCheck bool                           `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
+	Hotkeys              map[string]StringOrStringArray `json:"hotkeys"              toml:"hotkeys"`
 }
 
 // HotkeysConfig defines hotkey mappings and their associated actions.
@@ -1082,18 +1083,73 @@ func (c *Config) Save(path string) error {
 // These are per-mode hotkeys that are only active while that mode is active,
 // using the same action syntax as [hotkeys] (e.g. "exec ...", "action ...", "hints", etc.).
 func (c *Config) HotkeysForMode(modeName string) map[string]StringOrStringArray {
-	switch modeName {
-	case modeNameHints:
-		return c.Hints.Hotkeys
-	case modeNameGrid:
-		return c.Grid.Hotkeys
-	case modeNameRecursiveGrid:
-		return c.RecursiveGrid.Hotkeys
-	case modeNameScroll:
-		return c.Scroll.Hotkeys
-	default:
-		return nil
+	return c.HotkeysForModeAndApp(modeName, "")
+}
+
+// HotkeysForModeAndApp returns the effective per-mode hotkeys map for the given mode
+// and focused app bundle ID. For modes without app-specific overrides, it returns the
+// base mode hotkeys unchanged. Hints mode supports per-app hotkey overrides through
+// [[hints.app_configs]].
+func (c *Config) HotkeysForModeAndApp(
+	modeName, bundleID string,
+) map[string]StringOrStringArray {
+	base := c.baseHotkeysForMode(modeName)
+	if modeName != modeNameHints || bundleID == "" {
+		return base
 	}
+
+	appConfig := c.Hints.AppConfigForBundleID(bundleID)
+	if appConfig == nil || len(appConfig.Hotkeys) == 0 {
+		return base
+	}
+
+	merged := make(map[string]StringOrStringArray, len(base)+len(appConfig.Hotkeys))
+	for key, actions := range base {
+		copied := make(StringOrStringArray, len(actions))
+		copy(copied, actions)
+		merged[key] = copied
+	}
+
+	for key, actions := range appConfig.Hotkeys {
+		canonicalKey := findNormalizedMapKey(merged, key)
+		if len(actions) == 1 && actions[0] == DisabledSentinel {
+			delete(merged, canonicalKey)
+
+			continue
+		}
+
+		delete(merged, canonicalKey)
+
+		copied := make(StringOrStringArray, len(actions))
+		copy(copied, actions)
+		merged[key] = copied
+	}
+
+	return merged
+}
+
+// HasAppHotkeyOverrides reports whether any [[hints.app_configs]] entry has a
+// non-empty Hotkeys map. Callers can use this to skip expensive operations
+// (e.g. accessibility API calls) when no per-app hotkey overrides are configured.
+func (c *HintsConfig) HasAppHotkeyOverrides() bool {
+	for idx := range c.AppConfigs {
+		if len(c.AppConfigs[idx].Hotkeys) > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// AppConfigForBundleID returns the matching hints app config for the given bundle ID.
+func (c *HintsConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	for idx := range c.AppConfigs {
+		if c.AppConfigs[idx].BundleID == bundleID {
+			return &c.AppConfigs[idx]
+		}
+	}
+
+	return nil
 }
 
 // IsAppExcluded checks if the given bundle ID is in the excluded apps list.
@@ -1126,14 +1182,9 @@ func (c *Config) ClickableRolesForApp(bundleID string) []string {
 // It first checks for app-specific configuration, then falls back to the global setting.
 func (c *Config) ShouldIgnoreClickableCheckForApp(bundleID string) bool {
 	// Check if the app has an app-specific ignore_clickable_check
-	if c.Hints.AppConfigs != nil {
-		if len(c.Hints.AppConfigs) > 0 {
-			for _, appConfig := range c.Hints.AppConfigs {
-				if appConfig.BundleID == bundleID {
-					return appConfig.IgnoreClickableCheck
-				}
-			}
-		}
+	appConfig := c.Hints.AppConfigForBundleID(bundleID)
+	if appConfig != nil {
+		return appConfig.IgnoreClickableCheck
 	}
 
 	// Fall back to global ignore_clickable_check
@@ -1210,6 +1261,21 @@ func (c *Config) ValidateScroll() error {
 	}
 
 	return nil
+}
+
+func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringArray {
+	switch modeName {
+	case modeNameHints:
+		return c.Hints.Hotkeys
+	case modeNameGrid:
+		return c.Grid.Hotkeys
+	case modeNameRecursiveGrid:
+		return c.RecursiveGrid.Hotkeys
+	case modeNameScroll:
+		return c.Scroll.Hotkeys
+	default:
+		return nil
+	}
 }
 
 // buildRolesMap builds a map of clickable roles for the given bundle ID.

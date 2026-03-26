@@ -10,6 +10,7 @@
 - [Restore Cursor Position After Mode Exit](#restore-cursor-position-after-mode-exit)
 - [Custom Mouse Movement Step Size](#custom-mouse-movement-step-size)
 - [Disabling All Built-In Hotkeys](#disabling-all-built-in-hotkeys)
+- [Give Browser Content Time To Load Before Refreshing Hints](#give-browser-content-time-to-load-before-refreshing-hints)
 - [Checking the Accessibility Tree on macOS](#checking-the-accessibility-tree-on-macos)
 - [Running a Custom Configuration via App Bundle](#running-a-custom-configuration-via-app-bundle)
 - [Cycling Between Different Monitors](#cycling-between-different-monitors)
@@ -115,6 +116,21 @@ ctrl - f : neru hints
 ctrl - g : neru grid
 ctrl - r : neru hints --action right_click
 ```
+
+## Give Browser Content Time To Load Before Refreshing Hints
+
+Some browser-like apps need a short delay after a click so the page content can finish updating before Neru refreshes hints. Override just that app's hint hotkeys:
+
+```toml
+[[hints.app_configs]]
+bundle_id = "net.imput.helium"
+
+[hints.app_configs.hotkeys]
+"Return" = ["action left_click", "exec sleep 0.8", "hints"]
+"Shift+L" = "__disabled__"
+```
+
+This merges on top of `[hints.hotkeys]`, so only the keys listed here change for Helium. Everything else keeps using your normal hint bindings.
 
 ## Checking the Accessibility Tree on macOS
 
