@@ -1128,6 +1128,19 @@ func (c *Config) HotkeysForModeAndApp(
 	return merged
 }
 
+// HasAppHotkeyOverrides reports whether any [[hints.app_configs]] entry has a
+// non-empty Hotkeys map. Callers can use this to skip expensive operations
+// (e.g. accessibility API calls) when no per-app hotkey overrides are configured.
+func (c *HintsConfig) HasAppHotkeyOverrides() bool {
+	for idx := range c.AppConfigs {
+		if len(c.AppConfigs[idx].Hotkeys) > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
 // AppConfigForBundleID returns the matching hints app config for the given bundle ID.
 func (c *HintsConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 	for idx := range c.AppConfigs {

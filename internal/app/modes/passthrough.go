@@ -26,7 +26,7 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 	// intercepted modifier key list use a consistent snapshot. The query is
 	// only needed for hints mode — other modes have no per-app overrides.
 	var bundleID string
-	if enabled && mode == domain.ModeHints {
+	if enabled && mode == domain.ModeHints && h.config.Hints.HasAppHotkeyOverrides() {
 		bundleID = h.focusedBundleID()
 	}
 

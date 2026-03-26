@@ -141,7 +141,7 @@ func (h *Handler) handleHotkey(key string) bool {
 	currentModeName := domain.ModeString(h.appState.CurrentMode())
 
 	var bundleID string
-	if h.appState.CurrentMode() == domain.ModeHints {
+	if h.appState.CurrentMode() == domain.ModeHints && h.config.Hints.HasAppHotkeyOverrides() {
 		bundleID = h.focusedBundleID()
 	}
 
