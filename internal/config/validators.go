@@ -149,6 +149,14 @@ func (c *Config) ValidateAppConfigs() error {
 		}
 
 		seen[appConfig.BundleID] = struct{}{}
+
+		err := validateHotkeyTable(
+			fmt.Sprintf("hints.app_configs[%d].hotkeys", idx),
+			appConfig.Hotkeys,
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -273,44 +281,57 @@ func (c *Config) ValidateHotkeys() error {
 	}
 
 	for _, mode := range modeHotkeys {
-		for key, actions := range mode.table {
-			fieldName := fmt.Sprintf("%s.hotkeys.%s", mode.modeName, key)
-
-			err := ValidateHotkey(key, fieldName)
-			if err != nil {
-				return err
-			}
-
-			if len(actions) == 0 {
-				return derrors.Newf(derrors.CodeInvalidConfig, "%s cannot be empty", fieldName)
-			}
-
-			for actionIndex, actionStr := range actions {
-				trimmed := strings.TrimSpace(actionStr)
-				if trimmed == "" {
-					return derrors.Newf(
-						derrors.CodeInvalidConfig,
-						"%s[%d] cannot be empty",
-						fieldName,
-						actionIndex,
-					)
-				}
-
-				err := validateHotkeyActionString(trimmed)
-				if err != nil {
-					return derrors.Newf(
-						derrors.CodeInvalidConfig,
-						"%s[%d]: %v",
-						fieldName,
-						actionIndex,
-						err,
-					)
-				}
-			}
+		err := validateHotkeyTable(mode.modeName+".hotkeys", mode.table)
+		if err != nil {
+			return err
 		}
 	}
 
 	return c.checkHotkeysConflicts()
+}
+
+func validateHotkeyTable(fieldPrefix string, table map[string]StringOrStringArray) error {
+	for key, actions := range table {
+		fieldName := fmt.Sprintf("%s.%s", fieldPrefix, key)
+
+		err := ValidateHotkey(key, fieldName)
+		if err != nil {
+			return err
+		}
+
+		if len(actions) == 0 {
+			return derrors.Newf(derrors.CodeInvalidConfig, "%s cannot be empty", fieldName)
+		}
+
+		if len(actions) == 1 && actions[0] == DisabledSentinel {
+			continue
+		}
+
+		for actionIndex, actionStr := range actions {
+			trimmed := strings.TrimSpace(actionStr)
+			if trimmed == "" {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s[%d] cannot be empty",
+					fieldName,
+					actionIndex,
+				)
+			}
+
+			err := validateHotkeyActionString(trimmed)
+			if err != nil {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s[%d]: %v",
+					fieldName,
+					actionIndex,
+					err,
+				)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (c *Config) checkHotkeysConflicts() error {
@@ -325,51 +346,71 @@ func (c *Config) checkHotkeysConflicts() error {
 	}
 
 	for _, mode := range modes {
-		seen := map[string]string{}
-		for key := range mode.table {
-			normalized := NormalizeKeyForComparison(key)
-			if prev, ok := seen[normalized]; ok {
-				return derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"%s.hotkeys has duplicate bindings (%q and %q)",
-					mode.modeName,
-					prev,
-					key,
-				)
-			}
-
-			seen[normalized] = key
+		err := checkHotkeyConflicts(mode.modeName+".hotkeys", mode.table)
+		if err != nil {
+			return err
 		}
-		// Check prefix conflicts: a single-character binding shadows any
-		// two-letter sequence that starts with the same character, because
-		// at runtime Phase 2 (direct match) fires before Phase 3 (sequence
-		// start), making the sequence silently unreachable.
-		//
-		// We use the original key (not normalized) to identify sequences,
-		// matching the ValidateHotkey logic: a sequence is exactly 2 ASCII
-		// letters in the original form. Named keys like "Up" normalize to
-		// "up" which passes IsAllLetters, but they are not sequences.
-		for key := range mode.table {
-			normalized := NormalizeKeyForComparison(key)
-			if len(normalized) != 1 {
+	}
+
+	for idx, appConfig := range c.Hints.AppConfigs {
+		err := checkHotkeyConflicts(
+			fmt.Sprintf("hints.app_configs[%d].hotkeys", idx),
+			c.HotkeysForModeAndApp(modeNameHints, appConfig.BundleID),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func checkHotkeyConflicts(fieldPrefix string, table map[string]StringOrStringArray) error {
+	seen := map[string]string{}
+	for key := range table {
+		normalized := NormalizeKeyForComparison(key)
+		if prev, ok := seen[normalized]; ok {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s has duplicate bindings (%q and %q)",
+				fieldPrefix,
+				prev,
+				key,
+			)
+		}
+
+		seen[normalized] = key
+	}
+
+	// Check prefix conflicts: a single-character binding shadows any
+	// two-letter sequence that starts with the same character, because
+	// at runtime Phase 2 (direct match) fires before Phase 3 (sequence
+	// start), making the sequence silently unreachable.
+	//
+	// We use the original key (not normalized) to identify sequences,
+	// matching the ValidateHotkey logic: a sequence is exactly 2 ASCII
+	// letters in the original form. Named keys like "Up" normalize to
+	// "up" which passes IsAllLetters, but they are not sequences.
+	for key := range table {
+		normalized := NormalizeKeyForComparison(key)
+		if len(normalized) != 1 {
+			continue
+		}
+
+		for seqKey := range table {
+			if len(seqKey) != 2 || !IsAllLetters(seqKey) || IsValidNamedKey(seqKey) {
 				continue
 			}
 
-			for seqKey := range mode.table {
-				if len(seqKey) != 2 || !IsAllLetters(seqKey) || IsValidNamedKey(seqKey) {
-					continue
-				}
-
-				normalizedSeq := NormalizeKeyForComparison(seqKey)
-				if strings.HasPrefix(normalizedSeq, normalized) {
-					return derrors.Newf(
-						derrors.CodeInvalidConfig,
-						"%s.hotkeys has a prefix conflict: single-key binding %q shadows sequence %q; the single key is always matched first at runtime, so the sequence can never fire",
-						mode.modeName,
-						key,
-						seqKey,
-					)
-				}
+			normalizedSeq := NormalizeKeyForComparison(seqKey)
+			if strings.HasPrefix(normalizedSeq, normalized) {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s has a prefix conflict: single-key binding %q shadows sequence %q; the single key is always matched first at runtime, so the sequence can never fire",
+					fieldPrefix,
+					key,
+					seqKey,
+				)
 			}
 		}
 	}

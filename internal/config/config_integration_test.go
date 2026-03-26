@@ -13,6 +13,8 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
+const hintsCommand = "hints"
+
 // TestConfigFileOperationsIntegration tests real file system operations
 // for configuration loading and reloading to prevent file system regressions.
 func TestConfigFileOperationsIntegration(t *testing.T) {
@@ -138,6 +140,37 @@ font_size = 16
 				"Expected reloaded font_size to be 16, got %d",
 				configSvc.Get().Hints.UI.FontSize,
 			)
+		}
+	})
+
+	t.Run("App Config Hotkeys Loading", func(t *testing.T) {
+		configContent := `
+[hints]
+
+[[hints.app_configs]]
+bundle_id = "com.apple.Safari"
+
+[hints.app_configs.hotkeys]
+"Return" = ["action left_click", "hints"]
+"Shift+L" = "__disabled__"
+`
+
+		writeConfigFile(t, configPath, configContent, 0o644)
+
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+		loadResult := service.LoadWithValidation(configPath)
+		if loadResult.ValidationError != nil {
+			t.Fatalf("Config validation failed: %v", loadResult.ValidationError)
+		}
+
+		got := loadResult.Config.HotkeysForModeAndApp(hintsCommand, "com.apple.Safari")
+		if actions := got["Return"]; len(actions) != 2 || actions[1] != hintsCommand {
+			t.Fatalf("expected app-specific Return override, got %v", actions)
+		}
+
+		if _, exists := got["Shift+L"]; exists {
+			t.Fatal("expected app-specific __disabled__ to remove inherited Shift+L binding")
 		}
 	})
 

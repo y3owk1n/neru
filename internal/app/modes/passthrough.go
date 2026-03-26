@@ -33,7 +33,7 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 
 			// Hotkeys for the current mode must also be blacklisted
 			// so the event tap consumes them instead of passing them through.
-			hotkeys := h.config.HotkeysForMode(domain.ModeString(mode))
+			hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), h.focusedBundleID())
 			for key := range hotkeys {
 				blacklist = append(blacklist, key)
 			}
@@ -94,7 +94,7 @@ func (h *Handler) modeModifierKeys(mode domain.Mode) []string {
 
 	// Append hotkey keys for the current mode so the event tap
 	// intercepts them instead of passing them through to macOS.
-	hotkeys := h.config.HotkeysForMode(domain.ModeString(mode))
+	hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), h.focusedBundleID())
 	for key := range hotkeys {
 		appendKey(key)
 	}

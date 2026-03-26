@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -25,6 +26,36 @@ func findNormalizedMapKey[V any](m map[string]V, rawKey string) string {
 	}
 
 	return rawKey
+}
+
+func validateRawHotkeyTable(fieldName string, rawTable any) error {
+	hotkeyMap, ok := rawTable.(map[string]any)
+	if !ok {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s must be a TOML table, got %T",
+			fieldName,
+			rawTable,
+		)
+	}
+
+	seenRaw := make(map[string]string, len(hotkeyMap))
+	for key := range hotkeyMap {
+		norm := NormalizeKeyForComparison(key)
+		if prev, dup := seenRaw[norm]; dup {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s has duplicate bindings (%q and %q normalize to the same key)",
+				fieldName,
+				prev,
+				key,
+			)
+		}
+
+		seenRaw[norm] = key
+	}
+
+	return nil
 }
 
 // AlertProvider defines the interface for displaying native system alerts.
@@ -181,32 +212,15 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 			// Empty [hotkeys] section: disable all hotkeys.
 			configResult.Config.Hotkeys.Bindings = map[string][]string{}
 		} else {
-			// Detect duplicate normalized keys in the raw TOML input before
-			// merging. TOML keys are case-sensitive, so "Escape" and "escape"
-			// are distinct keys in the file but normalize identically. Without
-			// this check the merge result would be non-deterministic (Go map
-			// iteration order).
-			seenRaw := make(map[string]string, len(hotMap))
-			for key := range hotMap {
-				norm := NormalizeKeyForComparison(key)
-				if prev, dup := seenRaw[norm]; dup {
-					configResult.ValidationError = derrors.Newf(
-						derrors.CodeInvalidConfig,
-						"hotkeys has duplicate bindings (%q and %q normalize to the same key)",
-						prev,
-						key,
-					)
-					configResult.Config = DefaultConfig()
+			err = validateRawHotkeyTable("hotkeys", hotMap)
+			if err != nil {
+				configResult.ValidationError = err
+				configResult.Config = DefaultConfig()
 
-					s.logger.Warn("Duplicate normalized hotkey in config",
-						zap.String("key1", prev),
-						zap.String("key2", key),
-						zap.Error(configResult.ValidationError))
+				s.logger.Warn("Duplicate normalized hotkey in config",
+					zap.Error(configResult.ValidationError))
 
-					return configResult
-				}
-
-				seenRaw[norm] = key
+				return configResult
 			}
 
 			// Merge user entries on top of defaults (already populated by DefaultConfig).
@@ -330,31 +344,16 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 			continue
 		}
 
-		// Detect duplicate normalized keys in the raw TOML input before
-		// merging, same rationale as for global [hotkeys] above.
-		seenRaw := make(map[string]string, len(chMap))
-		for key := range chMap {
-			norm := NormalizeKeyForComparison(key)
-			if prev, dup := seenRaw[norm]; dup {
-				configResult.ValidationError = derrors.Newf(
-					derrors.CodeInvalidConfig,
-					"%s.hotkeys has duplicate bindings (%q and %q normalize to the same key)",
-					modeHotkey.modeKey,
-					prev,
-					key,
-				)
-				configResult.Config = DefaultConfig()
+		err = validateRawHotkeyTable(modeHotkey.modeKey+".hotkeys", chMap)
+		if err != nil {
+			configResult.ValidationError = err
+			configResult.Config = DefaultConfig()
 
-				s.logger.Warn("Duplicate normalized custom hotkey in config",
-					zap.String("mode", modeHotkey.modeKey),
-					zap.String("key1", prev),
-					zap.String("key2", key),
-					zap.Error(configResult.ValidationError))
+			s.logger.Warn("Duplicate normalized custom hotkey in config",
+				zap.String("mode", modeHotkey.modeKey),
+				zap.Error(configResult.ValidationError))
 
-				return configResult
-			}
-
-			seenRaw[norm] = key
+			return configResult
 		}
 
 		// Merge user entries on top of defaults (already populated by DefaultConfig).
@@ -392,6 +391,60 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 				// Remove old casing before inserting with user's casing.
 				delete(*modeHotkey.dest, canonicalKey)
 				(*modeHotkey.dest)[key] = _sosa
+			}
+		}
+	}
+
+	if hintsRaw, ok := raw["hints"].(map[string]any); ok {
+		switch appConfigsRaw := hintsRaw["app_configs"].(type) {
+		case []any:
+			for idx, entry := range appConfigsRaw {
+				appMap, isMap := entry.(map[string]any)
+				if !isMap {
+					continue
+				}
+
+				hotkeysRaw, hasHotkeys := appMap["hotkeys"]
+				if !hasHotkeys {
+					continue
+				}
+
+				err = validateRawHotkeyTable(
+					fmt.Sprintf("hints.app_configs[%d].hotkeys", idx),
+					hotkeysRaw,
+				)
+				if err != nil {
+					configResult.ValidationError = err
+					configResult.Config = DefaultConfig()
+
+					s.logger.Warn("Duplicate normalized app hotkey in config",
+						zap.Int("app_config_index", idx),
+						zap.Error(configResult.ValidationError))
+
+					return configResult
+				}
+			}
+		case []map[string]any:
+			for idx, appMap := range appConfigsRaw {
+				hotkeysRaw, ok := appMap["hotkeys"]
+				if !ok {
+					continue
+				}
+
+				err = validateRawHotkeyTable(
+					fmt.Sprintf("hints.app_configs[%d].hotkeys", idx),
+					hotkeysRaw,
+				)
+				if err != nil {
+					configResult.ValidationError = err
+					configResult.Config = DefaultConfig()
+
+					s.logger.Warn("Duplicate normalized app hotkey in config",
+						zap.Int("app_config_index", idx),
+						zap.Error(configResult.ValidationError))
+
+					return configResult
+				}
 			}
 		}
 	}

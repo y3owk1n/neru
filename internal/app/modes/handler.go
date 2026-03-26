@@ -521,3 +521,18 @@ func (h *Handler) BackspaceCurrentMode() {
 		// no-op
 	}
 }
+
+func (h *Handler) focusedBundleID() string {
+	if h.actionService == nil {
+		return ""
+	}
+
+	bundleID, err := h.actionService.FocusedAppBundleID(context.Background())
+	if err != nil {
+		h.logger.Debug("Failed to get focused app bundle ID for mode hotkeys", zap.Error(err))
+
+		return ""
+	}
+
+	return bundleID
+}

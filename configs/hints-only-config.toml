@@ -44,6 +44,9 @@ ignore_clickable_check = false
 # bundle_id = "com.google.Chrome"
 # additional_clickable_roles = ["AXTabGroup"]
 # ignore_clickable_check = false
+#
+# [hints.app_configs.hotkeys]
+# "Return" = ["action left_click", "exec sleep 0.5", "hints"]
 
 [hints.additional_ax_support]
 enable = true

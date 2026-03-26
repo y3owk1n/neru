@@ -242,6 +242,28 @@ All actions from `[hotkeys]` work here, including:
 - Action subcommands: `action left_click`, `action scroll_down`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor_pos`
 - Shell commands: `exec ...`
 
+### Per-App Hint Hotkey Overrides
+
+`[[hints.app_configs]]` can override the same `[hints.hotkeys]` bindings for a specific app bundle ID.
+
+- App hotkeys are merged on top of `[hints.hotkeys]`
+- Missing keys inherit the global hint binding
+- `__disabled__` removes an inherited hint binding for that app only
+
+```toml
+[hints.hotkeys]
+"Return" = ["action left_click", "hints"]
+
+[[hints.app_configs]]
+bundle_id = "net.imput.helium"
+
+[hints.app_configs.hotkeys]
+"Return" = ["action left_click", "exec sleep 0.8", "hints"]
+"Shift+L" = "__disabled__"
+```
+
+This is useful for apps that need different hint follow-up behavior without adding special-purpose config fields. A common case is apps like Helium or browser-like shells that need a short pause before hints are refreshed.
+
 ### Priority order
 
 When a key is pressed inside a mode, Neru checks in this order:
@@ -439,6 +461,7 @@ Example:
 ```toml
 [hints.hotkeys]
 "Enter" = ["action save_cursor_pos", "idle", "action wait_for_mode_exit", "action restore_cursor_pos"]
+"Return" = ["action left_click", "exec sleep 0.5", "hints"]
 ```
 
 > [!NOTE]

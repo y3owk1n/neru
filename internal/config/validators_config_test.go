@@ -23,6 +23,24 @@ func TestConfigValidateHotkeys_Valid(t *testing.T) {
 	}
 }
 
+func TestConfigValidateHotkeys_AppOverridePrefixConflict(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Hints.Hotkeys["gg"] = config.StringOrStringArray{"action left_click"}
+	cfg.Hints.AppConfigs = []config.AppConfig{
+		{
+			BundleID: "com.apple.Safari",
+			Hotkeys: map[string]config.StringOrStringArray{
+				"g": {"action left_click"},
+			},
+		},
+	}
+
+	err := cfg.ValidateHotkeys()
+	if err == nil {
+		t.Fatal("ValidateHotkeys() expected merged app override prefix conflict, got nil")
+	}
+}
+
 func TestConfigValidateHotkeys_InvalidAction(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.Hotkeys["x"] = config.StringOrStringArray{"action nope"}
