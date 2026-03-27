@@ -52,16 +52,27 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 	// recursive_grid and pressing Command right away).
 	h.modifierDetectionArmed = false
 
-	autoArmSession := h.modeSession
-	time.AfterFunc(modifierDetectionAutoArmDelay, func() {
-		h.mu.Lock()
-		defer h.mu.Unlock()
+	// Only schedule the auto-arm timer for navigation modes with sticky
+	// modifiers enabled — idle mode disables the event tap and sticky toggle,
+	// so arming would be a no-op that wastes a goroutine.
+	isNavMode := mode == domain.ModeHints ||
+		mode == domain.ModeGrid ||
+		mode == domain.ModeRecursiveGrid ||
+		mode == domain.ModeScroll
+	stickyEnabled := isNavMode && h.config != nil && h.config.StickyModifiers.Enabled
 
-		if h.modeSession == autoArmSession && !h.modifierDetectionArmed {
-			h.modifierDetectionArmed = true
-			h.logger.Debug("Modifier detection auto-armed after delay")
-		}
-	})
+	if stickyEnabled {
+		autoArmSession := h.modeSession
+		time.AfterFunc(modifierDetectionAutoArmDelay, func() {
+			h.mu.Lock()
+			defer h.mu.Unlock()
+
+			if h.modeSession == autoArmSession && !h.modifierDetectionArmed {
+				h.modifierDetectionArmed = true
+				h.logger.Debug("Modifier detection auto-armed after delay")
+			}
+		})
+	}
 
 	h.syncModifierPassthrough(mode)
 	h.syncStickyModifierToggle(mode)
