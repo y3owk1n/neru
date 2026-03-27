@@ -77,7 +77,9 @@ void setEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallback ca
 /// callback is invoked with "__modifier_<name>" strings for sticky modifier toggling.
 /// @param tap Event tap handle
 /// @param enabled Non-zero to enable, zero to disable
-void setEventTapStickyModifierToggle(EventTap tap, int enabled);
+/// @param modifierFlags CGEventFlags of the activation hotkey's modifiers
+///                      (only meaningful when enabled != 0; pass 0 when disabling)
+void setEventTapStickyModifierToggle(EventTap tap, int enabled, uint64_t modifierFlags);
 
 #pragma mark - Standalone Utilities
 

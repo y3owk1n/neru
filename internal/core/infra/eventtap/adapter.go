@@ -101,11 +101,11 @@ func (a *Adapter) SetPassthroughCallback(cb func()) {
 }
 
 // SetStickyModifierToggle enables or disables sticky modifier toggle detection.
-func (a *Adapter) SetStickyModifierToggle(enabled bool) {
+func (a *Adapter) SetStickyModifierToggle(enabled bool, modifierFlags uint64) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.tap.SetStickyModifierToggle(enabled)
+	a.tap.SetStickyModifierToggle(enabled, modifierFlags)
 }
 
 // SetKeyboardLayout configures the reference keyboard layout used by key translation.

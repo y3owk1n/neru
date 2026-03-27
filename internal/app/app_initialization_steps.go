@@ -255,7 +255,7 @@ func initializeModeHandler(app *App) {
 			setModifierPassthrough     func(enabled bool, blacklist []string)
 			setInterceptedModifierKeys func(keys []string)
 			setPassthroughCallback     func(cb func())
-			setStickyModifierToggle    func(enabled bool)
+			setStickyModifierToggle    func(enabled bool, modifierFlags uint64)
 			postModifierEvent          func(modifier string, isDown bool)
 			refreshHotkeys             func()
 			executeHotkeyAction        func(key, actionStr string) error
@@ -299,7 +299,7 @@ func initializeModeHandler(app *App) {
 			setModifierPassthrough     func(enabled bool, blacklist []string)
 			setInterceptedModifierKeys func(keys []string)
 			setPassthroughCallback     func(cb func())
-			setStickyModifierToggle    func(enabled bool)
+			setStickyModifierToggle    func(enabled bool, modifierFlags uint64)
 			postModifierEvent          func(modifier string, isDown bool)
 			refreshHotkeys             func()
 			executeHotkeyAction        func(key, actionStr string) error

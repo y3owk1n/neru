@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -11,6 +12,14 @@ import (
 )
 
 const modifierDetectionAutoArmDelay = 150 * time.Millisecond
+
+// Canonical lowercase modifier names shared by key_dispatch.go and mode_setup.go.
+const (
+	modNameCmd   = "cmd"
+	modNameShift = "shift"
+	modNameAlt   = "alt"
+	modNameCtrl  = "ctrl"
+)
 
 // CurrModeString returns the current mode as a string.
 func (h *Handler) CurrModeString() string {
@@ -90,7 +99,59 @@ func (h *Handler) syncStickyModifierToggle(mode domain.Mode) {
 
 	enabled := isNavMode && h.config != nil && h.config.StickyModifiers.Enabled
 
-	h.setStickyModifierToggle(enabled)
+	var modifierFlags uint64
+	if enabled {
+		modifierFlags = h.activationModifierFlags(mode)
+	}
+
+	h.setStickyModifierToggle(enabled, modifierFlags)
+}
+
+// activationModifierFlags computes the CGEventFlags bitmask for the modifier
+// keys present in the activation hotkey(s) that trigger the given mode.
+// It inspects the top-level [hotkeys] bindings for entries whose action
+// matches the mode name (e.g., "hints", "grid", "scroll", "recursive_grid").
+// If multiple hotkeys activate the same mode, the union of their modifier bits
+// is returned — this is conservative and ensures no modifier release is missed.
+func (h *Handler) activationModifierFlags(mode domain.Mode) uint64 {
+	if h.config == nil {
+		return 0
+	}
+
+	modeName := domain.ModeString(mode)
+	// CGEventFlags values for the four modifier keys we track.
+	const (
+		flagCmd   uint64 = 1 << 20 // kCGEventFlagMaskCommand  = 0x00100000
+		flagShift uint64 = 1 << 17 // kCGEventFlagMaskShift    = 0x00020000
+		flagAlt   uint64 = 1 << 19 // kCGEventFlagMaskAlternate = 0x00080000
+		flagCtrl  uint64 = 1 << 18 // kCGEventFlagMaskControl  = 0x00040000
+	)
+
+	var flags uint64
+	for hotkeyStr, actions := range h.config.Hotkeys.Bindings {
+		for _, act := range actions {
+			if act != modeName {
+				continue
+			}
+			// Parse modifier prefixes from the hotkey string (e.g. "Cmd+Shift+Space").
+			parts := strings.SplitSeq(strings.ToLower(hotkeyStr), "+")
+			for part := range parts {
+				p := strings.TrimSpace(part)
+				switch p {
+				case modNameCmd, "command", "rightcmd", "leftcmd":
+					flags |= flagCmd
+				case modNameShift, "rightshift", "leftshift":
+					flags |= flagShift
+				case modNameAlt, "option", "rightalt", "leftalt", "rightoption", "leftoption":
+					flags |= flagAlt
+				case modNameCtrl, "rightctrl", "leftctrl":
+					flags |= flagCtrl
+				}
+			}
+		}
+	}
+
+	return flags
 }
 
 // SetModeIdle switches the application to idle mode, disabling active navigation modes.

@@ -61,9 +61,11 @@ func (a *App) setEventTapPassthroughCallback(cb func()) {
 }
 
 // setEventTapStickyModifierToggle enables or disables sticky modifier toggle detection.
-func (a *App) setEventTapStickyModifierToggle(enabled bool) {
+// modifierFlags is the CGEventFlags mask of the activation hotkey's modifiers;
+// pass 0 when disabling.
+func (a *App) setEventTapStickyModifierToggle(enabled bool, modifierFlags uint64) {
 	if a.eventTap != nil {
-		a.eventTap.SetStickyModifierToggle(enabled)
+		a.eventTap.SetStickyModifierToggle(enabled, modifierFlags)
 	}
 }
 

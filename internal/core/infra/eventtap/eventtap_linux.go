@@ -46,7 +46,7 @@ func (et *EventTap) SetInterceptedModifierKeys(_ []string) {}
 func (et *EventTap) SetPassthroughCallback(_ PassthroughCallback) {}
 
 // SetStickyModifierToggle enables or disables sticky modifier toggle detection (Linux stub).
-func (et *EventTap) SetStickyModifierToggle(_ bool) {}
+func (et *EventTap) SetStickyModifierToggle(_ bool, _ uint64) {}
 
 // PostModifierEvent simulates a physical modifier key press or release (Linux stub).
 func (et *EventTap) PostModifierEvent(_ string, _ bool) {}

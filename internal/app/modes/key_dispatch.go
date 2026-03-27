@@ -111,19 +111,19 @@ func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers)
 		if i < len(parts)-1 {
 			lowerPart := strings.ToLower(part)
 
-			if lowerPart == "cmd" && mods.Has(action.ModCmd) {
+			if lowerPart == modNameCmd && mods.Has(action.ModCmd) {
 				continue
 			}
 
-			if lowerPart == "shift" && mods.Has(action.ModShift) {
+			if lowerPart == modNameShift && mods.Has(action.ModShift) {
 				continue
 			}
 
-			if lowerPart == "alt" && mods.Has(action.ModAlt) {
+			if lowerPart == modNameAlt && mods.Has(action.ModAlt) {
 				continue
 			}
 
-			if lowerPart == "ctrl" && mods.Has(action.ModCtrl) {
+			if lowerPart == modNameCtrl && mods.Has(action.ModCtrl) {
 				continue
 			}
 

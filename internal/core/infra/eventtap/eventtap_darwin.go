@@ -10,7 +10,7 @@ package eventtap
 extern void eventTapCallbackBridge(char* key, void* userData);
 extern void eventTapPassthroughBridge(void* userData);
 
-void setEventTapStickyModifierToggle(EventTap tap, int enabled);
+void setEventTapStickyModifierToggle(EventTap tap, int enabled, uint64_t modifierFlags);
 void postEventTapModifierEvent(const char* modifier, int isDown);
 */
 import "C"
@@ -235,7 +235,9 @@ func (et *EventTap) SetPassthroughCallback(callback PassthroughCallback) {
 // SetStickyModifierToggle enables or disables sticky modifier toggle detection.
 // When enabled, modifier key events (Shift, Cmd, Alt, Ctrl) are detected and
 // callback is invoked with "__modifier_<name>" strings.
-func (et *EventTap) SetStickyModifierToggle(enabled bool) {
+// modifierFlags is the CGEventFlags mask of the activation hotkey's modifiers
+// (e.g., kCGEventFlagMaskCommand|kCGEventFlagMaskShift); pass 0 when disabling.
+func (et *EventTap) SetStickyModifierToggle(enabled bool, modifierFlags uint64) {
 	if et.handle == nil {
 		et.logger.Warn("Cannot set sticky modifier toggle on nil event tap")
 
@@ -247,7 +249,7 @@ func (et *EventTap) SetStickyModifierToggle(enabled bool) {
 		cEnabled = C.int(1)
 	}
 
-	C.setEventTapStickyModifierToggle(et.handle, cEnabled)
+	C.setEventTapStickyModifierToggle(et.handle, cEnabled, C.uint64_t(modifierFlags))
 }
 
 // SetKeyboardLayout configures the reference keyboard layout used by key translation.

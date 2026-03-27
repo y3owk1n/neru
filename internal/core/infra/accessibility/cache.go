@@ -449,18 +449,18 @@ func (c *InfoCache) EmitStats() {
 		return
 	}
 
-	if ce := c.logger.Check(zap.DebugLevel, "Cache statistics"); ce != nil {
-		ce.Write(
-			zap.Int64("hits", c.stats.hits.Load()),
-			zap.Int64("misses", c.stats.misses.Load()),
-			zap.Int64("sets", c.stats.sets.Load()),
-			zap.Int64("updates", c.stats.updates.Load()),
-			zap.Int64("evictions", c.stats.evictions.Load()),
-			zap.Int64("expired_removed", c.stats.expiredRemoved.Load()),
-			zap.Int64("hash_errors", c.stats.hashErrors.Load()),
-			zap.Int64("clone_errors", c.stats.cloneErrors.Load()),
-			zap.Int64("current_size", c.stats.currentSize.Load()))
-	}
+	// if ce := c.logger.Check(zap.DebugLevel, "Cache statistics"); ce != nil {
+	// 	ce.Write(
+	// 		zap.Int64("hits", c.stats.hits.Load()),
+	// 		zap.Int64("misses", c.stats.misses.Load()),
+	// 		zap.Int64("sets", c.stats.sets.Load()),
+	// 		zap.Int64("updates", c.stats.updates.Load()),
+	// 		zap.Int64("evictions", c.stats.evictions.Load()),
+	// 		zap.Int64("expired_removed", c.stats.expiredRemoved.Load()),
+	// 		zap.Int64("hash_errors", c.stats.hashErrors.Load()),
+	// 		zap.Int64("clone_errors", c.stats.cloneErrors.Load()),
+	// 		zap.Int64("current_size", c.stats.currentSize.Load()))
+	// }
 }
 
 // Clear removes all entries from the cache.

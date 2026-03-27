@@ -77,7 +77,7 @@ func (m *mockEventTap) SetPassthroughCallback(cb func()) {
 }
 
 // SetStickyModifierToggle implements ports.EventTapPort.
-func (m *mockEventTap) SetStickyModifierToggle(enabled bool) {}
+func (m *mockEventTap) SetStickyModifierToggle(enabled bool, modifierFlags uint64) {}
 
 // PostModifierEvent implements ports.EventTapPort.
 func (m *mockEventTap) PostModifierEvent(modifier string, isDown bool) {}

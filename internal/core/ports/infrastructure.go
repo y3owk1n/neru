@@ -36,7 +36,9 @@ type EventTapPort interface {
 	// SetStickyModifierToggle enables or disables sticky modifier toggle detection.
 	// When enabled, modifier key events are detected and callback is invoked with
 	// "__modifier_<name>" strings for sticky modifier toggling.
-	SetStickyModifierToggle(enabled bool)
+	// modifierFlags is the CGEventFlags mask of the activation hotkey's modifiers;
+	// pass 0 when disabling.
+	SetStickyModifierToggle(enabled bool, modifierFlags uint64)
 
 	// SetKeyboardLayout configures the reference keyboard layout used for key translation.
 	// Returns false when an explicit layout ID is provided but cannot be resolved.
