@@ -278,7 +278,7 @@ func TestHandleModifierToggle_DisabledConfig(t *testing.T) {
 func TestHandleModifierToggle_ArmingMechanism(t *testing.T) {
 	testHandler := newTestHandler()
 	testHandler.modifierDetectionArmed = false
-	// Down events while disarmed should be consumed but not toggle.
+	// Down events while disarmed should be buffered, not toggled immediately.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_cmd_down")
 	testHandler.mu.Unlock()
@@ -286,7 +286,35 @@ func TestHandleModifierToggle_ArmingMechanism(t *testing.T) {
 	if got := testHandler.modifierState.Current(); got != 0 {
 		t.Errorf("Expected 0 while disarmed, got %v", got)
 	}
-	// First up event arms detection.
+	// First up event arms detection. Because the matching down was buffered,
+	// it is promoted and the key-up schedules a toggle (via debounce).
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_cmd_up")
+	testHandler.mu.Unlock()
+	awaitDebounce(t, testHandler)
+
+	if !testHandler.modifierDetectionArmed {
+		t.Error("Expected detection to be armed after first key-up")
+	}
+
+	if got := testHandler.modifierState.Current(); got != action.ModCmd {
+		t.Errorf("Expected ModCmd (buffered down promoted on arm), got %v", got)
+	}
+}
+
+// TestHandleModifierToggle_ArmingWithoutBufferedDown verifies that when a key-up
+// arrives while disarmed but there is no matching buffered down (e.g., the down
+// happened before mode entry as part of the activation hotkey), the key-up arms
+// detection without toggling anything.
+func TestHandleModifierToggle_ArmingWithoutBufferedDown(t *testing.T) {
+	testHandler := newTestHandler()
+	testHandler.modifierDetectionArmed = false
+
+	// No modifier key-down while disarmed — simulates activation hotkey release
+	// where the down happened before mode entry and setAppModeLocked cleared
+	// the buffer.
+
+	// Key-up arms detection.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_cmd_up")
 	testHandler.mu.Unlock()
@@ -296,7 +324,7 @@ func TestHandleModifierToggle_ArmingMechanism(t *testing.T) {
 	}
 
 	if got := testHandler.modifierState.Current(); got != 0 {
-		t.Errorf("Expected 0 (arming up should not toggle), got %v", got)
+		t.Errorf("Expected 0 (no buffered down to promote), got %v", got)
 	}
 	// Now a clean tap should work.
 	testHandler.mu.Lock()
@@ -409,13 +437,14 @@ func TestHandleModifierToggle_AutoArmPromotesBufferedDown(t *testing.T) {
 }
 
 // TestHandleModifierToggle_DisarmedUpClearsBuffer verifies that when detection
-// is armed via a key-up event (activation hotkey release), the disarmed buffer
-// is cleared so stale entries don't leak into pendingModifierKeys.
+// is armed via a key-up event, the disarmed buffer is cleared. If the key-up
+// has a matching buffered down, it is promoted and the tap toggles. Unmatched
+// entries (from other modifiers) are discarded.
 func TestHandleModifierToggle_DisarmedUpClearsBuffer(t *testing.T) {
 	testHandler := newTestHandler()
 	testHandler.modifierDetectionArmed = false
 
-	// Simulate activation hotkey modifier down while disarmed.
+	// Simulate Cmd down while disarmed (intentional tap right after mode entry).
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_cmd_down")
 	testHandler.mu.Unlock()
@@ -424,11 +453,12 @@ func TestHandleModifierToggle_DisarmedUpClearsBuffer(t *testing.T) {
 		t.Fatalf("Expected 1 disarmedModifierDowns, got %d", len(testHandler.disarmedModifierDowns))
 	}
 
-	// The key-up arms detection and should clear the buffer (these are
-	// activation hotkey modifiers, not intentional taps).
+	// The key-up arms detection, promotes the matching buffered down, and
+	// falls through to the armed path where the toggle is scheduled.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_cmd_up")
 	testHandler.mu.Unlock()
+	awaitDebounce(t, testHandler)
 
 	if !testHandler.modifierDetectionArmed {
 		t.Error("Expected detection to be armed after key-up")
@@ -439,9 +469,68 @@ func TestHandleModifierToggle_DisarmedUpClearsBuffer(t *testing.T) {
 			len(testHandler.disarmedModifierDowns))
 	}
 
-	// The cmd_up that armed detection should NOT have toggled anything.
+	// The matching buffered down was promoted, so the tap toggles Cmd on.
+	if got := testHandler.modifierState.Current(); got != action.ModCmd {
+		t.Errorf("Expected ModCmd (buffered down promoted on key-up arm), got %v", got)
+	}
+}
+
+// TestHandleModifierToggle_ActivationHotkeyUpDoesNotToggle verifies that when a
+// key-up arrives while disarmed with NO matching buffered down (activation hotkey
+// release — the down happened before mode entry), the key-up arms detection
+// without toggling.
+func TestHandleModifierToggle_ActivationHotkeyUpDoesNotToggle(t *testing.T) {
+	testHandler := newTestHandler()
+	testHandler.modifierDetectionArmed = false
+
+	// No modifier key-down while disarmed — the activation hotkey's Cmd↓
+	// happened before setAppModeLocked, which cleared disarmedModifierDowns.
+
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_cmd_up")
+	testHandler.mu.Unlock()
+
+	if !testHandler.modifierDetectionArmed {
+		t.Error("Expected detection to be armed after key-up")
+	}
+
+	// No matching buffered down → no toggle.
 	if got := testHandler.modifierState.Current(); got != 0 {
-		t.Errorf("Expected 0 (arming up should not toggle), got %v", got)
+		t.Errorf("Expected 0 (activation hotkey up should not toggle), got %v", got)
+	}
+}
+
+// TestHandleModifierToggle_KeyUpArmPromotesBufferedDown verifies that when a
+// modifier key-up arrives while disarmed (before the auto-arm timer fires), the
+// matching buffered down is promoted to pendingModifierKeys and the key-up falls
+// through to the armed path, completing the toggle. This closes the race where
+// the key-up and auto-arm timer compete for the lock.
+func TestHandleModifierToggle_KeyUpArmPromotesBufferedDown(t *testing.T) {
+	testHandler := newTestHandler()
+	testHandler.modifierDetectionArmed = false
+
+	// Modifier key-down while disarmed → buffered.
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_shift_down")
+	testHandler.mu.Unlock()
+
+	if len(testHandler.disarmedModifierDowns) != 1 {
+		t.Fatalf("Expected 1 disarmedModifierDowns, got %d", len(testHandler.disarmedModifierDowns))
+	}
+
+	// Key-up arrives before auto-arm timer (simulates key-up winning the lock race).
+	// The key-up should arm detection, promote the buffered down, and toggle.
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_shift_up")
+	testHandler.mu.Unlock()
+	awaitDebounce(t, testHandler)
+
+	if !testHandler.modifierDetectionArmed {
+		t.Error("Expected detection to be armed after key-up")
+	}
+
+	if got := testHandler.modifierState.Current(); got != action.ModShift {
+		t.Errorf("Expected ModShift (key-up promoted buffered down and toggled), got %v", got)
 	}
 }
 

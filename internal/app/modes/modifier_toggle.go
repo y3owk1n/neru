@@ -80,9 +80,33 @@ func (h *Handler) handleModifierToggle(key string) bool {
 			// A key-up means the user released a modifier — arm detection
 			// so the next intentional down/up pair will be processed.
 			h.modifierDetectionArmed = true
+
+			// Check whether the corresponding key-down was buffered while
+			// disarmed. If so, promote it to pendingModifierKeys and let
+			// this key-up fall through to the armed path so the tap is
+			// recognized. This closes the race where the key-up arrives
+			// just before the auto-arm timer fires: whichever path wins
+			// the lock performs the promotion and the other becomes a no-op.
+			expectedDown := strings.TrimSuffix(strings.ToLower(key), "_up") + "_down"
+			if dt, ok := h.disarmedModifierDowns[expectedDown]; ok {
+				if h.pendingModifierKeys == nil {
+					h.pendingModifierKeys = make(map[string]time.Time)
+				}
+
+				h.pendingModifierKeys[expectedDown] = dt
+
+				h.logger.Debug("Promoted matching buffered modifier-down on key-up arm",
+					zap.String("key", expectedDown))
+			}
+
 			h.disarmedModifierDowns = nil
 			h.logger.Debug("Modifier detection armed (first key-up after mode entry)",
 				zap.String("key", key))
+
+			// Fall through to the armed path so the key-up can find the
+			// promoted pending entry and schedule a toggle. If there was
+			// no matching buffered down, the armed path will simply ignore
+			// this key-up (no matching pending entry).
 		} else {
 			// Buffer the key-down so that when the auto-arm timer fires,
 			// the entry can be promoted to pendingModifierKeys and the
@@ -96,9 +120,9 @@ func (h *Handler) handleModifierToggle(key string) bool {
 			h.disarmedModifierDowns[normalizedDown] = time.Now()
 			h.logger.Debug("Modifier key-down buffered (detection not armed)",
 				zap.String("key", key))
-		}
 
-		return true
+			return true
+		}
 	}
 
 	// Normalize to lowercase for consistent matching (parseModifierEvent also
