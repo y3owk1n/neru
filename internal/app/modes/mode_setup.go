@@ -10,6 +10,8 @@ import (
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
+const modifierDetectionAutoArmDelay = 150 * time.Millisecond
+
 // CurrModeString returns the current mode as a string.
 func (h *Handler) CurrModeString() string {
 	return domain.ModeString(h.appState.CurrentMode())
@@ -45,7 +47,21 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 	// This prevents hotkey modifiers (e.g., Cmd+Shift from the activation combo)
 	// or IPC tool key releases from being misinterpreted as intentional taps.
 	// Detection is re-armed when we see a _up event with no modifiers held.
+	// Additionally, auto-arm after a short delay to handle the case where the user
+	// immediately presses a modifier key after activation (e.g., re-entering
+	// recursive_grid and pressing Command right away).
 	h.modifierDetectionArmed = false
+
+	autoArmSession := h.modeSession
+	time.AfterFunc(modifierDetectionAutoArmDelay, func() {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+
+		if h.modeSession == autoArmSession && !h.modifierDetectionArmed {
+			h.modifierDetectionArmed = true
+			h.logger.Debug("Modifier detection auto-armed after delay")
+		}
+	})
 
 	h.syncModifierPassthrough(mode)
 	h.syncStickyModifierToggle(mode)
