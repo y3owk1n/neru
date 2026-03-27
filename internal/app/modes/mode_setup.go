@@ -55,13 +55,19 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 
 	h.disarmedModifierDowns = nil
 
+	// Cancel any in-flight auto-arm timer from a previous mode entry.
+	if h.modifierAutoArmTimer != nil {
+		h.modifierAutoArmTimer.Stop()
+		h.modifierAutoArmTimer = nil
+	}
+
 	// Only schedule the auto-arm timer for navigation modes where sticky
 	// modifiers are meaningful. Idle transitions don't need it because
 	// handleModifierToggle gates on stickyModifiersEnabled() which returns
 	// false for idle mode.
 	if mode != domain.ModeIdle {
 		autoArmSession := h.modeSession
-		time.AfterFunc(modifierDetectionAutoArmDelay, func() {
+		h.modifierAutoArmTimer = time.AfterFunc(modifierDetectionAutoArmDelay, func() {
 			h.mu.Lock()
 			defer h.mu.Unlock()
 
