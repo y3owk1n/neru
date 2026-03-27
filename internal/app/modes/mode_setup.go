@@ -55,32 +55,36 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 
 	h.disarmedModifierDowns = nil
 
-	autoArmSession := h.modeSession
-	time.AfterFunc(modifierDetectionAutoArmDelay, func() {
-		h.mu.Lock()
-		defer h.mu.Unlock()
+	// Only schedule the auto-arm timer for navigation modes where sticky
+	// modifiers are meaningful. Idle transitions don't need it because
+	// handleModifierToggle gates on stickyModifiersEnabled() which returns
+	// false for idle mode.
+	if mode != domain.ModeIdle {
+		autoArmSession := h.modeSession
+		time.AfterFunc(modifierDetectionAutoArmDelay, func() {
+			h.mu.Lock()
+			defer h.mu.Unlock()
 
-		if h.modeSession == autoArmSession && !h.modifierDetectionArmed {
-			h.modifierDetectionArmed = true
+			if h.modeSession == autoArmSession && !h.modifierDetectionArmed {
+				h.modifierDetectionArmed = true
+				// Promote any modifier-downs that arrived while disarmed so that
+				// the subsequent key-up finds a matching pending entry.
+				if len(h.disarmedModifierDowns) > 0 {
+					if h.pendingModifierKeys == nil {
+						h.pendingModifierKeys = make(map[string]time.Time)
+					}
 
-			// Promote any modifier-downs that arrived while disarmed so that
-			// the subsequent key-up finds a matching pending entry.
-			if len(h.disarmedModifierDowns) > 0 {
-				if h.pendingModifierKeys == nil {
-					h.pendingModifierKeys = make(map[string]time.Time)
+					maps.Copy(h.pendingModifierKeys, h.disarmedModifierDowns)
+
+					h.logger.Debug("Promoted buffered modifier-downs after auto-arm",
+						zap.Int("count", len(h.disarmedModifierDowns)))
 				}
 
-				maps.Copy(h.pendingModifierKeys, h.disarmedModifierDowns)
-
-				h.logger.Debug("Promoted buffered modifier-downs after auto-arm",
-					zap.Int("count", len(h.disarmedModifierDowns)))
+				h.disarmedModifierDowns = nil
+				h.logger.Debug("Modifier detection auto-armed after delay")
 			}
-
-			h.disarmedModifierDowns = nil
-
-			h.logger.Debug("Modifier detection auto-armed after delay")
-		}
-	})
+		})
+	}
 
 	h.syncModifierPassthrough(mode)
 	h.syncStickyModifierToggle(mode)
