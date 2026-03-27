@@ -328,6 +328,11 @@ func (h *Handler) cancelPendingModifierToggle() {
 		h.logger.Debug("Modifier tap canceled")
 	}
 
+	// Also clear any modifier-downs buffered while detection was disarmed.
+	// Without this, the auto-arm timer would promote stale entries that
+	// should have been invalidated by the intervening regular key press.
+	h.disarmedModifierDowns = nil
+
 	// Stop all debounce timers so the toggle callback finds no pending entry.
 	for key, timer := range h.pendingModifierTimers {
 		timer.Stop()

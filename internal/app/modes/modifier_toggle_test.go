@@ -445,6 +445,57 @@ func TestHandleModifierToggle_DisarmedUpClearsBuffer(t *testing.T) {
 	}
 }
 
+// TestHandleModifierToggle_RegularKeyClearsDisarmedBuffer verifies that a regular
+// key press (via cancelPendingModifierToggle) clears disarmedModifierDowns so the
+// auto-arm timer does not promote stale entries. This prevents the scenario:
+// mode entry → modifier↓ (buffered) → regular key → auto-arm promotes → modifier↑ → incorrect toggle.
+func TestHandleModifierToggle_RegularKeyClearsDisarmedBuffer(t *testing.T) {
+	testHandler := newTestHandler()
+	testHandler.modifierDetectionArmed = false
+
+	// Modifier key-down while disarmed → buffered.
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_cmd_down")
+	testHandler.mu.Unlock()
+
+	if len(testHandler.disarmedModifierDowns) != 1 {
+		t.Fatalf("Expected 1 disarmedModifierDowns, got %d", len(testHandler.disarmedModifierDowns))
+	}
+
+	// Regular key press cancels pending toggles AND should clear the disarmed buffer.
+	testHandler.mu.Lock()
+	testHandler.cancelPendingModifierToggle()
+	testHandler.mu.Unlock()
+
+	if len(testHandler.disarmedModifierDowns) != 0 {
+		t.Fatalf("Expected disarmedModifierDowns cleared after regular key, got %d",
+			len(testHandler.disarmedModifierDowns))
+	}
+
+	// Simulate the auto-arm timer firing: arm detection and attempt promotion.
+	testHandler.mu.Lock()
+
+	testHandler.modifierDetectionArmed = true
+	if testHandler.pendingModifierKeys == nil {
+		testHandler.pendingModifierKeys = make(map[string]time.Time)
+	}
+
+	// disarmedModifierDowns is nil, so nothing to promote.
+	maps.Copy(testHandler.pendingModifierKeys, testHandler.disarmedModifierDowns)
+
+	testHandler.disarmedModifierDowns = nil
+	testHandler.mu.Unlock()
+
+	// The key-up should NOT find a matching pending down → no toggle.
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_cmd_up")
+	testHandler.mu.Unlock()
+
+	if got := testHandler.modifierState.Current(); got != 0 {
+		t.Errorf("Expected 0 (regular key should have invalidated buffered modifier), got %v", got)
+	}
+}
+
 // TestHandleModifierToggle_KarabinerScenario simulates the exact event sequence
 // that Karabiner sends when remapping Option+h → Left Arrow:
 // alt_down → alt_up → Left (regular key arrives after modifier released).
