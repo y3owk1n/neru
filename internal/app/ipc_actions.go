@@ -265,6 +265,11 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
+	if h.modesHandler != nil {
+		stickyMods := h.modesHandler.StickyModifiers()
+		modifiers |= stickyMods
+	}
+
 	isMoveMouse := actionName == string(action.NameMoveMouse)
 	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
 

@@ -340,6 +340,11 @@ func (h *Handler) stickyModifiers() action.Modifiers {
 	return h.modifierState.Current()
 }
 
+// StickyModifiers returns the currently active sticky modifiers.
+func (h *Handler) StickyModifiers() action.Modifiers {
+	return h.stickyModifiers()
+}
+
 func (h *Handler) drawStickyModifiersIndicator(xCoordinate, yCoordinate int) {
 	if h.stickyIndicatorService == nil {
 		return
