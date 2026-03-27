@@ -80,10 +80,21 @@ func (h *Handler) handleModifierToggle(key string) bool {
 			// A key-up means the user released a modifier — arm detection
 			// so the next intentional down/up pair will be processed.
 			h.modifierDetectionArmed = true
+			h.disarmedModifierDowns = nil
 			h.logger.Debug("Modifier detection armed (first key-up after mode entry)",
 				zap.String("key", key))
 		} else {
-			h.logger.Debug("Modifier event ignored (detection not armed)",
+			// Buffer the key-down so that when the auto-arm timer fires,
+			// the entry can be promoted to pendingModifierKeys and the
+			// subsequent key-up will find a matching down.
+			normalizedDown := strings.ToLower(key)
+
+			if h.disarmedModifierDowns == nil {
+				h.disarmedModifierDowns = make(map[string]time.Time)
+			}
+
+			h.disarmedModifierDowns[normalizedDown] = time.Now()
+			h.logger.Debug("Modifier key-down buffered (detection not armed)",
 				zap.String("key", key))
 		}
 

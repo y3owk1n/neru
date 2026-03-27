@@ -98,6 +98,7 @@ type Handler struct {
 	pendingModifierKeys    map[string]time.Time
 	pendingModifierTimers  map[string]*time.Timer // debounce timers for delayed sticky toggle
 	modifierDetectionArmed bool                   // true once all modifiers have been released after mode entry
+	disarmedModifierDowns  map[string]time.Time   // modifier-downs received while detection was disarmed
 	lastRegularKeyTime     time.Time              // timestamp of the last non-modifier key press
 	debounceNotify         chan struct{}          // test-only: signaled when a debounce callback completes
 
