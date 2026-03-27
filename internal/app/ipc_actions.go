@@ -265,11 +265,6 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if h.modesHandler != nil {
-		stickyMods := h.modesHandler.StickyModifiers()
-		modifiers |= stickyMods
-	}
-
 	isMoveMouse := actionName == string(action.NameMoveMouse)
 	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
 
@@ -305,6 +300,14 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			Message: "--modifier is only supported with click and mouse button actions",
 			Code:    ipc.CodeInvalidInput,
 		}
+	}
+
+	// Merge sticky modifiers AFTER the explicit --modifier validation above,
+	// so that active sticky modifiers don't cause false rejection of
+	// non-click actions like move_mouse or move_mouse_relative.
+	if h.modesHandler != nil {
+		stickyMods := h.modesHandler.StickyModifiers()
+		modifiers |= stickyMods
 	}
 
 	if (isMoveMouse || isMoveMouseRelative) && (parsed.hasX || parsed.hasY) &&
