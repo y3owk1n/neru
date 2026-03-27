@@ -61,10 +61,9 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 	}
 
 	// Only schedule the auto-arm timer for navigation modes where sticky
-	// modifiers are meaningful. Idle transitions don't need it because
-	// handleModifierToggle gates on stickyModifiersEnabled() which returns
-	// false for idle mode.
-	if mode != domain.ModeIdle {
+	// modifiers are actually enabled. Idle transitions and configs with
+	// sticky modifiers disabled don't need it.
+	if mode != domain.ModeIdle && h.stickyModifiersEnabled() {
 		autoArmSession := h.modeSession
 		h.modifierAutoArmTimer = time.AfterFunc(modifierDetectionAutoArmDelay, func() {
 			h.mu.Lock()
