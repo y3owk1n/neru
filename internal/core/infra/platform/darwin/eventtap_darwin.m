@@ -34,6 +34,7 @@ typedef struct {
 	os_unfair_lock modifierPassthroughLock;                  ///< Lock for modifier passthrough config
 	CGEventFlags previousFlags;                              ///< Previous modifier flags for toggle detection
 	BOOL stickyModifierToggleEnabled;                        ///< Whether to emit __modifier_ events
+	BOOL stickyModifierNeedsSeed;                            ///< Use next event's flags as baseline (skip emit)
 	os_unfair_lock stickyModifierLock;                       ///< Lock for sticky modifier toggle config
 	dispatch_block_t __strong pendingAddSourceBlock;         ///< Pending add source block
 } EventTapContext;
@@ -331,16 +332,30 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			// Read/write previousFlags under stickyModifierLock to avoid racing
 			// with setEventTapStickyModifierToggle which also writes it.
 			BOOL stickyEnabled = NO;
+			BOOL needsSeed = NO;
 			CGEventFlags changed;
-			CGEventFlags previousFlags;
 			os_unfair_lock_lock(&context->stickyModifierLock);
 			stickyEnabled = context->stickyModifierToggleEnabled;
-			changed = flags ^ context->previousFlags;
-			previousFlags = context->previousFlags;
-			context->previousFlags = flags;
+			needsSeed = context->stickyModifierNeedsSeed;
+			if (needsSeed) {
+				// First kCGEventFlagsChanged after toggle was enabled.
+				// Use the real event's flags as the baseline instead of
+				// the unreliable CGEventCreate/CGEventSourceFlagsState probe.
+				context->previousFlags = flags;
+				context->stickyModifierNeedsSeed = NO;
+				changed = 0;  // no diff on the seed event
+			} else {
+				changed = flags ^ context->previousFlags;
+				context->previousFlags = flags;
+			}
 			os_unfair_lock_unlock(&context->stickyModifierLock);
 
 			if (!stickyEnabled) {
+				return event;
+			}
+
+			// Seed event — baseline captured, nothing to emit.
+			if (needsSeed) {
 				return event;
 			}
 
@@ -727,16 +742,17 @@ void setEventTapStickyModifierToggle(EventTap tap, int enabled) {
 	os_unfair_lock_lock(&context->stickyModifierLock);
 	context->stickyModifierToggleEnabled = enabled != 0;
 	if (enabled) {
-		// Seed previousFlags with the current modifier state so the upcoming
-		// releases of the activation hotkey modifiers produce _up events
-		// (bit removed) instead of _down events (bit added from zero).
-		CGEventRef probe = CGEventCreate(NULL);
-		if (probe) {
-			context->previousFlags = CGEventGetFlags(probe);
-			CFRelease(probe);
-		}
+		// Mark that the next kCGEventFlagsChanged event should be used as
+		// the baseline for previousFlags instead of emitting modifier events.
+		// Probing the current state from this thread is unreliable:
+		// CGEventCreate(NULL) returned 0x20000000 (no modifier bits) and
+		// CGEventSourceFlagsState also missed held modifiers when called
+		// from a CGo thread.  The first real event from macOS carries the
+		// correct physical flags, so we defer seeding to the callback.
+		context->stickyModifierNeedsSeed = YES;
 	} else {
 		context->previousFlags = 0;
+		context->stickyModifierNeedsSeed = NO;
 	}
 	os_unfair_lock_unlock(&context->stickyModifierLock);
 }
