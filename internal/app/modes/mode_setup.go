@@ -37,6 +37,7 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 	}
 
 	// Cancel any pending modifier toggle from the activation hotkey.
+	// This also clears disarmedModifierDowns (see cancelPendingModifierToggle).
 	h.cancelPendingModifierToggle()
 
 	// Reset the regular-key timestamp so the cooldown doesn't leak across
@@ -52,8 +53,6 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 	// immediately presses a modifier key after activation (e.g., re-entering
 	// recursive_grid and pressing Command right away).
 	h.modifierDetectionArmed = false
-
-	h.disarmedModifierDowns = nil
 
 	// Cancel any in-flight auto-arm timer from a previous mode entry.
 	if h.modifierAutoArmTimer != nil {
