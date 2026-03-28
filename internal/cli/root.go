@@ -353,8 +353,10 @@ Use --bare to force current-cursor targeting.`,
 	cmd.Flags().
 		IntVar(&targetY, "y", 0, "Y coordinate (pixels); with --center, vertical offset (default 0)")
 	cmd.Flags().BoolVar(&center, "center", false, "Move to the center of the active screen")
-	cmd.Flags().BoolVar(&selection, "selection", false, "Explicitly move to the active mode selection")
-	cmd.Flags().BoolVar(&bare, "bare", false, "Use the current cursor position when no explicit target is provided")
+	cmd.Flags().
+		BoolVar(&selection, "selection", false, "Explicitly move to the active mode selection")
+	cmd.Flags().
+		BoolVar(&bare, "bare", false, "Use the current cursor position when no explicit target is provided")
 	cmd.Flags().StringVar(&monitor, "monitor", "",
 		"Target monitor by display name (requires --center); e.g. \"Built-in Retina Display\"")
 
@@ -396,8 +398,10 @@ func BuildScrollActionCommand(use, short, long string) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&selection, "selection", false, "Explicitly use the active mode selection as the target point")
-	cmd.Flags().BoolVar(&bare, "bare", false, "Use the current cursor position even when a mode selection exists")
+	cmd.Flags().
+		BoolVar(&selection, "selection", false, "Explicitly use the active mode selection as the target point")
+	cmd.Flags().
+		BoolVar(&bare, "bare", false, "Use the current cursor position even when a mode selection exists")
 
 	return cmd
 }

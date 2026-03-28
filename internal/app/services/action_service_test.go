@@ -73,6 +73,7 @@ func TestMoveMouseTo_ClampsToScreenBounds(t *testing.T) {
 	ctx := context.Background()
 
 	var moved image.Point
+
 	waitCalled := false
 
 	sys := &portmocks.SystemMock{

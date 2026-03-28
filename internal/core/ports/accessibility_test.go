@@ -206,6 +206,10 @@ func (m *mockScreenManager) MoveCursorToPoint(
 	return nil
 }
 
+func (m *mockScreenManager) WaitForCursorIdle(ctx context.Context) error {
+	return nil
+}
+
 func (m *mockScreenManager) CursorPosition(ctx context.Context) (image.Point, error) {
 	return image.Point{X: 960, Y: 540}, nil
 }
