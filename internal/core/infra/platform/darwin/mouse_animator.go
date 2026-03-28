@@ -25,7 +25,7 @@ const (
 type smoothCursorAnimator struct {
 	cancel context.CancelFunc
 	done   chan struct{}
-	wg     sync.WaitGroup
+	gen    uint64
 	mu     sync.Mutex
 }
 
@@ -33,18 +33,15 @@ var cursorAnimator smoothCursorAnimator
 
 func (a *smoothCursorAnimator) stop() {
 	a.mu.Lock()
-	if a.cancel != nil {
-		a.cancel()
-		a.cancel = nil
-	}
-
-	// Wait inside the lock so a concurrent animateTo cannot sneak in a new
-	// goroutine between Unlock and Wait.  The animation goroutine never
-	// acquires a.mu, so this cannot deadlock.
-	a.wg.Wait()
+	cancel := a.cancel
+	a.gen++
+	a.cancel = nil
 	a.done = nil
-
 	a.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
 }
 
 func (a *smoothCursorAnimator) wait(ctx context.Context) error {
@@ -65,19 +62,32 @@ func (a *smoothCursorAnimator) wait(ctx context.Context) error {
 }
 
 func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType uint32) {
-	a.mu.Lock()
-	if a.cancel != nil {
-		a.cancel()
-	}
 	ctx, cancel := context.WithCancel(context.Background())
-	a.cancel = cancel
 	done := make(chan struct{})
+	a.mu.Lock()
+	prevCancel := a.cancel
+	prevDone := a.done
+	a.gen++
+	gen := a.gen
+	a.cancel = cancel
 	a.done = done
+	a.mu.Unlock()
 
-	// Wait inside the lock so no other caller can race past and launch a
-	// second goroutine between Wait and Go.  The animation goroutine never
-	// acquires a.mu, so this cannot deadlock.
-	a.wg.Wait()
+	if prevCancel != nil {
+		prevCancel()
+	}
+
+	a.waitForPreviousAnimation(prevDone)
+
+	a.mu.Lock()
+	if a.gen != gen || a.done != done {
+		a.mu.Unlock()
+		close(done)
+		cancel()
+
+		return
+	}
+	a.mu.Unlock()
 
 	cfg := config.Global()
 	maxDuration := 200
@@ -87,9 +97,10 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 		durationPerPixel = cfg.SmoothCursor.DurationPerPixel
 	}
 
-	a.wg.Go(func() {
+	go func(runGen uint64) {
 		defer close(done)
 		defer cancel()
+		defer a.clearIfCurrent(runGen, done)
 		start := CursorPosition()
 		distance := math.Hypot(float64(end.X-start.X), float64(end.Y-start.Y))
 
@@ -146,7 +157,43 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 				}
 			}
 		}
-	})
+	}(gen)
+}
 
-	a.mu.Unlock()
+func (a *smoothCursorAnimator) clearIfCurrent(
+	gen uint64,
+	done chan struct{},
+) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.gen == gen && a.done == done {
+		a.cancel = nil
+		a.done = nil
+	}
+}
+
+func (a *smoothCursorAnimator) waitForPreviousAnimation(prevDone chan struct{}) {
+	if prevDone == nil {
+		return
+	}
+
+	timeout := previousAnimationDrainTimeout()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case <-prevDone:
+	case <-timer.C:
+	}
+}
+
+func previousAnimationDrainTimeout() time.Duration {
+	cfg := config.Global()
+	maxDurationMs := 200
+	if cfg != nil && cfg.SmoothCursor.MaxDuration > 0 {
+		maxDurationMs = cfg.SmoothCursor.MaxDuration
+	}
+
+	return time.Duration(maxDurationMs+50) * time.Millisecond
 }
