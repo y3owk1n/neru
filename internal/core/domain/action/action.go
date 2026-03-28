@@ -143,7 +143,6 @@ const (
 	NameSaveCursorPos Name = "save_cursor_pos"
 	// NameRestoreCursorPos restores cursor position saved by save_cursor_pos.
 	NameRestoreCursorPos Name = "restore_cursor_pos"
-
 	// NameScrollUp represents the scroll-up action.
 	NameScrollUp Name = "scroll_up"
 	// NameScrollDown represents the scroll-down action.

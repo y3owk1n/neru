@@ -72,7 +72,7 @@ func TestBuildSimpleCommand(t *testing.T) {
 }
 
 func TestBuildActionCommand(t *testing.T) {
-	cmd := cli.BuildActionCommand("test", "short desc", "long desc", []string{"arg1"})
+	cmd := cli.BuildActionCommand("test", "short desc", "long desc", []string{"arg1"}, true)
 
 	if cmd.Use != "test" {
 		t.Errorf("expected Use='test', got %q", cmd.Use)
@@ -99,21 +99,22 @@ func TestBuildActionCommand(t *testing.T) {
 func TestCommandInitialization(t *testing.T) {
 	// Test that global commands are properly initialized
 	expectedCommands := map[string]bool{
-		"start":               false,
-		"stop":                false,
-		"idle":                false,
-		"hints":               false,
-		"grid":                false,
-		"scroll":              false,
-		"action":              false,
-		"status":              false,
-		"doctor":              false,
-		"launch":              false,
-		"docs":                false,
-		"config":              false,
-		"services":            false,
-		"toggle-screen-share": false,
-		"recursive_grid":      false,
+		"start":                          false,
+		"stop":                           false,
+		"idle":                           false,
+		"hints":                          false,
+		"grid":                           false,
+		"scroll":                         false,
+		"action":                         false,
+		"status":                         false,
+		"doctor":                         false,
+		"launch":                         false,
+		"docs":                           false,
+		"config":                         false,
+		"services":                       false,
+		"toggle-screen-share":            false,
+		"toggle-cursor-follow-selection": false,
+		"recursive_grid":                 false,
 	}
 
 	for _, cmd := range cli.RootCmd.Commands() {
@@ -213,6 +214,7 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{"status", getCmd("status"), true},
 		{"doctor", getCmd("doctor"), true}, // doctor returns silentError when daemon is down
 		{"toggle-screen-share", getCmd("toggle-screen-share"), true},
+		{"toggle-cursor-follow-selection", getCmd("toggle-cursor-follow-selection"), true},
 		{"recursive_grid", getCmd("recursive_grid"), true},
 		{"config_dump", getSubCmd("config", "dump"), true},
 		{"config_reload", getSubCmd("config", "reload"), true},

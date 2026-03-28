@@ -17,7 +17,11 @@ import (
 )
 
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter.
-func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string, repeat bool) {
+func (h *Handler) activateRecursiveGridModeWithAction(
+	actionStr *string,
+	repeat bool,
+	cursorFollowSelection *bool,
+) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeRecursiveGrid
 
@@ -69,14 +73,25 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string, repeat 
 	// Initialize recursive-grid manager
 	h.initializeRecursiveGridManager(normalizedBounds)
 
+	cursorShouldFollow := resolveCursorFollowSelection(
+		domain.ModeRecursiveGrid,
+		cursorFollowSelection,
+	)
+
 	// Move cursor to center of initial grid
 	if h.recursiveGrid.Manager != nil {
 		center := h.recursiveGrid.Manager.CurrentGrid().CurrentCenter()
-		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 
-		err := h.actionService.MoveCursorToPoint(context.Background(), absoluteCenter)
-		if err != nil {
-			h.logger.Warn("Failed to move cursor to initial center", zap.Error(err))
+		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+		if h.recursiveGrid.Context != nil {
+			h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+		}
+
+		if cursorShouldFollow {
+			err := h.actionService.MoveCursorToPoint(context.Background(), absoluteCenter)
+			if err != nil {
+				h.logger.Warn("Failed to move cursor to initial center", zap.Error(err))
+			}
 		}
 	}
 
@@ -89,6 +104,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(actionStr *string, repeat 
 	if h.recursiveGrid.Context != nil {
 		h.recursiveGrid.Context.SetPendingAction(actionStr)
 		h.recursiveGrid.Context.SetRepeat(repeat)
+		h.recursiveGrid.Context.SetCursorFollowSelection(cursorShouldFollow)
 	}
 
 	if actionStr != nil {
@@ -170,21 +186,39 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 	center, completed := h.recursiveGrid.Manager.HandleInput(key)
 
 	if completed {
-		// Selection is complete - move cursor and execute pending action if any
+		// Selection is complete - always remember the final target, but only
+		// move immediately when tracking is enabled or an action needs to commit.
 		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+		h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
 
 		repeat := h.recursiveGrid.Context.Repeat()
 		pendingAction := h.recursiveGrid.Context.PendingAction()
+		cursorFollowSelection := h.recursiveGrid.Context.CursorFollowSelection()
+
+		if pendingAction == nil && !repeat && !cursorFollowSelection {
+			return
+		}
 
 		h.moveCursorAndHandleAction(
 			absoluteCenter,
 			pendingAction,
 			repeat, // Re-activate recursive-grid mode when --repeat is set
-			func() { h.activateRecursiveGridModeWithAction(pendingAction, repeat) },
+			func() {
+				h.activateRecursiveGridModeWithAction(
+					pendingAction,
+					repeat,
+					&cursorFollowSelection,
+				)
+			},
 		)
 	} else if !center.Eq(image.Point{}) {
 		// Move cursor to the center point for preview
 		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+		h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+
+		if !h.recursiveGrid.Context.CursorFollowSelection() {
+			return
+		}
 
 		moveErr := h.actionService.MoveCursorToPoint(ctx, absoluteCenter)
 		if moveErr != nil {

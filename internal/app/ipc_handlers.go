@@ -121,6 +121,7 @@ func (h *IPCControllerModes) RegisterHandlers(
 	handlers["recursive_grid"] = h.handleRecursiveGrid
 	handlers["scroll"] = h.handleScroll
 	handlers["idle"] = h.handleIdle
+	handlers[domain.CommandToggleCursorFollowSelection] = h.handleToggleCursorFollowSelection
 }
 
 // modesUnavailableResponse returns a standardized response when modes handler is not available.
@@ -134,8 +135,9 @@ func (h *IPCControllerModes) modesUnavailableResponse() ipc.Response {
 
 // ModeActivationOptions holds the parsed options for activating a navigation mode.
 type ModeActivationOptions struct {
-	Action *string
-	Repeat bool
+	Action                *string
+	Repeat                bool
+	CursorFollowSelection *bool
 }
 
 // extractModeOptions extracts and validates the optional action and repeat
@@ -158,6 +160,20 @@ func (h *IPCControllerModes) extractModeOptions(
 		switch {
 		case arg == "--repeat" || arg == "-r":
 			opts.Repeat = true
+		case arg == "--cursor-selection-mode=follow":
+			cursorFollowSelection := true
+			opts.CursorFollowSelection = &cursorFollowSelection
+		case arg == "--cursor-selection-mode=hold":
+			cursorFollowSelection := false
+			opts.CursorFollowSelection = &cursorFollowSelection
+		case arg == "--cursor-selection-mode":
+			resp := ipc.Response{
+				Success: false,
+				Message: "--cursor-selection-mode requires follow or hold",
+				Code:    ipc.CodeInvalidInput,
+			}
+
+			return opts, &resp
 		case opts.Action == nil:
 			actionArg := arg
 			opts.Action = &actionArg
@@ -237,7 +253,11 @@ func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc
 		return *errResp
 	}
 
-	h.modes.ActivateModeWithOptions(domain.ModeHints, opts.Action, opts.Repeat)
+	h.modes.ActivateModeWithOptions(domain.ModeHints, modes.ModeActivationOptions{
+		Action:                opts.Action,
+		Repeat:                opts.Repeat,
+		CursorFollowSelection: opts.CursorFollowSelection,
+	})
 
 	return ipc.Response{Success: true, Message: "hints mode activated", Code: ipc.CodeOK}
 }
@@ -252,7 +272,11 @@ func (h *IPCControllerModes) handleGrid(_ context.Context, cmd ipc.Command) ipc.
 		return *errResp
 	}
 
-	h.modes.ActivateModeWithOptions(domain.ModeGrid, opts.Action, opts.Repeat)
+	h.modes.ActivateModeWithOptions(domain.ModeGrid, modes.ModeActivationOptions{
+		Action:                opts.Action,
+		Repeat:                opts.Repeat,
+		CursorFollowSelection: opts.CursorFollowSelection,
+	})
 
 	return ipc.Response{Success: true, Message: "grid mode activated", Code: ipc.CodeOK}
 }
@@ -267,7 +291,11 @@ func (h *IPCControllerModes) handleRecursiveGrid(_ context.Context, cmd ipc.Comm
 		return *errResp
 	}
 
-	h.modes.ActivateModeWithOptions(domain.ModeRecursiveGrid, opts.Action, opts.Repeat)
+	h.modes.ActivateModeWithOptions(domain.ModeRecursiveGrid, modes.ModeActivationOptions{
+		Action:                opts.Action,
+		Repeat:                opts.Repeat,
+		CursorFollowSelection: opts.CursorFollowSelection,
+	})
 
 	return ipc.Response{Success: true, Message: "recursive-grid mode activated", Code: ipc.CodeOK}
 }
@@ -290,6 +318,35 @@ func (h *IPCControllerModes) handleIdle(_ context.Context, _ ipc.Command) ipc.Re
 	h.modes.ActivateMode(domain.ModeIdle)
 
 	return ipc.Response{Success: true, Message: "idle mode activated", Code: ipc.CodeOK}
+}
+
+func (h *IPCControllerModes) handleToggleCursorFollowSelection(
+	_ context.Context,
+	_ ipc.Command,
+) ipc.Response {
+	if h.modes == nil {
+		return h.modesUnavailableResponse()
+	}
+
+	enabled, ok := h.modes.ToggleCursorFollowSelection()
+	if !ok {
+		return ipc.Response{
+			Success: false,
+			Message: "toggle-cursor-follow-selection is only available in hints, grid, and recursive_grid modes",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	state := "disabled"
+	if enabled {
+		state = "enabled"
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "cursor_follow_selection " + state,
+		Code:    ipc.CodeOK,
+	}
 }
 
 // IPCControllerOverlay handles overlay-related IPC commands.

@@ -117,6 +117,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 		pendingAction := h.hints.Context.PendingAction()
 		repeat := h.hints.Context.Repeat()
+		cursorFollowSelection := h.hints.Context.CursorFollowSelection()
 
 		h.moveCursorAndHandleAction(
 			center,
@@ -124,7 +125,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 			repeat ||
 				pendingAction == nil, // re-activate on repeat, or when no action (existing behavior)
 			func() {
-				h.activateHintModeInternal(false, nil)
+				h.activateHintModeInternal(false, nil, &cursorFollowSelection)
 				// Restore repeat and action on the fresh context so subsequent
 				// selections continue the repeat cycle.
 				// Guard: only restore if re-activation succeeded (mode is still hints).
@@ -132,6 +133,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 					h.hints != nil && h.hints.Context != nil {
 					h.hints.Context.SetPendingAction(pendingAction)
 					h.hints.Context.SetRepeat(true)
+					h.hints.Context.SetCursorFollowSelection(cursorFollowSelection)
 				}
 			},
 		)
@@ -153,6 +155,7 @@ func (h *Handler) handleGridModeKey(key string) {
 
 		// Convert from window-local coordinates to absolute screen coordinates using helper
 		absolutePoint := coordinates.ConvertToAbsoluteCoordinates(targetPoint, h.screenBounds)
+		h.grid.Context.SetSelectionPoint(absolutePoint)
 
 		h.logger.Info(
 			"Grid move mouse",
@@ -162,12 +165,31 @@ func (h *Handler) handleGridModeKey(key string) {
 
 		repeat := h.grid.Context.Repeat()
 		pendingAction := h.grid.Context.PendingAction()
+		cursorFollowSelection := h.grid.Context.CursorFollowSelection()
+
+		if pendingAction == nil && !repeat && !cursorFollowSelection {
+			return
+		}
 
 		h.moveCursorAndHandleAction(
 			absolutePoint,
 			pendingAction,
 			repeat, // Re-activate grid mode when --repeat is set
-			func() { h.activateGridModeWithAction(pendingAction, repeat) },
+			func() {
+				h.activateGridModeWithAction(pendingAction, repeat, &cursorFollowSelection)
+			},
 		)
+	} else if targetPoint := gridKeyResult.TargetPoint(); !targetPoint.Eq(image.Point{}) {
+		absolutePoint := coordinates.ConvertToAbsoluteCoordinates(targetPoint, h.screenBounds)
+		h.grid.Context.SetSelectionPoint(absolutePoint)
+
+		if !h.grid.Context.CursorFollowSelection() {
+			return
+		}
+
+		moveCursorErr := h.actionService.MoveCursorToPoint(context.Background(), absolutePoint)
+		if moveCursorErr != nil {
+			h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
+		}
 	}
 }

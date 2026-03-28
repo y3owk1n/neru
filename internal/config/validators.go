@@ -648,11 +648,12 @@ func validateHotkeyActionString(actionStr string) error {
 	}
 
 	// Mode commands may include flags (e.g. "hints --action left_click").
-	// Split on space and validate the first word as a known mode command.
+	// Split on space and validate the first word as a known root/mode command.
 	cmd := strings.Fields(trimmed)[0]
 
 	switch cmd {
-	case "idle", "hints", "grid", "scroll", "recursive_grid":
+	case "idle", "hints", "grid", "scroll", "recursive_grid",
+		"toggle-screen-share", "toggle-cursor-follow-selection":
 		return nil
 	default:
 		return derrors.Newf(derrors.CodeInvalidConfig, "unknown command: %s", trimmed)

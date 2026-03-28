@@ -10,6 +10,7 @@ func TestConfigValidateHotkeys_Valid(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.Hotkeys["PageUp"] = config.StringOrStringArray{"action page_up", "idle"}
 	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action go_top"}
+	cfg.RecursiveGrid.Hotkeys["`"] = config.StringOrStringArray{"toggle-cursor-follow-selection"}
 	cfg.Grid.Hotkeys["Enter"] = config.StringOrStringArray{
 		"action save_cursor_pos",
 		"idle",

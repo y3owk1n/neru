@@ -16,7 +16,11 @@ import (
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
-func (h *Handler) activateGridModeWithAction(actionStr *string, repeat bool) {
+func (h *Handler) activateGridModeWithAction(
+	actionStr *string,
+	repeat bool,
+	cursorFollowSelection *bool,
+) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeGrid
 
@@ -84,6 +88,11 @@ func (h *Handler) activateGridModeWithAction(actionStr *string, repeat bool) {
 	// Store pending action and repeat flag if provided
 	h.grid.Context.SetPendingAction(actionStr)
 	h.grid.Context.SetRepeat(repeat)
+	h.grid.Context.SetCursorFollowSelection(resolveCursorFollowSelection(
+		domain.ModeGrid,
+		cursorFollowSelection,
+	))
+	h.grid.Context.ClearSelectionPoint()
 
 	if actionStr != nil {
 		h.logger.Info("Grid mode activated with pending action",
@@ -254,6 +263,16 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 				cell.Center(),
 				h.screenBounds,
 			)
+
+			if h.grid != nil && h.grid.Context != nil {
+				h.grid.Context.SetSelectionPoint(absoluteCenter)
+
+				if !h.grid.Context.CursorFollowSelection() {
+					h.renderer.ShowSubgrid(cell)
+
+					return
+				}
+			}
 
 			moveCursorErr := h.actionService.MoveCursorToPoint(ctx, absoluteCenter)
 			if moveCursorErr != nil {

@@ -9,6 +9,7 @@
 - [Auto-Exit After Click](#auto-exit-after-click)
 - [Restore Cursor Position After Mode Exit](#restore-cursor-position-after-mode-exit)
 - [Custom Mouse Movement Step Size](#custom-mouse-movement-step-size)
+- [Target Menus Without Moving the Real Cursor](#target-menus-without-moving-the-real-cursor)
 - [Disabling All Built-In Hotkeys](#disabling-all-built-in-hotkeys)
 - [Give Browser Content Time To Load Before Refreshing Hints](#give-browser-content-time-to-load-before-refreshing-hints)
 - [Checking the Accessibility Tree on macOS](#checking-the-accessibility-tree-on-macos)
@@ -97,6 +98,27 @@ On some apps (e.g. Discord), it requires you to wait for a bit after clicking be
 # Click, sleep for a bit, and then only reset (that moves the cursor to center in recursive grid mode)
 "Ctrl+J" = ["action left_click", "exec sleep 0.05", "action reset"]
 ```
+
+## Target Menus Without Moving the Real Cursor
+
+Some menus disappear as soon as the pointer leaves them. For grid and recursive-grid workflows, start the mode in `hold` mode so you can refine the selection first and only move on commit:
+
+```toml
+[hotkeys]
+"Cmd+Shift+G" = "grid --cursor-selection-mode hold"
+"Cmd+Shift+C" = "recursive_grid --cursor-selection-mode hold"
+```
+
+If you want to toggle that behavior on demand:
+
+```toml
+[recursive_grid.hotkeys]
+"`" = "toggle-cursor-follow-selection"
+"Shift+D" = "action move_mouse --selection"
+"Return" = "action left_click"
+```
+
+This keeps the real pointer still while you navigate. When you want an action to target the current selection, make it explicit with `--selection`, for example `"Return" = "action left_click --selection"`.
 
 ## Disabling All Built-In Hotkeys
 

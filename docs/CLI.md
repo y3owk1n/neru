@@ -201,6 +201,16 @@ Supported `--action` values: `left_click`, `right_click`, `middle_click`, `mouse
 
 Not allowed for mode `--action`: `reset`, `backspace`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (for example `scroll_up`, `page_down`, `go_top`).
 
+All selection modes also accept `--cursor-selection-mode follow|hold`:
+
+```sh
+neru hints --cursor-selection-mode hold
+neru grid --cursor-selection-mode hold
+neru recursive_grid --cursor-selection-mode follow
+```
+
+`follow` keeps the real cursor synced with the current selection. `hold` keeps the real cursor in place until you explicitly move or act on the selection.
+
 > [!TIP]
 > The `--action` flag is most useful in hints mode, where it mirrors a Vimium-style workflow: select a label and the action fires immediately. In grid and recursive-grid modes, the action triggers only after the final cell selection, which is less ergonomic. For those modes, prefer composing behavior in per-mode `hotkeys` (for example: `["action left_click", "idle"]`).
 
@@ -321,7 +331,7 @@ neru action middle_click        # Middle click
 neru action mouse_down          # Hold mouse button
 neru action mouse_up            # Release mouse button
 neru action save_cursor_pos     # Save current cursor position
-neru action restore_cursor_pos # Restore saved cursor position
+neru action restore_cursor_pos     # Restore saved cursor position
 neru action scroll_up           # Scroll up at cursor
 neru action scroll_down         # Scroll down at cursor
 neru action scroll_left         # Scroll left at cursor
@@ -340,6 +350,7 @@ These actions depend on the current mode and are primarily useful inside `hotkey
 neru action reset               # Reset state in current mode
 neru action backspace           # Mode-aware backspace
 neru action wait_for_mode_exit  # Block until mode exits to idle
+neru toggle-cursor-follow-selection         # Toggle cursor-follow-selection in active hints/grid/recursive-grid session
 ```
 
 ### Modifier keys
@@ -348,6 +359,7 @@ Hold a modifier during a click using `--modifier`:
 
 ```
 neru action left_click --modifier cmd          # Cmd+click (open in new tab)
+neru action left_click --selection             # Click the active mode selection
 neru action left_click --modifier shift        # Shift+click (extend selection)
 neru action left_click --modifier cmd,shift    # Cmd+Shift+click
 neru action right_click --modifier alt         # Alt+right-click
@@ -361,6 +373,7 @@ neru action right_click --modifier alt         # Alt+right-click
 
 ```
 neru action move_mouse --x 500 --y 300
+neru action move_mouse --selection
 ```
 
 **Screen center:**
@@ -392,9 +405,13 @@ neru action move_mouse_relative --dx 10 --dy -5
 | `--y <px>`         | Absolute Y coordinate, or Y offset when used with `--center` |
 | `--center`         | Move to the center of the active screen                      |
 | `--monitor <name>` | Target a named display (requires `--center`)                 |
+| `--selection`      | Move to the active mode selection                            |
 
 > [!TIP]
 > Monitor names are the display names reported by macOS (e.g. "Built-in Retina Display", "DELL U2720Q"). Find yours in **System Settings → Displays**. If you use an incorrect name, the error message will list all available names.
+
+> [!TIP]
+> Selection-aware mouse actions are explicit. Use `--selection` when you want `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, or `move_mouse` to target the active selection.
 
 ---
 

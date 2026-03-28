@@ -33,7 +33,7 @@ type Mode interface {
 	// Activate activates the mode with an optional pending action.
 	// When repeat is true the mode re-activates after performing the action
 	// instead of exiting.
-	Activate(action *string, repeat bool)
+	Activate(opts ModeActivationOptions)
 
 	// HandleKey processes a key press within the mode's context.
 	HandleKey(key string)
@@ -470,6 +470,13 @@ func (h *Handler) ResetCurrentMode() {
 			center := h.recursiveGrid.Manager.CurrentCenter()
 
 			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+			if h.recursiveGrid.Context != nil {
+				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+
+				if !h.recursiveGrid.Context.CursorFollowSelection() {
+					return
+				}
+			}
 
 			err := h.actionService.MoveCursorToPoint(
 				context.Background(),

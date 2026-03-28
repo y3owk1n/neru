@@ -15,6 +15,13 @@ import (
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
+// ModeActivationOptions configures a mode activation request.
+type ModeActivationOptions struct {
+	Action                *string
+	Repeat                bool
+	CursorFollowSelection *bool
+}
+
 const (
 	// HintTimeout is the timeout for hint operations.
 	HintTimeout = 5 * time.Second
@@ -22,17 +29,17 @@ const (
 
 // ActivateMode activates a mode with a given action (for hints mode).
 func (h *Handler) ActivateMode(mode domain.Mode) {
-	h.ActivateModeWithOptions(mode, nil, false)
+	h.ActivateModeWithOptions(mode, ModeActivationOptions{})
 }
 
 // ActivateModeWithAction activates a mode with an optional action parameter.
 func (h *Handler) ActivateModeWithAction(mode domain.Mode, action *string) {
-	h.ActivateModeWithOptions(mode, action, false)
+	h.ActivateModeWithOptions(mode, ModeActivationOptions{Action: action})
 }
 
 // ActivateModeWithOptions activates a mode with an optional action and repeat flag.
 // When repeat is true the mode re-activates after performing the pending action.
-func (h *Handler) ActivateModeWithOptions(mode domain.Mode, action *string, repeat bool) {
+func (h *Handler) ActivateModeWithOptions(mode domain.Mode, opts ModeActivationOptions) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -49,12 +56,16 @@ func (h *Handler) ActivateModeWithOptions(mode domain.Mode, action *string, repe
 		return
 	}
 
-	modeImpl.Activate(action, repeat)
+	modeImpl.Activate(opts)
 }
 
 // activateHintModeWithAction activates hint mode with optional action parameter.
-func (h *Handler) activateHintModeWithAction(action *string, repeat bool) {
-	h.activateHintModeInternal(false, action)
+func (h *Handler) activateHintModeWithAction(
+	action *string,
+	repeat bool,
+	cursorFollowSelection *bool,
+) {
+	h.activateHintModeInternal(false, action, cursorFollowSelection)
 
 	// Store repeat flag after activation so the context is already initialized.
 	if repeat && h.hints != nil && h.hints.Context != nil {
@@ -70,7 +81,11 @@ func (h *Handler) activateHintModeWithAction(action *string, repeat bool) {
 // would be a breaking change if future callers need the preserve behavior.
 //
 
-func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *string) {
+func (h *Handler) activateHintModeInternal(
+	preserveActionMode bool,
+	actionStr *string,
+	cursorFollowSelection *bool,
+) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := !preserveActionMode && h.appState.CurrentMode() == domain.ModeHints
 
@@ -138,6 +153,15 @@ func (h *Handler) activateHintModeInternal(preserveActionMode bool, actionStr *s
 	// This prevents scroll highlights from persisting when switching from scroll mode to hints mode.
 	h.overlayManager.Clear()
 	h.appState.SetHintOverlayNeedsRefresh(false)
+
+	if h.hints != nil && h.hints.Context != nil {
+		h.hints.Context.SetPendingAction(actionStr)
+		h.hints.Context.SetRepeat(false)
+		h.hints.Context.SetCursorFollowSelection(resolveCursorFollowSelection(
+			domain.ModeHints,
+			cursorFollowSelection,
+		))
+	}
 
 	// Use new HintService to show hints
 	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)

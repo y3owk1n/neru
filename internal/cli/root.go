@@ -185,8 +185,15 @@ func BuildSimpleCommand(use, short, long string, action string) *cobra.Command {
 }
 
 // BuildActionCommand creates an action cobra command with the given parameters.
-func BuildActionCommand(use, short, long string, params []string) *cobra.Command {
-	var modifier string
+func BuildActionCommand(
+	use, short, long string,
+	params []string,
+	allowSelection bool,
+) *cobra.Command {
+	var (
+		modifier  string
+		selection bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   use,
@@ -203,12 +210,25 @@ func BuildActionCommand(use, short, long string, params []string) *cobra.Command
 				args = append(args, "--modifier="+modifier)
 			}
 
+			if selection {
+				args = append(args, "--selection")
+			}
+
 			return sendCommand(cmd, "action", args)
 		},
 	}
 
 	cmd.Flags().StringVar(&modifier, "modifier", "",
 		"Comma-separated modifier keys to hold during action (cmd, shift, alt, option, ctrl)")
+
+	if allowSelection {
+		cmd.Flags().BoolVar(
+			&selection,
+			"selection",
+			false,
+			"Use the active mode selection as the target point",
+		)
+	}
 
 	return cmd
 }
@@ -219,6 +239,7 @@ func BuildMoveMouseCommand() *cobra.Command {
 		targetX, targetY int
 		center           bool
 		monitor          string
+		selection        bool
 	)
 
 	cmd := &cobra.Command{
@@ -231,7 +252,8 @@ If --x and --y are also provided with --center, they act as offsets from center.
 When --monitor is used with --center, the cursor moves to the center of the
 named monitor instead of the active screen. Monitor names are matched
 case-insensitively against the localized display names reported by macOS
-(e.g. "Built-in Retina Display", "DELL U2720Q").`,
+(e.g. "Built-in Retina Display", "DELL U2720Q"). Use --selection to move to
+the active mode selection target.`,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
 			return requiresRunningInstance()
 		},
@@ -252,10 +274,20 @@ case-insensitively against the localized display names reported by macOS
 				)
 			}
 
-			if !center && (!cmd.Flags().Changed("x") || !cmd.Flags().Changed("y")) {
+			if selection &&
+				(center || hasMonitor || cmd.Flags().Changed("x") || cmd.Flags().Changed("y")) {
 				return derrors.New(
 					derrors.CodeInvalidInput,
-					"both --x and --y are required when --center is not used",
+					"--selection cannot be combined with --x, --y, --center, or --monitor",
+				)
+			}
+
+			if !center && !selection &&
+				((cmd.Flags().Changed("x") && !cmd.Flags().Changed("y")) ||
+					(!cmd.Flags().Changed("x") && cmd.Flags().Changed("y"))) {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"both --x and --y are required when using absolute coordinates",
 				)
 			}
 
@@ -277,6 +309,10 @@ case-insensitively against the localized display names reported by macOS
 				args = append(args, fmt.Sprintf("--y=%d", targetY))
 			}
 
+			if selection {
+				args = append(args, "--selection")
+			}
+
 			return sendCommand(cmd, "action", args)
 		},
 	}
@@ -286,6 +322,7 @@ case-insensitively against the localized display names reported by macOS
 	cmd.Flags().
 		IntVar(&targetY, "y", 0, "Y coordinate (pixels); with --center, vertical offset (default 0)")
 	cmd.Flags().BoolVar(&center, "center", false, "Move to the center of the active screen")
+	cmd.Flags().BoolVar(&selection, "selection", false, "Move to the active mode selection")
 	cmd.Flags().StringVar(&monitor, "monitor", "",
 		"Target monitor by display name (requires --center); e.g. \"Built-in Retina Display\"")
 

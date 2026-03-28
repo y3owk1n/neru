@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
@@ -35,6 +36,11 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			}
 
 			repeatFlag, err := cmd.Flags().GetBool("repeat")
+			if err != nil {
+				return err
+			}
+
+			cursorSelectionMode, err := cmd.Flags().GetString("cursor-selection-mode")
 			if err != nil {
 				return err
 			}
@@ -95,6 +101,18 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, "--repeat")
 			}
 
+			if cursorSelectionMode != "" {
+				if cursorSelectionMode != modes.CursorSelectionModeFollow &&
+					cursorSelectionMode != modes.CursorSelectionModeHold {
+					return derrors.New(
+						derrors.CodeInvalidInput,
+						"--cursor-selection-mode must be either follow or hold",
+					)
+				}
+
+				params = append(params, "--cursor-selection-mode="+cursorSelectionMode)
+			}
+
 			return sendCommand(cmd, config.Name, params)
 		},
 	}
@@ -111,6 +129,11 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		"r",
 		false,
 		"Re-activate mode after performing the action (requires --action)",
+	)
+	cmd.Flags().String(
+		"cursor-selection-mode",
+		"",
+		"How the real cursor should behave during selection: follow or hold",
 	)
 
 	return cmd

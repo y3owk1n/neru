@@ -181,7 +181,7 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 
 		h.logger.Debug("Refreshing hints after modifier passthrough",
 			zap.Duration("delay", passthroughHintRefreshDelay))
-		h.activateHintModeInternal(false, nil)
+		h.activateHintModeInternal(false, nil, nil)
 	})
 	h.refreshHintsTimer = timer
 }

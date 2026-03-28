@@ -240,6 +240,7 @@ All actions from `[hotkeys]` work here, including:
 
 - Mode commands: `idle`, `hints`, `grid`, `recursive_grid`, `scroll`
 - Action subcommands: `action left_click`, `action scroll_down`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor_pos`
+- Root toggle commands: `toggle-screen-share`, `toggle-cursor-follow-selection`
 - Shell commands: `exec ...`
 
 ### Per-App Hint Hotkey Overrides
@@ -374,6 +375,14 @@ Grid mode divides the screen into a labelled coordinate grid.
 > [!NOTE]
 > `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).
 
+Runtime cursor behavior is now chosen per invocation instead of in config:
+
+```toml
+[hotkeys]
+"Cmd+Shift+G" = "grid --cursor-selection-mode follow"
+"Cmd+Alt+G" = "grid --cursor-selection-mode hold"
+```
+
 ---
 
 ## Recursive Grid Mode
@@ -396,6 +405,8 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 
 > [!NOTE]
 > `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).
+
+Like `grid`, recursive-grid uses `--cursor-selection-mode follow|hold` at launch time instead of a persistent config field.
 
 ---
 
@@ -465,7 +476,10 @@ Example:
 ```
 
 > [!NOTE]
-> `reset`, `backspace`, `wait_for_mode_exit`, `save_cursor_pos`, and `restore_cursor_pos` are not valid mode `--action` values. Use them as `neru action ...` or in hotkeys as `"action ..."`.
+> `reset`, `backspace`, `wait_for_mode_exit`, and `save_cursor_pos` / `restore_cursor_pos` are not valid mode `--action` values. Use them as `neru action ...` or in hotkeys as `"action ..."`. `toggle-cursor-follow-selection` is a root command.
+
+> [!TIP]
+> Selection-aware mouse actions are explicit. Use `"action left_click --selection"` or `"action move_mouse --selection"` when you want an action to target the current mode selection.
 
 ---
 

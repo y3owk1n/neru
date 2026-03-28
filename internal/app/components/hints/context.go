@@ -7,8 +7,9 @@ import (
 // baseContext provides common functionality for mode component contexts.
 // It contains shared state fields used across different mode contexts.
 type baseContext struct {
-	pendingAction *string
-	repeat        bool
+	pendingAction         *string
+	repeat                bool
+	cursorFollowSelection bool
 }
 
 // SetPendingAction sets the action to execute when mode selection is complete.
@@ -31,10 +32,28 @@ func (c *baseContext) Repeat() bool {
 	return c.repeat
 }
 
+// SetCursorFollowSelection stores the session cursor-follow-selection preference.
+func (c *baseContext) SetCursorFollowSelection(cursorFollowSelection bool) {
+	c.cursorFollowSelection = cursorFollowSelection
+}
+
+// CursorFollowSelection returns the current session cursor-follow-selection preference.
+func (c *baseContext) CursorFollowSelection() bool {
+	return c.cursorFollowSelection
+}
+
+// ToggleCursorFollowSelection flips the session cursor-follow-selection preference.
+func (c *baseContext) ToggleCursorFollowSelection() bool {
+	c.cursorFollowSelection = !c.cursorFollowSelection
+
+	return c.cursorFollowSelection
+}
+
 // Reset resets the base context to its initial state.
 func (c *baseContext) Reset() {
 	c.pendingAction = nil
 	c.repeat = false
+	c.cursorFollowSelection = false
 }
 
 // Context holds the state and context for hint mode operations.

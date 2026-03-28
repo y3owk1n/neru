@@ -28,6 +28,7 @@ var ActionLeftClickCmd = BuildActionCommand(
 	"Perform left click at current cursor position",
 	`Execute a left click at the current cursor location.`,
 	[]string{"left_click"},
+	true,
 )
 
 // ActionRightClickCmd is the right click action command.
@@ -36,6 +37,7 @@ var ActionRightClickCmd = BuildActionCommand(
 	"Perform right click at current cursor position",
 	`Execute a right click at the current cursor location.`,
 	[]string{"right_click"},
+	true,
 )
 
 // ActionMouseUpCmd is the mouse up action command.
@@ -44,6 +46,7 @@ var ActionMouseUpCmd = BuildActionCommand(
 	"Release mouse button at current cursor position",
 	`Release the left mouse button at the current cursor location.`,
 	[]string{"mouse_up"},
+	true,
 )
 
 // ActionMouseDownCmd is the mouse down action command.
@@ -52,6 +55,7 @@ var ActionMouseDownCmd = BuildActionCommand(
 	"Press mouse button at current cursor position",
 	`Press and hold the left mouse button at the current cursor location.`,
 	[]string{"mouse_down"},
+	true,
 )
 
 // ActionMiddleClickCmd is the middle click action command.
@@ -60,6 +64,7 @@ var ActionMiddleClickCmd = BuildActionCommand(
 	"Perform middle click at current cursor position",
 	`Execute a middle click at the current cursor location.`,
 	[]string{"middle_click"},
+	true,
 )
 
 // ActionMoveMouseCmd is the move mouse action command.
@@ -74,6 +79,7 @@ var ActionResetCmd = BuildActionCommand(
 	"Reset current mode input state",
 	`Reset the active mode state (grid input, recursive-grid depth, etc.) without exiting.`,
 	[]string{"reset"},
+	false,
 )
 
 // ActionBackspaceCmd performs mode-aware backspace.
@@ -82,6 +88,7 @@ var ActionBackspaceCmd = BuildActionCommand(
 	"Apply backspace in current mode",
 	`Apply mode-specific backspace behavior (hints input, grid input/subgrid, recursive-grid backtrack).`,
 	[]string{"backspace"},
+	false,
 )
 
 // ActionWaitForModeExitCmd blocks until the current mode exits.
@@ -90,6 +97,7 @@ var ActionWaitForModeExitCmd = BuildActionCommand(
 	"Wait until mode exits",
 	`Block until the current mode exits and Neru returns to idle.`,
 	[]string{"wait_for_mode_exit"},
+	false,
 )
 
 // ActionSaveCursorPosCmd saves cursor position for later restoration.
@@ -98,6 +106,7 @@ var ActionSaveCursorPosCmd = BuildActionCommand(
 	"Save current cursor position",
 	`Save the current cursor position so it can be restored later with restore_cursor_pos.`,
 	[]string{"save_cursor_pos"},
+	false,
 )
 
 // ActionRestoreCursorPosCmd restores previously saved cursor position.
@@ -106,6 +115,7 @@ var ActionRestoreCursorPosCmd = BuildActionCommand(
 	"Restore saved cursor position",
 	`Restore cursor position previously saved by save_cursor_pos.`,
 	[]string{"restore_cursor_pos"},
+	false,
 )
 
 // ActionScrollUpCmd scrolls up at the current cursor position.
