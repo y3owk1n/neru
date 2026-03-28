@@ -149,13 +149,25 @@ func (h *IPCControllerModes) extractModeOptions(
 ) (ModeActivationOptions, *ipc.Response) {
 	var opts ModeActivationOptions
 
-	if len(cmd.Args) <= 1 {
+	if len(cmd.Args) == 0 {
+		return opts, nil
+	}
+
+	// The CLI sends the mode name as Args[0] (e.g. ["grid", "--action", ...])
+	// while the hotkey path omits it (e.g. ["--cursor-selection-mode", "hold"]).
+	// Skip the leading mode name when present so both paths are handled.
+	start := 0
+	if cmd.Args[0] == cmd.Action {
+		start = 1
+	}
+
+	if start >= len(cmd.Args) {
 		return opts, nil
 	}
 
 	// Parse positional action arg and flag-style options from remaining args.
-	for i := 1; i < len(cmd.Args); i++ {
-		arg := cmd.Args[i]
+	for startIdx := start; startIdx < len(cmd.Args); startIdx++ {
+		arg := cmd.Args[startIdx]
 
 		switch {
 		case arg == "--repeat" || arg == "-r":
@@ -167,13 +179,34 @@ func (h *IPCControllerModes) extractModeOptions(
 			cursorFollowSelection := false
 			opts.CursorFollowSelection = &cursorFollowSelection
 		case arg == "--cursor-selection-mode":
-			resp := ipc.Response{
-				Success: false,
-				Message: "--cursor-selection-mode requires follow or hold",
-				Code:    ipc.CodeInvalidInput,
+			if startIdx+1 >= len(cmd.Args) {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--cursor-selection-mode requires follow or hold",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
 			}
 
-			return opts, &resp
+			startIdx++
+
+			switch cmd.Args[startIdx] {
+			case "follow":
+				cursorFollowSelection := true
+				opts.CursorFollowSelection = &cursorFollowSelection
+			case "hold":
+				cursorFollowSelection := false
+				opts.CursorFollowSelection = &cursorFollowSelection
+			default:
+				resp := ipc.Response{
+					Success: false,
+					Message: "--cursor-selection-mode requires follow or hold",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
 		case opts.Action == nil:
 			actionArg := arg
 			opts.Action = &actionArg
