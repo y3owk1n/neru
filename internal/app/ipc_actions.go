@@ -514,7 +514,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 		}
 
-		err = h.actionService.MoveCursorToPoint(ctx, targetPoint)
+		err = h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
 	default:
 		if h.actionService == nil {
 			return ipc.Response{
@@ -530,7 +530,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 
 		if parsed.useSelection {
-			moveErr := h.actionService.MoveCursorToPoint(ctx, targetPoint)
+			moveErr := h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
 			if moveErr != nil {
 				h.logger.Error("Failed to move cursor to mode selection", zap.Error(moveErr))
 

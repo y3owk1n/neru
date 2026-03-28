@@ -24,6 +24,7 @@ const (
 
 type smoothCursorAnimator struct {
 	cancel context.CancelFunc
+	done   chan struct{}
 	wg     sync.WaitGroup
 	mu     sync.Mutex
 }
@@ -41,8 +42,26 @@ func (a *smoothCursorAnimator) stop() {
 	// goroutine between Unlock and Wait.  The animation goroutine never
 	// acquires a.mu, so this cannot deadlock.
 	a.wg.Wait()
+	a.done = nil
 
 	a.mu.Unlock()
+}
+
+func (a *smoothCursorAnimator) wait(ctx context.Context) error {
+	a.mu.Lock()
+	done := a.done
+	a.mu.Unlock()
+
+	if done == nil {
+		return nil
+	}
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType uint32) {
@@ -52,6 +71,8 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	a.cancel = cancel
+	done := make(chan struct{})
+	a.done = done
 
 	// Wait inside the lock so no other caller can race past and launch a
 	// second goroutine between Wait and Go.  The animation goroutine never
@@ -67,6 +88,7 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 	}
 
 	a.wg.Go(func() {
+		defer close(done)
 		defer cancel()
 		start := CursorPosition()
 		distance := math.Hypot(float64(end.X-start.X), float64(end.Y-start.Y))

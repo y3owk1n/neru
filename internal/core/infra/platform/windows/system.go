@@ -143,6 +143,11 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	return derrors.New(derrors.CodeNotSupported, "MoveCursorToPoint not yet implemented on windows")
 }
 
+// WaitForCursorIdle returns immediately on Windows until smooth cursor support exists.
+func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
+	return nil
+}
+
 // CursorPosition returns the current cursor position on Windows.
 // TODO(windows): implement using GetCursorPos (user32.dll).
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {

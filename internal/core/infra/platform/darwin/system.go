@@ -97,6 +97,11 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	return nil
 }
 
+// WaitForCursorIdle blocks until any in-flight cursor movement animation settles.
+func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
+	return cursorAnimator.wait(ctx)
+}
+
 // CursorPosition returns the current cursor position on macOS.
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
 	return CursorPosition(), nil

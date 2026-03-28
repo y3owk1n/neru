@@ -127,6 +127,23 @@ func (s *ActionService) MoveCursorToPoint(ctx context.Context, point image.Point
 	return s.system.MoveCursorToPoint(ctx, point, false)
 }
 
+// MoveCursorToPointAndWait moves the cursor to the specified point and waits
+// until any in-flight cursor animation settles before returning.
+func (s *ActionService) MoveCursorToPointAndWait(
+	ctx context.Context,
+	point image.Point,
+	bypassSmooth ...bool,
+) error {
+	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
+
+	err := s.system.MoveCursorToPoint(ctx, point, shouldBypass)
+	if err != nil {
+		return err
+	}
+
+	return s.system.WaitForCursorIdle(ctx)
+}
+
 // clampToScreenBounds clamps the given point so it stays within the screen bounds.
 func clampToScreenBounds(point image.Point, bounds image.Rectangle) image.Point {
 	maxX := max(bounds.Max.X-1, bounds.Min.X)
@@ -292,5 +309,10 @@ func (s *ActionService) moveMouseWithBounds(
 	logFields = append(logFields, fields...)
 	s.logger.Info("Moving mouse cursor", logFields...)
 
-	return s.system.MoveCursorToPoint(ctx, clamped, bypassSmooth)
+	err := s.system.MoveCursorToPoint(ctx, clamped, bypassSmooth)
+	if err != nil {
+		return err
+	}
+
+	return s.system.WaitForCursorIdle(ctx)
 }

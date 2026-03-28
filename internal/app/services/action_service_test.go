@@ -73,6 +73,7 @@ func TestMoveMouseTo_ClampsToScreenBounds(t *testing.T) {
 	ctx := context.Background()
 
 	var moved image.Point
+	waitCalled := false
 
 	sys := &portmocks.SystemMock{
 		ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
@@ -80,6 +81,11 @@ func TestMoveMouseTo_ClampsToScreenBounds(t *testing.T) {
 		},
 		MoveCursorToPointFunc: func(_ context.Context, p image.Point, _ bool) error {
 			moved = p
+
+			return nil
+		},
+		WaitForCursorIdleFunc: func(context.Context) error {
+			waitCalled = true
 
 			return nil
 		},
@@ -93,6 +99,10 @@ func TestMoveMouseTo_ClampsToScreenBounds(t *testing.T) {
 
 	if moved != (image.Point{X: 99, Y: 0}) {
 		t.Fatalf("MoveMouseTo() moved to %v, want (99,0)", moved)
+	}
+
+	if !waitCalled {
+		t.Fatal("MoveMouseTo() expected WaitForCursorIdle to be called")
 	}
 }
 
@@ -123,5 +133,48 @@ func TestMoveMouseRelative_UsesCurrentCursorPosition(t *testing.T) {
 
 	if moved != (image.Point{X: 50, Y: 35}) {
 		t.Fatalf("MoveMouseRelative() moved to %v, want (50,35)", moved)
+	}
+}
+
+func TestMoveCursorToPointAndWait_WaitsForCursorIdle(t *testing.T) {
+	ctx := context.Background()
+
+	moved := false
+	waitCalled := false
+
+	sys := &portmocks.SystemMock{
+		MoveCursorToPointFunc: func(_ context.Context, p image.Point, _ bool) error {
+			moved = true
+
+			if p != (image.Point{X: 12, Y: 34}) {
+				t.Fatalf("MoveCursorToPointAndWait() point = %v, want (12,34)", p)
+			}
+
+			if waitCalled {
+				t.Fatal("WaitForCursorIdle called before MoveCursorToPoint completed")
+			}
+
+			return nil
+		},
+		WaitForCursorIdleFunc: func(context.Context) error {
+			waitCalled = true
+
+			if !moved {
+				t.Fatal("WaitForCursorIdle called before MoveCursorToPoint")
+			}
+
+			return nil
+		},
+	}
+
+	service := newTestActionService(&portmocks.MockAccessibilityPort{}, sys)
+
+	err := service.MoveCursorToPointAndWait(ctx, image.Point{X: 12, Y: 34})
+	if err != nil {
+		t.Fatalf("MoveCursorToPointAndWait() error = %v", err)
+	}
+
+	if !waitCalled {
+		t.Fatal("MoveCursorToPointAndWait() expected WaitForCursorIdle to be called")
 	}
 }

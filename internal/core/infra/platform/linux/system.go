@@ -128,6 +128,11 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	return derrors.New(derrors.CodeNotSupported, "MoveCursorToPoint not yet implemented on linux")
 }
 
+// WaitForCursorIdle returns immediately on Linux until smooth cursor support exists.
+func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
+	return nil
+}
+
 // CursorPosition returns the current cursor position on Linux.
 // TODO(linux): implement using XQueryPointer (X11) or Wayland pointer protocol.
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {

@@ -19,6 +19,7 @@ type SystemMock struct {
 	ScreenBoundsByNameFunc          func(ctx context.Context, name string) (image.Rectangle, bool, error)
 	ScreenNamesFunc                 func(ctx context.Context) ([]string, error)
 	MoveCursorToPointFunc           func(ctx context.Context, point image.Point, bypassSmooth bool) error
+	WaitForCursorIdleFunc           func(ctx context.Context) error
 	CursorPositionFunc              func(ctx context.Context) (image.Point, error)
 	CheckPermissionsFunc            func(ctx context.Context) error
 	IsDarkModeFunc                  func() bool
@@ -121,6 +122,15 @@ func (m *SystemMock) MoveCursorToPoint(
 ) error {
 	if m.MoveCursorToPointFunc != nil {
 		return m.MoveCursorToPointFunc(ctx, point, bypassSmooth)
+	}
+
+	return nil
+}
+
+// WaitForCursorIdle is a mock implementation.
+func (m *SystemMock) WaitForCursorIdle(ctx context.Context) error {
+	if m.WaitForCursorIdleFunc != nil {
+		return m.WaitForCursorIdleFunc(ctx)
 	}
 
 	return nil

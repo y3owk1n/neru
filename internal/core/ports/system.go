@@ -23,6 +23,10 @@ type ScreenManagement interface {
 	// If bypassSmooth is true, smooth cursor configuration is bypassed.
 	MoveCursorToPoint(ctx context.Context, point image.Point, bypassSmooth bool) error
 
+	// WaitForCursorIdle blocks until any in-flight cursor movement has settled.
+	// Implementations that do not animate cursor movement may return immediately.
+	WaitForCursorIdle(ctx context.Context) error
+
 	// CursorPosition returns the current cursor position.
 	CursorPosition(ctx context.Context) (image.Point, error)
 }
