@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.30.0](https://github.com/y3owk1n/neru/compare/v1.29.1...v1.30.0) (2026-03-28)
+
+
+### Features
+
+* add per-mode custom hotkeys ([#633](https://github.com/y3owk1n/neru/issues/633)) ([c23426b](https://github.com/y3owk1n/neru/commit/c23426be79af5879404945b990a5299a2ce89c55))
+* add support for cursor selection mode ([#660](https://github.com/y3owk1n/neru/issues/660)) ([16a7042](https://github.com/y3owk1n/neru/commit/16a70424dc8d2c7708ed7bc4be080f1bf9aee1f8))
+* **cli:** add --repeat flag to re-activate mode after action ([#637](https://github.com/y3owk1n/neru/issues/637)) ([24c6ff1](https://github.com/y3owk1n/neru/commit/24c6ff1a2e19b45670f30c1e936f3637ed51ef8b))
+* **cli:** add scroll actions ([#635](https://github.com/y3owk1n/neru/issues/635)) ([2e5dc48](https://github.com/y3owk1n/neru/commit/2e5dc48e15b00c529773daba47ee21e5721bbcfb))
+* **config:** merge hotkeys and custom_hotkeys on top of defaults instead of replacing ([#647](https://github.com/y3owk1n/neru/issues/647)) ([cc2a6d1](https://github.com/y3owk1n/neru/commit/cc2a6d10eff00d95889cd28850531b5e5f08d5c6))
+* **config:** support multiple actions per hotkey binding ([#642](https://github.com/y3owk1n/neru/issues/642)) ([39ed7fa](https://github.com/y3owk1n/neru/commit/39ed7fa4ff612c014939eaaaaf73e56ebb6edae8))
+* **hints:** support app-specific hotkey overrides ([#649](https://github.com/y3owk1n/neru/issues/649)) ([e22d3ab](https://github.com/y3owk1n/neru/commit/e22d3abb5712e2dafe65bc01dec91a061ab7455a))
+* unify in-mode bindings under custom_hotkeys and remove legacy keybinding fields ([#643](https://github.com/y3owk1n/neru/issues/643)) ([27a7c8b](https://github.com/y3owk1n/neru/commit/27a7c8bcf9a8197d594e640e565f305a1a515b1c))
+
+
+### Bug Fixes
+
+* apply sticky modifiers to IPC-triggered click actions ([#654](https://github.com/y3owk1n/neru/issues/654)) ([09099a4](https://github.com/y3owk1n/neru/commit/09099a41c3c863436bc451ddff113a219d149359))
+* **cli:** rename `restore_cursor` to `restore_cursor_pos` for consistency ([#644](https://github.com/y3owk1n/neru/issues/644)) ([a6044a9](https://github.com/y3owk1n/neru/commit/a6044a9f53979cc0c401619a5914ba8a035b7221))
+* **config:** rename `mode.custom_hotkeys` to `mode.hotkeys` for consistency ([#648](https://github.com/y3owk1n/neru/issues/648)) ([ec91ac0](https://github.com/y3owk1n/neru/commit/ec91ac000a1d9fc619b359705475ecc3ba0ae5ed))
+* honor recursive-grid repeat for direct actions ([#641](https://github.com/y3owk1n/neru/issues/641)) ([d464d66](https://github.com/y3owk1n/neru/commit/d464d66201043b600bfca3dc1c9afbb746f10c88))
+* **sticky_modifier:** auto arm modifier detection after short delay ([#657](https://github.com/y3owk1n/neru/issues/657)) ([3bec95c](https://github.com/y3owk1n/neru/commit/3bec95cd3df28351554424d1f41f93b413901be0))
+* **sticky_modifier:** gate auto-arm timer on nav mode with sticky modifiers enabled ([#658](https://github.com/y3owk1n/neru/issues/658)) ([ab8afbd](https://github.com/y3owk1n/neru/commit/ab8afbda321e228314b464b5d687cedb4b5c9f13))
+
+
+### Documentation
+
+* add `sleep` use cases for clicking and moving cursor ([ca5ba20](https://github.com/y3owk1n/neru/commit/ca5ba20eb64e279fa5fceb926c6d56998f059e42))
+
 ## [1.29.1](https://github.com/y3owk1n/neru/compare/v1.29.0...v1.29.1) (2026-03-22)
 
 
