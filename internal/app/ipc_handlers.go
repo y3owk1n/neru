@@ -196,6 +196,14 @@ func (h *IPCControllerModes) extractModeOptions(
 		case arg == "--cursor-selection-mode=hold":
 			cursorFollowSelection := false
 			opts.CursorFollowSelection = &cursorFollowSelection
+		case strings.HasPrefix(arg, "--cursor-selection-mode="):
+			resp := ipc.Response{
+				Success: false,
+				Message: "--cursor-selection-mode requires follow or hold",
+				Code:    ipc.CodeInvalidInput,
+			}
+
+			return opts, &resp
 		case arg == "--cursor-selection-mode":
 			if startIdx+1 >= len(cmd.Args) {
 				resp := ipc.Response{
