@@ -20,6 +20,7 @@ import (
 const (
 	minAnimationDuration = 10 // Minimum animation duration in ms
 	minStepDelay         = 1  // Minimum delay between steps in ms
+	drainTimeoutBufferMs = 50 // Extra grace period while draining a canceled animation.
 )
 
 type smoothCursorAnimator struct {
@@ -195,5 +196,5 @@ func previousAnimationDrainTimeout() time.Duration {
 		maxDurationMs = cfg.SmoothCursor.MaxDuration
 	}
 
-	return time.Duration(maxDurationMs+50) * time.Millisecond
+	return time.Duration(maxDurationMs+drainTimeoutBufferMs) * time.Millisecond
 }
