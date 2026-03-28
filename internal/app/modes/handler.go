@@ -513,6 +513,14 @@ func (h *Handler) BackspaceCurrentMode() {
 
 			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 
+			if h.recursiveGrid.Context != nil {
+				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+
+				if !h.recursiveGrid.Context.CursorFollowSelection() {
+					return
+				}
+			}
+
 			err := h.actionService.MoveCursorToPoint(
 				context.Background(),
 				absoluteCenter,
