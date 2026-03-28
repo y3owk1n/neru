@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -172,6 +173,23 @@ func (h *IPCControllerModes) extractModeOptions(
 		switch {
 		case arg == "--repeat" || arg == "-r":
 			opts.Repeat = true
+		case strings.HasPrefix(arg, "--action="):
+			actionArg := strings.TrimPrefix(arg, "--action=")
+			opts.Action = &actionArg
+		case arg == "--action" || arg == "-a":
+			if startIdx+1 >= len(cmd.Args) {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--action requires a value",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			startIdx++
+			actionArg := cmd.Args[startIdx]
+			opts.Action = &actionArg
 		case arg == "--cursor-selection-mode=follow":
 			cursorFollowSelection := true
 			opts.CursorFollowSelection = &cursorFollowSelection
