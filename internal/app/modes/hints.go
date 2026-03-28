@@ -276,9 +276,6 @@ func (h *Handler) activateHintModeInternal(
 
 	h.hints.Context.SetHints(hintCollection)
 
-	// Store pending action if provided
-	h.hints.Context.SetPendingAction(actionStr)
-
 	if actionStr != nil {
 		h.logger.Info("Hints mode activated with pending action", zap.String("action", *actionStr))
 	}
