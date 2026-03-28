@@ -789,10 +789,11 @@ func (h *IPCControllerActions) handleScrollAction(
 
 	// Reject flags that are not applicable to scroll actions.
 	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.hasMonitor || parsed.modifierStr != "" {
+		parsed.hasCenter || parsed.hasMonitor || parsed.modifierStr != "" ||
+		parsed.useSelection {
 		return ipc.Response{
 			Success: false,
-			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--monitor/--modifier flags",
+			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--monitor/--modifier/--selection flags",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
