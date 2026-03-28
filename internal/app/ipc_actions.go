@@ -610,12 +610,12 @@ func (h *IPCControllerActions) resolveMoveMousePoint(
 		return h.resolveSelectionPoint()
 	}
 
-	if targetPoint, ok := h.currentSelectionPoint(); ok {
-		return targetPoint, nil
-	}
-
 	if parsed.useBare {
 		return h.resolveCurrentCursorPoint(ctx)
+	}
+
+	if targetPoint, ok := h.currentSelectionPoint(); ok {
+		return targetPoint, nil
 	}
 
 	return image.Point{}, &ipc.Response{
