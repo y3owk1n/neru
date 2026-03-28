@@ -270,7 +270,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		actionName == string(action.NameMiddleClick) ||
 		actionName == string(action.NameMouseDown) ||
 		actionName == string(action.NameMouseUp)
-	isPointTargetedAction := isMoveMouse || isMouseButton || action.IsScrollSubAction(actionName)
+	isPointTargetedAction := isMoveMouse || isMouseButton
 
 	// Validation order matters:
 	// 1. Reject coordinate flags on non-mouse-move actions.
