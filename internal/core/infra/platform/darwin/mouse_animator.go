@@ -126,5 +126,10 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 		}
 	})
 
+	// Wait for the animation goroutine to complete before returning.
+	// This ensures MoveMouse() blocks until the cursor reaches its destination,
+	// so callers (CLI, modes, etc.) know when the action is truly finished.
+	a.wg.Wait()
+
 	a.mu.Unlock()
 }
