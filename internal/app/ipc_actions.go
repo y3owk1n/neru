@@ -543,6 +543,14 @@ func (h *IPCControllerActions) handleMoveMouseAction(
 		return nil, h.actionService.MoveMouseTo(ctx, parsed.xVal, parsed.yVal, false)
 	}
 
+	if parsed.useBare && h.actionService == nil {
+		return &ipc.Response{
+			Success: false,
+			Message: "action service not available",
+			Code:    ipc.CodeActionFailed,
+		}, nil
+	}
+
 	targetPoint, pointErrResp := h.resolveMoveMousePoint(ctx, parsed)
 	if pointErrResp != nil {
 		return pointErrResp, nil
