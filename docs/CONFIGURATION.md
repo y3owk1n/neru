@@ -479,7 +479,7 @@ Example:
 > `reset`, `backspace`, `wait_for_mode_exit`, and `save_cursor_pos` / `restore_cursor_pos` are not valid mode `--action` values. Use them as `neru action ...` or in hotkeys as `"action ..."`. `toggle-cursor-follow-selection` is a root command.
 
 > [!TIP]
-> Selection-aware mouse actions are explicit. Use `"action left_click --selection"` or `"action move_mouse --selection"` when you want an action to target the current mode selection.
+> Point-targeted actions prefer the current mode selection by default. Use `"action left_click --bare"`, `"action scroll_down --bare"`, or `"action move_mouse --bare"` when you want to ignore the selection and target the current cursor position instead.
 
 ---
 

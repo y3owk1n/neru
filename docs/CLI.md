@@ -359,7 +359,8 @@ Hold a modifier during a click using `--modifier`:
 
 ```
 neru action left_click --modifier cmd          # Cmd+click (open in new tab)
-neru action left_click --selection             # Click the active mode selection
+neru action left_click                         # Click the active mode selection when available
+neru action left_click --bare                  # Force current-cursor targeting
 neru action left_click --modifier shift        # Shift+click (extend selection)
 neru action left_click --modifier cmd,shift    # Cmd+Shift+click
 neru action right_click --modifier alt         # Alt+right-click
@@ -373,7 +374,8 @@ neru action right_click --modifier alt         # Alt+right-click
 
 ```
 neru action move_mouse --x 500 --y 300
-neru action move_mouse --selection
+neru action move_mouse                         # Move to the active mode selection
+neru action move_mouse --bare                  # Use current-cursor targeting explicitly
 ```
 
 **Screen center:**
@@ -405,13 +407,14 @@ neru action move_mouse_relative --dx 10 --dy -5
 | `--y <px>`         | Absolute Y coordinate, or Y offset when used with `--center` |
 | `--center`         | Move to the center of the active screen                      |
 | `--monitor <name>` | Target a named display (requires `--center`)                 |
-| `--selection`      | Move to the active mode selection                            |
+| `--selection`      | Explicitly use the active mode selection                     |
+| `--bare`           | Force current-cursor targeting even when a selection exists  |
 
 > [!TIP]
 > Monitor names are the display names reported by macOS (e.g. "Built-in Retina Display", "DELL U2720Q"). Find yours in **System Settings → Displays**. If you use an incorrect name, the error message will list all available names.
 
 > [!TIP]
-> Selection-aware mouse actions are explicit. Use `--selection` when you want `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, or `move_mouse` to target the active selection.
+> Point-targeted actions prefer the active mode selection by default. Use `--bare` when you want `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, `move_mouse`, or scroll actions to ignore the selection and use the current cursor position instead.
 
 ---
 

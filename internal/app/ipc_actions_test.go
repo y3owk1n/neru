@@ -7,8 +7,11 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
 func TestParseActionArgs_MoveMouseFlags(t *testing.T) {
@@ -37,6 +40,17 @@ func TestParseActionArgs_SelectionFlag(t *testing.T) {
 	}
 }
 
+func TestParseActionArgs_BareFlag(t *testing.T) {
+	parsed, parseErr := parseActionArgs([]string{"--bare"})
+	if parseErr {
+		t.Fatal("parseActionArgs() unexpected parse error for --bare")
+	}
+
+	if !parsed.useBare {
+		t.Fatal("parseActionArgs() expected useBare to be true")
+	}
+}
+
 func TestHandleAction_MoveMouseWithoutTargetingOrSelectionErrors(t *testing.T) {
 	controller := &IPCControllerActions{
 		appState: state.NewAppState(),
@@ -52,7 +66,7 @@ func TestHandleAction_MoveMouseWithoutTargetingOrSelectionErrors(t *testing.T) {
 		t.Fatal("handleAction(move_mouse) expected failure without explicit target or selection")
 	}
 
-	if resp.Message != "move_mouse requires --x and --y flags, --center, or --selection" {
+	if resp.Message != "move_mouse requires --x and --y flags, --center, active selection, or --bare" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -70,6 +84,33 @@ func TestHandleAction_MoveMouseSelectionWithoutActiveSelectionErrors(t *testing.
 
 	if resp.Success {
 		t.Fatal("handleAction(move_mouse --selection) expected failure without active selection")
+	}
+
+	if resp.Message != "--selection requires an active mode selection" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+		scrollService: services.NewScrollService(
+			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockOverlayPort{},
+			&portmocks.SystemMock{},
+			config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 20, ScrollStepFull: 30},
+			zap.NewNop(),
+		),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"scroll_down", "--selection"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(scroll_down --selection) expected failure without active selection")
 	}
 
 	if resp.Message != "--selection requires an active mode selection" {

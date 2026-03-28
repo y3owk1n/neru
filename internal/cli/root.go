@@ -188,11 +188,12 @@ func BuildSimpleCommand(use, short, long string, action string) *cobra.Command {
 func BuildActionCommand(
 	use, short, long string,
 	params []string,
-	allowSelection bool,
+	allowTargetOverride bool,
 ) *cobra.Command {
 	var (
 		modifier  string
 		selection bool
+		bare      bool
 	)
 
 	cmd := &cobra.Command{
@@ -203,6 +204,13 @@ func BuildActionCommand(
 			return requiresRunningInstance()
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if selection && bare {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--selection and --bare cannot be used together",
+				)
+			}
+
 			args := make([]string, 0, len(params)+1)
 			args = append(args, params...)
 
@@ -214,6 +222,10 @@ func BuildActionCommand(
 				args = append(args, "--selection")
 			}
 
+			if bare {
+				args = append(args, "--bare")
+			}
+
 			return sendCommand(cmd, "action", args)
 		},
 	}
@@ -221,12 +233,18 @@ func BuildActionCommand(
 	cmd.Flags().StringVar(&modifier, "modifier", "",
 		"Comma-separated modifier keys to hold during action (cmd, shift, alt, option, ctrl)")
 
-	if allowSelection {
+	if allowTargetOverride {
 		cmd.Flags().BoolVar(
 			&selection,
 			"selection",
 			false,
-			"Use the active mode selection as the target point",
+			"Explicitly use the active mode selection as the target point",
+		)
+		cmd.Flags().BoolVar(
+			&bare,
+			"bare",
+			false,
+			"Use the current cursor position even when a mode selection exists",
 		)
 	}
 
@@ -240,6 +258,7 @@ func BuildMoveMouseCommand() *cobra.Command {
 		center           bool
 		monitor          string
 		selection        bool
+		bare             bool
 	)
 
 	cmd := &cobra.Command{
@@ -252,8 +271,9 @@ If --x and --y are also provided with --center, they act as offsets from center.
 When --monitor is used with --center, the cursor moves to the center of the
 named monitor instead of the active screen. Monitor names are matched
 case-insensitively against the localized display names reported by macOS
-(e.g. "Built-in Retina Display", "DELL U2720Q"). Use --selection to move to
-the active mode selection target.`,
+(e.g. "Built-in Retina Display", "DELL U2720Q"). Without coordinates,
+move_mouse targets the active mode selection by default when one exists.
+Use --bare to force current-cursor targeting.`,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
 			return requiresRunningInstance()
 		},
@@ -279,6 +299,13 @@ the active mode selection target.`,
 				return derrors.New(
 					derrors.CodeInvalidInput,
 					"--selection cannot be combined with --x, --y, --center, or --monitor",
+				)
+			}
+
+			if selection && bare {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--selection and --bare cannot be used together",
 				)
 			}
 
@@ -313,6 +340,10 @@ the active mode selection target.`,
 				args = append(args, "--selection")
 			}
 
+			if bare {
+				args = append(args, "--bare")
+			}
+
 			return sendCommand(cmd, "action", args)
 		},
 	}
@@ -322,7 +353,8 @@ the active mode selection target.`,
 	cmd.Flags().
 		IntVar(&targetY, "y", 0, "Y coordinate (pixels); with --center, vertical offset (default 0)")
 	cmd.Flags().BoolVar(&center, "center", false, "Move to the center of the active screen")
-	cmd.Flags().BoolVar(&selection, "selection", false, "Move to the active mode selection")
+	cmd.Flags().BoolVar(&selection, "selection", false, "Explicitly move to the active mode selection")
+	cmd.Flags().BoolVar(&bare, "bare", false, "Use the current cursor position when no explicit target is provided")
 	cmd.Flags().StringVar(&monitor, "monitor", "",
 		"Target monitor by display name (requires --center); e.g. \"Built-in Retina Display\"")
 
@@ -331,7 +363,12 @@ the active mode selection target.`,
 
 // BuildScrollActionCommand creates a scroll action cobra command.
 func BuildScrollActionCommand(use, short, long string) *cobra.Command {
-	return &cobra.Command{
+	var (
+		selection bool
+		bare      bool
+	)
+
+	cmd := &cobra.Command{
 		Use:   use,
 		Short: short,
 		Long:  long,
@@ -339,9 +376,30 @@ func BuildScrollActionCommand(use, short, long string) *cobra.Command {
 			return requiresRunningInstance()
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return sendCommand(cmd, "action", []string{use})
+			if selection && bare {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--selection and --bare cannot be used together",
+				)
+			}
+
+			args := []string{use}
+			if selection {
+				args = append(args, "--selection")
+			}
+
+			if bare {
+				args = append(args, "--bare")
+			}
+
+			return sendCommand(cmd, "action", args)
 		},
 	}
+
+	cmd.Flags().BoolVar(&selection, "selection", false, "Explicitly use the active mode selection as the target point")
+	cmd.Flags().BoolVar(&bare, "bare", false, "Use the current cursor position even when a mode selection exists")
+
+	return cmd
 }
 
 // BuildMoveMouseRelativeCommand creates a move_mouse_relative cobra command with deltaX and deltaY flags.

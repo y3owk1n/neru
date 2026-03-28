@@ -114,11 +114,11 @@ If you want to toggle that behavior on demand:
 ```toml
 [recursive_grid.hotkeys]
 "`" = "toggle-cursor-follow-selection"
-"Shift+D" = "action move_mouse --selection"
+"Shift+D" = "action move_mouse"
 "Return" = "action left_click"
 ```
 
-This keeps the real pointer still while you navigate. When you want an action to target the current selection, make it explicit with `--selection`, for example `"Return" = "action left_click --selection"`.
+This keeps the real pointer still while you navigate. Point-targeted actions now prefer the current selection by default, so `"Return" = "action left_click"` and scroll actions will commit against the selection unless you opt out with `--bare`.
 
 ## Disabling All Built-In Hotkeys
 

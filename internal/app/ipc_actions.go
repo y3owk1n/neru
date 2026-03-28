@@ -71,6 +71,7 @@ type parsedActionArgs struct {
 	hasDX, hasDY   bool
 	hasCenter      bool
 	useSelection   bool
+	useBare        bool
 	monitorName    string
 	hasMonitor     bool
 	modifierStr    string
@@ -183,6 +184,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.hasCenter = true
 		case arg == "--selection":
 			parsed.useSelection = true
+		case arg == "--bare":
+			parsed.useBare = true
 		case strings.HasPrefix(arg, "--monitor") && (arg == "--monitor" || arg[len("--monitor")] == '='):
 			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--monitor")
 			idx = newIdx
@@ -262,6 +265,12 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	isMoveMouse := actionName == string(action.NameMoveMouse)
 	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
+	isMouseButton := actionName == string(action.NameLeftClick) ||
+		actionName == string(action.NameRightClick) ||
+		actionName == string(action.NameMiddleClick) ||
+		actionName == string(action.NameMouseDown) ||
+		actionName == string(action.NameMouseUp)
+	isPointTargetedAction := isMoveMouse || isMouseButton || action.IsScrollSubAction(actionName)
 
 	// Validation order matters:
 	// 1. Reject coordinate flags on non-mouse-move actions.
@@ -283,12 +292,6 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
-
-	isMouseButton := actionName == string(action.NameLeftClick) ||
-		actionName == string(action.NameRightClick) ||
-		actionName == string(action.NameMiddleClick) ||
-		actionName == string(action.NameMouseDown) ||
-		actionName == string(action.NameMouseUp)
 
 	if modifiers != 0 && !isMouseButton {
 		return ipc.Response{
@@ -339,10 +342,26 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
+	if parsed.useSelection && parsed.useBare {
+		return ipc.Response{
+			Success: false,
+			Message: "--selection and --bare cannot be used together",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	if parsed.useSelection && (!isMoveMouse && !isMouseButton) {
 		return ipc.Response{
 			Success: false,
-			Message: "--selection is only supported with move_mouse and mouse button actions",
+			Message: "--selection is only supported with move_mouse, scroll, and mouse button actions",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.useBare && !isPointTargetedAction {
+		return ipc.Response{
+			Success: false,
+			Message: "--bare is only supported with move_mouse, scroll, and mouse button actions",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -494,11 +513,29 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 
 		if !parsed.useSelection {
-			return ipc.Response{
-				Success: false,
-				Message: "move_mouse requires --x and --y flags, --center, or --selection",
-				Code:    ipc.CodeInvalidInput,
+			targetPoint, hasSelection := h.currentSelectionPoint()
+			if !hasSelection {
+				if parsed.useBare {
+					targetPoint, pointErrResp := h.resolveCurrentCursorPoint(ctx)
+					if pointErrResp != nil {
+						return *pointErrResp
+					}
+
+					err = h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
+
+					break
+				}
+
+				return ipc.Response{
+					Success: false,
+					Message: "move_mouse requires --x and --y flags, --center, active selection, or --bare",
+					Code:    ipc.CodeInvalidInput,
+				}
 			}
+
+			err = h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
+
+			break
 		}
 
 		targetPoint, pointErrResp := h.resolveSelectionPoint()
@@ -524,12 +561,19 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 		}
 
-		targetPoint, pointErrResp := h.resolveMouseActionPoint(ctx, parsed.useSelection)
+		targetPoint, pointErrResp := h.resolveMouseActionPoint(ctx, parsed)
 		if pointErrResp != nil {
 			return *pointErrResp
 		}
 
-		if parsed.useSelection {
+		targetsSelection := parsed.useSelection
+		if !targetsSelection && !parsed.useBare {
+			if selectionPoint, ok := h.currentSelectionPoint(); ok && targetPoint == selectionPoint {
+				targetsSelection = true
+			}
+		}
+
+		if targetsSelection {
 			moveErr := h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
 			if moveErr != nil {
 				h.logger.Error("Failed to move cursor to mode selection", zap.Error(moveErr))
@@ -592,15 +636,22 @@ func (h *IPCControllerActions) handleBackspaceAction() ipc.Response {
 
 func hasUnsupportedFlags(parsed parsedActionArgs) bool {
 	return parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.hasMonitor || parsed.modifierStr != "" || parsed.useSelection
+		parsed.hasCenter || parsed.hasMonitor || parsed.modifierStr != "" ||
+		parsed.useSelection || parsed.useBare
 }
 
 func (h *IPCControllerActions) resolveMouseActionPoint(
 	ctx context.Context,
-	useSelection bool,
+	parsed parsedActionArgs,
 ) (image.Point, *ipc.Response) {
-	if useSelection {
+	if parsed.useSelection {
 		return h.resolveSelectionPoint()
+	}
+
+	if !parsed.useBare {
+		if targetPoint, ok := h.currentSelectionPoint(); ok {
+			return targetPoint, nil
+		}
 	}
 
 	return h.resolveCurrentCursorPoint(ctx)
@@ -642,6 +693,14 @@ func (h *IPCControllerActions) resolveSelectionPoint() (image.Point, *ipc.Respon
 	}
 
 	return targetPoint, nil
+}
+
+func (h *IPCControllerActions) currentSelectionPoint() (image.Point, bool) {
+	if h.modesHandler == nil {
+		return image.Point{}, false
+	}
+
+	return h.modesHandler.CurrentSelectionPoint()
 }
 
 func (h *IPCControllerActions) handleWaitForModeExitAction(
@@ -789,11 +848,18 @@ func (h *IPCControllerActions) handleScrollAction(
 
 	// Reject flags that are not applicable to scroll actions.
 	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.hasMonitor || parsed.modifierStr != "" ||
-		parsed.useSelection {
+		parsed.hasCenter || parsed.hasMonitor || parsed.modifierStr != "" {
 		return ipc.Response{
 			Success: false,
-			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--monitor/--modifier/--selection flags",
+			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--monitor/--modifier flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.useSelection && parsed.useBare {
+		return ipc.Response{
+			Success: false,
+			Message: "--selection and --bare cannot be used together",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -812,6 +878,42 @@ func (h *IPCControllerActions) handleScrollAction(
 		zap.Int("direction", int(direction)),
 		zap.Int("amount", int(amount)),
 	)
+
+	targetsSelection := parsed.useSelection
+	targetPoint := image.Point{}
+	if parsed.useSelection {
+		var pointErrResp *ipc.Response
+		targetPoint, pointErrResp = h.resolveSelectionPoint()
+		if pointErrResp != nil {
+			return *pointErrResp
+		}
+	} else if !parsed.useBare {
+		if selectionPoint, ok := h.currentSelectionPoint(); ok {
+			targetPoint = selectionPoint
+			targetsSelection = true
+		}
+	}
+
+	if targetsSelection {
+		if h.actionService == nil {
+			return ipc.Response{
+				Success: false,
+				Message: "action service not available",
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		moveErr := h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
+		if moveErr != nil {
+			h.logger.Error("Failed to move cursor to scroll target", zap.Error(moveErr))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to perform scroll action: " + moveErr.Error(),
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+	}
 
 	scrollErr := h.scrollService.Scroll(ctx, direction, amount)
 	if scrollErr != nil {
