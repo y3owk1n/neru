@@ -316,6 +316,10 @@ func (h *Handler) markHeldModifiersUsedInChord() {
 // ineligible for sticky toggle. Suppression ends on the first matching release
 // or after a short timeout if that release never arrives.
 func (h *Handler) SuppressModifiersUntilReleased(mods action.Modifiers) {
+	if mods == 0 {
+		return
+	}
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
