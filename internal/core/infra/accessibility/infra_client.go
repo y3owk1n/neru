@@ -120,7 +120,11 @@ func (c *InfraAXClient) ClickableNodes(
 	clickableNodesResult := make([]AXNode, len(clickableNodes))
 
 	for i, node := range clickableNodes {
-		clickableNodesResult[i] = &InfraNode{node: node, cache: c.cache}
+		clickableNodesResult[i] = &InfraNode{
+			node:           node,
+			cache:          c.cache,
+			configProvider: c.configProvider,
+		}
 	}
 
 	return clickableNodesResult, nil
