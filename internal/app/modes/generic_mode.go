@@ -39,6 +39,10 @@ func NewGenericMode(
 
 // Activate activates the mode using the configured behavior or default logic.
 func (m *GenericMode) Activate(opts ModeActivationOptions) {
+	if m.handler == nil {
+		return
+	}
+
 	if m.behavior.ActivateFunc != nil {
 		m.behavior.ActivateFunc(m.handler, opts)
 	} else {
@@ -72,6 +76,10 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 
 // HandleKey processes key presses using the configured behavior or default logic.
 func (m *GenericMode) HandleKey(key string) {
+	if m.handler == nil {
+		return
+	}
+
 	if m.behavior.HandleKeyFunc != nil {
 		m.behavior.HandleKeyFunc(m.handler, key)
 	} else {
@@ -93,6 +101,10 @@ func (m *GenericMode) HandleKey(key string) {
 
 // Exit performs mode cleanup using the configured behavior or default logic.
 func (m *GenericMode) Exit() {
+	if m.handler == nil {
+		return
+	}
+
 	if m.behavior.ExitFunc != nil {
 		m.behavior.ExitFunc(m.handler)
 	} else {

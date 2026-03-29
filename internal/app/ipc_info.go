@@ -30,6 +30,7 @@ type IPCControllerInfo struct {
 	gridService   *services.GridService
 	actionService *services.ActionService
 	scrollService *services.ScrollService
+	systemPort    ports.SystemPort
 	eventTap      ports.EventTapPort
 	ipcServer     ports.IPCPort
 	reloadConfig  func(ctx context.Context, configPath string) error
@@ -49,6 +50,7 @@ func NewIPCControllerInfo(
 	gridService *services.GridService,
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
+	systemPort ports.SystemPort,
 	eventTap ports.EventTapPort,
 	ipcServer ports.IPCPort,
 	reloadConfig func(ctx context.Context, configPath string) error,
@@ -63,6 +65,7 @@ func NewIPCControllerInfo(
 		gridService:   gridService,
 		actionService: actionService,
 		scrollService: scrollService,
+		systemPort:    systemPort,
 		eventTap:      eventTap,
 		ipcServer:     ipcServer,
 		reloadConfig:  reloadConfig,
@@ -141,6 +144,7 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 		"hints_enabled":          cfg.Hints.Enabled,
 		"grid_enabled":           cfg.Grid.Enabled,
 		"recursive_grid_enabled": cfg.RecursiveGrid.Enabled,
+		"capabilities":           capabilitiesMap(h.systemCapabilities()),
 	}
 
 	return ipc.Response{
@@ -206,6 +210,7 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 	hasErrors := false
 	// --- component checks ---------------------------------------------------
 	components := make(map[string]string)
+	capabilities := capabilitiesMap(h.systemCapabilities())
 	// Event tap — only enabled during active modes (hints/grid/scroll),
 	// so "disabled" in idle mode is expected and healthy.
 	if h.eventTap != nil {
@@ -243,6 +248,15 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 	} else {
 		components["config"] = "not loaded"
 		hasErrors = true
+	}
+
+	for key, value := range capabilities {
+		status, _ := value.(string)
+
+		components["capability."+key] = status
+		if key != "platform" && status != string(ports.FeatureStatusSupported) {
+			hasErrors = true
+		}
 	}
 	// Service health checks (accessibility + overlay per service)
 	serviceChecks := map[string]map[string]error{}
@@ -301,10 +315,11 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 	}
 
 	data := map[string]any{
-		"version":    ipc.BuildVersion(),
-		"config":     configPath,
-		"mode":       mode,
-		"components": components,
+		"version":      ipc.BuildVersion(),
+		"config":       configPath,
+		"mode":         mode,
+		"capabilities": capabilities,
+		"components":   components,
 	}
 
 	response := ipc.Response{
@@ -318,4 +333,40 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 	}
 
 	return response
+}
+
+func (h *IPCControllerInfo) systemCapabilities() ports.PlatformCapabilities {
+	if reporter, ok := h.systemPort.(ports.CapabilityReporter); ok {
+		return reporter.Capabilities()
+	}
+
+	return ports.PlatformCapabilities{}
+}
+
+func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
+	if capabilities.Platform == "" {
+		return map[string]any{}
+	}
+
+	return map[string]any{
+		"platform":            capabilities.Platform,
+		"process":             capabilityString(capabilities.Process),
+		"screen":              capabilityString(capabilities.Screen),
+		"cursor":              capabilityString(capabilities.Cursor),
+		"accessibility":       capabilityString(capabilities.Accessibility),
+		"overlay":             capabilityString(capabilities.Overlay),
+		"notifications":       capabilityString(capabilities.Notifications),
+		"global_hotkeys":      capabilityString(capabilities.GlobalHotkeys),
+		"keyboard_event_tap":  capabilityString(capabilities.KeyboardEventTap),
+		"app_watcher":         capabilityString(capabilities.AppWatcher),
+		"dark_mode_detection": capabilityString(capabilities.DarkModeDetection),
+	}
+}
+
+func capabilityString(capability ports.FeatureCapability) string {
+	if capability.Status == "" {
+		return string(ports.FeatureStatusStub)
+	}
+
+	return string(capability.Status)
 }

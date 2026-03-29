@@ -614,7 +614,7 @@ func (n *TreeNode) FindClickableElements(
 ) []*TreeNode {
 	var result []*TreeNode
 	n.walkTree(func(node *TreeNode) bool {
-		if node.element.IsClickable(node.info, allowedRoles, cache) {
+		if node.element.IsClickable(node.info, allowedRoles, cache, nil) {
 			result = append(result, node)
 		}
 

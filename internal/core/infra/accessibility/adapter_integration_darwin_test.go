@@ -26,7 +26,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	}
 
 	log := logger.Get()
-	client := accessibility.NewInfraAXClient(log, nil)
+	client := accessibility.NewInfraAXClient(log, nil, nil)
 	t.Cleanup(func() { client.Cache().Stop() })
 
 	adapter := accessibility.NewAdapter(log, nil, nil, client, false)

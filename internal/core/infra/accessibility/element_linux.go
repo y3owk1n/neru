@@ -165,6 +165,7 @@ func (e *Element) IsClickable(
 	_ *ElementInfo,
 	_ map[string]struct{},
 	_ *InfoCache,
+	_ ConfigProvider,
 ) bool {
 	return false
 }

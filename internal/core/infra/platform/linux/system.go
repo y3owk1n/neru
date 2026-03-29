@@ -31,6 +31,11 @@ func (s *SystemAdapter) Health(ctx context.Context) error {
 	return nil
 }
 
+// Capabilities returns the current Linux capability surface.
+func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
+	return ports.LinuxCapabilities()
+}
+
 // ConfigDir returns the Linux-specific configuration directory.
 func (s *SystemAdapter) ConfigDir() (string, error) {
 	home, err := os.UserHomeDir()

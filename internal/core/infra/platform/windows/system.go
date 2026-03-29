@@ -31,6 +31,11 @@ func (s *SystemAdapter) Health(ctx context.Context) error {
 	return nil
 }
 
+// Capabilities returns the current Windows capability surface.
+func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
+	return ports.WindowsCapabilities()
+}
+
 // ConfigDir returns the Windows-specific configuration directory.
 func (s *SystemAdapter) ConfigDir() (string, error) {
 	appData := os.Getenv("APPDATA")

@@ -2,12 +2,14 @@ package accessibility
 
 import (
 	"go.uber.org/zap"
-
-	"github.com/y3owk1n/neru/internal/config"
 )
 
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
-func MenuBarClickableElements(logger *zap.Logger, cache *InfoCache) ([]*TreeNode, error) {
+func MenuBarClickableElements(
+	logger *zap.Logger,
+	cache *InfoCache,
+	configProvider ConfigProvider,
+) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
 
 	app := FocusedApplication()
@@ -29,7 +31,7 @@ func MenuBarClickableElements(logger *zap.Logger, cache *InfoCache) ([]*TreeNode
 	opts := DefaultTreeOptions(logger)
 	opts.SetCache(cache)
 
-	if cfg := config.Global(); cfg != nil {
+	if cfg := currentConfig(configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
 	}
@@ -76,6 +78,7 @@ func ClickableElementsFromBundleID(
 	roles []string,
 	logger *zap.Logger,
 	cache *InfoCache,
+	configProvider ConfigProvider,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for bundle ID",
 		zap.String("bundle_id", bundleID),
@@ -93,7 +96,7 @@ func ClickableElementsFromBundleID(
 	opts.SetCache(cache)
 	opts.SetIncludeOutOfBounds(true)
 
-	if cfg := config.Global(); cfg != nil {
+	if cfg := currentConfig(configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
 	}

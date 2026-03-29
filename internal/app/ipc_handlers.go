@@ -27,11 +27,11 @@ func NewIPCControllerLifecycle(
 	logger *zap.Logger,
 ) *IPCControllerLifecycle {
 	if appState == nil {
-		panic("appState cannot be nil")
+		appState = state.NewAppState()
 	}
 
 	if logger == nil {
-		panic("logger cannot be nil")
+		logger = zap.NewNop()
 	}
 
 	return &IPCControllerLifecycle{

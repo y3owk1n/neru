@@ -14,6 +14,8 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // Manager manages multiple overlay windows (Linux stub).
@@ -98,9 +100,17 @@ func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay { return nil
 // RecursiveGridOverlay returns the recursive grid overlay (Linux stub).
 func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay { return nil }
 
+// OverlayCapabilities reports current Linux overlay support.
+func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
+	return ports.FeatureCapability{
+		Status: ports.FeatureStatusStub,
+		Detail: "native Linux overlays are not implemented yet",
+	}
+}
+
 // DrawHintsWithStyle draws hints with the specified style (Linux stub).
 func (m *Manager) DrawHintsWithStyle(_ []*hints.Hint, _ hints.StyleMode) error {
-	return nil
+	return derrors.New(derrors.CodeNotSupported, "overlay hints not implemented on linux")
 }
 
 // DrawModeIndicator draws the mode indicator (Linux stub).
@@ -111,7 +121,7 @@ func (m *Manager) DrawStickyModifiersIndicator(_, _ int, _ string) {}
 
 // DrawGrid draws the grid (Linux stub).
 func (m *Manager) DrawGrid(_ *domainGrid.Grid, _ string, _ grid.Style) error {
-	return nil
+	return derrors.New(derrors.CodeNotSupported, "overlay grid not implemented on linux")
 }
 
 // DrawRecursiveGrid draws the recursive grid (Linux stub).
@@ -126,7 +136,7 @@ func (m *Manager) DrawRecursiveGrid(
 	_ int,
 	_ recursivegrid.Style,
 ) error {
-	return nil
+	return derrors.New(derrors.CodeNotSupported, "recursive grid overlay not implemented on linux")
 }
 
 // UpdateGridMatches updates the grid matches (Linux stub).

@@ -82,6 +82,7 @@ type SecureInputPort interface {
 // SystemPort combines various platform-specific system interfaces.
 type SystemPort interface {
 	HealthCheck
+	CapabilityReporter
 	FileSystemPort
 	ProcessPort
 	ScreenManagement

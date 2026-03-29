@@ -7,7 +7,7 @@
 **Navigate your entire screen without touching the mouse.**
 
 [![License](https://img.shields.io/github/license/y3owk1n/neru)](LICENSE)
-![Platform](<https://img.shields.io/badge/platform-macOS%20(stable)%20%7C%20Linux%20%26%20Windows%20(WIP)-lightgrey>)
+![Platform](<https://img.shields.io/badge/platform-macOS%20(stable)%20%7C%20Linux%20%26%20Windows%20(foundations%20only)-lightgrey>)
 ![Go Version](https://img.shields.io/github/go-mod/go-version/y3owk1n/neru)
 [![Latest Release](https://img.shields.io/github/v/release/y3owk1n/neru)](https://github.com/y3owk1n/neru/releases)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/y3owk1n/neru)
@@ -159,13 +159,15 @@ Full reference: [Configuration Docs →](docs/CONFIGURATION.md) · Community con
 
 ## Platform support
 
-macOS is fully supported. Linux and Windows foundations are in place — they need contributors to implement the native layer.
+macOS is fully supported. Linux and Windows currently expose the shared architecture,
+ports, and stubs, but still need native implementations for core functionality.
+`neru doctor` now reports these runtime capability gaps explicitly.
 
 | Platform    | Status                  |
 | ----------- | ----------------------- |
 | **macOS**   | ✅ Stable, all features |
-| **Linux**   | 🔲 Needs contributor    |
-| **Windows** | 🔲 Needs contributor    |
+| **Linux**   | 🔲 Foundations only     |
+| **Windows** | 🔲 Foundations only     |
 
 **Interested in porting?** Check [`cross-platform` issues](https://github.com/y3owk1n/neru/issues?q=is%3Aopen+is%3Aissue+label%3Across-platform) or join the [Linux discussion](https://github.com/y3owk1n/neru/discussions/559).
 
@@ -212,6 +214,7 @@ macOS is fully supported. Linux and Windows foundations are in place — they ne
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues, app-specific fixes   |
 | [Development](docs/DEVELOPMENT.md)         | Architecture and build instructions |
 | [Architecture](docs/ARCHITECTURE.md)       | Porting guide and system design     |
+| [Roadmap](docs/ROADMAP.md)                 | Current priorities and milestones   |
 
 ---
 

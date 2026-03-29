@@ -71,10 +71,12 @@ func initializeServicesAndAdapters(app *App) error {
 
 	// Initialize config service
 	cfgService := config.NewService(cfg, app.ConfigPath, logger, app.systemPort)
+	configurePlatformRuntimeConfigProviders(cfgService)
 
 	// Initialize adapters
 	accAdapter, overlayAdapter, axCacheStop := initializeAdapters(
 		cfg,
+		cfgService,
 		logger,
 		app.overlayManager,
 		app.systemPort,
@@ -359,6 +361,7 @@ func initializeIPCController(app *App) {
 		app.appState,
 		app.config,
 		app.modes,
+		app.systemPort,
 		nil, // eventTap — set in Phase 8
 		nil, // ipcServer — set in Phase 8
 		app.ReloadConfig,

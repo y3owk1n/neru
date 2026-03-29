@@ -27,6 +27,7 @@ type IPCController struct {
 
 	// Infrastructure
 	Logger    *zap.Logger
+	System    ports.SystemPort
 	EventTap  ports.EventTapPort
 	IPCServer ports.IPCPort
 
@@ -53,6 +54,7 @@ func NewIPCController(
 	appState *state.AppState,
 	config *config.Config,
 	modesHandler *modes.Handler,
+	systemPort ports.SystemPort,
 	eventTap ports.EventTapPort,
 	ipcServer ports.IPCPort,
 	reloadConfig func(ctx context.Context, configPath string) error,
@@ -66,6 +68,7 @@ func NewIPCController(
 		ConfigService: configService,
 		AppState:      appState,
 		Modes:         modesHandler,
+		System:        systemPort,
 		EventTap:      eventTap,
 		IPCServer:     ipcServer,
 		ReloadConfig:  reloadConfig,
@@ -138,6 +141,7 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 		c.GridService,
 		c.ActionService,
 		c.ScrollService,
+		c.System,
 		c.EventTap,
 		c.IPCServer,
 		c.ReloadConfig,

@@ -13,8 +13,6 @@ import (
 	"math"
 	"sync"
 	"time"
-
-	"github.com/y3owk1n/neru/internal/config"
 )
 
 const (
@@ -90,7 +88,7 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 	}
 	a.mu.Unlock()
 
-	cfg := config.Global()
+	cfg := currentConfig()
 	maxDuration := 200
 	durationPerPixel := 0.1
 	if cfg != nil {
@@ -190,7 +188,7 @@ func (a *smoothCursorAnimator) waitForPreviousAnimation(prevDone chan struct{}) 
 }
 
 func previousAnimationDrainTimeout() time.Duration {
-	cfg := config.Global()
+	cfg := currentConfig()
 	maxDurationMs := 200
 	if cfg != nil && cfg.SmoothCursor.MaxDuration > 0 {
 		maxDurationMs = cfg.SmoothCursor.MaxDuration
