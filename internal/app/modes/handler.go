@@ -465,6 +465,9 @@ func (h *Handler) ResetCurrentMode() {
 		if h.grid != nil && h.grid.Manager != nil {
 			h.grid.Manager.Reset()
 
+			// Clear stale selection — input was reset so no cell is selected.
+			h.grid.Context.ClearSelectionPoint()
+
 			gridInstancePtr := h.grid.Context.GridInstance()
 			if gridInstancePtr != nil && *gridInstancePtr != nil {
 				err := h.renderer.DrawGrid(
