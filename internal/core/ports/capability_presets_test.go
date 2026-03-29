@@ -66,14 +66,23 @@ func TestCapabilityPresets_PopulateAllCapabilityStatuses(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			capabilitiesValue := reflect.ValueOf(testCase.capabilities)
 			capabilitiesType := capabilitiesValue.Type()
+			fieldCount := capabilitiesValue.NumField()
 
-			for index := 0; index < capabilitiesValue.NumField(); index++ {
+			for index := range fieldCount {
 				fieldType := capabilitiesType.Field(index)
-				if fieldType.Type != reflect.TypeOf(ports.FeatureCapability{}) {
+				if fieldType.Type != reflect.TypeFor[ports.FeatureCapability]() {
 					continue
 				}
 
-				capability := capabilitiesValue.Field(index).Interface().(ports.FeatureCapability)
+				capability, ok := capabilitiesValue.Field(index).Interface().(ports.FeatureCapability)
+				if !ok {
+					t.Fatalf(
+						"%s is not a FeatureCapability in %s preset",
+						fieldType.Name,
+						testCase.name,
+					)
+				}
+
 				if capability.Status == "" {
 					t.Fatalf("%s status is empty in %s preset", fieldType.Name, testCase.name)
 				}
