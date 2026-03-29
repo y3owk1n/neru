@@ -20,6 +20,10 @@ type supportedManager struct {
 	uioverlay.NoOpManager
 }
 
+type stubManager struct {
+	uioverlay.NoOpManager
+}
+
 func (m *supportedManager) OverlayCapabilities() ports.FeatureCapability {
 	return ports.FeatureCapability{
 		Status: ports.FeatureStatusSupported,
@@ -27,7 +31,14 @@ func (m *supportedManager) OverlayCapabilities() ports.FeatureCapability {
 	}
 }
 
-func TestAdapterHealth_ReturnsNotSupportedForStubOverlayManager(t *testing.T) {
+func (m *stubManager) OverlayCapabilities() ports.FeatureCapability {
+	return ports.FeatureCapability{
+		Status: ports.FeatureStatusStub,
+		Detail: "test overlay unavailable",
+	}
+}
+
+func TestAdapterHealth_ReturnsNilForHeadlessOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
 		&uioverlay.NoOpManager{},
 		&overlayTestThemeProvider{},
@@ -36,8 +47,8 @@ func TestAdapterHealth_ReturnsNotSupportedForStubOverlayManager(t *testing.T) {
 	)
 
 	err := adapter.Health(context.Background())
-	if err == nil {
-		t.Fatal("Health() error = nil, want not supported error")
+	if err != nil {
+		t.Fatalf("Health() error = %v, want nil", err)
 	}
 }
 
@@ -52,5 +63,19 @@ func TestAdapterHealth_ReturnsNilForSupportedOverlayManager(t *testing.T) {
 	err := adapter.Health(context.Background())
 	if err != nil {
 		t.Fatalf("Health() error = %v, want nil", err)
+	}
+}
+
+func TestAdapterHealth_ReturnsNotSupportedForStubOverlayManager(t *testing.T) {
+	adapter := overlay.NewAdapter(
+		&stubManager{},
+		&overlayTestThemeProvider{},
+		&portmocks.SystemMock{},
+		zap.NewNop(),
+	)
+
+	err := adapter.Health(context.Background())
+	if err == nil {
+		t.Fatal("Health() error = nil, want not supported error")
 	}
 }

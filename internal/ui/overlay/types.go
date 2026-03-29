@@ -165,7 +165,7 @@ func (n *NoOpManager) SetSharingType(hide bool) {}
 // OverlayCapabilities reports that NoOpManager does not render overlays.
 func (n *NoOpManager) OverlayCapabilities() ports.FeatureCapability {
 	return ports.FeatureCapability{
-		Status: ports.FeatureStatusStub,
+		Status: ports.FeatureStatusHeadless,
 		Detail: "headless no-op overlay manager",
 	}
 }

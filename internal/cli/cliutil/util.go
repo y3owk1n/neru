@@ -255,7 +255,7 @@ func maxComponentWidth(keys []string) int {
 }
 
 func isHealthyHealthStatus(componentKey, status string) bool {
-	if strings.HasPrefix(status, "ok") || status == "supported" {
+	if strings.HasPrefix(status, "ok") || status == "supported" || status == "headless" {
 		return true
 	}
 

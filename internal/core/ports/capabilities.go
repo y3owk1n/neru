@@ -6,6 +6,8 @@ type FeatureStatus string
 const (
 	// FeatureStatusSupported means the feature is implemented and expected to work.
 	FeatureStatusSupported FeatureStatus = "supported"
+	// FeatureStatusHeadless means the feature is intentionally disabled in a healthy headless/no-op environment.
+	FeatureStatusHeadless FeatureStatus = "headless"
 	// FeatureStatusStub means the feature is intentionally stubbed and not yet implemented.
 	FeatureStatusStub FeatureStatus = "stub"
 )
@@ -18,7 +20,7 @@ type FeatureCapability struct {
 
 // Supported returns true when the feature is implemented on the current platform.
 func (c FeatureCapability) Supported() bool {
-	return c.Status == FeatureStatusSupported
+	return c.Status == FeatureStatusSupported || c.Status == FeatureStatusHeadless
 }
 
 // PlatformCapabilities describes the current platform support surface.
