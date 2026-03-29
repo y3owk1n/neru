@@ -176,6 +176,12 @@ const (
 	DefaultRecursiveGridLineWidth = 1
 	// DefaultRecursiveGridFontSize is the default font size for cell labels.
 	DefaultRecursiveGridFontSize = 10
+	// DefaultVirtualPointerSize is the default virtual pointer dot radius in points.
+	DefaultVirtualPointerSize = 3
+	// VirtualPointerColorLight is the default light mode color for the virtual pointer.
+	VirtualPointerColorLight = "#FF007A9E"
+	// VirtualPointerColorDark is the default dark mode color for the virtual pointer.
+	VirtualPointerColorDark = "#FF00CFCF"
 
 	// HintsBackgroundColorLight is the light mode background color for hints.
 	HintsBackgroundColorLight = "#F200CFCF"
@@ -477,6 +483,14 @@ func commonDefaultConfig() *Config {
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
 			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
 			MaxDepth:      DefaultRecursiveGridMaxDepth,
+		},
+		VirtualPointer: VirtualPointerConfig{
+			Enabled: true,
+			UI: VirtualPointerUI{
+				Size:       DefaultVirtualPointerSize,
+				ColorLight: VirtualPointerColorLight,
+				ColorDark:  VirtualPointerColorDark,
+			},
 		},
 		ModeIndicator: ModeIndicatorConfig{
 			Scroll: ModeIndicatorModeConfig{

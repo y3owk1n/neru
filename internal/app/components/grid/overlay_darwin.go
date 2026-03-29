@@ -34,9 +34,6 @@ const (
 	// GridMaxChars is the max chars for grid.
 	GridMaxChars = 9
 
-	// VirtualPointerDotRadius is the virtual pointer dot radius in points.
-	VirtualPointerDotRadius = 3
-
 	// RoundingFactor is the factor for rounding.
 	RoundingFactor = 0.5
 
@@ -224,18 +221,17 @@ func (o *Overlay) SetHideUnmatched(hide bool) {
 }
 
 // ShowVirtualPointer renders a virtual pointer at the current selection point.
-func (o *Overlay) ShowVirtualPointer(point image.Point, style Style) {
-	cFillColor := C.CString(style.MatchedBackgroundColor())
+func (o *Overlay) ShowVirtualPointer(
+	point image.Point,
+	size int,
+	fillColor string,
+) {
+	cFillColor := C.CString(fillColor)
 	defer C.free(unsafe.Pointer(cFillColor)) //nolint:nlreturn
 
-	cStrokeColor := C.CString(style.MatchedBorderColor())
-	defer C.free(unsafe.Pointer(cStrokeColor)) //nolint:nlreturn
-
 	indicatorStyle := C.CursorIndicatorStyle{
-		radius:      C.double(VirtualPointerDotRadius),
-		fillColor:   cFillColor,
-		strokeColor: cStrokeColor,
-		strokeWidth: C.int(0),
+		radius:    C.double(size),
+		fillColor: cFillColor,
 	}
 
 	C.NeruShowCursorIndicator(

@@ -3,8 +3,7 @@ package modes
 import (
 	"image"
 
-	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
-	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
@@ -118,18 +117,16 @@ func (h *Handler) refreshGridVirtualPointerLocked() {
 	}
 
 	point, ok := h.grid.Context.SelectionPoint()
-	if !ok || h.grid.Context.CursorFollowSelection() {
+
+	size, fillColor, enabled := h.gridVirtualPointerStyle()
+	if !ok || h.grid.Context.CursorFollowSelection() || !enabled {
 		h.grid.Overlay.HideVirtualPointer()
 
 		return
 	}
 
 	localPoint := coordinates.ConvertToLocalCoordinates(point, h.screenBounds)
-
-	h.grid.Overlay.ShowVirtualPointer(
-		localPoint,
-		gridcomponent.BuildStyle(h.config.Grid, h.themeProvider),
-	)
+	h.grid.Overlay.ShowVirtualPointer(localPoint, size, fillColor)
 }
 
 func (h *Handler) refreshRecursiveGridVirtualPointerLocked() {
@@ -138,16 +135,48 @@ func (h *Handler) refreshRecursiveGridVirtualPointerLocked() {
 	}
 
 	point, ok := h.recursiveGrid.Context.SelectionPoint()
-	if !ok || h.recursiveGrid.Context.CursorFollowSelection() {
+
+	size, fillColor, enabled := h.recursiveGridVirtualPointerStyle()
+	if !ok || h.recursiveGrid.Context.CursorFollowSelection() || !enabled {
 		h.recursiveGrid.Overlay.HideVirtualPointer()
 
 		return
 	}
 
 	localPoint := coordinates.ConvertToLocalCoordinates(point, h.screenBounds)
+	h.recursiveGrid.Overlay.ShowVirtualPointer(localPoint, size, fillColor)
+}
 
-	h.recursiveGrid.Overlay.ShowVirtualPointer(
-		localPoint,
-		recursivegridcomponent.BuildStyle(h.config.RecursiveGrid, h.themeProvider),
+func (h *Handler) gridVirtualPointerStyle() (int, string, bool) {
+	cfg := h.config.VirtualPointer
+	if !cfg.Enabled {
+		return 0, "", false
+	}
+
+	fillColor := config.ResolveColor(
+		cfg.UI.ColorLight,
+		cfg.UI.ColorDark,
+		h.themeProvider,
+		config.VirtualPointerColorLight,
+		config.VirtualPointerColorDark,
 	)
+
+	return cfg.UI.Size, fillColor, true
+}
+
+func (h *Handler) recursiveGridVirtualPointerStyle() (int, string, bool) {
+	cfg := h.config.VirtualPointer
+	if !cfg.Enabled {
+		return 0, "", false
+	}
+
+	fillColor := config.ResolveColor(
+		cfg.UI.ColorLight,
+		cfg.UI.ColorDark,
+		h.themeProvider,
+		config.VirtualPointerColorLight,
+		config.VirtualPointerColorDark,
+	)
+
+	return cfg.UI.Size, fillColor, true
 }

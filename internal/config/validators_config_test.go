@@ -109,3 +109,19 @@ func TestConfigValidateHints_AsciiHintChars(t *testing.T) {
 		t.Fatal("ValidateHints() expected error for non-ASCII hint_characters")
 	}
 }
+
+func TestConfigValidateVirtualPointer(t *testing.T) {
+	cfg := config.DefaultConfig()
+
+	err := cfg.ValidateVirtualPointer()
+	if err != nil {
+		t.Fatalf("ValidateVirtualPointer() unexpected error: %v", err)
+	}
+
+	cfg.VirtualPointer.UI.Size = 0
+
+	err = cfg.ValidateVirtualPointer()
+	if err == nil {
+		t.Fatal("ValidateVirtualPointer() expected error for size=0")
+	}
+}

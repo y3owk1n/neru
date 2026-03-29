@@ -148,9 +148,7 @@ static const CGFloat kHintArrowGap = 1.0;
 @property(nonatomic, assign) BOOL cursorIndicatorVisible;            ///< Draw virtual cursor indicator
 @property(nonatomic, assign) NSPoint cursorIndicatorPosition;        ///< Virtual cursor indicator center
 @property(nonatomic, assign) CGFloat cursorIndicatorRadius;          ///< Virtual cursor indicator radius
-@property(nonatomic, assign) CGFloat cursorIndicatorStrokeWidth;     ///< Virtual cursor indicator stroke width
 @property(nonatomic, strong) NSColor *cursorIndicatorFillColor;      ///< Virtual cursor indicator fill
-@property(nonatomic, strong) NSColor *cursorIndicatorStrokeColor;    ///< Virtual cursor indicator stroke
 
 // Cached grid text colors to reduce allocations during drawing
 @property(nonatomic, strong) NSColor *cachedGridTextColor;
@@ -255,9 +253,7 @@ static const CGFloat kHintArrowGap = 1.0;
 		_hideUnmatched = NO;
 		_cursorIndicatorVisible = NO;
 		_cursorIndicatorRadius = 3.0;
-		_cursorIndicatorStrokeWidth = 0.0;
-		_cursorIndicatorFillColor = [[NSColor colorWithWhite:1.0 alpha:1.0] colorWithAlphaComponent:0.78];
-		_cursorIndicatorStrokeColor = [NSColor systemBlueColor];
+		_cursorIndicatorFillColor = [NSColor colorWithWhite:1.0 alpha:1.0];
 
 		// Initialize cached colors
 		_cachedGridTextColor = _gridTextColor;
@@ -606,7 +602,7 @@ static const CGFloat kHintArrowGap = 1.0;
 }
 
 /// Compute the screen-space bounding rect for the virtual cursor indicator.
-/// @return Bounding rectangle including stroke width
+/// @return Bounding rectangle for the dot plus a small antialiasing margin
 - (NSRect)cursorIndicatorRect {
 	if (!self.cursorIndicatorVisible)
 		return NSZeroRect;
@@ -614,7 +610,7 @@ static const CGFloat kHintArrowGap = 1.0;
 	CGFloat diameter = self.cursorIndicatorRadius * 2.0;
 	CGFloat screenHeight = self.bounds.size.height;
 	CGFloat flippedY = screenHeight - self.cursorIndicatorPosition.y - self.cursorIndicatorRadius;
-	CGFloat expand = ceil(self.cursorIndicatorStrokeWidth / 2.0) + 1.0;
+	CGFloat expand = 1.0;
 	return NSMakeRect(
 	    self.cursorIndicatorPosition.x - self.cursorIndicatorRadius - expand, flippedY - expand,
 	    diameter + expand * 2.0, diameter + expand * 2.0);
@@ -638,14 +634,8 @@ static const CGFloat kHintArrowGap = 1.0;
 	    bezierPathWithOvalInRect:NSMakeRect(
 	                                 center.x - self.cursorIndicatorRadius, center.y - self.cursorIndicatorRadius,
 	                                 self.cursorIndicatorRadius * 2.0, self.cursorIndicatorRadius * 2.0)];
-	[[self.cursorIndicatorFillColor colorWithAlphaComponent:0.78] setFill];
+	[self.cursorIndicatorFillColor setFill];
 	[dot fill];
-
-	if (self.cursorIndicatorStrokeWidth > 0.0) {
-		[[self.cursorIndicatorStrokeColor colorWithAlphaComponent:0.9] setStroke];
-		[dot setLineWidth:self.cursorIndicatorStrokeWidth];
-		[dot stroke];
-	}
 }
 
 /// Compute the screen-space bounding rect for a hint item (view coordinates, bottom-left origin).
@@ -2133,19 +2123,14 @@ void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndic
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	CGFloat radius = style.radius > 0 ? style.radius : 10.0;
-	CGFloat strokeWidth = style.strokeWidth >= 0 ? style.strokeWidth : 2.0;
 	NSString *fillHex = style.fillColor ? @(style.fillColor) : nil;
-	NSString *strokeHex = style.strokeColor ? @(style.strokeColor) : nil;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		controller.overlayView.cursorIndicatorVisible = YES;
 		controller.overlayView.cursorIndicatorPosition = NSMakePoint(position.x, position.y);
 		controller.overlayView.cursorIndicatorRadius = radius;
-		controller.overlayView.cursorIndicatorStrokeWidth = strokeWidth;
 		controller.overlayView.cursorIndicatorFillColor = [controller.overlayView colorFromHex:fillHex
 		                                                                          defaultColor:[NSColor whiteColor]];
-		controller.overlayView.cursorIndicatorStrokeColor =
-		    [controller.overlayView colorFromHex:strokeHex defaultColor:[NSColor systemBlueColor]];
 		[controller.overlayView setNeedsDisplay:YES];
 	});
 }

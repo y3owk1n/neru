@@ -623,6 +623,23 @@ func (c *Config) ValidateRecursiveGrid() error {
 	return nil
 }
 
+// ValidateVirtualPointer validates virtual pointer configuration.
+func (c *Config) ValidateVirtualPointer() error {
+	err := validateColors([]colorField{
+		{c.VirtualPointer.UI.ColorLight, "virtual_pointer.ui.color_light"},
+		{c.VirtualPointer.UI.ColorDark, "virtual_pointer.ui.color_dark"},
+	})
+	if err != nil {
+		return err
+	}
+
+	if c.VirtualPointer.UI.Size < 1 {
+		return derrors.New(derrors.CodeInvalidConfig, "virtual_pointer.ui.size must be >= 1")
+	}
+
+	return nil
+}
+
 func validateHotkeyActionString(actionStr string) error {
 	trimmed := strings.TrimSpace(actionStr)
 	if trimmed == "" {

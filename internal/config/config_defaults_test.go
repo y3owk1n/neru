@@ -113,4 +113,34 @@ func TestDefaultConfig(t *testing.T) {
 			)
 		}
 	})
+
+	t.Run("Virtual Pointer Defaults", func(t *testing.T) {
+		if !cfg.VirtualPointer.Enabled {
+			t.Error("Expected VirtualPointer.Enabled to be true by default")
+		}
+
+		if cfg.VirtualPointer.UI.Size != config.DefaultVirtualPointerSize {
+			t.Errorf(
+				"Expected VirtualPointer.UI.Size %d, got %d",
+				config.DefaultVirtualPointerSize,
+				cfg.VirtualPointer.UI.Size,
+			)
+		}
+
+		if cfg.VirtualPointer.UI.ColorLight != config.VirtualPointerColorLight {
+			t.Errorf(
+				"Expected VirtualPointer.UI.ColorLight %q, got %q",
+				config.VirtualPointerColorLight,
+				cfg.VirtualPointer.UI.ColorLight,
+			)
+		}
+
+		if cfg.VirtualPointer.UI.ColorDark != config.VirtualPointerColorDark {
+			t.Errorf(
+				"Expected VirtualPointer.UI.ColorDark %q, got %q",
+				config.VirtualPointerColorDark,
+				cfg.VirtualPointer.UI.ColorDark,
+			)
+		}
+	})
 }

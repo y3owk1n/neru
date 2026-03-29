@@ -65,7 +65,7 @@ func (o *Overlay) Destroy() {}
 func (o *Overlay) Clear() {}
 
 // ShowVirtualPointer is a Linux stub.
-func (o *Overlay) ShowVirtualPointer(_ image.Point, _ Style) {}
+func (o *Overlay) ShowVirtualPointer(_ image.Point, _ int, _ string) {}
 
 // HideVirtualPointer is a Linux stub.
 func (o *Overlay) HideVirtualPointer() {}

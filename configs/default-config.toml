@@ -188,6 +188,16 @@ sub_key_preview_autohide_multiplier = 1.5
 sub_key_preview_text_color_light = "#66007A9E"
 sub_key_preview_text_color_dark = "#6600CFCF"
 
+# Virtual pointer
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#virtual-pointer
+[virtual_pointer]
+enabled = true
+
+[virtual_pointer.ui]
+size = 3
+color_light = "#FF007A9E"
+color_dark = "#FF00CFCF"
+
 # Scroll mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#scroll-mode
 [scroll]

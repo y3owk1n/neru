@@ -18,6 +18,7 @@ Neru uses TOML for configuration. This guide covers all available options with e
 - [Hint Mode](#hint-mode)
 - [Grid Mode](#grid-mode)
 - [Recursive Grid Mode](#recursive-grid-mode)
+- [Virtual Pointer](#virtual-pointer)
 - [Scroll Mode](#scroll-mode)
 - [Action Commands and Primitives](#action-commands-and-primitives)
 - [Mode Indicator](#mode-indicator)
@@ -411,6 +412,38 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 Default recursive-grid hotkeys also include ``"`" = "toggle-cursor-follow-selection"`` for toggling cursor follow behavior without leaving the mode.
 
 Like `grid`, recursive-grid uses `--cursor-selection-mode follow|hold` at launch time instead of a persistent config field.
+
+---
+
+## Virtual Pointer
+
+When grid or recursive-grid runs in `--cursor-selection-mode hold`, Neru can render a small virtual pointer dot at the active selection so you can keep track of the target while the real cursor stays still.
+
+### Basic configuration
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `enabled` | bool | `true` | Enable/disable the virtual pointer |
+
+### UI configuration
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `size` | int | `3` | Dot radius in points |
+| `color_light` | string | `"#FF007A9E"` | Light-mode dot color |
+| `color_dark` | string | `"#FF00CFCF"` | Dark-mode dot color |
+
+Example:
+
+```toml
+[virtual_pointer]
+enabled = true
+
+[virtual_pointer.ui]
+size = 4
+color_light = "#FF007A9E"
+color_dark = "#FF00CFCF"
+```
 
 ---
 

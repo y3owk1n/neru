@@ -76,10 +76,8 @@ typedef struct {
 
 /// Virtual cursor indicator style configuration
 typedef struct {
-	double radius;      ///< Outer radius in points
-	char *fillColor;    ///< Fill color
-	char *strokeColor;  ///< Stroke color
-	int strokeWidth;    ///< Stroke width in points
+	double radius;    ///< Outer radius in points
+	char *fillColor;  ///< Fill color
 } CursorIndicatorStyle;
 
 /// Callback type for async operations

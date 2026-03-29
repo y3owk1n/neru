@@ -325,6 +325,7 @@ type Config struct {
 	Hints           HintsConfig           `json:"hints"           toml:"hints"`
 	Grid            GridConfig            `json:"grid"            toml:"grid"`
 	RecursiveGrid   RecursiveGridConfig   `json:"recursiveGrid"   toml:"recursive_grid"`
+	VirtualPointer  VirtualPointerConfig  `json:"virtualPointer"  toml:"virtual_pointer"`
 	Scroll          ScrollConfig          `json:"scroll"          toml:"scroll"`
 	ModeIndicator   ModeIndicatorConfig   `json:"modeIndicator"   toml:"mode_indicator"`
 	StickyModifiers StickyModifiersConfig `json:"stickyModifiers" toml:"sticky_modifiers"`
@@ -581,6 +582,19 @@ type RecursiveGridConfig struct {
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
+// VirtualPointerUI defines the visual settings for the hold-mode virtual pointer.
+type VirtualPointerUI struct {
+	Size       int    `json:"size"       toml:"size"`
+	ColorLight string `json:"colorLight" toml:"color_light"`
+	ColorDark  string `json:"colorDark"  toml:"color_dark"`
+}
+
+// VirtualPointerConfig defines settings for the hold-mode virtual pointer.
+type VirtualPointerConfig struct {
+	Enabled bool             `json:"enabled" toml:"enabled"`
+	UI      VirtualPointerUI `json:"ui"      toml:"ui"`
+}
+
 // AllKeysIncludingLayers returns a combined string of all unique keys from the
 // top-level config and all layers. Used for conflict validation.
 func (c *RecursiveGridConfig) AllKeysIncludingLayers() string {
@@ -698,6 +712,11 @@ func (c *Config) Validate() error {
 
 	// Validate recursive-grid settings
 	err = c.ValidateRecursiveGrid()
+	if err != nil {
+		return err
+	}
+
+	err = c.ValidateVirtualPointer()
 	if err != nil {
 		return err
 	}
