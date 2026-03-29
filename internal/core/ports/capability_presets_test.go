@@ -1,6 +1,7 @@
 package ports_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -46,6 +47,36 @@ func TestNonDarwinCapabilities_ReportStubbedFeatures(t *testing.T) {
 
 			if testCase.capabilities.Process.Status != ports.FeatureStatusStub {
 				t.Fatalf("Process status = %q, want stub", testCase.capabilities.Process.Status)
+			}
+		})
+	}
+}
+
+func TestCapabilityPresets_PopulateAllCapabilityStatuses(t *testing.T) {
+	tests := []struct {
+		name         string
+		capabilities ports.PlatformCapabilities
+	}{
+		{name: "darwin", capabilities: ports.DarwinCapabilities()},
+		{name: "linux", capabilities: ports.LinuxCapabilities()},
+		{name: "windows", capabilities: ports.WindowsCapabilities()},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			capabilitiesValue := reflect.ValueOf(testCase.capabilities)
+			capabilitiesType := capabilitiesValue.Type()
+
+			for index := 0; index < capabilitiesValue.NumField(); index++ {
+				fieldType := capabilitiesType.Field(index)
+				if fieldType.Type != reflect.TypeOf(ports.FeatureCapability{}) {
+					continue
+				}
+
+				capability := capabilitiesValue.Field(index).Interface().(ports.FeatureCapability)
+				if capability.Status == "" {
+					t.Fatalf("%s status is empty in %s preset", fieldType.Name, testCase.name)
+				}
 			}
 		})
 	}
