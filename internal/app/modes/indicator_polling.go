@@ -93,6 +93,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 				}
 				showModeInd := h.shouldShowModeIndicator(h.appState.CurrentMode())
 				stickyEnabled := h.stickyModifiersEnabled()
+				stickyPoint := h.stickyIndicatorAnchorLocked(image.Pt(cursorX, cursorY))
 				h.mu.Unlock()
 
 				// Mode indicator: show and draw when enabled, hide otherwise.
@@ -115,7 +116,6 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 							stickyInd.Show()
 						}
 
-						stickyPoint := h.stickyIndicatorAnchor(image.Pt(cursorX, cursorY))
 						h.drawStickyModifiersIndicator(stickyPoint.X, stickyPoint.Y)
 					} else if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 						stickyInd.Clear()
@@ -185,10 +185,7 @@ func (h *Handler) shouldShowModeIndicator(mode domain.Mode) bool {
 	return h.modeIndicatorEnabled(mode)
 }
 
-func (h *Handler) stickyIndicatorAnchor(cursorPoint image.Point) image.Point {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
+func (h *Handler) stickyIndicatorAnchorLocked(cursorPoint image.Point) image.Point {
 	switch h.appState.CurrentMode() {
 	case domain.ModeGrid:
 		if h.grid == nil || h.grid.Context == nil || h.grid.Context.CursorFollowSelection() {

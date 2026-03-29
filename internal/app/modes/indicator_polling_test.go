@@ -29,7 +29,7 @@ func TestStickyIndicatorAnchor_UsesGridSelectionWhenCursorFollowDisabled(t *test
 	handler.grid.Context.SetCursorFollowSelection(false)
 	handler.grid.Context.SetSelectionPoint(image.Pt(40, 60))
 
-	got := handler.stickyIndicatorAnchor(image.Pt(10, 20))
+	got := handler.stickyIndicatorAnchorLocked(image.Pt(10, 20))
 
 	want := image.Pt(40, 60)
 	if got != want {
@@ -52,7 +52,7 @@ func TestStickyIndicatorAnchor_UsesRecursiveGridSelectionWhenCursorFollowDisable
 	handler.recursiveGrid.Context.SetCursorFollowSelection(false)
 	handler.recursiveGrid.Context.SetSelectionPoint(image.Pt(75, 25))
 
-	got := handler.stickyIndicatorAnchor(image.Pt(10, 20))
+	got := handler.stickyIndicatorAnchorLocked(image.Pt(10, 20))
 
 	want := image.Pt(75, 25)
 	if got != want {
@@ -75,7 +75,7 @@ func TestStickyIndicatorAnchor_UsesCursorWhenGridFollowsSelection(t *testing.T) 
 	handler.grid.Context.SetCursorFollowSelection(true)
 	handler.grid.Context.SetSelectionPoint(image.Pt(40, 60))
 
-	got := handler.stickyIndicatorAnchor(image.Pt(10, 20))
+	got := handler.stickyIndicatorAnchorLocked(image.Pt(10, 20))
 
 	want := image.Pt(10, 20)
 	if got != want {
