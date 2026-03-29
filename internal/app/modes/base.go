@@ -24,6 +24,10 @@ type baseMode struct {
 
 // newBaseMode creates a new base mode with the given handler and mode type.
 func newBaseMode(handler *Handler, modeType domain.Mode, _ string) baseMode {
+	if handler == nil {
+		panic("mode handler cannot be nil")
+	}
+
 	return baseMode{
 		handler:  handler,
 		modeType: modeType,
