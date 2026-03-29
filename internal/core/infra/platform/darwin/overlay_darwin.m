@@ -2133,7 +2133,7 @@ void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndic
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	CGFloat radius = style.radius > 0 ? style.radius : 10.0;
-	CGFloat strokeWidth = style.strokeWidth > 0 ? style.strokeWidth : 2.0;
+	CGFloat strokeWidth = style.strokeWidth >= 0 ? style.strokeWidth : 2.0;
 	NSString *fillHex = style.fillColor ? @(style.fillColor) : nil;
 	NSString *strokeHex = style.strokeColor ? @(style.strokeColor) : nil;
 
