@@ -482,6 +482,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 		}
 
+		if h.modesHandler != nil {
+			h.modesHandler.ClearCurrentSelectionPoint()
+		}
+
 		return ipc.Response{
 			Success: true,
 			Message: actionName + " performed",

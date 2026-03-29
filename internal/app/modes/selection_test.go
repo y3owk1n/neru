@@ -77,3 +77,34 @@ func TestToggleCursorFollowSelection_UpdatesOnlySupportedModes(t *testing.T) {
 		)
 	}
 }
+
+func TestClearCurrentSelectionPoint_ClearsOnlyActiveModeSelection(t *testing.T) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeRecursiveGrid)
+
+	handler := &Handler{
+		appState: appState,
+		grid: &components.GridComponent{
+			Context: &gridcomponent.Context{},
+		},
+		recursiveGrid: &components.RecursiveGridComponent{
+			Context: &recursivegridcomponent.Context{},
+		},
+	}
+
+	handler.grid.Context.SetSelectionPoint(image.Point{X: 10, Y: 20})
+	handler.recursiveGrid.Context.SetSelectionPoint(image.Point{X: 30, Y: 40})
+
+	cleared := handler.ClearCurrentSelectionPoint()
+	if !cleared {
+		t.Fatal("ClearCurrentSelectionPoint() expected success in recursive-grid mode")
+	}
+
+	if _, ok := handler.recursiveGrid.Context.SelectionPoint(); ok {
+		t.Fatal("ClearCurrentSelectionPoint() expected recursive-grid selection to be cleared")
+	}
+
+	if got, ok := handler.grid.Context.SelectionPoint(); !ok || got != (image.Point{X: 10, Y: 20}) {
+		t.Fatalf("grid selection = %v, %v; want (10,20), true", got, ok)
+	}
+}

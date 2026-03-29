@@ -35,6 +35,39 @@ func (h *Handler) CurrentSelectionPoint() (image.Point, bool) {
 	return image.Point{}, false
 }
 
+// ClearCurrentSelectionPoint removes the active selection point for the current mode.
+func (h *Handler) ClearCurrentSelectionPoint() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	switch h.appState.CurrentMode() {
+	case domain.ModeGrid:
+		if h.grid == nil || h.grid.Context == nil {
+			return false
+		}
+
+		h.grid.Context.ClearSelectionPoint()
+
+		return true
+	case domain.ModeRecursiveGrid:
+		if h.recursiveGrid == nil || h.recursiveGrid.Context == nil {
+			return false
+		}
+
+		h.recursiveGrid.Context.ClearSelectionPoint()
+
+		return true
+	case domain.ModeHints:
+		return false
+	case domain.ModeIdle:
+		return false
+	case domain.ModeScroll:
+		return false
+	}
+
+	return false
+}
+
 // ToggleCursorFollowSelection toggles cursor-follow-selection for the active mode.
 func (h *Handler) ToggleCursorFollowSelection() (bool, bool) {
 	h.mu.Lock()
