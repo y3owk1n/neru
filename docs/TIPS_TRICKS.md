@@ -109,9 +109,12 @@ Some menus disappear as soon as the pointer leaves them. For grid and recursive-
 "Cmd+Shift+C" = "recursive_grid --cursor-selection-mode hold"
 ```
 
-If you want to toggle that behavior on demand:
+Grid and recursive-grid now include this toggle in the default config, bound to backtick:
 
 ```toml
+[grid.hotkeys]
+"`" = "toggle-cursor-follow-selection"
+
 [recursive_grid.hotkeys]
 "`" = "toggle-cursor-follow-selection"
 "Shift+D" = "action move_mouse"

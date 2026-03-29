@@ -375,6 +375,8 @@ Grid mode divides the screen into a labelled coordinate grid.
 > [!NOTE]
 > `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).
 
+Default grid hotkeys also include ``"`" = "toggle-cursor-follow-selection"`` so you can flip between follow and hold behavior mid-session.
+
 Runtime cursor behavior is now chosen per invocation instead of in config:
 
 ```toml
@@ -405,6 +407,8 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 
 > [!NOTE]
 > `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).
+
+Default recursive-grid hotkeys also include ``"`" = "toggle-cursor-follow-selection"`` for toggling cursor follow behavior without leaving the mode.
 
 Like `grid`, recursive-grid uses `--cursor-selection-mode follow|hold` at launch time instead of a persistent config field.
 
