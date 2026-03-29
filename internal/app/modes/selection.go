@@ -6,6 +6,7 @@ import (
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
 // CurrentSelectionPoint returns the active selection point for the current mode, if any.
@@ -123,8 +124,10 @@ func (h *Handler) refreshGridVirtualPointerLocked() {
 		return
 	}
 
+	localPoint := coordinates.ConvertToLocalCoordinates(point, h.screenBounds)
+
 	h.grid.Overlay.ShowVirtualPointer(
-		point,
+		localPoint,
 		gridcomponent.BuildStyle(h.config.Grid, h.themeProvider),
 	)
 }
@@ -141,8 +144,10 @@ func (h *Handler) refreshRecursiveGridVirtualPointerLocked() {
 		return
 	}
 
+	localPoint := coordinates.ConvertToLocalCoordinates(point, h.screenBounds)
+
 	h.recursiveGrid.Overlay.ShowVirtualPointer(
-		point,
+		localPoint,
 		recursivegridcomponent.BuildStyle(h.config.RecursiveGrid, h.themeProvider),
 	)
 }
