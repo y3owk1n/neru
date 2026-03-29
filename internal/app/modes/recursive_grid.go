@@ -282,6 +282,14 @@ func (h *Handler) cleanupRecursiveGridMode() {
 		if h.recursiveGrid.Manager != nil {
 			h.recursiveGrid.Manager.Reset()
 		}
+
+		// Explicitly hide the virtual pointer before clearing the overlay.
+		// NeruClearOverlay also resets cursorIndicatorVisible, but we do this
+		// explicitly so the pointer cleanup does not silently depend on the
+		// overlay clear implementation.
+		if h.recursiveGrid.Overlay != nil {
+			h.recursiveGrid.Overlay.HideVirtualPointer()
+		}
 	}
 
 	h.clearAndHideOverlay()

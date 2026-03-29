@@ -92,6 +92,14 @@ func (h *Handler) cleanupGridMode() {
 		h.grid.Manager.Reset()
 	}
 
+	// Explicitly hide the virtual pointer before clearing the overlay.
+	// NeruClearOverlay also resets cursorIndicatorVisible, but we do this
+	// explicitly so the pointer cleanup does not silently depend on the
+	// overlay clear implementation.
+	if h.grid.Overlay != nil {
+		h.grid.Overlay.HideVirtualPointer()
+	}
+
 	h.clearAndHideOverlay()
 }
 
