@@ -2,6 +2,7 @@ package modes
 
 import (
 	"context"
+	"image"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
@@ -114,7 +115,8 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 							stickyInd.Show()
 						}
 
-						h.drawStickyModifiersIndicator(cursorX, cursorY)
+						stickyPoint := h.stickyIndicatorAnchor(image.Pt(cursorX, cursorY))
+						h.drawStickyModifiersIndicator(stickyPoint.X, stickyPoint.Y)
 					} else if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 						stickyInd.Clear()
 						stickyInd.Hide()
@@ -181,4 +183,34 @@ func (h *Handler) modeIndicatorEnabled(mode domain.Mode) bool {
 
 func (h *Handler) shouldShowModeIndicator(mode domain.Mode) bool {
 	return h.modeIndicatorEnabled(mode)
+}
+
+func (h *Handler) stickyIndicatorAnchor(cursorPoint image.Point) image.Point {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	switch h.appState.CurrentMode() {
+	case domain.ModeGrid:
+		if h.grid == nil || h.grid.Context == nil || h.grid.Context.CursorFollowSelection() {
+			return cursorPoint
+		}
+
+		if selectionPoint, ok := h.grid.Context.SelectionPoint(); ok {
+			return selectionPoint
+		}
+	case domain.ModeRecursiveGrid:
+		if h.recursiveGrid == nil || h.recursiveGrid.Context == nil ||
+			h.recursiveGrid.Context.CursorFollowSelection() {
+			return cursorPoint
+		}
+
+		if selectionPoint, ok := h.recursiveGrid.Context.SelectionPoint(); ok {
+			return selectionPoint
+		}
+	case domain.ModeIdle:
+	case domain.ModeHints:
+	case domain.ModeScroll:
+	}
+
+	return cursorPoint
 }
