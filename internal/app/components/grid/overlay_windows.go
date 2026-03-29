@@ -3,6 +3,7 @@
 package grid
 
 import (
+	"image"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -62,6 +63,12 @@ func (o *Overlay) Destroy() {}
 
 // Clear clears the grid overlay (Windows stub).
 func (o *Overlay) Clear() {}
+
+// ShowVirtualPointer is a Windows stub.
+func (o *Overlay) ShowVirtualPointer(_ image.Point, _ Style) {}
+
+// HideVirtualPointer is a Windows stub.
+func (o *Overlay) HideVirtualPointer() {}
 
 // SetConfig updates the grid configuration (Windows stub).
 func (o *Overlay) SetConfig(cfg config.GridConfig) {

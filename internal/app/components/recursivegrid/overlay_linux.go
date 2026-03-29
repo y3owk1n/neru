@@ -3,6 +3,7 @@
 package recursivegrid
 
 import (
+	"image"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -79,6 +80,12 @@ func (o *Overlay) Destroy() {}
 
 // Clear clears the recursive_grid overlay (Linux stub).
 func (o *Overlay) Clear() {}
+
+// ShowVirtualPointer is a Linux stub.
+func (o *Overlay) ShowVirtualPointer(_ image.Point, _ Style) {}
+
+// HideVirtualPointer is a Linux stub.
+func (o *Overlay) HideVirtualPointer() {}
 
 // BuildStyle builds the recursive grid style from the configuration (Linux stub).
 func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Style {

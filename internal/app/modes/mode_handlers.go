@@ -168,6 +168,8 @@ func (h *Handler) handleGridModeKey(key string) {
 		cursorFollowSelection := h.grid.Context.CursorFollowSelection()
 
 		if pendingAction == nil && !repeat && !cursorFollowSelection {
+			h.refreshGridVirtualPointerLocked()
+
 			return
 		}
 
@@ -184,6 +186,8 @@ func (h *Handler) handleGridModeKey(key string) {
 		h.grid.Context.SetSelectionPoint(absolutePoint)
 
 		if !h.grid.Context.CursorFollowSelection() {
+			h.refreshGridVirtualPointerLocked()
+
 			return
 		}
 

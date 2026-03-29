@@ -35,6 +35,9 @@ func recursiveGridResizeCompletionCallback(context unsafe.Pointer) {
 }
 
 const (
+	// VirtualPointerDotRadius is the virtual pointer dot radius in points.
+	VirtualPointerDotRadius = 3
+
 	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
 	NSWindowSharingNone = 0
 	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
@@ -135,6 +138,33 @@ func (o *Overlay) Hide() {
 // Clear clears the overlay window and resets state.
 func (o *Overlay) Clear() {
 	C.NeruClearOverlay(o.window)
+}
+
+// ShowVirtualPointer renders a virtual pointer at the current selection point.
+func (o *Overlay) ShowVirtualPointer(point image.Point, style Style) {
+	cFillColor := C.CString(style.HighlightColor())
+	defer C.free(unsafe.Pointer(cFillColor)) //nolint:nlreturn
+
+	cStrokeColor := C.CString(style.LineColor())
+	defer C.free(unsafe.Pointer(cStrokeColor)) //nolint:nlreturn
+
+	indicatorStyle := C.CursorIndicatorStyle{
+		radius:      C.double(VirtualPointerDotRadius),
+		fillColor:   cFillColor,
+		strokeColor: cStrokeColor,
+		strokeWidth: C.int(0),
+	}
+
+	C.NeruShowCursorIndicator(
+		o.window,
+		C.CGPoint{x: C.double(point.X), y: C.double(point.Y)},
+		indicatorStyle,
+	)
+}
+
+// HideVirtualPointer removes the virtual pointer from the overlay.
+func (o *Overlay) HideVirtualPointer() {
+	C.NeruHideCursorIndicator(o.window)
 }
 
 // Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)

@@ -460,6 +460,8 @@ func (h *Handler) ResetCurrentMode() {
 				if err != nil {
 					h.logger.Error("Failed to redraw grid after reset", zap.Error(err))
 				}
+
+				h.refreshGridVirtualPointerLocked()
 			}
 		}
 	case domain.ModeRecursiveGrid:
@@ -474,6 +476,8 @@ func (h *Handler) ResetCurrentMode() {
 				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
 
 				if !h.recursiveGrid.Context.CursorFollowSelection() {
+					h.refreshRecursiveGridVirtualPointerLocked()
+
 					return
 				}
 			}
@@ -517,6 +521,8 @@ func (h *Handler) BackspaceCurrentMode() {
 				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
 
 				if !h.recursiveGrid.Context.CursorFollowSelection() {
+					h.refreshRecursiveGridVirtualPointerLocked()
+
 					return
 				}
 			}

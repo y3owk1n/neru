@@ -107,6 +107,8 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 		h.recursiveGrid.Context.SetCursorFollowSelection(cursorShouldFollow)
 	}
 
+	h.refreshRecursiveGridVirtualPointerLocked()
+
 	if actionStr != nil {
 		h.logger.Info(
 			"Recursive-grid mode activated with pending action",
@@ -196,6 +198,8 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 		cursorFollowSelection := h.recursiveGrid.Context.CursorFollowSelection()
 
 		if pendingAction == nil && !repeat && !cursorFollowSelection {
+			h.refreshRecursiveGridVirtualPointerLocked()
+
 			return
 		}
 
@@ -217,6 +221,8 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 		h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
 
 		if !h.recursiveGrid.Context.CursorFollowSelection() {
+			h.refreshRecursiveGridVirtualPointerLocked()
+
 			return
 		}
 
@@ -266,6 +272,8 @@ func (h *Handler) updateRecursiveGridOverlay() {
 	if err != nil {
 		h.logger.Debug("Failed to draw recursive-grid overlay", zap.Error(err))
 	}
+
+	h.refreshRecursiveGridVirtualPointerLocked()
 }
 
 // cleanupRecursiveGridMode handles cleanup for recursive-grid mode.

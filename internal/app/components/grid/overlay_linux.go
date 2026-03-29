@@ -3,6 +3,7 @@
 package grid
 
 import (
+	"image"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -62,6 +63,12 @@ func (o *Overlay) Destroy() {}
 
 // Clear clears the grid overlay (Linux stub).
 func (o *Overlay) Clear() {}
+
+// ShowVirtualPointer is a Linux stub.
+func (o *Overlay) ShowVirtualPointer(_ image.Point, _ Style) {}
+
+// HideVirtualPointer is a Linux stub.
+func (o *Overlay) HideVirtualPointer() {}
 
 // SetConfig updates the grid configuration (Linux stub).
 func (o *Overlay) SetConfig(cfg config.GridConfig) {

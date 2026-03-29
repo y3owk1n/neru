@@ -93,6 +93,7 @@ func (h *Handler) activateGridModeWithAction(
 		cursorFollowSelection,
 	))
 	h.grid.Context.ClearSelectionPoint()
+	h.refreshGridVirtualPointerLocked()
 
 	if actionStr != nil {
 		h.logger.Info("Grid mode activated with pending action",
@@ -245,6 +246,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 			hideUnmatched := h.config.Grid.HideUnmatched && len(input) > 0
 			h.renderer.SetHideUnmatched(hideUnmatched)
 			h.renderer.UpdateGridMatches(input)
+			h.refreshGridVirtualPointerLocked()
 		},
 		// Subgrid callback: moves cursor and shows subgrid overlay
 		func(cell *domainGrid.Cell) {
@@ -269,6 +271,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 				if !h.grid.Context.CursorFollowSelection() {
 					h.renderer.ShowSubgrid(cell)
+					h.refreshGridVirtualPointerLocked()
 
 					return
 				}
@@ -281,6 +284,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 			// Draw 3x3 subgrid inside selected cell
 			h.renderer.ShowSubgrid(cell)
+			h.refreshGridVirtualPointerLocked()
 		},
 		h.logger,
 	)

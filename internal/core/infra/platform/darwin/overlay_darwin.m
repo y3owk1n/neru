@@ -145,6 +145,12 @@ static const CGFloat kHintArrowGap = 1.0;
 @property(nonatomic, strong)
     NSMutableAttributedString *cachedGridSubKeyAttributedString;     ///< Cached attributed string for sub-key drawing
 @property(nonatomic, strong) NSArray<NSString *> *gridSubKeyLabels;  ///< Labels for sub-key preview (next depth's keys)
+@property(nonatomic, assign) BOOL cursorIndicatorVisible;            ///< Draw virtual cursor indicator
+@property(nonatomic, assign) NSPoint cursorIndicatorPosition;        ///< Virtual cursor indicator center
+@property(nonatomic, assign) CGFloat cursorIndicatorRadius;          ///< Virtual cursor indicator radius
+@property(nonatomic, assign) CGFloat cursorIndicatorStrokeWidth;     ///< Virtual cursor indicator stroke width
+@property(nonatomic, strong) NSColor *cursorIndicatorFillColor;      ///< Virtual cursor indicator fill
+@property(nonatomic, strong) NSColor *cursorIndicatorStrokeColor;    ///< Virtual cursor indicator stroke
 
 // Cached grid text colors to reduce allocations during drawing
 @property(nonatomic, strong) NSColor *cachedGridTextColor;
@@ -183,6 +189,8 @@ static const CGFloat kHintArrowGap = 1.0;
               isMatched:(BOOL)isMatched
     matchedPrefixLength:(int)matchedPrefixLength;      ///< Draw grid label text or badge
 - (void)drawSubKeyPreviewInCellRect:(NSRect)cellRect;  ///< Draw miniature sub-key grid inside a cell
+- (NSRect)cursorIndicatorRect;                         ///< Virtual cursor indicator rect in view coordinates
+- (void)drawCursorIndicatorInRect:(NSRect)dirtyRect;   ///< Draw virtual cursor indicator
 
 /// Resolve a font by name (accepts both PostScript names and family names).
 /// Tries [NSFont fontWithName:] first, then NSFontManager family lookup.
@@ -245,6 +253,11 @@ static const CGFloat kHintArrowGap = 1.0;
 		_gridLabelBackgroundBorderWidth = 1.0;
 		_gridSubKeyAutohideMultiplier = 1.5;
 		_hideUnmatched = NO;
+		_cursorIndicatorVisible = NO;
+		_cursorIndicatorRadius = 3.0;
+		_cursorIndicatorStrokeWidth = 0.0;
+		_cursorIndicatorFillColor = [[NSColor colorWithWhite:1.0 alpha:1.0] colorWithAlphaComponent:0.78];
+		_cursorIndicatorStrokeColor = [NSColor systemBlueColor];
 
 		// Initialize cached colors
 		_cachedGridTextColor = _gridTextColor;
@@ -322,6 +335,7 @@ static const CGFloat kHintArrowGap = 1.0;
 		CGContextClearRect(ctx, self.bounds);
 		[self drawGridCells];
 		[self drawHints];
+		[self drawCursorIndicatorInRect:NSZeroRect];
 	} else {
 		// Partial redraw: only clear and redraw items intersecting the dirty region.
 		// Core Animation sets the clip to the union of invalidated rects.
@@ -333,11 +347,13 @@ static const CGFloat kHintArrowGap = 1.0;
 			CGContextClearRect(ctx, self.bounds);
 			[self drawGridCells];
 			[self drawHints];
+			[self drawCursorIndicatorInRect:NSZeroRect];
 		} else {
 			// Clear only the dirty region
 			CGContextClearRect(ctx, clipBox);
 			[self drawGridCellsInRect:dirtyRect];
 			[self drawHintsInRect:dirtyRect];
+			[self drawCursorIndicatorInRect:dirtyRect];
 		}
 	}
 
@@ -587,6 +603,49 @@ static const CGFloat kHintArrowGap = 1.0;
 /// Delegates to drawGridCellsInRect: with NSZeroRect to signal "draw all, skip intersection checks".
 - (void)drawGridCells {
 	[self drawGridCellsInRect:NSZeroRect];
+}
+
+/// Compute the screen-space bounding rect for the virtual cursor indicator.
+/// @return Bounding rectangle including stroke width
+- (NSRect)cursorIndicatorRect {
+	if (!self.cursorIndicatorVisible)
+		return NSZeroRect;
+
+	CGFloat diameter = self.cursorIndicatorRadius * 2.0;
+	CGFloat screenHeight = self.bounds.size.height;
+	CGFloat flippedY = screenHeight - self.cursorIndicatorPosition.y - self.cursorIndicatorRadius;
+	CGFloat expand = ceil(self.cursorIndicatorStrokeWidth / 2.0) + 1.0;
+	return NSMakeRect(
+	    self.cursorIndicatorPosition.x - self.cursorIndicatorRadius - expand, flippedY - expand,
+	    diameter + expand * 2.0, diameter + expand * 2.0);
+}
+
+/// Draw the virtual cursor indicator when it intersects the dirty region.
+/// @param dirtyRect Dirty region to redraw. Pass NSZeroRect to draw unconditionally.
+- (void)drawCursorIndicatorInRect:(NSRect)dirtyRect {
+	if (!self.cursorIndicatorVisible)
+		return;
+
+	NSRect indicatorRect = [self cursorIndicatorRect];
+	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
+	if (filterByRect && !NSIntersectsRect(indicatorRect, dirtyRect))
+		return;
+
+	CGFloat screenHeight = self.bounds.size.height;
+	CGFloat centerY = screenHeight - self.cursorIndicatorPosition.y;
+	NSPoint center = NSMakePoint(self.cursorIndicatorPosition.x, centerY);
+	NSBezierPath *dot = [NSBezierPath
+	    bezierPathWithOvalInRect:NSMakeRect(
+	                                 center.x - self.cursorIndicatorRadius, center.y - self.cursorIndicatorRadius,
+	                                 self.cursorIndicatorRadius * 2.0, self.cursorIndicatorRadius * 2.0)];
+	[[self.cursorIndicatorFillColor colorWithAlphaComponent:0.78] setFill];
+	[dot fill];
+
+	if (self.cursorIndicatorStrokeWidth > 0.0) {
+		[[self.cursorIndicatorStrokeColor colorWithAlphaComponent:0.9] setStroke];
+		[dot setLineWidth:self.cursorIndicatorStrokeWidth];
+		[dot stroke];
+	}
 }
 
 /// Compute the screen-space bounding rect for a hint item (view coordinates, bottom-left origin).
@@ -1142,11 +1201,13 @@ void NeruClearOverlay(OverlayWindow window) {
 	if ([NSThread isMainThread]) {
 		[controller.overlayView.hints removeAllObjects];
 		[controller.overlayView.gridCells removeAllObjects];
+		controller.overlayView.cursorIndicatorVisible = NO;
 		[controller.overlayView setNeedsDisplay:YES];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			[controller.overlayView.hints removeAllObjects];
 			[controller.overlayView.gridCells removeAllObjects];
+			controller.overlayView.cursorIndicatorVisible = NO;
 			[controller.overlayView setNeedsDisplay:YES];
 		});
 	}
@@ -2058,5 +2119,57 @@ void NeruDrawIncrementGrid(
 		}
 
 		[controller.overlayView setNeedsDisplay:YES];
+	});
+}
+
+/// Show a virtual cursor indicator at the specified point.
+/// @param window Overlay window handle
+/// @param position Indicator center position in overlay coordinates
+/// @param style Indicator style
+void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndicatorStyle style) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+
+	CGFloat radius = style.radius > 0 ? style.radius : 10.0;
+	CGFloat strokeWidth = style.strokeWidth > 0 ? style.strokeWidth : 2.0;
+	NSString *fillHex = style.fillColor ? @(style.fillColor) : nil;
+	NSString *strokeHex = style.strokeColor ? @(style.strokeColor) : nil;
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		controller.overlayView.cursorIndicatorVisible = YES;
+		controller.overlayView.cursorIndicatorPosition = NSMakePoint(position.x, position.y);
+		controller.overlayView.cursorIndicatorRadius = radius;
+		controller.overlayView.cursorIndicatorStrokeWidth = strokeWidth;
+		controller.overlayView.cursorIndicatorFillColor = [controller.overlayView colorFromHex:fillHex
+		                                                                          defaultColor:[NSColor whiteColor]];
+		controller.overlayView.cursorIndicatorStrokeColor =
+		    [controller.overlayView colorFromHex:strokeHex defaultColor:[NSColor systemBlueColor]];
+		[controller.overlayView setNeedsDisplay:YES];
+	});
+}
+
+/// Hide the virtual cursor indicator.
+/// @param window Overlay window handle
+void NeruHideCursorIndicator(OverlayWindow window) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (!controller.overlayView.cursorIndicatorVisible)
+			return;
+
+		NSRect dirtyRect = [controller.overlayView cursorIndicatorRect];
+		controller.overlayView.cursorIndicatorVisible = NO;
+		if (NSIsEmptyRect(dirtyRect)) {
+			[controller.overlayView setNeedsDisplay:YES];
+			return;
+		}
+
+		controller.overlayView.fullRedraw = NO;
+		[controller.overlayView setNeedsDisplayInRect:dirtyRect];
 	});
 }
