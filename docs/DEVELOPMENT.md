@@ -239,6 +239,8 @@ just bundle
 just build-version v1.0.0
 
 # Clean build artifacts
+just clean
+```
 
 ## Testing Tiers
 
@@ -255,8 +257,6 @@ Neru uses a few different testing layers:
 
 When you add a stubbed platform feature, add or update a contract test so the
 unsupported behavior is explicit and stable until the real implementation lands.
-just clean
-```
 
 ### Manual Build
 
