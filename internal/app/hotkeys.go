@@ -112,6 +112,25 @@ func (a *App) registerHotkeys() {
 	}
 }
 
+func hotkeyModifiersFromKey(key string) action.Modifiers {
+	var mods action.Modifiers
+
+	for part := range strings.SplitSeq(key, "+") {
+		switch strings.ToLower(strings.TrimSpace(part)) {
+		case "cmd", "command", "rightcmd", "leftcmd":
+			mods |= action.ModCmd
+		case "shift", "rightshift", "leftshift":
+			mods |= action.ModShift
+		case "alt", "option", "rightalt", "leftalt", "rightoption", "leftoption":
+			mods |= action.ModAlt
+		case "ctrl", "control", "rightctrl", "leftctrl", "rightcontrol", "leftcontrol":
+			mods |= action.ModCtrl
+		}
+	}
+
+	return mods
+}
+
 // executeHotkeyAction executes a hotkey action, which can be either a shell command or an IPC command.
 func (a *App) executeHotkeyAction(key, actionStr string) error {
 	actionStr = strings.TrimSpace(actionStr)
@@ -123,6 +142,17 @@ func (a *App) executeHotkeyAction(key, actionStr string) error {
 	actionParts := strings.Split(actionStr, " ")
 	actionStr = actionParts[0]
 	params := actionParts[1:]
+
+	if a.modes != nil {
+		switch actionStr {
+		case domain.ModeString(domain.ModeHints),
+			domain.ModeString(domain.ModeGrid),
+			domain.ModeString(domain.ModeRecursiveGrid),
+			domain.ModeString(domain.ModeScroll):
+			hotkeyMods := hotkeyModifiersFromKey(key)
+			a.modes.SuppressModifiersUntilReleased(hotkeyMods)
+		}
+	}
 
 	ipcResponse := a.ipcController.HandleCommand(
 		context.Background(),

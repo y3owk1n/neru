@@ -79,15 +79,13 @@ func TestParseModifierEvent(t *testing.T) {
 	}
 }
 
-// newTestHandler creates a minimal Handler suitable for testing handleModifierToggle.
-// The handler has sticky modifiers enabled and detection already armed.
+// newTestHandler creates a minimal Handler suitable for testing sticky modifier behavior.
 // The debounceNotify channel is buffered so the timer callback never blocks.
 func newTestHandler() *Handler {
 	return &Handler{
-		logger:                 zap.NewNop(),
-		modifierState:          state.NewModifierState(),
-		modifierDetectionArmed: true,
-		debounceNotify:         make(chan struct{}, 16),
+		logger:         zap.NewNop(),
+		modifierState:  state.NewModifierState(),
+		debounceNotify: make(chan struct{}, 16),
 		config: &configpkg.Config{
 			StickyModifiers: configpkg.StickyModifiersConfig{
 				Enabled:        true,
@@ -264,6 +262,83 @@ func TestHandleModifierToggle_RegularKeyCancelsAllPending(t *testing.T) {
 	}
 }
 
+func TestHandleModifierToggle_ModifierUsedInChordDoesNotToggleOnRelease(t *testing.T) {
+	testHandler := newTestHandler()
+
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_cmd_down")
+	testHandler.markHeldModifiersUsedInChord()
+	testHandler.cancelPendingModifierToggle()
+	testHandler.handleModifierToggle("__modifier_cmd_up")
+	testHandler.mu.Unlock()
+
+	if got := testHandler.modifierState.Current(); got != 0 {
+		t.Errorf("Expected 0 after chord usage, got %v", got)
+	}
+}
+
+func TestHandleModifierToggle_ModifierCanToggleAgainAfterChordUse(t *testing.T) {
+	testHandler := newTestHandler()
+
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_cmd_down")
+	testHandler.markHeldModifiersUsedInChord()
+	testHandler.cancelPendingModifierToggle()
+	testHandler.handleModifierToggle("__modifier_cmd_up")
+	testHandler.handleModifierToggle("__modifier_cmd_down")
+	testHandler.handleModifierToggle("__modifier_cmd_up")
+	testHandler.mu.Unlock()
+	awaitDebounce(t, testHandler)
+
+	if got := testHandler.modifierState.Current(); got != action.ModCmd {
+		t.Errorf("Expected ModCmd after fresh tap following chord use, got %v", got)
+	}
+}
+
+func TestHandleModifierToggle_SuppressedActivationModifierDoesNotToggleUntilRepressed(
+	t *testing.T,
+) {
+	testHandler := newTestHandler()
+
+	testHandler.SuppressModifiersUntilReleased(action.ModCmd | action.ModShift)
+
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_cmd_up")
+	testHandler.handleModifierToggle("__modifier_shift_up")
+	testHandler.mu.Unlock()
+
+	if got := testHandler.modifierState.Current(); got != 0 {
+		t.Errorf("Expected 0 after suppressed activation modifier release, got %v", got)
+	}
+
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_cmd_down")
+	testHandler.handleModifierToggle("__modifier_cmd_up")
+	testHandler.mu.Unlock()
+	awaitDebounce(t, testHandler)
+
+	if got := testHandler.modifierState.Current(); got != action.ModCmd {
+		t.Errorf("Expected ModCmd after fresh press following suppression, got %v", got)
+	}
+}
+
+func TestHandleModifierToggle_SuppressionExpiresWithoutRelease(t *testing.T) {
+	testHandler := newTestHandler()
+
+	testHandler.SuppressModifiersUntilReleased(action.ModCmd)
+	testHandler.suppressedUntil = time.Now().Add(-time.Millisecond)
+
+	testHandler.mu.Lock()
+	testHandler.handleModifierToggle("__modifier_cmd_down")
+	testHandler.handleModifierToggle("__modifier_cmd_up")
+	testHandler.mu.Unlock()
+	awaitDebounce(t, testHandler)
+
+	if got := testHandler.modifierState.Current(); got != action.ModCmd {
+		t.Errorf("Expected ModCmd after expired suppression, got %v", got)
+	}
+}
+
 func TestHandleModifierToggle_DisabledConfig(t *testing.T) {
 	testHandler := newTestHandler()
 	testHandler.config.StickyModifiers.Enabled = false
@@ -274,41 +349,6 @@ func TestHandleModifierToggle_DisabledConfig(t *testing.T) {
 	}
 }
 
-func TestHandleModifierToggle_ArmingMechanism(t *testing.T) {
-	testHandler := newTestHandler()
-	testHandler.modifierDetectionArmed = false
-	// Down events while disarmed should be consumed but not toggle.
-	testHandler.mu.Lock()
-	testHandler.handleModifierToggle("__modifier_cmd_down")
-	testHandler.mu.Unlock()
-
-	if got := testHandler.modifierState.Current(); got != 0 {
-		t.Errorf("Expected 0 while disarmed, got %v", got)
-	}
-	// First up event arms detection.
-	testHandler.mu.Lock()
-	testHandler.handleModifierToggle("__modifier_cmd_up")
-	testHandler.mu.Unlock()
-
-	if !testHandler.modifierDetectionArmed {
-		t.Error("Expected detection to be armed after first key-up")
-	}
-
-	if got := testHandler.modifierState.Current(); got != 0 {
-		t.Errorf("Expected 0 (arming up should not toggle), got %v", got)
-	}
-	// Now a clean tap should work.
-	testHandler.mu.Lock()
-	testHandler.handleModifierToggle("__modifier_shift_down")
-	testHandler.handleModifierToggle("__modifier_shift_up")
-	testHandler.mu.Unlock()
-	awaitDebounce(t, testHandler)
-
-	if got := testHandler.modifierState.Current(); got != action.ModShift {
-		t.Errorf("Expected ModShift after armed tap, got %v", got)
-	}
-}
-
 func TestHandleModifierToggle_HeldTooLong(t *testing.T) {
 	testHandler := newTestHandler()
 	testHandler.config.StickyModifiers.TapMaxDuration = 100 // 100ms threshold
@@ -316,8 +356,7 @@ func TestHandleModifierToggle_HeldTooLong(t *testing.T) {
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_shift_down")
 	// Overwrite the recorded time to 200ms ago (exceeds 100ms threshold).
-	testHandler.pendingModifierKeys["__modifier_shift_down"] = time.Now().
-		Add(-200 * time.Millisecond)
+	testHandler.pendingModifierKeys[action.ModShift] = time.Now().Add(-200 * time.Millisecond)
 	testHandler.handleModifierToggle("__modifier_shift_up")
 	testHandler.mu.Unlock()
 
@@ -347,7 +386,7 @@ func TestHandleModifierToggle_ZeroThresholdAlwaysToggles(t *testing.T) {
 	// Even a "long hold" should toggle when threshold is 0.
 	testHandler.mu.Lock()
 	testHandler.handleModifierToggle("__modifier_shift_down")
-	testHandler.pendingModifierKeys["__modifier_shift_down"] = time.Now().Add(-10 * time.Second)
+	testHandler.pendingModifierKeys[action.ModShift] = time.Now().Add(-10 * time.Second)
 	testHandler.handleModifierToggle("__modifier_shift_up")
 	testHandler.mu.Unlock()
 	awaitDebounce(t, testHandler)
@@ -404,73 +443,5 @@ func TestHandleModifierToggle_DebounceTimerCancelledByRegularKey(t *testing.T) {
 			"Expected no pending timers after cancel, got %d",
 			len(testHandler.pendingModifierTimers),
 		)
-	}
-}
-
-// TestHandleModifierToggle_KarabinerRapidFire simulates the exact scenario
-// from the user's logs: the user presses Cmd+k repeatedly (Karabiner → Up arrow),
-// and between presses, Cmd is briefly released. The "Up" arrow key was pressed
-// just ~10ms before cmd_down, so the cooldown should suppress the toggle
-// even though no arrow key follows this particular cmd_down→cmd_up pair.
-func TestHandleModifierToggle_KarabinerRapidFire(t *testing.T) {
-	testHandler := newTestHandler()
-	testHandler.config.StickyModifiers.TapCooldown = 500
-
-	// Simulate recent key activity (arrow key from previous Karabiner press).
-	testHandler.lastRegularKeyTime = time.Now()
-
-	// Modifier tap arrives shortly after (as seen in the logs: ~10ms gap).
-	testHandler.mu.Lock()
-	testHandler.handleModifierToggle("__modifier_cmd_down")
-	testHandler.handleModifierToggle("__modifier_cmd_up")
-	testHandler.mu.Unlock()
-	awaitDebounce(t, testHandler)
-
-	// The cooldown should have suppressed the toggle.
-	if got := testHandler.modifierState.Current(); got != 0 {
-		t.Errorf(
-			"Expected 0 (cooldown should suppress toggle during rapid Karabiner use), got %v",
-			got,
-		)
-	}
-}
-
-// TestHandleModifierToggle_ToggleWorksAfterIdle verifies that the cooldown
-// does NOT block modifier toggles when the user has been idle (no recent keys).
-func TestHandleModifierToggle_ToggleWorksAfterIdle(t *testing.T) {
-	testHandler := newTestHandler()
-	testHandler.config.StickyModifiers.TapCooldown = 500
-
-	// Simulate key activity from 600ms ago (well outside the 500ms cooldown).
-	testHandler.lastRegularKeyTime = time.Now().Add(-600 * time.Millisecond)
-
-	testHandler.mu.Lock()
-	testHandler.handleModifierToggle("__modifier_shift_down")
-	testHandler.handleModifierToggle("__modifier_shift_up")
-	testHandler.mu.Unlock()
-	awaitDebounce(t, testHandler)
-
-	if got := testHandler.modifierState.Current(); got != action.ModShift {
-		t.Errorf("Expected ModShift after idle toggle, got %v", got)
-	}
-}
-
-// TestHandleModifierToggle_CooldownDisabledByDefault verifies that when
-// tap_cooldown is 0 (default), recent key activity does NOT suppress toggles.
-func TestHandleModifierToggle_CooldownDisabledByDefault(t *testing.T) {
-	testHandler := newTestHandler()
-
-	// TapCooldown defaults to 0 (disabled) — do not set it.
-	// Simulate recent key activity.
-	testHandler.lastRegularKeyTime = time.Now()
-	testHandler.mu.Lock()
-	testHandler.handleModifierToggle("__modifier_shift_down")
-	testHandler.handleModifierToggle("__modifier_shift_up")
-	testHandler.mu.Unlock()
-	awaitDebounce(t, testHandler)
-
-	// With cooldown disabled, the toggle should proceed normally.
-	if got := testHandler.modifierState.Current(); got != action.ModShift {
-		t.Errorf("Expected ModShift (cooldown disabled), got %v", got)
 	}
 }

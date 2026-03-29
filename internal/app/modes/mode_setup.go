@@ -1,16 +1,12 @@
 package modes
 
 import (
-	"time"
-
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
-
-const modifierDetectionAutoArmDelay = 150 * time.Millisecond
 
 // CurrModeString returns the current mode as a string.
 func (h *Handler) CurrModeString() string {
@@ -28,51 +24,14 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 	h.modeSession++
 	h.appState.SetMode(mode)
 
-	// Reset modifier state BEFORE enabling detection.
-	// This ensures any modifiers from the activation hotkey (e.g., Cmd+Shift+Space)
-	// don't get picked up as sticky modifiers.
+	// Reset sticky modifier state before enabling detection for the new session.
+	// Activation-hotkey modifiers are suppressed explicitly by the hotkey path.
 	if h.modifierState != nil {
 		h.clearStickyModifiers()
 	}
 
-	// Cancel any pending modifier toggle from the activation hotkey.
+	// Cancel any pending modifier tap state from the previous mode session.
 	h.cancelPendingModifierToggle()
-
-	// Reset the regular-key timestamp so the cooldown doesn't leak across
-	// mode sessions (e.g., typing a hint char or pressing Escape just before
-	// re-entering a mode would otherwise suppress the first modifier toggle).
-	h.lastRegularKeyTime = time.Time{}
-
-	// Disarm modifier detection until all modifiers have been released.
-	// This prevents hotkey modifiers (e.g., Cmd+Shift from the activation combo)
-	// or IPC tool key releases from being misinterpreted as intentional taps.
-	// Detection is re-armed when we see a _up event with no modifiers held.
-	// Additionally, auto-arm after a short delay to handle the case where the user
-	// immediately presses a modifier key after activation (e.g., re-entering
-	// recursive_grid and pressing Command right away).
-	h.modifierDetectionArmed = false
-
-	// Only schedule the auto-arm timer for navigation modes with sticky
-	// modifiers enabled — idle mode disables the event tap and sticky toggle,
-	// so arming would be a no-op that wastes a goroutine.
-	isNavMode := mode == domain.ModeHints ||
-		mode == domain.ModeGrid ||
-		mode == domain.ModeRecursiveGrid ||
-		mode == domain.ModeScroll
-	stickyEnabled := isNavMode && h.config != nil && h.config.StickyModifiers.Enabled
-
-	if stickyEnabled {
-		autoArmSession := h.modeSession
-		time.AfterFunc(modifierDetectionAutoArmDelay, func() {
-			h.mu.Lock()
-			defer h.mu.Unlock()
-
-			if h.modeSession == autoArmSession && !h.modifierDetectionArmed {
-				h.modifierDetectionArmed = true
-				h.logger.Debug("Modifier detection auto-armed after delay")
-			}
-		})
-	}
 
 	h.syncModifierPassthrough(mode)
 	h.syncStickyModifierToggle(mode)
