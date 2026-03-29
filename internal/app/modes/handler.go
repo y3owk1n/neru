@@ -402,6 +402,8 @@ func (h *Handler) RefreshGridForThemeChange() bool {
 		return false
 	}
 
+	h.refreshGridVirtualPointerLocked()
+
 	return true
 }
 
