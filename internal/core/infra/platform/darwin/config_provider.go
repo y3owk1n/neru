@@ -8,18 +8,13 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// ConfigProvider exposes the current config snapshot for native runtime helpers.
-type ConfigProvider interface {
-	Get() *config.Config
-}
-
 var (
 	configProviderMu sync.RWMutex
-	configProvider   ConfigProvider
+	configProvider   config.Provider
 )
 
 // SetConfigProvider updates the runtime config provider used by mouse helpers.
-func SetConfigProvider(provider ConfigProvider) {
+func SetConfigProvider(provider config.Provider) {
 	configProviderMu.Lock()
 	defer configProviderMu.Unlock()
 

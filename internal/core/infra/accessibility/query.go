@@ -2,13 +2,15 @@ package accessibility
 
 import (
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
 func MenuBarClickableElements(
 	logger *zap.Logger,
 	cache *InfoCache,
-	configProvider ConfigProvider,
+	configProvider config.Provider,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
 
@@ -78,7 +80,7 @@ func ClickableElementsFromBundleID(
 	roles []string,
 	logger *zap.Logger,
 	cache *InfoCache,
-	configProvider ConfigProvider,
+	configProvider config.Provider,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for bundle ID",
 		zap.String("bundle_id", bundleID),

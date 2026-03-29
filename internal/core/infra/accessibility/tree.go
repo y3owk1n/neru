@@ -611,7 +611,7 @@ func shouldIncludeElement(
 func (n *TreeNode) FindClickableElements(
 	allowedRoles map[string]struct{},
 	cache *InfoCache,
-	configProvider ConfigProvider,
+	configProvider config.Provider,
 ) []*TreeNode {
 	var result []*TreeNode
 	n.walkTree(func(node *TreeNode) bool {

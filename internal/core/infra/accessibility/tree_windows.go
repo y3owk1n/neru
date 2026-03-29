@@ -29,7 +29,7 @@ func (n *TreeNode) Parent() *TreeNode { return nil }
 func (n *TreeNode) FindClickableElements(
 	keptRoles map[string]struct{},
 	cache any,
-	configProvider ConfigProvider,
+	configProvider config.Provider,
 ) []*TreeNode {
 	return nil
 }

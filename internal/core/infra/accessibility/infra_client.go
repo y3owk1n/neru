@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
@@ -14,7 +15,7 @@ import (
 type InfraAXClient struct {
 	logger         *zap.Logger
 	cache          *InfoCache
-	configProvider ConfigProvider
+	configProvider config.Provider
 }
 
 // NewInfraAXClient creates a new infrastructure-based AXClient.
@@ -22,7 +23,7 @@ type InfraAXClient struct {
 func NewInfraAXClient(
 	logger *zap.Logger,
 	cache *InfoCache,
-	configProvider ConfigProvider,
+	configProvider config.Provider,
 ) *InfraAXClient {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -349,7 +350,7 @@ func (a *InfraApp) Info() (*AXAppInfo, error) {
 type InfraNode struct {
 	node           *TreeNode
 	cache          *InfoCache
-	configProvider ConfigProvider
+	configProvider config.Provider
 }
 
 // ID returns the node ID.

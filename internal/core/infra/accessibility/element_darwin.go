@@ -18,6 +18,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
@@ -580,7 +581,7 @@ func (e *Element) IsClickable(
 	info *ElementInfo,
 	allowedRoles map[string]struct{},
 	cache *InfoCache,
-	configProvider ConfigProvider,
+	configProvider config.Provider,
 ) bool {
 	if e.ref == nil {
 		return false
