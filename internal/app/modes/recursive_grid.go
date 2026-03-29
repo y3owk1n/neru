@@ -272,8 +272,6 @@ func (h *Handler) updateRecursiveGridOverlay() {
 	if err != nil {
 		h.logger.Debug("Failed to draw recursive-grid overlay", zap.Error(err))
 	}
-
-	h.refreshRecursiveGridVirtualPointerLocked()
 }
 
 // cleanupRecursiveGridMode handles cleanup for recursive-grid mode.

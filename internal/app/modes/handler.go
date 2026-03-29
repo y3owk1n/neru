@@ -331,6 +331,7 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 
 	// Redraw the overlay with the remapped grid.
 	h.updateRecursiveGridOverlay()
+	h.refreshRecursiveGridVirtualPointerLocked()
 
 	return true
 }
@@ -433,6 +434,7 @@ func (h *Handler) RefreshRecursiveGridForThemeChange() bool {
 	}
 
 	h.updateRecursiveGridOverlay()
+	h.refreshRecursiveGridVirtualPointerLocked()
 
 	return true
 }
