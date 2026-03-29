@@ -163,6 +163,7 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 		// Update callback
 		func() {
 			h.updateRecursiveGridOverlay()
+			h.refreshRecursiveGridVirtualPointerLocked()
 		},
 		// Complete callback
 		func(point image.Point) {
