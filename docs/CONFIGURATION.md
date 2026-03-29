@@ -538,7 +538,6 @@ Configuration remains:
 [sticky_modifiers]
 enabled = true
 tap_max_duration = 300
-tap_cooldown = 0
 ```
 
 UI customization remains under `[sticky_modifiers.ui]`.
