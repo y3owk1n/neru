@@ -264,12 +264,19 @@ func (h *Handler) RefreshGridForScreenChange() bool {
 		h.grid.Manager.Reset()
 	}
 
+	// Clear stale selection — old coordinates are invalid on the new screen.
+	h.grid.Context.ClearSelectionPoint()
+
 	drawGridErr := h.renderer.DrawGrid(gridInstance, currentInput)
 	if drawGridErr != nil {
 		h.logger.Error("Failed to refresh grid after screen change", zap.Error(drawGridErr))
 
 		return false
 	}
+
+	// Ensure the virtual pointer is hidden (DrawGrid may clear cursorIndicatorVisible
+	// via NeruClearOverlay, but we explicitly hide it for consistency).
+	h.refreshGridVirtualPointerLocked()
 
 	return true
 }
