@@ -61,7 +61,7 @@ func MenuBarClickableElements(
 	// Add menubar specific role
 	allowedRoles["AXMenuBarItem"] = struct{}{}
 
-	elements := tree.FindClickableElements(allowedRoles, cache)
+	elements := tree.FindClickableElements(allowedRoles, cache, configProvider)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
@@ -124,7 +124,7 @@ func ClickableElementsFromBundleID(
 		}
 	}
 
-	elements := tree.FindClickableElements(allowedRoles, cache)
+	elements := tree.FindClickableElements(allowedRoles, cache, configProvider)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.

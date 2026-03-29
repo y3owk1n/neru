@@ -611,10 +611,11 @@ func shouldIncludeElement(
 func (n *TreeNode) FindClickableElements(
 	allowedRoles map[string]struct{},
 	cache *InfoCache,
+	configProvider ConfigProvider,
 ) []*TreeNode {
 	var result []*TreeNode
 	n.walkTree(func(node *TreeNode) bool {
-		if node.element.IsClickable(node.info, allowedRoles, cache, nil) {
+		if node.element.IsClickable(node.info, allowedRoles, cache, configProvider) {
 			result = append(result, node)
 		}
 

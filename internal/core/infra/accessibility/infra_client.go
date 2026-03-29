@@ -111,7 +111,7 @@ func (c *InfraAXClient) ClickableNodes(
 		}
 	}
 
-	clickableNodes := tree.FindClickableElements(allowedRoles, c.cache)
+	clickableNodes := tree.FindClickableElements(allowedRoles, c.cache, c.configProvider)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
