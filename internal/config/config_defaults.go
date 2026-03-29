@@ -280,10 +280,6 @@ const (
 	// If held longer than this, the release will not toggle the sticky modifier.
 	// 0 means no threshold (always toggle on release).
 	DefaultStickyModifiersTapMaxDuration = 300
-	// DefaultStickyModifiersTapCooldown is the default minimum quiet period (ms)
-	// after a regular key press before a modifier tap can toggle sticky state.
-	// 0 means disabled (no cooldown). Karabiner users should set this to ~500.
-	DefaultStickyModifiersTapCooldown = 0
 
 	// StickyModifiersBackgroundColorLight is the light mode background color for the sticky modifiers indicator.
 	StickyModifiersBackgroundColorLight = "#F200CFCF"
@@ -529,7 +525,6 @@ func commonDefaultConfig() *Config {
 		StickyModifiers: StickyModifiersConfig{
 			Enabled:        true,
 			TapMaxDuration: DefaultStickyModifiersTapMaxDuration,
-			TapCooldown:    DefaultStickyModifiersTapCooldown,
 			UI: StickyModifiersUI{
 				FontSize:             DefaultStickyModifiersFontSize,
 				FontFamily:           "",

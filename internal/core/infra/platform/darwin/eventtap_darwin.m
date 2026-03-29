@@ -33,9 +33,10 @@ typedef struct {
 	BOOL passthroughUnboundedModifiers;                      ///< Whether unbound modifier shortcuts reach macOS
 	os_unfair_lock modifierPassthroughLock;                  ///< Lock for modifier passthrough config
 	CGEventFlags previousFlags;                              ///< Previous modifier flags for toggle detection
-	BOOL stickyModifierToggleEnabled;                        ///< Whether to emit __modifier_ events
-	os_unfair_lock stickyModifierLock;                       ///< Lock for sticky modifier toggle config
-	dispatch_block_t __strong pendingAddSourceBlock;         ///< Pending add source block
+	CGEventFlags modifierChordFlags;    ///< Modifiers used in a key chord and not eligible for sticky on release
+	BOOL stickyModifierToggleEnabled;   ///< Whether to emit __modifier_ events
+	os_unfair_lock stickyModifierLock;  ///< Lock for sticky modifier toggle config
+	dispatch_block_t __strong pendingAddSourceBlock;  ///< Pending add source block
 } EventTapContext;
 
 /// Global event tap context for layout-change rebuild (single instance expected)
@@ -332,11 +333,9 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			// with setEventTapStickyModifierToggle which also writes it.
 			BOOL stickyEnabled = NO;
 			CGEventFlags changed;
-			CGEventFlags previousFlags;
 			os_unfair_lock_lock(&context->stickyModifierLock);
 			stickyEnabled = context->stickyModifierToggleEnabled;
 			changed = flags ^ context->previousFlags;
-			previousFlags = context->previousFlags;
 			context->previousFlags = flags;
 			os_unfair_lock_unlock(&context->stickyModifierLock);
 
@@ -362,6 +361,17 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			BOOL handled = NO;
 			for (size_t i = 0; i < sizeof(modifiers) / sizeof(modifiers[0]); i++) {
 				if (changed & modifiers[i].mask) {
+					BOOL suppressChordRelease = NO;
+					os_unfair_lock_lock(&context->stickyModifierLock);
+					if ((context->modifierChordFlags & modifiers[i].mask) && (flags & modifiers[i].mask) == 0) {
+						suppressChordRelease = YES;
+						context->modifierChordFlags &= ~modifiers[i].mask;
+					}
+					os_unfair_lock_unlock(&context->stickyModifierLock);
+					if (suppressChordRelease) {
+						continue;
+					}
+
 					const char *modName = (flags & modifiers[i].mask) ? modifiers[i].downName : modifiers[i].upName;
 					if (context->callback) {
 						context->callback(modName, context->userData);
@@ -376,6 +386,8 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 		if (type == kCGEventKeyDown) {
 			CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
 			CGEventFlags flags = CGEventGetFlags(event);
+			CGEventFlags stickyRelevantFlags = flags & (kCGEventFlagMaskCommand | kCGEventFlagMaskShift |
+			                                            kCGEventFlagMaskAlternate | kCGEventFlagMaskControl);
 
 			// Thread-safe hotkey check (O(1) lookup).
 			// Uses os_unfair_lock for minimal latency on the event tap thread.
@@ -391,6 +403,11 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 			// If this is a registered hotkey, let it pass through
 			if (isHotkey) {
+				if (stickyRelevantFlags != 0) {
+					os_unfair_lock_lock(&context->stickyModifierLock);
+					context->modifierChordFlags |= stickyRelevantFlags;
+					os_unfair_lock_unlock(&context->stickyModifierLock);
+				}
 				return event;
 			}
 
@@ -401,6 +418,12 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			BOOL hasCtrl = (flags & kCGEventFlagMaskControl) != 0;
 
 			if (hasCmd || hasAlt || hasCtrl) {
+				if (stickyRelevantFlags != 0) {
+					os_unfair_lock_lock(&context->stickyModifierLock);
+					context->modifierChordFlags |= stickyRelevantFlags;
+					os_unfair_lock_unlock(&context->stickyModifierLock);
+				}
+
 				// Snapshot modifier passthrough config under lock
 				BOOL passthroughEnabled = NO;
 				NSDictionary *blacklistLookup = nil;
@@ -524,6 +547,7 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->modifierPassthroughLock = OS_UNFAIR_LOCK_INIT;
 	context->passthroughUnboundedModifiers = NO;
 	context->previousFlags = 0;
+	context->modifierChordFlags = 0;
 	context->stickyModifierToggleEnabled = NO;
 	context->stickyModifierLock = OS_UNFAIR_LOCK_INIT;
 
@@ -728,15 +752,12 @@ void setEventTapStickyModifierToggle(EventTap tap, int enabled) {
 	context->stickyModifierToggleEnabled = enabled != 0;
 	if (enabled) {
 		// Seed previousFlags with the current modifier state so the upcoming
-		// releases of the activation hotkey modifiers produce _up events
-		// (bit removed) instead of _down events (bit added from zero).
-		CGEventRef probe = CGEventCreate(NULL);
-		if (probe) {
-			context->previousFlags = CGEventGetFlags(probe);
-			CFRelease(probe);
-		}
+		// modifier changes are compared against the live session state.
+		context->previousFlags = CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState);
+		context->modifierChordFlags = 0;
 	} else {
 		context->previousFlags = 0;
+		context->modifierChordFlags = 0;
 	}
 	os_unfair_lock_unlock(&context->stickyModifierLock);
 }

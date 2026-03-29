@@ -22,8 +22,7 @@ func (h *Handler) HandleKeyPress(key string) {
 	// This handles the case where Shift+L is pressed - the modifier tap
 	// is canceled when L comes in
 	if !strings.HasPrefix(key, modifierTogglePrefix) {
-		h.lastRegularKeyTime = time.Now()
-
+		h.markHeldModifiersUsedInChord()
 		h.cancelPendingModifierToggle()
 	}
 
@@ -36,34 +35,24 @@ func (h *Handler) HandleKeyPress(key string) {
 	// hotkey matching with the original modifier combo later.
 	rawKey := key
 
-	// Since sticky modifiers are injected as physical events, they appear in "key"
-	// (e.g. Cmd+Shift+L). This strips them out so bindings like "Shift+L" still match.
+	// Sticky modifiers are also physically posted into macOS so apps can react
+	// as if the key is held. Strip those sticky prefixes back out for Neru's own
+	// binding resolution so regular mode keys still behave predictably.
 	activeMods := h.stickyModifiers()
 	if activeMods != 0 && !strings.HasPrefix(key, modifierTogglePrefix) {
 		key = h.stripStickyModifiersFromKey(key, activeMods)
 	}
 
 	// Resolve the focused app bundle ID once so that both handleHotkey calls
-	// (rawKey and stripped key) share the same snapshot. This avoids a
-	// redundant macOS Accessibility IPC call when sticky modifiers are active
-	// and rawKey != key.
+	// (rawKey and stripped key) share the same snapshot.
 	var bundleID string
 	if h.appState.CurrentMode() == domain.ModeHints && h.config.Hints.HasAppHotkeyOverrides() {
 		bundleID = h.focusedBundleID()
 	}
 
 	// Check for per-mode hotkeys before mode-specific handling.
-	// Per-mode hotkeys use the same action syntax as top-level hotkeys.
-	// Try the raw key first (preserves full modifier combos like "Cmd+Shift+G"
-	// even when sticky modifiers are active), then the stripped key.
-	//
-	// When sticky modifiers are active, rawKey differs from key (e.g.
-	// "Cmd+g" vs "g"). The first handleHotkey(rawKey) call may
-	// destructively clear pending two-letter sequence state in Phase 1
-	// without completing it (because "g"+"cmd+g" won't match "gg"). If
-	// the first call doesn't consume the key, we restore the sequence
-	// state so the second call with the stripped key can still complete
-	// the sequence.
+	// Try the raw key first to preserve explicit modifier combos, then the
+	// stripped key so sticky-held modifiers do not break plain bindings.
 	if rawKey != key {
 		savedLastKey := h.hotkeyLastKey
 		savedLastKeyTime := h.hotkeyLastKeyTime
@@ -72,7 +61,6 @@ func (h *Handler) HandleKeyPress(key string) {
 			return
 		}
 
-		// Restore pending sequence state that the failed rawKey attempt cleared.
 		h.hotkeyLastKey = savedLastKey
 		h.hotkeyLastKeyTime = savedLastKeyTime
 
@@ -107,7 +95,6 @@ func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers)
 	var newParts []string
 
 	for i, part := range parts {
-		// Only check for modifiers on the prefixes
 		if i < len(parts)-1 {
 			lowerPart := strings.ToLower(part)
 

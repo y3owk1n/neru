@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -94,12 +95,15 @@ type Handler struct {
 	hotkeyLastKey              string
 	hotkeyLastKeyTime          int64
 
-	// Pending modifier key for tap detection (down/up without intervening keys)
-	pendingModifierKeys    map[string]time.Time
-	pendingModifierTimers  map[string]*time.Timer // debounce timers for delayed sticky toggle
-	modifierDetectionArmed bool                   // true once all modifiers have been released after mode entry
-	lastRegularKeyTime     time.Time              // timestamp of the last non-modifier key press
-	debounceNotify         chan struct{}          // test-only: signaled when a debounce callback completes
+	// Pending modifier taps waiting to be committed after a short "no follow-up"
+	// window. A regular key press cancels all pending taps.
+	pendingModifierKeys   map[action.Modifiers]time.Time
+	pendingModifierTimers map[action.Modifiers]*time.Timer
+	heldModifiers         action.Modifiers
+	usedInChordModifiers  action.Modifiers
+	suppressedModifiers   action.Modifiers
+	suppressedUntil       time.Time
+	debounceNotify        chan struct{} // test-only: signaled when a debounce callback completes
 
 	// Indicator polling (shared by all modes)
 	indicatorTicker *time.Ticker

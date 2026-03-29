@@ -234,10 +234,6 @@ func (c *Config) ValidateStickyModifiers() error {
 		)
 	}
 
-	if c.StickyModifiers.TapCooldown < 0 {
-		return derrors.New(derrors.CodeInvalidConfig, "sticky_modifiers.tap_cooldown must be >= 0")
-	}
-
 	return validateColors([]colorField{
 		{c.StickyModifiers.UI.BackgroundColorLight, "sticky_modifiers.ui.background_color_light"},
 		{c.StickyModifiers.UI.BackgroundColorDark, "sticky_modifiers.ui.background_color_dark"},
