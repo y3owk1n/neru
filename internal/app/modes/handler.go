@@ -324,6 +324,11 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 		h.initializeRecursiveGridManager(normalizedBounds)
 	}
 
+	// Clear stale selection — old coordinates are invalid on the new screen.
+	if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
+		h.recursiveGrid.Context.ClearSelectionPoint()
+	}
+
 	// Redraw the overlay with the remapped grid.
 	h.updateRecursiveGridOverlay()
 
