@@ -625,6 +625,10 @@ func (c *Config) ValidateRecursiveGrid() error {
 
 // ValidateVirtualPointer validates virtual pointer configuration.
 func (c *Config) ValidateVirtualPointer() error {
+	if !c.VirtualPointer.Enabled {
+		return nil
+	}
+
 	err := validateColors([]colorField{
 		{c.VirtualPointer.UI.ColorLight, "virtual_pointer.ui.color_light"},
 		{c.VirtualPointer.UI.ColorDark, "virtual_pointer.ui.color_dark"},
