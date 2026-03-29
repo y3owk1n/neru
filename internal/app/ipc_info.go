@@ -336,8 +336,8 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 }
 
 func (h *IPCControllerInfo) systemCapabilities() ports.PlatformCapabilities {
-	if reporter, ok := h.systemPort.(ports.CapabilityReporter); ok {
-		return reporter.Capabilities()
+	if h.systemPort != nil {
+		return h.systemPort.Capabilities()
 	}
 
 	return ports.PlatformCapabilities{}
