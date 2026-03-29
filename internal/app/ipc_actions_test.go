@@ -117,3 +117,68 @@ func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) 
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
+
+func TestShouldClearSelectionAfterMoveMouse(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		parsed           parsedActionArgs
+		targetsSelection bool
+		want             bool
+	}{
+		{
+			name:             "relative move clears selection",
+			parsed:           parsedActionArgs{hasDX: true, hasDY: true},
+			targetsSelection: false,
+			want:             true,
+		},
+		{
+			name:             "absolute move clears selection",
+			parsed:           parsedActionArgs{hasX: true, hasY: true},
+			targetsSelection: false,
+			want:             true,
+		},
+		{
+			name:             "center move clears selection",
+			parsed:           parsedActionArgs{hasCenter: true},
+			targetsSelection: false,
+			want:             true,
+		},
+		{
+			name:             "monitor center move clears selection",
+			parsed:           parsedActionArgs{hasCenter: true, hasMonitor: true},
+			targetsSelection: false,
+			want:             true,
+		},
+		{
+			name:             "bare move clears selection",
+			parsed:           parsedActionArgs{useBare: true},
+			targetsSelection: false,
+			want:             true,
+		},
+		{
+			name:             "selection targeted move preserves selection",
+			parsed:           parsedActionArgs{useSelection: true},
+			targetsSelection: true,
+			want:             false,
+		},
+		{
+			name:             "default selection resolved move preserves selection",
+			parsed:           parsedActionArgs{},
+			targetsSelection: true,
+			want:             false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := shouldClearSelectionAfterMoveMouse(testCase.parsed, testCase.targetsSelection)
+			if got != testCase.want {
+				t.Fatalf("shouldClearSelectionAfterMoveMouse() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}

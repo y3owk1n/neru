@@ -77,6 +77,17 @@ type parsedActionArgs struct {
 	modifierStr    string
 }
 
+func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelection bool) bool {
+	if targetsSelection {
+		return false
+	}
+
+	return (parsed.hasX && parsed.hasY) ||
+		parsed.hasCenter ||
+		(parsed.hasDX && parsed.hasDY) ||
+		parsed.useBare
+}
+
 // extractStringFlag extracts a string value from --flag=value or --flag value form.
 // It returns the value, the updated index, and whether the extraction succeeded.
 func extractStringFlag(rawArgs []string, idx int, prefix string) (string, int, bool) {
@@ -419,6 +430,11 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 				}
 			}
 
+			if h.modesHandler != nil &&
+				shouldClearSelectionAfterMoveMouse(parsed, false) {
+				h.modesHandler.ClearCurrentSelectionPoint()
+			}
+
 			return ipc.Response{
 				Success: true,
 				Message: actionName + " performed",
@@ -440,6 +456,11 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 				Message: "failed to perform action: " + err.Error(),
 				Code:    ipc.CodeActionFailed,
 			}
+		}
+
+		if h.modesHandler != nil &&
+			shouldClearSelectionAfterMoveMouse(parsed, false) {
+			h.modesHandler.ClearCurrentSelectionPoint()
 		}
 
 		return ipc.Response{
@@ -479,6 +500,12 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 				Success: false,
 				Message: "failed to perform action: " + err.Error(),
 				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		if h.modesHandler != nil {
+			if shouldClearSelectionAfterMoveMouse(parsed, false) {
+				h.modesHandler.ClearCurrentSelectionPoint()
 			}
 		}
 
@@ -540,7 +567,14 @@ func (h *IPCControllerActions) handleMoveMouseAction(
 			}, nil
 		}
 
-		return nil, h.actionService.MoveMouseTo(ctx, parsed.xVal, parsed.yVal, false)
+		moveErr := h.actionService.MoveMouseTo(ctx, parsed.xVal, parsed.yVal, false)
+		if moveErr == nil &&
+			h.modesHandler != nil &&
+			shouldClearSelectionAfterMoveMouse(parsed, false) {
+			h.modesHandler.ClearCurrentSelectionPoint()
+		}
+
+		return nil, moveErr
 	}
 
 	if parsed.useBare && h.actionService == nil {
@@ -556,6 +590,14 @@ func (h *IPCControllerActions) handleMoveMouseAction(
 		return pointErrResp, nil
 	}
 
+	targetsSelection := parsed.useSelection
+	if !targetsSelection && !parsed.useBare {
+		if selectionPoint, ok := h.currentSelectionPoint(); ok &&
+			targetPoint == selectionPoint {
+			targetsSelection = true
+		}
+	}
+
 	if h.actionService == nil {
 		return &ipc.Response{
 			Success: false,
@@ -564,7 +606,14 @@ func (h *IPCControllerActions) handleMoveMouseAction(
 		}, nil
 	}
 
-	return nil, h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
+	moveErr := h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
+	if moveErr == nil &&
+		h.modesHandler != nil &&
+		shouldClearSelectionAfterMoveMouse(parsed, targetsSelection) {
+		h.modesHandler.ClearCurrentSelectionPoint()
+	}
+
+	return nil, moveErr
 }
 
 func (h *IPCControllerActions) handlePointTargetedAction(
