@@ -22,6 +22,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 const (
@@ -95,6 +96,14 @@ func (m *Manager) Mode() Mode {
 // Logger returns the logger.
 func (m *Manager) Logger() *zap.Logger {
 	return m.logger
+}
+
+// OverlayCapabilities reports current darwin overlay support.
+func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
+	return ports.FeatureCapability{
+		Status: ports.FeatureStatusSupported,
+		Detail: "native darwin overlays are available",
+	}
 }
 
 // Show shows the overlay window.

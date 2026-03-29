@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // Mode represents the overlay mode.
@@ -160,6 +161,19 @@ func (n *NoOpManager) SetHideUnmatched(hide bool) {}
 
 // SetSharingType is a no-op implementation.
 func (n *NoOpManager) SetSharingType(hide bool) {}
+
+// OverlayCapabilities reports that NoOpManager does not render overlays.
+func (n *NoOpManager) OverlayCapabilities() ports.FeatureCapability {
+	return ports.FeatureCapability{
+		Status: ports.FeatureStatusHeadless,
+		Detail: "headless no-op overlay manager",
+	}
+}
+
+// CapabilityReporter exposes overlay support information.
+type CapabilityReporter interface {
+	OverlayCapabilities() ports.FeatureCapability
+}
 
 // ManagerInterface defines the interface for overlay window management.
 type ManagerInterface interface {

@@ -28,6 +28,7 @@ func newTestController() *app.IPCController {
 		appState,
 		cfg,
 		nil, // modesHandler
+		nil, // systemPort
 		nil, // eventTap
 		nil, // ipcServer
 		nil, // reloadConfig

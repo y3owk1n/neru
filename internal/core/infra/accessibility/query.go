@@ -7,7 +7,11 @@ import (
 )
 
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
-func MenuBarClickableElements(logger *zap.Logger, cache *InfoCache) ([]*TreeNode, error) {
+func MenuBarClickableElements(
+	logger *zap.Logger,
+	cache *InfoCache,
+	configProvider config.Provider,
+) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
 
 	app := FocusedApplication()
@@ -29,7 +33,7 @@ func MenuBarClickableElements(logger *zap.Logger, cache *InfoCache) ([]*TreeNode
 	opts := DefaultTreeOptions(logger)
 	opts.SetCache(cache)
 
-	if cfg := config.Global(); cfg != nil {
+	if cfg := currentConfig(configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
 	}
@@ -59,7 +63,7 @@ func MenuBarClickableElements(logger *zap.Logger, cache *InfoCache) ([]*TreeNode
 	// Add menubar specific role
 	allowedRoles["AXMenuBarItem"] = struct{}{}
 
-	elements := tree.FindClickableElements(allowedRoles, cache)
+	elements := tree.FindClickableElements(allowedRoles, cache, configProvider)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
@@ -76,6 +80,7 @@ func ClickableElementsFromBundleID(
 	roles []string,
 	logger *zap.Logger,
 	cache *InfoCache,
+	configProvider config.Provider,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for bundle ID",
 		zap.String("bundle_id", bundleID),
@@ -93,7 +98,7 @@ func ClickableElementsFromBundleID(
 	opts.SetCache(cache)
 	opts.SetIncludeOutOfBounds(true)
 
-	if cfg := config.Global(); cfg != nil {
+	if cfg := currentConfig(configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
 	}
@@ -121,7 +126,7 @@ func ClickableElementsFromBundleID(
 		}
 	}
 
-	elements := tree.FindClickableElements(allowedRoles, cache)
+	elements := tree.FindClickableElements(allowedRoles, cache, configProvider)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.

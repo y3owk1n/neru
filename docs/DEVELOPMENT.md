@@ -10,6 +10,7 @@ Contributing to Neru: build instructions, architecture overview, and contributio
 - [Development Setup](#development-setup)
 - [Building & Running](#building--running)
 - [Testing](#testing)
+- [Testing Tiers](#testing-tiers)
 - [Architecture Overview](#architecture-overview)
   - [Project Structure](#project-structure)
   - [Core Concepts](#core-concepts)
@@ -240,6 +241,22 @@ just build-version v1.0.0
 # Clean build artifacts
 just clean
 ```
+
+## Testing Tiers
+
+Neru uses a few different testing layers:
+
+1. Pure unit tests:
+   Shared Go logic with no native OS dependency.
+2. Contract tests:
+   Ports and adapters should agree on error semantics such as `CodeNotSupported`.
+3. Integration tests:
+   Real OS/native behavior behind `integration` build tags.
+4. Architecture tests:
+   Guardrails that protect package boundaries and platform isolation.
+
+When you add a stubbed platform feature, add or update a contract test so the
+unsupported behavior is explicit and stable until the real implementation lands.
 
 ### Manual Build
 

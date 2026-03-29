@@ -14,6 +14,7 @@ Neru is a keyboard-driven navigation tool for macOS (with Linux and Windows supp
 - [Application Identifier Terminology](#application-identifier-terminology)
 - [Codebase Navigation Guide](#codebase-navigation-guide)
 - [Coordinate Systems and Units](#coordinate-systems-and-units)
+- [Runtime Capability Reporting](#runtime-capability-reporting)
 - [Error Handling and Graceful Degradation](#error-handling-and-graceful-degradation)
 - [Technology Stack](#technology-stack)
 - [Component Architecture](#component-architecture)
@@ -200,6 +201,17 @@ To understand how Neru works, follow the path of an event from the OS to the use
 
 The [factory.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/factory.go) and its build-tagged siblings (e.g., [factory_darwin.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/factory_darwin.go)) are the gatekeepers for OS-specific code. They return the correct `ports.SystemPort` implementation without polluting shared code with OS-specific imports.
 
+## Runtime Capability Reporting
+
+Neru now reports a runtime capability matrix through the platform adapters.
+This is intentionally stricter than "it compiles":
+
+- Supported features report `supported`
+- Stubbed or incomplete features report `stub`
+
+The main user-facing entry point is `neru doctor`, which surfaces platform
+gaps instead of letting unsupported behavior fail silently.
+
 ### 4. Input Processing Flow
 
 1. **OS Level**: [eventtap_darwin.m](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/darwin/eventtap_darwin.m) captures low-level keyboard events.
@@ -238,6 +250,10 @@ return derrors.New(derrors.CodeNotSupported, "feature X not yet implemented on l
 ### Graceful Degradation
 
 Callers in the service layer should use the `IsNotSupported(err)` helper to handle missing features gracefully (e.g., by logging a warning instead of returning an error to the user).
+
+For features that are intentionally unavailable on a platform, prefer returning
+`CodeNotSupported` over silent no-ops unless the operation is explicitly
+documented as best-effort.
 
 ---
 

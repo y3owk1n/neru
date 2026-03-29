@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
@@ -36,9 +37,10 @@ func (e *Element) MenuBar() *Element { return nil }
 
 // IsClickable checks if the element is clickable (stub).
 func (e *Element) IsClickable(
-	info *ElementInfo,
-	allowedRoles map[string]struct{},
-	cache any,
+	_ *ElementInfo,
+	_ map[string]struct{},
+	_ *InfoCache,
+	_ config.Provider,
 ) bool {
 	return false
 }

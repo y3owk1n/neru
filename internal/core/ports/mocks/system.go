@@ -27,6 +27,7 @@ type SystemMock struct {
 	ShowSecureInputNotificationFunc func()
 	ShowAlertFunc                   func(ctx context.Context, title, message string) error
 	ShowNotificationFunc            func(title, message string)
+	CapabilitiesFunc                func() ports.PlatformCapabilities
 	HealthFunc                      func(ctx context.Context) error
 }
 
@@ -193,6 +194,15 @@ func (m *SystemMock) ShowNotification(title, message string) {
 	if m.ShowNotificationFunc != nil {
 		m.ShowNotificationFunc(title, message)
 	}
+}
+
+// Capabilities is a mock implementation.
+func (m *SystemMock) Capabilities() ports.PlatformCapabilities {
+	if m.CapabilitiesFunc != nil {
+		return m.CapabilitiesFunc()
+	}
+
+	return ports.PlatformCapabilities{}
 }
 
 // Health is a mock implementation.

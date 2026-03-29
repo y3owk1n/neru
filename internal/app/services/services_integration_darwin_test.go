@@ -265,7 +265,7 @@ func initializeRealAdapters(
 	t.Helper()
 
 	// Create infrastructure client (nil cache = use default)
-	axClient := accessibility.NewInfraAXClient(logger, nil)
+	axClient := accessibility.NewInfraAXClient(logger, nil, nil)
 	t.Cleanup(func() { axClient.Cache().Stop() })
 
 	// Create base accessibility adapter

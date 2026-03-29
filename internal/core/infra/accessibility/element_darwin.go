@@ -581,17 +581,16 @@ func (e *Element) IsClickable(
 	info *ElementInfo,
 	allowedRoles map[string]struct{},
 	cache *InfoCache,
+	configProvider config.Provider,
 ) bool {
 	if e.ref == nil {
 		return false
 	}
 
-	config := config.Global()
-
-	if config != nil {
+	if cfg := currentConfig(configProvider); cfg != nil {
 		// Check if clickable check should be ignored for this app
 		bundleID := e.BundleIdentifier()
-		if config.ShouldIgnoreClickableCheckForApp(bundleID) {
+		if cfg.ShouldIgnoreClickableCheckForApp(bundleID) {
 			return true
 		}
 	}

@@ -25,6 +25,11 @@ func (s *SystemAdapter) Health(ctx context.Context) error {
 	return nil
 }
 
+// Capabilities returns the supported macOS capabilities.
+func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
+	return ports.DarwinCapabilities()
+}
+
 // ConfigDir returns the macOS-specific configuration directory.
 func (s *SystemAdapter) ConfigDir() (string, error) {
 	home, err := os.UserHomeDir()

@@ -11,7 +11,6 @@ import (
 	"image"
 	"sync"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
@@ -70,7 +69,7 @@ func MoveMouse(point image.Point, bypassSmooth bool) {
 		eventType = C.kCGEventLeftMouseDragged
 	}
 
-	cfg := config.Global()
+	cfg := currentConfig()
 	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
 		MoveMouseSmooth(point, cfg.SmoothCursor.Steps, uint32(eventType))
 	} else {

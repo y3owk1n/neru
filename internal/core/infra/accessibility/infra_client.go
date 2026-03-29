@@ -13,13 +13,18 @@ import (
 
 // InfraAXClient implements AXClient using the infrastructure layer.
 type InfraAXClient struct {
-	logger *zap.Logger
-	cache  *InfoCache
+	logger         *zap.Logger
+	cache          *InfoCache
+	configProvider config.Provider
 }
 
 // NewInfraAXClient creates a new infrastructure-based AXClient.
 // If cache is nil, a default InfoCache is created automatically.
-func NewInfraAXClient(logger *zap.Logger, cache *InfoCache) *InfraAXClient {
+func NewInfraAXClient(
+	logger *zap.Logger,
+	cache *InfoCache,
+	configProvider config.Provider,
+) *InfraAXClient {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -28,7 +33,11 @@ func NewInfraAXClient(logger *zap.Logger, cache *InfoCache) *InfraAXClient {
 		cache = NewInfoCache(logger)
 	}
 
-	return &InfraAXClient{logger: logger, cache: cache}
+	return &InfraAXClient{
+		logger:         logger,
+		cache:          cache,
+		configProvider: configProvider,
+	}
 }
 
 // Cache returns the InfoCache used by this client.
@@ -81,7 +90,7 @@ func (c *InfraAXClient) ClickableNodes(
 	opts.SetCache(c.cache)
 	opts.SetIncludeOutOfBounds(includeOffscreen)
 
-	if cfg := config.Global(); cfg != nil {
+	if cfg := currentConfig(c.configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
 	}
@@ -103,7 +112,7 @@ func (c *InfraAXClient) ClickableNodes(
 		}
 	}
 
-	clickableNodes := tree.FindClickableElements(allowedRoles, c.cache)
+	clickableNodes := tree.FindClickableElements(allowedRoles, c.cache, c.configProvider)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
@@ -112,7 +121,11 @@ func (c *InfraAXClient) ClickableNodes(
 	clickableNodesResult := make([]AXNode, len(clickableNodes))
 
 	for i, node := range clickableNodes {
-		clickableNodesResult[i] = &InfraNode{node: node, cache: c.cache}
+		clickableNodesResult[i] = &InfraNode{
+			node:           node,
+			cache:          c.cache,
+			configProvider: c.configProvider,
+		}
 	}
 
 	return clickableNodesResult, nil
@@ -130,7 +143,7 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 
 // MenuBarClickableElements returns clickable elements in the menu bar.
 func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
-	nodes, nodesErr := MenuBarClickableElements(c.logger, c.cache)
+	nodes, nodesErr := MenuBarClickableElements(c.logger, c.cache, c.configProvider)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,
@@ -141,7 +154,11 @@ func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
 
 	nodesResult := make([]AXNode, len(nodes))
 	for index, node := range nodes {
-		nodesResult[index] = &InfraNode{node: node, cache: c.cache}
+		nodesResult[index] = &InfraNode{
+			node:           node,
+			cache:          c.cache,
+			configProvider: c.configProvider,
+		}
 	}
 
 	return nodesResult, nil
@@ -152,7 +169,13 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 ) ([]AXNode, error) {
-	nodes, nodesErr := ClickableElementsFromBundleID(bundleID, roles, c.logger, c.cache)
+	nodes, nodesErr := ClickableElementsFromBundleID(
+		bundleID,
+		roles,
+		c.logger,
+		c.cache,
+		c.configProvider,
+	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,
@@ -163,7 +186,11 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 
 	nodesResult := make([]AXNode, len(nodes))
 	for index, node := range nodes {
-		nodesResult[index] = &InfraNode{node: node, cache: c.cache}
+		nodesResult[index] = &InfraNode{
+			node:           node,
+			cache:          c.cache,
+			configProvider: c.configProvider,
+		}
 	}
 
 	return nodesResult, nil
@@ -321,8 +348,9 @@ func (a *InfraApp) Info() (*AXAppInfo, error) {
 
 // InfraNode wraps an TreeNode.
 type InfraNode struct {
-	node  *TreeNode
-	cache *InfoCache
+	node           *TreeNode
+	cache          *InfoCache
+	configProvider config.Provider
 }
 
 // ID returns the node ID.
@@ -385,7 +413,7 @@ func (n *InfraNode) IsClickable() bool {
 		return false
 	}
 
-	return n.node.Element().IsClickable(n.node.Info(), nil, n.cache)
+	return n.node.Element().IsClickable(n.node.Info(), nil, n.cache, n.configProvider)
 }
 
 // Release releases the underlying AXUIElementRef held by this node.

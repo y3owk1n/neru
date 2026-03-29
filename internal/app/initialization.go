@@ -66,8 +66,6 @@ func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 		}
 	}
 
-	config.SetGlobal(cfg)
-
 	// Apply clickable roles if hints are enabled
 	if cfg.Hints.Enabled {
 		logger.Info("Applying clickable roles",
@@ -97,6 +95,7 @@ func initializeAppWatcher(logger *zap.Logger) Watcher {
 // terminate the accessibility cache's background goroutine.
 func initializeAdapters(
 	cfg *config.Config,
+	cfgService *config.Service,
 	logger *zap.Logger,
 	overlayManager OverlayManager,
 	systemPort ports.SystemPort,
@@ -105,7 +104,7 @@ func initializeAdapters(
 	clickableRoles := cfg.Hints.ClickableRoles
 
 	// Create infrastructure client (nil cache = use default)
-	axClient := accessibilityAdapter.NewInfraAXClient(logger, nil)
+	axClient := accessibilityAdapter.NewInfraAXClient(logger, nil, cfgService)
 
 	// Create base accessibility adapter with core functionality
 	accAdapter := accessibilityAdapter.NewAdapter(

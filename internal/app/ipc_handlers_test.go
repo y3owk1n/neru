@@ -31,6 +31,7 @@ func TestExtractModeOptions_InvalidCursorSelectionModeEqualsValue(t *testing.T) 
 		nil,
 		nil,
 		nil,
+		nil,
 		logger,
 	)
 

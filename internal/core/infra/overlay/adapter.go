@@ -171,8 +171,13 @@ func (a *Adapter) Refresh(ctx context.Context) error {
 
 // Health checks if the overlay manager is responsive.
 func (a *Adapter) Health(_ context.Context) error {
-	// For now, we assume if we can call methods, it's healthy.
-	// Ideally, we'd ping the UI process.
+	if reporter, ok := a.manager.(uiOverlay.CapabilityReporter); ok {
+		capability := reporter.OverlayCapabilities()
+		if !capability.Supported() {
+			return derrors.New(derrors.CodeNotSupported, capability.Detail)
+		}
+	}
+
 	return nil
 }
 

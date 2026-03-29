@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
@@ -165,6 +166,7 @@ func (e *Element) IsClickable(
 	_ *ElementInfo,
 	_ map[string]struct{},
 	_ *InfoCache,
+	_ config.Provider,
 ) bool {
 	return false
 }

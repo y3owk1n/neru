@@ -26,7 +26,11 @@ func (n *TreeNode) Children() []*TreeNode { return nil }
 func (n *TreeNode) Parent() *TreeNode { return nil }
 
 // FindClickableElements is a Windows stub.
-func (n *TreeNode) FindClickableElements(keptRoles map[string]struct{}, cache any) []*TreeNode {
+func (n *TreeNode) FindClickableElements(
+	keptRoles map[string]struct{},
+	cache any,
+	configProvider config.Provider,
+) []*TreeNode {
 	return nil
 }
 

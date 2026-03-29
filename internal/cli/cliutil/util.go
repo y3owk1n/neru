@@ -117,6 +117,11 @@ func (f *OutputFormatter) PrintStatus(cmd *cobra.Command, data any) error {
 		if configPath, ok := statusData["config"].(string); ok {
 			cmd.Println("  Config: " + configPath)
 		}
+
+		if capabilities, ok := statusData["capabilities"].(map[string]any); ok &&
+			len(capabilities) > 0 {
+			cmd.Println("  Platform: " + stringValue(capabilities["platform"]))
+		}
 	} else {
 		// Fallback to JSON output
 		jsonData, jsonDataErr := json.MarshalIndent(data, "  ", "  ")
@@ -164,6 +169,12 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 		cmd.Println("  Mode:     " + mode)
 	}
 
+	if capabilities, ok := healthData["capabilities"].(map[string]any); ok {
+		if platform := stringValue(capabilities["platform"]); platform != "" {
+			cmd.Println("  Platform: " + platform)
+		}
+	}
+
 	cmd.Println()
 	// Print component checks
 	components, hasComponents := healthData["components"].(map[string]any)
@@ -188,6 +199,8 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 	cmd.Println()
 	// Sort keys for deterministic output
 	keys := sortedKeys(components)
+
+	componentWidth := maxComponentWidth(keys)
 	for _, key := range keys {
 		value := components[key]
 
@@ -196,10 +209,10 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 			status = strVal
 		}
 
-		if strings.HasPrefix(status, "ok") {
-			cmd.Printf("  ✅ %-24s %s\n", key, status)
+		if isHealthyHealthStatus(key, status) {
+			cmd.Printf("  ✅ %-*s %s\n", componentWidth, key, status)
 		} else {
-			cmd.Printf("  ❌ %-24s %s\n", key, status)
+			cmd.Printf("  ❌ %-*s %s\n", componentWidth, key, status)
 		}
 	}
 
@@ -220,6 +233,40 @@ func sortedKeys(m map[string]any) []string {
 	sort.Strings(keys)
 
 	return keys
+}
+
+func stringValue(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+
+	return ""
+}
+
+func maxComponentWidth(keys []string) int {
+	width := 24
+	for _, key := range keys {
+		if len(key) > width {
+			width = len(key)
+		}
+	}
+
+	return width
+}
+
+func isHealthyHealthStatus(componentKey, status string) bool {
+	if strings.HasPrefix(status, "ok") || status == "supported" || status == "headless" {
+		return true
+	}
+
+	if componentKey == "capability.platform" {
+		switch status {
+		case "darwin", "linux", "windows":
+			return true
+		}
+	}
+
+	return false
 }
 
 // ErrorHandler provides consistent error handling for CLI commands.
