@@ -118,7 +118,7 @@ func (h *Handler) refreshGridVirtualPointerLocked() {
 
 	point, ok := h.grid.Context.SelectionPoint()
 
-	size, fillColor, enabled := h.gridVirtualPointerStyle()
+	size, fillColor, enabled := h.virtualPointerStyle()
 	if !ok || h.grid.Context.CursorFollowSelection() || !enabled {
 		h.grid.Overlay.HideVirtualPointer()
 
@@ -136,7 +136,7 @@ func (h *Handler) refreshRecursiveGridVirtualPointerLocked() {
 
 	point, ok := h.recursiveGrid.Context.SelectionPoint()
 
-	size, fillColor, enabled := h.recursiveGridVirtualPointerStyle()
+	size, fillColor, enabled := h.virtualPointerStyle()
 	if !ok || h.recursiveGrid.Context.CursorFollowSelection() || !enabled {
 		h.recursiveGrid.Overlay.HideVirtualPointer()
 
@@ -147,24 +147,7 @@ func (h *Handler) refreshRecursiveGridVirtualPointerLocked() {
 	h.recursiveGrid.Overlay.ShowVirtualPointer(localPoint, size, fillColor)
 }
 
-func (h *Handler) gridVirtualPointerStyle() (int, string, bool) {
-	cfg := h.config.VirtualPointer
-	if !cfg.Enabled {
-		return 0, "", false
-	}
-
-	fillColor := config.ResolveColor(
-		cfg.UI.ColorLight,
-		cfg.UI.ColorDark,
-		h.themeProvider,
-		config.VirtualPointerColorLight,
-		config.VirtualPointerColorDark,
-	)
-
-	return cfg.UI.Size, fillColor, true
-}
-
-func (h *Handler) recursiveGridVirtualPointerStyle() (int, string, bool) {
+func (h *Handler) virtualPointerStyle() (int, string, bool) {
 	cfg := h.config.VirtualPointer
 	if !cfg.Enabled {
 		return 0, "", false
