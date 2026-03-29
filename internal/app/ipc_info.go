@@ -254,7 +254,7 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 		status, _ := value.(string)
 
 		components["capability."+key] = status
-		if key != "platform" && status != string(ports.FeatureStatusSupported) {
+		if key != "platform" && !capabilityStatusSupported(status) {
 			hasErrors = true
 		}
 	}
@@ -369,4 +369,10 @@ func capabilityString(capability ports.FeatureCapability) string {
 	}
 
 	return string(capability.Status)
+}
+
+func capabilityStatusSupported(status string) bool {
+	capability := ports.FeatureCapability{Status: ports.FeatureStatus(status)}
+
+	return capability.Supported()
 }
