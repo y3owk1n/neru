@@ -84,7 +84,6 @@ func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelectio
 
 	return (parsed.hasX && parsed.hasY) ||
 		parsed.hasCenter ||
-		parsed.hasMonitor ||
 		(parsed.hasDX && parsed.hasDY) ||
 		parsed.useBare
 }
