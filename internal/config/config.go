@@ -347,34 +347,28 @@ type GeneralConfig struct {
 
 // ModeIndicatorUI defines the visual/appearance settings for the mode indicator.
 type ModeIndicatorUI struct {
-	FontSize             int    `json:"fontSize"             toml:"font_size"`
-	FontFamily           string `json:"fontFamily"           toml:"font_family"`
-	BackgroundColorLight string `json:"backgroundColorLight" toml:"background_color_light"`
-	BackgroundColorDark  string `json:"backgroundColorDark"  toml:"background_color_dark"`
-	TextColorLight       string `json:"textColorLight"       toml:"text_color_light"`
-	TextColorDark        string `json:"textColorDark"        toml:"text_color_dark"`
-	BorderColorLight     string `json:"borderColorLight"     toml:"border_color_light"`
-	BorderColorDark      string `json:"borderColorDark"      toml:"border_color_dark"`
-	BorderWidth          int    `json:"borderWidth"          toml:"border_width"`
-	PaddingX             int    `json:"paddingX"             toml:"padding_x"`
-	PaddingY             int    `json:"paddingY"             toml:"padding_y"`
-	BorderRadius         int    `json:"borderRadius"         toml:"border_radius"`
-	IndicatorXOffset     int    `json:"indicatorXOffset"     toml:"indicator_x_offset"`
-	IndicatorYOffset     int    `json:"indicatorYOffset"     toml:"indicator_y_offset"`
+	FontSize         int    `json:"fontSize"         toml:"font_size"`
+	FontFamily       string `json:"fontFamily"       toml:"font_family"`
+	BackgroundColor  Color  `json:"backgroundColor"  toml:"background_color"`
+	TextColor        Color  `json:"textColor"        toml:"text_color"`
+	BorderColor      Color  `json:"borderColor"      toml:"border_color"`
+	BorderWidth      int    `json:"borderWidth"      toml:"border_width"`
+	PaddingX         int    `json:"paddingX"         toml:"padding_x"`
+	PaddingY         int    `json:"paddingY"         toml:"padding_y"`
+	BorderRadius     int    `json:"borderRadius"     toml:"border_radius"`
+	IndicatorXOffset int    `json:"indicatorXOffset" toml:"indicator_x_offset"`
+	IndicatorYOffset int    `json:"indicatorYOffset" toml:"indicator_y_offset"`
 }
 
 // ModeIndicatorModeConfig defines per-mode settings for the mode indicator.
 // Text is the label shown in the indicator; empty string hides the label.
 // Color overrides are optional; empty string inherits from [mode_indicator.ui].
 type ModeIndicatorModeConfig struct {
-	Enabled              bool   `json:"enabled"              toml:"enabled"`
-	Text                 string `json:"text"                 toml:"text"`
-	BackgroundColorLight string `json:"backgroundColorLight" toml:"background_color_light"`
-	BackgroundColorDark  string `json:"backgroundColorDark"  toml:"background_color_dark"`
-	TextColorLight       string `json:"textColorLight"       toml:"text_color_light"`
-	TextColorDark        string `json:"textColorDark"        toml:"text_color_dark"`
-	BorderColorLight     string `json:"borderColorLight"     toml:"border_color_light"`
-	BorderColorDark      string `json:"borderColorDark"      toml:"border_color_dark"`
+	Enabled         bool   `json:"enabled"         toml:"enabled"`
+	Text            string `json:"text"            toml:"text"`
+	BackgroundColor Color  `json:"backgroundColor" toml:"background_color"`
+	TextColor       Color  `json:"textColor"       toml:"text_color"`
+	BorderColor     Color  `json:"borderColor"     toml:"border_color"`
 }
 
 // ModeIndicatorConfig defines per-mode indicator visibility and appearance.
@@ -388,20 +382,17 @@ type ModeIndicatorConfig struct {
 
 // StickyModifiersUI defines the visual/appearance settings for the sticky modifiers indicator.
 type StickyModifiersUI struct {
-	FontSize             int    `json:"fontSize"             toml:"font_size"`
-	FontFamily           string `json:"fontFamily"           toml:"font_family"`
-	BackgroundColorLight string `json:"backgroundColorLight" toml:"background_color_light"`
-	BackgroundColorDark  string `json:"backgroundColorDark"  toml:"background_color_dark"`
-	TextColorLight       string `json:"textColorLight"       toml:"text_color_light"`
-	TextColorDark        string `json:"textColorDark"        toml:"text_color_dark"`
-	BorderColorLight     string `json:"borderColorLight"     toml:"border_color_light"`
-	BorderColorDark      string `json:"borderColorDark"      toml:"border_color_dark"`
-	BorderWidth          int    `json:"borderWidth"          toml:"border_width"`
-	PaddingX             int    `json:"paddingX"             toml:"padding_x"`
-	PaddingY             int    `json:"paddingY"             toml:"padding_y"`
-	BorderRadius         int    `json:"borderRadius"         toml:"border_radius"`
-	IndicatorXOffset     int    `json:"indicatorXOffset"     toml:"indicator_x_offset"`
-	IndicatorYOffset     int    `json:"indicatorYOffset"     toml:"indicator_y_offset"`
+	FontSize         int    `json:"fontSize"         toml:"font_size"`
+	FontFamily       string `json:"fontFamily"       toml:"font_family"`
+	BackgroundColor  Color  `json:"backgroundColor"  toml:"background_color"`
+	TextColor        Color  `json:"textColor"        toml:"text_color"`
+	BorderColor      Color  `json:"borderColor"      toml:"border_color"`
+	BorderWidth      int    `json:"borderWidth"      toml:"border_width"`
+	PaddingX         int    `json:"paddingX"         toml:"padding_x"`
+	PaddingY         int    `json:"paddingY"         toml:"padding_y"`
+	BorderRadius     int    `json:"borderRadius"     toml:"border_radius"`
+	IndicatorXOffset int    `json:"indicatorXOffset" toml:"indicator_x_offset"`
+	IndicatorYOffset int    `json:"indicatorYOffset" toml:"indicator_y_offset"`
 }
 
 // StickyModifiersConfig defines settings for the sticky modifiers feature.
@@ -446,20 +437,16 @@ type ScrollConfig struct {
 
 // HintsUI defines the visual/appearance settings for hints mode.
 type HintsUI struct {
-	FontSize              int    `json:"fontSize"              toml:"font_size"`
-	FontFamily            string `json:"fontFamily"            toml:"font_family"`
-	BorderRadius          int    `json:"borderRadius"          toml:"border_radius"`
-	PaddingX              int    `json:"paddingX"              toml:"padding_x"`
-	PaddingY              int    `json:"paddingY"              toml:"padding_y"`
-	BorderWidth           int    `json:"borderWidth"           toml:"border_width"`
-	BackgroundColorLight  string `json:"backgroundColorLight"  toml:"background_color_light"`
-	BackgroundColorDark   string `json:"backgroundColorDark"   toml:"background_color_dark"`
-	TextColorLight        string `json:"textColorLight"        toml:"text_color_light"`
-	TextColorDark         string `json:"textColorDark"         toml:"text_color_dark"`
-	MatchedTextColorLight string `json:"matchedTextColorLight" toml:"matched_text_color_light"`
-	MatchedTextColorDark  string `json:"matchedTextColorDark"  toml:"matched_text_color_dark"`
-	BorderColorLight      string `json:"borderColorLight"      toml:"border_color_light"`
-	BorderColorDark       string `json:"borderColorDark"       toml:"border_color_dark"`
+	FontSize         int    `json:"fontSize"         toml:"font_size"`
+	FontFamily       string `json:"fontFamily"       toml:"font_family"`
+	BorderRadius     int    `json:"borderRadius"     toml:"border_radius"`
+	PaddingX         int    `json:"paddingX"         toml:"padding_x"`
+	PaddingY         int    `json:"paddingY"         toml:"padding_y"`
+	BorderWidth      int    `json:"borderWidth"      toml:"border_width"`
+	BackgroundColor  Color  `json:"backgroundColor"  toml:"background_color"`
+	TextColor        Color  `json:"textColor"        toml:"text_color"`
+	MatchedTextColor Color  `json:"matchedTextColor" toml:"matched_text_color"`
+	BorderColor      Color  `json:"borderColor"      toml:"border_color"`
 }
 
 // HintsConfig defines the visual and behavioral settings for hints mode.
@@ -493,18 +480,12 @@ type GridUI struct {
 	FontFamily  string `json:"fontFamily"  toml:"font_family"`
 	BorderWidth int    `json:"borderWidth" toml:"border_width"`
 
-	BackgroundColorLight        string `json:"backgroundColorLight"        toml:"background_color_light"`
-	BackgroundColorDark         string `json:"backgroundColorDark"         toml:"background_color_dark"`
-	TextColorLight              string `json:"textColorLight"              toml:"text_color_light"`
-	TextColorDark               string `json:"textColorDark"               toml:"text_color_dark"`
-	MatchedTextColorLight       string `json:"matchedTextColorLight"       toml:"matched_text_color_light"`
-	MatchedTextColorDark        string `json:"matchedTextColorDark"        toml:"matched_text_color_dark"`
-	MatchedBackgroundColorLight string `json:"matchedBackgroundColorLight" toml:"matched_background_color_light"`
-	MatchedBackgroundColorDark  string `json:"matchedBackgroundColorDark"  toml:"matched_background_color_dark"`
-	MatchedBorderColorLight     string `json:"matchedBorderColorLight"     toml:"matched_border_color_light"`
-	MatchedBorderColorDark      string `json:"matchedBorderColorDark"      toml:"matched_border_color_dark"`
-	BorderColorLight            string `json:"borderColorLight"            toml:"border_color_light"`
-	BorderColorDark             string `json:"borderColorDark"             toml:"border_color_dark"`
+	BackgroundColor        Color `json:"backgroundColor"        toml:"background_color"`
+	TextColor              Color `json:"textColor"              toml:"text_color"`
+	MatchedTextColor       Color `json:"matchedTextColor"       toml:"matched_text_color"`
+	MatchedBackgroundColor Color `json:"matchedBackgroundColor" toml:"matched_background_color"`
+	MatchedBorderColor     Color `json:"matchedBorderColor"     toml:"matched_border_color"`
+	BorderColor            Color `json:"borderColor"            toml:"border_color"`
 }
 
 // GridConfig defines the visual and behavioral settings for grid mode.
@@ -527,29 +508,22 @@ type GridConfig struct {
 
 // RecursiveGridUI defines the visual/appearance settings for recursive-grid mode.
 type RecursiveGridUI struct {
-	// Visual styling
-	LineColorLight              string `json:"lineColorLight"              toml:"line_color_light"`
-	LineColorDark               string `json:"lineColorDark"               toml:"line_color_dark"`
-	LineWidth                   int    `json:"lineWidth"                   toml:"line_width"`
-	HighlightColorLight         string `json:"highlightColorLight"         toml:"highlight_color_light"`
-	HighlightColorDark          string `json:"highlightColorDark"          toml:"highlight_color_dark"`
-	TextColorLight              string `json:"textColorLight"              toml:"text_color_light"`
-	TextColorDark               string `json:"textColorDark"               toml:"text_color_dark"`
-	FontSize                    int    `json:"fontSize"                    toml:"font_size"`
-	FontFamily                  string `json:"fontFamily"                  toml:"font_family"`
-	LabelBackground             bool   `json:"labelBackground"             toml:"label_background"`
-	LabelBackgroundColorLight   string `json:"labelBackgroundColorLight"   toml:"label_background_color_light"`
-	LabelBackgroundColorDark    string `json:"labelBackgroundColorDark"    toml:"label_background_color_dark"`
-	LabelBackgroundPaddingX     int    `json:"labelBackgroundPaddingX"     toml:"label_background_padding_x"`
-	LabelBackgroundPaddingY     int    `json:"labelBackgroundPaddingY"     toml:"label_background_padding_y"`
-	LabelBackgroundBorderRadius int    `json:"labelBackgroundBorderRadius" toml:"label_background_border_radius"`
-	LabelBackgroundBorderWidth  int    `json:"labelBackgroundBorderWidth"  toml:"label_background_border_width"`
-	// Sub-key preview: draw a miniature version of the key grid inside each cell
+	LineColor                       Color   `json:"lineColor"                       toml:"line_color"`
+	LineWidth                       int     `json:"lineWidth"                       toml:"line_width"`
+	HighlightColor                  Color   `json:"highlightColor"                  toml:"highlight_color"`
+	TextColor                       Color   `json:"textColor"                       toml:"text_color"`
+	FontSize                        int     `json:"fontSize"                        toml:"font_size"`
+	FontFamily                      string  `json:"fontFamily"                      toml:"font_family"`
+	LabelBackground                 bool    `json:"labelBackground"                 toml:"label_background"`
+	LabelBackgroundColor            Color   `json:"labelBackgroundColor"            toml:"label_background_color"`
+	LabelBackgroundPaddingX         int     `json:"labelBackgroundPaddingX"         toml:"label_background_padding_x"`
+	LabelBackgroundPaddingY         int     `json:"labelBackgroundPaddingY"         toml:"label_background_padding_y"`
+	LabelBackgroundBorderRadius     int     `json:"labelBackgroundBorderRadius"     toml:"label_background_border_radius"`
+	LabelBackgroundBorderWidth      int     `json:"labelBackgroundBorderWidth"      toml:"label_background_border_width"`
 	SubKeyPreview                   bool    `json:"subKeyPreview"                   toml:"sub_key_preview"`
 	SubKeyPreviewFontSize           int     `json:"subKeyPreviewFontSize"           toml:"sub_key_preview_font_size"`
 	SubKeyPreviewAutohideMultiplier float64 `json:"subKeyPreviewAutohideMultiplier" toml:"sub_key_preview_autohide_multiplier"`
-	SubKeyPreviewTextColorLight     string  `json:"subKeyPreviewTextColorLight"     toml:"sub_key_preview_text_color_light"`
-	SubKeyPreviewTextColorDark      string  `json:"subKeyPreviewTextColorDark"      toml:"sub_key_preview_text_color_dark"`
+	SubKeyPreviewTextColor          Color   `json:"subKeyPreviewTextColor"          toml:"sub_key_preview_text_color"`
 }
 
 // RecursiveGridLayerConfig defines per-depth overrides for the recursive grid.
@@ -583,9 +557,8 @@ type RecursiveGridConfig struct {
 
 // VirtualPointerUI defines the visual settings for the hold-mode virtual pointer.
 type VirtualPointerUI struct {
-	Size       int    `json:"size"       toml:"size"`
-	ColorLight string `json:"colorLight" toml:"color_light"`
-	ColorDark  string `json:"colorDark"  toml:"color_dark"`
+	Size  int   `json:"size"  toml:"size"`
+	Color Color `json:"color" toml:"color"`
 }
 
 // VirtualPointerConfig defines settings for the hold-mode virtual pointer.
@@ -873,12 +846,12 @@ func (c *Config) ValidateModeIndicator() error {
 	}
 
 	err = validateColors([]colorField{
-		{c.ModeIndicator.UI.BackgroundColorLight, "mode_indicator.ui.background_color_light"},
-		{c.ModeIndicator.UI.BackgroundColorDark, "mode_indicator.ui.background_color_dark"},
-		{c.ModeIndicator.UI.TextColorLight, "mode_indicator.ui.text_color_light"},
-		{c.ModeIndicator.UI.TextColorDark, "mode_indicator.ui.text_color_dark"},
-		{c.ModeIndicator.UI.BorderColorLight, "mode_indicator.ui.border_color_light"},
-		{c.ModeIndicator.UI.BorderColorDark, "mode_indicator.ui.border_color_dark"},
+		{c.ModeIndicator.UI.BackgroundColor.Light, "mode_indicator.ui.background_color"},
+		{c.ModeIndicator.UI.BackgroundColor.Dark, "mode_indicator.ui.background_color"},
+		{c.ModeIndicator.UI.TextColor.Light, "mode_indicator.ui.text_color"},
+		{c.ModeIndicator.UI.TextColor.Dark, "mode_indicator.ui.text_color"},
+		{c.ModeIndicator.UI.BorderColor.Light, "mode_indicator.ui.border_color"},
+		{c.ModeIndicator.UI.BorderColor.Dark, "mode_indicator.ui.border_color"},
 	})
 	if err != nil {
 		return err
@@ -898,17 +871,17 @@ func (c *Config) ValidateModeIndicator() error {
 	for _, mode := range modes {
 		err = validateColors([]colorField{
 			{
-				mode.cfg.BackgroundColorLight,
-				"mode_indicator." + mode.name + ".background_color_light",
+				mode.cfg.BackgroundColor.Light,
+				"mode_indicator." + mode.name + ".background_color",
 			},
 			{
-				mode.cfg.BackgroundColorDark,
-				"mode_indicator." + mode.name + ".background_color_dark",
+				mode.cfg.BackgroundColor.Dark,
+				"mode_indicator." + mode.name + ".background_color",
 			},
-			{mode.cfg.TextColorLight, "mode_indicator." + mode.name + ".text_color_light"},
-			{mode.cfg.TextColorDark, "mode_indicator." + mode.name + ".text_color_dark"},
-			{mode.cfg.BorderColorLight, "mode_indicator." + mode.name + ".border_color_light"},
-			{mode.cfg.BorderColorDark, "mode_indicator." + mode.name + ".border_color_dark"},
+			{mode.cfg.TextColor.Light, "mode_indicator." + mode.name + ".text_color"},
+			{mode.cfg.TextColor.Dark, "mode_indicator." + mode.name + ".text_color"},
+			{mode.cfg.BorderColor.Light, "mode_indicator." + mode.name + ".border_color"},
+			{mode.cfg.BorderColor.Dark, "mode_indicator." + mode.name + ".border_color"},
 		})
 		if err != nil {
 			return err

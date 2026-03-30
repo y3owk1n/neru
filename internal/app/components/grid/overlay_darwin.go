@@ -1062,44 +1062,32 @@ func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 		fontSize:    cfg.UI.FontSize,
 		fontFamily:  cfg.UI.FontFamily,
 		borderWidth: cfg.UI.BorderWidth,
-		backgroundColor: config.ResolveColor(
-			cfg.UI.BackgroundColorLight,
-			cfg.UI.BackgroundColorDark,
+		backgroundColor: cfg.UI.BackgroundColor.ForTheme(
 			theme,
 			config.GridBackgroundColorLight,
 			config.GridBackgroundColorDark,
 		),
-		textColor: config.ResolveColor(
-			cfg.UI.TextColorLight,
-			cfg.UI.TextColorDark,
+		textColor: cfg.UI.TextColor.ForTheme(
 			theme,
 			config.GridTextColorLight,
 			config.GridTextColorDark,
 		),
-		matchedTextColor: config.ResolveColor(
-			cfg.UI.MatchedTextColorLight,
-			cfg.UI.MatchedTextColorDark,
+		matchedTextColor: cfg.UI.MatchedTextColor.ForTheme(
 			theme,
 			config.GridMatchedTextColorLight,
 			config.GridMatchedTextColorDark,
 		),
-		matchedBackgroundColor: config.ResolveColor(
-			cfg.UI.MatchedBackgroundColorLight,
-			cfg.UI.MatchedBackgroundColorDark,
+		matchedBackgroundColor: cfg.UI.MatchedBackgroundColor.ForTheme(
 			theme,
 			config.GridMatchedBackgroundColorLight,
 			config.GridMatchedBackgroundColorDark,
 		),
-		matchedBorderColor: config.ResolveColor(
-			cfg.UI.MatchedBorderColorLight,
-			cfg.UI.MatchedBorderColorDark,
+		matchedBorderColor: cfg.UI.MatchedBorderColor.ForTheme(
 			theme,
 			config.GridMatchedBorderColorLight,
 			config.GridMatchedBorderColorDark,
 		),
-		borderColor: config.ResolveColor(
-			cfg.UI.BorderColorLight,
-			cfg.UI.BorderColorDark,
+		borderColor: cfg.UI.BorderColor.ForTheme(
 			theme,
 			config.GridBorderColorLight,
 			config.GridBorderColorDark,

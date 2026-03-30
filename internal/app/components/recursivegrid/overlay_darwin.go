@@ -563,24 +563,18 @@ func (s Style) SubKeyPreviewTextColor() string {
 // explicitly specified in the configuration (empty string = default).
 func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Style {
 	return Style{
-		lineColor: config.ResolveColor(
-			cfg.UI.LineColorLight,
-			cfg.UI.LineColorDark,
+		lineColor: cfg.UI.LineColor.ForTheme(
 			theme,
 			config.RecursiveGridLineColorLight,
 			config.RecursiveGridLineColorDark,
 		),
 		lineWidth: cfg.UI.LineWidth,
-		highlightColor: config.ResolveColor(
-			cfg.UI.HighlightColorLight,
-			cfg.UI.HighlightColorDark,
+		highlightColor: cfg.UI.HighlightColor.ForTheme(
 			theme,
 			config.RecursiveGridHighlightColorLight,
 			config.RecursiveGridHighlightColorDark,
 		),
-		textColor: config.ResolveColor(
-			cfg.UI.TextColorLight,
-			cfg.UI.TextColorDark,
+		textColor: cfg.UI.TextColor.ForTheme(
 			theme,
 			config.RecursiveGridTextColorLight,
 			config.RecursiveGridTextColorDark,
@@ -588,9 +582,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 		fontSize:        cfg.UI.FontSize,
 		fontFamily:      cfg.UI.FontFamily,
 		labelBackground: cfg.UI.LabelBackground,
-		labelBackgroundColor: config.ResolveColor(
-			cfg.UI.LabelBackgroundColorLight,
-			cfg.UI.LabelBackgroundColorDark,
+		labelBackgroundColor: cfg.UI.LabelBackgroundColor.ForTheme(
 			theme,
 			config.RecursiveGridLabelBackgroundColorLight,
 			config.RecursiveGridLabelBackgroundColorDark,
@@ -602,9 +594,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 		subKeyPreview:                   cfg.UI.SubKeyPreview,
 		subKeyPreviewFontSize:           cfg.UI.SubKeyPreviewFontSize,
 		subKeyPreviewAutohideMultiplier: cfg.UI.SubKeyPreviewAutohideMultiplier,
-		subKeyPreviewTextColor: config.ResolveColor(
-			cfg.UI.SubKeyPreviewTextColorLight,
-			cfg.UI.SubKeyPreviewTextColorDark,
+		subKeyPreviewTextColor: cfg.UI.SubKeyPreviewTextColor.ForTheme(
 			theme,
 			config.RecursiveGridSubKeyPreviewTextColorLight,
 			config.RecursiveGridSubKeyPreviewTextColorDark,

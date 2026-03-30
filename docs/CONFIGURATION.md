@@ -116,18 +116,19 @@ To calculate any alpha value: `round(opacity_fraction × 255)` → convert to he
 
 ### Light and dark mode
 
-All color options come in `_light` and `_dark` variants:
-
-- `*_light` — used when macOS is in Light Mode
-- `*_dark` — used when macOS is in Dark Mode
-
-When a color is omitted or set to `""`, Neru uses its built-in theme-aware defaults. Colors update in real time when you switch system themes. Setting an explicit value always overrides the default for that variant.
+Colors can be specified as either a single string (same for both themes) or a dictionary with `light` and `dark` keys:
 
 ```toml
+# Same color for both themes:
 [hints.ui]
-background_color_light = "#FF0000AA"  # Custom for light mode
-# background_color_dark is omitted — uses built-in dark default
+background_color = "#FF0000AA"
+
+# Different colors per theme:
+[hints.ui]
+background_color = { light = "#FF0000AA", dark = "#00FF00AA" }
 ```
+
+When a color is omitted or set to empty, Neru uses its built-in theme-aware defaults. Colors update in real time when you switch system themes. Setting an explicit value always overrides the default for that variant.
 
 ---
 

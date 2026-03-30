@@ -242,11 +242,9 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		cached.FontFamily = unsafe.Pointer(C.CString(o.indicatorConfig.UI.FontFamily))
 		cached.BgColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColorWithOverride(
-					modeConfig.BackgroundColorLight,
-					modeConfig.BackgroundColorDark,
-					o.indicatorConfig.UI.BackgroundColorLight,
-					o.indicatorConfig.UI.BackgroundColorDark,
+				modeConfig.BackgroundColor.ForThemeWithOverride(
+					modeConfig.BackgroundColor,
+					o.indicatorConfig.UI.BackgroundColor,
 					o.theme,
 					config.ModeIndicatorBackgroundColorLight,
 					config.ModeIndicatorBackgroundColorDark,
@@ -255,11 +253,9 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		)
 		cached.TextColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColorWithOverride(
-					modeConfig.TextColorLight,
-					modeConfig.TextColorDark,
-					o.indicatorConfig.UI.TextColorLight,
-					o.indicatorConfig.UI.TextColorDark,
+				modeConfig.TextColor.ForThemeWithOverride(
+					modeConfig.TextColor,
+					o.indicatorConfig.UI.TextColor,
 					o.theme,
 					config.ModeIndicatorTextColorLight,
 					config.ModeIndicatorTextColorDark,
@@ -268,11 +264,9 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		)
 		cached.MatchedTextColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColorWithOverride(
-					modeConfig.TextColorLight,
-					modeConfig.TextColorDark,
-					o.indicatorConfig.UI.TextColorLight,
-					o.indicatorConfig.UI.TextColorDark,
+				modeConfig.TextColor.ForThemeWithOverride(
+					modeConfig.TextColor,
+					o.indicatorConfig.UI.TextColor,
 					o.theme,
 					config.ModeIndicatorTextColorLight,
 					config.ModeIndicatorTextColorDark,
@@ -281,11 +275,9 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		) // No matching in indicator mode
 		cached.BorderColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColorWithOverride(
-					modeConfig.BorderColorLight,
-					modeConfig.BorderColorDark,
-					o.indicatorConfig.UI.BorderColorLight,
-					o.indicatorConfig.UI.BorderColorDark,
+				modeConfig.BorderColor.ForThemeWithOverride(
+					modeConfig.BorderColor,
+					o.indicatorConfig.UI.BorderColor,
 					o.theme,
 					config.ModeIndicatorBorderColorLight,
 					config.ModeIndicatorBorderColorDark,

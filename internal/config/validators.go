@@ -79,14 +79,14 @@ func (c *Config) ValidateHints() error {
 	}
 
 	err := validateColors([]colorField{
-		{c.Hints.UI.BackgroundColorLight, "hints.ui.background_color_light"},
-		{c.Hints.UI.BackgroundColorDark, "hints.ui.background_color_dark"},
-		{c.Hints.UI.TextColorLight, "hints.ui.text_color_light"},
-		{c.Hints.UI.TextColorDark, "hints.ui.text_color_dark"},
-		{c.Hints.UI.MatchedTextColorLight, "hints.ui.matched_text_color_light"},
-		{c.Hints.UI.MatchedTextColorDark, "hints.ui.matched_text_color_dark"},
-		{c.Hints.UI.BorderColorLight, "hints.ui.border_color_light"},
-		{c.Hints.UI.BorderColorDark, "hints.ui.border_color_dark"},
+		{c.Hints.UI.BackgroundColor.Light, "hints.ui.background_color"},
+		{c.Hints.UI.BackgroundColor.Dark, "hints.ui.background_color"},
+		{c.Hints.UI.TextColor.Light, "hints.ui.text_color"},
+		{c.Hints.UI.TextColor.Dark, "hints.ui.text_color"},
+		{c.Hints.UI.MatchedTextColor.Light, "hints.ui.matched_text_color"},
+		{c.Hints.UI.MatchedTextColor.Dark, "hints.ui.matched_text_color"},
+		{c.Hints.UI.BorderColor.Light, "hints.ui.border_color"},
+		{c.Hints.UI.BorderColor.Dark, "hints.ui.border_color"},
 	})
 	if err != nil {
 		return err
@@ -193,18 +193,18 @@ func (c *Config) ValidateGrid() error {
 	}
 
 	err := validateColors([]colorField{
-		{c.Grid.UI.BackgroundColorLight, "grid.ui.background_color_light"},
-		{c.Grid.UI.BackgroundColorDark, "grid.ui.background_color_dark"},
-		{c.Grid.UI.TextColorLight, "grid.ui.text_color_light"},
-		{c.Grid.UI.TextColorDark, "grid.ui.text_color_dark"},
-		{c.Grid.UI.MatchedTextColorLight, "grid.ui.matched_text_color_light"},
-		{c.Grid.UI.MatchedTextColorDark, "grid.ui.matched_text_color_dark"},
-		{c.Grid.UI.MatchedBackgroundColorLight, "grid.ui.matched_background_color_light"},
-		{c.Grid.UI.MatchedBackgroundColorDark, "grid.ui.matched_background_color_dark"},
-		{c.Grid.UI.MatchedBorderColorLight, "grid.ui.matched_border_color_light"},
-		{c.Grid.UI.MatchedBorderColorDark, "grid.ui.matched_border_color_dark"},
-		{c.Grid.UI.BorderColorLight, "grid.ui.border_color_light"},
-		{c.Grid.UI.BorderColorDark, "grid.ui.border_color_dark"},
+		{c.Grid.UI.BackgroundColor.Light, "grid.ui.background_color"},
+		{c.Grid.UI.BackgroundColor.Dark, "grid.ui.background_color"},
+		{c.Grid.UI.TextColor.Light, "grid.ui.text_color"},
+		{c.Grid.UI.TextColor.Dark, "grid.ui.text_color"},
+		{c.Grid.UI.MatchedTextColor.Light, "grid.ui.matched_text_color"},
+		{c.Grid.UI.MatchedTextColor.Dark, "grid.ui.matched_text_color"},
+		{c.Grid.UI.MatchedBackgroundColor.Light, "grid.ui.matched_background_color"},
+		{c.Grid.UI.MatchedBackgroundColor.Dark, "grid.ui.matched_background_color"},
+		{c.Grid.UI.MatchedBorderColor.Light, "grid.ui.matched_border_color"},
+		{c.Grid.UI.MatchedBorderColor.Dark, "grid.ui.matched_border_color"},
+		{c.Grid.UI.BorderColor.Light, "grid.ui.border_color"},
+		{c.Grid.UI.BorderColor.Dark, "grid.ui.border_color"},
 	})
 	if err != nil {
 		return err
@@ -235,12 +235,12 @@ func (c *Config) ValidateStickyModifiers() error {
 	}
 
 	return validateColors([]colorField{
-		{c.StickyModifiers.UI.BackgroundColorLight, "sticky_modifiers.ui.background_color_light"},
-		{c.StickyModifiers.UI.BackgroundColorDark, "sticky_modifiers.ui.background_color_dark"},
-		{c.StickyModifiers.UI.TextColorLight, "sticky_modifiers.ui.text_color_light"},
-		{c.StickyModifiers.UI.TextColorDark, "sticky_modifiers.ui.text_color_dark"},
-		{c.StickyModifiers.UI.BorderColorLight, "sticky_modifiers.ui.border_color_light"},
-		{c.StickyModifiers.UI.BorderColorDark, "sticky_modifiers.ui.border_color_dark"},
+		{c.StickyModifiers.UI.BackgroundColor.Light, "sticky_modifiers.ui.background_color"},
+		{c.StickyModifiers.UI.BackgroundColor.Dark, "sticky_modifiers.ui.background_color"},
+		{c.StickyModifiers.UI.TextColor.Light, "sticky_modifiers.ui.text_color"},
+		{c.StickyModifiers.UI.TextColor.Dark, "sticky_modifiers.ui.text_color"},
+		{c.StickyModifiers.UI.BorderColor.Light, "sticky_modifiers.ui.border_color"},
+		{c.StickyModifiers.UI.BorderColor.Dark, "sticky_modifiers.ui.border_color"},
 	})
 }
 
@@ -578,27 +578,27 @@ func (c *Config) ValidateRecursiveGrid() error {
 	}
 
 	err := validateColors([]colorField{
-		{c.RecursiveGrid.UI.LineColorLight, "recursive_grid.ui.line_color_light"},
-		{c.RecursiveGrid.UI.LineColorDark, "recursive_grid.ui.line_color_dark"},
-		{c.RecursiveGrid.UI.HighlightColorLight, "recursive_grid.ui.highlight_color_light"},
-		{c.RecursiveGrid.UI.HighlightColorDark, "recursive_grid.ui.highlight_color_dark"},
-		{c.RecursiveGrid.UI.TextColorLight, "recursive_grid.ui.text_color_light"},
-		{c.RecursiveGrid.UI.TextColorDark, "recursive_grid.ui.text_color_dark"},
+		{c.RecursiveGrid.UI.LineColor.Light, "recursive_grid.ui.line_color"},
+		{c.RecursiveGrid.UI.LineColor.Dark, "recursive_grid.ui.line_color"},
+		{c.RecursiveGrid.UI.HighlightColor.Light, "recursive_grid.ui.highlight_color"},
+		{c.RecursiveGrid.UI.HighlightColor.Dark, "recursive_grid.ui.highlight_color"},
+		{c.RecursiveGrid.UI.TextColor.Light, "recursive_grid.ui.text_color"},
+		{c.RecursiveGrid.UI.TextColor.Dark, "recursive_grid.ui.text_color"},
 		{
-			c.RecursiveGrid.UI.LabelBackgroundColorLight,
-			"recursive_grid.ui.label_background_color_light",
+			c.RecursiveGrid.UI.LabelBackgroundColor.Light,
+			"recursive_grid.ui.label_background_color",
 		},
 		{
-			c.RecursiveGrid.UI.LabelBackgroundColorDark,
-			"recursive_grid.ui.label_background_color_dark",
+			c.RecursiveGrid.UI.LabelBackgroundColor.Dark,
+			"recursive_grid.ui.label_background_color",
 		},
 		{
-			c.RecursiveGrid.UI.SubKeyPreviewTextColorLight,
-			"recursive_grid.ui.sub_key_preview_text_color_light",
+			c.RecursiveGrid.UI.SubKeyPreviewTextColor.Light,
+			"recursive_grid.ui.sub_key_preview_text_color",
 		},
 		{
-			c.RecursiveGrid.UI.SubKeyPreviewTextColorDark,
-			"recursive_grid.ui.sub_key_preview_text_color_dark",
+			c.RecursiveGrid.UI.SubKeyPreviewTextColor.Dark,
+			"recursive_grid.ui.sub_key_preview_text_color",
 		},
 	})
 	if err != nil {
@@ -626,8 +626,8 @@ func (c *Config) ValidateVirtualPointer() error {
 	}
 
 	err := validateColors([]colorField{
-		{c.VirtualPointer.UI.ColorLight, "virtual_pointer.ui.color_light"},
-		{c.VirtualPointer.UI.ColorDark, "virtual_pointer.ui.color_dark"},
+		{c.VirtualPointer.UI.Color.Light, "virtual_pointer.ui.color"},
+		{c.VirtualPointer.UI.Color.Dark, "virtual_pointer.ui.color"},
 	})
 	if err != nil {
 		return err

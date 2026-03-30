@@ -162,46 +162,38 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 		cached.FontFamily = unsafe.Pointer(C.CString(o.uiConfig.FontFamily))
 		cached.BgColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
-					o.uiConfig.BackgroundColorLight,
-					o.uiConfig.BackgroundColorDark,
+				o.uiConfig.BackgroundColor.ForTheme(
 					o.theme,
-					"#000000",
-					"#FFFFFF",
+					config.StickyModifiersBackgroundColorLight,
+					config.StickyModifiersBackgroundColorDark,
 				),
 			),
 		)
 		cached.TextColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
-					o.uiConfig.TextColorLight,
-					o.uiConfig.TextColorDark,
+				o.uiConfig.TextColor.ForTheme(
 					o.theme,
-					"#FFFFFF",
-					"#000000",
+					config.StickyModifiersTextColorLight,
+					config.StickyModifiersTextColorDark,
 				),
 			),
 		)
 		// No matching in indicator mode; reuse TextColor.
 		cached.MatchedTextColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
-					o.uiConfig.TextColorLight,
-					o.uiConfig.TextColorDark,
+				o.uiConfig.TextColor.ForTheme(
 					o.theme,
-					"#FFFFFF",
-					"#000000",
+					config.StickyModifiersTextColorLight,
+					config.StickyModifiersTextColorDark,
 				),
 			),
 		)
 		cached.BorderColor = unsafe.Pointer(
 			C.CString(
-				config.ResolveColor(
-					o.uiConfig.BorderColorLight,
-					o.uiConfig.BorderColorDark,
+				o.uiConfig.BorderColor.ForTheme(
 					o.theme,
-					"#FFFFFF",
-					"#000000",
+					config.StickyModifiersBorderColorLight,
+					config.StickyModifiersBorderColorDark,
 				),
 			),
 		)

@@ -153,9 +153,7 @@ func (h *Handler) virtualPointerStyle() (int, string, bool) {
 		return 0, "", false
 	}
 
-	fillColor := config.ResolveColor(
-		cfg.UI.ColorLight,
-		cfg.UI.ColorDark,
+	fillColor := cfg.UI.Color.ForTheme(
 		h.themeProvider,
 		config.VirtualPointerColorLight,
 		config.VirtualPointerColorDark,

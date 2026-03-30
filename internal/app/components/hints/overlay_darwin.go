@@ -254,30 +254,22 @@ func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 		paddingX:     cfg.UI.PaddingX,
 		paddingY:     cfg.UI.PaddingY,
 		borderWidth:  cfg.UI.BorderWidth,
-		backgroundColor: config.ResolveColor(
-			cfg.UI.BackgroundColorLight,
-			cfg.UI.BackgroundColorDark,
+		backgroundColor: cfg.UI.BackgroundColor.ForTheme(
 			theme,
 			config.HintsBackgroundColorLight,
 			config.HintsBackgroundColorDark,
 		),
-		textColor: config.ResolveColor(
-			cfg.UI.TextColorLight,
-			cfg.UI.TextColorDark,
+		textColor: cfg.UI.TextColor.ForTheme(
 			theme,
 			config.HintsTextColorLight,
 			config.HintsTextColorDark,
 		),
-		matchedTextColor: config.ResolveColor(
-			cfg.UI.MatchedTextColorLight,
-			cfg.UI.MatchedTextColorDark,
+		matchedTextColor: cfg.UI.MatchedTextColor.ForTheme(
 			theme,
 			config.HintsMatchedTextColorLight,
 			config.HintsMatchedTextColorDark,
 		),
-		borderColor: config.ResolveColor(
-			cfg.UI.BorderColorLight,
-			cfg.UI.BorderColorDark,
+		borderColor: cfg.UI.BorderColor.ForTheme(
 			theme,
 			config.HintsBorderColorLight,
 			config.HintsBorderColorDark,

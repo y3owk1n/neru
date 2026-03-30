@@ -65,19 +65,19 @@ func TestDefaultConfig(t *testing.T) {
 			t.Error("Expected RecursiveGrid.UI.LabelBackground to be false by default")
 		}
 
-		if cfg.RecursiveGrid.UI.LabelBackgroundColorLight != config.RecursiveGridLabelBackgroundColorLight {
+		if cfg.RecursiveGrid.UI.LabelBackgroundColor.Light != config.RecursiveGridLabelBackgroundColorLight {
 			t.Errorf(
-				"Expected RecursiveGrid.UI.LabelBackgroundColorLight %q, got %q",
+				"Expected RecursiveGrid.UI.LabelBackgroundColor.Light %q, got %q",
 				config.RecursiveGridLabelBackgroundColorLight,
-				cfg.RecursiveGrid.UI.LabelBackgroundColorLight,
+				cfg.RecursiveGrid.UI.LabelBackgroundColor.Light,
 			)
 		}
 
-		if cfg.RecursiveGrid.UI.LabelBackgroundColorDark != config.RecursiveGridLabelBackgroundColorDark {
+		if cfg.RecursiveGrid.UI.LabelBackgroundColor.Dark != config.RecursiveGridLabelBackgroundColorDark {
 			t.Errorf(
-				"Expected RecursiveGrid.UI.LabelBackgroundColorDark %q, got %q",
+				"Expected RecursiveGrid.UI.LabelBackgroundColor.Dark %q, got %q",
 				config.RecursiveGridLabelBackgroundColorDark,
-				cfg.RecursiveGrid.UI.LabelBackgroundColorDark,
+				cfg.RecursiveGrid.UI.LabelBackgroundColor.Dark,
 			)
 		}
 
@@ -127,19 +127,19 @@ func TestDefaultConfig(t *testing.T) {
 			)
 		}
 
-		if cfg.VirtualPointer.UI.ColorLight != config.VirtualPointerColorLight {
+		if cfg.VirtualPointer.UI.Color.Light != config.VirtualPointerColorLight {
 			t.Errorf(
-				"Expected VirtualPointer.UI.ColorLight %q, got %q",
+				"Expected VirtualPointer.UI.Color.Light %q, got %q",
 				config.VirtualPointerColorLight,
-				cfg.VirtualPointer.UI.ColorLight,
+				cfg.VirtualPointer.UI.Color.Light,
 			)
 		}
 
-		if cfg.VirtualPointer.UI.ColorDark != config.VirtualPointerColorDark {
+		if cfg.VirtualPointer.UI.Color.Dark != config.VirtualPointerColorDark {
 			t.Errorf(
-				"Expected VirtualPointer.UI.ColorDark %q, got %q",
+				"Expected VirtualPointer.UI.Color.Dark %q, got %q",
 				config.VirtualPointerColorDark,
-				cfg.VirtualPointer.UI.ColorDark,
+				cfg.VirtualPointer.UI.Color.Dark,
 			)
 		}
 	})

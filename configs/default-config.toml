@@ -87,14 +87,10 @@ border_radius = -1                          # -1 = auto pill
 padding_x = -1                              # -1 = auto based on font size
 padding_y = -1                              # -1 = auto based on font size
 border_width = 1
-background_color_light = "#F200CFCF"
-background_color_dark = "#F2007A9E"
-text_color_light = "#FF003554"
-text_color_dark = "#FFFFFFFF"
-matched_text_color_light = "#FFAAEEFF"
-matched_text_color_dark = "#FF003554"
-border_color_light = "#FF008A8A"
-border_color_dark = "#FF00B4D8"
+background_color = { light = "#F200CFCF", dark = "#F2007A9E" }
+text_color = { light = "#FF003554", dark = "#FFFFFFFF" }
+matched_text_color = { light = "#FFAAEEFF", dark = "#FF003554" }
+border_color = { light = "#FF008A8A", dark = "#FF00B4D8" }
 
 # Grid mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#grid-mode
@@ -126,18 +122,12 @@ enable_gc = false                           # Periodic memory cleanup (adds CPU 
 font_size = 10
 font_family = ""
 border_width = 1
-background_color_light = "#9900B4D8"
-background_color_dark = "#99003554"
-text_color_light = "#FF003554"
-text_color_dark = "#FFB3E8F5"
-matched_text_color_light = "#FFAAEEFF"
-matched_text_color_dark = "#FFFFFFFF"
-matched_background_color_light = "#B300CFCF"
-matched_background_color_dark = "#B300B4D8"
-matched_border_color_light = "#B300CFCF"
-matched_border_color_dark = "#B300B4D8"
-border_color_light = "#9900B4D8"
-border_color_dark = "#99003554"
+background_color = { light = "#9900B4D8", dark = "#99003554" }
+text_color = { light = "#FF003554", dark = "#FFB3E8F5" }
+matched_text_color = { light = "#FFAAEEFF", dark = "#FFFFFFFF" }
+matched_background_color = { light = "#B300CFCF", dark = "#B300B4D8" }
+matched_border_color = { light = "#B300CFCF", dark = "#B300B4D8" }
+border_color = { light = "#9900B4D8", dark = "#99003554" }
 
 # Recursive grid mode (recommended)
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#recursive-grid-mode-recommended
@@ -166,18 +156,14 @@ max_depth = 10                              # Maximum recursion levels (1–20)
 "Right" = "action move_mouse_relative --dx=10 --dy=0"
 
 [recursive_grid.ui]
-line_color_light = "#FF007A9E"
-line_color_dark = "#FF00CFCF"
+line_color = { light = "#FF007A9E", dark = "#FF00CFCF" }
 line_width = 1
-highlight_color_light = "#4D007A9E"
-highlight_color_dark = "#4D00CFCF"
-text_color_light = "#FF007A9E"
-text_color_dark = "#FF00CFCF"
+highlight_color = { light = "#4D007A9E", dark = "#4D00CFCF" }
+text_color = { light = "#FF007A9E", dark = "#FF00CFCF" }
 font_size = 10
 font_family = ""
 label_background = false                    # Add rounded backgrounds behind cell labels
-label_background_color_light = "#FFAAEEFF"
-label_background_color_dark = "#FF003554"
+label_background_color = { light = "#FFAAEEFF", dark = "#FF003554" }
 label_background_padding_x = -1
 label_background_padding_y = -1
 label_background_border_radius = -1
@@ -185,8 +171,7 @@ label_background_border_width = 1
 sub_key_preview = false                     # Draw miniature key grid inside each cell
 sub_key_preview_font_size = 8
 sub_key_preview_autohide_multiplier = 1.5
-sub_key_preview_text_color_light = "#66007A9E"
-sub_key_preview_text_color_dark = "#6600CFCF"
+sub_key_preview_text_color = { light = "#66007A9E", dark = "#6600CFCF" }
 
 # Virtual pointer
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#virtual-pointer
@@ -195,8 +180,7 @@ enabled = true
 
 [virtual_pointer.ui]
 size = 3
-color_light = "#FF007A9E"
-color_dark = "#FF00CFCF"
+color = { light = "#FF007A9E", dark = "#FF00CFCF" }
 
 # Scroll mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#scroll-mode
@@ -248,12 +232,9 @@ text = "Recursive Grid"
 [mode_indicator.ui]
 font_size = 10
 font_family = ""
-background_color_light = "#F200CFCF"
-background_color_dark = "#F200CFCF"
-text_color_light = "#FF003554"
-text_color_dark = "#FF003554"
-border_color_light = "#FF007A9E"
-border_color_dark = "#FF007A9E"
+background_color = "#F200CFCF"
+text_color = "#FF003554"
+border_color = "#FF007A9E"
 border_width = 1
 padding_x = -1
 padding_y = -1
@@ -270,12 +251,9 @@ tap_max_duration = 300
 [sticky_modifiers.ui]
 font_size = 10
 font_family = ""
-background_color_light = "#F200CFCF"
-background_color_dark = "#F200CFCF"
-text_color_light = "#FF003554"
-text_color_dark = "#FF003554"
-border_color_light = "#FF007A9E"
-border_color_dark = "#FF007A9E"
+background_color = "#F200CFCF"
+text_color = "#FF003554"
+border_color = "#FF007A9E"
 border_width = 1
 padding_x = -1
 padding_y = -1
