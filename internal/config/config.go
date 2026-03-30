@@ -846,12 +846,9 @@ func (c *Config) ValidateModeIndicator() error {
 	}
 
 	err = validateColors([]colorField{
-		{c.ModeIndicator.UI.BackgroundColor.Light, "mode_indicator.ui.background_color"},
-		{c.ModeIndicator.UI.BackgroundColor.Dark, "mode_indicator.ui.background_color"},
-		{c.ModeIndicator.UI.TextColor.Light, "mode_indicator.ui.text_color"},
-		{c.ModeIndicator.UI.TextColor.Dark, "mode_indicator.ui.text_color"},
-		{c.ModeIndicator.UI.BorderColor.Light, "mode_indicator.ui.border_color"},
-		{c.ModeIndicator.UI.BorderColor.Dark, "mode_indicator.ui.border_color"},
+		{c.ModeIndicator.UI.BackgroundColor, "mode_indicator.ui.background_color"},
+		{c.ModeIndicator.UI.TextColor, "mode_indicator.ui.text_color"},
+		{c.ModeIndicator.UI.BorderColor, "mode_indicator.ui.border_color"},
 	})
 	if err != nil {
 		return err
@@ -870,18 +867,9 @@ func (c *Config) ValidateModeIndicator() error {
 
 	for _, mode := range modes {
 		err = validateColors([]colorField{
-			{
-				mode.cfg.BackgroundColor.Light,
-				"mode_indicator." + mode.name + ".background_color",
-			},
-			{
-				mode.cfg.BackgroundColor.Dark,
-				"mode_indicator." + mode.name + ".background_color",
-			},
-			{mode.cfg.TextColor.Light, "mode_indicator." + mode.name + ".text_color"},
-			{mode.cfg.TextColor.Dark, "mode_indicator." + mode.name + ".text_color"},
-			{mode.cfg.BorderColor.Light, "mode_indicator." + mode.name + ".border_color"},
-			{mode.cfg.BorderColor.Dark, "mode_indicator." + mode.name + ".border_color"},
+			{mode.cfg.BackgroundColor, "mode_indicator." + mode.name + ".background_color"},
+			{mode.cfg.TextColor, "mode_indicator." + mode.name + ".text_color"},
+			{mode.cfg.BorderColor, "mode_indicator." + mode.name + ".border_color"},
 		})
 		if err != nil {
 			return err

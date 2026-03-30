@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -36,13 +35,13 @@ func isValidModifier(mod string) bool {
 }
 
 type colorField struct {
-	value     string
+	color     Color
 	fieldName string
 }
 
 func validateColors(fields []colorField) error {
 	for _, field := range fields {
-		err := ValidateColor(field.value, field.fieldName)
+		err := field.color.Validate(field.fieldName)
 		if err != nil {
 			return err
 		}
@@ -79,14 +78,10 @@ func (c *Config) ValidateHints() error {
 	}
 
 	err := validateColors([]colorField{
-		{c.Hints.UI.BackgroundColor.Light, "hints.ui.background_color"},
-		{c.Hints.UI.BackgroundColor.Dark, "hints.ui.background_color"},
-		{c.Hints.UI.TextColor.Light, "hints.ui.text_color"},
-		{c.Hints.UI.TextColor.Dark, "hints.ui.text_color"},
-		{c.Hints.UI.MatchedTextColor.Light, "hints.ui.matched_text_color"},
-		{c.Hints.UI.MatchedTextColor.Dark, "hints.ui.matched_text_color"},
-		{c.Hints.UI.BorderColor.Light, "hints.ui.border_color"},
-		{c.Hints.UI.BorderColor.Dark, "hints.ui.border_color"},
+		{c.Hints.UI.BackgroundColor, "hints.ui.background_color"},
+		{c.Hints.UI.TextColor, "hints.ui.text_color"},
+		{c.Hints.UI.MatchedTextColor, "hints.ui.matched_text_color"},
+		{c.Hints.UI.BorderColor, "hints.ui.border_color"},
 	})
 	if err != nil {
 		return err
@@ -193,18 +188,12 @@ func (c *Config) ValidateGrid() error {
 	}
 
 	err := validateColors([]colorField{
-		{c.Grid.UI.BackgroundColor.Light, "grid.ui.background_color"},
-		{c.Grid.UI.BackgroundColor.Dark, "grid.ui.background_color"},
-		{c.Grid.UI.TextColor.Light, "grid.ui.text_color"},
-		{c.Grid.UI.TextColor.Dark, "grid.ui.text_color"},
-		{c.Grid.UI.MatchedTextColor.Light, "grid.ui.matched_text_color"},
-		{c.Grid.UI.MatchedTextColor.Dark, "grid.ui.matched_text_color"},
-		{c.Grid.UI.MatchedBackgroundColor.Light, "grid.ui.matched_background_color"},
-		{c.Grid.UI.MatchedBackgroundColor.Dark, "grid.ui.matched_background_color"},
-		{c.Grid.UI.MatchedBorderColor.Light, "grid.ui.matched_border_color"},
-		{c.Grid.UI.MatchedBorderColor.Dark, "grid.ui.matched_border_color"},
-		{c.Grid.UI.BorderColor.Light, "grid.ui.border_color"},
-		{c.Grid.UI.BorderColor.Dark, "grid.ui.border_color"},
+		{c.Grid.UI.BackgroundColor, "grid.ui.background_color"},
+		{c.Grid.UI.TextColor, "grid.ui.text_color"},
+		{c.Grid.UI.MatchedTextColor, "grid.ui.matched_text_color"},
+		{c.Grid.UI.MatchedBackgroundColor, "grid.ui.matched_background_color"},
+		{c.Grid.UI.MatchedBorderColor, "grid.ui.matched_border_color"},
+		{c.Grid.UI.BorderColor, "grid.ui.border_color"},
 	})
 	if err != nil {
 		return err
@@ -235,12 +224,9 @@ func (c *Config) ValidateStickyModifiers() error {
 	}
 
 	return validateColors([]colorField{
-		{c.StickyModifiers.UI.BackgroundColor.Light, "sticky_modifiers.ui.background_color"},
-		{c.StickyModifiers.UI.BackgroundColor.Dark, "sticky_modifiers.ui.background_color"},
-		{c.StickyModifiers.UI.TextColor.Light, "sticky_modifiers.ui.text_color"},
-		{c.StickyModifiers.UI.TextColor.Dark, "sticky_modifiers.ui.text_color"},
-		{c.StickyModifiers.UI.BorderColor.Light, "sticky_modifiers.ui.border_color"},
-		{c.StickyModifiers.UI.BorderColor.Dark, "sticky_modifiers.ui.border_color"},
+		{c.StickyModifiers.UI.BackgroundColor, "sticky_modifiers.ui.background_color"},
+		{c.StickyModifiers.UI.TextColor, "sticky_modifiers.ui.text_color"},
+		{c.StickyModifiers.UI.BorderColor, "sticky_modifiers.ui.border_color"},
 	})
 }
 
@@ -495,26 +481,11 @@ func validateModifierCombo(key, fieldName string) error {
 }
 
 // ValidateColor validates hex color values (#RRGGBB/#AARRGGBB).
+// It delegates to Color.Validate using the pre-compiled colorRegex.
 func ValidateColor(color, fieldName string) error {
-	if color == "" {
-		return nil
-	}
+	c := &Color{Light: color}
 
-	matched, err := regexp.MatchString("^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$", color)
-	if err != nil {
-		return err
-	}
-
-	if !matched {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"%s has invalid color format: %s",
-			fieldName,
-			color,
-		)
-	}
-
-	return nil
+	return c.Validate(fieldName)
 }
 
 // ValidateRecursiveGrid validates recursive grid configuration.
@@ -578,28 +549,11 @@ func (c *Config) ValidateRecursiveGrid() error {
 	}
 
 	err := validateColors([]colorField{
-		{c.RecursiveGrid.UI.LineColor.Light, "recursive_grid.ui.line_color"},
-		{c.RecursiveGrid.UI.LineColor.Dark, "recursive_grid.ui.line_color"},
-		{c.RecursiveGrid.UI.HighlightColor.Light, "recursive_grid.ui.highlight_color"},
-		{c.RecursiveGrid.UI.HighlightColor.Dark, "recursive_grid.ui.highlight_color"},
-		{c.RecursiveGrid.UI.TextColor.Light, "recursive_grid.ui.text_color"},
-		{c.RecursiveGrid.UI.TextColor.Dark, "recursive_grid.ui.text_color"},
-		{
-			c.RecursiveGrid.UI.LabelBackgroundColor.Light,
-			"recursive_grid.ui.label_background_color",
-		},
-		{
-			c.RecursiveGrid.UI.LabelBackgroundColor.Dark,
-			"recursive_grid.ui.label_background_color",
-		},
-		{
-			c.RecursiveGrid.UI.SubKeyPreviewTextColor.Light,
-			"recursive_grid.ui.sub_key_preview_text_color",
-		},
-		{
-			c.RecursiveGrid.UI.SubKeyPreviewTextColor.Dark,
-			"recursive_grid.ui.sub_key_preview_text_color",
-		},
+		{c.RecursiveGrid.UI.LineColor, "recursive_grid.ui.line_color"},
+		{c.RecursiveGrid.UI.HighlightColor, "recursive_grid.ui.highlight_color"},
+		{c.RecursiveGrid.UI.TextColor, "recursive_grid.ui.text_color"},
+		{c.RecursiveGrid.UI.LabelBackgroundColor, "recursive_grid.ui.label_background_color"},
+		{c.RecursiveGrid.UI.SubKeyPreviewTextColor, "recursive_grid.ui.sub_key_preview_text_color"},
 	})
 	if err != nil {
 		return err
@@ -626,8 +580,7 @@ func (c *Config) ValidateVirtualPointer() error {
 	}
 
 	err := validateColors([]colorField{
-		{c.VirtualPointer.UI.Color.Light, "virtual_pointer.ui.color"},
-		{c.VirtualPointer.UI.Color.Dark, "virtual_pointer.ui.color"},
+		{c.VirtualPointer.UI.Color, "virtual_pointer.ui.color"},
 	})
 	if err != nil {
 		return err
