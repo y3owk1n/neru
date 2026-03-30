@@ -243,7 +243,6 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		cached.BgColor = unsafe.Pointer(
 			C.CString(
 				modeConfig.BackgroundColor.ForThemeWithOverride(
-					modeConfig.BackgroundColor,
 					o.indicatorConfig.UI.BackgroundColor,
 					o.theme,
 					config.ModeIndicatorBackgroundColorLight,
@@ -254,7 +253,6 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		cached.TextColor = unsafe.Pointer(
 			C.CString(
 				modeConfig.TextColor.ForThemeWithOverride(
-					modeConfig.TextColor,
 					o.indicatorConfig.UI.TextColor,
 					o.theme,
 					config.ModeIndicatorTextColorLight,
@@ -265,7 +263,6 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		cached.MatchedTextColor = unsafe.Pointer(
 			C.CString(
 				modeConfig.TextColor.ForThemeWithOverride(
-					modeConfig.TextColor,
 					o.indicatorConfig.UI.TextColor,
 					o.theme,
 					config.ModeIndicatorTextColorLight,
@@ -276,7 +273,6 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		cached.BorderColor = unsafe.Pointer(
 			C.CString(
 				modeConfig.BorderColor.ForThemeWithOverride(
-					modeConfig.BorderColor,
 					o.indicatorConfig.UI.BorderColor,
 					o.theme,
 					config.ModeIndicatorBorderColorLight,
