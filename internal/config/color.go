@@ -30,11 +30,29 @@ func (c *Color) UnmarshalTOML(data any) error {
 		c.Dark = val
 	case map[string]any:
 		if light, ok := val["light"]; ok {
-			c.Light, _ = light.(string)
+			lightStr, isStr := light.(string)
+			if !isStr {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"color 'light' must be a string, got %T",
+					light,
+				)
+			}
+
+			c.Light = lightStr
 		}
 
 		if dark, ok := val["dark"]; ok {
-			c.Dark, _ = dark.(string)
+			darkStr, isStr := dark.(string)
+			if !isStr {
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"color 'dark' must be a string, got %T",
+					dark,
+				)
+			}
+
+			c.Dark = darkStr
 		}
 	default:
 		return errUnsupportedColorType
