@@ -480,12 +480,23 @@ func validateModifierCombo(key, fieldName string) error {
 	return nil
 }
 
-// ValidateColor validates hex color values (#RRGGBB/#AARRGGBB).
-// It delegates to Color.Validate using the pre-compiled colorRegex.
+// ValidateColor validates a single hex color value (#RGB/#RRGGBB/#AARRGGBB).
+// It uses the pre-compiled colorRegex from Color.
 func ValidateColor(color, fieldName string) error {
-	c := &Color{Light: color}
+	if color == "" {
+		return nil
+	}
 
-	return c.Validate(fieldName)
+	if !colorRegex.MatchString(color) {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s has invalid color format: %s",
+			fieldName,
+			color,
+		)
+	}
+
+	return nil
 }
 
 // ValidateRecursiveGrid validates recursive grid configuration.

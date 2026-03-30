@@ -117,13 +117,13 @@ func (c *Color) ForThemeWithOverride(
 // Validate checks if the color values are valid hex colors.
 func (c *Color) Validate(fieldName string) error {
 	if c.Light != "" && !colorRegex.MatchString(c.Light) {
-		msg := fmt.Sprintf("%s has invalid color format: %s", fieldName, c.Light)
+		msg := fmt.Sprintf("%s (light) has invalid color format: %s", fieldName, c.Light)
 
 		return derrors.New(derrors.CodeInvalidConfig, msg)
 	}
 
 	if c.Dark != "" && !colorRegex.MatchString(c.Dark) {
-		msg := fmt.Sprintf("%s has invalid color format: %s", fieldName, c.Dark)
+		msg := fmt.Sprintf("%s (dark) has invalid color format: %s", fieldName, c.Dark)
 
 		return derrors.New(derrors.CodeInvalidConfig, msg)
 	}
