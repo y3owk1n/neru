@@ -321,6 +321,7 @@ func normalizeFullwidthChars(key string) string {
 // Config represents the complete application configuration structure.
 type Config struct {
 	General         GeneralConfig         `json:"general"         toml:"general"`
+	Theme           ThemeConfig           `json:"theme"           toml:"theme"`
 	Hotkeys         HotkeysConfig         `json:"hotkeys"         toml:"-"`
 	Hints           HintsConfig           `json:"hints"           toml:"hints"`
 	Grid            GridConfig            `json:"grid"            toml:"grid"`
@@ -332,6 +333,22 @@ type Config struct {
 	Logging         LoggingConfig         `json:"logging"         toml:"logging"`
 	SmoothCursor    SmoothCursorConfig    `json:"smoothCursor"    toml:"smooth_cursor"`
 	Systray         SystrayConfig         `json:"systray"         toml:"systray"`
+}
+
+// ThemePalette defines a semantic base palette for one appearance mode.
+// Component defaults are derived from these solid colors by applying alpha.
+type ThemePalette struct {
+	Surface     string `json:"surface"     toml:"surface"`
+	Accent      string `json:"accent"      toml:"accent"`
+	AccentAlt   string `json:"accentAlt"   toml:"accent_alt"`
+	OnAccentAlt string `json:"onAccentAlt" toml:"on_accent_alt"`
+	Text        string `json:"text"        toml:"text"`
+}
+
+// ThemeConfig defines the light and dark palettes used to derive UI defaults.
+type ThemeConfig struct {
+	Light ThemePalette `json:"light" toml:"light"`
+	Dark  ThemePalette `json:"dark"  toml:"dark"`
 }
 
 // GeneralConfig defines general application-wide settings.
@@ -640,6 +657,11 @@ func (c *Config) Validate() error {
 	}
 
 	err := c.ValidateGeneral()
+	if err != nil {
+		return err
+	}
+
+	err = c.ValidateTheme()
 	if err != nil {
 		return err
 	}

@@ -178,69 +178,6 @@ const (
 	DefaultRecursiveGridFontSize = 10
 	// DefaultVirtualPointerSize is the default virtual pointer dot radius in points.
 	DefaultVirtualPointerSize = 3
-	// VirtualPointerColorLight is the default light mode color for the virtual pointer.
-	VirtualPointerColorLight = "#FF007A9E"
-	// VirtualPointerColorDark is the default dark mode color for the virtual pointer.
-	VirtualPointerColorDark = "#FF00CFCF"
-
-	// HintsBackgroundColorLight is the light mode background color for hints.
-	HintsBackgroundColorLight = "#F200CFCF"
-	// HintsBackgroundColorDark is the dark mode background color for hints.
-	HintsBackgroundColorDark = "#F2007A9E"
-	// HintsTextColorLight is the light mode text color for hints.
-	HintsTextColorLight = "#FF003554"
-	// HintsTextColorDark is the dark mode text color for hints.
-	HintsTextColorDark = "#FFFFFFFF"
-	// HintsMatchedTextColorLight is the light mode matched text color for hints.
-	HintsMatchedTextColorLight = "#FFAAEEFF"
-	// HintsMatchedTextColorDark is the dark mode matched text color for hints.
-	HintsMatchedTextColorDark = "#FF003554"
-	// HintsBorderColorLight is the light mode border color for hints.
-	HintsBorderColorLight = "#FF008A8A"
-	// HintsBorderColorDark is the dark mode border color for hints.
-	HintsBorderColorDark = "#FF00B4D8"
-
-	// GridBackgroundColorLight is the light mode background color for grid cells.
-	GridBackgroundColorLight = "#9900B4D8"
-	// GridBackgroundColorDark is the dark mode background color for grid cells.
-	GridBackgroundColorDark = "#99003554"
-	// GridTextColorLight is the light mode text color for grid labels.
-	GridTextColorLight = "#FF003554"
-	// GridTextColorDark is the dark mode text color for grid labels.
-	GridTextColorDark = "#FFB3E8F5"
-	// GridMatchedTextColorLight is the light mode matched text color for grid cells.
-	GridMatchedTextColorLight = "#FFAAEEFF"
-	// GridMatchedTextColorDark is the dark mode matched text color for grid cells.
-	GridMatchedTextColorDark = "#FFFFFFFF"
-	// GridMatchedBackgroundColorLight is the light mode matched background color for grid cells.
-	GridMatchedBackgroundColorLight = "#B300CFCF"
-	// GridMatchedBackgroundColorDark is the dark mode matched background color for grid cells.
-	GridMatchedBackgroundColorDark = "#B300B4D8"
-	// GridMatchedBorderColorLight is the light mode matched border color for grid cells.
-	GridMatchedBorderColorLight = "#B300CFCF"
-	// GridMatchedBorderColorDark is the dark mode matched border color for grid cells.
-	GridMatchedBorderColorDark = "#B300B4D8"
-	// GridBorderColorLight is the light mode border color for grid cells.
-	GridBorderColorLight = "#9900B4D8"
-	// GridBorderColorDark is the dark mode border color for grid cells.
-	GridBorderColorDark = "#99003554"
-
-	// RecursiveGridLineColorLight is the light mode line color for recursive grid.
-	RecursiveGridLineColorLight = "#FF007A9E"
-	// RecursiveGridLineColorDark is the dark mode line color for recursive grid.
-	RecursiveGridLineColorDark = "#FF00CFCF"
-	// RecursiveGridHighlightColorLight is the light mode highlight color for recursive grid.
-	RecursiveGridHighlightColorLight = "#4D007A9E"
-	// RecursiveGridHighlightColorDark is the dark mode highlight color for recursive grid.
-	RecursiveGridHighlightColorDark = "#4D00CFCF"
-	// RecursiveGridTextColorLight is the default text color for Light Mode for recursive grid.
-	RecursiveGridTextColorLight = "#FF007A9E"
-	// RecursiveGridTextColorDark is the default text color for Dark Mode for recursive grid.
-	RecursiveGridTextColorDark = "#FF00CFCF"
-	// RecursiveGridLabelBackgroundColorLight is the default label badge color for Light Mode.
-	RecursiveGridLabelBackgroundColorLight = "#FFAAEEFF"
-	// RecursiveGridLabelBackgroundColorDark is the default label badge color for Dark Mode.
-	RecursiveGridLabelBackgroundColorDark = "#FF003554"
 	// DefaultRecursiveGridLabelBackgroundPaddingX preserves automatic horizontal badge padding.
 	DefaultRecursiveGridLabelBackgroundPaddingX = -1
 	// DefaultRecursiveGridLabelBackgroundPaddingY preserves automatic vertical badge padding.
@@ -257,42 +194,11 @@ const (
 	// DefaultRecursiveGridSubKeyPreviewAutohideMultiplier is the default minimum cell size multiplier
 	// for sub-key preview autohide. Set to 0 to disable autohide.
 	DefaultRecursiveGridSubKeyPreviewAutohideMultiplier = 1.5
-	// RecursiveGridSubKeyPreviewTextColorLight is the default Light Mode color for sub-key preview labels.
-	RecursiveGridSubKeyPreviewTextColorLight = "#66007A9E"
-	// RecursiveGridSubKeyPreviewTextColorDark is the default Dark Mode color for sub-key preview labels.
-	RecursiveGridSubKeyPreviewTextColorDark = "#6600CFCF"
-
-	// ModeIndicatorBackgroundColorLight is the light mode background color for the mode indicator.
-	ModeIndicatorBackgroundColorLight = "#F200CFCF"
-	// ModeIndicatorBackgroundColorDark is the dark mode background color for the mode indicator.
-	ModeIndicatorBackgroundColorDark = "#F200CFCF"
-	// ModeIndicatorTextColorLight is the light mode text color for the mode indicator.
-	ModeIndicatorTextColorLight = "#FF003554"
-	// ModeIndicatorTextColorDark is the dark mode text color for the mode indicator.
-	ModeIndicatorTextColorDark = "#FF003554"
-	// ModeIndicatorBorderColorLight is the light mode border color for the mode indicator.
-	ModeIndicatorBorderColorLight = "#FF007A9E"
-	// ModeIndicatorBorderColorDark is the dark mode border color for the mode indicator.
-	ModeIndicatorBorderColorDark = "#FF007A9E"
-
 	// DefaultStickyModifiersTapMaxDuration is the default maximum hold duration (ms)
 	// for a modifier key press to be considered a "tap" for sticky toggle.
 	// If held longer than this, the release will not toggle the sticky modifier.
 	// 0 means no threshold (always toggle on release).
 	DefaultStickyModifiersTapMaxDuration = 300
-
-	// StickyModifiersBackgroundColorLight is the light mode background color for the sticky modifiers indicator.
-	StickyModifiersBackgroundColorLight = "#F200CFCF"
-	// StickyModifiersBackgroundColorDark is the dark mode background color for the sticky modifiers indicator.
-	StickyModifiersBackgroundColorDark = "#F200CFCF"
-	// StickyModifiersTextColorLight is the light mode text color for the sticky modifiers indicator.
-	StickyModifiersTextColorLight = "#FF003554"
-	// StickyModifiersTextColorDark is the dark mode text color for the sticky modifiers indicator.
-	StickyModifiersTextColorDark = "#FF003554"
-	// StickyModifiersBorderColorLight is the light mode border color for the sticky modifiers indicator.
-	StickyModifiersBorderColorLight = "#FF007A9E"
-	// StickyModifiersBorderColorDark is the dark mode border color for the sticky modifiers indicator.
-	StickyModifiersBorderColorDark = "#FF007A9E"
 
 	// DefaultStickyModifiersFontSize is the default font size for the sticky modifiers indicator.
 	DefaultStickyModifiersFontSize = 10
@@ -310,8 +216,7 @@ const (
 	DefaultStickyModifiersYOffset = 20
 )
 
-// commonDefaultConfig returns the common application configuration with sensible defaults.
-func commonDefaultConfig() *Config {
+func newDefaultConfig() *Config {
 	return &Config{
 		General: GeneralConfig{
 			ExcludedApps:                      []string{},
@@ -322,6 +227,7 @@ func commonDefaultConfig() *Config {
 			HideOverlayInScreenShare:          false,
 			KBLayoutToUse:                     "",
 		},
+		Theme: defaultThemeConfig(),
 		Hotkeys: HotkeysConfig{
 			Bindings: map[string][]string{
 				"Cmd+Shift+Space": {"hints"},
@@ -350,28 +256,16 @@ func commonDefaultConfig() *Config {
 			},
 
 			UI: HintsUI{
-				FontSize:     DefaultHintFontSize,
-				FontFamily:   "",
-				BorderRadius: DefaultHintBorderRadius,
-				PaddingX:     DefaultHintPaddingX,
-				PaddingY:     DefaultHintPaddingY,
-				BorderWidth:  1,
-				BackgroundColor: Color{
-					Light: HintsBackgroundColorLight,
-					Dark:  HintsBackgroundColorDark,
-				},
-				TextColor: Color{
-					Light: HintsTextColorLight,
-					Dark:  HintsTextColorDark,
-				},
-				MatchedTextColor: Color{
-					Light: HintsMatchedTextColorLight,
-					Dark:  HintsMatchedTextColorDark,
-				},
-				BorderColor: Color{
-					Light: HintsBorderColorLight,
-					Dark:  HintsBorderColorDark,
-				},
+				FontSize:         DefaultHintFontSize,
+				FontFamily:       "",
+				BorderRadius:     DefaultHintBorderRadius,
+				PaddingX:         DefaultHintPaddingX,
+				PaddingY:         DefaultHintPaddingY,
+				BorderWidth:      1,
+				BackgroundColor:  Color{},
+				TextColor:        Color{},
+				MatchedTextColor: Color{},
+				BorderColor:      Color{},
 			},
 
 			IncludeMenubarHints:           false,
@@ -416,33 +310,15 @@ func commonDefaultConfig() *Config {
 			},
 
 			UI: GridUI{
-				FontSize:    DefaultGridFontSize,
-				FontFamily:  "",
-				BorderWidth: 1,
-				BackgroundColor: Color{
-					Light: GridBackgroundColorLight,
-					Dark:  GridBackgroundColorDark,
-				},
-				TextColor: Color{
-					Light: GridTextColorLight,
-					Dark:  GridTextColorDark,
-				},
-				MatchedTextColor: Color{
-					Light: GridMatchedTextColorLight,
-					Dark:  GridMatchedTextColorDark,
-				},
-				MatchedBackgroundColor: Color{
-					Light: GridMatchedBackgroundColorLight,
-					Dark:  GridMatchedBackgroundColorDark,
-				},
-				MatchedBorderColor: Color{
-					Light: GridMatchedBorderColorLight,
-					Dark:  GridMatchedBorderColorDark,
-				},
-				BorderColor: Color{
-					Light: GridBorderColorLight,
-					Dark:  GridBorderColorDark,
-				},
+				FontSize:               DefaultGridFontSize,
+				FontFamily:             "",
+				BorderWidth:            1,
+				BackgroundColor:        Color{},
+				TextColor:              Color{},
+				MatchedTextColor:       Color{},
+				MatchedBackgroundColor: Color{},
+				MatchedBorderColor:     Color{},
+				BorderColor:            Color{},
 			},
 
 			LiveMatchUpdate: true,
@@ -473,25 +349,13 @@ func commonDefaultConfig() *Config {
 			},
 
 			UI: RecursiveGridUI{
-				LineColor: Color{
-					Light: RecursiveGridLineColorLight,
-					Dark:  RecursiveGridLineColorDark,
-				},
-				LineWidth: DefaultRecursiveGridLineWidth,
-				HighlightColor: Color{
-					Light: RecursiveGridHighlightColorLight,
-					Dark:  RecursiveGridHighlightColorDark,
-				},
-				TextColor: Color{
-					Light: RecursiveGridTextColorLight,
-					Dark:  RecursiveGridTextColorDark,
-				},
-				FontSize:   DefaultRecursiveGridFontSize,
-				FontFamily: "",
-				LabelBackgroundColor: Color{
-					Light: RecursiveGridLabelBackgroundColorLight,
-					Dark:  RecursiveGridLabelBackgroundColorDark,
-				},
+				LineColor:                       Color{},
+				LineWidth:                       DefaultRecursiveGridLineWidth,
+				HighlightColor:                  Color{},
+				TextColor:                       Color{},
+				FontSize:                        DefaultRecursiveGridFontSize,
+				FontFamily:                      "",
+				LabelBackgroundColor:            Color{},
 				LabelBackgroundPaddingX:         DefaultRecursiveGridLabelBackgroundPaddingX,
 				LabelBackgroundPaddingY:         DefaultRecursiveGridLabelBackgroundPaddingY,
 				LabelBackgroundBorderRadius:     DefaultRecursiveGridLabelBackgroundBorderRadius,
@@ -500,10 +364,7 @@ func commonDefaultConfig() *Config {
 				SubKeyPreview:                   DefaultRecursiveGridSubKeyPreview,
 				SubKeyPreviewFontSize:           DefaultRecursiveGridSubKeyPreviewFontSize,
 				SubKeyPreviewAutohideMultiplier: DefaultRecursiveGridSubKeyPreviewAutohideMultiplier,
-				SubKeyPreviewTextColor: Color{
-					Light: RecursiveGridSubKeyPreviewTextColorLight,
-					Dark:  RecursiveGridSubKeyPreviewTextColorDark,
-				},
+				SubKeyPreviewTextColor:          Color{},
 			},
 
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
@@ -513,11 +374,8 @@ func commonDefaultConfig() *Config {
 		VirtualPointer: VirtualPointerConfig{
 			Enabled: true,
 			UI: VirtualPointerUI{
-				Size: DefaultVirtualPointerSize,
-				Color: Color{
-					Light: VirtualPointerColorLight,
-					Dark:  VirtualPointerColorDark,
-				},
+				Size:  DefaultVirtualPointerSize,
+				Color: Color{},
 			},
 		},
 		ModeIndicator: ModeIndicatorConfig{
@@ -538,20 +396,11 @@ func commonDefaultConfig() *Config {
 				Text:    "Recursive Grid",
 			},
 			UI: ModeIndicatorUI{
-				FontSize:   DefaultScrollFontSize,
-				FontFamily: "",
-				BackgroundColor: Color{
-					Light: ModeIndicatorBackgroundColorLight,
-					Dark:  ModeIndicatorBackgroundColorDark,
-				},
-				TextColor: Color{
-					Light: ModeIndicatorTextColorLight,
-					Dark:  ModeIndicatorTextColorDark,
-				},
-				BorderColor: Color{
-					Light: ModeIndicatorBorderColorLight,
-					Dark:  ModeIndicatorBorderColorDark,
-				},
+				FontSize:         DefaultScrollFontSize,
+				FontFamily:       "",
+				BackgroundColor:  Color{},
+				TextColor:        Color{},
+				BorderColor:      Color{},
 				BorderWidth:      1,
 				PaddingX:         DefaultScrollPaddingX,
 				PaddingY:         DefaultScrollPaddingY,
@@ -564,20 +413,11 @@ func commonDefaultConfig() *Config {
 			Enabled:        true,
 			TapMaxDuration: DefaultStickyModifiersTapMaxDuration,
 			UI: StickyModifiersUI{
-				FontSize:   DefaultStickyModifiersFontSize,
-				FontFamily: "",
-				BackgroundColor: Color{
-					Light: StickyModifiersBackgroundColorLight,
-					Dark:  StickyModifiersBackgroundColorDark,
-				},
-				TextColor: Color{
-					Light: StickyModifiersTextColorLight,
-					Dark:  StickyModifiersTextColorDark,
-				},
-				BorderColor: Color{
-					Light: StickyModifiersBorderColorLight,
-					Dark:  StickyModifiersBorderColorDark,
-				},
+				FontSize:         DefaultStickyModifiersFontSize,
+				FontFamily:       "",
+				BackgroundColor:  Color{},
+				TextColor:        Color{},
+				BorderColor:      Color{},
 				BorderWidth:      DefaultStickyModifiersBorderWidth,
 				PaddingX:         DefaultStickyModifiersPaddingX,
 				PaddingY:         DefaultStickyModifiersPaddingY,

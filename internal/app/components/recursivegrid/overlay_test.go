@@ -264,3 +264,25 @@ func TestBuildStyle_LabelBackgroundEnabledUsesDedicatedBadgeColor(t *testing.T) 
 		)
 	}
 }
+
+func TestBuildStyle_SubKeyPreviewUsesMainLabelColorByDefault(t *testing.T) {
+	cfg := config.DefaultConfig().RecursiveGrid
+
+	lightStyle := recursivegrid.BuildStyle(cfg, &mockThemeProvider{darkMode: false})
+	if lightStyle.SubKeyPreviewTextColor() != lightStyle.TextColor() {
+		t.Fatalf(
+			"expected light subkey preview color %q to match main text color %q",
+			lightStyle.SubKeyPreviewTextColor(),
+			lightStyle.TextColor(),
+		)
+	}
+
+	darkStyle := recursivegrid.BuildStyle(cfg, &mockThemeProvider{darkMode: true})
+	if darkStyle.SubKeyPreviewTextColor() != darkStyle.TextColor() {
+		t.Fatalf(
+			"expected dark subkey preview color %q to match main text color %q",
+			darkStyle.SubKeyPreviewTextColor(),
+			darkStyle.TextColor(),
+		)
+	}
+}

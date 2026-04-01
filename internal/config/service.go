@@ -131,7 +131,7 @@ func NewService(
 // how to handle validation failures (e.g., show alert and use default config).
 func (s *Service) LoadWithValidation(path string) *LoadResult {
 	configResult := &LoadResult{
-		Config:     DefaultConfig(),
+		Config:     defaultConfigForDecoding(),
 		ConfigPath: path,
 	}
 
@@ -184,6 +184,8 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 		return configResult
 	}
+
+	configResult.Config.ResolveThemeDefaults()
 
 	// Process hotkeys from raw map.
 	// User entries are merged on top of the defaults from DefaultConfig().

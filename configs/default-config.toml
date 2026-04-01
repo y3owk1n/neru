@@ -15,6 +15,22 @@ should_exit_after_passthrough = false        # Exit the current mode after a sho
 passthrough_unbounded_keys_blacklist = []    # Shortcuts to still consume when passthrough is on
 hide_overlay_in_screen_share = false         # Hide overlay from screen sharing apps
 
+# Theme palette
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#theme-palette
+[theme.light]
+surface = "#EEF2FF"
+accent = "#465FBC"
+accent_alt = "#0B2377"
+on_accent_alt = "#F8FAFF"
+text = "#17327A"
+
+[theme.dark]
+surface = "#0A1338"
+accent = "#6E82D6"
+accent_alt = "#8FA2F0"
+on_accent_alt = "#081022"
+text = "#E8EEFF"
+
 # Hotkeys
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#hotkeys
 # See https://github.com/y3owk1n/neru/blob/main/docs/CLI.md
@@ -87,10 +103,6 @@ border_radius = -1                          # -1 = auto pill
 padding_x = -1                              # -1 = auto based on font size
 padding_y = -1                              # -1 = auto based on font size
 border_width = 1
-background_color = { light = "#F200CFCF", dark = "#F2007A9E" }
-text_color = { light = "#FF003554", dark = "#FFFFFFFF" }
-matched_text_color = { light = "#FFAAEEFF", dark = "#FF003554" }
-border_color = { light = "#FF008A8A", dark = "#FF00B4D8" }
 
 # Grid mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#grid-mode
@@ -122,12 +134,6 @@ enable_gc = false                           # Periodic memory cleanup (adds CPU 
 font_size = 10
 font_family = ""
 border_width = 1
-background_color = { light = "#9900B4D8", dark = "#99003554" }
-text_color = { light = "#FF003554", dark = "#FFB3E8F5" }
-matched_text_color = { light = "#FFAAEEFF", dark = "#FFFFFFFF" }
-matched_background_color = { light = "#B300CFCF", dark = "#B300B4D8" }
-matched_border_color = { light = "#B300CFCF", dark = "#B300B4D8" }
-border_color = { light = "#9900B4D8", dark = "#99003554" }
 
 # Recursive grid mode (recommended)
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#recursive-grid-mode-recommended
@@ -156,14 +162,10 @@ max_depth = 10                              # Maximum recursion levels (1–20)
 "Right" = "action move_mouse_relative --dx=10 --dy=0"
 
 [recursive_grid.ui]
-line_color = { light = "#FF007A9E", dark = "#FF00CFCF" }
 line_width = 1
-highlight_color = { light = "#4D007A9E", dark = "#4D00CFCF" }
-text_color = { light = "#FF007A9E", dark = "#FF00CFCF" }
 font_size = 10
 font_family = ""
 label_background = false                    # Add rounded backgrounds behind cell labels
-label_background_color = { light = "#FFAAEEFF", dark = "#FF003554" }
 label_background_padding_x = -1
 label_background_padding_y = -1
 label_background_border_radius = -1
@@ -171,7 +173,6 @@ label_background_border_width = 1
 sub_key_preview = false                     # Draw miniature key grid inside each cell
 sub_key_preview_font_size = 8
 sub_key_preview_autohide_multiplier = 1.5
-sub_key_preview_text_color = { light = "#66007A9E", dark = "#6600CFCF" }
 
 # Virtual pointer
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#virtual-pointer
@@ -180,7 +181,6 @@ enabled = true
 
 [virtual_pointer.ui]
 size = 3
-color = { light = "#FF007A9E", dark = "#FF00CFCF" }
 
 # Scroll mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#scroll-mode
@@ -232,9 +232,6 @@ text = "Recursive Grid"
 [mode_indicator.ui]
 font_size = 10
 font_family = ""
-background_color = "#F200CFCF"
-text_color = "#FF003554"
-border_color = "#FF007A9E"
 border_width = 1
 padding_x = -1
 padding_y = -1
@@ -251,9 +248,6 @@ tap_max_duration = 300
 [sticky_modifiers.ui]
 font_size = 10
 font_family = ""
-background_color = "#F200CFCF"
-text_color = "#FF003554"
-border_color = "#FF007A9E"
 border_width = 1
 padding_x = -1
 padding_y = -1

@@ -1,7 +1,11 @@
 package config_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+
+	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
 )
@@ -230,5 +234,120 @@ func TestForTheme_ThemeAwareDefaults(t *testing.T) {
 	result = _config.ForTheme(lightTheme, testDefaultLight, testDefaultDark)
 	if result != testDefaultLight {
 		t.Errorf("Expected default light %q, got %q", testDefaultLight, result)
+	}
+}
+
+func TestDefaultConfig_ResolvesThemeDefaults(t *testing.T) {
+	cfg := config.DefaultConfig()
+
+	if cfg.Hints.UI.BackgroundColor.Light != config.HintsBackgroundColorLight {
+		t.Fatalf("expected default hints light background %q, got %q",
+			config.HintsBackgroundColorLight,
+			cfg.Hints.UI.BackgroundColor.Light,
+		)
+	}
+
+	if cfg.Grid.UI.MatchedBackgroundColor.Dark != config.GridMatchedBackgroundColorDark {
+		t.Fatalf("expected default grid dark matched background %q, got %q",
+			config.GridMatchedBackgroundColorDark,
+			cfg.Grid.UI.MatchedBackgroundColor.Dark,
+		)
+	}
+}
+
+func TestLoadWithValidation_ThemePaletteDrivesDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `
+[theme.light]
+surface = "#F1F9FF"
+accent = "#0A8F8A"
+accent_alt = "#2166F3"
+on_accent_alt = "#F7FBFF"
+text = "#102A43"
+
+[theme.dark]
+surface = "#10263A"
+accent = "#5BE4D8"
+accent_alt = "#7DB6FF"
+on_accent_alt = "#06101D"
+text = "#F2FBFF"
+`
+
+	err := os.WriteFile(configPath, []byte(content), 0o644)
+	if err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+	result := service.LoadWithValidation(configPath)
+	if result.ValidationError != nil {
+		t.Fatalf("load config: %v", result.ValidationError)
+	}
+
+	if got := result.Config.Hints.UI.BackgroundColor.Light; got != "#F2F1F9FF" {
+		t.Fatalf("expected derived hints light background %q, got %q", "#F2F1F9FF", got)
+	}
+
+	if got := result.Config.Grid.UI.BorderColor.Dark; got != "#995BE4D8" {
+		t.Fatalf("expected derived grid dark border %q, got %q", "#995BE4D8", got)
+	}
+
+	if got := result.Config.VirtualPointer.UI.Color.Light; got != "#2166F3" {
+		t.Fatalf("expected derived virtual pointer light color %q, got %q", "#2166F3", got)
+	}
+
+	if got := result.Config.Grid.UI.MatchedTextColor.Light; got != "#F7FBFF" {
+		t.Fatalf("expected derived matched grid light text %q, got %q", "#F7FBFF", got)
+	}
+
+	if got := result.Config.Grid.UI.MatchedBackgroundColor.Light; got != "#730A8F8A" {
+		t.Fatalf("expected derived matched grid light background %q, got %q", "#730A8F8A", got)
+	}
+}
+
+func TestLoadWithValidation_ExplicitColorOverrideBeatsTheme(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `
+[theme.light]
+surface = "#F1F9FF"
+accent = "#0A8F8A"
+accent_alt = "#2166F3"
+on_accent_alt = "#F7FBFF"
+text = "#102A43"
+
+[theme.dark]
+surface = "#10263A"
+accent = "#5BE4D8"
+accent_alt = "#7DB6FF"
+on_accent_alt = "#06101D"
+text = "#F2FBFF"
+
+[hints.ui]
+border_color = { light = "#FF123456" }
+`
+
+	err := os.WriteFile(configPath, []byte(content), 0o644)
+	if err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+	result := service.LoadWithValidation(configPath)
+	if result.ValidationError != nil {
+		t.Fatalf("load config: %v", result.ValidationError)
+	}
+
+	if got := result.Config.Hints.UI.BorderColor.Light; got != "#FF123456" {
+		t.Fatalf("expected explicit light override %q, got %q", "#FF123456", got)
+	}
+
+	if got := result.Config.Hints.UI.BorderColor.Dark; got != "#5BE4D8" {
+		t.Fatalf("expected dark fallback from theme %q, got %q", "#5BE4D8", got)
 	}
 }

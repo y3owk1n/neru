@@ -50,6 +50,26 @@ func validateColors(fields []colorField) error {
 	return nil
 }
 
+func validateThemePalette(name string, palette ThemePalette) error {
+	return validateColors([]colorField{
+		{color: Color{Light: palette.Surface}, fieldName: name + ".surface"},
+		{color: Color{Light: palette.Accent}, fieldName: name + ".accent"},
+		{color: Color{Light: palette.AccentAlt}, fieldName: name + ".accent_alt"},
+		{color: Color{Light: palette.OnAccentAlt}, fieldName: name + ".on_accent_alt"},
+		{color: Color{Light: palette.Text}, fieldName: name + ".text"},
+	})
+}
+
+// ValidateTheme validates the top-level theme palette configuration.
+func (c *Config) ValidateTheme() error {
+	err := validateThemePalette("theme.light", c.Theme.Light)
+	if err != nil {
+		return err
+	}
+
+	return validateThemePalette("theme.dark", c.Theme.Dark)
+}
+
 // ValidateHints validates the hints configuration.
 func (c *Config) ValidateHints() error {
 	if c.Hints.Enabled && len(c.Hints.ClickableRoles) == 0 {

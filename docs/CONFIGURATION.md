@@ -10,6 +10,7 @@ Neru uses TOML for configuration. This guide covers all available options with e
 
 - [Configuration Overview](#configuration-overview)
 - [Color Format](#color-format)
+- [Theme Palette](#theme-palette)
 - [Starter Config](#starter-config)
 - [Hotkeys](#hotkeys)
 - [Per-Mode Custom Hotkeys](#per-mode-custom-hotkeys)
@@ -132,6 +133,50 @@ When a color is omitted or set to empty, Neru uses its built-in theme-aware defa
 
 ---
 
+## Theme Palette
+
+Neru now exposes a top-level `[theme]` palette. Built-in defaults for hints, grid, recursive grid, the virtual pointer, the mode indicator, and sticky modifiers are derived from these base colors with component-specific alpha values.
+
+```toml
+[theme.light]
+surface = "#EEF2FF"
+accent = "#465FBC"
+accent_alt = "#0B2377"
+on_accent_alt = "#F8FAFF"
+text = "#17327A"
+
+[theme.dark]
+surface = "#0A1338"
+accent = "#6E82D6"
+accent_alt = "#8FA2F0"
+on_accent_alt = "#081022"
+text = "#E8EEFF"
+```
+
+- `surface`: translucent fills, badges, and indicator backgrounds
+- `accent`: borders, lines, and primary chrome
+- `accent_alt`: stronger emphasis for active matches, highlights, and the virtual pointer
+- `on_accent_alt`: text/icon color that sits on top of `accent_alt` surfaces
+- `text`: readable foreground text
+
+If you leave a component color unset, Neru derives it from `[theme]`. If you set a component color explicitly, that value wins for the specified light/dark variant.
+
+### Theme semantics
+
+Think of the theme palette as semantic roles rather than direct widget colors:
+
+- `surface` is the quiet base. Neru uses it for soft translucent containers like hint pills and floating indicators.
+- `text` is the default readable foreground on top of `surface` and other calm backgrounds.
+- `accent` is the structural brand color. Neru uses it for borders, lines, and outlines.
+- `accent_alt` is the stronger active/emphasis brand color. Neru uses it for selected states, highlights, and the virtual pointer.
+- `on_accent_alt` is the foreground color paired with `accent_alt`. Neru uses it when text sits on an emphasized blue background, such as matched grid cells.
+
+This separation matters because readable text on a strong blue background often needs a different color than normal body text. Keeping `on_accent_alt` explicit avoids accidental low-contrast combinations.
+
+For example, Neru's matched grid cells intentionally adapt by theme: light mode uses a softer blue-tinted selection fill with darker blue text, while dark mode uses a stronger emphasized fill with `on_accent_alt` foreground text.
+
+---
+
 ## Starter Config
 
 A minimal config for most users — copy this as a starting point:
@@ -209,8 +254,8 @@ Define hotkeys that are only active while a specific mode is running.
 
 ### Merging behavior
 
-| Scenario                                            | Result                              |
-| --------------------------------------------------- | ----------------------------------- |
+| Scenario                                     | Result                              |
+| -------------------------------------------- | ----------------------------------- |
 | `[<mode>.hotkeys]` section absent            | All defaults for that mode are used |
 | `[<mode>.hotkeys]` section present but empty | All bindings for that mode disabled |
 | `[<mode>.hotkeys]` with entries              | Entries merged on top of defaults   |
@@ -337,7 +382,7 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | Option                             | Type   | Default       | Description                                          |
 | ---------------------------------- | ------ | ------------- | ---------------------------------------------------- |
 | `enabled`                          | bool   | `true`        | Enable/disable hints mode                            |
-| `hotkeys`                   | table  | `{}`          | Per-mode hotkeys                                     |
+| `hotkeys`                          | table  | `{}`          | Per-mode hotkeys                                     |
 | `hint_characters`                  | string | `"asdfghjkl"` | Characters used for labels                           |
 | `max_depth`                        | int    | `50`          | Max accessibility tree depth (0 = unlimited)         |
 | `parallel_threshold`               | int    | `20`          | Min children to trigger parallel tree building (≥ 1) |
@@ -364,7 +409,7 @@ Grid mode divides the screen into a labelled coordinate grid.
 | Option              | Type   | Default              | Description                   |
 | ------------------- | ------ | -------------------- | ----------------------------- |
 | `enabled`           | bool   | `true`               | Enable/disable grid mode      |
-| `hotkeys`    | table  | `{}`                 | Per-mode hotkeys              |
+| `hotkeys`           | table  | `{}`                 | Per-mode hotkeys              |
 | `characters`        | string | see default config   | Primary grid labels           |
 | `sublayer_keys`     | string | same as `characters` | Subgrid labels                |
 | `live_match_update` | bool   | `true`               | Highlight cells as you type   |
@@ -398,7 +443,7 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 | Option            | Type   | Default  | Description                         |
 | ----------------- | ------ | -------- | ----------------------------------- |
 | `enabled`         | bool   | `true`   | Enable/disable mode                 |
-| `hotkeys`  | table  | `{}`     | Per-mode hotkeys                    |
+| `hotkeys`         | table  | `{}`     | Per-mode hotkeys                    |
 | `grid_cols`       | int    | `2`      | Number of columns (≥ 2)             |
 | `grid_rows`       | int    | `2`      | Number of rows (≥ 2)                |
 | `keys`            | string | `"uijk"` | Cell selection keys                 |
@@ -422,17 +467,17 @@ When grid or recursive-grid runs in `--cursor-selection-mode hold`, Neru can ren
 
 ### Basic configuration
 
-| Option | Type | Default | Description |
-| ------ | ---- | ------- | ----------- |
-| `enabled` | bool | `true` | Enable/disable the virtual pointer |
+| Option    | Type | Default | Description                        |
+| --------- | ---- | ------- | ---------------------------------- |
+| `enabled` | bool | `true`  | Enable/disable the virtual pointer |
 
 ### UI configuration
 
-| Option | Type | Default | Description |
-| ------ | ---- | ------- | ----------- |
-| `size` | int | `3` | Dot radius in points |
+| Option        | Type   | Default       | Description          |
+| ------------- | ------ | ------------- | -------------------- |
+| `size`        | int    | `3`           | Dot radius in points |
 | `color_light` | string | `"#FF007A9E"` | Light-mode dot color |
-| `color_dark` | string | `"#FF00CFCF"` | Dark-mode dot color |
+| `color_dark`  | string | `"#FF00CFCF"` | Dark-mode dot color  |
 
 Example:
 
@@ -459,7 +504,7 @@ Scroll mode provides keyboard-driven scrolling behavior.
 | `scroll_step`      | int   | `50`      | Pixels for line scroll actions          |
 | `scroll_step_half` | int   | `500`     | Pixels for half-page actions            |
 | `scroll_step_full` | int   | `1000000` | Pixels for top/bottom jump actions      |
-| `hotkeys`   | table | `{}`      | Per-mode hotkeys (includes scroll keys) |
+| `hotkeys`          | table | `{}`      | Per-mode hotkeys (includes scroll keys) |
 
 > [!NOTE]
 > `auto_exit_actions`, `mode_exit_keys`, and `[scroll.key_bindings]` were removed. Bind scroll keys in `[scroll.hotkeys]` instead.
