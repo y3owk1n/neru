@@ -143,6 +143,8 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	if configResult.ConfigPath == "" {
 		s.logger.Info("No config file specified or found, using default configuration")
 
+		configResult.Config = DefaultConfig()
+
 		return configResult
 	}
 
@@ -150,6 +152,8 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 	_, statErr := os.Stat(configResult.ConfigPath)
 	if os.IsNotExist(statErr) {
+		configResult.Config = DefaultConfig()
+
 		if explicitPath {
 			configResult.ValidationError = core.WrapConfigFailed(statErr, "config file not found")
 		} else {
