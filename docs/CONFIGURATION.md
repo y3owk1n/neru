@@ -137,6 +137,8 @@ When a color is omitted or set to empty, Neru uses its built-in theme-aware defa
 
 Neru now exposes a top-level `[theme]` palette. Built-in defaults for hints, grid, recursive grid, the virtual pointer, the mode indicator, and sticky modifiers are derived from these base colors with component-specific alpha values.
 
+Theme palette values should be solid colors only: use `#RGB` or `#RRGGBB`. Do not include alpha in `[theme.light]` or `[theme.dark]`; transparency is applied by each UI role automatically.
+
 ```toml
 [theme.light]
 surface = "#EEF2FF"

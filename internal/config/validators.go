@@ -51,13 +51,25 @@ func validateColors(fields []colorField) error {
 }
 
 func validateThemePalette(name string, palette ThemePalette) error {
-	return validateColors([]colorField{
-		{color: Color{Light: palette.Surface}, fieldName: name + ".surface"},
-		{color: Color{Light: palette.Accent}, fieldName: name + ".accent"},
-		{color: Color{Light: palette.AccentAlt}, fieldName: name + ".accent_alt"},
-		{color: Color{Light: palette.OnAccentAlt}, fieldName: name + ".on_accent_alt"},
-		{color: Color{Light: palette.Text}, fieldName: name + ".text"},
-	})
+	fields := []struct {
+		value     string
+		fieldName string
+	}{
+		{value: palette.Surface, fieldName: name + ".surface"},
+		{value: palette.Accent, fieldName: name + ".accent"},
+		{value: palette.AccentAlt, fieldName: name + ".accent_alt"},
+		{value: palette.OnAccentAlt, fieldName: name + ".on_accent_alt"},
+		{value: palette.Text, fieldName: name + ".text"},
+	}
+
+	for _, field := range fields {
+		err := ValidateSolidColor(field.value, field.fieldName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ValidateTheme validates the top-level theme palette configuration.

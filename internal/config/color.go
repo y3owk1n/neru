@@ -7,7 +7,10 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
-var colorRegex = regexp.MustCompile(`^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$`)
+var (
+	colorRegex      = regexp.MustCompile(`^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$`)
+	solidColorRegex = regexp.MustCompile(`^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$`)
+)
 
 // Color represents a color that can be specified as either a single value
 // (same for both light/dark themes) or as separate light and dark values.
@@ -142,6 +145,22 @@ func (c *Color) Validate(fieldName string) error {
 
 	if c.Dark != "" && !colorRegex.MatchString(c.Dark) {
 		msg := fmt.Sprintf("%s (dark) has invalid color format: %s", fieldName, c.Dark)
+
+		return derrors.New(derrors.CodeInvalidConfig, msg)
+	}
+
+	return nil
+}
+
+// ValidateSolidColor checks if the color value is a valid solid hex color.
+// Unlike ValidateColor, this rejects alpha-bearing #AARRGGBB inputs.
+func ValidateSolidColor(color, fieldName string) error {
+	if color == "" {
+		return nil
+	}
+
+	if !solidColorRegex.MatchString(color) {
+		msg := fmt.Sprintf("%s must be a solid hex color (#RGB or #RRGGBB): %s", fieldName, color)
 
 		return derrors.New(derrors.CodeInvalidConfig, msg)
 	}

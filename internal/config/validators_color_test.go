@@ -91,3 +91,58 @@ func TestValidateColor(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSolidColor(t *testing.T) {
+	tests := []struct {
+		name      string
+		color     string
+		fieldName string
+		wantErr   bool
+	}{
+		{
+			name:      "valid 6-digit hex",
+			color:     "#FF0000",
+			fieldName: "theme.light.surface",
+			wantErr:   false,
+		},
+		{
+			name:      "valid 3-digit hex",
+			color:     "#F00",
+			fieldName: "theme.light.surface",
+			wantErr:   false,
+		},
+		{
+			name:      "valid lowercase hex",
+			color:     "#ff0000",
+			fieldName: "theme.light.surface",
+			wantErr:   false,
+		},
+		{
+			name:      "empty color allowed",
+			color:     "",
+			fieldName: "theme.light.surface",
+			wantErr:   false,
+		},
+		{
+			name:      "8-digit hex with alpha rejected",
+			color:     "#FF0000AA",
+			fieldName: "theme.light.surface",
+			wantErr:   true,
+		},
+		{
+			name:      "missing hash",
+			color:     "FF0000",
+			fieldName: "theme.light.surface",
+			wantErr:   true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := config.ValidateSolidColor(testCase.color, testCase.fieldName)
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("ValidateSolidColor() error = %v, wantErr %v", err, testCase.wantErr)
+			}
+		})
+	}
+}
