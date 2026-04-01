@@ -478,8 +478,7 @@ When grid or recursive-grid runs in `--cursor-selection-mode hold`, Neru can ren
 | Option        | Type   | Default       | Description          |
 | ------------- | ------ | ------------- | -------------------- |
 | `size`        | int    | `3`           | Dot radius in points |
-| `color_light` | string | `"#FF007A9E"` | Light-mode dot color |
-| `color_dark`  | string | `"#FF00CFCF"` | Dark-mode dot color  |
+| `color`       | color  | Theme-derived | Dot color            |
 
 Example:
 
@@ -489,8 +488,7 @@ enabled = true
 
 [virtual_pointer.ui]
 size = 4
-color_light = "#FF007A9E"
-color_dark = "#FF00CFCF"
+color = { light = "#0B2377", dark = "#8FA2F0" }
 ```
 
 ---

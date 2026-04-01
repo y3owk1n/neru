@@ -19,8 +19,7 @@ keys = "uijk"
 [recursive_grid.ui]
 # Add rounded label backgrounds behind recursive-grid letters
 label_background = false
-label_background_color_light = "#FFAAEEFF"
-label_background_color_dark = "#FF003554"
+label_background_color = { light = "#EEF2FF", dark = "#0A1338" }
 label_background_padding_x = -1
 label_background_padding_y = -1
 label_background_border_radius = -1
@@ -28,5 +27,4 @@ label_background_border_width = 1
 # Sub-key preview: draw a miniature key grid inside each cell
 sub_key_preview = false
 sub_key_preview_font_size = 8
-sub_key_preview_text_color_light = "#66007A9E"
-sub_key_preview_text_color_dark = "#6600CFCF"
+sub_key_preview_text_color = { light = "#465FBC", dark = "#6E82D6" }
