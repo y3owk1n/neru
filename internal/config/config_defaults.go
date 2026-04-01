@@ -329,11 +329,13 @@ func newDefaultConfig() *Config {
 			EnableGC:        false,
 		},
 		RecursiveGrid: RecursiveGridConfig{
-			Enabled:             true,
-			Animate:             false,
-			AnimationDurationMS: DefaultRecursiveGridAnimationDurationMS,
-			GridCols:            2, //nolint:mnd
-			GridRows:            2, //nolint:mnd
+			Enabled: true,
+			Animation: RecursiveGridAnimationConfig{
+				Enabled:    false,
+				DurationMS: DefaultRecursiveGridAnimationDurationMS,
+			},
+			GridCols: 2, //nolint:mnd
+			GridRows: 2, //nolint:mnd
 
 			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
 			Hotkeys: map[string]StringOrStringArray{

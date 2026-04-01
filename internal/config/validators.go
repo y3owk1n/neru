@@ -557,10 +557,10 @@ func (c *Config) ValidateRecursiveGrid() error {
 		return derrors.New(derrors.CodeInvalidConfig, "recursive_grid.max_depth must be >= 1")
 	}
 
-	if c.RecursiveGrid.AnimationDurationMS < 0 {
+	if c.RecursiveGrid.Animation.DurationMS < 0 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"recursive_grid.animation_duration_ms must be non-negative",
+			"recursive_grid.animation.duration_ms must be non-negative",
 		)
 	}
 

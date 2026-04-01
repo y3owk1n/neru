@@ -446,8 +446,6 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 | ----------------- | ------ | -------- | ----------------------------------- |
 | `enabled`         | bool   | `true`   | Enable/disable mode                 |
 | `hotkeys`         | table  | `{}`     | Per-mode hotkeys                    |
-| `animate`         | bool   | `false`  | Opt in to native depth transitions on supported platforms |
-| `animation_duration_ms` | int | `180` | Recursive-grid depth transition duration in milliseconds |
 | `grid_cols`       | int    | `2`      | Number of columns (≥ 2)             |
 | `grid_rows`       | int    | `2`      | Number of rows (≥ 2)                |
 | `keys`            | string | `"uijk"` | Cell selection keys                 |
@@ -455,6 +453,13 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 | `min_size_height` | int    | `25`     | Minimum cell height in pixels       |
 | `max_depth`       | int    | `10`     | Maximum recursion levels (1–20)     |
 | `layers`          | array  | `[]`     | Optional per-depth layout overrides |
+
+### Animation configuration
+
+| Option        | Type | Default | Description |
+| ------------- | ---- | ------- | ----------- |
+| `enabled`     | bool | `false` | Opt in to native depth transitions on supported platforms |
+| `duration_ms` | int  | `180`   | Recursive-grid depth transition duration in milliseconds |
 
 > [!NOTE]
 > `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).

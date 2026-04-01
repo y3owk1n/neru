@@ -376,9 +376,9 @@ func (o *Overlay) DrawRecursiveGrid(
 		subKeyKeys:                  o.getOrCacheLabel(subKeyKeysUpper),
 	}
 
-	shouldAnimate := o.Config().Animate && o.hasLast && depth != o.lastDepth &&
+	shouldAnimate := o.Config().Animation.Enabled && o.hasLast && depth != o.lastDepth &&
 		!o.lastBounds.Empty()
-	transitionDurationSeconds := float64(o.Config().AnimationDurationMS) / millisecondsPerSecond
+	transitionDurationSeconds := float64(o.Config().Animation.DurationMS) / millisecondsPerSecond
 	if shouldAnimate {
 		C.NeruAnimateRecursiveGridTransition(
 			o.window,

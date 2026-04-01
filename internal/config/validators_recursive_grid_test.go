@@ -49,14 +49,14 @@ func TestConfigValidateRecursiveGrid_SmallMinSizeAllowed(t *testing.T) {
 func TestDefaultConfigRecursiveGridAnimationDisabled(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	if cfg.RecursiveGrid.Animate {
-		t.Fatal("DefaultConfig() recursive_grid.animate should default to false")
+	if cfg.RecursiveGrid.Animation.Enabled {
+		t.Fatal("DefaultConfig() recursive_grid.animation.enabled should default to false")
 	}
 
-	if cfg.RecursiveGrid.AnimationDurationMS != config.DefaultRecursiveGridAnimationDurationMS {
+	if cfg.RecursiveGrid.Animation.DurationMS != config.DefaultRecursiveGridAnimationDurationMS {
 		t.Fatalf(
-			"DefaultConfig() recursive_grid.animation_duration_ms = %d, want %d",
-			cfg.RecursiveGrid.AnimationDurationMS,
+			"DefaultConfig() recursive_grid.animation.duration_ms = %d, want %d",
+			cfg.RecursiveGrid.Animation.DurationMS,
 			config.DefaultRecursiveGridAnimationDurationMS,
 		)
 	}
@@ -65,7 +65,7 @@ func TestDefaultConfigRecursiveGridAnimationDisabled(t *testing.T) {
 func TestConfigValidateRecursiveGrid_InvalidAnimationDuration(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.RecursiveGrid.Enabled = true
-	cfg.RecursiveGrid.AnimationDurationMS = -1
+	cfg.RecursiveGrid.Animation.DurationMS = -1
 
 	err := cfg.ValidateRecursiveGrid()
 	if err == nil {
