@@ -490,14 +490,17 @@ func (h *Handler) ResetCurrentMode() {
 	case domain.ModeRecursiveGrid:
 		if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
 			h.recursiveGrid.Manager.Reset()
-			h.updateRecursiveGridOverlay()
 
 			center := h.recursiveGrid.Manager.CurrentCenter()
 
 			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 			if h.recursiveGrid.Context != nil {
 				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+			}
 
+			h.updateRecursiveGridOverlay()
+
+			if h.recursiveGrid.Context != nil {
 				if !h.recursiveGrid.Context.CursorFollowSelection() {
 					h.refreshRecursiveGridVirtualPointerLocked()
 
@@ -535,14 +538,17 @@ func (h *Handler) BackspaceCurrentMode() {
 	case domain.ModeRecursiveGrid:
 		if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil &&
 			h.recursiveGrid.Manager.Backtrack() {
-			h.updateRecursiveGridOverlay()
 			center := h.recursiveGrid.Manager.CurrentCenter()
 
 			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 
 			if h.recursiveGrid.Context != nil {
 				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+			}
 
+			h.updateRecursiveGridOverlay()
+
+			if h.recursiveGrid.Context != nil {
 				if !h.recursiveGrid.Context.CursorFollowSelection() {
 					h.refreshRecursiveGridVirtualPointerLocked()
 

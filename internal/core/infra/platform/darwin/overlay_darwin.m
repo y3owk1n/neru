@@ -532,6 +532,8 @@ static const CGFloat kHintArrowGap = 1.0;
 	}
 
 	NSArray<GridCellItem *> *fromCells = nil;
+	NSPoint currentCursorPosition = NSZeroPoint;
+	BOOL shouldPreserveCursorPosition = self.cursorIndicatorVisible;
 	if (self.gridTransitionActive) {
 		CGFloat existingDuration = self.gridTransitionDuration > 0 ? self.gridTransitionDuration : 0.18;
 		CFTimeInterval elapsed = CACurrentMediaTime() - self.gridTransitionStartTime;
@@ -540,8 +542,15 @@ static const CGFloat kHintArrowGap = 1.0;
 	} else {
 		fromCells = [self.gridCells copy];
 	}
+	if (shouldPreserveCursorPosition) {
+		currentCursorPosition = [self currentCursorIndicatorPosition];
+	}
 
 	[self cancelGridTransition];
+	if (shouldPreserveCursorPosition) {
+		self.cursorIndicatorPosition = currentCursorPosition;
+		[self cancelCursorIndicatorTransition];
+	}
 
 	self.transitionFromGridCells = fromCells;
 	self.transitionToGridCells = [cells copy];

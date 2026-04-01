@@ -52,4 +52,23 @@ func TestDefaultConfigRecursiveGridAnimationDisabled(t *testing.T) {
 	if cfg.RecursiveGrid.Animate {
 		t.Fatal("DefaultConfig() recursive_grid.animate should default to false")
 	}
+
+	if cfg.RecursiveGrid.AnimationDurationMS != config.DefaultRecursiveGridAnimationDurationMS {
+		t.Fatalf(
+			"DefaultConfig() recursive_grid.animation_duration_ms = %d, want %d",
+			cfg.RecursiveGrid.AnimationDurationMS,
+			config.DefaultRecursiveGridAnimationDurationMS,
+		)
+	}
+}
+
+func TestConfigValidateRecursiveGrid_InvalidAnimationDuration(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.RecursiveGrid.Enabled = true
+	cfg.RecursiveGrid.AnimationDurationMS = -1
+
+	err := cfg.ValidateRecursiveGrid()
+	if err == nil {
+		t.Fatal("ValidateRecursiveGrid() expected error for negative animation duration")
+	}
 }

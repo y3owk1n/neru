@@ -12,6 +12,8 @@ enabled = false
 
 [recursive_grid]
 enabled = true
+animate = false
+animation_duration_ms = 180
 grid_cols = 2
 grid_rows = 2
 keys = "uijk"

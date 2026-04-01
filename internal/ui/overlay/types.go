@@ -146,6 +146,7 @@ func (n *NoOpManager) DrawRecursiveGrid(
 	nextGridCols int,
 	nextGridRows int,
 	style recursivegrid.Style,
+	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
 	return nil
 }
@@ -214,6 +215,7 @@ type ManagerInterface interface {
 		nextGridCols int,
 		nextGridRows int,
 		style recursivegrid.Style,
+		virtualPointer recursivegrid.VirtualPointerState,
 	) error
 	UpdateGridMatches(prefix string)
 	ShowSubgrid(cell *domainGrid.Cell, style grid.Style)

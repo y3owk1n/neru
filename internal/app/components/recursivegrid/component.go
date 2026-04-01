@@ -83,6 +83,14 @@ type Context struct {
 	baseContext
 }
 
+// VirtualPointerState describes the recursive-grid virtual pointer state.
+type VirtualPointerState struct {
+	Visible   bool
+	Position  image.Point
+	Size      int
+	FillColor string
+}
+
 // Reset resets the recursive_grid context to its initial state.
 func (c *Context) Reset() {
 	c.baseContext.Reset()

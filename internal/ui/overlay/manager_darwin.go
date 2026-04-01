@@ -359,6 +359,7 @@ func (m *Manager) DrawRecursiveGrid(
 	nextGridCols int,
 	nextGridRows int,
 	style recursivegrid.Style,
+	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
 	if m.recursiveGridOverlay == nil {
 		return nil
@@ -373,6 +374,7 @@ func (m *Manager) DrawRecursiveGrid(
 		nextGridCols,
 		nextGridRows,
 		style,
+		virtualPointer,
 	)
 	if drawRecursiveGridErr != nil {
 		return derrors.Wrap(

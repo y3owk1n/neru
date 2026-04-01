@@ -3,6 +3,7 @@ package modes
 import (
 	"image"
 
+	componentrecursivegrid "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
@@ -134,17 +135,34 @@ func (h *Handler) refreshRecursiveGridVirtualPointerLocked() {
 		return
 	}
 
-	point, ok := h.recursiveGrid.Context.SelectionPoint()
-
-	size, fillColor, enabled := h.virtualPointerStyle()
-	if !ok || h.recursiveGrid.Context.CursorFollowSelection() || !enabled {
+	state := h.currentRecursiveGridVirtualPointerState()
+	if !state.Visible {
 		h.recursiveGrid.Overlay.HideVirtualPointer()
 
 		return
 	}
 
-	localPoint := coordinates.ConvertToLocalCoordinates(point, h.screenBounds)
-	h.recursiveGrid.Overlay.ShowVirtualPointer(localPoint, size, fillColor)
+	h.recursiveGrid.Overlay.ShowVirtualPointer(state.Position, state.Size, state.FillColor)
+}
+
+func (h *Handler) currentRecursiveGridVirtualPointerState() componentrecursivegrid.VirtualPointerState {
+	if h.recursiveGrid == nil || h.recursiveGrid.Context == nil {
+		return componentrecursivegrid.VirtualPointerState{}
+	}
+
+	point, ok := h.recursiveGrid.Context.SelectionPoint()
+
+	size, fillColor, enabled := h.virtualPointerStyle()
+	if !ok || h.recursiveGrid.Context.CursorFollowSelection() || !enabled {
+		return componentrecursivegrid.VirtualPointerState{}
+	}
+
+	return componentrecursivegrid.VirtualPointerState{
+		Visible:   true,
+		Position:  coordinates.ConvertToLocalCoordinates(point, h.screenBounds),
+		Size:      size,
+		FillColor: fillColor,
+	}
 }
 
 func (h *Handler) virtualPointerStyle() (int, string, bool) {

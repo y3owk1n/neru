@@ -557,6 +557,8 @@ type RecursiveGridConfig struct {
 	Enabled bool `json:"enabled" toml:"enabled"`
 	// Animate enables native depth transition animations for recursive-grid on supported platforms.
 	Animate bool `json:"animate" toml:"animate"`
+	// AnimationDurationMS controls recursive-grid depth transition duration in milliseconds.
+	AnimationDurationMS int `json:"animationDurationMs" toml:"animation_duration_ms"`
 	// Grid dimensions: columns and rows (default: 2x2)
 	GridCols int `json:"gridCols" toml:"grid_cols"`
 	GridRows int `json:"gridRows" toml:"grid_rows"`

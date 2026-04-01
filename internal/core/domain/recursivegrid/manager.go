@@ -20,7 +20,7 @@ type Manager struct {
 	depthKeys  map[int]string    // Per-depth key overrides (sparse)
 	gridCols   int               // Default number of grid columns
 	gridRows   int               // Default number of grid rows
-	onUpdate   func()            // Callback for overlay updates
+	onUpdate   func(image.Point) // Callback for overlay updates
 	onComplete func(image.Point) // Callback when selection is complete
 }
 
@@ -29,7 +29,7 @@ type Manager struct {
 func NewManager(
 	screenBounds image.Rectangle,
 	keys string,
-	onUpdate func(),
+	onUpdate func(image.Point),
 	onComplete func(image.Point),
 	logger *zap.Logger,
 ) *Manager {
@@ -57,7 +57,7 @@ func NewManagerWithLayers(
 	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
 	depthLayouts map[int]DepthLayout,
 	depthKeys map[int]string,
-	onUpdate func(),
+	onUpdate func(image.Point),
 	onComplete func(image.Point),
 	logger *zap.Logger,
 ) *Manager {
@@ -203,7 +203,7 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 
 	// Trigger update for visual feedback
 	if m.onUpdate != nil {
-		m.onUpdate()
+		m.onUpdate(center)
 	}
 
 	return center, isComplete

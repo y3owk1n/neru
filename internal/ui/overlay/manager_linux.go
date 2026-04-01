@@ -135,6 +135,7 @@ func (m *Manager) DrawRecursiveGrid(
 	_ int,
 	_ int,
 	_ recursivegrid.Style,
+	_ recursivegrid.VirtualPointerState,
 ) error {
 	return derrors.New(derrors.CodeNotSupported, "recursive grid overlay not implemented on linux")
 }

@@ -39,8 +39,8 @@ const (
 	NSWindowSharingNone = 0
 	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
 	NSWindowSharingReadOnly = 1
-	// recursiveGridTransitionDurationSeconds is the native depth transition duration.
-	recursiveGridTransitionDurationSeconds = 0.18
+	// millisecondsPerSecond converts config milliseconds into native seconds.
+	millisecondsPerSecond = 1000.0
 )
 
 // Overlay manages the rendering of recursive_grid overlays using native platform APIs.
@@ -234,6 +234,7 @@ func (o *Overlay) DrawRecursiveGrid(
 	nextGridCols int,
 	nextGridRows int,
 	style Style,
+	virtualPointer VirtualPointerState,
 ) error {
 	if bounds.Empty() {
 		o.Clear()
@@ -377,16 +378,27 @@ func (o *Overlay) DrawRecursiveGrid(
 
 	shouldAnimate := o.Config().Animate && o.hasLast && depth != o.lastDepth &&
 		!o.lastBounds.Empty()
+	transitionDurationSeconds := float64(o.Config().AnimationDurationMS) / millisecondsPerSecond
 	if shouldAnimate {
 		C.NeruAnimateRecursiveGridTransition(
 			o.window,
 			&cells[0],
 			C.int(len(cells)),
 			finalStyle,
-			C.double(recursiveGridTransitionDurationSeconds),
+			C.double(transitionDurationSeconds),
 		)
 	} else {
 		C.NeruDrawGridCells(o.window, &cells[0], C.int(len(cells)), finalStyle)
+	}
+
+	if virtualPointer.Visible {
+		o.ShowVirtualPointer(
+			virtualPointer.Position,
+			virtualPointer.Size,
+			virtualPointer.FillColor,
+		)
+	} else {
+		o.HideVirtualPointer()
 	}
 
 	o.drawMu.RUnlock()

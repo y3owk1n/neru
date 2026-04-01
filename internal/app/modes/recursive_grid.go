@@ -96,10 +96,6 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	}
 
 	// Draw initial recursive-grid
-	h.updateRecursiveGridOverlay()
-
-	h.overlayManager.Show()
-
 	// Store pending action and repeat flag if provided
 	if h.recursiveGrid.Context != nil {
 		h.recursiveGrid.Context.SetPendingAction(actionStr)
@@ -107,7 +103,10 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 		h.recursiveGrid.Context.SetCursorFollowSelection(cursorShouldFollow)
 	}
 
-	h.refreshRecursiveGridVirtualPointerLocked()
+	// Draw initial recursive-grid
+	h.updateRecursiveGridOverlay()
+
+	h.overlayManager.Show()
 
 	if actionStr != nil {
 		h.logger.Info(
@@ -161,9 +160,13 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 		depthLayouts,
 		depthKeys,
 		// Update callback
-		func() {
+		func(center image.Point) {
+			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+			if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
+				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+			}
+
 			h.updateRecursiveGridOverlay()
-			h.refreshRecursiveGridVirtualPointerLocked()
 		},
 		// Complete callback
 		func(point image.Point) {
@@ -222,8 +225,6 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 		h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
 
 		if !h.recursiveGrid.Context.CursorFollowSelection() {
-			h.refreshRecursiveGridVirtualPointerLocked()
-
 			return
 		}
 
@@ -269,6 +270,7 @@ func (h *Handler) updateRecursiveGridOverlay() {
 		nextKeys,
 		nextCols,
 		nextRows,
+		h.currentRecursiveGridVirtualPointerState(),
 	)
 	if err != nil {
 		h.logger.Debug("Failed to draw recursive-grid overlay", zap.Error(err))

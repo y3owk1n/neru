@@ -557,6 +557,13 @@ func (c *Config) ValidateRecursiveGrid() error {
 		return derrors.New(derrors.CodeInvalidConfig, "recursive_grid.max_depth must be >= 1")
 	}
 
+	if c.RecursiveGrid.AnimationDurationMS < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.animation_duration_ms must be non-negative",
+		)
+	}
+
 	expectedKeys := c.RecursiveGrid.GridCols * c.RecursiveGrid.GridRows
 	if utf8.RuneCountInString(c.RecursiveGrid.Keys) != expectedKeys {
 		return derrors.Newf(

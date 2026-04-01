@@ -140,6 +140,7 @@ border_width = 1
 [recursive_grid]
 enabled = true
 animate = false                            # Opt in to native depth transition animation on supported platforms
+animation_duration_ms = 180               # Recursive-grid animation duration in milliseconds
 grid_cols = 2                               # Number of columns (>= 2)
 grid_rows = 2                               # Number of rows (>= 2)
 keys = "uijk"                               # Cell selection keys (must be grid_cols * grid_rows chars)

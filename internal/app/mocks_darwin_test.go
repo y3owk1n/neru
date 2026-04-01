@@ -246,6 +246,7 @@ func (m *mockOverlayManager) DrawRecursiveGrid(
 	_ int,
 	_ int,
 	_ recursivegrid.Style,
+	_ recursivegrid.VirtualPointerState,
 ) error {
 	return nil
 }

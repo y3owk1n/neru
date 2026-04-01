@@ -17,7 +17,7 @@ func TestNewManager(t *testing.T) {
 	manager := recursivegrid.NewManager(
 		bounds,
 		"uijk",
-		func() {},
+		func(image.Point) {},
 		func(point image.Point) {},
 		logger,
 	)
@@ -54,7 +54,7 @@ func TestManagerHandleInputCellSelection(t *testing.T) {
 	manager := recursivegrid.NewManager(
 		bounds,
 		"uijk",
-		func() { updateCalled = true },
+		func(image.Point) { updateCalled = true },
 		nil,
 		logger,
 	)
@@ -145,7 +145,7 @@ func TestManagerHandleInputUnmappedKey(t *testing.T) {
 	manager := recursivegrid.NewManager(
 		bounds,
 		"uijk",
-		func() { updateCalled = true },
+		func(image.Point) { updateCalled = true },
 		nil,
 		logger,
 	)
@@ -219,7 +219,7 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 		2, // gridCols 2
 		2, // gridRows 2
 		nil, nil,
-		func() {},
+		func(image.Point) {},
 		func(point image.Point) { completeCalled = true },
 		logger,
 	)
@@ -262,7 +262,7 @@ func TestManagerWithLayers_NonSquare3x2(t *testing.T) {
 		3,        // gridCols
 		2,        // gridRows
 		nil, nil,
-		func() { updateCalled = true },
+		func(image.Point) { updateCalled = true },
 		nil,
 		logger,
 	)
@@ -460,7 +460,7 @@ func TestManagerHandleInput_KeyToCellLiteralSpaceKey(t *testing.T) {
 	manager := recursivegrid.NewManager(
 		bounds,
 		"ui k", // keys: u=0, i=1, ' '=2, k=3
-		func() {},
+		func(image.Point) {},
 		nil,
 		logger,
 	)
@@ -479,7 +479,7 @@ func TestManagerHandleInput_KeyToCellNormalizesFullwidthChars(t *testing.T) {
 	manager := recursivegrid.NewManager(
 		bounds,
 		"uijk",
-		func() {},
+		func(image.Point) {},
 		nil,
 		logger,
 	)
