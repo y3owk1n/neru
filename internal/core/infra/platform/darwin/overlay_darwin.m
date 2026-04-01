@@ -120,12 +120,14 @@ static const CGFloat kHintArrowGap = 1.0;
 @property(nonatomic, strong) NSMutableArray<GridCellItem *> *gridCells;         ///< Grid cells array
 @property(nonatomic, strong) NSArray<GridCellItem *> *transitionFromGridCells;  ///< Previous grid cells for animation
 @property(nonatomic, strong) NSArray<GridCellItem *> *transitionToGridCells;    ///< Target grid cells for animation
-@property(nonatomic, strong) NSTimer *gridTransitionTimer;             ///< Display timer for recursive-grid animation
-@property(nonatomic, assign) CFTimeInterval gridTransitionStartTime;   ///< Animation start timestamp
-@property(nonatomic, assign) CFTimeInterval gridTransitionDuration;    ///< Animation duration
-@property(nonatomic, assign) BOOL gridTransitionActive;                ///< Whether recursive-grid animation is active
-@property(nonatomic, strong) NSFont *gridFont;                         ///< Grid font
-@property(nonatomic, strong) NSColor *gridTextColor;                   ///< Grid text color
+@property(nonatomic, strong) NSTimer *gridTransitionTimer;            ///< Display timer for recursive-grid animation
+@property(nonatomic, assign) CFTimeInterval gridTransitionStartTime;  ///< Animation start timestamp
+@property(nonatomic, assign) CFTimeInterval gridTransitionDuration;   ///< Animation duration
+@property(nonatomic, assign) BOOL gridTransitionActive;               ///< Whether recursive-grid animation is active
+@property(nonatomic, assign)
+    BOOL gridTransitionUseLinearEasing;               ///< Use linear easing when continuing animation (avoids stutter)
+@property(nonatomic, strong) NSFont *gridFont;        ///< Grid font
+@property(nonatomic, strong) NSColor *gridTextColor;  ///< Grid text color
 @property(nonatomic, strong) NSColor *gridMatchedTextColor;            ///< Grid matched text color
 @property(nonatomic, strong) NSColor *gridMatchedBackgroundColor;      ///< Grid matched background color
 @property(nonatomic, strong) NSColor *gridMatchedBorderColor;          ///< Grid matched border color
@@ -418,6 +420,7 @@ static const CGFloat kHintArrowGap = 1.0;
 	[self.gridTransitionTimer invalidate];
 	self.gridTransitionTimer = nil;
 	self.gridTransitionActive = NO;
+	self.gridTransitionUseLinearEasing = NO;
 	self.transitionFromGridCells = nil;
 	self.transitionToGridCells = nil;
 }
@@ -449,6 +452,11 @@ static const CGFloat kHintArrowGap = 1.0;
 	CGFloat duration = self.gridTransitionDuration > 0 ? self.gridTransitionDuration : 0.18;
 	CFTimeInterval elapsed = CACurrentMediaTime() - self.gridTransitionStartTime;
 	CGFloat rawProgress = MIN(MAX((CGFloat)(elapsed / duration), 0.0), 1.0);
+
+	if (self.gridTransitionUseLinearEasing) {
+		return rawProgress;
+	}
+
 	CAMediaTimingFunction *timingFunction =
 	    [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
 	float controlPoints[8];
@@ -534,6 +542,7 @@ static const CGFloat kHintArrowGap = 1.0;
 	NSArray<GridCellItem *> *fromCells = nil;
 	NSPoint currentCursorPosition = NSZeroPoint;
 	BOOL shouldPreserveCursorPosition = self.cursorIndicatorVisible;
+	BOOL continuingFromActive = self.gridTransitionActive;
 	if (self.gridTransitionActive) {
 		CGFloat existingDuration = self.gridTransitionDuration > 0 ? self.gridTransitionDuration : 0.18;
 		CFTimeInterval elapsed = CACurrentMediaTime() - self.gridTransitionStartTime;
@@ -558,6 +567,7 @@ static const CGFloat kHintArrowGap = 1.0;
 	self.gridTransitionDuration = duration;
 	self.gridTransitionStartTime = CACurrentMediaTime();
 	self.gridTransitionActive = YES;
+	self.gridTransitionUseLinearEasing = continuingFromActive;
 	self.fullRedraw = YES;
 
 	__weak typeof(self) weakSelf = self;
