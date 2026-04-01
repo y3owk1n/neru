@@ -328,6 +328,7 @@ func newDefaultConfig() *Config {
 		},
 		RecursiveGrid: RecursiveGridConfig{
 			Enabled:  true,
+			Animate:  false,
 			GridCols: 2, //nolint:mnd
 			GridRows: 2, //nolint:mnd
 

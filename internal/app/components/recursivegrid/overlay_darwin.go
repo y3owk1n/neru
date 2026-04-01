@@ -39,13 +39,18 @@ const (
 	NSWindowSharingNone = 0
 	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
 	NSWindowSharingReadOnly = 1
+	// recursiveGridTransitionDurationSeconds is the native depth transition duration.
+	recursiveGridTransitionDurationSeconds = 0.18
 )
 
 // Overlay manages the rendering of recursive_grid overlays using native platform APIs.
 type Overlay struct {
-	window C.OverlayWindow
-	config config.RecursiveGridConfig
-	logger *zap.Logger
+	window     C.OverlayWindow
+	config     config.RecursiveGridConfig
+	logger     *zap.Logger
+	lastBounds image.Rectangle
+	lastDepth  int
+	hasLast    bool
 
 	// configMu protects config from concurrent read/write.
 	configMu sync.RWMutex
@@ -135,6 +140,9 @@ func (o *Overlay) Hide() {
 // Clear clears the overlay window and resets state.
 func (o *Overlay) Clear() {
 	C.NeruClearOverlay(o.window)
+	o.lastBounds = image.Rectangle{}
+	o.lastDepth = 0
+	o.hasLast = false
 }
 
 // ShowVirtualPointer renders a virtual pointer at the current selection point.
@@ -244,9 +252,6 @@ func (o *Overlay) DrawRecursiveGrid(
 			zap.Int("grid_rows", gridRows),
 			zap.String("keys", keys))
 	}
-
-	// Clear previous drawing
-	o.Clear()
 
 	// Use the provided dimensions and calculate key count
 	keyCount := gridCols * gridRows
@@ -370,10 +375,24 @@ func (o *Overlay) DrawRecursiveGrid(
 		subKeyKeys:                  o.getOrCacheLabel(subKeyKeysUpper),
 	}
 
-	// Draw the grid cells
-	C.NeruDrawGridCells(o.window, &cells[0], C.int(len(cells)), finalStyle)
+	shouldAnimate := o.Config().Animate && o.hasLast && depth != o.lastDepth &&
+		!o.lastBounds.Empty()
+	if shouldAnimate {
+		C.NeruAnimateRecursiveGridTransition(
+			o.window,
+			&cells[0],
+			C.int(len(cells)),
+			finalStyle,
+			C.double(recursiveGridTransitionDurationSeconds),
+		)
+	} else {
+		C.NeruDrawGridCells(o.window, &cells[0], C.int(len(cells)), finalStyle)
+	}
 
 	o.drawMu.RUnlock()
+	o.lastBounds = bounds
+	o.lastDepth = depth
+	o.hasLast = true
 
 	return nil
 }

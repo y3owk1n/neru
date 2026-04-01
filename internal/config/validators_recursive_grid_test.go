@@ -45,3 +45,11 @@ func TestConfigValidateRecursiveGrid_SmallMinSizeAllowed(t *testing.T) {
 		t.Fatalf("ValidateRecursiveGrid() unexpected error for small min sizes: %v", err)
 	}
 }
+
+func TestDefaultConfigRecursiveGridAnimationDisabled(t *testing.T) {
+	cfg := config.DefaultConfig()
+
+	if cfg.RecursiveGrid.Animate {
+		t.Fatal("DefaultConfig() recursive_grid.animate should default to false")
+	}
+}

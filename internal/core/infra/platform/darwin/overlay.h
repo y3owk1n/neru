@@ -169,6 +169,15 @@ void NeruResizeOverlayToActiveScreenWithCallback(
 /// @param style Grid cell style
 void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCellStyle style);
 
+/// Animate recursive-grid cells between depth changes.
+/// @param window Overlay window handle
+/// @param cells Target grid cells
+/// @param count Number of target cells
+/// @param style Grid cell style
+/// @param duration Animation duration in seconds
+void NeruAnimateRecursiveGridTransition(
+    OverlayWindow window, GridCell *cells, int count, GridCellStyle style, double duration);
+
 /// Update grid match prefix
 /// @param window Overlay window handle
 /// @param prefix Match prefix

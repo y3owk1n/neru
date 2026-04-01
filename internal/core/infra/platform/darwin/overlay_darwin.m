@@ -8,6 +8,7 @@
 #import "overlay.h"
 
 #import <Cocoa/Cocoa.h>
+#import <QuartzCore/QuartzCore.h>
 
 #pragma mark - HintItem Class
 
@@ -116,22 +117,28 @@ static const CGFloat kHintArrowGap = 1.0;
 @property(nonatomic, assign) CGFloat hintPaddingX;               ///< Hint horizontal padding
 @property(nonatomic, assign) CGFloat hintPaddingY;               ///< Hint vertical padding
 
-@property(nonatomic, strong) NSMutableArray<GridCellItem *> *gridCells;  ///< Grid cells array
-@property(nonatomic, strong) NSFont *gridFont;                           ///< Grid font
-@property(nonatomic, strong) NSColor *gridTextColor;                     ///< Grid text color
-@property(nonatomic, strong) NSColor *gridMatchedTextColor;              ///< Grid matched text color
-@property(nonatomic, strong) NSColor *gridMatchedBackgroundColor;        ///< Grid matched background color
-@property(nonatomic, strong) NSColor *gridMatchedBorderColor;            ///< Grid matched border color
-@property(nonatomic, strong) NSColor *gridBackgroundColor;               ///< Grid background color
-@property(nonatomic, strong) NSColor *gridLabelBackgroundColor;          ///< Grid label badge background color
-@property(nonatomic, strong) NSColor *gridBorderColor;                   ///< Grid border color
-@property(nonatomic, assign) CGFloat gridBorderWidth;                    ///< Grid border width
-@property(nonatomic, assign) BOOL gridDrawLabelBackground;               ///< Draw label badge background
-@property(nonatomic, assign) CGFloat gridLabelBackgroundPaddingX;        ///< Grid label badge horizontal padding
-@property(nonatomic, assign) CGFloat gridLabelBackgroundPaddingY;        ///< Grid label badge vertical padding
-@property(nonatomic, assign) CGFloat gridLabelBackgroundBorderRadius;    ///< Grid label badge border radius
-@property(nonatomic, assign) CGFloat gridLabelBackgroundBorderWidth;     ///< Grid label badge border width
-@property(nonatomic, assign) BOOL hideUnmatched;                         ///< Hide unmatched cells
+@property(nonatomic, strong) NSMutableArray<GridCellItem *> *gridCells;         ///< Grid cells array
+@property(nonatomic, strong) NSArray<GridCellItem *> *transitionFromGridCells;  ///< Previous grid cells for animation
+@property(nonatomic, strong) NSArray<GridCellItem *> *transitionToGridCells;    ///< Target grid cells for animation
+@property(nonatomic, strong) NSTimer *gridTransitionTimer;             ///< Display timer for recursive-grid animation
+@property(nonatomic, assign) CFTimeInterval gridTransitionStartTime;   ///< Animation start timestamp
+@property(nonatomic, assign) CFTimeInterval gridTransitionDuration;    ///< Animation duration
+@property(nonatomic, assign) BOOL gridTransitionActive;                ///< Whether recursive-grid animation is active
+@property(nonatomic, strong) NSFont *gridFont;                         ///< Grid font
+@property(nonatomic, strong) NSColor *gridTextColor;                   ///< Grid text color
+@property(nonatomic, strong) NSColor *gridMatchedTextColor;            ///< Grid matched text color
+@property(nonatomic, strong) NSColor *gridMatchedBackgroundColor;      ///< Grid matched background color
+@property(nonatomic, strong) NSColor *gridMatchedBorderColor;          ///< Grid matched border color
+@property(nonatomic, strong) NSColor *gridBackgroundColor;             ///< Grid background color
+@property(nonatomic, strong) NSColor *gridLabelBackgroundColor;        ///< Grid label badge background color
+@property(nonatomic, strong) NSColor *gridBorderColor;                 ///< Grid border color
+@property(nonatomic, assign) CGFloat gridBorderWidth;                  ///< Grid border width
+@property(nonatomic, assign) BOOL gridDrawLabelBackground;             ///< Draw label badge background
+@property(nonatomic, assign) CGFloat gridLabelBackgroundPaddingX;      ///< Grid label badge horizontal padding
+@property(nonatomic, assign) CGFloat gridLabelBackgroundPaddingY;      ///< Grid label badge vertical padding
+@property(nonatomic, assign) CGFloat gridLabelBackgroundBorderRadius;  ///< Grid label badge border radius
+@property(nonatomic, assign) CGFloat gridLabelBackgroundBorderWidth;   ///< Grid label badge border width
+@property(nonatomic, assign) BOOL hideUnmatched;                       ///< Hide unmatched cells
 
 // Sub-key preview: draws a miniature key grid inside each cell
 @property(nonatomic, assign) BOOL gridDrawSubKeyPreview;        ///< Draw sub-key preview mini-grid
@@ -149,6 +156,10 @@ static const CGFloat kHintArrowGap = 1.0;
 @property(nonatomic, assign) NSPoint cursorIndicatorPosition;        ///< Virtual cursor indicator center
 @property(nonatomic, assign) CGFloat cursorIndicatorRadius;          ///< Virtual cursor indicator radius
 @property(nonatomic, strong) NSColor *cursorIndicatorFillColor;      ///< Virtual cursor indicator fill
+@property(nonatomic, assign)
+    BOOL cursorIndicatorTransitionActive;  ///< Animate virtual pointer with recursive-grid transitions
+@property(nonatomic, assign) NSPoint cursorIndicatorFromPosition;  ///< Previous virtual pointer position
+@property(nonatomic, assign) NSPoint cursorIndicatorToPosition;    ///< Target virtual pointer position
 
 // Cached grid text colors to reduce allocations during drawing
 @property(nonatomic, strong) NSColor *cachedGridTextColor;
@@ -185,10 +196,25 @@ static const CGFloat kHintArrowGap = 1.0;
 - (void)drawGridLabel:(NSString *)label
              inCellRect:(NSRect)cellRect
               isMatched:(BOOL)isMatched
-    matchedPrefixLength:(int)matchedPrefixLength;      ///< Draw grid label text or badge
+    matchedPrefixLength:(int)matchedPrefixLength;  ///< Draw grid label text or badge
+- (void)drawGridLabel:(NSString *)label
+             inCellRect:(NSRect)cellRect
+              isMatched:(BOOL)isMatched
+    matchedPrefixLength:(int)matchedPrefixLength
+                  alpha:(CGFloat)alpha;                ///< Draw grid label with alpha
 - (void)drawSubKeyPreviewInCellRect:(NSRect)cellRect;  ///< Draw miniature sub-key grid inside a cell
-- (NSRect)cursorIndicatorRect;                         ///< Virtual cursor indicator rect in view coordinates
-- (void)drawCursorIndicatorInRect:(NSRect)dirtyRect;   ///< Draw virtual cursor indicator
+- (void)drawAnimatedGridCellsInRect:(NSRect)dirtyRect
+                           progress:(CGFloat)progress;  ///< Draw interpolated recursive-grid cells
+- (NSRect)cursorIndicatorRect;                          ///< Virtual cursor indicator rect in view coordinates
+- (void)drawCursorIndicatorInRect:(NSRect)dirtyRect;    ///< Draw virtual cursor indicator
+- (void)cancelGridTransition;                           ///< Stop recursive-grid animation
+- (void)cancelCursorIndicatorTransition;                ///< Stop virtual pointer animation
+- (void)startGridTransitionToCells:(NSArray<GridCellItem *> *)cells
+                          duration:(CFTimeInterval)duration;  ///< Animate recursive-grid between states
+- (NSArray<GridCellItem *> *)interpolatedGridCellsForProgress:(CGFloat)progress;  ///< Snapshot animated cells
+- (NSColor *)color:(NSColor *)color withMultipliedAlpha:(CGFloat)alpha;  ///< Preserve configured alpha during fades
+- (CGFloat)currentGridTransitionProgress;                                ///< Shared progress for grid/pointer animation
+- (NSPoint)currentCursorIndicatorPosition;  ///< Current virtual pointer position for drawing
 
 /// Resolve a font by name (accepts both PostScript names and family names).
 /// Tries [NSFont fontWithName:] first, then NSFontManager family lookup.
@@ -254,6 +280,9 @@ static const CGFloat kHintArrowGap = 1.0;
 		_cursorIndicatorVisible = NO;
 		_cursorIndicatorRadius = 3.0;
 		_cursorIndicatorFillColor = [NSColor colorWithWhite:1.0 alpha:1.0];
+		_cursorIndicatorTransitionActive = NO;
+		_cursorIndicatorFromPosition = NSZeroPoint;
+		_cursorIndicatorToPosition = NSZeroPoint;
 
 		// Initialize cached colors
 		_cachedGridTextColor = _gridTextColor;
@@ -273,6 +302,9 @@ static const CGFloat kHintArrowGap = 1.0;
 
 		// Initialize fullRedraw to YES for structural changes
 		_fullRedraw = YES;
+		_gridTransitionDuration = 0.18;
+		_gridTransitionStartTime = 0;
+		_gridTransitionActive = NO;
 	}
 	return self;
 }
@@ -326,6 +358,28 @@ static const CGFloat kHintArrowGap = 1.0;
 	NSGraphicsContext *nsContext = [NSGraphicsContext graphicsContextWithCGContext:ctx flipped:NO];
 	[NSGraphicsContext setCurrentContext:nsContext];
 
+	if (self.gridTransitionActive) {
+		CGFloat duration = self.gridTransitionDuration > 0 ? self.gridTransitionDuration : 0.18;
+		CFTimeInterval elapsed = CACurrentMediaTime() - self.gridTransitionStartTime;
+		CGFloat rawProgress = (CGFloat)(elapsed / duration);
+		CGFloat progress = [self currentGridTransitionProgress];
+
+		CGContextClearRect(ctx, self.bounds);
+		[self drawAnimatedGridCellsInRect:NSZeroRect progress:progress];
+		[self drawHints];
+		[self drawCursorIndicatorInRect:NSZeroRect];
+
+		if (rawProgress >= 1.0) {
+			[self cancelGridTransition];
+			[self cancelCursorIndicatorTransition];
+		}
+
+		self.fullRedraw = YES;
+		[NSGraphicsContext restoreGraphicsState];
+
+		return;
+	}
+
 	if (self.fullRedraw) {
 		// Full redraw: clear everything and draw all items
 		CGContextClearRect(ctx, self.bounds);
@@ -358,6 +412,157 @@ static const CGFloat kHintArrowGap = 1.0;
 	self.fullRedraw = YES;
 
 	[NSGraphicsContext restoreGraphicsState];
+}
+
+- (void)cancelGridTransition {
+	[self.gridTransitionTimer invalidate];
+	self.gridTransitionTimer = nil;
+	self.gridTransitionActive = NO;
+	self.transitionFromGridCells = nil;
+	self.transitionToGridCells = nil;
+}
+
+- (void)cancelCursorIndicatorTransition {
+	self.cursorIndicatorTransitionActive = NO;
+	self.cursorIndicatorFromPosition = NSZeroPoint;
+	self.cursorIndicatorToPosition = NSZeroPoint;
+}
+
+- (NSColor *)color:(NSColor *)color withMultipliedAlpha:(CGFloat)alpha {
+	if (!color) {
+		return nil;
+	}
+
+	NSColor *resolvedColor = [color colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]];
+	if (!resolvedColor) {
+		resolvedColor = color;
+	}
+
+	return [resolvedColor colorWithAlphaComponent:(resolvedColor.alphaComponent * alpha)];
+}
+
+- (CGFloat)currentGridTransitionProgress {
+	if (!self.gridTransitionActive) {
+		return 1.0;
+	}
+
+	CGFloat duration = self.gridTransitionDuration > 0 ? self.gridTransitionDuration : 0.18;
+	CFTimeInterval elapsed = CACurrentMediaTime() - self.gridTransitionStartTime;
+	CGFloat rawProgress = MIN(MAX((CGFloat)(elapsed / duration), 0.0), 1.0);
+	CAMediaTimingFunction *timingFunction =
+	    [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+	float controlPoints[8];
+	[timingFunction getControlPointAtIndex:1 values:&controlPoints[0]];
+	[timingFunction getControlPointAtIndex:2 values:&controlPoints[2]];
+	CGFloat t = rawProgress;
+	CGFloat oneMinusT = 1.0 - t;
+
+	return 3.0 * oneMinusT * oneMinusT * t * controlPoints[1] + 3.0 * oneMinusT * t * t * controlPoints[3] + t * t * t;
+}
+
+- (NSPoint)currentCursorIndicatorPosition {
+	if (!self.cursorIndicatorTransitionActive) {
+		return self.cursorIndicatorPosition;
+	}
+
+	CGFloat progress = [self currentGridTransitionProgress];
+
+	return NSMakePoint(
+	    self.cursorIndicatorFromPosition.x +
+	        (self.cursorIndicatorToPosition.x - self.cursorIndicatorFromPosition.x) * progress,
+	    self.cursorIndicatorFromPosition.y +
+	        (self.cursorIndicatorToPosition.y - self.cursorIndicatorFromPosition.y) * progress);
+}
+
+- (NSArray<GridCellItem *> *)interpolatedGridCellsForProgress:(CGFloat)progress {
+	NSArray<GridCellItem *> *fromCells = self.transitionFromGridCells ?: @[];
+	NSArray<GridCellItem *> *toCells = self.transitionToGridCells ?: @[];
+	NSUInteger count = MAX([fromCells count], [toCells count]);
+	if (count == 0) {
+		return @[];
+	}
+
+	CGRect fromBounds = CGRectNull;
+	for (GridCellItem *cell in fromCells) {
+		fromBounds = CGRectIsNull(fromBounds) ? cell.bounds : CGRectUnion(fromBounds, cell.bounds);
+	}
+
+	CGRect toBounds = CGRectNull;
+	for (GridCellItem *cell in toCells) {
+		toBounds = CGRectIsNull(toBounds) ? cell.bounds : CGRectUnion(toBounds, cell.bounds);
+	}
+
+	if (CGRectIsNull(fromBounds)) {
+		fromBounds = CGRectIsNull(toBounds) ? CGRectZero : toBounds;
+	}
+	if (CGRectIsNull(toBounds)) {
+		toBounds = fromBounds;
+	}
+
+	NSMutableArray<GridCellItem *> *cells = [NSMutableArray arrayWithCapacity:count];
+	for (NSUInteger idx = 0; idx < count; idx++) {
+		GridCellItem *fromCell = idx < [fromCells count] ? fromCells[idx] : nil;
+		GridCellItem *toCell = idx < [toCells count] ? toCells[idx] : nil;
+
+		CGRect startRect = fromCell ? fromCell.bounds : fromBounds;
+		CGRect endRect = toCell ? toCell.bounds : toBounds;
+
+		GridCellItem *cell = [[GridCellItem alloc] init];
+		cell.label = toCell ? toCell.label : fromCell.label;
+		cell.isMatched = toCell ? toCell.isMatched : fromCell.isMatched;
+		cell.isSubgrid = toCell ? toCell.isSubgrid : fromCell.isSubgrid;
+		cell.matchedPrefixLength = toCell ? toCell.matchedPrefixLength : fromCell.matchedPrefixLength;
+		cell.bounds = CGRectMake(
+		    startRect.origin.x + (endRect.origin.x - startRect.origin.x) * progress,
+		    startRect.origin.y + (endRect.origin.y - startRect.origin.y) * progress,
+		    startRect.size.width + (endRect.size.width - startRect.size.width) * progress,
+		    startRect.size.height + (endRect.size.height - startRect.size.height) * progress);
+		[cells addObject:cell];
+	}
+
+	return cells;
+}
+
+- (void)startGridTransitionToCells:(NSArray<GridCellItem *> *)cells duration:(CFTimeInterval)duration {
+	if ([cells count] == 0 || [self.gridCells count] == 0 || duration <= 0) {
+		[self cancelGridTransition];
+		self.gridCells = [cells mutableCopy];
+		[self setNeedsDisplay:YES];
+		return;
+	}
+
+	NSArray<GridCellItem *> *fromCells = nil;
+	if (self.gridTransitionActive) {
+		CGFloat existingDuration = self.gridTransitionDuration > 0 ? self.gridTransitionDuration : 0.18;
+		CFTimeInterval elapsed = CACurrentMediaTime() - self.gridTransitionStartTime;
+		CGFloat progress = MIN(MAX((CGFloat)(elapsed / existingDuration), 0.0), 1.0);
+		fromCells = [self interpolatedGridCellsForProgress:progress];
+	} else {
+		fromCells = [self.gridCells copy];
+	}
+
+	[self cancelGridTransition];
+
+	self.transitionFromGridCells = fromCells;
+	self.transitionToGridCells = [cells copy];
+	self.gridCells = [cells mutableCopy];
+	self.gridTransitionDuration = duration;
+	self.gridTransitionStartTime = CACurrentMediaTime();
+	self.gridTransitionActive = YES;
+	self.fullRedraw = YES;
+
+	__weak typeof(self) weakSelf = self;
+	self.gridTransitionTimer = [NSTimer timerWithTimeInterval:(1.0 / 120.0)
+	                                                  repeats:YES
+	                                                    block:^(__unused NSTimer *timer) {
+		                                                    OverlayView *strongSelf = weakSelf;
+		                                                    if (!strongSelf)
+			                                                    return;
+		                                                    strongSelf.fullRedraw = YES;
+		                                                    [strongSelf setNeedsDisplay:YES];
+	                                                    }];
+	[[NSRunLoop mainRunLoop] addTimer:self.gridTransitionTimer forMode:NSRunLoopCommonModes];
+	[self setNeedsDisplay:YES];
 }
 
 /// Apply hint style
@@ -607,13 +812,14 @@ static const CGFloat kHintArrowGap = 1.0;
 	if (!self.cursorIndicatorVisible)
 		return NSZeroRect;
 
+	NSPoint position = [self currentCursorIndicatorPosition];
 	CGFloat diameter = self.cursorIndicatorRadius * 2.0;
 	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat flippedY = screenHeight - self.cursorIndicatorPosition.y - self.cursorIndicatorRadius;
+	CGFloat flippedY = screenHeight - position.y - self.cursorIndicatorRadius;
 	CGFloat expand = 1.0;
 	return NSMakeRect(
-	    self.cursorIndicatorPosition.x - self.cursorIndicatorRadius - expand, flippedY - expand,
-	    diameter + expand * 2.0, diameter + expand * 2.0);
+	    position.x - self.cursorIndicatorRadius - expand, flippedY - expand, diameter + expand * 2.0,
+	    diameter + expand * 2.0);
 }
 
 /// Draw the virtual cursor indicator when it intersects the dirty region.
@@ -627,9 +833,10 @@ static const CGFloat kHintArrowGap = 1.0;
 	if (filterByRect && !NSIntersectsRect(indicatorRect, dirtyRect))
 		return;
 
+	NSPoint position = [self currentCursorIndicatorPosition];
 	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat centerY = screenHeight - self.cursorIndicatorPosition.y;
-	NSPoint center = NSMakePoint(self.cursorIndicatorPosition.x, centerY);
+	CGFloat centerY = screenHeight - position.y;
+	NSPoint center = NSMakePoint(position.x, centerY);
 	NSBezierPath *dot = [NSBezierPath
 	    bezierPathWithOvalInRect:NSMakeRect(
 	                                 center.x - self.cursorIndicatorRadius, center.y - self.cursorIndicatorRadius,
@@ -858,7 +1065,88 @@ static const CGFloat kHintArrowGap = 1.0;
 			[self drawGridLabel:label
 			             inCellRect:cellRect
 			              isMatched:isMatched
-			    matchedPrefixLength:cellItem.matchedPrefixLength];
+			    matchedPrefixLength:cellItem.matchedPrefixLength
+			                  alpha:1.0];
+		}
+	}
+}
+
+- (void)drawAnimatedGridCellsInRect:(NSRect)dirtyRect progress:(CGFloat)progress {
+	NSArray<GridCellItem *> *fromCells = self.transitionFromGridCells ?: @[];
+	NSArray<GridCellItem *> *toCells = self.transitionToGridCells ?: @[];
+	NSUInteger count = MAX([fromCells count], [toCells count]);
+	if (count == 0) {
+		return;
+	}
+
+	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
+	CGFloat screenHeight = self.bounds.size.height;
+	CGRect fromBounds = CGRectNull;
+	CGRect toBounds = CGRectNull;
+
+	for (GridCellItem *cell in fromCells) {
+		fromBounds = CGRectIsNull(fromBounds) ? cell.bounds : CGRectUnion(fromBounds, cell.bounds);
+	}
+	for (GridCellItem *cell in toCells) {
+		toBounds = CGRectIsNull(toBounds) ? cell.bounds : CGRectUnion(toBounds, cell.bounds);
+	}
+	if (CGRectIsNull(fromBounds)) {
+		fromBounds = CGRectIsNull(toBounds) ? CGRectZero : toBounds;
+	}
+	if (CGRectIsNull(toBounds)) {
+		toBounds = fromBounds;
+	}
+
+	for (NSUInteger idx = 0; idx < count; idx++) {
+		GridCellItem *fromCell = idx < [fromCells count] ? fromCells[idx] : nil;
+		GridCellItem *toCell = idx < [toCells count] ? toCells[idx] : nil;
+		CGRect startRect = fromCell ? fromCell.bounds : fromBounds;
+		CGRect endRect = toCell ? toCell.bounds : toBounds;
+		CGRect rect = CGRectMake(
+		    startRect.origin.x + (endRect.origin.x - startRect.origin.x) * progress,
+		    startRect.origin.y + (endRect.origin.y - startRect.origin.y) * progress,
+		    startRect.size.width + (endRect.size.width - startRect.size.width) * progress,
+		    startRect.size.height + (endRect.size.height - startRect.size.height) * progress);
+
+		CGFloat flippedY = screenHeight - rect.origin.y - rect.size.height;
+		NSRect cellRect = NSMakeRect(rect.origin.x, flippedY, rect.size.width, rect.size.height);
+		if (filterByRect && !NSIntersectsRect(cellRect, dirtyRect)) {
+			continue;
+		}
+
+		NSColor *bgBase = self.gridBackgroundColor;
+		[bgBase setFill];
+		NSRectFill(cellRect);
+
+		[self.gridBorderColor setStroke];
+		NSRect borderRect = cellRect;
+		if ((int)self.gridBorderWidth % 2 == 1) {
+			borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
+		}
+		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
+		[borderPath setLineWidth:self.gridBorderWidth];
+		[borderPath stroke];
+
+		NSString *fromLabel = fromCell.label ?: @"";
+		NSString *toLabel = toCell.label ?: fromLabel;
+		BOOL labelsMatch = [fromLabel isEqualToString:toLabel];
+		if (self.gridDrawSubKeyPreview) {
+			[self drawSubKeyPreviewInCellRect:cellRect];
+		}
+		if (labelsMatch) {
+			[self drawGridLabel:toLabel inCellRect:cellRect isMatched:NO matchedPrefixLength:0 alpha:1.0];
+			continue;
+		}
+
+		if (fromLabel.length > 0 && progress < 1.0) {
+			[self drawGridLabel:fromLabel
+			             inCellRect:cellRect
+			              isMatched:NO
+			    matchedPrefixLength:0
+			                  alpha:(1.0 - progress)];
+		}
+		if (toLabel.length > 0 && progress > 0.0) {
+			[self drawGridLabel:toLabel inCellRect:cellRect isMatched:NO matchedPrefixLength:0 alpha:progress];
 		}
 	}
 }
@@ -872,15 +1160,33 @@ static const CGFloat kHintArrowGap = 1.0;
              inCellRect:(NSRect)cellRect
               isMatched:(BOOL)isMatched
     matchedPrefixLength:(int)matchedPrefixLength {
+	[self drawGridLabel:label
+	             inCellRect:cellRect
+	              isMatched:isMatched
+	    matchedPrefixLength:matchedPrefixLength
+	                  alpha:1.0];
+}
+
+- (void)drawGridLabel:(NSString *)label
+             inCellRect:(NSRect)cellRect
+              isMatched:(BOOL)isMatched
+    matchedPrefixLength:(int)matchedPrefixLength
+                  alpha:(CGFloat)alpha {
+	if (alpha <= 0.0) {
+		return;
+	}
+
 	// Set up attributed string
 	NSMutableAttributedString *attrString = self.cachedGridCellAttributedString;
 	[[attrString mutableString] setString:label];
 	NSRange fullRange = NSMakeRange(0, [label length]);
 	[attrString setAttributes:@{NSFontAttributeName : self.gridFont} range:fullRange];
-	[attrString addAttribute:NSForegroundColorAttributeName value:self.cachedGridTextColor range:fullRange];
+	[attrString addAttribute:NSForegroundColorAttributeName
+	                   value:[self color:self.cachedGridTextColor withMultipliedAlpha:alpha]
+	                   range:fullRange];
 	if (isMatched && matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
 		[attrString addAttribute:NSForegroundColorAttributeName
-		                   value:self.cachedGridMatchedTextColor
+		                   value:[self color:self.cachedGridMatchedTextColor withMultipliedAlpha:alpha]
 		                   range:NSMakeRange(0, matchedPrefixLength)];
 	}
 
@@ -916,9 +1222,11 @@ static const CGFloat kHintArrowGap = 1.0;
 	badgeHeight = MIN(badgeHeight, maxBadgeHeight);
 
 	// Resolve badge colors
-	NSColor *badgeFill = self.gridLabelBackgroundColor ? self.gridLabelBackgroundColor : self.gridBackgroundColor;
+	NSColor *badgeFill = (self.gridLabelBackgroundColor ? self.gridLabelBackgroundColor : self.gridBackgroundColor);
+	badgeFill = [self color:badgeFill withMultipliedAlpha:alpha];
 	NSColor *badgeBorder =
 	    isMatched && self.gridMatchedBorderColor ? self.gridMatchedBorderColor : self.gridBorderColor;
+	badgeBorder = [self color:badgeBorder withMultipliedAlpha:alpha];
 
 	// Draw badge fill
 	NSRect badgeRect = NSMakeRect(
@@ -1189,12 +1497,16 @@ void NeruClearOverlay(OverlayWindow window) {
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	if ([NSThread isMainThread]) {
+		[controller.overlayView cancelGridTransition];
+		[controller.overlayView cancelCursorIndicatorTransition];
 		[controller.overlayView.hints removeAllObjects];
 		[controller.overlayView.gridCells removeAllObjects];
 		controller.overlayView.cursorIndicatorVisible = NO;
 		[controller.overlayView setNeedsDisplay:YES];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
+			[controller.overlayView cancelGridTransition];
+			[controller.overlayView cancelCursorIndicatorTransition];
 			[controller.overlayView.hints removeAllObjects];
 			[controller.overlayView.gridCells removeAllObjects];
 			controller.overlayView.cursorIndicatorVisible = NO;
@@ -1794,9 +2106,126 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 		controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
 
 		// Replace cell data and redisplay
+		[controller.overlayView cancelGridTransition];
+		[controller.overlayView cancelCursorIndicatorTransition];
 		[controller.overlayView.gridCells removeAllObjects];
 		[controller.overlayView.gridCells addObjectsFromArray:cellItems];
 		[controller.overlayView setNeedsDisplay:YES];
+	});
+}
+
+/// Animate recursive-grid cells between the current and next depth state.
+/// @param window Overlay window handle
+/// @param cells Target grid cells
+/// @param count Number of target cells
+/// @param style Grid cell style
+/// @param duration Animation duration in seconds
+void NeruAnimateRecursiveGridTransition(
+    OverlayWindow window, GridCell *cells, int count, GridCellStyle style, double duration) {
+	if (!window || !cells) {
+		return;
+	}
+
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+	NSMutableArray<GridCellItem *> *cellItems = buildGridCellItems(cells, count);
+
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultGridFontSize;
+	NSString *fontFamily = nil;
+	if (style.fontFamily) {
+		fontFamily = @(style.fontFamily);
+		if (fontFamily.length == 0) {
+			fontFamily = nil;
+		}
+	}
+	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
+	NSString *labelBgHex = style.labelBackgroundColor ? @(style.labelBackgroundColor) : nil;
+	NSString *textHex = style.textColor ? @(style.textColor) : nil;
+	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
+	NSString *matchedBgHex = style.matchedBackgroundColor ? @(style.matchedBackgroundColor) : nil;
+	NSString *matchedBorderHex = style.matchedBorderColor ? @(style.matchedBorderColor) : nil;
+	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
+	int borderWidth = style.borderWidth;
+	BOOL drawLabelBackground = style.drawLabelBackground ? YES : NO;
+	CGFloat labelBackgroundPaddingX = style.labelBackgroundPaddingX;
+	CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
+	CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
+	CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
+	BOOL drawSubKeyPreview = style.drawSubKeyPreview ? YES : NO;
+	int subKeyGridCols = style.subKeyGridCols;
+	int subKeyGridRows = style.subKeyGridRows;
+	CGFloat subKeyFontSize = style.subKeyFontSize > 0 ? style.subKeyFontSize : 6.0;
+	CGFloat subKeyAutohideMultiplier = style.subKeyAutohideMultiplier;
+	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
+
+	NSString *subKeyKeysStr = style.subKeyKeys ? @(style.subKeyKeys) : nil;
+	NSMutableArray<NSString *> *subKeyLabels = nil;
+	if (subKeyKeysStr && subKeyKeysStr.length > 0) {
+		subKeyLabels = [NSMutableArray arrayWithCapacity:subKeyKeysStr.length];
+		[subKeyKeysStr
+		    enumerateSubstringsInRange:NSMakeRange(0, subKeyKeysStr.length)
+		                       options:NSStringEnumerationByComposedCharacterSequences
+		                    usingBlock:^(
+		                        NSString *substring, NSRange substringRange, NSRange enclosingRange, BOOL *stop) {
+			                    [subKeyLabels addObject:substring];
+		                    }];
+	}
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		BOOL gridFamilyChanged =
+		    (fontFamily != controller.overlayView.cachedGridFontFamily &&
+		     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
+		if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
+			NSFont *font = nil;
+			if (fontFamily && [fontFamily length] > 0) {
+				font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
+			}
+			if (!font) {
+				font = [NSFont systemFontOfSize:fontSize];
+			}
+			controller.overlayView.gridFont = font;
+			controller.overlayView.cachedGridFontFamily = fontFamily;
+			controller.overlayView.cachedGridFontSize = fontSize;
+		}
+
+		controller.overlayView.gridBackgroundColor = [controller.overlayView colorFromHex:bgHex
+		                                                                     defaultColor:[NSColor whiteColor]];
+		controller.overlayView.gridLabelBackgroundColor = [controller.overlayView
+		    colorFromHex:labelBgHex
+		    defaultColor:[[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.8]];
+		controller.overlayView.gridTextColor = [controller.overlayView colorFromHex:textHex
+		                                                               defaultColor:[NSColor blackColor]];
+		controller.overlayView.gridMatchedTextColor = [controller.overlayView colorFromHex:matchedTextHex
+		                                                                      defaultColor:[NSColor blueColor]];
+		controller.overlayView.gridMatchedBackgroundColor = [controller.overlayView colorFromHex:matchedBgHex
+		                                                                            defaultColor:[NSColor blueColor]];
+		controller.overlayView.gridMatchedBorderColor = [controller.overlayView colorFromHex:matchedBorderHex
+		                                                                        defaultColor:[NSColor blueColor]];
+		controller.overlayView.gridBorderColor = [controller.overlayView colorFromHex:borderHex
+		                                                                 defaultColor:[NSColor grayColor]];
+
+		controller.overlayView.gridBorderWidth = borderWidth > 0 ? borderWidth : 1.0;
+		controller.overlayView.gridDrawLabelBackground = drawLabelBackground;
+		controller.overlayView.gridLabelBackgroundPaddingX = labelBackgroundPaddingX;
+		controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
+		controller.overlayView.gridLabelBackgroundBorderRadius = labelBackgroundBorderRadius;
+		controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
+		controller.overlayView.gridDrawSubKeyPreview = drawSubKeyPreview;
+		controller.overlayView.gridSubKeyCols = subKeyGridCols;
+		controller.overlayView.gridSubKeyRows = subKeyGridRows;
+		controller.overlayView.gridSubKeyLabels = subKeyLabels;
+		if (drawSubKeyPreview) {
+			if (subKeyFontSize != controller.overlayView.cachedGridSubKeyFontSize) {
+				controller.overlayView.gridSubKeyFont = [NSFont systemFontOfSize:subKeyFontSize];
+				controller.overlayView.cachedGridSubKeyFontSize = subKeyFontSize;
+			}
+			controller.overlayView.gridSubKeyAutohideMultiplier = subKeyAutohideMultiplier;
+			controller.overlayView.gridSubKeyTextColor = [controller.overlayView colorFromHex:subKeyTextHex
+			                                                                     defaultColor:[NSColor grayColor]];
+		}
+
+		controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
+		controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
+		[controller.overlayView startGridTransitionToCells:cellItems duration:duration];
 	});
 }
 
@@ -2052,6 +2481,8 @@ void NeruDrawIncrementGrid(
 		// Sync cached color references
 		controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
 		controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
+		[controller.overlayView cancelGridTransition];
+		[controller.overlayView cancelCursorIndicatorTransition];
 
 		// Remove cells matching the given bounds
 		if (boundsToRemove && [boundsToRemove count] > 0) {
@@ -2126,8 +2557,18 @@ void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndic
 	NSString *fillHex = style.fillColor ? @(style.fillColor) : nil;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
+		NSPoint nextPosition = NSMakePoint(position.x, position.y);
+		if (controller.overlayView.gridTransitionActive && controller.overlayView.cursorIndicatorVisible) {
+			controller.overlayView.cursorIndicatorFromPosition =
+			    [controller.overlayView currentCursorIndicatorPosition];
+			controller.overlayView.cursorIndicatorToPosition = nextPosition;
+			controller.overlayView.cursorIndicatorTransitionActive = YES;
+		} else {
+			[controller.overlayView cancelCursorIndicatorTransition];
+		}
+
 		controller.overlayView.cursorIndicatorVisible = YES;
-		controller.overlayView.cursorIndicatorPosition = NSMakePoint(position.x, position.y);
+		controller.overlayView.cursorIndicatorPosition = nextPosition;
 		controller.overlayView.cursorIndicatorRadius = radius;
 		controller.overlayView.cursorIndicatorFillColor = [controller.overlayView colorFromHex:fillHex
 		                                                                          defaultColor:[NSColor whiteColor]];
@@ -2148,6 +2589,7 @@ void NeruHideCursorIndicator(OverlayWindow window) {
 			return;
 
 		NSRect dirtyRect = [controller.overlayView cursorIndicatorRect];
+		[controller.overlayView cancelCursorIndicatorTransition];
 		controller.overlayView.cursorIndicatorVisible = NO;
 		if (NSIsEmptyRect(dirtyRect)) {
 			[controller.overlayView setNeedsDisplay:YES];
