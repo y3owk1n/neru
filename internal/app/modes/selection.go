@@ -1,7 +1,10 @@
 package modes
 
 import (
+	"context"
 	"image"
+
+	"go.uber.org/zap"
 
 	componentrecursivegrid "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
@@ -91,7 +94,17 @@ func (h *Handler) ToggleCursorFollowSelection() (bool, bool) {
 		}
 
 		enabled := h.grid.Context.ToggleCursorFollowSelection()
+
 		h.refreshGridVirtualPointerLocked()
+
+		if enabled {
+			if target, ok := h.grid.Context.SelectionPoint(); ok && h.actionService != nil {
+				moveCursorErr := h.actionService.MoveCursorToPoint(context.Background(), target)
+				if moveCursorErr != nil {
+					h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
+				}
+			}
+		}
 
 		return enabled, true
 	case domain.ModeRecursiveGrid:
@@ -100,7 +113,18 @@ func (h *Handler) ToggleCursorFollowSelection() (bool, bool) {
 		}
 
 		enabled := h.recursiveGrid.Context.ToggleCursorFollowSelection()
+
 		h.refreshRecursiveGridVirtualPointerLocked()
+
+		if enabled {
+			if target, ok := h.recursiveGrid.Context.SelectionPoint(); ok &&
+				h.actionService != nil {
+				moveCursorErr := h.actionService.MoveCursorToPoint(context.Background(), target)
+				if moveCursorErr != nil {
+					h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
+				}
+			}
+		}
 
 		return enabled, true
 	case domain.ModeIdle:

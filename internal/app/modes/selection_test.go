@@ -2,15 +2,20 @@
 package modes
 
 import (
+	"context"
 	"image"
 	"testing"
+
+	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
+	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
 func TestCurrentSelectionPoint_UsesActiveModeContext(t *testing.T) {
@@ -47,6 +52,13 @@ func TestToggleCursorFollowSelection_UpdatesOnlySupportedModes(t *testing.T) {
 
 	handler := &Handler{
 		appState: appState,
+		logger:   zap.NewNop(),
+		actionService: services.NewActionService(
+			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockOverlayPort{},
+			&portmocks.SystemMock{},
+			zap.NewNop(),
+		),
 		hints: &components.HintsComponent{
 			Context: &hintscomponent.Context{},
 		},
@@ -75,6 +87,134 @@ func TestToggleCursorFollowSelection_UpdatesOnlySupportedModes(t *testing.T) {
 		t.Fatal(
 			"ToggleCursorFollowSelection() expected cursor_follow_selection to become enabled in hints mode",
 		)
+	}
+}
+
+func TestToggleCursorFollowSelection_MovesCursorToStoredGridSelectionWhenEnabling(t *testing.T) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeGrid)
+
+	var moved []image.Point
+
+	handler := &Handler{
+		appState: appState,
+		logger:   zap.NewNop(),
+		actionService: services.NewActionService(
+			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockOverlayPort{},
+			&portmocks.SystemMock{
+				MoveCursorToPointFunc: func(_ context.Context, point image.Point, _ bool) error {
+					moved = append(moved, point)
+
+					return nil
+				},
+			},
+			zap.NewNop(),
+		),
+		grid: &components.GridComponent{
+			Context: &gridcomponent.Context{},
+		},
+	}
+
+	handler.grid.Context.SetSelectionPoint(image.Point{X: 120, Y: 240})
+
+	enabled, supported := handler.ToggleCursorFollowSelection()
+	if !supported || !enabled {
+		t.Fatalf("ToggleCursorFollowSelection() = (%v, %v), want (true, true)", enabled, supported)
+	}
+
+	if len(moved) != 1 {
+		t.Fatalf("ToggleCursorFollowSelection() moved cursor %d times, want 1", len(moved))
+	}
+
+	if moved[0] != (image.Point{X: 120, Y: 240}) {
+		t.Fatalf("ToggleCursorFollowSelection() moved cursor to %v, want (120,240)", moved[0])
+	}
+}
+
+func TestToggleCursorFollowSelection_DoesNotMoveCursorWhenDisabling(t *testing.T) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeGrid)
+
+	moveCount := 0
+
+	handler := &Handler{
+		appState: appState,
+		logger:   zap.NewNop(),
+		actionService: services.NewActionService(
+			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockOverlayPort{},
+			&portmocks.SystemMock{
+				MoveCursorToPointFunc: func(_ context.Context, _ image.Point, _ bool) error {
+					moveCount++
+
+					return nil
+				},
+			},
+			zap.NewNop(),
+		),
+		grid: &components.GridComponent{
+			Context: &gridcomponent.Context{},
+		},
+	}
+
+	handler.grid.Context.SetCursorFollowSelection(true)
+	handler.grid.Context.SetSelectionPoint(image.Point{X: 120, Y: 240})
+
+	enabled, supported := handler.ToggleCursorFollowSelection()
+	if !supported || enabled {
+		t.Fatalf("ToggleCursorFollowSelection() = (%v, %v), want (false, true)", enabled, supported)
+	}
+
+	if moveCount != 0 {
+		t.Fatalf(
+			"ToggleCursorFollowSelection() moved cursor %d times while disabling, want 0",
+			moveCount,
+		)
+	}
+}
+
+func TestToggleCursorFollowSelection_MovesCursorToStoredRecursiveGridSelectionWhenEnabling(
+	t *testing.T,
+) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeRecursiveGrid)
+
+	var moved []image.Point
+
+	handler := &Handler{
+		appState: appState,
+		logger:   zap.NewNop(),
+		actionService: services.NewActionService(
+			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockOverlayPort{},
+			&portmocks.SystemMock{
+				MoveCursorToPointFunc: func(_ context.Context, point image.Point, _ bool) error {
+					moved = append(moved, point)
+
+					return nil
+				},
+			},
+			zap.NewNop(),
+		),
+		recursiveGrid: &components.RecursiveGridComponent{
+			Context: &recursivegridcomponent.Context{},
+		},
+	}
+
+	handler.recursiveGrid.Context.SetSelectionPoint(image.Point{X: 33, Y: 66})
+
+	enabled, supported := handler.ToggleCursorFollowSelection()
+	if !supported || !enabled {
+		t.Fatalf("ToggleCursorFollowSelection() = (%v, %v), want (true, true)", enabled, supported)
+	}
+
+	if len(moved) != 1 {
+		t.Fatalf("ToggleCursorFollowSelection() moved cursor %d times, want 1", len(moved))
+	}
+
+	if moved[0] != (image.Point{X: 33, Y: 66}) {
+		t.Fatalf("ToggleCursorFollowSelection() moved cursor to %v, want (33,66)", moved[0])
 	}
 }
 
