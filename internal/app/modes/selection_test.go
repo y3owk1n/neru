@@ -52,6 +52,13 @@ func TestToggleCursorFollowSelection_UpdatesOnlySupportedModes(t *testing.T) {
 
 	handler := &Handler{
 		appState: appState,
+		logger:   zap.NewNop(),
+		actionService: services.NewActionService(
+			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockOverlayPort{},
+			&portmocks.SystemMock{},
+			zap.NewNop(),
+		),
 		hints: &components.HintsComponent{
 			Context: &hintscomponent.Context{},
 		},
