@@ -1,7 +1,10 @@
 package modes
 
 import (
+	"context"
 	"image"
+
+	"go.uber.org/zap"
 
 	componentrecursivegrid "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
@@ -76,40 +79,76 @@ func (h *Handler) ClearCurrentSelectionPoint() bool {
 // ToggleCursorFollowSelection toggles cursor-follow-selection for the active mode.
 func (h *Handler) ToggleCursorFollowSelection() (bool, bool) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
+
+	var (
+		enabled    bool
+		supported  bool
+		target     image.Point
+		shouldMove bool
+	)
 
 	switch h.appState.CurrentMode() {
 	case domain.ModeHints:
 		if h.hints == nil || h.hints.Context == nil {
+			h.mu.Unlock()
+
 			return false, false
 		}
 
-		return h.hints.Context.ToggleCursorFollowSelection(), true
+		enabled = h.hints.Context.ToggleCursorFollowSelection()
+		supported = true
 	case domain.ModeGrid:
 		if h.grid == nil || h.grid.Context == nil {
+			h.mu.Unlock()
+
 			return false, false
 		}
 
-		enabled := h.grid.Context.ToggleCursorFollowSelection()
+		enabled = h.grid.Context.ToggleCursorFollowSelection()
+		if enabled {
+			target, shouldMove = h.grid.Context.SelectionPoint()
+		}
+
 		h.refreshGridVirtualPointerLocked()
 
-		return enabled, true
+		supported = true
+
 	case domain.ModeRecursiveGrid:
 		if h.recursiveGrid == nil || h.recursiveGrid.Context == nil {
+			h.mu.Unlock()
+
 			return false, false
 		}
 
-		enabled := h.recursiveGrid.Context.ToggleCursorFollowSelection()
+		enabled = h.recursiveGrid.Context.ToggleCursorFollowSelection()
+		if enabled {
+			target, shouldMove = h.recursiveGrid.Context.SelectionPoint()
+		}
+
 		h.refreshRecursiveGridVirtualPointerLocked()
 
-		return enabled, true
+		supported = true
+
 	case domain.ModeIdle:
+		h.mu.Unlock()
+
 		return false, false
 	case domain.ModeScroll:
+		h.mu.Unlock()
+
 		return false, false
 	}
 
-	return false, false
+	h.mu.Unlock()
+
+	if enabled && shouldMove && h.actionService != nil {
+		moveCursorErr := h.actionService.MoveCursorToPoint(context.Background(), target)
+		if moveCursorErr != nil {
+			h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
+		}
+	}
+
+	return enabled, supported
 }
 
 func (h *Handler) refreshGridVirtualPointerLocked() {
