@@ -280,9 +280,9 @@ func TestManagerWithLayers_NonSquare3x2(t *testing.T) {
 func TestManagerWithLayers_InvalidColsOnly_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
-	// gridCols=0 is invalid, gridRows=3 is valid
-	// Manager corrects gridCols to 2, then key count = 2*3 = 6
-	// "uijk" has 4 keys ≠ 6, so it falls back to default keys "uijk" with 2x2
+	// gridCols=0 is invalid (< MinGridDimension), so both dimensions are
+	// reset to DefaultGridCols×DefaultGridRows (2×2).
+	// "uijk" has 4 keys == 2*2, so no further fallback is needed.
 	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
@@ -327,9 +327,9 @@ func TestManagerWithLayers_SingleColumnValid(t *testing.T) {
 func TestManagerWithLayers_InvalidRowsOnly_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
-	// gridCols=3 is valid, gridRows=0 is invalid
-	// Manager corrects gridRows to 2, then key count = 3*2 = 6
-	// "uijk" has 4 keys ≠ 6, so it falls back to default keys "uijk" with 2x2
+	// gridRows=0 is invalid (< MinGridDimension), so both dimensions are
+	// reset to DefaultGridCols×DefaultGridRows (2×2).
+	// "uijk" has 4 keys == 2*2, so no further fallback is needed.
 	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
