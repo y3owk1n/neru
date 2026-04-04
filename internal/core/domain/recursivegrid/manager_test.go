@@ -324,6 +324,29 @@ func TestManagerWithLayers_SingleColumnValid(t *testing.T) {
 	assert.Equal(t, "abc", manager.Keys())
 }
 
+func TestManagerWithLayers_1x1_FallsBack(t *testing.T) {
+	bounds := image.Rect(0, 0, 100, 100)
+	logger := zap.NewNop()
+	// 1×1 is degenerate (cannot subdivide), so both dimensions fall back to 2×2.
+	// "a" has 1 key ≠ 2*2=4, so keys also fall back to DefaultKeys "uijk".
+	manager := recursivegrid.NewManagerWithLayers(
+		bounds,
+		"a",
+		10,
+		10,
+		10,
+		1, // gridCols
+		1, // gridRows
+		nil, nil,
+		nil,
+		nil,
+		logger,
+	)
+	assert.Equal(t, 2, manager.GridCols())
+	assert.Equal(t, 2, manager.GridRows())
+	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
+}
+
 func TestManagerWithLayers_InvalidRowsOnly_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()

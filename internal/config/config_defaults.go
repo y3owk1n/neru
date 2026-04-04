@@ -172,6 +172,8 @@ const (
 	DefaultRecursiveGridMinGridCols = 1
 	// DefaultRecursiveGridMinGridRows is the minimum allowed grid rows.
 	DefaultRecursiveGridMinGridRows = 1
+	// DefaultRecursiveGridMinTotalCells is the minimum allowed total cells.
+	DefaultRecursiveGridMinTotalCells = 2
 	// DefaultRecursiveGridAnimationDurationMS is the default native recursive-grid transition duration in milliseconds.
 	DefaultRecursiveGridAnimationDurationMS = 180
 	// DefaultRecursiveGridLineWidth is the default line width for grid lines.

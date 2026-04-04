@@ -61,9 +61,10 @@ func NewManagerWithLayers(
 	onComplete func(image.Point),
 	logger *zap.Logger,
 ) *Manager {
-	// Use default grid dimensions if either is invalid (< 1)
-	// Reset both to 2x2 for consistency (matches overlay fallback behavior)
-	if gridCols < MinGridDimension || gridRows < MinGridDimension {
+	// Use default grid dimensions if either is invalid (< 1) or if the grid
+	// is degenerate (1×1 cannot subdivide). Reset both to 2x2 for consistency.
+	if gridCols < MinGridDimension || gridRows < MinGridDimension ||
+		gridCols*gridRows < 2 {
 		logger.Warn("Invalid grid dimensions, using default 2x2",
 			zap.Int("provided_cols", gridCols),
 			zap.Int("provided_rows", gridRows))

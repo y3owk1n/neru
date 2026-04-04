@@ -553,6 +553,13 @@ func (c *Config) ValidateRecursiveGrid() error {
 		)
 	}
 
+	if c.RecursiveGrid.GridCols*c.RecursiveGrid.GridRows < DefaultRecursiveGridMinTotalCells {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid grid must have at least 2 cells (grid_cols * grid_rows >= 2); a 1x1 grid cannot subdivide",
+		)
+	}
+
 	if c.RecursiveGrid.MaxDepth < 1 {
 		return derrors.New(derrors.CodeInvalidConfig, "recursive_grid.max_depth must be >= 1")
 	}
@@ -586,6 +593,14 @@ func (c *Config) ValidateRecursiveGrid() error {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
 				"recursive_grid.layers grid dimensions must be >= 1",
+			)
+		}
+
+		if layer.GridCols*layer.GridRows < DefaultRecursiveGridMinTotalCells {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"recursive_grid.layers depth %d must have at least 2 cells (grid_cols * grid_rows >= 2); a 1x1 grid cannot subdivide",
+				layer.Depth,
 			)
 		}
 

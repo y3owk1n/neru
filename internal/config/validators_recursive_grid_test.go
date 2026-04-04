@@ -45,6 +45,19 @@ func TestConfigValidateRecursiveGrid_SingleDimensionLayoutsValid(t *testing.T) {
 	}
 }
 
+func TestConfigValidateRecursiveGrid_1x1_Invalid(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.RecursiveGrid.Enabled = true
+	cfg.RecursiveGrid.GridCols = 1
+	cfg.RecursiveGrid.GridRows = 1
+	cfg.RecursiveGrid.Keys = "a"
+
+	err := cfg.ValidateRecursiveGrid()
+	if err == nil {
+		t.Fatal("ValidateRecursiveGrid() expected error for degenerate 1x1 grid")
+	}
+}
+
 func TestConfigValidateRecursiveGrid_InvalidKeyLength(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.RecursiveGrid.Enabled = true
