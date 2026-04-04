@@ -20,7 +20,9 @@ Neru _(練る — "to refine through practice")_ puts your cursor anywhere on sc
 
 It's a free, open-source alternative to [Homerow](https://www.homerow.app/), [Mouseless](https://mouseless.click/), and [Wooshy](https://wooshy.app). No paywalls, no subscriptions, fully configurable.
 
-> See how the author uses Neru day-to-day → [HOW-I-USE-NERU.md](HOW-I-USE-NERU.md)
+> See how the author uses Neru day-to-day → [HOW-I-USE-NERU.md](HOW-I-USE-NERU.md) and a quick demo with `recursive_grid` with my own config:
+
+https://github.com/user-attachments/assets/4504dc19-90e6-43c0-9179-28c866513061
 
 ---
 
