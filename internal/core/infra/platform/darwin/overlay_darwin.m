@@ -571,7 +571,7 @@ static const CGFloat kHintArrowGap = 1.0;
 		for (GridCellItem *cell in cells) {
 			targetBounds = CGRectIsNull(targetBounds) ? cell.bounds : CGRectUnion(targetBounds, cell.bounds);
 		}
-		if (CGRectIsNull(sourceBounds)) {
+		if (CGRectIsNull(sourceBounds) || CGRectGetWidth(sourceBounds) <= 0 || CGRectGetHeight(sourceBounds) <= 0) {
 			sourceBounds = CGRectIsNull(targetBounds) ? CGRectZero : targetBounds;
 		}
 		if (CGRectIsNull(targetBounds) || CGRectGetWidth(targetBounds) <= 0 || CGRectGetHeight(targetBounds) <= 0) {
