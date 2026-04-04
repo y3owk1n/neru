@@ -564,7 +564,7 @@ static const CGFloat kHintArrowGap = 1.0;
 
 	if (cellCountChanged) {
 		CGRect sourceBounds = CGRectNull;
-		for (GridCellItem *cell in self.gridCells) {
+		for (GridCellItem *cell in fromCells) {
 			sourceBounds = CGRectIsNull(sourceBounds) ? cell.bounds : CGRectUnion(sourceBounds, cell.bounds);
 		}
 		CGRect targetBounds = CGRectNull;
