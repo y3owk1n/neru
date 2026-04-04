@@ -39,8 +39,8 @@ func NewManager(
 		25, //nolint:mnd
 		25, //nolint:mnd
 		10, //nolint:mnd
-		MinGridDimension,
-		MinGridDimension,
+		DefaultGridCols,
+		DefaultGridRows,
 		nil, nil,
 		onUpdate,
 		onComplete,
@@ -61,14 +61,14 @@ func NewManagerWithLayers(
 	onComplete func(image.Point),
 	logger *zap.Logger,
 ) *Manager {
-	// Use default grid dimensions if either is invalid (< 2)
+	// Use default grid dimensions if either is invalid (< 1)
 	// Reset both to 2x2 for consistency (matches overlay fallback behavior)
 	if gridCols < MinGridDimension || gridRows < MinGridDimension {
 		logger.Warn("Invalid grid dimensions, using default 2x2",
 			zap.Int("provided_cols", gridCols),
 			zap.Int("provided_rows", gridRows))
-		gridCols = MinGridDimension
-		gridRows = MinGridDimension
+		gridCols = DefaultGridCols
+		gridRows = DefaultGridRows
 	}
 
 	// Use default keys if not provided
@@ -84,8 +84,8 @@ func NewManagerWithLayers(
 			zap.Int("length", utf8.RuneCountInString(keys)),
 			zap.Int("expected", expectedKeyCount))
 		keys = DefaultKeys
-		gridCols = MinGridDimension
-		gridRows = MinGridDimension
+		gridCols = DefaultGridCols
+		gridRows = DefaultGridRows
 	}
 
 	if depthKeys == nil {

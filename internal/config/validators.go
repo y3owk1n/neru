@@ -585,7 +585,7 @@ func (c *Config) ValidateRecursiveGrid() error {
 			layer.GridRows < DefaultRecursiveGridMinGridRows {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
-				"recursive_grid.layers grid dimensions must be >= 2",
+				"recursive_grid.layers grid dimensions must be >= 1",
 			)
 		}
 

@@ -446,8 +446,8 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 | ----------------- | ------ | -------- | ----------------------------------- |
 | `enabled`         | bool   | `true`   | Enable/disable mode                 |
 | `hotkeys`         | table  | `{}`     | Per-mode hotkeys                    |
-| `grid_cols`       | int    | `2`      | Number of columns (≥ 2)             |
-| `grid_rows`       | int    | `2`      | Number of rows (≥ 2)                |
+| `grid_cols`       | int    | `2`      | Number of columns (≥ 1)             |
+| `grid_rows`       | int    | `2`      | Number of rows (≥ 1)                |
 | `keys`            | string | `"uijk"` | Cell selection keys                 |
 | `min_size_width`  | int    | `25`     | Minimum cell width in pixels        |
 | `min_size_height` | int    | `25`     | Minimum cell height in pixels       |

@@ -169,9 +169,9 @@ const (
 	// DefaultRecursiveGridMaxDepth is the default maximum recursion depth.
 	DefaultRecursiveGridMaxDepth = 10
 	// DefaultRecursiveGridMinGridCols is the minimum allowed grid columns.
-	DefaultRecursiveGridMinGridCols = 2
+	DefaultRecursiveGridMinGridCols = 1
 	// DefaultRecursiveGridMinGridRows is the minimum allowed grid rows.
-	DefaultRecursiveGridMinGridRows = 2
+	DefaultRecursiveGridMinGridRows = 1
 	// DefaultRecursiveGridAnimationDurationMS is the default native recursive-grid transition duration in milliseconds.
 	DefaultRecursiveGridAnimationDurationMS = 180
 	// DefaultRecursiveGridLineWidth is the default line width for grid lines.

@@ -257,19 +257,19 @@ func (o *Overlay) DrawRecursiveGrid(
 	// Use the provided dimensions and calculate key count
 	keyCount := gridCols * gridRows
 
-	// Validate grid dimensions (must be at least 2)
+	// Validate grid dimensions (must be at least 1)
 	if gridCols < recursivegrid.MinGridDimension {
 		// Fallback to default 2x2 if invalid
-		gridCols = recursivegrid.MinGridDimension
-		gridRows = recursivegrid.MinGridDimension
+		gridCols = recursivegrid.DefaultGridCols
+		gridRows = recursivegrid.DefaultGridRows
 		keyCount = gridCols * gridRows
 		keys = "uijk"
 	}
 
 	if gridRows < recursivegrid.MinGridDimension {
 		// Fallback to default 2x2 if invalid
-		gridCols = recursivegrid.MinGridDimension
-		gridRows = recursivegrid.MinGridDimension
+		gridCols = recursivegrid.DefaultGridCols
+		gridRows = recursivegrid.DefaultGridRows
 		keyCount = gridCols * gridRows
 		keys = "uijk"
 	}

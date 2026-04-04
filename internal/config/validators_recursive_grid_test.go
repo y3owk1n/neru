@@ -6,7 +6,10 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-const invalidRecursiveGridKeys = "abc"
+const (
+	invalidRecursiveGridKeys           = "abc"
+	validRecursiveGridSingleColumnKeys = "abc"
+)
 
 func TestConfigValidateRecursiveGrid_Valid(t *testing.T) {
 	cfg := config.DefaultConfig()
@@ -18,6 +21,27 @@ func TestConfigValidateRecursiveGrid_Valid(t *testing.T) {
 	err := cfg.ValidateRecursiveGrid()
 	if err != nil {
 		t.Fatalf("ValidateRecursiveGrid() unexpected error: %v", err)
+	}
+}
+
+func TestConfigValidateRecursiveGrid_SingleDimensionLayoutsValid(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.RecursiveGrid.Enabled = true
+	cfg.RecursiveGrid.GridCols = 1
+	cfg.RecursiveGrid.GridRows = 3
+	cfg.RecursiveGrid.Keys = validRecursiveGridSingleColumnKeys
+	cfg.RecursiveGrid.Layers = []config.RecursiveGridLayerConfig{
+		{
+			Depth:    1,
+			GridCols: 4,
+			GridRows: 1,
+			Keys:     "hjkl",
+		},
+	}
+
+	err := cfg.ValidateRecursiveGrid()
+	if err != nil {
+		t.Fatalf("ValidateRecursiveGrid() unexpected error for 1xN/Nx1 layouts: %v", err)
 	}
 }
 
