@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.31.0](https://github.com/y3owk1n/neru/compare/v1.30.0...v1.31.0) (2026-04-04)
+
+
+### Features
+
+* **config:** add semantic theming and unify overlay color defaults ([#676](https://github.com/y3owk1n/neru/issues/676)) ([0ec0159](https://github.com/y3owk1n/neru/commit/0ec01590df4245bf24b70ecec404e021e50567d0))
+* **config:** unify color configuration with light/dark theme support ([#674](https://github.com/y3owk1n/neru/issues/674)) ([20937cd](https://github.com/y3owk1n/neru/commit/20937cd09ce4a7cb1457319f590fbf9ec73f1a85))
+* **recursive_grid:** add opt-in native depth transitions/animation ([#678](https://github.com/y3owk1n/neru/issues/678)) ([e1edf43](https://github.com/y3owk1n/neru/commit/e1edf43c944ffbed0789940d9f48cffb469931f8))
+
+
+### Bug Fixes
+
+* add capability reporting and remove global config access ([#669](https://github.com/y3owk1n/neru/issues/669)) ([239e464](https://github.com/y3owk1n/neru/commit/239e464e737fd4a6eb04a43e069ee4a9183821e4))
+* anchor sticky modifiers to virtual cursor in grid modes ([#671](https://github.com/y3owk1n/neru/issues/671)) ([460bb56](https://github.com/y3owk1n/neru/commit/460bb563053c2d5d5766344888606e9ef7b6dadd))
+* **config:** add default cursor-follow toggle for grid modes ([#665](https://github.com/y3owk1n/neru/issues/665)) ([14a0f48](https://github.com/y3owk1n/neru/commit/14a0f484e52ac134046c06eb67de9592eb0e1aab))
+* **config:** explicitly add "`" in default-config file ([bc909d9](https://github.com/y3owk1n/neru/commit/bc909d9ab10d97e8a390c04cb17f8fcb31c4ffaa))
+* **config:** remove `tap_cooldown` field ([78c8c1b](https://github.com/y3owk1n/neru/commit/78c8c1b8953c1e23ba291f0fd753ed063dbd9383))
+* **recursive_grid:** ensure move cursor to selection when enable `toggle-cursor-follow-selection` ([#680](https://github.com/y3owk1n/neru/issues/680)) ([d562d67](https://github.com/y3owk1n/neru/commit/d562d67ff030db1268c0aae682b813f9409df999))
+* show a lightweight virtual selection pointer in hold mode ([#666](https://github.com/y3owk1n/neru/issues/666)) ([48a1c0e](https://github.com/y3owk1n/neru/commit/48a1c0e4b0b9fffde0c31f02bd8b6b0a0160581e))
+* **sticky_modifier:** stabilize activation and chord handling ([#667](https://github.com/y3owk1n/neru/issues/667)) ([18f374c](https://github.com/y3owk1n/neru/commit/18f374c01902781a2d40cf57b47f70d428e00a26))
+* treat manual relative mouse moves as selection override ([#663](https://github.com/y3owk1n/neru/issues/663)) ([e3d920f](https://github.com/y3owk1n/neru/commit/e3d920f6269278079c3c08347d429439b23179bc))
+
 ## [1.30.0](https://github.com/y3owk1n/neru/compare/v1.29.1...v1.30.0) (2026-03-28)
 
 
