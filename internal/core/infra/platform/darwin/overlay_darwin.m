@@ -374,6 +374,11 @@ static const CGFloat kHintArrowGap = 1.0;
 		if (rawProgress >= 1.0) {
 			[self cancelGridTransition];
 			[self cancelCursorIndicatorTransition];
+			// The final animated frame may still include interpolated cells that
+			// only existed in the previous layout (for example when shrinking from
+			// a dense grid to fewer cells). Force one clean redraw in the settled
+			// state so the overlay reflects only the target grid.
+			[self setNeedsDisplay:YES];
 		}
 
 		self.fullRedraw = YES;
@@ -534,6 +539,7 @@ static const CGFloat kHintArrowGap = 1.0;
 - (void)startGridTransitionToCells:(NSArray<GridCellItem *> *)cells duration:(CFTimeInterval)duration {
 	if ([cells count] == 0 || [self.gridCells count] == 0 || duration <= 0) {
 		[self cancelGridTransition];
+		[self cancelCursorIndicatorTransition];
 		self.gridCells = [cells mutableCopy];
 		[self setNeedsDisplay:YES];
 		return;
@@ -543,6 +549,7 @@ static const CGFloat kHintArrowGap = 1.0;
 	NSPoint currentCursorPosition = NSZeroPoint;
 	BOOL shouldPreserveCursorPosition = self.cursorIndicatorVisible;
 	BOOL continuingFromActive = self.gridTransitionActive;
+	BOOL cellCountChanged = [cells count] != [self.gridCells count];
 	if (self.gridTransitionActive) {
 		CGFloat existingDuration = self.gridTransitionDuration > 0 ? self.gridTransitionDuration : 0.18;
 		CFTimeInterval elapsed = CACurrentMediaTime() - self.gridTransitionStartTime;
@@ -553,6 +560,46 @@ static const CGFloat kHintArrowGap = 1.0;
 	}
 	if (shouldPreserveCursorPosition) {
 		currentCursorPosition = [self currentCursorIndicatorPosition];
+	}
+
+	if (cellCountChanged) {
+		CGRect sourceBounds = CGRectNull;
+		for (GridCellItem *cell in fromCells) {
+			sourceBounds = CGRectIsNull(sourceBounds) ? cell.bounds : CGRectUnion(sourceBounds, cell.bounds);
+		}
+		CGRect targetBounds = CGRectNull;
+		for (GridCellItem *cell in cells) {
+			targetBounds = CGRectIsNull(targetBounds) ? cell.bounds : CGRectUnion(targetBounds, cell.bounds);
+		}
+		if (CGRectIsNull(sourceBounds) || CGRectGetWidth(sourceBounds) <= 0 || CGRectGetHeight(sourceBounds) <= 0) {
+			sourceBounds = CGRectIsNull(targetBounds) ? CGRectZero : targetBounds;
+		}
+		if (CGRectIsNull(targetBounds) || CGRectGetWidth(targetBounds) <= 0 || CGRectGetHeight(targetBounds) <= 0) {
+			targetBounds = sourceBounds;
+		}
+
+		NSMutableArray<GridCellItem *> *syntheticFromCells = [NSMutableArray arrayWithCapacity:[cells count]];
+		for (GridCellItem *cell in cells) {
+			CGRect endRect = cell.bounds;
+			CGFloat relMinX = (CGRectGetMinX(endRect) - CGRectGetMinX(targetBounds)) / CGRectGetWidth(targetBounds);
+			CGFloat relMinY = (CGRectGetMinY(endRect) - CGRectGetMinY(targetBounds)) / CGRectGetHeight(targetBounds);
+			CGFloat relWidth = CGRectGetWidth(endRect) / CGRectGetWidth(targetBounds);
+			CGFloat relHeight = CGRectGetHeight(endRect) / CGRectGetHeight(targetBounds);
+			CGRect startRect = CGRectMake(
+			    CGRectGetMinX(sourceBounds) + relMinX * CGRectGetWidth(sourceBounds),
+			    CGRectGetMinY(sourceBounds) + relMinY * CGRectGetHeight(sourceBounds),
+			    relWidth * CGRectGetWidth(sourceBounds), relHeight * CGRectGetHeight(sourceBounds));
+
+			GridCellItem *fromCell = [[GridCellItem alloc] init];
+			fromCell.label = cell.label;
+			fromCell.isMatched = NO;
+			fromCell.isSubgrid = NO;
+			fromCell.matchedPrefixLength = 0;
+			fromCell.bounds = startRect;
+			[syntheticFromCells addObject:fromCell];
+		}
+		fromCells = syntheticFromCells;
+		continuingFromActive = NO;
 	}
 
 	[self cancelGridTransition];
