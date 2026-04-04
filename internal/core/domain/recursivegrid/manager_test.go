@@ -280,16 +280,16 @@ func TestManagerWithLayers_NonSquare3x2(t *testing.T) {
 func TestManagerWithLayers_InvalidColsOnly_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
-	// gridCols=1 is invalid, gridRows=3 is valid
-	// Manager corrects gridCols to 2, then key count = 2*3 = 6
-	// "uijk" has 4 keys ≠ 6, so it falls back to default keys "uijk" with 2x2
+	// gridCols=0 is invalid (< MinGridDimension), so both dimensions are
+	// reset to DefaultGridCols×DefaultGridRows (2×2).
+	// "uijk" has 4 keys == 2*2, so no further fallback is needed.
 	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
 		10,
 		10,
 		10,
-		1, // invalid gridCols
+		0, // invalid gridCols
 		3, // valid gridRows
 		nil, nil,
 		nil,
@@ -302,12 +302,57 @@ func TestManagerWithLayers_InvalidColsOnly_FallsBack(t *testing.T) {
 	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
 }
 
+func TestManagerWithLayers_SingleColumnValid(t *testing.T) {
+	bounds := image.Rect(0, 0, 120, 120)
+	logger := zap.NewNop()
+	manager := recursivegrid.NewManagerWithLayers(
+		bounds,
+		"abc",
+		10,
+		10,
+		10,
+		1,
+		3,
+		nil, nil,
+		nil,
+		nil,
+		logger,
+	)
+
+	assert.Equal(t, 1, manager.GridCols())
+	assert.Equal(t, 3, manager.GridRows())
+	assert.Equal(t, "abc", manager.Keys())
+}
+
+func TestManagerWithLayers_1x1_FallsBack(t *testing.T) {
+	bounds := image.Rect(0, 0, 100, 100)
+	logger := zap.NewNop()
+	// 1×1 is degenerate (cannot subdivide), so both dimensions fall back to 2×2.
+	// "a" has 1 key ≠ 2*2=4, so keys also fall back to DefaultKeys "uijk".
+	manager := recursivegrid.NewManagerWithLayers(
+		bounds,
+		"a",
+		10,
+		10,
+		10,
+		1, // gridCols
+		1, // gridRows
+		nil, nil,
+		nil,
+		nil,
+		logger,
+	)
+	assert.Equal(t, 2, manager.GridCols())
+	assert.Equal(t, 2, manager.GridRows())
+	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
+}
+
 func TestManagerWithLayers_InvalidRowsOnly_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
-	// gridCols=3 is valid, gridRows=0 is invalid
-	// Manager corrects gridRows to 2, then key count = 3*2 = 6
-	// "uijk" has 4 keys ≠ 6, so it falls back to default keys "uijk" with 2x2
+	// gridRows=0 is invalid (< MinGridDimension), so both dimensions are
+	// reset to DefaultGridCols×DefaultGridRows (2×2).
+	// "uijk" has 4 keys == 2*2, so no further fallback is needed.
 	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",

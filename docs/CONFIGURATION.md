@@ -442,24 +442,24 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 
 ### Basic configuration
 
-| Option            | Type   | Default  | Description                         |
-| ----------------- | ------ | -------- | ----------------------------------- |
-| `enabled`         | bool   | `true`   | Enable/disable mode                 |
-| `hotkeys`         | table  | `{}`     | Per-mode hotkeys                    |
-| `grid_cols`       | int    | `2`      | Number of columns (≥ 2)             |
-| `grid_rows`       | int    | `2`      | Number of rows (≥ 2)                |
-| `keys`            | string | `"uijk"` | Cell selection keys                 |
-| `min_size_width`  | int    | `25`     | Minimum cell width in pixels        |
-| `min_size_height` | int    | `25`     | Minimum cell height in pixels       |
-| `max_depth`       | int    | `10`     | Maximum recursion levels (1–20)     |
-| `layers`          | array  | `[]`     | Optional per-depth layout overrides |
+| Option            | Type   | Default  | Description                                      |
+| ----------------- | ------ | -------- | ------------------------------------------------ |
+| `enabled`         | bool   | `true`   | Enable/disable mode                              |
+| `hotkeys`         | table  | `{}`     | Per-mode hotkeys                                 |
+| `grid_cols`       | int    | `2`      | Number of columns (≥ 1; total cells must be ≥ 2) |
+| `grid_rows`       | int    | `2`      | Number of rows (≥ 1; total cells must be ≥ 2)    |
+| `keys`            | string | `"uijk"` | Cell selection keys                              |
+| `min_size_width`  | int    | `25`     | Minimum cell width in pixels                     |
+| `min_size_height` | int    | `25`     | Minimum cell height in pixels                    |
+| `max_depth`       | int    | `10`     | Maximum recursion levels (1–20)                  |
+| `layers`          | array  | `[]`     | Optional per-depth layout overrides              |
 
 ### Animation configuration
 
-| Option        | Type | Default | Description |
-| ------------- | ---- | ------- | ----------- |
+| Option        | Type | Default | Description                                               |
+| ------------- | ---- | ------- | --------------------------------------------------------- |
 | `enabled`     | bool | `false` | Opt in to native depth transitions on supported platforms |
-| `duration_ms` | int  | `180`   | Recursive-grid depth transition duration in milliseconds |
+| `duration_ms` | int  | `180`   | Recursive-grid depth transition duration in milliseconds  |
 
 > [!NOTE]
 > `auto_exit_actions`, `mode_exit_keys`, `reset_key`, and `backspace_key` were removed. Use `hotkeys` (for example `"Space" = "action reset"`, `"Backspace" = "action backspace"`).
@@ -482,10 +482,10 @@ When grid or recursive-grid runs in `--cursor-selection-mode hold`, Neru can ren
 
 ### UI configuration
 
-| Option        | Type   | Default       | Description          |
-| ------------- | ------ | ------------- | -------------------- |
-| `size`        | int    | `3`           | Dot radius in points |
-| `color`       | color  | Theme-derived | Dot color            |
+| Option  | Type  | Default       | Description          |
+| ------- | ----- | ------------- | -------------------- |
+| `size`  | int   | `3`           | Dot radius in points |
+| `color` | color | Theme-derived | Dot color            |
 
 Example:
 

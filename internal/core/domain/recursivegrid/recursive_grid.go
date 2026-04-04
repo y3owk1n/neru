@@ -6,7 +6,11 @@ import (
 
 const (
 	// MinGridDimension is the minimum allowed value for grid columns or rows.
-	MinGridDimension = 2
+	MinGridDimension = 1
+	// DefaultGridCols is the default recursive-grid column count.
+	DefaultGridCols = 2
+	// DefaultGridRows is the default recursive-grid row count.
+	DefaultGridRows = 2
 )
 
 // Cell represents the index of a cell in the grid.
@@ -60,7 +64,7 @@ func NewRecursiveGrid(
 	return NewRecursiveGridWithLayers(
 		screenBounds,
 		minSizeWidth, minSizeHeight, maxDepth,
-		MinGridDimension, MinGridDimension,
+		DefaultGridCols, DefaultGridRows,
 		nil,
 	)
 }
