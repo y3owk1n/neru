@@ -326,6 +326,8 @@ func profileBackendLine(name string, profile map[string]any) string {
 
 func profileLabel(name string) string {
 	switch name {
+	case "":
+		return ""
 	case "keyboard_capture":
 		return "Keyboard"
 	default:
