@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.31.1](https://github.com/y3owk1n/neru/compare/v1.31.0...v1.31.1) (2026-04-05)
+
+
+### Bug Fixes
+
+* allow single-row and single-column recursive grids ([#684](https://github.com/y3owk1n/neru/issues/684)) ([e9e43e6](https://github.com/y3owk1n/neru/commit/e9e43e662f17cbdd8d579f9aee2e663698ad2aac))
+* **cli:** add more profile information to `doctor` command ([#686](https://github.com/y3owk1n/neru/issues/686)) ([83dc84d](https://github.com/y3owk1n/neru/commit/83dc84dd84be35cbb11e45d84e216897bc823733))
+* preserve recursive-grid animation for count-changing layer transitions on macOS ([#682](https://github.com/y3owk1n/neru/issues/682)) ([c720ecc](https://github.com/y3owk1n/neru/commit/c720ecc5b9975b674c31b54a4929eeedca9a3d13))
+
 ## [1.31.0](https://github.com/y3owk1n/neru/compare/v1.30.0...v1.31.0) (2026-04-04)
 
 
