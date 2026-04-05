@@ -241,7 +241,7 @@ func HasPassthroughModifier(key string) bool {
 	for _, part := range parts[:len(parts)-1] {
 		trimmed := strings.TrimSpace(part)
 		switch trimmed {
-		case modifierNameCmd, modifierNameCtrl, modifierNameAlt, "option":
+		case modifierNameCmd, modifierNameCtrl, modifierNameAlt:
 			return true
 		}
 	}

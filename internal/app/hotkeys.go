@@ -116,14 +116,14 @@ func hotkeyModifiersFromKey(key string) action.Modifiers {
 	var mods action.Modifiers
 
 	for part := range strings.SplitSeq(config.NormalizeKeyForComparison(key), "+") {
-		switch strings.ToLower(strings.TrimSpace(part)) {
-		case "cmd", "command", "rightcmd", "leftcmd":
+		switch strings.TrimSpace(part) {
+		case "cmd":
 			mods |= action.ModCmd
-		case "shift", "rightshift", "leftshift":
+		case "shift":
 			mods |= action.ModShift
-		case "alt", "option", "rightalt", "leftalt", "rightoption", "leftoption":
+		case "alt":
 			mods |= action.ModAlt
-		case "ctrl", "control", "rightctrl", "leftctrl", "rightcontrol", "leftcontrol":
+		case "ctrl":
 			mods |= action.ModCtrl
 		}
 	}
