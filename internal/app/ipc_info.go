@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -145,6 +146,7 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 		"grid_enabled":           cfg.Grid.Enabled,
 		"recursive_grid_enabled": cfg.RecursiveGrid.Enabled,
 		"capabilities":           capabilitiesMap(h.systemCapabilities()),
+		"profile":                profileMap(platform.CurrentProfile()),
 	}
 
 	return ipc.Response{
@@ -319,6 +321,7 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 		"config":       configPath,
 		"mode":         mode,
 		"capabilities": capabilities,
+		"profile":      profileMap(platform.CurrentProfile()),
 		"components":   components,
 	}
 
@@ -360,6 +363,29 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 		"keyboard_event_tap":  capabilityString(capabilities.KeyboardEventTap),
 		"app_watcher":         capabilityString(capabilities.AppWatcher),
 		"dark_mode_detection": capabilityString(capabilities.DarkModeDetection),
+	}
+}
+
+func profileMap(profile platform.Profile) map[string]any {
+	return map[string]any{
+		"os":                          string(profile.OS),
+		"primary_modifier":            profile.PrimaryModifier,
+		"display_server":              string(profile.DisplayServer),
+		"accessibility_backend":       profile.Accessibility.Name,
+		"accessibility_build_mode":    string(profile.Accessibility.BuildMode),
+		"accessibility_notes":         profile.Accessibility.Notes,
+		"hotkeys_backend":             profile.Hotkeys.Name,
+		"hotkeys_build_mode":          string(profile.Hotkeys.BuildMode),
+		"hotkeys_notes":               profile.Hotkeys.Notes,
+		"keyboard_capture_backend":    profile.KeyboardCapture.Name,
+		"keyboard_capture_build_mode": string(profile.KeyboardCapture.BuildMode),
+		"keyboard_capture_notes":      profile.KeyboardCapture.Notes,
+		"overlay_backend":             profile.Overlay.Name,
+		"overlay_build_mode":          string(profile.Overlay.BuildMode),
+		"overlay_notes":               profile.Overlay.Notes,
+		"notifications_backend":       profile.Notifications.Name,
+		"notifications_build_mode":    string(profile.Notifications.BuildMode),
+		"notifications_notes":         profile.Notifications.Notes,
 	}
 }
 

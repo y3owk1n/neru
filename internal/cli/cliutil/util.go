@@ -122,6 +122,8 @@ func (f *OutputFormatter) PrintStatus(cmd *cobra.Command, data any) error {
 			len(capabilities) > 0 {
 			cmd.Println("  Platform: " + stringValue(capabilities["platform"]))
 		}
+
+		printProfile(cmd, statusData["profile"])
 	} else {
 		// Fallback to JSON output
 		jsonData, jsonDataErr := json.MarshalIndent(data, "  ", "  ")
@@ -174,6 +176,8 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 			cmd.Println("  Platform: " + platform)
 		}
 	}
+
+	printProfile(cmd, healthData["profile"])
 
 	cmd.Println()
 	// Print component checks
@@ -267,6 +271,66 @@ func isHealthyHealthStatus(componentKey, status string) bool {
 	}
 
 	return false
+}
+
+func printProfile(cmd *cobra.Command, rawProfile any) {
+	profile, ok := rawProfile.(map[string]any)
+	if !ok || len(profile) == 0 {
+		return
+	}
+
+	if primaryModifier := stringValue(profile["primary_modifier"]); primaryModifier != "" {
+		cmd.Println("  Primary:  " + primaryModifier)
+	}
+
+	if displayServer := stringValue(profile["display_server"]); displayServer != "" {
+		cmd.Println("  Display:  " + displayServer)
+	}
+
+	profileLines := []string{
+		profileBackendLine("accessibility", profile),
+		profileBackendLine("hotkeys", profile),
+		profileBackendLine("keyboard_capture", profile),
+		profileBackendLine("overlay", profile),
+		profileBackendLine("notifications", profile),
+	}
+
+	for _, profileLine := range profileLines {
+		if profileLine == "" {
+			continue
+		}
+
+		cmd.Println("  " + profileLine)
+	}
+}
+
+func profileBackendLine(name string, profile map[string]any) string {
+	backend := stringValue(profile[name+"_backend"])
+
+	buildMode := stringValue(profile[name+"_build_mode"])
+	if backend == "" && buildMode == "" {
+		return ""
+	}
+
+	label := profileLabel(name)
+	if buildMode == "" {
+		return label + ": " + backend
+	}
+
+	if backend == "" {
+		return label + ": " + buildMode
+	}
+
+	return label + ": " + backend + " (" + buildMode + ")"
+}
+
+func profileLabel(name string) string {
+	switch name {
+	case "keyboard_capture":
+		return "Keyboard"
+	default:
+		return strings.ToUpper(name[:1]) + strings.ReplaceAll(name[1:], "_", " ")
+	}
 }
 
 // ErrorHandler provides consistent error handling for CLI commands.
