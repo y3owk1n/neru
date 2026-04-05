@@ -210,10 +210,6 @@ func NormalizeKeyForComparison(key string) string {
 		return KeyNameDelete
 	}
 
-	// Strip Right/Left modifier prefixes so that e.g. "rightcmd+l" normalizes to "cmd+l",
-	// matching the unprefixed modifier names the event tap always produces at runtime.
-	key = StripModifierPrefixes(key)
-
 	// Normalize key aliases inside modifier combos.
 	// The switch above only handles bare "enter" / "backspace" etc., but users may
 	// write "Shift+Enter" which lowercases to "shift+enter". The event tap always
@@ -249,19 +245,6 @@ func HasPassthroughModifier(key string) bool {
 	return false
 }
 
-var modifierPrefixReplacer = strings.NewReplacer(
-	"rightcmd+", "cmd+",
-	"leftcmd+", "cmd+",
-	"rightctrl+", "ctrl+",
-	"leftctrl+", "ctrl+",
-	"rightalt+", "alt+",
-	"leftalt+", "alt+",
-	"rightoption+", "option+",
-	"leftoption+", "option+",
-	"rightshift+", "shift+",
-	"leftshift+", "shift+",
-)
-
 func primaryModifierTokenForOS(goos string) string {
 	if goos == "darwin" {
 		return "cmd"
@@ -285,16 +268,6 @@ func normalizeModifierTokenForOS(token, goos string) string {
 	default:
 		return strings.TrimSpace(strings.ToLower(token))
 	}
-}
-
-// StripModifierPrefixes removes Right/Left prefixes from modifier names in a
-// lowercased key string. This is a no-op when the key contains no such prefix.
-func StripModifierPrefixes(key string) string {
-	if !strings.Contains(key, "+") {
-		return key
-	}
-
-	return modifierPrefixReplacer.Replace(key)
 }
 
 // comboKeyAliases maps alias key names to their canonical forms.
