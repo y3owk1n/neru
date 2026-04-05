@@ -333,10 +333,11 @@ func CanonicalHotkeyForPlatform(hotkey string) string {
 }
 
 func canonicalHotkeyForOS(hotkey, goos string) string {
-	parts := strings.Split(hotkey, "+")
-	if len(parts) == 0 {
+	if hotkey == "" {
 		return hotkey
 	}
+
+	parts := strings.Split(hotkey, "+")
 
 	for idx := range len(parts) - 1 {
 		parts[idx] = displayModifierToken(normalizeModifierTokenForOS(parts[idx], goos))
