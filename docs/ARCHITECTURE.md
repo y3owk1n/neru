@@ -9,7 +9,7 @@ Neru is a keyboard-driven navigation tool for macOS (with Linux and Windows supp
 - [System Overview](#system-overview)
 - [Cross-Platform Design Principles](#cross-platform-design-principles)
 - [Platform Status](#platform-status)
-- [Contributor's Guide to Platform Support](#contributors-guide-to-platform-support)
+- [Platform Contribution Model](#platform-contribution-model)
 - [CLI Layer Cross-Platform Notes](#cli-layer-cross-platform-notes)
 - [Application Identifier Terminology](#application-identifier-terminology)
 - [Codebase Navigation Guide](#codebase-navigation-guide)
@@ -39,6 +39,10 @@ Neru operates as a background daemon that listens for global hotkeys and keyboar
 
 The architecture is designed for high performance, low latency, and cross-platform extensibility while maintaining a deep integration with macOS native APIs.
 
+This document focuses on system shape and architectural rationale.
+For contributor workflow, file-slot selection, Linux backend guidance, and
+practical porting steps, use [CROSS_PLATFORM.md](./CROSS_PLATFORM.md).
+
 ---
 
 ## Cross-Platform Design Principles
@@ -51,6 +55,8 @@ Neru follows a layered architecture inspired by the **Hexagonal Architecture (Po
 2. **Platform Isolation**: OS-specific code is strictly isolated. Non-darwin code must never import macOS-specific packages.
 3. **Ports and Adapters**: System capabilities (Accessibility, Hotkeys, Overlays) are defined as interfaces (Ports) in `internal/core/ports`. Concrete implementations (Adapters) reside in `internal/core/infra`.
 4. **Build Tag Separation**: OS-specific files use Go build tags (e.g., `//go:build darwin`) to ensure they are only compiled for the target platform.
+5. **Platform Roles Over Brand Names**: Shared code should talk about roles like "primary modifier", "display server", and "accessibility backend" instead of assuming macOS terms such as `Cmd` or a single display stack.
+6. **Build Strategy Follows Backend Choice**: CGO requirements should be modeled per backend family, not assumed per OS. macOS currently requires CGO; Linux and Windows may mix pure-Go and CGO-backed implementations depending on subsystem/backend.
 
 ### The "One Rule"
 
@@ -78,75 +84,77 @@ Violation of this rule is caught by `golangci-lint` using `depguard`.
 
 ---
 
-## Contributor's Guide to Platform Support
+## Platform Contribution Model
 
-### How to add a feature to an existing platform
+This section explains how platform work fits into the architecture.
+It is intentionally high-level. For the contributor playbook, see
+[CROSS_PLATFORM.md](./CROSS_PLATFORM.md).
 
-#### Step 1 — Find the right adapter
+### Source Of Truth
 
-| Feature                          | Location                                          |
-| -------------------------------- | ------------------------------------------------- |
-| Screen bounds, cursor, dark mode | `internal/core/infra/platform/<os>/system.go`     |
-| Global hotkeys                   | `internal/core/infra/hotkeys/manager_<os>.go`     |
-| Global keyboard event tap        | `internal/core/infra/eventtap/eventtap_<os>.go`   |
-| Application watcher              | `internal/core/infra/appwatcher/platform_<os>.go` |
-| UI overlays                      | `internal/app/components/*/overlay_<os>.go`       |
+The main architecture-level source of truth for platform expectations is:
 
-#### Step 2 — Replace the `CodeNotSupported` stub
+- [profile.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/profile.go)
 
-Most unimplemented methods currently return:
+It describes:
 
-```go
-return derrors.New(derrors.CodeNotSupported, "X not yet implemented on linux")
-```
+- primary modifier expectations
+- display server family
+- backend family per subsystem
+- expected build mode per backend family
 
-Replace that with a real implementation. Remove the `TODO` comment when done.
+### Layer Placement
 
-#### Step 3 — Add a test
+Platform work should stay in these layers:
 
-Unit tests go next to the implementation file. Integration tests (that require a real display/OS) go in `*_integration_<os>_test.go` files with the matching build tag (`//go:build integration && linux`).
+- `internal/core/infra/platform/`: broad system capabilities
+- `internal/core/infra/hotkeys/`: global hotkey registration
+- `internal/core/infra/eventtap/`: keyboard event capture
+- `internal/core/infra/accessibility/`: platform accessibility integration
+- `internal/ui/overlay/`: overlay manager orchestration
+- `internal/app/components/*/overlay_*.go`: mode-specific overlay rendering
 
-#### Step 4 — Run CI locally
+Shared logic should stay in:
 
-```bash
-# On the target OS:
-just lint
-just vet
-just test
-just build
-```
+- `internal/core/domain/`
+- `internal/app/services/`
+- `internal/app/modes/`
 
-### How to add a new OS-specific operation
+### Linux Backend Shape
 
-#### Option A — Add it to `SystemPort` (for broadly applicable operations)
+Linux is modeled as a backend family rather than a single implementation.
 
-1. Add the method to [system.go](file:///Users/kylewong/Dev/neru/internal/core/ports/system.go).
-2. Implement it in `internal/core/infra/platform/darwin/system.go`.
-3. Add a `CodeNotSupported` stub in `internal/core/infra/platform/linux/system.go` and `internal/core/infra/platform/windows/system.go`.
-4. Inject `SystemPort` into the service/handler that needs it.
+At the architecture level, the expected split is:
 
-#### Option B — Use a dispatch pair (for isolated operations)
+- `*_linux_common.go`: shared wrapper/fallback layer
+- `*_linux_x11.go`: X11 implementation slot
+- `*_linux_wayland.go`: Wayland/compositor implementation slot
 
-If the operation is only needed in one infra package (e.g., `appwatcher`):
+This keeps backend choice out of shared app code and makes implementation slots
+obvious before real Linux work lands.
 
-1. Create `internal/core/infra/<package>/platform_darwin.go`:
+### Fallback And Unsupported Paths
 
-    ```go
-    //go:build darwin
-    package <package>
-    import "github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
-    func platformDoThing() { darwin.DoThing() }
-    ```
+Dispatch-style packages may use:
 
-2. Create `internal/core/infra/<package>/platform_stub.go`:
+- `platform_darwin.go`
+- `platform_other.go`
 
-    ```go
-    //go:build !darwin
-    package <package>
-    func platformDoThing() {}
-    ```
+Unimplemented behavior should remain explicit through `CodeNotSupported` and
+capability reporting rather than silent failure.
 
-3. Call `platformDoThing()` from the package's shared code (no build tag needed there).
+### Build Strategy
+
+Build strategy follows backend choice, not just OS choice.
+
+Current high-level model:
+
+- macOS: CGO-backed native bridge
+- Linux: backend-dependent
+- Windows: prefer pure Go first
+
+The practical decisions and file-by-file guidance live in
+[CROSS_PLATFORM.md](./CROSS_PLATFORM.md).
 
 ---
 
@@ -422,6 +430,7 @@ Neru uses `just` for build automation.
 
 ## References
 
+- [Cross-Platform Contributor Guide](CROSS_PLATFORM.md)
 - [Development Guide](DEVELOPMENT.md)
 - [Coding Standards](CODING_STANDARDS.md)
 - [Configuration Reference](CONFIGURATION.md)

@@ -1,6 +1,7 @@
 package action
 
 import (
+	"runtime"
 	"strings"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -31,6 +32,16 @@ var modifierNames = map[string]Modifiers{
 	"control": ModCtrl,
 }
 
+// PrimaryModifier returns the platform's default "main" accelerator modifier.
+// On macOS this is Command; on Linux and Windows it is Control.
+func PrimaryModifier() Modifiers {
+	if runtime.GOOS == "darwin" {
+		return ModCmd
+	}
+
+	return ModCtrl
+}
+
 // ParseModifiers parses a comma-separated modifier string (e.g. "cmd,shift")
 // into a Modifiers bitmask. An empty string returns 0 (no modifiers).
 func ParseModifiers(input string) (Modifiers, error) {
@@ -45,11 +56,17 @@ func ParseModifiers(input string) (Modifiers, error) {
 			continue
 		}
 
+		if name == "primary" {
+			mods |= PrimaryModifier()
+
+			continue
+		}
+
 		mod, ok := modifierNames[name]
 		if !ok {
 			return 0, derrors.Newf(
 				derrors.CodeInvalidInput,
-				"unknown modifier %q (valid: cmd, shift, alt, option, ctrl)",
+				"unknown modifier %q (valid: primary, cmd, shift, alt, option, ctrl)",
 				part,
 			)
 		}

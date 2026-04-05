@@ -65,7 +65,7 @@ func (a *App) registerHotkeys() {
 			zap.Strings("actions", actions),
 		)
 
-		bindKey := trimmedKey
+		bindKey := config.CanonicalHotkeyForPlatform(trimmedKey)
 		bindActions := actions
 
 		var registerHotkeyErr error
@@ -115,7 +115,7 @@ func (a *App) registerHotkeys() {
 func hotkeyModifiersFromKey(key string) action.Modifiers {
 	var mods action.Modifiers
 
-	for part := range strings.SplitSeq(key, "+") {
+	for part := range strings.SplitSeq(config.NormalizeKeyForComparison(key), "+") {
 		switch strings.ToLower(strings.TrimSpace(part)) {
 		case "cmd", "command", "rightcmd", "leftcmd":
 			mods |= action.ModCmd

@@ -4,6 +4,6 @@
 //
 // On macOS this works by toggling AXManualAccessibility / AXEnhancedUserInterface
 // attributes via the platform accessibility API. The platform-specific call is
-// isolated in platform_darwin.go / platform_stub.go so this package compiles
+// isolated in platform_darwin.go / platform_other.go so this package compiles
 // on all platforms.
 package electron

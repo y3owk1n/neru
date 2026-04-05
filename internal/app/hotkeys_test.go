@@ -33,6 +33,11 @@ func TestHotkeyModifiersFromKey(t *testing.T) {
 			key:  "Escape",
 			want: 0,
 		},
+		{
+			name: "primary alias follows current platform",
+			key:  "Primary+Space",
+			want: action.PrimaryModifier(),
+		},
 	}
 
 	for _, testCase := range tests {

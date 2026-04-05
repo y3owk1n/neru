@@ -7,7 +7,7 @@
 // can move or collect heap objects, these pointers must live on the C heap.
 // This package owns the malloc/free lifecycle for those C-heap allocations.
 //
-// On non-darwin platforms all functions are no-ops (see native_stub.go).
+// On non-darwin platforms all functions are no-ops (see native_other.go).
 package native
 
 import (

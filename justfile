@@ -14,12 +14,40 @@ default: build
 
 # Build the application (development)
 
-# Uses CGO on macOS (required for Objective-C bridge), CGO_ENABLED=0 elsewhere
+# Uses CGO on macOS today (required for Objective-C bridge). Linux and Windows
+# currently build with CGO disabled because their native backends are still
+# stubs; that will likely become backend-dependent as real implementations land.
 build:
     @echo "Building Neru..."
     @echo "Version: {{ VERSION }}"
     {{ if os() == "macos" { "CGO_ENABLED=1" } else { "CGO_ENABLED=0" } }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru{{ if os() == "windows" { ".exe" } else { "" } }} ./cmd/neru
     @echo "✓ Build complete: bin/neru"
+
+# Build a Linux foundations binary from any host.
+# This is useful for contributor smoke tests while Linux backends are still
+# mostly scaffolding.
+build-linux ARCH="amd64":
+    @echo "Building Neru for linux/{{ ARCH }}..."
+    mkdir -p bin
+    CGO_ENABLED=0 GOOS=linux GOARCH={{ ARCH }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru-linux-{{ ARCH }} ./cmd/neru
+    @echo "✓ Build complete: bin/neru-linux-{{ ARCH }}"
+
+# Build a Windows foundations binary from any host.
+# This is useful for contributor smoke tests while Windows backends are still
+# mostly scaffolding.
+build-windows ARCH="amd64":
+    @echo "Building Neru for windows/{{ ARCH }}..."
+    mkdir -p bin
+    CGO_ENABLED=0 GOOS=windows GOARCH={{ ARCH }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru-windows-{{ ARCH }}.exe ./cmd/neru
+    @echo "✓ Build complete: bin/neru-windows-{{ ARCH }}.exe"
+
+# Build a macOS binary for the current host.
+# macOS requires CGO because the native bridge is part of the real product.
+build-darwin:
+    @echo "Building Neru for macOS..."
+    mkdir -p bin
+    CGO_ENABLED=1 go build -ldflags="{{ LDFLAGS }}" -o bin/neru-darwin ./cmd/neru
+    @echo "✓ Build complete: bin/neru-darwin"
 
 # Build with optimizations for release
 release:
@@ -36,7 +64,9 @@ build-version VERSION_OVERRIDE:
     CGO_ENABLED=1 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru ./cmd/neru
     @echo "✓ Build complete: bin/neru (version: {{ VERSION_OVERRIDE }})"
 
-# Build release artifacts for CI (cross-platform)
+# Build release artifacts for CI (cross-platform).
+# Current Linux/Windows artifacts assume pure-Go stub foundations. Revisit
+# per-target CGO flags once real backend families are selected.
 release-ci VERSION_OVERRIDE:
     @echo "Building release artifacts for CI..."
     @echo "Version: {{ VERSION_OVERRIDE }}"
@@ -82,6 +112,14 @@ test: test-unit test-integration
 test-unit:
     @echo "Running unit tests..."
     go test -v ./...
+
+# Run a small cross-platform-safe test slice that avoids most native platform
+# integration requirements. Useful as a fast confidence check before or during
+# Linux/Windows work.
+test-foundation:
+    @echo "Running cross-platform foundation tests..."
+    go test ./internal/config ./internal/core/domain/action ./internal/core/ports
+    @echo "✓ Cross-platform foundation tests passed"
 
 # Run integration tests
 test-integration:

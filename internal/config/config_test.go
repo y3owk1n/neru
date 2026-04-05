@@ -2,12 +2,15 @@ package config_test
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
 )
+
+const isDarwinRuntime = runtime.GOOS == "darwin"
 
 func TestConfig_IsAppExcluded(t *testing.T) {
 	tests := []struct {
@@ -609,6 +612,11 @@ func TestNormalizeKeyForComparison_ModifierComboAliases(t *testing.T) {
 			input:    "Cmd+Delete",
 			expected: "cmd+delete",
 		},
+		{
+			name:     "Primary+Space normalizes to platform primary modifier",
+			input:    "Primary+Space",
+			expected: map[bool]string{true: "cmd+space", false: "ctrl+space"}[isDarwinRuntime],
+		},
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -616,6 +624,39 @@ func TestNormalizeKeyForComparison_ModifierComboAliases(t *testing.T) {
 			if got != testCase.expected {
 				t.Errorf("NormalizeKeyForComparison(%q) = %q, want %q",
 					testCase.input, got, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestCanonicalHotkeyForPlatform(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "primary modifier becomes current platform token",
+			input:    "Primary+Space",
+			expected: map[bool]string{true: "Cmd+Space", false: "Ctrl+Space"}[isDarwinRuntime],
+		},
+		{
+			name:     "named key is canonicalized",
+			input:    "Primary+enter",
+			expected: map[bool]string{true: "Cmd+Enter", false: "Ctrl+Enter"}[isDarwinRuntime],
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := config.CanonicalHotkeyForPlatform(testCase.input)
+			if got != testCase.expected {
+				t.Fatalf(
+					"CanonicalHotkeyForPlatform(%q) = %q, want %q",
+					testCase.input,
+					got,
+					testCase.expected,
+				)
 			}
 		})
 	}

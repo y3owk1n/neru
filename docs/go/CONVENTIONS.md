@@ -189,8 +189,11 @@ package platform
 
 - `*_darwin.go`: macOS-specific code
 - `*_linux.go`: Linux-specific code
+- `*_linux_common.go`: Shared Linux wrapper/fallback code
+- `*_linux_x11.go`: Linux X11 backend slot
+- `*_linux_wayland.go`: Linux Wayland backend slot
 - `*_windows.go`: Windows-specific code
-- `*_stub.go`: No-op or unsupported implementations for non-target platforms.
+- `*_other.go`: No-op or unsupported implementations for non-target platforms.
 
 ### Platform Factory
 

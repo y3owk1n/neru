@@ -28,6 +28,7 @@ func TestParseModifiers(t *testing.T) {
 			want:  action.ModCmd | action.ModAlt,
 		},
 		{name: "alias control", input: "control", want: action.ModCtrl},
+		{name: "primary alias", input: "primary", want: action.PrimaryModifier()},
 		{name: "case insensitive", input: "CMD,Shift", want: action.ModCmd | action.ModShift},
 		{name: "whitespace trimmed", input: " cmd , shift ", want: action.ModCmd | action.ModShift},
 		{name: "duplicate modifiers", input: "cmd,cmd", want: action.ModCmd},
