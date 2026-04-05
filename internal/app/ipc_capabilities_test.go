@@ -79,12 +79,22 @@ func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 		t.Fatalf("overlay capability = %v, want stub", capabilities["overlay"])
 	}
 
-	if profile["primary_modifier"] == "" {
-		t.Fatal("profile.primary_modifier = empty, want non-empty")
+	primaryMod, primaryModOK := profile["primary_modifier"].(string)
+	if !primaryModOK || primaryMod == "" {
+		t.Fatalf(
+			"profile.primary_modifier = %v (%T), want non-empty string",
+			profile["primary_modifier"],
+			profile["primary_modifier"],
+		)
 	}
 
-	if profile["display_server"] == "" {
-		t.Fatal("profile.display_server = empty, want non-empty")
+	displayServer, displayServerOK := profile["display_server"].(string)
+	if !displayServerOK || displayServer == "" {
+		t.Fatalf(
+			"profile.display_server = %v (%T), want non-empty string",
+			profile["display_server"],
+			profile["display_server"],
+		)
 	}
 }
 
@@ -151,7 +161,8 @@ func TestIPCController_HealthMarksStubCapabilitiesUnhealthy(t *testing.T) {
 		)
 	}
 
-	if profile["os"] == "" {
-		t.Fatal("profile.os = empty, want non-empty")
+	profileOS, profileOSOK := profile["os"].(string)
+	if !profileOSOK || profileOS == "" {
+		t.Fatalf("profile.os = %v (%T), want non-empty string", profile["os"], profile["os"])
 	}
 }
