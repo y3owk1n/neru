@@ -91,36 +91,7 @@ func ProfileFor(target OS) Profile {
 			},
 		}
 	case Linux:
-		return Profile{
-			OS:              Linux,
-			PrimaryModifier: "ctrl",
-			DisplayServer:   DetectLinuxDisplayServer(),
-			Accessibility: BackendPlan{
-				Name:      "at-spi",
-				BuildMode: BuildModePureGo,
-				Notes:     "Prefer D-Bus/pure-Go bindings before reaching for CGO",
-			},
-			Hotkeys: BackendPlan{
-				Name:      "x11 or compositor-specific backend",
-				BuildMode: BuildModeBackendDependent,
-				Notes:     "X11 may stay pure Go; Wayland/compositor paths may need CGO or native helpers",
-			},
-			KeyboardCapture: BackendPlan{
-				Name:      "x11 or compositor-specific backend",
-				BuildMode: BuildModeBackendDependent,
-				Notes:     "Backend choice determines whether pure Go is enough",
-			},
-			Overlay: BackendPlan{
-				Name:      "x11 window or wayland layer-shell",
-				BuildMode: BuildModeBackendDependent,
-				Notes:     "Simple X11 overlays may stay pure Go; Wayland paths may require native linkage",
-			},
-			Notifications: BackendPlan{
-				Name:      "freedesktop notifications",
-				BuildMode: BuildModePureGo,
-				Notes:     "D-Bus notifications should be achievable without CGO",
-			},
-		}
+		return linuxProfile(DetectLinuxDisplayServer())
 	case Windows:
 		return Profile{
 			OS:              Windows,
@@ -170,6 +141,39 @@ func ProfileFor(target OS) Profile {
 // CurrentProfile returns the contributor-facing profile for the running OS.
 func CurrentProfile() Profile {
 	return ProfileFor(CurrentOS())
+}
+
+func linuxProfile(ds DisplayServer) Profile {
+	return Profile{
+		OS:              Linux,
+		PrimaryModifier: "ctrl",
+		DisplayServer:   ds,
+		Accessibility: BackendPlan{
+			Name:      "at-spi",
+			BuildMode: BuildModePureGo,
+			Notes:     "Prefer D-Bus/pure-Go bindings before reaching for CGO",
+		},
+		Hotkeys: BackendPlan{
+			Name:      "x11 or compositor-specific backend",
+			BuildMode: BuildModeBackendDependent,
+			Notes:     "X11 may stay pure Go; Wayland/compositor paths may need CGO or native helpers",
+		},
+		KeyboardCapture: BackendPlan{
+			Name:      "x11 or compositor-specific backend",
+			BuildMode: BuildModeBackendDependent,
+			Notes:     "Backend choice determines whether pure Go is enough",
+		},
+		Overlay: BackendPlan{
+			Name:      "x11 window or wayland layer-shell",
+			BuildMode: BuildModeBackendDependent,
+			Notes:     "Simple X11 overlays may stay pure Go; Wayland paths may require native linkage",
+		},
+		Notifications: BackendPlan{
+			Name:      "freedesktop notifications",
+			BuildMode: BuildModePureGo,
+			Notes:     "D-Bus notifications should be achievable without CGO",
+		},
+	}
 }
 
 // DetectLinuxDisplayServer identifies the Linux display stack from environment

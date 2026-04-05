@@ -72,7 +72,16 @@ func TestProfileFor(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := ProfileFor(testCase.target)
+			var got Profile
+			if testCase.target == Linux {
+				// Use linuxProfile directly so the test does not depend on
+				// ambient environment variables (DISPLAY, XDG_SESSION_TYPE, …).
+				// Display-server detection is covered by TestDetectLinuxDisplayServer.
+				got = linuxProfile(testCase.wantDisplay)
+			} else {
+				got = ProfileFor(testCase.target)
+			}
+
 			if got.PrimaryModifier != testCase.wantPrimary {
 				t.Fatalf("PrimaryModifier = %q, want %q", got.PrimaryModifier, testCase.wantPrimary)
 			}
