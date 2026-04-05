@@ -1,6 +1,9 @@
 package platform
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 // DisplayServer identifies the active or planned display-system family.
 type DisplayServer string
@@ -182,35 +185,11 @@ func DetectLinuxDisplayServer() DisplayServer {
 
 func detectLinuxDisplayServer(sessionType, waylandDisplay, xDisplay string) DisplayServer {
 	switch {
-	case stringsEqualFold(sessionType, "wayland"), waylandDisplay != "":
+	case strings.EqualFold(sessionType, "wayland"), waylandDisplay != "":
 		return DisplayServerWayland
-	case stringsEqualFold(sessionType, "x11"), xDisplay != "":
+	case strings.EqualFold(sessionType, "x11"), xDisplay != "":
 		return DisplayServerX11
 	default:
 		return DisplayServerUnknown
 	}
-}
-
-func stringsEqualFold(left, right string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-
-	for idx := range left {
-		leftByte := left[idx]
-		if 'A' <= leftByte && leftByte <= 'Z' {
-			leftByte += 'a' - 'A'
-		}
-
-		rightByte := right[idx]
-		if 'A' <= rightByte && rightByte <= 'Z' {
-			rightByte += 'a' - 'A'
-		}
-
-		if leftByte != rightByte {
-			return false
-		}
-	}
-
-	return true
 }
