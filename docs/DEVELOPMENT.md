@@ -170,7 +170,11 @@ chmod +x .git/hooks/pre-commit
 | Task   | Command                 | Description                        |
 | ------ | ----------------------- | ---------------------------------- |
 | Build  | `just build`            | Compile the application            |
+| Build  | `just build-darwin`     | Build a macOS binary on macOS      |
+| Build  | `just build-linux`      | Build a Linux foundations binary   |
+| Build  | `just build-windows`    | Build a Windows foundations binary |
 | Test   | `just test`             | Run unit and integration tests     |
+| Test   | `just test-foundation`  | Run cross-platform-safe core tests |
 | Test   | `just test-unit`        | Run unit tests                     |
 | Test   | `just test-integration` | Run integration tests              |
 | Test   | `just test-race`        | Run all tests with race detection  |
@@ -229,6 +233,11 @@ just build
 # Development build (auto-detects version from git tags)
 just build
 
+# Build target-specific contributor binaries
+just build-darwin
+just build-linux
+just build-windows
+
 # Release build (optimized, stripped)
 just release
 
@@ -241,6 +250,22 @@ just build-version v1.0.0
 # Clean build artifacts
 just clean
 ```
+
+### Cross-Platform Contributor Baseline
+
+If you are starting Linux or Windows work, this is the recommended minimum
+smoke-test sequence:
+
+```bash
+just build
+just test-foundation
+```
+
+Then, depending on what you are targeting:
+
+- Linux: `just build-linux`
+- Windows: `just build-windows`
+- macOS: `just build-darwin`
 
 ## Testing Tiers
 
@@ -257,6 +282,15 @@ Neru uses a few different testing layers:
 
 When you add a stubbed platform feature, add or update a contract test so the
 unsupported behavior is explicit and stable until the real implementation lands.
+
+For cross-platform work, prefer shared terms over macOS-specific names:
+
+- `Primary` means the default accelerator modifier: `Cmd` on macOS, `Ctrl` on Linux/Windows.
+- Linux is not a single backend. Treat X11 and Wayland as separate infra concerns behind the same port.
+- Start backend decisions from `internal/core/infra/platform/profile.go` so contributors extend one source of truth.
+- Do not assume CGO based on OS alone. Check the backend plan first: some Linux and most early Windows integrations can stay pure Go, while macOS and some future Linux backends require CGO.
+
+For practical file-by-file contributor guidance, see [CROSS_PLATFORM.md](CROSS_PLATFORM.md).
 
 ### Manual Build
 

@@ -1,3 +1,5 @@
+//go:build linux
+
 // Package linux provides Linux-specific implementations of infrastructure components.
 //
 // Most methods currently return CodeNotSupported because Linux support is a

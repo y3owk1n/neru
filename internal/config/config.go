@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -89,6 +90,10 @@ const (
 	KeyNameDown          = "down"
 	KeyNameLeft          = "left"
 	KeyNameRight         = "right"
+	modifierNameCmd      = "cmd"
+	modifierNameCtrl     = "ctrl"
+	modifierNameAlt      = "alt"
+	modifierNameShift    = "shift"
 )
 
 // validNamedKeys is the canonical set of all named keys the system supports.
@@ -205,15 +210,15 @@ func NormalizeKeyForComparison(key string) string {
 		return KeyNameDelete
 	}
 
-	// Strip Right/Left modifier prefixes so that e.g. "rightcmd+l" normalizes to "cmd+l",
-	// matching the unprefixed modifier names the event tap always produces at runtime.
-	key = StripModifierPrefixes(key)
-
 	// Normalize key aliases inside modifier combos.
 	// The switch above only handles bare "enter" / "backspace" etc., but users may
 	// write "Shift+Enter" which lowercases to "shift+enter". The event tap always
 	// produces the canonical form "shift+return", so we must resolve the alias here.
 	key = normalizeKeyAliasesInCombo(key)
+
+	// Normalize modifier aliases like "Primary" to the platform-native token
+	// so shared config can map to Cmd on macOS and Ctrl elsewhere.
+	key = normalizeModifierAliasesInCombo(key, runtime.GOOS)
 
 	// All other keys (named keys, plain characters, modifier combos) are already
 	// lowercased by strings.ToLower above and pass through as-is.
@@ -232,7 +237,7 @@ func HasPassthroughModifier(key string) bool {
 	for _, part := range parts[:len(parts)-1] {
 		trimmed := strings.TrimSpace(part)
 		switch trimmed {
-		case "cmd", "ctrl", "alt", "option":
+		case modifierNameCmd, modifierNameCtrl, modifierNameAlt:
 			return true
 		}
 	}
@@ -240,27 +245,29 @@ func HasPassthroughModifier(key string) bool {
 	return false
 }
 
-var modifierPrefixReplacer = strings.NewReplacer(
-	"rightcmd+", "cmd+",
-	"leftcmd+", "cmd+",
-	"rightctrl+", "ctrl+",
-	"leftctrl+", "ctrl+",
-	"rightalt+", "alt+",
-	"leftalt+", "alt+",
-	"rightoption+", "option+",
-	"leftoption+", "option+",
-	"rightshift+", "shift+",
-	"leftshift+", "shift+",
-)
-
-// StripModifierPrefixes removes Right/Left prefixes from modifier names in a
-// lowercased key string. This is a no-op when the key contains no such prefix.
-func StripModifierPrefixes(key string) string {
-	if !strings.Contains(key, "+") {
-		return key
+func primaryModifierTokenForOS(goos string) string {
+	if goos == "darwin" {
+		return "cmd"
 	}
 
-	return modifierPrefixReplacer.Replace(key)
+	return modifierNameCtrl
+}
+
+func normalizeModifierTokenForOS(token, goos string) string {
+	switch strings.TrimSpace(strings.ToLower(token)) {
+	case "primary":
+		return primaryModifierTokenForOS(goos)
+	case modifierNameCmd, "command", "rightcmd", "leftcmd":
+		return modifierNameCmd
+	case modifierNameCtrl, "control", "rightctrl", "leftctrl":
+		return modifierNameCtrl
+	case modifierNameAlt, "option", "rightalt", "leftalt", "rightoption", "leftoption":
+		return modifierNameAlt
+	case modifierNameShift, "rightshift", "leftshift":
+		return modifierNameShift
+	default:
+		return strings.TrimSpace(strings.ToLower(token))
+	}
 }
 
 // comboKeyAliases maps alias key names to their canonical forms.
@@ -289,6 +296,61 @@ func normalizeKeyAliasesInCombo(key string) string {
 	}
 
 	return key
+}
+
+func normalizeModifierAliasesInCombo(key, goos string) string {
+	parts := strings.Split(key, "+")
+	if len(parts) < minimumModifierParts {
+		return key
+	}
+
+	for idx := range len(parts) - 1 {
+		parts[idx] = normalizeModifierTokenForOS(parts[idx], goos)
+	}
+
+	return strings.Join(parts, "+")
+}
+
+func displayModifierToken(token string) string {
+	switch token {
+	case modifierNameCmd:
+		return "Cmd"
+	case modifierNameCtrl:
+		return "Ctrl"
+	case modifierNameAlt:
+		return "Alt"
+	case modifierNameShift:
+		return "Shift"
+	default:
+		return token
+	}
+}
+
+// CanonicalHotkeyForPlatform rewrites shared modifier aliases like "Primary"
+// into the concrete tokens expected by the current platform backend.
+func CanonicalHotkeyForPlatform(hotkey string) string {
+	return canonicalHotkeyForOS(hotkey, runtime.GOOS)
+}
+
+func canonicalHotkeyForOS(hotkey, goos string) string {
+	if hotkey == "" {
+		return hotkey
+	}
+
+	parts := strings.Split(hotkey, "+")
+
+	for idx := range len(parts) - 1 {
+		parts[idx] = displayModifierToken(normalizeModifierTokenForOS(parts[idx], goos))
+	}
+
+	last := strings.TrimSpace(parts[len(parts)-1])
+	if canonical, ok := CanonicalNamedKeyForm(last); ok {
+		parts[len(parts)-1] = canonical
+	} else {
+		parts[len(parts)-1] = last
+	}
+
+	return strings.Join(parts, "+")
 }
 
 // normalizeFullwidthChars converts fullwidth CJK characters (U+FF01-U+FF5E)

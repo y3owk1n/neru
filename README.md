@@ -165,6 +165,13 @@ macOS is fully supported. Linux and Windows currently expose the shared architec
 ports, and stubs, but still need native implementations for core functionality.
 `neru doctor` now reports these runtime capability gaps explicitly.
 
+Shared code should prefer platform roles over macOS-specific assumptions:
+
+- Use `Primary` in new cross-platform hotkeys when you mean "Cmd on macOS, Ctrl elsewhere".
+- Treat Linux as a backend family, not one target: X11 and Wayland may need separate adapters behind the same port.
+- Keep backend selection in platform/infra code so contributors can extend Linux without editing shared mode logic.
+- Treat CGO as backend-dependent, not automatically OS-dependent: macOS needs it today, Linux may or may not depending on backend, and Windows should prefer pure-Go Win32 bindings where practical.
+
 | Platform    | Status                  |
 | ----------- | ----------------------- |
 | **macOS**   | ✅ Stable, all features |
@@ -172,6 +179,14 @@ ports, and stubs, but still need native implementations for core functionality.
 | **Windows** | 🔲 Foundations only     |
 
 **Interested in porting?** Check [`cross-platform` issues](https://github.com/y3owk1n/neru/issues?q=is%3Aopen+is%3Aissue+label%3Across-platform) or join the [Linux discussion](https://github.com/y3owk1n/neru/discussions/559).
+
+Contributor quick start for platform work:
+
+```bash
+just build
+just test-foundation
+just build-linux      # or: just build-windows
+```
 
 <details>
 <summary>Full compatibility matrix & roadmap</summary>
@@ -216,6 +231,7 @@ ports, and stubs, but still need native implementations for core functionality.
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues, app-specific fixes   |
 | [Development](docs/DEVELOPMENT.md)         | Architecture and build instructions |
 | [Architecture](docs/ARCHITECTURE.md)       | Porting guide and system design     |
+| [Cross-Platform Guide](docs/CROSS_PLATFORM.md) | Contributor guide for Linux/Windows/platform work |
 | [Roadmap](docs/ROADMAP.md)                 | Current priorities and milestones   |
 
 ---

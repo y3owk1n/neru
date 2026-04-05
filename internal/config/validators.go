@@ -11,8 +11,11 @@ import (
 )
 
 var validModifiers = map[string]bool{
+	"Primary":     true,
 	"Cmd":         true,
+	"Command":     true,
 	"Ctrl":        true,
+	"Control":     true,
 	"Alt":         true,
 	"Shift":       true,
 	"Option":      true,

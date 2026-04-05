@@ -46,6 +46,12 @@ func TestValidateHotkey(t *testing.T) {
 			wantErr:   false,
 		},
 		{
+			name:      "valid Primary modifier",
+			hotkey:    "Primary+D",
+			fieldName: "test_hotkey",
+			wantErr:   false,
+		},
+		{
 			name:      "valid RightCmd modifier",
 			hotkey:    "RightCmd+Q",
 			fieldName: "test_hotkey",

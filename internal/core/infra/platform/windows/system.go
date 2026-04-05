@@ -1,3 +1,5 @@
+//go:build windows
+
 // Package windows provides Windows-specific implementations of infrastructure components.
 //
 // Most methods currently return CodeNotSupported because Windows support is a

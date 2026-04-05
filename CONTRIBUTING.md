@@ -69,10 +69,14 @@ just --list         # See all available commands
 Neru can be developed on any OS, but some features require platform-specific APIs.
 
 - **macOS**: Full environment support (CGo, Accessibility, Overlays).
-- **Linux**: requires `gcc` and `pkg-config` for build foundations. AT-SPI and X11/Wayland development tools are recommended.
-- **Windows**: requires a C compiler (e.g., MinGW or MSVC) for CGo components. UI Automation (UIA) SDK is recommended.
+- **Linux**: backend-dependent. Some work can stay pure Go; X11/Wayland and compositor work may need additional native tooling depending on the backend you choose.
+- **Windows**: prefer pure-Go Win32/COM bindings first. A C compiler is not the default requirement unless a specific backend introduces that need.
 
-For full details see the [Development Guide](docs/DEVELOPMENT.md).
+For full details see:
+
+- [Development Guide](docs/DEVELOPMENT.md)
+- [System Architecture](docs/ARCHITECTURE.md)
+- [Cross-Platform Contributor Guide](docs/CROSS_PLATFORM.md)
 
 ---
 
@@ -94,6 +98,13 @@ For full details see the [Development Guide](docs/DEVELOPMENT.md).
     just lint           # Run linters
     just test           # Run unit tests
     just build          # Verify build
+    ```
+
+   For Linux or Windows platform work, it is also reasonable to start with:
+
+    ```bash
+    just test-foundation
+    just build-linux     # or just build-windows
     ```
 
 6. **Commit** using [conventional commits](#commit-messages).
@@ -151,8 +162,20 @@ Neru is designed as a cross-platform tool with a strong emphasis on architectura
 If you are working on Linux or Windows support:
 
 - Check the current [Platform Status](docs/ARCHITECTURE.md#platform-status) in the architecture guide.
-- Start by replacing `CodeNotSupported` stubs in `internal/core/infra/platform/<os>/`.
-- Follow the patterns established in the macOS implementation where applicable.
+- Start with the [Cross-Platform Contributor Guide](docs/CROSS_PLATFORM.md).
+- Implement in the existing platform slot instead of inventing new file layout.
+- For Linux, prefer the reserved backend files: `*_linux_common.go`, `*_linux_x11.go`, and `*_linux_wayland.go`.
+- Follow the patterns established in the macOS implementation where applicable, but keep macOS-specific assumptions out of shared code.
+
+### Cross-Platform PR Checklist
+
+For Linux, Windows, and shared platform work, a good PR usually does all of the following:
+
+1. Puts the implementation in the intended file slot.
+2. Keeps unsupported paths explicit with `CodeNotSupported` where needed.
+3. Updates capability reporting if support changed.
+4. Adds tests at the right level.
+5. Updates contributor-facing docs if file layout, backend assumptions, or build requirements changed.
 
 ---
 
