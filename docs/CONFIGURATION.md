@@ -494,7 +494,9 @@ Default scroll hotkeys:
 "gg"      = "action go_top"
 "Shift+G" = "action go_bottom"
 "u"       = "action page_up"
+"PageUp"  = "action page_up"
 "d"       = "action page_down"
+"PageDown" = "action page_down"
 ```
 
 ---
