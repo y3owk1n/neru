@@ -569,9 +569,9 @@ text = "Recursive Grid"
 | `text_color`         | color  | derived | Text color                              |
 | `border_color`       | color  | derived | Border color                            |
 | `border_width`       | int    | `1`     | Border width in pixels                  |
-| `padding_x`          | int    | `8`     | Horizontal padding                      |
-| `padding_y`          | int    | `4`     | Vertical padding                        |
-| `border_radius`      | int    | `4`     | Corner radius                           |
+| `padding_x`          | int    | `-1`    | Horizontal padding (-1 = auto)          |
+| `padding_y`          | int    | `-1`    | Vertical padding (-1 = auto)            |
+| `border_radius`      | int    | `-1`    | Corner radius (-1 = auto)               |
 | `indicator_x_offset` | int    | `20`    | X offset from cursor (positive = right) |
 | `indicator_y_offset` | int    | `20`    | Y offset from cursor (positive = down)  |
 
@@ -580,9 +580,9 @@ text = "Recursive Grid"
 font_size = 10
 font_family = ""
 border_width = 1
-padding_x = 8
-padding_y = 4
-border_radius = 4
+padding_x = -1
+padding_y = -1
+border_radius = -1
 indicator_x_offset = 20
 indicator_y_offset = 20
 ```
