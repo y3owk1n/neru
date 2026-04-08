@@ -277,7 +277,7 @@ func (e *Element) Children(cache *InfoCache) ([]*Element, error) {
 		switch info.Role() {
 		case "AXList", "AXTable", "AXOutline":
 			ptr := unsafe.Pointer(C.getVisibleRows(e.ref, &count)) //nolint:nlreturn
-			if ptr != nil {
+			if ptr != nil && count > 0 {
 				rawChildren = ptr
 			} else {
 				rawChildren = unsafe.Pointer(C.getChildren(e.ref, &count)) //nolint:nlreturn
