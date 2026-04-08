@@ -292,6 +292,10 @@ func (e *Element) Children(cache *InfoCache) ([]*Element, error) {
 	}
 
 	if rawChildren == nil || count == 0 {
+		if rawChildren != nil {
+			C.free(rawChildren)
+		}
+
 		return nil, nil
 	}
 	defer C.free(rawChildren) //nolint:nlreturn
@@ -415,6 +419,10 @@ func AllWindows() ([]*Element, error) {
 	var count C.int
 	windows := C.getAllWindows(&count)
 	if windows == nil || count == 0 {
+		if windows != nil {
+			C.free(unsafe.Pointer(windows))
+		}
+
 		return []*Element{}, nil
 	}
 	defer C.free(unsafe.Pointer(windows)) //nolint:nlreturn
