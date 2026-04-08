@@ -3,7 +3,7 @@ bin/
 build/
 *.app
 *.dmg
-neru
+/neru
 
 # Go
 *.exe

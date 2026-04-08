@@ -13,7 +13,6 @@ import (
 	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
-	"github.com/y3owk1n/neru/internal/core/infra/systray"
 )
 
 // main is defined in main_os.go files (main_darwin.go / main_other.go)
@@ -86,21 +85,10 @@ func LaunchDaemon(configPath string) {
 		os.Exit(1)
 	}
 
-	go func() {
-		err := app.Run()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error running app: %v\n", err)
-		}
-	}()
-
-	systrayComponent := app.GetSystrayComponent()
-	if systrayComponent != nil {
-		systray.Run(systrayComponent.OnReady, systrayComponent.OnExit)
-	} else {
-		// Run in headless mode (no status icon) if systray is disabled
-		systray.RunHeadless(func() {}, func() {
-			app.Cleanup()
-		})
+	err := newDaemonHost().Run(app)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error running app: %v\n", err)
+		os.Exit(1)
 	}
 }
 
