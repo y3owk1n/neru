@@ -20,7 +20,6 @@ type mockApp struct {
 	activatedMode        domain.Mode
 	configPath           string
 	reloadCalled         bool
-	cleanupCalled        bool
 	enabledCallback      func(bool)
 }
 
@@ -41,7 +40,7 @@ func (m *mockApp) ReloadConfig(ctx context.Context, configPath string) error {
 
 	return nil
 }
-func (m *mockApp) Cleanup() { m.cleanupCalled = true }
+
 func (m *mockApp) OnEnabledStateChanged(callback func(bool)) uint64 {
 	m.enabledCallback = callback
 
@@ -99,9 +98,7 @@ func TestComponent_OnExit(t *testing.T) {
 
 	component := systray.NewComponent(mockApp, nil, logger)
 
+	// OnExit should not panic; cleanup is owned by the daemon host, not the
+	// systray component.
 	component.OnExit()
-
-	if !mockApp.cleanupCalled {
-		t.Error("Cleanup not called on exit")
-	}
 }

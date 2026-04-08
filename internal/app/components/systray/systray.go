@@ -25,7 +25,6 @@ type AppInterface interface {
 	ActivateMode(mode domain.Mode)
 	GetConfigPath() string
 	ReloadConfig(ctx context.Context, configPath string) error
-	Cleanup()
 	// OnEnabledStateChanged is called when the enabled state changes externally
 	// Returns a subscription ID that can be used to unsubscribe
 	OnEnabledStateChanged(callback func(bool)) uint64
@@ -185,24 +184,26 @@ func (c *Component) OnReady() {
 }
 
 // OnExit handles systray exit.
+//
+// It tears down the component's own resources (goroutines, subscriptions) but
+// does NOT call app.Cleanup(). Cleanup is owned by the daemon host so that
+// waitForShutdown() and other post-systray code can still use the logger.
 func (c *Component) OnExit() {
 	// Order matters: chanClosed guard protects callback from sending during cleanup
 	c.chanClosed.Store(true) // Prevent callback from sending to channel
 	c.cancel()               // Signal event goroutine to stop
 	c.app.OffEnabledStateChanged(c.enabledStateSubscriptionID)
 	c.app.OffScreenShareStateChanged(c.screenShareStateSubscriptionID)
-	c.app.Cleanup()
 }
 
-// Close cleans up systray component resources without triggering app cleanup.
-// This is used during initialization failure cleanup to avoid double cleanup.
+// Close cleans up systray component resources.
+// This is used during initialization failure cleanup.
 func (c *Component) Close() {
 	// Order matters: chanClosed guard protects callback from sending during cleanup
 	c.chanClosed.Store(true) // Prevent callback from sending to channel
 	c.cancel()               // Signal event goroutine to stop
 	c.app.OffEnabledStateChanged(c.enabledStateSubscriptionID)
 	c.app.OffScreenShareStateChanged(c.screenShareStateSubscriptionID)
-	// Note: We don't call c.app.Cleanup() here to avoid double cleanup during init failure
 }
 
 // updateMenuItems updates the systray menu items based on the current enabled state.

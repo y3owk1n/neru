@@ -34,9 +34,7 @@ func (darwinDaemonHost) Run(application *app.App) error {
 	if systrayComponent != nil {
 		systray.Run(systrayComponent.OnReady, systrayComponent.OnExit)
 	} else {
-		systray.RunHeadless(func() {}, func() {
-			application.Cleanup()
-		})
+		systray.RunHeadless(func() {}, func() {})
 	}
 
 	// Unblock waitForShutdown so the goroutine can return.

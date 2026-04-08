@@ -461,14 +461,28 @@ func (a *App) waitForShutdown() error {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
+	programmatic := false
+
 	select {
 	case <-sigChan:
 		// OS signal received
 	case <-a.stopChan:
-		// Programmatic stop requested
+		// Programmatic stop requested (e.g. systray quit on Darwin).
+		// The systray event loop has already exited, so calling
+		// systray.Quit() again would dispatch to a dead run loop and
+		// hang until the timeout fires.
+		programmatic = true
 	}
 
 	a.logger.Info("Received shutdown signal, starting graceful shutdown...")
+
+	if programmatic {
+		signal.Stop(sigChan)
+		a.logger.Info("Graceful shutdown completed")
+
+		return nil
+	}
+
 	a.logger.Info("\n⚠️  Shutting down gracefully... (press Ctrl+C again to force quit)")
 
 	done := make(chan struct{})

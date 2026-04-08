@@ -18,6 +18,7 @@ extern void systray_on_exit(void);
 #pragma mark - Static State
 
 static BOOL _showSystray = YES;
+static BOOL _exitCalled = NO;
 
 #pragma mark - App Delegate
 
@@ -43,7 +44,10 @@ static BOOL _showSystray = YES;
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
-	systray_on_exit();
+	if (!_exitCalled) {
+		_exitCalled = YES;
+		systray_on_exit();
+	}
 }
 
 - (void)itemClicked:(id)sender {
@@ -83,7 +87,25 @@ void nativeLoopHeadless(void) {
 
 void quit(void) {
 	dispatch_async(dispatch_get_main_queue(), ^{
-		[NSApp terminate:nil];
+		if (!_exitCalled) {
+			_exitCalled = YES;
+			systray_on_exit();
+		}
+
+		[NSApp stop:nil];
+
+		// [NSApp stop:] sets a flag checked on the *next* event loop
+		// iteration, so post a dummy event to wake the loop immediately.
+		NSEvent *event = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
+		                                    location:NSZeroPoint
+		                               modifierFlags:0
+		                                   timestamp:0
+		                                windowNumber:0
+		                                     context:nil
+		                                     subtype:0
+		                                       data1:0
+		                                       data2:0];
+		[NSApp postEvent:event atStart:YES];
 	});
 }
 
