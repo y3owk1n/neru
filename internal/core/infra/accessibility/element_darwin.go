@@ -280,6 +280,10 @@ func (e *Element) Children(cache *InfoCache) ([]*Element, error) {
 			if ptr != nil && count > 0 {
 				rawChildren = ptr
 			} else {
+				if ptr != nil {
+					C.free(ptr)
+				}
+
 				rawChildren = unsafe.Pointer(C.getChildren(e.ref, &count)) //nolint:nlreturn
 			}
 		default:
