@@ -331,7 +331,6 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 var nonInteractiveRoles = map[string]bool{
 	"AXStaticText": true,
 	"AXImage":      true,
-	"AXHeading":    true,
 }
 
 // Roles that are themselves interactive (leaf nodes).
