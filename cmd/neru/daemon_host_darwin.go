@@ -34,10 +34,10 @@ func (darwinDaemonHost) Run(application *app.App) error {
 		})
 	}
 
-	select {
-	case err := <-runDone:
-		return err
-	default:
-		return nil
-	}
+	// Unblock waitForShutdown so the goroutine can return.
+	// Stop is idempotent (protected by sync.Once), so this is safe even if
+	// the app already stopped itself.
+	application.Stop()
+
+	return <-runDone
 }
