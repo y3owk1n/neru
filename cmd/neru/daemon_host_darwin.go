@@ -14,6 +14,11 @@ func newDaemonHost() daemonHost {
 }
 
 func (darwinDaemonHost) Run(application *app.App) error {
+	// Ensure cleanup runs even if the systray OnExit callback does not fire
+	// (e.g. Cocoa event-loop crash). Cleanup is idempotent (sync.Once), so
+	// the duplicate call from OnExit is harmless.
+	defer application.Cleanup()
+
 	runDone := make(chan error, 1)
 
 	go func() {

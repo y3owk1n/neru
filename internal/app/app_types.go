@@ -57,8 +57,9 @@ type App struct {
 	modes *modes.Handler
 
 	// Control channels
-	stopChan chan struct{}
-	stopOnce sync.Once
+	stopChan    chan struct{}
+	stopOnce    sync.Once
+	cleanupOnce sync.Once
 
 	// configMu serializes access to config-dependent component state between
 	// concurrent writers (theme change observer, IPC config reload, systray reload).
