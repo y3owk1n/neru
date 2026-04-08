@@ -1244,7 +1244,7 @@ func (c *Config) IsAppExcluded(bundleID string) bool {
 
 // ClickableRolesForApp returns the clickable roles for a specific app bundle ID.
 func (c *Config) ClickableRolesForApp(bundleID string) []string {
-	rolesMap := c.buildRolesMap(bundleID)
+	rolesMap := c.Hints.buildRolesMap(bundleID)
 
 	return rolesMapToSlice(rolesMap)
 }
@@ -1349,18 +1349,25 @@ func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringAr
 	}
 }
 
+// ClickableRolesForApp returns the clickable roles for a specific app bundle ID.
+func (c *HintsConfig) ClickableRolesForApp(bundleID string) []string {
+	rolesMap := c.buildRolesMap(bundleID)
+
+	return rolesMapToSlice(rolesMap)
+}
+
 // buildRolesMap builds a map of clickable roles for the given bundle ID.
-func (c *Config) buildRolesMap(bundleID string) map[string]struct{} {
+func (c *HintsConfig) buildRolesMap(bundleID string) map[string]struct{} {
 	rolesMap := make(map[string]struct{})
 
-	for _, role := range c.Hints.ClickableRoles {
+	for _, role := range c.ClickableRoles {
 		trimmed := strings.TrimSpace(role)
 		if trimmed != "" {
 			rolesMap[trimmed] = struct{}{}
 		}
 	}
 
-	for _, appConfig := range c.Hints.AppConfigs {
+	for _, appConfig := range c.AppConfigs {
 		if appConfig.BundleID == bundleID {
 			for _, role := range appConfig.AdditionalClickable {
 				trimmed := strings.TrimSpace(role)
@@ -1373,11 +1380,11 @@ func (c *Config) buildRolesMap(bundleID string) map[string]struct{} {
 		}
 	}
 
-	if c.Hints.IncludeMenubarHints {
+	if c.IncludeMenubarHints {
 		rolesMap[RoleMenuBarItem] = struct{}{}
 	}
 
-	if c.Hints.IncludeDockHints {
+	if c.IncludeDockHints {
 		rolesMap[RoleDockItem] = struct{}{}
 	}
 

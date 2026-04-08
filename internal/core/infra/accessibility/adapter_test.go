@@ -424,6 +424,24 @@ func TestAdapter_RolePassing(t *testing.T) {
 	adapter := accessibility.NewAdapter(logger, []string{}, initialRoles, mockClient, false)
 	ctx := context.Background()
 
+	t.Run("Frontmost Window Uses Filter Roles", func(t *testing.T) {
+		mockClient.LastClickableNodesRoles = nil
+		mockClient.ClickableNodesRolesHistory = nil
+
+		filter := ports.ElementFilter{
+			Roles: []element.Role{element.RoleButton, element.Role("AXTabGroup")},
+		}
+
+		_, _ = adapter.ClickableElements(ctx, filter)
+
+		if !slices.Equal(mockClient.LastClickableNodesRoles, []string{"AXButton", "AXTabGroup"}) {
+			t.Errorf(
+				"Expected LastClickableNodesRoles to use filter roles, got: %v",
+				mockClient.LastClickableNodesRoles,
+			)
+		}
+	})
+
 	// Case 1: Additional Menubar Targets
 	t.Run("Additional Menubar Targets", func(t *testing.T) {
 		filter := ports.ElementFilter{

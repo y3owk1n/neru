@@ -200,6 +200,50 @@ func TestHintService_ShowHints(t *testing.T) {
 			wantErr:       false,
 			wantHintCount: 3,
 		},
+		{
+			name: "app-specific clickable roles are applied",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
+				acc.FocusedAppBundleIDFunc = func(context.Context) (string, error) {
+					return "net.imput.helium", nil
+				}
+				acc.ClickableElementsFunc = func(_ context.Context, filter ports.ElementFilter) ([]*element.Element, error) {
+					roles := make(map[element.Role]bool, len(filter.Roles))
+					for _, role := range filter.Roles {
+						roles[role] = true
+					}
+
+					if !roles[element.Role("AXButton")] {
+						t.Error("expected global role AXButton to be present")
+					}
+
+					if !roles[element.Role("AXHeading")] {
+						t.Error("expected app-specific role AXHeading to be present")
+					}
+
+					if len(roles) != 2 {
+						t.Errorf("expected exactly 2 roles, got %v", filter.Roles)
+					}
+
+					return testElements, nil
+				}
+			},
+			setupGen: func() hint.Generator {
+				gen, _ := hint.NewAlphabetGenerator("asdf")
+
+				return gen
+			},
+			config: config.HintsConfig{
+				ClickableRoles: []string{"AXButton"},
+				AppConfigs: []config.AppConfig{
+					{
+						BundleID:            "net.imput.helium",
+						AdditionalClickable: []string{"AXHeading"},
+					},
+				},
+			},
+			wantErr:       false,
+			wantHintCount: 3,
+		},
 	}
 
 	for _, testCase := range tests {

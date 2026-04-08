@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
@@ -60,6 +61,25 @@ func (s *HintService) ShowHints(
 	filter := ports.DefaultElementFilter()
 
 	// Populate filter with configuration
+	bundleID, bundleIDErr := s.accessibility.FocusedAppBundleID(ctx)
+	if bundleIDErr != nil {
+		s.logger.Debug(
+			"Failed to get focused app bundle ID for hints roles",
+			zap.Error(bundleIDErr),
+		)
+	}
+
+	configuredRoles := cfg.ClickableRolesForApp(bundleID)
+	s.logger.Debug("Resolved clickable roles for hints",
+		zap.String("bundle_id", bundleID),
+		zap.Int("role_count", len(configuredRoles)),
+		zap.Strings("roles", configuredRoles))
+
+	filter.Roles = make([]element.Role, 0, len(configuredRoles))
+	for _, role := range configuredRoles {
+		filter.Roles = append(filter.Roles, element.Role(role))
+	}
+
 	filter.IncludeMenubar = cfg.IncludeMenubarHints
 	filter.AdditionalMenubarTargets = cfg.AdditionalMenubarHintsTargets
 	filter.IncludeDock = cfg.IncludeDockHints

@@ -172,7 +172,7 @@ func (a *Adapter) ClickableElements(
 				clickableNodes, clickableNodesErr := a.client.ClickableNodes(
 					frontmostWindow,
 					filter.IncludeOffscreen,
-					nil,
+					stringRoles(filter.Roles),
 				)
 				if clickableNodesErr != nil {
 					return nil, clickableNodesErr
@@ -220,6 +220,19 @@ func (a *Adapter) ClickableElements(
 	a.logger.Info("Total elements collected", zap.Int("count", len(allElements)))
 
 	return allElements, nil
+}
+
+func stringRoles(roles []element.Role) []string {
+	if len(roles) == 0 {
+		return nil
+	}
+
+	result := make([]string, 0, len(roles))
+	for _, role := range roles {
+		result = append(result, string(role))
+	}
+
+	return result
 }
 
 // PerformAction executes an action on the specified element.
