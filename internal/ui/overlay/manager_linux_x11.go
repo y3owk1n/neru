@@ -237,6 +237,7 @@ func (o *x11Overlay) WindowPtr() unsafe.Pointer {
 	if o == nil {
 		return nil
 	}
+
 	return unsafe.Pointer(o.raw)
 }
 

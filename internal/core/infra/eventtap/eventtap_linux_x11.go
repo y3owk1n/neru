@@ -74,7 +74,7 @@ func (et *EventTap) runX11() {
 	}
 	defer C.neru_eventtap_close(display) //nolint:nlreturn
 
-	if C.neru_eventtap_grab_keyboard(display) != C.GrabSuccess {
+	if C.neru_eventtap_grab_keyboard(display) != C.GrabSuccess { // nolint:nlreturn
 		return
 	}
 	defer C.neru_eventtap_ungrab_keyboard(display) //nolint:nlreturn
@@ -86,13 +86,14 @@ func (et *EventTap) runX11() {
 		default:
 		}
 
-		if C.neru_eventtap_pending(display) == 0 {
+		if C.neru_eventtap_pending(display) == 0 { // nolint:nlreturn
 			time.Sleep(10 * time.Millisecond)
+
 			continue
 		}
 
 		var event C.XEvent
-		if C.neru_eventtap_next(display, &event) != C.KeyPress {
+		if C.neru_eventtap_next(display, &event) != C.KeyPress { // nolint:nlreturn
 			continue
 		}
 
@@ -104,7 +105,7 @@ func (et *EventTap) runX11() {
 			&buffer[0],
 			C.int(len(buffer)),
 			&keysym,
-			nil,
+			nil, // nolint:nlreturn
 		)
 
 		var key string

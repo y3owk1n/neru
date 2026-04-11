@@ -45,8 +45,10 @@ func (et *EventTap) Enable() {
 	et.mu.Lock()
 	if et.enabled {
 		et.mu.Unlock()
+
 		return
 	}
+
 	et.stopCh = make(chan struct{})
 	et.doneCh = make(chan struct{})
 	et.enabled = true
@@ -60,8 +62,10 @@ func (et *EventTap) Disable() {
 	et.mu.Lock()
 	if !et.enabled {
 		et.mu.Unlock()
+
 		return
 	}
+
 	stopCh := et.stopCh
 	doneCh := et.doneCh
 	et.enabled = false
@@ -80,6 +84,7 @@ func (et *EventTap) Destroy() {
 func (et *EventTap) SetHandler(handler func(key string)) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
+
 	et.callback = handler
 }
 
@@ -87,6 +92,7 @@ func (et *EventTap) SetHandler(handler func(key string)) {
 func (et *EventTap) SetHotkeys(hotkeys []string) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
+
 	et.hotkeys = append([]string(nil), hotkeys...)
 }
 
@@ -100,6 +106,7 @@ func (et *EventTap) SetInterceptedModifierKeys(_ []string) {}
 func (et *EventTap) SetPassthroughCallback(cb PassthroughCallback) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
+
 	et.passthroughCallback = cb
 }
 
@@ -107,6 +114,7 @@ func (et *EventTap) SetPassthroughCallback(cb PassthroughCallback) {
 func (et *EventTap) SetStickyModifierToggle(enabled bool) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
+
 	et.stickyModifierToggle = enabled
 }
 
@@ -120,6 +128,7 @@ func (et *EventTap) SetKeyboardLayout(_ string) bool { return true }
 func (et *EventTap) IsEnabled() bool {
 	et.mu.RLock()
 	defer et.mu.RUnlock()
+
 	return et.enabled
 }
 
@@ -137,6 +146,7 @@ func (et *EventTap) dispatchKey(key string) {
 	et.mu.RLock()
 	callback := et.callback
 	et.mu.RUnlock()
+
 	if callback != nil && key != "" {
 		callback(key)
 	}
@@ -146,6 +156,7 @@ func (et *EventTap) dispatchKey(key string) {
 func (et *EventTap) stickyToggleEnabled() bool {
 	et.mu.RLock()
 	defer et.mu.RUnlock()
+
 	return et.stickyModifierToggle
 }
 
@@ -185,5 +196,6 @@ func normalizeLinuxKey(key string) string {
 	}
 
 	parts[len(parts)-1] = baseKey
+
 	return strings.Join(parts, "+")
 }

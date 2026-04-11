@@ -443,6 +443,7 @@ func currentLinuxBackend() linuxBackend {
 	if os.Getenv("WAYLAND_DISPLAY") != "" {
 		return linuxBackendWayland
 	}
+
 	if os.Getenv("DISPLAY") != "" {
 		return linuxBackendX11
 	}

@@ -65,10 +65,13 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 		backend: detectLinuxOverlayBackend(),
 	}
 
-	if manager.backend == linuxOverlayBackendX11 {
+	switch manager.backend {
+	case linuxOverlayBackendX11:
 		manager.x11 = newX11Overlay(logger)
-	} else if manager.backend == linuxOverlayBackendWaylandWlroots {
+	case linuxOverlayBackendWaylandWlroots:
 		manager.wlroots = newWlrootsOverlay(logger)
+	default:
+		return nil
 	}
 
 	return manager
@@ -132,13 +135,18 @@ func (m *Manager) ResizeToActiveScreen() {
 // SwitchTo switches to a new mode.
 func (m *Manager) SwitchTo(next Mode) {
 	m.mu.Lock()
+
 	prev := m.mode
 	if prev == next {
 		m.mu.Unlock()
+
 		return
 	}
+
 	m.mode = next
+
 	m.mu.Unlock()
+
 	m.publish(StateChange{prev: prev, next: next})
 }
 
@@ -146,9 +154,11 @@ func (m *Manager) SwitchTo(next Mode) {
 func (m *Manager) Subscribe(fn func(StateChange)) uint64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	m.nextID++
 	id := m.nextID
 	m.subs[id] = fn
+
 	return id
 }
 
@@ -156,6 +166,7 @@ func (m *Manager) Subscribe(fn func(StateChange)) uint64 {
 func (m *Manager) Unsubscribe(id uint64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	delete(m.subs, id)
 }
 
@@ -165,6 +176,7 @@ func (m *Manager) Destroy() {
 		m.x11.Destroy()
 		m.x11 = nil
 	}
+
 	if m.wlroots != nil {
 		m.wlroots.Destroy()
 		m.wlroots = nil
@@ -175,6 +187,7 @@ func (m *Manager) Destroy() {
 func (m *Manager) Mode() Mode {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
 	return m.mode
 }
 
@@ -239,6 +252,7 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 				Detail: "native Linux overlays available via X11 + Cairo",
 			}
 		}
+
 		return ports.FeatureCapability{
 			Status: ports.FeatureStatusStub,
 			Detail: "X11 overlay backend failed to initialize",
@@ -250,6 +264,7 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 				Detail: "native Linux overlays available via wlroots layer-shell + Cairo",
 			}
 		}
+
 		return ports.FeatureCapability{
 			Status: ports.FeatureStatusStub,
 			Detail: "wlroots layer-shell overlay backend failed to initialize",
@@ -267,14 +282,17 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 	}
 }
 
+// DrawHintsWithStyle is a no-op on Linux.
 func (m *Manager) DrawHintsWithStyle(_ []*hints.Hint, _ hints.StyleMode) error {
 	return derrors.New(derrors.CodeNotSupported, "overlay hints not implemented on linux")
 }
 
+// DrawModeIndicator draws the mode indicator overlay.
 func (m *Manager) DrawModeIndicator(x, y int) {
 	if m.modeIndicatorOverlay == nil {
 		return
 	}
+
 	mode := m.Mode()
 	if mode == ModeIdle {
 		return
@@ -287,6 +305,7 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 	}
 }
 
+// DrawStickyModifiersIndicator draws the sticky modifiers indicator overlay.
 func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 	if m.stickyModifiersOverlay == nil || symbols == "" {
 		return
@@ -299,36 +318,46 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 	}
 }
 
+// DrawGrid draws the grid overlay.
 func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error {
 	if m.x11 != nil {
 		// Pass sublayer keys from grid overlay config so subgrid labels match config.
 		if m.gridOverlay != nil {
 			cfg := m.gridOverlay.Config()
+
 			keys := strings.TrimSpace(cfg.SublayerKeys)
 			if keys == "" {
 				keys = cfg.Characters
 			}
+
 			m.x11.sublayerKeys = strings.ToUpper(keys)
 		}
+
 		m.x11.DrawGrid(g, input, style)
+
 		return nil
 	} else if m.wlroots != nil {
 		// Pass sublayer keys from grid overlay config so subgrid labels match config.
 		if m.gridOverlay != nil {
 			cfg := m.gridOverlay.Config()
+
 			keys := strings.TrimSpace(cfg.SublayerKeys)
 			if keys == "" {
 				keys = cfg.Characters
 			}
+
 			m.wlroots.sublayerKeys = strings.ToUpper(keys)
 		}
+
 		m.wlroots.DrawGrid(g, input, style)
+
 		return nil
 	}
 
 	return derrors.New(derrors.CodeNotSupported, "overlay grid not implemented on linux backend")
 }
 
+// DrawRecursiveGrid draws the recursive grid overlay.
 func (m *Manager) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
@@ -343,9 +372,11 @@ func (m *Manager) DrawRecursiveGrid(
 ) error {
 	if m.x11 != nil {
 		m.x11.DrawRecursiveGrid(bounds, depth, keys, gridCols, gridRows, style, virtualPointer)
+
 		return nil
 	} else if m.wlroots != nil {
 		m.wlroots.DrawRecursiveGrid(bounds, depth, keys, gridCols, gridRows, style, virtualPointer)
+
 		return nil
 	}
 	_ = nextKeys
@@ -358,6 +389,7 @@ func (m *Manager) DrawRecursiveGrid(
 	)
 }
 
+// UpdateGridMatches updates the grid overlay matches.
 func (m *Manager) UpdateGridMatches(prefix string) {
 	if m.x11 != nil {
 		m.x11.UpdateGridMatches(prefix)
@@ -366,32 +398,40 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 	}
 }
 
+// ShowSubgrid shows the subgrid overlay.
 func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
 	if m.x11 != nil {
 		// Ensure sublayer keys are set from grid overlay config.
 		if m.gridOverlay != nil {
 			cfg := m.gridOverlay.Config()
+
 			keys := strings.TrimSpace(cfg.SublayerKeys)
 			if keys == "" {
 				keys = cfg.Characters
 			}
+
 			m.x11.sublayerKeys = strings.ToUpper(keys)
 		}
+
 		m.x11.ShowSubgrid(cell, style)
 	} else if m.wlroots != nil {
 		// Ensure sublayer keys are set from grid overlay config.
 		if m.gridOverlay != nil {
 			cfg := m.gridOverlay.Config()
+
 			keys := strings.TrimSpace(cfg.SublayerKeys)
 			if keys == "" {
 				keys = cfg.Characters
 			}
+
 			m.wlroots.sublayerKeys = strings.ToUpper(keys)
 		}
+
 		m.wlroots.ShowSubgrid(cell, style)
 	}
 }
 
+// SetHideUnmatched sets the hide unmatched overlay option.
 func (m *Manager) SetHideUnmatched(hide bool) {
 	if m.x11 != nil {
 		m.x11.SetHideUnmatched(hide)
@@ -400,14 +440,17 @@ func (m *Manager) SetHideUnmatched(hide bool) {
 	}
 }
 
+// SetSharingType is a no-op on Linux.
 func (m *Manager) SetSharingType(_ bool) {}
 
 func (m *Manager) publish(change StateChange) {
 	m.mu.RLock()
+
 	subs := make([]func(StateChange), 0, len(m.subs))
 	for _, fn := range m.subs {
 		subs = append(subs, fn)
 	}
+
 	m.mu.RUnlock()
 
 	for _, fn := range subs {

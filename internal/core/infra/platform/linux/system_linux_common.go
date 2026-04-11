@@ -25,6 +25,7 @@ const (
 	backendWaylandWlroots = "wayland-wlroots"
 )
 
+// SystemAdapter is a Linux system adapter.
 type SystemAdapter struct {
 	backend string
 }
@@ -125,6 +126,7 @@ func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 	if s.backend == backendX11 {
 		return x11ActiveScreenBounds()
 	}
+
 	if s.backend == backendWaylandWlroots {
 		return wlrootsScreenBounds()
 	}
@@ -144,6 +146,7 @@ func (s *SystemAdapter) ScreenBoundsByName(
 	if s.backend == backendX11 {
 		return x11ScreenBoundsByName(name)
 	}
+
 	if s.backend == backendWaylandWlroots {
 		return wlrootsScreenBoundsByName(name)
 	}
@@ -160,6 +163,7 @@ func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
 	if s.backend == backendX11 {
 		return x11ScreenNames()
 	}
+
 	if s.backend == backendWaylandWlroots {
 		return wlrootsScreenNames()
 	}
@@ -180,6 +184,7 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	if s.backend == backendX11 {
 		return x11MoveCursorToPoint(point)
 	}
+
 	if s.backend == backendWaylandWlroots {
 		return wlrootsMoveCursorToPoint(point)
 	}
@@ -198,6 +203,7 @@ func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error)
 	if s.backend == backendX11 {
 		return x11CursorPosition()
 	}
+
 	if s.backend == backendWaylandWlroots {
 		return wlrootsCursorPosition()
 	}

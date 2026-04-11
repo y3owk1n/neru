@@ -675,6 +675,7 @@ func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
 	if o == nil {
 		return nil
 	}
+
 	return unsafe.Pointer(o.raw)
 }
 
@@ -841,7 +842,7 @@ func (o *wlrootsOverlay) DrawRecursiveGrid(
 	C.neru_wayland_overlay_flush(o.raw)
 }
 
-func (o *wlrootsOverlay) DrawBadge(x, y int, text string, colors overlayColors) {
+func (o *wlrootsOverlay) DrawBadge(posX, posY int, text string, colors overlayColors) {
 	if o == nil || o.raw == nil || text == "" {
 		return
 	}
@@ -851,7 +852,7 @@ func (o *wlrootsOverlay) DrawBadge(x, y int, text string, colors overlayColors) 
 	fontSize := 14.0
 	width := len(text)*9 + paddingX*2
 	height := 24
-	rect := image.Rect(x, y, x+width, y+height)
+	rect := image.Rect(posX, posY, posX+width, posY+height)
 
 	o.drawRect(rect, colors.background, colors.border, 1)
 	o.drawTextCentered(text, rect, fontSize, colors.text)
@@ -862,7 +863,7 @@ func (o *wlrootsOverlay) DrawBadge(x, y int, text string, colors overlayColors) 
 func (o *wlrootsOverlay) keyboardPoller() {
 	for o.raw != nil {
 		C.neruWaylandOverlayPoll(o.raw)
-		key := C.neruWaylandOverlayGetKey(o.raw)
+		key := C.neruWaylandOverlayGetKey(o.raw) // nolint:nlreturn
 		if key != nil {
 			select {
 			case wlrootsKeyboardCh <- C.GoString(key):

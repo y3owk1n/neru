@@ -56,6 +56,7 @@ func wlrootsLeftClickAtPoint(
 	_ = modifiers // modifier injection not yet supported on Wayland
 
 	original := wlrootsCurrentCursorPosition()
+
 	err := linux.WlrootsClick(point, linux.WlrBtnLeft)
 	if err != nil {
 		return err
@@ -76,6 +77,7 @@ func wlrootsRightClickAtPoint(
 	_ = modifiers
 
 	original := wlrootsCurrentCursorPosition()
+
 	err := linux.WlrootsClick(point, linux.WlrBtnRight)
 	if err != nil {
 		return err
@@ -96,6 +98,7 @@ func wlrootsMiddleClickAtPoint(
 	_ = modifiers
 
 	original := wlrootsCurrentCursorPosition()
+
 	err := linux.WlrootsClick(point, linux.WlrBtnMiddle)
 	if err != nil {
 		return err

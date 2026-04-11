@@ -263,15 +263,15 @@ func x11CursorPosition() (image.Point, error) {
 	}
 	defer C.neru_x11_close_display(display) //nolint:nlreturn
 
-	var x, y C.int
-	if C.neru_x11_query_pointer(display, &x, &y) == 0 {
+	var posX, posY C.int
+	if C.neru_x11_query_pointer(display, &posX, &posY) == 0 { // nolint:nlreturn
 		return image.Point{}, derrors.New(
 			derrors.CodeActionFailed,
 			"failed to query X11 pointer position",
 		)
 	}
 
-	return image.Point{X: int(x), Y: int(y)}, nil
+	return image.Point{X: int(posX), Y: int(posY)}, nil
 }
 
 func x11MoveCursorToPoint(point image.Point) error {
@@ -281,7 +281,7 @@ func x11MoveCursorToPoint(point image.Point) error {
 	}
 	defer C.neru_x11_close_display(display) //nolint:nlreturn
 
-	if C.neru_x11_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 {
+	if C.neru_x11_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 { // nolint:nlreturn
 		return derrors.Newf(
 			derrors.CodeActionFailed,
 			"failed to move X11 pointer to (%d, %d)",
@@ -301,7 +301,7 @@ func x11FocusedApplicationPID() (int, error) {
 	defer C.neru_x11_close_display(display) //nolint:nlreturn
 
 	var window C.Window
-	if C.neru_x11_get_active_window(display, &window) == 0 {
+	if C.neru_x11_get_active_window(display, &window) == 0 { // nolint:nlreturn
 		return 0, derrors.New(
 			derrors.CodeActionFailed,
 			"failed to query _NET_ACTIVE_WINDOW on X11",
@@ -309,7 +309,7 @@ func x11FocusedApplicationPID() (int, error) {
 	}
 
 	var ok C.int
-	pid := C.neru_x11_get_window_pid(display, window, &ok)
+	pid := C.neru_x11_get_window_pid(display, window, &ok) // nolint:nlreturn
 	if ok == 0 {
 		return 0, derrors.New(
 			derrors.CodeActionFailed,
@@ -361,7 +361,7 @@ func x11Monitors() ([]x11Monitor, error) {
 	defer C.neru_x11_close_display(display) //nolint:nlreturn
 
 	var count C.int
-	raw := C.neru_x11_get_monitors(display, &count)
+	raw := C.neru_x11_get_monitors(display, &count) // nolint:nlreturn
 	if raw == nil || count == 0 {
 		return nil, derrors.New(
 			derrors.CodeActionFailed,

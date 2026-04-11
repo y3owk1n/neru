@@ -85,16 +85,16 @@ func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error
 }
 
 // Unregister removes a previously registered hotkey by its ID (Linux stub).
-func (m *Manager) Unregister(id HotkeyID) {
+func (m *Manager) Unregister(hotkeyId HotkeyID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.backend == platform.BackendX11 {
-		m.unregisterX11Hotkey(id)
+		m.unregisterX11Hotkey(hotkeyId)
 	}
 
-	delete(m.callbacks, id)
-	delete(m.keys, id)
+	delete(m.callbacks, hotkeyId)
+	delete(m.keys, hotkeyId)
 }
 
 // UnregisterAll removes all currently registered hotkeys (Linux stub).
