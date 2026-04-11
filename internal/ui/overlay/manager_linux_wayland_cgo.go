@@ -633,7 +633,6 @@ import (
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-
 	// Blank-import to link the wayland-scanner generated protocol objects.
 	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux/wlr_protocol"
 )

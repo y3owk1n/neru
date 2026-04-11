@@ -519,7 +519,6 @@ import (
 	"sync"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-
 	// Blank-import to link the wayland-scanner generated protocol objects.
 	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux/wlr_protocol"
 )
