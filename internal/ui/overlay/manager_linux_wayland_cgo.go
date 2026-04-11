@@ -13,6 +13,8 @@ package overlay
 #include <errno.h>
 #include <cairo/cairo.h>
 
+#include "../../core/infra/platform/linux/wlr_protocol/xdg-shell.h"
+#include "../../core/infra/platform/linux/wlr_protocol/xdg-shell.c"
 #include "../../core/infra/platform/linux/wlr_protocol/layer-shell.h"
 #include "../../core/infra/platform/linux/wlr_protocol/layer-shell.c"
 #include "../../core/infra/platform/linux/wlr_protocol/xdg-output.h"
