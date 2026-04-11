@@ -20,7 +20,10 @@ package linux
 
 #define NERU_MAX_OUTPUTS 16
 
-// Discover cursor position on startup
+// Forward declare NeruWlrootsClient (defined after NeruWaylandScreen)
+typedef struct NeruWlrootsClient NeruWlrootsClient;
+
+// Forward declare the discover function
 static void neru_wlr_discover_cursor(NeruWlrootsClient *c);
 
 typedef struct {
@@ -303,7 +306,7 @@ static NeruWlrootsClient* neru_wlr_connect(void) {
 	return c;
 }
 
-static int neru_wlr_disconnect(NeruWlrootsClient *c) {
+static void neru_wlr_disconnect(NeruWlrootsClient *c) {
 	if (!c) return;
 
 	if (c->vptr) {
