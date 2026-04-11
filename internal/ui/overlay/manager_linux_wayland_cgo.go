@@ -508,6 +508,8 @@ static int neru_wayland_overlay_poll(NeruWaylandOverlay *overlay) {
 
     int ret = poll(&pfd, 1, 0);
     if (ret > 0 && (pfd.revents & POLLIN)) {
+        wl_display_dispatch(overlay->display);
+    } else {
         wl_display_dispatch_pending(overlay->display);
     }
     return ret;
