@@ -134,6 +134,14 @@ func normalizeLinuxKey(key string) string {
 		return ""
 	}
 
+	// Handle modifier prefix from Wayland (e.g., "__modifier_shift L")
+	if strings.HasPrefix(key, "__modifier_shift ") {
+		return key // Keep as-is for now, mode handler will process it
+	}
+	if strings.HasPrefix(key, "__modifier_") {
+		return key // Other modifiers keep as-is
+	}
+
 	switch strings.ToLower(key) {
 	case "return":
 		return "Return"

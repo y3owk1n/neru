@@ -67,10 +67,18 @@ static char key_buffer[256];
 static volatile int key_available = 0;
 static volatile int keyboard_enter_received = 0;
 
+// Modifier tracking
+static uint32_t current_mods = 0;
+
 //export neruWaylandOverlayOnKey
 static void neruWaylandOverlayOnKey(const char *key) {
-    strncpy(key_buffer, key, sizeof(key_buffer) - 1);
-    key_buffer[sizeof(key_buffer) - 1] = 0;
+    // Prepend modifier prefix if shift is held
+    if (current_mods & (1 << 0)) { // shift
+        snprintf(key_buffer, sizeof(key_buffer), "__modifier_shift %s", key);
+    } else {
+        strncpy(key_buffer, key, sizeof(key_buffer) - 1);
+        key_buffer[sizeof(key_buffer) - 1] = 0;
+    }
     key_available = 1;
 }
 
@@ -252,6 +260,8 @@ static void neru_keyboard_modifiers(void *data, struct wl_keyboard *keyboard,
     if (overlay->xkb_state) {
         xkb_state_update_mask(overlay->xkb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
     }
+    // Track modifiers: bit 0 = shift, bit 1 = ctrl, bit 2 = alt, bit 3 = meta
+    current_mods = mods_depressed;
 }
 
 static void neru_keyboard_repeat_info(void *data, struct wl_keyboard *keyboard,
