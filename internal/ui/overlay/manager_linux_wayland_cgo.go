@@ -642,6 +642,11 @@ type wlrootsOverlay struct {
 	currentPrefix  string
 	hideUnmatched  bool
 	currentSubgrid *domainGrid.Cell
+	sublayerKeys   string // Configured sublayer keys (uppercase), set from grid config
+	// Cached grid state for incremental redraws triggered by
+	// UpdateGridMatches / ShowSubgrid (which don't receive the grid).
+	cachedGrid  *domainGrid.Grid
+	cachedStyle gridcomponent.Style
 }
 
 func init() {
@@ -720,10 +725,12 @@ func (o *wlrootsOverlay) Destroy() {
 
 func (o *wlrootsOverlay) UpdateGridMatches(prefix string) {
 	o.currentPrefix = strings.ToUpper(prefix)
+	o.redrawGrid()
 }
 
 func (o *wlrootsOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
 	o.currentSubgrid = cell
+	o.redrawGrid()
 }
 
 func (o *wlrootsOverlay) SetHideUnmatched(hide bool) {
@@ -734,11 +741,26 @@ func (o *wlrootsOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridco
 	if o == nil || o.raw == nil || g == nil {
 		return
 	}
+	// Cache for incremental redraws from UpdateGridMatches / ShowSubgrid.
+	o.cachedGrid = g
+	o.cachedStyle = style
+	o.currentPrefix = strings.ToUpper(input)
+
+	o.redrawGrid()
+}
+
+// redrawGrid performs the actual grid rendering using cached state.
+func (o *wlrootsOverlay) redrawGrid() {
+	if o == nil || o.raw == nil || o.cachedGrid == nil {
+		return
+	}
 	C.neru_wayland_overlay_setup_buffers(o.raw)
 	o.Clear()
 
-	prefix := strings.ToUpper(input)
-	for _, cell := range g.AllCells() {
+	style := o.cachedStyle
+	prefix := o.currentPrefix
+
+	for _, cell := range o.cachedGrid.AllCells() {
 		label := strings.ToUpper(cell.Coordinate())
 		matched := strings.HasPrefix(label, prefix)
 		if o.hideUnmatched && prefix != "" && !matched {
@@ -838,10 +860,23 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 	cols, rows := 3, 3
 	cellWidth := bounds.Dx() / cols
 	cellHeight := bounds.Dy() / rows
-	keys := []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"}
+
+	// Use configured sublayer keys; fall back to digits
+	keyRunes := []rune("ASDFGHJKL")
+	if o.sublayerKeys != "" {
+		keyRunes = []rune(strings.ToUpper(o.sublayerKeys))
+	}
+	max := cols * rows
+	if len(keyRunes) < max {
+		max = len(keyRunes)
+	}
+
 	index := 0
 	for row := range rows {
 		for col := range cols {
+			if index >= max {
+				break
+			}
 			cell := image.Rect(
 				bounds.Min.X+col*cellWidth,
 				bounds.Min.Y+row*cellHeight,
@@ -849,7 +884,7 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 				bounds.Min.Y+(row+1)*cellHeight,
 			)
 			o.drawRect(cell, 0x14000000, style.LineColor, 1)
-			o.drawTextCentered(keys[index], cell, style.LabelFontSize*0.7, style.LabelFontColor)
+			o.drawTextCentered(string(keyRunes[index]), cell, style.LabelFontSize*0.7, style.LabelFontColor)
 			index++
 		}
 	}

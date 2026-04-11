@@ -5,6 +5,7 @@ package overlay
 import (
 	"image"
 	"os"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -268,6 +269,15 @@ func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) e
 		m.x11.DrawGrid(g, input, style)
 		return nil
 	} else if m.wlroots != nil {
+		// Pass sublayer keys from grid overlay config so subgrid labels match config.
+		if m.gridOverlay != nil {
+			cfg := m.gridOverlay.Config()
+			keys := strings.TrimSpace(cfg.SublayerKeys)
+			if keys == "" {
+				keys = cfg.Characters
+			}
+			m.wlroots.sublayerKeys = strings.ToUpper(keys)
+		}
 		m.wlroots.DrawGrid(g, input, style)
 		return nil
 	}
@@ -313,6 +323,15 @@ func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
 	if m.x11 != nil {
 		m.x11.ShowSubgrid(cell, style)
 	} else if m.wlroots != nil {
+		// Ensure sublayer keys are set from grid overlay config.
+		if m.gridOverlay != nil {
+			cfg := m.gridOverlay.Config()
+			keys := strings.TrimSpace(cfg.SublayerKeys)
+			if keys == "" {
+				keys = cfg.Characters
+			}
+			m.wlroots.sublayerKeys = strings.ToUpper(keys)
+		}
 		m.wlroots.ShowSubgrid(cell, style)
 	}
 }
