@@ -596,18 +596,21 @@ func wlrootsCursorPositionLocked() (image.Point, error) {
 	var x, y C.int
 	initialized := C.neru_wlr_get_cursor(client, &x, &y)
 
-	// If cursor was never initialized via motion events, fall back to first screen center
+	// If cursor was never initialized via motion events, log and return (0,0)
 	if initialized == 0 {
+		fmt.Fprintf(os.Stderr, "neru: cursor not initialized, screens=%d\n", len(globalWlrootsState.screens))
 		if len(globalWlrootsState.screens) > 0 {
 			scr := globalWlrootsState.screens[0]
-			return image.Point{
-				X: scr.Bounds.Min.X + scr.Bounds.Dx()/2,
-				Y: scr.Bounds.Min.Y + scr.Bounds.Dy()/2,
-			}, nil
+			fmt.Fprintf(os.Stderr, "neru: screen[0] bounds=%v\n", scr.Bounds)
+			fmt.Fprintf(os.Stderr, "neru: would use center: (%d, %d)\n",
+				scr.Bounds.Min.X+scr.Bounds.Dx()/2,
+				scr.Bounds.Min.Y+scr.Bounds.Dy()/2)
 		}
-		return image.Point{}, nil
+		// Return (0,0) instead of center so it's obvious something is wrong
+		return image.Point{X: 0, Y: 0}, nil
 	}
 
+	fmt.Fprintf(os.Stderr, "neru: cursor position: (%d, %d), initialized=%d\n", int(x), int(y), initialized)
 	return image.Point{X: int(x), Y: int(y)}, nil
 }
 

@@ -253,23 +253,33 @@ static void neru_keyboard_key(void *data, struct wl_keyboard *keyboard,
             if (current_mods & (1 << 2)) strcat(mod_prefix, "__modifier_alt ");
             if (current_mods & (1 << 3)) strcat(mod_prefix, "__modifier_cmd ");
 
-            // Check if it's a letter (A-Z or a-z)
-            if (strlen(buf) == 1 && ((buf[0] >= 'A' && buf[0] <= 'Z') || (buf[0] >= 'a' && buf[0] <= 'z'))) {
-                // Convert to lowercase for the key
-                char lower = (buf[0] >= 'a') ? buf[0] : buf[0] + 32;
+            // Handle any key - convert keysym name to lowercase
+            if (buf[0]) {
+                // Convert to lowercase for consistency
+                for (int i = 0; buf[i]; i++) {
+                    if (buf[i] >= 'A' && buf[i] <= 'Z') {
+                        buf[i] = buf[i] + 32;
+                    }
+                }
+
                 if (mod_prefix[0]) {
-                    snprintf(key_buffer, sizeof(key_buffer), "%s%c", mod_prefix, lower);
+                    snprintf(key_buffer, sizeof(key_buffer), "%s%s", mod_prefix, buf);
                 } else {
-                    snprintf(key_buffer, sizeof(key_buffer), "%c", lower);
+                    strncpy(key_buffer, buf, sizeof(key_buffer) - 1);
+                    key_buffer[sizeof(key_buffer) - 1] = 0;
                 }
                 key_available = 1;
-            } else if (buf[0]) {
-                // Non-letter keys - just send as-is
-                neruWaylandOverlayOnKey(buf);
             } else {
+                // Fallback to utf8
                 xkb_state_key_get_utf8(overlay->xkb_state, key + 8, buf, sizeof(buf));
                 if (buf[0]) {
-                    neruWaylandOverlayOnKey(buf);
+                    if (mod_prefix[0]) {
+                        snprintf(key_buffer, sizeof(key_buffer), "%s%s", mod_prefix, buf);
+                    } else {
+                        strncpy(key_buffer, buf, sizeof(key_buffer) - 1);
+                        key_buffer[sizeof(key_buffer) - 1] = 0;
+                    }
+                    key_available = 1;
                 }
             }
         }
