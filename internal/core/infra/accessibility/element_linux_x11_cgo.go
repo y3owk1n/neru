@@ -313,23 +313,40 @@ func x11ScrollAtCursor(deltaX, deltaY int) error {
 	}
 	defer C.neru_ax_close_display(display) //nolint:nlreturn
 
-	for range abs(deltaY) {
-		button := C.uint(4)
-		if deltaY < 0 {
-			button = 5
+	// X11 scrolling is simulated via discrete button clicks (4, 5, 6, 7).
+	// Because the incoming delta may be geared towards smooth scrolling (e.g. 100-200),
+	// we scale it down heavily to avoid flooding X11 with hundreds of clicks.
+	const scale = 30
+
+	if deltaY != 0 {
+		yClicks := abs(deltaY) / scale
+		if yClicks == 0 {
+			yClicks = 1
 		}
-		if C.neru_ax_button(display, button, 1) == 0 || C.neru_ax_button(display, button, 0) == 0 {
-			return derrors.New(derrors.CodeActionFailed, "failed vertical scroll event on X11")
+		for range yClicks {
+			button := C.uint(4)
+			if deltaY < 0 {
+				button = 5
+			}
+			if C.neru_ax_button(display, button, 1) == 0 || C.neru_ax_button(display, button, 0) == 0 {
+				return derrors.New(derrors.CodeActionFailed, "failed vertical scroll event on X11")
+			}
 		}
 	}
 
-	for range abs(deltaX) {
-		button := C.uint(7)
-		if deltaX < 0 {
-			button = 6
+	if deltaX != 0 {
+		xClicks := abs(deltaX) / scale
+		if xClicks == 0 {
+			xClicks = 1
 		}
-		if C.neru_ax_button(display, button, 1) == 0 || C.neru_ax_button(display, button, 0) == 0 {
-			return derrors.New(derrors.CodeActionFailed, "failed horizontal scroll event on X11")
+		for range xClicks {
+			button := C.uint(7)
+			if deltaX < 0 {
+				button = 6
+			}
+			if C.neru_ax_button(display, button, 1) == 0 || C.neru_ax_button(display, button, 0) == 0 {
+				return derrors.New(derrors.CodeActionFailed, "failed horizontal scroll event on X11")
+			}
 		}
 	}
 

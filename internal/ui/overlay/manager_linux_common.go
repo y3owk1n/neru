@@ -266,6 +266,15 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 
 func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error {
 	if m.x11 != nil {
+		// Pass sublayer keys from grid overlay config so subgrid labels match config.
+		if m.gridOverlay != nil {
+			cfg := m.gridOverlay.Config()
+			keys := strings.TrimSpace(cfg.SublayerKeys)
+			if keys == "" {
+				keys = cfg.Characters
+			}
+			m.x11.sublayerKeys = strings.ToUpper(keys)
+		}
 		m.x11.DrawGrid(g, input, style)
 		return nil
 	} else if m.wlroots != nil {
@@ -321,6 +330,15 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 
 func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
 	if m.x11 != nil {
+		// Ensure sublayer keys are set from grid overlay config.
+		if m.gridOverlay != nil {
+			cfg := m.gridOverlay.Config()
+			keys := strings.TrimSpace(cfg.SublayerKeys)
+			if keys == "" {
+				keys = cfg.Characters
+			}
+			m.x11.sublayerKeys = strings.ToUpper(keys)
+		}
 		m.x11.ShowSubgrid(cell, style)
 	} else if m.wlroots != nil {
 		// Ensure sublayer keys are set from grid overlay config.
