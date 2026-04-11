@@ -84,6 +84,7 @@ func FocusedApplication() *Element {
 				pid:              pid,
 			}
 		}
+
 		if os.Getenv("DISPLAY") != "" {
 			bundleID, pid = linuxFocusedApplicationIdentity()
 			if bundleID != "" || pid != 0 {
@@ -93,6 +94,7 @@ func FocusedApplication() *Element {
 				}
 			}
 		}
+
 		return nil
 	}
 
@@ -117,6 +119,7 @@ func ApplicationByPID(pid int) *Element {
 				pid:              pid,
 			}
 		}
+
 		if os.Getenv("DISPLAY") != "" {
 			bundleID = linuxApplicationBundleIdentifier(pid)
 			if bundleID != "" {
@@ -126,6 +129,7 @@ func ApplicationByPID(pid int) *Element {
 				}
 			}
 		}
+
 		return nil
 	}
 
@@ -197,6 +201,7 @@ func FrontmostWindow() *Element {
 				pid:              pid,
 			}
 		}
+
 		if os.Getenv("DISPLAY") != "" {
 			bundleID, pid = linuxFocusedApplicationIdentity()
 			if bundleID != "" || pid != 0 {
@@ -206,6 +211,7 @@ func FrontmostWindow() *Element {
 				}
 			}
 		}
+
 		return nil
 	}
 
@@ -278,6 +284,7 @@ func MoveMouseToPoint(point image.Point, _ bool) {
 	if currentLinuxBackend() == linuxBackendX11 {
 		_ = x11MoveMouseToPoint(point)
 	}
+
 	if currentLinuxBackend() == linuxBackendWayland {
 		_ = wlrootsMoveMouseToPoint(point)
 	}
@@ -288,6 +295,7 @@ func LeftClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Mo
 	if currentLinuxBackend() == linuxBackendX11 {
 		return x11LeftClickAtPoint(point, restoreCursor, modifiers)
 	}
+
 	if currentLinuxBackend() == linuxBackendWayland {
 		return wlrootsLeftClickAtPoint(point, restoreCursor, modifiers)
 	}
@@ -300,6 +308,7 @@ func RightClickAtPoint(point image.Point, restoreCursor bool, modifiers action.M
 	if currentLinuxBackend() == linuxBackendX11 {
 		return x11RightClickAtPoint(point, restoreCursor, modifiers)
 	}
+
 	if currentLinuxBackend() == linuxBackendWayland {
 		return wlrootsRightClickAtPoint(point, restoreCursor, modifiers)
 	}
@@ -312,6 +321,7 @@ func MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.
 	if currentLinuxBackend() == linuxBackendX11 {
 		return x11MiddleClickAtPoint(point, restoreCursor, modifiers)
 	}
+
 	if currentLinuxBackend() == linuxBackendWayland {
 		return wlrootsMiddleClickAtPoint(point, restoreCursor, modifiers)
 	}
@@ -323,10 +333,13 @@ func MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.
 func LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
 	if currentLinuxBackend() == linuxBackendX11 {
 		SetLeftMouseDown(true, point)
+
 		return x11LeftMouseDownAtPoint(point, modifiers)
 	}
+
 	if currentLinuxBackend() == linuxBackendWayland {
 		SetLeftMouseDown(true, point)
+
 		return wlrootsLeftMouseDownAtPoint(point, modifiers)
 	}
 
@@ -340,13 +353,16 @@ func LeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
 		if err == nil {
 			ClearLeftMouseDownState()
 		}
+
 		return err
 	}
+
 	if currentLinuxBackend() == linuxBackendWayland {
 		err := wlrootsLeftMouseUpAtPoint(point, modifiers)
 		if err == nil {
 			ClearLeftMouseDownState()
 		}
+
 		return err
 	}
 
@@ -360,13 +376,16 @@ func LeftMouseUp() error {
 		if err == nil {
 			ClearLeftMouseDownState()
 		}
+
 		return err
 	}
+
 	if currentLinuxBackend() == linuxBackendWayland {
 		err := wlrootsLeftMouseUp()
 		if err == nil {
 			ClearLeftMouseDownState()
 		}
+
 		return err
 	}
 
@@ -378,6 +397,7 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 	if currentLinuxBackend() == linuxBackendX11 {
 		return x11ScrollAtCursor(deltaX, deltaY)
 	}
+
 	if currentLinuxBackend() == linuxBackendWayland {
 		return wlrootsScrollAtCursor(deltaX, deltaY)
 	}
@@ -390,6 +410,7 @@ func CurrentCursorPosition() image.Point {
 	if currentLinuxBackend() == linuxBackendX11 {
 		return x11CurrentCursorPosition()
 	}
+
 	if currentLinuxBackend() == linuxBackendWayland {
 		return wlrootsCurrentCursorPosition()
 	}

@@ -730,11 +730,11 @@ func (o *wlrootsOverlay) UpdateGridMatches(prefix string) {
 }
 
 func (o *wlrootsOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
-	o.currentSubgrid = cell
-	// Draw only the subgrid (matching macOS: clear overlay, draw subgrid cells only).
 	if o == nil || o.raw == nil || cell == nil {
 		return
 	}
+
+	o.currentSubgrid = cell
 	C.neru_wayland_overlay_setup_buffers(o.raw)
 	o.Clear()
 	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
@@ -760,6 +760,8 @@ func (o *wlrootsOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridco
 }
 
 // redrawGrid performs the actual grid rendering using cached state.
+//
+//nolint:funcorder
 func (o *wlrootsOverlay) redrawGrid() {
 	if o == nil || o.raw == nil || o.cachedGrid == nil {
 		return
@@ -882,10 +884,7 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 	if o.sublayerKeys != "" {
 		keyRunes = []rune(strings.ToUpper(o.sublayerKeys))
 	}
-	maxKeys := cols * rows
-	if len(keyRunes) < maxKeys {
-		maxKeys = len(keyRunes)
-	}
+	maxKeys := min(len(keyRunes), cols*rows)
 
 	// Build breakpoints that evenly distribute remainders to fully cover the cell
 	// (matches macOS ShowSubgrid implementation).

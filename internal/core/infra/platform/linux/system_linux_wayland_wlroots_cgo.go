@@ -618,7 +618,8 @@ func ensureWlrootsState() error {
 }
 
 func wlrootsScreenBounds() (image.Rectangle, error) {
-	if err := ensureWlrootsState(); err != nil {
+	err := ensureWlrootsState()
+	if err != nil {
 		return image.Rectangle{}, err
 	}
 
@@ -642,7 +643,8 @@ func wlrootsScreenBoundsByName(name string) (image.Rectangle, bool, error) {
 		return image.Rectangle{}, false, nil
 	}
 
-	if err := ensureWlrootsState(); err != nil {
+	err := ensureWlrootsState()
+	if err != nil {
 		return image.Rectangle{}, false, err
 	}
 
@@ -659,7 +661,8 @@ func wlrootsScreenBoundsByName(name string) (image.Rectangle, bool, error) {
 }
 
 func wlrootsScreenNames() ([]string, error) {
-	if err := ensureWlrootsState(); err != nil {
+	err := ensureWlrootsState()
+	if err != nil {
 		return nil, err
 	}
 
@@ -675,7 +678,8 @@ func wlrootsScreenNames() ([]string, error) {
 }
 
 func wlrootsCursorPosition() (image.Point, error) {
-	if err := ensureWlrootsState(); err != nil {
+	err := ensureWlrootsState()
+	if err != nil {
 		return image.Point{}, err
 	}
 
@@ -714,7 +718,8 @@ func wlrootsCursorPositionLocked() (image.Point, error) {
 }
 
 func wlrootsMoveCursorToPoint(point image.Point) error {
-	if err := ensureWlrootsState(); err != nil {
+	err := ensureWlrootsState()
+	if err != nil {
 		return err
 	}
 
@@ -769,7 +774,8 @@ func wlrootsClick(point image.Point, button int) error {
 
 // wlrootsButtonEvent presses or releases a button at the given position.
 func wlrootsButtonEvent(point image.Point, button int, pressed bool) error {
-	if err := ensureWlrootsState(); err != nil {
+	err := ensureWlrootsState()
+	if err != nil {
 		return err
 	}
 
@@ -804,7 +810,8 @@ func wlrootsButtonEvent(point image.Point, button int, pressed bool) error {
 
 // wlrootsButtonRelease releases a button at the current cursor position.
 func wlrootsButtonRelease(button int) error {
-	if err := ensureWlrootsState(); err != nil {
+	err := ensureWlrootsState()
+	if err != nil {
 		return err
 	}
 
@@ -824,7 +831,8 @@ func wlrootsButtonRelease(button int) error {
 
 // wlrootsScroll sends a scroll event on the virtual pointer.
 func wlrootsScroll(axis, delta int) error {
-	if err := ensureWlrootsState(); err != nil {
+	err := ensureWlrootsState()
+	if err != nil {
 		return err
 	}
 

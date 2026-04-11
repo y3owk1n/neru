@@ -24,8 +24,8 @@ static int neru_eventtap_grab_keyboard(Display *display) {
 		display,
 		DefaultRootWindow(display),
 		True,
-		GrabModeAsync,
-		GrabModeAsync,
+		GrabModeAsync, // keyboard_mode
+		GrabModeAsync, // pointer_mode
 		CurrentTime
 	);
 }
@@ -107,7 +107,7 @@ func (et *EventTap) runX11() {
 			nil,
 		)
 
-		key := ""
+		var key string
 		if length > 0 {
 			key = C.GoStringN(&buffer[0], length)
 		} else {

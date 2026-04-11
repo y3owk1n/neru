@@ -20,6 +20,11 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
+const (
+	backendX11            = "x11"
+	backendWaylandWlroots = "wayland-wlroots"
+)
+
 type SystemAdapter struct {
 	backend string
 }
@@ -78,7 +83,7 @@ func (s *SystemAdapter) LogDir() (string, error) {
 // FocusedApplicationPID returns the PID of the currently focused application on Linux.
 // TODO(linux): implement using AT-SPI or /proc filesystem.
 func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) {
-	if s.backend == "x11" {
+	if s.backend == backendX11 {
 		return x11FocusedApplicationPID()
 	}
 
@@ -91,7 +96,7 @@ func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) 
 // ApplicationNameByPID returns the name of the application with the given PID on Linux.
 // TODO(linux): implement using /proc/<pid>/comm or AT-SPI.
 func (s *SystemAdapter) ApplicationNameByPID(ctx context.Context, pid int) (string, error) {
-	if s.backend == "x11" {
+	if s.backend == backendX11 {
 		return linuxApplicationNameByPID(pid)
 	}
 
@@ -104,7 +109,7 @@ func (s *SystemAdapter) ApplicationNameByPID(ctx context.Context, pid int) (stri
 // ApplicationBundleIDByPID returns the application identifier (desktop ID) for Linux.
 // TODO(linux): implement using /proc/<pid>/cmdline + .desktop file lookup.
 func (s *SystemAdapter) ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error) {
-	if s.backend == "x11" {
+	if s.backend == backendX11 {
 		return linuxApplicationBundleIDByPID(pid)
 	}
 
@@ -117,10 +122,10 @@ func (s *SystemAdapter) ApplicationBundleIDByPID(ctx context.Context, pid int) (
 // ScreenBounds returns the bounds of the active screen on Linux.
 // TODO(linux): implement using XRandR or Wayland display protocol.
 func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
-	if s.backend == "x11" {
+	if s.backend == backendX11 {
 		return x11ActiveScreenBounds()
 	}
-	if s.backend == "wayland-wlroots" {
+	if s.backend == backendWaylandWlroots {
 		return wlrootsScreenBounds()
 	}
 
@@ -136,10 +141,10 @@ func (s *SystemAdapter) ScreenBoundsByName(
 	ctx context.Context,
 	name string,
 ) (image.Rectangle, bool, error) {
-	if s.backend == "x11" {
+	if s.backend == backendX11 {
 		return x11ScreenBoundsByName(name)
 	}
-	if s.backend == "wayland-wlroots" {
+	if s.backend == backendWaylandWlroots {
 		return wlrootsScreenBoundsByName(name)
 	}
 
@@ -152,10 +157,10 @@ func (s *SystemAdapter) ScreenBoundsByName(
 // ScreenNames returns the display names of all connected screens on Linux.
 // TODO(linux): implement using XRandR or Wayland output protocol.
 func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
-	if s.backend == "x11" {
+	if s.backend == backendX11 {
 		return x11ScreenNames()
 	}
-	if s.backend == "wayland-wlroots" {
+	if s.backend == backendWaylandWlroots {
 		return wlrootsScreenNames()
 	}
 
@@ -172,10 +177,10 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	point image.Point,
 	bypassSmooth bool,
 ) error {
-	if s.backend == "x11" {
+	if s.backend == backendX11 {
 		return x11MoveCursorToPoint(point)
 	}
-	if s.backend == "wayland-wlroots" {
+	if s.backend == backendWaylandWlroots {
 		return wlrootsMoveCursorToPoint(point)
 	}
 
@@ -190,10 +195,10 @@ func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 // CursorPosition returns the current cursor position on Linux.
 // TODO(linux): implement using XQueryPointer (X11) or Wayland pointer protocol.
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
-	if s.backend == "x11" {
+	if s.backend == backendX11 {
 		return x11CursorPosition()
 	}
-	if s.backend == "wayland-wlroots" {
+	if s.backend == backendWaylandWlroots {
 		return wlrootsCursorPosition()
 	}
 

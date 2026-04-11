@@ -86,7 +86,10 @@ func (m *Manager) unregisterX11Hotkey(id HotkeyID) {
 	if !ok {
 		return
 	}
-	state := stateAny.(*x11HotkeyState)
+	state, ok := stateAny.(*x11HotkeyState)
+	if !ok {
+		return
+	}
 
 	binding, exists := state.bindings[id]
 	if !exists {
@@ -107,7 +110,10 @@ func (m *Manager) unregisterAllX11Hotkeys() {
 	if !ok {
 		return
 	}
-	state := stateAny.(*x11HotkeyState)
+	state, ok := stateAny.(*x11HotkeyState)
+	if !ok {
+		return
+	}
 
 	for id := range state.bindings {
 		m.unregisterX11Hotkey(id)
@@ -122,7 +128,11 @@ func (m *Manager) unregisterAllX11Hotkeys() {
 
 func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 	if stateAny, ok := x11States.Load(m); ok {
-		return stateAny.(*x11HotkeyState), nil
+		state, ok := stateAny.(*x11HotkeyState)
+		if !ok {
+			return nil, derrors.New(derrors.CodeHotkeyRegisterFailed, "invalid X11 state type")
+		}
+		return state, nil
 	}
 
 	display := C.XOpenDisplay(nil)

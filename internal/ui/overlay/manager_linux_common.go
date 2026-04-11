@@ -30,6 +30,7 @@ const (
 	linuxOverlayBackendWaylandWlroots linuxOverlayBackend = "wayland-wlroots"
 )
 
+// Manager manages overlay rendering on Linux.
 type Manager struct {
 	logger *zap.Logger
 
@@ -55,6 +56,7 @@ var (
 	wlrootsKeyboardCh chan string
 )
 
+// NewOverlayManager creates a new overlay Manager.
 func NewOverlayManager(logger *zap.Logger) *Manager {
 	manager := &Manager{
 		logger:  logger,
@@ -72,10 +74,12 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 	return manager
 }
 
+// Get returns the global overlay Manager.
 func Get() *Manager {
 	return linuxManager
 }
 
+// Init initializes the global overlay Manager.
 func Init(logger *zap.Logger) *Manager {
 	linuxManagerOnce.Do(func() {
 		linuxManager = NewOverlayManager(logger)
@@ -84,10 +88,12 @@ func Init(logger *zap.Logger) *Manager {
 	return linuxManager
 }
 
+// WaylandKeyboardChannel returns the keyboard input channel.
 func (m *Manager) WaylandKeyboardChannel() <-chan string {
 	return wlrootsKeyboardCh
 }
 
+// Show displays the overlay.
 func (m *Manager) Show() {
 	if m.x11 != nil {
 		m.x11.Show()
@@ -96,6 +102,7 @@ func (m *Manager) Show() {
 	}
 }
 
+// Hide hides the overlay.
 func (m *Manager) Hide() {
 	if m.x11 != nil {
 		m.x11.Hide()
@@ -104,6 +111,7 @@ func (m *Manager) Hide() {
 	}
 }
 
+// Clear clears the overlay content.
 func (m *Manager) Clear() {
 	if m.x11 != nil {
 		m.x11.Clear()
@@ -112,6 +120,7 @@ func (m *Manager) Clear() {
 	}
 }
 
+// ResizeToActiveScreen resizes the overlay to the active screen.
 func (m *Manager) ResizeToActiveScreen() {
 	if m.x11 != nil {
 		m.x11.Resize()
@@ -120,6 +129,7 @@ func (m *Manager) ResizeToActiveScreen() {
 	}
 }
 
+// SwitchTo switches to a new mode.
 func (m *Manager) SwitchTo(next Mode) {
 	m.mu.Lock()
 	prev := m.mode
@@ -132,6 +142,7 @@ func (m *Manager) SwitchTo(next Mode) {
 	m.publish(StateChange{prev: prev, next: next})
 }
 
+// Subscribe registers a callback for mode changes.
 func (m *Manager) Subscribe(fn func(StateChange)) uint64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -141,12 +152,14 @@ func (m *Manager) Subscribe(fn func(StateChange)) uint64 {
 	return id
 }
 
+// Unsubscribe removes a callback registration.
 func (m *Manager) Unsubscribe(id uint64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.subs, id)
 }
 
+// Destroy cleans up the overlay Manager.
 func (m *Manager) Destroy() {
 	if m.x11 != nil {
 		m.x11.Destroy()
@@ -158,12 +171,14 @@ func (m *Manager) Destroy() {
 	}
 }
 
+// Mode returns the current mode.
 func (m *Manager) Mode() Mode {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.mode
 }
 
+// WindowPtr returns the raw window pointer.
 func (m *Manager) WindowPtr() unsafe.Pointer {
 	if m.x11 != nil {
 		return m.x11.WindowPtr()
@@ -174,35 +189,47 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 	return nil
 }
 
+// UseHintOverlay sets the hints overlay.
 func (m *Manager) UseHintOverlay(o *hints.Overlay) {
 	m.hintOverlay = o
 }
 
+// UseGridOverlay sets the grid overlay.
 func (m *Manager) UseGridOverlay(o *grid.Overlay) {
 	m.gridOverlay = o
 }
 
+// UseModeIndicatorOverlay sets the mode indicator overlay.
 func (m *Manager) UseModeIndicatorOverlay(o *modeindicator.Overlay) {
 	m.modeIndicatorOverlay = o
 }
 
+// UseStickyModifiersOverlay sets the sticky modifiers overlay.
 func (m *Manager) UseStickyModifiersOverlay(o *stickyindicator.Overlay) {
 	m.stickyModifiersOverlay = o
 }
 
+// UseRecursiveGridOverlay sets the recursive grid overlay.
 func (m *Manager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {
 	m.recursiveGridOverlay = o
 }
 
+// HintOverlay returns the hints overlay.
 func (m *Manager) HintOverlay() *hints.Overlay { return m.hintOverlay }
-func (m *Manager) GridOverlay() *grid.Overlay  { return m.gridOverlay }
 
+// GridOverlay returns the grid overlay.
+func (m *Manager) GridOverlay() *grid.Overlay { return m.gridOverlay }
+
+// ModeIndicatorOverlay returns the mode indicator overlay.
 func (m *Manager) ModeIndicatorOverlay() *modeindicator.Overlay { return m.modeIndicatorOverlay }
 
+// StickyModifiersOverlay returns the sticky modifiers overlay.
 func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay { return m.stickyModifiersOverlay }
 
+// RecursiveGridOverlay returns the recursive grid overlay.
 func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay { return m.recursiveGridOverlay }
 
+// OverlayCapabilities returns the feature capabilities.
 func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 	switch m.backend {
 	case linuxOverlayBackendX11:
@@ -226,6 +253,11 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 		return ports.FeatureCapability{
 			Status: ports.FeatureStatusStub,
 			Detail: "wlroots layer-shell overlay backend failed to initialize",
+		}
+	case linuxOverlayBackendUnknown:
+		return ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: "native Linux overlays are not available (no display detected)",
 		}
 	default:
 		return ports.FeatureCapability{

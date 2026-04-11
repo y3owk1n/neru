@@ -13,6 +13,12 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
+const (
+	minFontSize   = 14
+	hexDigitCount = 2
+	invalidColor  = 0xFFFFFFFF
+)
+
 // Style holds the styling information for a recursive grid.
 type Style struct {
 	LineWidth      float64
@@ -107,7 +113,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 				config.RecursiveGridTextColorDark,
 			),
 		),
-		LabelFontSize: float64(max(cfg.UI.FontSize, 14)),
+		LabelFontSize: float64(max(cfg.UI.FontSize, minFontSize)),
 		LabelFontName: cfg.UI.FontFamily,
 		ShowLabels:    true,
 	}
@@ -117,28 +123,20 @@ func parseLinuxColor(value string) uint32 {
 	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
 	switch len(value) {
 	case 3:
-		value = "FF" + strings.Repeat(string(value[0]), 2) +
-			strings.Repeat(string(value[1]), 2) +
-			strings.Repeat(string(value[2]), 2)
+		value = "FF" + strings.Repeat(string(value[0]), hexDigitCount) +
+			strings.Repeat(string(value[1]), hexDigitCount) +
+			strings.Repeat(string(value[2]), hexDigitCount)
 	case 6:
 		value = "FF" + value
 	case 8:
 	default:
-		return 0xFFFFFFFF
+		return invalidColor
 	}
 
 	parsed, err := strconv.ParseUint(value, 16, 32)
 	if err != nil {
-		return 0xFFFFFFFF
+		return invalidColor
 	}
 
 	return uint32(parsed)
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-
-	return b
 }

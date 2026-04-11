@@ -56,7 +56,8 @@ func wlrootsLeftClickAtPoint(
 	_ = modifiers // modifier injection not yet supported on Wayland
 
 	original := wlrootsCurrentCursorPosition()
-	if err := linux.WlrootsClick(point, linux.WlrBtnLeft); err != nil {
+	err := linux.WlrootsClick(point, linux.WlrBtnLeft)
+	if err != nil {
 		return err
 	}
 
@@ -75,7 +76,8 @@ func wlrootsRightClickAtPoint(
 	_ = modifiers
 
 	original := wlrootsCurrentCursorPosition()
-	if err := linux.WlrootsClick(point, linux.WlrBtnRight); err != nil {
+	err := linux.WlrootsClick(point, linux.WlrBtnRight)
+	if err != nil {
 		return err
 	}
 
@@ -94,7 +96,8 @@ func wlrootsMiddleClickAtPoint(
 	_ = modifiers
 
 	original := wlrootsCurrentCursorPosition()
-	if err := linux.WlrootsClick(point, linux.WlrBtnMiddle); err != nil {
+	err := linux.WlrootsClick(point, linux.WlrBtnMiddle)
+	if err != nil {
 		return err
 	}
 
@@ -108,7 +111,8 @@ func wlrootsMiddleClickAtPoint(
 func wlrootsLeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
 	_ = modifiers
 
-	if err := linux.WlrootsButtonEvent(point, linux.WlrBtnLeft, true); err != nil {
+	err := linux.WlrootsButtonEvent(point, linux.WlrBtnLeft, true)
+	if err != nil {
 		return err
 	}
 
@@ -122,7 +126,8 @@ func wlrootsLeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) 
 func wlrootsLeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
 	_ = modifiers
 
-	if err := linux.WlrootsButtonEvent(point, linux.WlrBtnLeft, false); err != nil {
+	err := linux.WlrootsButtonEvent(point, linux.WlrBtnLeft, false)
+	if err != nil {
 		return err
 	}
 
@@ -134,7 +139,8 @@ func wlrootsLeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) er
 }
 
 func wlrootsLeftMouseUp() error {
-	if err := linux.WlrootsButtonRelease(linux.WlrBtnLeft); err != nil {
+	err := linux.WlrootsButtonRelease(linux.WlrBtnLeft)
+	if err != nil {
 		return err
 	}
 
@@ -155,14 +161,16 @@ func wlrootsScrollAtCursor(deltaX, deltaY int) error {
 
 	// Vertical scroll (axis 0).
 	if deltaY != 0 {
-		if err := linux.WlrootsScroll(0, -deltaY); err != nil {
+		err := linux.WlrootsScroll(0, -deltaY)
+		if err != nil {
 			return err
 		}
 	}
 
 	// Horizontal scroll (axis 1).
 	if deltaX != 0 {
-		if err := linux.WlrootsScroll(1, deltaX); err != nil {
+		err := linux.WlrootsScroll(1, deltaX)
+		if err != nil {
 			return err
 		}
 	}

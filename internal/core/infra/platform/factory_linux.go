@@ -12,6 +12,8 @@ func NewSystemPort() (ports.SystemPort, error) {
 	switch backend := detectLinuxBackend(); backend {
 	case BackendX11, BackendWaylandWlroots:
 		return linux.NewSystemAdapter(backend.String()), nil
+	case BackendUnknown, BackendWaylandGNOME, BackendWaylandKDE, BackendWaylandOther:
+		return nil, unsupportedLinuxBackendError(backend)
 	default:
 		return nil, unsupportedLinuxBackendError(backend)
 	}

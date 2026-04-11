@@ -11,10 +11,13 @@ import (
 )
 
 type (
-	Callback            func(key string)
+	// Callback is invoked when a key event is intercepted.
+	Callback func(key string)
+	// PassthroughCallback is invoked when a modifier key is in passthrough mode.
 	PassthroughCallback func()
 )
 
+// EventTap intercepts keyboard events on Linux.
 type EventTap struct {
 	logger *zap.Logger
 
@@ -29,6 +32,7 @@ type EventTap struct {
 	doneCh chan struct{}
 }
 
+// NewEventTap creates a new EventTap instance.
 func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
 	return &EventTap{
 		logger:   logger,
@@ -36,6 +40,7 @@ func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
 	}
 }
 
+// Enable starts intercepting keyboard events.
 func (et *EventTap) Enable() {
 	et.mu.Lock()
 	if et.enabled {
@@ -50,6 +55,14 @@ func (et *EventTap) Enable() {
 	go et.run()
 }
 
+// SetHandler sets the callback for key events.
+func (et *EventTap) SetHandler(handler func(key string)) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+	et.callback = handler
+}
+
+// run starts the event interception loop.
 func (et *EventTap) run() {
 	if os.Getenv("WAYLAND_DISPLAY") != "" {
 		et.runWayland()
@@ -58,6 +71,7 @@ func (et *EventTap) run() {
 	}
 }
 
+// Disable stops intercepting keyboard events.
 func (et *EventTap) Disable() {
 	et.mu.Lock()
 	if !et.enabled {
@@ -73,48 +87,52 @@ func (et *EventTap) Disable() {
 	<-doneCh
 }
 
+// Destroy stops and cleans up the EventTap.
 func (et *EventTap) Destroy() {
 	et.Disable()
 }
 
+// SetHotkeys configures the hotkey list.
 func (et *EventTap) SetHotkeys(hotkeys []string) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 	et.hotkeys = append([]string(nil), hotkeys...)
 }
 
+// SetModifierPassthrough enables/disables modifier passthrough.
 func (et *EventTap) SetModifierPassthrough(_ bool, _ []string) {}
 
+// SetInterceptedModifierKeys sets which modifier keys to intercept.
 func (et *EventTap) SetInterceptedModifierKeys(_ []string) {}
 
+// SetPassthroughCallback sets the callback for passthrough mode.
 func (et *EventTap) SetPassthroughCallback(cb PassthroughCallback) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 	et.passthroughCallback = cb
 }
 
+// SetStickyModifierToggle enables/disables sticky modifier toggle.
 func (et *EventTap) SetStickyModifierToggle(enabled bool) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 	et.stickyModifierToggle = enabled
 }
 
+// PostModifierEvent posts a modifier key event.
 func (et *EventTap) PostModifierEvent(_ string, _ bool) {}
 
+// SetKeyboardLayout sets the keyboard layout.
 func (et *EventTap) SetKeyboardLayout(_ string) bool { return true }
 
+// IsEnabled returns whether interception is active.
 func (et *EventTap) IsEnabled() bool {
 	et.mu.RLock()
 	defer et.mu.RUnlock()
 	return et.enabled
 }
 
-func (et *EventTap) SetHandler(handler func(key string)) {
-	et.mu.Lock()
-	defer et.mu.Unlock()
-	et.callback = handler
-}
-
+// dispatchKey dispatches a key event to the callback.
 func (et *EventTap) dispatchKey(key string) {
 	et.mu.RLock()
 	callback := et.callback
@@ -124,6 +142,7 @@ func (et *EventTap) dispatchKey(key string) {
 	}
 }
 
+// stickyToggleEnabled returns whether sticky toggle is active.
 func (et *EventTap) stickyToggleEnabled() bool {
 	et.mu.RLock()
 	defer et.mu.RUnlock()

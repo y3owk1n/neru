@@ -49,9 +49,11 @@ func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error
 
 	switch m.backend {
 	case platform.BackendX11:
-		if err := m.registerX11Hotkey(hotkeyID, keyString); err != nil {
+		err := m.registerX11Hotkey(hotkeyID, keyString)
+		if err != nil {
 			delete(m.callbacks, hotkeyID)
 			delete(m.keys, hotkeyID)
+
 			return 0, err
 		}
 	case platform.BackendWaylandWlroots:
@@ -62,6 +64,12 @@ func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error
 	case platform.BackendWaylandGNOME, platform.BackendWaylandKDE, platform.BackendWaylandOther:
 		m.logger.Info(
 			"Linux hotkey registration stored, but native Wayland global hotkeys are not implemented for this compositor.",
+			zap.String("key", keyString),
+			zap.String("backend", m.backend.String()),
+		)
+	case platform.BackendUnknown:
+		m.logger.Debug(
+			"Registering hotkey in Linux manager",
 			zap.String("key", keyString),
 			zap.String("backend", m.backend.String()),
 		)

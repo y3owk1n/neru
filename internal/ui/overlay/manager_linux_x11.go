@@ -277,11 +277,11 @@ func (o *x11Overlay) UpdateGridMatches(prefix string) {
 }
 
 func (o *x11Overlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
-	o.currentSubgrid = cell
-	// Draw only the subgrid (matching macOS: clear overlay, draw subgrid cells only).
 	if o == nil || o.raw == nil || cell == nil {
 		return
 	}
+
+	o.currentSubgrid = cell
 	o.Clear()
 	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
 	C.neru_x11_overlay_flush(o.raw)
@@ -306,6 +306,8 @@ func (o *x11Overlay) DrawGrid(g *domainGrid.Grid, input string, style gridcompon
 }
 
 // redrawGrid performs the actual grid rendering using cached state.
+//
+//nolint:funcorder
 func (o *x11Overlay) redrawGrid() {
 	if o == nil || o.raw == nil || o.cachedGrid == nil {
 		return
@@ -425,10 +427,7 @@ func (o *x11Overlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 	if o.sublayerKeys != "" {
 		keyRunes = []rune(strings.ToUpper(o.sublayerKeys))
 	}
-	maxKeys := cols * rows
-	if len(keyRunes) < maxKeys {
-		maxKeys = len(keyRunes)
-	}
+	maxKeys := min(len(keyRunes), cols*rows)
 
 	// Build breakpoints that evenly distribute remainders to fully cover the cell
 	xBreaks := make([]int, cols+1)

@@ -224,6 +224,7 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"unsafe"
 
@@ -320,7 +321,7 @@ func x11FocusedApplicationPID() (int, error) {
 }
 
 func linuxApplicationNameByPID(pid int) (string, error) {
-	data, err := os.ReadFile(filepath.Join("/proc", fmt.Sprintf("%d", pid), "comm"))
+	data, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "comm"))
 	if err != nil {
 		return "", derrors.Wrapf(
 			err,
@@ -334,7 +335,7 @@ func linuxApplicationNameByPID(pid int) (string, error) {
 }
 
 func linuxApplicationBundleIDByPID(pid int) (string, error) {
-	data, err := os.ReadFile(filepath.Join("/proc", fmt.Sprintf("%d", pid), "cmdline"))
+	data, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "cmdline"))
 	if err != nil {
 		return "", derrors.Wrapf(
 			err,
