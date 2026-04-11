@@ -346,10 +346,8 @@ static void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 
         scr->wl_surface = wl_compositor_create_surface(overlay->compositor);
 
-        // Ensure input passes through the overlay
-        struct wl_region *region = wl_compositor_create_region(overlay->compositor);
-        wl_surface_set_input_region(scr->wl_surface, region);
-        wl_region_destroy(region);
+        // NOTE: Do NOT set input region to null - that would pass input through!
+        // Let the compositor handle input based on keyboard_interactivity flag.
 
         scr->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
             overlay->layer_shell, scr->wl_surface, scr->wl_output,
@@ -363,6 +361,7 @@ static void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
         zwlr_layer_surface_v1_set_exclusive_zone(scr->layer_surface, -1);
 
         // Request exclusive keyboard interactivity when overlay is shown
+        // This tells the compositor to send keyboard events to this surface
         zwlr_layer_surface_v1_set_keyboard_interactivity(scr->layer_surface,
             ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);
 
