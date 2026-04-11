@@ -52,6 +52,9 @@ type NoOpManager struct{}
 // Ensure NoOpManager always implements ManagerInterface.
 var _ ManagerInterface = (*NoOpManager)(nil)
 
+// WaylandKeyboardChannel returns nil channel.
+func (n *NoOpManager) WaylandKeyboardChannel() <-chan string { return nil }
+
 // Show is a no-op implementation.
 func (n *NoOpManager) Show() {}
 
@@ -178,6 +181,7 @@ type CapabilityReporter interface {
 
 // ManagerInterface defines the interface for overlay window management.
 type ManagerInterface interface {
+	WaylandKeyboardChannel() <-chan string
 	Show()
 	Hide()
 	Clear()

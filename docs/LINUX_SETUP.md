@@ -39,6 +39,7 @@ sudo apt-get install -y \
   libxrandr-dev \
   libxinerama-dev \
   libxfixes-dev \
+  libxkbcommon-dev \
   wayland-protocols
 ```
 
@@ -52,6 +53,7 @@ sudo dnf install -y \
   libXrandr-devel \
   libXinerama-devel \
   libXfixes-devel \
+  libxkbcommon-devel \
   wayland-protocols-devel
 ```
 
@@ -65,6 +67,7 @@ sudo pacman -S \
   libxrandr \
   libxinerama \
   libxfixes \
+  libxkbcommon \
   wayland-protocols
 ```
 
@@ -81,6 +84,7 @@ libXtst
 libXrandr
 libXinerama
 libXfixes
+libxkbcommon
 wayland-protocols
 ```
 
@@ -181,9 +185,6 @@ excluded_apps = ["firefox", "chromium-browser", "code"]
 
 5. **Notifications**: Desktop notifications (`org.freedesktop.Notifications`)
    are not yet implemented. Errors are logged instead.
-
-6. **Keyboard event tap**: Full keyboard interception (event tap equivalent)
-   is not yet implemented on Linux. Mode navigation works via IPC triggers.
 
 7. **Service management**: `neru services install/start/stop` uses `launchctl`
    on macOS. For Linux, use systemd:

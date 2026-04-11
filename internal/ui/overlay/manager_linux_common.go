@@ -49,8 +49,9 @@ type Manager struct {
 }
 
 var (
-	linuxManager     *Manager
-	linuxManagerOnce sync.Once
+	linuxManager      *Manager
+	linuxManagerOnce  sync.Once
+	wlrootsKeyboardCh chan string
 )
 
 func NewOverlayManager(logger *zap.Logger) *Manager {
@@ -80,6 +81,10 @@ func Init(logger *zap.Logger) *Manager {
 	})
 
 	return linuxManager
+}
+
+func (m *Manager) WaylandKeyboardChannel() <-chan string {
+	return wlrootsKeyboardCh
 }
 
 func (m *Manager) Show() {

@@ -199,6 +199,7 @@ func (m *mockOverlayManager) Mode() overlay.Mode {
 }
 
 func (m *mockOverlayManager) WindowPtr() unsafe.Pointer                            { return nil }
+func (m *mockOverlayManager) WaylandKeyboardChannel() <-chan string                { return nil }
 func (m *mockOverlayManager) UseHintOverlay(_ *hints.Overlay)                      {}
 func (m *mockOverlayManager) UseGridOverlay(_ *grid.Overlay)                       {}
 func (m *mockOverlayManager) UseModeIndicatorOverlay(_ *modeindicator.Overlay)     {}

@@ -70,6 +70,9 @@ func (m *Manager) Mode() Mode { return ModeIdle }
 // WindowPtr returns the window pointer (Windows stub).
 func (m *Manager) WindowPtr() unsafe.Pointer { return nil }
 
+// WaylandKeyboardChannel returns nil for Windows (not applicable).
+func (m *Manager) WaylandKeyboardChannel() <-chan string { return nil }
+
 // UseHintOverlay sets the hint overlay (Windows stub).
 func (m *Manager) UseHintOverlay(_ *hints.Overlay) {}
 

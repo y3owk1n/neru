@@ -85,6 +85,11 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 	return unsafe.Pointer(m.window)
 }
 
+// WaylandKeyboardChannel returns nil for macOS (not applicable).
+func (m *Manager) WaylandKeyboardChannel() <-chan string {
+	return nil
+}
+
 // Mode returns the current overlay mode.
 func (m *Manager) Mode() Mode {
 	m.mu.RLock()
