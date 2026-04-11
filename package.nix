@@ -6,6 +6,12 @@
   versionCheckHook,
   lib,
   buildGoModule,
+  pkg-config,
+  cairo,
+  libxkbcommon,
+  wayland,
+  wayland-protocols,
+  xorg,
   version ? "main",
   useZip ? false,
   commitHash ? null,
@@ -110,10 +116,26 @@ else
       "-X github.com/y3owk1n/neru/internal/cli.GitCommit=${commitHash}"
     ];
 
-    # Completions
-    nativeBuildInputs = [
-      installShellFiles
-      writableTmpDirAsHomeHook
+    nativeBuildInputs =
+      [
+        installShellFiles
+        writableTmpDirAsHomeHook
+      ]
+      ++ lib.optionals stdenv.hostPlatform.isLinux [
+        pkg-config
+      ];
+
+    buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
+      cairo
+      libxkbcommon
+      wayland
+      wayland-protocols
+      xorg.libX11
+      xorg.libXext
+      xorg.libXfixes
+      xorg.libXrandr
+      xorg.libXrender
+      xorg.libXtst
     ];
 
     subPackages = [ "cmd/neru" ];
@@ -123,38 +145,40 @@ else
       export GOTOOLCHAIN=auto
     '';
 
-    postInstall = ''
-      # install shell completions
-      if ${lib.boolToString (stdenv.buildPlatform.canExecute stdenv.hostPlatform)}; then
-      	installShellCompletion --cmd neru \
-      	--bash <($out/bin/neru completion bash) \
-      	--fish <($out/bin/neru completion fish) \
-      	--zsh <($out/bin/neru completion zsh)
-      fi
+    postInstall =
+      ''
+        # install shell completions
+        if ${lib.boolToString (stdenv.buildPlatform.canExecute stdenv.hostPlatform)}; then
+        	installShellCompletion --cmd neru \
+        	--bash <($out/bin/neru completion bash) \
+        	--fish <($out/bin/neru completion fish) \
+        	--zsh <($out/bin/neru completion zsh)
+        fi
+      ''
+      + lib.optionalString stdenv.hostPlatform.isDarwin ''
+        # Create a simple .app bundle on the fly for macOS source builds.
+        mkdir -p $out/Applications/Neru.app/Contents/{MacOS,Resources}
 
-      # Create a simple .app bundle on the fly
-      mkdir -p $out/Applications/Neru.app/Contents/{MacOS,Resources}
+        cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/neru
 
-      cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/neru
+        cp ${finalAttrs.src}/resources/icon.icns $out/Applications/Neru.app/Contents/Resources/icon.icns
 
-      cp ${finalAttrs.src}/resources/icon.icns $out/Applications/Neru.app/Contents/Resources/icon.icns
+        SRC_PLIST=${finalAttrs.src}/resources/Info.plist.template
 
-      SRC_PLIST=${finalAttrs.src}/resources/Info.plist.template
+        sed "s|VERSION|${finalAttrs.version}|g" $SRC_PLIST > $out/Applications/Neru.app/Contents/Info.plist
 
-      sed "s|VERSION|${finalAttrs.version}|g" $SRC_PLIST > $out/Applications/Neru.app/Contents/Info.plist
-
-      echo "✅ Neru.app bundle created at $out/Applications/Neru.app"
-    '';
+        echo "✅ Neru.app bundle created at $out/Applications/Neru.app"
+      '';
 
     passthru = {
       updateScript = nix-update-script { };
     };
 
     meta = with lib; {
-      description = "Navigate macOS without touching your mouse";
+      description = "Keyboard-driven navigation tool for macOS and Linux";
       homepage = "https://github.com/y3owk1n/neru";
       license = licenses.mit;
-      platforms = platforms.darwin;
+      platforms = platforms.darwin ++ platforms.linux;
       mainProgram = "neru";
     };
   })

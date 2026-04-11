@@ -1,9 +1,9 @@
 # Installation Guide
 
-This guide covers all installation methods for Neru on macOS.
+This guide covers installation methods for Neru, with the most complete support on macOS.
 
 > [!NOTE]
-> Neru currently only supports macOS. Linux and Windows support is in progress and requires community contribution. See the [Platform Support section in README.md](../README.md#💻-platform-support) for details.
+> macOS is the primary supported platform. Linux source builds are available through the Nix flake and direct builds, but there are no official Linux release artifacts yet. See the [Platform Support section in README.md](../README.md#💻-platform-support) for details.
 
 ## Requirements
 
@@ -30,7 +30,10 @@ brew install --cask y3owk1n/tap/neru
 
 ## Method 2: Nix Flake
 
-Neru is available as a Nix flake with built-in support for nix-darwin and home-manager.
+Neru is available as a Nix flake with built-in support for nix-darwin and home-manager on macOS, plus source builds on Linux.
+
+On macOS, `pkgs.neru` uses the published release zip and `pkgs.neru-source` builds from source.
+On Linux, `pkgs.neru` and the flake `default` package both build from source because there is no official Linux release artifact yet.
 
 ### Add Flake Input
 
