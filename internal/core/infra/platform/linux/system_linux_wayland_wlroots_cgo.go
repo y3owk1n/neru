@@ -485,6 +485,22 @@ static int neru_wlr_screen_info(NeruWlrootsClient *c, int idx,
 static int neru_wlr_has_virtual_pointer(NeruWlrootsClient *c) {
 	return c && c->vptr != NULL;
 }
+
+// Poll Wayland display for cursor position updates
+static void neru_wlr_poll_cursor(NeruWlrootsClient *c) {
+	if (!c || !c->display) return;
+
+	struct pollfd pfd = {
+		.fd = wl_display_get_fd(c->display),
+		.events = POLLIN,
+		.revents = 0
+	};
+
+	// Poll with short timeout to get pending events
+	if (poll(&pfd, 1, 0) > 0 && (pfd.revents & POLLIN)) {
+		wl_display_dispatch(c->display);
+	}
+}
 */
 import "C"
 
@@ -665,6 +681,9 @@ func wlrootsCursorPositionLocked() (image.Point, error) {
 	if client == nil {
 		return image.Point{}, nil
 	}
+
+	// Poll for pending Wayland events to get latest cursor position
+	C.neru_wlr_poll_cursor(client)
 
 	var x, y C.int
 	initialized := C.neru_wlr_get_cursor(client, &x, &y)
