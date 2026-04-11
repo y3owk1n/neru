@@ -467,15 +467,14 @@ static int neru_wlr_click(NeruWlrootsClient *c, int button) {
 	return 1;
 }
 
-static int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int direction) {
+static int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta) {
 	if (!c || !c->vptr) return 0;
 
 	// axis: 0 = vertical, 1 = horizontal
-	// direction: +1 = down/right, -1 = up/left
-	zwlr_virtual_pointer_v1_axis_discrete(c->vptr, 0,
+	zwlr_virtual_pointer_v1_axis_source(c->vptr, 0); // WL_POINTER_AXIS_SOURCE_WHEEL
+	zwlr_virtual_pointer_v1_axis(c->vptr, 0,
 		(uint32_t)axis,
-		wl_fixed_from_int(15 * direction),
-		direction);
+		wl_fixed_from_int(delta));
 	zwlr_virtual_pointer_v1_frame(c->vptr);
 	wl_display_flush(c->display);
 	return 1;
@@ -824,7 +823,7 @@ func wlrootsButtonRelease(button int) error {
 }
 
 // wlrootsScroll sends a scroll event on the virtual pointer.
-func wlrootsScroll(axis, direction int) error {
+func wlrootsScroll(axis, delta int) error {
 	if err := ensureWlrootsState(); err != nil {
 		return err
 	}
@@ -833,7 +832,7 @@ func wlrootsScroll(axis, direction int) error {
 	client := globalWlrootsState.client
 	globalWlrootsState.mu.RUnlock()
 
-	if C.neru_wlr_scroll(client, C.int(axis), C.int(direction)) == 0 {
+	if C.neru_wlr_scroll(client, C.int(axis), C.int(delta)) == 0 {
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to perform wlroots scroll event",

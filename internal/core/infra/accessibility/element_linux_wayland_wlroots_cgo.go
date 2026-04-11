@@ -142,36 +142,18 @@ func wlrootsScrollAtCursor(deltaX, deltaY int) error {
 	}
 
 	// Vertical scroll (axis 0).
-	for range absVal(deltaY) {
-		direction := 1
-		if deltaY > 0 {
-			direction = -1
-		}
-
-		if err := linux.WlrootsScroll(0, direction); err != nil {
+	if deltaY != 0 {
+		if err := linux.WlrootsScroll(0, -deltaY); err != nil {
 			return err
 		}
 	}
 
 	// Horizontal scroll (axis 1).
-	for range absVal(deltaX) {
-		direction := 1
-		if deltaX < 0 {
-			direction = -1
-		}
-
-		if err := linux.WlrootsScroll(1, direction); err != nil {
+	if deltaX != 0 {
+		if err := linux.WlrootsScroll(1, deltaX); err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func absVal(v int) int {
-	if v < 0 {
-		return -v
-	}
-
-	return v
 }
