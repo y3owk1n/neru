@@ -4,9 +4,11 @@ package linux
 
 /*
 #cgo linux LDFLAGS: -lwayland-client
+#cgo linux CFLAGS: -DWLR_CPLUSPLUS
 #include <wayland-client.h>
 #include <stdlib.h>
 #include <string.h>
+#include <poll.h>
 
 // Include wlroots protocol headers relative to this package.
 #include "wlr_protocol/virtual-pointer.h"
@@ -18,6 +20,9 @@ package linux
 
 #define NERU_MAX_OUTPUTS 16
 
+// Discover cursor position on startup
+static void neru_wlr_discover_cursor(NeruWlrootsClient *c);
+
 typedef struct {
 	int x;
 	int y;
@@ -25,8 +30,10 @@ typedef struct {
 	int h;
 	int state; // bitmask: 1=position, 2=size, 4=name
 	char name[128];
+	char name_valid;
 	struct wl_output *wl_output;
 	struct zxdg_output_v1 *xdg_output;
+	struct wl_surface *cursor_surface; // temp surface for cursor discovery
 } NeruWaylandScreen;
 
 typedef struct {
@@ -296,7 +303,7 @@ static NeruWlrootsClient* neru_wlr_connect(void) {
 	return c;
 }
 
-static void neru_wlr_disconnect(NeruWlrootsClient *c) {
+static int neru_wlr_disconnect(NeruWlrootsClient *c) {
 	if (!c) return;
 
 	if (c->vptr) {
@@ -306,11 +313,71 @@ static void neru_wlr_disconnect(NeruWlrootsClient *c) {
 		if (c->screens[i].xdg_output) {
 			zxdg_output_v1_destroy(c->screens[i].xdg_output);
 		}
+		if (c->screens[i].cursor_surface) {
+			wl_surface_destroy(c->screens[i].cursor_surface);
+		}
 	}
 	if (c->display) {
 		wl_display_disconnect(c->display);
 	}
 	free(c);
+}
+
+// Discover cursor position by creating temporary invisible surfaces on each screen
+// and waiting for pointer enter events. Similar to warpd's approach.
+static void neru_wlr_discover_cursor(NeruWlrootsClient *c) {
+	if (!c || !c->compositor || c->nr_screens == 0) return;
+
+	// Create a small invisible surface for each screen to capture cursor
+	for (int i = 0; i < c->nr_screens; i++) {
+		NeruWaylandScreen *scr = &c->screens[i];
+		if (scr->x >= 0 && scr->y >= 0) {
+			// Only create surface for screens with valid position
+			scr->cursor_surface = wl_compositor_create_surface(c->compositor);
+		}
+	}
+
+	// Add pointer listener to capture cursor position
+	if (c->seat && !c->pointer) {
+		c->pointer = wl_seat_get_pointer(c->seat);
+		wl_pointer_add_listener(c->pointer, &neru_wlr_pointer_listener, c);
+	}
+
+	// Dispatch events to trigger enter events on surfaces
+	wl_display_flush(c->display);
+
+	// Poll for events with a short timeout to allow cursor detection
+	struct pollfd pfd = {
+		.fd = wl_display_get_fd(c->display),
+		.events = POLLIN,
+		.revents = 0
+	};
+
+	int discovered = 0;
+	for (int i = 0; i < 50 && !discovered; i++) { // 50 * 20ms = 1 second max
+		if (poll(&pfd, 1, 20) > 0 && (pfd.revents & POLLIN)) {
+			wl_display_dispatch(c->display);
+		}
+		if (c->cursor_initialized) {
+			discovered = 1;
+		}
+	}
+
+	// Clean up cursor surfaces
+	for (int i = 0; i < c->nr_screens; i++) {
+		if (c->screens[i].cursor_surface) {
+			wl_surface_destroy(c->screens[i].cursor_surface);
+			c->screens[i].cursor_surface = NULL;
+		}
+	}
+
+	// If still not initialized, use first screen center as fallback
+	if (!c->cursor_initialized && c->nr_screens > 0) {
+		NeruWaylandScreen *scr = &c->screens[0];
+		c->cursor_x = scr->x + scr->w / 2;
+		c->cursor_y = scr->y + scr->h / 2;
+		c->cursor_initialized = 1;
+	}
 }
 
 // ---------- Input injection ----------
@@ -476,6 +543,9 @@ func ensureWlrootsState() error {
 		)
 	}
 
+	// Discover initial cursor position
+	C.neru_wlr_discover_cursor(client)
+
 	// Populate screen list from the client.
 	count := int(C.neru_wlr_screen_count(client))
 	screens := make([]wlrootsScreen, 0, count)
@@ -596,21 +666,18 @@ func wlrootsCursorPositionLocked() (image.Point, error) {
 	var x, y C.int
 	initialized := C.neru_wlr_get_cursor(client, &x, &y)
 
-	// If cursor was never initialized via motion events, log and return (0,0)
+	// If cursor was never initialized, fall back to first screen center
 	if initialized == 0 {
-		fmt.Fprintf(os.Stderr, "neru: cursor not initialized, screens=%d\n", len(globalWlrootsState.screens))
 		if len(globalWlrootsState.screens) > 0 {
 			scr := globalWlrootsState.screens[0]
-			fmt.Fprintf(os.Stderr, "neru: screen[0] bounds=%v\n", scr.Bounds)
-			fmt.Fprintf(os.Stderr, "neru: would use center: (%d, %d)\n",
-				scr.Bounds.Min.X+scr.Bounds.Dx()/2,
-				scr.Bounds.Min.Y+scr.Bounds.Dy()/2)
+			return image.Point{
+				X: scr.Bounds.Min.X + scr.Bounds.Dx()/2,
+				Y: scr.Bounds.Min.Y + scr.Bounds.Dy()/2,
+			}, nil
 		}
-		// Return (0,0) instead of center so it's obvious something is wrong
-		return image.Point{X: 0, Y: 0}, nil
+		return image.Point{}, nil
 	}
 
-	fmt.Fprintf(os.Stderr, "neru: cursor position: (%d, %d), initialized=%d\n", int(x), int(y), initialized)
 	return image.Point{X: int(x), Y: int(y)}, nil
 }
 
