@@ -65,12 +65,18 @@ typedef struct {
 // Global keyboard channel for Go callback
 static char key_buffer[256];
 static volatile int key_available = 0;
+static volatile int keyboard_enter_received = 0;
 
 //export neruWaylandOverlayOnKey
 static void neruWaylandOverlayOnKey(const char *key) {
     strncpy(key_buffer, key, sizeof(key_buffer) - 1);
     key_buffer[sizeof(key_buffer) - 1] = 0;
     key_available = 1;
+}
+
+//export neruWaylandOverlayOnEnter
+static void neruWaylandOverlayOnEnter(void) {
+    keyboard_enter_received = 1;
 }
 
 // Create anonymous shared memory
@@ -215,7 +221,9 @@ static void neru_keyboard_keymap(void *data, struct wl_keyboard *keyboard,
 }
 
 static void neru_keyboard_enter(void *data, struct wl_keyboard *keyboard,
-    uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {}
+    uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
+    keyboard_enter_received = 1;
+}
 
 static void neru_keyboard_leave(void *data, struct wl_keyboard *keyboard,
     uint32_t serial, struct wl_surface *surface) {}
@@ -313,6 +321,14 @@ static NeruWaylandOverlay* neru_wayland_overlay_new(void) {
 
     // Setup xkb context
     overlay->xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+
+    // Try to get keyboard immediately and set up listener
+    if (overlay->wl_seat) {
+        struct wl_keyboard *kb = wl_seat_get_keyboard(overlay->wl_seat);
+        if (kb) {
+            wl_keyboard_add_listener(kb, &keyboard_listener, overlay);
+        }
+    }
 
     return overlay;
 }
@@ -529,6 +545,16 @@ static void neruWaylandOverlayPoll(NeruWaylandOverlay *overlay) {
 //export neruWaylandOverlayGetKey
 static const char* neruWaylandOverlayGetKey(NeruWaylandOverlay *overlay) {
     return neru_wayland_overlay_get_key(overlay);
+}
+
+//export neruWaylandOverlayCheckEnter
+static int neruWaylandOverlayCheckEnter(NeruWaylandOverlay *overlay) {
+    (void)overlay;
+    if (keyboard_enter_received) {
+        keyboard_enter_received = 0;
+        return 1;
+    }
+    return 0;
 }
 */
 import "C"
