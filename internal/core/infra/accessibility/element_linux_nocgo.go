@@ -46,7 +46,11 @@ func x11RightClickAtPoint(point image.Point, restoreCursor bool, modifiers actio
 	)
 }
 
-func x11MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
+func x11MiddleClickAtPoint(
+	point image.Point,
+	restoreCursor bool,
+	modifiers action.Modifiers,
+) error {
 	_, _, _ = point, restoreCursor, modifiers
 	return derrors.New(
 		derrors.CodeNotSupported,

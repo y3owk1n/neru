@@ -630,10 +630,11 @@ import (
 	"strings"
 	"unsafe"
 
+	"go.uber.org/zap"
+
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	"go.uber.org/zap"
 )
 
 type wlrootsOverlay struct {
@@ -829,7 +830,12 @@ func (o *wlrootsOverlay) DrawRecursiveGrid(
 
 			o.drawRect(cell, 0x10000000, style.LineColor, style.LineWidth)
 			if index < len(keyRunes) {
-				o.drawTextCentered(string(keyRunes[index]), cell, style.LabelFontSize, style.LabelFontColor)
+				o.drawTextCentered(
+					string(keyRunes[index]),
+					cell,
+					style.LabelFontSize,
+					style.LabelFontColor,
+				)
 			}
 			index++
 		}
@@ -911,13 +917,23 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 			)
 			// Use a visible semi-opaque fill so subgrid cells are clearly distinct
 			o.drawRect(cell, 0x40000000, style.LineColor, 1)
-			o.drawTextCentered(string(keyRunes[index]), cell, style.LabelFontSize*0.7, style.LabelFontColor)
+			o.drawTextCentered(
+				string(keyRunes[index]),
+				cell,
+				style.LabelFontSize*0.7,
+				style.LabelFontColor,
+			)
 			index++
 		}
 	}
 }
 
-func (o *wlrootsOverlay) drawRect(bounds image.Rectangle, fill uint32, border uint32, lineWidth float64) {
+func (o *wlrootsOverlay) drawRect(
+	bounds image.Rectangle,
+	fill uint32,
+	border uint32,
+	lineWidth float64,
+) {
 	C.neru_wayland_overlay_rect(
 		o.raw,
 		C.double(bounds.Min.X),
@@ -930,7 +946,12 @@ func (o *wlrootsOverlay) drawRect(bounds image.Rectangle, fill uint32, border ui
 	)
 }
 
-func (o *wlrootsOverlay) drawTextCentered(text string, bounds image.Rectangle, fontSize float64, color uint32) {
+func (o *wlrootsOverlay) drawTextCentered(
+	text string,
+	bounds image.Rectangle,
+	fontSize float64,
+	color uint32,
+) {
 	cText := C.CString(text)
 	defer C.free(unsafe.Pointer(cText)) //nolint:nlreturn
 

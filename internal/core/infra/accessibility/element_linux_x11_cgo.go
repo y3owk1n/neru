@@ -277,7 +277,11 @@ func x11RightClickAtPoint(point image.Point, restoreCursor bool, modifiers actio
 	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, 3)
 }
 
-func x11MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
+func x11MiddleClickAtPoint(
+	point image.Point,
+	restoreCursor bool,
+	modifiers action.Modifiers,
+) error {
 	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, 2)
 }
 
@@ -328,7 +332,8 @@ func x11ScrollAtCursor(deltaX, deltaY int) error {
 			if deltaY < 0 {
 				button = 5
 			}
-			if C.neru_ax_button(display, button, 1) == 0 || C.neru_ax_button(display, button, 0) == 0 {
+			if C.neru_ax_button(display, button, 1) == 0 ||
+				C.neru_ax_button(display, button, 0) == 0 {
 				return derrors.New(derrors.CodeActionFailed, "failed vertical scroll event on X11")
 			}
 		}
@@ -344,8 +349,12 @@ func x11ScrollAtCursor(deltaX, deltaY int) error {
 			if deltaX < 0 {
 				button = 6
 			}
-			if C.neru_ax_button(display, button, 1) == 0 || C.neru_ax_button(display, button, 0) == 0 {
-				return derrors.New(derrors.CodeActionFailed, "failed horizontal scroll event on X11")
+			if C.neru_ax_button(display, button, 1) == 0 ||
+				C.neru_ax_button(display, button, 0) == 0 {
+				return derrors.New(
+					derrors.CodeActionFailed,
+					"failed horizontal scroll event on X11",
+				)
 			}
 		}
 	}

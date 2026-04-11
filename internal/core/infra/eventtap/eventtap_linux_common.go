@@ -10,8 +10,10 @@ import (
 	"go.uber.org/zap"
 )
 
-type Callback func(key string)
-type PassthroughCallback func()
+type (
+	Callback            func(key string)
+	PassthroughCallback func()
+)
 
 type EventTap struct {
 	logger *zap.Logger

@@ -48,7 +48,11 @@ func wlrootsCurrentCursorPosition() image.Point {
 	return pos
 }
 
-func wlrootsLeftClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
+func wlrootsLeftClickAtPoint(
+	point image.Point,
+	restoreCursor bool,
+	modifiers action.Modifiers,
+) error {
 	_ = modifiers // modifier injection not yet supported on Wayland
 
 	original := wlrootsCurrentCursorPosition()
@@ -63,7 +67,11 @@ func wlrootsLeftClickAtPoint(point image.Point, restoreCursor bool, modifiers ac
 	return nil
 }
 
-func wlrootsRightClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
+func wlrootsRightClickAtPoint(
+	point image.Point,
+	restoreCursor bool,
+	modifiers action.Modifiers,
+) error {
 	_ = modifiers
 
 	original := wlrootsCurrentCursorPosition()
@@ -78,7 +86,11 @@ func wlrootsRightClickAtPoint(point image.Point, restoreCursor bool, modifiers a
 	return nil
 }
 
-func wlrootsMiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
+func wlrootsMiddleClickAtPoint(
+	point image.Point,
+	restoreCursor bool,
+	modifiers action.Modifiers,
+) error {
 	_ = modifiers
 
 	original := wlrootsCurrentCursorPosition()

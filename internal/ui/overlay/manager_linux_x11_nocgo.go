@@ -6,10 +6,11 @@ import (
 	"image"
 	"unsafe"
 
+	"go.uber.org/zap"
+
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	"go.uber.org/zap"
 )
 
 type x11Overlay struct{}
@@ -30,6 +31,15 @@ func (o *x11Overlay) UpdateGridMatches(string)                               {}
 func (o *x11Overlay) ShowSubgrid(*domainGrid.Cell, gridcomponent.Style)      {}
 func (o *x11Overlay) SetHideUnmatched(bool)                                  {}
 func (o *x11Overlay) DrawGrid(*domainGrid.Grid, string, gridcomponent.Style) {}
-func (o *x11Overlay) DrawRecursiveGrid(image.Rectangle, int, string, int, int, recursivegridcomponent.Style, recursivegridcomponent.VirtualPointerState) {
+
+func (o *x11Overlay) DrawRecursiveGrid(
+	image.Rectangle,
+	int,
+	string,
+	int,
+	int,
+	recursivegridcomponent.Style,
+	recursivegridcomponent.VirtualPointerState,
+) {
 }
 func (o *x11Overlay) DrawBadge(int, int, string, overlayColors) {}

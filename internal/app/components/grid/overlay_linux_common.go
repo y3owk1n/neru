@@ -90,12 +90,20 @@ func (o *Overlay) Window() unsafe.Pointer {
 // BuildStyle builds the grid style from the configuration (Linux stub).
 func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 	return Style{
-		LineWidth:      float64(max(cfg.UI.BorderWidth, 1)),
-		LineColor:      parseLinuxColor(cfg.UI.BorderColor.ForTheme(theme, config.GridBorderColorLight, config.GridBorderColorDark)),
-		LabelFontColor: parseLinuxColor(cfg.UI.TextColor.ForTheme(theme, config.GridTextColorLight, config.GridTextColorDark)),
-		LabelFontSize:  float64(max(cfg.UI.FontSize, 12)),
-		LabelFontName:  cfg.UI.FontFamily,
-		ShowLabels:     true,
+		LineWidth: float64(max(cfg.UI.BorderWidth, 1)),
+		LineColor: parseLinuxColor(
+			cfg.UI.BorderColor.ForTheme(
+				theme,
+				config.GridBorderColorLight,
+				config.GridBorderColorDark,
+			),
+		),
+		LabelFontColor: parseLinuxColor(
+			cfg.UI.TextColor.ForTheme(theme, config.GridTextColorLight, config.GridTextColorDark),
+		),
+		LabelFontSize: float64(max(cfg.UI.FontSize, 12)),
+		LabelFontName: cfg.UI.FontFamily,
+		ShowLabels:    true,
 	}
 }
 

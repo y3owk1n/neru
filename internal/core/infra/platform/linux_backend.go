@@ -36,6 +36,8 @@ func (b LinuxBackend) String() string {
 		return "wayland-kde"
 	case BackendWaylandOther:
 		return "wayland-other"
+	case BackendUnknown:
+		return "unknown"
 	default:
 		return "unknown"
 	}

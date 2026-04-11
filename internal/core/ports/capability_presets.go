@@ -45,6 +45,7 @@ func DarwinCapabilities() PlatformCapabilities {
 	}
 }
 
+// LinuxCapabilities returns the supported Linux runtime capabilities.
 func LinuxCapabilities() PlatformCapabilities {
 	return PlatformCapabilities{
 		Platform: "linux",

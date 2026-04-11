@@ -41,12 +41,18 @@ func TestNonDarwinCapabilities_ReportStubbedFeatures(t *testing.T) {
 				t.Fatalf("Platform = %q, want %s", testCase.capabilities.Platform, testCase.name)
 			}
 
-			if testCase.capabilities.Overlay.Status != ports.FeatureStatusStub {
-				t.Fatalf("Overlay status = %q, want stub", testCase.capabilities.Overlay.Status)
+			if testCase.capabilities.Accessibility.Status != ports.FeatureStatusStub {
+				t.Fatalf(
+					"Accessibility status = %q, want stub",
+					testCase.capabilities.Accessibility.Status,
+				)
 			}
 
-			if testCase.capabilities.Process.Status != ports.FeatureStatusStub {
-				t.Fatalf("Process status = %q, want stub", testCase.capabilities.Process.Status)
+			if testCase.capabilities.Notifications.Status != ports.FeatureStatusStub {
+				t.Fatalf(
+					"Notifications status = %q, want stub",
+					testCase.capabilities.Notifications.Status,
+				)
 			}
 		})
 	}

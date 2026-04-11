@@ -194,11 +194,14 @@ func (m *Manager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {
 	m.recursiveGridOverlay = o
 }
 
-func (m *Manager) HintOverlay() *hints.Overlay                      { return m.hintOverlay }
-func (m *Manager) GridOverlay() *grid.Overlay                       { return m.gridOverlay }
-func (m *Manager) ModeIndicatorOverlay() *modeindicator.Overlay     { return m.modeIndicatorOverlay }
+func (m *Manager) HintOverlay() *hints.Overlay { return m.hintOverlay }
+func (m *Manager) GridOverlay() *grid.Overlay  { return m.gridOverlay }
+
+func (m *Manager) ModeIndicatorOverlay() *modeindicator.Overlay { return m.modeIndicatorOverlay }
+
 func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay { return m.stickyModifiersOverlay }
-func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay     { return m.recursiveGridOverlay }
+
+func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay { return m.recursiveGridOverlay }
 
 func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 	switch m.backend {
@@ -317,7 +320,10 @@ func (m *Manager) DrawRecursiveGrid(
 	_ = nextGridCols
 	_ = nextGridRows
 
-	return derrors.New(derrors.CodeNotSupported, "recursive grid overlay not implemented on linux backend")
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"recursive grid overlay not implemented on linux backend",
+	)
 }
 
 func (m *Manager) UpdateGridMatches(prefix string) {

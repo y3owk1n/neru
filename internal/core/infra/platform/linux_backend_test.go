@@ -1,3 +1,4 @@
+//nolint:testpackage // test covers unexported function
 package platform
 
 import "testing"

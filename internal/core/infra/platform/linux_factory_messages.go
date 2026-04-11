@@ -1,7 +1,8 @@
+//go:build linux
+
 package platform
 
 import (
-	"fmt"
 	"os"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -22,7 +23,7 @@ func unsupportedLinuxBackendError(backend LinuxBackend) error {
 	case BackendWaylandOther:
 		return derrors.Newf(
 			derrors.CodeNotSupported,
-			"neru does not recognise this Wayland compositor (XDG_CURRENT_DESKTOP=%q). Supported target backends are wlroots-based compositors such as Sway, Hyprland, niri, and River. See docs/LINUX_SETUP.md.",
+			"neru does not recognize this Wayland compositor (XDG_CURRENT_DESKTOP=%q). Supported target backends are wlroots-based compositors such as Sway, Hyprland, niri, and River. See docs/LINUX_SETUP.md.",
 			os.Getenv("XDG_CURRENT_DESKTOP"),
 		)
 	case BackendUnknown:
@@ -30,7 +31,17 @@ func unsupportedLinuxBackendError(backend LinuxBackend) error {
 			derrors.CodeNotSupported,
 			"neru could not detect a Linux display server. Ensure WAYLAND_DISPLAY or DISPLAY is set.",
 		)
+	case BackendX11, BackendWaylandWlroots:
+		return derrors.Newf(
+			derrors.CodeInternal,
+			"unsupportedLinuxBackendError called on supported backend: %s",
+			backend.String(),
+		)
 	default:
-		return fmt.Errorf("unsupported linux backend: %s", backend.String())
+		return derrors.Newf(
+			derrors.CodeNotSupported,
+			"unsupported linux backend: %s",
+			backend.String(),
+		)
 	}
 }

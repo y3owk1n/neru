@@ -92,12 +92,24 @@ func (o *Overlay) HideVirtualPointer() {}
 // BuildStyle builds the recursive grid style from the configuration (Linux stub).
 func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Style {
 	return Style{
-		LineWidth:      float64(max(cfg.UI.LineWidth, 1)),
-		LineColor:      parseLinuxColor(cfg.UI.LineColor.ForTheme(theme, config.RecursiveGridLineColorLight, config.RecursiveGridLineColorDark)),
-		LabelFontColor: parseLinuxColor(cfg.UI.TextColor.ForTheme(theme, config.RecursiveGridTextColorLight, config.RecursiveGridTextColorDark)),
-		LabelFontSize:  float64(max(cfg.UI.FontSize, 14)),
-		LabelFontName:  cfg.UI.FontFamily,
-		ShowLabels:     true,
+		LineWidth: float64(max(cfg.UI.LineWidth, 1)),
+		LineColor: parseLinuxColor(
+			cfg.UI.LineColor.ForTheme(
+				theme,
+				config.RecursiveGridLineColorLight,
+				config.RecursiveGridLineColorDark,
+			),
+		),
+		LabelFontColor: parseLinuxColor(
+			cfg.UI.TextColor.ForTheme(
+				theme,
+				config.RecursiveGridTextColorLight,
+				config.RecursiveGridTextColorDark,
+			),
+		),
+		LabelFontSize: float64(max(cfg.UI.FontSize, 14)),
+		LabelFontName: cfg.UI.FontFamily,
+		ShowLabels:    true,
 	}
 }
 
