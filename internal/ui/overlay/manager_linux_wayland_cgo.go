@@ -10,6 +10,7 @@ package overlay
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <cairo/cairo.h>
 
 #include "../../core/infra/platform/linux/wlr_protocol/layer-shell.h"

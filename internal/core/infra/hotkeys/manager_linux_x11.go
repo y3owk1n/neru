@@ -11,6 +11,18 @@ package hotkeys
 static Window neru_hotkeys_root_window(Display *display) {
 	return RootWindow(display, DefaultScreen(display));
 }
+
+static int neru_xevent_type(XEvent *ev) {
+	return ev->type;
+}
+
+static unsigned int neru_xkey_keycode(XEvent *ev) {
+	return ev->xkey.keycode;
+}
+
+static unsigned int neru_xkey_state(XEvent *ev) {
+	return ev->xkey.state;
+}
 */
 import "C"
 
@@ -144,13 +156,14 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 
 		var event C.XEvent
 		C.XNextEvent(state.display, &event)
-		if event._type != C.KeyPress {
+		if C.neru_xevent_type(&event) != C.KeyPress {
 			continue
 		}
 
-		xkey := (*C.XKeyEvent)(unsafe.Pointer(&event))
-		modifiers := C.uint(xkey.state) & ^(C.Mod2Mask | C.LockMask)
-		if id, ok := state.ids[x11BindingKey(C.uint(xkey.keycode), modifiers)]; ok {
+		keycode := C.neru_xkey_keycode(&event)
+		modifiers := C.neru_xkey_state(&event) &^ (C.Mod2Mask | C.LockMask)
+
+		if id, ok := state.ids[x11BindingKey(keycode, modifiers)]; ok {
 			if callback := m.callbackFor(id); callback != nil {
 				go callback()
 			}
