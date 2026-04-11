@@ -12,13 +12,9 @@ package linux
 
 // Include wlroots protocol headers relative to this package.
 #include "wlr_protocol/virtual-pointer.h"
-#include "wlr_protocol/virtual-pointer.c"
 #include "wlr_protocol/xdg-output.h"
-#include "wlr_protocol/xdg-output.c"
 #include "wlr_protocol/layer-shell.h"
-#include "wlr_protocol/layer-shell.c"
 #include "wlr_protocol/xdg-shell.h"
-#include "wlr_protocol/xdg-shell.c"
 
 // ---------- Forward declarations ----------
 
@@ -523,6 +519,9 @@ import (
 	"sync"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+
+	// Blank-import to link the wayland-scanner generated protocol objects.
+	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux/wlr_protocol"
 )
 
 const (

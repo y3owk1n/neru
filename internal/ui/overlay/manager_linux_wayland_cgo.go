@@ -16,11 +16,8 @@ package overlay
 #include <poll.h>
 
 #include "../../core/infra/platform/linux/wlr_protocol/xdg-shell.h"
-#include "../../core/infra/platform/linux/wlr_protocol/xdg-shell.c"
 #include "../../core/infra/platform/linux/wlr_protocol/layer-shell.h"
-#include "../../core/infra/platform/linux/wlr_protocol/layer-shell.c"
 #include "../../core/infra/platform/linux/wlr_protocol/xdg-output.h"
-#include "../../core/infra/platform/linux/wlr_protocol/xdg-output.c"
 
 // Forward declarations
 #define NERU_MAX_OUTPUTS 16
@@ -636,6 +633,9 @@ import (
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+
+	// Blank-import to link the wayland-scanner generated protocol objects.
+	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux/wlr_protocol"
 )
 
 type wlrootsOverlay struct {
