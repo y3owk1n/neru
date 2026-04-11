@@ -38,10 +38,12 @@ jobs:
                   sudo apt-get install -y \
                     libcairo2-dev \
                     libwayland-dev \
+                    libx11-dev \
                     libxtst-dev \
                     libxrandr-dev \
                     libxinerama-dev \
                     libxfixes-dev \
+                    libxkbcommon-dev \
                     wayland-protocols
 
             # Install Devbox on Linux/macOS only

@@ -32,6 +32,7 @@ Neru provides native Linux support through two display server backends:
 sudo apt-get install -y \
   libcairo2-dev \
   libwayland-dev \
+  libx11-dev \
   libxtst-dev \
   libxrandr-dev \
   libxinerama-dev \
@@ -46,6 +47,7 @@ sudo apt-get install -y \
 sudo dnf install -y \
   cairo-devel \
   wayland-devel \
+  libX11-devel \
   libXtst-devel \
   libXrandr-devel \
   libXinerama-devel \
@@ -60,6 +62,7 @@ sudo dnf install -y \
 sudo pacman -S \
   cairo \
   wayland \
+  libx11 \
   libxtst \
   libxrandr \
   libxinerama \
@@ -76,6 +79,7 @@ The project's `devbox.json` already includes the necessary dependencies for macO
 [
   "cairo",
   "wayland",
+  "xorg.libX11",
   "xorg.libXtst",
   "xorg.libXrandr",
   "xorg.libXinerama",
