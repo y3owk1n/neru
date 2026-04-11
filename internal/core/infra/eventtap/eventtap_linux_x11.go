@@ -56,6 +56,14 @@ import (
 func (et *EventTap) run() {
 	defer close(et.doneCh)
 
+	// Do not attempt an X11 keyboard grab if we are running under Wayland.
+	// XWayland grabs conflict with Wayland compositor focus policies and frequently
+	// result in the compositor sending synthetic "Escape" or "Cancel" keycodes
+	// to forcefully break the unauthorized grab, accidentally quitting modes.
+	if os.Getenv("WAYLAND_DISPLAY") != "" {
+		return
+	}
+
 	if os.Getenv("DISPLAY") == "" {
 		return
 	}
