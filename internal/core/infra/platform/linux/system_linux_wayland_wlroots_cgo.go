@@ -82,9 +82,12 @@ static void neru_wlr_pointer_motion(void *data,
 	uint32_t time,
 	wl_fixed_t sx, wl_fixed_t sy)
 {
-	// Motion events give surface-local coords. We track absolute cursor
-	// position internally so this callback is deliberately empty.
-	// Absolute cursor position is maintained by neru_wlr_move_absolute.
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	// Convert surface-local coords to absolute by adding screen offset
+	// For now, just use the values as-is - proper mapping requires screen tracking
+	c->cursor_x = wl_fixed_to_int(sx);
+	c->cursor_y = wl_fixed_to_int(sy);
+	c->cursor_initialized = 1;
 }
 
 static void neru_wlr_pointer_button(void *data,
@@ -591,7 +594,19 @@ func wlrootsCursorPositionLocked() (image.Point, error) {
 	}
 
 	var x, y C.int
-	C.neru_wlr_get_cursor(client, &x, &y)
+	initialized := C.neru_wlr_get_cursor(client, &x, &y)
+
+	// If cursor was never initialized via motion events, fall back to first screen center
+	if initialized == 0 {
+		if len(globalWlrootsState.screens) > 0 {
+			scr := globalWlrootsState.screens[0]
+			return image.Point{
+				X: scr.Bounds.Min.X + scr.Bounds.Dx()/2,
+				Y: scr.Bounds.Min.Y + scr.Bounds.Dy()/2,
+			}, nil
+		}
+		return image.Point{}, nil
+	}
 
 	return image.Point{X: int(x), Y: int(y)}, nil
 }
