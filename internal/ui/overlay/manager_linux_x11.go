@@ -196,7 +196,6 @@ import "C"
 
 import (
 	"image"
-	"strconv"
 	"strings"
 	"unsafe"
 
@@ -205,24 +204,6 @@ import (
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-)
-
-const (
-	gridFillColor        uint32 = 0x18000000
-	gridMatchedFillColor uint32 = 0x66465FBC
-	gridMatchedTextColor uint32 = 0xFFF8FAFF
-	badgePaddingX               = 10
-	badgeFontSize               = 14.0
-	badgeCharWidth              = 9
-	badgeHeight                 = 24
-	subgridCols                 = 3
-	subgridRows                 = 3
-	subgridBackground    uint32 = 0x40000000
-	subgridHalfPixel            = 0.5
-	subgridFontScale            = 0.7
-	subgridLineWidth            = 1
-	hexColorOpaque       uint32 = 0xFFFFFFFF
-	hexColorRepeatCount         = 2
 )
 
 type x11Overlay struct {
@@ -515,26 +496,4 @@ func (o *x11Overlay) drawTextCentered(
 		C.double(fontSize),
 		C.uint(color),
 	)
-}
-
-func parseHexColor(value string) uint32 {
-	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
-	switch len(value) {
-	case 3:
-		value = "FF" + strings.Repeat(string(value[0]), hexColorRepeatCount) +
-			strings.Repeat(string(value[1]), hexColorRepeatCount) +
-			strings.Repeat(string(value[2]), hexColorRepeatCount)
-	case 6:
-		value = "FF" + value
-	case 8:
-	default:
-		return hexColorOpaque
-	}
-
-	parsed, err := strconv.ParseUint(value, 16, 32)
-	if err != nil {
-		return hexColorOpaque
-	}
-
-	return uint32(parsed)
 }

@@ -635,25 +635,6 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 )
 
-const (
-	gridFillColor         uint32 = 0x18000000
-	gridMatchedFillColor  uint32 = 0x66465FBC
-	gridMatchedTextColor  uint32 = 0xFFF8FAFF
-	subgridBackground     uint32 = 0x40000000
-	subgridCellBackground uint32 = 0x10000000
-	badgePaddingX                = 10
-	badgeFontSize                = 14.0
-	badgeCharWidth               = 9
-	badgeHeight                  = 24
-	hexColorRepeatCount          = 2
-	subgridCols                  = 3
-	subgridRows                  = 3
-	subgridHalfPixel             = 0.5
-	subgridFontScale             = 0.7
-	subgridLineWidth             = 1
-	keyboardChanBuffer           = 64
-)
-
 type wlrootsOverlay struct {
 	raw            *C.NeruWaylandOverlay
 	logger         *zap.Logger

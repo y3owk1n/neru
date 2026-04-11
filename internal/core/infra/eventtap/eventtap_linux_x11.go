@@ -48,10 +48,9 @@ import "C"
 
 import (
 	"os"
+	"strings"
 	"time"
 	"unsafe"
-
-	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 const (
