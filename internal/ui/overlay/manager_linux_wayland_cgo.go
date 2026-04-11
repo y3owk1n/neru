@@ -3,7 +3,7 @@
 package overlay
 
 /*
-#cgo linux LDFLAGS: -lwayland-client -lcairo -lxkbcommon
+#cgo linux pkg-config: wayland-client cairo xkbcommon
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>
 #include <fcntl.h>

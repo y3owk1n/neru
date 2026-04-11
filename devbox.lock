@@ -1033,6 +1033,106 @@
         }
       }
     },
+    "xorg.libXext@1.3.6": {
+      "last_modified": "2025-08-11T23:54:17Z",
+      "resolved": "github:NixOS/nixpkgs/5a983011e0f4b3b286aaa73e011ce32b1449a528#xorg.libXext",
+      "source": "devbox-search",
+      "version": "1.3.6",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/frayf7a84jf7n43i3qbgv1lx7m6xhmlr-libXext-1.3.6",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/sayaqxaaysqwp4r724vhgvwm3489k167-libXext-1.3.6-man",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/9yn281lcpxn2sw66by3dafpycavh74ki-libXext-1.3.6-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/c5699pfpz0psw1108ggcfvgnpq5576jm-libXext-1.3.6-doc"
+            }
+          ],
+          "store_path": "/nix/store/frayf7a84jf7n43i3qbgv1lx7m6xhmlr-libXext-1.3.6"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/vmpcc39q1nl9541dhmfb2c94dpgiq9is-libXext-1.3.6",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/i1p6c8vw2x2x7lvfwic7szkapkhm4595-libXext-1.3.6-man",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/9gfzp4zkrc4z5jwkzzmkhdzwx4dm8rjb-libXext-1.3.6-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/0ns1d6665ghr28811z2yrkc7byfp2hvp-libXext-1.3.6-doc"
+            }
+          ],
+          "store_path": "/nix/store/vmpcc39q1nl9541dhmfb2c94dpgiq9is-libXext-1.3.6"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/mwlw8w92q7n6sy8qyzv1aaa8lgybiwkv-libXext-1.3.6",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/5vgnyny3084l2b5pl5cfdzh8f29lp5vq-libXext-1.3.6-man",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/aamh0a3lif5vznkyaa3mcgpdi1bkcawc-libXext-1.3.6-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/0ck3lnjhclfc8fqw7smq8xk1zhrmy9a8-libXext-1.3.6-doc"
+            }
+          ],
+          "store_path": "/nix/store/mwlw8w92q7n6sy8qyzv1aaa8lgybiwkv-libXext-1.3.6"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/fhidyiaqww37gzc6fh0ph5qk3vpv8vv6-libXext-1.3.6",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/lbgzd2ca1h3v7fvkcm7jf6n6bbzi2jwg-libXext-1.3.6-man",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/s06x2x8crgl66mknq5c4qva743nlwnb3-libXext-1.3.6-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/qqv0lyk2cqyhfm6308m19mmscbdgy89d-libXext-1.3.6-doc"
+            }
+          ],
+          "store_path": "/nix/store/fhidyiaqww37gzc6fh0ph5qk3vpv8vv6-libXext-1.3.6"
+        }
+      }
+    },
     "xorg.libXfixes@6.0.1": {
       "last_modified": "2025-07-28T17:09:23Z",
       "resolved": "github:NixOS/nixpkgs/648f70160c03151bc2121d179291337ad6bc564b#xorg.libXfixes",
@@ -1222,6 +1322,86 @@
             }
           ],
           "store_path": "/nix/store/5r4dl3vqnzmrkxzsap3ww4lrddnmvhqf-libXrandr-1.5.4"
+        }
+      }
+    },
+    "xorg.libXrender@0.9.12": {
+      "last_modified": "2025-08-12T09:17:37Z",
+      "resolved": "github:NixOS/nixpkgs/372d9eeeafa5b15913201e2b92e8e539ac7c64d1#xorg.libXrender",
+      "source": "devbox-search",
+      "version": "0.9.12",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/szamnhka5k85kpsql0dicfk97zhlxgzz-libXrender-0.9.12",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/g4fbn1lhrmdygm8yvk5icnc7x84dvbmq-libXrender-0.9.12-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/y0zff8zmw0l3jjl8cvif15xqzmdilbzr-libXrender-0.9.12-doc"
+            }
+          ],
+          "store_path": "/nix/store/szamnhka5k85kpsql0dicfk97zhlxgzz-libXrender-0.9.12"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/98xyn3y44hlayykwjc9bs31s7cycg888-libXrender-0.9.12",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/j4zlq12mz46891l5galmka639rbdqnbd-libXrender-0.9.12-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/6afmh776lyxb8iw2p1jr89wag4h5d4js-libXrender-0.9.12-doc"
+            }
+          ],
+          "store_path": "/nix/store/98xyn3y44hlayykwjc9bs31s7cycg888-libXrender-0.9.12"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/fl4v5lrqqapqrckqnb3s0cx0d4m6cfwy-libXrender-0.9.12",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/pd16ql1w2xv08iqdzxfmj4jc9cryis3m-libXrender-0.9.12-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/72ak59y4rdszjs0zaxmvg2b895g8s7ak-libXrender-0.9.12-doc"
+            }
+          ],
+          "store_path": "/nix/store/fl4v5lrqqapqrckqnb3s0cx0d4m6cfwy-libXrender-0.9.12"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ib95pg7blpx74an2q1435mf3chzfqvz9-libXrender-0.9.12",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/30my7y37fgs9qchgzfl9zap0spprmy6r-libXrender-0.9.12-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/8bvyb9a84y7x3cpjdw99ajdz123a3hay-libXrender-0.9.12-doc"
+            }
+          ],
+          "store_path": "/nix/store/ib95pg7blpx74an2q1435mf3chzfqvz9-libXrender-0.9.12"
         }
       }
     },

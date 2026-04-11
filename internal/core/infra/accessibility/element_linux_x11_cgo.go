@@ -3,7 +3,7 @@
 package accessibility
 
 /*
-#cgo linux LDFLAGS: -lX11 -lXtst
+#cgo linux pkg-config: x11 xtst
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>

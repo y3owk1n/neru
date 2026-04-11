@@ -3,7 +3,7 @@
 package hotkeys
 
 /*
-#cgo linux LDFLAGS: -lX11
+#cgo linux pkg-config: x11
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <stdlib.h>

@@ -3,7 +3,7 @@
 package linux
 
 /*
-#cgo linux LDFLAGS: -lwayland-client
+#cgo linux pkg-config: wayland-client
 #cgo linux CFLAGS: -DWLR_CPLUSPLUS
 #include <wayland-client.h>
 #include <stdlib.h>
