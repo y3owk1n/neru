@@ -1,4 +1,4 @@
-# KDE Plasma Wayland Backend (Tier 2 - Not Implemented)
+# KDE Plasma Wayland Backend (Not Implemented)
 
 This directory is reserved for a future KDE Plasma Wayland backend.
 

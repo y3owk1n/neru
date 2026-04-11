@@ -12,18 +12,32 @@ separate "stable on macOS today" from "portable by design, still incomplete".
 
 ## Cross-Platform Foundations
 
-- Linux:
-  - AT-SPI accessibility integration
-  - screen and cursor management
-  - global hotkeys and keyboard event capture
-  - native overlay rendering
-  - notifications and app watching
+- Linux (X11):
+  - [x] native overlay rendering
+  - [x] screen and cursor management
+  - [x] keyboard event capture & global hotkeys
+  - [ ] AT-SPI accessibility integration (shared)
+  - [ ] notifications and active app detection
+- Linux (Wayland wlroots):
+  - [x] native layer-shell overlay rendering
+  - [x] virtual pointer injection and cursor discovery
+  - [x] keyboard event capture
+  - [ ] AT-SPI accessibility integration (shared)
+  - [ ] notifications and active app detection
+- Linux (Wayland GNOME):
+  - [ ] input injection (libei or GNOME shell extension)
+  - [ ] native overlay rendering
+  - [ ] global hotkeys & event capture
+- Linux (Wayland KDE Plasma):
+  - [ ] input injection (libei or KWin protocols)
+  - [ ] native overlay rendering
+  - [ ] global hotkeys & event capture
 - Windows:
-  - UI Automation integration
-  - screen and cursor management
-  - global hotkeys and keyboard event capture
-  - native overlay rendering
-  - notifications and app watching
+  - [ ] UI Automation integration
+  - [ ] screen and cursor management
+  - [ ] global hotkeys and keyboard event capture
+  - [ ] native overlay rendering
+  - [ ] notifications and app watching
 
 ## Contributor Priorities
 

@@ -5,7 +5,7 @@ Neru provides native Linux support through two display server backends:
 - **X11** — works with any X11-based session (XOrg, i3, etc.)
 - **Wayland (wlroots)** — works with wlroots-based compositors (Sway, Hyprland, niri, River)
 
-> **GNOME and KDE Wayland** are not yet supported (Tier 2). These compositors use their own private protocols instead of the wlroots protocols. See the placeholder files in `internal/core/infra/platform/linux/wayland_gnome/` and `wayland_kde/` for contribution guidance.
+> **GNOME and KDE Wayland** are not yet supported. These compositors use their own private protocols instead of the wlroots protocols. See the placeholder files in `internal/core/infra/platform/linux/wayland_gnome/` and `wayland_kde/` for contribution guidance.
 
 ---
 
@@ -19,8 +19,8 @@ Neru provides native Linux support through two display server backends:
 | River       | wayland-wlroots   | ✅ Supported  | Full virtual-pointer and layer-shell support                       |
 | X11 / XOrg  | x11               | ✅ Supported  | XTest for input, XRandR for screens                                |
 | i3          | x11               | ✅ Supported  | Runs under X11                                                     |
-| GNOME       | wayland-gnome     | 🔲 Tier 2    | Needs libei + GNOME Shell extension; see PLACEHOLDER.md            |
-| KDE Plasma  | wayland-kde       | 🔲 Tier 2    | Needs KDE-specific protocols; see PLACEHOLDER.md                   |
+| GNOME       | wayland-gnome     | 🔲 Not Supported | Needs libei + GNOME Shell extension; see PLACEHOLDER.md            |
+| KDE Plasma  | wayland-kde       | 🔲 Not Supported | Needs KDE-specific protocols; see PLACEHOLDER.md                   |
 
 ---
 
@@ -216,7 +216,7 @@ systemctl --user enable --now neru
 You're running under X11 or a TTY. Neru will automatically use the X11 backend when `DISPLAY` is set. If you're in a purely headless TTY wrapper, Neru cannot hook inputs.
 
 ### "compositor does not support zwlr_virtual_pointer_v1"
-Your Wayland compositor does not currently implement `wlr` unstable protocols. This typically occurs under strictly isolated GNOME or KDE sessions. Check the Tier 2 placeholder docs to learn how libei implementations will govern GNOME support in the future.
+Your Wayland compositor does not currently implement `wlr` unstable protocols. This typically occurs under strictly isolated GNOME or KDE sessions. Check the placeholder docs to learn how libei implementations will govern GNOME support in the future.
 
 ### "failed to connect to Wayland compositor"
 Check that `WAYLAND_DISPLAY` is set correctly and the Wayland socket permissions map appropriately (especially useful if testing behind Flatpaks or tight sandbox boundaries). 

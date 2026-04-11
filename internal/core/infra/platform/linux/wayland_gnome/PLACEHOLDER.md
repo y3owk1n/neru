@@ -1,4 +1,4 @@
-# GNOME Wayland Backend (Tier 2 - Not Implemented)
+# GNOME Wayland Backend (Not Implemented)
 
 This directory is reserved for a future GNOME Wayland backend.
 
