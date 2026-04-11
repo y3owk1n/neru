@@ -76,10 +76,20 @@ static int neru_ax_get_active_window(Display *display, Window *out) {
 
 	*out = *((Window *)data);
 	XFree(data);
+
+	if (*out == 0) {
+		return 0;
+	}
+
 	return 1;
 }
 
 static unsigned long neru_ax_window_pid(Display *display, Window window, int *ok) {
+	if (window == 0) {
+		*ok = 0;
+		return 0;
+	}
+
 	Atom property = XInternAtom(display, "_NET_WM_PID", False);
 	Atom actual_type;
 	int actual_format;

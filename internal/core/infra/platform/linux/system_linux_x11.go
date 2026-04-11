@@ -93,10 +93,20 @@ static int neru_x11_get_active_window(Display *display, Window *out) {
 
 	*out = *((Window *)data);
 	XFree(data);
+
+	if (*out == 0) {
+		return 0; // Invalid/No focused window
+	}
+
 	return 1;
 }
 
 static unsigned long neru_x11_get_window_pid(Display *display, Window window, int *ok) {
+	if (window == 0) {
+		*ok = 0;
+		return 0;
+	}
+
 	Atom property = XInternAtom(display, "_NET_WM_PID", False);
 	Atom actual_type;
 	int actual_format;
@@ -134,6 +144,10 @@ static unsigned long neru_x11_get_window_pid(Display *display, Window window, in
 }
 
 static char* neru_x11_get_window_class(Display *display, Window window) {
+	if (window == 0) {
+		return NULL;
+	}
+
 	XClassHint hint;
 	if (XGetClassHint(display, window, &hint) == 0) {
 		return NULL;
