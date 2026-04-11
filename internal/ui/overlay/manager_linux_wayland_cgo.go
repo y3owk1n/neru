@@ -270,7 +270,6 @@ static void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 
 static void neru_wayland_overlay_show(NeruWaylandOverlay *overlay) {
     if (!overlay) return;
-    neru_wayland_overlay_setup_buffers(overlay);
     for (int i = 0; i < overlay->nr_screens; i++) {
         NeruWaylandOverlayScreen *scr = &overlay->screens[i];
         if (scr->wl_surface && scr->buffer) {
@@ -398,6 +397,8 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 	if raw == nil {
 		return nil
 	}
+
+	C.neru_wayland_overlay_setup_buffers(raw)
 
 	return &wlrootsOverlay{raw: raw, logger: logger}
 }
