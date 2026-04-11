@@ -10,7 +10,9 @@ package linux
 
 // Include wlroots protocol headers relative to this package.
 #include "wlr_protocol/virtual-pointer.h"
+#include "wlr_protocol/virtual-pointer.c"
 #include "wlr_protocol/xdg-output.h"
+#include "wlr_protocol/xdg-output.c"
 
 // ---------- Forward declarations ----------
 

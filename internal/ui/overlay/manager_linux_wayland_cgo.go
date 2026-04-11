@@ -14,6 +14,7 @@ package overlay
 #include <cairo/cairo.h>
 
 #include "../../core/infra/platform/linux/wlr_protocol/layer-shell.h"
+#include "../../core/infra/platform/linux/wlr_protocol/layer-shell.c"
 #include "../../core/infra/platform/linux/wlr_protocol/xdg-output.h"
 
 // Forward declarations
