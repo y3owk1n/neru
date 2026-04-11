@@ -337,10 +337,10 @@ func (m *Manager) publish(change StateChange) {
 
 func detectLinuxOverlayBackend() linuxOverlayBackend {
 	switch {
-	case os.Getenv("DISPLAY") != "":
-		return linuxOverlayBackendX11
 	case os.Getenv("WAYLAND_DISPLAY") != "":
 		return linuxOverlayBackendWaylandWlroots
+	case os.Getenv("DISPLAY") != "":
+		return linuxOverlayBackendX11
 	default:
 		return linuxOverlayBackendUnknown
 	}
