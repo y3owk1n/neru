@@ -242,19 +242,29 @@ static void neru_keyboard_key(void *data, struct wl_keyboard *keyboard,
     if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         char buf[64] = {0};
 
-        fprintf(stderr, "neru: key press: key=%u mods=0x%x\n", key, current_mods);
-
         if (overlay->xkb_state) {
             xkb_keysym_t keysym = xkb_state_key_get_one_sym(overlay->xkb_state, key + 8);
             xkb_keysym_get_name(keysym, buf, sizeof(buf));
-            fprintf(stderr, "neru: keysym: %s\n", buf);
 
-            int shifted = (current_mods & 1);
-            if (shifted && strlen(buf) == 1 && buf[0] >= 'A' && buf[0] <= 'Z') {
-                snprintf(key_buffer, sizeof(key_buffer), "__modifier_shift %c", buf[0] + 32);
+            // Check modifiers - build modifier prefix
+            char mod_prefix[64] = "";
+            if (current_mods & (1 << 0)) strcat(mod_prefix, "__modifier_shift ");
+            if (current_mods & (1 << 1)) strcat(mod_prefix, "__modifier_ctrl ");
+            if (current_mods & (1 << 2)) strcat(mod_prefix, "__modifier_alt ");
+            if (current_mods & (1 << 3)) strcat(mod_prefix, "__modifier_cmd ");
+
+            // Check if it's a letter (A-Z or a-z)
+            if (strlen(buf) == 1 && ((buf[0] >= 'A' && buf[0] <= 'Z') || (buf[0] >= 'a' && buf[0] <= 'z'))) {
+                // Convert to lowercase for the key
+                char lower = (buf[0] >= 'a') ? buf[0] : buf[0] + 32;
+                if (mod_prefix[0]) {
+                    snprintf(key_buffer, sizeof(key_buffer), "%s%c", mod_prefix, lower);
+                } else {
+                    snprintf(key_buffer, sizeof(key_buffer), "%c", lower);
+                }
                 key_available = 1;
-                fprintf(stderr, "neru: shifted key: %s\n", key_buffer);
             } else if (buf[0]) {
+                // Non-letter keys - just send as-is
                 neruWaylandOverlayOnKey(buf);
             } else {
                 xkb_state_key_get_utf8(overlay->xkb_state, key + 8, buf, sizeof(buf));
@@ -381,6 +391,9 @@ static void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
         NeruWaylandOverlayScreen *scr = &overlay->screens[i];
 
         if (scr->layer_surface) continue; // Already configured
+
+        // Skip if dimensions aren't set yet
+        if (scr->width <= 0 || scr->height <= 0) continue;
 
         scr->wl_surface = wl_compositor_create_surface(overlay->compositor);
 
@@ -645,6 +658,8 @@ func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
 
 func (o *wlrootsOverlay) Show() {
 	if o != nil && o.raw != nil {
+		// Re-setup buffers in case dimensions changed
+		C.neru_wayland_overlay_setup_buffers(o.raw)
 		C.neru_wayland_overlay_show(o.raw)
 	}
 }
