@@ -9,7 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
-func (et *EventTap) run() {
+func (et *EventTap) runWayland() {
 	defer close(et.doneCh)
 
 	if os.Getenv("WAYLAND_DISPLAY") == "" {

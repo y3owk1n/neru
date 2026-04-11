@@ -3,6 +3,7 @@
 package eventtap
 
 import (
+	"os"
 	"strings"
 	"sync"
 
@@ -45,6 +46,14 @@ func (et *EventTap) Enable() {
 	et.mu.Unlock()
 
 	go et.run()
+}
+
+func (et *EventTap) run() {
+	if os.Getenv("WAYLAND_DISPLAY") != "" {
+		et.runWayland()
+	} else {
+		et.runX11()
+	}
 }
 
 func (et *EventTap) Disable() {

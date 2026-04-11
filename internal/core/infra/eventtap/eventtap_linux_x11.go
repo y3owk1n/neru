@@ -53,7 +53,7 @@ import (
 	"unsafe"
 )
 
-func (et *EventTap) run() {
+func (et *EventTap) runX11() {
 	defer close(et.doneCh)
 
 	// Do not attempt an X11 keyboard grab if we are running under Wayland.
