@@ -3,10 +3,12 @@
 package accessibility
 
 /*
-#cgo linux LDFLAGS: -lX11
+#cgo linux LDFLAGS: -lX11 -lXtst
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
+#include <X11/extensions/XTest.h>
+#include <X11/keysym.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,6 +22,29 @@ static void neru_ax_close_display(Display *display) {
 	}
 }
 
+static Window neru_ax_root_window(Display *display) {
+	return RootWindow(display, DefaultScreen(display));
+}
+
+static int neru_ax_query_pointer(Display *display, int *x, int *y) {
+	Window root_return;
+	Window child_return;
+	int win_x, win_y;
+	unsigned int mask_return;
+
+	return XQueryPointer(
+		display,
+		neru_ax_root_window(display),
+		&root_return,
+		&child_return,
+		x,
+		y,
+		&win_x,
+		&win_y,
+		&mask_return
+	);
+}
+
 static int neru_ax_get_active_window(Display *display, Window *out) {
 	Atom property = XInternAtom(display, "_NET_ACTIVE_WINDOW", False);
 	Atom actual_type;
@@ -27,10 +52,9 @@ static int neru_ax_get_active_window(Display *display, Window *out) {
 	unsigned long item_count;
 	unsigned long bytes_after;
 	unsigned char *data = NULL;
-	Window root = RootWindow(display, DefaultScreen(display));
 	int status = XGetWindowProperty(
 		display,
-		root,
+		neru_ax_root_window(display),
 		property,
 		0,
 		1,
@@ -111,15 +135,47 @@ static char* neru_ax_window_class(Display *display, Window window) {
 
 	return class_name;
 }
+
+static int neru_ax_move_pointer(Display *display, int x, int y) {
+	int ok = XTestFakeMotionEvent(display, -1, x, y, CurrentTime);
+	XFlush(display);
+	return ok;
+}
+
+static int neru_ax_button(Display *display, unsigned int button, int pressed) {
+	int ok = XTestFakeButtonEvent(display, button, pressed ? True : False, CurrentTime);
+	XFlush(display);
+	return ok;
+}
+
+static void neru_ax_press_modifier(Display *display, KeySym keysym) {
+	KeyCode keycode = XKeysymToKeycode(display, keysym);
+	if (keycode != 0) {
+		XTestFakeKeyEvent(display, keycode, True, CurrentTime);
+		XFlush(display);
+	}
+}
+
+static void neru_ax_release_modifier(Display *display, KeySym keysym) {
+	KeyCode keycode = XKeysymToKeycode(display, keysym);
+	if (keycode != 0) {
+		XTestFakeKeyEvent(display, keycode, False, CurrentTime);
+		XFlush(display);
+	}
+}
 */
 import "C"
 
 import (
+	"image"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/y3owk1n/neru/internal/core/domain/action"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 func linuxFocusedApplicationIdentity() (string, int) {
@@ -167,4 +223,246 @@ func linuxApplicationBundleIdentifier(pid int) string {
 	}
 
 	return filepath.Base(parts[0])
+}
+
+func x11MoveMouseToPoint(point image.Point) error {
+	display, err := x11ActionDisplay()
+	if err != nil {
+		return err
+	}
+	defer C.neru_ax_close_display(display) //nolint:nlreturn
+
+	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 {
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to move X11 pointer to (%d, %d)",
+			point.X,
+			point.Y,
+		)
+	}
+
+	return nil
+}
+
+func x11CurrentCursorPosition() image.Point {
+	display, err := x11ActionDisplay()
+	if err != nil {
+		return image.Point{}
+	}
+	defer C.neru_ax_close_display(display) //nolint:nlreturn
+
+	var x, y C.int
+	if C.neru_ax_query_pointer(display, &x, &y) == 0 {
+		return image.Point{}
+	}
+
+	return image.Point{X: int(x), Y: int(y)}
+}
+
+func x11LeftClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
+	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, 1)
+}
+
+func x11RightClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
+	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, 3)
+}
+
+func x11MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
+	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, 2)
+}
+
+func x11LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
+	return x11MouseButtonAtPoint(point, modifiers, 1, true, false)
+}
+
+func x11LeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
+	return x11MouseButtonAtPoint(point, modifiers, 1, false, false)
+}
+
+func x11LeftMouseUp() error {
+	display, err := x11ActionDisplay()
+	if err != nil {
+		return err
+	}
+	defer C.neru_ax_close_display(display) //nolint:nlreturn
+
+	if C.neru_ax_button(display, 1, 0) == 0 {
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"failed to release left mouse button on X11",
+		)
+	}
+
+	return nil
+}
+
+func x11ScrollAtCursor(deltaX, deltaY int) error {
+	display, err := x11ActionDisplay()
+	if err != nil {
+		return err
+	}
+	defer C.neru_ax_close_display(display) //nolint:nlreturn
+
+	for range abs(deltaY) {
+		button := C.uint(4)
+		if deltaY < 0 {
+			button = 5
+		}
+		if C.neru_ax_button(display, button, 1) == 0 || C.neru_ax_button(display, button, 0) == 0 {
+			return derrors.New(derrors.CodeActionFailed, "failed vertical scroll event on X11")
+		}
+	}
+
+	for range abs(deltaX) {
+		button := C.uint(7)
+		if deltaX < 0 {
+			button = 6
+		}
+		if C.neru_ax_button(display, button, 1) == 0 || C.neru_ax_button(display, button, 0) == 0 {
+			return derrors.New(derrors.CodeActionFailed, "failed horizontal scroll event on X11")
+		}
+	}
+
+	return nil
+}
+
+func x11ClickButtonAtPoint(
+	point image.Point,
+	restoreCursor bool,
+	modifiers action.Modifiers,
+	button C.uint,
+) error {
+	display, err := x11ActionDisplay()
+	if err != nil {
+		return err
+	}
+	defer C.neru_ax_close_display(display) //nolint:nlreturn
+
+	original := x11CurrentCursorPosition()
+	x11PressModifiers(display, modifiers)
+	defer x11ReleaseModifiers(display, modifiers)
+
+	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 {
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to move X11 pointer to (%d, %d)",
+			point.X,
+			point.Y,
+		)
+	}
+
+	if C.neru_ax_button(display, button, 1) == 0 || C.neru_ax_button(display, button, 0) == 0 {
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"failed to dispatch X11 button click",
+		)
+	}
+
+	if restoreCursor {
+		_ = C.neru_ax_move_pointer(display, C.int(original.X), C.int(original.Y))
+	}
+
+	return nil
+}
+
+func x11MouseButtonAtPoint(
+	point image.Point,
+	modifiers action.Modifiers,
+	button C.uint,
+	isDown bool,
+	restoreCursor bool,
+) error {
+	display, err := x11ActionDisplay()
+	if err != nil {
+		return err
+	}
+	defer C.neru_ax_close_display(display) //nolint:nlreturn
+
+	original := x11CurrentCursorPosition()
+	x11PressModifiers(display, modifiers)
+	defer x11ReleaseModifiers(display, modifiers)
+
+	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 {
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to move X11 pointer to (%d, %d)",
+			point.X,
+			point.Y,
+		)
+	}
+
+	pressed := 0
+	if isDown {
+		pressed = 1
+	}
+
+	if C.neru_ax_button(display, button, C.int(pressed)) == 0 {
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"failed to dispatch X11 mouse button event",
+		)
+	}
+
+	if restoreCursor {
+		_ = C.neru_ax_move_pointer(display, C.int(original.X), C.int(original.Y))
+	}
+
+	return nil
+}
+
+func x11ActionDisplay() (*C.Display, error) {
+	if os.Getenv("DISPLAY") == "" {
+		return nil, derrors.New(
+			derrors.CodeNotSupported,
+			"DISPLAY is not set; X11 action backend is unavailable",
+		)
+	}
+
+	display := C.neru_ax_open_display()
+	if display == nil {
+		return nil, derrors.New(
+			derrors.CodeActionFailed,
+			"failed to open X11 display for mouse injection",
+		)
+	}
+
+	return display, nil
+}
+
+func x11PressModifiers(display *C.Display, modifiers action.Modifiers) {
+	if modifiers.Has(action.ModShift) {
+		C.neru_ax_press_modifier(display, C.XK_Shift_L)
+	}
+	if modifiers.Has(action.ModCtrl) {
+		C.neru_ax_press_modifier(display, C.XK_Control_L)
+	}
+	if modifiers.Has(action.ModAlt) {
+		C.neru_ax_press_modifier(display, C.XK_Alt_L)
+	}
+	if modifiers.Has(action.ModCmd) {
+		C.neru_ax_press_modifier(display, C.XK_Meta_L)
+	}
+}
+
+func x11ReleaseModifiers(display *C.Display, modifiers action.Modifiers) {
+	if modifiers.Has(action.ModCmd) {
+		C.neru_ax_release_modifier(display, C.XK_Meta_L)
+	}
+	if modifiers.Has(action.ModAlt) {
+		C.neru_ax_release_modifier(display, C.XK_Alt_L)
+	}
+	if modifiers.Has(action.ModCtrl) {
+		C.neru_ax_release_modifier(display, C.XK_Control_L)
+	}
+	if modifiers.Has(action.ModShift) {
+		C.neru_ax_release_modifier(display, C.XK_Shift_L)
+	}
+}
+
+func abs(v int) int {
+	if v < 0 {
+		return -v
+	}
+
+	return v
 }

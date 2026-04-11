@@ -4,6 +4,8 @@ package recursivegrid
 
 import (
 	"image"
+	"strconv"
+	"strings"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -89,5 +91,42 @@ func (o *Overlay) HideVirtualPointer() {}
 
 // BuildStyle builds the recursive grid style from the configuration (Linux stub).
 func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Style {
-	return Style{}
+	return Style{
+		LineWidth:      float64(max(cfg.UI.LineWidth, 1)),
+		LineColor:      parseLinuxColor(cfg.UI.LineColor.ForTheme(theme, config.RecursiveGridLineColorLight, config.RecursiveGridLineColorDark)),
+		LabelFontColor: parseLinuxColor(cfg.UI.TextColor.ForTheme(theme, config.RecursiveGridTextColorLight, config.RecursiveGridTextColorDark)),
+		LabelFontSize:  float64(max(cfg.UI.FontSize, 14)),
+		LabelFontName:  cfg.UI.FontFamily,
+		ShowLabels:     true,
+	}
+}
+
+func parseLinuxColor(value string) uint32 {
+	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
+	switch len(value) {
+	case 3:
+		value = "FF" + strings.Repeat(string(value[0]), 2) +
+			strings.Repeat(string(value[1]), 2) +
+			strings.Repeat(string(value[2]), 2)
+	case 6:
+		value = "FF" + value
+	case 8:
+	default:
+		return 0xFFFFFFFF
+	}
+
+	parsed, err := strconv.ParseUint(value, 16, 32)
+	if err != nil {
+		return 0xFFFFFFFF
+	}
+
+	return uint32(parsed)
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+
+	return b
 }

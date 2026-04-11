@@ -120,6 +120,9 @@ func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 	if s.backend == "x11" {
 		return x11ActiveScreenBounds()
 	}
+	if s.backend == "wayland-wlroots" {
+		return wlrootsScreenBounds()
+	}
 
 	return image.Rectangle{}, derrors.New(
 		derrors.CodeNotSupported,
@@ -136,6 +139,9 @@ func (s *SystemAdapter) ScreenBoundsByName(
 	if s.backend == "x11" {
 		return x11ScreenBoundsByName(name)
 	}
+	if s.backend == "wayland-wlroots" {
+		return wlrootsScreenBoundsByName(name)
+	}
 
 	return image.Rectangle{}, false, derrors.New(
 		derrors.CodeNotSupported,
@@ -148,6 +154,9 @@ func (s *SystemAdapter) ScreenBoundsByName(
 func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
 	if s.backend == "x11" {
 		return x11ScreenNames()
+	}
+	if s.backend == "wayland-wlroots" {
+		return wlrootsScreenNames()
 	}
 
 	return nil, derrors.New(
@@ -166,6 +175,9 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	if s.backend == "x11" {
 		return x11MoveCursorToPoint(point)
 	}
+	if s.backend == "wayland-wlroots" {
+		return wlrootsMoveCursorToPoint(point)
+	}
 
 	return derrors.New(derrors.CodeNotSupported, "MoveCursorToPoint not yet implemented on linux")
 }
@@ -180,6 +192,9 @@ func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
 	if s.backend == "x11" {
 		return x11CursorPosition()
+	}
+	if s.backend == "wayland-wlroots" {
+		return wlrootsCursorPosition()
 	}
 
 	return image.Point{}, derrors.New(

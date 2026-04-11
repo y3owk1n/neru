@@ -3,65 +3,151 @@
 package eventtap
 
 import (
-	"context"
+	"strings"
+	"sync"
 
 	"go.uber.org/zap"
 )
 
-// Callback defines the function signature for handling key press events.
 type Callback func(key string)
-
-// PassthroughCallback is invoked when a modifier shortcut passes through to the system.
 type PassthroughCallback func()
 
-// EventTap represents a keyboard event interceptor (Linux stub).
 type EventTap struct {
 	logger *zap.Logger
+
+	mu                   sync.RWMutex
+	callback             Callback
+	passthroughCallback  PassthroughCallback
+	hotkeys              []string
+	stickyModifierToggle bool
+	enabled              bool
+
+	stopCh chan struct{}
+	doneCh chan struct{}
 }
 
-// NewEventTap initializes a new event tap for Linux (stub).
-func NewEventTap(_ Callback, logger *zap.Logger) *EventTap {
-	return &EventTap{logger: logger}
+func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
+	return &EventTap{
+		logger:   logger,
+		callback: callback,
+	}
 }
 
-// Enable enables the event tap (Linux stub).
-func (et *EventTap) Enable() {}
+func (et *EventTap) Enable() {
+	et.mu.Lock()
+	if et.enabled {
+		et.mu.Unlock()
+		return
+	}
+	et.stopCh = make(chan struct{})
+	et.doneCh = make(chan struct{})
+	et.enabled = true
+	et.mu.Unlock()
 
-// Disable disables the event tap (Linux stub).
-func (et *EventTap) Disable() {}
+	go et.run()
+}
 
-// Destroy destroys the event tap (Linux stub).
-func (et *EventTap) Destroy() {}
+func (et *EventTap) Disable() {
+	et.mu.Lock()
+	if !et.enabled {
+		et.mu.Unlock()
+		return
+	}
+	stopCh := et.stopCh
+	doneCh := et.doneCh
+	et.enabled = false
+	et.mu.Unlock()
 
-// SetHotkeys sets the hotkeys (Linux stub).
-func (et *EventTap) SetHotkeys(_ []string) {}
+	close(stopCh)
+	<-doneCh
+}
 
-// SetModifierPassthrough sets modifier passthrough (Linux stub).
+func (et *EventTap) Destroy() {
+	et.Disable()
+}
+
+func (et *EventTap) SetHotkeys(hotkeys []string) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+	et.hotkeys = append([]string(nil), hotkeys...)
+}
+
 func (et *EventTap) SetModifierPassthrough(_ bool, _ []string) {}
 
-// SetInterceptedModifierKeys sets intercepted modifier keys (Linux stub).
 func (et *EventTap) SetInterceptedModifierKeys(_ []string) {}
 
-// SetPassthroughCallback sets the passthrough callback (Linux stub).
-func (et *EventTap) SetPassthroughCallback(_ PassthroughCallback) {}
+func (et *EventTap) SetPassthroughCallback(cb PassthroughCallback) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+	et.passthroughCallback = cb
+}
 
-// SetStickyModifierToggle enables or disables sticky modifier toggle detection (Linux stub).
-func (et *EventTap) SetStickyModifierToggle(_ bool) {}
+func (et *EventTap) SetStickyModifierToggle(enabled bool) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+	et.stickyModifierToggle = enabled
+}
 
-// PostModifierEvent simulates a physical modifier key press or release (Linux stub).
 func (et *EventTap) PostModifierEvent(_ string, _ bool) {}
 
-// SetKeyboardLayout sets the keyboard layout (Linux stub).
 func (et *EventTap) SetKeyboardLayout(_ string) bool { return true }
 
-// IsEnabled returns whether the event tap is enabled (Linux stub).
-func (et *EventTap) IsEnabled() bool { return false }
+func (et *EventTap) IsEnabled() bool {
+	et.mu.RLock()
+	defer et.mu.RUnlock()
+	return et.enabled
+}
 
-// SetHandler sets the key handler (Linux stub).
-func (et *EventTap) SetHandler(_ func(key string)) {}
+func (et *EventTap) SetHandler(handler func(key string)) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+	et.callback = handler
+}
 
-// EnableWithContext enables the event tap with context (Linux stub).
-func (et *EventTap) EnableWithContext(_ context.Context) error { return nil }
+func (et *EventTap) dispatchKey(key string) {
+	et.mu.RLock()
+	callback := et.callback
+	et.mu.RUnlock()
+	if callback != nil && key != "" {
+		callback(key)
+	}
+}
 
-// DisableWithContext disables the event tap with context (Linux stub).
-func (et *EventTap) DisableWithContext(_ context.Context) error { return nil }
+func (et *EventTap) stickyToggleEnabled() bool {
+	et.mu.RLock()
+	defer et.mu.RUnlock()
+	return et.stickyModifierToggle
+}
+
+func normalizeLinuxKey(key string) string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return ""
+	}
+
+	switch strings.ToLower(key) {
+	case "return":
+		return "Return"
+	case "space":
+		return "Space"
+	case "tab":
+		return "Tab"
+	case "escape", "esc":
+		return "Escape"
+	case "backspace":
+		return "Delete"
+	case "left":
+		return "Left"
+	case "right":
+		return "Right"
+	case "up":
+		return "Up"
+	case "down":
+		return "Down"
+	default:
+		if len([]rune(key)) == 1 {
+			return strings.ToLower(key)
+		}
+		return key
+	}
+}

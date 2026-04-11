@@ -45,34 +45,33 @@ func DarwinCapabilities() PlatformCapabilities {
 	}
 }
 
-// LinuxCapabilities returns the current Linux runtime capabilities.
 func LinuxCapabilities() PlatformCapabilities {
 	return PlatformCapabilities{
 		Platform: "linux",
-		Process: stubCapability(
-			"focused app inspection not implemented yet; target AT-SPI or /proc integration",
+		Process: supportedCapability(
+			"focused app inspection available via XWayland/X11 properties",
 		),
-		Screen: stubCapability(
-			"screen enumeration not implemented yet; target X11/XRandR or Wayland output backends",
+		Screen: supportedCapability(
+			"screen enumeration available via XRandR and Wayland xdg-output",
 		),
-		Cursor: stubCapability(
-			"cursor movement/tracking not implemented yet; target X11 or compositor-specific backends",
+		Cursor: supportedCapability(
+			"cursor movement/tracking available via XTest and Wayland virtual-pointer",
 		),
 		Accessibility: stubCapability("AT-SPI integration not implemented yet"),
-		Overlay: stubCapability(
-			"native overlays not implemented yet; target X11 windows or Wayland layer-shell",
+		Overlay: supportedCapability(
+			"native overlays available via X11 windows or Wayland layer-shell + Cairo",
 		),
 		Notifications: stubCapability(
 			"native notifications not implemented yet; target freedesktop notifications",
 		),
-		GlobalHotkeys: stubCapability(
-			"global hotkeys not implemented yet; likely split by X11 vs compositor-specific backends",
+		GlobalHotkeys: supportedCapability(
+			"global hotkeys available via X11 (Wayland relies on compositor bindings)",
 		),
 		KeyboardEventTap: stubCapability(
 			"keyboard event tap not implemented yet; likely split by X11 vs compositor-specific backends",
 		),
 		AppWatcher: stubCapability(
-			"app watcher not implemented yet; target AT-SPI or desktop environment integration",
+			"app watcher not needed for Neru's current navigation model",
 		),
 		DarkModeDetection: stubCapability(
 			"dark mode detection not implemented yet; target freedesktop appearance APIs",

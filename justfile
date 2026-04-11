@@ -14,22 +14,19 @@ default: build
 
 # Build the application (development)
 
-# Uses CGO on macOS today (required for Objective-C bridge). Linux and Windows
-# currently build with CGO disabled because their native backends are still
-# stubs; that will likely become backend-dependent as real implementations land.
+# Uses CGO on macOS (required for Objective-C bridge) and Linux (required for
+# X11/Wayland native backends). Windows currently builds with CGO disabled.
 build:
     @echo "Building Neru..."
     @echo "Version: {{ VERSION }}"
-    {{ if os() == "macos" { "CGO_ENABLED=1" } else { "CGO_ENABLED=0" } }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru{{ if os() == "windows" { ".exe" } else { "" } }} ./cmd/neru
+    {{ if os() == "windows" { "CGO_ENABLED=0" } else { "CGO_ENABLED=1" } }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru{{ if os() == "windows" { ".exe" } else { "" } }} ./cmd/neru
     @echo "✓ Build complete: bin/neru"
 
-# Build a Linux foundations binary from any host.
-# This is useful for contributor smoke tests while Linux backends are still
-# mostly scaffolding.
+# Build a Linux binary. Must run on a Linux host (CGO required for native backends).
 build-linux ARCH="amd64":
     @echo "Building Neru for linux/{{ ARCH }}..."
     mkdir -p bin
-    CGO_ENABLED=0 GOOS=linux GOARCH={{ ARCH }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru-linux-{{ ARCH }} ./cmd/neru
+    CGO_ENABLED=1 GOOS=linux GOARCH={{ ARCH }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru-linux-{{ ARCH }} ./cmd/neru
     @echo "✓ Build complete: bin/neru-linux-{{ ARCH }}"
 
 # Build a Windows foundations binary from any host.
@@ -65,8 +62,8 @@ build-version VERSION_OVERRIDE:
     @echo "✓ Build complete: bin/neru (version: {{ VERSION_OVERRIDE }})"
 
 # Build release artifacts for CI (cross-platform).
-# Current Linux/Windows artifacts assume pure-Go stub foundations. Revisit
-# per-target CGO flags once real backend families are selected.
+# Linux artifacts require CGO_ENABLED=1 and must be built on a Linux runner.
+# Windows artifacts remain pure-Go stubs.
 release-ci VERSION_OVERRIDE:
     @echo "Building release artifacts for CI..."
     @echo "Version: {{ VERSION_OVERRIDE }}"
@@ -78,13 +75,13 @@ release-ci VERSION_OVERRIDE:
     @echo "Building darwin-amd64..."
     CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-amd64 ./cmd/neru
     @echo "Building linux-amd64..."
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-amd64 ./cmd/neru
+    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-amd64 ./cmd/neru
     @echo "Building windows-amd64..."
     CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-amd64.exe ./cmd/neru
     @echo "Building windows-arm64..."
     CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-arm64.exe ./cmd/neru
     @echo "Building linux-arm64..."
-    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-arm64 ./cmd/neru
+    CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-arm64 ./cmd/neru
     @echo "✓ Release artifacts built successfully"
 
 # Bundle the application
