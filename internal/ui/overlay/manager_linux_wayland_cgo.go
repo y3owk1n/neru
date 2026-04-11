@@ -12,8 +12,8 @@ package overlay
 #include <string.h>
 #include <cairo/cairo.h>
 
-#include "../core/infra/platform/linux/wlr_protocol/layer-shell.h"
-#include "../core/infra/platform/linux/wlr_protocol/xdg-output.h"
+#include "../../core/infra/platform/linux/wlr_protocol/layer-shell.h"
+#include "../../core/infra/platform/linux/wlr_protocol/xdg-output.h"
 
 // Forward declarations
 #define NERU_MAX_OUTPUTS 16
