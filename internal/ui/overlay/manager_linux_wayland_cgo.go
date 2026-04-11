@@ -239,16 +239,28 @@ static void neru_keyboard_leave(void *data, struct wl_keyboard *keyboard,
 static void neru_keyboard_key(void *data, struct wl_keyboard *keyboard,
     uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
     NeruWaylandOverlay *overlay = (NeruWaylandOverlay *)data;
-    if (state == WL_KEYBOARD_KEY_STATE_PRESSED && overlay->xkb_state) {
+    if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         char buf[64] = {0};
-        xkb_keysym_t keysym = xkb_state_key_get_one_sym(overlay->xkb_state, key + 8);
-        xkb_keysym_get_name(keysym, buf, sizeof(buf));
-        if (buf[0]) {
-            neruWaylandOverlayOnKey(buf);
-        } else {
-            xkb_state_key_get_utf8(overlay->xkb_state, key + 8, buf, sizeof(buf));
-            if (buf[0]) {
+
+        fprintf(stderr, "neru: key press: key=%u mods=0x%x\n", key, current_mods);
+
+        if (overlay->xkb_state) {
+            xkb_keysym_t keysym = xkb_state_key_get_one_sym(overlay->xkb_state, key + 8);
+            xkb_keysym_get_name(keysym, buf, sizeof(buf));
+            fprintf(stderr, "neru: keysym: %s\n", buf);
+
+            int shifted = (current_mods & 1);
+            if (shifted && strlen(buf) == 1 && buf[0] >= 'A' && buf[0] <= 'Z') {
+                snprintf(key_buffer, sizeof(key_buffer), "__modifier_shift %c", buf[0] + 32);
+                key_available = 1;
+                fprintf(stderr, "neru: shifted key: %s\n", key_buffer);
+            } else if (buf[0]) {
                 neruWaylandOverlayOnKey(buf);
+            } else {
+                xkb_state_key_get_utf8(overlay->xkb_state, key + 8, buf, sizeof(buf));
+                if (buf[0]) {
+                    neruWaylandOverlayOnKey(buf);
+                }
             }
         }
     }
