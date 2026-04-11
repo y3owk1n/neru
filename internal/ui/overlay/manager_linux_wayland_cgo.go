@@ -16,8 +16,11 @@ package overlay
 #include <poll.h>
 
 #include "../../core/infra/platform/linux/wlr_protocol/xdg-shell.h"
+#include "../../core/infra/platform/linux/wlr_protocol/xdg-shell.c"
 #include "../../core/infra/platform/linux/wlr_protocol/layer-shell.h"
+#include "../../core/infra/platform/linux/wlr_protocol/layer-shell.c"
 #include "../../core/infra/platform/linux/wlr_protocol/xdg-output.h"
+#include "../../core/infra/platform/linux/wlr_protocol/xdg-output.c"
 
 // Forward declarations
 #define NERU_MAX_OUTPUTS 16
