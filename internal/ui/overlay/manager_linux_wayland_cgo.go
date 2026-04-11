@@ -525,7 +525,6 @@ func (o *wlrootsOverlay) DrawBadge(x, y int, text string, colors overlayColors) 
 	}
 
 	paddingX := 10
-	paddingY := 6
 	fontSize := 14.0
 	width := len(text)*9 + paddingX*2
 	height := 24
