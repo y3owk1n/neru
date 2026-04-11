@@ -39,7 +39,7 @@ typedef struct {
 	struct wl_surface *cursor_surface; // temp surface for cursor discovery
 } NeruWaylandScreen;
 
-typedef struct {
+typedef struct NeruWlrootsClient {
 	struct wl_display *display;
 	struct wl_registry *registry;
 	struct wl_compositor *compositor;
