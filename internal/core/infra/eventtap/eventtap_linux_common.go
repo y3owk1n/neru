@@ -55,22 +55,6 @@ func (et *EventTap) Enable() {
 	go et.run()
 }
 
-// SetHandler sets the callback for key events.
-func (et *EventTap) SetHandler(handler func(key string)) {
-	et.mu.Lock()
-	defer et.mu.Unlock()
-	et.callback = handler
-}
-
-// run starts the event interception loop.
-func (et *EventTap) run() {
-	if os.Getenv("WAYLAND_DISPLAY") != "" {
-		et.runWayland()
-	} else {
-		et.runX11()
-	}
-}
-
 // Disable stops intercepting keyboard events.
 func (et *EventTap) Disable() {
 	et.mu.Lock()
@@ -90,6 +74,13 @@ func (et *EventTap) Disable() {
 // Destroy stops and cleans up the EventTap.
 func (et *EventTap) Destroy() {
 	et.Disable()
+}
+
+// SetHandler sets the callback for key events.
+func (et *EventTap) SetHandler(handler func(key string)) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+	et.callback = handler
 }
 
 // SetHotkeys configures the hotkey list.
@@ -130,6 +121,15 @@ func (et *EventTap) IsEnabled() bool {
 	et.mu.RLock()
 	defer et.mu.RUnlock()
 	return et.enabled
+}
+
+// run starts the event interception loop.
+func (et *EventTap) run() {
+	if os.Getenv("WAYLAND_DISPLAY") != "" {
+		et.runWayland()
+	} else {
+		et.runX11()
+	}
 }
 
 // dispatchKey dispatches a key event to the callback.

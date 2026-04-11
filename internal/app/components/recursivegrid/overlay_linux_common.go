@@ -17,6 +17,9 @@ const (
 	minFontSize   = 14
 	hexDigitCount = 2
 	invalidColor  = 0xFFFFFFFF
+	colorLen3     = 3
+	colorLen6     = 6
+	colorLen8     = 8
 )
 
 // Style holds the styling information for a recursive grid.
@@ -122,13 +125,13 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 func parseLinuxColor(value string) uint32 {
 	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
 	switch len(value) {
-	case 3:
+	case colorLen3:
 		value = "FF" + strings.Repeat(string(value[0]), hexDigitCount) +
 			strings.Repeat(string(value[1]), hexDigitCount) +
 			strings.Repeat(string(value[2]), hexDigitCount)
-	case 6:
+	case colorLen6:
 		value = "FF" + value
-	case 8:
+	case colorLen8:
 	default:
 		return invalidColor
 	}

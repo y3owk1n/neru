@@ -188,6 +188,13 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
+const (
+	mouseButtonLeft   = 2
+	mouseButtonRight  = 3
+	mouseButtonMiddle = 4
+	mouseButtonBack   = 7
+)
+
 func linuxFocusedApplicationIdentity() (string, int) {
 	if os.Getenv("DISPLAY") == "" {
 		return "", 0
@@ -270,11 +277,11 @@ func x11CurrentCursorPosition() image.Point {
 }
 
 func x11LeftClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
-	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, 1)
+	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, mouseButtonLeft)
 }
 
 func x11RightClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Modifiers) error {
-	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, 3)
+	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, mouseButtonRight)
 }
 
 func x11MiddleClickAtPoint(
@@ -282,7 +289,7 @@ func x11MiddleClickAtPoint(
 	restoreCursor bool,
 	modifiers action.Modifiers,
 ) error {
-	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, 2)
+	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, mouseButtonMiddle)
 }
 
 func x11LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {

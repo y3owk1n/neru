@@ -18,6 +18,10 @@ const (
 	minFontSize  = 12
 	minLineWidth = 1
 	invalidColor = 0xFFFFFFFF
+	hexPairCount = 2
+	colorLen3    = 3
+	colorLen6    = 6
+	colorLen8    = 8
 )
 
 // Style holds the styling information for a grid.
@@ -114,17 +118,15 @@ func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 }
 
 func parseLinuxColor(value string) uint32 {
-	const hexFormat = 2
-
 	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
 	switch len(value) {
-	case 3:
-		value = "FF" + strings.Repeat(string(value[0]), hexFormat) +
-			strings.Repeat(string(value[1]), hexFormat) +
-			strings.Repeat(string(value[2]), hexFormat)
-	case 6:
+	case colorLen3:
+		value = "FF" + strings.Repeat(string(value[0]), hexPairCount) +
+			strings.Repeat(string(value[1]), hexPairCount) +
+			strings.Repeat(string(value[2]), hexPairCount)
+	case colorLen6:
 		value = "FF" + value
-	case 8:
+	case colorLen8:
 	default:
 		return invalidColor
 	}

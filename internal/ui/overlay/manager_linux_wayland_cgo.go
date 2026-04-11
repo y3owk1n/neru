@@ -667,19 +667,6 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 	return o
 }
 
-func (o *wlrootsOverlay) keyboardPoller() {
-	for o.raw != nil {
-		C.neruWaylandOverlayPoll(o.raw)
-		key := C.neruWaylandOverlayGetKey(o.raw)
-		if key != nil {
-			select {
-			case wlrootsKeyboardCh <- C.GoString(key):
-			default:
-			}
-		}
-	}
-}
-
 func (o *wlrootsOverlay) Healthy() bool {
 	return o != nil && o.raw != nil
 }
@@ -869,6 +856,20 @@ func (o *wlrootsOverlay) DrawBadge(x, y int, text string, colors overlayColors) 
 	o.drawRect(rect, colors.background, colors.border, 1)
 	o.drawTextCentered(text, rect, fontSize, colors.text)
 	C.neru_wayland_overlay_flush(o.raw)
+}
+
+// keyboardPoller polls for keyboard events.
+func (o *wlrootsOverlay) keyboardPoller() {
+	for o.raw != nil {
+		C.neruWaylandOverlayPoll(o.raw)
+		key := C.neruWaylandOverlayGetKey(o.raw)
+		if key != nil {
+			select {
+			case wlrootsKeyboardCh <- C.GoString(key):
+			default:
+			}
+		}
+	}
 }
 
 func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
