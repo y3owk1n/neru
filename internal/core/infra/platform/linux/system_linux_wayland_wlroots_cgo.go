@@ -8,7 +8,6 @@ package linux
 #include <wayland-client.h>
 #include <stdlib.h>
 #include <string.h>
-#include <poll.h>
 
 // Include wlroots protocol headers relative to this package.
 #include "wlr_protocol/virtual-pointer.h"
@@ -23,8 +22,8 @@ package linux
 // Forward declare NeruWlrootsClient (defined after NeruWaylandScreen)
 typedef struct NeruWlrootsClient NeruWlrootsClient;
 
-// Forward declare the discover function
-static void neru_wlr_discover_cursor(NeruWlrootsClient *c);
+// Forward declare the cursor init function
+static void neru_wlr_init_cursor(NeruWlrootsClient *c);
 
 typedef struct {
 	int x;
@@ -36,7 +35,6 @@ typedef struct {
 	char name_valid;
 	struct wl_output *wl_output;
 	struct zxdg_output_v1 *xdg_output;
-	struct wl_surface *cursor_surface; // temp surface for cursor discovery
 } NeruWaylandScreen;
 
 typedef struct NeruWlrootsClient {
@@ -54,7 +52,10 @@ typedef struct NeruWlrootsClient {
 	NeruWaylandScreen screens[NERU_MAX_OUTPUTS];
 	int nr_screens;
 
-	// Cursor position cache (updated by pointer enter/motion events).
+	// Cursor position cache (updated ONLY by neru_wlr_move_absolute).
+	// Wayland has no protocol to query global pointer position, so we must
+	// track it client-side. Pointer enter/motion events give surface-local
+	// coords that are meaningless for global tracking.
 	int cursor_x;
 	int cursor_y;
 	int cursor_initialized;
@@ -69,14 +70,10 @@ static void neru_wlr_pointer_enter(void *data,
 	struct wl_surface *surface,
 	wl_fixed_t sx, wl_fixed_t sy)
 {
-	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	// pointer enter gives surface-local coords, but for our overlay surfaces
-	// we track the logical position via the screen geometry.
-	// For cursor initialization we use the enter event.
-	if (!c->cursor_initialized) {
-		// Will be refined by discover_pointer_location pattern.
-		c->cursor_initialized = 1;
-	}
+	// No-op. Pointer enter gives surface-local coords which are meaningless
+	// for global cursor tracking. Cursor position is tracked client-side
+	// via neru_wlr_move_absolute only (matching warpd's pattern).
+	(void)data; (void)pointer; (void)serial; (void)surface; (void)sx; (void)sy;
 }
 
 static void neru_wlr_pointer_leave(void *data,
@@ -92,12 +89,12 @@ static void neru_wlr_pointer_motion(void *data,
 	uint32_t time,
 	wl_fixed_t sx, wl_fixed_t sy)
 {
-	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	// Convert surface-local coords to absolute by adding screen offset
-	// For now, just use the values as-is - proper mapping requires screen tracking
-	c->cursor_x = wl_fixed_to_int(sx);
-	c->cursor_y = wl_fixed_to_int(sy);
-	c->cursor_initialized = 1;
+	// No-op. Motion events give surface-local coords which would corrupt
+	// the global cursor position tracked via neru_wlr_move_absolute.
+	// This was the root cause of the "stale cache" bug: poll_cursor()
+	// dispatched events which triggered this handler, overwriting the
+	// correctly-set global position with meaningless surface-local coords.
+	(void)data; (void)pointer; (void)time; (void)sx; (void)sy;
 }
 
 static void neru_wlr_pointer_button(void *data,
@@ -316,9 +313,6 @@ static void neru_wlr_disconnect(NeruWlrootsClient *c) {
 		if (c->screens[i].xdg_output) {
 			zxdg_output_v1_destroy(c->screens[i].xdg_output);
 		}
-		if (c->screens[i].cursor_surface) {
-			wl_surface_destroy(c->screens[i].cursor_surface);
-		}
 	}
 	if (c->display) {
 		wl_display_disconnect(c->display);
@@ -326,56 +320,15 @@ static void neru_wlr_disconnect(NeruWlrootsClient *c) {
 	free(c);
 }
 
-// Discover cursor position by creating temporary invisible surfaces on each screen
-// and waiting for pointer enter events. Similar to warpd's approach.
-static void neru_wlr_discover_cursor(NeruWlrootsClient *c) {
-	if (!c || !c->compositor || c->nr_screens == 0) return;
+// Initialize cursor position to the center of the screen containing the
+// cursor (or first screen). Wayland has no protocol to query global
+// pointer position, so we initialize to the center and then track
+// position purely client-side via neru_wlr_move_absolute (matching
+// warpd's pattern where ptr.x/ptr.y are only set by way_mouse_move).
+static void neru_wlr_init_cursor(NeruWlrootsClient *c) {
+	if (!c || c->nr_screens == 0) return;
 
-	// Create a small invisible surface for each screen to capture cursor
-	for (int i = 0; i < c->nr_screens; i++) {
-		NeruWaylandScreen *scr = &c->screens[i];
-		if (scr->x >= 0 && scr->y >= 0) {
-			// Only create surface for screens with valid position
-			scr->cursor_surface = wl_compositor_create_surface(c->compositor);
-		}
-	}
-
-	// Add pointer listener to capture cursor position
-	if (c->seat && !c->pointer) {
-		c->pointer = wl_seat_get_pointer(c->seat);
-		wl_pointer_add_listener(c->pointer, &neru_wlr_pointer_listener, c);
-	}
-
-	// Dispatch events to trigger enter events on surfaces
-	wl_display_flush(c->display);
-
-	// Poll for events with a short timeout to allow cursor detection
-	struct pollfd pfd = {
-		.fd = wl_display_get_fd(c->display),
-		.events = POLLIN,
-		.revents = 0
-	};
-
-	int discovered = 0;
-	for (int i = 0; i < 50 && !discovered; i++) { // 50 * 20ms = 1 second max
-		if (poll(&pfd, 1, 20) > 0 && (pfd.revents & POLLIN)) {
-			wl_display_dispatch(c->display);
-		}
-		if (c->cursor_initialized) {
-			discovered = 1;
-		}
-	}
-
-	// Clean up cursor surfaces
-	for (int i = 0; i < c->nr_screens; i++) {
-		if (c->screens[i].cursor_surface) {
-			wl_surface_destroy(c->screens[i].cursor_surface);
-			c->screens[i].cursor_surface = NULL;
-		}
-	}
-
-	// If still not initialized, use first screen center as fallback
-	if (!c->cursor_initialized && c->nr_screens > 0) {
+	if (!c->cursor_initialized) {
 		NeruWaylandScreen *scr = &c->screens[0];
 		c->cursor_x = scr->x + scr->w / 2;
 		c->cursor_y = scr->y + scr->h / 2;
@@ -485,22 +438,6 @@ static int neru_wlr_screen_info(NeruWlrootsClient *c, int idx,
 static int neru_wlr_has_virtual_pointer(NeruWlrootsClient *c) {
 	return c && c->vptr != NULL;
 }
-
-// Poll Wayland display for cursor position updates
-static void neru_wlr_poll_cursor(NeruWlrootsClient *c) {
-	if (!c || !c->display) return;
-
-	struct pollfd pfd = {
-		.fd = wl_display_get_fd(c->display),
-		.events = POLLIN,
-		.revents = 0
-	};
-
-	// Poll with short timeout to get pending events
-	if (poll(&pfd, 1, 0) > 0 && (pfd.revents & POLLIN)) {
-		wl_display_dispatch(c->display);
-	}
-}
 */
 import "C"
 
@@ -562,8 +499,10 @@ func ensureWlrootsState() error {
 		)
 	}
 
-	// Discover initial cursor position
-	C.neru_wlr_discover_cursor(client)
+	// Initialize cursor position to screen center. Wayland has no
+	// protocol to query global pointer position, so we track it
+	// client-side via move_absolute only (matching warpd's pattern).
+	C.neru_wlr_init_cursor(client)
 
 	// Populate screen list from the client.
 	count := int(C.neru_wlr_screen_count(client))
@@ -682,9 +621,9 @@ func wlrootsCursorPositionLocked() (image.Point, error) {
 		return image.Point{}, nil
 	}
 
-	// Poll for pending Wayland events to get latest cursor position
-	C.neru_wlr_poll_cursor(client)
-
+	// Cursor position is tracked purely client-side via move_absolute.
+	// No need to poll Wayland events — doing so previously triggered
+	// the pointer motion handler which corrupted the position cache.
 	var x, y C.int
 	initialized := C.neru_wlr_get_cursor(client, &x, &y)
 
