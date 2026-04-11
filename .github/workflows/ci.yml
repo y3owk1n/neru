@@ -30,22 +30,6 @@ jobs:
                   repository: ${{ github.event.pull_request.head.repo.full_name }}
                   ref: ${{ github.head_ref }}
 
-            # Install Linux-only build dependencies for CGo backends
-            - name: Install Linux build dependencies
-              if: runner.os == 'Linux'
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y \
-                    libcairo2-dev \
-                    libwayland-dev \
-                    libx11-dev \
-                    libxtst-dev \
-                    libxrandr-dev \
-                    libxinerama-dev \
-                    libxfixes-dev \
-                    libxkbcommon-dev \
-                    wayland-protocols
-
             # Install Devbox on Linux/macOS only
             - name: Install Devbox
               if: runner.os != 'Windows'

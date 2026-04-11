@@ -10,6 +10,16 @@
 		"go@1.26.1",
 		"nixd@2.9.0",
 		"golangci-lint@2.11.3",
-		"just-lsp@0.3.4"
+		"just-lsp@0.3.4",
+		"pkg-config@0.29.2",
+		"cairo@1.18.4",
+		"wayland@1.22.0",
+		"xorg.libX11@1.8.12",
+		"xorg.libXtst@1.2.5",
+		"xorg.libXrandr@1.5.4",
+		"xorg.libXinerama@1.1.5",
+		"xorg.libXfixes@6.0.1",
+		"libxkbcommon@1.13.1",
+		"wayland-protocols@1.33"
 	]
 }
