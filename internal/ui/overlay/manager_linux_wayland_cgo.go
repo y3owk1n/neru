@@ -154,12 +154,16 @@ static void neru_xdg_output_logical_size(void *data,
     scr->height = h;
 }
 
+static void neru_xdg_output_done(void *data, struct zxdg_output_v1 *xdg_output) {}
+static void neru_xdg_output_name(void *data, struct zxdg_output_v1 *xdg_output, const char *name) {}
+static void neru_xdg_output_description(void *data, struct zxdg_output_v1 *xdg_output, const char *description) {}
+
 static const struct zxdg_output_v1_listener xdg_output_listener = {
     .logical_position = neru_xdg_output_logical_position,
     .logical_size = neru_xdg_output_logical_size,
-    .done = NULL,
-    .name = NULL,
-    .description = NULL,
+    .done = neru_xdg_output_done,
+    .name = neru_xdg_output_name,
+    .description = neru_xdg_output_description,
 };
 
 static NeruWaylandOverlay* neru_wayland_overlay_new(void) {
