@@ -464,6 +464,33 @@ static void neru_wayland_overlay_hide(NeruWaylandOverlay *overlay) {
             wl_surface_attach(scr->wl_surface, NULL, 0, 0);
             wl_surface_commit(scr->wl_surface);
         }
+        // Destroy layer surface to allow proper recreation on next show
+        if (scr->layer_surface) {
+            zwlr_layer_surface_v1_destroy(scr->layer_surface);
+            scr->layer_surface = NULL;
+        }
+        // Also destroy the surface
+        if (scr->wl_surface) {
+            wl_surface_destroy(scr->wl_surface);
+            scr->wl_surface = NULL;
+        }
+        // Destroy buffer and cairo
+        if (scr->buffer) {
+            wl_buffer_destroy(scr->buffer);
+            scr->buffer = NULL;
+        }
+        if (scr->cairo_surface) {
+            cairo_surface_destroy(scr->cairo_surface);
+            scr->cairo_surface = NULL;
+        }
+        if (scr->cr) {
+            cairo_destroy(scr->cr);
+            scr->cr = NULL;
+        }
+        if (scr->shm_data) {
+            munmap(scr->shm_data, scr->shm_size);
+            scr->shm_data = NULL;
+        }
     }
     wl_display_flush(overlay->display);
 }
