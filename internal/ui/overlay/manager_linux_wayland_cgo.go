@@ -736,6 +736,7 @@ func (o *wlrootsOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridco
 	if o == nil || o.raw == nil || g == nil {
 		return
 	}
+	C.neru_wayland_overlay_setup_buffers(o.raw)
 	o.Clear()
 
 	prefix := strings.ToUpper(input)
@@ -775,6 +776,7 @@ func (o *wlrootsOverlay) DrawRecursiveGrid(
 	if o == nil || o.raw == nil || bounds.Empty() || gridCols <= 0 || gridRows <= 0 {
 		return
 	}
+	C.neru_wayland_overlay_setup_buffers(o.raw)
 	o.Clear()
 
 	keyRunes := []rune(strings.ToUpper(keys))
@@ -821,6 +823,7 @@ func (o *wlrootsOverlay) DrawBadge(x, y int, text string, colors overlayColors) 
 	if o == nil || o.raw == nil || text == "" {
 		return
 	}
+	C.neru_wayland_overlay_setup_buffers(o.raw)
 
 	paddingX := 10
 	fontSize := 14.0
