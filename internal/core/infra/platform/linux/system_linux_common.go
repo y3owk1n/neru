@@ -20,12 +20,13 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
-// SystemAdapter implements ports.SystemPort for Linux.
-type SystemAdapter struct{}
+type SystemAdapter struct {
+	backend string
+}
 
 // NewSystemAdapter creates a new SystemAdapter.
-func NewSystemAdapter() *SystemAdapter {
-	return &SystemAdapter{}
+func NewSystemAdapter(backend string) *SystemAdapter {
+	return &SystemAdapter{backend: backend}
 }
 
 // Health checks the health of the Linux system adapter.
@@ -35,7 +36,13 @@ func (s *SystemAdapter) Health(ctx context.Context) error {
 
 // Capabilities returns the current Linux capability surface.
 func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
-	return ports.LinuxCapabilities()
+	capabilities := ports.LinuxCapabilities()
+
+	if s.backend != "" {
+		capabilities.Platform = "linux/" + s.backend
+	}
+
+	return capabilities
 }
 
 // ConfigDir returns the Linux-specific configuration directory.
@@ -71,36 +78,52 @@ func (s *SystemAdapter) LogDir() (string, error) {
 // FocusedApplicationPID returns the PID of the currently focused application on Linux.
 // TODO(linux): implement using AT-SPI or /proc filesystem.
 func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) {
+	if s.backend == "x11" {
+		return x11FocusedApplicationPID()
+	}
+
 	return 0, derrors.New(
 		derrors.CodeNotSupported,
-		"FocusedApplicationPID not yet implemented on linux",
+		"FocusedApplicationPID not yet implemented on linux backend "+s.backend,
 	)
 }
 
 // ApplicationNameByPID returns the name of the application with the given PID on Linux.
 // TODO(linux): implement using /proc/<pid>/comm or AT-SPI.
 func (s *SystemAdapter) ApplicationNameByPID(ctx context.Context, pid int) (string, error) {
+	if s.backend == "x11" {
+		return linuxApplicationNameByPID(pid)
+	}
+
 	return "", derrors.New(
 		derrors.CodeNotSupported,
-		"ApplicationNameByPID not yet implemented on linux",
+		"ApplicationNameByPID not yet implemented on linux backend "+s.backend,
 	)
 }
 
 // ApplicationBundleIDByPID returns the application identifier (desktop ID) for Linux.
 // TODO(linux): implement using /proc/<pid>/cmdline + .desktop file lookup.
 func (s *SystemAdapter) ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error) {
+	if s.backend == "x11" {
+		return linuxApplicationBundleIDByPID(pid)
+	}
+
 	return "", derrors.New(
 		derrors.CodeNotSupported,
-		"ApplicationBundleIDByPID not yet implemented on linux",
+		"ApplicationBundleIDByPID not yet implemented on linux backend "+s.backend,
 	)
 }
 
 // ScreenBounds returns the bounds of the active screen on Linux.
 // TODO(linux): implement using XRandR or Wayland display protocol.
 func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
+	if s.backend == "x11" {
+		return x11ActiveScreenBounds()
+	}
+
 	return image.Rectangle{}, derrors.New(
 		derrors.CodeNotSupported,
-		"ScreenBounds not yet implemented on linux",
+		"ScreenBounds not yet implemented on linux backend "+s.backend,
 	)
 }
 
@@ -110,18 +133,26 @@ func (s *SystemAdapter) ScreenBoundsByName(
 	ctx context.Context,
 	name string,
 ) (image.Rectangle, bool, error) {
+	if s.backend == "x11" {
+		return x11ScreenBoundsByName(name)
+	}
+
 	return image.Rectangle{}, false, derrors.New(
 		derrors.CodeNotSupported,
-		"ScreenBoundsByName not yet implemented on linux",
+		"ScreenBoundsByName not yet implemented on linux backend "+s.backend,
 	)
 }
 
 // ScreenNames returns the display names of all connected screens on Linux.
 // TODO(linux): implement using XRandR or Wayland output protocol.
 func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
+	if s.backend == "x11" {
+		return x11ScreenNames()
+	}
+
 	return nil, derrors.New(
 		derrors.CodeNotSupported,
-		"ScreenNames not yet implemented on linux",
+		"ScreenNames not yet implemented on linux backend "+s.backend,
 	)
 }
 
@@ -132,6 +163,10 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	point image.Point,
 	bypassSmooth bool,
 ) error {
+	if s.backend == "x11" {
+		return x11MoveCursorToPoint(point)
+	}
+
 	return derrors.New(derrors.CodeNotSupported, "MoveCursorToPoint not yet implemented on linux")
 }
 
@@ -143,9 +178,13 @@ func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 // CursorPosition returns the current cursor position on Linux.
 // TODO(linux): implement using XQueryPointer (X11) or Wayland pointer protocol.
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
+	if s.backend == "x11" {
+		return x11CursorPosition()
+	}
+
 	return image.Point{}, derrors.New(
 		derrors.CodeNotSupported,
-		"CursorPosition not yet implemented on linux",
+		"CursorPosition not yet implemented on linux backend "+s.backend,
 	)
 }
 

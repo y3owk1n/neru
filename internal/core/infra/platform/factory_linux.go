@@ -9,7 +9,12 @@ import (
 
 // NewSystemPort returns a Linux SystemPort implementation.
 func NewSystemPort() (ports.SystemPort, error) {
-	return linux.NewSystemAdapter(), nil
+	switch backend := detectLinuxBackend(); backend {
+	case BackendX11, BackendWaylandWlroots:
+		return linux.NewSystemAdapter(backend.String()), nil
+	default:
+		return nil, unsupportedLinuxBackendError(backend)
+	}
 }
 
 // ShowConfigOnboardingAlert is a stub on Linux.

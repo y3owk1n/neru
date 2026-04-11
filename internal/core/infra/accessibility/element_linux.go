@@ -12,7 +12,11 @@ import (
 )
 
 // Element represents a UI element for Linux (e.g., AT-SPI).
-type Element struct{}
+type Element struct {
+	bundleIdentifier string
+	title            string
+	pid              int
+}
 
 // SetClickableRoles configures which accessibility roles are treated as clickable (Linux stub).
 func SetClickableRoles(_ []string, _ *zap.Logger) {}
@@ -63,19 +67,50 @@ func CheckAccessibilityPermissions() bool { return true }
 func SystemWideElement() *Element { return nil }
 
 // FocusedApplication returns the focused application (Linux stub).
-func FocusedApplication() *Element { return nil }
+func FocusedApplication() *Element {
+	bundleID, pid := linuxFocusedApplicationIdentity()
+	if bundleID == "" && pid == 0 {
+		return nil
+	}
+
+	return &Element{
+		bundleIdentifier: bundleID,
+		pid:              pid,
+	}
+}
 
 // ApplicationByPID returns an application by PID (Linux stub).
-func ApplicationByPID(_ int) *Element { return nil }
+func ApplicationByPID(pid int) *Element {
+	bundleID := linuxApplicationBundleIdentifier(pid)
+	if bundleID == "" {
+		return nil
+	}
+
+	return &Element{
+		bundleIdentifier: bundleID,
+		pid:              pid,
+	}
+}
 
 // ApplicationByBundleID returns an application by bundle ID (Linux stub).
-func ApplicationByBundleID(_ string) *Element { return nil }
+func ApplicationByBundleID(bundleID string) *Element {
+	if bundleID == "" {
+		return nil
+	}
+
+	return &Element{bundleIdentifier: bundleID}
+}
 
 // ElementAtPosition returns the element at a position (Linux stub).
 func ElementAtPosition(_, _ int) *Element { return nil }
 
 // Info retrieves metadata and positioning information for the element (Linux stub).
-func (e *Element) Info() (*ElementInfo, error) { return &ElementInfo{}, nil }
+func (e *Element) Info() (*ElementInfo, error) {
+	return &ElementInfo{
+		title: e.title,
+		pid:   e.pid,
+	}, nil
+}
 
 // Children returns the element's children (Linux stub).
 func (e *Element) Children(_ *InfoCache) ([]*Element, error) { return []*Element{}, nil }
@@ -105,16 +140,26 @@ func (e *Element) Clone() (*Element, error) { return &Element{}, nil }
 func AllWindows() ([]*Element, error) { return []*Element{}, nil }
 
 // FrontmostWindow returns the frontmost window (Linux stub).
-func FrontmostWindow() *Element { return nil }
+func FrontmostWindow() *Element {
+	bundleID, pid := linuxFocusedApplicationIdentity()
+	if bundleID == "" && pid == 0 {
+		return nil
+	}
+
+	return &Element{
+		bundleIdentifier: bundleID,
+		pid:              pid,
+	}
+}
 
 // MenuBar returns the menu bar element (Linux stub).
 func (e *Element) MenuBar() *Element { return nil }
 
 // ApplicationName returns the application name (Linux stub).
-func (e *Element) ApplicationName() string { return "" }
+func (e *Element) ApplicationName() string { return e.bundleIdentifier }
 
 // BundleIdentifier returns the bundle identifier (Linux stub).
-func (e *Element) BundleIdentifier() string { return "" }
+func (e *Element) BundleIdentifier() string { return e.bundleIdentifier }
 
 // ScrollBounds returns the scroll bounds (Linux stub).
 func (e *Element) ScrollBounds() image.Rectangle { return image.Rectangle{} }
