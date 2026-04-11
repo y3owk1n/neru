@@ -16,6 +16,9 @@ package linux
 #include "wlr_protocol/xdg-output.h"
 #include "wlr_protocol/xdg-output.c"
 #include "wlr_protocol/layer-shell.h"
+#include "wlr_protocol/layer-shell.c"
+#include "wlr_protocol/xdg-shell.h"
+#include "wlr_protocol/xdg-shell.c"
 
 // ---------- Forward declarations ----------
 
