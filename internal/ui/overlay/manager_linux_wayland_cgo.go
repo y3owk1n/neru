@@ -86,6 +86,15 @@ static void neru_layer_surface_configure(void *data,
     uint32_t serial, uint32_t width, uint32_t height) {
     NeruWaylandOverlay *overlay = (NeruWaylandOverlay *)data;
     zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
+    
+    for (int i = 0; i < overlay->nr_screens; i++) {
+        if (overlay->screens[i].layer_surface == layer_surface) {
+            if (width > 0) overlay->screens[i].width = width;
+            if (height > 0) overlay->screens[i].height = height;
+            break;
+        }
+    }
+    
     overlay->configured = 1;
 }
 
@@ -211,12 +220,18 @@ static void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
         if (scr->layer_surface) continue; // Already configured
         
         scr->wl_surface = wl_compositor_create_surface(overlay->compositor);
+        
+        // Ensure input passes through the overlay
+        struct wl_region *region = wl_compositor_create_region(overlay->compositor);
+        wl_surface_set_input_region(scr->wl_surface, region);
+        wl_region_destroy(region);
+
         scr->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
             overlay->layer_shell, scr->wl_surface, scr->wl_output, 
             ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "neru"
         );
         
-        zwlr_layer_surface_v1_set_size(scr->layer_surface, scr->width, scr->height);
+        zwlr_layer_surface_v1_set_size(scr->layer_surface, 0, 0);
         zwlr_layer_surface_v1_set_anchor(scr->layer_surface, 
             ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
             ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
@@ -227,9 +242,7 @@ static void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
     }
     
     // Wait for configure events
-    while (!overlay->configured) {
-        wl_display_dispatch(overlay->display);
-    }
+    wl_display_roundtrip(overlay->display);
     
     for (int i = 0; i < overlay->nr_screens; i++) {
         NeruWaylandOverlayScreen *scr = &overlay->screens[i];
