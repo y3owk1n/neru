@@ -50,7 +50,7 @@ type x11HotkeyState struct {
 
 var x11States sync.Map
 
-func (m *Manager) registerX11Hotkey(hotkeyId HotkeyID, keyString string) error {
+func (m *Manager) registerX11Hotkey(hotkeyID HotkeyID, keyString string) error {
 	state, err := m.ensureX11State()
 	if err != nil {
 		return err
@@ -69,19 +69,19 @@ func (m *Manager) registerX11Hotkey(hotkeyId HotkeyID, keyString string) error {
 			state.root,
 			C.True,
 			C.GrabModeAsync,
-			C.GrabModeAsync, // nolint:nlreturn
+			C.GrabModeAsync, //nolint:nlreturn
 		)
 	}
-	C.XSelectInput(state.display, state.root, C.KeyPressMask) // nolint:nlreturn
-	C.XFlush(state.display)                                   // nolint:nlreturn
+	C.XSelectInput(state.display, state.root, C.KeyPressMask) //nolint:nlreturn
+	C.XFlush(state.display)                                   //nolint:nlreturn
 
-	state.bindings[hotkeyId] = x11HotkeyBinding{keycode: C.int(keycode), modifiers: modifiers}
-	state.ids[x11BindingKey(keycode, modifiers)] = hotkeyId
+	state.bindings[hotkeyID] = x11HotkeyBinding{keycode: C.int(keycode), modifiers: modifiers}
+	state.ids[x11BindingKey(keycode, modifiers)] = hotkeyID
 
 	return nil
 }
 
-func (m *Manager) unregisterX11Hotkey(hotkeyId HotkeyID) {
+func (m *Manager) unregisterX11Hotkey(hotkeyID HotkeyID) {
 	stateAny, ok := x11States.Load(m)
 	if !ok {
 		return
@@ -91,18 +91,23 @@ func (m *Manager) unregisterX11Hotkey(hotkeyId HotkeyID) {
 		return
 	}
 
-	binding, exists := state.bindings[hotkeyId]
+	binding, exists := state.bindings[hotkeyID]
 	if !exists {
 		return
 	}
 
 	for _, mask := range []C.uint{0, C.Mod2Mask, C.LockMask, C.Mod2Mask | C.LockMask} {
-		C.XUngrabKey(state.display, binding.keycode, binding.modifiers|mask, state.root) // nolint:nlreturn
+		C.XUngrabKey(
+			state.display,
+			binding.keycode,
+			binding.modifiers|mask,
+			state.root,
+		) //nolint:nlreturn
 	}
-	C.XFlush(state.display) // nolint:nlreturn
+	C.XFlush(state.display) //nolint:nlreturn
 
 	delete(state.ids, x11BindingKey(C.uint(binding.keycode), binding.modifiers))
-	delete(state.bindings, hotkeyId)
+	delete(state.bindings, hotkeyID)
 }
 
 func (m *Manager) unregisterAllX11Hotkeys() {
@@ -121,7 +126,7 @@ func (m *Manager) unregisterAllX11Hotkeys() {
 
 	state.once.Do(func() {
 		close(state.done)
-		C.XCloseDisplay(state.display) // nolint:nlreturn
+		C.XCloseDisplay(state.display) //nolint:nlreturn
 		x11States.Delete(m)
 	})
 }
@@ -146,7 +151,7 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 
 	state := &x11HotkeyState{
 		display:  display,
-		root:     C.neru_hotkeys_root_window(display), // nolint:nlreturn
+		root:     C.neru_hotkeys_root_window(display), //nolint:nlreturn
 		bindings: make(map[HotkeyID]x11HotkeyBinding),
 		ids:      make(map[string]HotkeyID),
 		done:     make(chan struct{}),
@@ -166,13 +171,13 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 		}
 
 		var event C.XEvent
-		C.XNextEvent(state.display, &event)           // nolint:nlreturn
-		if C.neru_xevent_type(&event) != C.KeyPress { // nolint:nlreturn
+		C.XNextEvent(state.display, &event)           //nolint:nlreturn
+		if C.neru_xevent_type(&event) != C.KeyPress { //nolint:nlreturn
 			continue
 		}
 
-		keycode := C.neru_xkey_keycode(&event)                              // nolint:nlreturn
-		modifiers := C.neru_xkey_state(&event) &^ (C.Mod2Mask | C.LockMask) // nolint:nlreturn
+		keycode := C.neru_xkey_keycode(&event)                              //nolint:nlreturn
+		modifiers := C.neru_xkey_state(&event) &^ (C.Mod2Mask | C.LockMask) //nolint:nlreturn
 
 		if id, ok := state.ids[x11BindingKey(keycode, modifiers)]; ok {
 			if callback := m.callbackFor(id); callback != nil {
@@ -221,7 +226,7 @@ func parseX11Hotkey(display *C.Display, keyString string) (C.uint, C.uint, error
 		)
 	}
 
-	keycode := C.XKeysymToKeycode(display, keysym) // nolint:nlreturn
+	keycode := C.XKeysymToKeycode(display, keysym) //nolint:nlreturn
 	if keycode == 0 {
 		return 0, 0, derrors.Newf(
 			derrors.CodeInvalidInput,
@@ -240,7 +245,7 @@ func x11KeysymFor(key string) C.KeySym {
 		cKey := C.CString(letter)
 		defer C.free(unsafe.Pointer(cKey)) //nolint:nlreturn
 
-		return C.XStringToKeysym(cKey) // nolint:nlreturn
+		return C.XStringToKeysym(cKey) //nolint:nlreturn
 	}
 
 	switch strings.ToLower(key) {
@@ -264,7 +269,7 @@ func x11KeysymFor(key string) C.KeySym {
 		cKey := C.CString(key)
 		defer C.free(unsafe.Pointer(cKey)) //nolint:nlreturn
 
-		return C.XStringToKeysym(cKey) // nolint:nlreturn
+		return C.XStringToKeysym(cKey) //nolint:nlreturn
 	}
 }
 

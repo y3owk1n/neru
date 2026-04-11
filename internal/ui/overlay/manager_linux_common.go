@@ -70,7 +70,7 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 		manager.x11 = newX11Overlay(logger)
 	case linuxOverlayBackendWaylandWlroots:
 		manager.wlroots = newWlrootsOverlay(logger)
-	default:
+	case linuxOverlayBackendUnknown:
 		return nil
 	}
 
@@ -151,13 +151,13 @@ func (m *Manager) SwitchTo(next Mode) {
 }
 
 // Subscribe registers a callback for mode changes.
-func (m *Manager) Subscribe(fn func(StateChange)) uint64 {
+func (m *Manager) Subscribe(subFn func(StateChange)) uint64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.nextID++
 	id := m.nextID
-	m.subs[id] = fn
+	m.subs[id] = subFn
 
 	return id
 }
@@ -288,7 +288,7 @@ func (m *Manager) DrawHintsWithStyle(_ []*hints.Hint, _ hints.StyleMode) error {
 }
 
 // DrawModeIndicator draws the mode indicator overlay.
-func (m *Manager) DrawModeIndicator(x, y int) {
+func (m *Manager) DrawModeIndicator(posX, posY int) {
 	if m.modeIndicatorOverlay == nil {
 		return
 	}
@@ -299,27 +299,27 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 	}
 
 	if m.x11 != nil {
-		m.x11.DrawBadge(x, y, string(mode), resolveModeIndicatorColors())
+		m.x11.DrawBadge(posX, posY, string(mode), resolveModeIndicatorColors())
 	} else if m.wlroots != nil {
-		m.wlroots.DrawBadge(x, y, string(mode), resolveModeIndicatorColors())
+		m.wlroots.DrawBadge(posX, posY, string(mode), resolveModeIndicatorColors())
 	}
 }
 
 // DrawStickyModifiersIndicator draws the sticky modifiers indicator overlay.
-func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
+func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 	if m.stickyModifiersOverlay == nil || symbols == "" {
 		return
 	}
 
 	if m.x11 != nil {
-		m.x11.DrawBadge(x, y, symbols, resolveStickyIndicatorColors())
+		m.x11.DrawBadge(posX, posY, symbols, resolveStickyIndicatorColors())
 	} else if m.wlroots != nil {
-		m.wlroots.DrawBadge(x, y, symbols, resolveStickyIndicatorColors())
+		m.wlroots.DrawBadge(posX, posY, symbols, resolveStickyIndicatorColors())
 	}
 }
 
 // DrawGrid draws the grid overlay.
-func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error {
+func (m *Manager) DrawGrid(grid *domainGrid.Grid, input string, style grid.Style) error {
 	if m.x11 != nil {
 		// Pass sublayer keys from grid overlay config so subgrid labels match config.
 		if m.gridOverlay != nil {
@@ -333,7 +333,7 @@ func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) e
 			m.x11.sublayerKeys = strings.ToUpper(keys)
 		}
 
-		m.x11.DrawGrid(g, input, style)
+		m.x11.DrawGrid(grid, input, style)
 
 		return nil
 	} else if m.wlroots != nil {
@@ -349,7 +349,7 @@ func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) e
 			m.wlroots.sublayerKeys = strings.ToUpper(keys)
 		}
 
-		m.wlroots.DrawGrid(g, input, style)
+		m.wlroots.DrawGrid(grid, input, style)
 
 		return nil
 	}
@@ -379,6 +379,7 @@ func (m *Manager) DrawRecursiveGrid(
 
 		return nil
 	}
+
 	_ = nextKeys
 	_ = nextGridCols
 	_ = nextGridRows

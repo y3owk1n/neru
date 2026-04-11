@@ -207,17 +207,32 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 )
 
+const (
+	gridFillColor        uint32 = 0x18000000
+	gridMatchedFillColor uint32 = 0x66465FBC
+	gridMatchedTextColor uint32 = 0xFFF8FAFF
+	badgePaddingX               = 10
+	badgeFontSize               = 14.0
+	badgeCharWidth              = 9
+	badgeHeight                 = 24
+	subgridCols                 = 3
+	subgridRows                 = 3
+	subgridBackground    uint32 = 0x40000000
+	subgridHalfPixel            = 0.5
+	subgridFontScale            = 0.7
+	subgridLineWidth            = 1
+	hexColorOpaque       uint32 = 0xFFFFFFFF
+)
+
 type x11Overlay struct {
 	raw            *C.NeruX11Overlay
 	logger         *zap.Logger
 	currentPrefix  string
 	hideUnmatched  bool
 	currentSubgrid *domainGrid.Cell
-	sublayerKeys   string // Configured sublayer keys (uppercase), set from grid config
-	// Cached grid state for incremental redraws triggered by
-	// UpdateGridMatches / ShowSubgrid (which don't receive the grid).
-	cachedGrid  *domainGrid.Grid
-	cachedStyle gridcomponent.Style
+	sublayerKeys   string
+	cachedGrid     *domainGrid.Grid
+	cachedStyle    gridcomponent.Style
 }
 
 func newX11Overlay(logger *zap.Logger) *x11Overlay {
@@ -296,19 +311,14 @@ func (o *x11Overlay) DrawGrid(g *domainGrid.Grid, input string, style gridcompon
 	if o == nil || o.raw == nil || g == nil {
 		return
 	}
-	// Cache for incremental redraws from UpdateGridMatches / ShowSubgrid.
 	o.cachedGrid = g
 	o.cachedStyle = style
 	o.currentPrefix = strings.ToUpper(input)
-	// Clear subgrid — DrawGrid draws the main grid; ShowSubgrid sets it separately.
 	o.currentSubgrid = nil
 
 	o.redrawGrid()
 }
 
-// redrawGrid performs the actual grid rendering using cached state.
-//
-//nolint:funcorder
 func (o *x11Overlay) redrawGrid() {
 	if o == nil || o.raw == nil || o.cachedGrid == nil {
 		return
@@ -325,12 +335,12 @@ func (o *x11Overlay) redrawGrid() {
 			continue
 		}
 
-		fill := uint32(0x18000000)
+		fill := gridFillColor
 		text := style.LabelFontColor
 		border := style.LineColor
 		if matched && prefix != "" {
-			fill = 0x66465FBC
-			text = 0xFFF8FAFF
+			fill = gridMatchedFillColor
+			text = gridMatchedTextColor
 		}
 		o.drawRect(cell.Bounds(), fill, border, style.LineWidth)
 		o.drawTextCentered(label, cell.Bounds(), style.LabelFontSize, text)
@@ -375,7 +385,7 @@ func (o *x11Overlay) DrawRecursiveGrid(
 				cell.Max.Y = bounds.Max.Y
 			}
 
-			o.drawRect(cell, 0x10000000, style.LineColor, style.LineWidth)
+			o.drawRect(cell, gridFillColor, style.LineColor, style.LineWidth)
 			if index < len(keyRunes) {
 				o.drawTextCentered(
 					string(keyRunes[index]),
@@ -395,59 +405,49 @@ func (o *x11Overlay) DrawRecursiveGrid(
 			virtualPointer.Position.X+virtualPointer.Size/2,
 			virtualPointer.Position.Y+virtualPointer.Size/2,
 		)
-		o.drawRect(vpBounds, parseHexColor(virtualPointer.FillColor), style.LineColor, 1)
+		o.drawRect(vpBounds, parseHexColor(virtualPointer.FillColor), style.LineColor, subgridLineWidth)
 	}
 
 	C.neru_x11_overlay_flush(o.raw)
 }
 
-func (o *x11Overlay) DrawBadge(x, y int, text string, colors overlayColors) {
+func (o *x11Overlay) DrawBadge(posX, posY int, text string, colors overlayColors) {
 	if o == nil || o.raw == nil || text == "" {
 		return
 	}
 
-	paddingX := 10
-	fontSize := 14.0
-	width := len(text)*9 + paddingX*2
-	height := 24
-	rect := image.Rect(x, y, x+width, y+height)
+	width := len(text)*badgeCharWidth + badgePaddingX*2
+	height := badgeHeight
+	rect := image.Rect(posX, posY, posX+width, posY+height)
 
-	o.drawRect(rect, colors.background, colors.border, 1)
-	o.drawTextCentered(text, rect, fontSize, colors.text)
+	o.drawRect(rect, colors.background, colors.border, subgridLineWidth)
+	o.drawTextCentered(text, rect, badgeFontSize, colors.text)
 	C.neru_x11_overlay_flush(o.raw)
 }
 
 func (o *x11Overlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
-	const (
-		cols = 3
-		rows = 3
-	)
-
-	// Use configured sublayer keys; fall back to default
 	keyRunes := []rune("ASDFGHJKL")
 	if o.sublayerKeys != "" {
 		keyRunes = []rune(strings.ToUpper(o.sublayerKeys))
 	}
-	maxKeys := min(len(keyRunes), cols*rows)
+	maxKeys := min(len(keyRunes), subgridCols*subgridRows)
 
-	// Build breakpoints that evenly distribute remainders to fully cover the cell
-	xBreaks := make([]int, cols+1)
-	yBreaks := make([]int, rows+1)
+	xBreaks := make([]int, subgridCols+1)
+	yBreaks := make([]int, subgridRows+1)
 	xBreaks[0] = bounds.Min.X
 	yBreaks[0] = bounds.Min.Y
-	for i := 1; i <= cols; i++ {
-		xBreaks[i] = bounds.Min.X + int(float64(i)*float64(bounds.Dx())/float64(cols)+0.5)
+	for i := 1; i <= subgridCols; i++ {
+		xBreaks[i] = bounds.Min.X + int(float64(i)*float64(bounds.Dx())/float64(subgridCols)+subgridHalfPixel)
 	}
-	for i := 1; i <= rows; i++ {
-		yBreaks[i] = bounds.Min.Y + int(float64(i)*float64(bounds.Dy())/float64(rows)+0.5)
+	for i := 1; i <= subgridRows; i++ {
+		yBreaks[i] = bounds.Min.Y + int(float64(i)*float64(bounds.Dy())/float64(subgridRows)+subgridHalfPixel)
 	}
-	// Ensure last breaks exactly match bounds to avoid 1px drift
-	xBreaks[cols] = bounds.Max.X
-	yBreaks[rows] = bounds.Max.Y
+	xBreaks[subgridCols] = bounds.Max.X
+	yBreaks[subgridRows] = bounds.Max.Y
 
 	index := 0
-	for row := range rows {
-		for col := range cols {
+	for row := range subgridRows {
+		for col := range subgridCols {
 			if index >= maxKeys {
 				break
 			}
@@ -457,11 +457,11 @@ func (o *x11Overlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 				xBreaks[col+1],
 				yBreaks[row+1],
 			)
-			o.drawRect(cell, 0x40000000, style.LineColor, 1)
+			o.drawRect(cell, subgridBackground, style.LineColor, subgridLineWidth)
 			o.drawTextCentered(
 				string(keyRunes[index]),
 				cell,
-				style.LabelFontSize*0.7,
+				style.LabelFontSize*subgridFontScale,
 				style.LabelFontColor,
 			)
 			index++
@@ -494,7 +494,7 @@ func (o *x11Overlay) drawTextCentered(
 	color uint32,
 ) {
 	cText := C.CString(text)
-	defer C.free(unsafe.Pointer(cText)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cText))
 
 	C.neru_x11_overlay_text(
 		o.raw,
@@ -517,12 +517,12 @@ func parseHexColor(value string) uint32 {
 		value = "FF" + value
 	case 8:
 	default:
-		return 0xFFFFFFFF
+		return hexColorOpaque
 	}
 
 	parsed, err := strconv.ParseUint(value, 16, 32)
 	if err != nil {
-		return 0xFFFFFFFF
+		return hexColorOpaque
 	}
 
 	return uint32(parsed)

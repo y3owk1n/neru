@@ -563,7 +563,7 @@ func ensureWlrootsState() error {
 		)
 	}
 
-	if C.neru_wlr_has_virtual_pointer(client) == 0 { // nolint:nlreturn
+	if C.neru_wlr_has_virtual_pointer(client) == 0 { //nolint:nlreturn
 		C.neru_wlr_disconnect(client)
 
 		return derrors.New(
@@ -579,14 +579,23 @@ func ensureWlrootsState() error {
 	C.neru_wlr_init_cursor(client)
 
 	// Populate screen list from the client.
-	count := int(C.neru_wlr_screen_count(client)) // nolint:nlreturn
+	count := int(C.neru_wlr_screen_count(client)) //nolint:nlreturn
 	screens := make([]wlrootsScreen, 0, count)
 
 	for index := range count {
-		var x, y, width, height C.int
+		var posX, posY, width, height C.int
 
 		nameBuf := make([]C.char, 128)
-		if C.neru_wlr_screen_info(client, C.int(index), &x, &y, &width, &height, &nameBuf[0], 128) != 0 { // nolint:nlreturn
+		if C.neru_wlr_screen_info(
+			client,
+			C.int(index),
+			&posX,
+			&posY,
+			&width,
+			&height,
+			&nameBuf[0],
+			128,
+		) != 0 { //nolint:nlreturn
 			name := C.GoString(&nameBuf[0])
 			if name == "" {
 				name = fmt.Sprintf("output-%d", index)
@@ -595,10 +604,10 @@ func ensureWlrootsState() error {
 			screens = append(screens, wlrootsScreen{
 				Name: name,
 				Bounds: image.Rect(
-					int(x),
-					int(y),
-					int(x+width),
-					int(y+height),
+					int(posX),
+					int(posY),
+					int(posX+width),
+					int(posY+height),
 				),
 			})
 		}
@@ -702,8 +711,8 @@ func wlrootsCursorPositionLocked() (image.Point, error) {
 	// Cursor position is tracked purely client-side via move_absolute.
 	// No need to poll Wayland events — doing so previously triggered
 	// the pointer motion handler which corrupted the position cache.
-	var x, y C.int
-	initialized := C.neru_wlr_get_cursor(client, &x, &y) // nolint:nlreturn
+	var posX, posY C.int
+	initialized := C.neru_wlr_get_cursor(client, &posX, &posY) //nolint:nlreturn
 
 	// If cursor was never initialized, fall back to first screen center
 	if initialized == 0 {
@@ -719,7 +728,7 @@ func wlrootsCursorPositionLocked() (image.Point, error) {
 		return image.Point{}, nil
 	}
 
-	return image.Point{X: int(x), Y: int(y)}, nil
+	return image.Point{X: int(posX), Y: int(posY)}, nil
 }
 
 func wlrootsMoveCursorToPoint(point image.Point) error {
@@ -732,7 +741,7 @@ func wlrootsMoveCursorToPoint(point image.Point) error {
 	client := globalWlrootsState.client
 	globalWlrootsState.mu.RUnlock()
 
-	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { // nolint:nlreturn
+	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
 		return derrors.Newf(
 			derrors.CodeActionFailed,
 			"failed to move wlroots virtual pointer to (%d, %d)",
@@ -756,7 +765,7 @@ func wlrootsClick(point image.Point, button int) error {
 	globalWlrootsState.mu.RUnlock()
 
 	// Move to target.
-	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { // nolint:nlreturn
+	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
 		return derrors.Newf(
 			derrors.CodeActionFailed,
 			"failed to move wlroots virtual pointer to (%d, %d)",
@@ -765,7 +774,7 @@ func wlrootsClick(point image.Point, button int) error {
 		)
 	}
 
-	if C.neru_wlr_click(client, C.int(button)) == 0 { // nolint:nlreturn
+	if C.neru_wlr_click(client, C.int(button)) == 0 { //nolint:nlreturn
 		return derrors.Newf(
 			derrors.CodeActionFailed,
 			"failed to perform wlroots click (button %d) at (%d, %d)",
@@ -790,7 +799,7 @@ func wlrootsButtonEvent(point image.Point, button int, pressed bool) error {
 	globalWlrootsState.mu.RUnlock()
 
 	// Move to target.
-	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { // nolint:nlreturn
+	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
 		return derrors.Newf(
 			derrors.CodeActionFailed,
 			"failed to move wlroots virtual pointer to (%d, %d)",
@@ -804,7 +813,7 @@ func wlrootsButtonEvent(point image.Point, button int, pressed bool) error {
 		pressedInt = 1
 	}
 
-	if C.neru_wlr_button(client, C.int(button), C.int(pressedInt)) == 0 { // nolint:nlreturn
+	if C.neru_wlr_button(client, C.int(button), C.int(pressedInt)) == 0 { //nolint:nlreturn
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to perform wlroots button event",
@@ -825,7 +834,7 @@ func wlrootsButtonRelease(button int) error {
 	client := globalWlrootsState.client
 	globalWlrootsState.mu.RUnlock()
 
-	if C.neru_wlr_button(client, C.int(button), 0) == 0 { // nolint:nlreturn
+	if C.neru_wlr_button(client, C.int(button), 0) == 0 { //nolint:nlreturn
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to release wlroots button",
@@ -846,7 +855,7 @@ func wlrootsScroll(axis, delta int) error {
 	client := globalWlrootsState.client
 	globalWlrootsState.mu.RUnlock()
 
-	if C.neru_wlr_scroll(client, C.int(axis), C.int(delta)) == 0 { // nolint:nlreturn
+	if C.neru_wlr_scroll(client, C.int(axis), C.int(delta)) == 0 { //nolint:nlreturn
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to perform wlroots scroll event",

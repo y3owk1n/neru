@@ -207,7 +207,7 @@ func linuxFocusedApplicationIdentity() (string, int) {
 	defer C.neru_ax_close_display(display) //nolint:nlreturn
 
 	var window C.Window
-	if C.neru_ax_get_active_window(display, &window) == 0 {
+	if C.neru_ax_get_active_window(display, &window) == 0 { //nolint:nlreturn
 		return "", 0
 	}
 
@@ -250,7 +250,7 @@ func x11MoveMouseToPoint(point image.Point) error {
 	}
 	defer C.neru_ax_close_display(display) //nolint:nlreturn
 
-	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 { // nolint:nlreturn
+	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
 		return derrors.Newf(
 			derrors.CodeActionFailed,
 			"failed to move X11 pointer to (%d, %d)",
@@ -270,7 +270,7 @@ func x11CurrentCursorPosition() image.Point {
 	defer C.neru_ax_close_display(display) //nolint:nlreturn
 
 	var x, y C.int
-	if C.neru_ax_query_pointer(display, &x, &y) == 0 { // nolint:nlreturn
+	if C.neru_ax_query_pointer(display, &x, &y) == 0 { //nolint:nlreturn
 		return image.Point{}
 	}
 
@@ -308,7 +308,7 @@ func x11LeftMouseUp() error {
 	}
 	defer C.neru_ax_close_display(display) //nolint:nlreturn
 
-	if C.neru_ax_button(display, 1, 0) == 0 { // nolint:nlreturn
+	if C.neru_ax_button(display, 1, 0) == 0 { //nolint:nlreturn
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to release left mouse button on X11",
@@ -336,12 +336,13 @@ func x11ScrollAtCursor(deltaX, deltaY int) error {
 			yClicks = 1
 		}
 		for range yClicks {
-			button := C.uint(4)
+			const mouseButtonVerticalScroll = 4
+			button := C.uint(mouseButtonVerticalScroll)
 			if deltaY < 0 {
 				button = 5
 			}
-			if C.neru_ax_button(display, button, 1) == 0 || // nolint:nlreturn
-				C.neru_ax_button(display, button, 0) == 0 { // nolint:nlreturn
+			if C.neru_ax_button(display, button, 1) == 0 || //nolint:nlreturn
+				C.neru_ax_button(display, button, 0) == 0 { //nolint:nlreturn
 				return derrors.New(derrors.CodeActionFailed, "failed vertical scroll event on X11")
 			}
 		}
@@ -357,8 +358,8 @@ func x11ScrollAtCursor(deltaX, deltaY int) error {
 			if deltaX < 0 {
 				button = 6
 			}
-			if C.neru_ax_button(display, button, 1) == 0 || // nolint:nlreturn
-				C.neru_ax_button(display, button, 0) == 0 { // nolint:nlreturn
+			if C.neru_ax_button(display, button, 1) == 0 || //nolint:nlreturn
+				C.neru_ax_button(display, button, 0) == 0 { //nolint:nlreturn
 				return derrors.New(
 					derrors.CodeActionFailed,
 					"failed horizontal scroll event on X11",
@@ -386,7 +387,7 @@ func x11ClickButtonAtPoint(
 	x11PressModifiers(display, modifiers)
 	defer x11ReleaseModifiers(display, modifiers)
 
-	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 { // nolint:nlreturn
+	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
 		return derrors.Newf(
 			derrors.CodeActionFailed,
 			"failed to move X11 pointer to (%d, %d)",
@@ -395,7 +396,8 @@ func x11ClickButtonAtPoint(
 		)
 	}
 
-	if C.neru_ax_button(display, button, 1) == 0 || C.neru_ax_button(display, button, 0) == 0 { // nolint:nlreturn
+	if C.neru_ax_button(display, button, 1) == 0 ||
+		C.neru_ax_button(display, button, 0) == 0 { //nolint:nlreturn
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to dispatch X11 button click",
@@ -403,7 +405,7 @@ func x11ClickButtonAtPoint(
 	}
 
 	if restoreCursor {
-		_ = C.neru_ax_move_pointer(display, C.int(original.X), C.int(original.Y)) // nolint:nlreturn
+		_ = C.neru_ax_move_pointer(display, C.int(original.X), C.int(original.Y)) //nolint:nlreturn
 	}
 
 	return nil
@@ -426,7 +428,7 @@ func x11MouseButtonAtPoint(
 	x11PressModifiers(display, modifiers)
 	defer x11ReleaseModifiers(display, modifiers)
 
-	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 { // nolint:nlreturn
+	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
 		return derrors.Newf(
 			derrors.CodeActionFailed,
 			"failed to move X11 pointer to (%d, %d)",
@@ -440,7 +442,7 @@ func x11MouseButtonAtPoint(
 		pressed = 1
 	}
 
-	if C.neru_ax_button(display, button, C.int(pressed)) == 0 { // nolint:nlreturn
+	if C.neru_ax_button(display, button, C.int(pressed)) == 0 { //nolint:nlreturn
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to dispatch X11 mouse button event",
@@ -448,7 +450,7 @@ func x11MouseButtonAtPoint(
 	}
 
 	if restoreCursor {
-		_ = C.neru_ax_move_pointer(display, C.int(original.X), C.int(original.Y)) // nolint:nlreturn
+		_ = C.neru_ax_move_pointer(display, C.int(original.X), C.int(original.Y)) //nolint:nlreturn
 	}
 
 	return nil

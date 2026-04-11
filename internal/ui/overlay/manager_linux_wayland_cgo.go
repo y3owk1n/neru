@@ -863,7 +863,7 @@ func (o *wlrootsOverlay) DrawBadge(posX, posY int, text string, colors overlayCo
 func (o *wlrootsOverlay) keyboardPoller() {
 	for o.raw != nil {
 		C.neruWaylandOverlayPoll(o.raw)
-		key := C.neruWaylandOverlayGetKey(o.raw) // nolint:nlreturn
+		key := C.neruWaylandOverlayGetKey(o.raw) //nolint:nlreturn
 		if key != nil {
 			select {
 			case wlrootsKeyboardCh <- C.GoString(key):
