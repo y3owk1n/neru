@@ -894,10 +894,14 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 	xBreaks[0] = bounds.Min.X
 	yBreaks[0] = bounds.Min.Y
 	for i := 1; i <= cols; i++ {
-		xBreaks[i] = bounds.Min.X + int(float64(i)*float64(bounds.Dx())/float64(cols)+subgridHalfPixel)
+		xBreaks[i] = bounds.Min.X + int(
+			float64(i)*float64(bounds.Dx())/float64(cols)+subgridHalfPixel,
+		)
 	}
 	for i := 1; i <= rows; i++ {
-		yBreaks[i] = bounds.Min.Y + int(float64(i)*float64(bounds.Dy())/float64(rows)+subgridHalfPixel)
+		yBreaks[i] = bounds.Min.Y + int(
+			float64(i)*float64(bounds.Dy())/float64(rows)+subgridHalfPixel,
+		)
 	}
 	// Ensure last breaks exactly match bounds to avoid 1px drift
 	xBreaks[cols] = bounds.Max.X
