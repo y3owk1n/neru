@@ -97,12 +97,12 @@ func (m *Manager) unregisterX11Hotkey(hotkeyID HotkeyID) {
 	}
 
 	for _, mask := range []C.uint{0, C.Mod2Mask, C.LockMask, C.Mod2Mask | C.LockMask} {
-		C.XUngrabKey(
+		C.XUngrabKey( //nolint:nlreturn
 			state.display,
 			binding.keycode,
 			binding.modifiers|mask,
 			state.root,
-		) //nolint:nlreturn
+		)
 	}
 	C.XFlush(state.display) //nolint:nlreturn
 
@@ -243,9 +243,10 @@ func x11KeysymFor(key string) C.KeySym {
 	if len(key) == 1 {
 		letter := strings.ToLower(key)
 		cKey := C.CString(letter)
+
 		defer C.free(unsafe.Pointer(cKey)) //nolint:nlreturn
 
-		return C.XStringToKeysym(cKey) //nolint:nlreturn
+		return C.XStringToKeysym(cKey)
 	}
 
 	switch strings.ToLower(key) {
@@ -269,7 +270,7 @@ func x11KeysymFor(key string) C.KeySym {
 		cKey := C.CString(key)
 		defer C.free(unsafe.Pointer(cKey)) //nolint:nlreturn
 
-		return C.XStringToKeysym(cKey) //nolint:nlreturn
+		return C.XStringToKeysym(cKey)
 	}
 }
 

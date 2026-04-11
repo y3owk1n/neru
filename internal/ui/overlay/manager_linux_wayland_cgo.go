@@ -635,6 +635,25 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 )
 
+const (
+	gridFillColor         uint32 = 0x18000000
+	gridMatchedFillColor  uint32 = 0x66465FBC
+	gridMatchedTextColor  uint32 = 0xFFF8FAFF
+	subgridBackground     uint32 = 0x40000000
+	subgridCellBackground uint32 = 0x10000000
+	badgePaddingX                = 10
+	badgeFontSize                = 14.0
+	badgeCharWidth               = 9
+	badgeHeight                  = 24
+	hexColorRepeatCount          = 2
+	subgridCols                  = 3
+	subgridRows                  = 3
+	subgridHalfPixel             = 0.5
+	subgridFontScale             = 0.7
+	subgridLineWidth             = 1
+	keyboardChanBuffer           = 64
+)
+
 type wlrootsOverlay struct {
 	raw            *C.NeruWaylandOverlay
 	logger         *zap.Logger
@@ -649,7 +668,7 @@ type wlrootsOverlay struct {
 }
 
 func init() {
-	wlrootsKeyboardCh = make(chan string, 64)
+	wlrootsKeyboardCh = make(chan string, keyboardChanBuffer)
 }
 
 func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
@@ -765,12 +784,12 @@ func (o *wlrootsOverlay) redrawGrid() {
 			continue
 		}
 
-		fill := uint32(0x18000000)
+		fill := gridFillColor
 		text := style.LabelFontColor
 		border := style.LineColor
 		if matched && prefix != "" {
-			fill = 0x66465FBC
-			text = 0xFFF8FAFF
+			fill = gridMatchedFillColor
+			text = gridMatchedTextColor
 		}
 		o.drawRect(cell.Bounds(), fill, border, style.LineWidth)
 		o.drawTextCentered(label, cell.Bounds(), style.LabelFontSize, text)

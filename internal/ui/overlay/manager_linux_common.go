@@ -28,6 +28,7 @@ const (
 	linuxOverlayBackendUnknown        linuxOverlayBackend = "unknown"
 	linuxOverlayBackendX11            linuxOverlayBackend = "x11"
 	linuxOverlayBackendWaylandWlroots linuxOverlayBackend = "wayland-wlroots"
+	initialSubscriberCapacity                             = 4
 )
 
 // Manager manages overlay rendering on Linux.
@@ -61,7 +62,7 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 	manager := &Manager{
 		logger:  logger,
 		mode:    ModeIdle,
-		subs:    make(map[uint64]func(StateChange), 4),
+		subs:    make(map[uint64]func(StateChange), initialSubscriberCapacity),
 		backend: detectLinuxOverlayBackend(),
 	}
 

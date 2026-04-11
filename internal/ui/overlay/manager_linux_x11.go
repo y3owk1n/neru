@@ -222,6 +222,7 @@ const (
 	subgridFontScale            = 0.7
 	subgridLineWidth            = 1
 	hexColorOpaque       uint32 = 0xFFFFFFFF
+	hexColorRepeatCount         = 2
 )
 
 type x11Overlay struct {
@@ -319,39 +320,6 @@ func (o *x11Overlay) DrawGrid(g *domainGrid.Grid, input string, style gridcompon
 	o.redrawGrid()
 }
 
-func (o *x11Overlay) redrawGrid() {
-	if o == nil || o.raw == nil || o.cachedGrid == nil {
-		return
-	}
-	o.Clear()
-
-	style := o.cachedStyle
-	prefix := o.currentPrefix
-
-	for _, cell := range o.cachedGrid.AllCells() {
-		label := strings.ToUpper(cell.Coordinate())
-		matched := strings.HasPrefix(label, prefix)
-		if o.hideUnmatched && prefix != "" && !matched {
-			continue
-		}
-
-		fill := gridFillColor
-		text := style.LabelFontColor
-		border := style.LineColor
-		if matched && prefix != "" {
-			fill = gridMatchedFillColor
-			text = gridMatchedTextColor
-		}
-		o.drawRect(cell.Bounds(), fill, border, style.LineWidth)
-		o.drawTextCentered(label, cell.Bounds(), style.LabelFontSize, text)
-	}
-
-	if o.currentSubgrid != nil {
-		o.drawSubgrid(o.currentSubgrid.Bounds(), style)
-	}
-	C.neru_x11_overlay_flush(o.raw)
-}
-
 func (o *x11Overlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	_ int,
@@ -405,7 +373,12 @@ func (o *x11Overlay) DrawRecursiveGrid(
 			virtualPointer.Position.X+virtualPointer.Size/2,
 			virtualPointer.Position.Y+virtualPointer.Size/2,
 		)
-		o.drawRect(vpBounds, parseHexColor(virtualPointer.FillColor), style.LineColor, subgridLineWidth)
+		o.drawRect(
+			vpBounds,
+			parseHexColor(virtualPointer.FillColor),
+			style.LineColor,
+			subgridLineWidth,
+		)
 	}
 
 	C.neru_x11_overlay_flush(o.raw)
@@ -425,6 +398,39 @@ func (o *x11Overlay) DrawBadge(posX, posY int, text string, colors overlayColors
 	C.neru_x11_overlay_flush(o.raw)
 }
 
+func (o *x11Overlay) redrawGrid() {
+	if o == nil || o.raw == nil || o.cachedGrid == nil {
+		return
+	}
+	o.Clear()
+
+	style := o.cachedStyle
+	prefix := o.currentPrefix
+
+	for _, cell := range o.cachedGrid.AllCells() {
+		label := strings.ToUpper(cell.Coordinate())
+		matched := strings.HasPrefix(label, prefix)
+		if o.hideUnmatched && prefix != "" && !matched {
+			continue
+		}
+
+		fill := gridFillColor
+		text := style.LabelFontColor
+		border := style.LineColor
+		if matched && prefix != "" {
+			fill = gridMatchedFillColor
+			text = gridMatchedTextColor
+		}
+		o.drawRect(cell.Bounds(), fill, border, style.LineWidth)
+		o.drawTextCentered(label, cell.Bounds(), style.LabelFontSize, text)
+	}
+
+	if o.currentSubgrid != nil {
+		o.drawSubgrid(o.currentSubgrid.Bounds(), style)
+	}
+	C.neru_x11_overlay_flush(o.raw)
+}
+
 func (o *x11Overlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
 	keyRunes := []rune("ASDFGHJKL")
 	if o.sublayerKeys != "" {
@@ -437,10 +443,14 @@ func (o *x11Overlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 	xBreaks[0] = bounds.Min.X
 	yBreaks[0] = bounds.Min.Y
 	for i := 1; i <= subgridCols; i++ {
-		xBreaks[i] = bounds.Min.X + int(float64(i)*float64(bounds.Dx())/float64(subgridCols)+subgridHalfPixel)
+		xBreaks[i] = bounds.Min.X + int(
+			float64(i)*float64(bounds.Dx())/float64(subgridCols)+subgridHalfPixel,
+		)
 	}
 	for i := 1; i <= subgridRows; i++ {
-		yBreaks[i] = bounds.Min.Y + int(float64(i)*float64(bounds.Dy())/float64(subgridRows)+subgridHalfPixel)
+		yBreaks[i] = bounds.Min.Y + int(
+			float64(i)*float64(bounds.Dy())/float64(subgridRows)+subgridHalfPixel,
+		)
 	}
 	xBreaks[subgridCols] = bounds.Max.X
 	yBreaks[subgridRows] = bounds.Max.Y
@@ -494,6 +504,7 @@ func (o *x11Overlay) drawTextCentered(
 	color uint32,
 ) {
 	cText := C.CString(text)
+
 	defer C.free(unsafe.Pointer(cText))
 
 	C.neru_x11_overlay_text(
@@ -510,9 +521,9 @@ func parseHexColor(value string) uint32 {
 	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
 	switch len(value) {
 	case 3:
-		value = "FF" + strings.Repeat(string(value[0]), 2) +
-			strings.Repeat(string(value[1]), 2) +
-			strings.Repeat(string(value[2]), 2)
+		value = "FF" + strings.Repeat(string(value[0]), hexColorRepeatCount) +
+			strings.Repeat(string(value[1]), hexColorRepeatCount) +
+			strings.Repeat(string(value[2]), hexColorRepeatCount)
 	case 6:
 		value = "FF" + value
 	case 8:

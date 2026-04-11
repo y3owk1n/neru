@@ -525,6 +525,12 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
+const (
+	wlrootsScreenNameBufferSize = 128
+	wlrootsDefaultWidth         = 1920
+	wlrootsDefaultHeight        = 1080
+)
+
 type wlrootsScreen struct {
 	Name   string
 	Bounds image.Rectangle
@@ -585,8 +591,8 @@ func ensureWlrootsState() error {
 	for index := range count {
 		var posX, posY, width, height C.int
 
-		nameBuf := make([]C.char, 128)
-		if C.neru_wlr_screen_info(
+		nameBuf := make([]C.char, wlrootsScreenNameBufferSize)
+		if C.neru_wlr_screen_info( //nolint:nlreturn
 			client,
 			C.int(index),
 			&posX,
@@ -594,8 +600,8 @@ func ensureWlrootsState() error {
 			&width,
 			&height,
 			&nameBuf[0],
-			128,
-		) != 0 { //nolint:nlreturn
+			wlrootsScreenNameBufferSize,
+		) != 0 {
 			name := C.GoString(&nameBuf[0])
 			if name == "" {
 				name = fmt.Sprintf("output-%d", index)
@@ -618,7 +624,7 @@ func ensureWlrootsState() error {
 	if len(screens) == 0 {
 		screens = append(screens, wlrootsScreen{
 			Name:   "wayland-0",
-			Bounds: image.Rect(0, 0, 1920, 1080),
+			Bounds: image.Rect(0, 0, wlrootsDefaultWidth, wlrootsDefaultHeight),
 		})
 	}
 

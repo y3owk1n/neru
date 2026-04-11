@@ -354,7 +354,8 @@ func x11ScrollAtCursor(deltaX, deltaY int) error {
 			xClicks = 1
 		}
 		for range xClicks {
-			button := C.uint(7)
+			const mouseButtonHorizontalScrollRight = 7
+			button := C.uint(mouseButtonHorizontalScrollRight)
 			if deltaX < 0 {
 				button = 6
 			}
@@ -396,7 +397,7 @@ func x11ClickButtonAtPoint(
 		)
 	}
 
-	if C.neru_ax_button(display, button, 1) == 0 ||
+	if C.neru_ax_button(display, button, 1) == 0 || //nolint:nlreturn
 		C.neru_ax_button(display, button, 0) == 0 { //nolint:nlreturn
 		return derrors.New(
 			derrors.CodeActionFailed,

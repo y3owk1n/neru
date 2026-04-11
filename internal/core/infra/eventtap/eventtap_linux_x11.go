@@ -48,9 +48,15 @@ import "C"
 
 import (
 	"os"
-	"strings"
 	"time"
 	"unsafe"
+
+	"github.com/y3owk1n/neru/internal/ui/overlay"
+)
+
+const (
+	x11PollingInterval = 10 * time.Millisecond
+	x11KeyBufferSize   = 64
 )
 
 func (et *EventTap) runX11() {
@@ -87,7 +93,7 @@ func (et *EventTap) runX11() {
 		}
 
 		if C.neru_eventtap_pending(display) == 0 { //nolint:nlreturn
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(x11PollingInterval)
 
 			continue
 		}
@@ -98,7 +104,7 @@ func (et *EventTap) runX11() {
 		}
 
 		xkey := (*C.XKeyEvent)(unsafe.Pointer(&event))
-		buffer := make([]C.char, 64)
+		buffer := make([]C.char, x11KeyBufferSize)
 		var keysym C.KeySym
 		length := C.XLookupString(
 			xkey,
