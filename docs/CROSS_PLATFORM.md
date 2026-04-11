@@ -132,22 +132,21 @@ Only add a new file when there is a real new implementation slot.
 
 These are the main contributor commands:
 
-| Goal | Command |
-| --- | --- |
-| build for current host | `just build` |
-| build macOS binary on macOS | `just build-darwin` |
-| build Linux foundations binary | `just build-linux` |
-| build Windows foundations binary | `just build-windows` |
-| run focused cross-platform-safe tests | `just test-foundation` |
-| run full unit + integration suite on current OS | `just test` |
-| run lint checks | `just lint` |
+| Goal                                            | Command                |
+| ----------------------------------------------- | ---------------------- |
+| build for current host                          | `just build`           |
+| build macOS binary on macOS                     | `just build-darwin`    |
+| build Linux foundations binary                  | `just build-linux`     |
+| build Windows foundations binary                | `just build-windows`   |
+| run focused cross-platform-safe tests           | `just test-foundation` |
+| run full unit + integration suite on current OS | `just test`            |
+| run lint checks                                 | `just lint`            |
 
 Notes:
 
 - `just build-linux` and `just build-windows` are currently best viewed as
   foundations smoke tests while those platforms are still mostly scaffolding.
-- `just release-ci <version>` still builds the current cross-platform release
-  artifact matrix.
+- `just release-ci-linux <version>` and `just release-ci-windows <version>` to release a version tagged binary in ci.
 - macOS remains the only fully native product path today.
 
 ---
@@ -156,15 +155,15 @@ Notes:
 
 Use this table as the default routing guide.
 
-| Capability | Primary location |
-| --- | --- |
-| screen bounds, cursor, dark mode, notifications, permissions | `internal/core/infra/platform/<os>/` |
-| global hotkeys | `internal/core/infra/hotkeys/` |
-| keyboard event capture | `internal/core/infra/eventtap/` |
-| accessibility integration | `internal/core/infra/accessibility/` |
-| overlay window orchestration | `internal/ui/overlay/` |
-| overlay rendering by mode | `internal/app/components/*/overlay_*.go` |
-| app watcher / isolated platform hooks | dispatch-style `platform_*.go` files in the relevant package |
+| Capability                                                   | Primary location                                             |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| screen bounds, cursor, dark mode, notifications, permissions | `internal/core/infra/platform/<os>/`                         |
+| global hotkeys                                               | `internal/core/infra/hotkeys/`                               |
+| keyboard event capture                                       | `internal/core/infra/eventtap/`                              |
+| accessibility integration                                    | `internal/core/infra/accessibility/`                         |
+| overlay window orchestration                                 | `internal/ui/overlay/`                                       |
+| overlay rendering by mode                                    | `internal/app/components/*/overlay_*.go`                     |
+| app watcher / isolated platform hooks                        | dispatch-style `platform_*.go` files in the relevant package |
 
 Examples:
 

@@ -13,8 +13,8 @@ LDFLAGS := "-s -w -X github.com/y3owk1n/neru/internal/cli.Version=" + VERSION + 
 default: build
 
 # Build the application (development)
-
 # Uses CGO on macOS (required for Objective-C bridge) and Linux (required for
+
 # X11/Wayland native backends). Windows currently builds with CGO disabled.
 build:
     @echo "Building Neru..."
@@ -31,6 +31,7 @@ build-linux ARCH="amd64":
 
 # Build a Windows foundations binary from any host.
 # This is useful for contributor smoke tests while Windows backends are still
+
 # mostly scaffolding.
 build-windows ARCH="amd64":
     @echo "Building Neru for windows/{{ ARCH }}..."
@@ -39,6 +40,7 @@ build-windows ARCH="amd64":
     @echo "✓ Build complete: bin/neru-windows-{{ ARCH }}.exe"
 
 # Build a macOS binary for the current host.
+
 # macOS requires CGO because the native bridge is part of the real product.
 build-darwin:
     @echo "Building Neru for macOS..."
@@ -61,11 +63,9 @@ build-version VERSION_OVERRIDE:
     CGO_ENABLED=1 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru ./cmd/neru
     @echo "✓ Build complete: bin/neru (version: {{ VERSION_OVERRIDE }})"
 
-# Build release artifacts for CI (cross-platform).
-# Linux artifacts require CGO_ENABLED=1 and must be built on a Linux runner.
-# Windows artifacts remain pure-Go stubs.
-release-ci VERSION_OVERRIDE:
-    @echo "Building release artifacts for CI..."
+# Build release artifacts for CI (darwin).
+release-ci-darwin VERSION_OVERRIDE:
+    @echo "Building release artifacts (darwin) for CI..."
     @echo "Version: {{ VERSION_OVERRIDE }}"
     @echo "Commit: {{ GIT_COMMIT }}"
     @echo "Date: {{ BUILD_DATE }}"
@@ -74,15 +74,33 @@ release-ci VERSION_OVERRIDE:
     CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-arm64 ./cmd/neru
     @echo "Building darwin-amd64..."
     CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-amd64 ./cmd/neru
+    @echo "✓ Release artifacts for darwin built successfully"
+
+# Build release artifacts for CI (linux).
+release-ci-linux VERSION_OVERRIDE:
+    @echo "Building release artifacts (linux) for CI..."
+    @echo "Version: {{ VERSION_OVERRIDE }}"
+    @echo "Commit: {{ GIT_COMMIT }}"
+    @echo "Date: {{ BUILD_DATE }}"
+    mkdir -p bin
     @echo "Building linux-amd64..."
     CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-amd64 ./cmd/neru
+    @echo "Building linux-arm64..."
+    CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-arm64 ./cmd/neru
+    @echo "✓ Release artifacts for linux built successfully"
+
+# Build release artifacts for CI (windows).
+release-ci-windows VERSION_OVERRIDE:
+    @echo "Building release artifacts (windows) for CI..."
+    @echo "Version: {{ VERSION_OVERRIDE }}"
+    @echo "Commit: {{ GIT_COMMIT }}"
+    @echo "Date: {{ BUILD_DATE }}"
+    mkdir -p bin
     @echo "Building windows-amd64..."
     CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-amd64.exe ./cmd/neru
     @echo "Building windows-arm64..."
     CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-arm64.exe ./cmd/neru
-    @echo "Building linux-arm64..."
-    CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-arm64 ./cmd/neru
-    @echo "✓ Release artifacts built successfully"
+    @echo "✓ Release artifacts for windows built successfully"
 
 # Bundle the application
 bundle: release
@@ -112,6 +130,7 @@ test-unit:
 
 # Run a small cross-platform-safe test slice that avoids most native platform
 # integration requirements. Useful as a fast confidence check before or during
+
 # Linux/Windows work.
 test-foundation:
     @echo "Running cross-platform foundation tests..."
