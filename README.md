@@ -7,7 +7,7 @@
 **Navigate your entire screen without touching the mouse.**
 
 [![License](https://img.shields.io/github/license/y3owk1n/neru)](LICENSE)
-![Platform](<https://img.shields.io/badge/platform-macOS%20(stable)%20%7C%20Linux%20(foundations)%20%7C%20Windows%20(foundations)-lightgrey>)
+![Platform](<https://img.shields.io/badge/platform-macOS%20(stable)%20%7C%20Linux%20(X11%2Fwlroots)%20%7C%20Windows%20(foundations)-lightgrey>)
 [![Linux Support](https://img.shields.io/badge/Linux-Supported-blue)](docs/LINUX_SETUP.md)
 ![Go Version](https://img.shields.io/github/go-mod/go-version/y3owk1n/neru)
 [![Latest Release](https://img.shields.io/github/v/release/y3owk1n/neru)](https://github.com/y3owk1n/neru/releases)
@@ -178,7 +178,7 @@ Shared code should prefer platform roles over macOS-specific assumptions:
 | Platform    | Status                  |
 | ----------- | ----------------------- |
 | **macOS**   | ✅ Stable, all features |
-| **Linux**   | 🔲 Foundations only     |
+| **Linux**   | ✅ X11 / Wayland (wlroots) |
 | **Windows** | 🔲 Foundations only     |
 
 Linux-specific setup notes and planned backend targets live in
@@ -199,14 +199,14 @@ just build-linux      # or: just build-windows
 
 | Capability                | macOS | Linux | Windows |
 | :------------------------ | :---: | :---: | :-----: |
-| Recursive Grid            |  ✅   |  🔲   |   🔲    |
-| Grid                      |  ✅   |  🔲   |   🔲    |
+| Recursive Grid            |  ✅   |  ✅   |   🔲    |
+| Grid                      |  ✅   |  ✅   |   🔲    |
 | Hints                     |  ✅   |  🔲   |   🔲    |
-| Vim-Style Scrolling       |  ✅   |  🔲   |   🔲    |
-| Direct Mouse Actions      |  ✅   |  🔲   |   🔲    |
-| Global Hotkeys            |  ✅   |  🔲   |   🔲    |
+| Vim-Style Scrolling       |  ✅   |  ✅   |   🔲    |
+| Direct Mouse Actions      |  ✅   |  ✅   |   🔲    |
+| Global Hotkeys            |  ✅   |  ✅   |   🔲    |
 | Accessibility Integration |  ✅   |  🔲   |   🔲    |
-| Native Overlays           |  ✅   |  🔲   |   🔲    |
+| Native Overlays           |  ✅   |  ✅   |   🔲    |
 
 **Roadmap**
 
@@ -216,8 +216,8 @@ just build-linux      # or: just build-windows
   - [x] Full feature set
 - **Phase 2 — Linux**
   - [ ] AT-SPI accessibility integration
-  - [ ] X11/Wayland event capture
-  - [ ] Native overlays
+  - [x] X11/Wayland event capture
+  - [x] Native overlays
 - **Phase 3 — Windows**
   - [ ] UI Automation (UIA) integration
   - [ ] Windows Hooks for event capture
