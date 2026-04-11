@@ -35,12 +35,16 @@ const (
 	badgeHeight                  = 24
 	hexColorOpaque        uint32 = 0xFFFFFFFF
 	hexColorRepeatCount          = 2
+	hexColorLenShort             = 3
+	hexColorLenNoAlpha           = 6
+	hexColorLenFull              = 8
 	subgridCols                  = 3
 	subgridRows                  = 3
 	subgridHalfPixel             = 0.5
 	subgridFontScale             = 0.7
 	subgridLineWidth             = 1
 	keyboardChanBuffer           = 64
+	badgePaddingSides            = 2
 )
 
 type linuxOverlayBackend string
@@ -517,13 +521,13 @@ func resolveStickyIndicatorColors() overlayColors {
 func parseHexColor(value string) uint32 {
 	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
 	switch len(value) {
-	case 3:
+	case hexColorLenShort:
 		value = "FF" + strings.Repeat(string(value[0]), hexColorRepeatCount) +
 			strings.Repeat(string(value[1]), hexColorRepeatCount) +
 			strings.Repeat(string(value[2]), hexColorRepeatCount)
-	case 6:
+	case hexColorLenNoAlpha:
 		value = "FF" + value
-	case 8:
+	case hexColorLenFull:
 	default:
 		return hexColorOpaque
 	}

@@ -819,7 +819,7 @@ func (o *wlrootsOverlay) DrawRecursiveGrid(
 				cell.Max.Y = bounds.Max.Y
 			}
 
-			o.drawRect(cell, 0x10000000, style.LineColor, style.LineWidth)
+			o.drawRect(cell, subgridCellBackground, style.LineColor, style.LineWidth)
 			if index < len(keyRunes) {
 				o.drawTextCentered(
 					string(keyRunes[index]),
@@ -851,14 +851,12 @@ func (o *wlrootsOverlay) DrawBadge(posX, posY int, text string, colors overlayCo
 	}
 	C.neru_wayland_overlay_setup_buffers(o.raw)
 
-	paddingX := 10
-	fontSize := 14.0
-	width := len(text)*9 + paddingX*2
-	height := 24
+	width := len(text)*badgeCharWidth + badgePaddingX*badgePaddingSides
+	height := badgeHeight
 	rect := image.Rect(posX, posY, posX+width, posY+height)
 
-	o.drawRect(rect, colors.background, colors.border, 1)
-	o.drawTextCentered(text, rect, fontSize, colors.text)
+	o.drawRect(rect, colors.background, colors.border, subgridLineWidth)
+	o.drawTextCentered(text, rect, badgeFontSize, colors.text)
 	C.neru_wayland_overlay_flush(o.raw)
 }
 
@@ -896,10 +894,10 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 	xBreaks[0] = bounds.Min.X
 	yBreaks[0] = bounds.Min.Y
 	for i := 1; i <= cols; i++ {
-		xBreaks[i] = bounds.Min.X + int(float64(i)*float64(bounds.Dx())/float64(cols)+0.5)
+		xBreaks[i] = bounds.Min.X + int(float64(i)*float64(bounds.Dx())/float64(cols)+subgridHalfPixel)
 	}
 	for i := 1; i <= rows; i++ {
-		yBreaks[i] = bounds.Min.Y + int(float64(i)*float64(bounds.Dy())/float64(rows)+0.5)
+		yBreaks[i] = bounds.Min.Y + int(float64(i)*float64(bounds.Dy())/float64(rows)+subgridHalfPixel)
 	}
 	// Ensure last breaks exactly match bounds to avoid 1px drift
 	xBreaks[cols] = bounds.Max.X
@@ -918,11 +916,11 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 				yBreaks[row+1],
 			)
 			// Use a visible semi-opaque fill so subgrid cells are clearly distinct
-			o.drawRect(cell, 0x40000000, style.LineColor, 1)
+			o.drawRect(cell, subgridBackground, style.LineColor, subgridLineWidth)
 			o.drawTextCentered(
 				string(keyRunes[index]),
 				cell,
-				style.LabelFontSize*0.7,
+				style.LabelFontSize*subgridFontScale,
 				style.LabelFontColor,
 			)
 			index++

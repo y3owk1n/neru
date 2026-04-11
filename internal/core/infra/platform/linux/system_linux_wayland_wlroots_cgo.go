@@ -599,7 +599,7 @@ func ensureWlrootsState() error {
 			&width,
 			&height,
 			&nameBuf[0],
-			wlrootsScreenNameBufferSize,
+			wlrootsScreenNameBufferSize, //nolint:nlreturn
 		) != 0 {
 			name := C.GoString(&nameBuf[0])
 			if name == "" {

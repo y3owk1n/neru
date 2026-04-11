@@ -101,7 +101,7 @@ func (m *Manager) unregisterX11Hotkey(hotkeyID HotkeyID) {
 			state.display,
 			binding.keycode,
 			binding.modifiers|mask,
-			state.root,
+			state.root, //nolint:nlreturn
 		)
 	}
 	C.XFlush(state.display) //nolint:nlreturn

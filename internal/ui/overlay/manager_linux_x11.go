@@ -370,7 +370,7 @@ func (o *x11Overlay) DrawBadge(posX, posY int, text string, colors overlayColors
 		return
 	}
 
-	width := len(text)*badgeCharWidth + badgePaddingX*2
+	width := len(text)*badgeCharWidth + badgePaddingX*badgePaddingSides
 	height := badgeHeight
 	rect := image.Rect(posX, posY, posX+width, posY+height)
 
@@ -486,7 +486,7 @@ func (o *x11Overlay) drawTextCentered(
 ) {
 	cText := C.CString(text)
 
-	defer C.free(unsafe.Pointer(cText))
+	defer C.free(unsafe.Pointer(cText)) //nolint:nlreturn
 
 	C.neru_x11_overlay_text(
 		o.raw,

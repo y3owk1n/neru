@@ -1,6 +1,6 @@
 //go:build linux && cgo
 
-// Package wlrprotocol compiles the wayland-scanner generated protocol
+// Package wlr_protocol compiles the wayland-scanner generated protocol
 // implementation files (.c) exactly once.  Other Go packages that need
 // the wlr protocol types only #include the .h headers; the linker
 // resolves the interface symbols from the objects built here.
