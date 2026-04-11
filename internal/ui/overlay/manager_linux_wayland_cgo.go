@@ -68,7 +68,7 @@ static volatile int key_available = 0;
 static volatile int keyboard_enter_received = 0;
 
 // Modifier tracking
-static uint32_t current_mods = 0;
+
 
 //export neruWaylandOverlayOnKey
 static void neruWaylandOverlayOnKey(const char *key) {
@@ -243,10 +243,10 @@ static void neru_keyboard_key(void *data, struct wl_keyboard *keyboard,
 
             // Check modifiers - build standard macOS-style modifier prefix
             char mod_prefix[64] = "";
-            if (current_mods & (1 << 0)) strcat(mod_prefix, "Shift+");
-            if (current_mods & (1 << 1)) strcat(mod_prefix, "Ctrl+");
-            if (current_mods & (1 << 2)) strcat(mod_prefix, "Alt+");
-            if (current_mods & (1 << 3)) strcat(mod_prefix, "Cmd+");
+            if (xkb_state_mod_name_is_active(overlay->xkb_state, XKB_MOD_NAME_SHIFT, XKB_STATE_MODS_EFFECTIVE) > 0) strcat(mod_prefix, "Shift+");
+            if (xkb_state_mod_name_is_active(overlay->xkb_state, XKB_MOD_NAME_CTRL, XKB_STATE_MODS_EFFECTIVE) > 0) strcat(mod_prefix, "Ctrl+");
+            if (xkb_state_mod_name_is_active(overlay->xkb_state, XKB_MOD_NAME_ALT, XKB_STATE_MODS_EFFECTIVE) > 0) strcat(mod_prefix, "Alt+");
+            if (xkb_state_mod_name_is_active(overlay->xkb_state, XKB_MOD_NAME_LOGO, XKB_STATE_MODS_EFFECTIVE) > 0) strcat(mod_prefix, "Cmd+");
 
             char utf8_buf[64] = {0};
             xkb_state_key_get_utf8(overlay->xkb_state, key + 8, utf8_buf, sizeof(utf8_buf));
@@ -284,8 +284,6 @@ static void neru_keyboard_modifiers(void *data, struct wl_keyboard *keyboard,
     if (overlay->xkb_state) {
         xkb_state_update_mask(overlay->xkb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
     }
-    // Track modifiers: bit 0 = shift, bit 1 = ctrl, bit 2 = alt, bit 3 = meta
-    current_mods = mods_depressed;
 }
 
 static void neru_keyboard_repeat_info(void *data, struct wl_keyboard *keyboard,
