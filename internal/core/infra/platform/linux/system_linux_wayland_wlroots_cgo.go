@@ -8,12 +8,14 @@ package linux
 #include <wayland-client.h>
 #include <stdlib.h>
 #include <string.h>
+#include <poll.h>
 
 // Include wlroots protocol headers relative to this package.
 #include "wlr_protocol/virtual-pointer.h"
 #include "wlr_protocol/virtual-pointer.c"
 #include "wlr_protocol/xdg-output.h"
 #include "wlr_protocol/xdg-output.c"
+#include "wlr_protocol/layer-shell.h"
 
 // ---------- Forward declarations ----------
 
@@ -35,6 +37,8 @@ typedef struct {
 	char name_valid;
 	struct wl_output *wl_output;
 	struct zxdg_output_v1 *xdg_output;
+
+	struct wl_surface *discovery_surface;
 } NeruWaylandScreen;
 
 typedef struct NeruWlrootsClient {
@@ -42,6 +46,7 @@ typedef struct NeruWlrootsClient {
 	struct wl_registry *registry;
 	struct wl_compositor *compositor;
 	struct wl_shm *shm;
+	struct zwlr_layer_shell_v1 *layer_shell;
 	struct wl_seat *seat;
 	struct wl_pointer *pointer;
 
@@ -70,10 +75,20 @@ static void neru_wlr_pointer_enter(void *data,
 	struct wl_surface *surface,
 	wl_fixed_t sx, wl_fixed_t sy)
 {
-	// No-op. Pointer enter gives surface-local coords which are meaningless
-	// for global cursor tracking. Cursor position is tracked client-side
-	// via neru_wlr_move_absolute only (matching warpd's pattern).
-	(void)data; (void)pointer; (void)serial; (void)surface; (void)sx; (void)sy;
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (c && c->cursor_initialized == 0) {
+		// During discovery phase, record the global pointer location based on
+		// which screen triggered the enter event and surface-local coordinates.
+		for (int i = 0; i < c->nr_screens; i++) {
+			NeruWaylandScreen *scr = &c->screens[i];
+			if (surface != NULL && surface == scr->discovery_surface) {
+				c->cursor_x = scr->x + wl_fixed_to_int(sx);
+				c->cursor_y = scr->y + wl_fixed_to_int(sy);
+				c->cursor_initialized = 1;
+				break;
+			}
+		}
+	}
 }
 
 static void neru_wlr_pointer_leave(void *data,
@@ -227,6 +242,9 @@ static void neru_wlr_registry_global(void *data,
 	} else if (strcmp(interface, "wl_compositor") == 0) {
 		c->compositor = wl_registry_bind(registry, name,
 			&wl_compositor_interface, 4);
+	} else if (strcmp(interface, "zwlr_layer_shell_v1") == 0) {
+		c->layer_shell = wl_registry_bind(registry, name,
+			&zwlr_layer_shell_v1_interface, 1);
 	} else if (strcmp(interface, "wl_shm") == 0) {
 		c->shm = wl_registry_bind(registry, name,
 			&wl_shm_interface, 1);
@@ -326,12 +344,66 @@ static void neru_wlr_disconnect(NeruWlrootsClient *c) {
 // position purely client-side via neru_wlr_move_absolute (matching
 // warpd's pattern where ptr.x/ptr.y are only set by way_mouse_move).
 static void neru_wlr_init_cursor(NeruWlrootsClient *c) {
-	if (!c || c->nr_screens == 0) return;
+	if (!c || c->cursor_initialized) return;
 
-	if (!c->cursor_initialized) {
-		NeruWaylandScreen *scr = &c->screens[0];
-		c->cursor_x = scr->x + scr->w / 2;
-		c->cursor_y = scr->y + scr->h / 2;
+	// Use Warpd's cursor discovery trick: create invisible full-screen layer-shell surfaces
+	// across all outputs, wiggle the virtual pointer, and capture the pointer_enter event.
+	if (!c->layer_shell || !c->compositor || !c->pointer || !c->vptr || c->nr_screens == 0) {
+		// Fallback to screen center
+		c->cursor_x = c->screens[0].x + c->screens[0].w / 2;
+		c->cursor_y = c->screens[0].y + c->screens[0].h / 2;
+		c->cursor_initialized = 1;
+		return;
+	}
+
+	struct zwlr_layer_surface_v1 *layer_surfaces[NERU_MAX_OUTPUTS] = {0};
+
+	for (int i = 0; i < c->nr_screens; i++) {
+		c->screens[i].discovery_surface = wl_compositor_create_surface(c->compositor);
+		// Do not set input region, allowing it to intercept pointer events
+		layer_surfaces[i] = zwlr_layer_shell_v1_get_layer_surface(
+			c->layer_shell, c->screens[i].discovery_surface, c->screens[i].wl_output,
+			ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "neru_discovery"
+		);
+		zwlr_layer_surface_v1_set_size(layer_surfaces[i], c->screens[i].w, c->screens[i].h);
+		zwlr_layer_surface_v1_set_anchor(layer_surfaces[i],
+			ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+			ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
+		zwlr_layer_surface_v1_set_exclusive_zone(layer_surfaces[i], -1);
+		wl_surface_commit(c->screens[i].discovery_surface);
+	}
+
+	wl_display_roundtrip(c->display);
+
+	// Animate the pointer to force an enter event
+	zwlr_virtual_pointer_v1_motion(c->vptr, 0, wl_fixed_from_int(1), wl_fixed_from_int(1));
+	zwlr_virtual_pointer_v1_frame(c->vptr);
+	wl_display_flush(c->display);
+
+	// Poll until initialized or timeout (~50ms)
+	struct pollfd pfd = { .fd = wl_display_get_fd(c->display), .events = POLLIN };
+	for (int attempts = 0; attempts < 5 && c->cursor_initialized == 0; attempts++) {
+		if (poll(&pfd, 1, 10) > 0) {
+			wl_display_dispatch(c->display);
+		} else {
+			wl_display_dispatch_pending(c->display);
+		}
+	}
+
+	// Destroy discovery surfaces
+	for (int i = 0; i < c->nr_screens; i++) {
+		if (layer_surfaces[i]) zwlr_layer_surface_v1_destroy(layer_surfaces[i]);
+		if (c->screens[i].discovery_surface) {
+			wl_surface_destroy(c->screens[i].discovery_surface);
+			c->screens[i].discovery_surface = NULL;
+		}
+	}
+	wl_display_flush(c->display);
+
+	// Fallback if discovery failed
+	if (c->cursor_initialized == 0) {
+		c->cursor_x = c->screens[0].x + c->screens[0].w / 2;
+		c->cursor_y = c->screens[0].y + c->screens[0].h / 2;
 		c->cursor_initialized = 1;
 	}
 }

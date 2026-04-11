@@ -134,37 +134,35 @@ func normalizeLinuxKey(key string) string {
 		return ""
 	}
 
-	// Handle modifier prefix from Wayland (e.g., "__modifier_shift L")
-	if strings.HasPrefix(key, "__modifier_shift ") {
-		return key // Keep as-is for now, mode handler will process it
-	}
-	if strings.HasPrefix(key, "__modifier_") {
-		return key // Other modifiers keep as-is
+	// Split modifiers from base key
+	parts := strings.Split(key, "+")
+	baseKey := parts[len(parts)-1]
+
+	switch strings.ToLower(baseKey) {
+	case "return":
+		baseKey = "Return"
+	case "space":
+		baseKey = "Space"
+	case "tab":
+		baseKey = "Tab"
+	case "escape", "esc":
+		baseKey = "Escape"
+	case "backspace":
+		baseKey = "Delete"
+	case "left":
+		baseKey = "Left"
+	case "right":
+		baseKey = "Right"
+	case "up":
+		baseKey = "Up"
+	case "down":
+		baseKey = "Down"
+	default:
+		if len([]rune(baseKey)) == 1 {
+			baseKey = strings.ToLower(baseKey)
+		}
 	}
 
-	switch strings.ToLower(key) {
-	case "return":
-		return "Return"
-	case "space":
-		return "Space"
-	case "tab":
-		return "Tab"
-	case "escape", "esc":
-		return "Escape"
-	case "backspace":
-		return "Delete"
-	case "left":
-		return "Left"
-	case "right":
-		return "Right"
-	case "up":
-		return "Up"
-	case "down":
-		return "Down"
-	default:
-		if len([]rune(key)) == 1 {
-			return strings.ToLower(key)
-		}
-		return key
-	}
+	parts[len(parts)-1] = baseKey
+	return strings.Join(parts, "+")
 }

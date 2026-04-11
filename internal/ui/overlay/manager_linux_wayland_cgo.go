@@ -72,13 +72,8 @@ static uint32_t current_mods = 0;
 
 //export neruWaylandOverlayOnKey
 static void neruWaylandOverlayOnKey(const char *key) {
-    // Prepend modifier prefix if shift is held
-    if (current_mods & (1 << 0)) { // shift
-        snprintf(key_buffer, sizeof(key_buffer), "__modifier_shift %s", key);
-    } else {
-        strncpy(key_buffer, key, sizeof(key_buffer) - 1);
-        key_buffer[sizeof(key_buffer) - 1] = 0;
-    }
+    strncpy(key_buffer, key, sizeof(key_buffer) - 1);
+    key_buffer[sizeof(key_buffer) - 1] = 0;
     key_available = 1;
 }
 
@@ -246,41 +241,38 @@ static void neru_keyboard_key(void *data, struct wl_keyboard *keyboard,
             xkb_keysym_t keysym = xkb_state_key_get_one_sym(overlay->xkb_state, key + 8);
             xkb_keysym_get_name(keysym, buf, sizeof(buf));
 
-            // Check modifiers - build modifier prefix
+            // Check modifiers - build standard macOS-style modifier prefix
             char mod_prefix[64] = "";
-            if (current_mods & (1 << 0)) strcat(mod_prefix, "__modifier_shift ");
-            if (current_mods & (1 << 1)) strcat(mod_prefix, "__modifier_ctrl ");
-            if (current_mods & (1 << 2)) strcat(mod_prefix, "__modifier_alt ");
-            if (current_mods & (1 << 3)) strcat(mod_prefix, "__modifier_cmd ");
+            if (current_mods & (1 << 0)) strcat(mod_prefix, "Shift+");
+            if (current_mods & (1 << 1)) strcat(mod_prefix, "Ctrl+");
+            if (current_mods & (1 << 2)) strcat(mod_prefix, "Alt+");
+            if (current_mods & (1 << 3)) strcat(mod_prefix, "Cmd+");
 
-            // Handle any key - convert keysym name to lowercase
-            if (buf[0]) {
-                // Convert to lowercase for consistency
+            char utf8_buf[64] = {0};
+            xkb_state_key_get_utf8(overlay->xkb_state, key + 8, utf8_buf, sizeof(utf8_buf));
+
+            char *final_key = buf; // Fallback to keysym name
+
+            // If the utf8 string is exactly 1 printable ascii character (and not space), use it!
+            // This properly handles characters like ',' or '.' which xkb_keysym_get_name translates to "comma"/"period".
+            if (utf8_buf[0] != '\0' && utf8_buf[1] == '\0' && utf8_buf[0] > 32 && utf8_buf[0] <= 126) {
+                final_key = utf8_buf;
+                // If it's a letter, lowercase it for consistency so Shift+l doesn't become Shift+L
+                if (final_key[0] >= 'A' && final_key[0] <= 'Z') {
+                    final_key[0] = final_key[0] + 32;
+                }
+            } else if (buf[0]) {
+                // Otherwise format the keysym name
                 for (int i = 0; buf[i]; i++) {
                     if (buf[i] >= 'A' && buf[i] <= 'Z') {
                         buf[i] = buf[i] + 32;
                     }
                 }
+            }
 
-                if (mod_prefix[0]) {
-                    snprintf(key_buffer, sizeof(key_buffer), "%s%s", mod_prefix, buf);
-                } else {
-                    strncpy(key_buffer, buf, sizeof(key_buffer) - 1);
-                    key_buffer[sizeof(key_buffer) - 1] = 0;
-                }
+            if (final_key[0]) {
+                snprintf(key_buffer, sizeof(key_buffer), "%s%s", mod_prefix, final_key);
                 key_available = 1;
-            } else {
-                // Fallback to utf8
-                xkb_state_key_get_utf8(overlay->xkb_state, key + 8, buf, sizeof(buf));
-                if (buf[0]) {
-                    if (mod_prefix[0]) {
-                        snprintf(key_buffer, sizeof(key_buffer), "%s%s", mod_prefix, buf);
-                    } else {
-                        strncpy(key_buffer, buf, sizeof(key_buffer) - 1);
-                        key_buffer[sizeof(key_buffer) - 1] = 0;
-                    }
-                    key_available = 1;
-                }
             }
         }
     }
@@ -407,8 +399,12 @@ static void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 
         scr->wl_surface = wl_compositor_create_surface(overlay->compositor);
 
-        // NOTE: Do NOT set input region to null - that would pass input through!
-        // Let the compositor handle input based on keyboard_interactivity flag.
+        // We want all pointer clicks to PASS THROUGH the overlay to the window behind it.
+        // On Wayland, a surface intercepts all events across its entire dimension unless
+        // an input region is explicitly provided. We set an empty region here:
+        struct wl_region *empty_region = wl_compositor_create_region(overlay->compositor);
+        wl_surface_set_input_region(scr->wl_surface, empty_region);
+        wl_region_destroy(empty_region);
 
         scr->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
             overlay->layer_shell, scr->wl_surface, scr->wl_output,
