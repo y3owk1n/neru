@@ -730,7 +730,14 @@ func (o *wlrootsOverlay) UpdateGridMatches(prefix string) {
 
 func (o *wlrootsOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
 	o.currentSubgrid = cell
-	o.redrawGrid()
+	// Draw only the subgrid (matching macOS: clear overlay, draw subgrid cells only).
+	if o == nil || o.raw == nil || cell == nil {
+		return
+	}
+	C.neru_wayland_overlay_setup_buffers(o.raw)
+	o.Clear()
+	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
+	C.neru_wayland_overlay_flush(o.raw)
 }
 
 func (o *wlrootsOverlay) SetHideUnmatched(hide bool) {
@@ -745,6 +752,8 @@ func (o *wlrootsOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridco
 	o.cachedGrid = g
 	o.cachedStyle = style
 	o.currentPrefix = strings.ToUpper(input)
+	// Clear subgrid — DrawGrid draws the main grid; ShowSubgrid sets it separately.
+	o.currentSubgrid = nil
 
 	o.redrawGrid()
 }
@@ -857,33 +866,51 @@ func (o *wlrootsOverlay) DrawBadge(x, y int, text string, colors overlayColors) 
 }
 
 func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
-	cols, rows := 3, 3
-	cellWidth := bounds.Dx() / cols
-	cellHeight := bounds.Dy() / rows
+	const (
+		cols = 3
+		rows = 3
+	)
 
-	// Use configured sublayer keys; fall back to digits
+	// Use configured sublayer keys; fall back to default
 	keyRunes := []rune("ASDFGHJKL")
 	if o.sublayerKeys != "" {
 		keyRunes = []rune(strings.ToUpper(o.sublayerKeys))
 	}
-	max := cols * rows
-	if len(keyRunes) < max {
-		max = len(keyRunes)
+	maxKeys := cols * rows
+	if len(keyRunes) < maxKeys {
+		maxKeys = len(keyRunes)
 	}
+
+	// Build breakpoints that evenly distribute remainders to fully cover the cell
+	// (matches macOS ShowSubgrid implementation).
+	xBreaks := make([]int, cols+1)
+	yBreaks := make([]int, rows+1)
+	xBreaks[0] = bounds.Min.X
+	yBreaks[0] = bounds.Min.Y
+	for i := 1; i <= cols; i++ {
+		xBreaks[i] = bounds.Min.X + int(float64(i)*float64(bounds.Dx())/float64(cols)+0.5)
+	}
+	for i := 1; i <= rows; i++ {
+		yBreaks[i] = bounds.Min.Y + int(float64(i)*float64(bounds.Dy())/float64(rows)+0.5)
+	}
+	// Ensure last breaks exactly match bounds to avoid 1px drift
+	xBreaks[cols] = bounds.Max.X
+	yBreaks[rows] = bounds.Max.Y
 
 	index := 0
 	for row := range rows {
 		for col := range cols {
-			if index >= max {
+			if index >= maxKeys {
 				break
 			}
 			cell := image.Rect(
-				bounds.Min.X+col*cellWidth,
-				bounds.Min.Y+row*cellHeight,
-				bounds.Min.X+(col+1)*cellWidth,
-				bounds.Min.Y+(row+1)*cellHeight,
+				xBreaks[col],
+				yBreaks[row],
+				xBreaks[col+1],
+				yBreaks[row+1],
 			)
-			o.drawRect(cell, 0x14000000, style.LineColor, 1)
+			// Use a visible semi-opaque fill so subgrid cells are clearly distinct
+			o.drawRect(cell, 0x40000000, style.LineColor, 1)
 			o.drawTextCentered(string(keyRunes[index]), cell, style.LabelFontSize*0.7, style.LabelFontColor)
 			index++
 		}
