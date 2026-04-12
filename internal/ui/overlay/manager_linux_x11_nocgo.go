@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
+	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 )
@@ -31,6 +32,8 @@ func (o *x11Overlay) UpdateGridMatches(string)                               {}
 func (o *x11Overlay) ShowSubgrid(*domainGrid.Cell, gridcomponent.Style)      {}
 func (o *x11Overlay) SetHideUnmatched(bool)                                  {}
 func (o *x11Overlay) DrawGrid(*domainGrid.Grid, string, gridcomponent.Style) {}
+func (o *x11Overlay) DrawHints([]*hintscomponent.Hint, hintscomponent.StyleMode) {
+}
 
 func (o *x11Overlay) DrawRecursiveGrid(
 	image.Rectangle,
@@ -42,4 +45,4 @@ func (o *x11Overlay) DrawRecursiveGrid(
 	recursivegridcomponent.VirtualPointerState,
 ) {
 }
-func (o *x11Overlay) DrawBadge(int, int, string, overlayColors) {}
+func (o *x11Overlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}

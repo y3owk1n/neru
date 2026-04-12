@@ -111,5 +111,32 @@ func (o *Overlay) Config() config.HintsConfig {
 
 // BuildStyle builds the hints style from the configuration (Linux stub).
 func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
-	return StyleMode{}
+	return StyleMode{
+		fontSize:     cfg.UI.FontSize,
+		fontFamily:   cfg.UI.FontFamily,
+		borderRadius: cfg.UI.BorderRadius,
+		paddingX:     cfg.UI.PaddingX,
+		paddingY:     cfg.UI.PaddingY,
+		borderWidth:  cfg.UI.BorderWidth,
+		backgroundColor: cfg.UI.BackgroundColor.ForTheme(
+			theme,
+			config.HintsBackgroundColorLight,
+			config.HintsBackgroundColorDark,
+		),
+		textColor: cfg.UI.TextColor.ForTheme(
+			theme,
+			config.HintsTextColorLight,
+			config.HintsTextColorDark,
+		),
+		matchedTextColor: cfg.UI.MatchedTextColor.ForTheme(
+			theme,
+			config.HintsMatchedTextColorLight,
+			config.HintsMatchedTextColorDark,
+		),
+		borderColor: cfg.UI.BorderColor.ForTheme(
+			theme,
+			config.HintsBorderColorLight,
+			config.HintsBorderColorDark,
+		),
+	}
 }

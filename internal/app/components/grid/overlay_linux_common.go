@@ -26,12 +26,16 @@ const (
 
 // Style holds the styling information for a grid.
 type Style struct {
-	LineWidth      float64
-	LineColor      uint32
-	LabelFontColor uint32
-	LabelFontSize  float64
-	LabelFontName  string
-	ShowLabels     bool
+	LineWidth              float64
+	LineColor              uint32
+	BackgroundColor        uint32
+	LabelFontColor         uint32
+	LabelFontSize          float64
+	LabelFontName          string
+	MatchedTextColor       uint32
+	MatchedBackgroundColor uint32
+	MatchedBorderColor     uint32
+	ShowLabels             bool
 }
 
 // Overlay manages the rendering of grid overlays using native platform APIs (Linux stub).
@@ -108,12 +112,40 @@ func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 				config.GridBorderColorDark,
 			),
 		),
+		BackgroundColor: parseLinuxColor(
+			cfg.UI.BackgroundColor.ForTheme(
+				theme,
+				config.GridBackgroundColorLight,
+				config.GridBackgroundColorDark,
+			),
+		),
 		LabelFontColor: parseLinuxColor(
 			cfg.UI.TextColor.ForTheme(theme, config.GridTextColorLight, config.GridTextColorDark),
 		),
 		LabelFontSize: float64(max(cfg.UI.FontSize, minFontSize)),
 		LabelFontName: cfg.UI.FontFamily,
-		ShowLabels:    true,
+		MatchedTextColor: parseLinuxColor(
+			cfg.UI.MatchedTextColor.ForTheme(
+				theme,
+				config.GridMatchedTextColorLight,
+				config.GridMatchedTextColorDark,
+			),
+		),
+		MatchedBackgroundColor: parseLinuxColor(
+			cfg.UI.MatchedBackgroundColor.ForTheme(
+				theme,
+				config.GridMatchedBackgroundColorLight,
+				config.GridMatchedBackgroundColorDark,
+			),
+		),
+		MatchedBorderColor: parseLinuxColor(
+			cfg.UI.MatchedBorderColor.ForTheme(
+				theme,
+				config.GridMatchedBorderColorLight,
+				config.GridMatchedBorderColorDark,
+			),
+		),
+		ShowLabels: true,
 	}
 }
 

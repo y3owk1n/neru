@@ -4,6 +4,7 @@ package overlay
 
 import (
 	"image"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,15 +25,8 @@ import (
 )
 
 const (
-	gridFillColor         uint32 = 0x18000000
-	gridMatchedFillColor  uint32 = 0x66465FBC
-	gridMatchedTextColor  uint32 = 0xFFF8FAFF
 	subgridBackground     uint32 = 0x40000000
 	subgridCellBackground uint32 = 0x10000000
-	badgePaddingX                = 10
-	badgeFontSize                = 14.0
-	badgeCharWidth               = 9
-	badgeHeight                  = 24
 	hexColorOpaque        uint32 = 0xFFFFFFFF
 	hexColorRepeatCount          = 2
 	hexColorLenShort             = 3
@@ -329,9 +323,24 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 	}
 }
 
-// DrawHintsWithStyle is a no-op on Linux.
-func (m *Manager) DrawHintsWithStyle(_ []*hints.Hint, _ hints.StyleMode) error {
-	return derrors.New(derrors.CodeNotSupported, "overlay hints not implemented on linux")
+// DrawHintsWithStyle draws the hints overlay using the active Linux backend.
+func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if m.x11 != nil {
+		m.x11.DrawHints(hs, style)
+
+		return nil
+	}
+
+	if m.wlroots != nil {
+		m.wlroots.DrawHints(hs, style)
+
+		return nil
+	}
+
+	return derrors.New(derrors.CodeNotSupported, "overlay hints not implemented on linux backend")
 }
 
 // DrawModeIndicator draws the mode indicator overlay.
@@ -345,13 +354,21 @@ func (m *Manager) DrawModeIndicator(posX, posY int) {
 		return
 	}
 
+	label, colors, style, ok := resolveModeIndicatorAppearance(
+		string(mode),
+		m.modeIndicatorOverlay,
+	)
+	if !ok {
+		return
+	}
+
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
 	if m.x11 != nil {
-		m.x11.DrawBadge(posX, posY, string(mode), resolveModeIndicatorColors())
+		m.x11.DrawBadge(posX, posY, label, colors, style)
 	} else if m.wlroots != nil {
-		m.wlroots.DrawBadge(posX, posY, string(mode), resolveModeIndicatorColors())
+		m.wlroots.DrawBadge(posX, posY, label, colors, style)
 	}
 }
 
@@ -361,13 +378,18 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 		return
 	}
 
+	colors, style, ok := resolveStickyIndicatorAppearance(m.stickyModifiersOverlay)
+	if !ok {
+		return
+	}
+
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
 	if m.x11 != nil {
-		m.x11.DrawBadge(posX, posY, symbols, resolveStickyIndicatorColors())
+		m.x11.DrawBadge(posX, posY, symbols, colors, style)
 	} else if m.wlroots != nil {
-		m.wlroots.DrawBadge(posX, posY, symbols, resolveStickyIndicatorColors())
+		m.wlroots.DrawBadge(posX, posY, symbols, colors, style)
 	}
 }
 
@@ -547,20 +569,171 @@ type overlayColors struct {
 	text       uint32
 }
 
-func resolveModeIndicatorColors() overlayColors {
-	return overlayColors{
-		background: parseHexColor(config.ModeIndicatorBackgroundColorLight),
-		border:     parseHexColor(config.ModeIndicatorBorderColorLight),
-		text:       parseHexColor(config.ModeIndicatorTextColorLight),
-	}
+type overlayBadgeStyle struct {
+	fontFamily  string
+	fontSize    float64
+	paddingX    int
+	paddingY    int
+	borderWidth float64
+	offsetX     int
+	offsetY     int
 }
 
-func resolveStickyIndicatorColors() overlayColors {
-	return overlayColors{
-		background: parseHexColor(config.StickyModifiersBackgroundColorLight),
-		border:     parseHexColor(config.StickyModifiersBorderColorLight),
-		text:       parseHexColor(config.StickyModifiersTextColorLight),
+func resolveModeIndicatorAppearance(
+	mode string,
+	o *modeindicator.Overlay,
+) (string, overlayColors, overlayBadgeStyle, bool) {
+	if o == nil {
+		return "", overlayColors{}, overlayBadgeStyle{}, false
 	}
+
+	label := o.ResolveLabelText(mode)
+	if label == "" {
+		return "", overlayColors{}, overlayBadgeStyle{}, false
+	}
+
+	modeCfg, ok := o.ResolveModeConfig(mode)
+	if !ok || !modeCfg.Enabled {
+		return "", overlayColors{}, overlayBadgeStyle{}, false
+	}
+
+	cfg := o.IndicatorConfig()
+	theme := o.ThemeProvider()
+
+	colors := overlayColors{
+		background: parseHexColor(
+			modeCfg.BackgroundColor.ForThemeWithOverride(
+				cfg.UI.BackgroundColor,
+				theme,
+				config.ModeIndicatorBackgroundColorLight,
+				config.ModeIndicatorBackgroundColorDark,
+			),
+		),
+		border: parseHexColor(
+			modeCfg.BorderColor.ForThemeWithOverride(
+				cfg.UI.BorderColor,
+				theme,
+				config.ModeIndicatorBorderColorLight,
+				config.ModeIndicatorBorderColorDark,
+			),
+		),
+		text: parseHexColor(
+			modeCfg.TextColor.ForThemeWithOverride(
+				cfg.UI.TextColor,
+				theme,
+				config.ModeIndicatorTextColorLight,
+				config.ModeIndicatorTextColorDark,
+			),
+		),
+	}
+
+	style := overlayBadgeStyle{
+		fontFamily:  cfg.UI.FontFamily,
+		fontSize:    float64(max(cfg.UI.FontSize, 1)),
+		paddingX:    cfg.UI.PaddingX,
+		paddingY:    cfg.UI.PaddingY,
+		borderWidth: float64(max(cfg.UI.BorderWidth, 0)),
+		offsetX:     cfg.UI.IndicatorXOffset,
+		offsetY:     cfg.UI.IndicatorYOffset,
+	}
+
+	return label, colors, style, true
+}
+
+func resolveStickyIndicatorAppearance(
+	o *stickyindicator.Overlay,
+) (overlayColors, overlayBadgeStyle, bool) {
+	if o == nil {
+		return overlayColors{}, overlayBadgeStyle{}, false
+	}
+
+	cfg := o.UIConfig()
+	theme := o.ThemeProvider()
+
+	colors := overlayColors{
+		background: parseHexColor(
+			cfg.BackgroundColor.ForTheme(
+				theme,
+				config.StickyModifiersBackgroundColorLight,
+				config.StickyModifiersBackgroundColorDark,
+			),
+		),
+		border: parseHexColor(
+			cfg.BorderColor.ForTheme(
+				theme,
+				config.StickyModifiersBorderColorLight,
+				config.StickyModifiersBorderColorDark,
+			),
+		),
+		text: parseHexColor(
+			cfg.TextColor.ForTheme(
+				theme,
+				config.StickyModifiersTextColorLight,
+				config.StickyModifiersTextColorDark,
+			),
+		),
+	}
+
+	style := overlayBadgeStyle{
+		fontFamily:  cfg.FontFamily,
+		fontSize:    float64(max(cfg.FontSize, 1)),
+		paddingX:    cfg.PaddingX,
+		paddingY:    cfg.PaddingY,
+		borderWidth: float64(max(cfg.BorderWidth, 0)),
+		offsetX:     cfg.IndicatorXOffset,
+		offsetY:     cfg.IndicatorYOffset,
+	}
+
+	return colors, style, true
+}
+
+func resolveAutoPadding(fontSize float64, padding int, horizontal bool) int {
+	if padding >= 0 {
+		return padding
+	}
+
+	if horizontal {
+		return max(int(fontSize*0.6), 6)
+	}
+
+	return max(int(fontSize*0.35), 4)
+}
+
+func estimateTextWidth(text string, fontSize float64) int {
+	return int(math.Ceil(float64(len([]rune(text))) * fontSize * 0.7))
+}
+
+func estimateTextHeight(fontSize float64) int {
+	return int(math.Ceil(fontSize * 1.4))
+}
+
+func centeredRect(cell image.Rectangle, width, height int) image.Rectangle {
+	centerX := cell.Min.X + cell.Dx()/2
+	centerY := cell.Min.Y + cell.Dy()/2
+
+	return image.Rect(
+		centerX-width/2,
+		centerY-height/2,
+		centerX-width/2+width,
+		centerY-height/2+height,
+	)
+}
+
+func shouldShowSubKeyPreview(
+	cell image.Rectangle,
+	style recursivegrid.Style,
+) bool {
+	if !style.SubKeyPreview {
+		return false
+	}
+
+	if style.SubKeyPreviewAutohideMultiplier <= 0 {
+		return true
+	}
+
+	threshold := style.SubKeyPreviewFontSize * style.SubKeyPreviewAutohideMultiplier
+
+	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
 }
 
 func parseHexColor(value string) uint32 {

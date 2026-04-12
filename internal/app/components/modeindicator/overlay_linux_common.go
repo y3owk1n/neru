@@ -72,3 +72,53 @@ func (o *Overlay) IndicatorConfig() config.ModeIndicatorConfig {
 
 	return o.indicatorConfig
 }
+
+// ThemeProvider returns the active theme provider used to resolve colors.
+func (o *Overlay) ThemeProvider() config.ThemeProvider {
+	return o.theme
+}
+
+// ResolveLabelText returns the configured indicator label for the mode.
+func (o *Overlay) ResolveLabelText(mode string) string {
+	o.configMu.RLock()
+	defer o.configMu.RUnlock()
+
+	modeCfg := o.resolveModeConfigLocked(mode)
+	if modeCfg == nil || !modeCfg.Enabled {
+		return ""
+	}
+
+	if modeCfg.Text != "" {
+		return modeCfg.Text
+	}
+
+	return mode
+}
+
+// ResolveModeConfig returns the configured per-mode indicator settings.
+func (o *Overlay) ResolveModeConfig(mode string) (config.ModeIndicatorModeConfig, bool) {
+	o.configMu.RLock()
+	defer o.configMu.RUnlock()
+
+	modeCfg := o.resolveModeConfigLocked(mode)
+	if modeCfg == nil {
+		return config.ModeIndicatorModeConfig{}, false
+	}
+
+	return *modeCfg, true
+}
+
+func (o *Overlay) resolveModeConfigLocked(mode string) *config.ModeIndicatorModeConfig {
+	switch mode {
+	case "hints":
+		return &o.indicatorConfig.Hints
+	case "grid":
+		return &o.indicatorConfig.Grid
+	case "scroll":
+		return &o.indicatorConfig.Scroll
+	case "recursive_grid":
+		return &o.indicatorConfig.RecursiveGrid
+	default:
+		return nil
+	}
+}

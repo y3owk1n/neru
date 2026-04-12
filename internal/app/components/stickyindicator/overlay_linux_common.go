@@ -63,3 +63,16 @@ func (o *Overlay) SetConfig(cfg config.StickyModifiersUI) {
 
 	o.uiConfig = cfg
 }
+
+// UIConfig returns the current sticky-modifier UI config.
+func (o *Overlay) UIConfig() config.StickyModifiersUI {
+	o.configMu.RLock()
+	defer o.configMu.RUnlock()
+
+	return o.uiConfig
+}
+
+// ThemeProvider returns the active theme provider used to resolve colors.
+func (o *Overlay) ThemeProvider() config.ThemeProvider {
+	return o.theme
+}

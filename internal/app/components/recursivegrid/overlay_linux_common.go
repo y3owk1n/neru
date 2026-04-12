@@ -24,12 +24,23 @@ const (
 
 // Style holds the styling information for a recursive grid.
 type Style struct {
-	LineWidth      float64
-	LineColor      uint32
-	LabelFontColor uint32
-	LabelFontSize  float64
-	LabelFontName  string
-	ShowLabels     bool
+	LineWidth                       float64
+	LineColor                       uint32
+	HighlightColor                  uint32
+	LabelFontColor                  uint32
+	LabelFontSize                   float64
+	LabelFontName                   string
+	LabelBackground                 bool
+	LabelBackgroundColor            uint32
+	LabelBackgroundPaddingX         int
+	LabelBackgroundPaddingY         int
+	LabelBackgroundBorderRadius     int
+	LabelBackgroundBorderWidth      float64
+	SubKeyPreview                   bool
+	SubKeyPreviewFontSize           float64
+	SubKeyPreviewAutohideMultiplier float64
+	SubKeyPreviewTextColor          uint32
+	ShowLabels                      bool
 }
 
 // Overlay manages the rendering of recursive_grid overlays using native platform APIs (Linux stub).
@@ -109,6 +120,13 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 				config.RecursiveGridLineColorDark,
 			),
 		),
+		HighlightColor: parseLinuxColor(
+			cfg.UI.HighlightColor.ForTheme(
+				theme,
+				config.RecursiveGridHighlightColorLight,
+				config.RecursiveGridHighlightColorDark,
+			),
+		),
 		LabelFontColor: parseLinuxColor(
 			cfg.UI.TextColor.ForTheme(
 				theme,
@@ -118,7 +136,29 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 		),
 		LabelFontSize: float64(max(cfg.UI.FontSize, minFontSize)),
 		LabelFontName: cfg.UI.FontFamily,
-		ShowLabels:    true,
+		LabelBackground: cfg.UI.LabelBackground,
+		LabelBackgroundColor: parseLinuxColor(
+			cfg.UI.LabelBackgroundColor.ForTheme(
+				theme,
+				config.RecursiveGridLabelBackgroundColorLight,
+				config.RecursiveGridLabelBackgroundColorDark,
+			),
+		),
+		LabelBackgroundPaddingX:         cfg.UI.LabelBackgroundPaddingX,
+		LabelBackgroundPaddingY:         cfg.UI.LabelBackgroundPaddingY,
+		LabelBackgroundBorderRadius:     cfg.UI.LabelBackgroundBorderRadius,
+		LabelBackgroundBorderWidth:      float64(max(cfg.UI.LabelBackgroundBorderWidth, 0)),
+		SubKeyPreview:                   cfg.UI.SubKeyPreview,
+		SubKeyPreviewFontSize:           float64(max(cfg.UI.SubKeyPreviewFontSize, 1)),
+		SubKeyPreviewAutohideMultiplier: cfg.UI.SubKeyPreviewAutohideMultiplier,
+		SubKeyPreviewTextColor: parseLinuxColor(
+			cfg.UI.SubKeyPreviewTextColor.ForTheme(
+				theme,
+				config.RecursiveGridSubKeyPreviewTextColorLight,
+				config.RecursiveGridSubKeyPreviewTextColorDark,
+			),
+		),
+		ShowLabels: true,
 	}
 }
 

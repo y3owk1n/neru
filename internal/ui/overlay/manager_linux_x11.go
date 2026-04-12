@@ -171,6 +171,7 @@ static void neru_x11_overlay_rect(
 static void neru_x11_overlay_text(
 	NeruX11Overlay *overlay,
 	const char *text,
+	const char *font_family,
 	double x, double y,
 	double font_size,
 	unsigned int color
@@ -178,7 +179,12 @@ static void neru_x11_overlay_text(
 	cairo_t *cr = overlay->cr;
 	cairo_text_extents_t extents;
 	cairo_save(cr);
-	cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+	cairo_select_font_face(
+		cr,
+		font_family && font_family[0] ? font_family : "Sans",
+		CAIRO_FONT_SLANT_NORMAL,
+		CAIRO_FONT_WEIGHT_BOLD
+	);
 	cairo_set_font_size(cr, font_size);
 	cairo_text_extents(cr, text, &extents);
 	neru_x11_overlay_color(cr, color);
@@ -202,6 +208,7 @@ import (
 	"go.uber.org/zap"
 
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
+	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 )
@@ -334,14 +341,28 @@ func (o *x11Overlay) DrawRecursiveGrid(
 				cell.Max.Y = bounds.Max.Y
 			}
 
-			o.drawRect(cell, gridFillColor, style.LineColor, style.LineWidth)
+			fill := style.HighlightColor
+			if fill == 0 {
+				fill = subgridCellBackground
+			}
+
+			o.drawRect(cell, fill, style.LineColor, style.LineWidth)
 			if index < len(keyRunes) {
+				label := string(keyRunes[index])
+				if style.LabelBackground {
+					o.drawLabelBackground(label, cell, style)
+				}
 				o.drawTextCentered(
-					string(keyRunes[index]),
+					label,
 					cell,
+					style.LabelFontName,
 					style.LabelFontSize,
 					style.LabelFontColor,
 				)
+
+				if shouldShowSubKeyPreview(cell, style) {
+					o.drawSubKeyPreview(label, cell, style)
+				}
 			}
 			index++
 		}
@@ -365,17 +386,72 @@ func (o *x11Overlay) DrawRecursiveGrid(
 	C.neru_x11_overlay_flush(o.raw)
 }
 
-func (o *x11Overlay) DrawBadge(posX, posY int, text string, colors overlayColors) {
+func (o *x11Overlay) DrawBadge(
+	posX,
+	posY int,
+	text string,
+	colors overlayColors,
+	style overlayBadgeStyle,
+) {
 	if o == nil || o.raw == nil || text == "" {
 		return
 	}
 
-	width := len(text)*badgeCharWidth + badgePaddingX*badgePaddingSides
-	height := badgeHeight
-	rect := image.Rect(posX, posY, posX+width, posY+height)
+	fontSize := style.fontSize
+	if fontSize <= 0 {
+		fontSize = 14
+	}
 
-	o.drawRect(rect, colors.background, colors.border, subgridLineWidth)
-	o.drawTextCentered(text, rect, badgeFontSize, colors.text)
+	paddingX := resolveAutoPadding(fontSize, style.paddingX, true)
+	paddingY := resolveAutoPadding(fontSize, style.paddingY, false)
+	width := estimateTextWidth(text, fontSize) + paddingX*2
+	height := estimateTextHeight(fontSize) + paddingY*2
+	rect := image.Rect(
+		posX+style.offsetX,
+		posY+style.offsetY,
+		posX+style.offsetX+width,
+		posY+style.offsetY+height,
+	)
+
+	o.drawRect(rect, colors.background, colors.border, max(style.borderWidth, 1))
+	o.drawTextCentered(text, rect, style.fontFamily, fontSize, colors.text)
+	C.neru_x11_overlay_flush(o.raw)
+}
+
+func (o *x11Overlay) DrawHints(hs []*hintscomponent.Hint, style hintscomponent.StyleMode) {
+	if o == nil || o.raw == nil {
+		return
+	}
+
+	o.Clear()
+	for _, hint := range hs {
+		bounds := image.Rect(
+			hint.Position().X,
+			hint.Position().Y,
+			hint.Position().X+hint.Size().X,
+			hint.Position().Y+hint.Size().Y,
+		)
+
+		textColor := style.TextColor()
+		if hint.MatchedPrefix() != "" {
+			textColor = style.MatchedTextColor()
+		}
+
+		o.drawRect(
+			bounds,
+			parseHexColor(style.BackgroundColor()),
+			parseHexColor(style.BorderColor()),
+			float64(max(style.BorderWidth(), 0)),
+		)
+		o.drawTextCentered(
+			hint.Label(),
+			bounds,
+			style.FontFamily(),
+			float64(max(style.FontSize(), 1)),
+			parseHexColor(textColor),
+		)
+	}
+
 	C.neru_x11_overlay_flush(o.raw)
 }
 
@@ -395,15 +471,16 @@ func (o *x11Overlay) redrawGrid() {
 			continue
 		}
 
-		fill := gridFillColor
+		fill := style.BackgroundColor
 		text := style.LabelFontColor
 		border := style.LineColor
 		if matched && prefix != "" {
-			fill = gridMatchedFillColor
-			text = gridMatchedTextColor
+			fill = style.MatchedBackgroundColor
+			text = style.MatchedTextColor
+			border = style.MatchedBorderColor
 		}
 		o.drawRect(cell.Bounds(), fill, border, style.LineWidth)
-		o.drawTextCentered(label, cell.Bounds(), style.LabelFontSize, text)
+		o.drawTextCentered(label, cell.Bounds(), style.LabelFontName, style.LabelFontSize, text)
 	}
 
 	if o.currentSubgrid != nil {
@@ -452,6 +529,7 @@ func (o *x11Overlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 			o.drawTextCentered(
 				string(keyRunes[index]),
 				cell,
+				style.LabelFontName,
 				style.LabelFontSize*subgridFontScale,
 				style.LabelFontColor,
 			)
@@ -481,19 +559,64 @@ func (o *x11Overlay) drawRect(
 func (o *x11Overlay) drawTextCentered(
 	text string,
 	bounds image.Rectangle,
+	fontFamily string,
 	fontSize float64,
 	color uint32,
 ) {
 	cText := C.CString(text)
+	cFontFamily := C.CString(fontFamily)
 
 	defer C.free(unsafe.Pointer(cText)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cFontFamily))
 
 	C.neru_x11_overlay_text(
 		o.raw,
 		cText,
+		cFontFamily,
 		C.double(bounds.Min.X+bounds.Dx()/2),
 		C.double(bounds.Min.Y+bounds.Dy()/2),
 		C.double(fontSize),
 		C.uint(color),
+	)
+}
+
+func (o *x11Overlay) drawLabelBackground(
+	label string,
+	cell image.Rectangle,
+	style recursivegridcomponent.Style,
+) {
+	fontSize := style.LabelFontSize
+	paddingX := resolveAutoPadding(fontSize, style.LabelBackgroundPaddingX, true)
+	paddingY := resolveAutoPadding(fontSize, style.LabelBackgroundPaddingY, false)
+	width := estimateTextWidth(label, fontSize) + paddingX*2
+	height := estimateTextHeight(fontSize) + paddingY*2
+	rect := centeredRect(cell, width, height)
+
+	o.drawRect(
+		rect,
+		style.LabelBackgroundColor,
+		style.LineColor,
+		max(style.LabelBackgroundBorderWidth, 0),
+	)
+}
+
+func (o *x11Overlay) drawSubKeyPreview(
+	label string,
+	cell image.Rectangle,
+	style recursivegridcomponent.Style,
+) {
+	previewRect := image.Rect(
+		cell.Min.X,
+		cell.Max.Y-estimateTextHeight(style.SubKeyPreviewFontSize)-4,
+		cell.Max.X,
+		cell.Max.Y,
+	)
+
+	o.drawTextCentered(
+		label,
+		previewRect,
+		style.LabelFontName,
+		style.SubKeyPreviewFontSize,
+		style.SubKeyPreviewTextColor,
 	)
 }
