@@ -60,7 +60,15 @@ typedef struct {
     int running;
 } NeruWaylandOverlay;
 
-// Global keyboard channel for Go callback
+// Global keyboard event buffer.
+// Thread safety: key_buffer and key_available are accessed from two contexts:
+//   1. neru_keyboard_key (Wayland callback) — writes key_buffer, sets key_available
+//   2. neru_wayland_overlay_get_key — reads key_buffer, clears key_available
+// Both contexts are serialized by the Go-side displayMu mutex (shared with
+// renderMu). Context 1 fires only inside wl_display_dispatch/wl_display_roundtrip,
+// which only run while displayMu is held. Context 2 is called from the keyboard
+// poller goroutine which also holds displayMu. Therefore concurrent access to
+// key_buffer cannot occur as long as all wl_display calls go through the mutex.
 static char key_buffer[256];
 static volatile int key_available = 0;
 static volatile int keyboard_enter_received = 0;
