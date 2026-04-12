@@ -679,9 +679,9 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 		doneCh: make(chan struct{}),
 	}
 
-	go o.keyboardPoller()
+	go overlay.keyboardPoller()
 
-	return o
+	return overlay
 }
 
 func (o *wlrootsOverlay) Healthy() bool {

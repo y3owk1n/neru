@@ -457,4 +457,6 @@ func currentLinuxBackend() linuxBackend {
 		platform.BackendWaylandKDE, platform.BackendWaylandOther:
 		return linuxBackendUnknown
 	}
+
+	return linuxBackendUnknown
 }

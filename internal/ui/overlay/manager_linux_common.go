@@ -572,6 +572,8 @@ func detectLinuxOverlayBackend() linuxOverlayBackend {
 		platform.BackendWaylandKDE, platform.BackendWaylandOther:
 		return linuxOverlayBackendUnknown
 	}
+
+	return linuxOverlayBackendUnknown
 }
 
 type overlayColors struct {
