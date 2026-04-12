@@ -787,50 +787,6 @@ func (o *wlrootsOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridco
 	o.redrawGrid()
 }
 
-// setDisplayMu sets the mutex used to serialize wl_display access.
-// Must be called before the keyboard poller goroutine starts using it.
-func (o *wlrootsOverlay) setDisplayMu(mu *sync.Mutex) {
-	o.displayMu = mu
-}
-
-// redrawGrid performs the actual grid rendering using cached state.
-//
-//nolint:funcorder
-func (o *wlrootsOverlay) redrawGrid() {
-	if o == nil || o.raw == nil || o.cachedGrid == nil {
-		return
-	}
-	C.neru_wayland_overlay_setup_buffers(o.raw)
-	o.Clear()
-
-	style := o.cachedStyle
-	prefix := o.currentPrefix
-
-	for _, cell := range o.cachedGrid.AllCells() {
-		label := strings.ToUpper(cell.Coordinate())
-		matched := strings.HasPrefix(label, prefix)
-		if o.hideUnmatched && prefix != "" && !matched {
-			continue
-		}
-
-		fill := style.BackgroundColor
-		text := style.LabelFontColor
-		border := style.LineColor
-		if matched && prefix != "" {
-			fill = style.MatchedBackgroundColor
-			text = style.MatchedTextColor
-			border = style.MatchedBorderColor
-		}
-		o.drawRect(cell.Bounds(), fill, border, style.LineWidth)
-		o.drawTextCentered(label, cell.Bounds(), style.LabelFontName, style.LabelFontSize, text)
-	}
-
-	if o.currentSubgrid != nil {
-		o.drawSubgrid(o.currentSubgrid.Bounds(), style)
-	}
-	C.neru_wayland_overlay_flush(o.raw)
-}
-
 func (o *wlrootsOverlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	_ int,
@@ -1019,6 +975,48 @@ func (o *wlrootsOverlay) keyboardPoller() {
 			time.Sleep(pollInterval)
 		}
 	}
+}
+
+// setDisplayMu sets the mutex used to serialize wl_display access.
+// Must be called before the keyboard poller goroutine starts using it.
+func (o *wlrootsOverlay) setDisplayMu(mu *sync.Mutex) {
+	o.displayMu = mu
+}
+
+// redrawGrid performs the actual grid rendering using cached state.
+func (o *wlrootsOverlay) redrawGrid() {
+	if o == nil || o.raw == nil || o.cachedGrid == nil {
+		return
+	}
+	C.neru_wayland_overlay_setup_buffers(o.raw)
+	o.Clear()
+
+	style := o.cachedStyle
+	prefix := o.currentPrefix
+
+	for _, cell := range o.cachedGrid.AllCells() {
+		label := strings.ToUpper(cell.Coordinate())
+		matched := strings.HasPrefix(label, prefix)
+		if o.hideUnmatched && prefix != "" && !matched {
+			continue
+		}
+
+		fill := style.BackgroundColor
+		text := style.LabelFontColor
+		border := style.LineColor
+		if matched && prefix != "" {
+			fill = style.MatchedBackgroundColor
+			text = style.MatchedTextColor
+			border = style.MatchedBorderColor
+		}
+		o.drawRect(cell.Bounds(), fill, border, style.LineWidth)
+		o.drawTextCentered(label, cell.Bounds(), style.LabelFontName, style.LabelFontSize, text)
+	}
+
+	if o.currentSubgrid != nil {
+		o.drawSubgrid(o.currentSubgrid.Bounds(), style)
+	}
+	C.neru_wayland_overlay_flush(o.raw)
 }
 
 func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
