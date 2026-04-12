@@ -326,21 +326,34 @@ func x11ScrollAtCursor(deltaX, deltaY int) error {
 	defer C.neru_ax_close_display(display) //nolint:nlreturn
 
 	// X11 scrolling is simulated via discrete button clicks (4, 5, 6, 7).
-	// Because the incoming delta may be geared towards smooth scrolling (e.g. 100-200),
-	// we scale it down heavily to avoid flooding X11 with hundreds of clicks.
-	const scale = 30
+	// Incoming deltas are pixel-level values from the scroll service config
+	// (e.g. ScrollStep=50, ScrollStepHalf=500, ScrollStepFull=1000000).
+	// We scale them to a reasonable number of discrete clicks and cap the
+	// maximum to avoid flooding X11 with tens of thousands of button events
+	// when ScrollStepFull (scroll-to-end) sends very large deltas.
+	const (
+		scale     = 30
+		maxClicks = 50
+	)
 
 	if deltaY != 0 {
 		yClicks := abs(deltaY) / scale
 		if yClicks == 0 {
 			yClicks = 1
 		}
+
+		if yClicks > maxClicks {
+			yClicks = maxClicks
+		}
+
 		for range yClicks {
 			const mouseButtonVerticalScroll = 4
 			button := C.uint(mouseButtonVerticalScroll)
+
 			if deltaY < 0 {
 				button = 5
 			}
+
 			if C.neru_ax_button(display, button, 1) == 0 || //nolint:nlreturn
 				C.neru_ax_button(display, button, 0) == 0 { //nolint:nlreturn
 				return derrors.New(derrors.CodeActionFailed, "failed vertical scroll event on X11")
@@ -353,14 +366,22 @@ func x11ScrollAtCursor(deltaX, deltaY int) error {
 		if xClicks == 0 {
 			xClicks = 1
 		}
+
+		if xClicks > maxClicks {
+			xClicks = maxClicks
+		}
+
 		for range xClicks {
 			const mouseButtonHorizontalScrollRight = 7
 			button := C.uint(mouseButtonHorizontalScrollRight)
+
 			if deltaX < 0 {
 				button = 6
 			}
+
 			if C.neru_ax_button(display, button, 1) == 0 || //nolint:nlreturn
 				C.neru_ax_button(display, button, 0) == 0 { //nolint:nlreturn
+
 				return derrors.New(
 					derrors.CodeActionFailed,
 					"failed horizontal scroll event on X11",
@@ -382,6 +403,7 @@ func x11ClickButtonAtPoint(
 	if err != nil {
 		return err
 	}
+
 	defer C.neru_ax_close_display(display) //nolint:nlreturn
 
 	original := x11CurrentCursorPosition()
