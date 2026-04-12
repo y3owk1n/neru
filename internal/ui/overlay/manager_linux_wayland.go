@@ -27,6 +27,7 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 }
 
 func (o *wlrootsOverlay) setDisplayMu(_ *sync.Mutex) {}
+func (o *wlrootsOverlay) startPoller()               {}
 func (o *wlrootsOverlay) Healthy() bool              { return false }
 func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
 	return nil

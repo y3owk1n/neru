@@ -697,9 +697,18 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 		doneCh: make(chan struct{}),
 	}
 
-	go overlay.keyboardPoller()
+	// Do NOT start the keyboardPoller goroutine here. The caller must
+	// call setDisplayMu first (to share renderMu), then startPoller.
+	// Starting the goroutine before displayMu is set would be a data
+	// race: the poller reads displayMu on every iteration.
 
 	return overlay
+}
+
+// startPoller launches the keyboard polling goroutine.
+// Must be called after setDisplayMu so the poller has a valid mutex.
+func (o *wlrootsOverlay) startPoller() {
+	go o.keyboardPoller()
 }
 
 func (o *wlrootsOverlay) Healthy() bool {

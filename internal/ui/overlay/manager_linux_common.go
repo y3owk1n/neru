@@ -110,8 +110,11 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 		// Share renderMu with the wlroots overlay so the keyboard poller
 		// serializes wl_display access with the rendering path. The Wayland
 		// client API is not thread-safe.
+		// setDisplayMu must be called before startPoller — the poller reads
+		// displayMu on every iteration, so it must be visible before launch.
 		if manager.wlroots != nil {
 			manager.wlroots.setDisplayMu(&manager.renderMu)
+			manager.wlroots.startPoller()
 		}
 	case linuxOverlayBackendUnknown:
 		return nil
@@ -227,17 +230,24 @@ func (m *Manager) Unsubscribe(id uint64) {
 
 // Destroy cleans up the overlay Manager.
 func (m *Manager) Destroy() {
+	// Capture and nil-out backend pointers under the lock, then release
+	// the lock *before* calling Destroy on each backend. The wlroots
+	// Destroy waits for the keyboardPoller goroutine to exit, and that
+	// goroutine acquires displayMu (== renderMu) on every iteration.
+	// Holding renderMu while waiting on the poller would deadlock.
 	m.renderMu.Lock()
-	defer m.renderMu.Unlock()
+	x11 := m.x11
+	wlroots := m.wlroots
+	m.x11 = nil
+	m.wlroots = nil
+	m.renderMu.Unlock()
 
-	if m.x11 != nil {
-		m.x11.Destroy()
-		m.x11 = nil
+	if x11 != nil {
+		x11.Destroy()
 	}
 
-	if m.wlroots != nil {
-		m.wlroots.Destroy()
-		m.wlroots = nil
+	if wlroots != nil {
+		wlroots.Destroy()
 	}
 }
 
