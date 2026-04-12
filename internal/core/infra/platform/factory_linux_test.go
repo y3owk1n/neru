@@ -9,6 +9,8 @@ import (
 )
 
 func TestNewSystemPort_GNOMEWaylandReturnsHelpfulError(t *testing.T) {
+	resetLinuxBackendCache()
+
 	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
 	t.Setenv("DISPLAY", "")
 	t.Setenv("XDG_CURRENT_DESKTOP", "GNOME")
@@ -28,6 +30,8 @@ func TestNewSystemPort_GNOMEWaylandReturnsHelpfulError(t *testing.T) {
 }
 
 func TestNewSystemPort_KDEWaylandReturnsHelpfulError(t *testing.T) {
+	resetLinuxBackendCache()
+
 	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
 	t.Setenv("DISPLAY", "")
 	t.Setenv("XDG_CURRENT_DESKTOP", "KDE")
@@ -47,6 +51,8 @@ func TestNewSystemPort_KDEWaylandReturnsHelpfulError(t *testing.T) {
 }
 
 func TestNewSystemPort_NoDisplayServerReturnsHelpfulError(t *testing.T) {
+	resetLinuxBackendCache()
+
 	t.Setenv("WAYLAND_DISPLAY", "")
 	t.Setenv("DISPLAY", "")
 	t.Setenv("XDG_CURRENT_DESKTOP", "")
@@ -66,6 +72,8 @@ func TestNewSystemPort_NoDisplayServerReturnsHelpfulError(t *testing.T) {
 }
 
 func TestNewSystemPort_SwayWaylandReturnsSystemPort(t *testing.T) {
+	resetLinuxBackendCache()
+
 	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
 	t.Setenv("DISPLAY", "")
 	t.Setenv("XDG_CURRENT_DESKTOP", "sway")

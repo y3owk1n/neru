@@ -3,6 +3,7 @@ package platform
 import (
 	"os"
 	"strings"
+	"sync"
 )
 
 // LinuxBackend identifies the Linux runtime backend family Neru should target.
@@ -43,14 +44,32 @@ func (b LinuxBackend) String() string {
 	}
 }
 
+var (
+	cachedBackend     LinuxBackend
+	cachedBackendOnce sync.Once
+)
+
+// resetLinuxBackendCache resets the cached backend detection result.
+// This is only intended for use in tests that manipulate environment variables.
+func resetLinuxBackendCache() {
+	cachedBackendOnce = sync.Once{}
+	cachedBackend = BackendUnknown
+}
+
 // detectLinuxBackend inspects the process environment and determines which
-// Linux backend family Neru should target.
+// Linux backend family Neru should target. The result is cached because
+// display-server environment variables do not change at runtime, and this
+// function is called on hot paths (cursor movement, clicks, scrolling).
 func detectLinuxBackend() LinuxBackend {
-	return detectLinuxBackendFromEnv(
-		os.Getenv("XDG_CURRENT_DESKTOP"),
-		os.Getenv("WAYLAND_DISPLAY"),
-		os.Getenv("DISPLAY"),
-	)
+	cachedBackendOnce.Do(func() {
+		cachedBackend = detectLinuxBackendFromEnv(
+			os.Getenv("XDG_CURRENT_DESKTOP"),
+			os.Getenv("WAYLAND_DISPLAY"),
+			os.Getenv("DISPLAY"),
+		)
+	})
+
+	return cachedBackend
 }
 
 // DetectLinuxBackend returns the detected Linux backend family for the current
