@@ -189,9 +189,9 @@ import (
 )
 
 const (
-	mouseButtonLeft   = 2
+	mouseButtonLeft   = 1
 	mouseButtonRight  = 3
-	mouseButtonMiddle = 4
+	mouseButtonMiddle = 2
 	mouseButtonBack   = 7
 )
 
