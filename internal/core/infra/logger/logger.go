@@ -193,7 +193,14 @@ func Sync() error {
 	if globalLogger != nil {
 		err := globalLogger.Sync()
 		if err != nil {
-			return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to sync logger")
+			// Ignore common sync errors that occur when stdout/stderr is a
+			// pipe or terminal:
+			//   - "invalid argument" (EINVAL on Linux)
+			//   - "inappropriate ioctl for device" (ENOTSUP on macOS)
+			if !strings.Contains(err.Error(), "invalid argument") &&
+				!strings.Contains(err.Error(), "inappropriate ioctl for device") {
+				return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to sync logger")
+			}
 		}
 	}
 
