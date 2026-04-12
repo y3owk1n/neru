@@ -648,6 +648,9 @@ type wlrootsOverlay struct {
 	// UpdateGridMatches / ShowSubgrid (which don't receive the grid).
 	cachedGrid  *domainGrid.Grid
 	cachedStyle gridcomponent.Style
+
+	stopCh chan struct{} // signals keyboardPoller to exit
+	doneCh chan struct{} // closed when keyboardPoller has exited
 }
 
 func init() {
@@ -662,7 +665,12 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 
 	C.neru_wayland_overlay_setup_buffers(raw)
 
-	o := &wlrootsOverlay{raw: raw, logger: logger}
+	o := &wlrootsOverlay{
+		raw:    raw,
+		logger: logger,
+		stopCh: make(chan struct{}),
+		doneCh: make(chan struct{}),
+	}
 
 	go o.keyboardPoller()
 
@@ -706,10 +714,17 @@ func (o *wlrootsOverlay) Resize() {
 }
 
 func (o *wlrootsOverlay) Destroy() {
-	if o != nil && o.raw != nil {
-		C.neru_wayland_overlay_destroy(o.raw)
-		o.raw = nil
+	if o == nil || o.raw == nil {
+		return
 	}
+
+	// Signal the poller goroutine to stop and wait for it to exit
+	// before freeing the C struct, preventing a use-after-free.
+	close(o.stopCh)
+	<-o.doneCh
+
+	C.neru_wayland_overlay_destroy(o.raw)
+	o.raw = nil
 }
 
 func (o *wlrootsOverlay) UpdateGridMatches(prefix string) {
@@ -861,9 +876,17 @@ func (o *wlrootsOverlay) DrawBadge(posX, posY int, text string, colors overlayCo
 
 // keyboardPoller polls for keyboard events.
 func (o *wlrootsOverlay) keyboardPoller() {
+	defer close(o.doneCh)
+
 	const pollInterval = 5 * time.Millisecond
 
-	for o.raw != nil {
+	for {
+		select {
+		case <-o.stopCh:
+			return
+		default:
+		}
+
 		C.neruWaylandOverlayPoll(o.raw)
 		key := C.neruWaylandOverlayGetKey(o.raw) //nolint:nlreturn
 		if key != nil {
