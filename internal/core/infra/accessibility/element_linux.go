@@ -332,15 +332,21 @@ func MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.
 // LeftMouseDownAtPoint performs a left mouse down (Linux stub).
 func LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
 	if currentLinuxBackend() == linuxBackendX11 {
-		SetLeftMouseDown(true, point)
+		err := x11LeftMouseDownAtPoint(point, modifiers)
+		if err == nil {
+			SetLeftMouseDown(true, point)
+		}
 
-		return x11LeftMouseDownAtPoint(point, modifiers)
+		return err
 	}
 
 	if currentLinuxBackend() == linuxBackendWayland {
-		SetLeftMouseDown(true, point)
+		err := wlrootsLeftMouseDownAtPoint(point, modifiers)
+		if err == nil {
+			SetLeftMouseDown(true, point)
+		}
 
-		return wlrootsLeftMouseDownAtPoint(point, modifiers)
+		return err
 	}
 
 	return nil
