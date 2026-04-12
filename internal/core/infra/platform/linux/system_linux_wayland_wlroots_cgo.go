@@ -741,9 +741,9 @@ func wlrootsMoveCursorToPoint(point image.Point) error {
 		return err
 	}
 
-	globalWlrootsState.mu.RLock()
+	globalWlrootsState.mu.Lock()
 	client := globalWlrootsState.client
-	globalWlrootsState.mu.RUnlock()
+	defer globalWlrootsState.mu.Unlock()
 
 	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
 		return derrors.Newf(
@@ -764,9 +764,9 @@ func wlrootsClick(point image.Point, button int) error {
 		return err
 	}
 
-	globalWlrootsState.mu.RLock()
+	globalWlrootsState.mu.Lock()
 	client := globalWlrootsState.client
-	globalWlrootsState.mu.RUnlock()
+	defer globalWlrootsState.mu.Unlock()
 
 	// Move to target.
 	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
@@ -798,9 +798,9 @@ func wlrootsButtonEvent(point image.Point, button int, pressed bool) error {
 		return err
 	}
 
-	globalWlrootsState.mu.RLock()
+	globalWlrootsState.mu.Lock()
 	client := globalWlrootsState.client
-	globalWlrootsState.mu.RUnlock()
+	defer globalWlrootsState.mu.Unlock()
 
 	// Move to target.
 	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
@@ -834,9 +834,9 @@ func wlrootsButtonRelease(button int) error {
 		return err
 	}
 
-	globalWlrootsState.mu.RLock()
+	globalWlrootsState.mu.Lock()
 	client := globalWlrootsState.client
-	globalWlrootsState.mu.RUnlock()
+	defer globalWlrootsState.mu.Unlock()
 
 	if C.neru_wlr_button(client, C.int(button), 0) == 0 { //nolint:nlreturn
 		return derrors.New(
@@ -855,9 +855,9 @@ func wlrootsScroll(axis, delta int) error {
 		return err
 	}
 
-	globalWlrootsState.mu.RLock()
+	globalWlrootsState.mu.Lock()
 	client := globalWlrootsState.client
-	globalWlrootsState.mu.RUnlock()
+	defer globalWlrootsState.mu.Unlock()
 
 	if C.neru_wlr_scroll(client, C.int(axis), C.int(delta)) == 0 { //nolint:nlreturn
 		return derrors.New(
