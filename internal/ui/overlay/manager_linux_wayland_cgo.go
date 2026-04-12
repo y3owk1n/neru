@@ -60,27 +60,29 @@ typedef struct {
     int running;
 } NeruWaylandOverlay;
 
-// Global keyboard event buffer.
-// Thread safety: key_buffer and key_available are accessed from two contexts:
-//   1. neru_keyboard_key (Wayland callback) — writes key_buffer, sets key_available
-//   2. neru_wayland_overlay_get_key — reads key_buffer, clears key_available
-// Both contexts are serialized by the Go-side displayMu mutex (shared with
-// renderMu). Context 1 fires only inside wl_display_dispatch/wl_display_roundtrip,
-// which only run while displayMu is held. Context 2 is called from the keyboard
-// poller goroutine which also holds displayMu. Therefore concurrent access to
-// key_buffer cannot occur as long as all wl_display calls go through the mutex.
-static char key_buffer[256];
-static volatile int key_available = 0;
-static volatile int keyboard_enter_received = 0;
-
-// Modifier tracking
-
+// Keyboard event ring buffer.
+// Thread safety: all accesses happen while the Go-side displayMu mutex is
+// held (shared with renderMu). The Wayland keyboard callback
+// (neru_keyboard_key) fires inside wl_display_dispatch / wl_display_roundtrip,
+// which only run while displayMu is held. The consumer
+// (neru_wayland_overlay_get_key) is called from the keyboard poller goroutine
+// which also holds displayMu. Therefore no concurrent access can occur.
+//
+// A ring buffer (rather than a single slot) is necessary because
+// wl_display_roundtrip — called from the rendering path — may dispatch
+// multiple keyboard events in a single call. With a single-slot buffer the
+// second event would silently overwrite the first.
+#define NERU_KEY_RING_CAP 32
+static struct {
+    char keys[NERU_KEY_RING_CAP][256];
+    int head; // next slot to write
+    int tail; // next slot to read
+    int count;
+} key_ring = { .head = 0, .tail = 0, .count = 0 };
 
 //export neruWaylandOverlayOnKey
 static void neruWaylandOverlayOnKey(const char *key) {
-    strncpy(key_buffer, key, sizeof(key_buffer) - 1);
-    key_buffer[sizeof(key_buffer) - 1] = 0;
-    key_available = 1;
+    (void)key; // unused — keyboard events go through neru_keyboard_key
 }
 
 //export neruWaylandOverlayOnEnter
@@ -276,9 +278,11 @@ static void neru_keyboard_key(void *data, struct wl_keyboard *keyboard,
                 }
             }
 
-            if (final_key[0]) {
-                snprintf(key_buffer, sizeof(key_buffer), "%s%s", mod_prefix, final_key);
-                key_available = 1;
+            if (final_key[0] && key_ring.count < NERU_KEY_RING_CAP) {
+                snprintf(key_ring.keys[key_ring.head], sizeof(key_ring.keys[0]),
+                         "%s%s", mod_prefix, final_key);
+                key_ring.head = (key_ring.head + 1) % NERU_KEY_RING_CAP;
+                key_ring.count++;
             }
         }
     }
@@ -608,11 +612,15 @@ static int neru_wayland_overlay_poll(NeruWaylandOverlay *overlay) {
     return ret;
 }
 
-// Get pending key from buffer (non-blocking)
+// Get next pending key from ring buffer (non-blocking).
+// Returns NULL when the ring is empty.
 static const char* neru_wayland_overlay_get_key(NeruWaylandOverlay *overlay) {
-    if (!key_available) return NULL;
-    key_available = 0;
-    return key_buffer;
+    (void)overlay;
+    if (key_ring.count == 0) return NULL;
+    const char *key = key_ring.keys[key_ring.tail];
+    key_ring.tail = (key_ring.tail + 1) % NERU_KEY_RING_CAP;
+    key_ring.count--;
+    return key;
 }
 
 //export neruWaylandOverlayPoll
@@ -959,26 +967,37 @@ func (o *wlrootsOverlay) keyboardPoller() {
 		default:
 		}
 
-		var keyStr string
+		// Collect all buffered keys under a single lock acquisition.
+		// wl_display_roundtrip (called by the rendering path) may
+		// dispatch multiple keyboard events; the ring buffer preserves
+		// them all so none are silently dropped.
+		var keys []string
 
 		if o.displayMu != nil {
 			o.displayMu.Lock()
 		}
 
 		C.neruWaylandOverlayPoll(o.raw)
-		key := C.neruWaylandOverlayGetKey(o.raw) //nolint:nlreturn
-		if key != nil {
-			keyStr = C.GoString(key)
+
+		for {
+			key := C.neruWaylandOverlayGetKey(o.raw) //nolint:nlreturn
+			if key == nil {
+				break
+			}
+
+			keys = append(keys, C.GoString(key))
 		}
 
 		if o.displayMu != nil {
 			o.displayMu.Unlock()
 		}
 
-		if keyStr != "" {
-			select {
-			case wlrootsKeyboardCh <- keyStr:
-			default:
+		if len(keys) > 0 {
+			for _, k := range keys {
+				select {
+				case wlrootsKeyboardCh <- k:
+				default:
+				}
 			}
 		} else {
 			time.Sleep(pollInterval)
