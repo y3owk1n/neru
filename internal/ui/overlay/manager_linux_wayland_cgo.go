@@ -80,6 +80,8 @@ static struct {
     int count;
 } key_ring = { .head = 0, .tail = 0, .count = 0 };
 
+static volatile int keyboard_enter_received = 0;
+
 //export neruWaylandOverlayOnKey
 static void neruWaylandOverlayOnKey(const char *key) {
     (void)key; // unused — keyboard events go through neru_keyboard_key
