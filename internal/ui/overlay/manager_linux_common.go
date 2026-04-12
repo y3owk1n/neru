@@ -4,7 +4,6 @@ package overlay
 
 import (
 	"image"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +19,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -485,12 +485,15 @@ func (m *Manager) publish(change StateChange) {
 	}
 }
 
+// detectLinuxOverlayBackend delegates to the canonical
+// platform.DetectLinuxBackend so that compositor-family detection (GNOME, KDE,
+// wlroots, etc.) is consistent across all layers.
 func detectLinuxOverlayBackend() linuxOverlayBackend {
-	switch {
-	case os.Getenv("WAYLAND_DISPLAY") != "":
-		return linuxOverlayBackendWaylandWlroots
-	case os.Getenv("DISPLAY") != "":
+	switch platform.DetectLinuxBackend() {
+	case platform.BackendX11:
 		return linuxOverlayBackendX11
+	case platform.BackendWaylandWlroots:
+		return linuxOverlayBackendWaylandWlroots
 	default:
 		return linuxOverlayBackendUnknown
 	}

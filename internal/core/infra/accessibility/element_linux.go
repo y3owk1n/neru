@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	"github.com/y3owk1n/neru/internal/core/infra/platform"
 )
 
 // Element represents a UI element for Linux (e.g., AT-SPI).
@@ -445,14 +446,16 @@ const (
 	linuxBackendWayland linuxBackend = "wayland"
 )
 
+// currentLinuxBackend delegates to the canonical platform.DetectLinuxBackend
+// so that compositor-family detection (GNOME, KDE, wlroots, etc.) is
+// consistent across all layers.
 func currentLinuxBackend() linuxBackend {
-	if os.Getenv("WAYLAND_DISPLAY") != "" {
-		return linuxBackendWayland
-	}
-
-	if os.Getenv("DISPLAY") != "" {
+	switch platform.DetectLinuxBackend() {
+	case platform.BackendX11:
 		return linuxBackendX11
+	case platform.BackendWaylandWlroots:
+		return linuxBackendWayland
+	default:
+		return linuxBackendUnknown
 	}
-
-	return linuxBackendUnknown
 }
