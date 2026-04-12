@@ -12,6 +12,10 @@ static Window neru_hotkeys_root_window(Display *display) {
 	return RootWindow(display, DefaultScreen(display));
 }
 
+static int neru_hotkeys_pending(Display *display) {
+	return XPending(display);
+}
+
 static int neru_xevent_type(XEvent *ev) {
 	return ev->type;
 }
@@ -29,10 +33,13 @@ import "C"
 import (
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
+
+const x11HotkeyPollInterval = 10 * time.Millisecond
 
 type x11HotkeyBinding struct {
 	keycode   C.int
@@ -44,7 +51,8 @@ type x11HotkeyState struct {
 	root     C.Window
 	bindings map[HotkeyID]x11HotkeyBinding
 	ids      map[string]HotkeyID
-	done     chan struct{}
+	stopCh   chan struct{} // signals runX11HotkeyLoop to exit
+	doneCh   chan struct{} // closed when runX11HotkeyLoop has exited
 	once     sync.Once
 }
 
@@ -125,7 +133,11 @@ func (m *Manager) unregisterAllX11Hotkeys() {
 	}
 
 	state.once.Do(func() {
-		close(state.done)
+		// Signal the event loop to stop and wait for it to exit
+		// before closing the display, preventing a use-after-free.
+		close(state.stopCh)
+		<-state.doneCh
+
 		C.XCloseDisplay(state.display) //nolint:nlreturn
 		x11States.Delete(m)
 	})
@@ -154,7 +166,8 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 		root:     C.neru_hotkeys_root_window(display), //nolint:nlreturn
 		bindings: make(map[HotkeyID]x11HotkeyBinding),
 		ids:      make(map[string]HotkeyID),
-		done:     make(chan struct{}),
+		stopCh:   make(chan struct{}),
+		doneCh:   make(chan struct{}),
 	}
 	x11States.Store(m, state)
 	go m.runX11HotkeyLoop(state)
@@ -163,11 +176,23 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 }
 
 func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
+	defer close(state.doneCh)
+
 	for {
 		select {
-		case <-state.done:
+		case <-state.stopCh:
 			return
 		default:
+		}
+
+		// Use XPending to check for queued events instead of calling the
+		// blocking XNextEvent directly. This allows the stop channel to be
+		// checked between iterations, preventing a goroutine leak and a
+		// use-after-free when unregisterAllX11Hotkeys closes the display.
+		if C.neru_hotkeys_pending(state.display) == 0 { //nolint:nlreturn
+			time.Sleep(x11HotkeyPollInterval)
+
+			continue
 		}
 
 		var event C.XEvent
