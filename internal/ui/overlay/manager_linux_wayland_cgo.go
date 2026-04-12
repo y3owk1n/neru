@@ -715,12 +715,6 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 	return overlay
 }
 
-// startPoller launches the keyboard polling goroutine.
-// Must be called after setDisplayMu so the poller has a valid mutex.
-func (o *wlrootsOverlay) startPoller() {
-	go o.keyboardPoller()
-}
-
 func (o *wlrootsOverlay) Healthy() bool {
 	return o != nil && o.raw != nil
 }
@@ -1005,6 +999,12 @@ func (o *wlrootsOverlay) keyboardPoller() {
 			time.Sleep(pollInterval)
 		}
 	}
+}
+
+// startPoller launches the keyboard polling goroutine.
+// Must be called after setDisplayMu so the poller has a valid mutex.
+func (o *wlrootsOverlay) startPoller() {
+	go o.keyboardPoller()
 }
 
 // setDisplayMu sets the mutex used to serialize wl_display access.

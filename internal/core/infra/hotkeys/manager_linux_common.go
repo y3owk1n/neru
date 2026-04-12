@@ -113,13 +113,6 @@ func (m *Manager) UnregisterAll() {
 // SetGlobalManager assigns the global manager instance (Linux stub).
 func SetGlobalManager(_ *Manager) {}
 
-func (m *Manager) callbackFor(id HotkeyID) Callback {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.callbacks[id]
-}
-
 func platformBackend() platform.LinuxBackend {
 	return platform.DetectLinuxBackend()
 }
