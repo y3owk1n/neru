@@ -204,10 +204,23 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 		keycode := C.neru_xkey_keycode(&event)                              //nolint:nlreturn
 		modifiers := C.neru_xkey_state(&event) &^ (C.Mod2Mask | C.LockMask) //nolint:nlreturn
 
-		if id, ok := state.ids[x11BindingKey(keycode, modifiers)]; ok {
-			if callback := m.callbackFor(id); callback != nil {
-				go callback()
-			}
+		// Hold m.mu while reading state.ids — Register/Unregister write
+		// to this map under the same lock, so an unguarded read here is a
+		// concurrent map read/write (runtime crash under the race detector).
+		// We also fetch the callback in the same critical section to avoid
+		// a second lock acquisition via callbackFor.
+		m.mu.RLock()
+		id, ok := state.ids[x11BindingKey(keycode, modifiers)]
+
+		var callback Callback
+		if ok {
+			callback = m.callbacks[id]
+		}
+
+		m.mu.RUnlock()
+
+		if callback != nil {
+			go callback()
 		}
 	}
 }
