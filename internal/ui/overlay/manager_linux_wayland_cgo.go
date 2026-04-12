@@ -626,6 +626,7 @@ import "C"
 import (
 	"image"
 	"strings"
+	"time"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -860,6 +861,8 @@ func (o *wlrootsOverlay) DrawBadge(posX, posY int, text string, colors overlayCo
 
 // keyboardPoller polls for keyboard events.
 func (o *wlrootsOverlay) keyboardPoller() {
+	const pollInterval = 5 * time.Millisecond
+
 	for o.raw != nil {
 		C.neruWaylandOverlayPoll(o.raw)
 		key := C.neruWaylandOverlayGetKey(o.raw) //nolint:nlreturn
@@ -868,6 +871,8 @@ func (o *wlrootsOverlay) keyboardPoller() {
 			case wlrootsKeyboardCh <- C.GoString(key):
 			default:
 			}
+		} else {
+			time.Sleep(pollInterval)
 		}
 	}
 }
