@@ -427,9 +427,22 @@ func x11MouseButtonAtPoint(
 
 	original := x11CurrentCursorPosition()
 	x11PressModifiers(display, modifiers)
-	defer x11ReleaseModifiers(display, modifiers)
+
+	// Only release modifiers within this function for mouse-up events.
+	// For mouse-down (isDown=true), modifiers must stay held until the
+	// corresponding mouse-up call; releasing them here would break
+	// modifier+drag operations (e.g. Shift+drag).
+	if !isDown {
+		defer x11ReleaseModifiers(display, modifiers)
+	}
 
 	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
+		// If we failed to move and modifiers are held for a mouse-down,
+		// release them now to avoid stuck modifier keys.
+		if isDown {
+			x11ReleaseModifiers(display, modifiers)
+		}
+
 		return derrors.Newf(
 			derrors.CodeActionFailed,
 			"failed to move X11 pointer to (%d, %d)",
@@ -444,6 +457,11 @@ func x11MouseButtonAtPoint(
 	}
 
 	if C.neru_ax_button(display, button, C.int(pressed)) == 0 { //nolint:nlreturn
+		// Release modifiers on failure to avoid stuck keys.
+		if isDown {
+			x11ReleaseModifiers(display, modifiers)
+		}
+
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to dispatch X11 mouse button event",
