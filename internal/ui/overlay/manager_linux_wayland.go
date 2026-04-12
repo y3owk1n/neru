@@ -8,6 +8,7 @@ package overlay
 
 import (
 	"image"
+	"sync"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -25,7 +26,8 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 	return nil
 }
 
-func (o *wlrootsOverlay) Healthy() bool { return false }
+func (o *wlrootsOverlay) setDisplayMu(_ *sync.Mutex) {}
+func (o *wlrootsOverlay) Healthy() bool              { return false }
 func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
 	return nil
 }

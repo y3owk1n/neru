@@ -106,6 +106,13 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 		manager.x11 = newX11Overlay(logger)
 	case linuxOverlayBackendWaylandWlroots:
 		manager.wlroots = newWlrootsOverlay(logger)
+
+		// Share renderMu with the wlroots overlay so the keyboard poller
+		// serializes wl_display access with the rendering path. The Wayland
+		// client API is not thread-safe.
+		if manager.wlroots != nil {
+			manager.wlroots.setDisplayMu(&manager.renderMu)
+		}
 	case linuxOverlayBackendUnknown:
 		return nil
 	}

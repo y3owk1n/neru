@@ -632,6 +632,7 @@ import "C"
 import (
 	"image"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -655,6 +656,15 @@ type wlrootsOverlay struct {
 	// UpdateGridMatches / ShowSubgrid (which don't receive the grid).
 	cachedGrid  *domainGrid.Grid
 	cachedStyle gridcomponent.Style
+
+	// displayMu serializes all access to the underlying wl_display connection.
+	// The Wayland client API is not thread-safe: concurrent wl_display_dispatch
+	// (keyboard poller) and wl_display_flush / wl_display_roundtrip (rendering)
+	// from different goroutines is undefined behavior. This mutex is shared with
+	// the Manager's renderMu — the Manager sets it after construction via
+	// setDisplayMu so that both the rendering path and the keyboard poller
+	// serialize on the same lock.
+	displayMu *sync.Mutex
 
 	stopCh chan struct{} // signals keyboardPoller to exit
 	doneCh chan struct{} // closed when keyboardPoller has exited
@@ -682,6 +692,12 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 	go overlay.keyboardPoller()
 
 	return overlay
+}
+
+// setDisplayMu sets the mutex used to serialize wl_display access.
+// Must be called before the keyboard poller goroutine starts using it.
+func (o *wlrootsOverlay) setDisplayMu(mu *sync.Mutex) {
+	o.displayMu = mu
 }
 
 func (o *wlrootsOverlay) Healthy() bool {
@@ -956,6 +972,8 @@ func (o *wlrootsOverlay) DrawHints(
 }
 
 // keyboardPoller polls for keyboard events.
+// It acquires displayMu around every wl_display access to prevent concurrent
+// use with the rendering path (which also holds the same mutex via renderMu).
 func (o *wlrootsOverlay) keyboardPoller() {
 	defer close(o.doneCh)
 
@@ -968,11 +986,25 @@ func (o *wlrootsOverlay) keyboardPoller() {
 		default:
 		}
 
+		var keyStr string
+
+		if o.displayMu != nil {
+			o.displayMu.Lock()
+		}
+
 		C.neruWaylandOverlayPoll(o.raw)
 		key := C.neruWaylandOverlayGetKey(o.raw) //nolint:nlreturn
 		if key != nil {
+			keyStr = C.GoString(key)
+		}
+
+		if o.displayMu != nil {
+			o.displayMu.Unlock()
+		}
+
+		if keyStr != "" {
 			select {
-			case wlrootsKeyboardCh <- C.GoString(key):
+			case wlrootsKeyboardCh <- keyStr:
 			default:
 			}
 		} else {
