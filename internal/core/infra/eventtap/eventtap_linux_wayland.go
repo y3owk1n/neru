@@ -4,12 +4,9 @@ package eventtap
 
 import (
 	"os"
-	"time"
 
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
-
-const pollingInterval = 10 * time.Millisecond
 
 func (et *EventTap) runWayland() {
 	defer close(et.doneCh)
@@ -43,8 +40,6 @@ func (et *EventTap) runWayland() {
 			}
 
 			et.dispatchKey(key)
-		default:
-			time.Sleep(pollingInterval)
 		}
 	}
 }
