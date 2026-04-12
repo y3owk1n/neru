@@ -65,6 +65,12 @@ type Manager struct {
 	subs   map[uint64]func(StateChange)
 	nextID uint64
 
+	// renderMu serializes all rendering dispatch to the backend overlays.
+	// On macOS the Objective-C bridge serializes via dispatch_async to the
+	// main thread; on Linux we must do this ourselves because Cairo/X11/
+	// Wayland calls are not thread-safe.
+	renderMu sync.Mutex
+
 	backend linuxOverlayBackend
 	x11     *x11Overlay
 	wlroots *wlrootsOverlay
@@ -124,6 +130,9 @@ func (m *Manager) WaylandKeyboardChannel() <-chan string {
 
 // Show displays the overlay.
 func (m *Manager) Show() {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		m.x11.Show()
 	} else if m.wlroots != nil {
@@ -133,6 +142,9 @@ func (m *Manager) Show() {
 
 // Hide hides the overlay.
 func (m *Manager) Hide() {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		m.x11.Hide()
 	} else if m.wlroots != nil {
@@ -142,6 +154,9 @@ func (m *Manager) Hide() {
 
 // Clear clears the overlay content.
 func (m *Manager) Clear() {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		m.x11.Clear()
 	} else if m.wlroots != nil {
@@ -151,6 +166,9 @@ func (m *Manager) Clear() {
 
 // ResizeToActiveScreen resizes the overlay to the active screen.
 func (m *Manager) ResizeToActiveScreen() {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		m.x11.Resize()
 	} else if m.wlroots != nil {
@@ -198,6 +216,9 @@ func (m *Manager) Unsubscribe(id uint64) {
 
 // Destroy cleans up the overlay Manager.
 func (m *Manager) Destroy() {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		m.x11.Destroy()
 		m.x11 = nil
@@ -324,6 +345,9 @@ func (m *Manager) DrawModeIndicator(posX, posY int) {
 		return
 	}
 
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		m.x11.DrawBadge(posX, posY, string(mode), resolveModeIndicatorColors())
 	} else if m.wlroots != nil {
@@ -337,6 +361,9 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 		return
 	}
 
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		m.x11.DrawBadge(posX, posY, symbols, resolveStickyIndicatorColors())
 	} else if m.wlroots != nil {
@@ -346,6 +373,9 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 
 // DrawGrid draws the grid overlay.
 func (m *Manager) DrawGrid(grid *domainGrid.Grid, input string, style grid.Style) error {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		// Pass sublayer keys from grid overlay config so subgrid labels match config.
 		if m.gridOverlay != nil {
@@ -396,6 +426,9 @@ func (m *Manager) DrawRecursiveGrid(
 	style recursivegrid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		m.x11.DrawRecursiveGrid(bounds, depth, keys, gridCols, gridRows, style, virtualPointer)
 
@@ -418,6 +451,9 @@ func (m *Manager) DrawRecursiveGrid(
 
 // UpdateGridMatches updates the grid overlay matches.
 func (m *Manager) UpdateGridMatches(prefix string) {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		m.x11.UpdateGridMatches(prefix)
 	} else if m.wlroots != nil {
@@ -427,6 +463,9 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 
 // ShowSubgrid shows the subgrid overlay.
 func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		// Ensure sublayer keys are set from grid overlay config.
 		if m.gridOverlay != nil {
@@ -460,6 +499,9 @@ func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
 
 // SetHideUnmatched sets the hide unmatched overlay option.
 func (m *Manager) SetHideUnmatched(hide bool) {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	if m.x11 != nil {
 		m.x11.SetHideUnmatched(hide)
 	} else if m.wlroots != nil {
