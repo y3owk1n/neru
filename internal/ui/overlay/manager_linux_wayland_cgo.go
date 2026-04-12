@@ -672,7 +672,7 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 
 	C.neru_wayland_overlay_setup_buffers(raw)
 
-	o := &wlrootsOverlay{
+	overlay := &wlrootsOverlay{
 		raw:    raw,
 		logger: logger,
 		stopCh: make(chan struct{}),
@@ -900,8 +900,8 @@ func (o *wlrootsOverlay) DrawBadge(
 
 	paddingX := resolveAutoPadding(fontSize, style.paddingX, true)
 	paddingY := resolveAutoPadding(fontSize, style.paddingY, false)
-	width := estimateTextWidth(text, fontSize) + paddingX*2
-	height := estimateTextHeight(fontSize) + paddingY*2
+	width := estimateTextWidth(text, fontSize) + paddingX*paddingMultiplier
+	height := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
 	rect := image.Rect(
 		posX+style.offsetX,
 		posY+style.offsetY,
@@ -914,14 +914,17 @@ func (o *wlrootsOverlay) DrawBadge(
 	C.neru_wayland_overlay_flush(o.raw)
 }
 
-func (o *wlrootsOverlay) DrawHints(hs []*hintscomponent.Hint, style hintscomponent.StyleMode) {
+func (o *wlrootsOverlay) DrawHints(
+	hintsSlice []*hintscomponent.Hint,
+	style hintscomponent.StyleMode,
+) {
 	if o == nil || o.raw == nil {
 		return
 	}
 
 	C.neru_wayland_overlay_setup_buffers(o.raw)
 	o.Clear()
-	for _, hint := range hs {
+	for _, hint := range hintsSlice {
 		bounds := image.Rect(
 			hint.Position().X,
 			hint.Position().Y,
@@ -1064,8 +1067,8 @@ func (o *wlrootsOverlay) drawTextCentered(
 ) {
 	cText := C.CString(text)
 	cFontFamily := C.CString(fontFamily)
-	defer C.free(unsafe.Pointer(cText)) //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cFontFamily))
+	defer C.free(unsafe.Pointer(cText))       //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
 
 	C.neru_wayland_overlay_text(
 		o.raw,
@@ -1086,8 +1089,8 @@ func (o *wlrootsOverlay) drawLabelBackground(
 	fontSize := style.LabelFontSize
 	paddingX := resolveAutoPadding(fontSize, style.LabelBackgroundPaddingX, true)
 	paddingY := resolveAutoPadding(fontSize, style.LabelBackgroundPaddingY, false)
-	width := estimateTextWidth(label, fontSize) + paddingX*2
-	height := estimateTextHeight(fontSize) + paddingY*2
+	width := estimateTextWidth(label, fontSize) + paddingX*paddingMultiplier
+	height := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
 	rect := centeredRect(cell, width, height)
 
 	o.drawRect(
@@ -1105,7 +1108,7 @@ func (o *wlrootsOverlay) drawSubKeyPreview(
 ) {
 	previewRect := image.Rect(
 		cell.Min.X,
-		cell.Max.Y-estimateTextHeight(style.SubKeyPreviewFontSize)-4,
+		cell.Max.Y-estimateTextHeight(style.SubKeyPreviewFontSize)-subKeyPreviewPaddingBottom,
 		cell.Max.X,
 		cell.Max.Y,
 	)

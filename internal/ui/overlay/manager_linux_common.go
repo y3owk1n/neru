@@ -25,20 +25,30 @@ import (
 )
 
 const (
-	subgridBackground     uint32 = 0x40000000
-	subgridCellBackground uint32 = 0x10000000
-	hexColorOpaque        uint32 = 0xFFFFFFFF
-	hexColorRepeatCount          = 2
-	hexColorLenShort             = 3
-	hexColorLenNoAlpha           = 6
-	hexColorLenFull              = 8
-	subgridCols                  = 3
-	subgridRows                  = 3
-	subgridHalfPixel             = 0.5
-	subgridFontScale             = 0.7
-	subgridLineWidth             = 1
-	keyboardChanBuffer           = 64
-	badgePaddingSides            = 2
+	subgridBackground               uint32 = 0x40000000
+	subgridCellBackground           uint32 = 0x10000000
+	hexColorOpaque                  uint32 = 0xFFFFFFFF
+	hexColorRepeatCount                    = 2
+	hexColorLenShort                       = 3
+	hexColorLenNoAlpha                     = 6
+	hexColorLenFull                        = 8
+	subgridCols                            = 3
+	subgridRows                            = 3
+	subgridHalfPixel                       = 0.5
+	subgridFontScale                       = 0.7
+	subgridLineWidth                       = 1
+	keyboardChanBuffer                     = 64
+	badgePaddingSides                      = 2
+	autoPaddingHorizontalMultiplier        = 0.6
+	autoPaddingVerticalMultiplier          = 0.35
+	autoPaddingMinHorizontal               = 6
+	autoPaddingMinVertical                 = 4
+	textWidthMultiplier                    = 0.7
+	textHeightMultiplier                   = 1.4
+	centeredRectDivisor                    = 2
+	centeredRectHalf                       = 0.5
+	paddingMultiplier                      = 2
+	subKeyPreviewPaddingBottom             = 4
 )
 
 type linuxOverlayBackend string
@@ -324,18 +334,18 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 }
 
 // DrawHintsWithStyle draws the hints overlay using the active Linux backend.
-func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error {
+func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.StyleMode) error {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
 	if m.x11 != nil {
-		m.x11.DrawHints(hs, style)
+		m.x11.DrawHints(hintsSlice, style)
 
 		return nil
 	}
 
 	if m.wlroots != nil {
-		m.wlroots.DrawHints(hs, style)
+		m.wlroots.DrawHints(hintsSlice, style)
 
 		return nil
 	}
@@ -558,7 +568,8 @@ func detectLinuxOverlayBackend() linuxOverlayBackend {
 		return linuxOverlayBackendX11
 	case platform.BackendWaylandWlroots:
 		return linuxOverlayBackendWaylandWlroots
-	default:
+	case platform.BackendUnknown, platform.BackendWaylandGNOME,
+		platform.BackendWaylandKDE, platform.BackendWaylandOther:
 		return linuxOverlayBackendUnknown
 	}
 }
@@ -581,24 +592,24 @@ type overlayBadgeStyle struct {
 
 func resolveModeIndicatorAppearance(
 	mode string,
-	o *modeindicator.Overlay,
+	overlay *modeindicator.Overlay,
 ) (string, overlayColors, overlayBadgeStyle, bool) {
-	if o == nil {
+	if overlay == nil {
 		return "", overlayColors{}, overlayBadgeStyle{}, false
 	}
 
-	label := o.ResolveLabelText(mode)
+	label := overlay.ResolveLabelText(mode)
 	if label == "" {
 		return "", overlayColors{}, overlayBadgeStyle{}, false
 	}
 
-	modeCfg, ok := o.ResolveModeConfig(mode)
+	modeCfg, ok := overlay.ResolveModeConfig(mode)
 	if !ok || !modeCfg.Enabled {
 		return "", overlayColors{}, overlayBadgeStyle{}, false
 	}
 
-	cfg := o.IndicatorConfig()
-	theme := o.ThemeProvider()
+	cfg := overlay.IndicatorConfig()
+	theme := overlay.ThemeProvider()
 
 	colors := overlayColors{
 		background: parseHexColor(
@@ -641,14 +652,14 @@ func resolveModeIndicatorAppearance(
 }
 
 func resolveStickyIndicatorAppearance(
-	o *stickyindicator.Overlay,
+	overlay *stickyindicator.Overlay,
 ) (overlayColors, overlayBadgeStyle, bool) {
-	if o == nil {
+	if overlay == nil {
 		return overlayColors{}, overlayBadgeStyle{}, false
 	}
 
-	cfg := o.UIConfig()
-	theme := o.ThemeProvider()
+	cfg := overlay.UIConfig()
+	theme := overlay.ThemeProvider()
 
 	colors := overlayColors{
 		background: parseHexColor(
@@ -693,29 +704,29 @@ func resolveAutoPadding(fontSize float64, padding int, horizontal bool) int {
 	}
 
 	if horizontal {
-		return max(int(fontSize*0.6), 6)
+		return max(int(fontSize*autoPaddingHorizontalMultiplier), autoPaddingMinHorizontal)
 	}
 
-	return max(int(fontSize*0.35), 4)
+	return max(int(fontSize*autoPaddingVerticalMultiplier), autoPaddingMinVertical)
 }
 
 func estimateTextWidth(text string, fontSize float64) int {
-	return int(math.Ceil(float64(len([]rune(text))) * fontSize * 0.7))
+	return int(math.Ceil(float64(len([]rune(text))) * fontSize * textWidthMultiplier))
 }
 
 func estimateTextHeight(fontSize float64) int {
-	return int(math.Ceil(fontSize * 1.4))
+	return int(math.Ceil(fontSize * textHeightMultiplier))
 }
 
 func centeredRect(cell image.Rectangle, width, height int) image.Rectangle {
-	centerX := cell.Min.X + cell.Dx()/2
-	centerY := cell.Min.Y + cell.Dy()/2
+	centerX := cell.Min.X + cell.Dx()/centeredRectDivisor
+	centerY := cell.Min.Y + cell.Dy()/centeredRectDivisor
 
 	return image.Rect(
-		centerX-width/2,
-		centerY-height/2,
-		centerX-width/2+width,
-		centerY-height/2+height,
+		centerX-width/centeredRectDivisor,
+		centerY-height/centeredRectDivisor,
+		centerX-width/centeredRectDivisor+width,
+		centerY-height/centeredRectDivisor+height,
 	)
 }
 

@@ -25,21 +25,22 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 	return nil
 }
 
-func (o *wlrootsOverlay) Healthy() bool     { return false }
+func (o *wlrootsOverlay) Healthy() bool { return false }
 func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
 	return nil
 }
-func (o *wlrootsOverlay) Show() {}
-func (o *wlrootsOverlay) Hide() {}
-func (o *wlrootsOverlay) Clear() {}
-func (o *wlrootsOverlay) Resize() {}
-func (o *wlrootsOverlay) Destroy() {}
-func (o *wlrootsOverlay) UpdateGridMatches(string) {}
-func (o *wlrootsOverlay) ShowSubgrid(*domainGrid.Cell, gridcomponent.Style) {}
-func (o *wlrootsOverlay) SetHideUnmatched(bool) {}
+func (o *wlrootsOverlay) Show()                                                  {}
+func (o *wlrootsOverlay) Hide()                                                  {}
+func (o *wlrootsOverlay) Clear()                                                 {}
+func (o *wlrootsOverlay) Resize()                                                {}
+func (o *wlrootsOverlay) Destroy()                                               {}
+func (o *wlrootsOverlay) UpdateGridMatches(string)                               {}
+func (o *wlrootsOverlay) ShowSubgrid(*domainGrid.Cell, gridcomponent.Style)      {}
+func (o *wlrootsOverlay) SetHideUnmatched(bool)                                  {}
 func (o *wlrootsOverlay) DrawGrid(*domainGrid.Grid, string, gridcomponent.Style) {}
 func (o *wlrootsOverlay) DrawHints([]*hintscomponent.Hint, hintscomponent.StyleMode) {
 }
+
 func (o *wlrootsOverlay) DrawRecursiveGrid(
 	image.Rectangle,
 	int,

@@ -134,8 +134,8 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 				config.RecursiveGridTextColorDark,
 			),
 		),
-		LabelFontSize: float64(max(cfg.UI.FontSize, minFontSize)),
-		LabelFontName: cfg.UI.FontFamily,
+		LabelFontSize:   float64(max(cfg.UI.FontSize, minFontSize)),
+		LabelFontName:   cfg.UI.FontFamily,
 		LabelBackground: cfg.UI.LabelBackground,
 		LabelBackgroundColor: parseLinuxColor(
 			cfg.UI.LabelBackgroundColor.ForTheme(

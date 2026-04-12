@@ -404,8 +404,8 @@ func (o *x11Overlay) DrawBadge(
 
 	paddingX := resolveAutoPadding(fontSize, style.paddingX, true)
 	paddingY := resolveAutoPadding(fontSize, style.paddingY, false)
-	width := estimateTextWidth(text, fontSize) + paddingX*2
-	height := estimateTextHeight(fontSize) + paddingY*2
+	width := estimateTextWidth(text, fontSize) + paddingX*paddingMultiplier
+	height := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
 	rect := image.Rect(
 		posX+style.offsetX,
 		posY+style.offsetY,
@@ -418,13 +418,13 @@ func (o *x11Overlay) DrawBadge(
 	C.neru_x11_overlay_flush(o.raw)
 }
 
-func (o *x11Overlay) DrawHints(hs []*hintscomponent.Hint, style hintscomponent.StyleMode) {
+func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscomponent.StyleMode) {
 	if o == nil || o.raw == nil {
 		return
 	}
 
 	o.Clear()
-	for _, hint := range hs {
+	for _, hint := range hintsSlice {
 		bounds := image.Rect(
 			hint.Position().X,
 			hint.Position().Y,
@@ -566,8 +566,8 @@ func (o *x11Overlay) drawTextCentered(
 	cText := C.CString(text)
 	cFontFamily := C.CString(fontFamily)
 
-	defer C.free(unsafe.Pointer(cText)) //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cFontFamily))
+	defer C.free(unsafe.Pointer(cText))       //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
 
 	C.neru_x11_overlay_text(
 		o.raw,
@@ -588,8 +588,8 @@ func (o *x11Overlay) drawLabelBackground(
 	fontSize := style.LabelFontSize
 	paddingX := resolveAutoPadding(fontSize, style.LabelBackgroundPaddingX, true)
 	paddingY := resolveAutoPadding(fontSize, style.LabelBackgroundPaddingY, false)
-	width := estimateTextWidth(label, fontSize) + paddingX*2
-	height := estimateTextHeight(fontSize) + paddingY*2
+	width := estimateTextWidth(label, fontSize) + paddingX*paddingMultiplier
+	height := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
 	rect := centeredRect(cell, width, height)
 
 	o.drawRect(
@@ -607,7 +607,7 @@ func (o *x11Overlay) drawSubKeyPreview(
 ) {
 	previewRect := image.Rect(
 		cell.Min.X,
-		cell.Max.Y-estimateTextHeight(style.SubKeyPreviewFontSize)-4,
+		cell.Max.Y-estimateTextHeight(style.SubKeyPreviewFontSize)-subKeyPreviewPaddingBottom,
 		cell.Max.X,
 		cell.Max.Y,
 	)

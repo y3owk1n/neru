@@ -453,7 +453,8 @@ func currentLinuxBackend() linuxBackend {
 		return linuxBackendX11
 	case platform.BackendWaylandWlroots:
 		return linuxBackendWayland
-	default:
+	case platform.BackendUnknown, platform.BackendWaylandGNOME,
+		platform.BackendWaylandKDE, platform.BackendWaylandOther:
 		return linuxBackendUnknown
 	}
 }
