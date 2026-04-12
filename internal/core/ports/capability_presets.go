@@ -68,8 +68,8 @@ func LinuxCapabilities() PlatformCapabilities {
 		GlobalHotkeys: supportedCapability(
 			"global hotkeys available via X11 (Wayland relies on compositor bindings)",
 		),
-		KeyboardEventTap: stubCapability(
-			"keyboard event tap not implemented yet; likely split by X11 vs compositor-specific backends",
+		KeyboardEventTap: supportedCapability(
+			"keyboard event tap available via X11 grab and Wayland layer-shell keyboard interactivity",
 		),
 		AppWatcher: stubCapability(
 			"app watcher not needed for Neru's current navigation model",
