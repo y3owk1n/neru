@@ -42,9 +42,7 @@ func (et *EventTap) runWayland() {
 				continue
 			}
 
-			if key != "" {
-				et.dispatchKey(key)
-			}
+			et.dispatchKey(key)
 		default:
 			time.Sleep(pollingInterval)
 		}
