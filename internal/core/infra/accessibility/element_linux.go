@@ -284,9 +284,7 @@ func EnsureMouseUp() {
 func MoveMouseToPoint(point image.Point, _ bool) {
 	if currentLinuxBackend() == linuxBackendX11 {
 		_ = x11MoveMouseToPoint(point)
-	}
-
-	if currentLinuxBackend() == linuxBackendWayland {
+	} else if currentLinuxBackend() == linuxBackendWayland {
 		_ = wlrootsMoveMouseToPoint(point)
 	}
 }
