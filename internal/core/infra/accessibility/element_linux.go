@@ -69,7 +69,7 @@ func (ei *ElementInfo) IsFocused() bool { return ei.isFocused }
 // PID returns the element's process ID.
 func (ei *ElementInfo) PID() int { return ei.pid }
 
-// CheckAccessibilityPermissions verifies permissions for Linux. (Linux stub)
+// CheckAccessibilityPermissions verifies permissions for Linux (Linux stub).
 func CheckAccessibilityPermissions() bool { return true }
 
 // SystemWideElement returns the system-wide element (Linux stub).

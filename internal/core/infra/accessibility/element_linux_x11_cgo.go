@@ -381,7 +381,6 @@ func x11ScrollAtCursor(deltaX, deltaY int) error {
 
 			if C.neru_ax_button(display, button, 1) == 0 || //nolint:nlreturn
 				C.neru_ax_button(display, button, 0) == 0 { //nolint:nlreturn
-
 				return derrors.New(
 					derrors.CodeActionFailed,
 					"failed horizontal scroll event on X11",
