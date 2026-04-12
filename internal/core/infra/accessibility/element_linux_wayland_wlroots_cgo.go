@@ -154,6 +154,17 @@ func wlrootsLeftMouseUp() error {
 	return nil
 }
 
+// wlrootsScrollScale and wlrootsScrollMaxEvents mirror the X11 scroll
+// scaling constants so that both backends produce comparable scroll
+// behaviour from the same pixel-level delta values supplied by the
+// scroll service (e.g. ScrollStep=50, ScrollStepHalf=500,
+// ScrollStepFull=1000000).
+const (
+	wlrootsScrollScale     = 30
+	wlrootsScrollMaxEvents = 50
+	wlrootsScrollStep      = 15 // pixels per Wayland axis event
+)
+
 func wlrootsScrollAtCursor(deltaX, deltaY int) error {
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
 		return derrors.New(
@@ -163,20 +174,67 @@ func wlrootsScrollAtCursor(deltaX, deltaY int) error {
 	}
 
 	// Vertical scroll (axis 0).
+	// Incoming deltas are pixel-level values from the scroll service config.
+	// We scale them to a bounded number of small Wayland axis events, just
+	// like the X11 backend converts them to discrete button clicks, to
+	// avoid sending a single enormous axis event for ScrollStepFull.
 	if deltaY != 0 {
-		err := linux.WlrootsScroll(0, -deltaY)
-		if err != nil {
-			return err
+		events := wlrootsScrollEvents(deltaY)
+
+		// Wayland axis convention: positive = scroll down.
+		// Application convention: positive deltaY = scroll up.
+		// Negate to convert between the two conventions.
+		step := -wlrootsScrollStep
+		if deltaY < 0 {
+			step = wlrootsScrollStep
+		}
+
+		for range events {
+			err := linux.WlrootsScroll(0, step)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	// Horizontal scroll (axis 1).
+	// Wayland axis convention: positive = scroll right.
+	// Application convention: positive deltaX = scroll right.
+	// No negation needed.
 	if deltaX != 0 {
-		err := linux.WlrootsScroll(1, deltaX)
-		if err != nil {
-			return err
+		events := wlrootsScrollEvents(deltaX)
+
+		step := wlrootsScrollStep
+		if deltaX < 0 {
+			step = -wlrootsScrollStep
+		}
+
+		for range events {
+			err := linux.WlrootsScroll(1, step)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
+}
+
+// wlrootsScrollEvents converts a raw pixel delta to a bounded number of
+// scroll events, matching the X11 backend's scaling logic.
+func wlrootsScrollEvents(delta int) int {
+	if delta < 0 {
+		delta = -delta
+	}
+
+	events := delta / wlrootsScrollScale
+	if events == 0 {
+		events = 1
+	}
+
+	if events > wlrootsScrollMaxEvents {
+		events = wlrootsScrollMaxEvents
+	}
+
+	return events
 }

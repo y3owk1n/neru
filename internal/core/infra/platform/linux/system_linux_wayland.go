@@ -33,7 +33,9 @@ func WlrootsButtonRelease(button int) error {
 }
 
 // WlrootsScroll sends a scroll event. axis: 0=vertical, 1=horizontal.
-// direction: +1=down/right, -1=up/left.
-func WlrootsScroll(axis, direction int) error {
-	return wlrootsScroll(axis, direction)
+// delta is in logical pixels (positive = down/right, negative = up/left).
+// Each call emits a single Wayland axis event; callers should loop for
+// larger scroll distances.
+func WlrootsScroll(axis, delta int) error {
+	return wlrootsScroll(axis, delta)
 }
