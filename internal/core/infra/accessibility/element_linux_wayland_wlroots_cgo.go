@@ -156,7 +156,7 @@ func wlrootsLeftMouseUp() error {
 
 // wlrootsScrollScale and wlrootsScrollMaxEvents mirror the X11 scroll
 // scaling constants so that both backends produce comparable scroll
-// behaviour from the same pixel-level delta values supplied by the
+// behavior from the same pixel-level delta values supplied by the
 // scroll service (e.g. ScrollStep=50, ScrollStepHalf=500,
 // ScrollStepFull=1000000).
 const (
