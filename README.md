@@ -6,11 +6,13 @@
 
 **Navigate your entire screen without touching the mouse.**
 
-[![License](https://img.shields.io/github/license/y3owk1n/neru)](LICENSE)
-![Platform](<https://img.shields.io/badge/platform-macOS%20(stable)%20%7C%20Linux%20(X11%2Fwlroots)%20%7C%20Windows%20(foundations)-lightgrey>)
-[![Linux Support](https://img.shields.io/badge/Linux-Supported-blue)](docs/LINUX_SETUP.md)
+![MacOS Support](https://img.shields.io/badge/MacOS-Stable-blue)
+[![Linux Support](https://img.shields.io/badge/Linux-X11_&_Wayland-blue)](docs/LINUX_SETUP.md)
+![Windows Support](https://img.shields.io/badge/Windows-Foundation-lightgrey)
+
 ![Go Version](https://img.shields.io/github/go-mod/go-version/y3owk1n/neru)
 [![Latest Release](https://img.shields.io/github/v/release/y3owk1n/neru)](https://github.com/y3owk1n/neru/releases)
+[![License](https://img.shields.io/github/license/y3owk1n/neru)](LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/y3owk1n/neru)
 
 </div>
