@@ -182,6 +182,9 @@ The module automatically:
 > [!IMPORTANT]
 > **Linux always builds from source.** There are no official pre-built Linux release artifacts yet. On Linux, `pkgs.neru` is equivalent to `pkgs.neru-source` — both build from source. If your nixpkgs doesn't ship a recent enough Go version, see [Patch Go Version](#patch-go-version) below.
 
+> [!WARNING]
+> **Default config uses macOS hotkeys.** The built-in default configuration ships with `Cmd+Shift+…` hotkeys, which map to the Super/Meta key on Linux. Linux users should override the `[hotkeys]` section with `Ctrl+…` shortcuts (as shown in the example above) or use the cross-platform `Primary` modifier, which maps to Cmd on macOS and Ctrl on Linux.
+
 ### Option 3: home-manager Module (User-Level)
 
 Use the home-manager module for user-specific installation on macOS or Linux:
@@ -297,6 +300,9 @@ The module automatically:
 
 > [!IMPORTANT]
 > **Linux always builds from source.** On Linux, `pkgs.neru` is equivalent to `pkgs.neru-source` — there are no official pre-built Linux release artifacts yet. If your nixpkgs doesn't ship a recent enough Go version, see [Patch Go Version](#patch-go-version) below.
+
+> [!WARNING]
+> **Default config uses macOS hotkeys.** If you don't provide an inline `config` or `configFile`, the module uses the built-in default which has `Cmd+Shift+…` hotkeys (Super/Meta on Linux). Linux users should override the `[hotkeys]` section with `Ctrl+…` or `Primary+…` shortcuts. The `Primary` modifier maps to Cmd on macOS and Ctrl on Linux.
 
 ### Option 4: Using as an Overlay Only
 

@@ -17,7 +17,22 @@ in
       config = lib.mkOption {
         type = lib.types.lines;
         default = builtins.readFile ./configs/default-config.toml;
-        description = "Configuration for {file} `neru/config.toml`.";
+        description = ''
+          Configuration for {file} `neru/config.toml`.
+
+          NOTE: The default config ships with macOS-style hotkeys (Cmd+Shift+…).
+          On Linux you almost certainly want to override the [hotkeys] section
+          with Ctrl-based or Primary-based shortcuts, e.g.:
+
+            services.neru.config = '''
+              [hotkeys]
+              "Ctrl+Shift+Space" = "hints"
+              "Ctrl+Shift+G" = "grid"
+            ''';
+
+          You can also use the cross-platform "Primary" modifier which maps to
+          Cmd on macOS and Ctrl on Linux.
+        '';
       };
 
       configFile = lib.mkOption {
