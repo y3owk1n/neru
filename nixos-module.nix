@@ -6,7 +6,7 @@
 }:
 let
   cfg = config.services.neru;
-  configFile = pkgs.writeScript "config.toml" cfg.config;
+  configFile = pkgs.writeText "config.toml" cfg.config;
 in
 {
   options = {
