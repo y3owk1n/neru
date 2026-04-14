@@ -30,7 +30,7 @@ brew install --cask y3owk1n/tap/neru
 
 ## Method 2: Nix Flake
 
-Neru is available as a Nix flake with built-in support for nix-darwin and home-manager on macOS, plus source builds on Linux.
+Neru is available as a Nix flake with built-in support for nix-darwin (macOS), NixOS (Linux), and home-manager (both platforms).
 
 On macOS, `pkgs.neru` uses the published release zip and `pkgs.neru-source` builds from source.
 On Linux, `pkgs.neru` and the flake `default` package both build from source because there is no official Linux release artifact yet.
@@ -98,6 +98,7 @@ Use the nix-darwin module for system-wide installation:
 - `services.neru.enable` - Enable Neru (default: `false`)
 - `services.neru.package` - Package to use (default: `pkgs.neru` for latest version) or `pkgs.neru-source` for building from source
 - `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
+- `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
 
 The module automatically:
 
@@ -122,9 +123,70 @@ The module automatically:
 >
 > This is not needed for the default `pkgs.neru` (zip) package, which is pre-signed.
 
-### Option 2: home-manager Module (User-Level)
+### Option 2: NixOS Module (System-Level, Linux)
 
-Use the home-manager module for user-specific installation:
+Use the NixOS module for system-wide installation on Linux:
+
+```nix
+# flake.nix
+{
+  outputs = { self, nixpkgs, neru, ... }: {
+     nixosConfigurations.your-hostname = nixpkgs.lib.nixosSystem {
+       system = "x86_64-linux";
+       modules = [
+         # Apply the Neru overlay
+         {
+           nixpkgs.overlays = [ neru.overlays.default ];
+         }
+
+         # Import the Neru module
+         neru.nixosModules.default
+
+         # Configure Neru
+         {
+            # Enable Neru
+            services.neru.enable = true;
+
+            # Optional: Use specific package version
+            # services.neru.package = pkgs.neru; # This will build from source on Linux
+
+            # Optional: Inline configuration
+            services.neru.config = ''
+             [hotkeys]
+             "Ctrl+Shift+Space" = "hints left_click"
+             "Ctrl+Shift+G" = "grid left_click"
+           '';
+
+            # Optional: Use existing config file (takes precedence)
+            # services.neru.configFile = ./path/to/config.toml;
+         }
+       ];
+     };
+  };
+}
+```
+
+**Module Options:**
+
+- `services.neru.enable` - Enable Neru (default: `false`)
+- `services.neru.package` - Package to use (default: `pkgs.neru`, always builds from source on Linux)
+- `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
+- `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
+
+The module automatically:
+
+- Installs Neru system-wide
+- Creates a systemd user service tied to `graphical-session.target`
+- Configures automatic restart on failure
+
+> [!IMPORTANT]
+> **Linux always builds from source.** There are no official pre-built Linux release artifacts yet. On Linux, `pkgs.neru` is equivalent to `pkgs.neru-source` — both build from source. If your nixpkgs doesn't ship a recent enough Go version, see [Patch Go Version](#patch-go-version) below.
+
+### Option 3: home-manager Module (User-Level)
+
+Use the home-manager module for user-specific installation on macOS or Linux:
+
+**macOS example:**
 
 ```nix
 # flake.nix
@@ -170,29 +232,73 @@ Use the home-manager module for user-specific installation:
 }
 ```
 
+**Linux example:**
+
+```nix
+# flake.nix
+{
+  outputs = { self, nixpkgs, home-manager, neru, ... }: {
+     homeConfigurations.your-username = home-manager.lib.homeManagerConfiguration {
+       pkgs = nixpkgs.legacyPackages.x86_64-linux;
+
+       modules = [
+         # Apply the Neru overlay
+         {
+           nixpkgs.overlays = [ neru.overlays.default ];
+         }
+
+         # Import the Neru module
+         neru.homeManagerModules.default
+
+         # Configure Neru
+         {
+           # Enable Neru (always builds from source on Linux)
+           services.neru.enable = true;
+
+           # Optional: Inline configuration
+           services.neru.config = ''
+             [hotkeys]
+             "Ctrl+Shift+Space" = "hints left_click"
+             "Ctrl+Shift+G" = "grid left_click"
+           '';
+
+           # Optional: Use existing config file (takes precedence)
+         }
+       ];
+     };
+  };
+}
+```
+
 **Module Options:**
 
 - `services.neru.enable` - Enable Neru (default: `false`)
-- `services.neru.package` - Package to use (default: `pkgs.neru` for latest version) or `pkgs.neru-source` for building from source
+- `services.neru.package` - Package to use (default: `pkgs.neru`; on macOS uses the release zip, on Linux always builds from source)
 - `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 - `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
-- `services.neru.launchd.enable` - Enable the launchd agent (default: `true`)
-- `services.neru.launchd.keepAlive` - Keep the launchd service alive (default: `true`)
+- `services.neru.launchd.enable` - Enable the launchd agent on macOS (default: `true`)
+- `services.neru.launchd.keepAlive` - Keep the launchd service alive on macOS (default: `true`)
+- `services.neru.systemd.enable` - Enable the systemd user service on Linux (default: `true`)
+- `services.neru.systemd.restart` - Systemd restart policy (default: `"on-failure"`)
+- `services.neru.systemd.restartSec` - Seconds to wait before restarting (default: `5`)
 
 The module automatically:
 
 - Installs Neru in user environment
 - Creates `~/.config/neru/config.toml` (or uses your `configFile`)
-- Creates a launchd user agent (if `launchd.enable` is `true`)
-- Configures the agent to run at login with `KeepAlive` (if `launchd.keepAlive` is `true`) and `RunAtLoad = true`
+- **macOS:** Creates a launchd user agent (if `launchd.enable` is `true`) with `KeepAlive` and `RunAtLoad = true`
+- **Linux:** Creates a systemd user service tied to `graphical-session.target` (if `systemd.enable` is `true`)
 - Installs shell completions for bash, fish, and zsh
 
 > [!NOTE]
-> You will need to codesign the Neru.app bundle in the nix store.
+> **macOS codesign:** You will need to codesign the Neru.app bundle in the nix store.
 > Refer to the nix-darwin module above for an example.
 > This is not needed for the default `pkgs.neru` (zip) package, which is pre-signed.
 
-### Option 3: Using as an Overlay Only
+> [!IMPORTANT]
+> **Linux always builds from source.** On Linux, `pkgs.neru` is equivalent to `pkgs.neru-source` — there are no official pre-built Linux release artifacts yet. If your nixpkgs doesn't ship a recent enough Go version, see [Patch Go Version](#patch-go-version) below.
+
+### Option 4: Using as an Overlay Only
 
 If you prefer to manage the service yourself, you can just use the overlay:
 
@@ -287,7 +393,7 @@ nix flake update neru
 > [!NOTE]
 > This is only required if you're using `nix`, you're using the `neru-source` package and nixpkgs is not on golang `1.26.1` yet.
 
-The latest version of Neru requires Go 1.26 or later. But nixpkgs for golang doesn't have that supported yet, you can patch it as below to the latest version available (search from nixpkgs and see what are the latest version):
+> This is required if you're using `nix` and nixpkgs is not on golang `1.26.1` yet. It applies to `neru-source` on macOS and **all** Linux builds (since `pkgs.neru` on Linux always builds from source).
 
 ```nix
 package = pkgs.neru-source.overrideAttrs (_: {
