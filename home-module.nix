@@ -58,6 +58,29 @@ in
           description = "Whether the launchd service should be kept alive.";
         };
       };
+
+      systemd = {
+        enable = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = ''
+            Configure a systemd user service to manage the Neru process on Linux.
+            You can verify the service is running correctly from your terminal.
+            Run: `systemctl --user status neru`
+            In case of failure, check the logs with `journalctl --user -u neru`.
+          '';
+        };
+        restart = lib.mkOption {
+          type = lib.types.str;
+          default = "on-failure";
+          description = "Systemd restart policy for the Neru service.";
+        };
+        restartSec = lib.mkOption {
+          type = lib.types.int;
+          default = 5;
+          description = "Seconds to wait before restarting the Neru service.";
+        };
+      };
     };
   };
 
@@ -76,13 +99,15 @@ in
     # NOTE: home-manager has no dedicated "reloadLaunchd" DAG entry on macOS.
     # We anchor before "reloadSystemd" (a no-op on darwin) to run late in the
     # activation sequence, before launchd picks up the updated plist.
-    home.activation.neruPreRestart = lib.hm.dag.entryBefore [ "reloadSystemd" ] ''
-      if /usr/bin/pgrep -xq neru 2>/dev/null; then
-        /usr/bin/osascript -e 'tell application "Neru" to quit' 2>/dev/null || true
-        sleep 1
-        /usr/bin/pkill -x neru 2>/dev/null || true
-      fi
-    '';
+    home.activation.neruPreRestart = lib.mkIf pkgs.stdenv.isDarwin (
+      lib.hm.dag.entryBefore [ "reloadSystemd" ] ''
+        if /usr/bin/pgrep -xq neru 2>/dev/null; then
+          /usr/bin/osascript -e 'tell application "Neru" to quit' 2>/dev/null || true
+          sleep 1
+          /usr/bin/pkill -x neru 2>/dev/null || true
+        fi
+      ''
+    );
 
     # Launch agent for macOS
     launchd.agents.neru = lib.mkIf pkgs.stdenv.isDarwin {
@@ -105,6 +130,23 @@ in
         LimitLoadToSessionType = "Aqua";
         Nice = -10;
         ThrottleInterval = 10;
+      };
+    };
+    # Systemd user service for Linux
+    systemd.user.services.neru = lib.mkIf (pkgs.stdenv.isLinux && cfg.systemd.enable) {
+      Unit = {
+        Description = "Neru keyboard navigation daemon";
+        After = [ "graphical-session.target" ];
+        PartOf = [ "graphical-session.target" ];
+      };
+      Service = {
+        ExecStart = "${cfg.package}/bin/neru launch --config ${config.xdg.configHome}/neru/config.toml";
+        Restart = cfg.systemd.restart;
+        RestartSec = cfg.systemd.restartSec;
+        Nice = "-10";
+      };
+      Install = {
+        WantedBy = [ "graphical-session.target" ];
       };
     };
   };

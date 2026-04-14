@@ -57,7 +57,8 @@
         }
       );
 
-      darwinModules.default = import ./module.nix;
+      darwinModules.default = import ./darwin-module.nix;
+      nixosModules.default = import ./nixos-module.nix;
       homeManagerModules.default = import ./home-module.nix;
     };
 }
