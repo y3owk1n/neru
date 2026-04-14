@@ -39,6 +39,18 @@ in
         default = null;
         description = "Path to existing config.toml configuration file. Takes precedence over config option.";
       };
+      systemd = {
+        restart = lib.mkOption {
+          type = lib.types.str;
+          default = "on-failure";
+          description = "Systemd restart policy for the Neru service.";
+        };
+        restartSec = lib.mkOption {
+          type = lib.types.int;
+          default = 5;
+          description = "Seconds to wait before restarting the Neru service.";
+        };
+      };
     };
   };
   config = (
@@ -54,8 +66,8 @@ in
           ExecStart =
             "${cfg.package}/bin/neru launch"
             + (lib.optionalString (cfg.configFile != null || cfg.config != "") " --config ${configFile}");
-          Restart = "on-failure";
-          RestartSec = 5;
+          Restart = cfg.systemd.restart;
+          RestartSec = cfg.systemd.restartSec;
           Nice = -10;
         };
       };

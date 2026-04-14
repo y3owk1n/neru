@@ -172,6 +172,8 @@ Use the NixOS module for system-wide installation on Linux:
 - `services.neru.package` - Package to use (default: `pkgs.neru`, always builds from source on Linux)
 - `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 - `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
+- `services.neru.systemd.restart` - Systemd restart policy (default: `"on-failure"`)
+- `services.neru.systemd.restartSec` - Seconds to wait before restarting (default: `5`)
 
 The module automatically:
 
