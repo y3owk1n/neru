@@ -6,7 +6,8 @@
 }:
 let
   cfg = config.services.neru;
-  configFile = pkgs.writeText "config.toml" cfg.config;
+  configFile =
+    if cfg.configFile != null then cfg.configFile else pkgs.writeText "config.toml" cfg.config;
 in
 {
   options = {
@@ -17,6 +18,11 @@ in
         type = lib.types.lines;
         default = builtins.readFile ./configs/default-config.toml;
         description = "Config to use for {file} `neru/config.toml`.";
+      };
+      configFile = lib.mkOption {
+        type = lib.types.nullOr lib.types.path;
+        default = null;
+        description = "Path to existing config.toml configuration file. Takes precedence over config option.";
       };
     };
   };
