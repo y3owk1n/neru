@@ -71,31 +71,43 @@ Works in native macOS apps, Electron apps (VS Code, Slack, Obsidian), all major 
 
 ## Installation
 
+**macOS (Homebrew — recommended):**
+
 > [!NOTE]
 > The homebrew tap is maintained in another repo: [y3owk1n/homebrew-tap](https://github.com/y3owk1n/homebrew-tap)
 > If there's a problem with the tap, please open an issue in that repo or even better, a PR.
 
 ```bash
-# Homebrew (recommended — gets you auto-updates)
 brew tap y3owk1n/tap
 brew install --cask y3owk1n/tap/neru
 ```
 
-```bash
-# Nix Flake
-# inputs.neru.url = "github:y3owk1n/neru";
-# See docs/INSTALLATION.md for nix-darwin / NixOS / home-manager setup
+**macOS / Linux (Nix Flake):**
 
-# Build from source
+```bash
+# inputs.neru.url = "github:y3owk1n/neru";
+# Modules: nix-darwin (macOS) · nixosModules (Linux) · home-manager (both)
+# See docs/INSTALLATION.md for full setup
+```
+
+**From source (any platform):**
+
+```bash
 git clone https://github.com/y3owk1n/neru.git
 cd neru && just release
 ```
 
-Then grant accessibility access: **System Settings → Privacy & Security → Accessibility → enable Neru**.
+**Post-install (macOS):** grant accessibility access — **System Settings → Privacy & Security → Accessibility → enable Neru**.
 
 ```bash
 open -a Neru              # launch
-neru services install     # auto-start on login
+neru services install     # auto-start on login (use this only if you're not using nix with launchagents enabled)
+```
+
+**Post-install (Linux):** see [Linux Setup →](docs/LINUX_SETUP.md) for display-server requirements and permissions.
+
+```bash
+neru launch               # launch
 ```
 
 Full walkthrough: [Installation Guide →](docs/INSTALLATION.md)
