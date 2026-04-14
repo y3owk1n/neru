@@ -48,7 +48,7 @@ in
       launchd.user.agents.neru = {
         command =
           "/usr/bin/open -W -a ${cfg.package}/Applications/Neru.app --args launch"
-          + (lib.optionalString (cfg.config != "") " --config ${configFile}");
+          + (lib.optionalString (cfg.configFile != null || cfg.config != "") " --config ${configFile}");
         serviceConfig = {
           KeepAlive = true;
           RunAtLoad = true;

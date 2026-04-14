@@ -38,7 +38,7 @@ in
         serviceConfig = {
           ExecStart =
             "${cfg.package}/bin/neru launch"
-            + (lib.optionalString (cfg.config != "") " --config ${configFile}");
+            + (lib.optionalString (cfg.configFile != null || cfg.config != "") " --config ${configFile}");
           Restart = "on-failure";
           RestartSec = 5;
           Nice = -10;
