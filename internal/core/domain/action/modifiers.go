@@ -25,6 +25,8 @@ const (
 var modifierNames = map[string]Modifiers{
 	"cmd":     ModCmd,
 	"command": ModCmd,
+	"super":   ModCmd,
+	"meta":    ModCmd,
 	"shift":   ModShift,
 	"alt":     ModAlt,
 	"option":  ModAlt,
@@ -66,7 +68,7 @@ func ParseModifiers(input string) (Modifiers, error) {
 		if !ok {
 			return 0, derrors.Newf(
 				derrors.CodeInvalidInput,
-				"unknown modifier %q (valid: primary, cmd, shift, alt, option, ctrl)",
+				"unknown modifier %q (valid: primary, cmd, super, meta, shift, alt, option, ctrl)",
 				part,
 			)
 		}

@@ -257,7 +257,7 @@ func normalizeModifierTokenForOS(token, goos string) string {
 	switch strings.TrimSpace(strings.ToLower(token)) {
 	case "primary":
 		return primaryModifierTokenForOS(goos)
-	case modifierNameCmd, "command", "rightcmd", "leftcmd":
+	case modifierNameCmd, "command", "super", "meta", "rightcmd", "leftcmd":
 		return modifierNameCmd
 	case modifierNameCtrl, "control", "rightctrl", "leftctrl":
 		return modifierNameCtrl

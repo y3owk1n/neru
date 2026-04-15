@@ -76,10 +76,16 @@ func TestValidateHotkey(t *testing.T) {
 			wantErr:   true,
 		},
 		{
-			name:      "invalid modifier",
+			name:      "valid Super modifier",
 			hotkey:    "Super+Space",
 			fieldName: "test_hotkey",
-			wantErr:   true,
+			wantErr:   false,
+		},
+		{
+			name:      "valid Meta modifier",
+			hotkey:    "Meta+Space",
+			fieldName: "test_hotkey",
+			wantErr:   false,
 		},
 		{
 			name:      "empty key",

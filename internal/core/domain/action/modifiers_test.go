@@ -32,7 +32,7 @@ func TestParseModifiers(t *testing.T) {
 		{name: "case insensitive", input: "CMD,Shift", want: action.ModCmd | action.ModShift},
 		{name: "whitespace trimmed", input: " cmd , shift ", want: action.ModCmd | action.ModShift},
 		{name: "duplicate modifiers", input: "cmd,cmd", want: action.ModCmd},
-		{name: "unknown modifier", input: "cmd,super", wantErr: true},
+		{name: "unknown modifier", input: "cmd,whatever", wantErr: true},
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
