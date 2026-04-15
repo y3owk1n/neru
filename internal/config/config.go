@@ -311,10 +311,6 @@ func normalizeModifierAliasesInCombo(key, goos string) string {
 	return strings.Join(parts, "+")
 }
 
-func displayModifierToken(token string) string {
-	return displayModifierTokenForOS(token, runtime.GOOS)
-}
-
 func displayModifierTokenForOS(token, goos string) string {
 	switch token {
 	case modifierNameCmd:
@@ -348,7 +344,7 @@ func canonicalHotkeyForOS(hotkey, goos string) string {
 	parts := strings.Split(hotkey, "+")
 
 	for idx := range len(parts) - 1 {
-		parts[idx] = displayModifierToken(normalizeModifierTokenForOS(parts[idx], goos))
+		parts[idx] = displayModifierTokenForOS(normalizeModifierTokenForOS(parts[idx], goos), goos)
 	}
 
 	last := strings.TrimSpace(parts[len(parts)-1])
