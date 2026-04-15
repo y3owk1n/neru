@@ -1018,6 +1018,14 @@ func (h *IPCControllerActions) handleScrollAction(
 		}
 	}
 
+	if parsed.usePrevious {
+		return ipc.Response{
+			Success: false,
+			Message: "--previous is only supported with move_monitor",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	if parsed.useSelection && parsed.useBare {
 		return ipc.Response{
 			Success: false,

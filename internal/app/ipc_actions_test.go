@@ -111,6 +111,33 @@ func TestHandleAction_MoveMonitorRejectsUnsupportedFlags(t *testing.T) {
 	}
 }
 
+func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+		scrollService: services.NewScrollService(
+			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockOverlayPort{},
+			&portmocks.SystemMock{},
+			config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 20, ScrollStepFull: 30},
+			zap.NewNop(),
+		),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"scroll_down", "--previous"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(scroll_down --previous) expected failure")
+	}
+
+	if resp.Message != "--previous is only supported with move_monitor" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
 func TestParseActionArgs_BareFlag(t *testing.T) {
 	parsed, parseErr := parseActionArgs([]string{"--bare"})
 	if parseErr {
