@@ -242,7 +242,7 @@ neru status
 "Ctrl+F" = "hints"  # Try this instead
 
 # 4. Verify syntax is correct
-# Modifiers: Cmd, Ctrl, Alt/Option, Shift
+# Modifiers: Cmd, Ctrl, Alt/Option, Shift, Primary, Super, Meta
 # Format: "Mod1+Mod2+Key" = "action"
 ```
 

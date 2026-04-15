@@ -1,6 +1,7 @@
 package action_test
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
@@ -32,7 +33,7 @@ func TestParseModifiers(t *testing.T) {
 		{name: "case insensitive", input: "CMD,Shift", want: action.ModCmd | action.ModShift},
 		{name: "whitespace trimmed", input: " cmd , shift ", want: action.ModCmd | action.ModShift},
 		{name: "duplicate modifiers", input: "cmd,cmd", want: action.ModCmd},
-		{name: "unknown modifier", input: "cmd,super", wantErr: true},
+		{name: "unknown modifier", input: "cmd,whatever", wantErr: true},
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -71,18 +72,25 @@ func TestModifiers_Has(t *testing.T) {
 }
 
 func TestModifiers_String(t *testing.T) {
+	// The display name for ModCmd is platform-dependent:
+	// "Cmd" on macOS, "Super" on Linux.
+	cmdName := "Super"
+	if runtime.GOOS == "darwin" {
+		cmdName = "Cmd"
+	}
+
 	tests := []struct {
 		name string
 		mods action.Modifiers
 		want string
 	}{
 		{"zero", 0, ""},
-		{"cmd only", action.ModCmd, "Cmd"},
-		{"cmd+shift", action.ModCmd | action.ModShift, "Cmd+Shift"},
+		{"cmd only", action.ModCmd, cmdName},
+		{"cmd+shift", action.ModCmd | action.ModShift, cmdName + "+Shift"},
 		{
 			"all",
 			action.ModCmd | action.ModShift | action.ModAlt | action.ModCtrl,
-			"Cmd+Shift+Alt+Ctrl",
+			cmdName + "+Shift+Alt+Ctrl",
 		},
 	}
 	for _, testCase := range tests {

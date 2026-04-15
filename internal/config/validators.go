@@ -14,6 +14,8 @@ var validModifiers = map[string]bool{
 	"Primary":     true,
 	"Cmd":         true,
 	"Command":     true,
+	"Super":       true,
+	"Meta":        true,
 	"Ctrl":        true,
 	"Control":     true,
 	"Alt":         true,

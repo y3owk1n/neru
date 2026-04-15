@@ -115,9 +115,11 @@ To **remove** a single default binding without affecting the rest, use the `__di
 
 **Format:** `"Modifier1+Modifier2+Key" = "action"`
 
-**Modifiers:** `Cmd`, `Ctrl`, `Alt` / `Option`, `Shift`, `Primary` (case-insensitive).
+**Modifiers:** `Cmd`, `Ctrl`, `Alt` / `Option`, `Shift`, `Primary`, `Super`, `Meta` (case-insensitive).
 
 `Primary` is a cross-platform alias that resolves to `Cmd` on macOS and `Ctrl` on Linux/Windows. Use this for hotkeys you want to work identically across platforms without changes.
+
+`Super` and `Meta` are aliases for `Cmd`. Linux users familiar with the Super key can use `Super+…` in their configs — it maps to the Command modifier internally.
 
 **Actions can be:**
 

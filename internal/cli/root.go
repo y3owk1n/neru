@@ -231,7 +231,7 @@ func BuildActionCommand(
 	}
 
 	cmd.Flags().StringVar(&modifier, "modifier", "",
-		"Comma-separated modifier keys to hold during action (cmd, shift, alt, option, ctrl)")
+		"Comma-separated modifier keys to hold during action (cmd, super, meta, shift, alt, option, ctrl)")
 
 	if allowTargetOverride {
 		cmd.Flags().BoolVar(

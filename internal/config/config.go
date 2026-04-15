@@ -257,7 +257,7 @@ func normalizeModifierTokenForOS(token, goos string) string {
 	switch strings.TrimSpace(strings.ToLower(token)) {
 	case "primary":
 		return primaryModifierTokenForOS(goos)
-	case modifierNameCmd, "command", "rightcmd", "leftcmd":
+	case modifierNameCmd, "command", "super", "meta", "rightcmd", "leftcmd":
 		return modifierNameCmd
 	case modifierNameCtrl, "control", "rightctrl", "leftctrl":
 		return modifierNameCtrl
@@ -311,10 +311,14 @@ func normalizeModifierAliasesInCombo(key, goos string) string {
 	return strings.Join(parts, "+")
 }
 
-func displayModifierToken(token string) string {
+func displayModifierTokenForOS(token, goos string) string {
 	switch token {
 	case modifierNameCmd:
-		return "Cmd"
+		if goos == "darwin" {
+			return "Cmd"
+		}
+
+		return "Super"
 	case modifierNameCtrl:
 		return "Ctrl"
 	case modifierNameAlt:
@@ -340,7 +344,7 @@ func canonicalHotkeyForOS(hotkey, goos string) string {
 	parts := strings.Split(hotkey, "+")
 
 	for idx := range len(parts) - 1 {
-		parts[idx] = displayModifierToken(normalizeModifierTokenForOS(parts[idx], goos))
+		parts[idx] = displayModifierTokenForOS(normalizeModifierTokenForOS(parts[idx], goos), goos)
 	}
 
 	last := strings.TrimSpace(parts[len(parts)-1])

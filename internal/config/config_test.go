@@ -645,6 +645,16 @@ func TestCanonicalHotkeyForPlatform(t *testing.T) {
 			input:    "Primary+enter",
 			expected: map[bool]string{true: "Cmd+Enter", false: "Ctrl+Enter"}[isDarwinRuntime],
 		},
+		{
+			name:     "super alias becomes platform cmd token",
+			input:    "Super+Space",
+			expected: map[bool]string{true: "Cmd+Space", false: "Super+Space"}[isDarwinRuntime],
+		},
+		{
+			name:     "meta alias becomes platform cmd token",
+			input:    "Meta+Space",
+			expected: map[bool]string{true: "Cmd+Space", false: "Super+Space"}[isDarwinRuntime],
+		},
 	}
 
 	for _, testCase := range tests {
