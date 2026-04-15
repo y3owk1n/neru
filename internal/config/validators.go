@@ -693,7 +693,6 @@ func validateHotkeyActionString(actionStr string) error {
 
 	switch cmd {
 	case "idle", "hints", "grid", "scroll", "recursive_grid",
-		"move_monitor",
 		"toggle-screen-share", "toggle-cursor-follow-selection":
 		return nil
 	default:

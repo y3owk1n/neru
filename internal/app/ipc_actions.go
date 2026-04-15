@@ -61,7 +61,6 @@ func (h *IPCControllerActions) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
 	handlers["action"] = h.handleAction
-	handlers["move_monitor"] = h.handleMoveMonitorCommand
 }
 
 // parsedActionArgs holds the parsed arguments from an action IPC command.
@@ -921,25 +920,6 @@ func (h *IPCControllerActions) handleRestoreCursorPosAction(
 	h.savedCursorMu.Unlock()
 
 	return ipc.Response{Success: true, Message: "cursor restored", Code: ipc.CodeOK}
-}
-
-// handleMoveMonitorCommand handles the bare "move_monitor" IPC command so
-// config hotkeys can bind it directly (e.g. "Alt+Tab" = "move_monitor"),
-// without the "action" prefix.
-func (h *IPCControllerActions) handleMoveMonitorCommand(
-	ctx context.Context,
-	cmd ipc.Command,
-) ipc.Response {
-	parsed, parseErr := parseActionArgs(cmd.Args)
-	if parseErr {
-		return ipc.Response{
-			Success: false,
-			Message: "invalid or missing flag value",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	return h.handleMoveMonitorAction(ctx, parsed)
 }
 
 // handleMoveMonitorAction moves the cursor (and any active mode overlay)
