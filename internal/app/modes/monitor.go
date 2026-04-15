@@ -3,7 +3,6 @@ package modes
 import (
 	"context"
 	"image"
-	"sync"
 
 	"go.uber.org/zap"
 
@@ -11,12 +10,6 @@ import (
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
-
-// moveMonitorMu serializes concurrent MoveMonitor calls. Rapid hotkey presses
-// each dispatch MoveMonitor in a fresh goroutine; without this lock a second
-// call can sample ScreenBounds mid-animation and race the first call's
-// overlay redraw, leaving the grid on the wrong monitor or half-drawn.
-var moveMonitorMu sync.Mutex
 
 // MonitorDirection selects how MoveMonitor picks the target monitor.
 type MonitorDirection int
@@ -38,8 +31,12 @@ func (h *Handler) MoveMonitor(
 	ctx context.Context,
 	direction MonitorDirection,
 ) error {
-	moveMonitorMu.Lock()
-	defer moveMonitorMu.Unlock()
+	// Serialize concurrent MoveMonitor calls. Rapid hotkey presses each
+	// dispatch MoveMonitor in a fresh goroutine; without this lock a second
+	// call can sample ScreenBounds mid-animation and race the first call's
+	// overlay redraw, leaving the grid on the wrong monitor or half-drawn.
+	h.moveMonitorMu.Lock()
+	defer h.moveMonitorMu.Unlock()
 
 	if h.system == nil {
 		return derrors.New(derrors.CodeNotSupported, "system port unavailable")

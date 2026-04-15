@@ -105,6 +105,12 @@ type Handler struct {
 	suppressedUntil       time.Time
 	debounceNotify        chan struct{} // test-only: signaled when a debounce callback completes
 
+	// moveMonitorMu serializes MoveMonitor invocations. Lock ordering is
+	// always moveMonitorMu -> h.mu (MoveMonitor holds this while calling
+	// refreshActiveModeOnNewScreen, which acquires h.mu via the
+	// Refresh*ForScreenChange helpers). Never acquire in the reverse order.
+	moveMonitorMu sync.Mutex
+
 	// Indicator polling (shared by all modes)
 	indicatorTicker *time.Ticker
 	indicatorStopCh chan struct{}
