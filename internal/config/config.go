@@ -312,9 +312,17 @@ func normalizeModifierAliasesInCombo(key, goos string) string {
 }
 
 func displayModifierToken(token string) string {
+	return displayModifierTokenForOS(token, runtime.GOOS)
+}
+
+func displayModifierTokenForOS(token, goos string) string {
 	switch token {
 	case modifierNameCmd:
-		return "Cmd"
+		if goos == "darwin" {
+			return "Cmd"
+		}
+
+		return "Super"
 	case modifierNameCtrl:
 		return "Ctrl"
 	case modifierNameAlt:

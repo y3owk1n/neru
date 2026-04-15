@@ -2,6 +2,7 @@ package stickyindicator
 
 import (
 	"context"
+	"runtime"
 
 	"go.uber.org/zap"
 
@@ -51,6 +52,16 @@ func (s *Service) UpdateIndicatorPosition(x, y int, symbols string) {
 	s.overlay.DrawStickyModifiersIndicator(x, y, symbols)
 }
 
+// cmdSymbol returns the platform-appropriate symbol for the Command / Super modifier.
+// On macOS this is "⌘"; on Linux it is "❖" (the Super/Windows key symbol).
+func cmdSymbol() string {
+	if runtime.GOOS == "darwin" {
+		return "⌘"
+	}
+
+	return "❖"
+}
+
 // ModifierSymbolsString converts a Modifiers bitmask to a display string.
 func ModifierSymbolsString(mods action.Modifiers) string {
 	if mods == 0 {
@@ -59,7 +70,7 @@ func ModifierSymbolsString(mods action.Modifiers) string {
 
 	var symbols string
 	if mods.Has(action.ModCmd) {
-		symbols += "⌘"
+		symbols += cmdSymbol()
 	}
 
 	if mods.Has(action.ModShift) {
