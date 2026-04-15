@@ -79,13 +79,13 @@ Use the nix-darwin module for system-wide installation:
 
             # Optional: Inline configuration
             services.neru.config = ''
-[hotkeys]
+              [hotkeys]
               "Primary+Shift+Space" = "hints left_click"
               "Primary+Shift+G" = "grid left_click"
 
-             [general]
-             excluded_apps = ["com.apple.Terminal"]
-           '';
+              [general]
+              excluded_apps = ["com.apple.Terminal"]
+            '';
          }
        ];
      };
@@ -218,15 +218,15 @@ Use the home-manager module for user-specific installation on macOS or Linux:
            # services.neru.package = pkgs.neru; # This will use the latest version
            # services.neru.package = pkgs.neru-source; # This will build from source
 
-# Option A: Inline configuration
-            services.neru.config = ''
+           # Option A: Inline configuration
+           services.neru.config = ''
               [hotkeys]
               "Primary+Shift+Space" = "hints left_click"
               "Primary+Shift+G" = "grid left_click"
 
               [general]
               excluded_apps = ["com.apple.Terminal"]
-            '';
+           '';
 
            # Option B: Use existing config file (takes precedence)
            # services.neru.configFile = ./path/to/config.toml;
@@ -369,12 +369,12 @@ Or with home-manager:
 ```nix
 {
   services.neru.enable = true;
-services.neru.config = ''
-      [hotkeys]
-      "Primary+;" = "hints left_click"
-      "Primary+'" = "grid left_click"
-      "Primary+Shift+S" = "scroll"
-   '';
+  services.neru.config = ''
+     [hotkeys]
+     "Primary+;" = "hints left_click"
+     "Primary+'" = "grid left_click"
+     "Primary+Shift+S" = "scroll"
+  '';
 }
 ```
 
