@@ -50,7 +50,7 @@ New to Neru? Follow these steps in order:
     neru status
     ```
 
-4. **Try hint mode** (press the default hotkey `Cmd+Shift+Space`, or run):
+4. **Try hint mode** (press the default hotkey `Primary+Shift+Space`, or run):
 
     ```
     neru hints

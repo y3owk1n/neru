@@ -79,9 +79,9 @@ Use the nix-darwin module for system-wide installation:
 
             # Optional: Inline configuration
             services.neru.config = ''
-             [hotkeys]
-             "Cmd+Shift+Space" = "hints left_click"
-             "Cmd+Shift+G" = "grid left_click"
+[hotkeys]
+              "Primary+Shift+Space" = "hints left_click"
+              "Primary+Shift+G" = "grid left_click"
 
              [general]
              excluded_apps = ["com.apple.Terminal"]
@@ -185,7 +185,7 @@ The module automatically:
 > **Linux always builds from source.** There are no official pre-built Linux release artifacts yet. On Linux, `pkgs.neru` is equivalent to `pkgs.neru-source` — both build from source. If your nixpkgs doesn't ship a recent enough Go version, see [Patch Go Version](#patch-go-version) below.
 
 > [!WARNING]
-> **Default config uses macOS hotkeys.** The built-in default configuration ships with `Cmd+Shift+…` hotkeys, which map to the Super/Meta key on Linux. Linux users should override the `[hotkeys]` section with `Ctrl+…` shortcuts (as shown in the example above) or use the cross-platform `Primary` modifier, which maps to Cmd on macOS and Ctrl on Linux.
+> **Default config uses cross-platform hotkeys.** The built-in default configuration uses the `Primary+…` modifier, which maps to Cmd on macOS and Ctrl on Linux.
 
 ### Option 3: home-manager Module (User-Level)
 
@@ -218,15 +218,15 @@ Use the home-manager module for user-specific installation on macOS or Linux:
            # services.neru.package = pkgs.neru; # This will use the latest version
            # services.neru.package = pkgs.neru-source; # This will build from source
 
-           # Option A: Inline configuration
-           services.neru.config = ''
-             [hotkeys]
-             "Cmd+Shift+Space" = "hints left_click"
-             "Cmd+Shift+G" = "grid left_click"
+# Option A: Inline configuration
+            services.neru.config = ''
+              [hotkeys]
+              "Primary+Shift+Space" = "hints left_click"
+              "Primary+Shift+G" = "grid left_click"
 
-             [general]
-             excluded_apps = ["com.apple.Terminal"]
-           '';
+              [general]
+              excluded_apps = ["com.apple.Terminal"]
+            '';
 
            # Option B: Use existing config file (takes precedence)
            # services.neru.configFile = ./path/to/config.toml;
@@ -304,7 +304,7 @@ The module automatically:
 > **Linux always builds from source.** On Linux, `pkgs.neru` is equivalent to `pkgs.neru-source` — there are no official pre-built Linux release artifacts yet. If your nixpkgs doesn't ship a recent enough Go version, see [Patch Go Version](#patch-go-version) below.
 
 > [!WARNING]
-> **Default config uses macOS hotkeys.** If you don't provide an inline `config` or `configFile`, the module uses the built-in default which has `Cmd+Shift+…` hotkeys (Super/Meta on Linux). Linux users should override the `[hotkeys]` section with `Ctrl+…` or `Primary+…` shortcuts. The `Primary` modifier maps to Cmd on macOS and Ctrl on Linux.
+> **Default config uses cross-platform hotkeys.** The built-in default uses the `Primary+…` modifier, which maps to Cmd on macOS and Ctrl on Linux.
 
 ### Option 4: Using as an Overlay Only
 
@@ -369,12 +369,12 @@ Or with home-manager:
 ```nix
 {
   services.neru.enable = true;
-  services.neru.config = ''
-     [hotkeys]
-     "Cmd+;" = "hints left_click"
-     "Cmd+'" = "grid left_click"
-     "Cmd+Shift+S" = "scroll"
-  '';
+services.neru.config = ''
+      [hotkeys]
+      "Primary+;" = "hints left_click"
+      "Primary+'" = "grid left_click"
+      "Primary+Shift+S" = "scroll"
+   '';
 }
 ```
 

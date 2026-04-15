@@ -273,7 +273,7 @@ osascript -e 'id of app "AppName"'
 
 ```toml
 [hotkeys]
-"Cmd+Shift+Space" = ""  # Disable default
+"Primary+Shift+Space" = ""  # Disable default
 "Ctrl+Alt+Space" = "hints"  # Use different combo
 ```
 
@@ -381,7 +381,7 @@ neru launch  # Uses defaults if no config file
 mkdir -p ~/.config/neru
 cat > ~/.config/neru/config.toml << EOF
 [hotkeys]
-"Cmd+Shift+Space" = "hints"
+"Primary+Shift+Space" = "hints"
 
 [logging]
 log_level = "debug"
@@ -572,11 +572,11 @@ background_color = "#FFFGG"   # Invalid hex
 
 ```toml
 # Correct:
-"Cmd+Shift+Space" = "hints"
+"Primary+Shift+Space" = "hints"
 
 # Incorrect:
-"Cmd-Shift-Space" = "hints"  # Use +, not -
-"CMD+SHIFT+SPACE" = "hints"  # Use proper case
+"Primary-Shift-Space" = "hints"  # Use +, not -
+"PRIMARY+SHIFT+SPACE" = "hints"  # Use proper case
 ```
 
 ---

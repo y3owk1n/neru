@@ -24,11 +24,11 @@
 
 Hints mode that clicks automatically when you finish typing a label — similar to Vimium in a browser.
 
-> **Note:** The default hotkey for Hints mode is `Cmd+Shift+Space`. The snippet below rebinds that same key to auto-click on select, so you are _replacing_ the default hints behaviour, not adding a new one. Bind it to a separate key if you want both.
+> **Note:** The default hotkey for Hints mode is `Primary+Shift+Space`. The snippet below rebinds that same key to auto-click on select, so you are _replacing_ the default hints behaviour, not adding a new one. Bind it to a separate key if you want both.
 
 ```toml
 [hotkeys]
-"Cmd+Shift+Space" = "hints --action left_click"
+"Primary+Shift+Space" = "hints --action left_click"
 ```
 
 ## Homerow Action Clicks
@@ -39,7 +39,7 @@ Homerow-style `Return` click actions via mode `hotkeys`:
 [hints.hotkeys]
 "Enter" = "action left_click" # press twice quickly for double-click, three times for triple-click
 "Shift+Enter" = "action right_click"
-"Cmd+Enter" = "action middle_click"
+"Primary+Enter" = "action middle_click"
 ```
 
 ## Auto-Exit After Click
@@ -60,7 +60,7 @@ The old `restore_cursor_position` config field was removed. Compose the same beh
 
 ```toml
 [hotkeys]
-"Cmd+Shift+Space" = ["action save_cursor_pos", "hints"] # add the save cursor pos action before launch hints
+"Primary+Shift+Space" = ["action save_cursor_pos", "hints"] # add the save cursor pos action before launch hints
 
 [hints.hotkeys]
 "Enter" = ["action left_click", "idle", "action restore_cursor_pos"]
@@ -105,8 +105,8 @@ Some menus disappear as soon as the pointer leaves them. For grid and recursive-
 
 ```toml
 [hotkeys]
-"Cmd+Shift+G" = "grid --cursor-selection-mode hold"
-"Cmd+Shift+C" = "recursive_grid --cursor-selection-mode hold"
+"Primary+Shift+G" = "grid --cursor-selection-mode hold"
+"Primary+Shift+C" = "recursive_grid --cursor-selection-mode hold"
 ```
 
 Grid and recursive-grid now include this toggle in the default config, bound to backtick:
@@ -255,8 +255,8 @@ The `--action` flag on hints mode is not limited to `left_click`. You can pass o
 
 ```toml
 [hotkeys]
-"Cmd+Shift+Space" = "hints --action left_click"   # click
-"Cmd+Shift+R"     = "hints --action right_click"  # context menu
+"Primary+Shift+Space" = "hints --action left_click"   # click
+"Primary+Shift+R"     = "hints --action right_click"  # context menu
 ```
 
 Useful for apps where you frequently need a right-click menu (e.g. Finder, VS Code file tree) without moving your hands to the mouse.
