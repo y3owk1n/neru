@@ -1,8 +1,8 @@
 # Neru Configuration - Hints Only Mode
 
 [hotkeys]
-"Cmd+Shift+Space" = "hints"
-"Cmd+Shift+S" = "scroll"
+"Primary+Shift+Space" = "hints"
+"Primary+Shift+S" = "scroll"
 
 [hints]
 enabled = true
@@ -41,12 +41,12 @@ ignore_clickable_check = false
 # Application-specific configurations for customizing hint behavior per app
 # Each entry allows overriding clickable roles and clickable check behavior for specific bundle IDs
 # [[hints.app_configs]]
-# bundle_id = "com.google.Chrome"
+# bundle_id = "net.imput.helium"
 # additional_clickable_roles = ["AXTabGroup"]
 # ignore_clickable_check = false
 #
 # [hints.app_configs.hotkeys]
-# "Return" = ["action left_click", "exec sleep 0.5", "hints"]
+# "Return" = ["action left_click", "exec sleep 3.5", "hints"]
 
 [hints.additional_ax_support]
 enable = true
