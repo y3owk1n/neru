@@ -84,6 +84,17 @@ func (m Modifiers) Has(other Modifiers) bool {
 	return m&other == other
 }
 
+// cmdDisplayName returns the platform-appropriate display name for the
+// Command / Super modifier. On macOS the key is "Cmd" (⌘); on Linux it
+// is commonly called "Super".
+func cmdDisplayName() string {
+	if runtime.GOOS == "darwin" {
+		return "Cmd"
+	}
+
+	return "Super"
+}
+
 // String returns a human-readable representation (e.g. "Cmd+Shift").
 func (m Modifiers) String() string {
 	if m == 0 {
@@ -92,7 +103,7 @@ func (m Modifiers) String() string {
 
 	var parts []string
 	if m.Has(ModCmd) {
-		parts = append(parts, "Cmd")
+		parts = append(parts, cmdDisplayName())
 	}
 
 	if m.Has(ModShift) {
