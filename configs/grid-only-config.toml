@@ -1,8 +1,8 @@
 # Neru Configuration - Grid Only Mode
 
 [hotkeys]
-"Cmd+Shift+Space" = "grid"
-"Cmd+Shift+S" = "scroll"
+"Primary+Shift+Space" = "grid"
+"Primary+Shift+S" = "scroll"
 
 [hints]
 enabled = false

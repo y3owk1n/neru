@@ -17,9 +17,9 @@ Use the global --config flag to write to a custom path instead.
 This copies the fully-commented default configuration to get you started.
 If a config file already exists, use --force to overwrite it.
 After running this command, start Neru with 'neru launch' and try:
-  Cmd+Shift+C      Recursive Grid mode (recommended)
-  Cmd+Shift+Space   Hints mode
-  Cmd+Shift+S       Scroll mode
+  Primary+Shift+C      Recursive Grid mode (recommended)
+  Primary+Shift+Space   Hints mode
+  Primary+Shift+S       Scroll mode
   Escape            Exit any mode`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		force, _ := cmd.Flags().GetBool("force")
@@ -56,9 +56,9 @@ func runConfigInit(cmd *cobra.Command, force bool) error {
 	cmd.Println("")
 	cmd.Println("Quick start:")
 	cmd.Println("  1. Start Neru:          neru launch")
-	cmd.Println("  2. Try Recursive Grid:  Cmd+Shift+C")
-	cmd.Println("  3. Try Hints mode:      Cmd+Shift+Space")
-	cmd.Println("  4. Try Scroll mode:     Cmd+Shift+S")
+	cmd.Println("  2. Try Recursive Grid:  Primary+Shift+C")
+	cmd.Println("  3. Try Hints mode:      Primary+Shift+Space")
+	cmd.Println("  4. Try Scroll mode:     Primary+Shift+S")
 	cmd.Println("  5. Exit any mode:       Escape")
 	cmd.Println("")
 	cmd.Println("Edit the config file to customize hotkeys, colors, and behavior.")

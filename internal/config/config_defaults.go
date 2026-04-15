@@ -234,10 +234,10 @@ func newDefaultConfig() *Config {
 		Theme: defaultThemeConfig(),
 		Hotkeys: HotkeysConfig{
 			Bindings: map[string][]string{
-				"Cmd+Shift+Space": {"hints"},
-				"Cmd+Shift+G":     {"grid"},
-				"Cmd+Shift+C":     {"recursive_grid"},
-				"Cmd+Shift+S":     {"scroll"},
+				"Primary+Shift+Space": {"hints"},
+				"Primary+Shift+G":     {"grid"},
+				"Primary+Shift+C":     {"recursive_grid"},
+				"Primary+Shift+S":     {"scroll"},
 			},
 		},
 		Hints: HintsConfig{

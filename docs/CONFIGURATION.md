@@ -107,8 +107,8 @@ To **remove** a single default binding without affecting the rest, use the `__di
 
 ```toml
 [hotkeys]
-"Cmd+Shift+S" = "__disabled__"   # removes the default scroll hotkey
-"Ctrl+Space"  = "hints"          # adds a new binding; other defaults remain
+"Primary+Shift+S" = "__disabled__"   # removes the default scroll hotkey
+"Ctrl+Space"      = "hints"          # adds a new binding; other defaults remain
 ```
 
 ### Syntax
@@ -132,7 +132,7 @@ Bind multiple actions to a single hotkey using an array. Actions are executed se
 ```toml
 [hotkeys]
 "PageUp" = ["action go_top", "action page_down"]
-"Cmd+Shift+D" = ["hints", "exec echo 'hints activated'"]
+"Primary+Shift+D" = ["hints", "exec echo 'hints activated'"]
 ```
 
 Both `[hotkeys]` and `[<mode>.hotkeys]` support this array syntax.
@@ -172,7 +172,7 @@ To remove a single default binding, use `__disabled__`:
 
 [scroll.hotkeys]
 "gg" = "action go_top"
-"Cmd+Shift+T" = "exec open -a Terminal"
+"Primary+Shift+T" = "exec open -a Terminal"
 ```
 
 ### Supported actions
@@ -362,8 +362,8 @@ Runtime cursor behavior is chosen per invocation rather than in config:
 
 ```toml
 [hotkeys]
-"Cmd+Shift+G" = "grid --cursor-selection-mode follow"
-"Cmd+Alt+G"   = "grid --cursor-selection-mode hold"
+"Primary+Shift+G" = "grid --cursor-selection-mode follow"
+"Primary+Alt+G"   = "grid --cursor-selection-mode hold"
 ```
 
 Default grid hotkeys include ``"`" = "toggle-cursor-follow-selection"`` so you can flip cursor follow behavior mid-session.
