@@ -406,6 +406,42 @@ func BuildScrollActionCommand(use, short, long string) *cobra.Command {
 	return cmd
 }
 
+// BuildMoveMonitorCommand creates a move_monitor cobra command that moves the
+// cursor (and any active overlay) to the next or previous monitor.
+//
+// To jump to a specific named display, use
+// `neru action move_mouse --center --monitor=<name>` instead.
+func BuildMoveMonitorCommand() *cobra.Command {
+	var usePrevious bool
+
+	cmd := &cobra.Command{
+		Use:   "move_monitor",
+		Short: "Move cursor and overlay to another monitor",
+		Long: `Move the cursor, and any active mode overlay (hints/grid/recursive-grid), to the next or previous connected monitor.
+
+By default the cursor advances to the next monitor in the list returned by the operating system. Use --previous to step backwards.
+
+To jump directly to a named display, use "neru action move_mouse --center --monitor=<name>" instead.`,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			args := []string{"move_monitor"}
+
+			if usePrevious {
+				args = append(args, "--previous")
+			}
+
+			return sendCommand(cmd, "action", args)
+		},
+	}
+
+	cmd.Flags().
+		BoolVar(&usePrevious, "previous", false, "Cycle to the previous monitor instead of the next one")
+
+	return cmd
+}
+
 // BuildMoveMouseRelativeCommand creates a move_mouse_relative cobra command with deltaX and deltaY flags.
 func BuildMoveMouseRelativeCommand() *cobra.Command {
 	var deltaX, deltaY int

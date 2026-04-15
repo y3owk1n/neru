@@ -40,6 +40,77 @@ func TestParseActionArgs_SelectionFlag(t *testing.T) {
 	}
 }
 
+func TestParseActionArgs_PreviousFlag(t *testing.T) {
+	parsed, parseErr := parseActionArgs([]string{"--previous"})
+	if parseErr {
+		t.Fatal("parseActionArgs() unexpected parse error for --previous")
+	}
+
+	if !parsed.usePrevious {
+		t.Fatal("parseActionArgs() expected usePrevious to be true")
+	}
+}
+
+func TestHandleAction_PreviousRejectedOnNonMoveMonitor(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"left_click", "--previous"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(left_click --previous) expected failure")
+	}
+
+	if resp.Message != "--previous is only supported with move_monitor" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_MoveMonitorRejectsMonitorFlag(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"move_monitor", "--monitor=foo"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(move_monitor --monitor) expected failure")
+	}
+
+	if resp.Message != "move_monitor only supports --previous; use move_mouse --center --monitor to target a named display" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_MoveMonitorRejectsUnsupportedFlags(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"move_monitor", "--selection"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(move_monitor --selection) expected failure")
+	}
+
+	if resp.Message != "move_monitor only supports --previous; use move_mouse --center --monitor to target a named display" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
 func TestParseActionArgs_BareFlag(t *testing.T) {
 	parsed, parseErr := parseActionArgs([]string{"--bare"})
 	if parseErr {

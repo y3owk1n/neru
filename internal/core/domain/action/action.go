@@ -151,6 +151,8 @@ const (
 	NameScrollLeft Name = "scroll_left"
 	// NameScrollRight represents the scroll-right action.
 	NameScrollRight Name = "scroll_right"
+	// NameMoveMonitor moves the cursor (and any active overlay) to the next or previous connected monitor.
+	NameMoveMonitor Name = "move_monitor"
 	// NameGoTop represents the go-to-top action.
 	NameGoTop Name = "go_top"
 	// NameGoBottom represents the go-to-bottom action.
@@ -224,6 +226,11 @@ func IsRestoreCursorPosAction(name string) bool {
 	return Name(name) == NameRestoreCursorPos
 }
 
+// IsMoveMonitorAction reports whether the given action is move_monitor.
+func IsMoveMonitorAction(name string) bool {
+	return Name(name) == NameMoveMonitor
+}
+
 // IsKnownName determines whether the specified action name is recognized by the
 // application. This is a superset of the names in knownNames — it also includes
 // scroll sub-actions (scroll_up, page_down, etc.) which are IPC/CLI-only.
@@ -241,7 +248,8 @@ func IsKnownName(name Name) bool {
 		NameReset, NameBackspace,
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
-		NameGoTop, NameGoBottom, NamePageUp, NamePageDown:
+		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
+		NameMoveMonitor:
 		return true
 	default:
 		return false
@@ -258,7 +266,7 @@ func IsScrollSubAction(name string) bool {
 	case NameLeftClick, NameRightClick, NameMiddleClick,
 		NameMouseDown, NameMouseUp,
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
-		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos:
+		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos, NameMoveMonitor:
 		return false
 	default:
 		return false
@@ -313,7 +321,12 @@ func (n Name) ToType() (Type, error) {
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown:
 		return TypeScroll, nil
-	case NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos:
+	case NameReset,
+		NameBackspace,
+		NameWaitForModeExit,
+		NameSaveCursorPos,
+		NameRestoreCursorPos,
+		NameMoveMonitor:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "action name not executable: %s", n)
 	default:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "unknown action name: %s", n)

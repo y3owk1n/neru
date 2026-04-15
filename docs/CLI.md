@@ -416,6 +416,23 @@ neru action move_mouse_relative --dx 10 --dy -5
 > [!TIP]
 > Point-targeted actions prefer the active mode selection by default. Use `--bare` when you want `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, `move_mouse`, or scroll actions to ignore the selection and use the current cursor position instead.
 
+### Moving monitors
+
+On multi-monitor setups, `move_monitor` moves the cursor to the center of another display. If a mode overlay (`hints`, `grid`, `recursive_grid`) is active when the action is invoked, the overlay follows the cursor onto the new monitor so the mode can continue there without re-activating.
+
+```
+neru action move_monitor                              # next monitor
+neru action move_monitor --previous                   # previous monitor
+```
+
+| Flag         | Description                                              |
+| ------------ | -------------------------------------------------------- |
+| `--previous` | Cycle backwards through the monitor list (default: next) |
+
+To jump directly to a specific display by name, use `move_mouse --center --monitor` instead (see [Named monitor](#named-monitor)).
+
+Bind it to a hotkey in `config.toml` (e.g. `"Alt+Tab" = "action move_monitor"`) to switch the active mode between displays without leaving the keyboard.
+
 ---
 
 ## Configuration Management

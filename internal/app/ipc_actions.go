@@ -61,6 +61,7 @@ func (h *IPCControllerActions) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
 	handlers["action"] = h.handleAction
+	handlers["move_monitor"] = h.handleMoveMonitorCommand
 }
 
 // parsedActionArgs holds the parsed arguments from an action IPC command.
@@ -74,6 +75,7 @@ type parsedActionArgs struct {
 	useBare        bool
 	monitorName    string
 	hasMonitor     bool
+	usePrevious    bool
 	modifierStr    string
 }
 
@@ -197,6 +199,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.useSelection = true
 		case arg == "--bare":
 			parsed.useBare = true
+		case arg == "--previous":
+			parsed.usePrevious = true
 		case strings.HasPrefix(arg, "--monitor") && (arg == "--monitor" || arg[len("--monitor")] == '='):
 			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--monitor")
 			idx = newIdx
@@ -265,6 +269,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		return h.handleRestoreCursorPosAction(ctx, parsed)
 	}
 
+	if action.IsMoveMonitorAction(actionName) {
+		return h.handleMoveMonitorAction(ctx, parsed)
+	}
+
 	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
 	if modErr != nil {
 		return ipc.Response{
@@ -300,6 +308,14 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		return ipc.Response{
 			Success: false,
 			Message: "--x/--y/--dx/--dy flags are only supported with move_mouse or move_mouse_relative",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.usePrevious {
+		return ipc.Response{
+			Success: false,
+			Message: "--previous is only supported with move_monitor",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -713,7 +729,7 @@ func (h *IPCControllerActions) handleBackspaceAction() ipc.Response {
 func hasUnsupportedFlags(parsed parsedActionArgs) bool {
 	return parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
 		parsed.hasCenter || parsed.hasMonitor || parsed.modifierStr != "" ||
-		parsed.useSelection || parsed.useBare
+		parsed.useSelection || parsed.useBare || parsed.usePrevious
 }
 
 func (h *IPCControllerActions) resolveMouseActionPoint(
@@ -905,6 +921,76 @@ func (h *IPCControllerActions) handleRestoreCursorPosAction(
 	h.savedCursorMu.Unlock()
 
 	return ipc.Response{Success: true, Message: "cursor restored", Code: ipc.CodeOK}
+}
+
+// handleMoveMonitorCommand handles the bare "move_monitor" IPC command so
+// config hotkeys can bind it directly (e.g. "Alt+Tab" = "move_monitor"),
+// without the "action" prefix.
+func (h *IPCControllerActions) handleMoveMonitorCommand(
+	ctx context.Context,
+	cmd ipc.Command,
+) ipc.Response {
+	parsed, parseErr := parseActionArgs(cmd.Args)
+	if parseErr {
+		return ipc.Response{
+			Success: false,
+			Message: "invalid or missing flag value",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	return h.handleMoveMonitorAction(ctx, parsed)
+}
+
+// handleMoveMonitorAction moves the cursor (and any active mode overlay)
+// to the next or previous connected monitor.
+func (h *IPCControllerActions) handleMoveMonitorAction(
+	ctx context.Context,
+	parsed parsedActionArgs,
+) ipc.Response {
+	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
+		parsed.hasCenter || parsed.hasMonitor || parsed.modifierStr != "" ||
+		parsed.useSelection || parsed.useBare {
+		return ipc.Response{
+			Success: false,
+			Message: "move_monitor only supports --previous; use move_mouse --center --monitor to target a named display",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: "modes handler not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	direction := modes.MonitorDirectionNext
+	if parsed.usePrevious {
+		direction = modes.MonitorDirectionPrevious
+	}
+
+	h.logger.Info("Moving monitor via IPC",
+		zap.Bool("previous", parsed.usePrevious),
+	)
+
+	err := h.modesHandler.MoveMonitor(ctx, direction)
+	if err != nil {
+		h.logger.Error("Failed to move monitor", zap.Error(err))
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to move monitor: " + err.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "move_monitor performed",
+		Code:    ipc.CodeOK,
+	}
 }
 
 // handleScrollAction dispatches a scroll sub-action (scroll_up, page_down, etc.)

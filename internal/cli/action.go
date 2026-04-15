@@ -76,6 +76,9 @@ var ActionMoveMouseCmd = BuildMoveMouseCommand()
 // ActionMoveMouseRelativeCmd is the move mouse relative action command.
 var ActionMoveMouseRelativeCmd = BuildMoveMouseRelativeCommand()
 
+// ActionMoveMonitorCmd is the move monitor action command.
+var ActionMoveMonitorCmd = BuildMoveMonitorCommand()
+
 // ActionResetCmd resets current mode state.
 var ActionResetCmd = BuildActionCommand(
 	"reset",
@@ -185,6 +188,7 @@ func init() {
 	ActionCmd.AddCommand(ActionMiddleClickCmd)
 	ActionCmd.AddCommand(ActionMoveMouseCmd)
 	ActionCmd.AddCommand(ActionMoveMouseRelativeCmd)
+	ActionCmd.AddCommand(ActionMoveMonitorCmd)
 	ActionCmd.AddCommand(ActionResetCmd)
 	ActionCmd.AddCommand(ActionBackspaceCmd)
 	ActionCmd.AddCommand(ActionWaitForModeExitCmd)
