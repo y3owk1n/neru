@@ -3,12 +3,15 @@ package modes
 import (
 	"context"
 	"image"
+	"strings"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
 // MonitorDirection selects how MoveMonitor picks the target monitor.
@@ -77,6 +80,10 @@ func (h *Handler) MoveMonitor(
 
 	err = h.actionService.MoveCursorToPointAndWait(ctx, center, true)
 	if err != nil {
+		if hasActiveOverlay && h.overlayManager != nil {
+			h.overlayManager.Show()
+		}
+
 		return err
 	}
 
@@ -86,7 +93,7 @@ func (h *Handler) MoveMonitor(
 		zap.Int("y", center.Y),
 	)
 
-	h.refreshActiveModeOnNewScreen(ctx)
+	h.refreshActiveModeOnNewScreen(ctx, targetBounds)
 
 	return nil
 }
@@ -174,10 +181,15 @@ func indexOfScreen(
 	return 0
 }
 
-// refreshActiveModeOnNewScreen re-draws any active mode overlay on the screen
-// the cursor has just moved onto. Mirrors the flow in lifecycle.processScreenChange
-// for the in-process, cursor-driven case.
-func (h *Handler) refreshActiveModeOnNewScreen(ctx context.Context) {
+// refreshActiveModeOnNewScreen redraws the active mode overlay using the
+// supplied target screen bounds. Unlike the lifecycle screen-change path
+// (which re-queries the cursor position), this uses the bounds that
+// MoveMonitor already resolved, eliminating the race between the Go-side
+// ScreenBounds call and the native async ResizeToActiveScreen.
+func (h *Handler) refreshActiveModeOnNewScreen(
+	ctx context.Context,
+	targetBounds image.Rectangle,
+) {
 	currentMode := h.appState.CurrentMode()
 	if h.overlayManager == nil {
 		return
@@ -186,46 +198,110 @@ func (h *Handler) refreshActiveModeOnNewScreen(ctx context.Context) {
 	switch currentMode {
 	case domain.ModeGrid:
 		h.overlayManager.ResizeToActiveScreen()
-
-		if !h.RefreshGridForScreenChange() {
-			return
-		}
-
-		h.overlayManager.Show()
+		h.refreshGridForMonitorMove(targetBounds)
 	case domain.ModeRecursiveGrid:
 		h.overlayManager.ResizeToActiveScreen()
-
-		if !h.RefreshRecursiveGridForScreenChange() {
-			return
-		}
-
-		h.overlayManager.Show()
+		h.refreshRecursiveGridForMonitorMove(targetBounds)
 	case domain.ModeHints:
 		h.overlayManager.ResizeToActiveScreen()
-
-		if h.hintService == nil {
-			return
-		}
-
-		domainHints, err := h.hintService.ShowHints(ctx)
-		if err != nil {
-			h.logger.Error(
-				"Failed to refresh hints after monitor move",
-				zap.Error(err),
-			)
-
-			return
-		}
-
-		if len(domainHints) == 0 {
-			return
-		}
-
-		hintCollection := domainHint.NewCollection(domainHints)
-		h.RefreshHintsForScreenChange(hintCollection)
+		h.refreshHintsForMonitorMove(ctx, targetBounds)
 	case domain.ModeScroll:
 		h.overlayManager.ResizeToActiveScreen()
 	case domain.ModeIdle:
 		return
 	}
+}
+
+// refreshGridForMonitorMove regenerates the grid using the known target
+// screen bounds and shows the overlay. Unlike RefreshGridForScreenChange
+// this does not re-query ScreenBounds.
+func (h *Handler) refreshGridForMonitorMove(targetBounds image.Rectangle) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.appState.CurrentMode() != domain.ModeGrid {
+		return
+	}
+	// Use the known target bounds instead of re-querying ScreenBounds.
+	h.screenBounds = targetBounds
+	normalizedBounds := coordinates.NormalizeToLocalCoordinates(targetBounds)
+	characters := h.config.Grid.Characters
+	if strings.TrimSpace(characters) == "" {
+		characters = h.config.Hints.HintCharacters
+	}
+	gridInstance := domainGrid.NewGridWithLabels(
+		characters,
+		h.config.Grid.RowLabels,
+		h.config.Grid.ColLabels,
+		normalizedBounds,
+		h.logger,
+	)
+	h.grid.Context.SetGridInstanceValue(gridInstance)
+	if h.grid.Manager != nil {
+		h.grid.Manager.UpdateGrid(gridInstance)
+		h.grid.Manager.Reset()
+	}
+	h.grid.Context.ClearSelectionPoint()
+	drawGridErr := h.renderer.DrawGrid(gridInstance, "")
+	if drawGridErr != nil {
+		h.logger.Error("Failed to refresh grid after monitor move", zap.Error(drawGridErr))
+		return
+	}
+	h.refreshGridVirtualPointerLocked()
+	h.overlayManager.Show()
+}
+
+// refreshRecursiveGridForMonitorMove remaps the recursive-grid to the known
+// target screen bounds and shows the overlay. Unlike
+// RefreshRecursiveGridForScreenChange this does not re-query ScreenBounds.
+func (h *Handler) refreshRecursiveGridForMonitorMove(targetBounds image.Rectangle) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.appState.CurrentMode() != domain.ModeRecursiveGrid {
+		return
+	}
+	h.screenBounds = targetBounds
+	normalizedBounds := coordinates.NormalizeToLocalCoordinates(targetBounds)
+	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
+		h.recursiveGrid.Manager.CurrentGrid().RemapToNewBounds(normalizedBounds)
+	} else {
+		h.initializeRecursiveGridManager(normalizedBounds)
+	}
+	if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
+		h.recursiveGrid.Context.ClearSelectionPoint()
+	}
+	h.updateRecursiveGridOverlay()
+	h.refreshRecursiveGridVirtualPointerLocked()
+	h.overlayManager.Show()
+}
+
+// refreshHintsForMonitorMove refreshes hints using the known target screen
+// bounds. Unlike RefreshHintsForScreenChange this does not re-query
+// ScreenBounds.
+func (h *Handler) refreshHintsForMonitorMove(
+	ctx context.Context,
+	targetBounds image.Rectangle,
+) {
+	if h.hintService == nil {
+		return
+	}
+	domainHints, err := h.hintService.ShowHints(ctx)
+	if err != nil {
+		h.logger.Error(
+			"Failed to refresh hints after monitor move",
+			zap.Error(err),
+		)
+		return
+	}
+	if len(domainHints) == 0 {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.appState.CurrentMode() != domain.ModeHints {
+		return
+	}
+	// Use the known target bounds instead of re-querying ScreenBounds.
+	h.screenBounds = targetBounds
+	hintCollection := domainHint.NewCollection(domainHints)
+	h.hints.Context.SetHints(hintCollection)
 }
