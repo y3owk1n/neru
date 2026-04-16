@@ -206,22 +206,7 @@ func (h *Handler) refreshActiveModeOnNewScreen(
 		h.overlayManager.ResizeToActiveScreen()
 		h.refreshHintsForMonitorMove(ctx, targetBounds)
 	case domain.ModeScroll:
-		h.mu.Lock()
-		h.screenBounds = targetBounds
-		h.mu.Unlock()
-
 		h.overlayManager.ResizeToActiveScreen()
-
-		// Resize the mode indicator overlay to the target monitor so the
-		// polling goroutine draws on the correct screen.
-		if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
-			ind.ResizeToActiveScreen()
-		}
-
-		if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
-			stickyInd.ResizeToActiveScreen()
-		}
-
 		h.overlayManager.Show()
 	case domain.ModeIdle:
 		return
