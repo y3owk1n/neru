@@ -251,6 +251,7 @@ func (h *Handler) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 	drawGridErr := h.renderer.DrawGrid(gridInstance, "")
 	if drawGridErr != nil {
 		h.logger.Error("Failed to refresh grid after monitor move", zap.Error(drawGridErr))
+		h.overlayManager.Show()
 
 		return
 	}
@@ -296,6 +297,9 @@ func (h *Handler) refreshHintsForMonitorMove(
 	targetBounds image.Rectangle,
 ) {
 	if h.hintService == nil {
+		h.logger.Warn("Hint service unavailable after monitor move; exiting hints mode")
+		h.ExitMode()
+
 		return
 	}
 
@@ -305,11 +309,15 @@ func (h *Handler) refreshHintsForMonitorMove(
 			"Failed to refresh hints after monitor move",
 			zap.Error(err),
 		)
+		h.ExitMode()
 
 		return
 	}
 
 	if len(domainHints) == 0 {
+		h.logger.Warn("No hints generated on target monitor; exiting hints mode")
+		h.ExitMode()
+
 		return
 	}
 
@@ -324,6 +332,9 @@ func (h *Handler) refreshHintsForMonitorMove(
 
 	filtered := filterHintsForScreen(domainHints, targetBounds)
 	if len(filtered) == 0 {
+		h.logger.Warn("All hints filtered out on target monitor; exiting hints mode")
+		h.exitModeLocked()
+
 		return
 	}
 
