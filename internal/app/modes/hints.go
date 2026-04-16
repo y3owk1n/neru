@@ -59,6 +59,40 @@ func (h *Handler) ActivateModeWithOptions(mode domain.Mode, opts ModeActivationO
 	modeImpl.Activate(opts)
 }
 
+// filterHintsForScreen returns only the hints whose element center falls within
+// screenBounds, and deduplicates by position so that downstream code (overlay
+// incremental updates, Objective-C NeruDrawIncrementHints) can safely use
+// position as a unique key without silently dropping entries.
+func filterHintsForScreen(
+	allHints []*domainHint.Interface,
+	screenBounds image.Rectangle,
+) []*domainHint.Interface {
+	filtered := make([]*domainHint.Interface, 0, len(allHints))
+
+	seenPositions := make(map[image.Point]struct{}, len(allHints))
+	for _, hint := range allHints {
+		hintBounds := hint.Element().Bounds()
+
+		hintCenter := image.Point{
+			X: hintBounds.Min.X + hintBounds.Dx()/2,
+			Y: hintBounds.Min.Y + hintBounds.Dy()/2,
+		}
+		if !hintCenter.In(screenBounds) {
+			continue
+		}
+
+		if _, exists := seenPositions[hintCenter]; exists {
+			continue
+		}
+
+		seenPositions[hintCenter] = struct{}{}
+
+		filtered = append(filtered, hint)
+	}
+
+	return filtered
+}
+
 // activateHintModeWithAction activates hint mode with optional action parameter.
 func (h *Handler) activateHintModeWithAction(
 	action *string,
@@ -183,34 +217,7 @@ func (h *Handler) activateHintModeInternal(
 		return
 	}
 
-	// Filter hints to only those on the active screen for multi-monitor support,
-	// and deduplicate by position so that downstream code (overlay incremental
-	// updates, Objective-C NeruDrawIncrementHints) can safely use position as a
-	// unique key without silently dropping entries.
-	filteredHints := make([]*domainHint.Interface, 0, len(domainHints))
-	seenPositions := make(map[image.Point]struct{}, len(domainHints))
-
-	for _, hint := range domainHints {
-		hintBounds := hint.Element().Bounds()
-		hintCenter := image.Point{
-			X: hintBounds.Min.X + hintBounds.Dx()/2,
-			Y: hintBounds.Min.Y + hintBounds.Dy()/2,
-		}
-
-		// Include hint if its center is within the active screen bounds
-		if !hintCenter.In(activeScreenBounds) {
-			continue
-		}
-		// Skip duplicate positions — two hints at the same pixel would
-		// visually overlap and confuse the incremental update logic.
-		if _, exists := seenPositions[hintCenter]; exists {
-			continue
-		}
-
-		seenPositions[hintCenter] = struct{}{}
-
-		filteredHints = append(filteredHints, hint)
-	}
+	filteredHints := filterHintsForScreen(domainHints, activeScreenBounds)
 
 	h.logger.Debug("Filtered hints by screen",
 		zap.Int("total_hints", len(domainHints)),

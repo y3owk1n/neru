@@ -233,7 +233,16 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 		}
 	}
 
-	h.hints.Context.SetHints(hintCollection)
+	allHints := hintCollection.All()
+
+	filtered := filterHintsForScreen(allHints, h.screenBounds)
+	if len(filtered) == 0 {
+		h.logger.Debug("No hints on active screen after filter; skipping refresh")
+
+		return true
+	}
+
+	h.hints.Context.SetHints(domainHint.NewCollection(filtered))
 
 	return true
 }
