@@ -207,6 +207,7 @@ func (h *Handler) refreshActiveModeOnNewScreen(
 		h.refreshHintsForMonitorMove(ctx, targetBounds)
 	case domain.ModeScroll:
 		h.overlayManager.ResizeToActiveScreen()
+		h.overlayManager.Show()
 	case domain.ModeIdle:
 		return
 	}
@@ -320,6 +321,14 @@ func (h *Handler) refreshHintsForMonitorMove(
 	}
 	// Use the known target bounds instead of re-querying ScreenBounds.
 	h.screenBounds = targetBounds
-	hintCollection := domainHint.NewCollection(domainHints)
+
+	filtered := filterHintsForScreen(domainHints, targetBounds)
+	if len(filtered) == 0 {
+		return
+	}
+
+	hintCollection := domainHint.NewCollection(filtered)
 	h.hints.Context.SetHints(hintCollection)
+
+	h.overlayManager.Show()
 }
