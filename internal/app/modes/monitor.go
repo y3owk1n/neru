@@ -56,6 +56,25 @@ func (h *Handler) MoveMonitor(
 		Y: targetBounds.Min.Y + targetBounds.Dy()/2,
 	}
 
+	// Hide the overlay *before* moving the cursor so the stale overlay on
+	// the old monitor disappears immediately. Without this, the async
+	// ResizeToActiveScreen (which reads [NSEvent mouseLocation] inside a
+	// dispatch_async block) races the cursor warp: the overlay window may
+	// still be visible on the old monitor while the new content is drawn,
+	// or on rapid switching the resize picks up an intermediate mouse
+	// position and targets the wrong display.
+	//
+	// The sequence Hide → cursor warp → Resize → Draw → Show ensures:
+	//  1. The old overlay vanishes before the cursor moves.
+	//  2. By the time ResizeToActiveScreen's dispatch_async block runs on
+	//     the main queue, the cursor is already on the target monitor.
+	//  3. Show() is dispatched last, so the overlay only becomes visible
+	//     after both the resize and the redraw have been enqueued.
+	hasActiveOverlay := h.appState.CurrentMode() != domain.ModeIdle
+	if hasActiveOverlay && h.overlayManager != nil {
+		h.overlayManager.Hide()
+	}
+
 	err = h.actionService.MoveCursorToPointAndWait(ctx, center, true)
 	if err != nil {
 		return err
