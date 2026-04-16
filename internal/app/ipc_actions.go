@@ -249,11 +249,11 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	if action.IsResetAction(actionName) {
-		return h.handleResetAction()
+		return h.handleResetAction(parsed)
 	}
 
 	if action.IsBackspaceAction(actionName) {
-		return h.handleBackspaceAction()
+		return h.handleBackspaceAction(parsed)
 	}
 
 	if action.IsWaitForModeExitAction(actionName) {
@@ -697,7 +697,15 @@ func (h *IPCControllerActions) resolveMoveMousePoint(
 	}
 }
 
-func (h *IPCControllerActions) handleResetAction() ipc.Response {
+func (h *IPCControllerActions) handleResetAction(parsed parsedActionArgs) ipc.Response {
+	if hasUnsupportedFlags(parsed) {
+		return ipc.Response{
+			Success: false,
+			Message: "reset does not support action flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
@@ -711,7 +719,15 @@ func (h *IPCControllerActions) handleResetAction() ipc.Response {
 	return ipc.Response{Success: true, Message: "mode reset", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerActions) handleBackspaceAction() ipc.Response {
+func (h *IPCControllerActions) handleBackspaceAction(parsed parsedActionArgs) ipc.Response {
+	if hasUnsupportedFlags(parsed) {
+		return ipc.Response{
+			Success: false,
+			Message: "backspace does not support action flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
