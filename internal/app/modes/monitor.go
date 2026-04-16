@@ -218,16 +218,19 @@ func (h *Handler) refreshActiveModeOnNewScreen(
 func (h *Handler) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
 	if h.appState.CurrentMode() != domain.ModeGrid {
 		return
 	}
 	// Use the known target bounds instead of re-querying ScreenBounds.
 	h.screenBounds = targetBounds
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(targetBounds)
+
 	characters := h.config.Grid.Characters
 	if strings.TrimSpace(characters) == "" {
 		characters = h.config.Hints.HintCharacters
 	}
+
 	gridInstance := domainGrid.NewGridWithLabels(
 		characters,
 		h.config.Grid.RowLabels,
@@ -236,16 +239,21 @@ func (h *Handler) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 		h.logger,
 	)
 	h.grid.Context.SetGridInstanceValue(gridInstance)
+
 	if h.grid.Manager != nil {
 		h.grid.Manager.UpdateGrid(gridInstance)
 		h.grid.Manager.Reset()
 	}
+
 	h.grid.Context.ClearSelectionPoint()
+
 	drawGridErr := h.renderer.DrawGrid(gridInstance, "")
 	if drawGridErr != nil {
 		h.logger.Error("Failed to refresh grid after monitor move", zap.Error(drawGridErr))
+
 		return
 	}
+
 	h.refreshGridVirtualPointerLocked()
 	h.overlayManager.Show()
 }
@@ -256,19 +264,24 @@ func (h *Handler) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 func (h *Handler) refreshRecursiveGridForMonitorMove(targetBounds image.Rectangle) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
 	if h.appState.CurrentMode() != domain.ModeRecursiveGrid {
 		return
 	}
+
 	h.screenBounds = targetBounds
+
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(targetBounds)
 	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
 		h.recursiveGrid.Manager.CurrentGrid().RemapToNewBounds(normalizedBounds)
 	} else {
 		h.initializeRecursiveGridManager(normalizedBounds)
 	}
+
 	if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
 		h.recursiveGrid.Context.ClearSelectionPoint()
 	}
+
 	h.updateRecursiveGridOverlay()
 	h.refreshRecursiveGridVirtualPointerLocked()
 	h.overlayManager.Show()
@@ -284,19 +297,24 @@ func (h *Handler) refreshHintsForMonitorMove(
 	if h.hintService == nil {
 		return
 	}
+
 	domainHints, err := h.hintService.ShowHints(ctx)
 	if err != nil {
 		h.logger.Error(
 			"Failed to refresh hints after monitor move",
 			zap.Error(err),
 		)
+
 		return
 	}
+
 	if len(domainHints) == 0 {
 		return
 	}
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
 	if h.appState.CurrentMode() != domain.ModeHints {
 		return
 	}
