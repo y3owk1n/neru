@@ -55,7 +55,7 @@ func TestParseActionArgs_PreviousFlag(t *testing.T) {
 	}
 }
 
-func TestHandleAction_MoveMonitorRejectsMonitorFlag(t *testing.T) {
+func TestHandleAction_MoveMonitorRejectsUnsupportedFlags_X(t *testing.T) {
 	controller := &IPCControllerActions{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
@@ -188,12 +188,12 @@ func TestHandleAction_PreviousRejectedOnNonMoveMonitor(t *testing.T) {
 		t.Fatal("handleAction(left_click --previous) expected failure")
 	}
 
-	if resp.Message != "--previous and cycle are only supported with move_monitor" {
+	if resp.Message != "--previous and --name are only supported with move_monitor" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
 
-func TestHandleAction_CycleRejectedOnNonMoveMonitor(t *testing.T) {
+func TestHandleAction_NameRejectedOnNonMoveMonitor(t *testing.T) {
 	controller := &IPCControllerActions{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
@@ -201,11 +201,11 @@ func TestHandleAction_CycleRejectedOnNonMoveMonitor(t *testing.T) {
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
 		Action: "action",
-		Args:   []string{"reset", "cycle"},
+		Args:   []string{"reset", "--name=DELL"},
 	})
 
 	if resp.Success {
-		t.Fatal("handleAction(reset cycle) expected failure")
+		t.Fatal("handleAction(reset --name) expected failure")
 	}
 
 	if resp.Message != "reset does not support action flags" {
@@ -235,8 +235,44 @@ func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
 		t.Fatal("handleAction(scroll_down --previous) expected failure")
 	}
 
-	if resp.Message != "scroll actions do not support --x/--y/--dx/--dy/--center/--modifier/--previous/cycle flags" {
+	if resp.Message != "scroll actions do not support --x/--y/--dx/--dy/--center/--name/--modifier/--previous flags" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestParseActionArgs_NameFlag(t *testing.T) {
+	parsed, parseErr := parseActionArgs([]string{"--name=DELL U2720Q"})
+	if parseErr {
+		t.Fatal("parseActionArgs() unexpected parse error for --name")
+	}
+
+	if !parsed.hasMonitorName {
+		t.Fatal("parseActionArgs() expected hasMonitorName to be true")
+	}
+
+	if parsed.monitorName != "DELL U2720Q" {
+		t.Fatalf(
+			"parseActionArgs() expected monitorName to be 'DELL U2720Q', got %q",
+			parsed.monitorName,
+		)
+	}
+}
+
+func TestParseActionArgs_NameFlagSpaceForm(t *testing.T) {
+	parsed, parseErr := parseActionArgs([]string{"--name", "Built-in Retina Display"})
+	if parseErr {
+		t.Fatal("parseActionArgs() unexpected parse error for --name space form")
+	}
+
+	if !parsed.hasMonitorName {
+		t.Fatal("parseActionArgs() expected hasMonitorName to be true")
+	}
+
+	if parsed.monitorName != "Built-in Retina Display" {
+		t.Fatalf(
+			"parseActionArgs() expected monitorName to be 'Built-in Retina Display', got %q",
+			parsed.monitorName,
+		)
 	}
 }
 

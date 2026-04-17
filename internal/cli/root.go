@@ -383,50 +383,59 @@ func BuildScrollActionCommand(use, short, long string) *cobra.Command {
 // cursor (and any active overlay) to a specific monitor by name, or cycles
 // through monitors.
 func BuildMoveMonitorCommand() *cobra.Command {
-	var usePrevious bool
+	var (
+		monitorName string
+		usePrevious bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "move_monitor",
 		Short: "Move cursor and overlay to another monitor",
 		Long: `Move the cursor, and any active mode overlay (hints/grid/recursive-grid), to another monitor.
 
-Usage:
-  - move_monitor <monitor-name>  Move to a specific monitor by name
-  - move_monitor cycle           Move to the next monitor
-  - move_monitor cycle --previous  Move to the previous monitor
+By default, cycles to the next monitor. Use --previous to cycle backwards.
+Use --name to jump directly to a specific display by name.
 
 Monitor names are matched case-insensitively against the localized display names
 reported by macOS (e.g. "Built-in Retina Display", "DELL U2720Q").`,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
 			return requiresRunningInstance()
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			actionArgs := []string{"move_monitor"}
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			hasName := cmd.Flags().Changed("name")
 
-			if len(args) == 0 {
+			if hasName && monitorName == "" {
 				return derrors.New(
 					derrors.CodeInvalidInput,
-					"move_monitor requires a monitor name or 'cycle'",
+					"--name value must not be empty",
 				)
 			}
 
-			arg := args[0]
+			if hasName && usePrevious {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--previous cannot be used with --name",
+				)
+			}
 
-			if arg == "cycle" {
-				actionArgs = append(actionArgs, "cycle")
-				if usePrevious {
-					actionArgs = append(actionArgs, "--previous")
-				}
-			} else {
-				actionArgs = append(actionArgs, arg)
+			actionArgs := []string{"move_monitor"}
+
+			if hasName {
+				actionArgs = append(actionArgs, "--name="+monitorName)
+			}
+
+			if usePrevious {
+				actionArgs = append(actionArgs, "--previous")
 			}
 
 			return sendCommand(cmd, "action", actionArgs)
 		},
 	}
 
+	cmd.Flags().StringVar(&monitorName, "name", "",
+		"Target monitor by display name (e.g. \"Built-in Retina Display\")")
 	cmd.Flags().
-		BoolVar(&usePrevious, "previous", false, "With 'cycle', move to the previous monitor instead of the next one")
+		BoolVar(&usePrevious, "previous", false, "Cycle to the previous monitor instead of the next one")
 
 	return cmd
 }

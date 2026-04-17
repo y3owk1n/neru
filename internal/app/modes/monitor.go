@@ -29,7 +29,7 @@ const (
 // active, refreshes it onto the new monitor.
 //
 // To jump to a specific named display, use
-// `move_monitor <monitor-name>` instead.
+// `move_monitor --name <monitor-name>` instead.
 func (h *Handler) MoveMonitor(
 	ctx context.Context,
 	direction MonitorDirection,

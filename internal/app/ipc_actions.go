@@ -73,8 +73,8 @@ type parsedActionArgs struct {
 	useSelection   bool
 	useBare        bool
 	monitorName    string
+	hasMonitorName bool
 	usePrevious    bool
-	cycle          bool
 	modifierStr    string
 }
 
@@ -200,15 +200,18 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.useBare = true
 		case arg == "--previous":
 			parsed.usePrevious = true
-		case arg == "cycle":
-			parsed.cycle = true
-		case !strings.HasPrefix(arg, "--"):
-			arg = strings.Trim(arg, "\"")
-			if parsed.monitorName == "" {
-				parsed.monitorName = arg
-			} else {
+		case strings.HasPrefix(arg, "--name") && (arg == "--name" || arg[len("--name")] == '='):
+			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--name")
+			idx = newIdx
+
+			if !ok || val == "" {
 				parseErr = true
+
+				break
 			}
+
+			parsed.monitorName = val
+			parsed.hasMonitorName = true
 		default:
 			if strings.HasPrefix(arg, "--") {
 				parseErr = true
@@ -306,10 +309,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if parsed.usePrevious || parsed.cycle {
+	if parsed.usePrevious || parsed.hasMonitorName {
 		return ipc.Response{
 			Success: false,
-			Message: "--previous and cycle are only supported with move_monitor",
+			Message: "--previous and --name are only supported with move_monitor",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -695,8 +698,8 @@ func (h *IPCControllerActions) handleBackspaceAction(parsed parsedActionArgs) ip
 
 func hasUnsupportedFlags(parsed parsedActionArgs) bool {
 	return parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.monitorName != "" || parsed.modifierStr != "" ||
-		parsed.useSelection || parsed.useBare || parsed.usePrevious || parsed.cycle
+		parsed.hasCenter || parsed.hasMonitorName || parsed.modifierStr != "" ||
+		parsed.useSelection || parsed.useBare || parsed.usePrevious
 }
 
 func (h *IPCControllerActions) resolveMouseActionPoint(
@@ -892,6 +895,7 @@ func (h *IPCControllerActions) handleRestoreCursorPosAction(
 
 // handleMoveMonitorAction moves the cursor (and any active mode overlay)
 // to a specific monitor by name, or cycles to the next/previous monitor.
+// Without --name, cycles to the next monitor (use --previous to go backwards).
 func (h *IPCControllerActions) handleMoveMonitorAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
@@ -914,7 +918,15 @@ func (h *IPCControllerActions) handleMoveMonitorAction(
 		}
 	}
 
-	if parsed.monitorName != "" {
+	if parsed.hasMonitorName {
+		if parsed.usePrevious {
+			return ipc.Response{
+				Success: false,
+				Message: "--previous cannot be used with --name",
+				Code:    ipc.CodeInvalidInput,
+			}
+		}
+
 		h.logger.Info("Moving to monitor by name via IPC",
 			zap.String("monitor", parsed.monitorName),
 		)
@@ -937,38 +949,30 @@ func (h *IPCControllerActions) handleMoveMonitorAction(
 		}
 	}
 
-	if parsed.cycle {
-		direction := modes.MonitorDirectionNext
-		if parsed.usePrevious {
-			direction = modes.MonitorDirectionPrevious
-		}
+	direction := modes.MonitorDirectionNext
+	if parsed.usePrevious {
+		direction = modes.MonitorDirectionPrevious
+	}
 
-		h.logger.Info("Cycling monitor via IPC",
-			zap.Bool("previous", parsed.usePrevious),
-		)
+	h.logger.Info("Cycling monitor via IPC",
+		zap.Bool("previous", parsed.usePrevious),
+	)
 
-		err := h.modesHandler.MoveMonitor(ctx, direction)
-		if err != nil {
-			h.logger.Error("Failed to cycle monitor", zap.Error(err))
-
-			return ipc.Response{
-				Success: false,
-				Message: "failed to cycle monitor: " + err.Error(),
-				Code:    ipc.CodeActionFailed,
-			}
-		}
+	err := h.modesHandler.MoveMonitor(ctx, direction)
+	if err != nil {
+		h.logger.Error("Failed to cycle monitor", zap.Error(err))
 
 		return ipc.Response{
-			Success: true,
-			Message: "move_monitor performed",
-			Code:    ipc.CodeOK,
+			Success: false,
+			Message: "failed to cycle monitor: " + err.Error(),
+			Code:    ipc.CodeActionFailed,
 		}
 	}
 
 	return ipc.Response{
-		Success: false,
-		Message: "move_monitor requires a monitor name or 'cycle'",
-		Code:    ipc.CodeInvalidInput,
+		Success: true,
+		Message: "move_monitor performed",
+		Code:    ipc.CodeOK,
 	}
 }
 
@@ -989,11 +993,11 @@ func (h *IPCControllerActions) handleScrollAction(
 
 	// Reject flags that are not applicable to scroll actions.
 	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.monitorName != "" || parsed.modifierStr != "" ||
-		parsed.usePrevious || parsed.cycle {
+		parsed.hasCenter || parsed.hasMonitorName || parsed.modifierStr != "" ||
+		parsed.usePrevious {
 		return ipc.Response{
 			Success: false,
-			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--modifier/--previous/cycle flags",
+			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--name/--modifier/--previous flags",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}

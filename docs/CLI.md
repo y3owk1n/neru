@@ -410,22 +410,21 @@ neru action move_mouse_relative --dx 10 --dy -5
 On multi-monitor setups, `move_monitor` moves the cursor to another display. If a mode overlay (`hints`, `grid`, `recursive_grid`) is active when the action is invoked, the overlay follows the cursor onto the new monitor so the mode can continue there without re-activating.
 
 ```
-neru action move_monitor "DELL U2720Q"                  # Move to named monitor
-neru action move_monitor "Built-in Retina Display"     # Move to specific display
-neru action move_monitor cycle                          # Move to next monitor
-neru action move_monitor cycle --previous               # Move to previous monitor
+neru action move_monitor                                    # Cycle to next monitor
+neru action move_monitor --previous                         # Cycle to previous monitor
+neru action move_monitor --name "DELL U2720Q"               # Move to named monitor
+neru action move_monitor --name "Built-in Retina Display"   # Move to specific display
 ```
 
-| Argument      | Description                                              |
-| ------------- | -------------------------------------------------------- |
-| `<name>`      | Move directly to a specific monitor by name             |
-| `cycle`       | Cycle through monitors (default: next)                  |
-| `--previous`  | With `cycle`, move to the previous monitor instead      |
+| Flag         | Description                                           |
+| ------------ | ----------------------------------------------------- |
+| `--name`     | Move directly to a specific monitor by name           |
+| `--previous` | Cycle to the previous monitor instead of the next one |
 
 > [!NOTE]
 > Monitor names are the display names reported by macOS (e.g. "Built-in Retina Display", "DELL U2720Q"). Find yours in **System Settings → Displays**. If you use an incorrect name, the error message will list all available names.
 
-Bind it to a hotkey in `config.toml` (e.g. `"Alt+Tab" = "action move_monitor cycle"`) to cycle between displays without leaving the keyboard.
+Bind it to a hotkey in `config.toml` (e.g. `"Alt+Tab" = "action move_monitor"`) to cycle between displays without leaving the keyboard.
 
 ---
 
