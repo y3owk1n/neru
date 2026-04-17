@@ -3,6 +3,10 @@ on:
         branches:
             - main
 
+concurrency:
+    group: nightly
+    cancel-in-progress: true
+
 permissions:
     contents: write
 
