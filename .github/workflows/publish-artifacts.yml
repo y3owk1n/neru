@@ -68,7 +68,7 @@ jobs:
 
             - name: Upload darwin arm64 release artifacts
               env:
-                  GITHUB_TOKEN: ${{ secrets.upload_token }}
+                  GH_TOKEN: ${{ secrets.upload_token }}
               run: |
                   gh release upload "${{ inputs.release_tag }}" neru-darwin-arm64.zip neru-darwin-arm64.zip.sha256 --clobber
 
@@ -120,11 +120,11 @@ jobs:
 
             - name: Upload darwin amd64 release artifacts
               env:
-                  GITHUB_TOKEN: ${{ secrets.upload_token }}
+                  GH_TOKEN: ${{ secrets.upload_token }}
               run: |
                   gh release upload "${{ inputs.release_tag }}" neru-darwin-amd64.zip neru-darwin-amd64.zip.sha256 --clobber
 
-    build-linux-artifacts:
+    build-linux-amd64-artifacts:
         runs-on: ubuntu-latest
         permissions:
             contents: write
@@ -153,7 +153,7 @@ jobs:
               with:
                   just-version: "1.46.0"
 
-            - name: Build neru linux artifact
+            - name: Build neru linux amd64 artifact
               run: just release-ci-linux amd64 ${{ inputs.version_override }}
 
             - name: Bundle neru-linux-amd64
@@ -166,14 +166,14 @@ jobs:
                   zip -r ../../neru-linux-amd64.zip bin
                   cd ../..
 
-            - name: Generate linux checksum
+            - name: Generate linux amd64 checksum
               run: |
                   sha256sum neru-linux-amd64.zip | awk '{print $1}' > neru-linux-amd64.zip.sha256
                   ls -l neru-linux-amd64.zip neru-linux-amd64.zip.sha256
 
-            - name: Upload linux release artifacts
+            - name: Upload linux amd64 release artifacts
               env:
-                  GITHUB_TOKEN: ${{ secrets.upload_token }}
+                  GH_TOKEN: ${{ secrets.upload_token }}
               run: |
                   gh release upload "${{ inputs.release_tag }}" neru-linux-amd64.zip neru-linux-amd64.zip.sha256 --clobber
 
@@ -226,6 +226,6 @@ jobs:
 
             - name: Upload linux arm64 release artifacts
               env:
-                  GITHUB_TOKEN: ${{ secrets.upload_token }}
+                  GH_TOKEN: ${{ secrets.upload_token }}
               run: |
                   gh release upload "${{ inputs.release_tag }}" neru-linux-arm64.zip neru-linux-arm64.zip.sha256 --clobber
