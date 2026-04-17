@@ -131,7 +131,12 @@ func (h *Handler) MoveMonitorByName(
 	}
 
 	if !found {
-		return derrors.Newf(derrors.CodeInvalidInput, "monitor not found: %s", monitorName)
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"monitor not found: %s, available: %s",
+			monitorName,
+			strings.Join(names, ", "),
+		)
 	}
 
 	center := image.Point{
