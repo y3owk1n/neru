@@ -917,11 +917,9 @@ func (h *IPCControllerActions) handleMoveMonitorAction(
 	if parsed.monitorName != "" {
 		h.logger.Info("Moving to monitor by name via IPC",
 			zap.String("monitor", parsed.monitorName),
-			zap.Int("offsetX", parsed.xVal),
-			zap.Int("offsetY", parsed.yVal),
 		)
 
-		err := h.modesHandler.MoveMonitorByName(ctx, parsed.monitorName, parsed.xVal, parsed.yVal)
+		err := h.modesHandler.MoveMonitorByName(ctx, parsed.monitorName)
 		if err != nil {
 			h.logger.Error("Failed to move to monitor by name", zap.Error(err))
 

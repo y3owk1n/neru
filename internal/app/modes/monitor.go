@@ -103,7 +103,6 @@ func (h *Handler) MoveMonitor(
 func (h *Handler) MoveMonitorByName(
 	ctx context.Context,
 	monitorName string,
-	offsetX, offsetY int,
 ) error {
 	h.moveMonitorMu.Lock()
 	defer h.moveMonitorMu.Unlock()
@@ -140,8 +139,8 @@ func (h *Handler) MoveMonitorByName(
 	}
 
 	center := image.Point{
-		X: bounds.Min.X + bounds.Dx()/2 + offsetX,
-		Y: bounds.Min.Y + bounds.Dy()/2 + offsetY,
+		X: bounds.Min.X + bounds.Dx()/2,
+		Y: bounds.Min.Y + bounds.Dy()/2,
 	}
 
 	hasActiveOverlay := h.appState.CurrentMode() != domain.ModeIdle
