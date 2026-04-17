@@ -18,6 +18,8 @@ jobs:
         outputs:
             release_tag: ${{ steps.meta.outputs.release_tag }}
             version_override: ${{ steps.meta.outputs.version_override }}
+            macos_bundle_version: ${{ steps.meta.outputs.macos_bundle_version }}
+            macos_short_version: ${{ steps.meta.outputs.macos_short_version }}
         steps:
             - uses: actions/checkout@v6
               with:
@@ -27,7 +29,10 @@ jobs:
               id: meta
               run: |
                   echo "release_tag=nightly" >> "$GITHUB_OUTPUT"
-                  echo "version_override=nightly-$(date -u +'%Y%m%d-%H%M%S')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+                  TIMESTAMP="$(date -u +'%Y%m%d%H%M%S')"
+                  echo "version_override=nightly-${TIMESTAMP}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+                  echo "macos_bundle_version=${TIMESTAMP}" >> "$GITHUB_OUTPUT"
+                  echo "macos_short_version=0.0.0" >> "$GITHUB_OUTPUT"
 
             - name: Recreate nightly release
               env:
@@ -46,5 +51,7 @@ jobs:
         with:
             release_tag: ${{ needs.prepare-nightly-release.outputs.release_tag }}
             version_override: ${{ needs.prepare-nightly-release.outputs.version_override }}
+            macos_bundle_version: ${{ needs.prepare-nightly-release.outputs.macos_bundle_version }}
+            macos_short_version: ${{ needs.prepare-nightly-release.outputs.macos_short_version }}
         secrets:
             upload_token: ${{ github.token }}

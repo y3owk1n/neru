@@ -28,10 +28,13 @@
 	<string>APPL</string>
 
 	<key>CFBundleVersion</key>
-	<string>VERSION</string>
+	<string>BUNDLE_VERSION</string>
 
 	<key>CFBundleShortVersionString</key>
-	<string>VERSION</string>
+	<string>SHORT_VERSION</string>
+
+	<key>NeruBuildID</key>
+	<string>BUILD_ID</string>
 
 	<key>CSResourcesFileMapped</key>
 	<true/>

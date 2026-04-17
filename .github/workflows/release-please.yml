@@ -18,12 +18,32 @@ jobs:
               with:
                   token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
 
-    publish-release-artifacts:
+    prepare-release-macos-version:
         needs: release-please
+        if: ${{ needs.release-please.outputs.release_created == 'true' }}
+        runs-on: ubuntu-latest
+        outputs:
+            macos_bundle_version: ${{ steps.meta.outputs.macos_bundle_version }}
+            macos_short_version: ${{ steps.meta.outputs.macos_short_version }}
+        steps:
+            - name: Compute macOS bundle versions
+              id: meta
+              run: |
+                  TAG="${{ needs.release-please.outputs.tag_name }}"
+                  VERSION="${TAG#v}"
+                  echo "macos_bundle_version=${VERSION}" >> "$GITHUB_OUTPUT"
+                  echo "macos_short_version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+    publish-release-artifacts:
+        needs:
+            - release-please
+            - prepare-release-macos-version
         if: ${{ needs.release-please.outputs.release_created == 'true' }}
         uses: ./.github/workflows/publish-artifacts.yml
         with:
             release_tag: ${{ needs.release-please.outputs.tag_name }}
             version_override: ${{ needs.release-please.outputs.tag_name }}
+            macos_bundle_version: ${{ needs.prepare-release-macos-version.outputs.macos_bundle_version }}
+            macos_short_version: ${{ needs.prepare-release-macos-version.outputs.macos_short_version }}
         secrets:
             upload_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}

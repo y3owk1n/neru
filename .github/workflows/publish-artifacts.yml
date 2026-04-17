@@ -7,6 +7,12 @@ on:
             version_override:
                 required: true
                 type: string
+            macos_bundle_version:
+                required: true
+                type: string
+            macos_short_version:
+                required: true
+                type: string
         secrets:
             upload_token:
                 required: true
@@ -38,7 +44,11 @@ jobs:
                   cp bin/neru-darwin-arm64 build/arm64/Neru.app/Contents/MacOS/neru
                   chmod +x build/arm64/Neru.app/Contents/MacOS/neru
                   cp resources/icon.icns build/arm64/Neru.app/Contents/Resources/icon.icns
-                  sed "s/VERSION/${{ inputs.version_override }}/g" resources/Info.plist.template > build/arm64/Neru.app/Contents/Info.plist
+                  sed \
+                    -e "s/BUNDLE_VERSION/${{ inputs.macos_bundle_version }}/g" \
+                    -e "s/SHORT_VERSION/${{ inputs.macos_short_version }}/g" \
+                    -e "s/BUILD_ID/${{ inputs.version_override }}/g" \
+                    resources/Info.plist.template > build/arm64/Neru.app/Contents/Info.plist
 
                   # Ad-hoc codesign to preserve accessibility permissions across updates
                   codesign --force --deep --sign - build/arm64/Neru.app
@@ -86,7 +96,11 @@ jobs:
                   cp bin/neru-darwin-amd64 build/amd64/Neru.app/Contents/MacOS/neru
                   chmod +x build/amd64/Neru.app/Contents/MacOS/neru
                   cp resources/icon.icns build/amd64/Neru.app/Contents/Resources/icon.icns
-                  sed "s/VERSION/${{ inputs.version_override }}/g" resources/Info.plist.template > build/amd64/Neru.app/Contents/Info.plist
+                  sed \
+                    -e "s/BUNDLE_VERSION/${{ inputs.macos_bundle_version }}/g" \
+                    -e "s/SHORT_VERSION/${{ inputs.macos_short_version }}/g" \
+                    -e "s/BUILD_ID/${{ inputs.version_override }}/g" \
+                    resources/Info.plist.template > build/amd64/Neru.app/Contents/Info.plist
 
                   # Ad-hoc codesign to preserve accessibility permissions across updates
                   codesign --force --deep --sign - build/amd64/Neru.app
