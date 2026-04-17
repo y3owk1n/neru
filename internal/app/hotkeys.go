@@ -131,6 +131,47 @@ func hotkeyModifiersFromKey(key string) action.Modifiers {
 	return mods
 }
 
+func splitArgs(input string) []string {
+	var args []string
+
+	var current strings.Builder
+
+	inSingleQuote := false
+	inDoubleQuote := false
+
+	for _, char := range input {
+		switch char {
+		case '\'':
+			if !inDoubleQuote {
+				inSingleQuote = !inSingleQuote
+			} else {
+				current.WriteRune(char)
+			}
+		case '"':
+			if !inSingleQuote {
+				inDoubleQuote = !inDoubleQuote
+			} else {
+				current.WriteRune(char)
+			}
+		case ' ':
+			if inSingleQuote || inDoubleQuote {
+				current.WriteRune(char)
+			} else if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteRune(char)
+		}
+	}
+
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+
+	return args
+}
+
 // executeHotkeyAction executes a hotkey action, which can be either a shell command or an IPC command.
 func (a *App) executeHotkeyAction(key, actionStr string) error {
 	actionStr = strings.TrimSpace(actionStr)
@@ -139,7 +180,7 @@ func (a *App) executeHotkeyAction(key, actionStr string) error {
 		return a.executeShellCommand(key, actionStr)
 	}
 
-	actionParts := strings.Split(actionStr, " ")
+	actionParts := splitArgs(actionStr)
 	actionStr = actionParts[0]
 	params := actionParts[1:]
 

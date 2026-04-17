@@ -29,7 +29,7 @@ const (
 // active, refreshes it onto the new monitor.
 //
 // To jump to a specific named display, use
-// `move_mouse --center --monitor=<name>` instead.
+// `move_monitor <monitor-name>` instead.
 func (h *Handler) MoveMonitor(
 	ctx context.Context,
 	direction MonitorDirection,
@@ -94,6 +94,72 @@ func (h *Handler) MoveMonitor(
 	)
 
 	h.refreshActiveModeOnNewScreen(ctx, targetBounds)
+
+	return nil
+}
+
+// MoveMonitorByName moves the cursor to a specific monitor by name.
+// If the mode overlay is active, it refreshes onto the new monitor.
+func (h *Handler) MoveMonitorByName(
+	ctx context.Context,
+	monitorName string,
+	offsetX, offsetY int,
+) error {
+	h.moveMonitorMu.Lock()
+	defer h.moveMonitorMu.Unlock()
+
+	if h.system == nil {
+		return derrors.New(derrors.CodeNotSupported, "system port unavailable")
+	}
+
+	if h.actionService == nil {
+		return derrors.New(derrors.CodeActionFailed, "action service not available")
+	}
+
+	names, err := h.system.ScreenNames(ctx)
+	if err != nil {
+		return err
+	}
+
+	if len(names) == 0 {
+		return derrors.New(derrors.CodeInvalidInput, "no monitors detected")
+	}
+
+	bounds, found, err := h.system.ScreenBoundsByName(ctx, monitorName)
+	if err != nil {
+		return err
+	}
+
+	if !found {
+		return derrors.Newf(derrors.CodeInvalidInput, "monitor not found: %s", monitorName)
+	}
+
+	center := image.Point{
+		X: bounds.Min.X + bounds.Dx()/2 + offsetX,
+		Y: bounds.Min.Y + bounds.Dy()/2 + offsetY,
+	}
+
+	hasActiveOverlay := h.appState.CurrentMode() != domain.ModeIdle
+	if hasActiveOverlay && h.overlayManager != nil {
+		h.overlayManager.Hide()
+	}
+
+	err = h.actionService.MoveCursorToPointAndWait(ctx, center, true)
+	if err != nil {
+		if hasActiveOverlay && h.overlayManager != nil {
+			h.overlayManager.Show()
+		}
+
+		return err
+	}
+
+	h.logger.Info("Moved cursor to monitor by name",
+		zap.String("monitor", monitorName),
+		zap.Int("x", center.X),
+		zap.Int("y", center.Y),
+	)
+
+	h.refreshActiveModeOnNewScreen(ctx, bounds)
 
 	return nil
 }

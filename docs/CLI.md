@@ -386,13 +386,6 @@ neru action move_mouse --center --x 50 --y -30    # Center with offset
 neru action move_mouse --center --x 100            # Single-axis offset (y defaults to 0)
 ```
 
-**Named monitor:**
-
-```
-neru action move_mouse --center --monitor "DELL U2720Q"
-neru action move_mouse --center --monitor "Built-in Retina Display" --x 50 --y -30
-```
-
 **Relative movement:**
 
 ```
@@ -401,37 +394,38 @@ neru action move_mouse_relative --dx 10 --dy -5
 
 **`move_mouse` flag reference:**
 
-| Flag               | Description                                                  |
-| ------------------ | ------------------------------------------------------------ |
-| `--x <px>`         | Absolute X coordinate, or X offset when used with `--center` |
-| `--y <px>`         | Absolute Y coordinate, or Y offset when used with `--center` |
-| `--center`         | Move to the center of the active screen                      |
-| `--monitor <name>` | Target a named display (requires `--center`)                 |
-| `--selection`      | Explicitly use the active mode selection                     |
-| `--bare`           | Force current-cursor targeting even when a selection exists  |
-
-> [!TIP]
-> Monitor names are the display names reported by macOS (e.g. "Built-in Retina Display", "DELL U2720Q"). Find yours in **System Settings → Displays**. If you use an incorrect name, the error message will list all available names.
+| Flag          | Description                                                  |
+| ------------- | ------------------------------------------------------------ |
+| `--x <px>`    | Absolute X coordinate, or X offset when used with `--center` |
+| `--y <px>`    | Absolute Y coordinate, or Y offset when used with `--center` |
+| `--center`    | Move to the center of the active screen                      |
+| `--selection` | Explicitly use the active mode selection                     |
+| `--bare`      | Force current-cursor targeting even when a selection exists  |
 
 > [!TIP]
 > Point-targeted actions prefer the active mode selection by default. Use `--bare` when you want `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, `move_mouse`, or scroll actions to ignore the selection and use the current cursor position instead.
 
 ### Moving monitors
 
-On multi-monitor setups, `move_monitor` moves the cursor to the center of another display. If a mode overlay (`hints`, `grid`, `recursive_grid`) is active when the action is invoked, the overlay follows the cursor onto the new monitor so the mode can continue there without re-activating.
+On multi-monitor setups, `move_monitor` moves the cursor to another display. If a mode overlay (`hints`, `grid`, `recursive_grid`) is active when the action is invoked, the overlay follows the cursor onto the new monitor so the mode can continue there without re-activating.
 
 ```
-neru action move_monitor                              # next monitor
-neru action move_monitor --previous                   # previous monitor
+neru action move_monitor "DELL U2720Q"                  # Move to named monitor
+neru action move_monitor "Built-in Retina Display"     # Move to specific display
+neru action move_monitor cycle                          # Move to next monitor
+neru action move_monitor cycle --previous               # Move to previous monitor
 ```
 
-| Flag         | Description                                              |
-| ------------ | -------------------------------------------------------- |
-| `--previous` | Cycle backwards through the monitor list (default: next) |
+| Argument      | Description                                              |
+| ------------- | -------------------------------------------------------- |
+| `<name>`      | Move directly to a specific monitor by name             |
+| `cycle`       | Cycle through monitors (default: next)                  |
+| `--previous`  | With `cycle`, move to the previous monitor instead      |
 
-To jump directly to a specific display by name, use `move_mouse --center --monitor` instead (see [Named monitor](#named-monitor)).
+> [!NOTE]
+> Monitor names are the display names reported by macOS (e.g. "Built-in Retina Display", "DELL U2720Q"). Find yours in **System Settings → Displays**. If you use an incorrect name, the error message will list all available names.
 
-Bind it to a hotkey in `config.toml` (e.g. `"Alt+Tab" = "action move_monitor"`) to switch the active mode between displays without leaving the keyboard.
+Bind it to a hotkey in `config.toml` (e.g. `"Alt+Tab" = "action move_monitor cycle"`) to cycle between displays without leaving the keyboard.
 
 ---
 

@@ -14,7 +14,6 @@
 - [Give Browser Content Time To Load Before Refreshing Hints](#give-browser-content-time-to-load-before-refreshing-hints)
 - [Checking the Accessibility Tree on macOS](#checking-the-accessibility-tree-on-macos)
 - [Running a Custom Configuration via App Bundle](#running-a-custom-configuration-via-app-bundle)
-- [Cycling Between Different Monitors](#cycling-between-different-monitors)
 - [Triggering Neru Actions from External Tools](#triggering-neru-actions-from-external-tools)
 - [Combining Hints with Other Actions](#combining-hints-with-other-actions)
 
@@ -182,55 +181,6 @@ open -a neru --args launch -c /absolute/path/to/your/config
 > **Note:** `~` expansion does not work here — use the full absolute path.
 
 This is useful for testing a config before committing it to your dotfiles, or for keeping separate profiles (e.g. a lighter config when presenting or screen-sharing).
-
-## Cycling Between Different Monitors
-
-- Neru shows the mode overlay based on the current cursor position
-- To show the overlay on another monitor, move your cursor there first
-- Neru provides a base action command for this: `neru action move_mouse --center --monitor <monitor-name>`
-
-### Example: Cycle Between Monitors
-
-1. Create a bash script, e.g. `/path/cycle-monitor.sh`:
-
-```bash
-#!/usr/bin/env bash
-STATE_FILE="${HOME}/.neru_monitor_cycle"
-
-# Auto-detect monitors from system
-mapfile -t MONITORS < <(system_profiler SPDisplaysDataType | grep -E "^\s{8}[A-Za-z].*:$" | sed 's/://g' | sed 's/^[[:space:]]*//')
-
-if [[ ${#MONITORS[@]} -eq 0 ]]; then
-    echo "No monitors detected." >&2
-    exit 1
-fi
-
-# Read current index, default to 0
-current=0
-if [[ -f "$STATE_FILE" ]]; then
-    current=$(cat "$STATE_FILE")
-fi
-
-# Cycle to next
-next=$(((current + 1) % ${#MONITORS[@]}))
-
-# Move mouse to center of next monitor
-neru action move_mouse --center --monitor "${MONITORS[$next]}"
-
-echo "$next" > "$STATE_FILE"
-echo "Moved to: ${MONITORS[$next]}"
-```
-
-1. Make it executable, then bind it to a hotkey:
-
-```bash
-chmod +x /path/cycle-monitor.sh
-```
-
-```toml
-[hotkeys]
-"Alt+Z" = "exec bash /path/cycle-monitor.sh"
-```
 
 ## Triggering Neru Actions from External Tools
 
