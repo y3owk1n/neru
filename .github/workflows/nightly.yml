@@ -45,15 +45,13 @@ jobs:
                   This pre-release is automatically built from the latest commit on \`main\`.
 
                   > [!WARNING]
-                  > This is a nightly build, not a tagged release. It may include incomplete changes, regressions, or experimental behavior.
-                  > Use a tagged release if you want the most stable experience.
+                  > This is a nightly build, not a tagged release. It may include incomplete changes, regressions, or experimental behavior. Use a tagged release if you want the most stable experience.
 
                   ### Build Details
 
                   - **Commit:** [\`${SHORT_SHA}\`](${COMMIT_URL})
                   - **Branch:** \`main\`
                   - **Full SHA:** \`${GITHUB_SHA}\`
-                  - **Source:** GitHub Actions nightly workflow
 
                   ### Artifacts
 
