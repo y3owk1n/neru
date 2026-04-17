@@ -1,0 +1,213 @@
+on:
+    workflow_call:
+        inputs:
+            release_tag:
+                required: true
+                type: string
+            version_override:
+                required: true
+                type: string
+        secrets:
+            upload_token:
+                required: true
+
+name: publish-artifacts
+
+jobs:
+    build-darwin-arm64-artifacts:
+        runs-on: macos-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v6
+
+            - uses: actions/setup-go@v6
+              with:
+                  go-version: "1.26.1"
+
+            - uses: extractions/setup-just@v3
+              with:
+                  just-version: "1.46.0"
+
+            - name: Build neru darwin arm64 artifact
+              run: just release-ci-darwin arm64 ${{ inputs.version_override }}
+
+            - name: Bundle neru-darwin-arm64
+              run: |
+                  mkdir -p build/arm64/Neru.app/Contents/{MacOS,Resources}
+                  cp bin/neru-darwin-arm64 build/arm64/Neru.app/Contents/MacOS/neru
+                  chmod +x build/arm64/Neru.app/Contents/MacOS/neru
+                  cp resources/icon.icns build/arm64/Neru.app/Contents/Resources/icon.icns
+                  sed "s/VERSION/${{ inputs.version_override }}/g" resources/Info.plist.template > build/arm64/Neru.app/Contents/Info.plist
+
+                  # Ad-hoc codesign to preserve accessibility permissions across updates
+                  codesign --force --deep --sign - build/arm64/Neru.app
+
+                  mkdir -p build/arm64/bin
+                  cp bin/neru-darwin-arm64 build/arm64/bin/neru
+                  chmod +x build/arm64/bin/neru
+
+                  cd build/arm64
+                  zip -r ../../neru-darwin-arm64.zip bin Neru.app
+                  cd ../..
+
+            - name: Generate darwin arm64 checksum
+              run: |
+                  shasum -a 256 neru-darwin-arm64.zip | awk '{print $1}' > neru-darwin-arm64.zip.sha256
+                  ls -l neru-darwin-arm64.zip neru-darwin-arm64.zip.sha256
+
+            - name: Upload darwin arm64 release artifacts
+              env:
+                  GITHUB_TOKEN: ${{ secrets.upload_token }}
+              run: |
+                  gh release upload "${{ inputs.release_tag }}" neru-darwin-arm64.zip neru-darwin-arm64.zip.sha256 --clobber
+
+    build-darwin-amd64-artifacts:
+        runs-on: macos-15-intel
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v6
+
+            - uses: actions/setup-go@v6
+              with:
+                  go-version: "1.26.1"
+
+            - uses: extractions/setup-just@v3
+              with:
+                  just-version: "1.46.0"
+
+            - name: Build neru darwin amd64 artifact
+              run: just release-ci-darwin amd64 ${{ inputs.version_override }}
+
+            - name: Bundle neru-darwin-amd64
+              run: |
+                  mkdir -p build/amd64/Neru.app/Contents/{MacOS,Resources}
+                  cp bin/neru-darwin-amd64 build/amd64/Neru.app/Contents/MacOS/neru
+                  chmod +x build/amd64/Neru.app/Contents/MacOS/neru
+                  cp resources/icon.icns build/amd64/Neru.app/Contents/Resources/icon.icns
+                  sed "s/VERSION/${{ inputs.version_override }}/g" resources/Info.plist.template > build/amd64/Neru.app/Contents/Info.plist
+
+                  # Ad-hoc codesign to preserve accessibility permissions across updates
+                  codesign --force --deep --sign - build/amd64/Neru.app
+
+                  mkdir -p build/amd64/bin
+                  cp bin/neru-darwin-amd64 build/amd64/bin/neru
+                  chmod +x build/amd64/bin/neru
+
+                  cd build/amd64
+                  zip -r ../../neru-darwin-amd64.zip bin Neru.app
+                  cd ../..
+
+            - name: Generate darwin amd64 checksum
+              run: |
+                  shasum -a 256 neru-darwin-amd64.zip | awk '{print $1}' > neru-darwin-amd64.zip.sha256
+                  ls -l neru-darwin-amd64.zip neru-darwin-amd64.zip.sha256
+
+            - name: Upload darwin amd64 release artifacts
+              env:
+                  GITHUB_TOKEN: ${{ secrets.upload_token }}
+              run: |
+                  gh release upload "${{ inputs.release_tag }}" neru-darwin-amd64.zip neru-darwin-amd64.zip.sha256 --clobber
+
+    build-linux-artifacts:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v6
+
+            - name: Install Linux build dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    libcairo2-dev \
+                    libwayland-dev \
+                    libx11-dev \
+                    libxtst-dev \
+                    libxrandr-dev \
+                    libxinerama-dev \
+                    libxfixes-dev \
+                    libxkbcommon-dev \
+                    wayland-protocols
+
+            - uses: actions/setup-go@v6
+              with:
+                  go-version: "1.26.1"
+
+            - uses: extractions/setup-just@v2
+
+            - name: Build neru linux artifact
+              run: just release-ci-linux amd64 ${{ inputs.version_override }}
+
+            - name: Bundle neru-linux-amd64
+              run: |
+                  mkdir -p build/linux-amd64/bin
+                  cp bin/neru-linux-amd64 build/linux-amd64/bin/neru
+                  chmod +x build/linux-amd64/bin/neru
+
+                  cd build/linux-amd64
+                  zip -r ../../neru-linux-amd64.zip bin
+                  cd ../..
+
+            - name: Generate linux checksum
+              run: |
+                  sha256sum neru-linux-amd64.zip | awk '{print $1}' > neru-linux-amd64.zip.sha256
+                  ls -l neru-linux-amd64.zip neru-linux-amd64.zip.sha256
+
+            - name: Upload linux release artifacts
+              env:
+                  GITHUB_TOKEN: ${{ secrets.upload_token }}
+              run: |
+                  gh release upload "${{ inputs.release_tag }}" neru-linux-amd64.zip neru-linux-amd64.zip.sha256 --clobber
+
+    build-linux-arm64-artifacts:
+        runs-on: ubuntu-24.04-arm
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v6
+
+            - name: Install Linux build dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    libcairo2-dev \
+                    libwayland-dev \
+                    libx11-dev \
+                    libxtst-dev \
+                    libxrandr-dev \
+                    libxinerama-dev \
+                    libxfixes-dev \
+                    libxkbcommon-dev \
+                    wayland-protocols
+
+            - uses: actions/setup-go@v6
+              with:
+                  go-version: "1.26.1"
+
+            - uses: extractions/setup-just@v2
+
+            - name: Build neru linux arm64 artifact
+              run: just release-ci-linux arm64 ${{ inputs.version_override }}
+
+            - name: Bundle neru-linux-arm64
+              run: |
+                  mkdir -p build/linux-arm64/bin
+                  cp bin/neru-linux-arm64 build/linux-arm64/bin/neru
+                  chmod +x build/linux-arm64/bin/neru
+
+                  cd build/linux-arm64
+                  zip -r ../../neru-linux-arm64.zip bin
+                  cd ../..
+
+            - name: Generate linux arm64 checksum
+              run: |
+                  sha256sum neru-linux-arm64.zip | awk '{print $1}' > neru-linux-arm64.zip.sha256
+                  ls -l neru-linux-arm64.zip neru-linux-arm64.zip.sha256
+
+            - name: Upload linux arm64 release artifacts
+              env:
+                  GITHUB_TOKEN: ${{ secrets.upload_token }}
+              run: |
+                  gh release upload "${{ inputs.release_tag }}" neru-linux-arm64.zip neru-linux-arm64.zip.sha256 --clobber

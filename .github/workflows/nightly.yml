@@ -1,0 +1,46 @@
+on:
+    push:
+        branches:
+            - main
+
+permissions:
+    contents: write
+
+name: nightly
+
+jobs:
+    prepare-nightly-release:
+        runs-on: ubuntu-latest
+        outputs:
+            release_tag: ${{ steps.meta.outputs.release_tag }}
+            version_override: ${{ steps.meta.outputs.version_override }}
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Compute nightly metadata
+              id: meta
+              run: |
+                  echo "release_tag=nightly" >> "$GITHUB_OUTPUT"
+                  echo "version_override=nightly-$(date -u +'%Y%m%d-%H%M%S')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+            - name: Recreate nightly release
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+              run: |
+                  gh release delete nightly --yes --cleanup-tag || true
+                  gh release create nightly \
+                    --target "${GITHUB_SHA}" \
+                    --title "Nightly" \
+                    --notes "Automated nightly build from commit ${GITHUB_SHA}." \
+                    --prerelease
+
+    publish-nightly-artifacts:
+        needs: prepare-nightly-release
+        uses: ./.github/workflows/publish-artifacts.yml
+        with:
+            release_tag: ${{ needs.prepare-nightly-release.outputs.release_tag }}
+            version_override: ${{ needs.prepare-nightly-release.outputs.version_override }}
+        secrets:
+            upload_token: ${{ github.token }}

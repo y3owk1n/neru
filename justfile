@@ -63,44 +63,38 @@ build-version VERSION_OVERRIDE:
     CGO_ENABLED=1 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru ./cmd/neru
     @echo "✓ Build complete: bin/neru (version: {{ VERSION_OVERRIDE }})"
 
-# Build release artifacts for CI (darwin).
-release-ci-darwin VERSION_OVERRIDE:
-    @echo "Building release artifacts (darwin) for CI..."
+# Build a macOS release artifact for CI on a native macOS host.
+# Usage: just release-ci-darwin arm64 v1.2.3
+release-ci-darwin ARCH VERSION_OVERRIDE:
+    @echo "Building release artifact (darwin/{{ ARCH }}) for CI..."
     @echo "Version: {{ VERSION_OVERRIDE }}"
     @echo "Commit: {{ GIT_COMMIT }}"
     @echo "Date: {{ BUILD_DATE }}"
     mkdir -p bin
-    @echo "Building darwin-arm64..."
-    CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-arm64 ./cmd/neru
-    @echo "Building darwin-amd64..."
-    CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-amd64 ./cmd/neru
-    @echo "✓ Release artifacts for darwin built successfully"
+    CGO_ENABLED=1 GOOS=darwin GOARCH={{ ARCH }} go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-{{ ARCH }} ./cmd/neru
+    @echo "✓ Release artifact for darwin/{{ ARCH }} built successfully"
 
-# Build release artifacts for CI (linux).
-release-ci-linux VERSION_OVERRIDE:
-    @echo "Building release artifacts (linux) for CI..."
+# Build a Linux release artifact for CI on a native Linux host.
+# Usage: just release-ci-linux amd64 v1.2.3
+release-ci-linux ARCH VERSION_OVERRIDE:
+    @echo "Building release artifact (linux/{{ ARCH }}) for CI..."
     @echo "Version: {{ VERSION_OVERRIDE }}"
     @echo "Commit: {{ GIT_COMMIT }}"
     @echo "Date: {{ BUILD_DATE }}"
     mkdir -p bin
-    @echo "Building linux-amd64..."
-    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-amd64 ./cmd/neru
-    @echo "Building linux-arm64..."
-    CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-arm64 ./cmd/neru
-    @echo "✓ Release artifacts for linux built successfully"
+    CGO_ENABLED=1 GOOS=linux GOARCH={{ ARCH }} go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-linux-{{ ARCH }} ./cmd/neru
+    @echo "✓ Release artifact for linux/{{ ARCH }} built successfully"
 
-# Build release artifacts for CI (windows).
-release-ci-windows VERSION_OVERRIDE:
-    @echo "Building release artifacts (windows) for CI..."
+# Build a Windows release artifact for CI.
+# Usage: just release-ci-windows amd64 v1.2.3
+release-ci-windows ARCH VERSION_OVERRIDE:
+    @echo "Building release artifact (windows/{{ ARCH }}) for CI..."
     @echo "Version: {{ VERSION_OVERRIDE }}"
     @echo "Commit: {{ GIT_COMMIT }}"
     @echo "Date: {{ BUILD_DATE }}"
     mkdir -p bin
-    @echo "Building windows-amd64..."
-    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-amd64.exe ./cmd/neru
-    @echo "Building windows-arm64..."
-    CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-arm64.exe ./cmd/neru
-    @echo "✓ Release artifacts for windows built successfully"
+    CGO_ENABLED=0 GOOS=windows GOARCH={{ ARCH }} go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-{{ ARCH }}.exe ./cmd/neru
+    @echo "✓ Release artifact for windows/{{ ARCH }} built successfully"
 
 # Bundle the application
 bundle: release

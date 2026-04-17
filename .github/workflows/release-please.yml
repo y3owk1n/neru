@@ -8,116 +8,22 @@ permissions:
 name: release-please
 jobs:
     release-please:
-        strategy:
-            matrix:
-                go: ["1.26.1"]
-                os: [macos-latest]
-                just: ["1.46.0"]
-        runs-on: ${{ matrix.os }}
+        runs-on: ubuntu-latest
+        outputs:
+            release_created: ${{ steps.release.outputs.release_created }}
+            tag_name: ${{ steps.release.outputs.tag_name }}
         steps:
-            # Create a release using the release-please action.
             - uses: googleapis/release-please-action@v4
               id: release
               with:
                   token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
 
-            # Checkout the repository.
-            - uses: actions/checkout@v6
-              if: ${{ steps.release.outputs.release_created }}
-              with:
-                  repository: ${{ github.event.pull_request.head.repo.full_name }}
-                  ref: ${{ github.head_ref }}
-
-            # Set up Go.
-            - uses: actions/setup-go@v6
-              if: ${{ steps.release.outputs.release_created }}
-              with:
-                  go-version: ${{ matrix.go }}
-
-            # Set up Just.
-            - uses: extractions/setup-just@v3
-              if: ${{ steps.release.outputs.release_created }}
-              with:
-                  just-version: ${{ matrix.just }}
-
-            # Build artifacts for multiple platforms using Just
-            - name: Build neru artifacts
-              if: ${{ steps.release.outputs.release_created }}
-              run: just release-ci-darwin ${{ steps.release.outputs.tag_name }}
-
-            # Bundle arm64 app
-            - name: Bundle neru-darwin-arm64
-              if: ${{ steps.release.outputs.release_created }}
-              run: |
-                  mkdir -p build/arm64/Neru.app/Contents/{MacOS,Resources}
-                  cp bin/neru-darwin-arm64 build/arm64/Neru.app/Contents/MacOS/neru
-                  chmod +x build/arm64/Neru.app/Contents/MacOS/neru
-                  cp resources/icon.icns build/arm64/Neru.app/Contents/Resources/icon.icns
-                  sed "s/VERSION/${{ steps.release.outputs.tag_name }}/g" resources/Info.plist.template > build/arm64/Neru.app/Contents/Info.plist
-
-                  # Ad-hoc codesign to preserve accessibility permissions across updates
-                  codesign --force --deep --sign - build/arm64/Neru.app
-
-                  # Copy binary to distribution folder
-                  mkdir -p build/arm64/bin
-                  cp bin/neru-darwin-arm64 build/arm64/bin/neru
-                  chmod +x build/arm64/bin/neru
-
-                  # Create zip
-                  cd build/arm64
-                  zip -r ../../neru-darwin-arm64.zip bin Neru.app
-                  cd ../..
-
-            # Bundle amd64 app
-            - name: Bundle neru-darwin-amd64
-              if: ${{ steps.release.outputs.release_created }}
-              run: |
-                  mkdir -p build/amd64/Neru.app/Contents/{MacOS,Resources}
-                  cp bin/neru-darwin-amd64 build/amd64/Neru.app/Contents/MacOS/neru
-                  chmod +x build/amd64/Neru.app/Contents/MacOS/neru
-                  cp resources/icon.icns build/amd64/Neru.app/Contents/Resources/icon.icns
-                  sed "s/VERSION/${{ steps.release.outputs.tag_name }}/g" resources/Info.plist.template > build/amd64/Neru.app/Contents/Info.plist
-
-                  # Ad-hoc codesign to preserve accessibility permissions across updates
-                  codesign --force --deep --sign - build/amd64/Neru.app
-
-                  # Copy binary to distribution folder
-                  mkdir -p build/amd64/bin
-                  cp bin/neru-darwin-amd64 build/amd64/bin/neru
-                  chmod +x build/amd64/bin/neru
-
-                  # Create zip
-                  cd build/amd64
-                  zip -r ../../neru-darwin-amd64.zip bin Neru.app
-                  cd ../..
-
-            # Generate SHA256 checksum files for zip artifacts
-            - name: Generate Checksums
-              if: ${{ steps.release.outputs.release_created }}
-              run: |
-                  shasum -a 256 neru-darwin-arm64.zip | awk '{print $1}' > neru-darwin-arm64.zip.sha256
-                  shasum -a 256 neru-darwin-amd64.zip | awk '{print $1}' > neru-darwin-amd64.zip.sha256
-                  # shasum -a 256 bin/neru-linux-amd64 | awk '{print $1}' > neru-linux-amd64.sha256
-                  # shasum -a 256 bin/neru-linux-arm64 | awk '{print $1}' > neru-linux-arm64.sha256
-                  # shasum -a 256 bin/neru-windows-amd64.exe | awk '{print $1}' > neru-windows-amd64.exe.sha256
-                  # shasum -a 256 bin/neru-windows-arm64.exe | awk '{print $1}' > neru-windows-arm64.exe.sha256
-                  ls -l *.zip* *.sha256
-
-            # Upload release artifacts and their respective checksum files
-            - name: Upload Release Artifacts
-              if: ${{ steps.release.outputs.release_created }}
-              env:
-                  GITHUB_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
-              run: |
-                  gh release upload "${{ steps.release.outputs.tag_name }}" neru-darwin-arm64.zip
-                  gh release upload "${{ steps.release.outputs.tag_name }}" neru-darwin-arm64.zip.sha256
-                  gh release upload "${{ steps.release.outputs.tag_name }}" neru-darwin-amd64.zip
-                  gh release upload "${{ steps.release.outputs.tag_name }}" neru-darwin-amd64.zip.sha256
-                  # gh release upload "${{ steps.release.outputs.tag_name }}" bin/neru-linux-amd64
-                  # gh release upload "${{ steps.release.outputs.tag_name }}" neru-linux-amd64.sha256
-                  # gh release upload "${{ steps.release.outputs.tag_name }}" bin/neru-linux-arm64
-                  # gh release upload "${{ steps.release.outputs.tag_name }}" neru-linux-arm64.sha256
-                  # gh release upload "${{ steps.release.outputs.tag_name }}" bin/neru-windows-amd64.exe
-                  # gh release upload "${{ steps.release.outputs.tag_name }}" neru-windows-amd64.exe.sha256
-                  # gh release upload "${{ steps.release.outputs.tag_name }}" bin/neru-windows-arm64.exe
-                  # gh release upload "${{ steps.release.outputs.tag_name }}" neru-windows-arm64.exe.sha256
+    publish-release-artifacts:
+        needs: release-please
+        if: ${{ needs.release-please.outputs.release_created == 'true' }}
+        uses: ./.github/workflows/publish-artifacts.yml
+        with:
+            release_tag: ${{ needs.release-please.outputs.tag_name }}
+            version_override: ${{ needs.release-please.outputs.tag_name }}
+        secrets:
+            upload_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
