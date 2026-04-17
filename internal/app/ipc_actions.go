@@ -910,6 +910,16 @@ func (h *IPCControllerActions) handleMoveMonitorAction(
 		}
 	}
 
+	if parsed.hasMonitorName {
+		if parsed.usePrevious {
+			return ipc.Response{
+				Success: false,
+				Message: "--previous cannot be used with --name",
+				Code:    ipc.CodeInvalidInput,
+			}
+		}
+	}
+
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
@@ -919,14 +929,6 @@ func (h *IPCControllerActions) handleMoveMonitorAction(
 	}
 
 	if parsed.hasMonitorName {
-		if parsed.usePrevious {
-			return ipc.Response{
-				Success: false,
-				Message: "--previous cannot be used with --name",
-				Code:    ipc.CodeInvalidInput,
-			}
-		}
-
 		h.logger.Info("Moving to monitor by name via IPC",
 			zap.String("monitor", parsed.monitorName),
 		)
