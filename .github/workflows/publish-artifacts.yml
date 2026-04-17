@@ -135,7 +135,9 @@ jobs:
               with:
                   go-version: "1.26.1"
 
-            - uses: extractions/setup-just@v2
+            - uses: extractions/setup-just@v3
+              with:
+                  just-version: "1.46.0"
 
             - name: Build neru linux artifact
               run: just release-ci-linux amd64 ${{ inputs.version_override }}
@@ -186,7 +188,9 @@ jobs:
               with:
                   go-version: "1.26.1"
 
-            - uses: extractions/setup-just@v2
+            - uses: extractions/setup-just@v3
+              with:
+                  just-version: "1.46.0"
 
             - name: Build neru linux arm64 artifact
               run: just release-ci-linux arm64 ${{ inputs.version_override }}
