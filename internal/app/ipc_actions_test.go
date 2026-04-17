@@ -173,6 +173,73 @@ func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) 
 	}
 }
 
+func TestHandleAction_PreviousRejectedOnNonMoveMonitor(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"left_click", "--previous"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(left_click --previous) expected failure")
+	}
+
+	if resp.Message != "--previous and cycle are only supported with move_monitor" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_CycleRejectedOnNonMoveMonitor(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"reset", "cycle"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(reset cycle) expected failure")
+	}
+
+	if resp.Message != "reset does not support action flags" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+		scrollService: services.NewScrollService(
+			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockOverlayPort{},
+			&portmocks.SystemMock{},
+			config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 20, ScrollStepFull: 30},
+			zap.NewNop(),
+		),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"scroll_down", "--previous"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(scroll_down --previous) expected failure")
+	}
+
+	if resp.Message != "scroll actions do not support --x/--y/--dx/--dy/--center/--modifier/--previous/cycle flags" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
 func TestShouldClearSelectionAfterMoveMouse(t *testing.T) {
 	t.Parallel()
 

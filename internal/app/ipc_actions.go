@@ -306,6 +306,14 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
+	if parsed.usePrevious || parsed.cycle {
+		return ipc.Response{
+			Success: false,
+			Message: "--previous and cycle are only supported with move_monitor",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	if modifiers != 0 && !isMouseButton {
 		return ipc.Response{
 			Success: false,
@@ -688,7 +696,7 @@ func (h *IPCControllerActions) handleBackspaceAction(parsed parsedActionArgs) ip
 func hasUnsupportedFlags(parsed parsedActionArgs) bool {
 	return parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
 		parsed.hasCenter || parsed.monitorName != "" || parsed.modifierStr != "" ||
-		parsed.useSelection || parsed.useBare
+		parsed.useSelection || parsed.useBare || parsed.usePrevious || parsed.cycle
 }
 
 func (h *IPCControllerActions) resolveMouseActionPoint(
@@ -983,10 +991,11 @@ func (h *IPCControllerActions) handleScrollAction(
 
 	// Reject flags that are not applicable to scroll actions.
 	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.monitorName != "" || parsed.modifierStr != "" {
+		parsed.hasCenter || parsed.monitorName != "" || parsed.modifierStr != "" ||
+		parsed.usePrevious || parsed.cycle {
 		return ipc.Response{
 			Success: false,
-			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--modifier flags",
+			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--modifier/--previous/cycle flags",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
