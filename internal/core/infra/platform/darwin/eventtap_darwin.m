@@ -34,6 +34,7 @@ typedef struct {
 	os_unfair_lock modifierPassthroughLock;                  ///< Lock for modifier passthrough config
 	CGEventFlags previousFlags;                              ///< Previous modifier flags for toggle detection
 	CGEventFlags modifierChordFlags;    ///< Modifiers used in a key chord and not eligible for sticky on release
+	BOOL stickyModifierDetectionArmed;  ///< Whether sticky modifier callbacks are armed for this mode session
 	BOOL stickyModifierToggleEnabled;   ///< Whether to emit __modifier_ events
 	os_unfair_lock stickyModifierLock;  ///< Lock for sticky modifier toggle config
 	dispatch_block_t __strong pendingAddSourceBlock;  ///< Pending add source block
@@ -41,6 +42,9 @@ typedef struct {
 
 /// Global event tap context for layout-change rebuild (single instance expected)
 static EventTapContext *gEventTapContext = nil;
+
+static const CGEventFlags kStickyModifierMask =
+    kCGEventFlagMaskCommand | kCGEventFlagMaskShift | kCGEventFlagMaskAlternate | kCGEventFlagMaskControl;
 
 static inline NSUInteger hotkeyLookupKey(CGKeyCode keyCode, CGEventFlags flags) {
 	uint8_t modifiers = 0;
@@ -328,18 +332,33 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 		// toggle only when keyup arrives without any intervening regular key.
 		if (type == kCGEventFlagsChanged) {
 			CGEventFlags flags = CGEventGetFlags(event);
+			CGEventFlags stickyFlags = flags & kStickyModifierMask;
 
 			// Read/write previousFlags under stickyModifierLock to avoid racing
 			// with setEventTapStickyModifierToggle which also writes it.
 			BOOL stickyEnabled = NO;
+			BOOL detectionArmed = NO;
 			CGEventFlags changed;
 			os_unfair_lock_lock(&context->stickyModifierLock);
 			stickyEnabled = context->stickyModifierToggleEnabled;
 			changed = flags ^ context->previousFlags;
 			context->previousFlags = flags;
+			detectionArmed = context->stickyModifierDetectionArmed;
+			if (!detectionArmed && stickyFlags == 0) {
+				context->stickyModifierDetectionArmed = YES;
+				context->modifierChordFlags = 0;
+			}
 			os_unfair_lock_unlock(&context->stickyModifierLock);
 
 			if (!stickyEnabled) {
+				return event;
+			}
+
+			// Ignore modifier changes from the launch chord until the keyboard
+			// reaches a clean slate with no physical modifiers held. This makes
+			// multi-modifier hotkey activation reliable even if the user keeps
+			// holding Cmd/Shift for a while after the mode appears.
+			if (!detectionArmed) {
 				return event;
 			}
 
@@ -548,6 +567,7 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->passthroughUnboundedModifiers = NO;
 	context->previousFlags = 0;
 	context->modifierChordFlags = 0;
+	context->stickyModifierDetectionArmed = NO;
 	context->stickyModifierToggleEnabled = NO;
 	context->stickyModifierLock = OS_UNFAIR_LOCK_INIT;
 
@@ -751,13 +771,13 @@ void setEventTapStickyModifierToggle(EventTap tap, int enabled) {
 	os_unfair_lock_lock(&context->stickyModifierLock);
 	context->stickyModifierToggleEnabled = enabled != 0;
 	if (enabled) {
-		// Seed previousFlags with the current modifier state so the upcoming
-		// modifier changes are compared against the live session state.
 		context->previousFlags = CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState);
 		context->modifierChordFlags = 0;
+		context->stickyModifierDetectionArmed = (context->previousFlags & kStickyModifierMask) == 0;
 	} else {
 		context->previousFlags = 0;
 		context->modifierChordFlags = 0;
+		context->stickyModifierDetectionArmed = NO;
 	}
 	os_unfair_lock_unlock(&context->stickyModifierLock);
 }
