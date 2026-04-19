@@ -74,7 +74,11 @@ jobs:
                       --notes-file "${NOTES_FILE}" \
                       --prerelease \
                       --latest=false && break
-                    echo "Attempt ${attempt} failed, retrying..."
+                    if [ "${attempt}" -eq 3 ]; then
+                      echo "All ${attempt} attempts to create release failed, giving up."
+                      exit 1
+                    fi
+                    echo "Attempt ${attempt} failed, retrying in 5s..."
                     sleep 5
                   done
 
