@@ -346,6 +346,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			detectionArmed = context->stickyModifierDetectionArmed;
 			if (!detectionArmed && stickyFlags == 0) {
 				context->stickyModifierDetectionArmed = YES;
+				context->modifierChordFlags = 0;
 			}
 			os_unfair_lock_unlock(&context->stickyModifierLock);
 
@@ -770,14 +771,9 @@ void setEventTapStickyModifierToggle(EventTap tap, int enabled) {
 	os_unfair_lock_lock(&context->stickyModifierLock);
 	context->stickyModifierToggleEnabled = enabled != 0;
 	if (enabled) {
-		// Seed previousFlags with the current modifier state so the upcoming
-		// modifier changes are compared against the live session state.
-		// Also mark any modifiers already held at activation time as chord state
-		// so their release cannot be misclassified as a fresh sticky tap when a
-		// mode is launched from a multi-modifier global hotkey.
 		context->previousFlags = CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState);
-		context->modifierChordFlags = context->previousFlags & kStickyModifierMask;
-		context->stickyModifierDetectionArmed = (context->modifierChordFlags == 0);
+		context->modifierChordFlags = 0;
+		context->stickyModifierDetectionArmed = (context->previousFlags & kStickyModifierMask) == 0;
 	} else {
 		context->previousFlags = 0;
 		context->modifierChordFlags = 0;
