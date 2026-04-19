@@ -70,14 +70,8 @@ jobs:
                     --target "${GITHUB_SHA}" \
                     --title "Neru Nightly" \
                     --notes-file "${NOTES_FILE}" \
-                    --prerelease
-
-                  RELEASE_ID="$(gh release view nightly --json databaseId --jq '.databaseId')"
-                  gh api \
-                    --method PATCH \
-                    "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
-                    -f draft=false \
-                    -f prerelease=true
+                    --prerelease \
+                    --latest=false
 
     publish-nightly-artifacts:
         needs: prepare-nightly-release
