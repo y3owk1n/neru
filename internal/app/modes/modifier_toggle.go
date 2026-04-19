@@ -16,8 +16,11 @@ const modifierTogglePrefix = "__modifier_"
 // before we commit a sticky toggle. If a regular key arrives in this window,
 // the tap is treated as part of a combo instead of a sticky toggle.
 const (
-	modifierToggleDebounce              = 50 * time.Millisecond
-	activationModifierSuppressionWindow = 300 * time.Millisecond
+	modifierToggleDebounce = 50 * time.Millisecond
+	// Keep launch-hotkey modifiers suppressed long enough that users can
+	// comfortably hold Cmd/Shift after entering a mode without their eventual
+	// release being reinterpreted as a fresh sticky-modifier tap.
+	activationModifierSuppressionWindow = 2 * time.Second
 )
 
 var modifierToggleMap = map[string]action.Modifiers{
