@@ -65,8 +65,10 @@ jobs:
                   If nightly regresses, please include the commit above when filing an issue so we can narrow it down faster.
                   EOF
 
-                  if gh release view nightly &>/dev/null; then
+                  git tag -f nightly "${GITHUB_SHA}"
+                  git push origin refs/tags/nightly:refs/tags/nightly --force
 
+                  if gh release view nightly &>/dev/null; then
                       gh release edit nightly \
                         --target "${GITHUB_SHA}" \
                         --notes-file "${NOTES_FILE}" \
