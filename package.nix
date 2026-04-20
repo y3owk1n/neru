@@ -1,4 +1,5 @@
 {
+  autoPatchelfHook,
   fetchzip,
   gitUpdater,
   installShellFiles,
@@ -41,6 +42,16 @@ if useZip then
           # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.32.0/neru-darwin-amd64.zip)`
           sha256 = "sha256-25VUxQGq2K+nbTjEGipGHcy4i6OUw1BLsUHkoIX0gE4=";
         };
+        "aarch64-linux" = {
+          url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-linux-arm64.zip";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.32.0/neru-linux-arm64.zip)`
+          sha256 = "sha256-/KlBmHiviTqEMrs8VsRfvdGVkhc5yr62BPL0Z0H7dZw=";
+        };
+        "x86_64-linux" = {
+          url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-linux-amd64.zip";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.32.0/neru-linux-amd64.zip)`
+          sha256 = "sha256-YjG2/jrTz8QVgBKeP8cQWQkFH7B9wqUY8d2vtaHnDuU=";
+        };
       }
       .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
 
@@ -56,23 +67,63 @@ if useZip then
       stripRoot = false;
     };
 
-    nativeBuildInputs = [ installShellFiles ];
+    nativeBuildInputs = [
+      installShellFiles
+    ]
+    ++ lib.optionals stdenv.hostPlatform.isLinux [
+      autoPatchelfHook
+    ];
+
+    buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
+      cairo
+      libxkbcommon
+      wayland
+      wayland-protocols
+      libx11
+      libxext
+      libxfixes
+      libxrandr
+      libxrender
+      libxtst
+      libxi
+    ];
 
     installPhase = ''
       runHook preInstall
-      mkdir -p $out/Applications
-      mv ${appName} $out/Applications
-      cp -R bin $out
-      mkdir -p $out/share
+      ${
+        if stdenv.hostPlatform.isDarwin then
+          ''
+            mkdir -p $out/Applications
+            mv ${appName} $out/Applications
+            cp -R bin $out
+            mkdir -p $out/share
+          ''
+        else
+          ''
+            mkdir -p $out/bin
+            mv bin/neru $out/bin/neru
+          ''
+      }
       runHook postInstall
     '';
 
     postInstall = ''
       if ${lib.boolToString (stdenv.buildPlatform.canExecute stdenv.hostPlatform)}; then
-      	installShellCompletion --cmd neru \
-      	--bash <($out/bin/neru completion bash) \
-      	--fish <($out/bin/neru completion fish) \
-      	--zsh <($out/bin/neru completion zsh)
+        installShellCompletion --cmd neru \
+        ${
+          if stdenv.hostPlatform.isDarwin then
+            ''
+              --bash <($out/Applications/Neru.app/Contents/MacOS/neru completion bash) \
+              --fish <($out/Applications/Neru.app/Contents/MacOS/neru completion fish) \
+              --zsh <($out/Applications/Neru.app/Contents/MacOS/neru completion zsh)
+            ''
+          else
+            ''
+              --bash <($out/bin/neru completion bash) \
+              --fish <($out/bin/neru completion fish) \
+              --zsh <($out/bin/neru completion zsh)
+            ''
+        }
       fi
     '';
 
@@ -90,7 +141,7 @@ if useZip then
       description = "Navigate macOS without touching your mouse";
       homepage = "https://github.com/y3owk1n/neru";
       license = licenses.mit;
-      platforms = platforms.darwin;
+      platforms = platforms.darwin ++ platforms.linux;
       mainProgram = "neru";
     };
   }
