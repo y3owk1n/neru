@@ -27,11 +27,7 @@
     in
     {
       overlays.default = final: prev: {
-        neru =
-          if final.stdenv.hostPlatform.isDarwin then
-            makeNeruPackage final latestVersion true null
-          else
-            makeNeruPackage final "main" false (self.rev or self.dirtyRev or "unknown");
+        neru = makeNeruPackage final latestVersion true null;
         neru-source = makeNeruPackage final "main" false (self.rev or self.dirtyRev or "unknown");
       };
 
@@ -45,14 +41,10 @@
           };
         in
         {
-          # Default: latest version from zip on macOS, source build elsewhere.
-          default =
-            if pkgs.stdenv.hostPlatform.isDarwin then
-              makeNeruPackage pkgs latestVersion true null
-            else
-              makeNeruPackage pkgs "main" false (self.rev or self.dirtyRev or "unknown");
+          # Default: latest version from zip for all supported platforms
+          default = makeNeruPackage pkgs latestVersion true null;
 
-          # Build from source
+          # Build from source (for users who want to build from source)
           source = makeNeruPackage pkgs "main" false (self.rev or self.dirtyRev or "unknown");
         }
       );
