@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.32.0](https://github.com/y3owk1n/neru/compare/v1.31.0...v1.32.0) (2026-04-20)
+
+
+### Features
+
+* add `super` and `meta` modifier as `cmd` alias ([#703](https://github.com/y3owk1n/neru/issues/703)) ([997e08a](https://github.com/y3owk1n/neru/commit/997e08af4251e95a11e1aaf6cd980402e6960a5b))
+* add multi-monitor support ([#704](https://github.com/y3owk1n/neru/issues/704)) ([8316f4f](https://github.com/y3owk1n/neru/commit/8316f4fbc71762728daa356d677765268415fa87))
+* add NixOS module and Linux systemd support for home-manager module ([#695](https://github.com/y3owk1n/neru/issues/695)) ([c2da28c](https://github.com/y3owk1n/neru/commit/c2da28c1575dd7098d67af9950bae72e9a267f92))
+* initial implementation for `x11` and `wlroots` for wayland ([#694](https://github.com/y3owk1n/neru/issues/694)) ([af4dea7](https://github.com/y3owk1n/neru/commit/af4dea7594ecf849f01959abd34b56fca2d5237d))
+* **move_monitor:** consolidate monitor movement and actions ([#706](https://github.com/y3owk1n/neru/issues/706)) ([9088c57](https://github.com/y3owk1n/neru/commit/9088c572aa96828e8387faecbbfad2d3703bb274))
+
+
+### Bug Fixes
+
+* allow single-row and single-column recursive grids ([#684](https://github.com/y3owk1n/neru/issues/684)) ([e9e43e6](https://github.com/y3owk1n/neru/commit/e9e43e662f17cbdd8d579f9aee2e663698ad2aac))
+* **cli:** add more profile information to `doctor` command ([#686](https://github.com/y3owk1n/neru/issues/686)) ([83dc84d](https://github.com/y3owk1n/neru/commit/83dc84dd84be35cbb11e45d84e216897bc823733))
+* **hints:** guard visible rows lookup against zero-count results ([#689](https://github.com/y3owk1n/neru/issues/689)) ([9f87280](https://github.com/y3owk1n/neru/commit/9f872800b55fee82cd82b30e8150b873ef81738c))
+* **hints:** honor app-specific clickable roles during element discovery ([#692](https://github.com/y3owk1n/neru/issues/692)) ([3ab2381](https://github.com/y3owk1n/neru/commit/3ab2381fbd2a85e9a5f6d57272bb36e8d5c7871f))
+* **hints:** traverse AXHeading nodes when building the hint tree ([#691](https://github.com/y3owk1n/neru/issues/691)) ([f45689a](https://github.com/y3owk1n/neru/commit/f45689acf184e9387bdaf424a6e8a1603d84d4e7))
+* **nix:** add libxi for build input ([bdc47e8](https://github.com/y3owk1n/neru/commit/bdc47e876ac9ff0c2e7de0065c8607dc7d1ced92))
+* preserve recursive-grid animation for count-changing layer transitions on macOS ([#682](https://github.com/y3owk1n/neru/issues/682)) ([c720ecc](https://github.com/y3owk1n/neru/commit/c720ecc5b9975b674c31b54a4929eeedca9a3d13))
+* split daemon startup by platform plus some shut down fixes ([#693](https://github.com/y3owk1n/neru/issues/693)) ([6315c8a](https://github.com/y3owk1n/neru/commit/6315c8a4ba227e16f2c0f95a71aaba5341189b36))
+* **sticky_modifier:** prevent from misfiring on multi-modifier hotkey activation ([#710](https://github.com/y3owk1n/neru/issues/710)) ([f5da80a](https://github.com/y3owk1n/neru/commit/f5da80ae36b023326f4c28739626883d1ced4917))
+* use `primary` modifier instead of `cmd` for cross platform ([#701](https://github.com/y3owk1n/neru/issues/701)) ([5e24e4a](https://github.com/y3owk1n/neru/commit/5e24e4a61645a5d076a77e8ed13186a3eb53dedb))
+
+
+### Documentation
+
+* add missing configurations that should be presented ([#687](https://github.com/y3owk1n/neru/issues/687)) ([994ed70](https://github.com/y3owk1n/neru/commit/994ed70c89ff65af01511e2b6dd06cb9f96490ed))
+* remove `trigger` keyword and update home manager setup for linux ([b0190ff](https://github.com/y3owk1n/neru/commit/b0190ffdb1b9e5dc174fa7bdd4bddd1b6ea931e5))
+
 ## [1.31.0](https://github.com/y3owk1n/neru/compare/v1.30.0...v1.31.0) (2026-04-04)
 
 
