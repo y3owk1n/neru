@@ -1,6 +1,6 @@
 {
   autoPatchelfHook,
-  fetchzip,
+  fetchurl,
   gitUpdater,
   installShellFiles,
   stdenv,
@@ -24,6 +24,7 @@
   commitHash ? null,
   writableTmpDirAsHomeHook,
   nix-update-script,
+  unzip,
 }:
 if useZip then
   let
@@ -34,23 +35,23 @@ if useZip then
       {
         "aarch64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-arm64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.32.0/neru-darwin-arm64.zip)`
-          sha256 = "sha256-RxLeOSn4iXJmPyiQMe6uykdc2VSFCwN3llNY+aN/0vM=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.32.0/neru-darwin-arm64.zip)`
+          sha256 = "sha256-8d9Lg6rOPhVq9OPlvj4Voo60/Hk+BIyn+SVLRMpBMH0=";
         };
         "x86_64-darwin" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-amd64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.32.0/neru-darwin-amd64.zip)`
-          sha256 = "sha256-25VUxQGq2K+nbTjEGipGHcy4i6OUw1BLsUHkoIX0gE4=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.32.0/neru-darwin-amd64.zip)`
+          sha256 = "sha256-DnShhvgOsrjdzevYQ+gHyrqKjq2i0D0nZkRnR6qZ2rg=";
         };
         "aarch64-linux" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-linux-arm64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.32.0/neru-linux-arm64.zip)`
-          sha256 = "sha256-/KlBmHiviTqEMrs8VsRfvdGVkhc5yr62BPL0Z0H7dZw=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.32.0/neru-linux-arm64.zip)`
+          sha256 = "sha256-JQIQXuCiscQuYPmrqJ0kjx/VhsQTnP4lQnrRQ8azguM=";
         };
         "x86_64-linux" = {
           url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-linux-amd64.zip";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url --unpack https://github.com/y3owk1n/neru/releases/download/v1.32.0/neru-linux-amd64.zip)`
-          sha256 = "sha256-YjG2/jrTz8QVgBKeP8cQWQkFH7B9wqUY8d2vtaHnDuU=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/neru/releases/download/v1.32.0/neru-linux-amd64.zip)`
+          sha256 = "sha256-aKIKDmocWSbNnJ0HaTMReAiNLp1GrfST0pvCak16MsU=";
         };
       }
       .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
@@ -61,14 +62,18 @@ if useZip then
 
     inherit version;
 
-    src = fetchzip {
+    src = fetchurl {
       url = archInfo.url;
       sha256 = archInfo.sha256;
-      stripRoot = false;
     };
+
+    unpackPhase = ''
+      unzip $src
+    '';
 
     nativeBuildInputs = [
       installShellFiles
+      unzip
     ]
     ++ lib.optionals stdenv.hostPlatform.isLinux [
       autoPatchelfHook

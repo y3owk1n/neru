@@ -3,7 +3,7 @@
 This guide covers installation methods for Neru, with the most complete support on macOS.
 
 > [!NOTE]
-> macOS is the primary supported platform. Linux source builds are available through the Nix flake and direct builds, but there are no official Linux release artifacts yet. See the [Platform Support section in README.md](../README.md#💻-platform-support) for details.
+> macOS is the primary supported platform. Linux builds are available through the Nix flake (uses release artifacts when available, falls back to source build), and direct source builds. See the [Platform Support section in README.md](../README.md#💻-platform-support) for details.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ brew install --cask y3owk1n/tap/neru
 Neru is available as a Nix flake with built-in support for nix-darwin (macOS), NixOS (Linux), and home-manager (both platforms).
 
 On macOS, `pkgs.neru` uses the published release zip and `pkgs.neru-source` builds from source.
-On Linux, `pkgs.neru` and the flake `default` package both build from source because there is no official Linux release artifact yet.
+On Linux, `pkgs.neru` uses the published release artifact and `pkgs.neru-source` builds from source.
 
 ### Add Flake Input
 
@@ -148,7 +148,7 @@ Use the NixOS module for system-wide installation on Linux:
             services.neru.enable = true;
 
             # Optional: Use specific package version
-            # services.neru.package = pkgs.neru; # This will build from source on Linux
+            # services.neru.package = pkgs.neru; # This will use the pre-built artifact on Linux
 
             # Optional: Inline configuration
             services.neru.config = ''
@@ -169,7 +169,7 @@ Use the NixOS module for system-wide installation on Linux:
 **Module Options:**
 
 - `services.neru.enable` - Enable Neru (default: `false`)
-- `services.neru.package` - Package to use (default: `pkgs.neru`, always builds from source on Linux)
+- `services.neru.package` - Package to use (default: `pkgs.neru`; uses release artifact on Linux, builds from source if unavailable)
 - `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 - `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
 - `services.neru.systemd.restart` - Systemd restart policy (default: `"on-failure"`)
@@ -182,7 +182,7 @@ The module automatically:
 - Configures automatic restart on failure
 
 > [!IMPORTANT]
-> **Linux always builds from source.** There are no official pre-built Linux release artifacts yet. On Linux, `pkgs.neru` is equivalent to `pkgs.neru-source` — both build from source. If your nixpkgs doesn't ship a recent enough Go version, see [Patch Go Version](#patch-go-version) below.
+> On Linux, `pkgs.neru` uses the release artifact when available. Use `pkgs.neru-source` to build from source. If your nixpkgs doesn't ship a recent enough Go version, see [Patch Go Version](#patch-go-version) below.
 
 > [!WARNING]
 > **Default config uses cross-platform hotkeys.** The built-in default configuration uses the `Primary+…` modifier, which maps to Cmd on macOS and Ctrl on Linux.
@@ -257,7 +257,7 @@ Use the home-manager module for user-specific installation on macOS or Linux:
 
          # Configure Neru
          {
-           # Enable Neru (always builds from source on Linux)
+           # Enable Neru (uses pre-built artifact on Linux if available)
            services.neru.enable = true;
 
            # Optional: Inline configuration
@@ -278,7 +278,7 @@ Use the home-manager module for user-specific installation on macOS or Linux:
 **Module Options:**
 
 - `services.neru.enable` - Enable Neru (default: `false`)
-- `services.neru.package` - Package to use (default: `pkgs.neru`; on macOS uses the release zip, on Linux always builds from source)
+- `services.neru.package` - Package to use (default: `pkgs.neru`; uses release artifact on Linux, builds from source if unavailable)
 - `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 - `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
 - `services.neru.launchd.enable` - Enable the launchd agent on macOS (default: `true`)
@@ -301,7 +301,7 @@ The module automatically:
 > This is not needed for the default `pkgs.neru` (zip) package, which is pre-signed.
 
 > [!IMPORTANT]
-> **Linux always builds from source.** On Linux, `pkgs.neru` is equivalent to `pkgs.neru-source` — there are no official pre-built Linux release artifacts yet. If your nixpkgs doesn't ship a recent enough Go version, see [Patch Go Version](#patch-go-version) below.
+> On Linux, `pkgs.neru` uses the release artifact when available. Use `pkgs.neru-source` to build from source. If your nixpkgs doesn't ship a recent enough Go version, see [Patch Go Version](#patch-go-version) below.
 
 > [!WARNING]
 > **Default config uses cross-platform hotkeys.** The built-in default uses the `Primary+…` modifier, which maps to Cmd on macOS and Ctrl on Linux.
@@ -400,8 +400,6 @@ nix flake update neru
 
 > [!NOTE]
 > This is only required if you're using `nix`, you're using the `neru-source` package and nixpkgs is not on golang `1.26.1` yet.
-
-> This is required if you're using `nix` and nixpkgs is not on golang `1.26.1` yet. It applies to `neru-source` on macOS and **all** Linux builds (since `pkgs.neru` on Linux always builds from source).
 
 ```nix
 package = pkgs.neru-source.overrideAttrs (_: {
