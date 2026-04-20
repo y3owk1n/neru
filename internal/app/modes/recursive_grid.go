@@ -160,7 +160,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 
 	h.logger.Info("Recursive-grid mode activated", zap.String("action", actionString))
 	if training {
-		h.logger.Info("Press the highlighted recursive-grid key, space/backspace to restart, escape to exit")
+		h.logger.Info("Press the highlighted top-level key, then the highlighted second-depth key; space/backspace restarts, escape exits")
 	} else {
 		h.logger.Info("Press u/i/j/k to select cells, backspace to backtrack, escape to exit")
 	}
@@ -233,7 +233,28 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 		switch result {
 		case componentrecursivegrid.TrainingResultIgnored:
 			return
+		case componentrecursivegrid.TrainingResultAdvanceDepth:
+			center, completed := h.recursiveGrid.Manager.HandleInput(key)
+			if completed {
+				h.logger.Warn("Recursive-grid training could not enter second depth; keeping top-level view")
+			} else if h.recursiveGrid.Context != nil {
+				absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+			}
+			h.updateRecursiveGridOverlay()
+
+			return
 		case componentrecursivegrid.TrainingResultCorrect:
+			if h.recursiveGrid.Manager.CurrentDepth() > 0 &&
+				h.recursiveGrid.Manager.Backtrack() &&
+				h.recursiveGrid.Context != nil {
+				absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(
+					h.recursiveGrid.Manager.CurrentCenter(),
+					h.screenBounds,
+				)
+				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+			}
+
 			learned, total := h.recursiveGridTrainingProgress()
 			h.logger.Info("Recursive-grid training progress",
 				zap.Int("learned", learned),
@@ -246,6 +267,10 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 
 			return
 		case componentrecursivegrid.TrainingResultCompleted:
+			if h.recursiveGrid.Manager.CurrentDepth() > 0 {
+				h.recursiveGrid.Manager.Backtrack()
+			}
+
 			learned, total := h.recursiveGridTrainingProgress()
 			h.updateRecursiveGridOverlay()
 			if h.system != nil {
@@ -397,8 +422,12 @@ func (h *Handler) initializeRecursiveGridTrainingSession(training bool) {
 		return
 	}
 
+	secondDepthTrainingActive := h.recursiveGrid.Manager.CanDivide()
+
 	h.recursiveGrid.Training = componentrecursivegrid.NewTrainingSession(
 		h.recursiveGrid.Manager.Keys(),
+		h.recursiveGrid.Manager.KeysForDepth(1),
+		secondDepthTrainingActive,
 		h.config.RecursiveGrid.Training.HitsToHide,
 		h.config.RecursiveGrid.Training.PenaltyOnError,
 	)
