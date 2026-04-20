@@ -97,7 +97,6 @@ if useZip then
             mv ${appName} $out/Applications
             cp -R bin $out
             mkdir -p $out/share
-            runHook postInstall
           ''
         else
           ''
