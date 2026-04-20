@@ -1,4 +1,5 @@
 {
+  autoPatchelfHook,
   fetchzip,
   gitUpdater,
   installShellFiles,
@@ -66,7 +67,26 @@ if useZip then
       stripRoot = false;
     };
 
-    nativeBuildInputs = [ installShellFiles ];
+    nativeBuildInputs = [
+      installShellFiles
+    ]
+    ++ lib.optionals stdenv.hostPlatform.isLinux [
+      autoPatchelfHook
+    ];
+
+    buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
+      cairo
+      libxkbcommon
+      wayland
+      wayland-protocols
+      libx11
+      libxext
+      libxfixes
+      libxrandr
+      libxrender
+      libxtst
+      libxi
+    ];
 
     installPhase = ''
       runHook preInstall
