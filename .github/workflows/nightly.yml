@@ -69,7 +69,9 @@ jobs:
 
                       gh release edit nightly \
                         --target "${GITHUB_SHA}" \
-                        --notes-file "${NOTES_FILE}"
+                        --notes-file "${NOTES_FILE}" \
+                        --prerelease \
+                        --latest=false
                   else
                       gh release create nightly \
                         --target "${GITHUB_SHA}" \
