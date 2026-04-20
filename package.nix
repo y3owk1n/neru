@@ -112,23 +112,18 @@ if useZip then
       runHook postInstall
     '';
 
+    # only install completions on macOS
+    # unable to make it work on Linux (do it manually please, sorry)
     postInstall = ''
-      if ${lib.boolToString (stdenv.buildPlatform.canExecute stdenv.hostPlatform)}; then
+      if ${
+        lib.boolToString (
+          stdenv.buildPlatform.canExecute stdenv.hostPlatform && stdenv.hostPlatform.isDarwin
+        )
+      }; then
         installShellCompletion --cmd neru \
-        ${
-          if stdenv.hostPlatform.isDarwin then
-            ''
               --bash <($out/Applications/Neru.app/Contents/MacOS/neru completion bash) \
               --fish <($out/Applications/Neru.app/Contents/MacOS/neru completion fish) \
               --zsh <($out/Applications/Neru.app/Contents/MacOS/neru completion zsh)
-            ''
-          else
-            ''
-              --bash <($out/bin/neru completion bash) \
-              --fish <($out/bin/neru completion fish) \
-              --zsh <($out/bin/neru completion zsh)
-            ''
-        }
       fi
     '';
 
