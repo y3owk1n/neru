@@ -21,6 +21,17 @@ import (
 	overlaypkg "github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
+type recordingOverlayManager struct {
+	overlaypkg.NoOpManager
+	lastHideUnmatched       bool
+	setHideUnmatchedInvoked int
+}
+
+func (m *recordingOverlayManager) SetHideUnmatched(hide bool) {
+	m.lastHideUnmatched = hide
+	m.setHideUnmatchedInvoked++
+}
+
 func TestHandleRecursiveGridKey_CompleteSelectionDoesNotMoveWhenCursorFollowSelectionDisabled(
 	t *testing.T,
 ) {
@@ -141,5 +152,33 @@ func TestResetCurrentMode_RecursiveGridPreservesHoldMode(t *testing.T) {
 
 	if selection != (image.Point{X: 50, Y: 50}) {
 		t.Fatalf("stored selection after reset = %v, want (50,50)", selection)
+	}
+}
+
+func TestCleanupGridModeResetsHideUnmatched(t *testing.T) {
+	overlayManager := &recordingOverlayManager{}
+
+	handler := &Handler{
+		overlayManager: overlayManager,
+		grid: &components.GridComponent{
+			Context: &gridcomponent.Context{},
+		},
+		logger: zap.NewNop(),
+		renderer: ui.NewOverlayRenderer(
+			overlayManager,
+			hintscomponent.StyleMode{},
+			gridcomponent.Style{},
+			componentrecursivegrid.Style{},
+		),
+	}
+
+	handler.cleanupGridMode()
+
+	if overlayManager.setHideUnmatchedInvoked == 0 {
+		t.Fatal("expected grid cleanup to reset hide unmatched")
+	}
+
+	if overlayManager.lastHideUnmatched {
+		t.Fatal("expected grid cleanup to disable hide unmatched")
 	}
 }

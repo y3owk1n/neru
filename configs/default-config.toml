@@ -150,6 +150,11 @@ max_depth = 10                              # Maximum recursion levels (1–20)
 enabled = false                            # Opt in to native depth transition animation on supported platforms
 duration_ms = 180                          # Recursive-grid animation duration in milliseconds
 
+[recursive_grid.training]
+enabled = true                             # Allow `neru recursive_grid --training` and the systray training entry
+hits_to_hide = 3                           # Hide a cell label after this many correct answers
+penalty_on_error = 1                       # Hits removed from the current target after a wrong key
+
 [recursive_grid.hotkeys]
 "Escape" = "idle"
 "`" = "toggle-cursor-follow-selection"

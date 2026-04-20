@@ -314,6 +314,7 @@ func (o *x11Overlay) DrawRecursiveGrid(
 	keys string,
 	gridCols int,
 	gridRows int,
+	_ int,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 ) {

@@ -2,6 +2,7 @@ package modes
 
 import (
 	"context"
+	"fmt"
 	"image"
 
 	"go.uber.org/zap"
@@ -21,6 +22,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	actionStr *string,
 	repeat bool,
 	cursorFollowSelection *bool,
+	training bool,
 ) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeRecursiveGrid
@@ -31,6 +33,17 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 		action.TypeMoveMouse,
 	)
 	if !ok {
+		if isRefresh {
+			h.exitModeLocked()
+		}
+
+		return
+	}
+
+	if training && !h.config.RecursiveGrid.Training.Enabled {
+		h.logger.Warn("Recursive-grid training activation failed",
+			zap.String("reason", "training disabled in config"))
+
 		if isRefresh {
 			h.exitModeLocked()
 		}
@@ -52,6 +65,11 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	}
 
 	h.overlayManager.Clear()
+	if h.renderer != nil {
+		// Grid mode uses a shared native overlay flag to hide unmatched cells.
+		// Reset it here so recursive-grid and training never inherit that state.
+		h.renderer.SetHideUnmatched(false)
+	}
 
 	h.appState.SetRecursiveGridOverlayNeedsRefresh(false)
 
@@ -73,24 +91,27 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	// Initialize recursive-grid manager
 	h.initializeRecursiveGridManager(normalizedBounds)
 
-	cursorShouldFollow := resolveCursorFollowSelection(
-		domain.ModeRecursiveGrid,
-		cursorFollowSelection,
-	)
+	cursorShouldFollow := false
+	if !training {
+		cursorShouldFollow = resolveCursorFollowSelection(
+			domain.ModeRecursiveGrid,
+			cursorFollowSelection,
+		)
 
-	// Move cursor to center of initial grid
-	if h.recursiveGrid.Manager != nil {
-		center := h.recursiveGrid.Manager.CurrentGrid().CurrentCenter()
+		// Move cursor to center of initial grid
+		if h.recursiveGrid.Manager != nil {
+			center := h.recursiveGrid.Manager.CurrentGrid().CurrentCenter()
 
-		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
-		if h.recursiveGrid.Context != nil {
-			h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
-		}
+			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+			if h.recursiveGrid.Context != nil {
+				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+			}
 
-		if cursorShouldFollow {
-			err := h.actionService.MoveCursorToPoint(context.Background(), absoluteCenter)
-			if err != nil {
-				h.logger.Warn("Failed to move cursor to initial center", zap.Error(err))
+			if cursorShouldFollow {
+				err := h.actionService.MoveCursorToPoint(context.Background(), absoluteCenter)
+				if err != nil {
+					h.logger.Warn("Failed to move cursor to initial center", zap.Error(err))
+				}
 			}
 		}
 	}
@@ -98,10 +119,18 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	// Draw initial recursive-grid
 	// Store pending action and repeat flag if provided
 	if h.recursiveGrid.Context != nil {
-		h.recursiveGrid.Context.SetPendingAction(actionStr)
-		h.recursiveGrid.Context.SetRepeat(repeat)
+		if training {
+			h.recursiveGrid.Context.SetPendingAction(nil)
+			h.recursiveGrid.Context.SetRepeat(false)
+			h.recursiveGrid.Context.ClearSelectionPoint()
+		} else {
+			h.recursiveGrid.Context.SetPendingAction(actionStr)
+			h.recursiveGrid.Context.SetRepeat(repeat)
+		}
+
 		h.recursiveGrid.Context.SetCursorFollowSelection(cursorShouldFollow)
 	}
+	h.initializeRecursiveGridTrainingSession(training)
 
 	// Draw initial recursive-grid
 	h.updateRecursiveGridOverlay()
@@ -116,6 +145,13 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 		)
 	}
 
+	if training {
+		learned, total := h.recursiveGridTrainingProgress()
+		h.logger.Info("Recursive-grid training activated",
+			zap.Int("learned", learned),
+			zap.Int("total", total))
+	}
+
 	// Only set mode and enable event tap on initial activation;
 	// during refresh these are already in the correct state.
 	if !isRefresh {
@@ -123,7 +159,11 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	}
 
 	h.logger.Info("Recursive-grid mode activated", zap.String("action", actionString))
-	h.logger.Info("Press u/i/j/k to select cells, backspace to backtrack, escape to exit")
+	if training {
+		h.logger.Info("Press the highlighted recursive-grid key, space/backspace to restart, escape to exit")
+	} else {
+		h.logger.Info("Press u/i/j/k to select cells, backspace to backtrack, escape to exit")
+	}
 
 	h.startIndicatorPolling(domain.ModeRecursiveGrid)
 }
@@ -188,6 +228,41 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 		return
 	}
 
+	if h.recursiveGrid.Training != nil && h.recursiveGrid.Training.Active() {
+		result := h.recursiveGrid.Training.HandleKey(key)
+		switch result {
+		case componentrecursivegrid.TrainingResultIgnored:
+			return
+		case componentrecursivegrid.TrainingResultCorrect:
+			learned, total := h.recursiveGridTrainingProgress()
+			h.logger.Info("Recursive-grid training progress",
+				zap.Int("learned", learned),
+				zap.Int("total", total))
+			h.updateRecursiveGridOverlay()
+
+			return
+		case componentrecursivegrid.TrainingResultWrong:
+			h.updateRecursiveGridOverlay()
+
+			return
+		case componentrecursivegrid.TrainingResultCompleted:
+			learned, total := h.recursiveGridTrainingProgress()
+			h.updateRecursiveGridOverlay()
+			if h.system != nil {
+				h.system.ShowNotification(
+					"Neru",
+					fmt.Sprintf("Recursive-grid training complete (%d/%d)", learned, total),
+				)
+			}
+			h.logger.Info("Recursive-grid training complete",
+				zap.Int("learned", learned),
+				zap.Int("total", total))
+			h.exitModeLocked()
+
+			return
+		}
+	}
+
 	// Process the key through the manager
 	center, completed := h.recursiveGrid.Manager.HandleInput(key)
 
@@ -216,6 +291,7 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 					pendingAction,
 					repeat,
 					&cursorFollowSelection,
+					false,
 				)
 			},
 		)
@@ -261,15 +337,26 @@ func (h *Handler) updateRecursiveGridOverlay() {
 		nextRows = nextLayout.GridRows
 	}
 
+	keys := manager.Keys()
+	matchedIndex := -1
+	if session := h.recursiveGrid.Training; session != nil && session.Active() {
+		keys = session.OverlayKeys()
+		matchedIndex = session.TargetIndex()
+		nextKeys = ""
+		nextCols = 0
+		nextRows = 0
+	}
+
 	err := h.renderer.DrawRecursiveGrid(
 		manager.CurrentBounds(),
 		currentDepth,
-		manager.Keys(),
+		keys,
 		manager.GridCols(),
 		manager.GridRows(),
 		nextKeys,
 		nextCols,
 		nextRows,
+		matchedIndex,
 		h.currentRecursiveGridVirtualPointerState(),
 	)
 	if err != nil {
@@ -281,6 +368,7 @@ func (h *Handler) updateRecursiveGridOverlay() {
 func (h *Handler) cleanupRecursiveGridMode() {
 	if h.recursiveGrid != nil {
 		h.recursiveGrid.Context.Reset()
+		h.recursiveGrid.Training = nil
 
 		if h.recursiveGrid.Manager != nil {
 			h.recursiveGrid.Manager.Reset()
@@ -296,4 +384,30 @@ func (h *Handler) cleanupRecursiveGridMode() {
 	}
 
 	h.clearAndHideOverlay()
+}
+
+func (h *Handler) initializeRecursiveGridTrainingSession(training bool) {
+	if h.recursiveGrid == nil {
+		return
+	}
+
+	if !training {
+		h.recursiveGrid.Training = nil
+
+		return
+	}
+
+	h.recursiveGrid.Training = componentrecursivegrid.NewTrainingSession(
+		h.recursiveGrid.Manager.Keys(),
+		h.config.RecursiveGrid.Training.HitsToHide,
+		h.config.RecursiveGrid.Training.PenaltyOnError,
+	)
+}
+
+func (h *Handler) recursiveGridTrainingProgress() (int, int) {
+	if h.recursiveGrid == nil || h.recursiveGrid.Training == nil {
+		return 0, 0
+	}
+
+	return h.recursiveGrid.Training.Progress()
 }

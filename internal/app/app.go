@@ -4,11 +4,21 @@ import (
 	"context"
 
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/app/modes"
 )
 
 // ActivateMode activates the specified mode.
 func (a *App) ActivateMode(mode Mode) {
 	a.modes.ActivateMode(mode)
+}
+
+// ActivateRecursiveGridTraining starts recursive-grid training mode using the
+// configured top-level recursive-grid layout.
+func (a *App) ActivateRecursiveGridTraining() {
+	a.modes.ActivateModeWithOptions(ModeRecursiveGrid, modes.ModeActivationOptions{
+		Training: true,
+	})
 }
 
 // IsFocusedAppExcluded checks if the focused app is excluded.

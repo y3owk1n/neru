@@ -41,6 +41,7 @@ func (o *x11Overlay) DrawRecursiveGrid(
 	string,
 	int,
 	int,
+	int,
 	recursivegridcomponent.Style,
 	recursivegridcomponent.VirtualPointerState,
 ) {

@@ -120,9 +120,10 @@ func (s *StickyIndicatorComponent) UpdateConfig(cfg *config.Config, _ *zap.Logge
 
 // RecursiveGridComponent encapsulates all recursive-grid-related functionality.
 type RecursiveGridComponent struct {
-	Manager *domainRecursiveGrid.Manager
-	Overlay *recursivegrid.Overlay
-	Context *recursivegrid.Context
+	Manager  *domainRecursiveGrid.Manager
+	Overlay  *recursivegrid.Overlay
+	Context  *recursivegrid.Context
+	Training *recursivegrid.TrainingSession
 }
 
 // UpdateConfig updates the recursive-grid component with new configuration.

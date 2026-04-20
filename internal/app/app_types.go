@@ -23,10 +23,11 @@ type Mode = domain.Mode
 
 // Mode constants from domain package.
 const (
-	ModeIdle   = domain.ModeIdle
-	ModeHints  = domain.ModeHints
-	ModeGrid   = domain.ModeGrid
-	ModeScroll = domain.ModeScroll
+	ModeIdle          = domain.ModeIdle
+	ModeHints         = domain.ModeHints
+	ModeGrid          = domain.ModeGrid
+	ModeRecursiveGrid = domain.ModeRecursiveGrid
+	ModeScroll        = domain.ModeScroll
 )
 
 // SystrayComponent defines the interface for systray functionality.

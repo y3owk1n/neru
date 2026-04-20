@@ -50,6 +50,7 @@ func (o *wlrootsOverlay) DrawRecursiveGrid(
 	string,
 	int,
 	int,
+	int,
 	recursivegridcomponent.Style,
 	recursivegridcomponent.VirtualPointerState,
 ) {
