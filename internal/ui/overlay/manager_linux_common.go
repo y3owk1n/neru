@@ -82,6 +82,11 @@ type Manager struct {
 
 	keyboardCaptureEnabled bool
 
+	modeIndicatorX11     *x11Overlay
+	stickyModifiersX11   *x11Overlay
+	modeIndicatorWlroots *wlrootsOverlay
+	stickyWlroots        *wlrootsOverlay
+
 	hintOverlay            *hints.Overlay
 	gridOverlay            *grid.Overlay
 	modeIndicatorOverlay   *modeindicator.Overlay
@@ -111,8 +116,16 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 	switch manager.backend {
 	case linuxOverlayBackendX11:
 		manager.x11 = newX11Overlay(logger)
+		if manager.x11 != nil {
+			manager.modeIndicatorX11 = newX11Overlay(logger)
+			manager.stickyModifiersX11 = newX11Overlay(logger)
+		}
 	case linuxOverlayBackendWaylandWlroots:
 		manager.wlroots = newWlrootsOverlay(logger)
+		if manager.wlroots != nil {
+			manager.modeIndicatorWlroots = newPassiveWlrootsOverlay(logger)
+			manager.stickyWlroots = newPassiveWlrootsOverlay(logger)
+		}
 
 		// Share renderMu with the wlroots overlay so the keyboard poller
 		// serializes wl_display access with the rendering path. The Wayland
@@ -174,6 +187,7 @@ func (m *Manager) Hide() {
 
 	m.stickyBadgeVisible = false
 	m.stickyBadgeRect = image.Rectangle{}
+	m.hideIndicatorLayersLocked()
 }
 
 // SetKeyboardCaptureEnabled controls whether the Wayland overlay requests
@@ -206,6 +220,7 @@ func (m *Manager) Clear() {
 
 	m.stickyBadgeVisible = false
 	m.stickyBadgeRect = image.Rectangle{}
+	m.clearIndicatorLayersLocked()
 }
 
 // ResizeToActiveScreen resizes the overlay to the active screen.
@@ -218,6 +233,8 @@ func (m *Manager) ResizeToActiveScreen() {
 	} else if m.wlroots != nil {
 		m.wlroots.Resize()
 	}
+
+	m.resizeIndicatorLayersLocked()
 }
 
 // SwitchTo switches to a new mode.
@@ -234,6 +251,12 @@ func (m *Manager) SwitchTo(next Mode) {
 	m.mode = next
 
 	m.mu.Unlock()
+
+	if next == ModeIdle {
+		m.renderMu.Lock()
+		m.hideIndicatorLayersLocked()
+		m.renderMu.Unlock()
+	}
 
 	m.publish(StateChange{prev: prev, next: next})
 }
@@ -268,8 +291,16 @@ func (m *Manager) Destroy() {
 	m.renderMu.Lock()
 	x11 := m.x11
 	wlroots := m.wlroots
+	modeIndicatorX11 := m.modeIndicatorX11
+	stickyModifiersX11 := m.stickyModifiersX11
+	modeIndicatorWlroots := m.modeIndicatorWlroots
+	stickyWlroots := m.stickyWlroots
 	m.x11 = nil
 	m.wlroots = nil
+	m.modeIndicatorX11 = nil
+	m.stickyModifiersX11 = nil
+	m.modeIndicatorWlroots = nil
+	m.stickyWlroots = nil
 	m.renderMu.Unlock()
 
 	if x11 != nil {
@@ -278,6 +309,22 @@ func (m *Manager) Destroy() {
 
 	if wlroots != nil {
 		wlroots.Destroy()
+	}
+
+	if modeIndicatorX11 != nil {
+		modeIndicatorX11.Destroy()
+	}
+
+	if stickyModifiersX11 != nil {
+		stickyModifiersX11.Destroy()
+	}
+
+	if modeIndicatorWlroots != nil {
+		modeIndicatorWlroots.Destroy()
+	}
+
+	if stickyWlroots != nil {
+		stickyWlroots.Destroy()
 	}
 }
 
@@ -422,25 +469,26 @@ func (m *Manager) DrawModeIndicator(posX, posY int) {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	if m.x11 != nil {
-		m.x11.DrawBadge(posX, posY, label, colors, style)
-	} else if m.wlroots != nil {
-		m.wlroots.DrawBadge(posX, posY, label, colors, style)
+	if m.modeIndicatorX11 != nil {
+		drawX11BadgeLayer(m.modeIndicatorX11, posX, posY, label, colors, style)
+	} else if m.modeIndicatorWlroots != nil {
+		drawWlrootsBadgeLayer(m.modeIndicatorWlroots, posX, posY, label, colors, style)
 	}
 }
 
 // DrawStickyModifiersIndicator draws the sticky modifiers indicator overlay.
 func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
-	if m.stickyModifiersOverlay == nil {
+	if symbols == "" {
+		m.renderMu.Lock()
+		defer m.renderMu.Unlock()
+
+		m.clearStickyBadgeLocked()
+		m.hideStickyIndicatorLayerLocked()
+
 		return
 	}
 
-	m.renderMu.Lock()
-	defer m.renderMu.Unlock()
-
-	if symbols == "" {
-		m.clearStickyBadgeLocked()
-
+	if m.stickyModifiersOverlay == nil {
 		return
 	}
 
@@ -449,6 +497,9 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 		return
 	}
 
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
 	m.clearStickyBadgeLocked()
 	m.stickyBadgeRect = expandRect(
 		badgeBounds(posX, posY, symbols, style),
@@ -456,10 +507,10 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 	)
 	m.stickyBadgeVisible = true
 
-	if m.x11 != nil {
-		m.x11.DrawBadge(posX, posY, symbols, colors, style)
-	} else if m.wlroots != nil {
-		m.wlroots.DrawBadge(posX, posY, symbols, colors, style)
+	if m.stickyModifiersX11 != nil {
+		drawX11BadgeLayer(m.stickyModifiersX11, posX, posY, symbols, colors, style)
+	} else if m.stickyWlroots != nil {
+		drawWlrootsBadgeLayer(m.stickyWlroots, posX, posY, symbols, colors, style)
 	}
 }
 
@@ -617,6 +668,99 @@ func (m *Manager) clearStickyBadgeLocked() {
 
 	m.stickyBadgeVisible = false
 	m.stickyBadgeRect = image.Rectangle{}
+}
+
+func drawX11BadgeLayer(
+	layer *x11Overlay,
+	posX,
+	posY int,
+	text string,
+	colors overlayColors,
+	style overlayBadgeStyle,
+) {
+	if layer == nil || text == "" {
+		return
+	}
+
+	layer.Clear()
+	layer.DrawBadge(posX, posY, text, colors, style)
+	layer.Show()
+}
+
+func drawWlrootsBadgeLayer(
+	layer *wlrootsOverlay,
+	posX,
+	posY int,
+	text string,
+	colors overlayColors,
+	style overlayBadgeStyle,
+) {
+	if layer == nil || text == "" {
+		return
+	}
+
+	layer.Clear()
+	layer.DrawBadge(posX, posY, text, colors, style)
+}
+
+func (m *Manager) clearIndicatorLayersLocked() {
+	if m.modeIndicatorX11 != nil {
+		m.modeIndicatorX11.Clear()
+	}
+	if m.stickyModifiersX11 != nil {
+		m.stickyModifiersX11.Clear()
+	}
+	if m.modeIndicatorWlroots != nil {
+		m.modeIndicatorWlroots.Clear()
+	}
+	if m.stickyWlroots != nil {
+		m.stickyWlroots.Clear()
+	}
+}
+
+func (m *Manager) hideIndicatorLayersLocked() {
+	if m.modeIndicatorX11 != nil {
+		m.modeIndicatorX11.Clear()
+		m.modeIndicatorX11.Hide()
+	}
+	if m.stickyModifiersX11 != nil {
+		m.stickyModifiersX11.Clear()
+		m.stickyModifiersX11.Hide()
+	}
+	if m.modeIndicatorWlroots != nil {
+		m.modeIndicatorWlroots.Clear()
+		m.modeIndicatorWlroots.Hide()
+	}
+	if m.stickyWlroots != nil {
+		m.stickyWlroots.Clear()
+		m.stickyWlroots.Hide()
+	}
+}
+
+func (m *Manager) hideStickyIndicatorLayerLocked() {
+	if m.stickyModifiersX11 != nil {
+		m.stickyModifiersX11.Clear()
+		m.stickyModifiersX11.Hide()
+	}
+	if m.stickyWlroots != nil {
+		m.stickyWlroots.Clear()
+		m.stickyWlroots.Hide()
+	}
+}
+
+func (m *Manager) resizeIndicatorLayersLocked() {
+	if m.modeIndicatorX11 != nil {
+		m.modeIndicatorX11.Resize()
+	}
+	if m.stickyModifiersX11 != nil {
+		m.stickyModifiersX11.Resize()
+	}
+	if m.modeIndicatorWlroots != nil {
+		m.modeIndicatorWlroots.Resize()
+	}
+	if m.stickyWlroots != nil {
+		m.stickyWlroots.Resize()
+	}
 }
 
 func (m *Manager) publish(change StateChange) {

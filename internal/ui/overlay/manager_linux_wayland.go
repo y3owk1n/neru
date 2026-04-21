@@ -28,6 +28,11 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 	return nil
 }
 
+func newPassiveWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
+	_ = logger
+	return nil
+}
+
 func (o *wlrootsOverlay) setDisplayMu(_ *sync.Mutex) {}
 func (o *wlrootsOverlay) startPoller()               {}
 func (o *wlrootsOverlay) Healthy() bool              { return false }
@@ -58,3 +63,4 @@ func (o *wlrootsOverlay) DrawRecursiveGrid(
 ) {
 }
 func (o *wlrootsOverlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
+func (o *wlrootsOverlay) setKeyboardCaptureEnabled(bool)                              {}
