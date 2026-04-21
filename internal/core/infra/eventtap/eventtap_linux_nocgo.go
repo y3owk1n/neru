@@ -9,3 +9,7 @@ func (et *EventTap) runWayland() {
 func (et *EventTap) runX11() {
 	close(et.doneCh)
 }
+
+func postLinuxModifierEvent(_ string, _ bool) bool {
+	return false
+}

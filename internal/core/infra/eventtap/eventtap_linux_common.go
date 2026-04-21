@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -17,6 +18,14 @@ type (
 	PassthroughCallback func()
 )
 
+type pendingSyntheticModifierEvent struct {
+	modifier  string
+	isDown    bool
+	expiresAt time.Time
+}
+
+const syntheticModifierSuppressionWindow = 250 * time.Millisecond
+
 // EventTap intercepts keyboard events on Linux.
 type EventTap struct {
 	logger *zap.Logger
@@ -27,6 +36,8 @@ type EventTap struct {
 	hotkeys              []string
 	stickyModifierToggle bool
 	enabled              bool
+
+	syntheticModifierEvents []pendingSyntheticModifierEvent
 
 	stopCh chan struct{}
 	doneCh chan struct{}
@@ -119,7 +130,17 @@ func (et *EventTap) SetStickyModifierToggle(enabled bool) {
 }
 
 // PostModifierEvent posts a modifier key event.
-func (et *EventTap) PostModifierEvent(_ string, _ bool) {}
+func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
+	modifier = canonicalLinuxModifier(modifier)
+	if modifier == "" {
+		return
+	}
+
+	et.rememberSyntheticModifierEvent(modifier, isDown)
+	if !postLinuxModifierEvent(modifier, isDown) {
+		et.consumeSyntheticModifierEvent(modifier, isDown)
+	}
+}
 
 // SetKeyboardLayout sets the keyboard layout.
 func (et *EventTap) SetKeyboardLayout(_ string) bool { return true }
@@ -158,6 +179,83 @@ func (et *EventTap) stickyToggleEnabled() bool {
 	defer et.mu.RUnlock()
 
 	return et.stickyModifierToggle
+}
+
+func canonicalLinuxModifier(modifier string) string {
+	switch strings.ToLower(strings.TrimSpace(modifier)) {
+	case "cmd", "command", "super", "meta":
+		return "cmd"
+	case "shift":
+		return "shift"
+	case "alt", "option":
+		return "alt"
+	case "ctrl", "control":
+		return "ctrl"
+	default:
+		return ""
+	}
+}
+
+func linuxModifierToggleEvent(modifier string, isDown bool) string {
+	modifier = canonicalLinuxModifier(modifier)
+	if modifier == "" {
+		return ""
+	}
+
+	suffix := "up"
+	if isDown {
+		suffix = "down"
+	}
+
+	return "__modifier_" + modifier + "_" + suffix
+}
+
+func (et *EventTap) rememberSyntheticModifierEvent(modifier string, isDown bool) {
+	now := time.Now()
+
+	et.mu.Lock()
+	defer et.mu.Unlock()
+
+	pending := et.syntheticModifierEvents[:0]
+	for _, event := range et.syntheticModifierEvents {
+		if now.Before(event.expiresAt) {
+			pending = append(pending, event)
+		}
+	}
+
+	et.syntheticModifierEvents = append(pending, pendingSyntheticModifierEvent{
+		modifier:  modifier,
+		isDown:    isDown,
+		expiresAt: now.Add(syntheticModifierSuppressionWindow),
+	})
+}
+
+func (et *EventTap) consumeSyntheticModifierEvent(modifier string, isDown bool) bool {
+	now := time.Now()
+
+	et.mu.Lock()
+	defer et.mu.Unlock()
+
+	pending := et.syntheticModifierEvents[:0]
+	consumed := false
+
+	for _, event := range et.syntheticModifierEvents {
+		if !now.Before(event.expiresAt) {
+			continue
+		}
+
+		if !consumed && event.modifier == modifier && event.isDown == isDown {
+			consumed = true
+
+			continue
+		}
+
+		pending = append(pending, event)
+	}
+
+	et.syntheticModifierEvents = pending
+
+	return consumed
 }
 
 func normalizeLinuxKey(key string) string {

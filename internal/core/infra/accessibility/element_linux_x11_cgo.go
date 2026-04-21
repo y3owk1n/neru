@@ -526,13 +526,13 @@ func x11PressModifiers(display *C.Display, modifiers action.Modifiers) {
 		C.neru_ax_press_modifier(display, C.XK_Alt_L)
 	}
 	if modifiers.Has(action.ModCmd) {
-		C.neru_ax_press_modifier(display, C.XK_Meta_L)
+		C.neru_ax_press_modifier(display, C.XK_Super_L)
 	}
 }
 
 func x11ReleaseModifiers(display *C.Display, modifiers action.Modifiers) {
 	if modifiers.Has(action.ModCmd) {
-		C.neru_ax_release_modifier(display, C.XK_Meta_L)
+		C.neru_ax_release_modifier(display, C.XK_Super_L)
 	}
 	if modifiers.Has(action.ModAlt) {
 		C.neru_ax_release_modifier(display, C.XK_Alt_L)

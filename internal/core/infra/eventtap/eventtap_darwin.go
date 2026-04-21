@@ -234,7 +234,7 @@ func (et *EventTap) SetPassthroughCallback(callback PassthroughCallback) {
 
 // SetStickyModifierToggle enables or disables sticky modifier toggle detection.
 // When enabled, modifier key events (Shift, Cmd, Alt, Ctrl) are detected and
-// callback is invoked with "__modifier_<name>" strings.
+// callback is invoked with "__modifier_<name>_down/up" strings.
 func (et *EventTap) SetStickyModifierToggle(enabled bool) {
 	if et.handle == nil {
 		et.logger.Warn("Cannot set sticky modifier toggle on nil event tap")

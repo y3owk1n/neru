@@ -3,11 +3,13 @@
 package eventtap
 
 /*
-#cgo linux pkg-config: x11
+#cgo linux pkg-config: x11 xtst
+#include <X11/extensions/XTest.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include <stdlib.h>
+#include <string.h>
 
 static Display* neru_eventtap_open(void) {
 	return XOpenDisplay(NULL);
@@ -43,12 +45,42 @@ static int neru_eventtap_next(Display *display, XEvent *event) {
 	XNextEvent(display, event);
 	return event->type;
 }
+
+static KeySym neru_eventtap_modifier_keysym(const char *modifier) {
+	if (strcmp(modifier, "shift") == 0) return XK_Shift_L;
+	if (strcmp(modifier, "ctrl") == 0) return XK_Control_L;
+	if (strcmp(modifier, "alt") == 0) return XK_Alt_L;
+	if (strcmp(modifier, "cmd") == 0) return XK_Super_L;
+	return NoSymbol;
+}
+
+static int neru_eventtap_post_modifier(const char *modifier, int is_down) {
+	Display *display = neru_eventtap_open();
+	if (display == NULL) return 0;
+
+	KeySym keysym = neru_eventtap_modifier_keysym(modifier);
+	if (keysym == NoSymbol) {
+		neru_eventtap_close(display);
+		return 0;
+	}
+
+	KeyCode keycode = XKeysymToKeycode(display, keysym);
+	if (keycode == 0) {
+		neru_eventtap_close(display);
+		return 0;
+	}
+
+	int ok = XTestFakeKeyEvent(display, keycode, is_down ? True : False, CurrentTime);
+	XFlush(display);
+	neru_eventtap_close(display);
+
+	return ok;
+}
 */
 import "C"
 
 import (
 	"os"
-	"strings"
 	"time"
 	"unsafe"
 )
@@ -98,7 +130,8 @@ func (et *EventTap) runX11() {
 		}
 
 		var event C.XEvent
-		if C.neru_eventtap_next(display, &event) != C.KeyPress { //nolint:nlreturn
+		eventType := C.neru_eventtap_next(display, &event)
+		if eventType != C.KeyPress && eventType != C.KeyRelease { //nolint:nlreturn
 			continue
 		}
 
@@ -113,6 +146,23 @@ func (et *EventTap) runX11() {
 			nil, //nolint:nlreturn
 		)
 
+		if modifier := x11ModifierName(keysym); modifier != "" {
+			isDown := eventType == C.KeyPress
+			if et.consumeSyntheticModifierEvent(modifier, isDown) {
+				continue
+			}
+
+			if et.stickyToggleEnabled() {
+				et.dispatchKey(linuxModifierToggleEvent(modifier, isDown))
+			}
+
+			continue
+		}
+
+		if eventType != C.KeyPress {
+			continue
+		}
+
 		var key string
 		if length > 0 {
 			key = C.GoStringN(&buffer[0], length)
@@ -120,9 +170,6 @@ func (et *EventTap) runX11() {
 			key = x11KeysymName(keysym)
 		}
 		key = normalizeLinuxKey(key)
-		if strings.HasPrefix(key, "__modifier_") && !et.stickyToggleEnabled() {
-			continue
-		}
 
 		if key != "" {
 			et.dispatchKey(key)
@@ -150,15 +197,38 @@ func x11KeysymName(keysym C.KeySym) string {
 		return "Up"
 	case C.XK_Down:
 		return "Down"
-	case C.XK_Shift_L, C.XK_Shift_R:
-		return "__modifier_shift"
-	case C.XK_Control_L, C.XK_Control_R:
-		return "__modifier_ctrl"
-	case C.XK_Alt_L, C.XK_Alt_R:
-		return "__modifier_alt"
-	case C.XK_Super_L, C.XK_Super_R, C.XK_Meta_L, C.XK_Meta_R:
-		return "__modifier_cmd"
 	default:
 		return ""
 	}
+}
+
+func x11ModifierName(keysym C.KeySym) string {
+	switch keysym {
+	case C.XK_Shift_L, C.XK_Shift_R:
+		return "shift"
+	case C.XK_Control_L, C.XK_Control_R:
+		return "ctrl"
+	case C.XK_Alt_L, C.XK_Alt_R:
+		return "alt"
+	case C.XK_Super_L, C.XK_Super_R, C.XK_Meta_L, C.XK_Meta_R:
+		return "cmd"
+	default:
+		return ""
+	}
+}
+
+func postLinuxModifierEvent(modifier string, isDown bool) bool {
+	if os.Getenv("WAYLAND_DISPLAY") != "" || os.Getenv("DISPLAY") == "" {
+		return false
+	}
+
+	cModifier := C.CString(modifier)
+	defer C.free(unsafe.Pointer(cModifier)) //nolint:nlreturn
+
+	cDown := C.int(0)
+	if isDown {
+		cDown = C.int(1)
+	}
+
+	return C.neru_eventtap_post_modifier(cModifier, cDown) != 0
 }

@@ -35,7 +35,7 @@ type EventTapPort interface {
 
 	// SetStickyModifierToggle enables or disables sticky modifier toggle detection.
 	// When enabled, modifier key events are detected and callback is invoked with
-	// "__modifier_<name>" strings for sticky modifier toggling.
+	// "__modifier_<name>_down/up" strings for sticky modifier toggling.
 	SetStickyModifierToggle(enabled bool)
 
 	// SetKeyboardLayout configures the reference keyboard layout used for key translation.

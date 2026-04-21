@@ -4,6 +4,7 @@ package eventtap
 
 import (
 	"os"
+	"strings"
 
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
@@ -36,6 +37,9 @@ func (et *EventTap) runWayland() {
 
 			key = normalizeLinuxKey(key)
 			if key == "" {
+				continue
+			}
+			if strings.HasPrefix(key, "__modifier_") && !et.stickyToggleEnabled() {
 				continue
 			}
 
