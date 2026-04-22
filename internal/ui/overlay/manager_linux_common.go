@@ -700,6 +700,7 @@ func drawWlrootsBadgeLayer(
 	}
 
 	layer.Clear()
+	// DrawBadge flushes and shows wlroots layer surfaces internally.
 	layer.DrawBadge(posX, posY, text, colors, style)
 }
 
