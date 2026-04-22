@@ -51,19 +51,10 @@ func (h *Handler) HandleKeyPress(key string) {
 	}
 
 	// Check for per-mode hotkeys before mode-specific handling.
-	// Try the raw key first to preserve explicit modifier combos, then the
-	// stripped key so sticky-held modifiers do not break plain bindings.
+	// If sticky modifiers were stripped, resolve bindings with the stripped key
+	// only. Sticky modifiers are for the next action, not Neru's own navigation
+	// keys; using rawKey here would make a sticky Ctrl turn "c" into "Ctrl+c".
 	if rawKey != key {
-		savedLastKey := h.hotkeyLastKey
-		savedLastKeyTime := h.hotkeyLastKeyTime
-
-		if h.handleHotkey(rawKey, bundleID) {
-			return
-		}
-
-		h.hotkeyLastKey = savedLastKey
-		h.hotkeyLastKeyTime = savedLastKeyTime
-
 		if h.handleHotkey(key, bundleID) {
 			return
 		}

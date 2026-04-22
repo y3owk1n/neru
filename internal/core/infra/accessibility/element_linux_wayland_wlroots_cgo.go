@@ -13,8 +13,9 @@ import (
 )
 
 type wlrootsPointerState struct {
-	mu        sync.RWMutex
-	mouseDown bool
+	mu                 sync.RWMutex
+	mouseDown          bool
+	mouseDownModifiers action.Modifiers
 }
 
 var globalWlrootsPointerState = &wlrootsPointerState{}
@@ -53,20 +54,7 @@ func wlrootsLeftClickAtPoint(
 	restoreCursor bool,
 	modifiers action.Modifiers,
 ) error {
-	_ = modifiers // modifier injection not yet supported on Wayland
-
-	original := wlrootsCurrentCursorPosition()
-
-	err := linux.WlrootsClick(point, linux.WlrBtnLeft)
-	if err != nil {
-		return err
-	}
-
-	if restoreCursor {
-		_ = linux.WlrootsMoveCursorToPoint(original)
-	}
-
-	return nil
+	return wlrootsClickButtonAtPoint(point, restoreCursor, modifiers, linux.WlrBtnLeft)
 }
 
 func wlrootsRightClickAtPoint(
@@ -74,20 +62,7 @@ func wlrootsRightClickAtPoint(
 	restoreCursor bool,
 	modifiers action.Modifiers,
 ) error {
-	_ = modifiers
-
-	original := wlrootsCurrentCursorPosition()
-
-	err := linux.WlrootsClick(point, linux.WlrBtnRight)
-	if err != nil {
-		return err
-	}
-
-	if restoreCursor {
-		_ = linux.WlrootsMoveCursorToPoint(original)
-	}
-
-	return nil
+	return wlrootsClickButtonAtPoint(point, restoreCursor, modifiers, linux.WlrBtnRight)
 }
 
 func wlrootsMiddleClickAtPoint(
@@ -95,39 +70,43 @@ func wlrootsMiddleClickAtPoint(
 	restoreCursor bool,
 	modifiers action.Modifiers,
 ) error {
-	_ = modifiers
+	return wlrootsClickButtonAtPoint(point, restoreCursor, modifiers, linux.WlrBtnMiddle)
+}
 
-	original := wlrootsCurrentCursorPosition()
-
-	err := linux.WlrootsClick(point, linux.WlrBtnMiddle)
+func wlrootsLeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
+	err := wlrootsPressModifiers(modifiers)
 	if err != nil {
 		return err
 	}
 
-	if restoreCursor {
-		_ = linux.WlrootsMoveCursorToPoint(original)
-	}
-
-	return nil
-}
-
-func wlrootsLeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
-	_ = modifiers
-
-	err := linux.WlrootsButtonEvent(point, linux.WlrBtnLeft, true)
+	err = linux.WlrootsButtonEvent(point, linux.WlrBtnLeft, true)
 	if err != nil {
+		_ = wlrootsReleaseModifiers(modifiers)
+
 		return err
 	}
 
 	globalWlrootsPointerState.mu.Lock()
 	globalWlrootsPointerState.mouseDown = true
+	globalWlrootsPointerState.mouseDownModifiers = modifiers
 	globalWlrootsPointerState.mu.Unlock()
 
 	return nil
 }
 
 func wlrootsLeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
-	_ = modifiers
+	heldModifiers, hadMouseDown := wlrootsMouseDownModifiers()
+	if hadMouseDown {
+		modifiers = heldModifiers
+	} else {
+		err := wlrootsPressModifiers(modifiers)
+		if err != nil {
+			return err
+		}
+	}
+	defer func() {
+		_ = wlrootsReleaseModifiers(modifiers)
+	}()
 
 	err := linux.WlrootsButtonEvent(point, linux.WlrBtnLeft, false)
 	if err != nil {
@@ -136,22 +115,123 @@ func wlrootsLeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) er
 
 	globalWlrootsPointerState.mu.Lock()
 	globalWlrootsPointerState.mouseDown = false
+	globalWlrootsPointerState.mouseDownModifiers = 0
 	globalWlrootsPointerState.mu.Unlock()
 
 	return nil
 }
 
+func wlrootsClickButtonAtPoint(
+	point image.Point,
+	restoreCursor bool,
+	modifiers action.Modifiers,
+	button int,
+) error {
+	original := wlrootsCurrentCursorPosition()
+
+	err := wlrootsPressModifiers(modifiers)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = wlrootsReleaseModifiers(modifiers)
+	}()
+
+	err = linux.WlrootsClick(point, button)
+	if err != nil {
+		return err
+	}
+
+	if restoreCursor {
+		_ = linux.WlrootsMoveCursorToPoint(original)
+	}
+
+	return nil
+}
+
+func wlrootsPressModifiers(modifiers action.Modifiers) error {
+	if modifiers.Has(action.ModShift) {
+		if err := linux.WlrootsModifierEvent("shift", true); err != nil {
+			return err
+		}
+	}
+	if modifiers.Has(action.ModCtrl) {
+		if err := linux.WlrootsModifierEvent("ctrl", true); err != nil {
+			_ = linux.WlrootsModifierEvent("shift", false)
+
+			return err
+		}
+	}
+	if modifiers.Has(action.ModAlt) {
+		if err := linux.WlrootsModifierEvent("alt", true); err != nil {
+			_ = linux.WlrootsModifierEvent("ctrl", false)
+			_ = linux.WlrootsModifierEvent("shift", false)
+
+			return err
+		}
+	}
+	if modifiers.Has(action.ModCmd) {
+		if err := linux.WlrootsModifierEvent("cmd", true); err != nil {
+			_ = linux.WlrootsModifierEvent("alt", false)
+			_ = linux.WlrootsModifierEvent("ctrl", false)
+			_ = linux.WlrootsModifierEvent("shift", false)
+
+			return err
+		}
+	}
+
+	return nil
+}
+
+func wlrootsReleaseModifiers(modifiers action.Modifiers) error {
+	var firstErr error
+	release := func(modifier string) {
+		if err := linux.WlrootsModifierEvent(modifier, false); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+
+	if modifiers.Has(action.ModCmd) {
+		release("cmd")
+	}
+	if modifiers.Has(action.ModAlt) {
+		release("alt")
+	}
+	if modifiers.Has(action.ModCtrl) {
+		release("ctrl")
+	}
+	if modifiers.Has(action.ModShift) {
+		release("shift")
+	}
+
+	return firstErr
+}
+
 func wlrootsLeftMouseUp() error {
+	modifiers, hadMouseDown := wlrootsMouseDownModifiers()
+
 	err := linux.WlrootsButtonRelease(linux.WlrBtnLeft)
 	if err != nil {
 		return err
 	}
 
+	if hadMouseDown {
+		_ = wlrootsReleaseModifiers(modifiers)
+	}
+
 	globalWlrootsPointerState.mu.Lock()
 	globalWlrootsPointerState.mouseDown = false
+	globalWlrootsPointerState.mouseDownModifiers = 0
 	globalWlrootsPointerState.mu.Unlock()
 
 	return nil
+}
+
+func wlrootsMouseDownModifiers() (action.Modifiers, bool) {
+	globalWlrootsPointerState.mu.RLock()
+	defer globalWlrootsPointerState.mu.RUnlock()
+
+	return globalWlrootsPointerState.mouseDownModifiers, globalWlrootsPointerState.mouseDown
 }
 
 // wlrootsScrollScale and wlrootsScrollMaxEvents mirror the X11 scroll
