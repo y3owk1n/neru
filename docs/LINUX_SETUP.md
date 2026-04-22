@@ -24,6 +24,44 @@ Neru provides native Linux support through two display server backends:
 
 ---
 
+## Wayland Keyboard Capture Permissions
+
+On wlroots-based Wayland compositors, Neru uses direct `evdev` keyboard capture
+during active modes so modified clicks like `Ctrl+click` and sticky modifiers
+work reliably against the app underneath the overlay.
+
+This requires permission to open and grab `/dev/input/event*` keyboard devices.
+On many distros those devices are owned by `root:input` with mode `0660`, so
+your user must be in the `input` group.
+
+```bash
+sudo usermod -aG input "$USER"
+```
+
+Then fully log out and back in, or reboot, and confirm:
+
+```bash
+id
+```
+
+You should see `input` in the printed group list.
+
+> **Security note:** Membership in `input` allows reading system-wide keyboard
+> events. If that access is too broad for your environment, use a tighter
+> distro-specific `udev`/ACL setup instead of the group-based approach.
+
+When the backend is active, Neru logs:
+
+```text
+Using Wayland evdev keyboard capture
+```
+
+If Neru cannot access the devices, it falls back to overlay-focused keyboard
+capture. Basic mode navigation still works, but modified clicks and sticky
+modifier behavior may be degraded under Wayland.
+
+---
+
 ## Using nix home manager
 
 Below is a minimal single flake with home manager setup.
@@ -207,11 +245,15 @@ bind = $mod SHIFT, S, exec, neru scroll
 ```kdl
 // ~/.config/niri/config.kdl
 binds {
-    Mod+Shift+H { spawn-sh "neru hints"; }
-    Mod+Shift+G { spawn-sh "neru grid"; }
-    Mod+Shift+S { spawn-sh "neru scroll"; }
+    Mod+Shift+H repeat=false { spawn-sh "neru hints"; }
+    Mod+Shift+G repeat=false { spawn-sh "neru grid"; }
+    Mod+Shift+S repeat=false { spawn-sh "neru scroll"; }
+    Mod+Shift+R repeat=false { spawn-sh "neru recursive_grid"; }
 }
 ```
+
+`niri` binds repeat by default. Use `repeat=false` for Neru mode launchers so
+holding the activation key does not continuously relaunch the mode.
 
 ### 2. Application Exclusions
 
@@ -253,6 +295,10 @@ systemctl --user enable --now neru
 2. **Accessibility (AT-SPI)**: Full AT-SPI integration for clickable element discovery (hints mode) is currently unavailable natively under Wayland without relying on experimental plugins. Grid mode and scroll mode both work perfectly without AT-SPI.
 3. **Dark mode / Theme polling detection**: Not yet implemented. Output will fall back to default theme definitions.
 4. **Notifications**: Desktop notifications (`org.freedesktop.Notifications`) will log to stdout/file instead of pushing to DBus.
+5. **Wayland modified clicks need evdev access**: On wlroots compositors, reliable
+   modified pointer actions depend on the `evdev` keyboard-capture path described
+   above. Without `/dev/input/event*` access, Neru falls back to a less capable
+   overlay-focused path.
 
 ---
 
@@ -273,4 +319,27 @@ Check that `WAYLAND_DISPLAY` is set correctly and the Wayland socket permissions
 ```bash
 echo $WAYLAND_DISPLAY
 wl-info  # from wayland-utils package
+```
+
+### "Wayland evdev capture unavailable; falling back to overlay keyboard focus"
+
+Neru could not open and grab the keyboard devices needed for reliable Wayland
+modifier handling.
+
+Common fix:
+
+```bash
+sudo usermod -aG input "$USER"
+```
+
+Then log out and back in, and confirm:
+
+```bash
+id
+```
+
+If the setup is correct, Neru should log:
+
+```text
+Using Wayland evdev keyboard capture
 ```

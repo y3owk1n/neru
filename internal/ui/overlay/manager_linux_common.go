@@ -79,6 +79,8 @@ type Manager struct {
 	x11     *x11Overlay
 	wlroots *wlrootsOverlay
 
+	keyboardCaptureEnabled bool
+
 	hintOverlay            *hints.Overlay
 	gridOverlay            *grid.Overlay
 	modeIndicatorOverlay   *modeindicator.Overlay
@@ -98,10 +100,11 @@ var (
 // NewOverlayManager creates a new overlay Manager.
 func NewOverlayManager(logger *zap.Logger) *Manager {
 	manager := &Manager{
-		logger:  logger,
-		mode:    ModeIdle,
-		subs:    make(map[uint64]func(StateChange), initialSubscriberCapacity),
-		backend: detectLinuxOverlayBackend(),
+		logger:                 logger,
+		mode:                   ModeIdle,
+		subs:                   make(map[uint64]func(StateChange), initialSubscriberCapacity),
+		backend:                detectLinuxOverlayBackend(),
+		keyboardCaptureEnabled: true,
 	}
 
 	switch manager.backend {
@@ -170,6 +173,23 @@ func (m *Manager) Hide() {
 
 	m.stickyBadgeVisible = false
 	m.stickyBadgeRect = image.Rectangle{}
+}
+
+// SetKeyboardCaptureEnabled controls whether the Wayland overlay requests
+// exclusive keyboard focus or remains keyboard-passive.
+func (m *Manager) SetKeyboardCaptureEnabled(enabled bool) {
+	if m == nil {
+		return
+	}
+
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	m.keyboardCaptureEnabled = enabled
+
+	if m.wlroots != nil {
+		m.wlroots.setKeyboardCaptureEnabled(enabled)
+	}
 }
 
 // Clear clears the overlay content.

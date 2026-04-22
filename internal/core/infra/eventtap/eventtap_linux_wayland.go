@@ -16,6 +16,10 @@ func (et *EventTap) runWayland() {
 		return
 	}
 
+	if et.runWaylandEvdev() {
+		return
+	}
+
 	mgr := overlay.Get()
 	if mgr == nil {
 		return

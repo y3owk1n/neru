@@ -598,20 +598,11 @@ static uint32_t neru_wlr_modifier_mask(NeruWlrootsClient *c, const char *modifie
 	return 0;
 }
 
-static uint32_t neru_wlr_modifier_keycode(const char *modifier) {
-	if (strcmp(modifier, "shift") == 0) return 42;  // KEY_LEFTSHIFT
-	if (strcmp(modifier, "ctrl") == 0) return 29;   // KEY_LEFTCTRL
-	if (strcmp(modifier, "alt") == 0) return 56;    // KEY_LEFTALT
-	if (strcmp(modifier, "cmd") == 0) return 125;   // KEY_LEFTMETA
-	return 0;
-}
-
 static int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, int is_down) {
 	if (!c || !c->vkeyboard || !c->vkeyboard_ready) return 0;
 
-	uint32_t keycode = neru_wlr_modifier_keycode(modifier);
 	uint32_t mask = neru_wlr_modifier_mask(c, modifier);
-	if (keycode == 0 || mask == 0) return 0;
+	if (mask == 0) return 0;
 
 	if (is_down) {
 		c->depressed_mods |= mask;
@@ -619,14 +610,8 @@ static int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, i
 		c->depressed_mods &= ~mask;
 	}
 
-	zwp_virtual_keyboard_v1_key(
-		c->vkeyboard,
-		0,
-		keycode,
-		is_down ? WL_KEYBOARD_KEY_STATE_PRESSED : WL_KEYBOARD_KEY_STATE_RELEASED
-	);
 	zwp_virtual_keyboard_v1_modifiers(c->vkeyboard, c->depressed_mods, 0, 0, 0);
-	wl_display_flush(c->display);
+	wl_display_roundtrip(c->display);
 
 	return 1;
 }

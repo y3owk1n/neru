@@ -82,8 +82,6 @@ static struct {
     int count;
 } key_ring = { .head = 0, .tail = 0, .count = 0 };
 
-static volatile int keyboard_enter_received = 0;
-
 static void neru_key_ring_push(const char *key) {
     if (!key || key[0] == '\0' || key_ring.count >= NERU_KEY_RING_CAP) return;
 
@@ -111,16 +109,6 @@ static const char* neru_modifier_name_from_keysym(xkb_keysym_t keysym) {
         default:
             return NULL;
     }
-}
-
-//export neruWaylandOverlayOnKey
-static void neruWaylandOverlayOnKey(const char *key) {
-    (void)key; // unused — keyboard events go through neru_keyboard_key
-}
-
-//export neruWaylandOverlayOnEnter
-static void neruWaylandOverlayOnEnter(void) {
-    keyboard_enter_received = 1;
 }
 
 // Create anonymous shared memory
@@ -265,9 +253,7 @@ static void neru_keyboard_keymap(void *data, struct wl_keyboard *keyboard,
 }
 
 static void neru_keyboard_enter(void *data, struct wl_keyboard *keyboard,
-    uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
-    keyboard_enter_received = 1;
-}
+    uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {}
 
 static void neru_keyboard_leave(void *data, struct wl_keyboard *keyboard,
     uint32_t serial, struct wl_surface *surface) {}
@@ -380,6 +366,9 @@ static NeruWaylandOverlay* neru_wayland_overlay_new(void) {
     NeruWaylandOverlay *overlay = calloc(1, sizeof(NeruWaylandOverlay));
     if (!overlay) return NULL;
 
+    overlay->keyboard_interactivity_set =
+        ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE;
+
     overlay->display = wl_display_connect(NULL);
     if (!overlay->display) {
         free(overlay);
@@ -475,8 +464,10 @@ static void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 
         // Request exclusive keyboard interactivity when overlay is shown
         // This tells the compositor to send keyboard events to this surface
-        zwlr_layer_surface_v1_set_keyboard_interactivity(scr->layer_surface,
-            ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);
+        zwlr_layer_surface_v1_set_keyboard_interactivity(
+            scr->layer_surface,
+            overlay->keyboard_interactivity_set
+        );
 
         zwlr_layer_surface_v1_add_listener(scr->layer_surface, &layer_surface_listener, overlay);
         wl_surface_commit(scr->wl_surface);
@@ -555,6 +546,30 @@ static void neru_wayland_overlay_hide(NeruWaylandOverlay *overlay) {
         }
     }
     wl_display_flush(overlay->display);
+}
+
+static void neru_wayland_overlay_set_keyboard_capture(
+    NeruWaylandOverlay *overlay,
+    int enabled
+) {
+    if (!overlay) return;
+
+    overlay->keyboard_interactivity_set = enabled
+        ? ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE
+        : ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE;
+
+    for (int i = 0; i < overlay->nr_screens; i++) {
+        NeruWaylandOverlayScreen *scr = &overlay->screens[i];
+        if (!scr->layer_surface || !scr->wl_surface) continue;
+
+        zwlr_layer_surface_v1_set_keyboard_interactivity(
+            scr->layer_surface,
+            overlay->keyboard_interactivity_set
+        );
+        wl_surface_commit(scr->wl_surface);
+    }
+
+    wl_display_roundtrip(overlay->display);
 }
 
 static void neru_wayland_overlay_clear(NeruWaylandOverlay *overlay) {
@@ -699,14 +714,12 @@ static const char* neruWaylandOverlayGetKey(NeruWaylandOverlay *overlay) {
     return neru_wayland_overlay_get_key(overlay);
 }
 
-//export neruWaylandOverlayCheckEnter
-static int neruWaylandOverlayCheckEnter(NeruWaylandOverlay *overlay) {
-    (void)overlay;
-    if (keyboard_enter_received) {
-        keyboard_enter_received = 0;
-        return 1;
-    }
-    return 0;
+//export neruWaylandOverlaySetKeyboardCapture
+static void neruWaylandOverlaySetKeyboardCapture(
+    NeruWaylandOverlay *overlay,
+    int enabled
+) {
+    neru_wayland_overlay_set_keyboard_capture(overlay, enabled);
 }
 */
 import "C"
@@ -1067,6 +1080,19 @@ func (o *wlrootsOverlay) keyboardPoller() {
 			time.Sleep(pollInterval)
 		}
 	}
+}
+
+func (o *wlrootsOverlay) setKeyboardCaptureEnabled(enabled bool) {
+	if o == nil || o.raw == nil {
+		return
+	}
+
+	cEnabled := C.int(0)
+	if enabled {
+		cEnabled = 1
+	}
+
+	C.neruWaylandOverlaySetKeyboardCapture(o.raw, cEnabled)
 }
 
 // startPoller launches the keyboard polling goroutine.

@@ -117,6 +117,13 @@ func (h *Handler) performCommonCleanup() {
 	h.hotkeyLastKey = ""
 	h.hotkeyLastKeyTime = 0
 
+	// Release synthetic sticky modifiers before disabling the Wayland event tap.
+	// The evdev-backed tap restores overlay keyboard focus during shutdown; if
+	// we post modifier key-up events after that handoff, the overlay can receive
+	// the release instead of the target app and leave the app "stuck" with the
+	// modifier still logically held.
+	h.clearStickyModifiers()
+
 	if h.disableEventTap != nil {
 		h.disableEventTap()
 	}

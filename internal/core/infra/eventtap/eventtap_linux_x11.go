@@ -221,11 +221,7 @@ func x11ModifierName(keysym C.KeySym) string {
 
 func postLinuxModifierEvent(modifier string, isDown bool) bool {
 	if os.Getenv("WAYLAND_DISPLAY") != "" {
-		if isDown {
-			return false
-		}
-
-		return linux.WlrootsModifierEvent(modifier, false) == nil
+		return linux.WlrootsModifierEvent(modifier, isDown) == nil
 	}
 
 	if os.Getenv("DISPLAY") == "" {
