@@ -611,7 +611,11 @@ static int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, i
 	}
 
 	zwp_virtual_keyboard_v1_modifiers(c->vkeyboard, c->depressed_mods, 0, 0, 0);
-	wl_display_roundtrip(c->display);
+	// Use flush instead of roundtrip: fire-and-forget is sufficient because
+	// Wayland message ordering guarantees the modifier state is applied before
+	// the next pointer button event from the same client. A roundtrip blocks
+	// concurrent cursor position queries waiting on the global mutex.
+	wl_display_flush(c->display);
 
 	return 1;
 }

@@ -47,6 +47,10 @@ func (et *EventTap) runWayland() {
 			if strings.HasPrefix(key, "__modifier_") && !et.stickyToggleEnabled() {
 				continue
 			}
+			// Note: consumeSyntheticModifierEvent is intentionally NOT called here.
+			// On Wayland, PostModifierEvent drives zwp_virtual_keyboard_v1_modifiers
+			// which sets modifier state directly without producing wl_keyboard.key
+			// events. Therefore synthetic modifier events never arrive in keyCh.
 
 			et.dispatchKey(key)
 		}

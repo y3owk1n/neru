@@ -55,6 +55,9 @@ static KeySym neru_eventtap_modifier_keysym(const char *modifier) {
 }
 
 static int neru_eventtap_post_modifier(const char *modifier, int is_down) {
+	// Open a fresh Display connection per call to ensure thread-safety isolation
+	// from the grab Display used by runX11(). XLib is not thread-safe without
+	// XInitThreads, so we avoid sharing the grab connection for XTest injection.
 	Display *display = neru_eventtap_open();
 	if (display == NULL) return 0;
 
