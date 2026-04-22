@@ -626,6 +626,19 @@ enabled = true
 tap_max_duration = 300
 ```
 
+On Linux, the sticky modifier indicator renders the symbols `❖⇧⌥⌃`. If they
+appear as `[][][][]`, the selected font does not include those glyphs. Set
+`sticky_modifiers.ui.font_family` to a font on your system that can display
+those characters.
+
+```toml
+[sticky_modifiers.ui]
+font_family = "Your installed symbol-capable font"
+```
+
+You can quickly test a candidate font by pasting `❖⇧⌥⌃` into a text editor and
+checking whether it renders correctly.
+
 ---
 
 ## Theme Palette
@@ -744,6 +757,10 @@ defaults read com.apple.HIToolbox AppleEnabledInputSources
 ## Font Configuration
 
 Use `font_family` in any UI section (`hints.ui`, `grid.ui`, `recursive_grid.ui`, `mode_indicator.ui`, `sticky_modifiers.ui`). An empty string uses the system default.
+
+If the sticky modifier indicator shows `[][][][]` on Linux, your current font is
+missing the modifier glyphs `❖⇧⌥⌃`. Set `sticky_modifiers.ui.font_family` to a
+font installed on your system that renders those symbols correctly.
 
 ---
 

@@ -343,3 +343,20 @@ If the setup is correct, Neru should log:
 ```text
 Using Wayland evdev keyboard capture
 ```
+
+### Sticky modifier indicator shows `[][][][]`
+
+The sticky modifier overlay uses Unicode modifier symbols on Linux:
+`❖⇧⌥⌃`. If you see square boxes instead, the configured font does not include
+those glyphs.
+
+Set a font explicitly in your config:
+
+```toml
+[sticky_modifiers.ui]
+font_family = "Your installed symbol-capable font"
+```
+
+An empty `font_family` uses the system default, which may not have the required
+symbol coverage. A quick way to verify a candidate font is to paste `❖⇧⌥⌃` into
+a text editor and confirm the symbols render there first.
