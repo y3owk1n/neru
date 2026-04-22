@@ -49,6 +49,7 @@ const (
 	centeredRectHalf                       = 0.5
 	paddingMultiplier                      = 2
 	subKeyPreviewPaddingBottom             = 4
+	stickyBadgeClearPadding                = 3
 )
 
 type linuxOverlayBackend string
@@ -449,7 +450,10 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 	}
 
 	m.clearStickyBadgeLocked()
-	m.stickyBadgeRect = expandRect(badgeBounds(posX, posY, symbols, style), 3)
+	m.stickyBadgeRect = expandRect(
+		badgeBounds(posX, posY, symbols, style),
+		stickyBadgeClearPadding,
+	)
 	m.stickyBadgeVisible = true
 
 	if m.x11 != nil {
@@ -457,21 +461,6 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 	} else if m.wlroots != nil {
 		m.wlroots.DrawBadge(posX, posY, symbols, colors, style)
 	}
-}
-
-func (m *Manager) clearStickyBadgeLocked() {
-	if !m.stickyBadgeVisible {
-		return
-	}
-
-	if m.x11 != nil {
-		m.x11.ClearRect(m.stickyBadgeRect)
-	} else if m.wlroots != nil {
-		m.wlroots.ClearRect(m.stickyBadgeRect)
-	}
-
-	m.stickyBadgeVisible = false
-	m.stickyBadgeRect = image.Rectangle{}
 }
 
 // DrawGrid draws the grid overlay.
@@ -614,6 +603,21 @@ func (m *Manager) SetHideUnmatched(hide bool) {
 
 // SetSharingType is a no-op on Linux.
 func (m *Manager) SetSharingType(_ bool) {}
+
+func (m *Manager) clearStickyBadgeLocked() {
+	if !m.stickyBadgeVisible {
+		return
+	}
+
+	if m.x11 != nil {
+		m.x11.ClearRect(m.stickyBadgeRect)
+	} else if m.wlroots != nil {
+		m.wlroots.ClearRect(m.stickyBadgeRect)
+	}
+
+	m.stickyBadgeVisible = false
+	m.stickyBadgeRect = image.Rectangle{}
+}
 
 func (m *Manager) publish(change StateChange) {
 	m.mu.RLock()

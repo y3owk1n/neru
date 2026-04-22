@@ -83,7 +83,109 @@ const (
 	evdevKeyDelete     uint16 = 111
 	evdevKeyLeftMeta   uint16 = 125
 	evdevKeyRightMeta  uint16 = 126
+
+	evdevModifierShift = "shift"
+	evdevModifierCtrl  = "ctrl"
+	evdevModifierAlt   = "alt"
+	evdevModifierCmd   = "cmd"
+
+	evdevPrefixShift = "Shift+"
+	evdevPrefixCtrl  = "Ctrl+"
+	evdevPrefixAlt   = "Alt+"
+	evdevPrefixCmd   = "Cmd+"
+
+	evdevKeyNameReturn    = "Return"
+	evdevKeyNameSpace     = "Space"
+	evdevKeyNameTab       = "Tab"
+	evdevKeyNameEscape    = "Escape"
+	evdevKeyNameBackspace = "Backspace"
+	evdevKeyNameDelete    = "Delete"
+	evdevKeyNameLeft      = "Left"
+	evdevKeyNameRight     = "Right"
+	evdevKeyNameUp        = "Up"
+	evdevKeyNameDown      = "Down"
+	evdevKeyNameHome      = "Home"
+	evdevKeyNameEnd       = "End"
+	evdevKeyNamePageUp    = "PageUp"
+	evdevKeyNamePageDown  = "PageDown"
+	evdevKeyNameInsert    = "Insert"
 )
+
+var evdevModifierNames = map[uint16]string{
+	evdevKeyLeftShift:  evdevModifierShift,
+	evdevKeyRightShift: evdevModifierShift,
+	evdevKeyLeftCtrl:   evdevModifierCtrl,
+	evdevKeyRightCtrl:  evdevModifierCtrl,
+	evdevKeyLeftAlt:    evdevModifierAlt,
+	evdevKeyRightAlt:   evdevModifierAlt,
+	evdevKeyLeftMeta:   evdevModifierCmd,
+	evdevKeyRightMeta:  evdevModifierCmd,
+}
+
+var evdevKeyNames = map[uint16]string{
+	evdevKeyA:          "a",
+	evdevKeyB:          "b",
+	evdevKeyC:          "c",
+	evdevKeyD:          "d",
+	evdevKeyE:          "e",
+	evdevKeyF:          "f",
+	evdevKeyG:          "g",
+	evdevKeyH:          "h",
+	evdevKeyI:          "i",
+	evdevKeyJ:          "j",
+	evdevKeyK:          "k",
+	evdevKeyL:          "l",
+	evdevKeyM:          "m",
+	evdevKeyN:          "n",
+	evdevKeyO:          "o",
+	evdevKeyP:          "p",
+	evdevKeyQ:          "q",
+	evdevKeyR:          "r",
+	evdevKeyS:          "s",
+	evdevKeyT:          "t",
+	evdevKeyU:          "u",
+	evdevKeyV:          "v",
+	evdevKeyW:          "w",
+	evdevKeyX:          "x",
+	evdevKeyY:          "y",
+	evdevKeyZ:          "z",
+	evdevKey1:          "1",
+	evdevKey2:          "2",
+	evdevKey3:          "3",
+	evdevKey4:          "4",
+	evdevKey5:          "5",
+	evdevKey6:          "6",
+	evdevKey7:          "7",
+	evdevKey8:          "8",
+	evdevKey9:          "9",
+	evdevKey0:          "0",
+	evdevKeyMinus:      "-",
+	evdevKeyEqual:      "=",
+	evdevKeyLeftBrace:  "[",
+	evdevKeyRightBrace: "]",
+	evdevKeyBackslash:  "\\",
+	evdevKeySemicolon:  ";",
+	evdevKeyApostrophe: "'",
+	evdevKeyGrave:      "`",
+	evdevKeyComma:      ",",
+	evdevKeyDot:        ".",
+	evdevKeySlash:      "/",
+	evdevKeyEnter:      evdevKeyNameReturn,
+	evdevKeySpace:      evdevKeyNameSpace,
+	evdevKeyTab:        evdevKeyNameTab,
+	evdevKeyEsc:        evdevKeyNameEscape,
+	evdevKeyBackspace:  evdevKeyNameBackspace,
+	evdevKeyDelete:     evdevKeyNameDelete,
+	evdevKeyLeft:       evdevKeyNameLeft,
+	evdevKeyRight:      evdevKeyNameRight,
+	evdevKeyUp:         evdevKeyNameUp,
+	evdevKeyDown:       evdevKeyNameDown,
+	evdevKeyHome:       evdevKeyNameHome,
+	evdevKeyEnd:        evdevKeyNameEnd,
+	evdevKeyPageUp:     evdevKeyNamePageUp,
+	evdevKeyPageDown:   evdevKeyNamePageDown,
+	evdevKeyInsert:     evdevKeyNameInsert,
+}
 
 type evdevModifierState struct {
 	shift bool
@@ -94,178 +196,47 @@ type evdevModifierState struct {
 
 func (s *evdevModifierState) update(modifier string, isDown bool) {
 	switch modifier {
-	case "shift":
+	case evdevModifierShift:
 		s.shift = isDown
-	case "ctrl":
+	case evdevModifierCtrl:
 		s.ctrl = isDown
-	case "alt":
+	case evdevModifierAlt:
 		s.alt = isDown
-	case "cmd":
+	case evdevModifierCmd:
 		s.cmd = isDown
 	}
 }
 
-func (s evdevModifierState) prefix() string {
+func (s *evdevModifierState) prefix() string {
+	if s == nil {
+		return ""
+	}
+
 	var prefix strings.Builder
 
 	if s.shift {
-		prefix.WriteString("Shift+")
+		prefix.WriteString(evdevPrefixShift)
 	}
+
 	if s.ctrl {
-		prefix.WriteString("Ctrl+")
+		prefix.WriteString(evdevPrefixCtrl)
 	}
+
 	if s.alt {
-		prefix.WriteString("Alt+")
+		prefix.WriteString(evdevPrefixAlt)
 	}
+
 	if s.cmd {
-		prefix.WriteString("Cmd+")
+		prefix.WriteString(evdevPrefixCmd)
 	}
 
 	return prefix.String()
 }
 
 func evdevModifierName(code uint16) string {
-	switch code {
-	case evdevKeyLeftShift, evdevKeyRightShift:
-		return "shift"
-	case evdevKeyLeftCtrl, evdevKeyRightCtrl:
-		return "ctrl"
-	case evdevKeyLeftAlt, evdevKeyRightAlt:
-		return "alt"
-	case evdevKeyLeftMeta, evdevKeyRightMeta:
-		return "cmd"
-	default:
-		return ""
-	}
+	return evdevModifierNames[code]
 }
 
 func evdevKeyName(code uint16) string {
-	switch code {
-	case evdevKeyA:
-		return "a"
-	case evdevKeyB:
-		return "b"
-	case evdevKeyC:
-		return "c"
-	case evdevKeyD:
-		return "d"
-	case evdevKeyE:
-		return "e"
-	case evdevKeyF:
-		return "f"
-	case evdevKeyG:
-		return "g"
-	case evdevKeyH:
-		return "h"
-	case evdevKeyI:
-		return "i"
-	case evdevKeyJ:
-		return "j"
-	case evdevKeyK:
-		return "k"
-	case evdevKeyL:
-		return "l"
-	case evdevKeyM:
-		return "m"
-	case evdevKeyN:
-		return "n"
-	case evdevKeyO:
-		return "o"
-	case evdevKeyP:
-		return "p"
-	case evdevKeyQ:
-		return "q"
-	case evdevKeyR:
-		return "r"
-	case evdevKeyS:
-		return "s"
-	case evdevKeyT:
-		return "t"
-	case evdevKeyU:
-		return "u"
-	case evdevKeyV:
-		return "v"
-	case evdevKeyW:
-		return "w"
-	case evdevKeyX:
-		return "x"
-	case evdevKeyY:
-		return "y"
-	case evdevKeyZ:
-		return "z"
-	case evdevKey1:
-		return "1"
-	case evdevKey2:
-		return "2"
-	case evdevKey3:
-		return "3"
-	case evdevKey4:
-		return "4"
-	case evdevKey5:
-		return "5"
-	case evdevKey6:
-		return "6"
-	case evdevKey7:
-		return "7"
-	case evdevKey8:
-		return "8"
-	case evdevKey9:
-		return "9"
-	case evdevKey0:
-		return "0"
-	case evdevKeyMinus:
-		return "-"
-	case evdevKeyEqual:
-		return "="
-	case evdevKeyLeftBrace:
-		return "["
-	case evdevKeyRightBrace:
-		return "]"
-	case evdevKeyBackslash:
-		return "\\"
-	case evdevKeySemicolon:
-		return ";"
-	case evdevKeyApostrophe:
-		return "'"
-	case evdevKeyGrave:
-		return "`"
-	case evdevKeyComma:
-		return ","
-	case evdevKeyDot:
-		return "."
-	case evdevKeySlash:
-		return "/"
-	case evdevKeyEnter:
-		return "Return"
-	case evdevKeySpace:
-		return "Space"
-	case evdevKeyTab:
-		return "Tab"
-	case evdevKeyEsc:
-		return "Escape"
-	case evdevKeyBackspace:
-		return "Backspace"
-	case evdevKeyDelete:
-		return "Delete"
-	case evdevKeyLeft:
-		return "Left"
-	case evdevKeyRight:
-		return "Right"
-	case evdevKeyUp:
-		return "Up"
-	case evdevKeyDown:
-		return "Down"
-	case evdevKeyHome:
-		return "Home"
-	case evdevKeyEnd:
-		return "End"
-	case evdevKeyPageUp:
-		return "PageUp"
-	case evdevKeyPageDown:
-		return "PageDown"
-	case evdevKeyInsert:
-		return "Insert"
-	default:
-		return ""
-	}
+	return evdevKeyNames[code]
 }

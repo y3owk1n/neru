@@ -13,6 +13,14 @@ import (
 
 const hotkeySequenceTimeout = 500 * time.Millisecond
 
+const (
+	keyPartCmd    = "cmd"
+	keyPartShift  = "shift"
+	keyPartAlt    = "alt"
+	keyPartCtrl   = "ctrl"
+	keyPartOption = "option"
+)
+
 // HandleKeyPress dispatches key events by current mode.
 func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
@@ -89,23 +97,23 @@ func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers)
 		if i < len(parts)-1 {
 			lowerPart := strings.ToLower(part)
 
-			if lowerPart == "cmd" && mods.Has(action.ModCmd) {
+			if lowerPart == keyPartCmd && mods.Has(action.ModCmd) {
 				continue
 			}
 
-			if lowerPart == "shift" && mods.Has(action.ModShift) {
+			if lowerPart == keyPartShift && mods.Has(action.ModShift) {
 				continue
 			}
 
-			if lowerPart == "alt" && mods.Has(action.ModAlt) {
+			if lowerPart == keyPartAlt && mods.Has(action.ModAlt) {
 				continue
 			}
 
-			if lowerPart == "ctrl" && mods.Has(action.ModCtrl) {
+			if lowerPart == keyPartCtrl && mods.Has(action.ModCtrl) {
 				continue
 			}
 
-			if lowerPart == "option" && mods.Has(action.ModAlt) {
+			if lowerPart == keyPartOption && mods.Has(action.ModAlt) {
 				continue
 			}
 		}

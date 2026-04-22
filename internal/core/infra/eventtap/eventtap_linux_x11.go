@@ -132,8 +132,8 @@ func (et *EventTap) runX11() {
 		}
 
 		var event C.XEvent
-		eventType := C.neru_eventtap_next(display, &event)
-		if eventType != C.KeyPress && eventType != C.KeyRelease { //nolint:nlreturn
+		eventType := C.neru_eventtap_next(display, &event) //nolint:nlreturn
+		if eventType != C.KeyPress && eventType != C.KeyRelease {
 			continue
 		}
 
@@ -207,13 +207,13 @@ func x11KeysymName(keysym C.KeySym) string {
 func x11ModifierName(keysym C.KeySym) string {
 	switch keysym {
 	case C.XK_Shift_L, C.XK_Shift_R:
-		return "shift"
+		return evdevModifierShift
 	case C.XK_Control_L, C.XK_Control_R:
-		return "ctrl"
+		return evdevModifierCtrl
 	case C.XK_Alt_L, C.XK_Alt_R:
-		return "alt"
+		return evdevModifierAlt
 	case C.XK_Super_L, C.XK_Super_R, C.XK_Meta_L, C.XK_Meta_R:
-		return "cmd"
+		return evdevModifierCmd
 	default:
 		return ""
 	}

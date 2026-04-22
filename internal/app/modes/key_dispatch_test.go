@@ -1,3 +1,4 @@
+//nolint:testpackage // These tests validate unexported handler behavior directly.
 package modes
 
 import (

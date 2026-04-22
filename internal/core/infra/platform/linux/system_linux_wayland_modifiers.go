@@ -32,7 +32,8 @@ func (d *wlrootsModifierDispatcher) event(modifier string, isDown bool) error {
 
 	if isDown {
 		if count == 0 {
-			if err := d.send(modifier, true); err != nil {
+			err := d.send(modifier, true)
+			if err != nil {
 				return err
 			}
 		}
@@ -52,7 +53,8 @@ func (d *wlrootsModifierDispatcher) event(modifier string, isDown bool) error {
 		return nil
 	}
 
-	if err := d.send(modifier, false); err != nil {
+	err := d.send(modifier, false)
+	if err != nil {
 		return err
 	}
 

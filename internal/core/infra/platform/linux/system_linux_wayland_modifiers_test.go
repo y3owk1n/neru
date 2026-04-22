@@ -1,11 +1,14 @@
 //go:build linux
 
+//nolint:testpackage // These tests exercise unexported dispatcher helpers directly.
 package linux
 
 import (
 	"errors"
 	"testing"
 )
+
+var errReleaseFailed = errors.New("release failed")
 
 func TestWlrootsModifierDispatcherDeduplicatesNestedUsage(t *testing.T) {
 	t.Parallel()
@@ -23,15 +26,18 @@ func TestWlrootsModifierDispatcherDeduplicatesNestedUsage(t *testing.T) {
 		return nil
 	})
 
-	if err := dispatcher.event("ctrl", true); err != nil {
+	err := dispatcher.event("ctrl", true)
+	if err != nil {
 		t.Fatalf("first down error = %v", err)
 	}
 
-	if err := dispatcher.event("ctrl", true); err != nil {
+	err = dispatcher.event("ctrl", true)
+	if err != nil {
 		t.Fatalf("nested down error = %v", err)
 	}
 
-	if err := dispatcher.event("ctrl", false); err != nil {
+	err = dispatcher.event("ctrl", false)
+	if err != nil {
 		t.Fatalf("nested up error = %v", err)
 	}
 
@@ -39,7 +45,8 @@ func TestWlrootsModifierDispatcherDeduplicatesNestedUsage(t *testing.T) {
 		t.Fatalf("event count after nested release = %d, want 1", len(events))
 	}
 
-	if err := dispatcher.event("ctrl", false); err != nil {
+	err = dispatcher.event("ctrl", false)
+	if err != nil {
 		t.Fatalf("final up error = %v", err)
 	}
 
@@ -72,25 +79,29 @@ func TestWlrootsModifierDispatcherRetriesFailedFinalRelease(t *testing.T) {
 
 		if !isDown {
 			releaseAttempts++
+
 			if failRelease {
 				failRelease = false
 
-				return errors.New("release failed")
+				return errReleaseFailed
 			}
 		}
 
 		return nil
 	})
 
-	if err := dispatcher.event("ctrl", true); err != nil {
+	err := dispatcher.event("ctrl", true)
+	if err != nil {
 		t.Fatalf("down error = %v", err)
 	}
 
-	if err := dispatcher.event("ctrl", false); err == nil {
+	err = dispatcher.event("ctrl", false)
+	if err == nil {
 		t.Fatal("first up error = nil, want failure")
 	}
 
-	if err := dispatcher.event("ctrl", false); err != nil {
+	err = dispatcher.event("ctrl", false)
+	if err != nil {
 		t.Fatalf("retry up error = %v", err)
 	}
 
@@ -118,7 +129,8 @@ func TestWlrootsModifierDispatcherAllowsCleanupReleaseWithoutTrackedDown(t *test
 		return nil
 	})
 
-	if err := dispatcher.event("ctrl", false); err != nil {
+	err := dispatcher.event("ctrl", false)
+	if err != nil {
 		t.Fatalf("cleanup release error = %v", err)
 	}
 

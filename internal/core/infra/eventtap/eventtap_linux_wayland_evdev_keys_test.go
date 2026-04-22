@@ -1,5 +1,6 @@
 //go:build linux
 
+//nolint:testpackage // These tests validate unexported evdev translation helpers directly.
 package eventtap
 
 import "testing"

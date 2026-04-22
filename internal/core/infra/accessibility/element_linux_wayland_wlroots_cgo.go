@@ -104,6 +104,7 @@ func wlrootsLeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) er
 			return err
 		}
 	}
+
 	defer func() {
 		_ = wlrootsReleaseModifiers(modifiers)
 	}()
@@ -133,6 +134,7 @@ func wlrootsClickButtonAtPoint(
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		_ = wlrootsReleaseModifiers(modifiers)
 	}()
@@ -151,27 +153,34 @@ func wlrootsClickButtonAtPoint(
 
 func wlrootsPressModifiers(modifiers action.Modifiers) error {
 	if modifiers.Has(action.ModShift) {
-		if err := linux.WlrootsModifierEvent("shift", true); err != nil {
+		err := linux.WlrootsModifierEvent("shift", true)
+		if err != nil {
 			return err
 		}
 	}
+
 	if modifiers.Has(action.ModCtrl) {
-		if err := linux.WlrootsModifierEvent("ctrl", true); err != nil {
+		err := linux.WlrootsModifierEvent("ctrl", true)
+		if err != nil {
 			_ = linux.WlrootsModifierEvent("shift", false)
 
 			return err
 		}
 	}
+
 	if modifiers.Has(action.ModAlt) {
-		if err := linux.WlrootsModifierEvent("alt", true); err != nil {
+		err := linux.WlrootsModifierEvent("alt", true)
+		if err != nil {
 			_ = linux.WlrootsModifierEvent("ctrl", false)
 			_ = linux.WlrootsModifierEvent("shift", false)
 
 			return err
 		}
 	}
+
 	if modifiers.Has(action.ModCmd) {
-		if err := linux.WlrootsModifierEvent("cmd", true); err != nil {
+		err := linux.WlrootsModifierEvent("cmd", true)
+		if err != nil {
 			_ = linux.WlrootsModifierEvent("alt", false)
 			_ = linux.WlrootsModifierEvent("ctrl", false)
 			_ = linux.WlrootsModifierEvent("shift", false)
@@ -185,8 +194,10 @@ func wlrootsPressModifiers(modifiers action.Modifiers) error {
 
 func wlrootsReleaseModifiers(modifiers action.Modifiers) error {
 	var firstErr error
+
 	release := func(modifier string) {
-		if err := linux.WlrootsModifierEvent(modifier, false); err != nil && firstErr == nil {
+		err := linux.WlrootsModifierEvent(modifier, false)
+		if err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -194,12 +205,15 @@ func wlrootsReleaseModifiers(modifiers action.Modifiers) error {
 	if modifiers.Has(action.ModCmd) {
 		release("cmd")
 	}
+
 	if modifiers.Has(action.ModAlt) {
 		release("alt")
 	}
+
 	if modifiers.Has(action.ModCtrl) {
 		release("ctrl")
 	}
+
 	if modifiers.Has(action.ModShift) {
 		release("shift")
 	}

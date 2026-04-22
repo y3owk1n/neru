@@ -63,7 +63,15 @@ import (
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
-var errWaylandEvdevUnavailable = errors.New("wayland evdev capture unavailable")
+const (
+	waylandEvdevEventBufferSize           = 128
+	waylandEvdevModifierReleasePollPeriod = 5 * time.Millisecond
+)
+
+var (
+	errWaylandEvdevUnavailable = errors.New("wayland evdev capture unavailable")
+	errWaylandEvdevGrabFailed  = errors.New("wayland evdev grab failed")
+)
 
 type waylandEvdevEvent struct {
 	eventType uint16
@@ -93,7 +101,7 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 
 	capture := &waylandEvdevCapture{
 		files:  make([]*os.File, 0, len(paths)),
-		events: make(chan waylandEvdevEvent, 128),
+		events: make(chan waylandEvdevEvent, waylandEvdevEventBufferSize),
 	}
 
 	for _, path := range paths {
@@ -102,8 +110,8 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 			continue
 		}
 
-		fd := C.int(file.Fd())                 //nolint:nlreturn
-		if C.neru_evdev_is_keyboard(fd) == 0 { //nolint:nlreturn
+		fd := C.int(file.Fd())
+		if C.neru_evdev_is_keyboard(fd) == 0 {
 			_ = file.Close()
 
 			continue
@@ -122,6 +130,20 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 	return capture, nil
 }
 
+func (capture *waylandEvdevCapture) Close() {
+	if capture == nil {
+		return
+	}
+
+	capture.closeOnce.Do(func() {
+		capture.ungrabAll()
+
+		for _, file := range capture.files {
+			_ = file.Close()
+		}
+	})
+}
+
 func (capture *waylandEvdevCapture) startReaders() {
 	for _, file := range capture.files {
 		capture.done.Add(1)
@@ -138,7 +160,7 @@ func (capture *waylandEvdevCapture) startReaders() {
 func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 	defer capture.done.Done()
 
-	fd := C.int(file.Fd()) //nolint:nlreturn
+	fd := C.int(file.Fd())
 
 	for {
 		var inputEvent C.struct_input_event
@@ -162,11 +184,11 @@ func (capture *waylandEvdevCapture) grabAll() error {
 	}
 
 	for _, file := range capture.files {
-		fd := C.int(file.Fd())             //nolint:nlreturn
-		if C.neru_evdev_grab(fd, 1) != 0 { //nolint:nlreturn
+		fd := C.int(file.Fd())
+		if C.neru_evdev_grab(fd, 1) != 0 {
 			capture.ungrabAll()
 
-			return fmt.Errorf("failed to grab %s", file.Name())
+			return fmt.Errorf("%w: %s", errWaylandEvdevGrabFailed, file.Name())
 		}
 	}
 
@@ -181,7 +203,7 @@ func (capture *waylandEvdevCapture) ungrabAll() {
 	}
 
 	for _, file := range capture.files {
-		fd := C.int(file.Fd()) //nolint:nlreturn
+		fd := C.int(file.Fd())
 		C.neru_evdev_grab(fd, 0)
 	}
 
@@ -205,30 +227,16 @@ func (capture *waylandEvdevCapture) modifierKeysHeld() bool {
 	}
 
 	for _, file := range capture.files {
-		fd := C.int(file.Fd()) //nolint:nlreturn
+		fd := C.int(file.Fd())
 
 		for _, code := range modifierCodes {
-			if C.neru_evdev_key_down(fd, C.uint(code)) != 0 { //nolint:nlreturn
+			if C.neru_evdev_key_down(fd, C.uint(code)) != 0 {
 				return true
 			}
 		}
 	}
 
 	return false
-}
-
-func (capture *waylandEvdevCapture) Close() {
-	if capture == nil {
-		return
-	}
-
-	capture.closeOnce.Do(func() {
-		capture.ungrabAll()
-
-		for _, file := range capture.files {
-			_ = file.Close()
-		}
-	})
 }
 
 func (et *EventTap) runWaylandEvdev() bool {
@@ -267,10 +275,11 @@ func (et *EventTap) runWaylandEvdev() bool {
 		default:
 		}
 
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(waylandEvdevModifierReleasePollPeriod)
 	}
 
-	if grabErr := capture.grabAll(); grabErr != nil {
+	grabErr := capture.grabAll()
+	if grabErr != nil {
 		if et.logger != nil {
 			et.logger.Warn(
 				"Failed to grab Wayland evdev keyboards; falling back to overlay keyboard focus",

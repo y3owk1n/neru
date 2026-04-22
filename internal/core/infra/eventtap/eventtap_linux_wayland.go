@@ -43,6 +43,7 @@ func (et *EventTap) runWayland() {
 			if key == "" {
 				continue
 			}
+
 			if strings.HasPrefix(key, "__modifier_") && !et.stickyToggleEnabled() {
 				continue
 			}

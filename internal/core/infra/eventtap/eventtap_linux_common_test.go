@@ -1,5 +1,6 @@
 //go:build linux
 
+//nolint:testpackage // These tests validate unexported Linux eventtap helpers directly.
 package eventtap
 
 import "testing"

@@ -137,6 +137,7 @@ func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
 	}
 
 	et.rememberSyntheticModifierEvent(modifier, isDown)
+
 	if !postLinuxModifierEvent(modifier, isDown) {
 		et.consumeSyntheticModifierEvent(modifier, isDown)
 	}
@@ -183,14 +184,14 @@ func (et *EventTap) stickyToggleEnabled() bool {
 
 func canonicalLinuxModifier(modifier string) string {
 	switch strings.ToLower(strings.TrimSpace(modifier)) {
-	case "cmd", "command", "super", "meta":
-		return "cmd"
-	case "shift":
-		return "shift"
-	case "alt", "option":
-		return "alt"
-	case "ctrl", "control":
-		return "ctrl"
+	case evdevModifierCmd, "command", "super", "meta":
+		return evdevModifierCmd
+	case evdevModifierShift:
+		return evdevModifierShift
+	case evdevModifierAlt, "option":
+		return evdevModifierAlt
+	case evdevModifierCtrl, "control":
+		return evdevModifierCtrl
 	default:
 		return ""
 	}
@@ -223,11 +224,12 @@ func (et *EventTap) rememberSyntheticModifierEvent(modifier string, isDown bool)
 		}
 	}
 
-	et.syntheticModifierEvents = append(pending, pendingSyntheticModifierEvent{
+	pending = append(pending, pendingSyntheticModifierEvent{
 		modifier:  modifier,
 		isDown:    isDown,
 		expiresAt: now.Add(syntheticModifierSuppressionWindow),
 	})
+	et.syntheticModifierEvents = pending
 }
 
 func (et *EventTap) consumeSyntheticModifierEvent(modifier string, isDown bool) bool {
