@@ -3,15 +3,20 @@
 package linux
 
 /*
-#cgo linux pkg-config: wayland-client
+#cgo linux pkg-config: wayland-client xkbcommon
 #cgo linux CFLAGS: -DWLR_CPLUSPLUS
 #include <wayland-client.h>
+#include <xkbcommon/xkbcommon.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
 #include <stdlib.h>
 #include <string.h>
-#include <poll.h>
+#include <unistd.h>
 
 // Include wlroots protocol headers relative to this package.
 #include "wlr_protocol/virtual-pointer.h"
+#include "wlr_protocol/virtual-keyboard.h"
 #include "wlr_protocol/xdg-output.h"
 #include "wlr_protocol/layer-shell.h"
 #include "wlr_protocol/xdg-shell.h"
@@ -51,7 +56,18 @@ typedef struct NeruWlrootsClient {
 
 	struct zwlr_virtual_pointer_manager_v1 *vptr_mgr;
 	struct zwlr_virtual_pointer_v1 *vptr;
+	struct zwp_virtual_keyboard_manager_v1 *vkeyboard_mgr;
+	struct zwp_virtual_keyboard_v1 *vkeyboard;
+	int vkeyboard_ready;
 	struct zxdg_output_manager_v1 *xdg_output_mgr;
+
+	struct xkb_context *xkb_ctx;
+	struct xkb_keymap *xkb_keymap;
+	uint32_t mod_shift;
+	uint32_t mod_ctrl;
+	uint32_t mod_alt;
+	uint32_t mod_logo;
+	uint32_t depressed_mods;
 
 	NeruWaylandScreen screens[NERU_MAX_OUTPUTS];
 	int nr_screens;
@@ -171,6 +187,83 @@ static const struct wl_pointer_listener neru_wlr_pointer_listener = {
 	.axis_discrete = neru_wlr_pointer_axis_discrete,
 };
 
+static int neru_wlr_create_keymap_fd(const char *keymap, size_t size) {
+	char template[] = "/tmp/neru-vkbd-keymap-XXXXXX";
+	int fd = mkstemp(template);
+	if (fd < 0) return -1;
+
+	unlink(template);
+
+	size_t written = 0;
+	while (written < size) {
+		ssize_t ret = write(fd, keymap + written, size - written);
+		if (ret < 0) {
+			if (errno == EINTR) continue;
+			close(fd);
+			return -1;
+		}
+		written += (size_t)ret;
+	}
+
+	if (lseek(fd, 0, SEEK_SET) < 0) {
+		close(fd);
+		return -1;
+	}
+
+	return fd;
+}
+
+static uint32_t neru_wlr_mod_mask(xkb_mod_index_t idx) {
+	if (idx == XKB_MOD_INVALID || idx >= 32) return 0;
+	return 1u << idx;
+}
+
+static int neru_wlr_setup_virtual_keyboard(NeruWlrootsClient *c) {
+	if (!c || !c->vkeyboard) return 0;
+
+	c->xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+	if (!c->xkb_ctx) return 0;
+
+	struct xkb_rule_names names = {
+		.rules = "evdev",
+		.model = "pc105",
+		.layout = "us",
+		.variant = NULL,
+		.options = NULL,
+	};
+
+	c->xkb_keymap = xkb_keymap_new_from_names(
+		c->xkb_ctx,
+		&names,
+		XKB_KEYMAP_COMPILE_NO_FLAGS
+	);
+	if (!c->xkb_keymap) return 0;
+
+	char *keymap = xkb_keymap_get_as_string(c->xkb_keymap, XKB_KEYMAP_FORMAT_TEXT_V1);
+	if (!keymap) return 0;
+
+	size_t size = strlen(keymap) + 1;
+	int fd = neru_wlr_create_keymap_fd(keymap, size);
+	if (fd < 0) {
+		free(keymap);
+		return 0;
+	}
+
+	zwp_virtual_keyboard_v1_keymap(c->vkeyboard, WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1, fd, (uint32_t)size);
+	close(fd);
+	free(keymap);
+
+	c->mod_shift = neru_wlr_mod_mask(xkb_keymap_mod_get_index(c->xkb_keymap, XKB_MOD_NAME_SHIFT));
+	c->mod_ctrl = neru_wlr_mod_mask(xkb_keymap_mod_get_index(c->xkb_keymap, XKB_MOD_NAME_CTRL));
+	c->mod_alt = neru_wlr_mod_mask(xkb_keymap_mod_get_index(c->xkb_keymap, XKB_MOD_NAME_ALT));
+	c->mod_logo = neru_wlr_mod_mask(xkb_keymap_mod_get_index(c->xkb_keymap, XKB_MOD_NAME_LOGO));
+
+	wl_display_flush(c->display);
+	c->vkeyboard_ready = 1;
+
+	return 1;
+}
+
 // ---------- xdg_output listener ----------
 
 static void neru_xdg_output_logical_position(void *data,
@@ -238,6 +331,9 @@ static void neru_wlr_registry_global(void *data,
 	if (strcmp(interface, "zwlr_virtual_pointer_manager_v1") == 0) {
 		c->vptr_mgr = wl_registry_bind(registry, name,
 			&zwlr_virtual_pointer_manager_v1_interface, 1);
+	} else if (strcmp(interface, "zwp_virtual_keyboard_manager_v1") == 0) {
+		c->vkeyboard_mgr = wl_registry_bind(registry, name,
+			&zwp_virtual_keyboard_manager_v1_interface, 1);
 	} else if (strcmp(interface, "wl_compositor") == 0) {
 		c->compositor = wl_registry_bind(registry, name,
 			&wl_compositor_interface, 4);
@@ -303,6 +399,12 @@ static NeruWlrootsClient* neru_wlr_connect(void) {
 			c->vptr_mgr, c->seat);
 	}
 
+	if (c->vkeyboard_mgr && c->seat) {
+		c->vkeyboard = zwp_virtual_keyboard_manager_v1_create_virtual_keyboard(
+			c->vkeyboard_mgr, c->seat);
+		neru_wlr_setup_virtual_keyboard(c);
+	}
+
 	// Initialize xdg_output for each screen.
 	if (c->xdg_output_mgr) {
 		for (int i = 0; i < c->nr_screens; i++) {
@@ -325,6 +427,15 @@ static void neru_wlr_disconnect(NeruWlrootsClient *c) {
 
 	if (c->vptr) {
 		zwlr_virtual_pointer_v1_destroy(c->vptr);
+	}
+	if (c->vkeyboard) {
+		zwp_virtual_keyboard_v1_destroy(c->vkeyboard);
+	}
+	if (c->xkb_keymap) {
+		xkb_keymap_unref(c->xkb_keymap);
+	}
+	if (c->xkb_ctx) {
+		xkb_context_unref(c->xkb_ctx);
 	}
 	for (int i = 0; i < c->nr_screens; i++) {
 		if (c->screens[i].xdg_output) {
@@ -479,6 +590,47 @@ static int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta) {
 	return 1;
 }
 
+static uint32_t neru_wlr_modifier_mask(NeruWlrootsClient *c, const char *modifier) {
+	if (strcmp(modifier, "shift") == 0) return c->mod_shift;
+	if (strcmp(modifier, "ctrl") == 0) return c->mod_ctrl;
+	if (strcmp(modifier, "alt") == 0) return c->mod_alt;
+	if (strcmp(modifier, "cmd") == 0) return c->mod_logo;
+	return 0;
+}
+
+static uint32_t neru_wlr_modifier_keycode(const char *modifier) {
+	if (strcmp(modifier, "shift") == 0) return 42;  // KEY_LEFTSHIFT
+	if (strcmp(modifier, "ctrl") == 0) return 29;   // KEY_LEFTCTRL
+	if (strcmp(modifier, "alt") == 0) return 56;    // KEY_LEFTALT
+	if (strcmp(modifier, "cmd") == 0) return 125;   // KEY_LEFTMETA
+	return 0;
+}
+
+static int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, int is_down) {
+	if (!c || !c->vkeyboard || !c->vkeyboard_ready) return 0;
+
+	uint32_t keycode = neru_wlr_modifier_keycode(modifier);
+	uint32_t mask = neru_wlr_modifier_mask(c, modifier);
+	if (keycode == 0 || mask == 0) return 0;
+
+	if (is_down) {
+		c->depressed_mods |= mask;
+	} else {
+		c->depressed_mods &= ~mask;
+	}
+
+	zwp_virtual_keyboard_v1_key(
+		c->vkeyboard,
+		0,
+		keycode,
+		is_down ? WL_KEYBOARD_KEY_STATE_PRESSED : WL_KEYBOARD_KEY_STATE_RELEASED
+	);
+	zwp_virtual_keyboard_v1_modifiers(c->vkeyboard, c->depressed_mods, 0, 0, 0);
+	wl_display_flush(c->display);
+
+	return 1;
+}
+
 static int neru_wlr_get_cursor(NeruWlrootsClient *c, int *x, int *y) {
 	if (!c) return 0;
 	*x = c->cursor_x;
@@ -508,6 +660,10 @@ static int neru_wlr_screen_info(NeruWlrootsClient *c, int idx,
 static int neru_wlr_has_virtual_pointer(NeruWlrootsClient *c) {
 	return c && c->vptr != NULL;
 }
+
+static int neru_wlr_has_virtual_keyboard(NeruWlrootsClient *c) {
+	return c && c->vkeyboard != NULL && c->vkeyboard_ready;
+}
 */
 import "C"
 
@@ -517,6 +673,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"unsafe"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	// Blank-import to link the wayland-scanner generated protocol objects.
@@ -863,6 +1020,43 @@ func wlrootsScroll(axis, delta int) error {
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to perform wlroots scroll event",
+		)
+	}
+
+	return nil
+}
+
+func wlrootsModifierEvent(modifier string, isDown bool) error {
+	err := ensureWlrootsState()
+	if err != nil {
+		return err
+	}
+
+	globalWlrootsState.mu.Lock()
+	client := globalWlrootsState.client
+	defer globalWlrootsState.mu.Unlock()
+
+	if C.neru_wlr_has_virtual_keyboard(client) == 0 { //nolint:nlreturn
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"Wayland compositor does not support zwp_virtual_keyboard_manager_v1 protocol; "+
+				"this protocol is required for sticky modifier key injection on Wayland",
+		)
+	}
+
+	cModifier := C.CString(modifier)
+	defer C.free(unsafe.Pointer(cModifier)) //nolint:nlreturn
+
+	cDown := C.int(0)
+	if isDown {
+		cDown = C.int(1)
+	}
+
+	if C.neru_wlr_modifier_event(client, cModifier, cDown) == 0 { //nolint:nlreturn
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to post wlroots modifier event %q",
+			modifier,
 		)
 	}
 

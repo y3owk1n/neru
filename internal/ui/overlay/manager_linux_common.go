@@ -84,6 +84,9 @@ type Manager struct {
 	modeIndicatorOverlay   *modeindicator.Overlay
 	recursiveGridOverlay   *recursivegrid.Overlay
 	stickyModifiersOverlay *stickyindicator.Overlay
+
+	stickyBadgeRect    image.Rectangle
+	stickyBadgeVisible bool
 }
 
 var (
@@ -164,6 +167,9 @@ func (m *Manager) Hide() {
 	} else if m.wlroots != nil {
 		m.wlroots.Hide()
 	}
+
+	m.stickyBadgeVisible = false
+	m.stickyBadgeRect = image.Rectangle{}
 }
 
 // Clear clears the overlay content.
@@ -176,6 +182,9 @@ func (m *Manager) Clear() {
 	} else if m.wlroots != nil {
 		m.wlroots.Clear()
 	}
+
+	m.stickyBadgeVisible = false
+	m.stickyBadgeRect = image.Rectangle{}
 }
 
 // ResizeToActiveScreen resizes the overlay to the active screen.
@@ -401,7 +410,16 @@ func (m *Manager) DrawModeIndicator(posX, posY int) {
 
 // DrawStickyModifiersIndicator draws the sticky modifiers indicator overlay.
 func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
-	if m.stickyModifiersOverlay == nil || symbols == "" {
+	if m.stickyModifiersOverlay == nil {
+		return
+	}
+
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if symbols == "" {
+		m.clearStickyBadgeLocked()
+
 		return
 	}
 
@@ -410,14 +428,30 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 		return
 	}
 
-	m.renderMu.Lock()
-	defer m.renderMu.Unlock()
+	m.clearStickyBadgeLocked()
+	m.stickyBadgeRect = expandRect(badgeBounds(posX, posY, symbols, style), 3)
+	m.stickyBadgeVisible = true
 
 	if m.x11 != nil {
 		m.x11.DrawBadge(posX, posY, symbols, colors, style)
 	} else if m.wlroots != nil {
 		m.wlroots.DrawBadge(posX, posY, symbols, colors, style)
 	}
+}
+
+func (m *Manager) clearStickyBadgeLocked() {
+	if !m.stickyBadgeVisible {
+		return
+	}
+
+	if m.x11 != nil {
+		m.x11.ClearRect(m.stickyBadgeRect)
+	} else if m.wlroots != nil {
+		m.wlroots.ClearRect(m.stickyBadgeRect)
+	}
+
+	m.stickyBadgeVisible = false
+	m.stickyBadgeRect = image.Rectangle{}
 }
 
 // DrawGrid draws the grid overlay.
@@ -735,6 +769,34 @@ func estimateTextWidth(text string, fontSize float64) int {
 
 func estimateTextHeight(fontSize float64) int {
 	return int(math.Ceil(fontSize * textHeightMultiplier))
+}
+
+func badgeBounds(posX, posY int, text string, style overlayBadgeStyle) image.Rectangle {
+	fontSize := style.fontSize
+	if fontSize <= 0 {
+		fontSize = 14
+	}
+
+	paddingX := resolveAutoPadding(fontSize, style.paddingX, true)
+	paddingY := resolveAutoPadding(fontSize, style.paddingY, false)
+	width := estimateTextWidth(text, fontSize) + paddingX*paddingMultiplier
+	height := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
+
+	return image.Rect(
+		posX+style.offsetX,
+		posY+style.offsetY,
+		posX+style.offsetX+width,
+		posY+style.offsetY+height,
+	)
+}
+
+func expandRect(rect image.Rectangle, amount int) image.Rectangle {
+	return image.Rect(
+		rect.Min.X-amount,
+		rect.Min.Y-amount,
+		rect.Max.X+amount,
+		rect.Max.Y+amount,
+	)
 }
 
 func centeredRect(cell image.Rectangle, width, height int) image.Rectangle {

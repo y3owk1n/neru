@@ -83,6 +83,15 @@ func wlrootsScroll(axis, direction int) error {
 	)
 }
 
+func wlrootsModifierEvent(modifier string, isDown bool) error {
+	_, _ = modifier, isDown
+
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"wlroots backend requires CGO-enabled Linux builds",
+	)
+}
+
 // Button constants matching the CGo version.
 const (
 	WlrBtnLeft   = 0x110

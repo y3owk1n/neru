@@ -155,6 +155,10 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 
 						h.drawStickyModifiersIndicator(localStickyX, localStickyY)
 					} else if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
+						if h.stickyIndicatorService != nil {
+							h.stickyIndicatorService.UpdateIndicatorPosition(localStickyX, localStickyY, "")
+						}
+
 						stickyInd.Clear()
 						stickyInd.Hide()
 					}

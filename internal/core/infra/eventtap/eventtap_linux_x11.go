@@ -83,6 +83,8 @@ import (
 	"os"
 	"time"
 	"unsafe"
+
+	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 )
 
 const (
@@ -218,7 +220,11 @@ func x11ModifierName(keysym C.KeySym) string {
 }
 
 func postLinuxModifierEvent(modifier string, isDown bool) bool {
-	if os.Getenv("WAYLAND_DISPLAY") != "" || os.Getenv("DISPLAY") == "" {
+	if os.Getenv("WAYLAND_DISPLAY") != "" {
+		return linux.WlrootsModifierEvent(modifier, isDown) == nil
+	}
+
+	if os.Getenv("DISPLAY") == "" {
 		return false
 	}
 

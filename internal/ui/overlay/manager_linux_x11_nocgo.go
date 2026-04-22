@@ -14,7 +14,9 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 )
 
-type x11Overlay struct{}
+type x11Overlay struct {
+	sublayerKeys string
+}
 
 func newX11Overlay(logger *zap.Logger) *x11Overlay {
 	_ = logger
@@ -26,6 +28,7 @@ func (o *x11Overlay) WindowPtr() unsafe.Pointer                              { r
 func (o *x11Overlay) Show()                                                  {}
 func (o *x11Overlay) Hide()                                                  {}
 func (o *x11Overlay) Clear()                                                 {}
+func (o *x11Overlay) ClearRect(image.Rectangle)                              {}
 func (o *x11Overlay) Resize()                                                {}
 func (o *x11Overlay) Destroy()                                               {}
 func (o *x11Overlay) UpdateGridMatches(string)                               {}

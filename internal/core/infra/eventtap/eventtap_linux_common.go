@@ -216,7 +216,7 @@ func (et *EventTap) rememberSyntheticModifierEvent(modifier string, isDown bool)
 	et.mu.Lock()
 	defer et.mu.Unlock()
 
-	pending := et.syntheticModifierEvents[:0]
+	pending := make([]pendingSyntheticModifierEvent, 0, len(et.syntheticModifierEvents))
 	for _, event := range et.syntheticModifierEvents {
 		if now.Before(event.expiresAt) {
 			pending = append(pending, event)
@@ -236,7 +236,7 @@ func (et *EventTap) consumeSyntheticModifierEvent(modifier string, isDown bool) 
 	et.mu.Lock()
 	defer et.mu.Unlock()
 
-	pending := et.syntheticModifierEvents[:0]
+	pending := make([]pendingSyntheticModifierEvent, 0, len(et.syntheticModifierEvents))
 	consumed := false
 
 	for _, event := range et.syntheticModifierEvents {

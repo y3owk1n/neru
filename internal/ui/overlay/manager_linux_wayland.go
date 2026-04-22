@@ -19,7 +19,9 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 )
 
-type wlrootsOverlay struct{}
+type wlrootsOverlay struct {
+	sublayerKeys string
+}
 
 func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 	_ = logger
@@ -35,6 +37,7 @@ func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
 func (o *wlrootsOverlay) Show()                                                  {}
 func (o *wlrootsOverlay) Hide()                                                  {}
 func (o *wlrootsOverlay) Clear()                                                 {}
+func (o *wlrootsOverlay) ClearRect(image.Rectangle)                              {}
 func (o *wlrootsOverlay) Resize()                                                {}
 func (o *wlrootsOverlay) Destroy()                                               {}
 func (o *wlrootsOverlay) UpdateGridMatches(string)                               {}

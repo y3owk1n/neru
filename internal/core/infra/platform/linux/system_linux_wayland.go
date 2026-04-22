@@ -39,3 +39,8 @@ func WlrootsButtonRelease(button int) error {
 func WlrootsScroll(axis, delta int) error {
 	return wlrootsScroll(axis, delta)
 }
+
+// WlrootsModifierEvent presses or releases a virtual keyboard modifier.
+func WlrootsModifierEvent(modifier string, isDown bool) error {
+	return wlrootsModifierEvent(modifier, isDown)
+}

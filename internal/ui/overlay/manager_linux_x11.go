@@ -131,6 +131,21 @@ static void neru_x11_overlay_clear(NeruX11Overlay *overlay) {
 	XFlush(overlay->display);
 }
 
+static void neru_x11_overlay_clear_rect(NeruX11Overlay *overlay, int x, int y, int width, int height) {
+	if (overlay == NULL || width <= 0 || height <= 0) {
+		return;
+	}
+
+	cairo_save(overlay->cr);
+	cairo_set_operator(overlay->cr, CAIRO_OPERATOR_CLEAR);
+	cairo_rectangle(overlay->cr, x, y, width, height);
+	cairo_fill(overlay->cr);
+	cairo_restore(overlay->cr);
+	cairo_surface_flush(overlay->surface);
+	XClearArea(overlay->display, overlay->window, x, y, (unsigned int)width, (unsigned int)height, False);
+	XFlush(overlay->display);
+}
+
 static void neru_x11_overlay_resize(NeruX11Overlay *overlay) {
 	int width = DisplayWidth(overlay->display, overlay->screen);
 	int height = DisplayHeight(overlay->display, overlay->screen);
@@ -260,6 +275,18 @@ func (o *x11Overlay) Hide() {
 func (o *x11Overlay) Clear() {
 	if o != nil && o.raw != nil {
 		C.neru_x11_overlay_clear(o.raw)
+	}
+}
+
+func (o *x11Overlay) ClearRect(rect image.Rectangle) {
+	if o != nil && o.raw != nil && !rect.Empty() {
+		C.neru_x11_overlay_clear_rect(
+			o.raw,
+			C.int(rect.Min.X),
+			C.int(rect.Min.Y),
+			C.int(rect.Dx()),
+			C.int(rect.Dy()),
+		)
 	}
 }
 
@@ -402,16 +429,7 @@ func (o *x11Overlay) DrawBadge(
 		fontSize = 14
 	}
 
-	paddingX := resolveAutoPadding(fontSize, style.paddingX, true)
-	paddingY := resolveAutoPadding(fontSize, style.paddingY, false)
-	width := estimateTextWidth(text, fontSize) + paddingX*paddingMultiplier
-	height := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
-	rect := image.Rect(
-		posX+style.offsetX,
-		posY+style.offsetY,
-		posX+style.offsetX+width,
-		posY+style.offsetY+height,
-	)
+	rect := badgeBounds(posX, posY, text, style)
 
 	o.drawRect(rect, colors.background, colors.border, max(style.borderWidth, 1))
 	o.drawTextCentered(text, rect, style.fontFamily, fontSize, colors.text)

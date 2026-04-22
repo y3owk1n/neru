@@ -280,17 +280,15 @@ static void neru_keyboard_key(void *data, struct wl_keyboard *keyboard,
     xkb_keysym_t keysym = xkb_state_key_get_one_sym(overlay->xkb_state, key + 8);
     const char *modifier_name = neru_modifier_name_from_keysym(keysym);
     if (modifier_name) {
-        if (state == WL_KEYBOARD_KEY_STATE_PRESSED || state == WL_KEYBOARD_KEY_STATE_RELEASED) {
-            char modifier_key[64] = {0};
-            snprintf(
-                modifier_key,
-                sizeof(modifier_key),
-                "__modifier_%s_%s",
-                modifier_name,
-                state == WL_KEYBOARD_KEY_STATE_PRESSED ? "down" : "up"
-            );
-            neru_key_ring_push(modifier_key);
-        }
+        char modifier_key[64] = {0};
+        snprintf(
+            modifier_key,
+            sizeof(modifier_key),
+            "__modifier_%s_%s",
+            modifier_name,
+            state == WL_KEYBOARD_KEY_STATE_PRESSED ? "down" : "up"
+        );
+        neru_key_ring_push(modifier_key);
 
         return;
     }
@@ -572,6 +570,24 @@ static void neru_wayland_overlay_clear(NeruWaylandOverlay *overlay) {
     }
 }
 
+static void neru_wayland_overlay_clear_rect(NeruWaylandOverlay *overlay, double x, double y, double width, double height) {
+    if (!overlay || width <= 0 || height <= 0) return;
+    for (int i = 0; i < overlay->nr_screens; i++) {
+        NeruWaylandOverlayScreen *scr = &overlay->screens[i];
+        if (!scr->cr) continue;
+
+        double scr_x = x - scr->x;
+        double scr_y = y - scr->y;
+
+        cairo_t *cr = scr->cr;
+        cairo_save(cr);
+        cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
+        cairo_rectangle(cr, scr_x, scr_y, width, height);
+        cairo_fill(cr);
+        cairo_restore(cr);
+    }
+}
+
 static void neru_wayland_overlay_flush(NeruWaylandOverlay *overlay) {
     neru_wayland_overlay_show(overlay);
 }
@@ -795,6 +811,19 @@ func (o *wlrootsOverlay) Clear() {
 	}
 }
 
+func (o *wlrootsOverlay) ClearRect(rect image.Rectangle) {
+	if o != nil && o.raw != nil && !rect.Empty() {
+		C.neru_wayland_overlay_clear_rect(
+			o.raw,
+			C.double(rect.Min.X),
+			C.double(rect.Min.Y),
+			C.double(rect.Dx()),
+			C.double(rect.Dy()),
+		)
+		C.neru_wayland_overlay_flush(o.raw)
+	}
+}
+
 func (o *wlrootsOverlay) Resize() {
 	// Wayland layer shells auto-resize
 }
@@ -939,16 +968,7 @@ func (o *wlrootsOverlay) DrawBadge(
 		fontSize = 14
 	}
 
-	paddingX := resolveAutoPadding(fontSize, style.paddingX, true)
-	paddingY := resolveAutoPadding(fontSize, style.paddingY, false)
-	width := estimateTextWidth(text, fontSize) + paddingX*paddingMultiplier
-	height := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
-	rect := image.Rect(
-		posX+style.offsetX,
-		posY+style.offsetY,
-		posX+style.offsetX+width,
-		posY+style.offsetY+height,
-	)
+	rect := badgeBounds(posX, posY, text, style)
 
 	o.drawRect(rect, colors.background, colors.border, max(style.borderWidth, 1))
 	o.drawTextCentered(text, rect, style.fontFamily, fontSize, colors.text)
