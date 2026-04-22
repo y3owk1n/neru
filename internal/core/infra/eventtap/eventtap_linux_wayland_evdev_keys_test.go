@@ -38,7 +38,7 @@ func TestEvdevKeyName(t *testing.T) {
 		{code: evdevKeyEnter, want: "Return"},
 		{code: evdevKeyBackspace, want: "Backspace"},
 		{code: evdevKeyLeft, want: "Left"},
-		{code: evdevKeyF1, want: ""},
+		{code: evdevKeyF1, want: "F1"},
 	}
 
 	for _, testCase := range testCases {

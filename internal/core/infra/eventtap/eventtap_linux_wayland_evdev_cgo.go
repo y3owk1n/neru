@@ -272,10 +272,8 @@ func (et *EventTap) runWaylandEvdev() bool {
 		select {
 		case <-et.stopCh:
 			return true
-		default:
+		case <-time.After(waylandEvdevModifierReleasePollPeriod):
 		}
-
-		time.Sleep(waylandEvdevModifierReleasePollPeriod)
 	}
 
 	grabErr := capture.grabAll()

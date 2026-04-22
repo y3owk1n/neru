@@ -69,6 +69,17 @@ const (
 	evdevKeySpace      uint16 = 57
 	evdevKeyCapsLock   uint16 = 58
 	evdevKeyF1         uint16 = 59
+	evdevKeyF2         uint16 = 60
+	evdevKeyF3         uint16 = 61
+	evdevKeyF4         uint16 = 62
+	evdevKeyF5         uint16 = 63
+	evdevKeyF6         uint16 = 64
+	evdevKeyF7         uint16 = 65
+	evdevKeyF8         uint16 = 66
+	evdevKeyF9         uint16 = 67
+	evdevKeyF10        uint16 = 68
+	evdevKeyF11        uint16 = 87
+	evdevKeyF12        uint16 = 88
 	evdevKeyRightCtrl  uint16 = 97
 	evdevKeyRightAlt   uint16 = 100
 	evdevKeyHome       uint16 = 102
@@ -109,6 +120,18 @@ const (
 	evdevKeyNamePageUp    = "PageUp"
 	evdevKeyNamePageDown  = "PageDown"
 	evdevKeyNameInsert    = "Insert"
+	evdevKeyNameF1        = "F1"
+	evdevKeyNameF2        = "F2"
+	evdevKeyNameF3        = "F3"
+	evdevKeyNameF4        = "F4"
+	evdevKeyNameF5        = "F5"
+	evdevKeyNameF6        = "F6"
+	evdevKeyNameF7        = "F7"
+	evdevKeyNameF8        = "F8"
+	evdevKeyNameF9        = "F9"
+	evdevKeyNameF10       = "F10"
+	evdevKeyNameF11       = "F11"
+	evdevKeyNameF12       = "F12"
 )
 
 var evdevModifierNames = map[uint16]string{
@@ -143,6 +166,18 @@ var evdevKeyNames = map[uint16]string{
 	evdevKeyR:          "r",
 	evdevKeyS:          "s",
 	evdevKeyT:          "t",
+	evdevKeyF1:         evdevKeyNameF1,
+	evdevKeyF2:         evdevKeyNameF2,
+	evdevKeyF3:         evdevKeyNameF3,
+	evdevKeyF4:         evdevKeyNameF4,
+	evdevKeyF5:         evdevKeyNameF5,
+	evdevKeyF6:         evdevKeyNameF6,
+	evdevKeyF7:         evdevKeyNameF7,
+	evdevKeyF8:         evdevKeyNameF8,
+	evdevKeyF9:         evdevKeyNameF9,
+	evdevKeyF10:        evdevKeyNameF10,
+	evdevKeyF11:        evdevKeyNameF11,
+	evdevKeyF12:        evdevKeyNameF12,
 	evdevKeyU:          "u",
 	evdevKeyV:          "v",
 	evdevKeyW:          "w",
@@ -188,22 +223,27 @@ var evdevKeyNames = map[uint16]string{
 }
 
 type evdevModifierState struct {
-	shift bool
-	ctrl  bool
-	alt   bool
-	cmd   bool
+	shift int
+	ctrl  int
+	alt   int
+	cmd   int
 }
 
 func (s *evdevModifierState) update(modifier string, isDown bool) {
+	delta := 1
+	if !isDown {
+		delta = -1
+	}
+
 	switch modifier {
 	case evdevModifierShift:
-		s.shift = isDown
+		s.shift += delta
 	case evdevModifierCtrl:
-		s.ctrl = isDown
+		s.ctrl += delta
 	case evdevModifierAlt:
-		s.alt = isDown
+		s.alt += delta
 	case evdevModifierCmd:
-		s.cmd = isDown
+		s.cmd += delta
 	}
 }
 
@@ -214,19 +254,19 @@ func (s *evdevModifierState) prefix() string {
 
 	var prefix strings.Builder
 
-	if s.shift {
+	if s.shift > 0 {
 		prefix.WriteString(evdevPrefixShift)
 	}
 
-	if s.ctrl {
+	if s.ctrl > 0 {
 		prefix.WriteString(evdevPrefixCtrl)
 	}
 
-	if s.alt {
+	if s.alt > 0 {
 		prefix.WriteString(evdevPrefixAlt)
 	}
 
-	if s.cmd {
+	if s.cmd > 0 {
 		prefix.WriteString(evdevPrefixCmd)
 	}
 

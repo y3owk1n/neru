@@ -224,6 +224,12 @@ static int neru_wlr_setup_virtual_keyboard(NeruWlrootsClient *c) {
 	c->xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	if (!c->xkb_ctx) return 0;
 
+	// US pc105 layout is intentionally hardcoded:
+	// 1) Modifier index resolution (Shift/Ctrl/Alt/Logo) is layout-independent.
+	// 2) The keymap is sent to the compositor but Neru only uses it to inject
+	//    synthetic key events; actual key symbols are resolved via xkbcommon
+	//    in the overlay-keyboard path, so the virtual layout never appears
+	//    to the user.
 	struct xkb_rule_names names = {
 		.rules = "evdev",
 		.model = "pc105",
