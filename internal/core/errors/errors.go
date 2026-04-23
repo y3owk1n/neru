@@ -194,8 +194,7 @@ func Wrapf(err error, code Code, format string, args ...any) *Error {
 
 // IsCode checks if an error has the specified error code.
 func IsCode(err error, code Code) bool {
-	var domainErr *Error
-	if errors.As(err, &domainErr) {
+	if domainErr, ok := errors.AsType[*Error](err); ok {
 		return domainErr.code == code
 	}
 
@@ -204,8 +203,7 @@ func IsCode(err error, code Code) bool {
 
 // GetCode extracts the error code from an error, or returns CodeInternal if not a domain error.
 func GetCode(err error) Code {
-	var domainErr *Error
-	if errors.As(err, &domainErr) {
+	if domainErr, ok := errors.AsType[*Error](err); ok {
 		return domainErr.code
 	}
 

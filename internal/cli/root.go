@@ -97,8 +97,7 @@ func Execute() {
 	executeErr := RootCmd.Execute()
 	if executeErr != nil {
 		// If the command already printed detailed output, don't repeat it.
-		var silent *silentError
-		if !errors.As(executeErr, &silent) {
+		if _, ok := errors.AsType[*silentError](executeErr); !ok {
 			fmt.Fprintln(os.Stderr, executeErr)
 		}
 
