@@ -64,6 +64,7 @@ build-version VERSION_OVERRIDE:
     @echo "✓ Build complete: bin/neru (version: {{ VERSION_OVERRIDE }})"
 
 # Build a macOS release artifact for CI on a native macOS host.
+
 # Usage: just release-ci-darwin arm64 v1.2.3
 release-ci-darwin ARCH VERSION_OVERRIDE:
     @echo "Building release artifact (darwin/{{ ARCH }}) for CI..."
@@ -75,6 +76,7 @@ release-ci-darwin ARCH VERSION_OVERRIDE:
     @echo "✓ Release artifact for darwin/{{ ARCH }} built successfully"
 
 # Build a Linux release artifact for CI on a native Linux host.
+
 # Usage: just release-ci-linux amd64 v1.2.3
 release-ci-linux ARCH VERSION_OVERRIDE:
     @echo "Building release artifact (linux/{{ ARCH }}) for CI..."
@@ -86,6 +88,7 @@ release-ci-linux ARCH VERSION_OVERRIDE:
     @echo "✓ Release artifact for linux/{{ ARCH }} built successfully"
 
 # Build a Windows release artifact for CI.
+
 # Usage: just release-ci-windows amd64 v1.2.3
 release-ci-windows ARCH VERSION_OVERRIDE:
     @echo "Building release artifact (windows/{{ ARCH }}) for CI..."
@@ -263,3 +266,60 @@ generate-icons APP_ICON TRAY_ACTIVE TRAY_DISABLED:
     just generate-icns {{ APP_ICON }}
     just generate-tray-icons {{ TRAY_ACTIVE }} {{ TRAY_DISABLED }}
     @echo "✓ All icons generated"
+
+# =============================================================================
+# Wayland Protocol Generation
+# =============================================================================
+# Downloads Wayland protocol XMLs from upstream repositories and generates
+# wayland-scanner header/private code files.
+#
+# Protocols are sourced from:
+# - wlroots: https://github.com/swaywm/wlroots/tree/master/protocol
+# - wlr-protocols: https://github.com/swaywm/wlr-protocols/tree/master/unstable
+
+PROTOCOL_DIR := "protocol"
+WLR_PROTOCOL_DIR := "internal/core/infra/platform/linux/wlr_protocol"
+WL_PROTOCOLS_LOCAL := "/usr/share/wayland-protocols"
+
+# Download Wayland protocol XMLs from upstream repositories
+
+# (xdg-output is available locally, others fetched from GitHub)
+fetch-protocols:
+    @echo "Fetching Wayland protocol XMLs..."
+    mkdir -p {{ PROTOCOL_DIR }}
+    curl -sL "https://raw.githubusercontent.com/swaywm/wlroots/master/protocol/wlr-layer-shell-unstable-v1.xml" -o {{ PROTOCOL_DIR }}/wlr-layer-shell-unstable-v1.xml
+    curl -sL "https://raw.githubusercontent.com/swaywm/wlroots/master/protocol/virtual-keyboard-unstable-v1.xml" -o {{ PROTOCOL_DIR }}/virtual-keyboard-unstable-v1.xml
+    curl -sL "https://raw.githubusercontent.com/swaywm/wlr-protocols/master/unstable/wlr-virtual-pointer-unstable-v1.xml" -o {{ PROTOCOL_DIR }}/wlr-virtual-pointer-unstable-v1.xml
+    cp {{ WL_PROTOCOLS_LOCAL }}/unstable/xdg-output/xdg-output-unstable-v1.xml {{ PROTOCOL_DIR }}/
+    cp {{ WL_PROTOCOLS_LOCAL }}/stable/xdg-shell/xdg-shell.xml {{ PROTOCOL_DIR }}/
+    @echo "✓ Protocol XMLs downloaded to {{ PROTOCOL_DIR }}/"
+
+# Generate wayland-scanner files from XMLs
+generate-protocols:
+    @echo "Generating wayland-scanner protocol files..."
+    mkdir -p {{ WLR_PROTOCOL_DIR }}
+
+    # xdg-shell (stable)
+    wayland-scanner client-header < {{ PROTOCOL_DIR }}/xdg-shell.xml > {{ WLR_PROTOCOL_DIR }}/xdg-shell.h
+    wayland-scanner private-code < {{ PROTOCOL_DIR }}/xdg-shell.xml > {{ WLR_PROTOCOL_DIR }}/xdg-shell.c
+
+    # xdg-output (unstable)
+    wayland-scanner client-header < {{ PROTOCOL_DIR }}/xdg-output-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/xdg-output.h
+    wayland-scanner private-code < {{ PROTOCOL_DIR }}/xdg-output-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/xdg-output.c
+
+    # wlr-layer-shell (unstable)
+    wayland-scanner client-header < {{ PROTOCOL_DIR }}/wlr-layer-shell-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/layer-shell.h
+    wayland-scanner private-code < {{ PROTOCOL_DIR }}/wlr-layer-shell-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/layer-shell.c
+
+    # wlr-virtual-pointer (unstable)
+    wayland-scanner client-header < {{ PROTOCOL_DIR }}/wlr-virtual-pointer-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/virtual-pointer.h
+    wayland-scanner private-code < {{ PROTOCOL_DIR }}/wlr-virtual-pointer-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/virtual-pointer.c
+
+    # virtual-keyboard (unstable)
+    wayland-scanner client-header < {{ PROTOCOL_DIR }}/virtual-keyboard-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/virtual-keyboard.h
+    wayland-scanner private-code < {{ PROTOCOL_DIR }}/virtual-keyboard-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/virtual-keyboard.c
+    @echo "✓ Protocol files generated in {{ WLR_PROTOCOL_DIR }}/"
+
+# Download and generate all Wayland protocols
+generate-all-protocols: fetch-protocols generate-protocols
+    @echo "✓ All Wayland protocols downloaded and generated"
