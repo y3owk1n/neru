@@ -64,7 +64,7 @@ static const struct wl_message zwlr_layer_shell_v1_requests[] = {
 };
 
 WL_PRIVATE const struct wl_interface zwlr_layer_shell_v1_interface = {
-	"zwlr_layer_shell_v1", 4,
+	"zwlr_layer_shell_v1", 5,
 	2, zwlr_layer_shell_v1_requests,
 	0, NULL,
 };
@@ -79,6 +79,7 @@ static const struct wl_message zwlr_layer_surface_v1_requests[] = {
 	{ "ack_configure", "u", wlr_layer_shell_unstable_v1_types + 0 },
 	{ "destroy", "", wlr_layer_shell_unstable_v1_types + 0 },
 	{ "set_layer", "2u", wlr_layer_shell_unstable_v1_types + 0 },
+	{ "set_exclusive_edge", "5u", wlr_layer_shell_unstable_v1_types + 0 },
 };
 
 static const struct wl_message zwlr_layer_surface_v1_events[] = {
@@ -87,8 +88,8 @@ static const struct wl_message zwlr_layer_surface_v1_events[] = {
 };
 
 WL_PRIVATE const struct wl_interface zwlr_layer_surface_v1_interface = {
-	"zwlr_layer_surface_v1", 4,
-	9, zwlr_layer_surface_v1_requests,
+	"zwlr_layer_surface_v1", 5,
+	10, zwlr_layer_surface_v1_requests,
 	2, zwlr_layer_surface_v1_events,
 };
 

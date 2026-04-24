@@ -345,6 +345,10 @@ enum zwlr_layer_surface_v1_error {
 	 * keyboard interactivity is invalid
 	 */
 	ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_KEYBOARD_INTERACTIVITY = 3,
+	/**
+	 * exclusive edge is invalid given the surface anchors
+	 */
+	ZWLR_LAYER_SURFACE_V1_ERROR_INVALID_EXCLUSIVE_EDGE = 4,
 };
 #endif /* ZWLR_LAYER_SURFACE_V1_ERROR_ENUM */
 
@@ -439,6 +443,7 @@ zwlr_layer_surface_v1_add_listener(struct zwlr_layer_surface_v1 *zwlr_layer_surf
 #define ZWLR_LAYER_SURFACE_V1_ACK_CONFIGURE 6
 #define ZWLR_LAYER_SURFACE_V1_DESTROY 7
 #define ZWLR_LAYER_SURFACE_V1_SET_LAYER 8
+#define ZWLR_LAYER_SURFACE_V1_SET_EXCLUSIVE_EDGE 9
 
 /**
  * @ingroup iface_zwlr_layer_surface_v1
@@ -485,6 +490,10 @@ zwlr_layer_surface_v1_add_listener(struct zwlr_layer_surface_v1 *zwlr_layer_surf
  * @ingroup iface_zwlr_layer_surface_v1
  */
 #define ZWLR_LAYER_SURFACE_V1_SET_LAYER_SINCE_VERSION 2
+/**
+ * @ingroup iface_zwlr_layer_surface_v1
+ */
+#define ZWLR_LAYER_SURFACE_V1_SET_EXCLUSIVE_EDGE_SINCE_VERSION 5
 
 /** @ingroup iface_zwlr_layer_surface_v1 */
 static inline void
@@ -697,6 +706,25 @@ zwlr_layer_surface_v1_set_layer(struct zwlr_layer_surface_v1 *zwlr_layer_surface
 {
 	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_layer_surface_v1,
 			 ZWLR_LAYER_SURFACE_V1_SET_LAYER, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_layer_surface_v1), 0, layer);
+}
+
+/**
+ * @ingroup iface_zwlr_layer_surface_v1
+ *
+ * Requests an edge for the exclusive zone to apply. The exclusive
+ * edge will be automatically deduced from anchor points when possible,
+ * but when the surface is anchored to a corner, it will be necessary
+ * to set it explicitly to disambiguate, as it is not possible to deduce
+ * which one of the two corner edges should be used.
+ *
+ * The edge must be one the surface is anchored to, otherwise the
+ * invalid_exclusive_edge protocol error will be raised.
+ */
+static inline void
+zwlr_layer_surface_v1_set_exclusive_edge(struct zwlr_layer_surface_v1 *zwlr_layer_surface_v1, uint32_t edge)
+{
+	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_layer_surface_v1,
+			 ZWLR_LAYER_SURFACE_V1_SET_EXCLUSIVE_EDGE, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_layer_surface_v1), 0, edge);
 }
 
 #ifdef  __cplusplus
