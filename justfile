@@ -281,9 +281,7 @@ PROTOCOL_DIR := "protocol"
 WLR_PROTOCOL_DIR := "internal/core/infra/platform/linux/wlr_protocol"
 WL_PROTOCOLS_LOCAL := "/usr/share/wayland-protocols"
 
-# Download Wayland protocol XMLs from upstream repositories
-
-# (xdg-output is available locally, others fetched from GitHub)
+# Download Wayland protocol XMLs from canonical upstream repositories
 fetch-protocols:
     @echo "Fetching Wayland protocol XMLs..."
     mkdir -p {{ PROTOCOL_DIR }}
