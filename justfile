@@ -276,6 +276,7 @@ generate-icons APP_ICON TRAY_ACTIVE TRAY_DISABLED:
 # Protocols are sourced from:
 # - wlroots: https://gitlab.freedesktop.org/wlroots/wlroots/-/tree/master/protocol
 # - wlr-protocols: https://gitlab.freedesktop.org/wlroots/wlr-protocols/-/tree/master/unstable
+# - wayland-protocols: https://gitlab.freedesktop.org/wayland/wayland-protocols/-/tree/master
 
 PROTOCOL_DIR := "protocol"
 WLR_PROTOCOL_DIR := "internal/core/infra/platform/linux/wlr_protocol"
