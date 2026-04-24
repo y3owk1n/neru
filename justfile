@@ -289,7 +289,7 @@ fetch-protocols:
     mkdir -p {{ PROTOCOL_DIR }}
     curl -fsSL "https://raw.githubusercontent.com/swaywm/wlroots/master/protocol/wlr-layer-shell-unstable-v1.xml" -o {{ PROTOCOL_DIR }}/wlr-layer-shell-unstable-v1.xml
     curl -fsSL "https://raw.githubusercontent.com/swaywm/wlroots/master/protocol/virtual-keyboard-unstable-v1.xml" -o {{ PROTOCOL_DIR }}/virtual-keyboard-unstable-v1.xml
-    curl -fsSL "https://raw.githubusercontent.com/swaywm/wlr-protocols/master/unstable/wlr-virtual-pointer-unstable-v1.xml" -o {{ PROTOCOL_DIR }}/wlr-virtual-pointer-unstable-v1.xml
+    curl -fsSL "https://gitlab.freedesktop.org/wlroots/wlr-protocols/-/raw/master/unstable/wlr-virtual-pointer-unstable-v1.xml" -o {{ PROTOCOL_DIR }}/wlr-virtual-pointer-unstable-v1.xml
     cp {{ WL_PROTOCOLS_LOCAL }}/unstable/xdg-output/xdg-output-unstable-v1.xml {{ PROTOCOL_DIR }}/
     cp {{ WL_PROTOCOLS_LOCAL }}/stable/xdg-shell/xdg-shell.xml {{ PROTOCOL_DIR }}/
     @echo "✓ Protocol XMLs downloaded to {{ PROTOCOL_DIR }}/"
