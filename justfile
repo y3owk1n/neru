@@ -279,7 +279,6 @@ generate-icons APP_ICON TRAY_ACTIVE TRAY_DISABLED:
 
 PROTOCOL_DIR := "protocol"
 WLR_PROTOCOL_DIR := "internal/core/infra/platform/linux/wlr_protocol"
-WL_PROTOCOLS_LOCAL := "/usr/share/wayland-protocols"
 
 # Download Wayland protocol XMLs from canonical upstream repositories
 fetch-protocols:
