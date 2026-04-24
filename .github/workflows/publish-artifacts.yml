@@ -31,7 +31,7 @@ jobs:
               with:
                   go-version: "1.26.1"
 
-            - uses: extractions/setup-just@v3
+            - uses: extractions/setup-just@v4
               with:
                   just-version: "1.46.0"
 
@@ -83,7 +83,7 @@ jobs:
               with:
                   go-version: "1.26.1"
 
-            - uses: extractions/setup-just@v3
+            - uses: extractions/setup-just@v4
               with:
                   just-version: "1.46.0"
 
@@ -149,7 +149,7 @@ jobs:
               with:
                   go-version: "1.26.1"
 
-            - uses: extractions/setup-just@v3
+            - uses: extractions/setup-just@v4
               with:
                   just-version: "1.46.0"
 
@@ -202,7 +202,7 @@ jobs:
               with:
                   go-version: "1.26.1"
 
-            - uses: extractions/setup-just@v3
+            - uses: extractions/setup-just@v4
               with:
                   just-version: "1.46.0"
 

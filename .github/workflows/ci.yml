@@ -79,7 +79,7 @@ jobs:
             # Install just on Linux
             - name: Install just (Linux)
               if: runner.os == 'Linux'
-              uses: extractions/setup-just@v2
+              uses: extractions/setup-just@v4
 
             # Run checks with Devbox on macOS
             - name: Run just lint (macOS)
