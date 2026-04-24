@@ -274,8 +274,8 @@ generate-icons APP_ICON TRAY_ACTIVE TRAY_DISABLED:
 # wayland-scanner header/private code files.
 #
 # Protocols are sourced from:
-# - wlroots: https://github.com/swaywm/wlroots/tree/master/protocol
-# - wlr-protocols: https://github.com/swaywm/wlr-protocols/tree/master/unstable
+# - wlroots: https://gitlab.freedesktop.org/wlroots/wlroots/-/tree/master/protocol
+# - wlr-protocols: https://gitlab.freedesktop.org/wlroots/wlr-protocols/-/tree/master/unstable
 
 PROTOCOL_DIR := "protocol"
 WLR_PROTOCOL_DIR := "internal/core/infra/platform/linux/wlr_protocol"
