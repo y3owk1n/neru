@@ -64,7 +64,7 @@ jobs:
             # Install Golangci directly on Windows & Linux (install only, lint step runs it)
             - name: Setup Golangci
               if: matrix.check == 'lint' && (runner.os == 'Windows' || runner.os == 'Linux')
-              uses: golangci/golangci-lint-action@v8
+              uses: golangci/golangci-lint-action@v9
               with:
                   version: v2.11.3
                   install-only: true
