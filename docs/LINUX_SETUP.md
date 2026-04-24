@@ -245,15 +245,12 @@ bind = $mod SHIFT, S, exec, neru scroll
 ```kdl
 // ~/.config/niri/config.kdl
 binds {
-    Mod+Shift+H repeat=false { spawn-sh "neru hints"; }
-    Mod+Shift+G repeat=false { spawn-sh "neru grid"; }
-    Mod+Shift+S repeat=false { spawn-sh "neru scroll"; }
-    Mod+Shift+R repeat=false { spawn-sh "neru recursive_grid"; }
+    Mod+Shift+H { spawn-sh "neru hints"; }
+    Mod+Shift+G { spawn-sh "neru grid"; }
+    Mod+Shift+S { spawn-sh "neru scroll"; }
+    Mod+Shift+R { spawn-sh "neru recursive_grid"; }
 }
 ```
-
-`niri` binds repeat by default. Use `repeat=false` for Neru mode launchers so
-holding the activation key does not continuously relaunch the mode.
 
 ### 2. Application Exclusions
 
