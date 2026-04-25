@@ -503,8 +503,9 @@ func getUinputScrollFd() (int, error) {
 	return uinputScrollFd, nil
 }
 
+// IsUinputScrollAvailable returns true if uinput scroll is available.
 func IsUinputScrollAvailable() bool {
-	getUinputScrollFd()
+	_, _ = getUinputScrollFd() //nolint:errcheck // we only care about errUinputScroll
 
 	return errUinputScroll == nil
 }
