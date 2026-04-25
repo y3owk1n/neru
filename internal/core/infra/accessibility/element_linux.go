@@ -430,14 +430,17 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 				value = -1
 			}
 
-			for range numEvents {
-				scrollErr := eventtap.ScrollDeviceScroll(axis, value)
-				if scrollErr != nil {
-					return scrollErr
+			uinputErr := func() error {
+				for range numEvents {
+					if err := eventtap.ScrollDeviceScroll(axis, value); err != nil {
+						return err
+					}
 				}
+				return nil
+			}()
+			if uinputErr == nil {
+				return nil
 			}
-
-			return nil
 		}
 
 		if deltaX != 0 {
@@ -457,14 +460,17 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 				value = -1
 			}
 
-			for range numEvents {
-				scrollErr := eventtap.ScrollDeviceScroll(axis, value)
-				if scrollErr != nil {
-					return scrollErr
+			uinputErr := func() error {
+				for range numEvents {
+					if err := eventtap.ScrollDeviceScroll(axis, value); err != nil {
+						return err
+					}
 				}
+				return nil
+			}()
+			if uinputErr == nil {
+				return nil
 			}
-
-			return nil
 		}
 
 		return wlrootsScrollAtCursor(deltaX, deltaY)
