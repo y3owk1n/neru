@@ -3,9 +3,6 @@
 package eventtap
 
 /*
-#cgo linux pkg-config: wayland-client
-#cgo linux CFLAGS: -DWLR_CPLUSPLUS
-#cgo !darwin LDFLAGS: -lrt
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/input.h>
