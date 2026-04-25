@@ -588,11 +588,12 @@ static int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discre
 
 	// axis: 0 = vertical, 1 = horizontal
 	zwlr_virtual_pointer_v1_axis_source(c->vptr, 0); // WL_POINTER_AXIS_SOURCE_WHEEL
-	zwlr_virtual_pointer_v1_axis(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(delta));
-	// axis_discrete helps Hyprland and other compositors properly handle scroll events.
-	// discrete should be +/-1 per logical scroll step.
+	// Send axis_discrete instead of axis when discrete is available, as per Wayland spec.
+	// Sending both may cause compositors to accumulate both values (double-scroll).
 	if (discrete != 0) {
 		zwlr_virtual_pointer_v1_axis_discrete(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(delta), discrete);
+	} else {
+		zwlr_virtual_pointer_v1_axis(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(delta));
 	}
 	zwlr_virtual_pointer_v1_frame(c->vptr);
 	wl_display_flush(c->display);
