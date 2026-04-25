@@ -487,6 +487,7 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 		if yDone {
 			remainY = 0
 		}
+
 		if xDone {
 			remainX = 0
 		}
