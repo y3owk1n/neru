@@ -64,11 +64,26 @@ static int neru_uinput_create_scroll(int *out_fd) {
 
 	struct input_event ev;
 	memset(&ev, 0, sizeof(ev));
-	ioctl(fd, UI_SET_EVBIT, EV_REL);
-	ioctl(fd, UI_SET_RELBIT, REL_WHEEL);
-	ioctl(fd, UI_SET_RELBIT, REL_HWHEEL);
-	ioctl(fd, UI_SET_RELBIT, REL_WHEEL_HI_RES);
-	ioctl(fd, UI_SET_RELBIT, REL_HWHEEL_HI_RES);
+	if (ioctl(fd, UI_SET_EVBIT, EV_REL) < 0) {
+		close(fd);
+		return 0;
+	}
+	if (ioctl(fd, UI_SET_RELBIT, REL_WHEEL) < 0) {
+		close(fd);
+		return 0;
+	}
+	if (ioctl(fd, UI_SET_RELBIT, REL_HWHEEL) < 0) {
+		close(fd);
+		return 0;
+	}
+	if (ioctl(fd, UI_SET_RELBIT, REL_WHEEL_HI_RES) < 0) {
+		close(fd);
+		return 0;
+	}
+	if (ioctl(fd, UI_SET_RELBIT, REL_HWHEEL_HI_RES) < 0) {
+		close(fd);
+		return 0;
+	}
 
 	struct uinput_setup usetup;
 	memset(&usetup, 0, sizeof(usetup));
