@@ -479,7 +479,7 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 			}
 		}
 
-		if yDone && xDone {
+		if (deltaY == 0 || yDone) && (deltaX == 0 || xDone) {
 			return nil
 		}
 
