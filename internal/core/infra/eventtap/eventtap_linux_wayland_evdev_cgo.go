@@ -503,6 +503,12 @@ func getUinputScrollFd() (int, error) {
 	return uinputScrollFd, nil
 }
 
+func IsUinputScrollAvailable() bool {
+	getUinputScrollFd()
+
+	return errUinputScroll == nil
+}
+
 // ScrollDeviceScroll sends a scroll event via the uinput virtual device.
 func ScrollDeviceScroll(axis, value int) error {
 	fd, err := getUinputScrollFd()

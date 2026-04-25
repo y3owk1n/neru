@@ -65,3 +65,8 @@ func (et *EventTap) EnableWithContext(_ context.Context) error { return nil }
 
 // DisableWithContext disables the event tap with context (Windows stub).
 func (et *EventTap) DisableWithContext(_ context.Context) error { return nil }
+
+// IsUinputScrollAvailable returns false on Windows.
+func IsUinputScrollAvailable() bool {
+	return false
+}

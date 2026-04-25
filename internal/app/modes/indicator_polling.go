@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
@@ -28,8 +29,8 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 		return
 	}
 	// Disable exclusive keyboard so scroll events pass through to applications
-	// when indicator overlays are shown
-	if m := overlay.Get(); m != nil {
+	// when indicator overlays are shown, but only if uinput scroll is active
+	if m := overlay.Get(); m != nil && eventtap.IsUinputScrollAvailable() {
 		m.SetKeyboardCaptureEnabled(false)
 	}
 	// Ensure the mode indicator overlay covers the correct screen before
