@@ -99,12 +99,18 @@ static int neru_uinput_scroll(int fd, int axis, int value) {
 	ssize_t w1 = write(fd, &ev, sizeof(ev));
 
 	memset(&ev, 0, sizeof(ev));
+	ev.type = EV_REL;
+	ev.code = (axis == 0) ? REL_WHEEL : REL_HWHEEL;
+	ev.value = value;
+	ssize_t w2 = write(fd, &ev, sizeof(ev));
+
+	memset(&ev, 0, sizeof(ev));
 	ev.type = EV_SYN;
 	ev.code = SYN_REPORT;
 	ev.value = 0;
-	ssize_t w2 = write(fd, &ev, sizeof(ev));
+	ssize_t w3 = write(fd, &ev, sizeof(ev));
 
-	return (w1 == sizeof(ev) && w2 == sizeof(ev)) ? 1 : 0;
+	return (w1 == sizeof(ev) && w2 == sizeof(ev) && w3 == sizeof(ev)) ? 1 : 0;
 }
 */
 import "C"
