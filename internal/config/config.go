@@ -624,6 +624,14 @@ type RecursiveGridAnimationConfig struct {
 	DurationMS int  `json:"durationMs" toml:"duration_ms"`
 }
 
+// RecursiveGridTrainingConfig defines lightweight memorization training settings
+// for the top-level recursive-grid layout.
+type RecursiveGridTrainingConfig struct {
+	Enabled        bool `json:"enabled"         toml:"enabled"`
+	HitsToHide     int  `json:"hitsToHide"      toml:"hits_to_hide"`
+	PenaltyOnError int  `json:"penaltyOnError"  toml:"penalty_on_error"`
+}
+
 // RecursiveGridConfig defines the visual and behavioral settings for recursive-grid mode.
 type RecursiveGridConfig struct {
 	Enabled bool `json:"enabled" toml:"enabled"`
@@ -636,9 +644,10 @@ type RecursiveGridConfig struct {
 	Keys string          `json:"keys" toml:"keys"`
 	UI   RecursiveGridUI `json:"ui"   toml:"ui"`
 	// Behavior
-	MinSizeWidth  int `json:"minSizeWidth"  toml:"min_size_width"`  // Default: 25
-	MinSizeHeight int `json:"minSizeHeight" toml:"min_size_height"` // Default: 25
-	MaxDepth      int `json:"maxDepth"      toml:"max_depth"`       // Default: 10
+	MinSizeWidth  int                         `json:"minSizeWidth"  toml:"min_size_width"`  // Default: 25
+	MinSizeHeight int                         `json:"minSizeHeight" toml:"min_size_height"` // Default: 25
+	MaxDepth      int                         `json:"maxDepth"      toml:"max_depth"`       // Default: 10
+	Training      RecursiveGridTrainingConfig `json:"training" toml:"training"`
 	// Per-depth overrides for grid dimensions and keys.
 	// Depths not listed here use the top-level GridCols/GridRows/Keys.
 	Layers []RecursiveGridLayerConfig `json:"layers" toml:"layers"`

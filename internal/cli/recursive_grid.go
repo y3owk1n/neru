@@ -2,9 +2,10 @@ package cli
 
 // RecursiveGridCmd is the CLI recursive_grid command.
 var RecursiveGridCmd = BuildModeCommand(ModeConfig{
-	Name:    "recursive_grid",
-	Aliases: []string{"recursive-grid"},
-	Short:   "Activate recursive-grid navigation mode",
+	Name:               "recursive_grid",
+	Aliases:            []string{"recursive-grid"},
+	Short:              "Activate recursive-grid navigation mode",
+	EnableTrainingFlag: true,
 	Long: `Recursive-grid mode provides recursive cell-based navigation.
 
 The screen is divided into NxN cells (default 2x2, keys: u,i,j,k).
@@ -22,6 +23,7 @@ Navigation:
 
 Examples:
   neru recursive_grid                                  # Start recursive-grid mode
+  neru recursive_grid --training                       # Start recursive-grid training
   neru recursive_grid --action click                   # Start with pending click action
   neru recursive_grid --action left_click --repeat     # Click and restart mode`,
 	ActionDesc: "recursive-grid selection",

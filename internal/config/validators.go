@@ -576,6 +576,20 @@ func (c *Config) ValidateRecursiveGrid() error {
 		)
 	}
 
+	if c.RecursiveGrid.Training.HitsToHide < 1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.training.hits_to_hide must be >= 1",
+		)
+	}
+
+	if c.RecursiveGrid.Training.PenaltyOnError < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.training.penalty_on_error must be non-negative",
+		)
+	}
+
 	expectedKeys := c.RecursiveGrid.GridCols * c.RecursiveGrid.GridRows
 	if utf8.RuneCountInString(c.RecursiveGrid.Keys) != expectedKeys {
 		return derrors.Newf(

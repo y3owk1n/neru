@@ -20,6 +20,7 @@ type ModeActivationOptions struct {
 	Action                *string
 	Repeat                bool
 	CursorFollowSelection *bool
+	Training              bool
 }
 
 const (
