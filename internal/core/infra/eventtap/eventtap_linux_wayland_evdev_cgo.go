@@ -76,8 +76,14 @@ static int neru_uinput_create_scroll(int *out_fd) {
 	usetup.id.vendor = 0x1234;
 	usetup.id.product = 0x5678;
 	strcpy(usetup.name, "neru-scroll");
-	ioctl(fd, UI_DEV_SETUP, &usetup);
-	ioctl(fd, UI_DEV_CREATE);
+	if (ioctl(fd, UI_DEV_SETUP, &usetup) < 0) {
+		close(fd);
+		return 0;
+	}
+	if (ioctl(fd, UI_DEV_CREATE) < 0) {
+		close(fd);
+		return 0;
+	}
 
 	*out_fd = fd;
 	return 1;
@@ -450,9 +456,9 @@ func (state *waylandEvdevKeyState) trackKey(code uint16, isDown bool) {
 }
 
 var (
-	uinputScrollFd     int
-	uinputScrollInited bool
-	errUinputScroll    error
+	uinputScrollOnce sync.Once
+	uinputScrollFd   int
+	errUinputScroll  error
 )
 
 func initUinputScroll() error {
@@ -461,21 +467,14 @@ func initUinputScroll() error {
 		return fmt.Errorf("%w", errUinputScrollUnavailable)
 	}
 	uinputScrollFd = int(fd)
-	uinputScrollInited = true
 
 	return nil
 }
 
 func getUinputScrollFd() (int, error) {
-	if uinputScrollInited {
-		if errUinputScroll != nil {
-			return 0, errUinputScroll
-		}
-
-		return uinputScrollFd, nil
-	}
-	uinputScrollInited = true
-	errUinputScroll = initUinputScroll()
+	uinputScrollOnce.Do(func() {
+		errUinputScroll = initUinputScroll()
+	})
 	if errUinputScroll != nil {
 		return 0, errUinputScroll
 	}
