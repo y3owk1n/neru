@@ -366,6 +366,8 @@ static NeruWaylandOverlay* neru_wayland_overlay_new(void) {
     NeruWaylandOverlay *overlay = calloc(1, sizeof(NeruWaylandOverlay));
     if (!overlay) return NULL;
 
+    // EXCLUSIVE by default for keyboard capture fallback
+    // SetKeyboardCaptureEnabled can change it to NONE when not needed
     overlay->keyboard_interactivity_set =
         ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE;
 

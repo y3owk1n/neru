@@ -583,14 +583,17 @@ static int neru_wlr_click(NeruWlrootsClient *c, int button) {
 	return 1;
 }
 
-static int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta) {
+static int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discrete) {
 	if (!c || !c->vptr) return 0;
 
 	// axis: 0 = vertical, 1 = horizontal
 	zwlr_virtual_pointer_v1_axis_source(c->vptr, 0); // WL_POINTER_AXIS_SOURCE_WHEEL
-	zwlr_virtual_pointer_v1_axis(c->vptr, 0,
-		(uint32_t)axis,
-		wl_fixed_from_int(delta));
+	zwlr_virtual_pointer_v1_axis(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(delta));
+	// axis_discrete helps Hyprland and other compositors properly handle scroll events.
+	// discrete should be +/-1 per logical scroll step.
+	if (discrete != 0) {
+		zwlr_virtual_pointer_v1_axis_discrete(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(delta), discrete);
+	}
 	zwlr_virtual_pointer_v1_frame(c->vptr);
 	wl_display_flush(c->display);
 	return 1;
@@ -1001,7 +1004,10 @@ func wlrootsButtonRelease(button int) error {
 }
 
 // wlrootsScroll sends a scroll event on the virtual pointer.
-func wlrootsScroll(axis, delta int) error {
+// axis: 0 = vertical, 1 = horizontal.
+// delta: pixel delta for the axis event.
+// discrete: discrete step count (e.g., +/-1 per logical scroll click).
+func wlrootsScroll(axis, delta, discrete int) error {
 	err := ensureWlrootsState()
 	if err != nil {
 		return err
@@ -1011,7 +1017,8 @@ func wlrootsScroll(axis, delta int) error {
 	client := globalWlrootsState.client
 	defer globalWlrootsState.mu.Unlock()
 
-	if C.neru_wlr_scroll(client, C.int(axis), C.int(delta)) == 0 { //nolint:nlreturn
+	res := C.neru_wlr_scroll(client, C.int(axis), C.int(delta), C.int(discrete)) //nolint:nlreturn
+	if res == 0 {
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to perform wlroots scroll event",

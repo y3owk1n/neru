@@ -36,10 +36,11 @@ func WlrootsButtonRelease(button int) error {
 
 // WlrootsScroll sends a scroll event. axis: 0=vertical, 1=horizontal.
 // delta is in logical pixels (positive = down/right, negative = up/left).
+// discrete is the discrete step count (e.g., +/-1 per logical scroll click).
 // Each call emits a single Wayland axis event; callers should loop for
 // larger scroll distances.
-func WlrootsScroll(axis, delta int) error {
-	return wlrootsScroll(axis, delta)
+func WlrootsScroll(axis, delta, discrete int) error {
+	return wlrootsScroll(axis, delta, discrete)
 }
 
 // WlrootsModifierEvent presses or releases a virtual keyboard modifier.

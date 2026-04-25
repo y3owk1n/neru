@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	"github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 )
 
@@ -404,6 +405,68 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 	}
 
 	if currentLinuxBackend() == linuxBackendWayland {
+		// Scale factor: similar to X11 backend's scaling.
+		// Each uinput event scrolls ~1 line, so we scale delta to
+		// get number of scroll events.
+		const (
+			scrollScale     = 30
+			maxScrollEvents = 50
+		)
+
+		if deltaY != 0 {
+			numEvents := abs(deltaY) / scrollScale
+			if numEvents == 0 {
+				numEvents = 1
+			}
+
+			if numEvents > maxScrollEvents {
+				numEvents = maxScrollEvents
+			}
+
+			axis := 0
+
+			value := 1
+			if deltaY < 0 {
+				value = -1
+			}
+
+			for range numEvents {
+				scrollErr := eventtap.ScrollDeviceScroll(axis, value)
+				if scrollErr != nil {
+					return scrollErr
+				}
+			}
+
+			return nil
+		}
+
+		if deltaX != 0 {
+			numEvents := abs(deltaX) / scrollScale
+			if numEvents == 0 {
+				numEvents = 1
+			}
+
+			if numEvents > maxScrollEvents {
+				numEvents = maxScrollEvents
+			}
+
+			axis := 1
+
+			value := 1
+			if deltaX < 0 {
+				value = -1
+			}
+
+			for range numEvents {
+				scrollErr := eventtap.ScrollDeviceScroll(axis, value)
+				if scrollErr != nil {
+					return scrollErr
+				}
+			}
+
+			return nil
+		}
+
 		return wlrootsScrollAtCursor(deltaX, deltaY)
 	}
 

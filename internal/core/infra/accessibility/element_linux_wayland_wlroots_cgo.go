@@ -279,12 +279,15 @@ func wlrootsScrollAtCursor(deltaX, deltaY int) error {
 		// Application convention: positive deltaY = scroll up.
 		// Negate to convert between the two conventions.
 		step := -wlrootsScrollStep
+
+		discreteStep := 1
 		if deltaY < 0 {
 			step = wlrootsScrollStep
+			discreteStep = -1
 		}
 
 		for range events {
-			err := linux.WlrootsScroll(0, step)
+			err := linux.WlrootsScroll(0, step, discreteStep)
 			if err != nil {
 				return err
 			}
@@ -299,12 +302,15 @@ func wlrootsScrollAtCursor(deltaX, deltaY int) error {
 		events := wlrootsScrollEvents(deltaX)
 
 		step := wlrootsScrollStep
+
+		discreteStep := 1
 		if deltaX < 0 {
 			step = -wlrootsScrollStep
+			discreteStep = -1
 		}
 
 		for range events {
-			err := linux.WlrootsScroll(1, step)
+			err := linux.WlrootsScroll(1, step, discreteStep)
 			if err != nil {
 				return err
 			}

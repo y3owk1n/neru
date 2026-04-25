@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 type (
@@ -64,6 +66,20 @@ func (et *EventTap) Enable() {
 	et.doneCh = make(chan struct{})
 	et.enabled = true
 	et.mu.Unlock()
+
+	// Initialize uinput scroll device on Enable for Wayland backends.
+	// If successful, scroll events will go directly to applications
+	// via the virtual device, bypassing the overlay.
+	go func() {
+		_, err := getUinputScrollFd()
+		if err == nil {
+			// Scroll device created - disable exclusive keyboard
+			// so scroll events pass through to active application
+			if m := overlay.Get(); m != nil {
+				m.SetKeyboardCaptureEnabled(false)
+			}
+		}
+	}()
 
 	go et.run()
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 const (
@@ -25,6 +26,11 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 	// indicator is enabled for this mode.
 	if h.config == nil || (!h.modeIndicatorEnabled(mode) && !h.stickyModifiersEnabled()) {
 		return
+	}
+	// Disable exclusive keyboard so scroll events pass through to applications
+	// when indicator overlays are shown
+	if m := overlay.Get(); m != nil {
+		m.SetKeyboardCaptureEnabled(false)
 	}
 	// Ensure the mode indicator overlay covers the correct screen before
 	// the goroutine starts drawing. Scroll and hints modes already call
