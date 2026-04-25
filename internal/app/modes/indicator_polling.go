@@ -182,6 +182,11 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 // stopIndicatorPolling stops the indicator polling goroutine and cleans up
 // both mode indicator and sticky modifiers indicator overlays.
 func (h *Handler) stopIndicatorPolling() {
+	// Restore keyboard capture if uinput scroll was active.
+	if m := overlay.Get(); m != nil && eventtap.IsUinputScrollAvailable() {
+		m.SetKeyboardCaptureEnabled(true)
+	}
+
 	// Signal stop first.
 	if h.indicatorStopCh != nil {
 		close(h.indicatorStopCh)
