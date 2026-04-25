@@ -19,3 +19,7 @@ func postLinuxModifierEvent(_ string, _ bool) bool {
 func getUinputScrollFd() (int, error) {
 	return 0, errors.New("uinput scroll unavailable (no CGO)")
 }
+
+func ScrollDeviceScroll(_, _ int) error {
+	return errors.New("uinput scroll unavailable (no CGO)")
+}
