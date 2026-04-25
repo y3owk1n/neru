@@ -59,8 +59,6 @@ static int neru_uinput_create_scroll(int *out_fd) {
 		return 0;
 	}
 
-	struct input_event ev;
-	memset(&ev, 0, sizeof(ev));
 	if (ioctl(fd, UI_SET_EVBIT, EV_REL) < 0) {
 		close(fd);
 		return 0;
