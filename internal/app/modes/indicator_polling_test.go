@@ -37,6 +37,73 @@ func TestStickyIndicatorAnchor_UsesGridSelectionWhenCursorFollowDisabled(t *test
 	}
 }
 
+func TestModeIndicatorAnchor_UsesCursorInGridMode_IgnoresSelection(t *testing.T) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeGrid)
+
+	handler := &Handler{
+		appState: appState,
+		logger:   zap.NewNop(),
+		grid: &components.GridComponent{
+			Context: &gridcomponent.Context{},
+		},
+	}
+
+	handler.grid.Context.SetCursorFollowSelection(false)
+	handler.grid.Context.SetSelectionPoint(image.Pt(40, 60))
+
+	got := handler.modeIndicatorAnchorLocked(image.Pt(10, 20))
+
+	// Mode indicator always follows the cursor, not the selection point.
+	want := image.Pt(10, 20)
+	if got != want {
+		t.Fatalf("modeIndicatorAnchor() = %v, want %v", got, want)
+	}
+}
+
+func TestModeIndicatorAnchor_UsesCursorInRecursiveGridMode_IgnoresSelection(t *testing.T) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeRecursiveGrid)
+
+	handler := &Handler{
+		appState: appState,
+		logger:   zap.NewNop(),
+		recursiveGrid: &components.RecursiveGridComponent{
+			Context: &recursivegridcomponent.Context{},
+		},
+	}
+
+	handler.recursiveGrid.Context.SetCursorFollowSelection(false)
+	handler.recursiveGrid.Context.SetSelectionPoint(image.Pt(75, 25))
+
+	got := handler.modeIndicatorAnchorLocked(image.Pt(10, 20))
+
+	want := image.Pt(10, 20)
+	if got != want {
+		t.Fatalf("modeIndicatorAnchor() = %v, want %v", got, want)
+	}
+}
+
+func TestModeIndicatorAnchor_UsesCursorWhenSelectionUnavailable(t *testing.T) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeGrid)
+
+	handler := &Handler{
+		appState: appState,
+		logger:   zap.NewNop(),
+		grid: &components.GridComponent{
+			Context: &gridcomponent.Context{},
+		},
+	}
+
+	got := handler.modeIndicatorAnchorLocked(image.Pt(10, 20))
+
+	want := image.Pt(10, 20)
+	if got != want {
+		t.Fatalf("modeIndicatorAnchor() = %v, want %v", got, want)
+	}
+}
+
 func TestStickyIndicatorAnchor_UsesRecursiveGridSelectionWhenCursorFollowDisabled(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeRecursiveGrid)
