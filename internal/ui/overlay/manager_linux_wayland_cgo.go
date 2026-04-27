@@ -579,6 +579,23 @@ static void neru_wayland_overlay_set_keyboard_capture(
     wl_display_roundtrip(overlay->display);
 }
 
+// Detach buffers from surfaces without destroying them.
+// Hides the overlay visually while keeping all surfaces and buffers allocated,
+// so the next DrawBadge call can reuse them without a compositor roundtrip.
+static void neru_wayland_overlay_detach(NeruWaylandOverlay *overlay) {
+    if (!overlay) return;
+    int any = 0;
+    for (int i = 0; i < overlay->nr_screens; i++) {
+        NeruWaylandOverlayScreen *scr = &overlay->screens[i];
+        if (scr->wl_surface) {
+            wl_surface_attach(scr->wl_surface, NULL, 0, 0);
+            wl_surface_commit(scr->wl_surface);
+            any = 1;
+        }
+    }
+    if (any) wl_display_flush(overlay->display);
+}
+
 static void neru_wayland_overlay_clear(NeruWaylandOverlay *overlay) {
     if (!overlay) return;
     for (int i = 0; i < overlay->nr_screens; i++) {
@@ -859,6 +876,16 @@ func (o *wlrootsOverlay) ClearRect(rect image.Rectangle) {
 			C.double(rect.Dy()),
 		)
 		C.neru_wayland_overlay_flush(o.raw)
+	}
+}
+
+// HideContent makes the overlay transparent without destroying surfaces.
+// Unlike Hide(), surfaces and buffers remain allocated so the next DrawBadge
+// call skips setup_buffers and its blocking wl_display_roundtrip.
+func (o *wlrootsOverlay) HideContent() {
+	if o != nil && o.raw != nil {
+		C.neru_wayland_overlay_clear(o.raw)
+		C.neru_wayland_overlay_detach(o.raw)
 	}
 }
 

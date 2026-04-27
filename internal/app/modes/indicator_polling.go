@@ -246,28 +246,6 @@ func (h *Handler) shouldShowModeIndicator(mode domain.Mode) bool {
 }
 
 func (h *Handler) modeIndicatorAnchorLocked(cursorPoint image.Point) image.Point {
-	switch h.appState.CurrentMode() {
-	case domain.ModeGrid:
-		if h.grid == nil || h.grid.Context == nil {
-			return cursorPoint
-		}
-
-		if selectionPoint, ok := h.grid.Context.SelectionPoint(); ok {
-			return selectionPoint
-		}
-	case domain.ModeRecursiveGrid:
-		if h.recursiveGrid == nil || h.recursiveGrid.Context == nil {
-			return cursorPoint
-		}
-
-		if selectionPoint, ok := h.recursiveGrid.Context.SelectionPoint(); ok {
-			return selectionPoint
-		}
-	case domain.ModeIdle:
-	case domain.ModeHints:
-	case domain.ModeScroll:
-	}
-
 	return cursorPoint
 }
 

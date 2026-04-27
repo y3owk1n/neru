@@ -728,13 +728,14 @@ func (m *Manager) hideIndicatorLayersLocked() {
 		m.stickyModifiersX11.Clear()
 		m.stickyModifiersX11.Hide()
 	}
+	// Use HideContent instead of Hide for Wayland indicator layers: commit a
+	// transparent buffer without destroying surfaces, so the next draw skips
+	// setup_buffers and its blocking compositor roundtrip.
 	if m.modeIndicatorWlroots != nil {
-		m.modeIndicatorWlroots.Clear()
-		m.modeIndicatorWlroots.Hide()
+		m.modeIndicatorWlroots.HideContent()
 	}
 	if m.stickyWlroots != nil {
-		m.stickyWlroots.Clear()
-		m.stickyWlroots.Hide()
+		m.stickyWlroots.HideContent()
 	}
 }
 
@@ -744,8 +745,7 @@ func (m *Manager) hideStickyIndicatorLayerLocked() {
 		m.stickyModifiersX11.Hide()
 	}
 	if m.stickyWlroots != nil {
-		m.stickyWlroots.Clear()
-		m.stickyWlroots.Hide()
+		m.stickyWlroots.HideContent()
 	}
 }
 

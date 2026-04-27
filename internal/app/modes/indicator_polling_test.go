@@ -37,7 +37,7 @@ func TestStickyIndicatorAnchor_UsesGridSelectionWhenCursorFollowDisabled(t *test
 	}
 }
 
-func TestModeIndicatorAnchor_UsesGridSelectionWhenAvailable(t *testing.T) {
+func TestModeIndicatorAnchor_UsesCursorInGridMode_IgnoresSelection(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeGrid)
 
@@ -49,18 +49,19 @@ func TestModeIndicatorAnchor_UsesGridSelectionWhenAvailable(t *testing.T) {
 		},
 	}
 
-	handler.grid.Context.SetCursorFollowSelection(true)
+	handler.grid.Context.SetCursorFollowSelection(false)
 	handler.grid.Context.SetSelectionPoint(image.Pt(40, 60))
 
 	got := handler.modeIndicatorAnchorLocked(image.Pt(10, 20))
 
-	want := image.Pt(40, 60)
+	// Mode indicator always follows the cursor, not the selection point.
+	want := image.Pt(10, 20)
 	if got != want {
 		t.Fatalf("modeIndicatorAnchor() = %v, want %v", got, want)
 	}
 }
 
-func TestModeIndicatorAnchor_UsesRecursiveGridSelectionWhenAvailable(t *testing.T) {
+func TestModeIndicatorAnchor_UsesCursorInRecursiveGridMode_IgnoresSelection(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeRecursiveGrid)
 
@@ -72,12 +73,12 @@ func TestModeIndicatorAnchor_UsesRecursiveGridSelectionWhenAvailable(t *testing.
 		},
 	}
 
-	handler.recursiveGrid.Context.SetCursorFollowSelection(true)
+	handler.recursiveGrid.Context.SetCursorFollowSelection(false)
 	handler.recursiveGrid.Context.SetSelectionPoint(image.Pt(75, 25))
 
 	got := handler.modeIndicatorAnchorLocked(image.Pt(10, 20))
 
-	want := image.Pt(75, 25)
+	want := image.Pt(10, 20)
 	if got != want {
 		t.Fatalf("modeIndicatorAnchor() = %v, want %v", got, want)
 	}
