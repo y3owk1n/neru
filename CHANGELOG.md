@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.33.0](https://github.com/y3owk1n/neru/compare/v1.32.0...v1.33.0) (2026-05-01)
+
+
+### Features
+
+* **linux:** add `uinput` scroll support as first detection layer ([#731](https://github.com/y3owk1n/neru/issues/731)) ([65a9913](https://github.com/y3owk1n/neru/commit/65a99136e3e696eebdf6806a37e7ea021b8ac69c))
+* support sticky modifiers on supported linux backends ([#719](https://github.com/y3owk1n/neru/issues/719)) ([957ef8b](https://github.com/y3owk1n/neru/commit/957ef8b71d72116cc15f53e6b0ed3cef82feb099))
+
 ## [1.32.0](https://github.com/y3owk1n/neru/compare/v1.31.0...v1.32.0) (2026-04-20)
 
 
