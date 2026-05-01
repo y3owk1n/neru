@@ -152,17 +152,17 @@ Full reference: [Configuration Docs →](docs/CONFIGURATION.md) · Community con
 
 ### macOS
 
-| Tool                                            | Approach                                         | Price    | Open Source        |
-| ----------------------------------------------- | ------------------------------------------------ | -------- | ------------------ |
-| **Neru**                                        | Hints + Grid + Recursive Grid + Scroll           | **Free** | ✅                 |
-| [Homerow](https://www.homerow.app/)             | Hints (fuzzy search + labels)                    | Paid     | ❌                 |
-| [Wooshy](https://wooshy.app)                    | Hints (search-to-click)                          | Paid     | ❌                 |
-| [Mouseless](https://mouseless.click/)           | Grid-based pointer control                       | Paid     | ❌                 |
-| [Scoot](https://github.com/mjrusso/scoot)       | Hints + Grid + Freestyle                         | Free     | ✅                 |
-| [Vimac](https://github.com/dexterleng/vimac)    | Hints + Grid                                     | Free     | ✅ ⚠️ unmaintained |
-| [warpd](https://github.com/rvaiya/warpd)        | Hints + Grid + Normal                            | Free     | ✅ ⚠️ low activity |
-| [Shortcat](https://shortcat.app/)               | Hints (fuzzy search)                             | Free     | ❌ discontinued    |
-| [Glyphlow](https://github.com/blindFS/Glyphlow) | Hints (fuzzy search + labels) + vim text editing | Free     | ✅                 |
+| Tool                                            | Approach                               | Price    | Open Source        |
+| ----------------------------------------------- | -------------------------------------- | -------- | ------------------ |
+| **Neru**                                        | Hints + Grid + Recursive Grid + Scroll | **Free** | ✅                 |
+| [Homerow](https://www.homerow.app/)             | Hints (fuzzy search + labels)          | Paid     | ❌                 |
+| [Wooshy](https://wooshy.app)                    | Hints (search-to-click)                | Paid     | ❌                 |
+| [Mouseless](https://mouseless.click/)           | Grid-based pointer control             | Paid     | ❌                 |
+| [Scoot](https://github.com/mjrusso/scoot)       | Hints + Grid + Freestyle               | Free     | ✅                 |
+| [Vimac](https://github.com/dexterleng/vimac)    | Hints + Grid                           | Free     | ✅ ⚠️ unmaintained |
+| [warpd](https://github.com/rvaiya/warpd)        | Hints + Grid + Normal                  | Free     | ✅ ⚠️ low activity |
+| [Shortcat](https://shortcat.app/)               | Hints (fuzzy search)                   | Free     | ❌ discontinued    |
+| [Glyphlow](https://github.com/blindFS/Glyphlow) | Hints + vim text editing               | Free     | ✅                 |
 
 ### Browser extensions
 
