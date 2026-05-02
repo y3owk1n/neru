@@ -16,7 +16,7 @@ on:
     secrets:
       upload_token:
         required: false
-      NERU_P12_64_BASE64:
+      NERU_P12_BASE64:
         required: false
       NERU_P12_PASSWORD:
         required: false
