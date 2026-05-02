@@ -48,6 +48,7 @@ jobs:
           CERT_NAME: ${{ secrets.NERU_CERT_NAME }}
         run: |
           CERT_PATH=$(mktemp /tmp/cert.neru-cert.p12)
+          echo "CERT_PATH=$CERT_PATH" >> $GITHUB_ENV
           echo "$P12_BASE64" | base64 --decode > "$CERT_PATH"
 
           KEYCHAIN="build.keychain"
@@ -74,8 +75,6 @@ jobs:
 
           security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "$CERT_NAME" \
             || { echo "ERROR: Signing identity '$CERT_NAME' not found in keychain"; exit 1; }
-
-          echo "CERT_PATH=$CERT_PATH" >> $GITHUB_ENV
 
       - name: Build neru darwin arm64 artifact
         run: just release-ci-darwin arm64 ${{ inputs.version_override }}
@@ -157,6 +156,7 @@ jobs:
           CERT_NAME: ${{ secrets.NERU_CERT_NAME }}
         run: |
           CERT_PATH=$(mktemp /tmp/cert.neru-cert.p12)
+          echo "CERT_PATH=$CERT_PATH" >> $GITHUB_ENV
           echo "$P12_BASE64" | base64 --decode > "$CERT_PATH"
 
           KEYCHAIN="build.keychain"
@@ -183,8 +183,6 @@ jobs:
 
           security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "$CERT_NAME" \
             || { echo "ERROR: Signing identity '$CERT_NAME' not found in keychain"; exit 1; }
-
-          echo "CERT_PATH=$CERT_PATH" >> $GITHUB_ENV
 
       - name: Build neru darwin amd64 artifact
         run: just release-ci-darwin amd64 ${{ inputs.version_override }}
