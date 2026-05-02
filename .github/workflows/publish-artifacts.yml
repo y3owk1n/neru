@@ -67,7 +67,7 @@ jobs:
             -k "$KEYCHAIN_PASSWORD" \
             "$KEYCHAIN" >/dev/null 2>&1
 
-          security list-keychains -d user -s "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           security find-identity -v -p codesigning "$KEYCHAIN"
 
       - name: Build neru darwin arm64 artifact
@@ -169,7 +169,7 @@ jobs:
             -k "$KEYCHAIN_PASSWORD" \
             "$KEYCHAIN" >/dev/null 2>&1
 
-          security list-keychains -d user -s "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           security find-identity -v -p codesigning "$KEYCHAIN"
 
       - name: Build neru darwin amd64 artifact
