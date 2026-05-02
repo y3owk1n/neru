@@ -141,61 +141,48 @@ ElementInfo *getElementInfo(void *element) {
 			return info;
 		}
 
-		CFIndex count = CFArrayGetCount(values);
-
-		if (count > 0) {
-			CFTypeRef positionValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
-			if (positionValue && CFGetTypeID(positionValue) == AXValueGetTypeID()) {
-				CGPoint point;
-				if (AXValueGetValue((AXValueRef)positionValue, kAXValueCGPointType, &point)) {
-					info->position = point;
-				}
+		// With option=0, values always has exactly 7 entries (one per requested attribute).
+		// Slots for unsupported/errored attributes hold an AX error placeholder (CFNumber),
+		// which the CFGetTypeID checks below will correctly reject.
+		CFTypeRef positionValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
+		if (positionValue && CFGetTypeID(positionValue) == AXValueGetTypeID()) {
+			CGPoint point;
+			if (AXValueGetValue((AXValueRef)positionValue, kAXValueCGPointType, &point)) {
+				info->position = point;
 			}
 		}
 
-		if (count > 1) {
-			CFTypeRef sizeValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 1);
-			if (sizeValue && CFGetTypeID(sizeValue) == AXValueGetTypeID()) {
-				CGSize size;
-				if (AXValueGetValue((AXValueRef)sizeValue, kAXValueCGSizeType, &size)) {
-					info->size = size;
-				}
+		CFTypeRef sizeValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 1);
+		if (sizeValue && CFGetTypeID(sizeValue) == AXValueGetTypeID()) {
+			CGSize size;
+			if (AXValueGetValue((AXValueRef)sizeValue, kAXValueCGSizeType, &size)) {
+				info->size = size;
 			}
 		}
 
-		if (count > 2) {
-			CFTypeRef titleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 2);
-			if (titleValue && CFGetTypeID(titleValue) == CFStringGetTypeID()) {
-				info->title = cfStringToCString((CFStringRef)titleValue);
-			}
+		CFTypeRef titleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 2);
+		if (titleValue && CFGetTypeID(titleValue) == CFStringGetTypeID()) {
+			info->title = cfStringToCString((CFStringRef)titleValue);
 		}
 
-		if (count > 3) {
-			CFTypeRef roleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 3);
-			if (roleValue && CFGetTypeID(roleValue) == CFStringGetTypeID()) {
-				info->role = cfStringToCString((CFStringRef)roleValue);
-			}
+		CFTypeRef roleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 3);
+		if (roleValue && CFGetTypeID(roleValue) == CFStringGetTypeID()) {
+			info->role = cfStringToCString((CFStringRef)roleValue);
 		}
 
-		if (count > 4) {
-			CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 4);
-			if (roleDescValue && CFGetTypeID(roleDescValue) == CFStringGetTypeID()) {
-				info->roleDescription = cfStringToCString((CFStringRef)roleDescValue);
-			}
+		CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 4);
+		if (roleDescValue && CFGetTypeID(roleDescValue) == CFStringGetTypeID()) {
+			info->roleDescription = cfStringToCString((CFStringRef)roleDescValue);
 		}
 
-		if (count > 5) {
-			CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 5);
-			if (enabledValue && CFGetTypeID(enabledValue) == CFBooleanGetTypeID()) {
-				info->isEnabled = CFBooleanGetValue((CFBooleanRef)enabledValue);
-			}
+		CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 5);
+		if (enabledValue && CFGetTypeID(enabledValue) == CFBooleanGetTypeID()) {
+			info->isEnabled = CFBooleanGetValue((CFBooleanRef)enabledValue);
 		}
 
-		if (count > 6) {
-			CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 6);
-			if (focusedValue && CFGetTypeID(focusedValue) == CFBooleanGetTypeID()) {
-				info->isFocused = CFBooleanGetValue((CFBooleanRef)focusedValue);
-			}
+		CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 6);
+		if (focusedValue && CFGetTypeID(focusedValue) == CFBooleanGetTypeID()) {
+			info->isFocused = CFBooleanGetValue((CFBooleanRef)focusedValue);
 		}
 
 		CFRelease(values);
