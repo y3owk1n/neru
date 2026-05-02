@@ -17,11 +17,11 @@ on:
       upload_token:
         required: false
       NERU_P12_BASE64:
-        required: false
+        required: true
       NERU_P12_PASSWORD:
-        required: false
+        required: true
       NERU_CERT_NAME:
-        required: false
+        required: true
 
 name: publish-artifacts
 
