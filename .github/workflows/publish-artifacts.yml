@@ -50,7 +50,7 @@ jobs:
           echo "$P12_BASE64" | base64 --decode > cert.p12
 
           KEYCHAIN="build.keychain"
-          KEYCHAIN_PASSWORD="temp123"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
@@ -152,7 +152,7 @@ jobs:
           echo "$P12_BASE64" | base64 --decode > cert.p12
 
           KEYCHAIN="build.keychain"
-          KEYCHAIN_PASSWORD="temp123"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
