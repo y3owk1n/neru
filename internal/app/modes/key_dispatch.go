@@ -202,7 +202,7 @@ func (h *Handler) handleRawHintsActionHotkey(rawKey, bundleID string) bool {
 	}
 
 	bindKey, actions, ok := findHotkeyMatch(hotkeys, config.NormalizeKeyForComparison(rawKey))
-	if !ok || !startsWithModeAction(actions) {
+	if !ok || !containsModeAction(actions) {
 		return false
 	}
 
@@ -211,12 +211,14 @@ func (h *Handler) handleRawHintsActionHotkey(rawKey, bundleID string) bool {
 	return true
 }
 
-func startsWithModeAction(actions []string) bool {
-	if len(actions) == 0 {
-		return false
+func containsModeAction(actions []string) bool {
+	for _, actionStr := range actions {
+		if strings.HasPrefix(strings.TrimSpace(actionStr), hotkeyActionPrefix) {
+			return true
+		}
 	}
 
-	return strings.HasPrefix(strings.TrimSpace(actions[0]), hotkeyActionPrefix)
+	return false
 }
 
 func findHotkeyMatch(

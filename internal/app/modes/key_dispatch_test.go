@@ -138,7 +138,7 @@ func TestHandleKeyPressUsesRawHintActionHotkeyWhenStickyShiftStripped(t *testing
 	}
 }
 
-func TestHandleKeyPressUsesRawHintActionHotkeyWithFollowUpActions(t *testing.T) {
+func TestHandleKeyPressUsesRawHintActionHotkeyWithActionAfterModeAction(t *testing.T) {
 	t.Parallel()
 
 	appState := state.NewAppState()
@@ -151,7 +151,7 @@ func TestHandleKeyPressUsesRawHintActionHotkeyWithFollowUpActions(t *testing.T) 
 		config: &configpkg.Config{
 			Hints: configpkg.HintsConfig{
 				Hotkeys: map[string]configpkg.StringOrStringArray{
-					"Shift+L": {"action left_click", "idle"},
+					"Shift+L": {"idle", "action left_click"},
 				},
 			},
 		},
@@ -182,7 +182,7 @@ func TestHandleKeyPressUsesRawHintActionHotkeyWithFollowUpActions(t *testing.T) 
 
 	handler.HandleKeyPress("Shift+L")
 
-	for _, want := range []string{"action left_click", "idle"} {
+	for _, want := range []string{"idle", "action left_click"} {
 		select {
 		case got := <-hotkeyActions:
 			if got != want {
