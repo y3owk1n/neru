@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.34.0](https://github.com/y3owk1n/neru/compare/v1.33.0...v1.34.0) (2026-05-02)
+
+
+### Features
+
+* prompt for macOS accessibility permission on startup ([#742](https://github.com/y3owk1n/neru/issues/742)) ([2281b39](https://github.com/y3owk1n/neru/commit/2281b39f83fa0dcf185daf492df07d3a7a020aba))
+
+
+### Bug Fixes
+
+* use proper cert for adhoc code signing ([#738](https://github.com/y3owk1n/neru/issues/738)) ([3789ac6](https://github.com/y3owk1n/neru/commit/3789ac6c7445f64054a8296881491cde0942d5e9))
+
+
+### Performance Improvements
+
+* batch `AXUIElementCopyMultipleAttributeValues` ([#743](https://github.com/y3owk1n/neru/issues/743)) ([81fb53e](https://github.com/y3owk1n/neru/commit/81fb53e2ffced49ed46280f797ca5e02cf617cfe))
+
+
+### Documentation
+
+* add missing `hints.app_configs` section ([#744](https://github.com/y3owk1n/neru/issues/744)) ([636ac94](https://github.com/y3owk1n/neru/commit/636ac94ee5a7e5410d2e799f50ea443e0b889cbb))
+
 ## [1.33.0](https://github.com/y3owk1n/neru/compare/v1.32.0...v1.33.0) (2026-05-01)
 
 
