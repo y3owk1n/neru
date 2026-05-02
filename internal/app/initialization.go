@@ -58,11 +58,6 @@ func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 			logger.Info("⚠️  Neru requires Accessibility permissions to function.")
 			logger.Info("Please go to: System Settings → Privacy & Security → Accessibility")
 			logger.Info("and enable Neru.")
-
-			return derrors.New(
-				derrors.CodeAccessibilityDenied,
-				"accessibility permissions not granted - please enable in System Preferences",
-			)
 		}
 	}
 

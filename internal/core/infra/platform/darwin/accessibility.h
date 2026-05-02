@@ -31,6 +31,10 @@ typedef struct {
 /// @return 1 if permissions are granted, 0 otherwise
 int checkAccessibilityPermissions(void);
 
+/// Request accessibility permissions from macOS
+/// @return 1 if permissions are granted after the request, 0 otherwise
+int requestAccessibilityPermissions(void);
+
 #pragma mark - Application Functions
 
 /// Get system-wide accessibility element

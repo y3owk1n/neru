@@ -23,3 +23,13 @@ func ShowConfigOnboardingAlert(_ string) int {
 func ShowConfigValidationErrorAlert(_, _ string) int {
 	return ConfigValidationOK
 }
+
+// CheckAccessibilityPermissions is always true on unsupported platforms for startup gating.
+func CheckAccessibilityPermissions() bool {
+	return true
+}
+
+// ShowAccessibilityPermissionStartupAlert is a no-op on unsupported platforms.
+func ShowAccessibilityPermissionStartupAlert() int {
+	return AccessibilityPermissionStartupGranted
+}

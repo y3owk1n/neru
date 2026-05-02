@@ -21,4 +21,7 @@ const (
 
 	ConfigValidationOK       = 1
 	ConfigValidationCopyPath = 2
+
+	AccessibilityPermissionStartupGranted = 1
+	AccessibilityPermissionStartupQuit    = 2
 )

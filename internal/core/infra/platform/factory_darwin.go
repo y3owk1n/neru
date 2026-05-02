@@ -21,3 +21,13 @@ func ShowConfigOnboardingAlert(configPath string) int {
 func ShowConfigValidationErrorAlert(errorMessage, configPath string) int {
 	return int(darwin.ShowConfigValidationError(errorMessage, configPath))
 }
+
+// CheckAccessibilityPermissions checks macOS accessibility permission without prompting.
+func CheckAccessibilityPermissions() bool {
+	return darwin.CheckAccessibilityPermissions()
+}
+
+// ShowAccessibilityPermissionStartupAlert displays the macOS startup permission guidance.
+func ShowAccessibilityPermissionStartupAlert() int {
+	return int(darwin.ShowAccessibilityPermissionStartupAlert())
+}

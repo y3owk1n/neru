@@ -5,6 +5,7 @@
 //  Copyright © 2025 Neru. All rights reserved.
 //
 
+#import "accessibility.h"
 #import "alert.h"
 
 #import <Cocoa/Cocoa.h>
@@ -15,6 +16,7 @@
 
 static int showAlertOnMainThread(const char *errorMessage, const char *configPath);
 static int showOnboardingAlertOnMainThread(const char *configPath);
+static int showAccessibilityPermissionStartupAlertOnMainThread(void);
 
 #pragma mark - Alert Functions
 
@@ -145,6 +147,57 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 	}
 
 	return 0;
+}
+
+/// Show the startup accessibility permission guidance alert.
+int showAccessibilityPermissionStartupAlert(void) {
+	@autoreleasepool {
+		__block int result = 0;
+
+		if ([NSThread isMainThread]) {
+			result = showAccessibilityPermissionStartupAlertOnMainThread();
+		} else {
+			dispatch_sync(dispatch_get_main_queue(), ^{
+				result = showAccessibilityPermissionStartupAlertOnMainThread();
+			});
+		}
+
+		return result;
+	}
+}
+
+/// Internal function to show the accessibility permission alert on main thread.
+static int showAccessibilityPermissionStartupAlertOnMainThread(void) {
+	while (checkAccessibilityPermissions() != 1) {
+		NSAlert *alert = [[NSAlert alloc] init];
+		alert.messageText = @"Accessibility Permission Needed";
+		alert.informativeText =
+		    @"Neru needs Accessibility permission to work. Click Request Permission to open the macOS permission "
+		    @"flow, grant access in System Settings, then return here and click Start Neru.";
+		alert.alertStyle = NSAlertStyleWarning;
+		alert.icon = [NSImage imageNamed:NSImageNameCaution];
+
+		[alert addButtonWithTitle:@"Request Permission"];
+		[alert addButtonWithTitle:@"Granted, Start Neru"];
+		[alert addButtonWithTitle:@"Quit"];
+
+		[[alert window] setLevel:NSFloatingWindowLevel];
+		[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+		[[alert window] center];
+		[[alert window] makeKeyAndOrderFront:nil];
+		[NSApp activateIgnoringOtherApps:YES];
+
+		NSModalResponse response = [alert runModal];
+		[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
+
+		if (response == NSAlertFirstButtonReturn) {
+			requestAccessibilityPermissions();
+		} else if (response == NSAlertThirdButtonReturn) {
+			return 2;
+		}
+	}
+
+	return 1;
 }
 
 #pragma mark - Notification Delegate

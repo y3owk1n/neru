@@ -15,6 +15,9 @@ type ConfigOnboardingChoice int
 // ConfigValidationChoice represents the user's choice in the config validation error alert.
 type ConfigValidationChoice int
 
+// AccessibilityPermissionStartupChoice represents the user's choice in the startup permission alert.
+type AccessibilityPermissionStartupChoice int
+
 const (
 	// ConfigOnboardingCreate indicates the user chose to create a config file.
 	ConfigOnboardingCreate ConfigOnboardingChoice = 1
@@ -27,6 +30,11 @@ const (
 	ConfigValidationOK ConfigValidationChoice = 1
 	// ConfigValidationCopyPath indicates the user clicked Copy Path.
 	ConfigValidationCopyPath ConfigValidationChoice = 2
+
+	// AccessibilityPermissionStartupGranted indicates accessibility permission is granted.
+	AccessibilityPermissionStartupGranted AccessibilityPermissionStartupChoice = 1
+	// AccessibilityPermissionStartupQuit indicates the user chose to quit.
+	AccessibilityPermissionStartupQuit AccessibilityPermissionStartupChoice = 2
 )
 
 // ShowConfigValidationError displays a native macOS alert for configuration validation errors.
@@ -55,4 +63,10 @@ func ShowConfigOnboardingAlert(configPath string) ConfigOnboardingChoice {
 	defer C.free(unsafe.Pointer(cPath)) //nolint:nlreturn
 
 	return ConfigOnboardingChoice(C.showConfigOnboardingAlert(cPath))
+}
+
+// ShowAccessibilityPermissionStartupAlert displays the macOS startup guidance for granting
+// accessibility permission.
+func ShowAccessibilityPermissionStartupAlert() AccessibilityPermissionStartupChoice {
+	return AccessibilityPermissionStartupChoice(C.showAccessibilityPermissionStartupAlert())
 }
