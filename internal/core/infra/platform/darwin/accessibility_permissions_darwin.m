@@ -27,8 +27,9 @@ static BOOL resetAccessibilityPermissionDecision(void) {
 
 		int status = [task terminationStatus];
 		if (status != 0) {
-			NSLog(@"Neru: tccutil reset Accessibility %@ exited with status %d; system permission dialog may not appear",
-			      bundleID, status);
+			NSLog(
+			    @"Neru: tccutil reset Accessibility %@ exited with status %d; system permission dialog may not appear",
+			    bundleID, status);
 			return NO;
 		}
 	} @catch (NSException *exception) {
