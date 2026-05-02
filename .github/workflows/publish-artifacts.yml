@@ -69,7 +69,7 @@ jobs:
             "$KEYCHAIN" >/dev/null 2>&1
 
           security default-keychain -s "$KEYCHAIN"
-          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | xargs)
 
           security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "$CERT_NAME" \
             || { echo "ERROR: Signing identity '$CERT_NAME' not found in keychain"; exit 1; }
@@ -175,7 +175,7 @@ jobs:
             "$KEYCHAIN" >/dev/null 2>&1
 
           security default-keychain -s "$KEYCHAIN"
-          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | xargs)
 
           security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "$CERT_NAME" \
             || { echo "ERROR: Signing identity '$CERT_NAME' not found in keychain"; exit 1; }
