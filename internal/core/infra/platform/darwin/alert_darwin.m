@@ -173,7 +173,7 @@ static int showAccessibilityPermissionStartupAlertOnMainThread(void) {
 		alert.messageText = @"Accessibility Permission Needed";
 		alert.informativeText =
 		    @"Neru needs Accessibility permission to work. Click Request Permission to open the macOS permission "
-		    @"flow, grant access in System Settings, then return here and click Start Neru.";
+		    @"flow, grant access in System Settings, then return here and click Granted, Start Neru.";
 		alert.alertStyle = NSAlertStyleWarning;
 		alert.icon = [NSImage imageNamed:NSImageNameCaution];
 
