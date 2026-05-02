@@ -53,6 +53,7 @@ jobs:
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 7200 "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 
           security import cert.p12 \
@@ -67,8 +68,11 @@ jobs:
             -k "$KEYCHAIN_PASSWORD" \
             "$KEYCHAIN" >/dev/null 2>&1
 
+          security default-keychain -s "$KEYCHAIN"
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
-          security find-identity -v -p codesigning "$KEYCHAIN"
+
+          security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "$CERT_NAME" \
+            || { echo "ERROR: Signing identity '$CERT_NAME' not found in keychain"; exit 1; }
 
       - name: Build neru darwin arm64 artifact
         run: just release-ci-darwin arm64 ${{ inputs.version_override }}
@@ -155,6 +159,7 @@ jobs:
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 7200 "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 
           security import cert.p12 \
@@ -169,8 +174,11 @@ jobs:
             -k "$KEYCHAIN_PASSWORD" \
             "$KEYCHAIN" >/dev/null 2>&1
 
+          security default-keychain -s "$KEYCHAIN"
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
-          security find-identity -v -p codesigning "$KEYCHAIN"
+
+          security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "$CERT_NAME" \
+            || { echo "ERROR: Signing identity '$CERT_NAME' not found in keychain"; exit 1; }
 
       - name: Build neru darwin amd64 artifact
         run: just release-ci-darwin amd64 ${{ inputs.version_override }}
