@@ -93,3 +93,6 @@ jobs:
             macos_short_version: ${{ needs.prepare-nightly-release.outputs.macos_short_version }}
         secrets:
             upload_token: ${{ github.token }}
+            NERU_P12_BASE64: ${{ secrets.NERU_P12_BASE64 }}
+            NERU_P12_PASSWORD: ${{ secrets.NERU_P12_PASSWORD }}
+            NERU_CERT_NAME: ${{ secrets.NERU_CERT_NAME }}
