@@ -293,6 +293,26 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                         |
 | `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                          |
 
+### Per-App Config Overrides
+
+`[[hints.app_configs]]` allows you to override settings for specific apps:
+
+| Field                        | Type   | Description                              |
+| ---------------------------- | ------ | ---------------------------------------- |
+| `bundle_id`                  | string | App bundle ID (e.g. "com.apple.Safari")  |
+| `additional_clickable_roles` | array  | Extra AX roles to treat as clickable     |
+| `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app |
+| `hotkeys`                    | map    | Per-app hotkey overrides (see below)     |
+
+```toml
+[[hints.app_configs]]
+bundle_id = "com.apple.Safari"
+additional_clickable_roles = ["AXLink"]
+ignore_clickable_check = true
+```
+
+See [Per-App Hotkey Overrides](#per-app-hint-hotkey-overrides) for how per-app hotkey overrides work.
+
 ### Additional Accessibility Support
 
 Enable framework-specific accessibility support for improved hint detection in Electron, Chromium, and Firefox apps:
