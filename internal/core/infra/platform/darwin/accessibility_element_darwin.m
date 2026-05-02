@@ -98,7 +98,7 @@ void *getApplicationByBundleId(const char *bundle_id) {
 
 #pragma mark - Element Information Functions
 
-/// Get element information
+/// Get element information using batched attribute queries
 /// @param element Element reference
 /// @return Element information structure
 ElementInfo *getElementInfo(void *element) {
@@ -111,72 +111,95 @@ ElementInfo *getElementInfo(void *element) {
 		if (!info)
 			return NULL;
 
-		// Get position
-		CFTypeRef positionValue = NULL;
-		if (AXUIElementCopyAttributeValue(axElement, kAXPositionAttribute, &positionValue) == kAXErrorSuccess) {
-			CGPoint point;
-			if (AXValueGetValue(positionValue, kAXValueCGPointType, &point)) {
-				info->position = point;
-			}
-			CFRelease(positionValue);
+		CFArrayRef attributes = CFArrayCreate(
+		    NULL,
+		    (const void **)(CFTypeRef[]){
+		        kAXPositionAttribute,
+		        kAXSizeAttribute,
+		        kAXTitleAttribute,
+		        kAXRoleAttribute,
+		        kAXRoleDescriptionAttribute,
+		        kAXEnabledAttribute,
+		        kAXFocusedAttribute,
+		    },
+		    7, &kCFTypeArrayCallBacks);
+
+		if (!attributes) {
+			free(info);
+			return NULL;
 		}
 
-		// Get size
-		CFTypeRef sizeValue = NULL;
-		if (AXUIElementCopyAttributeValue(axElement, kAXSizeAttribute, &sizeValue) == kAXErrorSuccess) {
-			CGSize size;
-			if (AXValueGetValue(sizeValue, kAXValueCGSizeType, &size)) {
-				info->size = size;
+		CFArrayRef values = NULL;
+		AXError error = AXUIElementCopyMultipleAttributeValues(axElement, attributes, 0, &values);
+		CFRelease(attributes);
+
+		if (error != kAXErrorSuccess || !values) {
+			pid_t pid;
+			if (AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
+				info->pid = pid;
 			}
-			CFRelease(sizeValue);
+			return info;
 		}
 
-		// Get title
-		CFTypeRef titleValue = NULL;
-		if (AXUIElementCopyAttributeValue(axElement, kAXTitleAttribute, &titleValue) == kAXErrorSuccess) {
-			if (CFGetTypeID(titleValue) == CFStringGetTypeID()) {
+		CFIndex count = CFArrayGetCount(values);
+
+		if (count > 0) {
+			CFTypeRef positionValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
+			if (positionValue && CFGetTypeID(positionValue) == AXValueGetTypeID()) {
+				CGPoint point;
+				if (AXValueGetValue((AXValueRef)positionValue, kAXValueCGPointType, &point)) {
+					info->position = point;
+				}
+			}
+		}
+
+		if (count > 1) {
+			CFTypeRef sizeValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 1);
+			if (sizeValue && CFGetTypeID(sizeValue) == AXValueGetTypeID()) {
+				CGSize size;
+				if (AXValueGetValue((AXValueRef)sizeValue, kAXValueCGSizeType, &size)) {
+					info->size = size;
+				}
+			}
+		}
+
+		if (count > 2) {
+			CFTypeRef titleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 2);
+			if (titleValue && CFGetTypeID(titleValue) == CFStringGetTypeID()) {
 				info->title = cfStringToCString((CFStringRef)titleValue);
 			}
-			CFRelease(titleValue);
 		}
 
-		// Get role
-		CFTypeRef roleValue = NULL;
-		if (AXUIElementCopyAttributeValue(axElement, kAXRoleAttribute, &roleValue) == kAXErrorSuccess) {
-			if (CFGetTypeID(roleValue) == CFStringGetTypeID()) {
+		if (count > 3) {
+			CFTypeRef roleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 3);
+			if (roleValue && CFGetTypeID(roleValue) == CFStringGetTypeID()) {
 				info->role = cfStringToCString((CFStringRef)roleValue);
 			}
-			CFRelease(roleValue);
 		}
 
-		// Get role description
-		CFTypeRef roleDescValue = NULL;
-		if (AXUIElementCopyAttributeValue(axElement, kAXRoleDescriptionAttribute, &roleDescValue) == kAXErrorSuccess) {
-			if (CFGetTypeID(roleDescValue) == CFStringGetTypeID()) {
+		if (count > 4) {
+			CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 4);
+			if (roleDescValue && CFGetTypeID(roleDescValue) == CFStringGetTypeID()) {
 				info->roleDescription = cfStringToCString((CFStringRef)roleDescValue);
 			}
-			CFRelease(roleDescValue);
 		}
 
-		// Get enabled state
-		CFTypeRef enabledValue = NULL;
-		if (AXUIElementCopyAttributeValue(axElement, kAXEnabledAttribute, &enabledValue) == kAXErrorSuccess) {
-			if (CFGetTypeID(enabledValue) == CFBooleanGetTypeID()) {
+		if (count > 5) {
+			CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 5);
+			if (enabledValue && CFGetTypeID(enabledValue) == CFBooleanGetTypeID()) {
 				info->isEnabled = CFBooleanGetValue((CFBooleanRef)enabledValue);
 			}
-			CFRelease(enabledValue);
 		}
 
-		// Get focused state
-		CFTypeRef focusedValue = NULL;
-		if (AXUIElementCopyAttributeValue(axElement, kAXFocusedAttribute, &focusedValue) == kAXErrorSuccess) {
-			if (CFGetTypeID(focusedValue) == CFBooleanGetTypeID()) {
+		if (count > 6) {
+			CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 6);
+			if (focusedValue && CFGetTypeID(focusedValue) == CFBooleanGetTypeID()) {
 				info->isFocused = CFBooleanGetValue((CFBooleanRef)focusedValue);
 			}
-			CFRelease(focusedValue);
 		}
 
-		// Get PID
+		CFRelease(values);
+
 		pid_t pid;
 		if (AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
 			info->pid = pid;
@@ -235,29 +258,55 @@ int getElementCenter(void *element, CGPoint *outPoint) {
 	AXUIElementRef axElement = (AXUIElementRef)element;
 	*outPoint = CGPointZero;
 
-	// Get position
-	CFTypeRef positionRef = NULL;
-	AXError error = AXUIElementCopyAttributeValue(axElement, kAXPositionAttribute, &positionRef);
-	if (error != kAXErrorSuccess || !positionRef) {
+	CFArrayRef attributes = CFArrayCreate(
+	    NULL,
+	    (const void **)(CFTypeRef[]){
+	        kAXPositionAttribute,
+	        kAXSizeAttribute,
+	    },
+	    2, &kCFTypeArrayCallBacks);
+
+	if (!attributes)
+		return 0;
+
+	CFArrayRef values = NULL;
+	AXError error = AXUIElementCopyMultipleAttributeValues(axElement, attributes, 0, &values);
+	CFRelease(attributes);
+
+	if (error != kAXErrorSuccess || !values) {
 		return 0;
 	}
+
+	CFIndex count = CFArrayGetCount(values);
+
+	if (count < 1) {
+		CFRelease(values);
+		return 0;
+	}
+
+	CFTypeRef positionRef = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
+	if (!positionRef || CFGetTypeID(positionRef) != AXValueGetTypeID()) {
+		CFRelease(values);
+		return 0;
+	}
+
 	if (!AXValueGetValue((AXValueRef)positionRef, kAXValueCGPointType, outPoint)) {
-		CFRelease(positionRef);
+		CFRelease(values);
 		return 0;
 	}
-	CFRelease(positionRef);
 
-	// Get size and offset to center
-	CFTypeRef sizeRef = NULL;
-	if (AXUIElementCopyAttributeValue(axElement, kAXSizeAttribute, &sizeRef) == kAXErrorSuccess && sizeRef) {
-		CGSize size;
-		if (AXValueGetValue((AXValueRef)sizeRef, kAXValueCGSizeType, &size)) {
-			outPoint->x += size.width / 2.0;
-			outPoint->y += size.height / 2.0;
+	if (count > 1) {
+		CFTypeRef sizeRef = (CFTypeRef)CFArrayGetValueAtIndex(values, 1);
+		if (sizeRef && CFGetTypeID(sizeRef) == AXValueGetTypeID()) {
+			CGSize size;
+			if (AXValueGetValue((AXValueRef)sizeRef, kAXValueCGSizeType, &size)) {
+				outPoint->x += size.width / 2.0;
+				outPoint->y += size.height / 2.0;
+			}
 		}
-		CFRelease(sizeRef);
 	}
 
+	CFRelease(values);
 	return 1;
 }
 
@@ -392,33 +441,59 @@ int hasClickAction(void *element) {
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
 
-	// Ignore hidden elements early
-	CFBooleanRef hidden = NULL;
-	if (AXUIElementCopyAttributeValue(axElement, kAXHiddenAttribute, (CFTypeRef *)&hidden) == kAXErrorSuccess &&
-	    hidden) {
-		if (CFBooleanGetValue(hidden)) {
-			CFRelease(hidden);
-			return 0;
-		}
-		CFRelease(hidden);
-	}
+	CFArrayRef initialAttrs = CFArrayCreate(
+	    NULL,
+	    (const void **)(CFTypeRef[]){
+	        kAXHiddenAttribute,
+	        kAXEnabledAttribute,
+	        kAXRoleAttribute,
+	    },
+	    3, &kCFTypeArrayCallBacks);
 
-	// Ignore disabled elements early
-	CFBooleanRef enabled = NULL;
-	bool isEnabled = true;
-	if (AXUIElementCopyAttributeValue(axElement, kAXEnabledAttribute, (CFTypeRef *)&enabled) == kAXErrorSuccess &&
-	    enabled) {
-		isEnabled = CFBooleanGetValue(enabled);
-		CFRelease(enabled);
-	}
-	if (!isEnabled)
+	if (!initialAttrs)
 		return 0;
 
-	// Get role for role-specific fallbacks
+	CFArrayRef initialValues = NULL;
+	AXError batchError = AXUIElementCopyMultipleAttributeValues(axElement, initialAttrs, 0, &initialValues);
+	CFRelease(initialAttrs);
+
+	bool isHidden = false;
+	bool isEnabled = true;
 	CFStringRef role = NULL;
-	if (AXUIElementCopyAttributeValue(axElement, kAXRoleAttribute, (CFTypeRef *)&role) != kAXErrorSuccess) {
-		role = NULL;
+
+	if (batchError == kAXErrorSuccess && initialValues) {
+		CFIndex count = CFArrayGetCount(initialValues);
+
+		if (count > 0) {
+			CFTypeRef hidden = (CFTypeRef)CFArrayGetValueAtIndex(initialValues, 0);
+			if (hidden && CFGetTypeID(hidden) == CFBooleanGetTypeID()) {
+				isHidden = CFBooleanGetValue((CFBooleanRef)hidden);
+			}
+		}
+
+		if (count > 1 && !isHidden) {
+			CFTypeRef enabled = (CFTypeRef)CFArrayGetValueAtIndex(initialValues, 1);
+			if (enabled && CFGetTypeID(enabled) == CFBooleanGetTypeID()) {
+				isEnabled = CFBooleanGetValue((CFBooleanRef)enabled);
+			}
+		}
+
+		if (count > 2 && isEnabled && !isHidden) {
+			CFTypeRef roleVal = (CFTypeRef)CFArrayGetValueAtIndex(initialValues, 2);
+			if (roleVal && CFGetTypeID(roleVal) == CFStringGetTypeID()) {
+				role = (CFStringRef)roleVal;
+				CFRetain(role);
+			}
+		}
+
+		CFRelease(initialValues);
 	}
+
+	if (isHidden)
+		return 0;
+
+	if (!isEnabled)
+		return 0;
 
 	// Explicit actions are the strongest signal
 	CFArrayRef actions = NULL;
