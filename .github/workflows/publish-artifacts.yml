@@ -47,7 +47,8 @@ jobs:
           P12_PASSWORD: ${{ secrets.NERU_P12_PASSWORD }}
           CERT_NAME: ${{ secrets.NERU_CERT_NAME }}
         run: |
-          echo "$P12_BASE64" | base64 --decode > cert.p12
+          CERT_PATH=$(mktemp /tmp/cert.neru-cert.p12)
+          echo "$P12_BASE64" | base64 --decode > "$CERT_PATH"
 
           KEYCHAIN="build.keychain"
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
@@ -56,7 +57,7 @@ jobs:
           security set-keychain-settings -lut 7200 "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 
-          security import cert.p12 \
+          security import "$CERT_PATH" \
             -k "$KEYCHAIN" \
             -P "$P12_PASSWORD" \
             -A \
@@ -73,6 +74,8 @@ jobs:
 
           security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "$CERT_NAME" \
             || { echo "ERROR: Signing identity '$CERT_NAME' not found in keychain"; exit 1; }
+
+          echo "CERT_PATH=$CERT_PATH" >> $GITHUB_ENV
 
       - name: Build neru darwin arm64 artifact
         run: just release-ci-darwin arm64 ${{ inputs.version_override }}
@@ -128,7 +131,7 @@ jobs:
           echo "Deleting temp keychain..."
           security delete-keychain "$KEYCHAIN" || true
 
-          rm -f cert.p12 || true
+          rm -f "$CERT_PATH" || true
 
           echo "Cleanup done"
 
@@ -153,7 +156,8 @@ jobs:
           P12_PASSWORD: ${{ secrets.NERU_P12_PASSWORD }}
           CERT_NAME: ${{ secrets.NERU_CERT_NAME }}
         run: |
-          echo "$P12_BASE64" | base64 --decode > cert.p12
+          CERT_PATH=$(mktemp /tmp/cert.neru-cert.p12)
+          echo "$P12_BASE64" | base64 --decode > "$CERT_PATH"
 
           KEYCHAIN="build.keychain"
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
@@ -162,7 +166,7 @@ jobs:
           security set-keychain-settings -lut 7200 "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 
-          security import cert.p12 \
+          security import "$CERT_PATH" \
             -k "$KEYCHAIN" \
             -P "$P12_PASSWORD" \
             -A \
@@ -179,6 +183,8 @@ jobs:
 
           security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "$CERT_NAME" \
             || { echo "ERROR: Signing identity '$CERT_NAME' not found in keychain"; exit 1; }
+
+          echo "CERT_PATH=$CERT_PATH" >> $GITHUB_ENV
 
       - name: Build neru darwin amd64 artifact
         run: just release-ci-darwin amd64 ${{ inputs.version_override }}
@@ -234,7 +240,7 @@ jobs:
           echo "Deleting temp keychain..."
           security delete-keychain "$KEYCHAIN" || true
 
-          rm -f cert.p12 || true
+          rm -f "$CERT_PATH" || true
 
           echo "Cleanup done"
 
