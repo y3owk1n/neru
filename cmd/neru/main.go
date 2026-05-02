@@ -175,6 +175,20 @@ func handleAccessibilityPermissionStartup(cfg *config.Config) {
 		return
 	}
 
+	if !cli.IsRunningFromAppBundle() {
+		fmt.Fprintf(os.Stderr, "⚠️  Accessibility permission not granted.\n")
+		fmt.Fprintf(
+			os.Stderr,
+			"Grant Neru access in System Settings → Privacy & Security → Accessibility.\n",
+		)
+		fmt.Fprintf(
+			os.Stderr,
+			"Launch Neru from the app bundle for the guided permission prompt.\n",
+		)
+
+		return
+	}
+
 	if platform.ShowAccessibilityPermissionStartupAlert() == platform.AccessibilityPermissionStartupQuit {
 		os.Exit(0)
 	}
