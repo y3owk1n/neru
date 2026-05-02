@@ -68,7 +68,7 @@ jobs:
             -S apple-tool:,apple: \
             -s \
             -k "$KEYCHAIN_PASSWORD" \
-            "$KEYCHAIN" >/dev/null 2>&1
+            "$KEYCHAIN"
 
           security default-keychain -s "$KEYCHAIN"
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | xargs)
@@ -176,7 +176,7 @@ jobs:
             -S apple-tool:,apple: \
             -s \
             -k "$KEYCHAIN_PASSWORD" \
-            "$KEYCHAIN" >/dev/null 2>&1
+            "$KEYCHAIN"
 
           security default-keychain -s "$KEYCHAIN"
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | xargs)
