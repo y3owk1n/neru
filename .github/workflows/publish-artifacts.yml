@@ -104,6 +104,12 @@ jobs:
           cp bin/neru-darwin-arm64 build/arm64/bin/neru
           chmod +x build/arm64/bin/neru
 
+          codesign --force \
+            --keychain build.keychain \
+            --sign "$CERT_NAME" \
+            --timestamp=none \
+            build/arm64/bin/neru
+
           cd build/arm64
           zip -r ../../neru-darwin-arm64.zip bin Neru.app
           cd ../..
@@ -211,6 +217,12 @@ jobs:
           mkdir -p build/amd64/bin
           cp bin/neru-darwin-amd64 build/amd64/bin/neru
           chmod +x build/amd64/bin/neru
+
+          codesign --force \
+            --keychain build.keychain \
+            --sign "$CERT_NAME" \
+            --timestamp=none \
+            build/amd64/bin/neru
 
           cd build/amd64
           zip -r ../../neru-darwin-amd64.zip bin Neru.app
