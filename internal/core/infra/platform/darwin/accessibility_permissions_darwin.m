@@ -11,7 +11,7 @@
 
 #pragma mark - Permission Functions
 
-static void resetAccessibilityPermissionDecision(void) {
+static BOOL resetAccessibilityPermissionDecision(void) {
 	NSString *bundleID = [[NSBundle mainBundle] bundleIdentifier];
 	if (bundleID == nil || [bundleID length] == 0) {
 		bundleID = @"com.y3owk1n.neru";
@@ -24,9 +24,19 @@ static void resetAccessibilityPermissionDecision(void) {
 	@try {
 		[task launch];
 		[task waitUntilExit];
+
+		int status = [task terminationStatus];
+		if (status != 0) {
+			NSLog(@"Neru: tccutil reset Accessibility %@ exited with status %d; system permission dialog may not appear",
+			      bundleID, status);
+			return NO;
+		}
 	} @catch (NSException *exception) {
 		NSLog(@"Neru: failed to reset Accessibility permission decision: %@", exception);
+		return NO;
 	}
+
+	return YES;
 }
 
 /// Check if accessibility permissions are granted
@@ -42,7 +52,9 @@ int checkAccessibilityPermissions(void) {
 /// @return 1 if permissions are granted after the request, 0 otherwise
 int requestAccessibilityPermissions(void) {
 	@autoreleasepool {
-		resetAccessibilityPermissionDecision();
+		if (!resetAccessibilityPermissionDecision()) {
+			NSLog(@"Neru: continuing with Accessibility permission request after reset failure");
+		}
 
 		NSDictionary *options = @{(__bridge id)kAXTrustedCheckOptionPrompt : @YES};
 		Boolean trusted = AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);
