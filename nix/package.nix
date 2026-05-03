@@ -156,7 +156,7 @@ else
     pname = "neru";
     version = pversion;
 
-    src = lib.cleanSource ./.;
+    src = lib.cleanSource ../.;
 
     # run the following command to get the sha256 hash
     # `nix-shell -p go --run 'go mod vendor'`
