@@ -61,8 +61,7 @@ in
               status will be a non-zero number, for example:
               `-	1	org.nix-community.home.neru`
 
-            In case of failure, check the logs with `cat ~/Library/Logs/neru/app.log`.
-            If the app fails to launch at all, check `cat /tmp/neru.err.log` for errors from the `open` command.
+            If the app fails to launch at all, check `cat /tmp/neru.err.log` for launch errors.
 
             For more detailed service status, run `launchctl print gui/$(id -u)/org.nix-community.home.neru`.
           '';
