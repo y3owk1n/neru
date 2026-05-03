@@ -30,21 +30,6 @@ in
     lib.mkIf (cfg.enable) {
       environment.systemPackages = [ cfg.package ];
 
-      # Quit the running Neru app before the launchd agent is restarted.
-      # When launched via `open -W -a`, launchd only manages the `open` wrapper;
-      # the actual Neru process must be terminated explicitly so the new version
-      # starts after `darwin-rebuild switch`.
-      #
-      # nix-darwin runs all activationScripts before reloading launchd agents,
-      # so this is guaranteed to execute before the agent plist is updated.
-      system.activationScripts.preNeruRestart.text = ''
-        if /usr/bin/pgrep -xq neru 2>/dev/null; then
-          /usr/bin/osascript -e 'tell application "Neru" to quit' 2>/dev/null || true
-          sleep 1
-          /usr/bin/pkill -x neru 2>/dev/null || true
-        fi
-      '';
-
       launchd.user.agents.neru = {
         command =
           "/usr/bin/open -W -a ${cfg.package}/Applications/Neru.app --args launch"
