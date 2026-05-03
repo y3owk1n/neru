@@ -21,7 +21,7 @@
       # Function to build package with specific version
       makeNeruPackage =
         pkgs: version: useZip: commitHash:
-        pkgs.callPackage ./package.nix {
+        pkgs.callPackage ./nix/package.nix {
           inherit version useZip commitHash;
         };
     in
@@ -49,8 +49,8 @@
         }
       );
 
-      darwinModules.default = import ./darwin-module.nix;
-      nixosModules.default = import ./nixos-module.nix;
-      homeManagerModules.default = import ./home-module.nix;
+      darwinModules.default = import ./nix/darwin.nix;
+      nixosModules.default = import ./nix/nixos.nix;
+      homeManagerModules.default = import ./nix/home.nix;
     };
 }
