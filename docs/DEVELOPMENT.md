@@ -12,15 +12,15 @@ Contributing to Neru: build instructions, architecture overview, and contributio
 - [Testing](#testing)
 - [Testing Tiers](#testing-tiers)
 - [Architecture Overview](#architecture-overview)
-  - [Project Structure](#project-structure)
-  - [Core Concepts](#core-concepts)
-  - [Architectural Layers](#architectural-layers)
-  - [Data Flow](#data-flow)
+    - [Project Structure](#project-structure)
+    - [Core Concepts](#core-concepts)
+    - [Architectural Layers](#architectural-layers)
+    - [Data Flow](#data-flow)
 - [Contributing](#contributing)
-  - [Development Workflow](#development-workflow)
-  - [Code Standards](#code-standards)
-  - [Testing Guidelines](#testing-guidelines)
-  - [Documentation](#documentation)
+    - [Development Workflow](#development-workflow)
+    - [Code Standards](#code-standards)
+    - [Testing Guidelines](#testing-guidelines)
+    - [Documentation](#documentation)
 - [Release Process](#release-process)
 - [Development Tips](#development-tips)
 - [Troubleshooting](#troubleshooting)
@@ -157,13 +157,6 @@ For the best development experience, we recommend:
 
 1. **IDE Setup**: Use VS Code with Go extension or GoLand
 2. **EditorConfig**: Install EditorConfig plugin for consistent formatting
-3. **Pre-commit Hooks**: Set up git hooks to automate formatting and linting
-
-```bash
-# Install pre-commit hooks
-cp scripts/pre-commit .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
-```
 
 ### Common Development Tasks
 
@@ -472,42 +465,42 @@ All mode implementations follow this pattern:
 - **Purpose**: Initialize the mode and set it as the active mode
 - **Parameters**: Optional action string for pending actions
 - **Responsibilities**:
-  - Call `handler.setModeLocked()` to change app state (caller holds `h.mu`)
-  - Show mode-specific overlays/UI
-  - Initialize mode-specific state
-  - Log mode activation
+    - Call `handler.setModeLocked()` to change app state (caller holds `h.mu`)
+    - Show mode-specific overlays/UI
+    - Initialize mode-specific state
+    - Log mode activation
 
 ##### `HandleKey(key string)`
 
 - **Purpose**: Process keyboard input during normal mode operation
 - **Parameters**: Single key string (e.g., "a", "j", "escape")
 - **Responsibilities**:
-  - Route keys to appropriate handlers
-  - Update mode state based on input
-  - Handle mode-specific navigation logic
+    - Route keys to appropriate handlers
+    - Update mode state based on input
+    - Handle mode-specific navigation logic
 
 ##### `HandleActionKey(key string)`
 
 - **Purpose**: Process keyboard input when in action sub-mode
 - **Parameters**: Single key string representing action selection
 - **Responsibilities**:
-  - Delegate to `handler.handleActionKey()` for action execution
-  - Handle action-specific key mappings
+    - Delegate to `handler.handleActionKey()` for action execution
+    - Handle action-specific key mappings
 
 ##### `Exit()`
 
 - **Purpose**: Clean up mode state and return to idle
 - **Responsibilities**:
-  - Hide overlays and UI elements
-  - Reset mode-specific state
-  - Perform mode-specific cleanup only (common cleanup is handled by `exitModeLocked`)
+    - Hide overlays and UI elements
+    - Reset mode-specific state
+    - Perform mode-specific cleanup only (common cleanup is handled by `exitModeLocked`)
 
 ##### `ToggleActionMode()`
 
 - **Purpose**: Switch between normal mode and action sub-mode
 - **Responsibilities**:
-  - Delegate to handler's toggle method (e.g., `toggleActionModeForHints()`)
-  - Handle mode-specific action mode transitions
+    - Delegate to handler's toggle method (e.g., `toggleActionModeForHints()`)
+    - Handle mode-specific action mode transitions
 
 ##### `ModeType()`
 
