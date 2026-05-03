@@ -16,7 +16,7 @@
     <key>StandardOutPath</key>
     <string>/tmp/neru.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/neru.err</string>
+    <string>/tmp/neru.err.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>

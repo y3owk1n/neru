@@ -32,11 +32,13 @@ in
 
       launchd.user.agents.neru = {
         command =
-          "/usr/bin/open -W -a ${cfg.package}/Applications/Neru.app --args launch"
+          "${cfg.package}/Applications/Neru.app/Contents/MacOS/neru launch"
           + (lib.optionalString (cfg.configFile != null || cfg.config != "") " --config ${configFile}");
         serviceConfig = {
           KeepAlive = true;
           RunAtLoad = true;
+          StandardOutPath = "/tmp/neru.log";
+          StandardErrorPath = "/tmp/neru.err.log";
           ProcessType = "Interactive";
           LimitLoadToSessionType = "Aqua";
           Nice = -10;

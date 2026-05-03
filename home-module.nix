@@ -111,17 +111,14 @@ in
       enable = cfg.launchd.enable;
       config = {
         ProgramArguments = [
-          "/usr/bin/open"
-          "-W"
-          "-a"
-          "${cfg.package}/Applications/Neru.app"
-          "--args"
+          "${cfg.package}/Applications/Neru.app/Contents/MacOS/neru"
           "launch"
           "--config"
           "${config.xdg.configHome}/neru/config.toml"
         ];
         RunAtLoad = true;
         KeepAlive = cfg.launchd.keepAlive;
+        StandardOutPath = "/tmp/neru.log";
         StandardErrorPath = "/tmp/neru.err.log";
         ProcessType = "Interactive";
         LimitLoadToSessionType = "Aqua";
