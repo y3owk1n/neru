@@ -81,13 +81,15 @@ func EnsureElectronAccessibility(bundleID string, logger *zap.Logger) bool {
 	return true
 }
 
-// ensureAccessibility enables AXEnhancedUserInterface for the specified application.
+// ensureAccessibility enables accessibility attributes for the specified application.
 // This is a generic function used by both Chromium and Firefox accessibility enablers.
+// setManualAccessibility controls whether to also set AXManualAccessibility (Electron/Chromium only).
 func ensureAccessibility(
 	bundleID string,
 	enabledPIDs map[int]struct{},
 	pidsMu *sync.Mutex,
 	logger *zap.Logger,
+	setManualAccessibility bool,
 ) bool {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -123,11 +125,14 @@ func ensureAccessibility(
 		return true
 	}
 
-	// Try setting AXManualAccessibility first - this is the preferred method for newer Electron/Chromium
-	// versions as it doesn't have the "screen reader active" side effects.
-	// For Firefox this is typically a no-op but we attempt it for consistency.
+	// Set AXManualAccessibility for Electron/Chromium apps (not for Firefox).
+	// This is the preferred method for newer Electron/Chromium versions as it doesn't
+	// have the "screen reader active" side effects.
 	// Ref: https://github.com/electron/electron/issues/7206
-	amaSuccess := platformSetApplicationAttribute(pid, electronAttributeName, true)
+	var amaSuccess bool
+	if setManualAccessibility {
+		amaSuccess = platformSetApplicationAttribute(pid, electronAttributeName, true)
+	}
 
 	// Also set AXEnhancedUserInterface - this is the classic way to enable accessibility
 	// and is needed for older Chromium versions / Firefox.
@@ -152,13 +157,13 @@ func ensureAccessibility(
 // EnsureChromiumAccessibility enables AXEnhancedUserInterface for Chromium-based applications.
 // This improves accessibility support for Chromium browsers and applications.
 func EnsureChromiumAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(bundleID, chromiumEnabledPIDs, &chromiumPIDsMu, logger)
+	return ensureAccessibility(bundleID, chromiumEnabledPIDs, &chromiumPIDsMu, logger, true)
 }
 
 // EnsureFirefoxAccessibility enables AXEnhancedUserInterface for Firefox-based applications.
 // This improves accessibility support for Firefox browsers and applications.
 func EnsureFirefoxAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(bundleID, firefoxEnabledPIDs, &firefoxPIDsMu, logger)
+	return ensureAccessibility(bundleID, firefoxEnabledPIDs, &firefoxPIDsMu, logger, false)
 }
 
 // ShouldEnableElectronSupport determines if the provided bundle identifier
