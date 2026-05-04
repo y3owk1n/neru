@@ -161,15 +161,6 @@ func EnsureFirefoxAccessibility(bundleID string, logger *zap.Logger) bool {
 	return ensureAccessibility(bundleID, firefoxEnabledPIDs, &firefoxPIDsMu, logger)
 }
 
-// KnownChromiumBundles is an alias to config.KnownChromiumBundles for backward compatibility.
-var KnownChromiumBundles = config.KnownChromiumBundles
-
-// KnownFirefoxBundles is an alias to config.KnownFirefoxBundles for backward compatibility.
-var KnownFirefoxBundles = config.KnownFirefoxBundles
-
-// KnownElectronBundles is an alias to config.KnownElectronBundles for backward compatibility.
-var KnownElectronBundles = config.KnownElectronBundles
-
 // ShouldEnableElectronSupport determines if the provided bundle identifier
 // should have Electron accessibility manually toggled based on defaults and
 // user-specified overrides.
@@ -227,7 +218,7 @@ func IsLikelyElectronBundle(bundleID string) bool {
 		return false
 	}
 
-	for _, exact := range KnownElectronBundles {
+	for _, exact := range config.KnownElectronBundles {
 		if strings.EqualFold(strings.TrimSpace(exact), lower) {
 			return true
 		}
@@ -244,7 +235,7 @@ func IsLikelyChromiumBundle(bundleID string) bool {
 		return false
 	}
 
-	for _, exact := range KnownChromiumBundles {
+	for _, exact := range config.KnownChromiumBundles {
 		if strings.EqualFold(strings.TrimSpace(exact), lower) {
 			return true
 		}
@@ -261,7 +252,7 @@ func IsLikelyFirefoxBundle(bundleID string) bool {
 		return false
 	}
 
-	for _, exact := range KnownFirefoxBundles {
+	for _, exact := range config.KnownFirefoxBundles {
 		if strings.EqualFold(strings.TrimSpace(exact), lower) {
 			return true
 		}
