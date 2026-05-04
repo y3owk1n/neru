@@ -449,6 +449,8 @@ func isLikelyChromiumOrElectron(bundleID string) bool {
 		return false
 	}
 
+	bundleID = strings.TrimSpace(bundleID)
+
 	for _, b := range config.KnownChromiumBundles {
 		if strings.EqualFold(b, bundleID) {
 			return true
