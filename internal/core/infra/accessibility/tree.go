@@ -622,13 +622,16 @@ func shouldIncludeElement(
 			}
 
 			// Filter elements whose center is outside window bounds (overflowing elements)
+			// But keep interactive roles (buttons, links, etc.) even if at edges
 			halfWidth := elementRect.Dx() / 2  //nolint:mnd
 			halfHeight := elementRect.Dy() / 2 //nolint:mnd
 			centerX := elementRect.Min.X + halfWidth
 			centerY := elementRect.Min.Y + halfHeight
 			if centerX < windowBounds.Min.X || centerX > windowBounds.Max.X ||
 				centerY < windowBounds.Min.Y || centerY > windowBounds.Max.Y {
-				return false
+				if !interactiveLeafRoles[info.Role()] {
+					return false
+				}
 			}
 		} else if elementRect.Dx() > 0 && elementRect.Dy() > 0 {
 			// For non-strict filtering, only check basic overlap
