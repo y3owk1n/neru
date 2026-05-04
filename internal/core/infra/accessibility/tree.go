@@ -616,7 +616,7 @@ func shouldIncludeElement(
 			// Filter if either dimension is too small (not just both)
 			if elementRect.Dx() < minElementSize || elementRect.Dy() < minElementSize {
 				// Only filter if it's not a known important role
-				if !interactiveLeafRoles[info.Role()] && info.Role() != "AXLink" {
+				if !interactiveLeafRoles[info.Role()] {
 					return false
 				}
 			}
