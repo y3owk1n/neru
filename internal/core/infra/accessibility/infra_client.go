@@ -93,7 +93,8 @@ func (c *InfraAXClient) ClickableNodes(
 
 	// Enable strict filtering for Chromium/Electron apps which have noisy DOM trees
 	bundleID := element.BundleIdentifier()
-	if isLikelyChromiumOrElectron(bundleID) {
+	if isLikelyChromiumOrElectron(bundleID) ||
+		isUserConfiguredChromiumElectron(bundleID, c.configProvider) {
 		opts.SetStrictFiltering(true)
 	}
 
@@ -464,6 +465,37 @@ func isLikelyChromiumOrElectron(bundleID string) bool {
 
 	for _, b := range electronBundles {
 		if strings.EqualFold(b, lower) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isUserConfiguredChromiumElectron checks if the bundle ID matches user-configured
+// additional Chromium/Electron bundles from config.
+func isUserConfiguredChromiumElectron(bundleID string, configProvider config.Provider) bool {
+	if bundleID == "" || configProvider == nil {
+		return false
+	}
+
+	cfg := configProvider.Get()
+	if cfg == nil {
+		return false
+	}
+
+	lower := strings.ToLower(bundleID)
+
+	additionalChromium := cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles
+	for _, b := range additionalChromium {
+		if strings.EqualFold(strings.TrimSpace(b), lower) {
+			return true
+		}
+	}
+
+	additionalElectron := cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles
+	for _, b := range additionalElectron {
+		if strings.EqualFold(strings.TrimSpace(b), lower) {
 			return true
 		}
 	}
