@@ -96,6 +96,7 @@ func (c *InfraAXClient) ClickableNodes(
 	if isLikelyChromiumOrElectron(bundleID) ||
 		isUserConfiguredChromiumElectron(bundleID, c.configProvider) {
 		opts.SetStrictFiltering(true)
+		opts.SetIncludeOutOfBounds(false) // strict filtering requires bound checks to be active
 	}
 
 	if cfg := currentConfig(c.configProvider); cfg != nil {
