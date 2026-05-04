@@ -1402,7 +1402,7 @@ func MatchesAdditionalBundle(bundleID string, additionalBundles []string) bool {
 		return false
 	}
 
-	lower := strings.ToLower(bundleID)
+	lower := strings.ToLower(strings.TrimSpace(bundleID))
 
 	for _, candidate := range additionalBundles {
 		trimmed := strings.ToLower(strings.TrimSpace(candidate))
