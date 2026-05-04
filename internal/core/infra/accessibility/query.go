@@ -100,6 +100,10 @@ func ClickableElementsFromBundleID(
 	opts.SetIncludeOutOfBounds(true)
 	opts.SetStrictFiltering(strictFiltering)
 
+	if strictFiltering {
+		opts.SetIncludeOutOfBounds(false)
+	}
+
 	if cfg := currentConfig(configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
