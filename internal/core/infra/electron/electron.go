@@ -125,11 +125,12 @@ func ensureAccessibility(
 
 	// Try setting AXManualAccessibility first - this is the preferred method for newer Electron/Chromium
 	// versions as it doesn't have the "screen reader active" side effects.
+	// For Firefox this is typically a no-op but we attempt it for consistency.
 	// Ref: https://github.com/electron/electron/issues/7206
 	amaSuccess := platformSetApplicationAttribute(pid, electronAttributeName, true)
 
 	// Also set AXEnhancedUserInterface - this is the classic way to enable accessibility
-	// and is needed for older Chromium versions.
+	// and is needed for older Chromium versions / Firefox.
 	euiSuccess := platformSetApplicationAttribute(pid, enhancedAttributeName, true)
 
 	if !amaSuccess && !euiSuccess {
