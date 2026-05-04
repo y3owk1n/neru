@@ -441,16 +441,14 @@ func isLikelyChromiumOrElectron(bundleID string) bool {
 		return false
 	}
 
-	lower := strings.ToLower(bundleID)
-
 	for _, b := range config.KnownChromiumBundles {
-		if strings.EqualFold(b, lower) {
+		if strings.EqualFold(b, bundleID) {
 			return true
 		}
 	}
 
 	for _, b := range config.KnownElectronBundles {
-		if strings.EqualFold(b, lower) {
+		if strings.EqualFold(b, bundleID) {
 			return true
 		}
 	}
