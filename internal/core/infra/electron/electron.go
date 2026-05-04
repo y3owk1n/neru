@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 )
 
@@ -194,7 +195,7 @@ func ShouldEnableElectronSupport(bundleID string, additionalBundles []string) bo
 		return false
 	}
 
-	if matchesAdditionalBundle(bundleID, additionalBundles) {
+	if config.MatchesAdditionalBundle(bundleID, additionalBundles) {
 		return true
 	}
 
@@ -210,7 +211,7 @@ func ShouldEnableChromiumSupport(bundleID string, additionalBundles []string) bo
 		return false
 	}
 
-	if matchesAdditionalBundle(bundleID, additionalBundles) {
+	if config.MatchesAdditionalBundle(bundleID, additionalBundles) {
 		return true
 	}
 
@@ -226,7 +227,7 @@ func ShouldEnableFirefoxSupport(bundleID string, additionalBundles []string) boo
 		return false
 	}
 
-	if matchesAdditionalBundle(bundleID, additionalBundles) {
+	if config.MatchesAdditionalBundle(bundleID, additionalBundles) {
 		return true
 	}
 
@@ -279,32 +280,6 @@ func IsLikelyFirefoxBundle(bundleID string) bool {
 
 	for _, exact := range KnownFirefoxBundles {
 		if strings.EqualFold(strings.TrimSpace(exact), lower) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// matchesAdditionalBundle checks if a bundle ID matches any user-provided additional bundles.
-// It supports both exact matches and wildcard patterns (ending with *).
-func matchesAdditionalBundle(bundleID string, additionalBundles []string) bool {
-	if len(additionalBundles) == 0 {
-		return false
-	}
-
-	lower := strings.ToLower(strings.TrimSpace(bundleID))
-	for _, candidate := range additionalBundles {
-		trimmed := strings.ToLower(strings.TrimSpace(candidate))
-		if trimmed == "" {
-			continue
-		}
-
-		if prefix, found := strings.CutSuffix(trimmed, "*"); found {
-			if strings.HasPrefix(lower, prefix) {
-				return true
-			}
-		} else if lower == trimmed {
 			return true
 		}
 	}

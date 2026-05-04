@@ -474,7 +474,8 @@ func isLikelyChromiumOrElectron(bundleID string) bool {
 }
 
 // isUserConfiguredChromiumElectron checks if the bundle ID matches user-configured
-// additional Chromium/Electron bundles from config.
+// additional Chromium/Electron bundles from config. Supports exact matches and
+// wildcard patterns (ending with *).
 func isUserConfiguredChromiumElectron(bundleID string, configProvider config.Provider) bool {
 	if bundleID == "" || configProvider == nil {
 		return false
@@ -488,18 +489,11 @@ func isUserConfiguredChromiumElectron(bundleID string, configProvider config.Pro
 	lower := strings.ToLower(bundleID)
 
 	additionalChromium := cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles
-	for _, b := range additionalChromium {
-		if strings.EqualFold(strings.TrimSpace(b), lower) {
-			return true
-		}
+	if config.MatchesAdditionalBundle(lower, additionalChromium) {
+		return true
 	}
 
-	additionalElectron := cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles
-	for _, b := range additionalElectron {
-		if strings.EqualFold(strings.TrimSpace(b), lower) {
-			return true
-		}
-	}
+	additionallyElectron := cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles
 
-	return false
+	return config.MatchesAdditionalBundle(lower, additionallyElectron)
 }
