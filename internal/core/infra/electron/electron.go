@@ -161,32 +161,14 @@ func EnsureFirefoxAccessibility(bundleID string, logger *zap.Logger) bool {
 	return ensureAccessibility(bundleID, firefoxEnabledPIDs, &firefoxPIDsMu, logger)
 }
 
-// KnownChromiumBundles contains known Chromium-based application bundle identifiers.
-// These applications benefit from AXEnhancedUserInterface accessibility improvements.
-var KnownChromiumBundles = []string{
-	"net.imput.helium",
-	"com.google.Chrome",
-	"com.brave.Browser",
-	"company.thebrowser.Browser",
-}
+// KnownChromiumBundles is an alias to config.KnownChromiumBundles for backward compatibility.
+var KnownChromiumBundles = config.KnownChromiumBundles
 
-// KnownFirefoxBundles contains known Firefox-based application bundle identifiers.
-// These applications benefit from AXEnhancedUserInterface accessibility improvements.
-var KnownFirefoxBundles = []string{
-	"org.mozilla.firefox",
-	"app.zen-browser.zen",
-}
+// KnownFirefoxBundles is an alias to config.KnownFirefoxBundles for backward compatibility.
+var KnownFirefoxBundles = config.KnownFirefoxBundles
 
-// KnownElectronBundles contains known Electron-based application bundle identifiers.
-// These applications require manual accessibility attribute toggling to work properly.
-var KnownElectronBundles = []string{
-	// electrons
-	"com.microsoft.VSCode",
-	"com.exafunction.windsurf",
-	"com.tinyspeck.slackmacgap",
-	"com.spotify.client",
-	"md.obsidian",
-}
+// KnownElectronBundles is an alias to config.KnownElectronBundles for backward compatibility.
+var KnownElectronBundles = config.KnownElectronBundles
 
 // ShouldEnableElectronSupport determines if the provided bundle identifier
 // should have Electron accessibility manually toggled based on defaults and

@@ -1434,3 +1434,29 @@ func IsAllLetters(keyStr string) bool {
 
 	return len(keyStr) > 0
 }
+
+// KnownChromiumBundles contains known Chromium-based application bundle identifiers.
+// These applications benefit from AXEnhancedUserInterface accessibility improvements.
+var KnownChromiumBundles = []string{
+	"net.imput.helium",
+	"com.google.Chrome",
+	"com.brave.Browser",
+	"company.thebrowser.Browser",
+}
+
+// KnownFirefoxBundles contains known Firefox-based application bundle identifiers.
+// These applications benefit from AXEnhancedUserInterface accessibility improvements.
+var KnownFirefoxBundles = []string{
+	"org.mozilla.firefox",
+	"app.zen-browser.zen",
+}
+
+// KnownElectronBundles contains known Electron-based application bundle identifiers.
+// These applications require manual accessibility attribute toggling to work properly.
+var KnownElectronBundles = []string{
+	"com.microsoft.VSCode",
+	"com.exafunction.windsurf",
+	"com.tinyspeck.slackmacgap",
+	"com.spotify.client",
+	"md.obsidian",
+}

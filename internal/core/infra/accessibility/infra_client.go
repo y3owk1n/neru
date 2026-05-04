@@ -443,28 +443,13 @@ func isLikelyChromiumOrElectron(bundleID string) bool {
 
 	lower := strings.ToLower(bundleID)
 
-	chromiumBundles := []string{
-		"net.imput.helium",
-		"com.google.Chrome",
-		"com.brave.Browser",
-		"company.thebrowser.Browser",
-	}
-
-	electronBundles := []string{
-		"com.microsoft.VSCode",
-		"com.exafunction.windsurf",
-		"com.tinyspeck.slackmacgap",
-		"com.spotify.client",
-		"md.obsidian",
-	}
-
-	for _, b := range chromiumBundles {
+	for _, b := range config.KnownChromiumBundles {
 		if strings.EqualFold(b, lower) {
 			return true
 		}
 	}
 
-	for _, b := range electronBundles {
+	for _, b := range config.KnownElectronBundles {
 		if strings.EqualFold(b, lower) {
 			return true
 		}
