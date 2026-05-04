@@ -148,6 +148,7 @@ type TreeOptions struct {
 	maxDepth           int
 	logger             *zap.Logger
 	stats              *treeStats
+	strictFiltering    bool // Apply strict filtering for Chromium/Electron DOM trees
 }
 
 // FilterFunc returns the filter function.
@@ -190,6 +191,11 @@ func (o *TreeOptions) Stats() *treeStats {
 	return o.stats
 }
 
+// StrictFiltering returns whether strict filtering is enabled for Chromium/Electron.
+func (o *TreeOptions) StrictFiltering() bool {
+	return o.strictFiltering
+}
+
 // SetFilterFunc sets the filter function.
 func (o *TreeOptions) SetFilterFunc(fn func(*ElementInfo) bool) {
 	o.filterFunc = fn
@@ -213,6 +219,11 @@ func (o *TreeOptions) SetMaxDepth(depth int) {
 // SetParallelThreshold sets the threshold for parallel child processing.
 func (o *TreeOptions) SetParallelThreshold(threshold int) {
 	o.parallelThreshold = threshold
+}
+
+// SetStrictFiltering sets whether to apply strict filtering for Chromium/Electron DOM trees.
+func (o *TreeOptions) SetStrictFiltering(strict bool) {
+	o.strictFiltering = strict
 }
 
 // DefaultTreeOptions returns default tree traversal options.
@@ -575,6 +586,11 @@ func buildChildrenParallel(
 	}
 }
 
+// minElementSize is the minimum size threshold for elements.
+// Elements smaller than this are filtered out as noise (especially in Chromium DOM trees).
+// This matches similar filtering in tools like Glyphlow.
+const minElementSize = 15
+
 // shouldIncludeElement combines all filtering logic into one function.
 func shouldIncludeElement(
 	info *ElementInfo,
@@ -591,8 +607,31 @@ func shouldIncludeElement(
 			}
 		}
 
-		// For non-zero sized elements, check if they overlap with window bounds
-		if elementRect.Dx() > 0 && elementRect.Dy() > 0 {
+		// Strict filtering: only apply for Chromium/Electron apps with noisy DOM trees
+		// For native apps like Safari, we trust the semantic tree to not have noise
+		if opts.strictFiltering && elementRect.Dx() > 0 && elementRect.Dy() > 0 {
+			// Filter out tiny elements that are likely noise in Chromium DOM trees.
+			// This is especially important for web content where the DOM can have
+			// thousands of tiny placeholder/structure elements.
+			// Filter if either dimension is too small (not just both)
+			if elementRect.Dx() < minElementSize || elementRect.Dy() < minElementSize {
+				// Only filter if it's not a known important role
+				if !interactiveLeafRoles[info.Role()] && info.Role() != "AXLink" {
+					return false
+				}
+			}
+
+			// Filter elements whose center is outside window bounds (overflowing elements)
+			halfWidth := elementRect.Dx() / 2  //nolint:mnd
+			halfHeight := elementRect.Dy() / 2 //nolint:mnd
+			centerX := elementRect.Min.X + halfWidth
+			centerY := elementRect.Min.Y + halfHeight
+			if centerX < windowBounds.Min.X || centerX > windowBounds.Max.X ||
+				centerY < windowBounds.Min.Y || centerY > windowBounds.Max.Y {
+				return false
+			}
+		} else if elementRect.Dx() > 0 && elementRect.Dy() > 0 {
+			// For non-strict filtering, only check basic overlap
 			if !elementRect.Overlaps(windowBounds) {
 				return false
 			}

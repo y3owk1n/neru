@@ -3,6 +3,7 @@ package accessibility
 import (
 	"fmt"
 	"image"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -90,6 +91,12 @@ func (c *InfraAXClient) ClickableNodes(
 	opts.SetCache(c.cache)
 	opts.SetIncludeOutOfBounds(includeOffscreen)
 
+	// Enable strict filtering for Chromium/Electron apps which have noisy DOM trees
+	bundleID := element.BundleIdentifier()
+	if isLikelyChromiumOrElectron(bundleID) {
+		opts.SetStrictFiltering(true)
+	}
+
 	if cfg := currentConfig(c.configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
@@ -168,6 +175,7 @@ func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
 func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
+	strictFiltering bool,
 ) ([]AXNode, error) {
 	nodes, nodesErr := ClickableElementsFromBundleID(
 		bundleID,
@@ -175,6 +183,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 		c.logger,
 		c.cache,
 		c.configProvider,
+		strictFiltering,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
@@ -421,4 +430,43 @@ func (n *InfraNode) Release() {
 	if n.node != nil && n.node.Element() != nil {
 		n.node.Element().Release()
 	}
+}
+
+// isLikelyChromiumOrElectron returns true if the bundle ID matches known Chromium/Electron apps.
+// This is duplicated from electron package to avoid import cycle.
+func isLikelyChromiumOrElectron(bundleID string) bool {
+	if bundleID == "" {
+		return false
+	}
+
+	lower := strings.ToLower(bundleID)
+
+	chromiumBundles := []string{
+		"net.imput.helium",
+		"com.google.Chrome",
+		"com.brave.Browser",
+		"company.thebrowser.Browser",
+	}
+
+	electronBundles := []string{
+		"com.microsoft.VSCode",
+		"com.exafunction.windsurf",
+		"com.tinyspeck.slackmacgap",
+		"com.spotify.client",
+		"md.obsidian",
+	}
+
+	for _, b := range chromiumBundles {
+		if strings.EqualFold(b, lower) {
+			return true
+		}
+	}
+
+	for _, b := range electronBundles {
+		if strings.EqualFold(b, lower) {
+			return true
+		}
+	}
+
+	return false
 }

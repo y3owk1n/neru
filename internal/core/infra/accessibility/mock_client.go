@@ -77,6 +77,7 @@ func (m *MockAXClient) MenuBarClickableElements() ([]AXNode, error) {
 func (m *MockAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
+	strictFiltering bool,
 ) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastCalledBundleID = bundleID

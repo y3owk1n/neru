@@ -90,7 +90,11 @@ func (a *Adapter) addMenubarElements(
 
 	// Get additional menubar targets
 	for _, bundleID := range filter.AdditionalMenubarTargets {
-		additionalNodes, err := a.client.ClickableElementsFromBundleID(bundleID, menubarRoles)
+		additionalNodes, err := a.client.ClickableElementsFromBundleID(
+			bundleID,
+			menubarRoles,
+			false,
+		)
 		if err != nil {
 			a.logger.Warn("Failed to get additional menubar elements",
 				zap.String("bundle_id", bundleID),
@@ -202,7 +206,7 @@ func (a *Adapter) addNotificationCenterElements(
 
 	a.logger.Debug("Adding notification center elements")
 
-	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(ncBundleID, nil)
+	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(ncBundleID, nil, false)
 	if ncNodesErr != nil {
 		a.logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))
 
