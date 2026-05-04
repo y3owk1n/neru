@@ -96,6 +96,14 @@ func (c *InfraAXClient) ClickableNodes(
 	if isLikelyChromiumOrElectron(bundleID) ||
 		isUserConfiguredChromiumElectron(bundleID, c.configProvider) {
 		opts.SetStrictFiltering(true)
+
+		if includeOffscreen {
+			c.logger.Debug(
+				"strict filtering requires includeOutOfBounds=false, overriding user preference",
+				zap.String("bundle_id", bundleID),
+			)
+		}
+
 		opts.SetIncludeOutOfBounds(false) // strict filtering requires bound checks to be active
 	}
 
