@@ -98,7 +98,7 @@ func (c *InfraAXClient) ClickableNodes(
 		opts.SetStrictFiltering(true)
 
 		if includeOffscreen {
-			c.logger.Debug(
+			c.logger.Warn(
 				"strict filtering requires includeOutOfBounds=false, overriding user preference",
 				zap.String("bundle_id", bundleID),
 			)
