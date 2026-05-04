@@ -477,14 +477,12 @@ func isUserConfiguredChromiumElectron(bundleID string, configProvider config.Pro
 		return false
 	}
 
-	lower := strings.ToLower(bundleID)
-
-	additionalChromium := cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles
-	if config.MatchesAdditionalBundle(lower, additionalChromium) {
+	chromiumBundles := cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles
+	if config.MatchesAdditionalBundle(bundleID, chromiumBundles) {
 		return true
 	}
 
-	additionallyElectron := cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles
+	electronBundles := cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles
 
-	return config.MatchesAdditionalBundle(lower, additionallyElectron)
+	return config.MatchesAdditionalBundle(bundleID, electronBundles)
 }
