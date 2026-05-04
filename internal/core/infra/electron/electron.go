@@ -125,17 +125,19 @@ func ensureAccessibility(
 	// Try setting AXManualAccessibility first - this is the preferred method for newer Electron/Chromium
 	// versions as it doesn't have the "screen reader active" side effects.
 	// Ref: https://github.com/electron/electron/issues/7206
-	_ = platformSetApplicationAttribute(pid, electronAttributeName, true)
+	amaSuccess := platformSetApplicationAttribute(pid, electronAttributeName, true)
 
 	// Also set AXEnhancedUserInterface - this is the classic way to enable accessibility
 	// and is needed for older Chromium versions.
-	success := platformSetApplicationAttribute(pid, enhancedAttributeName, true)
+	euiSuccess := platformSetApplicationAttribute(pid, enhancedAttributeName, true)
 
-	if !success {
-		logger.Warn("Failed to enable AXEnhancedUserInterface", zap.String("bundle_id", bundleID))
+	if !amaSuccess && !euiSuccess {
+		logger.Warn("Failed to enable accessibility attributes", zap.String("bundle_id", bundleID))
+
+		return false
 	}
 
-	// Mark as enabled even if only one succeeded, to avoid retrying
+	// Mark as enabled only if at least one succeeded, to avoid retrying failed attempts
 	pidsMu.Lock()
 
 	enabledPIDs[pid] = struct{}{}
