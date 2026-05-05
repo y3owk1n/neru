@@ -18,11 +18,6 @@ var ActionFeedCmd = &cobra.Command{
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		err := validateActionFeedArgs(cmd, args)
-		if err != nil {
-			return err
-		}
-
 		actionArgs := make([]string, 0, len(args)+1)
 
 		actionArgs = append(actionArgs, "feed")
