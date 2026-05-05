@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app"
-	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 )
@@ -103,10 +102,8 @@ func handleConfigValidationError(result *config.LoadResult) {
 	fmt.Fprintf(os.Stderr, "Config file: %s\n", cfgPath)
 	fmt.Fprintf(os.Stderr, "Please fix the configuration and relaunch Neru.\n")
 
-	if cli.IsRunningFromAppBundle() {
-		absPath, _ := filepath.Abs(cfgPath)
-		_ = platform.ShowConfigValidationErrorAlert(errMsg, absPath)
-	}
+	absPath, _ := filepath.Abs(cfgPath)
+	_ = platform.ShowConfigValidationErrorAlert(errMsg, absPath)
 
 	os.Exit(1)
 }
@@ -137,31 +134,25 @@ func handleConfigOnboarding(
 }
 
 func promptConfigInit(configPath string) bool {
-	if cli.IsRunningFromAppBundle() {
-		absPath, _ := filepath.Abs(configPath)
+	absPath, _ := filepath.Abs(configPath)
 
-		choice := platform.ShowConfigOnboardingAlert(absPath)
-		switch choice {
-		case platform.ConfigOnboardingCreate:
-			return true
-		case platform.ConfigOnboardingQuit:
-			os.Exit(0)
-		case platform.ConfigOnboardingDefaults:
-			return false
-		default:
-			fmt.Fprintf(
-				os.Stderr,
-				"Unexpected onboarding alert response (%d), continuing with defaults\n",
-				choice,
-			)
+	choice := platform.ShowConfigOnboardingAlert(absPath)
+	switch choice {
+	case platform.ConfigOnboardingCreate:
+		return true
+	case platform.ConfigOnboardingQuit:
+		os.Exit(0)
+	case platform.ConfigOnboardingDefaults:
+		return false
+	default:
+		fmt.Fprintf(
+			os.Stderr,
+			"Unexpected onboarding alert response (%d), continuing with defaults\n",
+			choice,
+		)
 
-			return false
-		}
+		return false
 	}
-
-	fmt.Fprintf(os.Stderr, "No config file found. Create one with: neru config init\n")
-
-	os.Exit(1)
 
 	return false
 }
@@ -172,20 +163,6 @@ func handleAccessibilityPermissionStartup(cfg *config.Config) {
 	}
 
 	if platform.CheckAccessibilityPermissions() {
-		return
-	}
-
-	if !cli.IsRunningFromAppBundle() {
-		fmt.Fprintf(os.Stderr, "⚠️  Accessibility permission not granted.\n")
-		fmt.Fprintf(
-			os.Stderr,
-			"Grant Neru access in System Settings → Privacy & Security → Accessibility.\n",
-		)
-		fmt.Fprintf(
-			os.Stderr,
-			"Launch Neru from the app bundle for the guided permission prompt.\n",
-		)
-
 		return
 	}
 
