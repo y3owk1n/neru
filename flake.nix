@@ -1,5 +1,5 @@
 {
-  description = "Navigate macOS without touching your mouse - keyboard-driven productivity at its finest";
+  description = "Navigate everywhere without touching your mouse - keyboard-driven productivity at its finest";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
