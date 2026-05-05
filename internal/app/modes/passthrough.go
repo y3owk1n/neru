@@ -43,7 +43,7 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 			// so the event tap consumes them instead of passing them through.
 			hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), bundleID)
 			for key := range hotkeys {
-				blacklist = append(blacklist, key)
+				blacklist = append(blacklist, configpkg.NormalizeKeyForComparison(key))
 			}
 		}
 
@@ -97,7 +97,7 @@ func (h *Handler) modeModifierKeys(mode domain.Mode, bundleID string) []string {
 
 		seen[normalized] = struct{}{}
 
-		keys = append(keys, trimmed)
+		keys = append(keys, normalized)
 	}
 
 	// Append hotkey keys for the current mode so the event tap

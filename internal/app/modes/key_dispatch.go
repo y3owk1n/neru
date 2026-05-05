@@ -191,7 +191,8 @@ func findHotkeyMatch(
 	normalizedKey string,
 ) (string, []string, bool) {
 	for bindKey, actions := range hotkeys {
-		if config.NormalizeKeyForComparison(bindKey) == normalizedKey {
+		normalizedBindKey := config.NormalizeKeyForComparison(bindKey)
+		if normalizedBindKey == normalizedKey {
 			return bindKey, actions, true
 		}
 	}

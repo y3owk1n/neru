@@ -22,15 +22,15 @@ import (
 )
 
 // initializeLogger initializes the application logger with the given configuration.
-func initializeLogger(config *config.Config) (*zap.Logger, error) {
+func initializeLogger(cfg *config.Config) (*zap.Logger, error) {
 	initConfigErr := logger.Init(
-		config.Logging.LogLevel,
-		config.Logging.LogFile,
-		config.Logging.StructuredLogging,
-		config.Logging.DisableFileLogging,
-		config.Logging.MaxFileSize,
-		config.Logging.MaxBackups,
-		config.Logging.MaxAge,
+		cfg.Logging.LogLevel,
+		cfg.Logging.LogFile,
+		cfg.Logging.StructuredLogging,
+		cfg.Logging.DisableFileLogging,
+		cfg.Logging.MaxFileSize,
+		cfg.Logging.MaxBackups,
+		cfg.Logging.MaxAge,
 		nil,
 	)
 	if initConfigErr != nil {
@@ -189,9 +189,9 @@ func initializeServices(
 }
 
 // processHotkeyBindings processes and filters hotkey bindings from configuration.
-func processHotkeyBindings(config *config.Config, logger *zap.Logger) []string {
-	keys := make([]string, 0, len(config.Hotkeys.Bindings))
-	for key, actions := range config.Hotkeys.Bindings {
+func processHotkeyBindings(cfg *config.Config, logger *zap.Logger) []string {
+	keys := make([]string, 0, len(cfg.Hotkeys.Bindings))
+	for key, actions := range cfg.Hotkeys.Bindings {
 		// Skip empty keys or empty action arrays
 		if strings.TrimSpace(key) == "" || len(actions) == 0 {
 			logger.Warn(
@@ -203,19 +203,21 @@ func processHotkeyBindings(config *config.Config, logger *zap.Logger) []string {
 			continue
 		}
 
-		if actionsReferenceDisabledMode(actions, config) {
+		if actionsReferenceDisabledMode(actions, cfg) {
 			continue
 		}
 
-		keys = append(keys, key)
+		// Canonicalize the key to convert "Primary" to platform-specific modifier ("Cmd" on macOS)
+		canonicalKey := config.CanonicalHotkeyForPlatform(key)
+		keys = append(keys, canonicalKey)
 	}
 
 	return keys
 }
 
 // configureEventTapHotkeys configures the event tap with hotkeys from the configuration.
-func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger) {
-	layoutID := strings.TrimSpace(config.General.KBLayoutToUse)
+func (a *App) configureEventTapHotkeys(cfg *config.Config, logger *zap.Logger) {
+	layoutID := strings.TrimSpace(cfg.General.KBLayoutToUse)
 
 	layoutResolved := a.eventTap.SetKeyboardLayout(layoutID)
 	if layoutID != "" && !layoutResolved {
@@ -223,7 +225,7 @@ func (a *App) configureEventTapHotkeys(config *config.Config, logger *zap.Logger
 			zap.String("layout_id", layoutID))
 	}
 
-	keys := processHotkeyBindings(config, logger)
+	keys := processHotkeyBindings(cfg, logger)
 
 	// Log hotkey registration status
 	if len(keys) == 0 {
