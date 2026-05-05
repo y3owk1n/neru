@@ -189,6 +189,7 @@ func init() {
 	ActionCmd.AddCommand(ActionMoveMouseCmd)
 	ActionCmd.AddCommand(ActionMoveMouseRelativeCmd)
 	ActionCmd.AddCommand(ActionMoveMonitorCmd)
+	ActionCmd.AddCommand(ActionFeedCmd)
 	ActionCmd.AddCommand(ActionResetCmd)
 	ActionCmd.AddCommand(ActionBackspaceCmd)
 	ActionCmd.AddCommand(ActionWaitForModeExitCmd)

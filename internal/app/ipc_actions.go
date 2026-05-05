@@ -15,7 +15,9 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/infra/keyfeed"
 )
 
 // IPCControllerActions handles action-related IPC commands.
@@ -232,6 +234,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	actionName := cmd.Args[0]
+
+	if action.IsFeedAction(actionName) {
+		return h.handleFeedAction(cmd.Args[1:])
+	}
 
 	parsed, parseErr := parseActionArgs(cmd.Args[1:])
 	if parseErr {
@@ -520,6 +526,59 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	return ipc.Response{
 		Success: true,
 		Message: actionName + " performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
+func (h *IPCControllerActions) handleFeedAction(args []string) ipc.Response {
+	if len(args) == 0 {
+		return ipc.Response{
+			Success: false,
+			Message: "feed requires at least one key (e.g., action feed o, action feed ctrl+c)",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	keys := make([]string, 0, len(args))
+	for _, arg := range args {
+		key := strings.TrimSpace(arg)
+		if key == "" {
+			return ipc.Response{
+				Success: false,
+				Message: "feed keys cannot be empty",
+				Code:    ipc.CodeInvalidInput,
+			}
+		}
+
+		keys = append(keys, key)
+	}
+
+	h.logger.Info("Feeding keys via IPC", zap.Strings("keys", keys))
+
+	for index, key := range keys {
+		err := keyfeed.Feed(key)
+		if err != nil {
+			code := ipc.CodeActionFailed
+			if derrors.IsCode(err, derrors.CodeInvalidInput) {
+				code = ipc.CodeInvalidInput
+			}
+
+			h.logger.Error("Failed to feed key",
+				zap.Error(err),
+				zap.String("key", key),
+				zap.Int("index", index))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to feed key " + key + ": " + err.Error(),
+				Code:    code,
+			}
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "feed performed",
 		Code:    ipc.CodeOK,
 	}
 }

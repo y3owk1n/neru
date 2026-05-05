@@ -153,6 +153,8 @@ const (
 	NameScrollRight Name = "scroll_right"
 	// NameMoveMonitor moves the cursor (and any active overlay) to the next or previous connected monitor.
 	NameMoveMonitor Name = "move_monitor"
+	// NameFeed posts a key or key chord directly to the operating system.
+	NameFeed Name = "feed"
 	// NameGoTop represents the go-to-top action.
 	NameGoTop Name = "go_top"
 	// NameGoBottom represents the go-to-bottom action.
@@ -249,11 +251,16 @@ func IsKnownName(name Name) bool {
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
-		NameMoveMonitor:
+		NameMoveMonitor, NameFeed:
 		return true
 	default:
 		return false
 	}
+}
+
+// IsFeedAction reports whether the given action feeds a key to the operating system.
+func IsFeedAction(name string) bool {
+	return Name(name) == NameFeed
 }
 
 // IsScrollSubAction reports whether the given name is a scroll sub-action
@@ -266,7 +273,8 @@ func IsScrollSubAction(name string) bool {
 	case NameLeftClick, NameRightClick, NameMiddleClick,
 		NameMouseDown, NameMouseUp,
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
-		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos, NameMoveMonitor:
+		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
+		NameMoveMonitor, NameFeed:
 		return false
 	default:
 		return false
@@ -326,7 +334,8 @@ func (n Name) ToType() (Type, error) {
 		NameWaitForModeExit,
 		NameSaveCursorPos,
 		NameRestoreCursorPos,
-		NameMoveMonitor:
+		NameMoveMonitor,
+		NameFeed:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "action name not executable: %s", n)
 	default:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "unknown action name: %s", n)

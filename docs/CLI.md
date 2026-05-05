@@ -12,12 +12,13 @@ Neru provides a comprehensive command-line interface for controlling the daemon,
 - [Screen Sharing](#screen-sharing)
 - [Service Management](#service-management)
 - [Navigation Commands](#navigation-commands)
-  - [When to Use Which Mode](#when-to-use-which-mode)
-  - [Hints Mode](#hints-mode)
-  - [Grid Mode](#grid-mode)
-  - [Recursive-Grid Mode](#recursive-grid-mode)
-  - [Scroll Mode](#scroll-mode)
+    - [When to Use Which Mode](#when-to-use-which-mode)
+    - [Hints Mode](#hints-mode)
+    - [Grid Mode](#grid-mode)
+    - [Recursive-Grid Mode](#recursive-grid-mode)
+    - [Scroll Mode](#scroll-mode)
 - [Action Commands](#action-commands)
+    - [Feed Keys](#feed-keys)
 - [Configuration Management](#configuration-management)
 - [Status & Info](#status--info)
 - [Documentation](#documentation)
@@ -341,6 +342,48 @@ neru action page_down           # Half-page down at cursor
 neru action go_top              # Jump to top at cursor
 neru action go_bottom           # Jump to bottom at cursor
 ```
+
+### Feed Keys
+
+On macOS, `feed` posts one or more keys or key chords directly back to the
+system through the action IPC path. This means it works from CLI commands and
+config hotkey arrays while bypassing Neru's active mode/action pipeline:
+
+```
+neru action feed o
+neru action feed ctrl+c
+neru action feed Cmd+Shift+P
+neru action feed h e l l o return
+```
+
+Syntax:
+
+```
+neru action feed <key-or-chord> [key-or-chord...]
+```
+
+In config hotkey arrays, use the same action form:
+
+```
+"Cmd+Y" = ["action feed h e l l o return"]
+"Cmd+L" = ["action feed cmd+l h e l l o return"]
+```
+
+Each space-separated item is one key press or chord. Chords use `+` between
+modifiers and the key, for example `ctrl+c` or `Cmd+Shift+P`. To send a
+literal space key, use `space` as an item.
+
+Supported key names:
+
+- Letters: `a` through `z`
+- Numbers: `0` through `9`
+- Symbols: `=`, `-`, `[`, `]`, `'`, `;`, `\`, `,`, `/`, `.`, `` ` ``
+- Named keys: `space`, `return`, `enter`, `escape`, `esc`, `tab`, `delete`, `backspace`
+- Navigation keys: `left`, `right`, `up`, `down`, `pageup`, `pagedown`, `home`, `end`
+- Function keys: `f1` through `f20`
+- Chord modifiers: `cmd`, `command`, `super`, `meta`, `shift`, `alt`, `option`, `ctrl`, `control`, and left/right-prefixed forms such as `LeftCmd` or `RightShift`
+
+Linux and Windows currently return a not-supported error for this command.
 
 ### Mode-Aware Actions
 
