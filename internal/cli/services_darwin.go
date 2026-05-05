@@ -197,7 +197,7 @@ func stopService() error {
 }
 
 func restartService() error {
-	// Stop the service and the Neru app process.
+	// Stop the service.
 	_ = stopService()
 
 	// Always attempt to start
