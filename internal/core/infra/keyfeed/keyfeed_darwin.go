@@ -94,6 +94,8 @@ static int postKeyFeed(const char *keyString) {
 
 	int orderedModifiers[] = {ModifierCtrl, ModifierAlt, ModifierShift, ModifierCmd};
 	CGEventFlags activeFlags = 0;
+	int pressedModifiers = 0;
+	int success = 1;
 
 	for (int i = 0; i < 4; i++) {
 		int modifier = orderedModifiers[i];
@@ -101,35 +103,38 @@ static int postKeyFeed(const char *keyString) {
 			continue;
 		}
 
-		activeFlags |= flagsForModifiers(modifier);
-		if (!postModifierEvent(source, modifier, true, activeFlags)) {
-			CFRelease(source);
-			return 0;
+		CGEventFlags nextFlags = activeFlags | flagsForModifiers(modifier);
+		if (!postModifierEvent(source, modifier, true, nextFlags)) {
+			success = 0;
+			goto cleanup;
 		}
+
+		activeFlags = nextFlags;
+		pressedModifiers |= modifier;
 	}
 
 	CGEventFlags keyFlags = flagsForModifiers(modifiers);
 	if (!postKeyboardEvent(source, (CGKeyCode)keyCode, true, keyFlags) ||
 	    !postKeyboardEvent(source, (CGKeyCode)keyCode, false, keyFlags)) {
-		CFRelease(source);
-		return 0;
+		success = 0;
+		goto cleanup;
 	}
 
+cleanup:
 	for (int i = 3; i >= 0; i--) {
 		int modifier = orderedModifiers[i];
-		if (!(modifiers & modifier)) {
+		if (!(pressedModifiers & modifier)) {
 			continue;
 		}
 
 		activeFlags &= ~flagsForModifiers(modifier);
 		if (!postModifierEvent(source, modifier, false, activeFlags)) {
-			CFRelease(source);
-			return 0;
+			success = 0;
 		}
 	}
 
 	CFRelease(source);
-	return 1;
+	return success;
 }
 */
 import "C"
