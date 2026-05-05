@@ -172,9 +172,6 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 
 						stickyInd.Clear()
 						stickyInd.Hide()
-						if h.stickyIndicatorService != nil {
-							h.stickyIndicatorService.UpdateIndicatorPosition(0, 0, "")
-						}
 					}
 				}
 			}
