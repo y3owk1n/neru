@@ -97,7 +97,7 @@ func (h *Handler) modeModifierKeys(mode domain.Mode, bundleID string) []string {
 
 		seen[normalized] = struct{}{}
 
-		keys = append(keys, trimmed)
+		keys = append(keys, normalized)
 	}
 
 	// Append hotkey keys for the current mode so the event tap
