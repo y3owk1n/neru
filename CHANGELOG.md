@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.34.1](https://github.com/y3owk1n/neru/compare/v1.34.0...v1.34.1) (2026-05-05)
+
+
+### Bug Fixes
+
+* allow macOS notification prompts ([#753](https://github.com/y3owk1n/neru/issues/753)) ([a593a24](https://github.com/y3owk1n/neru/commit/a593a244e47415b909419cc838e5903b683df672))
+* always run alert UI regardless of binary or bundle ([#756](https://github.com/y3owk1n/neru/issues/756)) ([36ee674](https://github.com/y3owk1n/neru/commit/36ee67484caf6985edf2b3dcce82a0f9d439c4be))
+* ditch `open` and purely run the binary for services ([#755](https://github.com/y3owk1n/neru/issues/755)) ([1f9bd4e](https://github.com/y3owk1n/neru/commit/1f9bd4e1fce00399e27fb58e2719d8284bb23933))
+* ensure eventtap and passthrough blacklist resolves the same ([#754](https://github.com/y3owk1n/neru/issues/754)) ([c1c7776](https://github.com/y3owk1n/neru/commit/c1c7776ce48067193661ad3cac1e67fb7210b156))
+* ensure global hotkeys are canonicalized before event tap registration ([#752](https://github.com/y3owk1n/neru/issues/752)) ([6134d00](https://github.com/y3owk1n/neru/commit/6134d00f2f17e31d577217afbf53c9bf6ac7cb99))
+* strict filtering for Chromium/Electron apps ([#749](https://github.com/y3owk1n/neru/issues/749)) ([e53fea7](https://github.com/y3owk1n/neru/commit/e53fea757fe87cd2543dc855694fd548cc1eb038))
+
 ## [1.34.0](https://github.com/y3owk1n/neru/compare/v1.33.0...v1.34.0) (2026-05-02)
 
 
