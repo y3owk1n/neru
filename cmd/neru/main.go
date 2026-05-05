@@ -94,7 +94,7 @@ func LaunchDaemon(configPath string) {
 }
 
 // handleConfigValidationError shows a validation error and exits.
-// From an app bundle it displays a native alert; from a terminal it prints to stderr.
+// Always displays a native alert (on supported platforms) in addition to printing to stderr.
 func handleConfigValidationError(result *config.LoadResult) {
 	errMsg := result.ValidationError.Error()
 	cfgPath := result.ConfigPath
