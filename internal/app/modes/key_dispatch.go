@@ -14,11 +14,12 @@ import (
 const hotkeySequenceTimeout = 500 * time.Millisecond
 
 const (
-	keyPartCmd    = "cmd"
-	keyPartShift  = "shift"
-	keyPartAlt    = "alt"
-	keyPartCtrl   = "ctrl"
-	keyPartOption = "option"
+	keyPartCmd         = "cmd"
+	keyPartShift       = "shift"
+	keyPartAlt         = "alt"
+	keyPartCtrl        = "ctrl"
+	keyPartOption      = "option"
+	hotkeyActionPrefix = "action "
 )
 
 // HandleKeyPress dispatches key events by current mode.
@@ -63,6 +64,10 @@ func (h *Handler) HandleKeyPress(key string) {
 	// only. Sticky modifiers are for the next action, not Neru's own navigation
 	// keys; using rawKey here would make a sticky Ctrl turn "c" into "Ctrl+c".
 	if rawKey != key {
+		if h.handleRawHintsActionHotkey(rawKey, bundleID) {
+			return
+		}
+
 		if h.handleHotkey(key, bundleID) {
 			return
 		}
@@ -181,6 +186,36 @@ func (h *Handler) handleHotkey(key, bundleID string) bool {
 		h.hotkeyLastKeyTime = time.Now().UnixNano()
 
 		return true
+	}
+
+	return false
+}
+
+func (h *Handler) handleRawHintsActionHotkey(rawKey, bundleID string) bool {
+	if h.executeHotkeyAction == nil || h.appState.CurrentMode() != domain.ModeHints {
+		return false
+	}
+
+	hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(domain.ModeHints), bundleID)
+	if len(hotkeys) == 0 {
+		return false
+	}
+
+	bindKey, actions, ok := findHotkeyMatch(hotkeys, config.NormalizeKeyForComparison(rawKey))
+	if !ok || !containsModeAction(actions) {
+		return false
+	}
+
+	h.dispatchHotkeyActions(domain.ModeString(domain.ModeHints), bindKey, rawKey, actions)
+
+	return true
+}
+
+func containsModeAction(actions []string) bool {
+	for _, actionStr := range actions {
+		if strings.HasPrefix(strings.TrimSpace(actionStr), hotkeyActionPrefix) {
+			return true
+		}
 	}
 
 	return false
