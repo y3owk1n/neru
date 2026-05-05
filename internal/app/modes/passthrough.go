@@ -43,7 +43,7 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 			// so the event tap consumes them instead of passing them through.
 			hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), bundleID)
 			for key := range hotkeys {
-				blacklist = append(blacklist, configpkg.NormalizeKeyForComparison(key))
+				blacklist = append(blacklist, configpkg.CanonicalHotkeyForPlatform(key))
 			}
 		}
 
@@ -90,7 +90,7 @@ func (h *Handler) modeModifierKeys(mode domain.Mode, bundleID string) []string {
 			return
 		}
 
-		normalized := configpkg.NormalizeKeyForComparison(trimmed)
+		normalized := configpkg.CanonicalHotkeyForPlatform(trimmed)
 		if _, exists := seen[normalized]; exists {
 			return
 		}
