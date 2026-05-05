@@ -100,9 +100,9 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 				}
 				showModeInd := h.shouldShowModeIndicator(h.appState.CurrentMode())
 				stickyEnabled := h.stickyModifiersEnabled()
-				stickyPoint := h.stickyIndicatorAnchorLocked(image.Pt(cursorX, cursorY))
-
 				cursorPt := image.Pt(cursorX, cursorY)
+				modePoint := h.modeIndicatorAnchorLocked(cursorPt)
+				stickyPoint := h.stickyIndicatorAnchorLocked(cursorPt)
 
 				if !cursorPt.In(h.screenBounds) && h.system != nil {
 					boundsCtx, boundsCancel := context.WithTimeout(ctx, indicatorPollTimeout)
@@ -135,8 +135,8 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 
 				h.mu.Unlock()
 
-				localCursorX := cursorX - screenOrigin.X
-				localCursorY := cursorY - screenOrigin.Y
+				localModeX := modePoint.X - screenOrigin.X
+				localModeY := modePoint.Y - screenOrigin.Y
 				localStickyX := stickyPoint.X - screenOrigin.X
 				localStickyY := stickyPoint.Y - screenOrigin.Y
 
@@ -146,7 +146,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 						ind.Show()
 					}
 
-					h.modeIndicatorService.UpdateIndicatorPosition(localCursorX, localCursorY)
+					h.modeIndicatorService.UpdateIndicatorPosition(localModeX, localModeY)
 				} else if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
 					ind.Clear()
 					ind.Hide()
@@ -172,6 +172,9 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 
 						stickyInd.Clear()
 						stickyInd.Hide()
+						if h.stickyIndicatorService != nil {
+							h.stickyIndicatorService.UpdateIndicatorPosition(0, 0, "")
+						}
 					}
 				}
 			}
@@ -240,6 +243,10 @@ func (h *Handler) modeIndicatorEnabled(mode domain.Mode) bool {
 
 func (h *Handler) shouldShowModeIndicator(mode domain.Mode) bool {
 	return h.modeIndicatorEnabled(mode)
+}
+
+func (h *Handler) modeIndicatorAnchorLocked(cursorPoint image.Point) image.Point {
+	return cursorPoint
 }
 
 func (h *Handler) stickyIndicatorAnchorLocked(cursorPoint image.Point) image.Point {
