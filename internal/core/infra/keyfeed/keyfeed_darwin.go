@@ -89,13 +89,13 @@ static int postKeyFeed(const char *keyString) {
 
 	CGEventSourceRef source = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 	if (!source) {
-		return 0;
+		return -1;
 	}
 
 	int orderedModifiers[] = {ModifierCtrl, ModifierAlt, ModifierShift, ModifierCmd};
 	CGEventFlags activeFlags = 0;
 	int pressedModifiers = 0;
-	int success = 1;
+	int result = 1;
 
 	for (int i = 0; i < 4; i++) {
 		int modifier = orderedModifiers[i];
@@ -105,7 +105,7 @@ static int postKeyFeed(const char *keyString) {
 
 		CGEventFlags nextFlags = activeFlags | flagsForModifiers(modifier);
 		if (!postModifierEvent(source, modifier, true, nextFlags)) {
-			success = 0;
+			result = -1;
 			goto cleanup;
 		}
 
@@ -116,7 +116,7 @@ static int postKeyFeed(const char *keyString) {
 	CGEventFlags keyFlags = flagsForModifiers(modifiers);
 	if (!postKeyboardEvent(source, (CGKeyCode)keyCode, true, keyFlags) ||
 	    !postKeyboardEvent(source, (CGKeyCode)keyCode, false, keyFlags)) {
-		success = 0;
+		result = -1;
 		goto cleanup;
 	}
 
@@ -129,12 +129,12 @@ cleanup:
 
 		activeFlags &= ~flagsForModifiers(modifier);
 		if (!postModifierEvent(source, modifier, false, activeFlags)) {
-			success = 0;
+			result = -1;
 		}
 	}
 
 	CFRelease(source);
-	return success;
+	return result;
 }
 */
 import "C"
@@ -159,9 +159,16 @@ func Feed(key string) error {
 	cKey := C.CString(normalized)
 	defer C.free(unsafe.Pointer(cKey)) //nolint:nlreturn
 
-	if C.postKeyFeed(cKey) == 0 {
+	ret := C.postKeyFeed(cKey)
+	switch ret {
+	case 1:
+		return nil
+	case 0:
 		return derrors.Newf(derrors.CodeInvalidInput, "unsupported key %q", key)
+	default:
+		return derrors.New(
+			derrors.CodeAccessibilityFailed,
+			"failed to post key event: check accessibility permissions",
+		)
 	}
-
-	return nil
 }
