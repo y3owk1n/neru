@@ -184,9 +184,12 @@ func (a *Adapter) ClickableElements(
 				windowsToProcess = append(windowsToProcess, frontmost)
 
 				// Add popover windows (siblings to the main window)
+				// Release non-popover windows to avoid leaks
 				for _, w := range allWindows {
 					if w.Role() == "AXPopover" {
 						windowsToProcess = append(windowsToProcess, w)
+					} else {
+						w.Release()
 					}
 				}
 
