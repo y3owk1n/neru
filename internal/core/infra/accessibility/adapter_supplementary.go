@@ -65,7 +65,7 @@ func (a *Adapter) addMenubarElements(
 	menubarRoles[len(originalRoles)] = "AXMenuBarItem"
 
 	// Get menubar elements
-	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements()
+	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(false)
 	if menubarNodesErr != nil {
 		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {

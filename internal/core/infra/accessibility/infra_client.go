@@ -159,8 +159,15 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 }
 
 // MenuBarClickableElements returns clickable elements in the menu bar.
-func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
-	nodes, nodesErr := MenuBarClickableElements(c.logger, c.cache, c.configProvider)
+func (c *InfraAXClient) MenuBarClickableElements(
+	strictFiltering bool,
+) ([]AXNode, error) {
+	nodes, nodesErr := MenuBarClickableElements(
+		c.logger,
+		c.cache,
+		c.configProvider,
+		strictFiltering,
+	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,

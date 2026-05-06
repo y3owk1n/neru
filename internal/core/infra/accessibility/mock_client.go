@@ -69,7 +69,7 @@ func (m *MockAXClient) ClickableNodes(_ AXElement, _ bool, roles []string) ([]AX
 }
 
 // MenuBarClickableElements returns the configured menu bar nodes or error.
-func (m *MockAXClient) MenuBarClickableElements() ([]AXNode, error) {
+func (m *MockAXClient) MenuBarClickableElements(strictFiltering bool) ([]AXNode, error) {
 	return m.MockMenuBarNodes, m.MockMenuBarNodesErr
 }
 

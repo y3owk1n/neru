@@ -11,6 +11,7 @@ func MenuBarClickableElements(
 	logger *zap.Logger,
 	cache *InfoCache,
 	configProvider config.Provider,
+	strictFiltering bool,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
 
@@ -32,6 +33,8 @@ func MenuBarClickableElements(
 
 	opts := DefaultTreeOptions(logger)
 	opts.SetCache(cache)
+	opts.SetStrictFiltering(strictFiltering)
+	opts.SetIncludeOutOfBounds(!strictFiltering)
 
 	if cfg := currentConfig(configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
