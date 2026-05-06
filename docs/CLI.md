@@ -457,6 +457,7 @@ neru action move_mouse --center --x 100            # Single-axis offset (y defau
 ```
 neru action move_mouse --window                  # Move to center of focused window
 neru action move_mouse --window --x -50 --y 50  # Offset from window center
+neru action move_mouse --window --x 100          # Single-axis offset (y defaults to 0)
 ```
 
 **Relative movement:**
