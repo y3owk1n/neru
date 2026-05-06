@@ -413,9 +413,11 @@ func TestAdapter_ClickableRoles(t *testing.T) {
 
 func TestAdapter_RolePassing(t *testing.T) {
 	logger := zap.NewNop()
+	mockWindow := &accessibility.MockWindow{}
 	mockClient := &accessibility.MockAXClient{
 		MockPermissions:     true,
-		MockFrontmostWindow: &accessibility.MockWindow{},
+		MockFrontmostWindow: mockWindow,
+		MockAllWindows:      []accessibility.AXWindow{mockWindow},
 	}
 
 	initialRoles := []string{"AXButton"}

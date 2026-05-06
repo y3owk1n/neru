@@ -56,6 +56,21 @@ func (c *InfraAXClient) FrontmostWindow() (AXWindow, error) {
 	return &InfraWindow{element: window}, nil
 }
 
+// AllWindows returns all windows of the focused application.
+func (c *InfraAXClient) AllWindows() ([]AXWindow, error) {
+	windows, err := AllWindows()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]AXWindow, len(windows))
+	for i, w := range windows {
+		result[i] = &InfraWindow{element: w}
+	}
+
+	return result, nil
+}
+
 // FocusedApplication returns the focused application.
 func (c *InfraAXClient) FocusedApplication() (AXApp, error) {
 	app := FocusedApplication()
@@ -325,6 +340,18 @@ func (c *InfraAXClient) ClearCache() {
 // InfraWindow wraps an Window.
 type InfraWindow struct {
 	element *Element
+}
+
+// Role returns the window role (e.g., "AXWindow", "AXPopover").
+func (w *InfraWindow) Role() string {
+	if w.element != nil {
+		info, err := w.element.Info()
+		if err == nil && info != nil {
+			return info.Role()
+		}
+	}
+
+	return ""
 }
 
 // Release releases the Window.

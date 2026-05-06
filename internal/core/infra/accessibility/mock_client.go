@@ -13,6 +13,8 @@ type MockAXClient struct {
 
 	MockFrontmostWindow    AXWindow
 	MockFrontmostWindowErr error
+	MockAllWindows         []AXWindow
+	MockAllWindowsErr      error
 
 	MockFocusedApp    AXApp
 	MockFocusedAppErr error
@@ -47,6 +49,11 @@ type MockAXClient struct {
 // FrontmostWindow returns the configured frontmost window or error.
 func (m *MockAXClient) FrontmostWindow() (AXWindow, error) {
 	return m.MockFrontmostWindow, m.MockFrontmostWindowErr
+}
+
+// AllWindows returns the configured windows or error.
+func (m *MockAXClient) AllWindows() ([]AXWindow, error) {
+	return m.MockAllWindows, m.MockAllWindowsErr
 }
 
 // FocusedApplication returns the configured focused application or error.
@@ -159,6 +166,9 @@ type MockWindow struct{}
 
 // Release is a no-op.
 func (w *MockWindow) Release() {}
+
+// Role returns "AXWindow".
+func (w *MockWindow) Role() string { return "AXWindow" }
 
 // MockApp is a mock implementation of AXApp.
 type MockApp struct {

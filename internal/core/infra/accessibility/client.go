@@ -7,18 +7,21 @@ import (
 )
 
 // AXElement represents a generic accessibility element.
-//
-//nolint:iface // Intentionally small interface for future extension
 type AXElement interface {
 	Release()
 }
 
+// AXWindow represents a window element.
+type AXWindow interface {
+	AXElement
+	Role() string
+}
+
 // AXClient defines the interface for accessibility operations.
-//
-//nolint:interfacebloat // Facade interface for accessibility operations
 type AXClient interface {
 	// Window and App operations
 	FrontmostWindow() (AXWindow, error)
+	AllWindows() ([]AXWindow, error)
 	FocusedApplication() (AXApp, error)
 	ApplicationByBundleID(bundleID string) (AXApp, error)
 	ClickableNodes(root AXElement, includeOffscreen bool, roles []string) ([]AXNode, error)
@@ -49,13 +52,6 @@ type AXClient interface {
 
 	// Cache
 	ClearCache()
-}
-
-// AXWindow represents a window element.
-//
-//nolint:iface // Intentionally small interface for future extension
-type AXWindow interface {
-	AXElement
 }
 
 // AXAppInfo contains information about an application.
