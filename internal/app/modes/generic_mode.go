@@ -61,6 +61,7 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 				opts.Action,
 				opts.Repeat,
 				opts.CursorFollowSelection,
+				opts.Training,
 			)
 		case domain.ModeScroll:
 			m.handler.StartInteractiveScroll()

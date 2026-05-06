@@ -135,10 +135,12 @@ func (m *mockIPCServer) IsRunning() bool {
 
 // mockOverlayManager is a mock implementation of OverlayManager for testing.
 type mockOverlayManager struct {
-	mu        sync.RWMutex
-	mode      overlay.Mode
-	visible   bool
-	subsCount uint64
+	mu                      sync.RWMutex
+	mode                    overlay.Mode
+	visible                 bool
+	subsCount               uint64
+	lastHideUnmatched       bool
+	setHideUnmatchedInvoked int
 }
 
 // Show implements OverlayManager.
@@ -246,6 +248,7 @@ func (m *mockOverlayManager) DrawRecursiveGrid(
 	_ string,
 	_ int,
 	_ int,
+	_ int,
 	_ recursivegrid.Style,
 	_ recursivegrid.VirtualPointerState,
 ) error {
@@ -253,8 +256,13 @@ func (m *mockOverlayManager) DrawRecursiveGrid(
 }
 func (m *mockOverlayManager) UpdateGridMatches(_ string)                   {}
 func (m *mockOverlayManager) ShowSubgrid(_ *domainGrid.Cell, _ grid.Style) {}
-func (m *mockOverlayManager) SetHideUnmatched(_ bool)                      {}
-func (m *mockOverlayManager) SetSharingType(_ bool)                        {}
+func (m *mockOverlayManager) SetHideUnmatched(hide bool) {
+	m.mu.Lock()
+	m.lastHideUnmatched = hide
+	m.setHideUnmatchedInvoked++
+	m.mu.Unlock()
+}
+func (m *mockOverlayManager) SetSharingType(_ bool) {}
 
 type mockHotkeyService struct {
 	mu         sync.RWMutex

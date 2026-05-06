@@ -366,6 +366,7 @@ func (m *Manager) DrawRecursiveGrid(
 	nextKeys string,
 	nextGridCols int,
 	nextGridRows int,
+	matchedIndex int,
 	style recursivegrid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
@@ -381,6 +382,7 @@ func (m *Manager) DrawRecursiveGrid(
 		nextKeys,
 		nextGridCols,
 		nextGridRows,
+		matchedIndex,
 		style,
 		virtualPointer,
 	)

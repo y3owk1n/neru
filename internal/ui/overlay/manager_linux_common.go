@@ -515,6 +515,7 @@ func (m *Manager) DrawRecursiveGrid(
 	nextKeys string,
 	nextGridCols int,
 	nextGridRows int,
+	matchedIndex int,
 	style recursivegrid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
@@ -522,11 +523,11 @@ func (m *Manager) DrawRecursiveGrid(
 	defer m.renderMu.Unlock()
 
 	if m.x11 != nil {
-		m.x11.DrawRecursiveGrid(bounds, depth, keys, gridCols, gridRows, style, virtualPointer)
+		m.x11.DrawRecursiveGrid(bounds, depth, keys, gridCols, gridRows, matchedIndex, style, virtualPointer)
 
 		return nil
 	} else if m.wlroots != nil {
-		m.wlroots.DrawRecursiveGrid(bounds, depth, keys, gridCols, gridRows, style, virtualPointer)
+		m.wlroots.DrawRecursiveGrid(bounds, depth, keys, gridCols, gridRows, matchedIndex, style, virtualPointer)
 
 		return nil
 	}
@@ -534,6 +535,7 @@ func (m *Manager) DrawRecursiveGrid(
 	_ = nextKeys
 	_ = nextGridCols
 	_ = nextGridRows
+	_ = matchedIndex
 
 	return derrors.New(
 		derrors.CodeNotSupported,

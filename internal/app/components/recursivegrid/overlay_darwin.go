@@ -233,6 +233,7 @@ func (o *Overlay) DrawRecursiveGrid(
 	nextKeys string,
 	nextGridCols int,
 	nextGridRows int,
+	matchedIndex int,
 	style Style,
 	virtualPointer VirtualPointerState,
 ) error {
@@ -319,12 +320,16 @@ func (o *Overlay) DrawRecursiveGrid(
 				labelStr = string(keyRunes[idx])
 			}
 			label := strings.ToUpper(labelStr)
+			matchedPrefixLength := 0
+			if idx == matchedIndex && label != "" {
+				matchedPrefixLength = len([]rune(label))
+			}
 			cells[idx] = C.GridCell{
 				label:               o.getOrCacheLabel(label),
 				bounds:              o.rectToCRect(cell),
-				isMatched:           C.int(0),
+				isMatched:           C.int(boolToInt(idx == matchedIndex)),
 				isSubgrid:           C.int(0),
-				matchedPrefixLength: C.int(0),
+				matchedPrefixLength: C.int(matchedPrefixLength),
 			}
 		}
 	}
@@ -338,9 +343,9 @@ func (o *Overlay) DrawRecursiveGrid(
 		cached.BgColor = unsafe.Pointer(C.CString(style.HighlightColor()))
 		cached.LabelBgColor = unsafe.Pointer(C.CString(style.LabelBackgroundColor()))
 		cached.TextColor = unsafe.Pointer(C.CString(style.TextColor()))
-		cached.MatchedTextColor = unsafe.Pointer(C.CString(style.TextColor()))
-		cached.MatchedBgColor = unsafe.Pointer(C.CString(style.HighlightColor()))
-		cached.MatchedBorderColor = unsafe.Pointer(C.CString(style.LineColor()))
+		cached.MatchedTextColor = unsafe.Pointer(C.CString(style.MatchedTextColor()))
+		cached.MatchedBgColor = unsafe.Pointer(C.CString(style.MatchedBackgroundColor()))
+		cached.MatchedBorderColor = unsafe.Pointer(C.CString(style.MatchedBorderColor()))
 		cached.BorderColor = unsafe.Pointer(C.CString(style.LineColor()))
 		cached.SubKeyTextColor = unsafe.Pointer(C.CString(style.SubKeyPreviewTextColor()))
 	})
@@ -370,8 +375,8 @@ func (o *Overlay) DrawRecursiveGrid(
 		subKeyKeys:                  o.getOrCacheLabel(subKeyKeysUpper),
 	}
 
-	shouldAnimate := o.Config().Animation.Enabled && o.hasLast && depth != o.lastDepth &&
-		!o.lastBounds.Empty()
+	shouldAnimate := o.Config().Animation.Enabled && matchedIndex < 0 &&
+		o.hasLast && depth != o.lastDepth && !o.lastBounds.Empty()
 	transitionDurationSeconds := float64(o.Config().Animation.DurationMS) / millisecondsPerSecond
 	if shouldAnimate {
 		C.NeruAnimateRecursiveGridTransition(
@@ -488,6 +493,9 @@ type Style struct {
 	lineColor                       string
 	lineWidth                       int
 	highlightColor                  string
+	matchedTextColor                string
+	matchedBackgroundColor          string
+	matchedBorderColor              string
 	textColor                       string
 	fontSize                        int
 	fontFamily                      string
@@ -516,6 +524,21 @@ func (s Style) LineWidth() int {
 // HighlightColor returns the highlight color.
 func (s Style) HighlightColor() string {
 	return s.highlightColor
+}
+
+// MatchedTextColor returns the emphasized text color for the active target cell.
+func (s Style) MatchedTextColor() string {
+	return s.matchedTextColor
+}
+
+// MatchedBackgroundColor returns the emphasized background color for the active target cell.
+func (s Style) MatchedBackgroundColor() string {
+	return s.matchedBackgroundColor
+}
+
+// MatchedBorderColor returns the emphasized border color for the active target cell.
+func (s Style) MatchedBorderColor() string {
+	return s.matchedBorderColor
 }
 
 // TextColor returns the text color.
@@ -599,6 +622,21 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			config.RecursiveGridHighlightColorLight,
 			config.RecursiveGridHighlightColorDark,
 		),
+		matchedTextColor: pickThemedColor(
+			theme,
+			config.GridMatchedTextColorLight,
+			config.GridMatchedTextColorDark,
+		),
+		matchedBackgroundColor: pickThemedColor(
+			theme,
+			config.GridMatchedBackgroundColorLight,
+			config.GridMatchedBackgroundColorDark,
+		),
+		matchedBorderColor: pickThemedColor(
+			theme,
+			config.GridMatchedBorderColorLight,
+			config.GridMatchedBorderColorDark,
+		),
 		textColor: cfg.UI.TextColor.ForTheme(
 			theme,
 			config.RecursiveGridTextColorLight,
@@ -625,4 +663,12 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			config.RecursiveGridSubKeyPreviewTextColorDark,
 		),
 	}
+}
+
+func pickThemedColor(theme config.ThemeProvider, light, dark string) string {
+	if theme != nil && theme.IsDarkMode() {
+		return dark
+	}
+
+	return light
 }

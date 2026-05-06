@@ -15,9 +15,11 @@ type mockApp struct {
 	hintsEnabled         bool
 	gridEnabled          bool
 	recursiveGridEnabled bool
+	trainingEnabled      bool
 	isEnabled            bool
 	hiddenForScreenShare bool
 	activatedMode        domain.Mode
+	trainingActivated    bool
 	configPath           string
 	reloadCalled         bool
 	enabledCallback      func(bool)
@@ -26,15 +28,19 @@ type mockApp struct {
 func (m *mockApp) HintsEnabled() bool         { return m.hintsEnabled }
 func (m *mockApp) GridEnabled() bool          { return m.gridEnabled }
 func (m *mockApp) RecursiveGridEnabled() bool { return m.recursiveGridEnabled }
-func (m *mockApp) IsEnabled() bool            { return m.isEnabled }
+func (m *mockApp) RecursiveGridTrainingEnabled() bool {
+	return m.trainingEnabled
+}
+func (m *mockApp) IsEnabled() bool { return m.isEnabled }
 func (m *mockApp) SetEnabled(enabled bool) {
 	m.isEnabled = enabled
 	if m.enabledCallback != nil {
 		m.enabledCallback(enabled)
 	}
 }
-func (m *mockApp) ActivateMode(mode domain.Mode) { m.activatedMode = mode }
-func (m *mockApp) GetConfigPath() string         { return m.configPath }
+func (m *mockApp) ActivateMode(mode domain.Mode)  { m.activatedMode = mode }
+func (m *mockApp) ActivateRecursiveGridTraining() { m.trainingActivated = true }
+func (m *mockApp) GetConfigPath() string          { return m.configPath }
 func (m *mockApp) ReloadConfig(ctx context.Context, configPath string) error {
 	m.reloadCalled = true
 

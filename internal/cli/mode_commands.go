@@ -12,11 +12,12 @@ import (
 
 // ModeConfig holds configuration for creating a mode command.
 type ModeConfig struct {
-	Name       string
-	Short      string
-	Long       string
-	ActionDesc string   // Description for the action flag (e.g., "hint selection" or "grid selection")
-	Aliases    []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
+	Name               string
+	Short              string
+	Long               string
+	ActionDesc         string   // Description for the action flag (e.g., "hint selection" or "grid selection")
+	Aliases            []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
+	EnableTrainingFlag bool
 }
 
 // BuildModeCommand creates a CLI command for a navigation mode (hints, grid, etc.).
@@ -45,10 +46,25 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				return err
 			}
 
+			trainingFlag := false
+			if config.EnableTrainingFlag {
+				trainingFlag, err = cmd.Flags().GetBool("training")
+				if err != nil {
+					return err
+				}
+			}
+
 			if repeatFlag && actionFlag == "" {
 				return derrors.New(
 					derrors.CodeInvalidInput,
 					"--repeat requires --action",
+				)
+			}
+
+			if trainingFlag && actionFlag != "" {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--training cannot be combined with --action",
 				)
 			}
 
@@ -113,6 +129,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, "--cursor-selection-mode="+cursorSelectionMode)
 			}
 
+			if trainingFlag {
+				params = append(params, "--training")
+			}
+
 			return sendCommand(cmd, config.Name, params)
 		},
 	}
@@ -135,6 +155,13 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		"",
 		"How the real cursor should behave during selection: follow or hold",
 	)
+	if config.EnableTrainingFlag {
+		cmd.Flags().Bool(
+			"training",
+			false,
+			"Start recursive-grid memorization training using the configured recursive_grid layout",
+		)
+	}
 
 	return cmd
 }

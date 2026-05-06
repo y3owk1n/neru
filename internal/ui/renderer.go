@@ -103,6 +103,7 @@ func (r *OverlayRenderer) DrawRecursiveGrid(
 	nextKeys string,
 	nextGridCols int,
 	nextGridRows int,
+	matchedIndex int,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
 	return r.manager.DrawRecursiveGrid(
@@ -114,6 +115,7 @@ func (r *OverlayRenderer) DrawRecursiveGrid(
 		nextKeys,
 		nextGridCols,
 		nextGridRows,
+		matchedIndex,
 		r.recursiveGridStyle,
 		virtualPointer,
 	)

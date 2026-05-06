@@ -139,6 +139,7 @@ type ModeActivationOptions struct {
 	Action                *string
 	Repeat                bool
 	CursorFollowSelection *bool
+	Training              bool
 }
 
 // extractModeOptions extracts and validates the optional action and repeat
@@ -173,6 +174,18 @@ func (h *IPCControllerModes) extractModeOptions(
 		switch {
 		case arg == "--repeat" || arg == "-r":
 			opts.Repeat = true
+		case arg == "--training":
+			if cmd.Action != "recursive_grid" {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--training is only supported by recursive_grid",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			opts.Training = true
 		case strings.HasPrefix(arg, "--action="):
 			actionArg := strings.TrimPrefix(arg, "--action=")
 			opts.Action = &actionArg
@@ -299,6 +312,16 @@ func (h *IPCControllerModes) extractModeOptions(
 		return opts, &resp
 	}
 
+	if opts.Training && opts.Action != nil {
+		resp := ipc.Response{
+			Success: false,
+			Message: "--training cannot be combined with an action",
+			Code:    ipc.CodeInvalidInput,
+		}
+
+		return opts, &resp
+	}
+
 	return opts, nil
 }
 
@@ -354,9 +377,15 @@ func (h *IPCControllerModes) handleRecursiveGrid(_ context.Context, cmd ipc.Comm
 		Action:                opts.Action,
 		Repeat:                opts.Repeat,
 		CursorFollowSelection: opts.CursorFollowSelection,
+		Training:              opts.Training,
 	})
 
-	return ipc.Response{Success: true, Message: "recursive-grid mode activated", Code: ipc.CodeOK}
+	message := "recursive-grid mode activated"
+	if opts.Training {
+		message = "recursive-grid training activated"
+	}
+
+	return ipc.Response{Success: true, Message: message, Code: ipc.CodeOK}
 }
 
 func (h *IPCControllerModes) handleScroll(_ context.Context, _ ipc.Command) ipc.Response {

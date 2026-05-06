@@ -148,6 +148,7 @@ func (n *NoOpManager) DrawRecursiveGrid(
 	nextKeys string,
 	nextGridCols int,
 	nextGridRows int,
+	matchedIndex int,
 	style recursivegrid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
@@ -218,6 +219,7 @@ type ManagerInterface interface {
 		nextKeys string,
 		nextGridCols int,
 		nextGridRows int,
+		matchedIndex int,
 		style recursivegrid.Style,
 		virtualPointer recursivegrid.VirtualPointerState,
 	) error

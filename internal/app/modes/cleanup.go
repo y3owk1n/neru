@@ -100,6 +100,12 @@ func (h *Handler) cleanupGridMode() {
 		h.grid.Overlay.HideVirtualPointer()
 	}
 
+	if h.renderer != nil {
+		// Grid mode toggles a shared native overlay flag. Reset it during cleanup
+		// so other modes do not accidentally render with grid filtering enabled.
+		h.renderer.SetHideUnmatched(false)
+	}
+
 	h.clearAndHideOverlay()
 }
 

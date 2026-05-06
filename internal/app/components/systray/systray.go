@@ -19,10 +19,12 @@ type AppInterface interface {
 	HintsEnabled() bool
 	GridEnabled() bool
 	RecursiveGridEnabled() bool
+	RecursiveGridTrainingEnabled() bool
 	IsEnabled() bool
 	SetEnabled(enabled bool)
 	ToggleEnabled()
 	ActivateMode(mode domain.Mode)
+	ActivateRecursiveGridTraining()
 	GetConfigPath() string
 	ReloadConfig(ctx context.Context, configPath string) error
 	// OnEnabledStateChanged is called when the enabled state changes externally
@@ -49,23 +51,24 @@ type Component struct {
 	cancel context.CancelFunc
 
 	// Menu items
-	mVersionCopy       *systray.MenuItem
-	mToggleDisable     *systray.MenuItem
-	mToggleEnable      *systray.MenuItem
-	mToggleScreenShare *systray.MenuItem
-	mModes             *systray.MenuItem
-	mHints             *systray.MenuItem
-	mGrid              *systray.MenuItem
-	mRecursiveGrid     *systray.MenuItem
-	mReloadConfig      *systray.MenuItem
-	mHelp              *systray.MenuItem
-	mSourceCode        *systray.MenuItem
-	mDocsConfig        *systray.MenuItem
-	mDocsCLI           *systray.MenuItem
-	mReportBug         *systray.MenuItem
-	mFeatureRequest    *systray.MenuItem
-	mDiscuss           *systray.MenuItem
-	mQuit              *systray.MenuItem
+	mVersionCopy        *systray.MenuItem
+	mToggleDisable      *systray.MenuItem
+	mToggleEnable       *systray.MenuItem
+	mToggleScreenShare  *systray.MenuItem
+	mModes              *systray.MenuItem
+	mHints              *systray.MenuItem
+	mGrid               *systray.MenuItem
+	mRecursiveGrid      *systray.MenuItem
+	mRecursiveGridTrain *systray.MenuItem
+	mReloadConfig       *systray.MenuItem
+	mHelp               *systray.MenuItem
+	mSourceCode         *systray.MenuItem
+	mDocsConfig         *systray.MenuItem
+	mDocsCLI            *systray.MenuItem
+	mReportBug          *systray.MenuItem
+	mFeatureRequest     *systray.MenuItem
+	mDiscuss            *systray.MenuItem
+	mQuit               *systray.MenuItem
 
 	// State update signaling (thread-safe communication)
 	stateUpdateSignal              chan struct{} // Signal that state changed
@@ -160,6 +163,12 @@ func (c *Component) OnReady() {
 		c.mRecursiveGrid.Disable()
 	}
 
+	c.mRecursiveGridTrain = c.mModes.AddSubMenuItem("Recursive Grid Training")
+	if !c.app.RecursiveGridTrainingEnabled() {
+		c.mRecursiveGridTrain.SetTitle("Recursive Grid Training: Disabled")
+		c.mRecursiveGridTrain.Disable()
+	}
+
 	systray.AddSeparator()
 
 	c.mReloadConfig = systray.AddMenuItem("Reload Config")
@@ -240,6 +249,8 @@ func (c *Component) handleEvents() {
 			c.app.ActivateMode(domain.ModeGrid)
 		case <-c.mRecursiveGrid.ClickedCh:
 			c.app.ActivateMode(domain.ModeRecursiveGrid)
+		case <-c.mRecursiveGridTrain.ClickedCh:
+			c.app.ActivateRecursiveGridTraining()
 		case <-c.mReloadConfig.ClickedCh:
 			c.handleReloadConfig()
 		case <-c.mSourceCode.ClickedCh:

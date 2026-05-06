@@ -198,6 +198,12 @@ const (
 	// DefaultRecursiveGridSubKeyPreviewAutohideMultiplier is the default minimum cell size multiplier
 	// for sub-key preview autohide. Set to 0 to disable autohide.
 	DefaultRecursiveGridSubKeyPreviewAutohideMultiplier = 1.5
+	// DefaultRecursiveGridTrainingHitsToHide is the default number of correct hits
+	// required before a training cell label is hidden.
+	DefaultRecursiveGridTrainingHitsToHide = 3
+	// DefaultRecursiveGridTrainingPenaltyOnError is the default number of hits removed
+	// from the current target after a wrong training answer.
+	DefaultRecursiveGridTrainingPenaltyOnError = 1
 	// DefaultStickyModifiersTapMaxDuration is the default maximum hold duration (ms)
 	// for a modifier key press to be considered a "tap" for sticky toggle.
 	// If held longer than this, the release will not toggle the sticky modifier.
@@ -378,6 +384,11 @@ func newDefaultConfig() *Config {
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
 			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
 			MaxDepth:      DefaultRecursiveGridMaxDepth,
+			Training: RecursiveGridTrainingConfig{
+				Enabled:        true,
+				HitsToHide:     DefaultRecursiveGridTrainingHitsToHide,
+				PenaltyOnError: DefaultRecursiveGridTrainingPenaltyOnError,
+			},
 		},
 		VirtualPointer: VirtualPointerConfig{
 			Enabled: true,

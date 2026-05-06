@@ -137,6 +137,7 @@ func (m *Manager) DrawRecursiveGrid(
 	_ string,
 	_ int,
 	_ int,
+	_ int,
 	_ recursivegrid.Style,
 	_ recursivegrid.VirtualPointerState,
 ) error {

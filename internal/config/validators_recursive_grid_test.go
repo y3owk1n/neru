@@ -109,3 +109,25 @@ func TestConfigValidateRecursiveGrid_InvalidAnimationDuration(t *testing.T) {
 		t.Fatal("ValidateRecursiveGrid() expected error for negative animation duration")
 	}
 }
+
+func TestConfigValidateRecursiveGrid_InvalidTrainingHitsToHide(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.RecursiveGrid.Enabled = true
+	cfg.RecursiveGrid.Training.HitsToHide = 0
+
+	err := cfg.ValidateRecursiveGrid()
+	if err == nil {
+		t.Fatal("ValidateRecursiveGrid() expected error for hits_to_hide < 1")
+	}
+}
+
+func TestConfigValidateRecursiveGrid_InvalidTrainingPenaltyOnError(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.RecursiveGrid.Enabled = true
+	cfg.RecursiveGrid.Training.PenaltyOnError = -1
+
+	err := cfg.ValidateRecursiveGrid()
+	if err == nil {
+		t.Fatal("ValidateRecursiveGrid() expected error for penalty_on_error < 0")
+	}
+}

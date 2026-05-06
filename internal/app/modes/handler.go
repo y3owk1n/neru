@@ -505,6 +505,14 @@ func (h *Handler) ResetCurrentMode() {
 		}
 	case domain.ModeRecursiveGrid:
 		if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
+			if h.recursiveGrid.Training != nil && h.recursiveGrid.Training.Active() {
+				h.recursiveGrid.Manager.Reset()
+				h.recursiveGrid.Training.Reset()
+				h.updateRecursiveGridOverlay()
+
+				return
+			}
+
 			h.recursiveGrid.Manager.Reset()
 
 			center := h.recursiveGrid.Manager.CurrentCenter()
@@ -552,6 +560,15 @@ func (h *Handler) BackspaceCurrentMode() {
 			h.grid.Manager.HandleBackspace()
 		}
 	case domain.ModeRecursiveGrid:
+		if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil &&
+			h.recursiveGrid.Training != nil && h.recursiveGrid.Training.Active() {
+			h.recursiveGrid.Manager.Reset()
+			h.recursiveGrid.Training.Reset()
+			h.updateRecursiveGridOverlay()
+
+			return
+		}
+
 		if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil &&
 			h.recursiveGrid.Manager.Backtrack() {
 			center := h.recursiveGrid.Manager.CurrentCenter()

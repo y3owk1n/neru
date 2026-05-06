@@ -58,6 +58,13 @@ func (a *App) RecursiveGridEnabled() bool {
 	return cfg != nil && cfg.RecursiveGrid.Enabled
 }
 
+// RecursiveGridTrainingEnabled returns true if recursive-grid training is enabled.
+func (a *App) RecursiveGridTrainingEnabled() bool {
+	cfg := a.configSnapshot()
+
+	return cfg != nil && cfg.RecursiveGrid.Enabled && cfg.RecursiveGrid.Training.Enabled
+}
+
 // Config returns the application configuration.
 func (a *App) Config() *config.Config {
 	return a.configSnapshot()
