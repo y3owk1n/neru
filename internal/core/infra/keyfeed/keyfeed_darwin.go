@@ -163,13 +163,7 @@ func Feed(key string) error {
 	}
 
 	if needsShift {
-		hasShift := strings.Contains(normalized, "+Shift+") ||
-			strings.HasPrefix(normalized, "Shift+") ||
-			strings.HasSuffix(normalized, "+Shift")
-
-		if !hasShift {
-			normalized = "Shift+" + normalized
-		}
+		normalized = "Shift+" + normalized
 	}
 
 	cKey := C.CString(normalized)
