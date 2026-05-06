@@ -70,7 +70,6 @@ clickable_roles = [
     "AXSwitch",
     "AXDisclosureTriangle",
     "AXTextArea",
-    "AXMenuButton",
     "AXMenuItem",
     "AXCell",
     "AXRow",

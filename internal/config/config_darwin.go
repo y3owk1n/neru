@@ -24,7 +24,6 @@ func applyPlatformDefaults(cfg *Config) {
 		"AXDisclosureTriangle",
 		"AXTextArea",
 		"AXMenuButton",
-		"AXMenuItem",
 		"AXCell",
 		"AXRow",
 	)

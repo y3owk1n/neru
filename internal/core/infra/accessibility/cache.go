@@ -96,7 +96,6 @@ var staticRoles = map[string]bool{
 	"AXButton":             true,
 	"AXLink":               true,
 	"AXMenuItem":           true,
-	"AXMenuButton":         true,
 	"AXPopUpButton":        true,
 	"AXTabButton":          true,
 	"AXCheckBox":           true,
