@@ -78,7 +78,6 @@ type parsedActionArgs struct {
 	hasMonitorName bool
 	usePrevious    bool
 	modifierStr    string
-	duration       string
 }
 
 func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelection bool) bool {
@@ -215,17 +214,6 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 
 			parsed.monitorName = val
 			parsed.hasMonitorName = true
-		case strings.HasPrefix(arg, "--duration") && (arg == "--duration" || arg[len("--duration")] == '='):
-			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--duration")
-			idx = newIdx
-
-			if !ok || val == "" {
-				parseErr = true
-
-				break
-			}
-
-			parsed.duration = val
 		default:
 			if strings.HasPrefix(arg, "--") {
 				parseErr = true
