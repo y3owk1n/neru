@@ -5,7 +5,6 @@ package keyfeed_test
 import (
 	"testing"
 
-	errs "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/keyfeed"
 )
 
@@ -85,9 +84,7 @@ func TestNormalizeKeyForFeed(t *testing.T) {
 			}
 
 			if err != nil {
-				if !errs.IsCode(err, errs.CodeInvalidInput) {
-					t.Errorf("NormalizeKeyForFeed(%q) unexpected error: %v", testCase.input, err)
-				}
+				t.Errorf("NormalizeKeyForFeed(%q) unexpected error: %v", testCase.input, err)
 
 				return
 			}
