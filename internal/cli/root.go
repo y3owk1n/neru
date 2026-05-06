@@ -255,6 +255,7 @@ func BuildMoveMouseCommand() *cobra.Command {
 	var (
 		targetX, targetY int
 		center           bool
+		window           bool
 		selection        bool
 		bare             bool
 	)
@@ -265,7 +266,8 @@ func BuildMoveMouseCommand() *cobra.Command {
 		Long: `Move the mouse cursor to the specified absolute position.
 Coordinates are relative to the current display.
 When --center is used, the cursor moves to the center of the active screen.
-If --x and --y are also provided with --center, they act as offsets from center.
+When --window is used, the cursor moves to the center of the focused window.
+If --x and --y are also provided with --center or --window, they act as offsets from center.
 Without coordinates, move_mouse targets the active mode selection by default when one exists.
 Use --bare to force current-cursor targeting.`,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
@@ -273,10 +275,10 @@ Use --bare to force current-cursor targeting.`,
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if selection &&
-				(center || cmd.Flags().Changed("x") || cmd.Flags().Changed("y")) {
+				(center || window || cmd.Flags().Changed("x") || cmd.Flags().Changed("y")) {
 				return derrors.New(
 					derrors.CodeInvalidInput,
-					"--selection cannot be combined with --x, --y, or --center",
+					"--selection cannot be combined with --x, --y, --center, or --window",
 				)
 			}
 
@@ -287,7 +289,14 @@ Use --bare to force current-cursor targeting.`,
 				)
 			}
 
-			if !center && !selection &&
+			if center && window {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--center and --window cannot be used together",
+				)
+			}
+
+			if !center && !window && !selection &&
 				((cmd.Flags().Changed("x") && !cmd.Flags().Changed("y")) ||
 					(!cmd.Flags().Changed("x") && cmd.Flags().Changed("y"))) {
 				return derrors.New(
@@ -300,6 +309,10 @@ Use --bare to force current-cursor targeting.`,
 
 			if center {
 				args = append(args, "--center")
+			}
+
+			if window {
+				args = append(args, "--window")
 			}
 
 			if cmd.Flags().Changed("x") {
@@ -327,6 +340,8 @@ Use --bare to force current-cursor targeting.`,
 	cmd.Flags().
 		IntVar(&targetY, "y", 0, "Y coordinate (pixels); with --center, vertical offset (default 0)")
 	cmd.Flags().BoolVar(&center, "center", false, "Move to the center of the active screen")
+	cmd.Flags().
+		BoolVar(&window, "window", false, "Move to the center of the focused window")
 	cmd.Flags().
 		BoolVar(&selection, "selection", false, "Explicitly move to the active mode selection")
 	cmd.Flags().

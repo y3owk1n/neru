@@ -161,6 +161,10 @@ void **getAllWindows(int *count);
 /// @return Frontmost window reference
 void *getFrontmostWindow(void);
 
+/// Get the frame (position + size) of the focused window
+/// @return Window frame rectangle, or CGRectZero if no window is found
+CGRect getFocusedWindowFrame(void);
+
 /// Get application name
 /// @param app Application reference
 /// @return Application name string

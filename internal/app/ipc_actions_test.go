@@ -34,6 +34,25 @@ func TestParseActionArgs_MoveMouseFlags(t *testing.T) {
 	}
 }
 
+func TestParseActionArgs_MoveMouseWindowFlag(t *testing.T) {
+	parsed, parseErr := parseActionArgs([]string{"--window", "--x=50", "--y=50"})
+	if parseErr {
+		t.Fatal("parseActionArgs() unexpected parse error")
+	}
+
+	if !parsed.hasWindow {
+		t.Fatal("parseActionArgs() expected hasWindow to be true")
+	}
+
+	if parsed.xVal != 50 {
+		t.Fatalf("parseActionArgs() expected xVal to be 50, got %d", parsed.xVal)
+	}
+
+	if parsed.yVal != 50 {
+		t.Fatalf("parseActionArgs() expected yVal to be 50, got %d", parsed.yVal)
+	}
+}
+
 func TestParseActionArgs_SelectionFlag(t *testing.T) {
 	parsed, parseErr := parseActionArgs([]string{"--selection"})
 	if parseErr {
@@ -122,7 +141,7 @@ func TestHandleAction_MoveMouseWithoutTargetingOrSelectionErrors(t *testing.T) {
 		t.Fatal("handleAction(move_mouse) expected failure without explicit target or selection")
 	}
 
-	if resp.Message != "move_mouse requires --x and --y flags, --center, active selection, or --bare" {
+	if resp.Message != "move_mouse requires --x and --y flags, --center, --window, active selection, or --bare" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -143,6 +162,46 @@ func TestHandleAction_MoveMouseSelectionWithoutActiveSelectionErrors(t *testing.
 	}
 
 	if resp.Message != "--selection requires an active mode selection" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_MoveMouseRejectsCenterAndWindow(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"move_mouse", "--center", "--window"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(move_mouse --center --window) expected failure")
+	}
+
+	if resp.Message != "--center and --window cannot be used together" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_MoveMouseRejectsWindowAndDX(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"move_mouse", "--window", "--dx=10", "--dy=10"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(move_mouse --window --dx) expected failure")
+	}
+
+	if resp.Message != "use either --window or --dx/--dy, not both" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -301,6 +360,12 @@ func TestShouldClearSelectionAfterMoveMouse(t *testing.T) {
 		{
 			name:             "center move clears selection",
 			parsed:           parsedActionArgs{hasCenter: true},
+			targetsSelection: false,
+			want:             true,
+		},
+		{
+			name:             "window move clears selection",
+			parsed:           parsedActionArgs{hasWindow: true},
 			targetsSelection: false,
 			want:             true,
 		},

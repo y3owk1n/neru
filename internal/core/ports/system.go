@@ -19,6 +19,11 @@ type ScreenManagement interface {
 	// Returns nil or an empty slice when no screens are detected.
 	ScreenNames(ctx context.Context) ([]string, error)
 
+	// FocusedWindowBounds returns the bounds of the currently focused window.
+	// Returns the bounds and true if a window was found, or a zero rectangle
+	// and false if no focused window exists (e.g. the desktop is focused).
+	FocusedWindowBounds(ctx context.Context) (image.Rectangle, bool, error)
+
 	// MoveCursorToPoint moves the mouse cursor to the specified point.
 	// If bypassSmooth is true, smooth cursor configuration is bypassed.
 	MoveCursorToPoint(ctx context.Context, point image.Point, bypassSmooth bool) error

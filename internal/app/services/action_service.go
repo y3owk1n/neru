@@ -287,6 +287,40 @@ func (s *ActionService) MoveMouseToCenterOfMonitor(
 	)
 }
 
+// MoveMouseToCenterOfWindow moves the mouse cursor to the center of the currently
+// focused window, optionally offset by the given delta values.
+func (s *ActionService) MoveMouseToCenterOfWindow(
+	ctx context.Context,
+	offsetX, offsetY int,
+) error {
+	bounds, found, err := s.system.FocusedWindowBounds(ctx)
+	if err != nil {
+		s.logger.Error("Failed to get focused window bounds", zap.Error(err))
+
+		return core.WrapAccessibilityFailed(err, "get focused window bounds")
+	}
+
+	if !found {
+		return derrors.New(
+			derrors.CodeAccessibilityFailed,
+			"no focused window found",
+		)
+	}
+
+	centerX := bounds.Min.X + bounds.Dx()/2 //nolint:mnd
+	centerY := bounds.Min.Y + bounds.Dy()/2 //nolint:mnd
+	target := image.Point{X: centerX + offsetX, Y: centerY + offsetY}
+
+	return s.moveMouseWithBounds(
+		ctx,
+		target,
+		bounds,
+		false,
+		zap.Int("offsetX", offsetX),
+		zap.Int("offsetY", offsetY),
+	)
+}
+
 // moveMouseWithBounds clamps target to the given screen bounds and moves the cursor.
 // This is the shared implementation used by MoveMouseTo and MoveMouseToCenter to
 // avoid duplicating clamp-and-move logic.

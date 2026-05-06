@@ -72,6 +72,7 @@ type parsedActionArgs struct {
 	hasX, hasY     bool
 	hasDX, hasDY   bool
 	hasCenter      bool
+	hasWindow      bool
 	useSelection   bool
 	useBare        bool
 	monitorName    string
@@ -87,6 +88,7 @@ func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelectio
 
 	return (parsed.hasX && parsed.hasY) ||
 		parsed.hasCenter ||
+		parsed.hasWindow ||
 		(parsed.hasDX && parsed.hasDY) ||
 		parsed.useBare
 }
@@ -196,6 +198,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.hasDY = true
 		case arg == "--center":
 			parsed.hasCenter = true
+		case arg == "--window":
+			parsed.hasWindow = true
 		case arg == "--selection":
 			parsed.useSelection = true
 		case arg == "--bare":
@@ -360,10 +364,34 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
+	if parsed.hasWindow && (parsed.hasDX || parsed.hasDY) {
+		return ipc.Response{
+			Success: false,
+			Message: "use either --window or --dx/--dy, not both",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	if parsed.hasCenter && !isMoveMouse {
 		return ipc.Response{
 			Success: false,
 			Message: "--center is only supported with move_mouse",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.hasWindow && !isMoveMouse {
+		return ipc.Response{
+			Success: false,
+			Message: "--window is only supported with move_mouse",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.hasCenter && parsed.hasWindow {
+		return ipc.Response{
+			Success: false,
+			Message: "--center and --window cannot be used together",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -393,10 +421,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	if parsed.useSelection &&
-		(parsed.hasCenter || parsed.hasX || parsed.hasY) {
+		(parsed.hasCenter || parsed.hasWindow || parsed.hasX || parsed.hasY) {
 		return ipc.Response{
 			Success: false,
-			Message: "--selection cannot be combined with --x, --y, or --center",
+			Message: "--selection cannot be combined with --x, --y, --center, or --window",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -430,6 +458,45 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		err := h.actionService.MoveMouseToCenter(ctx, offsetX, offsetY)
 		if err != nil {
 			h.logger.Error("Failed to move mouse to center", zap.Error(err))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to perform action: " + err.Error(),
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		if h.modesHandler != nil &&
+			shouldClearSelectionAfterMoveMouse(parsed, false) {
+			h.modesHandler.ClearCurrentSelectionPoint()
+		}
+
+		return ipc.Response{
+			Success: true,
+			Message: actionName + " performed",
+			Code:    ipc.CodeOK,
+		}
+	}
+
+	if isMoveMouse && parsed.hasWindow {
+		if h.actionService == nil {
+			return ipc.Response{
+				Success: false,
+				Message: "action service not available",
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		offsetX, offsetY := parsed.xVal, parsed.yVal
+
+		h.logger.Info("Moving mouse to window center via IPC",
+			zap.Int("offsetX", offsetX),
+			zap.Int("offsetY", offsetY),
+		)
+
+		err := h.actionService.MoveMouseToCenterOfWindow(ctx, offsetX, offsetY)
+		if err != nil {
+			h.logger.Error("Failed to move mouse to window center", zap.Error(err))
 
 			return ipc.Response{
 				Success: false,
@@ -788,7 +855,7 @@ func (h *IPCControllerActions) resolveMoveMousePoint(
 
 	return image.Point{}, &ipc.Response{
 		Success: false,
-		Message: "move_mouse requires --x and --y flags, --center, active selection, or --bare",
+		Message: "move_mouse requires --x and --y flags, --center, --window, active selection, or --bare",
 		Code:    ipc.CodeInvalidInput,
 	}
 }

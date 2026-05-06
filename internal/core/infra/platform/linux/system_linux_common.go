@@ -174,6 +174,17 @@ func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
 	)
 }
 
+// FocusedWindowBounds returns the bounds of the currently focused window on Linux.
+// TODO(linux): implement using AT-SPI or wmctrl.
+func (s *SystemAdapter) FocusedWindowBounds(
+	ctx context.Context,
+) (image.Rectangle, bool, error) {
+	return image.Rectangle{}, false, derrors.New(
+		derrors.CodeNotSupported,
+		"FocusedWindowBounds not yet implemented on linux backend "+s.backend,
+	)
+}
+
 // MoveCursorToPoint moves the mouse cursor to the specified point on Linux.
 // TODO(linux): implement using XTest (X11) or libinput (Wayland).
 func (s *SystemAdapter) MoveCursorToPoint(

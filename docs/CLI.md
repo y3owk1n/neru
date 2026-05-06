@@ -441,6 +441,7 @@ neru action right_click --modifier alt         # Alt+right-click
 neru action move_mouse --x 500 --y 300
 neru action move_mouse                         # Move to the active mode selection
 neru action move_mouse --bare                  # Use current-cursor targeting explicitly
+neru action move_mouse --window                # Move to the center of the focused window
 ```
 
 **Screen center:**
@@ -449,6 +450,13 @@ neru action move_mouse --bare                  # Use current-cursor targeting ex
 neru action move_mouse --center
 neru action move_mouse --center --x 50 --y -30    # Center with offset
 neru action move_mouse --center --x 100            # Single-axis offset (y defaults to 0)
+```
+
+**Focused window:**
+
+```
+neru action move_mouse --window                  # Move to center of focused window
+neru action move_mouse --window --x -50 --y 50  # Offset from window center
 ```
 
 **Relative movement:**
@@ -461,9 +469,10 @@ neru action move_mouse_relative --dx 10 --dy -5
 
 | Flag          | Description                                                  |
 | ------------- | ------------------------------------------------------------ |
-| `--x <px>`    | Absolute X coordinate, or X offset when used with `--center` |
-| `--y <px>`    | Absolute Y coordinate, or Y offset when used with `--center` |
+| `--x <px>`    | Absolute X coordinate, or X offset when used with `--center` or `--window` |
+| `--y <px>`    | Absolute Y coordinate, or Y offset when used with `--center` or `--window` |
 | `--center`    | Move to the center of the active screen                      |
+| `--window`    | Move to the center of the focused window                   |
 | `--selection` | Explicitly use the active mode selection                     |
 | `--bare`      | Force current-cursor targeting even when a selection exists  |
 
