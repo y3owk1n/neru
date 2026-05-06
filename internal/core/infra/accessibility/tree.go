@@ -352,7 +352,6 @@ var interactiveLeafRoles = map[string]bool{
 	"AXRadioButton":        true,
 	"AXLink":               true,
 	"AXPopUpButton":        true,
-	"AXTextField":          true,
 	"AXSlider":             true,
 	"AXTabButton":          true,
 	"AXSwitch":             true,
