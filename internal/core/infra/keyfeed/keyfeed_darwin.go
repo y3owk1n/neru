@@ -153,17 +153,9 @@ import (
 // When a single uppercase letter (A-Z) is provided without an explicit Shift modifier,
 // Shift is automatically added to produce the correct uppercase character.
 func Feed(key string) error {
-	trimmed := strings.TrimSpace(key)
-
-	needsShift := len(trimmed) == 1 && trimmed[0] >= 'A' && trimmed[0] <= 'Z'
-
-	normalized := config.CanonicalHotkeyForPlatform(trimmed)
-	if normalized == "" {
-		return derrors.New(derrors.CodeInvalidInput, "key is required")
-	}
-
-	if needsShift {
-		normalized = "Shift+" + normalized
+	normalized, err := NormalizeKeyForFeed(key)
+	if err != nil {
+		return err
 	}
 
 	cKey := C.CString(normalized)
@@ -181,4 +173,23 @@ func Feed(key string) error {
 			"failed to post key event: check accessibility permissions",
 		)
 	}
+}
+
+// NormalizeKeyForFeed normalizes a key string for feeding to the OS.
+// It handles uppercase letter detection and Shift injection.
+func NormalizeKeyForFeed(key string) (string, error) {
+	trimmed := strings.TrimSpace(key)
+
+	isSingleUppercase := len(trimmed) == 1 && trimmed[0] >= 'A' && trimmed[0] <= 'Z'
+
+	normalized := config.CanonicalHotkeyForPlatform(trimmed)
+	if normalized == "" {
+		return "", derrors.New(derrors.CodeInvalidInput, "key is required")
+	}
+
+	if isSingleUppercase && !strings.Contains(normalized, "+") {
+		normalized = "Shift+" + normalized
+	}
+
+	return normalized, nil
 }
