@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.35.0](https://github.com/y3owk1n/neru/compare/v1.34.0...v1.35.0) (2026-05-06)
+
+
+### Features
+
+* add `sleep` action for reliability ([#761](https://github.com/y3owk1n/neru/issues/761)) ([f55ab47](https://github.com/y3owk1n/neru/commit/f55ab47e3bde715cc8c84730abd527819d2e3e83))
+* add action feed key passthrough cli command ([#759](https://github.com/y3owk1n/neru/issues/759)) ([f041f13](https://github.com/y3owk1n/neru/commit/f041f13c5c88bb54cbdc2fe5beadb2b7dfa39370))
+* **cli:** add `--window` flag for `move_mouse` command ([#765](https://github.com/y3owk1n/neru/issues/765)) ([610a80b](https://github.com/y3owk1n/neru/commit/610a80bdd4141c06afc28f2876b2c329603e1ae0))
+* **grid,recursive_grid:** add `app_configs.hotkey` overrides ([#763](https://github.com/y3owk1n/neru/issues/763)) ([1bbedb5](https://github.com/y3owk1n/neru/commit/1bbedb594f41917bb3374d0e7ae67a39c2fa6414))
+
+
+### Bug Fixes
+
+* allow macOS notification prompts ([#753](https://github.com/y3owk1n/neru/issues/753)) ([a593a24](https://github.com/y3owk1n/neru/commit/a593a244e47415b909419cc838e5903b683df672))
+* always run alert UI regardless of binary or bundle ([#756](https://github.com/y3owk1n/neru/issues/756)) ([36ee674](https://github.com/y3owk1n/neru/commit/36ee67484caf6985edf2b3dcce82a0f9d439c4be))
+* **cli,feed:** preserve uppercase letters in action `feed` ([#762](https://github.com/y3owk1n/neru/issues/762)) ([aeba2bb](https://github.com/y3owk1n/neru/commit/aeba2bbb32abe5e1b93a97ebd3af0f2f390e50a4))
+* ditch `open` and purely run the binary for services ([#755](https://github.com/y3owk1n/neru/issues/755)) ([1f9bd4e](https://github.com/y3owk1n/neru/commit/1f9bd4e1fce00399e27fb58e2719d8284bb23933))
+* ensure eventtap and passthrough blacklist resolves the same ([#754](https://github.com/y3owk1n/neru/issues/754)) ([c1c7776](https://github.com/y3owk1n/neru/commit/c1c7776ce48067193661ad3cac1e67fb7210b156))
+* ensure global hotkeys are canonicalized before event tap registration ([#752](https://github.com/y3owk1n/neru/issues/752)) ([6134d00](https://github.com/y3owk1n/neru/commit/6134d00f2f17e31d577217afbf53c9bf6ac7cb99))
+* strict filtering for Chromium/Electron apps ([#749](https://github.com/y3owk1n/neru/issues/749)) ([e53fea7](https://github.com/y3owk1n/neru/commit/e53fea757fe87cd2543dc855694fd548cc1eb038))
+
+
+### Documentation
+
+* **tips:** add snippet to `move window` to another native space on macOS ([346f892](https://github.com/y3owk1n/neru/commit/346f892fece853bc2b2d1a00a34b2d5752798c9c))
+
 ## [1.34.0](https://github.com/y3owk1n/neru/compare/v1.33.0...v1.34.0) (2026-05-02)
 
 
