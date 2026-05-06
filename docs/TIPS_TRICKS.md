@@ -146,12 +146,11 @@ ctrl - r : neru hints --action right_click
 Some browser-like apps need a short delay after a click so the page content can finish updating before Neru refreshes hints. Override just that app's hint hotkeys:
 
 ```toml
-[[hints.app_configs]]
-bundle_id = "net.imput.helium"
-
-[hints.app_configs.hotkeys]
-"Return" = ["action left_click", "action sleep 0.8", "hints"]
-"Shift+L" = "__disabled__"
+bundle_id = "com.brave.Browser"
+hotkeys = {
+	"Return" = ["action left_click", "action sleep 0.8", "hints"],
+	"Shift+L" = "__disabled__"
+}
 ```
 
 This merges on top of `[hints.hotkeys]`, so only the keys listed here change for Helium. Everything else keeps using your normal hint bindings.

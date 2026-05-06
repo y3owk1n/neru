@@ -160,30 +160,30 @@ func (c *Config) ValidateHints() error {
 	return nil
 }
 
-// ValidateAppConfigs validates per-app hint configuration.
-func (c *Config) ValidateAppConfigs() error {
-	seen := make(map[string]struct{}, len(c.Hints.AppConfigs))
-	for idx, appConfig := range c.Hints.AppConfigs {
+// validateAppConfigs validates per-app configuration for a given mode.
+func validateAppConfigs(modeName string, appConfigs []AppConfig) error {
+	seen := make(map[string]struct{}, len(appConfigs))
+	for idx, appConfig := range appConfigs {
 		if strings.TrimSpace(appConfig.BundleID) == "" {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
-				"hints.app_configs[%d].bundle_id cannot be empty",
-				idx,
+				"%s.app_configs[%d].bundle_id cannot be empty",
+				modeName, idx,
 			)
 		}
 
 		if _, ok := seen[appConfig.BundleID]; ok {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
-				"duplicate hints.app_configs bundle_id: %s",
-				appConfig.BundleID,
+				"duplicate %s.app_configs bundle_id: %s",
+				modeName, appConfig.BundleID,
 			)
 		}
 
 		seen[appConfig.BundleID] = struct{}{}
 
 		err := validateHotkeyTable(
-			fmt.Sprintf("hints.app_configs[%d].hotkeys", idx),
+			fmt.Sprintf("%s.app_configs[%d].hotkeys", modeName, idx),
 			appConfig.Hotkeys,
 		)
 		if err != nil {
@@ -192,6 +192,11 @@ func (c *Config) ValidateAppConfigs() error {
 	}
 
 	return nil
+}
+
+// ValidateAppConfigs validates per-app hint configuration.
+func (c *Config) ValidateAppConfigs() error {
+	return validateAppConfigs("hints", c.Hints.AppConfigs)
 }
 
 // ValidateGrid validates the grid configuration.
@@ -242,6 +247,11 @@ func (c *Config) ValidateGrid() error {
 
 	if c.Grid.UI.BorderWidth < 0 {
 		return derrors.New(derrors.CodeInvalidConfig, "grid.ui.border_width must be non-negative")
+	}
+
+	err = validateAppConfigs("grid", c.Grid.AppConfigs)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -638,6 +648,11 @@ func (c *Config) ValidateRecursiveGrid() error {
 
 	if c.RecursiveGrid.UI.FontSize < 1 {
 		return derrors.New(derrors.CodeInvalidConfig, "recursive_grid.ui.font_size must be >= 1")
+	}
+
+	err = validateAppConfigs("recursive_grid", c.RecursiveGrid.AppConfigs)
+	if err != nil {
+		return err
 	}
 
 	return nil

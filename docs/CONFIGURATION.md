@@ -14,7 +14,7 @@ Neru uses TOML for configuration. No config file is required — Neru works out 
 - [Hotkeys](#hotkeys)
 - [Per-Mode Custom Hotkeys](#per-mode-custom-hotkeys)
 - [Action Commands and Primitives](#action-commands-and-primitives)
-  - [Feed keys](#feed-keys)
+    - [Feed keys](#feed-keys)
 - [General Settings](#general-settings)
 - [Hint Mode](#hint-mode)
 - [Grid Mode](#grid-mode)
@@ -187,23 +187,31 @@ All actions from `[hotkeys]` work here, plus these mode-specific ones:
 - Root toggle commands: `toggle-screen-share`, `toggle-cursor-follow-selection`
 - Shell commands: `exec ...`
 
-### Per-App Hint Hotkey Overrides
+### Per-App Hotkey Overrides
 
-`[[hints.app_configs]]` overrides `[hints.hotkeys]` bindings for a specific app bundle ID. App hotkeys are merged on top of `[hints.hotkeys]`; missing keys inherit the global binding; `__disabled__` removes an inherited binding for that app only.
+`[[<mode>.app_configs]]` overrides `<mode>.hotkeys` bindings for a specific app bundle ID. App hotkeys are merged on top of global mode hotkeys; missing keys inherit the global binding; `__disabled__` removes an inherited binding for that app only.
+
+This works for `hints`, `grid`, and `recursive_grid` modes:
 
 ```toml
 [hints.hotkeys]
 "Return" = ["action left_click", "hints"]
 
 [[hints.app_configs]]
-bundle_id = "net.imput.helium"
+bundle_id = "com.brave.Browser"
+hotkeys = {
+	"Return" = "action left_click",
+	"Shift+L" = "__disabled__"
+}
 
-[hints.app_configs.hotkeys]
-"Return" = ["action left_click", "action sleep 0.8", "hints"]
-"Shift+L" = "__disabled__"
+[[grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "Return" = "action left_click" }
+
+[[recursive_grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "u" = "action left_click" }
 ```
-
-This is useful for apps that need different hint follow-up behavior, such as browser-like shells that need a short pause before hints are refreshed.
 
 ### Priority order
 
@@ -412,6 +420,23 @@ Runtime cursor behavior is chosen per invocation rather than in config:
 
 Default grid hotkeys include ``"`" = "toggle-cursor-follow-selection"`` so you can flip cursor follow behavior mid-session.
 
+### Per-App Config Overrides
+
+`[[grid.app_configs]]` allows you to override hotkeys for specific apps:
+
+| Field       | Type   | Description                              |
+| ----------- | ------ | ---------------------------------------- |
+| `bundle_id` | string | App bundle ID (e.g. "com.brave.Browser") |
+| `hotkeys`   | map    | Per-app hotkey overrides (see below)     |
+
+```toml
+[[grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "Return" = "action left_click" }
+```
+
+See [Per-App Hotkey Overrides](#per-app-hotkey-overrides) for how per-app hotkey overrides work.
+
 ### UI Options
 
 | Option                     | Type   | Default | Description                          |
@@ -459,6 +484,23 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 | `layers`          | array  | `[]`     | Optional per-depth layout overrides              |
 
 Like `grid`, recursive-grid uses `--cursor-selection-mode follow|hold` at launch time. Default hotkeys also include ``"`" = "toggle-cursor-follow-selection"``.
+
+### Per-App Config Overrides
+
+`[[recursive_grid.app_configs]]` allows you to override hotkeys for specific apps:
+
+| Field       | Type   | Description                              |
+| ----------- | ------ | ---------------------------------------- |
+| `bundle_id` | string | App bundle ID (e.g. "com.brave.Browser") |
+| `hotkeys`   | map    | Per-app hotkey overrides (see below)     |
+
+```toml
+[[recursive_grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "Return" = "action left_click" }
+```
+
+See [Per-App Hotkey Overrides](#per-app-hotkey-overrides) for how per-app hotkey overrides work.
 
 ### Animation Options
 

@@ -54,8 +54,23 @@ func (h *Handler) HandleKeyPress(key string) {
 	// Resolve the focused app bundle ID once so that both handleHotkey calls
 	// (rawKey and stripped key) share the same snapshot.
 	var bundleID string
-	if h.appState.CurrentMode() == domain.ModeHints && h.config.Hints.HasAppHotkeyOverrides() {
-		bundleID = h.focusedBundleID()
+
+	currentMode := h.appState.CurrentMode()
+	switch currentMode {
+	case domain.ModeHints:
+		if h.config.Hints.HasAppHotkeyOverrides() {
+			bundleID = h.focusedBundleID()
+		}
+	case domain.ModeGrid:
+		if h.config.Grid.HasAppHotkeyOverrides() {
+			bundleID = h.focusedBundleID()
+		}
+	case domain.ModeRecursiveGrid:
+		if h.config.RecursiveGrid.HasAppHotkeyOverrides() {
+			bundleID = h.focusedBundleID()
+		}
+	case domain.ModeIdle, domain.ModeScroll:
+		// No app hotkey overrides for these modes
 	}
 
 	// Check for per-mode hotkeys before mode-specific handling.

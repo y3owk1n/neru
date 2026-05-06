@@ -14,6 +14,56 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
+// validateAppConfigsHotkeys validates hotkeys in app_configs sections from raw config.
+func validateAppConfigsHotkeys(
+	logger *zap.Logger,
+	modeName string,
+	raw map[string]any,
+) *LoadResult {
+	var appConfigsRaw []any
+	switch ac := raw["app_configs"].(type) {
+	case []any:
+		appConfigsRaw = ac
+	case []map[string]any:
+		for i := range ac {
+			appConfigsRaw = append(appConfigsRaw, ac[i])
+		}
+	default:
+		return nil
+	}
+
+	for idx, entry := range appConfigsRaw {
+		appMap, isMap := entry.(map[string]any)
+		if !isMap {
+			continue
+		}
+
+		hotkeysRaw, hasHotkeys := appMap["hotkeys"]
+		if !hasHotkeys {
+			continue
+		}
+
+		err := validateRawHotkeyTable(
+			fmt.Sprintf("%s.app_configs[%d].hotkeys", modeName, idx),
+			hotkeysRaw,
+		)
+		if err != nil {
+			result := &LoadResult{
+				ValidationError: err,
+				Config:          DefaultConfig(),
+			}
+			logger.Warn("Duplicate normalized app hotkey in config",
+				zap.String("mode", modeName),
+				zap.Int("app_config_index", idx),
+				zap.Error(err))
+
+			return result
+		}
+	}
+
+	return nil
+}
+
 // findNormalizedMapKey returns the existing map key in m whose normalized form
 // matches the normalized form of rawKey. If no match is found it returns rawKey
 // itself so callers can use the result directly.
@@ -402,56 +452,24 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	}
 
 	if hintsRaw, ok := raw["hints"].(map[string]any); ok {
-		switch appConfigsRaw := hintsRaw["app_configs"].(type) {
-		case []any:
-			for idx, entry := range appConfigsRaw {
-				appMap, isMap := entry.(map[string]any)
-				if !isMap {
-					continue
-				}
+		if result := validateAppConfigsHotkeys(s.logger, "hints", hintsRaw); result != nil {
+			return result
+		}
+	}
 
-				hotkeysRaw, hasHotkeys := appMap["hotkeys"]
-				if !hasHotkeys {
-					continue
-				}
+	if gridRaw, ok := raw["grid"].(map[string]any); ok {
+		if result := validateAppConfigsHotkeys(s.logger, "grid", gridRaw); result != nil {
+			return result
+		}
+	}
 
-				err = validateRawHotkeyTable(
-					fmt.Sprintf("hints.app_configs[%d].hotkeys", idx),
-					hotkeysRaw,
-				)
-				if err != nil {
-					configResult.ValidationError = err
-					configResult.Config = DefaultConfig()
-
-					s.logger.Warn("Duplicate normalized app hotkey in config",
-						zap.Int("app_config_index", idx),
-						zap.Error(configResult.ValidationError))
-
-					return configResult
-				}
-			}
-		case []map[string]any:
-			for idx, appMap := range appConfigsRaw {
-				hotkeysRaw, ok := appMap["hotkeys"]
-				if !ok {
-					continue
-				}
-
-				err = validateRawHotkeyTable(
-					fmt.Sprintf("hints.app_configs[%d].hotkeys", idx),
-					hotkeysRaw,
-				)
-				if err != nil {
-					configResult.ValidationError = err
-					configResult.Config = DefaultConfig()
-
-					s.logger.Warn("Duplicate normalized app hotkey in config",
-						zap.Int("app_config_index", idx),
-						zap.Error(configResult.ValidationError))
-
-					return configResult
-				}
-			}
+	if recursiveGridRaw, ok := raw["recursive_grid"].(map[string]any); ok {
+		if result := validateAppConfigsHotkeys(
+			s.logger,
+			"recursive_grid",
+			recursiveGridRaw,
+		); result != nil {
+			return result
 		}
 	}
 
