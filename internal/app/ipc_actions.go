@@ -588,15 +588,19 @@ func (h *IPCControllerActions) handleFeedAction(args []string) ipc.Response {
 }
 
 func (h *IPCControllerActions) handleSleepAction(args []string) ipc.Response {
-	var durationStr string
-
-	for _, arg := range args {
-		arg = strings.TrimSpace(arg)
+	durationStr := ""
+	for idx := 0; idx < len(args); idx++ {
+		arg := strings.TrimSpace(args[idx])
 		if after, ok := strings.CutPrefix(arg, "--duration="); ok {
 			durationStr = after
 		} else if arg == "--duration" {
-			continue
-		} else if !strings.HasPrefix(arg, "--") && arg != "" {
+			val, newIdx, ok := extractStringFlag(args, idx, "--duration")
+			idx = newIdx
+
+			if ok && val != "" {
+				durationStr = val
+			}
+		} else if !strings.HasPrefix(arg, "--") && arg != "" && durationStr == "" {
 			durationStr = arg
 		}
 	}
