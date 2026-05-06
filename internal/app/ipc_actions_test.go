@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"testing"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -330,6 +331,96 @@ func TestShouldClearSelectionAfterMoveMouse(t *testing.T) {
 			got := shouldClearSelectionAfterMoveMouse(testCase.parsed, testCase.targetsSelection)
 			if got != testCase.want {
 				t.Fatalf("shouldClearSelectionAfterMoveMouse() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestParseSleepDuration(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		input     string
+		wantValid bool
+		wantNS    time.Duration
+	}{
+		{
+			name:      "bare number seconds",
+			input:     "0.2",
+			wantValid: true,
+			wantNS:    200 * time.Millisecond,
+		},
+		{
+			name:      "integer seconds",
+			input:     "1",
+			wantValid: true,
+			wantNS:    1 * time.Second,
+		},
+		{
+			name:      "float seconds",
+			input:     "1.5",
+			wantValid: true,
+			wantNS:    1500 * time.Millisecond,
+		},
+		{
+			name:      "milliseconds",
+			input:     "500ms",
+			wantValid: true,
+			wantNS:    500 * time.Millisecond,
+		},
+		{
+			name:      "seconds with s suffix",
+			input:     "2s",
+			wantValid: true,
+			wantNS:    2 * time.Second,
+		},
+		{
+			name:      "empty string",
+			input:     "",
+			wantValid: false,
+			wantNS:    0,
+		},
+		{
+			name:      "zero duration",
+			input:     "0",
+			wantValid: false,
+			wantNS:    0,
+		},
+		{
+			name:      "negative duration",
+			input:     "-1s",
+			wantValid: false,
+			wantNS:    0,
+		},
+		{
+			name:      "invalid string",
+			input:     "invalid",
+			wantValid: false,
+			wantNS:    0,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := parseSleepDuration(testCase.input)
+			if testCase.wantValid && err != nil {
+				t.Fatalf("parseSleepDuration(%q) unexpected error: %v", testCase.input, err)
+			}
+
+			if !testCase.wantValid && err == nil {
+				t.Fatalf("parseSleepDuration(%q) expected error, got nil", testCase.input)
+			}
+
+			if got != testCase.wantNS {
+				t.Fatalf(
+					"parseSleepDuration(%q) = %v, want %v",
+					testCase.input,
+					got,
+					testCase.wantNS,
+				)
 			}
 		})
 	}
