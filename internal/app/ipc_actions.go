@@ -429,7 +429,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if isMoveMouse && !parsed.hasCenter &&
+	if isMoveMouse && !parsed.hasCenter && !parsed.hasWindow &&
 		!parsed.useSelection &&
 		((parsed.hasX && !parsed.hasY) || (!parsed.hasX && parsed.hasY)) {
 		return ipc.Response{
