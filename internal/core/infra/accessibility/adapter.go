@@ -193,12 +193,6 @@ func (a *Adapter) ClickableElements(
 					}
 				}
 
-				if len(windowsToProcess) == 0 {
-					frontmost.Release()
-
-					return []*element.Element{}, nil
-				}
-
 				var allElements []*element.Element
 				for _, window := range windowsToProcess {
 					clickableNodes, clickableNodesErr := a.client.ClickableNodes(
