@@ -13,6 +13,8 @@ func Feed(_ string) error {
 	)
 }
 
+// NormalizeKeyForFeed normalizes a key string for feeding to the OS.
+// Not supported outside macOS.
 func NormalizeKeyForFeed(key string) (string, error) {
 	return "", derrors.New(
 		derrors.CodeNotSupported,
