@@ -359,7 +359,6 @@ var interactiveLeafRoles = map[string]bool{
 	"AXDisclosureTriangle": true,
 	"AXTextArea":           true,
 	"AXMenuButton":         true,
-	"AXMenuItem":           true,
 }
 
 func buildTreeRecursive(
