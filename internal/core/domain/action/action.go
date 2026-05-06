@@ -163,6 +163,8 @@ const (
 	NamePageUp Name = "page_up"
 	// NamePageDown represents the page-down action.
 	NamePageDown Name = "page_down"
+	// NameSleep pauses action execution for a specified duration.
+	NameSleep Name = "sleep"
 
 	// PrefixExec is the prefix for shell command actions.
 	PrefixExec = "exec"
@@ -251,7 +253,7 @@ func IsKnownName(name Name) bool {
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
-		NameMoveMonitor, NameFeed:
+		NameMoveMonitor, NameFeed, NameSleep:
 		return true
 	default:
 		return false
@@ -274,7 +276,7 @@ func IsScrollSubAction(name string) bool {
 		NameMouseDown, NameMouseUp,
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
 		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
-		NameMoveMonitor, NameFeed:
+		NameMoveMonitor, NameFeed, NameSleep:
 		return false
 	default:
 		return false
@@ -335,7 +337,8 @@ func (n Name) ToType() (Type, error) {
 		NameSaveCursorPos,
 		NameRestoreCursorPos,
 		NameMoveMonitor,
-		NameFeed:
+		NameFeed,
+		NameSleep:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "action name not executable: %s", n)
 	default:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "unknown action name: %s", n)

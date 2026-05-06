@@ -385,6 +385,28 @@ Supported key names:
 
 Linux and Windows currently return a not-supported error for this command.
 
+### Sleep
+
+The `sleep` action pauses action execution for a specified duration. This is useful in hotkey arrays to add delays between actions, allowing the target app time to process events:
+
+```
+neru action sleep 0.2          # Sleep for 0.2 seconds
+neru action sleep 500ms        # Sleep for 500 milliseconds
+neru action sleep 1.5s        # Sleep for 1.5 seconds
+```
+
+In config hotkey arrays:
+
+```
+"Return" = ["action left_click", "action sleep 0.2", "hints"]
+```
+
+Valid duration formats:
+- Plain numbers are seconds: `0.2`, `1`, `2.5`
+- Explicit unit: `100ms`, `500ms`, `1s`, `2s`
+
+This runs synchronously in Neru's action pipeline, unlike `exec sleep` which spawns a subprocess with unreliable timing.
+
 ### Mode-Aware Actions
 
 These actions depend on the current mode and are primarily useful inside `hotkeys` arrays.

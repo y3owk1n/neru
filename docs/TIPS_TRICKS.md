@@ -95,7 +95,7 @@ On some apps (e.g. Discord), it requires you to wait for a bit after clicking be
 ```toml
 [recursive_grid.hotkeys]
 # Click, sleep for a bit, and then only reset (that moves the cursor to center in recursive grid mode)
-"Ctrl+J" = ["action left_click", "exec sleep 0.05", "action reset"]
+"Ctrl+J" = ["action left_click", "action sleep 0.05", "action reset"]
 ```
 
 ## Target Menus Without Moving the Real Cursor
@@ -150,7 +150,7 @@ Some browser-like apps need a short delay after a click so the page content can 
 bundle_id = "net.imput.helium"
 
 [hints.app_configs.hotkeys]
-"Return" = ["action left_click", "exec sleep 0.8", "hints"]
+"Return" = ["action left_click", "action sleep 0.8", "hints"]
 "Shift+L" = "__disabled__"
 ```
 

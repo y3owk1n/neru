@@ -183,7 +183,7 @@ To remove a single default binding, use `__disabled__`:
 All actions from `[hotkeys]` work here, plus these mode-specific ones:
 
 - Mode commands: `idle`, `hints`, `grid`, `recursive_grid`, `scroll`
-- Action subcommands: `action left_click`, `action scroll_down`, `action feed`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor_pos`
+- Action subcommands: `action left_click`, `action scroll_down`, `action feed`, `action sleep`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor_pos`
 - Root toggle commands: `toggle-screen-share`, `toggle-cursor-follow-selection`
 - Shell commands: `exec ...`
 
@@ -199,7 +199,7 @@ All actions from `[hotkeys]` work here, plus these mode-specific ones:
 bundle_id = "net.imput.helium"
 
 [hints.app_configs.hotkeys]
-"Return" = ["action left_click", "exec sleep 0.8", "hints"]
+"Return" = ["action left_click", "action sleep 0.8", "hints"]
 "Shift+L" = "__disabled__"
 ```
 
@@ -271,8 +271,10 @@ multi-key sequences, and platform behavior.
 ```toml
 [hints.hotkeys]
 "Enter" = ["action save_cursor_pos", "idle", "action wait_for_mode_exit", "action restore_cursor_pos"]
-"Return" = ["action left_click", "exec sleep 0.5", "hints"]
+"Return" = ["action left_click", "action sleep 0.5", "hints"]
 ```
+
+See [CLI Usage: Feed Keys](CLI.md#feed-keys) for syntax and supported actions.
 
 ---
 

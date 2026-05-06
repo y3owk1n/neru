@@ -46,7 +46,7 @@ ignore_clickable_check = false
 # ignore_clickable_check = false
 #
 # [hints.app_configs.hotkeys]
-# "Return" = ["action left_click", "exec sleep 3.5", "hints"]
+# "Return" = ["action left_click", "action sleep 3.5", "hints"]
 
 [hints.additional_ax_support]
 enable = true

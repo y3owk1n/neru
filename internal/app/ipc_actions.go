@@ -78,6 +78,7 @@ type parsedActionArgs struct {
 	hasMonitorName bool
 	usePrevious    bool
 	modifierStr    string
+	duration       string
 }
 
 func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelection bool) bool {
@@ -214,6 +215,17 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 
 			parsed.monitorName = val
 			parsed.hasMonitorName = true
+		case strings.HasPrefix(arg, "--duration") && (arg == "--duration" || arg[len("--duration")] == '='):
+			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--duration")
+			idx = newIdx
+
+			if !ok || val == "" {
+				parseErr = true
+
+				break
+			}
+
+			parsed.duration = val
 		default:
 			if strings.HasPrefix(arg, "--") {
 				parseErr = true
@@ -237,6 +249,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	if action.IsFeedAction(actionName) {
 		return h.handleFeedAction(cmd.Args[1:])
+	}
+
+	if action.Name(actionName) == action.NameSleep {
+		return h.handleSleepAction(cmd.Args[1:])
 	}
 
 	parsed, parseErr := parseActionArgs(cmd.Args[1:])
@@ -581,6 +597,73 @@ func (h *IPCControllerActions) handleFeedAction(args []string) ipc.Response {
 		Message: "feed performed",
 		Code:    ipc.CodeOK,
 	}
+}
+
+func (h *IPCControllerActions) handleSleepAction(args []string) ipc.Response {
+	var durationStr string
+
+	for _, arg := range args {
+		arg = strings.TrimSpace(arg)
+		if after, ok := strings.CutPrefix(arg, "--duration="); ok {
+			durationStr = after
+		} else if arg == "--duration" {
+			continue
+		} else if !strings.HasPrefix(arg, "--") && arg != "" {
+			durationStr = arg
+		}
+	}
+
+	duration, err := parseSleepDuration(durationStr)
+	if err != nil {
+		return ipc.Response{
+			Success: false,
+			Message: err.Error(),
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	h.logger.Debug("sleep action sleeping", zap.Duration("duration", duration))
+	time.Sleep(duration)
+
+	return ipc.Response{
+		Success: true,
+		Message: "sleep performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
+func parseSleepDuration(durationStr string) (time.Duration, error) {
+	if durationStr == "" {
+		return 0, derrors.New(
+			derrors.CodeInvalidInput,
+			"sleep requires a duration (e.g., 0.2s, 200ms)",
+		)
+	}
+
+	duration, err := strconv.ParseFloat(durationStr, 64)
+	if err != nil {
+		return 0, derrors.Newf(
+			derrors.CodeInvalidInput,
+			"invalid sleep duration %q: %v",
+			durationStr,
+			err,
+		)
+	}
+
+	if duration <= 0 {
+		return 0, derrors.Newf(
+			derrors.CodeInvalidInput,
+			"sleep duration must be positive, got %s",
+			durationStr,
+		)
+	}
+
+	if durationStr[len(durationStr)-1] == 'm' && len(durationStr) >= 2 &&
+		durationStr[len(durationStr)-2] == 'm' {
+		return time.Duration(duration * float64(time.Millisecond)), nil
+	}
+
+	return time.Duration(duration * float64(time.Second)), nil
 }
 
 func (h *IPCControllerActions) handleMoveMouseAction(
