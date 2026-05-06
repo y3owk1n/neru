@@ -150,10 +150,26 @@ import (
 
 // Feed posts a key or key chord directly to macOS. Synthetic events are marked
 // so Neru's own event tap ignores them when the daemon is running.
+// When a single uppercase letter (A-Z) is provided without an explicit Shift modifier,
+// Shift is automatically added to produce the correct uppercase character.
 func Feed(key string) error {
-	normalized := config.CanonicalHotkeyForPlatform(strings.TrimSpace(key))
+	trimmed := strings.TrimSpace(key)
+
+	needsShift := len(trimmed) == 1 && trimmed[0] >= 'A' && trimmed[0] <= 'Z'
+
+	normalized := config.CanonicalHotkeyForPlatform(trimmed)
 	if normalized == "" {
 		return derrors.New(derrors.CodeInvalidInput, "key is required")
+	}
+
+	if needsShift {
+		hasShift := strings.Contains(normalized, "+Shift+") ||
+			strings.HasPrefix(normalized, "Shift+") ||
+			strings.HasSuffix(normalized, "+Shift")
+
+		if !hasShift {
+			normalized = "Shift+" + normalized
+		}
 	}
 
 	cKey := C.CString(normalized)
