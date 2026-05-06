@@ -41,7 +41,7 @@ type MockAXClient struct {
 	LastClickableNodesRoles    []string
 	LastBundleRoles            []string
 	LastMenuBarStrictFiltering bool
-	ClickableNodesRolesHistory  [][]string
+	ClickableNodesRolesHistory [][]string
 }
 
 // FrontmostWindow returns the configured frontmost window or error.
