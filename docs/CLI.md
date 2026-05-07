@@ -239,6 +239,31 @@ neru hints
 # Type the hint label (e.g. "as") to select an element
 ```
 
+#### Filtering flags
+
+Filter which elements are shown by role or text content:
+
+```
+# Show only buttons containing "submit"
+neru hints --role AXButton --text submit
+
+# Show only links with "docs" in title/description/value
+neru hints --role AXLink --text docs
+
+# Multiple roles + text filter
+neru hints --role AXButton --role AXLink --text save
+
+# With repeat - filter persists on re-activation
+neru hints --text next --action left_click --repeat
+```
+
+| Flag | Description |
+|------|-------------|
+| `--role` | Filter by AX role (can be repeated). Overrides configured clickable roles. |
+| `--text` | Filter elements by text content (title, description, or value). Case-insensitive substring match. |
+
+The filter is preserved across repeat activations, making it easy to click multiple elements of the same type in succession.
+
 See [CONFIGURATION.md](CONFIGURATION.md) for customisation options.
 
 ---

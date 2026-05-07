@@ -325,7 +325,7 @@ func (a *App) handleHintScreenChange(
 		a.overlayManager.ResizeToActiveScreen()
 	}
 
-	domainHints, showHintsErr := a.hintService.ShowHints(ctx)
+	domainHints, showHintsErr := a.hintService.ShowHints(ctx, nil, "")
 	if showHintsErr != nil {
 		a.logger.Error("Failed to refresh hints after screen change", zap.Error(showHintsErr))
 

@@ -117,12 +117,14 @@ ElementInfo *getElementInfo(void *element) {
 		        kAXPositionAttribute,
 		        kAXSizeAttribute,
 		        kAXTitleAttribute,
+		        kAXDescriptionAttribute,
+		        kAXValueAttribute,
 		        kAXRoleAttribute,
 		        kAXRoleDescriptionAttribute,
 		        kAXEnabledAttribute,
 		        kAXFocusedAttribute,
 		    },
-		    7, &kCFTypeArrayCallBacks);
+		    9, &kCFTypeArrayCallBacks);
 
 		if (!attributes) {
 			free(info);
@@ -165,22 +167,32 @@ ElementInfo *getElementInfo(void *element) {
 			info->title = cfStringToCString((CFStringRef)titleValue);
 		}
 
-		CFTypeRef roleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 3);
+		CFTypeRef descValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 3);
+		if (descValue && CFGetTypeID(descValue) == CFStringGetTypeID()) {
+			info->description = cfStringToCString((CFStringRef)descValue);
+		}
+
+		CFTypeRef valueValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 4);
+		if (valueValue && CFGetTypeID(valueValue) == CFStringGetTypeID()) {
+			info->value = cfStringToCString((CFStringRef)valueValue);
+		}
+
+		CFTypeRef roleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 5);
 		if (roleValue && CFGetTypeID(roleValue) == CFStringGetTypeID()) {
 			info->role = cfStringToCString((CFStringRef)roleValue);
 		}
 
-		CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 4);
+		CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 6);
 		if (roleDescValue && CFGetTypeID(roleDescValue) == CFStringGetTypeID()) {
 			info->roleDescription = cfStringToCString((CFStringRef)roleDescValue);
 		}
 
-		CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 5);
+		CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 7);
 		if (enabledValue && CFGetTypeID(enabledValue) == CFBooleanGetTypeID()) {
 			info->isEnabled = CFBooleanGetValue((CFBooleanRef)enabledValue);
 		}
 
-		CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 6);
+		CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 8);
 		if (focusedValue && CFGetTypeID(focusedValue) == CFBooleanGetTypeID()) {
 			info->isFocused = CFBooleanGetValue((CFBooleanRef)focusedValue);
 		}
@@ -204,6 +216,10 @@ void freeElementInfo(ElementInfo *info) {
 
 	if (info->title)
 		free(info->title);
+	if (info->description)
+		free(info->description);
+	if (info->value)
+		free(info->value);
 	if (info->role)
 		free(info->role);
 	if (info->roleDescription)

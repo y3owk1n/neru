@@ -58,6 +58,8 @@ type ElementInfo struct {
 	position        image.Point
 	size            image.Point
 	title           string
+	description     string
+	value           string
 	role            string
 	roleDescription string
 	isEnabled       bool
@@ -73,6 +75,12 @@ func (ei *ElementInfo) Size() image.Point { return ei.size }
 
 // Title returns the element title.
 func (ei *ElementInfo) Title() string { return ei.title }
+
+// Description returns the element description.
+func (ei *ElementInfo) Description() string { return ei.description }
+
+// Value returns the element value.
+func (ei *ElementInfo) Value() string { return ei.value }
 
 // Role returns the element role.
 func (ei *ElementInfo) Role() string { return ei.role }

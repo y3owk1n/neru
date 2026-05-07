@@ -139,6 +139,8 @@ type ModeActivationOptions struct {
 	Action                *string
 	Repeat                bool
 	CursorFollowSelection *bool
+	FilterRoles           []string
+	FilterTextContains    string
 }
 
 // extractModeOptions extracts and validates the optional action and repeat
@@ -233,6 +235,36 @@ func (h *IPCControllerModes) extractModeOptions(
 
 				return opts, &resp
 			}
+		case strings.HasPrefix(arg, "--role="):
+			opts.FilterRoles = append(opts.FilterRoles, strings.TrimPrefix(arg, "--role="))
+		case arg == "--role":
+			if startIdx+1 >= len(cmd.Args) {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--role requires a value",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			startIdx++
+			opts.FilterRoles = append(opts.FilterRoles, cmd.Args[startIdx])
+		case strings.HasPrefix(arg, "--text="):
+			opts.FilterTextContains = strings.TrimPrefix(arg, "--text=")
+		case arg == "--text":
+			if startIdx+1 >= len(cmd.Args) {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--text requires a value",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			startIdx++
+			opts.FilterTextContains = cmd.Args[startIdx]
 		case opts.Action == nil:
 			actionArg := arg
 			opts.Action = &actionArg
@@ -316,6 +348,8 @@ func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc
 		Action:                opts.Action,
 		Repeat:                opts.Repeat,
 		CursorFollowSelection: opts.CursorFollowSelection,
+		FilterRoles:           opts.FilterRoles,
+		FilterTextContains:    opts.FilterTextContains,
 	})
 
 	return ipc.Response{Success: true, Message: "hints mode activated", Code: ipc.CodeOK}

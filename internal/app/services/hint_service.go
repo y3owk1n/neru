@@ -42,8 +42,11 @@ func NewHintService(
 }
 
 // ShowHints displays hints for clickable elements on the screen.
+// If filterRoles or filterTextContains are provided, they override the configured values.
 func (s *HintService) ShowHints(
 	ctx context.Context,
+	filterRoles []string,
+	filterTextContains string,
 ) ([]*hint.Interface, error) {
 	s.logger.Info("Showing hints")
 
@@ -69,14 +72,22 @@ func (s *HintService) ShowHints(
 		)
 	}
 
-	configuredRoles := cfg.ClickableRolesForApp(bundleID)
-	s.logger.Debug("Resolved clickable roles for hints",
-		zap.String("bundle_id", bundleID),
-		zap.Int("role_count", len(configuredRoles)),
-		zap.Strings("roles", configuredRoles))
+	// Use filterRoles if provided, otherwise use configured roles
+	var roles []string
+	if len(filterRoles) > 0 {
+		roles = filterRoles
+		s.logger.Debug("Using override roles from activation options",
+			zap.Strings("roles", roles))
+	} else {
+		roles = cfg.ClickableRolesForApp(bundleID)
+		s.logger.Debug("Resolved clickable roles for hints",
+			zap.String("bundle_id", bundleID),
+			zap.Int("role_count", len(roles)),
+			zap.Strings("roles", roles))
+	}
 
-	filter.Roles = make([]element.Role, 0, len(configuredRoles))
-	for _, role := range configuredRoles {
+	filter.Roles = make([]element.Role, 0, len(roles))
+	for _, role := range roles {
 		filter.Roles = append(filter.Roles, element.Role(role))
 	}
 
@@ -85,6 +96,15 @@ func (s *HintService) ShowHints(
 	filter.IncludeDock = cfg.IncludeDockHints
 	filter.IncludeNotificationCenter = cfg.IncludeNCHints
 	filter.IncludeStageManager = cfg.IncludeStageManagerHints
+
+	// Apply text filter if provided
+	if filterTextContains != "" {
+		filter.TitleContains = filterTextContains
+		filter.DescriptionContains = filterTextContains
+		filter.ValueContains = filterTextContains
+		s.logger.Debug("Applying text filter",
+			zap.String("text", filterTextContains))
+	}
 
 	// Get clickable elements
 	elements, elementsErr := s.accessibility.ClickableElements(ctx, filter)

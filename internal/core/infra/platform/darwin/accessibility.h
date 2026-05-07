@@ -18,6 +18,8 @@ typedef struct {
 	CGPoint position;       ///< Element position
 	CGSize size;            ///< Element size
 	char *title;            ///< Element title
+	char *description;      ///< Element description
+	char *value;            ///< Element value
 	char *role;             ///< Element role
 	char *roleDescription;  ///< Element role description
 	bool isEnabled;         ///< Whether element is enabled

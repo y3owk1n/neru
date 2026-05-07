@@ -457,7 +457,16 @@ func (n *InfraNode) Description() string {
 		return ""
 	}
 
-	return n.node.Info().RoleDescription()
+	return n.node.Info().Description()
+}
+
+// Value returns the node value.
+func (n *InfraNode) Value() string {
+	if n.node == nil || n.node.Info() == nil {
+		return ""
+	}
+
+	return n.node.Info().Value()
 }
 
 // IsClickable returns true if the node is clickable.

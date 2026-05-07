@@ -117,7 +117,8 @@ func (h *Handler) handleHintsModeKey(key string) {
 
 		pendingAction := h.hints.Context.PendingAction()
 		repeat := h.hints.Context.Repeat()
-		cursorFollowSelection := h.hints.Context.CursorFollowSelection()
+		filterRoles := h.hints.Context.FilterRoles()
+		filterTextContains := h.hints.Context.FilterTextContains()
 
 		h.moveCursorAndHandleAction(
 			center,
@@ -125,7 +126,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 			repeat ||
 				pendingAction == nil, // re-activate on repeat, or when no action (existing behavior)
 			func() {
-				h.activateHintModeInternal(false, nil, &cursorFollowSelection)
+				h.activateHintModeInternal(false, nil, nil, filterRoles, filterTextContains)
 				// Restore repeat and action on the fresh context so subsequent
 				// selections continue the repeat cycle.
 				// Guard: only restore if re-activation succeeded (mode is still hints).
@@ -133,7 +134,8 @@ func (h *Handler) handleHintsModeKey(key string) {
 					h.hints != nil && h.hints.Context != nil {
 					h.hints.Context.SetPendingAction(pendingAction)
 					h.hints.Context.SetRepeat(true)
-					h.hints.Context.SetCursorFollowSelection(cursorFollowSelection)
+					h.hints.Context.SetFilterRoles(filterRoles)
+					h.hints.Context.SetFilterTextContains(filterTextContains)
 				}
 			},
 		)

@@ -20,6 +20,8 @@ type ModeActivationOptions struct {
 	Action                *string
 	Repeat                bool
 	CursorFollowSelection *bool
+	FilterRoles           []string
+	FilterTextContains    string
 }
 
 const (
@@ -98,8 +100,16 @@ func (h *Handler) activateHintModeWithAction(
 	action *string,
 	repeat bool,
 	cursorFollowSelection *bool,
+	filterRoles []string,
+	filterTextContains string,
 ) {
-	h.activateHintModeInternal(false, action, cursorFollowSelection)
+	h.activateHintModeInternal(
+		false,
+		action,
+		cursorFollowSelection,
+		filterRoles,
+		filterTextContains,
+	)
 
 	// Store repeat flag after activation so the context is already initialized.
 	if repeat && h.hints != nil && h.hints.Context != nil {
@@ -119,6 +129,8 @@ func (h *Handler) activateHintModeInternal(
 	preserveActionMode bool,
 	actionStr *string,
 	cursorFollowSelection *bool,
+	filterRoles []string,
+	filterTextContains string,
 ) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := !preserveActionMode && h.appState.CurrentMode() == domain.ModeHints
@@ -195,6 +207,8 @@ func (h *Handler) activateHintModeInternal(
 			domain.ModeHints,
 			cursorFollowSelection,
 		))
+		h.hints.Context.SetFilterRoles(filterRoles)
+		h.hints.Context.SetFilterTextContains(filterTextContains)
 	}
 
 	// Use new HintService to show hints
@@ -202,7 +216,7 @@ func (h *Handler) activateHintModeInternal(
 	defer cancel()
 
 	// Get hints from service
-	domainHints, domainHintsErr := h.hintService.ShowHints(ctx)
+	domainHints, domainHintsErr := h.hintService.ShowHints(ctx, filterRoles, filterTextContains)
 	if domainHintsErr != nil {
 		h.logger.Error(
 			"Failed to show hints",

@@ -373,7 +373,7 @@ func (h *Handler) refreshHintsForMonitorMove(
 		return
 	}
 
-	domainHints, err := h.hintService.ShowHints(ctx)
+	domainHints, err := h.hintService.ShowHints(ctx, nil, "")
 	if err != nil {
 		h.logger.Error(
 			"Failed to refresh hints after monitor move",
