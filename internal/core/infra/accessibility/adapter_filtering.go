@@ -73,6 +73,9 @@ func (a *Adapter) MatchesFilter(
 
 		value := element.Value()
 		for _, text := range filter.TextContainsList {
+			if text == "" {
+				continue
+			}
 			textLower := strings.ToLower(text)
 			if (title != "" && strings.Contains(strings.ToLower(title), textLower)) ||
 				(description != "" && strings.Contains(strings.ToLower(description), textLower)) ||
