@@ -248,10 +248,10 @@ func (h *IPCControllerModes) extractModeOptions(
 				opts.FilterRoles,
 				parseCSV(strings.TrimPrefix(arg, "--role="))...)
 		case arg == "--role":
-			if startIdx+1 >= len(cmd.Args) {
+			if startIdx+1 >= len(cmd.Args) || cmd.Args[startIdx+1] == "--role" {
 				resp := ipc.Response{
 					Success: false,
-					Message: "--role requires a value",
+					Message: "--role requires a value (use comma-separated: --role=AXButton,AXLink)",
 					Code:    ipc.CodeInvalidInput,
 				}
 
@@ -264,10 +264,10 @@ func (h *IPCControllerModes) extractModeOptions(
 			texts := parseCSV(strings.TrimPrefix(arg, "--text="))
 			opts.FilterTextContains = append(opts.FilterTextContains, texts...)
 		case arg == "--text":
-			if startIdx+1 >= len(cmd.Args) {
+			if startIdx+1 >= len(cmd.Args) || cmd.Args[startIdx+1] == "--text" {
 				resp := ipc.Response{
 					Success: false,
-					Message: "--text requires a value",
+					Message: "--text requires a value (use comma-separated: --text=foo,bar)",
 					Code:    ipc.CodeInvalidInput,
 				}
 
