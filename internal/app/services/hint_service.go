@@ -88,6 +88,10 @@ func (s *HintService) ShowHints(
 
 	filter.Roles = make([]element.Role, 0, len(roles))
 	for _, role := range roles {
+		if role == "" {
+			continue
+		}
+
 		filter.Roles = append(filter.Roles, element.Role(role))
 	}
 
