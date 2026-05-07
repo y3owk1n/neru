@@ -147,7 +147,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 				break
 			}
 
-			parsed.modifierStr = val
+			parts := parseCSVWithEscape(val)
+			parsed.modifierStr = strings.Join(parts, ",")
 		case strings.HasPrefix(arg, "--x") && (arg == "--x" || arg[len("--x")] == '='):
 			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--x")
 			idx = newIdx

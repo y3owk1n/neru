@@ -126,6 +126,121 @@ func TestParseActionArgs_BareFlag(t *testing.T) {
 	}
 }
 
+func TestParseActionArgs_ModifierCSV(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		wantModStr string
+	}{
+		{
+			name:       "single modifier",
+			args:       []string{"--modifier=cmd"},
+			wantModStr: "cmd",
+		},
+		{
+			name:       "comma-separated modifiers",
+			args:       []string{"--modifier=cmd,shift"},
+			wantModStr: "cmd,shift",
+		},
+		{
+			name:       "escaped comma",
+			args:       []string{"--modifier=cmd\\,shift"},
+			wantModStr: "cmd,shift",
+		},
+		{
+			name:       "all modifiers",
+			args:       []string{"--modifier=cmd,shift,alt,ctrl"},
+			wantModStr: "cmd,shift,alt,ctrl",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			parsed, parseErr := parseActionArgs(testCase.args)
+			if parseErr {
+				t.Fatalf("parseActionArgs() unexpected parse error: %v", parseErr)
+			}
+
+			if parsed.modifierStr != testCase.wantModStr {
+				t.Fatalf(
+					"parseActionArgs() expected modifierStr %q, got %q",
+					testCase.wantModStr,
+					parsed.modifierStr,
+				)
+			}
+		})
+	}
+}
+
+func TestParseCSVWithEscape(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "empty",
+			input: "",
+			want:  []string{""},
+		},
+		{
+			name:  "single value",
+			input: "foo",
+			want:  []string{"foo"},
+		},
+		{
+			name:  "comma-separated",
+			input: "foo,bar,baz",
+			want:  []string{"foo", "bar", "baz"},
+		},
+		{
+			name:  "escaped comma",
+			input: "foo\\,bar",
+			want:  []string{"foo,bar"},
+		},
+		{
+			name:  "mixed escaped and regular",
+			input: "foo,bar\\,baz,qux",
+			want:  []string{"foo", "bar,baz", "qux"},
+		},
+		{
+			name:  "multiple escaped",
+			input: "a\\,b\\,c",
+			want:  []string{"a,b,c"},
+		},
+		{
+			name:  "trailing comma",
+			input: "foo,",
+			want:  []string{"foo", ""},
+		},
+		{
+			name:  "leading comma",
+			input: ",foo",
+			want:  []string{"", "foo"},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := parseCSVWithEscape(testCase.input)
+
+			if len(got) != len(testCase.want) {
+				t.Fatalf(
+					"parseCSVWithEscape() returned %d elements, want %d",
+					len(got),
+					len(testCase.want),
+				)
+			}
+
+			for i := range got {
+				if got[i] != testCase.want[i] {
+					t.Fatalf("parseCSVWithEscape()[%d] = %q, want %q", i, got[i], testCase.want[i])
+				}
+			}
+		})
+	}
+}
+
 func TestHandleAction_MoveMouseWithoutTargetingOrSelectionErrors(t *testing.T) {
 	controller := &IPCControllerActions{
 		appState: state.NewAppState(),

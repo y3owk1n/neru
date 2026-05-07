@@ -65,10 +65,29 @@ func (a *Adapter) MatchesFilter(
 		}
 	}
 
+	// Check any of the additional text substrings match (OR logic)
+	textListMatched := false
+	if len(filter.TextContainsList) > 0 {
+		title := element.Title()
+		description := element.Description()
+
+		value := element.Value()
+		for _, text := range filter.TextContainsList {
+			textLower := strings.ToLower(text)
+			if (title != "" && strings.Contains(strings.ToLower(title), textLower)) ||
+				(description != "" && strings.Contains(strings.ToLower(description), textLower)) ||
+				(value != "" && strings.Contains(strings.ToLower(value), textLower)) {
+				textListMatched = true
+
+				break
+			}
+		}
+	}
+
 	// Match if any of title, description, or value matches (OR logic)
 	if filter.TitleContains != "" || filter.DescriptionContains != "" ||
-		filter.ValueContains != "" {
-		if !titleMatched && !descMatched && !valueMatched {
+		filter.ValueContains != "" || len(filter.TextContainsList) > 0 {
+		if !titleMatched && !descMatched && !valueMatched && !textListMatched {
 			return false
 		}
 	}

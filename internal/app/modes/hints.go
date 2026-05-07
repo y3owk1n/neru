@@ -21,7 +21,7 @@ type ModeActivationOptions struct {
 	Repeat                bool
 	CursorFollowSelection *bool
 	FilterRoles           []string
-	FilterTextContains    string
+	FilterTextContains    []string
 }
 
 const (
@@ -101,7 +101,7 @@ func (h *Handler) activateHintModeWithAction(
 	repeat bool,
 	cursorFollowSelection *bool,
 	filterRoles []string,
-	filterTextContains string,
+	filterTextContains []string,
 ) {
 	h.activateHintModeInternal(
 		false,
@@ -130,7 +130,7 @@ func (h *Handler) activateHintModeInternal(
 	actionStr *string,
 	cursorFollowSelection *bool,
 	filterRoles []string,
-	filterTextContains string,
+	filterTextContains []string,
 ) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := !preserveActionMode && h.appState.CurrentMode() == domain.ModeHints

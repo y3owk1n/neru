@@ -67,7 +67,7 @@ func TestHintServiceIntegration(t *testing.T) {
 
 	t.Run("ShowHints integration", func(t *testing.T) {
 		// This tests the full pipeline: accessibility -> hint generation -> overlay
-		hints, err := hintService.ShowHints(ctx, nil, "")
+		hints, err := hintService.ShowHints(ctx, nil, nil)
 
 		// Check that the service doesn't panic and returns some result
 		// In different environments, this may succeed or fail based on permissions/elements

@@ -270,7 +270,7 @@ func TestHintService_ShowHints(t *testing.T) {
 			ctx := context.Background()
 
 			// Act
-			hints, hintsErr := service.ShowHints(ctx, nil, "")
+			hints, hintsErr := service.ShowHints(ctx, nil, nil)
 
 			// Assert
 			if testCase.wantErr && hintsErr == nil {

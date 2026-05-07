@@ -46,7 +46,7 @@ func NewHintService(
 func (s *HintService) ShowHints(
 	ctx context.Context,
 	filterRoles []string,
-	filterTextContains string,
+	filterTextContains []string,
 ) ([]*hint.Interface, error) {
 	s.logger.Info("Showing hints")
 
@@ -97,13 +97,18 @@ func (s *HintService) ShowHints(
 	filter.IncludeNotificationCenter = cfg.IncludeNCHints
 	filter.IncludeStageManager = cfg.IncludeStageManagerHints
 
-	// Apply text filter if provided
-	if filterTextContains != "" {
-		filter.TitleContains = filterTextContains
-		filter.DescriptionContains = filterTextContains
-		filter.ValueContains = filterTextContains
+	// Apply text filter if provided (OR match - element matches if any text contains match)
+	if len(filterTextContains) > 0 {
+		filter.TitleContains = filterTextContains[0]
+		filter.DescriptionContains = filterTextContains[0]
+
+		filter.ValueContains = filterTextContains[0]
+		if len(filterTextContains) > 1 {
+			filter.TextContainsList = filterTextContains[1:]
+		}
+
 		s.logger.Debug("Applying text filter",
-			zap.String("text", filterTextContains))
+			zap.Strings("text", filterTextContains))
 	}
 
 	// Get clickable elements

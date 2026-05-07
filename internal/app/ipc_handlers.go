@@ -13,6 +13,36 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
+func parseCSVWithEscape(input string) []string {
+	var result []string
+
+	var current strings.Builder
+
+	escaped := false
+
+	for i := range len(input) {
+		char := rune(input[i])
+
+		switch {
+		case escaped:
+			current.WriteRune(char)
+
+			escaped = false
+		case char == '\\':
+			escaped = true
+		case char == ',':
+			result = append(result, current.String())
+			current.Reset()
+		default:
+			current.WriteRune(char)
+		}
+	}
+
+	result = append(result, current.String())
+
+	return result
+}
+
 // IPCControllerLifecycle handles lifecycle-related IPC commands.
 type IPCControllerLifecycle struct {
 	appState *state.AppState
@@ -140,7 +170,7 @@ type ModeActivationOptions struct {
 	Repeat                bool
 	CursorFollowSelection *bool
 	FilterRoles           []string
-	FilterTextContains    string
+	FilterTextContains    []string
 }
 
 // extractModeOptions extracts and validates the optional action and repeat
@@ -236,7 +266,8 @@ func (h *IPCControllerModes) extractModeOptions(
 				return opts, &resp
 			}
 		case strings.HasPrefix(arg, "--role="):
-			opts.FilterRoles = append(opts.FilterRoles, strings.TrimPrefix(arg, "--role="))
+			roles := parseCSVWithEscape(strings.TrimPrefix(arg, "--role="))
+			opts.FilterRoles = append(opts.FilterRoles, roles...)
 		case arg == "--role":
 			if startIdx+1 >= len(cmd.Args) {
 				resp := ipc.Response{
@@ -249,9 +280,11 @@ func (h *IPCControllerModes) extractModeOptions(
 			}
 
 			startIdx++
-			opts.FilterRoles = append(opts.FilterRoles, cmd.Args[startIdx])
+			roles := parseCSVWithEscape(cmd.Args[startIdx])
+			opts.FilterRoles = append(opts.FilterRoles, roles...)
 		case strings.HasPrefix(arg, "--text="):
-			opts.FilterTextContains = strings.TrimPrefix(arg, "--text=")
+			texts := parseCSVWithEscape(strings.TrimPrefix(arg, "--text="))
+			opts.FilterTextContains = append(opts.FilterTextContains, texts...)
 		case arg == "--text":
 			if startIdx+1 >= len(cmd.Args) {
 				resp := ipc.Response{
@@ -264,7 +297,8 @@ func (h *IPCControllerModes) extractModeOptions(
 			}
 
 			startIdx++
-			opts.FilterTextContains = cmd.Args[startIdx]
+			texts := parseCSVWithEscape(cmd.Args[startIdx])
+			opts.FilterTextContains = append(opts.FilterTextContains, texts...)
 		case opts.Action == nil:
 			actionArg := arg
 			opts.Action = &actionArg
