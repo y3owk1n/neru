@@ -253,17 +253,14 @@ neru hints --role AXLink --text docs
 # Multiple roles/values - comma-separated for convenience
 neru hints --role AXButton,AXLink --text save,cancel
 
-# Escaped comma to match literal comma in text/role name
-neru hints --role AXButton\,label --text a\,b
-
 # With repeat - filter persists on re-activation
 neru hints --text next --action left_click --repeat
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--role` | Filter by AX role. Comma-separated for multiple (e.g., `--role AXButton,AXLink`). Use `\,` to escape literal comma. |
-| `--text` | Filter elements by text content (title, description, or value). Case-insensitive substring match. Comma-separated for OR match (matches any). Use `\,` to escape literal comma. |
+| `--role` | Filter by AX role. Comma-separated for multiple (e.g., `--role AXButton,AXLink`). |
+| `--text` | Filter elements by text content (title, description, or value). Case-insensitive substring match. Comma-separated for OR match (matches any). |
 
 The filter is preserved across repeat activations, making it easy to click multiple elements of the same type in succession.
 
@@ -459,7 +456,7 @@ neru action left_click --modifier cmd,shift    # Cmd+Shift+click
 neru action right_click --modifier alt         # Alt+right-click
 ```
 
-**Valid modifiers:** `cmd` (or `command`), `shift`, `alt` (or `option`), `ctrl` (or `control`). Combine with commas. Use `\,` to escape a literal comma in the modifier name (rare).
+**Valid modifiers:** `cmd` (or `command`), `shift`, `alt` (or `option`), `ctrl` (or `control`). Combine with commas: `--modifier cmd,shift`.
 
 ### Mouse movement
 

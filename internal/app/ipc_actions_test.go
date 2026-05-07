@@ -143,11 +143,6 @@ func TestParseActionArgs_ModifierCSV(t *testing.T) {
 			wantModStr: "cmd,shift",
 		},
 		{
-			name:       "escaped comma",
-			args:       []string{"--modifier=cmd\\,shift"},
-			wantModStr: "cmd,shift",
-		},
-		{
 			name:       "all modifiers",
 			args:       []string{"--modifier=cmd,shift,alt,ctrl"},
 			wantModStr: "cmd,shift,alt,ctrl",
@@ -172,7 +167,7 @@ func TestParseActionArgs_ModifierCSV(t *testing.T) {
 	}
 }
 
-func TestParseCSVWithEscape(t *testing.T) {
+func TestParseCSV(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
@@ -181,7 +176,7 @@ func TestParseCSVWithEscape(t *testing.T) {
 		{
 			name:  "empty",
 			input: "",
-			want:  []string{""},
+			want:  nil,
 		},
 		{
 			name:  "single value",
@@ -192,21 +187,6 @@ func TestParseCSVWithEscape(t *testing.T) {
 			name:  "comma-separated",
 			input: "foo,bar,baz",
 			want:  []string{"foo", "bar", "baz"},
-		},
-		{
-			name:  "escaped comma",
-			input: "foo\\,bar",
-			want:  []string{"foo,bar"},
-		},
-		{
-			name:  "mixed escaped and regular",
-			input: "foo,bar\\,baz,qux",
-			want:  []string{"foo", "bar,baz", "qux"},
-		},
-		{
-			name:  "multiple escaped",
-			input: "a\\,b\\,c",
-			want:  []string{"a,b,c"},
 		},
 		{
 			name:  "trailing comma",
@@ -222,19 +202,15 @@ func TestParseCSVWithEscape(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := parseCSVWithEscape(testCase.input)
+			got := parseCSV(testCase.input)
 
 			if len(got) != len(testCase.want) {
-				t.Fatalf(
-					"parseCSVWithEscape() returned %d elements, want %d",
-					len(got),
-					len(testCase.want),
-				)
+				t.Fatalf("parseCSV() returned %d elements, want %d", len(got), len(testCase.want))
 			}
 
 			for i := range got {
 				if got[i] != testCase.want[i] {
-					t.Fatalf("parseCSVWithEscape()[%d] = %q, want %q", i, got[i], testCase.want[i])
+					t.Fatalf("parseCSV()[%d] = %q, want %q", i, got[i], testCase.want[i])
 				}
 			}
 		})
