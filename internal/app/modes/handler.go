@@ -211,7 +211,10 @@ func NewHandler(
 //
 // Returns true if the refresh was performed, false if the mode was exited
 // concurrently (TOCTOU guard).
-func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collection) bool {
+func (h *Handler) RefreshHintsForScreenChange(
+	ctx context.Context,
+	hintService *services.HintService,
+) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -222,6 +225,7 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 
 		return false
 	}
+
 	// Re-read screen bounds under the lock so the onUpdate callback
 	// uses coordinates that match the resized overlay.
 	if h.system != nil {
@@ -233,7 +237,27 @@ func (h *Handler) RefreshHintsForScreenChange(hintCollection *domainHint.Collect
 		}
 	}
 
-	allHints := hintCollection.All()
+	// Get current filter options from context
+	filterRoles := h.hints.Context.FilterRoles()
+	filterTextContains := h.hints.Context.FilterTextContains()
+
+	// Show hints with filters preserved
+	domainHints, showHintsErr := hintService.ShowHints(ctx, filterRoles, filterTextContains)
+	if showHintsErr != nil {
+		h.logger.Error("Failed to refresh hints after screen change", zap.Error(showHintsErr))
+		h.exitModeLocked()
+
+		return false
+	}
+
+	if len(domainHints) == 0 {
+		h.logger.Debug("No hints after screen change refresh")
+		h.exitModeLocked()
+
+		return false
+	}
+
+	allHints := domainHints
 
 	filtered := filterHintsForScreen(allHints, h.screenBounds)
 	if len(filtered) == 0 {
