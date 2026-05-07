@@ -181,7 +181,9 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 
 		h.logger.Debug("Refreshing hints after modifier passthrough",
 			zap.Duration("delay", passthroughHintRefreshDelay))
-		h.activateHintModeInternal(false, nil, nil, nil, "")
+		filterRoles := h.hints.Context.FilterRoles()
+		filterTextContains := h.hints.Context.FilterTextContains()
+		h.activateHintModeInternal(false, nil, nil, filterRoles, filterTextContains)
 	})
 	h.refreshHintsTimer = timer
 }
