@@ -47,7 +47,9 @@ static int neru_evdev_is_keyboard(int fd) {
 }
 
 static int neru_evdev_get_name(int fd, char *name, size_t name_size) {
-	return ioctl(fd, EVIOCGNAME(name_size), name_size);
+	int r = ioctl(fd, EVIOCGNAME(name_size), name);
+	if (r < 0) return -1;
+	return r;
 }
 
 static ssize_t neru_evdev_read_event(int fd, struct input_event *event) {
@@ -162,13 +164,11 @@ func isUinputVirtualDevice(name string) bool {
 
 	knownUinput := []string{
 		"kanata",
-		"keyd virtual keyboard",
-		"kmonad",
 	}
 
 	lower := strings.ToLower(name)
 	for _, known := range knownUinput {
-		if strings.HasPrefix(lower, strings.ToLower(known)) {
+		if strings.Contains(lower, strings.ToLower(known)) {
 			return true
 		}
 	}
@@ -216,18 +216,7 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 		fd := C.int(file.Fd())
 		if C.neru_evdev_is_keyboard(fd) == 0 {
 			_ = file.Close()
-
 			continue
-		}
-
-		var devName [256]C.char
-		if C.neru_evdev_get_name(fd, &devName[0], 256) > 0 {
-			name := C.GoString(&devName[0])
-			if isUinputVirtualDevice(name) {
-				_ = file.Close()
-
-				continue
-			}
 		}
 
 		capture.files = append(capture.files, file)
@@ -301,11 +290,52 @@ func (capture *waylandEvdevCapture) grabAll() error {
 		if C.neru_evdev_grab(fd, 1) != 0 {
 			capture.ungrabAll()
 
+			kanataFile := capture.findKanataDevice()
+			if kanataFile != nil {
+				kfd := C.int(kanataFile.Fd())
+				if C.neru_evdev_grab(kfd, 1) != 0 {
+					_ = kanataFile.Close()
+				} else {
+					capture.files = []*os.File{kanataFile}
+					capture.grabbed = true
+					return nil
+				}
+			}
+
 			return fmt.Errorf("%w: %s", errWaylandEvdevGrabFailed, file.Name())
 		}
 	}
 
 	capture.grabbed = true
+
+	return nil
+}
+
+func (capture *waylandEvdevCapture) findKanataDevice() *os.File {
+	paths, _ := filepath.Glob("/dev/input/event*")
+	for _, path := range paths {
+		file, openErr := os.Open(path)
+		if openErr != nil {
+			continue
+		}
+
+		fd := C.int(file.Fd())
+		if C.neru_evdev_is_keyboard(fd) == 0 {
+			_ = file.Close()
+			continue
+		}
+
+		var devName [256]C.char
+		if C.neru_evdev_get_name(fd, &devName[0], 256) > 0 {
+			name := C.GoString(&devName[0])
+			if isUinputVirtualDevice(name) {
+				return file
+			}
+			_ = file.Close()
+		} else {
+			_ = file.Close()
+		}
+	}
 
 	return nil
 }
