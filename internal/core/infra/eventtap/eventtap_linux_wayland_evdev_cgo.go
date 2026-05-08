@@ -169,6 +169,8 @@ const waylandEvdevDeviceNameSize = 256
 
 const waylandEvdevBusVirtual = 0x06
 
+var knownVirtualDevices = []string{"kanata"}
+
 func isUinputVirtualDevice(fd C.int, name string) bool {
 	bustype := int(C.neru_evdev_get_bustype(fd))
 	if bustype == waylandEvdevBusVirtual {
@@ -179,12 +181,8 @@ func isUinputVirtualDevice(fd C.int, name string) bool {
 		return false
 	}
 
-	knownUinput := []string{
-		"kanata",
-	}
-
 	lower := strings.ToLower(name)
-	for _, known := range knownUinput {
+	for _, known := range knownVirtualDevices {
 		if strings.Contains(lower, known) {
 			return true
 		}
