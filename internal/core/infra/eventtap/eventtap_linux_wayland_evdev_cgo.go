@@ -327,10 +327,6 @@ func (capture *waylandEvdevCapture) grabAll() error {
 				if C.neru_evdev_grab(kfd, 1) != 0 {
 					_ = virtualFile.Close()
 				} else {
-					for _, f := range grabbedFiles {
-						_ = f.Close()
-					}
-
 					for _, f := range capture.files {
 						_ = f.Close()
 					}
@@ -340,10 +336,6 @@ func (capture *waylandEvdevCapture) grabAll() error {
 
 					return nil
 				}
-			}
-
-			for _, f := range grabbedFiles {
-				_ = f.Close()
 			}
 
 			for _, f := range capture.files {
