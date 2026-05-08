@@ -119,27 +119,20 @@ CGRect getScrollBounds(void *element) {
 	return rect;
 }
 
-/// Scroll at current cursor position only
+/// Scroll at a specific point
+/// @param pos The point at which to post the scroll event
 /// @param deltaX Horizontal scroll amount
 /// @param deltaY Vertical scroll amount
 /// @return 1 on success, 0 on failure
-int scrollAtCursor(int deltaX, int deltaY) {
-	CGEventRef event = CGEventCreate(NULL);
-	if (!event)
+int scrollAtPoint(CGPoint pos, int deltaX, int deltaY) {
+	CGEventRef scrollEvent = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitPixel, 2, deltaY, deltaX);
+	if (!scrollEvent)
 		return 0;
 
-	CGPoint cursorPos = CGEventGetLocation(event);
-	CFRelease(event);
-
-	CGEventRef scrollEvent = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitPixel, 2, deltaY, deltaX);
-	if (scrollEvent) {
-		CGEventSetLocation(scrollEvent, cursorPos);
-		CGEventPost(kCGHIDEventTap, scrollEvent);
-		CFRelease(scrollEvent);
-		return 1;
-	}
-
-	return 0;
+	CGEventSetLocation(scrollEvent, pos);
+	CGEventPost(kCGHIDEventTap, scrollEvent);
+	CFRelease(scrollEvent);
+	return 1;
 }
 
 #pragma mark - Mission Control Detection Functions

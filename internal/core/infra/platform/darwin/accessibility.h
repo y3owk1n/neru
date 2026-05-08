@@ -191,11 +191,12 @@ int setApplicationAttribute(int pid, const char *attribute, int value);
 /// @return Scroll bounds rectangle
 CGRect getScrollBounds(void *element);
 
-/// Scroll at cursor position
+/// Scroll at a specific point
+/// @param pos The point at which to post the scroll event
 /// @param deltaX Horizontal scroll amount
 /// @param deltaY Vertical scroll amount
 /// @return 1 on success, 0 on failure
-int scrollAtCursor(int deltaX, int deltaY);
+int scrollAtPoint(CGPoint pos, int deltaX, int deltaY);
 
 #pragma mark - Mouse Action Functions
 

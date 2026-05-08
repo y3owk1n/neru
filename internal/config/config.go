@@ -398,6 +398,7 @@ type Config struct {
 	StickyModifiers StickyModifiersConfig `json:"stickyModifiers" toml:"sticky_modifiers"`
 	Logging         LoggingConfig         `json:"logging"         toml:"logging"`
 	SmoothCursor    SmoothCursorConfig    `json:"smoothCursor"    toml:"smooth_cursor"`
+	SmoothScroll    SmoothScrollConfig    `json:"smoothScroll"    toml:"smooth_scroll"`
 	Systray         SystrayConfig         `json:"systray"         toml:"systray"`
 }
 
@@ -708,6 +709,14 @@ type SmoothCursorConfig struct {
 	DurationPerPixel float64 `json:"durationPerPixel" toml:"duration_per_pixel"` // Ms per pixel for adaptive duration
 }
 
+// SmoothScrollConfig defines smooth scroll animation settings.
+type SmoothScrollConfig struct {
+	Enabled          bool    `json:"enabled"          toml:"enabled"`
+	Steps            int     `json:"steps"            toml:"steps"`
+	MaxDuration      int     `json:"maxDuration"      toml:"max_duration"`
+	DurationPerPixel float64 `json:"durationPerPixel" toml:"duration_per_pixel"`
+}
+
 // AdditionalAXSupport defines accessibility support for specific application frameworks.
 type AdditionalAXSupport struct {
 	Enable                    bool     `json:"enable"                    toml:"enable"`
@@ -801,6 +810,12 @@ func (c *Config) Validate() error {
 
 	// Validate smooth cursor settings
 	err = c.ValidateSmoothCursor()
+	if err != nil {
+		return err
+	}
+
+	// Validate smooth scroll settings
+	err = c.ValidateSmoothScroll()
 	if err != nil {
 		return err
 	}

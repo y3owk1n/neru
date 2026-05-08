@@ -821,6 +821,32 @@ duration_per_pixel = 0.1
 
 ---
 
+## Smooth Scroll
+
+Smooth scroll animates scroll actions by splitting the total scroll delta into chunked events with an ease-out curve. This provides visual feedback during scrolling, making navigation feel more responsive.
+
+> [!NOTE]
+> Currently supported on **macOS only**. Other platforms fall back to instant scrolling.
+
+| Option               | Type  | Default | Description                        |
+| -------------------- | ----- | ------- | ---------------------------------- |
+| `enabled`            | bool  | `false` | Enable smooth scrolling            |
+| `steps`              | int   | `20`    | Number of animation steps          |
+| `max_duration`       | int   | `180`   | Max animation duration in ms       |
+| `duration_per_pixel` | float | `1.0`   | Ms per pixel for adaptive duration |
+
+```toml
+[smooth_scroll]
+enabled = false
+steps = 20
+max_duration = 180
+duration_per_pixel = 1.0
+```
+
+The animation adapts to scroll magnitude: a small `scroll_step` scroll completes quickly, while a `scroll_step_full` jump takes longer up to `max_duration`. The easing curve uses ease-out cubic for natural deceleration.
+
+---
+
 ## Keyboard Layout
 
 Neru uses a reference keyboard layout for key translation so hotkeys and mode keys stay stable when you switch active input sources.

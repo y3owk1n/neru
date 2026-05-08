@@ -215,9 +215,24 @@ func LeftMouseUp() error {
 
 // ScrollAtCursor performs a scroll action at the current cursor position.
 func ScrollAtCursor(deltaX, deltaY int) error {
-	cursorAnimator.stop()
+	scrollAnim.stop()
 
-	result := C.scrollAtCursor(C.int(deltaX), C.int(deltaY))
+	cfg := currentConfig()
+	if cfg != nil && cfg.SmoothScroll.Enabled {
+		scrollAnim.animate(
+			deltaX,
+			deltaY,
+			cfg.SmoothScroll.Steps,
+			cfg.SmoothScroll.MaxDuration,
+			cfg.SmoothScroll.DurationPerPixel,
+		)
+
+		return nil
+	}
+
+	pos := CursorPosition()
+	cgPos := C.CGPoint{x: C.double(pos.X), y: C.double(pos.Y)}
+	result := C.scrollAtPoint(cgPos, C.int(deltaX), C.int(deltaY))
 	if result == 0 {
 		return derrors.Newf(
 			derrors.CodeActionFailed,

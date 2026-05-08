@@ -297,6 +297,26 @@ func (c *Config) ValidateSmoothCursor() error {
 	return nil
 }
 
+// ValidateSmoothScroll validates smooth scroll settings.
+func (c *Config) ValidateSmoothScroll() error {
+	if c.SmoothScroll.Steps < 1 {
+		return derrors.New(derrors.CodeInvalidConfig, "smooth_scroll.steps must be >= 1")
+	}
+
+	if c.SmoothScroll.MaxDuration < 0 {
+		return derrors.New(derrors.CodeInvalidConfig, "smooth_scroll.max_duration must be >= 0")
+	}
+
+	if c.SmoothScroll.DurationPerPixel < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"smooth_scroll.duration_per_pixel must be >= 0",
+		)
+	}
+
+	return nil
+}
+
 // ValidateHotkeys validates per-mode hotkey syntax and actions.
 func (c *Config) ValidateHotkeys() error {
 	modeHotkeys := []struct {
