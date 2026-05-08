@@ -333,11 +333,15 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 			// Rebinding a built-in mode action should replace its default
 			// launcher instead of adding an extra alias.
 			reboundDefaults := make(map[string]struct{})
+
+			parsedHotkeyActions := make(map[string][]string, len(hotMap))
 			for key, value := range hotMap {
 				actions, actionsErr := parseRawHotkeyActions("hotkeys."+key, value)
 				if actionsErr != nil {
 					continue
 				}
+
+				parsedHotkeyActions[key] = actions
 
 				if len(actions) == 1 && actions[0] == DisabledSentinel {
 					continue
@@ -360,9 +364,30 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 					configResult.Config.Hotkeys.Bindings, key,
 				)
 
-				actions, actionsErr := parseRawHotkeyActions("hotkeys."+key, value)
-				if actionsErr != nil {
+				actions, ok := parsedHotkeyActions[key]
+				if !ok {
+					actionsErr := derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"hotkeys.%s must be a string or array of strings",
+						key,
+					)
+
 					configResult.ValidationError = actionsErr
+					configResult.Config = DefaultConfig()
+					s.logger.Warn("Invalid hotkey configuration",
+						zap.String("key", key),
+						zap.Any("value", value),
+						zap.Error(configResult.ValidationError))
+
+					return configResult
+				}
+
+				if len(actions) == 0 {
+					configResult.ValidationError = derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"hotkeys.%s must not be empty",
+						key,
+					)
 					configResult.Config = DefaultConfig()
 					s.logger.Warn("Invalid hotkey configuration",
 						zap.String("key", key),
