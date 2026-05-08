@@ -46,6 +46,10 @@ static int neru_evdev_is_keyboard(int fd) {
 		NERU_TEST_KEY(key_bits, KEY_ENTER);
 }
 
+static int neru_evdev_get_name(int fd, char *name, size_t name_size) {
+	return ioctl(fd, EVIOCGNAME(name_size), name_size);
+}
+
 static ssize_t neru_evdev_read_event(int fd, struct input_event *event) {
 	return read(fd, event, sizeof(struct input_event));
 }
@@ -130,6 +134,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -149,6 +154,27 @@ var (
 	errUinputScrollUnavailable = errors.New("uinput scroll device unavailable")
 	errUinputScrollSend        = errors.New("failed to send uinput scroll event")
 )
+
+func isUinputVirtualDevice(name string) bool {
+	if name == "" {
+		return false
+	}
+
+	knownUinput := []string{
+		"kanata",
+		"keyd virtual keyboard",
+		"kmonad",
+	}
+
+	lower := strings.ToLower(name)
+	for _, known := range knownUinput {
+		if strings.HasPrefix(lower, strings.ToLower(known)) {
+			return true
+		}
+	}
+
+	return false
+}
 
 type waylandEvdevEvent struct {
 	eventType uint16
@@ -192,6 +218,16 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 			_ = file.Close()
 
 			continue
+		}
+
+		var devName [256]C.char
+		if C.neru_evdev_get_name(fd, &devName[0], 256) > 0 {
+			name := C.GoString(&devName[0])
+			if isUinputVirtualDevice(name) {
+				_ = file.Close()
+
+				continue
+			}
 		}
 
 		capture.files = append(capture.files, file)
