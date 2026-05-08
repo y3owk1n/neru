@@ -25,6 +25,12 @@ func (et *EventTap) runWayland() {
 		return
 	}
 
+	// Enable keyboard capture on overlay when falling back from evdev.
+	// When evdev grab fails (e.g., compositor already grabbed devices),
+	// we need to explicitly request keyboard focus from the compositor.
+	mgr.SetKeyboardCaptureEnabled(true)
+	defer mgr.SetKeyboardCaptureEnabled(false)
+
 	keyCh := mgr.WaylandKeyboardChannel()
 	if keyCh == nil {
 		return
