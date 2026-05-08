@@ -203,6 +203,37 @@ bundle_id = "com.apple.Safari"
 		}
 	})
 
+	t.Run("Global Hotkey Rebind With Flags Replaces Default Launcher", func(t *testing.T) {
+		configContent := `
+[hotkeys]
+"Cmd+Shift+Option+Ctrl+X" = "recursive_grid --cursor-selection-mode hold"
+`
+
+		writeConfigFile(t, configPath, configContent, 0o644)
+
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+		loadResult := service.LoadWithValidation(configPath)
+		if loadResult.ValidationError != nil {
+			t.Fatalf("Config validation failed: %v", loadResult.ValidationError)
+		}
+
+		if _, exists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+C"]; exists {
+			t.Fatal(
+				"expected default recursive_grid hotkey to be removed when recursively rebound with flags",
+			)
+		}
+
+		actions, exists := loadResult.Config.Hotkeys.Bindings["Cmd+Shift+Option+Ctrl+X"]
+		if !exists || len(actions) != 1 ||
+			actions[0] != "recursive_grid --cursor-selection-mode hold" {
+			t.Fatalf(
+				"expected flagged recursive_grid hotkey, got %v",
+				loadResult.Config.Hotkeys.Bindings,
+			)
+		}
+	})
+
 	t.Run("Global Multi Action Hotkey Keeps Default Launcher", func(t *testing.T) {
 		configContent := `
 [hotkeys]

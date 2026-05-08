@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/BurntSushi/toml"
@@ -83,9 +84,14 @@ func isBuiltInGlobalModeAction(actions []string) (string, bool) {
 		return "", false
 	}
 
-	switch actions[0] {
+	parts := strings.Fields(strings.TrimSpace(actions[0]))
+	if len(parts) == 0 {
+		return "", false
+	}
+
+	switch parts[0] {
 	case modeNameHints, modeNameGrid, modeNameRecursiveGrid, modeNameScroll:
-		return actions[0], true
+		return parts[0], true
 	default:
 		return "", false
 	}
