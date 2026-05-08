@@ -52,6 +52,14 @@ static int neru_evdev_get_name(int fd, char *name, size_t name_size) {
 	return r;
 }
 
+static int neru_evdev_get_bustype(int fd) {
+	struct input_id id;
+	if (ioctl(fd, EVIOCGID, &id) < 0) {
+		return -1;
+	}
+	return id.bustype;
+}
+
 static ssize_t neru_evdev_read_event(int fd, struct input_event *event) {
 	return read(fd, event, sizeof(struct input_event));
 }
@@ -159,7 +167,14 @@ var (
 
 const waylandEvdevDeviceNameSize = 256
 
-func isUinputVirtualDevice(name string) bool {
+const waylandEvdevBusVirtual = 0x06
+
+func isUinputVirtualDevice(fd C.int, name string) bool {
+	bustype := int(C.neru_evdev_get_bustype(fd))
+	if bustype == waylandEvdevBusVirtual {
+		return true
+	}
+
 	if name == "" {
 		return false
 	}
@@ -225,7 +240,7 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 		var deviceName [waylandEvdevDeviceNameSize]C.char
 		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) > 0 {
 			name := C.GoString(&deviceName[0])
-			if isUinputVirtualDevice(name) {
+			if isUinputVirtualDevice(fileDescriptor, name) {
 				_ = file.Close()
 
 				continue
@@ -347,7 +362,7 @@ func (capture *waylandEvdevCapture) findKanataDevice() *os.File {
 		var deviceName [waylandEvdevDeviceNameSize]C.char
 		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) > 0 {
 			name := C.GoString(&deviceName[0])
-			if isUinputVirtualDevice(name) {
+			if isUinputVirtualDevice(fileDescriptor, name) {
 				return file
 			}
 			_ = file.Close()
