@@ -242,7 +242,7 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 			deviceName[0] = 0
 		}
 
-		name := C.GoStringN(&deviceName[0], C.strlen(&deviceName[0]))
+		name := C.GoStringN(&deviceName[0], C.int(C.strlen(&deviceName[0])))
 		if isUinputVirtualDevice(fileDescriptor, name) {
 			_ = file.Close()
 
@@ -320,17 +320,17 @@ func (capture *waylandEvdevCapture) grabAll() error {
 		if C.neru_evdev_grab(fd, 1) != 0 {
 			capture.ungrabAll()
 
-			kanataFile := capture.findKanataDevice()
-			if kanataFile != nil {
-				kfd := C.int(kanataFile.Fd())
+			virtualFile := capture.findVirtualDevice()
+			if virtualFile != nil {
+				kfd := C.int(virtualFile.Fd())
 				if C.neru_evdev_grab(kfd, 1) != 0 {
-					_ = kanataFile.Close()
+					_ = virtualFile.Close()
 				} else {
 					for _, f := range capture.files {
 						_ = f.Close()
 					}
 
-					capture.files = []*os.File{kanataFile}
+					capture.files = []*os.File{virtualFile}
 					capture.grabbed = true
 
 					return nil
@@ -346,7 +346,7 @@ func (capture *waylandEvdevCapture) grabAll() error {
 	return nil
 }
 
-func (capture *waylandEvdevCapture) findKanataDevice() *os.File {
+func (capture *waylandEvdevCapture) findVirtualDevice() *os.File {
 	paths, _ := filepath.Glob("/dev/input/event*")
 	for _, path := range paths {
 		file, openErr := os.Open(path)
@@ -361,13 +361,8 @@ func (capture *waylandEvdevCapture) findKanataDevice() *os.File {
 			continue
 		}
 
-		var deviceName [waylandEvdevDeviceNameSize]C.char
-		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) <= 0 {
-			deviceName[0] = 0
-		}
-
-		name := C.GoStringN(&deviceName[0], C.strlen(&deviceName[0]))
-		if isUinputVirtualDevice(fileDescriptor, name) {
+		bustype := int(C.neru_evdev_get_bustype(fileDescriptor))
+		if bustype == waylandEvdevBusVirtual {
 			return file
 		}
 
