@@ -206,13 +206,14 @@ type waylandEvdevKeyState struct {
 type waylandEvdevCapture struct {
 	files  []*os.File
 	events chan waylandEvdevEvent
+	logger *zap.Logger
 
 	closeOnce sync.Once
 	done      sync.WaitGroup
 	grabbed   bool
 }
 
-func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
+func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
 	paths, err := filepath.Glob("/dev/input/event*")
 	if err != nil {
 		return nil, err
@@ -221,6 +222,7 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 	capture := &waylandEvdevCapture{
 		files:  make([]*os.File, 0, len(paths)),
 		events: make(chan waylandEvdevEvent, waylandEvdevEventBufferSize),
+		logger: logger,
 	}
 
 	for _, path := range paths {
@@ -353,6 +355,13 @@ func (capture *waylandEvdevCapture) grabAll() error {
 		)
 	}
 
+	if capture.logger != nil && len(failedFiles) > 0 {
+		capture.logger.Warn(
+			"Partial keyboard grab failure; some keyboards not captured",
+			zap.Strings("failed", failedFiles),
+		)
+	}
+
 	var remainingFiles []*os.File
 	for _, file := range capture.files {
 		if !slices.Contains(grabbedFiles, file) {
@@ -443,7 +452,7 @@ func (capture *waylandEvdevCapture) modifierKeysHeld() bool {
 }
 
 func (et *EventTap) runWaylandEvdev() bool {
-	capture, err := newWaylandEvdevCapture()
+	capture, err := newWaylandEvdevCapture(et.logger)
 	if err != nil {
 		if et.logger != nil {
 			level := et.logger.Info
