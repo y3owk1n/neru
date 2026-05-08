@@ -216,9 +216,9 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 		fd := C.int(file.Fd())
 		if C.neru_evdev_is_keyboard(fd) == 0 {
 			_ = file.Close()
+
 			continue
 		}
-
 		capture.files = append(capture.files, file)
 	}
 
@@ -298,6 +298,7 @@ func (capture *waylandEvdevCapture) grabAll() error {
 				} else {
 					capture.files = []*os.File{kanataFile}
 					capture.grabbed = true
+
 					return nil
 				}
 			}
@@ -319,15 +320,16 @@ func (capture *waylandEvdevCapture) findKanataDevice() *os.File {
 			continue
 		}
 
-		fd := C.int(file.Fd())
-		if C.neru_evdev_is_keyboard(fd) == 0 {
+		fileDescriptor := C.int(file.Fd())
+		if C.neru_evdev_is_keyboard(fileDescriptor) == 0 {
 			_ = file.Close()
+
 			continue
 		}
 
-		var devName [256]C.char
-		if C.neru_evdev_get_name(fd, &devName[0], 256) > 0 {
-			name := C.GoString(&devName[0])
+		var deviceName [256]C.char
+		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], 256) > 0 {
+			name := C.GoString(&deviceName[0])
 			if isUinputVirtualDevice(name) {
 				return file
 			}
