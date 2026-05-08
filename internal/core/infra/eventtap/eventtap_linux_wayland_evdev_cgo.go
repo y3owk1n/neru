@@ -144,6 +144,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -314,40 +315,54 @@ func (capture *waylandEvdevCapture) grabAll() error {
 	}
 
 	var grabbedFiles []*os.File
+	var failedFiles []string
+
 	for _, file := range capture.files {
 		fd := C.int(file.Fd())
 		if C.neru_evdev_grab(fd, 1) != 0 {
-			for _, f := range grabbedFiles {
-				C.neru_evdev_grab(C.int(f.Fd()), 0)
-			}
+			failedFiles = append(failedFiles, file.Name())
 
-			virtualFile := capture.findVirtualDevice()
-			if virtualFile != nil {
-				kfd := C.int(virtualFile.Fd())
-				if C.neru_evdev_grab(kfd, 1) != 0 {
-					_ = virtualFile.Close()
-				} else {
-					for _, f := range capture.files {
-						_ = f.Close()
-					}
-
-					capture.files = []*os.File{virtualFile}
-					capture.grabbed = true
-
-					return nil
-				}
-			}
-
-			for _, f := range capture.files {
-				_ = f.Close()
-			}
-
-			return fmt.Errorf("%w: %s", errWaylandEvdevGrabFailed, file.Name())
+			continue
 		}
 
 		grabbedFiles = append(grabbedFiles, file)
 	}
 
+	if len(grabbedFiles) == 0 {
+		for _, f := range capture.files {
+			_ = f.Close()
+		}
+
+		virtualFile := capture.findVirtualDevice()
+		if virtualFile != nil {
+			kfd := C.int(virtualFile.Fd())
+			if C.neru_evdev_grab(kfd, 1) != 0 {
+				_ = virtualFile.Close()
+			} else {
+				capture.files = []*os.File{virtualFile}
+				capture.grabbed = true
+
+				return nil
+			}
+		}
+
+		return fmt.Errorf(
+			"%w: all keyboards failed to grab (tried: %v)",
+			errWaylandEvdevGrabFailed,
+			failedFiles,
+		)
+	}
+
+	var remainingFiles []*os.File
+	for _, file := range capture.files {
+		if !slices.Contains(grabbedFiles, file) {
+			_ = file.Close()
+		} else {
+			remainingFiles = append(remainingFiles, file)
+		}
+	}
+
+	capture.files = remainingFiles
 	capture.grabbed = true
 
 	return nil
