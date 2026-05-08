@@ -157,6 +157,8 @@ var (
 	errUinputScrollSend        = errors.New("failed to send uinput scroll event")
 )
 
+const waylandEvdevDeviceNameSize = 256
+
 func isUinputVirtualDevice(name string) bool {
 	if name == "" {
 		return false
@@ -220,8 +222,8 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 			continue
 		}
 
-		var deviceName [256]C.char
-		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], 256) > 0 {
+		var deviceName [waylandEvdevDeviceNameSize]C.char
+		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) > 0 {
 			name := C.GoString(&deviceName[0])
 			if isUinputVirtualDevice(name) {
 				_ = file.Close()
@@ -342,8 +344,8 @@ func (capture *waylandEvdevCapture) findKanataDevice() *os.File {
 			continue
 		}
 
-		var deviceName [256]C.char
-		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], 256) > 0 {
+		var deviceName [waylandEvdevDeviceNameSize]C.char
+		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) > 0 {
 			name := C.GoString(&deviceName[0])
 			if isUinputVirtualDevice(name) {
 				return file
