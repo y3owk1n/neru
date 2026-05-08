@@ -238,13 +238,15 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 		}
 
 		var deviceName [waylandEvdevDeviceNameSize]C.char
-		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) > 0 {
-			name := C.GoString(&deviceName[0])
-			if isUinputVirtualDevice(fileDescriptor, name) {
-				_ = file.Close()
+		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) <= 0 {
+			deviceName[0] = 0
+		}
 
-				continue
-			}
+		name := C.GoStringN(&deviceName[0], C.strlen(&deviceName[0]))
+		if isUinputVirtualDevice(fileDescriptor, name) {
+			_ = file.Close()
+
+			continue
 		}
 
 		capture.files = append(capture.files, file)
@@ -360,15 +362,16 @@ func (capture *waylandEvdevCapture) findKanataDevice() *os.File {
 		}
 
 		var deviceName [waylandEvdevDeviceNameSize]C.char
-		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) > 0 {
-			name := C.GoString(&deviceName[0])
-			if isUinputVirtualDevice(fileDescriptor, name) {
-				return file
-			}
-			_ = file.Close()
-		} else {
-			_ = file.Close()
+		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) <= 0 {
+			deviceName[0] = 0
 		}
+
+		name := C.GoStringN(&deviceName[0], C.strlen(&deviceName[0]))
+		if isUinputVirtualDevice(fileDescriptor, name) {
+			return file
+		}
+
+		_ = file.Close()
 	}
 
 	return nil
