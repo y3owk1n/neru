@@ -315,10 +315,13 @@ func (capture *waylandEvdevCapture) grabAll() error {
 		return nil
 	}
 
+	var grabbedFiles []*os.File
 	for _, file := range capture.files {
 		fd := C.int(file.Fd())
 		if C.neru_evdev_grab(fd, 1) != 0 {
-			capture.ungrabAll()
+			for _, f := range grabbedFiles {
+				C.neru_evdev_grab(C.int(f.Fd()), 0)
+			}
 
 			virtualFile := capture.findVirtualDevice()
 			if virtualFile != nil {
@@ -326,7 +329,7 @@ func (capture *waylandEvdevCapture) grabAll() error {
 				if C.neru_evdev_grab(kfd, 1) != 0 {
 					_ = virtualFile.Close()
 				} else {
-					for _, f := range capture.files {
+					for _, f := range grabbedFiles {
 						_ = f.Close()
 					}
 
@@ -339,6 +342,8 @@ func (capture *waylandEvdevCapture) grabAll() error {
 
 			return fmt.Errorf("%w: %s", errWaylandEvdevGrabFailed, file.Name())
 		}
+
+		grabbedFiles = append(grabbedFiles, file)
 	}
 
 	capture.grabbed = true
