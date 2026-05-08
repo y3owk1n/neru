@@ -95,6 +95,7 @@ Global hotkeys trigger Neru navigation modes from anywhere on screen.
 
 > [!TIP]
 > User-defined hotkeys are **merged on top of defaults**. You only need to define the bindings you want to add or change — all other defaults are preserved.
+> When you rebind a built-in launcher action (`hints`, `grid`, `recursive_grid`, `scroll`) to a new single hotkey, Neru removes the default launcher for that action automatically.
 
 ### Merging behavior
 
@@ -108,8 +109,9 @@ To **remove** a single default binding without affecting the rest, use the `__di
 
 ```toml
 [hotkeys]
-"Primary+Shift+S" = "__disabled__"   # removes the default scroll hotkey
-"Ctrl+Space"      = "hints"          # adds a new binding; other defaults remain
+"Primary+Shift+S"         = "__disabled__"   # removes the default scroll hotkey
+"Ctrl+Space"              = "hints"          # adds a new binding; other defaults remain
+"Cmd+Shift+Option+Ctrl+G" = "grid"           # rebinds grid to Hyper+G: default Primary+Shift+G is removed
 ```
 
 ### Syntax
