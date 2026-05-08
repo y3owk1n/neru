@@ -355,15 +355,17 @@ func (capture *waylandEvdevCapture) findVirtualDevice() *os.File {
 		}
 
 		fileDescriptor := C.int(file.Fd())
-		if C.neru_evdev_is_keyboard(fileDescriptor) == 0 {
-			_ = file.Close()
-
-			continue
-		}
-
 		bustype := int(C.neru_evdev_get_bustype(fileDescriptor))
 		if bustype == waylandEvdevBusVirtual {
 			return file
+		}
+
+		var deviceName [waylandEvdevDeviceNameSize]C.char
+		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) > 0 {
+			name := C.GoStringN(&deviceName[0], C.int(C.strlen(&deviceName[0])))
+			if strings.Contains(strings.ToLower(name), "kanata") {
+				return file
+			}
 		}
 
 		_ = file.Close()
