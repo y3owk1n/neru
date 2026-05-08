@@ -79,6 +79,7 @@ func findNormalizedMapKey[V any](m map[string]V, rawKey string) string {
 	return rawKey
 }
 
+// isBuiltInGlobalModeAction matches single built-in global mode commands.
 func isBuiltInGlobalModeAction(actions []string) (string, bool) {
 	if len(actions) != 1 {
 		return "", false
@@ -97,6 +98,7 @@ func isBuiltInGlobalModeAction(actions []string) (string, bool) {
 	}
 }
 
+// removeBindingsForSingleAction removes bindings for one built-in mode action.
 func removeBindingsForSingleAction(bindings map[string][]string, action string) {
 	for key, existingActions := range bindings {
 		existingAction, ok := isBuiltInGlobalModeAction(existingActions)
@@ -106,6 +108,7 @@ func removeBindingsForSingleAction(bindings map[string][]string, action string) 
 	}
 }
 
+// parseRawHotkeyActions parses a raw TOML hotkey value into actions.
 func parseRawHotkeyActions(fieldName string, value any) ([]string, error) {
 	switch val := value.(type) {
 	case string:
