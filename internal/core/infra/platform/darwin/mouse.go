@@ -215,8 +215,6 @@ func LeftMouseUp() error {
 
 // ScrollAtCursor performs a scroll action at the current cursor position.
 func ScrollAtCursor(deltaX, deltaY int) error {
-	scrollAnim.stop()
-
 	cfg := currentConfig()
 	if cfg != nil && cfg.SmoothScroll.Enabled {
 		scrollAnim.animate(
@@ -229,6 +227,8 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 
 		return nil
 	}
+
+	scrollAnim.stop()
 
 	pos := CursorPosition()
 	cgPos := C.CGPoint{x: C.double(pos.X), y: C.double(pos.Y)}
