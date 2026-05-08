@@ -307,6 +307,10 @@ func (capture *waylandEvdevCapture) grabAll() error {
 				if C.neru_evdev_grab(kfd, 1) != 0 {
 					_ = kanataFile.Close()
 				} else {
+					for _, f := range capture.files {
+						_ = f.Close()
+					}
+
 					capture.files = []*os.File{kanataFile}
 					capture.grabbed = true
 
