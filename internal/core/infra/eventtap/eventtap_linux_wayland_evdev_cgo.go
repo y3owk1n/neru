@@ -360,7 +360,11 @@ func (capture *waylandEvdevCapture) findVirtualDevice() *os.File {
 
 		if !isVirtual {
 			var deviceName [waylandEvdevDeviceNameSize]C.char
-			if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) > 0 {
+			if C.neru_evdev_get_name(
+				fileDescriptor,
+				&deviceName[0],
+				waylandEvdevDeviceNameSize,
+			) > 0 {
 				name := C.GoString(&deviceName[0])
 				if strings.Contains(strings.ToLower(name), "kanata") {
 					isVirtual = true
