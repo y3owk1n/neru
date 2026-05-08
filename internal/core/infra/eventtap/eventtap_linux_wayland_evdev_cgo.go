@@ -331,10 +331,26 @@ func (capture *waylandEvdevCapture) grabAll() error {
 						_ = f.Close()
 					}
 
+					for _, f := range capture.files {
+						if f != file {
+							_ = f.Close()
+						}
+					}
+
 					capture.files = []*os.File{virtualFile}
 					capture.grabbed = true
 
 					return nil
+				}
+			}
+
+			for _, f := range grabbedFiles {
+				_ = f.Close()
+			}
+
+			for _, f := range capture.files {
+				if f != file {
+					_ = f.Close()
 				}
 			}
 
