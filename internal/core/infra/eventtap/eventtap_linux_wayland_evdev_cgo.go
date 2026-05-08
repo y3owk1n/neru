@@ -168,7 +168,7 @@ func isUinputVirtualDevice(name string) bool {
 
 	lower := strings.ToLower(name)
 	for _, known := range knownUinput {
-		if strings.Contains(lower, strings.ToLower(known)) {
+		if strings.Contains(lower, known) {
 			return true
 		}
 	}
