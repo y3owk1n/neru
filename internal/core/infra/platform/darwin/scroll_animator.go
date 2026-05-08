@@ -172,7 +172,7 @@ func (a *scrollAnimator) waitForPreviousAnimation(prevDone chan struct{}) {
 func previousScrollAnimationDrainTimeout() time.Duration {
 	cfg := currentConfig()
 	maxDurationMs := 180
-	if cfg != nil && cfg.SmoothScroll.MaxDuration > 0 {
+	if cfg != nil && cfg.SmoothScroll.MaxDuration >= 0 {
 		maxDurationMs = cfg.SmoothScroll.MaxDuration
 	}
 
