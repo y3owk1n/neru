@@ -332,9 +332,7 @@ func (capture *waylandEvdevCapture) grabAll() error {
 					}
 
 					for _, f := range capture.files {
-						if f != file {
-							_ = f.Close()
-						}
+						_ = f.Close()
 					}
 
 					capture.files = []*os.File{virtualFile}
@@ -349,9 +347,7 @@ func (capture *waylandEvdevCapture) grabAll() error {
 			}
 
 			for _, f := range capture.files {
-				if f != file {
-					_ = f.Close()
-				}
+				_ = f.Close()
 			}
 
 			return fmt.Errorf("%w: %s", errWaylandEvdevGrabFailed, file.Name())
