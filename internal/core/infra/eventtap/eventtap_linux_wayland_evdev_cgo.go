@@ -242,7 +242,7 @@ func newWaylandEvdevCapture() (*waylandEvdevCapture, error) {
 			deviceName[0] = 0
 		}
 
-		name := C.GoStringN(&deviceName[0], C.int(C.strlen(&deviceName[0])))
+		name := C.GoString(&deviceName[0])
 		if isUinputVirtualDevice(fileDescriptor, name) {
 			_ = file.Close()
 
@@ -362,7 +362,7 @@ func (capture *waylandEvdevCapture) findVirtualDevice() *os.File {
 
 		var deviceName [waylandEvdevDeviceNameSize]C.char
 		if C.neru_evdev_get_name(fileDescriptor, &deviceName[0], waylandEvdevDeviceNameSize) > 0 {
-			name := C.GoStringN(&deviceName[0], C.int(C.strlen(&deviceName[0])))
+			name := C.GoString(&deviceName[0])
 			if strings.Contains(strings.ToLower(name), "kanata") {
 				return file
 			}
