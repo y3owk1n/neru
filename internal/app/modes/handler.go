@@ -648,6 +648,10 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 		return derrors.New(derrors.CodeActionFailed, "no hints available")
 	}
 
+	if h.cycleHintIndex >= len(filteredHints) {
+		h.cycleHintIndex = len(filteredHints) - 1
+	}
+
 	switch {
 	case h.cycleHintIndex < 0:
 		h.cycleHintIndex = 0
