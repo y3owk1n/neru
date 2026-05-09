@@ -658,20 +658,6 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 		if backward {
 			h.cycleHintIndex = len(filteredHints) - 1
 		}
-	case h.cycleHintDirection != backward:
-		if backward {
-			if h.cycleHintIndex > 0 {
-				h.cycleHintIndex--
-			} else {
-				h.cycleHintIndex = len(filteredHints) - 1
-			}
-		} else {
-			if h.cycleHintIndex < len(filteredHints)-1 {
-				h.cycleHintIndex++
-			} else {
-				h.cycleHintIndex = 0
-			}
-		}
 	default:
 		if backward {
 			if h.cycleHintIndex > 0 {
