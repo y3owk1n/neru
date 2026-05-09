@@ -672,8 +672,6 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 				h.cycleHintIndex = 0
 			}
 		}
-
-		h.cycleHintDirection = backward
 	default:
 		if backward {
 			if h.cycleHintIndex > 0 {
@@ -688,23 +686,6 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 				h.cycleHintIndex = 0
 			}
 		}
-
-		selectedHint := filteredHints[h.cycleHintIndex]
-		center := selectedHint.Element().Center()
-
-		moveErr := h.actionService.MoveCursorToPoint(ctx, center)
-		if moveErr != nil {
-			h.logger.Error("Failed to move cursor during cycle_hint", zap.Error(moveErr))
-
-			return derrors.New(derrors.CodeActionFailed, "failed to move cursor: "+moveErr.Error())
-		}
-
-		pendingAction := h.hints.Context.PendingAction()
-		if pendingAction != nil {
-			h.executeActionAtPoint(pendingAction, center, false, nil)
-		}
-
-		return nil
 	}
 
 	h.cycleHintDirection = backward
