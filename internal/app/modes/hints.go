@@ -129,6 +129,11 @@ func (h *Handler) activateHintModeInternal(
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
 
+	// Reset cycle index on refresh since the hint list is regenerated
+	if isRefresh {
+		h.cycleHintIndex = -1
+	}
+
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameHints,
 		h.config.Hints.Enabled,
