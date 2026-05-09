@@ -158,6 +158,7 @@ func TestCommandInitialization(t *testing.T) {
 		"page_up":             false,
 		"page_down":           false,
 		"move_monitor":        false,
+		"cycle_hint":          false,
 	}
 
 	for _, cmd := range cli.ActionCmd.Commands() {

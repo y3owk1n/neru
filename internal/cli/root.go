@@ -486,3 +486,33 @@ Positive values move right/down, negative values move left/up.`,
 
 	return cmd
 }
+
+// BuildCycleHintCommand creates a cycle_hint cobra command that cycles through visible hints.
+func BuildCycleHintCommand() *cobra.Command {
+	var backward bool
+
+	cmd := &cobra.Command{
+		Use:   "cycle_hint",
+		Short: "Cycle through visible hints",
+		Long: `Cycle through visible hints in hints mode.
+
+Selects the first (or last with --backward) hint that matches the current input filter.
+Requires hints mode to be active.`,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			actionArgs := []string{"cycle_hint"}
+
+			if backward {
+				actionArgs = append(actionArgs, "--backward")
+			}
+
+			return sendCommand(cmd, "action", actionArgs)
+		},
+	}
+
+	cmd.Flags().BoolVar(&backward, "backward", false, "Select the last hint instead of the first")
+
+	return cmd
+}

@@ -78,6 +78,7 @@ type parsedActionArgs struct {
 	monitorName    string
 	hasMonitorName bool
 	usePrevious    bool
+	useBackward    bool
 	modifierStr    string
 }
 
@@ -206,6 +207,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.useBare = true
 		case arg == "--previous":
 			parsed.usePrevious = true
+		case arg == "--backward":
+			parsed.useBackward = true
 		case strings.HasPrefix(arg, "--name") && (arg == "--name" || arg[len("--name")] == '='):
 			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--name")
 			idx = newIdx
@@ -284,6 +287,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	if action.IsMoveMonitorAction(actionName) {
 		return h.handleMoveMonitorAction(ctx, parsed)
+	}
+
+	if action.IsCycleHintAction(actionName) {
+		return h.handleCycleHintAction(ctx, parsed)
 	}
 
 	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
@@ -1182,6 +1189,52 @@ func (h *IPCControllerActions) handleMoveMonitorAction(
 	return ipc.Response{
 		Success: true,
 		Message: "move_monitor performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
+// handleCycleHintAction cycles through visible hints in hints mode.
+func (h *IPCControllerActions) handleCycleHintAction(
+	ctx context.Context,
+	parsed parsedActionArgs,
+) ipc.Response {
+	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
+		parsed.hasCenter || parsed.hasWindow || parsed.useSelection ||
+		parsed.useBare || parsed.hasMonitorName || parsed.usePrevious ||
+		parsed.modifierStr != "" {
+		return ipc.Response{
+			Success: false,
+			Message: "cycle_hint does not support these flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: "modes handler not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	h.logger.Info("Cycling hints via IPC",
+		zap.Bool("backward", parsed.useBackward),
+	)
+
+	err := h.modesHandler.CycleHint(ctx, parsed.useBackward)
+	if err != nil {
+		h.logger.Error("Failed to cycle hints", zap.Error(err))
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to cycle hints: " + err.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "cycle_hint performed",
 		Code:    ipc.CodeOK,
 	}
 }

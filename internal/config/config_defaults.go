@@ -257,6 +257,8 @@ func newDefaultConfig() *Config {
 			Hotkeys: map[string]StringOrStringArray{
 				"Escape":    {"idle"},
 				"Backspace": {"action backspace"},
+				"Tab":       {"action cycle_hint"},
+				"Shift+Tab": {"action cycle_hint --backward"},
 				"Shift+L":   {"action left_click"},
 				"Shift+R":   {"action right_click"},
 				"Shift+M":   {"action middle_click"},

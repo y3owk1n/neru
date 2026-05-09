@@ -180,6 +180,9 @@ var ActionPageDownCmd = BuildScrollActionCommand(
 	`Scroll down by half a page at the active selection when available, otherwise at the current cursor location.`,
 )
 
+// ActionCycleHintCmd cycles through visible hints in hints mode.
+var ActionCycleHintCmd = BuildCycleHintCommand()
+
 func init() {
 	ActionCmd.AddCommand(ActionLeftClickCmd)
 	ActionCmd.AddCommand(ActionRightClickCmd)
@@ -203,6 +206,7 @@ func init() {
 	ActionCmd.AddCommand(ActionGoBottomCmd)
 	ActionCmd.AddCommand(ActionPageUpCmd)
 	ActionCmd.AddCommand(ActionPageDownCmd)
+	ActionCmd.AddCommand(ActionCycleHintCmd)
 
 	RootCmd.AddCommand(ActionCmd)
 }

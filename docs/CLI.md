@@ -505,6 +505,28 @@ neru action move_mouse_relative --dx 10 --dy -5
 > [!TIP]
 > Point-targeted actions prefer the active mode selection by default. Use `--bare` when you want `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, `move_mouse`, or scroll actions to ignore the selection and use the current cursor position instead.
 
+### Cycling hints
+
+In hints mode, `cycle_hint` cycles through visible hints without requiring label input. Each invocation moves to the next (or previous with `--backward`) hint in the current filtered set, wrapping around at the edges.
+
+```
+neru action cycle_hint          # Cycle to next hint
+neru action cycle_hint --backward  # Cycle to previous hint
+```
+
+| Flag        | Description                                            |
+| ----------- | ------------------------------------------------------ |
+| `--backward` | Cycle to the previous hint instead of the next one    |
+
+This is useful for quickly scanning through hints without typing. The cycle respects any active input filter (e.g., if you've typed "bu", only hints matching "bu" will be cycled). Direction can be changed mid-cycle and takes effect immediately.
+
+Bind it to hotkeys in `config.toml`:
+```toml
+[hints.hotkeys]
+"Tab" = "action cycle_hint"
+"Shift+Tab" = "action cycle_hint --backward"
+```
+
 ### Moving monitors
 
 On multi-monitor setups, `move_monitor` moves the cursor to another display. If a mode overlay (`hints`, `grid`, `recursive_grid`) is active when the action is invoked, the overlay follows the cursor onto the new monitor so the mode can continue there without re-activating.
