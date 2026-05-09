@@ -689,8 +689,18 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 
 	pendingAction := h.hints.Context.PendingAction()
 	if pendingAction != nil {
+		cursorFollowSelection := h.hints.Context.CursorFollowSelection()
+
 		h.executeActionAtPoint(pendingAction, center, true, func() {
 			h.activateHintModeInternal(nil, nil, nil, nil)
+
+			// Restore state so subsequent cycles continue to execute the action
+			if h.appState.CurrentMode() == domain.ModeHints &&
+				h.hints != nil && h.hints.Context != nil {
+				h.hints.Context.SetPendingAction(pendingAction)
+				h.hints.Context.SetRepeat(true)
+				h.hints.Context.SetCursorFollowSelection(cursorFollowSelection)
+			}
 		})
 	}
 
