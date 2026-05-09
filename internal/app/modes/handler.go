@@ -704,7 +704,7 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 	pendingAction := h.hints.Context.PendingAction()
 	if pendingAction != nil {
 		h.executeActionAtPoint(pendingAction, center, true, func() {
-			h.activateHintModeInternal(false, nil, nil, nil, nil)
+			h.activateHintModeInternal(nil, nil, nil, nil)
 		})
 	}
 

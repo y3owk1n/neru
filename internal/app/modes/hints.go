@@ -104,7 +104,6 @@ func (h *Handler) activateHintModeWithAction(
 	filterTextContains []string,
 ) {
 	h.activateHintModeInternal(
-		false,
 		action,
 		cursorFollowSelection,
 		filterRoles,
@@ -117,23 +116,18 @@ func (h *Handler) activateHintModeWithAction(
 	}
 }
 
-// activateHintModeInternal activates hint mode with option to preserve action mode state and optional action.
+// activateHintModeInternal activates hint mode with optional action.
 // It handles mode validation, overlay positioning, element collection, hint generation,
 // and UI setup for hint-based navigation.
-// NOTE: preserveActionMode is always passed as false by current callers but retained for potential future use.
-// The unparam linter is suppressed because while all current calls pass false, removing this parameter
-// would be a breaking change if future callers need the preserve behavior.
-//
 
 func (h *Handler) activateHintModeInternal(
-	preserveActionMode bool,
 	actionStr *string,
 	cursorFollowSelection *bool,
 	filterRoles []string,
 	filterTextContains []string,
 ) {
 	// Detect refresh before validation so we can clean up on failure
-	isRefresh := !preserveActionMode && h.appState.CurrentMode() == domain.ModeHints
+	isRefresh := h.appState.CurrentMode() == domain.ModeHints
 
 	actionEnum, ok := h.activateModeBase(
 		domain.ModeNameHints,
@@ -153,20 +147,16 @@ func (h *Handler) activateHintModeInternal(
 
 	actionString := domain.ActionString(actionEnum)
 
-	if !preserveActionMode {
-		// Handle mode transitions: if already in hints mode, do partial cleanup to preserve state;
-		// otherwise exit completely to reset all state
-		if isRefresh {
-			// During refresh, only clear overlay and stop polling but do NOT change mode
-			// or disable event tap. Mode and event tap are already in the correct state,
-			// so SetModeHints() can be skipped on the success path.
-			// This prevents leaving the app in idle mode with event tap disabled if hint
-			// generation fails.
-			h.overlayManager.Clear()
-			h.stopIndicatorPolling()
-		} else {
-			h.exitModeLocked()
-		}
+	if isRefresh {
+		// During refresh, only clear overlay and stop polling but do NOT change mode
+		// or disable event tap. Mode and event tap are already in the correct state,
+		// so SetModeHints() can be skipped on the success path.
+		// This prevents leaving the app in idle mode with event tap disabled if hint
+		// generation fails.
+		h.overlayManager.Clear()
+		h.stopIndicatorPolling()
+	} else {
+		h.exitModeLocked()
 	}
 
 	if actionString == domain.UnknownAction {

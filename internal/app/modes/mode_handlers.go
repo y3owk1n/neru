@@ -128,7 +128,6 @@ func (h *Handler) handleHintsModeKey(key string) {
 				pendingAction == nil, // re-activate on repeat, or when no action (existing behavior)
 			func() {
 				h.activateHintModeInternal(
-					false,
 					nil,
 					&cursorFollowSelection,
 					filterRoles,
