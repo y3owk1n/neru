@@ -574,8 +574,8 @@ func (h *Handler) BackspaceCurrentMode() {
 
 	switch h.appState.CurrentMode() {
 	case domain.ModeHints:
-		if h.hints != nil && h.hints.Context != nil {
-			h.hints.Context.Reset()
+		if h.hints != nil && h.hints.Context != nil && h.hints.Context.Manager() != nil {
+			h.hints.Context.Manager().HandleBackspace()
 		}
 
 		h.cycleHintIndex = -1
