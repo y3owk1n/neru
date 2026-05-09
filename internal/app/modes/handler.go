@@ -117,8 +117,7 @@ type Handler struct {
 	indicatorDoneCh chan struct{}
 
 	// Cycle hint state
-	cycleHintIndex     int
-	cycleHintDirection bool // false=forward, true=backward
+	cycleHintIndex int
 }
 
 // NewHandler creates a new mode handler.
@@ -196,7 +195,6 @@ func NewHandler(
 		themeProvider:              systemPort,
 		system:                     systemPort,
 		cycleHintIndex:             -1,
-		cycleHintDirection:         false,
 	}
 
 	// Initialize mode implementations
@@ -579,7 +577,6 @@ func (h *Handler) BackspaceCurrentMode() {
 		}
 
 		h.cycleHintIndex = -1
-		h.cycleHintDirection = false
 	case domain.ModeGrid:
 		if h.grid != nil && h.grid.Manager != nil {
 			h.grid.Manager.HandleBackspace()
@@ -673,8 +670,6 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 			}
 		}
 	}
-
-	h.cycleHintDirection = backward
 
 	selectedHint := filteredHints[h.cycleHintIndex]
 

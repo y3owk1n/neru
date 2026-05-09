@@ -64,7 +64,6 @@ func (h *Handler) clearAndHideOverlay() {
 func (h *Handler) cleanupHintsMode() {
 	h.hints.Context.Reset()
 	h.cycleHintIndex = -1
-	h.cycleHintDirection = false
 
 	h.clearAndHideOverlay()
 }
