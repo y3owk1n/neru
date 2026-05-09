@@ -496,7 +496,7 @@ func BuildCycleHintCommand() *cobra.Command {
 		Short: "Cycle through visible hints",
 		Long: `Cycle through visible hints in hints mode.
 
-Selects the first (or last with --backward) hint that matches the current input filter.
+Cycles forward through hints (or backward with --backward), wrapping at the end.
 Requires hints mode to be active.`,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
 			return requiresRunningInstance()
@@ -512,7 +512,8 @@ Requires hints mode to be active.`,
 		},
 	}
 
-	cmd.Flags().BoolVar(&backward, "backward", false, "Select the last hint instead of the first")
+	cmd.Flags().
+		BoolVar(&backward, "backward", false, "Cycle to the previous hint instead of the next one")
 
 	return cmd
 }
