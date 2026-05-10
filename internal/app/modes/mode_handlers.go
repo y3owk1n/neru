@@ -195,6 +195,7 @@ func (h *Handler) handleSearchInputKey(key string) {
 
 func (h *Handler) applyHintSearchFilter() {
 	ctx := h.hints.Context
+
 	sourceHints := ctx.SourceHints()
 	if sourceHints == nil {
 		return
@@ -239,83 +240,95 @@ func (h *Handler) drawHintSearchInput() {
 	}
 
 	ctx := h.hints.Context
+
 	resultCount := 0
 	if ctx.Hints() != nil {
 		resultCount = ctx.Hints().Count()
 	}
 
 	style := hintscomponent.BuildSearchInputStyle(h.config.Hints, h.themeProvider)
+
 	frame := h.searchInputFrame()
-	if err := h.overlayManager.DrawHintSearchInput(
+
+	err := h.overlayManager.DrawHintSearchInput(
 		ctx.SearchQuery(),
 		resultCount,
 		frame,
 		style,
-	); err != nil {
+	)
+	if err != nil {
 		h.logger.Error("Failed to draw hint search input", zap.Error(err))
 	}
 }
 
 func (h *Handler) searchInputFrame() hintscomponent.SearchInputFrame {
-	ui := h.config.Hints.SearchInputUI
+	searchInputConfig := h.config.Hints.SearchInputUI
 	screenWidth := h.screenBounds.Dx()
 	screenHeight := h.screenBounds.Dy()
-	width := ui.Width
+
+	width := searchInputConfig.Width
 	if width <= 0 {
-		width = 320
+		width = configpkg.DefaultSearchInputWidth
 	}
+
 	if screenWidth > 0 && width > screenWidth {
 		width = screenWidth
 	}
 
-	height := estimatedSearchInputHeight(ui)
-	x := ui.XOffset
-	y := ui.YOffset
+	height := estimatedSearchInputHeight(searchInputConfig)
+	xOffset := searchInputConfig.XOffset
+	yOffset := searchInputConfig.YOffset
 
-	switch hintscomponent.SearchInputPosition(ui.Position) {
+	switch hintscomponent.SearchInputPosition(searchInputConfig.Position) {
 	case hintscomponent.SearchInputTopCenter:
-		x = (screenWidth-width)/2 + ui.XOffset
+		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputHorizontalDivisor + searchInputConfig.XOffset
 	case hintscomponent.SearchInputTopRight:
-		x = screenWidth - width - ui.XOffset
+		xOffset = screenWidth - width - searchInputConfig.XOffset
 	case hintscomponent.SearchInputCenter:
-		x = (screenWidth-width)/2 + ui.XOffset
-		y = (screenHeight-height)/2 + ui.YOffset
+		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputHorizontalDivisor + searchInputConfig.XOffset
+		yOffset = (screenHeight-height)/configpkg.DefaultSearchInputHorizontalDivisor + searchInputConfig.YOffset
 	case hintscomponent.SearchInputBottomLeft:
-		y = screenHeight - height - ui.YOffset
+		yOffset = screenHeight - height - searchInputConfig.YOffset
 	case hintscomponent.SearchInputBottomCenter:
-		x = (screenWidth-width)/2 + ui.XOffset
-		y = screenHeight - height - ui.YOffset
+		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputHorizontalDivisor + searchInputConfig.XOffset
+		yOffset = screenHeight - height - searchInputConfig.YOffset
 	case hintscomponent.SearchInputBottomRight:
-		x = screenWidth - width - ui.XOffset
-		y = screenHeight - height - ui.YOffset
+		xOffset = screenWidth - width - searchInputConfig.XOffset
+		yOffset = screenHeight - height - searchInputConfig.YOffset
 	case hintscomponent.SearchInputTopLeft:
 		fallthrough
 	default:
 	}
 
-	if x < 0 {
-		x = 0
-	}
-	if y < 0 {
-		y = 0
-	}
-	if screenWidth > 0 && x+width > screenWidth {
-		x = screenWidth - width
-	}
-	if screenHeight > 0 && y+height > screenHeight {
-		y = screenHeight - height
+	if xOffset < 0 {
+		xOffset = 0
 	}
 
-	return hintscomponent.NewSearchInputFrame(image.Point{X: x, Y: y}, width)
+	if yOffset < 0 {
+		yOffset = 0
+	}
+
+	if screenWidth > 0 && xOffset+width > screenWidth {
+		xOffset = screenWidth - width
+	}
+
+	if screenHeight > 0 && yOffset+height > screenHeight {
+		yOffset = screenHeight - height
+	}
+
+	return hintscomponent.NewSearchInputFrame(image.Point{X: xOffset, Y: yOffset}, width)
 }
 
-func estimatedSearchInputHeight(ui configpkg.SearchInputUI) int {
-	paddingY := ui.PaddingY
+func estimatedSearchInputHeight(searchInputConfig configpkg.SearchInputUI) int {
+	paddingY := searchInputConfig.PaddingY
 	if paddingY < 0 {
-		paddingY = max(5, ui.FontSize/2)
+		paddingY = max(
+			configpkg.DefaultSearchInputMinPaddingY,
+			searchInputConfig.FontSize/configpkg.DefaultSearchInputHorizontalDivisor,
+		)
 	}
 
-	return ui.FontSize + paddingY*2 + 6
+	return searchInputConfig.FontSize + paddingY*configpkg.DefaultSearchInputPaddingMultiplier + configpkg.DefaultSearchInputHeightPadding
 }
 
 // handleGridModeKey handles key processing for grid mode.

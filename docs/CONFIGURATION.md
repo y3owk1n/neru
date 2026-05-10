@@ -408,9 +408,9 @@ The search input uses `[hints.search_input_ui]` with the same visual options as
 `[hints.ui]`, except `matched_text_color`. It also supports active-screen
 placement:
 
-| Option     | Type   | Default        | Description                                      |
-| ---------- | ------ | -------------- | ------------------------------------------------ |
-| `position` | string | `"top_center"` | Anchor on active screen                          |
+| Option     | Type   | Default         | Description                                      |
+| ---------- | ------ | --------------- | ------------------------------------------------ |
+| `position` | string | `"bottom_center"` | Anchor on active screen                          |
 | `x_offset` | int    | `0`            | Horizontal offset from the anchor                |
 | `y_offset` | int    | `24`           | Vertical offset from the anchor                  |
 | `width`    | int    | `320`          | Search input width in pixels                     |
@@ -420,7 +420,7 @@ Valid positions: `top_left`, `top_center`, `top_right`, `center`,
 
 ```toml
 [hints.search_input_ui]
-position = "top_center"
+position = "bottom_center"
 x_offset = 0
 y_offset = 24
 width = 320

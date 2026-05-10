@@ -12,6 +12,21 @@ const (
 	// DefaultHintPaddingY is the default vertical padding for hints (-1 = auto).
 	DefaultHintPaddingY = -1
 
+	// DefaultSearchInputYOffset is the default Y offset for search input.
+	DefaultSearchInputYOffset = 24
+	// DefaultSearchInputWidth is the default width for search input.
+	DefaultSearchInputWidth = 320
+
+	// DefaultSearchInputMinPaddingY is the minimum padding for search input height.
+	DefaultSearchInputMinPaddingY = 5
+	// DefaultSearchInputPaddingMultiplier is the padding multiplier for search input height.
+	DefaultSearchInputPaddingMultiplier = 2
+	// DefaultSearchInputHeightPadding is the height padding constant for search input.
+	DefaultSearchInputHeightPadding = 6
+
+	// DefaultSearchInputHorizontalDivisor is the divisor for centering search input horizontally.
+	DefaultSearchInputHorizontalDivisor = 2
+
 	// DefaultGridFontSize is the default font size for grid.
 	DefaultGridFontSize = 10
 
@@ -290,10 +305,10 @@ func newDefaultConfig() *Config {
 				PaddingX:        DefaultHintPaddingX,
 				PaddingY:        DefaultHintPaddingY,
 				BorderWidth:     1,
-				Position:        "top_center",
+				Position:        "bottom_center",
 				XOffset:         0,
-				YOffset:         24,
-				Width:           320,
+				YOffset:         DefaultSearchInputYOffset,
+				Width:           DefaultSearchInputWidth,
 				BackgroundColor: Color{},
 				TextColor:       Color{},
 				BorderColor:     Color{},

@@ -116,6 +116,7 @@ func (c *Context) Router() *domainHint.Router {
 // SetHints sets the current hint collection.
 func (c *Context) SetHints(hints *domainHint.Collection) {
 	c.hints = hints
+
 	c.sourceHints = hints
 	if c.manager != nil {
 		c.manager.SetHints(hints)

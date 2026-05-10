@@ -116,25 +116,25 @@ static const CGFloat kHintArrowGap = 1.0;
 #pragma mark - Overlay View Interface
 
 @interface OverlayView : NSView
-@property(nonatomic, strong) NSMutableArray<HintItem *> *hints;  ///< Hints array
-@property(nonatomic, strong) NSFont *hintFont;                   ///< Hint font
-@property(nonatomic, strong) NSColor *hintTextColor;             ///< Hint text color
-@property(nonatomic, strong) NSColor *hintMatchedTextColor;      ///< Hint matched text color
-@property(nonatomic, strong) NSColor *hintBackgroundColor;       ///< Hint background color
-@property(nonatomic, strong) NSColor *hintBorderColor;           ///< Hint border color
-@property(nonatomic, assign) CGFloat hintBorderRadius;           ///< Hint border radius
-@property(nonatomic, assign) CGFloat hintBorderWidth;            ///< Hint border width
-@property(nonatomic, assign) CGFloat hintPaddingX;               ///< Hint horizontal padding
-@property(nonatomic, assign) CGFloat hintPaddingY;               ///< Hint vertical padding
-@property(nonatomic, strong) SearchInputItem *searchInput;        ///< Active hints search input
-@property(nonatomic, strong) NSFont *searchInputFont;             ///< Search input font
-@property(nonatomic, strong) NSColor *searchInputTextColor;       ///< Search input text color
-@property(nonatomic, strong) NSColor *searchInputBackgroundColor; ///< Search input background color
-@property(nonatomic, strong) NSColor *searchInputBorderColor;     ///< Search input border color
-@property(nonatomic, assign) CGFloat searchInputBorderRadius;     ///< Search input border radius
-@property(nonatomic, assign) CGFloat searchInputBorderWidth;      ///< Search input border width
-@property(nonatomic, assign) CGFloat searchInputPaddingX;         ///< Search input horizontal padding
-@property(nonatomic, assign) CGFloat searchInputPaddingY;         ///< Search input vertical padding
+@property(nonatomic, strong) NSMutableArray<HintItem *> *hints;    ///< Hints array
+@property(nonatomic, strong) NSFont *hintFont;                     ///< Hint font
+@property(nonatomic, strong) NSColor *hintTextColor;               ///< Hint text color
+@property(nonatomic, strong) NSColor *hintMatchedTextColor;        ///< Hint matched text color
+@property(nonatomic, strong) NSColor *hintBackgroundColor;         ///< Hint background color
+@property(nonatomic, strong) NSColor *hintBorderColor;             ///< Hint border color
+@property(nonatomic, assign) CGFloat hintBorderRadius;             ///< Hint border radius
+@property(nonatomic, assign) CGFloat hintBorderWidth;              ///< Hint border width
+@property(nonatomic, assign) CGFloat hintPaddingX;                 ///< Hint horizontal padding
+@property(nonatomic, assign) CGFloat hintPaddingY;                 ///< Hint vertical padding
+@property(nonatomic, strong) SearchInputItem *searchInput;         ///< Active hints search input
+@property(nonatomic, strong) NSFont *searchInputFont;              ///< Search input font
+@property(nonatomic, strong) NSColor *searchInputTextColor;        ///< Search input text color
+@property(nonatomic, strong) NSColor *searchInputBackgroundColor;  ///< Search input background color
+@property(nonatomic, strong) NSColor *searchInputBorderColor;      ///< Search input border color
+@property(nonatomic, assign) CGFloat searchInputBorderRadius;      ///< Search input border radius
+@property(nonatomic, assign) CGFloat searchInputBorderWidth;       ///< Search input border width
+@property(nonatomic, assign) CGFloat searchInputPaddingX;          ///< Search input horizontal padding
+@property(nonatomic, assign) CGFloat searchInputPaddingY;          ///< Search input vertical padding
 
 @property(nonatomic, strong) NSMutableArray<GridCellItem *> *gridCells;         ///< Grid cells array
 @property(nonatomic, strong) NSArray<GridCellItem *> *transitionFromGridCells;  ///< Previous grid cells for animation
@@ -231,7 +231,7 @@ static const CGFloat kHintArrowGap = 1.0;
                            progress:(CGFloat)progress;  ///< Draw interpolated recursive-grid cells
 - (NSRect)cursorIndicatorRect;                          ///< Virtual cursor indicator rect in view coordinates
 - (void)drawCursorIndicatorInRect:(NSRect)dirtyRect;    ///< Draw virtual cursor indicator
-- (void)drawSearchInputInRect:(NSRect)dirtyRect;         ///< Draw active search input
+- (void)drawSearchInputInRect:(NSRect)dirtyRect;        ///< Draw active search input
 - (void)cancelGridTransition;                           ///< Stop recursive-grid animation
 - (void)cancelCursorIndicatorTransition;                ///< Stop virtual pointer animation
 - (void)startGridTransitionToCells:(NSArray<GridCellItem *> *)cells
@@ -288,8 +288,8 @@ static const CGFloat kHintArrowGap = 1.0;
 		_searchInput = nil;
 		_searchInputFont = [NSFont systemFontOfSize:kDefaultHintFontSize];
 		_searchInputTextColor = [NSColor blackColor];
-		_searchInputBackgroundColor =
-		    [[NSColor colorWithRed:1.0 green:1.0 blue:1.0 alpha:1.0] colorWithAlphaComponent:0.95];
+		_searchInputBackgroundColor = [[NSColor colorWithRed:1.0 green:1.0 blue:1.0
+		                                               alpha:1.0] colorWithAlphaComponent:0.95];
 		_searchInputBorderColor = [NSColor blackColor];
 		_searchInputBorderRadius = -1.0;
 		_searchInputBorderWidth = 1.0;
@@ -1017,7 +1017,8 @@ static const CGFloat kHintArrowGap = 1.0;
 	[attrString setAttributes:@{
 		NSFontAttributeName : self.searchInputFont,
 		NSForegroundColorAttributeName : self.searchInputTextColor
-	} range:fullRange];
+	}
+	                    range:fullRange];
 
 	NSSize textSize = [attrString size];
 	CGFloat paddingX =
@@ -1057,7 +1058,8 @@ static const CGFloat kHintArrowGap = 1.0;
 	[attrString setAttributes:@{
 		NSFontAttributeName : self.searchInputFont,
 		NSForegroundColorAttributeName : self.searchInputTextColor
-	} range:fullRange];
+	}
+	                    range:fullRange];
 
 	NSSize textSize = [attrString size];
 	CGFloat paddingX =
@@ -1067,7 +1069,8 @@ static const CGFloat kHintArrowGap = 1.0;
 	CGFloat width = MAX(self.searchInput.width, textSize.width + paddingX * 2.0);
 	CGFloat height = textSize.height + paddingY * 2.0;
 	CGFloat screenHeight = self.bounds.size.height;
-	NSRect boxRect = NSMakeRect(self.searchInput.position.x, screenHeight - self.searchInput.position.y - height, width, height);
+	NSRect boxRect =
+	    NSMakeRect(self.searchInput.position.x, screenHeight - self.searchInput.position.y - height, width, height);
 	CGFloat radius = self.searchInputBorderRadius >= 0.0 ? self.searchInputBorderRadius : MIN(height / 2.0, 8.0);
 	NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:boxRect xRadius:radius yRadius:radius];
 
@@ -1986,8 +1989,8 @@ static void applySearchInputStyle(OverlayView *view, SearchInputStyle style) {
 	}
 
 	view.searchInputFont = font;
-	view.searchInputBackgroundColor = [view colorFromHex:(style.backgroundColor ? @(style.backgroundColor) : nil)
-	                                         defaultColor:defaultBackground];
+	view.searchInputBackgroundColor =
+	    [view colorFromHex:(style.backgroundColor ? @(style.backgroundColor) : nil) defaultColor:defaultBackground];
 	view.searchInputTextColor =
 	    [view colorFromHex:(style.textColor ? @(style.textColor) : nil) defaultColor:defaultText];
 	view.searchInputBorderColor =
