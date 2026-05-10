@@ -173,7 +173,8 @@ func (h *Handler) handleSearchInputKey(key string) {
 	case configpkg.KeyNameDelete:
 		query := ctx.SearchQuery()
 		if query != "" {
-			ctx.SetSearchQuery(query[:len(query)-1])
+			_, size := utf8.DecodeLastRuneInString(query)
+			ctx.SetSearchQuery(query[:len(query)-size])
 			h.applyHintSearchFilter()
 		}
 
