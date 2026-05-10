@@ -12,10 +12,9 @@ import (
 
 // Adapter implements the TextInputPort using the native TextInput.
 type Adapter struct {
-	input   *TextInput
-	logger  *zap.Logger
-	mu      sync.RWMutex
-	running bool
+	input  *TextInput
+	logger *zap.Logger
+	mu     sync.RWMutex
 }
 
 // NewAdapter creates a new Adapter with the given TextInput and logger.
@@ -39,12 +38,7 @@ func (a *Adapter) StartHintSearchSession(
 		return false, nil
 	}
 
-	started, err := a.input.StartHintSearchSession(ctx, callbacks, frame)
-	if started {
-		a.running = true
-	}
-
-	return started, err
+	return a.input.StartHintSearchSession(ctx, callbacks, frame)
 }
 
 // StopHintSearchSession stops the native hint search session.
@@ -55,8 +49,6 @@ func (a *Adapter) StopHintSearchSession(ctx context.Context) error {
 	if a.input == nil {
 		return nil
 	}
-
-	a.running = false
 
 	return a.input.StopHintSearchSession(ctx)
 }
