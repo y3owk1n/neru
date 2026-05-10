@@ -637,6 +637,7 @@ func (h *Handler) StartHintSearch() error {
 
 	h.hints.Context.SetSearchQuery("")
 	h.hints.Context.SetSearchActive(true)
+	h.hints.Context.SetVisibleHints(h.hints.Context.SourceHints())
 	h.cycleHintIndex = -1
 	h.drawHintSearchInput()
 
