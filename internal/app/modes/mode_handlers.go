@@ -4,6 +4,7 @@ import (
 	"context"
 	"image"
 	"time"
+	"unicode/utf8"
 
 	"go.uber.org/zap"
 
@@ -184,7 +185,7 @@ func (h *Handler) handleSearchInputKey(key string) {
 		return
 	}
 
-	if len(key) != 1 {
+	if utf8.RuneCountInString(key) == 0 {
 		return
 	}
 
