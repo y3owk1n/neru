@@ -292,16 +292,16 @@ func (h *Handler) searchInputFrame() hintscomponent.SearchInputFrame {
 
 	switch hintscomponent.SearchInputPosition(searchInputConfig.Position) {
 	case hintscomponent.SearchInputTopCenter:
-		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputHorizontalDivisor + searchInputConfig.XOffset
+		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.XOffset
 	case hintscomponent.SearchInputTopRight:
 		xOffset = screenWidth - width - searchInputConfig.XOffset
 	case hintscomponent.SearchInputCenter:
-		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputHorizontalDivisor + searchInputConfig.XOffset
-		yOffset = (screenHeight-height)/configpkg.DefaultSearchInputHorizontalDivisor + searchInputConfig.YOffset
+		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.XOffset
+		yOffset = (screenHeight-height)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.YOffset
 	case hintscomponent.SearchInputBottomLeft:
 		yOffset = screenHeight - height - searchInputConfig.YOffset
 	case hintscomponent.SearchInputBottomCenter:
-		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputHorizontalDivisor + searchInputConfig.XOffset
+		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.XOffset
 		yOffset = screenHeight - height - searchInputConfig.YOffset
 	case hintscomponent.SearchInputBottomRight:
 		xOffset = screenWidth - width - searchInputConfig.XOffset
@@ -335,7 +335,7 @@ func estimatedSearchInputHeight(searchInputConfig configpkg.SearchInputUI) int {
 	if paddingY < 0 {
 		paddingY = max(
 			configpkg.DefaultSearchInputMinPaddingY,
-			searchInputConfig.FontSize/configpkg.DefaultSearchInputHorizontalDivisor,
+			searchInputConfig.FontSize/configpkg.DefaultSearchInputCenterDivisor,
 		)
 	}
 

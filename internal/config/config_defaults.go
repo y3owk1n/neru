@@ -24,8 +24,8 @@ const (
 	// DefaultSearchInputHeightPadding is the height padding constant for search input.
 	DefaultSearchInputHeightPadding = 6
 
-	// DefaultSearchInputHorizontalDivisor is the divisor for centering search input horizontally.
-	DefaultSearchInputHorizontalDivisor = 2
+	// DefaultSearchInputCenterDivisor is the divisor for centering search input horizontally or vertically.
+	DefaultSearchInputCenterDivisor = 2
 
 	// DefaultGridFontSize is the default font size for grid.
 	DefaultGridFontSize = 10
