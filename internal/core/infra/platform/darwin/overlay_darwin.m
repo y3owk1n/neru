@@ -1009,7 +1009,7 @@ static const CGFloat kHintArrowGap = 1.0;
 	NSMutableAttributedString *attrString = self.cachedSearchInputAttributedString;
 	NSString *query = self.searchInput.query ?: @"";
 	NSString *display = [query length] > 0 ? [NSString stringWithFormat:@"/ %@", query] : @"/ Search hints";
-	if (self.searchInput.resultCount >= 0) {
+	if ([query length] > 0) {
 		display = [display stringByAppendingFormat:@"  %ld", (long)self.searchInput.resultCount];
 	}
 	[[attrString mutableString] setString:display];
@@ -1073,7 +1073,7 @@ static const CGFloat kHintArrowGap = 1.0;
 	NSMutableAttributedString *attrString = self.cachedSearchInputAttributedString;
 	NSString *query = self.searchInput.query ?: @"";
 	NSString *display = [query length] > 0 ? [NSString stringWithFormat:@"/ %@", query] : @"/ Search hints";
-	if (self.searchInput.resultCount >= 0) {
+	if ([query length] > 0) {
 		display = [display stringByAppendingFormat:@"  %ld", (long)self.searchInput.resultCount];
 	}
 	[[attrString mutableString] setString:display];
