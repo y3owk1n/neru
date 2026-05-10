@@ -112,6 +112,12 @@ static void startOnMainThread(
 	NSRect rect = NSMakeRect(originX, originY, finalWidth, finalHeight);
 
 	if (gPanel) {
+		// Callbacks are always the same Go bridge function pointers across sessions;
+		// refresh them here in case that assumption ever changes.
+		gTextView.queryCallback = queryCallback;
+		gTextView.confirmCallback = confirmCallback;
+		gTextView.cancelCallback = cancelCallback;
+		gTextView.userData = userData;
 		[gTextView setString:@""];
 		[gTextView notifyQueryChanged];
 		[gPanel setFrame:rect display:NO];
