@@ -219,6 +219,8 @@ func (h *Handler) confirmHintSearch() {
 		go func() {
 			_ = h.CycleHint(context.Background(), false)
 		}()
+	} else {
+		h.cancelHintSearch()
 	}
 
 	h.cycleHintIndex = -1
