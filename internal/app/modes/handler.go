@@ -818,9 +818,6 @@ func (h *Handler) stopHintSearchTextInputLocked(keepEventTapDisabled bool) {
 	if h.hintSearchEventTapDisabled && h.enableEventTap != nil &&
 		h.appState.CurrentMode() == domain.ModeHints && !keepEventTapDisabled {
 		h.enableEventTap()
-	}
-
-	if !keepEventTapDisabled {
 		h.hintSearchEventTapDisabled = false
 	}
 }
