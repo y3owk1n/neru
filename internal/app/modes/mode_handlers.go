@@ -217,8 +217,16 @@ func (h *Handler) confirmHintSearch() {
 		return
 	}
 
-	h.hints.Context.SetSearchActive(false)
+	ctx := h.hints.Context
+	ctx.SetSearchActive(false)
 	h.overlayManager.HideHintSearchInput()
+
+	if visibleHints := ctx.Hints(); visibleHints != nil && visibleHints.Count() >= 1 {
+		go func() {
+			_ = h.CycleHint(context.Background(), false)
+		}()
+	}
+
 	h.cycleHintIndex = -1
 }
 
