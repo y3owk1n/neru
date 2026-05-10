@@ -216,6 +216,8 @@ func (h *Handler) confirmHintSearch() {
 		return
 	}
 
+	h.stopHintSearchTextInputLocked()
+
 	ctx := h.hints.Context
 	ctx.SetSearchActive(false)
 	h.overlayManager.HideHintSearchInput()
@@ -235,6 +237,8 @@ func (h *Handler) cancelHintSearch() {
 	if h.hints == nil || h.hints.Context == nil {
 		return
 	}
+
+	h.stopHintSearchTextInputLocked()
 
 	ctx := h.hints.Context
 	ctx.SetSearchQuery("")

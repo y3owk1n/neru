@@ -95,6 +95,10 @@ type Handler struct {
 	hotkeyLastKey              string
 	hotkeyLastKeyTime          int64
 
+	textInput                  ports.TextInputPort
+	hintSearchTextInputActive  bool
+	hintSearchEventTapDisabled bool
+
 	// Pending modifier taps waiting to be committed after a short "no follow-up"
 	// window. A regular key press cancels all pending taps.
 	pendingModifierKeys   map[action.Modifiers]time.Time
@@ -147,6 +151,7 @@ func NewHandler(
 	postModifierEvent func(modifier string, isDown bool),
 	refreshHotkeys func(),
 	executeHotkeyAction func(key, actionStr string) error,
+	textInput ports.TextInputPort,
 	systemPort ports.SystemPort,
 ) *Handler {
 	// Initialize screen bounds for coordinate conversion.
@@ -192,6 +197,7 @@ func NewHandler(
 		postModifierEvent:          postModifierEvent,
 		refreshHotkeys:             refreshHotkeys,
 		executeHotkeyAction:        executeHotkeyAction,
+		textInput:                  textInput,
 		themeProvider:              systemPort,
 		system:                     systemPort,
 		cycleHintIndex:             -1,
@@ -729,13 +735,84 @@ func (h *Handler) startHintSearchLocked() error {
 		return derrors.New(derrors.CodeActionFailed, "hints not available")
 	}
 
+	h.stopHintSearchTextInputLocked()
 	h.hints.Context.SetSearchQuery("")
 	h.hints.Context.SetSearchActive(true)
 	h.hints.Context.SetVisibleHints(h.hints.Context.SourceHints())
 	h.cycleHintIndex = -1
 	h.drawHintSearchInput()
 
+	if h.textInput != nil {
+		searchFrame := h.searchInputFrame()
+		position := searchFrame.Position()
+		height := estimatedSearchInputHeight(h.config.Hints.SearchInputUI)
+		textInputFrame := ports.TextInputFrame{
+			X:      position.X,
+			Y:      position.Y,
+			Width:  searchFrame.Width(),
+			Height: height,
+		}
+
+		started, _ := h.textInput.StartHintSearchSession(
+			context.Background(),
+			ports.TextInputCallbacks{
+				OnQueryChanged: func(query string) {
+					h.mu.Lock()
+					defer h.mu.Unlock()
+
+					if h.appState.CurrentMode() != domain.ModeHints || h.hints == nil ||
+						h.hints.Context == nil {
+						return
+					}
+
+					if !h.hints.Context.SearchActive() {
+						return
+					}
+
+					h.hints.Context.SetSearchQuery(query)
+					h.applyHintSearchFilter()
+				},
+				OnConfirm: func() {
+					h.mu.Lock()
+					defer h.mu.Unlock()
+
+					h.confirmHintSearch()
+				},
+				OnCancel: func() {
+					h.mu.Lock()
+					defer h.mu.Unlock()
+
+					h.cancelHintSearch()
+				},
+			},
+			textInputFrame,
+		)
+
+		if started {
+			h.hintSearchTextInputActive = true
+			if h.disableEventTap != nil {
+				h.disableEventTap()
+				h.hintSearchEventTapDisabled = true
+			}
+		}
+	}
+
 	return nil
+}
+
+func (h *Handler) stopHintSearchTextInputLocked() {
+	if h.hintSearchTextInputActive && h.textInput != nil {
+		_ = h.textInput.StopHintSearchSession(context.Background())
+	}
+
+	h.hintSearchTextInputActive = false
+
+	if h.hintSearchEventTapDisabled && h.enableEventTap != nil &&
+		h.appState.CurrentMode() == domain.ModeHints {
+		h.enableEventTap()
+	}
+
+	h.hintSearchEventTapDisabled = false
 }
 
 func (h *Handler) focusedBundleID() string {

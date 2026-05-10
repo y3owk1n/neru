@@ -5,6 +5,12 @@ import (
 	"image"
 	"sort"
 	"strings"
+	"unicode"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -271,7 +277,7 @@ func (c *Collection) FilterByText(query string) *Collection {
 		return c
 	}
 
-	normalizedQuery := strings.ToLower(query)
+	normalizedQuery := normalizeForSearch(query)
 	filtered := make([]*Interface, 0, len(c.hints))
 
 	for _, hint := range c.hints {
@@ -280,14 +286,34 @@ func (c *Collection) FilterByText(query string) *Collection {
 			continue
 		}
 
-		if strings.Contains(strings.ToLower(elem.Title()), normalizedQuery) ||
-			strings.Contains(strings.ToLower(elem.Description()), normalizedQuery) ||
-			strings.Contains(strings.ToLower(elem.Value()), normalizedQuery) {
+		if strings.Contains(normalizeForSearch(elem.Title()), normalizedQuery) ||
+			strings.Contains(normalizeForSearch(elem.Description()), normalizedQuery) ||
+			strings.Contains(normalizeForSearch(elem.Value()), normalizedQuery) {
 			filtered = append(filtered, hint)
 		}
 	}
 
 	return NewCollection(filtered)
+}
+
+var (
+	searchCaser       = cases.Fold()
+	searchTransformer = transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+)
+
+func normalizeForSearch(s string) string {
+	if s == "" {
+		return ""
+	}
+
+	folded := searchCaser.String(s)
+
+	normalized, _, err := transform.String(searchTransformer, folded)
+	if err != nil {
+		return folded
+	}
+
+	return normalized
 }
 
 // Count returns the number of hints in the collection.

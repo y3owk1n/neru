@@ -20,6 +20,7 @@ import (
 	eventtapadapter "github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	ipcadapter "github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
+	textinputadapter "github.com/y3owk1n/neru/internal/core/infra/textinput"
 	"github.com/y3owk1n/neru/internal/ui"
 )
 
@@ -58,6 +59,10 @@ func initializeInfrastructure(app *App) error {
 	// Initialize hotkey service if not provided
 	if app.hotkeyManager == nil {
 		app.hotkeyManager = initializeHotkeyService(logger)
+	}
+
+	if app.textInput == nil {
+		app.textInput = textinputadapter.NewAdapter(textinputadapter.NewTextInput(logger), logger)
 	}
 
 	return nil
@@ -344,6 +349,7 @@ func initializeModeHandler(app *App) {
 		deps.callbacks.postModifierEvent,
 		deps.callbacks.refreshHotkeys,
 		deps.callbacks.executeHotkeyAction,
+		app.textInput,
 		app.systemPort,
 	)
 }

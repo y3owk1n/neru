@@ -160,6 +160,38 @@ func TestHint_Methods(t *testing.T) {
 	}
 }
 
+func TestCollection_FilterByText_Normalizes(t *testing.T) {
+	cafeElem, _ := element.NewElement(
+		"cafe",
+		image.Rect(10, 10, 50, 50),
+		element.RoleButton,
+		element.WithTitle("Café"),
+	)
+	cafeHint, _ := hint.NewHint("AA", cafeElem, image.Point{X: 30, Y: 30})
+
+	cjkElem, _ := element.NewElement(
+		"cjk",
+		image.Rect(10, 10, 50, 50),
+		element.RoleButton,
+		element.WithTitle("你好"), //nolint:gosmopolitan
+	)
+	cjkHint, _ := hint.NewHint("AB", cjkElem, image.Point{X: 30, Y: 30})
+
+	collection := hint.NewCollection([]*hint.Interface{cafeHint, cjkHint})
+
+	if got := collection.FilterByText("cafe").Count(); got != 1 {
+		t.Fatalf("FilterByText(%q) = %d, want 1", "cafe", got)
+	}
+
+	if got := collection.FilterByText("CAFÉ").Count(); got != 1 {
+		t.Fatalf("FilterByText(%q) = %d, want 1", "CAFÉ", got)
+	}
+
+	if got := collection.FilterByText("你好").Count(); got != 1 { //nolint:gosmopolitan
+		t.Fatalf("FilterByText(%q) = %d, want 1", "你好", got) //nolint:gosmopolitan
+	}
+}
+
 func TestAlphabetGenerator_Generate(t *testing.T) {
 	generator, generatorErr := hint.NewAlphabetGenerator("asdf")
 	if generatorErr != nil {

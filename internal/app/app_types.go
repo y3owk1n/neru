@@ -51,6 +51,7 @@ type App struct {
 	overlayManager OverlayManager
 	hotkeyManager  HotkeyService
 	eventTap       ports.EventTapPort
+	textInput      ports.TextInputPort
 	ipcServer      ports.IPCPort
 	appWatcher     Watcher
 

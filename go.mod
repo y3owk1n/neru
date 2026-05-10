@@ -9,6 +9,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
+	golang.org/x/text v0.14.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
