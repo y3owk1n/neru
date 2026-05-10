@@ -101,12 +101,6 @@ func (h *Handler) moveCursorAndHandleAction(
 
 // handleHintsModeKey handles key processing for hints mode.
 func (h *Handler) handleHintsModeKey(key string) {
-	if h.hints != nil && h.hints.Context != nil && h.hints.Context.SearchActive() {
-		h.handleSearchInputKey(key)
-
-		return
-	}
-
 	// Route hint-specific keys via domain hints router
 	if h.hints.Context.Router() == nil {
 		h.logger.Warn("Hints router is nil - ignoring key press until hints initialized")
