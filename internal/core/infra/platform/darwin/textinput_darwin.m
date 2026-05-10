@@ -221,7 +221,7 @@ int NeruStartHintSearchTextInput(
 
 	void (^work)(void) = ^{
 		startOnMainThread(queryCallback, confirmCallback, cancelCallback, x, y, width, height, userData);
-		started = 1;
+		started = (gPanel != nil) ? 1 : 0;
 	};
 
 	if ([NSThread isMainThread]) {
