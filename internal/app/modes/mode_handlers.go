@@ -186,7 +186,7 @@ func (h *Handler) handleSearchInputKey(key string) {
 		return
 	}
 
-	if utf8.RuneCountInString(key) == 0 {
+	if utf8.RuneCountInString(key) != 1 {
 		return
 	}
 
