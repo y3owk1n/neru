@@ -62,7 +62,7 @@ func (h *Handler) clearAndHideOverlay() {
 
 // cleanupHintsMode handles cleanup for hints mode.
 func (h *Handler) cleanupHintsMode() {
-	h.stopHintSearchTextInputLocked()
+	h.stopHintSearchTextInputLocked(false)
 	h.hints.Context.Reset()
 	h.cycleHintIndex = -1
 

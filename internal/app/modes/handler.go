@@ -735,7 +735,7 @@ func (h *Handler) startHintSearchLocked() error {
 		return derrors.New(derrors.CodeActionFailed, "hints not available")
 	}
 
-	h.stopHintSearchTextInputLocked()
+	h.stopHintSearchTextInputLocked(true)
 	h.hints.Context.SetSearchQuery("")
 	h.hints.Context.SetSearchActive(true)
 	h.hints.Context.SetVisibleHints(h.hints.Context.SourceHints())
@@ -800,7 +800,7 @@ func (h *Handler) startHintSearchLocked() error {
 	return nil
 }
 
-func (h *Handler) stopHintSearchTextInputLocked() {
+func (h *Handler) stopHintSearchTextInputLocked(keepEventTapDisabled bool) {
 	if h.hintSearchTextInputActive && h.textInput != nil {
 		_ = h.textInput.StopHintSearchSession(context.Background())
 	}
@@ -808,11 +808,13 @@ func (h *Handler) stopHintSearchTextInputLocked() {
 	h.hintSearchTextInputActive = false
 
 	if h.hintSearchEventTapDisabled && h.enableEventTap != nil &&
-		h.appState.CurrentMode() == domain.ModeHints {
+		h.appState.CurrentMode() == domain.ModeHints && !keepEventTapDisabled {
 		h.enableEventTap()
 	}
 
-	h.hintSearchEventTapDisabled = false
+	if !keepEventTapDisabled {
+		h.hintSearchEventTapDisabled = false
+	}
 }
 
 func (h *Handler) focusedBundleID() string {

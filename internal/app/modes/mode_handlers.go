@@ -216,7 +216,7 @@ func (h *Handler) confirmHintSearch() {
 		return
 	}
 
-	h.stopHintSearchTextInputLocked()
+	h.stopHintSearchTextInputLocked(false)
 
 	ctx := h.hints.Context
 	ctx.SetSearchActive(false)
@@ -238,7 +238,7 @@ func (h *Handler) cancelHintSearch() {
 		return
 	}
 
-	h.stopHintSearchTextInputLocked()
+	h.stopHintSearchTextInputLocked(false)
 
 	ctx := h.hints.Context
 	ctx.SetSearchQuery("")
