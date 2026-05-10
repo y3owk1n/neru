@@ -331,6 +331,66 @@ func TestCollection_FilterByPrefix(t *testing.T) {
 	}
 }
 
+func TestCollection_FilterByText(t *testing.T) {
+	saveButton, _ := element.NewElement(
+		"save",
+		image.Rect(0, 0, 50, 50),
+		element.RoleButton,
+		element.WithTitle("Save Document"),
+	)
+	searchField, _ := element.NewElement(
+		"search",
+		image.Rect(0, 60, 50, 110),
+		element.RoleTextField,
+		element.WithDescription("Project finder"),
+		element.WithValue("Neru"),
+	)
+	cancelButton, _ := element.NewElement(
+		"cancel",
+		image.Rect(0, 120, 50, 170),
+		element.RoleButton,
+		element.WithTitle("Cancel"),
+	)
+
+	collection := hint.NewCollection([]*hint.Interface{
+		mustNewHint("AA", saveButton),
+		mustNewHint("AS", searchField),
+		mustNewHint("AD", cancelButton),
+	})
+
+	tests := []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{name: "matches title case-insensitive", query: "save", want: []string{"AA"}},
+		{name: "matches description", query: "finder", want: []string{"AS"}},
+		{name: "matches value", query: "NER", want: []string{"AS"}},
+		{name: "empty query returns all", query: "", want: []string{"AA", "AS", "AD"}},
+		{name: "no matches", query: "missing", want: []string{}},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			filtered := collection.FilterByText(testCase.query)
+			if filtered.Count() != len(testCase.want) {
+				t.Fatalf(
+					"FilterByText(%q) count = %d, want %d",
+					testCase.query,
+					filtered.Count(),
+					len(testCase.want),
+				)
+			}
+
+			for _, label := range testCase.want {
+				if filtered.FindByLabel(label) == nil {
+					t.Fatalf("FilterByText(%q) missing label %q", testCase.query, label)
+				}
+			}
+		})
+	}
+}
+
 // Helper function for tests.
 func mustNewHint(label string, elem *element.Element) *hint.Interface {
 	hint, hintErr := hint.NewHint(label, elem, image.Point{})

@@ -256,6 +256,17 @@ func (m *mockOverlayManager) ShowSubgrid(_ *domainGrid.Cell, _ grid.Style) {}
 func (m *mockOverlayManager) SetHideUnmatched(_ bool)                      {}
 func (m *mockOverlayManager) SetSharingType(_ bool)                        {}
 
+func (m *mockOverlayManager) DrawHintSearchInput(
+	_ string,
+	_ int,
+	_ hints.SearchInputFrame,
+	_ hints.SearchInputStyle,
+) error {
+	return nil
+}
+
+func (m *mockOverlayManager) HideHintSearchInput() {}
+
 type mockHotkeyService struct {
 	mu         sync.RWMutex
 	registered map[string]hotkeys.Callback

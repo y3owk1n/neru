@@ -265,6 +265,31 @@ func (c *Collection) FilterByPrefix(prefix string) []*Interface {
 	return c.trie.FindByPrefix(prefix)
 }
 
+// FilterByText returns hints whose element text contains query.
+func (c *Collection) FilterByText(query string) *Collection {
+	if query == "" {
+		return c
+	}
+
+	normalizedQuery := strings.ToLower(query)
+	filtered := make([]*Interface, 0, len(c.hints))
+
+	for _, hint := range c.hints {
+		elem := hint.Element()
+		if elem == nil {
+			continue
+		}
+
+		if strings.Contains(strings.ToLower(elem.Title()), normalizedQuery) ||
+			strings.Contains(strings.ToLower(elem.Description()), normalizedQuery) ||
+			strings.Contains(strings.ToLower(elem.Value()), normalizedQuery) {
+			filtered = append(filtered, hint)
+		}
+	}
+
+	return NewCollection(filtered)
+}
+
 // Count returns the number of hints in the collection.
 func (c *Collection) Count() int {
 	return len(c.hints)

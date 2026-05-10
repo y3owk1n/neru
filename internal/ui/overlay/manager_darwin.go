@@ -315,6 +315,34 @@ func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) er
 	return nil
 }
 
+// DrawHintSearchInput draws the hints search input using the hint overlay renderer.
+func (m *Manager) DrawHintSearchInput(
+	query string,
+	resultCount int,
+	frame hints.SearchInputFrame,
+	style hints.SearchInputStyle,
+) error {
+	if m.hintOverlay == nil {
+		return nil
+	}
+
+	err := m.hintOverlay.DrawSearchInput(query, resultCount, frame, style)
+	if err != nil {
+		return derrors.Wrap(err, derrors.CodeOverlayFailed, "failed to draw hint search input")
+	}
+
+	return nil
+}
+
+// HideHintSearchInput hides the hints search input.
+func (m *Manager) HideHintSearchInput() {
+	if m.hintOverlay == nil {
+		return
+	}
+
+	m.hintOverlay.HideSearchInput()
+}
+
 // DrawModeIndicator renders a mode indicator using the shared overlay renderer.
 func (m *Manager) DrawModeIndicator(xCoordinate, yCoordinate int) {
 	if m.modeIndicatorOverlay == nil {

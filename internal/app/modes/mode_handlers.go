@@ -4,9 +4,12 @@ import (
 	"context"
 	"image"
 	"time"
+	"unicode/utf8"
 
 	"go.uber.org/zap"
 
+	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
+	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
@@ -147,6 +150,196 @@ func (h *Handler) handleHintsModeKey(key string) {
 			},
 		)
 	}
+}
+
+// handleSearchInputKey routes all keys while hint text search is active.
+func (h *Handler) handleSearchInputKey(key string) {
+	if h.hints == nil || h.hints.Context == nil {
+		return
+	}
+
+	ctx := h.hints.Context
+	normalizedKey := configpkg.NormalizeKeyForComparison(key)
+
+	switch normalizedKey {
+	case configpkg.KeyNameEscape:
+		h.cancelHintSearch()
+
+		return
+	case configpkg.KeyNameReturn:
+		h.confirmHintSearch()
+
+		return
+	case configpkg.KeyNameDelete:
+		query := ctx.SearchQuery()
+		if query != "" {
+			_, size := utf8.DecodeLastRuneInString(query)
+			ctx.SetSearchQuery(query[:len(query)-size])
+			h.applyHintSearchFilter()
+		}
+
+		return
+	case configpkg.KeyNameSpace:
+		ctx.SetSearchQuery(ctx.SearchQuery() + " ")
+		h.applyHintSearchFilter()
+
+		return
+	}
+
+	if utf8.RuneCountInString(key) != 1 {
+		return
+	}
+
+	ctx.SetSearchQuery(ctx.SearchQuery() + key)
+	h.applyHintSearchFilter()
+}
+
+func (h *Handler) applyHintSearchFilter() {
+	ctx := h.hints.Context
+
+	sourceHints := ctx.SourceHints()
+	if sourceHints == nil {
+		return
+	}
+
+	filteredHints := sourceHints.FilterByText(ctx.SearchQuery())
+	ctx.SetVisibleHints(filteredHints)
+	h.drawHintSearchInput()
+	h.cycleHintIndex = -1
+}
+
+func (h *Handler) confirmHintSearch() {
+	if h.hints == nil || h.hints.Context == nil {
+		return
+	}
+
+	ctx := h.hints.Context
+	ctx.SetSearchActive(false)
+	h.overlayManager.HideHintSearchInput()
+
+	if visibleHints := ctx.Hints(); visibleHints != nil && visibleHints.Count() >= 1 {
+		go func() {
+			_ = h.CycleHint(context.Background(), false)
+		}()
+	} else {
+		h.cancelHintSearch()
+	}
+
+	h.cycleHintIndex = -1
+}
+
+func (h *Handler) cancelHintSearch() {
+	if h.hints == nil || h.hints.Context == nil {
+		return
+	}
+
+	ctx := h.hints.Context
+	ctx.SetSearchQuery("")
+	ctx.SetSearchActive(false)
+
+	if sourceHints := ctx.SourceHints(); sourceHints != nil {
+		ctx.SetVisibleHints(sourceHints)
+	}
+
+	h.overlayManager.HideHintSearchInput()
+	h.cycleHintIndex = -1
+}
+
+func (h *Handler) drawHintSearchInput() {
+	if h.hints == nil || h.hints.Context == nil {
+		return
+	}
+
+	ctx := h.hints.Context
+
+	resultCount := 0
+	if ctx.Hints() != nil {
+		resultCount = ctx.Hints().Count()
+	}
+
+	style := hintscomponent.BuildSearchInputStyle(h.config.Hints, h.themeProvider)
+
+	frame := h.searchInputFrame()
+
+	err := h.overlayManager.DrawHintSearchInput(
+		ctx.SearchQuery(),
+		resultCount,
+		frame,
+		style,
+	)
+	if err != nil {
+		h.logger.Error("Failed to draw hint search input", zap.Error(err))
+	}
+}
+
+func (h *Handler) searchInputFrame() hintscomponent.SearchInputFrame {
+	searchInputConfig := h.config.Hints.SearchInputUI
+	screenWidth := h.screenBounds.Dx()
+	screenHeight := h.screenBounds.Dy()
+
+	width := searchInputConfig.Width
+	if width <= 0 {
+		width = configpkg.DefaultSearchInputWidth
+	}
+
+	if screenWidth > 0 && width > screenWidth {
+		width = screenWidth
+	}
+
+	height := estimatedSearchInputHeight(searchInputConfig)
+	xOffset := searchInputConfig.XOffset
+	yOffset := searchInputConfig.YOffset
+
+	switch hintscomponent.SearchInputPosition(searchInputConfig.Position) {
+	case hintscomponent.SearchInputTopCenter:
+		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.XOffset
+	case hintscomponent.SearchInputTopRight:
+		xOffset = screenWidth - width - searchInputConfig.XOffset
+	case hintscomponent.SearchInputCenter:
+		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.XOffset
+		yOffset = (screenHeight-height)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.YOffset
+	case hintscomponent.SearchInputBottomLeft:
+		yOffset = screenHeight - height - searchInputConfig.YOffset
+	case hintscomponent.SearchInputBottomCenter:
+		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.XOffset
+		yOffset = screenHeight - height - searchInputConfig.YOffset
+	case hintscomponent.SearchInputBottomRight:
+		xOffset = screenWidth - width - searchInputConfig.XOffset
+		yOffset = screenHeight - height - searchInputConfig.YOffset
+	case hintscomponent.SearchInputTopLeft:
+		fallthrough
+	default:
+	}
+
+	if xOffset < 0 {
+		xOffset = 0
+	}
+
+	if yOffset < 0 {
+		yOffset = 0
+	}
+
+	if screenWidth > 0 && xOffset+width > screenWidth {
+		xOffset = screenWidth - width
+	}
+
+	if screenHeight > 0 && yOffset+height > screenHeight {
+		yOffset = screenHeight - height
+	}
+
+	return hintscomponent.NewSearchInputFrame(image.Point{X: xOffset, Y: yOffset}, width)
+}
+
+func estimatedSearchInputHeight(searchInputConfig configpkg.SearchInputUI) int {
+	paddingY := searchInputConfig.PaddingY
+	if paddingY < 0 {
+		paddingY = max(
+			configpkg.DefaultSearchInputMinPaddingY,
+			searchInputConfig.FontSize/configpkg.DefaultSearchInputCenterDivisor,
+		)
+	}
+
+	return searchInputConfig.FontSize + paddingY*configpkg.DefaultSearchInputPaddingMultiplier + configpkg.DefaultSearchInputHeightPadding
 }
 
 // handleGridModeKey handles key processing for grid mode.

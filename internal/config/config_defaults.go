@@ -12,6 +12,21 @@ const (
 	// DefaultHintPaddingY is the default vertical padding for hints (-1 = auto).
 	DefaultHintPaddingY = -1
 
+	// DefaultSearchInputYOffset is the default Y offset for search input.
+	DefaultSearchInputYOffset = 24
+	// DefaultSearchInputWidth is the default width for search input.
+	DefaultSearchInputWidth = 320
+
+	// DefaultSearchInputMinPaddingY is the minimum padding for search input height.
+	DefaultSearchInputMinPaddingY = 5
+	// DefaultSearchInputPaddingMultiplier is the padding multiplier for search input height.
+	DefaultSearchInputPaddingMultiplier = 2
+	// DefaultSearchInputHeightPadding is the height padding constant for search input.
+	DefaultSearchInputHeightPadding = 6
+
+	// DefaultSearchInputCenterDivisor is the divisor for centering search input horizontally or vertically.
+	DefaultSearchInputCenterDivisor = 2
+
 	// DefaultGridFontSize is the default font size for grid.
 	DefaultGridFontSize = 10
 
@@ -256,6 +271,7 @@ func newDefaultConfig() *Config {
 			ParallelThreshold: DefaultParallelThreshold,
 			Hotkeys: map[string]StringOrStringArray{
 				"Escape":    {"idle"},
+				"/":         {"action search_hints"},
 				"Backspace": {"action backspace"},
 				"Tab":       {"action cycle_hint"},
 				"Shift+Tab": {"action cycle_hint --backward"},
@@ -281,6 +297,21 @@ func newDefaultConfig() *Config {
 				TextColor:        Color{},
 				MatchedTextColor: Color{},
 				BorderColor:      Color{},
+			},
+			SearchInputUI: SearchInputUI{
+				FontSize:        DefaultHintFontSize,
+				FontFamily:      "",
+				BorderRadius:    DefaultHintBorderRadius,
+				PaddingX:        DefaultHintPaddingX,
+				PaddingY:        DefaultHintPaddingY,
+				BorderWidth:     1,
+				Position:        "bottom_center",
+				XOffset:         0,
+				YOffset:         DefaultSearchInputYOffset,
+				Width:           DefaultSearchInputWidth,
+				BackgroundColor: Color{},
+				TextColor:       Color{},
+				BorderColor:     Color{},
 			},
 
 			IncludeMenubarHints:           false,

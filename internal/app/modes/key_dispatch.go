@@ -26,6 +26,13 @@ func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	if h.appState.CurrentMode() == domain.ModeHints &&
+		h.hints != nil && h.hints.Context != nil && h.hints.Context.SearchActive() {
+		h.handleSearchInputKey(key)
+
+		return
+	}
+
 	// Cancel any pending modifier toggle if a non-modifier key is pressed
 	// This handles the case where Shift+L is pressed - the modifier tap
 	// is canceled when L comes in

@@ -123,6 +123,19 @@ func (n *NoOpManager) DrawHintsWithStyle(
 	return nil
 }
 
+// DrawHintSearchInput is a no-op implementation.
+func (n *NoOpManager) DrawHintSearchInput(
+	query string,
+	resultCount int,
+	frame hints.SearchInputFrame,
+	style hints.SearchInputStyle,
+) error {
+	return nil
+}
+
+// HideHintSearchInput is a no-op implementation.
+func (n *NoOpManager) HideHintSearchInput() {}
+
 // DrawModeIndicator is a no-op implementation.
 func (n *NoOpManager) DrawModeIndicator(x, y int) {}
 
@@ -206,6 +219,13 @@ type ManagerInterface interface {
 	StickyModifiersOverlay() *stickyindicator.Overlay
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
+	DrawHintSearchInput(
+		query string,
+		resultCount int,
+		frame hints.SearchInputFrame,
+		style hints.SearchInputStyle,
+	) error
+	HideHintSearchInput()
 	DrawModeIndicator(x, y int)
 	DrawStickyModifiersIndicator(x, y int, symbols string)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error

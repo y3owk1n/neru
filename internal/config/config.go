@@ -533,13 +533,31 @@ type HintsUI struct {
 	BorderColor      Color  `json:"borderColor"      toml:"border_color"`
 }
 
+// SearchInputUI defines the visual/appearance settings for hints text search.
+type SearchInputUI struct {
+	FontSize        int    `json:"fontSize"        toml:"font_size"`
+	FontFamily      string `json:"fontFamily"      toml:"font_family"`
+	BorderRadius    int    `json:"borderRadius"    toml:"border_radius"`
+	PaddingX        int    `json:"paddingX"        toml:"padding_x"`
+	PaddingY        int    `json:"paddingY"        toml:"padding_y"`
+	BorderWidth     int    `json:"borderWidth"     toml:"border_width"`
+	Position        string `json:"position"        toml:"position"`
+	XOffset         int    `json:"xOffset"         toml:"x_offset"`
+	YOffset         int    `json:"yOffset"         toml:"y_offset"`
+	Width           int    `json:"width"           toml:"width"`
+	BackgroundColor Color  `json:"backgroundColor" toml:"background_color"`
+	TextColor       Color  `json:"textColor"       toml:"text_color"`
+	BorderColor     Color  `json:"borderColor"     toml:"border_color"`
+}
+
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
-	Enabled           bool    `json:"enabled"           toml:"enabled"`
-	HintCharacters    string  `json:"hintCharacters"    toml:"hint_characters"`
-	MaxDepth          int     `json:"maxDepth"          toml:"max_depth"`
-	ParallelThreshold int     `json:"parallelThreshold" toml:"parallel_threshold"`
-	UI                HintsUI `json:"ui"                toml:"ui"`
+	Enabled           bool          `json:"enabled"           toml:"enabled"`
+	HintCharacters    string        `json:"hintCharacters"    toml:"hint_characters"`
+	MaxDepth          int           `json:"maxDepth"          toml:"max_depth"`
+	ParallelThreshold int           `json:"parallelThreshold" toml:"parallel_threshold"`
+	UI                HintsUI       `json:"ui"                toml:"ui"`
+	SearchInputUI     SearchInputUI `json:"searchInputUi"     toml:"search_input_ui"`
 
 	IncludeMenubarHints           bool     `json:"includeMenubarHints"           toml:"include_menubar_hints"`
 	AdditionalMenubarHintsTargets []string `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`

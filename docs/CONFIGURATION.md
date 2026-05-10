@@ -308,6 +308,12 @@ Core behaviour settings that affect all Neru functionality.
 
 Hint mode uses macOS Accessibility APIs to identify clickable UI elements and overlay short labels on them.
 
+Press `/` in hints mode to start text search. While search is active, typed
+characters filter hints by element title, description, or value. `Space` is
+supported for multi-word searches (e.g., "search for"). `Return` confirms the
+filtered hints — if 1 or more hints remain, the first hint is auto-selected.
+`Escape` cancels search and restores all hints.
+
 ### Options
 
 | Option                             | Type   | Default       | Description                                          |
@@ -324,6 +330,13 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                             |
 | `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                         |
 | `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                          |
+
+Default search hotkey:
+
+```toml
+[hints.hotkeys]
+"/" = "action search_hints"
+```
 
 ### Per-App Config Overrides
 
@@ -390,6 +403,28 @@ background_color = "#F2465FBC"
 text_color = "#17327A"
 matched_text_color = "#0B2377"
 border_color = "#0B2377"
+```
+
+The search input uses `[hints.search_input_ui]` with the same visual options as
+`[hints.ui]`, except `matched_text_color`. It also supports active-screen
+placement:
+
+| Option     | Type   | Default         | Description                                      |
+| ---------- | ------ | --------------- | ------------------------------------------------ |
+| `position` | string | `"bottom_center"` | Anchor on active screen                          |
+| `x_offset` | int    | `0`            | Horizontal offset from the anchor                |
+| `y_offset` | int    | `24`           | Vertical offset from the anchor                  |
+| `width`    | int    | `320`          | Search input width in pixels                     |
+
+Valid positions: `top_left`, `top_center`, `top_right`, `center`,
+`bottom_left`, `bottom_center`, `bottom_right`.
+
+```toml
+[hints.search_input_ui]
+position = "bottom_center"
+x_offset = 0
+y_offset = 24
+width = 320
 ```
 
 ---

@@ -618,6 +618,32 @@ func (h *Handler) BackspaceCurrentMode() {
 	}
 }
 
+// StartHintSearch activates text filtering for hints mode.
+func (h *Handler) StartHintSearch() error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeHints {
+		return derrors.New(derrors.CodeInvalidInput, "search_hints requires hints mode")
+	}
+
+	if h.hints == nil || h.hints.Context == nil {
+		return derrors.New(derrors.CodeActionFailed, "hints component not available")
+	}
+
+	if h.hints.Context.SourceHints() == nil {
+		return derrors.New(derrors.CodeActionFailed, "hints not available")
+	}
+
+	h.hints.Context.SetSearchQuery("")
+	h.hints.Context.SetSearchActive(true)
+	h.hints.Context.SetVisibleHints(h.hints.Context.SourceHints())
+	h.cycleHintIndex = -1
+	h.drawHintSearchInput()
+
+	return nil
+}
+
 // CycleHint cycles through visible hints in hints mode, selecting the next or previous one.
 func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 	h.mu.Lock()

@@ -400,6 +400,19 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 	return derrors.New(derrors.CodeNotSupported, "overlay hints not implemented on linux backend")
 }
 
+// DrawHintSearchInput draws the hints search input using the active Linux backend.
+func (m *Manager) DrawHintSearchInput(
+	_ string,
+	_ int,
+	_ hints.SearchInputFrame,
+	_ hints.SearchInputStyle,
+) error {
+	return nil
+}
+
+// HideHintSearchInput hides the hints search input.
+func (m *Manager) HideHintSearchInput() {}
+
 // DrawModeIndicator draws the mode indicator overlay.
 func (m *Manager) DrawModeIndicator(posX, posY int) {
 	if m.modeIndicatorOverlay == nil {

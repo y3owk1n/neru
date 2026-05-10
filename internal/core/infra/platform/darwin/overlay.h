@@ -39,6 +39,27 @@ typedef struct {
 	int matchedPrefixLength;  ///< Number of matched characters to highlight
 } HintData;
 
+/// Hints search input style configuration
+typedef struct {
+	int fontSize;           ///< Font size
+	char *fontFamily;       ///< Font family
+	char *backgroundColor;  ///< Background color
+	char *textColor;        ///< Text color
+	char *borderColor;      ///< Border color
+	int borderRadius;       ///< Border radius (-1 = auto)
+	int borderWidth;        ///< Border width
+	int paddingX;           ///< Horizontal padding (-1 = auto)
+	int paddingY;           ///< Vertical padding (-1 = auto)
+} SearchInputStyle;
+
+/// Hints search input data
+typedef struct {
+	char *query;       ///< Current search query
+	int resultCount;   ///< Current filtered hint count
+	CGPoint position;  ///< Input position in overlay-local coordinates
+	double width;      ///< Input width
+} SearchInputData;
+
 /// Grid cell style configuration
 typedef struct {
 	int fontSize;                     ///< Font size
@@ -114,6 +135,16 @@ void NeruClearOverlay(OverlayWindow window);
 /// @param count Number of hints
 /// @param style Hint style
 void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle style);
+
+/// Draw hints search input
+/// @param window Overlay window handle
+/// @param input Search input data
+/// @param style Search input style
+void NeruDrawHintSearchInput(OverlayWindow window, SearchInputData input, SearchInputStyle style);
+
+/// Hide hints search input
+/// @param window Overlay window handle
+void NeruHideHintSearchInput(OverlayWindow window);
 
 /// Update hint match prefix (incremental update for typing)
 /// @param window Overlay window handle

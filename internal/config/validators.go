@@ -119,6 +119,9 @@ func (c *Config) ValidateHints() error {
 		{c.Hints.UI.TextColor, "hints.ui.text_color"},
 		{c.Hints.UI.MatchedTextColor, "hints.ui.matched_text_color"},
 		{c.Hints.UI.BorderColor, "hints.ui.border_color"},
+		{c.Hints.SearchInputUI.BackgroundColor, "hints.search_input_ui.background_color"},
+		{c.Hints.SearchInputUI.TextColor, "hints.search_input_ui.text_color"},
+		{c.Hints.SearchInputUI.BorderColor, "hints.search_input_ui.border_color"},
 	})
 	if err != nil {
 		return err
@@ -145,6 +148,55 @@ func (c *Config) ValidateHints() error {
 
 	if c.Hints.UI.BorderWidth < 0 {
 		return derrors.New(derrors.CodeInvalidConfig, "hints.ui.border_width must be non-negative")
+	}
+
+	if c.Hints.SearchInputUI.FontSize < 6 || c.Hints.SearchInputUI.FontSize > 72 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.search_input_ui.font_size must be between 6 and 72",
+		)
+	}
+
+	err = validateMinValue(
+		c.Hints.SearchInputUI.BorderRadius,
+		-1,
+		"hints.search_input_ui.border_radius",
+	)
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.Hints.SearchInputUI.PaddingX, -1, "hints.search_input_ui.padding_x")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(c.Hints.SearchInputUI.PaddingY, -1, "hints.search_input_ui.padding_y")
+	if err != nil {
+		return err
+	}
+
+	if c.Hints.SearchInputUI.BorderWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.search_input_ui.border_width must be non-negative",
+		)
+	}
+
+	switch c.Hints.SearchInputUI.Position {
+	case "top_left", "top_center", "top_right",
+		"center",
+		"bottom_left", "bottom_center", "bottom_right":
+	default:
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.search_input_ui.position must be one of top_left, top_center, top_right, center, bottom_left, bottom_center, bottom_right",
+		)
+	}
+
+	err = validateMinValue(c.Hints.SearchInputUI.Width, 1, "hints.search_input_ui.width")
+	if err != nil {
+		return err
 	}
 
 	err = validateMinValue(c.Hints.MaxDepth, 0, "hints.max_depth")

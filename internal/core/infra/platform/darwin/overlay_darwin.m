@@ -48,6 +48,16 @@
 
 @end
 
+@interface SearchInputItem : NSObject
+@property(nonatomic, copy) NSString *query;
+@property(nonatomic, assign) NSInteger resultCount;
+@property(nonatomic, assign) CGPoint position;
+@property(nonatomic, assign) CGFloat width;
+@end
+
+@implementation SearchInputItem
+@end
+
 #pragma mark - GridCellItem Class
 
 @interface GridCellItem : NSObject
@@ -106,16 +116,25 @@ static const CGFloat kHintArrowGap = 1.0;
 #pragma mark - Overlay View Interface
 
 @interface OverlayView : NSView
-@property(nonatomic, strong) NSMutableArray<HintItem *> *hints;  ///< Hints array
-@property(nonatomic, strong) NSFont *hintFont;                   ///< Hint font
-@property(nonatomic, strong) NSColor *hintTextColor;             ///< Hint text color
-@property(nonatomic, strong) NSColor *hintMatchedTextColor;      ///< Hint matched text color
-@property(nonatomic, strong) NSColor *hintBackgroundColor;       ///< Hint background color
-@property(nonatomic, strong) NSColor *hintBorderColor;           ///< Hint border color
-@property(nonatomic, assign) CGFloat hintBorderRadius;           ///< Hint border radius
-@property(nonatomic, assign) CGFloat hintBorderWidth;            ///< Hint border width
-@property(nonatomic, assign) CGFloat hintPaddingX;               ///< Hint horizontal padding
-@property(nonatomic, assign) CGFloat hintPaddingY;               ///< Hint vertical padding
+@property(nonatomic, strong) NSMutableArray<HintItem *> *hints;    ///< Hints array
+@property(nonatomic, strong) NSFont *hintFont;                     ///< Hint font
+@property(nonatomic, strong) NSColor *hintTextColor;               ///< Hint text color
+@property(nonatomic, strong) NSColor *hintMatchedTextColor;        ///< Hint matched text color
+@property(nonatomic, strong) NSColor *hintBackgroundColor;         ///< Hint background color
+@property(nonatomic, strong) NSColor *hintBorderColor;             ///< Hint border color
+@property(nonatomic, assign) CGFloat hintBorderRadius;             ///< Hint border radius
+@property(nonatomic, assign) CGFloat hintBorderWidth;              ///< Hint border width
+@property(nonatomic, assign) CGFloat hintPaddingX;                 ///< Hint horizontal padding
+@property(nonatomic, assign) CGFloat hintPaddingY;                 ///< Hint vertical padding
+@property(nonatomic, strong) SearchInputItem *searchInput;         ///< Active hints search input
+@property(nonatomic, strong) NSFont *searchInputFont;              ///< Search input font
+@property(nonatomic, strong) NSColor *searchInputTextColor;        ///< Search input text color
+@property(nonatomic, strong) NSColor *searchInputBackgroundColor;  ///< Search input background color
+@property(nonatomic, strong) NSColor *searchInputBorderColor;      ///< Search input border color
+@property(nonatomic, assign) CGFloat searchInputBorderRadius;      ///< Search input border radius
+@property(nonatomic, assign) CGFloat searchInputBorderWidth;       ///< Search input border width
+@property(nonatomic, assign) CGFloat searchInputPaddingX;          ///< Search input horizontal padding
+@property(nonatomic, assign) CGFloat searchInputPaddingY;          ///< Search input vertical padding
 
 @property(nonatomic, strong) NSMutableArray<GridCellItem *> *gridCells;         ///< Grid cells array
 @property(nonatomic, strong) NSArray<GridCellItem *> *transitionFromGridCells;  ///< Previous grid cells for animation
@@ -173,6 +192,8 @@ static const CGFloat kHintArrowGap = 1.0;
     NSMutableAttributedString *cachedHintAttributedString;  ///< Cached attributed string buffer for drawHintsInRect:
 @property(nonatomic, strong)
     NSMutableAttributedString *cachedHintMeasureString;  ///< Cached attributed string buffer for boundingRectForHint:
+@property(nonatomic, strong)
+    NSMutableAttributedString *cachedSearchInputAttributedString;  ///< Cached string buffer for search input drawing
 @property(nonatomic, strong) NSMutableAttributedString
     *cachedGridCellAttributedString;  ///< Cached attributed string buffer for drawGridCellsInRect:
 
@@ -194,6 +215,7 @@ static const CGFloat kHintArrowGap = 1.0;
 - (NSColor *)colorFromHex:(NSString *)hexString defaultColor:(NSColor *)defaultColor;  ///< Color from hex string
 - (CGFloat)currentBackingScaleFactor;                                                  ///< Current backing scale factor
 - (NSRect)boundingRectForHint:(HintItem *)hint;            ///< Compute bounding rect for hint
+- (NSRect)boundingRectForSearchInput;                      ///< Compute search input rect
 - (NSRect)screenRectForGridCell:(GridCellItem *)cellItem;  ///< Compute screen-space rect for grid cell
 - (void)drawGridLabel:(NSString *)label
              inCellRect:(NSRect)cellRect
@@ -209,6 +231,7 @@ static const CGFloat kHintArrowGap = 1.0;
                            progress:(CGFloat)progress;  ///< Draw interpolated recursive-grid cells
 - (NSRect)cursorIndicatorRect;                          ///< Virtual cursor indicator rect in view coordinates
 - (void)drawCursorIndicatorInRect:(NSRect)dirtyRect;    ///< Draw virtual cursor indicator
+- (void)drawSearchInputInRect:(NSRect)dirtyRect;        ///< Draw active search input
 - (void)cancelGridTransition;                           ///< Stop recursive-grid animation
 - (void)cancelCursorIndicatorTransition;                ///< Stop virtual pointer animation
 - (void)startGridTransitionToCells:(NSArray<GridCellItem *> *)cells
@@ -262,6 +285,16 @@ static const CGFloat kHintArrowGap = 1.0;
 		_hintBorderWidth = 1.0;
 		_hintPaddingX = -1.0;
 		_hintPaddingY = -1.0;
+		_searchInput = nil;
+		_searchInputFont = [NSFont systemFontOfSize:kDefaultHintFontSize];
+		_searchInputTextColor = [NSColor blackColor];
+		_searchInputBackgroundColor = [[NSColor colorWithRed:1.0 green:1.0 blue:1.0
+		                                               alpha:1.0] colorWithAlphaComponent:0.95];
+		_searchInputBorderColor = [NSColor blackColor];
+		_searchInputBorderRadius = -1.0;
+		_searchInputBorderWidth = 1.0;
+		_searchInputPaddingX = -1.0;
+		_searchInputPaddingY = -1.0;
 
 		// Grid defaults
 		_gridFont = [NSFont systemFontOfSize:kDefaultGridFontSize];
@@ -293,6 +326,7 @@ static const CGFloat kHintArrowGap = 1.0;
 		// Initialize cached string buffers
 		_cachedHintAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
 		_cachedHintMeasureString = [[NSMutableAttributedString alloc] initWithString:@""];
+		_cachedSearchInputAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
 		_cachedGridCellAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
 		_cachedGridSubKeyAttributedString = [[NSMutableAttributedString alloc] initWithString:@""];
 
@@ -369,6 +403,7 @@ static const CGFloat kHintArrowGap = 1.0;
 		CGContextClearRect(ctx, self.bounds);
 		[self drawAnimatedGridCellsInRect:NSZeroRect progress:progress];
 		[self drawHints];
+		[self drawSearchInputInRect:NSZeroRect];
 		[self drawCursorIndicatorInRect:NSZeroRect];
 
 		if (rawProgress >= 1.0) {
@@ -392,6 +427,7 @@ static const CGFloat kHintArrowGap = 1.0;
 		CGContextClearRect(ctx, self.bounds);
 		[self drawGridCells];
 		[self drawHints];
+		[self drawSearchInputInRect:NSZeroRect];
 		[self drawCursorIndicatorInRect:NSZeroRect];
 	} else {
 		// Partial redraw: only clear and redraw items intersecting the dirty region.
@@ -404,12 +440,14 @@ static const CGFloat kHintArrowGap = 1.0;
 			CGContextClearRect(ctx, self.bounds);
 			[self drawGridCells];
 			[self drawHints];
+			[self drawSearchInputInRect:NSZeroRect];
 			[self drawCursorIndicatorInRect:NSZeroRect];
 		} else {
 			// Clear only the dirty region
 			CGContextClearRect(ctx, clipBox);
 			[self drawGridCellsInRect:dirtyRect];
 			[self drawHintsInRect:dirtyRect];
+			[self drawSearchInputInRect:dirtyRect];
 			[self drawCursorIndicatorInRect:dirtyRect];
 		}
 	}
@@ -962,6 +1000,97 @@ static const CGFloat kHintArrowGap = 1.0;
 	}
 
 	return hintRect;
+}
+
+- (NSRect)boundingRectForSearchInput {
+	if (!self.searchInput)
+		return NSZeroRect;
+
+	NSMutableAttributedString *attrString = self.cachedSearchInputAttributedString;
+	NSString *query = self.searchInput.query ?: @"";
+	NSString *display = [query length] > 0 ? [NSString stringWithFormat:@"/ %@", query] : @"/ Search hints";
+	if ([query length] > 0) {
+		display = [display stringByAppendingFormat:@"  %ld", (long)self.searchInput.resultCount];
+	}
+	[[attrString mutableString] setString:display];
+	NSRange fullRange = NSMakeRange(0, [display length]);
+	[attrString setAttributes:@{
+		NSFontAttributeName : self.searchInputFont,
+		NSForegroundColorAttributeName : self.searchInputTextColor
+	}
+	                    range:fullRange];
+
+	NSSize textSize = [attrString size];
+	CGFloat paddingX =
+	    self.searchInputPaddingX >= 0.0 ? self.searchInputPaddingX : MAX(8.0, self.searchInputFont.pointSize * 0.9);
+	CGFloat paddingY =
+	    self.searchInputPaddingY >= 0.0 ? self.searchInputPaddingY : MAX(5.0, self.searchInputFont.pointSize * 0.5);
+
+	return [self drawSearchInputWithAttrString:attrString textSize:textSize paddingX:paddingX paddingY:paddingY];
+}
+
+- (NSRect)drawSearchInputWithAttrString:(NSMutableAttributedString *)attrString
+                               textSize:(NSSize)textSize
+                               paddingX:(CGFloat)paddingX
+                               paddingY:(CGFloat)paddingY {
+	CGFloat width = MAX(self.searchInput.width, textSize.width + paddingX * 2.0);
+	CGFloat height = textSize.height + paddingY * 2.0;
+	CGFloat screenHeight = self.bounds.size.height;
+	NSRect boxRect =
+	    NSMakeRect(self.searchInput.position.x, screenHeight - self.searchInput.position.y - height, width, height);
+	CGFloat radius = self.searchInputBorderRadius >= 0.0 ? self.searchInputBorderRadius : MIN(height / 2.0, 8.0);
+	NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:boxRect xRadius:radius yRadius:radius];
+
+	[self.searchInputBackgroundColor setFill];
+	[path fill];
+
+	if (self.searchInputBorderWidth > 0) {
+		[self.searchInputBorderColor setStroke];
+		[path setLineWidth:self.searchInputBorderWidth];
+		[path stroke];
+	}
+
+	[attrString drawAtPoint:NSMakePoint(boxRect.origin.x + paddingX, boxRect.origin.y + paddingY)];
+
+	CGFloat flippedY = screenHeight - self.searchInput.position.y - height;
+	CGFloat expand = ceil(self.searchInputBorderWidth / 2.0) + 1.0;
+	return NSMakeRect(
+	    self.searchInput.position.x - expand, flippedY - expand, width + expand * 2.0, height + expand * 2.0);
+}
+
+- (void)drawSearchInputInRect:(NSRect)dirtyRect {
+	if (!self.searchInput)
+		return;
+
+	NSRect inputRect = [self boundingRectForSearchInput];
+	if (NSIsEmptyRect(inputRect))
+		return;
+
+	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
+	if (filterByRect && !NSIntersectsRect(inputRect, dirtyRect))
+		return;
+
+	NSMutableAttributedString *attrString = self.cachedSearchInputAttributedString;
+	NSString *query = self.searchInput.query ?: @"";
+	NSString *display = [query length] > 0 ? [NSString stringWithFormat:@"/ %@", query] : @"/ Search hints";
+	if ([query length] > 0) {
+		display = [display stringByAppendingFormat:@"  %ld", (long)self.searchInput.resultCount];
+	}
+	[[attrString mutableString] setString:display];
+	NSRange fullRange = NSMakeRange(0, [display length]);
+	[attrString setAttributes:@{
+		NSFontAttributeName : self.searchInputFont,
+		NSForegroundColorAttributeName : self.searchInputTextColor
+	}
+	                    range:fullRange];
+
+	NSSize textSize = [attrString size];
+	CGFloat paddingX =
+	    self.searchInputPaddingX >= 0.0 ? self.searchInputPaddingX : MAX(8.0, self.searchInputFont.pointSize * 0.9);
+	CGFloat paddingY =
+	    self.searchInputPaddingY >= 0.0 ? self.searchInputPaddingY : MAX(5.0, self.searchInputFont.pointSize * 0.5);
+
+	[self drawSearchInputWithAttrString:attrString textSize:textSize paddingX:paddingX paddingY:paddingY];
 }
 
 /// Compute the screen-space bounding rect for a grid cell item (view coordinates).
@@ -1567,6 +1696,7 @@ void NeruClearOverlay(OverlayWindow window) {
 		[controller.overlayView cancelCursorIndicatorTransition];
 		[controller.overlayView.hints removeAllObjects];
 		[controller.overlayView.gridCells removeAllObjects];
+		controller.overlayView.searchInput = nil;
 		controller.overlayView.cursorIndicatorVisible = NO;
 		[controller.overlayView setNeedsDisplay:YES];
 	} else {
@@ -1575,6 +1705,7 @@ void NeruClearOverlay(OverlayWindow window) {
 			[controller.overlayView cancelCursorIndicatorTransition];
 			[controller.overlayView.hints removeAllObjects];
 			[controller.overlayView.gridCells removeAllObjects];
+			controller.overlayView.searchInput = nil;
 			controller.overlayView.cursorIndicatorVisible = NO;
 			[controller.overlayView setNeedsDisplay:YES];
 		});
@@ -1744,6 +1875,17 @@ static inline void free_hint_style_strings(const HintStyle *style) {
 		free((void *)style->borderColor);
 }
 
+static inline void free_search_input_style_strings(const SearchInputStyle *style) {
+	if (style->fontFamily)
+		free((void *)style->fontFamily);
+	if (style->backgroundColor)
+		free((void *)style->backgroundColor);
+	if (style->textColor)
+		free((void *)style->textColor);
+	if (style->borderColor)
+		free((void *)style->borderColor);
+}
+
 /// Build GridCellItem array from C GridCell array.
 /// Safe to call from any thread (only creates ObjC objects from C data).
 /// @param cells Array of grid cell data
@@ -1827,6 +1969,92 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 			free_hint_style_strings(&styleCopy);
 		});
 	}
+}
+
+static SearchInputItem *buildSearchInputItem(SearchInputData input) {
+	SearchInputItem *item = [[SearchInputItem alloc] init];
+	item.query = input.query ? @(input.query) : @"";
+	item.resultCount = input.resultCount;
+	item.position = input.position;
+	item.width = input.width;
+	return item;
+}
+
+static void applySearchInputStyle(OverlayView *view, SearchInputStyle style) {
+	NSColor *defaultBackground = [[NSColor colorWithWhite:1.0 alpha:1.0] colorWithAlphaComponent:0.95];
+	NSColor *defaultText = [NSColor blackColor];
+	NSColor *defaultBorder = [NSColor blackColor];
+
+	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : @"";
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultHintFontSize;
+	NSFont *font = nil;
+	if ([fontFamily length] > 0) {
+		font = [view resolveFont:fontFamily size:fontSize bold:NO];
+	}
+	if (!font) {
+		font = [NSFont systemFontOfSize:fontSize];
+	}
+
+	view.searchInputFont = font;
+	view.searchInputBackgroundColor =
+	    [view colorFromHex:(style.backgroundColor ? @(style.backgroundColor) : nil) defaultColor:defaultBackground];
+	view.searchInputTextColor =
+	    [view colorFromHex:(style.textColor ? @(style.textColor) : nil) defaultColor:defaultText];
+	view.searchInputBorderColor =
+	    [view colorFromHex:(style.borderColor ? @(style.borderColor) : nil) defaultColor:defaultBorder];
+	view.searchInputBorderRadius = style.borderRadius;
+	view.searchInputBorderWidth = style.borderWidth;
+	view.searchInputPaddingX = style.paddingX;
+	view.searchInputPaddingY = style.paddingY;
+}
+
+void NeruDrawHintSearchInput(OverlayWindow window, SearchInputData input, SearchInputStyle style) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+	SearchInputItem *item = buildSearchInputItem(input);
+	SearchInputStyle styleCopy = {
+	    .fontSize = style.fontSize,
+	    .borderRadius = style.borderRadius,
+	    .borderWidth = style.borderWidth,
+	    .paddingX = style.paddingX,
+	    .paddingY = style.paddingY,
+	    .fontFamily = safe_strdup(style.fontFamily),
+	    .backgroundColor = safe_strdup(style.backgroundColor),
+	    .textColor = safe_strdup(style.textColor),
+	    .borderColor = safe_strdup(style.borderColor)};
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		NSRect oldRect = [controller.overlayView boundingRectForSearchInput];
+		controller.overlayView.searchInput = item;
+		applySearchInputStyle(controller.overlayView, styleCopy);
+		NSRect newRect = [controller.overlayView boundingRectForSearchInput];
+
+		controller.overlayView.fullRedraw = NO;
+		if (!NSIsEmptyRect(oldRect)) {
+			[controller.overlayView setNeedsDisplayInRect:oldRect];
+		}
+		if (!NSIsEmptyRect(newRect)) {
+			[controller.overlayView setNeedsDisplayInRect:newRect];
+		}
+		free_search_input_style_strings(&styleCopy);
+	});
+}
+
+void NeruHideHintSearchInput(OverlayWindow window) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+	dispatch_async(dispatch_get_main_queue(), ^{
+		NSRect oldRect = [controller.overlayView boundingRectForSearchInput];
+		controller.overlayView.searchInput = nil;
+		if (!NSIsEmptyRect(oldRect)) {
+			controller.overlayView.fullRedraw = NO;
+			[controller.overlayView setNeedsDisplayInRect:oldRect];
+		}
+	});
 }
 
 /// Update hint match prefix (incremental update for typing).
