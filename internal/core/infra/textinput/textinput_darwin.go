@@ -115,16 +115,16 @@ func textInputQueryBridge(query *C.char, _ unsafe.Pointer) {
 		return
 	}
 
-	go func(s uint64, q string) {
+	go func(seq uint64, query string) {
 		textInput.callbackMu.Lock()
 		defer textInput.callbackMu.Unlock()
 
-		if s < textInput.lastExecutedSeq {
+		if seq < textInput.lastExecutedSeq {
 			return
 		}
-		textInput.lastExecutedSeq = s
+		textInput.lastExecutedSeq = seq
 
-		callback(q)
+		callback(query)
 	}(seq, queryStr)
 }
 

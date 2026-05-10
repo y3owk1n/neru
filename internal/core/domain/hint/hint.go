@@ -296,15 +296,16 @@ func (c *Collection) FilterByText(query string) *Collection {
 	return NewCollection(filtered)
 }
 
-func normalizeForSearch(s string) string {
-	if s == "" {
+func normalizeForSearch(text string) string {
+	if text == "" {
 		return ""
 	}
 
 	searchCaser := cases.Fold()
-	folded := searchCaser.String(s)
+	folded := searchCaser.String(text)
 
 	searchTransformer := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+
 	normalized, _, err := transform.String(searchTransformer, folded)
 	if err != nil {
 		return folded
