@@ -245,6 +245,56 @@ func (o *Overlay) DrawHintsWithStyle(hints []*Hint, style StyleMode) error {
 	return o.drawHintsInternal(hints, style, true)
 }
 
+// DrawSearchInput draws the active hints search input.
+func (o *Overlay) DrawSearchInput(
+	query string,
+	resultCount int,
+	frame SearchInputFrame,
+	style SearchInputStyle,
+) error {
+	cQuery := C.CString(query)
+	defer C.free(unsafe.Pointer(cQuery))
+
+	cFontFamily := C.CString(style.FontFamily())
+	cBackgroundColor := C.CString(style.BackgroundColor())
+	cTextColor := C.CString(style.TextColor())
+	cBorderColor := C.CString(style.BorderColor())
+	defer C.free(unsafe.Pointer(cFontFamily))
+	defer C.free(unsafe.Pointer(cBackgroundColor))
+	defer C.free(unsafe.Pointer(cTextColor))
+	defer C.free(unsafe.Pointer(cBorderColor))
+
+	input := C.SearchInputData{
+		query:       cQuery,
+		resultCount: C.int(resultCount),
+		position: C.CGPoint{
+			x: C.double(frame.Position().X),
+			y: C.double(frame.Position().Y),
+		},
+		width: C.double(frame.Width()),
+	}
+	cStyle := C.SearchInputStyle{
+		fontSize:        C.int(style.FontSize()),
+		fontFamily:      cFontFamily,
+		backgroundColor: cBackgroundColor,
+		textColor:       cTextColor,
+		borderColor:     cBorderColor,
+		borderRadius:    C.int(style.BorderRadius()),
+		borderWidth:     C.int(style.BorderWidth()),
+		paddingX:        C.int(style.PaddingX()),
+		paddingY:        C.int(style.PaddingY()),
+	}
+
+	C.NeruDrawHintSearchInput(o.window, input, cStyle)
+
+	return nil
+}
+
+// HideSearchInput hides the hints search input.
+func (o *Overlay) HideSearchInput() {
+	C.NeruHideHintSearchInput(o.window)
+}
+
 // BuildStyle returns StyleMode based on action name using the provided config.
 func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 	style := StyleMode{

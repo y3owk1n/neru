@@ -293,6 +293,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		return h.handleCycleHintAction(ctx, parsed)
 	}
 
+	if action.IsSearchHintsAction(actionName) {
+		return h.handleSearchHintsAction(parsed)
+	}
+
 	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
 	if modErr != nil {
 		return ipc.Response{
@@ -1235,6 +1239,42 @@ func (h *IPCControllerActions) handleCycleHintAction(
 	return ipc.Response{
 		Success: true,
 		Message: "cycle_hint performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
+// handleSearchHintsAction activates text search in hints mode.
+func (h *IPCControllerActions) handleSearchHintsAction(parsed parsedActionArgs) ipc.Response {
+	if hasUnsupportedFlags(parsed) || parsed.useBackward || parsed.hasWindow {
+		return ipc.Response{
+			Success: false,
+			Message: "search_hints does not support action flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: "modes handler not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	err := h.modesHandler.StartHintSearch()
+	if err != nil {
+		h.logger.Error("Failed to start hint search", zap.Error(err))
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to start hint search: " + err.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "search_hints activated",
 		Code:    ipc.CodeOK,
 	}
 }

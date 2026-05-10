@@ -213,6 +213,15 @@ func (c *Config) ResolveThemeDefaults() {
 	mergeColorWithDefault(&c.Hints.UI.BorderColor, solidThemedColor(
 		c.Theme.Light.Accent, c.Theme.Dark.Accent,
 	))
+	mergeColorWithDefault(&c.Hints.SearchInputUI.BackgroundColor, themedColor(
+		c.Theme.Light.Surface, c.Theme.Dark.Surface, "F2",
+	))
+	mergeColorWithDefault(&c.Hints.SearchInputUI.TextColor, solidThemedColor(
+		c.Theme.Light.Text, c.Theme.Dark.Text,
+	))
+	mergeColorWithDefault(&c.Hints.SearchInputUI.BorderColor, solidThemedColor(
+		c.Theme.Light.Accent, c.Theme.Dark.Accent,
+	))
 
 	mergeColorWithDefault(&c.Grid.UI.BackgroundColor, themedColor(
 		c.Theme.Light.Surface, c.Theme.Dark.Surface, "99",

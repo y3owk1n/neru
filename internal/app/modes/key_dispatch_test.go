@@ -8,10 +8,15 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/app/components"
+	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
+	domainhint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 type recordingMode struct {
@@ -71,4 +76,66 @@ func TestHandleKeyPressUsesStickyStrippedKeyForBindings(t *testing.T) {
 		t.Fatalf("sticky modifier leaked into hotkey action %q", got)
 	case <-time.After(50 * time.Millisecond):
 	}
+}
+
+func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
+	t.Parallel()
+
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeHints)
+
+	handler := &Handler{
+		config: &configpkg.Config{
+			Hints: configpkg.HintsConfig{
+				Hotkeys: map[string]configpkg.StringOrStringArray{
+					"/": {"action search_hints"},
+				},
+			},
+		},
+		logger:         zap.NewNop(),
+		appState:       appState,
+		modifierState:  state.NewModifierState(),
+		overlayManager: &overlay.NoOpManager{},
+		hints: &components.HintsComponent{
+			Context: &hintscomponent.Context{},
+		},
+		modes: map[domain.Mode]Mode{},
+		executeHotkeyAction: func(_, actionStr string) error {
+			t.Fatalf("hotkey action should be skipped during hint search, got %q", actionStr)
+
+			return nil
+		},
+	}
+
+	elem, _ := element.NewElement(
+		"search",
+		image.Rect(0, 0, 20, 20),
+		element.RoleButton,
+		element.WithTitle("Slash Target"),
+	)
+	collection := domainhint.NewCollection([]*domainhint.Interface{
+		mustNewModeHint("AA", elem),
+	})
+
+	handler.mu.Lock()
+	manager := domainhint.NewManager(handler.logger, &handler.mu)
+	handler.hints.Context.SetManager(manager)
+	handler.hints.Context.SetHints(collection)
+	handler.hints.Context.SetSearchActive(true)
+	handler.mu.Unlock()
+
+	handler.HandleKeyPress("/")
+
+	if got := handler.hints.Context.SearchQuery(); got != "/" {
+		t.Fatalf("search query = %q, want %q", got, "/")
+	}
+}
+
+func mustNewModeHint(label string, elem *element.Element) *domainhint.Interface {
+	hint, err := domainhint.NewHint(label, elem, image.Point{})
+	if err != nil {
+		panic(err)
+	}
+
+	return hint
 }
