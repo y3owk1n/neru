@@ -245,6 +245,6 @@ void NeruStopHintSearchTextInput(void) {
 	if ([NSThread isMainThread]) {
 		work();
 	} else {
-		dispatch_async(dispatch_get_main_queue(), work);
+		dispatch_sync(dispatch_get_main_queue(), work);
 	}
 }
