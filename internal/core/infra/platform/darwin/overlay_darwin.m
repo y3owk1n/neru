@@ -1025,12 +1025,35 @@ static const CGFloat kHintArrowGap = 1.0;
 	    self.searchInputPaddingX >= 0.0 ? self.searchInputPaddingX : MAX(8.0, self.searchInputFont.pointSize * 0.9);
 	CGFloat paddingY =
 	    self.searchInputPaddingY >= 0.0 ? self.searchInputPaddingY : MAX(5.0, self.searchInputFont.pointSize * 0.5);
+
+	return [self drawSearchInputWithAttrString:attrString textSize:textSize paddingX:paddingX paddingY:paddingY];
+}
+
+- (NSRect)drawSearchInputWithAttrString:(NSMutableAttributedString *)attrString
+                               textSize:(NSSize)textSize
+                               paddingX:(CGFloat)paddingX
+                               paddingY:(CGFloat)paddingY {
 	CGFloat width = MAX(self.searchInput.width, textSize.width + paddingX * 2.0);
 	CGFloat height = textSize.height + paddingY * 2.0;
 	CGFloat screenHeight = self.bounds.size.height;
+	NSRect boxRect =
+	    NSMakeRect(self.searchInput.position.x, screenHeight - self.searchInput.position.y - height, width, height);
+	CGFloat radius = self.searchInputBorderRadius >= 0.0 ? self.searchInputBorderRadius : MIN(height / 2.0, 8.0);
+	NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:boxRect xRadius:radius yRadius:radius];
+
+	[self.searchInputBackgroundColor setFill];
+	[path fill];
+
+	if (self.searchInputBorderWidth > 0) {
+		[self.searchInputBorderColor setStroke];
+		[path setLineWidth:self.searchInputBorderWidth];
+		[path stroke];
+	}
+
+	[attrString drawAtPoint:NSMakePoint(boxRect.origin.x + paddingX, boxRect.origin.y + paddingY)];
+
 	CGFloat flippedY = screenHeight - self.searchInput.position.y - height;
 	CGFloat expand = ceil(self.searchInputBorderWidth / 2.0) + 1.0;
-
 	return NSMakeRect(
 	    self.searchInput.position.x - expand, flippedY - expand, width + expand * 2.0, height + expand * 2.0);
 }
@@ -1066,24 +1089,8 @@ static const CGFloat kHintArrowGap = 1.0;
 	    self.searchInputPaddingX >= 0.0 ? self.searchInputPaddingX : MAX(8.0, self.searchInputFont.pointSize * 0.9);
 	CGFloat paddingY =
 	    self.searchInputPaddingY >= 0.0 ? self.searchInputPaddingY : MAX(5.0, self.searchInputFont.pointSize * 0.5);
-	CGFloat width = MAX(self.searchInput.width, textSize.width + paddingX * 2.0);
-	CGFloat height = textSize.height + paddingY * 2.0;
-	CGFloat screenHeight = self.bounds.size.height;
-	NSRect boxRect =
-	    NSMakeRect(self.searchInput.position.x, screenHeight - self.searchInput.position.y - height, width, height);
-	CGFloat radius = self.searchInputBorderRadius >= 0.0 ? self.searchInputBorderRadius : MIN(height / 2.0, 8.0);
-	NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:boxRect xRadius:radius yRadius:radius];
 
-	[self.searchInputBackgroundColor setFill];
-	[path fill];
-
-	if (self.searchInputBorderWidth > 0) {
-		[self.searchInputBorderColor setStroke];
-		[path setLineWidth:self.searchInputBorderWidth];
-		[path stroke];
-	}
-
-	[attrString drawAtPoint:NSMakePoint(boxRect.origin.x + paddingX, boxRect.origin.y + paddingY)];
+	[self drawSearchInputWithAttrString:attrString textSize:textSize paddingX:paddingX paddingY:paddingY];
 }
 
 /// Compute the screen-space bounding rect for a grid cell item (view coordinates).
