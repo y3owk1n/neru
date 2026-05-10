@@ -776,11 +776,19 @@ func (h *Handler) startHintSearchLocked() error {
 					h.mu.Lock()
 					defer h.mu.Unlock()
 
+					if h.appState.CurrentMode() != domain.ModeHints {
+						return
+					}
+
 					h.confirmHintSearch()
 				},
 				OnCancel: func() {
 					h.mu.Lock()
 					defer h.mu.Unlock()
+
+					if h.appState.CurrentMode() != domain.ModeHints {
+						return
+					}
 
 					h.cancelHintSearch()
 				},
