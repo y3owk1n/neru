@@ -146,7 +146,12 @@ func textInputConfirmBridge(_ unsafe.Pointer) {
 		return
 	}
 
-	go callback()
+	go func() {
+		textInput.callbackMu.Lock()
+		defer textInput.callbackMu.Unlock()
+
+		callback()
+	}()
 }
 
 //export textInputCancelBridge
@@ -167,5 +172,10 @@ func textInputCancelBridge(_ unsafe.Pointer) {
 		return
 	}
 
-	go callback()
+	go func() {
+		textInput.callbackMu.Lock()
+		defer textInput.callbackMu.Unlock()
+
+		callback()
+	}()
 }
