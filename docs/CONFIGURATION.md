@@ -309,9 +309,10 @@ Core behaviour settings that affect all Neru functionality.
 Hint mode uses macOS Accessibility APIs to identify clickable UI elements and overlay short labels on them.
 
 Press `/` in hints mode to start text search. While search is active, typed
-characters filter hints by element title, description, or value. `Return`
-confirms the filtered hint set, and `Escape` cancels search and restores all
-hints.
+characters filter hints by element title, description, or value. `Space` is
+supported for multi-word searches (e.g., "search for"). `Return` confirms the
+filtered hints — if 1 or more hints remain, the first hint is auto-selected.
+`Escape` cancels search and restores all hints.
 
 ### Options
 

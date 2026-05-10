@@ -42,6 +42,30 @@ Homerow-style `Return` click actions via mode `hotkeys`:
 "Primary+Enter" = "action middle_click"
 ```
 
+## Hints Search (Homerow.app Style, sort of...)
+
+Neru supports text search in hints mode, similar to homerow.app. Press `/` to enter search mode, type to filter hints, and press `Enter` to auto-select when 1 or more hints remain.
+
+```toml
+[hints.hotkeys]
+"/" = "action search_hints"
+```
+
+If you want to have the search automatically, do this in your hints binding:
+
+```toml
+[hotkeys]
+"Primary+Shift+Space" = ["hints", "action search_hints"]
+```
+
+**Features:**
+
+- Type to filter hints by element title, description, or value
+- `Space` is supported for multi-word searches (e.g., "search for issue")
+- `Backspace` removes characters
+- `Escape` cancels and restores all hints
+- `Enter` auto-selects the first hint when 1+ hints remain, handling pending actions and cursor movement
+
 ## Auto-Exit After Click
 
 The old `auto_exit_actions` config field was removed. Use a `hotkeys` array to click and exit in one key:
