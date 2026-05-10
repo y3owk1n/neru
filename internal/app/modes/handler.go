@@ -623,25 +623,7 @@ func (h *Handler) StartHintSearch() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.appState.CurrentMode() != domain.ModeHints {
-		return derrors.New(derrors.CodeInvalidInput, "search_hints requires hints mode")
-	}
-
-	if h.hints == nil || h.hints.Context == nil {
-		return derrors.New(derrors.CodeActionFailed, "hints component not available")
-	}
-
-	if h.hints.Context.SourceHints() == nil {
-		return derrors.New(derrors.CodeActionFailed, "hints not available")
-	}
-
-	h.hints.Context.SetSearchQuery("")
-	h.hints.Context.SetSearchActive(true)
-	h.hints.Context.SetVisibleHints(h.hints.Context.SourceHints())
-	h.cycleHintIndex = -1
-	h.drawHintSearchInput()
-
-	return nil
+	return h.startHintSearchLocked()
 }
 
 // CycleHint cycles through visible hints in hints mode, selecting the next or previous one.
@@ -713,9 +695,10 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 		cursorFollowSelection := h.hints.Context.CursorFollowSelection()
 		filterRoles := h.hints.Context.FilterRoles()
 		filterTextContains := h.hints.Context.FilterTextContains()
+		startWithSearch := h.hints.Context.StartWithSearch()
 
 		h.executeActionAtPoint(pendingAction, center, true, func() {
-			h.activateHintModeInternal(nil, nil, filterRoles, filterTextContains)
+			h.activateHintModeInternal(nil, nil, filterRoles, filterTextContains, startWithSearch)
 
 			// Restore state so subsequent cycles continue to execute the action
 			if h.appState.CurrentMode() == domain.ModeHints &&
@@ -725,9 +708,32 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 				h.hints.Context.SetCursorFollowSelection(cursorFollowSelection)
 				h.hints.Context.SetFilterRoles(filterRoles)
 				h.hints.Context.SetFilterTextContains(filterTextContains)
+				h.hints.Context.SetStartWithSearch(startWithSearch)
 			}
 		})
 	}
+
+	return nil
+}
+
+func (h *Handler) startHintSearchLocked() error {
+	if h.appState.CurrentMode() != domain.ModeHints {
+		return derrors.New(derrors.CodeInvalidInput, "search_hints requires hints mode")
+	}
+
+	if h.hints == nil || h.hints.Context == nil {
+		return derrors.New(derrors.CodeActionFailed, "hints component not available")
+	}
+
+	if h.hints.Context.SourceHints() == nil {
+		return derrors.New(derrors.CodeActionFailed, "hints not available")
+	}
+
+	h.hints.Context.SetSearchQuery("")
+	h.hints.Context.SetSearchActive(true)
+	h.hints.Context.SetVisibleHints(h.hints.Context.SourceHints())
+	h.cycleHintIndex = -1
+	h.drawHintSearchInput()
 
 	return nil
 }

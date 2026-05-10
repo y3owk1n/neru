@@ -255,12 +255,16 @@ neru hints --role AXButton,AXLink --text save,cancel
 
 # With repeat - filter persists on re-activation
 neru hints --text next --action left_click --repeat
+
+# Start with search input active
+neru hints --search
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--role` | Filter by AX role. Comma-separated for multiple (e.g., `--role AXButton,AXLink`). |
 | `--text` | Filter elements by text content (title, description, or value). Case-insensitive substring match. Comma-separated for OR match (matches any). |
+| `--search` | Start hints mode with the search input shown immediately. |
 
 The filter is preserved across repeat activations, making it easy to click multiple elements of the same type in succession.
 

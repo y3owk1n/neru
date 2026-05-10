@@ -149,6 +149,7 @@ type ModeActivationOptions struct {
 	CursorFollowSelection *bool
 	FilterRoles           []string
 	FilterTextContains    []string
+	Search                bool
 }
 
 // extractModeOptions extracts and validates the optional action and repeat
@@ -183,6 +184,8 @@ func (h *IPCControllerModes) extractModeOptions(
 		switch {
 		case arg == "--repeat" || arg == "-r":
 			opts.Repeat = true
+		case arg == "--search" || arg == "-s":
+			opts.Search = true
 		case strings.HasPrefix(arg, "--action="):
 			actionArg := strings.TrimPrefix(arg, "--action=")
 			opts.Action = &actionArg
@@ -362,6 +365,7 @@ func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc
 		CursorFollowSelection: opts.CursorFollowSelection,
 		FilterRoles:           opts.FilterRoles,
 		FilterTextContains:    opts.FilterTextContains,
+		Search:                opts.Search,
 	})
 
 	return ipc.Response{Success: true, Message: "hints mode activated", Code: ipc.CodeOK}

@@ -12,11 +12,12 @@ import (
 
 // ModeConfig holds configuration for creating a mode command.
 type ModeConfig struct {
-	Name       string
-	Short      string
-	Long       string
-	ActionDesc string   // Description for the action flag (e.g., "hint selection" or "grid selection")
-	Aliases    []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
+	Name          string
+	Short         string
+	Long          string
+	ActionDesc    string   // Description for the action flag (e.g., "hint selection" or "grid selection")
+	Aliases       []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
+	SupportSearch bool     // Whether this mode supports the --search flag
 }
 
 // BuildModeCommand creates a CLI command for a navigation mode (hints, grid, etc.).
@@ -38,6 +39,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			repeatFlag, err := cmd.Flags().GetBool("repeat")
 			if err != nil {
 				return err
+			}
+
+			var searchFlag bool
+			if config.SupportSearch {
+				searchFlag, err = cmd.Flags().GetBool("search")
+				if err != nil {
+					return err
+				}
 			}
 
 			cursorSelectionMode, err := cmd.Flags().GetString("cursor-selection-mode")
@@ -101,6 +110,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, "--repeat")
 			}
 
+			if searchFlag {
+				params = append(params, "--search")
+			}
+
 			if cursorSelectionMode != "" {
 				if cursorSelectionMode != modes.CursorSelectionModeFollow &&
 					cursorSelectionMode != modes.CursorSelectionModeHold {
@@ -135,6 +148,15 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		"",
 		"How the real cursor should behave during selection: follow or hold",
 	)
+
+	if config.SupportSearch {
+		cmd.Flags().BoolP(
+			"search",
+			"s",
+			false,
+			"Show search input when the mode is activated",
+		)
+	}
 
 	return cmd
 }

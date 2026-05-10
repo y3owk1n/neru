@@ -314,6 +314,8 @@ supported for multi-word searches (e.g., "search for"). `Return` confirms the
 filtered hints — if 1 or more hints remain, the first hint is auto-selected.
 `Escape` cancels search and restores all hints.
 
+You can also start hints mode with the search input shown immediately by using the `--search` flag (e.g., `neru hints --search`).
+
 ### Options
 
 | Option                             | Type   | Default       | Description                                          |

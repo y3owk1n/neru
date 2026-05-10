@@ -12,6 +12,7 @@ type baseContext struct {
 	cursorFollowSelection bool
 	filterRoles           []string
 	filterTextContains    []string
+	startWithSearch       bool
 }
 
 // SetPendingAction sets the action to execute when mode selection is complete.
@@ -58,6 +59,7 @@ func (c *baseContext) Reset() {
 	c.cursorFollowSelection = false
 	c.filterRoles = nil
 	c.filterTextContains = nil
+	c.startWithSearch = false
 }
 
 // SetFilterRoles sets the filter roles for hint mode.
@@ -78,6 +80,16 @@ func (c *baseContext) SetFilterTextContains(texts []string) {
 // FilterTextContains returns the filter text.
 func (c *baseContext) FilterTextContains() []string {
 	return c.filterTextContains
+}
+
+// SetStartWithSearch sets whether the mode was initially activated with search.
+func (c *baseContext) SetStartWithSearch(search bool) {
+	c.startWithSearch = search
+}
+
+// StartWithSearch returns whether the mode was initially activated with search.
+func (c *baseContext) StartWithSearch() bool {
+	return c.startWithSearch
 }
 
 // Context holds the state and context for hint mode operations.

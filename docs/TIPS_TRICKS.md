@@ -51,11 +51,11 @@ Neru supports text search in hints mode, similar to homerow.app. Press `/` to en
 "/" = "action search_hints"
 ```
 
-If you want to have the search automatically, do this in your hints binding:
+If you want to have the search input shown automatically when activating hints mode, use the `--search` flag in your binding:
 
 ```toml
 [hotkeys]
-"Primary+Shift+Space" = ["hints", "action search_hints"]
+"Primary+Shift+Space" = "hints --search"
 ```
 
 **Features:**
