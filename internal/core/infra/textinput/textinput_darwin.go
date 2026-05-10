@@ -81,11 +81,11 @@ func (t *TextInput) StartHintSearchSession(
 
 // StopHintSearchSession stops the native hint search session.
 func (t *TextInput) StopHintSearchSession(_ context.Context) error {
-	C.NeruStopHintSearchTextInput()
-
 	t.mu.Lock()
 	t.callbacks = ports.TextInputCallbacks{}
 	t.mu.Unlock()
+
+	C.NeruStopHintSearchTextInput()
 
 	return nil
 }
