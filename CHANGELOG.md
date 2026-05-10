@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.36.0](https://github.com/y3owk1n/neru/compare/v1.35.0...v1.36.0) (2026-05-10)
+
+
+### Features
+
+* add smooth scroll animation ([#779](https://github.com/y3owk1n/neru/issues/779)) ([7050362](https://github.com/y3owk1n/neru/commit/7050362971ed207638fe2a71274ce49e44ada771))
+* **hints,action:** add `cycle_hint` action ([#783](https://github.com/y3owk1n/neru/issues/783)) ([aff245b](https://github.com/y3owk1n/neru/commit/aff245ba0e3ed4e059d52c3d668610f74a2769ec))
+* **hints,cli:** add `--search` flag to show search input upon activation ([#785](https://github.com/y3owk1n/neru/issues/785)) ([cc14b02](https://github.com/y3owk1n/neru/commit/cc14b02b07f8de3b4337705cfe3689c12e25e7c1))
+* **hints:** add `--role` and `--text` filter flags ([#772](https://github.com/y3owk1n/neru/issues/772)) ([142940f](https://github.com/y3owk1n/neru/commit/142940f3121bc5e472095617686a61f0361e500c))
+* **hints:** add `search` capability similar to homerow ([#784](https://github.com/y3owk1n/neru/issues/784)) ([bdb1046](https://github.com/y3owk1n/neru/commit/bdb1046f62ae8bbda343b29433e37a9748b44ef3))
+* **hints:** add native IME text input session plus improvements ([#786](https://github.com/y3owk1n/neru/issues/786)) ([a226c54](https://github.com/y3owk1n/neru/commit/a226c54a9f76d9d21fb957009ee7721471e679b0))
+
+
+### Bug Fixes
+
+* **cli:** properly support comma-separated values for `--role` and `--text` flags ([#773](https://github.com/y3owk1n/neru/issues/773)) ([0b6b338](https://github.com/y3owk1n/neru/commit/0b6b33843867fc0c26aaf2fe65900a312ff4830b))
+* **config:** replace default launcher hotkeys on rebind ([#778](https://github.com/y3owk1n/neru/issues/778)) ([7486c19](https://github.com/y3owk1n/neru/commit/7486c19b1e34e13f8351bb577e48dfc36142ee42))
+* **hints:** ensure menubar item adhere to strictFiltering ([#767](https://github.com/y3owk1n/neru/issues/767)) ([41e9ba8](https://github.com/y3owk1n/neru/commit/41e9ba86e997ab6abac3f0a84172cfb0e2168038))
+* **hints:** include `AXPopover` windows ([#769](https://github.com/y3owk1n/neru/issues/769)) ([7cc4b28](https://github.com/y3owk1n/neru/commit/7cc4b28ee7997fb884bad954c72b99dc5296f01a))
+* **hints:** remove `AXTextField` from leaf roles so that finder search works ([#770](https://github.com/y3owk1n/neru/issues/770)) ([7ebaa82](https://github.com/y3owk1n/neru/commit/7ebaa8235640ace43fe8607ad41aa909caa4283b))
+* **linux,wayland:** do not fallback evdev on first grab fail, try others ([#781](https://github.com/y3owk1n/neru/issues/781)) ([83bb7d7](https://github.com/y3owk1n/neru/commit/83bb7d7d2473488096d90ae3f2676eb200d5968d))
+* **linux,wayland:** explicitly enable keyboard interactivity on overlay when evdev fallback ([#780](https://github.com/y3owk1n/neru/issues/780)) ([732f876](https://github.com/y3owk1n/neru/commit/732f876835e613aa491e6e0c722f4052e7941529))
+* **linux,wlroots:** filter out uinput virtual keyboard devices from evdev capture ([#776](https://github.com/y3owk1n/neru/issues/776)) ([4850af2](https://github.com/y3owk1n/neru/commit/4850af2a905fd540c59b9f652beb78f9660ece15))
+
 ## [1.35.0](https://github.com/y3owk1n/neru/compare/v1.34.0...v1.35.0) (2026-05-06)
 
 
