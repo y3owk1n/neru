@@ -183,6 +183,11 @@ func (h *Handler) handleSearchInputKey(key string) {
 		}
 
 		return
+	case configpkg.KeyNameSpace:
+		ctx.SetSearchQuery(ctx.SearchQuery() + " ")
+		h.applyHintSearchFilter()
+
+		return
 	}
 
 	if len(key) != 1 {
