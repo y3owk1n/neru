@@ -316,7 +316,10 @@ func (h *Handler) activateHintModeInternal(
 	h.logger.Info("Hints mode activated")
 
 	if search {
-		_ = h.startHintSearchLocked()
+		err := h.startHintSearchLocked()
+		if err != nil {
+			h.logger.Error("Failed to start hint search on activation", zap.Error(err))
+		}
 	}
 
 	h.startIndicatorPolling(domain.ModeHints)
