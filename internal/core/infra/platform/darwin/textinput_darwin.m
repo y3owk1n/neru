@@ -84,16 +84,6 @@
 	[super keyDown:event];
 }
 
-- (BOOL)becomeFirstResponder {
-	BOOL result = [super becomeFirstResponder];
-	return result;
-}
-
-- (BOOL)resignFirstResponder {
-	BOOL result = [super resignFirstResponder];
-	return result;
-}
-
 @end
 
 static NeruTextInputPanel *gPanel = nil;
