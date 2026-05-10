@@ -16,6 +16,7 @@ import "C"
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -28,6 +29,10 @@ type TextInput struct {
 	logger    *zap.Logger
 	callbacks ports.TextInputCallbacks
 	mu        sync.RWMutex
+
+	querySeq        uint64
+	lastExecutedSeq uint64
+	callbackMu      sync.Mutex
 }
 
 var (
@@ -95,6 +100,8 @@ func textInputQueryBridge(query *C.char, _ unsafe.Pointer) {
 		return
 	}
 
+	seq := atomic.AddUint64(&textInput.querySeq, 1)
+
 	queryStr := ""
 	if query != nil {
 		queryStr = C.GoString(query)
@@ -108,7 +115,17 @@ func textInputQueryBridge(query *C.char, _ unsafe.Pointer) {
 		return
 	}
 
-	go callback(queryStr)
+	go func(s uint64, q string) {
+		textInput.callbackMu.Lock()
+		defer textInput.callbackMu.Unlock()
+
+		if s < textInput.lastExecutedSeq {
+			return
+		}
+		textInput.lastExecutedSeq = s
+
+		callback(q)
+	}(seq, queryStr)
 }
 
 //export textInputConfirmBridge
