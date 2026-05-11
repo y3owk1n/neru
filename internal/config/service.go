@@ -120,7 +120,7 @@ func removeLauncherBindingsForDisabledModes(cfg *Config) {
 	for key, actions := range cfg.Hotkeys.Bindings {
 		if len(actions) == 1 {
 			if action, ok := isBuiltInGlobalModeAction(actions); ok {
-				if modeEnabled := modeActions[action]; ok && !modeEnabled {
+				if modeEnabled, found := modeActions[action]; found && !modeEnabled {
 					delete(cfg.Hotkeys.Bindings, key)
 				}
 			}
