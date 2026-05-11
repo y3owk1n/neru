@@ -30,6 +30,7 @@ typedef struct NeruWlrootsClient NeruWlrootsClient;
 
 // Forward declare the cursor init function
 static void neru_wlr_init_cursor(NeruWlrootsClient *c);
+static int neru_wlr_probe_cursor(NeruWlrootsClient *c, int timeout_ms);
 
 typedef struct {
 	int x;
@@ -72,10 +73,9 @@ typedef struct NeruWlrootsClient {
 	NeruWaylandScreen screens[NERU_MAX_OUTPUTS];
 	int nr_screens;
 
-	// Cursor position cache (updated ONLY by neru_wlr_move_absolute).
-	// Wayland has no protocol to query global pointer position, so we must
-	// track it client-side. Pointer enter/motion events give surface-local
-	// coords that are meaningless for global tracking.
+	// Cursor position cache.
+	// Wayland has no direct protocol to query global pointer position. We keep
+	// a cache updated by virtual-pointer moves and best-effort probe surfaces.
 	int cursor_x;
 	int cursor_y;
 	int cursor_initialized;
@@ -91,7 +91,7 @@ static void neru_wlr_pointer_enter(void *data,
 	wl_fixed_t sx, wl_fixed_t sy)
 {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c && c->cursor_initialized == 0) {
+	if (c) {
 		// During discovery phase, record the global pointer location based on
 		// which screen triggered the enter event and surface-local coordinates.
 		for (int i = 0; i < c->nr_screens; i++) {
@@ -119,11 +119,8 @@ static void neru_wlr_pointer_motion(void *data,
 	uint32_t time,
 	wl_fixed_t sx, wl_fixed_t sy)
 {
-	// No-op. Motion events give surface-local coords which would corrupt
-	// the global cursor position tracked via neru_wlr_move_absolute.
-	// This was the root cause of the "stale cache" bug: poll_cursor()
-	// dispatched events which triggered this handler, overwriting the
-	// correctly-set global position with meaningless surface-local coords.
+	// No-op. Motion coordinates are surface-local and we only use pointer_enter
+	// on temporary discovery surfaces to refresh the global cursor cache.
 	(void)data; (void)pointer; (void)time; (void)sx; (void)sy;
 }
 
@@ -454,33 +451,24 @@ static void neru_wlr_disconnect(NeruWlrootsClient *c) {
 	free(c);
 }
 
-// Initialize cursor position to the center of the screen containing the
-// cursor (or first screen). Wayland has no protocol to query global
-// pointer position, so we initialize to the center and then track
-// position purely client-side via neru_wlr_move_absolute (matching
-// warpd's pattern where ptr.x/ptr.y are only set by way_mouse_move).
-static void neru_wlr_init_cursor(NeruWlrootsClient *c) {
-	if (!c || c->cursor_initialized) return;
-
-	// Use Warpd's cursor discovery trick: create invisible full-screen layer-shell surfaces
-	// across all outputs, wiggle the virtual pointer, and capture the pointer_enter event.
-	if (!c->layer_shell || !c->compositor || !c->pointer || !c->vptr || c->nr_screens == 0) {
-		// Fallback to screen center
-		c->cursor_x = c->screens[0].x + c->screens[0].w / 2;
-		c->cursor_y = c->screens[0].y + c->screens[0].h / 2;
-		c->cursor_initialized = 1;
-		return;
+static int neru_wlr_discover_cursor(NeruWlrootsClient *c, int timeout_ms, int nudge_virtual_pointer) {
+	if (!c || !c->layer_shell || !c->compositor || !c->pointer || c->nr_screens == 0) {
+		return 0;
 	}
 
+	int previous_x = c->cursor_x;
+	int previous_y = c->cursor_y;
+	int previous_initialized = c->cursor_initialized;
 	struct zwlr_layer_surface_v1 *layer_surfaces[NERU_MAX_OUTPUTS] = {0};
 
 	for (int i = 0; i < c->nr_screens; i++) {
 		c->screens[i].discovery_surface = wl_compositor_create_surface(c->compositor);
-		// Do not set input region, allowing it to intercept pointer events
+		if (!c->screens[i].discovery_surface) continue;
 		layer_surfaces[i] = zwlr_layer_shell_v1_get_layer_surface(
 			c->layer_shell, c->screens[i].discovery_surface, c->screens[i].wl_output,
 			ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "neru_discovery"
 		);
+		if (!layer_surfaces[i]) continue;
 		zwlr_layer_surface_v1_set_size(layer_surfaces[i], c->screens[i].w, c->screens[i].h);
 		zwlr_layer_surface_v1_set_anchor(layer_surfaces[i],
 			ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
@@ -491,19 +479,25 @@ static void neru_wlr_init_cursor(NeruWlrootsClient *c) {
 
 	wl_display_roundtrip(c->display);
 
-	// Animate the pointer to force an enter event
-	zwlr_virtual_pointer_v1_motion(c->vptr, 0, wl_fixed_from_int(1), wl_fixed_from_int(1));
-	zwlr_virtual_pointer_v1_frame(c->vptr);
-	wl_display_flush(c->display);
+	if (nudge_virtual_pointer && c->vptr) {
+		// If the compositor doesn't emit enter on surface map, nudge the virtual
+		// pointer once to trigger discovery.
+		zwlr_virtual_pointer_v1_motion(c->vptr, 0, wl_fixed_from_int(1), wl_fixed_from_int(1));
+		zwlr_virtual_pointer_v1_frame(c->vptr);
+		wl_display_flush(c->display);
+	}
 
-	// Poll until initialized or timeout (~50ms)
+	if (timeout_ms < 1) timeout_ms = 1;
 	struct pollfd pfd = { .fd = wl_display_get_fd(c->display), .events = POLLIN };
-	for (int attempts = 0; attempts < 5 && c->cursor_initialized == 0; attempts++) {
+	int attempts = timeout_ms / 10;
+	if (attempts < 1) attempts = 1;
+	for (int i = 0; i < attempts; i++) {
 		if (poll(&pfd, 1, 10) > 0) {
 			wl_display_dispatch(c->display);
 		} else {
 			wl_display_dispatch_pending(c->display);
 		}
+		if (c->cursor_initialized) break;
 	}
 
 	// Destroy discovery surfaces
@@ -516,12 +510,33 @@ static void neru_wlr_init_cursor(NeruWlrootsClient *c) {
 	}
 	wl_display_flush(c->display);
 
-	// Fallback if discovery failed
-	if (c->cursor_initialized == 0) {
-		c->cursor_x = c->screens[0].x + c->screens[0].w / 2;
-		c->cursor_y = c->screens[0].y + c->screens[0].h / 2;
+	if (!c->cursor_initialized && previous_initialized) {
+		c->cursor_x = previous_x;
+		c->cursor_y = previous_y;
 		c->cursor_initialized = 1;
 	}
+
+	return c->cursor_initialized;
+}
+
+// Initialize cursor position to a discovered value when possible. If discovery
+// fails, fallback to the center of the first screen.
+static void neru_wlr_init_cursor(NeruWlrootsClient *c) {
+	if (!c || c->cursor_initialized) return;
+
+	if (neru_wlr_discover_cursor(c, 50, 1)) {
+		return;
+	}
+
+	if (c->nr_screens <= 0) return;
+	c->cursor_x = c->screens[0].x + c->screens[0].w / 2;
+	c->cursor_y = c->screens[0].y + c->screens[0].h / 2;
+	c->cursor_initialized = 1;
+}
+
+// Refresh cursor cache by briefly mapping temporary discovery surfaces.
+static int neru_wlr_probe_cursor(NeruWlrootsClient *c, int timeout_ms) {
+	return neru_wlr_discover_cursor(c, timeout_ms, 0);
 }
 
 // ---------- Input injection ----------
@@ -672,6 +687,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -683,6 +699,8 @@ const (
 	wlrootsScreenNameBufferSize = 128
 	wlrootsDefaultWidth         = 1920
 	wlrootsDefaultHeight        = 1080
+	wlrootsCursorProbeInterval  = 120 * time.Millisecond
+	wlrootsCursorProbeTimeout   = 12 * time.Millisecond
 )
 
 type wlrootsScreen struct {
@@ -693,9 +711,10 @@ type wlrootsScreen struct {
 type wlrootsState struct {
 	mu sync.RWMutex
 
-	client  *C.NeruWlrootsClient
-	screens []wlrootsScreen
-	ready   bool
+	client          *C.NeruWlrootsClient
+	screens         []wlrootsScreen
+	ready           bool
+	lastCursorProbe time.Time
 }
 
 var globalWlrootsState = &wlrootsState{}
@@ -733,9 +752,8 @@ func ensureWlrootsState() error {
 		)
 	}
 
-	// Initialize cursor position to screen center. Wayland has no
-	// protocol to query global pointer position, so we track it
-	// client-side via move_absolute only (matching warpd's pattern).
+	// Initialize cursor position using discovery surfaces (with fallback to
+	// first-screen center when discovery is unavailable).
 	C.neru_wlr_init_cursor(client)
 
 	// Populate screen list from the client.
@@ -785,6 +803,7 @@ func ensureWlrootsState() error {
 	globalWlrootsState.client = client
 	globalWlrootsState.screens = screens
 	globalWlrootsState.ready = true
+	globalWlrootsState.lastCursorProbe = time.Now()
 
 	return nil
 }
@@ -855,22 +874,21 @@ func wlrootsCursorPosition() (image.Point, error) {
 		return image.Point{}, err
 	}
 
-	globalWlrootsState.mu.RLock()
-	defer globalWlrootsState.mu.RUnlock()
+	globalWlrootsState.mu.Lock()
+	defer globalWlrootsState.mu.Unlock()
 
 	return wlrootsCursorPositionLocked()
 }
 
-// wlrootsCursorPositionLocked returns cursor position while holding at least RLock.
+// wlrootsCursorPositionLocked returns cursor position while holding globalWlrootsState.mu.
 func wlrootsCursorPositionLocked() (image.Point, error) {
 	client := globalWlrootsState.client
 	if client == nil {
 		return image.Point{}, nil
 	}
 
-	// Cursor position is tracked purely client-side via move_absolute.
-	// No need to poll Wayland events — doing so previously triggered
-	// the pointer motion handler which corrupted the position cache.
+	probeCursorPositionLocked(client)
+
 	var posX, posY C.int
 	initialized := C.neru_wlr_get_cursor(client, &posX, &posY) //nolint:nlreturn
 
@@ -889,6 +907,25 @@ func wlrootsCursorPositionLocked() (image.Point, error) {
 	}
 
 	return image.Point{X: int(posX), Y: int(posY)}, nil
+}
+
+func probeCursorPositionLocked(client *C.NeruWlrootsClient) {
+	if client == nil {
+		return
+	}
+
+	if !globalWlrootsState.lastCursorProbe.IsZero() &&
+		time.Since(globalWlrootsState.lastCursorProbe) < wlrootsCursorProbeInterval {
+		return
+	}
+
+	globalWlrootsState.lastCursorProbe = time.Now()
+	timeoutMillis := C.int(wlrootsCursorProbeTimeout / time.Millisecond)
+	if timeoutMillis < 1 {
+		timeoutMillis = 1
+	}
+
+	C.neru_wlr_probe_cursor(client, timeoutMillis)
 }
 
 func wlrootsMoveCursorToPoint(point image.Point) error {

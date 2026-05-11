@@ -74,8 +74,8 @@ func wlrootsButtonRelease(button int) error {
 	)
 }
 
-func wlrootsScroll(axis, direction int) error {
-	_, _ = axis, direction
+func wlrootsScroll(axis, delta, discrete int) error {
+	_, _, _ = axis, delta, discrete
 
 	return derrors.New(
 		derrors.CodeNotSupported,

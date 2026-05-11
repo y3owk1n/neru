@@ -56,6 +56,7 @@ typedef struct {
     int nr_screens;
 
     int configured;
+    int keyboard_interactive;
     int keyboard_interactivity_set;
 
     int event_fd;
@@ -362,14 +363,17 @@ static const struct wl_seat_listener seat_listener = {
     .name = neru_seat_name,
 };
 
-static NeruWaylandOverlay* neru_wayland_overlay_new(void) {
+static NeruWaylandOverlay* neru_wayland_overlay_new(int keyboard_interactive) {
     NeruWaylandOverlay *overlay = calloc(1, sizeof(NeruWaylandOverlay));
     if (!overlay) return NULL;
+    overlay->keyboard_interactive = keyboard_interactive;
 
-    // EXCLUSIVE by default for keyboard capture fallback
-    // SetKeyboardCaptureEnabled can change it to NONE when not needed
-    overlay->keyboard_interactivity_set =
-        ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE;
+    // Interactive overlays start with EXCLUSIVE so keyboard events are received.
+    // Passive indicator overlays always use NONE — they must not take keyboard focus.
+    // SetKeyboardCaptureEnabled can change it at runtime for the main overlay only.
+    overlay->keyboard_interactivity_set = keyboard_interactive
+        ? ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE
+        : ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE;
 
     overlay->display = wl_display_connect(NULL);
     if (!overlay->display) {
@@ -394,17 +398,20 @@ static NeruWaylandOverlay* neru_wayland_overlay_new(void) {
     }
     wl_display_roundtrip(overlay->display); // get screen sizes
 
-    // Setup seat listener for keyboard
-    if (overlay->wl_seat) {
+    // Setup seat listener for keyboard only on the primary interactive
+    // overlay. Passive indicator layers must not take keyboard focus.
+    if (overlay->keyboard_interactive && overlay->wl_seat) {
         wl_seat_add_listener(overlay->wl_seat, &seat_listener, overlay);
         wl_display_roundtrip(overlay->display);
     }
 
-    // Setup xkb context
-    overlay->xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+    if (overlay->keyboard_interactive) {
+        // Setup xkb context
+        overlay->xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+    }
 
     // Try to get keyboard immediately and set up listener
-    if (overlay->wl_seat) {
+    if (overlay->keyboard_interactive && overlay->wl_seat) {
         struct wl_keyboard *kb = wl_seat_get_keyboard(overlay->wl_seat);
         if (kb) {
             wl_keyboard_add_listener(kb, &keyboard_listener, overlay);
@@ -464,8 +471,6 @@ static void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
             ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
         zwlr_layer_surface_v1_set_exclusive_zone(scr->layer_surface, -1);
 
-        // Request exclusive keyboard interactivity when overlay is shown
-        // This tells the compositor to send keyboard events to this surface
         zwlr_layer_surface_v1_set_keyboard_interactivity(
             scr->layer_surface,
             overlay->keyboard_interactivity_set
@@ -572,6 +577,23 @@ static void neru_wayland_overlay_set_keyboard_capture(
     }
 
     wl_display_roundtrip(overlay->display);
+}
+
+// Detach buffers from surfaces without destroying them.
+// Hides the overlay visually while keeping all surfaces and buffers allocated,
+// so the next DrawBadge call can reuse them without a compositor roundtrip.
+static void neru_wayland_overlay_detach(NeruWaylandOverlay *overlay) {
+    if (!overlay) return;
+    int any = 0;
+    for (int i = 0; i < overlay->nr_screens; i++) {
+        NeruWaylandOverlayScreen *scr = &overlay->screens[i];
+        if (scr->wl_surface) {
+            wl_surface_attach(scr->wl_surface, NULL, 0, 0);
+            wl_surface_commit(scr->wl_surface);
+            any = 1;
+        }
+    }
+    if (any) wl_display_flush(overlay->display);
 }
 
 static void neru_wayland_overlay_clear(NeruWaylandOverlay *overlay) {
@@ -765,6 +787,8 @@ type wlrootsOverlay struct {
 
 	stopCh chan struct{} // signals keyboardPoller to exit
 	doneCh chan struct{} // closed when keyboardPoller has exited
+
+	pollerStarted bool
 }
 
 func init() {
@@ -772,7 +796,15 @@ func init() {
 }
 
 func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
-	raw := C.neru_wayland_overlay_new()
+	return newWlrootsOverlayWithKeyboard(logger, true)
+}
+
+func newPassiveWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
+	return newWlrootsOverlayWithKeyboard(logger, false)
+}
+
+func newWlrootsOverlayWithKeyboard(logger *zap.Logger, keyboardInteractive bool) *wlrootsOverlay {
+	raw := C.neru_wayland_overlay_new(C.int(boolToInt(keyboardInteractive)))
 	if raw == nil {
 		return nil
 	}
@@ -792,6 +824,14 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 	// race: the poller reads displayMu on every iteration.
 
 	return overlay
+}
+
+func boolToInt(value bool) int {
+	if value {
+		return 1
+	}
+
+	return 0
 }
 
 func (o *wlrootsOverlay) Healthy() bool {
@@ -839,6 +879,16 @@ func (o *wlrootsOverlay) ClearRect(rect image.Rectangle) {
 	}
 }
 
+// HideContent makes the overlay transparent without destroying surfaces.
+// Unlike Hide(), surfaces and buffers remain allocated so the next DrawBadge
+// call skips setup_buffers and its blocking wl_display_roundtrip.
+func (o *wlrootsOverlay) HideContent() {
+	if o != nil && o.raw != nil {
+		C.neru_wayland_overlay_clear(o.raw)
+		C.neru_wayland_overlay_detach(o.raw)
+	}
+}
+
 func (o *wlrootsOverlay) Resize() {
 	// Wayland layer shells auto-resize
 }
@@ -850,8 +900,11 @@ func (o *wlrootsOverlay) Destroy() {
 
 	// Signal the poller goroutine to stop and wait for it to exit
 	// before freeing the C struct, preventing a use-after-free.
-	close(o.stopCh)
-	<-o.doneCh
+	if o.pollerStarted {
+		close(o.stopCh)
+		<-o.doneCh
+		o.pollerStarted = false
+	}
 
 	C.neru_wayland_overlay_destroy(o.raw)
 	o.raw = nil
@@ -1100,6 +1153,11 @@ func (o *wlrootsOverlay) setKeyboardCaptureEnabled(enabled bool) {
 // startPoller launches the keyboard polling goroutine.
 // Must be called after setDisplayMu so the poller has a valid mutex.
 func (o *wlrootsOverlay) startPoller() {
+	if o == nil || o.pollerStarted {
+		return
+	}
+
+	o.pollerStarted = true
 	go o.keyboardPoller()
 }
 
