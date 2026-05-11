@@ -114,6 +114,15 @@ To **remove** a single default binding without affecting the rest, use the `__di
 "Cmd+Shift+Option+Ctrl+G" = "grid"           # rebinds grid to Hyper+G: default Primary+Shift+G is removed
 ```
 
+**Automatically disabled:** When a mode is disabled (`enabled = false`), its default launcher hotkey is automatically removed:
+
+```toml
+[hints]
+enabled = false  # automatically removes Primary+Shift+Space -> hints from global hotkeys
+```
+
+This prevents stale keybindings from remaining in the config when a mode is no longer in use.
+
 ### Syntax
 
 **Format:** `"Modifier1+Modifier2+Key" = "action"`

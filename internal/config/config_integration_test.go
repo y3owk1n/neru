@@ -268,6 +268,88 @@ bundle_id = "com.apple.Safari"
 		}
 	})
 
+	t.Run("Disabled Mode Removes Default Launcher", func(t *testing.T) {
+		configContent := `
+[hints]
+enabled = false
+`
+
+		writeConfigFile(t, configPath, configContent, 0o644)
+
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+		loadResult := service.LoadWithValidation(configPath)
+		if loadResult.ValidationError != nil {
+			t.Fatalf("Config validation failed: %v", loadResult.ValidationError)
+		}
+
+		if _, exists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+Space"]; exists {
+			t.Fatal("expected hints launcher to be removed when hints is disabled")
+		}
+
+		if _, exists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+G"]; !exists {
+			t.Fatal("expected unrelated launcher hotkeys to remain")
+		}
+	})
+
+	t.Run("Multiple Disabled Modes Remove Launchers", func(t *testing.T) {
+		configContent := `
+[hints]
+enabled = false
+
+[grid]
+enabled = false
+`
+
+		writeConfigFile(t, configPath, configContent, 0o644)
+
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+		loadResult := service.LoadWithValidation(configPath)
+		if loadResult.ValidationError != nil {
+			t.Fatalf("Config validation failed: %v", loadResult.ValidationError)
+		}
+
+		if _, exists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+Space"]; exists {
+			t.Fatal("expected hints launcher to be removed when hints is disabled")
+		}
+
+		if _, exists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+G"]; exists {
+			t.Fatal("expected grid launcher to be removed when grid is disabled")
+		}
+
+		if _, exists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+C"]; !exists {
+			t.Fatal("expected unrelated launcher hotkeys to remain")
+		}
+	})
+
+	t.Run("Disabled Mode With Rebound Launcher", func(t *testing.T) {
+		configContent := `
+[hints]
+enabled = false
+
+[hotkeys]
+"Primary+Shift+Space" = "grid"
+`
+
+		writeConfigFile(t, configPath, configContent, 0o644)
+
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+		loadResult := service.LoadWithValidation(configPath)
+		if loadResult.ValidationError != nil {
+			t.Fatalf("Config validation failed: %v", loadResult.ValidationError)
+		}
+
+		actions, exists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+Space"]
+		if !exists || len(actions) != 1 || actions[0] != "grid" {
+			t.Fatalf(
+				"expected rebound launcher to replace disabled mode launcher, got %v",
+				loadResult.Config.Hotkeys.Bindings,
+			)
+		}
+	})
+
 	t.Run("Config File Permissions", func(t *testing.T) {
 		// Test that config files with restrictive permissions can still be read
 		configContent := `

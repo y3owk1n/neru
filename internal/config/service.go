@@ -108,6 +108,26 @@ func removeBindingsForSingleAction(bindings map[string][]string, action string) 
 	}
 }
 
+// removeLauncherBindingsForDisabledModes removes launcher keybindings for modes
+// that are explicitly disabled in the config.
+func removeLauncherBindingsForDisabledModes(cfg *Config) {
+	modeActions := map[string]bool{
+		modeNameHints:         cfg.Hints.Enabled,
+		modeNameGrid:          cfg.Grid.Enabled,
+		modeNameRecursiveGrid: cfg.RecursiveGrid.Enabled,
+	}
+
+	for key, actions := range cfg.Hotkeys.Bindings {
+		if len(actions) == 1 {
+			if action, ok := isBuiltInGlobalModeAction(actions); ok {
+				if modeEnabled := modeActions[action]; ok && !modeEnabled {
+					delete(cfg.Hotkeys.Bindings, key)
+				}
+			}
+		}
+	}
+}
+
 // parseRawHotkeyActions parses a raw TOML hotkey value into actions.
 func parseRawHotkeyActions(fieldName string, value any) ([]string, error) {
 	switch val := value.(type) {
@@ -554,6 +574,8 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	}
 
 	s.logger.Info("Configuration loaded successfully")
+
+	removeLauncherBindingsForDisabledModes(configResult.Config)
 
 	return configResult
 }
