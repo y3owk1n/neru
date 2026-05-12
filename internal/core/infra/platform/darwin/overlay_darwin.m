@@ -9,6 +9,7 @@
 
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
+#import <stdatomic.h>
 
 #pragma mark - HintItem Class
 
@@ -2970,6 +2971,9 @@ static NSPoint NeruAppKitPointFromQuartzPoint(CGPoint point) {
 /// Show a transient mouse action indicator in its own overlay window.
 /// @param position Global cursor position in Quartz coordinates
 /// @param style Indicator style
+static _Atomic int _NeruMouseActionPanelCount = 0;
+static const int _NeruMaxMouseActionPanels = 10;
+
 void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle style) {
 	NSString *backgroundHex = style.backgroundColor ? @(style.backgroundColor) : nil;
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
@@ -2977,6 +2981,9 @@ void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle st
 	NSString *easing = style.easing ? @(style.easing) : @"ease_out";
 
 	dispatch_async(dispatch_get_main_queue(), ^{
+		if (atomic_load(&_NeruMouseActionPanelCount) >= _NeruMaxMouseActionPanels) {
+			return;
+		}
 		CGFloat size = MAX(style.size, 1);
 		CGFloat endScale = style.endScale > 0 ? style.endScale : 1.0;
 		CGFloat canvasSize = ceil(size * MAX(endScale, 1.0) + MAX(style.borderWidth, 0) * 4.0);
@@ -3000,6 +3007,7 @@ void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle st
 		[panel setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorStationary |
 		                             NSWindowCollectionBehaviorFullScreenAuxiliary |
 		                             NSWindowCollectionBehaviorIgnoresCycle];
+		atomic_fetch_add(&_NeruMouseActionPanelCount, 1);
 
 		NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, canvasSize, canvasSize)];
 		view.wantsLayer = YES;
@@ -3046,6 +3054,7 @@ void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle st
 		    dispatch_time(DISPATCH_TIME_NOW, (int64_t)(duration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 			    [panel orderOut:nil];
 			    [panel close];
+			    atomic_fetch_add(&_NeruMouseActionPanelCount, -1);
 		    });
 	});
 }
