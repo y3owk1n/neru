@@ -2925,10 +2925,10 @@ static NSColor *NeruColorFromHexString(NSString *hexString, NSColor *defaultColo
 		return defaultColor;
 	}
 
-	return [NSColor colorWithCalibratedRed:(CGFloat)red / 255.0
-	                                 green:(CGFloat)green / 255.0
-	                                  blue:(CGFloat)blue / 255.0
-	                                 alpha:(CGFloat)alpha / 255.0];
+	return [NSColor colorWithRed:(CGFloat)red / 255.0
+	                       green:(CGFloat)green / 255.0
+	                        blue:(CGFloat)blue / 255.0
+	                       alpha:(CGFloat)alpha / 255.0];
 }
 
 static CAMediaTimingFunction *NeruTimingFunction(NSString *easing) {
