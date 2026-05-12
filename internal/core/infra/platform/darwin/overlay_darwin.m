@@ -3031,7 +3031,7 @@ void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle st
 
 		[panel orderFrontRegardless];
 
-		CFTimeInterval duration = MAX(style.durationMS, 0) / 1000.0;
+		CFTimeInterval duration = MAX(style.durationMS, 1) / 1000.0;
 		CAMediaTimingFunction *timing = NeruTimingFunction(easing);
 
 		CABasicAnimation *scaleAnimation = [CABasicAnimation animationWithKeyPath:@"transform.scale"];
