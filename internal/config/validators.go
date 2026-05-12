@@ -752,10 +752,6 @@ func (c *Config) ValidateVirtualPointer() error {
 
 // ValidateMouseAction validates mouse action indicator configuration.
 func (c *Config) ValidateMouseAction() error {
-	if !c.MouseAction.Enabled {
-		return nil
-	}
-
 	err := validateColors([]colorField{
 		{c.MouseAction.UI.BackgroundColor, "mouse_action_indicator.ui.background_color"},
 		{c.MouseAction.UI.BorderColor, "mouse_action_indicator.ui.border_color"},
