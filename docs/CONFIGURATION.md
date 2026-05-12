@@ -873,7 +873,7 @@ actions = ["left_click", "right_click", "middle_click"]
 [mouse_action_indicator.ui]
 size = 36
 border_width = 2
-background_color = "#5B8CFFFF"
+background_color = "#FF5B8CFF"
 border_color = "#5B8CFF"
 shape = "circle" # circle or square
 
