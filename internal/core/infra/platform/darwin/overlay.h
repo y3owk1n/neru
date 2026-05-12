@@ -101,6 +101,21 @@ typedef struct {
 	char *fillColor;  ///< Fill color
 } CursorIndicatorStyle;
 
+/// Mouse action indicator style configuration
+typedef struct {
+	int size;               ///< Indicator diameter in points
+	int borderWidth;        ///< Border width in points
+	char *backgroundColor;  ///< Fill color
+	char *borderColor;      ///< Stroke color
+	char *shape;            ///< circle or square
+	int durationMS;         ///< Animation duration in milliseconds
+	double startScale;      ///< Initial transform scale
+	double endScale;        ///< Final transform scale
+	double startOpacity;    ///< Initial opacity
+	double endOpacity;      ///< Final opacity
+	char *easing;           ///< linear, ease_in, ease_out, or ease_in_out
+} MouseActionIndicatorStyle;
+
 /// Callback type for async operations
 /// @param context Context pointer
 typedef void (*ResizeCompletionCallback)(void *context);
@@ -239,5 +254,10 @@ void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndic
 /// Hide the virtual cursor indicator
 /// @param window Overlay window handle
 void NeruHideCursorIndicator(OverlayWindow window);
+
+/// Show a transient mouse action indicator in its own overlay window.
+/// @param position Global cursor position in Quartz coordinates
+/// @param style Indicator style
+void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle style);
 
 #endif  // OVERLAY_H

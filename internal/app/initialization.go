@@ -161,6 +161,7 @@ func initializeServices(
 		systemPort,
 		logger,
 	)
+	actionService.UpdateConfig(cfg.MouseAction)
 
 	// Scroll Service - manages scrolling operations
 	scrollService := services.NewScrollService(

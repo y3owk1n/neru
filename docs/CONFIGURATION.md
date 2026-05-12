@@ -21,6 +21,7 @@ Neru uses TOML for configuration. No config file is required — Neru works out 
 - [Recursive Grid Mode](#recursive-grid-mode)
 - [Scroll Mode](#scroll-mode)
 - [Virtual Pointer](#virtual-pointer)
+- [Mouse Action Indicator](#mouse-action-indicator)
 - [Mode Indicator](#mode-indicator)
 - [Sticky Modifiers](#sticky-modifiers)
 - [Theme Palette](#theme-palette)
@@ -847,6 +848,43 @@ background_color = { light = "#FF0000AA", dark = "#00FF00AA" }
 ```
 
 When a color is omitted or set to empty, Neru uses its built-in theme-aware defaults. Colors update in real time when you switch system themes.
+
+---
+
+## Mouse Action Indicator
+
+Mouse action indicators show a transient visual marker where a mouse button action happened. This is useful for CLI-triggered actions too, so the macOS implementation uses its own temporary window instead of relying on an active mode overlay.
+
+> [!NOTE]
+> Currently rendered on **macOS only**. Other platforms accept the config and no-op.
+
+| Option    | Type     | Default                                                                 | Description                              |
+| --------- | -------- | ----------------------------------------------------------------------- | ---------------------------------------- |
+| `enabled` | bool     | `false`                                                                 | Enable mouse action indicators           |
+| `actions` | string[] | all mouse button actions                                                | Actions that should show the indicator   |
+| `ui`      | table    | see below                                                               | Visual styling                           |
+| `animation` | table  | see below                                                               | Animation timing and interpolation       |
+
+```toml
+[mouse_action_indicator]
+enabled = true
+actions = ["left_click", "right_click", "middle_click"]
+
+[mouse_action_indicator.ui]
+size = 36
+border_width = 2
+background_color = "#5B8CFFFF"
+border_color = "#5B8CFF"
+shape = "circle" # circle or square
+
+[mouse_action_indicator.animation]
+duration_ms = 260
+start_scale = 0.55
+end_scale = 1.35
+start_opacity = 0.85
+end_opacity = 0.0
+easing = "ease_out" # linear, ease_in, ease_out, ease_in_out
+```
 
 ---
 

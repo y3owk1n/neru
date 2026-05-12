@@ -8,7 +8,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	"github.com/y3owk1n/neru/internal/core/ports"
 	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
@@ -57,6 +59,63 @@ func TestPerformActionAtPoint_ParsesAndDispatches(t *testing.T) {
 
 	if !called {
 		t.Fatal("expected PerformActionAtPoint to be called")
+	}
+}
+
+func TestPerformActionAtPoint_DrawsMouseActionIndicatorWhenEnabled(t *testing.T) {
+	ctx := context.Background()
+
+	acc := &portmocks.MockAccessibilityPort{
+		PerformActionAtPointFunc: func(
+			context.Context,
+			action.Type,
+			image.Point,
+			action.Modifiers,
+		) error {
+			return nil
+		},
+	}
+
+	var (
+		gotPoint image.Point
+		gotStyle ports.MouseActionIndicatorStyle
+	)
+
+	drawn := false
+	overlay := &portmocks.MockOverlayPort{
+		DrawMouseActionIndicatorFunc: func(
+			point image.Point,
+			style ports.MouseActionIndicatorStyle,
+		) {
+			drawn = true
+			gotPoint = point
+			gotStyle = style
+		},
+	}
+
+	service := services.NewActionService(acc, overlay, &portmocks.SystemMock{}, zap.NewNop())
+	cfg := config.DefaultConfig().MouseAction
+	cfg.Enabled = true
+	cfg.Actions = []string{"left_click"}
+	service.UpdateConfig(cfg)
+
+	point := image.Point{X: 10, Y: 20}
+
+	err := service.PerformActionAtPoint(ctx, "left_click", point, 0)
+	if err != nil {
+		t.Fatalf("PerformActionAtPoint() error = %v", err)
+	}
+
+	if !drawn {
+		t.Fatal("expected mouse action indicator to be drawn")
+	}
+
+	if gotPoint != point {
+		t.Fatalf("unexpected indicator point: %v", gotPoint)
+	}
+
+	if gotStyle.Size != cfg.UI.Size || gotStyle.DurationMS != cfg.Animation.DurationMS {
+		t.Fatalf("unexpected indicator style: %+v", gotStyle)
 	}
 }
 

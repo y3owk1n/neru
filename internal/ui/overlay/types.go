@@ -142,6 +142,13 @@ func (n *NoOpManager) DrawModeIndicator(x, y int) {}
 // DrawStickyModifiersIndicator is a no-op implementation.
 func (n *NoOpManager) DrawStickyModifiersIndicator(x, y int, symbols string) {}
 
+// DrawMouseActionIndicator is a no-op implementation.
+func (n *NoOpManager) DrawMouseActionIndicator(
+	point image.Point,
+	style ports.MouseActionIndicatorStyle,
+) {
+}
+
 // DrawGrid is a no-op implementation.
 func (n *NoOpManager) DrawGrid(
 	g *domainGrid.Grid,
@@ -228,6 +235,7 @@ type ManagerInterface interface {
 	HideHintSearchInput()
 	DrawModeIndicator(x, y int)
 	DrawStickyModifiersIndicator(x, y int, symbols string)
+	DrawMouseActionIndicator(point image.Point, style ports.MouseActionIndicatorStyle)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
 	DrawRecursiveGrid(
 		bounds image.Rectangle,

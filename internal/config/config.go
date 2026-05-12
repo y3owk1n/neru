@@ -393,6 +393,7 @@ type Config struct {
 	Grid            GridConfig            `json:"grid"            toml:"grid"`
 	RecursiveGrid   RecursiveGridConfig   `json:"recursiveGrid"   toml:"recursive_grid"`
 	VirtualPointer  VirtualPointerConfig  `json:"virtualPointer"  toml:"virtual_pointer"`
+	MouseAction     MouseActionConfig     `json:"mouseAction"     toml:"mouse_action_indicator"`
 	Scroll          ScrollConfig          `json:"scroll"          toml:"scroll"`
 	ModeIndicator   ModeIndicatorConfig   `json:"modeIndicator"   toml:"mode_indicator"`
 	StickyModifiers StickyModifiersConfig `json:"stickyModifiers" toml:"sticky_modifiers"`
@@ -681,6 +682,33 @@ type VirtualPointerConfig struct {
 	UI      VirtualPointerUI `json:"ui"      toml:"ui"`
 }
 
+// MouseActionUI defines the visual settings for mouse action indicators.
+type MouseActionUI struct {
+	Size            int    `json:"size"            toml:"size"`
+	BorderWidth     int    `json:"borderWidth"     toml:"border_width"`
+	BackgroundColor Color  `json:"backgroundColor" toml:"background_color"`
+	BorderColor     Color  `json:"borderColor"     toml:"border_color"`
+	Shape           string `json:"shape"           toml:"shape"`
+}
+
+// MouseActionAnimation defines animation settings for mouse action indicators.
+type MouseActionAnimation struct {
+	DurationMS   int     `json:"durationMs"   toml:"duration_ms"`
+	StartScale   float64 `json:"startScale"   toml:"start_scale"`
+	EndScale     float64 `json:"endScale"     toml:"end_scale"`
+	StartOpacity float64 `json:"startOpacity" toml:"start_opacity"`
+	EndOpacity   float64 `json:"endOpacity"   toml:"end_opacity"`
+	Easing       string  `json:"easing"       toml:"easing"`
+}
+
+// MouseActionConfig defines settings for transient mouse action indicators.
+type MouseActionConfig struct {
+	Enabled   bool                 `json:"enabled"   toml:"enabled"`
+	Actions   []string             `json:"actions"   toml:"actions"`
+	UI        MouseActionUI        `json:"ui"        toml:"ui"`
+	Animation MouseActionAnimation `json:"animation" toml:"animation"`
+}
+
 // AllKeysIncludingLayers returns a combined string of all unique keys from the
 // top-level config and all layers. Used for conflict validation.
 func (c *RecursiveGridConfig) AllKeysIncludingLayers() string {
@@ -816,6 +844,11 @@ func (c *Config) Validate() error {
 	}
 
 	err = c.ValidateVirtualPointer()
+	if err != nil {
+		return err
+	}
+
+	err = c.ValidateMouseAction()
 	if err != nil {
 		return err
 	}

@@ -206,6 +206,20 @@ const (
 	DefaultRecursiveGridFontSize = 10
 	// DefaultVirtualPointerSize is the default virtual pointer dot radius in points.
 	DefaultVirtualPointerSize = 3
+	// DefaultMouseActionIndicatorSize is the default mouse action indicator diameter in points.
+	DefaultMouseActionIndicatorSize = 36
+	// DefaultMouseActionIndicatorBorderWidth is the default mouse action indicator border width.
+	DefaultMouseActionIndicatorBorderWidth = 2
+	// DefaultMouseActionIndicatorDurationMS is the default mouse action indicator animation duration.
+	DefaultMouseActionIndicatorDurationMS = 260
+	// DefaultMouseActionIndicatorStartScale is the default starting scale for mouse action indicators.
+	DefaultMouseActionIndicatorStartScale = 0.55
+	// DefaultMouseActionIndicatorEndScale is the default ending scale for mouse action indicators.
+	DefaultMouseActionIndicatorEndScale = 1.35
+	// DefaultMouseActionIndicatorStartOpacity is the default starting opacity for mouse action indicators.
+	DefaultMouseActionIndicatorStartOpacity = 0.85
+	// DefaultMouseActionIndicatorEndOpacity is the default ending opacity for mouse action indicators.
+	DefaultMouseActionIndicatorEndOpacity = 0.0
 	// DefaultRecursiveGridLabelBackgroundPaddingX preserves automatic horizontal badge padding.
 	DefaultRecursiveGridLabelBackgroundPaddingX = -1
 	// DefaultRecursiveGridLabelBackgroundPaddingY preserves automatic vertical badge padding.
@@ -426,6 +440,31 @@ func newDefaultConfig() *Config {
 			UI: VirtualPointerUI{
 				Size:  DefaultVirtualPointerSize,
 				Color: Color{},
+			},
+		},
+		MouseAction: MouseActionConfig{
+			Enabled: false,
+			Actions: []string{
+				"left_click",
+				"right_click",
+				"middle_click",
+				"mouse_down",
+				"mouse_up",
+			},
+			UI: MouseActionUI{
+				Size:            DefaultMouseActionIndicatorSize,
+				BorderWidth:     DefaultMouseActionIndicatorBorderWidth,
+				BackgroundColor: Color{},
+				BorderColor:     Color{},
+				Shape:           "circle",
+			},
+			Animation: MouseActionAnimation{
+				DurationMS:   DefaultMouseActionIndicatorDurationMS,
+				StartScale:   DefaultMouseActionIndicatorStartScale,
+				EndScale:     DefaultMouseActionIndicatorEndScale,
+				StartOpacity: DefaultMouseActionIndicatorStartOpacity,
+				EndOpacity:   DefaultMouseActionIndicatorEndOpacity,
+				Easing:       "ease_out",
 			},
 		},
 		ModeIndicator: ModeIndicatorConfig{

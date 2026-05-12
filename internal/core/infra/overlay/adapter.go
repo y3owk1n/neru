@@ -2,6 +2,7 @@ package overlay
 
 import (
 	"context"
+	"image"
 
 	"go.uber.org/zap"
 
@@ -129,6 +130,14 @@ func (a *Adapter) DrawModeIndicator(x, y int) {
 // DrawStickyModifiersIndicator draws the sticky modifiers indicator at the specified position.
 func (a *Adapter) DrawStickyModifiersIndicator(x, y int, symbols string) {
 	a.manager.DrawStickyModifiersIndicator(x, y, symbols)
+}
+
+// DrawMouseActionIndicator draws a transient mouse action indicator.
+func (a *Adapter) DrawMouseActionIndicator(
+	point image.Point,
+	style ports.MouseActionIndicatorStyle,
+) {
+	a.manager.DrawMouseActionIndicator(point, style)
 }
 
 // Hide removes all overlays from the screen.

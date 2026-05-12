@@ -3,10 +3,13 @@ package services
 import (
 	"context"
 	"image"
+	"slices"
 	"strings"
+	"sync"
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
@@ -18,7 +21,9 @@ import (
 type ActionService struct {
 	BaseService
 
-	logger *zap.Logger
+	configMu sync.RWMutex
+	config   config.MouseActionConfig
+	logger   *zap.Logger
 }
 
 // NewActionService creates a new action service.
@@ -30,8 +35,17 @@ func NewActionService(
 ) *ActionService {
 	return &ActionService{
 		BaseService: NewBaseService(accessibility, overlay, system),
+		config:      config.DefaultConfig().MouseAction,
 		logger:      logger,
 	}
+}
+
+// UpdateConfig updates the mouse action indicator configuration.
+func (s *ActionService) UpdateConfig(cfg config.MouseActionConfig) {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
+	s.config = cfg
 }
 
 // ExecuteAction performs the specified action on the given element.
@@ -89,7 +103,19 @@ func (s *ActionService) PerformActionAtPoint(
 		return core.WrapActionFailed(performActionErr, actionType.String()+" at point")
 	}
 
+	s.drawMouseActionIndicator(point, actionType)
+
 	return nil
+}
+
+func mouseActionIndicatorIncludes(actions []string, actionType action.Type) bool {
+	if len(actions) == 0 {
+		return actionType.IsMouseButton()
+	}
+
+	actionName := actionType.String()
+
+	return slices.Contains(actions, actionName)
 }
 
 // IsFocusedAppExcluded checks if the currently focused application is in the exclusion list.
@@ -319,6 +345,44 @@ func (s *ActionService) MoveMouseToCenterOfWindow(
 		zap.Int("offsetX", offsetX),
 		zap.Int("offsetY", offsetY),
 	)
+}
+
+func (s *ActionService) drawMouseActionIndicator(point image.Point, actionType action.Type) {
+	cfg := s.mouseActionConfig()
+	if !cfg.Enabled || !mouseActionIndicatorIncludes(cfg.Actions, actionType) {
+		return
+	}
+
+	style := ports.MouseActionIndicatorStyle{
+		Size:        cfg.UI.Size,
+		BorderWidth: cfg.UI.BorderWidth,
+		BackgroundColor: cfg.UI.BackgroundColor.ForTheme(
+			s.system,
+			config.MouseActionBackgroundColorLight,
+			config.MouseActionBackgroundColorDark,
+		),
+		BorderColor: cfg.UI.BorderColor.ForTheme(
+			s.system,
+			config.MouseActionBorderColorLight,
+			config.MouseActionBorderColorDark,
+		),
+		Shape:        cfg.UI.Shape,
+		DurationMS:   cfg.Animation.DurationMS,
+		StartScale:   cfg.Animation.StartScale,
+		EndScale:     cfg.Animation.EndScale,
+		StartOpacity: cfg.Animation.StartOpacity,
+		EndOpacity:   cfg.Animation.EndOpacity,
+		Easing:       cfg.Animation.Easing,
+	}
+
+	s.overlay.DrawMouseActionIndicator(point, style)
+}
+
+func (s *ActionService) mouseActionConfig() config.MouseActionConfig {
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+
+	return s.config
 }
 
 // moveMouseWithBounds clamps target to the given screen bounds and moves the cursor.

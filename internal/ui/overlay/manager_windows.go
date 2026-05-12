@@ -135,6 +135,9 @@ func (m *Manager) DrawModeIndicator(_, _ int) {}
 // DrawStickyModifiersIndicator draws the sticky modifiers indicator (Windows stub).
 func (m *Manager) DrawStickyModifiersIndicator(_, _ int, _ string) {}
 
+// DrawMouseActionIndicator draws a mouse action indicator (Windows stub).
+func (m *Manager) DrawMouseActionIndicator(_ image.Point, _ ports.MouseActionIndicatorStyle) {}
+
 // DrawGrid draws the grid (Windows stub).
 func (m *Manager) DrawGrid(_ *domainGrid.Grid, _ string, _ grid.Style) error {
 	return derrors.New(derrors.CodeNotSupported, "overlay grid not implemented on windows")

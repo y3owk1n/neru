@@ -750,6 +750,89 @@ func (c *Config) ValidateVirtualPointer() error {
 	return nil
 }
 
+// ValidateMouseAction validates mouse action indicator configuration.
+func (c *Config) ValidateMouseAction() error {
+	if !c.MouseAction.Enabled {
+		return nil
+	}
+
+	err := validateColors([]colorField{
+		{c.MouseAction.UI.BackgroundColor, "mouse_action_indicator.ui.background_color"},
+		{c.MouseAction.UI.BorderColor, "mouse_action_indicator.ui.border_color"},
+	})
+	if err != nil {
+		return err
+	}
+
+	if c.MouseAction.UI.Size < 1 {
+		return derrors.New(derrors.CodeInvalidConfig, "mouse_action_indicator.ui.size must be >= 1")
+	}
+
+	if c.MouseAction.UI.BorderWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"mouse_action_indicator.ui.border_width must be >= 0",
+		)
+	}
+
+	switch c.MouseAction.UI.Shape {
+	case "", "circle", "square":
+	default:
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"mouse_action_indicator.ui.shape must be circle or square",
+		)
+	}
+
+	if c.MouseAction.Animation.DurationMS < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"mouse_action_indicator.animation.duration_ms must be non-negative",
+		)
+	}
+
+	if c.MouseAction.Animation.StartScale < 0 || c.MouseAction.Animation.EndScale < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"mouse_action_indicator.animation scales must be non-negative",
+		)
+	}
+
+	if !validOpacity(c.MouseAction.Animation.StartOpacity) ||
+		!validOpacity(c.MouseAction.Animation.EndOpacity) {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"mouse_action_indicator.animation opacity values must be between 0 and 1",
+		)
+	}
+
+	switch c.MouseAction.Animation.Easing {
+	case "", "linear", "ease_in", "ease_out", "ease_in_out":
+	default:
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"mouse_action_indicator.animation.easing must be linear, ease_in, ease_out, or ease_in_out",
+		)
+	}
+
+	for index, actionName := range c.MouseAction.Actions {
+		actionType, parseErr := action.ParseType(actionName)
+		if parseErr != nil || !actionType.IsMouseButton() {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"mouse_action_indicator.actions[%d] must be a mouse button action",
+				index,
+			)
+		}
+	}
+
+	return nil
+}
+
+func validOpacity(value float64) bool {
+	return value >= 0 && value <= 1
+}
+
 func validateHotkeyActionString(actionStr string) error {
 	trimmed := strings.TrimSpace(actionStr)
 	if trimmed == "" {

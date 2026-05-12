@@ -16,6 +16,7 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
+	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
@@ -228,6 +229,12 @@ func (m *mockOverlayManager) DrawHintsWithStyle(
 }
 func (m *mockOverlayManager) DrawModeIndicator(_, _ int)                      {}
 func (m *mockOverlayManager) DrawStickyModifiersIndicator(_, _ int, _ string) {}
+
+func (m *mockOverlayManager) DrawMouseActionIndicator(
+	_ image.Point,
+	_ ports.MouseActionIndicatorStyle,
+) {
+}
 
 func (m *mockOverlayManager) DrawGrid(
 	_ *domainGrid.Grid,

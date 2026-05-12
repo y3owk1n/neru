@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"image"
 
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 )
@@ -39,6 +40,21 @@ type OverlayVisibility interface {
 	Refresh(ctx context.Context) error
 }
 
+// MouseActionIndicatorStyle configures a transient mouse action indicator.
+type MouseActionIndicatorStyle struct {
+	Size            int
+	BorderWidth     int
+	BackgroundColor string
+	BorderColor     string
+	Shape           string
+	DurationMS      int
+	StartScale      float64
+	EndScale        float64
+	StartOpacity    float64
+	EndOpacity      float64
+	Easing          string
+}
+
 // OverlayPort defines the interface for managing UI overlays.
 // Implementations handle the platform-specific rendering of hints and grids.
 type OverlayPort interface {
@@ -58,6 +74,9 @@ type OverlayPort interface {
 
 	// DrawStickyModifiersIndicator draws the sticky modifiers indicator at the specified position.
 	DrawStickyModifiersIndicator(x, y int, symbols string)
+
+	// DrawMouseActionIndicator draws a transient indicator for a mouse action.
+	DrawMouseActionIndicator(point image.Point, style MouseActionIndicatorStyle)
 
 	// Hide hides the overlay.s from the screen.
 	Hide(ctx context.Context) error

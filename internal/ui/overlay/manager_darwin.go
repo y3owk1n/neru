@@ -5,6 +5,7 @@ package overlay
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc
 #include "../../core/infra/platform/darwin/overlay.h"
+#include <stdlib.h>
 */
 import "C"
 
@@ -369,6 +370,39 @@ func (m *Manager) DrawStickyModifiersIndicator(xCoordinate, yCoordinate int, sym
 	}
 
 	m.stickyModifiersOverlay.Draw(xCoordinate, yCoordinate, symbols)
+}
+
+// DrawMouseActionIndicator renders a transient mouse action indicator in its own native window.
+func (m *Manager) DrawMouseActionIndicator(
+	point image.Point,
+	style ports.MouseActionIndicatorStyle,
+) {
+	backgroundColor := C.CString(style.BackgroundColor)
+	borderColor := C.CString(style.BorderColor)
+	shape := C.CString(style.Shape)
+	easing := C.CString(style.Easing)
+
+	defer C.free(unsafe.Pointer(backgroundColor)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(borderColor))     //nolint:nlreturn
+	defer C.free(unsafe.Pointer(shape))           //nolint:nlreturn
+	defer C.free(unsafe.Pointer(easing))          //nolint:nlreturn
+
+	C.NeruShowMouseActionIndicator(
+		C.CGPoint{x: C.double(point.X), y: C.double(point.Y)},
+		C.MouseActionIndicatorStyle{
+			size:            C.int(style.Size),
+			borderWidth:     C.int(style.BorderWidth),
+			backgroundColor: backgroundColor,
+			borderColor:     borderColor,
+			shape:           shape,
+			durationMS:      C.int(style.DurationMS),
+			startScale:      C.double(style.StartScale),
+			endScale:        C.double(style.EndScale),
+			startOpacity:    C.double(style.StartOpacity),
+			endOpacity:      C.double(style.EndOpacity),
+			easing:          easing,
+		},
+	)
 }
 
 // DrawGrid renders a grid with the specified style using the grid overlay renderer.

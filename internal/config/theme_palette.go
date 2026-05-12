@@ -102,6 +102,15 @@ var (
 	// ModeIndicatorBorderColorDark is the fallback dark border color for the mode indicator.
 	ModeIndicatorBorderColorDark = solidRGBHex(defaultThemeDarkAccent)
 
+	// MouseActionBackgroundColorLight is the fallback light fill color for mouse action indicators.
+	MouseActionBackgroundColorLight = applyAlpha(defaultThemeLightAccentAlt, "30")
+	// MouseActionBackgroundColorDark is the fallback dark fill color for mouse action indicators.
+	MouseActionBackgroundColorDark = applyAlpha(defaultThemeDarkAccentAlt, "40")
+	// MouseActionBorderColorLight is the fallback light border color for mouse action indicators.
+	MouseActionBorderColorLight = solidRGBHex(defaultThemeLightAccentAlt)
+	// MouseActionBorderColorDark is the fallback dark border color for mouse action indicators.
+	MouseActionBorderColorDark = solidRGBHex(defaultThemeDarkAccentAlt)
+
 	// StickyModifiersBackgroundColorLight is the fallback light background color for sticky modifiers.
 	StickyModifiersBackgroundColorLight = applyAlpha(defaultThemeLightSurface, "F2")
 	// StickyModifiersBackgroundColorDark is the fallback dark background color for sticky modifiers.
@@ -273,6 +282,13 @@ func (c *Config) ResolveThemeDefaults() {
 	))
 	mergeColorWithDefault(&c.ModeIndicator.UI.BorderColor, solidThemedColor(
 		c.Theme.Light.Accent, c.Theme.Dark.Accent,
+	))
+
+	mergeColorWithDefault(&c.MouseAction.UI.BackgroundColor, themedColor(
+		c.Theme.Light.AccentAlt, c.Theme.Dark.AccentAlt, "30",
+	))
+	mergeColorWithDefault(&c.MouseAction.UI.BorderColor, solidThemedColor(
+		c.Theme.Light.AccentAlt, c.Theme.Dark.AccentAlt,
 	))
 
 	mergeColorWithDefault(&c.StickyModifiers.UI.BackgroundColor, themedColor(

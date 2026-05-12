@@ -200,6 +200,25 @@ enabled = true
 [virtual_pointer.ui]
 size = 3
 
+# Mouse action indicator (macOS)
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mouse-action-indicator
+[mouse_action_indicator]
+enabled = false                             # Disabled by default
+actions = ["left_click", "right_click", "middle_click", "mouse_down", "mouse_up"]
+
+[mouse_action_indicator.ui]
+size = 36
+border_width = 2
+shape = "circle"                            # circle or square
+
+[mouse_action_indicator.animation]
+duration_ms = 260
+start_scale = 0.55
+end_scale = 1.35
+start_opacity = 0.85
+end_opacity = 0.0
+easing = "ease_out"                         # linear, ease_in, ease_out, ease_in_out
+
 # Scroll mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#scroll-mode
 [scroll]

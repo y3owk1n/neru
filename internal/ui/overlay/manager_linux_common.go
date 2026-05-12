@@ -680,6 +680,9 @@ type overlayBadgeStyle struct {
 	offsetY     int
 }
 
+// DrawMouseActionIndicator is a macOS-only renderer; Linux currently stubs it.
+func (m *Manager) DrawMouseActionIndicator(_ image.Point, _ ports.MouseActionIndicatorStyle) {}
+
 func resolveModeIndicatorAppearance(
 	mode string,
 	overlay *modeindicator.Overlay,

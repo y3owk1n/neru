@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"image"
 
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -16,6 +17,7 @@ type MockOverlayPort struct {
 	DrawModeIndicatorFunc func(x, y int)
 	// DrawStickyModifiersIndicatorFunc mocks DrawStickyModifiersIndicator.
 	DrawStickyModifiersIndicatorFunc func(x, y int, symbols string)
+	DrawMouseActionIndicatorFunc     func(point image.Point, style ports.MouseActionIndicatorStyle)
 	HideFunc                         func(context.Context) error
 	IsVisibleFunc                    func() bool
 	RefreshFunc                      func(context.Context) error
@@ -65,6 +67,16 @@ func (m *MockOverlayPort) DrawModeIndicator(x, y int) {
 func (m *MockOverlayPort) DrawStickyModifiersIndicator(x, y int, symbols string) {
 	if m.DrawStickyModifiersIndicatorFunc != nil {
 		m.DrawStickyModifiersIndicatorFunc(x, y, symbols)
+	}
+}
+
+// DrawMouseActionIndicator implements ports.OverlayPort.
+func (m *MockOverlayPort) DrawMouseActionIndicator(
+	point image.Point,
+	style ports.MouseActionIndicatorStyle,
+) {
+	if m.DrawMouseActionIndicatorFunc != nil {
+		m.DrawMouseActionIndicatorFunc(point, style)
 	}
 }
 
