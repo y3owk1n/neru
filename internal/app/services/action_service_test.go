@@ -119,6 +119,86 @@ func TestPerformActionAtPoint_DrawsMouseActionIndicatorWhenEnabled(t *testing.T)
 	}
 }
 
+func TestPerformActionAtPoint_DoesNotDrawMouseActionIndicatorWhenDisabled(t *testing.T) {
+	ctx := context.Background()
+
+	acc := &portmocks.MockAccessibilityPort{
+		PerformActionAtPointFunc: func(
+			context.Context,
+			action.Type,
+			image.Point,
+			action.Modifiers,
+		) error {
+			return nil
+		},
+	}
+
+	drawn := false
+	overlay := &portmocks.MockOverlayPort{
+		DrawMouseActionIndicatorFunc: func(
+			image.Point,
+			ports.MouseActionIndicatorStyle,
+		) {
+			drawn = true
+		},
+	}
+
+	service := services.NewActionService(acc, overlay, &portmocks.SystemMock{}, zap.NewNop())
+	cfg := config.DefaultConfig().MouseAction
+	cfg.Enabled = false
+	cfg.Actions = []string{"left_click"}
+	service.UpdateConfig(cfg)
+
+	err := service.PerformActionAtPoint(ctx, "left_click", image.Point{X: 10, Y: 20}, 0)
+	if err != nil {
+		t.Fatalf("PerformActionAtPoint() error = %v", err)
+	}
+
+	if drawn {
+		t.Fatal("expected mouse action indicator NOT to be drawn when disabled")
+	}
+}
+
+func TestPerformActionAtPoint_DoesNotDrawMouseActionIndicatorForUnlistedAction(t *testing.T) {
+	ctx := context.Background()
+
+	acc := &portmocks.MockAccessibilityPort{
+		PerformActionAtPointFunc: func(
+			context.Context,
+			action.Type,
+			image.Point,
+			action.Modifiers,
+		) error {
+			return nil
+		},
+	}
+
+	drawn := false
+	overlay := &portmocks.MockOverlayPort{
+		DrawMouseActionIndicatorFunc: func(
+			image.Point,
+			ports.MouseActionIndicatorStyle,
+		) {
+			drawn = true
+		},
+	}
+
+	service := services.NewActionService(acc, overlay, &portmocks.SystemMock{}, zap.NewNop())
+	cfg := config.DefaultConfig().MouseAction
+	cfg.Enabled = true
+	cfg.Actions = []string{"left_click"}
+	service.UpdateConfig(cfg)
+
+	err := service.PerformActionAtPoint(ctx, "right_click", image.Point{X: 10, Y: 20}, 0)
+	if err != nil {
+		t.Fatalf("PerformActionAtPoint() error = %v", err)
+	}
+
+	if drawn {
+		t.Fatal("expected mouse action indicator NOT to be drawn for unlisted action")
+	}
+}
+
 func TestPerformActionAtPoint_InvalidAction(t *testing.T) {
 	service := newTestActionService(&portmocks.MockAccessibilityPort{}, &portmocks.SystemMock{})
 
