@@ -2986,7 +2986,8 @@ void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle st
 		}
 		CGFloat size = MAX(style.size, 1);
 		CGFloat endScale = style.endScale > 0 ? style.endScale : 1.0;
-		CGFloat canvasSize = ceil(size * MAX(endScale, 1.0) + MAX(style.borderWidth, 0) * 4.0);
+		CGFloat maxScale = MAX(style.startScale > 0 ? style.startScale : 1.0, MAX(endScale, 1.0));
+		CGFloat canvasSize = ceil(size * maxScale + MAX(style.borderWidth, 0) * 4.0);
 		NSPoint center = NeruAppKitPointFromQuartzPoint(position);
 		NSRect frame = NSMakeRect(center.x - canvasSize / 2.0, center.y - canvasSize / 2.0, canvasSize, canvasSize);
 
