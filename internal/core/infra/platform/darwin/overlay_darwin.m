@@ -3004,7 +3004,7 @@ void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle st
 		[panel setIgnoresMouseEvents:YES];
 		[panel setAcceptsMouseMovedEvents:NO];
 		[panel setHasShadow:NO];
-		[panel setSharingType:NSWindowSharingReadOnly];
+		[panel setSharingType:style.hideInScreenShare ? NSWindowSharingNone : NSWindowSharingReadOnly];
 		[panel setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorStationary |
 		                             NSWindowCollectionBehaviorFullScreenAuxiliary |
 		                             NSWindowCollectionBehaviorIgnoresCycle];

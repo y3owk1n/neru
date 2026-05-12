@@ -36,14 +36,23 @@ const (
 	NSWindowSharingReadOnly = 1
 )
 
+func boolToInt(v bool) int {
+	if v {
+		return 1
+	}
+
+	return 0
+}
+
 // Manager manages multiple overlay windows.
 type Manager struct {
-	window C.OverlayWindow
-	logger *zap.Logger
-	mu     sync.RWMutex
-	mode   Mode
-	subs   map[uint64]func(StateChange)
-	nextID uint64
+	window            C.OverlayWindow
+	logger            *zap.Logger
+	mu                sync.RWMutex
+	mode              Mode
+	subs              map[uint64]func(StateChange)
+	nextID            uint64
+	hideInScreenShare bool
 
 	// Overlay renderers
 	hintOverlay            *hints.Overlay
@@ -377,6 +386,10 @@ func (m *Manager) DrawMouseActionIndicator(
 	point image.Point,
 	style ports.MouseActionIndicatorStyle,
 ) {
+	m.mu.RLock()
+	hideInScreenShare := m.hideInScreenShare
+	m.mu.RUnlock()
+
 	backgroundColor := C.CString(style.BackgroundColor)
 	borderColor := C.CString(style.BorderColor)
 	shape := C.CString(style.Shape)
@@ -390,17 +403,18 @@ func (m *Manager) DrawMouseActionIndicator(
 	C.NeruShowMouseActionIndicator(
 		C.CGPoint{x: C.double(point.X), y: C.double(point.Y)},
 		C.MouseActionIndicatorStyle{
-			size:            C.int(style.Size),
-			borderWidth:     C.int(style.BorderWidth),
-			backgroundColor: backgroundColor,
-			borderColor:     borderColor,
-			shape:           shape,
-			durationMS:      C.int(style.DurationMS),
-			startScale:      C.double(style.StartScale),
-			endScale:        C.double(style.EndScale),
-			startOpacity:    C.double(style.StartOpacity),
-			endOpacity:      C.double(style.EndOpacity),
-			easing:          easing,
+			size:              C.int(style.Size),
+			borderWidth:       C.int(style.BorderWidth),
+			backgroundColor:   backgroundColor,
+			borderColor:       borderColor,
+			shape:             shape,
+			durationMS:        C.int(style.DurationMS),
+			startScale:        C.double(style.StartScale),
+			endScale:          C.double(style.EndScale),
+			startOpacity:      C.double(style.StartOpacity),
+			endOpacity:        C.double(style.EndOpacity),
+			easing:            easing,
+			hideInScreenShare: C.int(boolToInt(style.HideInScreenShare || hideInScreenShare)),
 		},
 	)
 }
@@ -492,6 +506,8 @@ func (m *Manager) SetHideUnmatched(hide bool) {
 func (m *Manager) SetSharingType(hide bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	m.hideInScreenShare = hide
 
 	sharingType := C.int(NSWindowSharingReadOnly)
 	if hide {

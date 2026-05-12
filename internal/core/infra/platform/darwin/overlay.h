@@ -114,6 +114,7 @@ typedef struct {
 	double startOpacity;    ///< Initial opacity
 	double endOpacity;      ///< Final opacity
 	char *easing;           ///< linear, ease_in, ease_out, or ease_in_out
+	int hideInScreenShare;  ///< Hide panel from screen sharing (1 = hidden, 0 = visible)
 } MouseActionIndicatorStyle;
 
 /// Callback type for async operations

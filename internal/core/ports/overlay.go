@@ -42,17 +42,18 @@ type OverlayVisibility interface {
 
 // MouseActionIndicatorStyle configures a transient mouse action indicator.
 type MouseActionIndicatorStyle struct {
-	Size            int
-	BorderWidth     int
-	BackgroundColor string
-	BorderColor     string
-	Shape           string
-	DurationMS      int
-	StartScale      float64
-	EndScale        float64
-	StartOpacity    float64
-	EndOpacity      float64
-	Easing          string
+	Size              int
+	BorderWidth       int
+	BackgroundColor   string
+	BorderColor       string
+	Shape             string
+	DurationMS        int
+	StartScale        float64
+	EndScale          float64
+	StartOpacity      float64
+	EndOpacity        float64
+	Easing            string
+	HideInScreenShare bool
 }
 
 // OverlayPort defines the interface for managing UI overlays.
