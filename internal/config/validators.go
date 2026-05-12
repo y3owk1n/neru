@@ -811,6 +811,13 @@ func (c *Config) ValidateMouseAction() error {
 		)
 	}
 
+	if len(c.MouseAction.Actions) == 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"mouse_action_indicator.actions must contain at least one mouse button action",
+		)
+	}
+
 	for index, actionName := range c.MouseAction.Actions {
 		actionType, parseErr := action.ParseType(actionName)
 		if parseErr != nil || !actionType.IsMouseButton() {
