@@ -780,10 +780,10 @@ func (c *Config) ValidateMouseAction() error {
 		)
 	}
 
-	if c.MouseAction.Animation.DurationMS < 0 {
+	if c.MouseAction.Animation.DurationMS < 1 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"mouse_action_indicator.animation.duration_ms must be non-negative",
+			"mouse_action_indicator.animation.duration_ms must be >= 1",
 		)
 	}
 
