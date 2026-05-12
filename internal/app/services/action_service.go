@@ -109,10 +109,6 @@ func (s *ActionService) PerformActionAtPoint(
 }
 
 func mouseActionIndicatorIncludes(actions []string, actionType action.Type) bool {
-	if len(actions) == 0 {
-		return actionType.IsMouseButton()
-	}
-
 	actionName := actionType.String()
 
 	return slices.Contains(actions, actionName)
