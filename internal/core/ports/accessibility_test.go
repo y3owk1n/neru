@@ -45,6 +45,10 @@ func TestDefaultElementFilter(t *testing.T) {
 		t.Error("Expected IncludeStageManager to be false by default")
 	}
 
+	if filter.IncludePIP {
+		t.Error("Expected IncludePIP to be false by default")
+	}
+
 	// Check that slices are initialized
 	if filter.Roles != nil {
 		t.Error("Expected Roles to be nil by default")
@@ -66,6 +70,8 @@ func TestElementFilterStruct(t *testing.T) {
 		AdditionalMenubarTargets:  []string{"com.example.app"},
 		IncludeDock:               true,
 		IncludeNotificationCenter: true,
+		IncludeStageManager:       true,
+		IncludePIP:                true,
 	}
 
 	if len(filter.Roles) != 1 || filter.Roles[0] != element.RoleButton {
@@ -102,6 +108,14 @@ func TestElementFilterStruct(t *testing.T) {
 
 	if !filter.IncludeNotificationCenter {
 		t.Error("Expected IncludeNotificationCenter to be true")
+	}
+
+	if !filter.IncludeStageManager {
+		t.Error("Expected IncludeStageManager to be true")
+	}
+
+	if !filter.IncludePIP {
+		t.Error("Expected IncludePIP to be true")
 	}
 }
 

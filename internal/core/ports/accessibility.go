@@ -102,6 +102,11 @@ type ElementFilter struct {
 	// Platform equivalents on Linux/Windows are not yet mapped.
 	IncludeStageManager bool
 
+	// IncludePIP includes Picture in Picture controls.
+	// On macOS this queries com.apple.PIPAgent.
+	// Platform equivalents on Linux/Windows are not yet mapped.
+	IncludePIP bool
+
 	// TitleContains filters elements whose title contains this substring (case-insensitive).
 	TitleContains string
 
@@ -128,5 +133,6 @@ func DefaultElementFilter() ElementFilter {
 		IncludeDock:               false,
 		IncludeNotificationCenter: false,
 		IncludeStageManager:       false,
+		IncludePIP:                false,
 	}
 }

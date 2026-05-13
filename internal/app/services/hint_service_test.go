@@ -183,6 +183,14 @@ func TestHintService_ShowHints(t *testing.T) {
 						t.Error("IncludeNotificationCenter should be true based on config")
 					}
 
+					if !filter.IncludeStageManager {
+						t.Error("IncludeStageManager should be true based on config")
+					}
+
+					if !filter.IncludePIP {
+						t.Error("IncludePIP should be true based on config")
+					}
+
 					return testElements, nil
 				}
 			},
@@ -196,6 +204,7 @@ func TestHintService_ShowHints(t *testing.T) {
 				IncludeDockHints:         true,
 				IncludeNCHints:           true,
 				IncludeStageManagerHints: true,
+				IncludePIPHints:          true,
 			},
 			wantErr:       false,
 			wantHintCount: 3,

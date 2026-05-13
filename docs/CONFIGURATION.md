@@ -338,6 +338,7 @@ You can also start hints mode with the search input shown immediately by using t
 | `include_dock_hints`               | bool   | `false`       | Show hints on Dock items                             |
 | `include_nc_hints`                 | bool   | `false`       | Show hints in Notification Center                    |
 | `include_stage_manager_hints`      | bool   | `false`       | Show hints in Stage Manager                          |
+| `include_pip_hints`                | bool   | `false`       | Show hints on macOS Picture in Picture controls      |
 | `detect_mission_control`           | bool   | `false`       | Auto-disable hints when in Mission Control           |
 | `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                             |
 | `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                         |

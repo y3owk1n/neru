@@ -534,4 +534,29 @@ func TestAdapter_RolePassing(t *testing.T) {
 			)
 		}
 	})
+
+	t.Run("Picture in Picture Elements", func(t *testing.T) {
+		mockClient.LastCalledBundleID = ""
+		mockClient.LastBundleRoles = nil
+
+		filter := ports.ElementFilter{
+			IncludePIP: true,
+		}
+
+		_, _ = adapter.ClickableElements(ctx, filter)
+
+		if mockClient.LastCalledBundleID != "com.apple.PIPAgent" {
+			t.Errorf(
+				"Expected PIP supplementary query to use com.apple.PIPAgent, got: %q",
+				mockClient.LastCalledBundleID,
+			)
+		}
+
+		if mockClient.LastBundleRoles != nil {
+			t.Errorf(
+				"Expected PIP query to use configured clickable roles, got: %v",
+				mockClient.LastBundleRoles,
+			)
+		}
+	})
 }

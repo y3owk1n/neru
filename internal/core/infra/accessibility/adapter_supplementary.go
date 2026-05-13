@@ -23,7 +23,8 @@ func (a *Adapter) addSupplementaryElements(
 		zap.Bool("include_menubar", filter.IncludeMenubar),
 		zap.Bool("include_dock", filter.IncludeDock),
 		zap.Bool("include_nc", filter.IncludeNotificationCenter),
-		zap.Bool("include_stage_manager", filter.IncludeStageManager))
+		zap.Bool("include_stage_manager", filter.IncludeStageManager),
+		zap.Bool("include_pip", filter.IncludePIP))
 
 	// Add menubar elements
 	if !missionControlActive && filter.IncludeMenubar {
@@ -43,6 +44,12 @@ func (a *Adapter) addSupplementaryElements(
 	// Add stage manager elements
 	if filter.IncludeStageManager {
 		elements = a.addStageManagerElements(ctx, elements)
+	}
+
+	// Add Picture in Picture elements. Safari PiP is owned by PIPAgent and
+	// cannot be discovered from the currently focused app because it is not focusable.
+	if filter.IncludePIP {
+		elements = a.addPIPElements(ctx, elements)
 	}
 
 	return elements
@@ -287,6 +294,39 @@ func (a *Adapter) addStageManagerElements(
 	}
 
 	a.logger.Debug("Included window manager elements", zap.Int("count", len(wmNodes)))
+
+	return elements
+}
+
+// addPIPElements adds macOS Picture in Picture controls from PIPAgent.
+func (a *Adapter) addPIPElements(
+	_ context.Context,
+	elements []*element.Element,
+) []*element.Element {
+	const pipBundleID = "com.apple.PIPAgent"
+
+	pipNodes, pipNodesErr := a.client.ClickableElementsFromBundleID(pipBundleID, nil, false)
+	if pipNodesErr != nil {
+		a.logger.Warn("Failed to get Picture in Picture elements", zap.Error(pipNodesErr))
+
+		return elements
+	}
+
+	for _, node := range pipNodes {
+		element, elementErr := a.convertToDomainElement(node)
+
+		node.Release()
+
+		if elementErr != nil {
+			a.logger.Warn("Failed to convert Picture in Picture element", zap.Error(elementErr))
+
+			continue
+		}
+
+		elements = append(elements, element)
+	}
+
+	a.logger.Debug("Included Picture in Picture elements", zap.Int("count", len(pipNodes)))
 
 	return elements
 }
