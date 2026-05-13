@@ -213,41 +213,6 @@ func TestAdapter_MatchesFilter(t *testing.T) {
 		element.RoleButton,
 	)
 
-	tests := []struct {
-		name   string
-		filter ports.ElementFilter
-		want   bool
-	}{
-		{
-			name: "match by role",
-			filter: ports.ElementFilter{
-				Roles: []element.Role{element.RoleButton},
-			},
-			want: true,
-		},
-		{
-			name: "no match by role",
-			filter: ports.ElementFilter{
-				Roles: []element.Role{element.RoleLink},
-			},
-			want: false,
-		},
-		{
-			name: "match by min size",
-			filter: ports.ElementFilter{
-				MinSize: image.Point{X: 50, Y: 50},
-			},
-			want: true,
-		},
-		{
-			name: "match by extra search text",
-			filter: ports.ElementFilter{
-				ValueContains: "notes",
-			},
-			want: true,
-		},
-	}
-
 	elemWithSearchText, _ := element.NewElement(
 		element.ID("test-id-with-search-text"),
 		image.Rect(0, 0, 100, 100),
@@ -255,14 +220,49 @@ func TestAdapter_MatchesFilter(t *testing.T) {
 		element.WithSearchText("Apple Notes row"),
 	)
 
+	tests := []struct {
+		name   string
+		elem   *element.Element
+		filter ports.ElementFilter
+		want   bool
+	}{
+		{
+			name: "match by role",
+			elem: elem,
+			filter: ports.ElementFilter{
+				Roles: []element.Role{element.RoleButton},
+			},
+			want: true,
+		},
+		{
+			name: "no match by role",
+			elem: elem,
+			filter: ports.ElementFilter{
+				Roles: []element.Role{element.RoleLink},
+			},
+			want: false,
+		},
+		{
+			name: "match by min size",
+			elem: elem,
+			filter: ports.ElementFilter{
+				MinSize: image.Point{X: 50, Y: 50},
+			},
+			want: true,
+		},
+		{
+			name: "match by extra search text",
+			elem: elemWithSearchText,
+			filter: ports.ElementFilter{
+				ValueContains: "notes",
+			},
+			want: true,
+		},
+	}
+
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			testElem := elem
-			if testCase.name == "match by extra search text" {
-				testElem = elemWithSearchText
-			}
-
-			got := adapter.MatchesFilter(testElem, testCase.filter)
+			got := adapter.MatchesFilter(testCase.elem, testCase.filter)
 			if got != testCase.want {
 				t.Errorf("matchesFilter() = %v, want %v", got, testCase.want)
 			}
