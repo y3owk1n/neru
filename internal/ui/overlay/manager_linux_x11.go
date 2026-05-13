@@ -443,6 +443,21 @@ func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscom
 
 	o.Clear()
 	for _, hint := range hintsSlice {
+		if style.BoundaryHighlightEnabled() {
+			boundary := image.Rect(
+				hint.Position().X-hint.Size().X/2,
+				hint.Position().Y-hint.Size().Y/2,
+				hint.Position().X+hint.Size().X/2,
+				hint.Position().Y+hint.Size().Y/2,
+			)
+			o.drawRect(
+				boundary,
+				parseHexColor(style.BoundaryBackgroundColor()),
+				parseHexColor(style.BoundaryBorderColor()),
+				float64(max(style.BoundaryBorderWidth(), 0)),
+			)
+		}
+
 		bounds := image.Rect(
 			hint.Position().X,
 			hint.Position().Y,
