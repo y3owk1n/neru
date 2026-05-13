@@ -16,6 +16,11 @@
 /// Overlay window handle
 typedef void *OverlayWindow;
 
+/// Hint placement constants (must match HintPlacement enum in overlay_darwin.m)
+#define HINT_PLACEMENT_TOP 1
+#define HINT_PLACEMENT_CENTER 2
+#define HINT_PLACEMENT_BOTTOM 3
+
 /// Hint style configuration
 typedef struct {
 	int fontSize;                   ///< Font size

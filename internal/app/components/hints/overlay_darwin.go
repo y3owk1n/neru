@@ -51,13 +51,13 @@ func boolToInt(v bool) int {
 func hintPlacementValue(placement string) int {
 	switch placement {
 	case "top":
-		return 1
+		return int(C.HINT_PLACEMENT_TOP)
 	case "center":
-		return 2 //nolint:mnd
+		return int(C.HINT_PLACEMENT_CENTER)
 	case "bottom", "":
-		return 3 //nolint:mnd
+		return int(C.HINT_PLACEMENT_BOTTOM)
 	default:
-		return 3 //nolint:mnd
+		return int(C.HINT_PLACEMENT_BOTTOM)
 	}
 }
 
