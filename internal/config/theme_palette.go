@@ -42,6 +42,14 @@ var (
 	HintsBorderColorLight = solidRGBHex(defaultThemeLightAccent)
 	// HintsBorderColorDark is the fallback dark border color for hints.
 	HintsBorderColorDark = solidRGBHex(defaultThemeDarkAccent)
+	// HintsBoundaryBackgroundColorLight is the fallback light fill color for hint target boundaries.
+	HintsBoundaryBackgroundColorLight = applyAlpha(defaultThemeLightAccent, "14")
+	// HintsBoundaryBackgroundColorDark is the fallback dark fill color for hint target boundaries.
+	HintsBoundaryBackgroundColorDark = applyAlpha(defaultThemeDarkAccentAlt, "1F")
+	// HintsBoundaryBorderColorLight is the fallback light stroke color for hint target boundaries.
+	HintsBoundaryBorderColorLight = applyAlpha(defaultThemeLightAccent, "73")
+	// HintsBoundaryBorderColorDark is the fallback dark stroke color for hint target boundaries.
+	HintsBoundaryBorderColorDark = applyAlpha(defaultThemeDarkAccentAlt, "8C")
 
 	// GridBackgroundColorLight is the fallback light background color for grid cells.
 	GridBackgroundColorLight = applyAlpha(defaultThemeLightSurface, "99")
@@ -230,6 +238,12 @@ func (c *Config) ResolveThemeDefaults() {
 	))
 	mergeColorWithDefault(&c.Hints.SearchInputUI.BorderColor, solidThemedColor(
 		c.Theme.Light.Accent, c.Theme.Dark.Accent,
+	))
+	mergeColorWithDefault(&c.Hints.BoundaryHighlight.BackgroundColor, themedColor(
+		c.Theme.Light.Accent, c.Theme.Dark.AccentAlt, "1A",
+	))
+	mergeColorWithDefault(&c.Hints.BoundaryHighlight.BorderColor, themedColor(
+		c.Theme.Light.Accent, c.Theme.Dark.AccentAlt, "73",
 	))
 
 	mergeColorWithDefault(&c.Grid.UI.BackgroundColor, themedColor(

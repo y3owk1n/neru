@@ -12,16 +12,21 @@ import (
 
 // StyleMode represents the visual styling configuration for hint overlays.
 type StyleMode struct {
-	fontSize         int
-	fontFamily       string
-	borderRadius     int
-	paddingX         int
-	paddingY         int
-	borderWidth      int
-	backgroundColor  string
-	textColor        string
-	matchedTextColor string
-	borderColor      string
+	fontSize                 int
+	fontFamily               string
+	borderRadius             int
+	paddingX                 int
+	paddingY                 int
+	borderWidth              int
+	backgroundColor          string
+	textColor                string
+	matchedTextColor         string
+	borderColor              string
+	boundaryHighlightEnabled bool
+	boundaryBorderWidth      int
+	boundaryBorderRadius     int
+	boundaryBackgroundColor  string
+	boundaryBorderColor      string
 }
 
 // FontSize returns the font size.
@@ -53,6 +58,21 @@ func (s StyleMode) MatchedTextColor() string { return s.matchedTextColor }
 
 // BorderColor returns the border color.
 func (s StyleMode) BorderColor() string { return s.borderColor }
+
+// BoundaryHighlightEnabled returns whether target boundaries are drawn behind hints.
+func (s StyleMode) BoundaryHighlightEnabled() bool { return s.boundaryHighlightEnabled }
+
+// BoundaryBorderWidth returns the target boundary stroke width.
+func (s StyleMode) BoundaryBorderWidth() int { return s.boundaryBorderWidth }
+
+// BoundaryBorderRadius returns the target boundary corner radius.
+func (s StyleMode) BoundaryBorderRadius() int { return s.boundaryBorderRadius }
+
+// BoundaryBackgroundColor returns the target boundary fill color.
+func (s StyleMode) BoundaryBackgroundColor() string { return s.boundaryBackgroundColor }
+
+// BoundaryBorderColor returns the target boundary stroke color.
+func (s StyleMode) BoundaryBorderColor() string { return s.boundaryBorderColor }
 
 // Overlay manages the rendering of hint overlays using native platform APIs (Linux stub).
 type Overlay struct {
@@ -137,6 +157,19 @@ func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 			theme,
 			config.HintsBorderColorLight,
 			config.HintsBorderColorDark,
+		),
+		boundaryHighlightEnabled: cfg.BoundaryHighlight.Enabled,
+		boundaryBorderWidth:      cfg.BoundaryHighlight.BorderWidth,
+		boundaryBorderRadius:     cfg.BoundaryHighlight.BorderRadius,
+		boundaryBackgroundColor: cfg.BoundaryHighlight.BackgroundColor.ForTheme(
+			theme,
+			config.HintsBoundaryBackgroundColorLight,
+			config.HintsBoundaryBackgroundColorDark,
+		),
+		boundaryBorderColor: cfg.BoundaryHighlight.BorderColor.ForTheme(
+			theme,
+			config.HintsBoundaryBorderColorLight,
+			config.HintsBoundaryBorderColorDark,
 		),
 	}
 }

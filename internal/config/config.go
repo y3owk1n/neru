@@ -534,6 +534,15 @@ type HintsUI struct {
 	BorderColor      Color  `json:"borderColor"      toml:"border_color"`
 }
 
+// BoundaryHighlightUI defines the optional target boundary highlight for hints mode.
+type BoundaryHighlightUI struct {
+	Enabled         bool  `json:"enabled"         toml:"enabled"`
+	BorderWidth     int   `json:"borderWidth"     toml:"border_width"`
+	BorderRadius    int   `json:"borderRadius"    toml:"border_radius"`
+	BorderColor     Color `json:"borderColor"     toml:"border_color"`
+	BackgroundColor Color `json:"backgroundColor" toml:"background_color"`
+}
+
 // SearchInputUI defines the visual/appearance settings for hints text search.
 type SearchInputUI struct {
 	FontSize        int    `json:"fontSize"        toml:"font_size"`
@@ -553,12 +562,13 @@ type SearchInputUI struct {
 
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
-	Enabled           bool          `json:"enabled"           toml:"enabled"`
-	HintCharacters    string        `json:"hintCharacters"    toml:"hint_characters"`
-	MaxDepth          int           `json:"maxDepth"          toml:"max_depth"`
-	ParallelThreshold int           `json:"parallelThreshold" toml:"parallel_threshold"`
-	UI                HintsUI       `json:"ui"                toml:"ui"`
-	SearchInputUI     SearchInputUI `json:"searchInputUi"     toml:"search_input_ui"`
+	Enabled           bool                `json:"enabled"           toml:"enabled"`
+	HintCharacters    string              `json:"hintCharacters"    toml:"hint_characters"`
+	MaxDepth          int                 `json:"maxDepth"          toml:"max_depth"`
+	ParallelThreshold int                 `json:"parallelThreshold" toml:"parallel_threshold"`
+	UI                HintsUI             `json:"ui"                toml:"ui"`
+	SearchInputUI     SearchInputUI       `json:"searchInputUi"     toml:"search_input_ui"`
+	BoundaryHighlight BoundaryHighlightUI `json:"boundaryHighlight" toml:"boundary_highlight"`
 
 	IncludeMenubarHints           bool     `json:"includeMenubarHints"           toml:"include_menubar_hints"`
 	AdditionalMenubarHintsTargets []string `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`

@@ -16,6 +16,7 @@
 @interface HintItem : NSObject
 @property(nonatomic, copy) NSString *label;
 @property(nonatomic, assign) CGPoint position;
+@property(nonatomic, assign) CGSize size;
 @property(nonatomic, assign) int matchedPrefixLength;
 @property(nonatomic, assign) BOOL showArrow;
 @end
@@ -117,25 +118,30 @@ static const CGFloat kHintArrowGap = 1.0;
 #pragma mark - Overlay View Interface
 
 @interface OverlayView : NSView
-@property(nonatomic, strong) NSMutableArray<HintItem *> *hints;    ///< Hints array
-@property(nonatomic, strong) NSFont *hintFont;                     ///< Hint font
-@property(nonatomic, strong) NSColor *hintTextColor;               ///< Hint text color
-@property(nonatomic, strong) NSColor *hintMatchedTextColor;        ///< Hint matched text color
-@property(nonatomic, strong) NSColor *hintBackgroundColor;         ///< Hint background color
-@property(nonatomic, strong) NSColor *hintBorderColor;             ///< Hint border color
-@property(nonatomic, assign) CGFloat hintBorderRadius;             ///< Hint border radius
-@property(nonatomic, assign) CGFloat hintBorderWidth;              ///< Hint border width
-@property(nonatomic, assign) CGFloat hintPaddingX;                 ///< Hint horizontal padding
-@property(nonatomic, assign) CGFloat hintPaddingY;                 ///< Hint vertical padding
-@property(nonatomic, strong) SearchInputItem *searchInput;         ///< Active hints search input
-@property(nonatomic, strong) NSFont *searchInputFont;              ///< Search input font
-@property(nonatomic, strong) NSColor *searchInputTextColor;        ///< Search input text color
-@property(nonatomic, strong) NSColor *searchInputBackgroundColor;  ///< Search input background color
-@property(nonatomic, strong) NSColor *searchInputBorderColor;      ///< Search input border color
-@property(nonatomic, assign) CGFloat searchInputBorderRadius;      ///< Search input border radius
-@property(nonatomic, assign) CGFloat searchInputBorderWidth;       ///< Search input border width
-@property(nonatomic, assign) CGFloat searchInputPaddingX;          ///< Search input horizontal padding
-@property(nonatomic, assign) CGFloat searchInputPaddingY;          ///< Search input vertical padding
+@property(nonatomic, strong) NSMutableArray<HintItem *> *hints;     ///< Hints array
+@property(nonatomic, strong) NSFont *hintFont;                      ///< Hint font
+@property(nonatomic, strong) NSColor *hintTextColor;                ///< Hint text color
+@property(nonatomic, strong) NSColor *hintMatchedTextColor;         ///< Hint matched text color
+@property(nonatomic, strong) NSColor *hintBackgroundColor;          ///< Hint background color
+@property(nonatomic, strong) NSColor *hintBorderColor;              ///< Hint border color
+@property(nonatomic, strong) NSColor *hintBoundaryBackgroundColor;  ///< Target boundary fill color
+@property(nonatomic, strong) NSColor *hintBoundaryBorderColor;      ///< Target boundary stroke color
+@property(nonatomic, assign) CGFloat hintBorderRadius;              ///< Hint border radius
+@property(nonatomic, assign) CGFloat hintBorderWidth;               ///< Hint border width
+@property(nonatomic, assign) CGFloat hintPaddingX;                  ///< Hint horizontal padding
+@property(nonatomic, assign) CGFloat hintPaddingY;                  ///< Hint vertical padding
+@property(nonatomic, assign) BOOL hintBoundaryHighlightEnabled;     ///< Draw target boundary highlight
+@property(nonatomic, assign) CGFloat hintBoundaryBorderWidth;       ///< Target boundary stroke width
+@property(nonatomic, assign) CGFloat hintBoundaryBorderRadius;      ///< Target boundary corner radius
+@property(nonatomic, strong) SearchInputItem *searchInput;          ///< Active hints search input
+@property(nonatomic, strong) NSFont *searchInputFont;               ///< Search input font
+@property(nonatomic, strong) NSColor *searchInputTextColor;         ///< Search input text color
+@property(nonatomic, strong) NSColor *searchInputBackgroundColor;   ///< Search input background color
+@property(nonatomic, strong) NSColor *searchInputBorderColor;       ///< Search input border color
+@property(nonatomic, assign) CGFloat searchInputBorderRadius;       ///< Search input border radius
+@property(nonatomic, assign) CGFloat searchInputBorderWidth;        ///< Search input border width
+@property(nonatomic, assign) CGFloat searchInputPaddingX;           ///< Search input horizontal padding
+@property(nonatomic, assign) CGFloat searchInputPaddingY;           ///< Search input vertical padding
 
 @property(nonatomic, strong) NSMutableArray<GridCellItem *> *gridCells;         ///< Grid cells array
 @property(nonatomic, strong) NSArray<GridCellItem *> *transitionFromGridCells;  ///< Previous grid cells for animation
@@ -282,8 +288,13 @@ static const CGFloat kHintArrowGap = 1.0;
 		_hintMatchedTextColor = [NSColor systemBlueColor];
 		_hintBackgroundColor = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0] colorWithAlphaComponent:0.95];
 		_hintBorderColor = [NSColor blackColor];
+		_hintBoundaryBackgroundColor = [[NSColor systemBlueColor] colorWithAlphaComponent:0.08];
+		_hintBoundaryBorderColor = [[NSColor systemBlueColor] colorWithAlphaComponent:0.45];
 		_hintBorderRadius = -1.0;
 		_hintBorderWidth = 1.0;
+		_hintBoundaryHighlightEnabled = NO;
+		_hintBoundaryBorderWidth = 1.0;
+		_hintBoundaryBorderRadius = 4.0;
 		_hintPaddingX = -1.0;
 		_hintPaddingY = -1.0;
 		_searchInput = nil;
@@ -698,24 +709,35 @@ static const CGFloat kHintArrowGap = 1.0;
 	NSColor *defaultText = [NSColor blackColor];
 	NSColor *defaultMatchedText = [NSColor systemBlueColor];
 	NSColor *defaultBorder = [NSColor blackColor];
+	NSColor *defaultBoundaryBackground = [[NSColor systemBlueColor] colorWithAlphaComponent:0.08];
+	NSColor *defaultBoundaryBorder = [[NSColor systemBlueColor] colorWithAlphaComponent:0.45];
 
 	// Parse hex color strings
 	NSString *backgroundHex = style.backgroundColor ? [NSString stringWithUTF8String:style.backgroundColor] : nil;
 	NSString *textHex = style.textColor ? [NSString stringWithUTF8String:style.textColor] : nil;
 	NSString *matchedTextHex = style.matchedTextColor ? [NSString stringWithUTF8String:style.matchedTextColor] : nil;
 	NSString *borderHex = style.borderColor ? [NSString stringWithUTF8String:style.borderColor] : nil;
+	NSString *boundaryBackgroundHex =
+	    style.boundaryBackgroundColor ? [NSString stringWithUTF8String:style.boundaryBackgroundColor] : nil;
+	NSString *boundaryBorderHex =
+	    style.boundaryBorderColor ? [NSString stringWithUTF8String:style.boundaryBorderColor] : nil;
 
 	// Apply colors
 	self.hintBackgroundColor = [self colorFromHex:backgroundHex defaultColor:defaultBg];
 	self.hintTextColor = [self colorFromHex:textHex defaultColor:defaultText];
 	self.hintMatchedTextColor = [self colorFromHex:matchedTextHex defaultColor:defaultMatchedText];
 	self.hintBorderColor = [self colorFromHex:borderHex defaultColor:defaultBorder];
+	self.hintBoundaryBackgroundColor = [self colorFromHex:boundaryBackgroundHex defaultColor:defaultBoundaryBackground];
+	self.hintBoundaryBorderColor = [self colorFromHex:boundaryBorderHex defaultColor:defaultBoundaryBorder];
 
 	// Apply geometry properties
 	self.hintBorderRadius = style.borderRadius;
 	self.hintBorderWidth = style.borderWidth >= 0 ? style.borderWidth : 1.0;
 	self.hintPaddingX = style.paddingX;
 	self.hintPaddingY = style.paddingY;
+	self.hintBoundaryHighlightEnabled = style.boundaryHighlightEnabled ? YES : NO;
+	self.hintBoundaryBorderWidth = style.boundaryBorderWidth >= 0 ? style.boundaryBorderWidth : 1.0;
+	self.hintBoundaryBorderRadius = style.boundaryBorderRadius >= 0 ? style.boundaryBorderRadius : 4.0;
 }
 
 /// Create color from hex string
@@ -1000,6 +1022,16 @@ static const CGFloat kHintArrowGap = 1.0;
 		}
 	}
 
+	if (self.hintBoundaryHighlightEnabled && hint.size.width > 0.0 && hint.size.height > 0.0) {
+		CGFloat boundaryX = position.x - hint.size.width / 2.0;
+		CGFloat boundaryY = screenHeight - position.y - hint.size.height / 2.0;
+		CGFloat boundaryExpand = ceil(self.hintBoundaryBorderWidth / 2.0) + 1.0;
+		NSRect boundaryRect = NSMakeRect(
+		    boundaryX - boundaryExpand, boundaryY - boundaryExpand, hint.size.width + boundaryExpand * 2.0,
+		    hint.size.height + boundaryExpand * 2.0);
+		hintRect = NSUnionRect(hintRect, boundaryRect);
+	}
+
 	return hintRect;
 }
 
@@ -1161,6 +1193,12 @@ static const CGFloat kHintArrowGap = 1.0;
 		CGFloat flippedY = screenHeight - tooltipY - boxHeight;
 		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
 		NSRect hintRect = NSMakeRect(tooltipX, flippedY, boxWidth, boxHeight);
+		NSRect boundaryRect = NSZeroRect;
+		if (self.hintBoundaryHighlightEnabled && hint.size.width > 0.0 && hint.size.height > 0.0) {
+			boundaryRect = NSMakeRect(
+			    position.x - hint.size.width / 2.0, screenHeight - position.y - hint.size.height / 2.0, hint.size.width,
+			    hint.size.height);
+		}
 
 		// Skip hints outside the dirty region
 		if (filterByRect) {
@@ -1170,8 +1208,30 @@ static const CGFloat kHintArrowGap = 1.0;
 			if (showArrow && flippedElementCenterY > NSMaxY(testRect)) {
 				testRect.size.height = flippedElementCenterY + 1.0 - testRect.origin.y;
 			}
+			if (!NSIsEmptyRect(boundaryRect)) {
+				CGFloat boundaryExpand = ceil(self.hintBoundaryBorderWidth / 2.0) + 1.0;
+				NSRect boundaryTestRect = NSMakeRect(
+				    boundaryRect.origin.x - boundaryExpand, boundaryRect.origin.y - boundaryExpand,
+				    boundaryRect.size.width + boundaryExpand * 2.0, boundaryRect.size.height + boundaryExpand * 2.0);
+				testRect = NSUnionRect(testRect, boundaryTestRect);
+			}
 			if (!NSIntersectsRect(testRect, dirtyRect))
 				continue;
+		}
+
+		if (!NSIsEmptyRect(boundaryRect)) {
+			CGFloat boundaryRadius =
+			    MIN(self.hintBoundaryBorderRadius, MIN(boundaryRect.size.width, boundaryRect.size.height) / 2.0);
+			NSBezierPath *boundaryPath = [NSBezierPath bezierPathWithRoundedRect:boundaryRect
+			                                                             xRadius:boundaryRadius
+			                                                             yRadius:boundaryRadius];
+			[self.hintBoundaryBackgroundColor setFill];
+			[boundaryPath fill];
+			if (self.hintBoundaryBorderWidth > 0.0) {
+				[self.hintBoundaryBorderColor setStroke];
+				[boundaryPath setLineWidth:self.hintBoundaryBorderWidth];
+				[boundaryPath stroke];
+			}
 		}
 
 		// Draw background and border
@@ -1874,6 +1934,10 @@ static inline void free_hint_style_strings(const HintStyle *style) {
 		free((void *)style->matchedTextColor);
 	if (style->borderColor)
 		free((void *)style->borderColor);
+	if (style->boundaryBackgroundColor)
+		free((void *)style->boundaryBackgroundColor);
+	if (style->boundaryBorderColor)
+		free((void *)style->boundaryBorderColor);
 }
 
 static inline void free_search_input_style_strings(const SearchInputStyle *style) {
@@ -1920,6 +1984,7 @@ static NSMutableArray<HintItem *> *buildHintItems(HintData *hints, int count, BO
 		HintItem *hintItem = [[HintItem alloc] init];
 		hintItem.label = hint.label ? @(hint.label) : @"";
 		hintItem.position = hint.position;
+		hintItem.size = hint.size;
 		hintItem.matchedPrefixLength = hint.matchedPrefixLength;
 		hintItem.showArrow = showArrow;
 		[hintItems addObject:hintItem];
@@ -1955,11 +2020,16 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 		    .paddingX = style.paddingX,
 		    .paddingY = style.paddingY,
 		    .showArrow = style.showArrow,
+		    .boundaryHighlightEnabled = style.boundaryHighlightEnabled,
+		    .boundaryBorderWidth = style.boundaryBorderWidth,
+		    .boundaryBorderRadius = style.boundaryBorderRadius,
 		    .fontFamily = safe_strdup(style.fontFamily),
 		    .backgroundColor = safe_strdup(style.backgroundColor),
 		    .textColor = safe_strdup(style.textColor),
 		    .matchedTextColor = safe_strdup(style.matchedTextColor),
-		    .borderColor = safe_strdup(style.borderColor)};
+		    .borderColor = safe_strdup(style.borderColor),
+		    .boundaryBackgroundColor = safe_strdup(style.boundaryBackgroundColor),
+		    .boundaryBorderColor = safe_strdup(style.boundaryBorderColor)};
 
 		dispatch_async(dispatch_get_main_queue(), ^{
 			[controller.overlayView.hints removeAllObjects];
@@ -2142,10 +2212,15 @@ void NeruDrawIncrementHints(
 	NSString *textHex = style.textColor ? @(style.textColor) : nil;
 	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
+	NSString *boundaryBgHex = style.boundaryBackgroundColor ? @(style.boundaryBackgroundColor) : nil;
+	NSString *boundaryBorderHex = style.boundaryBorderColor ? @(style.boundaryBorderColor) : nil;
 	int borderRadius = style.borderRadius;
 	int borderWidth = style.borderWidth;
 	int paddingX = style.paddingX;
 	int paddingY = style.paddingY;
+	int boundaryHighlightEnabled = style.boundaryHighlightEnabled;
+	int boundaryBorderWidth = style.boundaryBorderWidth;
+	int boundaryBorderRadius = style.boundaryBorderRadius;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		// Apply font — only re-create when family or size changed
@@ -2183,12 +2258,25 @@ void NeruDrawIncrementHints(
 			controller.overlayView.hintBorderColor = [controller.overlayView colorFromHex:borderHex
 			                                                                 defaultColor:[NSColor blackColor]];
 		}
+		if (boundaryBgHex) {
+			NSColor *defaultBoundaryBg = [[NSColor systemBlueColor] colorWithAlphaComponent:0.08];
+			controller.overlayView.hintBoundaryBackgroundColor =
+			    [controller.overlayView colorFromHex:boundaryBgHex defaultColor:defaultBoundaryBg];
+		}
+		if (boundaryBorderHex) {
+			NSColor *defaultBoundaryBorder = [[NSColor systemBlueColor] colorWithAlphaComponent:0.45];
+			controller.overlayView.hintBoundaryBorderColor =
+			    [controller.overlayView colorFromHex:boundaryBorderHex defaultColor:defaultBoundaryBorder];
+		}
 
 		// Apply geometry properties
 		controller.overlayView.hintBorderRadius = borderRadius;
 		controller.overlayView.hintBorderWidth = borderWidth >= 0 ? borderWidth : 1.0;
 		controller.overlayView.hintPaddingX = paddingX;
 		controller.overlayView.hintPaddingY = paddingY;
+		controller.overlayView.hintBoundaryHighlightEnabled = boundaryHighlightEnabled ? YES : NO;
+		controller.overlayView.hintBoundaryBorderWidth = boundaryBorderWidth >= 0 ? boundaryBorderWidth : 1.0;
+		controller.overlayView.hintBoundaryBorderRadius = boundaryBorderRadius >= 0 ? boundaryBorderRadius : 4.0;
 
 		// Remove hints matching the given positions
 		if (positionsToRemoveArray && [positionsToRemoveArray count] > 0) {

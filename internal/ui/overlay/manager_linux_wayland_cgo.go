@@ -1001,6 +1001,21 @@ func (o *wlrootsOverlay) DrawHints(
 	C.neru_wayland_overlay_setup_buffers(o.raw)
 	o.Clear()
 	for _, hint := range hintsSlice {
+		if style.BoundaryHighlightEnabled() {
+			boundary := image.Rect(
+				hint.Position().X-hint.Size().X/2,
+				hint.Position().Y-hint.Size().Y/2,
+				hint.Position().X+hint.Size().X/2,
+				hint.Position().Y+hint.Size().Y/2,
+			)
+			o.drawRect(
+				boundary,
+				parseHexColor(style.BoundaryBackgroundColor()),
+				parseHexColor(style.BoundaryBorderColor()),
+				float64(max(style.BoundaryBorderWidth(), 0)),
+			)
+		}
+
 		bounds := image.Rect(
 			hint.Position().X,
 			hint.Position().Y,

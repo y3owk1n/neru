@@ -417,6 +417,24 @@ matched_text_color = "#0B2377"
 border_color = "#0B2377"
 ```
 
+Optional target boundary highlights can make dense or ambiguous hint layouts
+easier to read. They are off by default to keep hints mode quiet.
+
+| Option             | Type  | Default | Description                         |
+| ------------------ | ----- | ------- | ----------------------------------- |
+| `enabled`          | bool  | `false` | Draw target element boundaries      |
+| `border_width`     | int   | `1`     | Boundary stroke width in pixels     |
+| `border_radius`    | int   | `4`     | Boundary corner radius              |
+| `background_color` | color | derived | Very subtle target fill color       |
+| `border_color`     | color | derived | Target boundary stroke color        |
+
+```toml
+[hints.boundary_highlight]
+enabled = false
+border_width = 1
+border_radius = 4
+```
+
 The search input uses `[hints.search_input_ui]` with the same visual options as
 `[hints.ui]`, except `matched_text_color`. It also supports active-screen
 placement:

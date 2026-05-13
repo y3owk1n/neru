@@ -122,6 +122,8 @@ func (c *Config) ValidateHints() error {
 		{c.Hints.SearchInputUI.BackgroundColor, "hints.search_input_ui.background_color"},
 		{c.Hints.SearchInputUI.TextColor, "hints.search_input_ui.text_color"},
 		{c.Hints.SearchInputUI.BorderColor, "hints.search_input_ui.border_color"},
+		{c.Hints.BoundaryHighlight.BackgroundColor, "hints.boundary_highlight.background_color"},
+		{c.Hints.BoundaryHighlight.BorderColor, "hints.boundary_highlight.border_color"},
 	})
 	if err != nil {
 		return err
@@ -181,6 +183,22 @@ func (c *Config) ValidateHints() error {
 			derrors.CodeInvalidConfig,
 			"hints.search_input_ui.border_width must be non-negative",
 		)
+	}
+
+	if c.Hints.BoundaryHighlight.BorderWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.boundary_highlight.border_width must be non-negative",
+		)
+	}
+
+	err = validateMinValue(
+		c.Hints.BoundaryHighlight.BorderRadius,
+		0,
+		"hints.boundary_highlight.border_radius",
+	)
+	if err != nil {
+		return err
 	}
 
 	switch c.Hints.SearchInputUI.Position {
