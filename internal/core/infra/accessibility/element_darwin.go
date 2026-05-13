@@ -678,11 +678,11 @@ func (e *Element) IsClickable(
 		clickableRolesMu.RUnlock()
 	}
 
-	if isRoleAllowed {
-		if ignoreClickableCheck {
-			return true
-		}
+	if ignoreClickableCheck {
+		return true
+	}
 
+	if isRoleAllowed {
 		// Also verify it actually has click action
 		result := C.hasClickAction(e.ref) //nolint:nlreturn
 
