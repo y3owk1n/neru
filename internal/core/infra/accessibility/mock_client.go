@@ -59,7 +59,8 @@ func (m *MockAXClient) AllWindows() ([]AXWindow, error) {
 }
 
 // FrontmostAndPopoverWindows returns configured hint windows or falls back to
-// the frontmost/all-windows mock fields.
+// the frontmost window. When neither is configured, returns empty to match
+// production semantics (focused window + popover siblings, not arbitrary windows).
 func (m *MockAXClient) FrontmostAndPopoverWindows() ([]AXWindow, error) {
 	if m.MockHintWindows != nil || m.MockHintWindowsErr != nil {
 		return m.MockHintWindows, m.MockHintWindowsErr
@@ -69,7 +70,7 @@ func (m *MockAXClient) FrontmostAndPopoverWindows() ([]AXWindow, error) {
 		return []AXWindow{m.MockFrontmostWindow}, m.MockFrontmostWindowErr
 	}
 
-	return m.MockAllWindows, m.MockAllWindowsErr
+	return nil, nil
 }
 
 // FocusedApplication returns the configured focused application or error.
