@@ -292,7 +292,7 @@ func TestAlphabetGenerator_TooManyElements(t *testing.T) {
 	for index := range elements {
 		elements[index], _ = element.NewElement(
 			element.ID("elem-"+string(rune('0'+index))),
-			image.Rect(0, 0, 50, 50),
+			image.Rect(index*10, index*10, index*10+50, index*10+50),
 			element.RoleButton,
 		)
 	}
