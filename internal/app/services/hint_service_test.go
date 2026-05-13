@@ -244,6 +244,37 @@ func TestHintService_ShowHints(t *testing.T) {
 			wantErr:       false,
 			wantHintCount: 3,
 		},
+		{
+			name: "too many elements shows max hints without error",
+			setupMocks: func(acc *mocks.MockAccessibilityPort, _ *mocks.MockOverlayPort) {
+				acc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
+					elements := make([]*element.Element, 10)
+
+					for index := range elements {
+						elements[index] = mustNewElement(
+							fmt.Sprintf("elem%d", index),
+							image.Rect(index*10, index*10, index*10+40, index*10+40),
+						)
+					}
+
+					return elements, nil
+				}
+			},
+			setupGen: func() hint.Generator {
+				gen, _ := hint.NewAlphabetGenerator("as")
+
+				return gen
+			},
+			wantErr:       false,
+			wantHintCount: 8,
+			checkHints: func(t *testing.T, hints []*hint.Interface) {
+				t.Helper()
+
+				if len(hints) != 8 {
+					t.Errorf("Expected 8 hints, got %d", len(hints))
+				}
+			},
+		},
 	}
 
 	for _, testCase := range tests {

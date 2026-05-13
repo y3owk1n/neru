@@ -96,15 +96,6 @@ func (g *AlphabetGenerator) Generate(
 		return nil, nil
 	}
 
-	if len(elements) > g.maxHints {
-		return nil, derrors.Newf(
-			derrors.CodeHintGenerationFailed,
-			"too many elements: %d exceeds maximum %d",
-			len(elements),
-			g.maxHints,
-		)
-	}
-
 	// Check context cancellation
 	select {
 	case <-ctx.Done():
@@ -130,6 +121,10 @@ func (g *AlphabetGenerator) Generate(
 		// Then X (left to right)
 		return boundI.Min.X < boundJ.Min.X
 	})
+
+	if len(sorted) > g.maxHints {
+		sorted = sorted[:g.maxHints]
+	}
 
 	// Generate labels (with caching)
 	labels := g.generateLabels(len(sorted))

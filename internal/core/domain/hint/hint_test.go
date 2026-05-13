@@ -285,9 +285,9 @@ func TestAlphabetGenerator_MaxHints(t *testing.T) {
 }
 
 func TestAlphabetGenerator_TooManyElements(t *testing.T) {
-	generator, _ := hint.NewAlphabetGenerator("as") // Max 6 hints (2 + 2*2)
+	generator, _ := hint.NewAlphabetGenerator("as") // Max 8 hints (2^3)
 
-	// Try to generate 10 hints
+	// Try to generate more hints than the key combinations can label.
 	elements := make([]*element.Element, 10)
 	for index := range elements {
 		elements[index], _ = element.NewElement(
@@ -299,9 +299,22 @@ func TestAlphabetGenerator_TooManyElements(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, generateErr := generator.Generate(ctx, elements)
-	if generateErr == nil {
-		t.Error("Generate() expected error for too many elements, got nil")
+	hints, generateErr := generator.Generate(ctx, elements)
+	if generateErr != nil {
+		t.Fatalf("Generate() unexpected error for too many elements: %v", generateErr)
+	}
+
+	if len(hints) != generator.MaxHints() {
+		t.Fatalf("Generate() returned %d hints, want max %d", len(hints), generator.MaxHints())
+	}
+
+	for _, generatedHint := range hints {
+		if generatedHint.Element().ID() == "elem-8" || generatedHint.Element().ID() == "elem-9" {
+			t.Fatalf(
+				"Generate() included an element beyond max hint capacity: %s",
+				generatedHint.Element().ID(),
+			)
+		}
 	}
 }
 

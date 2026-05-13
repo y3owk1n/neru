@@ -131,6 +131,16 @@ func (s *HintService) ShowHints(
 
 	s.logger.Info("Found clickable elements", zap.Int("count", len(elements)))
 
+	maxHints := gen.MaxHints()
+	if maxHints > 0 && len(elements) > maxHints {
+		s.logger.Warn(
+			"Clickable element count exceeds available hint key combinations; showing as many as possible",
+			zap.Int("element_count", len(elements)),
+			zap.Int("max_hints", maxHints),
+			zap.Int("omitted_count", len(elements)-maxHints),
+		)
+	}
+
 	// Generate hints
 	hints, elementsErr := gen.Generate(ctx, elements)
 	if elementsErr != nil {
