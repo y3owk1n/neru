@@ -12,6 +12,7 @@ import "C"
 
 import (
 	"image"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -654,6 +655,7 @@ func (n *TreeNode) FindClickableElements(
 	var result []*TreeNode
 	n.walkTree(func(node *TreeNode) bool {
 		if node.element.IsClickable(node.info, allowedRoles, cache, configProvider) {
+			node.info.searchText = node.collectSearchText()
 			result = append(result, node)
 		}
 
@@ -661,6 +663,22 @@ func (n *TreeNode) FindClickableElements(
 	})
 
 	return result
+}
+
+func appendSearchText(builder *strings.Builder, seen map[string]struct{}, text string) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return
+	}
+	if _, ok := seen[text]; ok {
+		return
+	}
+
+	if builder.Len() > 0 {
+		builder.WriteByte(' ')
+	}
+	builder.WriteString(text)
+	seen[text] = struct{}{}
 }
 
 // Release releases the AXUIElementRef for every node in the subtree except
@@ -706,12 +724,40 @@ func (n *TreeNode) Release(keep map[*Element]struct{}) {
 	})
 }
 
+func (n *TreeNode) collectSearchText() string {
+	var builder strings.Builder
+	seen := make(map[string]struct{})
+
+	n.walkTreeDescendants(func(node *TreeNode) bool {
+		if node == nil || node.info == nil {
+			return true
+		}
+
+		appendSearchText(&builder, seen, node.info.Title())
+		appendSearchText(&builder, seen, node.info.Description())
+		appendSearchText(&builder, seen, node.info.Value())
+
+		return true
+	})
+
+	return builder.String()
+}
+
 // walkTree walks the tree in pre-order and calls the visitor function for each node.
 func (n *TreeNode) walkTree(visit func(*TreeNode) bool) {
 	if !visit(n) {
 		return
 	}
 
+	for _, child := range n.children {
+		child.walkTree(visit)
+	}
+}
+
+// walkTreeDescendants walks only the descendants (children and their subtrees),
+// excluding the root node itself. Used for collecting text from child elements
+// without including the root's own text fields.
+func (n *TreeNode) walkTreeDescendants(visit func(*TreeNode) bool) {
 	for _, child := range n.children {
 		child.walkTree(visit)
 	}

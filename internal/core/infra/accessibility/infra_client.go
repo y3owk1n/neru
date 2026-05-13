@@ -155,6 +155,7 @@ func (c *InfraAXClient) ClickableNodes(
 	for i, node := range clickableNodes {
 		clickableNodesResult[i] = &InfraNode{
 			node:           node,
+			clickable:      true,
 			cache:          c.cache,
 			configProvider: c.configProvider,
 		}
@@ -195,6 +196,7 @@ func (c *InfraAXClient) MenuBarClickableElements(
 	for index, node := range nodes {
 		nodesResult[index] = &InfraNode{
 			node:           node,
+			clickable:      true,
 			cache:          c.cache,
 			configProvider: c.configProvider,
 		}
@@ -229,6 +231,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 	for index, node := range nodes {
 		nodesResult[index] = &InfraNode{
 			node:           node,
+			clickable:      true,
 			cache:          c.cache,
 			configProvider: c.configProvider,
 		}
@@ -402,6 +405,7 @@ func (a *InfraApp) Info() (*AXAppInfo, error) {
 // InfraNode wraps an TreeNode.
 type InfraNode struct {
 	node           *TreeNode
+	clickable      bool
 	cache          *InfoCache
 	configProvider config.Provider
 }
@@ -469,8 +473,21 @@ func (n *InfraNode) Value() string {
 	return n.node.Info().Value()
 }
 
+// SearchText returns additional text collected from the node subtree.
+func (n *InfraNode) SearchText() string {
+	if n.node == nil || n.node.Info() == nil {
+		return ""
+	}
+
+	return n.node.Info().SearchText()
+}
+
 // IsClickable returns true if the node is clickable.
 func (n *InfraNode) IsClickable() bool {
+	if n.clickable {
+		return true
+	}
+
 	if n.node == nil || n.node.Element() == nil {
 		return false
 	}

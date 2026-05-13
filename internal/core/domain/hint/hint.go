@@ -288,7 +288,8 @@ func (c *Collection) FilterByText(query string) *Collection {
 
 		if strings.Contains(normalizeForSearch(elem.Title()), normalizedQuery) ||
 			strings.Contains(normalizeForSearch(elem.Description()), normalizedQuery) ||
-			strings.Contains(normalizeForSearch(elem.Value()), normalizedQuery) {
+			strings.Contains(normalizeForSearch(elem.Value()), normalizedQuery) ||
+			strings.Contains(normalizeForSearch(elem.SearchText()), normalizedQuery) {
 			filtered = append(filtered, hint)
 		}
 	}

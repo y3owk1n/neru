@@ -40,6 +40,7 @@ type Element struct {
 	title       string
 	description string
 	value       string
+	searchText  string
 }
 
 // NewElement creates a new element with validation.
@@ -97,6 +98,13 @@ func WithValue(val string) Option {
 	}
 }
 
+// WithSearchText sets additional searchable text associated with the element.
+func WithSearchText(text string) Option {
+	return func(e *Element) {
+		e.searchText = text
+	}
+}
+
 // ID returns the element ID.
 func (e *Element) ID() ID {
 	return e.id
@@ -130,6 +138,11 @@ func (e *Element) Description() string {
 // Value returns the element value.
 func (e *Element) Value() string {
 	return e.value
+}
+
+// SearchText returns additional searchable text associated with the element.
+func (e *Element) SearchText() string {
+	return e.searchText
 }
 
 // Center returns the center point of the element.

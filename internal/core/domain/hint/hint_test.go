@@ -192,6 +192,22 @@ func TestCollection_FilterByText_Normalizes(t *testing.T) {
 	}
 }
 
+func TestCollection_FilterByText_SearchesAdditionalText(t *testing.T) {
+	rowElem, _ := element.NewElement(
+		"note-row",
+		image.Rect(10, 10, 100, 50),
+		element.Role("AXRow"),
+		element.WithSearchText("Quarterly planning notes"),
+	)
+	rowHint, _ := hint.NewHint("AA", rowElem, image.Point{X: 30, Y: 30})
+
+	collection := hint.NewCollection([]*hint.Interface{rowHint})
+
+	if got := collection.FilterByText("planning").Count(); got != 1 {
+		t.Fatalf("FilterByText(%q) = %d, want 1", "planning", got)
+	}
+}
+
 func TestAlphabetGenerator_Generate(t *testing.T) {
 	generator, generatorErr := hint.NewAlphabetGenerator("asdf")
 	if generatorErr != nil {

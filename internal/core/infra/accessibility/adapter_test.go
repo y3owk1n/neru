@@ -213,13 +213,22 @@ func TestAdapter_MatchesFilter(t *testing.T) {
 		element.RoleButton,
 	)
 
+	elemWithSearchText, _ := element.NewElement(
+		element.ID("test-id-with-search-text"),
+		image.Rect(0, 0, 100, 100),
+		element.RoleButton,
+		element.WithSearchText("Apple Notes row"),
+	)
+
 	tests := []struct {
 		name   string
+		elem   *element.Element
 		filter ports.ElementFilter
 		want   bool
 	}{
 		{
 			name: "match by role",
+			elem: elem,
 			filter: ports.ElementFilter{
 				Roles: []element.Role{element.RoleButton},
 			},
@@ -227,6 +236,7 @@ func TestAdapter_MatchesFilter(t *testing.T) {
 		},
 		{
 			name: "no match by role",
+			elem: elem,
 			filter: ports.ElementFilter{
 				Roles: []element.Role{element.RoleLink},
 			},
@@ -234,8 +244,17 @@ func TestAdapter_MatchesFilter(t *testing.T) {
 		},
 		{
 			name: "match by min size",
+			elem: elem,
 			filter: ports.ElementFilter{
 				MinSize: image.Point{X: 50, Y: 50},
+			},
+			want: true,
+		},
+		{
+			name: "match by extra search text",
+			elem: elemWithSearchText,
+			filter: ports.ElementFilter{
+				ValueContains: "notes",
 			},
 			want: true,
 		},
@@ -243,7 +262,7 @@ func TestAdapter_MatchesFilter(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := adapter.MatchesFilter(elem, testCase.filter)
+			got := adapter.MatchesFilter(testCase.elem, testCase.filter)
 			if got != testCase.want {
 				t.Errorf("matchesFilter() = %v, want %v", got, testCase.want)
 			}
