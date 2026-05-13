@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.37.0](https://github.com/y3owk1n/neru/compare/v1.36.0...v1.37.0) (2026-05-13)
+
+
+### Features
+
+* add mouse action indicator ([#791](https://github.com/y3owk1n/neru/issues/791)) ([ae285d2](https://github.com/y3owk1n/neru/commit/ae285d2a5f3c97bc1357e6eb40b339b7fe2f4d75))
+* **hints:** add boundary highlights for targeted elements ([#793](https://github.com/y3owk1n/neru/issues/793)) ([8d05247](https://github.com/y3owk1n/neru/commit/8d0524775ecf027fc0ac8cb8b35f56f7136c57a4))
+* **hints:** add native PIP support for mac ([#795](https://github.com/y3owk1n/neru/issues/795)) ([0651fee](https://github.com/y3owk1n/neru/commit/0651fee44518d4f680ecf0795625044c1d7a1e94))
+* **hints:** add simple hints placement customisation ([#797](https://github.com/y3owk1n/neru/issues/797)) ([48de8a8](https://github.com/y3owk1n/neru/commit/48de8a8c10a0e498e4ea3de1e54214d2f14c8472))
+
+
+### Bug Fixes
+
+* **config:** remove default launcher keybinds if mode is disabled ([#788](https://github.com/y3owk1n/neru/issues/788)) ([68040c4](https://github.com/y3owk1n/neru/commit/68040c40016ba41d16fc81f7781ba4ac4b8eec89))
+* **hints:** add capability to search text on subtree ([#792](https://github.com/y3owk1n/neru/issues/792)) ([f694847](https://github.com/y3owk1n/neru/commit/f694847c6cd4521768e651176628aeab502bec05))
+* **hints:** cap hint generation when elements exceed key combinations ([#794](https://github.com/y3owk1n/neru/issues/794)) ([0305936](https://github.com/y3owk1n/neru/commit/0305936750a97c67d4432616f1ee5932aae60f54))
+
+
+### Performance Improvements
+
+* **hints:** reduce AX work during hints activation ([#796](https://github.com/y3owk1n/neru/issues/796)) ([3240e0f](https://github.com/y3owk1n/neru/commit/3240e0f9d025e090e7412f282b3c99b2a5b6b8c8))
+
 ## [1.36.0](https://github.com/y3owk1n/neru/compare/v1.35.0...v1.36.0) (2026-05-10)
 
 
