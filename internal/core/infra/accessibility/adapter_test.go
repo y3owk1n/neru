@@ -554,7 +554,7 @@ func TestAdapter_RolePassing(t *testing.T) {
 
 		if mockClient.LastBundleRoles != nil {
 			t.Errorf(
-				"Expected PIP query to use configured clickable roles, got: %v",
+				"Expected PIP query to pass nil roles (no role restriction), got: %v",
 				mockClient.LastBundleRoles,
 			)
 		}
