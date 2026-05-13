@@ -18,6 +18,7 @@ type StyleMode struct {
 	paddingX                 int
 	paddingY                 int
 	borderWidth              int
+	placement                string
 	backgroundColor          string
 	textColor                string
 	matchedTextColor         string
@@ -46,6 +47,9 @@ func (s StyleMode) PaddingY() int { return s.paddingY }
 
 // BorderWidth returns the border width.
 func (s StyleMode) BorderWidth() int { return s.borderWidth }
+
+// Placement returns the hint label placement relative to the target.
+func (s StyleMode) Placement() string { return s.placement }
 
 // BackgroundColor returns the background color.
 func (s StyleMode) BackgroundColor() string { return s.backgroundColor }
@@ -138,6 +142,7 @@ func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 		paddingX:     cfg.UI.PaddingX,
 		paddingY:     cfg.UI.PaddingY,
 		borderWidth:  cfg.UI.BorderWidth,
+		placement:    cfg.UI.Placement,
 		backgroundColor: cfg.UI.BackgroundColor.ForTheme(
 			theme,
 			config.HintsBackgroundColorLight,

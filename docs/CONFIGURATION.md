@@ -399,10 +399,13 @@ osascript -e 'id of app "Safari"'
 | `padding_x`          | int    | `-1`    | Horizontal padding (-1 = auto)       |
 | `padding_y`          | int    | `-1`    | Vertical padding (-1 = auto)         |
 | `border_width`       | int    | `1`     | Border width in pixels               |
+| `placement`          | string | `bottom` | Label placement relative to target  |
 | `background_color`   | color  | derived | Background color with alpha          |
 | `text_color`         | color  | derived | Text color                           |
 | `matched_text_color` | color  | derived | Text color for matched characters    |
 | `border_color`       | color  | derived | Border color                         |
+
+Valid placements: `top`, `center`, `bottom`.
 
 ```toml
 [hints.ui]
@@ -412,6 +415,7 @@ border_radius = -1
 padding_x = -1
 padding_y = -1
 border_width = 1
+placement = "bottom"
 background_color = "#F2465FBC"
 text_color = "#17327A"
 matched_text_color = "#0B2377"

@@ -152,6 +152,17 @@ func (c *Config) ValidateHints() error {
 		return derrors.New(derrors.CodeInvalidConfig, "hints.ui.border_width must be non-negative")
 	}
 
+	switch c.Hints.UI.Placement {
+	case "top", "center", "bottom":
+	case "":
+		c.Hints.UI.Placement = "bottom"
+	default:
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.ui.placement must be one of top, center, bottom",
+		)
+	}
+
 	if c.Hints.SearchInputUI.FontSize < 6 || c.Hints.SearchInputUI.FontSize > 72 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,

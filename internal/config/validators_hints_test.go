@@ -34,3 +34,30 @@ func TestValidateHints_BoundaryHighlightGeometry(t *testing.T) {
 		t.Fatalf("ValidateHints() expected no error for -1 (auto) border radius, got %v", err)
 	}
 }
+
+func TestValidateHints_UIPlacement(t *testing.T) {
+	validPlacements := []string{
+		"top",
+		"center",
+		"bottom",
+	}
+
+	for _, placement := range validPlacements {
+		cfg := config.DefaultConfig()
+		cfg.Hints.UI.Placement = placement
+
+		err := cfg.ValidateHints()
+		if err != nil {
+			t.Fatalf("ValidateHints() expected placement %q to be valid, got %v", placement, err)
+		}
+	}
+
+	cfg := config.DefaultConfig()
+
+	cfg.Hints.UI.Placement = "floating"
+
+	err := cfg.ValidateHints()
+	if err == nil {
+		t.Fatal("ValidateHints() expected error for invalid hints.ui.placement")
+	}
+}

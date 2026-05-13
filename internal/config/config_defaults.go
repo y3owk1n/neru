@@ -311,6 +311,7 @@ func newDefaultConfig() *Config {
 				PaddingX:         DefaultHintPaddingX,
 				PaddingY:         DefaultHintPaddingY,
 				BorderWidth:      1,
+				Placement:        "bottom",
 				BackgroundColor:  Color{},
 				TextColor:        Color{},
 				MatchedTextColor: Color{},

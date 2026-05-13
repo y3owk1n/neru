@@ -30,6 +30,10 @@ func TestBuildStyle_UsesThemeAwareConfigValues(t *testing.T) {
 		t.Fatalf("expected font family %q, got %q", cfg.UI.FontFamily, lightStyle.FontFamily())
 	}
 
+	if lightStyle.Placement() != cfg.UI.Placement {
+		t.Fatalf("expected placement %q, got %q", cfg.UI.Placement, lightStyle.Placement())
+	}
+
 	if lightStyle.BackgroundColor() != config.HintsBackgroundColorLight {
 		t.Fatalf(
 			"expected light background %q, got %q",

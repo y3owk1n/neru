@@ -19,6 +19,7 @@
 @property(nonatomic, assign) CGSize size;
 @property(nonatomic, assign) int matchedPrefixLength;
 @property(nonatomic, assign) BOOL showArrow;
+@property(nonatomic, assign) int placement;
 @end
 
 @implementation HintItem
@@ -27,6 +28,7 @@
 	self = [super init];
 	if (self) {
 		_showArrow = YES;
+		_placement = 7;
 	}
 	return self;
 }
@@ -114,6 +116,12 @@ static const CGFloat kHintArrowHeight = 1.0;
 static const CGFloat kHintArrowWidthMultiplier = 3.5;
 /// Vertical gap between the arrow tip and the target element.
 static const CGFloat kHintArrowGap = 1.0;
+
+typedef NS_ENUM(NSInteger, HintPlacement) {
+	HintPlacementTop = 1,
+	HintPlacementCenter = 2,
+	HintPlacementBottom = 3,
+};
 
 #pragma mark - Overlay View Interface
 
@@ -851,6 +859,51 @@ static const CGFloat kHintArrowGap = 1.0;
 	return self.hintPaddingY >= 0.0 ? self.hintPaddingY : MAX(2.0, round(self.hintFont.pointSize * 0.2));
 }
 
+/// Whether a placement sits in the top row.
+- (BOOL)isTopHintPlacement:(HintPlacement)placement {
+	return placement == HintPlacementTop;
+}
+
+/// Whether a placement sits in the bottom row.
+- (BOOL)isBottomHintPlacement:(HintPlacement)placement {
+	return placement == HintPlacementBottom;
+}
+
+/// Whether this placement should draw an arrow.
+- (BOOL)shouldDrawArrowForPlacement:(HintPlacement)placement showArrow:(BOOL)showArrow {
+	return showArrow && ([self isTopHintPlacement:placement] || [self isBottomHintPlacement:placement]);
+}
+
+/// Compute the hint label frame in view coordinates.
+- (NSRect)hintRectForPlacement:(HintPlacement)placement
+                      position:(NSPoint)position
+                      boxWidth:(CGFloat)boxWidth
+                     boxHeight:(CGFloat)boxHeight
+                   arrowHeight:(CGFloat)arrowHeight
+                  screenHeight:(CGFloat)screenHeight {
+	CGFloat targetX = position.x;
+	CGFloat targetY = screenHeight - position.y;
+	CGFloat x = targetX - boxWidth / 2.0;
+	CGFloat y = targetY - boxHeight / 2.0;
+
+	switch (placement) {
+	case HintPlacementTop:
+		x = targetX - boxWidth / 2.0;
+		y = targetY + kHintArrowGap;
+		break;
+	case HintPlacementCenter:
+		x = targetX - boxWidth / 2.0;
+		y = targetY - boxHeight / 2.0;
+		break;
+	case HintPlacementBottom:
+		x = targetX - boxWidth / 2.0;
+		y = targetY - kHintArrowGap - arrowHeight - boxHeight;
+		break;
+	}
+
+	return NSMakeRect(x, y, boxWidth, boxHeight);
+}
+
 /// Create tooltip path with arrow
 /// @param rect Tooltip rectangle
 /// @param arrowSize Arrow size
@@ -860,11 +913,17 @@ static const CGFloat kHintArrowGap = 1.0;
 - (NSBezierPath *)createTooltipPath:(NSRect)rect
                           arrowSize:(CGFloat)arrowSize
                      elementCenterX:(CGFloat)elementCenterX
-                     elementCenterY:(CGFloat)elementCenterY {
-	NSBezierPath *path = [NSBezierPath bezierPath];
-
+                     elementCenterY:(CGFloat)elementCenterY
+                          placement:(HintPlacement)placement {
 	// Tooltip body rectangle (excluding arrow space)
-	NSRect bodyRect = NSMakeRect(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height - arrowSize);
+	NSRect bodyRect = rect;
+	BOOL topPlacement = [self isTopHintPlacement:placement];
+	BOOL bottomPlacement = [self isBottomHintPlacement:placement];
+	if (bottomPlacement) {
+		bodyRect = NSMakeRect(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height - arrowSize);
+	} else if (topPlacement) {
+		bodyRect = NSMakeRect(rect.origin.x, rect.origin.y + arrowSize, rect.size.width, rect.size.height - arrowSize);
+	}
 
 	// Resolve border radius (-1 = auto pill)
 	CGFloat radius = self.hintBorderRadius >= 0.0 ? self.hintBorderRadius : MIN(bodyRect.size.height / 2.0, 6.0);
@@ -872,7 +931,7 @@ static const CGFloat kHintArrowGap = 1.0;
 	// Arrow dimensions
 	CGFloat arrowTipX = elementCenterX;
 	CGFloat arrowTipY = elementCenterY;
-	CGFloat arrowBaseY = bodyRect.origin.y + bodyRect.size.height;
+	CGFloat arrowBaseY = bottomPlacement ? bodyRect.origin.y + bodyRect.size.height : bodyRect.origin.y;
 	CGFloat arrowWidth = arrowSize * kHintArrowWidthMultiplier;
 	CGFloat arrowLeft = arrowTipX - arrowWidth / 2;
 	CGFloat arrowRight = arrowTipX + arrowWidth / 2;
@@ -884,39 +943,63 @@ static const CGFloat kHintArrowGap = 1.0;
 	arrowRight = MIN(arrowRight, tooltipRight);
 	arrowTipX = (arrowLeft + arrowRight) / 2;
 
-	// Build path clockwise from top-left corner
-	[path moveToPoint:NSMakePoint(bodyRect.origin.x + radius, bodyRect.origin.y)];
+	NSBezierPath *path = [NSBezierPath bezierPath];
+	CGFloat minX = NSMinX(bodyRect);
+	CGFloat maxX = NSMaxX(bodyRect);
+	CGFloat minY = NSMinY(bodyRect);
+	CGFloat maxY = NSMaxY(bodyRect);
 
-	// Top edge → top-right corner
-	[path lineToPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width - radius, bodyRect.origin.y)];
-	[path appendBezierPathWithArcFromPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width, bodyRect.origin.y)
-	                               toPoint:NSMakePoint(
-	                                           bodyRect.origin.x + bodyRect.size.width, bodyRect.origin.y + radius)
-	                                radius:radius];
-
-	// Right edge → bottom-right corner
-	[path lineToPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width, arrowBaseY - radius)];
-	[path appendBezierPathWithArcFromPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width, arrowBaseY)
-	                               toPoint:NSMakePoint(bodyRect.origin.x + bodyRect.size.width - radius, arrowBaseY)
-	                                radius:radius];
-
-	// Bottom edge → arrow
-	[path lineToPoint:NSMakePoint(arrowRight, arrowBaseY)];
-	[path lineToPoint:NSMakePoint(arrowTipX, arrowTipY)];
-	[path lineToPoint:NSMakePoint(arrowLeft, arrowBaseY)];
-
-	// Continue bottom edge → bottom-left corner
-	[path lineToPoint:NSMakePoint(bodyRect.origin.x + radius, arrowBaseY)];
-	[path appendBezierPathWithArcFromPoint:NSMakePoint(bodyRect.origin.x, arrowBaseY)
-	                               toPoint:NSMakePoint(bodyRect.origin.x, arrowBaseY - radius)
-	                                radius:radius];
-
-	// Left edge → top-left corner
-	[path lineToPoint:NSMakePoint(bodyRect.origin.x, bodyRect.origin.y + radius)];
-	[path appendBezierPathWithArcFromPoint:NSMakePoint(bodyRect.origin.x, bodyRect.origin.y)
-	                               toPoint:NSMakePoint(bodyRect.origin.x + radius, bodyRect.origin.y)
-	                                radius:radius];
-
+	if (bottomPlacement) {
+		[path moveToPoint:NSMakePoint(minX + radius, minY)];
+		[path lineToPoint:NSMakePoint(maxX - radius, minY)];
+		[path appendBezierPathWithArcWithCenter:NSMakePoint(maxX - radius, minY + radius)
+		                                 radius:radius
+		                             startAngle:270.0
+		                               endAngle:360.0];
+		[path lineToPoint:NSMakePoint(maxX, maxY - radius)];
+		[path appendBezierPathWithArcWithCenter:NSMakePoint(maxX - radius, maxY - radius)
+		                                 radius:radius
+		                             startAngle:0.0
+		                               endAngle:90.0];
+		[path lineToPoint:NSMakePoint(arrowRight, maxY)];
+		[path lineToPoint:NSMakePoint(arrowTipX, arrowTipY)];
+		[path lineToPoint:NSMakePoint(arrowLeft, maxY)];
+		[path lineToPoint:NSMakePoint(minX + radius, maxY)];
+		[path appendBezierPathWithArcWithCenter:NSMakePoint(minX + radius, maxY - radius)
+		                                 radius:radius
+		                             startAngle:90.0
+		                               endAngle:180.0];
+		[path lineToPoint:NSMakePoint(minX, minY + radius)];
+		[path appendBezierPathWithArcWithCenter:NSMakePoint(minX + radius, minY + radius)
+		                                 radius:radius
+		                             startAngle:180.0
+		                               endAngle:270.0];
+	} else {
+		[path moveToPoint:NSMakePoint(minX + radius, minY)];
+		[path lineToPoint:NSMakePoint(arrowLeft, minY)];
+		[path lineToPoint:NSMakePoint(arrowTipX, arrowTipY)];
+		[path lineToPoint:NSMakePoint(arrowRight, minY)];
+		[path lineToPoint:NSMakePoint(maxX - radius, minY)];
+		[path appendBezierPathWithArcWithCenter:NSMakePoint(maxX - radius, minY + radius)
+		                                 radius:radius
+		                             startAngle:270.0
+		                               endAngle:360.0];
+		[path lineToPoint:NSMakePoint(maxX, maxY - radius)];
+		[path appendBezierPathWithArcWithCenter:NSMakePoint(maxX - radius, maxY - radius)
+		                                 radius:radius
+		                             startAngle:0.0
+		                               endAngle:90.0];
+		[path lineToPoint:NSMakePoint(minX + radius, maxY)];
+		[path appendBezierPathWithArcWithCenter:NSMakePoint(minX + radius, maxY - radius)
+		                                 radius:radius
+		                             startAngle:90.0
+		                               endAngle:180.0];
+		[path lineToPoint:NSMakePoint(minX, minY + radius)];
+		[path appendBezierPathWithArcWithCenter:NSMakePoint(minX + radius, minY + radius)
+		                                 radius:radius
+		                             startAngle:180.0
+		                               endAngle:270.0];
+	}
 	[path closePath];
 	return path;
 }
@@ -997,30 +1080,30 @@ static const CGFloat kHintArrowGap = 1.0;
 	NSSize textSize = [measureString size];
 	CGFloat paddingX = [self resolvedHintPaddingX];
 	CGFloat paddingY = [self resolvedHintPaddingY];
-	CGFloat arrowHeight = hint.showArrow ? kHintArrowHeight : 0.0;
+	HintPlacement placement = (HintPlacement)hint.placement;
+	CGFloat arrowHeight =
+	    [self shouldDrawArrowForPlacement:placement showArrow:hint.showArrow] ? kHintArrowHeight : 0.0;
 	CGFloat contentWidth = textSize.width + (paddingX * 2);
 	CGFloat contentHeight = textSize.height + (paddingY * 2);
 	CGFloat boxWidth = MAX(contentWidth, contentHeight);
 	CGFloat boxHeight = contentHeight + arrowHeight;
 	NSPoint position = hint.position;
-	CGFloat elementCenterX = position.x;
-	CGFloat elementCenterY = position.y;
-	CGFloat tooltipX = elementCenterX - boxWidth / 2.0;
-	CGFloat tooltipY = elementCenterY + arrowHeight + kHintArrowGap;
 	CGFloat screenHeight = self.bounds.size.height;
-	CGFloat flippedY = screenHeight - tooltipY - boxHeight;
+	NSRect rawHintRect = [self hintRectForPlacement:placement
+	                                       position:position
+	                                       boxWidth:boxWidth
+	                                      boxHeight:boxHeight
+	                                    arrowHeight:arrowHeight
+	                                   screenHeight:screenHeight];
 
 	// Expand by border width + 1pt to cover anti-aliased stroke edges
 	CGFloat expand = ceil(self.hintBorderWidth / 2.0) + 1.0;
-	NSRect hintRect = NSMakeRect(tooltipX - expand, flippedY - expand, boxWidth + expand * 2, boxHeight + expand * 2);
+	NSRect hintRect = NSMakeRect(
+	    rawHintRect.origin.x - expand, rawHintRect.origin.y - expand, boxWidth + expand * 2, boxHeight + expand * 2);
 
-	// Extend upward to include arrow tip if present
-	if (hint.showArrow) {
-		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
-		if (flippedElementCenterY > NSMaxY(hintRect)) {
-			hintRect.size.height = flippedElementCenterY + 1.0 - hintRect.origin.y;
-		}
-	}
+	CGFloat targetY = screenHeight - position.y;
+	if (arrowHeight > 0.0)
+		hintRect = NSUnionRect(hintRect, NSMakeRect(position.x - 1.0, targetY - 1.0, 2.0, 2.0));
 
 	if (self.hintBoundaryHighlightEnabled && hint.size.width > 0.0 && hint.size.height > 0.0) {
 		CGFloat boundaryX = position.x - hint.size.width / 2.0;
@@ -1163,6 +1246,7 @@ static const CGFloat kHintArrowGap = 1.0;
 		NSPoint position = hint.position;
 		int matchedPrefixLength = hint.matchedPrefixLength;
 		BOOL showArrow = hint.showArrow;
+		HintPlacement placement = (HintPlacement)hint.placement;
 
 		// Set up attributed string with base font and colors
 		NSMutableAttributedString *attrString = self.cachedHintAttributedString;
@@ -1181,18 +1265,19 @@ static const CGFloat kHintArrowGap = 1.0;
 		// avoiding the double text measurement that would occur if we called
 		// boundingRectForHint: separately for the intersection check.
 		NSSize textSize = [attrString size];
-		CGFloat arrowHeight = showArrow ? kHintArrowHeight : 0.0;
+		CGFloat arrowHeight = [self shouldDrawArrowForPlacement:placement showArrow:showArrow] ? kHintArrowHeight : 0.0;
 		CGFloat contentWidth = textSize.width + (paddingX * 2);
 		CGFloat contentHeight = textSize.height + (paddingY * 2);
 		CGFloat boxWidth = MAX(contentWidth, contentHeight);
 		CGFloat boxHeight = contentHeight + arrowHeight;
 		CGFloat elementCenterX = position.x;
-		CGFloat elementCenterY = position.y;
-		CGFloat tooltipX = elementCenterX - boxWidth / 2.0;
-		CGFloat tooltipY = elementCenterY + arrowHeight + kHintArrowGap;
-		CGFloat flippedY = screenHeight - tooltipY - boxHeight;
-		CGFloat flippedElementCenterY = screenHeight - elementCenterY;
-		NSRect hintRect = NSMakeRect(tooltipX, flippedY, boxWidth, boxHeight);
+		CGFloat flippedElementCenterY = screenHeight - position.y;
+		NSRect hintRect = [self hintRectForPlacement:placement
+		                                    position:position
+		                                    boxWidth:boxWidth
+		                                   boxHeight:boxHeight
+		                                 arrowHeight:arrowHeight
+		                                screenHeight:screenHeight];
 		NSRect boundaryRect = NSZeroRect;
 		if (self.hintBoundaryHighlightEnabled && hint.size.width > 0.0 && hint.size.height > 0.0) {
 			boundaryRect = NSMakeRect(
@@ -1203,11 +1288,11 @@ static const CGFloat kHintArrowGap = 1.0;
 		// Skip hints outside the dirty region
 		if (filterByRect) {
 			CGFloat expand = ceil(self.hintBorderWidth / 2.0) + 1.0;
-			NSRect testRect =
-			    NSMakeRect(tooltipX - expand, flippedY - expand, boxWidth + expand * 2, boxHeight + expand * 2);
-			if (showArrow && flippedElementCenterY > NSMaxY(testRect)) {
-				testRect.size.height = flippedElementCenterY + 1.0 - testRect.origin.y;
-			}
+			NSRect testRect = NSMakeRect(
+			    hintRect.origin.x - expand, hintRect.origin.y - expand, boxWidth + expand * 2, boxHeight + expand * 2);
+			if (arrowHeight > 0.0)
+				testRect =
+				    NSUnionRect(testRect, NSMakeRect(elementCenterX - 1.0, flippedElementCenterY - 1.0, 2.0, 2.0));
 			if (!NSIsEmptyRect(boundaryRect)) {
 				CGFloat boundaryExpand = ceil(self.hintBoundaryBorderWidth / 2.0) + 1.0;
 				NSRect boundaryTestRect = NSMakeRect(
@@ -1238,11 +1323,12 @@ static const CGFloat kHintArrowGap = 1.0;
 		CGFloat resolvedBorderRadius =
 		    self.hintBorderRadius >= 0.0 ? self.hintBorderRadius : MIN(hintRect.size.height / 2.0, 6.0);
 		NSBezierPath *path;
-		if (showArrow) {
+		if (arrowHeight > 0.0) {
 			path = [self createTooltipPath:hintRect
 			                     arrowSize:arrowHeight
 			                elementCenterX:elementCenterX
-			                elementCenterY:flippedElementCenterY];
+			                elementCenterY:flippedElementCenterY
+			                     placement:placement];
 		} else {
 			path = [NSBezierPath bezierPathWithRoundedRect:hintRect
 			                                       xRadius:resolvedBorderRadius
@@ -1259,6 +1345,8 @@ static const CGFloat kHintArrowGap = 1.0;
 		// Draw text
 		CGFloat textX = hintRect.origin.x + (boxWidth - textSize.width) / 2.0;
 		CGFloat textY = hintRect.origin.y + paddingY;
+		if (arrowHeight > 0.0 && [self isTopHintPlacement:placement])
+			textY += arrowHeight;
 		[attrString drawAtPoint:NSMakePoint(textX, textY)];
 	}
 }
@@ -1976,8 +2064,9 @@ static NSMutableArray<GridCellItem *> *buildGridCellItems(GridCell *cells, int c
 /// @param hints Array of hint data
 /// @param count Number of hints
 /// @param showArrow Whether hints should show an arrow
+/// @param placement Label placement relative to the target
 /// @return Array of HintItem objects
-static NSMutableArray<HintItem *> *buildHintItems(HintData *hints, int count, BOOL showArrow) {
+static NSMutableArray<HintItem *> *buildHintItems(HintData *hints, int count, BOOL showArrow, int placement) {
 	NSMutableArray<HintItem *> *hintItems = [NSMutableArray arrayWithCapacity:count];
 	for (int i = 0; i < count; i++) {
 		HintData hint = hints[i];
@@ -1987,6 +2076,7 @@ static NSMutableArray<HintItem *> *buildHintItems(HintData *hints, int count, BO
 		hintItem.size = hint.size;
 		hintItem.matchedPrefixLength = hint.matchedPrefixLength;
 		hintItem.showArrow = showArrow;
+		hintItem.placement = placement;
 		[hintItems addObject:hintItem];
 	}
 	return hintItems;
@@ -2004,7 +2094,7 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	// Build hint items upfront — safe from any thread
-	NSMutableArray<HintItem *> *hintItems = buildHintItems(hints, count, style.showArrow ? YES : NO);
+	NSMutableArray<HintItem *> *hintItems = buildHintItems(hints, count, style.showArrow ? YES : NO, style.placement);
 
 	if ([NSThread isMainThread]) {
 		[controller.overlayView.hints removeAllObjects];
@@ -2020,6 +2110,7 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 		    .paddingX = style.paddingX,
 		    .paddingY = style.paddingY,
 		    .showArrow = style.showArrow,
+		    .placement = style.placement,
 		    .boundaryHighlightEnabled = style.boundaryHighlightEnabled,
 		    .boundaryBorderWidth = style.boundaryBorderWidth,
 		    .boundaryBorderRadius = style.boundaryBorderRadius,
@@ -2187,7 +2278,7 @@ void NeruDrawIncrementHints(
 	// Build hint data arrays upfront — safe from any thread
 	NSMutableArray<HintItem *> *hintItemsToAdd = nil;
 	if (hintsToAdd && addCount > 0) {
-		hintItemsToAdd = buildHintItems(hintsToAdd, addCount, style.showArrow ? YES : NO);
+		hintItemsToAdd = buildHintItems(hintsToAdd, addCount, style.showArrow ? YES : NO, style.placement);
 	}
 
 	// Build positions array for hints to remove

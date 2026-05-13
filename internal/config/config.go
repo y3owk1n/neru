@@ -528,6 +528,7 @@ type HintsUI struct {
 	PaddingX         int    `json:"paddingX"         toml:"padding_x"`
 	PaddingY         int    `json:"paddingY"         toml:"padding_y"`
 	BorderWidth      int    `json:"borderWidth"      toml:"border_width"`
+	Placement        string `json:"placement"        toml:"placement"`
 	BackgroundColor  Color  `json:"backgroundColor"  toml:"background_color"`
 	TextColor        Color  `json:"textColor"        toml:"text_color"`
 	MatchedTextColor Color  `json:"matchedTextColor" toml:"matched_text_color"`

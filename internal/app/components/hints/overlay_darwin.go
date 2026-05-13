@@ -48,6 +48,19 @@ func boolToInt(v bool) int {
 	return 0
 }
 
+func hintPlacementValue(placement string) int {
+	switch placement {
+	case "top":
+		return 1
+	case "center":
+		return 2 //nolint:mnd
+	case "bottom", "":
+		return 3 //nolint:mnd
+	default:
+		return 3 //nolint:mnd
+	}
+}
+
 // Overlay manages the rendering of hint overlays using native platform APIs.
 type Overlay struct {
 	window C.OverlayWindow
@@ -86,6 +99,7 @@ type StyleMode struct {
 	paddingX                 int
 	paddingY                 int
 	borderWidth              int
+	placement                string
 	backgroundColor          string
 	textColor                string
 	matchedTextColor         string
@@ -125,6 +139,11 @@ func (s StyleMode) PaddingY() int {
 // BorderWidth returns the border width.
 func (s StyleMode) BorderWidth() int {
 	return s.borderWidth
+}
+
+// Placement returns the hint label placement relative to the target.
+func (s StyleMode) Placement() string {
+	return s.placement
 }
 
 // BackgroundColor returns the background color.
@@ -337,6 +356,7 @@ func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 		paddingX:     cfg.UI.PaddingX,
 		paddingY:     cfg.UI.PaddingY,
 		borderWidth:  cfg.UI.BorderWidth,
+		placement:    cfg.UI.Placement,
 		backgroundColor: cfg.UI.BackgroundColor.ForTheme(
 			theme,
 			config.HintsBackgroundColorLight,
@@ -573,6 +593,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		paddingX:                 C.int(style.PaddingX()),
 		paddingY:                 C.int(style.PaddingY()),
 		showArrow:                C.int(arrowFlag),
+		placement:                C.int(hintPlacementValue(style.Placement())),
 		boundaryHighlightEnabled: C.int(boolToInt(style.BoundaryHighlightEnabled())),
 		boundaryBorderWidth:      C.int(style.BoundaryBorderWidth()),
 		boundaryBorderRadius:     C.int(style.BoundaryBorderRadius()),
@@ -825,6 +846,7 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		paddingX:                 C.int(currentStyle.PaddingX()),
 		paddingY:                 C.int(currentStyle.PaddingY()),
 		showArrow:                C.int(arrowFlag),
+		placement:                C.int(hintPlacementValue(currentStyle.Placement())),
 		boundaryHighlightEnabled: C.int(boolToInt(currentStyle.BoundaryHighlightEnabled())),
 		boundaryBorderWidth:      C.int(currentStyle.BoundaryBorderWidth()),
 		boundaryBorderRadius:     C.int(currentStyle.BoundaryBorderRadius()),
