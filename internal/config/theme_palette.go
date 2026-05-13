@@ -45,7 +45,7 @@ var (
 	// HintsBoundaryBackgroundColorLight is the fallback light fill color for hint target boundaries.
 	HintsBoundaryBackgroundColorLight = applyAlpha(defaultThemeLightAccent, "14")
 	// HintsBoundaryBackgroundColorDark is the fallback dark fill color for hint target boundaries.
-	HintsBoundaryBackgroundColorDark = applyAlpha(defaultThemeDarkAccentAlt, "1F")
+	HintsBoundaryBackgroundColorDark = applyAlpha(defaultThemeDarkAccentAlt, "1A")
 	// HintsBoundaryBorderColorLight is the fallback light stroke color for hint target boundaries.
 	HintsBoundaryBorderColorLight = applyAlpha(defaultThemeLightAccent, "73")
 	// HintsBoundaryBorderColorDark is the fallback dark stroke color for hint target boundaries.
