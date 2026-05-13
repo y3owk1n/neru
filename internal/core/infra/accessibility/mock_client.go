@@ -196,6 +196,8 @@ type MockNode struct {
 	MockRole        string
 	MockTitle       string
 	MockDescription string
+	MockValue       string
+	MockSearchText  string
 	MockClickable   bool
 }
 
@@ -222,6 +224,16 @@ func (n *MockNode) Title() string {
 // Description returns the configured description.
 func (n *MockNode) Description() string {
 	return n.MockDescription
+}
+
+// Value returns the configured value.
+func (n *MockNode) Value() string {
+	return n.MockValue
+}
+
+// SearchText returns the configured search text.
+func (n *MockNode) SearchText() string {
+	return n.MockSearchText
 }
 
 // IsClickable returns the configured clickable state.

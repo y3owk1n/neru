@@ -23,6 +23,11 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 	// Determine if clickable
 	isClickable := node.IsClickable()
 
+	searchText := ""
+	if provider, ok := node.(interface{ SearchText() string }); ok {
+		searchText = provider.SearchText()
+	}
+
 	// Create element with options
 	domElement, elementErr := element.NewElement(
 		elementID,
@@ -32,6 +37,7 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 		element.WithTitle(node.Title()),
 		element.WithDescription(node.Description()),
 		element.WithValue(node.Value()),
+		element.WithSearchText(searchText),
 	)
 	if elementErr != nil {
 		return nil, derrors.Wrap(

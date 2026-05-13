@@ -41,6 +41,7 @@ type ElementInfo struct {
 	title           string
 	description     string
 	value           string
+	searchText      string
 	role            string
 	roleDescription string
 	isEnabled       bool
@@ -62,6 +63,9 @@ func (ei *ElementInfo) Description() string { return ei.description }
 
 // Value returns the element value.
 func (ei *ElementInfo) Value() string { return ei.value }
+
+// SearchText returns extra searchable text collected from descendant elements.
+func (ei *ElementInfo) SearchText() string { return ei.searchText }
 
 // Role returns the element role.
 func (ei *ElementInfo) Role() string { return ei.role }

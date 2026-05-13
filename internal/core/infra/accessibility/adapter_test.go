@@ -239,11 +239,30 @@ func TestAdapter_MatchesFilter(t *testing.T) {
 			},
 			want: true,
 		},
+		{
+			name: "match by extra search text",
+			filter: ports.ElementFilter{
+				ValueContains: "notes",
+			},
+			want: true,
+		},
 	}
+
+	elemWithSearchText, _ := element.NewElement(
+		element.ID("test-id-with-search-text"),
+		image.Rect(0, 0, 100, 100),
+		element.RoleButton,
+		element.WithSearchText("Apple Notes row"),
+	)
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := adapter.MatchesFilter(elem, testCase.filter)
+			testElem := elem
+			if testCase.name == "match by extra search text" {
+				testElem = elemWithSearchText
+			}
+
+			got := adapter.MatchesFilter(testElem, testCase.filter)
 			if got != testCase.want {
 				t.Errorf("matchesFilter() = %v, want %v", got, testCase.want)
 			}
