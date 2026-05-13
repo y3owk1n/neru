@@ -194,7 +194,7 @@ func (c *Config) ValidateHints() error {
 
 	err = validateMinValue(
 		c.Hints.BoundaryHighlight.BorderRadius,
-		0,
+		-1,
 		"hints.boundary_highlight.border_radius",
 	)
 	if err != nil {

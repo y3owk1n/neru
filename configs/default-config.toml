@@ -121,7 +121,7 @@ width = 320                                 # Search input width in pixels
 [hints.boundary_highlight]
 enabled = false                             # Draw a subtle outline around each target element
 border_width = 1
-border_radius = 4
+border_radius = -1                          # -1 = auto pill
 
 # Grid mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#grid-mode

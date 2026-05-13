@@ -30,7 +30,7 @@ func TestValidateHints_BoundaryHighlightGeometry(t *testing.T) {
 	cfg.Hints.BoundaryHighlight.BorderRadius = -1
 
 	err = cfg.ValidateHints()
-	if err == nil {
-		t.Fatal("ValidateHints() expected error for negative boundary border radius")
+	if err != nil {
+		t.Fatalf("ValidateHints() expected no error for -1 (auto) border radius, got %v", err)
 	}
 }
