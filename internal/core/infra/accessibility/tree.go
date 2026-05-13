@@ -728,7 +728,7 @@ func (n *TreeNode) collectSearchText() string {
 	var builder strings.Builder
 	seen := make(map[string]struct{})
 
-	n.walkTree(func(node *TreeNode) bool {
+	n.walkTreeDescendants(func(node *TreeNode) bool {
 		if node == nil || node.info == nil {
 			return true
 		}
@@ -749,6 +749,15 @@ func (n *TreeNode) walkTree(visit func(*TreeNode) bool) {
 		return
 	}
 
+	for _, child := range n.children {
+		child.walkTree(visit)
+	}
+}
+
+// walkTreeDescendants walks only the descendants (children and their subtrees),
+// excluding the root node itself. Used for collecting text from child elements
+// without including the root's own text fields.
+func (n *TreeNode) walkTreeDescendants(visit func(*TreeNode) bool) {
 	for _, child := range n.children {
 		child.walkTree(visit)
 	}
