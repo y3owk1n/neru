@@ -2,6 +2,7 @@ package accessibility
 
 import (
 	"context"
+	"sync"
 
 	"go.uber.org/zap"
 
@@ -26,30 +27,63 @@ func (a *Adapter) addSupplementaryElements(
 		zap.Bool("include_stage_manager", filter.IncludeStageManager),
 		zap.Bool("include_pip", filter.IncludePIP))
 
-	// Add menubar elements
-	if !missionControlActive && filter.IncludeMenubar {
-		elements = a.addMenubarElements(ctx, elements, filter)
+	type supplementarySource struct {
+		enabled bool
+		load    func() []*element.Element
 	}
 
-	// Add dock elements
-	if filter.IncludeDock {
-		elements = a.addDockElements(ctx, elements)
+	sources := []supplementarySource{
+		{
+			enabled: !missionControlActive && filter.IncludeMenubar,
+			load: func() []*element.Element {
+				return a.addMenubarElements(ctx, nil, filter)
+			},
+		},
+		{
+			enabled: filter.IncludeDock,
+			load: func() []*element.Element {
+				return a.addDockElements(ctx, nil)
+			},
+		},
+		{
+			enabled: missionControlActive && filter.IncludeNotificationCenter,
+			load: func() []*element.Element {
+				return a.addNotificationCenterElements(ctx, nil)
+			},
+		},
+		{
+			enabled: filter.IncludeStageManager,
+			load: func() []*element.Element {
+				return a.addStageManagerElements(ctx, nil)
+			},
+		},
+		{
+			// Safari PiP is owned by PIPAgent and cannot be discovered from
+			// the currently focused app because it is not focusable.
+			enabled: filter.IncludePIP,
+			load: func() []*element.Element {
+				return a.addPIPElements(ctx, nil)
+			},
+		},
 	}
 
-	// Add notification center elements (only when Mission Control is active)
-	if missionControlActive && filter.IncludeNotificationCenter {
-		elements = a.addNotificationCenterElements(ctx, elements)
+	results := make([][]*element.Element, len(sources))
+
+	var waitGroup sync.WaitGroup
+	for index, source := range sources {
+		if !source.enabled {
+			continue
+		}
+
+		waitGroup.Go(func() {
+			results[index] = source.load()
+		})
 	}
 
-	// Add stage manager elements
-	if filter.IncludeStageManager {
-		elements = a.addStageManagerElements(ctx, elements)
-	}
+	waitGroup.Wait()
 
-	// Add Picture in Picture elements. Safari PiP is owned by PIPAgent and
-	// cannot be discovered from the currently focused app because it is not focusable.
-	if filter.IncludePIP {
-		elements = a.addPIPElements(ctx, elements)
+	for _, sourceElements := range results {
+		elements = append(elements, sourceElements...)
 	}
 
 	return elements

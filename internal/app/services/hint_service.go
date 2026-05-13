@@ -50,6 +50,36 @@ func (s *HintService) ShowHints(
 ) ([]*hint.Interface, error) {
 	s.logger.Info("Showing hints")
 
+	hints, err := s.GenerateHints(ctx, filterRoles, filterTextContains)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(hints) == 0 {
+		return hints, nil
+	}
+
+	// Display hints
+	showHintsErr := s.overlay.ShowHints(ctx, hints)
+	if showHintsErr != nil {
+		s.logger.Error("Failed to show hints overlay", zap.Error(showHintsErr))
+
+		return nil, core.WrapOverlayFailed(showHintsErr, "show hints")
+	}
+
+	s.logger.Info("Hints displayed successfully")
+
+	return hints, nil
+}
+
+// GenerateHints collects clickable elements and generates labels without drawing
+// them. Mode handlers use this to filter and position hints before the first
+// render, avoiding an extra full overlay draw during activation.
+func (s *HintService) GenerateHints(
+	ctx context.Context,
+	filterRoles []string,
+	filterTextContains []string,
+) ([]*hint.Interface, error) {
 	s.mu.RLock()
 	cfg := s.config
 	gen := s.generator
@@ -151,16 +181,6 @@ func (s *HintService) ShowHints(
 	}
 
 	s.logger.Info("Generated hints", zap.Int("count", len(hints)))
-
-	// Display hints
-	showHintsErr := s.overlay.ShowHints(ctx, hints)
-	if showHintsErr != nil {
-		s.logger.Error("Failed to show hints overlay", zap.Error(showHintsErr))
-
-		return nil, core.WrapOverlayFailed(showHintsErr, "show hints")
-	}
-
-	s.logger.Info("Hints displayed successfully")
 
 	return hints, nil
 }

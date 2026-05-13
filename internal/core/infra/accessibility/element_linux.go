@@ -205,6 +205,9 @@ func (e *Element) Clone() (*Element, error) { return &Element{}, nil }
 // AllWindows returns all windows (Linux stub).
 func AllWindows() ([]*Element, error) { return []*Element{}, nil }
 
+// FrontmostAndPopoverWindows returns frontmost/popover windows (Linux stub).
+func FrontmostAndPopoverWindows() ([]*Element, error) { return []*Element{}, nil }
+
 // FrontmostWindow returns the frontmost window.
 func FrontmostWindow() *Element {
 	if currentLinuxBackend() == linuxBackendWayland {
@@ -529,6 +532,7 @@ func (e *Element) IsClickable(
 	_ map[string]struct{},
 	_ *InfoCache,
 	_ config.Provider,
+	_ bool,
 ) bool {
 	return false
 }

@@ -41,6 +41,7 @@ func (e *Element) IsClickable(
 	_ map[string]struct{},
 	_ *InfoCache,
 	_ config.Provider,
+	_ bool,
 ) bool {
 	return false
 }
@@ -123,6 +124,9 @@ func ElementAtPosition(x, y int) *Element { return nil }
 
 // AllWindows returns all windows (stub).
 func AllWindows() ([]*Element, error) { return []*Element{}, nil }
+
+// FrontmostAndPopoverWindows returns frontmost/popover windows (Windows stub).
+func FrontmostAndPopoverWindows() ([]*Element, error) { return []*Element{}, nil }
 
 // FrontmostWindow returns the frontmost window (stub).
 func FrontmostWindow() *Element { return nil }

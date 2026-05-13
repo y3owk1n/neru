@@ -192,8 +192,6 @@ func (h *Handler) activateHintModeInternal(
 	}
 
 	h.screenBounds = activeScreenBounds
-	h.overlayManager.ResizeToActiveScreen()
-
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing hints.
 	// This prevents scroll highlights from persisting when switching from scroll mode to hints mode.
 	h.overlayManager.Clear()
@@ -215,8 +213,9 @@ func (h *Handler) activateHintModeInternal(
 	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
 	defer cancel()
 
-	// Get hints from service
-	domainHints, domainHintsErr := h.hintService.ShowHints(ctx, filterRoles, filterTextContains)
+	// Get hints from service. Drawing is intentionally deferred until after
+	// active-screen filtering so activation performs one full overlay render.
+	domainHints, domainHintsErr := h.hintService.GenerateHints(ctx, filterRoles, filterTextContains)
 	if domainHintsErr != nil {
 		h.logger.Error(
 			"Failed to show hints",
@@ -293,14 +292,6 @@ func (h *Handler) activateHintModeInternal(
 		h.hints.Context.SetManager(manager)
 	}
 
-	h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
-
-	h.hints.Context.SetHints(hintCollection)
-
-	if actionStr != nil {
-		h.logger.Info("Hints mode activated with pending action", zap.String("action", *actionStr))
-	}
-
 	// Only set mode and enable event tap on initial activation;
 	// during refresh these are already in the correct state.
 	if !isRefresh {
@@ -311,6 +302,15 @@ func (h *Handler) activateHintModeInternal(
 		// app-specific hotkey overrides for the new app are correctly
 		// intercepted instead of being passed through to macOS.
 		h.syncModifierPassthrough(domain.ModeHints)
+	}
+
+	h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
+
+	h.hints.Context.SetHints(hintCollection)
+	h.overlayManager.Show()
+
+	if actionStr != nil {
+		h.logger.Info("Hints mode activated with pending action", zap.String("action", *actionStr))
 	}
 
 	h.logger.Info("Hints mode activated")

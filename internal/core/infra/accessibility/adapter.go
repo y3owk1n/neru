@@ -164,33 +164,18 @@ func (a *Adapter) ClickableElements(
 
 		go func() {
 			collectElements("windows", func() ([]*element.Element, error) {
-				// Get frontmost window (the main/focused window)
-				frontmost, frontmostErr := a.client.FrontmostWindow()
-				if frontmostErr != nil {
-					return nil, frontmostErr
+				windowsToProcess, windowsErr := a.client.FrontmostAndPopoverWindows()
+				if windowsErr != nil {
+					return nil, windowsErr
 				}
 
-				// Get all windows to find popovers
-				allWindows, allWindowsErr := a.client.AllWindows()
-				if allWindowsErr != nil {
-					frontmost.Release()
-
-					return nil, allWindowsErr
-				}
-
-				// Collect windows to process: frontmost + any AXPopover
-				var windowsToProcess []AXWindow
-
-				windowsToProcess = append(windowsToProcess, frontmost)
-
-				// Add popover windows (siblings to the main window)
-				// Release non-popover windows to avoid leaks
-				for _, w := range allWindows {
-					if w.Role() == "AXPopover" {
-						windowsToProcess = append(windowsToProcess, w)
-					} else {
-						w.Release()
+				if len(windowsToProcess) == 0 {
+					frontmost, frontmostErr := a.client.FrontmostWindow()
+					if frontmostErr != nil {
+						return nil, frontmostErr
 					}
+
+					windowsToProcess = []AXWindow{frontmost}
 				}
 
 				var allElements []*element.Element

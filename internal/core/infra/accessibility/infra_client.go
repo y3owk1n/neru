@@ -71,6 +71,21 @@ func (c *InfraAXClient) AllWindows() ([]AXWindow, error) {
 	return result, nil
 }
 
+// FrontmostAndPopoverWindows returns the frontmost window plus popovers.
+func (c *InfraAXClient) FrontmostAndPopoverWindows() ([]AXWindow, error) {
+	windows, err := FrontmostAndPopoverWindows()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]AXWindow, len(windows))
+	for i, w := range windows {
+		result[i] = &InfraWindow{element: w}
+	}
+
+	return result, nil
+}
+
 // FocusedApplication returns the focused application.
 func (c *InfraAXClient) FocusedApplication() (AXApp, error) {
 	app := FocusedApplication()
@@ -144,7 +159,17 @@ func (c *InfraAXClient) ClickableNodes(
 		}
 	}
 
-	clickableNodes := tree.FindClickableElements(allowedRoles, c.cache, c.configProvider)
+	ignoreClickableCheck := false
+	if cfg := currentConfig(c.configProvider); cfg != nil {
+		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(bundleID)
+	}
+
+	clickableNodes := tree.FindClickableElements(
+		allowedRoles,
+		c.cache,
+		c.configProvider,
+		ignoreClickableCheck,
+	)
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
@@ -492,7 +517,7 @@ func (n *InfraNode) IsClickable() bool {
 		return false
 	}
 
-	return n.node.Element().IsClickable(n.node.Info(), nil, n.cache, n.configProvider)
+	return n.node.Element().IsClickable(n.node.Info(), nil, n.cache, n.configProvider, false)
 }
 
 // Release releases the underlying AXUIElementRef held by this node.

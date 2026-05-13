@@ -251,8 +251,9 @@ func (h *Handler) RefreshHintsForScreenChange(
 	filterRoles := h.hints.Context.FilterRoles()
 	filterTextContains := h.hints.Context.FilterTextContains()
 
-	// Show hints with filters preserved
-	domainHints, showHintsErr := hintService.ShowHints(ctx, filterRoles, filterTextContains)
+	// Generate hints with filters preserved; SetHints below performs the
+	// single redraw after active-screen filtering.
+	domainHints, showHintsErr := hintService.GenerateHints(ctx, filterRoles, filterTextContains)
 	if showHintsErr != nil {
 		h.logger.Error("Failed to refresh hints after screen change", zap.Error(showHintsErr))
 		h.exitModeLocked()

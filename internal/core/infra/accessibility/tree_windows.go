@@ -30,6 +30,7 @@ func (n *TreeNode) FindClickableElements(
 	keptRoles map[string]struct{},
 	cache any,
 	configProvider config.Provider,
+	ignoreClickableCheck bool,
 ) []*TreeNode {
 	return nil
 }

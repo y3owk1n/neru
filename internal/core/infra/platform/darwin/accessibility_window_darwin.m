@@ -80,6 +80,126 @@ void **getAllWindows(int *count) {
 	}
 }
 
+/// Get focused window plus popover windows of the focused application.
+/// This keeps hint activation on one focused-app lookup and avoids asking Go
+/// to fetch each window role separately just to discover AXPopover siblings.
+void **getFrontmostAndPopoverWindows(int *count) {
+	if (!count)
+		return NULL;
+
+	@autoreleasepool {
+		*count = 0;
+
+		AXUIElementRef focusedApp = (AXUIElementRef)getFocusedApplication();
+		AXUIElementRef appRef = focusedApp;
+		bool shouldReleaseAppRef = false;
+
+		if (!appRef) {
+			NSRunningApplication *front = [NSWorkspace sharedWorkspace].frontmostApplication;
+			if (!front)
+				return NULL;
+
+			appRef = AXUIElementCreateApplication(front.processIdentifier);
+			if (!appRef)
+				return NULL;
+
+			shouldReleaseAppRef = true;
+		}
+
+		AXUIElementRef focusedWindow = NULL;
+		AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute, (CFTypeRef *)&focusedWindow);
+
+		CFTypeRef windowsValue = NULL;
+		CFArrayRef windows = NULL;
+		CFIndex windowCount = 0;
+		if (AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute, &windowsValue) == kAXErrorSuccess &&
+		    windowsValue && CFGetTypeID(windowsValue) == CFArrayGetTypeID()) {
+			windows = (CFArrayRef)windowsValue;
+			windowCount = CFArrayGetCount(windows);
+		}
+
+		CFIndex capacity = (focusedWindow ? 1 : 0) + windowCount;
+		if (capacity == 0) {
+			if (windowsValue)
+				CFRelease(windowsValue);
+			if (focusedWindow)
+				CFRelease(focusedWindow);
+			if (shouldReleaseAppRef && appRef)
+				CFRelease(appRef);
+			else if (focusedApp)
+				CFRelease(focusedApp);
+			return NULL;
+		}
+
+		void **result = (void **)malloc(capacity * sizeof(void *));
+		if (!result) {
+			if (windowsValue)
+				CFRelease(windowsValue);
+			if (focusedWindow)
+				CFRelease(focusedWindow);
+			if (shouldReleaseAppRef && appRef)
+				CFRelease(appRef);
+			else if (focusedApp)
+				CFRelease(focusedApp);
+			return NULL;
+		}
+
+		if (focusedWindow) {
+			result[*count] = (void *)focusedWindow;
+			(*count)++;
+		} else if (windowCount > 0) {
+			AXUIElementRef firstWindow = (AXUIElementRef)CFArrayGetValueAtIndex(windows, 0);
+			if (firstWindow) {
+				CFRetain(firstWindow);
+				result[*count] = (void *)firstWindow;
+				(*count)++;
+			}
+		}
+
+		for (CFIndex i = 0; i < windowCount; i++) {
+			AXUIElementRef window = (AXUIElementRef)CFArrayGetValueAtIndex(windows, i);
+			if (!window)
+				continue;
+
+			if (focusedWindow && CFEqual(window, focusedWindow))
+				continue;
+			if (!focusedWindow && i == 0)
+				continue;
+
+			CFTypeRef roleValue = NULL;
+			if (AXUIElementCopyAttributeValue(window, kAXRoleAttribute, &roleValue) != kAXErrorSuccess || !roleValue) {
+				continue;
+			}
+
+			bool isPopover = CFGetTypeID(roleValue) == CFStringGetTypeID() &&
+			                 CFStringCompare((CFStringRef)roleValue, CFSTR("AXPopover"), 0) == kCFCompareEqualTo;
+			CFRelease(roleValue);
+
+			if (!isPopover)
+				continue;
+
+			CFRetain(window);
+			result[*count] = (void *)window;
+			(*count)++;
+		}
+
+		if (windowsValue)
+			CFRelease(windowsValue);
+
+		if (shouldReleaseAppRef && appRef)
+			CFRelease(appRef);
+		else if (focusedApp)
+			CFRelease(focusedApp);
+
+		if (*count == 0) {
+			free(result);
+			return NULL;
+		}
+
+		return result;
+	}
+}
+
 /// Get frontmost window
 /// @return Frontmost window reference
 void *getFrontmostWindow(void) {

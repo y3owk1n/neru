@@ -22,6 +22,7 @@ type AXClient interface {
 	// Window and App operations
 	FrontmostWindow() (AXWindow, error)
 	AllWindows() ([]AXWindow, error)
+	FrontmostAndPopoverWindows() ([]AXWindow, error)
 	FocusedApplication() (AXApp, error)
 	ApplicationByBundleID(bundleID string) (AXApp, error)
 	ClickableNodes(root AXElement, includeOffscreen bool, roles []string) ([]AXNode, error)

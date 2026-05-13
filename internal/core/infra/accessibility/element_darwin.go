@@ -462,6 +462,31 @@ func AllWindows() ([]*Element, error) {
 	return result, nil
 }
 
+// FrontmostAndPopoverWindows returns the frontmost window plus focused-app
+// popover windows in a single native query.
+func FrontmostAndPopoverWindows() ([]*Element, error) {
+	var count C.int
+	windows := C.getFrontmostAndPopoverWindows(&count)
+	if windows == nil || count == 0 {
+		if windows != nil {
+			C.free(unsafe.Pointer(windows))
+		}
+
+		return []*Element{}, nil
+	}
+	defer C.free(unsafe.Pointer(windows)) //nolint:nlreturn
+
+	countInt := int(count)
+	windowSlice := (*[1 << 30]unsafe.Pointer)(unsafe.Pointer(windows))[:countInt:countInt]
+	result := make([]*Element, countInt)
+
+	for index := range result {
+		result[index] = &Element{ref: windowSlice[index]}
+	}
+
+	return result, nil
+}
+
 // FrontmostWindow returns the frontmost window.
 func FrontmostWindow() *Element {
 	ref := C.getFrontmostWindow()
@@ -618,17 +643,10 @@ func (e *Element) IsClickable(
 	allowedRoles map[string]struct{},
 	cache *InfoCache,
 	configProvider config.Provider,
+	ignoreClickableCheck bool,
 ) bool {
 	if e.ref == nil {
 		return false
-	}
-
-	if cfg := currentConfig(configProvider); cfg != nil {
-		// Check if clickable check should be ignored for this app
-		bundleID := e.BundleIdentifier()
-		if cfg.ShouldIgnoreClickableCheckForApp(bundleID) {
-			return true
-		}
 	}
 
 	// If info is not provided, try to get it
@@ -661,6 +679,10 @@ func (e *Element) IsClickable(
 	}
 
 	if isRoleAllowed {
+		if ignoreClickableCheck {
+			return true
+		}
+
 		// Also verify it actually has click action
 		result := C.hasClickAction(e.ref) //nolint:nlreturn
 

@@ -651,10 +651,17 @@ func (n *TreeNode) FindClickableElements(
 	allowedRoles map[string]struct{},
 	cache *InfoCache,
 	configProvider config.Provider,
+	ignoreClickableCheck bool,
 ) []*TreeNode {
 	var result []*TreeNode
 	n.walkTree(func(node *TreeNode) bool {
-		if node.element.IsClickable(node.info, allowedRoles, cache, configProvider) {
+		if node.element.IsClickable(
+			node.info,
+			allowedRoles,
+			cache,
+			configProvider,
+			ignoreClickableCheck,
+		) {
 			node.info.searchText = node.collectSearchText()
 			result = append(result, node)
 		}

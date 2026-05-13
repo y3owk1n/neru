@@ -159,6 +159,11 @@ int areElementsEqual(void *element1, void *element2);
 /// @return Array of window references
 void **getAllWindows(int *count);
 
+/// Get the focused window plus AXPopover windows of the focused application
+/// @param count Output parameter for number of returned windows
+/// @return Array of retained window references. Caller frees the array and releases refs.
+void **getFrontmostAndPopoverWindows(int *count);
+
 /// Get frontmost window
 /// @return Frontmost window reference
 void *getFrontmostWindow(void);
