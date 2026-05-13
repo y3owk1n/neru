@@ -13,6 +13,8 @@ const (
 	DefaultHintPaddingY = -1
 	// DefaultHintBoundaryBorderRadius is the default radius for hint target boundaries.
 	DefaultHintBoundaryBorderRadius = 4
+	// DefaultHintBoundaryBorderWidth is the default stroke width for hint target boundaries.
+	DefaultHintBoundaryBorderWidth = 1
 
 	// DefaultSearchInputYOffset is the default Y offset for search input.
 	DefaultSearchInputYOffset = 24
@@ -331,7 +333,7 @@ func newDefaultConfig() *Config {
 			},
 			BoundaryHighlight: BoundaryHighlightUI{
 				Enabled:         false,
-				BorderWidth:     1,
+				BorderWidth:     DefaultHintBoundaryBorderWidth,
 				BorderRadius:    DefaultHintBoundaryBorderRadius,
 				BorderColor:     Color{},
 				BackgroundColor: Color{},
