@@ -49,7 +49,7 @@ var (
 	// HintsBoundaryBorderColorLight is the fallback light stroke color for hint target boundaries.
 	HintsBoundaryBorderColorLight = applyAlpha(defaultThemeLightAccent, "73")
 	// HintsBoundaryBorderColorDark is the fallback dark stroke color for hint target boundaries.
-	HintsBoundaryBorderColorDark = applyAlpha(defaultThemeDarkAccentAlt, "8C")
+	HintsBoundaryBorderColorDark = applyAlpha(defaultThemeDarkAccentAlt, "73")
 
 	// GridBackgroundColorLight is the fallback light background color for grid cells.
 	GridBackgroundColorLight = applyAlpha(defaultThemeLightSurface, "99")
