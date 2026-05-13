@@ -28,7 +28,7 @@
 	self = [super init];
 	if (self) {
 		_showArrow = YES;
-		_placement = 7;
+		_placement = 3;  // Bottom, default placement, overwritten by buildHintItems
 	}
 	return self;
 }
