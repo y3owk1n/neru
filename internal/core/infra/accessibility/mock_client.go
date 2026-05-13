@@ -189,6 +189,8 @@ func (a *MockApp) Info() (*AXAppInfo, error) {
 	return a.MockInfo, nil
 }
 
+var _ AXNode = (*MockNode)(nil)
+
 // MockNode is a mock implementation of AXNode.
 type MockNode struct {
 	MockID          string
