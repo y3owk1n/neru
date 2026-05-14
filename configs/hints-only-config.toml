@@ -16,10 +16,10 @@ include_pip_hints = false
 include_screen_capture_hints = false
 detect_mission_control = false             # Skip frontmost window hints when Mission Control is active
 additional_menubar_hints_targets = [
-	"com.apple.TextInputMenuAgent",
-	"com.apple.controlcenter",
-	"com.apple.systemuiserver",
-	"com.y3owk1n.neru",
+    "com.apple.TextInputMenuAgent",
+    "com.apple.controlcenter",
+    "com.apple.systemuiserver",
+    "com.y3owk1n.neru",
 ]
 clickable_roles = [
     "AXButton",
