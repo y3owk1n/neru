@@ -27,7 +27,6 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.Enabled = true
 	cfg.Grid.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false // Skip OS permission checks
 
 	// Initialize the app with real components but mock problematic ones
 	application, err := app.New(

@@ -50,17 +50,6 @@ func initializeOverlayManager(logger *zap.Logger) OverlayManager {
 
 // initializeAccessibility checks and configures accessibility permissions and settings.
 func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
-	if cfg.General.AccessibilityCheckOnStart {
-		if !accessibilityAdapter.CheckAccessibilityPermissions() {
-			logger.Warn(
-				"Accessibility permissions not granted. Please grant permissions in System Settings.",
-			)
-			logger.Info("⚠️  Neru requires Accessibility permissions to function.")
-			logger.Info("Please go to: System Settings → Privacy & Security → Accessibility")
-			logger.Info("and enable Neru.")
-		}
-	}
-
 	// Apply clickable roles if hints are enabled
 	if cfg.Hints.Enabled {
 		logger.Info("Applying clickable roles",

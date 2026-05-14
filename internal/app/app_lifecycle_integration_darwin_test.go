@@ -59,7 +59,6 @@ func runTestAppInitializationIntegration(t *testing.T, ctx context.Context) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.Enabled = true
 	cfg.Grid.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false // Skip OS permission checks
 
 	// Test that app initialization completes within reasonable time
 	done := make(chan initResult, 1)
@@ -128,7 +127,6 @@ func TestApp_ModeTransitions(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.Enabled = true
 	cfg.Grid.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false // Disable OS check
 
 	// Create app with timeout protection
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

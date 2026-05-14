@@ -20,7 +20,6 @@ func TestAppLifecycleIntegration(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.Enabled = true
 	cfg.Grid.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false
 
 	// Create app
 	application, err := app.New(

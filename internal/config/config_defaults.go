@@ -266,7 +266,6 @@ func newDefaultConfig() *Config {
 	return &Config{
 		General: GeneralConfig{
 			ExcludedApps:                      []string{},
-			AccessibilityCheckOnStart:         true,
 			PassthroughUnboundedKeys:          false,
 			ShouldExitAfterPassthrough:        false,
 			PassthroughUnboundedKeysBlacklist: []string{},

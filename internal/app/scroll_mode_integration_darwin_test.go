@@ -19,7 +19,6 @@ func TestScrollModeEndToEnd(t *testing.T) {
 
 	// Create config with scroll mode enabled (scroll mode doesn't have a specific enable flag)
 	cfg := config.DefaultConfig()
-	cfg.General.AccessibilityCheckOnStart = false
 
 	// Initialize the app with real components but mock the problematic ones
 	application, err := app.New(

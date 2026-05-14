@@ -422,7 +422,6 @@ type ThemeConfig struct {
 // GeneralConfig defines general application-wide settings.
 type GeneralConfig struct {
 	ExcludedApps                      []string `json:"excludedApps"                      toml:"excluded_apps"`
-	AccessibilityCheckOnStart         bool     `json:"accessibilityCheckOnStart"         toml:"accessibility_check_on_start"`
 	PassthroughUnboundedKeys          bool     `json:"passthroughUnboundedKeys"          toml:"passthrough_unbounded_keys"`
 	ShouldExitAfterPassthrough        bool     `json:"shouldExitAfterPassthrough"        toml:"should_exit_after_passthrough"`
 	PassthroughUnboundedKeysBlacklist []string `json:"passthroughUnboundedKeysBlacklist" toml:"passthrough_unbounded_keys_blacklist"`

@@ -305,7 +305,6 @@ Core behaviour settings that affect all Neru functionality.
 | Option                                 | Type   | Default | Description                                            |
 | -------------------------------------- | ------ | ------- | ------------------------------------------------------ |
 | `excluded_apps`                        | array  | `[]`    | Bundle IDs where Neru won't activate                   |
-| `accessibility_check_on_start`         | bool   | `true`  | Verify accessibility permissions on launch             |
 | `kb_layout_to_use`                     | string | `""`    | Optional InputSourceID for layout mapping              |
 | `hide_overlay_in_screen_share`         | bool   | `false` | Hide overlay in screen sharing apps                    |
 | `passthrough_unbounded_keys`           | bool   | `false` | Let unbound modifier shortcuts pass through            |

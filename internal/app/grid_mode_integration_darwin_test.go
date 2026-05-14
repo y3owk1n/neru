@@ -20,7 +20,6 @@ func TestGridModeEndToEnd(t *testing.T) {
 	// Create config with grid enabled
 	cfg := config.DefaultConfig()
 	cfg.Grid.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false
 
 	// Initialize the app with real components but mock the problematic ones
 	application, err := app.New(

@@ -20,7 +20,6 @@ func TestAppInitializationWithRealComponentsIntegration(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.Enabled = true
 	cfg.Grid.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false // Skip OS permission checks
 
 	// Initialize the app with real components but mock the problematic ones
 	application, err := app.New(
@@ -79,7 +78,6 @@ func TestAppInitializationWithRealComponentsIntegration(t *testing.T) {
 		cfg2 := config.DefaultConfig()
 		cfg2.Hints.Enabled = true
 		cfg2.Grid.Enabled = false
-		cfg2.General.AccessibilityCheckOnStart = false
 
 		application2, err := app.New(
 			app.WithConfig(cfg2),
@@ -112,7 +110,6 @@ func TestAppInitialization_Systray(t *testing.T) {
 	t.Run("Systray Enabled (Default)", func(t *testing.T) {
 		cfg := config.DefaultConfig()
 		cfg.Systray.Enabled = true // Explicitly set, though default is true
-		cfg.General.AccessibilityCheckOnStart = false
 
 		appInstance, err := app.New(
 			app.WithConfig(cfg),
@@ -135,7 +132,6 @@ func TestAppInitialization_Systray(t *testing.T) {
 	t.Run("Systray Disabled", func(t *testing.T) {
 		cfg := config.DefaultConfig()
 		cfg.Systray.Enabled = false
-		cfg.General.AccessibilityCheckOnStart = false
 
 		appInstance, err := app.New(
 			app.WithConfig(cfg),

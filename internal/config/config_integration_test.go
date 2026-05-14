@@ -40,7 +40,6 @@ func TestConfigFileOperationsIntegration(t *testing.T) {
 		// Create a test config file with custom settings
 		configContent := `
 [general]
-accessibility_check_on_start = false
 excluded_apps = ["com.apple.finder", "com.test.app"]
 
 [hints]

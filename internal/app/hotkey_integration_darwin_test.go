@@ -20,7 +20,6 @@ func TestHotkeyIntegration(t *testing.T) {
 	mockHotkeys := &mockHotkeyService{}
 
 	cfg := config.DefaultConfig()
-	cfg.General.AccessibilityCheckOnStart = false
 
 	application, err := app.New(
 		app.WithConfig(cfg),

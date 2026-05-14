@@ -42,7 +42,6 @@ func TestHintServiceIntegration(t *testing.T) {
 	// Create real adapters (they will be initialized with real infra)
 	cfg := config.DefaultConfig()
 	cfg.Hints.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false
 
 	// Initialize real adapters like the app does
 	accAdapter, overlay, systemPort := initializeRealAdapters(t, cfg, logger)
@@ -130,7 +129,6 @@ func TestActionServiceIntegration(t *testing.T) {
 	logger := logger.Get()
 
 	cfg := config.DefaultConfig()
-	cfg.General.AccessibilityCheckOnStart = false
 
 	accAdapter, overlayAdapter, systemPort := initializeRealAdapters(t, cfg, logger)
 
@@ -200,7 +198,6 @@ func TestGridServiceIntegration(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	cfg.Grid.Enabled = true
-	cfg.General.AccessibilityCheckOnStart = false
 
 	// Initialize real adapters
 	_, overlay, systemPort := initializeRealAdapters(t, cfg, logger)
@@ -234,7 +231,6 @@ func TestScrollServiceIntegration(t *testing.T) {
 	logger := logger.Get()
 
 	cfg := config.DefaultConfig()
-	cfg.General.AccessibilityCheckOnStart = false
 
 	// Initialize real adapters
 	accAdapter, overlay, systemPort := initializeRealAdapters(t, cfg, logger)

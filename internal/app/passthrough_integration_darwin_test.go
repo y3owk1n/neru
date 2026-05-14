@@ -17,7 +17,7 @@ func TestExitAfterPassthroughIntegration(t *testing.T) {
 	}
 
 	cfg := config.DefaultConfig()
-	cfg.General.AccessibilityCheckOnStart = false
+
 	cfg.General.PassthroughUnboundedKeys = true
 	cfg.General.ShouldExitAfterPassthrough = true
 
@@ -52,7 +52,7 @@ func TestStalePassthroughCallbackDoesNotExitNewModeIntegration(t *testing.T) {
 	}
 
 	cfg := config.DefaultConfig()
-	cfg.General.AccessibilityCheckOnStart = false
+
 	cfg.General.PassthroughUnboundedKeys = true
 	cfg.General.ShouldExitAfterPassthrough = true
 

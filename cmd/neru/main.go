@@ -75,7 +75,7 @@ func LaunchDaemon(configPath string) {
 		configResult = handleConfigOnboarding(service, configResult)
 	}
 
-	handleAccessibilityPermissionStartup(configResult.Config)
+	handleAccessibilityPermissionStartup()
 
 	app, appErr := app.New(
 		app.WithConfig(configResult.Config),
@@ -157,8 +157,8 @@ func promptConfigInit(configPath string) bool {
 	return false
 }
 
-func handleAccessibilityPermissionStartup(cfg *config.Config) {
-	if !platform.IsDarwin() || cfg == nil || !cfg.General.AccessibilityCheckOnStart {
+func handleAccessibilityPermissionStartup() {
+	if !platform.IsDarwin() {
 		return
 	}
 
