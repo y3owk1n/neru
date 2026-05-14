@@ -25,7 +25,8 @@ func (a *Adapter) addSupplementaryElements(
 		zap.Bool("include_dock", filter.IncludeDock),
 		zap.Bool("include_nc", filter.IncludeNotificationCenter),
 		zap.Bool("include_stage_manager", filter.IncludeStageManager),
-		zap.Bool("include_pip", filter.IncludePIP))
+		zap.Bool("include_pip", filter.IncludePIP),
+		zap.Bool("include_screen_capture", filter.IncludeScreenCapture))
 
 	type supplementarySource struct {
 		enabled bool
