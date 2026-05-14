@@ -345,6 +345,7 @@ func newDefaultConfig() *Config {
 			IncludeNCHints:                false,
 			IncludeStageManagerHints:      false,
 			IncludePIPHints:               false,
+			IncludeScreenCaptureHints:     false,
 			DetectMissionControl:          false,
 
 			ClickableRoles: []string{},

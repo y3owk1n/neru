@@ -131,6 +131,7 @@ func (s *HintService) GenerateHints(
 	filter.IncludeNotificationCenter = cfg.IncludeNCHints
 	filter.IncludeStageManager = cfg.IncludeStageManagerHints
 	filter.IncludePIP = cfg.IncludePIPHints
+	filter.IncludeScreenCapture = cfg.IncludeScreenCaptureHints
 
 	// Apply text filter if provided (OR match - element matches if any text contains match)
 	if len(filterTextContains) > 0 {
@@ -236,7 +237,8 @@ func (s *HintService) UpdateConfig(config config.HintsConfig) {
 		zap.Bool("include_dock", config.IncludeDockHints),
 		zap.Bool("include_nc", config.IncludeNCHints),
 		zap.Bool("include_stage_manager", config.IncludeStageManagerHints),
-		zap.Bool("include_pip", config.IncludePIPHints))
+		zap.Bool("include_pip", config.IncludePIPHints),
+		zap.Bool("include_screen_capture", config.IncludeScreenCaptureHints))
 }
 
 // UpdateGenerator updates the hint generator.

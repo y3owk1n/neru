@@ -338,6 +338,7 @@ You can also start hints mode with the search input shown immediately by using t
 | `include_nc_hints`                 | bool   | `false`       | Show hints in Notification Center                    |
 | `include_stage_manager_hints`      | bool   | `false`       | Show hints in Stage Manager                          |
 | `include_pip_hints`                | bool   | `false`       | Show hints on macOS Picture in Picture controls      |
+| `include_screen_capture_hints`     | bool   | `false`       | Show hints on macOS Screen Capture controls          |
 | `detect_mission_control`           | bool   | `false`       | Auto-disable hints when in Mission Control           |
 | `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                             |
 | `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                         |
@@ -390,19 +391,19 @@ osascript -e 'id of app "Safari"'
 
 ### UI Options
 
-| Option               | Type   | Default | Description                          |
-| -------------------- | ------ | ------- | ------------------------------------ |
-| `font_size`          | int    | `10`    | Font size in points                  |
-| `font_family`        | string | `""`    | Font family (empty = system default) |
-| `border_radius`      | int    | `-1`    | Corner radius (-1 = auto)            |
-| `padding_x`          | int    | `-1`    | Horizontal padding (-1 = auto)       |
-| `padding_y`          | int    | `-1`    | Vertical padding (-1 = auto)         |
-| `border_width`       | int    | `1`     | Border width in pixels               |
-| `placement`          | string | `bottom` | Label placement relative to target  |
-| `background_color`   | color  | derived | Background color with alpha          |
-| `text_color`         | color  | derived | Text color                           |
-| `matched_text_color` | color  | derived | Text color for matched characters    |
-| `border_color`       | color  | derived | Border color                         |
+| Option               | Type   | Default  | Description                          |
+| -------------------- | ------ | -------- | ------------------------------------ |
+| `font_size`          | int    | `10`     | Font size in points                  |
+| `font_family`        | string | `""`     | Font family (empty = system default) |
+| `border_radius`      | int    | `-1`     | Corner radius (-1 = auto)            |
+| `padding_x`          | int    | `-1`     | Horizontal padding (-1 = auto)       |
+| `padding_y`          | int    | `-1`     | Vertical padding (-1 = auto)         |
+| `border_width`       | int    | `1`      | Border width in pixels               |
+| `placement`          | string | `bottom` | Label placement relative to target   |
+| `background_color`   | color  | derived  | Background color with alpha          |
+| `text_color`         | color  | derived  | Text color                           |
+| `matched_text_color` | color  | derived  | Text color for matched characters    |
+| `border_color`       | color  | derived  | Border color                         |
 
 Valid placements: `top`, `center`, `bottom`.
 
@@ -424,8 +425,8 @@ border_color = "#0B2377"
 Optional target boundary highlights can make dense or ambiguous hint layouts
 easier to read. They are off by default to keep hints mode quiet.
 
-| Option             | Type  | Default | Description                              |
-| ------------------ | ----- | ------- | ---------------------------------------- |
+| Option             | Type  | Default | Description                             |
+| ------------------ | ----- | ------- | --------------------------------------- |
 | `enabled`          | bool  | `false` | Draw target element boundaries          |
 | `border_width`     | int   | `1`     | Boundary stroke width in pixels         |
 | `border_radius`    | int   | `-1`    | Boundary corner radius (-1 = auto pill) |
@@ -443,12 +444,12 @@ The search input uses `[hints.search_input_ui]` with the same visual options as
 `[hints.ui]`, except `matched_text_color`. It also supports active-screen
 placement:
 
-| Option     | Type   | Default         | Description                                      |
-| ---------- | ------ | --------------- | ------------------------------------------------ |
-| `position` | string | `"bottom_center"` | Anchor on active screen                          |
-| `x_offset` | int    | `0`            | Horizontal offset from the anchor                |
-| `y_offset` | int    | `24`           | Vertical offset from the anchor                  |
-| `width`    | int    | `320`          | Search input width in pixels                     |
+| Option     | Type   | Default           | Description                       |
+| ---------- | ------ | ----------------- | --------------------------------- |
+| `position` | string | `"bottom_center"` | Anchor on active screen           |
+| `x_offset` | int    | `0`               | Horizontal offset from the anchor |
+| `y_offset` | int    | `24`              | Vertical offset from the anchor   |
+| `width`    | int    | `320`             | Search input width in pixels      |
 
 Valid positions: `top_left`, `top_center`, `top_right`, `center`,
 `bottom_left`, `bottom_center`, `bottom_right`.
@@ -880,12 +881,12 @@ Mouse action indicators show a transient visual marker where a mouse button acti
 > [!NOTE]
 > Currently rendered on **macOS only**. Other platforms accept the config and no-op.
 
-| Option    | Type     | Default                                                                 | Description                              |
-| --------- | -------- | ----------------------------------------------------------------------- | ---------------------------------------- |
-| `enabled` | bool     | `false`                                                                 | Enable mouse action indicators           |
-| `actions` | string[] | all mouse button actions                                                | Actions that should show the indicator   |
-| `ui`      | table    | see below                                                               | Visual styling                           |
-| `animation` | table  | see below                                                               | Animation timing and interpolation       |
+| Option      | Type     | Default                  | Description                            |
+| ----------- | -------- | ------------------------ | -------------------------------------- |
+| `enabled`   | bool     | `false`                  | Enable mouse action indicators         |
+| `actions`   | string[] | all mouse button actions | Actions that should show the indicator |
+| `ui`        | table    | see below                | Visual styling                         |
+| `animation` | table    | see below                | Animation timing and interpolation     |
 
 ```toml
 [mouse_action_indicator]

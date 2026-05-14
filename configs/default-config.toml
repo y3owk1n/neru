@@ -56,6 +56,7 @@ include_dock_hints = false
 include_nc_hints = false
 include_stage_manager_hints = false
 include_pip_hints = false
+include_screen_capture_hints = false
 detect_mission_control = false
 clickable_roles = [
     "AXButton",

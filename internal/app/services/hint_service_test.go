@@ -191,6 +191,10 @@ func TestHintService_ShowHints(t *testing.T) {
 						t.Error("IncludePIP should be true based on config")
 					}
 
+					if !filter.IncludeScreenCapture {
+						t.Error("IncludeScreenCapture should be true based on config")
+					}
+
 					return testElements, nil
 				}
 			},
@@ -200,11 +204,12 @@ func TestHintService_ShowHints(t *testing.T) {
 				return gen
 			},
 			config: config.HintsConfig{
-				IncludeMenubarHints:      true,
-				IncludeDockHints:         true,
-				IncludeNCHints:           true,
-				IncludeStageManagerHints: true,
-				IncludePIPHints:          true,
+				IncludeMenubarHints:       true,
+				IncludeDockHints:          true,
+				IncludeNCHints:            true,
+				IncludeStageManagerHints:  true,
+				IncludePIPHints:           true,
+				IncludeScreenCaptureHints: true,
 			},
 			wantErr:       false,
 			wantHintCount: 3,

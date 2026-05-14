@@ -107,6 +107,11 @@ type ElementFilter struct {
 	// Platform equivalents on Linux/Windows are not yet mapped.
 	IncludePIP bool
 
+	// IncludeScreenCapture includes screen capture controls.
+	// On macOS this queries com.apple.screencaptureui.
+	// Platform equivalents on Linux/Windows are not yet mapped.
+	IncludeScreenCapture bool
+
 	// TitleContains filters elements whose title contains this substring (case-insensitive).
 	TitleContains string
 
@@ -134,5 +139,6 @@ func DefaultElementFilter() ElementFilter {
 		IncludeNotificationCenter: false,
 		IncludeStageManager:       false,
 		IncludePIP:                false,
+		IncludeScreenCapture:      false,
 	}
 }

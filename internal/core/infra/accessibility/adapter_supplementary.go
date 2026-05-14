@@ -25,7 +25,8 @@ func (a *Adapter) addSupplementaryElements(
 		zap.Bool("include_dock", filter.IncludeDock),
 		zap.Bool("include_nc", filter.IncludeNotificationCenter),
 		zap.Bool("include_stage_manager", filter.IncludeStageManager),
-		zap.Bool("include_pip", filter.IncludePIP))
+		zap.Bool("include_pip", filter.IncludePIP),
+		zap.Bool("include_screen_capture", filter.IncludeScreenCapture))
 
 	type supplementarySource struct {
 		enabled bool
@@ -63,6 +64,12 @@ func (a *Adapter) addSupplementaryElements(
 			enabled: filter.IncludePIP,
 			load: func() []*element.Element {
 				return a.addPIPElements(ctx, nil)
+			},
+		},
+		{
+			enabled: filter.IncludeScreenCapture,
+			load: func() []*element.Element {
+				return a.addScreenCaptureElements(ctx, nil)
 			},
 		},
 	}
@@ -361,6 +368,43 @@ func (a *Adapter) addPIPElements(
 	}
 
 	a.logger.Debug("Included Picture in Picture elements", zap.Int("count", len(pipNodes)))
+
+	return elements
+}
+
+// addScreenCaptureElements makes the screencapture small ui clickable.
+func (a *Adapter) addScreenCaptureElements(
+	_ context.Context,
+	elements []*element.Element,
+) []*element.Element {
+	const screenCaptureBundleID = "com.apple.screencaptureui"
+
+	screenCaptureNodes, screenCaptureNodesErr := a.client.ClickableElementsFromBundleID(
+		screenCaptureBundleID,
+		nil,
+		false,
+	)
+	if screenCaptureNodesErr != nil {
+		a.logger.Warn("Failed to get Screen Capture elements", zap.Error(screenCaptureNodesErr))
+
+		return elements
+	}
+
+	for _, node := range screenCaptureNodes {
+		element, elementErr := a.convertToDomainElement(node)
+
+		node.Release()
+
+		if elementErr != nil {
+			a.logger.Warn("Failed to convert Screen Capture element", zap.Error(elementErr))
+
+			continue
+		}
+
+		elements = append(elements, element)
+	}
+
+	a.logger.Debug("Included Screen Capture elements", zap.Int("count", len(screenCaptureNodes)))
 
 	return elements
 }

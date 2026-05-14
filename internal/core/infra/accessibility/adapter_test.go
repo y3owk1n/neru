@@ -559,4 +559,29 @@ func TestAdapter_RolePassing(t *testing.T) {
 			)
 		}
 	})
+
+	t.Run("Screen Capture Elements", func(t *testing.T) {
+		mockClient.LastCalledBundleID = ""
+		mockClient.LastBundleRoles = nil
+
+		filter := ports.ElementFilter{
+			IncludeScreenCapture: true,
+		}
+
+		_, _ = adapter.ClickableElements(ctx, filter)
+
+		if mockClient.LastCalledBundleID != "com.apple.screencaptureui" {
+			t.Errorf(
+				"Expected Screen Capture supplementary query to use com.apple.screencaptureui, got: %q",
+				mockClient.LastCalledBundleID,
+			)
+		}
+
+		if mockClient.LastBundleRoles != nil {
+			t.Errorf(
+				"Expected Screen Capture query to pass nil roles (no role restriction), got: %v",
+				mockClient.LastBundleRoles,
+			)
+		}
+	})
 }

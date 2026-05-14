@@ -576,6 +576,7 @@ type HintsConfig struct {
 	IncludeNCHints                bool     `json:"includeNcHints"                toml:"include_nc_hints"`
 	IncludeStageManagerHints      bool     `json:"includeStageManagerHints"      toml:"include_stage_manager_hints"`
 	IncludePIPHints               bool     `json:"includePipHints"               toml:"include_pip_hints"`
+	IncludeScreenCaptureHints     bool     `json:"includeScreenCaptureHints"     toml:"include_screen_capture_hints"`
 	DetectMissionControl          bool     `json:"detectMissionControl"          toml:"detect_mission_control"`
 
 	ClickableRoles       []string `json:"clickableRoles"       toml:"clickable_roles"`
