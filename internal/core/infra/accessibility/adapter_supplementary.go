@@ -371,7 +371,7 @@ func (a *Adapter) addPIPElements(
 	return elements
 }
 
-// addScreenCaptureElements makes the screenpacture small ui clickable.
+// addScreenCaptureElements makes the screencapture small ui clickable.
 func (a *Adapter) addScreenCaptureElements(
 	_ context.Context,
 	elements []*element.Element,
