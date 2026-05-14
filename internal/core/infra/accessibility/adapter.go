@@ -216,7 +216,7 @@ func (a *Adapter) ClickableElements(
 	// AdditionalMenubarTargets only produces elements when IncludeMenubar is true
 	hasAdditionalTargets := filter.IncludeMenubar && len(filter.AdditionalMenubarTargets) > 0
 	if filter.IncludeMenubar || filter.IncludeDock || filter.IncludeStageManager ||
-		filter.IncludeNotificationCenter || filter.IncludePIP || hasAdditionalTargets {
+		filter.IncludeNotificationCenter || filter.IncludePIP || filter.IncludeScreenCapture || hasAdditionalTargets {
 		waitGroup.Add(1)
 
 		go func() {

@@ -49,6 +49,10 @@ func TestDefaultElementFilter(t *testing.T) {
 		t.Error("Expected IncludePIP to be false by default")
 	}
 
+	if filter.IncludeScreenCapture {
+		t.Error("Expected IncludeScreenCapture to be false by default")
+	}
+
 	// Check that slices are initialized
 	if filter.Roles != nil {
 		t.Error("Expected Roles to be nil by default")
@@ -72,6 +76,7 @@ func TestElementFilterStruct(t *testing.T) {
 		IncludeNotificationCenter: true,
 		IncludeStageManager:       true,
 		IncludePIP:                true,
+		IncludeScreenCapture:      true,
 	}
 
 	if len(filter.Roles) != 1 || filter.Roles[0] != element.RoleButton {
@@ -116,6 +121,10 @@ func TestElementFilterStruct(t *testing.T) {
 
 	if !filter.IncludePIP {
 		t.Error("Expected IncludePIP to be true")
+	}
+
+	if !filter.IncludeScreenCapture {
+		t.Error("Expected IncludeScreenCapture to be true")
 	}
 }
 
