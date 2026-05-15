@@ -81,10 +81,10 @@ func (s *HintService) GenerateHints(
 	filterRoles []string,
 	filterTextContains []string,
 ) ([]*hint.Interface, error) {
-	s.mu.Lock()
+	s.mu.RLock()
 	cfg := s.config
 	gen := s.generator
-	s.mu.Unlock()
+	s.mu.RUnlock()
 
 	filter := ports.DefaultElementFilter()
 
