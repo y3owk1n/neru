@@ -162,7 +162,9 @@ func (c *InfraAXClient) ClickableNodes(
 	}
 
 	var cache *InfoCache
-	if !bypassCache {
+	if bypassCache {
+		cache = NewInfoCache(c.logger)
+	} else {
 		cache = c.cache
 	}
 

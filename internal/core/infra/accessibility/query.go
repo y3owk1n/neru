@@ -34,7 +34,9 @@ func MenuBarClickableElements(
 	defer menubar.Release()
 
 	opts := DefaultTreeOptions(logger)
-	if !bypassCache {
+	if bypassCache {
+		opts.SetCache(NewInfoCache(logger))
+	} else {
 		opts.SetCache(cache)
 	}
 
@@ -120,7 +122,9 @@ func ClickableElementsFromBundleID(
 	defer app.Release()
 
 	opts := DefaultTreeOptions(logger)
-	if !bypassCache {
+	if bypassCache {
+		opts.SetCache(NewInfoCache(logger))
+	} else {
 		opts.SetCache(cache)
 	}
 
