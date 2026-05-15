@@ -24,7 +24,7 @@ func (a *Adapter) addMenubarElements(
 	originalRoles := a.client.ClickableRoles()
 	menubarRoles := make([]string, len(originalRoles)+1)
 	copy(menubarRoles, originalRoles)
-	menubarRoles[len(originalRoles)] = "AXMenuBarItem"
+	menubarRoles[len(originalRoles)] = string(element.RoleMenuBarItem)
 
 	// Get menubar elements
 	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(false)
@@ -128,7 +128,7 @@ func (a *Adapter) addDockElements(
 	originalRoles := a.client.ClickableRoles()
 	dockRoles := make([]string, len(originalRoles)+1)
 	copy(dockRoles, originalRoles)
-	dockRoles[len(originalRoles)] = "AXDockItem"
+	dockRoles[len(originalRoles)] = string(element.RoleDockItem)
 
 	// Get dock application by bundle ID
 	dockApp, dockAppErr := a.client.ApplicationByBundleID(dockBundleID)
@@ -147,7 +147,7 @@ func (a *Adapter) addDockElements(
 		return elements
 	}
 
-	if appInfo.Role != "AXApplication" {
+	if appInfo.Role != string(element.RoleApplication) {
 		a.logger.Warn("Got incorrect element for dock, expected AXApplication",
 			zap.String("actual_role", appInfo.Role),
 			zap.String("title", appInfo.Title))
@@ -245,7 +245,7 @@ func (a *Adapter) addStageManagerElements(
 		return elements
 	}
 
-	if appInfo.Role != "AXApplication" {
+	if appInfo.Role != string(element.RoleApplication) {
 		a.logger.Warn("Got incorrect element for window manager, expected AXApplication",
 			zap.String("actual_role", appInfo.Role),
 			zap.String("title", appInfo.Title))

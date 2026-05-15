@@ -20,6 +20,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 )
@@ -39,28 +40,28 @@ var (
 // to verify clickability. When an element has one of these roles and is
 // enabled, we can confidently skip the native verification. This eliminates
 // hundreds of CGo calls per activation for typical web pages.
-var knownInteractiveRoles = map[string]struct{}{
-	"AXButton":             {},
-	"AXLink":               {},
-	"AXMenuItem":           {},
-	"AXMenuBarItem":        {},
-	"AXPopUpButton":        {},
-	"AXTabButton":          {},
-	"AXCheckBox":           {},
-	"AXRadioButton":        {},
-	"AXSwitch":             {},
-	"AXDisclosureTriangle": {},
-	"AXComboBox":           {},
-	"AXDockItem":           {},
-	"AXTextField":          {},
-	"AXTextArea":           {},
-	"AXSlider":             {},
-	"AXIncrementor":        {},
-	"AXColorWell":          {},
-	"AXSearchField":        {},
-	"AXToolbarButton":      {},
-	"AXMenuButton":         {},
-	"AXToggle":             {},
+var knownInteractiveRoles = map[element.Role]struct{}{
+	element.RoleButton:             {},
+	element.RoleLink:               {},
+	element.RoleMenuItem:           {},
+	element.RoleMenuBarItem:        {},
+	element.RolePopUpButton:        {},
+	element.RoleTabButton:          {},
+	element.RoleCheckBox:           {},
+	element.RoleRadioButton:        {},
+	element.RoleSwitch:             {},
+	element.RoleDisclosureTriangle: {},
+	element.RoleComboBox:           {},
+	element.RoleDockItem:           {},
+	element.RoleTextField:          {},
+	element.RoleTextArea:           {},
+	element.RoleSlider:             {},
+	element.RoleIncrementor:        {},
+	element.RoleColorWell:          {},
+	element.RoleSearchField:        {},
+	element.RoleToolbarButton:      {},
+	element.RoleMenuButton:         {},
+	element.RoleToggle:             {},
 }
 
 var (
@@ -328,7 +329,7 @@ func (e *Element) Children(cache *InfoCache) ([]*Element, error) {
 
 	if info != nil {
 		switch info.Role() {
-		case "AXList", "AXTable", "AXOutline":
+		case string(element.RoleList), string(element.RoleTable), string(element.RoleOutline):
 			ptr := unsafe.Pointer(C.getVisibleRows(e.ref, &count)) //nolint:nlreturn
 			if ptr != nil && count > 0 {
 				rawChildren = ptr
@@ -717,7 +718,7 @@ func (e *Element) IsClickable(
 		// call which makes up to 5 AX API round-trips. The isEnabled
 		// flag was already fetched during tree building via getElementInfo.
 		if info != nil && info.IsEnabled() {
-			if _, known := knownInteractiveRoles[info.Role()]; known {
+			if _, known := knownInteractiveRoles[element.Role(info.Role())]; known {
 				return true
 			}
 		}

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 )
 
 const (
@@ -93,22 +95,22 @@ func (h *expirationHeap) Pop() any {
 }
 
 // staticRoles defines roles that should use longer (static) TTL.
-var staticRoles = map[string]bool{
-	"AXButton":             true,
-	"AXLink":               true,
-	"AXMenuItem":           true,
-	"AXMenuButton":         true,
-	"AXPopUpButton":        true,
-	"AXTabButton":          true,
-	"AXCheckBox":           true,
-	"AXRadioButton":        true,
-	"AXSwitch":             true,
-	"AXDisclosureTriangle": true,
-	"AXComboBox":           true,
-	"AXSlider":             true,
-	"AXStaticText":         true,
-	"AXImage":              true,
-	"AXHeading":            true,
+var staticRoles = map[element.Role]bool{
+	element.RoleButton:             true,
+	element.RoleLink:               true,
+	element.RoleMenuItem:           true,
+	element.RoleMenuButton:         true,
+	element.RolePopUpButton:        true,
+	element.RoleTabButton:          true,
+	element.RoleCheckBox:           true,
+	element.RoleRadioButton:        true,
+	element.RoleSwitch:             true,
+	element.RoleDisclosureTriangle: true,
+	element.RoleComboBox:           true,
+	element.RoleSlider:             true,
+	element.RoleStaticText:         true,
+	element.RoleImage:              true,
+	element.RoleHeading:            true,
 }
 
 // isStaticElement determines if an element should use static (longer) TTL based on its role.
@@ -117,7 +119,7 @@ func isStaticElement(info *ElementInfo) bool {
 		return false
 	}
 
-	return staticRoles[info.Role()]
+	return staticRoles[element.Role(info.Role())]
 }
 
 // InfoCache implements a thread-safe time-to-live cache for element information.

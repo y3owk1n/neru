@@ -4,6 +4,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 )
 
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
@@ -64,7 +65,7 @@ func MenuBarClickableElements(
 	}
 
 	// Add menubar specific role
-	allowedRoles["AXMenuBarItem"] = struct{}{}
+	allowedRoles[string(element.RoleMenuBarItem)] = struct{}{}
 
 	ignoreClickableCheck := false
 	if cfg := currentConfig(configProvider); cfg != nil {

@@ -35,6 +35,22 @@ const (
 	RoleMenu               Role = "AXMenu"
 	RoleSGTMenu            Role = "SGTMenu"
 	RoleList               Role = "AXList"
+	RoleHeading            Role = "AXHeading"
+	RoleMenuBarItem        Role = "AXMenuBarItem"
+	RoleMenuBar            Role = "AXMenuBar"
+	RoleCell               Role = "AXCell"
+	RoleRow                Role = "AXRow"
+	RoleDockItem           Role = "AXDockItem"
+	RoleIncrementor        Role = "AXIncrementor"
+	RoleColorWell          Role = "AXColorWell"
+	RoleSearchField        Role = "AXSearchField"
+	RoleToolbarButton      Role = "AXToolbarButton"
+	RoleToggle             Role = "AXToggle"
+	RoleTable              Role = "AXTable"
+	RoleOutline            Role = "AXOutline"
+	RoleApplication        Role = "AXApplication"
+	RoleWindow             Role = "AXWindow"
+	RoleTabGroup           Role = "AXTabGroup"
 )
 
 // Element represents a UI element in the accessibility tree.
