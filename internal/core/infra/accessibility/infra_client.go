@@ -118,13 +118,15 @@ func (c *InfraAXClient) ClickableNodes(
 		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
 	}
 
-	opts := DefaultTreeOptions(c.logger)
+	var cache *InfoCache
 	if bypassCache {
-		opts.SetCache(NewInfoCache(c.logger))
+		cache = NewInfoCache(c.logger)
 	} else {
-		opts.SetCache(c.cache)
+		cache = c.cache
 	}
 
+	opts := DefaultTreeOptions(c.logger)
+	opts.SetCache(cache)
 	opts.SetStrictFiltering(strictFiltering)
 	opts.SetIncludeOutOfBounds(!strictFiltering)
 
@@ -161,13 +163,6 @@ func (c *InfraAXClient) ClickableNodes(
 	ignoreClickableCheck := false
 	if cfg := currentConfig(c.configProvider); cfg != nil {
 		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(bundleID)
-	}
-
-	var cache *InfoCache
-	if bypassCache {
-		cache = NewInfoCache(c.logger)
-	} else {
-		cache = c.cache
 	}
 
 	clickableNodes := tree.FindClickableElements(
