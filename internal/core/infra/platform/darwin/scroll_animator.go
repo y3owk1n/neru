@@ -17,7 +17,6 @@ import (
 const (
 	minScrollAnimationDuration = 10 // Minimum animation duration in ms
 	minScrollStepDelay         = 1  // Minimum delay between steps in ms
-	scrollDrainTimeoutBufferMs = 50 // Extra grace period while draining a canceled animation.
 	easeOutCubicExponent       = 3  // Exponent for ease-out cubic easing
 )
 
@@ -53,7 +52,6 @@ func (a *scrollAnimator) animate(
 	done := make(chan struct{})
 	a.mu.Lock()
 	prevCancel := a.cancel
-	prevDone := a.done
 	a.gen++
 	gen := a.gen
 	a.cancel = cancel
@@ -63,8 +61,6 @@ func (a *scrollAnimator) animate(
 	if prevCancel != nil {
 		prevCancel()
 	}
-
-	a.waitForPreviousAnimation(prevDone)
 
 	a.mu.Lock()
 	if a.gen != gen || a.done != done {
@@ -152,29 +148,4 @@ func (a *scrollAnimator) clearIfCurrent(gen uint64, done chan struct{}) {
 		a.cancel = nil
 		a.done = nil
 	}
-}
-
-func (a *scrollAnimator) waitForPreviousAnimation(prevDone chan struct{}) {
-	if prevDone == nil {
-		return
-	}
-
-	timeout := previousScrollAnimationDrainTimeout()
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-
-	select {
-	case <-prevDone:
-	case <-timer.C:
-	}
-}
-
-func previousScrollAnimationDrainTimeout() time.Duration {
-	cfg := currentConfig()
-	maxDurationMs := 180
-	if cfg != nil && cfg.SmoothScroll.MaxDuration >= 0 {
-		maxDurationMs = cfg.SmoothScroll.MaxDuration
-	}
-
-	return time.Duration(maxDurationMs+scrollDrainTimeoutBufferMs) * time.Millisecond
 }
