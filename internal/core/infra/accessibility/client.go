@@ -29,14 +29,12 @@ type AXClient interface {
 		root AXElement,
 		includeOffscreen bool,
 		roles []string,
-		collectSearch bool,
 	) ([]AXNode, error)
-	MenuBarClickableElements(strictFiltering bool, collectSearch bool) ([]AXNode, error)
+	MenuBarClickableElements(strictFiltering bool) ([]AXNode, error)
 	ClickableElementsFromBundleID(
 		bundleID string,
 		roles []string,
 		strictFiltering bool,
-		collectSearch bool,
 	) ([]AXNode, error)
 	ActiveScreenBounds() image.Rectangle
 

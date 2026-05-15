@@ -17,7 +17,6 @@ func (a *Adapter) addMenubarElements(
 	_ context.Context,
 	elements []*element.Element,
 	filter ports.ElementFilter,
-	collectSearch bool,
 ) []*element.Element {
 	a.logger.Debug("Adding menubar elements")
 
@@ -28,7 +27,7 @@ func (a *Adapter) addMenubarElements(
 	menubarRoles[len(originalRoles)] = "AXMenuBarItem"
 
 	// Get menubar elements
-	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(false, collectSearch)
+	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(false)
 	if menubarNodesErr != nil {
 		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {
@@ -64,7 +63,6 @@ func (a *Adapter) addMenubarElements(
 				bundleID,
 				menubarRoles,
 				false,
-				collectSearch,
 			)
 			if err != nil {
 				a.logger.Warn("Failed to get additional menubar elements",
@@ -123,7 +121,6 @@ func (a *Adapter) addMenubarElements(
 func (a *Adapter) addDockElements(
 	_ context.Context,
 	elements []*element.Element,
-	collectSearch bool,
 ) []*element.Element {
 	const dockBundleID = "com.apple.dock"
 
@@ -159,7 +156,7 @@ func (a *Adapter) addDockElements(
 	}
 
 	// Build tree and find clickable elements
-	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, true, dockRoles, collectSearch)
+	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, true, dockRoles)
 	if dockNodesErr != nil {
 		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
 
@@ -189,7 +186,6 @@ func (a *Adapter) addDockElements(
 func (a *Adapter) addNotificationCenterElements(
 	_ context.Context,
 	elements []*element.Element,
-	collectSearch bool,
 ) []*element.Element {
 	const ncBundleID = "com.apple.notificationcenterui"
 
@@ -199,7 +195,6 @@ func (a *Adapter) addNotificationCenterElements(
 		ncBundleID,
 		nil,
 		false,
-		collectSearch,
 	)
 	if ncNodesErr != nil {
 		a.logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))
@@ -230,7 +225,6 @@ func (a *Adapter) addNotificationCenterElements(
 func (a *Adapter) addStageManagerElements(
 	_ context.Context,
 	elements []*element.Element,
-	collectSearch bool,
 ) []*element.Element {
 	const wmBundleID = "com.apple.WindowManager"
 
@@ -260,7 +254,7 @@ func (a *Adapter) addStageManagerElements(
 	}
 
 	// Build tree and find clickable elements
-	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, true, nil, collectSearch)
+	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, true, nil)
 	if wmNodesErr != nil {
 		a.logger.Warn("Failed to get window manager elements", zap.Error(wmNodesErr))
 
@@ -290,7 +284,6 @@ func (a *Adapter) addStageManagerElements(
 func (a *Adapter) addPIPElements(
 	_ context.Context,
 	elements []*element.Element,
-	collectSearch bool,
 ) []*element.Element {
 	const pipBundleID = "com.apple.PIPAgent"
 
@@ -298,7 +291,6 @@ func (a *Adapter) addPIPElements(
 		pipBundleID,
 		nil,
 		false,
-		collectSearch,
 	)
 	if pipNodesErr != nil {
 		a.logger.Warn("Failed to get Picture in Picture elements", zap.Error(pipNodesErr))
@@ -329,7 +321,6 @@ func (a *Adapter) addPIPElements(
 func (a *Adapter) addScreenCaptureElements(
 	_ context.Context,
 	elements []*element.Element,
-	collectSearch bool,
 ) []*element.Element {
 	const screenCaptureBundleID = "com.apple.screencaptureui"
 
@@ -337,7 +328,6 @@ func (a *Adapter) addScreenCaptureElements(
 		screenCaptureBundleID,
 		nil,
 		false,
-		collectSearch,
 	)
 	if screenCaptureNodesErr != nil {
 		a.logger.Warn("Failed to get Screen Capture elements", zap.Error(screenCaptureNodesErr))

@@ -147,10 +147,6 @@ func (s *HintService) GenerateHints(
 			filter.TextContainsList = filterTextContains[1:]
 		}
 
-		// Layer 2: When text filters are active, search text is needed
-		// for accurate filtering, so collect it eagerly.
-		filter.CollectSearchText = true
-
 		s.logger.Debug("Applying text filter",
 			zap.Strings("text", filterTextContains))
 	}

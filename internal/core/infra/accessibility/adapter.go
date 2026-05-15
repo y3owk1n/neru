@@ -115,11 +115,6 @@ func (a *Adapter) ClickableElements(
 		missionControlActive = a.client.IsMissionControlActive()
 	}
 
-	// collectSearch controls whether the expensive subtree search-text
-	// walk runs during tree traversal. Skip it on the hot path unless
-	// the caller actually needs search text.
-	collectSearch := filter.CollectSearchText
-
 	// Function to collect elements from a source — all sources fan out
 	// at the same level for maximum parallelism.
 	collectElements := func(sourceName string, queryFunc func() ([]*element.Element, error)) {
@@ -181,7 +176,6 @@ func (a *Adapter) ClickableElements(
 						window,
 						filter.IncludeOffscreen,
 						stringRoles(filter.Roles),
-						collectSearch,
 					)
 					if clickableNodesErr != nil {
 						window.Release()
@@ -227,7 +221,7 @@ func (a *Adapter) ClickableElements(
 
 		go func() {
 			collectElements("menubar", func() ([]*element.Element, error) {
-				return a.addMenubarElements(ctx, nil, filter, collectSearch), nil
+				return a.addMenubarElements(ctx, nil, filter), nil
 			})
 		}()
 	}
@@ -238,7 +232,7 @@ func (a *Adapter) ClickableElements(
 
 		go func() {
 			collectElements("dock", func() ([]*element.Element, error) {
-				return a.addDockElements(ctx, nil, collectSearch), nil
+				return a.addDockElements(ctx, nil), nil
 			})
 		}()
 	}
@@ -249,7 +243,7 @@ func (a *Adapter) ClickableElements(
 
 		go func() {
 			collectElements("notification_center", func() ([]*element.Element, error) {
-				return a.addNotificationCenterElements(ctx, nil, collectSearch), nil
+				return a.addNotificationCenterElements(ctx, nil), nil
 			})
 		}()
 	}
@@ -260,7 +254,7 @@ func (a *Adapter) ClickableElements(
 
 		go func() {
 			collectElements("stage_manager", func() ([]*element.Element, error) {
-				return a.addStageManagerElements(ctx, nil, collectSearch), nil
+				return a.addStageManagerElements(ctx, nil), nil
 			})
 		}()
 	}
@@ -271,7 +265,7 @@ func (a *Adapter) ClickableElements(
 
 		go func() {
 			collectElements("pip", func() ([]*element.Element, error) {
-				return a.addPIPElements(ctx, nil, collectSearch), nil
+				return a.addPIPElements(ctx, nil), nil
 			})
 		}()
 	}
@@ -282,7 +276,7 @@ func (a *Adapter) ClickableElements(
 
 		go func() {
 			collectElements("screen_capture", func() ([]*element.Element, error) {
-				return a.addScreenCaptureElements(ctx, nil, collectSearch), nil
+				return a.addScreenCaptureElements(ctx, nil), nil
 			})
 		}()
 	}

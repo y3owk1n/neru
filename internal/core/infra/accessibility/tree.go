@@ -647,15 +647,11 @@ func shouldIncludeElement(
 }
 
 // FindClickableElements finds all clickable elements in the tree.
-// When collectSearch is true, search text is eagerly collected from each
-// clickable element's subtree; when false the expensive walk is skipped,
-// significantly speeding up hint activation when search is not needed.
 func (n *TreeNode) FindClickableElements(
 	allowedRoles map[string]struct{},
 	cache *InfoCache,
 	configProvider config.Provider,
 	ignoreClickableCheck bool,
-	collectSearch bool,
 ) []*TreeNode {
 	var result []*TreeNode
 	n.walkTree(func(node *TreeNode) bool {
@@ -666,9 +662,7 @@ func (n *TreeNode) FindClickableElements(
 			configProvider,
 			ignoreClickableCheck,
 		) {
-			if collectSearch {
-				node.info.searchText = node.collectSearchText()
-			}
+			node.info.searchText = node.collectSearchText()
 
 			result = append(result, node)
 		}
