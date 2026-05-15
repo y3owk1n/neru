@@ -75,7 +75,7 @@ func MenuBarClickableElements(
 	}
 
 	if bypassCache {
-		cache.Clear()
+		cache = nil
 	}
 
 	elements := tree.FindClickableElements(
@@ -155,7 +155,7 @@ func ClickableElementsFromBundleID(
 	}
 
 	if bypassCache {
-		cache.Clear()
+		cache = nil
 	}
 
 	elements := tree.FindClickableElements(

@@ -158,13 +158,14 @@ func (c *InfraAXClient) ClickableNodes(
 		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(bundleID)
 	}
 
-	if bypassCache {
-		c.cache.Clear()
+	var cache *InfoCache
+	if !bypassCache {
+		cache = c.cache
 	}
 
 	clickableNodes := tree.FindClickableElements(
 		allowedRoles,
-		c.cache,
+		cache,
 		c.configProvider,
 		ignoreClickableCheck,
 	)
@@ -179,7 +180,7 @@ func (c *InfraAXClient) ClickableNodes(
 		clickableNodesResult[i] = &InfraNode{
 			node:           node,
 			clickable:      true,
-			cache:          c.cache,
+			cache:          cache,
 			configProvider: c.configProvider,
 		}
 	}
