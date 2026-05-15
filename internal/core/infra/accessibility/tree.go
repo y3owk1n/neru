@@ -19,6 +19,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
@@ -366,12 +367,12 @@ var interactiveLeafRoles = map[string]bool{
 // parent is an interactive leaf (e.g., a button that opens a popover).
 // This set is checked to ensure we don't stop traversal at buttons/menus
 // that trigger popovers, sheets, or menus.
-var importantContainerRoles = map[string]bool{
-	"AXPopover": true,
-	"AXSheet":   true,
-	"AXMenu":    true,
-	"SGTMenu":   true,
-	"AXList":    true,
+var importantContainerRoles = map[element.Role]bool{
+	element.RolePopover: true,
+	element.RoleSheet:   true,
+	element.RoleMenu:    true,
+	element.RoleSGTMenu: true,
+	element.RoleList:    true,
 }
 
 func buildTreeRecursive(
@@ -417,7 +418,7 @@ func buildTreeRecursive(
 				if childInfo == nil {
 					childInfo, _ = child.Info()
 				}
-				if childInfo != nil && importantContainerRoles[childInfo.Role()] {
+				if childInfo != nil && importantContainerRoles[element.Role(childInfo.Role())] {
 					hasImportantContainer = true
 
 					break

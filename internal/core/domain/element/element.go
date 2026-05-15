@@ -29,6 +29,11 @@ const (
 	RoleSwitch             Role = "AXSwitch"
 	RoleDisclosureTriangle Role = "AXDisclosureTriangle"
 	RoleTextArea           Role = "AXTextArea"
+	RolePopover            Role = "AXPopover"
+	RoleSheet              Role = "AXSheet"
+	RoleMenu               Role = "AXMenu"
+	RoleSGTMenu            Role = "SGTMenu"
+	RoleList               Role = "AXList"
 )
 
 // Element represents a UI element in the accessibility tree.
