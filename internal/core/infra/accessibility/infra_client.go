@@ -119,7 +119,9 @@ func (c *InfraAXClient) ClickableNodes(
 	}
 
 	opts := DefaultTreeOptions(c.logger)
-	if !bypassCache {
+	if bypassCache {
+		opts.SetCache(NewInfoCache(c.logger))
+	} else {
 		opts.SetCache(c.cache)
 	}
 
