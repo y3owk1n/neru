@@ -430,7 +430,14 @@ func buildTreeRecursive(
 				child.Release()
 			}
 			if opts.stats != nil {
-				opts.stats.stoppedAtLeaf.Add(1)
+				switch {
+				case childrenErr != nil:
+					opts.stats.childrenErrors.Add(1)
+				case len(children) == 0:
+					opts.stats.noChildren.Add(1)
+				default:
+					opts.stats.stoppedAtLeaf.Add(1)
+				}
 			}
 
 			return
