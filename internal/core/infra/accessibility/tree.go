@@ -360,7 +360,6 @@ var interactiveLeafRoles = map[element.Role]bool{
 	element.RoleSwitch:             true,
 	element.RoleDisclosureTriangle: true,
 	element.RoleTextArea:           true,
-	element.RoleTextField:          true,
 }
 
 // Roles that can contain important interactive children even when their
