@@ -372,6 +372,7 @@ var importantContainerRoles = map[element.Role]bool{
 	element.RoleMenu:    true,
 	element.RoleSGTMenu: true,
 	element.RoleList:    true,
+	element.RoleButton:  true,
 }
 
 func buildTreeRecursive(
