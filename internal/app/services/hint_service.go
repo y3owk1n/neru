@@ -112,10 +112,14 @@ func (s *HintService) GenerateHints(
 	}
 
 	if shouldClearCache {
-		s.accessibility.ClearCache()
 		s.lastFocusedAppBundleID = bundleID
 	}
 	s.mu.Unlock()
+
+	// Clear cache outside the lock to avoid lock-ordering dependency with cache's internal mutex.
+	if shouldClearCache {
+		s.accessibility.ClearCache()
+	}
 
 	// Use filterRoles if provided, otherwise use configured roles
 	var roles []string
