@@ -126,7 +126,7 @@ void **getFrontmostAndPopoverWindows(int *count) {
 
 		if (batchError == kAXErrorSuccess && windowValues && CFArrayGetCount(windowValues) >= 2) {
 			CFTypeRef focusedVal = (CFTypeRef)CFArrayGetValueAtIndex(windowValues, 0);
-			if (focusedVal) {
+			if (focusedVal && CFGetTypeID(focusedVal) != CFNullGetTypeID()) {
 				focusedWindow = (AXUIElementRef)focusedVal;
 				CFRetain(focusedWindow);
 			}
@@ -265,7 +265,7 @@ void *getFrontmostWindow(void) {
 
 		if (batchError == kAXErrorSuccess && windowValues && CFArrayGetCount(windowValues) >= 2) {
 			CFTypeRef focusedVal = (CFTypeRef)CFArrayGetValueAtIndex(windowValues, 0);
-			if (focusedVal) {
+			if (focusedVal && CFGetTypeID(focusedVal) != CFNullGetTypeID()) {
 				window = (AXUIElementRef)focusedVal;
 				CFRetain(window);
 			}
