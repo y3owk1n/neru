@@ -72,9 +72,6 @@ type ElementFilter struct {
 	// Roles specifies which accessibility roles to include.
 	Roles []element.Role
 
-	// IncludeOffscreen includes elements outside the visible screen area.
-	IncludeOffscreen bool
-
 	// StrictFiltering enables strict filtering.
 	StrictFiltering bool
 
@@ -134,7 +131,6 @@ type ElementFilter struct {
 // DefaultElementFilter returns a filter with sensible defaults.
 func DefaultElementFilter() ElementFilter {
 	return ElementFilter{
-		IncludeOffscreen:          false,
 		MinSize:                   image.Point{X: 1, Y: 1},
 		IncludeMenubar:            false,
 		AdditionalMenubarTargets:  []string{},

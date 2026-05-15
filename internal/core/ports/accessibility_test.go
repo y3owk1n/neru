@@ -13,10 +13,6 @@ func TestDefaultElementFilter(t *testing.T) {
 	filter := ports.DefaultElementFilter()
 
 	// Check default values
-	if filter.IncludeOffscreen {
-		t.Error("Expected IncludeOffscreen to be false by default")
-	}
-
 	expectedMinSize := image.Point{X: 1, Y: 1}
 	if filter.MinSize != expectedMinSize {
 		t.Errorf("Expected MinSize to be %v, got %v", expectedMinSize, filter.MinSize)
@@ -67,7 +63,6 @@ func TestElementFilterStruct(t *testing.T) {
 	// Test that we can create and modify an ElementFilter
 	filter := ports.ElementFilter{
 		Roles:                     []element.Role{element.RoleButton},
-		IncludeOffscreen:          true,
 		MinSize:                   image.Point{X: 10, Y: 10},
 		ExcludeRoles:              []element.Role{element.RoleStaticText},
 		IncludeMenubar:            true,
@@ -81,10 +76,6 @@ func TestElementFilterStruct(t *testing.T) {
 
 	if len(filter.Roles) != 1 || filter.Roles[0] != element.RoleButton {
 		t.Errorf("Expected Roles to contain button role, got %v", filter.Roles)
-	}
-
-	if !filter.IncludeOffscreen {
-		t.Error("Expected IncludeOffscreen to be true")
 	}
 
 	if filter.MinSize.X != 10 || filter.MinSize.Y != 10 {
