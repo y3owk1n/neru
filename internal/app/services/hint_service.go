@@ -102,10 +102,6 @@ func (s *HintService) GenerateHints(
 		)
 	}
 
-	// Pass the already-resolved bundle ID to the adapter so it
-	// skips a duplicate FocusedApplication() AX call for menubar queries.
-	filter.PreResolvedBundleID = bundleID
-
 	// Use filterRoles if provided, otherwise use configured roles
 	var roles []string
 	if len(filterRoles) > 0 {

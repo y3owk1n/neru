@@ -126,12 +126,6 @@ type ElementFilter struct {
 	// will be included. The first string should be set in TitleContains, DescriptionContains,
 	// and ValueContains, with additional strings in this list.
 	TextContainsList []string
-
-	// PreResolvedBundleID is the focused app's bundle ID, pre-resolved by
-	// the service layer. When set, the adapter skips its own
-	// FocusedApplication() call for bundle-dependent logic (e.g., menubar
-	// queries), eliminating a redundant AX API round-trip.
-	PreResolvedBundleID string
 }
 
 // DefaultElementFilter returns a filter with sensible defaults.
