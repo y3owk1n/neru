@@ -417,6 +417,7 @@ func buildTreeRecursive(
 				childInfo := opts.cache.Get(child)
 				if childInfo == nil {
 					childInfo, _ = child.Info()
+					opts.cache.Set(child, childInfo)
 				}
 				if childInfo != nil && importantContainerRoles[element.Role(childInfo.Role())] {
 					hasImportantContainer = true
