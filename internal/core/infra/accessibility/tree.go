@@ -352,7 +352,6 @@ var interactiveLeafRoles = map[element.Role]bool{
 	element.RoleMenuButton:         true,
 	element.RoleComboBox:           true,
 	element.RoleCheckBox:           true,
-	element.RoleRadioButton:        true,
 	element.RoleLink:               true,
 	element.RolePopUpButton:        true,
 	element.RoleSlider:             true,
@@ -360,6 +359,8 @@ var interactiveLeafRoles = map[element.Role]bool{
 	element.RoleSwitch:             true,
 	element.RoleDisclosureTriangle: true,
 	element.RoleTextArea:           true,
+	element.RoleTextField:          true,
+	// element.RoleRadioButton:        true, // in safari, url bar is radio button, but has nested button in it...
 }
 
 // Roles that can contain important interactive children even when their
@@ -372,7 +373,6 @@ var importantContainerRoles = map[element.Role]bool{
 	element.RoleMenu:    true,
 	element.RoleSGTMenu: true,
 	element.RoleList:    true,
-	element.RoleButton:  true,
 }
 
 func buildTreeRecursive(
