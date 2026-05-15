@@ -99,8 +99,9 @@ func (c *InfraAXClient) FocusedApplication() (AXApp, error) {
 // ClickableNodes returns clickable nodes for the given root element.
 func (c *InfraAXClient) ClickableNodes(
 	root AXElement,
-	includeOffscreen bool,
 	roles []string,
+	strictFiltering bool,
+	bypassCache bool,
 ) ([]AXNode, error) {
 	var element *Element
 
@@ -119,21 +120,14 @@ func (c *InfraAXClient) ClickableNodes(
 
 	opts := DefaultTreeOptions(c.logger)
 	opts.SetCache(c.cache)
-	opts.SetIncludeOutOfBounds(includeOffscreen)
+	opts.SetStrictFiltering(strictFiltering)
+	opts.SetIncludeOutOfBounds(!strictFiltering)
 
 	// Enable strict filtering for Chromium/Electron apps which have noisy DOM trees
 	bundleID := element.BundleIdentifier()
 	if isLikelyChromiumOrElectron(bundleID) ||
 		isUserConfiguredChromiumElectron(bundleID, c.configProvider) {
 		opts.SetStrictFiltering(true)
-
-		if includeOffscreen {
-			c.logger.Warn(
-				"strict filtering requires includeOutOfBounds=false, overriding user preference",
-				zap.String("bundle_id", bundleID),
-			)
-		}
-
 		opts.SetIncludeOutOfBounds(false) // strict filtering requires bound checks to be active
 	}
 
@@ -162,6 +156,10 @@ func (c *InfraAXClient) ClickableNodes(
 	ignoreClickableCheck := false
 	if cfg := currentConfig(c.configProvider); cfg != nil {
 		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(bundleID)
+	}
+
+	if bypassCache {
+		c.cache.Clear()
 	}
 
 	clickableNodes := tree.FindClickableElements(
@@ -202,12 +200,14 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 // MenuBarClickableElements returns clickable elements in the menu bar.
 func (c *InfraAXClient) MenuBarClickableElements(
 	strictFiltering bool,
+	bypassCache bool,
 ) ([]AXNode, error) {
 	nodes, nodesErr := MenuBarClickableElements(
 		c.logger,
 		c.cache,
 		c.configProvider,
 		strictFiltering,
+		bypassCache,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
@@ -235,6 +235,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 	strictFiltering bool,
+	bypassCache bool,
 ) ([]AXNode, error) {
 	nodes, nodesErr := ClickableElementsFromBundleID(
 		bundleID,
@@ -243,6 +244,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 		c.cache,
 		c.configProvider,
 		strictFiltering,
+		bypassCache,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(

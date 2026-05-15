@@ -27,14 +27,16 @@ type AXClient interface {
 	ApplicationByBundleID(bundleID string) (AXApp, error)
 	ClickableNodes(
 		root AXElement,
-		includeOffscreen bool,
 		roles []string,
+		strictFiltering bool,
+		bypassCache bool,
 	) ([]AXNode, error)
-	MenuBarClickableElements(strictFiltering bool) ([]AXNode, error)
+	MenuBarClickableElements(strictFiltering bool, bypassCache bool) ([]AXNode, error)
 	ClickableElementsFromBundleID(
 		bundleID string,
 		roles []string,
 		strictFiltering bool,
+		bypassCache bool,
 	) ([]AXNode, error)
 	ActiveScreenBounds() image.Rectangle
 

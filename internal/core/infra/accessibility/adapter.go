@@ -174,8 +174,9 @@ func (a *Adapter) ClickableElements(
 
 					clickableNodes, clickableNodesErr := a.client.ClickableNodes(
 						window,
-						filter.IncludeOffscreen,
 						stringRoles(filter.Roles),
+						filter.StrictFiltering,
+						false,
 					)
 					if clickableNodesErr != nil {
 						window.Release()
@@ -237,8 +238,8 @@ func (a *Adapter) ClickableElements(
 		}()
 	}
 
-	// Notification Center (only when Mission Control is active)
-	if missionControlActive && filter.IncludeNotificationCenter {
+	// Notification Center
+	if !missionControlActive && filter.IncludeNotificationCenter {
 		waitGroup.Add(1)
 
 		go func() {
@@ -249,7 +250,7 @@ func (a *Adapter) ClickableElements(
 	}
 
 	// Stage Manager
-	if filter.IncludeStageManager {
+	if !missionControlActive && filter.IncludeStageManager {
 		waitGroup.Add(1)
 
 		go func() {
@@ -260,7 +261,7 @@ func (a *Adapter) ClickableElements(
 	}
 
 	// PIP
-	if filter.IncludePIP {
+	if !missionControlActive && filter.IncludePIP {
 		waitGroup.Add(1)
 
 		go func() {
@@ -271,7 +272,7 @@ func (a *Adapter) ClickableElements(
 	}
 
 	// Screen Capture
-	if filter.IncludeScreenCapture {
+	if !missionControlActive && filter.IncludeScreenCapture {
 		waitGroup.Add(1)
 
 		go func() {

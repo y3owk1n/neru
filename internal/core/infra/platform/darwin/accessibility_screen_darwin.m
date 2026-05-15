@@ -165,6 +165,7 @@ static bool detectMissionControlActive(void) {
 		CFIndex count = CFArrayGetCount(windowList);
 		int fullscreenDockWindows = 0;
 		int highLayerDockWindows = 0;
+		int anyHighLayerDockWindows = 0;
 		BOOL missionControlAppVisible = NO;
 
 		for (CFIndex i = 0; i < count; i++) {
@@ -183,6 +184,16 @@ static bool detectMissionControlActive(void) {
 				CFStringRef windowName = (CFStringRef)CFDictionaryGetValue(windowInfo, kCGWindowName);
 				CFDictionaryRef bounds = (CFDictionaryRef)CFDictionaryGetValue(windowInfo, kCGWindowBounds);
 				CFNumberRef windowLayer = (CFNumberRef)CFDictionaryGetValue(windowInfo, kCGWindowLayer);
+
+				int layer = 0;
+				if (windowLayer) {
+					CFNumberGetValue(windowLayer, kCFNumberIntType, &layer);
+				}
+
+				// Count any Dock window at layers 18-20 (only exist during Mission Control)
+				if (layer >= 18 && layer <= 20) {
+					anyHighLayerDockWindows++;
+				}
 
 				if (bounds) {
 					double x = 0, y = 0, w = 0, h = 0;
@@ -214,10 +225,6 @@ static bool detectMissionControlActive(void) {
 
 					// Window must have no name (Mission Control Dock windows are unnamed)
 					bool hasNoName = (!windowName || CFStringGetLength(windowName) == 0);
-					int layer = 0;
-					if (windowLayer) {
-						CFNumberGetValue(windowLayer, kCFNumberIntType, &layer);
-					}
 
 					if (isFullscreen && hasNoName && windowLayer) {
 						fullscreenDockWindows++;
@@ -233,13 +240,16 @@ static bool detectMissionControlActive(void) {
 
 		// Detection logic:
 		// 1. If Mission Control app window is visible, definitely MC
-		// 2. Otherwise, check for multiple fullscreen Dock windows:
+		// 2. If any Dock windows exist at layers 18-20, definitely MC (these layers only appear during MC)
+		// 3. Otherwise, check for multiple fullscreen Dock windows:
 		//    - Mission Control with single space: 2 windows (layers 18 and 20)
 		//    - Mission Control with multiple spaces: 3+ windows
 		int minRequired = 2;
 		BOOL result = NO;
 
 		if (missionControlAppVisible) {
+			result = YES;
+		} else if (anyHighLayerDockWindows >= minRequired) {
 			result = YES;
 		} else if (fullscreenDockWindows >= minRequired && highLayerDockWindows >= minRequired) {
 			result = YES;

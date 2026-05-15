@@ -27,7 +27,7 @@ func (a *Adapter) addMenubarElements(
 	menubarRoles[len(originalRoles)] = string(element.RoleMenuBarItem)
 
 	// Get menubar elements
-	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(false)
+	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(false, false)
 	if menubarNodesErr != nil {
 		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {
@@ -62,6 +62,7 @@ func (a *Adapter) addMenubarElements(
 			additionalNodes, err := a.client.ClickableElementsFromBundleID(
 				bundleID,
 				menubarRoles,
+				false,
 				false,
 			)
 			if err != nil {
@@ -156,7 +157,7 @@ func (a *Adapter) addDockElements(
 	}
 
 	// Build tree and find clickable elements
-	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, true, dockRoles)
+	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, dockRoles, false, true)
 	if dockNodesErr != nil {
 		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
 
@@ -194,6 +195,7 @@ func (a *Adapter) addNotificationCenterElements(
 	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(
 		ncBundleID,
 		nil,
+		false,
 		false,
 	)
 	if ncNodesErr != nil {
@@ -254,7 +256,7 @@ func (a *Adapter) addStageManagerElements(
 	}
 
 	// Build tree and find clickable elements
-	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, true, nil)
+	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, nil, false, false)
 	if wmNodesErr != nil {
 		a.logger.Warn("Failed to get window manager elements", zap.Error(wmNodesErr))
 
@@ -290,6 +292,7 @@ func (a *Adapter) addPIPElements(
 	pipNodes, pipNodesErr := a.client.ClickableElementsFromBundleID(
 		pipBundleID,
 		nil,
+		false,
 		false,
 	)
 	if pipNodesErr != nil {
@@ -327,6 +330,7 @@ func (a *Adapter) addScreenCaptureElements(
 	screenCaptureNodes, screenCaptureNodesErr := a.client.ClickableElementsFromBundleID(
 		screenCaptureBundleID,
 		nil,
+		false,
 		false,
 	)
 	if screenCaptureNodesErr != nil {

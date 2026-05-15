@@ -75,6 +75,9 @@ type ElementFilter struct {
 	// IncludeOffscreen includes elements outside the visible screen area.
 	IncludeOffscreen bool
 
+	// StrictFiltering enables strict filtering.
+	StrictFiltering bool
+
 	// MinSize specifies the minimum element size to include.
 	MinSize image.Point
 

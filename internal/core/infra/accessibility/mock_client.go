@@ -86,8 +86,9 @@ func (m *MockAXClient) ApplicationByBundleID(_ string) (AXApp, error) {
 // ClickableNodes returns the configured clickable nodes or error.
 func (m *MockAXClient) ClickableNodes(
 	_ AXElement,
-	_ bool,
 	roles []string,
+	_ bool,
+	_ bool,
 ) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastClickableNodesRoles = roles
@@ -98,7 +99,7 @@ func (m *MockAXClient) ClickableNodes(
 }
 
 // MenuBarClickableElements returns the configured menu bar nodes or error.
-func (m *MockAXClient) MenuBarClickableElements(strictFiltering bool) ([]AXNode, error) {
+func (m *MockAXClient) MenuBarClickableElements(strictFiltering bool, _ bool) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastMenuBarStrictFiltering = strictFiltering
 	m.mu.Unlock()
@@ -111,6 +112,7 @@ func (m *MockAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 	strictFiltering bool,
+	_ bool,
 ) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastCalledBundleID = bundleID
