@@ -119,7 +119,10 @@ func (c *InfraAXClient) ClickableNodes(
 	}
 
 	opts := DefaultTreeOptions(c.logger)
-	opts.SetCache(c.cache)
+	if !bypassCache {
+		opts.SetCache(c.cache)
+	}
+
 	opts.SetStrictFiltering(strictFiltering)
 	opts.SetIncludeOutOfBounds(!strictFiltering)
 

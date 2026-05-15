@@ -34,7 +34,10 @@ func MenuBarClickableElements(
 	defer menubar.Release()
 
 	opts := DefaultTreeOptions(logger)
-	opts.SetCache(cache)
+	if !bypassCache {
+		opts.SetCache(cache)
+	}
+
 	opts.SetStrictFiltering(strictFiltering)
 	opts.SetIncludeOutOfBounds(!strictFiltering)
 
@@ -117,7 +120,10 @@ func ClickableElementsFromBundleID(
 	defer app.Release()
 
 	opts := DefaultTreeOptions(logger)
-	opts.SetCache(cache)
+	if !bypassCache {
+		opts.SetCache(cache)
+	}
+
 	opts.SetStrictFiltering(strictFiltering)
 	opts.SetIncludeOutOfBounds(!strictFiltering)
 
