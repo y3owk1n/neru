@@ -512,6 +512,10 @@ func (c *InfoCache) SetClickable(elem *Element, isClickable bool) {
 					heap.Fix(&c.expirationQueue, cached.heapIndex)
 				}
 			}
+			// If cached.info is nil, the element is not yet in the info cache
+			// (Set was never called). SetClickable only stores the result for
+			// elements that already have an info entry; the next IsClickable
+			// call will re-run hasClickAction.
 
 			return
 		}
