@@ -406,8 +406,10 @@ func buildTreeRecursive(
 	// Don't traverse deeper into interactive leaf elements,
 	// unless they have important container children (e.g., popovers, sheets, menus).
 	// This handles cases like a toolbar button that opens a popover.
+	var children []*Element
 	if interactiveLeafRoles[parent.info.Role()] {
-		children, childrenErr := parent.element.Children(opts.cache)
+		var childrenErr error
+		children, childrenErr = parent.element.Children(opts.cache)
 		hasImportantContainer := false
 		if childrenErr == nil && len(children) > 0 {
 			for _, child := range children {
@@ -422,29 +424,31 @@ func buildTreeRecursive(
 				}
 			}
 		}
-		for _, child := range children {
-			child.Release()
-		}
 		if !hasImportantContainer {
+			for _, child := range children {
+				child.Release()
+			}
 			if opts.stats != nil {
 				opts.stats.stoppedAtLeaf.Add(1)
 			}
 
 			return
 		}
-	}
-
-	children, err := parent.element.Children(opts.cache)
-	if err != nil || len(children) == 0 {
-		if opts.stats != nil {
-			if err != nil {
-				opts.stats.childrenErrors.Add(1)
-			} else {
-				opts.stats.noChildren.Add(1)
+		// Reuse children slice for traversal below, skip the second Children() call.
+	} else {
+		var err error
+		children, err = parent.element.Children(opts.cache)
+		if err != nil || len(children) == 0 {
+			if opts.stats != nil {
+				if err != nil {
+					opts.stats.childrenErrors.Add(1)
+				} else {
+					opts.stats.noChildren.Add(1)
+				}
 			}
-		}
 
-		return
+			return
+		}
 	}
 
 	// Decide whether to parallelize
