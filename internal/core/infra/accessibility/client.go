@@ -25,12 +25,18 @@ type AXClient interface {
 	FrontmostAndPopoverWindows() ([]AXWindow, error)
 	FocusedApplication() (AXApp, error)
 	ApplicationByBundleID(bundleID string) (AXApp, error)
-	ClickableNodes(root AXElement, includeOffscreen bool, roles []string) ([]AXNode, error)
-	MenuBarClickableElements(strictFiltering bool) ([]AXNode, error)
+	ClickableNodes(
+		root AXElement,
+		includeOffscreen bool,
+		roles []string,
+		collectSearch bool,
+	) ([]AXNode, error)
+	MenuBarClickableElements(strictFiltering bool, collectSearch bool) ([]AXNode, error)
 	ClickableElementsFromBundleID(
 		bundleID string,
 		roles []string,
 		strictFiltering bool,
+		collectSearch bool,
 	) ([]AXNode, error)
 	ActiveScreenBounds() image.Rectangle
 

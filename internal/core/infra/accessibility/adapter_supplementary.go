@@ -10,92 +10,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
-// addSupplementaryElements adds menubar, dock, and notification center elements based on filter.
-// The missionControlActive parameter should be obtained from the main CollectElements function
-// to ensure consistency with the frontmost window check.
-func (a *Adapter) addSupplementaryElements(
-	ctx context.Context,
-	elements []*element.Element,
-	filter ports.ElementFilter,
-	missionControlActive bool,
-) []*element.Element {
-	a.logger.Debug("Adding supplementary elements",
-		zap.Bool("mission_control_active", missionControlActive),
-		zap.Bool("include_menubar", filter.IncludeMenubar),
-		zap.Bool("include_dock", filter.IncludeDock),
-		zap.Bool("include_nc", filter.IncludeNotificationCenter),
-		zap.Bool("include_stage_manager", filter.IncludeStageManager),
-		zap.Bool("include_pip", filter.IncludePIP),
-		zap.Bool("include_screen_capture", filter.IncludeScreenCapture))
-
-	type supplementarySource struct {
-		enabled bool
-		load    func() []*element.Element
-	}
-
-	sources := []supplementarySource{
-		{
-			enabled: !missionControlActive && filter.IncludeMenubar,
-			load: func() []*element.Element {
-				return a.addMenubarElements(ctx, nil, filter)
-			},
-		},
-		{
-			enabled: filter.IncludeDock,
-			load: func() []*element.Element {
-				return a.addDockElements(ctx, nil)
-			},
-		},
-		{
-			enabled: missionControlActive && filter.IncludeNotificationCenter,
-			load: func() []*element.Element {
-				return a.addNotificationCenterElements(ctx, nil)
-			},
-		},
-		{
-			enabled: filter.IncludeStageManager,
-			load: func() []*element.Element {
-				return a.addStageManagerElements(ctx, nil)
-			},
-		},
-		{
-			// Safari PiP is owned by PIPAgent and cannot be discovered from
-			// the currently focused app because it is not focusable.
-			enabled: filter.IncludePIP,
-			load: func() []*element.Element {
-				return a.addPIPElements(ctx, nil)
-			},
-		},
-		{
-			enabled: filter.IncludeScreenCapture,
-			load: func() []*element.Element {
-				return a.addScreenCaptureElements(ctx, nil)
-			},
-		},
-	}
-
-	results := make([][]*element.Element, len(sources))
-
-	var waitGroup sync.WaitGroup
-	for index, source := range sources {
-		if !source.enabled {
-			continue
-		}
-
-		waitGroup.Go(func() {
-			results[index] = source.load()
-		})
-	}
-
-	waitGroup.Wait()
-
-	for _, sourceElements := range results {
-		elements = append(elements, sourceElements...)
-	}
-
-	return elements
-}
-
 // addMenubarElements adds menubar clickable elements.
 // Temporarily modifies clickable roles to include AXMenuBarItem, collects menubar elements,
 // and processes additional menubar targets from configuration.
@@ -103,6 +17,7 @@ func (a *Adapter) addMenubarElements(
 	_ context.Context,
 	elements []*element.Element,
 	filter ports.ElementFilter,
+	collectSearch bool,
 ) []*element.Element {
 	a.logger.Debug("Adding menubar elements")
 
@@ -113,7 +28,7 @@ func (a *Adapter) addMenubarElements(
 	menubarRoles[len(originalRoles)] = "AXMenuBarItem"
 
 	// Get menubar elements
-	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(false)
+	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(false, collectSearch)
 	if menubarNodesErr != nil {
 		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {
@@ -136,43 +51,67 @@ func (a *Adapter) addMenubarElements(
 		a.logger.Debug("Included menubar elements", zap.Int("count", len(menubarNodes)))
 	}
 
-	// Get additional menubar targets
-	for _, bundleID := range filter.AdditionalMenubarTargets {
-		additionalNodes, err := a.client.ClickableElementsFromBundleID(
-			bundleID,
-			menubarRoles,
-			false,
-		)
-		if err != nil {
-			a.logger.Warn("Failed to get additional menubar elements",
+	// Get additional menubar targets in parallel
+	if len(filter.AdditionalMenubarTargets) > 0 {
+		var waitGroup sync.WaitGroup
+
+		var resultsMutex sync.Mutex
+
+		collectAdditionalTarget := func(bundleID string) {
+			defer waitGroup.Done()
+
+			additionalNodes, err := a.client.ClickableElementsFromBundleID(
+				bundleID,
+				menubarRoles,
+				false,
+				collectSearch,
+			)
+			if err != nil {
+				a.logger.Warn("Failed to get additional menubar elements",
+					zap.String("bundle_id", bundleID),
+					zap.Error(err))
+
+				return
+			}
+
+			var localElements []*element.Element
+
+			for _, node := range additionalNodes {
+				elem, elemErr := a.convertToDomainElement(node)
+
+				node.Release()
+
+				if elemErr != nil {
+					a.logger.Debug(
+						"Failed to convert additional menubar element",
+						zap.Error(elemErr),
+					)
+
+					continue
+				}
+
+				if a.MatchesFilter(elem, filter) {
+					localElements = append(localElements, elem)
+				}
+			}
+
+			resultsMutex.Lock()
+
+			elements = append(elements, localElements...)
+			resultsMutex.Unlock()
+
+			a.logger.Debug("Included additional menubar elements",
 				zap.String("bundle_id", bundleID),
-				zap.Error(err))
-
-			continue
+				zap.Int("count", len(localElements)))
 		}
 
-		for _, node := range additionalNodes {
-			element, elementErr := a.convertToDomainElement(node)
+		for _, bundleID := range filter.AdditionalMenubarTargets {
+			waitGroup.Add(1)
 
-			node.Release()
-
-			if elementErr != nil {
-				a.logger.Debug(
-					"Failed to convert additional menubar element",
-					zap.Error(elementErr),
-				)
-
-				continue
-			}
-
-			if a.MatchesFilter(element, filter) {
-				elements = append(elements, element)
-			}
+			go collectAdditionalTarget(bundleID)
 		}
 
-		a.logger.Debug("Included additional menubar elements",
-			zap.String("bundle_id", bundleID),
-			zap.Int("count", len(additionalNodes)))
+		waitGroup.Wait()
 	}
 
 	return elements
@@ -184,6 +123,7 @@ func (a *Adapter) addMenubarElements(
 func (a *Adapter) addDockElements(
 	_ context.Context,
 	elements []*element.Element,
+	collectSearch bool,
 ) []*element.Element {
 	const dockBundleID = "com.apple.dock"
 
@@ -219,7 +159,7 @@ func (a *Adapter) addDockElements(
 	}
 
 	// Build tree and find clickable elements
-	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, true, dockRoles)
+	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, true, dockRoles, collectSearch)
 	if dockNodesErr != nil {
 		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
 
@@ -249,12 +189,18 @@ func (a *Adapter) addDockElements(
 func (a *Adapter) addNotificationCenterElements(
 	_ context.Context,
 	elements []*element.Element,
+	collectSearch bool,
 ) []*element.Element {
 	const ncBundleID = "com.apple.notificationcenterui"
 
 	a.logger.Debug("Adding notification center elements")
 
-	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(ncBundleID, nil, false)
+	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(
+		ncBundleID,
+		nil,
+		false,
+		collectSearch,
+	)
 	if ncNodesErr != nil {
 		a.logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))
 
@@ -284,6 +230,7 @@ func (a *Adapter) addNotificationCenterElements(
 func (a *Adapter) addStageManagerElements(
 	_ context.Context,
 	elements []*element.Element,
+	collectSearch bool,
 ) []*element.Element {
 	const wmBundleID = "com.apple.WindowManager"
 
@@ -313,7 +260,7 @@ func (a *Adapter) addStageManagerElements(
 	}
 
 	// Build tree and find clickable elements
-	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, true, nil)
+	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, true, nil, collectSearch)
 	if wmNodesErr != nil {
 		a.logger.Warn("Failed to get window manager elements", zap.Error(wmNodesErr))
 
@@ -343,10 +290,16 @@ func (a *Adapter) addStageManagerElements(
 func (a *Adapter) addPIPElements(
 	_ context.Context,
 	elements []*element.Element,
+	collectSearch bool,
 ) []*element.Element {
 	const pipBundleID = "com.apple.PIPAgent"
 
-	pipNodes, pipNodesErr := a.client.ClickableElementsFromBundleID(pipBundleID, nil, false)
+	pipNodes, pipNodesErr := a.client.ClickableElementsFromBundleID(
+		pipBundleID,
+		nil,
+		false,
+		collectSearch,
+	)
 	if pipNodesErr != nil {
 		a.logger.Warn("Failed to get Picture in Picture elements", zap.Error(pipNodesErr))
 
@@ -376,6 +329,7 @@ func (a *Adapter) addPIPElements(
 func (a *Adapter) addScreenCaptureElements(
 	_ context.Context,
 	elements []*element.Element,
+	collectSearch bool,
 ) []*element.Element {
 	const screenCaptureBundleID = "com.apple.screencaptureui"
 
@@ -383,6 +337,7 @@ func (a *Adapter) addScreenCaptureElements(
 		screenCaptureBundleID,
 		nil,
 		false,
+		collectSearch,
 	)
 	if screenCaptureNodesErr != nil {
 		a.logger.Warn("Failed to get Screen Capture elements", zap.Error(screenCaptureNodesErr))

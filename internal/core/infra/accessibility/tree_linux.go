@@ -31,6 +31,7 @@ func (n *TreeNode) FindClickableElements(
 	cache any,
 	configProvider config.Provider,
 	ignoreClickableCheck bool,
+	collectSearch bool,
 ) []*TreeNode {
 	return nil
 }

@@ -102,6 +102,10 @@ func (s *HintService) GenerateHints(
 		)
 	}
 
+	// Pass the already-resolved bundle ID to the adapter so it
+	// skips a duplicate FocusedApplication() AX call for menubar queries.
+	filter.PreResolvedBundleID = bundleID
+
 	// Use filterRoles if provided, otherwise use configured roles
 	var roles []string
 	if len(filterRoles) > 0 {
@@ -142,6 +146,10 @@ func (s *HintService) GenerateHints(
 		if len(filterTextContains) > 1 {
 			filter.TextContainsList = filterTextContains[1:]
 		}
+
+		// Layer 2: When text filters are active, search text is needed
+		// for accurate filtering, so collect it eagerly.
+		filter.CollectSearchText = true
 
 		s.logger.Debug("Applying text filter",
 			zap.Strings("text", filterTextContains))

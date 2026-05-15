@@ -12,6 +12,7 @@ func MenuBarClickableElements(
 	cache *InfoCache,
 	configProvider config.Provider,
 	strictFiltering bool,
+	collectSearch bool,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
 
@@ -77,6 +78,7 @@ func MenuBarClickableElements(
 		cache,
 		configProvider,
 		ignoreClickableCheck,
+		collectSearch,
 	)
 
 	// Release tree nodes that are not part of the result to avoid
@@ -96,6 +98,7 @@ func ClickableElementsFromBundleID(
 	cache *InfoCache,
 	configProvider config.Provider,
 	strictFiltering bool,
+	collectSearch bool,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for bundle ID",
 		zap.String("bundle_id", bundleID),
@@ -152,6 +155,7 @@ func ClickableElementsFromBundleID(
 		cache,
 		configProvider,
 		ignoreClickableCheck,
+		collectSearch,
 	)
 
 	// Release tree nodes that are not part of the result to avoid

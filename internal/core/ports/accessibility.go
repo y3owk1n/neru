@@ -126,6 +126,20 @@ type ElementFilter struct {
 	// will be included. The first string should be set in TitleContains, DescriptionContains,
 	// and ValueContains, with additional strings in this list.
 	TextContainsList []string
+
+	// CollectSearchText controls whether search text is collected from
+	// element subtrees during tree traversal. When false, the expensive
+	// collectSearchText() walk is skipped, significantly speeding up hint
+	// activation for the common case where the user is not searching.
+	// Set to true when --search flag is used or filterTextContains is
+	// provided.
+	CollectSearchText bool
+
+	// PreResolvedBundleID is the focused app's bundle ID, pre-resolved by
+	// the service layer. When set, the adapter skips its own
+	// FocusedApplication() call for bundle-dependent logic (e.g., menubar
+	// queries), eliminating a redundant AX API round-trip.
+	PreResolvedBundleID string
 }
 
 // DefaultElementFilter returns a filter with sensible defaults.

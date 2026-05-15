@@ -34,6 +34,31 @@ var (
 	clickableRolesMu sync.RWMutex
 )
 
+// knownInteractiveRoles are roles that are inherently interactive and don't
+// need the expensive hasClickAction() CGo call (up to 5 AX API round-trips)
+// to verify clickability. When an element has one of these roles and is
+// enabled, we can confidently skip the native verification. This eliminates
+// hundreds of CGo calls per activation for typical web pages.
+var knownInteractiveRoles = map[string]struct{}{
+	"AXButton":             {},
+	"AXLink":               {},
+	"AXMenuItem":           {},
+	"AXMenuBarItem":        {},
+	"AXPopUpButton":        {},
+	"AXTabButton":          {},
+	"AXCheckBox":           {},
+	"AXRadioButton":        {},
+	"AXSwitch":             {},
+	"AXDisclosureTriangle": {},
+	"AXComboBox":           {},
+	"AXDockItem":           {},
+	"AXTextField":          {},
+	"AXTextArea":           {},
+	"AXSlider":             {},
+	"AXIncrementor":        {},
+	"AXColorWell":          {},
+}
+
 var (
 	errSetFocusNil = derrors.New(
 		derrors.CodeAccessibilityFailed,
@@ -683,7 +708,17 @@ func (e *Element) IsClickable(
 	}
 
 	if isRoleAllowed {
-		// Also verify it actually has click action
+		// Fast path: known-interactive roles (AXButton, AXLink, etc.)
+		// that are enabled don't need the expensive hasClickAction() CGo
+		// call which makes up to 5 AX API round-trips. The isEnabled
+		// flag was already fetched during tree building via getElementInfo.
+		if info != nil && info.IsEnabled() {
+			if _, known := knownInteractiveRoles[info.Role()]; known {
+				return true
+			}
+		}
+
+		// Slow path: ambiguous or custom roles need full native verification
 		result := C.hasClickAction(e.ref) //nolint:nlreturn
 
 		return result == 1

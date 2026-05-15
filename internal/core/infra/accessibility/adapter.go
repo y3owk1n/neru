@@ -98,15 +98,6 @@ func (a *Adapter) ClickableElements(
 
 	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))
 
-	// Use bounded concurrency for parallel queries
-	const maxConcurrency = 3 // Limit concurrent queries to avoid overwhelming the system
-
-	semaphore := make(chan struct{}, maxConcurrency)
-	// Initialize semaphore with tokens
-	for range maxConcurrency {
-		semaphore <- struct{}{}
-	}
-
 	var (
 		waitGroup sync.WaitGroup
 		mutex     sync.Mutex
@@ -124,15 +115,15 @@ func (a *Adapter) ClickableElements(
 		missionControlActive = a.client.IsMissionControlActive()
 	}
 
-	// Function to collect elements from a source
+	// collectSearch controls whether the expensive subtree search-text
+	// walk runs during tree traversal. Skip it on the hot path unless
+	// the caller actually needs search text.
+	collectSearch := filter.CollectSearchText
+
+	// Function to collect elements from a source — all sources fan out
+	// at the same level for maximum parallelism.
 	collectElements := func(sourceName string, queryFunc func() ([]*element.Element, error)) {
 		defer waitGroup.Done()
-
-		<-semaphore // Acquire semaphore
-
-		defer func() {
-			semaphore <- struct{}{} // Release semaphore
-		}()
 
 		elements, err := queryFunc()
 		if err != nil {
@@ -158,8 +149,7 @@ func (a *Adapter) ClickableElements(
 	}
 
 	if !missionControlActive {
-		// Query frontmost window AND popover windows (not all windows)
-		// AXPopover windows are siblings to the main window, so we need to get them separately
+		// Query frontmost window AND popover windows
 		waitGroup.Add(1)
 
 		go func() {
@@ -179,16 +169,24 @@ func (a *Adapter) ClickableElements(
 				}
 
 				var allElements []*element.Element
-				for _, window := range windowsToProcess {
+
+				var windowsWg sync.WaitGroup
+
+				var windowsMutex sync.Mutex
+
+				processWindow := func(window AXWindow) {
+					defer windowsWg.Done()
+
 					clickableNodes, clickableNodesErr := a.client.ClickableNodes(
 						window,
 						filter.IncludeOffscreen,
 						stringRoles(filter.Roles),
+						collectSearch,
 					)
 					if clickableNodesErr != nil {
 						window.Release()
 
-						continue
+						return
 					}
 
 					windowElements, processErr := a.processClickableNodes(
@@ -199,34 +197,92 @@ func (a *Adapter) ClickableElements(
 					if processErr != nil {
 						window.Release()
 
-						continue
+						return
 					}
 
+					windowsMutex.Lock()
+
 					allElements = append(allElements, windowElements...)
+					windowsMutex.Unlock()
 
 					window.Release()
 				}
+
+				for _, window := range windowsToProcess {
+					windowsWg.Add(1)
+
+					go processWindow(window)
+				}
+
+				windowsWg.Wait()
 
 				return allElements, nil
 			})
 		}()
 	}
 
-	// Query supplementary elements in parallel
-	// AdditionalMenubarTargets only produces elements when IncludeMenubar is true
-	hasAdditionalTargets := filter.IncludeMenubar && len(filter.AdditionalMenubarTargets) > 0
-	if filter.IncludeMenubar || filter.IncludeDock || filter.IncludeStageManager ||
-		filter.IncludeNotificationCenter || filter.IncludePIP || filter.IncludeScreenCapture || hasAdditionalTargets {
+	// Menubar elements
+	if !missionControlActive && filter.IncludeMenubar {
 		waitGroup.Add(1)
 
 		go func() {
-			collectElements("supplementary sources", func() ([]*element.Element, error) {
-				return a.addSupplementaryElements(
-					ctx,
-					[]*element.Element{},
-					filter,
-					missionControlActive,
-				), nil
+			collectElements("menubar", func() ([]*element.Element, error) {
+				return a.addMenubarElements(ctx, nil, filter, collectSearch), nil
+			})
+		}()
+	}
+
+	// Dock elements
+	if filter.IncludeDock {
+		waitGroup.Add(1)
+
+		go func() {
+			collectElements("dock", func() ([]*element.Element, error) {
+				return a.addDockElements(ctx, nil, collectSearch), nil
+			})
+		}()
+	}
+
+	// Notification Center (only when Mission Control is active)
+	if missionControlActive && filter.IncludeNotificationCenter {
+		waitGroup.Add(1)
+
+		go func() {
+			collectElements("notification_center", func() ([]*element.Element, error) {
+				return a.addNotificationCenterElements(ctx, nil, collectSearch), nil
+			})
+		}()
+	}
+
+	// Stage Manager
+	if filter.IncludeStageManager {
+		waitGroup.Add(1)
+
+		go func() {
+			collectElements("stage_manager", func() ([]*element.Element, error) {
+				return a.addStageManagerElements(ctx, nil, collectSearch), nil
+			})
+		}()
+	}
+
+	// PIP
+	if filter.IncludePIP {
+		waitGroup.Add(1)
+
+		go func() {
+			collectElements("pip", func() ([]*element.Element, error) {
+				return a.addPIPElements(ctx, nil, collectSearch), nil
+			})
+		}()
+	}
+
+	// Screen Capture
+	if filter.IncludeScreenCapture {
+		waitGroup.Add(1)
+
+		go func() {
+			collectElements("screen_capture", func() ([]*element.Element, error) {
+				return a.addScreenCaptureElements(ctx, nil, collectSearch), nil
 			})
 		}()
 	}

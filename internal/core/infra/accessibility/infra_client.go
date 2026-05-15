@@ -101,6 +101,7 @@ func (c *InfraAXClient) ClickableNodes(
 	root AXElement,
 	includeOffscreen bool,
 	roles []string,
+	collectSearch bool,
 ) ([]AXNode, error) {
 	var element *Element
 
@@ -169,6 +170,7 @@ func (c *InfraAXClient) ClickableNodes(
 		c.cache,
 		c.configProvider,
 		ignoreClickableCheck,
+		collectSearch,
 	)
 
 	// Release tree nodes that are not part of the result to avoid
@@ -202,12 +204,14 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 // MenuBarClickableElements returns clickable elements in the menu bar.
 func (c *InfraAXClient) MenuBarClickableElements(
 	strictFiltering bool,
+	collectSearch bool,
 ) ([]AXNode, error) {
 	nodes, nodesErr := MenuBarClickableElements(
 		c.logger,
 		c.cache,
 		c.configProvider,
 		strictFiltering,
+		collectSearch,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
@@ -235,6 +239,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 	strictFiltering bool,
+	collectSearch bool,
 ) ([]AXNode, error) {
 	nodes, nodesErr := ClickableElementsFromBundleID(
 		bundleID,
@@ -243,6 +248,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 		c.cache,
 		c.configProvider,
 		strictFiltering,
+		collectSearch,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
