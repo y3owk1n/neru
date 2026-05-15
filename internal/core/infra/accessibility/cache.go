@@ -53,6 +53,7 @@ type cacheStats struct {
 // CachedInfo wraps ElementInfo with an expiration timestamp and LRU tracking for caching.
 type CachedInfo struct {
 	info        *ElementInfo
+	isClickable *bool // nil = not computed, true/false = cached result
 	expiresAt   time.Time
 	key         uint64
 	elementRef  *Element      // Retained reference for equality checks
@@ -440,6 +441,81 @@ func (c *InfoCache) Size() int {
 // Stats returns the current cache statistics.
 func (c *InfoCache) Stats() *cacheStats {
 	return c.stats
+}
+
+// GetClickable returns the cached isClickable result for an element.
+// Returns nil if not cached or expired.
+func (c *InfoCache) GetClickable(elem *Element) *bool {
+	if elem == nil {
+		return nil
+	}
+
+	hash, err := elem.Hash()
+	if err != nil {
+		return nil
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if c.stopped {
+		return nil
+	}
+
+	bucket, exists := c.data[hash]
+	if !exists {
+		return nil
+	}
+
+	for _, cached := range bucket {
+		if elem.Equal(cached.elementRef) {
+			if time.Now().After(cached.expiresAt) {
+				return nil
+			}
+
+			return cached.isClickable
+		}
+	}
+
+	return nil
+}
+
+// SetClickable caches the isClickable result for an element.
+// Uses the same TTL logic as Set for the info to keep them in sync.
+func (c *InfoCache) SetClickable(elem *Element, isClickable bool) {
+	if elem == nil {
+		return
+	}
+
+	hash, err := elem.Hash()
+	if err != nil {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.stopped {
+		return
+	}
+
+	c.drainPromotions()
+
+	bucket := c.data[hash]
+	for _, cached := range bucket {
+		if elem.Equal(cached.elementRef) {
+			if cached.info != nil {
+				cached.isClickable = &isClickable
+
+				cached.expiresAt = time.Now().Add(c.getTTL(cached.info))
+				if cached.heapIndex >= 0 {
+					heap.Fix(&c.expirationQueue, cached.heapIndex)
+				}
+			}
+
+			return
+		}
+	}
 }
 
 // EmitStats logs aggregate cache statistics at debug level.

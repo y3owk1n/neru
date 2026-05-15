@@ -18,10 +18,11 @@ import (
 type HintService struct {
 	BaseService
 
-	mu        sync.RWMutex
-	generator hint.Generator
-	config    config.HintsConfig
-	logger    *zap.Logger
+	mu                     sync.RWMutex
+	generator              hint.Generator
+	config                 config.HintsConfig
+	logger                 *zap.Logger
+	lastFocusedAppBundleID string
 }
 
 // NewHintService creates a new hint service with the given dependencies.
@@ -85,12 +86,6 @@ func (s *HintService) GenerateHints(
 	gen := s.generator
 	s.mu.RUnlock()
 
-	// Clear the accessibility cache before querying elements to ensure fresh
-	// position data. Without this, elements that moved due to scrolling would
-	// retain their stale pre-scroll positions from the cache (StaticElementTTL
-	// is 30s), causing hint labels to appear at wrong locations.
-	s.accessibility.ClearCache()
-
 	filter := ports.DefaultElementFilter()
 
 	// Populate filter with configuration
@@ -100,6 +95,23 @@ func (s *HintService) GenerateHints(
 			"Failed to get focused app bundle ID for hints roles",
 			zap.Error(bundleIDErr),
 		)
+	}
+
+	// Smart cache clearing: only clear if focused app changed
+	// This avoids clearing cache when user is still in same app (e.g., scrolling)
+	// which significantly speeds up repeated activations in the same app.
+	// Cache still auto-expires based on TTL (30s for static elements).
+	shouldClearCache := true
+	if s.lastFocusedAppBundleID != "" && s.lastFocusedAppBundleID == bundleID {
+		shouldClearCache = false
+
+		s.logger.Debug("Skipping cache clear - same app as last activation",
+			zap.String("bundle_id", bundleID))
+	}
+
+	if shouldClearCache {
+		s.accessibility.ClearCache()
+		s.lastFocusedAppBundleID = bundleID
 	}
 
 	// Use filterRoles if provided, otherwise use configured roles

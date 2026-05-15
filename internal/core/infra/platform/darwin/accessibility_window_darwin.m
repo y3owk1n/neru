@@ -106,17 +106,42 @@ void **getFrontmostAndPopoverWindows(int *count) {
 			shouldReleaseAppRef = true;
 		}
 
-		AXUIElementRef focusedWindow = NULL;
-		AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute, (CFTypeRef *)&focusedWindow);
+		// Batch fetch focused window and all windows in a single AX call
+		CFArrayRef windowAttrs = CFArrayCreate(
+		    NULL,
+		    (CFTypeRef[]){
+		        kAXFocusedWindowAttribute,
+		        kAXWindowsAttribute,
+		    },
+		    2, &kCFTypeArrayCallBacks);
 
+		CFArrayRef windowValues = NULL;
+		AXError batchError = AXUIElementCopyMultipleAttributeValues(appRef, windowAttrs, 0, &windowValues);
+		CFRelease(windowAttrs);
+
+		AXUIElementRef focusedWindow = NULL;
 		CFTypeRef windowsValue = NULL;
 		CFArrayRef windows = NULL;
 		CFIndex windowCount = 0;
-		if (AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute, &windowsValue) == kAXErrorSuccess &&
-		    windowsValue && CFGetTypeID(windowsValue) == CFArrayGetTypeID()) {
-			windows = (CFArrayRef)windowsValue;
-			windowCount = CFArrayGetCount(windows);
+
+		if (batchError == kAXErrorSuccess && windowValues && CFArrayGetCount(windowValues) >= 2) {
+			CFTypeRef focusedVal = (CFTypeRef)CFArrayGetValueAtIndex(windowValues, 0);
+			if (focusedVal) {
+				focusedWindow = (AXUIElementRef)focusedVal;
+				CFRetain(focusedWindow);
+			}
+
+			CFTypeRef windowsVal = (CFTypeRef)CFArrayGetValueAtIndex(windowValues, 1);
+			if (windowsVal && CFGetTypeID(windowsVal) == CFArrayGetTypeID()) {
+				windowsValue = windowsVal;
+				CFRetain(windowsValue);
+				windows = (CFArrayRef)windowsValue;
+				windowCount = CFArrayGetCount(windows);
+			}
 		}
+
+		if (windowValues)
+			CFRelease(windowValues);
 
 		CFIndex capacity = (focusedWindow ? 1 : 0) + windowCount;
 		if (capacity == 0) {
@@ -222,49 +247,66 @@ void *getFrontmostWindow(void) {
 			shouldReleaseAppRef = true;
 		}
 
-		// Try focused window attribute first (fast path)
+		// Batch fetch focused window and all windows in a single AX call
+		CFArrayRef windowAttrs = CFArrayCreate(
+		    NULL,
+		    (CFTypeRef[]){
+		        kAXFocusedWindowAttribute,
+		        kAXWindowsAttribute,
+		    },
+		    2, &kCFTypeArrayCallBacks);
+
+		CFArrayRef windowValues = NULL;
+		AXError batchError = AXUIElementCopyMultipleAttributeValues(appRef, windowAttrs, 0, &windowValues);
+		CFRelease(windowAttrs);
+
 		AXUIElementRef window = NULL;
-		AXError error = AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute, (CFTypeRef *)&window);
+		CFArrayRef windows = NULL;
+
+		if (batchError == kAXErrorSuccess && windowValues && CFArrayGetCount(windowValues) >= 2) {
+			CFTypeRef focusedVal = (CFTypeRef)CFArrayGetValueAtIndex(windowValues, 0);
+			if (focusedVal) {
+				window = (AXUIElementRef)focusedVal;
+				CFRetain(window);
+			}
+
+			CFTypeRef windowsVal = (CFTypeRef)CFArrayGetValueAtIndex(windowValues, 1);
+			if (windowsVal && CFGetTypeID(windowsVal) == CFArrayGetTypeID()) {
+				windows = (CFArrayRef)windowsVal;
+				CFRetain(windows);
+			}
+		}
+
+		if (windowValues)
+			CFRelease(windowValues);
 
 		if (shouldReleaseAppRef && appRef) {
 			CFRelease(appRef);
 		}
 
-		if (error == kAXErrorSuccess && window) {
+		if (window) {
 			if (focusedApp)
 				CFRelease(focusedApp);
+			if (windows)
+				CFRelease(windows);
 			return (void *)window;
 		}
 
-		// Fallback: try the application's windows list and return the first entry
-		if (focusedApp) {
-			pid_t pid;
-			if (AXUIElementGetPid(focusedApp, &pid) == kAXErrorSuccess) {
-				AXUIElementRef appFromPid = AXUIElementCreateApplication(pid);
-				if (appFromPid) {
-					CFTypeRef windowsValue = NULL;
-					if (AXUIElementCopyAttributeValue(appFromPid, kAXWindowsAttribute, &windowsValue) ==
-					        kAXErrorSuccess &&
-					    windowsValue && CFGetTypeID(windowsValue) == CFArrayGetTypeID()) {
-						CFArrayRef windows = (CFArrayRef)windowsValue;
-						if (CFArrayGetCount(windows) > 0) {
-							AXUIElementRef firstWindow = (AXUIElementRef)CFArrayGetValueAtIndex(windows, 0);
-							CFRetain(firstWindow);
-							CFRelease(windowsValue);
-							CFRelease(appFromPid);
-							CFRelease(focusedApp);
-							return (void *)firstWindow;
-						}
-					}
-
-					if (windowsValue)
-						CFRelease(windowsValue);
-					CFRelease(appFromPid);
-				}
-			}
-
-			CFRelease(focusedApp);
+		// Fallback: use first window from the windows list
+		if (windows && CFArrayGetCount(windows) > 0) {
+			AXUIElementRef firstWindow = (AXUIElementRef)CFArrayGetValueAtIndex(windows, 0);
+			CFRetain(firstWindow);
+			CFRelease(windows);
+			if (focusedApp)
+				CFRelease(focusedApp);
+			return (void *)firstWindow;
 		}
+
+		if (windows)
+			CFRelease(windows);
+
+		if (focusedApp)
+			CFRelease(focusedApp);
 
 		return NULL;
 	}

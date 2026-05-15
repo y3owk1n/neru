@@ -450,8 +450,9 @@ int hasClickAction(void *element) {
 	        kAXHiddenAttribute,
 	        kAXEnabledAttribute,
 	        kAXRoleAttribute,
+	        kAXFocusableAttribute,
 	    },
-	    3, &kCFTypeArrayCallBacks);
+	    4, &kCFTypeArrayCallBacks);
 
 	if (!initialAttrs)
 		return 0;
@@ -462,6 +463,7 @@ int hasClickAction(void *element) {
 
 	bool isHidden = false;
 	bool isEnabled = true;
+	bool isFocusable = false;
 	CFStringRef role = NULL;
 
 	if (batchError == kAXErrorSuccess && initialValues) {
@@ -486,6 +488,13 @@ int hasClickAction(void *element) {
 			if (roleVal && CFGetTypeID(roleVal) == CFStringGetTypeID()) {
 				role = (CFStringRef)roleVal;
 				CFRetain(role);
+			}
+		}
+
+		if (count > 3 && isEnabled && !isHidden) {
+			CFTypeRef focusableVal = (CFTypeRef)CFArrayGetValueAtIndex(initialValues, 3);
+			if (focusableVal && CFGetTypeID(focusableVal) == CFBooleanGetTypeID()) {
+				isFocusable = CFBooleanGetValue((CFBooleanRef)focusableVal);
 			}
 		}
 
@@ -527,28 +536,7 @@ int hasClickAction(void *element) {
 		return 1;
 	}
 
-	// Focusable and enabled controls are clickable
-	CFBooleanRef focusable = NULL;
-	if (AXUIElementCopyAttributeValue(axElement, kAXFocusableAttribute, (CFTypeRef *)&focusable) == kAXErrorSuccess &&
-	    focusable) {
-		if (CFBooleanGetValue(focusable)) {
-			CFRelease(focusable);
-
-			CGPoint center;
-			pid_t pid;
-			bool visible = true;
-			if (getElementCenter((void *)axElement, &center) && AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
-				visible = isPointVisible(center, pid);
-			}
-
-			if (role)
-				CFRelease(role);
-			return visible ? 1 : 0;
-		}
-		CFRelease(focusable);
-	}
-
-	// Role-specific fallback for links
+	// Role-specific fallback for links - no visibility check needed
 	if (role && CFStringCompare(role, kAXLinkRole, 0) == kCFCompareEqualTo) {
 		CFTypeRef urlAttr = NULL;
 		if (AXUIElementCopyAttributeValue(axElement, kAXURLAttribute, &urlAttr) == kAXErrorSuccess && urlAttr) {
@@ -561,9 +549,21 @@ int hasClickAction(void *element) {
 	if (role)
 		CFRelease(role);
 
-	// Final check: visible bounding box and not occluded
+	// Visibility check: compute center+pid once and use for both focusable and final check
 	CGPoint center;
 	pid_t pid;
+	bool hasCenterAndPid = false;
+
+	// For focusable elements, check visibility
+	if (isFocusable) {
+		if (getElementCenter((void *)axElement, &center) && AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
+			hasCenterAndPid = true;
+			return isPointVisible(center, pid) ? 1 : 0;
+		}
+		return 0;
+	}
+
+	// Final check for other elements: visible bounding box and not occluded
 	if (getElementCenter((void *)axElement, &center) && AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
 		return isPointVisible(center, pid) ? 1 : 0;
 	}

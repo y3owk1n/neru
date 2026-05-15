@@ -57,6 +57,10 @@ var knownInteractiveRoles = map[string]struct{}{
 	"AXSlider":             {},
 	"AXIncrementor":        {},
 	"AXColorWell":          {},
+	"AXSearchField":        {},
+	"AXToolbarButton":      {},
+	"AXMenuButton":         {},
+	"AXToggle":             {},
 }
 
 var (
@@ -718,8 +722,20 @@ func (e *Element) IsClickable(
 			}
 		}
 
+		// Try cache for isClickable result (only when using default roles)
+		if cache != nil && len(allowedRoles) == 0 && !ignoreClickableCheck {
+			if cached := cache.GetClickable(e); cached != nil {
+				return *cached
+			}
+		}
+
 		// Slow path: ambiguous or custom roles need full native verification
 		result := C.hasClickAction(e.ref) //nolint:nlreturn
+
+		// Cache the result for future lookups (only when using default roles)
+		if cache != nil && len(allowedRoles) == 0 && !ignoreClickableCheck {
+			cache.SetClickable(e, result == 1)
+		}
 
 		return result == 1
 	}
