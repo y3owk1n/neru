@@ -81,10 +81,10 @@ func (s *HintService) GenerateHints(
 	filterRoles []string,
 	filterTextContains []string,
 ) ([]*hint.Interface, error) {
-	s.mu.RLock()
+	s.mu.Lock()
 	cfg := s.config
 	gen := s.generator
-	s.mu.RUnlock()
+	s.mu.Unlock()
 
 	filter := ports.DefaultElementFilter()
 
@@ -102,6 +102,8 @@ func (s *HintService) GenerateHints(
 	// which significantly speeds up repeated activations in the same app.
 	// Cache still auto-expires based on TTL (30s for static elements).
 	shouldClearCache := true
+
+	s.mu.Lock()
 	if s.lastFocusedAppBundleID != "" && s.lastFocusedAppBundleID == bundleID {
 		shouldClearCache = false
 
@@ -113,6 +115,7 @@ func (s *HintService) GenerateHints(
 		s.accessibility.ClearCache()
 		s.lastFocusedAppBundleID = bundleID
 	}
+	s.mu.Unlock()
 
 	// Use filterRoles if provided, otherwise use configured roles
 	var roles []string

@@ -549,15 +549,13 @@ int hasClickAction(void *element) {
 	if (role)
 		CFRelease(role);
 
-	// Visibility check: compute center+pid once and use for both focusable and final check
+	// Visibility check: compute center+pid for each code path that needs it
 	CGPoint center;
 	pid_t pid;
-	bool hasCenterAndPid = false;
 
 	// For focusable elements, check visibility
 	if (isFocusable) {
 		if (getElementCenter((void *)axElement, &center) && AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
-			hasCenterAndPid = true;
 			return isPointVisible(center, pid) ? 1 : 0;
 		}
 		return 0;
