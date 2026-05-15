@@ -348,6 +348,7 @@ var nonInteractiveRoles = map[string]bool{
 // Roles that are themselves interactive (leaf nodes).
 var interactiveLeafRoles = map[string]bool{
 	"AXButton":             true,
+	"AXMenuButton":         true,
 	"AXComboBox":           true,
 	"AXCheckBox":           true,
 	"AXRadioButton":        true,
@@ -358,6 +359,19 @@ var interactiveLeafRoles = map[string]bool{
 	"AXSwitch":             true,
 	"AXDisclosureTriangle": true,
 	"AXTextArea":           true,
+	"AXTextField":          true,
+}
+
+// Roles that can contain important interactive children even when their
+// parent is an interactive leaf (e.g., a button that opens a popover).
+// This set is checked to ensure we don't stop traversal at buttons/menus
+// that trigger popovers, sheets, or menus.
+var importantContainerRoles = map[string]bool{
+	"AXPopover": true,
+	"AXSheet":   true,
+	"AXMenu":    true,
+	"SGTMenu":   true,
+	"AXList":    true,
 }
 
 func buildTreeRecursive(
@@ -389,13 +403,35 @@ func buildTreeRecursive(
 		return
 	}
 
-	// Don't traverse deeper into interactive leaf elements
+	// Don't traverse deeper into interactive leaf elements,
+	// unless they have important container children (e.g., popovers, sheets, menus).
+	// This handles cases like a toolbar button that opens a popover.
 	if interactiveLeafRoles[parent.info.Role()] {
-		if opts.stats != nil {
-			opts.stats.stoppedAtLeaf.Add(1)
-		}
+		children, childrenErr := parent.element.Children(opts.cache)
+		hasImportantContainer := false
+		if childrenErr == nil && len(children) > 0 {
+			for _, child := range children {
+				childInfo := opts.cache.Get(child)
+				if childInfo == nil {
+					childInfo, _ = child.Info()
+				}
+				if childInfo != nil && importantContainerRoles[childInfo.Role()] {
+					hasImportantContainer = true
 
-		return
+					break
+				}
+			}
+		}
+		for _, child := range children {
+			child.Release()
+		}
+		if !hasImportantContainer {
+			if opts.stats != nil {
+				opts.stats.stoppedAtLeaf.Add(1)
+			}
+
+			return
+		}
 	}
 
 	children, err := parent.element.Children(opts.cache)

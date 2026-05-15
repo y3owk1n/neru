@@ -22,6 +22,7 @@ const (
 	RoleCheckBox           Role = "AXCheckBox"
 	RoleRadioButton        Role = "AXRadioButton"
 	RoleMenuItem           Role = "AXMenuItem"
+	RoleMenuButton         Role = "AXMenuButton"
 	RolePopUpButton        Role = "AXPopUpButton"
 	RoleTabButton          Role = "AXTabButton"
 	RoleSlider             Role = "AXSlider"

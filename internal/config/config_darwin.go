@@ -13,6 +13,7 @@ func applyPlatformDefaults(cfg *Config) {
 
 	cfg.Hints.ClickableRoles = append(cfg.Hints.ClickableRoles,
 		"AXButton",
+		"AXMenuButton",
 		"AXComboBox",
 		"AXCheckBox",
 		"AXRadioButton",

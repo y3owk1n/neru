@@ -23,6 +23,7 @@ additional_menubar_hints_targets = [
 ]
 clickable_roles = [
     "AXButton",
+	"AXMenuButton",
     "AXComboBox",
     "AXCheckBox",
     "AXRadioButton",

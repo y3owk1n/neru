@@ -61,6 +61,7 @@ include_screen_capture_hints = false
 detect_mission_control = false
 clickable_roles = [
     "AXButton",
+	"AXMenuButton",
     "AXComboBox",
     "AXCheckBox",
     "AXRadioButton",
