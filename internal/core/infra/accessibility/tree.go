@@ -341,26 +341,26 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 }
 
 // Roles that typically don't contain interactive elements.
-var nonInteractiveRoles = map[string]bool{
-	"AXStaticText": true,
-	"AXImage":      true,
+var nonInteractiveRoles = map[element.Role]bool{
+	element.RoleStaticText: true,
+	element.RoleImage:      true,
 }
 
 // Roles that are themselves interactive (leaf nodes).
-var interactiveLeafRoles = map[string]bool{
-	"AXButton":             true,
-	"AXMenuButton":         true,
-	"AXComboBox":           true,
-	"AXCheckBox":           true,
-	"AXRadioButton":        true,
-	"AXLink":               true,
-	"AXPopUpButton":        true,
-	"AXSlider":             true,
-	"AXTabButton":          true,
-	"AXSwitch":             true,
-	"AXDisclosureTriangle": true,
-	"AXTextArea":           true,
-	"AXTextField":          true,
+var interactiveLeafRoles = map[element.Role]bool{
+	element.RoleButton:             true,
+	element.RoleMenuButton:         true,
+	element.RoleComboBox:           true,
+	element.RoleCheckBox:           true,
+	element.RoleRadioButton:        true,
+	element.RoleLink:               true,
+	element.RolePopUpButton:        true,
+	element.RoleSlider:             true,
+	element.RoleTabButton:          true,
+	element.RoleSwitch:             true,
+	element.RoleDisclosureTriangle: true,
+	element.RoleTextArea:           true,
+	element.RoleTextField:          true,
 }
 
 // Roles that can contain important interactive children even when their
@@ -396,7 +396,7 @@ func buildTreeRecursive(
 	}
 
 	// Early exit for roles that can't have interactive children
-	if nonInteractiveRoles[parent.info.Role()] {
+	if nonInteractiveRoles[element.Role(parent.info.Role())] {
 		if opts.stats != nil {
 			opts.stats.skippedNonInteractive.Add(1)
 		}
@@ -408,7 +408,7 @@ func buildTreeRecursive(
 	// unless they have important container children (e.g., popovers, sheets, menus).
 	// This handles cases like a toolbar button that opens a popover.
 	var children []*Element
-	if interactiveLeafRoles[parent.info.Role()] {
+	if interactiveLeafRoles[element.Role(parent.info.Role())] {
 		var childrenErr error
 		children, childrenErr = parent.element.Children(opts.cache)
 		hasImportantContainer := false
@@ -641,7 +641,7 @@ func shouldIncludeElement(
 
 		// Filter out zero-sized interactive elements (they're broken/invalid)
 		if elementRect.Dx() == 0 || elementRect.Dy() == 0 {
-			if interactiveLeafRoles[info.Role()] {
+			if interactiveLeafRoles[element.Role(info.Role())] {
 				return false
 			}
 		}
@@ -655,7 +655,7 @@ func shouldIncludeElement(
 			// Filter if either dimension is too small (not just both)
 			if elementRect.Dx() < minElementSize || elementRect.Dy() < minElementSize {
 				// Only filter if it's not a known important role
-				if !interactiveLeafRoles[info.Role()] {
+				if !interactiveLeafRoles[element.Role(info.Role())] {
 					return false
 				}
 			}
@@ -668,7 +668,7 @@ func shouldIncludeElement(
 			centerY := elementRect.Min.Y + halfHeight
 			if centerX < windowBounds.Min.X || centerX > windowBounds.Max.X ||
 				centerY < windowBounds.Min.Y || centerY > windowBounds.Max.Y {
-				if !interactiveLeafRoles[info.Role()] {
+				if !interactiveLeafRoles[element.Role(info.Role())] {
 					return false
 				}
 			}

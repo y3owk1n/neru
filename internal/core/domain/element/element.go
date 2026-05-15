@@ -29,6 +29,7 @@ const (
 	RoleSwitch             Role = "AXSwitch"
 	RoleDisclosureTriangle Role = "AXDisclosureTriangle"
 	RoleTextArea           Role = "AXTextArea"
+	RoleComboBox           Role = "AXComboBox"
 	RolePopover            Role = "AXPopover"
 	RoleSheet              Role = "AXSheet"
 	RoleMenu               Role = "AXMenu"
