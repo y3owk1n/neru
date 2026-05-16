@@ -12,7 +12,6 @@ func MenuBarClickableElements(
 	logger *zap.Logger,
 	configProvider config.Provider,
 	strictFiltering bool,
-	bypassCache bool,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
 
@@ -95,7 +94,6 @@ func ClickableElementsFromBundleID(
 	logger *zap.Logger,
 	configProvider config.Provider,
 	strictFiltering bool,
-	bypassCache bool,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for bundle ID",
 		zap.String("bundle_id", bundleID),
