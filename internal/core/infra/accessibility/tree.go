@@ -221,6 +221,7 @@ func (o *TreeOptions) SetStrictFiltering(strict bool) {
 func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{
 		filterFunc:         nil,
+		strictFiltering:    false,
 		includeOutOfBounds: false,
 		parallelThreshold:  config.DefaultParallelThreshold,
 		maxParallelDepth:   config.DefaultMaxParallelDepth,
