@@ -444,75 +444,75 @@ int hasClickAction(void *element) {
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
 
-	CFArrayRef initialAttrs = CFArrayCreate(
-	    NULL,
-	    (const void **)(CFTypeRef[]){
-	        kAXHiddenAttribute,
-	        kAXEnabledAttribute,
-	        kAXRoleAttribute,
-	        kAXFocusableAttribute,
-	    },
-	    4, &kCFTypeArrayCallBacks);
+	CFTypeRef attrs[] = {kAXHiddenAttribute, kAXEnabledAttribute, kAXRoleAttribute, kAXFocusableAttribute};
 
-	if (!initialAttrs)
+	CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 4, &kCFTypeArrayCallBacks);
+
+	if (!attrArray)
 		return 0;
 
-	CFArrayRef initialValues = NULL;
-	AXError batchError = AXUIElementCopyMultipleAttributeValues(axElement, initialAttrs, 0, &initialValues);
-	CFRelease(initialAttrs);
+	CFArrayRef values = NULL;
+
+	AXError err = AXUIElementCopyMultipleAttributeValues(axElement, attrArray, 0, &values);
+
+	CFRelease(attrArray);
 
 	bool isHidden = false;
-	bool isEnabled = true;
+	bool explicitlyDisabled = false;
+	bool hasEnabledAttribute = false;
 	bool isFocusable = false;
 	CFStringRef role = NULL;
 
-	if (batchError == kAXErrorSuccess && initialValues) {
-		CFIndex count = CFArrayGetCount(initialValues);
+	if (err == kAXErrorSuccess && values) {
+		CFIndex count = CFArrayGetCount(values);
 
-		if (count > 0) {
-			CFTypeRef hidden = (CFTypeRef)CFArrayGetValueAtIndex(initialValues, 0);
-			if (hidden && CFGetTypeID(hidden) == CFBooleanGetTypeID()) {
-				isHidden = CFBooleanGetValue((CFBooleanRef)hidden);
+		for (CFIndex i = 0; i < count && i < 4; i++) {
+			CFTypeRef value = CFArrayGetValueAtIndex(values, i);
+			CFTypeRef attr = attrs[i];
+
+			if (!value)
+				continue;
+
+			// AXHidden
+			if (attr == kAXHiddenAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
+				isHidden = CFBooleanGetValue((CFBooleanRef)value);
 			}
-		}
 
-		if (count > 1 && !isHidden) {
-			CFTypeRef enabled = (CFTypeRef)CFArrayGetValueAtIndex(initialValues, 1);
-			if (enabled && CFGetTypeID(enabled) == CFBooleanGetTypeID()) {
-				isEnabled = CFBooleanGetValue((CFBooleanRef)enabled);
+			// AXEnabled
+			else if (attr == kAXEnabledAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
+				hasEnabledAttribute = true;
+				explicitlyDisabled = !CFBooleanGetValue((CFBooleanRef)value);
 			}
-		}
 
-		if (count > 2 && isEnabled && !isHidden) {
-			CFTypeRef roleVal = (CFTypeRef)CFArrayGetValueAtIndex(initialValues, 2);
-			if (roleVal && CFGetTypeID(roleVal) == CFStringGetTypeID()) {
-				role = (CFStringRef)roleVal;
+			// AXRole
+			else if (attr == kAXRoleAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
+				role = (CFStringRef)value;
 				CFRetain(role);
 			}
-		}
 
-		if (count > 3 && isEnabled && !isHidden) {
-			CFTypeRef focusableVal = (CFTypeRef)CFArrayGetValueAtIndex(initialValues, 3);
-			if (focusableVal && CFGetTypeID(focusableVal) == CFBooleanGetTypeID()) {
-				isFocusable = CFBooleanGetValue((CFBooleanRef)focusableVal);
+			// AXFocusable
+			else if (attr == kAXFocusableAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
+				isFocusable = CFBooleanGetValue((CFBooleanRef)value);
 			}
 		}
 
-		CFRelease(initialValues);
+		CFRelease(values);
 	}
 
 	if (isHidden)
 		return 0;
 
-	if (!isEnabled)
-		return 0;
-
-	// Explicit actions are the strongest signal
+	// Explicit actions are the strongest signal, so we check for them first
 	CFArrayRef actions = NULL;
 	if (AXUIElementCopyActionNames(axElement, &actions) == kAXErrorSuccess && actions) {
 		CFIndex count = CFArrayGetCount(actions);
+
 		for (CFIndex i = 0; i < count; i++) {
 			CFStringRef action = (CFStringRef)CFArrayGetValueAtIndex(actions, i);
+
+			if (!action)
+				continue;
+
 			if (CFStringCompare(action, kAXPressAction, 0) == kCFCompareEqualTo ||
 			    CFStringCompare(action, CFSTR("AXScrollToVisible"), 0) == kCFCompareEqualTo ||
 			    CFStringCompare(action, CFSTR("AXShowMenu"), 0) == kCFCompareEqualTo ||
@@ -520,11 +520,20 @@ int hasClickAction(void *element) {
 			    CFStringCompare(action, CFSTR("AXPick"), 0) == kCFCompareEqualTo ||
 			    CFStringCompare(action, CFSTR("AXRaise"), 0) == kCFCompareEqualTo) {
 				CFRelease(actions);
+
+				// If element is explicitly disabled, it is not clickable
+				if (hasEnabledAttribute && explicitlyDisabled) {
+					if (role)
+						CFRelease(role);
+					return 0;
+				}
+
 				if (role)
 					CFRelease(role);
 				return 1;
 			}
 		}
+
 		CFRelease(actions);
 	}
 
