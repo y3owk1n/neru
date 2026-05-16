@@ -553,6 +553,10 @@ int hasClickAction(void *element) {
 			// Override: macOS widgets (Notification Center, desktop) use AXGroup but are
 			// inherently interactive. Detected via locale-safe AXIdentifier `widget-local:` prefix.
 			if (isWidget) {
+				if (hasEnabledAttribute && explicitlyDisabled) {
+					CFRelease(role);
+					return 0;
+				}
 				CFRelease(role);
 				return 1;
 			}
