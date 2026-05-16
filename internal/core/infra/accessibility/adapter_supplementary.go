@@ -192,11 +192,17 @@ func (a *Adapter) addNotificationCenterElements(
 
 	a.logger.Debug("Adding notification center elements")
 
+	// Lots of notification roles are AXGroup, so we need to enable it here
+	originalRoles := a.client.ClickableRoles()
+	ncRoles := make([]string, len(originalRoles)+1)
+	copy(ncRoles, originalRoles)
+	ncRoles[len(originalRoles)] = string(element.RoleGroup)
+
 	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(
 		ncBundleID,
-		nil,
+		ncRoles,
 		false,
-		false,
+		true,
 	)
 	if ncNodesErr != nil {
 		a.logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))

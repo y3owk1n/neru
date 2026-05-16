@@ -514,6 +514,7 @@ int hasClickAction(void *element) {
 		for (CFIndex i = 0; i < count; i++) {
 			CFStringRef action = (CFStringRef)CFArrayGetValueAtIndex(actions, i);
 			if (CFStringCompare(action, kAXPressAction, 0) == kCFCompareEqualTo ||
+			    CFStringCompare(action, CFSTR("AXScrollToVisible"), 0) == kCFCompareEqualTo ||
 			    CFStringCompare(action, CFSTR("AXShowMenu"), 0) == kCFCompareEqualTo ||
 			    CFStringCompare(action, CFSTR("AXConfirm"), 0) == kCFCompareEqualTo ||
 			    CFStringCompare(action, CFSTR("AXPick"), 0) == kCFCompareEqualTo ||
@@ -525,6 +526,18 @@ int hasClickAction(void *element) {
 			}
 		}
 		CFRelease(actions);
+	}
+
+	// Exclude known container/structural roles
+	// We exclude it here instead of on golang side because we still need to ensure if it has certain AXAction first
+	// above.
+	if (role) {
+		if (CFStringCompare(role, kAXScrollAreaRole, 0) == kCFCompareEqualTo ||
+		    CFStringCompare(role, kAXGroupRole, 0) == kCFCompareEqualTo ||
+		    CFStringCompare(role, kAXSplitGroupRole, 0) == kCFCompareEqualTo) {
+			CFRelease(role);
+			return 0;
+		}
 	}
 
 	// Some elements support AXPress even if not listed in action names
