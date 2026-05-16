@@ -445,7 +445,7 @@ int hasClickAction(void *element) {
 	AXUIElementRef axElement = (AXUIElementRef)element;
 
 	CFTypeRef attrs[] = {
-	    kAXHiddenAttribute, kAXEnabledAttribute, kAXRoleAttribute, kAXFocusableAttribute, kAXRoleDescriptionAttribute};
+	    kAXHiddenAttribute, kAXEnabledAttribute, kAXRoleAttribute, kAXFocusableAttribute, kAXIdentifierAttribute};
 
 	CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 5, &kCFTypeArrayCallBacks);
 
@@ -497,9 +497,9 @@ int hasClickAction(void *element) {
 				isFocusable = CFBooleanGetValue((CFBooleanRef)value);
 			}
 
-			// AXRoleDescription
-			else if (attr == kAXRoleDescriptionAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
-				isWidget = (CFStringCompare((CFStringRef)value, CFSTR("widget"), 0) == kCFCompareEqualTo);
+			// AXIdentifier (locale-safe: checks for the `widget-local:` prefix used by all macOS widgets)
+			else if (attr == kAXIdentifierAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
+				isWidget = CFStringHasPrefix((CFStringRef)value, CFSTR("widget-local:"));
 			}
 		}
 
@@ -550,8 +550,8 @@ int hasClickAction(void *element) {
 		if (CFStringCompare(role, kAXScrollAreaRole, 0) == kCFCompareEqualTo ||
 		    CFStringCompare(role, kAXGroupRole, 0) == kCFCompareEqualTo ||
 		    CFStringCompare(role, kAXSplitGroupRole, 0) == kCFCompareEqualTo) {
-			// Override: macOS Notification Center widgets, desktop widgets, etc. use AXGroup
-			// but are inherently interactive elements that respond to clicks.
+			// Override: macOS widgets (Notification Center, desktop) use AXGroup but are
+			// inherently interactive. Detected via locale-safe AXIdentifier `widget-local:` prefix.
 			if (isWidget) {
 				CFRelease(role);
 				return 1;
