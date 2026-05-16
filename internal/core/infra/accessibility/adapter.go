@@ -176,6 +176,7 @@ func (a *Adapter) ClickableElements(
 						window,
 						stringRoles(filter.Roles),
 						filter.StrictFiltering,
+						filter.IncludeOutOfBounds,
 					)
 					if clickableNodesErr != nil {
 						window.Release()

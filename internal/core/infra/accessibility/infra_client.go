@@ -88,6 +88,7 @@ func (c *InfraAXClient) ClickableNodes(
 	root AXElement,
 	roles []string,
 	strictFiltering bool,
+	includeOutOfBounds bool,
 ) ([]AXNode, error) {
 	var element *Element
 
@@ -106,7 +107,7 @@ func (c *InfraAXClient) ClickableNodes(
 
 	opts := DefaultTreeOptions(c.logger)
 	opts.SetStrictFiltering(strictFiltering)
-	opts.SetIncludeOutOfBounds(!strictFiltering)
+	opts.SetIncludeOutOfBounds(includeOutOfBounds)
 
 	// Enable strict filtering for Chromium/Electron apps which have noisy DOM trees
 	bundleID := element.BundleIdentifier()
@@ -179,11 +180,13 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 // MenuBarClickableElements returns clickable elements in the menu bar.
 func (c *InfraAXClient) MenuBarClickableElements(
 	strictFiltering bool,
+	includeOutOfBounds bool,
 ) ([]AXNode, error) {
 	nodes, nodesErr := MenuBarClickableElements(
 		c.logger,
 		c.configProvider,
 		strictFiltering,
+		includeOutOfBounds,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
@@ -210,6 +213,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 	strictFiltering bool,
+	includeOutOfBounds bool,
 ) ([]AXNode, error) {
 	nodes, nodesErr := ClickableElementsFromBundleID(
 		bundleID,
@@ -217,6 +221,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 		c.logger,
 		c.configProvider,
 		strictFiltering,
+		includeOutOfBounds,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(

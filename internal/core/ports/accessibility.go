@@ -66,6 +66,9 @@ type ElementFilter struct {
 	// StrictFiltering enables strict filtering.
 	StrictFiltering bool
 
+	// IncludeOutOfBounds enables including elements outside the screen bounds.
+	IncludeOutOfBounds bool
+
 	// MinSize specifies the minimum element size to include.
 	MinSize image.Point
 
@@ -123,6 +126,8 @@ type ElementFilter struct {
 func DefaultElementFilter() ElementFilter {
 	return ElementFilter{
 		MinSize:                   image.Point{X: 1, Y: 1},
+		StrictFiltering:           false,
+		IncludeOutOfBounds:        false,
 		IncludeMenubar:            false,
 		AdditionalMenubarTargets:  []string{},
 		IncludeDock:               false,

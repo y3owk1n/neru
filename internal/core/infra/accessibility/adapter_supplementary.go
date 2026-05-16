@@ -27,7 +27,7 @@ func (a *Adapter) addMenubarElements(
 	menubarRoles[len(originalRoles)] = string(element.RoleMenuBarItem)
 
 	// Get menubar elements
-	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(false)
+	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(false, false)
 	if menubarNodesErr != nil {
 		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {
@@ -63,6 +63,7 @@ func (a *Adapter) addMenubarElements(
 				bundleID,
 				menubarRoles,
 				false,
+				true,
 			)
 			if err != nil {
 				a.logger.Warn("Failed to get additional menubar elements",
@@ -156,7 +157,7 @@ func (a *Adapter) addDockElements(
 	}
 
 	// Build tree and find clickable elements
-	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, dockRoles, false)
+	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, dockRoles, false, true)
 	if dockNodesErr != nil {
 		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
 
@@ -201,6 +202,7 @@ func (a *Adapter) addNotificationCenterElements(
 		ncBundleID,
 		ncRoles,
 		false,
+		true,
 	)
 	if ncNodesErr != nil {
 		a.logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))
@@ -260,7 +262,7 @@ func (a *Adapter) addStageManagerElements(
 	}
 
 	// Build tree and find clickable elements
-	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, nil, false)
+	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, nil, false, true)
 	if wmNodesErr != nil {
 		a.logger.Warn("Failed to get window manager elements", zap.Error(wmNodesErr))
 
@@ -297,6 +299,7 @@ func (a *Adapter) addPIPElements(
 		pipBundleID,
 		nil,
 		false,
+		true,
 	)
 	if pipNodesErr != nil {
 		a.logger.Warn("Failed to get Picture in Picture elements", zap.Error(pipNodesErr))
@@ -334,6 +337,7 @@ func (a *Adapter) addScreenCaptureElements(
 		screenCaptureBundleID,
 		nil,
 		false,
+		true,
 	)
 	if screenCaptureNodesErr != nil {
 		a.logger.Warn("Failed to get Screen Capture elements", zap.Error(screenCaptureNodesErr))
