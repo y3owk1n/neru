@@ -76,6 +76,7 @@ clickable_roles = [
     "AXMenuItem",
     "AXCell",
     "AXRow",
+	"AXGenericElement",
 ]
 ignore_clickable_check = false
 

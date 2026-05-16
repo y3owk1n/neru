@@ -28,5 +28,6 @@ func applyPlatformDefaults(cfg *Config) {
 		"AXMenuItem",
 		"AXCell",
 		"AXRow",
+		"AXGenericElement",
 	)
 }
