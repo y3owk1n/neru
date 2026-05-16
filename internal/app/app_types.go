@@ -87,7 +87,6 @@ type App struct {
 	// Lifecycle management
 	gcCancel         context.CancelFunc
 	gcAggressiveMode bool
-	axCacheStop      func() // stops the accessibility InfoCache cleanup goroutine
 
 	// State subscriptions
 	screenShareSubscriptionID uint64

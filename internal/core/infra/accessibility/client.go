@@ -29,14 +29,12 @@ type AXClient interface {
 		root AXElement,
 		roles []string,
 		strictFiltering bool,
-		bypassCache bool,
 	) ([]AXNode, error)
-	MenuBarClickableElements(strictFiltering bool, bypassCache bool) ([]AXNode, error)
+	MenuBarClickableElements(strictFiltering bool) ([]AXNode, error)
 	ClickableElementsFromBundleID(
 		bundleID string,
 		roles []string,
 		strictFiltering bool,
-		bypassCache bool,
 	) ([]AXNode, error)
 	ActiveScreenBounds() image.Rectangle
 
@@ -56,9 +54,6 @@ type AXClient interface {
 	SetClickableRoles(roles []string)
 	ClickableRoles() []string
 	IsMissionControlActive() bool
-
-	// Cache
-	ClearCache()
 }
 
 // AXAppInfo contains information about an application.

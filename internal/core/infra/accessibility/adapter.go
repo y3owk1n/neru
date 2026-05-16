@@ -176,7 +176,6 @@ func (a *Adapter) ClickableElements(
 						window,
 						stringRoles(filter.Roles),
 						filter.StrictFiltering,
-						false,
 					)
 					if clickableNodesErr != nil {
 						window.Release()
@@ -432,14 +431,6 @@ func (a *Adapter) Health(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// ClearCache removes all cached element information from the accessibility cache.
-// This ensures fresh position data is fetched on the next query, which is
-// necessary after the user scrolls (element positions change but cached
-// ElementInfo still holds the pre-scroll coordinates).
-func (a *Adapter) ClearCache() {
-	a.client.ClearCache()
 }
 
 // UpdateClickableRoles updates the list of clickable roles.

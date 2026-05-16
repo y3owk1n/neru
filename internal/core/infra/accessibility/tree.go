@@ -144,7 +144,6 @@ func (n *TreeNode) AddChild(child *TreeNode) {
 type TreeOptions struct {
 	filterFunc         func(*ElementInfo) bool
 	includeOutOfBounds bool
-	cache              *InfoCache
 	parallelThreshold  int
 	maxParallelDepth   int
 	maxDepth           int
@@ -161,11 +160,6 @@ func (o *TreeOptions) FilterFunc() func(*ElementInfo) bool {
 // IncludeOutOfBounds returns whether to include out of bounds elements.
 func (o *TreeOptions) IncludeOutOfBounds() bool {
 	return o.includeOutOfBounds
-}
-
-// Cache returns the info cache.
-func (o *TreeOptions) Cache() *InfoCache {
-	return o.cache
 }
 
 // ParallelThreshold returns the parallel threshold.
@@ -208,11 +202,6 @@ func (o *TreeOptions) SetIncludeOutOfBounds(include bool) {
 	o.includeOutOfBounds = include
 }
 
-// SetCache sets the info cache.
-func (o *TreeOptions) SetCache(cache *InfoCache) {
-	o.cache = cache
-}
-
 // SetMaxDepth sets the max depth for tree traversal.
 func (o *TreeOptions) SetMaxDepth(depth int) {
 	o.maxDepth = depth
@@ -229,13 +218,10 @@ func (o *TreeOptions) SetStrictFiltering(strict bool) {
 }
 
 // DefaultTreeOptions returns default tree traversal options.
-// Note: cache is nil by default; callers must set it via SetCache before
-// passing opts to BuildTree (which requires a non-nil cache).
 func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{
 		filterFunc:         nil,
 		includeOutOfBounds: false,
-		cache:              nil,
 		parallelThreshold:  config.DefaultParallelThreshold,
 		maxParallelDepth:   config.DefaultMaxParallelDepth,
 		maxDepth:           config.DefaultMaxDepth,
@@ -283,25 +269,11 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 		return nil, errRootElementNil
 	}
 
-	// Ensure a cache is always available to avoid nil dereferences in traversal.
-	if opts.cache == nil {
-		return nil, derrors.New(
-			derrors.CodeAccessibilityFailed,
-			"opts.cache must not be nil; use DefaultTreeOptions()",
-		)
-	}
+	info, infoErr := root.Info()
+	if infoErr != nil {
+		opts.Logger().Warn("Failed to get root element info", zap.Error(infoErr))
 
-	// Try to get from cache first
-	info := opts.cache.Get(root)
-	if info == nil {
-		var infoErr error
-		info, infoErr = root.Info()
-		if infoErr != nil {
-			opts.Logger().Warn("Failed to get root element info", zap.Error(infoErr))
-
-			return nil, infoErr
-		}
-		opts.cache.Set(root, info)
+		return nil, infoErr
 	}
 
 	if info == nil {
@@ -410,14 +382,13 @@ func buildTreeRecursive(
 	var children []*Element
 	if interactiveLeafRoles[element.Role(parent.info.Role())] {
 		var childrenErr error
-		children, childrenErr = parent.element.Children(opts.cache)
+		children, childrenErr = parent.element.Children()
 		hasImportantContainer := false
 		if childrenErr == nil && len(children) > 0 {
 			for _, child := range children {
-				childInfo := opts.cache.Get(child)
-				if childInfo == nil {
-					childInfo, _ = child.Info()
-					opts.cache.Set(child, childInfo)
+				childInfo, infoErr := child.Info()
+				if infoErr != nil {
+					continue
 				}
 				if childInfo != nil && importantContainerRoles[element.Role(childInfo.Role())] {
 					hasImportantContainer = true
@@ -446,7 +417,7 @@ func buildTreeRecursive(
 		// Reuse children slice for traversal below, skip the second Children() call.
 	} else {
 		var err error
-		children, err = parent.element.Children(opts.cache)
+		children, err = parent.element.Children()
 		if err != nil || len(children) == 0 {
 			if opts.stats != nil {
 				if err != nil {
@@ -486,20 +457,14 @@ func buildChildrenSequential(
 	validChildren := make([]childData, 0, len(children))
 
 	for _, child := range children {
-		// Try cache first
-		info := opts.cache.Get(child)
-		if info == nil {
-			var err error
-			info, err = child.Info()
-			if err != nil {
-				if opts.stats != nil {
-					opts.stats.childErrors.Add(1)
-				}
-				child.Release()
-
-				continue
+		info, err := child.Info()
+		if err != nil {
+			if opts.stats != nil {
+				opts.stats.childErrors.Add(1)
 			}
-			opts.cache.Set(child, info)
+			child.Release()
+
+			continue
 		}
 
 		if !shouldIncludeElement(info, opts, windowBounds) {
@@ -558,23 +523,17 @@ func buildChildrenParallel(
 		go func(idx int, elem *Element) {
 			defer waitGroup.Done()
 
-			// Try cache first (cache must be thread-safe!)
-			info := opts.cache.Get(elem)
-			if info == nil {
-				var err error
-				info, err = elem.Info()
-				if err != nil {
-					if opts.stats != nil {
-						opts.stats.childErrors.Add(1)
-					}
-
-					elem.Release()
-
-					results <- childResult{node: nil, index: idx, err: err}
-
-					return
+			info, err := elem.Info()
+			if err != nil {
+				if opts.stats != nil {
+					opts.stats.childErrors.Add(1)
 				}
-				opts.cache.Set(elem, info)
+
+				elem.Release()
+
+				results <- childResult{node: nil, index: idx, err: err}
+
+				return
 			}
 
 			if !shouldIncludeElement(info, opts, windowBounds) {
@@ -698,7 +657,6 @@ func shouldIncludeElement(
 // FindClickableElements finds all clickable elements in the tree.
 func (n *TreeNode) FindClickableElements(
 	allowedRoles map[string]struct{},
-	cache *InfoCache,
 	configProvider config.Provider,
 	ignoreClickableCheck bool,
 ) []*TreeNode {
@@ -707,7 +665,6 @@ func (n *TreeNode) FindClickableElements(
 		if node.element.IsClickable(
 			node.info,
 			allowedRoles,
-			cache,
 			configProvider,
 			ignoreClickableCheck,
 		) {

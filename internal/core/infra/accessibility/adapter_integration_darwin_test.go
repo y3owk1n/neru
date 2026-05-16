@@ -26,8 +26,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	}
 
 	log := logger.Get()
-	client := accessibility.NewInfraAXClient(log, nil, nil)
-	t.Cleanup(func() { client.Cache().Stop() })
+	client := accessibility.NewInfraAXClient(log, nil)
 
 	adapter := accessibility.NewAdapter(log, nil, nil, client, false)
 	system := darwinplatform.NewSystemAdapter()

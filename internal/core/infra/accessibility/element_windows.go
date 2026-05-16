@@ -39,7 +39,6 @@ func (e *Element) MenuBar() *Element { return nil }
 func (e *Element) IsClickable(
 	_ *ElementInfo,
 	_ map[string]struct{},
-	_ *InfoCache,
 	_ config.Provider,
 	_ bool,
 ) bool {

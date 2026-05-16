@@ -88,7 +88,6 @@ func (m *MockAXClient) ClickableNodes(
 	_ AXElement,
 	roles []string,
 	_ bool,
-	_ bool,
 ) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastClickableNodesRoles = roles
@@ -99,7 +98,7 @@ func (m *MockAXClient) ClickableNodes(
 }
 
 // MenuBarClickableElements returns the configured menu bar nodes or error.
-func (m *MockAXClient) MenuBarClickableElements(strictFiltering bool, _ bool) ([]AXNode, error) {
+func (m *MockAXClient) MenuBarClickableElements(strictFiltering bool) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastMenuBarStrictFiltering = strictFiltering
 	m.mu.Unlock()
@@ -112,7 +111,6 @@ func (m *MockAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 	strictFiltering bool,
-	_ bool,
 ) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastCalledBundleID = bundleID
@@ -175,11 +173,6 @@ func (m *MockAXClient) ClickableRoles() []string {
 // IsMissionControlActive returns the configured Mission Control state.
 func (m *MockAXClient) IsMissionControlActive() bool {
 	return m.MockMissionControlActive
-}
-
-// ClearCache is a no-op for mock.
-func (m *MockAXClient) ClearCache() {
-	// No-op
 }
 
 // Mock implementations for Window, App, Node
