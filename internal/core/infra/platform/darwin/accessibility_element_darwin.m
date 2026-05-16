@@ -432,6 +432,7 @@ static CFStringRef kAXLinkRole = CFSTR("AXLink");
 static CFStringRef kAXCheckboxRole = CFSTR("AXCheckBox");
 static CFStringRef kAXFocusableAttribute = CFSTR("AXFocusable");
 static CFStringRef kAXVisibleAttribute = CFSTR("AXVisible");
+static CFStringRef kAXWidgetIdentifierPrefix = CFSTR("widget-local:");
 
 #pragma mark - Click Action Functions
 
@@ -497,9 +498,10 @@ int hasClickAction(void *element) {
 				isFocusable = CFBooleanGetValue((CFBooleanRef)value);
 			}
 
-			// AXIdentifier (locale-safe: checks for the `widget-local:` prefix used by all macOS widgets)
+			// AXIdentifier: checks for the `widget-local:` prefix (internal Apple convention,
+			// verified on macOS 14/15) used by all macOS Notification Center and desktop widgets.
 			else if (attr == kAXIdentifierAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
-				isWidget = CFStringHasPrefix((CFStringRef)value, CFSTR("widget-local:"));
+				isWidget = CFStringHasPrefix((CFStringRef)value, kAXWidgetIdentifierPrefix);
 			}
 		}
 
@@ -550,8 +552,7 @@ int hasClickAction(void *element) {
 		if (CFStringCompare(role, kAXScrollAreaRole, 0) == kCFCompareEqualTo ||
 		    CFStringCompare(role, kAXGroupRole, 0) == kCFCompareEqualTo ||
 		    CFStringCompare(role, kAXSplitGroupRole, 0) == kCFCompareEqualTo) {
-			// Override: macOS widgets (Notification Center, desktop) use AXGroup but are
-			// inherently interactive. Detected via locale-safe AXIdentifier `widget-local:` prefix.
+			// Override: macOS widgets use AXGroup but are inherently interactive.
 			if (isWidget) {
 				if (hasEnabledAttribute && explicitlyDisabled) {
 					CFRelease(role);
