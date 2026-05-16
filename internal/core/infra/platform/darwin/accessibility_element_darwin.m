@@ -444,9 +444,10 @@ int hasClickAction(void *element) {
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
 
-	CFTypeRef attrs[] = {kAXHiddenAttribute, kAXEnabledAttribute, kAXRoleAttribute, kAXFocusableAttribute};
+	CFTypeRef attrs[] = {
+	    kAXHiddenAttribute, kAXEnabledAttribute, kAXRoleAttribute, kAXFocusableAttribute, kAXRoleDescriptionAttribute};
 
-	CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 4, &kCFTypeArrayCallBacks);
+	CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 5, &kCFTypeArrayCallBacks);
 
 	if (!attrArray)
 		return 0;
@@ -461,12 +462,13 @@ int hasClickAction(void *element) {
 	bool explicitlyDisabled = false;
 	bool hasEnabledAttribute = false;
 	bool isFocusable = false;
+	bool isWidget = false;
 	CFStringRef role = NULL;
 
 	if (err == kAXErrorSuccess && values) {
 		CFIndex count = CFArrayGetCount(values);
 
-		for (CFIndex i = 0; i < count && i < 4; i++) {
+		for (CFIndex i = 0; i < count && i < 5; i++) {
 			CFTypeRef value = CFArrayGetValueAtIndex(values, i);
 			CFTypeRef attr = attrs[i];
 
@@ -494,6 +496,11 @@ int hasClickAction(void *element) {
 			else if (attr == kAXFocusableAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
 				isFocusable = CFBooleanGetValue((CFBooleanRef)value);
 			}
+
+			// AXRoleDescription
+			else if (attr == kAXRoleDescriptionAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
+				isWidget = (CFStringCompare((CFStringRef)value, CFSTR("widget"), 0) == kCFCompareEqualTo);
+			}
 		}
 
 		CFRelease(values);
@@ -514,7 +521,6 @@ int hasClickAction(void *element) {
 				continue;
 
 			if (CFStringCompare(action, kAXPressAction, 0) == kCFCompareEqualTo ||
-			    CFStringCompare(action, CFSTR("AXScrollToVisible"), 0) == kCFCompareEqualTo ||
 			    CFStringCompare(action, CFSTR("AXShowMenu"), 0) == kCFCompareEqualTo ||
 			    CFStringCompare(action, CFSTR("AXConfirm"), 0) == kCFCompareEqualTo ||
 			    CFStringCompare(action, CFSTR("AXPick"), 0) == kCFCompareEqualTo ||
@@ -544,6 +550,13 @@ int hasClickAction(void *element) {
 		if (CFStringCompare(role, kAXScrollAreaRole, 0) == kCFCompareEqualTo ||
 		    CFStringCompare(role, kAXGroupRole, 0) == kCFCompareEqualTo ||
 		    CFStringCompare(role, kAXSplitGroupRole, 0) == kCFCompareEqualTo) {
+			// Override: macOS Notification Center widgets, desktop widgets, etc. use AXGroup
+			// but are inherently interactive elements that respond to clicks.
+			if (isWidget) {
+				CFRelease(role);
+				return 1;
+			}
+
 			CFRelease(role);
 			return 0;
 		}
