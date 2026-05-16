@@ -260,9 +260,8 @@ func initializeRealAdapters(
 ) (ports.AccessibilityPort, ports.OverlayPort, ports.SystemPort) {
 	t.Helper()
 
-	// Create infrastructure client (nil cache = use default)
-	axClient := accessibility.NewInfraAXClient(logger, nil, nil)
-	t.Cleanup(func() { axClient.Cache().Stop() })
+	// Create infrastructure client
+	axClient := accessibility.NewInfraAXClient(logger, nil)
 
 	// Create base accessibility adapter
 	accAdapter := accessibility.NewAdapter(

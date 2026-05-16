@@ -15,35 +15,22 @@ import (
 // InfraAXClient implements AXClient using the infrastructure layer.
 type InfraAXClient struct {
 	logger         *zap.Logger
-	cache          *InfoCache
 	configProvider config.Provider
 }
 
 // NewInfraAXClient creates a new infrastructure-based AXClient.
-// If cache is nil, a default InfoCache is created automatically.
 func NewInfraAXClient(
 	logger *zap.Logger,
-	cache *InfoCache,
 	configProvider config.Provider,
 ) *InfraAXClient {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	if cache == nil {
-		cache = NewInfoCache(logger)
-	}
-
 	return &InfraAXClient{
 		logger:         logger,
-		cache:          cache,
 		configProvider: configProvider,
 	}
-}
-
-// Cache returns the InfoCache used by this client.
-func (c *InfraAXClient) Cache() *InfoCache {
-	return c.cache
 }
 
 // FrontmostWindow returns the frontmost window.
@@ -118,15 +105,7 @@ func (c *InfraAXClient) ClickableNodes(
 		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
 	}
 
-	var cache *InfoCache
-	if bypassCache {
-		cache = NewInfoCache(c.logger)
-	} else {
-		cache = c.cache
-	}
-
 	opts := DefaultTreeOptions(c.logger)
-	opts.SetCache(cache)
 	opts.SetStrictFiltering(strictFiltering)
 	opts.SetIncludeOutOfBounds(!strictFiltering)
 
@@ -167,7 +146,6 @@ func (c *InfraAXClient) ClickableNodes(
 
 	clickableNodes := tree.FindClickableElements(
 		allowedRoles,
-		cache,
 		c.configProvider,
 		ignoreClickableCheck,
 	)
@@ -182,7 +160,6 @@ func (c *InfraAXClient) ClickableNodes(
 		clickableNodesResult[i] = &InfraNode{
 			node:           node,
 			clickable:      true,
-			cache:          cache,
 			configProvider: c.configProvider,
 		}
 	}
@@ -207,7 +184,6 @@ func (c *InfraAXClient) MenuBarClickableElements(
 ) ([]AXNode, error) {
 	nodes, nodesErr := MenuBarClickableElements(
 		c.logger,
-		c.cache,
 		c.configProvider,
 		strictFiltering,
 		bypassCache,
@@ -225,7 +201,6 @@ func (c *InfraAXClient) MenuBarClickableElements(
 		nodesResult[index] = &InfraNode{
 			node:           node,
 			clickable:      true,
-			cache:          c.cache,
 			configProvider: c.configProvider,
 		}
 	}
@@ -244,7 +219,6 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 		bundleID,
 		roles,
 		c.logger,
-		c.cache,
 		c.configProvider,
 		strictFiltering,
 		bypassCache,
@@ -262,7 +236,6 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 		nodesResult[index] = &InfraNode{
 			node:           node,
 			clickable:      true,
-			cache:          c.cache,
 			configProvider: c.configProvider,
 		}
 	}
@@ -363,11 +336,6 @@ func (c *InfraAXClient) IsMissionControlActive() bool {
 	return IsMissionControlActive()
 }
 
-// ClearCache removes all entries from the element info cache.
-func (c *InfraAXClient) ClearCache() {
-	c.cache.Clear()
-}
-
 // Wrappers
 
 // InfraWindow wraps an Window.
@@ -436,7 +404,6 @@ func (a *InfraApp) Info() (*AXAppInfo, error) {
 type InfraNode struct {
 	node           *TreeNode
 	clickable      bool
-	cache          *InfoCache
 	configProvider config.Provider
 }
 
@@ -522,7 +489,7 @@ func (n *InfraNode) IsClickable() bool {
 		return false
 	}
 
-	return n.node.Element().IsClickable(n.node.Info(), nil, n.cache, n.configProvider, false)
+	return n.node.Element().IsClickable(n.node.Info(), nil, n.configProvider, false)
 }
 
 // Release releases the underlying AXUIElementRef held by this node.

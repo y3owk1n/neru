@@ -299,7 +299,7 @@ func (e *Element) Info() (*ElementInfo, error) {
 }
 
 // Children returns all child elements of this element.
-func (e *Element) Children(cache *InfoCache) ([]*Element, error) {
+func (e *Element) Children() ([]*Element, error) {
 	if e.ref == nil {
 		return nil, errGetChildrenNil
 	}
@@ -307,24 +307,13 @@ func (e *Element) Children(cache *InfoCache) ([]*Element, error) {
 	var count C.int
 	var rawChildren unsafe.Pointer
 
-	var info *ElementInfo
-	if cache != nil {
-		info = cache.Get(e)
-	}
-
-	if info == nil {
-		var err error
-		info, err = e.Info()
-		if err != nil {
-			return nil, derrors.Wrap(
-				err,
-				derrors.CodeAccessibilityFailed,
-				"failed to get element info",
-			)
-		}
-		if cache != nil {
-			cache.Set(e, info)
-		}
+	info, err := e.Info()
+	if err != nil {
+		return nil, derrors.Wrap(
+			err,
+			derrors.CodeAccessibilityFailed,
+			"failed to get element info",
+		)
 	}
 
 	if info != nil {
@@ -671,7 +660,6 @@ func CurrentCursorPosition() image.Point {
 func (e *Element) IsClickable(
 	info *ElementInfo,
 	allowedRoles map[string]struct{},
-	cache *InfoCache,
 	configProvider config.Provider,
 	ignoreClickableCheck bool,
 ) bool {
@@ -682,19 +670,9 @@ func (e *Element) IsClickable(
 	// If info is not provided, try to get it
 	if info == nil {
 		var infoErr error
-		// Try cache first if available
-		if cache != nil {
-			info = cache.Get(e)
-		}
-
-		if info == nil {
-			info, infoErr = e.Info()
-			if infoErr != nil {
-				return false
-			}
-			if cache != nil {
-				cache.Set(e, info)
-			}
+		info, infoErr = e.Info()
+		if infoErr != nil {
+			return false
 		}
 	}
 
@@ -723,20 +701,8 @@ func (e *Element) IsClickable(
 			}
 		}
 
-		// Try cache for isClickable result (only when using default roles)
-		if cache != nil && len(allowedRoles) == 0 && !ignoreClickableCheck {
-			if cached := cache.GetClickable(e); cached != nil {
-				return *cached
-			}
-		}
-
 		// Slow path: ambiguous or custom roles need full native verification
 		result := C.hasClickAction(e.ref) //nolint:nlreturn
-
-		// Cache the result for future lookups (only when using default roles)
-		if cache != nil && len(allowedRoles) == 0 && !ignoreClickableCheck {
-			cache.SetClickable(e, result == 1)
-		}
 
 		return result == 1
 	}

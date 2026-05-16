@@ -179,7 +179,7 @@ func (e *Element) Info() (*ElementInfo, error) {
 }
 
 // Children returns the element's children (Linux stub).
-func (e *Element) Children(_ *InfoCache) ([]*Element, error) { return []*Element{}, nil }
+func (e *Element) Children() ([]*Element, error) { return []*Element{}, nil }
 
 // SetFocus sets focus on the element (Linux stub).
 func (e *Element) SetFocus() error { return nil }
@@ -530,7 +530,6 @@ func CurrentCursorPosition() image.Point {
 func (e *Element) IsClickable(
 	_ *ElementInfo,
 	_ map[string]struct{},
-	_ *InfoCache,
 	_ config.Provider,
 	_ bool,
 ) bool {

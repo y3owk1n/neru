@@ -177,11 +177,6 @@ func (m *MockAXClient) IsMissionControlActive() bool {
 	return m.MockMissionControlActive
 }
 
-// ClearCache is a no-op for mock.
-func (m *MockAXClient) ClearCache() {
-	// No-op
-}
-
 // Mock implementations for Window, App, Node
 
 // MockWindow is a mock implementation of AXWindow.

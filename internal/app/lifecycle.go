@@ -551,11 +551,6 @@ func (a *App) Cleanup() {
 		if a.eventTap != nil {
 			a.eventTap.Destroy()
 		}
-		// Stop accessibility cache cleanup goroutine
-		if a.axCacheStop != nil {
-			a.axCacheStop()
-			a.axCacheStop = nil
-		}
 		// Sync and close logger
 		loggerSyncErr := logger.Sync()
 		if loggerSyncErr != nil {

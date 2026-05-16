@@ -75,20 +75,18 @@ func initializeAppWatcher(logger *zap.Logger) Watcher {
 }
 
 // initializeAdapters creates and initializes the accessibility and overlay adapters.
-// It also returns a stop function that should be called during shutdown to
-// terminate the accessibility cache's background goroutine.
 func initializeAdapters(
 	cfg *config.Config,
 	cfgService *config.Service,
 	logger *zap.Logger,
 	overlayManager OverlayManager,
 	systemPort ports.SystemPort,
-) (ports.AccessibilityPort, ports.OverlayPort, func()) {
+) (ports.AccessibilityPort, ports.OverlayPort) {
 	excludedBundles := cfg.General.ExcludedApps
 	clickableRoles := cfg.Hints.ClickableRoles
 
-	// Create infrastructure client (nil cache = use default)
-	axClient := accessibilityAdapter.NewInfraAXClient(logger, nil, cfgService)
+	// Create infrastructure client
+	axClient := accessibilityAdapter.NewInfraAXClient(logger, cfgService)
 
 	// Create base accessibility adapter with core functionality
 	accAdapter := accessibilityAdapter.NewAdapter(
@@ -107,9 +105,7 @@ func initializeAdapters(
 		logger,
 	)
 
-	axCache := axClient.Cache()
-
-	return accAdapter, overlayPort, func() { axCache.Stop() }
+	return accAdapter, overlayPort
 }
 
 // initializeServices creates and initializes the domain services.

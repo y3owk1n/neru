@@ -56,9 +56,6 @@ type AXClient interface {
 	SetClickableRoles(roles []string)
 	ClickableRoles() []string
 	IsMissionControlActive() bool
-
-	// Cache
-	ClearCache()
 }
 
 // AXAppInfo contains information about an application.
