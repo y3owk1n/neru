@@ -20,6 +20,7 @@ func NewScrollMode(handler *Handler) *ScrollMode {
 		},
 		ExitFunc: func(handler *Handler) {
 			handler.stopIndicatorPolling()
+			handler.stopHeldRepeatLocked()
 
 			handler.clearAndHideOverlay()
 

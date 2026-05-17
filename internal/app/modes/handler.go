@@ -122,6 +122,12 @@ type Handler struct {
 
 	// Cycle hint state
 	cycleHintIndex int
+
+	// heldRepeatingKey tracks which key is currently held for custom repeat.
+	// When non-empty, macOS native key-down events for this key are suppressed
+	// and a custom goroutine drives the repeat at heldRepeatInterval.
+	heldRepeatingKey    string
+	heldRepeatingCancel context.CancelFunc
 }
 
 // NewHandler creates a new mode handler.
@@ -836,4 +842,15 @@ func (h *Handler) focusedBundleID() string {
 	}
 
 	return bundleID
+}
+
+// stopHeldRepeatLocked cancels any running held-key repeat goroutine.
+// Caller must hold h.mu.
+func (h *Handler) stopHeldRepeatLocked() {
+	if h.heldRepeatingCancel != nil {
+		h.heldRepeatingCancel()
+		h.heldRepeatingCancel = nil
+	}
+
+	h.heldRepeatingKey = ""
 }

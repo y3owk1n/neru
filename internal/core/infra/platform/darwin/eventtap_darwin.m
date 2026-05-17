@@ -536,6 +536,19 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			return event;
 		}
 
+		if (type == kCGEventKeyUp) {
+			CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
+			NSString *keyName = specialKeyName(keyCode);
+			if (!keyName) {
+				keyName = keyCodeToCharacter(keyCode, 0);
+			}
+			if (keyName && context->callback) {
+				NSString *keyUpStr = [NSString stringWithFormat:@"__keyup_%@", keyName];
+				context->callback([keyUpStr UTF8String], context->userData);
+			}
+			return event;
+		}
+
 		return event;
 	}
 }
@@ -581,7 +594,7 @@ EventTap createEventTap(EventTapCallback callback, void *userData) {
 	context->pendingAddSourceBlock = nil;
 
 	// Create the event tap
-	CGEventMask eventMask = (1 << kCGEventKeyDown) | (1 << kCGEventFlagsChanged);
+	CGEventMask eventMask = (1 << kCGEventKeyDown) | (1 << kCGEventKeyUp) | (1 << kCGEventFlagsChanged);
 	context->eventTap = CGEventTapCreate(
 	    kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, eventMask, eventTapCallback, context);
 

@@ -297,6 +297,20 @@ func IsScrollSubAction(name string) bool {
 	}
 }
 
+// IsHeldRepeatAction reports whether the action name supports held-key repeat
+// (fires repeatedly while the key is held, with no initial delay).
+// Currently applies to scroll, page, and relative mouse move actions.
+func IsHeldRepeatAction(name Name) bool {
+	switch name { //nolint:exhaustive
+	case NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
+		NamePageUp, NamePageDown,
+		NameMoveMouseRelative:
+		return true
+	default:
+		return false
+	}
+}
+
 // ToName converts a Type to its corresponding Name.
 func (t Type) ToName() Name {
 	switch t {

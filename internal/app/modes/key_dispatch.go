@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -11,7 +12,12 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
-const hotkeySequenceTimeout = 500 * time.Millisecond
+const (
+	hotkeySequenceTimeout = 500 * time.Millisecond
+	heldRepeatInterval    = 50 * time.Millisecond
+)
+
+const keyUpPrefix = "__keyup_"
 
 const (
 	keyPartCmd    = "cmd"
@@ -25,6 +31,21 @@ const (
 func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	// Handle key-up events for held-key repeat suppression
+	if releasedKey, ok := strings.CutPrefix(key, keyUpPrefix); ok {
+		if releasedKey == h.heldRepeatingKey {
+			h.stopHeldRepeatLocked()
+		}
+
+		return
+	}
+
+	// Suppress macOS native key repeats when a custom held-key repeat is active.
+	// The custom goroutine handles repeat dispatch at heldRepeatInterval.
+	if h.heldRepeatingKey != "" && key == h.heldRepeatingKey {
+		return
+	}
 
 	if h.appState.CurrentMode() == domain.ModeHints &&
 		h.hints != nil && h.hints.Context != nil && h.hints.Context.SearchActive() {
@@ -86,9 +107,13 @@ func (h *Handler) HandleKeyPress(key string) {
 	// keys; using rawKey here would make a sticky Ctrl turn "c" into "Ctrl+c".
 	if rawKey != key {
 		if h.handleHotkey(key, bundleID) {
+			h.maybeStartHeldRepeatLocked(key, bundleID)
+
 			return
 		}
 	} else if h.handleHotkey(rawKey, bundleID) {
+		h.maybeStartHeldRepeatLocked(rawKey, bundleID)
+
 		return
 	}
 
@@ -313,4 +338,81 @@ func (h *Handler) dispatchHotkeyActions(
 			}
 		}
 	}()
+}
+
+// maybeStartHeldRepeatLocked starts a custom repeat goroutine if the matched
+// hotkey action is a held-repeatable action (scroll, page, mouse move).
+// Caller must hold h.mu.
+func (h *Handler) maybeStartHeldRepeatLocked(key, bundleID string) {
+	if h.heldRepeatingCancel != nil {
+		return
+	}
+
+	currentModeName := domain.ModeString(h.appState.CurrentMode())
+	hotkeys := h.config.HotkeysForModeAndApp(currentModeName, bundleID)
+	normalizedKey := config.NormalizeKeyForComparison(key)
+
+	if _, actions, ok := findHotkeyMatch(hotkeys, normalizedKey); ok &&
+		isHeldRepeatAction(actions) {
+		h.startHeldRepeatLocked(key, actions)
+	}
+}
+
+// startHeldRepeatLocked launches a goroutine that dispatches the held-key
+// action at heldRepeatInterval until the key-up event arrives.
+// Caller must hold h.mu.
+func (h *Handler) startHeldRepeatLocked(key string, actions []string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	h.heldRepeatingKey = key
+	h.heldRepeatingCancel = cancel
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				h.logger.Error("panic in held repeat handler",
+					zap.Any("recover", r),
+					zap.String("key", key))
+			}
+		}()
+
+		ticker := time.NewTicker(heldRepeatInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				for _, actionStr := range actions {
+					trimmedAction := strings.TrimSpace(actionStr)
+					if trimmedAction == "" {
+						continue
+					}
+
+					err := h.executeHotkeyAction(key, trimmedAction)
+					if err != nil {
+						h.logger.Error("Held repeat action failed",
+							zap.String("key", key),
+							zap.String("action", trimmedAction),
+							zap.Error(err))
+					}
+				}
+			}
+		}
+	}()
+}
+
+// isHeldRepeatAction reports whether the action list contains a single
+// held-repeatable action (scroll, page, or relative mouse move).
+func isHeldRepeatAction(actions []string) bool {
+	if len(actions) != 1 {
+		return false
+	}
+
+	parts := strings.Fields(strings.TrimSpace(actions[0]))
+	if len(parts) < 2 || parts[0] != "action" {
+		return false
+	}
+
+	return action.IsHeldRepeatAction(action.Name(parts[1]))
 }

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	globalHotkeyRepeatInitialDelay = 250 * time.Millisecond
+	globalHotkeyRepeatInitialDelay = 50 * time.Millisecond
 	globalHotkeyRepeatInterval     = 50 * time.Millisecond
 )
 
@@ -232,18 +232,7 @@ func (a *App) hotkeyActionsRepeatWhileHeld(actions []string) bool {
 		return false
 	}
 
-	switch action.Name(parts[1]) { //nolint:exhaustive
-	case action.NameScrollUp,
-		action.NameScrollDown,
-		action.NameScrollLeft,
-		action.NameScrollRight,
-		action.NamePageUp,
-		action.NamePageDown,
-		action.NameMoveMouseRelative:
-		return true
-	default:
-		return false
-	}
+	return action.IsHeldRepeatAction(action.Name(parts[1]))
 }
 
 func hotkeyModifiersFromKey(key string) action.Modifiers {
