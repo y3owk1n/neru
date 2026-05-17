@@ -434,7 +434,7 @@ func isHeldRepeatAction(actions []string) bool {
 		return false
 	}
 
-	parts := strings.Fields(strings.TrimSpace(actions[0]))
+	parts := strings.SplitN(strings.TrimSpace(actions[0]), " ", 3) //nolint:mnd
 	if len(parts) < 2 || parts[0] != "action" {
 		return false
 	}
