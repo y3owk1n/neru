@@ -436,37 +436,6 @@ static CFStringRef kAXWidgetIdentifierPrefix = CFSTR("widget-local:");
 
 #pragma mark - Click Action Functions
 
-static bool elementBooleanAttributeIsFalse(AXUIElementRef element, CFStringRef attribute) {
-	CFTypeRef value = NULL;
-	AXError error = AXUIElementCopyAttributeValue(element, attribute, &value);
-	if (error != kAXErrorSuccess || !value) {
-		return false;
-	}
-
-	bool result = false;
-	if (CFGetTypeID(value) == CFBooleanGetTypeID()) {
-		result = !CFBooleanGetValue((CFBooleanRef)value);
-	}
-
-	CFRelease(value);
-	return result;
-}
-
-static bool elementBooleanAttributeIsTrue(AXUIElementRef element, CFStringRef attribute) {
-	CFTypeRef value = NULL;
-	AXError error = AXUIElementCopyAttributeValue(element, attribute, &value);
-	if (error != kAXErrorSuccess || !value) {
-		return false;
-	}
-
-	bool result = false;
-	if (CFGetTypeID(value) == CFBooleanGetTypeID()) {
-		result = CFBooleanGetValue((CFBooleanRef)value);
-	}
-
-	CFRelease(value);
-	return result;
-}
 
 static bool elementOrAncestorMatches(AXUIElementRef element, AXUIElementRef target) {
 	if (!element || !target) {
