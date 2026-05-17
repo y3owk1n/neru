@@ -536,6 +536,7 @@ func (a *App) Cleanup() {
 		}
 
 		if a.hotkeyManager != nil {
+			a.stopAllHotkeyRepeats()
 			a.hotkeyManager.UnregisterAll()
 		}
 

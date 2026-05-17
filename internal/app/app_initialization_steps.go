@@ -451,6 +451,7 @@ func initializeShutdownChannel(app *App) {
 func cleanupInfrastructure(app *App) {
 	// Clean up hotkey service
 	if app.hotkeyManager != nil {
+		app.stopAllHotkeyRepeats()
 		app.hotkeyManager.UnregisterAll()
 		app.hotkeyManager = nil
 	}

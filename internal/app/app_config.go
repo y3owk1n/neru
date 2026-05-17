@@ -41,6 +41,7 @@ func (a *App) prepareForConfigUpdate() {
 
 	if a.appState.HotkeysRegistered() {
 		a.logger.Info("Unregistering current hotkeys before reload")
+		a.stopAllHotkeyRepeats()
 		a.hotkeyManager.UnregisterAll()
 		a.appState.SetHotkeysRegistered(false)
 	}

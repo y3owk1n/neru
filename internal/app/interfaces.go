@@ -19,6 +19,15 @@ type HotkeyService interface {
 	UnregisterAll()
 }
 
+// HotkeyReleaseService is implemented by hotkey backends that can report release events.
+type HotkeyReleaseService interface {
+	RegisterWithRelease(
+		keyString string,
+		pressCallback hotkeys.Callback,
+		releaseCallback hotkeys.Callback,
+	) (hotkeys.HotkeyID, error)
+}
+
 // OverlayManager defines the interface for overlay window management.
 type OverlayManager = overlay.ManagerInterface
 

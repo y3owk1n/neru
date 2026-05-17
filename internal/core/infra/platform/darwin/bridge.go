@@ -8,7 +8,7 @@ package darwin
 #include "appwatcher.h"
 #include <stdlib.h>
 
-extern void hotkeyCallbackBridge(int hotkeyId, void* userData);
+extern void hotkeyCallbackBridge(int hotkeyId, int eventKind, void* userData);
 
 void startAppWatcher();
 void stopAppWatcher();
@@ -98,8 +98,18 @@ func ParseKeyString(keyString string) (int, int, bool) {
 	return int(keyCode), int(modifiers), success
 }
 
+// HotkeyEventKind describes whether a global hotkey was pressed or released.
+type HotkeyEventKind int
+
+const (
+	// HotkeyEventPressed is emitted when a registered hotkey is pressed.
+	HotkeyEventPressed HotkeyEventKind = 1
+	// HotkeyEventReleased is emitted when a registered hotkey is released.
+	HotkeyEventReleased HotkeyEventKind = 2
+)
+
 // HotkeyHandler defines the signature for hotkey event handlers.
-type HotkeyHandler func(hotkeyID int)
+type HotkeyHandler func(hotkeyID int, eventKind HotkeyEventKind)
 
 var (
 	hotkeyHandler   HotkeyHandler
@@ -121,13 +131,13 @@ func GetHotkeyCallbackBridge() unsafe.Pointer {
 }
 
 //export hotkeyCallbackBridge
-func hotkeyCallbackBridge(hotkeyID C.int, _ unsafe.Pointer) {
+func hotkeyCallbackBridge(hotkeyID C.int, eventKind C.int, _ unsafe.Pointer) {
 	hotkeyHandlerMu.RLock()
 	handler := hotkeyHandler
 	hotkeyHandlerMu.RUnlock()
 
 	if handler != nil {
-		handler(int(hotkeyID))
+		handler(int(hotkeyID), HotkeyEventKind(eventKind))
 	}
 }
 

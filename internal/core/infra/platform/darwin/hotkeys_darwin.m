@@ -22,6 +22,9 @@ static NSMutableDictionary *hotkeyCallbacks = nil;
 static EventHandlerRef eventHandlerRef = NULL;
 static dispatch_queue_t hotkeyQueue = nil;
 
+static const int HotkeyEventPressed = 1;
+static const int HotkeyEventReleased = 2;
+
 #pragma mark - Storage Functions
 
 /// Initialize storage
@@ -33,10 +36,12 @@ static void initializeStorage(void) {
 		hotkeyQueue = dispatch_queue_create("com.neru.hotkeys", DISPATCH_QUEUE_SERIAL);
 
 		// Install event handler only once
-		EventTypeSpec eventType;
-		eventType.eventClass = kEventClassKeyboard;
-		eventType.eventKind = kEventHotKeyPressed;
-		InstallApplicationEventHandler(&hotkeyHandler, 1, &eventType, NULL, &eventHandlerRef);
+		EventTypeSpec eventTypes[2];
+		eventTypes[0].eventClass = kEventClassKeyboard;
+		eventTypes[0].eventKind = kEventHotKeyPressed;
+		eventTypes[1].eventClass = kEventClassKeyboard;
+		eventTypes[1].eventKind = kEventHotKeyReleased;
+		InstallApplicationEventHandler(&hotkeyHandler, 2, eventTypes, NULL, &eventHandlerRef);
 	});
 }
 
@@ -52,6 +57,8 @@ static OSStatus hotkeyHandler(EventHandlerCallRef nextHandler, EventRef event, v
 	GetEventParameter(event, kEventParamDirectObject, typeEventHotKeyID, NULL, sizeof(hotkeyID), NULL, &hotkeyID);
 
 	int hotkeyId = (int)hotkeyID.id;
+	UInt32 eventKind = GetEventKind(event);
+	int callbackEventKind = eventKind == kEventHotKeyReleased ? HotkeyEventReleased : HotkeyEventPressed;
 
 	// Thread-safe callback retrieval
 	__block HotkeyCallback callback = NULL;
@@ -68,7 +75,7 @@ static OSStatus hotkeyHandler(EventHandlerCallRef nextHandler, EventRef event, v
 
 	// Invoke callback outside the lock
 	if (callback) {
-		callback(hotkeyId, callbackUserData);
+		callback(hotkeyId, callbackEventKind, callbackUserData);
 	}
 
 	return noErr;

@@ -14,8 +14,9 @@
 
 /// Hotkey callback type
 /// @param hotkeyId Hotkey identifier
+/// @param eventKind Event kind (1 = pressed, 2 = released)
 /// @param userData User data pointer
-typedef void (*HotkeyCallback)(int hotkeyId, void *userData);
+typedef void (*HotkeyCallback)(int hotkeyId, int eventKind, void *userData);
 
 /// Modifier keys
 typedef enum {

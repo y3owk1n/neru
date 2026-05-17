@@ -4,6 +4,7 @@ import (
 	"context"
 	"os/exec"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -12,6 +13,11 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+)
+
+const (
+	globalHotkeyRepeatInitialDelay = 250 * time.Millisecond
+	globalHotkeyRepeatInterval     = 50 * time.Millisecond
 )
 
 // actionsReferenceDisabledMode reports whether any action in the list
@@ -70,35 +76,23 @@ func (a *App) registerHotkeys() {
 
 		var registerHotkeyErr error
 
-		_, registerHotkeyErr = a.hotkeyManager.Register(bindKey, func() {
-			// Run handler in separate goroutine so the hotkey callback returns quickly.
-			go func() {
-				defer func() {
-					if r := recover(); r != nil {
-						a.logger.Error(
-							"panic in hotkey handler",
-							zap.Any("recover", r),
-							zap.String("key", bindKey),
-						)
-					}
-				}()
+		if releaseManager, ok := a.hotkeyManager.(HotkeyReleaseService); ok &&
+			a.hotkeyActionsRepeatWhileHeld(bindActions) {
+			_, registerHotkeyErr = releaseManager.RegisterWithRelease(
+				bindKey,
+				func() {
+					a.startHotkeyRepeat(bindKey, bindActions)
+				},
+				func() {
+					a.stopHotkeyRepeat(bindKey)
+				},
+			)
+		} else {
+			_, registerHotkeyErr = a.hotkeyManager.Register(bindKey, func() {
+				a.dispatchHotkeyActionsAsync(bindKey, bindActions)
+			})
+		}
 
-				for _, actionStr := range bindActions {
-					trimmedAction := strings.TrimSpace(actionStr)
-					if trimmedAction == "" {
-						continue
-					}
-
-					executeHotkeyActionErr := a.executeHotkeyAction(bindKey, trimmedAction)
-					if executeHotkeyActionErr != nil {
-						a.logger.Error("hotkey action failed",
-							zap.String("key", bindKey),
-							zap.String("action", trimmedAction),
-							zap.Error(executeHotkeyActionErr))
-					}
-				}
-			}()
-		})
 		if registerHotkeyErr != nil {
 			a.logger.Error(
 				"Failed to register hotkey binding",
@@ -110,6 +104,158 @@ func (a *App) registerHotkeys() {
 			continue
 		}
 	}
+}
+
+func (a *App) dispatchHotkeyActionsAsync(key string, actions []string) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				a.logger.Error(
+					"panic in hotkey handler",
+					zap.Any("recover", r),
+					zap.String("key", key),
+				)
+			}
+		}()
+
+		a.dispatchHotkeyActions(key, actions)
+	}()
+}
+
+func (a *App) dispatchHotkeyActions(key string, actions []string) {
+	for _, actionStr := range actions {
+		trimmedAction := strings.TrimSpace(actionStr)
+		if trimmedAction == "" {
+			continue
+		}
+
+		executeHotkeyActionErr := a.executeHotkeyAction(key, trimmedAction)
+		if executeHotkeyActionErr != nil {
+			a.logger.Error("hotkey action failed",
+				zap.String("key", key),
+				zap.String("action", trimmedAction),
+				zap.Error(executeHotkeyActionErr))
+		}
+	}
+}
+
+func (a *App) startHotkeyRepeat(key string, actions []string) {
+	a.stopHotkeyRepeat(key)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	a.hotkeyRepeatMu.Lock()
+	if a.hotkeyRepeatCancels == nil {
+		a.hotkeyRepeatCancels = make(map[string]context.CancelFunc)
+	}
+
+	a.hotkeyRepeatCancels[key] = cancel
+	a.hotkeyRepeatMu.Unlock()
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				a.logger.Error(
+					"panic in repeating hotkey handler",
+					zap.Any("recover", r),
+					zap.String("key", key),
+				)
+			}
+		}()
+
+		a.dispatchHotkeyActions(key, actions)
+
+		initialTimer := time.NewTimer(globalHotkeyRepeatInitialDelay)
+		defer initialTimer.Stop()
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-initialTimer.C:
+		}
+
+		ticker := time.NewTicker(globalHotkeyRepeatInterval)
+		defer ticker.Stop()
+
+		for {
+			a.dispatchHotkeyActions(key, actions)
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+}
+
+func (a *App) stopHotkeyRepeat(key string) {
+	a.hotkeyRepeatMu.Lock()
+
+	cancel := a.hotkeyRepeatCancels[key]
+	if cancel != nil {
+		delete(a.hotkeyRepeatCancels, key)
+	}
+	a.hotkeyRepeatMu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+}
+
+func (a *App) stopAllHotkeyRepeats() {
+	a.hotkeyRepeatMu.Lock()
+	cancels := a.hotkeyRepeatCancels
+	a.hotkeyRepeatCancels = nil
+	a.hotkeyRepeatMu.Unlock()
+
+	for _, cancel := range cancels {
+		cancel()
+	}
+}
+
+func (a *App) hotkeyActionsRepeatWhileHeld(actions []string) bool {
+	if len(actions) != 1 {
+		return false
+	}
+
+	parts := splitArgs(strings.TrimSpace(actions[0]))
+	if len(parts) < 2 || parts[0] != "action" {
+		return false
+	}
+
+	switch action.Name(parts[1]) {
+	case action.NameScrollUp,
+		action.NameScrollDown,
+		action.NameScrollLeft,
+		action.NameScrollRight,
+		action.NamePageUp,
+		action.NamePageDown,
+		action.NameMoveMouseRelative:
+		return true
+	case action.NameLeftClick,
+		action.NameRightClick,
+		action.NameMiddleClick,
+		action.NameMouseDown,
+		action.NameMouseUp,
+		action.NameMoveMouse,
+		action.NameScroll,
+		action.NameReset,
+		action.NameBackspace,
+		action.NameWaitForModeExit,
+		action.NameSaveCursorPos,
+		action.NameRestoreCursorPos,
+		action.NameMoveMonitor,
+		action.NameFeed,
+		action.NameGoTop,
+		action.NameGoBottom,
+		action.NameSleep,
+		action.NameCycleHint,
+		action.NameSearchHints:
+		return false
+	}
+
+	return false
 }
 
 func hotkeyModifiersFromKey(key string) action.Modifiers {
@@ -261,6 +407,7 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 	if !a.appState.IsEnabled() {
 		if a.appState.HotkeysRegistered() {
 			a.logger.Debug("Neru disabled; unregistering hotkeys")
+			a.stopAllHotkeyRepeats()
 			a.hotkeyManager.UnregisterAll()
 			a.appState.SetHotkeysRegistered(false)
 		}
@@ -288,6 +435,7 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 		if a.appState.HotkeysRegistered() {
 			a.logger.Info("Focused app excluded; unregistering global hotkeys",
 				zap.String("bundle_id", bundleID))
+			a.stopAllHotkeyRepeats()
 			a.hotkeyManager.UnregisterAll()
 			a.appState.SetHotkeysRegistered(false)
 		}

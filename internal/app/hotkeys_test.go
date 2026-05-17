@@ -140,3 +140,68 @@ func TestSplitArgs(t *testing.T) {
 		})
 	}
 }
+
+func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
+	app := &App{}
+
+	tests := []struct {
+		name    string
+		actions []string
+		want    bool
+	}{
+		{
+			name:    "scroll down repeats",
+			actions: []string{"action scroll_down"},
+			want:    true,
+		},
+		{
+			name:    "page down repeats",
+			actions: []string{"action page_down"},
+			want:    true,
+		},
+		{
+			name:    "relative mouse movement repeats",
+			actions: []string{"action move_mouse_relative --dx=0 --dy=10"},
+			want:    true,
+		},
+		{
+			name:    "mode launcher does not repeat",
+			actions: []string{"scroll"},
+			want:    false,
+		},
+		{
+			name:    "absolute terminal scroll does not repeat",
+			actions: []string{"action go_bottom"},
+			want:    false,
+		},
+		{
+			name:    "click does not repeat",
+			actions: []string{"action left_click"},
+			want:    false,
+		},
+		{
+			name:    "exec does not repeat",
+			actions: []string{"exec echo hello"},
+			want:    false,
+		},
+		{
+			name:    "chains do not repeat",
+			actions: []string{"action scroll_down", "action scroll_down"},
+			want:    false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := app.hotkeyActionsRepeatWhileHeld(testCase.actions)
+			if got != testCase.want {
+				t.Fatalf(
+					"hotkeyActionsRepeatWhileHeld(%v) = %v, want %v",
+					testCase.actions,
+					got,
+					testCase.want,
+				)
+			}
+		})
+	}
+}
