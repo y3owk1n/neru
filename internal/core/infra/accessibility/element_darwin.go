@@ -727,6 +727,10 @@ func (e *Element) IsClickable(
 	return false
 }
 
+// pidBundleCache maps PID → bundle identifier to avoid repeated Cocoa lookups.
+// NOTE: PIDs are reused by macOS. The cache intentionally omits negative results
+// (empty bundleID) so that a reused PID is always re-queried rather than
+// inheriting a stale excluded mapping from a previous process.
 var (
 	pidBundleCache    = map[int]string{}
 	pidBundleCacheMu  sync.RWMutex
@@ -753,10 +757,6 @@ func isExcludedBundleID(pid int) bool {
 
 	cBundleID := C.getBundleIDForPID(C.int(pid))
 	if cBundleID == nil {
-		pidBundleCacheMu.Lock()
-		pidBundleCache[pid] = ""
-		pidBundleCacheMu.Unlock()
-
 		return false
 	}
 
