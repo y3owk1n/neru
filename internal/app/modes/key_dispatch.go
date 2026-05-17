@@ -32,10 +32,19 @@ func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	// Handle key-up events for held-key repeat suppression
+	// Handle key-up events for held-key repeat suppression.
+	// The eventtap emits modifier-free key names on key-up, so we compare
+	// only the base key name (last segment after "+") case-insensitively.
 	if releasedKey, ok := strings.CutPrefix(key, keyUpPrefix); ok {
-		if releasedKey == h.heldRepeatingKey {
-			h.stopHeldRepeatLocked()
+		if h.heldRepeatingKey != "" {
+			baseHeld := h.heldRepeatingKey
+			if i := strings.LastIndex(baseHeld, "+"); i >= 0 {
+				baseHeld = baseHeld[i+1:]
+			}
+
+			if strings.EqualFold(releasedKey, baseHeld) {
+				h.stopHeldRepeatLocked()
+			}
 		}
 
 		return
