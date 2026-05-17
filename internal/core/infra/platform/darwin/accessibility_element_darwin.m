@@ -473,7 +473,8 @@ static bool elementOrAncestorMatches(AXUIElementRef element, AXUIElementRef targ
 /// Caller should compute center from ElementInfo (already fetched during tree building).
 /// @param element Element reference
 /// @param center Pre-computed center point
-/// @return 1 if the element itself is the hit-test result at the point, or the result is a descendant of the element, 0 otherwise
+/// @return 1 if the element itself is the hit-test result at the point, or the result is a descendant of the element, 0
+/// otherwise
 int isElementVisibleAtPoint(void *element, CGPoint center) {
 	if (!element)
 		return 0;
