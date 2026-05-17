@@ -420,3 +420,20 @@ char *getBundleIdentifier(void *app) {
 		return cfStringToCString((__bridge CFStringRef)bundleId);
 	}
 }
+
+/// Get bundle identifier from PID directly
+/// @param pid Process identifier
+/// @return Bundle identifier string, or NULL if not found
+char *getBundleIDForPID(int pid) {
+	@autoreleasepool {
+		NSRunningApplication *runningApp = [NSRunningApplication runningApplicationWithProcessIdentifier:(pid_t)pid];
+		if (!runningApp)
+			return NULL;
+
+		NSString *bundleId = [runningApp bundleIdentifier];
+		if (!bundleId)
+			return NULL;
+
+		return cfStringToCString((__bridge CFStringRef)bundleId);
+	}
+}
