@@ -667,6 +667,10 @@ func (e *Element) IsClickable(
 		return false
 	}
 
+	// Mission Control state is constant across a single hint scan; hoist
+	// the CGo round-trip to avoid calling it per element in the fast path.
+	missionControlActive := IsMissionControlActive()
+
 	// If info is not provided, try to get it
 	if info == nil {
 		var infoErr error
@@ -699,7 +703,7 @@ func (e *Element) IsClickable(
 		if info != nil && info.IsEnabled() {
 			if _, known := knownInteractiveRoles[element.Role(info.Role())]; known {
 				// in mission control, let's skip it for good
-				if IsMissionControlActive() {
+				if missionControlActive {
 					return true
 				}
 
