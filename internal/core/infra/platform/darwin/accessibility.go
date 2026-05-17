@@ -96,7 +96,7 @@ func HasClickAction(element unsafe.Pointer) bool {
 		return false
 	}
 
-	result := C.hasClickAction(element) != 0 //nolint:nlreturn
+	result := C.hasClickAction(element, false) != 0 //nolint:nlreturn
 
 	return result
 }

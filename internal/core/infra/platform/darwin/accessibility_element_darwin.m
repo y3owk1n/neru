@@ -500,17 +500,18 @@ int isElementVisibleAtPoint(void *element, CGPoint center) {
 
 /// Check if element has click action
 /// @param element Element reference
+/// @param skipVisCheck If true, skip the expensive hit-test visibility check
 /// @return 1 if element is clickable, 0 otherwise
-int hasClickAction(void *element) {
+int hasClickAction(void *element, bool skipVisCheck) {
 	if (!element)
 		return 0;
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
 
 	CFTypeRef attrs[] = {kAXHiddenAttribute,    kAXEnabledAttribute,    kAXRoleAttribute,
-	                     kAXFocusableAttribute, kAXIdentifierAttribute, kAXVisibleAttribute};
+	                     kAXIdentifierAttribute, kAXVisibleAttribute};
 
-	CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 6, &kCFTypeArrayCallBacks);
+	CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 5, &kCFTypeArrayCallBacks);
 
 	if (!attrArray)
 		return 0;
@@ -525,14 +526,13 @@ int hasClickAction(void *element) {
 	bool isVisible = true;  // default visible when attribute not available
 	bool explicitlyDisabled = false;
 	bool hasEnabledAttribute = false;
-	bool isFocusable = false;
 	bool isWidget = false;
 	CFStringRef role = NULL;
 
 	if (err == kAXErrorSuccess && values) {
 		CFIndex count = CFArrayGetCount(values);
 
-		for (CFIndex i = 0; i < count && i < 6; i++) {
+		for (CFIndex i = 0; i < count && i < 5; i++) {
 			CFTypeRef value = CFArrayGetValueAtIndex(values, i);
 			CFTypeRef attr = attrs[i];
 
@@ -554,11 +554,6 @@ int hasClickAction(void *element) {
 			else if (attr == kAXRoleAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
 				role = (CFStringRef)value;
 				CFRetain(role);
-			}
-
-			// AXFocusable
-			else if (attr == kAXFocusableAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
-				isFocusable = CFBooleanGetValue((CFBooleanRef)value);
 			}
 
 			// AXIdentifier: checks for the `widget-local:` prefix (internal Apple convention,
@@ -660,19 +655,10 @@ int hasClickAction(void *element) {
 	// Visibility check: hit-test at center to filter obscured/scroll-clipped elements.
 	// Uses parent-walk (isElementVisibleAtPoint) instead of PID check (isPointVisible)
 	// to catch elements covered by sibling views within the same app.
-	// Skip for known problematic system apps where AX hit-testing is unreliable.
-	pid_t pid = 0;
-	if (AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
-		char *bundleID = getBundleIDForPID((int)pid);
-		if (bundleID) {
-			bool excluded = strcmp(bundleID, "com.apple.PIPAgent") == 0 ||
-			                strcmp(bundleID, "com.apple.screencaptureui") == 0 ||
-			                strcmp(bundleID, "com.apple.dock") == 0;
-			freeString(bundleID);
-			if (excluded)
-				return 1;
-		}
-	}
+	// skipVisCheck is set by the Go caller for known problematic system apps
+	// (e.g. PiP windows, screen capture thumbnails) where AX hit-testing is unreliable.
+	if (skipVisCheck)
+		return 1;
 
 	CGPoint center;
 	if (getElementCenter((void *)axElement, &center)) {

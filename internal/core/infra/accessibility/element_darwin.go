@@ -719,7 +719,7 @@ func (e *Element) IsClickable(
 		}
 
 		// Slow path: ambiguous or custom roles need full native verification
-		result := C.hasClickAction(e.ref) //nolint:nlreturn
+		result := C.hasClickAction(e.ref, C.bool(isExcludedBundleID(info.PID()))) //nolint:nlreturn
 
 		return result == 1
 	}

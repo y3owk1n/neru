@@ -115,8 +115,9 @@ void postMouseMoveEvent(CGPoint position, CGEventType eventType);
 
 /// Check if element has click action
 /// @param element Element reference
+/// @param skipVisCheck If true, skip the expensive hit-test visibility check
 /// @return 1 if element is clickable, 0 otherwise
-int hasClickAction(void *element);
+int hasClickAction(void *element, bool skipVisCheck);
 
 /// Fast visibility check using a pre-computed center point (avoids redundant AX position fetch)
 /// @param element Element reference
