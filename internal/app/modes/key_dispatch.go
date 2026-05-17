@@ -52,8 +52,18 @@ func (h *Handler) HandleKeyPress(key string) {
 
 	// Suppress macOS native key repeats when a custom held-key repeat is active.
 	// The custom goroutine handles repeat dispatch at heldRepeatInterval.
-	if h.heldRepeatingKey != "" && key == h.heldRepeatingKey {
-		return
+	// heldRepeatingKey stores the sticky-stripped key, so we strip before comparing.
+	if h.heldRepeatingKey != "" {
+		suppressKey := key
+
+		activeMods := h.stickyModifiers()
+		if activeMods != 0 && !strings.HasPrefix(suppressKey, modifierTogglePrefix) {
+			suppressKey = h.stripStickyModifiersFromKey(suppressKey, activeMods)
+		}
+
+		if suppressKey == h.heldRepeatingKey {
+			return
+		}
 	}
 
 	if h.appState.CurrentMode() == domain.ModeHints &&
