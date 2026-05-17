@@ -508,8 +508,8 @@ int hasClickAction(void *element, bool skipVisCheck) {
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
 
-	CFTypeRef attrs[] = {kAXHiddenAttribute,    kAXEnabledAttribute,    kAXRoleAttribute,
-	                     kAXIdentifierAttribute, kAXVisibleAttribute};
+	CFTypeRef attrs[] = {
+	    kAXHiddenAttribute, kAXEnabledAttribute, kAXRoleAttribute, kAXIdentifierAttribute, kAXVisibleAttribute};
 
 	CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 5, &kCFTypeArrayCallBacks);
 
