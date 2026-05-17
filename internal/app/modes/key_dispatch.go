@@ -391,6 +391,8 @@ func (h *Handler) startHeldRepeatLocked(key, bindKey string, actions []string) {
 	h.heldRepeatingKey = key
 	h.heldRepeatingCancel = cancel
 
+	capturedActions := append([]string(nil), actions...)
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -408,7 +410,7 @@ func (h *Handler) startHeldRepeatLocked(key, bindKey string, actions []string) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				for _, actionStr := range actions {
+				for _, actionStr := range capturedActions {
 					trimmedAction := strings.TrimSpace(actionStr)
 					if trimmedAction == "" {
 						continue
