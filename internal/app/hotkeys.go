@@ -144,13 +144,13 @@ func (a *App) startHotkeyRepeat(key string, actions []string) {
 
 	a.hotkeyRepeatMu.Lock()
 
+	if a.hotkeyRepeatCancels == nil {
+		a.hotkeyRepeatCancels = make(map[string]context.CancelFunc)
+	}
+
 	oldCancel := a.hotkeyRepeatCancels[key]
 	if oldCancel != nil {
 		delete(a.hotkeyRepeatCancels, key)
-	}
-
-	if a.hotkeyRepeatCancels == nil {
-		a.hotkeyRepeatCancels = make(map[string]context.CancelFunc)
 	}
 
 	a.hotkeyRepeatCancels[key] = cancel
