@@ -125,16 +125,16 @@ func (h *Handler) HandleKeyPress(key string) {
 	// only. Sticky modifiers are for the next action, not Neru's own navigation
 	// keys; using rawKey here would make a sticky Ctrl turn "c" into "Ctrl+c".
 	if rawKey != key {
-		if actions, ok := h.handleHotkey(key, bundleID); ok {
+		if actions, bindKey, ok := h.handleHotkey(key, bundleID); ok {
 			if len(actions) > 0 {
-				h.maybeStartHeldRepeatLocked(key, actions)
+				h.maybeStartHeldRepeatLocked(key, bindKey, actions)
 			}
 
 			return
 		}
-	} else if actions, ok := h.handleHotkey(rawKey, bundleID); ok {
+	} else if actions, bindKey, ok := h.handleHotkey(rawKey, bundleID); ok {
 		if len(actions) > 0 {
-			h.maybeStartHeldRepeatLocked(rawKey, actions)
+			h.maybeStartHeldRepeatLocked(rawKey, bindKey, actions)
 		}
 
 		return
@@ -201,16 +201,18 @@ func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers)
 // where no action is dispatched yet.
 // Caller must hold h.mu. The bundleID is the focused app's bundle identifier,
 // resolved once by the caller to avoid redundant accessibility IPC calls.
-func (h *Handler) handleHotkey(key, bundleID string) ([]string, bool) {
+func (h *Handler) handleHotkey(key, bundleID string) (
+	[]string, string, bool,
+) {
 	if h.executeHotkeyAction == nil {
-		return nil, false
+		return nil, "", false
 	}
 
 	currentModeName := domain.ModeString(h.appState.CurrentMode())
 
 	hotkeys := h.config.HotkeysForModeAndApp(currentModeName, bundleID)
 	if len(hotkeys) == 0 {
-		return nil, false
+		return nil, "", false
 	}
 
 	normalizedKey := config.NormalizeKeyForComparison(key)
@@ -223,13 +225,13 @@ func (h *Handler) handleHotkey(key, bundleID string) ([]string, bool) {
 		h.hotkeyLastKeyTime = 0
 
 		if pendingAt > 0 && time.Since(time.Unix(0, pendingAt)) <= hotkeySequenceTimeout {
-			if bindKey, actions, ok := findHotkeySequenceMatch(
+			if bindKey, act, ok := findHotkeySequenceMatch(
 				hotkeys,
 				pending+normalizedKey,
 			); ok {
-				h.dispatchHotkeyActions(currentModeName, bindKey, key, actions)
+				h.dispatchHotkeyActions(currentModeName, bindKey, key, act)
 
-				return actions, true
+				return act, bindKey, true
 			}
 		}
 
@@ -241,10 +243,10 @@ func (h *Handler) handleHotkey(key, bundleID string) ([]string, bool) {
 	}
 
 	// Phase 2: direct single-key match.
-	if bindKey, actions, ok := findHotkeyMatch(hotkeys, normalizedKey); ok {
-		h.dispatchHotkeyActions(currentModeName, bindKey, key, actions)
+	if bindKey, act, ok := findHotkeyMatch(hotkeys, normalizedKey); ok {
+		h.dispatchHotkeyActions(currentModeName, bindKey, key, act)
 
-		return actions, true
+		return act, bindKey, true
 	}
 
 	// Phase 3: start a new sequence for two-letter bindings.
@@ -252,10 +254,10 @@ func (h *Handler) handleHotkey(key, bundleID string) ([]string, bool) {
 		h.hotkeyLastKey = normalizedKey
 		h.hotkeyLastKeyTime = time.Now().UnixNano()
 
-		return nil, true
+		return nil, "", true
 	}
 
-	return nil, false
+	return nil, "", false
 }
 
 func findHotkeyMatch(
@@ -368,21 +370,23 @@ func (h *Handler) dispatchHotkeyActions(
 // maybeStartHeldRepeatLocked starts a custom repeat goroutine if the given
 // actions are held-repeatable (scroll, page, mouse move).
 // actions is the already-resolved action list from handleHotkey.
+// bindKey is the normalised config-binding key (for consistent logging).
 // Caller must hold h.mu.
-func (h *Handler) maybeStartHeldRepeatLocked(key string, actions []string) {
+func (h *Handler) maybeStartHeldRepeatLocked(key, bindKey string, actions []string) {
 	if h.heldRepeatingCancel != nil {
 		return
 	}
 
 	if isHeldRepeatAction(actions) {
-		h.startHeldRepeatLocked(key, actions)
+		h.startHeldRepeatLocked(key, bindKey, actions)
 	}
 }
 
 // startHeldRepeatLocked launches a goroutine that dispatches the held-key
 // action at heldRepeatInterval until the key-up event arrives.
+// bindKey is the normalised config-binding key (for consistent logging).
 // Caller must hold h.mu.
-func (h *Handler) startHeldRepeatLocked(key string, actions []string) {
+func (h *Handler) startHeldRepeatLocked(key, bindKey string, actions []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.heldRepeatingKey = key
 	h.heldRepeatingCancel = cancel
@@ -392,7 +396,7 @@ func (h *Handler) startHeldRepeatLocked(key string, actions []string) {
 			if r := recover(); r != nil {
 				h.logger.Error("panic in held repeat handler",
 					zap.Any("recover", r),
-					zap.String("key", key))
+					zap.String("key", bindKey))
 			}
 		}()
 
@@ -410,10 +414,10 @@ func (h *Handler) startHeldRepeatLocked(key string, actions []string) {
 						continue
 					}
 
-					err := h.executeHotkeyAction(key, trimmedAction)
+					err := h.executeHotkeyAction(bindKey, trimmedAction)
 					if err != nil {
 						h.logger.Error("Held repeat action failed",
-							zap.String("key", key),
+							zap.String("key", bindKey),
 							zap.String("action", trimmedAction),
 							zap.Error(err))
 					}
