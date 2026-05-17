@@ -232,7 +232,7 @@ func (a *App) hotkeyActionsRepeatWhileHeld(actions []string) bool {
 		return false
 	}
 
-	switch action.Name(parts[1]) {
+	switch action.Name(parts[1]) { //nolint:exhaustive
 	case action.NameScrollUp,
 		action.NameScrollDown,
 		action.NameScrollLeft,
@@ -241,29 +241,9 @@ func (a *App) hotkeyActionsRepeatWhileHeld(actions []string) bool {
 		action.NamePageDown,
 		action.NameMoveMouseRelative:
 		return true
-	case action.NameLeftClick,
-		action.NameRightClick,
-		action.NameMiddleClick,
-		action.NameMouseDown,
-		action.NameMouseUp,
-		action.NameMoveMouse,
-		action.NameScroll,
-		action.NameReset,
-		action.NameBackspace,
-		action.NameWaitForModeExit,
-		action.NameSaveCursorPos,
-		action.NameRestoreCursorPos,
-		action.NameMoveMonitor,
-		action.NameFeed,
-		action.NameGoTop,
-		action.NameGoBottom,
-		action.NameSleep,
-		action.NameCycleHint,
-		action.NameSearchHints:
+	default:
 		return false
 	}
-
-	return false
 }
 
 func hotkeyModifiersFromKey(key string) action.Modifiers {
