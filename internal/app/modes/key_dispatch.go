@@ -115,13 +115,17 @@ func (h *Handler) HandleKeyPress(key string) {
 	// only. Sticky modifiers are for the next action, not Neru's own navigation
 	// keys; using rawKey here would make a sticky Ctrl turn "c" into "Ctrl+c".
 	if rawKey != key {
-		if h.handleHotkey(key, bundleID) {
-			h.maybeStartHeldRepeatLocked(key, bundleID)
+		if actions, ok := h.handleHotkey(key, bundleID); ok {
+			if len(actions) > 0 {
+				h.maybeStartHeldRepeatLocked(key, actions)
+			}
 
 			return
 		}
-	} else if h.handleHotkey(rawKey, bundleID) {
-		h.maybeStartHeldRepeatLocked(rawKey, bundleID)
+	} else if actions, ok := h.handleHotkey(rawKey, bundleID); ok {
+		if len(actions) > 0 {
+			h.maybeStartHeldRepeatLocked(rawKey, actions)
+		}
 
 		return
 	}
@@ -182,19 +186,21 @@ func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers)
 
 // handleHotkey checks if the key matches a hotkeys binding for the
 // current mode. If matched, it executes the action (IPC command or shell command)
-// using the same logic as top-level hotkeys. Returns true if the key was consumed.
+// using the same logic as top-level hotkeys. Returns the matched actions along
+// with true if the key was consumed; returns nil, true for sequence starts (Phase 3)
+// where no action is dispatched yet.
 // Caller must hold h.mu. The bundleID is the focused app's bundle identifier,
 // resolved once by the caller to avoid redundant accessibility IPC calls.
-func (h *Handler) handleHotkey(key, bundleID string) bool {
+func (h *Handler) handleHotkey(key, bundleID string) ([]string, bool) {
 	if h.executeHotkeyAction == nil {
-		return false
+		return nil, false
 	}
 
 	currentModeName := domain.ModeString(h.appState.CurrentMode())
 
 	hotkeys := h.config.HotkeysForModeAndApp(currentModeName, bundleID)
 	if len(hotkeys) == 0 {
-		return false
+		return nil, false
 	}
 
 	normalizedKey := config.NormalizeKeyForComparison(key)
@@ -213,7 +219,7 @@ func (h *Handler) handleHotkey(key, bundleID string) bool {
 			); ok {
 				h.dispatchHotkeyActions(currentModeName, bindKey, key, actions)
 
-				return true
+				return actions, true
 			}
 		}
 
@@ -228,7 +234,7 @@ func (h *Handler) handleHotkey(key, bundleID string) bool {
 	if bindKey, actions, ok := findHotkeyMatch(hotkeys, normalizedKey); ok {
 		h.dispatchHotkeyActions(currentModeName, bindKey, key, actions)
 
-		return true
+		return actions, true
 	}
 
 	// Phase 3: start a new sequence for two-letter bindings.
@@ -236,10 +242,10 @@ func (h *Handler) handleHotkey(key, bundleID string) bool {
 		h.hotkeyLastKey = normalizedKey
 		h.hotkeyLastKeyTime = time.Now().UnixNano()
 
-		return true
+		return nil, true
 	}
 
-	return false
+	return nil, false
 }
 
 func findHotkeyMatch(
@@ -349,20 +355,16 @@ func (h *Handler) dispatchHotkeyActions(
 	}()
 }
 
-// maybeStartHeldRepeatLocked starts a custom repeat goroutine if the matched
-// hotkey action is a held-repeatable action (scroll, page, mouse move).
+// maybeStartHeldRepeatLocked starts a custom repeat goroutine if the given
+// actions are held-repeatable (scroll, page, mouse move).
+// actions is the already-resolved action list from handleHotkey.
 // Caller must hold h.mu.
-func (h *Handler) maybeStartHeldRepeatLocked(key, bundleID string) {
+func (h *Handler) maybeStartHeldRepeatLocked(key string, actions []string) {
 	if h.heldRepeatingCancel != nil {
 		return
 	}
 
-	currentModeName := domain.ModeString(h.appState.CurrentMode())
-	hotkeys := h.config.HotkeysForModeAndApp(currentModeName, bundleID)
-	normalizedKey := config.NormalizeKeyForComparison(key)
-
-	if _, actions, ok := findHotkeyMatch(hotkeys, normalizedKey); ok &&
-		isHeldRepeatAction(actions) {
+	if isHeldRepeatAction(actions) {
 		h.startHeldRepeatLocked(key, actions)
 	}
 }
