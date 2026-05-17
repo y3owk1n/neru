@@ -483,7 +483,7 @@ int isElementVisibleAtPoint(void *element, CGPoint center) {
 
 	AXUIElementRef systemWide = AXUIElementCreateSystemWide();
 	if (!systemWide)
-		return 0;
+		return 1;  // Assume visible if system-wide ref cannot be created (mirrors isPointVisible)
 
 	AXUIElementRef hitElement = NULL;
 	AXError error = AXUIElementCopyElementAtPosition(systemWide, center.x, center.y, &hitElement);
@@ -660,6 +660,20 @@ int hasClickAction(void *element) {
 	// Visibility check: hit-test at center to filter obscured/scroll-clipped elements.
 	// Uses parent-walk (isElementVisibleAtPoint) instead of PID check (isPointVisible)
 	// to catch elements covered by sibling views within the same app.
+	// Skip for known problematic system apps where AX hit-testing is unreliable.
+	pid_t pid = 0;
+	if (AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
+		char *bundleID = getBundleIDForPID((int)pid);
+		if (bundleID) {
+			bool excluded = strcmp(bundleID, "com.apple.PIPAgent") == 0 ||
+			                strcmp(bundleID, "com.apple.screencaptureui") == 0 ||
+			                strcmp(bundleID, "com.apple.dock") == 0;
+			freeString(bundleID);
+			if (excluded)
+				return 1;
+		}
+	}
+
 	CGPoint center;
 	if (getElementCenter((void *)axElement, &center)) {
 		return isElementVisibleAtPoint((void *)axElement, center);
