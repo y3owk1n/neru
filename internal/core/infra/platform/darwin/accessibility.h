@@ -118,11 +118,6 @@ void postMouseMoveEvent(CGPoint position, CGEventType eventType);
 /// @return 1 if element is clickable, 0 otherwise
 int hasClickAction(void *element);
 
-/// Check if element is actually visible at its click point
-/// @param element Element reference
-/// @return 1 if element or one of its descendants is hit-test visible, 0 otherwise
-int isElementActuallyVisible(void *element);
-
 /// Fast visibility check using a pre-computed center point (avoids redundant AX position fetch)
 /// @param element Element reference
 /// @param center Pre-computed center point (from ElementInfo — already fetched during tree building)

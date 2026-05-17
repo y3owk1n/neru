@@ -500,44 +500,6 @@ static bool elementOrAncestorMatches(AXUIElementRef element, AXUIElementRef targ
 	return false;
 }
 
-/// Check if element is actually visible at its click point
-/// @param element Element reference
-/// @return 1 if element or one of its descendants is hit-test visible, 0 otherwise
-int isElementActuallyVisible(void *element) {
-	if (!element) {
-		return 0;
-	}
-
-	AXUIElementRef axElement = (AXUIElementRef)element;
-	if (elementBooleanAttributeIsTrue(axElement, kAXHiddenAttribute) ||
-	    elementBooleanAttributeIsFalse(axElement, kAXVisibleAttribute)) {
-		return 0;
-	}
-
-	CGPoint center;
-	if (!getElementCenter(element, &center)) {
-		return 0;
-	}
-
-	AXUIElementRef systemWide = AXUIElementCreateSystemWide();
-	if (!systemWide) {
-		return 0;
-	}
-
-	AXUIElementRef hitElement = NULL;
-	AXError error = AXUIElementCopyElementAtPosition(systemWide, center.x, center.y, &hitElement);
-	CFRelease(systemWide);
-
-	if (error != kAXErrorSuccess || !hitElement) {
-		return 0;
-	}
-
-	bool visible = elementOrAncestorMatches(hitElement, axElement);
-	CFRelease(hitElement);
-
-	return visible ? 1 : 0;
-}
-
 /// Fast visibility check using a pre-computed center point
 /// Skips hidden/visible attribute checks (caller handles those) and position fetch.
 /// Caller should compute center from ElementInfo (already fetched during tree building).
