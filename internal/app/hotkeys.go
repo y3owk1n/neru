@@ -140,17 +140,25 @@ func (a *App) dispatchHotkeyActions(key string, actions []string) {
 }
 
 func (a *App) startHotkeyRepeat(key string, actions []string) {
-	a.stopHotkeyRepeat(key)
-
 	ctx, cancel := context.WithCancel(context.Background())
 
 	a.hotkeyRepeatMu.Lock()
+
+	oldCancel := a.hotkeyRepeatCancels[key]
+	if oldCancel != nil {
+		delete(a.hotkeyRepeatCancels, key)
+	}
+
 	if a.hotkeyRepeatCancels == nil {
 		a.hotkeyRepeatCancels = make(map[string]context.CancelFunc)
 	}
 
 	a.hotkeyRepeatCancels[key] = cancel
 	a.hotkeyRepeatMu.Unlock()
+
+	if oldCancel != nil {
+		oldCancel()
+	}
 
 	go func() {
 		defer func() {
