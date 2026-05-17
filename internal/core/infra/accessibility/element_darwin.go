@@ -735,9 +735,10 @@ var (
 	pidBundleCache    = map[int]string{}
 	pidBundleCacheMu  sync.RWMutex
 	excludedBundleIDs = map[string]struct{}{
-		"com.apple.PIPAgent":        {},
-		"com.apple.screencaptureui": {},
-		"com.apple.dock":            {},
+		"com.apple.PIPAgent":             {},
+		"com.apple.screencaptureui":      {},
+		"com.apple.dock":                 {},
+		"com.apple.notificationcenterui": {},
 	}
 )
 
