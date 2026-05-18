@@ -58,6 +58,9 @@ func (o *TreeOptions) SetParallelThreshold(threshold int) {}
 // SetBundleID is a Windows stub.
 func (o *TreeOptions) SetBundleID(bundleID string) {}
 
+// SetConfigProvider is a Windows stub.
+func (o *TreeOptions) SetConfigProvider(cp config.Provider) {}
+
 // BuildTree builds the accessibility tree for the specified root element (Windows stub).
 func BuildTree(_ *Element, _ TreeOptions) (*TreeNode, error) {
 	return &TreeNode{}, nil
