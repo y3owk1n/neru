@@ -9,6 +9,7 @@
 #import "accessibility_visibility.h"
 
 #import <Cocoa/Cocoa.h>
+#include <pthread.h>
 
 #pragma mark - Element Accessor Functions
 
@@ -123,6 +124,7 @@ ElementInfo *getElementInfo(void *element) {
 		        kAXTitleAttribute,
 		        kAXDescriptionAttribute,
 		        kAXValueAttribute,
+		        kAXIdentifierAttribute,
 		        kAXRoleAttribute,
 		        kAXRoleDescriptionAttribute,
 		        kAXEnabledAttribute,
@@ -130,7 +132,7 @@ ElementInfo *getElementInfo(void *element) {
 		        kAXHiddenAttribute,
 		        kVisibleAttr,
 		    },
-		    11, &kCFTypeArrayCallBacks);
+		    12, &kCFTypeArrayCallBacks);
 
 		if (!attributes) {
 			free(info);
@@ -149,7 +151,7 @@ ElementInfo *getElementInfo(void *element) {
 			return info;
 		}
 
-		// With option=0, values always has exactly 11 entries (one per requested attribute).
+		// With option=0, values always has exactly 12 entries (one per requested attribute).
 		// Slots for unsupported/errored attributes hold an AX error placeholder (CFNumber),
 		// which the CFGetTypeID checks below will correctly reject.
 		CFTypeRef positionValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
@@ -183,32 +185,38 @@ ElementInfo *getElementInfo(void *element) {
 			info->value = cfStringToCString((CFStringRef)valueValue);
 		}
 
-		CFTypeRef roleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 5);
+		CFTypeRef identifierValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 5);
+		if (identifierValue && CFGetTypeID(identifierValue) == CFStringGetTypeID()) {
+			info->identifier = cfStringToCString((CFStringRef)identifierValue);
+		}
+
+		CFTypeRef roleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 6);
 		if (roleValue && CFGetTypeID(roleValue) == CFStringGetTypeID()) {
 			info->role = cfStringToCString((CFStringRef)roleValue);
 		}
 
-		CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 6);
+		CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 7);
 		if (roleDescValue && CFGetTypeID(roleDescValue) == CFStringGetTypeID()) {
 			info->roleDescription = cfStringToCString((CFStringRef)roleDescValue);
 		}
 
-		CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 7);
+		CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 8);
 		if (enabledValue && CFGetTypeID(enabledValue) == CFBooleanGetTypeID()) {
 			info->isEnabled = CFBooleanGetValue((CFBooleanRef)enabledValue);
+			info->hasEnabledAttribute = true;
 		}
 
-		CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 8);
+		CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 9);
 		if (focusedValue && CFGetTypeID(focusedValue) == CFBooleanGetTypeID()) {
 			info->isFocused = CFBooleanGetValue((CFBooleanRef)focusedValue);
 		}
 
-		CFTypeRef hiddenValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 9);
+		CFTypeRef hiddenValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 10);
 		if (hiddenValue && CFGetTypeID(hiddenValue) == CFBooleanGetTypeID()) {
 			info->isHidden = CFBooleanGetValue((CFBooleanRef)hiddenValue);
 		}
 
-		CFTypeRef visibleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 10);
+		CFTypeRef visibleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 11);
 		if (visibleValue && CFGetTypeID(visibleValue) == CFBooleanGetTypeID()) {
 			info->isVisible = CFBooleanGetValue((CFBooleanRef)visibleValue);
 		}
@@ -236,12 +244,38 @@ void freeElementInfo(ElementInfo *info) {
 		free(info->description);
 	if (info->value)
 		free(info->value);
+	if (info->identifier)
+		free(info->identifier);
 	if (info->role)
 		free(info->role);
 	if (info->roleDescription)
 		free(info->roleDescription);
 
 	free(info);
+}
+
+#pragma mark - Cached System-Wide Element
+
+static AXUIElementRef cachedSystemWideElement = NULL;
+static pthread_mutex_t systemWideMutex = PTHREAD_MUTEX_INITIALIZER;
+
+static AXUIElementRef getCachedSystemWideElement(void) {
+	pthread_mutex_lock(&systemWideMutex);
+	if (!cachedSystemWideElement) {
+		cachedSystemWideElement = AXUIElementCreateSystemWide();
+	}
+	CFRetain(cachedSystemWideElement);
+	pthread_mutex_unlock(&systemWideMutex);
+	return cachedSystemWideElement;
+}
+
+static void releaseCachedSystemWideElement(void) {
+	pthread_mutex_lock(&systemWideMutex);
+	if (cachedSystemWideElement) {
+		CFRelease(cachedSystemWideElement);
+		cachedSystemWideElement = NULL;
+	}
+	pthread_mutex_unlock(&systemWideMutex);
 }
 
 #pragma mark - Position Functions
@@ -497,9 +531,9 @@ int isElementVisibleAtPoint(void *element, CGPoint center) {
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
 
-	AXUIElementRef systemWide = AXUIElementCreateSystemWide();
+	AXUIElementRef systemWide = getCachedSystemWideElement();
 	if (!systemWide)
-		return 1;  // Assume visible if system-wide ref cannot be created (mirrors isPointVisible)
+		return 1;
 
 	AXUIElementRef hitElement = NULL;
 	AXError error = AXUIElementCopyElementAtPosition(systemWide, center.x, center.y, &hitElement);
@@ -555,80 +589,29 @@ static bool getElementFrame(AXUIElementRef element, CGRect *outFrame) {
 /// Check if element has click action
 /// @param element Element reference
 /// @param skipVisCheck If true, skip the expensive hit-test visibility check
+/// @param preHidden Pre-fetched AXHidden value
+/// @param preVisible Pre-fetched AXVisible value
+/// @param preEnabled Pre-fetched AXEnabled value
+/// @param hasEnabledAttr Whether AXEnabled attribute exists on this element
+/// @param preRole Pre-fetched AXRole as C string
+/// @param centerX Pre-computed center X (from ElementInfo)
+/// @param centerY Pre-computed center Y (from ElementInfo)
 /// @return 1 if element is clickable, 0 otherwise
-int hasClickAction(void *element, bool skipVisCheck) {
+int hasClickAction(
+    void *element, bool skipVisCheck, bool preHidden, bool preVisible, bool preEnabled, bool hasEnabledAttr,
+    const char *preRole, double centerX, double centerY) {
 	if (!element)
 		return 0;
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
 
-	CFTypeRef attrs[] = {
-	    kAXHiddenAttribute, kAXEnabledAttribute, kAXRoleAttribute, kAXIdentifierAttribute, kAXVisibleAttribute};
-
-	CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 5, &kCFTypeArrayCallBacks);
-
-	if (!attrArray)
+	if (preHidden || !preVisible)
 		return 0;
 
-	CFArrayRef values = NULL;
+	// Use pre-computed center from ElementInfo (no redundant AX call).
+	CGPoint visCenter = CGPointMake(centerX, centerY);
 
-	AXError err = AXUIElementCopyMultipleAttributeValues(axElement, attrArray, 0, &values);
-
-	CFRelease(attrArray);
-
-	bool isHidden = false;
-	bool isVisible = true;  // default visible when attribute not available
-	bool explicitlyDisabled = false;
-	bool hasEnabledAttribute = false;
-	bool isWidget = false;
-	CFStringRef role = NULL;
-
-	if (err == kAXErrorSuccess && values) {
-		CFIndex count = CFArrayGetCount(values);
-
-		for (CFIndex i = 0; i < count && i < 5; i++) {
-			CFTypeRef value = CFArrayGetValueAtIndex(values, i);
-			CFTypeRef attr = attrs[i];
-
-			if (!value)
-				continue;
-
-			if (attr == kAXHiddenAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
-				isHidden = CFBooleanGetValue((CFBooleanRef)value);
-			} else if (attr == kAXEnabledAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
-				hasEnabledAttribute = true;
-				explicitlyDisabled = !CFBooleanGetValue((CFBooleanRef)value);
-			} else if (attr == kAXRoleAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
-				role = (CFStringRef)value;
-				CFRetain(role);
-			} else if (attr == kAXIdentifierAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
-				isWidget = CFStringHasPrefix((CFStringRef)value, kAXWidgetIdentifierPrefix);
-			} else if (attr == kAXVisibleAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
-				isVisible = CFBooleanGetValue((CFBooleanRef)value);
-			}
-		}
-
-		CFRelease(values);
-	}
-
-	if (isHidden || !isVisible)
-		return 0;
-
-	// Pre-compute center for visibility hit-test.
-	// getElementCenter fetches AXPosition + AXSize in one batch call.
-	// Done once here so that every return-1 path below can use it without
-	// repeating the fetch (and without fetching it at all for excluded bundles).
-	CGPoint visCenter = CGPointZero;
-	bool hasVisCenter = false;
-	if (!skipVisCheck) {
-		hasVisCenter = getElementCenter((void *)axElement, &visCenter);
-	}
-
-	// visHit returns true when (a) skipVisCheck is set (excluded bundles),
-	// (b) the center could not be determined (conservatively assume visible),
-	// or (c) the hit-test at the element's center confirms it or a descendant
-	// is rendered at that point.
-#define visHit (!skipVisCheck && hasVisCenter ? isElementVisibleAtPoint((void *)axElement, visCenter) : 1)
+#define visHit (!skipVisCheck ? isElementVisibleAtPoint((void *)axElement, visCenter) : 1)
 
 	// Explicit actions are the strongest signal, so we check for them first
 	CFArrayRef actions = NULL;
@@ -648,20 +631,12 @@ int hasClickAction(void *element, bool skipVisCheck) {
 			    CFStringCompare(action, CFSTR("AXRaise"), 0) == kCFCompareEqualTo) {
 				CFRelease(actions);
 
-				if (hasEnabledAttribute && explicitlyDisabled) {
-					if (role)
-						CFRelease(role);
+				if (hasEnabledAttr && !preEnabled)
 					return 0;
-				}
 
-				if (!visHit) {
-					if (role)
-						CFRelease(role);
+				if (!visHit)
 					return 0;
-				}
 
-				if (role)
-					CFRelease(role);
 				return 1;
 			}
 		}
@@ -669,27 +644,33 @@ int hasClickAction(void *element, bool skipVisCheck) {
 		CFRelease(actions);
 	}
 
-	// Exclude known container/structural roles
-	if (role) {
-		if (CFStringCompare(role, kAXScrollAreaRole, 0) == kCFCompareEqualTo ||
-		    CFStringCompare(role, kAXGroupRole, 0) == kCFCompareEqualTo ||
-		    CFStringCompare(role, kAXSplitGroupRole, 0) == kCFCompareEqualTo) {
+	// Exclude known container/structural roles unless they are widgets
+	if (preRole) {
+		bool isScrollArea = strcmp(preRole, "AXScrollArea") == 0;
+		bool isGroup = strcmp(preRole, "AXGroup") == 0;
+		bool isSplitGroup = strcmp(preRole, "AXSplitGroup") == 0;
+
+		if (isScrollArea || isGroup || isSplitGroup) {
+			// Check if it's a widget by looking at the identifier attribute
+			CFStringRef identifier = NULL;
+			bool isWidget = false;
+			if (AXUIElementCopyAttributeValue(axElement, kAXIdentifierAttribute, (CFTypeRef *)&identifier) ==
+			        kAXErrorSuccess &&
+			    identifier) {
+				isWidget = CFStringHasPrefix(identifier, kAXWidgetIdentifierPrefix);
+				CFRelease(identifier);
+			}
+
 			if (isWidget) {
-				if (hasEnabledAttribute && explicitlyDisabled) {
-					CFRelease(role);
+				if (hasEnabledAttr && !preEnabled)
 					return 0;
-				}
 
-				if (!visHit) {
-					CFRelease(role);
+				if (!visHit)
 					return 0;
-				}
 
-				CFRelease(role);
 				return 1;
 			}
 
-			CFRelease(role);
 			return 0;
 		}
 	}
@@ -699,45 +680,31 @@ int hasClickAction(void *element, bool skipVisCheck) {
 	if (AXUIElementCopyActionDescription(axElement, kAXPressAction, &pressDesc) == kAXErrorSuccess && pressDesc) {
 		CFRelease(pressDesc);
 
-		if (!visHit) {
-			if (role)
-				CFRelease(role);
+		if (!visHit)
 			return 0;
-		}
 
-		if (role)
-			CFRelease(role);
 		return 1;
 	}
 
 	// Role-specific fallback for links
-	if (role && CFStringCompare(role, kAXLinkRole, 0) == kCFCompareEqualTo) {
+	if (preRole && strcmp(preRole, "AXLink") == 0) {
 		CFTypeRef urlAttr = NULL;
 		if (AXUIElementCopyAttributeValue(axElement, kAXURLAttribute, &urlAttr) == kAXErrorSuccess && urlAttr) {
 			CFRelease(urlAttr);
 
-			if (!visHit) {
-				CFRelease(role);
+			if (!visHit)
 				return 0;
-			}
 
-			CFRelease(role);
 			return 1;
 		}
 	}
 
-	if (role)
-		CFRelease(role);
-
 	// Visibility check: hit-test at center to filter obscured/scroll-clipped elements.
-	if (skipVisCheck)
-		return 1;
-
-	if (hasVisCenter) {
+	if (!skipVisCheck) {
 		return isElementVisibleAtPoint((void *)axElement, visCenter);
 	}
 
-	return 0;
+	return 1;
 
 #undef visHit
 }

@@ -8,9 +8,11 @@ import (
 )
 
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
+// If maxDepth is > 0, it overrides the configured tree depth.
 func MenuBarClickableElements(
 	logger *zap.Logger,
 	configProvider config.Provider,
+	maxDepth int,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for menu bar")
 
@@ -34,7 +36,12 @@ func MenuBarClickableElements(
 	opts.SetConfigProvider(configProvider)
 
 	if cfg := currentConfig(configProvider); cfg != nil {
-		opts.SetMaxDepth(cfg.Hints.MaxDepth)
+		depth := cfg.Hints.MaxDepth
+		if maxDepth > 0 {
+			depth = maxDepth
+		}
+
+		opts.SetMaxDepth(depth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
 	}
 
@@ -85,11 +92,13 @@ func MenuBarClickableElements(
 }
 
 // ClickableElementsFromBundleID retrieves clickable UI elements from the application identified by bundle ID.
+// If maxDepth is > 0, it overrides the configured tree depth (useful for flat supplementary sources).
 func ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 	logger *zap.Logger,
 	configProvider config.Provider,
+	maxDepth int,
 ) ([]*TreeNode, error) {
 	logger.Debug("Getting clickable elements for bundle ID",
 		zap.String("bundle_id", bundleID),
@@ -107,7 +116,12 @@ func ClickableElementsFromBundleID(
 	opts.SetConfigProvider(configProvider)
 
 	if cfg := currentConfig(configProvider); cfg != nil {
-		opts.SetMaxDepth(cfg.Hints.MaxDepth)
+		depth := cfg.Hints.MaxDepth
+		if maxDepth > 0 {
+			depth = maxDepth
+		}
+
+		opts.SetMaxDepth(depth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
 	}
 

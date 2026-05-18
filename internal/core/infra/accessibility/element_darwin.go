@@ -100,6 +100,7 @@ type ElementInfo struct {
 	title           string
 	description     string
 	value           string
+	identifier      string
 	searchText      string
 	role            string
 	roleDescription string
@@ -107,7 +108,9 @@ type ElementInfo struct {
 	isFocused       bool
 	isHidden        bool
 	isVisible       bool
+	hasEnabledAttr  bool
 	pid             int
+	skipHitTest     bool
 }
 
 // Position returns the element position.
@@ -133,6 +136,11 @@ func (ei *ElementInfo) Description() string {
 // Value returns the element value.
 func (ei *ElementInfo) Value() string {
 	return ei.value
+}
+
+// Identifier returns the element identifier.
+func (ei *ElementInfo) Identifier() string {
+	return ei.identifier
 }
 
 // SearchText returns extra searchable text collected from descendant elements.
@@ -259,11 +267,12 @@ func (e *Element) Info() (*ElementInfo, error) {
 			X: int(cInfo.size.width),
 			Y: int(cInfo.size.height),
 		},
-		isEnabled: bool(cInfo.isEnabled),
-		isFocused: bool(cInfo.isFocused),
-		isHidden:  bool(cInfo.isHidden),
-		isVisible: bool(cInfo.isVisible),
-		pid:       int(cInfo.pid),
+		isEnabled:      bool(cInfo.isEnabled),
+		hasEnabledAttr: bool(cInfo.hasEnabledAttribute),
+		isFocused:      bool(cInfo.isFocused),
+		isHidden:       bool(cInfo.isHidden),
+		isVisible:      bool(cInfo.isVisible),
+		pid:            int(cInfo.pid),
 	}
 
 	if cInfo.title != nil {
@@ -274,6 +283,9 @@ func (e *Element) Info() (*ElementInfo, error) {
 	}
 	if cInfo.value != nil {
 		info.value = C.GoString(cInfo.value)
+	}
+	if cInfo.identifier != nil {
+		info.identifier = C.GoString(cInfo.identifier)
 	}
 	if cInfo.role != nil {
 		info.role = C.GoString(cInfo.role)
@@ -286,7 +298,7 @@ func (e *Element) Info() (*ElementInfo, error) {
 }
 
 // Children returns all child elements of this element.
-func (e *Element) Children() ([]*Element, error) {
+func (e *Element) Children(role string) ([]*Element, error) {
 	if e.ref == nil {
 		return nil, errGetChildrenNil
 	}
@@ -294,31 +306,20 @@ func (e *Element) Children() ([]*Element, error) {
 	var count C.int
 	var rawChildren unsafe.Pointer
 
-	info, err := e.Info()
-	if err != nil {
-		return nil, derrors.Wrap(
-			err,
-			derrors.CodeAccessibilityFailed,
-			"failed to get element info",
-		)
-	}
-
-	if info != nil {
-		switch info.Role() {
-		case string(element.RoleList), string(element.RoleTable), string(element.RoleOutline):
-			ptr := unsafe.Pointer(C.getVisibleRows(e.ref, &count)) //nolint:nlreturn
-			if ptr != nil && count > 0 {
-				rawChildren = ptr
-			} else {
-				if ptr != nil {
-					C.free(ptr)
-				}
-
-				rawChildren = unsafe.Pointer(C.getChildren(e.ref, &count)) //nolint:nlreturn
+	switch role {
+	case string(element.RoleList), string(element.RoleTable), string(element.RoleOutline):
+		ptr := unsafe.Pointer(C.getVisibleRows(e.ref, &count)) //nolint:nlreturn
+		if ptr != nil && count > 0 {
+			rawChildren = ptr
+		} else {
+			if ptr != nil {
+				C.free(ptr)
 			}
-		default:
+
 			rawChildren = unsafe.Pointer(C.getChildren(e.ref, &count)) //nolint:nlreturn
 		}
+	default:
+		rawChildren = unsafe.Pointer(C.getChildren(e.ref, &count)) //nolint:nlreturn
 	}
 
 	if rawChildren == nil || count == 0 {
@@ -332,7 +333,6 @@ func (e *Element) Children() ([]*Element, error) {
 
 	countInt := int(count)
 	childSlice := (*[1 << 30]unsafe.Pointer)(rawChildren)[:countInt:countInt]
-	// Pre-allocate and directly create elements
 	children := make([]*Element, countInt)
 	for i := range children {
 		children[i] = &Element{ref: childSlice[i]}
@@ -683,9 +683,27 @@ func (e *Element) IsClickable(
 		// 2. Clickability checks: AXActionNames → role exclusion → AXPress
 		//    description → link+URL (no early returns, accumulate result)
 		// 3. Hit-test visibility as final gate for ALL clickable results
+		cRole := C.CString(info.Role())
+
+		defer C.free(unsafe.Pointer(cRole)) //nolint:nlreturn
+
+		centerX := C.double(info.Position().X + info.Size().X/2)
+		centerY := C.double(info.Position().Y + info.Size().Y/2)
+
+		// Skip hit-test for Chromium/Electron apps (noisy DOM) OR for nodes
+		// within the original window clip bounds (non-scroll areas).
+		skipVisCheck := isExcludedBundleID(info.PID(), configProvider) || info.skipHitTest
+
 		result := C.hasClickAction(
 			e.ref,
-			C.bool(isExcludedBundleID(info.PID(), configProvider)), // nolint:nlreturn
+			C.bool(skipVisCheck),
+			C.bool(info.isHidden),
+			C.bool(info.isVisible),
+			C.bool(info.isEnabled),
+			C.bool(info.hasEnabledAttr),
+			cRole,
+			centerX,
+			centerY, //nolint:nlreturn
 		)
 
 		return result == 1

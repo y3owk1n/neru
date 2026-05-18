@@ -16,7 +16,8 @@ const (
 
 // validateModeActivation performs common validation checks before mode activation.
 // Returns an error if the mode cannot be activated.
-func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) error {
+// If bundleID is non-empty, it is used directly for exclusion check (skips AX call).
+func (h *Handler) validateModeActivation(bundleID string, modeName string, modeEnabled bool) error {
 	// Check for secure input mode first - this is a macOS security feature
 	// that blocks keyboard events when password fields are focused.
 	// On non-macOS platforms IsSecureInputEnabled always returns false.
@@ -48,15 +49,20 @@ func (h *Handler) validateModeActivation(modeName string, modeEnabled bool) erro
 	}
 
 	// Check if focused app is excluded
-	// Use a short timeout context for this check
-	context, cancel := context.WithTimeout(context.Background(), ValidationTimeout)
-	defer cancel()
+	if bundleID != "" {
+		if h.actionService.IsAppExcluded(bundleID) {
+			return derrors.New(derrors.CodeInvalidInput, "focused app is excluded")
+		}
+	} else {
+		context, cancel := context.WithTimeout(context.Background(), ValidationTimeout)
+		defer cancel()
 
-	isExcluded, isExcludedErr := h.actionService.IsFocusedAppExcluded(context)
-	if isExcludedErr != nil {
-		h.logger.Warn("Failed to check if app is excluded", zap.Error(isExcludedErr))
-	} else if isExcluded {
-		return derrors.New(derrors.CodeInvalidInput, "focused app is excluded")
+		isExcluded, isExcludedErr := h.actionService.IsFocusedAppExcluded(context)
+		if isExcludedErr != nil {
+			h.logger.Warn("Failed to check if app is excluded", zap.Error(isExcludedErr))
+		} else if isExcluded {
+			return derrors.New(derrors.CodeInvalidInput, "focused app is excluded")
+		}
 	}
 
 	return nil

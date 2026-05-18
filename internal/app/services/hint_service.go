@@ -50,7 +50,7 @@ func (s *HintService) ShowHints(
 ) ([]*hint.Interface, error) {
 	s.logger.Info("Showing hints")
 
-	hints, err := s.GenerateHints(ctx, filterRoles, filterTextContains)
+	hints, err := s.GenerateHints(ctx, filterRoles, filterTextContains, "")
 	if err != nil {
 		return nil, err
 	}
@@ -75,10 +75,12 @@ func (s *HintService) ShowHints(
 // GenerateHints collects clickable elements and generates labels without drawing
 // them. Mode handlers use this to filter and position hints before the first
 // render, avoiding an extra full overlay draw during activation.
+// If bundleID is non-empty, it is used directly (skips AX call).
 func (s *HintService) GenerateHints(
 	ctx context.Context,
 	filterRoles []string,
 	filterTextContains []string,
+	bundleID string,
 ) ([]*hint.Interface, error) {
 	s.mu.RLock()
 	cfg := s.config
@@ -88,12 +90,16 @@ func (s *HintService) GenerateHints(
 	filter := ports.DefaultElementFilter()
 
 	// Populate filter with configuration
-	bundleID, bundleIDErr := s.accessibility.FocusedAppBundleID(ctx)
-	if bundleIDErr != nil {
-		s.logger.Debug(
-			"Failed to get focused app bundle ID for hints roles",
-			zap.Error(bundleIDErr),
-		)
+	if bundleID == "" {
+		var bundleIDErr error
+
+		bundleID, bundleIDErr = s.accessibility.FocusedAppBundleID(ctx)
+		if bundleIDErr != nil {
+			s.logger.Debug(
+				"Failed to get focused app bundle ID for hints roles",
+				zap.Error(bundleIDErr),
+			)
+		}
 	}
 
 	// Use filterRoles if provided, otherwise use configured roles

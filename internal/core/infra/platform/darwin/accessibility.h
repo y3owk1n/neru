@@ -15,18 +15,20 @@
 
 /// Structure containing information about an accessibility element
 typedef struct {
-	CGPoint position;       ///< Element position
-	CGSize size;            ///< Element size
-	char *title;            ///< Element title
-	char *description;      ///< Element description
-	char *value;            ///< Element value
-	char *role;             ///< Element role
-	char *roleDescription;  ///< Element role description
-	bool isEnabled;         ///< Whether element is enabled
-	bool isFocused;         ///< Whether element is focused
-	int pid;                ///< Process identifier
-	bool isHidden;          ///< Whether element is AX-hidden (CSS visibility:hidden etc.)
-	bool isVisible;         ///< Whether element is AX-visible (default true when unsupported)
+	CGPoint position;          ///< Element position
+	CGSize size;               ///< Element size
+	char *title;               ///< Element title
+	char *description;         ///< Element description
+	char *value;               ///< Element value
+	char *identifier;          ///< Element identifier (for widget detection)
+	char *role;                ///< Element role
+	char *roleDescription;     ///< Element role description
+	bool isEnabled;            ///< Whether element is enabled
+	bool hasEnabledAttribute;  ///< Whether element supports AXEnabled attribute
+	bool isFocused;            ///< Whether element is focused
+	int pid;                   ///< Process identifier
+	bool isHidden;             ///< Whether element is AX-hidden (CSS visibility:hidden etc.)
+	bool isVisible;            ///< Whether element is AX-visible (default true when unsupported)
 } ElementInfo;
 
 #pragma mark - Permission Functions
@@ -118,8 +120,17 @@ void postMouseMoveEvent(CGPoint position, CGEventType eventType);
 /// Check if element has click action
 /// @param element Element reference
 /// @param skipVisCheck If true, skip the expensive hit-test visibility check
+/// @param preHidden Pre-fetched AXHidden value (from ElementInfo)
+/// @param preVisible Pre-fetched AXVisible value (from ElementInfo)
+/// @param preEnabled Pre-fetched AXEnabled value (from ElementInfo)
+/// @param hasEnabledAttr Whether AXEnabled attribute exists on this element
+/// @param preRole Pre-fetched AXRole value (from ElementInfo, caller retains)
+/// @param centerX Pre-computed center X (from ElementInfo position + size)
+/// @param centerY Pre-computed center Y (from ElementInfo position + size)
 /// @return 1 if element is clickable, 0 otherwise
-int hasClickAction(void *element, bool skipVisCheck);
+int hasClickAction(
+    void *element, bool skipVisCheck, bool preHidden, bool preVisible, bool preEnabled, bool hasEnabledAttr,
+    const char *preRole, double centerX, double centerY);
 
 /// Fast visibility check using a pre-computed center point (avoids redundant AX position fetch)
 /// @param element Element reference

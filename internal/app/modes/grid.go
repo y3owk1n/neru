@@ -24,12 +24,13 @@ func (h *Handler) activateGridModeWithAction(
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeGrid
 
-	actionEnum, ok := h.activateModeBase(
+	actionEnum, activated := h.activateModeBase(
 		domain.ModeNameGrid,
 		h.config.Grid.Enabled,
 		action.TypeMoveMouse,
+		"",
 	)
-	if !ok {
+	if !activated {
 		if isRefresh {
 			h.exitModeLocked()
 		}

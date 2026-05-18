@@ -28,11 +28,13 @@ type AXClient interface {
 	ClickableNodes(
 		root AXElement,
 		roles []string,
+		maxDepth int,
 	) ([]AXNode, error)
-	MenuBarClickableElements() ([]AXNode, error)
+	MenuBarClickableElements(maxDepth int) ([]AXNode, error)
 	ClickableElementsFromBundleID(
 		bundleID string,
 		roles []string,
+		maxDepth int,
 	) ([]AXNode, error)
 	ActiveScreenBounds() image.Rectangle
 

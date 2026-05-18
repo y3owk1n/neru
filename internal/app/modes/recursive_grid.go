@@ -25,12 +25,13 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeRecursiveGrid
 
-	actionEnum, ok := h.activateModeBase(
+	actionEnum, activated := h.activateModeBase(
 		domain.ModeNameRecursiveGrid,
 		h.config.RecursiveGrid.Enabled,
 		action.TypeMoveMouse,
+		"",
 	)
-	if !ok {
+	if !activated {
 		if isRefresh {
 			h.exitModeLocked()
 		}

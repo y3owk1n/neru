@@ -10,6 +10,17 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
+const (
+	// dockTreeDepth limits tree depth for the flat dock hierarchy (AXApplication → AXDockItem).
+	dockTreeDepth = 5
+	// stageManagerTreeDepth limits tree depth for the WindowManager app.
+	stageManagerTreeDepth = 4
+	// flatAppTreeDepth limits tree depth for simple single-window apps like PIP and screen capture.
+	flatAppTreeDepth = 3
+	// menubarTreeDepth limits tree depth for the menu bar (AXMenuBar → AXMenuBarItem → AXMenuItem).
+	menubarTreeDepth = 3
+)
+
 // addMenubarElements adds menubar clickable elements.
 // Temporarily modifies clickable roles to include AXMenuBarItem, collects menubar elements,
 // and processes additional menubar targets from configuration.
@@ -27,7 +38,7 @@ func (a *Adapter) addMenubarElements(
 	menubarRoles[len(originalRoles)] = string(element.RoleMenuBarItem)
 
 	// Get menubar elements
-	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements()
+	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(menubarTreeDepth)
 	if menubarNodesErr != nil {
 		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {
@@ -62,6 +73,7 @@ func (a *Adapter) addMenubarElements(
 			additionalNodes, err := a.client.ClickableElementsFromBundleID(
 				bundleID,
 				menubarRoles,
+				0,
 			)
 			if err != nil {
 				a.logger.Warn("Failed to get additional menubar elements",
@@ -155,7 +167,7 @@ func (a *Adapter) addDockElements(
 	}
 
 	// Build tree and find clickable elements
-	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, dockRoles)
+	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, dockRoles, dockTreeDepth)
 	if dockNodesErr != nil {
 		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
 
@@ -199,6 +211,7 @@ func (a *Adapter) addNotificationCenterElements(
 	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(
 		ncBundleID,
 		ncRoles,
+		0,
 	)
 	if ncNodesErr != nil {
 		a.logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))
@@ -258,7 +271,7 @@ func (a *Adapter) addStageManagerElements(
 	}
 
 	// Build tree and find clickable elements
-	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, nil)
+	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, nil, stageManagerTreeDepth)
 	if wmNodesErr != nil {
 		a.logger.Warn("Failed to get window manager elements", zap.Error(wmNodesErr))
 
@@ -294,6 +307,7 @@ func (a *Adapter) addPIPElements(
 	pipNodes, pipNodesErr := a.client.ClickableElementsFromBundleID(
 		pipBundleID,
 		nil,
+		flatAppTreeDepth,
 	)
 	if pipNodesErr != nil {
 		a.logger.Warn("Failed to get Picture in Picture elements", zap.Error(pipNodesErr))
@@ -330,6 +344,7 @@ func (a *Adapter) addScreenCaptureElements(
 	screenCaptureNodes, screenCaptureNodesErr := a.client.ClickableElementsFromBundleID(
 		screenCaptureBundleID,
 		nil,
+		flatAppTreeDepth,
 	)
 	if screenCaptureNodesErr != nil {
 		a.logger.Warn("Failed to get Screen Capture elements", zap.Error(screenCaptureNodesErr))

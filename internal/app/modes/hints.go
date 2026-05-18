@@ -138,12 +138,23 @@ func (h *Handler) activateHintModeInternal(
 		h.cycleHintIndex = -1
 	}
 
-	actionEnum, ok := h.activateModeBase(
+	// Fetch bundle ID once to avoid repeated AX calls across validation and hint generation
+	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
+	defer cancel()
+
+	bundleID, bundleIDErr := h.actionService.FocusedAppBundleID(ctx)
+	if bundleIDErr != nil {
+		h.logger.Debug("Failed to get focused app bundle ID for validation",
+			zap.Error(bundleIDErr))
+	}
+
+	actionEnum, activated := h.activateModeBase(
 		domain.ModeNameHints,
 		h.config.Hints.Enabled,
 		action.TypeMoveMouse,
+		bundleID,
 	)
-	if !ok {
+	if !activated {
 		// If validation fails during a refresh (e.g., secure input activated,
 		// focused app became excluded), exit cleanly instead of leaving stale
 		// hints on the overlay.
@@ -209,13 +220,14 @@ func (h *Handler) activateHintModeInternal(
 		h.hints.Context.SetStartWithSearch(search)
 	}
 
-	// Use new HintService to show hints
-	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
-	defer cancel()
-
 	// Get hints from service. Drawing is intentionally deferred until after
 	// active-screen filtering so activation performs one full overlay render.
-	domainHints, domainHintsErr := h.hintService.GenerateHints(ctx, filterRoles, filterTextContains)
+	domainHints, domainHintsErr := h.hintService.GenerateHints(
+		ctx,
+		filterRoles,
+		filterTextContains,
+		bundleID,
+	)
 	if domainHintsErr != nil {
 		h.logger.Error(
 			"Failed to show hints",

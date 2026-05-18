@@ -83,9 +83,11 @@ func (c *InfraAXClient) FocusedApplication() (AXApp, error) {
 }
 
 // ClickableNodes returns clickable nodes for the given root element.
+// If maxDepth is > 0, it overrides the configured tree depth.
 func (c *InfraAXClient) ClickableNodes(
 	root AXElement,
 	roles []string,
+	maxDepth int,
 ) ([]AXNode, error) {
 	var element *Element
 
@@ -106,7 +108,12 @@ func (c *InfraAXClient) ClickableNodes(
 	opts.SetConfigProvider(c.configProvider)
 
 	if cfg := currentConfig(c.configProvider); cfg != nil {
-		opts.SetMaxDepth(cfg.Hints.MaxDepth)
+		depth := cfg.Hints.MaxDepth
+		if maxDepth > 0 {
+			depth = maxDepth
+		}
+
+		opts.SetMaxDepth(depth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
 	}
 
@@ -166,10 +173,12 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 }
 
 // MenuBarClickableElements returns clickable elements in the menu bar.
-func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
+// If maxDepth is > 0, it overrides the configured tree depth.
+func (c *InfraAXClient) MenuBarClickableElements(maxDepth int) ([]AXNode, error) {
 	nodes, nodesErr := MenuBarClickableElements(
 		c.logger,
 		c.configProvider,
+		maxDepth,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
@@ -192,15 +201,18 @@ func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
 }
 
 // ClickableElementsFromBundleID returns clickable elements for the application with the given bundle ID.
+// If maxDepth is > 0, it overrides the configured tree depth for flat supplementary sources.
 func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
+	maxDepth int,
 ) ([]AXNode, error) {
 	nodes, nodesErr := ClickableElementsFromBundleID(
 		bundleID,
 		roles,
 		c.logger,
 		c.configProvider,
+		maxDepth,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(

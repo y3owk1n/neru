@@ -134,6 +134,11 @@ func (s *ActionService) FocusedAppBundleID(ctx context.Context) (string, error) 
 	return s.accessibility.FocusedAppBundleID(ctx)
 }
 
+// IsAppExcluded checks if the given bundle ID is in the exclusion list.
+func (s *ActionService) IsAppExcluded(bundleID string) bool {
+	return s.accessibility.IsAppExcluded(context.Background(), bundleID)
+}
+
 // MoveCursorToElement moves the cursor to the center of the specified element.
 func (s *ActionService) MoveCursorToElement(
 	ctx context.Context,

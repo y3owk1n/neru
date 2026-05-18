@@ -91,14 +91,25 @@ func ApplicationBundleIDByPID(pid int) (string, error) {
 }
 
 // HasClickAction checks if the accessibility element has a click action.
+// Uses default assumptions for pre-fetched attributes (not hidden, visible, enabled).
 func HasClickAction(element unsafe.Pointer) bool {
 	if element == nil {
 		return false
 	}
 
-	result := C.hasClickAction(element, false) != 0 //nolint:nlreturn
+	clickable := C.hasClickAction(
+		element,
+		false,
+		false,
+		true,
+		true,
+		true,
+		nil,
+		0,
+		0, //nolint:nlreturn
+	) != 0
 
-	return result
+	return clickable
 }
 
 // SetApplicationAttribute sets an attribute on an application by its PID.
