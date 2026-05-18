@@ -27,7 +27,7 @@ func (a *Adapter) addMenubarElements(
 	menubarRoles[len(originalRoles)] = string(element.RoleMenuBarItem)
 
 	// Get menubar elements
-	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(false, true)
+	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements()
 	if menubarNodesErr != nil {
 		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {
@@ -62,8 +62,6 @@ func (a *Adapter) addMenubarElements(
 			additionalNodes, err := a.client.ClickableElementsFromBundleID(
 				bundleID,
 				menubarRoles,
-				false,
-				true,
 			)
 			if err != nil {
 				a.logger.Warn("Failed to get additional menubar elements",
@@ -157,7 +155,7 @@ func (a *Adapter) addDockElements(
 	}
 
 	// Build tree and find clickable elements
-	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, dockRoles, false, true)
+	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, dockRoles)
 	if dockNodesErr != nil {
 		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
 
@@ -201,8 +199,6 @@ func (a *Adapter) addNotificationCenterElements(
 	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(
 		ncBundleID,
 		ncRoles,
-		false,
-		true,
 	)
 	if ncNodesErr != nil {
 		a.logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))
@@ -262,7 +258,7 @@ func (a *Adapter) addStageManagerElements(
 	}
 
 	// Build tree and find clickable elements
-	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, nil, false, true)
+	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, nil)
 	if wmNodesErr != nil {
 		a.logger.Warn("Failed to get window manager elements", zap.Error(wmNodesErr))
 
@@ -298,8 +294,6 @@ func (a *Adapter) addPIPElements(
 	pipNodes, pipNodesErr := a.client.ClickableElementsFromBundleID(
 		pipBundleID,
 		nil,
-		false,
-		true,
 	)
 	if pipNodesErr != nil {
 		a.logger.Warn("Failed to get Picture in Picture elements", zap.Error(pipNodesErr))
@@ -336,8 +330,6 @@ func (a *Adapter) addScreenCaptureElements(
 	screenCaptureNodes, screenCaptureNodesErr := a.client.ClickableElementsFromBundleID(
 		screenCaptureBundleID,
 		nil,
-		false,
-		true,
 	)
 	if screenCaptureNodesErr != nil {
 		a.logger.Warn("Failed to get Screen Capture elements", zap.Error(screenCaptureNodesErr))

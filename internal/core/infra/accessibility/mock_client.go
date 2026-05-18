@@ -41,16 +41,10 @@ type MockAXClient struct {
 
 	MockMissionControlActive bool
 
-	LastCalledBundleID                   string
-	LastClickableNodesRoles              []string
-	LastClickableNodesStrictFiltering    bool
-	LastClickableNodesIncludeOutOfBounds bool
-	LastBundleRoles                      []string
-	LastBundleStrictFiltering            bool
-	LastBundleIncludeOutOfBounds         bool
-	LastMenuBarStrictFiltering           bool
-	LastMenuBarIncludeOutOfBounds        bool
-	ClickableNodesRolesHistory           [][]string
+	LastCalledBundleID         string
+	LastClickableNodesRoles    []string
+	LastBundleRoles            []string
+	ClickableNodesRolesHistory [][]string
 }
 
 // FrontmostWindow returns the configured frontmost window or error.
@@ -92,13 +86,9 @@ func (m *MockAXClient) ApplicationByBundleID(_ string) (AXApp, error) {
 func (m *MockAXClient) ClickableNodes(
 	_ AXElement,
 	roles []string,
-	strictFiltering bool,
-	includeOutOfBounds bool,
 ) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastClickableNodesRoles = roles
-	m.LastClickableNodesStrictFiltering = strictFiltering
-	m.LastClickableNodesIncludeOutOfBounds = includeOutOfBounds
 	m.ClickableNodesRolesHistory = append(m.ClickableNodesRolesHistory, roles)
 	m.mu.Unlock()
 
@@ -106,15 +96,7 @@ func (m *MockAXClient) ClickableNodes(
 }
 
 // MenuBarClickableElements returns the configured menu bar nodes or error.
-func (m *MockAXClient) MenuBarClickableElements(
-	strictFiltering bool,
-	includeOutOfBounds bool,
-) ([]AXNode, error) {
-	m.mu.Lock()
-	m.LastMenuBarStrictFiltering = strictFiltering
-	m.LastMenuBarIncludeOutOfBounds = includeOutOfBounds
-	m.mu.Unlock()
-
+func (m *MockAXClient) MenuBarClickableElements() ([]AXNode, error) {
 	return m.MockMenuBarNodes, m.MockMenuBarNodesErr
 }
 
@@ -122,14 +104,10 @@ func (m *MockAXClient) MenuBarClickableElements(
 func (m *MockAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
-	strictFiltering bool,
-	includeOutOfBounds bool,
 ) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastCalledBundleID = bundleID
 	m.LastBundleRoles = roles
-	m.LastBundleStrictFiltering = strictFiltering
-	m.LastBundleIncludeOutOfBounds = includeOutOfBounds
 	m.mu.Unlock()
 
 	return m.MockBundleNodes, m.MockBundleNodesErr

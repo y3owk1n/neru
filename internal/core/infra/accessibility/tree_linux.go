@@ -49,17 +49,14 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions { return TreeOptions{} }
 // SetCache is a Linux stub.
 func (o *TreeOptions) SetCache(cache any) {}
 
-// SetIncludeOutOfBounds is a Linux stub.
-func (o *TreeOptions) SetIncludeOutOfBounds(include bool) {}
-
 // SetMaxDepth is a Linux stub.
 func (o *TreeOptions) SetMaxDepth(depth int) {}
 
 // SetParallelThreshold is a Linux stub.
 func (o *TreeOptions) SetParallelThreshold(threshold int) {}
 
-// SetStrictFiltering is a Linux stub.
-func (o *TreeOptions) SetStrictFiltering(strict bool) {}
+// SetBundleID is a Linux stub.
+func (o *TreeOptions) SetBundleID(bundleID string) {}
 
 // BuildTree builds the accessibility tree for the specified root element (Linux stub).
 func BuildTree(_ *Element, _ TreeOptions) (*TreeNode, error) {

@@ -175,8 +175,6 @@ func (a *Adapter) ClickableElements(
 					clickableNodes, clickableNodesErr := a.client.ClickableNodes(
 						window,
 						stringRoles(filter.Roles),
-						filter.StrictFiltering,
-						filter.IncludeOutOfBounds,
 					)
 					if clickableNodesErr != nil {
 						window.Release()

@@ -25,6 +25,8 @@ typedef struct {
 	bool isEnabled;         ///< Whether element is enabled
 	bool isFocused;         ///< Whether element is focused
 	int pid;                ///< Process identifier
+	bool isHidden;          ///< Whether element is AX-hidden (CSS visibility:hidden etc.)
+	bool isVisible;         ///< Whether element is AX-visible (default true when unsupported)
 } ElementInfo;
 
 #pragma mark - Permission Functions

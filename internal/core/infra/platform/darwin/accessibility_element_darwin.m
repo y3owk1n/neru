@@ -111,6 +111,10 @@ ElementInfo *getElementInfo(void *element) {
 		if (!info)
 			return NULL;
 
+		info->isVisible = true;  // default visible when attribute not available
+
+		static CFStringRef kVisibleAttr = CFSTR("AXVisible");
+
 		CFArrayRef attributes = CFArrayCreate(
 		    NULL,
 		    (const void **)(CFTypeRef[]){
@@ -123,8 +127,10 @@ ElementInfo *getElementInfo(void *element) {
 		        kAXRoleDescriptionAttribute,
 		        kAXEnabledAttribute,
 		        kAXFocusedAttribute,
+		        kAXHiddenAttribute,
+		        kVisibleAttr,
 		    },
-		    9, &kCFTypeArrayCallBacks);
+		    11, &kCFTypeArrayCallBacks);
 
 		if (!attributes) {
 			free(info);
@@ -143,7 +149,7 @@ ElementInfo *getElementInfo(void *element) {
 			return info;
 		}
 
-		// With option=0, values always has exactly 7 entries (one per requested attribute).
+		// With option=0, values always has exactly 11 entries (one per requested attribute).
 		// Slots for unsupported/errored attributes hold an AX error placeholder (CFNumber),
 		// which the CFGetTypeID checks below will correctly reject.
 		CFTypeRef positionValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
@@ -195,6 +201,16 @@ ElementInfo *getElementInfo(void *element) {
 		CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 8);
 		if (focusedValue && CFGetTypeID(focusedValue) == CFBooleanGetTypeID()) {
 			info->isFocused = CFBooleanGetValue((CFBooleanRef)focusedValue);
+		}
+
+		CFTypeRef hiddenValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 9);
+		if (hiddenValue && CFGetTypeID(hiddenValue) == CFBooleanGetTypeID()) {
+			info->isHidden = CFBooleanGetValue((CFBooleanRef)hiddenValue);
+		}
+
+		CFTypeRef visibleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 10);
+		if (visibleValue && CFGetTypeID(visibleValue) == CFBooleanGetTypeID()) {
+			info->isVisible = CFBooleanGetValue((CFBooleanRef)visibleValue);
 		}
 
 		CFRelease(values);
@@ -498,6 +514,44 @@ int isElementVisibleAtPoint(void *element, CGPoint center) {
 	return visible ? 1 : 0;
 }
 
+/// Get element frame (AXPosition + AXSize) via batch attribute fetch.
+static bool getElementFrame(AXUIElementRef element, CGRect *outFrame) {
+	if (!element || !outFrame)
+		return false;
+
+	CFTypeRef attrs[] = {kAXPositionAttribute, kAXSizeAttribute};
+	CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 2, &kCFTypeArrayCallBacks);
+	if (!attrArray)
+		return false;
+
+	CFArrayRef values = NULL;
+	AXError err = AXUIElementCopyMultipleAttributeValues(element, attrArray, 0, &values);
+	CFRelease(attrArray);
+
+	if (err != kAXErrorSuccess || !values || CFArrayGetCount(values) < 2) {
+		if (values)
+			CFRelease(values);
+		return false;
+	}
+
+	CGPoint position = CGPointZero;
+	CGSize size = CGSizeZero;
+
+	CFTypeRef posRef = CFArrayGetValueAtIndex(values, 0);
+	if (posRef && CFGetTypeID(posRef) == AXValueGetTypeID())
+		AXValueGetValue((AXValueRef)posRef, kAXValueCGPointType, &position);
+
+	CFTypeRef sizeRef = CFArrayGetValueAtIndex(values, 1);
+	if (sizeRef && CFGetTypeID(sizeRef) == AXValueGetTypeID())
+		AXValueGetValue((AXValueRef)sizeRef, kAXValueCGSizeType, &size);
+
+	CFRelease(values);
+
+	outFrame->origin = position;
+	outFrame->size = size;
+	return true;
+}
+
 /// Check if element has click action
 /// @param element Element reference
 /// @param skipVisCheck If true, skip the expensive hit-test visibility check
@@ -539,31 +593,17 @@ int hasClickAction(void *element, bool skipVisCheck) {
 			if (!value)
 				continue;
 
-			// AXHidden
 			if (attr == kAXHiddenAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
 				isHidden = CFBooleanGetValue((CFBooleanRef)value);
-			}
-
-			// AXEnabled
-			else if (attr == kAXEnabledAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
+			} else if (attr == kAXEnabledAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
 				hasEnabledAttribute = true;
 				explicitlyDisabled = !CFBooleanGetValue((CFBooleanRef)value);
-			}
-
-			// AXRole
-			else if (attr == kAXRoleAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
+			} else if (attr == kAXRoleAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
 				role = (CFStringRef)value;
 				CFRetain(role);
-			}
-
-			// AXIdentifier: checks for the `widget-local:` prefix (internal Apple convention,
-			// verified on macOS 14/15) used by all macOS Notification Center and desktop widgets.
-			else if (attr == kAXIdentifierAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
+			} else if (attr == kAXIdentifierAttribute && CFGetTypeID(value) == CFStringGetTypeID()) {
 				isWidget = CFStringHasPrefix((CFStringRef)value, kAXWidgetIdentifierPrefix);
-			}
-
-			// AXVisible
-			else if (attr == kAXVisibleAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
+			} else if (attr == kAXVisibleAttribute && CFGetTypeID(value) == CFBooleanGetTypeID()) {
 				isVisible = CFBooleanGetValue((CFBooleanRef)value);
 			}
 		}
@@ -573,6 +613,22 @@ int hasClickAction(void *element, bool skipVisCheck) {
 
 	if (isHidden || !isVisible)
 		return 0;
+
+	// Pre-compute center for visibility hit-test.
+	// getElementCenter fetches AXPosition + AXSize in one batch call.
+	// Done once here so that every return-1 path below can use it without
+	// repeating the fetch (and without fetching it at all for excluded bundles).
+	CGPoint visCenter = CGPointZero;
+	bool hasVisCenter = false;
+	if (!skipVisCheck) {
+		hasVisCenter = getElementCenter((void *)axElement, &visCenter);
+	}
+
+	// visHit returns true when (a) skipVisCheck is set (excluded bundles),
+	// (b) the center could not be determined (conservatively assume visible),
+	// or (c) the hit-test at the element's center confirms it or a descendant
+	// is rendered at that point.
+#define visHit (!skipVisCheck && hasVisCenter ? isElementVisibleAtPoint((void *)axElement, visCenter) : 1)
 
 	// Explicit actions are the strongest signal, so we check for them first
 	CFArrayRef actions = NULL;
@@ -592,8 +648,13 @@ int hasClickAction(void *element, bool skipVisCheck) {
 			    CFStringCompare(action, CFSTR("AXRaise"), 0) == kCFCompareEqualTo) {
 				CFRelease(actions);
 
-				// If element is explicitly disabled, it is not clickable
 				if (hasEnabledAttribute && explicitlyDisabled) {
+					if (role)
+						CFRelease(role);
+					return 0;
+				}
+
+				if (!visHit) {
 					if (role)
 						CFRelease(role);
 					return 0;
@@ -609,18 +670,21 @@ int hasClickAction(void *element, bool skipVisCheck) {
 	}
 
 	// Exclude known container/structural roles
-	// We exclude it here instead of on golang side because we still need to ensure if it has certain AXAction first
-	// above.
 	if (role) {
 		if (CFStringCompare(role, kAXScrollAreaRole, 0) == kCFCompareEqualTo ||
 		    CFStringCompare(role, kAXGroupRole, 0) == kCFCompareEqualTo ||
 		    CFStringCompare(role, kAXSplitGroupRole, 0) == kCFCompareEqualTo) {
-			// Override: macOS widgets use AXGroup but are inherently interactive.
 			if (isWidget) {
 				if (hasEnabledAttribute && explicitlyDisabled) {
 					CFRelease(role);
 					return 0;
 				}
+
+				if (!visHit) {
+					CFRelease(role);
+					return 0;
+				}
+
 				CFRelease(role);
 				return 1;
 			}
@@ -634,16 +698,29 @@ int hasClickAction(void *element, bool skipVisCheck) {
 	CFStringRef pressDesc = NULL;
 	if (AXUIElementCopyActionDescription(axElement, kAXPressAction, &pressDesc) == kAXErrorSuccess && pressDesc) {
 		CFRelease(pressDesc);
+
+		if (!visHit) {
+			if (role)
+				CFRelease(role);
+			return 0;
+		}
+
 		if (role)
 			CFRelease(role);
 		return 1;
 	}
 
-	// Role-specific fallback for links - no visibility check needed
+	// Role-specific fallback for links
 	if (role && CFStringCompare(role, kAXLinkRole, 0) == kCFCompareEqualTo) {
 		CFTypeRef urlAttr = NULL;
 		if (AXUIElementCopyAttributeValue(axElement, kAXURLAttribute, &urlAttr) == kAXErrorSuccess && urlAttr) {
 			CFRelease(urlAttr);
+
+			if (!visHit) {
+				CFRelease(role);
+				return 0;
+			}
+
 			CFRelease(role);
 			return 1;
 		}
@@ -653,19 +730,16 @@ int hasClickAction(void *element, bool skipVisCheck) {
 		CFRelease(role);
 
 	// Visibility check: hit-test at center to filter obscured/scroll-clipped elements.
-	// Uses parent-walk (isElementVisibleAtPoint) instead of PID check (isPointVisible)
-	// to catch elements covered by sibling views within the same app.
-	// skipVisCheck is set by the Go caller for known problematic system apps
-	// (e.g. PiP windows, screen capture thumbnails) where AX hit-testing is unreliable.
 	if (skipVisCheck)
 		return 1;
 
-	CGPoint center;
-	if (getElementCenter((void *)axElement, &center)) {
-		return isElementVisibleAtPoint((void *)axElement, center);
+	if (hasVisCenter) {
+		return isElementVisibleAtPoint((void *)axElement, visCenter);
 	}
 
 	return 0;
+
+#undef visHit
 }
 
 #pragma mark - Attribute Functions

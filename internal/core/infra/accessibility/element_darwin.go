@@ -35,35 +35,6 @@ var (
 	clickableRolesMu sync.RWMutex
 )
 
-// knownInteractiveRoles are roles that are inherently interactive and don't
-// need the expensive hasClickAction() CGo call (up to 5 AX API round-trips)
-// to verify clickability. When an element has one of these roles and is
-// enabled, we can confidently skip the native verification. This eliminates
-// hundreds of CGo calls per activation for typical web pages.
-var knownInteractiveRoles = map[element.Role]struct{}{
-	element.RoleButton:             {},
-	element.RoleLink:               {},
-	element.RoleMenuItem:           {},
-	element.RoleMenuBarItem:        {},
-	element.RolePopUpButton:        {},
-	element.RoleTabButton:          {},
-	element.RoleCheckBox:           {},
-	element.RoleRadioButton:        {},
-	element.RoleSwitch:             {},
-	element.RoleDisclosureTriangle: {},
-	element.RoleComboBox:           {},
-	element.RoleDockItem:           {},
-	element.RoleTextField:          {},
-	element.RoleTextArea:           {},
-	element.RoleSlider:             {},
-	element.RoleIncrementor:        {},
-	element.RoleColorWell:          {},
-	element.RoleSearchField:        {},
-	element.RoleToolbarButton:      {},
-	element.RoleMenuButton:         {},
-	element.RoleToggle:             {},
-}
-
 var (
 	errSetFocusNil = derrors.New(
 		derrors.CodeAccessibilityFailed,
@@ -134,6 +105,8 @@ type ElementInfo struct {
 	roleDescription string
 	isEnabled       bool
 	isFocused       bool
+	isHidden        bool
+	isVisible       bool
 	pid             int
 }
 
@@ -185,6 +158,18 @@ func (ei *ElementInfo) IsEnabled() bool {
 // IsFocused returns whether the element is focused.
 func (ei *ElementInfo) IsFocused() bool {
 	return ei.isFocused
+}
+
+// IsHidden returns whether the element is AX-hidden
+// (e.g. CSS visibility:hidden, or the element is in an offscreen menu).
+func (ei *ElementInfo) IsHidden() bool {
+	return ei.isHidden
+}
+
+// IsVisible returns whether the element is AX-visible.
+// When the AXVisible attribute is not supported, returns true (default).
+func (ei *ElementInfo) IsVisible() bool {
+	return ei.isVisible
 }
 
 // PID returns the process ID.
@@ -276,6 +261,8 @@ func (e *Element) Info() (*ElementInfo, error) {
 		},
 		isEnabled: bool(cInfo.isEnabled),
 		isFocused: bool(cInfo.isFocused),
+		isHidden:  bool(cInfo.isHidden),
+		isVisible: bool(cInfo.isVisible),
 		pid:       int(cInfo.pid),
 	}
 
@@ -667,10 +654,6 @@ func (e *Element) IsClickable(
 		return false
 	}
 
-	// Mission Control state is constant across a single hint scan; hoist
-	// the CGo round-trip to avoid calling it per element in the fast path.
-	missionControlActive := IsMissionControlActive()
-
 	// If info is not provided, try to get it
 	if info == nil {
 		var infoErr error
@@ -695,35 +678,15 @@ func (e *Element) IsClickable(
 	}
 
 	if isRoleAllowed {
-		// Fast path: known-interactive roles (AXButton, AXLink, etc.)
-		// that are enabled don't need the expensive hasClickAction() CGo
-		// call which makes up to 5 AX API round-trips. We still verify
-		// actual hit-test visibility so hidden or scroll-clipped elements
-		// cannot get hints just because their role is known.
-		if info != nil && info.IsEnabled() {
-			if _, known := knownInteractiveRoles[element.Role(info.Role())]; known {
-				// in mission control, let's skip it for good
-				if missionControlActive {
-					return true
-				}
-
-				// Skip visibility check for known problematic system apps
-				// (e.g. PiP windows, screen capture thumbnails) where AX hit-testing
-				// may incorrectly report elements as obscured.
-				if isExcludedBundleID(info.PID()) {
-					return true
-				}
-
-				center := C.CGPoint{
-					x: C.double(info.Position().X + info.Size().X/2),
-					y: C.double(info.Position().Y + info.Size().Y/2),
-				}
-				return C.isElementVisibleAtPoint(e.ref, center) == 1 //nolint:nlreturn
-			}
-		}
-
-		// Slow path: ambiguous or custom roles need full native verification
-		result := C.hasClickAction(e.ref, C.bool(isExcludedBundleID(info.PID()))) //nolint:nlreturn
+		// hasClickAction handles all checks internally:
+		// 1. AXHidden/AXVisible attribute check (quick reject)
+		// 2. Clickability checks: AXActionNames → role exclusion → AXPress
+		//    description → link+URL (no early returns, accumulate result)
+		// 3. Hit-test visibility as final gate for ALL clickable results
+		result := C.hasClickAction(
+			e.ref,
+			C.bool(isExcludedBundleID(info.PID(), configProvider)), // nolint:nlreturn
+		)
 
 		return result == 1
 	}
@@ -746,18 +709,69 @@ var (
 	}
 )
 
+// isExcludedOrUnsafe checks whether the given bundle ID should skip the
+// hit-test visibility check — either because it is a known system bundle
+// where the check is not needed (excludedBundleIDs), or because AX hit-testing
+// is unreliable for that app (e.g. Chromium/Electron apps render UI in GPU
+// surfaces that don't expose fine-grained AX hit-testing).
+// Uses config.Known*Bundles as the source of truth (shared with the electron
+// package) rather than duplicating or importing electron directly.
+func isExcludedOrUnsafe(bundleID string, configProvider config.Provider) bool {
+	if _, excluded := excludedBundleIDs[bundleID]; excluded {
+		return true
+	}
+
+	if configProvider == nil {
+		return false
+	}
+
+	cfg := configProvider.Get()
+
+	if cfg == nil {
+		return false
+	}
+
+	mergedChromiumBundles := config.KnownChromiumBundles
+	mergedChromiumBundles = append(
+		mergedChromiumBundles,
+		cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles...)
+
+	mergedElectronBundles := config.KnownElectronBundles
+	mergedElectronBundles = append(
+		mergedElectronBundles,
+		cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles...)
+
+	return matchesAnyFold(bundleID, mergedChromiumBundles) ||
+		matchesAnyFold(bundleID, mergedElectronBundles)
+}
+
+// matchesAnyFold returns true if s matches any entry in the list
+// (case-insensitive, trimmed).
+func matchesAnyFold(bundleID string, list []string) bool {
+	bundleID = strings.TrimSpace(bundleID)
+	if bundleID == "" {
+		return false
+	}
+
+	for _, entry := range list {
+		if strings.EqualFold(strings.TrimSpace(entry), bundleID) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // isExcludedBundleID checks if the process with the given PID belongs to a
 // bundle ID that should skip the expensive visibility check. Results are
 // cached by PID to avoid redundant Cocoa lookups.
-func isExcludedBundleID(pid int) bool {
+func isExcludedBundleID(pid int, configProvider config.Provider) bool {
 	pidBundleCacheMu.RLock()
 	b, ok := pidBundleCache[pid]
 	pidBundleCacheMu.RUnlock()
 
 	if ok {
-		_, excluded := excludedBundleIDs[b]
-
-		return excluded
+		return isExcludedOrUnsafe(b, configProvider)
 	}
 
 	cBundleID := C.getBundleIDForPID(C.int(pid))
@@ -772,9 +786,7 @@ func isExcludedBundleID(pid int) bool {
 	pidBundleCache[pid] = bundleID
 	pidBundleCacheMu.Unlock()
 
-	_, excluded := excludedBundleIDs[bundleID]
-
-	return excluded
+	return isExcludedOrUnsafe(bundleID, configProvider)
 }
 
 // IsMissionControlActive checks if Mission Control is currently active.

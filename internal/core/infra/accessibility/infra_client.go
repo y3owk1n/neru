@@ -87,8 +87,6 @@ func (c *InfraAXClient) FocusedApplication() (AXApp, error) {
 func (c *InfraAXClient) ClickableNodes(
 	root AXElement,
 	roles []string,
-	strictFiltering bool,
-	includeOutOfBounds bool,
 ) ([]AXNode, error) {
 	var element *Element
 
@@ -106,16 +104,7 @@ func (c *InfraAXClient) ClickableNodes(
 	}
 
 	opts := DefaultTreeOptions(c.logger)
-	opts.SetStrictFiltering(strictFiltering)
-	opts.SetIncludeOutOfBounds(includeOutOfBounds)
-
-	// Enable strict filtering for Chromium/Electron apps which have noisy DOM trees
-	bundleID := element.BundleIdentifier()
-	if isLikelyChromiumOrElectron(bundleID) ||
-		isUserConfiguredChromiumElectron(bundleID, c.configProvider) {
-		opts.SetStrictFiltering(true)
-		opts.SetIncludeOutOfBounds(false) // strict filtering requires bound checks to be active
-	}
+	opts.SetConfigProvider(c.configProvider)
 
 	if cfg := currentConfig(c.configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
@@ -141,7 +130,7 @@ func (c *InfraAXClient) ClickableNodes(
 
 	ignoreClickableCheck := false
 	if cfg := currentConfig(c.configProvider); cfg != nil {
-		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(bundleID)
+		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(element.BundleIdentifier())
 	}
 
 	clickableNodes := tree.FindClickableElements(
@@ -178,15 +167,10 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 }
 
 // MenuBarClickableElements returns clickable elements in the menu bar.
-func (c *InfraAXClient) MenuBarClickableElements(
-	strictFiltering bool,
-	includeOutOfBounds bool,
-) ([]AXNode, error) {
+func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
 	nodes, nodesErr := MenuBarClickableElements(
 		c.logger,
 		c.configProvider,
-		strictFiltering,
-		includeOutOfBounds,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
@@ -212,16 +196,12 @@ func (c *InfraAXClient) MenuBarClickableElements(
 func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
-	strictFiltering bool,
-	includeOutOfBounds bool,
 ) ([]AXNode, error) {
 	nodes, nodesErr := ClickableElementsFromBundleID(
 		bundleID,
 		roles,
 		c.logger,
 		c.configProvider,
-		strictFiltering,
-		includeOutOfBounds,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(

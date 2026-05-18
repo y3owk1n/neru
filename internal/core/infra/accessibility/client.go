@@ -28,15 +28,11 @@ type AXClient interface {
 	ClickableNodes(
 		root AXElement,
 		roles []string,
-		strictFiltering bool,
-		includeOutOfBounds bool,
 	) ([]AXNode, error)
-	MenuBarClickableElements(strictFiltering bool, includeOutOfBounds bool) ([]AXNode, error)
+	MenuBarClickableElements() ([]AXNode, error)
 	ClickableElementsFromBundleID(
 		bundleID string,
 		roles []string,
-		strictFiltering bool,
-		includeOutOfBounds bool,
 	) ([]AXNode, error)
 	ActiveScreenBounds() image.Rectangle
 
