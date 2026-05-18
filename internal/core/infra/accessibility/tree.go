@@ -711,9 +711,11 @@ func shouldIncludeElement(
 		}
 	}
 
-	// Filter out zero-sized elements (they're broken/invalid)
+	// Filter out zero-sized interactive elements (they're broken/invalid)
 	if elementRect.Dx() == 0 || elementRect.Dy() == 0 {
-		return false
+		if interactiveLeafRoles[element.Role(info.Role())] {
+			return false
+		}
 	}
 
 	// Strict filtering: auto-enabled for Chromium/Electron apps with noisy DOM trees
@@ -761,14 +763,21 @@ func (n *TreeNode) FindClickableElements(
 ) []*TreeNode {
 	var result []*TreeNode
 	n.walkTree(func(node *TreeNode) bool {
-		if node.element.IsClickable(
+		if !node.element.IsClickable(
 			node.info,
 			allowedRoles,
 			configProvider,
 			ignoreClickableCheck,
 		) {
-			result = append(result, node)
+			return true
 		}
+
+		rect := rectFromInfo(node.info)
+		if rect.Dx() == 0 || rect.Dy() == 0 {
+			return true
+		}
+
+		result = append(result, node)
 
 		return true
 	})
