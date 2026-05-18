@@ -599,10 +599,12 @@ func buildChildrenParallel(
 				return
 			}
 
-			childNode := getTreeNode(elem, info, parent, 0)
-
 			// Skip hit-test for elements within the original window bounds
+			// (not in a scroll area). Must be set before getTreeNode to avoid
+			// relying on pointer aliasing.
 			info.skipHitTest = bounds == winBounds
+
+			childNode := getTreeNode(elem, info, parent, 0)
 
 			newClipBounds := bounds
 			if element.Role(info.Role()) == element.RoleScrollArea {
