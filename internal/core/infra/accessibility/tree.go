@@ -513,14 +513,15 @@ func buildChildrenSequential(
 
 	// Second pass: create nodes and recurse
 	for _, data := range validChildren {
-		childNode := getTreeNode(data.element, data.info, parent, 0)
-
-		parent.children = append(parent.children, childNode)
-
 		// Skip hit-test for elements within the original window bounds
 		// (not in a scroll area). These elements are guaranteed visible
 		// by the AX tree — only scroll areas can have off-screen children.
+		// Must be set before getTreeNode to avoid relying on pointer aliasing.
 		data.info.skipHitTest = clipBounds == windowBounds
+
+		childNode := getTreeNode(data.element, data.info, parent, 0)
+
+		parent.children = append(parent.children, childNode)
 
 		newClipBounds := clipBounds
 		if element.Role(data.info.Role()) == element.RoleScrollArea {
