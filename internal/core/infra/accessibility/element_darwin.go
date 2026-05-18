@@ -694,6 +694,8 @@ func (e *Element) IsClickable(
 		// within the original window clip bounds (non-scroll areas).
 		skipVisCheck := isExcludedBundleID(info.PID(), configProvider) || info.skipHitTest
 
+		isWidget := strings.HasPrefix(info.Identifier(), "widget-local:")
+
 		result := C.hasClickAction(
 			e.ref,
 			C.bool(skipVisCheck),
@@ -702,6 +704,7 @@ func (e *Element) IsClickable(
 			C.bool(info.isEnabled),
 			C.bool(info.hasEnabledAttr),
 			cRole,
+			C.bool(isWidget),
 			centerX,
 			centerY, //nolint:nlreturn
 		)

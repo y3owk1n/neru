@@ -125,12 +125,13 @@ void postMouseMoveEvent(CGPoint position, CGEventType eventType);
 /// @param preEnabled Pre-fetched AXEnabled value (from ElementInfo)
 /// @param hasEnabledAttr Whether AXEnabled attribute exists on this element
 /// @param preRole Pre-fetched AXRole value (from ElementInfo, caller retains)
+/// @param preIsWidget Pre-computed widget flag (from ElementInfo identifier)
 /// @param centerX Pre-computed center X (from ElementInfo position + size)
 /// @param centerY Pre-computed center Y (from ElementInfo position + size)
 /// @return 1 if element is clickable, 0 otherwise
 int hasClickAction(
     void *element, bool skipVisCheck, bool preHidden, bool preVisible, bool preEnabled, bool hasEnabledAttr,
-    const char *preRole, double centerX, double centerY);
+    const char *preRole, bool preIsWidget, double centerX, double centerY);
 
 /// Fast visibility check using a pre-computed center point (avoids redundant AX position fetch)
 /// @param element Element reference

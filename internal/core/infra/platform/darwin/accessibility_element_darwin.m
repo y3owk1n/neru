@@ -474,8 +474,6 @@ void **getVisibleRows(void *element, int *count) {
 static CFStringRef kAXLinkRole = CFSTR("AXLink");
 static CFStringRef kAXCheckboxRole = CFSTR("AXCheckBox");
 static CFStringRef kAXFocusableAttribute = CFSTR("AXFocusable");
-static CFStringRef kAXVisibleAttribute = CFSTR("AXVisible");
-static CFStringRef kAXWidgetIdentifierPrefix = CFSTR("widget-local:");
 
 #pragma mark - Click Action Functions
 
@@ -592,7 +590,7 @@ static bool getElementFrame(AXUIElementRef element, CGRect *outFrame) {
 /// @return 1 if element is clickable, 0 otherwise
 int hasClickAction(
     void *element, bool skipVisCheck, bool preHidden, bool preVisible, bool preEnabled, bool hasEnabledAttr,
-    const char *preRole, double centerX, double centerY) {
+    const char *preRole, bool preIsWidget, double centerX, double centerY) {
 	if (!element)
 		return 0;
 
@@ -644,17 +642,7 @@ int hasClickAction(
 		bool isSplitGroup = strcmp(preRole, "AXSplitGroup") == 0;
 
 		if (isScrollArea || isGroup || isSplitGroup) {
-			// Check if it's a widget by looking at the identifier attribute
-			CFStringRef identifier = NULL;
-			bool isWidget = false;
-			if (AXUIElementCopyAttributeValue(axElement, kAXIdentifierAttribute, (CFTypeRef *)&identifier) ==
-			        kAXErrorSuccess &&
-			    identifier) {
-				isWidget = CFStringHasPrefix(identifier, kAXWidgetIdentifierPrefix);
-				CFRelease(identifier);
-			}
-
-			if (isWidget) {
+			if (preIsWidget) {
 				if (hasEnabledAttr && !preEnabled)
 					return 0;
 

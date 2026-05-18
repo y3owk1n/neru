@@ -105,6 +105,7 @@ func HasClickAction(element unsafe.Pointer) bool {
 		true,
 		true,
 		nil,
+		false,
 		0,
 		0, //nolint:nlreturn
 	) != 0
