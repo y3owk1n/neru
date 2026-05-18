@@ -143,26 +143,10 @@ const (
 	NameSaveCursorPos Name = "save_cursor_pos"
 	// NameRestoreCursorPos restores cursor position saved by save_cursor_pos.
 	NameRestoreCursorPos Name = "restore_cursor_pos"
-	// NameScrollUp represents the scroll-up action.
-	NameScrollUp Name = "scroll_up"
-	// NameScrollDown represents the scroll-down action.
-	NameScrollDown Name = "scroll_down"
-	// NameScrollLeft represents the scroll-left action.
-	NameScrollLeft Name = "scroll_left"
-	// NameScrollRight represents the scroll-right action.
-	NameScrollRight Name = "scroll_right"
 	// NameMoveMonitor moves the cursor (and any active overlay) to the next or previous connected monitor.
 	NameMoveMonitor Name = "move_monitor"
 	// NameFeed posts a key or key chord directly to the operating system.
 	NameFeed Name = "feed"
-	// NameGoTop represents the go-to-top action.
-	NameGoTop Name = "go_top"
-	// NameGoBottom represents the go-to-bottom action.
-	NameGoBottom Name = "go_bottom"
-	// NamePageUp represents the page-up action.
-	NamePageUp Name = "page_up"
-	// NamePageDown represents the page-down action.
-	NamePageDown Name = "page_down"
 	// NameSleep pauses action execution for a specified duration.
 	NameSleep Name = "sleep"
 	// NameCycleHint cycles through visible hints in hints mode.
@@ -265,8 +249,6 @@ func IsKnownName(name Name) bool {
 		NameScroll,
 		NameReset, NameBackspace,
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
-		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
-		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
 		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints:
 		return true
 	default:
@@ -280,31 +262,19 @@ func IsFeedAction(name string) bool {
 }
 
 // IsScrollSubAction reports whether the given name is a scroll sub-action
-// (scroll_up, scroll_down, etc.) that can be dispatched via the action CLI.
+// that can be dispatched via the action CLI. Only the general scroll action
+// is supported — legacy named sub-actions (scroll_up, page_down, etc.) have
+// been removed in favor of `action scroll --x <pixels> --y <pixels>`.
 func IsScrollSubAction(name string) bool {
-	switch Name(name) {
-	case NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
-		NameGoTop, NameGoBottom, NamePageUp, NamePageDown:
-		return true
-	case NameLeftClick, NameRightClick, NameMiddleClick,
-		NameMouseDown, NameMouseUp,
-		NameMoveMouse, NameMoveMouseRelative, NameScroll,
-		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints:
-		return false
-	default:
-		return false
-	}
+	return Name(name) == NameScroll
 }
 
 // IsHeldRepeatAction reports whether the action name supports held-key repeat
 // (fires repeatedly while the key is held, with no initial delay).
-// Currently applies to scroll, page, and relative mouse move actions.
+// Currently applies to scroll and relative mouse move actions.
 func IsHeldRepeatAction(name Name) bool {
 	switch name { //nolint:exhaustive
-	case NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
-		NamePageUp, NamePageDown,
-		NameMoveMouseRelative:
+	case NameScroll, NameMoveMouseRelative:
 		return true
 	default:
 		return false
@@ -352,12 +322,7 @@ func (n Name) ToType() (Type, error) {
 		return TypeMoveMouse, nil
 	case NameMoveMouseRelative:
 		return TypeMoveMouseRelative, nil
-	// NOTE: scroll sub-actions map to the generic TypeScroll, which loses
-	// directional information. In practice these names are intercepted by
-	// IsScrollSubAction in the IPC handler before ToType is called.
-	case NameScroll,
-		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
-		NameGoTop, NameGoBottom, NamePageUp, NamePageDown:
+	case NameScroll:
 		return TypeScroll, nil
 	case NameReset,
 		NameBackspace,

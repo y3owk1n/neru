@@ -69,7 +69,7 @@ const (
 // Use it in [hotkeys] or [<mode>.hotkeys] to disable a specific default:
 //
 //	[scroll.hotkeys]
-//	"j" = "__disabled__"   # removes the default "j" = "action scroll_down"
+//	"j" = "__disabled__"   # removes the default "j" = "action scroll --y -50"
 const DisabledSentinel = "__disabled__"
 
 // Key name constants for normalization.
@@ -501,7 +501,7 @@ type HotkeysConfig struct {
 	// [hotkeys]
 	// "Cmd+Shift+Space" = "hints"
 	// Values can be a single string or an array of strings:
-	// "PageUp" = ["action go_top", "action scroll_down"]
+	// "PageUp" = ["action scroll --y 1000000", "action scroll --y -50"]
 	// The special exec prefix is supported: "exec /usr/bin/say hi"
 	// Bindings is never populated by the TOML struct decoder — it is always
 	// overwritten by the raw-map processing in service.go.  Both this field
@@ -512,10 +512,6 @@ type HotkeysConfig struct {
 
 // ScrollConfig defines the behavior and appearance settings for scroll mode.
 type ScrollConfig struct {
-	ScrollStep     int `json:"scrollStep"     toml:"scroll_step"`
-	ScrollStepHalf int `json:"scrollStepHalf" toml:"scroll_step_half"`
-	ScrollStepFull int `json:"scrollStepFull" toml:"scroll_step_full"`
-
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
@@ -1457,21 +1453,6 @@ func validateMinValue(value int, minimum int, fieldName string) error {
 
 // ValidateScroll validates the scroll configuration.
 func (c *Config) ValidateScroll() error {
-	err := validateMinValue(c.Scroll.ScrollStep, 1, "scroll.scroll_step")
-	if err != nil {
-		return err
-	}
-
-	err = validateMinValue(c.Scroll.ScrollStepHalf, 1, "scroll.scroll_step_half")
-	if err != nil {
-		return err
-	}
-
-	err = validateMinValue(c.Scroll.ScrollStepFull, 1, "scroll.scroll_step_full")
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

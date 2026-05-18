@@ -9,7 +9,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/services"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
@@ -305,18 +304,17 @@ func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) 
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
 			&portmocks.SystemMock{},
-			config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 20, ScrollStepFull: 30},
 			zap.NewNop(),
 		),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
 		Action: "action",
-		Args:   []string{"scroll_down", "--selection"},
+		Args:   []string{"scroll", "--y=50", "--selection"},
 	})
 
 	if resp.Success {
-		t.Fatal("handleAction(scroll_down --selection) expected failure without active selection")
+		t.Fatal("handleAction(scroll --y=50 --selection) expected failure without active selection")
 	}
 
 	if resp.Message != "--selection requires an active mode selection" {
@@ -372,21 +370,20 @@ func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
 			&portmocks.SystemMock{},
-			config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 20, ScrollStepFull: 30},
 			zap.NewNop(),
 		),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
 		Action: "action",
-		Args:   []string{"scroll_down", "--previous"},
+		Args:   []string{"scroll", "--y=50", "--previous"},
 	})
 
 	if resp.Success {
-		t.Fatal("handleAction(scroll_down --previous) expected failure")
+		t.Fatal("handleAction(scroll --y=50 --previous) expected failure")
 	}
 
-	if resp.Message != "scroll actions do not support --x/--y/--dx/--dy/--center/--name/--modifier/--previous flags" {
+	if resp.Message != "scroll action does not support --dx/--dy/--center/--name/--modifier/--previous flags" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }

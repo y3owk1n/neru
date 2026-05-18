@@ -150,13 +150,8 @@ func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
 		want    bool
 	}{
 		{
-			name:    "scroll down repeats",
-			actions: []string{"action scroll_down"},
-			want:    true,
-		},
-		{
-			name:    "page down repeats",
-			actions: []string{"action page_down"},
+			name:    "scroll repeats",
+			actions: []string{"action scroll --y 50"},
 			want:    true,
 		},
 		{
@@ -170,8 +165,8 @@ func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
 			want:    false,
 		},
 		{
-			name:    "absolute terminal scroll does not repeat",
-			actions: []string{"action go_bottom"},
+			name:    "chains do not repeat",
+			actions: []string{"action scroll --y 50", "action scroll --y 50"},
 			want:    false,
 		},
 		{
@@ -182,11 +177,6 @@ func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
 		{
 			name:    "exec does not repeat",
 			actions: []string{"exec echo hello"},
-			want:    false,
-		},
-		{
-			name:    "chains do not repeat",
-			actions: []string{"action scroll_down", "action scroll_down"},
 			want:    false,
 		},
 	}

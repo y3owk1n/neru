@@ -20,7 +20,7 @@ Point-targeted actions use the active mode selection when one exists. Use
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return derrors.New(
 			derrors.CodeInvalidInput,
-			"action subcommand required (e.g., neru action left_click, neru action scroll_up)",
+			"action subcommand required (e.g., neru action left_click, neru action scroll --y 50)",
 		)
 	},
 }
@@ -124,61 +124,8 @@ var ActionRestoreCursorPosCmd = BuildActionCommand(
 	false,
 )
 
-// ActionScrollUpCmd scrolls up at the current cursor position.
-var ActionScrollUpCmd = BuildScrollActionCommand(
-	"scroll_up",
-	"Scroll up",
-	`Scroll up at the active selection when available, otherwise at the current cursor location.`,
-)
-
-// ActionScrollDownCmd scrolls down at the current cursor position.
-var ActionScrollDownCmd = BuildScrollActionCommand(
-	"scroll_down",
-	"Scroll down",
-	`Scroll down at the active selection when available, otherwise at the current cursor location.`,
-)
-
-// ActionScrollLeftCmd scrolls left at the current cursor position.
-var ActionScrollLeftCmd = BuildScrollActionCommand(
-	"scroll_left",
-	"Scroll left",
-	`Scroll left at the active selection when available, otherwise at the current cursor location.`,
-)
-
-// ActionScrollRightCmd scrolls right at the current cursor position.
-var ActionScrollRightCmd = BuildScrollActionCommand(
-	"scroll_right",
-	"Scroll right",
-	`Scroll right at the active selection when available, otherwise at the current cursor location.`,
-)
-
-// ActionGoTopCmd scrolls to the top of the page.
-var ActionGoTopCmd = BuildScrollActionCommand(
-	"go_top",
-	"Scroll to top of page",
-	`Scroll to the top of the page at the active selection when available, otherwise at the current cursor location.`,
-)
-
-// ActionGoBottomCmd scrolls to the bottom of the page.
-var ActionGoBottomCmd = BuildScrollActionCommand(
-	"go_bottom",
-	"Scroll to bottom of page",
-	`Scroll to the bottom of the page at the active selection when available, otherwise at the current cursor location.`,
-)
-
-// ActionPageUpCmd scrolls up by half a page.
-var ActionPageUpCmd = BuildScrollActionCommand(
-	"page_up",
-	"Scroll up by half page",
-	`Scroll up by half a page at the active selection when available, otherwise at the current cursor location.`,
-)
-
-// ActionPageDownCmd scrolls down by half a page.
-var ActionPageDownCmd = BuildScrollActionCommand(
-	"page_down",
-	"Scroll down by half page",
-	`Scroll down by half a page at the active selection when available, otherwise at the current cursor location.`,
-)
+// ActionScrollCmd scrolls at the cursor using pixel deltas.
+var ActionScrollCmd = BuildScrollCommand()
 
 // ActionCycleHintCmd cycles through visible hints in hints mode.
 var ActionCycleHintCmd = BuildCycleHintCommand()
@@ -198,14 +145,7 @@ func init() {
 	ActionCmd.AddCommand(ActionWaitForModeExitCmd)
 	ActionCmd.AddCommand(ActionSaveCursorPosCmd)
 	ActionCmd.AddCommand(ActionRestoreCursorPosCmd)
-	ActionCmd.AddCommand(ActionScrollUpCmd)
-	ActionCmd.AddCommand(ActionScrollDownCmd)
-	ActionCmd.AddCommand(ActionScrollLeftCmd)
-	ActionCmd.AddCommand(ActionScrollRightCmd)
-	ActionCmd.AddCommand(ActionGoTopCmd)
-	ActionCmd.AddCommand(ActionGoBottomCmd)
-	ActionCmd.AddCommand(ActionPageUpCmd)
-	ActionCmd.AddCommand(ActionPageDownCmd)
+	ActionCmd.AddCommand(ActionScrollCmd)
 	ActionCmd.AddCommand(ActionCycleHintCmd)
 
 	RootCmd.AddCommand(ActionCmd)

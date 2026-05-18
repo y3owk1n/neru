@@ -34,13 +34,6 @@ const (
 	// DefaultGridFontSize is the default font size for grid.
 	DefaultGridFontSize = 10
 
-	// DefaultScrollStep is the default scroll step.
-	DefaultScrollStep = 50
-	// DefaultScrollStepHalf is the default scroll step half.
-	DefaultScrollStepHalf = 500
-	// DefaultScrollStepFull is the default scroll step full.
-	DefaultScrollStepFull = 1000000
-
 	// DefaultScrollFontSize is the default font size for scroll indicator.
 	DefaultScrollFontSize = 10
 	// DefaultScrollPaddingX is the default horizontal padding for scroll indicator (-1 = auto).
@@ -529,21 +522,18 @@ func newDefaultConfig() *Config {
 			},
 		},
 		Scroll: ScrollConfig{
-			ScrollStep:     DefaultScrollStep,
-			ScrollStepHalf: DefaultScrollStepHalf,
-			ScrollStepFull: DefaultScrollStepFull,
 			Hotkeys: map[string]StringOrStringArray{
 				"Escape":   {"idle"},
-				"k":        {"action scroll_up"},
-				"j":        {"action scroll_down"},
-				"h":        {"action scroll_left"},
-				"l":        {"action scroll_right"},
-				"gg":       {"action go_top"},
-				"Shift+G":  {"action go_bottom"},
-				"u":        {"action page_up"},
-				"PageUp":   {"action page_up"},
-				"d":        {"action page_down"},
-				"PageDown": {"action page_down"},
+				"k":        {"action scroll --y -50"},
+				"j":        {"action scroll --y 50"},
+				"h":        {"action scroll --x -50"},
+				"l":        {"action scroll --x 50"},
+				"gg":       {"action scroll --y -1000000"},
+				"Shift+G":  {"action scroll --y 1000000"},
+				"u":        {"action scroll --y -500"},
+				"PageUp":   {"action scroll --y -500"},
+				"d":        {"action scroll --y 500"},
+				"PageDown": {"action scroll --y 500"},
 				"Shift+L":  {"action left_click"},
 				"Shift+R":  {"action right_click"},
 				"Shift+M":  {"action middle_click"},

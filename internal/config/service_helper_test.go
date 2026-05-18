@@ -55,7 +55,7 @@ func TestFindNormalizedMapKey_SOSA(t *testing.T) {
 		"Shift+L":   {"action left_click"},
 		"Up":        {"action move_mouse_relative --dx=0 --dy=-10"},
 		"Backspace": {"action backspace"},
-		"j":         {"action scroll_down"},
+		"j":         {"action scroll --y 50"},
 	}
 
 	tests := []struct {

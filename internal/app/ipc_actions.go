@@ -259,10 +259,9 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	// Handle scroll sub-actions (scroll_up, scroll_down, etc.)
-	// These only require scrollService, so dispatch before the actionService nil check.
+	// Handle general scroll action with --x/--y pixel deltas.
 	if action.IsScrollSubAction(actionName) {
-		return h.handleScrollAction(ctx, actionName, parsed)
+		return h.handleGeneralScrollAction(ctx, parsed)
 	}
 
 	if action.IsResetAction(actionName) {
@@ -1279,11 +1278,11 @@ func (h *IPCControllerActions) handleSearchHintsAction(parsed parsedActionArgs) 
 	}
 }
 
-// handleScrollAction dispatches a scroll sub-action (scroll_up, page_down, etc.)
-// to the ScrollService.
-func (h *IPCControllerActions) handleScrollAction(
+// handleGeneralScrollAction handles the scroll action with --x/--y pixel deltas.
+// --x positive scrolls right, negative scrolls left (inverted for macOS scroll convention).
+// --y positive scrolls down, negative scrolls up (inverted for macOS scroll convention).
+func (h *IPCControllerActions) handleGeneralScrollAction(
 	ctx context.Context,
-	actionName string,
 	parsed parsedActionArgs,
 ) ipc.Response {
 	if h.scrollService == nil {
@@ -1294,13 +1293,19 @@ func (h *IPCControllerActions) handleScrollAction(
 		}
 	}
 
-	// Reject flags that are not applicable to scroll actions.
-	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.hasMonitorName || parsed.modifierStr != "" ||
-		parsed.usePrevious {
+	if !parsed.hasX && !parsed.hasY {
 		return ipc.Response{
 			Success: false,
-			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--name/--modifier/--previous flags",
+			Message: "scroll action requires --x, --y, or both (e.g., action scroll --y 50)",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.hasDX || parsed.hasDY || parsed.hasCenter || parsed.hasMonitorName ||
+		parsed.modifierStr != "" || parsed.usePrevious {
+		return ipc.Response{
+			Success: false,
+			Message: "scroll action does not support --dx/--dy/--center/--name/--modifier/--previous flags",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -1313,20 +1318,16 @@ func (h *IPCControllerActions) handleScrollAction(
 		}
 	}
 
-	direction, amount, ok := scrollActionMapping(actionName)
-	if !ok {
-		return ipc.Response{
-			Success: false,
-			Message: "unknown scroll action: " + actionName,
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
+	// Negate values to convert from CLI convention (positive=right/down)
+	// to macOS scroll convention (positive=left/up).
+	deltaX := -parsed.xVal
+	deltaY := -parsed.yVal
 
 	h.logger.Info("Performing scroll action via IPC",
-		zap.String("action", actionName),
-		zap.Int("direction", int(direction)),
-		zap.Int("amount", int(amount)),
-	)
+		zap.Int("cli_x", parsed.xVal),
+		zap.Int("cli_y", parsed.yVal),
+		zap.Int("deltaX", deltaX),
+		zap.Int("deltaY", deltaY))
 
 	targetsSelection := parsed.useSelection
 
@@ -1366,10 +1367,9 @@ func (h *IPCControllerActions) handleScrollAction(
 		}
 	}
 
-	scrollErr := h.scrollService.Scroll(ctx, direction, amount)
+	scrollErr := h.scrollService.ScrollDelta(ctx, deltaX, deltaY)
 	if scrollErr != nil {
-		h.logger.Error("Scroll action failed", zap.Error(scrollErr),
-			zap.String("action", actionName))
+		h.logger.Error("Scroll action failed", zap.Error(scrollErr))
 
 		return ipc.Response{
 			Success: false,
@@ -1380,31 +1380,7 @@ func (h *IPCControllerActions) handleScrollAction(
 
 	return ipc.Response{
 		Success: true,
-		Message: actionName + " performed",
+		Message: "scroll performed",
 		Code:    ipc.CodeOK,
-	}
-}
-
-// scrollActionMapping returns the direction, default amount, and validity for a scroll action name.
-func scrollActionMapping(name string) (services.ScrollDirection, services.ScrollAmount, bool) {
-	switch name {
-	case string(action.NameScrollUp):
-		return services.ScrollDirectionUp, services.ScrollAmountChar, true
-	case string(action.NameScrollDown):
-		return services.ScrollDirectionDown, services.ScrollAmountChar, true
-	case string(action.NameScrollLeft):
-		return services.ScrollDirectionLeft, services.ScrollAmountChar, true
-	case string(action.NameScrollRight):
-		return services.ScrollDirectionRight, services.ScrollAmountChar, true
-	case string(action.NameGoTop):
-		return services.ScrollDirectionUp, services.ScrollAmountEnd, true
-	case string(action.NameGoBottom):
-		return services.ScrollDirectionDown, services.ScrollAmountEnd, true
-	case string(action.NamePageUp):
-		return services.ScrollDirectionUp, services.ScrollAmountHalfPage, true
-	case string(action.NamePageDown):
-		return services.ScrollDirectionDown, services.ScrollAmountHalfPage, true
-	default:
-		return 0, 0, false
 	}
 }

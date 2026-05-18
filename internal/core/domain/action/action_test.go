@@ -248,15 +248,6 @@ func TestIsKnownName(t *testing.T) {
 		{action.NameRestoreCursorPos, true},
 		{action.NameMoveMonitor, true},
 		{action.NameFeed, true},
-		// Scroll sub-actions are recognized by IsKnownName (superset of knownNames).
-		{action.NameScrollUp, true},
-		{action.NameScrollDown, true},
-		{action.NameScrollLeft, true},
-		{action.NameScrollRight, true},
-		{action.NameGoTop, true},
-		{action.NameGoBottom, true},
-		{action.NamePageUp, true},
-		{action.NamePageDown, true},
 		{action.Name("unknown"), false},
 		{action.Name(""), false},
 	}
@@ -276,15 +267,8 @@ func TestIsScrollSubAction(t *testing.T) {
 		name string
 		want bool
 	}{
-		// Scroll sub-actions return true.
-		{"scroll_up", true},
-		{"scroll_down", true},
-		{"scroll_left", true},
-		{"scroll_right", true},
-		{"go_top", true},
-		{"go_bottom", true},
-		{"page_up", true},
-		{"page_down", true},
+		// Only the general scroll action is a scroll sub-action now.
+		{"scroll", true},
 		// Non-scroll actions return false.
 		{"left_click", false},
 		{"right_click", false},
@@ -293,7 +277,7 @@ func TestIsScrollSubAction(t *testing.T) {
 		{"mouse_up", false},
 		{"move_mouse", false},
 		{"move_mouse_relative", false},
-		{"scroll", false},
+		{"scroll", true},
 		{"reset", false},
 		{"backspace", false},
 		{"wait_for_mode_exit", false},
@@ -426,15 +410,6 @@ func TestName_ToType(t *testing.T) {
 		{action.NameMoveMouse, action.TypeMoveMouse, false},
 		{action.NameMoveMouseRelative, action.TypeMoveMouseRelative, false},
 		{action.NameScroll, action.TypeScroll, false},
-		// Scroll sub-actions all map to the generic TypeScroll.
-		{action.NameScrollUp, action.TypeScroll, false},
-		{action.NameScrollDown, action.TypeScroll, false},
-		{action.NameScrollLeft, action.TypeScroll, false},
-		{action.NameScrollRight, action.TypeScroll, false},
-		{action.NameGoTop, action.TypeScroll, false},
-		{action.NameGoBottom, action.TypeScroll, false},
-		{action.NamePageUp, action.TypeScroll, false},
-		{action.NamePageDown, action.TypeScroll, false},
 		{action.NameReset, 0, true},
 		{action.NameBackspace, 0, true},
 		{action.NameWaitForModeExit, 0, true},

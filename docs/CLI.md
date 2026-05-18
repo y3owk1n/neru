@@ -200,7 +200,7 @@ neru recursive_grid --action left_click  # Left-click via recursive-grid
 
 Supported `--action` values: `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, `move_mouse`, `move_mouse_relative`, `scroll`.
 
-Not allowed for mode `--action`: `reset`, `backspace`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (for example `scroll_up`, `page_down`, `go_top`).
+Not allowed for mode `--action`: `reset`, `backspace`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`.
 
 All selection modes also accept `--cursor-selection-mode follow|hold`:
 
@@ -362,14 +362,10 @@ neru action mouse_down          # Hold mouse button
 neru action mouse_up            # Release mouse button
 neru action save_cursor_pos     # Save current cursor position
 neru action restore_cursor_pos     # Restore saved cursor position
-neru action scroll_up           # Scroll up at cursor
-neru action scroll_down         # Scroll down at cursor
-neru action scroll_left         # Scroll left at cursor
-neru action scroll_right        # Scroll right at cursor
-neru action page_up             # Half-page up at cursor
-neru action page_down           # Half-page down at cursor
-neru action go_top              # Jump to top at cursor
-neru action go_bottom           # Jump to bottom at cursor
+neru action scroll --y -50      # Scroll up 50px at cursor
+neru action scroll --y 50       # Scroll down 50px at cursor
+neru action scroll --x -50      # Scroll left 50px at cursor
+neru action scroll --x 50       # Scroll right 50px at cursor
 ```
 
 ### Feed Keys

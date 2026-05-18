@@ -350,45 +350,35 @@ Use --bare to force current-cursor targeting.`,
 	return cmd
 }
 
-// BuildScrollActionCommand creates a scroll action cobra command.
-func BuildScrollActionCommand(use, short, long string) *cobra.Command {
-	var (
-		selection bool
-		bare      bool
-	)
+// BuildScrollCommand creates the scroll action cobra command with --x and --y flags.
+func BuildScrollCommand() *cobra.Command {
+	var xVal, yVal int
 
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Long:  long,
+		Use:   "scroll",
+		Short: "Scroll at cursor",
+		Long: `Scroll at the current cursor position by the specified pixel amounts.
+Positive --y scrolls down, negative --y scrolls up.
+Positive --x scrolls right, negative --x scrolls left.
+At least one of --x or --y is required.`,
 		PreRunE: func(_ *cobra.Command, _ []string) error {
 			return requiresRunningInstance()
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if selection && bare {
-				return derrors.New(
-					derrors.CodeInvalidInput,
-					"--selection and --bare cannot be used together",
-				)
-			}
-
-			args := []string{use}
-			if selection {
-				args = append(args, "--selection")
-			}
-
-			if bare {
-				args = append(args, "--bare")
-			}
-
-			return sendCommand(cmd, "action", args)
+			return sendCommand(
+				cmd,
+				"action",
+				[]string{
+					"scroll",
+					fmt.Sprintf("--x=%d", xVal),
+					fmt.Sprintf("--y=%d", yVal),
+				},
+			)
 		},
 	}
 
-	cmd.Flags().
-		BoolVar(&selection, "selection", false, "Explicitly use the active mode selection as the target point")
-	cmd.Flags().
-		BoolVar(&bare, "bare", false, "Use the current cursor position even when a mode selection exists")
+	cmd.Flags().IntVar(&xVal, "x", 0, "Horizontal scroll (pixels, positive=right, negative=left)")
+	cmd.Flags().IntVar(&yVal, "y", 0, "Vertical scroll (pixels, positive=down, negative=up)")
 
 	return cmd
 }

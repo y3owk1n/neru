@@ -41,9 +41,6 @@ A minimal config for most users — copy this as a starting point:
 ```toml
 [hints.hotkeys]
 "Shift+L" = ["action left_click", "idle"]
-
-[scroll]
-scroll_step = 50
 ```
 
 Generate a fully-commented starter file:
@@ -146,7 +143,7 @@ Bind multiple actions to a single hotkey using an array. Actions are executed se
 
 ```toml
 [hotkeys]
-"PageUp" = ["action go_top", "action page_down"]
+"PageUp" = ["action scroll --y 1000000", "action scroll --y -500"]
 "Primary+Shift+D" = ["hints", "exec echo 'hints activated'"]
 ```
 
@@ -173,8 +170,8 @@ To remove a single default binding, use `__disabled__`:
 
 ```toml
 [scroll.hotkeys]
-"h" = "__disabled__"             # removes default scroll_left on "h"
-"x" = "action scroll_left"       # adds "x" for scroll_left; all other defaults remain
+"h" = "__disabled__"             # removes default scroll on "h"
+"x" = "action scroll --x 50"    # adds "x" for scroll-left; all other defaults remain
 ```
 
 ### Syntax
@@ -186,7 +183,7 @@ To remove a single default binding, use `__disabled__`:
 "Shift+L" = ["action left_click", "idle"]
 
 [scroll.hotkeys]
-"gg" = "action go_top"
+"gg" = "action scroll --y 1000000"
 "Primary+Shift+T" = "exec open -a Terminal"
 ```
 
@@ -195,7 +192,7 @@ To remove a single default binding, use `__disabled__`:
 All actions from `[hotkeys]` work here, plus these mode-specific ones:
 
 - Mode commands: `idle`, `hints`, `grid`, `recursive_grid`, `scroll`
-- Action subcommands: `action left_click`, `action scroll_down`, `action feed`, `action sleep`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor_pos`
+- Action subcommands: `action left_click`, `action scroll`, `action feed`, `action sleep`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor_pos`
 - Root toggle commands: `toggle-screen-share`, `toggle-cursor-follow-selection`
 - Shell commands: `exec ...`
 
@@ -239,7 +236,7 @@ Two-letter alphabetic sequences are supported in `hotkeys`:
 
 ```toml
 [scroll.hotkeys]
-"gg" = "action go_top"
+"gg" = "action scroll --y 1000000"
 ```
 
 Sequence timeout is `500ms`.
@@ -256,8 +253,7 @@ All one-shot actions are exposed through `action` subcommands and are valid in c
 | ----------- | ------------------------------------------------------------- |
 | Click       | `left_click`, `right_click`, `middle_click`                   |
 | Mouse       | `mouse_down`, `mouse_up`, `move_mouse`, `move_mouse_relative` |
-| Scroll      | `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`     |
-| Page        | `page_up`, `page_down`, `go_top`, `go_bottom`                 |
+| Scroll      | `scroll --x <px> --y <px>`                                    |
 | Keyboard    | `feed`                                                        |
 | Mode        | `reset`, `backspace`                                          |
 | Composition | `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos` |
@@ -627,34 +623,27 @@ Scroll mode provides keyboard-driven scrolling.
 
 ### Options
 
-| Option             | Type | Default   | Description                        |
-| ------------------ | ---- | --------- | ---------------------------------- |
-| `scroll_step`      | int  | `50`      | Pixels for line scroll actions     |
-| `scroll_step_half` | int  | `500`     | Pixels for half-page actions       |
-| `scroll_step_full` | int  | `1000000` | Pixels for top/bottom jump actions |
+Scroll step values are specified directly in hotkey actions — there are no separate config options. Use `action scroll --y <px>` or `action scroll --x <px>` in your hotkey bindings.
 
 ```toml
 [scroll]
-scroll_step = 50
-scroll_step_half = 500
-scroll_step_full = 1000000
 ```
 
 Default scroll hotkeys:
 
 ```toml
 [scroll.hotkeys]
-"Escape"  = "idle"
-"k"       = "action scroll_up"
-"j"       = "action scroll_down"
-"h"       = "action scroll_left"
-"l"       = "action scroll_right"
-"gg"      = "action go_top"
-"Shift+G" = "action go_bottom"
-"u"       = "action page_up"
-"PageUp"  = "action page_up"
-"d"       = "action page_down"
-"PageDown" = "action page_down"
+"Escape"   = "idle"
+"k"        = "action scroll --y -50"
+"j"        = "action scroll --y 50"
+"h"        = "action scroll --x -50"
+"l"        = "action scroll --x 50"
+"gg"       = "action scroll --y -1000000"
+"Shift+G"  = "action scroll --y 1000000"
+"u"        = "action scroll --y -500"
+"PageUp"   = "action scroll --y -500"
+"d"        = "action scroll --y 500"
+"PageDown" = "action scroll --y 500"
 ```
 
 ---
@@ -952,7 +941,7 @@ max_duration = 180
 duration_per_pixel = 1.0
 ```
 
-The animation adapts to scroll magnitude: a small `scroll_step` scroll completes quickly, while a `scroll_step_full` jump takes longer up to `max_duration`. The easing curve uses ease-out cubic for natural deceleration.
+The animation adapts to scroll magnitude: a small scroll (e.g. `--y 50`) completes quickly, while a large jump (e.g. `--y 1000000`) takes longer up to `max_duration`. The easing curve uses ease-out cubic for natural deceleration.
 
 ---
 

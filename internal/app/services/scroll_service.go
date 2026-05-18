@@ -2,47 +2,17 @@ package services
 
 import (
 	"context"
-	"sync"
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/ports"
-)
-
-// ScrollDirection represents the direction of a scrolling operation.
-type ScrollDirection int
-
-const (
-	// ScrollDirectionUp represents upward scrolling.
-	ScrollDirectionUp ScrollDirection = iota
-	// ScrollDirectionDown represents downward scrolling.
-	ScrollDirectionDown
-	// ScrollDirectionLeft represents leftward scrolling.
-	ScrollDirectionLeft
-	// ScrollDirectionRight represents rightward scrolling.
-	ScrollDirectionRight
-)
-
-// ScrollAmount represents the magnitude of a scrolling operation.
-type ScrollAmount int
-
-const (
-	// ScrollAmountChar represents character-level scrolling.
-	ScrollAmountChar ScrollAmount = iota
-	// ScrollAmountHalfPage represents half-page scrolling.
-	ScrollAmountHalfPage
-	// ScrollAmountEnd represents scrolling to the end.
-	ScrollAmountEnd
 )
 
 // ScrollService orchestrates scrolling operations.
 type ScrollService struct {
 	BaseService
 
-	mu     sync.RWMutex
-	config config.ScrollConfig
 	logger *zap.Logger
 }
 
@@ -51,29 +21,22 @@ func NewScrollService(
 	accessibility ports.AccessibilityPort,
 	overlay ports.OverlayPort,
 	system ports.SystemPort,
-	config config.ScrollConfig,
 	logger *zap.Logger,
 ) *ScrollService {
 	return &ScrollService{
 		BaseService: NewBaseService(accessibility, overlay, system),
-		config:      config,
 		logger:      logger,
 	}
 }
 
-// Scroll performs a scrolling operation in the specified direction and magnitude.
-func (s *ScrollService) Scroll(
+// ScrollDelta performs a scrolling operation with the given deltas.
+// deltaX positive scrolls left, negative scrolls right.
+// deltaY positive scrolls up, negative scrolls down.
+func (s *ScrollService) ScrollDelta(
 	ctx context.Context,
-	direction ScrollDirection,
-	amount ScrollAmount,
+	deltaX, deltaY int,
 ) error {
-	s.mu.RLock()
-	deltaX, deltaY := s.calculateDelta(direction, amount)
-	s.mu.RUnlock()
-
 	s.logger.Debug("Scrolling",
-		zap.Int("dir", int(direction)),
-		zap.Int("amount", int(amount)),
 		zap.Int("deltaX", deltaX),
 		zap.Int("deltaY", deltaY))
 
@@ -88,47 +51,4 @@ func (s *ScrollService) Scroll(
 // Hide hides the scroll overlay.
 func (s *ScrollService) Hide(ctx context.Context) error {
 	return s.HideOverlay(ctx, "hide scroll")
-}
-
-// UpdateConfig updates the scroll configuration.
-// This allows changing scroll behavior at runtime.
-func (s *ScrollService) UpdateConfig(config config.ScrollConfig) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.config = config
-
-	s.logger.Info("Scroll configuration updated",
-		zap.Int("scroll_step", config.ScrollStep),
-		zap.Int("scroll_step_full", config.ScrollStepFull))
-}
-
-// calculateDelta computes the scroll delta values based on direction and magnitude.
-func (s *ScrollService) calculateDelta(direction ScrollDirection, amount ScrollAmount) (int, int) {
-	var (
-		deltaX, deltaY int
-		baseScroll     int
-	)
-
-	switch amount {
-	case ScrollAmountChar:
-		baseScroll = s.config.ScrollStep
-	case ScrollAmountHalfPage:
-		baseScroll = s.config.ScrollStepHalf
-	case ScrollAmountEnd:
-		baseScroll = s.config.ScrollStepFull
-	}
-
-	switch direction {
-	case ScrollDirectionUp:
-		deltaY = baseScroll
-	case ScrollDirectionDown:
-		deltaY = -baseScroll
-	case ScrollDirectionLeft:
-		deltaX = baseScroll
-	case ScrollDirectionRight:
-		deltaX = -baseScroll
-	}
-
-	return deltaX, deltaY
 }

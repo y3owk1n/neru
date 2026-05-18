@@ -232,22 +232,19 @@ easing = "ease_out"                         # linear, ease_in, ease_out, ease_in
 # Scroll mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#scroll-mode
 [scroll]
-scroll_step = 50                            # Pixels per j/k press
-scroll_step_half = 500                      # Pixels for d/u (half page)
-scroll_step_full = 1000000                  # Pixels for gg/G (top/bottom)
 
 [scroll.hotkeys]
 "Escape" = "idle"
-"k" = "action scroll_up"
-"j" = "action scroll_down"
-"h" = "action scroll_left"
-"l" = "action scroll_right"
-"gg" = "action go_top"
-"Shift+G" = "action go_bottom"
-"u" = "action page_up"
-"PageUp" = "action page_up"
-"d" = "action page_down"
-"PageDown" = "action page_down"
+"k" = "action scroll --y -50"
+"j" = "action scroll --y 50"
+"h" = "action scroll --x -50"
+"l" = "action scroll --x 50"
+"gg" = "action scroll --y -1000000"
+"Shift+G" = "action scroll --y 1000000"
+"u" = "action scroll --y -500"
+"PageUp" = "action scroll --y -500"
+"d" = "action scroll --y 500"
+"PageDown" = "action scroll --y 500"
 "Shift+L" = "action left_click"
 "Shift+R" = "action right_click"
 "Shift+M" = "action middle_click"

@@ -17,7 +17,7 @@ func TestModeModifierKeys_HintsIncludesModifierHotkeys(t *testing.T) {
 	cfg.Hints.Hotkeys = map[string]config.StringOrStringArray{
 		"Cmd+L": {"action left_click"},
 		"Alt+K": {"action move_mouse_relative --dx=0 --dy=-10"},
-		"k":     {"action scroll_up"},
+		"k":     {"action scroll --y -50"},
 	}
 
 	handler := &Handler{config: cfg}
@@ -36,10 +36,10 @@ func TestModeModifierKeys_HintsIncludesModifierHotkeys(t *testing.T) {
 func TestModeModifierKeys_ScrollIncludesOnlyModifierHotkeys(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Scroll.Hotkeys = map[string]config.StringOrStringArray{
-		"k":        {"action scroll_up"},
-		"Cmd+Up":   {"action go_top"},
-		"Cmd+Down": {"action go_bottom"},
-		"gg":       {"action go_top"},
+		"k":        {"action scroll --y -50"},
+		"Cmd+Up":   {"action scroll --y -1000000"},
+		"Cmd+Down": {"action scroll --y 1000000"},
+		"gg":       {"action scroll --y -1000000"},
 	}
 
 	handler := &Handler{config: cfg}

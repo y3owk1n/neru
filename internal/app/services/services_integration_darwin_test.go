@@ -236,18 +236,18 @@ func TestScrollServiceIntegration(t *testing.T) {
 	accAdapter, overlay, systemPort := initializeRealAdapters(t, cfg, logger)
 
 	// Create scroll service
-	scrollService := services.NewScrollService(accAdapter, overlay, systemPort, cfg.Scroll, logger)
+	scrollService := services.NewScrollService(accAdapter, overlay, systemPort, logger)
 
 	ctx := context.Background()
 
 	t.Run("Scroll integration", func(t *testing.T) {
-		err := scrollService.Scroll(
+		err := scrollService.ScrollDelta(
 			ctx,
-			services.ScrollDirectionDown,
-			services.ScrollAmountHalfPage,
+			0,
+			-50,
 		)
 		if err != nil {
-			t.Logf("Scroll failed (expected in some environments): %v", err)
+			t.Logf("ScrollDelta failed (expected in some environments): %v", err)
 		}
 	})
 }

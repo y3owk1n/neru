@@ -133,10 +133,6 @@ func (a *App) updateServiceConfigs(cfg *config.Config) {
 		}
 	}
 
-	if a.scrollService != nil {
-		a.scrollService.UpdateConfig(cfg.Scroll)
-	}
-
 	if a.actionService != nil {
 		a.actionService.UpdateConfig(cfg.MouseAction)
 	}

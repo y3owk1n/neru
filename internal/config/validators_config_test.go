@@ -8,8 +8,8 @@ import (
 
 func TestConfigValidateHotkeys_Valid(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.Hotkeys["PageUp"] = config.StringOrStringArray{"action page_up", "idle"}
-	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action go_top"}
+	cfg.Hints.Hotkeys["PageUp"] = config.StringOrStringArray{"action scroll --y -500", "idle"}
+	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action scroll --y 1000000"}
 	cfg.RecursiveGrid.Hotkeys["`"] = config.StringOrStringArray{"toggle-cursor-follow-selection"}
 	cfg.Grid.Hotkeys["Enter"] = config.StringOrStringArray{
 		"action save_cursor_pos",
@@ -54,8 +54,8 @@ func TestConfigValidateHotkeys_InvalidAction(t *testing.T) {
 
 func TestConfigValidateHotkeys_PrefixConflict(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Scroll.Hotkeys["g"] = config.StringOrStringArray{"action scroll_up"}
-	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action go_top"}
+	cfg.Scroll.Hotkeys["g"] = config.StringOrStringArray{"action scroll --y -50"}
+	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action scroll --y -1000000"}
 
 	err := cfg.ValidateHotkeys()
 	if err == nil {
@@ -66,8 +66,8 @@ func TestConfigValidateHotkeys_PrefixConflict(t *testing.T) {
 func TestConfigValidateHotkeys_SequenceWithoutPrefixConflict(t *testing.T) {
 	cfg := config.DefaultConfig()
 	// "gg" sequence with no single-key "g" binding should be fine
-	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action go_top"}
-	cfg.Scroll.Hotkeys["j"] = config.StringOrStringArray{"action scroll_down"}
+	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action scroll --y -1000000"}
+	cfg.Scroll.Hotkeys["j"] = config.StringOrStringArray{"action scroll --y 50"}
 
 	err := cfg.ValidateHotkeys()
 	if err != nil {
@@ -75,20 +75,12 @@ func TestConfigValidateHotkeys_SequenceWithoutPrefixConflict(t *testing.T) {
 	}
 }
 
-func TestConfigValidateScroll_OnlyStepValidation(t *testing.T) {
+func TestConfigValidateScroll_NoValidation(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Scroll.ScrollStep = 0
 
 	err := cfg.ValidateScroll()
-	if err == nil {
-		t.Fatal("ValidateScroll() expected error for scroll_step=0, got nil")
-	}
-
-	cfg.Scroll.ScrollStep = 100
-
-	err = cfg.ValidateScroll()
 	if err != nil {
-		t.Fatalf("ValidateScroll() unexpected error for valid step: %v", err)
+		t.Fatalf("ValidateScroll() unexpected error: %v", err)
 	}
 }
 

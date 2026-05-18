@@ -153,7 +153,6 @@ func initializeServices(
 		accAdapter,
 		overlayAdapter,
 		systemPort,
-		cfg.Scroll,
 		logger,
 	)
 
