@@ -264,7 +264,9 @@ static AXUIElementRef getCachedSystemWideElement(void) {
 	if (!cachedSystemWideElement) {
 		cachedSystemWideElement = AXUIElementCreateSystemWide();
 	}
-	CFRetain(cachedSystemWideElement);
+	if (cachedSystemWideElement) {
+		CFRetain(cachedSystemWideElement);
+	}
 	pthread_mutex_unlock(&systemWideMutex);
 	return cachedSystemWideElement;
 }
