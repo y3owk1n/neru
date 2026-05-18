@@ -711,11 +711,9 @@ func shouldIncludeElement(
 		}
 	}
 
-	// Filter out zero-sized interactive elements (they're broken/invalid)
+	// Filter out zero-sized elements (they're broken/invalid)
 	if elementRect.Dx() == 0 || elementRect.Dy() == 0 {
-		if interactiveLeafRoles[element.Role(info.Role())] {
-			return false
-		}
+		return false
 	}
 
 	// Strict filtering: auto-enabled for Chromium/Electron apps with noisy DOM trees
