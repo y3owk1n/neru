@@ -102,6 +102,7 @@ func (m *MockAXClient) MenuBarClickableElements(maxDepth int) ([]AXNode, error) 
 	m.mu.Lock()
 	m.LastCalledMaxDepth = maxDepth
 	m.mu.Unlock()
+
 	return m.MockMenuBarNodes, m.MockMenuBarNodesErr
 }
 
