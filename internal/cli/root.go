@@ -384,8 +384,17 @@ func BuildScrollActionCommand(use, short, long string, supportSteps bool) *cobra
 				args = append(args, "--bare")
 			}
 
-			if supportSteps && steps > 0 {
-				args = append(args, "--steps", strconv.Itoa(steps))
+			if supportSteps {
+				if cmd.Flags().Changed("steps") && steps <= 0 {
+					return derrors.New(
+						derrors.CodeInvalidInput,
+						"--steps must be a positive integer",
+					)
+				}
+
+				if steps > 0 {
+					args = append(args, "--steps", strconv.Itoa(steps))
+				}
 			}
 
 			return sendCommand(cmd, "action", args)
