@@ -138,11 +138,13 @@ func (h *Handler) activateHintModeInternal(
 		h.cycleHintIndex = -1
 	}
 
-	// Fetch bundle ID once to avoid repeated AX calls across validation and hint generation
-	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
-	defer cancel()
+	// Fetch bundle ID once to avoid repeated AX calls across validation and hint generation.
+	// Use a dedicated short timeout so slow AX doesn't erode the hint generation budget.
+	bundleCtx, bundleCancel := context.WithTimeout(context.Background(), 1*time.Second)
+	bundleID, bundleIDErr := h.actionService.FocusedAppBundleID(bundleCtx)
 
-	bundleID, bundleIDErr := h.actionService.FocusedAppBundleID(ctx)
+	bundleCancel()
+
 	if bundleIDErr != nil {
 		h.logger.Debug("Failed to get focused app bundle ID for validation",
 			zap.Error(bundleIDErr))
@@ -222,6 +224,9 @@ func (h *Handler) activateHintModeInternal(
 
 	// Get hints from service. Drawing is intentionally deferred until after
 	// active-screen filtering so activation performs one full overlay render.
+	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
+	defer cancel()
+
 	domainHints, domainHintsErr := h.hintService.GenerateHints(
 		ctx,
 		filterRoles,
