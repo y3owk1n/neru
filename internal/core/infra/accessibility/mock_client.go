@@ -42,6 +42,7 @@ type MockAXClient struct {
 	MockMissionControlActive bool
 
 	LastCalledBundleID         string
+	LastCalledMaxDepth         int
 	LastClickableNodesRoles    []string
 	LastBundleRoles            []string
 	ClickableNodesRolesHistory [][]string
@@ -97,7 +98,10 @@ func (m *MockAXClient) ClickableNodes(
 }
 
 // MenuBarClickableElements returns the configured menu bar nodes or error.
-func (m *MockAXClient) MenuBarClickableElements(_ int) ([]AXNode, error) {
+func (m *MockAXClient) MenuBarClickableElements(maxDepth int) ([]AXNode, error) {
+	m.mu.Lock()
+	m.LastCalledMaxDepth = maxDepth
+	m.mu.Unlock()
 	return m.MockMenuBarNodes, m.MockMenuBarNodesErr
 }
 
@@ -109,6 +113,7 @@ func (m *MockAXClient) ClickableElementsFromBundleID(
 ) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastCalledBundleID = bundleID
+	m.LastCalledMaxDepth = maxDepth
 	m.LastBundleRoles = roles
 	m.mu.Unlock()
 
