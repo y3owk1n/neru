@@ -99,7 +99,7 @@ func HasClickAction(element unsafe.Pointer) bool {
 
 	clickable := C.hasClickAction(
 		element,
-		false,
+		true,  // skipVisCheck: no pre-computed center available in this simplified wrapper
 		false,
 		true,
 		true,
