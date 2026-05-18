@@ -62,13 +62,15 @@ func NewScrollService(
 }
 
 // Scroll performs a scrolling operation in the specified direction and magnitude.
+// If stepOverride is > 0, it overrides the configured scroll step for this invocation.
 func (s *ScrollService) Scroll(
 	ctx context.Context,
 	direction ScrollDirection,
 	amount ScrollAmount,
+	stepOverride int,
 ) error {
 	s.mu.RLock()
-	deltaX, deltaY := s.calculateDelta(direction, amount)
+	deltaX, deltaY := s.calculateDelta(direction, amount, stepOverride)
 	s.mu.RUnlock()
 
 	s.logger.Debug("Scrolling",
@@ -104,19 +106,28 @@ func (s *ScrollService) UpdateConfig(config config.ScrollConfig) {
 }
 
 // calculateDelta computes the scroll delta values based on direction and magnitude.
-func (s *ScrollService) calculateDelta(direction ScrollDirection, amount ScrollAmount) (int, int) {
+// If stepOverride is > 0, it takes precedence over the configured value.
+func (s *ScrollService) calculateDelta(
+	direction ScrollDirection,
+	amount ScrollAmount,
+	stepOverride int,
+) (int, int) {
 	var (
 		deltaX, deltaY int
 		baseScroll     int
 	)
 
-	switch amount {
-	case ScrollAmountChar:
-		baseScroll = s.config.ScrollStep
-	case ScrollAmountHalfPage:
-		baseScroll = s.config.ScrollStepHalf
-	case ScrollAmountEnd:
-		baseScroll = s.config.ScrollStepFull
+	if stepOverride > 0 {
+		baseScroll = stepOverride
+	} else {
+		switch amount {
+		case ScrollAmountChar:
+			baseScroll = s.config.ScrollStep
+		case ScrollAmountHalfPage:
+			baseScroll = s.config.ScrollStepHalf
+		case ScrollAmountEnd:
+			baseScroll = s.config.ScrollStepFull
+		}
 	}
 
 	switch direction {

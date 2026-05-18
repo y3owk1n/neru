@@ -129,6 +129,7 @@ var ActionScrollUpCmd = BuildScrollActionCommand(
 	"scroll_up",
 	"Scroll up",
 	`Scroll up at the active selection when available, otherwise at the current cursor location.`,
+	true,
 )
 
 // ActionScrollDownCmd scrolls down at the current cursor position.
@@ -136,6 +137,7 @@ var ActionScrollDownCmd = BuildScrollActionCommand(
 	"scroll_down",
 	"Scroll down",
 	`Scroll down at the active selection when available, otherwise at the current cursor location.`,
+	true,
 )
 
 // ActionScrollLeftCmd scrolls left at the current cursor position.
@@ -143,6 +145,7 @@ var ActionScrollLeftCmd = BuildScrollActionCommand(
 	"scroll_left",
 	"Scroll left",
 	`Scroll left at the active selection when available, otherwise at the current cursor location.`,
+	true,
 )
 
 // ActionScrollRightCmd scrolls right at the current cursor position.
@@ -150,6 +153,7 @@ var ActionScrollRightCmd = BuildScrollActionCommand(
 	"scroll_right",
 	"Scroll right",
 	`Scroll right at the active selection when available, otherwise at the current cursor location.`,
+	true,
 )
 
 // ActionGoTopCmd scrolls to the top of the page.
@@ -157,6 +161,7 @@ var ActionGoTopCmd = BuildScrollActionCommand(
 	"go_top",
 	"Scroll to top of page",
 	`Scroll to the top of the page at the active selection when available, otherwise at the current cursor location.`,
+	false,
 )
 
 // ActionGoBottomCmd scrolls to the bottom of the page.
@@ -164,6 +169,7 @@ var ActionGoBottomCmd = BuildScrollActionCommand(
 	"go_bottom",
 	"Scroll to bottom of page",
 	`Scroll to the bottom of the page at the active selection when available, otherwise at the current cursor location.`,
+	false,
 )
 
 // ActionPageUpCmd scrolls up by half a page.
@@ -171,6 +177,7 @@ var ActionPageUpCmd = BuildScrollActionCommand(
 	"page_up",
 	"Scroll up by half page",
 	`Scroll up by half a page at the active selection when available, otherwise at the current cursor location.`,
+	false,
 )
 
 // ActionPageDownCmd scrolls down by half a page.
@@ -178,6 +185,7 @@ var ActionPageDownCmd = BuildScrollActionCommand(
 	"page_down",
 	"Scroll down by half page",
 	`Scroll down by half a page at the active selection when available, otherwise at the current cursor location.`,
+	false,
 )
 
 // ActionCycleHintCmd cycles through visible hints in hints mode.

@@ -267,6 +267,10 @@ All one-shot actions are exposed through `action` subcommands and are valid in c
 
 > [!TIP]
 > Point-targeted actions prefer the current mode selection by default. Use the `--bare` flag (e.g. `"action left_click --bare"`) to ignore the selection and target the current cursor position instead.
+>
+> `scroll_up`, `scroll_down`, `scroll_left`, and `scroll_right` also support a `--steps` flag
+> (e.g. `"action scroll_down --steps 200"`) to override the configured `scroll_step` for a
+> single invocation. `page_up`, `page_down`, `go_top`, and `go_bottom` do not support `--steps`.
 
 ### Feed keys
 

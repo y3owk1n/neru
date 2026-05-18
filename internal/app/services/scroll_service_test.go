@@ -153,7 +153,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			)
 			ctx := context.Background()
 
-			scrollErr := service.Scroll(ctx, testCase.direction, testCase.amount)
+			scrollErr := service.Scroll(ctx, testCase.direction, testCase.amount, 0)
 
 			if (scrollErr != nil) != testCase.wantErr {
 				t.Errorf("Scroll() error = %v, wantErr %v", scrollErr, testCase.wantErr)

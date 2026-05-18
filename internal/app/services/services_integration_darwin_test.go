@@ -245,6 +245,7 @@ func TestScrollServiceIntegration(t *testing.T) {
 			ctx,
 			services.ScrollDirectionDown,
 			services.ScrollAmountHalfPage,
+			0,
 		)
 		if err != nil {
 			t.Logf("Scroll failed (expected in some environments): %v", err)

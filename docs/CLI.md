@@ -362,10 +362,10 @@ neru action mouse_down          # Hold mouse button
 neru action mouse_up            # Release mouse button
 neru action save_cursor_pos     # Save current cursor position
 neru action restore_cursor_pos     # Restore saved cursor position
-neru action scroll_up           # Scroll up at cursor
-neru action scroll_down         # Scroll down at cursor
-neru action scroll_left         # Scroll left at cursor
-neru action scroll_right        # Scroll right at cursor
+neru action scroll_up           # Scroll up at cursor (--steps to override)
+neru action scroll_down         # Scroll down at cursor (--steps to override)
+neru action scroll_left         # Scroll left at cursor (--steps to override)
+neru action scroll_right        # Scroll right at cursor (--steps to override)
 neru action page_up             # Half-page up at cursor
 neru action page_down           # Half-page down at cursor
 neru action go_top              # Jump to top at cursor
@@ -505,6 +505,24 @@ neru action move_mouse_relative --dx 10 --dy -5
 | `--window`    | Move to the center of the focused window                   |
 | `--selection` | Explicitly use the active mode selection                     |
 | `--bare`      | Force current-cursor targeting even when a selection exists  |
+
+**Scroll action flags:**
+
+`scroll_up`, `scroll_down`, `scroll_left`, and `scroll_right` support these flags:
+
+| Flag            | Description                                                               |
+| --------------- | ------------------------------------------------------------------------- |
+| `--steps <px>`  | Override the scroll step amount (pixels); configured default is used when omitted |
+| `--selection`   | Explicitly use the active mode selection as the target point              |
+| `--bare`        | Use the current cursor position even when a mode selection exists         |
+
+`page_up`, `page_down`, `go_top`, and `go_bottom` support only `--selection` and `--bare`.
+
+```
+neru action scroll_down              # Scroll down 50px (configured default)
+neru action scroll_down --steps 200  # Scroll down 200px
+neru action scroll_left --steps 100  # Scroll left 100px
+```
 
 > [!TIP]
 > Point-targeted actions prefer the active mode selection by default. Use `--bare` when you want `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, `move_mouse`, or scroll actions to ignore the selection and use the current cursor position instead.

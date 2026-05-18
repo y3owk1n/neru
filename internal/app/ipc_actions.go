@@ -80,6 +80,8 @@ type parsedActionArgs struct {
 	usePrevious    bool
 	useBackward    bool
 	modifierStr    string
+	stepsOverride  int
+	hasSteps       bool
 }
 
 func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelection bool) bool {
@@ -221,6 +223,18 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 
 			parsed.monitorName = val
 			parsed.hasMonitorName = true
+		case strings.HasPrefix(arg, "--steps") && (arg == "--steps" || arg[len("--steps")] == '='):
+			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--steps")
+			idx = newIdx
+
+			if !ok || val <= 0 {
+				parseErr = true
+
+				break
+			}
+
+			parsed.stepsOverride = val
+			parsed.hasSteps = true
 		default:
 			if strings.HasPrefix(arg, "--") {
 				parseErr = true
@@ -1322,6 +1336,14 @@ func (h *IPCControllerActions) handleScrollAction(
 		}
 	}
 
+	if parsed.hasSteps && amount != services.ScrollAmountChar {
+		return ipc.Response{
+			Success: false,
+			Message: "--steps is only supported with scroll_up, scroll_down, scroll_left, and scroll_right",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	h.logger.Info("Performing scroll action via IPC",
 		zap.String("action", actionName),
 		zap.Int("direction", int(direction)),
@@ -1366,7 +1388,7 @@ func (h *IPCControllerActions) handleScrollAction(
 		}
 	}
 
-	scrollErr := h.scrollService.Scroll(ctx, direction, amount)
+	scrollErr := h.scrollService.Scroll(ctx, direction, amount, parsed.stepsOverride)
 	if scrollErr != nil {
 		h.logger.Error("Scroll action failed", zap.Error(scrollErr),
 			zap.String("action", actionName))

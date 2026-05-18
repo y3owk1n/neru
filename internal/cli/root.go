@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -351,10 +352,12 @@ Use --bare to force current-cursor targeting.`,
 }
 
 // BuildScrollActionCommand creates a scroll action cobra command.
-func BuildScrollActionCommand(use, short, long string) *cobra.Command {
+// If supportSteps is true, a --steps flag is added to override the scroll step amount.
+func BuildScrollActionCommand(use, short, long string, supportSteps bool) *cobra.Command {
 	var (
 		selection bool
 		bare      bool
+		steps     int
 	)
 
 	cmd := &cobra.Command{
@@ -381,6 +384,10 @@ func BuildScrollActionCommand(use, short, long string) *cobra.Command {
 				args = append(args, "--bare")
 			}
 
+			if supportSteps && steps > 0 {
+				args = append(args, "--steps", strconv.Itoa(steps))
+			}
+
 			return sendCommand(cmd, "action", args)
 		},
 	}
@@ -389,6 +396,11 @@ func BuildScrollActionCommand(use, short, long string) *cobra.Command {
 		BoolVar(&selection, "selection", false, "Explicitly use the active mode selection as the target point")
 	cmd.Flags().
 		BoolVar(&bare, "bare", false, "Use the current cursor position even when a mode selection exists")
+
+	if supportSteps {
+		cmd.Flags().
+			IntVar(&steps, "steps", 0, "Override the scroll step amount (pixels); configured default is used when omitted")
+	}
 
 	return cmd
 }

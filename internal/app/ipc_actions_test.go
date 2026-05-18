@@ -126,6 +126,50 @@ func TestParseActionArgs_BareFlag(t *testing.T) {
 	}
 }
 
+func TestParseActionArgs_StepsFlagEqualsForm(t *testing.T) {
+	parsed, parseErr := parseActionArgs([]string{"--steps=100"})
+	if parseErr {
+		t.Fatal("parseActionArgs() unexpected parse error for --steps=100")
+	}
+
+	if !parsed.hasSteps {
+		t.Fatal("parseActionArgs() expected hasSteps to be true")
+	}
+
+	if parsed.stepsOverride != 100 {
+		t.Fatalf("parseActionArgs() expected stepsOverride to be 100, got %d", parsed.stepsOverride)
+	}
+}
+
+func TestParseActionArgs_StepsFlagSpaceForm(t *testing.T) {
+	parsed, parseErr := parseActionArgs([]string{"--steps", "200"})
+	if parseErr {
+		t.Fatal("parseActionArgs() unexpected parse error for --steps 200")
+	}
+
+	if !parsed.hasSteps {
+		t.Fatal("parseActionArgs() expected hasSteps to be true")
+	}
+
+	if parsed.stepsOverride != 200 {
+		t.Fatalf("parseActionArgs() expected stepsOverride to be 200, got %d", parsed.stepsOverride)
+	}
+}
+
+func TestParseActionArgs_StepsFlagRejectsZero(t *testing.T) {
+	_, parseErr := parseActionArgs([]string{"--steps=0"})
+	if !parseErr {
+		t.Fatal("parseActionArgs() expected parse error for --steps=0")
+	}
+}
+
+func TestParseActionArgs_StepsFlagRejectsNegative(t *testing.T) {
+	_, parseErr := parseActionArgs([]string{"--steps=-10"})
+	if !parseErr {
+		t.Fatal("parseActionArgs() expected parse error for --steps=-10")
+	}
+}
+
 func TestParseActionArgs_ModifierCSV(t *testing.T) {
 	tests := []struct {
 		name       string
