@@ -269,15 +269,6 @@ static AXUIElementRef getCachedSystemWideElement(void) {
 	return cachedSystemWideElement;
 }
 
-static void releaseCachedSystemWideElement(void) {
-	pthread_mutex_lock(&systemWideMutex);
-	if (cachedSystemWideElement) {
-		CFRelease(cachedSystemWideElement);
-		cachedSystemWideElement = NULL;
-	}
-	pthread_mutex_unlock(&systemWideMutex);
-}
-
 #pragma mark - Position Functions
 
 /// Get element at screen position
