@@ -622,7 +622,7 @@ func buildChildrenParallel(
 			}
 
 			// Recursively build (this may spawn more goroutines at deeper levels)
-			buildTreeRecursive(childNode, depth+1, opts, newClipBounds, windowBounds)
+			buildTreeRecursive(childNode, depth+1, opts, newClipBounds, winBounds)
 
 			results <- childResult{node: childNode, index: idx}
 		}(index, child, clipBounds, windowBounds)
