@@ -138,23 +138,13 @@ func (h *Handler) activateHintModeInternal(
 		h.cycleHintIndex = -1
 	}
 
-	// Fetch bundle ID once to avoid repeated AX calls across validation and hint generation.
-	// Use a dedicated short timeout so slow AX doesn't erode the hint generation budget.
-	bundleCtx, bundleCancel := context.WithTimeout(context.Background(), 1*time.Second)
-	bundleID, bundleIDErr := h.actionService.FocusedAppBundleID(bundleCtx)
-
-	bundleCancel()
-
-	if bundleIDErr != nil {
-		h.logger.Debug("Failed to get focused app bundle ID for validation",
-			zap.Error(bundleIDErr))
-	}
-
+	// Defer bundle ID fetch until after validation (secure input check) to avoid
+	// unnecessary AX calls when a password field is focused.
 	actionEnum, activated := h.activateModeBase(
 		domain.ModeNameHints,
 		h.config.Hints.Enabled,
 		action.TypeMoveMouse,
-		bundleID,
+		"",
 	)
 	if !activated {
 		// If validation fails during a refresh (e.g., secure input activated,
@@ -220,6 +210,19 @@ func (h *Handler) activateHintModeInternal(
 		h.hints.Context.SetFilterRoles(filterRoles)
 		h.hints.Context.SetFilterTextContains(filterTextContains)
 		h.hints.Context.SetStartWithSearch(search)
+	}
+
+	// Fetch bundle ID for hint generation. Validation already passed (secure input check,
+	// exclusion check), so this is the only call. Use a dedicated short timeout so slow
+	// AX doesn't erode the hint generation budget.
+	bundleCtx, bundleCancel := context.WithTimeout(context.Background(), 1*time.Second)
+	bundleID, bundleIDErr := h.actionService.FocusedAppBundleID(bundleCtx)
+
+	bundleCancel()
+
+	if bundleIDErr != nil {
+		h.logger.Debug("Failed to get focused app bundle ID for hint generation",
+			zap.Error(bundleIDErr))
 	}
 
 	// Get hints from service. Drawing is intentionally deferred until after
