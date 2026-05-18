@@ -881,3 +881,50 @@ func isChromiumOrElectron(bundleID string, configProvider config.Provider) bool 
 
 	return isUserConfiguredChromiumElectron(bundleID, configProvider)
 }
+
+// isLikelyChromiumOrElectron returns true if the bundle ID matches known Chromium/Electron apps.
+// This is duplicated from electron package to avoid import cycle.
+func isLikelyChromiumOrElectron(bundleID string) bool {
+	if bundleID == "" {
+		return false
+	}
+
+	bundleID = strings.TrimSpace(bundleID)
+
+	for _, b := range config.KnownChromiumBundles {
+		if strings.EqualFold(b, bundleID) {
+			return true
+		}
+	}
+
+	for _, b := range config.KnownElectronBundles {
+		if strings.EqualFold(b, bundleID) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isUserConfiguredChromiumElectron checks if the bundle ID matches user-configured
+// additional Chromium/Electron bundles from config. Supports exact matches and
+// wildcard patterns (ending with *).
+func isUserConfiguredChromiumElectron(bundleID string, configProvider config.Provider) bool {
+	if bundleID == "" || configProvider == nil {
+		return false
+	}
+
+	cfg := configProvider.Get()
+	if cfg == nil {
+		return false
+	}
+
+	chromiumBundles := cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles
+	if config.MatchesAdditionalBundle(bundleID, chromiumBundles) {
+		return true
+	}
+
+	electronBundles := cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles
+
+	return config.MatchesAdditionalBundle(bundleID, electronBundles)
+}

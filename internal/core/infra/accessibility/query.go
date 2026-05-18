@@ -31,6 +31,7 @@ func MenuBarClickableElements(
 	defer menubar.Release()
 
 	opts := DefaultTreeOptions(logger)
+	opts.SetConfigProvider(configProvider)
 
 	if cfg := currentConfig(configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
@@ -103,6 +104,7 @@ func ClickableElementsFromBundleID(
 	defer app.Release()
 
 	opts := DefaultTreeOptions(logger)
+	opts.SetConfigProvider(configProvider)
 
 	if cfg := currentConfig(configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
