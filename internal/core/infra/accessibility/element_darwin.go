@@ -721,45 +721,30 @@ func isExcludedOrUnsafe(bundleID string, configProvider config.Provider) bool {
 		return true
 	}
 
+	if isLikelyChromiumOrElectron(bundleID) {
+		return true
+	}
+
 	if configProvider == nil {
 		return false
 	}
 
 	cfg := configProvider.Get()
-
 	if cfg == nil {
 		return false
 	}
 
-	mergedChromiumBundles := config.KnownChromiumBundles
-	mergedChromiumBundles = append(
-		mergedChromiumBundles,
-		cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles...)
-
-	mergedElectronBundles := config.KnownElectronBundles
-	mergedElectronBundles = append(
-		mergedElectronBundles,
-		cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles...)
-
-	return matchesAnyFold(bundleID, mergedChromiumBundles) ||
-		matchesAnyFold(bundleID, mergedElectronBundles)
-}
-
-// matchesAnyFold returns true if s matches any entry in the list
-// (case-insensitive, trimmed).
-func matchesAnyFold(bundleID string, list []string) bool {
-	bundleID = strings.TrimSpace(bundleID)
-	if bundleID == "" {
-		return false
+	if config.MatchesAdditionalBundle(
+		bundleID,
+		cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles,
+	) {
+		return true
 	}
 
-	for _, entry := range list {
-		if strings.EqualFold(strings.TrimSpace(entry), bundleID) {
-			return true
-		}
-	}
-
-	return false
+	return config.MatchesAdditionalBundle(
+		bundleID,
+		cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles,
+	)
 }
 
 // isExcludedBundleID checks if the process with the given PID belongs to a
