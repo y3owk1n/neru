@@ -56,6 +56,7 @@ const (
 	RoleSplitGroup         Role = "AXSplitGroup"
 	RoleUnknown            Role = "AXUnknown"
 	RoleGenericElement     Role = "AXGenericElement"
+	RoleMenuExtra          Role = "AXMenuExtra"
 )
 
 // Element represents a UI element in the accessibility tree.
