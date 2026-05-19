@@ -378,10 +378,13 @@ var importantContainerRoles = map[element.Role]bool{
 // when the parent is itself an interactive leaf. This avoids wasting Info() calls
 // on children of leaf roles that never contain important containers.
 var leafRolesWithImportantChildren = map[element.Role]bool{
-	element.RoleButton:      true,
-	element.RoleMenuButton:  true,
-	element.RolePopUpButton: true,
-	element.RoleLink:        true,
+	element.RoleButton:             true,
+	element.RoleMenuButton:         true,
+	element.RolePopUpButton:        true,
+	element.RoleLink:               true,
+	element.RoleComboBox:           true, // dropdown AXMenu
+	element.RoleDisclosureTriangle: true, // reveals children when expanded
+	element.RoleGenericElement:     true, // catch-all — could contain anything
 }
 
 func buildTreeRecursive(
