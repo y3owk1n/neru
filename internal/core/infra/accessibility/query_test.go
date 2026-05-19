@@ -35,6 +35,20 @@ func TestIsAdditionalMenuBarElement(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name: "allows menu container",
+			info: &ElementInfo{
+				role: string(element.RoleMenu),
+			},
+			want: true,
+		},
+		{
+			name: "allows menu items",
+			info: &ElementInfo{
+				role: string(element.RoleMenuItem),
+			},
+			want: true,
+		},
 	}
 
 	for _, tt := range tests {
