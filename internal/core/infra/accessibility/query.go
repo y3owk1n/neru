@@ -43,6 +43,7 @@ func MenuBarClickableElements(
 
 		opts.SetMaxDepth(depth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
+		opts.SetMaxParallelDepth(cfg.Hints.MaxParallelDepth)
 	}
 
 	tree, err := BuildTree(menubar, opts)
@@ -123,6 +124,7 @@ func ClickableElementsFromBundleID(
 
 		opts.SetMaxDepth(depth)
 		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
+		opts.SetMaxParallelDepth(cfg.Hints.MaxParallelDepth)
 	}
 
 	tree, err := BuildTree(app, opts)

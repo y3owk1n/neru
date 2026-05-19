@@ -219,6 +219,11 @@ func (o *TreeOptions) SetParallelThreshold(threshold int) {
 	o.parallelThreshold = threshold
 }
 
+// SetMaxParallelDepth sets the max depth for parallel child processing.
+func (o *TreeOptions) SetMaxParallelDepth(depth int) {
+	o.maxParallelDepth = depth
+}
+
 // DefaultTreeOptions returns default tree traversal options.
 func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{

@@ -238,6 +238,11 @@ func (c *Config) ValidateHints() error {
 		return err
 	}
 
+	err = validateMinValue(c.Hints.MaxParallelDepth, 1, "hints.max_parallel_depth")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
