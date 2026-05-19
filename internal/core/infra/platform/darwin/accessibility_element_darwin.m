@@ -99,6 +99,17 @@ void *getApplicationByBundleId(const char *bundle_id) {
 
 #pragma mark - Element Information Functions
 
+static bool shouldPrefetchActions(const char *role) {
+	if (!role)
+		return false;
+
+	return strcmp(role, "AXButton") == 0 || strcmp(role, "AXLink") == 0 || strcmp(role, "AXCheckBox") == 0 ||
+	       strcmp(role, "AXMenuItem") == 0 || strcmp(role, "AXMenuButton") == 0 || strcmp(role, "AXPopUpButton") == 0 ||
+	       strcmp(role, "AXTabButton") == 0 || strcmp(role, "AXComboBox") == 0 || strcmp(role, "AXSlider") == 0 ||
+	       strcmp(role, "AXSwitch") == 0 || strcmp(role, "AXDisclosureTriangle") == 0 ||
+	       strcmp(role, "AXGenericElement") == 0 || strcmp(role, "AXCell") == 0 || strcmp(role, "AXMenuExtra") == 0;
+}
+
 /// Get element information using batched attribute queries
 /// @param element Element reference
 /// @return Element information structure
@@ -230,10 +241,11 @@ ElementInfo *getElementInfo(void *element) {
 		CFRelease(values);
 
 		// Pre-fetch action names to eliminate a separate AX call during clickability checks.
-		// This is done after the batched attribute fetch since action names are only needed
-		// for interactive elements, but the cost is negligible for non-interactive ones.
+		// We only perform this pre-fetch for interactive roles to save synchronous XPC
+		// round-trips for elements that are almost certainly non-interactive (e.g. AXStaticText, AXGroup).
 		CFArrayRef actionNames = NULL;
-		if (AXUIElementCopyActionNames(axElement, &actionNames) == kAXErrorSuccess && actionNames) {
+		if (shouldPrefetchActions(info->role) &&
+		    AXUIElementCopyActionNames(axElement, &actionNames) == kAXErrorSuccess && actionNames) {
 			info->preActionsFetched = true;
 			CFIndex actionCount = CFArrayGetCount(actionNames);
 			for (CFIndex i = 0; i < actionCount; i++) {
