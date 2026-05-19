@@ -99,6 +99,17 @@ void *getApplicationByBundleId(const char *bundle_id) {
 
 #pragma mark - Element Information Functions
 
+static bool shouldPrefetchActions(const char *role) {
+	if (!role)
+		return false;
+
+	return strcmp(role, "AXButton") == 0 || strcmp(role, "AXLink") == 0 || strcmp(role, "AXCheckBox") == 0 ||
+	       strcmp(role, "AXMenuItem") == 0 || strcmp(role, "AXMenuButton") == 0 || strcmp(role, "AXPopUpButton") == 0 ||
+	       strcmp(role, "AXTabButton") == 0 || strcmp(role, "AXComboBox") == 0 || strcmp(role, "AXSlider") == 0 ||
+	       strcmp(role, "AXSwitch") == 0 || strcmp(role, "AXDisclosureTriangle") == 0 ||
+	       strcmp(role, "AXGenericElement") == 0 || strcmp(role, "AXCell") == 0 || strcmp(role, "AXMenuBarItem") == 0;
+}
+
 /// Get element information using batched attribute queries
 /// @param element Element reference
 /// @return Element information structure
@@ -126,13 +137,14 @@ ElementInfo *getElementInfo(void *element) {
 		        kAXValueAttribute,
 		        kAXIdentifierAttribute,
 		        kAXRoleAttribute,
+		        kAXSubroleAttribute,
 		        kAXRoleDescriptionAttribute,
 		        kAXEnabledAttribute,
 		        kAXFocusedAttribute,
 		        kAXHiddenAttribute,
 		        kVisibleAttr,
 		    },
-		    12, &kCFTypeArrayCallBacks);
+		    13, &kCFTypeArrayCallBacks);
 
 		if (!attributes) {
 			free(info);
@@ -151,7 +163,7 @@ ElementInfo *getElementInfo(void *element) {
 			return info;
 		}
 
-		// With option=0, values always has exactly 12 entries (one per requested attribute).
+		// With option=0, values always has exactly 13 entries (one per requested attribute).
 		// Slots for unsupported/errored attributes hold an AX error placeholder (CFNumber),
 		// which the CFGetTypeID checks below will correctly reject.
 		CFTypeRef positionValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
@@ -195,33 +207,63 @@ ElementInfo *getElementInfo(void *element) {
 			info->role = cfStringToCString((CFStringRef)roleValue);
 		}
 
-		CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 7);
+		CFTypeRef subroleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 7);
+		if (subroleValue && CFGetTypeID(subroleValue) == CFStringGetTypeID()) {
+			info->subrole = cfStringToCString((CFStringRef)subroleValue);
+		}
+
+		CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 8);
 		if (roleDescValue && CFGetTypeID(roleDescValue) == CFStringGetTypeID()) {
 			info->roleDescription = cfStringToCString((CFStringRef)roleDescValue);
 		}
 
-		CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 8);
+		CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 9);
 		if (enabledValue && CFGetTypeID(enabledValue) == CFBooleanGetTypeID()) {
 			info->isEnabled = CFBooleanGetValue((CFBooleanRef)enabledValue);
 			info->hasEnabledAttribute = true;
 		}
 
-		CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 9);
+		CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 10);
 		if (focusedValue && CFGetTypeID(focusedValue) == CFBooleanGetTypeID()) {
 			info->isFocused = CFBooleanGetValue((CFBooleanRef)focusedValue);
 		}
 
-		CFTypeRef hiddenValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 10);
+		CFTypeRef hiddenValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 11);
 		if (hiddenValue && CFGetTypeID(hiddenValue) == CFBooleanGetTypeID()) {
 			info->isHidden = CFBooleanGetValue((CFBooleanRef)hiddenValue);
 		}
 
-		CFTypeRef visibleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 11);
+		CFTypeRef visibleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 12);
 		if (visibleValue && CFGetTypeID(visibleValue) == CFBooleanGetTypeID()) {
 			info->isVisible = CFBooleanGetValue((CFBooleanRef)visibleValue);
 		}
 
 		CFRelease(values);
+
+		// Pre-fetch action names to eliminate a separate AX call during clickability checks.
+		// We only perform this pre-fetch for interactive roles to save synchronous XPC
+		// round-trips for elements that are almost certainly non-interactive (e.g. AXStaticText, AXGroup).
+		CFArrayRef actionNames = NULL;
+		if (shouldPrefetchActions(info->role) &&
+		    AXUIElementCopyActionNames(axElement, &actionNames) == kAXErrorSuccess && actionNames) {
+			info->preActionsFetched = true;
+			CFIndex actionCount = CFArrayGetCount(actionNames);
+			for (CFIndex i = 0; i < actionCount; i++) {
+				CFStringRef action = (CFStringRef)CFArrayGetValueAtIndex(actionNames, i);
+				if (!action)
+					continue;
+				if (CFStringCompare(action, kAXPressAction, 0) == kCFCompareEqualTo ||
+				    CFStringCompare(action, CFSTR("AXConfirm"), 0) == kCFCompareEqualTo ||
+				    CFStringCompare(action, CFSTR("AXPick"), 0) == kCFCompareEqualTo ||
+				    CFStringCompare(action, CFSTR("AXRaise"), 0) == kCFCompareEqualTo) {
+					info->hasPressAction = true;
+				}
+				if (CFStringCompare(action, CFSTR("AXShowMenu"), 0) == kCFCompareEqualTo) {
+					info->hasShowMenuAction = true;
+				}
+			}
+			CFRelease(actionNames);
+		}
 
 		pid_t pid;
 		if (AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
@@ -248,6 +290,8 @@ void freeElementInfo(ElementInfo *info) {
 		free(info->identifier);
 	if (info->role)
 		free(info->role);
+	if (info->subrole)
+		free(info->subrole);
 	if (info->roleDescription)
 		free(info->roleDescription);
 
@@ -358,31 +402,6 @@ int getElementCenter(void *element, CGPoint *outPoint) {
 
 #pragma mark - Child Element Functions
 
-/// Get number of child elements
-/// @param element Element reference
-/// @return Number of children
-int getChildrenCount(void *element) {
-	if (!element)
-		return 0;
-
-	AXUIElementRef axElement = (AXUIElementRef)element;
-	CFTypeRef childrenValue = NULL;
-
-	if (AXUIElementCopyAttributeValue(axElement, kAXChildrenAttribute, &childrenValue) != kAXErrorSuccess) {
-		return 0;
-	}
-
-	if (CFGetTypeID(childrenValue) != CFArrayGetTypeID()) {
-		CFRelease(childrenValue);
-		return 0;
-	}
-
-	CFIndex count = CFArrayGetCount((CFArrayRef)childrenValue);
-	CFRelease(childrenValue);
-
-	return (int)count;
-}
-
 /// Get child elements
 /// @param element Element reference
 /// @param count Output parameter for number of children
@@ -485,7 +504,10 @@ static bool elementOrAncestorMatches(AXUIElementRef element, AXUIElementRef targ
 	AXUIElementRef current = element;
 	CFRetain(current);
 
-	for (int depth = 0; current && depth < 64; depth++) {
+	// Limit parent chain walk to 16 levels. Most UI hierarchies are shallow
+	// enough that the target (or a descendant) is found well before this.
+	// 64 was excessive and caused unnecessary AX calls for obscured elements.
+	for (int depth = 0; current && depth < 16; depth++) {
 		if (CFEqual(current, target)) {
 			CFRelease(current);
 			return true;
@@ -587,10 +609,12 @@ static bool getElementFrame(AXUIElementRef element, CGRect *outFrame) {
 /// @param preRole Pre-fetched AXRole as C string
 /// @param centerX Pre-computed center X (from ElementInfo)
 /// @param centerY Pre-computed center Y (from ElementInfo)
+/// @param preActionsFetched Whether action names were successfully pre-fetched
 /// @return 1 if element is clickable, 0 otherwise
 int hasClickAction(
     void *element, bool skipVisCheck, bool preHidden, bool preVisible, bool preEnabled, bool hasEnabledAttr,
-    const char *preRole, bool preIsWidget, double centerX, double centerY) {
+    const char *preRole, bool preIsWidget, double centerX, double centerY, bool preHasPressAction,
+    bool preHasShowMenuAction, bool preActionsFetched) {
 	if (!element)
 		return 0;
 
@@ -604,35 +628,51 @@ int hasClickAction(
 
 #define visHit (!skipVisCheck ? isElementVisibleAtPoint((void *)axElement, visCenter) : 1)
 
+	// Use pre-fetched action flags from ElementInfo (eliminates AXUIElementCopyActionNames call).
 	// Explicit actions are the strongest signal, so we check for them first
-	CFArrayRef actions = NULL;
-	if (AXUIElementCopyActionNames(axElement, &actions) == kAXErrorSuccess && actions) {
-		CFIndex count = CFArrayGetCount(actions);
+	if (preHasPressAction || preHasShowMenuAction) {
+		if (hasEnabledAttr && !preEnabled)
+			return 0;
 
-		for (CFIndex i = 0; i < count; i++) {
-			CFStringRef action = (CFStringRef)CFArrayGetValueAtIndex(actions, i);
+		if (!visHit)
+			return 0;
 
-			if (!action)
-				continue;
+		return 1;
+	}
 
-			if (CFStringCompare(action, kAXPressAction, 0) == kCFCompareEqualTo ||
-			    CFStringCompare(action, CFSTR("AXShowMenu"), 0) == kCFCompareEqualTo ||
-			    CFStringCompare(action, CFSTR("AXConfirm"), 0) == kCFCompareEqualTo ||
-			    CFStringCompare(action, CFSTR("AXPick"), 0) == kCFCompareEqualTo ||
-			    CFStringCompare(action, CFSTR("AXRaise"), 0) == kCFCompareEqualTo) {
-				CFRelease(actions);
+	if (!preActionsFetched) {
+		// Fall back to fetching action names when pre-fetch was unavailable or
+		// did not match AXPress/AXShowMenu. Check all known click actions here
+		// so that a transient pre-fetch failure does not cause false negatives.
+		CFArrayRef actions = NULL;
+		if (AXUIElementCopyActionNames(axElement, &actions) == kAXErrorSuccess && actions) {
+			CFIndex count = CFArrayGetCount(actions);
 
-				if (hasEnabledAttr && !preEnabled)
-					return 0;
+			for (CFIndex i = 0; i < count; i++) {
+				CFStringRef action = (CFStringRef)CFArrayGetValueAtIndex(actions, i);
 
-				if (!visHit)
-					return 0;
+				if (!action)
+					continue;
 
-				return 1;
+				if (CFStringCompare(action, kAXPressAction, 0) == kCFCompareEqualTo ||
+				    CFStringCompare(action, CFSTR("AXShowMenu"), 0) == kCFCompareEqualTo ||
+				    CFStringCompare(action, CFSTR("AXConfirm"), 0) == kCFCompareEqualTo ||
+				    CFStringCompare(action, CFSTR("AXPick"), 0) == kCFCompareEqualTo ||
+				    CFStringCompare(action, CFSTR("AXRaise"), 0) == kCFCompareEqualTo) {
+					CFRelease(actions);
+
+					if (hasEnabledAttr && !preEnabled)
+						return 0;
+
+					if (!visHit)
+						return 0;
+
+					return 1;
+				}
 			}
-		}
 
-		CFRelease(actions);
+			CFRelease(actions);
+		}
 	}
 
 	// Exclude known container/structural roles unless they are widgets

@@ -43,6 +43,7 @@ type ElementInfo struct {
 	value           string
 	searchText      string
 	role            string
+	subrole         string
 	roleDescription string
 	isEnabled       bool
 	isFocused       bool
@@ -69,6 +70,9 @@ func (ei *ElementInfo) SearchText() string { return ei.searchText }
 
 // Role returns the element role.
 func (ei *ElementInfo) Role() string { return ei.role }
+
+// Subrole returns the element subrole.
+func (ei *ElementInfo) Subrole() string { return ei.subrole }
 
 // RoleDescription returns the element role description.
 func (ei *ElementInfo) RoleDescription() string { return ei.roleDescription }

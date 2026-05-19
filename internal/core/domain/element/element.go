@@ -58,6 +58,14 @@ const (
 	RoleGenericElement     Role = "AXGenericElement"
 )
 
+// Subrole represents the accessibility subrole of an element.
+type Subrole string
+
+// Common accessibility subroles.
+const (
+	SubroleMenuExtra Subrole = "AXMenuExtra"
+)
+
 // Element represents a UI element in the accessibility tree.
 // It is immutable after creation to ensure thread safety.
 type Element struct {

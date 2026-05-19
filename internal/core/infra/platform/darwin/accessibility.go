@@ -99,15 +99,18 @@ func HasClickAction(element unsafe.Pointer) bool {
 
 	clickable := C.hasClickAction(
 		element,
-		true, // skipVisCheck: no pre-computed center available in this simplified wrapper
-		false,
-		true,
-		true,
-		true,
-		nil,
-		false,
-		0,
-		0, //nolint:nlreturn
+		true,  // skipVisCheck: no pre-computed center available in this simplified wrapper
+		false, // preHidden
+		true,  // preVisible
+		true,  // preEnabled
+		true,  // hasEnabledAttr
+		nil,   // preRole
+		false, // preIsWidget
+		0,     // centerX
+		0,     // centerY
+		false, // preHasPressAction
+		false, // preHasShowMenuAction
+		false, //nolint:nlreturn
 	) != 0
 
 	return clickable

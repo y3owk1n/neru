@@ -22,6 +22,7 @@ typedef struct {
 	char *value;               ///< Element value
 	char *identifier;          ///< Element identifier (for widget detection)
 	char *role;                ///< Element role
+	char *subrole;             ///< Element subrole
 	char *roleDescription;     ///< Element role description
 	bool isEnabled;            ///< Whether element is enabled
 	bool hasEnabledAttribute;  ///< Whether element supports AXEnabled attribute
@@ -29,6 +30,9 @@ typedef struct {
 	int pid;                   ///< Process identifier
 	bool isHidden;             ///< Whether element is AX-hidden (CSS visibility:hidden etc.)
 	bool isVisible;            ///< Whether element is AX-visible (default true when unsupported)
+	bool hasPressAction;       ///< Whether element has AXPress action (pre-fetched)
+	bool hasShowMenuAction;    ///< Whether element has AXShowMenu action (pre-fetched)
+	bool preActionsFetched;    ///< Whether actions were successfully pre-fetched
 } ElementInfo;
 
 #pragma mark - Permission Functions
@@ -82,11 +86,6 @@ void freeElementInfo(ElementInfo *info);
 /// @return Element reference
 void *getElementAtPosition(CGPoint position);
 
-/// Get number of child elements
-/// @param element Element reference
-/// @return Number of children
-int getChildrenCount(void *element);
-
 /// Get child elements
 /// @param element Element reference
 /// @param count Output parameter for number of children
@@ -128,10 +127,14 @@ void postMouseMoveEvent(CGPoint position, CGEventType eventType);
 /// @param preIsWidget Pre-computed widget flag (from ElementInfo identifier)
 /// @param centerX Pre-computed center X (from ElementInfo position + size)
 /// @param centerY Pre-computed center Y (from ElementInfo position + size)
+/// @param preHasPressAction Pre-fetched AXPress action flag (from ElementInfo)
+/// @param preHasShowMenuAction Pre-fetched AXShowMenu action flag (from ElementInfo)
+/// @param preActionsFetched Whether action names were successfully pre-fetched
 /// @return 1 if element is clickable, 0 otherwise
 int hasClickAction(
     void *element, bool skipVisCheck, bool preHidden, bool preVisible, bool preEnabled, bool hasEnabledAttr,
-    const char *preRole, bool preIsWidget, double centerX, double centerY);
+    const char *preRole, bool preIsWidget, double centerX, double centerY, bool preHasPressAction,
+    bool preHasShowMenuAction, bool preActionsFetched);
 
 /// Fast visibility check using a pre-computed center point (avoids redundant AX position fetch)
 /// @param element Element reference

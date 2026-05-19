@@ -64,6 +64,9 @@ func (o *TreeOptions) SetBundleID(bundleID string) {}
 // SetConfigProvider is a Linux stub.
 func (o *TreeOptions) SetConfigProvider(cp config.Provider) {}
 
+// SetFilterFunc is a Linux stub.
+func (o *TreeOptions) SetFilterFunc(fn func(*ElementInfo) bool) {}
+
 // BuildTree builds the accessibility tree for the specified root element (Linux stub).
 func BuildTree(_ *Element, _ TreeOptions) (*TreeNode, error) {
 	return &TreeNode{}, nil
