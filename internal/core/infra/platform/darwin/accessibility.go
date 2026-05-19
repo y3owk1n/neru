@@ -109,6 +109,7 @@ func HasClickAction(element unsafe.Pointer) bool {
 		0,     // centerX
 		0,     // centerY
 		false, // preHasPressAction
+		false, // preHasShowMenuAction
 		false, //nolint:nlreturn
 	) != 0
 

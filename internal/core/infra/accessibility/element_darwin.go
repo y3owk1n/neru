@@ -112,6 +112,7 @@ type ElementInfo struct {
 	isVisible         bool
 	hasPressAction    bool
 	hasShowMenuAction bool
+	preActionsFetched bool
 	pid               int
 	skipHitTest       bool
 }
@@ -292,6 +293,7 @@ func (e *Element) Info() (*ElementInfo, error) {
 		isVisible:         bool(cInfo.isVisible),
 		hasPressAction:    bool(cInfo.hasPressAction),
 		hasShowMenuAction: bool(cInfo.hasShowMenuAction),
+		preActionsFetched: bool(cInfo.preActionsFetched),
 		pid:               int(cInfo.pid),
 	}
 
@@ -731,7 +733,8 @@ func (e *Element) IsClickable(
 			centerX,
 			centerY,
 			C.bool(info.hasPressAction),
-			C.bool(info.hasShowMenuAction), //nolint:nlreturn
+			C.bool(info.hasShowMenuAction),
+			C.bool(info.preActionsFetched), //nolint:nlreturn
 		)
 
 		return result == 1

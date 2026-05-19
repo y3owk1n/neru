@@ -32,6 +32,7 @@ typedef struct {
 	bool isVisible;            ///< Whether element is AX-visible (default true when unsupported)
 	bool hasPressAction;       ///< Whether element has AXPress action (pre-fetched)
 	bool hasShowMenuAction;    ///< Whether element has AXShowMenu action (pre-fetched)
+	bool preActionsFetched;    ///< Whether actions were successfully pre-fetched
 } ElementInfo;
 
 #pragma mark - Permission Functions
@@ -85,11 +86,6 @@ void freeElementInfo(ElementInfo *info);
 /// @return Element reference
 void *getElementAtPosition(CGPoint position);
 
-/// Get number of child elements
-/// @param element Element reference
-/// @return Number of children
-int getChildrenCount(void *element);
-
 /// Get child elements
 /// @param element Element reference
 /// @param count Output parameter for number of children
@@ -133,11 +129,12 @@ void postMouseMoveEvent(CGPoint position, CGEventType eventType);
 /// @param centerY Pre-computed center Y (from ElementInfo position + size)
 /// @param preHasPressAction Pre-fetched AXPress action flag (from ElementInfo)
 /// @param preHasShowMenuAction Pre-fetched AXShowMenu action flag (from ElementInfo)
+/// @param preActionsFetched Whether action names were successfully pre-fetched
 /// @return 1 if element is clickable, 0 otherwise
 int hasClickAction(
     void *element, bool skipVisCheck, bool preHidden, bool preVisible, bool preEnabled, bool hasEnabledAttr,
     const char *preRole, bool preIsWidget, double centerX, double centerY, bool preHasPressAction,
-    bool preHasShowMenuAction);
+    bool preHasShowMenuAction, bool preActionsFetched);
 
 /// Fast visibility check using a pre-computed center point (avoids redundant AX position fetch)
 /// @param element Element reference
