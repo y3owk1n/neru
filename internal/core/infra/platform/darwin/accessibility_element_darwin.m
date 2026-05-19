@@ -526,8 +526,13 @@ void **getVisibleRows(void *element, int *count) {
 		return NULL;
 	}
 
+	// Always use the actual array count — the pre-fetched count may be stale
+	// if the target app's AX tree changed between the two calls.
+	rowCount = CFArrayGetCount(rows);
 	if (rowCount == 0) {
-		rowCount = CFArrayGetCount(rows);
+		CFRelease(rows);
+		*count = 0;
+		return NULL;
 	}
 
 	*count = (int)rowCount;
