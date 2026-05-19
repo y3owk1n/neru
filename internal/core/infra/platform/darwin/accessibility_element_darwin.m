@@ -107,7 +107,7 @@ static bool shouldPrefetchActions(const char *role) {
 	       strcmp(role, "AXMenuItem") == 0 || strcmp(role, "AXMenuButton") == 0 || strcmp(role, "AXPopUpButton") == 0 ||
 	       strcmp(role, "AXTabButton") == 0 || strcmp(role, "AXComboBox") == 0 || strcmp(role, "AXSlider") == 0 ||
 	       strcmp(role, "AXSwitch") == 0 || strcmp(role, "AXDisclosureTriangle") == 0 ||
-	       strcmp(role, "AXGenericElement") == 0 || strcmp(role, "AXCell") == 0 || strcmp(role, "AXMenuExtra") == 0;
+	       strcmp(role, "AXGenericElement") == 0 || strcmp(role, "AXCell") == 0 || strcmp(role, "AXMenuBarItem") == 0;
 }
 
 /// Get element information using batched attribute queries
