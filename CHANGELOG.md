@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.38.0](https://github.com/y3owk1n/neru/compare/v1.37.0...v1.38.0) (2026-05-19)
+
+
+### Features
+
+* **hints:** add `AXGenericElement` to default clickable role ([#810](https://github.com/y3owk1n/neru/issues/810)) ([f7196c7](https://github.com/y3owk1n/neru/commit/f7196c7149df2d0d11b1701a026f5423cfe6991f))
+* **hints:** add neru own bundle to menubar targets ([#802](https://github.com/y3owk1n/neru/issues/802)) ([df4c515](https://github.com/y3owk1n/neru/commit/df4c51507b5e652b8b52f796ace7634db068fa41))
+* **hints:** add support for screen capture thumbnail ([#800](https://github.com/y3owk1n/neru/issues/800)) ([1c2146c](https://github.com/y3owk1n/neru/commit/1c2146cbd91f807703f30996f1dc3f16070e5d16))
+* **hotkey:** repeat global hotkey actions while held automatically ([#817](https://github.com/y3owk1n/neru/issues/817)) ([1e0429e](https://github.com/y3owk1n/neru/commit/1e0429ef44fe069aab26ca420a3df1ea3af554ef))
+* **scroll,cli:** add `--steps` flag for overrides ([#824](https://github.com/y3owk1n/neru/issues/824)) ([e5cee80](https://github.com/y3owk1n/neru/commit/e5cee80e685728dcacb4b942418706d51f9e11ac))
+
+
+### Bug Fixes
+
+* **hints:** add explicit `includeOutOfBounds` ([#813](https://github.com/y3owk1n/neru/issues/813)) ([b55ec1d](https://github.com/y3owk1n/neru/commit/b55ec1d64db3de51e013efdb1fce6fe01d781d2c))
+* **hints:** add popovers, sheets and menus into interactive leaf elements ([#805](https://github.com/y3owk1n/neru/issues/805)) ([582523b](https://github.com/y3owk1n/neru/commit/582523be4027f3c9591f8682f1b2c2e2d563ec5f))
+* **hints:** better clickaction heuristic detection ([#812](https://github.com/y3owk1n/neru/issues/812)) ([8ec5b1b](https://github.com/y3owk1n/neru/commit/8ec5b1b679417b3bc5277dd48f463b21fc8da9bd))
+* **hints:** better widget detection ([#814](https://github.com/y3owk1n/neru/issues/814)) ([9bd59cd](https://github.com/y3owk1n/neru/commit/9bd59cd59e6f45436e0ca4dfa8cda1bbe6f5c1e1))
+* **hints:** eliminate hidden elements and simplify filtering ([#821](https://github.com/y3owk1n/neru/issues/821)) ([fc57e51](https://github.com/y3owk1n/neru/commit/fc57e516f9a336ce3d94165cfc23ddc74ade3e34))
+* **hints:** ensure menubar elements include out of bounds ([#815](https://github.com/y3owk1n/neru/issues/815)) ([4a147b3](https://github.com/y3owk1n/neru/commit/4a147b33309123370f5aa08ad8f5e8fdeb549ed4))
+* **hints:** filter zero-sized elements during tree build ([#825](https://github.com/y3owk1n/neru/issues/825)) ([7853065](https://github.com/y3owk1n/neru/commit/7853065afd3c78115e8f8e201c88139e6c5c98a8))
+* **hints:** improve mission control detection ([#807](https://github.com/y3owk1n/neru/issues/807)) ([5ae21e2](https://github.com/y3owk1n/neru/commit/5ae21e2e9b7c04e77d83a30d5aefb5d78fca3f83))
+* **hints:** improve notification center hints ([#808](https://github.com/y3owk1n/neru/issues/808)) ([01a670a](https://github.com/y3owk1n/neru/commit/01a670a8dc1150b67dae627a699b9c5cc6bb2a9f))
+* **hotkey:** eliminate initial repeat delay for held-key actions ([#819](https://github.com/y3owk1n/neru/issues/819)) ([ad88403](https://github.com/y3owk1n/neru/commit/ad884032e4b97d3fc2137c1ee662bc3f520816c6))
+
+
+### Performance Improvements
+
+* **hints:** add `max_parallel_depth` option and bump to 10 ([#826](https://github.com/y3owk1n/neru/issues/826)) ([d62d723](https://github.com/y3owk1n/neru/commit/d62d723663aa82f2d323a295e9a8f7f429f150ec))
+* **hints:** faster hints activation ([#822](https://github.com/y3owk1n/neru/issues/822)) ([0f1afcb](https://github.com/y3owk1n/neru/commit/0f1afcb1a7e44bce4d9f60238ecbc0465ae43e0c))
+* **hints:** improve hint visibility checking ([#818](https://github.com/y3owk1n/neru/issues/818)) ([f2be692](https://github.com/y3owk1n/neru/commit/f2be692f37567041292b44f4935f2afac67d3134))
+* **hints:** more parallelizing for element collection ([#803](https://github.com/y3owk1n/neru/issues/803)) ([3d9480e](https://github.com/y3owk1n/neru/commit/3d9480efd45690525e763229f808e1c51784decb))
+* **hints:** optimise AX API calls ([#804](https://github.com/y3owk1n/neru/issues/804)) ([a8476d3](https://github.com/y3owk1n/neru/commit/a8476d3b2ec9f363e7d0cccdae533db032d03d59))
+* **hints:** reduce AX roundtrips plus parallel tree workers ([#827](https://github.com/y3owk1n/neru/issues/827)) ([82e0629](https://github.com/y3owk1n/neru/commit/82e06297c12e791907507033d299d061592476e7))
+
 ## [1.37.0](https://github.com/y3owk1n/neru/compare/v1.36.0...v1.37.0) (2026-05-13)
 
 
