@@ -355,9 +355,9 @@ var interactiveLeafRoles = map[element.Role]bool{
 	element.RoleTabButton:          true,
 	element.RoleSwitch:             true,
 	element.RoleDisclosureTriangle: true,
-	element.RoleTextArea:           true,
 	element.RoleTextField:          true,
 	element.RoleGenericElement:     true,
+	// element.RoleTextArea:           true, // in notes.app, link field in note needs to be clickable...
 	// element.RoleRadioButton:        true, // in safari, url bar is radio button, but has nested button in it...
 }
 
