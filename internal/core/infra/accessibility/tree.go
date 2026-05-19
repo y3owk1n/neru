@@ -12,6 +12,7 @@ import "C"
 
 import (
 	"image"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -90,6 +91,11 @@ func getTreeNode(elem *Element, info *ElementInfo, parent *TreeNode, childrenCap
 // this threshold have their backing array discarded to avoid holding
 // disproportionately large allocations in the pool indefinitely.
 const maxPooledChildrenCap = 64
+
+// maxConcurrentTreeWorkers caps the number of goroutines used for parallel
+// tree building. This prevents goroutine explosion when a node has hundreds
+// of children and limits concurrent AX calls competing for the same XPC channel.
+const maxConcurrentTreeWorkers = 8
 
 // putTreeNode clears all references in the node and returns it to the pool.
 func putTreeNode(node *TreeNode) {
@@ -367,6 +373,17 @@ var importantContainerRoles = map[element.Role]bool{
 	element.RoleList:    true,
 }
 
+// Roles that commonly spawn important container children (popovers, sheets, menus).
+// Only for these parent roles do we fetch children to check for important containers
+// when the parent is itself an interactive leaf. This avoids wasting Info() calls
+// on children of leaf roles that never contain important containers.
+var leafRolesWithImportantChildren = map[element.Role]bool{
+	element.RoleButton:      true,
+	element.RoleMenuButton:  true,
+	element.RolePopUpButton: true,
+	element.RoleLink:        true,
+}
+
 func buildTreeRecursive(
 	parent *TreeNode,
 	depth int,
@@ -410,6 +427,14 @@ func buildTreeRecursive(
 	// This handles cases like a toolbar button that opens a popover.
 	var children []*Element
 	if interactiveLeafRoles[element.Role(parent.info.Role())] {
+		if !leafRolesWithImportantChildren[element.Role(parent.info.Role())] {
+			if opts.stats != nil {
+				opts.stats.stoppedAtLeaf.Add(1)
+			}
+
+			return
+		}
+
 		var childrenErr error
 		children, childrenErr = parent.element.Children(parent.info.Role())
 		hasImportantContainer := false
@@ -562,95 +587,89 @@ func buildChildrenParallel(
 	clipBounds image.Rectangle,
 	windowBounds image.Rectangle,
 ) {
-	// Pre-allocate result slice with exact capacity
+	// Use a bounded worker pool to avoid goroutine explosion and limit
+	// concurrent AX calls competing for the same XPC channel.
+	numWorkers := min(
+		runtime.GOMAXPROCS(0),
+		maxConcurrentTreeWorkers,
+	)
+
+	type childTask struct {
+		elem   *Element
+		index  int
+		bounds image.Rectangle
+		winBnd image.Rectangle
+	}
+
 	type childResult struct {
 		node  *TreeNode
 		index int
-		err   error
 	}
 
-	// Use buffered channel sized to number of children
+	tasks := make(chan childTask, len(children))
 	results := make(chan childResult, len(children))
+
+	// Launch fixed number of workers
 	var waitGroup sync.WaitGroup
+	for range numWorkers {
+		waitGroup.Go(func() {
+			for task := range tasks {
+				info, err := task.elem.Info()
+				if err != nil {
+					if opts.stats != nil {
+						opts.stats.childErrors.Add(1)
+					}
+					task.elem.Release()
 
-	// Process children in parallel
-	for index, child := range children {
-		waitGroup.Add(1)
-		go func(idx int, elem *Element, bounds, winBounds image.Rectangle) {
-			defer waitGroup.Done()
-
-			info, err := elem.Info()
-			if err != nil {
-				if opts.stats != nil {
-					opts.stats.childErrors.Add(1)
+					continue
 				}
 
-				elem.Release()
+				if !shouldIncludeElement(info, opts, task.bounds) {
+					if opts.stats != nil {
+						opts.stats.filteredOut.Add(1)
+					}
+					task.elem.Release()
 
-				results <- childResult{node: nil, index: idx, err: err}
-
-				return
-			}
-
-			if !shouldIncludeElement(info, opts, bounds) {
-				if opts.stats != nil {
-					opts.stats.filteredOut.Add(1)
+					continue
 				}
 
-				elem.Release()
+				info.skipHitTest = task.bounds == task.winBnd
 
-				results <- childResult{node: nil, index: idx}
+				childNode := getTreeNode(task.elem, info, parent, 0)
 
-				return
-			}
-
-			// Skip hit-test for elements within the original window bounds
-			// (not in a scroll area). Must be set before getTreeNode to avoid
-			// relying on pointer aliasing.
-			info.skipHitTest = bounds == winBounds
-
-			childNode := getTreeNode(elem, info, parent, 0)
-
-			newClipBounds := bounds
-			if element.Role(info.Role()) == element.RoleScrollArea {
-				childRect := rectFromInfo(info)
-				if childRect.Dx() > 0 && childRect.Dy() > 0 {
-					newClipBounds = childRect.Intersect(bounds)
-					if ce := opts.Logger().
-						Check(zap.DebugLevel, "Parallel scroll area detected, tightening clip bounds"); ce != nil {
-						ce.Write(
-							zap.String("role", info.Role()),
-							zap.Int("clip_x", newClipBounds.Min.X),
-							zap.Int("clip_y", newClipBounds.Min.Y),
-							zap.Int("clip_w", newClipBounds.Dx()),
-							zap.Int("clip_h", newClipBounds.Dy()),
-						)
+				newClipBounds := task.bounds
+				if element.Role(info.Role()) == element.RoleScrollArea {
+					childRect := rectFromInfo(info)
+					if childRect.Dx() > 0 && childRect.Dy() > 0 {
+						newClipBounds = childRect.Intersect(task.bounds)
 					}
 				}
+
+				buildTreeRecursive(childNode, depth+1, opts, newClipBounds, task.winBnd)
+				results <- childResult{node: childNode, index: task.index}
 			}
-
-			// Recursively build (this may spawn more goroutines at deeper levels)
-			buildTreeRecursive(childNode, depth+1, opts, newClipBounds, winBounds)
-
-			results <- childResult{node: childNode, index: idx}
-		}(index, child, clipBounds, windowBounds)
+		})
 	}
 
-	// Close results channel when all goroutines complete
+	// Feed tasks to workers
+	for index, child := range children {
+		tasks <- childTask{elem: child, index: index, bounds: clipBounds, winBnd: windowBounds}
+	}
+	close(tasks)
+
+	// Wait for workers to finish, then close results
 	go func() {
 		waitGroup.Wait()
 		close(results)
 	}()
 
-	// Pre-allocate collection slice with exact capacity
+	// Collect results preserving original order
 	collected := make([]*TreeNode, len(children))
 	validCount := 0
 
 	for result := range results {
-		if result.node != nil {
-			collected[result.index] = result.node
-			validCount++
-		}
+		collected[result.index] = result.node
+		validCount++
 	}
 
 	// Reuse the pooled backing array when it has enough room.

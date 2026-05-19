@@ -95,22 +95,24 @@ func ClickableRoles() []string {
 
 // ElementInfo contains metadata and positioning information for a UI element.
 type ElementInfo struct {
-	position        image.Point
-	size            image.Point
-	title           string
-	description     string
-	value           string
-	identifier      string
-	searchText      string
-	role            string
-	roleDescription string
-	isEnabled       bool
-	isFocused       bool
-	isHidden        bool
-	isVisible       bool
-	hasEnabledAttr  bool
-	pid             int
-	skipHitTest     bool
+	position          image.Point
+	size              image.Point
+	title             string
+	description       string
+	value             string
+	identifier        string
+	searchText        string
+	role              string
+	roleDescription   string
+	isEnabled         bool
+	hasEnabledAttr    bool
+	isFocused         bool
+	isHidden          bool
+	isVisible         bool
+	hasPressAction    bool
+	hasShowMenuAction bool
+	pid               int
+	skipHitTest       bool
 }
 
 // Position returns the element position.
@@ -178,6 +180,16 @@ func (ei *ElementInfo) IsHidden() bool {
 // When the AXVisible attribute is not supported, returns true (default).
 func (ei *ElementInfo) IsVisible() bool {
 	return ei.isVisible
+}
+
+// HasPressAction returns whether the element has AXPress action.
+func (ei *ElementInfo) HasPressAction() bool {
+	return ei.hasPressAction
+}
+
+// HasShowMenuAction returns whether the element has AXShowMenu action.
+func (ei *ElementInfo) HasShowMenuAction() bool {
+	return ei.hasShowMenuAction
 }
 
 // PID returns the process ID.
@@ -267,12 +279,14 @@ func (e *Element) Info() (*ElementInfo, error) {
 			X: int(cInfo.size.width),
 			Y: int(cInfo.size.height),
 		},
-		isEnabled:      bool(cInfo.isEnabled),
-		hasEnabledAttr: bool(cInfo.hasEnabledAttribute),
-		isFocused:      bool(cInfo.isFocused),
-		isHidden:       bool(cInfo.isHidden),
-		isVisible:      bool(cInfo.isVisible),
-		pid:            int(cInfo.pid),
+		isEnabled:         bool(cInfo.isEnabled),
+		hasEnabledAttr:    bool(cInfo.hasEnabledAttribute),
+		isFocused:         bool(cInfo.isFocused),
+		isHidden:          bool(cInfo.isHidden),
+		isVisible:         bool(cInfo.isVisible),
+		hasPressAction:    bool(cInfo.hasPressAction),
+		hasShowMenuAction: bool(cInfo.hasShowMenuAction),
+		pid:               int(cInfo.pid),
 	}
 
 	if cInfo.title != nil {
@@ -706,7 +720,9 @@ func (e *Element) IsClickable(
 			cRole,
 			C.bool(isWidget),
 			centerX,
-			centerY, //nolint:nlreturn
+			centerY,
+			C.bool(info.hasPressAction),
+			C.bool(info.hasShowMenuAction), //nolint:nlreturn
 		)
 
 		return result == 1

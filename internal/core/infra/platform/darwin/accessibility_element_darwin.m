@@ -223,6 +223,29 @@ ElementInfo *getElementInfo(void *element) {
 
 		CFRelease(values);
 
+		// Pre-fetch action names to eliminate a separate AX call during clickability checks.
+		// This is done after the batched attribute fetch since action names are only needed
+		// for interactive elements, but the cost is negligible for non-interactive ones.
+		CFArrayRef actionNames = NULL;
+		if (AXUIElementCopyActionNames(axElement, &actionNames) == kAXErrorSuccess && actionNames) {
+			CFIndex actionCount = CFArrayGetCount(actionNames);
+			for (CFIndex i = 0; i < actionCount; i++) {
+				CFStringRef action = (CFStringRef)CFArrayGetValueAtIndex(actionNames, i);
+				if (!action)
+					continue;
+				if (CFStringCompare(action, kAXPressAction, 0) == kCFCompareEqualTo ||
+				    CFStringCompare(action, CFSTR("AXConfirm"), 0) == kCFCompareEqualTo ||
+				    CFStringCompare(action, CFSTR("AXPick"), 0) == kCFCompareEqualTo ||
+				    CFStringCompare(action, CFSTR("AXRaise"), 0) == kCFCompareEqualTo) {
+					info->hasPressAction = true;
+				}
+				if (CFStringCompare(action, CFSTR("AXShowMenu"), 0) == kCFCompareEqualTo) {
+					info->hasShowMenuAction = true;
+				}
+			}
+			CFRelease(actionNames);
+		}
+
 		pid_t pid;
 		if (AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
 			info->pid = pid;
@@ -366,21 +389,21 @@ int getChildrenCount(void *element) {
 		return 0;
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
+	CFIndex childCount = 0;
+
+	if (AXUIElementGetAttributeValueCount(axElement, kAXChildrenAttribute, &childCount) == kAXErrorSuccess) {
+		return (int)childCount;
+	}
+
+	// Fallback: use direct copy if count query is unsupported.
 	CFTypeRef childrenValue = NULL;
-
-	if (AXUIElementCopyAttributeValue(axElement, kAXChildrenAttribute, &childrenValue) != kAXErrorSuccess) {
-		return 0;
-	}
-
-	if (CFGetTypeID(childrenValue) != CFArrayGetTypeID()) {
+	if (AXUIElementCopyAttributeValue(axElement, kAXChildrenAttribute, &childrenValue) == kAXErrorSuccess &&
+	    childrenValue && CFGetTypeID(childrenValue) == CFArrayGetTypeID()) {
+		childCount = CFArrayGetCount((CFArrayRef)childrenValue);
 		CFRelease(childrenValue);
-		return 0;
 	}
 
-	CFIndex count = CFArrayGetCount((CFArrayRef)childrenValue);
-	CFRelease(childrenValue);
-
-	return (int)count;
+	return (int)childCount;
 }
 
 /// Get child elements
@@ -392,37 +415,65 @@ void **getChildren(void *element, int *count) {
 		return NULL;
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
-	CFTypeRef childrenValue = NULL;
 
-	if (AXUIElementCopyAttributeValue(axElement, kAXChildrenAttribute, &childrenValue) != kAXErrorSuccess) {
+	// Prefer AXUIElementGetAttributeValueCount + AXUIElementCopyAttributeValues
+	// for better handling of large child arrays, but fall back to
+	// AXUIElementCopyAttributeValue if the count query is unsupported.
+	CFArrayRef children = NULL;
+	CFIndex childCount = 0;
+	if (AXUIElementGetAttributeValueCount(axElement, kAXChildrenAttribute, &childCount) == kAXErrorSuccess &&
+	    childCount > 0) {
+		AXUIElementCopyAttributeValues(axElement, kAXChildrenAttribute, 0, childCount, &children);
+	}
+
+	// Fallback: if ranged fetch failed or returned nothing, try the direct copy.
+	if (!children) {
+		CFTypeRef childrenValue = NULL;
+		if (AXUIElementCopyAttributeValue(axElement, kAXChildrenAttribute, &childrenValue) != kAXErrorSuccess) {
+			*count = 0;
+			return NULL;
+		}
+
+		if (CFGetTypeID(childrenValue) != CFArrayGetTypeID()) {
+			CFRelease(childrenValue);
+			*count = 0;
+			return NULL;
+		}
+
+		children = (CFArrayRef)childrenValue;
+	}
+
+	if (CFGetTypeID(children) != CFArrayGetTypeID()) {
+		CFRelease(children);
 		*count = 0;
 		return NULL;
 	}
 
-	if (CFGetTypeID(childrenValue) != CFArrayGetTypeID()) {
-		CFRelease(childrenValue);
+	// Always use the actual array count — the pre-fetched count may be stale
+	// if the target app's AX tree changed between the two calls.
+	CFIndex actualCount = CFArrayGetCount(children);
+	if (actualCount == 0) {
+		CFRelease(children);
 		*count = 0;
 		return NULL;
 	}
 
-	CFArrayRef children = (CFArrayRef)childrenValue;
-	CFIndex childCount = CFArrayGetCount(children);
-	*count = (int)childCount;
+	*count = (int)actualCount;
 
-	void **result = (void **)malloc(childCount * sizeof(void *));
+	void **result = (void **)malloc(actualCount * sizeof(void *));
 	if (!result) {
-		CFRelease(childrenValue);
+		CFRelease(children);
 		*count = 0;
 		return NULL;
 	}
 
-	for (CFIndex i = 0; i < childCount; i++) {
+	for (CFIndex i = 0; i < actualCount; i++) {
 		AXUIElementRef child = (AXUIElementRef)CFArrayGetValueAtIndex(children, i);
 		CFRetain(child);
 		result[i] = (void *)child;
 	}
 
-	CFRelease(childrenValue);
+	CFRelease(children);
 	return result;
 }
 
@@ -435,26 +486,55 @@ void **getVisibleRows(void *element, int *count) {
 		return NULL;
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
-	CFTypeRef rowsValue = NULL;
 
-	if (AXUIElementCopyAttributeValue(axElement, kAXVisibleRowsAttribute, &rowsValue) != kAXErrorSuccess) {
+	CFIndex rowCount = 0;
+	bool useRanged =
+	    (AXUIElementGetAttributeValueCount(axElement, kAXVisibleRowsAttribute, &rowCount) == kAXErrorSuccess &&
+	     rowCount > 0);
+
+	CFArrayRef rows = NULL;
+	if (useRanged) {
+		AXUIElementCopyAttributeValues(axElement, kAXVisibleRowsAttribute, 0, rowCount, &rows);
+	}
+
+	// Fallback: if ranged fetch failed, try the direct copy.
+	if (!rows) {
+		CFTypeRef rowsValue = NULL;
+		if (AXUIElementCopyAttributeValue(axElement, kAXVisibleRowsAttribute, &rowsValue) != kAXErrorSuccess) {
+			*count = 0;
+			return NULL;
+		}
+
+		if (CFGetTypeID(rowsValue) != CFArrayGetTypeID()) {
+			CFRelease(rowsValue);
+			*count = 0;
+			return NULL;
+		}
+
+		rows = (CFArrayRef)rowsValue;
+		rowCount = CFArrayGetCount(rows);
+		if (rowCount == 0) {
+			CFRelease(rows);
+			*count = 0;
+			return NULL;
+		}
+	}
+
+	if (CFGetTypeID(rows) != CFArrayGetTypeID()) {
+		CFRelease(rows);
 		*count = 0;
 		return NULL;
 	}
 
-	if (CFGetTypeID(rowsValue) != CFArrayGetTypeID()) {
-		CFRelease(rowsValue);
-		*count = 0;
-		return NULL;
+	if (rowCount == 0) {
+		rowCount = CFArrayGetCount(rows);
 	}
 
-	CFArrayRef rows = (CFArrayRef)rowsValue;
-	CFIndex rowCount = CFArrayGetCount(rows);
 	*count = (int)rowCount;
 
 	void **result = (void **)malloc(rowCount * sizeof(void *));
 	if (!result) {
-		CFRelease(rowsValue);
+		CFRelease(rows);
 		*count = 0;
 		return NULL;
 	}
@@ -465,7 +545,7 @@ void **getVisibleRows(void *element, int *count) {
 		result[i] = (void *)row;
 	}
 
-	CFRelease(rowsValue);
+	CFRelease(rows);
 	return result;
 }
 
@@ -485,7 +565,10 @@ static bool elementOrAncestorMatches(AXUIElementRef element, AXUIElementRef targ
 	AXUIElementRef current = element;
 	CFRetain(current);
 
-	for (int depth = 0; current && depth < 64; depth++) {
+	// Limit parent chain walk to 16 levels. Most UI hierarchies are shallow
+	// enough that the target (or a descendant) is found well before this.
+	// 64 was excessive and caused unnecessary AX calls for obscured elements.
+	for (int depth = 0; current && depth < 16; depth++) {
 		if (CFEqual(current, target)) {
 			CFRelease(current);
 			return true;
@@ -590,7 +673,8 @@ static bool getElementFrame(AXUIElementRef element, CGRect *outFrame) {
 /// @return 1 if element is clickable, 0 otherwise
 int hasClickAction(
     void *element, bool skipVisCheck, bool preHidden, bool preVisible, bool preEnabled, bool hasEnabledAttr,
-    const char *preRole, bool preIsWidget, double centerX, double centerY) {
+    const char *preRole, bool preIsWidget, double centerX, double centerY, bool preHasPressAction,
+    bool preHasShowMenuAction) {
 	if (!element)
 		return 0;
 
@@ -604,7 +688,21 @@ int hasClickAction(
 
 #define visHit (!skipVisCheck ? isElementVisibleAtPoint((void *)axElement, visCenter) : 1)
 
+	// Use pre-fetched action flags from ElementInfo (eliminates AXUIElementCopyActionNames call).
 	// Explicit actions are the strongest signal, so we check for them first
+	if (preHasPressAction || preHasShowMenuAction) {
+		if (hasEnabledAttr && !preEnabled)
+			return 0;
+
+		if (!visHit)
+			return 0;
+
+		return 1;
+	}
+
+	// Fall back to fetching action names when pre-fetch was unavailable or
+	// did not match AXPress/AXShowMenu. Check all known click actions here
+	// so that a transient pre-fetch failure does not cause false negatives.
 	CFArrayRef actions = NULL;
 	if (AXUIElementCopyActionNames(axElement, &actions) == kAXErrorSuccess && actions) {
 		CFIndex count = CFArrayGetCount(actions);
