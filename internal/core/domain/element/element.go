@@ -56,7 +56,14 @@ const (
 	RoleSplitGroup         Role = "AXSplitGroup"
 	RoleUnknown            Role = "AXUnknown"
 	RoleGenericElement     Role = "AXGenericElement"
-	RoleMenuExtra          Role = "AXMenuExtra"
+)
+
+// Subrole represents the accessibility subrole of an element.
+type Subrole string
+
+// Common accessibility subroles.
+const (
+	SubroleMenuExtra Subrole = "AXMenuExtra"
 )
 
 // Element represents a UI element in the accessibility tree.

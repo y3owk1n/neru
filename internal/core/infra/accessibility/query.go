@@ -184,7 +184,7 @@ func isAdditionalMenuBarElement(info *ElementInfo) bool {
 	case element.RoleMenuBar, element.RoleMenu, element.RoleMenuItem:
 		return true
 	case element.RoleMenuBarItem:
-		return info.Subrole() == string(element.RoleMenuExtra)
+		return info.Subrole() == string(element.SubroleMenuExtra)
 	default:
 		return false
 	}

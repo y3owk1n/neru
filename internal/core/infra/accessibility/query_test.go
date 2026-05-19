@@ -24,7 +24,7 @@ func TestIsAdditionalMenuBarElement(t *testing.T) {
 			name: "allows menu extras",
 			info: &ElementInfo{
 				role:    string(element.RoleMenuBarItem),
-				subrole: string(element.RoleMenuExtra),
+				subrole: string(element.SubroleMenuExtra),
 			},
 			want: true,
 		},
