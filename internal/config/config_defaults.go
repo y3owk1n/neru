@@ -99,7 +99,7 @@ const (
 	// DefaultParallelThreshold is the default parallel threshold.
 	DefaultParallelThreshold = 20
 	// DefaultMaxParallelDepth is the default max parallel depth.
-	DefaultMaxParallelDepth = 20
+	DefaultMaxParallelDepth = 10
 	// MaxParallelDepthCap is the maximum allowed value for max_parallel_depth.
 	MaxParallelDepthCap = 50
 
