@@ -415,65 +415,37 @@ void **getChildren(void *element, int *count) {
 		return NULL;
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
+	CFTypeRef childrenValue = NULL;
 
-	// Prefer AXUIElementGetAttributeValueCount + AXUIElementCopyAttributeValues
-	// for better handling of large child arrays, but fall back to
-	// AXUIElementCopyAttributeValue if the count query is unsupported.
-	CFArrayRef children = NULL;
-	CFIndex childCount = 0;
-	if (AXUIElementGetAttributeValueCount(axElement, kAXChildrenAttribute, &childCount) == kAXErrorSuccess &&
-	    childCount > 0) {
-		AXUIElementCopyAttributeValues(axElement, kAXChildrenAttribute, 0, childCount, &children);
-	}
-
-	// Fallback: if ranged fetch failed or returned nothing, try the direct copy.
-	if (!children) {
-		CFTypeRef childrenValue = NULL;
-		if (AXUIElementCopyAttributeValue(axElement, kAXChildrenAttribute, &childrenValue) != kAXErrorSuccess) {
-			*count = 0;
-			return NULL;
-		}
-
-		if (CFGetTypeID(childrenValue) != CFArrayGetTypeID()) {
-			CFRelease(childrenValue);
-			*count = 0;
-			return NULL;
-		}
-
-		children = (CFArrayRef)childrenValue;
-	}
-
-	if (CFGetTypeID(children) != CFArrayGetTypeID()) {
-		CFRelease(children);
+	if (AXUIElementCopyAttributeValue(axElement, kAXChildrenAttribute, &childrenValue) != kAXErrorSuccess) {
 		*count = 0;
 		return NULL;
 	}
 
-	// Always use the actual array count — the pre-fetched count may be stale
-	// if the target app's AX tree changed between the two calls.
-	CFIndex actualCount = CFArrayGetCount(children);
-	if (actualCount == 0) {
-		CFRelease(children);
+	if (CFGetTypeID(childrenValue) != CFArrayGetTypeID()) {
+		CFRelease(childrenValue);
 		*count = 0;
 		return NULL;
 	}
 
-	*count = (int)actualCount;
+	CFArrayRef children = (CFArrayRef)childrenValue;
+	CFIndex childCount = CFArrayGetCount(children);
+	*count = (int)childCount;
 
-	void **result = (void **)malloc(actualCount * sizeof(void *));
+	void **result = (void **)malloc(childCount * sizeof(void *));
 	if (!result) {
-		CFRelease(children);
+		CFRelease(childrenValue);
 		*count = 0;
 		return NULL;
 	}
 
-	for (CFIndex i = 0; i < actualCount; i++) {
+	for (CFIndex i = 0; i < childCount; i++) {
 		AXUIElementRef child = (AXUIElementRef)CFArrayGetValueAtIndex(children, i);
 		CFRetain(child);
 		result[i] = (void *)child;
 	}
 
-	CFRelease(children);
+	CFRelease(childrenValue);
 	return result;
 }
 
@@ -486,60 +458,26 @@ void **getVisibleRows(void *element, int *count) {
 		return NULL;
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
+	CFTypeRef rowsValue = NULL;
 
-	CFIndex rowCount = 0;
-	bool useRanged =
-	    (AXUIElementGetAttributeValueCount(axElement, kAXVisibleRowsAttribute, &rowCount) == kAXErrorSuccess &&
-	     rowCount > 0);
-
-	CFArrayRef rows = NULL;
-	if (useRanged) {
-		AXUIElementCopyAttributeValues(axElement, kAXVisibleRowsAttribute, 0, rowCount, &rows);
-	}
-
-	// Fallback: if ranged fetch failed, try the direct copy.
-	if (!rows) {
-		CFTypeRef rowsValue = NULL;
-		if (AXUIElementCopyAttributeValue(axElement, kAXVisibleRowsAttribute, &rowsValue) != kAXErrorSuccess) {
-			*count = 0;
-			return NULL;
-		}
-
-		if (CFGetTypeID(rowsValue) != CFArrayGetTypeID()) {
-			CFRelease(rowsValue);
-			*count = 0;
-			return NULL;
-		}
-
-		rows = (CFArrayRef)rowsValue;
-		rowCount = CFArrayGetCount(rows);
-		if (rowCount == 0) {
-			CFRelease(rows);
-			*count = 0;
-			return NULL;
-		}
-	}
-
-	if (CFGetTypeID(rows) != CFArrayGetTypeID()) {
-		CFRelease(rows);
+	if (AXUIElementCopyAttributeValue(axElement, kAXVisibleRowsAttribute, &rowsValue) != kAXErrorSuccess) {
 		*count = 0;
 		return NULL;
 	}
 
-	// Always use the actual array count — the pre-fetched count may be stale
-	// if the target app's AX tree changed between the two calls.
-	rowCount = CFArrayGetCount(rows);
-	if (rowCount == 0) {
-		CFRelease(rows);
+	if (CFGetTypeID(rowsValue) != CFArrayGetTypeID()) {
+		CFRelease(rowsValue);
 		*count = 0;
 		return NULL;
 	}
 
+	CFArrayRef rows = (CFArrayRef)rowsValue;
+	CFIndex rowCount = CFArrayGetCount(rows);
 	*count = (int)rowCount;
 
 	void **result = (void **)malloc(rowCount * sizeof(void *));
 	if (!result) {
-		CFRelease(rows);
+		CFRelease(rowsValue);
 		*count = 0;
 		return NULL;
 	}
@@ -550,7 +488,7 @@ void **getVisibleRows(void *element, int *count) {
 		result[i] = (void *)row;
 	}
 
-	CFRelease(rows);
+	CFRelease(rowsValue);
 	return result;
 }
 
