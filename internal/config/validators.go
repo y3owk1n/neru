@@ -246,7 +246,8 @@ func (c *Config) ValidateHints() error {
 	if c.Hints.MaxParallelDepth > MaxParallelDepthCap {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"hints.max_parallel_depth must not exceed 50",
+			"hints.max_parallel_depth must not exceed %d",
+			MaxParallelDepthCap,
 		)
 	}
 
