@@ -100,6 +100,8 @@ const (
 	DefaultParallelThreshold = 20
 	// DefaultMaxParallelDepth is the default max parallel depth.
 	DefaultMaxParallelDepth = 20
+	// MaxParallelDepthCap is the maximum allowed value for max_parallel_depth.
+	MaxParallelDepthCap = 50
 
 	// DefaultMaxDepth is the default max depth for accessibility tree traversal.
 	DefaultMaxDepth = 50
