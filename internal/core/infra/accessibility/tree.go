@@ -645,6 +645,16 @@ func buildChildrenParallel(
 					childRect := rectFromInfo(info)
 					if childRect.Dx() > 0 && childRect.Dy() > 0 {
 						newClipBounds = childRect.Intersect(task.bounds)
+						if ce := opts.Logger().
+							Check(zap.DebugLevel, "Scroll area detected, tightening clip bounds"); ce != nil {
+							ce.Write(
+								zap.String("role", info.Role()),
+								zap.Int("clip_x", newClipBounds.Min.X),
+								zap.Int("clip_y", newClipBounds.Min.Y),
+								zap.Int("clip_w", newClipBounds.Dx()),
+								zap.Int("clip_h", newClipBounds.Dy()),
+							)
+						}
 					}
 				}
 
