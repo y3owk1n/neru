@@ -390,7 +390,6 @@ int getElementCenter(void *element, CGPoint *outPoint) {
 
 #pragma mark - Child Element Functions
 
-
 /// Get child elements
 /// @param element Element reference
 /// @param count Output parameter for number of children
