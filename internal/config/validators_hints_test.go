@@ -113,7 +113,7 @@ func TestValidateHints_MaxParallelDepth_DefaultValid(t *testing.T) {
 	err := cfg.ValidateHints()
 	if err != nil {
 		t.Fatalf(
-			"ValidateHints() expected no error for default config (max_parallel_depth=20, max_depth=50), got %v",
+			"ValidateHints() expected no error for default config (max_parallel_depth=10, max_depth=50), got %v",
 			err,
 		)
 	}
