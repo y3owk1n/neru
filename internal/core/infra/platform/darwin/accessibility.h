@@ -22,6 +22,7 @@ typedef struct {
 	char *value;               ///< Element value
 	char *identifier;          ///< Element identifier (for widget detection)
 	char *role;                ///< Element role
+	char *subrole;             ///< Element subrole
 	char *roleDescription;     ///< Element role description
 	bool isEnabled;            ///< Whether element is enabled
 	bool hasEnabledAttribute;  ///< Whether element supports AXEnabled attribute

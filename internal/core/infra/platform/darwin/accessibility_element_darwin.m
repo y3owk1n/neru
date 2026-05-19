@@ -126,13 +126,14 @@ ElementInfo *getElementInfo(void *element) {
 		        kAXValueAttribute,
 		        kAXIdentifierAttribute,
 		        kAXRoleAttribute,
+		        kAXSubroleAttribute,
 		        kAXRoleDescriptionAttribute,
 		        kAXEnabledAttribute,
 		        kAXFocusedAttribute,
 		        kAXHiddenAttribute,
 		        kVisibleAttr,
 		    },
-		    12, &kCFTypeArrayCallBacks);
+		    13, &kCFTypeArrayCallBacks);
 
 		if (!attributes) {
 			free(info);
@@ -151,7 +152,7 @@ ElementInfo *getElementInfo(void *element) {
 			return info;
 		}
 
-		// With option=0, values always has exactly 12 entries (one per requested attribute).
+		// With option=0, values always has exactly 13 entries (one per requested attribute).
 		// Slots for unsupported/errored attributes hold an AX error placeholder (CFNumber),
 		// which the CFGetTypeID checks below will correctly reject.
 		CFTypeRef positionValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
@@ -195,28 +196,33 @@ ElementInfo *getElementInfo(void *element) {
 			info->role = cfStringToCString((CFStringRef)roleValue);
 		}
 
-		CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 7);
+		CFTypeRef subroleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 7);
+		if (subroleValue && CFGetTypeID(subroleValue) == CFStringGetTypeID()) {
+			info->subrole = cfStringToCString((CFStringRef)subroleValue);
+		}
+
+		CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 8);
 		if (roleDescValue && CFGetTypeID(roleDescValue) == CFStringGetTypeID()) {
 			info->roleDescription = cfStringToCString((CFStringRef)roleDescValue);
 		}
 
-		CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 8);
+		CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 9);
 		if (enabledValue && CFGetTypeID(enabledValue) == CFBooleanGetTypeID()) {
 			info->isEnabled = CFBooleanGetValue((CFBooleanRef)enabledValue);
 			info->hasEnabledAttribute = true;
 		}
 
-		CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 9);
+		CFTypeRef focusedValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 10);
 		if (focusedValue && CFGetTypeID(focusedValue) == CFBooleanGetTypeID()) {
 			info->isFocused = CFBooleanGetValue((CFBooleanRef)focusedValue);
 		}
 
-		CFTypeRef hiddenValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 10);
+		CFTypeRef hiddenValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 11);
 		if (hiddenValue && CFGetTypeID(hiddenValue) == CFBooleanGetTypeID()) {
 			info->isHidden = CFBooleanGetValue((CFBooleanRef)hiddenValue);
 		}
 
-		CFTypeRef visibleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 11);
+		CFTypeRef visibleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 12);
 		if (visibleValue && CFGetTypeID(visibleValue) == CFBooleanGetTypeID()) {
 			info->isVisible = CFBooleanGetValue((CFBooleanRef)visibleValue);
 		}
@@ -271,6 +277,8 @@ void freeElementInfo(ElementInfo *info) {
 		free(info->identifier);
 	if (info->role)
 		free(info->role);
+	if (info->subrole)
+		free(info->subrole);
 	if (info->roleDescription)
 		free(info->roleDescription);
 

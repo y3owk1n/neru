@@ -33,9 +33,10 @@ func (a *Adapter) addMenubarElements(
 
 	// Create local allowed roles including AXMenuBarItem for additional targets
 	originalRoles := a.client.ClickableRoles()
-	menubarRoles := make([]string, len(originalRoles)+1)
+	menubarRoles := make([]string, len(originalRoles)+2) //nolint:mnd
 	copy(menubarRoles, originalRoles)
 	menubarRoles[len(originalRoles)] = string(element.RoleMenuBarItem)
+	menubarRoles[len(originalRoles)+1] = string(element.RoleMenu)
 
 	// Get menubar elements
 	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(menubarTreeDepth)

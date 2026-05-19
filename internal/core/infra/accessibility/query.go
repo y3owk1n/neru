@@ -1,6 +1,8 @@
 package accessibility
 
 import (
+	"slices"
+
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -116,6 +118,10 @@ func ClickableElementsFromBundleID(
 	opts := DefaultTreeOptions(logger)
 	opts.SetConfigProvider(configProvider)
 
+	if slices.Contains(roles, string(element.RoleMenuBarItem)) {
+		opts.SetFilterFunc(isAdditionalMenuBarElement)
+	}
+
 	if cfg := currentConfig(configProvider); cfg != nil {
 		depth := cfg.Hints.MaxDepth
 		if maxDepth > 0 {
@@ -170,6 +176,18 @@ func ClickableElementsFromBundleID(
 		zap.Int("count", len(elements)))
 
 	return elements, nil
+}
+
+func isAdditionalMenuBarElement(info *ElementInfo) bool {
+	//nolint:exhaustive
+	switch element.Role(info.Role()) {
+	case element.RoleMenuBar, element.RoleMenu, element.RoleMenuItem:
+		return true
+	case element.RoleMenuBarItem:
+		return info.Subrole() == "AXMenuExtra"
+	default:
+		return false
+	}
 }
 
 // releaseTreeExcept releases all AXUIElementRefs in the tree except those

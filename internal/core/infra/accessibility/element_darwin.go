@@ -103,6 +103,7 @@ type ElementInfo struct {
 	identifier        string
 	searchText        string
 	role              string
+	subrole           string
 	roleDescription   string
 	isEnabled         bool
 	hasEnabledAttr    bool
@@ -153,6 +154,11 @@ func (ei *ElementInfo) SearchText() string {
 // Role returns the element role.
 func (ei *ElementInfo) Role() string {
 	return ei.role
+}
+
+// Subrole returns the element subrole.
+func (ei *ElementInfo) Subrole() string {
+	return ei.subrole
 }
 
 // RoleDescription returns the element role description.
@@ -303,6 +309,9 @@ func (e *Element) Info() (*ElementInfo, error) {
 	}
 	if cInfo.role != nil {
 		info.role = C.GoString(cInfo.role)
+	}
+	if cInfo.subrole != nil {
+		info.subrole = C.GoString(cInfo.subrole)
 	}
 	if cInfo.roleDescription != nil {
 		info.roleDescription = C.GoString(cInfo.roleDescription)
