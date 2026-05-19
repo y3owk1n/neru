@@ -357,8 +357,8 @@ var interactiveLeafRoles = map[element.Role]bool{
 	element.RoleDisclosureTriangle: true,
 	element.RoleTextField:          true,
 	element.RoleGenericElement:     true,
-	// element.RoleTextArea:           true, // in notes.app, link field in note needs to be clickable...
-	// element.RoleRadioButton:        true, // in safari, url bar is radio button, but has nested button in it...
+	element.RoleTextArea:           true,
+	element.RoleRadioButton:        true,
 }
 
 // Roles that can contain important interactive children even when their
@@ -371,6 +371,8 @@ var importantContainerRoles = map[element.Role]bool{
 	element.RoleMenu:    true,
 	element.RoleSGTMenu: true,
 	element.RoleList:    true,
+	element.RoleLink:    true,
+	element.RoleButton:  true,
 }
 
 // Roles that commonly spawn important container children (popovers, sheets, menus).
@@ -385,6 +387,8 @@ var leafRolesWithImportantChildren = map[element.Role]bool{
 	element.RoleComboBox:           true, // dropdown AXMenu
 	element.RoleDisclosureTriangle: true, // reveals children when expanded
 	element.RoleGenericElement:     true, // catch-all — could contain anything
+	element.RoleTextArea:           true, // in notes.app, link field in note needs to be clickable...
+	element.RoleRadioButton:        true, // in safari, url bar is radio button, but has nested button in it...
 }
 
 func buildTreeRecursive(
