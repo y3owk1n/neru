@@ -406,8 +406,10 @@ int getChildrenCount(void *element) {
 	// Fallback: use direct copy if count query is unsupported.
 	CFTypeRef childrenValue = NULL;
 	if (AXUIElementCopyAttributeValue(axElement, kAXChildrenAttribute, &childrenValue) == kAXErrorSuccess &&
-	    childrenValue && CFGetTypeID(childrenValue) == CFArrayGetTypeID()) {
-		childCount = CFArrayGetCount((CFArrayRef)childrenValue);
+	    childrenValue) {
+		if (CFGetTypeID(childrenValue) == CFArrayGetTypeID()) {
+			childCount = CFArrayGetCount((CFArrayRef)childrenValue);
+		}
 		CFRelease(childrenValue);
 	}
 
