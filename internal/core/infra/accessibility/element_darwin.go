@@ -749,6 +749,8 @@ func (e *Element) IsClickable(
 // inheriting a stale excluded mapping from a previous process.
 var (
 	pidBundleCache    = map[int]string{}
+	pidExcludedCache  = map[int]bool{}
+	lastConfigPointer *config.Config
 	pidBundleCacheMu  sync.RWMutex
 	excludedBundleIDs = map[string]struct{}{
 		"com.apple.PIPAgent":             {},
@@ -800,27 +802,50 @@ func isExcludedOrUnsafe(bundleID string, configProvider config.Provider) bool {
 // bundle ID that should skip the expensive visibility check. Results are
 // cached by PID to avoid redundant Cocoa lookups.
 func isExcludedBundleID(pid int, configProvider config.Provider) bool {
-	pidBundleCacheMu.RLock()
-	b, ok := pidBundleCache[pid]
-	pidBundleCacheMu.RUnlock()
-
-	if ok {
-		return isExcludedOrUnsafe(b, configProvider)
+	var cfg *config.Config
+	if configProvider != nil {
+		cfg = configProvider.Get()
 	}
-
-	cBundleID := C.getBundleIDForPID(C.int(pid))
-	if cBundleID == nil {
-		return false
-	}
-
-	bundleID := C.GoString(cBundleID)
-	C.freeString(cBundleID)
 
 	pidBundleCacheMu.Lock()
-	pidBundleCache[pid] = bundleID
+	if cfg != lastConfigPointer {
+		pidExcludedCache = make(map[int]bool)
+		lastConfigPointer = cfg
+	}
+	excluded, ok := pidExcludedCache[pid]
 	pidBundleCacheMu.Unlock()
 
-	return isExcludedOrUnsafe(bundleID, configProvider)
+	if ok {
+		return excluded
+	}
+
+	pidBundleCacheMu.RLock()
+	bundleID, hasBundle := pidBundleCache[pid]
+	pidBundleCacheMu.RUnlock()
+
+	if !hasBundle {
+		cBundleID := C.getBundleIDForPID(C.int(pid))
+		if cBundleID == nil {
+			return false
+		}
+
+		bundleID = C.GoString(cBundleID)
+		C.freeString(cBundleID)
+
+		pidBundleCacheMu.Lock()
+		pidBundleCache[pid] = bundleID
+		pidBundleCacheMu.Unlock()
+	}
+
+	res := isExcludedOrUnsafe(bundleID, configProvider)
+
+	pidBundleCacheMu.Lock()
+	if cfg == lastConfigPointer {
+		pidExcludedCache[pid] = res
+	}
+	pidBundleCacheMu.Unlock()
+
+	return res
 }
 
 // IsMissionControlActive checks if Mission Control is currently active.
