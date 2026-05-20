@@ -152,7 +152,7 @@ func ensureAccessibility(
 		zap.String("bundle_id", bundleID),
 	)
 
-	return true
+	return false
 }
 
 func waitForAccessibility(app *accessibility.Element) bool {
