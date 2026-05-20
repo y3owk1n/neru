@@ -131,14 +131,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 					}
 				}
 
-				screenOrigin := h.screenBounds.Min
-
 				h.mu.Unlock()
-
-				localCursorX := cursorX - screenOrigin.X
-				localCursorY := cursorY - screenOrigin.Y
-				localStickyX := stickyPoint.X - screenOrigin.X
-				localStickyY := stickyPoint.Y - screenOrigin.Y
 
 				// Mode indicator: show and draw when enabled, hide otherwise.
 				if showModeInd {
@@ -146,7 +139,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 						ind.Show()
 					}
 
-					h.modeIndicatorService.UpdateIndicatorPosition(localCursorX, localCursorY)
+					h.modeIndicatorService.UpdateIndicatorPosition(cursorX, cursorY)
 				} else if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
 					ind.Clear()
 					ind.Hide()
@@ -160,12 +153,12 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 							stickyInd.Show()
 						}
 
-						h.drawStickyModifiersIndicator(localStickyX, localStickyY)
+						h.drawStickyModifiersIndicator(stickyPoint.X, stickyPoint.Y)
 					} else if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 						if h.stickyIndicatorService != nil {
 							h.stickyIndicatorService.UpdateIndicatorPosition(
-								localStickyX,
-								localStickyY,
+								stickyPoint.X,
+								stickyPoint.Y,
 								"",
 							)
 						}

@@ -3213,15 +3213,14 @@ static NSPoint NeruAppKitPointFromQuartzPoint(CGPoint point) {
 }
 
 /// Position and resize overlay window to a specific rect centered on a point.
-/// Converts screen-local (relative to active screen top-left) coordinates to absolute
-/// Quartz coordinates, then to AppKit (bottom-left origin) for correct multi-monitor placement.
+/// Converts absolute Quartz coordinates directly to AppKit (bottom-left origin) for correct multi-monitor placement.
 /// Used by small indicator overlays (mode indicator, sticky modifiers) to avoid full-screen backing stores.
 /// @param window Overlay window handle
-/// @param localX Local X position relative to active screen top-left
-/// @param localY Local Y position relative to active screen top-left
+/// @param absoluteX Absolute Quartz X position
+/// @param absoluteY Absolute Quartz Y position
 /// @param width Window width in points
 /// @param height Window height in points
-void NeruPositionOverlayRelative(OverlayWindow window, double localX, double localY, double width, double height) {
+void NeruPositionOverlayRelative(OverlayWindow window, double absoluteX, double absoluteY, double width, double height) {
 	if (!window)
 		return;
 
@@ -3229,9 +3228,6 @@ void NeruPositionOverlayRelative(OverlayWindow window, double localX, double loc
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
-			CGRect screenBounds = getActiveScreenBounds();
-			double absoluteX = screenBounds.origin.x + localX;
-			double absoluteY = screenBounds.origin.y + localY;
 			NSPoint appKitCenter = NeruAppKitPointFromQuartzPoint(CGPointMake(absoluteX, absoluteY));
 			NSRect frame = NSMakeRect(appKitCenter.x - width / 2.0, appKitCenter.y - height / 2.0, width, height);
 
