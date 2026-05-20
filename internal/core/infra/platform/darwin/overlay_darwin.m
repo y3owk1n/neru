@@ -5,6 +5,7 @@
 //  Copyright © 2025 Neru. All rights reserved.
 //
 
+#import "accessibility.h"
 #import "overlay.h"
 
 #import <Cocoa/Cocoa.h>
@@ -221,6 +222,8 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 /// Cached parsed colors keyed by normalized hex string
 @property(nonatomic, strong) NSCache *colorCache;
 
+- (void)clearContent;
+
 /// When YES, drawLayer:inContext: clears the full bounds and redraws everything.
 /// When NO, only the dirty region (clip box) is cleared and items intersecting it are redrawn.
 /// Defaults to YES; set to NO by match-prefix-only updates that use setNeedsDisplayInRect:.
@@ -368,6 +371,22 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 - (void)dealloc {
 	[self.gridTransitionTimer invalidate];
 	self.gridTransitionTimer = nil;
+}
+
+- (void)clearContent {
+	[self cancelGridTransition];
+	[self cancelCursorIndicatorTransition];
+	[self.hints removeAllObjects];
+	[self.gridCells removeAllObjects];
+	self.searchInput = nil;
+	self.cursorIndicatorVisible = NO;
+	[self.colorCache removeAllObjects];
+	[[self.cachedHintAttributedString mutableString] setString:@""];
+	[[self.cachedHintMeasureString mutableString] setString:@""];
+	[[self.cachedSearchInputAttributedString mutableString] setString:@""];
+	[[self.cachedGridCellAttributedString mutableString] setString:@""];
+	[[self.cachedGridSubKeyAttributedString mutableString] setString:@""];
+	[self setNeedsDisplay:YES];
 }
 
 /// Return the backing scale factor for the current screen, with fallbacks.
@@ -1828,10 +1847,17 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 
 	if ([NSThread isMainThread]) {
 		[controller.window orderOut:nil];
+		// Shrink to 1x1 to release the large backing store (saves ~47MB per
+		// Retina-resolution full-screen window). The next resize/show call
+		// will restore the proper frame before the window becomes visible.
+		[controller.window setFrame:NSMakeRect(0, 0, 1, 1) display:NO];
+		[controller.overlayView setFrame:NSMakeRect(0, 0, 1, 1)];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
 				[controller.window orderOut:nil];
+				[controller.window setFrame:NSMakeRect(0, 0, 1, 1) display:NO];
+				[controller.overlayView setFrame:NSMakeRect(0, 0, 1, 1)];
 			}
 		});
 	}
@@ -1846,23 +1872,11 @@ void NeruClearOverlay(OverlayWindow window) {
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	if ([NSThread isMainThread]) {
-		[controller.overlayView cancelGridTransition];
-		[controller.overlayView cancelCursorIndicatorTransition];
-		[controller.overlayView.hints removeAllObjects];
-		[controller.overlayView.gridCells removeAllObjects];
-		controller.overlayView.searchInput = nil;
-		controller.overlayView.cursorIndicatorVisible = NO;
-		[controller.overlayView setNeedsDisplay:YES];
+		[controller.overlayView clearContent];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
-				[controller.overlayView cancelGridTransition];
-				[controller.overlayView cancelCursorIndicatorTransition];
-				[controller.overlayView.hints removeAllObjects];
-				[controller.overlayView.gridCells removeAllObjects];
-				controller.overlayView.searchInput = nil;
-				controller.overlayView.cursorIndicatorVisible = NO;
-				[controller.overlayView setNeedsDisplay:YES];
+				[controller.overlayView clearContent];
 			}
 		});
 	}
@@ -3196,6 +3210,36 @@ static NSPoint NeruAppKitPointFromQuartzPoint(CGPoint point) {
 
 	NSRect mainFrame = [NSScreen mainScreen].frame;
 	return NSMakePoint(point.x, NSMaxY(mainFrame) - point.y);
+}
+
+/// Position and resize overlay window to a specific rect centered on a point.
+/// Converts screen-local (relative to active screen top-left) coordinates to absolute
+/// Quartz coordinates, then to AppKit (bottom-left origin) for correct multi-monitor placement.
+/// Used by small indicator overlays (mode indicator, sticky modifiers) to avoid full-screen backing stores.
+/// @param window Overlay window handle
+/// @param localX Local X position relative to active screen top-left
+/// @param localY Local Y position relative to active screen top-left
+/// @param width Window width in points
+/// @param height Window height in points
+void NeruPositionOverlayRelative(OverlayWindow window, double localX, double localY, double width, double height) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		@autoreleasepool {
+			CGRect screenBounds = getActiveScreenBounds();
+			double absoluteX = screenBounds.origin.x + localX;
+			double absoluteY = screenBounds.origin.y + localY;
+			NSPoint appKitCenter = NeruAppKitPointFromQuartzPoint(CGPointMake(absoluteX, absoluteY));
+			NSRect frame = NSMakeRect(appKitCenter.x - width / 2.0, appKitCenter.y - height / 2.0, width, height);
+
+			[controller.window setFrame:frame display:NO];
+			NSRect viewFrame = NSMakeRect(0, 0, width, height);
+			[controller.overlayView setFrame:viewFrame];
+		}
+	});
 }
 
 /// Show a transient mouse action indicator in its own overlay window.
