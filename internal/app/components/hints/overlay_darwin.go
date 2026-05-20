@@ -86,7 +86,7 @@ type Overlay struct {
 	// Cached C strings for hint labels to avoid malloc/free per draw.
 	// Labels are retained until Clear() or Destroy() because the C overlay
 	// stores label pointers between draws for incremental updates.
-	labelCacheMu sync.RWMutex
+	labelCacheMu sync.Mutex
 	cachedLabels map[string]*C.char
 
 	// drawMu serializes draw operations against cache invalidation.
