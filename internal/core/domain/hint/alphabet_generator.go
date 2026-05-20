@@ -244,8 +244,18 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 	// Generate labels if not cached
 	labels := g.computeLabels(count)
 
-	// Store in bounded LRU cache for future use
+	// Store in bounded LRU cache for future use.
+	// Double-check under lock: another goroutine may have computed and cached
+	// the same key while we were computing (TOCTOU).
 	labelCacheMu.Lock()
+	if entry, ok := labelCache[cacheKey]; ok {
+		// Another goroutine beat us — use its result, update access time.
+		entry.lastUsed = time.Now()
+		labelCacheMu.Unlock()
+
+		return entry.labels
+	}
+
 	if len(labelCache) >= maxLabelCacheEntries {
 		// Evict least recently used entry
 		oldestIdx := 0
