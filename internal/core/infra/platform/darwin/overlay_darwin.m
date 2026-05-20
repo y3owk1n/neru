@@ -2091,45 +2091,47 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 	if (!window || !hints)
 		return;
 
-	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+	@autoreleasepool {
+		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-	// Build hint items upfront — safe from any thread
-	NSMutableArray<HintItem *> *hintItems = buildHintItems(hints, count, style.showArrow ? YES : NO, style.placement);
+		// Build hint items upfront — safe from any thread
+		NSMutableArray<HintItem *> *hintItems = buildHintItems(hints, count, style.showArrow ? YES : NO, style.placement);
 
-	if ([NSThread isMainThread]) {
-		[controller.overlayView.hints removeAllObjects];
-		[controller.overlayView applyStyle:style];
-		[controller.overlayView.hints addObjectsFromArray:hintItems];
-		[controller.overlayView setNeedsDisplay:YES];
-	} else {
-		// Copy style strings before crossing the thread boundary
-		HintStyle styleCopy = {
-		    .fontSize = style.fontSize,
-		    .borderRadius = style.borderRadius,
-		    .borderWidth = style.borderWidth,
-		    .paddingX = style.paddingX,
-		    .paddingY = style.paddingY,
-		    .showArrow = style.showArrow,
-		    .placement = style.placement,
-		    .boundaryHighlightEnabled = style.boundaryHighlightEnabled,
-		    .boundaryBorderWidth = style.boundaryBorderWidth,
-		    .boundaryBorderRadius = style.boundaryBorderRadius,
-		    .fontFamily = safe_strdup(style.fontFamily),
-		    .backgroundColor = safe_strdup(style.backgroundColor),
-		    .textColor = safe_strdup(style.textColor),
-		    .matchedTextColor = safe_strdup(style.matchedTextColor),
-		    .borderColor = safe_strdup(style.borderColor),
-		    .boundaryBackgroundColor = safe_strdup(style.boundaryBackgroundColor),
-		    .boundaryBorderColor = safe_strdup(style.boundaryBorderColor)};
-
-		dispatch_async(dispatch_get_main_queue(), ^{
+		if ([NSThread isMainThread]) {
 			[controller.overlayView.hints removeAllObjects];
-			[controller.overlayView applyStyle:styleCopy];
+			[controller.overlayView applyStyle:style];
 			[controller.overlayView.hints addObjectsFromArray:hintItems];
 			[controller.overlayView setNeedsDisplay:YES];
+		} else {
+			// Copy style strings before crossing the thread boundary
+			HintStyle styleCopy = {
+			    .fontSize = style.fontSize,
+			    .borderRadius = style.borderRadius,
+			    .borderWidth = style.borderWidth,
+			    .paddingX = style.paddingX,
+			    .paddingY = style.paddingY,
+			    .showArrow = style.showArrow,
+			    .placement = style.placement,
+			    .boundaryHighlightEnabled = style.boundaryHighlightEnabled,
+			    .boundaryBorderWidth = style.boundaryBorderWidth,
+			    .boundaryBorderRadius = style.boundaryBorderRadius,
+			    .fontFamily = safe_strdup(style.fontFamily),
+			    .backgroundColor = safe_strdup(style.backgroundColor),
+			    .textColor = safe_strdup(style.textColor),
+			    .matchedTextColor = safe_strdup(style.matchedTextColor),
+			    .borderColor = safe_strdup(style.borderColor),
+			    .boundaryBackgroundColor = safe_strdup(style.boundaryBackgroundColor),
+			    .boundaryBorderColor = safe_strdup(style.boundaryBorderColor)};
 
-			free_hint_style_strings(&styleCopy);
-		});
+			dispatch_async(dispatch_get_main_queue(), ^{
+				[controller.overlayView.hints removeAllObjects];
+				[controller.overlayView applyStyle:styleCopy];
+				[controller.overlayView.hints addObjectsFromArray:hintItems];
+				[controller.overlayView setNeedsDisplay:YES];
+
+				free_hint_style_strings(&styleCopy);
+			});
+		}
 	}
 }
 

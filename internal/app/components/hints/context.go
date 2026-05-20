@@ -177,7 +177,7 @@ func (c *Context) SearchActive() bool {
 // Reset resets the hints context to its initial state.
 func (c *Context) Reset() {
 	if c.manager != nil {
-		c.manager.Reset()
+		c.manager.Clear()
 	}
 
 	c.hints = nil

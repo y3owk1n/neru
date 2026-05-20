@@ -18,28 +18,58 @@ import (
 const (
 	minAnimationDuration = 10 // Minimum animation duration in ms
 	minStepDelay         = 1  // Minimum delay between steps in ms
-	drainTimeoutBufferMs = 50 // Extra grace period while draining a canceled animation.
 )
 
+type cursorAnimationDone struct {
+	ch   chan struct{}
+	once sync.Once
+}
+
+func newCursorAnimationDone() *cursorAnimationDone {
+	return &cursorAnimationDone{ch: make(chan struct{})}
+}
+
+func (d *cursorAnimationDone) close() {
+	if d == nil {
+		return
+	}
+
+	d.once.Do(func() {
+		close(d.ch)
+	})
+}
+
+type cursorRequest struct {
+	end              image.Point
+	steps            int
+	eventType        uint32
+	maxDuration      int
+	durationPerPixel float64
+	done             *cursorAnimationDone
+}
+
 type smoothCursorAnimator struct {
-	cancel context.CancelFunc
-	done   chan struct{}
-	gen    uint64
 	mu     sync.Mutex
+	reqCh  chan cursorRequest
+	stopCh chan struct{}
+	done   *cursorAnimationDone
 }
 
 var cursorAnimator smoothCursorAnimator
 
 func (a *smoothCursorAnimator) stop() {
 	a.mu.Lock()
-	cancel := a.cancel
-	a.gen++
-	a.cancel = nil
+	stopCh := a.stopCh
+	done := a.done
+	a.reqCh = nil
+	a.stopCh = nil
 	a.done = nil
 	a.mu.Unlock()
 
-	if cancel != nil {
-		cancel()
+	done.close()
+
+	if stopCh != nil {
+		close(stopCh)
 	}
 }
 
@@ -53,7 +83,7 @@ func (a *smoothCursorAnimator) wait(ctx context.Context) error {
 	}
 
 	select {
-	case <-done:
+	case <-done.ch:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -61,33 +91,6 @@ func (a *smoothCursorAnimator) wait(ctx context.Context) error {
 }
 
 func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType uint32) {
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	a.mu.Lock()
-	prevCancel := a.cancel
-	prevDone := a.done
-	a.gen++
-	gen := a.gen
-	a.cancel = cancel
-	a.done = done
-	a.mu.Unlock()
-
-	if prevCancel != nil {
-		prevCancel()
-	}
-
-	a.waitForPreviousAnimation(prevDone)
-
-	a.mu.Lock()
-	if a.gen != gen || a.done != done {
-		a.mu.Unlock()
-		close(done)
-		cancel()
-
-		return
-	}
-	a.mu.Unlock()
-
 	cfg := currentConfig()
 	maxDuration := 200
 	durationPerPixel := 0.1
@@ -96,103 +99,143 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 		durationPerPixel = cfg.SmoothCursor.DurationPerPixel
 	}
 
-	go func(runGen uint64) {
-		defer close(done)
-		defer cancel()
-		defer a.clearIfCurrent(runGen, done)
-		start := CursorPosition()
-		distance := math.Hypot(float64(end.X-start.X), float64(end.Y-start.Y))
+	done := newCursorAnimationDone()
+	req := cursorRequest{
+		end:              end,
+		steps:            steps,
+		eventType:        eventType,
+		maxDuration:      maxDuration,
+		durationPerPixel: durationPerPixel,
+		done:             done,
+	}
 
-		duration := math.Min(float64(maxDuration), distance*durationPerPixel)
-		if duration < minAnimationDuration {
-			duration = minAnimationDuration
+	reqCh := a.ensureWorker(done)
+	select {
+	case reqCh <- req:
+	default:
+		select {
+		case dropped := <-reqCh:
+			dropped.done.close()
+		default:
 		}
-
-		actualSteps := steps
-		if actualSteps <= 0 {
-			actualSteps = 10
-		}
-
-		// Reduce steps so total time stays within the computed duration.
-		// Without this, a high step count with a short duration would be
-		// inflated by the minStepDelay floor (e.g. 100 steps × 1ms = 100ms
-		// even when the adaptive duration is only 10ms).
-		maxSteps := max(int(duration/float64(minStepDelay)), 1)
-		if actualSteps > maxSteps {
-			actualSteps = maxSteps
-		}
-
-		stepDelayMs := max(int(math.Round(duration/float64(actualSteps))), minStepDelay)
-
-		stepDelay := time.Duration(stepDelayMs) * time.Millisecond
-
-		for step := 1; step <= actualSteps; step++ {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
-			progress := float64(step) / float64(actualSteps)
-			intermediate := image.Point{
-				X: int(float64(start.X) + float64(end.X-start.X)*progress),
-				Y: int(float64(start.Y) + float64(end.Y-start.Y)*progress),
-			}
-
-			pos := C.CGPoint{x: C.double(intermediate.X), y: C.double(intermediate.Y)}
-			C.postMouseMoveEvent(pos, C.CGEventType(eventType))
-
-			if step < actualSteps {
-				// Use a timer so that context cancellation interrupts the
-				// wait immediately instead of blocking until the full
-				// stepDelay elapses.
-				timer := time.NewTimer(stepDelay)
-				select {
-				case <-ctx.Done():
-					timer.Stop()
-
-					return
-				case <-timer.C:
-				}
-			}
-		}
-	}(gen)
+		reqCh <- req
+	}
 }
 
-func (a *smoothCursorAnimator) clearIfCurrent(
-	gen uint64,
-	done chan struct{},
-) {
+func (a *smoothCursorAnimator) ensureWorker(done *cursorAnimationDone) chan cursorRequest {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.gen == gen && a.done == done {
-		a.cancel = nil
-		a.done = nil
+	a.done = done
+
+	if a.reqCh != nil {
+		return a.reqCh
 	}
+
+	reqCh := make(chan cursorRequest, 1)
+	stopCh := make(chan struct{})
+	a.reqCh = reqCh
+	a.stopCh = stopCh
+
+	go a.run(reqCh, stopCh)
+
+	return reqCh
 }
 
-func (a *smoothCursorAnimator) waitForPreviousAnimation(prevDone chan struct{}) {
-	if prevDone == nil {
-		return
-	}
-
-	timeout := previousAnimationDrainTimeout()
-	timer := time.NewTimer(timeout)
+func (a *smoothCursorAnimator) run(reqCh <-chan cursorRequest, stopCh <-chan struct{}) {
+	timer := time.NewTimer(time.Hour)
+	stopAndDrainTimer(timer)
 	defer timer.Stop()
 
-	select {
-	case <-prevDone:
-	case <-timer.C:
+	for {
+		select {
+		case <-stopCh:
+			return
+		case req := <-reqCh:
+			a.runRequest(req, reqCh, stopCh, timer)
+		}
 	}
 }
 
-func previousAnimationDrainTimeout() time.Duration {
-	cfg := currentConfig()
-	maxDurationMs := 200
-	if cfg != nil && cfg.SmoothCursor.MaxDuration > 0 {
-		maxDurationMs = cfg.SmoothCursor.MaxDuration
+func (a *smoothCursorAnimator) runRequest(
+	req cursorRequest,
+	reqCh <-chan cursorRequest,
+	stopCh <-chan struct{},
+	timer *time.Timer,
+) {
+restart:
+	start := CursorPosition()
+	distance := math.Hypot(float64(req.end.X-start.X), float64(req.end.Y-start.Y))
+
+	duration := math.Min(float64(req.maxDuration), distance*req.durationPerPixel)
+	if duration < minAnimationDuration {
+		duration = minAnimationDuration
 	}
 
-	return time.Duration(maxDurationMs+drainTimeoutBufferMs) * time.Millisecond
+	actualSteps := req.steps
+	if actualSteps <= 0 {
+		actualSteps = 10
+	}
+
+	maxSteps := max(int(duration/float64(minStepDelay)), 1)
+	if actualSteps > maxSteps {
+		actualSteps = maxSteps
+	}
+
+	stepDelayMs := max(int(math.Round(duration/float64(actualSteps))), minStepDelay)
+	stepDelay := time.Duration(stepDelayMs) * time.Millisecond
+
+	for step := 1; step <= actualSteps; step++ {
+		select {
+		case <-stopCh:
+			req.done.close()
+
+			return
+		case nextReq := <-reqCh:
+			req.done.close()
+			req = nextReq
+
+			goto restart
+		default:
+		}
+
+		progress := float64(step) / float64(actualSteps)
+		intermediate := image.Point{
+			X: int(float64(start.X) + float64(req.end.X-start.X)*progress),
+			Y: int(float64(start.Y) + float64(req.end.Y-start.Y)*progress),
+		}
+
+		pos := C.CGPoint{x: C.double(intermediate.X), y: C.double(intermediate.Y)}
+		C.postMouseMoveEvent(pos, C.CGEventType(req.eventType))
+
+		if step < actualSteps {
+			timer.Reset(stepDelay)
+			select {
+			case <-stopCh:
+				stopAndDrainTimer(timer)
+				req.done.close()
+
+				return
+			case nextReq := <-reqCh:
+				stopAndDrainTimer(timer)
+				req.done.close()
+				req = nextReq
+
+				goto restart
+			case <-timer.C:
+			}
+		}
+	}
+
+	req.done.close()
+	a.clearDoneIfCurrent(req.done)
+}
+
+func (a *smoothCursorAnimator) clearDoneIfCurrent(done *cursorAnimationDone) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.done == done {
+		a.done = nil
+	}
 }

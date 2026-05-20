@@ -90,6 +90,8 @@ CGRect getScrollBounds(void *element) {
 	CFRelease(attributes);
 
 	if (error != kAXErrorSuccess || !values) {
+		if (values)
+			CFRelease(values);
 		return rect;
 	}
 
@@ -125,14 +127,16 @@ CGRect getScrollBounds(void *element) {
 /// @param deltaY Vertical scroll amount
 /// @return 1 on success, 0 on failure
 int scrollAtPoint(CGPoint pos, int deltaX, int deltaY) {
-	CGEventRef scrollEvent = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitPixel, 2, deltaY, deltaX);
-	if (!scrollEvent)
-		return 0;
+	@autoreleasepool {
+		CGEventRef scrollEvent = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitPixel, 2, deltaY, deltaX);
+		if (!scrollEvent)
+			return 0;
 
-	CGEventSetLocation(scrollEvent, pos);
-	CGEventPost(kCGHIDEventTap, scrollEvent);
-	CFRelease(scrollEvent);
-	return 1;
+		CGEventSetLocation(scrollEvent, pos);
+		CGEventPost(kCGHIDEventTap, scrollEvent);
+		CFRelease(scrollEvent);
+		return 1;
+	}
 }
 
 #pragma mark - Mission Control Detection Functions
