@@ -9,7 +9,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
 const (
@@ -104,7 +103,7 @@ func ensureAccessibility(
 		return true
 	}
 
-	if hasUsableAccessibilityTree(app) {
+	if hasUsableAccessibilityTree(app, logger) {
 		markPIDEnabled(pidsMu, enabledPIDs, pid)
 
 		return true
@@ -122,7 +121,7 @@ func ensureAccessibility(
 		}
 	}
 
-	if waitForAccessibility(app) {
+	if waitForAccessibility(app, logger) {
 		markPIDEnabled(pidsMu, enabledPIDs, pid)
 
 		return true
@@ -140,7 +139,7 @@ func ensureAccessibility(
 		return false
 	}
 
-	if waitForAccessibility(app) {
+	if waitForAccessibility(app, logger) {
 		markPIDEnabled(pidsMu, enabledPIDs, pid)
 
 		return true
@@ -155,9 +154,9 @@ func ensureAccessibility(
 	return false
 }
 
-func waitForAccessibility(app *accessibility.Element) bool {
+func waitForAccessibility(app *accessibility.Element, logger *zap.Logger) bool {
 	for range accessibilityRetryCount {
-		if hasUsableAccessibilityTree(app) {
+		if hasUsableAccessibilityTree(app, logger) {
 			return true
 		}
 
@@ -167,7 +166,7 @@ func waitForAccessibility(app *accessibility.Element) bool {
 	return false
 }
 
-func hasUsableAccessibilityTree(root *accessibility.Element) bool {
+func hasUsableAccessibilityTree(root *accessibility.Element, logger *zap.Logger) bool {
 	if root == nil {
 		return false
 	}
