@@ -62,10 +62,10 @@ func hintPlacementValue(placement string) int {
 }
 
 const (
-	// maxLabelCacheSize caps the C string label cache to prevent unbounded C heap growth.
-	// Set high enough to hold all hint labels without evicting during normal operation.
-	// The C overlay retains label pointers between draws for incremental updates, so
-	// eviction while active causes empty labels. 2048 provides ample headroom.
+	// Label C strings are retained in cachedLabels until Clear() or Destroy().
+	// The C overlay holds label pointers between draws for incremental updates,
+	// so eviction while active would produce empty labels. 2048 entries provides
+	// ample headroom without requiring size-based eviction.
 	maxLabelCacheSize = 2048
 )
 
