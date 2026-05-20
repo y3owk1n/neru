@@ -265,10 +265,9 @@ void *getFrontmostWindow(void) {
 		    },
 		    2, &kCFTypeArrayCallBacks);
 		if (!windowAttrs) {
-			if (shouldReleaseAppRef && appRef) {
+			if (shouldReleaseAppRef && appRef)
 				CFRelease(appRef);
-			}
-			if (focusedApp)
+			else if (focusedApp)
 				CFRelease(focusedApp);
 			return NULL;
 		}
