@@ -14,7 +14,7 @@ import (
 // Element represents a UI element for Windows (stub).
 type Element struct{}
 
-// Children returns the element's children (Linux stub).
+// Children returns the element's children.
 func (e *Element) Children(role string) ([]*Element, error) { return nil, nil }
 
 // Hash returns a hash of the element.
