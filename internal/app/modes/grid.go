@@ -86,7 +86,7 @@ func (h *Handler) activateGridModeWithAction(
 	h.overlayManager.ResizeToActiveScreen()
 
 	// Show the overlay (the grid is already drawn with proper style)
-	h.overlayManager.GridOverlay().Show()
+	h.overlayManager.Show()
 
 	// Store pending action and repeat flag if provided
 	h.grid.Context.SetPendingAction(actionStr)
