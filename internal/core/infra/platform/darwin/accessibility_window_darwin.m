@@ -114,6 +114,13 @@ void **getFrontmostAndPopoverWindows(int *count) {
 		        kAXWindowsAttribute,
 		    },
 		    2, &kCFTypeArrayCallBacks);
+		if (!windowAttrs) {
+			if (shouldReleaseAppRef && appRef)
+				CFRelease(appRef);
+			else if (focusedApp)
+				CFRelease(focusedApp);
+			return NULL;
+		}
 
 		CFArrayRef windowValues = NULL;
 		AXError batchError = AXUIElementCopyMultipleAttributeValues(appRef, windowAttrs, 0, &windowValues);
@@ -193,6 +200,8 @@ void **getFrontmostAndPopoverWindows(int *count) {
 
 			CFTypeRef roleValue = NULL;
 			if (AXUIElementCopyAttributeValue(window, kAXRoleAttribute, &roleValue) != kAXErrorSuccess || !roleValue) {
+				if (roleValue)
+					CFRelease(roleValue);
 				continue;
 			}
 
@@ -255,6 +264,13 @@ void *getFrontmostWindow(void) {
 		        kAXWindowsAttribute,
 		    },
 		    2, &kCFTypeArrayCallBacks);
+		if (!windowAttrs) {
+			if (shouldReleaseAppRef && appRef)
+				CFRelease(appRef);
+			else if (focusedApp)
+				CFRelease(focusedApp);
+			return NULL;
+		}
 
 		CFArrayRef windowValues = NULL;
 		AXError batchError = AXUIElementCopyMultipleAttributeValues(appRef, windowAttrs, 0, &windowValues);
@@ -340,6 +356,8 @@ CGRect getFocusedWindowFrame(void) {
 		CFRelease(attributes);
 
 		if (error != kAXErrorSuccess || !values) {
+			if (values)
+				CFRelease(values);
 			CFRelease(window);
 			return CGRectZero;
 		}

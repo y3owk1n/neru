@@ -148,6 +148,28 @@ func (m *Manager) Reset() {
 	}
 }
 
+// Clear releases session-scoped hint state without invoking the update
+// callback. It is intended for mode teardown, where the overlay has already
+// been cleared by the caller and retaining the previous collection would keep
+// every generated hint and domain element alive until the next activation.
+func (m *Manager) Clear() {
+	m.assertExternalMuHeld("Clear")
+
+	if m.debounceTimer != nil {
+		m.debounceTimer.Stop()
+		m.debounceTimer = nil
+	}
+
+	m.mu.Lock()
+	m.updateGen++
+	m.mu.Unlock()
+
+	m.hints = nil
+	m.cachedFilteredHints = nil
+	m.lastFilteredLen = 0
+	m.SetCurrentInput("")
+}
+
 // HandleInput processes an input character and returns the matched hint if an exact match is found.
 // Handles backspace for input correction, filters hints by prefix, and detects exact matches.
 // Returns (hint, true) if exact match found, (nil, false) otherwise.

@@ -53,29 +53,31 @@ static void initializeStorage(void) {
 /// @param userData User data pointer
 /// @return OSStatus
 static OSStatus hotkeyHandler(EventHandlerCallRef nextHandler, EventRef event, void *userData) {
-	EventHotKeyID hotkeyID;
-	GetEventParameter(event, kEventParamDirectObject, typeEventHotKeyID, NULL, sizeof(hotkeyID), NULL, &hotkeyID);
+	@autoreleasepool {
+		EventHotKeyID hotkeyID;
+		GetEventParameter(event, kEventParamDirectObject, typeEventHotKeyID, NULL, sizeof(hotkeyID), NULL, &hotkeyID);
 
-	int hotkeyId = (int)hotkeyID.id;
-	UInt32 eventKind = GetEventKind(event);
-	int callbackEventKind = eventKind == kEventHotKeyReleased ? HotkeyEventReleased : HotkeyEventPressed;
+		int hotkeyId = (int)hotkeyID.id;
+		UInt32 eventKind = GetEventKind(event);
+		int callbackEventKind = eventKind == kEventHotKeyReleased ? HotkeyEventReleased : HotkeyEventPressed;
 
-	// Thread-safe callback retrieval
-	__block HotkeyCallback callback = NULL;
-	__block void *callbackUserData = NULL;
+		// Thread-safe callback retrieval
+		__block HotkeyCallback callback = NULL;
+		__block void *callbackUserData = NULL;
 
-	dispatch_sync(hotkeyQueue, ^{
-		NSNumber *key = @(hotkeyId);
-		NSDictionary *callbackInfo = hotkeyCallbacks[key];
-		if (callbackInfo) {
-			callback = [callbackInfo[@"callback"] pointerValue];
-			callbackUserData = [callbackInfo[@"userData"] pointerValue];
+		dispatch_sync(hotkeyQueue, ^{
+			NSNumber *key = @(hotkeyId);
+			NSDictionary *callbackInfo = hotkeyCallbacks[key];
+			if (callbackInfo) {
+				callback = [callbackInfo[@"callback"] pointerValue];
+				callbackUserData = [callbackInfo[@"userData"] pointerValue];
+			}
+		});
+
+		// Invoke callback outside the lock
+		if (callback) {
+			callback(hotkeyId, callbackEventKind, callbackUserData);
 		}
-	});
-
-	// Invoke callback outside the lock
-	if (callback) {
-		callback(hotkeyId, callbackEventKind, callbackUserData);
 	}
 
 	return noErr;

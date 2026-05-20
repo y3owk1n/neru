@@ -96,6 +96,26 @@ func TestManager_Backspace(t *testing.T) {
 	}
 }
 
+func TestManager_ClearReleasesSessionState(t *testing.T) {
+	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
+	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
+	h2, _ := hint.NewHint("AB", elem, image.Point{0, 0})
+	collection := hint.NewCollection([]*hint.Interface{h1, h2})
+	manager := hint.NewManager(logger.Get(), nil)
+	manager.SetHints(collection)
+
+	manager.HandleInput("A")
+	manager.Clear()
+
+	if manager.CurrentInput() != "" {
+		t.Errorf("Expected input to be cleared, got %q", manager.CurrentInput())
+	}
+
+	if filtered := manager.FilteredHints(); filtered != nil {
+		t.Fatalf("Expected no filtered hints after Clear(), got %d", len(filtered))
+	}
+}
+
 func TestHintManager_RouterIntegration(t *testing.T) {
 	logger := logger.Get()
 

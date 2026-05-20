@@ -156,6 +156,8 @@ ElementInfo *getElementInfo(void *element) {
 		CFRelease(attributes);
 
 		if (error != kAXErrorSuccess || !values) {
+			if (values)
+				CFRelease(values);
 			pid_t pid;
 			if (AXUIElementGetPid(axElement, &pid) == kAXErrorSuccess) {
 				info->pid = pid;
@@ -364,6 +366,8 @@ int getElementCenter(void *element, CGPoint *outPoint) {
 	CFRelease(attributes);
 
 	if (error != kAXErrorSuccess || !values) {
+		if (values)
+			CFRelease(values);
 		return 0;
 	}
 
