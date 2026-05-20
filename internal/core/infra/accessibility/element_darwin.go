@@ -840,7 +840,9 @@ func isExcludedBundleID(pid int, configProvider config.Provider) bool {
 	res := isExcludedOrUnsafe(bundleID, configProvider)
 
 	pidBundleCacheMu.Lock()
-	pidExcludedCache[pid] = res
+	if cfg == lastConfigPointer {
+		pidExcludedCache[pid] = res
+	}
 	pidBundleCacheMu.Unlock()
 
 	return res
