@@ -96,13 +96,6 @@ const (
 	// DefaultSubscriberMapSize is the default subscriber map size.
 	DefaultSubscriberMapSize = 4
 
-	// DefaultParallelThreshold is the default parallel threshold.
-	DefaultParallelThreshold = 20
-	// DefaultMaxParallelDepth is the default max parallel depth.
-	DefaultMaxParallelDepth = 10
-	// MaxParallelDepthCap is the maximum allowed value for max_parallel_depth.
-	MaxParallelDepthCap = 50
-
 	// DefaultMaxDepth is the default max depth for accessibility tree traversal.
 	DefaultMaxDepth = 50
 
@@ -284,11 +277,9 @@ func newDefaultConfig() *Config {
 			},
 		},
 		Hints: HintsConfig{
-			Enabled:           true,
-			HintCharacters:    "asdfghjkl",
-			MaxDepth:          DefaultMaxDepth,
-			ParallelThreshold: DefaultParallelThreshold,
-			MaxParallelDepth:  DefaultMaxParallelDepth,
+			Enabled:        true,
+			HintCharacters: "asdfghjkl",
+			MaxDepth:       DefaultMaxDepth,
 			Hotkeys: map[string]StringOrStringArray{
 				"Escape":    {"idle"},
 				"/":         {"action search_hints"},

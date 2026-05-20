@@ -565,8 +565,6 @@ type HintsConfig struct {
 	Enabled           bool                `json:"enabled"           toml:"enabled"`
 	HintCharacters    string              `json:"hintCharacters"    toml:"hint_characters"`
 	MaxDepth          int                 `json:"maxDepth"          toml:"max_depth"`
-	ParallelThreshold int                 `json:"parallelThreshold" toml:"parallel_threshold"`
-	MaxParallelDepth  int                 `json:"maxParallelDepth"  toml:"max_parallel_depth"`
 	UI                HintsUI             `json:"ui"                toml:"ui"`
 	SearchInputUI     SearchInputUI       `json:"searchInputUi"     toml:"search_input_ui"`
 	BoundaryHighlight BoundaryHighlightUI `json:"boundaryHighlight" toml:"boundary_highlight"`

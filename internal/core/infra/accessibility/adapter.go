@@ -27,8 +27,12 @@ const (
 	// contextCheckInterval is the interval for checking context cancellation.
 	contextCheckInterval = 100
 
-	// maxConcurrentWorkers is the maximum number of workers for concurrent processing.
+	// maxConcurrentWorkers is the maximum number of workers for processing.
 	maxConcurrentWorkers = 8
+
+	// maxConcurrentWindows caps goroutines spawned for per-window processing
+	// to prevent thread explosion when many windows are open.
+	maxConcurrentWindows = 4
 )
 
 // elementSlicePool is a pool of element slices for temporary use.
@@ -169,8 +173,12 @@ func (a *Adapter) ClickableElements(
 
 				var windowsMutex sync.Mutex
 
+				// Semaphore to cap concurrent window processing goroutines
+				windowSem := make(chan struct{}, maxConcurrentWindows)
+
 				processWindow := func(window AXWindow) {
 					defer windowsWg.Done()
+					defer func() { <-windowSem }()
 
 					clickableNodes, clickableNodesErr := a.client.ClickableNodes(
 						window,
@@ -203,6 +211,8 @@ func (a *Adapter) ClickableElements(
 				}
 
 				for _, window := range windowsToProcess {
+					windowSem <- struct{}{}
+
 					windowsWg.Add(1)
 
 					go processWindow(window)

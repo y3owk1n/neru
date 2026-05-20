@@ -12,7 +12,6 @@ import "C"
 
 import (
 	"image"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -92,11 +91,6 @@ func getTreeNode(elem *Element, info *ElementInfo, parent *TreeNode, childrenCap
 // disproportionately large allocations in the pool indefinitely.
 const maxPooledChildrenCap = 64
 
-// maxConcurrentTreeWorkers caps the number of goroutines used for parallel
-// tree building. This prevents goroutine explosion when a node has hundreds
-// of children and limits concurrent AX calls competing for the same XPC channel.
-const maxConcurrentTreeWorkers = 8
-
 // putTreeNode clears all references in the node and returns it to the pool.
 func putTreeNode(node *TreeNode) {
 	// Nil out pointer fields to avoid retaining references to released
@@ -160,29 +154,17 @@ func (n *TreeNode) AddChild(child *TreeNode) {
 
 // TreeOptions configures accessibility tree traversal behavior and filtering.
 type TreeOptions struct {
-	filterFunc        func(*ElementInfo) bool
-	parallelThreshold int
-	maxParallelDepth  int
-	maxDepth          int
-	logger            *zap.Logger
-	stats             *treeStats
-	bundleID          string          // Bundle ID for auto-detecting Chromium/Electron strict filtering
-	configProvider    config.Provider // For checking user-configured Chromium/Electron bundles
+	filterFunc     func(*ElementInfo) bool
+	maxDepth       int
+	logger         *zap.Logger
+	stats          *treeStats
+	bundleID       string          // Bundle ID for auto-detecting Chromium/Electron strict filtering
+	configProvider config.Provider // For checking user-configured Chromium/Electron bundles
 }
 
 // FilterFunc returns the filter function.
 func (o *TreeOptions) FilterFunc() func(*ElementInfo) bool {
 	return o.filterFunc
-}
-
-// ParallelThreshold returns the parallel threshold.
-func (o *TreeOptions) ParallelThreshold() int {
-	return o.parallelThreshold
-}
-
-// MaxParallelDepth returns the max parallel depth.
-func (o *TreeOptions) MaxParallelDepth() int {
-	return o.maxParallelDepth
 }
 
 // MaxDepth returns the max depth.
@@ -220,24 +202,12 @@ func (o *TreeOptions) SetMaxDepth(depth int) {
 	o.maxDepth = depth
 }
 
-// SetParallelThreshold sets the threshold for parallel child processing.
-func (o *TreeOptions) SetParallelThreshold(threshold int) {
-	o.parallelThreshold = threshold
-}
-
-// SetMaxParallelDepth sets the max depth for parallel child processing.
-func (o *TreeOptions) SetMaxParallelDepth(depth int) {
-	o.maxParallelDepth = depth
-}
-
 // DefaultTreeOptions returns default tree traversal options.
 func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{
-		filterFunc:        nil,
-		parallelThreshold: config.DefaultParallelThreshold,
-		maxParallelDepth:  config.DefaultMaxParallelDepth,
-		maxDepth:          config.DefaultMaxDepth,
-		logger:            logger,
+		filterFunc: nil,
+		maxDepth:   config.DefaultMaxDepth,
+		logger:     logger,
 	}
 }
 
@@ -252,7 +222,6 @@ type treeStats struct {
 	filteredOut           atomic.Int64
 	noChildren            atomic.Int64
 	childrenErrors        atomic.Int64
-	parallelBatches       atomic.Int64
 	sequentialBatches     atomic.Int64
 	maxDepthSeen          atomic.Int64
 }
@@ -328,7 +297,6 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 			zap.Int64("filtered_out", stats.filteredOut.Load()),
 			zap.Int64("no_children", stats.noChildren.Load()),
 			zap.Int64("children_errors", stats.childrenErrors.Load()),
-			zap.Int64("parallel_batches", stats.parallelBatches.Load()),
 			zap.Int64("sequential_batches", stats.sequentialBatches.Load()),
 			zap.Int64("max_depth_seen", stats.maxDepthSeen.Load()),
 		)
@@ -492,15 +460,10 @@ func buildTreeRecursive(
 		}
 	}
 
-	// Decide whether to parallelize
-	shouldParallelize := depth <= opts.maxParallelDepth &&
-		len(children) >= opts.parallelThreshold
-
-	if shouldParallelize {
-		buildChildrenParallel(parent, children, depth, opts, clipBounds, windowBounds)
-	} else {
-		buildChildrenSequential(parent, children, depth, opts, clipBounds, windowBounds)
-	}
+	// Process children sequentially to avoid goroutine/thread explosion
+	// from nested parallel tree building. Concurrency is controlled at
+	// the ClickableElements level (maxConcurrentWindows = 4).
+	buildChildrenSequential(parent, children, depth, opts, clipBounds, windowBounds)
 }
 
 func buildChildrenSequential(
@@ -583,127 +546,6 @@ func buildChildrenSequential(
 
 	if opts.stats != nil {
 		opts.stats.sequentialBatches.Add(1)
-	}
-}
-
-func buildChildrenParallel(
-	parent *TreeNode,
-	children []*Element,
-	depth int,
-	opts TreeOptions,
-	clipBounds image.Rectangle,
-	windowBounds image.Rectangle,
-) {
-	// Use a bounded worker pool to avoid goroutine explosion and limit
-	// concurrent AX calls competing for the same XPC channel.
-	numWorkers := min(
-		runtime.GOMAXPROCS(0),
-		maxConcurrentTreeWorkers,
-	)
-
-	type childTask struct {
-		elem   *Element
-		index  int
-		bounds image.Rectangle
-		winBnd image.Rectangle
-	}
-
-	type childResult struct {
-		node  *TreeNode
-		index int
-	}
-
-	tasks := make(chan childTask, len(children))
-	results := make(chan childResult, len(children))
-
-	// Launch fixed number of workers
-	var waitGroup sync.WaitGroup
-	for range numWorkers {
-		waitGroup.Go(func() {
-			for task := range tasks {
-				info, err := task.elem.Info()
-				if err != nil {
-					if opts.stats != nil {
-						opts.stats.childErrors.Add(1)
-					}
-					task.elem.Release()
-
-					continue
-				}
-
-				if !shouldIncludeElement(info, opts, task.bounds) {
-					if opts.stats != nil {
-						opts.stats.filteredOut.Add(1)
-					}
-					task.elem.Release()
-
-					continue
-				}
-
-				info.skipHitTest = task.bounds == task.winBnd
-
-				childNode := getTreeNode(task.elem, info, parent, 0)
-
-				newClipBounds := task.bounds
-				if element.Role(info.Role()) == element.RoleScrollArea {
-					childRect := rectFromInfo(info)
-					if childRect.Dx() > 0 && childRect.Dy() > 0 {
-						newClipBounds = childRect.Intersect(task.bounds)
-						if ce := opts.Logger().
-							Check(zap.DebugLevel, "Scroll area detected, tightening clip bounds"); ce != nil {
-							ce.Write(
-								zap.String("role", info.Role()),
-								zap.Int("clip_x", newClipBounds.Min.X),
-								zap.Int("clip_y", newClipBounds.Min.Y),
-								zap.Int("clip_w", newClipBounds.Dx()),
-								zap.Int("clip_h", newClipBounds.Dy()),
-							)
-						}
-					}
-				}
-
-				buildTreeRecursive(childNode, depth+1, opts, newClipBounds, task.winBnd)
-				results <- childResult{node: childNode, index: task.index}
-			}
-		})
-	}
-
-	// Feed tasks to workers
-	for index, child := range children {
-		tasks <- childTask{elem: child, index: index, bounds: clipBounds, winBnd: windowBounds}
-	}
-	close(tasks)
-
-	// Wait for workers to finish, then close results
-	go func() {
-		waitGroup.Wait()
-		close(results)
-	}()
-
-	// Collect results preserving original order
-	collected := make([]*TreeNode, len(children))
-	validCount := 0
-
-	for result := range results {
-		collected[result.index] = result.node
-		validCount++
-	}
-
-	// Reuse the pooled backing array when it has enough room.
-	if cap(parent.children) >= validCount {
-		parent.children = parent.children[:0]
-	} else {
-		parent.children = make([]*TreeNode, 0, validCount)
-	}
-
-	for _, node := range collected {
-		if node != nil {
-			parent.children = append(parent.children, node)
-		}
-	}
-
-	if opts.stats != nil {
-		opts.stats.parallelBatches.Add(1)
 	}
 }
 

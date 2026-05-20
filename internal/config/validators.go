@@ -233,32 +233,6 @@ func (c *Config) ValidateHints() error {
 		return err
 	}
 
-	err = validateMinValue(c.Hints.ParallelThreshold, 1, "hints.parallel_threshold")
-	if err != nil {
-		return err
-	}
-
-	err = validateMinValue(c.Hints.MaxParallelDepth, 1, "hints.max_parallel_depth")
-	if err != nil {
-		return err
-	}
-
-	if c.Hints.MaxParallelDepth > MaxParallelDepthCap {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"hints.max_parallel_depth must not exceed %d",
-			MaxParallelDepthCap,
-		)
-	}
-
-	if c.Hints.MaxDepth > 0 && c.Hints.MaxParallelDepth > c.Hints.MaxDepth {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"hints.max_parallel_depth (%d) must not exceed hints.max_depth (%d)",
-			c.Hints.MaxParallelDepth, c.Hints.MaxDepth,
-		)
-	}
-
 	return nil
 }
 

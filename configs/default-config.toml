@@ -45,8 +45,6 @@ text = "#E8EEFF"
 enabled = true
 hint_characters = "asdfghjkl"               # Characters used for hint labels
 max_depth = 50                              # Max accessibility tree depth (0 = unlimited)
-parallel_threshold = 20                     # Min children to trigger parallel tree building
-max_parallel_depth = 10                     # Max tree depth to parallelize (≥ 1)
 include_menubar_hints = false
 additional_menubar_hints_targets = [
     "com.apple.TextInputMenuAgent",

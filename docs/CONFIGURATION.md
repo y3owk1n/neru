@@ -336,8 +336,6 @@ You can also start hints mode with the search input shown immediately by using t
 | `enabled`                          | bool   | `true`        | Enable/disable hints mode                            |
 | `hint_characters`                  | string | `"asdfghjkl"` | Characters used for labels                           |
 | `max_depth`                        | int    | `50`          | Max accessibility tree depth (0 = unlimited)         |
-| `parallel_threshold`               | int    | `20`          | Min children to trigger parallel tree building (≥ 1) |
-| `max_parallel_depth`               | int    | `10`          | Max tree depth to parallelize (≥ 1)                  |
 | `include_menubar_hints`            | bool   | `false`       | Show hints on menubar items                          |
 | `include_dock_hints`               | bool   | `false`       | Show hints on Dock items                             |
 | `include_nc_hints`                 | bool   | `false`       | Show hints in Notification Center                    |

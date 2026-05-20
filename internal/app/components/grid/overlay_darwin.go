@@ -41,6 +41,9 @@ const (
 	NSWindowSharingNone = 0
 	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
 	NSWindowSharingReadOnly = 1
+
+	// maxLabelCacheSize caps the C string label cache to prevent unbounded C heap growth.
+	maxLabelCacheSize = 1024
 )
 
 //export gridResizeCompletionCallback
@@ -74,9 +77,10 @@ type Overlay struct {
 	callbackManager *overlayutil.CallbackManager
 
 	// Cached C strings for style properties to reduce allocations
-	styleCache   *overlayutil.StyleCache
-	labelCacheMu sync.RWMutex
-	cachedLabels map[string]*C.char
+	styleCache       *overlayutil.StyleCache
+	labelCacheMu     sync.RWMutex
+	cachedLabels     map[string]*C.char
+	labelAccessOrder []string // tracks access order for LRU eviction
 
 	// drawMu serializes draw operations against cache invalidation.
 	// Draw paths hold RLock; freeAllCaches holds Lock.
@@ -150,12 +154,13 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) (*Overlay, error) 
 	}
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(base.Window),
-		config:          config,
-		logger:          logger,
-		callbackManager: base.CallbackManager,
-		styleCache:      base.StyleCache,
-		cachedLabels:    make(map[string]*C.char),
+		window:           (C.OverlayWindow)(base.Window),
+		config:           config,
+		logger:           logger,
+		callbackManager:  base.CallbackManager,
+		styleCache:       base.StyleCache,
+		cachedLabels:     make(map[string]*C.char),
+		labelAccessOrder: make([]string, 0, maxLabelCacheSize),
 	}, nil
 }
 
@@ -174,12 +179,13 @@ func NewOverlayWithWindow(
 	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(base.Window),
-		config:          config,
-		logger:          logger,
-		callbackManager: base.CallbackManager,
-		styleCache:      base.StyleCache,
-		cachedLabels:    make(map[string]*C.char),
+		window:           (C.OverlayWindow)(base.Window),
+		config:           config,
+		logger:           logger,
+		callbackManager:  base.CallbackManager,
+		styleCache:       base.StyleCache,
+		cachedLabels:     make(map[string]*C.char),
+		labelAccessOrder: make([]string, 0, maxLabelCacheSize),
 	}
 }
 
@@ -859,32 +865,56 @@ func (o *Overlay) freeLabelCacheLocked() {
 			C.free(unsafe.Pointer(cStr))
 		}
 	}
-	// Re-initialize map to clear references
+	// Re-initialize map and order slice to clear references
 	o.cachedLabels = make(map[string]*C.char)
+	o.labelAccessOrder = make([]string, 0, maxLabelCacheSize)
 }
 
 // getOrCacheLabel returns a cached C string for the label, creating it if needed.
+// Evicts the least recently used entry when the cache reaches maxLabelCacheSize.
 func (o *Overlay) getOrCacheLabel(label string) *C.char {
-	o.labelCacheMu.RLock()
-	if cStr, ok := o.cachedLabels[label]; ok {
-		o.labelCacheMu.RUnlock()
-
-		return cStr
-	}
-	o.labelCacheMu.RUnlock()
-
 	o.labelCacheMu.Lock()
 	defer o.labelCacheMu.Unlock()
 
-	// Double-check
 	if cStr, ok := o.cachedLabels[label]; ok {
+		o.moveToFrontLocked(label)
+
 		return cStr
+	}
+
+	// Evict LRU entry if cache is full
+	if len(o.cachedLabels) >= maxLabelCacheSize {
+		oldest := o.labelAccessOrder[0]
+		if cStr, exists := o.cachedLabels[oldest]; exists && cStr != nil {
+			C.free(unsafe.Pointer(cStr))
+		}
+		delete(o.cachedLabels, oldest)
+		o.labelAccessOrder = o.labelAccessOrder[1:]
 	}
 
 	cStr := C.CString(label)
 	o.cachedLabels[label] = cStr
+	o.labelAccessOrder = append(o.labelAccessOrder, label)
 
 	return cStr
+}
+
+// moveToFrontLocked moves a label to the front of the access order (most recently used).
+// Caller must hold o.labelCacheMu.Lock.
+func (o *Overlay) moveToFrontLocked(label string) {
+	order := o.labelAccessOrder
+	for i, existing := range order {
+		if existing == label {
+			// Remove from current position
+			copy(order[i:], order[i+1:])
+			order[len(order)-1] = ""
+			o.labelAccessOrder = order[:len(order)-1]
+			// Append to end (most recently used)
+			o.labelAccessOrder = append(o.labelAccessOrder, label)
+
+			break
+		}
+	}
 }
 
 // drawGridCells draws all grid cells with their labels.

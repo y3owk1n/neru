@@ -52,12 +52,6 @@ func (o *TreeOptions) SetCache(cache any) {}
 // SetMaxDepth is a Linux stub.
 func (o *TreeOptions) SetMaxDepth(depth int) {}
 
-// SetParallelThreshold is a Linux stub.
-func (o *TreeOptions) SetParallelThreshold(threshold int) {}
-
-// SetMaxParallelDepth is a Linux stub.
-func (o *TreeOptions) SetMaxParallelDepth(depth int) {}
-
 // SetBundleID is a Linux stub.
 func (o *TreeOptions) SetBundleID(bundleID string) {}
 

@@ -114,8 +114,6 @@ func (c *InfraAXClient) ClickableNodes(
 		}
 
 		opts.SetMaxDepth(depth)
-		opts.SetParallelThreshold(cfg.Hints.ParallelThreshold)
-		opts.SetMaxParallelDepth(cfg.Hints.MaxParallelDepth)
 	}
 
 	tree, treeErr := BuildTree(element, opts)

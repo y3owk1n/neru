@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/y3owk1n/neru/internal/core/domain/element"
@@ -18,10 +19,23 @@ const (
 
 	// CountsCapacity is the capacity for counts.
 	CountsCapacity = 5
+
+	// maxLabelCacheEntries caps the global label cache to prevent unbounded growth.
+	maxLabelCacheEntries = 64
 )
 
-// labelCache caches generated labels by count for instant reuse.
-var labelCache sync.Map // map[string][]string (key: "chars:count")
+// labelCacheEntry holds a cached label slice with access tracking.
+type labelCacheEntry struct {
+	labels   []string
+	lastUsed time.Time
+}
+
+// labelCache is a bounded LRU cache for generated labels.
+var (
+	labelCacheMu   sync.Mutex
+	labelCache     = make(map[string]*labelCacheEntry)
+	labelCacheKeys []string // insertion-order tracking for LRU eviction
+)
 
 // singleCharCache caches single-character strings to avoid allocations.
 var singleCharCache sync.Map // map[rune]string
@@ -208,25 +222,53 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 // It ensures no label is a prefix of another to prevent ambiguity during input.
 // Returns uppercase labels sorted by length then alphabetically.
 // Uses a level-based approach where each level represents labels of increasing length.
-// Results are cached for instant reuse on repeated counts.
+// Results are cached in a bounded LRU cache for instant reuse on repeated counts.
 func (g *AlphabetGenerator) generateLabels(count int) []string {
 	if count == 0 {
 		return nil
 	}
 
-	// Check cache first (key: "chars:count")
+	// Check bounded LRU cache first (key: "chars:count")
 	cacheKey := g.uppercaseChars + ":" + strconv.Itoa(count)
-	if cached, ok := labelCache.Load(cacheKey); ok {
-		if labels, ok := cached.([]string); ok {
-			return labels
-		}
+
+	labelCacheMu.Lock()
+	if entry, ok := labelCache[cacheKey]; ok {
+		entry.lastUsed = time.Now()
+		labels := entry.labels
+		labelCacheMu.Unlock()
+
+		return labels
 	}
+	labelCacheMu.Unlock()
 
 	// Generate labels if not cached
 	labels := g.computeLabels(count)
 
-	// Store in cache for future use
-	labelCache.Store(cacheKey, labels)
+	// Store in bounded LRU cache for future use
+	labelCacheMu.Lock()
+	if len(labelCache) >= maxLabelCacheEntries {
+		// Evict least recently used entry
+		oldestIdx := 0
+
+		oldestTime := labelCache[labelCacheKeys[0]].lastUsed
+		for i := 1; i < len(labelCacheKeys); i++ {
+			t := labelCache[labelCacheKeys[i]].lastUsed
+			if t.Before(oldestTime) {
+				oldestTime = t
+				oldestIdx = i
+			}
+		}
+
+		oldestKey := labelCacheKeys[oldestIdx]
+		delete(labelCache, oldestKey)
+
+		labelCacheKeys[oldestIdx] = labelCacheKeys[len(labelCacheKeys)-1]
+		labelCacheKeys = labelCacheKeys[:len(labelCacheKeys)-1]
+	}
+
+	labelCache[cacheKey] = &labelCacheEntry{labels: labels, lastUsed: time.Now()}
+	labelCacheKeys = append(labelCacheKeys, cacheKey)
+	labelCacheMu.Unlock()
 
 	return labels
 }
