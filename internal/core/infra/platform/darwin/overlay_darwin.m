@@ -3238,7 +3238,8 @@ static NSPoint NeruAppKitPointFromQuartzPoint(CGPoint point) {
 /// @param absoluteY Absolute Quartz Y position
 /// @param width Window width in points
 /// @param height Window height in points
-void NeruPositionOverlayRelative(OverlayWindow window, double absoluteX, double absoluteY, double width, double height) {
+void NeruPositionOverlayRelative(
+    OverlayWindow window, double absoluteX, double absoluteY, double width, double height) {
 	if (!window)
 		return;
 
