@@ -399,17 +399,56 @@ func (a *App) handleAppActivation(bundleID string) {
 func (a *App) handleAdditionalAccessibility(bundleID string, cfg *config.Config) {
 	config := cfg.Hints.AdditionalAXSupport
 
-	if electron.ShouldEnableElectronSupport(bundleID, config.AdditionalElectronBundles) {
-		electron.EnsureElectronAccessibility(bundleID, a.logger)
+	isElectron := electron.ShouldEnableElectronSupport(bundleID, config.AdditionalElectronBundles)
+	isChromium := electron.ShouldEnableChromiumSupport(bundleID, config.AdditionalChromiumBundles)
+	isFirefox := electron.ShouldEnableFirefoxSupport(bundleID, config.AdditionalFirefoxBundles)
+
+	if !isElectron && !isChromium && !isFirefox {
+		return
 	}
 
-	if electron.ShouldEnableChromiumSupport(bundleID, config.AdditionalChromiumBundles) {
-		electron.EnsureChromiumAccessibility(bundleID, a.logger)
-	}
+	go func() {
+		// Apps may need time to initialize their accessibility tree after launch.
+		// We retry a few times to ensure the accessibility attributes are successfully set.
+		// Use exponential backoff to minimize latency for fast-booting apps while
+		// still accommodating slow-booting ones.
+		const (
+			maxRetries    = 5
+			initialDelay  = 100 * time.Millisecond
+			backoffFactor = 2
+		)
 
-	if electron.ShouldEnableFirefoxSupport(bundleID, config.AdditionalFirefoxBundles) {
-		electron.EnsureFirefoxAccessibility(bundleID, a.logger)
-	}
+		delay := initialDelay
+		for range maxRetries {
+			allSuccess := true
+
+			if isElectron {
+				if !electron.EnsureElectronAccessibility(bundleID, a.logger) {
+					allSuccess = false
+				}
+			}
+
+			if isChromium {
+				if !electron.EnsureChromiumAccessibility(bundleID, a.logger) {
+					allSuccess = false
+				}
+			}
+
+			if isFirefox {
+				if !electron.EnsureFirefoxAccessibility(bundleID, a.logger) {
+					allSuccess = false
+				}
+			}
+
+			if allSuccess {
+				return
+			}
+
+			// Wait before retrying
+			time.Sleep(delay)
+			delay *= backoffFactor
+		}
+	}()
 }
 
 // printStartupInfo displays startup information including registered hotkeys.
