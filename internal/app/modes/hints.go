@@ -327,7 +327,8 @@ func (h *Handler) activateHintModeInternal(
 	h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
 
 	h.hints.Context.SetHints(hintCollection)
-	h.overlayManager.Show()
+	h.overlayManager.ResizeToActiveScreen()
+	h.overlayManager.HintOverlay().Show()
 
 	if actionStr != nil {
 		h.logger.Info("Hints mode activated with pending action", zap.String("action", *actionStr))
