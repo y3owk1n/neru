@@ -83,6 +83,8 @@ func (h *Handler) activateGridModeWithAction(
 		return
 	}
 
+	h.overlayManager.ResizeToActiveScreen()
+
 	// Show the overlay (the grid is already drawn with proper style)
 	h.overlayManager.Show()
 

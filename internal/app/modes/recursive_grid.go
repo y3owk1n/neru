@@ -107,6 +107,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	// Draw initial recursive-grid
 	h.updateRecursiveGridOverlay()
 
+	h.overlayManager.ResizeToActiveScreen()
 	h.overlayManager.Show()
 
 	if actionStr != nil {

@@ -327,6 +327,7 @@ func (h *Handler) activateHintModeInternal(
 	h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
 
 	h.hints.Context.SetHints(hintCollection)
+	h.overlayManager.ResizeToActiveScreen()
 	h.overlayManager.Show()
 
 	if actionStr != nil {
