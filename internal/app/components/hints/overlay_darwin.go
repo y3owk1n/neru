@@ -466,7 +466,7 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 	defer o.labelCacheMu.Unlock()
 
 	if cStr, ok := o.cachedLabels[label]; ok {
-		o.moveToFrontLocked(label)
+		o.moveToBackLocked(label)
 
 		return cStr
 	}
@@ -488,9 +488,9 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 	return cStr
 }
 
-// moveToFrontLocked moves a label to the front of the access order (most recently used).
+// moveToBackLocked moves a label to the end of the access order (most recently used).
 // Caller must hold o.labelCacheMu.Lock.
-func (o *Overlay) moveToFrontLocked(label string) {
+func (o *Overlay) moveToBackLocked(label string) {
 	order := o.labelAccessOrder
 	for i, existing := range order {
 		if existing == label {
