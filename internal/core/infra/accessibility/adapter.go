@@ -4,6 +4,7 @@ import (
 	"context"
 	"image"
 	"runtime"
+	"strings"
 	"sync"
 
 	"go.uber.org/zap"
@@ -98,6 +99,28 @@ func (a *Adapter) ClickableElements(
 	err := a.checkContext(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	// Pre-lowercase filter strings once to avoid repeating strings.ToLower on hot paths
+	if filter.TitleContains != "" {
+		filter.TitleContains = strings.ToLower(filter.TitleContains)
+	}
+
+	if filter.DescriptionContains != "" {
+		filter.DescriptionContains = strings.ToLower(filter.DescriptionContains)
+	}
+
+	if filter.ValueContains != "" {
+		filter.ValueContains = strings.ToLower(filter.ValueContains)
+	}
+
+	if len(filter.TextContainsList) > 0 {
+		loweredList := make([]string, len(filter.TextContainsList))
+		for i, text := range filter.TextContainsList {
+			loweredList[i] = strings.ToLower(text)
+		}
+
+		filter.TextContainsList = loweredList
 	}
 
 	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))

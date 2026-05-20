@@ -154,12 +154,13 @@ func (n *TreeNode) AddChild(child *TreeNode) {
 
 // TreeOptions configures accessibility tree traversal behavior and filtering.
 type TreeOptions struct {
-	filterFunc     func(*ElementInfo) bool
-	maxDepth       int
-	logger         *zap.Logger
-	stats          *treeStats
-	bundleID       string          // Bundle ID for auto-detecting Chromium/Electron strict filtering
-	configProvider config.Provider // For checking user-configured Chromium/Electron bundles
+	filterFunc           func(*ElementInfo) bool
+	maxDepth             int
+	logger               *zap.Logger
+	stats                *treeStats
+	bundleID             string          // Bundle ID for auto-detecting Chromium/Electron strict filtering
+	configProvider       config.Provider // For checking user-configured Chromium/Electron bundles
+	isChromiumOrElectron bool            // Pre-computed flag for fast check
 }
 
 // FilterFunc returns the filter function.
@@ -277,6 +278,7 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 	if opts.bundleID == "" {
 		opts.bundleID = root.BundleIdentifier()
 	}
+	opts.isChromiumOrElectron = isChromiumOrElectron(opts.bundleID, opts.configProvider)
 
 	node := getTreeNode(root, info, nil, config.DefaultChildrenCapacity)
 
@@ -603,7 +605,7 @@ func shouldIncludeElement(
 
 	// Strict filtering: auto-enabled for Chromium/Electron apps with noisy DOM trees
 	// For native apps like Safari, we trust the semantic tree to not have noise
-	if isChromiumOrElectron(opts.bundleID, opts.configProvider) && elementRect.Dx() > 0 &&
+	if opts.isChromiumOrElectron && elementRect.Dx() > 0 &&
 		elementRect.Dy() > 0 {
 		// Filter out tiny elements that are likely noise in Chromium DOM trees.
 		// This is especially important for web content where the DOM can have
@@ -691,6 +693,26 @@ func appendSearchText(builder *strings.Builder, seen map[string]struct{}, text s
 func accumulateSearchText(root *TreeNode) {
 	root.walkTreePostOrder(func(node *TreeNode) {
 		if node.info == nil {
+			return
+		}
+
+		hasAny := false
+		if strings.TrimSpace(node.info.Title()) != "" ||
+			strings.TrimSpace(node.info.Description()) != "" ||
+			strings.TrimSpace(node.info.Value()) != "" {
+			hasAny = true
+		} else {
+			for _, child := range node.children {
+				if child.info != nil && child.info.searchText != "" {
+					hasAny = true
+
+					break
+				}
+			}
+		}
+		if !hasAny {
+			node.info.searchText = ""
+
 			return
 		}
 
@@ -787,25 +809,37 @@ func isChromiumOrElectron(bundleID string, configProvider config.Provider) bool 
 	return isUserConfiguredChromiumElectron(bundleID, configProvider)
 }
 
+var (
+	knownChromiumMap map[string]struct{}
+	knownElectronMap map[string]struct{}
+	initKnownOnce    sync.Once
+)
+
+func initKnownMaps() {
+	knownChromiumMap = make(map[string]struct{}, len(config.KnownChromiumBundles))
+	for _, b := range config.KnownChromiumBundles {
+		knownChromiumMap[strings.ToLower(strings.TrimSpace(b))] = struct{}{}
+	}
+	knownElectronMap = make(map[string]struct{}, len(config.KnownElectronBundles))
+	for _, b := range config.KnownElectronBundles {
+		knownElectronMap[strings.ToLower(strings.TrimSpace(b))] = struct{}{}
+	}
+}
+
 // isLikelyChromiumOrElectron returns true if the bundle ID matches known Chromium/Electron apps.
 // This is duplicated from electron package to avoid import cycle.
 func isLikelyChromiumOrElectron(bundleID string) bool {
 	if bundleID == "" {
 		return false
 	}
+	initKnownOnce.Do(initKnownMaps)
 
-	bundleID = strings.TrimSpace(bundleID)
-
-	for _, b := range config.KnownChromiumBundles {
-		if strings.EqualFold(b, bundleID) {
-			return true
-		}
+	bundleID = strings.ToLower(strings.TrimSpace(bundleID))
+	if _, ok := knownChromiumMap[bundleID]; ok {
+		return true
 	}
-
-	for _, b := range config.KnownElectronBundles {
-		if strings.EqualFold(b, bundleID) {
-			return true
-		}
+	if _, ok := knownElectronMap[bundleID]; ok {
+		return true
 	}
 
 	return false

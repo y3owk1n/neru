@@ -25,6 +25,7 @@ const (
 // Hints are immutable after creation.
 type Interface struct {
 	label         string
+	labelUpper    string
 	element       *element.Element
 	position      image.Point
 	matchedPrefix string
@@ -41,9 +42,10 @@ func NewHint(label string, element *element.Element, position image.Point) (*Int
 	}
 
 	return &Interface{
-		label:    label,
-		element:  element,
-		position: position,
+		label:      label,
+		labelUpper: strings.ToUpper(label),
+		element:    element,
+		position:   position,
 	}, nil
 }
 
@@ -71,6 +73,7 @@ func (h *Interface) MatchedPrefix() string {
 func (h *Interface) WithMatchedPrefix(prefix string) *Interface {
 	return &Interface{
 		label:         h.label,
+		labelUpper:    h.labelUpper,
 		element:       h.element,
 		position:      h.position,
 		matchedPrefix: prefix,
@@ -138,7 +141,7 @@ func NewTrie() *Trie {
 
 // Insert adds a hint to the trie.
 func (t *Trie) Insert(hint *Interface) {
-	label := strings.ToUpper(hint.Label()) // Pre-normalize to uppercase
+	label := hint.labelUpper
 	node := t.root
 
 	for _, char := range label {

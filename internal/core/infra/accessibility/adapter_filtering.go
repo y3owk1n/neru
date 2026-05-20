@@ -37,7 +37,7 @@ func (a *Adapter) MatchesFilter(
 	if filter.TitleContains != "" {
 		title := elem.Title()
 		if title != "" &&
-			strings.Contains(strings.ToLower(title), strings.ToLower(filter.TitleContains)) {
+			strings.Contains(strings.ToLower(title), filter.TitleContains) {
 			titleMatched = true
 		}
 	}
@@ -49,7 +49,7 @@ func (a *Adapter) MatchesFilter(
 		if description != "" &&
 			strings.Contains(
 				strings.ToLower(description),
-				strings.ToLower(filter.DescriptionContains),
+				filter.DescriptionContains,
 			) {
 			descMatched = true
 		}
@@ -60,7 +60,7 @@ func (a *Adapter) MatchesFilter(
 	if filter.ValueContains != "" {
 		value := textForFilter(elem)
 		if value != "" &&
-			strings.Contains(strings.ToLower(value), strings.ToLower(filter.ValueContains)) {
+			strings.Contains(strings.ToLower(value), filter.ValueContains) {
 			valueMatched = true
 		}
 	}
@@ -72,12 +72,11 @@ func (a *Adapter) MatchesFilter(
 		description := elem.Description()
 
 		value := textForFilter(elem)
-		for _, text := range filter.TextContainsList {
-			if text == "" {
+		for _, textLower := range filter.TextContainsList {
+			if textLower == "" {
 				continue
 			}
 
-			textLower := strings.ToLower(text)
 			if (title != "" && strings.Contains(strings.ToLower(title), textLower)) ||
 				(description != "" && strings.Contains(strings.ToLower(description), textLower)) ||
 				(value != "" && strings.Contains(strings.ToLower(value), textLower)) {
