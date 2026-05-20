@@ -1736,13 +1736,12 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 
 /// Create window
 - (void)createWindow {
-	NSScreen *mainScreen = [NSScreen mainScreen];
-	NSRect screenFrame = [mainScreen frame];
+	NSRect initialRect = NSMakeRect(0, 0, 1, 1);
 
 	// Use NSPanel for better floating overlay behavior.
 	// Non-activating panel won't steal focus from other apps.
 	NSPanel *panel =
-	    [[NSPanel alloc] initWithContentRect:screenFrame
+	    [[NSPanel alloc] initWithContentRect:initialRect
 	                               styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
 	                                 backing:NSBackingStoreBuffered
 	                                   defer:NO];
@@ -1776,7 +1775,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	[self.window setSharingType:self.sharingType];
 
 	// Create and attach overlay view
-	NSRect viewFrame = NSMakeRect(0, 0, screenFrame.size.width, screenFrame.size.height);
+	NSRect viewFrame = NSMakeRect(0, 0, 1, 1);
 	self.overlayView = [[OverlayView alloc] initWithFrame:viewFrame];
 	[self.window setContentView:self.overlayView];
 }
