@@ -183,7 +183,7 @@ func (e *Element) Info() (*ElementInfo, error) {
 }
 
 // Children returns the element's children (Linux stub).
-func (e *Element) Children() ([]*Element, error) { return []*Element{}, nil }
+func (e *Element) Children(role string) ([]*Element, error) { return nil, nil }
 
 // SetFocus sets focus on the element (Linux stub).
 func (e *Element) SetFocus() error { return nil }
