@@ -39,11 +39,11 @@ func (a *scrollAnimator) stop() {
 	stopCh := a.stopCh
 	a.reqCh = nil
 	a.stopCh = nil
-	a.mu.Unlock()
 
 	if stopCh != nil {
 		close(stopCh)
 	}
+	a.mu.Unlock()
 }
 
 func (a *scrollAnimator) animate(

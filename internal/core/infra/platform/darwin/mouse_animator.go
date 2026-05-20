@@ -64,13 +64,13 @@ func (a *smoothCursorAnimator) stop() {
 	a.reqCh = nil
 	a.stopCh = nil
 	a.done = nil
-	a.mu.Unlock()
-
-	done.close()
 
 	if stopCh != nil {
 		close(stopCh)
 	}
+	a.mu.Unlock()
+
+	done.close()
 }
 
 func (a *smoothCursorAnimator) wait(ctx context.Context) error {
