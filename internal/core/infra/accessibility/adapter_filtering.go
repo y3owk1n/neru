@@ -9,6 +9,9 @@ import (
 )
 
 // MatchesFilter checks if an element matches the given filter criteria.
+// NOTE: Filter search strings (TitleContains, DescriptionContains, ValueContains,
+// and TextContainsList) must be pre-lowercased by the caller before invoking MatchesFilter
+// to ensure case-insensitive matching without redundant allocations.
 func (a *Adapter) MatchesFilter(
 	elem *element.Element,
 	filter ports.ElementFilter,
@@ -33,6 +36,8 @@ func (a *Adapter) MatchesFilter(
 	}
 
 	// Check title contains filter
+	// NOTE: filter.TitleContains is expected to be pre-lowercased by the caller (e.g. ClickableElements).
+	// Direct callers of MatchesFilter must also lowercase filter strings before passing them.
 	titleMatched := false
 	if filter.TitleContains != "" {
 		title := elem.Title()
