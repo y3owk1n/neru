@@ -61,14 +61,6 @@ func hintPlacementValue(placement string) int {
 	}
 }
 
-const (
-	// Label C strings are retained in cachedLabels until Clear() or Destroy().
-	// The C overlay holds label pointers between draws for incremental updates,
-	// so eviction while active would produce empty labels. 2048 entries provides
-	// ample headroom without requiring size-based eviction.
-	maxLabelCacheSize = 2048
-)
-
 // Overlay manages the rendering of hint overlays using native platform APIs.
 type Overlay struct {
 	window C.OverlayWindow
@@ -83,9 +75,9 @@ type Overlay struct {
 	// Cached C strings for style properties to reduce allocations
 	styleCache *overlayutil.StyleCache
 
-	// Cached C strings for hint labels to avoid malloc/free per draw.
-	// Labels are retained until Clear() or Destroy() because the C overlay
-	// stores label pointers between draws for incremental updates.
+	// Label C strings are retained in cachedLabels until Clear() or Destroy().
+	// The C overlay holds label pointers between draws for incremental updates,
+	// so eviction while active would produce empty labels.
 	labelCacheMu sync.Mutex
 	cachedLabels map[string]*C.char
 
