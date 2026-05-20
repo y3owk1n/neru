@@ -2144,12 +2144,14 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 			    .boundaryBorderColor = safe_strdup(style.boundaryBorderColor)};
 
 			dispatch_async(dispatch_get_main_queue(), ^{
-				[controller.overlayView.hints removeAllObjects];
-				[controller.overlayView applyStyle:styleCopy];
-				[controller.overlayView.hints addObjectsFromArray:hintItems];
-				[controller.overlayView setNeedsDisplay:YES];
+				@autoreleasepool {
+					[controller.overlayView.hints removeAllObjects];
+					[controller.overlayView applyStyle:styleCopy];
+					[controller.overlayView.hints addObjectsFromArray:hintItems];
+					[controller.overlayView setNeedsDisplay:YES];
 
-				free_hint_style_strings(&styleCopy);
+					free_hint_style_strings(&styleCopy);
+				}
 			});
 		}
 	}
