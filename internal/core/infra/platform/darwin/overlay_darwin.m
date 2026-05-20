@@ -1716,6 +1716,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, strong) OverlayView *overlayView;  ///< Overlay view instance
 @property(nonatomic, assign) NSInteger sharingType;     ///< Current window sharing type
 @property(nonatomic, assign) BOOL sharingTypeExplicit;  ///< Whether sharingType was explicitly configured
+@property(nonatomic, assign) BOOL shouldBeVisible;      ///< Whether the window should currently be visible on screen
 @end
 
 #pragma mark - Overlay Window Controller Implementation
@@ -1727,6 +1728,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 - (instancetype)init {
 	self = [super init];
 	if (self) {
+		_shouldBeVisible = NO;
 		[self createWindow];
 	}
 	return self;
@@ -1822,17 +1824,25 @@ void NeruShowOverlayWindow(OverlayWindow window) {
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
+			controller.shouldBeVisible = YES;
+
 			[controller.window setLevel:kCGMaximumWindowLevel];
 			[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
 			                                         NSWindowCollectionBehaviorStationary |
 			                                         NSWindowCollectionBehaviorIgnoresCycle |
 			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
 
-			[controller.window setIsVisible:YES];
-			[controller.window orderFrontRegardless];
-			[controller.window display];
+			NSRect frame = controller.window.frame;
+			// Only display/order front if the window frame is larger than 1x1.
+			// This prevents a brief 1x1 pixel flash at the top-left screen origin
+			// when reactivating shrunken overlays.
+			if (frame.size.width > 1.0 || frame.size.height > 1.0) {
+				[controller.window setIsVisible:YES];
+				[controller.window orderFrontRegardless];
+				[controller.window display];
 
-			[controller.overlayView setNeedsDisplay:YES];
+				[controller.overlayView setNeedsDisplay:YES];
+			}
 		}
 	});
 }
@@ -1846,6 +1856,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	if ([NSThread isMainThread]) {
+		controller.shouldBeVisible = NO;
 		[controller.window orderOut:nil];
 		// Shrink to 1x1 to release the large backing store (saves ~47MB per
 		// Retina-resolution full-screen window). The next resize/show call
@@ -1855,6 +1866,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
+				controller.shouldBeVisible = NO;
 				[controller.window orderOut:nil];
 				[controller.window setFrame:NSMakeRect(0, 0, 1, 1) display:NO];
 				[controller.overlayView setFrame:NSMakeRect(0, 0, 1, 1)];
@@ -1915,8 +1927,10 @@ void NeruResizeOverlayToMainScreen(OverlayWindow window) {
 					                                         NSWindowCollectionBehaviorStationary |
 					                                         NSWindowCollectionBehaviorIgnoresCycle |
 					                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-					[controller.window setIsVisible:YES];
-					[controller.window orderFrontRegardless];
+					if (controller.shouldBeVisible) {
+						[controller.window setIsVisible:YES];
+						[controller.window orderFrontRegardless];
+					}
 				}
 			});
 		}
@@ -1965,8 +1979,10 @@ void NeruResizeOverlayToActiveScreen(OverlayWindow window) {
 					                                         NSWindowCollectionBehaviorStationary |
 					                                         NSWindowCollectionBehaviorIgnoresCycle |
 					                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-					[controller.window setIsVisible:YES];
-					[controller.window orderFrontRegardless];
+					if (controller.shouldBeVisible) {
+						[controller.window setIsVisible:YES];
+						[controller.window orderFrontRegardless];
+					}
 				}
 			});
 		}
@@ -2024,8 +2040,10 @@ void NeruResizeOverlayToActiveScreenWithCallback(
 					                                         NSWindowCollectionBehaviorStationary |
 					                                         NSWindowCollectionBehaviorIgnoresCycle |
 					                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-					[controller.window setIsVisible:YES];
-					[controller.window orderFrontRegardless];
+					if (controller.shouldBeVisible) {
+						[controller.window setIsVisible:YES];
+						[controller.window orderFrontRegardless];
+					}
 
 					if (callback)
 						callback(context);
@@ -3234,6 +3252,13 @@ void NeruPositionOverlayRelative(OverlayWindow window, double absoluteX, double 
 			[controller.window setFrame:frame display:NO];
 			NSRect viewFrame = NSMakeRect(0, 0, width, height);
 			[controller.overlayView setFrame:viewFrame];
+
+			if (controller.shouldBeVisible) {
+				[controller.window setIsVisible:YES];
+				[controller.window orderFrontRegardless];
+				[controller.window display];
+				[controller.overlayView setNeedsDisplay:YES];
+			}
 		}
 	});
 }
