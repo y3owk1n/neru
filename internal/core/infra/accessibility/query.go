@@ -1,6 +1,7 @@
 package accessibility
 
 import (
+	"context"
 	"slices"
 
 	"go.uber.org/zap"
@@ -12,6 +13,7 @@ import (
 // MenuBarClickableElements retrieves clickable UI elements from the focused application's menu bar.
 // If maxDepth is > 0, it overrides the configured tree depth.
 func MenuBarClickableElements(
+	ctx context.Context,
 	logger *zap.Logger,
 	configProvider config.Provider,
 	maxDepth int,
@@ -46,7 +48,7 @@ func MenuBarClickableElements(
 		opts.SetMaxDepth(depth)
 	}
 
-	tree, err := BuildTree(menubar, opts)
+	tree, err := BuildTree(ctx, menubar, opts)
 	if err != nil {
 		logger.Error("Failed to build tree for menu bar", zap.Error(err))
 
@@ -95,6 +97,7 @@ func MenuBarClickableElements(
 // ClickableElementsFromBundleID retrieves clickable UI elements from the application identified by bundle ID.
 // If maxDepth is > 0, it overrides the configured tree depth (useful for flat supplementary sources).
 func ClickableElementsFromBundleID(
+	ctx context.Context,
 	bundleID string,
 	roles []string,
 	logger *zap.Logger,
@@ -129,7 +132,7 @@ func ClickableElementsFromBundleID(
 		opts.SetMaxDepth(depth)
 	}
 
-	tree, err := BuildTree(app, opts)
+	tree, err := BuildTree(ctx, app, opts)
 	if err != nil {
 		logger.Error("Failed to build tree for application",
 			zap.String("bundle_id", bundleID),

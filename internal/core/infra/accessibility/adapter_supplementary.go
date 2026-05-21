@@ -25,7 +25,7 @@ const (
 // Temporarily modifies clickable roles to include AXMenuBarItem, collects menubar elements,
 // and processes additional menubar targets from configuration.
 func (a *Adapter) addMenubarElements(
-	_ context.Context,
+	ctx context.Context,
 	elements []*element.Element,
 	filter ports.ElementFilter,
 ) []*element.Element {
@@ -39,7 +39,7 @@ func (a *Adapter) addMenubarElements(
 	menubarRoles[len(originalRoles)+1] = string(element.RoleMenu)
 
 	// Get menubar elements
-	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(menubarTreeDepth)
+	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(ctx, menubarTreeDepth)
 	if menubarNodesErr != nil {
 		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {
@@ -72,6 +72,7 @@ func (a *Adapter) addMenubarElements(
 			defer waitGroup.Done()
 
 			additionalNodes, err := a.client.ClickableElementsFromBundleID(
+				ctx,
 				bundleID,
 				menubarRoles,
 				0,
@@ -131,7 +132,7 @@ func (a *Adapter) addMenubarElements(
 // Temporarily modifies clickable roles to include AXDockItem, finds the dock application,
 // validates it, and collects clickable elements from the dock tree.
 func (a *Adapter) addDockElements(
-	_ context.Context,
+	ctx context.Context,
 	elements []*element.Element,
 ) []*element.Element {
 	const dockBundleID = "com.apple.dock"
@@ -168,7 +169,7 @@ func (a *Adapter) addDockElements(
 	}
 
 	// Build tree and find clickable elements
-	dockNodes, dockNodesErr := a.client.ClickableNodes(dockApp, dockRoles, dockTreeDepth)
+	dockNodes, dockNodesErr := a.client.ClickableNodes(ctx, dockApp, dockRoles, dockTreeDepth)
 	if dockNodesErr != nil {
 		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
 
@@ -196,7 +197,7 @@ func (a *Adapter) addDockElements(
 
 // addNotificationCenterElements adds notification center clickable elements.
 func (a *Adapter) addNotificationCenterElements(
-	_ context.Context,
+	ctx context.Context,
 	elements []*element.Element,
 ) []*element.Element {
 	const ncBundleID = "com.apple.notificationcenterui"
@@ -210,6 +211,7 @@ func (a *Adapter) addNotificationCenterElements(
 	ncRoles[len(originalRoles)] = string(element.RoleGroup)
 
 	ncNodes, ncNodesErr := a.client.ClickableElementsFromBundleID(
+		ctx,
 		ncBundleID,
 		ncRoles,
 		0,
@@ -241,7 +243,7 @@ func (a *Adapter) addNotificationCenterElements(
 
 // addStageManagerElements adds stage manager center clickable elements.
 func (a *Adapter) addStageManagerElements(
-	_ context.Context,
+	ctx context.Context,
 	elements []*element.Element,
 ) []*element.Element {
 	const wmBundleID = "com.apple.WindowManager"
@@ -272,7 +274,7 @@ func (a *Adapter) addStageManagerElements(
 	}
 
 	// Build tree and find clickable elements
-	wmNodes, wmNodesErr := a.client.ClickableNodes(wmApp, nil, stageManagerTreeDepth)
+	wmNodes, wmNodesErr := a.client.ClickableNodes(ctx, wmApp, nil, stageManagerTreeDepth)
 	if wmNodesErr != nil {
 		a.logger.Warn("Failed to get window manager elements", zap.Error(wmNodesErr))
 
@@ -300,12 +302,13 @@ func (a *Adapter) addStageManagerElements(
 
 // addPIPElements adds macOS Picture in Picture controls from PIPAgent.
 func (a *Adapter) addPIPElements(
-	_ context.Context,
+	ctx context.Context,
 	elements []*element.Element,
 ) []*element.Element {
 	const pipBundleID = "com.apple.PIPAgent"
 
 	pipNodes, pipNodesErr := a.client.ClickableElementsFromBundleID(
+		ctx,
 		pipBundleID,
 		nil,
 		flatAppTreeDepth,
@@ -337,12 +340,13 @@ func (a *Adapter) addPIPElements(
 
 // addScreenCaptureElements makes the screencapture small ui clickable.
 func (a *Adapter) addScreenCaptureElements(
-	_ context.Context,
+	ctx context.Context,
 	elements []*element.Element,
 ) []*element.Element {
 	const screenCaptureBundleID = "com.apple.screencaptureui"
 
 	screenCaptureNodes, screenCaptureNodesErr := a.client.ClickableElementsFromBundleID(
+		ctx,
 		screenCaptureBundleID,
 		nil,
 		flatAppTreeDepth,

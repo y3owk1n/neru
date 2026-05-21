@@ -27,6 +27,7 @@ type AXClient interface {
 	FocusedApplication() (AXApp, error)
 	ApplicationByBundleID(bundleID string) (AXApp, error)
 	ClickableNodes(
+		ctx context.Context,
 		root AXElement,
 		roles []string,
 		maxDepth int,
@@ -37,8 +38,12 @@ type AXClient interface {
 		roles []string,
 		maxDepth int,
 	) (<-chan AXNode, error)
-	MenuBarClickableElements(maxDepth int) ([]AXNode, error)
+	MenuBarClickableElements(
+		ctx context.Context,
+		maxDepth int,
+	) ([]AXNode, error)
 	ClickableElementsFromBundleID(
+		ctx context.Context,
 		bundleID string,
 		roles []string,
 		maxDepth int,

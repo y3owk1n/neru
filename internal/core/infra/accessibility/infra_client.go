@@ -1,6 +1,7 @@
 package accessibility
 
 import (
+	"context"
 	"fmt"
 	"image"
 
@@ -85,6 +86,7 @@ func (c *InfraAXClient) FocusedApplication() (AXApp, error) {
 // ClickableNodes returns clickable nodes for the given root element.
 // If maxDepth is > 0, it overrides the configured tree depth.
 func (c *InfraAXClient) ClickableNodes(
+	ctx context.Context,
 	root AXElement,
 	roles []string,
 	maxDepth int,
@@ -97,7 +99,7 @@ func (c *InfraAXClient) ClickableNodes(
 
 	opts, allowedRoles, ignoreClickableCheck := c.buildClickableOpts(element, roles, maxDepth)
 
-	tree, treeErr := BuildTree(element, opts)
+	tree, treeErr := BuildTree(ctx, element, opts)
 	if treeErr != nil {
 		return nil, derrors.Wrap(
 			treeErr,
@@ -141,8 +143,12 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 
 // MenuBarClickableElements returns clickable elements in the menu bar.
 // If maxDepth is > 0, it overrides the configured tree depth.
-func (c *InfraAXClient) MenuBarClickableElements(maxDepth int) ([]AXNode, error) {
+func (c *InfraAXClient) MenuBarClickableElements(
+	ctx context.Context,
+	maxDepth int,
+) ([]AXNode, error) {
 	nodes, nodesErr := MenuBarClickableElements(
+		ctx,
 		c.logger,
 		c.configProvider,
 		maxDepth,
@@ -170,11 +176,13 @@ func (c *InfraAXClient) MenuBarClickableElements(maxDepth int) ([]AXNode, error)
 // ClickableElementsFromBundleID returns clickable elements for the application with the given bundle ID.
 // If maxDepth is > 0, it overrides the configured tree depth for flat supplementary sources.
 func (c *InfraAXClient) ClickableElementsFromBundleID(
+	ctx context.Context,
 	bundleID string,
 	roles []string,
 	maxDepth int,
 ) ([]AXNode, error) {
 	nodes, nodesErr := ClickableElementsFromBundleID(
+		ctx,
 		bundleID,
 		roles,
 		c.logger,

@@ -116,6 +116,7 @@ func (m *MockAXClient) StreamClickableNodes(
 
 // ClickableNodes returns the configured clickable nodes or error.
 func (m *MockAXClient) ClickableNodes(
+	_ context.Context,
 	_ AXElement,
 	roles []string,
 	_ int,
@@ -129,7 +130,10 @@ func (m *MockAXClient) ClickableNodes(
 }
 
 // MenuBarClickableElements returns the configured menu bar nodes or error.
-func (m *MockAXClient) MenuBarClickableElements(maxDepth int) ([]AXNode, error) {
+func (m *MockAXClient) MenuBarClickableElements(
+	_ context.Context,
+	maxDepth int,
+) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastCalledMaxDepth = maxDepth
 	m.mu.Unlock()
@@ -139,6 +143,7 @@ func (m *MockAXClient) MenuBarClickableElements(maxDepth int) ([]AXNode, error) 
 
 // ClickableElementsFromBundleID returns the configured nodes for bundle ID or error.
 func (m *MockAXClient) ClickableElementsFromBundleID(
+	_ context.Context,
 	bundleID string,
 	roles []string,
 	maxDepth int,

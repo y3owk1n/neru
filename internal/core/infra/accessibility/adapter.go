@@ -204,6 +204,7 @@ func (a *Adapter) ClickableElements(
 					defer func() { <-windowSem }()
 
 					clickableNodes, clickableNodesErr := a.client.ClickableNodes(
+						ctx,
 						window,
 						stringRoles(filter.Roles),
 						0,

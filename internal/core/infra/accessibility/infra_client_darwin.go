@@ -92,7 +92,7 @@ func (c *InfraAXClient) streamClickableNodesGoroutine(
 		}
 	}
 
-	tree, treeErr := BuildTree(element, opts)
+	tree, treeErr := BuildTree(ctx, element, opts)
 	if treeErr != nil {
 		return
 	}
