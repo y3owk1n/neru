@@ -319,7 +319,7 @@ func (h *Handler) tryActivateHintsStreaming(
 	screenBounds image.Rectangle,
 	search bool,
 ) bool {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
 	h.streamCancel = cancel
 
 	streamCh, err := h.hintService.StreamHints(
