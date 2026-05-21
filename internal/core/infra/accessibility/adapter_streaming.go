@@ -237,12 +237,6 @@ func (a *Adapter) streamWindowNodes(
 
 	for node := range nodeCh {
 		if ctx.Err() != nil {
-			// Drain remaining nodes from the channel so the producer
-			// goroutine isn't blocked. Lifecycle is managed by
-			// streamClickableNodesGoroutine.
-			for range nodeCh {
-			}
-
 			return
 		}
 
