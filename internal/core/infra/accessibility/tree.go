@@ -225,6 +225,7 @@ type treeStats struct {
 	childrenErrors        atomic.Int64
 	sequentialBatches     atomic.Int64
 	maxDepthSeen          atomic.Int64
+	outOfBoundsSkipped    atomic.Int64
 }
 
 // recordDepth atomically updates the max depth seen.
@@ -300,6 +301,7 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 			zap.Int64("no_children", stats.noChildren.Load()),
 			zap.Int64("children_errors", stats.childrenErrors.Load()),
 			zap.Int64("sequential_batches", stats.sequentialBatches.Load()),
+			zap.Int64("out_of_bounds_skipped", stats.outOfBoundsSkipped.Load()),
 			zap.Int64("max_depth_seen", stats.maxDepthSeen.Load()),
 		)
 	}
@@ -460,6 +462,35 @@ func buildTreeRecursive(
 
 			return
 		}
+	}
+
+	// Early exit if element is out of window bounds
+	// and only targeted on Chromium/Electron apps.
+	// They tend to over fetch children and is extremely noisy.
+	//
+	// Example, try this site: https://nix-darwin.github.io/nix-darwin/manual/
+	elementRect := rectFromInfo(parent.info)
+	if !elementRect.Overlaps(windowBounds) && opts.isChromiumOrElectron {
+		if opts.stats != nil {
+			opts.stats.outOfBoundsSkipped.Add(1)
+		}
+
+		for _, child := range children {
+			child.Release()
+		}
+		if ce := opts.logger.Check(
+			zap.DebugLevel,
+			"Out-of-bounds element, skipping subtree",
+		); ce != nil {
+			ce.Write(
+				zap.Int("children", len(children)),
+				zap.Int("depth", depth),
+				zap.String("parent_role", parent.info.Role()),
+				zap.String("parent_title", parent.info.Title()),
+			)
+		}
+
+		return
 	}
 
 	// Process children sequentially to avoid goroutine/thread explosion
