@@ -161,6 +161,7 @@ type TreeOptions struct {
 	bundleID             string          // Bundle ID for auto-detecting Chromium/Electron strict filtering
 	configProvider       config.Provider // For checking user-configured Chromium/Electron bundles
 	isChromiumOrElectron bool            // Pre-computed flag for fast check
+	onNode               func(*TreeNode) // Optional callback invoked for each valid node during tree building; called after the TreeNode is created, before recursing into its children
 }
 
 // FilterFunc returns the filter function.
@@ -555,6 +556,13 @@ func buildChildrenSequential(
 		childNode := getTreeNode(data.element, data.info, parent, 0)
 
 		parent.children = append(parent.children, childNode)
+
+		// Notify the streaming callback, if set, so that clickable elements
+		// found during tree building can be consumed before the full tree
+		// is built (true fluid streaming).
+		if opts.onNode != nil {
+			opts.onNode(childNode)
+		}
 
 		newClipBounds := clipBounds
 		if element.Role(data.info.Role()) == element.RoleScrollArea {

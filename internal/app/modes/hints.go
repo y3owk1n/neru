@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
@@ -225,23 +226,143 @@ func (h *Handler) activateHintModeInternal(
 			zap.Error(bundleIDErr))
 	}
 
-	// Get hints from service. Drawing is intentionally deferred until after
-	// active-screen filtering so activation performs one full overlay render.
-	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
-	defer cancel()
+	// Initialize hint manager with update callback (created once, reused across activations)
+	if h.hints.Context.Manager() == nil {
+		h.initHintManager()
+	}
 
-	domainHints, domainHintsErr := h.hintService.GenerateHints(
+	// Set mode and show overlay before element collection for immediate visual feedback
+	if !isRefresh {
+		h.setModeLocked(domain.ModeHints, overlay.ModeHints)
+	} else {
+		h.syncModifierPassthrough(domain.ModeHints)
+	}
+
+	h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
+	h.overlayManager.ResizeToActiveScreen()
+	h.overlayManager.Show()
+
+	// Try streaming hint generation first; fall back to batch on error
+	streamed := h.tryActivateHintsStreaming(
+		context.Background(),
+		filterRoles,
+		filterTextContains,
+		bundleID,
+		activeScreenBounds,
+		search,
+	)
+
+	if !streamed {
+		// Fall back to synchronous batch generation
+		h.activateHintsBatch(
+			context.Background(),
+			filterRoles,
+			filterTextContains,
+			bundleID,
+			activeScreenBounds,
+			actionString,
+			isRefresh,
+			search,
+		)
+	}
+
+	if actionStr != nil {
+		h.logger.Info("Hints mode activated with pending action", zap.String("action", *actionStr))
+	}
+
+	h.logger.Info("Hints mode activated")
+	h.startIndicatorPolling(domain.ModeHints)
+}
+
+// initHintManager creates the hint manager and its overlay update callback.
+// The manager is created once and reused across activations.
+func (h *Handler) initHintManager() {
+	manager := domainHint.NewManager(h.logger, &h.mu)
+	manager.SetUpdateCallback(func(filteredHints []*domainHint.Interface) {
+		if h.hints.Overlay == nil {
+			return
+		}
+
+		screenBounds := h.screenBounds
+
+		overlayHints := make([]*hints.Hint, len(filteredHints))
+		for index, hint := range filteredHints {
+			localPos := image.Point{
+				X: hint.Position().X - screenBounds.Min.X,
+				Y: hint.Position().Y - screenBounds.Min.Y,
+			}
+			overlayHints[index] = hints.NewHint(
+				hint.Label(),
+				localPos,
+				hint.Element().Bounds().Size(),
+				hint.MatchedPrefix(),
+			)
+		}
+
+		drawHintsErr := h.overlayManager.DrawHintsWithStyle(overlayHints, h.hints.Style)
+		if drawHintsErr != nil {
+			h.logger.Error("Failed to update hints overlay", zap.Error(drawHintsErr))
+		}
+	})
+	h.hints.Context.SetManager(manager)
+}
+
+// tryActivateHintsStreaming attempts to start streaming hint generation.
+// Returns true if streaming was started successfully, false to signal
+// the caller should fall back to the synchronous batch path.
+func (h *Handler) tryActivateHintsStreaming(
+	ctx context.Context,
+	filterRoles []string,
+	filterTextContains []string,
+	bundleID string,
+	screenBounds image.Rectangle,
+	search bool,
+) bool {
+	streamCh, err := h.hintService.StreamHints(
 		ctx,
 		filterRoles,
 		filterTextContains,
 		bundleID,
+		screenBounds,
+		nil,
 	)
-	if domainHintsErr != nil {
-		h.logger.Error(
-			"Failed to show hints",
-			zap.Error(domainHintsErr),
-			zap.String("action", actionString),
-		)
+	if err != nil {
+		h.logger.Warn("Streaming hints not available, falling back to batch",
+			zap.Error(err))
+
+		return false
+	}
+
+	go h.processHintStream(streamCh, search)
+
+	return true
+}
+
+// activateHintsBatch is the synchronous fallback path — collects all elements
+// then renders hints in one shot.
+func (h *Handler) activateHintsBatch(
+	ctx context.Context,
+	filterRoles []string,
+	filterTextContains []string,
+	bundleID string,
+	screenBounds image.Rectangle,
+	actionString string,
+	isRefresh bool,
+	search bool,
+) {
+	batchCtx, batchCancel := context.WithTimeout(ctx, HintTimeout)
+	defer batchCancel()
+
+	domainHints, err := h.hintService.GenerateHints(
+		batchCtx,
+		filterRoles,
+		filterTextContains,
+		bundleID,
+	)
+	if err != nil {
+		h.logger.Error("Failed to show hints",
+			zap.Error(err),
+			zap.String("action", actionString))
 
 		if isRefresh {
 			h.exitModeLocked()
@@ -250,16 +371,14 @@ func (h *Handler) activateHintModeInternal(
 		return
 	}
 
-	filteredHints := filterHintsForScreen(domainHints, activeScreenBounds)
+	filteredHints := filterHintsForScreen(domainHints, screenBounds)
 
-	h.logger.Debug("Filtered hints by screen",
+	h.logger.Debug("Filtered hints by screen (batch path)",
 		zap.Int("total_hints", len(domainHints)),
 		zap.Int("filtered_hints", len(filteredHints)),
-		zap.String("screen_bounds", activeScreenBounds.String()))
+		zap.String("screen_bounds", screenBounds.String()))
 
-	domainHints = filteredHints
-
-	if len(domainHints) == 0 {
+	if len(filteredHints) == 0 {
 		h.logger.Warn("No hints generated for action", zap.String("action", actionString))
 
 		if isRefresh {
@@ -269,79 +388,60 @@ func (h *Handler) activateHintModeInternal(
 		return
 	}
 
-	// Create domain hint collection from generated hints
-	hintCollection := domainHint.NewCollection(domainHints)
-
-	// Initialize hint manager and router if not already set up
-	// Note: Manager is created once and reused across activations (holds mutable state).
-	// Router is recreated each activation (stateless, needs fresh exit keys from config).
-	if h.hints.Context.Manager() == nil {
-		manager := domainHint.NewManager(h.logger, &h.mu)
-		// Set callback to update overlay when hints are filtered
-		manager.SetUpdateCallback(func(filteredHints []*domainHint.Interface) {
-			// Caller must hold h.mu. Synchronous call sites (SetHints, Reset,
-			// HandleInput) already hold it. The async debouncedUpdate timer
-			// acquires it via the external mutex set below.
-			if h.hints.Overlay == nil {
-				return
-			}
-
-			screenBounds := h.screenBounds
-
-			// Convert domain hints to overlay hints for rendering
-			overlayHints := make([]*hints.Hint, len(filteredHints))
-			for index, hint := range filteredHints {
-				// Convert screen-absolute coordinates to overlay-local coordinates
-				localPos := image.Point{
-					X: hint.Position().X - screenBounds.Min.X,
-					Y: hint.Position().Y - screenBounds.Min.Y,
-				}
-				overlayHints[index] = hints.NewHint(
-					hint.Label(),
-					localPos,
-					hint.Element().Bounds().Size(),
-					hint.MatchedPrefix(),
-				)
-			}
-
-			drawHintsErr := h.overlayManager.DrawHintsWithStyle(overlayHints, h.hints.Style)
-			if drawHintsErr != nil {
-				h.logger.Error("Failed to update hints overlay", zap.Error(drawHintsErr))
-			}
-		})
-		h.hints.Context.SetManager(manager)
-	}
-
-	// Only set mode and enable event tap on initial activation;
-	// during refresh these are already in the correct state.
-	if !isRefresh {
-		h.setModeLocked(domain.ModeHints, overlay.ModeHints)
-	} else {
-		// During a refresh (e.g., after Cmd+Tab passthrough) the focused app
-		// may have changed. Re-sync the modifier passthrough blacklist so
-		// app-specific hotkey overrides for the new app are correctly
-		// intercepted instead of being passed through to macOS.
-		h.syncModifierPassthrough(domain.ModeHints)
-	}
-
-	h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
-
+	hintCollection := domainHint.NewCollection(filteredHints)
 	h.hints.Context.SetHints(hintCollection)
-	h.overlayManager.ResizeToActiveScreen()
-	h.overlayManager.Show()
-
-	if actionStr != nil {
-		h.logger.Info("Hints mode activated with pending action", zap.String("action", *actionStr))
-	}
-
-	h.logger.Info("Hints mode activated")
 
 	if search {
-		err := h.startHintSearchLocked()
-		if err != nil {
-			h.logger.Error("Failed to start hint search on activation", zap.Error(err))
+		searchErr := h.startHintSearchLocked()
+		if searchErr != nil {
+			h.logger.Error("Failed to start hint search on activation", zap.Error(searchErr))
 		}
 	}
+}
 
-	h.startIndicatorPolling(domain.ModeHints)
+// processHintStream reads hint batches from the streaming channel and updates
+// the overlay incrementally. It holds h.mu during each update. On the final
+// batch (Done=true) it optionally activates hint search.
+func (h *Handler) processHintStream(
+	streamCh <-chan services.HintStreamBatch,
+	search bool,
+) {
+	for batch := range streamCh {
+		h.mu.Lock()
+
+		if batch.Err != nil {
+			h.logger.Error("Hint stream error", zap.Error(batch.Err))
+			h.mu.Unlock()
+
+			continue
+		}
+
+		if len(batch.Hints) > 0 {
+			filteredHints := filterHintsForScreen(batch.Hints, h.screenBounds)
+			if len(filteredHints) > 0 {
+				collection := domainHint.NewCollection(filteredHints)
+				h.hints.Context.SetHints(collection)
+			}
+		}
+
+		if batch.Done {
+			h.logger.Debug("Hint stream completed",
+				zap.Int("total_hints", len(batch.Hints)))
+
+			if search && h.hints.Context.Hints() != nil &&
+				!h.hints.Context.Hints().Empty() {
+				searchErr := h.startHintSearchLocked()
+				if searchErr != nil {
+					h.logger.Error("Failed to start hint search",
+						zap.Error(searchErr))
+				}
+			}
+
+			h.mu.Unlock()
+
+			return
+		}
+
+		h.mu.Unlock()
+	}
 }

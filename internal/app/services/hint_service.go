@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"image"
 	"sync"
 
 	"go.uber.org/zap"
@@ -70,6 +71,60 @@ func (s *HintService) ShowHints(
 	s.logger.Info("Hints displayed successfully")
 
 	return hints, nil
+}
+
+const (
+	// StreamBatchInterval is the number of elements accumulated before emitting
+	// an interim hint batch during streaming. Lower values update the overlay
+	// more frequently, giving the user faster visual feedback.
+	StreamBatchInterval = 15
+)
+
+// HintStreamBatch is a unit of streaming hint output. The stream sends interim
+// batches as elements are discovered, and a final batch with Done=true.
+type HintStreamBatch struct {
+	Hints []*hint.Interface
+	Done  bool
+	Err   error
+}
+
+// StreamHints returns a channel that delivers hint batches progressively as
+// elements are discovered from the accessibility tree. The channel is closed
+// after the final batch (Done: true).
+func (s *HintService) StreamHints(
+	ctx context.Context,
+	filterRoles []string,
+	filterTextContains []string,
+	bundleID string,
+	screenBounds image.Rectangle,
+	gen hint.Generator,
+) (<-chan HintStreamBatch, error) {
+	s.mu.RLock()
+
+	cfg := s.config
+	if gen == nil {
+		gen = s.generator
+	}
+
+	s.mu.RUnlock()
+
+	filter := s.buildElementFilter(ctx, cfg, filterRoles, filterTextContains, bundleID)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	streamCh, err := s.accessibility.StreamElements(ctx, filter)
+	if err != nil {
+		s.logger.Error("Failed to start streaming elements", zap.Error(err))
+
+		return nil, core.WrapAccessibilityFailed(err, "stream elements")
+	}
+
+	outCh := make(chan HintStreamBatch, 4) //nolint:mnd // small buffer for streaming batches
+
+	go s.streamHintsInternal(ctx, streamCh, outCh, gen)
+
+	return outCh, nil
 }
 
 // GenerateHints collects clickable elements and generates labels without drawing
@@ -256,4 +311,167 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 	s.generator = generator
 
 	s.logger.Info("Hint generator updated")
+}
+
+// streamHintsInternal reads from the element stream, accumulates elements,
+// and periodically generates hint batches. It sends a final batch with
+// Done=true when the element stream is exhausted.
+func (s *HintService) streamHintsInternal(
+	ctx context.Context,
+	streamCh <-chan ports.ElementStreamResult,
+	outCh chan<- HintStreamBatch,
+	gen hint.Generator,
+) {
+	defer close(outCh)
+
+	var (
+		allElements    []*element.Element
+		lastBatchCount int
+	)
+
+	sendBatch := func(done bool) {
+		if len(allElements) == 0 {
+			if done {
+				outCh <- HintStreamBatch{Done: true}
+			}
+
+			return
+		}
+
+		// Trim to max hints if necessary
+		elements := allElements
+
+		maxHints := gen.MaxHints()
+		if maxHints > 0 && len(elements) > maxHints {
+			elements = elements[:maxHints]
+		}
+
+		hints, err := gen.Generate(ctx, elements)
+		if err != nil {
+			s.logger.Error("Failed to generate interim hints", zap.Error(err))
+
+			outCh <- HintStreamBatch{Err: err, Done: done}
+
+			return
+		}
+
+		outCh <- HintStreamBatch{
+			Hints: hints,
+			Done:  done,
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			sendBatch(true)
+
+			return
+
+		case result, ok := <-streamCh:
+			if !ok {
+				// Stream closed — send final batch
+				sendBatch(true)
+
+				return
+			}
+
+			if result.Err != nil {
+				s.logger.Error("Stream element error", zap.Error(result.Err))
+
+				outCh <- HintStreamBatch{Err: result.Err}
+
+				continue
+			}
+
+			if result.Element != nil {
+				allElements = append(allElements, result.Element)
+			}
+
+			// Emit interim batch every StreamBatchInterval new elements
+			if len(allElements)-lastBatchCount >= StreamBatchInterval {
+				lastBatchCount = len(allElements)
+				genCopy := gen
+				elementsCopy := make([]*element.Element, len(allElements))
+				copy(elementsCopy, allElements)
+
+				hints, err := genCopy.Generate(ctx, elementsCopy)
+				if err != nil {
+					s.logger.Error("Failed to generate interim hints", zap.Error(err))
+
+					continue
+				}
+
+				outCh <- HintStreamBatch{Hints: hints, Done: false}
+			}
+		}
+	}
+}
+
+// buildElementFilter constructs an ElementFilter from the service configuration
+// and the provided override parameters.
+func (s *HintService) buildElementFilter(
+	ctx context.Context,
+	cfg config.HintsConfig,
+	filterRoles []string,
+	filterTextContains []string,
+	bundleID string,
+) ports.ElementFilter {
+	filter := ports.DefaultElementFilter()
+
+	// Resolve bundle ID if not provided
+	if bundleID == "" {
+		var bundleIDErr error
+
+		bundleID, bundleIDErr = s.accessibility.FocusedAppBundleID(ctx)
+		if bundleIDErr != nil {
+			s.logger.Debug(
+				"Failed to get focused app bundle ID for hints roles",
+				zap.Error(bundleIDErr),
+			)
+		}
+	}
+
+	// Use filterRoles if provided, otherwise use configured roles
+	var roles []string
+	if len(filterRoles) > 0 {
+		roles = filterRoles
+		s.logger.Debug("Using override roles from activation options",
+			zap.Strings("roles", roles))
+	} else {
+		roles = cfg.ClickableRolesForApp(bundleID)
+		s.logger.Debug("Resolved clickable roles for hints",
+			zap.String("bundle_id", bundleID),
+			zap.Int("role_count", len(roles)),
+			zap.Strings("roles", roles))
+	}
+
+	filter.Roles = make([]element.Role, 0, len(roles))
+	for _, role := range roles {
+		if role == "" {
+			continue
+		}
+
+		filter.Roles = append(filter.Roles, element.Role(role))
+	}
+
+	filter.IncludeMenubar = cfg.IncludeMenubarHints
+	filter.AdditionalMenubarTargets = cfg.AdditionalMenubarHintsTargets
+	filter.IncludeDock = cfg.IncludeDockHints
+	filter.IncludeNotificationCenter = cfg.IncludeNCHints
+	filter.IncludeStageManager = cfg.IncludeStageManagerHints
+	filter.IncludePIP = cfg.IncludePIPHints
+	filter.IncludeScreenCapture = cfg.IncludeScreenCaptureHints
+
+	if len(filterTextContains) > 0 {
+		filter.TitleContains = filterTextContains[0]
+		filter.DescriptionContains = filterTextContains[0]
+
+		filter.ValueContains = filterTextContains[0]
+		if len(filterTextContains) > 1 {
+			filter.TextContainsList = filterTextContains[1:]
+		}
+	}
+
+	return filter
 }

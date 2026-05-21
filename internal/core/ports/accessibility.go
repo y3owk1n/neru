@@ -8,10 +8,21 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 )
 
+// ElementStreamResult carries a single element or error from a streaming
+// element discovery. When both Element and Err are nil the stream is complete.
+type ElementStreamResult struct {
+	Element *element.Element
+	Err     error
+}
+
 // ElementDiscovery defines the interface for discovering UI elements.
 type ElementDiscovery interface {
 	// ClickableElements retrieves all clickable UI elements matching the filter.
 	ClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)
+
+	// StreamElements returns a channel that delivers elements as they are
+	// discovered. The channel is closed when the stream is complete.
+	StreamElements(ctx context.Context, filter ElementFilter) (<-chan ElementStreamResult, error)
 }
 
 // ActionExecution defines the interface for executing actions on UI elements.

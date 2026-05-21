@@ -1,6 +1,7 @@
 package accessibility
 
 import (
+	"context"
 	"image"
 	"sync"
 
@@ -81,6 +82,36 @@ func (m *MockAXClient) FocusedApplication() (AXApp, error) {
 // ApplicationByBundleID returns the configured application by bundle ID or error.
 func (m *MockAXClient) ApplicationByBundleID(_ string) (AXApp, error) {
 	return m.MockFocusedApp, m.MockFocusedAppErr // Reuse focused app for simplicity or add specific field
+}
+
+// StreamClickableNodes returns a channel populated with the configured mock
+// clickable nodes or an error. The channel is closed after all nodes are sent.
+func (m *MockAXClient) StreamClickableNodes(
+	_ context.Context,
+	_ AXElement,
+	roles []string,
+	_ int,
+) (<-chan AXNode, error) {
+	m.mu.Lock()
+	m.LastClickableNodesRoles = roles
+	m.ClickableNodesRolesHistory = append(m.ClickableNodesRolesHistory, roles)
+	m.mu.Unlock()
+
+	if m.MockClickableNodesErr != nil {
+		ch := make(chan AXNode)
+		close(ch)
+
+		return ch, m.MockClickableNodesErr
+	}
+
+	nodeCh := make(chan AXNode, len(m.MockClickableNodes))
+	for _, node := range m.MockClickableNodes {
+		nodeCh <- node
+	}
+
+	close(nodeCh)
+
+	return nodeCh, nil
 }
 
 // ClickableNodes returns the configured clickable nodes or error.

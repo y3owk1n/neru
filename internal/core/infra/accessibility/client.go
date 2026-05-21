@@ -1,6 +1,7 @@
 package accessibility
 
 import (
+	"context"
 	"image"
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
@@ -30,6 +31,12 @@ type AXClient interface {
 		roles []string,
 		maxDepth int,
 	) ([]AXNode, error)
+	StreamClickableNodes(
+		ctx context.Context,
+		root AXElement,
+		roles []string,
+		maxDepth int,
+	) (<-chan AXNode, error)
 	MenuBarClickableElements(maxDepth int) ([]AXNode, error)
 	ClickableElementsFromBundleID(
 		bundleID string,

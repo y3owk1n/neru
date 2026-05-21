@@ -1,8 +1,11 @@
 package accessibility
 
 import (
+	"context"
 	"fmt"
 	"image"
+	"strings"
+	"sync"
 
 	"go.uber.org/zap"
 
@@ -89,32 +92,13 @@ func (c *InfraAXClient) ClickableNodes(
 	roles []string,
 	maxDepth int,
 ) ([]AXNode, error) {
-	var element *Element
-
-	switch elementType := root.(type) {
-	case *InfraWindow:
-		element = elementType.element
-	case *InfraApp:
-		element = elementType.element
-	default:
-		return nil, derrors.New(derrors.CodeInvalidInput, "invalid element type")
-	}
-
+	element := c.extractElement(root)
 	if element == nil {
 		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
 	}
+	defer element.Release()
 
-	opts := DefaultTreeOptions(c.logger)
-	opts.SetConfigProvider(c.configProvider)
-
-	if cfg := currentConfig(c.configProvider); cfg != nil {
-		depth := cfg.Hints.MaxDepth
-		if maxDepth > 0 {
-			depth = maxDepth
-		}
-
-		opts.SetMaxDepth(depth)
-	}
+	opts, allowedRoles, ignoreClickableCheck := c.buildClickableOpts(element, roles, maxDepth)
 
 	tree, treeErr := BuildTree(element, opts)
 	if treeErr != nil {
@@ -123,19 +107,6 @@ func (c *InfraAXClient) ClickableNodes(
 			derrors.CodeAccessibilityFailed,
 			"failed to build accessibility tree",
 		)
-	}
-
-	var allowedRoles map[string]struct{}
-	if len(roles) > 0 {
-		allowedRoles = make(map[string]struct{}, len(roles))
-		for _, role := range roles {
-			allowedRoles[role] = struct{}{}
-		}
-	}
-
-	ignoreClickableCheck := false
-	if cfg := currentConfig(c.configProvider); cfg != nil {
-		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(element.BundleIdentifier())
 	}
 
 	clickableNodes := tree.FindClickableElements(
@@ -159,6 +130,27 @@ func (c *InfraAXClient) ClickableNodes(
 	}
 
 	return clickableNodesResult, nil
+}
+
+// StreamClickableNodes returns a channel that delivers clickable AXNodes as
+// they are discovered during tree traversal, enabling true fluid streaming.
+// The channel is closed when the stream is complete.
+func (c *InfraAXClient) StreamClickableNodes(
+	ctx context.Context,
+	root AXElement,
+	roles []string,
+	maxDepth int,
+) (<-chan AXNode, error) {
+	element := c.extractElement(root)
+	if element == nil {
+		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
+	}
+
+	nodeCh := make(chan AXNode, 100) //nolint:mnd // buffered channel for streaming throughput
+
+	go c.streamClickableNodesGoroutine(ctx, element, roles, maxDepth, nodeCh)
+
+	return nodeCh, nil
 }
 
 // ApplicationByBundleID returns the application with the given bundle ID.
@@ -324,6 +316,138 @@ func (c *InfraAXClient) ClickableRoles() []string {
 // IsMissionControlActive checks if Mission Control is currently active.
 func (c *InfraAXClient) IsMissionControlActive() bool {
 	return IsMissionControlActive()
+}
+
+// streamClickableNodesGoroutine runs the streaming tree build in a background
+// goroutine. Each clickable node is streamed through ch during tree traversal.
+func (c *InfraAXClient) streamClickableNodesGoroutine(
+	ctx context.Context,
+	element *Element,
+	roles []string,
+	maxDepth int,
+	nodeCh chan<- AXNode,
+) {
+	defer close(nodeCh)
+	defer element.Release()
+
+	opts, allowedRoles, ignoreClickableCheck := c.buildClickableOpts(element, roles, maxDepth)
+
+	var keepMu sync.Mutex
+
+	keepSet := make(map[*Element]struct{})
+
+	opts.onNode = func(node *TreeNode) {
+		if !node.element.IsClickable(
+			node.info,
+			allowedRoles,
+			c.configProvider,
+			ignoreClickableCheck,
+		) {
+			return
+		}
+
+		rect := rectFromInfo(node.info)
+		if rect.Dx() == 0 || rect.Dy() == 0 {
+			return
+		}
+
+		// Eagerly compute basic search text (title + desc + value) so that
+		// streamed elements have search text available even though
+		// accumulateSearchText hasn't run yet.
+		if node.info.SearchText() == "" {
+			var builder strings.Builder
+
+			seen := make(map[string]struct{})
+			appendSearchText(&builder, seen, node.info.Title())
+			appendSearchText(&builder, seen, node.info.Description())
+			appendSearchText(&builder, seen, node.info.Value())
+			node.info.searchText = builder.String()
+		}
+
+		keepMu.Lock()
+		keepSet[node.Element()] = struct{}{}
+		keepMu.Unlock()
+
+		select {
+		case nodeCh <- &InfraNode{
+			node:           node,
+			clickable:      true,
+			configProvider: c.configProvider,
+		}:
+		case <-ctx.Done():
+		}
+	}
+
+	tree, treeErr := BuildTree(element, opts)
+	if treeErr != nil {
+		return
+	}
+
+	// Release all non-kept nodes. Streamed nodes are kept so their elements
+	// remain valid for the channel consumer. The consumer does not release
+	// streamed nodes — lifecycle is managed here.
+	keepMu.Lock()
+
+	keepList := make([]*TreeNode, 0, len(keepSet))
+	for elem := range keepSet {
+		keepList = append(keepList, &TreeNode{element: elem})
+	}
+	keepMu.Unlock()
+
+	releaseTreeExcept(tree, keepList)
+
+	// Release all kept elements now that the tree has been released and
+	// consumers have had a chance to process them.
+	for elem := range keepSet {
+		elem.Release()
+	}
+}
+
+// extractElement returns the raw *Element from an AXElement wrapper.
+func (c *InfraAXClient) extractElement(root AXElement) *Element {
+	switch elementType := root.(type) {
+	case *InfraWindow:
+		return elementType.element
+	case *InfraApp:
+		return elementType.element
+	default:
+		return nil
+	}
+}
+
+// buildClickableOpts constructs tree options, allowed roles, and the
+// ignore-clickable flag for the given element and role list.
+func (c *InfraAXClient) buildClickableOpts(
+	element *Element,
+	roles []string,
+	maxDepth int,
+) (TreeOptions, map[string]struct{}, bool) {
+	opts := DefaultTreeOptions(c.logger)
+	opts.SetConfigProvider(c.configProvider)
+
+	if cfg := currentConfig(c.configProvider); cfg != nil {
+		depth := cfg.Hints.MaxDepth
+		if maxDepth > 0 {
+			depth = maxDepth
+		}
+
+		opts.SetMaxDepth(depth)
+	}
+
+	var allowedRoles map[string]struct{}
+	if len(roles) > 0 {
+		allowedRoles = make(map[string]struct{}, len(roles))
+		for _, role := range roles {
+			allowedRoles[role] = struct{}{}
+		}
+	}
+
+	ignoreClickableCheck := false
+	if cfg := currentConfig(c.configProvider); cfg != nil {
+		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(element.BundleIdentifier())
+	}
+
+	return opts, allowedRoles, ignoreClickableCheck
 }
 
 // Wrappers
