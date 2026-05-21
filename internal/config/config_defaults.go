@@ -16,6 +16,10 @@ const (
 	// DefaultHintBoundaryBorderWidth is the default stroke width for hint target boundaries.
 	DefaultHintBoundaryBorderWidth = 1
 
+	// DefaultHintStreamBatchInterval is the number of elements accumulated before
+	// emitting an interim hint batch during streaming.
+	DefaultHintStreamBatchInterval = 15
+
 	// DefaultSearchInputYOffset is the default Y offset for search input.
 	DefaultSearchInputYOffset = 24
 	// DefaultSearchInputWidth is the default width for search input.
@@ -341,7 +345,10 @@ func newDefaultConfig() *Config {
 			IncludePIPHints:               false,
 			IncludeScreenCaptureHints:     false,
 			DetectMissionControl:          false,
-			Streaming:                     HintsStreamingConfig{Enabled: false},
+			Streaming: HintsStreamingConfig{
+				Enabled:       false,
+				BatchInterval: DefaultHintStreamBatchInterval,
+			},
 
 			ClickableRoles: []string{},
 

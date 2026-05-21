@@ -73,13 +73,6 @@ func (s *HintService) ShowHints(
 	return hints, nil
 }
 
-const (
-	// StreamBatchInterval is the number of elements accumulated before emitting
-	// an interim hint batch during streaming. Lower values update the overlay
-	// more frequently, giving the user faster visual feedback.
-	StreamBatchInterval = 15
-)
-
 // HintStreamBatch is a unit of streaming hint output. The stream sends interim
 // batches as elements are discovered, and a final batch with Done=true.
 type HintStreamBatch struct {
@@ -144,7 +137,12 @@ func (s *HintService) StreamHints(
 
 	outCh := make(chan HintStreamBatch, 4) //nolint:mnd // small buffer for streaming batches
 
-	go s.streamHintsInternal(ctx, streamCh, outCh, gen)
+	batchInterval := cfg.Streaming.BatchInterval
+	if batchInterval < 1 {
+		batchInterval = config.DefaultHintStreamBatchInterval
+	}
+
+	go s.streamHintsInternal(ctx, streamCh, outCh, gen, batchInterval)
 
 	return outCh, nil
 }
@@ -343,6 +341,7 @@ func (s *HintService) streamHintsInternal(
 	streamCh <-chan ports.ElementStreamResult,
 	outCh chan<- HintStreamBatch,
 	gen hint.Generator,
+	batchInterval int,
 ) {
 	defer close(outCh)
 
@@ -410,8 +409,8 @@ func (s *HintService) streamHintsInternal(
 				allElements = append(allElements, result.Element)
 			}
 
-			// Emit interim batch every StreamBatchInterval new elements
-			if len(allElements)-lastBatchCount >= StreamBatchInterval {
+			// Emit interim batch every batchInterval new elements
+			if len(allElements)-lastBatchCount >= batchInterval {
 				lastBatchCount = len(allElements)
 				genCopy := gen
 				elementsCopy := make([]*element.Element, len(allElements))

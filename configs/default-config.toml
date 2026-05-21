@@ -81,6 +81,7 @@ ignore_clickable_check = false
 
 [hints.streaming]
 enabled = false                            # Enable fluid streaming (elements appear progressively during traversal)
+batch_interval = 15                        # Elements per batch before overlay update (lower = smoother, higher = less CPU)
 
 [hints.hotkeys]
 "Escape" = "idle"

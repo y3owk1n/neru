@@ -562,7 +562,8 @@ type SearchInputUI struct {
 
 // HintsStreamingConfig defines streaming-related settings for hints mode.
 type HintsStreamingConfig struct {
-	Enabled bool `json:"enabled" toml:"enabled"`
+	Enabled       bool `json:"enabled"       toml:"enabled"`
+	BatchInterval int  `json:"batchInterval" toml:"batch_interval"`
 }
 
 // HintsConfig defines the visual and behavioral settings for hints mode.

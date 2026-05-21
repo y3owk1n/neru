@@ -352,11 +352,13 @@ You can also start hints mode with the search input shown immediately by using t
 ```toml
 [hints.streaming]
 enabled = false
+batch_interval = 15
 ```
 
-| Option    | Type | Default | Description                                                                           |
-| --------- | ---- | ------- | ------------------------------------------------------------------------------------- |
-| `enabled` | bool | `false` | Enable fluid streaming (elements appear progressively during tree traversal). When disabled, hints appear only after the full tree is built. |
+| Option           | Type | Default | Description                                                                                        |
+| ---------------- | ---- | ------- | -------------------------------------------------------------------------------------------------- |
+| `enabled`        | bool | `false` | Enable fluid streaming (elements appear progressively during tree traversal). When disabled, hints appear only after the full tree is built. |
+| `batch_interval` | int  | `15`    | Number of elements to accumulate before emitting an interim hint batch. Lower values produce smoother/snappier visual feedback but may increase CPU usage. |
 
 Default search hotkey:
 

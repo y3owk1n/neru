@@ -233,6 +233,11 @@ func (c *Config) ValidateHints() error {
 		return err
 	}
 
+	err = validateMinValue(c.Hints.Streaming.BatchInterval, 1, "hints.streaming.batch_interval")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
