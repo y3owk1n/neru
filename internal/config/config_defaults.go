@@ -341,7 +341,7 @@ func newDefaultConfig() *Config {
 			IncludePIPHints:               false,
 			IncludeScreenCaptureHints:     false,
 			DetectMissionControl:          false,
-			StreamingEnabled:              false,
+			Streaming:                     HintsStreamingConfig{Enabled: false},
 
 			ClickableRoles: []string{},
 

@@ -118,7 +118,7 @@ func (s *HintService) StreamHints(
 		streamErr error
 	)
 
-	if cfg.StreamingEnabled {
+	if cfg.Streaming.Enabled {
 		streamCh, streamErr = s.accessibility.StreamElements(ctx, filter)
 	} else {
 		var elements []*element.Element

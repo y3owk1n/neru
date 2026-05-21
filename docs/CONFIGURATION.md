@@ -343,10 +343,20 @@ You can also start hints mode with the search input shown immediately by using t
 | `include_pip_hints`                | bool   | `false`       | Show hints on macOS Picture in Picture controls      |
 | `include_screen_capture_hints`     | bool   | `false`       | Show hints on macOS Screen Capture controls          |
 | `detect_mission_control`           | bool   | `false`       | Auto-disable hints when in Mission Control           |
-| `streaming_enabled`                | bool   | `false`       | Enable fluid streaming (elements appear progressively during traversal) |
 | `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                             |
 | `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                         |
 | `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                          |
+
+### Streaming
+
+```toml
+[hints.streaming]
+enabled = false
+```
+
+| Option    | Type | Default | Description                                                                           |
+| --------- | ---- | ------- | ------------------------------------------------------------------------------------- |
+| `enabled` | bool | `false` | Enable fluid streaming (elements appear progressively during tree traversal). When disabled, hints appear only after the full tree is built. |
 
 Default search hotkey:
 

@@ -560,6 +560,11 @@ type SearchInputUI struct {
 	BorderColor     Color  `json:"borderColor"     toml:"border_color"`
 }
 
+// HintsStreamingConfig defines streaming-related settings for hints mode.
+type HintsStreamingConfig struct {
+	Enabled bool `json:"enabled" toml:"enabled"`
+}
+
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
 	Enabled           bool                `json:"enabled"           toml:"enabled"`
@@ -569,15 +574,15 @@ type HintsConfig struct {
 	SearchInputUI     SearchInputUI       `json:"searchInputUi"     toml:"search_input_ui"`
 	BoundaryHighlight BoundaryHighlightUI `json:"boundaryHighlight" toml:"boundary_highlight"`
 
-	IncludeMenubarHints           bool     `json:"includeMenubarHints"           toml:"include_menubar_hints"`
-	AdditionalMenubarHintsTargets []string `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`
-	IncludeDockHints              bool     `json:"includeDockHints"              toml:"include_dock_hints"`
-	IncludeNCHints                bool     `json:"includeNcHints"                toml:"include_nc_hints"`
-	IncludeStageManagerHints      bool     `json:"includeStageManagerHints"      toml:"include_stage_manager_hints"`
-	IncludePIPHints               bool     `json:"includePipHints"               toml:"include_pip_hints"`
-	IncludeScreenCaptureHints     bool     `json:"includeScreenCaptureHints"     toml:"include_screen_capture_hints"`
-	DetectMissionControl          bool     `json:"detectMissionControl"          toml:"detect_mission_control"`
-	StreamingEnabled              bool     `json:"streamingEnabled"              toml:"streaming_enabled"`
+	IncludeMenubarHints           bool                 `json:"includeMenubarHints"           toml:"include_menubar_hints"`
+	AdditionalMenubarHintsTargets []string             `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`
+	IncludeDockHints              bool                 `json:"includeDockHints"              toml:"include_dock_hints"`
+	IncludeNCHints                bool                 `json:"includeNcHints"                toml:"include_nc_hints"`
+	IncludeStageManagerHints      bool                 `json:"includeStageManagerHints"      toml:"include_stage_manager_hints"`
+	IncludePIPHints               bool                 `json:"includePipHints"               toml:"include_pip_hints"`
+	IncludeScreenCaptureHints     bool                 `json:"includeScreenCaptureHints"     toml:"include_screen_capture_hints"`
+	DetectMissionControl          bool                 `json:"detectMissionControl"          toml:"detect_mission_control"`
+	Streaming                     HintsStreamingConfig `json:"streaming"                     toml:"streaming"`
 
 	ClickableRoles       []string `json:"clickableRoles"       toml:"clickable_roles"`
 	IgnoreClickableCheck bool     `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
