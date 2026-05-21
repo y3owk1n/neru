@@ -237,10 +237,19 @@ func (a *Adapter) streamWindowNodes(
 
 	for node := range nodeCh {
 		if ctx.Err() != nil {
+			// Drain remaining buffered nodes to release their AX elements.
+			node.Release()
+
+			for n := range nodeCh {
+				n.Release()
+			}
+
 			return
 		}
 
 		elem, convErr := a.convertToDomainElement(node)
+
+		node.Release()
 		if convErr != nil {
 			continue
 		}

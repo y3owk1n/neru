@@ -97,9 +97,9 @@ func (c *InfraAXClient) streamClickableNodesGoroutine(
 		return
 	}
 
-	// Release all non-kept nodes. Streamed nodes are kept so their elements
-	// remain valid for the channel consumer. The consumer does not release
-	// streamed nodes — lifecycle is managed here.
+	// Release all non-kept nodes. Streamed nodes are kept and ownership of
+	// their underlying element is transferred to the channel consumer, which
+	// must call Release on each received AXNode when done.
 	keepMu.Lock()
 
 	keepList := make([]*TreeNode, 0, len(keepSet))
@@ -109,10 +109,4 @@ func (c *InfraAXClient) streamClickableNodesGoroutine(
 	keepMu.Unlock()
 
 	releaseTreeExcept(tree, keepList)
-
-	// Release all kept elements now that the tree has been released and
-	// consumers have had a chance to process them.
-	for elem := range keepSet {
-		elem.Release()
-	}
 }
