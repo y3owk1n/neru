@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.38.1](https://github.com/y3owk1n/neru/compare/v1.38.0...v1.38.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* ensure retry to set electron and chromium attrs ([#834](https://github.com/y3owk1n/neru/issues/834)) ([a4f4047](https://github.com/y3owk1n/neru/commit/a4f4047fe856694a88f596c291b1695515ff3f53))
+* **overlay:** ensure modes overlay resized properly before showing ([#835](https://github.com/y3owk1n/neru/issues/835)) ([9d77d15](https://github.com/y3owk1n/neru/commit/9d77d154da6511267a0bb89588d44736c56060a0))
+* resolve memory leaks in animations, overlays and indicators ([#831](https://github.com/y3owk1n/neru/issues/831)) ([09181b1](https://github.com/y3owk1n/neru/commit/09181b1041fcfac06ab260b5873432ca5f1cd632))
+
+
+### Performance Improvements
+
+* eliminate thread explosion ([#829](https://github.com/y3owk1n/neru/issues/829)) ([052418b](https://github.com/y3owk1n/neru/commit/052418be454117a6fa11f56eeda9b5aef7f5902d))
+* **hints:** early exit on out of bounds child on chromium or electron ([#836](https://github.com/y3owk1n/neru/issues/836)) ([cc39c82](https://github.com/y3owk1n/neru/commit/cc39c82953ae5caa1bfa1007cc047f8956260b80))
+* **hints:** optimize hint generation and filtering performance ([#833](https://github.com/y3owk1n/neru/issues/833)) ([6818af6](https://github.com/y3owk1n/neru/commit/6818af663fed877687d50047b1fda6562911c982))
+* optimize overlays memory usage ([#832](https://github.com/y3owk1n/neru/issues/832)) ([8e85dfe](https://github.com/y3owk1n/neru/commit/8e85dfe3b5c17911f6b809fed351e34fd0d4da20))
+
 ## [1.38.0](https://github.com/y3owk1n/neru/compare/v1.37.0...v1.38.0) (2026-05-19)
 
 
