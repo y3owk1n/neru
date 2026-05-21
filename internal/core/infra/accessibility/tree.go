@@ -401,6 +401,35 @@ func buildTreeRecursive(
 		return
 	}
 
+	// Early exit if element is out of window bounds
+	// and only targeted on Chromium/Electron apps.
+	// They tend to over fetch children and is extremely noisy.
+	//
+	// This check is intentionally placed before the Children() call to avoid
+	// expensive AXAPI round-trips for off-screen subtrees — the majority of
+	// noise on long Chromium pages comes from elements outside the viewport.
+	//
+	// Example, try this site: https://nix-darwin.github.io/nix-darwin/manual/
+	elementRect := rectFromInfo(parent.info)
+	if !elementRect.Overlaps(windowBounds) && opts.isChromiumOrElectron {
+		if opts.stats != nil {
+			opts.stats.outOfBoundsSkipped.Add(1)
+		}
+
+		if ce := opts.logger.Check(
+			zap.DebugLevel,
+			"Out-of-bounds element, skipping subtree",
+		); ce != nil {
+			ce.Write(
+				zap.Int("depth", depth),
+				zap.String("parent_role", parent.info.Role()),
+				zap.String("parent_title", parent.info.Title()),
+			)
+		}
+
+		return
+	}
+
 	// Don't traverse deeper into interactive leaf elements,
 	// unless they have important container children (e.g., popovers, sheets, menus).
 	// This handles cases like a toolbar button that opens a popover.
@@ -462,35 +491,6 @@ func buildTreeRecursive(
 
 			return
 		}
-	}
-
-	// Early exit if element is out of window bounds
-	// and only targeted on Chromium/Electron apps.
-	// They tend to over fetch children and is extremely noisy.
-	//
-	// Example, try this site: https://nix-darwin.github.io/nix-darwin/manual/
-	elementRect := rectFromInfo(parent.info)
-	if !elementRect.Overlaps(windowBounds) && opts.isChromiumOrElectron {
-		if opts.stats != nil {
-			opts.stats.outOfBoundsSkipped.Add(1)
-		}
-
-		for _, child := range children {
-			child.Release()
-		}
-		if ce := opts.logger.Check(
-			zap.DebugLevel,
-			"Out-of-bounds element, skipping subtree",
-		); ce != nil {
-			ce.Write(
-				zap.Int("children", len(children)),
-				zap.Int("depth", depth),
-				zap.String("parent_role", parent.info.Role()),
-				zap.String("parent_title", parent.info.Title()),
-			)
-		}
-
-		return
 	}
 
 	// Process children sequentially to avoid goroutine/thread explosion
