@@ -13,7 +13,7 @@
 
 // State tracking for Mission Control detection
 static bool g_missionControlActive = false;
-static bool g_mcDetectionEnabled = YES;               // Default to enabled for backward compatibility
+static bool g_mcDetectionEnabled = NO;                // Default to disabled — must be opted in via config
 static CFAbsoluteTime g_lastDetectionTime = 0;        // Use CFAbsoluteTime (double) instead of NSDate
 static NSTimeInterval g_detectionCacheTimeout = 0.5;  // Cache for 500ms
 static id g_spaceChangeObserver = nil;
@@ -217,7 +217,14 @@ static bool detectMissionControlActive(void) {
 
 /// Enable or disable Mission Control detection.
 /// When disabled, the timer and window scans are completely inactive.
-void setDetectMissionControlEnabled(bool enabled) { g_mcDetectionEnabled = enabled; }
+/// When enabled, kicks off lazy initialization of the detection system if
+/// it hasn't been started yet.
+void setDetectMissionControlEnabled(bool enabled) {
+	g_mcDetectionEnabled = enabled;
+	if (enabled && g_detectionQueue == NULL) {
+		updateMissionControlState();
+	}
+}
 
 /// Update the cached Mission Control state on the detection queue
 void updateMissionControlState(void) {
@@ -283,6 +290,10 @@ static void initializeMissionControlDetection(void) {
 			    g_detectionTimer, dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), 1 * NSEC_PER_SEC,
 			    500 * NSEC_PER_MSEC);
 			dispatch_source_set_event_handler(g_detectionTimer, ^{
+				if (!g_mcDetectionEnabled) {
+					return;
+				}
+
 				bool oldState = getCachedMissionControlState();
 				bool newState = detectMissionControlActive();
 				setCachedMissionControlState(newState);
@@ -302,6 +313,10 @@ static void initializeMissionControlDetection(void) {
 
 		// Perform initial detection silently
 		dispatch_async(g_detectionQueue, ^{
+			if (!g_mcDetectionEnabled) {
+				return;
+			}
+
 			bool newState = detectMissionControlActive();
 			setCachedMissionControlState(newState);
 		});
