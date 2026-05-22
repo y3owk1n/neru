@@ -242,8 +242,11 @@ void startAppWatcher(void) {
 		                                             name:NSApplicationDidChangeScreenParametersNotification
 		                                           object:nil];
 
-		// Eagerly initialize Mission Control detection so the 1s polling timer
-		// and space-change observer are active before the user interacts with MC.
+		// Synchronize the cached Mission Control state at startup.
+		// If detection is disabled (the default), this is a cheap no-op that
+		// resets the cache to false.  When detection is later enabled via
+		// setDetectMissionControlEnabled, the queue, timer, and space-change
+		// observer are initialized lazily at that point.
 		updateMissionControlState();
 	});
 }
