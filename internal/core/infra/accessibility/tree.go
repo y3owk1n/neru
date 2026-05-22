@@ -299,7 +299,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 
 	select {
 	case <-ctx.Done():
-		node.Element().Release()
+		releaseTreeExcept(node, nil)
 
 		return nil, derrors.Wrap(
 			ctx.Err(),
