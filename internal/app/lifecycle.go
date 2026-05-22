@@ -15,7 +15,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/core/infra/electron"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
@@ -227,10 +226,7 @@ func (a *App) setupAppWatcherCallbacks() {
 	a.setupThemeObserver()
 
 	// Gate Mission Control detection at all levels using config
-	cfg := a.configSnapshot()
-	if w, ok := a.appWatcher.(*appwatcher.Watcher); ok {
-		w.SetMCDetection(cfg.Hints.DetectMissionControl)
-	}
+	a.appWatcher.SetMCDetection(a.configSnapshot().Hints.DetectMissionControl)
 }
 
 // handleScreenParametersChange responds to display configuration changes by updating overlays.

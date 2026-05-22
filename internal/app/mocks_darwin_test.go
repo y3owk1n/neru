@@ -326,3 +326,4 @@ func (m *mockAppWatcher) OnTerminate(_ appwatcher.AppCallback)  {}
 func (m *mockAppWatcher) OnScreenParametersChanged(_ func())    {}
 func (m *mockAppWatcher) OnMissionControlActivated(_ func())    {}
 func (m *mockAppWatcher) OnMissionControlDeactivated(_ func())  {}
+func (m *mockAppWatcher) SetMCDetection(_ bool)                 {}
