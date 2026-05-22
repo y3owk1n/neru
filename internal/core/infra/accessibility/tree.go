@@ -244,16 +244,14 @@ func (s *treeStats) recordDepth(depth int) {
 
 // BuildTree constructs an accessibility tree starting from the specified root element.
 func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode, error) {
-	if ctx != nil {
-		select {
-		case <-ctx.Done():
-			return nil, derrors.Wrap(
-				ctx.Err(),
-				derrors.CodeContextCanceled,
-				"operation canceled before tree build",
-			)
-		default:
-		}
+	select {
+	case <-ctx.Done():
+		return nil, derrors.Wrap(
+			ctx.Err(),
+			derrors.CodeContextCanceled,
+			"operation canceled before tree build",
+		)
+	default:
 	}
 
 	if root == nil {
@@ -299,18 +297,16 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 	opts.stats = stats
 	buildTreeRecursive(ctx, node, 1, opts, windowBounds, windowBounds)
 
-	if ctx != nil {
-		select {
-		case <-ctx.Done():
-			node.Element().Release()
+	select {
+	case <-ctx.Done():
+		node.Element().Release()
 
-			return nil, derrors.Wrap(
-				ctx.Err(),
-				derrors.CodeContextCanceled,
-				"tree build canceled mid-traversal",
-			)
-		default:
-		}
+		return nil, derrors.Wrap(
+			ctx.Err(),
+			derrors.CodeContextCanceled,
+			"tree build canceled mid-traversal",
+		)
+	default:
 	}
 
 	accumulateSearchText(node)
@@ -399,12 +395,10 @@ func buildTreeRecursive(
 	clipBounds image.Rectangle,
 	windowBounds image.Rectangle,
 ) {
-	if ctx != nil {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
+	select {
+	case <-ctx.Done():
+		return
+	default:
 	}
 
 	if opts.stats != nil {
@@ -553,19 +547,17 @@ func buildChildrenSequential(
 	validChildren := make([]childData, 0, len(children))
 
 	for index, child := range children {
-		if ctx != nil {
-			select {
-			case <-ctx.Done():
-				for _, vc := range validChildren {
-					vc.element.Release()
-				}
-				for _, remaining := range children[index:] {
-					remaining.Release()
-				}
-
-				return
-			default:
+		select {
+		case <-ctx.Done():
+			for _, vc := range validChildren {
+				vc.element.Release()
 			}
+			for _, remaining := range children[index:] {
+				remaining.Release()
+			}
+
+			return
+		default:
 		}
 
 		info, err := child.Info()
