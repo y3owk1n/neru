@@ -298,6 +298,20 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 
 	opts.stats = stats
 	buildTreeRecursive(ctx, node, 1, opts, windowBounds, windowBounds)
+
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			node.Element().Release()
+			return nil, derrors.Wrap(
+				ctx.Err(),
+				derrors.CodeContextCanceled,
+				"tree build cancelled mid-traversal",
+			)
+		default:
+		}
+	}
+
 	accumulateSearchText(node)
 
 	if ce := opts.Logger().Check(zap.DebugLevel, "Tree build completed"); ce != nil {
