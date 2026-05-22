@@ -780,6 +780,7 @@ type AdditionalAXSupport struct {
 	AdditionalElectronBundles []string `json:"additionalElectronBundles" toml:"additional_electron_bundles"`
 	AdditionalChromiumBundles []string `json:"additionalChromiumBundles" toml:"additional_chromium_bundles"`
 	AdditionalFirefoxBundles  []string `json:"additionalFirefoxBundles"  toml:"additional_firefox_bundles"`
+	AdditionalWebKitBundles   []string `json:"additionalWebKitBundles"   toml:"additional_webkit_bundles"`
 }
 
 // SystrayConfig defines system tray settings.
@@ -1595,4 +1596,13 @@ var KnownElectronBundles = []string{
 	"com.tinyspeck.slackmacgap",
 	"com.spotify.client",
 	"md.obsidian",
+	"com.hnc.discord",
+	"com.openai.codex",
+	"com.google.antigravity",
+}
+
+// KnownWebKitBundles contains known WebKit-based application bundle identifiers.
+// These applications skip hit-test visibility checks to avoid slow AX API calls.
+var KnownWebKitBundles = []string{
+	"com.apple.Safari",
 }

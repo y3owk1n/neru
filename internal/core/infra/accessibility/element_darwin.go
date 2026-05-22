@@ -776,6 +776,10 @@ func isExcludedOrUnsafe(bundleID string, configProvider config.Provider) bool {
 		return true
 	}
 
+	if isLikelyWebKit(bundleID) {
+		return true
+	}
+
 	if configProvider == nil {
 		return false
 	}
@@ -792,9 +796,16 @@ func isExcludedOrUnsafe(bundleID string, configProvider config.Provider) bool {
 		return true
 	}
 
-	return config.MatchesAdditionalBundle(
+	if config.MatchesAdditionalBundle(
 		bundleID,
 		cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles,
+	) {
+		return true
+	}
+
+	return config.MatchesAdditionalBundle(
+		bundleID,
+		cfg.Hints.AdditionalAXSupport.AdditionalWebKitBundles,
 	)
 }
 
@@ -810,6 +821,7 @@ func isExcludedBundleID(pid int, configProvider config.Provider) bool {
 	pidBundleCacheMu.Lock()
 	if cfg != lastConfigPointer {
 		pidExcludedCache = make(map[int]bool)
+		pidBundleCache = make(map[int]string)
 		lastConfigPointer = cfg
 	}
 	excluded, ok := pidExcludedCache[pid]

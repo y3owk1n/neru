@@ -353,6 +353,7 @@ func newDefaultConfig() *Config {
 				AdditionalElectronBundles: []string{},
 				AdditionalChromiumBundles: []string{},
 				AdditionalFirefoxBundles:  []string{},
+				AdditionalWebKitBundles:   []string{},
 			},
 		},
 		Grid: GridConfig{

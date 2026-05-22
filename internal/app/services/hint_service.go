@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -148,7 +149,13 @@ func (s *HintService) GenerateHints(
 	}
 
 	// Get clickable elements
+	axStart := time.Now()
 	elements, elementsErr := s.accessibility.ClickableElements(ctx, filter)
+	s.logger.Debug("TIMING: ClickableElements",
+		zap.Duration("elapsed_ms", time.Since(axStart)),
+		zap.Int("element_count", len(elements)),
+		zap.Error(elementsErr))
+
 	if elementsErr != nil {
 		s.logger.Error("Failed to get clickable elements", zap.Error(elementsErr))
 
@@ -174,7 +181,14 @@ func (s *HintService) GenerateHints(
 	}
 
 	// Generate hints
+	genStart := time.Now()
 	hints, elementsErr := gen.Generate(ctx, elements)
+	s.logger.Debug("TIMING: HintGenerator.Generate",
+		zap.Duration("elapsed_ms", time.Since(genStart)),
+		zap.Int("element_count", len(elements)),
+		zap.Int("hint_count", len(hints)),
+		zap.Error(elementsErr))
+
 	if elementsErr != nil {
 		s.logger.Error("Failed to generate hints", zap.Error(elementsErr))
 

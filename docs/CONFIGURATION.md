@@ -376,7 +376,7 @@ See [Per-App Hotkey Overrides](#per-app-hint-hotkey-overrides) for how per-app h
 
 ### Additional Accessibility Support
 
-Enable framework-specific accessibility support for improved hint detection in Electron, Chromium, and Firefox apps:
+Enable framework-specific accessibility support for improved hint detection in Electron, Chromium, Firefox, and WebKit-based apps:
 
 ```toml
 [hints.additional_ax_support]
@@ -384,6 +384,7 @@ enable = true
 additional_electron_bundles = []
 additional_chromium_bundles = []
 additional_firefox_bundles = []
+additional_webkit_bundles = []
 ```
 
 To find a bundle ID:

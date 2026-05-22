@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -124,6 +125,8 @@ func (a *Adapter) ClickableElements(
 	}
 
 	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))
+
+	adapterStart := time.Now()
 
 	var (
 		waitGroup sync.WaitGroup
@@ -346,7 +349,18 @@ func (a *Adapter) ClickableElements(
 		)
 	}
 
-	a.logger.Info("Total elements collected", zap.Int("count", len(allElements)))
+	elapsed := time.Since(adapterStart)
+	a.logger.Info("Total elements collected",
+		zap.Int("count", len(allElements)),
+		zap.Duration("total_ms", elapsed))
+
+	// Log warning if collection took too long
+	if elapsed > 2*time.Second {
+		a.logger.Warn("TIMING: ClickableElements took too long",
+			zap.Duration("elapsed_ms", elapsed),
+			zap.Int("element_count", len(allElements)),
+		)
+	}
 
 	return allElements, nil
 }
@@ -531,6 +545,14 @@ func (a *Adapter) processClickableNodes(
 		}
 
 		elementSlicePool.Put(elementsPtr)
+	}()
+
+	processStart := time.Now()
+	defer func() {
+		a.logger.Debug("TIMING: processClickableNodes",
+			zap.Duration("elapsed_ms", time.Since(processStart)),
+			zap.Int("node_count", len(clickableNodes)),
+		)
 	}()
 
 	// Concurrent processing for large number of nodes

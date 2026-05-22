@@ -15,6 +15,14 @@ import (
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
+// debugTime returns a timestamp for measuring elapsed time.
+func debugTime() time.Time { return time.Now() }
+
+// debugElapsed logs the duration since start with the given message.
+func debugElapsed(logger *zap.Logger, start time.Time, msg string, fields ...zap.Field) {
+	logger.Debug(msg, append(fields, zap.Duration("elapsed_ms", time.Since(start)))...)
+}
+
 // ModeActivationOptions configures a mode activation request.
 type ModeActivationOptions struct {
 	Action                *string
@@ -230,6 +238,8 @@ func (h *Handler) activateHintModeInternal(
 	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
 	defer cancel()
 
+	hintGenStart := debugTime()
+
 	domainHints, domainHintsErr := h.hintService.GenerateHints(
 		ctx,
 		filterRoles,
@@ -250,7 +260,14 @@ func (h *Handler) activateHintModeInternal(
 		return
 	}
 
+	debugElapsed(h.logger, hintGenStart, "GenerateHints completed",
+		zap.Int("total_hints", len(domainHints)))
+
 	filteredHints := filterHintsForScreen(domainHints, activeScreenBounds)
+
+	debugElapsed(h.logger, hintGenStart, "FilterHintsForScreen completed",
+		zap.Int("after_filter", len(filteredHints)),
+		zap.Int("before_filter", len(domainHints)))
 
 	h.logger.Debug("Filtered hints by screen",
 		zap.Int("total_hints", len(domainHints)),
@@ -326,9 +343,13 @@ func (h *Handler) activateHintModeInternal(
 
 	h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
 
+	debugElapsed(h.logger, hintGenStart, "Manager.SetHints completed")
+
 	h.hints.Context.SetHints(hintCollection)
 	h.overlayManager.ResizeToActiveScreen()
 	h.overlayManager.Show()
+
+	debugElapsed(h.logger, hintGenStart, "Hints mode fully activated")
 
 	if actionStr != nil {
 		h.logger.Info("Hints mode activated with pending action", zap.String("action", *actionStr))

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -161,7 +162,8 @@ type TreeOptions struct {
 	stats                *treeStats
 	bundleID             string          // Bundle ID for auto-detecting Chromium/Electron strict filtering
 	configProvider       config.Provider // For checking user-configured Chromium/Electron bundles
-	isChromiumOrElectron bool            // Pre-computed flag for fast check
+	isChromiumOrElectron bool            // Pre-computed flag for fast check (includes WebKit)
+	isWebKit             bool            // Pre-computed flag for WebKit-based apps
 }
 
 // FilterFunc returns the filter function.
@@ -276,6 +278,8 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 
 	stats := &treeStats{}
 
+	buildStart := time.Now()
+
 	// Calculate window bounds for spatial filtering.
 	// Fall back to active screen bounds when the root element has no
 	// position/size (e.g. an AXApplication for supplementary sources).
@@ -291,6 +295,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 		opts.bundleID = root.BundleIdentifier()
 	}
 	opts.isChromiumOrElectron = isChromiumOrElectron(opts.bundleID, opts.configProvider)
+	opts.isWebKit = isWebKit(opts.bundleID, opts.configProvider)
 
 	node := getTreeNode(root, info, nil, config.DefaultChildrenCapacity)
 
@@ -310,6 +315,20 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 	}
 
 	accumulateSearchText(node)
+
+	buildElapsed := time.Since(buildStart)
+	if ce := opts.Logger().Check(zap.DebugLevel, "TIMING: BuildTree"); ce != nil {
+		ce.Write(
+			zap.Duration("elapsed_ms", buildElapsed),
+			zap.Int64("nodes_visited", stats.nodesVisited.Load()),
+			zap.Int64("max_depth_seen", stats.maxDepthSeen.Load()),
+			zap.Int64("skipped_non_interactive", stats.skippedNonInteractive.Load()),
+			zap.String("root_role", info.Role()),
+			zap.Int("pid", info.PID()),
+			zap.Bool("is_chromium_electron", opts.isChromiumOrElectron),
+			zap.Bool("is_webkit", opts.isWebKit),
+		)
+	}
 
 	if ce := opts.Logger().Check(zap.DebugLevel, "Tree build completed"); ce != nil {
 		ce.Write(
@@ -442,7 +461,7 @@ func buildTreeRecursive(
 	//
 	// Example, try this site: https://nix-darwin.github.io/nix-darwin/manual/
 	elementRect := rectFromInfo(parent.info)
-	if !elementRect.Overlaps(windowBounds) && opts.isChromiumOrElectron {
+	if !elementRect.Overlaps(windowBounds) && (opts.isChromiumOrElectron || opts.isWebKit) {
 		if opts.stats != nil {
 			opts.stats.outOfBoundsSkipped.Add(1)
 		}
@@ -680,7 +699,7 @@ func shouldIncludeElement(
 	}
 
 	// Strict filtering: auto-enabled for Chromium/Electron apps with noisy DOM trees
-	// For native apps like Safari, we trust the semantic tree to not have noise
+	// WebKit-based apps (Safari) have clean trees that don't need this aggressive filtering
 	if opts.isChromiumOrElectron && elementRect.Dx() > 0 &&
 		elementRect.Dy() > 0 {
 		// Filter out tiny elements that are likely noise in Chromium DOM trees.
@@ -921,6 +940,15 @@ func isLikelyChromiumOrElectron(bundleID string) bool {
 	return false
 }
 
+// isLikelyWebKit returns true if the bundle ID matches known WebKit-based apps.
+func isLikelyWebKit(bundleID string) bool {
+	if bundleID == "" {
+		return false
+	}
+
+	return config.MatchesAdditionalBundle(bundleID, config.KnownWebKitBundles)
+}
+
 // isUserConfiguredChromiumElectron checks if the bundle ID matches user-configured
 // additional Chromium/Electron bundles from config. Supports exact matches and
 // wildcard patterns (ending with *).
@@ -942,4 +970,33 @@ func isUserConfiguredChromiumElectron(bundleID string, configProvider config.Pro
 	electronBundles := cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles
 
 	return config.MatchesAdditionalBundle(bundleID, electronBundles)
+}
+
+// isWebKit returns true if the bundle ID matches known WebKit-based app bundle
+// identifiers or user-configured additional WebKit bundles.
+func isWebKit(bundleID string, configProvider config.Provider) bool {
+	if bundleID == "" {
+		return false
+	}
+
+	// Check known WebKit bundles (Safari, Safari Technology Preview, etc.)
+	bundleID = strings.ToLower(strings.TrimSpace(bundleID))
+	if config.MatchesAdditionalBundle(bundleID, config.KnownWebKitBundles) {
+		return true
+	}
+
+	// Check user-configured additional WebKit bundles
+	if configProvider == nil {
+		return false
+	}
+
+	cfg := configProvider.Get()
+	if cfg == nil {
+		return false
+	}
+
+	return config.MatchesAdditionalBundle(
+		bundleID,
+		cfg.Hints.AdditionalAXSupport.AdditionalWebKitBundles,
+	)
 }

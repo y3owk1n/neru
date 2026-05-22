@@ -57,6 +57,7 @@ enable = true
 additional_electron_bundles = []
 additional_chromium_bundles = []
 additional_firefox_bundles = []
+additional_webkit_bundles = []
 
 [grid]
 enabled = false
