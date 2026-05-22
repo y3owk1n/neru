@@ -241,6 +241,14 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
+	if c.Hints.DetectMissionControl && !c.Hints.IncludeDockHints {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"hints.detect_mission_control requires hints.include_dock_hints = true "+
+				"(dock windows are the only element source available during Mission Control)",
+		)
+	}
+
 	for idx, actionStr := range c.Hints.OnMissionControlActivated {
 		trimmed := strings.TrimSpace(actionStr)
 		if trimmed == "" {
