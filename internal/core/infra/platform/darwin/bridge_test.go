@@ -15,11 +15,13 @@ import (
 
 // MockAppWatcher implements AppWatcher for testing.
 type MockAppWatcher struct {
-	launchCalls       []AppEvent
-	terminateCalls    []AppEvent
-	activateCalls     []AppEvent
-	deactivateCalls   []AppEvent
-	screenChangeCalls atomic.Int64
+	launchCalls        []AppEvent
+	terminateCalls     []AppEvent
+	activateCalls      []AppEvent
+	deactivateCalls    []AppEvent
+	screenChangeCalls  atomic.Int64
+	mcActivatedCalls   atomic.Int64
+	mcDeactivatedCalls atomic.Int64
 }
 
 // AppEvent represents an app event.
@@ -46,6 +48,14 @@ func (m *MockAppWatcher) HandleDeactivate(appName, bundleID string) {
 
 func (m *MockAppWatcher) HandleScreenParametersChanged() {
 	m.screenChangeCalls.Add(1)
+}
+
+func (m *MockAppWatcher) HandleMissionControlActivated() {
+	m.mcActivatedCalls.Add(1)
+}
+
+func (m *MockAppWatcher) HandleMissionControlDeactivated() {
+	m.mcDeactivatedCalls.Add(1)
 }
 
 func TestInitializeLogger(t *testing.T) {
@@ -115,6 +125,12 @@ func TestCallbacks(t *testing.T) {
 	mock := &MockAppWatcher{}
 	darwin.SetAppWatcher(mock)
 
+	// Enable Mission Control detection so the handlers forward events
+	darwin.SetDetectMissionControlEnabled(true)
+	t.Cleanup(func() {
+		darwin.SetDetectMissionControlEnabled(false)
+	})
+
 	t.Run("HandleAppLaunch", func(t *testing.T) {
 		darwin.HandleAppLaunch("TestApp", "com.test.app")
 
@@ -163,6 +179,28 @@ func TestCallbacks(t *testing.T) {
 
 		if got := mock.screenChangeCalls.Load(); got != 1 {
 			t.Errorf("Expected 1 screen change call, got %d", got)
+		}
+	})
+
+	t.Run("HandleMissionControlActivated", func(t *testing.T) {
+		darwin.HandleMissionControlActivated()
+
+		// The handler is dispatched in a goroutine, so wait briefly for it to complete.
+		time.Sleep(50 * time.Millisecond)
+
+		if got := mock.mcActivatedCalls.Load(); got != 1 {
+			t.Errorf("Expected 1 mission control activated call, got %d", got)
+		}
+	})
+
+	t.Run("HandleMissionControlDeactivated", func(t *testing.T) {
+		darwin.HandleMissionControlDeactivated()
+
+		// The handler is dispatched in a goroutine, so wait briefly for it to complete.
+		time.Sleep(50 * time.Millisecond)
+
+		if got := mock.mcDeactivatedCalls.Load(); got != 1 {
+			t.Errorf("Expected 1 mission control deactivated call, got %d", got)
 		}
 	})
 }

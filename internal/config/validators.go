@@ -233,6 +233,48 @@ func (c *Config) ValidateHints() error {
 		return err
 	}
 
+	for idx, actionStr := range c.Hints.OnMissionControlActivated {
+		trimmed := strings.TrimSpace(actionStr)
+		if trimmed == "" {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"hints.on_mission_control_activated[%d] cannot be empty",
+				idx,
+			)
+		}
+
+		err := validateHotkeyActionString(trimmed)
+		if err != nil {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"hints.on_mission_control_activated[%d]: %v",
+				idx,
+				err,
+			)
+		}
+	}
+
+	for idx, actionStr := range c.Hints.OnMissionControlDeactivated {
+		trimmed := strings.TrimSpace(actionStr)
+		if trimmed == "" {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"hints.on_mission_control_deactivated[%d] cannot be empty",
+				idx,
+			)
+		}
+
+		err := validateHotkeyActionString(trimmed)
+		if err != nil {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"hints.on_mission_control_deactivated[%d]: %v",
+				idx,
+				err,
+			)
+		}
+	}
+
 	return nil
 }
 

@@ -5,6 +5,7 @@
 //  Copyright © 2025 Neru. All rights reserved.
 //
 
+#import "accessibility.h"
 #import "appwatcher.h"
 
 #import <Cocoa/Cocoa.h>
@@ -112,6 +113,8 @@ extern void handleScreenParametersChanged(void);
 				free(bundleIDCopy);
 			});
 		}
+
+		updateMissionControlState();
 	}
 }
 
@@ -136,6 +139,8 @@ extern void handleScreenParametersChanged(void);
 			free(appNameCopy);
 			free(bundleIDCopy);
 		});
+
+		updateMissionControlState();
 	}
 }
 
@@ -236,6 +241,10 @@ void startAppWatcher(void) {
 		                                         selector:@selector(screenParametersDidChange:)
 		                                             name:NSApplicationDidChangeScreenParametersNotification
 		                                           object:nil];
+
+		// Eagerly initialize Mission Control detection so the 1s polling timer
+		// and space-change observer are active before the user interacts with MC.
+		updateMissionControlState();
 	});
 }
 

@@ -324,3 +324,5 @@ func (m *mockAppWatcher) OnActivate(_ appwatcher.AppCallback)   {}
 func (m *mockAppWatcher) OnDeactivate(_ appwatcher.AppCallback) {}
 func (m *mockAppWatcher) OnTerminate(_ appwatcher.AppCallback)  {}
 func (m *mockAppWatcher) OnScreenParametersChanged(_ func())    {}
+func (m *mockAppWatcher) OnMissionControlActivated(_ func())    {}
+func (m *mockAppWatcher) OnMissionControlDeactivated(_ func())  {}

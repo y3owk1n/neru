@@ -14,4 +14,6 @@ type AppWatcherInterface interface {
 	HandleActivate(appName, bundleID string)
 	HandleDeactivate(appName, bundleID string)
 	HandleScreenParametersChanged()
+	HandleMissionControlActivated()
+	HandleMissionControlDeactivated()
 }

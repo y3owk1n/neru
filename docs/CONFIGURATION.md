@@ -342,7 +342,9 @@ You can also start hints mode with the search input shown immediately by using t
 | `include_stage_manager_hints`      | bool   | `false`       | Show hints in Stage Manager                          |
 | `include_pip_hints`                | bool   | `false`       | Show hints on macOS Picture in Picture controls      |
 | `include_screen_capture_hints`     | bool   | `false`       | Show hints on macOS Screen Capture controls          |
-| `detect_mission_control`           | bool   | `false`       | Auto-disable hints when in Mission Control           |
+| `detect_mission_control`           | bool   | `false`       | Enable Mission Control state detection               |
+| `on_mission_control_activated`    | string | `"idle"`      | Action to execute when Mission Control opens         |
+| `on_mission_control_deactivated`  | string | `"idle"`      | Action to execute when Mission Control closes        |
 | `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                             |
 | `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                         |
 | `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                          |

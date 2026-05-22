@@ -474,7 +474,7 @@ detect_mission_control = true
 ```
 
 > [!NOTE]
-> `detect_mission_control` is only working on macOS 26.x (tahoe). Do not enable this if your macOS version is below Tahoe (26.x) at all cost!
+> Mission Control detection uses `CGWindowListCopyWindowInfo` to check for Dock overlay windows. It works on macOS 14+ (Sonoma) and 15+ (Sequoia/Tahoe). On macOS 13 and earlier, it looks for a "Mission Control" app window instead.
 
 ---
 

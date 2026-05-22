@@ -17,12 +17,15 @@ type AppCallback func(appName string, bundleID string)
 type Watcher struct {
 	mu sync.RWMutex
 	// Callbacks for different events
-	launchCallbacks       []AppCallback
-	terminateCallbacks    []AppCallback
-	activateCallbacks     []AppCallback
-	deactivateCallbacks   []AppCallback
-	screenChangeCallbacks []func()
-	logger                *zap.Logger
+	launchCallbacks        []AppCallback
+	terminateCallbacks     []AppCallback
+	activateCallbacks      []AppCallback
+	deactivateCallbacks    []AppCallback
+	screenChangeCallbacks  []func()
+	mcActivatedCallbacks   []func()
+	mcDeactivatedCallbacks []func()
+	logger                 *zap.Logger
+	mcDetection            bool
 }
 
 // NewWatcher creates and initializes a new application watcher instance.
@@ -49,6 +52,16 @@ func (w *Watcher) Start() {
 func (w *Watcher) Stop() {
 	w.logger.Debug("App watcher: Stopping")
 	platformStopWatcher()
+}
+
+// SetMCDetection enables or disables Mission Control detection at all levels.
+// When disabled, no timer, window scans, or callbacks are active.
+func (w *Watcher) SetMCDetection(enabled bool) {
+	w.mu.Lock()
+	w.mcDetection = enabled
+	w.mu.Unlock()
+
+	platformSetMCDetection(enabled)
 }
 
 // OnLaunch registers a callback for application launch events.
@@ -94,6 +107,22 @@ func (w *Watcher) OnScreenParametersChanged(callback func()) {
 	defer w.mu.Unlock()
 
 	w.screenChangeCallbacks = append(w.screenChangeCallbacks, callback)
+}
+
+// OnMissionControlActivated registers a callback for when Mission Control is activated.
+func (w *Watcher) OnMissionControlActivated(callback func()) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.mcActivatedCallbacks = append(w.mcActivatedCallbacks, callback)
+}
+
+// OnMissionControlDeactivated registers a callback for when Mission Control is deactivated.
+func (w *Watcher) OnMissionControlDeactivated(callback func()) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.mcDeactivatedCallbacks = append(w.mcDeactivatedCallbacks, callback)
 }
 
 // HandleLaunch processes application launch events from the platform layer.
@@ -165,6 +194,46 @@ func (w *Watcher) HandleScreenParametersChanged() {
 	defer w.mu.RUnlock()
 
 	for _, callback := range w.screenChangeCallbacks {
+		callback()
+	}
+}
+
+// HandleMissionControlActivated processes Mission Control activation events from the platform layer.
+func (w *Watcher) HandleMissionControlActivated() {
+	w.mu.RLock()
+	enabled := w.mcDetection
+	w.mu.RUnlock()
+
+	if !enabled {
+		return
+	}
+
+	w.logger.Debug("App watcher: Mission Control activated")
+
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	for _, callback := range w.mcActivatedCallbacks {
+		callback()
+	}
+}
+
+// HandleMissionControlDeactivated processes Mission Control deactivation events from the platform layer.
+func (w *Watcher) HandleMissionControlDeactivated() {
+	w.mu.RLock()
+	enabled := w.mcDetection
+	w.mu.RUnlock()
+
+	if !enabled {
+		return
+	}
+
+	w.logger.Debug("App watcher: Mission Control deactivated")
+
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	for _, callback := range w.mcDeactivatedCallbacks {
 		callback()
 	}
 }

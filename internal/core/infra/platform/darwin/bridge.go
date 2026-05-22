@@ -6,25 +6,29 @@ package darwin
 #include "hotkeys.h"
 #include "theme.h"
 #include "appwatcher.h"
+#include <stdbool.h>
 #include <stdlib.h>
 
 extern void hotkeyCallbackBridge(int hotkeyId, int eventKind, void* userData);
 
 void startAppWatcher();
 void stopAppWatcher();
+void setDetectMissionControlEnabled(bool enabled);
 */
 import "C"
 
 import (
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"go.uber.org/zap"
 )
 
 var (
-	appWatcher   AppWatcherInterface
-	appWatcherMu sync.RWMutex
+	appWatcher         AppWatcherInterface
+	appWatcherMu       sync.RWMutex
+	mcDetectionEnabled atomic.Bool
 )
 
 // AppWatcher returns the global application watcher instance.
@@ -152,6 +156,14 @@ func SetAppWatcher(watcher AppWatcherInterface) {
 	appWatcher = watcher
 }
 
+// SetDetectMissionControlEnabled enables or disables Mission Control detection.
+// When disabled, the entire detection pipeline is gated at the ObjC level —
+// no timer, no window scans, and no callbacks to the Go bridge.
+func SetDetectMissionControlEnabled(enabled bool) {
+	mcDetectionEnabled.Store(enabled)
+	C.setDetectMissionControlEnabled(C.bool(enabled))
+}
+
 // StartAppWatcher begins monitoring application lifecycle events.
 func StartAppWatcher() {
 	log := getLogger()
@@ -253,6 +265,44 @@ func handleScreenParametersChanged() {
 	}
 }
 
+//export handleMissionControlActivated
+func handleMissionControlActivated() {
+	if !mcDetectionEnabled.Load() {
+		return
+	}
+
+	log := getLogger()
+	log.Debug("Darwin: handleMissionControlActivated called")
+
+	appWatcherMu.RLock()
+	watcher := appWatcher
+	appWatcherMu.RUnlock()
+
+	if watcher != nil {
+		log.Debug("Darwin: Forwarding Mission Control activated event")
+		go watcher.HandleMissionControlActivated()
+	}
+}
+
+//export handleMissionControlDeactivated
+func handleMissionControlDeactivated() {
+	if !mcDetectionEnabled.Load() {
+		return
+	}
+
+	log := getLogger()
+	log.Debug("Darwin: handleMissionControlDeactivated called")
+
+	appWatcherMu.RLock()
+	watcher := appWatcher
+	appWatcherMu.RUnlock()
+
+	if watcher != nil {
+		log.Debug("Darwin: Forwarding Mission Control deactivated event")
+		go watcher.HandleMissionControlDeactivated()
+	}
+}
+
 // HandleAppLaunch simulates an app launch event for testing.
 func HandleAppLaunch(appName, bundleID string) {
 	cName := C.CString(appName)
@@ -296,4 +346,14 @@ func HandleAppDeactivate(appName, bundleID string) {
 // HandleScreenParametersChanged simulates a screen parameters changed event for testing.
 func HandleScreenParametersChanged() {
 	handleScreenParametersChanged()
+}
+
+// HandleMissionControlActivated simulates a Mission Control activation event for testing.
+func HandleMissionControlActivated() {
+	handleMissionControlActivated()
+}
+
+// HandleMissionControlDeactivated simulates a Mission Control deactivation event for testing.
+func HandleMissionControlDeactivated() {
+	handleMissionControlDeactivated()
 }

@@ -569,14 +569,16 @@ type HintsConfig struct {
 	SearchInputUI     SearchInputUI       `json:"searchInputUi"     toml:"search_input_ui"`
 	BoundaryHighlight BoundaryHighlightUI `json:"boundaryHighlight" toml:"boundary_highlight"`
 
-	IncludeMenubarHints           bool     `json:"includeMenubarHints"           toml:"include_menubar_hints"`
-	AdditionalMenubarHintsTargets []string `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`
-	IncludeDockHints              bool     `json:"includeDockHints"              toml:"include_dock_hints"`
-	IncludeNCHints                bool     `json:"includeNcHints"                toml:"include_nc_hints"`
-	IncludeStageManagerHints      bool     `json:"includeStageManagerHints"      toml:"include_stage_manager_hints"`
-	IncludePIPHints               bool     `json:"includePipHints"               toml:"include_pip_hints"`
-	IncludeScreenCaptureHints     bool     `json:"includeScreenCaptureHints"     toml:"include_screen_capture_hints"`
-	DetectMissionControl          bool     `json:"detectMissionControl"          toml:"detect_mission_control"`
+	IncludeMenubarHints           bool                `json:"includeMenubarHints"           toml:"include_menubar_hints"`
+	AdditionalMenubarHintsTargets []string            `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`
+	IncludeDockHints              bool                `json:"includeDockHints"              toml:"include_dock_hints"`
+	IncludeNCHints                bool                `json:"includeNcHints"                toml:"include_nc_hints"`
+	IncludeStageManagerHints      bool                `json:"includeStageManagerHints"      toml:"include_stage_manager_hints"`
+	IncludePIPHints               bool                `json:"includePipHints"               toml:"include_pip_hints"`
+	IncludeScreenCaptureHints     bool                `json:"includeScreenCaptureHints"     toml:"include_screen_capture_hints"`
+	DetectMissionControl          bool                `json:"detectMissionControl"          toml:"detect_mission_control"`
+	OnMissionControlActivated     StringOrStringArray `json:"onMissionControlActivated"     toml:"on_mission_control_activated"`
+	OnMissionControlDeactivated   StringOrStringArray `json:"onMissionControlDeactivated"   toml:"on_mission_control_deactivated"`
 
 	ClickableRoles       []string `json:"clickableRoles"       toml:"clickable_roles"`
 	IgnoreClickableCheck bool     `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`

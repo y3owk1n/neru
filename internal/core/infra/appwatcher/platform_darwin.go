@@ -15,3 +15,7 @@ func platformStartWatcher() {
 func platformStopWatcher() {
 	darwin.StopAppWatcher()
 }
+
+func platformSetMCDetection(enabled bool) {
+	darwin.SetDetectMissionControlEnabled(enabled)
+}
