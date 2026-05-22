@@ -201,17 +201,13 @@ func (w *Watcher) HandleScreenParametersChanged() {
 // HandleMissionControlActivated processes Mission Control activation events from the platform layer.
 func (w *Watcher) HandleMissionControlActivated() {
 	w.mu.RLock()
-	enabled := w.mcDetection
-	w.mu.RUnlock()
+	defer w.mu.RUnlock()
 
-	if !enabled {
+	if !w.mcDetection {
 		return
 	}
 
 	w.logger.Debug("App watcher: Mission Control activated")
-
-	w.mu.RLock()
-	defer w.mu.RUnlock()
 
 	for _, callback := range w.mcActivatedCallbacks {
 		callback()
@@ -221,17 +217,13 @@ func (w *Watcher) HandleMissionControlActivated() {
 // HandleMissionControlDeactivated processes Mission Control deactivation events from the platform layer.
 func (w *Watcher) HandleMissionControlDeactivated() {
 	w.mu.RLock()
-	enabled := w.mcDetection
-	w.mu.RUnlock()
+	defer w.mu.RUnlock()
 
-	if !enabled {
+	if !w.mcDetection {
 		return
 	}
 
 	w.logger.Debug("App watcher: Mission Control deactivated")
-
-	w.mu.RLock()
-	defer w.mu.RUnlock()
 
 	for _, callback := range w.mcDeactivatedCallbacks {
 		callback()
