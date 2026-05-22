@@ -353,7 +353,9 @@ static void initializeMissionControlDetection(void) {
 ///
 /// @return true if Mission Control is active, false otherwise
 bool isMissionControlActive(void) {
-	initializeMissionControlDetection();
+	if (isDetectionEnabled()) {
+		initializeMissionControlDetection();
+	}
 
 	// Return cached state if still valid
 	if (isCacheValid()) {
