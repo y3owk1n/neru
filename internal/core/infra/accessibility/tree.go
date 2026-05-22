@@ -303,10 +303,11 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 		select {
 		case <-ctx.Done():
 			node.Element().Release()
+
 			return nil, derrors.Wrap(
 				ctx.Err(),
 				derrors.CodeContextCanceled,
-				"tree build cancelled mid-traversal",
+				"tree build canceled mid-traversal",
 			)
 		default:
 		}
