@@ -91,10 +91,9 @@ func (c *InfraAXClient) ClickableNodes(
 	roles []string,
 	maxDepth int,
 ) ([]AXNode, error) {
-	element := c.extractElement(root)
-
-	if element == nil {
-		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
+	element, extractErr := c.extractElement(root)
+	if extractErr != nil {
+		return nil, extractErr
 	}
 
 	opts, allowedRoles, ignoreClickableCheck := c.buildClickableOpts(element, roles, maxDepth)
@@ -303,14 +302,22 @@ func (c *InfraAXClient) IsMissionControlActive() bool {
 }
 
 // extractElement returns the raw *Element from an AXElement wrapper.
-func (c *InfraAXClient) extractElement(root AXElement) *Element {
+func (c *InfraAXClient) extractElement(root AXElement) (*Element, error) {
 	switch elementType := root.(type) {
 	case *InfraWindow:
-		return elementType.element
+		if elementType.element == nil {
+			return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
+		}
+
+		return elementType.element, nil
 	case *InfraApp:
-		return elementType.element
+		if elementType.element == nil {
+			return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
+		}
+
+		return elementType.element, nil
 	default:
-		return nil
+		return nil, derrors.New(derrors.CodeInvalidInput, "invalid element type")
 	}
 }
 
