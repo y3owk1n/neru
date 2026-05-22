@@ -51,6 +51,23 @@ static void setCachedMissionControlState(bool state) {
 	os_unfair_lock_unlock(&g_stateLock);
 }
 
+/// Thread-safe getter for the detection enabled flag
+/// @return true if detection is enabled
+static bool isDetectionEnabled(void) {
+	os_unfair_lock_lock(&g_stateLock);
+	bool result = g_mcDetectionEnabled;
+	os_unfair_lock_unlock(&g_stateLock);
+	return result;
+}
+
+/// Thread-safe setter for the detection enabled flag
+/// @param enabled New enabled state
+static void setDetectionEnabled(bool enabled) {
+	os_unfair_lock_lock(&g_stateLock);
+	g_mcDetectionEnabled = enabled;
+	os_unfair_lock_unlock(&g_stateLock);
+}
+
 /// Thread-safe cache validity check
 /// @return true if cache is still valid
 static bool isCacheValid(void) {
@@ -220,7 +237,7 @@ static bool detectMissionControlActive(void) {
 /// When enabled, kicks off lazy initialization of the detection system if
 /// it hasn't been started yet.
 void setDetectMissionControlEnabled(bool enabled) {
-	g_mcDetectionEnabled = enabled;
+	setDetectionEnabled(enabled);
 	if (enabled && g_detectionQueue == NULL) {
 		updateMissionControlState();
 	}
@@ -228,7 +245,7 @@ void setDetectMissionControlEnabled(bool enabled) {
 
 /// Update the cached Mission Control state on the detection queue
 void updateMissionControlState(void) {
-	if (!g_mcDetectionEnabled) {
+	if (!isDetectionEnabled()) {
 		setCachedMissionControlState(false);
 		return;
 	}
@@ -290,7 +307,7 @@ static void initializeMissionControlDetection(void) {
 			    g_detectionTimer, dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), 1 * NSEC_PER_SEC,
 			    500 * NSEC_PER_MSEC);
 			dispatch_source_set_event_handler(g_detectionTimer, ^{
-				if (!g_mcDetectionEnabled) {
+				if (!isDetectionEnabled()) {
 					return;
 				}
 
@@ -313,7 +330,7 @@ static void initializeMissionControlDetection(void) {
 
 		// Perform initial detection silently
 		dispatch_async(g_detectionQueue, ^{
-			if (!g_mcDetectionEnabled) {
+			if (!isDetectionEnabled()) {
 				return;
 			}
 
