@@ -352,12 +352,12 @@ func (a *Adapter) ClickableElements(
 	elapsed := time.Since(adapterStart)
 	a.logger.Info("Total elements collected",
 		zap.Int("count", len(allElements)),
-		zap.Duration("total_ms", elapsed))
+		zap.Duration("total", elapsed))
 
 	// Log warning if collection took too long
 	if elapsed > 2*time.Second {
 		a.logger.Warn("TIMING: ClickableElements took too long",
-			zap.Duration("elapsed_ms", elapsed),
+			zap.Duration("elapsed", elapsed),
 			zap.Int("element_count", len(allElements)),
 		)
 	}
@@ -550,7 +550,7 @@ func (a *Adapter) processClickableNodes(
 	processStart := time.Now()
 	defer func() {
 		a.logger.Debug("TIMING: processClickableNodes",
-			zap.Duration("elapsed_ms", time.Since(processStart)),
+			zap.Duration("elapsed", time.Since(processStart)),
 			zap.Int("node_count", len(clickableNodes)),
 		)
 	}()

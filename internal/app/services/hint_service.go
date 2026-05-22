@@ -152,7 +152,7 @@ func (s *HintService) GenerateHints(
 	axStart := time.Now()
 	elements, elementsErr := s.accessibility.ClickableElements(ctx, filter)
 	s.logger.Debug("TIMING: ClickableElements",
-		zap.Duration("elapsed_ms", time.Since(axStart)),
+		zap.Duration("elapsed", time.Since(axStart)),
 		zap.Int("element_count", len(elements)),
 		zap.Error(elementsErr))
 
@@ -184,7 +184,7 @@ func (s *HintService) GenerateHints(
 	genStart := time.Now()
 	hints, elementsErr := gen.Generate(ctx, elements)
 	s.logger.Debug("TIMING: HintGenerator.Generate",
-		zap.Duration("elapsed_ms", time.Since(genStart)),
+		zap.Duration("elapsed", time.Since(genStart)),
 		zap.Int("element_count", len(elements)),
 		zap.Int("hint_count", len(hints)),
 		zap.Error(elementsErr))

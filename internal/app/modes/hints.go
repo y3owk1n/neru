@@ -20,7 +20,7 @@ func debugTime() time.Time { return time.Now() }
 
 // debugElapsed logs the duration since start with the given message.
 func debugElapsed(logger *zap.Logger, start time.Time, msg string, fields ...zap.Field) {
-	logger.Debug(msg, append(fields, zap.Duration("elapsed_ms", time.Since(start)))...)
+	logger.Debug(msg, append(fields, zap.Duration("elapsed", time.Since(start)))...)
 }
 
 // ModeActivationOptions configures a mode activation request.

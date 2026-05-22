@@ -319,7 +319,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 	buildElapsed := time.Since(buildStart)
 	if ce := opts.Logger().Check(zap.DebugLevel, "TIMING: BuildTree"); ce != nil {
 		ce.Write(
-			zap.Duration("elapsed_ms", buildElapsed),
+			zap.Duration("elapsed", buildElapsed),
 			zap.Int64("nodes_visited", stats.nodesVisited.Load()),
 			zap.Int64("max_depth_seen", stats.maxDepthSeen.Load()),
 			zap.Int64("skipped_non_interactive", stats.skippedNonInteractive.Load()),
