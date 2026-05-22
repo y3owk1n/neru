@@ -16,7 +16,7 @@ import (
 type MockAccessibilityPort struct {
 	HealthFunc               func(context.Context) error
 	ClickableElementsFunc    func(context.Context, ports.ElementFilter) ([]*element.Element, error)
-	StreamElementsFunc       func(context.Context, ports.ElementFilter) (<-chan ports.ElementStreamResult, error)
+	StreamElementsFunc       func(context.Context, ports.ElementFilter) (<-chan ports.ElementStreamResult, <-chan struct{}, error)
 	PerformActionFunc        func(context.Context, *element.Element, action.Type) error
 	PerformActionAtPointFunc func(context.Context, action.Type, image.Point, action.Modifiers) error
 	ScrollFunc               func(context.Context, int, int) error
@@ -49,15 +49,18 @@ func (m *MockAccessibilityPort) ClickableElements(
 func (m *MockAccessibilityPort) StreamElements(
 	ctx context.Context,
 	filter ports.ElementFilter,
-) (<-chan ports.ElementStreamResult, error) {
+) (<-chan ports.ElementStreamResult, <-chan struct{}, error) {
 	if m.StreamElementsFunc != nil {
 		return m.StreamElementsFunc(ctx, filter)
 	}
 
-	ch := make(chan ports.ElementStreamResult)
-	close(ch)
+	resultCh := make(chan ports.ElementStreamResult)
+	close(resultCh)
 
-	return ch, nil
+	doneCh := make(chan struct{})
+	close(doneCh)
+
+	return resultCh, doneCh, nil
 }
 
 // PerformAction implements ports.AccessibilityPort.

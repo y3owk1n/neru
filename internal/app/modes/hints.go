@@ -322,7 +322,7 @@ func (h *Handler) tryActivateHintsStreaming(
 	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
 	h.streamCancel = cancel
 
-	streamCh, err := h.hintService.StreamHints(
+	streamCh, doneCh, err := h.hintService.StreamHints(
 		ctx,
 		filterRoles,
 		filterTextContains,
@@ -332,6 +332,7 @@ func (h *Handler) tryActivateHintsStreaming(
 	)
 	if err != nil {
 		h.streamCancel = nil
+		h.streamDone = nil
 
 		cancel()
 
@@ -341,17 +342,35 @@ func (h *Handler) tryActivateHintsStreaming(
 		return false
 	}
 
+	h.streamDone = doneCh
+
 	go h.processHintStream(streamCh, search)
 
 	return true
 }
 
-// cancelHintStream cancels any in-flight hint streaming context and resets
-// the stored cancel func. Safe to call multiple times.
+// cancelHintStream cancels any in-flight hint streaming context and waits
+// for all background streaming goroutines to fully exit before returning.
+// Safe to call multiple times.
 func (h *Handler) cancelHintStream() {
 	if h.streamCancel != nil {
 		h.streamCancel()
 		h.streamCancel = nil
+	}
+
+	if h.streamDone != nil {
+		done := h.streamDone
+		h.streamDone = nil
+
+		const cgoExitTimeout = 500 * time.Millisecond
+
+		// Wait with a safety timeout to prevent hanging the UI indefinitely if a native AX call hangs
+		select {
+		case <-done:
+			h.logger.Debug("Hint stream goroutines exited successfully")
+		case <-time.After(cgoExitTimeout):
+			h.logger.Warn("Timeout waiting for hint stream goroutines to exit; proceeding anyway")
+		}
 	}
 }
 
@@ -425,6 +444,12 @@ func (h *Handler) processHintStream(
 ) {
 	for batch := range streamCh {
 		h.mu.Lock()
+
+		if h.appState.CurrentMode() != domain.ModeHints {
+			h.mu.Unlock()
+
+			return
+		}
 
 		if batch.Err != nil {
 			h.logger.Error("Hint stream error", zap.Error(batch.Err))

@@ -21,8 +21,13 @@ type ElementDiscovery interface {
 	ClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)
 
 	// StreamElements returns a channel that delivers elements as they are
-	// discovered. The channel is closed when the stream is complete.
-	StreamElements(ctx context.Context, filter ElementFilter) (<-chan ElementStreamResult, error)
+	// discovered and a done channel that is closed when all background streaming
+	// goroutines have fully completed and exited. The stream channel is closed when the
+	// traversal is complete.
+	StreamElements(
+		ctx context.Context,
+		filter ElementFilter,
+	) (<-chan ElementStreamResult, <-chan struct{}, error)
 }
 
 // ActionExecution defines the interface for executing actions on UI elements.

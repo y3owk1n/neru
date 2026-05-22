@@ -91,7 +91,7 @@ func (s *HintService) StreamHints(
 	bundleID string,
 	screenBounds image.Rectangle,
 	gen hint.Generator,
-) (<-chan HintStreamBatch, error) {
+) (<-chan HintStreamBatch, <-chan struct{}, error) {
 	s.mu.RLock()
 
 	cfg := s.config
@@ -103,16 +103,17 @@ func (s *HintService) StreamHints(
 
 	filter := s.buildElementFilter(ctx, cfg, filterRoles, filterTextContains, bundleID)
 	if ctx.Err() != nil {
-		return nil, ctx.Err()
+		return nil, nil, ctx.Err()
 	}
 
 	var (
 		streamCh  <-chan ports.ElementStreamResult
+		doneCh    <-chan struct{}
 		streamErr error
 	)
 
 	if cfg.Streaming.Enabled {
-		streamCh, streamErr = s.accessibility.StreamElements(ctx, filter)
+		streamCh, doneCh, streamErr = s.accessibility.StreamElements(ctx, filter)
 	} else {
 		var elements []*element.Element
 
@@ -126,25 +127,30 @@ func (s *HintService) StreamHints(
 			close(resultCh)
 
 			streamCh = resultCh
+
+			dc := make(chan struct{})
+			close(dc)
+			doneCh = dc
 		}
 	}
 
 	if streamErr != nil {
 		s.logger.Error("Failed to start element stream", zap.Error(streamErr))
 
-		return nil, core.WrapAccessibilityFailed(streamErr, "element stream")
+		return nil, nil, core.WrapAccessibilityFailed(streamErr, "element stream")
 	}
 
 	outCh := make(chan HintStreamBatch, 4) //nolint:mnd // small buffer for streaming batches
+	hintsDoneCh := make(chan struct{})
 
 	batchInterval := cfg.Streaming.BatchInterval
 	if batchInterval < 1 {
 		batchInterval = config.DefaultHintStreamBatchInterval
 	}
 
-	go s.streamHintsInternal(ctx, streamCh, outCh, gen, batchInterval)
+	go s.streamHintsInternal(ctx, streamCh, doneCh, outCh, hintsDoneCh, gen, batchInterval)
 
-	return outCh, nil
+	return outCh, hintsDoneCh, nil
 }
 
 // GenerateHints collects clickable elements and generates labels without drawing
@@ -340,10 +346,20 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 func (s *HintService) streamHintsInternal(
 	ctx context.Context,
 	streamCh <-chan ports.ElementStreamResult,
+	doneCh <-chan struct{},
 	outCh chan<- HintStreamBatch,
+	hintsDoneCh chan<- struct{},
 	gen hint.Generator,
 	batchInterval int,
 ) {
+	defer func() {
+		// Wait for upstream to be fully done before signaling completion to avoid CGO concurrency
+		if doneCh != nil {
+			<-doneCh
+		}
+
+		close(hintsDoneCh)
+	}()
 	defer close(outCh)
 
 	var (

@@ -16,17 +16,18 @@ import (
 type streamSink func(result ports.ElementStreamResult)
 
 // StreamElements returns a channel that delivers elements as they are
-// discovered by the accessibility traversal. Elements are streamed at the
-// per-node granularity from the frontmost window; supplementary sources
+// discovered by the accessibility traversal, and a done channel that closes
+// when all background discovery goroutines have finished. Elements are streamed
+// at the per-node granularity from the frontmost window; supplementary sources
 // (menubar, dock, etc.) are batched. The channel is closed when the
 // traversal is complete.
 func (a *Adapter) StreamElements(
 	ctx context.Context,
 	filter ports.ElementFilter,
-) (<-chan ports.ElementStreamResult, error) {
+) (<-chan ports.ElementStreamResult, <-chan struct{}, error) {
 	err := a.checkContext(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Pre-lowercase filter strings once to avoid repeating strings.ToLower on hot paths
@@ -57,19 +58,22 @@ func (a *Adapter) StreamElements(
 		chan ports.ElementStreamResult,
 		100, //nolint:mnd
 	)
+	doneCh := make(chan struct{})
 
-	go a.streamElementsInternal(ctx, filter, resultCh)
+	go a.streamElementsInternal(ctx, filter, resultCh, doneCh)
 
-	return resultCh, nil
+	return resultCh, doneCh, nil
 }
 
 // streamElementsInternal runs the element collection in a goroutine, sending
-// results through ch and closing ch when done.
+// results through ch and closing ch and doneCh when done.
 func (a *Adapter) streamElementsInternal(
 	ctx context.Context,
 	filter ports.ElementFilter,
 	resultCh chan<- ports.ElementStreamResult,
+	doneCh chan<- struct{},
 ) {
+	defer close(doneCh)
 	defer close(resultCh)
 
 	var (

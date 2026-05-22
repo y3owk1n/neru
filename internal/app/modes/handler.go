@@ -93,6 +93,7 @@ type Handler struct {
 	refreshHintsTimer          *time.Timer
 	modeSession                uint64
 	streamCancel               context.CancelFunc
+	streamDone                 <-chan struct{}
 	hotkeyLastKey              string
 	hotkeyLastKeyTime          int64
 

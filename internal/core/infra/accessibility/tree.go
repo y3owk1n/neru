@@ -27,11 +27,11 @@ import (
 // Pre-allocated common errors.
 var errRootElementNil = derrors.New(derrors.CodeAccessibilityFailed, "root element is nil")
 
-// buildTreeMu serializes all BuildTree invocations to prevent concurrent
-// macOS Accessibility API calls. The AX API is not thread-safe — multiple
-// goroutines calling getChildren/getElementInfo/hasClickAction simultaneously
-// triggers SIGTRAP during cgo execution.
-var buildTreeMu sync.Mutex
+// NOTE: buildTreeMu was previously used to serialize all BuildTree invocations.
+// It is permanently disabled/removed to allow concurrent parsing of windows,
+// menubar, dock, and other supplementary sources during a single session (which
+// makes non-streaming significantly faster). Concurrency is now serialized at the
+// session level (in the streaming layer) to prevent multi-session overlap races.
 
 // rectFromInfo converts an ElementInfo's position and size into an image.Rectangle.
 func rectFromInfo(info *ElementInfo) image.Rectangle {
@@ -259,8 +259,8 @@ func (s *treeStats) recordDepth(depth int) {
 
 // BuildTree constructs an accessibility tree starting from the specified root element.
 func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode, error) {
-	buildTreeMu.Lock()
-	defer buildTreeMu.Unlock()
+	// buildTreeMu is permanently disabled here; serialization is handled at the
+	// session layer in StreamElements/StreamHints.
 
 	if ctx != nil {
 		select {
@@ -558,11 +558,14 @@ func buildChildrenSequential(
 	}
 	validChildren := make([]childData, 0, len(children))
 
-	for _, child := range children {
+	for index, child := range children {
 		if ctx != nil {
 			select {
 			case <-ctx.Done():
-				for _, remaining := range children {
+				for _, vc := range validChildren {
+					vc.element.Release()
+				}
+				for _, remaining := range children[index:] {
 					remaining.Release()
 				}
 

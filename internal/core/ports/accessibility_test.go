@@ -197,11 +197,13 @@ func (m *mockElementDiscovery) ClickableElements(
 func (m *mockElementDiscovery) StreamElements(
 	ctx context.Context,
 	filter ports.ElementFilter,
-) (<-chan ports.ElementStreamResult, error) {
+) (<-chan ports.ElementStreamResult, <-chan struct{}, error) {
 	resultCh := make(chan ports.ElementStreamResult)
+	doneCh := make(chan struct{})
 
 	go func() {
 		defer close(resultCh)
+		defer close(doneCh)
 
 		elem, err := element.NewElement(
 			element.ID("test-element"),
@@ -219,7 +221,7 @@ func (m *mockElementDiscovery) StreamElements(
 		resultCh <- ports.ElementStreamResult{Element: elem}
 	}()
 
-	return resultCh, nil
+	return resultCh, doneCh, nil
 }
 
 // mockScreenManager implements only the ScreenManagement interface.
