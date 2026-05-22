@@ -15,9 +15,6 @@ import (
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
-// debugTime returns a timestamp for measuring elapsed time.
-func debugTime() time.Time { return time.Now() }
-
 // debugElapsed logs the duration since start with the given message.
 func debugElapsed(logger *zap.Logger, start time.Time, msg string, fields ...zap.Field) {
 	logger.Debug(msg, append(fields, zap.Duration("elapsed", time.Since(start)))...)
@@ -238,7 +235,7 @@ func (h *Handler) activateHintModeInternal(
 	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
 	defer cancel()
 
-	hintGenStart := debugTime()
+	hintGenStart := time.Now()
 
 	domainHints, domainHintsErr := h.hintService.GenerateHints(
 		ctx,
