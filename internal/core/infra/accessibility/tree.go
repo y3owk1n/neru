@@ -162,7 +162,7 @@ type TreeOptions struct {
 	stats                *treeStats
 	bundleID             string          // Bundle ID for auto-detecting Chromium/Electron strict filtering
 	configProvider       config.Provider // For checking user-configured Chromium/Electron bundles
-	isChromiumOrElectron bool            // Pre-computed flag for fast check (includes WebKit)
+	isChromiumOrElectron bool            // Pre-computed flag for fast check
 	isWebKit             bool            // Pre-computed flag for WebKit-based apps
 }
 
