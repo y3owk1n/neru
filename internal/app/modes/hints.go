@@ -23,7 +23,7 @@ func debugElapsed(logger *zap.Logger, start time.Time, msg string, fields ...zap
 // ModeActivationOptions configures a mode activation request.
 type ModeActivationOptions struct {
 	Action                *string
-	Repeat                bool
+	Repeat                *bool
 	CursorFollowSelection *bool
 	FilterRoles           []string
 	FilterTextContains    []string
@@ -104,7 +104,7 @@ func filterHintsForScreen(
 // activateHintModeWithAction activates hint mode with optional action parameter.
 func (h *Handler) activateHintModeWithAction(
 	action *string,
-	repeat bool,
+	repeat *bool,
 	cursorFollowSelection *bool,
 	filterRoles []string,
 	filterTextContains []string,
@@ -119,7 +119,7 @@ func (h *Handler) activateHintModeWithAction(
 	)
 
 	// Store repeat flag after activation so the context is already initialized.
-	if repeat && h.hints != nil && h.hints.Context != nil {
+	if repeat != nil && *repeat && h.hints != nil && h.hints.Context != nil {
 		h.hints.Context.SetRepeat(true)
 	}
 }

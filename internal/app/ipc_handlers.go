@@ -145,7 +145,7 @@ func (h *IPCControllerModes) modesUnavailableResponse() ipc.Response {
 // ModeActivationOptions holds the parsed options for activating a navigation mode.
 type ModeActivationOptions struct {
 	Action                *string
-	Repeat                bool
+	Repeat                *bool
 	CursorFollowSelection *bool
 	FilterRoles           []string
 	FilterTextContains    []string
@@ -183,7 +183,8 @@ func (h *IPCControllerModes) extractModeOptions(
 
 		switch {
 		case arg == "--repeat" || arg == "-r":
-			opts.Repeat = true
+			repeatTrue := true
+			opts.Repeat = &repeatTrue
 		case arg == "--search" || arg == "-s":
 			searchTrue := true
 			opts.Search = &searchTrue
@@ -337,7 +338,7 @@ func (h *IPCControllerModes) extractModeOptions(
 		}
 	}
 
-	if opts.Repeat && opts.Action == nil {
+	if opts.Repeat != nil && *opts.Repeat && opts.Action == nil {
 		resp := ipc.Response{
 			Success: false,
 			Message: "--repeat requires an action",

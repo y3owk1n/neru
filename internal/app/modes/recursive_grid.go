@@ -19,7 +19,7 @@ import (
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter.
 func (h *Handler) activateRecursiveGridModeWithAction(
 	actionStr *string,
-	repeat bool,
+	repeat *bool,
 	cursorFollowSelection *bool,
 ) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
@@ -109,12 +109,16 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 				h.recursiveGrid.Context.SetPendingAction(actionStr)
 			}
 
+			if repeat != nil {
+				h.recursiveGrid.Context.SetRepeat(*repeat)
+			}
+
 			if cursorFollowSelection != nil {
 				h.recursiveGrid.Context.SetCursorFollowSelection(*cursorFollowSelection)
 			}
 		} else {
 			h.recursiveGrid.Context.SetPendingAction(actionStr)
-			h.recursiveGrid.Context.SetRepeat(repeat)
+			h.recursiveGrid.Context.SetRepeat(repeat != nil && *repeat)
 			h.recursiveGrid.Context.SetCursorFollowSelection(cursorShouldFollow)
 		}
 	}
@@ -129,7 +133,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 		h.logger.Info(
 			"Recursive-grid mode activated with pending action",
 			zap.String("action", *actionStr),
-			zap.Bool("repeat", repeat),
+			zap.Bool("repeat", repeat != nil && *repeat),
 		)
 	}
 
@@ -231,7 +235,7 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 			func() {
 				h.activateRecursiveGridModeWithAction(
 					pendingAction,
-					repeat,
+					&repeat,
 					&cursorFollowSelection,
 				)
 			},
