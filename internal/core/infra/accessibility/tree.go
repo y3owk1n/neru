@@ -980,7 +980,6 @@ func isWebKit(bundleID string, configProvider config.Provider) bool {
 	}
 
 	// Check known WebKit bundles (Safari, Safari Technology Preview, etc.)
-	bundleID = strings.ToLower(strings.TrimSpace(bundleID))
 	if config.MatchesAdditionalBundle(bundleID, config.KnownWebKitBundles) {
 		return true
 	}
