@@ -451,9 +451,10 @@ func buildTreeRecursive(
 		return
 	}
 
-	// Early exit if element is out of window bounds
-	// and only targeted on Chromium/Electron apps.
-	// They tend to over fetch children and is extremely noisy.
+	// Early exit if element is out of window bounds.
+	// Targeted at Chromium/Electron apps (noisy DOM trees with many off-screen
+	// elements) and WebKit-based apps (e.g. Safari, where skipping off-screen
+	// subtrees avoids expensive AXAPI round-trips).
 	//
 	// This check is intentionally placed before the Children() call to avoid
 	// expensive AXAPI round-trips for off-screen subtrees — the majority of
