@@ -149,7 +149,7 @@ type ModeActivationOptions struct {
 	CursorFollowSelection *bool
 	FilterRoles           []string
 	FilterTextContains    []string
-	Search                bool
+	Search                *bool
 }
 
 // extractModeOptions extracts and validates the optional action and repeat
@@ -185,7 +185,8 @@ func (h *IPCControllerModes) extractModeOptions(
 		case arg == "--repeat" || arg == "-r":
 			opts.Repeat = true
 		case arg == "--search" || arg == "-s":
-			opts.Search = true
+			searchTrue := true
+			opts.Search = &searchTrue
 		case strings.HasPrefix(arg, "--action="):
 			actionArg := strings.TrimPrefix(arg, "--action=")
 			opts.Action = &actionArg

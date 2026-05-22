@@ -253,6 +253,14 @@ func (h *Handler) RefreshHintsForScreenChange(
 		}
 	}
 
+	// Escape any active IME search session before refreshing hints on the new
+	// screen. The old IME session is bound to the previous screen and loses
+	// focus during the space transition, causing subsequent keystrokes to be
+	// forwarded to the frontmost app instead.
+	if h.hints != nil && h.hints.Context != nil && h.hints.Context.SearchActive() {
+		h.cancelHintSearch()
+	}
+
 	// Get current filter options from context
 	filterRoles := h.hints.Context.FilterRoles()
 	filterTextContains := h.hints.Context.FilterTextContains()
@@ -711,7 +719,7 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 		startWithSearch := h.hints.Context.StartWithSearch()
 
 		h.executeActionAtPoint(pendingAction, center, true, func() {
-			h.activateHintModeInternal(nil, nil, filterRoles, filterTextContains, startWithSearch)
+			h.activateHintModeInternal(nil, nil, filterRoles, filterTextContains, &startWithSearch)
 
 			// Restore state so subsequent cycles continue to execute the action
 			if h.appState.CurrentMode() == domain.ModeHints &&

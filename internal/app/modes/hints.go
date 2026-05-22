@@ -27,7 +27,7 @@ type ModeActivationOptions struct {
 	CursorFollowSelection *bool
 	FilterRoles           []string
 	FilterTextContains    []string
-	Search                bool
+	Search                *bool
 }
 
 const (
@@ -108,7 +108,7 @@ func (h *Handler) activateHintModeWithAction(
 	cursorFollowSelection *bool,
 	filterRoles []string,
 	filterTextContains []string,
-	search bool,
+	search *bool,
 ) {
 	h.activateHintModeInternal(
 		action,
@@ -133,7 +133,7 @@ func (h *Handler) activateHintModeInternal(
 	cursorFollowSelection *bool,
 	filterRoles []string,
 	filterTextContains []string,
-	search bool,
+	search *bool,
 ) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
@@ -141,6 +141,13 @@ func (h *Handler) activateHintModeInternal(
 	// Reset cycle index on refresh since the hint list is regenerated
 	if isRefresh {
 		h.cycleHintIndex = -1
+	}
+
+	// On refresh, properly escape the active IME and clear search state first.
+	// This prevents the IME from becoming orphaned/unfocused during screen/space
+	// transitions where the OS moves focus to the frontmost app.
+	if isRefresh && h.hints != nil && h.hints.Context != nil && h.hints.Context.SearchActive() {
+		h.cancelHintSearch()
 	}
 
 	// Defer bundle ID fetch until after validation (secure input check) to avoid
@@ -226,6 +233,10 @@ func (h *Handler) activateHintModeInternal(
 			if filterTextContains != nil {
 				h.hints.Context.SetFilterTextContains(filterTextContains)
 			}
+
+			if search != nil {
+				h.hints.Context.SetStartWithSearch(*search)
+			}
 		} else {
 			h.hints.Context.SetPendingAction(actionStr)
 			h.hints.Context.SetRepeat(false)
@@ -235,7 +246,7 @@ func (h *Handler) activateHintModeInternal(
 			))
 			h.hints.Context.SetFilterRoles(filterRoles)
 			h.hints.Context.SetFilterTextContains(filterTextContains)
-			h.hints.Context.SetStartWithSearch(search)
+			h.hints.Context.SetStartWithSearch(search != nil && *search)
 		}
 	}
 
@@ -379,7 +390,7 @@ func (h *Handler) activateHintModeInternal(
 		)
 	}
 
-	if search {
+	if search != nil && *search {
 		err := h.startHintSearchLocked()
 		if err != nil {
 			h.logger.Error("Failed to start hint search on activation", zap.Error(err))
