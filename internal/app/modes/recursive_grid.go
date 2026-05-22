@@ -74,10 +74,15 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	// Initialize recursive-grid manager
 	h.initializeRecursiveGridManager(normalizedBounds)
 
-	cursorShouldFollow := resolveCursorFollowSelection(
-		domain.ModeRecursiveGrid,
-		cursorFollowSelection,
-	)
+	var cursorShouldFollow bool
+	if isRefresh && cursorFollowSelection == nil && h.recursiveGrid.Context != nil {
+		cursorShouldFollow = h.recursiveGrid.Context.CursorFollowSelection()
+	} else {
+		cursorShouldFollow = resolveCursorFollowSelection(
+			domain.ModeRecursiveGrid,
+			cursorFollowSelection,
+		)
+	}
 
 	// Move cursor to center of initial grid
 	if h.recursiveGrid.Manager != nil {
