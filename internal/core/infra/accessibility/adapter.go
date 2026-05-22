@@ -147,6 +147,12 @@ func (a *Adapter) ClickableElements(
 	collectElements := func(sourceName string, queryFunc func() ([]*element.Element, error)) {
 		defer waitGroup.Done()
 
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		elements, err := queryFunc()
 		if err != nil {
 			mutex.Lock()
@@ -176,13 +182,13 @@ func (a *Adapter) ClickableElements(
 
 		go func() {
 			collectElements("windows", func() ([]*element.Element, error) {
-				windowsToProcess, windowsErr := a.client.FrontmostAndPopoverWindows()
+				windowsToProcess, windowsErr := a.client.FrontmostAndPopoverWindows(ctx)
 				if windowsErr != nil {
 					return nil, windowsErr
 				}
 
 				if len(windowsToProcess) == 0 {
-					frontmost, frontmostErr := a.client.FrontmostWindow()
+					frontmost, frontmostErr := a.client.FrontmostWindow(ctx)
 					if frontmostErr != nil {
 						return nil, frontmostErr
 					}
@@ -204,6 +210,7 @@ func (a *Adapter) ClickableElements(
 					defer func() { <-windowSem }()
 
 					clickableNodes, clickableNodesErr := a.client.ClickableNodes(
+						ctx,
 						window,
 						stringRoles(filter.Roles),
 						0,
@@ -314,8 +321,18 @@ func (a *Adapter) ClickableElements(
 		}()
 	}
 
-	// Wait for all queries to complete
-	waitGroup.Wait()
+	// Wait for all queries to complete or context to be canceled
+	done := make(chan struct{})
+	go func() {
+		waitGroup.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
+	}
 
 	if firstError != nil {
 		return nil, firstError
@@ -431,7 +448,7 @@ func (a *Adapter) FocusedAppBundleID(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	focusedApp, focusedAppErr := a.client.FocusedApplication()
+	focusedApp, focusedAppErr := a.client.FocusedApplication(ctx)
 	if focusedAppErr != nil {
 		return "", derrors.New(derrors.CodeAccessibilityFailed, "failed to get focused application")
 	}

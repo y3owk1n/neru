@@ -1,6 +1,7 @@
 package accessibility
 
 import (
+	"context"
 	"image"
 	"sync"
 
@@ -49,19 +50,19 @@ type MockAXClient struct {
 }
 
 // FrontmostWindow returns the configured frontmost window or error.
-func (m *MockAXClient) FrontmostWindow() (AXWindow, error) {
+func (m *MockAXClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
 	return m.MockFrontmostWindow, m.MockFrontmostWindowErr
 }
 
 // AllWindows returns the configured windows or error.
-func (m *MockAXClient) AllWindows() ([]AXWindow, error) {
+func (m *MockAXClient) AllWindows(_ context.Context) ([]AXWindow, error) {
 	return m.MockAllWindows, m.MockAllWindowsErr
 }
 
 // FrontmostAndPopoverWindows returns configured hint windows or falls back to
 // the frontmost window. When neither is configured, returns empty to match
 // production semantics (focused window + popover siblings, not arbitrary windows).
-func (m *MockAXClient) FrontmostAndPopoverWindows() ([]AXWindow, error) {
+func (m *MockAXClient) FrontmostAndPopoverWindows(_ context.Context) ([]AXWindow, error) {
 	if m.MockHintWindows != nil || m.MockHintWindowsErr != nil {
 		return m.MockHintWindows, m.MockHintWindowsErr
 	}
@@ -74,17 +75,18 @@ func (m *MockAXClient) FrontmostAndPopoverWindows() ([]AXWindow, error) {
 }
 
 // FocusedApplication returns the configured focused application or error.
-func (m *MockAXClient) FocusedApplication() (AXApp, error) {
+func (m *MockAXClient) FocusedApplication(_ context.Context) (AXApp, error) {
 	return m.MockFocusedApp, m.MockFocusedAppErr
 }
 
 // ApplicationByBundleID returns the configured application by bundle ID or error.
-func (m *MockAXClient) ApplicationByBundleID(_ string) (AXApp, error) {
+func (m *MockAXClient) ApplicationByBundleID(_ context.Context, _ string) (AXApp, error) {
 	return m.MockFocusedApp, m.MockFocusedAppErr // Reuse focused app for simplicity or add specific field
 }
 
 // ClickableNodes returns the configured clickable nodes or error.
 func (m *MockAXClient) ClickableNodes(
+	_ context.Context,
 	_ AXElement,
 	roles []string,
 	_ int,
@@ -98,7 +100,7 @@ func (m *MockAXClient) ClickableNodes(
 }
 
 // MenuBarClickableElements returns the configured menu bar nodes or error.
-func (m *MockAXClient) MenuBarClickableElements(maxDepth int) ([]AXNode, error) {
+func (m *MockAXClient) MenuBarClickableElements(_ context.Context, maxDepth int) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastCalledMaxDepth = maxDepth
 	m.mu.Unlock()
@@ -108,6 +110,7 @@ func (m *MockAXClient) MenuBarClickableElements(maxDepth int) ([]AXNode, error) 
 
 // ClickableElementsFromBundleID returns the configured nodes for bundle ID or error.
 func (m *MockAXClient) ClickableElementsFromBundleID(
+	_ context.Context,
 	bundleID string,
 	roles []string,
 	maxDepth int,

@@ -3,6 +3,7 @@
 package accessibility
 
 import (
+	"context"
 	"image"
 
 	"go.uber.org/zap"
@@ -62,7 +63,7 @@ func (o *TreeOptions) SetConfigProvider(cp config.Provider) {}
 func (o *TreeOptions) SetFilterFunc(fn func(*ElementInfo) bool) {}
 
 // BuildTree builds the accessibility tree for the specified root element (Windows stub).
-func BuildTree(_ *Element, _ TreeOptions) (*TreeNode, error) {
+func BuildTree(_ context.Context, _ *Element, _ TreeOptions) (*TreeNode, error) {
 	return &TreeNode{}, nil
 }
 

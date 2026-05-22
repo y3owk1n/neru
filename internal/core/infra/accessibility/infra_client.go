@@ -1,6 +1,7 @@
 package accessibility
 
 import (
+	"context"
 	"fmt"
 	"image"
 
@@ -33,7 +34,7 @@ func NewInfraAXClient(
 }
 
 // FrontmostWindow returns the frontmost window.
-func (c *InfraAXClient) FrontmostWindow() (AXWindow, error) {
+func (c *InfraAXClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
 	window := FrontmostWindow()
 	if window == nil {
 		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get frontmost window")
@@ -43,7 +44,7 @@ func (c *InfraAXClient) FrontmostWindow() (AXWindow, error) {
 }
 
 // AllWindows returns all windows of the focused application.
-func (c *InfraAXClient) AllWindows() ([]AXWindow, error) {
+func (c *InfraAXClient) AllWindows(_ context.Context) ([]AXWindow, error) {
 	windows, err := AllWindows()
 	if err != nil {
 		return nil, err
@@ -58,7 +59,7 @@ func (c *InfraAXClient) AllWindows() ([]AXWindow, error) {
 }
 
 // FrontmostAndPopoverWindows returns the frontmost window plus popovers.
-func (c *InfraAXClient) FrontmostAndPopoverWindows() ([]AXWindow, error) {
+func (c *InfraAXClient) FrontmostAndPopoverWindows(_ context.Context) ([]AXWindow, error) {
 	windows, err := FrontmostAndPopoverWindows()
 	if err != nil {
 		return nil, err
@@ -73,7 +74,7 @@ func (c *InfraAXClient) FrontmostAndPopoverWindows() ([]AXWindow, error) {
 }
 
 // FocusedApplication returns the focused application.
-func (c *InfraAXClient) FocusedApplication() (AXApp, error) {
+func (c *InfraAXClient) FocusedApplication(_ context.Context) (AXApp, error) {
 	app := FocusedApplication()
 	if app == nil {
 		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get focused app")
@@ -85,57 +86,26 @@ func (c *InfraAXClient) FocusedApplication() (AXApp, error) {
 // ClickableNodes returns clickable nodes for the given root element.
 // If maxDepth is > 0, it overrides the configured tree depth.
 func (c *InfraAXClient) ClickableNodes(
+	ctx context.Context,
 	root AXElement,
 	roles []string,
 	maxDepth int,
 ) ([]AXNode, error) {
-	var element *Element
-
-	switch elementType := root.(type) {
-	case *InfraWindow:
-		element = elementType.element
-	case *InfraApp:
-		element = elementType.element
-	default:
-		return nil, derrors.New(derrors.CodeInvalidInput, "invalid element type")
-	}
+	element := c.extractElement(root)
 
 	if element == nil {
 		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
 	}
 
-	opts := DefaultTreeOptions(c.logger)
-	opts.SetConfigProvider(c.configProvider)
+	opts, allowedRoles, ignoreClickableCheck := c.buildClickableOpts(element, roles, maxDepth)
 
-	if cfg := currentConfig(c.configProvider); cfg != nil {
-		depth := cfg.Hints.MaxDepth
-		if maxDepth > 0 {
-			depth = maxDepth
-		}
-
-		opts.SetMaxDepth(depth)
-	}
-
-	tree, treeErr := BuildTree(element, opts)
+	tree, treeErr := BuildTree(ctx, element, opts)
 	if treeErr != nil {
 		return nil, derrors.Wrap(
 			treeErr,
 			derrors.CodeAccessibilityFailed,
 			"failed to build accessibility tree",
 		)
-	}
-
-	var allowedRoles map[string]struct{}
-	if len(roles) > 0 {
-		allowedRoles = make(map[string]struct{}, len(roles))
-		for _, role := range roles {
-			allowedRoles[role] = struct{}{}
-		}
-	}
-
-	ignoreClickableCheck := false
-	if cfg := currentConfig(c.configProvider); cfg != nil {
-		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(element.BundleIdentifier())
 	}
 
 	clickableNodes := tree.FindClickableElements(
@@ -162,7 +132,7 @@ func (c *InfraAXClient) ClickableNodes(
 }
 
 // ApplicationByBundleID returns the application with the given bundle ID.
-func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
+func (c *InfraAXClient) ApplicationByBundleID(_ context.Context, bundleID string) (AXApp, error) {
 	app := ApplicationByBundleID(bundleID)
 	if app == nil {
 		return nil, derrors.New(derrors.CodeAccessibilityFailed, "application not found")
@@ -173,8 +143,12 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 
 // MenuBarClickableElements returns clickable elements in the menu bar.
 // If maxDepth is > 0, it overrides the configured tree depth.
-func (c *InfraAXClient) MenuBarClickableElements(maxDepth int) ([]AXNode, error) {
+func (c *InfraAXClient) MenuBarClickableElements(
+	ctx context.Context,
+	maxDepth int,
+) ([]AXNode, error) {
 	nodes, nodesErr := MenuBarClickableElements(
+		ctx,
 		c.logger,
 		c.configProvider,
 		maxDepth,
@@ -202,11 +176,13 @@ func (c *InfraAXClient) MenuBarClickableElements(maxDepth int) ([]AXNode, error)
 // ClickableElementsFromBundleID returns clickable elements for the application with the given bundle ID.
 // If maxDepth is > 0, it overrides the configured tree depth for flat supplementary sources.
 func (c *InfraAXClient) ClickableElementsFromBundleID(
+	ctx context.Context,
 	bundleID string,
 	roles []string,
 	maxDepth int,
 ) ([]AXNode, error) {
 	nodes, nodesErr := ClickableElementsFromBundleID(
+		ctx,
 		bundleID,
 		roles,
 		c.logger,
@@ -324,6 +300,53 @@ func (c *InfraAXClient) ClickableRoles() []string {
 // IsMissionControlActive checks if Mission Control is currently active.
 func (c *InfraAXClient) IsMissionControlActive() bool {
 	return IsMissionControlActive()
+}
+
+// extractElement returns the raw *Element from an AXElement wrapper.
+func (c *InfraAXClient) extractElement(root AXElement) *Element {
+	switch elementType := root.(type) {
+	case *InfraWindow:
+		return elementType.element
+	case *InfraApp:
+		return elementType.element
+	default:
+		return nil
+	}
+}
+
+// buildClickableOpts constructs tree options, allowed roles, and the
+// ignore-clickable flag for the given element and role list.
+func (c *InfraAXClient) buildClickableOpts(
+	element *Element,
+	roles []string,
+	maxDepth int,
+) (TreeOptions, map[string]struct{}, bool) {
+	opts := DefaultTreeOptions(c.logger)
+	opts.SetConfigProvider(c.configProvider)
+
+	if cfg := currentConfig(c.configProvider); cfg != nil {
+		depth := cfg.Hints.MaxDepth
+		if maxDepth > 0 {
+			depth = maxDepth
+		}
+
+		opts.SetMaxDepth(depth)
+	}
+
+	var allowedRoles map[string]struct{}
+	if len(roles) > 0 {
+		allowedRoles = make(map[string]struct{}, len(roles))
+		for _, role := range roles {
+			allowedRoles[role] = struct{}{}
+		}
+	}
+
+	ignoreClickableCheck := false
+	if cfg := currentConfig(c.configProvider); cfg != nil {
+		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(element.BundleIdentifier())
+	}
+
+	return opts, allowedRoles, ignoreClickableCheck
 }
 
 // Wrappers

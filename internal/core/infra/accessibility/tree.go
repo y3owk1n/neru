@@ -11,6 +11,7 @@ package accessibility
 import "C"
 
 import (
+	"context"
 	"image"
 	"strings"
 	"sync"
@@ -242,7 +243,19 @@ func (s *treeStats) recordDepth(depth int) {
 }
 
 // BuildTree constructs an accessibility tree starting from the specified root element.
-func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
+func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode, error) {
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return nil, derrors.Wrap(
+				ctx.Err(),
+				derrors.CodeContextCanceled,
+				"operation canceled before tree build",
+			)
+		default:
+		}
+	}
+
 	if root == nil {
 		if ce := opts.Logger().
 			Check(zap.DebugLevel, "BuildTree called with nil root element"); ce != nil {
@@ -284,7 +297,7 @@ func BuildTree(root *Element, opts TreeOptions) (*TreeNode, error) {
 	node := getTreeNode(root, info, nil, config.DefaultChildrenCapacity)
 
 	opts.stats = stats
-	buildTreeRecursive(node, 1, opts, windowBounds, windowBounds)
+	buildTreeRecursive(ctx, node, 1, opts, windowBounds, windowBounds)
 	accumulateSearchText(node)
 
 	if ce := opts.Logger().Check(zap.DebugLevel, "Tree build completed"); ce != nil {
@@ -364,12 +377,21 @@ var leafRolesWithImportantChildren = map[element.Role]bool{
 }
 
 func buildTreeRecursive(
+	ctx context.Context,
 	parent *TreeNode,
 	depth int,
 	opts TreeOptions,
 	clipBounds image.Rectangle,
 	windowBounds image.Rectangle,
 ) {
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+	}
+
 	if opts.stats != nil {
 		opts.stats.nodesVisited.Add(1)
 		opts.stats.recordDepth(depth)
@@ -496,10 +518,11 @@ func buildTreeRecursive(
 	// Process children sequentially to avoid goroutine/thread explosion
 	// from nested parallel tree building. Concurrency is controlled at
 	// the ClickableElements level (maxConcurrentWindows = 4).
-	buildChildrenSequential(parent, children, depth, opts, clipBounds, windowBounds)
+	buildChildrenSequential(ctx, parent, children, depth, opts, clipBounds, windowBounds)
 }
 
 func buildChildrenSequential(
+	ctx context.Context,
 	parent *TreeNode,
 	children []*Element,
 	depth int,
@@ -514,7 +537,22 @@ func buildChildrenSequential(
 	}
 	validChildren := make([]childData, 0, len(children))
 
-	for _, child := range children {
+	for index, child := range children {
+		if ctx != nil {
+			select {
+			case <-ctx.Done():
+				for _, vc := range validChildren {
+					vc.element.Release()
+				}
+				for _, remaining := range children[index:] {
+					remaining.Release()
+				}
+
+				return
+			default:
+			}
+		}
+
 		info, err := child.Info()
 		if err != nil {
 			if opts.stats != nil {
@@ -574,7 +612,7 @@ func buildChildrenSequential(
 			}
 		}
 
-		buildTreeRecursive(childNode, depth+1, opts, newClipBounds, windowBounds)
+		buildTreeRecursive(ctx, childNode, depth+1, opts, newClipBounds, windowBounds)
 	}
 
 	if opts.stats != nil {
