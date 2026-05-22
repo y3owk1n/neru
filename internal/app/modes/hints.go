@@ -235,7 +235,7 @@ func (h *Handler) activateHintModeInternal(
 	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
 	defer cancel()
 
-	hintGenStart := time.Now()
+	activationStart := time.Now()
 
 	domainHints, domainHintsErr := h.hintService.GenerateHints(
 		ctx,
@@ -257,12 +257,12 @@ func (h *Handler) activateHintModeInternal(
 		return
 	}
 
-	debugElapsed(h.logger, hintGenStart, "GenerateHints completed",
+	debugElapsed(h.logger, activationStart, "GenerateHints completed",
 		zap.Int("total_hints", len(domainHints)))
 
 	filteredHints := filterHintsForScreen(domainHints, activeScreenBounds)
 
-	debugElapsed(h.logger, hintGenStart, "FilterHintsForScreen completed",
+	debugElapsed(h.logger, activationStart, "FilterHintsForScreen completed",
 		zap.Int("after_filter", len(filteredHints)),
 		zap.Int("before_filter", len(domainHints)))
 
@@ -340,7 +340,7 @@ func (h *Handler) activateHintModeInternal(
 
 	h.hints.Context.SetRouter(domainHint.NewRouter(h.hints.Context.Manager(), h.logger))
 
-	debugElapsed(h.logger, hintGenStart, "Manager.SetHints completed")
+	debugElapsed(h.logger, activationStart, "Manager.SetHints completed")
 
 	h.hints.Context.SetHints(hintCollection)
 	h.overlayManager.ResizeToActiveScreen()
@@ -349,11 +349,11 @@ func (h *Handler) activateHintModeInternal(
 	if actionStr != nil {
 		h.logger.Info("Hints mode activated",
 			zap.String("action", *actionStr),
-			zap.Duration("elapsed", time.Since(hintGenStart)),
+			zap.Duration("elapsed", time.Since(activationStart)),
 		)
 	} else {
 		h.logger.Info("Hints mode activated",
-			zap.Duration("elapsed", time.Since(hintGenStart)),
+			zap.Duration("elapsed", time.Since(activationStart)),
 		)
 	}
 
