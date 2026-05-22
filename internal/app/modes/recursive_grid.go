@@ -99,9 +99,19 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	// Draw initial recursive-grid
 	// Store pending action and repeat flag if provided
 	if h.recursiveGrid.Context != nil {
-		h.recursiveGrid.Context.SetPendingAction(actionStr)
-		h.recursiveGrid.Context.SetRepeat(repeat)
-		h.recursiveGrid.Context.SetCursorFollowSelection(cursorShouldFollow)
+		if isRefresh {
+			if actionStr != nil {
+				h.recursiveGrid.Context.SetPendingAction(actionStr)
+			}
+
+			if cursorFollowSelection != nil {
+				h.recursiveGrid.Context.SetCursorFollowSelection(*cursorFollowSelection)
+			}
+		} else {
+			h.recursiveGrid.Context.SetPendingAction(actionStr)
+			h.recursiveGrid.Context.SetRepeat(repeat)
+			h.recursiveGrid.Context.SetCursorFollowSelection(cursorShouldFollow)
+		}
 	}
 
 	// Draw initial recursive-grid

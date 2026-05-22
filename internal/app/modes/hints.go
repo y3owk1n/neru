@@ -206,15 +206,37 @@ func (h *Handler) activateHintModeInternal(
 	h.appState.SetHintOverlayNeedsRefresh(false)
 
 	if h.hints != nil && h.hints.Context != nil {
-		h.hints.Context.SetPendingAction(actionStr)
-		h.hints.Context.SetRepeat(false)
-		h.hints.Context.SetCursorFollowSelection(resolveCursorFollowSelection(
-			domain.ModeHints,
-			cursorFollowSelection,
-		))
-		h.hints.Context.SetFilterRoles(filterRoles)
-		h.hints.Context.SetFilterTextContains(filterTextContains)
-		h.hints.Context.SetStartWithSearch(search)
+		if isRefresh {
+			// On refresh preserve existing context flags for any field not
+			// explicitly provided. This prevents configured action strings
+			// (e.g. space change → MC callback → "hints" with no args) from
+			// overwriting the user's custom --action flag.
+			if actionStr != nil {
+				h.hints.Context.SetPendingAction(actionStr)
+			}
+
+			if cursorFollowSelection != nil {
+				h.hints.Context.SetCursorFollowSelection(*cursorFollowSelection)
+			}
+
+			if filterRoles != nil {
+				h.hints.Context.SetFilterRoles(filterRoles)
+			}
+
+			if filterTextContains != nil {
+				h.hints.Context.SetFilterTextContains(filterTextContains)
+			}
+		} else {
+			h.hints.Context.SetPendingAction(actionStr)
+			h.hints.Context.SetRepeat(false)
+			h.hints.Context.SetCursorFollowSelection(resolveCursorFollowSelection(
+				domain.ModeHints,
+				cursorFollowSelection,
+			))
+			h.hints.Context.SetFilterRoles(filterRoles)
+			h.hints.Context.SetFilterTextContains(filterTextContains)
+			h.hints.Context.SetStartWithSearch(search)
+		}
 	}
 
 	// Fetch bundle ID for hint generation. Validation already passed (secure input check,

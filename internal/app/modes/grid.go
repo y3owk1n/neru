@@ -89,12 +89,23 @@ func (h *Handler) activateGridModeWithAction(
 	h.overlayManager.Show()
 
 	// Store pending action and repeat flag if provided
-	h.grid.Context.SetPendingAction(actionStr)
-	h.grid.Context.SetRepeat(repeat)
-	h.grid.Context.SetCursorFollowSelection(resolveCursorFollowSelection(
-		domain.ModeGrid,
-		cursorFollowSelection,
-	))
+	if isRefresh {
+		if actionStr != nil {
+			h.grid.Context.SetPendingAction(actionStr)
+		}
+
+		if cursorFollowSelection != nil {
+			h.grid.Context.SetCursorFollowSelection(*cursorFollowSelection)
+		}
+	} else {
+		h.grid.Context.SetPendingAction(actionStr)
+		h.grid.Context.SetRepeat(repeat)
+		h.grid.Context.SetCursorFollowSelection(resolveCursorFollowSelection(
+			domain.ModeGrid,
+			cursorFollowSelection,
+		))
+	}
+
 	h.grid.Context.ClearSelectionPoint()
 	h.refreshGridVirtualPointerLocked()
 
