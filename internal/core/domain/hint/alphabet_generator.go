@@ -195,7 +195,7 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 
 	uppercaseChars := uppercaseBuilder.String()
 	charCount := len(characters)
-	// Max capacity for length 3 prefix-free code is N^3
+	// Max capacity for fixed-length 3-char base-N encoding is N^3
 	n := charCount
 	maxHints := n * n * n
 
