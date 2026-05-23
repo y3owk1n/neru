@@ -17,9 +17,6 @@ const (
 	// MinCharactersLength is the minimum length for characters.
 	MinCharactersLength = 2
 
-	// CountsCapacity is the capacity for counts.
-	CountsCapacity = 5
-
 	// maxLabelCacheEntries caps the global label cache to prevent unbounded growth.
 	maxLabelCacheEntries = 64
 )
