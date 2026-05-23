@@ -78,6 +78,7 @@ clickable_roles = [
 	"AXGenericElement",
 ]
 ignore_clickable_check = false
+visible_check_enabled = false
 
 [hints.hotkeys]
 "Escape" = "idle"

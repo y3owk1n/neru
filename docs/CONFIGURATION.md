@@ -331,23 +331,24 @@ You can also start hints mode with the search input shown immediately by using t
 
 ### Options
 
-| Option                             | Type   | Default       | Description                                          |
-| ---------------------------------- | ------ | ------------- | ---------------------------------------------------- |
-| `enabled`                          | bool   | `true`        | Enable/disable hints mode                            |
-| `hint_characters`                  | string | `"asdfghjkl"` | Characters used for labels                           |
-| `max_depth`                        | int    | `50`          | Max accessibility tree depth (0 = unlimited)         |
-| `include_menubar_hints`            | bool   | `false`       | Show hints on menubar items                          |
-| `include_dock_hints`               | bool   | `false`       | Show hints on Dock items                             |
-| `include_nc_hints`                 | bool   | `false`       | Show hints in Notification Center                    |
-| `include_stage_manager_hints`      | bool   | `false`       | Show hints in Stage Manager                          |
-| `include_pip_hints`                | bool   | `false`       | Show hints on macOS Picture in Picture controls      |
-| `include_screen_capture_hints`     | bool   | `false`       | Show hints on macOS Screen Capture controls          |
-| `detect_mission_control`           | bool   | `false`       | Enable Mission Control state detection               |
-| `on_mission_control_activated`    | string | `nil`         | Action to execute when Mission Control opens         |
-| `on_mission_control_deactivated`  | string | `nil`         | Action to execute when Mission Control closes        |
-| `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                             |
-| `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                         |
-| `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                          |
+| Option                             | Type   | Default       | Description                                                                                                                                     |
+| ---------------------------------- | ------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enabled`                          | bool   | `true`        | Enable/disable hints mode                                                                                                                       |
+| `hint_characters`                  | string | `"asdfghjkl"` | Characters used for labels                                                                                                                      |
+| `max_depth`                        | int    | `50`          | Max accessibility tree depth (0 = unlimited)                                                                                                    |
+| `include_menubar_hints`            | bool   | `false`       | Show hints on menubar items                                                                                                                     |
+| `include_dock_hints`               | bool   | `false`       | Show hints on Dock items                                                                                                                        |
+| `include_nc_hints`                 | bool   | `false`       | Show hints in Notification Center                                                                                                               |
+| `include_stage_manager_hints`      | bool   | `false`       | Show hints in Stage Manager                                                                                                                     |
+| `include_pip_hints`                | bool   | `false`       | Show hints on macOS Picture in Picture controls                                                                                                 |
+| `include_screen_capture_hints`     | bool   | `false`       | Show hints on macOS Screen Capture controls                                                                                                     |
+| `detect_mission_control`           | bool   | `false`       | Enable Mission Control state detection                                                                                                          |
+| `on_mission_control_activated`     | string | `nil`         | Action to execute when Mission Control opens                                                                                                    |
+| `on_mission_control_deactivated`   | string | `nil`         | Action to execute when Mission Control closes                                                                                                   |
+| `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                                                                                                                        |
+| `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                                                                                                                    |
+| `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                                                                                                                     |
+| `visible_check_enabled`            | bool   | `false`       | Enable visibility hit-test for elements (this uses expensive AX api, it will cause tree traversing slower if enabled, but get less noisy hints) |
 
 Default search hotkey:
 
@@ -365,6 +366,7 @@ Default search hotkey:
 | `bundle_id`                  | string | App bundle ID (e.g. "com.apple.Safari")  |
 | `additional_clickable_roles` | array  | Extra AX roles to treat as clickable     |
 | `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app |
+| `visible_check_enabled`      | bool   | Enable visibility hit-test for this app  |
 | `hotkeys`                    | map    | Per-app hotkey overrides (see below)     |
 
 ```toml
@@ -372,6 +374,7 @@ Default search hotkey:
 bundle_id = "com.apple.Safari"
 additional_clickable_roles = ["AXLink"]
 ignore_clickable_check = true
+visible_check_enabled = false
 ```
 
 See [Per-App Hotkey Overrides](#per-app-hint-hotkey-overrides) for how per-app hotkey overrides work.

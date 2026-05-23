@@ -491,6 +491,7 @@ type AppConfig struct {
 	BundleID             string                         `json:"bundleId"             toml:"bundle_id"`
 	AdditionalClickable  []string                       `json:"additionalClickable"  toml:"additional_clickable_roles"`
 	IgnoreClickableCheck bool                           `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
+	VisibleCheckEnabled  bool                           `json:"visibleCheckEnabled"  toml:"visible_check_enabled"`
 	Hotkeys              map[string]StringOrStringArray `json:"hotkeys"              toml:"hotkeys"`
 }
 
@@ -582,6 +583,7 @@ type HintsConfig struct {
 
 	ClickableRoles       []string `json:"clickableRoles"       toml:"clickable_roles"`
 	IgnoreClickableCheck bool     `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
+	VisibleCheckEnabled  bool     `json:"visibleCheckEnabled"  toml:"visible_check_enabled"`
 
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
@@ -1403,6 +1405,18 @@ func (c *Config) ShouldIgnoreClickableCheckForApp(bundleID string) bool {
 
 	// Fall back to global ignore_clickable_check
 	return c.Hints.IgnoreClickableCheck
+}
+
+// ShouldEnableVisibleCheckForApp returns whether the visibility hit-test check should be performed
+// for a specific app bundle ID. It first checks for app-specific configuration, then falls back
+// to the global setting. Default is false (visibility check skipped).
+func (c *Config) ShouldEnableVisibleCheckForApp(bundleID string) bool {
+	appConfig := c.Hints.AppConfigForBundleID(bundleID)
+	if appConfig != nil {
+		return appConfig.VisibleCheckEnabled
+	}
+
+	return c.Hints.VisibleCheckEnabled
 }
 
 // rolesMapToSlice converts a roles map to a slice.

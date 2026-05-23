@@ -114,7 +114,6 @@ type ElementInfo struct {
 	hasShowMenuAction bool
 	preActionsFetched bool
 	pid               int
-	skipHitTest       bool
 }
 
 // Position returns the element position.
@@ -715,9 +714,9 @@ func (e *Element) IsClickable(
 		centerX := C.double(info.Position().X + info.Size().X/2)
 		centerY := C.double(info.Position().Y + info.Size().Y/2)
 
-		// Skip hit-test for Chromium/Electron apps (noisy DOM) OR for nodes
-		// within the original window clip bounds (non-scroll areas).
-		skipVisCheck := isExcludedBundleID(info.PID(), configProvider) || info.skipHitTest
+		// Resolve visibility check from config (per-app override, then global).
+		// visible_check_enabled defaults to false, meaning skipVisCheck is true by default.
+		skipVisCheck := !resolveVisibleCheckEnabled(info.PID(), configProvider)
 
 		isWidget := strings.HasPrefix(info.Identifier(), "widget-local:")
 
@@ -746,91 +745,16 @@ func (e *Element) IsClickable(
 // pidBundleCache maps PID → bundle identifier to avoid repeated Cocoa lookups.
 // NOTE: PIDs are reused by macOS. The cache intentionally omits negative results
 // (empty bundleID) so that a reused PID is always re-queried rather than
-// inheriting a stale excluded mapping from a previous process.
+// inheriting a stale mapping from a previous process.
 var (
-	pidBundleCache    = map[int]string{}
-	pidExcludedCache  = map[int]bool{}
-	lastConfigPointer *config.Config
-	pidBundleCacheMu  sync.RWMutex
-	excludedBundleIDs = map[string]struct{}{
-		"com.apple.PIPAgent":             {},
-		"com.apple.screencaptureui":      {},
-		"com.apple.dock":                 {},
-		"com.apple.notificationcenterui": {},
-	}
+	pidBundleCache   = map[int]string{}
+	pidBundleCacheMu sync.RWMutex
 )
 
-// isExcludedOrUnsafe checks whether the given bundle ID should skip the
-// hit-test visibility check — either because it is a known system bundle
-// where the check is not needed (excludedBundleIDs), or because AX hit-testing
-// is unreliable for that app (e.g. Chromium/Electron apps render UI in GPU
-// surfaces that don't expose fine-grained AX hit-testing).
-// Uses config.Known*Bundles as the source of truth (shared with the electron
-// package) rather than duplicating or importing electron directly.
-func isExcludedOrUnsafe(bundleID string, configProvider config.Provider) bool {
-	if _, excluded := excludedBundleIDs[bundleID]; excluded {
-		return true
-	}
-
-	if isLikelyChromiumOrElectron(bundleID) {
-		return true
-	}
-
-	if isLikelyWebKit(bundleID) {
-		return true
-	}
-
-	if configProvider == nil {
-		return false
-	}
-
-	cfg := configProvider.Get()
-	if cfg == nil {
-		return false
-	}
-
-	if config.MatchesAdditionalBundle(
-		bundleID,
-		cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles,
-	) {
-		return true
-	}
-
-	if config.MatchesAdditionalBundle(
-		bundleID,
-		cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles,
-	) {
-		return true
-	}
-
-	return config.MatchesAdditionalBundle(
-		bundleID,
-		cfg.Hints.AdditionalAXSupport.AdditionalWebKitBundles,
-	)
-}
-
-// isExcludedBundleID checks if the process with the given PID belongs to a
-// bundle ID that should skip the expensive visibility check. Results are
-// cached by PID to avoid redundant Cocoa lookups.
-func isExcludedBundleID(pid int, configProvider config.Provider) bool {
-	var cfg *config.Config
-	if configProvider != nil {
-		cfg = configProvider.Get()
-	}
-
-	pidBundleCacheMu.Lock()
-	if cfg != lastConfigPointer {
-		pidExcludedCache = make(map[int]bool)
-		pidBundleCache = make(map[int]string)
-		lastConfigPointer = cfg
-	}
-	excluded, ok := pidExcludedCache[pid]
-	pidBundleCacheMu.Unlock()
-
-	if ok {
-		return excluded
-	}
-
+// resolveVisibleCheckEnabled checks the config to determine if the visibility
+// hit-test should be performed for the given PID. Returns true if the visibility
+// check should run, false to skip it.
+func resolveVisibleCheckEnabled(pid int, configProvider config.Provider) bool {
 	pidBundleCacheMu.RLock()
 	bundleID, hasBundle := pidBundleCache[pid]
 	pidBundleCacheMu.RUnlock()
@@ -849,15 +773,16 @@ func isExcludedBundleID(pid int, configProvider config.Provider) bool {
 		pidBundleCacheMu.Unlock()
 	}
 
-	res := isExcludedOrUnsafe(bundleID, configProvider)
-
-	pidBundleCacheMu.Lock()
-	if cfg == lastConfigPointer {
-		pidExcludedCache[pid] = res
+	if bundleID == "" || configProvider == nil {
+		return false
 	}
-	pidBundleCacheMu.Unlock()
 
-	return res
+	cfg := configProvider.Get()
+	if cfg == nil {
+		return false
+	}
+
+	return cfg.ShouldEnableVisibleCheckForApp(bundleID)
 }
 
 // IsMissionControlActive checks if Mission Control is currently active.

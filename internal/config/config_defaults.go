@@ -347,6 +347,7 @@ func newDefaultConfig() *Config {
 			ClickableRoles: []string{},
 
 			IgnoreClickableCheck: false,
+			VisibleCheckEnabled:  false,
 
 			AppConfigs: []AppConfig{},
 
