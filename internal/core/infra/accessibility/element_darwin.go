@@ -765,6 +765,7 @@ func resolveVisibleCheckEnabled(pid int, configProvider config.Provider) bool {
 	pidBundleCacheMu.Lock()
 	if cfg != lastConfigPointer {
 		pidVisibleCheckCache = make(map[int]bool)
+		pidBundleCache = make(map[int]string)
 		lastConfigPointer = cfg
 	}
 	enabled, ok := pidVisibleCheckCache[pid]
