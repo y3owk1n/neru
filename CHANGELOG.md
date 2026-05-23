@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.39.0](https://github.com/y3owk1n/neru/compare/v1.38.1...v1.39.0) (2026-05-23)
+
+
+### Features
+
+* **hints:** configurable visibility check for noise reduction ([#844](https://github.com/y3owk1n/neru/issues/844)) ([48b3ff7](https://github.com/y3owk1n/neru/commit/48b3ff739f2c4919ec62fc4e4be1c14efe68dd50))
+* **hints:** mission control notifications and actions ([#842](https://github.com/y3owk1n/neru/issues/842)) ([2218dd2](https://github.com/y3owk1n/neru/commit/2218dd232adfdfbe8ae9787e1c99c92b023aca2f))
+
+
+### Bug Fixes
+
+* **hints:** ensure ctx cancellation for chaining calls ([#839](https://github.com/y3owk1n/neru/issues/839)) ([c413124](https://github.com/y3owk1n/neru/commit/c413124826801a38c7b51344389d2e8d9a04a548))
+* **hints:** reverse hints label to prevent prefix cluster ([#845](https://github.com/y3owk1n/neru/issues/845)) ([7781e24](https://github.com/y3owk1n/neru/commit/7781e24b915951e3f54202d813fac1c4f7ea9a2c))
+* preserve mode flags on mode refresh ([#843](https://github.com/y3owk1n/neru/issues/843)) ([5e63847](https://github.com/y3owk1n/neru/commit/5e6384745bf5b59bd443c3b8517f38973aa22d95))
+
+
+### Performance Improvements
+
+* **hints:** skip AX hit tests for webkit apps ([#841](https://github.com/y3owk1n/neru/issues/841)) ([3646c88](https://github.com/y3owk1n/neru/commit/3646c887fdcc7d8f91cff0be8608b340fcda057f))
+
 ## [1.38.1](https://github.com/y3owk1n/neru/compare/v1.38.0...v1.38.1) (2026-05-21)
 
 
