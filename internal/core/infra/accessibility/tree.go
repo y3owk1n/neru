@@ -643,9 +643,13 @@ func buildChildrenSequential(
 
 // minElementSize is the minimum size threshold for elements.
 // Elements smaller than this are filtered out as noise (especially in Chromium DOM trees).
-// This matches similar filtering in tools like Glyphlow.
 const minElementSize = 15
 
+// shouldIncludeElement combines all filtering logic into one function.
+//
+// The clip-bounds overlap check is always applied so that ALL tree sources —
+// including supplementary ones (dock, menubar, PIP, etc.) — benefit from
+// spatial filtering against their respective clip bounds.
 func shouldIncludeElement(
 	info *ElementInfo,
 	opts TreeOptions,
@@ -653,31 +657,66 @@ func shouldIncludeElement(
 ) bool {
 	elementRect := rectFromInfo(info)
 
-	if elementRect.Dx() == 0 || elementRect.Dy() == 0 {
-		return false
+	// Clip bounds check: always filter elements completely outside the
+	// visible area. This handles both window-level clipping (main window
+	// tree) and scroll-container clipping (AXScrollArea viewport), as well
+	// as screen-level clipping for supplementary sources where clip bounds
+	// fall back to the active screen bounds when the root rect is empty.
+	if elementRect.Dx() > 0 && elementRect.Dy() > 0 {
+		if !elementRect.Overlaps(clipBounds) {
+			if ce := opts.Logger().
+				Check(zap.DebugLevel, "Element filtered by clip bounds"); ce != nil {
+				ce.Write(
+					zap.String("role", info.Role()),
+					zap.Int("elem_x", elementRect.Min.X),
+					zap.Int("elem_y", elementRect.Min.Y),
+					zap.Int("elem_w", elementRect.Dx()),
+					zap.Int("elem_h", elementRect.Dy()),
+					zap.Int("clip_x", clipBounds.Min.X),
+					zap.Int("clip_y", clipBounds.Min.Y),
+					zap.Int("clip_w", clipBounds.Dx()),
+					zap.Int("clip_h", clipBounds.Dy()),
+				)
+			}
+
+			return false
+		}
 	}
 
-	if !elementRect.Overlaps(clipBounds) {
-		if ce := opts.Logger().
-			Check(zap.DebugLevel, "Element filtered by clip bounds"); ce != nil {
-			ce.Write(
-				zap.String("role", info.Role()),
-				zap.Int("elem_x", elementRect.Min.X),
-				zap.Int("elem_y", elementRect.Min.Y),
-				zap.Int("elem_w", elementRect.Dx()),
-				zap.Int("elem_h", elementRect.Dy()),
-				zap.Int("clip_x", clipBounds.Min.X),
-				zap.Int("clip_y", clipBounds.Min.Y),
-				zap.Int("clip_w", clipBounds.Dx()),
-				zap.Int("clip_h", clipBounds.Dy()),
-			)
+	// Filter out zero-sized interactive elements (they're broken/invalid)
+	if elementRect.Dx() == 0 || elementRect.Dy() == 0 {
+		if interactiveLeafRoles[element.Role(info.Role())] {
+			return false
+		}
+	}
+
+	// Strict filtering: auto-enabled for Chromium/Electron apps with noisy DOM trees
+	// WebKit-based apps (Safari) have clean trees that don't need this aggressive filtering
+	if opts.isChromiumOrElectron && elementRect.Dx() > 0 &&
+		elementRect.Dy() > 0 {
+		// Filter out tiny elements that are likely noise in Chromium DOM trees.
+		// This is especially important for web content where the DOM can have
+		// thousands of tiny placeholder/structure elements.
+		// Filter if either dimension is too small (not just both)
+		if elementRect.Dx() < minElementSize || elementRect.Dy() < minElementSize {
+			// Only filter if it's not a known important role
+			if !interactiveLeafRoles[element.Role(info.Role())] {
+				return false
+			}
 		}
 
-		return false
-	}
-
-	if elementRect.Dx() < minElementSize || elementRect.Dy() < minElementSize {
-		return false
+		// Filter elements whose center is outside clip bounds (overflowing/scroll-clipped elements)
+		// But keep interactive roles (buttons, links, etc.) even if at edges
+		halfWidth := elementRect.Dx() / 2  //nolint:mnd
+		halfHeight := elementRect.Dy() / 2 //nolint:mnd
+		centerX := elementRect.Min.X + halfWidth
+		centerY := elementRect.Min.Y + halfHeight
+		if centerX < clipBounds.Min.X || centerX > clipBounds.Max.X ||
+			centerY < clipBounds.Min.Y || centerY > clipBounds.Max.Y {
+			if !interactiveLeafRoles[element.Role(info.Role())] {
+				return false
+			}
+		}
 	}
 
 	if opts.filterFunc != nil && !opts.filterFunc(info) {

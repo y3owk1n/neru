@@ -374,7 +374,7 @@ Default search hotkey:
 bundle_id = "com.apple.Safari"
 additional_clickable_roles = ["AXLink"]
 ignore_clickable_check = true
-visible_check_enabled = false
+visible_check_enabled = true
 ```
 
 See [Per-App Hotkey Overrides](#per-app-hint-hotkey-overrides) for how per-app hotkey overrides work.
